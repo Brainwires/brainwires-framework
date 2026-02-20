@@ -1,6 +1,6 @@
 [package]
 name = "brainwires-prompting"
-description = "Prompting module for the Brainwires Agent Framework"
+description = "Adaptive prompting techniques, task clustering, and temperature optimization for the Brainwires Agent Framework"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,4 +9,34 @@ repository.workspace = true
 authors.workspace = true
 
 [dependencies]
+# Internal crates
 brainwires-core.workspace = true
+brainwires-knowledge.workspace = true
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+anyhow.workspace = true
+
+# Async
+tokio = { workspace = true }
+
+# Time
+chrono.workspace = true
+
+# Logging
+tracing.workspace = true
+
+# ML / Clustering
+linfa.workspace = true
+linfa-clustering.workspace = true
+ndarray.workspace = true
+
+# Storage
+rusqlite = { workspace = true }
+bincode.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

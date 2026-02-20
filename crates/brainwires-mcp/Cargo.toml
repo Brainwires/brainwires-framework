@@ -1,6 +1,6 @@
 [package]
 name = "brainwires-mcp"
-description = "Mcp module for the Brainwires Agent Framework"
+description = "MCP client, transport, and protocol types for the Brainwires Agent Framework"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,4 +9,24 @@ repository.workspace = true
 authors.workspace = true
 
 [dependencies]
+# Internal crates
 brainwires-core.workspace = true
+
+# MCP protocol (only need model types, not transport features)
+rmcp = { version = "0.8", features = ["client"] }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+anyhow.workspace = true
+
+# Async runtime
+tokio = { workspace = true, features = ["io-util", "process", "sync"] }
+
+# Filesystem
+dirs.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full", "test-util"] }

@@ -1,6 +1,6 @@
 [package]
 name = "brainwires-permissions"
-description = "Permissions module for the Brainwires Agent Framework"
+description = "Permission policies, audit logging, and trust profiles for the Brainwires Agent Framework"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,4 +9,30 @@ repository.workspace = true
 authors.workspace = true
 
 [dependencies]
+# Internal crates
 brainwires-core.workspace = true
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Config parsing
+toml.workspace = true
+
+# Error handling
+anyhow.workspace = true
+
+# Time
+chrono.workspace = true
+
+# Identifiers
+uuid = { workspace = true }
+
+# Pattern matching
+glob.workspace = true
+
+# Filesystem
+dirs.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

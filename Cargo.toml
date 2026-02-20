@@ -95,11 +95,25 @@ ignore = "0.4"
 # URL encoding
 urlencoding = "2"
 
+# Filesystem paths
+dirs = "6"
+
 # Git
 git2 = "0.19"
 
 # Security
 zeroize = { version = "1", features = ["derive"] }
+
+# Config parsing
+toml = "0.8"
+
+# ML / Clustering
+linfa = "0.7"
+linfa-clustering = "0.7"
+ndarray = "0.15"
+
+# Binary encoding
+bincode = "1"
 
 # Testing
 tempfile = "3"
