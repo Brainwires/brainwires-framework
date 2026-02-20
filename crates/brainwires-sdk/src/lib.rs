@@ -66,7 +66,7 @@ pub mod prelude {
         ChatResponse, ContentBlock, ImageSource, Message, MessageContent, Role, StreamChunk, Usage,
         serialize_messages_to_stateless_history,
         // Tools
-        Tool, ToolCaller, ToolInputSchema, ToolMode, ToolResult, ToolUse,
+        Tool, ToolCaller, ToolContext, ToolInputSchema, ToolMode, ToolResult, ToolUse,
         // Tasks
         AgentResponse, Task, TaskPriority, TaskStatus,
         // Plans
@@ -79,5 +79,13 @@ pub mod prelude {
         WorkingSet, WorkingSetConfig,
         // Errors
         FrameworkError, FrameworkResult,
+    };
+
+    // Tools — available with "tools" feature
+    #[cfg(feature = "tools")]
+    pub use brainwires_tools::{
+        BashTool, FileOpsTool, GitTool, SearchTool, ToolSearchTool, ValidationTool, WebTool,
+        ToolCategory, ToolRegistry,
+        classify_error, ToolErrorCategory, RetryStrategy, ToolOutcome,
     };
 }

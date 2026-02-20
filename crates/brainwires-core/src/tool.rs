@@ -124,6 +124,34 @@ impl ToolResult {
     }
 }
 
+/// Execution context for a tool.
+///
+/// Provides the working directory and optional metadata to tool implementations.
+/// This is the framework-level context — application-specific fields (like
+/// permission capabilities) should be stored in `metadata` or in a wrapper type.
+#[derive(Debug, Clone)]
+pub struct ToolContext {
+    /// Current working directory for resolving relative paths
+    pub working_directory: String,
+    /// User ID (if authenticated)
+    pub user_id: Option<String>,
+    /// Additional context data (application-specific key-value pairs)
+    pub metadata: HashMap<String, String>,
+}
+
+impl Default for ToolContext {
+    fn default() -> Self {
+        Self {
+            working_directory: std::env::current_dir()
+                .ok()
+                .and_then(|p| p.to_str().map(|s| s.to_string()))
+                .unwrap_or_else(|| ".".to_string()),
+            user_id: None,
+            metadata: HashMap::new(),
+        }
+    }
+}
+
 /// Tool selection mode
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum ToolMode {

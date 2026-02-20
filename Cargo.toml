@@ -67,3 +67,21 @@ rmcp = { version = "0.8", features = ["client", "server", "transport-sse", "tran
 # Logging
 tracing = "0.1"
 tracing-subscriber = "0.3"
+
+# File operations
+walkdir = "0.3"
+diffy = "0.4"
+glob = "0.3"
+
+# Code search
+regex = "1"
+ignore = "0.4"
+
+# Git
+git2 = "0.19"
+
+# Security
+zeroize = { version = "1", features = ["derive"] }
+
+# Testing
+tempfile = "3"
