@@ -1,10 +1,10 @@
 //! Document BM25 Search
 //!
-//! Wraps the project-rag BM25Search with document-specific functionality.
+//! Wraps the brainwires-rag BM25Search with document-specific functionality.
 //! Provides per-scope isolation (conversation/project) and document-aware search.
 
 use anyhow::{Context, Result};
-use project_rag::bm25_search::BM25Search;
+use brainwires_rag::bm25_search::BM25Search;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -244,7 +244,7 @@ pub fn document_rrf_fusion(
     bm25_results: Vec<DocumentBM25Result>,
     limit: usize,
 ) -> Vec<(String, f32)> {
-    use project_rag::bm25_search::reciprocal_rank_fusion_generic;
+    use brainwires_rag::bm25_search::reciprocal_rank_fusion_generic;
 
     let bm25_tuples: Vec<(String, f32)> = bm25_results
         .into_iter()

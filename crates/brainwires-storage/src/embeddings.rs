@@ -2,11 +2,11 @@
 //!
 //! Provides text embeddings using FastEmbed with LRU caching.
 //!
-//! This module wraps `project_rag::embedding::FastEmbedManager` and adds:
+//! This module wraps `brainwires_rag::embedding::FastEmbedManager` and adds:
 //! - LRU caching for repeated queries (reduces latency in agent loops)
 //! - Simplified API for single-text embedding
 //!
-//! The core embedding logic lives in the project-rag crate.
+//! The core embedding logic lives in the brainwires-rag crate.
 
 use anyhow::{Context, Result};
 use lru::LruCache;
@@ -15,7 +15,7 @@ use std::hash::{Hash, Hasher};
 use std::num::NonZeroUsize;
 use std::sync::{Arc, RwLock};
 
-use project_rag::embedding::{EmbeddingProvider as RagEmbeddingProvider, FastEmbedManager};
+use brainwires_rag::embedding::{EmbeddingProvider as RagEmbeddingProvider, FastEmbedManager};
 
 /// Default cache size for embeddings (1000 entries)
 const DEFAULT_CACHE_SIZE: usize = 1000;

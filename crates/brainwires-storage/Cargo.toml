@@ -11,7 +11,7 @@ authors.workspace = true
 [dependencies]
 # Internal crates
 brainwires-core.workspace = true
-project-rag.workspace = true
+brainwires-rag.workspace = true
 
 # Vector database & columnar storage
 lancedb.workspace = true

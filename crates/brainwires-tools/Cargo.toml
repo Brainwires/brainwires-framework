@@ -44,9 +44,9 @@ zeroize = { version = "1", features = ["derive"] }
 tracing.workspace = true
 
 # Feature-gated dependencies
-tool-orchestrator = { workspace = true, optional = true }
-project-rag = { workspace = true, optional = true }
-code-interpreters = { workspace = true, optional = true }
+brainwires-tool-orchestrator = { workspace = true, optional = true }
+brainwires-rag = { workspace = true, optional = true }
+brainwires-code-interpreters = { workspace = true, optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }
@@ -54,7 +54,7 @@ tempfile = "3"
 
 [features]
 default = []
-orchestrator = ["dep:tool-orchestrator"]
-rag = ["dep:project-rag"]
-interpreters = ["dep:code-interpreters"]
+orchestrator = ["dep:brainwires-tool-orchestrator"]
+rag = ["dep:brainwires-rag"]
+interpreters = ["dep:brainwires-code-interpreters"]
 full = ["orchestrator", "rag", "interpreters"]

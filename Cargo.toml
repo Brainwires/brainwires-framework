@@ -10,9 +10,9 @@ members = [
     "crates/brainwires-knowledge",
     "crates/brainwires-prompting",
     "crates/brainwires-permissions",
-    "crates/tool-orchestrator",
-    "crates/project-rag",
-    "crates/code-interpreters",
+    "crates/brainwires-tool-orchestrator",
+    "crates/brainwires-rag",
+    "crates/brainwires-code-interpreters",
 ]
 resolver = "2"
 
@@ -36,9 +36,9 @@ brainwires-mdap = { path = "crates/brainwires-mdap", version = "0.1.0" }
 brainwires-knowledge = { path = "crates/brainwires-knowledge", version = "0.1.0" }
 brainwires-prompting = { path = "crates/brainwires-prompting", version = "0.1.0" }
 brainwires-permissions = { path = "crates/brainwires-permissions", version = "0.1.0" }
-tool-orchestrator = { path = "crates/tool-orchestrator", version = "1.0.0" }
-project-rag = { path = "crates/project-rag", version = "0.1.1" }
-code-interpreters = { path = "crates/code-interpreters", version = "0.1.0" }
+brainwires-tool-orchestrator = { path = "crates/brainwires-tool-orchestrator", version = "1.0.0" }
+brainwires-rag = { path = "crates/brainwires-rag", version = "0.1.1" }
+brainwires-code-interpreters = { path = "crates/brainwires-code-interpreters", version = "0.1.0" }
 
 # Async runtime & utilities
 tokio = { version = "1.43", features = ["full"] }

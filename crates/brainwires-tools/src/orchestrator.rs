@@ -15,7 +15,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use tool_orchestrator::{ExecutionLimits, ToolOrchestrator};
+use brainwires_tool_orchestrator::{ExecutionLimits, ToolOrchestrator};
 
 use brainwires_core::{Tool, ToolContext, ToolInputSchema, ToolResult};
 

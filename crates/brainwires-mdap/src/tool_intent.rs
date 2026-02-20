@@ -404,7 +404,7 @@ mod tests {
         assert!(ToolCategory::FileRead.contains_tool("read_file"));
         assert!(ToolCategory::FileWrite.contains_tool("write_file"));
         assert!(ToolCategory::Search.contains_tool("grep"));
-        assert!(ToolCategory::Mcp.contains_tool("mcp__project-rag__query"));
+        assert!(ToolCategory::Mcp.contains_tool("mcp__brainwires-rag__query"));
         assert!(!ToolCategory::FileRead.contains_tool("bash"));
     }
 

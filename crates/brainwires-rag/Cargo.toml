@@ -1,0 +1,114 @@
+[package]
+name = "brainwires-rag"
+version = "0.1.1"
+edition = "2024"
+description = "RAG-based codebase indexing and semantic search - dual purpose library and MCP server"
+authors = ["Brainwires"]
+license = "MIT"
+repository = "https://github.com/Brainwires/brainwires-rag"
+homepage = "https://github.com/Brainwires/brainwires-rag"
+documentation = "https://docs.rs/brainwires-rag"
+readme = "README.md"
+rust-version = "1.88"
+keywords = ["mcp", "rag", "embeddings", "semantic-search", "code-analysis"]
+categories = ["command-line-utilities", "development-tools"]
+exclude = [
+    ".github/",
+    ".cache/",
+    "docs/adr/",
+    "CLAUDE.md",
+    "CONTRIBUTING.md",
+    "TESTING.md",
+]
+
+[dependencies]
+rmcp = { version = "0.8", features = ["server", "transport-io", "macros"] }
+schemars = "1.0"
+tokio = { version = "1.43", features = ["full"] }
+# Vector databases - LanceDB is default (embedded, stable), Qdrant is optional (external)
+lancedb = "0.23"
+arrow-array = "56.2"
+arrow-schema = "56.2"
+futures = "0.3"
+qdrant-client = { version = "1.15", optional = true }
+fastembed = "5.1"
+tantivy = "0.22"
+git2 = "0.19"
+anyhow = "1.0"
+async-trait = "0.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+walkdir = "2.5"
+regex = "1.10"
+chrono = "0.4"
+dirs = "5.0"
+sha2 = "0.10"
+ignore = "0.4"
+globset = "0.4"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+tree-sitter = "0.25"
+tree-sitter-rust = "0.23"
+tree-sitter-python = "0.23"
+tree-sitter-javascript = "0.23"
+tree-sitter-typescript = "0.23"
+tree-sitter-go = "0.23"
+tree-sitter-java = "0.23"
+tree-sitter-swift = "0.7"
+tree-sitter-c = "0.24"
+tree-sitter-cpp = "0.23"
+tree-sitter-c-sharp = "0.23"
+tree-sitter-ruby = "0.23"
+tree-sitter-php = "0.24"
+# CLI and configuration
+clap = { version = "4", features = ["derive", "env"] }
+thiserror = "2.0"
+toml = "0.8"
+# PDF processing
+pdf-extract = "0.7"
+# Performance
+rayon = "1.10"
+# Async utilities for cancellation
+tokio-util = "0.7"
+# Cross-platform file locking for cross-process coordination
+fs2 = "0.4"
+
+[dev-dependencies]
+tempfile = "3.0"
+criterion = { version = "0.5", features = ["async_tokio"] }
+filetime = "0.2"
+
+[build-dependencies]
+chrono = "0.4"
+
+[features]
+# Vector database backend selection (choose one)
+default = ["lancedb-backend"]
+lancedb-backend = []  # Embedded LanceDB (no external server required)
+qdrant-backend = ["qdrant-client"]  # External Qdrant server
+
+# Alternative folder name for data storage (for consuming crates that want different folder)
+alt-folder-name = []
+
+# High-precision code navigation for Python, TypeScript, Java, Ruby
+# This feature is prepared but not yet fully implemented
+# When enabled, uses stack-graphs for ~95% accuracy name resolution
+stack-graphs = []
+
+# Note: There is no "mcp" feature - both library and MCP server are always built together
+# This is a dual-purpose crate that provides:
+# - RagClient: Core library API for embedding in Rust applications
+# - RagMcpServer: MCP protocol server that wraps RagClient
+# - Binary: MCP server that can be run standalone
+
+[lib]
+name = "brainwires_rag"
+path = "src/lib.rs"
+
+[[bin]]
+name = "brainwires-rag"
+path = "src/main.rs"
+
+[[bench]]
+name = "indexing_benchmark"
+harness = false

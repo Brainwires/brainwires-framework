@@ -46,13 +46,13 @@ pub use brainwires_permissions;
 
 // Feature-gated existing crates
 #[cfg(feature = "orchestrator")]
-pub use tool_orchestrator;
+pub use brainwires_tool_orchestrator;
 
 #[cfg(feature = "rag")]
-pub use project_rag;
+pub use brainwires_rag;
 
 #[cfg(feature = "interpreters")]
-pub use code_interpreters;
+pub use brainwires_code_interpreters;
 
 /// Convenience prelude — import everything commonly needed.
 ///

@@ -1,12 +1,12 @@
 //! Semantic Search Tool - RAG-powered codebase search
 //!
-//! Provides semantic code search using vector embeddings via the project-rag crate.
+//! Provides semantic code search using vector embeddings via the brainwires-rag crate.
 //! Supports indexing, querying, filtered search, statistics, and git history search.
 //!
 //! Requires the `rag` feature flag.
 
 use anyhow::Result;
-use project_rag::{AdvancedSearchRequest, IndexRequest, QueryRequest, RagClient, SearchGitHistoryRequest};
+use brainwires_rag::{AdvancedSearchRequest, IndexRequest, QueryRequest, RagClient, SearchGitHistoryRequest};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
