@@ -357,6 +357,7 @@ impl PermissionsConfig {
     }
 
     /// Load configuration from the default path, or return default config if not found
+    #[cfg(feature = "native")]
     pub fn load_or_default() -> Self {
         match default_permissions_path() {
             Ok(path) if path.exists() => Self::load(&path).unwrap_or_default(),
@@ -542,6 +543,7 @@ enforcement = "Coercive"
 
 /// Get the default permissions file path
 /// Uses ~/.brainwires/permissions.toml
+#[cfg(feature = "native")]
 pub fn default_permissions_path() -> Result<PathBuf> {
     let home = dirs::home_dir()
         .ok_or_else(|| anyhow::anyhow!("Failed to get home directory"))?;
@@ -549,6 +551,7 @@ pub fn default_permissions_path() -> Result<PathBuf> {
 }
 
 /// Ensure the .brainwires directory exists
+#[cfg(feature = "native")]
 pub fn ensure_permissions_dir() -> Result<PathBuf> {
     let dir = dirs::home_dir()
         .ok_or_else(|| anyhow::anyhow!("Failed to get home directory"))?

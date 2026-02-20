@@ -28,11 +28,16 @@ chrono.workspace = true
 # Identifiers
 uuid = { workspace = true }
 
-# Pattern matching
-glob.workspace = true
+# Pattern matching (native only)
+glob = { workspace = true, optional = true }
 
-# Filesystem
-dirs.workspace = true
+# Filesystem (native only)
+dirs = { workspace = true, optional = true }
+
+[features]
+default = ["native"]
+native = ["dep:glob", "dep:dirs"]
+wasm = ["brainwires-core/wasm"]
 
 [dev-dependencies]
 tempfile.workspace = true

@@ -18,6 +18,7 @@ pub mod generator;
 pub mod learning;
 pub mod library;
 pub mod seal;
+#[cfg(feature = "native")]
 pub mod storage;
 pub mod techniques;
 pub mod temperature;
@@ -31,5 +32,6 @@ pub use generator::{GeneratedPrompt, PromptGenerator};
 pub use learning::{ClusterSummary, PromptingLearningCoordinator, TechniqueStats};
 pub use library::TechniqueLibrary;
 pub use seal::SealProcessingResult;
+#[cfg(feature = "native")]
 pub use storage::{ClusterStorage, StorageStats};
 pub use temperature::{TemperatureOptimizer, TemperaturePerformance};

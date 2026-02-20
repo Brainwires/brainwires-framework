@@ -7,7 +7,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-// Re-export rmcp types with compatibility aliases
+// Re-export rmcp types with compatibility aliases (native only)
+#[cfg(feature = "native")]
 pub use rmcp::model::{
     Tool as RmcpTool,
     Resource as RmcpResource,
@@ -18,7 +19,8 @@ pub use rmcp::model::{
     ProtocolVersion,
 };
 
-// Re-export capabilities
+// Re-export capabilities (native only)
+#[cfg(feature = "native")]
 pub use rmcp::model::{
     ServerCapabilities as RmcpServerCapabilities,
     ClientCapabilities as RmcpClientCapabilities,
@@ -28,27 +30,30 @@ pub use rmcp::model::{
 };
 
 // ===========================================================================
-// BACKWARD COMPATIBILITY ALIASES
+// BACKWARD COMPATIBILITY ALIASES (native only - require rmcp)
 // ===========================================================================
-// These aliases maintain backward compatibility with existing code while
-// we migrate to rmcp types. They will be removed once migration is complete.
 
+#[cfg(feature = "native")]
 /// Compatibility alias for Tool
 pub type McpTool = RmcpTool;
 
+#[cfg(feature = "native")]
 /// Compatibility alias for Resource
 pub type McpResource = RmcpResource;
 
+#[cfg(feature = "native")]
 /// Compatibility alias for Prompt
 pub type McpPrompt = RmcpPrompt;
 
+#[cfg(feature = "native")]
 /// Compatibility alias for CallToolParams
-/// Note: rmcp uses CallToolRequestParam
 pub type CallToolParams = CallToolRequestParam;
 
+#[cfg(feature = "native")]
 /// Compatibility alias for ServerCapabilities
 pub type ServerCapabilities = RmcpServerCapabilities;
 
+#[cfg(feature = "native")]
 /// Compatibility alias for ClientCapabilities
 pub type ClientCapabilities = RmcpClientCapabilities;
 
@@ -245,6 +250,11 @@ impl McpNotification {
 // MCP INITIALIZATION TYPES
 // ===========================================================================
 
+// ===========================================================================
+// MCP TYPES (require rmcp - native only)
+// ===========================================================================
+
+#[cfg(feature = "native")]
 /// MCP Initialize Request Parameters
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InitializeParams {
@@ -255,12 +265,14 @@ pub struct InitializeParams {
     pub client_info: ClientInfo,
 }
 
+#[cfg(feature = "native")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientInfo {
     pub name: String,
     pub version: String,
 }
 
+#[cfg(feature = "native")]
 /// MCP Initialize Result
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InitializeResult {
@@ -271,50 +283,49 @@ pub struct InitializeResult {
     pub server_info: ServerInfo,
 }
 
+#[cfg(feature = "native")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerInfo {
     pub name: String,
     pub version: String,
 }
 
-// ===========================================================================
-// MCP LIST RESULT TYPES
-// ===========================================================================
-
+#[cfg(feature = "native")]
 /// Tools List Response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ListToolsResult {
     pub tools: Vec<McpTool>,
 }
 
+#[cfg(feature = "native")]
 /// Resources List Response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ListResourcesResult {
     pub resources: Vec<McpResource>,
 }
 
+#[cfg(feature = "native")]
 /// Prompts List Response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ListPromptsResult {
     pub prompts: Vec<McpPrompt>,
 }
 
-// ===========================================================================
-// RESOURCE OPERATIONS
-// ===========================================================================
-
+#[cfg(feature = "native")]
 /// Resource Read Request
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReadResourceParams {
     pub uri: String,
 }
 
+#[cfg(feature = "native")]
 /// Resource Read Result
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReadResourceResult {
     pub contents: Vec<ResourceContent>,
 }
 
+#[cfg(feature = "native")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum ResourceContent {
@@ -322,10 +333,7 @@ pub enum ResourceContent {
     Blob { uri: String, mime_type: Option<String>, blob: String },
 }
 
-// ===========================================================================
-// PROMPT OPERATIONS
-// ===========================================================================
-
+#[cfg(feature = "native")]
 /// Prompt Get Request
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetPromptParams {
@@ -334,6 +342,7 @@ pub struct GetPromptParams {
     pub arguments: Option<Value>,
 }
 
+#[cfg(feature = "native")]
 /// Prompt Get Result
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetPromptResult {
@@ -341,12 +350,14 @@ pub struct GetPromptResult {
     pub messages: Vec<PromptMessage>,
 }
 
+#[cfg(feature = "native")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PromptMessage {
     pub role: String,
     pub content: PromptContent,
 }
 
+#[cfg(feature = "native")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum PromptContent {
@@ -355,6 +366,7 @@ pub enum PromptContent {
     Resource { resource: McpResource },
 }
 
+#[cfg(feature = "native")]
 /// Prompt Argument Definition
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PromptArgument {
@@ -363,10 +375,7 @@ pub struct PromptArgument {
     pub required: bool,
 }
 
-// ===========================================================================
-// TOOL RESULT CONTENT
-// ===========================================================================
-
+#[cfg(feature = "native")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum ToolResultContent {
@@ -374,11 +383,6 @@ pub enum ToolResultContent {
     Image { data: String, mime_type: String },
     Resource { resource: McpResource },
 }
-
-// ===========================================================================
-// CAPABILITY SUBSTRUCTURES
-// ===========================================================================
-// These are now provided by rmcp and re-exported above
 
 // ===========================================================================
 // TESTS
@@ -439,6 +443,7 @@ mod tests {
         assert!(response.error.is_some());
     }
 
+    #[cfg(feature = "native")]
     #[test]
     fn test_type_aliases_work() {
         // Test that our type aliases are properly set up

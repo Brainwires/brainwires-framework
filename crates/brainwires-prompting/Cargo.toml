@@ -21,7 +21,7 @@ serde_json = { workspace = true }
 anyhow.workspace = true
 
 # Async
-tokio = { workspace = true }
+tokio = { version = "1.43", features = ["sync", "time"] }
 
 # Time
 chrono.workspace = true
@@ -29,14 +29,19 @@ chrono.workspace = true
 # Logging
 tracing.workspace = true
 
-# ML / Clustering
-linfa.workspace = true
-linfa-clustering.workspace = true
-ndarray.workspace = true
+# ML / Clustering (native only)
+linfa = { workspace = true, optional = true }
+linfa-clustering = { workspace = true, optional = true }
+ndarray = { workspace = true, optional = true }
 
-# Storage
-rusqlite = { workspace = true }
-bincode.workspace = true
+# Storage (native only)
+rusqlite = { workspace = true, optional = true }
+bincode = { workspace = true, optional = true }
+
+[features]
+default = ["native"]
+native = ["dep:rusqlite", "dep:linfa", "dep:linfa-clustering", "dep:ndarray", "dep:bincode", "tokio/rt", "tokio/fs", "tokio/process", "tokio/macros"]
+wasm = ["brainwires-core/wasm"]
 
 [dev-dependencies]
 tempfile.workspace = true

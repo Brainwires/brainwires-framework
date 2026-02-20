@@ -330,6 +330,7 @@ pub struct AuditLogger {
 
 impl AuditLogger {
     /// Create a new audit logger with the default path (~/.brainwires/audit/)
+    #[cfg(feature = "native")]
     pub fn new() -> Result<Self> {
         let log_dir = dirs::home_dir()
             .ok_or_else(|| anyhow::anyhow!("Failed to get home directory"))?
@@ -348,6 +349,7 @@ impl AuditLogger {
     }
 
     /// Create a logger with a custom path
+    #[cfg(feature = "native")]
     pub fn with_path(path: PathBuf) -> Result<Self> {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;

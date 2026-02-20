@@ -1,6 +1,8 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "native")]
 use std::fs;
+#[cfg(feature = "native")]
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -12,16 +14,19 @@ pub struct McpServerConfig {
     pub env: Option<std::collections::HashMap<String, String>>,
 }
 
+#[cfg(feature = "native")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct McpConfigFile {
     servers: Vec<McpServerConfig>,
 }
 
+#[cfg(feature = "native")]
 pub struct McpConfigManager {
     config_path: PathBuf,
     servers: Vec<McpServerConfig>,
 }
 
+#[cfg(feature = "native")]
 impl McpConfigManager {
     /// Create a new config manager with empty servers list
     pub fn new() -> Result<Self> {
@@ -121,6 +126,7 @@ impl McpConfigManager {
     }
 }
 
+#[cfg(feature = "native")]
 impl Default for McpConfigManager {
     fn default() -> Self {
         Self::new().expect("Failed to create MCP config manager")
@@ -131,6 +137,7 @@ impl Default for McpConfigManager {
 mod tests {
     use super::*;
 
+    #[cfg(feature = "native")]
     #[test]
     fn test_config_manager_creation() {
         let manager = McpConfigManager::new();
@@ -170,18 +177,21 @@ mod tests {
         assert_eq!(config.env.as_ref().unwrap().get("API_KEY").unwrap(), "test-key");
     }
 
+    #[cfg(feature = "native")]
     #[test]
     fn test_get_servers_empty() {
         let manager = McpConfigManager::new().unwrap();
         assert_eq!(manager.get_servers().len(), 0);
     }
 
+    #[cfg(feature = "native")]
     #[test]
     fn test_get_server_not_found() {
         let manager = McpConfigManager::new().unwrap();
         assert!(manager.get_server("nonexistent").is_none());
     }
 
+    #[cfg(feature = "native")]
     #[test]
     fn test_default_manager() {
         let manager = McpConfigManager::default();

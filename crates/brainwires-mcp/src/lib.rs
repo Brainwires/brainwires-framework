@@ -11,40 +11,55 @@
 pub use brainwires_core;
 
 pub mod types;
+#[cfg(feature = "native")]
 pub mod transport;
+#[cfg(feature = "native")]
 pub mod client;
 pub mod config;
 
-// Re-exports
+// Re-exports - native-only modules
+#[cfg(feature = "native")]
 pub use client::McpClient;
-pub use config::{McpConfigManager, McpServerConfig};
+#[cfg(feature = "native")]
 pub use transport::{StdioTransport, Transport};
+
+// Re-exports - always available
+pub use config::McpServerConfig;
+#[cfg(feature = "native")]
+pub use config::McpConfigManager;
+
+// JSON-RPC types (always available)
 pub use types::{
-    // JSON-RPC types
     JsonRpcRequest, JsonRpcResponse, JsonRpcError, JsonRpcNotification, JsonRpcMessage,
-    // MCP types
+    ProgressParams, McpNotification,
+};
+
+// MCP types (require rmcp, native only)
+#[cfg(feature = "native")]
+pub use types::{
     McpTool, McpResource, McpPrompt, CallToolParams, CallToolResult,
     ServerCapabilities, ClientCapabilities, ServerInfo, ClientInfo,
     InitializeParams, InitializeResult,
-    // List results
     ListToolsResult, ListResourcesResult, ListPromptsResult,
-    // Resource operations
     ReadResourceParams, ReadResourceResult, ResourceContent,
-    // Prompt operations
     GetPromptParams, GetPromptResult, PromptMessage, PromptContent, PromptArgument,
-    // Notifications
-    ProgressParams, McpNotification,
-    // Tool content
     ToolResultContent,
 };
 
 /// Prelude module for convenient imports
 pub mod prelude {
+    #[cfg(feature = "native")]
     pub use super::client::McpClient;
-    pub use super::config::{McpConfigManager, McpServerConfig};
+    #[cfg(feature = "native")]
+    pub use super::config::McpConfigManager;
+    pub use super::config::McpServerConfig;
+    #[cfg(feature = "native")]
     pub use super::transport::{StdioTransport, Transport};
     pub use super::types::{
         JsonRpcRequest, JsonRpcResponse, JsonRpcNotification, JsonRpcMessage,
+    };
+    #[cfg(feature = "native")]
+    pub use super::types::{
         McpTool, McpResource, McpPrompt, CallToolResult,
         ServerCapabilities, ClientCapabilities,
     };

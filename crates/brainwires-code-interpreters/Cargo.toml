@@ -12,7 +12,8 @@ categories = ["development-tools", "wasm"]
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["rhai", "lua"]
+default = ["native", "rhai", "lua"]
+native = []
 # Individual language support
 rhai = ["dep:rhai"]
 lua = ["dep:mlua"]

@@ -780,6 +780,7 @@ impl PathPattern {
     }
 
     /// Check if a path matches this pattern
+    #[cfg(feature = "native")]
     pub fn matches(&self, path: &str) -> bool {
         // Use glob matching
         if let Ok(pattern) = glob::Pattern::new(&self.pattern) {
@@ -788,6 +789,12 @@ impl PathPattern {
             // Fall back to simple string matching if pattern is invalid
             path.contains(&self.pattern)
         }
+    }
+
+    /// Check if a path matches this pattern (simple string matching for WASM)
+    #[cfg(not(feature = "native"))]
+    pub fn matches(&self, path: &str) -> bool {
+        path.contains(&self.pattern)
     }
 
     /// Get the pattern string

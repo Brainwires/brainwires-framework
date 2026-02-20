@@ -12,8 +12,8 @@ authors.workspace = true
 # Internal crates
 brainwires-core.workspace = true
 
-# MCP protocol (only need model types, not transport features)
-rmcp = { version = "0.8", features = ["client"] }
+# MCP protocol (native only)
+rmcp = { version = "0.8", features = ["client"], optional = true }
 
 # Serialization
 serde = { workspace = true }
@@ -23,10 +23,15 @@ serde_json = { workspace = true }
 anyhow.workspace = true
 
 # Async runtime
-tokio = { workspace = true, features = ["io-util", "process", "sync"] }
+tokio = { version = "1.43", features = ["sync"] }
 
-# Filesystem
-dirs.workspace = true
+# Filesystem (native only)
+dirs = { workspace = true, optional = true }
+
+[features]
+default = ["native"]
+native = ["dep:rmcp", "dep:dirs", "tokio/io-util", "tokio/process"]
+wasm = ["brainwires-core/wasm"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }

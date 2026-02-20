@@ -6,8 +6,11 @@
 use super::techniques::{ComplexityLevel, PromptingTechnique};
 use crate::seal::SealProcessingResult;
 use anyhow::{anyhow, Context as _, Result};
+#[cfg(feature = "native")]
 use linfa::prelude::*;
+#[cfg(feature = "native")]
 use linfa_clustering::{KMeans, KMeansParams};
+#[cfg(feature = "native")]
 use ndarray::{Array1, Array2, Axis};
 use serde::{Deserialize, Serialize};
 
@@ -148,22 +151,8 @@ impl TaskClusterManager {
         Ok((cluster, best_similarity))
     }
 
-    /// Build clusters from a set of task embeddings using k-means
-    ///
-    /// This performs the full clustering pipeline:
-    /// 1. Find optimal K using silhouette scores
-    /// 2. Perform k-means clustering
-    /// 3. Assign tasks to clusters
-    /// 4. Compute cluster centroids
-    ///
-    /// # Arguments
-    /// * `task_embeddings` - Matrix of task embeddings (n_tasks x embedding_dim)
-    /// * `task_descriptions` - Task descriptions corresponding to embeddings
-    /// * `min_clusters` - Minimum number of clusters to try
-    /// * `max_clusters` - Maximum number of clusters to try
-    ///
-    /// # Returns
-    /// * Vector of cluster assignments (one per task)
+    /// Build clusters from a set of task embeddings using k-means (native only - requires linfa)
+    #[cfg(feature = "native")]
     pub fn build_clusters_from_embeddings(
         &mut self,
         task_embeddings: Array2<f32>,
@@ -200,6 +189,7 @@ impl TaskClusterManager {
     }
 
     /// Find optimal number of clusters using silhouette scores
+    #[cfg(feature = "native")]
     fn find_optimal_k(
         &self,
         embeddings: &Array2<f32>,
@@ -209,7 +199,7 @@ impl TaskClusterManager {
         let mut best_k = min_k;
         let mut best_score = f32::NEG_INFINITY;
 
-        let effective_max_k = max_k.min(embeddings.nrows() / 2); // Can't have more clusters than half the data
+        let effective_max_k = max_k.min(embeddings.nrows() / 2);
 
         for k in min_k..=effective_max_k {
             let assignments = self.perform_kmeans(embeddings, k)?;
@@ -225,24 +215,23 @@ impl TaskClusterManager {
     }
 
     /// Perform k-means clustering
+    #[cfg(feature = "native")]
     fn perform_kmeans(&self, embeddings: &Array2<f32>, k: usize) -> Result<Vec<usize>> {
-        // Convert to Dataset
         let dataset = DatasetBase::from(embeddings.clone());
 
-        // Configure k-means
         let model = KMeans::params(k)
             .max_n_iterations(100)
             .tolerance(1e-4)
             .fit(&dataset)
             .context("K-means fitting failed")?;
 
-        // Get cluster assignments (linfa returns the model with assignments)
         let assignments: Vec<usize> = model.predict(embeddings).iter().copied().collect();
 
         Ok(assignments)
     }
 
     /// Compute silhouette score for clustering quality
+    #[cfg(feature = "native")]
     fn compute_silhouette_score(
         &self,
         embeddings: &Array2<f32>,
@@ -260,7 +249,6 @@ impl TaskClusterManager {
         for i in 0..n {
             let cluster_i = assignments[i];
 
-            // Compute a(i): average distance to points in same cluster
             let mut a_i = 0.0;
             let mut same_cluster_count = 0;
             for j in 0..n {
@@ -276,7 +264,6 @@ impl TaskClusterManager {
                 a_i /= same_cluster_count as f32;
             }
 
-            // Compute b(i): minimum average distance to points in other clusters
             let mut b_i = f32::INFINITY;
             for other_cluster in 0..k {
                 if other_cluster == cluster_i {
@@ -300,7 +287,6 @@ impl TaskClusterManager {
                 }
             }
 
-            // Compute silhouette coefficient for this point
             if b_i.is_finite() && a_i > 0.0 {
                 let s_i = (b_i - a_i) / a_i.max(b_i);
                 silhouette_sum += s_i;
@@ -316,6 +302,7 @@ impl TaskClusterManager {
     }
 
     /// Build cluster objects from assignments
+    #[cfg(feature = "native")]
     fn build_cluster_objects(
         &mut self,
         embeddings: &Array2<f32>,
@@ -326,7 +313,6 @@ impl TaskClusterManager {
         let mut clusters = Vec::new();
 
         for cluster_id in 0..k {
-            // Collect tasks in this cluster
             let mut cluster_tasks = Vec::new();
             let mut cluster_embeddings = Vec::new();
 
@@ -338,19 +324,17 @@ impl TaskClusterManager {
             }
 
             if cluster_tasks.is_empty() {
-                continue; // Skip empty clusters
+                continue;
             }
 
-            // Compute cluster centroid
             let centroid = compute_centroid(&cluster_embeddings);
 
-            // Create cluster object
             let cluster = TaskCluster::new(
                 format!("cluster_{}", cluster_id),
-                format!("Cluster {}", cluster_id), // Placeholder, should be LLM-generated
+                format!("Cluster {}", cluster_id),
                 centroid,
-                Vec::new(), // Techniques to be mapped later
-                cluster_tasks.iter().take(5).cloned().collect(), // Sample of tasks
+                Vec::new(),
+                cluster_tasks.iter().take(5).cloned().collect(),
             );
 
             clusters.push(cluster);

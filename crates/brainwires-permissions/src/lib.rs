@@ -18,7 +18,9 @@ pub mod trust;
 pub mod types;
 
 // Re-export main types for convenience
-pub use config::{default_permissions_path, ensure_permissions_dir, PermissionsConfig};
+pub use config::PermissionsConfig;
+#[cfg(feature = "native")]
+pub use config::{default_permissions_path, ensure_permissions_dir};
 pub use profiles::CapabilityProfile;
 pub use types::{
     AgentCapabilities, FilesystemCapabilities, GitCapabilities, GitOperation, NetworkCapabilities,

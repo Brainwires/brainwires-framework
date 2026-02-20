@@ -333,6 +333,7 @@ pub struct TrustManager {
 
 impl TrustManager {
     /// Create a new trust manager
+    #[cfg(feature = "native")]
     pub fn new() -> Result<Self> {
         let store_path = dirs::home_dir()
             .ok_or_else(|| anyhow::anyhow!("Failed to get home directory"))?
