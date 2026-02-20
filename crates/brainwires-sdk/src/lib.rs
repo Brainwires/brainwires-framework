@@ -44,9 +44,7 @@ pub use brainwires_prompting;
 #[cfg(feature = "permissions")]
 pub use brainwires_permissions;
 
-// Feature-gated existing crates
-#[cfg(feature = "orchestrator")]
-pub use brainwires_tool_orchestrator;
+// Orchestrator is re-exported via brainwires_tools::orchestrator when orchestrator feature is on
 
 #[cfg(feature = "rag")]
 pub use brainwires_rag;

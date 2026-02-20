@@ -23,7 +23,6 @@ brainwires-prompting = { workspace = true, optional = true }
 brainwires-permissions = { workspace = true, optional = true }
 
 # Feature-gated existing crates
-brainwires-tool-orchestrator = { workspace = true, optional = true }
 brainwires-rag = { workspace = true, optional = true }
 brainwires-code-interpreters = { workspace = true, optional = true }
 
@@ -37,7 +36,7 @@ mdap = ["dep:brainwires-mdap"]
 knowledge = ["dep:brainwires-knowledge", "storage"]
 prompting = ["dep:brainwires-prompting"]
 permissions = ["dep:brainwires-permissions"]
-orchestrator = ["dep:brainwires-tool-orchestrator"]
+orchestrator = ["tools", "brainwires-tools/orchestrator"]
 rag = ["dep:brainwires-rag"]
 interpreters = ["dep:brainwires-code-interpreters"]
 full = [

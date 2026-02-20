@@ -9,8 +9,8 @@ use std::rc::Rc;
 
 use wasm_bindgen::prelude::*;
 
-use crate::engine::dynamic_to_json;
-use crate::sandbox::ExecutionLimits as CoreExecutionLimits;
+use super::engine::dynamic_to_json;
+use super::sandbox::ExecutionLimits as CoreExecutionLimits;
 
 // ============================================================================
 // Engine Configuration Constants
@@ -22,7 +22,7 @@ const MAX_EXPR_DEPTH: usize = 64;
 /// Maximum function call nesting depth (prevents stack overflow from deep recursion)
 const MAX_CALL_DEPTH: usize = 64;
 
-use crate::types::{OrchestratorResult as CoreOrchestratorResult, ToolCall as CoreToolCall};
+use super::types::{OrchestratorResult as CoreOrchestratorResult, ToolCall as CoreToolCall};
 
 // ============================================================================
 // WASM-compatible ExecutionLimits wrapper
@@ -67,14 +67,14 @@ impl ExecutionLimits {
     /// Get max operations.
     #[wasm_bindgen(getter)]
     #[must_use]
-    #[allow(clippy::missing_const_for_fn)] // wasm_bindgen doesn't support const fn
+    #[allow(clippy::missing_const_for_fn)]
     pub fn max_operations(&self) -> u64 {
         self.inner.max_operations
     }
 
     /// Set max operations.
     #[wasm_bindgen(setter)]
-    #[allow(clippy::missing_const_for_fn)] // wasm_bindgen doesn't support const fn
+    #[allow(clippy::missing_const_for_fn)]
     pub fn set_max_operations(&mut self, value: u64) {
         self.inner.max_operations = value;
     }
@@ -82,14 +82,14 @@ impl ExecutionLimits {
     /// Get max tool calls.
     #[wasm_bindgen(getter)]
     #[must_use]
-    #[allow(clippy::missing_const_for_fn)] // wasm_bindgen doesn't support const fn
+    #[allow(clippy::missing_const_for_fn)]
     pub fn max_tool_calls(&self) -> usize {
         self.inner.max_tool_calls
     }
 
     /// Set max tool calls.
     #[wasm_bindgen(setter)]
-    #[allow(clippy::missing_const_for_fn)] // wasm_bindgen doesn't support const fn
+    #[allow(clippy::missing_const_for_fn)]
     pub fn set_max_tool_calls(&mut self, value: usize) {
         self.inner.max_tool_calls = value;
     }
@@ -97,14 +97,14 @@ impl ExecutionLimits {
     /// Get timeout in milliseconds.
     #[wasm_bindgen(getter)]
     #[must_use]
-    #[allow(clippy::missing_const_for_fn)] // wasm_bindgen doesn't support const fn
+    #[allow(clippy::missing_const_for_fn)]
     pub fn timeout_ms(&self) -> u64 {
         self.inner.timeout_ms
     }
 
     /// Set timeout in milliseconds.
     #[wasm_bindgen(setter)]
-    #[allow(clippy::missing_const_for_fn)] // wasm_bindgen doesn't support const fn
+    #[allow(clippy::missing_const_for_fn)]
     pub fn set_timeout_ms(&mut self, value: u64) {
         self.inner.timeout_ms = value;
     }
@@ -112,14 +112,14 @@ impl ExecutionLimits {
     /// Get max string size.
     #[wasm_bindgen(getter)]
     #[must_use]
-    #[allow(clippy::missing_const_for_fn)] // wasm_bindgen doesn't support const fn
+    #[allow(clippy::missing_const_for_fn)]
     pub fn max_string_size(&self) -> usize {
         self.inner.max_string_size
     }
 
     /// Set max string size.
     #[wasm_bindgen(setter)]
-    #[allow(clippy::missing_const_for_fn)] // wasm_bindgen doesn't support const fn
+    #[allow(clippy::missing_const_for_fn)]
     pub fn set_max_string_size(&mut self, value: usize) {
         self.inner.max_string_size = value;
     }
@@ -127,14 +127,14 @@ impl ExecutionLimits {
     /// Get max array size.
     #[wasm_bindgen(getter)]
     #[must_use]
-    #[allow(clippy::missing_const_for_fn)] // wasm_bindgen doesn't support const fn
+    #[allow(clippy::missing_const_for_fn)]
     pub fn max_array_size(&self) -> usize {
         self.inner.max_array_size
     }
 
     /// Set max array size.
     #[wasm_bindgen(setter)]
-    #[allow(clippy::missing_const_for_fn)] // wasm_bindgen doesn't support const fn
+    #[allow(clippy::missing_const_for_fn)]
     pub fn set_max_array_size(&mut self, value: usize) {
         self.inner.max_array_size = value;
     }
@@ -201,7 +201,7 @@ impl WasmOrchestrator {
     ///
     /// Returns `JsValue` error if serialization fails.
     #[wasm_bindgen]
-    #[allow(clippy::too_many_lines)] // Execute function is inherently complex
+    #[allow(clippy::too_many_lines)]
     pub fn execute(&self, script: &str, limits: &ExecutionLimits) -> Result<JsValue, JsValue> {
         use web_time::Instant;
 
@@ -223,7 +223,6 @@ impl WasmOrchestrator {
         let timeout_ms = limits.inner.timeout_ms;
         let progress_start = Instant::now();
         engine.on_progress(move |_ops| {
-            // Use saturating conversion - elapsed time exceeding u64::MAX is always a timeout
             let elapsed = u64::try_from(progress_start.elapsed().as_millis()).unwrap_or(u64::MAX);
             if elapsed > timeout_ms {
                 Some(rhai::Dynamic::from("timeout"))
@@ -273,7 +272,7 @@ impl WasmOrchestrator {
                     }
                 };
 
-                // Record the call (saturate to u64::MAX for extremely long-running calls)
+                // Record the call
                 {
                     let duration_ms = u64::try_from(call_start.elapsed().as_millis()).unwrap_or(u64::MAX);
                     let call = CoreToolCall::new(

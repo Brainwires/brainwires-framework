@@ -18,6 +18,7 @@ serde_json = { workspace = true }
 
 # Error handling
 anyhow.workspace = true
+thiserror = { workspace = true }
 
 # Async runtime (for validation, web, git-search, code-exec)
 tokio = { workspace = true, features = ["process", "fs", "time"] }
@@ -43,18 +44,60 @@ zeroize = { version = "1", features = ["derive"] }
 # Logging
 tracing.workspace = true
 
+# Orchestrator core (behind orchestrator or orchestrator-wasm feature)
+rhai = { version = "1.23", default-features = false, features = ["serde", "std"], optional = true }
+
+# Orchestrator WASM deps (behind orchestrator-wasm)
+wasm-bindgen = { version = "0.2", features = ["serde-serialize"], optional = true }
+js-sys = { version = "0.3", optional = true }
+web-sys = { version = "0.3", features = ["console"], optional = true }
+serde-wasm-bindgen = { version = "0.6", optional = true }
+web-time = { version = "1.1", optional = true }
+getrandom = { version = "0.2", optional = true }
+console_error_panic_hook = { version = "0.1", optional = true }
+instant = { version = "0.1", features = ["wasm-bindgen"], optional = true }
+
 # Feature-gated dependencies
-brainwires-tool-orchestrator = { workspace = true, optional = true }
 brainwires-rag = { workspace = true, optional = true }
 brainwires-code-interpreters = { workspace = true, optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }
 tempfile = "3"
+criterion = { version = "0.5", features = ["html_reports"] }
 
 [features]
 default = []
-orchestrator = ["dep:brainwires-tool-orchestrator"]
+orchestrator = ["dep:rhai", "rhai/sync"]
+orchestrator-wasm = [
+    "dep:rhai",
+    "dep:wasm-bindgen",
+    "dep:js-sys",
+    "dep:web-sys",
+    "dep:serde-wasm-bindgen",
+    "dep:web-time",
+    "dep:getrandom",
+    "getrandom/js",
+    "dep:console_error_panic_hook",
+    "dep:instant",
+]
 rag = ["dep:brainwires-rag"]
 interpreters = ["dep:brainwires-code-interpreters"]
 full = ["orchestrator", "rag", "interpreters"]
+
+[[bench]]
+name = "token_comparison"
+harness = false
+required-features = ["orchestrator"]
+
+[[example]]
+name = "expense_aggregation"
+required-features = ["orchestrator"]
+
+[[example]]
+name = "file_operations"
+required-features = ["orchestrator"]
+
+[[example]]
+name = "multi_api"
+required-features = ["orchestrator"]

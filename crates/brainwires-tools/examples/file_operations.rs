@@ -1,24 +1,18 @@
 //! File Operations Example
 //!
 //! This example shows how to register file system tools and use them
-//! in orchestrated scripts. It demonstrates:
+//! in orchestrated scripts.
 //!
-//! - Registering multiple related tools
-//! - Filtering and processing results in Rhai
-//! - Conditional logic based on file types
-//! - Aggregating information from multiple files
-//!
-//! Run with: `cargo run --example file_operations`
+//! Run with: `cargo run -p brainwires-tools --features orchestrator --example file_operations`
 
 use std::fs;
-use brainwires_tool_orchestrator::{ExecutionLimits, ToolOrchestrator};
+use brainwires_tools::orchestrator::{ExecutionLimits, ToolOrchestrator};
 
 fn main() {
     println!("=== File Operations Example ===\n");
 
     let mut orchestrator = ToolOrchestrator::new();
 
-    // Register file listing tool
     orchestrator.register_executor("list_files", |input| {
         let path = input.as_str().unwrap_or(".");
 
@@ -44,13 +38,11 @@ fn main() {
         }
     });
 
-    // Register file reading tool
     orchestrator.register_executor("read_file", |input| {
         let path = input.as_str().unwrap_or("");
 
         match fs::read_to_string(path) {
             Ok(content) => {
-                // Limit content to first 1000 chars for safety
                 let truncated = if content.len() > 1000 {
                     format!("{}... (truncated)", &content[..1000])
                 } else {
@@ -62,7 +54,6 @@ fn main() {
         }
     });
 
-    // Register file info tool
     orchestrator.register_executor("file_info", |input| {
         let path = input.as_str().unwrap_or("");
 
@@ -81,9 +72,7 @@ fn main() {
         }
     });
 
-    // Script that analyzes the current directory
     let script = r#"
-        // Helper function to join array elements with a separator
         fn join_array(arr, sep) {
             let result = "";
             for i in 0..arr.len() {
@@ -95,7 +84,6 @@ fn main() {
             result
         }
 
-        // List all files in the current directory
         let files = list_files(".");
         let lines = files.split("\n");
 
@@ -105,7 +93,6 @@ fn main() {
 
         for line in lines {
             if line.contains("(dir)") {
-                // It's a directory - extract name before "/"
                 let name_parts = line.split("/");
                 if name_parts.len() > 0 {
                     let name = name_parts[0];
@@ -114,10 +101,8 @@ fn main() {
                     }
                 }
             } else if line.ends_with(".rs") || line.contains(".rs (") {
-                // It's a Rust file
                 rust_files.push(line);
 
-                // Extract size from "filename (123b)" format
                 let size_parts = line.split("(");
                 if size_parts.len() > 1 {
                     let size_part = size_parts[size_parts.len() - 1];
@@ -133,11 +118,9 @@ fn main() {
             }
         }
 
-        // Build lists
         let rust_files_list = join_array(rust_files, "\n");
         let directories_list = join_array(directories, ", ");
 
-        // Build summary
         `Directory Analysis:
 - Total items: ${lines.len()}
 - Rust files: ${rust_files.len()}
@@ -163,7 +146,6 @@ ${directories_list}`
     println!("Tool calls: {}", result.tool_calls.len());
     println!("Execution time: {}ms", result.execution_time_ms);
 
-    // Also demonstrate reading a specific file
     println!("\n=== Reading Cargo.toml ===");
 
     let read_script = r#"

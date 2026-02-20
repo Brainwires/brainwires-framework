@@ -3,25 +3,9 @@
 //! This example demonstrates the core value proposition of Programmatic Tool Calling:
 //! aggregating data from multiple sources without flooding the LLM context window.
 //!
-//! ## The Problem (Traditional Approach)
-//!
-//! With traditional tool calling, fetching expenses for 5 employees would require:
-//! - 5 separate tool calls
-//! - Each returning ~20 expense items to the context
-//! - 100+ items polluting the context window
-//! - ~15,000 tokens just for intermediate data
-//!
-//! ## The Solution (Programmatic Tool Calling)
-//!
-//! The LLM writes a Rhai script that:
-//! - Loops through all employees
-//! - Fetches and processes expenses locally
-//! - Returns only the final summary
-//! - Uses ~200 tokens total
-//!
-//! Run with: `cargo run --example expense_aggregation`
+//! Run with: `cargo run -p brainwires-tools --features orchestrator --example expense_aggregation`
 
-use brainwires_tool_orchestrator::{ExecutionLimits, ToolOrchestrator};
+use brainwires_tools::orchestrator::{ExecutionLimits, ToolOrchestrator};
 
 fn main() {
     println!("=== Expense Aggregation Example ===\n");
@@ -30,11 +14,9 @@ fn main() {
     let mut orchestrator = ToolOrchestrator::new();
 
     // Simulate an expense database
-    // In a real app, this would be an API call
     orchestrator.register_executor("get_expenses", |input| {
         let employee_id = input.as_i64().unwrap_or(0);
 
-        // Simulate expense data for each employee
         let expenses = match employee_id {
             1 => vec![
                 ("Office supplies", 150.00),
@@ -63,7 +45,6 @@ fn main() {
             _ => vec![],
         };
 
-        // Return as JSON string
         let json: Vec<String> = expenses
             .iter()
             .map(|(desc, amount)| format!(r#"{{"description":"{}","amount":{}}}"#, desc, amount))
@@ -72,7 +53,6 @@ fn main() {
         Ok(format!("[{}]", json.join(",")))
     });
 
-    // Register a tool to get employee names
     orchestrator.register_executor("get_employee_name", |input| {
         let id = input.as_i64().unwrap_or(0);
         let name = match id {
@@ -86,10 +66,7 @@ fn main() {
         Ok(name.to_string())
     });
 
-    // This is the script an LLM would generate
-    // Notice how it processes all data locally and only returns the summary
     let script = r#"
-        // Helper function to join array elements with a separator
         fn join_array(arr, sep) {
             let result = "";
             for i in 0..arr.len() {
@@ -101,7 +78,6 @@ fn main() {
             result
         }
 
-        // Process expenses for all employees
         let employee_ids = [1, 2, 3, 4, 5];
         let total_expenses = 0.0;
         let expense_count = 0;
@@ -111,12 +87,9 @@ fn main() {
             let name = get_employee_name(id);
             let expenses_json = get_expenses(id);
 
-            // Parse and sum expenses for this employee
-            // (In real Rhai, we'd parse JSON - here we extract amounts)
             let employee_total = 0.0;
             let count = 0;
 
-            // Simple parsing: count occurrences and extract amounts
             let parts = expenses_json.split("amount\":");
             for i in 1..parts.len() {
                 let amount_parts = parts[i].split("}");
@@ -133,16 +106,13 @@ fn main() {
             total_expenses += employee_total;
             expense_count += count;
 
-            // Track high spenders (>$1000)
             if employee_total > 1000.0 {
                 high_spenders.push(`${name}: $${employee_total}`);
             }
         }
 
-        // Build high spenders list
         let high_spenders_list = join_array(high_spenders, "\n  ");
 
-        // Return only the summary - not all the raw data!
         `Expense Report Summary:
 - Total employees processed: ${employee_ids.len()}
 - Total expense items: ${expense_count}

@@ -1,21 +1,64 @@
-//! Orchestrator Tool - Universal Programmatic Tool Calling
+//! Tool Orchestrator - Rhai-based tool orchestration for AI agents
 //!
-//! The PRIMARY interface for tool execution. Instead of sequential tool calls
-//! consuming tokens, the AI writes Rhai scripts that orchestrate multiple tools,
-//! returning only the final result.
+//! Implements Anthropic's "Programmatic Tool Calling" pattern for token-efficient
+//! tool orchestration. Instead of sequential tool calls, AI writes Rhai scripts
+//! that orchestrate multiple tools, returning only the final result.
 //!
-//! This is a model-agnostic implementation of Anthropic's "Programmatic Tool Calling"
-//! pattern - works with Claude, OpenAI, Ollama, or any LLM provider.
+//! ## Features
 //!
-//! Requires the `orchestrator` feature flag.
+//! This module supports multiple build targets via feature flags:
+//!
+//! - **`orchestrator`** (default for native) - Thread-safe Rust library with `Arc`/`Mutex`
+//! - **`orchestrator-wasm`** - WebAssembly bindings for browser/Node.js via `wasm-bindgen`
+//!
+//! ## Benefits
+//!
+//! - **37% token reduction** - intermediate results don't pollute context
+//! - **Parallel execution** - multiple tools in one pass
+//! - **Complex orchestration** - loops, conditionals, data processing
+
+// Require either orchestrator or orchestrator-wasm feature (but not both)
+#[cfg(all(feature = "orchestrator", feature = "orchestrator-wasm"))]
+compile_error!(
+    "The `orchestrator` and `orchestrator-wasm` features are mutually exclusive. \
+     Use `--features orchestrator` for native or `--features orchestrator-wasm` for WASM."
+);
+
+// Core modules (always available when this module is compiled)
+pub mod engine;
+pub mod sandbox;
+pub mod types;
+
+// WASM module (only when orchestrator-wasm feature is enabled)
+#[cfg(feature = "orchestrator-wasm")]
+pub mod wasm;
+
+// Re-export core types
+pub use engine::{dynamic_to_json, ToolExecutor, ToolOrchestrator};
+pub use sandbox::{
+    ExecutionLimits,
+    // Default limit constants
+    DEFAULT_MAX_ARRAY_SIZE, DEFAULT_MAX_MAP_SIZE, DEFAULT_MAX_OPERATIONS, DEFAULT_MAX_STRING_SIZE,
+    DEFAULT_MAX_TOOL_CALLS, DEFAULT_TIMEOUT_MS,
+    // Profile constants
+    EXTENDED_MAX_OPERATIONS, EXTENDED_MAX_TOOL_CALLS, EXTENDED_TIMEOUT_MS, QUICK_MAX_OPERATIONS,
+    QUICK_MAX_TOOL_CALLS, QUICK_TIMEOUT_MS,
+};
+pub use types::{OrchestratorError, OrchestratorResult, ToolCall};
+
+#[cfg(feature = "orchestrator-wasm")]
+pub use wasm::{ExecutionLimits as WasmExecutionLimits, WasmOrchestrator};
+
+// ── OrchestratorTool wrapper ───────────────────────────────────────────────
+//
+// High-level tool wrapper that integrates the Rhai orchestrator with the
+// brainwires tool system.
 
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-
-use brainwires_tool_orchestrator::{ExecutionLimits, ToolOrchestrator};
 
 use brainwires_core::{Tool, ToolContext, ToolInputSchema, ToolResult};
 

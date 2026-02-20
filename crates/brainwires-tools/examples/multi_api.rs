@@ -1,29 +1,16 @@
 //! Multi-API Orchestration Example
 //!
-//! This example demonstrates orchestrating multiple API calls with
-//! conditional logic - a common pattern where the result of one API
-//! call determines which subsequent calls to make.
+//! Demonstrates orchestrating multiple API calls with conditional logic.
 //!
-//! ## Scenario
-//!
-//! We have three "APIs":
-//! - User service: Get user preferences
-//! - Weather service: Get weather for a location
-//! - Activity service: Suggest activities based on weather
-//!
-//! The script fetches user preferences, checks the weather for their
-//! location, and suggests appropriate activities.
-//!
-//! Run with: `cargo run --example multi_api`
+//! Run with: `cargo run -p brainwires-tools --features orchestrator --example multi_api`
 
-use brainwires_tool_orchestrator::{ExecutionLimits, ToolOrchestrator};
+use brainwires_tools::orchestrator::{ExecutionLimits, ToolOrchestrator};
 
 fn main() {
     println!("=== Multi-API Orchestration Example ===\n");
 
     let mut orchestrator = ToolOrchestrator::new();
 
-    // Simulated User Service API
     orchestrator.register_executor("get_user_preferences", |input| {
         let user_id = input.as_str().unwrap_or("unknown");
 
@@ -37,7 +24,6 @@ fn main() {
         Ok(prefs.to_string())
     });
 
-    // Simulated Weather Service API
     orchestrator.register_executor("get_weather", |input| {
         let location = input.as_str().unwrap_or("Unknown");
 
@@ -51,12 +37,9 @@ fn main() {
         Ok(weather.to_string())
     });
 
-    // Simulated Activity Suggestion API
     orchestrator.register_executor("suggest_activities", |input| {
-        // Input is expected to be a JSON-like string with condition and interests
         let input_str = input.as_str().unwrap_or("{}");
 
-        // Simple parsing for demo
         let is_outdoor_weather = input_str.contains("sunny") || input_str.contains("clear");
         let is_rainy = input_str.contains("rainy");
         let is_snowy = input_str.contains("snowy");
@@ -74,16 +57,13 @@ fn main() {
         Ok(format!("[{}]", activities.iter().map(|a| format!("\"{}\"", a)).collect::<Vec<_>>().join(",")))
     });
 
-    // Simulated notification service
     orchestrator.register_executor("send_notification", |input| {
         let message = input.as_str().unwrap_or("No message");
         println!("  [NOTIFICATION] {}", message);
         Ok("sent".to_string())
     });
 
-    // The orchestration script - this is what an LLM would generate
     let script = r#"
-        // Helper function to join array elements with a separator
         fn join_array(arr, sep) {
             let result = "";
             for i in 0..arr.len() {
@@ -95,15 +75,12 @@ fn main() {
             result
         }
 
-        // Process activity suggestions for multiple users
         let users = ["alice", "bob", "carol"];
         let results = [];
 
         for user in users {
-            // Step 1: Get user preferences
             let prefs_json = get_user_preferences(user);
 
-            // Extract location (simple parsing)
             let location = "";
             if prefs_json.contains("Seattle") {
                 location = "Seattle";
@@ -113,10 +90,8 @@ fn main() {
                 location = "Denver";
             }
 
-            // Step 2: Get weather for their location
             let weather_json = get_weather(location);
 
-            // Extract condition
             let condition = "unknown";
             if weather_json.contains("rainy") {
                 condition = "rainy";
@@ -126,7 +101,6 @@ fn main() {
                 condition = "snowy";
             }
 
-            // Extract temperature using find
             let temp = 70;
             let temp_idx = weather_json.index_of("temp\":");
             if temp_idx >= 0 {
@@ -137,26 +111,21 @@ fn main() {
                 }
             }
 
-            // Step 3: Get activity suggestions based on weather
             let activities_json = suggest_activities(condition);
 
-            // Step 4: Conditional notification
             if temp < 50 {
                 send_notification(`${user}: Bundle up! It's ${temp}°F in ${location}`);
             } else if temp > 80 {
                 send_notification(`${user}: Stay cool! It's ${temp}°F in ${location}`);
             }
 
-            // Build result for this user
             results.push(`${user} (${location}):
   Weather: ${condition}, ${temp}°F
   Suggested: ${activities_json}`);
         }
 
-        // Build results list
         let results_list = join_array(results, "\n\n");
 
-        // Return consolidated results
         `=== Personalized Activity Recommendations ===
 
 ${results_list}

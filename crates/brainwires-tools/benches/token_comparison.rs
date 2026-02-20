@@ -1,28 +1,25 @@
 //! Token Comparison Benchmark
 //!
-//! This benchmark demonstrates the token savings of Programmatic Tool Calling
+//! Demonstrates the token savings of Programmatic Tool Calling
 //! vs traditional sequential tool calling.
 //!
-//! Run with: `cargo bench`
+//! Run with: `cargo bench -p brainwires-tools --features orchestrator`
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use brainwires_tool_orchestrator::{ExecutionLimits, ToolOrchestrator};
+use brainwires_tools::orchestrator::{ExecutionLimits, ToolOrchestrator};
 
 /// Simulates traditional approach: each tool result would go back to LLM
 fn traditional_approach_simulation(employee_count: usize) -> TraditionalMetrics {
     let mut total_output_chars = 0;
     let mut tool_call_count = 0;
 
-    // Simulate expense data per employee (~500 chars each)
     let expense_template = r#"[{"id":1,"description":"Office supplies","amount":150.00,"date":"2024-01-15"},{"id":2,"description":"Software license","amount":299.99,"date":"2024-01-20"},{"id":3,"description":"Team lunch","amount":85.50,"date":"2024-01-22"},{"id":4,"description":"Conference ticket","amount":599.00,"date":"2024-02-01"},{"id":5,"description":"Travel expenses","amount":1250.00,"date":"2024-02-10"}]"#;
 
     for _ in 0..employee_count {
-        // Each tool call returns full expense data to context
         total_output_chars += expense_template.len();
         tool_call_count += 1;
     }
 
-    // Estimate tokens (roughly 4 chars per token)
     let estimated_tokens = total_output_chars / 4;
 
     TraditionalMetrics {
@@ -36,14 +33,11 @@ fn traditional_approach_simulation(employee_count: usize) -> TraditionalMetrics 
 fn programmatic_approach(employee_count: usize) -> ProgrammaticMetrics {
     let mut orchestrator = ToolOrchestrator::new();
 
-    // Register expense tool
     orchestrator.register_executor("get_expenses", |input| {
         let _id = input.as_i64().unwrap_or(0);
-        // Return same data as traditional approach
         Ok(r#"[{"id":1,"description":"Office supplies","amount":150.00},{"id":2,"description":"Software license","amount":299.99},{"id":3,"description":"Team lunch","amount":85.50},{"id":4,"description":"Conference ticket","amount":599.00},{"id":5,"description":"Travel expenses","amount":1250.00}]"#.to_string())
     });
 
-    // Build script dynamically
     let ids: Vec<String> = (1..=employee_count).map(|i| i.to_string()).collect();
     let script = format!(
         r#"
@@ -53,9 +47,8 @@ fn programmatic_approach(employee_count: usize) -> ProgrammaticMetrics {
 
         for id in employee_ids {{
             let expenses = get_expenses(id);
-            // Count items (simplified)
-            count += 5;  // Each employee has 5 expenses
-            total += 2384.49;  // Sum of amounts
+            count += 5;
+            total += 2384.49;
         }}
 
         `Processed ${{employee_ids.len()}} employees, ${{count}} expenses, total: $${{total}}`
@@ -152,9 +145,7 @@ fn print_comparison_report() {
     println!("\nToken Reduction: {:.1}%", reduction);
 }
 
-/// Print detailed comparison report (called during benchmark)
 fn report_during_bench() {
-    // Only print report in verbose mode or when explicitly requested
     if std::env::var("PRINT_REPORT").is_ok() {
         print_comparison_report();
     }

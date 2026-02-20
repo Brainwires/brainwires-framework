@@ -46,8 +46,8 @@ mod web;
 
 // ── Feature-gated modules ────────────────────────────────────────────────────
 
-#[cfg(feature = "orchestrator")]
-mod orchestrator;
+#[cfg(any(feature = "orchestrator", feature = "orchestrator-wasm"))]
+pub mod orchestrator;
 
 #[cfg(feature = "interpreters")]
 mod code_exec;
@@ -73,7 +73,7 @@ pub use error::{classify_error, ResourceType, RetryStrategy, ToolErrorCategory, 
 pub use registry::{ToolCategory, ToolRegistry};
 
 // Feature-gated tools
-#[cfg(feature = "orchestrator")]
+#[cfg(any(feature = "orchestrator", feature = "orchestrator-wasm"))]
 pub use orchestrator::OrchestratorTool;
 
 #[cfg(feature = "interpreters")]

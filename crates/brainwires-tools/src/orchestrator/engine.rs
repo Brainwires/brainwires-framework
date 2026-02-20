@@ -8,36 +8,14 @@
 //!
 //! The orchestrator uses feature-gated thread-safety primitives:
 //!
-//! - **`native`** feature: Uses `Arc<Mutex<T>>` for thread-safe execution
-//! - **`wasm`** feature: Uses `Rc<RefCell<T>>` for single-threaded WASM
+//! - **`orchestrator`** feature: Uses `Arc<Mutex<T>>` for thread-safe execution
+//! - **`orchestrator-wasm`** feature: Uses `Rc<RefCell<T>>` for single-threaded WASM
 //!
 //! # Key Components
 //!
 //! - [`ToolOrchestrator`] - Main entry point for script execution
 //! - [`ToolExecutor`] - Type alias for tool callback functions
 //! - [`dynamic_to_json`] - Converts Rhai values to JSON for tool input
-//!
-//! # Example
-//!
-//! ```ignore
-//! use brainwires_tool_orchestrator::{ToolOrchestrator, ExecutionLimits};
-//!
-//! let mut orchestrator = ToolOrchestrator::new();
-//!
-//! // Register a tool
-//! orchestrator.register_executor("greet", |input| {
-//!     let name = input.as_str().unwrap_or("world");
-//!     Ok(format!("Hello, {}!", name))
-//! });
-//!
-//! // Execute a script that uses the tool
-//! let result = orchestrator.execute(
-//!     r#"greet("Claude")"#,
-//!     ExecutionLimits::default()
-//! )?;
-//!
-//! assert_eq!(result.output, "Hello, Claude!");
-//! ```
 //!
 //! # Security
 //!
@@ -51,22 +29,22 @@
 
 use std::collections::HashMap;
 
-#[cfg(feature = "native")]
+#[cfg(feature = "orchestrator")]
 use std::sync::{Arc, Mutex};
-#[cfg(feature = "native")]
+#[cfg(feature = "orchestrator")]
 use std::time::Instant;
 
-#[cfg(feature = "wasm")]
+#[cfg(feature = "orchestrator-wasm")]
 use std::cell::RefCell;
-#[cfg(feature = "wasm")]
+#[cfg(feature = "orchestrator-wasm")]
 use std::rc::Rc;
-#[cfg(feature = "wasm")]
+#[cfg(feature = "orchestrator-wasm")]
 use web_time::Instant;
 
 use rhai::{Engine, EvalAltResult, Scope};
 
-use crate::sandbox::ExecutionLimits;
-use crate::types::{OrchestratorError, OrchestratorResult, ToolCall};
+use super::sandbox::ExecutionLimits;
+use super::types::{OrchestratorError, OrchestratorResult, ToolCall};
 
 // ============================================================================
 // Engine Configuration Constants
@@ -83,101 +61,88 @@ const MAX_CALL_DEPTH: usize = 64;
 // ============================================================================
 
 /// Thread-safe vector wrapper (native: `Arc<Mutex<Vec<T>>>`)
-#[cfg(feature = "native")]
+#[cfg(feature = "orchestrator")]
 pub type SharedVec<T> = Arc<Mutex<Vec<T>>>;
 
 /// Thread-safe counter wrapper (native: `Arc<Mutex<usize>>`)
-#[cfg(feature = "native")]
+#[cfg(feature = "orchestrator")]
 pub type SharedCounter = Arc<Mutex<usize>>;
 
 /// Tool executor function type (native: thread-safe `Arc<dyn Fn>`)
 ///
 /// Tools receive JSON input and return either a success string or error string.
-///
-/// # Example
-///
-/// ```ignore
-/// orchestrator.register_executor("my_tool", |input: serde_json::Value| {
-///     // Process input and return result
-///     Ok("result".to_string())
-/// });
-/// ```
-#[cfg(feature = "native")]
+#[cfg(feature = "orchestrator")]
 pub type ToolExecutor = Arc<dyn Fn(serde_json::Value) -> Result<String, String> + Send + Sync>;
 
 /// Single-threaded vector wrapper (WASM: `Rc<RefCell<Vec<T>>>`)
-#[cfg(feature = "wasm")]
+#[cfg(feature = "orchestrator-wasm")]
 pub type SharedVec<T> = Rc<RefCell<Vec<T>>>;
 
 /// Single-threaded counter wrapper (WASM: `Rc<RefCell<usize>>`)
-#[cfg(feature = "wasm")]
+#[cfg(feature = "orchestrator-wasm")]
 pub type SharedCounter = Rc<RefCell<usize>>;
 
 /// Tool executor function type (WASM: single-threaded `Rc<dyn Fn>`)
 ///
 /// Tools receive JSON input and return either a success string or error string.
-#[cfg(feature = "wasm")]
+#[cfg(feature = "orchestrator-wasm")]
 pub type ToolExecutor = Rc<dyn Fn(serde_json::Value) -> Result<String, String>>;
 
 // ============================================================================
 // Helper functions for shared state (feature-gated)
 // ============================================================================
-//
-// These functions abstract over the difference between native (Arc/Mutex)
-// and WASM (Rc/RefCell) shared state primitives, allowing the main code
-// to be feature-agnostic.
 
-#[cfg(feature = "native")]
+#[cfg(feature = "orchestrator")]
 fn new_shared_vec<T>() -> SharedVec<T> {
     Arc::new(Mutex::new(Vec::new()))
 }
 
-#[cfg(feature = "wasm")]
+#[cfg(feature = "orchestrator-wasm")]
 fn new_shared_vec<T>() -> SharedVec<T> {
     Rc::new(RefCell::new(Vec::new()))
 }
 
-#[cfg(feature = "native")]
+#[cfg(feature = "orchestrator")]
 fn new_shared_counter() -> SharedCounter {
     Arc::new(Mutex::new(0))
 }
 
-#[cfg(feature = "wasm")]
+#[cfg(feature = "orchestrator-wasm")]
 fn new_shared_counter() -> SharedCounter {
     Rc::new(RefCell::new(0))
 }
 
-#[cfg(feature = "native")]
+#[cfg(feature = "orchestrator")]
 fn clone_shared<T: ?Sized>(shared: &Arc<T>) -> Arc<T> {
     Arc::clone(shared)
 }
 
-#[cfg(feature = "wasm")]
+#[cfg(feature = "orchestrator-wasm")]
 fn clone_shared<T: ?Sized>(shared: &Rc<T>) -> Rc<T> {
     Rc::clone(shared)
 }
 
-#[cfg(feature = "native")]
+#[cfg(feature = "orchestrator")]
 fn lock_vec<T: Clone>(shared: &SharedVec<T>) -> Vec<T> {
     shared.lock().unwrap().clone()
 }
 
-#[cfg(feature = "wasm")]
+#[cfg(feature = "orchestrator-wasm")]
 fn lock_vec<T: Clone>(shared: &SharedVec<T>) -> Vec<T> {
     shared.borrow().clone()
 }
 
-#[cfg(feature = "native")]
+#[cfg(feature = "orchestrator")]
 fn push_to_vec<T>(shared: &SharedVec<T>, item: T) {
     shared.lock().unwrap().push(item);
 }
 
-#[cfg(feature = "wasm")]
+#[cfg(feature = "orchestrator-wasm")]
 fn push_to_vec<T>(shared: &SharedVec<T>, item: T) {
     shared.borrow_mut().push(item);
 }
 
-#[cfg(feature = "native")]
+#[cfg(feature = "orchestrator")]
 fn increment_counter(shared: &SharedCounter, max: usize) -> Result<(), ()> {
     let mut c = shared.lock().unwrap();
     if *c >= max {
@@ -188,7 +153,7 @@ fn increment_counter(shared: &SharedCounter, max: usize) -> Result<(), ()> {
     Ok(())
 }
 
-#[cfg(feature = "wasm")]
+#[cfg(feature = "orchestrator-wasm")]
 fn increment_counter(shared: &SharedCounter, max: usize) -> Result<(), ()> {
     let mut c = shared.borrow_mut();
     if *c >= max {
@@ -217,36 +182,8 @@ fn increment_counter(shared: &SharedCounter, max: usize) -> Result<(), ()> {
 ///
 /// # Thread Safety
 ///
-/// - With the `native` feature, the orchestrator is thread-safe
-/// - With the `wasm` feature, it's single-threaded for WASM compatibility
-///
-/// # Example
-///
-/// ```ignore
-/// use brainwires_tool_orchestrator::{ToolOrchestrator, ExecutionLimits};
-///
-/// let mut orchestrator = ToolOrchestrator::new();
-///
-/// // Register tools
-/// orchestrator.register_executor("add", |input| {
-///     let arr = input.as_array().unwrap();
-///     let sum: i64 = arr.iter().filter_map(|v| v.as_i64()).sum();
-///     Ok(sum.to_string())
-/// });
-///
-/// // Execute script
-/// let result = orchestrator.execute(
-///     r#"
-///     let a = add([1, 2, 3]);
-///     let b = add([4, 5, 6]);
-///     `Sum: ${a} + ${b}`
-///     "#,
-///     ExecutionLimits::default()
-/// )?;
-///
-/// println!("{}", result.output);  // "Sum: 6 + 15"
-/// println!("Tool calls: {}", result.tool_calls.len());  // 2
-/// ```
+/// - With the `orchestrator` feature, the orchestrator is thread-safe
+/// - With the `orchestrator-wasm` feature, it's single-threaded for WASM compatibility
 pub struct ToolOrchestrator {
     #[allow(dead_code)]
     engine: Engine,
@@ -255,9 +192,6 @@ pub struct ToolOrchestrator {
 
 impl ToolOrchestrator {
     /// Create a new tool orchestrator with default settings.
-    ///
-    /// Initializes a fresh Rhai engine with expression depth limits
-    /// and an empty tool registry.
     #[must_use]
     pub fn new() -> Self {
         let mut engine = Engine::new();
@@ -272,25 +206,7 @@ impl ToolOrchestrator {
     }
 
     /// Register a tool executor function (native version - thread-safe).
-    ///
-    /// The executor function receives JSON input from the Rhai script and
-    /// returns either a success string or an error string.
-    ///
-    /// # Arguments
-    ///
-    /// * `name` - The name the tool will be callable as in Rhai scripts
-    /// * `executor` - Function that processes tool calls
-    ///
-    /// # Example
-    ///
-    /// ```ignore
-    /// orchestrator.register_executor("fetch_user", |input| {
-    ///     let user_id = input.as_i64().ok_or("Expected user ID")?;
-    ///     // Fetch user from database...
-    ///     Ok(format!(r#"{{"id": {}, "name": "Alice"}}"#, user_id))
-    /// });
-    /// ```
-    #[cfg(feature = "native")]
+    #[cfg(feature = "orchestrator")]
     pub fn register_executor<F>(&mut self, name: impl Into<String>, executor: F)
     where
         F: Fn(serde_json::Value) -> Result<String, String> + Send + Sync + 'static,
@@ -299,9 +215,7 @@ impl ToolOrchestrator {
     }
 
     /// Register a tool executor function (WASM version - single-threaded).
-    ///
-    /// See the native version for full documentation.
-    #[cfg(feature = "wasm")]
+    #[cfg(feature = "orchestrator-wasm")]
     pub fn register_executor<F>(&mut self, name: impl Into<String>, executor: F)
     where
         F: Fn(serde_json::Value) -> Result<String, String> + 'static,
@@ -314,31 +228,6 @@ impl ToolOrchestrator {
     /// Compiles and runs the provided Rhai script, making all registered
     /// tools available as callable functions. Execution is bounded by the
     /// provided [`ExecutionLimits`].
-    ///
-    /// # Arguments
-    ///
-    /// * `script` - Rhai source code to execute
-    /// * `limits` - Resource limits for this execution
-    ///
-    /// # Returns
-    ///
-    /// On success, returns [`OrchestratorResult`] containing:
-    /// - The script's output (final expression value)
-    /// - A log of all tool calls made
-    /// - Execution timing information
-    ///
-    /// # Errors
-    ///
-    /// Returns [`OrchestratorError`] if:
-    /// - Script fails to compile ([`CompilationError`])
-    /// - Script throws a runtime error ([`ExecutionError`])
-    /// - Operation limit exceeded ([`MaxOperationsExceeded`])
-    /// - Time limit exceeded ([`Timeout`])
-    ///
-    /// [`CompilationError`]: OrchestratorError::CompilationError
-    /// [`ExecutionError`]: OrchestratorError::ExecutionError
-    /// [`MaxOperationsExceeded`]: OrchestratorError::MaxOperationsExceeded
-    /// [`Timeout`]: OrchestratorError::Timeout
     pub fn execute(
         &self,
         script: &str,
@@ -447,23 +336,6 @@ impl ToolOrchestrator {
     }
 
     /// Get list of registered tool names.
-    ///
-    /// Returns the names of all tools that have been registered with
-    /// [`register_executor`]. These names are callable as functions
-    /// in Rhai scripts.
-    ///
-    /// [`register_executor`]: Self::register_executor
-    ///
-    /// # Example
-    ///
-    /// ```ignore
-    /// orchestrator.register_executor("tool_a", |_| Ok("a".into()));
-    /// orchestrator.register_executor("tool_b", |_| Ok("b".into()));
-    ///
-    /// let tools = orchestrator.registered_tools();
-    /// assert!(tools.contains(&"tool_a"));
-    /// assert!(tools.contains(&"tool_b"));
-    /// ```
     #[must_use]
     pub fn registered_tools(&self) -> Vec<&str> {
         self.executors.keys().map(String::as_str).collect()
@@ -482,28 +354,8 @@ impl Default for ToolOrchestrator {
 
 /// Convert Rhai [`Dynamic`] value to [`serde_json::Value`].
 ///
-/// This function handles the conversion of Rhai's dynamic type system to
-/// JSON for passing data to tool executors. Supports all common Rhai types:
-///
-/// - Strings → JSON strings
-/// - Integers → JSON numbers
-/// - Floats → JSON numbers
-/// - Booleans → JSON booleans
-/// - Arrays → JSON arrays (recursive)
-/// - Maps → JSON objects (recursive)
-/// - Unit → JSON null
-/// - Other → Debug string representation
-///
-/// # Example
-///
-/// ```ignore
-/// use rhai::Dynamic;
-/// use brainwires_tool_orchestrator::dynamic_to_json;
-///
-/// let d = Dynamic::from("hello");
-/// let j = dynamic_to_json(&d);
-/// assert_eq!(j, serde_json::json!("hello"));
-/// ```
+/// Handles all common Rhai types: strings, integers, floats, booleans,
+/// arrays, maps, unit, and falls back to debug representation.
 ///
 /// [`Dynamic`]: rhai::Dynamic
 pub fn dynamic_to_json(value: &rhai::Dynamic) -> serde_json::Value {
@@ -599,7 +451,6 @@ mod tests {
         let orchestrator = ToolOrchestrator::new();
         let limits = ExecutionLimits::default().with_max_operations(10);
 
-        // This should exceed the operations limit
         let result = orchestrator.execute(
             "let sum = 0; for i in 0..1000 { sum += i; } sum",
             limits,
@@ -672,7 +523,6 @@ mod tests {
         orchestrator.register_executor("count", |_| Ok("1".to_string()));
 
         let limits = ExecutionLimits::default().with_max_tool_calls(3);
-        // Return the 4th call result directly so we can see the error
         let script = r#"
             let a = count("1");
             let b = count("2");
@@ -682,13 +532,11 @@ mod tests {
 
         let result = orchestrator.execute(script, limits).unwrap();
 
-        // Fourth call should return error message instead of executing
         assert!(
             result.output.contains("Maximum tool calls"),
             "Expected error message about max tool calls, got: {}",
             result.output
         );
-        // Only 3 calls should be recorded (the 4th was blocked)
         assert_eq!(result.tool_calls.len(), 3);
     }
 
@@ -784,35 +632,29 @@ mod tests {
             .unwrap();
 
         assert!(result.success);
-        assert!(result.output.is_empty()); // Unit type returns empty string
+        assert!(result.output.is_empty());
     }
 
     #[test]
     fn test_dynamic_to_json_types() {
-        // Test various Rhai Dynamic types convert to JSON correctly
         use rhai::Dynamic;
 
-        // String
         let d = Dynamic::from("hello".to_string());
         let j = dynamic_to_json(&d);
         assert_eq!(j, serde_json::json!("hello"));
 
-        // Integer
         let d = Dynamic::from(42_i64);
         let j = dynamic_to_json(&d);
         assert_eq!(j, serde_json::json!(42));
 
-        // Float
         let d = Dynamic::from(3.14_f64);
         let j = dynamic_to_json(&d);
         assert!(j.as_f64().unwrap() - 3.14 < 0.001);
 
-        // Boolean
         let d = Dynamic::from(true);
         let j = dynamic_to_json(&d);
         assert_eq!(j, serde_json::json!(true));
 
-        // Unit (null)
         let d = Dynamic::UNIT;
         let j = dynamic_to_json(&d);
         assert_eq!(j, serde_json::Value::Null);
@@ -826,8 +668,7 @@ mod tests {
             .unwrap();
 
         assert!(result.success);
-        // execution_time_ms is always recorded (u64 is always >= 0, but we verify a result exists)
-        assert!(result.execution_time_ms < 10000); // Should complete in under 10 seconds
+        assert!(result.execution_time_ms < 10000);
     }
 
     #[test]
@@ -849,11 +690,9 @@ mod tests {
 
     #[test]
     fn test_default_impl() {
-        // Test that Default::default() works for ToolOrchestrator
         let orchestrator = ToolOrchestrator::default();
         assert!(orchestrator.registered_tools().is_empty());
 
-        // Execute a simple script to verify it works
         let result = orchestrator
             .execute("1 + 1", ExecutionLimits::default())
             .unwrap();
@@ -865,13 +704,10 @@ mod tests {
     fn test_timeout_error() {
         let orchestrator = ToolOrchestrator::new();
 
-        // Use a CPU-intensive loop that will trigger on_progress checks
-        // Set timeout to 1ms - the loop will exceed this quickly
         let limits = ExecutionLimits::default()
             .with_timeout_ms(1)
-            .with_max_operations(1_000_000); // Allow many ops so timeout triggers first
+            .with_max_operations(1_000_000);
 
-        // This loop will keep running until timeout kicks in via on_progress
         let result = orchestrator.execute(
             r#"
             let sum = 0;
@@ -883,7 +719,6 @@ mod tests {
             limits,
         );
 
-        // Should return a timeout error (real-time via on_progress)
         assert!(result.is_err());
         match result {
             Err(OrchestratorError::Timeout(ms)) => assert_eq!(ms, 1),
@@ -895,7 +730,6 @@ mod tests {
     fn test_runtime_error() {
         let orchestrator = ToolOrchestrator::new();
 
-        // This should cause a runtime error (undefined variable)
         let result = orchestrator.execute("undefined_variable", ExecutionLimits::default());
 
         assert!(result.is_err());
@@ -925,7 +759,6 @@ mod tests {
     fn test_dynamic_to_json_array() {
         use rhai::Dynamic;
 
-        // Create an array
         let arr: Vec<Dynamic> = vec![
             Dynamic::from(1_i64),
             Dynamic::from(2_i64),
@@ -941,7 +774,6 @@ mod tests {
     fn test_dynamic_to_json_map() {
         use rhai::{Dynamic, Map};
 
-        // Create a map
         let mut map = Map::new();
         map.insert("key".into(), Dynamic::from("value".to_string()));
         map.insert("num".into(), Dynamic::from(42_i64));
@@ -956,10 +788,8 @@ mod tests {
 
     #[test]
     fn test_non_string_result() {
-        // Test that non-string results are formatted with Debug
         let orchestrator = ToolOrchestrator::new();
 
-        // Return an integer (not a string)
         let result = orchestrator
             .execute("42", ExecutionLimits::default())
             .unwrap();
@@ -970,7 +800,6 @@ mod tests {
 
     #[test]
     fn test_array_result() {
-        // Test that array results are formatted
         let orchestrator = ToolOrchestrator::new();
 
         let result = orchestrator
@@ -978,7 +807,6 @@ mod tests {
             .unwrap();
 
         assert!(result.success);
-        // Arrays are formatted with Debug
         assert!(result.output.contains("1"));
         assert!(result.output.contains("2"));
         assert!(result.output.contains("3"));
@@ -988,8 +816,6 @@ mod tests {
     fn test_dynamic_to_json_fallback() {
         use rhai::Dynamic;
 
-        // Create a custom type that doesn't match standard types
-        // Using a timestamp (FnPtr or similar) that falls through to the else branch
         #[derive(Clone)]
         struct CustomType {
             #[allow(dead_code)]
@@ -1000,9 +826,7 @@ mod tests {
         let d = Dynamic::from(custom);
         let j = dynamic_to_json(&d);
 
-        // Should fall back to string representation via Debug
         assert!(j.is_string());
-        // The string should contain some representation of the type
         let s = j.as_str().unwrap();
         assert!(!s.is_empty());
     }
