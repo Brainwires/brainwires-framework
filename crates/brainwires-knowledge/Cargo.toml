@@ -1,6 +1,6 @@
 [package]
 name = "brainwires-knowledge"
-description = "Knowledge module for the Brainwires Agent Framework"
+description = "Behavioral and personal knowledge systems for the Brainwires Agent Framework"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,4 +9,38 @@ repository.workspace = true
 authors.workspace = true
 
 [dependencies]
+# Internal crates
 brainwires-core.workspace = true
+
+# SQLite (for knowledge caches)
+rusqlite.workspace = true
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+anyhow.workspace = true
+
+# Identifiers & time
+uuid.workspace = true
+chrono.workspace = true
+
+# Async runtime
+tokio = { workspace = true, features = ["sync", "time", "rt"] }
+
+# Logging
+tracing.workspace = true
+
+# HTTP client (for API sync)
+reqwest.workspace = true
+
+# Regex (for pattern matching in collectors)
+regex.workspace = true
+
+# URL encoding (for API queries)
+urlencoding.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full", "test-util"] }
+tempfile.workspace = true

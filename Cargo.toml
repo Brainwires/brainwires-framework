@@ -68,6 +68,21 @@ rmcp = { version = "0.8", features = ["client", "server", "transport-sse", "tran
 tracing = "0.1"
 tracing-subscriber = "0.3"
 
+# Vector database & columnar storage
+lancedb = "0.23"
+arrow = "56.2"
+arrow-array = "56.2"
+arrow-schema = "56.2"
+
+# Caching
+lru = "0.12"
+
+# Hashing
+sha2 = "0.10"
+
+# SQLite
+rusqlite = { version = "0.31", features = ["bundled"] }
+
 # File operations
 walkdir = "0.3"
 diffy = "0.4"
@@ -76,6 +91,9 @@ glob = "0.3"
 # Code search
 regex = "1"
 ignore = "0.4"
+
+# URL encoding
+urlencoding = "2"
 
 # Git
 git2 = "0.19"
