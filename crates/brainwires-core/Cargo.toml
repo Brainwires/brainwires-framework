@@ -16,5 +16,10 @@ uuid = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 
+[features]
+default = ["native"]
+native = []
+wasm = ["chrono/wasmbind"]
+
 [dev-dependencies]
 serde_json = { workspace = true }

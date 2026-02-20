@@ -38,5 +38,10 @@ anyhow.workspace = true
 # Logging
 tracing.workspace = true
 
+[features]
+default = ["native"]
+native = []
+wasm = ["brainwires-core/wasm"]
+
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }
