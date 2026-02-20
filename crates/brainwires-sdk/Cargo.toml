@@ -1,0 +1,46 @@
+[package]
+name = "brainwires-sdk"
+description = "Facade crate for the Brainwires Agent Framework — re-exports all sub-crates via feature flags"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+# Always available
+brainwires-core.workspace = true
+
+# Feature-gated framework crates
+brainwires-tools = { workspace = true, optional = true }
+brainwires-agents = { workspace = true, optional = true }
+brainwires-storage = { workspace = true, optional = true }
+brainwires-mcp = { workspace = true, optional = true }
+brainwires-mdap = { workspace = true, optional = true }
+brainwires-knowledge = { workspace = true, optional = true }
+brainwires-prompting = { workspace = true, optional = true }
+brainwires-permissions = { workspace = true, optional = true }
+
+# Feature-gated existing crates
+tool-orchestrator = { workspace = true, optional = true }
+project-rag = { workspace = true, optional = true }
+code-interpreters = { workspace = true, optional = true }
+
+[features]
+default = ["tools", "agents"]
+tools = ["dep:brainwires-tools"]
+agents = ["dep:brainwires-agents"]
+storage = ["dep:brainwires-storage"]
+mcp = ["dep:brainwires-mcp"]
+mdap = ["dep:brainwires-mdap"]
+knowledge = ["dep:brainwires-knowledge", "storage"]
+prompting = ["dep:brainwires-prompting"]
+permissions = ["dep:brainwires-permissions"]
+orchestrator = ["dep:tool-orchestrator"]
+rag = ["dep:project-rag"]
+interpreters = ["dep:code-interpreters"]
+full = [
+    "tools", "agents", "storage", "mcp", "mdap", "knowledge",
+    "prompting", "permissions", "orchestrator", "rag", "interpreters",
+]

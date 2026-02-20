@@ -1,0 +1,12 @@
+[package]
+name = "brainwires-permissions"
+description = "Permissions module for the Brainwires Agent Framework"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+brainwires-core.workspace = true

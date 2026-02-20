@@ -1,0 +1,69 @@
+[package]
+name = "code-interpreters"
+version = "0.1.0"
+edition = "2024"
+description = "Sandboxed code execution for multiple languages (Rhai, Lua, JavaScript, Python)"
+license = "MIT"
+repository = "https://github.com/brainwires/brainwires-studio"
+keywords = ["interpreter", "sandbox", "wasm", "code-execution"]
+categories = ["development-tools", "wasm"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["rhai", "lua"]
+# Individual language support
+rhai = ["dep:rhai"]
+lua = ["dep:mlua"]
+javascript = ["dep:boa_engine"]
+python = ["dep:rustpython-vm", "dep:rustpython-stdlib"]
+# All languages
+all-languages = ["rhai", "lua", "javascript", "python"]
+# WASM target support
+wasm = ["wasm-bindgen", "js-sys", "web-sys", "getrandom/js", "serde-wasm-bindgen"]
+
+[dependencies]
+# Core
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+
+# Rhai - Native Rust scripting (lightweight, fast)
+rhai = { version = "1.20", optional = true }
+
+# Lua - mlua with Lua 5.4 (small, fast)
+mlua = { version = "0.10", features = ["lua54", "vendored"], optional = true }
+
+# JavaScript - Boa engine (ECMAScript compliant)
+boa_engine = { version = "0.20", optional = true }
+
+# Python - RustPython (CPython 3.12 compatible)
+rustpython-vm = { version = "0.4", optional = true, default-features = false, features = ["freeze-stdlib"] }
+rustpython-stdlib = { version = "0.4", optional = true }
+
+# WASM bindings (for browser target)
+wasm-bindgen = { version = "0.2", optional = true }
+js-sys = { version = "0.3", optional = true }
+web-sys = { version = "0.3", features = ["console"], optional = true }
+getrandom = { version = "0.2", optional = true }
+serde-wasm-bindgen = { version = "0.6", optional = true }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt", "macros"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["js"] }
+
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+getrandom_03 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
+# Optimize for size in release builds
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true

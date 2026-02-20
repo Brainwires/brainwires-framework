@@ -1,0 +1,82 @@
+[package]
+name = "tool-orchestrator"
+version = "1.0.0"
+edition = "2024"
+description = "Rhai-based tool orchestration for AI agents - implements Anthropic's programmatic tool calling pattern"
+license = "MIT"
+authors = ["Brainwires Team"]
+keywords = ["ai", "agent", "tools", "orchestration", "rhai"]
+categories = ["development-tools", "wasm", "api-bindings"]
+repository = "https://github.com/Brainwires/tool-orchestrator"
+documentation = "https://docs.rs/tool-orchestrator"
+readme = "README.md"
+rust-version = "1.85"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["native"]
+# Native mode: thread-safe with Arc/Mutex and std::time
+native = ["rhai/sync"]
+# WASM mode: single-threaded with Rc/RefCell and web-time crate
+wasm = [
+    "wasm-bindgen",
+    "js-sys",
+    "web-sys",
+    "serde-wasm-bindgen",
+    "web-time",
+    "getrandom/js",
+    "console_error_panic_hook",
+    "instant",
+]
+
+[dependencies]
+# Embedded scripting engine (pure Rust)
+# Note: "sync" feature is enabled via "native" feature for thread-safety
+rhai = { version = "1.23", default-features = false, features = ["serde", "std"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+thiserror = "2.0"
+
+# Logging (always available, zero-cost when not used)
+tracing = "0.1"
+
+# === WASM-only dependencies ===
+wasm-bindgen = { version = "0.2", features = ["serde-serialize"], optional = true }
+js-sys = { version = "0.3", optional = true }
+web-sys = { version = "0.3", features = ["console"], optional = true }
+serde-wasm-bindgen = { version = "0.6", optional = true }
+web-time = { version = "1.1", optional = true }
+getrandom = { version = "0.2", optional = true }
+console_error_panic_hook = { version = "0.1", optional = true }
+# instant with wasm-bindgen feature - needed for rhai's transitive dependency in WASM
+instant = { version = "0.1", features = ["wasm-bindgen"], optional = true }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.55"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "token_comparison"
+harness = false
+
+[[example]]
+name = "expense_aggregation"
+required-features = ["native"]
+
+[[example]]
+name = "file_operations"
+required-features = ["native"]
+
+[[example]]
+name = "multi_api"
+required-features = ["native"]
+
+[profile.release]
+opt-level = "s"
+lto = true

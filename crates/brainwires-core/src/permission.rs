@@ -1,0 +1,58 @@
+use serde::{Deserialize, Serialize};
+
+/// Permission mode for tool execution
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum PermissionMode {
+    /// Read-only mode - deny all write operations
+    ReadOnly,
+    /// Auto mode - approve safe operations, ask for dangerous ones
+    Auto,
+    /// Full mode - auto-approve all operations
+    Full,
+}
+
+impl Default for PermissionMode {
+    fn default() -> Self {
+        Self::Auto
+    }
+}
+
+impl PermissionMode {
+    /// Parse from string
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "read-only" | "readonly" => Some(Self::ReadOnly),
+            "auto" => Some(Self::Auto),
+            "full" => Some(Self::Full),
+            _ => None,
+        }
+    }
+
+    /// Convert to string
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::ReadOnly => "read-only",
+            Self::Auto => "auto",
+            Self::Full => "full",
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_permission_mode_from_str() {
+        assert_eq!(PermissionMode::from_str("read-only"), Some(PermissionMode::ReadOnly));
+        assert_eq!(PermissionMode::from_str("auto"), Some(PermissionMode::Auto));
+        assert_eq!(PermissionMode::from_str("full"), Some(PermissionMode::Full));
+        assert_eq!(PermissionMode::from_str("invalid"), None);
+    }
+
+    #[test]
+    fn test_permission_mode_default() {
+        assert_eq!(PermissionMode::default(), PermissionMode::Auto);
+    }
+}
