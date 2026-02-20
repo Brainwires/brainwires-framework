@@ -1,6 +1,6 @@
 [package]
 name = "brainwires-agents"
-description = "Agents module for the Brainwires Agent Framework"
+description = "Agent orchestration, coordination, and lifecycle management for the Brainwires Agent Framework"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,4 +9,43 @@ repository.workspace = true
 authors.workspace = true
 
 [dependencies]
+# Internal crates
 brainwires-core.workspace = true
+brainwires-tools = { workspace = true, optional = true }
+
+# Async runtime
+tokio = { workspace = true, features = ["sync", "time", "rt", "macros"] }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+anyhow.workspace = true
+
+# Identifiers & time
+uuid.workspace = true
+chrono.workspace = true
+
+# Git (for worktree management)
+git2.workspace = true
+
+# Graph algorithms (for state model dependency analysis)
+petgraph = "0.7"
+
+# Process liveness checking (Unix)
+libc = "0.2"
+
+# Async traits
+async-trait.workspace = true
+
+# Logging
+tracing.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full", "test-util"] }
+tempfile.workspace = true
+
+[features]
+default = []
+tools = ["dep:brainwires-tools"]

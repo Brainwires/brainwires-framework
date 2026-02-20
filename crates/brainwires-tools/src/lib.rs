@@ -41,7 +41,7 @@ mod git;
 mod registry;
 mod search;
 mod tool_search;
-mod validation;
+pub mod validation;
 mod web;
 
 // ── Feature-gated modules ────────────────────────────────────────────────────

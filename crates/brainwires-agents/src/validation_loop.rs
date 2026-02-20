@@ -1,0 +1,451 @@
+//! Validation Loop - Enforces quality checks before agent completion
+//!
+//! Wraps task agent execution to automatically validate work before allowing completion.
+//! If validation fails, forces the agent to fix issues before succeeding.
+//!
+//! When the `tools` feature is enabled, uses brainwires-tools validation functions
+//! (check_duplicates, verify_build, check_syntax). Without it, those checks are skipped.
+
+use anyhow::{Result, anyhow};
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+use std::process::Command;
+
+/// Validation checks to enforce
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ValidationCheck {
+    /// Check for duplicate exports/constants
+    NoDuplicates,
+    /// Verify build succeeds
+    BuildSuccess { build_type: String },
+    /// Check syntax validity
+    SyntaxValid,
+    /// Custom validation command
+    CustomCommand { command: String, args: Vec<String> },
+}
+
+/// Result of validation checks
+#[derive(Debug, Clone)]
+pub struct ValidationResult {
+    pub passed: bool,
+    pub issues: Vec<ValidationIssue>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ValidationIssue {
+    pub check: String,
+    pub severity: ValidationSeverity,
+    pub message: String,
+    pub file: Option<String>,
+    pub line: Option<usize>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ValidationSeverity {
+    Error,
+    Warning,
+}
+
+/// Configuration for validation loop
+#[derive(Debug, Clone)]
+pub struct ValidationConfig {
+    /// Checks to run
+    pub checks: Vec<ValidationCheck>,
+    /// Working directory for validation
+    pub working_directory: String,
+    /// Maximum validation retry attempts
+    pub max_retries: usize,
+    /// Whether to run validation (can disable for testing)
+    pub enabled: bool,
+    /// Specific files to validate (from working set). If empty, falls back to git diff.
+    pub working_set_files: Vec<String>,
+}
+
+impl Default for ValidationConfig {
+    fn default() -> Self {
+        Self {
+            checks: vec![
+                ValidationCheck::NoDuplicates,
+                ValidationCheck::SyntaxValid,
+            ],
+            working_directory: ".".to_string(),
+            max_retries: 3,
+            enabled: true,
+            working_set_files: Vec::new(),
+        }
+    }
+}
+
+impl ValidationConfig {
+    /// Create config with build validation
+    pub fn with_build(mut self, build_type: impl Into<String>) -> Self {
+        self.checks.push(ValidationCheck::BuildSuccess {
+            build_type: build_type.into(),
+        });
+        self
+    }
+
+    /// Disable validation (for testing)
+    pub fn disabled() -> Self {
+        Self {
+            enabled: false,
+            ..Default::default()
+        }
+    }
+
+    /// Set the working set files to validate (from agent's working set)
+    pub fn with_working_set_files(mut self, files: Vec<String>) -> Self {
+        self.working_set_files = files;
+        self
+    }
+}
+
+/// Run validation checks on changed files
+pub async fn run_validation(config: &ValidationConfig) -> Result<ValidationResult> {
+    if !config.enabled {
+        return Ok(ValidationResult {
+            passed: true,
+            issues: vec![],
+        });
+    }
+
+    let mut issues = Vec::new();
+
+    // Get list of modified files - prefer working set, fallback to git
+    let changed_files = if !config.working_set_files.is_empty() {
+        tracing::debug!("Using working set files for validation: {:?}", config.working_set_files);
+        config.working_set_files.clone()
+    } else {
+        tracing::debug!("No working set provided, falling back to git diff");
+        get_modified_files(&config.working_directory)?
+    };
+    tracing::debug!("Validating {} changed files", changed_files.len());
+
+    // CRITICAL: Verify that all files in the working set actually exist on disk
+    // This catches Bug #5 where agents report success without creating files
+    for file in &changed_files {
+        let file_path = PathBuf::from(&config.working_directory).join(file);
+        if !file_path.exists() {
+            issues.push(ValidationIssue {
+                check: "file_existence".to_string(),
+                severity: ValidationSeverity::Error,
+                message: format!(
+                    "File '{}' is in working set but does not exist on disk. Agent must create file before completing.",
+                    file
+                ),
+                file: Some(file.clone()),
+                line: None,
+            });
+            tracing::error!("Validation failed: File {} does not exist but is in working set", file);
+        }
+    }
+
+    for check in &config.checks {
+        match check {
+            ValidationCheck::NoDuplicates => {
+                run_duplicates_check(&changed_files, &mut issues).await;
+            }
+
+            ValidationCheck::SyntaxValid => {
+                run_syntax_check(&changed_files, &mut issues).await;
+            }
+
+            ValidationCheck::BuildSuccess { build_type } => {
+                run_build_check(&config.working_directory, build_type, &mut issues).await;
+            }
+
+            ValidationCheck::CustomCommand { command, args } => {
+                match Command::new(command)
+                    .args(args)
+                    .current_dir(&config.working_directory)
+                    .output()
+                {
+                    Ok(output) => {
+                        if !output.status.success() {
+                            let stderr = String::from_utf8_lossy(&output.stderr);
+                            issues.push(ValidationIssue {
+                                check: "custom_command".to_string(),
+                                severity: ValidationSeverity::Error,
+                                message: format!("Command '{}' failed: {}", command, stderr),
+                                file: None,
+                                line: None,
+                            });
+                        }
+                    }
+                    Err(e) => {
+                        issues.push(ValidationIssue {
+                            check: "custom_command".to_string(),
+                            severity: ValidationSeverity::Error,
+                            message: format!("Failed to run command '{}': {}", command, e),
+                            file: None,
+                            line: None,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(ValidationResult {
+        passed: issues.is_empty(),
+        issues,
+    })
+}
+
+// ── Validation tool dispatch (feature-gated) ─────────────────────────────────
+
+#[cfg(feature = "tools")]
+async fn run_duplicates_check(changed_files: &[String], issues: &mut Vec<ValidationIssue>) {
+    use brainwires_tools::validation::check_duplicates;
+
+    for file in changed_files {
+        if !is_source_file(file) { continue; }
+
+        match check_duplicates(file).await {
+            Ok(result) => {
+                if let Ok(result_value) = serde_json::from_str::<serde_json::Value>(&result.content) {
+                    if result_value["has_duplicates"].as_bool().unwrap_or(false) {
+                        if let Some(duplicates) = result_value["duplicates"].as_array() {
+                            for dup in duplicates {
+                                issues.push(ValidationIssue {
+                                    check: "duplicate_check".to_string(),
+                                    severity: ValidationSeverity::Error,
+                                    message: format!(
+                                        "Duplicate export '{}' found at lines {} and {}",
+                                        dup["name"].as_str().unwrap_or("unknown"),
+                                        dup["first_line"].as_u64().unwrap_or(0),
+                                        dup["duplicate_line"].as_u64().unwrap_or(0)
+                                    ),
+                                    file: Some(file.clone()),
+                                    line: dup["duplicate_line"].as_u64().map(|n| n as usize),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::warn!("Failed to check duplicates in {}: {}", file, e);
+            }
+        }
+    }
+}
+
+#[cfg(not(feature = "tools"))]
+async fn run_duplicates_check(_changed_files: &[String], _issues: &mut Vec<ValidationIssue>) {
+    tracing::debug!("NoDuplicates check skipped: 'tools' feature not enabled");
+}
+
+#[cfg(feature = "tools")]
+async fn run_syntax_check(changed_files: &[String], issues: &mut Vec<ValidationIssue>) {
+    use brainwires_tools::validation::check_syntax;
+
+    for file in changed_files {
+        if !is_source_file(file) { continue; }
+
+        match check_syntax(file).await {
+            Ok(result) => {
+                if let Ok(result_value) = serde_json::from_str::<serde_json::Value>(&result.content) {
+                    if !result_value["valid_syntax"].as_bool().unwrap_or(true) {
+                        if let Some(errors) = result_value["errors"].as_array() {
+                            for error in errors {
+                                issues.push(ValidationIssue {
+                                    check: "syntax_check".to_string(),
+                                    severity: ValidationSeverity::Error,
+                                    message: error["message"].as_str().unwrap_or("Unknown syntax error").to_string(),
+                                    file: Some(file.clone()),
+                                    line: None,
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::warn!("Failed to check syntax in {}: {}", file, e);
+            }
+        }
+    }
+}
+
+#[cfg(not(feature = "tools"))]
+async fn run_syntax_check(_changed_files: &[String], _issues: &mut Vec<ValidationIssue>) {
+    tracing::debug!("SyntaxValid check skipped: 'tools' feature not enabled");
+}
+
+#[cfg(feature = "tools")]
+async fn run_build_check(working_directory: &str, build_type: &str, issues: &mut Vec<ValidationIssue>) {
+    use brainwires_tools::validation::verify_build;
+
+    match verify_build(working_directory, build_type).await {
+        Ok(result) => {
+            if let Ok(result_value) = serde_json::from_str::<serde_json::Value>(&result.content) {
+                if !result_value["success"].as_bool().unwrap_or(false) {
+                    let error_count = result_value["error_count"].as_u64().unwrap_or(0);
+
+                    if let Some(errors) = result_value["errors"].as_array() {
+                        for error in errors.iter().take(5) {
+                            issues.push(ValidationIssue {
+                                check: "build_check".to_string(),
+                                severity: ValidationSeverity::Error,
+                                message: error["message"].as_str()
+                                    .or_else(|| error["line"].as_str())
+                                    .unwrap_or("Build error")
+                                    .to_string(),
+                                file: error["location"].as_str().map(|s| s.to_string()),
+                                line: None,
+                            });
+                        }
+                    }
+
+                    if error_count > 5 {
+                        issues.push(ValidationIssue {
+                            check: "build_check".to_string(),
+                            severity: ValidationSeverity::Error,
+                            message: format!("... and {} more build errors", error_count - 5),
+                            file: None,
+                            line: None,
+                        });
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            issues.push(ValidationIssue {
+                check: "build_check".to_string(),
+                severity: ValidationSeverity::Error,
+                message: format!("Build validation failed: {}", e),
+                file: None,
+                line: None,
+            });
+        }
+    }
+}
+
+#[cfg(not(feature = "tools"))]
+async fn run_build_check(_working_directory: &str, _build_type: &str, _issues: &mut Vec<ValidationIssue>) {
+    tracing::debug!("BuildSuccess check skipped: 'tools' feature not enabled");
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/// Format validation result as feedback for agent
+pub fn format_validation_feedback(result: &ValidationResult) -> String {
+    if result.passed {
+        return "All validation checks passed!".to_string();
+    }
+
+    let mut feedback = String::from("VALIDATION FAILED - You must fix these issues:\n\n");
+
+    for (idx, issue) in result.issues.iter().enumerate() {
+        feedback.push_str(&format!("{}. [{}] ", idx + 1, issue.check));
+
+        if let Some(file) = &issue.file {
+            feedback.push_str(&format!("{}:", file));
+            if let Some(line) = issue.line {
+                feedback.push_str(&format!("{}:", line));
+            }
+            feedback.push(' ');
+        }
+
+        feedback.push_str(&issue.message);
+        feedback.push('\n');
+    }
+
+    feedback.push('\n');
+    feedback.push_str("IMPORTANT: You MUST fix ALL of these issues before the task can complete.\n");
+    feedback.push_str("After fixing, verify your changes by reading the files back.\n");
+
+    feedback
+}
+
+/// Get list of files modified in working directory (git-aware)
+fn get_modified_files(working_directory: &str) -> Result<Vec<String>> {
+    if let Ok(output) = Command::new("git")
+        .args(["diff", "--name-only", "HEAD"])
+        .current_dir(working_directory)
+        .output()
+    {
+        if output.status.success() {
+            let files: Vec<String> = String::from_utf8_lossy(&output.stdout)
+                .lines()
+                .map(|s| s.to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+
+            if !files.is_empty() {
+                return Ok(files);
+            }
+        }
+    }
+
+    // Fallback: check for recently modified files
+    let path = PathBuf::from(working_directory);
+    let mut files = Vec::new();
+
+    if let Ok(entries) = std::fs::read_dir(&path) {
+        for entry in entries.flatten() {
+            if let Ok(metadata) = entry.metadata() {
+                if metadata.is_file() {
+                    if let Some(file_name) = entry.file_name().to_str() {
+                        files.push(file_name.to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(files)
+}
+
+/// Check if file is a source code file worth validating
+fn is_source_file(path: &str) -> bool {
+    let path_lower = path.to_lowercase();
+
+    path_lower.ends_with(".rs") ||
+    path_lower.ends_with(".ts") ||
+    path_lower.ends_with(".tsx") ||
+    path_lower.ends_with(".js") ||
+    path_lower.ends_with(".jsx") ||
+    path_lower.ends_with(".py") ||
+    path_lower.ends_with(".java") ||
+    path_lower.ends_with(".cpp") ||
+    path_lower.ends_with(".c") ||
+    path_lower.ends_with(".go") ||
+    path_lower.ends_with(".rb")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_source_file() {
+        assert!(is_source_file("src/main.rs"));
+        assert!(is_source_file("app.ts"));
+        assert!(is_source_file("Component.tsx"));
+        assert!(!is_source_file("README.md"));
+        assert!(!is_source_file("package.json"));
+    }
+
+    #[test]
+    fn test_format_validation_feedback() {
+        let result = ValidationResult {
+            passed: false,
+            issues: vec![
+                ValidationIssue {
+                    check: "duplicate_check".to_string(),
+                    severity: ValidationSeverity::Error,
+                    message: "Duplicate export 'FOO'".to_string(),
+                    file: Some("src/test.ts".to_string()),
+                    line: Some(42),
+                },
+            ],
+        };
+
+        let feedback = format_validation_feedback(&result);
+        assert!(feedback.contains("VALIDATION FAILED"));
+        assert!(feedback.contains("src/test.ts:42"));
+        assert!(feedback.contains("Duplicate export 'FOO'"));
+    }
+}

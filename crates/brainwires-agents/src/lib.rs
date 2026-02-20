@@ -1,3 +1,103 @@
-//! Placeholder - will be populated in a future migration phase.
+//! Brainwires Agents - Agent orchestration, coordination, and lifecycle management
+//!
+//! This crate provides the multi-agent infrastructure for autonomous task execution:
+//!
+//! ## Core Components
+//! - **CommunicationHub** - Inter-agent messaging bus with 50+ message types
+//! - **FileLockManager** - File access coordination with deadlock detection
+//! - **ResourceLockManager** - Scoped resource locking with heartbeat-based liveness
+//! - **OperationTracker** - Operation tracking with heartbeat-based liveness checking
+//! - **ValidationLoop** - Quality checks before agent completion (Bug #5 prevention)
+//! - **TaskManager** - Hierarchical task decomposition and dependency tracking
+//! - **TaskQueue** - Priority-based task scheduling with dependency awareness
+//!
+//! ## Coordination Patterns
+//! - **ContractNet** - Bidding protocol for agent negotiation
+//! - **Saga** - Compensating transactions for distributed operations
+//! - **OptimisticConcurrency** - Optimistic locking with version-based conflict detection
+//! - **WaitQueue** - Queue-based coordination primitives
+//! - **MarketAllocation** - Market-based task allocation
+//! - **ThreeStateModel** - State snapshots for rollback support
+//!
+//! ## Analysis & Validation
+//! - **ResourceChecker** - Conflict detection and resolution
+//! - **ValidationAgent** - Rule-based validation
+//! - **Confidence** - Response confidence scoring
+//! - **WorktreeManager** - Git worktree management for agent isolation
+//!
+//! ## Feature Flags
+//! - `tools` - Enable validation tool integration (check_duplicates, verify_build, check_syntax)
 
+// Re-export core types
 pub use brainwires_core;
+
+// ── Core components ──────────────────────────────────────────────────────────
+
+pub mod communication;
+pub mod confidence;
+pub mod file_locks;
+pub mod operation_tracker;
+pub mod resource_locks;
+pub mod task_manager;
+pub mod task_queue;
+pub mod validation_loop;
+
+// ── Coordination patterns ────────────────────────────────────────────────────
+
+pub mod contract_net;
+pub mod market_allocation;
+pub mod optimistic;
+pub mod saga;
+pub mod state_model;
+pub mod wait_queue;
+
+// ── Analysis & validation ────────────────────────────────────────────────────
+
+pub mod resource_checker;
+pub mod validation_agent;
+pub mod worktree;
+
+// ── Re-exports ───────────────────────────────────────────────────────────────
+
+// Core components
+pub use communication::{AgentMessage, CommunicationHub, ConflictInfo, ConflictType, GitOperationType};
+pub use confidence::{extract_confidence, quick_confidence_check, ResponseConfidence, ConfidenceFactors};
+pub use file_locks::{FileLockManager, LockType};
+pub use operation_tracker::OperationTracker;
+pub use resource_checker::{ResourceChecker, ConflictCheck};
+pub use resource_locks::{ResourceLockManager, ResourceScope, ResourceType as ResourceLockType, ResourceLockGuard};
+pub use task_manager::{TaskManager, format_duration_secs};
+pub use task_queue::TaskQueue;
+pub use validation_loop::*;
+pub use worktree::WorktreeManager;
+
+// Coordination patterns
+pub use contract_net::ContractNetManager;
+pub use market_allocation::MarketAllocator;
+pub use optimistic::OptimisticController;
+pub use saga::SagaExecutor;
+pub use state_model::{StateSnapshot, ThreeStateModel, StateModelProposedOperation};
+pub use wait_queue::WaitQueue;
+
+/// Prelude module for convenient imports
+pub mod prelude {
+    // Core components
+    pub use super::communication::{AgentMessage, CommunicationHub, ConflictInfo, ConflictType};
+    pub use super::confidence::{ResponseConfidence, ConfidenceFactors};
+    pub use super::file_locks::{FileLockManager, LockType};
+    pub use super::operation_tracker::OperationTracker;
+    pub use super::resource_checker::{ResourceChecker, ConflictCheck};
+    pub use super::resource_locks::{ResourceLockManager, ResourceScope};
+    pub use super::state_model::{StateSnapshot, ThreeStateModel};
+    pub use super::task_manager::{TaskManager, format_duration_secs};
+    pub use super::task_queue::TaskQueue;
+    pub use super::validation_loop::{ValidationConfig, ValidationCheck, ValidationResult, ValidationIssue};
+    pub use super::worktree::WorktreeManager;
+
+    // Coordination patterns
+    pub use super::contract_net::ContractNetManager;
+    pub use super::market_allocation::MarketAllocator;
+    pub use super::optimistic::OptimisticController;
+    pub use super::saga::SagaExecutor;
+    pub use super::wait_queue::WaitQueue;
+}
