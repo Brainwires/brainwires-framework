@@ -1,8 +1,8 @@
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// Request to index a codebase
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "native", derive(schemars::JsonSchema))]
 pub struct IndexRequest {
     /// Path to the codebase directory to index
     pub path: String,
@@ -25,7 +25,8 @@ fn default_max_file_size() -> usize {
 }
 
 /// Indexing mode used
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "native", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum IndexingMode {
     /// Full indexing (all files)
@@ -35,7 +36,8 @@ pub enum IndexingMode {
 }
 
 /// Response from indexing operation
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "native", derive(schemars::JsonSchema))]
 pub struct IndexResponse {
     /// Indexing mode used (full or incremental)
     pub mode: IndexingMode,
@@ -59,7 +61,8 @@ pub struct IndexResponse {
 }
 
 /// Request to query the codebase
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "native", derive(schemars::JsonSchema))]
 pub struct QueryRequest {
     /// The question or search query
     pub query: String,
@@ -93,7 +96,8 @@ fn default_min_score() -> f32 {
 }
 
 /// A single search result
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "native", derive(schemars::JsonSchema))]
 pub struct SearchResult {
     /// File path relative to the indexed root
     pub file_path: String,
@@ -119,7 +123,8 @@ pub struct SearchResult {
 }
 
 /// Response from query operation
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "native", derive(schemars::JsonSchema))]
 pub struct QueryResponse {
     /// List of search results, ordered by relevance
     pub results: Vec<SearchResult>,
@@ -134,11 +139,13 @@ pub struct QueryResponse {
 }
 
 /// Request to get statistics about the index
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "native", derive(schemars::JsonSchema))]
 pub struct StatisticsRequest {}
 
 /// Statistics about the indexed codebase
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "native", derive(schemars::JsonSchema))]
 pub struct StatisticsResponse {
     /// Total number of indexed files
     pub total_files: usize,
@@ -152,7 +159,8 @@ pub struct StatisticsResponse {
     pub language_breakdown: Vec<LanguageStats>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "native", derive(schemars::JsonSchema))]
 pub struct LanguageStats {
     pub language: String,
     pub file_count: usize,
@@ -160,11 +168,13 @@ pub struct LanguageStats {
 }
 
 /// Request to clear the index
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "native", derive(schemars::JsonSchema))]
 pub struct ClearRequest {}
 
 /// Response from clear operation
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "native", derive(schemars::JsonSchema))]
 pub struct ClearResponse {
     /// Whether the operation was successful
     pub success: bool,
@@ -173,7 +183,8 @@ pub struct ClearResponse {
 }
 
 /// Request for incremental update
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "native", derive(schemars::JsonSchema))]
 pub struct IncrementalUpdateRequest {
     /// Path to the codebase directory
     pub path: String,
@@ -189,7 +200,8 @@ pub struct IncrementalUpdateRequest {
 }
 
 /// Response from incremental update
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "native", derive(schemars::JsonSchema))]
 pub struct IncrementalUpdateResponse {
     /// Number of files added
     pub files_added: usize,
@@ -204,7 +216,8 @@ pub struct IncrementalUpdateResponse {
 }
 
 /// Request to search with file type filters
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "native", derive(schemars::JsonSchema))]
 pub struct AdvancedSearchRequest {
     /// The search query
     pub query: String,
@@ -232,7 +245,8 @@ pub struct AdvancedSearchRequest {
 }
 
 /// Request to search git history
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "native", derive(schemars::JsonSchema))]
 pub struct SearchGitHistoryRequest {
     /// The search query
     pub query: String,
@@ -277,7 +291,8 @@ fn default_max_commits() -> usize {
 }
 
 /// A single git search result
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "native", derive(schemars::JsonSchema))]
 pub struct GitSearchResult {
     /// Git commit hash (SHA)
     pub commit_hash: String,
@@ -302,7 +317,8 @@ pub struct GitSearchResult {
 }
 
 /// Response from git history search
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "native", derive(schemars::JsonSchema))]
 pub struct SearchGitHistoryResponse {
     /// List of matching commits, ordered by relevance
     pub results: Vec<GitSearchResult>,
@@ -319,7 +335,8 @@ pub struct SearchGitHistoryResponse {
 // ============================================================================
 
 /// Request to find the definition of a symbol at a given location
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "native", derive(schemars::JsonSchema))]
 pub struct FindDefinitionRequest {
     /// File path (relative or absolute)
     pub file_path: String,
@@ -346,7 +363,9 @@ impl FindDefinitionRequest {
 }
 
 /// Response from find_definition
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[cfg(feature = "native")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "native", derive(schemars::JsonSchema))]
 pub struct FindDefinitionResponse {
     /// The found definition, if any
     pub definition: Option<crate::relations::DefinitionResult>,
@@ -357,7 +376,8 @@ pub struct FindDefinitionResponse {
 }
 
 /// Request to find all references to a symbol
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "native", derive(schemars::JsonSchema))]
 pub struct FindReferencesRequest {
     /// File path (relative or absolute)
     pub file_path: String,
@@ -402,7 +422,9 @@ impl FindReferencesRequest {
 }
 
 /// Response from find_references
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[cfg(feature = "native")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "native", derive(schemars::JsonSchema))]
 pub struct FindReferencesResponse {
     /// The symbol being referenced
     pub symbol_name: Option<String>,
@@ -417,7 +439,8 @@ pub struct FindReferencesResponse {
 }
 
 /// Request to get call graph for a function
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "native", derive(schemars::JsonSchema))]
 pub struct GetCallGraphRequest {
     /// File path (relative or absolute)
     pub file_path: String,
@@ -465,7 +488,9 @@ impl GetCallGraphRequest {
 }
 
 /// Response from get_call_graph
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[cfg(feature = "native")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "native", derive(schemars::JsonSchema))]
 pub struct GetCallGraphResponse {
     /// The root symbol (function/method at the requested location)
     pub root_symbol: Option<crate::relations::SymbolInfo>,

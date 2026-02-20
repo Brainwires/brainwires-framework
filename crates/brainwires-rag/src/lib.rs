@@ -117,61 +117,57 @@
 //! - [`error`]: Error types and result aliases
 //! - [`paths`]: Path normalization utilities
 
-// Core modules (always available)
-/// BM25 keyword search using Tantivy for hybrid search
-pub mod bm25_search;
-
-/// Persistent hash cache for tracking file changes across restarts
-pub mod cache;
-
-/// Configuration management with environment variable overrides
-pub mod config;
-
-/// Embedding generation using FastEmbed (all-MiniLM-L6-v2)
-pub mod embedding;
+// ── Always available (WASM-safe) ─────────────────────────────────────────────
 
 /// Error types and utilities
 pub mod error;
 
-/// Git repository walking and commit extraction
-pub mod git;
-
-/// Git commit tracking cache for incremental git history indexing
-pub mod git_cache;
-
-/// Glob pattern matching utilities for path filtering
-pub mod glob_utils;
-
-/// File walking, code chunking, and AST parsing
-pub mod indexer;
-
-/// Path normalization and utility functions
-pub mod paths;
-
-/// Code relationships: definitions, references, call graphs
-pub mod relations;
-
 /// Request/response types with validation
 pub mod types;
 
-/// Vector database abstraction supporting LanceDB and Qdrant
-pub mod vector_db;
-
-// Library client API (core functionality)
-pub mod client;
-pub use client::RagClient;
-
-// MCP server (wraps the client and exposes via MCP protocol)
-pub mod mcp_server;
-
-// Re-export commonly used types for convenience
+// Re-export types (always available)
 pub use types::{
     AdvancedSearchRequest, ClearRequest, ClearResponse, FindDefinitionRequest,
-    FindDefinitionResponse, FindReferencesRequest, FindReferencesResponse, GetCallGraphRequest,
-    GetCallGraphResponse, GitSearchResult, IndexRequest, IndexResponse, IndexingMode,
-    LanguageStats, QueryRequest, QueryResponse, SearchGitHistoryRequest, SearchGitHistoryResponse,
-    SearchResult, StatisticsRequest, StatisticsResponse,
+    FindReferencesRequest, GetCallGraphRequest, GitSearchResult, IndexRequest, IndexResponse,
+    IndexingMode, LanguageStats, QueryRequest, QueryResponse, SearchGitHistoryRequest,
+    SearchGitHistoryResponse, SearchResult, StatisticsRequest, StatisticsResponse,
 };
 
-pub use config::Config;
+// Re-export types that depend on the relations module (native only)
+#[cfg(feature = "native")]
+pub use types::{FindDefinitionResponse, FindReferencesResponse, GetCallGraphResponse};
+
 pub use error::RagError;
+
+// ── Native-only modules ──────────────────────────────────────────────────────
+
+#[cfg(feature = "native")]
+pub mod bm25_search;
+#[cfg(feature = "native")]
+pub mod cache;
+#[cfg(feature = "native")]
+pub mod config;
+#[cfg(feature = "native")]
+pub mod embedding;
+#[cfg(feature = "native")]
+pub mod git;
+#[cfg(feature = "native")]
+pub mod git_cache;
+#[cfg(feature = "native")]
+pub mod glob_utils;
+#[cfg(feature = "native")]
+pub mod indexer;
+#[cfg(feature = "native")]
+pub mod paths;
+#[cfg(feature = "native")]
+pub mod relations;
+#[cfg(feature = "native")]
+pub mod vector_db;
+#[cfg(feature = "native")]
+pub mod client;
+#[cfg(feature = "native")]
+pub use client::RagClient;
+#[cfg(feature = "native")]
+pub mod mcp_server;
+#[cfg(feature = "native")]
+pub use config::Config;

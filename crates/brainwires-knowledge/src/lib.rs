@@ -30,8 +30,10 @@ pub use brainwires_core;
 // ── Behavioral Knowledge System ────────────────────────────────────────────
 
 pub mod truth;
+#[cfg(feature = "native")]
 pub mod cache;
 pub mod collector;
+#[cfg(feature = "native")]
 pub mod api;
 pub mod inference;
 pub mod matcher;
@@ -42,21 +44,28 @@ pub mod personal;
 
 // ── Re-exports ─────────────────────────────────────────────────────────────
 
-// BKS types
+// BKS types (always available)
 pub use truth::{BehavioralTruth, TruthCategory, TruthSource};
-pub use cache::BehavioralKnowledgeCache;
 pub use collector::{LearningCollector, detect_correction};
-pub use api::KnowledgeApiClient;
 pub use inference::TruthInferenceEngine;
 pub use matcher::ContextMatcher;
 
-// PKS types
+// BKS types (native only - require rusqlite/reqwest)
+#[cfg(feature = "native")]
+pub use cache::BehavioralKnowledgeCache;
+#[cfg(feature = "native")]
+pub use api::KnowledgeApiClient;
+
+// PKS types (always available)
 pub use personal::{
     PersonalFact, PersonalFactCategory, PersonalFactSource,
-    PersonalKnowledgeCache, PersonalKnowledgeApiClient,
     PersonalFactCollector, PersonalFactMatcher,
     PersonalKnowledgeSettings,
 };
+
+// PKS types (native only - require rusqlite/reqwest)
+#[cfg(feature = "native")]
+pub use personal::{PersonalKnowledgeCache, PersonalKnowledgeApiClient};
 
 /// Configuration for the Behavioral Knowledge System
 #[derive(Debug, Clone)]
@@ -146,16 +155,20 @@ impl KnowledgeSettings {
 /// Prelude module for convenient imports
 pub mod prelude {
     pub use super::truth::{BehavioralTruth, TruthCategory, TruthSource};
-    pub use super::cache::BehavioralKnowledgeCache;
     pub use super::collector::LearningCollector;
     pub use super::matcher::ContextMatcher;
     pub use super::inference::TruthInferenceEngine;
     pub use super::personal::{
         PersonalFact, PersonalFactCategory, PersonalFactSource,
-        PersonalKnowledgeCache, PersonalFactCollector, PersonalFactMatcher,
+        PersonalFactCollector, PersonalFactMatcher,
         PersonalKnowledgeSettings,
     };
     pub use super::KnowledgeSettings;
+
+    #[cfg(feature = "native")]
+    pub use super::cache::BehavioralKnowledgeCache;
+    #[cfg(feature = "native")]
+    pub use super::personal::{PersonalKnowledgeCache};
 }
 
 #[cfg(test)]

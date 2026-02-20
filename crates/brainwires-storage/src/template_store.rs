@@ -263,6 +263,7 @@ impl TemplateStore {
     /// Create a template store in the system's default data directory
     ///
     /// Falls back to ~/.brainwires/ if no platform data dir is available.
+    #[cfg(feature = "native")]
     pub fn with_default_dir() -> Result<Self> {
         let data_dir = dirs::data_dir()
             .unwrap_or_else(|| dirs::home_dir().unwrap_or_default().join(".brainwires"));

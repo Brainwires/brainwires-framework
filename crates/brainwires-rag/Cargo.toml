@@ -22,56 +22,55 @@ exclude = [
 ]
 
 [dependencies]
-rmcp = { version = "0.8", features = ["server", "transport-io", "macros"] }
-schemars = "1.0"
-tokio = { version = "1.43", features = ["full"] }
-# Vector databases - LanceDB is default (embedded, stable), Qdrant is optional (external)
-lancedb = "0.23"
-arrow-array = "56.2"
-arrow-schema = "56.2"
-futures = "0.3"
-qdrant-client = { version = "1.15", optional = true }
-fastembed = "5.1"
-tantivy = "0.22"
-git2 = "0.19"
-anyhow = "1.0"
-async-trait = "0.1"
+# Always available
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-walkdir = "2.5"
+anyhow = "1.0"
+thiserror = "2.0"
 regex = "1.10"
 chrono = "0.4"
-dirs = "5.0"
-sha2 = "0.10"
-ignore = "0.4"
-globset = "0.4"
 tracing = "0.1"
-tracing-subscriber = "0.3"
-tree-sitter = "0.25"
-tree-sitter-rust = "0.23"
-tree-sitter-python = "0.23"
-tree-sitter-javascript = "0.23"
-tree-sitter-typescript = "0.23"
-tree-sitter-go = "0.23"
-tree-sitter-java = "0.23"
-tree-sitter-swift = "0.7"
-tree-sitter-c = "0.24"
-tree-sitter-cpp = "0.23"
-tree-sitter-c-sharp = "0.23"
-tree-sitter-ruby = "0.23"
-tree-sitter-php = "0.24"
-# CLI and configuration
-clap = { version = "4", features = ["derive", "env"] }
-thiserror = "2.0"
-toml = "0.8"
-# PDF processing
-pdf-extract = "0.7"
-# Performance
-rayon = "1.10"
-# Async utilities for cancellation
-tokio-util = "0.7"
-# Cross-platform file locking for cross-process coordination
-fs2 = "0.4"
+
+# Async runtime (minimal for WASM, full for native)
+tokio = { version = "1.43", features = ["sync", "time"] }
+
+# Native-only dependencies
+rmcp = { version = "0.8", features = ["server", "transport-io", "macros"], optional = true }
+schemars = { version = "1.0", optional = true }
+lancedb = { version = "0.23", optional = true }
+arrow-array = { version = "56.2", optional = true }
+arrow-schema = { version = "56.2", optional = true }
+futures = { version = "0.3", optional = true }
+qdrant-client = { version = "1.15", optional = true }
+fastembed = { version = "5.1", optional = true }
+tantivy = { version = "0.22", optional = true }
+git2 = { version = "0.19", optional = true }
+async-trait = { version = "0.1", optional = true }
+walkdir = { version = "2.5", optional = true }
+dirs = { version = "5.0", optional = true }
+sha2 = { version = "0.10", optional = true }
+ignore = { version = "0.4", optional = true }
+globset = { version = "0.4", optional = true }
+tracing-subscriber = { version = "0.3", optional = true }
+tree-sitter = { version = "0.25", optional = true }
+tree-sitter-rust = { version = "0.23", optional = true }
+tree-sitter-python = { version = "0.23", optional = true }
+tree-sitter-javascript = { version = "0.23", optional = true }
+tree-sitter-typescript = { version = "0.23", optional = true }
+tree-sitter-go = { version = "0.23", optional = true }
+tree-sitter-java = { version = "0.23", optional = true }
+tree-sitter-swift = { version = "0.7", optional = true }
+tree-sitter-c = { version = "0.24", optional = true }
+tree-sitter-cpp = { version = "0.23", optional = true }
+tree-sitter-c-sharp = { version = "0.23", optional = true }
+tree-sitter-ruby = { version = "0.23", optional = true }
+tree-sitter-php = { version = "0.24", optional = true }
+clap = { version = "4", features = ["derive", "env"], optional = true }
+toml = { version = "0.8", optional = true }
+pdf-extract = { version = "0.7", optional = true }
+rayon = { version = "1.10", optional = true }
+tokio-util = { version = "0.7", optional = true }
+fs2 = { version = "0.4", optional = true }
 
 [dev-dependencies]
 tempfile = "3.0"
@@ -82,10 +81,29 @@ filetime = "0.2"
 chrono = "0.4"
 
 [features]
-# Vector database backend selection (choose one)
-default = ["lancedb-backend"]
-lancedb-backend = []  # Embedded LanceDB (no external server required)
-qdrant-backend = ["qdrant-client"]  # External Qdrant server
+# Default: native with LanceDB backend
+default = ["native", "lancedb-backend"]
+
+# Native feature gates all heavy dependencies
+native = [
+    "dep:rmcp", "dep:schemars", "dep:lancedb", "dep:arrow-array", "dep:arrow-schema",
+    "dep:futures", "dep:fastembed", "dep:tantivy", "dep:git2", "dep:async-trait",
+    "dep:walkdir", "dep:dirs", "dep:sha2", "dep:ignore", "dep:globset",
+    "dep:tracing-subscriber", "dep:tree-sitter",
+    "dep:tree-sitter-rust", "dep:tree-sitter-python", "dep:tree-sitter-javascript",
+    "dep:tree-sitter-typescript", "dep:tree-sitter-go", "dep:tree-sitter-java",
+    "dep:tree-sitter-swift", "dep:tree-sitter-c", "dep:tree-sitter-cpp",
+    "dep:tree-sitter-c-sharp", "dep:tree-sitter-ruby", "dep:tree-sitter-php",
+    "dep:clap", "dep:toml", "dep:pdf-extract", "dep:rayon", "dep:tokio-util", "dep:fs2",
+    "tokio/full",
+]
+
+# WASM mode: only types and error modules
+wasm = []
+
+# Vector database backend selection
+lancedb-backend = []
+qdrant-backend = ["qdrant-client"]
 
 # Alternative folder name for data storage (for consuming crates that want different folder)
 alt-folder-name = []
@@ -108,6 +126,7 @@ path = "src/lib.rs"
 [[bin]]
 name = "brainwires-rag"
 path = "src/main.rs"
+required-features = ["native"]
 
 [[bench]]
 name = "indexing_benchmark"

@@ -40,103 +40,144 @@
 // Re-export core types
 pub use brainwires_core;
 
-// ── Core infrastructure ────────────────────────────────────────────────────
-
-pub mod lance_client;
-pub mod embeddings;
-
-// ── Stores ─────────────────────────────────────────────────────────────────
-
-pub mod conversation_store;
-pub mod message_store;
-pub mod task_store;
-pub mod plan_store;
-pub mod template_store;
-pub mod lock_store;
-
-// ── Document management ────────────────────────────────────────────────────
+// ── Always available (pure types/logic) ──────────────────────────────────
 
 pub mod document_types;
 pub mod document_chunker;
-pub mod document_processor;
-pub mod document_metadata_store;
-pub mod document_bm25;
-pub mod document_store;
-
-// ── Image storage ──────────────────────────────────────────────────────────
-
 pub mod image_types;
-pub mod image_store;
-
-// ── Tiered memory ──────────────────────────────────────────────────────────
-
-pub mod tiered_memory;
-pub mod summary_store;
-pub mod fact_store;
-pub mod tier_metadata_store;
-
-// ── Knowledge graph ────────────────────────────────────────────────────────
-
 pub mod entity;
 pub mod relationship_graph;
+pub mod template_store;
+
+// These have native deps (sha2, LanceDB types)
+#[cfg(feature = "native")]
+pub mod tiered_memory;
+#[cfg(feature = "native")]
 pub mod file_context;
 
-// ── Re-exports ─────────────────────────────────────────────────────────────
+// ── Native-only modules (require lancedb, arrow, rusqlite, etc.) ─────────
 
-// Core infrastructure
-pub use lance_client::LanceClient;
-pub use embeddings::EmbeddingProvider;
+#[cfg(feature = "native")]
+pub mod lance_client;
+#[cfg(feature = "native")]
+pub mod embeddings;
+#[cfg(feature = "native")]
+pub mod conversation_store;
+#[cfg(feature = "native")]
+pub mod message_store;
+#[cfg(feature = "native")]
+pub mod task_store;
+#[cfg(feature = "native")]
+pub mod plan_store;
+#[cfg(feature = "native")]
+pub mod lock_store;
+#[cfg(feature = "native")]
+pub mod document_processor;
+#[cfg(feature = "native")]
+pub mod document_metadata_store;
+#[cfg(feature = "native")]
+pub mod document_bm25;
+#[cfg(feature = "native")]
+pub mod document_store;
+#[cfg(feature = "native")]
+pub mod image_store;
+#[cfg(feature = "native")]
+pub mod summary_store;
+#[cfg(feature = "native")]
+pub mod fact_store;
+#[cfg(feature = "native")]
+pub mod tier_metadata_store;
 
-// Stores
-pub use conversation_store::{ConversationMetadata, ConversationStore};
-pub use message_store::{MessageMetadata, MessageStore};
-pub use task_store::{AgentStateMetadata, AgentStateStore, TaskMetadata, TaskStore};
-pub use plan_store::PlanStore;
-pub use template_store::{PlanTemplate, TemplateStore};
-pub use lock_store::{LockStore, LockRecord, LockStats};
+// ── Re-exports (always available) ────────────────────────────────────────
 
-// Document management
+// Document types
 pub use document_types::{
     DocumentChunk, DocumentMetadata, DocumentSearchRequest, DocumentSearchResult, DocumentType,
     ExtractedDocument,
 };
 pub use document_chunker::{ChunkerConfig, DocumentChunker};
-pub use document_processor::DocumentProcessor;
-pub use document_metadata_store::DocumentMetadataStore;
-pub use document_bm25::{DocumentBM25Manager, DocumentBM25Result, DocumentBM25Stats};
-pub use document_store::{DocumentStore, DocumentScope};
 
-// Image storage
+// Image types
 pub use image_types::{
     ImageFormat, ImageMetadata, ImageSearchRequest, ImageSearchResult, ImageStorage,
 };
-pub use image_store::ImageStore;
 
-// Tiered memory
-pub use tiered_memory::{TieredMemory, TieredMemoryConfig, MemoryTier, TieredSearchResult};
-pub use summary_store::SummaryStore;
-pub use fact_store::FactStore;
-pub use tier_metadata_store::TierMetadataStore;
-
-// Knowledge graph
-pub use entity::{Entity, EntityType, EntityStore, Relationship, ExtractionResult, EntityStoreStats};
+// Knowledge graph types
+pub use entity::{Entity, EntityType, Relationship, ExtractionResult, EntityStoreStats};
 pub use relationship_graph::{RelationshipGraph, GraphNode, GraphEdge, EdgeType, EntityContext};
+
+// Template store
+pub use template_store::{PlanTemplate, TemplateStore};
+
+// ── Re-exports (native only) ─────────────────────────────────────────────
+
+#[cfg(feature = "native")]
+pub use lance_client::LanceClient;
+#[cfg(feature = "native")]
+pub use embeddings::EmbeddingProvider;
+#[cfg(feature = "native")]
+pub use conversation_store::{ConversationMetadata, ConversationStore};
+#[cfg(feature = "native")]
+pub use message_store::{MessageMetadata, MessageStore};
+#[cfg(feature = "native")]
+pub use task_store::{AgentStateMetadata, AgentStateStore, TaskMetadata, TaskStore};
+#[cfg(feature = "native")]
+pub use plan_store::PlanStore;
+#[cfg(feature = "native")]
+pub use lock_store::{LockStore, LockRecord, LockStats};
+#[cfg(feature = "native")]
+pub use document_processor::DocumentProcessor;
+#[cfg(feature = "native")]
+pub use document_metadata_store::DocumentMetadataStore;
+#[cfg(feature = "native")]
+pub use document_bm25::{DocumentBM25Manager, DocumentBM25Result, DocumentBM25Stats};
+#[cfg(feature = "native")]
+pub use document_store::{DocumentStore, DocumentScope};
+#[cfg(feature = "native")]
+pub use image_store::ImageStore;
+#[cfg(feature = "native")]
+pub use summary_store::SummaryStore;
+#[cfg(feature = "native")]
+pub use fact_store::FactStore;
+#[cfg(feature = "native")]
+pub use tier_metadata_store::TierMetadataStore;
+#[cfg(feature = "native")]
+pub use tiered_memory::{TieredMemory, TieredMemoryConfig, MemoryTier, TieredSearchResult};
+#[cfg(feature = "native")]
 pub use file_context::{FileChunk, FileContent, FileContextManager};
+#[cfg(feature = "native")]
+pub use entity::EntityStore;
 
 /// Prelude module for convenient imports
 pub mod prelude {
-    pub use super::lance_client::LanceClient;
-    pub use super::embeddings::EmbeddingProvider;
-    pub use super::conversation_store::{ConversationMetadata, ConversationStore};
-    pub use super::message_store::{MessageMetadata, MessageStore};
-    pub use super::task_store::{TaskMetadata, TaskStore};
-    pub use super::plan_store::PlanStore;
+    // Always available
     pub use super::template_store::{PlanTemplate, TemplateStore};
-    pub use super::lock_store::{LockStore, LockRecord};
-    pub use super::document_store::{DocumentStore, DocumentScope};
-    pub use super::image_store::ImageStore;
-    pub use super::tiered_memory::{TieredMemory, TieredMemoryConfig, MemoryTier, TieredSearchResult};
-    pub use super::entity::{Entity, EntityType, EntityStore, Relationship};
+    pub use super::entity::{Entity, EntityType, Relationship};
     pub use super::relationship_graph::{RelationshipGraph, EntityContext};
+
+    // Native only
+    #[cfg(feature = "native")]
+    pub use super::lance_client::LanceClient;
+    #[cfg(feature = "native")]
+    pub use super::embeddings::EmbeddingProvider;
+    #[cfg(feature = "native")]
+    pub use super::conversation_store::{ConversationMetadata, ConversationStore};
+    #[cfg(feature = "native")]
+    pub use super::message_store::{MessageMetadata, MessageStore};
+    #[cfg(feature = "native")]
+    pub use super::task_store::{TaskMetadata, TaskStore};
+    #[cfg(feature = "native")]
+    pub use super::plan_store::PlanStore;
+    #[cfg(feature = "native")]
+    pub use super::lock_store::{LockStore, LockRecord};
+    #[cfg(feature = "native")]
+    pub use super::document_store::{DocumentStore, DocumentScope};
+    #[cfg(feature = "native")]
+    pub use super::image_store::ImageStore;
+    #[cfg(feature = "native")]
+    pub use super::entity::EntityStore;
+    #[cfg(feature = "native")]
+    pub use super::tiered_memory::{TieredMemory, TieredMemoryConfig, MemoryTier, TieredSearchResult};
+    #[cfg(feature = "native")]
     pub use super::file_context::{FileContent, FileContextManager};
 }

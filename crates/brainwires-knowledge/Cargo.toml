@@ -12,8 +12,8 @@ authors.workspace = true
 # Internal crates
 brainwires-core.workspace = true
 
-# SQLite (for knowledge caches)
-rusqlite.workspace = true
+# SQLite (for knowledge caches, native only)
+rusqlite = { workspace = true, optional = true }
 
 # Serialization
 serde = { workspace = true }
@@ -27,19 +27,24 @@ uuid.workspace = true
 chrono.workspace = true
 
 # Async runtime
-tokio = { workspace = true, features = ["sync", "time", "rt"] }
+tokio = { version = "1.43", features = ["sync", "time"] }
 
 # Logging
 tracing.workspace = true
 
-# HTTP client (for API sync)
-reqwest.workspace = true
+# HTTP client (for API sync, native only)
+reqwest = { workspace = true, optional = true }
 
 # Regex (for pattern matching in collectors)
 regex.workspace = true
 
 # URL encoding (for API queries)
 urlencoding.workspace = true
+
+[features]
+default = ["native"]
+native = ["dep:rusqlite", "dep:reqwest", "tokio/rt", "brainwires-core/native"]
+wasm = ["brainwires-core/wasm"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }

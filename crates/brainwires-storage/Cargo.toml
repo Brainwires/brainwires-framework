@@ -11,16 +11,16 @@ authors.workspace = true
 [dependencies]
 # Internal crates
 brainwires-core.workspace = true
-brainwires-rag.workspace = true
+brainwires-rag = { workspace = true, optional = true }
 
-# Vector database & columnar storage
-lancedb.workspace = true
-arrow-array.workspace = true
-arrow-schema.workspace = true
+# Vector database & columnar storage (native only)
+lancedb = { workspace = true, optional = true }
+arrow-array = { workspace = true, optional = true }
+arrow-schema = { workspace = true, optional = true }
 
 # Async runtime
-tokio = { workspace = true, features = ["sync", "time", "rt", "macros"] }
-futures.workspace = true
+tokio = { version = "1.43", features = ["sync", "time"] }
+futures = { workspace = true, optional = true }
 
 # Serialization
 serde = { workspace = true }
@@ -34,32 +34,40 @@ uuid.workspace = true
 chrono.workspace = true
 
 # Caching (embedding memoization)
-lru.workspace = true
+lru = { workspace = true, optional = true }
 
 # Hashing (file content hashing)
-sha2.workspace = true
+sha2 = { workspace = true, optional = true }
 
-# SQLite (for lock store)
-rusqlite.workspace = true
+# SQLite (for lock store, native only)
+rusqlite = { workspace = true, optional = true }
 
 # Regex (for template matching)
 regex.workspace = true
 
-# File format processing
-zip = "2"
-base64 = "0.22"
+# File format processing (native only)
+zip = { version = "2", optional = true }
+base64 = { version = "0.22", optional = true }
 
-# System info (for lock store)
-gethostname = "1"
-dirs = "6"
-libc = "0.2"
+# System info (for lock store, native only)
+gethostname = { version = "1", optional = true }
+dirs = { version = "6", optional = true }
+libc = { version = "0.2", optional = true }
 
 # Logging
 tracing.workspace = true
 
+[features]
+default = ["native"]
+native = [
+    "dep:brainwires-rag", "dep:lancedb", "dep:arrow-array", "dep:arrow-schema",
+    "dep:futures", "dep:lru", "dep:sha2", "dep:rusqlite",
+    "dep:zip", "dep:base64", "dep:gethostname", "dep:dirs", "dep:libc",
+    "tokio/rt", "tokio/macros",
+    "brainwires-core/native",
+]
+wasm = ["brainwires-core/wasm"]
+
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }
 tempfile.workspace = true
-
-[features]
-default = []
