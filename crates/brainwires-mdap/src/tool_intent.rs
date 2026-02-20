@@ -41,6 +41,29 @@ pub struct ToolSchema {
     pub category: Option<ToolCategory>,
 }
 
+impl From<brainwires_core::Tool> for ToolSchema {
+    fn from(tool: brainwires_core::Tool) -> Self {
+        let mut schema = Self::new(&tool.name, &tool.description);
+
+        // Extract parameters from input_schema
+        if let Some(props) = &tool.input_schema.properties {
+            for (name, value) in props {
+                let desc = value.get("description")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("No description")
+                    .to_string();
+                schema.parameters.insert(name.clone(), desc);
+            }
+        }
+
+        if let Some(required) = &tool.input_schema.required {
+            schema.required = required.clone();
+        }
+
+        schema
+    }
+}
+
 impl ToolSchema {
     /// Create a new tool schema
     pub fn new(name: impl Into<String>, description: impl Into<String>) -> Self {

@@ -38,6 +38,7 @@ pub use types::{
 #[cfg(feature = "native")]
 pub use types::{
     McpTool, McpResource, McpPrompt, CallToolParams, CallToolResult,
+    Content, ToolsCapability, ResourcesCapability, PromptsCapability,
     ServerCapabilities, ClientCapabilities, ServerInfo, ClientInfo,
     InitializeParams, InitializeResult,
     ListToolsResult, ListResourcesResult, ListPromptsResult,

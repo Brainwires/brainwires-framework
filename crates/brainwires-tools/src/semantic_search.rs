@@ -394,6 +394,27 @@ impl SemanticSearchTool {
             .await
             .map_err(|e| e.to_string())
     }
+
+    /// Execute filtered search (for orchestrator)
+    pub async fn execute_filtered_search(input: &Value) -> Result<String, String> {
+        Self::search_with_filters(input)
+            .await
+            .map_err(|e| e.to_string())
+    }
+
+    /// Get RAG statistics (for orchestrator)
+    pub async fn execute_get_stats() -> Result<String, String> {
+        Self::get_statistics(&Value::Null)
+            .await
+            .map_err(|e| e.to_string())
+    }
+
+    /// Search git history (for orchestrator)
+    pub async fn execute_git_history_search(input: &Value) -> Result<String, String> {
+        Self::search_git_history(input)
+            .await
+            .map_err(|e| e.to_string())
+    }
 }
 
 #[cfg(test)]

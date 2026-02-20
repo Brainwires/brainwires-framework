@@ -12,10 +12,16 @@ pub enum ToolCategory {
     Search,
     SemanticSearch,
     Git,
+    TaskManager,
+    AgentPool,
     Web,
+    WebSearch,
     Bash,
+    Planning,
+    Context,
     Orchestrator,
     CodeExecution,
+    SessionTask,
     Validation,
 }
 
@@ -146,16 +152,56 @@ impl ToolRegistry {
                 "git_commit", "git_push", "git_pull", "git_fetch",
                 "git_discard", "git_branch",
             ],
+            ToolCategory::TaskManager => &[
+                "task_create", "task_start", "task_complete", "task_list",
+                "task_skip", "task_add", "task_block", "task_depends",
+                "task_ready", "task_time",
+            ],
+            ToolCategory::AgentPool => &[
+                "agent_spawn", "agent_status", "agent_list", "agent_stop", "agent_await",
+            ],
             ToolCategory::Web => &["fetch_url"],
+            ToolCategory::WebSearch => &["web_search", "web_browse", "web_scrape"],
             ToolCategory::Bash => &["execute_command"],
+            ToolCategory::Planning => &["plan_task"],
+            ToolCategory::Context => &["recall_context"],
             ToolCategory::Orchestrator => &["execute_script"],
             ToolCategory::CodeExecution => &["execute_code"],
+            ToolCategory::SessionTask => &["task_list_write"],
             ToolCategory::Validation => &["check_duplicates", "verify_build", "check_syntax"],
         };
 
         self.tools
             .iter()
             .filter(|t| names.contains(&t.name.as_str()))
+            .collect()
+    }
+
+    /// Get all tools including MCP tools
+    pub fn get_all_with_mcp(&self, mcp_tools: &[Tool]) -> Vec<Tool> {
+        self.get_all_with_extra(mcp_tools)
+    }
+
+    /// Get core tools for basic project exploration
+    pub fn get_core(&self) -> Vec<&Tool> {
+        let core_names = [
+            "read_file", "write_file", "edit_file", "list_directory",
+            "search_code", "execute_command", "git_status", "git_diff",
+            "git_log", "git_stage", "git_commit", "search_tools",
+            "index_codebase", "query_codebase",
+        ];
+        self.tools
+            .iter()
+            .filter(|t| core_names.contains(&t.name.as_str()))
+            .collect()
+    }
+
+    /// Get primary meta-tools (always available)
+    pub fn get_primary(&self) -> Vec<&Tool> {
+        let primary_names = ["execute_script", "search_tools"];
+        self.tools
+            .iter()
+            .filter(|t| primary_names.contains(&t.name.as_str()))
             .collect()
     }
 
