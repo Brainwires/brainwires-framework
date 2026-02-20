@@ -88,4 +88,48 @@ pub mod prelude {
         ToolCategory, ToolRegistry,
         classify_error, ToolErrorCategory, RetryStrategy, ToolOutcome,
     };
+
+    // Agents — available with "agents" feature
+    #[cfg(feature = "agents")]
+    pub use brainwires_agents::{
+        CommunicationHub, FileLockManager, TaskManager, TaskQueue,
+        ValidationConfig, ValidationCheck, ValidationSeverity,
+    };
+
+    // Storage — available with "storage" feature
+    #[cfg(feature = "storage")]
+    pub use brainwires_storage::{
+        EmbeddingProvider, TieredMemory,
+    };
+
+    // MCP — available with "mcp" feature
+    #[cfg(feature = "mcp")]
+    pub use brainwires_mcp::{McpClient, McpConfigManager, McpServerConfig};
+
+    // MDAP — available with "mdap" feature
+    #[cfg(feature = "mdap")]
+    pub use brainwires_mdap::{
+        Composer, MdapEstimate, MdapError, MdapResult, MicroagentConfig,
+        StandardRedFlagValidator, FirstToAheadByKVoter,
+    };
+
+    // Knowledge — available with "knowledge" feature
+    #[cfg(feature = "knowledge")]
+    pub use brainwires_knowledge::{
+        BehavioralKnowledgeCache, BehavioralTruth, PersonalKnowledgeCache, TruthCategory,
+    };
+
+    // Prompting — available with "prompting" feature
+    #[cfg(feature = "prompting")]
+    pub use brainwires_prompting::{
+        GeneratedPrompt, PromptGenerator, PromptingTechnique, TaskClusterManager,
+        TechniqueLibrary, TemperatureOptimizer,
+    };
+
+    // Permissions — available with "permissions" feature
+    #[cfg(feature = "permissions")]
+    pub use brainwires_permissions::{
+        AgentCapabilities, AuditLogger, CapabilityProfile, PermissionsConfig, PolicyEngine,
+        TrustLevel, TrustManager,
+    };
 }
