@@ -284,7 +284,7 @@ mod tests {
     use tempfile::TempDir;
 
     fn create_test_context(working_dir: &str) -> ToolContext {
-        ToolContext { working_directory: working_dir.to_string(), user_id: None, metadata: HashMap::new() }
+        ToolContext { working_directory: working_dir.to_string(), user_id: None, metadata: HashMap::new(), capabilities: None }
     }
 
     #[test]

@@ -15,10 +15,11 @@ chrono = { workspace = true }
 uuid = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
+glob = { workspace = true, optional = true }
 
 [features]
 default = ["native"]
-native = []
+native = ["dep:glob"]
 wasm = ["chrono/wasmbind"]
 
 [dev-dependencies]

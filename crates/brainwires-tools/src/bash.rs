@@ -553,6 +553,7 @@ mod tests {
             working_directory: env::current_dir().unwrap().to_str().unwrap().to_string(),
             user_id: None,
             metadata: HashMap::new(),
+            capabilities: None,
         }
     }
 

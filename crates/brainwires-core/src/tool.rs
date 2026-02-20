@@ -126,9 +126,8 @@ impl ToolResult {
 
 /// Execution context for a tool.
 ///
-/// Provides the working directory and optional metadata to tool implementations.
-/// This is the framework-level context — application-specific fields (like
-/// permission capabilities) should be stored in `metadata` or in a wrapper type.
+/// Provides the working directory, optional metadata, and permission capabilities
+/// to tool implementations.
 #[derive(Debug, Clone)]
 pub struct ToolContext {
     /// Current working directory for resolving relative paths
@@ -137,6 +136,8 @@ pub struct ToolContext {
     pub user_id: Option<String>,
     /// Additional context data (application-specific key-value pairs)
     pub metadata: HashMap<String, String>,
+    /// Agent capabilities for permission checks
+    pub capabilities: Option<crate::permission::AgentCapabilities>,
 }
 
 impl Default for ToolContext {
@@ -148,6 +149,7 @@ impl Default for ToolContext {
                 .unwrap_or_else(|| ".".to_string()),
             user_id: None,
             metadata: HashMap::new(),
+            capabilities: Some(crate::permission::AgentCapabilities::standard_dev()),
         }
     }
 }

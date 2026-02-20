@@ -380,7 +380,7 @@ mod tests {
     fn create_test_context() -> ToolContext {
         ToolContext {
             working_directory: std::env::current_dir().unwrap().to_str().unwrap().to_string(),
-            user_id: None, metadata: HashMap::new(),
+            user_id: None, metadata: HashMap::new(), capabilities: None,
         }
     }
 
