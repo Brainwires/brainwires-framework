@@ -1,0 +1,38 @@
+[package]
+name = "brainwires-wasm"
+description = "WASM bindings for the Brainwires Agent Framework"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# WASM-safe framework crates (direct path deps to override default-features)
+brainwires-core = { path = "../brainwires-core", version = "0.1.0", default-features = false, features = ["wasm"] }
+brainwires-mdap = { path = "../brainwires-mdap", version = "0.1.0", default-features = false, features = ["wasm"] }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# WASM bindings
+wasm-bindgen = "0.2"
+serde-wasm-bindgen = "0.6"
+
+# Optional: code interpreters for WASM
+brainwires-code-interpreters = { path = "../brainwires-code-interpreters", version = "0.1.0", default-features = false, features = ["wasm"], optional = true }
+
+[features]
+default = []
+interpreters = ["dep:brainwires-code-interpreters"]
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["js"] }
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

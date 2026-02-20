@@ -28,6 +28,7 @@ brainwires-code-interpreters = { workspace = true, optional = true }
 
 [features]
 default = ["tools", "agents"]
+wasm = ["brainwires-core/wasm"]
 tools = ["dep:brainwires-tools"]
 agents = ["dep:brainwires-agents"]
 storage = ["dep:brainwires-storage"]
