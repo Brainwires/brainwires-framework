@@ -20,26 +20,26 @@ serde_json = { workspace = true }
 anyhow.workspace = true
 thiserror = { workspace = true }
 
-# Async runtime (for validation, web, git-search, code-exec)
-tokio = { workspace = true, features = ["process", "fs", "time"] }
+# Async runtime
+tokio = { version = "1.43", features = ["time"] }
 
-# File operations
-walkdir = "2"
-diffy = "0.4"
-glob = "0.3"
+# File operations (native only)
+walkdir = { version = "2", optional = true }
+diffy = { version = "0.4", optional = true }
+glob = { version = "0.3", optional = true }
 
 # Code search
 regex = "1"
-ignore = "0.4"
+ignore = { version = "0.4", optional = true }
 
-# Git operations
-git2 = "0.19"
+# Git operations (native only)
+git2 = { version = "0.19", optional = true }
 
-# Web operations
-reqwest = { workspace = true }
+# Web operations (native only)
+reqwest = { workspace = true, optional = true }
 
-# Security
-zeroize = { version = "1", features = ["derive"] }
+# Security (native only)
+zeroize = { version = "1", features = ["derive"], optional = true }
 
 # Logging
 tracing.workspace = true
@@ -67,7 +67,14 @@ tempfile = "3"
 criterion = { version = "0.5", features = ["html_reports"] }
 
 [features]
-default = []
+default = ["native"]
+native = [
+    "dep:git2", "dep:walkdir", "dep:ignore", "dep:reqwest",
+    "dep:glob", "dep:diffy", "dep:zeroize",
+    "tokio/process", "tokio/fs",
+    "brainwires-core/native",
+]
+wasm = ["brainwires-core/wasm"]
 orchestrator = ["dep:rhai", "rhai/sync"]
 orchestrator-wasm = [
     "dep:rhai",

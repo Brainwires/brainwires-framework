@@ -9,6 +9,7 @@
 use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+#[cfg(feature = "native")]
 use std::process::Command;
 
 /// Validation checks to enforce
@@ -155,32 +156,46 @@ pub async fn run_validation(config: &ValidationConfig) -> Result<ValidationResul
             }
 
             ValidationCheck::CustomCommand { command, args } => {
-                match Command::new(command)
-                    .args(args)
-                    .current_dir(&config.working_directory)
-                    .output()
+                #[cfg(feature = "native")]
                 {
-                    Ok(output) => {
-                        if !output.status.success() {
-                            let stderr = String::from_utf8_lossy(&output.stderr);
+                    match Command::new(command)
+                        .args(args)
+                        .current_dir(&config.working_directory)
+                        .output()
+                    {
+                        Ok(output) => {
+                            if !output.status.success() {
+                                let stderr = String::from_utf8_lossy(&output.stderr);
+                                issues.push(ValidationIssue {
+                                    check: "custom_command".to_string(),
+                                    severity: ValidationSeverity::Error,
+                                    message: format!("Command '{}' failed: {}", command, stderr),
+                                    file: None,
+                                    line: None,
+                                });
+                            }
+                        }
+                        Err(e) => {
                             issues.push(ValidationIssue {
                                 check: "custom_command".to_string(),
                                 severity: ValidationSeverity::Error,
-                                message: format!("Command '{}' failed: {}", command, stderr),
+                                message: format!("Failed to run command '{}': {}", command, e),
                                 file: None,
                                 line: None,
                             });
                         }
                     }
-                    Err(e) => {
-                        issues.push(ValidationIssue {
-                            check: "custom_command".to_string(),
-                            severity: ValidationSeverity::Error,
-                            message: format!("Failed to run command '{}': {}", command, e),
-                            file: None,
-                            line: None,
-                        });
-                    }
+                }
+                #[cfg(not(feature = "native"))]
+                {
+                    let _ = (command, args);
+                    issues.push(ValidationIssue {
+                        check: "custom_command".to_string(),
+                        severity: ValidationSeverity::Warning,
+                        message: "Custom command validation not available in WASM".to_string(),
+                        file: None,
+                        line: None,
+                    });
                 }
             }
         }
@@ -360,6 +375,7 @@ pub fn format_validation_feedback(result: &ValidationResult) -> String {
 }
 
 /// Get list of files modified in working directory (git-aware)
+#[cfg(feature = "native")]
 fn get_modified_files(working_directory: &str) -> Result<Vec<String>> {
     if let Ok(output) = Command::new("git")
         .args(["diff", "--name-only", "HEAD"])
@@ -396,6 +412,12 @@ fn get_modified_files(working_directory: &str) -> Result<Vec<String>> {
     }
 
     Ok(files)
+}
+
+/// Get list of files modified in working directory (WASM fallback)
+#[cfg(not(feature = "native"))]
+fn get_modified_files(_working_directory: &str) -> Result<Vec<String>> {
+    Ok(Vec::new())
 }
 
 /// Check if file is a source code file worth validating

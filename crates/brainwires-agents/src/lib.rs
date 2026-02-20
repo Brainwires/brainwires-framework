@@ -55,6 +55,7 @@ pub mod wait_queue;
 
 pub mod resource_checker;
 pub mod validation_agent;
+#[cfg(feature = "native")]
 pub mod worktree;
 
 // ── Re-exports ───────────────────────────────────────────────────────────────
@@ -69,6 +70,7 @@ pub use resource_locks::{ResourceLockManager, ResourceScope, ResourceType as Res
 pub use task_manager::{TaskManager, format_duration_secs};
 pub use task_queue::TaskQueue;
 pub use validation_loop::*;
+#[cfg(feature = "native")]
 pub use worktree::WorktreeManager;
 
 // Coordination patterns
@@ -92,6 +94,7 @@ pub mod prelude {
     pub use super::task_manager::{TaskManager, format_duration_secs};
     pub use super::task_queue::TaskQueue;
     pub use super::validation_loop::{ValidationConfig, ValidationCheck, ValidationResult, ValidationIssue};
+    #[cfg(feature = "native")]
     pub use super::worktree::WorktreeManager;
 
     // Coordination patterns

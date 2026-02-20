@@ -655,9 +655,8 @@ impl Drop for OperationHandle {
 }
 
 /// Check if a process is still alive
-#[cfg(unix)]
+#[cfg(all(unix, feature = "native"))]
 fn is_process_alive(pid: u32) -> bool {
-    use std::os::unix::process::CommandExt;
     // Send signal 0 to check if process exists
     unsafe {
         libc::kill(pid as i32, 0) == 0
@@ -676,6 +675,12 @@ fn is_process_alive(pid: u32) -> bool {
             stdout.contains(&pid.to_string())
         })
         .unwrap_or(false)
+}
+
+#[cfg(all(not(windows), not(all(unix, feature = "native"))))]
+fn is_process_alive(_pid: u32) -> bool {
+    // Process liveness checking not available in WASM/non-native
+    false
 }
 
 #[cfg(test)]

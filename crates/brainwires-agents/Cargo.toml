@@ -27,14 +27,14 @@ anyhow.workspace = true
 uuid.workspace = true
 chrono.workspace = true
 
-# Git (for worktree management)
-git2.workspace = true
+# Git (for worktree management, native only)
+git2 = { workspace = true, optional = true }
 
 # Graph algorithms (for state model dependency analysis)
 petgraph = "0.7"
 
-# Process liveness checking (Unix)
-libc = "0.2"
+# Process liveness checking (Unix, native only)
+libc = { version = "0.2", optional = true }
 
 # Async traits
 async-trait.workspace = true
@@ -47,5 +47,7 @@ tokio = { workspace = true, features = ["full", "test-util"] }
 tempfile.workspace = true
 
 [features]
-default = []
+default = ["native"]
+native = ["dep:git2", "dep:libc", "brainwires-core/native"]
+wasm = ["brainwires-core/wasm"]
 tools = ["dep:brainwires-tools"]

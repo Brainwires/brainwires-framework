@@ -48,14 +48,19 @@ impl ToolRegistry {
     pub fn with_builtins() -> Self {
         let mut registry = Self::new();
 
-        // Core tools (always available)
-        registry.register_tools(crate::FileOpsTool::get_tools());
-        registry.register_tools(crate::BashTool::get_tools());
-        registry.register_tools(crate::GitTool::get_tools());
-        registry.register_tools(crate::WebTool::get_tools());
-        registry.register_tools(crate::SearchTool::get_tools());
+        // Always-available tools
         registry.register_tools(crate::ToolSearchTool::get_tools());
-        registry.register_tools(crate::get_validation_tools());
+
+        // Native-only tools
+        #[cfg(feature = "native")]
+        {
+            registry.register_tools(crate::FileOpsTool::get_tools());
+            registry.register_tools(crate::BashTool::get_tools());
+            registry.register_tools(crate::GitTool::get_tools());
+            registry.register_tools(crate::WebTool::get_tools());
+            registry.register_tools(crate::SearchTool::get_tools());
+            registry.register_tools(crate::get_validation_tools());
+        }
 
         // Feature-gated tools
         #[cfg(feature = "orchestrator")]

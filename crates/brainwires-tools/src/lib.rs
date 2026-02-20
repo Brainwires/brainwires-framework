@@ -32,16 +32,25 @@
 // Re-export core types for convenience
 pub use brainwires_core::{Tool, ToolContext, ToolInputSchema, ToolResult};
 
-// ── Core modules (always available) ──────────────────────────────────────────
+// ── Always-available modules (pure logic, WASM-safe) ────────────────────────
 
-mod bash;
 mod error;
-mod file_ops;
-mod git;
 mod registry;
-mod search;
 mod tool_search;
+
+// ── Native-only modules (require filesystem, process, network) ──────────────
+
+#[cfg(feature = "native")]
+mod bash;
+#[cfg(feature = "native")]
+mod file_ops;
+#[cfg(feature = "native")]
+mod git;
+#[cfg(feature = "native")]
+mod search;
+#[cfg(feature = "native")]
 pub mod validation;
+#[cfg(feature = "native")]
 mod web;
 
 // ── Feature-gated modules ────────────────────────────────────────────────────
@@ -57,20 +66,24 @@ mod semantic_search;
 
 // ── Public re-exports ────────────────────────────────────────────────────────
 
-// Core tools
-pub use bash::BashTool;
-pub use file_ops::FileOpsTool;
-pub use git::GitTool;
-pub use search::SearchTool;
-pub use tool_search::ToolSearchTool;
-pub use validation::{get_validation_tools, ValidationTool};
-pub use web::WebTool;
-
-// Error taxonomy
+// Always-available tools
 pub use error::{classify_error, ResourceType, RetryStrategy, ToolErrorCategory, ToolOutcome};
-
-// Registry
 pub use registry::{ToolCategory, ToolRegistry};
+pub use tool_search::ToolSearchTool;
+
+// Native-only tools
+#[cfg(feature = "native")]
+pub use bash::BashTool;
+#[cfg(feature = "native")]
+pub use file_ops::FileOpsTool;
+#[cfg(feature = "native")]
+pub use git::GitTool;
+#[cfg(feature = "native")]
+pub use search::SearchTool;
+#[cfg(feature = "native")]
+pub use validation::{get_validation_tools, ValidationTool};
+#[cfg(feature = "native")]
+pub use web::WebTool;
 
 // Feature-gated tools
 #[cfg(any(feature = "orchestrator", feature = "orchestrator-wasm"))]
