@@ -13,6 +13,8 @@ members = [
     "crates/brainwires-rag",
     "crates/brainwires-code-interpreters",
     "crates/brainwires-wasm",
+    "crates/brainwires-bridge",
+    "crates/brainwires-bridge-client",
 ]
 resolver = "2"
 
@@ -39,6 +41,8 @@ brainwires-permissions = { path = "crates/brainwires-permissions", version = "0.
 brainwires-rag = { path = "crates/brainwires-rag", version = "0.1.1" }
 brainwires-code-interpreters = { path = "crates/brainwires-code-interpreters", version = "0.1.0" }
 brainwires-wasm = { path = "crates/brainwires-wasm", version = "0.1.0" }
+brainwires-bridge = { path = "crates/brainwires-bridge", version = "0.1.0" }
+brainwires-bridge-client = { path = "crates/brainwires-bridge-client", version = "0.1.0" }
 
 # Async runtime & utilities
 tokio = { version = "1.43", features = ["full"] }
