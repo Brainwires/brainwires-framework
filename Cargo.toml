@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "crates/brainwires-core",
-    "crates/brainwires-sdk",
+    "crates/brainwires",
     "crates/brainwires-tools",
     "crates/brainwires-agents",
     "crates/brainwires-storage",

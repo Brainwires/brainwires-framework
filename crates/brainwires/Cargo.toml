@@ -1,6 +1,6 @@
 [package]
-name = "brainwires-sdk"
-description = "Facade crate for the Brainwires Agent Framework — re-exports all sub-crates via feature flags"
+name = "brainwires"
+description = "The Brainwires Agent Framework — build any AI application in Rust"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

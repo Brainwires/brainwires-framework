@@ -1,6 +1,6 @@
-//! # Brainwires SDK
+//! # Brainwires
 //!
-//! Facade crate for the Brainwires Agent Framework.
+//! The Brainwires Agent Framework — build any AI application in Rust.
 //!
 //! Re-exports all framework sub-crates via feature flags for convenient access.
 //!
@@ -8,11 +8,11 @@
 //!
 //! ```toml
 //! [dependencies]
-//! brainwires-sdk = { version = "0.1", features = ["full"] }
+//! brainwires = { version = "0.1", features = ["full"] }
 //! ```
 //!
 //! ```rust
-//! use brainwires_sdk::prelude::*;
+//! use brainwires::prelude::*;
 //! ```
 
 // Core is always available
@@ -55,7 +55,7 @@ pub use brainwires_code_interpreters;
 /// Convenience prelude — import everything commonly needed.
 ///
 /// ```rust
-/// use brainwires_sdk::prelude::*;
+/// use brainwires::prelude::*;
 /// ```
 pub mod prelude {
     // Core types — always available
