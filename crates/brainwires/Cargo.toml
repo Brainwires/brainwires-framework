@@ -26,6 +26,10 @@ brainwires-permissions = { workspace = true, optional = true }
 brainwires-rag = { workspace = true, optional = true }
 brainwires-code-interpreters = { workspace = true, optional = true }
 
+# Bridge crates
+brainwires-bridge = { workspace = true, optional = true }
+brainwires-bridge-client = { workspace = true, optional = true }
+
 [features]
 default = ["tools", "agents"]
 wasm = ["brainwires-core/wasm"]
@@ -40,7 +44,10 @@ permissions = ["dep:brainwires-permissions"]
 orchestrator = ["tools", "brainwires-tools/orchestrator"]
 rag = ["dep:brainwires-rag"]
 interpreters = ["dep:brainwires-code-interpreters"]
+bridge = ["dep:brainwires-bridge"]
+bridge-client = ["dep:brainwires-bridge-client", "bridge"]
 full = [
     "tools", "agents", "storage", "mcp", "mdap", "knowledge",
     "prompting", "permissions", "orchestrator", "rag", "interpreters",
+    "bridge", "bridge-client",
 ]

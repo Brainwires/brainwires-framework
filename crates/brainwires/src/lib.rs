@@ -15,42 +15,74 @@
 //! use brainwires::prelude::*;
 //! ```
 
-// Core is always available
-pub use brainwires_core;
+// Core — always available (glob re-export for backwards compat)
 pub use brainwires_core::*;
+pub mod core {
+    pub use brainwires_core::*;
+}
 
-// Feature-gated framework crates
+// Feature-gated framework crates as modules
 #[cfg(feature = "tools")]
-pub use brainwires_tools;
+pub mod tools {
+    pub use brainwires_tools::*;
+}
 
 #[cfg(feature = "agents")]
-pub use brainwires_agents;
+pub mod agents {
+    pub use brainwires_agents::*;
+}
 
 #[cfg(feature = "storage")]
-pub use brainwires_storage;
+pub mod storage {
+    pub use brainwires_storage::*;
+}
 
 #[cfg(feature = "mcp")]
-pub use brainwires_mcp;
+pub mod mcp {
+    pub use brainwires_mcp::*;
+}
 
 #[cfg(feature = "mdap")]
-pub use brainwires_mdap;
+pub mod mdap {
+    pub use brainwires_mdap::*;
+}
 
 #[cfg(feature = "knowledge")]
-pub use brainwires_knowledge;
+pub mod knowledge {
+    pub use brainwires_knowledge::*;
+}
 
 #[cfg(feature = "prompting")]
-pub use brainwires_prompting;
+pub mod prompting {
+    pub use brainwires_prompting::*;
+}
 
 #[cfg(feature = "permissions")]
-pub use brainwires_permissions;
+pub mod permissions {
+    pub use brainwires_permissions::*;
+}
 
 // Orchestrator is re-exported via brainwires_tools::orchestrator when orchestrator feature is on
 
 #[cfg(feature = "rag")]
-pub use brainwires_rag;
+pub mod rag {
+    pub use brainwires_rag::*;
+}
 
 #[cfg(feature = "interpreters")]
-pub use brainwires_code_interpreters;
+pub mod interpreters {
+    pub use brainwires_code_interpreters::*;
+}
+
+#[cfg(feature = "bridge")]
+pub mod bridge {
+    pub use brainwires_bridge::*;
+}
+
+#[cfg(feature = "bridge-client")]
+pub mod bridge_client {
+    pub use brainwires_bridge_client::*;
+}
 
 /// Convenience prelude — import everything commonly needed.
 ///
