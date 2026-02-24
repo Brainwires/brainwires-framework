@@ -119,5 +119,28 @@ ndarray = "0.15"
 # Binary encoding
 bincode = "1"
 
+# Crypto
+chacha20poly1305 = "0.10"
+rand = "0.8"
+base64 = "0.22"
+hex = "0.4"
+subtle = "2.6"
+
+# Keyring (secure key storage)
+keyring = "3"
+
+# WebSocket
+tokio-tungstenite = { version = "0.21", features = ["native-tls"] }
+
+# URL parsing
+url = "2.5"
+
+# Hostname
+gethostname = "1.0"
+
+# Compression
+flate2 = "1.0"
+zstd = "0.13"
+
 # Testing
 tempfile = "3"

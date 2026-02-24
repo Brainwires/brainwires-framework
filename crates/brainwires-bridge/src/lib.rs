@@ -1,3 +1,6 @@
+// ============================================================================
+// MCP Server Framework (existing)
+// ============================================================================
 pub mod connection;
 pub mod error;
 pub mod handler;
@@ -19,3 +22,11 @@ pub use middleware::auth::AuthMiddleware;
 pub use middleware::logging::LoggingMiddleware;
 pub use middleware::rate_limit::RateLimitMiddleware;
 pub use middleware::tool_filter::ToolFilterMiddleware;
+
+// ============================================================================
+// Agent Communication Backbone (IPC, Auth, Remote)
+// ============================================================================
+pub mod auth;
+pub mod ipc;
+pub mod remote;
+pub mod traits;
