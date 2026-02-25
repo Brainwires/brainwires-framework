@@ -73,7 +73,8 @@ orchestrator = ["dep:rhai", "rhai/sync"]
 orchestrator-wasm = ["dep:rhai", "dep:web-time"]
 rag = ["dep:brainwires-rag"]
 interpreters = ["dep:brainwires-code-interpreters"]
-full = ["orchestrator", "rag", "interpreters"]
+smart-router = []
+full = ["orchestrator", "rag", "interpreters", "smart-router"]
 
 [[bench]]
 name = "token_comparison"

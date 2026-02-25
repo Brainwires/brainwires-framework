@@ -30,3 +30,12 @@ pub mod auth;
 pub mod ipc;
 pub mod remote;
 pub mod traits;
+
+// ============================================================================
+// Agent Management (tool registry + lifecycle trait)
+// ============================================================================
+pub mod agent_manager;
+pub mod agent_tools;
+
+pub use agent_manager::{AgentInfo, AgentManager, AgentResult, SpawnConfig};
+pub use agent_tools::AgentToolRegistry;

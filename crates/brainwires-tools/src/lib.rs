@@ -65,6 +65,9 @@ mod code_exec;
 #[cfg(feature = "rag")]
 mod semantic_search;
 
+#[cfg(feature = "smart-router")]
+pub mod smart_router;
+
 // ── Public re-exports ────────────────────────────────────────────────────────
 
 // Always-available tools
@@ -96,3 +99,9 @@ pub use code_exec::CodeExecTool;
 
 #[cfg(feature = "rag")]
 pub use semantic_search::SemanticSearchTool;
+
+#[cfg(feature = "smart-router")]
+pub use smart_router::{
+    analyze_query, analyze_messages, get_smart_tools, get_smart_tools_with_mcp,
+    get_tools_for_categories, get_context_for_analysis,
+};
