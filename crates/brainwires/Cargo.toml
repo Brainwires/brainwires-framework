@@ -29,8 +29,8 @@ brainwires-code-interpreters = { workspace = true, optional = true }
 # Providers
 brainwires-providers = { workspace = true, optional = true }
 
-# Inference
-brainwires-inference = { workspace = true, optional = true }
+# Reasoning
+brainwires-reasoning = { workspace = true, optional = true }
 
 # SEAL
 brainwires-seal = { workspace = true, optional = true }
@@ -68,7 +68,7 @@ orchestrator = ["tools", "brainwires-tools/orchestrator"]
 rag = ["dep:brainwires-rag"]
 interpreters = ["dep:brainwires-code-interpreters"]
 providers = ["dep:brainwires-providers"]
-inference = ["dep:brainwires-inference"]
+reasoning = ["dep:brainwires-reasoning"]
 seal = ["dep:brainwires-seal"]
 bridge = ["dep:brainwires-bridge"]
 bridge-client = ["dep:brainwires-bridge-client", "bridge"]
@@ -82,7 +82,7 @@ agent-full = ["agents", "permissions", "prompting", "tools"]
 full = [
     "tools", "agents", "storage", "mcp", "mdap", "knowledge",
     "prompting", "permissions", "orchestrator", "rag", "interpreters",
-    "providers", "inference", "seal", "bridge", "bridge-client",
+    "providers", "reasoning", "seal", "bridge", "bridge-client",
     "brainwires-seal/knowledge", "brainwires-seal/mdap",
     "llama-cpp-2", "mcp-server", "skills",
 ]

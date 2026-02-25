@@ -15,7 +15,7 @@ members = [
     "crates/brainwires-wasm",
     "crates/brainwires-bridge",
     "crates/brainwires-bridge-client",
-    "crates/brainwires-inference",
+    "crates/brainwires-reasoning",
     "crates/brainwires-seal",
     "crates/brainwires-providers",
     "crates/brainwires-skills",
@@ -47,7 +47,7 @@ brainwires-code-interpreters = { path = "crates/brainwires-code-interpreters", v
 brainwires-wasm = { path = "crates/brainwires-wasm", version = "0.1.0" }
 brainwires-bridge = { path = "crates/brainwires-bridge", version = "0.1.0" }
 brainwires-bridge-client = { path = "crates/brainwires-bridge-client", version = "0.1.0" }
-brainwires-inference = { path = "crates/brainwires-inference", version = "0.1.0" }
+brainwires-reasoning = { path = "crates/brainwires-reasoning", version = "0.1.0" }
 brainwires-seal = { path = "crates/brainwires-seal", version = "0.1.0" }
 brainwires-providers = { path = "crates/brainwires-providers", version = "0.1.0" }
 brainwires-skills = { path = "crates/brainwires-skills", version = "0.1.0" }

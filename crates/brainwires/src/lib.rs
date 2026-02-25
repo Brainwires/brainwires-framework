@@ -66,9 +66,9 @@ pub mod providers {
     pub use brainwires_providers::*;
 }
 
-#[cfg(feature = "inference")]
-pub mod inference {
-    pub use brainwires_inference::*;
+#[cfg(feature = "reasoning")]
+pub mod reasoning {
+    pub use brainwires_reasoning::*;
 }
 
 #[cfg(feature = "seal")]

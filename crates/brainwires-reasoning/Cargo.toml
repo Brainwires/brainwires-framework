@@ -1,6 +1,6 @@
 [package]
-name = "brainwires-inference"
-description = "Inference components for the Brainwires Agent Framework"
+name = "brainwires-reasoning"
+description = "Reasoning components for the Brainwires Agent Framework"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
