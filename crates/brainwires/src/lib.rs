@@ -138,6 +138,8 @@ pub mod prelude {
     // Agents — available with "agents" feature
     #[cfg(feature = "agents")]
     pub use brainwires_agents::{
+        // Agent runtime
+        AgentRuntime, AgentExecutionResult, run_agent_loop,
         CommunicationHub, FileLockManager, TaskManager, TaskQueue,
         ValidationConfig, ValidationCheck, ValidationSeverity,
         // Access control

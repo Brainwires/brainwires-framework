@@ -31,6 +31,10 @@
 // Re-export core types
 pub use brainwires_core;
 
+// ── Agent runtime ────────────────────────────────────────────────────────────
+
+pub mod runtime;
+
 // ── Core components ──────────────────────────────────────────────────────────
 
 pub mod communication;
@@ -71,6 +75,9 @@ pub mod validation_agent;
 pub mod worktree;
 
 // ── Re-exports ───────────────────────────────────────────────────────────────
+
+// Agent runtime
+pub use runtime::{AgentRuntime, AgentExecutionResult, run_agent_loop};
 
 // Core components
 pub use communication::{AgentMessage, CommunicationHub, ConflictInfo, ConflictType, GitOperationType};
