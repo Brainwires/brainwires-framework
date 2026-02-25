@@ -39,6 +39,16 @@ brainwires-seal = { workspace = true, optional = true }
 brainwires-bridge = { workspace = true, optional = true }
 brainwires-bridge-client = { workspace = true, optional = true }
 
+# MCP server re-exports (optional)
+rmcp = { workspace = true, optional = true }
+schemars = { workspace = true, optional = true }
+tokio-util = { workspace = true, optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+anyhow = { workspace = true }
+tracing-subscriber = { workspace = true }
+
 [features]
 default = ["tools", "agents"]
 wasm = ["brainwires-core/wasm"]
@@ -59,6 +69,7 @@ seal = ["dep:brainwires-seal"]
 bridge = ["dep:brainwires-bridge"]
 bridge-client = ["dep:brainwires-bridge-client", "bridge"]
 llama-cpp-2 = ["providers", "brainwires-providers/llama-cpp-2"]
+mcp-server = ["dep:rmcp", "dep:schemars", "dep:tokio-util"]
 # Convenience: enables all learning/knowledge subsystems with integration
 learning = ["seal", "knowledge", "brainwires-seal/knowledge"]
 full = [
@@ -66,5 +77,9 @@ full = [
     "prompting", "permissions", "orchestrator", "rag", "interpreters",
     "providers", "inference", "seal", "bridge", "bridge-client",
     "brainwires-seal/knowledge", "brainwires-seal/mdap",
-    "llama-cpp-2",
+    "llama-cpp-2", "mcp-server",
 ]
+
+[[example]]
+name = "rag_mcp_server"
+required-features = ["rag", "mcp-server"]

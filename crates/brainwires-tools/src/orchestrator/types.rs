@@ -10,7 +10,7 @@
 //! # Example
 //!
 //! ```ignore
-//! use brainwires_tool_orchestrator::types::{OrchestratorResult, ToolCall};
+//! use brainwires_tools::orchestrator::{OrchestratorResult, ToolCall};
 //!
 //! // Results are typically returned from ToolOrchestrator::execute()
 //! let result = OrchestratorResult::success(

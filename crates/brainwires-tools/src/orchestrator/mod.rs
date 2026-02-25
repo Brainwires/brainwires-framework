@@ -24,16 +24,10 @@ compile_error!(
      Use `--features orchestrator` for native or `--features orchestrator-wasm` for WASM."
 );
 
-// Core modules (always available when this module is compiled)
 pub mod engine;
 pub mod sandbox;
 pub mod types;
 
-// WASM module (only when orchestrator-wasm feature is enabled)
-#[cfg(feature = "orchestrator-wasm")]
-pub mod wasm;
-
-// Re-export core types
 pub use engine::{dynamic_to_json, ToolExecutor, ToolOrchestrator};
 pub use sandbox::{
     ExecutionLimits,
@@ -45,9 +39,6 @@ pub use sandbox::{
     QUICK_MAX_TOOL_CALLS, QUICK_TIMEOUT_MS,
 };
 pub use types::{OrchestratorError, OrchestratorResult, ToolCall};
-
-#[cfg(feature = "orchestrator-wasm")]
-pub use wasm::{ExecutionLimits as WasmExecutionLimits, WasmOrchestrator};
 
 // ── OrchestratorTool wrapper ───────────────────────────────────────────────
 //

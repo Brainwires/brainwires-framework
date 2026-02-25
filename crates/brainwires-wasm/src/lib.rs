@@ -16,6 +16,12 @@ pub use brainwires_mdap;
 #[cfg(feature = "interpreters")]
 pub use brainwires_code_interpreters;
 
+#[cfg(feature = "orchestrator")]
+pub mod wasm_orchestrator;
+
+#[cfg(feature = "orchestrator")]
+pub use wasm_orchestrator::{ExecutionLimits as WasmExecutionLimits, WasmOrchestrator};
+
 // ── WASM Bindings ────────────────────────────────────────────────────────
 
 /// Get the framework version.

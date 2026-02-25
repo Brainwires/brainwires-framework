@@ -9,8 +9,9 @@ use std::rc::Rc;
 
 use wasm_bindgen::prelude::*;
 
-use super::engine::dynamic_to_json;
-use super::sandbox::ExecutionLimits as CoreExecutionLimits;
+use brainwires_tools::orchestrator::dynamic_to_json;
+use brainwires_tools::orchestrator::ExecutionLimits as CoreExecutionLimits;
+use brainwires_tools::orchestrator::{OrchestratorResult as CoreOrchestratorResult, ToolCall as CoreToolCall};
 
 // ============================================================================
 // Engine Configuration Constants
@@ -21,8 +22,6 @@ const MAX_EXPR_DEPTH: usize = 64;
 
 /// Maximum function call nesting depth (prevents stack overflow from deep recursion)
 const MAX_CALL_DEPTH: usize = 64;
-
-use super::types::{OrchestratorResult as CoreOrchestratorResult, ToolCall as CoreToolCall};
 
 // ============================================================================
 // WASM-compatible ExecutionLimits wrapper

@@ -98,6 +98,16 @@ pub mod bridge_client {
     pub use brainwires_bridge_client::*;
 }
 
+/// Re-exports for building MCP servers (rmcp, schemars, CancellationToken).
+///
+/// Enabled with the `mcp-server` feature.
+#[cfg(feature = "mcp-server")]
+pub mod mcp_server_support {
+    pub use rmcp;
+    pub use schemars;
+    pub use tokio_util::sync::CancellationToken;
+}
+
 /// Convenience prelude — import everything commonly needed.
 ///
 /// ```rust
