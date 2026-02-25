@@ -88,6 +88,11 @@ pub mod fact_store;
 #[cfg(feature = "native")]
 pub mod tier_metadata_store;
 
+// ── Agent integration (requires brainwires-agents) ──────────────────────────
+
+#[cfg(all(feature = "native", feature = "agents"))]
+pub mod persistent_task_manager;
+
 // ── Re-exports (always available) ────────────────────────────────────────
 
 // Document types
@@ -147,6 +152,8 @@ pub use tiered_memory::{TieredMemory, TieredMemoryConfig, MemoryTier, TieredSear
 pub use file_context::{FileChunk, FileContent, FileContextManager};
 #[cfg(feature = "native")]
 pub use entity::EntityStore;
+#[cfg(all(feature = "native", feature = "agents"))]
+pub use persistent_task_manager::{PersistentTaskManager, SharedPersistentTaskManager};
 
 /// Prelude module for convenient imports
 pub mod prelude {

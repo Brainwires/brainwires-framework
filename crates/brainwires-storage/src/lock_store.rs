@@ -467,6 +467,40 @@ pub struct LockStats {
     pub stale_locks: usize,
 }
 
+// ── LockPersistence trait implementation ────────────────────────────────────
+
+#[cfg(feature = "agents")]
+#[async_trait::async_trait]
+impl brainwires_agents::access_control::LockPersistence for LockStore {
+    async fn try_acquire(
+        &self,
+        lock_type: &str,
+        resource_path: &str,
+        agent_id: &str,
+        timeout: Option<std::time::Duration>,
+    ) -> Result<bool> {
+        self.try_acquire(lock_type, resource_path, agent_id, timeout).await
+    }
+
+    async fn release(
+        &self,
+        lock_type: &str,
+        resource_path: &str,
+        agent_id: &str,
+    ) -> Result<()> {
+        self.release(lock_type, resource_path, agent_id).await?;
+        Ok(())
+    }
+
+    async fn release_all_for_agent(&self, agent_id: &str) -> Result<usize> {
+        self.release_all_for_agent(agent_id).await
+    }
+
+    async fn cleanup_stale(&self) -> Result<usize> {
+        self.cleanup_stale().await
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

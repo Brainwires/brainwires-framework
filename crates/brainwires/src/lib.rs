@@ -139,6 +139,12 @@ pub mod prelude {
     pub use brainwires_agents::{
         CommunicationHub, FileLockManager, TaskManager, TaskQueue,
         ValidationConfig, ValidationCheck, ValidationSeverity,
+        // Access control
+        AccessControlManager, ContentionStrategy, LockPersistence,
+        // Git coordination
+        GitCoordinator,
+        // Plan execution
+        PlanExecutorAgent, PlanExecutionConfig, ExecutionApprovalMode, PlanExecutionStatus,
     };
 
     // Storage — available with "storage" feature

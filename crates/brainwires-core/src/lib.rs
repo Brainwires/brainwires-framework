@@ -14,6 +14,8 @@
 pub mod error;
 pub mod message;
 pub mod plan;
+#[cfg(feature = "planning")]
+pub mod plan_parser;
 pub mod permission;
 pub mod provider;
 pub mod task;
@@ -25,6 +27,8 @@ pub use error::*;
 pub use message::*;
 pub use permission::*;
 pub use plan::*;
+#[cfg(feature = "planning")]
+pub use plan_parser::{ParsedStep, parse_plan_steps, steps_to_tasks};
 pub use provider::*;
 pub use task::*;
 pub use tool::*;

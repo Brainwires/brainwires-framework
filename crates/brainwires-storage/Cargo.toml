@@ -11,6 +11,7 @@ authors.workspace = true
 [dependencies]
 # Internal crates
 brainwires-core.workspace = true
+brainwires-agents = { workspace = true, optional = true }
 brainwires-rag = { workspace = true, optional = true }
 
 # Vector database & columnar storage (native only)
@@ -54,6 +55,9 @@ gethostname = { version = "1", optional = true }
 dirs = { version = "6", optional = true }
 libc = { version = "0.2", optional = true }
 
+# Async traits (for LockPersistence impl)
+async-trait = { workspace = true, optional = true }
+
 # Logging
 tracing.workspace = true
 
@@ -65,7 +69,9 @@ native = [
     "dep:zip", "dep:base64", "dep:gethostname", "dep:dirs", "dep:libc",
     "tokio/rt", "tokio/macros",
     "brainwires-core/native",
+    "agents",
 ]
+agents = ["dep:brainwires-agents", "dep:async-trait"]
 wasm = ["brainwires-core/wasm"]
 
 [dev-dependencies]

@@ -20,12 +20,16 @@ anyhow = { workspace = true }
 async-trait = { workspace = true }
 futures = { workspace = true }
 
+# Plan parsing
+regex = { workspace = true, optional = true }
+
 # Optional dependencies
 glob = { workspace = true, optional = true }
 
 [features]
 default = ["native"]
-native = ["dep:glob"]
+native = ["dep:glob", "planning"]
+planning = ["dep:regex"]
 wasm = ["chrono/wasmbind"]
 
 [dev-dependencies]

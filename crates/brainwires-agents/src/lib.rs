@@ -51,6 +51,18 @@ pub mod saga;
 pub mod state_model;
 pub mod wait_queue;
 
+// ── Access control ─────────────────────────────────────────────────────────
+
+pub mod access_control;
+
+// ── Git coordination ───────────────────────────────────────────────────────
+
+pub mod git_coordination;
+
+// ── Plan execution ─────────────────────────────────────────────────────────
+
+pub mod plan_executor;
+
 // ── Analysis & validation ────────────────────────────────────────────────────
 
 pub mod resource_checker;
@@ -72,6 +84,15 @@ pub use task_queue::TaskQueue;
 pub use validation_loop::*;
 #[cfg(feature = "native")]
 pub use worktree::WorktreeManager;
+
+// Access control
+pub use access_control::{AccessControlManager, ContentionStrategy, LockBundle, LockPersistence};
+
+// Git coordination
+pub use git_coordination::{GitCoordinator, GitLockRequirements, GitOperationLocks, GitOperationRunner, git_tools, get_lock_requirements};
+
+// Plan execution
+pub use plan_executor::{PlanExecutorAgent, PlanExecutionConfig, PlanExecutionStatus, ExecutionApprovalMode, ExecutionProgress};
 
 // Coordination patterns
 pub use contract_net::ContractNetManager;
@@ -96,6 +117,15 @@ pub mod prelude {
     pub use super::validation_loop::{ValidationConfig, ValidationCheck, ValidationResult, ValidationIssue};
     #[cfg(feature = "native")]
     pub use super::worktree::WorktreeManager;
+
+    // Access control
+    pub use super::access_control::{AccessControlManager, ContentionStrategy, LockPersistence};
+
+    // Git coordination
+    pub use super::git_coordination::{GitCoordinator, git_tools};
+
+    // Plan execution
+    pub use super::plan_executor::{PlanExecutorAgent, PlanExecutionConfig, ExecutionApprovalMode};
 
     // Coordination patterns
     pub use super::contract_net::ContractNetManager;
