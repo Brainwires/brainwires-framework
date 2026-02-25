@@ -5,31 +5,8 @@
 
 use std::collections::{HashMap, HashSet};
 
-/// Types of entities we track
-#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub enum EntityType {
-    File,
-    Function,
-    Type,
-    Variable,
-    Concept,
-    Error,
-    Command,
-}
-
-impl EntityType {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            EntityType::File => "file",
-            EntityType::Function => "function",
-            EntityType::Type => "type",
-            EntityType::Variable => "variable",
-            EntityType::Concept => "concept",
-            EntityType::Error => "error",
-            EntityType::Command => "command",
-        }
-    }
-}
+// Re-export EntityType from core (canonical definition)
+pub use brainwires_core::graph::EntityType;
 
 /// A named entity extracted from conversation
 #[derive(Debug, Clone)]
@@ -181,6 +158,22 @@ impl EntityStore {
             total_relationships: self.relationships.len(),
             entities_by_type: by_type,
         }
+    }
+}
+
+impl brainwires_core::graph::EntityStoreT for EntityStore {
+    fn entity_names_by_type(&self, entity_type: &EntityType) -> Vec<String> {
+        self.get_by_type(entity_type)
+            .iter()
+            .map(|e| e.name.clone())
+            .collect()
+    }
+
+    fn top_entity_info(&self, limit: usize) -> Vec<(String, EntityType)> {
+        self.get_top_entities(limit)
+            .iter()
+            .map(|e| (e.name.clone(), e.entity_type.clone()))
+            .collect()
     }
 }
 

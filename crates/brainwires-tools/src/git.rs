@@ -165,6 +165,7 @@ impl GitTool {
     }
 
     /// Execute a git tool
+    #[tracing::instrument(name = "tool.execute", skip(input, context), fields(tool_name))]
     pub fn execute(tool_use_id: &str, tool_name: &str, input: &Value, context: &ToolContext) -> ToolResult {
         let result = match tool_name {
             "git_status" => Self::git_status(context),

@@ -191,6 +191,7 @@ impl GitCoordinator {
     ///
     /// Returns a vector of lock guards that must be held during the operation.
     /// The guards are released when dropped.
+    #[tracing::instrument(name = "agent.git.acquire", skip(self))]
     pub async fn acquire_for_git_op(
         &self,
         agent_id: &str,

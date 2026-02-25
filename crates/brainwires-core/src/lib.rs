@@ -12,6 +12,7 @@
 //! - Permission modes
 
 pub mod error;
+pub mod graph;
 pub mod message;
 pub mod plan;
 #[cfg(feature = "planning")]
@@ -24,6 +25,7 @@ pub mod working_set;
 
 // Re-export core types at crate root
 pub use error::*;
+pub use graph::*;
 pub use message::*;
 pub use permission::*;
 pub use plan::*;

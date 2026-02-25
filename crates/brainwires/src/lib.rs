@@ -15,8 +15,7 @@
 //! use brainwires::prelude::*;
 //! ```
 
-// Core — always available (glob re-export for backwards compat)
-pub use brainwires_core::*;
+// Core — available via brainwires::core::* or brainwires::prelude::*
 pub mod core {
     pub use brainwires_core::*;
 }
@@ -120,6 +119,8 @@ pub mod prelude {
         ChatOptions, Provider,
         // Permissions
         PermissionMode,
+        // Graph types & traits
+        EntityType, EdgeType, GraphNode, GraphEdge, EntityStoreT, RelationshipGraphT,
         // Working set
         WorkingSet, WorkingSetConfig,
         // Errors

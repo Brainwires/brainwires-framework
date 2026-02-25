@@ -5,6 +5,17 @@
 // Re-export core traits for convenience
 pub use brainwires_core::provider::{ChatOptions, Provider};
 
+// Rate limiting and HTTP client
+#[cfg(feature = "native")]
+pub mod rate_limiter;
+#[cfg(feature = "native")]
+pub mod http_client;
+
+#[cfg(feature = "native")]
+pub use http_client::RateLimitedClient;
+#[cfg(feature = "native")]
+pub use rate_limiter::RateLimiter;
+
 // Generic HTTP providers (feature-gated behind "native")
 #[cfg(feature = "native")]
 pub mod anthropic;

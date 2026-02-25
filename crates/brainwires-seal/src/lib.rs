@@ -94,8 +94,7 @@ pub use knowledge_integration::{
     EntityResolutionStrategy, IntegrationConfig, SealKnowledgeCoordinator,
 };
 
-use brainwires_storage::RelationshipGraph;
-use brainwires_storage::EntityStore;
+use brainwires_core::graph::{EntityStoreT, RelationshipGraphT};
 use anyhow::Result;
 
 /// Configuration for the SEAL processor
@@ -186,8 +185,8 @@ impl SealProcessor {
         &mut self,
         query: &str,
         dialog_state: &DialogState,
-        entity_store: &EntityStore,
-        graph: Option<&RelationshipGraph>,
+        entity_store: &dyn EntityStoreT,
+        graph: Option<&dyn RelationshipGraphT>,
     ) -> Result<SealProcessingResult> {
         let mut result = SealProcessingResult {
             original_query: query.to_string(),
@@ -228,11 +227,7 @@ impl SealProcessor {
         // Step 2: Query Core Extraction
         if self.config.enable_query_cores {
             // Get entities from entity store for extraction
-            let entities: Vec<_> = entity_store
-                .get_top_entities(50)
-                .iter()
-                .map(|e| (e.name.clone(), e.entity_type.clone()))
-                .collect();
+            let entities: Vec<_> = entity_store.top_entity_info(50);
 
             result.query_core = self
                 .query_extractor
@@ -287,7 +282,7 @@ impl SealProcessor {
         &mut self,
         query_core: &QueryCore,
         result: &QueryResult,
-        graph: &RelationshipGraph,
+        graph: &dyn RelationshipGraphT,
     ) -> ReflectionReport {
         self.reflection_module.analyze(query_core, result, graph)
     }

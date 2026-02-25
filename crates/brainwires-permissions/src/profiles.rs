@@ -1,6 +1,5 @@
 //! Capability profile presets
 //!
-//! Profile types and factory methods are now in brainwires-core::permission.
-//! This module re-exports CapabilityProfile for backwards compatibility.
+//! Profile types and factory methods are defined in the types module.
 
-pub use brainwires_core::permission::CapabilityProfile;
+pub use super::types::CapabilityProfile;

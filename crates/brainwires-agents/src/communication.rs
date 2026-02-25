@@ -485,6 +485,7 @@ impl CommunicationHub {
     }
 
     /// Register an agent with the hub
+    #[tracing::instrument(name = "agent.register", skip(self))]
     pub async fn register_agent(&self, agent_id: String) -> Result<()> {
         let mut channels = self.channels.write().await;
         if channels.contains_key(&agent_id) {
@@ -495,6 +496,7 @@ impl CommunicationHub {
     }
 
     /// Unregister an agent from the hub
+    #[tracing::instrument(name = "agent.unregister", skip(self))]
     pub async fn unregister_agent(&self, agent_id: &str) -> Result<()> {
         let mut channels = self.channels.write().await;
         if channels.remove(agent_id).is_none() {
@@ -504,6 +506,7 @@ impl CommunicationHub {
     }
 
     /// Send a message from one agent to another
+    #[tracing::instrument(name = "agent.send_message", skip(self, message))]
     pub async fn send_message(
         &self,
         from: String,
@@ -520,6 +523,7 @@ impl CommunicationHub {
     }
 
     /// Broadcast a message to all agents
+    #[tracing::instrument(name = "agent.broadcast", skip(self, message))]
     pub async fn broadcast(&self, from: String, message: AgentMessage) -> Result<()> {
         let channels = self.channels.read().await;
         for (agent_id, channel) in channels.iter() {

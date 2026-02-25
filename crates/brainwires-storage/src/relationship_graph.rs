@@ -6,49 +6,8 @@
 use crate::entity::{Entity, EntityStore, EntityType, Relationship};
 use std::collections::{HashMap, HashSet, VecDeque};
 
-/// Graph node representing an entity
-#[derive(Debug, Clone)]
-pub struct GraphNode {
-    pub entity_name: String,
-    pub entity_type: EntityType,
-    pub message_ids: Vec<String>,
-    pub mention_count: u32,
-    pub importance: f32,
-}
-
-/// Edge between two nodes
-#[derive(Debug, Clone)]
-pub struct GraphEdge {
-    pub from: String,
-    pub to: String,
-    pub edge_type: EdgeType,
-    pub weight: f32,
-    pub message_id: Option<String>,
-}
-
-/// Types of edges in the graph
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum EdgeType {
-    CoOccurs,
-    Contains,
-    References,
-    DependsOn,
-    Modifies,
-    Defines,
-}
-
-impl EdgeType {
-    pub fn weight(&self) -> f32 {
-        match self {
-            EdgeType::Defines => 1.0,
-            EdgeType::Contains => 0.9,
-            EdgeType::DependsOn => 0.8,
-            EdgeType::Modifies => 0.7,
-            EdgeType::References => 0.6,
-            EdgeType::CoOccurs => 0.3,
-        }
-    }
-}
+// Re-export graph types from core (canonical definitions)
+pub use brainwires_core::graph::{EdgeType, GraphEdge, GraphNode};
 
 /// Relationship graph for entity context
 #[derive(Debug, Default)]
@@ -587,6 +546,28 @@ impl RelationshipGraph {
         });
 
         centrality.into_iter().take(limit).map(|(n, _)| n).collect()
+    }
+}
+
+impl brainwires_core::graph::RelationshipGraphT for RelationshipGraph {
+    fn get_node(&self, name: &str) -> Option<&GraphNode> {
+        self.nodes.get(name)
+    }
+
+    fn get_neighbors(&self, name: &str) -> Vec<&GraphNode> {
+        RelationshipGraph::get_neighbors(self, name)
+    }
+
+    fn get_edges(&self, name: &str) -> Vec<&GraphEdge> {
+        RelationshipGraph::get_edges(self, name)
+    }
+
+    fn search(&self, query: &str, limit: usize) -> Vec<&GraphNode> {
+        RelationshipGraph::search(self, query, limit)
+    }
+
+    fn find_path(&self, from: &str, to: &str) -> Option<Vec<String>> {
+        RelationshipGraph::find_path(self, from, to)
     }
 }
 

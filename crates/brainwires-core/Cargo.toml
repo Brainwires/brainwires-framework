@@ -23,12 +23,9 @@ futures = { workspace = true }
 # Plan parsing
 regex = { workspace = true, optional = true }
 
-# Optional dependencies
-glob = { workspace = true, optional = true }
-
 [features]
 default = ["native"]
-native = ["dep:glob", "planning"]
+native = ["planning"]
 planning = ["dep:regex"]
 wasm = ["chrono/wasmbind"]
 

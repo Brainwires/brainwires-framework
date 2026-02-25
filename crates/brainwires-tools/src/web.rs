@@ -26,6 +26,7 @@ impl WebTool {
         }
     }
 
+    #[tracing::instrument(name = "tool.execute", skip(input, _context), fields(tool_name))]
     pub async fn execute(tool_use_id: &str, tool_name: &str, input: &Value, _context: &ToolContext) -> ToolResult {
         let result = match tool_name {
             "fetch_url" => Self::fetch_url(input).await,

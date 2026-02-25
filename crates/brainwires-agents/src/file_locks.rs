@@ -150,6 +150,7 @@ impl FileLockManager {
     /// Acquire a lock on a file
     ///
     /// Returns a LockGuard that automatically releases the lock when dropped.
+    #[tracing::instrument(name = "agent.lock.acquire", skip_all, fields(agent_id, lock_type = ?lock_type))]
     pub async fn acquire_lock(
         self: &Arc<Self>,
         agent_id: &str,
@@ -161,6 +162,7 @@ impl FileLockManager {
     }
 
     /// Acquire a lock with a specific timeout
+    #[tracing::instrument(name = "agent.lock.acquire_timeout", skip_all, fields(agent_id, lock_type = ?lock_type))]
     pub async fn acquire_lock_with_timeout(
         self: &Arc<Self>,
         agent_id: &str,
@@ -254,6 +256,7 @@ impl FileLockManager {
     ///
     /// This method will wait up to `wait_timeout` for the lock to become available.
     /// It includes deadlock detection to prevent circular wait scenarios.
+    #[tracing::instrument(name = "agent.lock.acquire_wait", skip_all, fields(agent_id, lock_type = ?lock_type))]
     pub async fn acquire_with_wait(
         self: &Arc<Self>,
         agent_id: &str,
@@ -408,6 +411,7 @@ impl FileLockManager {
     }
 
     /// Release a specific lock
+    #[tracing::instrument(name = "agent.lock.release", skip_all, fields(agent_id, lock_type = ?lock_type))]
     pub async fn release_lock(
         &self,
         agent_id: &str,
@@ -478,6 +482,7 @@ impl FileLockManager {
     }
 
     /// Release all locks held by an agent
+    #[tracing::instrument(name = "agent.lock.release_all", skip(self))]
     pub async fn release_all_locks(&self, agent_id: &str) -> usize {
         let mut locks = self.locks.write().await;
         let mut released = 0;

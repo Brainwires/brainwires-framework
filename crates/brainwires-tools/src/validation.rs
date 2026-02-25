@@ -34,6 +34,7 @@ fn validate_directory_path(dir_path: &str) -> Result<PathBuf> {
 }
 
 /// Check for duplicate exports/constants in a file
+#[tracing::instrument(name = "tool.validate.duplicates")]
 pub async fn check_duplicates(file_path: &str) -> Result<ToolResult> {
     let validated_path = validate_file_path(file_path)?;
     let content = tokio::fs::read_to_string(&validated_path).await
@@ -100,6 +101,7 @@ fn extract_export_name(line: &str) -> Option<String> {
 }
 
 /// Verify build by running the appropriate build command
+#[tracing::instrument(name = "tool.validate.build")]
 pub async fn verify_build(working_directory: &str, build_type: &str) -> Result<ToolResult> {
     let validated_dir = validate_directory_path(working_directory)?;
     let (command, args) = match build_type {

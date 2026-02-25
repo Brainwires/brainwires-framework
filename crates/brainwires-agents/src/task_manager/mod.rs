@@ -37,6 +37,7 @@ impl TaskManager {
     }
 
     /// Create a new task
+    #[tracing::instrument(name = "agent.task.create", skip(self, description))]
     pub async fn create_task(
         &self,
         description: String,

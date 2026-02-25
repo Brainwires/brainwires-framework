@@ -40,7 +40,7 @@
 //! 6. If successful: generalize pattern, add to global memory
 //! 7. If failed: record failure for pattern avoidance
 
-use brainwires_storage::EntityType;
+use brainwires_core::graph::EntityType;
 use brainwires_tools::{ToolErrorCategory, ToolOutcome};
 use brainwires_agents::ResponseConfidence;
 use crate::query_core::{QueryCore, QuestionType};

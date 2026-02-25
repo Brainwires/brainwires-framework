@@ -102,6 +102,7 @@ impl ValidationConfig {
 }
 
 /// Run validation checks on changed files
+#[tracing::instrument(name = "agent.validate", skip(config), fields(working_dir = %config.working_directory))]
 pub async fn run_validation(config: &ValidationConfig) -> Result<ValidationResult> {
     if !config.enabled {
         return Ok(ValidationResult {

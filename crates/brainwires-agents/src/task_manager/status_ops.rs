@@ -9,6 +9,7 @@ use brainwires_core::TaskStatus;
 
 impl TaskManager {
     /// Update task status
+    #[tracing::instrument(name = "agent.task.update_status", skip(self, summary), fields(status = ?status))]
     pub async fn update_status(
         &self,
         task_id: &str,

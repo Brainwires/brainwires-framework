@@ -39,6 +39,7 @@ impl ToolSearchTool {
         }
     }
 
+    #[tracing::instrument(name = "tool.execute", skip(input, _context, registry), fields(tool_name))]
     pub fn execute(tool_use_id: &str, tool_name: &str, input: &Value, _context: &ToolContext, registry: &ToolRegistry) -> ToolResult {
         let result = match tool_name {
             "search_tools" => Self::search_tools(input, registry),

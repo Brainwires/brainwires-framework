@@ -136,6 +136,7 @@ impl PlanExecutorAgent {
     }
 
     /// Get the plan
+    #[tracing::instrument(name = "agent.plan.get", skip(self))]
     pub async fn plan(&self) -> PlanMetadata {
         self.plan.read().await.clone()
     }
@@ -170,6 +171,7 @@ impl PlanExecutorAgent {
     }
 
     /// Get the next task to execute
+    #[tracing::instrument(name = "agent.plan.next_task", skip(self))]
     pub async fn get_next_task(&self) -> Option<Task> {
         let task_mgr = self.task_manager.read().await;
         let ready_tasks = task_mgr.get_ready_tasks().await;
@@ -177,6 +179,7 @@ impl PlanExecutorAgent {
     }
 
     /// Start executing a specific task
+    #[tracing::instrument(name = "agent.plan.start_task", skip(self))]
     pub async fn start_task(&self, task_id: &str) -> Result<()> {
         let task_mgr = self.task_manager.write().await;
 
@@ -208,6 +211,7 @@ impl PlanExecutorAgent {
     }
 
     /// Complete the current task
+    #[tracing::instrument(name = "agent.plan.complete_task", skip(self, summary))]
     pub async fn complete_current_task(&self, summary: String) -> Result<Option<Task>> {
         let task_id = {
             let current = self.current_task_id.read().await;

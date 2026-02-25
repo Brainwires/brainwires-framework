@@ -9,6 +9,8 @@ use brainwires_core::{ChatResponse, ContentBlock, Message, MessageContent, Role,
 use brainwires_core::{ChatOptions, Provider};
 use brainwires_core::Tool;
 
+use super::rate_limiter::RateLimiter;
+
 const OPENAI_API_URL: &str = "https://api.openai.com/v1/chat/completions";
 
 pub struct OpenAIProvider {
@@ -16,6 +18,7 @@ pub struct OpenAIProvider {
     model: String,
     http_client: Client,
     organization_id: Option<String>,
+    rate_limiter: Option<std::sync::Arc<RateLimiter>>,
 }
 
 impl OpenAIProvider {
@@ -25,6 +28,25 @@ impl OpenAIProvider {
             model,
             http_client: Client::new(),
             organization_id: None,
+            rate_limiter: None,
+        }
+    }
+
+    /// Create a provider with rate limiting (requests per minute).
+    pub fn with_rate_limit(api_key: String, model: String, requests_per_minute: u32) -> Self {
+        Self {
+            api_key,
+            model,
+            http_client: Client::new(),
+            organization_id: None,
+            rate_limiter: Some(std::sync::Arc::new(RateLimiter::new(requests_per_minute))),
+        }
+    }
+
+    /// Wait for rate-limit clearance (no-op if not configured).
+    async fn acquire_rate_limit(&self) {
+        if let Some(ref limiter) = self.rate_limiter {
+            limiter.acquire().await;
         }
     }
 
@@ -129,6 +151,7 @@ impl Provider for OpenAIProvider {
         "openai"
     }
 
+    #[tracing::instrument(name = "provider.chat", skip_all, fields(provider = "openai", model = %self.model))]
     async fn chat(
         &self,
         messages: &[Message],
@@ -171,6 +194,7 @@ impl Provider for OpenAIProvider {
             request = request.header("OpenAI-Organization", org_id);
         }
 
+        self.acquire_rate_limit().await;
         let response = request
             .json(&request_body)
             .send()
@@ -230,6 +254,7 @@ impl Provider for OpenAIProvider {
         tools: Option<&'a [Tool]>,
         options: &'a ChatOptions,
     ) -> BoxStream<'a, Result<StreamChunk>> {
+        tracing::info!(provider = "openai", model = %self.model, "provider.stream started");
         // O1 models don't support streaming
         if self.is_o1_model() {
             return Box::pin(async_stream::stream! {
@@ -284,6 +309,7 @@ impl Provider for OpenAIProvider {
                 request = request.header("OpenAI-Organization", org_id);
             }
 
+            self.acquire_rate_limit().await;
             let response = match request.json(&request_body).send().await {
                 Ok(r) => r,
                 Err(e) => {

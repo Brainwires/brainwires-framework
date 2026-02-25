@@ -130,6 +130,7 @@ impl FileOpsTool {
     }
 
     /// Execute a file operation tool
+    #[tracing::instrument(name = "tool.execute", skip(input, context), fields(tool_name))]
     pub fn execute(tool_use_id: &str, tool_name: &str, input: &Value, context: &ToolContext) -> ToolResult {
         let result = match tool_name {
             "read_file" => Self::read_file(input, context),

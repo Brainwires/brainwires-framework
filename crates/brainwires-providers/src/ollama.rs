@@ -9,10 +9,13 @@ use brainwires_core::{ChatResponse, ContentBlock, Message, MessageContent, Role,
 use brainwires_core::{ChatOptions, Provider};
 use brainwires_core::Tool;
 
+use super::rate_limiter::RateLimiter;
+
 pub struct OllamaProvider {
     model: String,
     base_url: String,
     http_client: Client,
+    rate_limiter: Option<std::sync::Arc<RateLimiter>>,
 }
 
 impl OllamaProvider {
@@ -21,6 +24,24 @@ impl OllamaProvider {
             model,
             base_url: base_url.unwrap_or_else(|| "http://localhost:11434".to_string()),
             http_client: Client::new(),
+            rate_limiter: None,
+        }
+    }
+
+    /// Create a provider with rate limiting (requests per minute).
+    pub fn with_rate_limit(model: String, base_url: Option<String>, requests_per_minute: u32) -> Self {
+        Self {
+            model,
+            base_url: base_url.unwrap_or_else(|| "http://localhost:11434".to_string()),
+            http_client: Client::new(),
+            rate_limiter: Some(std::sync::Arc::new(RateLimiter::new(requests_per_minute))),
+        }
+    }
+
+    /// Wait for rate-limit clearance (no-op if not configured).
+    async fn acquire_rate_limit(&self) {
+        if let Some(ref limiter) = self.rate_limiter {
+            limiter.acquire().await;
         }
     }
 
@@ -87,6 +108,7 @@ impl Provider for OllamaProvider {
         "ollama"
     }
 
+    #[tracing::instrument(name = "provider.chat", skip_all, fields(provider = "ollama", model = %self.model))]
     async fn chat(
         &self,
         messages: &[Message],
@@ -122,6 +144,7 @@ impl Provider for OllamaProvider {
 
         let url = format!("{}/api/chat", self.base_url);
 
+        self.acquire_rate_limit().await;
         let response = self
             .http_client
             .post(&url)
@@ -168,6 +191,7 @@ impl Provider for OllamaProvider {
         tools: Option<&'a [Tool]>,
         options: &'a ChatOptions,
     ) -> BoxStream<'a, Result<StreamChunk>> {
+        tracing::info!(provider = "ollama", model = %self.model, "provider.stream started");
         Box::pin(async_stream::stream! {
             let ollama_messages = self.convert_messages(messages);
 
@@ -198,6 +222,7 @@ impl Provider for OllamaProvider {
 
             let url = format!("{}/api/chat", self.base_url);
 
+            self.acquire_rate_limit().await;
             let response = match self
                 .http_client
                 .post(&url)

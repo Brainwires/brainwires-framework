@@ -29,8 +29,7 @@
 //! // resolved[0].antecedent = "main.rs"
 //! ```
 
-use brainwires_storage::RelationshipGraph;
-use brainwires_storage::{EntityStore, EntityType};
+use brainwires_core::graph::{EntityStoreT, EntityType, GraphNode, RelationshipGraphT};
 use regex::Regex;
 use std::collections::HashMap;
 
@@ -426,8 +425,8 @@ impl CoreferenceResolver {
         &self,
         references: &[UnresolvedReference],
         dialog_state: &DialogState,
-        entity_store: &EntityStore,
-        graph: Option<&RelationshipGraph>,
+        entity_store: &dyn EntityStoreT,
+        graph: Option<&dyn RelationshipGraphT>,
     ) -> Vec<ResolvedReference> {
         let mut resolved = Vec::new();
 
@@ -447,8 +446,8 @@ impl CoreferenceResolver {
         &self,
         reference: &UnresolvedReference,
         dialog_state: &DialogState,
-        entity_store: &EntityStore,
-        graph: Option<&RelationshipGraph>,
+        entity_store: &dyn EntityStoreT,
+        graph: Option<&dyn RelationshipGraphT>,
     ) -> Option<ResolvedReference> {
         let compatible_types = reference.ref_type.compatible_types();
 
@@ -466,17 +465,25 @@ impl CoreferenceResolver {
         }
 
         // Also check entity store for additional candidates
-        for entity_type in &compatible_types {
-            for entity in entity_store.get_by_type(entity_type) {
-                // Skip if already in candidates
-                if candidates.iter().any(|(n, _, _)| *n == entity.name) {
-                    continue;
-                }
+        let entity_names: Vec<(String, EntityType)> = compatible_types
+            .iter()
+            .flat_map(|et| {
+                entity_store
+                    .entity_names_by_type(et)
+                    .into_iter()
+                    .map(move |name| (name, et.clone()))
+            })
+            .collect();
 
-                let salience =
-                    self.compute_salience(&entity.name, entity_type, dialog_state, graph);
-                candidates.push((&entity.name, entity_type, salience));
+        for (entity_name, entity_type) in &entity_names {
+            // Skip if already in candidates
+            if candidates.iter().any(|(n, _, _)| *n == entity_name.as_str()) {
+                continue;
             }
+
+            let salience =
+                self.compute_salience(entity_name, entity_type, dialog_state, graph);
+            candidates.push((entity_name, entity_type, salience));
         }
 
         // Sort by salience score
@@ -504,7 +511,7 @@ impl CoreferenceResolver {
         name: &str,
         _entity_type: &EntityType,
         dialog_state: &DialogState,
-        graph: Option<&RelationshipGraph>,
+        graph: Option<&dyn RelationshipGraphT>,
     ) -> SalienceScore {
         let recency = dialog_state.recency_score(name);
         let frequency = dialog_state.frequency_score(name);
@@ -594,6 +601,7 @@ impl Default for CoreferenceResolver {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use brainwires_storage::EntityStore;
 
     #[test]
     fn test_detect_pronouns() {

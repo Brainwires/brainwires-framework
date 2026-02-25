@@ -51,7 +51,7 @@
 //! }
 //! ```
 
-use brainwires_storage::RelationshipGraph;
+use brainwires_core::graph::RelationshipGraphT;
 use crate::learning::LearningCoordinator;
 use crate::query_core::{QueryCore, QueryExpr, QueryOp, QueryResult, RelationType};
 use std::collections::HashMap;
@@ -313,7 +313,7 @@ impl ReflectionModule {
         &mut self,
         query: &QueryCore,
         result: &QueryResult,
-        graph: &RelationshipGraph,
+        graph: &dyn RelationshipGraphT,
     ) -> ReflectionReport {
         let mut report = ReflectionReport::new(query.clone(), result.clone());
 
@@ -387,7 +387,7 @@ impl ReflectionModule {
     }
 
     /// Analyze why a result is empty
-    fn analyze_empty_result(&self, query: &QueryCore, graph: &RelationshipGraph) -> Issue {
+    fn analyze_empty_result(&self, query: &QueryCore, graph: &dyn RelationshipGraphT) -> Issue {
         // Check if entities exist
         for (entity_name, _) in &query.entities {
             if graph.get_node(entity_name).is_none() {
@@ -426,7 +426,7 @@ impl ReflectionModule {
     fn check_relationship_applicability(
         &self,
         expr: &QueryExpr,
-        graph: &RelationshipGraph,
+        graph: &dyn RelationshipGraphT,
     ) -> Option<String> {
         match expr {
             QueryExpr::Op(QueryOp::Join {
@@ -464,7 +464,7 @@ impl ReflectionModule {
     }
 
     /// Find similar entity names
-    fn find_similar_entities(&self, name: &str, graph: &RelationshipGraph) -> Vec<String> {
+    fn find_similar_entities(&self, name: &str, graph: &dyn RelationshipGraphT) -> Vec<String> {
         let candidates = graph.search(name, 5);
         candidates
             .iter()
@@ -476,7 +476,7 @@ impl ReflectionModule {
     fn validate_relationships(
         &self,
         query: &QueryCore,
-        graph: &RelationshipGraph,
+        graph: &dyn RelationshipGraphT,
         report: &mut ReflectionReport,
     ) {
         self.validate_expr(&query.root, graph, report);
@@ -485,7 +485,7 @@ impl ReflectionModule {
     fn validate_expr(
         &self,
         expr: &QueryExpr,
-        graph: &RelationshipGraph,
+        graph: &dyn RelationshipGraphT,
         report: &mut ReflectionReport,
     ) {
         match expr {
@@ -567,7 +567,7 @@ impl ReflectionModule {
     pub fn attempt_correction(
         &mut self,
         report: &mut ReflectionReport,
-        graph: &RelationshipGraph,
+        graph: &dyn RelationshipGraphT,
         _executor: &super::query_core::QueryExecutor,
     ) -> bool {
         if !self.config.auto_correct {
@@ -750,7 +750,8 @@ impl Default for ReflectionModule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use brainwires_storage::EntityType;
+    use brainwires_core::graph::EntityType;
+    use brainwires_storage::RelationshipGraph;
     use crate::query_core::{QueryExpr, QuestionType};
 
     fn create_test_query() -> QueryCore {

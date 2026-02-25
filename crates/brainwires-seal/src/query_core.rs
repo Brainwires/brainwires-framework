@@ -36,8 +36,7 @@
 //! // }
 //! ```
 
-use brainwires_storage::{EdgeType, RelationshipGraph};
-use brainwires_storage::EntityType;
+use brainwires_core::graph::{EdgeType, EntityType, GraphNode, RelationshipGraphT};
 use regex::Regex;
 use std::collections::HashMap;
 
@@ -664,12 +663,12 @@ impl Default for QueryCoreExtractor {
 
 /// Query executor for running query cores against a relationship graph
 pub struct QueryExecutor<'a> {
-    graph: &'a RelationshipGraph,
+    graph: &'a dyn RelationshipGraphT,
 }
 
 impl<'a> QueryExecutor<'a> {
     /// Create a new query executor
-    pub fn new(graph: &'a RelationshipGraph) -> Self {
+    pub fn new(graph: &'a dyn RelationshipGraphT) -> Self {
         Self { graph }
     }
 

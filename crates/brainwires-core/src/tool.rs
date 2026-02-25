@@ -136,8 +136,12 @@ pub struct ToolContext {
     pub user_id: Option<String>,
     /// Additional context data (application-specific key-value pairs)
     pub metadata: HashMap<String, String>,
-    /// Agent capabilities for permission checks
-    pub capabilities: Option<crate::permission::AgentCapabilities>,
+    /// Agent capabilities for permission checks (serialized as JSON value).
+    ///
+    /// Consumers should serialize their concrete capability types into this field
+    /// and deserialize when reading. This keeps the core crate free of capability
+    /// type definitions.
+    pub capabilities: Option<Value>,
 }
 
 impl Default for ToolContext {
@@ -149,7 +153,7 @@ impl Default for ToolContext {
                 .unwrap_or_else(|| ".".to_string()),
             user_id: None,
             metadata: HashMap::new(),
-            capabilities: Some(crate::permission::AgentCapabilities::standard_dev()),
+            capabilities: None,
         }
     }
 }
