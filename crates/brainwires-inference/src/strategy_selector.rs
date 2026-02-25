@@ -6,7 +6,7 @@
 use std::sync::Arc;
 use tracing::{debug, warn};
 
-#[cfg(feature = "local-llm")]
+#[cfg(feature = "llama-cpp-2")]
 use brainwires_providers::local_llm::LocalLlmProvider;
 
 use crate::InferenceTimer;
@@ -110,14 +110,14 @@ impl StrategyResult {
 
 /// Strategy selector for MDAP decomposition
 pub struct StrategySelector {
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     provider: Arc<LocalLlmProvider>,
     model_id: String,
 }
 
 impl StrategySelector {
     /// Create a new strategy selector
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub fn new(provider: Arc<LocalLlmProvider>, model_id: impl Into<String>) -> Self {
         Self {
             provider,
@@ -125,8 +125,8 @@ impl StrategySelector {
         }
     }
 
-    /// Create a stub selector (non-local-llm builds)
-    #[cfg(not(feature = "local-llm"))]
+    /// Create a stub selector (non-llama-cpp-2 builds)
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub fn new_stub(model_id: impl Into<String>) -> Self {
         Self {
             model_id: model_id.into(),
@@ -134,7 +134,7 @@ impl StrategySelector {
     }
 
     /// Select the optimal decomposition strategy for a task
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub async fn select_strategy(&self, task: &str) -> Option<StrategyResult> {
         let timer = InferenceTimer::new("select_strategy", &self.model_id);
 
@@ -158,8 +158,8 @@ impl StrategySelector {
         }
     }
 
-    /// Stub selection for non-local-llm builds
-    #[cfg(not(feature = "local-llm"))]
+    /// Stub selection for non-llama-cpp-2 builds
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub async fn select_strategy(&self, task: &str) -> Option<StrategyResult> {
         // Always return None to trigger fallback
         None
@@ -326,7 +326,7 @@ Selection:"#,
 
 /// Builder for StrategySelector
 pub struct StrategySelectorBuilder {
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     provider: Option<Arc<LocalLlmProvider>>,
     model_id: String,
 }
@@ -334,7 +334,7 @@ pub struct StrategySelectorBuilder {
 impl Default for StrategySelectorBuilder {
     fn default() -> Self {
         Self {
-            #[cfg(feature = "local-llm")]
+            #[cfg(feature = "llama-cpp-2")]
             provider: None,
             model_id: "lfm2-1.2b".to_string(), // Larger model for better reasoning
         }
@@ -346,7 +346,7 @@ impl StrategySelectorBuilder {
         Self::default()
     }
 
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub fn provider(mut self, provider: Arc<LocalLlmProvider>) -> Self {
         self.provider = Some(provider);
         self
@@ -357,12 +357,12 @@ impl StrategySelectorBuilder {
         self
     }
 
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub fn build(self) -> Option<StrategySelector> {
         self.provider.map(|p| StrategySelector::new(p, self.model_id))
     }
 
-    #[cfg(not(feature = "local-llm"))]
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub fn build(self) -> Option<StrategySelector> {
         None
     }

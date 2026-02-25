@@ -61,7 +61,7 @@ bridge-client = ["dep:brainwires-bridge-client", "bridge"]
 full = [
     "tools", "agents", "storage", "mcp", "mdap", "knowledge",
     "prompting", "permissions", "orchestrator", "rag", "interpreters",
-    "providers", "brainwires-providers/local-llm",
+    "providers", "brainwires-providers/llama-cpp-2",
     "inference", "seal", "bridge", "bridge-client",
     "brainwires-seal/knowledge", "brainwires-seal/mdap",
 ]

@@ -6,7 +6,7 @@
 use std::sync::Arc;
 use tracing::{debug, warn};
 
-#[cfg(feature = "local-llm")]
+#[cfg(feature = "llama-cpp-2")]
 use brainwires_providers::local_llm::LocalLlmProvider;
 
 use crate::InferenceTimer;
@@ -61,7 +61,7 @@ impl RelevanceResult {
 
 /// Local relevance scorer for context re-ranking
 pub struct RelevanceScorer {
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     provider: Arc<LocalLlmProvider>,
     model_id: String,
     /// Minimum score to include in results
@@ -72,7 +72,7 @@ pub struct RelevanceScorer {
 
 impl RelevanceScorer {
     /// Create a new relevance scorer
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub fn new(provider: Arc<LocalLlmProvider>, model_id: impl Into<String>) -> Self {
         Self {
             provider,
@@ -82,8 +82,8 @@ impl RelevanceScorer {
         }
     }
 
-    /// Create a stub scorer (non-local-llm builds)
-    #[cfg(not(feature = "local-llm"))]
+    /// Create a stub scorer (non-llama-cpp-2 builds)
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub fn new_stub(model_id: impl Into<String>) -> Self {
         Self {
             model_id: model_id.into(),
@@ -107,7 +107,7 @@ impl RelevanceScorer {
     /// Re-rank a list of retrieved items by semantic relevance
     ///
     /// Returns items sorted by relevance score (highest first).
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub async fn rerank<T: AsRef<str>>(
         &self,
         query: &str,
@@ -164,8 +164,8 @@ impl RelevanceScorer {
         }
     }
 
-    /// Stub re-ranking for non-local-llm builds
-    #[cfg(not(feature = "local-llm"))]
+    /// Stub re-ranking for non-llama-cpp-2 builds
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub async fn rerank<T: AsRef<str>>(
         &self,
         _query: &str,
@@ -183,7 +183,7 @@ impl RelevanceScorer {
     }
 
     /// Score a single item's relevance to a query
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub async fn score_relevance(&self, query: &str, content: &str) -> Option<f32> {
         let timer = InferenceTimer::new("score_relevance", &self.model_id);
 
@@ -220,8 +220,8 @@ Score:"#,
         }
     }
 
-    /// Stub scoring for non-local-llm builds
-    #[cfg(not(feature = "local-llm"))]
+    /// Stub scoring for non-llama-cpp-2 builds
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub async fn score_relevance(&self, _query: &str, _content: &str) -> Option<f32> {
         None
     }
@@ -368,7 +368,7 @@ Scores:"#,
 
 /// Builder for RelevanceScorer
 pub struct RelevanceScorerBuilder {
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     provider: Option<Arc<LocalLlmProvider>>,
     model_id: String,
     min_score: f32,
@@ -378,7 +378,7 @@ pub struct RelevanceScorerBuilder {
 impl Default for RelevanceScorerBuilder {
     fn default() -> Self {
         Self {
-            #[cfg(feature = "local-llm")]
+            #[cfg(feature = "llama-cpp-2")]
             provider: None,
             model_id: "lfm2-350m".to_string(),
             min_score: 0.5,
@@ -392,7 +392,7 @@ impl RelevanceScorerBuilder {
         Self::default()
     }
 
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub fn provider(mut self, provider: Arc<LocalLlmProvider>) -> Self {
         self.provider = Some(provider);
         self
@@ -413,7 +413,7 @@ impl RelevanceScorerBuilder {
         self
     }
 
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub fn build(self) -> Option<RelevanceScorer> {
         self.provider.map(|p| {
             RelevanceScorer::new(p, self.model_id)
@@ -422,7 +422,7 @@ impl RelevanceScorerBuilder {
         })
     }
 
-    #[cfg(not(feature = "local-llm"))]
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub fn build(self) -> Option<RelevanceScorer> {
         None
     }

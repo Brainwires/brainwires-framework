@@ -8,9 +8,9 @@ use tracing::{debug, warn};
 
 use brainwires_tools::ToolCategory;
 
-#[cfg(feature = "local-llm")]
+#[cfg(feature = "llama-cpp-2")]
 use brainwires_providers::local_llm::{LocalInferenceParams, LocalLlmProvider};
-#[cfg(feature = "local-llm")]
+#[cfg(feature = "llama-cpp-2")]
 use brainwires_core::message::Message;
 
 use crate::InferenceTimer;
@@ -48,14 +48,14 @@ impl RouteResult {
 
 /// Local router for semantic query classification
 pub struct LocalRouter {
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     provider: Arc<LocalLlmProvider>,
     model_id: String,
 }
 
 impl LocalRouter {
     /// Create a new local router with the given provider
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub fn new(provider: Arc<LocalLlmProvider>, model_id: impl Into<String>) -> Self {
         Self {
             provider,
@@ -63,8 +63,8 @@ impl LocalRouter {
         }
     }
 
-    /// Create a new local router (stub for non-local-llm builds)
-    #[cfg(not(feature = "local-llm"))]
+    /// Create a new local router (stub for non-llama-cpp-2 builds)
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub fn new_stub(model_id: impl Into<String>) -> Self {
         Self {
             model_id: model_id.into(),
@@ -74,7 +74,7 @@ impl LocalRouter {
     /// Classify a query into tool categories using local LLM
     ///
     /// Returns None if classification fails, allowing fallback to pattern matching.
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub async fn classify(&self, query: &str) -> Option<RouteResult> {
         let timer = InferenceTimer::new("route_classify", &self.model_id);
 
@@ -108,8 +108,8 @@ impl LocalRouter {
         }
     }
 
-    /// Stub classification for non-local-llm builds
-    #[cfg(not(feature = "local-llm"))]
+    /// Stub classification for non-llama-cpp-2 builds
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub async fn classify(&self, _query: &str) -> Option<RouteResult> {
         None // Always fall back to pattern matching
     }
@@ -181,7 +181,7 @@ Rules:
 
 /// Builder for LocalRouter
 pub struct LocalRouterBuilder {
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     provider: Option<Arc<LocalLlmProvider>>,
     model_id: String,
 }
@@ -189,7 +189,7 @@ pub struct LocalRouterBuilder {
 impl Default for LocalRouterBuilder {
     fn default() -> Self {
         Self {
-            #[cfg(feature = "local-llm")]
+            #[cfg(feature = "llama-cpp-2")]
             provider: None,
             model_id: "lfm2-350m".to_string(),
         }
@@ -201,7 +201,7 @@ impl LocalRouterBuilder {
         Self::default()
     }
 
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub fn provider(mut self, provider: Arc<LocalLlmProvider>) -> Self {
         self.provider = Some(provider);
         self
@@ -212,12 +212,12 @@ impl LocalRouterBuilder {
         self
     }
 
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub fn build(self) -> Option<LocalRouter> {
         self.provider.map(|p| LocalRouter::new(p, self.model_id))
     }
 
-    #[cfg(not(feature = "local-llm"))]
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub fn build(self) -> Option<LocalRouter> {
         None
     }

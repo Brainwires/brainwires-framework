@@ -6,9 +6,9 @@
 use std::sync::Arc;
 use tracing::{debug, warn};
 
-#[cfg(feature = "local-llm")]
+#[cfg(feature = "llama-cpp-2")]
 use brainwires_providers::local_llm::LocalLlmProvider;
-#[cfg(feature = "local-llm")]
+#[cfg(feature = "llama-cpp-2")]
 use brainwires_core::message::Message;
 
 use crate::InferenceTimer;
@@ -42,14 +42,14 @@ impl ValidationResult {
 
 /// Local validator for semantic response validation
 pub struct LocalValidator {
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     provider: Arc<LocalLlmProvider>,
     model_id: String,
 }
 
 impl LocalValidator {
     /// Create a new local validator
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub fn new(provider: Arc<LocalLlmProvider>, model_id: impl Into<String>) -> Self {
         Self {
             provider,
@@ -57,8 +57,8 @@ impl LocalValidator {
         }
     }
 
-    /// Create a stub validator (non-local-llm builds)
-    #[cfg(not(feature = "local-llm"))]
+    /// Create a stub validator (non-llama-cpp-2 builds)
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub fn new_stub(model_id: impl Into<String>) -> Self {
         Self {
             model_id: model_id.into(),
@@ -68,7 +68,7 @@ impl LocalValidator {
     /// Validate a response for the given task
     ///
     /// Performs semantic validation to catch issues that pattern matching might miss.
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub async fn validate(&self, task: &str, response: &str) -> ValidationResult {
         let timer = InferenceTimer::new("validate_response", &self.model_id);
 
@@ -103,8 +103,8 @@ impl LocalValidator {
         }
     }
 
-    /// Stub validation for non-local-llm builds
-    #[cfg(not(feature = "local-llm"))]
+    /// Stub validation for non-llama-cpp-2 builds
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub async fn validate(&self, _task: &str, _response: &str) -> ValidationResult {
         ValidationResult::Skipped
     }
@@ -229,7 +229,7 @@ Be strict but fair. Only flag clear issues."#.to_string()
 
 /// Builder for LocalValidator
 pub struct LocalValidatorBuilder {
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     provider: Option<Arc<LocalLlmProvider>>,
     model_id: String,
 }
@@ -237,7 +237,7 @@ pub struct LocalValidatorBuilder {
 impl Default for LocalValidatorBuilder {
     fn default() -> Self {
         Self {
-            #[cfg(feature = "local-llm")]
+            #[cfg(feature = "llama-cpp-2")]
             provider: None,
             model_id: "lfm2-350m".to_string(),
         }
@@ -249,7 +249,7 @@ impl LocalValidatorBuilder {
         Self::default()
     }
 
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub fn provider(mut self, provider: Arc<LocalLlmProvider>) -> Self {
         self.provider = Some(provider);
         self
@@ -260,12 +260,12 @@ impl LocalValidatorBuilder {
         self
     }
 
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub fn build(self) -> Option<LocalValidator> {
         self.provider.map(|p| LocalValidator::new(p, self.model_id))
     }
 
-    #[cfg(not(feature = "local-llm"))]
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub fn build(self) -> Option<LocalValidator> {
         None
     }

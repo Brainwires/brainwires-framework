@@ -6,7 +6,7 @@
 use std::sync::Arc;
 use tracing::{debug, warn};
 
-#[cfg(feature = "local-llm")]
+#[cfg(feature = "llama-cpp-2")]
 use brainwires_providers::local_llm::LocalLlmProvider;
 
 use crate::InferenceTimer;
@@ -78,14 +78,14 @@ impl ClassificationResult {
 
 /// Local retrieval classifier for enhanced gating
 pub struct RetrievalClassifier {
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     provider: Arc<LocalLlmProvider>,
     model_id: String,
 }
 
 impl RetrievalClassifier {
     /// Create a new retrieval classifier
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub fn new(provider: Arc<LocalLlmProvider>, model_id: impl Into<String>) -> Self {
         Self {
             provider,
@@ -93,8 +93,8 @@ impl RetrievalClassifier {
         }
     }
 
-    /// Create a stub classifier (non-local-llm builds)
-    #[cfg(not(feature = "local-llm"))]
+    /// Create a stub classifier (non-llama-cpp-2 builds)
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub fn new_stub(model_id: impl Into<String>) -> Self {
         Self {
             model_id: model_id.into(),
@@ -104,7 +104,7 @@ impl RetrievalClassifier {
     /// Classify retrieval need using local LLM
     ///
     /// Returns classification with intent understanding.
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub async fn classify(
         &self,
         query: &str,
@@ -132,8 +132,8 @@ impl RetrievalClassifier {
         }
     }
 
-    /// Stub classification for non-local-llm builds
-    #[cfg(not(feature = "local-llm"))]
+    /// Stub classification for non-llama-cpp-2 builds
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub async fn classify(
         &self,
         query: &str,
@@ -281,7 +281,7 @@ Classification:"#,
 
 /// Builder for RetrievalClassifier
 pub struct RetrievalClassifierBuilder {
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     provider: Option<Arc<LocalLlmProvider>>,
     model_id: String,
 }
@@ -289,7 +289,7 @@ pub struct RetrievalClassifierBuilder {
 impl Default for RetrievalClassifierBuilder {
     fn default() -> Self {
         Self {
-            #[cfg(feature = "local-llm")]
+            #[cfg(feature = "llama-cpp-2")]
             provider: None,
             model_id: "lfm2-350m".to_string(),
         }
@@ -301,7 +301,7 @@ impl RetrievalClassifierBuilder {
         Self::default()
     }
 
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub fn provider(mut self, provider: Arc<LocalLlmProvider>) -> Self {
         self.provider = Some(provider);
         self
@@ -312,12 +312,12 @@ impl RetrievalClassifierBuilder {
         self
     }
 
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub fn build(self) -> Option<RetrievalClassifier> {
         self.provider.map(|p| RetrievalClassifier::new(p, self.model_id))
     }
 
-    #[cfg(not(feature = "local-llm"))]
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub fn build(self) -> Option<RetrievalClassifier> {
         None
     }

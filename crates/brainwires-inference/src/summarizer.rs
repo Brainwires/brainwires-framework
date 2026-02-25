@@ -6,7 +6,7 @@
 use std::sync::Arc;
 use tracing::{debug, warn};
 
-#[cfg(feature = "local-llm")]
+#[cfg(feature = "llama-cpp-2")]
 use brainwires_providers::local_llm::LocalLlmProvider;
 
 use crate::InferenceTimer;
@@ -89,7 +89,7 @@ impl FactCategory {
 
 /// Local summarizer for context compression
 pub struct LocalSummarizer {
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     provider: Arc<LocalLlmProvider>,
     model_id: String,
     /// Maximum tokens for summary output
@@ -100,7 +100,7 @@ pub struct LocalSummarizer {
 
 impl LocalSummarizer {
     /// Create a new local summarizer
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub fn new(provider: Arc<LocalLlmProvider>, model_id: impl Into<String>) -> Self {
         Self {
             provider,
@@ -110,8 +110,8 @@ impl LocalSummarizer {
         }
     }
 
-    /// Create a stub summarizer (non-local-llm builds)
-    #[cfg(not(feature = "local-llm"))]
+    /// Create a stub summarizer (non-llama-cpp-2 builds)
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub fn new_stub(model_id: impl Into<String>) -> Self {
         Self {
             model_id: model_id.into(),
@@ -135,7 +135,7 @@ impl LocalSummarizer {
     /// Summarize a message for warm tier storage
     ///
     /// Generates a 50-100 word summary suitable for the warm memory tier.
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub async fn summarize_message(&self, content: &str, role: &str) -> Option<SummarizationResult> {
         let timer = InferenceTimer::new("summarize_message", &self.model_id);
 
@@ -173,8 +173,8 @@ impl LocalSummarizer {
         }
     }
 
-    /// Stub summarization for non-local-llm builds
-    #[cfg(not(feature = "local-llm"))]
+    /// Stub summarization for non-llama-cpp-2 builds
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub async fn summarize_message(&self, content: &str, _role: &str) -> Option<SummarizationResult> {
         // Fallback to simple truncation
         Some(SummarizationResult::from_fallback(
@@ -185,7 +185,7 @@ impl LocalSummarizer {
     /// Extract key facts from a summary for cold tier storage
     ///
     /// Parses structured facts from content for ultra-compressed archival.
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub async fn extract_facts(&self, summary: &str) -> Option<Vec<ExtractedFact>> {
         let timer = InferenceTimer::new("extract_facts", &self.model_id);
 
@@ -226,8 +226,8 @@ impl LocalSummarizer {
         }
     }
 
-    /// Stub fact extraction for non-local-llm builds
-    #[cfg(not(feature = "local-llm"))]
+    /// Stub fact extraction for non-llama-cpp-2 builds
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub async fn extract_facts(&self, summary: &str) -> Option<Vec<ExtractedFact>> {
         // Fallback to heuristic extraction
         Some(self.extract_facts_heuristic(summary))
@@ -236,7 +236,7 @@ impl LocalSummarizer {
     /// Compact a conversation for emergency context reduction
     ///
     /// Used when token count exceeds threshold (e.g., 80k tokens).
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub async fn compact_conversation(
         &self,
         messages: &[(String, String)], // (role, content) pairs
@@ -284,8 +284,8 @@ impl LocalSummarizer {
         }
     }
 
-    /// Stub conversation compaction for non-local-llm builds
-    #[cfg(not(feature = "local-llm"))]
+    /// Stub conversation compaction for non-llama-cpp-2 builds
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub async fn compact_conversation(
         &self,
         messages: &[(String, String)],
@@ -486,7 +486,7 @@ impl LocalSummarizer {
 
 /// Builder for LocalSummarizer
 pub struct LocalSummarizerBuilder {
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     provider: Option<Arc<LocalLlmProvider>>,
     model_id: String,
     max_summary_tokens: u32,
@@ -496,7 +496,7 @@ pub struct LocalSummarizerBuilder {
 impl Default for LocalSummarizerBuilder {
     fn default() -> Self {
         Self {
-            #[cfg(feature = "local-llm")]
+            #[cfg(feature = "llama-cpp-2")]
             provider: None,
             model_id: "lfm2-1.2b".to_string(), // Use larger model for summarization
             max_summary_tokens: 150,
@@ -510,7 +510,7 @@ impl LocalSummarizerBuilder {
         Self::default()
     }
 
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub fn provider(mut self, provider: Arc<LocalLlmProvider>) -> Self {
         self.provider = Some(provider);
         self
@@ -531,7 +531,7 @@ impl LocalSummarizerBuilder {
         self
     }
 
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub fn build(self) -> Option<LocalSummarizer> {
         self.provider.map(|p| {
             LocalSummarizer::new(p, self.model_id)
@@ -540,7 +540,7 @@ impl LocalSummarizerBuilder {
         })
     }
 
-    #[cfg(not(feature = "local-llm"))]
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub fn build(self) -> Option<LocalSummarizer> {
         None
     }

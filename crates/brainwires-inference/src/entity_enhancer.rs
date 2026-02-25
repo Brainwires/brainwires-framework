@@ -6,7 +6,7 @@
 use std::sync::Arc;
 use tracing::{debug, warn};
 
-#[cfg(feature = "local-llm")]
+#[cfg(feature = "llama-cpp-2")]
 use brainwires_providers::local_llm::LocalLlmProvider;
 
 use crate::InferenceTimer;
@@ -265,7 +265,7 @@ impl EnhancementResult {
 
 /// Entity enhancer using local LLM
 pub struct EntityEnhancer {
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     provider: Arc<LocalLlmProvider>,
     model_id: String,
     /// Minimum confidence threshold
@@ -276,7 +276,7 @@ pub struct EntityEnhancer {
 
 impl EntityEnhancer {
     /// Create a new entity enhancer
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub fn new(provider: Arc<LocalLlmProvider>, model_id: impl Into<String>) -> Self {
         Self {
             provider,
@@ -286,8 +286,8 @@ impl EntityEnhancer {
         }
     }
 
-    /// Create a stub enhancer (non-local-llm builds)
-    #[cfg(not(feature = "local-llm"))]
+    /// Create a stub enhancer (non-llama-cpp-2 builds)
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub fn new_stub(model_id: impl Into<String>) -> Self {
         Self {
             model_id: model_id.into(),
@@ -309,7 +309,7 @@ impl EntityEnhancer {
     }
 
     /// Extract semantic entities from text using local LLM
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub async fn extract_entities(&self, text: &str) -> Option<Vec<EnhancedEntity>> {
         let timer = InferenceTimer::new("extract_entities", &self.model_id);
 
@@ -340,14 +340,14 @@ impl EntityEnhancer {
         }
     }
 
-    /// Stub extraction for non-local-llm builds
-    #[cfg(not(feature = "local-llm"))]
+    /// Stub extraction for non-llama-cpp-2 builds
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub async fn extract_entities(&self, _text: &str) -> Option<Vec<EnhancedEntity>> {
         None
     }
 
     /// Extract relationships between entities using local LLM
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub async fn extract_relationships(
         &self,
         entities: &[String],
@@ -386,8 +386,8 @@ impl EntityEnhancer {
         }
     }
 
-    /// Stub relationship extraction for non-local-llm builds
-    #[cfg(not(feature = "local-llm"))]
+    /// Stub relationship extraction for non-llama-cpp-2 builds
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub async fn extract_relationships(
         &self,
         _entities: &[String],
@@ -397,7 +397,7 @@ impl EntityEnhancer {
     }
 
     /// Extract domain concepts from text using local LLM
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub async fn extract_concepts(&self, text: &str) -> Option<Vec<String>> {
         let timer = InferenceTimer::new("extract_concepts", &self.model_id);
 
@@ -428,14 +428,14 @@ impl EntityEnhancer {
         }
     }
 
-    /// Stub concept extraction for non-local-llm builds
-    #[cfg(not(feature = "local-llm"))]
+    /// Stub concept extraction for non-llama-cpp-2 builds
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub async fn extract_concepts(&self, _text: &str) -> Option<Vec<String>> {
         None
     }
 
     /// Full enhancement - extract entities, relationships, and concepts
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub async fn enhance(&self, text: &str) -> EnhancementResult {
         // Extract entities first
         let entities = self.extract_entities(text).await.unwrap_or_default();
@@ -453,8 +453,8 @@ impl EntityEnhancer {
         EnhancementResult::from_local(entities, relationships, concepts)
     }
 
-    /// Stub enhancement for non-local-llm builds
-    #[cfg(not(feature = "local-llm"))]
+    /// Stub enhancement for non-llama-cpp-2 builds
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub async fn enhance(&self, _text: &str) -> EnhancementResult {
         EnhancementResult::empty()
     }
@@ -767,7 +767,7 @@ Concepts:"#,
 
 /// Builder for EntityEnhancer
 pub struct EntityEnhancerBuilder {
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     provider: Option<Arc<LocalLlmProvider>>,
     model_id: String,
     min_confidence: f32,
@@ -777,7 +777,7 @@ pub struct EntityEnhancerBuilder {
 impl Default for EntityEnhancerBuilder {
     fn default() -> Self {
         Self {
-            #[cfg(feature = "local-llm")]
+            #[cfg(feature = "llama-cpp-2")]
             provider: None,
             model_id: "lfm2-350m".to_string(), // Fast model for entity extraction
             min_confidence: 0.6,
@@ -791,7 +791,7 @@ impl EntityEnhancerBuilder {
         Self::default()
     }
 
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub fn provider(mut self, provider: Arc<LocalLlmProvider>) -> Self {
         self.provider = Some(provider);
         self
@@ -812,7 +812,7 @@ impl EntityEnhancerBuilder {
         self
     }
 
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub fn build(self) -> Option<EntityEnhancer> {
         self.provider.map(|p| {
             EntityEnhancer::new(p, self.model_id)
@@ -821,7 +821,7 @@ impl EntityEnhancerBuilder {
         })
     }
 
-    #[cfg(not(feature = "local-llm"))]
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub fn build(self) -> Option<EntityEnhancer> {
         None
     }

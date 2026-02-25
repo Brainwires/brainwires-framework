@@ -22,7 +22,7 @@
 //! All components are optional and fall back to pattern-based logic when:
 //! - Local LLM is not available
 //! - Inference fails
-//! - The `local-llm` feature is disabled
+//! - The `llama-cpp-2` feature is disabled
 //!
 //! # Configuration
 //!

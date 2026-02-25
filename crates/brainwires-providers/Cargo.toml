@@ -36,7 +36,7 @@ native = [
     "dep:reqwest", "dep:async-stream",
     "dep:tracing", "dep:tokio", "dep:uuid",
 ]
-local-llm = ["dep:tracing", "dep:tokio", "dep:llama-cpp-2"]
+llama-cpp-2 = ["dep:tracing", "dep:tokio", "dep:llama-cpp-2"]
 
 [dev-dependencies]
 serde_json = { workspace = true }

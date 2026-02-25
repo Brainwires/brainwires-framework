@@ -19,7 +19,7 @@ regex = { workspace = true }
 [features]
 default = ["native"]
 native = ["brainwires-core/native", "dep:brainwires-tools", "brainwires-tools/native", "dep:brainwires-providers", "brainwires-providers/native"]
-local-llm = ["brainwires-providers/local-llm"]
+llama-cpp-2 = ["brainwires-providers/llama-cpp-2"]
 
 [dev-dependencies]
 serde_json = { workspace = true }

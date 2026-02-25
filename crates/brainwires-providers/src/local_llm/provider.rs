@@ -12,7 +12,7 @@ use async_trait::async_trait;
 use futures::stream::BoxStream;
 use std::sync::Arc;
 
-#[cfg(feature = "local-llm")]
+#[cfg(feature = "llama-cpp-2")]
 use llama_cpp_2::{
     context::LlamaContext,
     context::params::LlamaContextParams,
@@ -37,13 +37,13 @@ pub struct LocalLlmProvider {
     /// Model configuration
     config: LocalLlmConfig,
     /// Backend instance (shared) - wrapped in mutex for thread safety
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     backend: std::sync::Mutex<Option<LlamaBackend>>,
     /// Model instance (lazy loaded) - wrapped in mutex for thread safety
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     model: std::sync::Mutex<Option<LlamaModel>>,
     /// Inference state (without the actual llama.cpp when feature disabled)
-    #[cfg(not(feature = "local-llm"))]
+    #[cfg(not(feature = "llama-cpp-2"))]
     _placeholder: std::marker::PhantomData<()>,
 }
 
@@ -51,7 +51,7 @@ impl LocalLlmProvider {
     /// Create a new local LLM provider with the given configuration
     ///
     /// The model is not loaded until the first inference call (lazy loading).
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub fn new(config: LocalLlmConfig) -> Result<Self> {
         config.validate().map_err(|e| anyhow!(e))?;
 
@@ -62,7 +62,7 @@ impl LocalLlmProvider {
         })
     }
 
-    #[cfg(not(feature = "local-llm"))]
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub fn new(config: LocalLlmConfig) -> Result<Self> {
         config.validate().map_err(|e| anyhow!(e))?;
 
@@ -88,18 +88,18 @@ impl LocalLlmProvider {
     }
 
     /// Check if the model is loaded
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub async fn is_loaded(&self) -> bool {
         self.model.lock().map(|g| g.is_some()).unwrap_or(false)
     }
 
-    #[cfg(not(feature = "local-llm"))]
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub async fn is_loaded(&self) -> bool {
         false
     }
 
     /// Load the model into memory
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub async fn load(&self) -> Result<()> {
         // First ensure backend is initialized
         {
@@ -137,15 +137,15 @@ impl LocalLlmProvider {
         Ok(())
     }
 
-    #[cfg(not(feature = "local-llm"))]
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub async fn load(&self) -> Result<()> {
         Err(anyhow!(
-            "Local LLM support is not enabled. Build with --features local-llm"
+            "Local LLM support is not enabled. Build with --features llama-cpp-2"
         ))
     }
 
     /// Unload the model from memory
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub async fn unload(&self) {
         if let Ok(mut model_guard) = self.model.lock() {
             *model_guard = None;
@@ -153,7 +153,7 @@ impl LocalLlmProvider {
         tracing::info!("Local model unloaded: {}", self.config.name);
     }
 
-    #[cfg(not(feature = "local-llm"))]
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub async fn unload(&self) {
         // No-op when feature not enabled
     }
@@ -230,7 +230,7 @@ impl LocalLlmProvider {
     }
 
     /// Perform inference without loading (assumes model is loaded)
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     fn generate_impl_sync(&self, prompt: &str, params: &LocalInferenceParams) -> Result<String> {
         let model_guard = self.model.lock().map_err(|e| anyhow!("Lock poisoned: {}", e))?;
         let model = model_guard
@@ -334,10 +334,10 @@ impl LocalLlmProvider {
         Ok(output.trim().to_string())
     }
 
-    #[cfg(not(feature = "local-llm"))]
+    #[cfg(not(feature = "llama-cpp-2"))]
     fn generate_impl_sync(&self, _prompt: &str, _params: &LocalInferenceParams) -> Result<String> {
         Err(anyhow!(
-            "Local LLM support is not enabled. Build with --features local-llm"
+            "Local LLM support is not enabled. Build with --features llama-cpp-2"
         ))
     }
 

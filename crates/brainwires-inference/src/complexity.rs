@@ -6,9 +6,9 @@
 use std::sync::Arc;
 use tracing::{debug, warn};
 
-#[cfg(feature = "local-llm")]
+#[cfg(feature = "llama-cpp-2")]
 use brainwires_providers::local_llm::LocalLlmProvider;
-#[cfg(feature = "local-llm")]
+#[cfg(feature = "llama-cpp-2")]
 use brainwires_core::message::Message;
 
 use crate::InferenceTimer;
@@ -46,14 +46,14 @@ impl ComplexityResult {
 
 /// Complexity scorer for task difficulty assessment
 pub struct ComplexityScorer {
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     provider: Arc<LocalLlmProvider>,
     model_id: String,
 }
 
 impl ComplexityScorer {
     /// Create a new complexity scorer
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub fn new(provider: Arc<LocalLlmProvider>, model_id: impl Into<String>) -> Self {
         Self {
             provider,
@@ -61,8 +61,8 @@ impl ComplexityScorer {
         }
     }
 
-    /// Create a stub scorer (non-local-llm builds)
-    #[cfg(not(feature = "local-llm"))]
+    /// Create a stub scorer (non-llama-cpp-2 builds)
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub fn new_stub(model_id: impl Into<String>) -> Self {
         Self {
             model_id: model_id.into(),
@@ -73,7 +73,7 @@ impl ComplexityScorer {
     ///
     /// Returns a score from 0.0 (trivial) to 1.0 (very complex).
     /// Returns None if scoring fails, allowing fallback to default.
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub async fn score(&self, task_description: &str) -> Option<ComplexityResult> {
         let timer = InferenceTimer::new("complexity_score", &self.model_id);
 
@@ -113,8 +113,8 @@ impl ComplexityScorer {
         }
     }
 
-    /// Stub scoring for non-local-llm builds
-    #[cfg(not(feature = "local-llm"))]
+    /// Stub scoring for non-llama-cpp-2 builds
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub async fn score(&self, _task_description: &str) -> Option<ComplexityResult> {
         None // Always return None to trigger default
     }
@@ -236,7 +236,7 @@ Output ONLY a decimal number between 0.0 and 1.0."#.to_string()
 
 /// Builder for ComplexityScorer
 pub struct ComplexityScorerBuilder {
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     provider: Option<Arc<LocalLlmProvider>>,
     model_id: String,
 }
@@ -244,7 +244,7 @@ pub struct ComplexityScorerBuilder {
 impl Default for ComplexityScorerBuilder {
     fn default() -> Self {
         Self {
-            #[cfg(feature = "local-llm")]
+            #[cfg(feature = "llama-cpp-2")]
             provider: None,
             model_id: "lfm2-350m".to_string(),
         }
@@ -256,7 +256,7 @@ impl ComplexityScorerBuilder {
         Self::default()
     }
 
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub fn provider(mut self, provider: Arc<LocalLlmProvider>) -> Self {
         self.provider = Some(provider);
         self
@@ -267,12 +267,12 @@ impl ComplexityScorerBuilder {
         self
     }
 
-    #[cfg(feature = "local-llm")]
+    #[cfg(feature = "llama-cpp-2")]
     pub fn build(self) -> Option<ComplexityScorer> {
         self.provider.map(|p| ComplexityScorer::new(p, self.model_id))
     }
 
-    #[cfg(not(feature = "local-llm"))]
+    #[cfg(not(feature = "llama-cpp-2"))]
     pub fn build(self) -> Option<ComplexityScorer> {
         None
     }
