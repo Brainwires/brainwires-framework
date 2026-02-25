@@ -224,27 +224,21 @@ impl LocalModelType {
     pub fn chat_template(&self) -> &'static str {
         match self {
             Self::Lfm2 | Self::Lfm2Agentic => {
-                // LFM2 uses a simple chat template
                 "<|system|>\n{system}<|end|>\n<|user|>\n{user}<|end|>\n<|assistant|>\n"
             }
             Self::Granite => {
-                // Granite uses IBM's chat format
                 "<|system|>\n{system}\n<|user|>\n{user}\n<|assistant|>\n"
             }
             Self::Qwen => {
-                // Qwen3 ChatML format
                 "<|im_start|>system\n{system}<|im_end|>\n<|im_start|>user\n{user}<|im_end|>\n<|im_start|>assistant\n"
             }
             Self::Llama => {
-                // Llama 3 format
                 "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n{system}<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n{user}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
             }
             Self::Phi => {
-                // Phi-3 format
                 "<|system|>\n{system}<|end|>\n<|user|>\n{user}<|end|>\n<|assistant|>\n"
             }
             Self::Generic => {
-                // Simple generic format
                 "### System:\n{system}\n\n### User:\n{user}\n\n### Assistant:\n"
             }
         }

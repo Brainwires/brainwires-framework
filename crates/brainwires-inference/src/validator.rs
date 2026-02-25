@@ -7,7 +7,7 @@ use std::sync::Arc;
 use tracing::{debug, warn};
 
 #[cfg(feature = "local-llm")]
-use brainwires_core::providers::local_llm::LocalLlmProvider;
+use brainwires_providers::local_llm::LocalLlmProvider;
 #[cfg(feature = "local-llm")]
 use brainwires_core::message::Message;
 

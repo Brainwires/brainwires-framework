@@ -4,9 +4,9 @@
 //! Optimized for CPU inference with efficient memory usage.
 
 use super::config::{LocalInferenceParams, LocalLlmConfig};
-use crate::provider::{ChatOptions, Provider};
-use crate::message::{ChatResponse, Message, Role, StreamChunk, Usage};
-use crate::tool::Tool;
+use brainwires_core::provider::{ChatOptions, Provider};
+use brainwires_core::message::{ChatResponse, Message, Role, StreamChunk, Usage};
+use brainwires_core::tool::Tool;
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use futures::stream::BoxStream;

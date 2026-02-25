@@ -257,7 +257,6 @@ pub struct KnownModel {
 /// Get list of known/recommended models
 pub fn known_models() -> Vec<KnownModel> {
     vec![
-        // LFM2 Models (Liquid AI)
         KnownModel {
             id: "lfm2-350m",
             name: "LFM2 350M",
@@ -291,7 +290,6 @@ pub fn known_models() -> Vec<KnownModel> {
             supports_tools: true,
             description: "Complex reasoning, tool-calling. Best for agents.",
         },
-        // Granite Models (IBM)
         KnownModel {
             id: "granite-nano-350m",
             name: "Granite 4.0 Nano 350M",

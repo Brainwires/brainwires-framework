@@ -20,10 +20,6 @@ pub mod task;
 pub mod tool;
 pub mod working_set;
 
-// Provider implementations (feature-gated)
-#[cfg(any(feature = "native", feature = "local-llm"))]
-pub mod providers;
-
 // Re-export core types at crate root
 pub use error::*;
 pub use message::*;

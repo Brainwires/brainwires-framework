@@ -9,7 +9,7 @@ use tracing::{debug, warn};
 use brainwires_tools::ToolCategory;
 
 #[cfg(feature = "local-llm")]
-use brainwires_core::providers::local_llm::{LocalInferenceParams, LocalLlmProvider};
+use brainwires_providers::local_llm::{LocalInferenceParams, LocalLlmProvider};
 #[cfg(feature = "local-llm")]
 use brainwires_core::message::Message;
 

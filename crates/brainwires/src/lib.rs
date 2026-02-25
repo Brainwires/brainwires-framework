@@ -62,6 +62,11 @@ pub mod permissions {
     pub use brainwires_permissions::*;
 }
 
+#[cfg(feature = "providers")]
+pub mod providers {
+    pub use brainwires_providers::*;
+}
+
 #[cfg(feature = "inference")]
 pub mod inference {
     pub use brainwires_inference::*;

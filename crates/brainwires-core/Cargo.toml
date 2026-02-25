@@ -22,16 +22,10 @@ futures = { workspace = true }
 
 # Optional dependencies
 glob = { workspace = true, optional = true }
-reqwest = { workspace = true, optional = true }
-tracing = { workspace = true, optional = true }
-async-stream = { workspace = true, optional = true }
-dirs = { workspace = true, optional = true }
-tokio = { workspace = true, optional = true }
 
 [features]
 default = ["native"]
-native = ["dep:glob", "dep:reqwest", "dep:tracing", "dep:async-stream", "dep:dirs", "dep:tokio"]
-local-llm = ["dep:tracing", "dep:dirs", "dep:tokio"]
+native = ["dep:glob"]
 wasm = ["chrono/wasmbind"]
 
 [dev-dependencies]
