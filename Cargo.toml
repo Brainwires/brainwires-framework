@@ -15,6 +15,8 @@ members = [
     "crates/brainwires-wasm",
     "crates/brainwires-bridge",
     "crates/brainwires-bridge-client",
+    "crates/brainwires-inference",
+    "crates/brainwires-seal",
 ]
 resolver = "2"
 
@@ -43,6 +45,8 @@ brainwires-code-interpreters = { path = "crates/brainwires-code-interpreters", v
 brainwires-wasm = { path = "crates/brainwires-wasm", version = "0.1.0" }
 brainwires-bridge = { path = "crates/brainwires-bridge", version = "0.1.0" }
 brainwires-bridge-client = { path = "crates/brainwires-bridge-client", version = "0.1.0" }
+brainwires-inference = { path = "crates/brainwires-inference", version = "0.1.0" }
+brainwires-seal = { path = "crates/brainwires-seal", version = "0.1.0" }
 
 # Async runtime & utilities
 tokio = { version = "1.43", features = ["full"] }

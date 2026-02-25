@@ -1,4 +1,39 @@
+use anyhow::Result;
+use async_trait::async_trait;
+use futures::stream::BoxStream;
 use serde::{Deserialize, Serialize};
+
+use crate::message::{ChatResponse, Message, StreamChunk};
+use crate::tool::Tool;
+
+/// Base provider trait for AI providers
+#[async_trait]
+pub trait Provider: Send + Sync {
+    /// Get the provider name
+    fn name(&self) -> &str;
+
+    /// Get the model's maximum output tokens (for setting appropriate limits)
+    /// Returns None if the model doesn't have a specific limit
+    fn max_output_tokens(&self) -> Option<u32> {
+        None // Default implementation - providers can override
+    }
+
+    /// Chat completion (non-streaming)
+    async fn chat(
+        &self,
+        messages: &[Message],
+        tools: Option<&[Tool]>,
+        options: &ChatOptions,
+    ) -> Result<ChatResponse>;
+
+    /// Chat completion (streaming)
+    fn stream_chat<'a>(
+        &'a self,
+        messages: &'a [Message],
+        tools: Option<&'a [Tool]>,
+        options: &'a ChatOptions,
+    ) -> BoxStream<'a, Result<StreamChunk>>;
+}
 
 /// Chat completion options
 #[derive(Debug, Clone, Serialize, Deserialize)]

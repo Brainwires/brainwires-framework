@@ -62,6 +62,16 @@ pub mod permissions {
     pub use brainwires_permissions::*;
 }
 
+#[cfg(feature = "inference")]
+pub mod inference {
+    pub use brainwires_inference::*;
+}
+
+#[cfg(feature = "seal")]
+pub mod seal {
+    pub use brainwires_seal::*;
+}
+
 // Orchestrator is re-exported via brainwires_tools::orchestrator when orchestrator feature is on
 
 #[cfg(feature = "rag")]
@@ -102,7 +112,7 @@ pub mod prelude {
         // Plans
         PlanMetadata, PlanStatus,
         // Providers
-        ChatOptions,
+        ChatOptions, Provider,
         // Permissions
         PermissionMode,
         // Working set

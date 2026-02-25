@@ -26,6 +26,12 @@ brainwires-permissions = { workspace = true, optional = true }
 brainwires-rag = { workspace = true, optional = true }
 brainwires-code-interpreters = { workspace = true, optional = true }
 
+# Inference
+brainwires-inference = { workspace = true, optional = true }
+
+# SEAL
+brainwires-seal = { workspace = true, optional = true }
+
 # Bridge crates
 brainwires-bridge = { workspace = true, optional = true }
 brainwires-bridge-client = { workspace = true, optional = true }
@@ -44,10 +50,13 @@ permissions = ["dep:brainwires-permissions"]
 orchestrator = ["tools", "brainwires-tools/orchestrator"]
 rag = ["dep:brainwires-rag"]
 interpreters = ["dep:brainwires-code-interpreters"]
+inference = ["dep:brainwires-inference"]
+seal = ["dep:brainwires-seal"]
 bridge = ["dep:brainwires-bridge"]
 bridge-client = ["dep:brainwires-bridge-client", "bridge"]
 full = [
     "tools", "agents", "storage", "mcp", "mdap", "knowledge",
     "prompting", "permissions", "orchestrator", "rag", "interpreters",
-    "bridge", "bridge-client",
+    "inference", "seal", "bridge", "bridge-client",
+    "brainwires-seal/knowledge", "brainwires-seal/mdap",
 ]

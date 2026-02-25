@@ -1,0 +1,31 @@
+[package]
+name = "brainwires-seal"
+description = "SEAL (Self-Evolving Agentic Learning) integration for the Brainwires Agent Framework"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+brainwires-storage = { workspace = true }
+brainwires-tools = { workspace = true }
+brainwires-agents = { workspace = true }
+brainwires-mdap = { workspace = true, optional = true }
+brainwires-knowledge = { workspace = true, optional = true }
+anyhow = { workspace = true }
+regex = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+tokio = { workspace = true, optional = true }
+
+[features]
+default = ["native"]
+native = ["brainwires-storage/native"]
+mdap = ["dep:brainwires-mdap"]
+knowledge = ["dep:brainwires-knowledge", "dep:tokio"]
+
+[dev-dependencies]
+serde_json = { workspace = true }
