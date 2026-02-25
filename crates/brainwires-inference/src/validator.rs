@@ -1,15 +1,13 @@
-//! Local Validator - Semantic Response Validation
+//! Validator - Semantic Response Validation
 //!
-//! Uses a local LLM to perform semantic validation of responses,
+//! Uses a provider to perform semantic validation of responses,
 //! enhancing the pattern-based red-flagging system.
 
 use std::sync::Arc;
 use tracing::{debug, warn};
 
-#[cfg(feature = "llama-cpp-2")]
-use brainwires_providers::local_llm::LocalLlmProvider;
-#[cfg(feature = "llama-cpp-2")]
 use brainwires_core::message::Message;
+use brainwires_core::provider::{ChatOptions, Provider};
 
 use crate::InferenceTimer;
 
@@ -40,27 +38,17 @@ impl ValidationResult {
     }
 }
 
-/// Local validator for semantic response validation
+/// Validator for semantic response validation
 pub struct LocalValidator {
-    #[cfg(feature = "llama-cpp-2")]
-    provider: Arc<LocalLlmProvider>,
+    provider: Arc<dyn Provider>,
     model_id: String,
 }
 
 impl LocalValidator {
-    /// Create a new local validator
-    #[cfg(feature = "llama-cpp-2")]
-    pub fn new(provider: Arc<LocalLlmProvider>, model_id: impl Into<String>) -> Self {
+    /// Create a new validator
+    pub fn new(provider: Arc<dyn Provider>, model_id: impl Into<String>) -> Self {
         Self {
             provider,
-            model_id: model_id.into(),
-        }
-    }
-
-    /// Create a stub validator (non-llama-cpp-2 builds)
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub fn new_stub(model_id: impl Into<String>) -> Self {
-        Self {
             model_id: model_id.into(),
         }
     }
@@ -68,7 +56,6 @@ impl LocalValidator {
     /// Validate a response for the given task
     ///
     /// Performs semantic validation to catch issues that pattern matching might miss.
-    #[cfg(feature = "llama-cpp-2")]
     pub async fn validate(&self, task: &str, response: &str) -> ValidationResult {
         let timer = InferenceTimer::new("validate_response", &self.model_id);
 
@@ -85,12 +72,12 @@ impl LocalValidator {
             if response.len() > 500 { &response[..500] } else { response }
         );
 
-        match self.provider.generate(&user_prompt, &crate::providers::local_llm::LocalInferenceParams {
-            temperature: 0.0,
-            max_tokens: 50,
-            ..Default::default()
-        }).await {
-            Ok(text) => {
+        let messages = vec![Message::user(&user_prompt)];
+        let options = ChatOptions::deterministic(50).system(system_prompt);
+
+        match self.provider.chat(&messages, None, &options).await {
+            Ok(chat_response) => {
+                let text = chat_response.message.text_or_summary();
                 let result = self.parse_validation(&text);
                 timer.finish(true);
                 result
@@ -101,12 +88,6 @@ impl LocalValidator {
                 ValidationResult::Skipped
             }
         }
-    }
-
-    /// Stub validation for non-llama-cpp-2 builds
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub async fn validate(&self, _task: &str, _response: &str) -> ValidationResult {
-        ValidationResult::Skipped
     }
 
     /// Quick heuristic validation (no LLM call)
@@ -229,15 +210,13 @@ Be strict but fair. Only flag clear issues."#.to_string()
 
 /// Builder for LocalValidator
 pub struct LocalValidatorBuilder {
-    #[cfg(feature = "llama-cpp-2")]
-    provider: Option<Arc<LocalLlmProvider>>,
+    provider: Option<Arc<dyn Provider>>,
     model_id: String,
 }
 
 impl Default for LocalValidatorBuilder {
     fn default() -> Self {
         Self {
-            #[cfg(feature = "llama-cpp-2")]
             provider: None,
             model_id: "lfm2-350m".to_string(),
         }
@@ -249,8 +228,7 @@ impl LocalValidatorBuilder {
         Self::default()
     }
 
-    #[cfg(feature = "llama-cpp-2")]
-    pub fn provider(mut self, provider: Arc<LocalLlmProvider>) -> Self {
+    pub fn provider(mut self, provider: Arc<dyn Provider>) -> Self {
         self.provider = Some(provider);
         self
     }
@@ -260,14 +238,8 @@ impl LocalValidatorBuilder {
         self
     }
 
-    #[cfg(feature = "llama-cpp-2")]
     pub fn build(self) -> Option<LocalValidator> {
         self.provider.map(|p| LocalValidator::new(p, self.model_id))
-    }
-
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub fn build(self) -> Option<LocalValidator> {
-        None
     }
 }
 

@@ -1,13 +1,13 @@
-//! Local Summarizer - Context Summarization
+//! Summarizer - Context Summarization
 //!
-//! Uses a local LLM to generate summaries for tiered memory demotion,
+//! Uses a provider to generate summaries for tiered memory demotion,
 //! reducing the need for expensive API calls for context compression.
 
 use std::sync::Arc;
 use tracing::{debug, warn};
 
-#[cfg(feature = "llama-cpp-2")]
-use brainwires_providers::local_llm::LocalLlmProvider;
+use brainwires_core::message::Message;
+use brainwires_core::provider::{ChatOptions, Provider};
 
 use crate::InferenceTimer;
 
@@ -18,12 +18,12 @@ pub struct SummarizationResult {
     pub summary: String,
     /// Confidence score (0.0 - 1.0)
     pub confidence: f32,
-    /// Whether local LLM was used
+    /// Whether LLM was used
     pub used_local_llm: bool,
 }
 
 impl SummarizationResult {
-    /// Create a result from local LLM summarization
+    /// Create a result from LLM summarization
     pub fn from_local(summary: String, confidence: f32) -> Self {
         Self {
             summary,
@@ -87,10 +87,9 @@ impl FactCategory {
     }
 }
 
-/// Local summarizer for context compression
+/// Summarizer for context compression
 pub struct LocalSummarizer {
-    #[cfg(feature = "llama-cpp-2")]
-    provider: Arc<LocalLlmProvider>,
+    provider: Arc<dyn Provider>,
     model_id: String,
     /// Maximum tokens for summary output
     max_summary_tokens: u32,
@@ -99,21 +98,10 @@ pub struct LocalSummarizer {
 }
 
 impl LocalSummarizer {
-    /// Create a new local summarizer
-    #[cfg(feature = "llama-cpp-2")]
-    pub fn new(provider: Arc<LocalLlmProvider>, model_id: impl Into<String>) -> Self {
+    /// Create a new summarizer
+    pub fn new(provider: Arc<dyn Provider>, model_id: impl Into<String>) -> Self {
         Self {
             provider,
-            model_id: model_id.into(),
-            max_summary_tokens: 150,
-            max_facts: 5,
-        }
-    }
-
-    /// Create a stub summarizer (non-llama-cpp-2 builds)
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub fn new_stub(model_id: impl Into<String>) -> Self {
-        Self {
             model_id: model_id.into(),
             max_summary_tokens: 150,
             max_facts: 5,
@@ -135,7 +123,6 @@ impl LocalSummarizer {
     /// Summarize a message for warm tier storage
     ///
     /// Generates a 50-100 word summary suitable for the warm memory tier.
-    #[cfg(feature = "llama-cpp-2")]
     pub async fn summarize_message(&self, content: &str, role: &str) -> Option<SummarizationResult> {
         let timer = InferenceTimer::new("summarize_message", &self.model_id);
 
@@ -151,12 +138,12 @@ impl LocalSummarizer {
             if content.len() > 2000 { &content[..2000] } else { content }
         );
 
-        match self.provider.generate(&prompt, &crate::providers::local_llm::LocalInferenceParams {
-            temperature: 0.3,
-            max_tokens: self.max_summary_tokens,
-            ..Default::default()
-        }).await {
-            Ok(summary) => {
+        let messages = vec![Message::user(&prompt)];
+        let options = ChatOptions::creative(self.max_summary_tokens);
+
+        match self.provider.chat(&messages, None, &options).await {
+            Ok(response) => {
+                let summary = response.message.text_or_summary();
                 let cleaned = self.clean_summary(&summary);
                 if cleaned.len() < 10 {
                     timer.finish(false);
@@ -173,19 +160,9 @@ impl LocalSummarizer {
         }
     }
 
-    /// Stub summarization for non-llama-cpp-2 builds
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub async fn summarize_message(&self, content: &str, _role: &str) -> Option<SummarizationResult> {
-        // Fallback to simple truncation
-        Some(SummarizationResult::from_fallback(
-            self.truncate_summary(content)
-        ))
-    }
-
     /// Extract key facts from a summary for cold tier storage
     ///
     /// Parses structured facts from content for ultra-compressed archival.
-    #[cfg(feature = "llama-cpp-2")]
     pub async fn extract_facts(&self, summary: &str) -> Option<Vec<ExtractedFact>> {
         let timer = InferenceTimer::new("extract_facts", &self.model_id);
 
@@ -204,12 +181,12 @@ impl LocalSummarizer {
             summary
         );
 
-        match self.provider.generate(&prompt, &crate::providers::local_llm::LocalInferenceParams {
-            temperature: 0.1,
-            max_tokens: 200,
-            ..Default::default()
-        }).await {
-            Ok(output) => {
+        let messages = vec![Message::user(&prompt)];
+        let options = ChatOptions::factual(200);
+
+        match self.provider.chat(&messages, None, &options).await {
+            Ok(response) => {
+                let output = response.message.text_or_summary();
                 let facts = self.parse_facts(&output);
                 if facts.is_empty() {
                     timer.finish(false);
@@ -226,17 +203,9 @@ impl LocalSummarizer {
         }
     }
 
-    /// Stub fact extraction for non-llama-cpp-2 builds
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub async fn extract_facts(&self, summary: &str) -> Option<Vec<ExtractedFact>> {
-        // Fallback to heuristic extraction
-        Some(self.extract_facts_heuristic(summary))
-    }
-
     /// Compact a conversation for emergency context reduction
     ///
     /// Used when token count exceeds threshold (e.g., 80k tokens).
-    #[cfg(feature = "llama-cpp-2")]
     pub async fn compact_conversation(
         &self,
         messages: &[(String, String)], // (role, content) pairs
@@ -266,12 +235,12 @@ impl LocalSummarizer {
             context
         );
 
-        match self.provider.generate(&prompt, &crate::providers::local_llm::LocalInferenceParams {
-            temperature: 0.3,
-            max_tokens: 400,
-            ..Default::default()
-        }).await {
-            Ok(summary) => {
+        let chat_messages = vec![Message::user(&prompt)];
+        let options = ChatOptions::creative(400);
+
+        match self.provider.chat(&chat_messages, None, &options).await {
+            Ok(response) => {
+                let summary = response.message.text_or_summary();
                 let cleaned = self.clean_summary(&summary);
                 timer.finish(true);
                 Some(cleaned)
@@ -284,33 +253,6 @@ impl LocalSummarizer {
         }
     }
 
-    /// Stub conversation compaction for non-llama-cpp-2 builds
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub async fn compact_conversation(
-        &self,
-        messages: &[(String, String)],
-        keep_recent: usize,
-    ) -> Option<String> {
-        if messages.len() <= keep_recent {
-            return None;
-        }
-
-        // Fallback: simple concatenation of truncated messages
-        let to_compact = &messages[..messages.len() - keep_recent];
-        let mut summary = String::with_capacity(1000);
-
-        for (role, content) in to_compact.iter().take(10) {
-            let truncated = if content.len() > 100 { &content[..100] } else { content };
-            summary.push_str(&format!("[{}]: {}...\n", role, truncated));
-        }
-
-        if to_compact.len() > 10 {
-            summary.push_str(&format!("({} more messages compacted)\n", to_compact.len() - 10));
-        }
-
-        Some(summary)
-    }
-
     /// Heuristic summarization (no LLM)
     pub fn summarize_heuristic(&self, content: &str) -> SummarizationResult {
         SummarizationResult::from_fallback(self.truncate_summary(content))
@@ -319,7 +261,6 @@ impl LocalSummarizer {
     /// Extract entities from content for summary metadata
     pub fn extract_entities(&self, content: &str) -> Vec<String> {
         let mut entities = Vec::new();
-        let content_lower = content.to_lowercase();
 
         // Extract file paths
         let path_patterns = [
@@ -486,8 +427,7 @@ impl LocalSummarizer {
 
 /// Builder for LocalSummarizer
 pub struct LocalSummarizerBuilder {
-    #[cfg(feature = "llama-cpp-2")]
-    provider: Option<Arc<LocalLlmProvider>>,
+    provider: Option<Arc<dyn Provider>>,
     model_id: String,
     max_summary_tokens: u32,
     max_facts: usize,
@@ -496,7 +436,6 @@ pub struct LocalSummarizerBuilder {
 impl Default for LocalSummarizerBuilder {
     fn default() -> Self {
         Self {
-            #[cfg(feature = "llama-cpp-2")]
             provider: None,
             model_id: "lfm2-1.2b".to_string(), // Use larger model for summarization
             max_summary_tokens: 150,
@@ -510,8 +449,7 @@ impl LocalSummarizerBuilder {
         Self::default()
     }
 
-    #[cfg(feature = "llama-cpp-2")]
-    pub fn provider(mut self, provider: Arc<LocalLlmProvider>) -> Self {
+    pub fn provider(mut self, provider: Arc<dyn Provider>) -> Self {
         self.provider = Some(provider);
         self
     }
@@ -531,18 +469,12 @@ impl LocalSummarizerBuilder {
         self
     }
 
-    #[cfg(feature = "llama-cpp-2")]
     pub fn build(self) -> Option<LocalSummarizer> {
         self.provider.map(|p| {
             LocalSummarizer::new(p, self.model_id)
                 .with_max_summary_tokens(self.max_summary_tokens)
                 .with_max_facts(self.max_facts)
         })
-    }
-
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub fn build(self) -> Option<LocalSummarizer> {
-        None
     }
 }
 

@@ -1,13 +1,13 @@
 //! Relevance Scorer - Context Re-ranking
 //!
-//! Uses a local LLM to score and re-rank retrieved context items
+//! Uses a provider to score and re-rank retrieved context items
 //! based on semantic relevance to the query, replacing fixed thresholds.
 
 use std::sync::Arc;
 use tracing::{debug, warn};
 
-#[cfg(feature = "llama-cpp-2")]
-use brainwires_providers::local_llm::LocalLlmProvider;
+use brainwires_core::message::Message;
+use brainwires_core::provider::{ChatOptions, Provider};
 
 use crate::InferenceTimer;
 
@@ -22,12 +22,12 @@ pub struct RelevanceResult {
     pub relevance_score: f32,
     /// Original similarity score (before re-ranking)
     pub original_score: f32,
-    /// Whether local LLM was used for scoring
+    /// Whether LLM was used for scoring
     pub used_local_llm: bool,
 }
 
 impl RelevanceResult {
-    /// Create from local LLM scoring
+    /// Create from LLM scoring
     pub fn from_local(
         content: String,
         original_index: usize,
@@ -59,10 +59,9 @@ impl RelevanceResult {
     }
 }
 
-/// Local relevance scorer for context re-ranking
+/// Relevance scorer for context re-ranking
 pub struct RelevanceScorer {
-    #[cfg(feature = "llama-cpp-2")]
-    provider: Arc<LocalLlmProvider>,
+    provider: Arc<dyn Provider>,
     model_id: String,
     /// Minimum score to include in results
     min_score: f32,
@@ -72,20 +71,9 @@ pub struct RelevanceScorer {
 
 impl RelevanceScorer {
     /// Create a new relevance scorer
-    #[cfg(feature = "llama-cpp-2")]
-    pub fn new(provider: Arc<LocalLlmProvider>, model_id: impl Into<String>) -> Self {
+    pub fn new(provider: Arc<dyn Provider>, model_id: impl Into<String>) -> Self {
         Self {
             provider,
-            model_id: model_id.into(),
-            min_score: 0.5,
-            max_items: 10,
-        }
-    }
-
-    /// Create a stub scorer (non-llama-cpp-2 builds)
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub fn new_stub(model_id: impl Into<String>) -> Self {
-        Self {
             model_id: model_id.into(),
             min_score: 0.5,
             max_items: 10,
@@ -107,7 +95,6 @@ impl RelevanceScorer {
     /// Re-rank a list of retrieved items by semantic relevance
     ///
     /// Returns items sorted by relevance score (highest first).
-    #[cfg(feature = "llama-cpp-2")]
     pub async fn rerank<T: AsRef<str>>(
         &self,
         query: &str,
@@ -126,12 +113,12 @@ impl RelevanceScorer {
         // Build scoring prompt
         let prompt = self.build_rerank_prompt(query, &items_to_score);
 
-        match self.provider.generate(&prompt, &crate::providers::local_llm::LocalInferenceParams {
-            temperature: 0.0,
-            max_tokens: 100,
-            ..Default::default()
-        }).await {
-            Ok(output) => {
+        let messages = vec![Message::user(&prompt)];
+        let options = ChatOptions::deterministic(100);
+
+        match self.provider.chat(&messages, None, &options).await {
+            Ok(response) => {
+                let output = response.message.text_or_summary();
                 let mut results = self.parse_rerank_output(&output, items);
 
                 // Sort by relevance score descending
@@ -164,26 +151,7 @@ impl RelevanceScorer {
         }
     }
 
-    /// Stub re-ranking for non-llama-cpp-2 builds
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub async fn rerank<T: AsRef<str>>(
-        &self,
-        _query: &str,
-        items: &[(T, f32)],
-    ) -> Vec<RelevanceResult> {
-        // Fallback: keep original order/scores, filter by min_score
-        items
-            .iter()
-            .enumerate()
-            .filter(|(_, (_, score))| *score >= self.min_score)
-            .map(|(i, (content, score))| {
-                RelevanceResult::from_fallback(content.as_ref().to_string(), i, *score)
-            })
-            .collect()
-    }
-
     /// Score a single item's relevance to a query
-    #[cfg(feature = "llama-cpp-2")]
     pub async fn score_relevance(&self, query: &str, content: &str) -> Option<f32> {
         let timer = InferenceTimer::new("score_relevance", &self.model_id);
 
@@ -202,12 +170,12 @@ Score:"#,
             if content.len() > 300 { &content[..300] } else { content }
         );
 
-        match self.provider.generate(&prompt, &crate::providers::local_llm::LocalInferenceParams {
-            temperature: 0.0,
-            max_tokens: 10,
-            ..Default::default()
-        }).await {
-            Ok(output) => {
+        let messages = vec![Message::user(&prompt)];
+        let options = ChatOptions::deterministic(10);
+
+        match self.provider.chat(&messages, None, &options).await {
+            Ok(response) => {
+                let output = response.message.text_or_summary();
                 let score = self.parse_score(&output);
                 timer.finish(score.is_some());
                 score
@@ -218,12 +186,6 @@ Score:"#,
                 None
             }
         }
-    }
-
-    /// Stub scoring for non-llama-cpp-2 builds
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub async fn score_relevance(&self, _query: &str, _content: &str) -> Option<f32> {
-        None
     }
 
     /// Heuristic relevance scoring (no LLM)
@@ -368,8 +330,7 @@ Scores:"#,
 
 /// Builder for RelevanceScorer
 pub struct RelevanceScorerBuilder {
-    #[cfg(feature = "llama-cpp-2")]
-    provider: Option<Arc<LocalLlmProvider>>,
+    provider: Option<Arc<dyn Provider>>,
     model_id: String,
     min_score: f32,
     max_items: usize,
@@ -378,7 +339,6 @@ pub struct RelevanceScorerBuilder {
 impl Default for RelevanceScorerBuilder {
     fn default() -> Self {
         Self {
-            #[cfg(feature = "llama-cpp-2")]
             provider: None,
             model_id: "lfm2-350m".to_string(),
             min_score: 0.5,
@@ -392,8 +352,7 @@ impl RelevanceScorerBuilder {
         Self::default()
     }
 
-    #[cfg(feature = "llama-cpp-2")]
-    pub fn provider(mut self, provider: Arc<LocalLlmProvider>) -> Self {
+    pub fn provider(mut self, provider: Arc<dyn Provider>) -> Self {
         self.provider = Some(provider);
         self
     }
@@ -413,18 +372,12 @@ impl RelevanceScorerBuilder {
         self
     }
 
-    #[cfg(feature = "llama-cpp-2")]
     pub fn build(self) -> Option<RelevanceScorer> {
         self.provider.map(|p| {
             RelevanceScorer::new(p, self.model_id)
                 .with_min_score(self.min_score)
                 .with_max_items(self.max_items)
         })
-    }
-
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub fn build(self) -> Option<RelevanceScorer> {
-        None
     }
 }
 

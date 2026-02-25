@@ -1,7 +1,8 @@
-//! Local LLM Inference Module
+//! Inference Module
 //!
-//! Provides local LLM-based components for improving quality, reducing costs,
-//! and optimizing token usage without external API calls.
+//! Provides provider-agnostic inference components for improving quality,
+//! reducing costs, and optimizing token usage. Works with any `Provider`
+//! implementation (local LLMs, cloud APIs, etc.).
 //!
 //! # Components
 //!
@@ -19,10 +20,10 @@
 //!
 //! # Usage
 //!
-//! All components are optional and fall back to pattern-based logic when:
-//! - Local LLM is not available
-//! - Inference fails
-//! - The `llama-cpp-2` feature is disabled
+//! All components accept `Arc<dyn Provider>` and fall back to pattern-based
+//! logic when the provider is unavailable or inference fails. Each builder's
+//! `build()` method returns `Some(...)` when a provider has been set, or
+//! `None` otherwise.
 //!
 //! # Configuration
 //!

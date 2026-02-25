@@ -90,6 +90,40 @@ impl ChatOptions {
         self.system = Some(system.into());
         self
     }
+
+    /// Set top-p sampling
+    pub fn top_p(mut self, top_p: f32) -> Self {
+        self.top_p = Some(top_p);
+        self
+    }
+
+    /// Deterministic classification/routing (temp=0, few tokens)
+    pub fn deterministic(max_tokens: u32) -> Self {
+        Self {
+            temperature: Some(0.0),
+            max_tokens: Some(max_tokens),
+            ..Default::default()
+        }
+    }
+
+    /// Low-temperature factual generation
+    pub fn factual(max_tokens: u32) -> Self {
+        Self {
+            temperature: Some(0.1),
+            max_tokens: Some(max_tokens),
+            top_p: Some(0.9),
+            ..Default::default()
+        }
+    }
+
+    /// Creative generation with moderate temperature
+    pub fn creative(max_tokens: u32) -> Self {
+        Self {
+            temperature: Some(0.3),
+            max_tokens: Some(max_tokens),
+            ..Default::default()
+        }
+    }
 }
 
 #[cfg(test)]
@@ -112,5 +146,27 @@ mod tests {
         assert_eq!(opts.temperature, Some(0.5));
         assert_eq!(opts.max_tokens, Some(2048));
         assert_eq!(opts.system, Some("Test".to_string()));
+    }
+
+    #[test]
+    fn test_chat_options_deterministic() {
+        let opts = ChatOptions::deterministic(50);
+        assert_eq!(opts.temperature, Some(0.0));
+        assert_eq!(opts.max_tokens, Some(50));
+    }
+
+    #[test]
+    fn test_chat_options_factual() {
+        let opts = ChatOptions::factual(200);
+        assert_eq!(opts.temperature, Some(0.1));
+        assert_eq!(opts.max_tokens, Some(200));
+        assert_eq!(opts.top_p, Some(0.9));
+    }
+
+    #[test]
+    fn test_chat_options_creative() {
+        let opts = ChatOptions::creative(400);
+        assert_eq!(opts.temperature, Some(0.3));
+        assert_eq!(opts.max_tokens, Some(400));
     }
 }

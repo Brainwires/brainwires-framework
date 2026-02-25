@@ -1,13 +1,13 @@
 //! Strategy Selector - Decomposition Strategy Selection
 //!
-//! Uses a local LLM to analyze tasks and recommend the optimal
+//! Uses a provider to analyze tasks and recommend the optimal
 //! decomposition strategy for MDAP execution.
 
 use std::sync::Arc;
 use tracing::{debug, warn};
 
-#[cfg(feature = "llama-cpp-2")]
-use brainwires_providers::local_llm::LocalLlmProvider;
+use brainwires_core::message::Message;
+use brainwires_core::provider::{ChatOptions, Provider};
 
 use crate::InferenceTimer;
 
@@ -73,14 +73,14 @@ pub struct StrategyResult {
     pub task_type: TaskType,
     /// Confidence score
     pub confidence: f32,
-    /// Whether local LLM was used
+    /// Whether LLM was used
     pub used_local_llm: bool,
     /// Reasoning for the selection
     pub reasoning: Option<String>,
 }
 
 impl StrategyResult {
-    /// Create from local LLM selection
+    /// Create from LLM selection
     pub fn from_local(
         strategy: RecommendedStrategy,
         task_type: TaskType,
@@ -110,42 +110,31 @@ impl StrategyResult {
 
 /// Strategy selector for MDAP decomposition
 pub struct StrategySelector {
-    #[cfg(feature = "llama-cpp-2")]
-    provider: Arc<LocalLlmProvider>,
+    provider: Arc<dyn Provider>,
     model_id: String,
 }
 
 impl StrategySelector {
     /// Create a new strategy selector
-    #[cfg(feature = "llama-cpp-2")]
-    pub fn new(provider: Arc<LocalLlmProvider>, model_id: impl Into<String>) -> Self {
+    pub fn new(provider: Arc<dyn Provider>, model_id: impl Into<String>) -> Self {
         Self {
             provider,
             model_id: model_id.into(),
         }
     }
 
-    /// Create a stub selector (non-llama-cpp-2 builds)
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub fn new_stub(model_id: impl Into<String>) -> Self {
-        Self {
-            model_id: model_id.into(),
-        }
-    }
-
     /// Select the optimal decomposition strategy for a task
-    #[cfg(feature = "llama-cpp-2")]
     pub async fn select_strategy(&self, task: &str) -> Option<StrategyResult> {
         let timer = InferenceTimer::new("select_strategy", &self.model_id);
 
         let prompt = self.build_selection_prompt(task);
 
-        match self.provider.generate(&prompt, &crate::providers::local_llm::LocalInferenceParams {
-            temperature: 0.0,
-            max_tokens: 100,
-            ..Default::default()
-        }).await {
-            Ok(output) => {
+        let messages = vec![Message::user(&prompt)];
+        let options = ChatOptions::deterministic(100);
+
+        match self.provider.chat(&messages, None, &options).await {
+            Ok(response) => {
+                let output = response.message.text_or_summary();
                 let result = self.parse_selection(&output);
                 timer.finish(true);
                 Some(result)
@@ -156,13 +145,6 @@ impl StrategySelector {
                 None
             }
         }
-    }
-
-    /// Stub selection for non-llama-cpp-2 builds
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub async fn select_strategy(&self, task: &str) -> Option<StrategyResult> {
-        // Always return None to trigger fallback
-        None
     }
 
     /// Heuristic strategy selection (pattern-based fallback)
@@ -326,15 +308,13 @@ Selection:"#,
 
 /// Builder for StrategySelector
 pub struct StrategySelectorBuilder {
-    #[cfg(feature = "llama-cpp-2")]
-    provider: Option<Arc<LocalLlmProvider>>,
+    provider: Option<Arc<dyn Provider>>,
     model_id: String,
 }
 
 impl Default for StrategySelectorBuilder {
     fn default() -> Self {
         Self {
-            #[cfg(feature = "llama-cpp-2")]
             provider: None,
             model_id: "lfm2-1.2b".to_string(), // Larger model for better reasoning
         }
@@ -346,8 +326,7 @@ impl StrategySelectorBuilder {
         Self::default()
     }
 
-    #[cfg(feature = "llama-cpp-2")]
-    pub fn provider(mut self, provider: Arc<LocalLlmProvider>) -> Self {
+    pub fn provider(mut self, provider: Arc<dyn Provider>) -> Self {
         self.provider = Some(provider);
         self
     }
@@ -357,14 +336,8 @@ impl StrategySelectorBuilder {
         self
     }
 
-    #[cfg(feature = "llama-cpp-2")]
     pub fn build(self) -> Option<StrategySelector> {
         self.provider.map(|p| StrategySelector::new(p, self.model_id))
-    }
-
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub fn build(self) -> Option<StrategySelector> {
-        None
     }
 }
 

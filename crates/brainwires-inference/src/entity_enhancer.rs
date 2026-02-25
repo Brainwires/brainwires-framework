@@ -1,13 +1,13 @@
 //! Entity Enhancer - Semantic Entity Extraction
 //!
-//! Uses a local LLM to extract entities and relationships beyond
+//! Uses a provider to extract entities and relationships beyond
 //! what regex patterns can capture, enriching the knowledge graph.
 
 use std::sync::Arc;
 use tracing::{debug, warn};
 
-#[cfg(feature = "llama-cpp-2")]
-use brainwires_providers::local_llm::LocalLlmProvider;
+use brainwires_core::message::Message;
+use brainwires_core::provider::{ChatOptions, Provider};
 
 use crate::InferenceTimer;
 
@@ -109,7 +109,7 @@ impl SemanticEntityType {
     }
 }
 
-/// An entity extracted by local LLM
+/// An entity extracted by LLM
 #[derive(Clone, Debug)]
 pub struct EnhancedEntity {
     /// Entity name/value
@@ -235,7 +235,7 @@ pub struct EnhancementResult {
     pub relationships: Vec<EnhancedRelationship>,
     /// Extracted domain concepts
     pub concepts: Vec<String>,
-    /// Whether local LLM was used
+    /// Whether LLM was used
     pub used_local_llm: bool,
 }
 
@@ -263,10 +263,9 @@ impl EnhancementResult {
     }
 }
 
-/// Entity enhancer using local LLM
+/// Entity enhancer using a provider
 pub struct EntityEnhancer {
-    #[cfg(feature = "llama-cpp-2")]
-    provider: Arc<LocalLlmProvider>,
+    provider: Arc<dyn Provider>,
     model_id: String,
     /// Minimum confidence threshold
     min_confidence: f32,
@@ -276,20 +275,9 @@ pub struct EntityEnhancer {
 
 impl EntityEnhancer {
     /// Create a new entity enhancer
-    #[cfg(feature = "llama-cpp-2")]
-    pub fn new(provider: Arc<LocalLlmProvider>, model_id: impl Into<String>) -> Self {
+    pub fn new(provider: Arc<dyn Provider>, model_id: impl Into<String>) -> Self {
         Self {
             provider,
-            model_id: model_id.into(),
-            min_confidence: 0.6,
-            max_entities: 20,
-        }
-    }
-
-    /// Create a stub enhancer (non-llama-cpp-2 builds)
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub fn new_stub(model_id: impl Into<String>) -> Self {
-        Self {
             model_id: model_id.into(),
             min_confidence: 0.6,
             max_entities: 20,
@@ -308,26 +296,18 @@ impl EntityEnhancer {
         self
     }
 
-    /// Extract semantic entities from text using local LLM
-    #[cfg(feature = "llama-cpp-2")]
+    /// Extract semantic entities from text using the provider
     pub async fn extract_entities(&self, text: &str) -> Option<Vec<EnhancedEntity>> {
         let timer = InferenceTimer::new("extract_entities", &self.model_id);
 
         let prompt = self.build_entity_prompt(text);
 
-        match self
-            .provider
-            .generate(
-                &prompt,
-                &crate::providers::local_llm::LocalInferenceParams {
-                    temperature: 0.0,
-                    max_tokens: 200,
-                    ..Default::default()
-                },
-            )
-            .await
-        {
-            Ok(output) => {
+        let messages = vec![Message::user(&prompt)];
+        let options = ChatOptions::deterministic(200);
+
+        match self.provider.chat(&messages, None, &options).await {
+            Ok(response) => {
+                let output = response.message.text_or_summary();
                 let entities = self.parse_entities(&output);
                 timer.finish(true);
                 Some(entities)
@@ -340,14 +320,7 @@ impl EntityEnhancer {
         }
     }
 
-    /// Stub extraction for non-llama-cpp-2 builds
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub async fn extract_entities(&self, _text: &str) -> Option<Vec<EnhancedEntity>> {
-        None
-    }
-
-    /// Extract relationships between entities using local LLM
-    #[cfg(feature = "llama-cpp-2")]
+    /// Extract relationships between entities using the provider
     pub async fn extract_relationships(
         &self,
         entities: &[String],
@@ -361,19 +334,12 @@ impl EntityEnhancer {
 
         let prompt = self.build_relationship_prompt(entities, context);
 
-        match self
-            .provider
-            .generate(
-                &prompt,
-                &crate::providers::local_llm::LocalInferenceParams {
-                    temperature: 0.0,
-                    max_tokens: 150,
-                    ..Default::default()
-                },
-            )
-            .await
-        {
-            Ok(output) => {
+        let messages = vec![Message::user(&prompt)];
+        let options = ChatOptions::deterministic(150);
+
+        match self.provider.chat(&messages, None, &options).await {
+            Ok(response) => {
+                let output = response.message.text_or_summary();
                 let relationships = self.parse_relationships(&output);
                 timer.finish(true);
                 Some(relationships)
@@ -386,36 +352,18 @@ impl EntityEnhancer {
         }
     }
 
-    /// Stub relationship extraction for non-llama-cpp-2 builds
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub async fn extract_relationships(
-        &self,
-        _entities: &[String],
-        _context: &str,
-    ) -> Option<Vec<EnhancedRelationship>> {
-        None
-    }
-
-    /// Extract domain concepts from text using local LLM
-    #[cfg(feature = "llama-cpp-2")]
+    /// Extract domain concepts from text using the provider
     pub async fn extract_concepts(&self, text: &str) -> Option<Vec<String>> {
         let timer = InferenceTimer::new("extract_concepts", &self.model_id);
 
         let prompt = self.build_concept_prompt(text);
 
-        match self
-            .provider
-            .generate(
-                &prompt,
-                &crate::providers::local_llm::LocalInferenceParams {
-                    temperature: 0.0,
-                    max_tokens: 100,
-                    ..Default::default()
-                },
-            )
-            .await
-        {
-            Ok(output) => {
+        let messages = vec![Message::user(&prompt)];
+        let options = ChatOptions::deterministic(100);
+
+        match self.provider.chat(&messages, None, &options).await {
+            Ok(response) => {
+                let output = response.message.text_or_summary();
                 let concepts = self.parse_concepts(&output);
                 timer.finish(true);
                 Some(concepts)
@@ -428,14 +376,7 @@ impl EntityEnhancer {
         }
     }
 
-    /// Stub concept extraction for non-llama-cpp-2 builds
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub async fn extract_concepts(&self, _text: &str) -> Option<Vec<String>> {
-        None
-    }
-
     /// Full enhancement - extract entities, relationships, and concepts
-    #[cfg(feature = "llama-cpp-2")]
     pub async fn enhance(&self, text: &str) -> EnhancementResult {
         // Extract entities first
         let entities = self.extract_entities(text).await.unwrap_or_default();
@@ -451,12 +392,6 @@ impl EntityEnhancer {
         let concepts = self.extract_concepts(text).await.unwrap_or_default();
 
         EnhancementResult::from_local(entities, relationships, concepts)
-    }
-
-    /// Stub enhancement for non-llama-cpp-2 builds
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub async fn enhance(&self, _text: &str) -> EnhancementResult {
-        EnhancementResult::empty()
     }
 
     /// Heuristic entity extraction (pattern-based fallback)
@@ -767,8 +702,7 @@ Concepts:"#,
 
 /// Builder for EntityEnhancer
 pub struct EntityEnhancerBuilder {
-    #[cfg(feature = "llama-cpp-2")]
-    provider: Option<Arc<LocalLlmProvider>>,
+    provider: Option<Arc<dyn Provider>>,
     model_id: String,
     min_confidence: f32,
     max_entities: usize,
@@ -777,7 +711,6 @@ pub struct EntityEnhancerBuilder {
 impl Default for EntityEnhancerBuilder {
     fn default() -> Self {
         Self {
-            #[cfg(feature = "llama-cpp-2")]
             provider: None,
             model_id: "lfm2-350m".to_string(), // Fast model for entity extraction
             min_confidence: 0.6,
@@ -791,8 +724,7 @@ impl EntityEnhancerBuilder {
         Self::default()
     }
 
-    #[cfg(feature = "llama-cpp-2")]
-    pub fn provider(mut self, provider: Arc<LocalLlmProvider>) -> Self {
+    pub fn provider(mut self, provider: Arc<dyn Provider>) -> Self {
         self.provider = Some(provider);
         self
     }
@@ -812,18 +744,12 @@ impl EntityEnhancerBuilder {
         self
     }
 
-    #[cfg(feature = "llama-cpp-2")]
     pub fn build(self) -> Option<EntityEnhancer> {
         self.provider.map(|p| {
             EntityEnhancer::new(p, self.model_id)
                 .with_min_confidence(self.min_confidence)
                 .with_max_entities(self.max_entities)
         })
-    }
-
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub fn build(self) -> Option<EntityEnhancer> {
-        None
     }
 }
 

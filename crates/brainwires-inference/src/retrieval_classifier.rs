@@ -1,13 +1,13 @@
 //! Retrieval Classifier - Enhanced Retrieval Gating
 //!
-//! Uses a local LLM to classify retrieval need semantically,
+//! Uses a provider to classify retrieval need semantically,
 //! replacing pattern-based detection with understanding of intent.
 
 use std::sync::Arc;
 use tracing::{debug, warn};
 
-#[cfg(feature = "llama-cpp-2")]
-use brainwires_providers::local_llm::LocalLlmProvider;
+use brainwires_core::message::Message;
+use brainwires_core::provider::{ChatOptions, Provider};
 
 use crate::InferenceTimer;
 
@@ -48,14 +48,14 @@ pub struct ClassificationResult {
     pub need: RetrievalNeed,
     /// Confidence score (0.0 - 1.0)
     pub confidence: f32,
-    /// Whether local LLM was used
+    /// Whether LLM was used
     pub used_local_llm: bool,
-    /// Detected intent (if local LLM was used)
+    /// Detected intent (if LLM was used)
     pub intent: Option<String>,
 }
 
 impl ClassificationResult {
-    /// Create a result from local LLM classification
+    /// Create a result from LLM classification
     pub fn from_local(need: RetrievalNeed, confidence: f32, intent: Option<String>) -> Self {
         Self {
             need,
@@ -76,35 +76,24 @@ impl ClassificationResult {
     }
 }
 
-/// Local retrieval classifier for enhanced gating
+/// Retrieval classifier for enhanced gating
 pub struct RetrievalClassifier {
-    #[cfg(feature = "llama-cpp-2")]
-    provider: Arc<LocalLlmProvider>,
+    provider: Arc<dyn Provider>,
     model_id: String,
 }
 
 impl RetrievalClassifier {
     /// Create a new retrieval classifier
-    #[cfg(feature = "llama-cpp-2")]
-    pub fn new(provider: Arc<LocalLlmProvider>, model_id: impl Into<String>) -> Self {
+    pub fn new(provider: Arc<dyn Provider>, model_id: impl Into<String>) -> Self {
         Self {
             provider,
             model_id: model_id.into(),
         }
     }
 
-    /// Create a stub classifier (non-llama-cpp-2 builds)
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub fn new_stub(model_id: impl Into<String>) -> Self {
-        Self {
-            model_id: model_id.into(),
-        }
-    }
-
-    /// Classify retrieval need using local LLM
+    /// Classify retrieval need using the provider
     ///
     /// Returns classification with intent understanding.
-    #[cfg(feature = "llama-cpp-2")]
     pub async fn classify(
         &self,
         query: &str,
@@ -114,12 +103,12 @@ impl RetrievalClassifier {
 
         let prompt = self.build_classification_prompt(query, context_len);
 
-        match self.provider.generate(&prompt, &crate::providers::local_llm::LocalInferenceParams {
-            temperature: 0.0,
-            max_tokens: 50,
-            ..Default::default()
-        }).await {
-            Ok(output) => {
+        let messages = vec![Message::user(&prompt)];
+        let options = ChatOptions::deterministic(50);
+
+        match self.provider.chat(&messages, None, &options).await {
+            Ok(response) => {
+                let output = response.message.text_or_summary();
                 let result = self.parse_classification(&output);
                 timer.finish(true);
                 Some(result)
@@ -132,20 +121,9 @@ impl RetrievalClassifier {
         }
     }
 
-    /// Stub classification for non-llama-cpp-2 builds
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub async fn classify(
-        &self,
-        query: &str,
-        context_len: usize,
-    ) -> Option<ClassificationResult> {
-        // Always return None to trigger fallback
-        None
-    }
-
     /// Heuristic classification (pattern-based fallback)
     ///
-    /// Used when local LLM is unavailable or fails.
+    /// Used when provider is unavailable or fails.
     pub fn classify_heuristic(&self, query: &str, context_len: usize) -> ClassificationResult {
         let lower = query.to_lowercase();
         let mut score = 0.0f32;
@@ -281,15 +259,13 @@ Classification:"#,
 
 /// Builder for RetrievalClassifier
 pub struct RetrievalClassifierBuilder {
-    #[cfg(feature = "llama-cpp-2")]
-    provider: Option<Arc<LocalLlmProvider>>,
+    provider: Option<Arc<dyn Provider>>,
     model_id: String,
 }
 
 impl Default for RetrievalClassifierBuilder {
     fn default() -> Self {
         Self {
-            #[cfg(feature = "llama-cpp-2")]
             provider: None,
             model_id: "lfm2-350m".to_string(),
         }
@@ -301,8 +277,7 @@ impl RetrievalClassifierBuilder {
         Self::default()
     }
 
-    #[cfg(feature = "llama-cpp-2")]
-    pub fn provider(mut self, provider: Arc<LocalLlmProvider>) -> Self {
+    pub fn provider(mut self, provider: Arc<dyn Provider>) -> Self {
         self.provider = Some(provider);
         self
     }
@@ -312,14 +287,8 @@ impl RetrievalClassifierBuilder {
         self
     }
 
-    #[cfg(feature = "llama-cpp-2")]
     pub fn build(self) -> Option<RetrievalClassifier> {
         self.provider.map(|p| RetrievalClassifier::new(p, self.model_id))
-    }
-
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub fn build(self) -> Option<RetrievalClassifier> {
-        None
     }
 }
 

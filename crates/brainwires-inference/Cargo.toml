@@ -1,6 +1,6 @@
 [package]
 name = "brainwires-inference"
-description = "Local LLM inference components for the Brainwires Agent Framework"
+description = "Inference components for the Brainwires Agent Framework"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,7 +10,6 @@ authors.workspace = true
 
 [dependencies]
 brainwires-core = { workspace = true }
-brainwires-providers = { workspace = true, optional = true }
 brainwires-tools = { workspace = true, optional = true }
 tracing = { workspace = true }
 serde = { workspace = true }
@@ -18,8 +17,7 @@ regex = { workspace = true }
 
 [features]
 default = ["native"]
-native = ["brainwires-core/native", "dep:brainwires-tools", "brainwires-tools/native", "dep:brainwires-providers", "brainwires-providers/native"]
-llama-cpp-2 = ["brainwires-providers/llama-cpp-2"]
+native = ["brainwires-core/native", "dep:brainwires-tools", "brainwires-tools/native"]
 
 [dev-dependencies]
 serde_json = { workspace = true }

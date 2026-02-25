@@ -1,17 +1,14 @@
-//! Local Router - Semantic Query Classification
+//! Router - Semantic Query Classification
 //!
-//! Uses a local LLM to classify queries into tool categories,
+//! Uses a provider to classify queries into tool categories,
 //! replacing keyword-based pattern matching with semantic understanding.
 
 use std::sync::Arc;
 use tracing::{debug, warn};
 
-use brainwires_tools::ToolCategory;
-
-#[cfg(feature = "llama-cpp-2")]
-use brainwires_providers::local_llm::{LocalInferenceParams, LocalLlmProvider};
-#[cfg(feature = "llama-cpp-2")]
 use brainwires_core::message::Message;
+use brainwires_core::provider::{ChatOptions, Provider};
+use brainwires_tools::ToolCategory;
 
 use crate::InferenceTimer;
 
@@ -22,7 +19,7 @@ pub struct RouteResult {
     pub categories: Vec<ToolCategory>,
     /// Confidence score (0.0 - 1.0)
     pub confidence: f32,
-    /// Whether local LLM was used (vs fallback)
+    /// Whether LLM was used (vs fallback)
     pub used_local_llm: bool,
 }
 
@@ -36,7 +33,7 @@ impl RouteResult {
         }
     }
 
-    /// Create a result from local LLM classification
+    /// Create a result from LLM classification
     pub fn from_local(categories: Vec<ToolCategory>, confidence: f32) -> Self {
         Self {
             categories,
@@ -46,35 +43,24 @@ impl RouteResult {
     }
 }
 
-/// Local router for semantic query classification
+/// Router for semantic query classification
 pub struct LocalRouter {
-    #[cfg(feature = "llama-cpp-2")]
-    provider: Arc<LocalLlmProvider>,
+    provider: Arc<dyn Provider>,
     model_id: String,
 }
 
 impl LocalRouter {
-    /// Create a new local router with the given provider
-    #[cfg(feature = "llama-cpp-2")]
-    pub fn new(provider: Arc<LocalLlmProvider>, model_id: impl Into<String>) -> Self {
+    /// Create a new router with the given provider
+    pub fn new(provider: Arc<dyn Provider>, model_id: impl Into<String>) -> Self {
         Self {
             provider,
             model_id: model_id.into(),
         }
     }
 
-    /// Create a new local router (stub for non-llama-cpp-2 builds)
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub fn new_stub(model_id: impl Into<String>) -> Self {
-        Self {
-            model_id: model_id.into(),
-        }
-    }
-
-    /// Classify a query into tool categories using local LLM
+    /// Classify a query into tool categories using the provider
     ///
     /// Returns None if classification fails, allowing fallback to pattern matching.
-    #[cfg(feature = "llama-cpp-2")]
     pub async fn classify(&self, query: &str) -> Option<RouteResult> {
         let timer = InferenceTimer::new("route_classify", &self.model_id);
 
@@ -84,12 +70,12 @@ impl LocalRouter {
             query
         );
 
-        match self.provider.generate(&user_prompt, &crate::providers::local_llm::LocalInferenceParams {
-            temperature: 0.0,
-            max_tokens: 50,
-            ..Default::default()
-        }).await {
-            Ok(text) => {
+        let messages = vec![Message::user(&user_prompt)];
+        let options = ChatOptions::deterministic(50).system(system_prompt);
+
+        match self.provider.chat(&messages, None, &options).await {
+            Ok(response) => {
+                let text = response.message.text_or_summary();
                 let categories = self.parse_categories(&text);
 
                 if categories.is_empty() {
@@ -106,12 +92,6 @@ impl LocalRouter {
                 None
             }
         }
-    }
-
-    /// Stub classification for non-llama-cpp-2 builds
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub async fn classify(&self, _query: &str) -> Option<RouteResult> {
-        None // Always fall back to pattern matching
     }
 
     /// Build the system prompt for classification
@@ -181,15 +161,13 @@ Rules:
 
 /// Builder for LocalRouter
 pub struct LocalRouterBuilder {
-    #[cfg(feature = "llama-cpp-2")]
-    provider: Option<Arc<LocalLlmProvider>>,
+    provider: Option<Arc<dyn Provider>>,
     model_id: String,
 }
 
 impl Default for LocalRouterBuilder {
     fn default() -> Self {
         Self {
-            #[cfg(feature = "llama-cpp-2")]
             provider: None,
             model_id: "lfm2-350m".to_string(),
         }
@@ -201,8 +179,7 @@ impl LocalRouterBuilder {
         Self::default()
     }
 
-    #[cfg(feature = "llama-cpp-2")]
-    pub fn provider(mut self, provider: Arc<LocalLlmProvider>) -> Self {
+    pub fn provider(mut self, provider: Arc<dyn Provider>) -> Self {
         self.provider = Some(provider);
         self
     }
@@ -212,14 +189,8 @@ impl LocalRouterBuilder {
         self
     }
 
-    #[cfg(feature = "llama-cpp-2")]
     pub fn build(self) -> Option<LocalRouter> {
         self.provider.map(|p| LocalRouter::new(p, self.model_id))
-    }
-
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub fn build(self) -> Option<LocalRouter> {
-        None
     }
 }
 

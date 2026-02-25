@@ -1,15 +1,13 @@
 //! Complexity Scorer - Task Complexity Assessment
 //!
-//! Uses a local LLM to score task complexity (0.0 - 1.0),
+//! Uses a provider to score task complexity (0.0 - 1.0),
 //! enabling adaptive k adjustment in MDAP voting.
 
 use std::sync::Arc;
 use tracing::{debug, warn};
 
-#[cfg(feature = "llama-cpp-2")]
-use brainwires_providers::local_llm::LocalLlmProvider;
-#[cfg(feature = "llama-cpp-2")]
 use brainwires_core::message::Message;
+use brainwires_core::provider::{ChatOptions, Provider};
 
 use crate::InferenceTimer;
 
@@ -20,7 +18,7 @@ pub struct ComplexityResult {
     pub score: f32,
     /// Confidence in the score (0.0 - 1.0)
     pub confidence: f32,
-    /// Whether local LLM was used (vs default)
+    /// Whether LLM was used (vs default)
     pub used_local_llm: bool,
 }
 
@@ -34,7 +32,7 @@ impl ComplexityResult {
         }
     }
 
-    /// Create a result from local LLM scoring
+    /// Create a result from LLM scoring
     pub fn from_local(score: f32, confidence: f32) -> Self {
         Self {
             score: score.clamp(0.0, 1.0),
@@ -46,25 +44,15 @@ impl ComplexityResult {
 
 /// Complexity scorer for task difficulty assessment
 pub struct ComplexityScorer {
-    #[cfg(feature = "llama-cpp-2")]
-    provider: Arc<LocalLlmProvider>,
+    provider: Arc<dyn Provider>,
     model_id: String,
 }
 
 impl ComplexityScorer {
     /// Create a new complexity scorer
-    #[cfg(feature = "llama-cpp-2")]
-    pub fn new(provider: Arc<LocalLlmProvider>, model_id: impl Into<String>) -> Self {
+    pub fn new(provider: Arc<dyn Provider>, model_id: impl Into<String>) -> Self {
         Self {
             provider,
-            model_id: model_id.into(),
-        }
-    }
-
-    /// Create a stub scorer (non-llama-cpp-2 builds)
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub fn new_stub(model_id: impl Into<String>) -> Self {
-        Self {
             model_id: model_id.into(),
         }
     }
@@ -73,7 +61,6 @@ impl ComplexityScorer {
     ///
     /// Returns a score from 0.0 (trivial) to 1.0 (very complex).
     /// Returns None if scoring fails, allowing fallback to default.
-    #[cfg(feature = "llama-cpp-2")]
     pub async fn score(&self, task_description: &str) -> Option<ComplexityResult> {
         let timer = InferenceTimer::new("complexity_score", &self.model_id);
 
@@ -84,19 +71,11 @@ impl ComplexityScorer {
         );
 
         let messages = vec![Message::user(&user_prompt)];
-        let options = crate::types::provider::ChatOptions {
-            system: Some(system_prompt),
-            temperature: Some(0.0), // Deterministic
-            max_tokens: Some(10),   // Just need a number
-            ..Default::default()
-        };
+        let options = ChatOptions::deterministic(10).system(system_prompt);
 
-        match self.provider.generate(&user_prompt, &crate::providers::local_llm::LocalInferenceParams {
-            temperature: 0.0,
-            max_tokens: 10,
-            ..Default::default()
-        }).await {
-            Ok(text) => {
+        match self.provider.chat(&messages, None, &options).await {
+            Ok(response) => {
+                let text = response.message.text_or_summary();
                 if let Some(score) = self.parse_score(&text) {
                     timer.finish(true);
                     Some(ComplexityResult::from_local(score, 0.8))
@@ -111,12 +90,6 @@ impl ComplexityScorer {
                 None
             }
         }
-    }
-
-    /// Stub scoring for non-llama-cpp-2 builds
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub async fn score(&self, _task_description: &str) -> Option<ComplexityResult> {
-        None // Always return None to trigger default
     }
 
     /// Score complexity synchronously (for use in sync contexts)
@@ -236,15 +209,13 @@ Output ONLY a decimal number between 0.0 and 1.0."#.to_string()
 
 /// Builder for ComplexityScorer
 pub struct ComplexityScorerBuilder {
-    #[cfg(feature = "llama-cpp-2")]
-    provider: Option<Arc<LocalLlmProvider>>,
+    provider: Option<Arc<dyn Provider>>,
     model_id: String,
 }
 
 impl Default for ComplexityScorerBuilder {
     fn default() -> Self {
         Self {
-            #[cfg(feature = "llama-cpp-2")]
             provider: None,
             model_id: "lfm2-350m".to_string(),
         }
@@ -256,8 +227,7 @@ impl ComplexityScorerBuilder {
         Self::default()
     }
 
-    #[cfg(feature = "llama-cpp-2")]
-    pub fn provider(mut self, provider: Arc<LocalLlmProvider>) -> Self {
+    pub fn provider(mut self, provider: Arc<dyn Provider>) -> Self {
         self.provider = Some(provider);
         self
     }
@@ -267,14 +237,8 @@ impl ComplexityScorerBuilder {
         self
     }
 
-    #[cfg(feature = "llama-cpp-2")]
     pub fn build(self) -> Option<ComplexityScorer> {
         self.provider.map(|p| ComplexityScorer::new(p, self.model_id))
-    }
-
-    #[cfg(not(feature = "llama-cpp-2"))]
-    pub fn build(self) -> Option<ComplexityScorer> {
-        None
     }
 }
 
