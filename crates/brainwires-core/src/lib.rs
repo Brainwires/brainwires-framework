@@ -11,9 +11,12 @@
 //! - Chat options and provider configuration
 //! - Permission modes
 
+pub mod embedding;
 pub mod error;
 pub mod graph;
 pub mod message;
+#[cfg(feature = "planning")]
+pub mod output_parser;
 pub mod plan;
 #[cfg(feature = "planning")]
 pub mod plan_parser;
@@ -21,10 +24,14 @@ pub mod permission;
 pub mod provider;
 pub mod task;
 pub mod tool;
+pub mod vector_store;
 pub mod working_set;
 
 // Re-export core types at crate root
+pub use embedding::EmbeddingProvider;
 pub use error::*;
+#[cfg(feature = "planning")]
+pub use output_parser::{JsonOutputParser, JsonListParser, OutputParser, RegexOutputParser};
 pub use graph::*;
 pub use message::*;
 pub use permission::*;
@@ -34,4 +41,5 @@ pub use plan_parser::{ParsedStep, parse_plan_steps, steps_to_tasks};
 pub use provider::*;
 pub use task::*;
 pub use tool::*;
+pub use vector_store::{VectorSearchResult, VectorStore};
 pub use working_set::{WorkingSet, WorkingSetConfig, WorkingSetEntry, estimate_tokens, estimate_tokens_from_size};

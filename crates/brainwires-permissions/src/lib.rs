@@ -10,6 +10,7 @@
 //! - **Audit**: Event logging with querying and statistics
 //! - **Trust**: Trust levels, violation tracking, and trust factor management
 
+pub mod approval;
 pub mod audit;
 pub mod config;
 pub mod policy;
@@ -40,3 +41,8 @@ pub use audit::{
 
 // Re-export trust types
 pub use trust::{TrustFactor, TrustLevel, TrustManager, TrustStatistics, ViolationSeverity};
+
+// Re-export approval types
+pub use approval::{
+    ApprovalAction, ApprovalDetails, ApprovalRequest, ApprovalResponse, ApprovalSeverity,
+};

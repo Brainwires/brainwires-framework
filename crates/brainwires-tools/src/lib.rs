@@ -34,6 +34,7 @@ pub use brainwires_core::{Tool, ToolContext, ToolInputSchema, ToolResult};
 
 // ── Always-available modules (pure logic, WASM-safe) ────────────────────────
 
+pub mod executor;
 mod error;
 mod registry;
 mod tool_search;
@@ -68,6 +69,7 @@ mod semantic_search;
 
 // Always-available tools
 pub use error::{classify_error, ResourceType, RetryStrategy, ToolErrorCategory, ToolOutcome};
+pub use executor::ToolExecutor;
 pub use registry::{ToolCategory, ToolRegistry};
 pub use tool_search::ToolSearchTool;
 

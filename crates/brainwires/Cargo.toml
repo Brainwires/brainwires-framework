@@ -47,6 +47,7 @@ tokio-util = { workspace = true, optional = true }
 [dev-dependencies]
 tokio = { workspace = true }
 anyhow = { workspace = true }
+tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 
 [features]
@@ -72,6 +73,8 @@ llama-cpp-2 = ["providers", "brainwires-providers/llama-cpp-2"]
 mcp-server = ["dep:rmcp", "dep:schemars", "dep:tokio-util"]
 # Convenience: enables all learning/knowledge subsystems with integration
 learning = ["seal", "knowledge", "brainwires-seal/knowledge"]
+# Convenience: everything needed for agent workflows
+agent-full = ["agents", "permissions", "prompting", "tools"]
 full = [
     "tools", "agents", "storage", "mcp", "mdap", "knowledge",
     "prompting", "permissions", "orchestrator", "rag", "interpreters",

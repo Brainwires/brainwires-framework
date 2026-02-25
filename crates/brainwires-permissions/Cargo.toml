@@ -28,6 +28,9 @@ chrono.workspace = true
 # Identifiers
 uuid = { workspace = true }
 
+# Async (for approval oneshot channels)
+tokio = { workspace = true }
+
 # Pattern matching (native only)
 glob = { workspace = true, optional = true }
 

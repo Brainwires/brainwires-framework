@@ -131,6 +131,8 @@ pub mod prelude {
         PermissionMode,
         // Graph types & traits
         EntityType, EdgeType, GraphNode, GraphEdge, EntityStoreT, RelationshipGraphT,
+        // Embeddings & vector store
+        EmbeddingProvider, VectorStore, VectorSearchResult,
         // Working set
         WorkingSet, WorkingSetConfig,
         // Errors
@@ -163,7 +165,8 @@ pub mod prelude {
     // Storage — available with "storage" feature
     #[cfg(feature = "storage")]
     pub use brainwires_storage::{
-        EmbeddingProvider, TieredMemory,
+        TieredMemory,
+        EmbeddingProvider as StorageEmbeddingProvider,
     };
 
     // MCP — available with "mcp" feature
@@ -193,7 +196,8 @@ pub mod prelude {
     // Permissions — available with "permissions" feature
     #[cfg(feature = "permissions")]
     pub use brainwires_permissions::{
-        AgentCapabilities, AuditLogger, CapabilityProfile, PermissionsConfig, PolicyEngine,
+        AgentCapabilities, ApprovalAction, ApprovalResponse, ApprovalSeverity,
+        AuditLogger, CapabilityProfile, PermissionsConfig, PolicyEngine,
         TrustLevel, TrustManager,
     };
 }

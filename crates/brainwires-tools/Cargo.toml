@@ -20,6 +20,9 @@ serde_json = { workspace = true }
 anyhow.workspace = true
 thiserror = { workspace = true }
 
+# Async traits
+async-trait.workspace = true
+
 # Async runtime
 tokio = { version = "1.43", features = ["time"] }
 

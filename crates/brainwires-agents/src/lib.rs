@@ -31,9 +31,19 @@
 // Re-export core types
 pub use brainwires_core;
 
+// Re-export brainwires-tools for ToolExecutor trait
+pub use brainwires_tools;
+
 // ── Agent runtime ────────────────────────────────────────────────────────────
 
 pub mod runtime;
+
+// ── Concrete agent implementation ────────────────────────────────────────────
+
+pub mod context;
+pub mod pool;
+pub mod system_prompts;
+pub mod task_agent;
 
 // ── Core components ──────────────────────────────────────────────────────────
 
@@ -109,8 +119,19 @@ pub use saga::SagaExecutor;
 pub use state_model::{StateSnapshot, ThreeStateModel, StateModelProposedOperation};
 pub use wait_queue::WaitQueue;
 
+// Concrete agent types
+pub use context::AgentContext;
+pub use pool::{AgentPool, AgentPoolStats};
+pub use system_prompts::{reasoning_agent_prompt, simple_agent_prompt};
+pub use task_agent::{spawn_task_agent, TaskAgent, TaskAgentConfig, TaskAgentResult, TaskAgentStatus};
+
 /// Prelude module for convenient imports
 pub mod prelude {
+    // Concrete agent types
+    pub use super::context::AgentContext;
+    pub use super::pool::{AgentPool, AgentPoolStats};
+    pub use super::task_agent::{TaskAgent, TaskAgentConfig, TaskAgentResult, TaskAgentStatus};
+
     // Core components
     pub use super::communication::{AgentMessage, CommunicationHub, ConflictInfo, ConflictType};
     pub use super::confidence::{ResponseConfidence, ConfidenceFactors};
