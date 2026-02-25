@@ -18,6 +18,7 @@ members = [
     "crates/brainwires-inference",
     "crates/brainwires-seal",
     "crates/brainwires-providers",
+    "crates/brainwires-skills",
 ]
 resolver = "2"
 
@@ -49,6 +50,7 @@ brainwires-bridge-client = { path = "crates/brainwires-bridge-client", version =
 brainwires-inference = { path = "crates/brainwires-inference", version = "0.1.0" }
 brainwires-seal = { path = "crates/brainwires-seal", version = "0.1.0" }
 brainwires-providers = { path = "crates/brainwires-providers", version = "0.1.0" }
+brainwires-skills = { path = "crates/brainwires-skills", version = "0.1.0" }
 
 # Async runtime & utilities
 tokio = { version = "1.43", features = ["full"] }
@@ -59,6 +61,7 @@ async-stream = "0.3"
 # Serialization
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+serde_yaml = "0.9"
 
 # Error handling
 anyhow = "1"

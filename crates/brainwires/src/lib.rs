@@ -98,6 +98,11 @@ pub mod bridge_client {
     pub use brainwires_bridge_client::*;
 }
 
+#[cfg(feature = "skills")]
+pub mod skills {
+    pub use brainwires_skills::*;
+}
+
 /// Re-exports for building MCP servers (rmcp, schemars, CancellationToken).
 ///
 /// Enabled with the `mcp-server` feature.
