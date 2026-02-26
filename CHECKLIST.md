@@ -58,7 +58,7 @@ Priority definitions:
 
 - [x] **Goal re-validation every N steps** — Add configurable `goal_revalidation_interval: Option<usize>` to `TaskAgentConfig`; every N steps, compare current execution state against the original goal and inject drift-detection feedback if misaligned. *(Research: Plan-and-Solve — doc 06 §4)*
 
-- [ ] **Serializable plan with budget estimation** — Before execution, have the agent produce a serializable plan that estimates step count and token budget; reject plans that exceed configured budgets before any side effects occur. *(Research: Tree of Thoughts, Plan-and-Solve — doc 06 §4)*
+- [x] **Serializable plan with budget estimation** — Before execution, have the agent produce a serializable plan that estimates step count and token budget; reject plans that exceed configured budgets before any side effects occur. *(Research: Tree of Thoughts, Plan-and-Solve — doc 06 §4)*
 
 - [x] **Distinct REPLAN state** — Add `Replanning` as an explicit `TaskAgentStatus` variant; track `replan_count` separately from `iteration_count`; add `max_replan_attempts` to `TaskAgentConfig`. *(Research: Plan-and-Solve — doc 06 §4)*
 
@@ -117,13 +117,13 @@ Priority definitions:
 
 - [x] **`brainwires-eval` crate** — Standalone evaluation framework crate with `EvaluationSuite` (N-trial runner), `ToolSequenceRecorder` (call sequence capture + diff), and `AdversarialTestCase` (injection, ambiguity, budget stress). *(Research: HELM — doc 06 §5)*
 
-- [ ] **Adversarial test suite** — Test cases: prompt injection via tool outputs, ambiguous instructions with multiple valid interpretations, missing required context, tasks designed to exhaust step budget. *(Research: HELM — doc 06 §5)*
+- [x] **Adversarial test suite** — Test cases: prompt injection via tool outputs, ambiguous instructions with multiple valid interpretations, missing required context, tasks designed to exhaust step budget. *(Research: HELM — doc 06 §5)*
 
-- [ ] **Long-horizon stability tests** — Tasks requiring 15+ steps; assertions: loop detection fires correctly, original goal maintained throughout, memory retrieval quality stable across steps. *(Research: HELM — doc 06 §5)*
+- [x] **Long-horizon stability tests** — Tasks requiring 15+ steps; assertions: loop detection fires correctly, original goal maintained throughout, memory retrieval quality stable across steps. *(Research: HELM — doc 06 §5)*
 
-- [ ] **Regression suite for CI** — Baseline success rates per task category; CI fails if any category drops more than 5% below baseline; runs on every prompt or model version change. *(Research: HELM — doc 06 §5)*
+- [x] **Regression suite for CI** — Baseline success rates per task category; CI fails if any category drops more than 5% below baseline; runs on every prompt or model version change. *(Research: HELM — doc 06 §5)*
 
-- [ ] **Statistical confidence intervals** — Report `P(success) ± 2σ` per task type across N ≥ 30 trials; never report binary pass/fail for stochastic evaluation. *(Research: HELM — doc 06 §5)*
+- [x] **Statistical confidence intervals** — Report `P(success) ± 2σ` per task type across N ≥ 30 trials; never report binary pass/fail for stochastic evaluation. *(Research: HELM — doc 06 §5)*
 
 ---
 

@@ -52,6 +52,8 @@ pub mod case;
 pub mod suite;
 pub mod recorder;
 pub mod adversarial;
+pub mod regression;
+pub mod stability_tests;
 
 // ── Top-level re-exports ──────────────────────────────────────────────────────
 
@@ -69,3 +71,9 @@ pub use recorder::{SequenceDiff, ToolCallRecord, ToolSequenceRecorder};
 
 // Adversarial
 pub use adversarial::{AdversarialTestCase, AdversarialTestType};
+
+// Regression suite
+pub use regression::{CategoryBaseline, CategoryRegressionResult, RegressionConfig, RegressionResult, RegressionSuite};
+
+// Stability tests
+pub use stability_tests::{GoalPreservationCase, LoopDetectionSimCase, long_horizon_stability_suite};

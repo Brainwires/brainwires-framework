@@ -138,6 +138,9 @@ pub enum FailureCategory {
     ToolExecutionError,
     /// Failure cause could not be determined.
     Unknown,
+    /// Plan budget check failed before execution started — task was rejected
+    /// before any side effects occurred.
+    PlanBudgetExceeded,
 }
 
 /// Result of a completed task agent execution.
@@ -171,6 +174,10 @@ pub struct TaskAgentResult {
     pub execution_graph: ExecutionGraph,
     /// Structured telemetry summary derived from the execution graph.
     pub telemetry: RunTelemetry,
+    /// Pre-execution plan produced before the task loop started, if
+    /// [`TaskAgentConfig::plan_budget`] was configured.  `None` when planning
+    /// was not requested or when the plan could not be parsed.
+    pub pre_execution_plan: Option<brainwires_core::SerializablePlan>,
 }
 
 /// Configuration for a task agent.
@@ -225,6 +232,17 @@ pub struct TaskAgentConfig {
     /// component-aware: `"/src"` allows `"/src/main.rs"` but denies
     /// `"/src_extra/file.txt"`.
     pub allowed_files: Option<Vec<PathBuf>>,
+
+    /// Optional pre-execution budget check.
+    ///
+    /// When `Some`, the agent asks the provider to produce a structured JSON
+    /// plan before starting execution. The plan is validated against the budget
+    /// constraints; if any constraint is exceeded the run fails immediately
+    /// with [`FailureCategory::PlanBudgetExceeded`] before any file or tool
+    /// side-effects occur.
+    ///
+    /// Set to `None` (the default) to skip the planning phase entirely.
+    pub plan_budget: Option<brainwires_core::PlanBudget>,
 }
 
 impl Default for TaskAgentConfig {
@@ -242,6 +260,7 @@ impl Default for TaskAgentConfig {
             max_cost_usd: None,
             timeout_secs: None,
             allowed_files: None,
+            plan_budget: None,
         }
     }
 }
@@ -440,6 +459,7 @@ impl TaskAgent {
         total_cost_usd: f64,
         replan_count: u32,
         execution_graph: ExecutionGraph,
+        pre_execution_plan: Option<brainwires_core::SerializablePlan>,
     ) -> Result<Option<TaskAgentResult>> {
         let task_id = self.task.read().await.id.clone();
 
@@ -534,6 +554,7 @@ impl TaskAgent {
             failure_category: None,
             execution_graph,
             telemetry,
+            pre_execution_plan,
         }))
     }
 
@@ -601,6 +622,118 @@ impl TaskAgent {
         };
         let run_started_at = Utc::now();
         let mut execution_graph = ExecutionGraph::new(prompt_hash, run_started_at);
+
+        // ── Pre-execution planning phase ─────────────────────────────────────
+        // When plan_budget is set, ask the model for a structured JSON plan and
+        // validate it against the budget before any side effects occur.
+        let mut pre_execution_plan: Option<brainwires_core::SerializablePlan> = None;
+        if let Some(ref budget) = self.config.plan_budget {
+            let planning_msg = Message::user(format!(
+                "Before beginning work, produce a JSON execution plan for this task.\n\n\
+                 Task: {task_description}\n\n\
+                 Reply with ONLY a JSON object in this exact format:\n\
+                 {{\"steps\":[{{\"description\":\"short description\",\"tool\":\"tool_name\",\"estimated_tokens\":500}},...]}}\n\n\
+                 Estimate 200–2000 tokens per step based on expected complexity. \
+                 Do not perform any work yet — only plan.",
+            ));
+            let planning_options = brainwires_core::ChatOptions {
+                temperature: Some(0.1),
+                max_tokens: Some(2048),
+                top_p: None,
+                stop: None,
+                system: Some(
+                    "You are a planning assistant. Respond only with a valid JSON execution plan.".to_string(),
+                ),
+            };
+            match self.provider.chat(&[planning_msg], None, &planning_options).await {
+                Ok(response) => {
+                    let plan_text = response.message.text().unwrap_or("").to_string();
+                    if let Some(plan) = brainwires_core::SerializablePlan::parse_from_text(
+                        task_description.clone(),
+                        &plan_text,
+                    ) {
+                        match budget.check(&plan) {
+                            Ok(()) => {
+                                tracing::info!(
+                                    agent_id = %self.id,
+                                    steps = plan.step_count(),
+                                    estimated_tokens = plan.total_estimated_tokens(),
+                                    "pre-execution plan accepted"
+                                );
+                                pre_execution_plan = Some(plan);
+                            }
+                            Err(reason) => {
+                                let error = format!(
+                                    "Agent {} rejected by plan budget before execution: {}",
+                                    self.id, reason
+                                );
+                                tracing::error!(agent_id = %self.id, %error);
+                                self.task.write().await.fail(&error);
+                                self.set_status(TaskAgentStatus::Failed(error.clone())).await;
+                                let _ = self
+                                    .context
+                                    .communication_hub
+                                    .broadcast(
+                                        self.id.clone(),
+                                        AgentMessage::TaskResult {
+                                            task_id: task_id.clone(),
+                                            success: false,
+                                            result: error.clone(),
+                                        },
+                                    )
+                                    .await;
+                                let _ = self
+                                    .context
+                                    .communication_hub
+                                    .unregister_agent(&self.id)
+                                    .await;
+                                self.context
+                                    .file_lock_manager
+                                    .release_all_locks(&self.id)
+                                    .await;
+                                let run_ended_at = Utc::now();
+                                let telemetry = RunTelemetry::from_graph(
+                                    &execution_graph,
+                                    run_ended_at,
+                                    false,
+                                    0.0,
+                                );
+                                return Ok(TaskAgentResult {
+                                    agent_id: self.id.clone(),
+                                    task_id,
+                                    success: false,
+                                    summary: error,
+                                    iterations: 0,
+                                    replan_count: 0,
+                                    budget_exhausted: true,
+                                    partial_output: None,
+                                    total_tokens_used: 0,
+                                    total_cost_usd: 0.0,
+                                    timed_out: false,
+                                    failure_category: Some(FailureCategory::PlanBudgetExceeded),
+                                    execution_graph,
+                                    telemetry,
+                                    pre_execution_plan: None,
+                                });
+                            }
+                        }
+                    } else {
+                        tracing::warn!(
+                            agent_id = %self.id,
+                            "could not parse pre-execution plan from model response; \
+                             proceeding without budget guard"
+                        );
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        agent_id = %self.id,
+                        error = %e,
+                        "planning phase provider call failed; proceeding without plan"
+                    );
+                }
+            }
+        }
 
         let mut iterations = 0u32;
         let mut total_tokens_used: u64 = 0;
@@ -693,6 +826,7 @@ impl TaskAgent {
                     failure_category: Some(FailureCategory::IterationLimitExceeded),
                     execution_graph: execution_graph.clone(),
                     telemetry,
+                    pre_execution_plan: pre_execution_plan.clone(),
                 });
             }
 
@@ -766,6 +900,7 @@ impl TaskAgent {
                         failure_category: Some(FailureCategory::WallClockTimeout),
                         execution_graph: execution_graph.clone(),
                         telemetry,
+                        pre_execution_plan: pre_execution_plan.clone(),
                     });
                 }
             }
@@ -817,6 +952,7 @@ impl TaskAgent {
                         failure_category: Some(FailureCategory::TokenBudgetExceeded),
                         execution_graph: execution_graph.clone(),
                         telemetry,
+                        pre_execution_plan: pre_execution_plan.clone(),
                     });
                 }
             }
@@ -868,6 +1004,7 @@ impl TaskAgent {
                         failure_category: Some(FailureCategory::CostBudgetExceeded),
                         execution_graph: execution_graph.clone(),
                         telemetry,
+                        pre_execution_plan: pre_execution_plan.clone(),
                     });
                 }
             }
@@ -956,6 +1093,7 @@ impl TaskAgent {
                             failure_category: Some(FailureCategory::MaxReplanAttemptsExceeded),
                             execution_graph: execution_graph.clone(),
                             telemetry,
+                            pre_execution_plan: pre_execution_plan.clone(),
                         });
                     }
                 }
@@ -980,6 +1118,7 @@ impl TaskAgent {
                         total_cost_usd,
                         *self.replan_count.read().await,
                         execution_graph.clone(),
+                        pre_execution_plan.clone(),
                     )
                     .await?
                 {
@@ -1005,6 +1144,7 @@ impl TaskAgent {
                         total_cost_usd,
                         *self.replan_count.read().await,
                         execution_graph.clone(),
+                        pre_execution_plan.clone(),
                     )
                     .await?
                 {
@@ -1261,6 +1401,7 @@ impl TaskAgent {
                             failure_category: Some(FailureCategory::LoopDetected),
                             execution_graph: execution_graph.clone(),
                             telemetry,
+                            pre_execution_plan: pre_execution_plan.clone(),
                         });
                     }
                 }
