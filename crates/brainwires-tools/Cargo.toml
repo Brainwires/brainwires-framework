@@ -46,6 +46,9 @@ zeroize = { version = "1", features = ["derive"], optional = true }
 sha2 = { workspace = true }
 hex = { workspace = true }
 
+# Identifiers (for TransactionManager staging dir names)
+uuid = { workspace = true }
+
 # Logging
 tracing.workspace = true
 

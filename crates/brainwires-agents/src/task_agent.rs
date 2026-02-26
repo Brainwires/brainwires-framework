@@ -616,12 +616,10 @@ impl TaskAgent {
         );
         let tool_context = ToolContext {
             working_directory: self.context.working_directory.clone(),
-            user_id: None,
-            metadata: HashMap::new(),
-            capabilities: None,
             // Each agent run gets its own idempotency registry so that
             // identical write operations within a single run are deduplicated.
             idempotency_registry: Some(brainwires_core::IdempotencyRegistry::new()),
+            ..Default::default()
         };
 
         loop {

@@ -10,6 +10,7 @@
 //! - **Audit**: Event logging with querying and statistics
 //! - **Trust**: Trust levels, violation tracking, and trust factor management
 
+pub mod anomaly;
 pub mod approval;
 pub mod audit;
 pub mod config;
@@ -37,7 +38,11 @@ pub use policy::{
 // Re-export audit types
 pub use audit::{
     ActionOutcome, AuditEvent, AuditEventType, AuditLogger, AuditQuery, AuditStatistics,
+    FeedbackPolarity, FeedbackSignal,
 };
+
+// Re-export anomaly detection types
+pub use anomaly::{AnomalyConfig, AnomalyDetector, AnomalyEvent, AnomalyKind};
 
 // Re-export trust types
 pub use trust::{TrustFactor, TrustLevel, TrustManager, TrustStatistics, ViolationSeverity};

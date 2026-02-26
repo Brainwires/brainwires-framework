@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 /// Specifies which contexts can invoke a tool.
@@ -181,6 +182,55 @@ impl IdempotencyRegistry {
     }
 }
 
+// ── Side-effect staging (two-phase commit) ────────────────────────────────────
+
+/// A single write operation that has been staged but not yet committed.
+#[derive(Debug, Clone)]
+pub struct StagedWrite {
+    /// Content-addressed key — used to deduplicate identical staged writes.
+    pub key: String,
+    /// The absolute target path on the filesystem.
+    pub target_path: PathBuf,
+    /// UTF-8 content to write on commit.
+    pub content: String,
+}
+
+/// Result returned by a successful [`StagingBackend::commit`].
+#[derive(Debug, Clone)]
+pub struct CommitResult {
+    /// Number of writes successfully committed to disk.
+    pub committed: usize,
+    /// The target paths that were written.
+    pub paths: Vec<PathBuf>,
+}
+
+/// Trait for staging write operations before committing to the filesystem.
+///
+/// Defined in `brainwires-core` so that [`ToolContext`] can hold an
+/// `Arc<dyn StagingBackend>` without depending on `brainwires-tools`,
+/// which would create a circular crate dependency.
+///
+/// The concrete implementation lives in `brainwires-tools::transaction::TransactionManager`.
+pub trait StagingBackend: std::fmt::Debug + Send + Sync {
+    /// Stage a write operation.
+    ///
+    /// Returns `true` if newly staged, `false` if `key` was already present
+    /// (idempotent — same key staged twice is a no-op).
+    fn stage(&self, write: StagedWrite) -> bool;
+
+    /// Commit all staged writes to the filesystem.
+    ///
+    /// Each staged file is moved (or copied) to its target path atomically.
+    /// On success the staging queue is cleared.
+    fn commit(&self) -> anyhow::Result<CommitResult>;
+
+    /// Discard all staged writes without touching the filesystem.
+    fn rollback(&self);
+
+    /// Return the number of pending staged writes.
+    fn pending_count(&self) -> usize;
+}
+
 // ── ToolContext ───────────────────────────────────────────────────────────────
 
 /// Execution context for a tool.
@@ -208,12 +258,29 @@ pub struct ToolContext {
     /// run.  `None` disables idempotency tracking (useful for tests or simple
     /// single-call use cases).
     pub idempotency_registry: Option<IdempotencyRegistry>,
+    /// Optional two-phase commit staging backend.
+    ///
+    /// When `Some`, mutating file operations (`write_file`, `edit_file`,
+    /// `patch_file`) stage their writes instead of applying them immediately.
+    /// The caller is responsible for calling `backend.commit()` to finalize the
+    /// writes, or `backend.rollback()` to discard them.
+    ///
+    /// Staging is checked *after* the idempotency registry: if the same
+    /// operation key is already cached, the cached result is returned without
+    /// staging again.
+    pub staging_backend: Option<Arc<dyn StagingBackend>>,
 }
 
 impl ToolContext {
     /// Attach a fresh idempotency registry to this context (builder pattern).
     pub fn with_idempotency_registry(mut self) -> Self {
         self.idempotency_registry = Some(IdempotencyRegistry::new());
+        self
+    }
+
+    /// Attach a staging backend for two-phase commit file writes (builder pattern).
+    pub fn with_staging_backend(mut self, backend: Arc<dyn StagingBackend>) -> Self {
+        self.staging_backend = Some(backend);
         self
     }
 }
@@ -229,6 +296,7 @@ impl Default for ToolContext {
             metadata: HashMap::new(),
             capabilities: None,
             idempotency_registry: None,
+            staging_backend: None,
         }
     }
 }

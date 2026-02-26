@@ -30,7 +30,10 @@
 //! ```
 
 // Re-export core types for convenience
-pub use brainwires_core::{IdempotencyRecord, IdempotencyRegistry, Tool, ToolContext, ToolInputSchema, ToolResult};
+pub use brainwires_core::{
+    CommitResult, IdempotencyRecord, IdempotencyRegistry, StagedWrite, StagingBackend,
+    Tool, ToolContext, ToolInputSchema, ToolResult,
+};
 
 // ── Always-available modules (pure logic, WASM-safe) ────────────────────────
 
@@ -50,6 +53,8 @@ mod file_ops;
 mod git;
 #[cfg(feature = "native")]
 mod search;
+#[cfg(feature = "native")]
+pub mod transaction;
 #[cfg(feature = "native")]
 pub mod validation;
 #[cfg(feature = "native")]
@@ -90,6 +95,8 @@ pub use file_ops::FileOpsTool;
 pub use git::GitTool;
 #[cfg(feature = "native")]
 pub use search::SearchTool;
+#[cfg(feature = "native")]
+pub use transaction::TransactionManager;
 #[cfg(feature = "native")]
 pub use validation::{get_validation_tools, ValidationTool};
 #[cfg(feature = "native")]

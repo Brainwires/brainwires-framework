@@ -8,7 +8,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
-use brainwires_core::{Tool, ToolContext, ToolInputSchema, ToolResult};
+use brainwires_core::{StagedWrite, Tool, ToolContext, ToolInputSchema, ToolResult};
 
 /// File operations tool implementation
 pub struct FileOpsTool;
@@ -166,28 +166,41 @@ impl FileOpsTool {
         let params: Input = serde_json::from_value(input.clone())?;
         let full_path = Self::resolve_path(&params.path, context)?;
 
-        // Idempotency: key = tool + path + sha256(content)
+        // 1. Idempotency check — return cached result on exact retry
+        let content_hash = Sha256::digest(params.content.as_bytes());
+        let key = Self::derive_idempotency_key("write_file", &full_path, &content_hash);
         if let Some(ref registry) = context.idempotency_registry {
-            let content_hash = Sha256::digest(params.content.as_bytes());
-            let key = Self::derive_idempotency_key("write_file", &full_path, &content_hash);
             if let Some(record) = registry.get(&key) {
                 tracing::debug!(path = %full_path.display(), "write_file: idempotent retry, returning cached result");
                 return Ok(record.cached_result);
             }
-            if let Some(parent) = full_path.parent() {
-                fs::create_dir_all(parent).with_context(|| format!("Failed to create parent directory: {}", parent.display()))?;
-            }
-            fs::write(&full_path, &params.content).with_context(|| format!("Failed to write file: {}", full_path.display()))?;
-            let msg = format!("Successfully wrote {} bytes to {}", params.content.len(), full_path.display());
-            registry.record(key, msg.clone());
-            return Ok(msg);
         }
 
+        // 2. Staging check — stage write for two-phase commit when backend present
+        if let Some(ref backend) = context.staging_backend {
+            let staged = StagedWrite {
+                key,
+                target_path: full_path.clone(),
+                content: params.content.clone(),
+            };
+            backend.stage(staged);
+            return Ok(format!(
+                "Staged write of {} bytes to {} (pending commit)",
+                params.content.len(),
+                full_path.display()
+            ));
+        }
+
+        // 3. Direct write
         if let Some(parent) = full_path.parent() {
             fs::create_dir_all(parent).with_context(|| format!("Failed to create parent directory: {}", parent.display()))?;
         }
         fs::write(&full_path, &params.content).with_context(|| format!("Failed to write file: {}", full_path.display()))?;
-        Ok(format!("Successfully wrote {} bytes to {}", params.content.len(), full_path.display()))
+        let msg = format!("Successfully wrote {} bytes to {}", params.content.len(), full_path.display());
+        if let Some(ref registry) = context.idempotency_registry {
+            registry.record(Self::derive_idempotency_key("write_file", &full_path, &content_hash), msg.clone());
+        }
+        Ok(msg)
     }
 
     fn edit_file(input: &Value, context: &ToolContext) -> Result<String> {
@@ -196,36 +209,49 @@ impl FileOpsTool {
         let params: Input = serde_json::from_value(input.clone())?;
         let full_path = Self::resolve_path(&params.path, context)?;
 
-        // Idempotency: key = tool + path + sha256(old_text '\0' new_text)
+        // Idempotency key = tool + path + sha256(old_text '\0' new_text)
+        let mut hasher = Sha256::new();
+        hasher.update(params.old_text.as_bytes());
+        hasher.update(b"\0");
+        hasher.update(params.new_text.as_bytes());
+        let content_hash = hasher.finalize();
+        let key = Self::derive_idempotency_key("edit_file", &full_path, &content_hash);
+
+        // 1. Idempotency check
         if let Some(ref registry) = context.idempotency_registry {
-            let mut hasher = Sha256::new();
-            hasher.update(params.old_text.as_bytes());
-            hasher.update(b"\0");
-            hasher.update(params.new_text.as_bytes());
-            let content_hash = hasher.finalize();
-            let key = Self::derive_idempotency_key("edit_file", &full_path, &content_hash);
             if let Some(record) = registry.get(&key) {
                 tracing::debug!(path = %full_path.display(), "edit_file: idempotent retry, returning cached result");
                 return Ok(record.cached_result);
             }
-            let content = fs::read_to_string(&full_path).with_context(|| format!("Failed to read file: {}", full_path.display()))?;
-            if !content.contains(&params.old_text) {
-                return Err(anyhow::anyhow!("Text not found in file: '{}'", params.old_text));
-            }
-            let new_content = content.replacen(&params.old_text, &params.new_text, 1);
-            fs::write(&full_path, &new_content).with_context(|| format!("Failed to write file: {}", full_path.display()))?;
-            let msg = format!("Successfully replaced 1 occurrence(s) in {}", full_path.display());
-            registry.record(key, msg.clone());
-            return Ok(msg);
         }
 
-        let content = fs::read_to_string(&full_path).with_context(|| format!("Failed to read file: {}", full_path.display()))?;
-        if !content.contains(&params.old_text) {
+        // Compute new content (needed for both staging and direct write)
+        let current = fs::read_to_string(&full_path).with_context(|| format!("Failed to read file: {}", full_path.display()))?;
+        if !current.contains(&params.old_text) {
             return Err(anyhow::anyhow!("Text not found in file: '{}'", params.old_text));
         }
-        let new_content = content.replacen(&params.old_text, &params.new_text, 1);
+        let new_content = current.replacen(&params.old_text, &params.new_text, 1);
+
+        // 2. Staging check — stage the fully-computed new content
+        if let Some(ref backend) = context.staging_backend {
+            backend.stage(StagedWrite {
+                key,
+                target_path: full_path.clone(),
+                content: new_content,
+            });
+            return Ok(format!(
+                "Staged edit (1 replacement) in {} (pending commit)",
+                full_path.display()
+            ));
+        }
+
+        // 3. Direct write
         fs::write(&full_path, &new_content).with_context(|| format!("Failed to write file: {}", full_path.display()))?;
-        Ok(format!("Successfully replaced 1 occurrence(s) in {}", full_path.display()))
+        let msg = format!("Successfully replaced 1 occurrence(s) in {}", full_path.display());
+        if let Some(ref registry) = context.idempotency_registry {
+            registry.record(Self::derive_idempotency_key("edit_file", &full_path, &content_hash), msg.clone());
+        }
+        Ok(msg)
     }
 
     fn patch_file(input: &Value, context: &ToolContext) -> Result<String> {
@@ -234,30 +260,45 @@ impl FileOpsTool {
         let params: Input = serde_json::from_value(input.clone())?;
         let full_path = Self::resolve_path(&params.path, context)?;
 
-        // Idempotency: key = tool + path + sha256(patch)
+        // Idempotency key = tool + path + sha256(patch)
+        let patch_hash = Sha256::digest(params.patch.as_bytes());
+        let key = Self::derive_idempotency_key("patch_file", &full_path, &patch_hash);
+
+        // 1. Idempotency check
         if let Some(ref registry) = context.idempotency_registry {
-            let patch_hash = Sha256::digest(params.patch.as_bytes());
-            let key = Self::derive_idempotency_key("patch_file", &full_path, &patch_hash);
             if let Some(record) = registry.get(&key) {
                 tracing::debug!(path = %full_path.display(), "patch_file: idempotent retry, returning cached result");
                 return Ok(record.cached_result);
             }
-            let content = fs::read_to_string(&full_path).with_context(|| format!("Failed to read file: {}", full_path.display()))?;
-            let patch: Patch<'_, str> = Patch::from_str(&params.patch).map_err(|e| anyhow::anyhow!("Failed to parse patch: {}", e))?;
-            let hunk_count = patch.hunks().len();
-            let new_content = apply(&content, &patch).map_err(|e| anyhow::anyhow!("Failed to apply patch: {}", e))?;
-            fs::write(&full_path, new_content.as_str()).with_context(|| format!("Failed to write file: {}", full_path.display()))?;
-            let msg = format!("Successfully applied patch with {} hunk(s) to {}", hunk_count, full_path.display());
-            registry.record(key, msg.clone());
-            return Ok(msg);
         }
 
+        // Compute patched content (needed for both staging and direct write)
         let content = fs::read_to_string(&full_path).with_context(|| format!("Failed to read file: {}", full_path.display()))?;
         let patch: Patch<'_, str> = Patch::from_str(&params.patch).map_err(|e| anyhow::anyhow!("Failed to parse patch: {}", e))?;
         let hunk_count = patch.hunks().len();
         let new_content = apply(&content, &patch).map_err(|e| anyhow::anyhow!("Failed to apply patch: {}", e))?;
+
+        // 2. Staging check — stage the fully-patched content
+        if let Some(ref backend) = context.staging_backend {
+            backend.stage(StagedWrite {
+                key,
+                target_path: full_path.clone(),
+                content: new_content.to_string(),
+            });
+            return Ok(format!(
+                "Staged patch of {} hunk(s) to {} (pending commit)",
+                hunk_count,
+                full_path.display()
+            ));
+        }
+
+        // 3. Direct write
         fs::write(&full_path, new_content.as_str()).with_context(|| format!("Failed to write file: {}", full_path.display()))?;
-        Ok(format!("Successfully applied patch with {} hunk(s) to {}", hunk_count, full_path.display()))
+        let msg = format!("Successfully applied patch with {} hunk(s) to {}", hunk_count, full_path.display());
+        if let Some(ref registry) = context.idempotency_registry {
+            registry.record(Self::derive_idempotency_key("patch_file", &full_path, &patch_hash), msg.clone());
+        }
+        Ok(msg)
     }
 
     fn list_directory(input: &Value, context: &ToolContext) -> Result<String> {
@@ -398,16 +439,17 @@ mod tests {
     use tempfile::TempDir;
 
     fn create_test_context(working_dir: &str) -> ToolContext {
-        ToolContext { working_directory: working_dir.to_string(), user_id: None, metadata: HashMap::new(), capabilities: None, idempotency_registry: None }
+        ToolContext {
+            working_directory: working_dir.to_string(),
+            ..Default::default()
+        }
     }
 
     fn create_test_context_with_registry(working_dir: &str) -> ToolContext {
         ToolContext {
             working_directory: working_dir.to_string(),
-            user_id: None,
-            metadata: HashMap::new(),
-            capabilities: None,
             idempotency_registry: Some(brainwires_core::IdempotencyRegistry::new()),
+            ..Default::default()
         }
     }
 
@@ -571,5 +613,80 @@ mod tests {
         FileOpsTool::execute("2", "write_file", &json!({"path": "shared.txt", "content": "x"}), &ctx2);
         let on_disk = fs::read_to_string(temp_dir.path().join("shared.txt")).unwrap();
         assert_eq!(on_disk, "CORRUPTED", "Cloned context must share idempotency state");
+    }
+
+    // ── Staging backend (two-phase commit) tests ──────────────────────────────
+
+    #[test]
+    fn test_write_file_staged_commit() {
+        use brainwires_core::StagingBackend;
+        use crate::transaction::TransactionManager;
+        use std::sync::Arc;
+
+        let temp_dir = TempDir::new().unwrap();
+        let target = temp_dir.path().join("staged.txt");
+        let mgr = Arc::new(TransactionManager::new().unwrap());
+        let ctx = ToolContext {
+            working_directory: temp_dir.path().to_str().unwrap().to_string(),
+            staging_backend: Some(mgr.clone()),
+            ..Default::default()
+        };
+
+        let result = FileOpsTool::execute("1", "write_file", &json!({"path": "staged.txt", "content": "staged content"}), &ctx);
+        assert!(!result.is_error);
+        assert!(result.content.contains("Staged"), "Result must indicate staging");
+        assert!(!target.exists(), "File must not exist before commit");
+
+        mgr.commit().unwrap();
+        assert!(target.exists());
+        assert_eq!(fs::read_to_string(&target).unwrap(), "staged content");
+    }
+
+    #[test]
+    fn test_write_file_staged_rollback() {
+        use brainwires_core::StagingBackend;
+        use crate::transaction::TransactionManager;
+        use std::sync::Arc;
+
+        let temp_dir = TempDir::new().unwrap();
+        let target = temp_dir.path().join("rollback.txt");
+        let mgr = Arc::new(TransactionManager::new().unwrap());
+        let ctx = ToolContext {
+            working_directory: temp_dir.path().to_str().unwrap().to_string(),
+            staging_backend: Some(mgr.clone()),
+            ..Default::default()
+        };
+
+        FileOpsTool::execute("1", "write_file", &json!({"path": "rollback.txt", "content": "data"}), &ctx);
+        mgr.rollback();
+        assert!(!target.exists(), "File must not exist after rollback");
+    }
+
+    #[test]
+    fn test_edit_file_staged_commit() {
+        use brainwires_core::StagingBackend;
+        use crate::transaction::TransactionManager;
+        use std::sync::Arc;
+
+        let temp_dir = TempDir::new().unwrap();
+        let target = temp_dir.path().join("edit.txt");
+        fs::write(&target, "Hello World").unwrap();
+
+        let mgr = Arc::new(TransactionManager::new().unwrap());
+        let ctx = ToolContext {
+            working_directory: temp_dir.path().to_str().unwrap().to_string(),
+            staging_backend: Some(mgr.clone()),
+            ..Default::default()
+        };
+
+        let result = FileOpsTool::execute("1", "edit_file", &json!({"path": "edit.txt", "old_text": "World", "new_text": "Rust"}), &ctx);
+        assert!(!result.is_error);
+        assert!(result.content.contains("Staged"), "Result must indicate staging");
+
+        // Original content unchanged until commit
+        assert_eq!(fs::read_to_string(&target).unwrap(), "Hello World");
+
+        mgr.commit().unwrap();
+        assert_eq!(fs::read_to_string(&target).unwrap(), "Hello Rust");
     }
 }

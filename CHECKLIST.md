@@ -34,7 +34,7 @@ Priority definitions:
 
 - [x] **Tool idempotency keys** — Add idempotency key tracking to `FileOpsTool` write operations; assign a key before execution so retries are safe without duplication. *(Research: API-Bank — doc 06 §2)*
 
-- [ ] **Side-effect staging** — Implement two-phase commit for reversible write operations: stage the write → validate → commit or rollback on failure. *(Research: API-Bank — doc 06 §2)*
+- [x] **Side-effect staging** — Implement two-phase commit for reversible write operations: stage the write → validate → commit or rollback on failure. *(Research: API-Bank — doc 06 §2)*
 
 - [x] **Tool sequence recorder** — Record the ordered sequence of tool calls per run; compare against expected sequences in behavioral tests. *(Research: HELM — doc 06 §5)*
 
@@ -95,7 +95,7 @@ Priority definitions:
 
 - [x] **Output filtering** — Before injecting tool results into agent context, scan for sensitive data patterns (API keys, tokens, PII); redact or reject. *(Research: Indirect Prompt Injection — doc 06 §7)*
 
-- [ ] **Anomaly detection** — In `AuditLogger`, flag unusual patterns: repeated policy violations, high-frequency tool calls, unusual file scope requests; surface to operator. *(Research: Formalizing Attacks and Defenses — doc 06 §7)*
+- [x] **Anomaly detection** — In `AuditLogger`, flag unusual patterns: repeated policy violations, high-frequency tool calls, unusual file scope requests; surface to operator. *(Research: Formalizing Attacks and Defenses — doc 06 §7)*
 
 ---
 
@@ -104,7 +104,7 @@ Priority definitions:
 
 - [x] **Structured run telemetry** — Emit a structured record for every completed agent run (task type, duration, step count, tools used, outcome); store in LanceDB for queryable history. *(Anti-pattern 8, Anti-pattern 11 — doc 02)*
 
-- [ ] **User feedback capture** — Add a feedback signal API (thumbs up/down, explicit corrections); associate feedback with run ID in storage for correlation analysis. *(Anti-pattern 11 — doc 02)*
+- [x] **User feedback capture** — Add a feedback signal API (thumbs up/down, explicit corrections); associate feedback with run ID in storage for correlation analysis. *(Anti-pattern 11 — doc 02)*
 
 - [x] **Failure categorization** — Label each `TaskAgentStatus::Failed` with a failure type (planning_failure, tool_misuse, memory_corruption, hallucination, budget_exhausted); enable trend queries. *(Anti-pattern 11 — doc 02)*
 

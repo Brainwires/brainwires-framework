@@ -57,6 +57,8 @@ pub enum AuditEventType {
     SessionEnd,
     /// Configuration changed
     ConfigChange,
+    /// User provided explicit feedback (thumbs up/down + optional correction) for a completed run
+    UserFeedback,
 }
 
 /// Outcome of an action
@@ -326,6 +328,8 @@ pub struct AuditLogger {
     max_buffer_size: usize,
     /// Whether logging is enabled
     enabled: bool,
+    /// Optional anomaly detector; when present, every logged event is observed.
+    anomaly_detector: Option<crate::anomaly::AnomalyDetector>,
 }
 
 impl AuditLogger {
@@ -345,6 +349,7 @@ impl AuditLogger {
             buffer: Arc::new(Mutex::new(Vec::new())),
             max_buffer_size: 100,
             enabled: true,
+            anomaly_detector: None,
         })
     }
 
@@ -360,7 +365,34 @@ impl AuditLogger {
             buffer: Arc::new(Mutex::new(Vec::new())),
             max_buffer_size: 100,
             enabled: true,
+            anomaly_detector: None,
         })
+    }
+
+    /// Attach an anomaly detector (builder pattern).
+    ///
+    /// Every event passed to [`log`] will be fed to the detector.
+    /// Call [`drain_anomalies`] to retrieve any flagged events.
+    pub fn with_anomaly_detection(mut self, config: crate::anomaly::AnomalyConfig) -> Self {
+        self.anomaly_detector = Some(crate::anomaly::AnomalyDetector::new(config));
+        self
+    }
+
+    /// Drain all accumulated anomaly events.
+    ///
+    /// Returns `None` if no anomaly detector is attached.
+    pub fn drain_anomalies(&self) -> Option<Vec<crate::anomaly::AnomalyEvent>> {
+        self.anomaly_detector.as_ref().map(|d| d.drain_anomalies())
+    }
+
+    /// Return the number of pending anomaly events without draining.
+    ///
+    /// Returns `0` if no anomaly detector is attached.
+    pub fn pending_anomaly_count(&self) -> usize {
+        self.anomaly_detector
+            .as_ref()
+            .map(|d| d.pending_count())
+            .unwrap_or(0)
     }
 
     /// Enable or disable logging
@@ -380,7 +412,13 @@ impl AuditLogger {
             AuditEventType::PolicyViolation
                 | AuditEventType::TrustChange
                 | AuditEventType::HumanIntervention
+                | AuditEventType::UserFeedback
         );
+
+        // Feed to anomaly detector before potentially moving the event into the buffer
+        if let Some(ref detector) = self.anomaly_detector {
+            detector.observe(&event);
+        }
 
         if is_important {
             // Write directly to disk for important events
@@ -490,6 +528,83 @@ impl AuditLogger {
             .with_metadata("reason", reason);
 
         self.log(event)
+    }
+
+    /// Submit user feedback for a specific agent run.
+    ///
+    /// The feedback is persisted as an `AuditEvent` of type `UserFeedback` so it
+    /// can be queried later.  The returned [`FeedbackSignal`] contains the
+    /// generated feedback ID which uniquely identifies this submission.
+    pub fn submit_feedback(
+        &self,
+        run_id: &str,
+        polarity: FeedbackPolarity,
+        correction: Option<&str>,
+    ) -> Result<FeedbackSignal> {
+        let signal = FeedbackSignal {
+            id: uuid::Uuid::new_v4().to_string(),
+            run_id: run_id.to_string(),
+            polarity,
+            correction: correction.map(str::to_string),
+            submitted_at: Utc::now(),
+        };
+
+        let polarity_str = match polarity {
+            FeedbackPolarity::ThumbsUp => "thumbs_up",
+            FeedbackPolarity::ThumbsDown => "thumbs_down",
+        };
+
+        let mut event = AuditEvent::new(AuditEventType::UserFeedback)
+            .with_action("user_feedback")
+            .with_metadata("run_id", run_id)
+            .with_metadata("polarity", polarity_str)
+            .with_metadata("feedback_id", &signal.id)
+            .with_outcome(ActionOutcome::Success);
+
+        if let Some(c) = correction {
+            event = event.with_metadata("correction", c);
+        }
+
+        self.log(event)?;
+        Ok(signal)
+    }
+
+    /// Query all feedback signals associated with a specific run ID.
+    ///
+    /// Reconstructs [`FeedbackSignal`] values from stored `UserFeedback` audit
+    /// events.  Returns an empty `Vec` when no feedback has been submitted for
+    /// the run.
+    pub fn get_feedback_for_run(&self, run_id: &str) -> Result<Vec<FeedbackSignal>> {
+        let query = AuditQuery::new().of_type(AuditEventType::UserFeedback);
+        let events = self.query(&query)?;
+
+        let signals = events
+            .into_iter()
+            .filter(|e| {
+                e.metadata
+                    .get("run_id")
+                    .map(|r| r == run_id)
+                    .unwrap_or(false)
+            })
+            .filter_map(|e| {
+                let feedback_id = e.metadata.get("feedback_id")?.clone();
+                let polarity_str = e.metadata.get("polarity")?;
+                let polarity = match polarity_str.as_str() {
+                    "thumbs_up" => FeedbackPolarity::ThumbsUp,
+                    "thumbs_down" => FeedbackPolarity::ThumbsDown,
+                    _ => return None,
+                };
+                Some(FeedbackSignal {
+                    id: feedback_id,
+                    run_id: e.metadata.get("run_id")?.clone(),
+                    polarity,
+                    correction: e.metadata.get("correction").cloned(),
+                    submitted_at: e.timestamp,
+                })
+            })
+            .collect();
+
+        Ok(signals)
     }
 
     /// Flush the buffer to disk
@@ -662,6 +777,36 @@ pub struct AuditStatistics {
     pub failed_actions: usize,
 }
 
+// ── User feedback ─────────────────────────────────────────────────────────────
+
+/// Polarity of a user feedback signal.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FeedbackPolarity {
+    /// The user approved of the agent's output.
+    ThumbsUp,
+    /// The user disapproved of the agent's output.
+    ThumbsDown,
+}
+
+/// A user feedback signal associated with a single agent run.
+///
+/// Created by [`AuditLogger::submit_feedback`] and persisted as a
+/// `UserFeedback` audit event so it can be correlated with run telemetry.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FeedbackSignal {
+    /// Unique identifier for this feedback submission.
+    pub id: String,
+    /// The run UUID this feedback is associated with.
+    pub run_id: String,
+    /// Whether the user approved or disapproved the output.
+    pub polarity: FeedbackPolarity,
+    /// Optional free-text correction or comment from the user.
+    pub correction: Option<String>,
+    /// When the feedback was submitted.
+    pub submitted_at: DateTime<Utc>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -810,5 +955,117 @@ mod tests {
         assert!(csv.contains("timestamp,event_type,agent_id,action"));
         assert!(csv.contains("read_file"));
         assert!(csv.contains("agent-1"));
+    }
+
+    // ── Phase 8: User feedback tests ──────────────────────────────────────────
+
+    #[test]
+    fn test_submit_feedback_thumbs_up() {
+        let (logger, _temp) = create_test_logger();
+        let signal = logger
+            .submit_feedback("run-001", FeedbackPolarity::ThumbsUp, None)
+            .unwrap();
+        assert_eq!(signal.run_id, "run-001");
+        assert_eq!(signal.polarity, FeedbackPolarity::ThumbsUp);
+        assert!(signal.correction.is_none());
+
+        // Feedback events are written immediately (is_important), so no flush needed
+        let feedback = logger.get_feedback_for_run("run-001").unwrap();
+        assert_eq!(feedback.len(), 1);
+        assert_eq!(feedback[0].polarity, FeedbackPolarity::ThumbsUp);
+    }
+
+    #[test]
+    fn test_submit_feedback_with_correction() {
+        let (logger, _temp) = create_test_logger();
+        let signal = logger
+            .submit_feedback(
+                "run-002",
+                FeedbackPolarity::ThumbsDown,
+                Some("Wrong answer"),
+            )
+            .unwrap();
+        assert_eq!(signal.correction.as_deref(), Some("Wrong answer"));
+
+        let feedback = logger.get_feedback_for_run("run-002").unwrap();
+        assert_eq!(feedback.len(), 1);
+        assert_eq!(feedback[0].correction.as_deref(), Some("Wrong answer"));
+    }
+
+    #[test]
+    fn test_feedback_isolated_per_run() {
+        let (logger, _temp) = create_test_logger();
+        logger
+            .submit_feedback("run-A", FeedbackPolarity::ThumbsUp, None)
+            .unwrap();
+        logger
+            .submit_feedback("run-B", FeedbackPolarity::ThumbsDown, None)
+            .unwrap();
+
+        let a = logger.get_feedback_for_run("run-A").unwrap();
+        let b = logger.get_feedback_for_run("run-B").unwrap();
+        assert_eq!(a.len(), 1);
+        assert_eq!(b.len(), 1);
+        assert_eq!(a[0].polarity, FeedbackPolarity::ThumbsUp);
+        assert_eq!(b[0].polarity, FeedbackPolarity::ThumbsDown);
+    }
+
+    #[test]
+    fn test_feedback_no_results_for_unknown_run() {
+        let (logger, _temp) = create_test_logger();
+        let feedback = logger.get_feedback_for_run("nonexistent-run").unwrap();
+        assert!(feedback.is_empty());
+    }
+
+    #[test]
+    fn test_feedback_event_type_stored_correctly() {
+        let (logger, _temp) = create_test_logger();
+        logger
+            .submit_feedback("run-X", FeedbackPolarity::ThumbsUp, None)
+            .unwrap();
+
+        let events = logger
+            .query(&AuditQuery::new().of_type(AuditEventType::UserFeedback))
+            .unwrap();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].event_type, AuditEventType::UserFeedback);
+        assert_eq!(events[0].metadata.get("run_id").unwrap(), "run-X");
+    }
+
+    // ── Phase 7: Anomaly detection integration tests ──────────────────────────
+
+    #[test]
+    fn test_logger_with_anomaly_detection_violation() {
+        use crate::anomaly::AnomalyConfig;
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let log_path = temp_dir.path().join("audit.jsonl");
+        let logger = AuditLogger::with_path(log_path)
+            .unwrap()
+            .with_anomaly_detection(AnomalyConfig {
+                violation_threshold: 2,
+                ..Default::default()
+            });
+
+        logger
+            .log_denied(Some("agent-x"), "write_file", None, "test")
+            .unwrap();
+        logger
+            .log_denied(Some("agent-x"), "write_file", None, "test")
+            .unwrap();
+
+        assert_eq!(logger.pending_anomaly_count(), 1);
+        let anomalies = logger.drain_anomalies().unwrap();
+        assert_eq!(anomalies.len(), 1);
+        assert_eq!(logger.pending_anomaly_count(), 0);
+    }
+
+    #[test]
+    fn test_logger_without_anomaly_detection_returns_none() {
+        let (logger, _temp) = create_test_logger();
+        // No anomaly detector attached
+        assert!(logger.drain_anomalies().is_none());
+        assert_eq!(logger.pending_anomaly_count(), 0);
     }
 }
