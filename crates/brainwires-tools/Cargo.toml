@@ -43,6 +43,8 @@ reqwest = { workspace = true, optional = true }
 
 # Security (native only)
 zeroize = { version = "1", features = ["derive"], optional = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
 
 # Logging
 tracing.workspace = true

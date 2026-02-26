@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use diffy::{apply, Patch};
 use serde::Deserialize;
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -164,6 +165,24 @@ impl FileOpsTool {
         struct Input { path: String, content: String }
         let params: Input = serde_json::from_value(input.clone())?;
         let full_path = Self::resolve_path(&params.path, context)?;
+
+        // Idempotency: key = tool + path + sha256(content)
+        if let Some(ref registry) = context.idempotency_registry {
+            let content_hash = Sha256::digest(params.content.as_bytes());
+            let key = Self::derive_idempotency_key("write_file", &full_path, &content_hash);
+            if let Some(record) = registry.get(&key) {
+                tracing::debug!(path = %full_path.display(), "write_file: idempotent retry, returning cached result");
+                return Ok(record.cached_result);
+            }
+            if let Some(parent) = full_path.parent() {
+                fs::create_dir_all(parent).with_context(|| format!("Failed to create parent directory: {}", parent.display()))?;
+            }
+            fs::write(&full_path, &params.content).with_context(|| format!("Failed to write file: {}", full_path.display()))?;
+            let msg = format!("Successfully wrote {} bytes to {}", params.content.len(), full_path.display());
+            registry.record(key, msg.clone());
+            return Ok(msg);
+        }
+
         if let Some(parent) = full_path.parent() {
             fs::create_dir_all(parent).with_context(|| format!("Failed to create parent directory: {}", parent.display()))?;
         }
@@ -176,6 +195,30 @@ impl FileOpsTool {
         struct Input { path: String, old_text: String, new_text: String }
         let params: Input = serde_json::from_value(input.clone())?;
         let full_path = Self::resolve_path(&params.path, context)?;
+
+        // Idempotency: key = tool + path + sha256(old_text '\0' new_text)
+        if let Some(ref registry) = context.idempotency_registry {
+            let mut hasher = Sha256::new();
+            hasher.update(params.old_text.as_bytes());
+            hasher.update(b"\0");
+            hasher.update(params.new_text.as_bytes());
+            let content_hash = hasher.finalize();
+            let key = Self::derive_idempotency_key("edit_file", &full_path, &content_hash);
+            if let Some(record) = registry.get(&key) {
+                tracing::debug!(path = %full_path.display(), "edit_file: idempotent retry, returning cached result");
+                return Ok(record.cached_result);
+            }
+            let content = fs::read_to_string(&full_path).with_context(|| format!("Failed to read file: {}", full_path.display()))?;
+            if !content.contains(&params.old_text) {
+                return Err(anyhow::anyhow!("Text not found in file: '{}'", params.old_text));
+            }
+            let new_content = content.replacen(&params.old_text, &params.new_text, 1);
+            fs::write(&full_path, &new_content).with_context(|| format!("Failed to write file: {}", full_path.display()))?;
+            let msg = format!("Successfully replaced 1 occurrence(s) in {}", full_path.display());
+            registry.record(key, msg.clone());
+            return Ok(msg);
+        }
+
         let content = fs::read_to_string(&full_path).with_context(|| format!("Failed to read file: {}", full_path.display()))?;
         if !content.contains(&params.old_text) {
             return Err(anyhow::anyhow!("Text not found in file: '{}'", params.old_text));
@@ -190,6 +233,25 @@ impl FileOpsTool {
         struct Input { path: String, patch: String }
         let params: Input = serde_json::from_value(input.clone())?;
         let full_path = Self::resolve_path(&params.path, context)?;
+
+        // Idempotency: key = tool + path + sha256(patch)
+        if let Some(ref registry) = context.idempotency_registry {
+            let patch_hash = Sha256::digest(params.patch.as_bytes());
+            let key = Self::derive_idempotency_key("patch_file", &full_path, &patch_hash);
+            if let Some(record) = registry.get(&key) {
+                tracing::debug!(path = %full_path.display(), "patch_file: idempotent retry, returning cached result");
+                return Ok(record.cached_result);
+            }
+            let content = fs::read_to_string(&full_path).with_context(|| format!("Failed to read file: {}", full_path.display()))?;
+            let patch: Patch<'_, str> = Patch::from_str(&params.patch).map_err(|e| anyhow::anyhow!("Failed to parse patch: {}", e))?;
+            let hunk_count = patch.hunks().len();
+            let new_content = apply(&content, &patch).map_err(|e| anyhow::anyhow!("Failed to apply patch: {}", e))?;
+            fs::write(&full_path, new_content.as_str()).with_context(|| format!("Failed to write file: {}", full_path.display()))?;
+            let msg = format!("Successfully applied patch with {} hunk(s) to {}", hunk_count, full_path.display());
+            registry.record(key, msg.clone());
+            return Ok(msg);
+        }
+
         let content = fs::read_to_string(&full_path).with_context(|| format!("Failed to read file: {}", full_path.display()))?;
         let patch: Patch<'_, str> = Patch::from_str(&params.patch).map_err(|e| anyhow::anyhow!("Failed to parse patch: {}", e))?;
         let hunk_count = patch.hunks().len();
@@ -253,6 +315,25 @@ impl FileOpsTool {
         struct Input { path: String }
         let params: Input = serde_json::from_value(input.clone())?;
         let full_path = Self::resolve_path(&params.path, context)?;
+
+        // Idempotency: key = tool + path (no content factor; deleting same path twice is safe to deduplicate)
+        if let Some(ref registry) = context.idempotency_registry {
+            let key = Self::derive_idempotency_key("delete_file", &full_path, b"");
+            if let Some(record) = registry.get(&key) {
+                tracing::debug!(path = %full_path.display(), "delete_file: idempotent retry, returning cached result");
+                return Ok(record.cached_result);
+            }
+            let msg = if full_path.is_dir() {
+                fs::remove_dir_all(&full_path).with_context(|| format!("Failed to delete directory: {}", full_path.display()))?;
+                format!("Successfully deleted directory: {}", full_path.display())
+            } else {
+                fs::remove_file(&full_path).with_context(|| format!("Failed to delete file: {}", full_path.display()))?;
+                format!("Successfully deleted file: {}", full_path.display())
+            };
+            registry.record(key, msg.clone());
+            return Ok(msg);
+        }
+
         if full_path.is_dir() {
             fs::remove_dir_all(&full_path).with_context(|| format!("Failed to delete directory: {}", full_path.display()))?;
             Ok(format!("Successfully deleted directory: {}", full_path.display()))
@@ -267,6 +348,20 @@ impl FileOpsTool {
         struct Input { path: String }
         let params: Input = serde_json::from_value(input.clone())?;
         let full_path = Self::resolve_path(&params.path, context)?;
+
+        // Idempotency: key = tool + path
+        if let Some(ref registry) = context.idempotency_registry {
+            let key = Self::derive_idempotency_key("create_directory", &full_path, b"");
+            if let Some(record) = registry.get(&key) {
+                tracing::debug!(path = %full_path.display(), "create_directory: idempotent retry, returning cached result");
+                return Ok(record.cached_result);
+            }
+            fs::create_dir_all(&full_path).with_context(|| format!("Failed to create directory: {}", full_path.display()))?;
+            let msg = format!("Successfully created directory: {}", full_path.display());
+            registry.record(key, msg.clone());
+            return Ok(msg);
+        }
+
         fs::create_dir_all(&full_path).with_context(|| format!("Failed to create directory: {}", full_path.display()))?;
         Ok(format!("Successfully created directory: {}", full_path.display()))
     }
@@ -277,6 +372,24 @@ impl FileOpsTool {
         let resolved = if path.is_absolute() { path.to_path_buf() } else { Path::new(&context.working_directory).join(path) };
         Ok(resolved.canonicalize().unwrap_or(resolved))
     }
+
+    /// Derive an idempotency key for a mutating operation.
+    ///
+    /// The key is a hex-encoded SHA-256 hash of
+    /// `tool_name '\0' canonical_path '\0' content_factor`.
+    ///
+    /// `content_factor` encodes the operation payload so that:
+    /// - retries with identical content reuse the cached result
+    /// - genuinely different writes to the same path produce a new key
+    fn derive_idempotency_key(tool_name: &str, path: &Path, content_factor: &[u8]) -> String {
+        let mut hasher = Sha256::new();
+        hasher.update(tool_name.as_bytes());
+        hasher.update(b"\0");
+        hasher.update(path.to_string_lossy().as_bytes());
+        hasher.update(b"\0");
+        hasher.update(content_factor);
+        hex::encode(hasher.finalize())
+    }
 }
 
 #[cfg(test)]
@@ -285,7 +398,17 @@ mod tests {
     use tempfile::TempDir;
 
     fn create_test_context(working_dir: &str) -> ToolContext {
-        ToolContext { working_directory: working_dir.to_string(), user_id: None, metadata: HashMap::new(), capabilities: None }
+        ToolContext { working_directory: working_dir.to_string(), user_id: None, metadata: HashMap::new(), capabilities: None, idempotency_registry: None }
+    }
+
+    fn create_test_context_with_registry(working_dir: &str) -> ToolContext {
+        ToolContext {
+            working_directory: working_dir.to_string(),
+            user_id: None,
+            metadata: HashMap::new(),
+            capabilities: None,
+            idempotency_registry: Some(brainwires_core::IdempotencyRegistry::new()),
+        }
     }
 
     #[test]
@@ -356,5 +479,97 @@ mod tests {
         let result = FileOpsTool::execute("5", "delete_file", &input, &context);
         assert!(!result.is_error);
         assert!(!file.exists());
+    }
+
+    // ── Idempotency tests ─────────────────────────────────────────────────────
+
+    #[test]
+    fn test_write_file_idempotent_same_content() {
+        let temp_dir = TempDir::new().unwrap();
+        let ctx = create_test_context_with_registry(temp_dir.path().to_str().unwrap());
+        let input = json!({"path": "idem.txt", "content": "Hello"});
+
+        let r1 = FileOpsTool::execute("1", "write_file", &input, &ctx);
+        assert!(!r1.is_error);
+        assert!(temp_dir.path().join("idem.txt").exists());
+
+        // Overwrite the file on disk to simulate a crash-then-retry scenario
+        fs::write(temp_dir.path().join("idem.txt"), "CORRUPTED").unwrap();
+
+        // Retry with identical inputs → cached result returned, file NOT re-written
+        let r2 = FileOpsTool::execute("2", "write_file", &input, &ctx);
+        assert!(!r2.is_error);
+        let on_disk = fs::read_to_string(temp_dir.path().join("idem.txt")).unwrap();
+        assert_eq!(on_disk, "CORRUPTED", "Idempotent retry must not overwrite the file");
+    }
+
+    #[test]
+    fn test_write_file_different_content_not_idempotent() {
+        let temp_dir = TempDir::new().unwrap();
+        let ctx = create_test_context_with_registry(temp_dir.path().to_str().unwrap());
+
+        FileOpsTool::execute("1", "write_file", &json!({"path": "f.txt", "content": "v1"}), &ctx);
+        FileOpsTool::execute("2", "write_file", &json!({"path": "f.txt", "content": "v2"}), &ctx);
+
+        let on_disk = fs::read_to_string(temp_dir.path().join("f.txt")).unwrap();
+        assert_eq!(on_disk, "v2", "Different content must produce a new write");
+    }
+
+    #[test]
+    fn test_write_file_no_registry_always_writes() {
+        let temp_dir = TempDir::new().unwrap();
+        let ctx = create_test_context(temp_dir.path().to_str().unwrap()); // no registry
+        let input = json!({"path": "f.txt", "content": "v1"});
+
+        FileOpsTool::execute("1", "write_file", &input, &ctx);
+        fs::write(temp_dir.path().join("f.txt"), "v_corrupted").unwrap();
+        FileOpsTool::execute("2", "write_file", &input, &ctx);
+
+        let on_disk = fs::read_to_string(temp_dir.path().join("f.txt")).unwrap();
+        assert_eq!(on_disk, "v1", "Without registry every call must go through");
+    }
+
+    #[test]
+    fn test_delete_file_idempotent() {
+        let temp_dir = TempDir::new().unwrap();
+        let ctx = create_test_context_with_registry(temp_dir.path().to_str().unwrap());
+        let file = temp_dir.path().join("del.txt");
+        fs::write(&file, "").unwrap();
+
+        let r1 = FileOpsTool::execute("1", "delete_file", &json!({"path": "del.txt"}), &ctx);
+        assert!(!r1.is_error);
+        assert!(!file.exists());
+
+        // File is gone; second call must return cached result without error
+        let r2 = FileOpsTool::execute("2", "delete_file", &json!({"path": "del.txt"}), &ctx);
+        assert!(!r2.is_error, "Idempotent delete must not fail on missing file");
+    }
+
+    #[test]
+    fn test_create_directory_idempotent() {
+        let temp_dir = TempDir::new().unwrap();
+        let ctx = create_test_context_with_registry(temp_dir.path().to_str().unwrap());
+
+        let r1 = FileOpsTool::execute("1", "create_directory", &json!({"path": "sub/dir"}), &ctx);
+        assert!(!r1.is_error);
+        assert!(temp_dir.path().join("sub/dir").is_dir());
+
+        let r2 = FileOpsTool::execute("2", "create_directory", &json!({"path": "sub/dir"}), &ctx);
+        assert!(!r2.is_error, "Second create_directory must return cached success");
+    }
+
+    #[test]
+    fn test_idempotency_registry_cloned_context_shares_state() {
+        let temp_dir = TempDir::new().unwrap();
+        let ctx = create_test_context_with_registry(temp_dir.path().to_str().unwrap());
+        let ctx2 = ctx.clone(); // cloned context shares the same registry
+
+        FileOpsTool::execute("1", "write_file", &json!({"path": "shared.txt", "content": "x"}), &ctx);
+        fs::write(temp_dir.path().join("shared.txt"), "CORRUPTED").unwrap();
+
+        // Execute via the cloned context — same registry, so idempotent
+        FileOpsTool::execute("2", "write_file", &json!({"path": "shared.txt", "content": "x"}), &ctx2);
+        let on_disk = fs::read_to_string(temp_dir.path().join("shared.txt")).unwrap();
+        assert_eq!(on_disk, "CORRUPTED", "Cloned context must share idempotency state");
     }
 }

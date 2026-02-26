@@ -21,6 +21,12 @@ pub struct MessageMetadata {
     pub model_id: Option<String>,
     pub images: Option<String>, // JSON array as string
     pub created_at: i64,
+    /// Optional Unix timestamp after which this entry should be evicted.
+    ///
+    /// `None` means no expiry (the entry persists indefinitely).  Use
+    /// [`MessageStore::delete_expired`] to perform bulk eviction, or call
+    /// [`TieredMemory::evict_expired`] for tier-aware cleanup.
+    pub expires_at: Option<i64>,
 }
 
 /// Store for managing messages with semantic search
@@ -200,6 +206,25 @@ impl MessageStore {
         Ok(())
     }
 
+    /// Delete all messages whose `expires_at` timestamp is in the past.
+    ///
+    /// Returns the number of rows deleted.  Rows with `expires_at = NULL`
+    /// (no TTL) are never touched.
+    ///
+    /// Call this at agent run completion or on a periodic background schedule
+    /// to enforce session-tier TTL policies.
+    pub async fn delete_expired(&self) -> Result<usize> {
+        use chrono::Utc;
+        let table = self.client.messages_table().await?;
+        let now = Utc::now().timestamp();
+        let filter = format!("expires_at IS NOT NULL AND expires_at <= {}", now);
+        let count = table.count_rows(Some(filter.clone())).await?;
+        if count > 0 {
+            table.delete(&filter).await?;
+        }
+        Ok(count)
+    }
+
     /// Convert messages and embeddings to RecordBatch
     fn messages_to_batch(&self, messages: &[MessageMetadata], embeddings: &[Vec<f32>]) -> Result<RecordBatch> {
         let dimension = self.embeddings.dimension();
@@ -221,6 +246,7 @@ impl MessageStore {
             Field::new("model_id", DataType::Utf8, true),
             Field::new("images", DataType::Utf8, true),
             Field::new("created_at", DataType::Int64, false),
+            Field::new("expires_at", DataType::Int64, true),  // nullable: None = no expiry
         ]));
 
         // Flatten embeddings into a single Float32Array
@@ -259,6 +285,9 @@ impl MessageStore {
         let created_ats = Int64Array::from(
             messages.iter().map(|m| m.created_at).collect::<Vec<_>>(),
         );
+        let expires_ats = Int64Array::from(
+            messages.iter().map(|m| m.expires_at).collect::<Vec<_>>(),
+        );
 
         RecordBatch::try_new(
             schema,
@@ -272,6 +301,7 @@ impl MessageStore {
                 Arc::new(model_ids),
                 Arc::new(images),
                 Arc::new(created_ats),
+                Arc::new(expires_ats),
             ],
         )
         .context("Failed to create record batch")
@@ -324,7 +354,16 @@ impl MessageStore {
                 .downcast_ref::<Int64Array>()
                 .context("Invalid created_at column")?;
 
+            // expires_at is nullable; tolerate batches from older schema versions
+            // that lack the column (e.g. during migration) by defaulting to None.
+            let expires_ats = batch
+                .column_by_name("expires_at")
+                .and_then(|col| col.as_any().downcast_ref::<Int64Array>());
+
             for i in 0..batch.num_rows() {
+                let expires_at = expires_ats
+                    .and_then(|arr| if arr.is_null(i) { None } else { Some(arr.value(i)) });
+
                 result.push(MessageMetadata {
                     message_id: message_ids.value(i).to_string(),
                     conversation_id: conversation_ids.value(i).to_string(),
@@ -346,6 +385,7 @@ impl MessageStore {
                         Some(images.value(i).to_string())
                     },
                     created_at: created_ats.value(i),
+                    expires_at,
                 });
             }
         }
@@ -387,6 +427,7 @@ mod tests {
             model_id: Some("gpt-4".to_string()),
             images: None,
             created_at: Utc::now().timestamp(),
+            expires_at: None,
         };
 
         store.add(message).await.unwrap();
@@ -406,6 +447,7 @@ mod tests {
                 model_id: None,
                 images: None,
                 created_at: Utc::now().timestamp(),
+                expires_at: None,
             },
             MessageMetadata {
                 message_id: "msg-2".to_string(),
@@ -416,6 +458,7 @@ mod tests {
                 model_id: Some("gpt-4".to_string()),
                 images: None,
                 created_at: Utc::now().timestamp(),
+                expires_at: None,
             },
         ];
 
@@ -435,6 +478,7 @@ mod tests {
             model_id: None,
             images: None,
             created_at: Utc::now().timestamp(),
+            expires_at: None,
         };
 
         store.add(message).await.unwrap();
@@ -460,6 +504,7 @@ mod tests {
                 model_id: None,
                 images: None,
                 created_at: Utc::now().timestamp(),
+                expires_at: None,
             },
             MessageMetadata {
                 message_id: "msg-2".to_string(),
@@ -470,6 +515,7 @@ mod tests {
                 model_id: None,
                 images: None,
                 created_at: Utc::now().timestamp(),
+                expires_at: None,
             },
         ];
 
@@ -496,6 +542,7 @@ mod tests {
             model_id: None,
             images: None,
             created_at: Utc::now().timestamp(),
+            expires_at: None,
         };
 
         store.add(message).await.unwrap();

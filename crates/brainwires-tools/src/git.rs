@@ -382,6 +382,7 @@ mod tests {
         ToolContext {
             working_directory: std::env::current_dir().unwrap().to_str().unwrap().to_string(),
             user_id: None, metadata: HashMap::new(), capabilities: None,
+            idempotency_registry: None,
         }
     }
 

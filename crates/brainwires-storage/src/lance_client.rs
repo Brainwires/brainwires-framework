@@ -447,6 +447,8 @@ impl LanceClient {
             Field::new("model_id", DataType::Utf8, true),
             Field::new("images", DataType::Utf8, true), // JSON array as string
             Field::new("created_at", DataType::Int64, false),
+            // TTL: Unix timestamp after which this entry should be evicted (nullable)
+            Field::new("expires_at", DataType::Int64, true),
         ]))
     }
 
@@ -651,7 +653,7 @@ mod tests {
 
         // Test messages schema
         let msg_schema = LanceClient::messages_schema(384);
-        assert_eq!(msg_schema.fields().len(), 9);
+        assert_eq!(msg_schema.fields().len(), 10); // includes expires_at
         assert_eq!(msg_schema.field(0).name(), "vector");
 
         // Verify vector field is FixedSizeList

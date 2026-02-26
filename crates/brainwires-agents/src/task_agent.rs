@@ -619,6 +619,9 @@ impl TaskAgent {
             user_id: None,
             metadata: HashMap::new(),
             capabilities: None,
+            // Each agent run gets its own idempotency registry so that
+            // identical write operations within a single run are deduplicated.
+            idempotency_registry: Some(brainwires_core::IdempotencyRegistry::new()),
         };
 
         loop {

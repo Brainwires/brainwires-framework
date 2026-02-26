@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 /// Specifies which contexts can invoke a tool.
 /// Implements Anthropic's `allowed_callers` pattern for programmatic tool calling.
@@ -124,6 +125,64 @@ impl ToolResult {
     }
 }
 
+// ── Idempotency registry ─────────────────────────────────────────────────────
+
+/// Record of a completed idempotent write operation.
+#[derive(Debug, Clone)]
+pub struct IdempotencyRecord {
+    /// Unix timestamp of first execution.
+    pub executed_at: i64,
+    /// The success message returned on first execution (returned verbatim on retries).
+    pub cached_result: String,
+}
+
+/// Shared registry that deduplicates mutating file-system tool calls within a run.
+///
+/// Create one per agent run and attach it to `ToolContext` via
+/// `ToolContext::with_idempotency_registry`.  All clones of the `ToolContext`
+/// share the same underlying map so that idempotency is enforced across the
+/// entire run regardless of how many times the context is cloned.
+#[derive(Debug, Clone, Default)]
+pub struct IdempotencyRegistry(Arc<Mutex<HashMap<String, IdempotencyRecord>>>);
+
+impl IdempotencyRegistry {
+    /// Create a new, empty registry.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Return the cached result for `key`, or `None` if not yet executed.
+    pub fn get(&self, key: &str) -> Option<IdempotencyRecord> {
+        self.0.lock().unwrap().get(key).cloned()
+    }
+
+    /// Record that `key` produced `result`.
+    ///
+    /// If `key` was already recorded (concurrent retry), the first result wins.
+    pub fn record(&self, key: String, result: String) {
+        let mut map = self.0.lock().unwrap();
+        map.entry(key).or_insert_with(|| {
+            use chrono::Utc;
+            IdempotencyRecord {
+                executed_at: Utc::now().timestamp(),
+                cached_result: result,
+            }
+        });
+    }
+
+    /// Number of recorded operations.
+    pub fn len(&self) -> usize {
+        self.0.lock().unwrap().len()
+    }
+
+    /// Returns `true` if no operations have been recorded yet.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
+// ── ToolContext ───────────────────────────────────────────────────────────────
+
 /// Execution context for a tool.
 ///
 /// Provides the working directory, optional metadata, and permission capabilities
@@ -142,6 +201,21 @@ pub struct ToolContext {
     /// and deserialize when reading. This keeps the core crate free of capability
     /// type definitions.
     pub capabilities: Option<Value>,
+    /// Per-run idempotency registry for mutating file operations.
+    ///
+    /// When `Some`, write/delete/edit operations derive a content-addressed key
+    /// and skip re-execution if the same key has already been processed in this
+    /// run.  `None` disables idempotency tracking (useful for tests or simple
+    /// single-call use cases).
+    pub idempotency_registry: Option<IdempotencyRegistry>,
+}
+
+impl ToolContext {
+    /// Attach a fresh idempotency registry to this context (builder pattern).
+    pub fn with_idempotency_registry(mut self) -> Self {
+        self.idempotency_registry = Some(IdempotencyRegistry::new());
+        self
+    }
 }
 
 impl Default for ToolContext {
@@ -154,6 +228,7 @@ impl Default for ToolContext {
             user_id: None,
             metadata: HashMap::new(),
             capabilities: None,
+            idempotency_registry: None,
         }
     }
 }
@@ -211,5 +286,46 @@ mod tests {
         let schema = ToolInputSchema::object(props, vec!["name".to_string()]);
         assert_eq!(schema.schema_type, "object");
         assert!(schema.properties.is_some());
+    }
+
+    #[test]
+    fn test_idempotency_registry_basic() {
+        let registry = IdempotencyRegistry::new();
+        assert!(registry.is_empty());
+
+        registry.record("key-1".to_string(), "result-1".to_string());
+        assert_eq!(registry.len(), 1);
+
+        let record = registry.get("key-1").unwrap();
+        assert_eq!(record.cached_result, "result-1");
+        assert!(record.executed_at > 0);
+
+        // Second record call with same key is a no-op (first result wins)
+        registry.record("key-1".to_string(), "result-DIFFERENT".to_string());
+        assert_eq!(registry.get("key-1").unwrap().cached_result, "result-1");
+        assert_eq!(registry.len(), 1);
+    }
+
+    #[test]
+    fn test_idempotency_registry_clone_shares_state() {
+        let registry = IdempotencyRegistry::new();
+        let clone = registry.clone();
+
+        registry.record("k".to_string(), "v".to_string());
+        // Clone sees the same entry because it shares the Arc<Mutex<...>>
+        assert!(clone.get("k").is_some());
+    }
+
+    #[test]
+    fn test_tool_context_default_has_no_registry() {
+        let ctx = ToolContext::default();
+        assert!(ctx.idempotency_registry.is_none());
+    }
+
+    #[test]
+    fn test_tool_context_with_registry() {
+        let ctx = ToolContext::default().with_idempotency_registry();
+        assert!(ctx.idempotency_registry.is_some());
+        assert!(ctx.idempotency_registry.unwrap().is_empty());
     }
 }

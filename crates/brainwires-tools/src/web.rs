@@ -62,7 +62,7 @@ mod tests {
     use super::*;
 
     fn create_test_context() -> ToolContext {
-        ToolContext { working_directory: ".".to_string(), user_id: None, metadata: HashMap::new(), capabilities: None }
+        ToolContext { working_directory: ".".to_string(), user_id: None, metadata: HashMap::new(), capabilities: None, idempotency_registry: None }
     }
 
     #[test]

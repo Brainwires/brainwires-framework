@@ -30,7 +30,7 @@
 //! ```
 
 // Re-export core types for convenience
-pub use brainwires_core::{Tool, ToolContext, ToolInputSchema, ToolResult};
+pub use brainwires_core::{IdempotencyRecord, IdempotencyRegistry, Tool, ToolContext, ToolInputSchema, ToolResult};
 
 // ── Always-available modules (pure logic, WASM-safe) ────────────────────────
 
@@ -75,7 +75,10 @@ pub mod smart_router;
 pub use error::{classify_error, ResourceType, RetryStrategy, ToolErrorCategory, ToolOutcome};
 pub use executor::{PreHookDecision, ToolExecutor, ToolPreHook};
 pub use registry::{ToolCategory, ToolRegistry};
-pub use sanitization::{is_injection_attempt, sanitize_external_content, wrap_with_content_source};
+pub use sanitization::{
+    contains_sensitive_data, filter_tool_output, is_injection_attempt,
+    redact_sensitive_data, sanitize_external_content, wrap_with_content_source,
+};
 pub use tool_search::ToolSearchTool;
 
 // Native-only tools

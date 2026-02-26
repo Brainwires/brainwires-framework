@@ -555,6 +555,7 @@ mod tests {
             user_id: None,
             metadata: HashMap::new(),
             capabilities: None,
+            idempotency_registry: None,
         }
     }
 
