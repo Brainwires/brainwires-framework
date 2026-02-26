@@ -229,6 +229,16 @@ impl RegressionSuite {
         Ok(serde_json::to_string_pretty(&list)?)
     }
 
+    /// Returns `true` when a baseline has been recorded for `category`.
+    pub fn has_baseline(&self, category: &str) -> bool {
+        self.baselines.contains_key(category)
+    }
+
+    /// Retrieve the stored baseline for `category`, or `None` if absent.
+    pub fn get_baseline(&self, category: &str) -> Option<&CategoryBaseline> {
+        self.baselines.get(category)
+    }
+
     /// Load baselines from a JSON string (produced by [`baselines_to_json`]).
     pub fn load_baselines_from_json(json: &str) -> anyhow::Result<Self> {
         let baselines: Vec<CategoryBaseline> = serde_json::from_str(json)?;

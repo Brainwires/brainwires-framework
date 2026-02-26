@@ -54,6 +54,7 @@ pub mod recorder;
 pub mod adversarial;
 pub mod regression;
 pub mod stability_tests;
+pub mod fault_report;
 
 // ── Top-level re-exports ──────────────────────────────────────────────────────
 
@@ -77,3 +78,6 @@ pub use regression::{CategoryBaseline, CategoryRegressionResult, RegressionConfi
 
 // Stability tests
 pub use stability_tests::{GoalPreservationCase, LoopDetectionSimCase, long_horizon_stability_suite};
+
+// Fault report
+pub use fault_report::{FaultKind, FaultReport, analyze_suite_for_faults};
