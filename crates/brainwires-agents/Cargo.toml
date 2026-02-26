@@ -27,6 +27,10 @@ anyhow.workspace = true
 uuid.workspace = true
 chrono.workspace = true
 
+# Hashing (for prompt hash snapshotting)
+sha2.workspace = true
+hex.workspace = true
+
 # Git (for worktree management, native only)
 git2 = { workspace = true, optional = true }
 

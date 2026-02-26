@@ -29,22 +29,54 @@
 //! let result: TaskAgentResult = agent.execute().await?;
 //! ```
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Result;
+use chrono::Utc;
+use sha2::{Digest, Sha256};
 use tokio::sync::RwLock;
 
 use brainwires_core::{
-    estimate_tokens_from_size, ChatOptions, ChatResponse, ContentBlock, Message, MessageContent,
-    Provider, Role, Task, ToolContext, ToolResult, ToolUse,
+    estimate_tokens_from_size, ChatOptions, ChatResponse, ContentBlock, ContentSource, Message,
+    MessageContent, Provider, Role, Task, ToolContext, ToolResult, ToolUse,
 };
+use brainwires_tools::{wrap_with_content_source, PreHookDecision};
 
 use crate::communication::AgentMessage;
 use crate::context::AgentContext;
+use crate::execution_graph::{ExecutionGraph, RunTelemetry, ToolCallRecord};
 use crate::file_locks::LockType;
 use crate::validation_loop::{format_validation_feedback, run_validation, ValidationConfig};
+
+/// Tool names whose results originate from external / untrusted sources and
+/// must be sanitised before injection into the conversation history.
+const EXTERNAL_CONTENT_TOOLS: &[&str] = &[
+    "fetch_url",
+    "web_fetch",
+    "web_search",
+    "context_recall",
+    "semantic_search",
+];
+
+/// Configuration for stuck-agent (loop) detection.
+#[derive(Debug, Clone)]
+pub struct LoopDetectionConfig {
+    /// Consecutive identical tool-name calls that trigger abort. Default: 5.
+    pub window_size: usize,
+    /// Whether loop detection is active. Default: true.
+    pub enabled: bool,
+}
+
+impl Default for LoopDetectionConfig {
+    fn default() -> Self {
+        Self {
+            window_size: 5,
+            enabled: true,
+        }
+    }
+}
 
 /// Runtime status of a task agent.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -57,6 +89,8 @@ pub enum TaskAgentStatus {
     WaitingForLock(String),
     /// Agent execution is paused.
     Paused(String),
+    /// Agent is replanning after detecting goal drift or failure.
+    Replanning(String),
     /// Agent completed the task successfully.
     Completed(String),
     /// Agent failed to complete the task.
@@ -70,14 +104,44 @@ impl std::fmt::Display for TaskAgentStatus {
             TaskAgentStatus::Working(desc) => write!(f, "Working: {}", desc),
             TaskAgentStatus::WaitingForLock(path) => write!(f, "Waiting for lock: {}", path),
             TaskAgentStatus::Paused(reason) => write!(f, "Paused: {}", reason),
+            TaskAgentStatus::Replanning(reason) => write!(f, "Replanning: {}", reason),
             TaskAgentStatus::Completed(summary) => write!(f, "Completed: {}", summary),
             TaskAgentStatus::Failed(error) => write!(f, "Failed: {}", error),
         }
     }
 }
 
+/// Classification of why an agent run failed.
+///
+/// Always `Some` when [`TaskAgentResult::success`] is `false`, always `None`
+/// on success.  Enables trend queries and dashboards over failure modes.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum FailureCategory {
+    /// Agent exhausted the allowed iteration count.
+    IterationLimitExceeded,
+    /// Cumulative token usage exceeded [`TaskAgentConfig::max_total_tokens`].
+    TokenBudgetExceeded,
+    /// Cumulative cost exceeded [`TaskAgentConfig::max_cost_usd`].
+    CostBudgetExceeded,
+    /// Wall-clock timeout exceeded [`TaskAgentConfig::timeout_secs`].
+    WallClockTimeout,
+    /// Loop detection fired — agent was calling the same tool repeatedly.
+    LoopDetected,
+    /// Replan cycle count exceeded [`TaskAgentConfig::max_replan_attempts`].
+    MaxReplanAttemptsExceeded,
+    /// File scope whitelist violation (reserved for future hard-stop policy).
+    FileScopeViolation,
+    /// Validation checks failed and could not be resolved within the
+    /// iteration budget.
+    ValidationFailed,
+    /// An unexpected tool execution error caused abort.
+    ToolExecutionError,
+    /// Failure cause could not be determined.
+    Unknown,
+}
+
 /// Result of a completed task agent execution.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TaskAgentResult {
     /// The agent's unique ID.
     pub agent_id: String,
@@ -89,6 +153,24 @@ pub struct TaskAgentResult {
     pub summary: String,
     /// Number of provider call iterations used.
     pub iterations: u32,
+    /// Number of replan cycles during execution.
+    pub replan_count: u32,
+    /// True when any budget ceiling caused the stop.
+    pub budget_exhausted: bool,
+    /// Last meaningful assistant message when stopped early, if any.
+    pub partial_output: Option<String>,
+    /// Cumulative tokens consumed across all provider calls.
+    pub total_tokens_used: u64,
+    /// Estimated cost in USD ($0.000003/token conservative estimate).
+    pub total_cost_usd: f64,
+    /// True when wall-clock timeout caused the stop.
+    pub timed_out: bool,
+    /// Why the agent failed. `None` on success, always `Some` on failure.
+    pub failure_category: Option<FailureCategory>,
+    /// Full execution trace (DAG of provider-call steps + tool call records).
+    pub execution_graph: ExecutionGraph,
+    /// Structured telemetry summary derived from the execution graph.
+    pub telemetry: RunTelemetry,
 }
 
 /// Configuration for a task agent.
@@ -114,6 +196,35 @@ pub struct TaskAgentConfig {
     ///
     /// Set to `None` to disable validation entirely (useful in tests).
     pub validation_config: Option<ValidationConfig>,
+
+    /// Loop detection settings. `None` disables. Default: 5-call window, enabled.
+    pub loop_detection: Option<LoopDetectionConfig>,
+
+    /// Inject goal-reminder every N iterations. `None` disables. Default: Some(10).
+    pub goal_revalidation_interval: Option<u32>,
+
+    /// Abort after this many REPLAN cycles. Default: 3.
+    pub max_replan_attempts: u32,
+
+    /// Abort when cumulative tokens reach this ceiling. Default: None.
+    pub max_total_tokens: Option<u64>,
+
+    /// Abort when cumulative cost (USD) reaches this ceiling. Default: None.
+    pub max_cost_usd: Option<f64>,
+
+    /// Wall-clock timeout for the entire execute() call, in seconds. Default: None.
+    pub timeout_secs: Option<u64>,
+
+    /// Per-agent file scope whitelist.
+    ///
+    /// When `Some`, the agent receives a scope-violation error for any file
+    /// operation targeting a path that is not prefixed by at least one entry
+    /// in this list.  When `None`, file access is unrestricted.
+    ///
+    /// Uses [`Path::starts_with`] for prefix matching, which is
+    /// component-aware: `"/src"` allows `"/src/main.rs"` but denies
+    /// `"/src_extra/file.txt"`.
+    pub allowed_files: Option<Vec<PathBuf>>,
 }
 
 impl Default for TaskAgentConfig {
@@ -124,6 +235,13 @@ impl Default for TaskAgentConfig {
             temperature: 0.7,
             max_tokens: 4096,
             validation_config: Some(ValidationConfig::default()),
+            loop_detection: Some(LoopDetectionConfig::default()),
+            goal_revalidation_interval: Some(10),
+            max_replan_attempts: 3,
+            max_total_tokens: None,
+            max_cost_usd: None,
+            timeout_secs: None,
+            allowed_files: None,
         }
     }
 }
@@ -147,6 +265,8 @@ pub struct TaskAgent {
     status: Arc<RwLock<TaskAgentStatus>>,
     /// Conversation history (internal — grows each iteration).
     conversation_history: Arc<RwLock<Vec<Message>>>,
+    /// Internal replan cycle counter.
+    replan_count: Arc<RwLock<u32>>,
 }
 
 impl TaskAgent {
@@ -169,6 +289,7 @@ impl TaskAgent {
             config,
             status: Arc::new(RwLock::new(TaskAgentStatus::Idle)),
             conversation_history: Arc::new(RwLock::new(Vec::new())),
+            replan_count: Arc::new(RwLock::new(0)),
         }
     }
 
@@ -221,6 +342,15 @@ impl TaskAgent {
             .or_else(|| tool_use.input.get("path"))
             .and_then(|v| v.as_str())?;
         Some(PathBuf::from(path_str))
+    }
+
+    /// Returns `true` if `path` is permitted by the file scope whitelist.
+    fn is_file_path_allowed(path: &str, allowed: &[PathBuf]) -> bool {
+        if allowed.is_empty() {
+            return false;
+        }
+        let candidate = PathBuf::from(path);
+        allowed.iter().any(|prefix| candidate.starts_with(prefix))
     }
 
     /// Determine whether a tool requires a file lock, and what kind.
@@ -306,6 +436,10 @@ impl TaskAgent {
     async fn attempt_validated_completion(
         &self,
         message_text: &str,
+        total_tokens_used: u64,
+        total_cost_usd: f64,
+        replan_count: u32,
+        execution_graph: ExecutionGraph,
     ) -> Result<Option<TaskAgentResult>> {
         let task_id = self.task.read().await.id.clone();
 
@@ -381,6 +515,9 @@ impl TaskAgent {
             .await;
 
         let iterations = self.task.read().await.iterations;
+        let run_ended_at = Utc::now();
+        let telemetry =
+            RunTelemetry::from_graph(&execution_graph, run_ended_at, true, total_cost_usd);
 
         Ok(Some(TaskAgentResult {
             agent_id: self.id.clone(),
@@ -388,6 +525,15 @@ impl TaskAgent {
             success: true,
             summary: message_text.to_string(),
             iterations,
+            replan_count,
+            budget_exhausted: false,
+            partial_output: None,
+            total_tokens_used,
+            total_cost_usd,
+            timed_out: false,
+            failure_category: None,
+            execution_graph,
+            telemetry,
         }))
     }
 
@@ -430,7 +576,44 @@ impl TaskAgent {
             .await
             .push(Message::user(task_description.clone()));
 
+        // ── Prompt hash + execution graph initialisation ─────────────────────
+        let prompt_hash = {
+            let system_prompt = self.config.system_prompt.clone().unwrap_or_else(|| {
+                crate::system_prompts::reasoning_agent_prompt(
+                    &self.id,
+                    &self.context.working_directory,
+                )
+            });
+            let mut tool_names: Vec<String> = self
+                .context
+                .tool_executor
+                .available_tools()
+                .iter()
+                .map(|t| t.name.clone())
+                .collect();
+            tool_names.sort_unstable();
+            let mut hasher = Sha256::new();
+            hasher.update(system_prompt.as_bytes());
+            for name in &tool_names {
+                hasher.update(name.as_bytes());
+            }
+            hex::encode(hasher.finalize())
+        };
+        let run_started_at = Utc::now();
+        let mut execution_graph = ExecutionGraph::new(prompt_hash, run_started_at);
+
         let mut iterations = 0u32;
+        let mut total_tokens_used: u64 = 0;
+        let mut total_cost_usd: f64 = 0.0;
+        const COST_PER_TOKEN: f64 = 0.000003; // $3/M tokens conservative estimate
+        let start_time = std::time::Instant::now();
+        let mut recent_tool_names: VecDeque<String> = VecDeque::with_capacity(
+            self.config
+                .loop_detection
+                .as_ref()
+                .map(|c| c.window_size)
+                .unwrap_or(5),
+        );
         let tool_context = ToolContext {
             working_directory: self.context.working_directory.clone(),
             user_id: None,
@@ -448,6 +631,9 @@ impl TaskAgent {
                 max = self.config.max_iterations,
                 "iteration starting"
             );
+
+            let step_started_at = Utc::now();
+            let step_idx = execution_graph.push_step(iterations, step_started_at);
 
             // ── Iteration limit ──────────────────────────────────────────────
             if iterations >= self.config.max_iterations {
@@ -484,12 +670,28 @@ impl TaskAgent {
                     .release_all_locks(&self.id)
                     .await;
 
+                let run_ended_at = Utc::now();
+                let telemetry = RunTelemetry::from_graph(
+                    &execution_graph,
+                    run_ended_at,
+                    false,
+                    total_cost_usd,
+                );
                 return Ok(TaskAgentResult {
                     agent_id: self.id.clone(),
                     task_id,
                     success: false,
                     summary: error,
                     iterations,
+                    replan_count: *self.replan_count.read().await,
+                    budget_exhausted: false,
+                    partial_output: None,
+                    total_tokens_used,
+                    total_cost_usd,
+                    timed_out: false,
+                    failure_category: Some(FailureCategory::IterationLimitExceeded),
+                    execution_graph: execution_graph.clone(),
+                    telemetry,
                 });
             }
 
@@ -515,8 +717,248 @@ impl TaskAgent {
                 }
             }
 
+            // ── Budget: timeout ──────────────────────────────────────────────
+            if let Some(secs) = self.config.timeout_secs {
+                if start_time.elapsed().as_secs() >= secs {
+                    let elapsed = start_time.elapsed().as_secs();
+                    let partial = self.last_assistant_text().await;
+                    let error = format!(
+                        "Agent {} timed out after {}s (limit: {}s)",
+                        self.id, elapsed, secs
+                    );
+                    tracing::error!(agent_id = %self.id, %error);
+                    self.task.write().await.fail(&error);
+                    self.set_status(TaskAgentStatus::Failed(error.clone())).await;
+                    let _ = self
+                        .context
+                        .communication_hub
+                        .broadcast(
+                            self.id.clone(),
+                            AgentMessage::TaskResult {
+                                task_id: task_id.clone(),
+                                success: false,
+                                result: error.clone(),
+                            },
+                        )
+                        .await;
+                    let _ = self.context.communication_hub.unregister_agent(&self.id).await;
+                    self.context.file_lock_manager.release_all_locks(&self.id).await;
+                    let run_ended_at = Utc::now();
+                    let telemetry = RunTelemetry::from_graph(
+                        &execution_graph,
+                        run_ended_at,
+                        false,
+                        total_cost_usd,
+                    );
+                    return Ok(TaskAgentResult {
+                        agent_id: self.id.clone(),
+                        task_id,
+                        success: false,
+                        summary: error,
+                        iterations,
+                        replan_count: *self.replan_count.read().await,
+                        budget_exhausted: false,
+                        partial_output: partial,
+                        total_tokens_used,
+                        total_cost_usd,
+                        timed_out: true,
+                        failure_category: Some(FailureCategory::WallClockTimeout),
+                        execution_graph: execution_graph.clone(),
+                        telemetry,
+                    });
+                }
+            }
+
+            // ── Budget: token ceiling ────────────────────────────────────────
+            if let Some(max) = self.config.max_total_tokens {
+                if total_tokens_used >= max {
+                    let partial = self.last_assistant_text().await;
+                    let error = format!(
+                        "Agent {} exceeded token budget ({}/{} tokens)",
+                        self.id, total_tokens_used, max
+                    );
+                    tracing::error!(agent_id = %self.id, %error);
+                    self.task.write().await.fail(&error);
+                    self.set_status(TaskAgentStatus::Failed(error.clone())).await;
+                    let _ = self
+                        .context
+                        .communication_hub
+                        .broadcast(
+                            self.id.clone(),
+                            AgentMessage::TaskResult {
+                                task_id: task_id.clone(),
+                                success: false,
+                                result: error.clone(),
+                            },
+                        )
+                        .await;
+                    let _ = self.context.communication_hub.unregister_agent(&self.id).await;
+                    self.context.file_lock_manager.release_all_locks(&self.id).await;
+                    let run_ended_at = Utc::now();
+                    let telemetry = RunTelemetry::from_graph(
+                        &execution_graph,
+                        run_ended_at,
+                        false,
+                        total_cost_usd,
+                    );
+                    return Ok(TaskAgentResult {
+                        agent_id: self.id.clone(),
+                        task_id,
+                        success: false,
+                        summary: error,
+                        iterations,
+                        replan_count: *self.replan_count.read().await,
+                        budget_exhausted: true,
+                        partial_output: partial,
+                        total_tokens_used,
+                        total_cost_usd,
+                        timed_out: false,
+                        failure_category: Some(FailureCategory::TokenBudgetExceeded),
+                        execution_graph: execution_graph.clone(),
+                        telemetry,
+                    });
+                }
+            }
+
+            // ── Budget: cost ceiling ─────────────────────────────────────────
+            if let Some(max) = self.config.max_cost_usd {
+                if total_cost_usd >= max {
+                    let partial = self.last_assistant_text().await;
+                    let error = format!(
+                        "Agent {} exceeded cost budget (${:.6}/{:.6} USD)",
+                        self.id, total_cost_usd, max
+                    );
+                    tracing::error!(agent_id = %self.id, %error);
+                    self.task.write().await.fail(&error);
+                    self.set_status(TaskAgentStatus::Failed(error.clone())).await;
+                    let _ = self
+                        .context
+                        .communication_hub
+                        .broadcast(
+                            self.id.clone(),
+                            AgentMessage::TaskResult {
+                                task_id: task_id.clone(),
+                                success: false,
+                                result: error.clone(),
+                            },
+                        )
+                        .await;
+                    let _ = self.context.communication_hub.unregister_agent(&self.id).await;
+                    self.context.file_lock_manager.release_all_locks(&self.id).await;
+                    let run_ended_at = Utc::now();
+                    let telemetry = RunTelemetry::from_graph(
+                        &execution_graph,
+                        run_ended_at,
+                        false,
+                        total_cost_usd,
+                    );
+                    return Ok(TaskAgentResult {
+                        agent_id: self.id.clone(),
+                        task_id,
+                        success: false,
+                        summary: error,
+                        iterations,
+                        replan_count: *self.replan_count.read().await,
+                        budget_exhausted: true,
+                        partial_output: partial,
+                        total_tokens_used,
+                        total_cost_usd,
+                        timed_out: false,
+                        failure_category: Some(FailureCategory::CostBudgetExceeded),
+                        execution_graph: execution_graph.clone(),
+                        telemetry,
+                    });
+                }
+            }
+
+            // ── Goal re-validation ───────────────────────────────────────────
+            if let Some(interval) = self.config.goal_revalidation_interval {
+                if interval > 0 && iterations > 1 && (iterations - 1) % interval == 0 {
+                    self.conversation_history.write().await.push(Message::user(format!(
+                        "GOAL CHECK (iteration {}): Your original task was:\n\n\"{}\"\n\n\
+                         Confirm you are still on track. Correct course if you have drifted.",
+                        iterations, task_description
+                    )));
+                }
+            }
+
             // ── Call provider ───────────────────────────────────────────────
             let response = self.call_provider().await?;
+
+            // ── Accumulate token usage ───────────────────────────────────────
+            total_tokens_used += response.usage.total_tokens as u64;
+            total_cost_usd += response.usage.total_tokens as f64 * COST_PER_TOKEN;
+
+            // ── Finalise step node ───────────────────────────────────────────
+            execution_graph.finalize_step(
+                step_idx,
+                Utc::now(),
+                response.usage.prompt_tokens,
+                response.usage.completion_tokens,
+                response.finish_reason.clone(),
+            );
+
+            // ── REPLAN detection ─────────────────────────────────────────────
+            {
+                let text = response.message.text().unwrap_or("").to_lowercase();
+                if text.contains("replan") || text.contains("replanning") {
+                    let mut count = self.replan_count.write().await;
+                    *count += 1;
+                    let c = *count;
+                    drop(count);
+                    self.set_status(TaskAgentStatus::Replanning(format!(
+                        "attempt {}/{}",
+                        c, self.config.max_replan_attempts
+                    )))
+                    .await;
+                    if c > self.config.max_replan_attempts {
+                        let error = format!(
+                            "Agent {} exceeded max replan attempts ({}/{})",
+                            self.id, c, self.config.max_replan_attempts
+                        );
+                        tracing::error!(agent_id = %self.id, %error);
+                        self.task.write().await.fail(&error);
+                        self.set_status(TaskAgentStatus::Failed(error.clone())).await;
+                        let _ = self
+                            .context
+                            .communication_hub
+                            .broadcast(
+                                self.id.clone(),
+                                AgentMessage::TaskResult {
+                                    task_id: task_id.clone(),
+                                    success: false,
+                                    result: error.clone(),
+                                },
+                            )
+                            .await;
+                        let _ = self.context.communication_hub.unregister_agent(&self.id).await;
+                        self.context.file_lock_manager.release_all_locks(&self.id).await;
+                        let run_ended_at = Utc::now();
+                        let telemetry = RunTelemetry::from_graph(
+                            &execution_graph,
+                            run_ended_at,
+                            false,
+                            total_cost_usd,
+                        );
+                        return Ok(TaskAgentResult {
+                            agent_id: self.id.clone(),
+                            task_id,
+                            success: false,
+                            summary: error,
+                            iterations,
+                            replan_count: c,
+                            budget_exhausted: false,
+                            partial_output: None,
+                            total_tokens_used,
+                            total_cost_usd,
+                            timed_out: false,
+                            failure_category: Some(FailureCategory::MaxReplanAttemptsExceeded),
+                            execution_graph: execution_graph.clone(),
+                            telemetry,
+                        });
+                    }
+                }
+            }
 
             let is_done = response
                 .finish_reason
@@ -530,7 +972,16 @@ impl TaskAgent {
                     .text()
                     .unwrap_or("Task completed")
                     .to_string();
-                if let Some(result) = self.attempt_validated_completion(&text).await? {
+                if let Some(result) = self
+                    .attempt_validated_completion(
+                        &text,
+                        total_tokens_used,
+                        total_cost_usd,
+                        *self.replan_count.read().await,
+                        execution_graph.clone(),
+                    )
+                    .await?
+                {
                     return Ok(result);
                 }
                 continue; // Validation failed — let the agent self-correct.
@@ -546,7 +997,16 @@ impl TaskAgent {
                     .text()
                     .unwrap_or("Task completed")
                     .to_string();
-                if let Some(result) = self.attempt_validated_completion(&text).await? {
+                if let Some(result) = self
+                    .attempt_validated_completion(
+                        &text,
+                        total_tokens_used,
+                        total_cost_usd,
+                        *self.replan_count.read().await,
+                        execution_graph.clone(),
+                    )
+                    .await?
+                {
                     return Ok(result);
                 }
                 continue;
@@ -565,9 +1025,70 @@ impl TaskAgent {
                     "executing tool"
                 );
 
+                // ── Pre-execute hook ─────────────────────────────────────────
+                if let Some(ref hook) = self.context.pre_execute_hook {
+                    match hook.before_execute(tool_use, &tool_context).await {
+                        Ok(PreHookDecision::Reject(reason)) => {
+                            tracing::warn!(
+                                agent_id = %self.id,
+                                tool = %tool_use.name,
+                                reason = %reason,
+                                "tool call rejected by pre-execute hook"
+                            );
+                            execution_graph.record_tool_call(
+                                step_idx,
+                                ToolCallRecord {
+                                    tool_use_id: tool_use.id.clone(),
+                                    tool_name: tool_use.name.clone(),
+                                    is_error: true,
+                                    executed_at: Utc::now(),
+                                },
+                            );
+                            let rejection =
+                                ToolResult::error(tool_use.id.clone(), reason);
+                            self.conversation_history
+                                .write()
+                                .await
+                                .push(Self::tool_result_message(&rejection));
+                            continue;
+                        }
+                        Ok(PreHookDecision::Allow) => {}
+                        Err(e) => {
+                            tracing::error!(
+                                agent_id = %self.id,
+                                "pre-execute hook error: {}",
+                                e
+                            );
+                        }
+                    }
+                }
+
                 let tool_result = if let Some((path, lock_type)) =
                     Self::get_lock_requirement(tool_use)
                 {
+                    // ── File scope whitelist check (Item 3) ──────────────
+                    if let Some(ref allowed) = self.config.allowed_files {
+                        if !Self::is_file_path_allowed(&path, allowed) {
+                            tracing::warn!(
+                                agent_id = %self.id,
+                                path = %path,
+                                "file scope violation"
+                            );
+                            let result = ToolResult::error(
+                                tool_use.id.clone(),
+                                format!(
+                                    "File scope violation: '{}' is outside allowed paths: {:?}",
+                                    path, allowed
+                                ),
+                            );
+                            self.conversation_history
+                                .write()
+                                .await
+                                .push(Self::tool_result_message(&result));
+                            continue;
+                        }
+                    }
+
                     self.set_status(TaskAgentStatus::WaitingForLock(path.clone()))
                         .await;
 
@@ -630,6 +1151,17 @@ impl TaskAgent {
                     }
                 };
 
+                // ── Record tool call in execution graph ──────────────────────
+                execution_graph.record_tool_call(
+                    step_idx,
+                    ToolCallRecord {
+                        tool_use_id: tool_use.id.clone(),
+                        tool_name: tool_use.name.clone(),
+                        is_error: tool_result.is_error,
+                        executed_at: Utc::now(),
+                    },
+                );
+
                 // Track file in working set for file-write operations.
                 if !tool_result.is_error && Self::is_file_operation(&tool_use.name) {
                     if let Some(fp) = Self::extract_file_path(tool_use) {
@@ -643,12 +1175,108 @@ impl TaskAgent {
                     }
                 }
 
+                // Sanitize + wrap external tool results before injecting into
+                // conversation history (Items 1 + 2: input sanitization and
+                // instruction hierarchy enforcement).
+                let final_result = if EXTERNAL_CONTENT_TOOLS
+                    .contains(&tool_use.name.as_str())
+                    && !tool_result.is_error
+                {
+                    ToolResult {
+                        tool_use_id: tool_result.tool_use_id.clone(),
+                        content: wrap_with_content_source(
+                            &tool_result.content,
+                            ContentSource::ExternalContent,
+                        ),
+                        is_error: false,
+                    }
+                } else {
+                    tool_result.clone()
+                };
                 self.conversation_history
                     .write()
                     .await
-                    .push(Self::tool_result_message(&tool_result));
+                    .push(Self::tool_result_message(&final_result));
+            }
+
+            // ── Loop detection ───────────────────────────────────────────────
+            if let Some(ref ld) = self.config.loop_detection {
+                if ld.enabled {
+                    for tool_use in &tool_uses {
+                        if recent_tool_names.len() == ld.window_size {
+                            recent_tool_names.pop_front();
+                        }
+                        recent_tool_names.push_back(tool_use.name.clone());
+                    }
+                    if recent_tool_names.len() == ld.window_size
+                        && recent_tool_names
+                            .iter()
+                            .all(|n| n == &recent_tool_names[0])
+                    {
+                        let stuck = recent_tool_names[0].clone();
+                        let error = format!(
+                            "Loop detected: '{}' called {} times consecutively. Aborting.",
+                            stuck, ld.window_size
+                        );
+                        tracing::error!(agent_id = %self.id, %error);
+                        self.conversation_history.write().await.push(Message::user(format!(
+                            "SYSTEM: {error} Stop calling '{stuck}' and summarise progress."
+                        )));
+                        self.task.write().await.fail(&error);
+                        self.set_status(TaskAgentStatus::Failed(error.clone())).await;
+                        let _ = self
+                            .context
+                            .communication_hub
+                            .broadcast(
+                                self.id.clone(),
+                                AgentMessage::TaskResult {
+                                    task_id: task_id.clone(),
+                                    success: false,
+                                    result: error.clone(),
+                                },
+                            )
+                            .await;
+                        let _ = self.context.communication_hub.unregister_agent(&self.id).await;
+                        self.context.file_lock_manager.release_all_locks(&self.id).await;
+                        let run_ended_at = Utc::now();
+                        let telemetry = RunTelemetry::from_graph(
+                            &execution_graph,
+                            run_ended_at,
+                            false,
+                            total_cost_usd,
+                        );
+                        return Ok(TaskAgentResult {
+                            agent_id: self.id.clone(),
+                            task_id,
+                            success: false,
+                            summary: error,
+                            iterations,
+                            replan_count: *self.replan_count.read().await,
+                            budget_exhausted: false,
+                            partial_output: None,
+                            total_tokens_used,
+                            total_cost_usd,
+                            timed_out: false,
+                            failure_category: Some(FailureCategory::LoopDetected),
+                            execution_graph: execution_graph.clone(),
+                            telemetry,
+                        });
+                    }
+                }
             }
         }
+    }
+
+    /// Extract the most recent assistant text from conversation history, if any.
+    async fn last_assistant_text(&self) -> Option<String> {
+        self.conversation_history
+            .read()
+            .await
+            .iter()
+            .rev()
+            .find(|m| m.role == Role::Assistant)
+            .and_then(|m| m.text())
+            .map(|t| t.to_string())
     }
 }
 
@@ -811,5 +1439,138 @@ mod tests {
             TaskAgentStatus::Failed("oops".to_string()).to_string(),
             "Failed: oops"
         );
+    }
+
+    #[tokio::test]
+    async fn test_result_has_execution_graph() {
+        let task = Task::new("t-1", "Simple task");
+        let agent = Arc::new(TaskAgent::new(
+            "agent-1".to_string(),
+            task,
+            Arc::new(MockProvider::single("done")),
+            make_context(),
+            TaskAgentConfig {
+                validation_config: None,
+                ..Default::default()
+            },
+        ));
+
+        let result = agent.execute().await.unwrap();
+        assert!(result.success);
+        // One iteration = one step node
+        assert_eq!(result.execution_graph.steps.len(), 1);
+        assert_eq!(result.execution_graph.steps[0].iteration, 1);
+        // prompt_hash must be non-empty
+        assert!(!result.execution_graph.prompt_hash.is_empty());
+        // telemetry must match
+        assert_eq!(result.telemetry.total_iterations, 1);
+        assert!(result.telemetry.success);
+        assert_eq!(result.telemetry.prompt_hash, result.execution_graph.prompt_hash);
+    }
+
+    #[tokio::test]
+    async fn test_pre_execute_hook_reject() {
+        use brainwires_tools::{PreHookDecision, ToolPreHook};
+
+        struct RejectAll;
+        #[async_trait]
+        impl ToolPreHook for RejectAll {
+            async fn before_execute(
+                &self,
+                tool_use: &ToolUse,
+                _ctx: &ToolContext,
+            ) -> anyhow::Result<PreHookDecision> {
+                Ok(PreHookDecision::Reject(format!(
+                    "rejected: {}",
+                    tool_use.name
+                )))
+            }
+        }
+
+        // Provider that requests a tool call on iteration 1, then stops.
+        struct ToolThenStop;
+        #[async_trait]
+        impl Provider for ToolThenStop {
+            fn name(&self) -> &str {
+                "tool-then-stop"
+            }
+            async fn chat(
+                &self,
+                messages: &[Message],
+                _tools: Option<&[Tool]>,
+                _options: &ChatOptions,
+            ) -> Result<ChatResponse> {
+                // First call: return a tool use. Subsequent calls: return done.
+                let has_tool_result = messages.iter().any(|m| {
+                    matches!(&m.content, MessageContent::Blocks(b) if b.iter().any(|cb| matches!(cb, ContentBlock::ToolResult { .. })))
+                });
+                if has_tool_result {
+                    return Ok(ChatResponse {
+                        message: Message::assistant("done after hook rejection"),
+                        finish_reason: Some("stop".to_string()),
+                        usage: Usage::default(),
+                    });
+                }
+                Ok(ChatResponse {
+                    message: Message {
+                        role: Role::Assistant,
+                        content: MessageContent::Blocks(vec![ContentBlock::ToolUse {
+                            id: "tu-1".to_string(),
+                            name: "bash".to_string(),
+                            input: serde_json::json!({"command": "echo hi"}),
+                        }]),
+                        name: None,
+                        metadata: None,
+                    },
+                    finish_reason: None,
+                    usage: Usage::default(),
+                })
+            }
+            fn stream_chat<'a>(
+                &'a self,
+                _messages: &'a [Message],
+                _tools: Option<&'a [Tool]>,
+                _options: &'a ChatOptions,
+            ) -> futures::stream::BoxStream<'a, Result<brainwires_core::StreamChunk>> {
+                unimplemented!()
+            }
+        }
+
+        let ctx = Arc::new(
+            AgentContext::new(
+                "/tmp",
+                Arc::new(NoOpExecutor),
+                Arc::new(CommunicationHub::new()),
+                Arc::new(FileLockManager::new()),
+            )
+            .with_pre_execute_hook(Arc::new(RejectAll)),
+        );
+
+        let task = Task::new("t-hook", "test hook rejection");
+        let agent = Arc::new(TaskAgent::new(
+            "agent-hook".to_string(),
+            task,
+            Arc::new(ToolThenStop),
+            ctx,
+            TaskAgentConfig {
+                validation_config: None,
+                ..Default::default()
+            },
+        ));
+
+        let result = agent.execute().await.unwrap();
+        assert!(result.success);
+        // The rejected tool call should appear in the graph as is_error=true
+        let rejected: Vec<_> = result
+            .execution_graph
+            .steps
+            .iter()
+            .flat_map(|s| s.tool_calls.iter())
+            .filter(|tc| tc.is_error)
+            .collect();
+        assert_eq!(rejected.len(), 1);
+        assert_eq!(rejected[0].tool_name, "bash");
+        // And "bash" should still appear in the tool_sequence
+        assert!(result.execution_graph.tool_sequence.contains(&"bash".to_string()));
     }
 }

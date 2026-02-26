@@ -39,6 +39,7 @@
 //! let result = run_agent_loop(&agent, &hub, &locks).await?;
 //! ```
 
+use std::collections::VecDeque;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -62,6 +63,42 @@ pub struct AgentExecutionResult {
     pub iterations: usize,
     /// Names of tools that were invoked
     pub tools_used: Vec<String>,
+}
+
+/// Tracks the last N tool-call names and detects when the same tool is called
+/// consecutively (a sign the agent is stuck in a loop).
+struct LoopDetector {
+    window_size: usize,
+    enabled: bool,
+    recent: VecDeque<String>,
+}
+
+impl LoopDetector {
+    fn new(window_size: usize, enabled: bool) -> Self {
+        Self {
+            window_size,
+            enabled,
+            recent: VecDeque::with_capacity(window_size),
+        }
+    }
+
+    /// Record a tool call. Returns `Some(tool_name)` when a loop is detected.
+    fn record(&mut self, tool_name: &str) -> Option<String> {
+        if !self.enabled {
+            return None;
+        }
+        if self.recent.len() == self.window_size {
+            self.recent.pop_front();
+        }
+        self.recent.push_back(tool_name.to_string());
+        if self.recent.len() == self.window_size
+            && self.recent.iter().all(|n| n == tool_name)
+        {
+            Some(tool_name.to_string())
+        } else {
+            None
+        }
+    }
 }
 
 /// Trait that defines the core operations of an agentic execution loop.
@@ -154,6 +191,7 @@ pub async fn run_agent_loop(
     let agent_id = agent.agent_id().to_string();
     let mut iterations: usize = 0;
     let mut tools_used = Vec::new();
+    let mut loop_detector = LoopDetector::new(5, true);
 
     // Register with communication hub
     if !hub.is_registered(&agent_id).await {
@@ -266,6 +304,26 @@ pub async fn run_agent_loop(
                         agent.on_tool_result(tool_use, &error_result).await;
                     }
                 }
+            }
+        }
+
+        // ── Loop detection ───────────────────────────────────────────────────
+        for tool_use in &tool_use_requests {
+            if let Some(stuck) = loop_detector.record(&tool_use.name) {
+                let output = format!(
+                    "Loop detected: '{}' called {} times consecutively. Aborting.",
+                    stuck, loop_detector.window_size
+                );
+                tracing::error!(agent_id = %agent_id, %output);
+                let _ = hub.unregister_agent(&agent_id).await;
+                lock_manager.release_all_locks(&agent_id).await;
+                return Ok(AgentExecutionResult {
+                    agent_id,
+                    success: false,
+                    output,
+                    iterations,
+                    tools_used,
+                });
             }
         }
     }
@@ -565,5 +623,71 @@ mod tests {
         // Lock should be released
         let agent_locks = locks.locks_for_agent("test-5").await;
         assert!(agent_locks.is_empty());
+    }
+
+    /// Agent that always returns a tool use with the same name, triggering loop detection.
+    struct LoopingAgent {
+        id: String,
+    }
+
+    #[async_trait]
+    impl AgentRuntime for LoopingAgent {
+        fn agent_id(&self) -> &str { &self.id }
+        fn max_iterations(&self) -> usize { 100 }
+
+        async fn call_provider(&self) -> Result<ChatResponse> {
+            Ok(ChatResponse {
+                message: Message {
+                    role: Role::Assistant,
+                    content: MessageContent::Blocks(vec![ContentBlock::ToolUse {
+                        id: "t".to_string(),
+                        name: "bash".to_string(),
+                        input: serde_json::json!({"command": "ls"}),
+                    }]),
+                    name: None,
+                    metadata: None,
+                },
+                usage: Usage::new(10, 20),
+                finish_reason: None,
+            })
+        }
+
+        fn extract_tool_uses(&self, response: &ChatResponse) -> Vec<ToolUse> {
+            if let MessageContent::Blocks(ref blocks) = response.message.content {
+                blocks.iter().filter_map(|b| {
+                    if let ContentBlock::ToolUse { id, name, input } = b {
+                        Some(ToolUse { id: id.clone(), name: name.clone(), input: input.clone() })
+                    } else { None }
+                }).collect()
+            } else { vec![] }
+        }
+
+        fn is_completion(&self, _response: &ChatResponse) -> bool { false }
+
+        async fn execute_tool(&self, tool_use: &ToolUse) -> Result<ToolResult> {
+            Ok(ToolResult::success(tool_use.id.clone(), "ok".to_string()))
+        }
+
+        fn get_lock_requirement(&self, _tool_use: &ToolUse) -> Option<(String, LockType)> { None }
+        async fn on_provider_response(&self, _response: &ChatResponse) {}
+        async fn on_tool_result(&self, _tool_use: &ToolUse, _result: &ToolResult) {}
+        async fn on_completion(&self, _response: &ChatResponse) -> Result<Option<String>> { Ok(None) }
+        async fn on_iteration_limit(&self, iterations: usize) -> String {
+            format!("Limit at {}", iterations)
+        }
+    }
+
+    #[tokio::test]
+    async fn test_loop_detection_aborts() {
+        let agent = LoopingAgent { id: "loop-agent".to_string() };
+        let hub = CommunicationHub::new();
+        let locks = Arc::new(FileLockManager::new());
+
+        let result = run_agent_loop(&agent, &hub, &locks).await.unwrap();
+
+        assert!(!result.success);
+        assert!(result.output.contains("Loop detected"), "got: {}", result.output);
+        // Loop fires after 5 consecutive same-tool calls (window_size=5)
+        assert_eq!(result.tools_used.len(), 5);
     }
 }

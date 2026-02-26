@@ -35,6 +35,7 @@ pub use brainwires_core::{Tool, ToolContext, ToolInputSchema, ToolResult};
 // ── Always-available modules (pure logic, WASM-safe) ────────────────────────
 
 pub mod executor;
+pub mod sanitization;
 mod error;
 mod registry;
 mod tool_search;
@@ -72,8 +73,9 @@ pub mod smart_router;
 
 // Always-available tools
 pub use error::{classify_error, ResourceType, RetryStrategy, ToolErrorCategory, ToolOutcome};
-pub use executor::ToolExecutor;
+pub use executor::{PreHookDecision, ToolExecutor, ToolPreHook};
 pub use registry::{ToolCategory, ToolRegistry};
+pub use sanitization::{is_injection_attempt, sanitize_external_content, wrap_with_content_source};
 pub use tool_search::ToolSearchTool;
 
 // Native-only tools

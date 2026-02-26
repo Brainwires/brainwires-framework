@@ -11,6 +11,7 @@
 //! - Chat options and provider configuration
 //! - Permission modes
 
+pub mod content_source;
 pub mod embedding;
 pub mod error;
 pub mod graph;
@@ -28,6 +29,7 @@ pub mod vector_store;
 pub mod working_set;
 
 // Re-export core types at crate root
+pub use content_source::ContentSource;
 pub use embedding::EmbeddingProvider;
 pub use error::*;
 #[cfg(feature = "planning")]

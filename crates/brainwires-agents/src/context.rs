@@ -13,7 +13,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use brainwires_core::WorkingSet;
-use brainwires_tools::ToolExecutor;
+use brainwires_tools::{ToolExecutor, ToolPreHook};
 
 use crate::communication::CommunicationHub;
 use crate::file_locks::FileLockManager;
@@ -40,6 +40,13 @@ pub struct AgentContext {
 
     /// Application-specific metadata passed through to tools.
     pub metadata: HashMap<String, String>,
+
+    /// Optional pre-execution hook for semantic tool validation.
+    ///
+    /// When set, the hook is called before every tool execution. Returning
+    /// [`PreHookDecision::Reject`] causes the tool call to be skipped and
+    /// the rejection message injected as a `ToolResult::error`.
+    pub pre_execute_hook: Option<Arc<dyn ToolPreHook>>,
 }
 
 impl AgentContext {
@@ -60,6 +67,7 @@ impl AgentContext {
             file_lock_manager,
             working_set: Arc::new(RwLock::new(WorkingSet::new())),
             metadata: HashMap::new(),
+            pre_execute_hook: None,
         }
     }
 
@@ -78,12 +86,19 @@ impl AgentContext {
             file_lock_manager,
             working_set,
             metadata: HashMap::new(),
+            pre_execute_hook: None,
         }
     }
 
     /// Add application-specific metadata.
     pub fn with_metadata(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.metadata.insert(key.into(), value.into());
+        self
+    }
+
+    /// Set a pre-execution hook for semantic tool validation.
+    pub fn with_pre_execute_hook(mut self, hook: Arc<dyn ToolPreHook>) -> Self {
+        self.pre_execute_hook = Some(hook);
         self
     }
 }

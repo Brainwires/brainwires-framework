@@ -41,6 +41,7 @@ pub mod runtime;
 // ── Concrete agent implementation ────────────────────────────────────────────
 
 pub mod context;
+pub mod execution_graph;
 pub mod pool;
 pub mod system_prompts;
 pub mod task_agent;
@@ -121,16 +122,25 @@ pub use wait_queue::WaitQueue;
 
 // Concrete agent types
 pub use context::AgentContext;
+pub use execution_graph::{ExecutionGraph, RunTelemetry, StepNode, ToolCallRecord};
 pub use pool::{AgentPool, AgentPoolStats};
 pub use system_prompts::{reasoning_agent_prompt, simple_agent_prompt};
-pub use task_agent::{spawn_task_agent, TaskAgent, TaskAgentConfig, TaskAgentResult, TaskAgentStatus};
+pub use task_agent::{
+    spawn_task_agent, FailureCategory, TaskAgent, TaskAgentConfig, TaskAgentResult,
+    TaskAgentStatus,
+};
+pub use brainwires_tools::{PreHookDecision, ToolPreHook};
 
 /// Prelude module for convenient imports
 pub mod prelude {
     // Concrete agent types
     pub use super::context::AgentContext;
+    pub use super::execution_graph::{ExecutionGraph, RunTelemetry, StepNode, ToolCallRecord};
     pub use super::pool::{AgentPool, AgentPoolStats};
-    pub use super::task_agent::{TaskAgent, TaskAgentConfig, TaskAgentResult, TaskAgentStatus};
+    pub use super::task_agent::{
+        FailureCategory, TaskAgent, TaskAgentConfig, TaskAgentResult, TaskAgentStatus,
+    };
+    pub use brainwires_tools::{PreHookDecision, ToolPreHook};
 
     // Core components
     pub use super::communication::{AgentMessage, CommunicationHub, ConflictInfo, ConflictType};

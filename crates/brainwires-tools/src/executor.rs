@@ -46,3 +46,26 @@ pub trait ToolExecutor: Send + Sync {
     /// Return the list of tools available for the AI to invoke.
     fn available_tools(&self) -> Vec<Tool>;
 }
+
+/// Decision returned by a [`ToolPreHook`] before a tool call.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum PreHookDecision {
+    /// Allow the tool call to proceed normally.
+    Allow,
+    /// Reject the call; inject this message as `ToolResult::error`.
+    Reject(String),
+}
+
+/// Pluggable pre-execution hook for semantic tool validation.
+///
+/// Implement this to intercept tool calls before execution and validate
+/// call intent against current agent state (not just JSON schema).
+/// Hook is set via `AgentContext::with_pre_execute_hook()`.
+#[async_trait]
+pub trait ToolPreHook: Send + Sync {
+    async fn before_execute(
+        &self,
+        tool_use: &ToolUse,
+        context: &ToolContext,
+    ) -> Result<PreHookDecision>;
+}
