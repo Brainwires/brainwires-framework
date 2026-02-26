@@ -1,0 +1,38 @@
+[package]
+name = "brainwires-eval"
+description = "Evaluation framework for Brainwires agents — N-trial Monte Carlo runner, confidence intervals, tool sequence recording, and adversarial test cases"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+# Internal
+brainwires-core.workspace = true
+
+# Async runtime
+tokio = { version = "1.43", features = ["sync", "time", "rt", "macros"] }
+futures = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+anyhow.workspace = true
+thiserror.workspace = true
+
+# Identifiers & time
+uuid.workspace = true
+chrono.workspace = true
+
+# Async traits
+async-trait.workspace = true
+
+# Logging
+tracing.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full", "test-util"] }

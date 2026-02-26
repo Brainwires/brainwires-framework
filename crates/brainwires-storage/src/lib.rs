@@ -108,7 +108,10 @@ pub use image_types::{
 };
 
 // Knowledge graph types
-pub use entity::{Entity, EntityType, Relationship, ExtractionResult, EntityStoreStats};
+pub use entity::{
+    ContradictionEvent, ContradictionKind, Entity, EntityType, ExtractionResult,
+    EntityStoreStats, Relationship,
+};
 pub use relationship_graph::{RelationshipGraph, GraphNode, GraphEdge, EdgeType, EntityContext};
 
 // Template store
@@ -147,7 +150,10 @@ pub use fact_store::FactStore;
 #[cfg(feature = "native")]
 pub use tier_metadata_store::TierMetadataStore;
 #[cfg(feature = "native")]
-pub use tiered_memory::{TieredMemory, TieredMemoryConfig, MemoryTier, TieredSearchResult};
+pub use tiered_memory::{
+    CanonicalWriteToken, MemoryAuthority, MemoryTier,
+    MultiFactorScore, TieredMemory, TieredMemoryConfig, TieredSearchResult,
+};
 #[cfg(feature = "native")]
 pub use file_context::{FileChunk, FileContent, FileContextManager};
 #[cfg(feature = "native")]
@@ -184,7 +190,10 @@ pub mod prelude {
     #[cfg(feature = "native")]
     pub use super::entity::EntityStore;
     #[cfg(feature = "native")]
-    pub use super::tiered_memory::{TieredMemory, TieredMemoryConfig, MemoryTier, TieredSearchResult};
+    pub use super::tiered_memory::{
+        CanonicalWriteToken, MemoryAuthority, MemoryTier,
+        TieredMemory, TieredMemoryConfig, TieredSearchResult,
+    };
     #[cfg(feature = "native")]
     pub use super::file_context::{FileContent, FileContextManager};
 }

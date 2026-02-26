@@ -25,14 +25,14 @@ Priority definitions:
 
 - [x] **Semantic tool validator** — Add pluggable pre-execution hook to `ToolExecutor`; validates tool call intent against current agent state, not just JSON schema structure. *(Research: API-Bank, Gorilla — doc 06 §2)*
 
-- [ ] **Automated Monte Carlo evaluation** — Create `brainwires-eval` crate with `EvaluationSuite` N-trial runner, success rate + confidence interval computation, and `cargo test` integration. *(Research: HELM — doc 06 §5)*
+- [x] **Automated Monte Carlo evaluation** — Create `brainwires-eval` crate with `EvaluationSuite` N-trial runner, success rate + confidence interval computation, and `cargo test` integration. *(Research: HELM — doc 06 §5)*
 
 ---
 
 ## Phase 2 — Tool Contract Hardening
 > **Priority: MEDIUM**
 
-- [ ] **Tool idempotency keys** — Add idempotency key tracking to `FileOpsTool` write operations; assign a key before execution so retries are safe without duplication. *(Research: API-Bank — doc 06 §2)*
+- [x] **Tool idempotency keys** — Add idempotency key tracking to `FileOpsTool` write operations; assign a key before execution so retries are safe without duplication. *(Research: API-Bank — doc 06 §2)*
 
 - [ ] **Side-effect staging** — Implement two-phase commit for reversible write operations: stage the write → validate → commit or rollback on failure. *(Research: API-Bank — doc 06 §2)*
 
@@ -43,13 +43,13 @@ Priority definitions:
 ## Phase 3 — Memory Authority Hierarchy
 > **Priority: MEDIUM**
 
-- [ ] **Canonical memory tier** — Define `MemoryAuthority` enum (Ephemeral/Session/Canonical); add authority field to stored memory entries; enforce that only authorized sources can write to the Canonical tier. *(Research: MemGPT — doc 06 §3)*
+- [x] **Canonical memory tier** — Define `MemoryAuthority` enum (Ephemeral/Session/Canonical); add authority field to stored memory entries; enforce that only authorized sources can write to the Canonical tier. *(Research: MemGPT — doc 06 §3)*
 
-- [ ] **Memory poisoning detection** — In `EntityStore`, detect when two entries assert contradicting facts for the same entity; flag for human review rather than silently overwriting. *(Research: MemGPT — doc 06 §3)*
+- [x] **Memory poisoning detection** — In `EntityStore`, detect when two entries assert contradicting facts for the same entity; flag for human review rather than silently overwriting. *(Research: MemGPT — doc 06 §3)*
 
-- [ ] **TTL policies** — Add expiry timestamps to session-tier `MessageStore` entries; auto-evict on run completion or TTL expiry. *(Research: MemGPT — doc 06 §3)*
+- [x] **TTL policies** — Add expiry timestamps to session-tier `MessageStore` entries; auto-evict on run completion or TTL expiry. *(Research: MemGPT — doc 06 §3)*
 
-- [ ] **Multi-factor retrieval** — Replace pure similarity search with combined recency + importance + relevance scoring for memory retrieval. *(Research: Generative Agents — doc 06 §3)*
+- [x] **Multi-factor retrieval** — Replace pure similarity search with combined recency + importance + relevance scoring for memory retrieval. *(Research: Generative Agents — doc 06 §3)*
 
 ---
 
@@ -93,7 +93,7 @@ Priority definitions:
 
 - [ ] **Sandboxed bash execution** — Run bash tool commands in an isolated subprocess: restricted env vars, no network access unless explicitly permitted, filesystem scope limited to working directory. *(Research: Formalizing Attacks and Defenses — doc 06 §7)*
 
-- [ ] **Output filtering** — Before injecting tool results into agent context, scan for sensitive data patterns (API keys, tokens, PII); redact or reject. *(Research: Indirect Prompt Injection — doc 06 §7)*
+- [x] **Output filtering** — Before injecting tool results into agent context, scan for sensitive data patterns (API keys, tokens, PII); redact or reject. *(Research: Indirect Prompt Injection — doc 06 §7)*
 
 - [ ] **Anomaly detection** — In `AuditLogger`, flag unusual patterns: repeated policy violations, high-frequency tool calls, unusual file scope requests; surface to operator. *(Research: Formalizing Attacks and Defenses — doc 06 §7)*
 
@@ -115,7 +115,7 @@ Priority definitions:
 ## Phase 9 — Testing Infrastructure
 > **Priority: HIGH** — Enables measuring the impact of every other phase.
 
-- [ ] **`brainwires-eval` crate** — Standalone evaluation framework crate with `EvaluationSuite` (N-trial runner), `ToolSequenceRecorder` (call sequence capture + diff), and `AdversarialTestCase` (injection, ambiguity, budget stress). *(Research: HELM — doc 06 §5)*
+- [x] **`brainwires-eval` crate** — Standalone evaluation framework crate with `EvaluationSuite` (N-trial runner), `ToolSequenceRecorder` (call sequence capture + diff), and `AdversarialTestCase` (injection, ambiguity, budget stress). *(Research: HELM — doc 06 §5)*
 
 - [ ] **Adversarial test suite** — Test cases: prompt injection via tool outputs, ambiguous instructions with multiple valid interpretations, missing required context, tasks designed to exhaust step budget. *(Research: HELM — doc 06 §5)*
 

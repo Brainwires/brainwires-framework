@@ -58,11 +58,43 @@ pub struct ExtractionResult {
     pub relationships: Vec<Relationship>,
 }
 
+// ── Memory poisoning detection ────────────────────────────────────────────────
+
+/// Why two stored facts were flagged as a potential contradiction.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ContradictionKind {
+    /// Two `Defines` relationships share the same definer + defined but have different contexts.
+    ConflictingDefinition,
+    /// Two `Modifies` relationships describe different change types for the same modifier + target.
+    ConflictingModification,
+}
+
+/// A potential contradiction detected when inserting a new fact.
+///
+/// The store does **not** silently overwrite the existing entry; instead it
+/// appends both relationships and records this event so callers can surface it
+/// for human review.
+#[derive(Debug, Clone)]
+pub struct ContradictionEvent {
+    /// What kind of contradiction was detected.
+    pub kind: ContradictionKind,
+    /// The entity key (e.g. `"file:main.rs"`) involved.
+    pub subject: String,
+    /// Context string from the previously stored relationship.
+    pub existing_context: String,
+    /// Context string from the newly inserted relationship.
+    pub new_context: String,
+}
+
+// ── Entity store ──────────────────────────────────────────────────────────────
+
 /// Entity store for tracking entities across a conversation
 #[derive(Debug, Default)]
 pub struct EntityStore {
     entities: HashMap<String, Entity>,
     relationships: Vec<Relationship>,
+    /// Contradiction events accumulated since the last call to [`drain_contradictions`].
+    contradictions: Vec<ContradictionEvent>,
 }
 
 impl EntityStore {
@@ -82,7 +114,63 @@ impl EntityStore {
                 );
             }
         }
-        self.relationships.extend(result.relationships);
+
+        // Check for contradictions before appending each relationship.
+        for new_rel in result.relationships {
+            self.check_and_record_contradiction(&new_rel);
+            self.relationships.push(new_rel);
+        }
+    }
+
+    /// Inspect `new_rel` against previously stored relationships and record any
+    /// contradiction events.  Both the existing and the new relationship are kept
+    /// so no information is silently discarded.
+    fn check_and_record_contradiction(&mut self, new_rel: &Relationship) {
+        match new_rel {
+            Relationship::Defines { definer, defined, context: new_ctx } => {
+                for existing in &self.relationships {
+                    if let Relationship::Defines { definer: ex_definer, defined: ex_defined, context: ex_ctx } = existing {
+                        if ex_definer == definer && ex_defined == defined && ex_ctx != new_ctx {
+                            self.contradictions.push(ContradictionEvent {
+                                kind: ContradictionKind::ConflictingDefinition,
+                                subject: format!("{}::{}", definer, defined),
+                                existing_context: ex_ctx.clone(),
+                                new_context: new_ctx.clone(),
+                            });
+                            break;
+                        }
+                    }
+                }
+            }
+            Relationship::Modifies { modifier, modified, change_type: new_change } => {
+                for existing in &self.relationships {
+                    if let Relationship::Modifies { modifier: ex_modifier, modified: ex_modified, change_type: ex_change } = existing {
+                        if ex_modifier == modifier && ex_modified == modified && ex_change != new_change {
+                            self.contradictions.push(ContradictionEvent {
+                                kind: ContradictionKind::ConflictingModification,
+                                subject: format!("{}::{}", modifier, modified),
+                                existing_context: ex_change.clone(),
+                                new_context: new_change.clone(),
+                            });
+                            break;
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Returns all contradiction events accumulated so far (for inspection /
+    /// human review) without removing them.
+    pub fn pending_contradictions(&self) -> &[ContradictionEvent] {
+        &self.contradictions
+    }
+
+    /// Drains and returns all accumulated contradiction events, clearing the
+    /// internal buffer.
+    pub fn drain_contradictions(&mut self) -> Vec<ContradictionEvent> {
+        std::mem::take(&mut self.contradictions)
     }
 
     pub fn get(&self, name: &str, entity_type: &EntityType) -> Option<&Entity> {
@@ -215,5 +303,166 @@ mod tests {
         };
         store.add_extraction(result, "msg-1", 100);
         assert_eq!(store.stats().total_entities, 2);
+    }
+
+    // ── Memory poisoning detection ─────────────────────────────────────────
+
+    #[test]
+    fn test_no_contradiction_on_fresh_store() {
+        let mut store = EntityStore::new();
+        let result = ExtractionResult {
+            entities: vec![],
+            relationships: vec![
+                Relationship::Defines {
+                    definer: "main".into(),
+                    defined: "return_type".into(),
+                    context: "returns i32".into(),
+                },
+            ],
+        };
+        store.add_extraction(result, "msg-1", 100);
+        assert!(store.pending_contradictions().is_empty());
+    }
+
+    #[test]
+    fn test_contradicting_definitions_flagged() {
+        let mut store = EntityStore::new();
+
+        store.add_extraction(ExtractionResult {
+            entities: vec![],
+            relationships: vec![
+                Relationship::Defines {
+                    definer: "main".into(),
+                    defined: "return_type".into(),
+                    context: "returns i32".into(),
+                },
+            ],
+        }, "msg-1", 100);
+
+        // Same definer/defined, different context → contradiction
+        store.add_extraction(ExtractionResult {
+            entities: vec![],
+            relationships: vec![
+                Relationship::Defines {
+                    definer: "main".into(),
+                    defined: "return_type".into(),
+                    context: "returns String".into(),
+                },
+            ],
+        }, "msg-2", 200);
+
+        let contradictions = store.pending_contradictions();
+        assert_eq!(contradictions.len(), 1);
+        assert_eq!(contradictions[0].kind, ContradictionKind::ConflictingDefinition);
+        assert_eq!(contradictions[0].subject, "main::return_type");
+        assert_eq!(contradictions[0].existing_context, "returns i32");
+        assert_eq!(contradictions[0].new_context, "returns String");
+    }
+
+    #[test]
+    fn test_identical_definitions_not_flagged() {
+        let mut store = EntityStore::new();
+
+        for msg_id in ["msg-1", "msg-2"] {
+            store.add_extraction(ExtractionResult {
+                entities: vec![],
+                relationships: vec![
+                    Relationship::Defines {
+                        definer: "Config".into(),
+                        defined: "timeout".into(),
+                        context: "30 seconds".into(),
+                    },
+                ],
+            }, msg_id, 100);
+        }
+
+        assert!(store.pending_contradictions().is_empty());
+    }
+
+    #[test]
+    fn test_contradicting_modifications_flagged() {
+        let mut store = EntityStore::new();
+
+        store.add_extraction(ExtractionResult {
+            entities: vec![],
+            relationships: vec![
+                Relationship::Modifies {
+                    modifier: "patch_v2".into(),
+                    modified: "timeout".into(),
+                    change_type: "increase".into(),
+                },
+            ],
+        }, "msg-1", 100);
+
+        store.add_extraction(ExtractionResult {
+            entities: vec![],
+            relationships: vec![
+                Relationship::Modifies {
+                    modifier: "patch_v2".into(),
+                    modified: "timeout".into(),
+                    change_type: "decrease".into(),
+                },
+            ],
+        }, "msg-2", 200);
+
+        let contradictions = store.pending_contradictions();
+        assert_eq!(contradictions.len(), 1);
+        assert_eq!(contradictions[0].kind, ContradictionKind::ConflictingModification);
+    }
+
+    #[test]
+    fn test_drain_contradictions_clears_buffer() {
+        let mut store = EntityStore::new();
+
+        for ctx in ["returns i32", "returns String"] {
+            store.add_extraction(ExtractionResult {
+                entities: vec![],
+                relationships: vec![
+                    Relationship::Defines {
+                        definer: "main".into(),
+                        defined: "return_type".into(),
+                        context: ctx.into(),
+                    },
+                ],
+            }, "msg-1", 100);
+        }
+
+        assert!(!store.pending_contradictions().is_empty());
+        let drained = store.drain_contradictions();
+        assert_eq!(drained.len(), 1);
+        assert!(store.pending_contradictions().is_empty());
+    }
+
+    #[test]
+    fn test_both_relationships_retained_after_contradiction() {
+        let mut store = EntityStore::new();
+
+        store.add_extraction(ExtractionResult {
+            entities: vec![],
+            relationships: vec![
+                Relationship::Defines {
+                    definer: "fn".into(),
+                    defined: "x".into(),
+                    context: "old".into(),
+                },
+            ],
+        }, "msg-1", 100);
+
+        store.add_extraction(ExtractionResult {
+            entities: vec![],
+            relationships: vec![
+                Relationship::Defines {
+                    definer: "fn".into(),
+                    defined: "x".into(),
+                    context: "new".into(),
+                },
+            ],
+        }, "msg-2", 200);
+
+        // Both relationships are kept — no silent overwrite
+        assert_eq!(store.all_relationships().len(), 2);
+        let event = &store.pending_contradictions()[0];
+        assert_eq!(event.existing_context, "old");
+        assert_eq!(event.new_context, "new");
     }
 }

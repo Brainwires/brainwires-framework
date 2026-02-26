@@ -19,6 +19,7 @@ members = [
     "crates/brainwires-seal",
     "crates/brainwires-providers",
     "crates/brainwires-skills",
+    "crates/brainwires-eval",
 ]
 resolver = "2"
 
@@ -51,6 +52,7 @@ brainwires-reasoning = { path = "crates/brainwires-reasoning", version = "0.1.0"
 brainwires-seal = { path = "crates/brainwires-seal", version = "0.1.0" }
 brainwires-providers = { path = "crates/brainwires-providers", version = "0.1.0" }
 brainwires-skills = { path = "crates/brainwires-skills", version = "0.1.0" }
+brainwires-eval = { path = "crates/brainwires-eval", version = "0.1.0" }
 
 # Async runtime & utilities
 tokio = { version = "1.43", features = ["full"] }

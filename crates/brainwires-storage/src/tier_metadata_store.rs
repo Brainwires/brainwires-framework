@@ -2,6 +2,8 @@
 //!
 //! Tracks which tier each message is in and access patterns for tier promotion/demotion decisions.
 
+use std::collections::HashMap;
+
 use anyhow::{Context, Result};
 use arrow_array::{
     Array, Float32Array, Int32Array, Int64Array, RecordBatch, RecordBatchIterator, StringArray,
@@ -12,7 +14,7 @@ use lancedb::query::{ExecutableQuery, QueryBase};
 use std::sync::Arc;
 
 use super::LanceClient;
-use super::tiered_memory::{MemoryTier, TierMetadata};
+use super::tiered_memory::{MemoryAuthority, MemoryTier, TierMetadata};
 
 /// Store for tier metadata
 pub struct TierMetadataStore {
@@ -34,6 +36,7 @@ impl TierMetadataStore {
             Field::new("last_accessed", DataType::Int64, false),
             Field::new("access_count", DataType::Int32, false),
             Field::new("created_at", DataType::Int64, false),
+            Field::new("authority", DataType::Utf8, false),
         ]))
     }
 
@@ -75,6 +78,28 @@ impl TierMetadataStore {
             .context("Failed to add tier metadata batch")?;
 
         Ok(())
+    }
+
+    /// Fetch metadata for a set of message IDs in a single query.
+    ///
+    /// Returns a map of `message_id → TierMetadata` for all IDs that exist in
+    /// the store.  IDs not found are simply absent from the map.
+    pub async fn get_many(&self, message_ids: &[&str]) -> Result<HashMap<String, TierMetadata>> {
+        if message_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        let table = self.client.tier_metadata_table().await?;
+
+        // Build an IN-list filter: message_id IN ('a', 'b', 'c')
+        let quoted: Vec<String> = message_ids.iter().map(|id| format!("'{}'", id)).collect();
+        let filter = format!("message_id IN ({})", quoted.join(", "));
+
+        let stream = table.query().only_if(filter).execute().await?;
+        let results: Vec<RecordBatch> = stream.try_collect().await?;
+        let entries = self.batch_to_metadata(&results)?;
+
+        Ok(entries.into_iter().map(|m| (m.message_id.clone(), m)).collect())
     }
 
     /// Get metadata by message ID
@@ -179,6 +204,7 @@ impl TierMetadataStore {
         let last_accessed: Vec<i64> = metadata.iter().map(|m| m.last_accessed).collect();
         let access_count: Vec<i32> = metadata.iter().map(|m| m.access_count as i32).collect();
         let created_at: Vec<i64> = metadata.iter().map(|m| m.created_at).collect();
+        let authorities: Vec<&str> = metadata.iter().map(|m| m.authority.as_str()).collect();
 
         RecordBatch::try_new(
             schema,
@@ -189,6 +215,7 @@ impl TierMetadataStore {
                 Arc::new(Int64Array::from(last_accessed)),
                 Arc::new(Int32Array::from(access_count)),
                 Arc::new(Int64Array::from(created_at)),
+                Arc::new(StringArray::from(authorities)),
             ],
         )
         .context("Failed to create record batch")
@@ -241,7 +268,16 @@ impl TierMetadataStore {
                 .downcast_ref::<Int64Array>()
                 .context("Invalid created_at column type")?;
 
+            // authority column: tolerate older schema versions that lack the column
+            let authorities = batch
+                .column_by_name("authority")
+                .and_then(|col| col.as_any().downcast_ref::<StringArray>());
+
             for i in 0..batch.num_rows() {
+                let authority = authorities
+                    .map(|arr| MemoryAuthority::from_str(arr.value(i)))
+                    .unwrap_or_default();
+
                 metadata.push(TierMetadata {
                     message_id: message_ids.value(i).to_string(),
                     tier: Self::string_to_tier(tiers.value(i)),
@@ -249,6 +285,7 @@ impl TierMetadataStore {
                     last_accessed: last_accessed.value(i),
                     access_count: access_count.value(i) as u32,
                     created_at: created_at.value(i),
+                    authority,
                 });
             }
         }
@@ -264,9 +301,10 @@ mod tests {
     #[test]
     fn test_schema_creation() {
         let schema = TierMetadataStore::tier_metadata_schema();
-        assert_eq!(schema.fields().len(), 6);
+        assert_eq!(schema.fields().len(), 7, "Schema must have 7 fields including authority");
         assert!(schema.field_with_name("message_id").is_ok());
         assert!(schema.field_with_name("tier").is_ok());
+        assert!(schema.field_with_name("authority").is_ok());
     }
 
     #[test]
@@ -279,5 +317,17 @@ mod tests {
         assert_eq!(TierMetadataStore::string_to_tier("warm"), MemoryTier::Warm);
         assert_eq!(TierMetadataStore::string_to_tier("cold"), MemoryTier::Cold);
         assert_eq!(TierMetadataStore::string_to_tier("unknown"), MemoryTier::Hot);
+    }
+
+    #[test]
+    fn test_tier_metadata_has_default_authority() {
+        let meta = TierMetadata::new("m-1".to_string(), 0.5);
+        assert_eq!(meta.authority, MemoryAuthority::Session);
+    }
+
+    #[test]
+    fn test_tier_metadata_with_canonical_authority() {
+        let meta = TierMetadata::with_authority("m-2".to_string(), 0.9, MemoryAuthority::Canonical);
+        assert_eq!(meta.authority, MemoryAuthority::Canonical);
     }
 }

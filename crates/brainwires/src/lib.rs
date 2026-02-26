@@ -103,6 +103,11 @@ pub mod skills {
     pub use brainwires_skills::*;
 }
 
+#[cfg(feature = "eval")]
+pub mod eval {
+    pub use brainwires_eval::*;
+}
+
 /// Re-exports for building MCP servers (rmcp, schemars, CancellationToken).
 ///
 /// Enabled with the `mcp-server` feature.
