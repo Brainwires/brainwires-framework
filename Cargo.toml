@@ -21,6 +21,7 @@ members = [
     "crates/brainwires-skills",
     "crates/brainwires-eval",
     "crates/brainwires-proxy",
+    "crates/brainwires-extras",
 ]
 resolver = "2"
 

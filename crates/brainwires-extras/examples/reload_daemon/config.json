@@ -1,0 +1,14 @@
+{
+  "listen": "127.0.0.1:3100",
+  "clients": {
+    "claude-code": {
+      "process_name": "claude",
+      "kill_signals": ["SIGINT", "SIGTERM", "SIGKILL"],
+      "kill_timeouts_ms": [2000, 3000, 0],
+      "restart_args_transform": {
+        "preserve_flags": ["--allow-dangerously-skip-permissions"],
+        "replace_trailing": ["--continue", "continue"]
+      }
+    }
+  }
+}
