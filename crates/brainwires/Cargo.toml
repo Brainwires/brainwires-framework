@@ -45,6 +45,9 @@ brainwires-skills = { workspace = true, optional = true }
 # Evaluation framework
 brainwires-eval = { workspace = true, optional = true }
 
+# Proxy framework
+brainwires-proxy = { workspace = true, optional = true }
+
 # MCP server re-exports (optional)
 rmcp = { workspace = true, optional = true }
 schemars = { workspace = true, optional = true }
@@ -77,6 +80,7 @@ bridge = ["dep:brainwires-bridge"]
 bridge-client = ["dep:brainwires-bridge-client", "bridge"]
 skills = ["dep:brainwires-skills"]
 eval = ["dep:brainwires-eval"]
+proxy = ["dep:brainwires-proxy"]
 llama-cpp-2 = ["providers", "brainwires-providers/llama-cpp-2"]
 mcp-server = ["dep:rmcp", "dep:schemars", "dep:tokio-util"]
 # Convenience: enables all learning/knowledge subsystems with integration
@@ -88,7 +92,7 @@ full = [
     "prompting", "permissions", "orchestrator", "rag", "interpreters",
     "providers", "reasoning", "seal", "bridge", "bridge-client",
     "brainwires-seal/knowledge", "brainwires-seal/mdap",
-    "llama-cpp-2", "mcp-server", "skills", "eval",
+    "llama-cpp-2", "mcp-server", "skills", "eval", "proxy",
 ]
 
 [[example]]

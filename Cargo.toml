@@ -20,6 +20,7 @@ members = [
     "crates/brainwires-providers",
     "crates/brainwires-skills",
     "crates/brainwires-eval",
+    "crates/brainwires-proxy",
 ]
 resolver = "2"
 
@@ -53,6 +54,7 @@ brainwires-seal = { path = "crates/brainwires-seal", version = "0.1.0" }
 brainwires-providers = { path = "crates/brainwires-providers", version = "0.1.0" }
 brainwires-skills = { path = "crates/brainwires-skills", version = "0.1.0" }
 brainwires-eval = { path = "crates/brainwires-eval", version = "0.1.0" }
+brainwires-proxy = { path = "crates/brainwires-proxy", version = "0.1.0" }
 
 # Async runtime & utilities
 tokio = { version = "1.43", features = ["full"] }
@@ -159,6 +161,13 @@ zstd = "0.13"
 
 # Local LLM inference (optional)
 llama-cpp-2 = "0.1"
+
+# HTTP (hyper ecosystem)
+hyper = { version = "1", features = ["server", "client", "http1", "http2"] }
+hyper-util = { version = "0.1", features = ["tokio", "server-auto", "client-legacy"] }
+http = "1.1"
+http-body-util = "0.1"
+bytes = "1"
 
 # Testing
 tempfile = "3"
