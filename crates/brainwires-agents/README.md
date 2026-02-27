@@ -1,0 +1,427 @@
+# brainwires-agents
+
+[![Crates.io](https://img.shields.io/crates/v/brainwires-agents.svg)](https://crates.io/crates/brainwires-agents)
+[![Documentation](https://img.shields.io/docsrs/brainwires-agents)](https://docs.rs/brainwires-agents)
+[![License](https://img.shields.io/crates/l/brainwires-agents.svg)](LICENSE)
+
+Agent orchestration, coordination, and lifecycle management for the Brainwires Agent Framework.
+
+## Overview
+
+`brainwires-agents` provides the multi-agent infrastructure for autonomous task execution. Agents run in a shared pool, communicate through a central hub, coordinate file and resource access via RAII lock guards, and pass through a validation gate before reporting success.
+
+**Design principles:**
+
+- **Async-native** — built on `tokio`, every lock and message operation is non-blocking
+- **RAII guards** — file and resource locks are released automatically when guards drop
+- **Message-driven** — agents coordinate through a broadcast `CommunicationHub` with 50+ typed message variants
+- **Heartbeat liveness** — resource locks are validated against operation heartbeats, not fixed timeouts
+
+```text
+                ┌───────────────────────────────────────────────────┐
+                │                   AgentPool                       │
+                │                                                   │
+  spawn ──────► │  TaskAgent ◄──────► CommunicationHub              │
+                │      │                     ▲                      │
+                │      ▼                     │                      │
+                │  ┌─────────┐  ┌────────────┴──────────┐          │
+                │  │Execution│  │  AgentMessage (50+)    │          │
+                │  │  Graph  │  │  StatusUpdate, Saga,   │          │
+                │  └─────────┘  │  ContractNet, Git ...  │          │
+                │               └───────────────────────┘          │
+                │                                                   │
+                │  ┌──────────────┐  ┌───────────────────┐         │
+                │  │FileLockMgr   │  │ResourceLockMgr    │         │
+                │  │(read/write)  │  │(build/test/git)   │         │
+                │  └──────────────┘  └───────────────────┘         │
+                │                                                   │
+                │  ┌──────────────┐  ┌───────────────────┐         │
+                │  │Validation    │  │OperationTracker   │         │
+                │  │Loop          │  │(heartbeat liveness)│         │
+                │  └──────────────┘  └───────────────────┘         │
+                └───────────────────────────────────────────────────┘
+```
+
+## Quick Start
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+brainwires-agents = "0.1"
+```
+
+Spawn a task agent via the pool:
+
+```rust
+use std::sync::Arc;
+use brainwires_agents::prelude::*;
+use brainwires_core::Task;
+
+let hub = Arc::new(CommunicationHub::new());
+let locks = Arc::new(FileLockManager::new());
+
+let pool = AgentPool::new(
+    10,                      // max concurrent agents
+    Arc::clone(&provider),   // AI provider
+    Arc::clone(&executor),   // tool executor
+    Arc::clone(&hub),
+    Arc::clone(&locks),
+    "/my/project",
+);
+
+let agent_id = pool.spawn_agent(
+    Task::new("task-1", "Refactor src/lib.rs"),
+    None, // use default TaskAgentConfig
+).await?;
+
+let result = pool.await_completion(&agent_id).await?;
+println!("{} iterations, success={}", result.iterations, result.success);
+```
+
+## Features
+
+| Feature | Default | Description |
+|---------|---------|-------------|
+| `native` | Yes | Git worktree management (`git2`) and process liveness checking (`libc`) |
+| `wasm` | No | WebAssembly-compatible build (disables native-only functionality) |
+| `tools` | No | Kept for backward compatibility; `brainwires-tools` is always available |
+
+Enable features in `Cargo.toml`:
+
+```toml
+# Default (native)
+brainwires-agents = "0.1"
+
+# WebAssembly target
+brainwires-agents = { version = "0.1", default-features = false, features = ["wasm"] }
+```
+
+## Architecture
+
+### Agent Lifecycle
+
+A `TaskAgent` runs an AI provider in a loop — calling tools, tracking progress, and validating work before completion.
+
+**Key types:**
+
+- `TaskAgent` — the autonomous execution unit; owns its conversation history and working set
+- `TaskAgentConfig` — controls iteration limits, budgets, validation, and loop detection
+- `TaskAgentResult` — outcome including iterations used, token counts, cost, and failure category
+- `FailureCategory` — why an agent stopped (when unsuccessful)
+- `ExecutionGraph` — full DAG trace of provider calls and tool invocations
+- `RunTelemetry` — aggregate summary derived from the execution graph
+
+**`FailureCategory` variants:**
+
+| Variant | Description |
+|---------|-------------|
+| `IterationLimitExceeded` | Exhausted `max_iterations` |
+| `TokenBudgetExceeded` | Cumulative tokens exceeded ceiling |
+| `CostBudgetExceeded` | Cumulative cost (USD) exceeded ceiling |
+| `WallClockTimeout` | `timeout_secs` elapsed |
+| `LoopDetected` | Same tool called repeatedly |
+| `MaxReplanAttemptsExceeded` | Too many replan cycles |
+| `FileScopeViolation` | File operation outside allowed paths |
+| `ValidationFailed` | Validation could not be resolved within budget |
+| `ToolExecutionError` | Unexpected tool error caused abort |
+
+### Communication
+
+Agents coordinate through a `CommunicationHub` with typed `AgentMessage` variants grouped by protocol.
+
+**Core messages:**
+
+| Group | Variants |
+|-------|----------|
+| Task lifecycle | `TaskRequest`, `TaskResult`, `StatusUpdate`, `AgentSpawned`, `AgentProgress`, `AgentCompleted` |
+| Help & approval | `HelpRequest`, `HelpResponse`, `ApprovalRequest`, `ApprovalResponse`, `Broadcast`, `Custom` |
+| Operations | `OperationStarted`, `OperationCompleted`, `LockAvailable`, `WaitQueuePosition`, `LockContention` |
+| Git | `GitOperationStarted`, `GitOperationCompleted`, `BuildBlocked`, `FileWriteBlocked`, `ConflictResolved` |
+| Saga | `SagaStarted`, `SagaStepCompleted`, `SagaCompleted`, `SagaCompensating` |
+| Contract-Net | `TaskAnnounced`, `BidSubmitted`, `TaskAwarded`, `TaskAccepted`, `TaskDeclined` |
+| Market | `ResourceAvailable`, `ResourceBidSubmitted`, `ResourceAllocated`, `ResourceReleased` |
+| Worktree | `WorktreeCreated`, `WorktreeRemoved`, `WorktreeSwitched` |
+| Validation | `ValidationFailed`, `ValidationWarning` |
+| Optimistic | `VersionConflict`, `ConflictResolutionApplied` |
+
+**`MessageEnvelope`** wraps every message with `from`, `to`, and `timestamp` metadata.
+
+### File & Resource Locks
+
+Two lock managers handle different coordination layers.
+
+**`FileLockManager`** — path-level read/write locking with deadlock detection:
+
+| Feature | Description |
+|---------|-------------|
+| Shared reads | Multiple agents can hold `LockType::Read` on the same file |
+| Exclusive writes | `LockType::Write` blocks all other access |
+| RAII `LockGuard` | Lock released automatically when guard drops |
+| Deadlock detection | DFS cycle detection in the wait-for graph |
+| Configurable timeout | Per-lock or global default (5 min default) |
+| Wait-and-retry | `acquire_with_wait` polls with deadlock checks until timeout |
+
+**`ResourceLockManager`** — operation-level locking for builds, tests, and git:
+
+| `ResourceType` | Conflicts with |
+|-----------------|---------------|
+| `Build` | `Build`, `BuildTest`, `GitRemoteMerge`, `GitDestructive` |
+| `Test` | `Test`, `BuildTest`, `GitRemoteMerge`, `GitDestructive` |
+| `BuildTest` | `Build`, `Test`, `BuildTest` |
+| `GitIndex` | `GitIndex`, `GitCommit`, `GitRemoteMerge`, `GitDestructive` |
+| `GitCommit` | `GitIndex`, `GitCommit`, `GitDestructive` |
+| `GitRemoteWrite` | `GitRemoteWrite` |
+| `GitRemoteMerge` | `GitRemoteMerge`, `GitIndex`, `Build`, `Test` |
+| `GitBranch` | `GitBranch` |
+| `GitDestructive` | `GitDestructive`, `GitIndex`, `GitCommit`, `Build`, `Test` |
+
+Resource locks support `ResourceScope::Global` or `ResourceScope::Project(path)` for isolation.
+
+**`AccessControlManager`** — bundles file and resource locks together with contention strategies (`Fail`, `Wait`, `Preempt`).
+
+### Validation
+
+Agents pass through a validation gate before reporting success.
+
+**`ValidationCheck` variants:**
+
+| Check | Description |
+|-------|-------------|
+| `NoDuplicates` | Detect duplicate exports, functions, types |
+| `BuildSuccess { build_type }` | Run `cargo build`, `npm build`, etc. |
+| `SyntaxValid` | Basic syntax error detection |
+| `CustomCommand { command, args }` | Run an arbitrary validation command |
+
+**`ValidationConfig`** controls which checks run, the working directory, max retries (default 3), and the file working set. `ValidationResult` reports `passed` status and a list of `ValidationIssue` items with severity (`Error` or `Warning`).
+
+### Coordination Patterns
+
+Six coordination patterns are available for multi-agent workflows:
+
+| Pattern | Module | Description |
+|---------|--------|-------------|
+| **Contract-Net** | `contract_net` | Bidding protocol — manager announces tasks, agents bid, best bidder wins |
+| **Saga** | `saga` | Compensating transactions — execute steps in sequence, roll back on failure |
+| **Optimistic Concurrency** | `optimistic` | Version-based conflict detection with retry and merge strategies |
+| **Wait Queue** | `wait_queue` | FIFO coordination primitive with notification on resource release |
+| **Market Allocation** | `market_allocation` | Market-based resource allocation with priority and urgency bidding |
+| **Three-State Model** | `state_model` | State snapshots (proposed/committed/rolled-back) for safe rollback |
+
+### Task Management
+
+- **`TaskManager`** — hierarchical task decomposition with dependency tracking
+- **`TaskQueue`** — priority-based scheduling with dependency awareness
+- **`PlanExecutorAgent`** — executes multi-step plans with configurable approval modes (`Auto`, `StepByStep`, `PlanLevel`)
+
+### Git Coordination
+
+`GitCoordinator` maps git tool operations to their required resource locks:
+
+| Git Tool | Required Locks | Notes |
+|----------|---------------|-------|
+| `git_status`, `git_diff`, `git_log`, `git_search`, `git_fetch` | None | Read-only |
+| `git_stage`, `git_unstage` | `GitIndex` | Modifies staging area |
+| `git_commit` | `GitIndex`, `GitCommit` | Creates commit |
+| `git_push` | `GitRemoteWrite` | Writes to remote |
+| `git_pull` | `GitRemoteMerge`, `GitIndex` | Reads remote, modifies working tree |
+| `git_branch` | `GitBranch` | Branch operations |
+| `git_discard` | `GitDestructive`, `GitIndex` | Dangerous: loses changes |
+
+### Confidence Scoring
+
+`ResponseConfidence` scores AI responses on a 0.0–1.0 scale based on four factors:
+
+| Factor | Signal |
+|--------|--------|
+| `completion_confidence` | `finish_reason` — `"stop"` = high, truncated = low |
+| `pattern_confidence` | Hedging language ("I think", "possibly") = low |
+| `length_confidence` | Response length (normalized) |
+| `structure_confidence` | Presence of tool use = higher confidence |
+
+Levels: `very_high` (>= 0.9), `high` (>= 0.8), `medium` (>= 0.6), `low` (>= 0.4), `very_low` (< 0.4).
+
+## Usage Examples
+
+### Spawn Agent via AgentPool
+
+```rust
+use std::sync::Arc;
+use brainwires_agents::prelude::*;
+use brainwires_core::Task;
+
+let pool = AgentPool::new(
+    5, provider, executor,
+    Arc::new(CommunicationHub::new()),
+    Arc::new(FileLockManager::new()),
+    "/my/project",
+);
+
+let id = pool.spawn_agent(Task::new("t-1", "Add caching layer"), None).await?;
+let result = pool.await_completion(&id).await?;
+```
+
+### TaskAgentConfig with Validation and Budget
+
+```rust
+use brainwires_agents::{TaskAgentConfig, ValidationConfig, ValidationCheck};
+
+let config = TaskAgentConfig {
+    max_iterations: 25,
+    temperature: 0.2,
+    max_tokens: 4096,
+    max_total_tokens: Some(500_000),
+    max_cost_usd: Some(1.50),
+    timeout_secs: Some(300),
+    validation_config: Some(ValidationConfig {
+        checks: vec![
+            ValidationCheck::NoDuplicates,
+            ValidationCheck::BuildSuccess { build_type: "cargo".into() },
+        ],
+        working_directory: "/my/project".into(),
+        max_retries: 3,
+        enabled: true,
+        working_set_files: vec![],
+    }),
+    ..Default::default()
+};
+```
+
+### File Lock Acquire / Release
+
+```rust
+use std::sync::Arc;
+use brainwires_agents::{FileLockManager, LockType};
+
+let manager = Arc::new(FileLockManager::new());
+
+// Shared read — multiple agents can hold simultaneously
+let _read_guard = manager.acquire_lock("agent-1", "src/lib.rs", LockType::Read).await?;
+
+// Exclusive write — blocks all other access
+let _write_guard = manager.acquire_lock("agent-2", "src/main.rs", LockType::Write).await?;
+
+// Guards release automatically when dropped
+```
+
+### CommunicationHub Broadcast
+
+```rust
+use std::sync::Arc;
+use brainwires_agents::{CommunicationHub, AgentMessage};
+
+let hub = Arc::new(CommunicationHub::new());
+
+hub.register_agent("agent-1".into()).await?;
+hub.register_agent("agent-2".into()).await?;
+
+hub.broadcast(
+    "orchestrator".into(),
+    AgentMessage::Broadcast {
+        sender: "orchestrator".into(),
+        message: "All agents: pause file writes".into(),
+    },
+).await?;
+
+let msg = hub.try_receive_message("agent-1").await;
+```
+
+### Saga Compensating Transaction
+
+```rust
+use brainwires_agents::SagaExecutor;
+
+let mut saga = SagaExecutor::new("agent-1", "edit-and-build");
+
+// Execute steps in sequence
+saga.execute_step(Arc::new(file_edit_op)).await?;
+saga.execute_step(Arc::new(git_stage_op)).await?;
+saga.execute_step(Arc::new(build_op)).await?;
+
+// If any step fails, compensate all completed operations in reverse
+if failed {
+    let report = saga.compensate_all().await?;
+    // Files restored, staging undone
+}
+```
+
+### Git Coordination
+
+```rust
+use std::sync::Arc;
+use std::path::PathBuf;
+use brainwires_agents::{GitCoordinator, git_tools, get_lock_requirements};
+
+// Check lock requirements for a git operation
+let reqs = get_lock_requirements(git_tools::COMMIT);
+assert!(!reqs.is_read_only());
+assert!(reqs.check_file_conflicts);
+assert!(reqs.check_build_conflicts);
+```
+
+### Confidence Scoring
+
+```rust
+use brainwires_agents::{extract_confidence, ResponseConfidence};
+
+let confidence: ResponseConfidence = extract_confidence(&chat_response);
+
+if confidence.is_high_confidence() {
+    println!("Level: {} (score: {:.2})", confidence.level(), confidence.score);
+} else {
+    let (name, value) = confidence.factors.weakest_factor();
+    println!("Low confidence — weakest factor: {} ({:.2})", name, value);
+}
+```
+
+## Configuration
+
+### TaskAgentConfig Fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `max_iterations` | `u32` | 100 | Provider call iteration limit |
+| `system_prompt` | `Option<String>` | `None` | Override the default reasoning prompt |
+| `temperature` | `f32` | 0.0 | AI temperature (0.0–1.0) |
+| `max_tokens` | `u32` | 4096 | Max tokens per AI response |
+| `validation_config` | `Option<ValidationConfig>` | Some(default) | Quality checks before completion |
+| `loop_detection` | `Option<LoopDetectionConfig>` | Some(5-call) | Detect repeated tool calls |
+| `goal_revalidation_interval` | `Option<u32>` | Some(10) | Inject goal reminder every N iterations |
+| `max_replan_attempts` | `u32` | 3 | Abort after N replan cycles |
+| `max_total_tokens` | `Option<u64>` | `None` | Cumulative token ceiling |
+| `max_cost_usd` | `Option<f64>` | `None` | Cumulative cost ceiling (USD) |
+| `timeout_secs` | `Option<u64>` | `None` | Wall-clock timeout |
+| `allowed_files` | `Option<Vec<PathBuf>>` | `None` | File scope whitelist |
+
+### ValidationConfig Builder
+
+```rust
+use brainwires_agents::{ValidationConfig, ValidationCheck};
+
+let config = ValidationConfig {
+    checks: vec![
+        ValidationCheck::NoDuplicates,
+        ValidationCheck::SyntaxValid,
+        ValidationCheck::BuildSuccess { build_type: "cargo".into() },
+    ],
+    working_directory: "/my/project".into(),
+    max_retries: 5,
+    enabled: true,
+    working_set_files: vec!["src/main.rs".into()],
+};
+```
+
+## Integration with Brainwires
+
+Use via the `brainwires` facade crate:
+
+```toml
+[dependencies]
+brainwires = { version = "0.1", features = ["agents"] }
+```
+
+Or use standalone — `brainwires-agents` depends only on `brainwires-core` and `brainwires-tools`.
+
+## License
+
+Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or [MIT License](LICENSE-MIT) at your option.
