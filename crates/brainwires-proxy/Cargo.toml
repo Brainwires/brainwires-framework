@@ -51,9 +51,18 @@ tokio-tungstenite = { workspace = true, optional = true }
 tokio-rustls = { version = "0.26", optional = true }
 rustls-pemfile = { version = "2", optional = true }
 
+[[example]]
+name = "anthropic_openai_proxy"
+path = "examples/anthropic_openai_proxy/main.rs"
+required-features = ["http"]
+
 [dev-dependencies]
 tokio = { version = "1.43", features = ["full", "test-util"] }
 tempfile.workspace = true
+sha2 = { workspace = true }
+clap = { version = "4", features = ["derive"] }
+tracing-subscriber = { workspace = true }
+rand = { workspace = true }
 
 [features]
 default = ["http"]
