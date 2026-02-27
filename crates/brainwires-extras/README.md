@@ -8,6 +8,10 @@ This crate is a catch-all for things too small for their own crate.
 
 ### `reload_daemon`
 
+This is useful when designing MCP servers and testing them in a coding tool
+right away — an app restart reconnects all MCP server sessions, so changes
+take effect immediately.
+
 A minimal MCP server daemon that AI coding clients (Claude Code, Cursor, etc.)
 connect to over HTTP. It exposes one tool — `reload_app` — which kills the
 calling process and restarts it with transformed arguments. Restart strategies
