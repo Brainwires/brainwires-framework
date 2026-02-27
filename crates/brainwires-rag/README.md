@@ -37,7 +37,7 @@ This MCP server enables AI assistants to efficiently search and understand large
 
 ## MCP Slash Commands
 
-The server provides 9 slash commands for quick access in Claude Code:
+The server provides 9 slash commands for quick access with MCP clients:
 
 1. **`/project:index`** - Index a codebase directory (automatically performs full or incremental)
 2. **`/project:query`** - Search the indexed codebase
