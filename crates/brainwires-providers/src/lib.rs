@@ -24,7 +24,15 @@ pub mod openai;
 #[cfg(feature = "native")]
 pub mod google;
 #[cfg(feature = "native")]
+pub mod groq;
+#[cfg(feature = "native")]
 pub mod ollama;
+#[cfg(feature = "native")]
+pub mod brainwires_http;
+
+// Provider factory
+#[cfg(feature = "native")]
+pub mod factory;
 
 // Local LLM provider (always compiled, llama.cpp behind feature flag in CLI)
 pub mod local_llm;
@@ -37,7 +45,13 @@ pub use openai::OpenAIProvider;
 #[cfg(feature = "native")]
 pub use google::GoogleProvider;
 #[cfg(feature = "native")]
+pub use groq::GroqProvider;
+#[cfg(feature = "native")]
 pub use ollama::OllamaProvider;
+#[cfg(feature = "native")]
+pub use brainwires_http::BrainwiresHttpProvider;
+#[cfg(feature = "native")]
+pub use factory::ProviderFactory;
 pub use local_llm::*;
 
 use serde::{Deserialize, Serialize};
@@ -51,7 +65,9 @@ pub enum ProviderType {
     Anthropic,
     OpenAI,
     Google,
+    Groq,
     Ollama,
+    Brainwires,
     Custom,
 }
 
@@ -62,7 +78,9 @@ impl ProviderType {
             Self::Anthropic => "claude-3-5-sonnet-20241022",
             Self::OpenAI => "gpt-4o",
             Self::Google => "gemini-2.0-flash-exp",
+            Self::Groq => "llama-3.3-70b-versatile",
             Self::Ollama => "llama3.1",
+            Self::Brainwires => "gpt-5-mini",
             Self::Custom => "claude-3-5-sonnet-20241022",
         }
     }
@@ -73,8 +91,10 @@ impl ProviderType {
             "anthropic" => Some(Self::Anthropic),
             "openai" => Some(Self::OpenAI),
             "google" | "gemini" => Some(Self::Google),
+            "groq" => Some(Self::Groq),
             "ollama" => Some(Self::Ollama),
-            "custom" | "brainwires" => Some(Self::Custom),
+            "brainwires" => Some(Self::Brainwires),
+            "custom" => Some(Self::Custom),
             _ => None,
         }
     }
@@ -85,8 +105,18 @@ impl ProviderType {
             Self::Anthropic => "anthropic",
             Self::OpenAI => "openai",
             Self::Google => "google",
+            Self::Groq => "groq",
             Self::Ollama => "ollama",
+            Self::Brainwires => "brainwires",
             Self::Custom => "custom",
+        }
+    }
+
+    /// Whether this provider requires an API key
+    pub fn requires_api_key(&self) -> bool {
+        match self {
+            Self::Ollama => false,
+            _ => true,
         }
     }
 }
@@ -158,7 +188,9 @@ mod tests {
         assert_eq!(ProviderType::Anthropic.default_model(), "claude-3-5-sonnet-20241022");
         assert_eq!(ProviderType::OpenAI.default_model(), "gpt-4o");
         assert_eq!(ProviderType::Google.default_model(), "gemini-2.0-flash-exp");
+        assert_eq!(ProviderType::Groq.default_model(), "llama-3.3-70b-versatile");
         assert_eq!(ProviderType::Ollama.default_model(), "llama3.1");
+        assert_eq!(ProviderType::Brainwires.default_model(), "gpt-5-mini");
     }
 
     #[test]
@@ -167,9 +199,27 @@ mod tests {
         assert_eq!(ProviderType::from_str_opt("openai"), Some(ProviderType::OpenAI));
         assert_eq!(ProviderType::from_str_opt("google"), Some(ProviderType::Google));
         assert_eq!(ProviderType::from_str_opt("gemini"), Some(ProviderType::Google));
+        assert_eq!(ProviderType::from_str_opt("groq"), Some(ProviderType::Groq));
         assert_eq!(ProviderType::from_str_opt("ollama"), Some(ProviderType::Ollama));
-        assert_eq!(ProviderType::from_str_opt("brainwires"), Some(ProviderType::Custom));
+        assert_eq!(ProviderType::from_str_opt("brainwires"), Some(ProviderType::Brainwires));
+        assert_eq!(ProviderType::from_str_opt("custom"), Some(ProviderType::Custom));
         assert_eq!(ProviderType::from_str_opt("unknown"), None);
+    }
+
+    #[test]
+    fn test_provider_type_as_str() {
+        assert_eq!(ProviderType::Groq.as_str(), "groq");
+        assert_eq!(ProviderType::Brainwires.as_str(), "brainwires");
+    }
+
+    #[test]
+    fn test_provider_type_requires_api_key() {
+        assert!(ProviderType::Anthropic.requires_api_key());
+        assert!(ProviderType::OpenAI.requires_api_key());
+        assert!(ProviderType::Google.requires_api_key());
+        assert!(ProviderType::Groq.requires_api_key());
+        assert!(!ProviderType::Ollama.requires_api_key());
+        assert!(ProviderType::Brainwires.requires_api_key());
     }
 
     #[test]

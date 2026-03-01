@@ -16,6 +16,7 @@ const OPENAI_API_URL: &str = "https://api.openai.com/v1/chat/completions";
 pub struct OpenAIProvider {
     api_key: String,
     model: String,
+    base_url: String,
     http_client: Client,
     organization_id: Option<String>,
     rate_limiter: Option<std::sync::Arc<RateLimiter>>,
@@ -26,6 +27,7 @@ impl OpenAIProvider {
         Self {
             api_key,
             model,
+            base_url: OPENAI_API_URL.to_string(),
             http_client: Client::new(),
             organization_id: None,
             rate_limiter: None,
@@ -37,10 +39,17 @@ impl OpenAIProvider {
         Self {
             api_key,
             model,
+            base_url: OPENAI_API_URL.to_string(),
             http_client: Client::new(),
             organization_id: None,
             rate_limiter: Some(std::sync::Arc::new(RateLimiter::new(requests_per_minute))),
         }
+    }
+
+    /// Set a custom base URL (for OpenAI-compatible APIs like Groq).
+    pub fn with_base_url(mut self, url: String) -> Self {
+        self.base_url = url;
+        self
     }
 
     /// Wait for rate-limit clearance (no-op if not configured).
@@ -186,7 +195,7 @@ impl Provider for OpenAIProvider {
 
         let mut request = self
             .http_client
-            .post(OPENAI_API_URL)
+            .post(&self.base_url)
             .header("Authorization", format!("Bearer {}", self.api_key))
             .header("Content-Type", "application/json");
 
@@ -301,7 +310,7 @@ impl Provider for OpenAIProvider {
 
             let mut request = self
                 .http_client
-                .post(OPENAI_API_URL)
+                .post(&self.base_url)
                 .header("Authorization", format!("Bearer {}", self.api_key))
                 .header("Content-Type", "application/json");
 
