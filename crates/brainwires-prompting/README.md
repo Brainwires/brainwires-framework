@@ -531,7 +531,7 @@ Use via the `brainwires` facade crate:
 brainwires = "0.1"
 ```
 
-Or use standalone — `brainwires-prompting` depends on `brainwires-core` and `brainwires-knowledge`.
+Or use standalone — `brainwires-prompting` depends on `brainwires-core` (the `knowledge` module is now merged into this crate behind the `knowledge` feature).
 
 ## License
 

@@ -147,7 +147,7 @@ Priority definitions:
 
 - [ ] **Verify `brainwires-wasm`** — Audit WASM bindings for all core types; ensure browser target builds succeed with `wasm-pack`; run basic WASM smoke tests.
 
-- [ ] **Complete `brainwires-seal`** — Wire SEAL (Self-Evolving Agentic Learning) integration through `brainwires-knowledge` + `brainwires-prompting`; implement the learning loop that reads `AuditLogger` feedback to improve prompting strategies over time.
+- [ ] **Complete `brainwires-seal`** — Wire SEAL (Self-Evolving Agentic Learning) integration through `brainwires-prompting` (knowledge feature); implement the learning loop that reads `AuditLogger` feedback to improve prompting strategies over time.
 
 - [ ] **`brainwires-eval` as standalone crate** — After Phase 9 builds it internally, extract as a publishable crate usable by projects outside the CLI.
 

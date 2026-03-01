@@ -128,7 +128,7 @@ fn main() -> anyhow::Result<()> {
 |---------|---------|-------------|
 | `native` | Yes | Enables `brainwires-core/native` and transitive dependencies |
 | `mdap` | No | Enables MDAP metric recording via `brainwires-mdap` |
-| `knowledge` | No | Enables BKS/PKS knowledge system integration via `brainwires-knowledge` and `tokio` |
+| `knowledge` | No | Enables BKS/PKS knowledge system integration via `brainwires-prompting` (knowledge feature) and `tokio` |
 
 ```toml
 # Default (core SEAL processing)

@@ -1,14 +1,14 @@
-# brainwires-bridge
+# brainwires-relay
 
-[![Crates.io](https://img.shields.io/crates/v/brainwires-bridge.svg)](https://crates.io/crates/brainwires-bridge)
-[![Documentation](https://img.shields.io/docsrs/brainwires-bridge)](https://docs.rs/brainwires-bridge)
-[![License](https://img.shields.io/crates/l/brainwires-bridge.svg)](LICENSE)
+[![Crates.io](https://img.shields.io/crates/v/brainwires-relay.svg)](https://crates.io/crates/brainwires-relay)
+[![Documentation](https://img.shields.io/docsrs/brainwires-relay)](https://docs.rs/brainwires-relay)
+[![License](https://img.shields.io/crates/l/brainwires-relay.svg)](LICENSE)
 
 MCP server framework and agent communication backbone for Brainwires.
 
 ## Overview
 
-`brainwires-bridge` provides three layers of functionality: an MCP server framework with composable middleware, an encrypted IPC system for local inter-agent communication, and a remote bridge for backend connectivity via Supabase Realtime or HTTP polling.
+`brainwires-relay` provides three layers of functionality: an MCP server framework with composable middleware, an encrypted IPC system for local inter-agent communication, and a remote bridge for backend connectivity via Supabase Realtime or HTTP polling.
 
 **Design principles:**
 
@@ -19,7 +19,7 @@ MCP server framework and agent communication backbone for Brainwires.
 
 ```text
                 ┌──────────────────────────────────────────────────────┐
-                │                  brainwires-bridge                    │
+                │                  brainwires-relay                    │
                 │                                                      │
                 │  ┌────────────────────────────────────────────────┐  │
                 │  │            MCP Server Framework                │  │
@@ -55,13 +55,13 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires-bridge = "0.1"
+brainwires-relay = "0.1"
 ```
 
 Minimal MCP server:
 
 ```rust
-use brainwires_bridge::prelude::*;
+use brainwires_relay::prelude::*;
 
 struct MyHandler;
 
@@ -110,7 +110,7 @@ IPC encryption, MCP transport, middleware, and remote bridge are always availabl
 
 ```toml
 # With keyring support
-brainwires-bridge = { version = "0.1", features = ["auth-keyring"] }
+brainwires-relay = { version = "0.1", features = ["auth-keyring"] }
 ```
 
 ## Architecture
@@ -354,7 +354,7 @@ let events: Vec<AgentEvent> = collector.detect_changes()?;
 
 ### Framework Traits
 
-Trait abstractions decouple the bridge from CLI-specific implementations:
+Trait abstractions decouple the relay from CLI-specific implementations:
 
 | Trait | Purpose |
 |-------|---------|
@@ -367,7 +367,7 @@ Trait abstractions decouple the bridge from CLI-specific implementations:
 
 ### Error Handling
 
-**`BridgeError` variants:**
+**`RelayError` variants:**
 
 | Variant | Description |
 |---------|-------------|
@@ -387,7 +387,7 @@ All variants map to standard JSON-RPC error codes via `to_json_rpc_error()`.
 ### MCP Server with Auth and Rate Limiting
 
 ```rust
-use brainwires_bridge::prelude::*;
+use brainwires_relay::prelude::*;
 
 let server = McpServer::new(my_handler)
     .with_transport(StdioServerTransport::new())
@@ -401,7 +401,7 @@ server.run().await?;
 ### Tool Registry with Dispatch
 
 ```rust
-use brainwires_bridge::{McpToolRegistry, McpToolDef, ToolHandler, RequestContext};
+use brainwires_relay::{McpToolRegistry, McpToolDef, ToolHandler, RequestContext};
 
 let mut registry = McpToolRegistry::new();
 registry.register(
@@ -422,7 +422,7 @@ let result = registry.dispatch("greet", args, &ctx).await?;
 ### Encrypted IPC Connection
 
 ```rust
-use brainwires_bridge::ipc::{IpcConnection, Handshake};
+use brainwires_relay::ipc::{IpcConnection, Handshake};
 
 let mut conn = IpcConnection::connect(&socket_path).await?;
 
@@ -438,7 +438,7 @@ let (reader, writer) = (encrypted.reader, encrypted.writer);
 ### Agent Discovery
 
 ```rust
-use brainwires_bridge::ipc::discovery::*;
+use brainwires_relay::ipc::discovery::*;
 
 let sessions = list_agent_sessions_with_metadata(&sessions_dir)?;
 let tree = format_agent_tree(&sessions_dir, true)?;
@@ -451,7 +451,7 @@ cleanup_stale_sockets(&sessions_dir).await?;
 ### Session Management
 
 ```rust
-use brainwires_bridge::auth::{SessionManager, AuthClient};
+use brainwires_relay::auth::{SessionManager, AuthClient};
 
 let client = AuthClient::new(backend_url, auth_endpoint, api_key_pattern);
 let response = client.authenticate("bw-my-api-key").await?;
@@ -464,7 +464,7 @@ manager.save(&session, Some("bw-my-api-key"))?;
 ### Tool Filtering
 
 ```rust
-use brainwires_bridge::ToolFilterMiddleware;
+use brainwires_relay::ToolFilterMiddleware;
 
 // Only allow specific tools
 let filter = ToolFilterMiddleware::allow_only(["safe_tool_a", "safe_tool_b"]);
@@ -476,7 +476,7 @@ let filter = ToolFilterMiddleware::deny(["rm_rf", "drop_database"]);
 ### Remote Bridge State
 
 ```rust
-use brainwires_bridge::remote::{RemoteBridge, BridgeConfig, BridgeState, ConnectionMode};
+use brainwires_relay::remote::{RemoteBridge, BridgeConfig, BridgeState, ConnectionMode};
 
 let bridge = RemoteBridge::new(config, Some(spawner));
 
@@ -525,10 +525,10 @@ Use via the `brainwires` facade crate:
 
 ```toml
 [dependencies]
-brainwires = { version = "0.1", features = ["bridge"] }
+brainwires = { version = "0.1", features = ["relay"] }
 ```
 
-Or use standalone — `brainwires-bridge` depends only on `brainwires-core` and `brainwires-mcp`.
+Or use standalone — `brainwires-relay` depends only on `brainwires-core` and `brainwires-mcp`.
 
 ## License
 

@@ -214,7 +214,7 @@ Requires the `orchestrator` feature. See `examples/` for complete workflows.
 `brainwires-tooling` is used by:
 
 - **brainwires-agents** — Task agents use `ToolExecutor` for all tool dispatch and `ToolRegistry` for tool discovery
-- **brainwires-reasoning** — Reasoning router uses tool categories for smart delegation
+- **brainwires-agents** (reasoning feature) — Reasoning router uses tool categories for smart delegation
 - **brainwires-wasm** — WASM orchestrator uses the `wasm` feature subset
 - **brainwires-seal** — Learning module integrates tool execution for experience capture
 - **brainwires (facade)** — Re-exports tooling types for unified API access
