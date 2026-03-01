@@ -18,7 +18,6 @@ brainwires-agents = { workspace = true, optional = true }
 brainwires-storage = { workspace = true, optional = true }
 brainwires-mcp = { workspace = true, optional = true }
 brainwires-mdap = { workspace = true, optional = true }
-brainwires-knowledge = { workspace = true, optional = true }
 brainwires-prompting = { workspace = true, optional = true }
 brainwires-permissions = { workspace = true, optional = true }
 
@@ -29,15 +28,11 @@ brainwires-code-interpreters = { workspace = true, optional = true }
 # Providers
 brainwires-providers = { workspace = true, optional = true }
 
-# Reasoning
-brainwires-reasoning = { workspace = true, optional = true }
-
 # SEAL
 brainwires-seal = { workspace = true, optional = true }
 
-# Bridge crates
-brainwires-bridge = { workspace = true, optional = true }
-brainwires-bridge-client = { workspace = true, optional = true }
+# Relay (merged bridge + bridge-client)
+brainwires-relay = { workspace = true, optional = true }
 
 # Skills system
 brainwires-skills = { workspace = true, optional = true }
@@ -47,6 +42,12 @@ brainwires-eval = { workspace = true, optional = true }
 
 # Proxy framework
 brainwires-proxy = { workspace = true, optional = true }
+
+# A2A protocol
+brainwires-a2a = { workspace = true, optional = true }
+
+# Mesh networking
+brainwires-mesh = { workspace = true, optional = true }
 
 # MCP server re-exports (optional)
 rmcp = { workspace = true, optional = true }
@@ -67,20 +68,21 @@ agents = ["dep:brainwires-agents"]
 storage = ["dep:brainwires-storage"]
 mcp = ["dep:brainwires-mcp"]
 mdap = ["dep:brainwires-mdap"]
-knowledge = ["dep:brainwires-knowledge", "storage"]
+knowledge = ["prompting", "brainwires-prompting/knowledge"]
 prompting = ["dep:brainwires-prompting"]
 permissions = ["dep:brainwires-permissions"]
 orchestrator = ["tools", "brainwires-tooling/orchestrator"]
 rag = ["dep:brainwires-rag"]
 interpreters = ["dep:brainwires-code-interpreters"]
 providers = ["dep:brainwires-providers"]
-reasoning = ["dep:brainwires-reasoning"]
+reasoning = ["agents", "brainwires-agents/reasoning"]
 seal = ["dep:brainwires-seal"]
-bridge = ["dep:brainwires-bridge"]
-bridge-client = ["dep:brainwires-bridge-client", "bridge"]
+relay = ["dep:brainwires-relay"]
 skills = ["dep:brainwires-skills"]
 eval = ["dep:brainwires-eval"]
 proxy = ["dep:brainwires-proxy"]
+a2a = ["dep:brainwires-a2a"]
+mesh = ["dep:brainwires-mesh"]
 llama-cpp-2 = ["providers", "brainwires-providers/llama-cpp-2"]
 mcp-server = ["dep:rmcp", "dep:schemars", "dep:tokio-util"]
 # Convenience: enables all learning/knowledge subsystems with integration
@@ -90,9 +92,10 @@ agent-full = ["agents", "permissions", "prompting", "tools"]
 full = [
     "tools", "agents", "storage", "mcp", "mdap", "knowledge",
     "prompting", "permissions", "orchestrator", "rag", "interpreters",
-    "providers", "reasoning", "seal", "bridge", "bridge-client",
+    "providers", "reasoning", "seal", "relay",
     "brainwires-seal/knowledge", "brainwires-seal/mdap",
     "llama-cpp-2", "mcp-server", "skills", "eval", "proxy",
+    "a2a", "mesh",
 ]
 
 [[example]]

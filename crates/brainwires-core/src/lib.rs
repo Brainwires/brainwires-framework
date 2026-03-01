@@ -12,6 +12,7 @@
 //! - Permission modes
 
 pub mod content_source;
+pub mod lifecycle;
 pub mod embedding;
 pub mod error;
 pub mod graph;

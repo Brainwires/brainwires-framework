@@ -43,6 +43,9 @@ libc = { version = "0.2", optional = true }
 # Async traits
 async-trait.workspace = true
 
+# Code search (optional, for reasoning module)
+regex = { workspace = true, optional = true }
+
 # Logging
 tracing.workspace = true
 
@@ -57,3 +60,5 @@ native = ["dep:git2", "dep:libc", "brainwires-core/native", "brainwires-tooling/
 wasm = ["brainwires-core/wasm", "brainwires-tooling/wasm"]
 # tools feature is kept for backward compatibility; brainwires-tooling is now always available
 tools = []
+# Reasoning module (merged from brainwires-reasoning)
+reasoning = ["dep:regex"]

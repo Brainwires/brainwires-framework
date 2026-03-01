@@ -46,11 +46,6 @@ pub mod mdap {
     pub use brainwires_mdap::*;
 }
 
-#[cfg(feature = "knowledge")]
-pub mod knowledge {
-    pub use brainwires_knowledge::*;
-}
-
 #[cfg(feature = "prompting")]
 pub mod prompting {
     pub use brainwires_prompting::*;
@@ -64,11 +59,6 @@ pub mod permissions {
 #[cfg(feature = "providers")]
 pub mod providers {
     pub use brainwires_providers::*;
-}
-
-#[cfg(feature = "reasoning")]
-pub mod reasoning {
-    pub use brainwires_reasoning::*;
 }
 
 #[cfg(feature = "seal")]
@@ -88,14 +78,9 @@ pub mod interpreters {
     pub use brainwires_code_interpreters::*;
 }
 
-#[cfg(feature = "bridge")]
-pub mod bridge {
-    pub use brainwires_bridge::*;
-}
-
-#[cfg(feature = "bridge-client")]
-pub mod bridge_client {
-    pub use brainwires_bridge_client::*;
+#[cfg(feature = "relay")]
+pub mod relay {
+    pub use brainwires_relay::*;
 }
 
 #[cfg(feature = "skills")]
@@ -111,6 +96,16 @@ pub mod eval {
 #[cfg(feature = "proxy")]
 pub mod proxy {
     pub use brainwires_proxy::*;
+}
+
+#[cfg(feature = "a2a")]
+pub mod a2a {
+    pub use brainwires_a2a::*;
+}
+
+#[cfg(feature = "mesh")]
+pub mod mesh {
+    pub use brainwires_mesh::*;
 }
 
 /// Re-exports for building MCP servers (rmcp, schemars, CancellationToken).
@@ -195,9 +190,9 @@ pub mod prelude {
         StandardRedFlagValidator, FirstToAheadByKVoter,
     };
 
-    // Knowledge — available with "knowledge" feature
+    // Knowledge — available with "knowledge" feature (now in prompting::knowledge)
     #[cfg(feature = "knowledge")]
-    pub use brainwires_knowledge::{
+    pub use brainwires_prompting::knowledge::{
         BehavioralKnowledgeCache, BehavioralTruth, PersonalKnowledgeCache, TruthCategory,
     };
 

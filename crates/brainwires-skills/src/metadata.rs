@@ -102,6 +102,14 @@ pub struct SkillMetadata {
     /// Common keys: "category", "execution", "author", "version"
     pub metadata: Option<HashMap<String, String>>,
 
+    /// Optional: lifecycle hook event types this skill subscribes to.
+    ///
+    /// When set, the skill executor will register hooks that fire the skill
+    /// on matching lifecycle events (e.g., `["agent_started", "tool_after_execute"]`).
+    /// See `brainwires_core::lifecycle::LifecycleEvent` for valid event types.
+    #[serde(default)]
+    pub hooks: Option<Vec<String>>,
+
     /// Source location (Personal, Project, or Builtin)
     #[serde(skip)]
     pub source: SkillSource,
@@ -121,6 +129,7 @@ impl SkillMetadata {
             license: None,
             model: None,
             metadata: None,
+            hooks: None,
             source: SkillSource::Personal,
             source_path: PathBuf::new(),
         }

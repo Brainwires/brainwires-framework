@@ -8,7 +8,8 @@
 //! Temperature performance is tracked per cluster and can be shared via BKS/PKS.
 
 use super::clustering::TaskCluster;
-use brainwires_knowledge::{BehavioralKnowledgeCache, BehavioralTruth, TruthCategory, TruthSource};
+#[cfg(feature = "knowledge")]
+use crate::knowledge::{BehavioralKnowledgeCache, BehavioralTruth, TruthCategory, TruthSource};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

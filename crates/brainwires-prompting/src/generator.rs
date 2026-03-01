@@ -6,7 +6,8 @@
 use super::clustering::TaskClusterManager;
 use super::library::TechniqueLibrary;
 use super::techniques::{ComplexityLevel, PromptingTechnique, TechniqueCategory, TechniqueMetadata};
-use brainwires_knowledge::{BehavioralKnowledgeCache, PersonalKnowledgeCache};
+#[cfg(feature = "knowledge")]
+use crate::knowledge::{BehavioralKnowledgeCache, PersonalKnowledgeCache};
 use crate::seal::SealProcessingResult;
 use anyhow::{anyhow, Result};
 use std::sync::Arc;

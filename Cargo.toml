@@ -7,21 +7,19 @@ members = [
     "crates/brainwires-storage",
     "crates/brainwires-mcp",
     "crates/brainwires-mdap",
-    "crates/brainwires-knowledge",
     "crates/brainwires-prompting",
     "crates/brainwires-permissions",
     "crates/brainwires-rag",
     "crates/brainwires-code-interpreters",
     "crates/brainwires-wasm",
-    "crates/brainwires-bridge",
-    "crates/brainwires-bridge-client",
-    "crates/brainwires-reasoning",
+    "crates/brainwires-relay",
     "crates/brainwires-seal",
     "crates/brainwires-providers",
     "crates/brainwires-skills",
     "crates/brainwires-eval",
-    "crates/brainwires-proxy",
-    "crates/brainwires-extras",
+    "crates/brainwires-mesh",
+    "crates/brainwires-a2a",
+    "extras/brainwires-proxy",
 ]
 resolver = "2"
 
@@ -42,20 +40,19 @@ brainwires-agents = { path = "crates/brainwires-agents", version = "0.1.0" }
 brainwires-storage = { path = "crates/brainwires-storage", version = "0.1.0" }
 brainwires-mcp = { path = "crates/brainwires-mcp", version = "0.1.0" }
 brainwires-mdap = { path = "crates/brainwires-mdap", version = "0.1.0" }
-brainwires-knowledge = { path = "crates/brainwires-knowledge", version = "0.1.0" }
 brainwires-prompting = { path = "crates/brainwires-prompting", version = "0.1.0" }
 brainwires-permissions = { path = "crates/brainwires-permissions", version = "0.1.0" }
 brainwires-rag = { path = "crates/brainwires-rag", version = "0.1.1" }
 brainwires-code-interpreters = { path = "crates/brainwires-code-interpreters", version = "0.1.0" }
 brainwires-wasm = { path = "crates/brainwires-wasm", version = "0.1.0" }
-brainwires-bridge = { path = "crates/brainwires-bridge", version = "0.1.0" }
-brainwires-bridge-client = { path = "crates/brainwires-bridge-client", version = "0.1.0" }
-brainwires-reasoning = { path = "crates/brainwires-reasoning", version = "0.1.0" }
+brainwires-relay = { path = "crates/brainwires-relay", version = "0.1.0" }
 brainwires-seal = { path = "crates/brainwires-seal", version = "0.1.0" }
 brainwires-providers = { path = "crates/brainwires-providers", version = "0.1.0" }
 brainwires-skills = { path = "crates/brainwires-skills", version = "0.1.0" }
 brainwires-eval = { path = "crates/brainwires-eval", version = "0.1.0" }
-brainwires-proxy = { path = "crates/brainwires-proxy", version = "0.1.0" }
+brainwires-mesh = { path = "crates/brainwires-mesh", version = "0.1.0" }
+brainwires-a2a = { path = "crates/brainwires-a2a", version = "0.1.0" }
+brainwires-proxy = { path = "extras/brainwires-proxy", version = "0.1.0" }
 
 # Async runtime & utilities
 tokio = { version = "1.43", features = ["full"] }

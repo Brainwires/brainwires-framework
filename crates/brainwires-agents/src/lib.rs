@@ -78,6 +78,10 @@ pub mod git_coordination;
 
 pub mod plan_executor;
 
+// ── Reasoning (merged from brainwires-reasoning) ────────────────────────────
+#[cfg(feature = "reasoning")]
+pub mod reasoning;
+
 // ── Analysis & validation ────────────────────────────────────────────────────
 
 pub mod resource_checker;

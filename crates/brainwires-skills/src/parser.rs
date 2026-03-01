@@ -47,6 +47,9 @@ struct SkillFrontmatter {
     model: Option<String>,
     /// Optional: Custom key-value pairs
     metadata: Option<HashMap<String, String>>,
+    /// Optional: lifecycle hook event types
+    #[serde(default)]
+    hooks: Option<Vec<String>>,
 }
 
 /// Parse only the skill metadata (frontmatter) from a SKILL.md file
@@ -89,6 +92,7 @@ fn parse_metadata_from_content(content: &str, path: &Path) -> Result<SkillMetada
         license: frontmatter.license,
         model: frontmatter.model,
         metadata: frontmatter.metadata,
+        hooks: frontmatter.hooks,
         source: SkillSource::Personal, // Will be set by caller
         source_path: path.to_path_buf(),
     })

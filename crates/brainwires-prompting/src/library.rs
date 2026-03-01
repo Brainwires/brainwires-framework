@@ -8,7 +8,8 @@ use super::techniques::{
     ComplexityLevel, PromptingTechnique, TaskCharacteristic, TechniqueCategory,
     TechniqueMetadata,
 };
-use brainwires_knowledge::{BehavioralKnowledgeCache, BehavioralTruth, TruthCategory};
+#[cfg(feature = "knowledge")]
+use crate::knowledge::{BehavioralKnowledgeCache, BehavioralTruth, TruthCategory};
 use anyhow::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
