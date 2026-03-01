@@ -1,858 +1,634 @@
-# Project RAG - MCP Server for Code Understanding
+# brainwires-rag
 
-[![Tests](https://img.shields.io/badge/tests-413%20passing-brightgreen)](https://github.com/Brainwires/brainwires-rag)
-[![Coverage](https://img.shields.io/badge/coverage-94%25-brightgreen)](https://github.com/Brainwires/brainwires-rag)
-[![Rust](https://img.shields.io/badge/rust-2024%20edition-orange)](https://www.rust-lang.org/)
-[![Crates.io](https://img.shields.io/crates/v/brainwires-rag)](https://crates.io/crates/brainwires-rag)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Crates.io](https://img.shields.io/crates/v/brainwires-rag.svg)](https://crates.io/crates/brainwires-rag)
+[![Documentation](https://img.shields.io/docsrs/brainwires-rag)](https://docs.rs/brainwires-rag)
+[![License](https://img.shields.io/crates/l/brainwires-rag.svg)](LICENSE)
 
-A Rust-based Model Context Protocol (MCP) server that provides AI assistants with powerful RAG (Retrieval-Augmented Generation) capabilities for understanding massive codebases.
+RAG-based codebase indexing and semantic search for the Brainwires Agent Framework.
 
 ## Overview
 
-This MCP server enables AI assistants to efficiently search and understand large projects by:
-- Creating semantic embeddings of code files
-- Storing them in a local vector database
-- Providing fast semantic search capabilities
-- Supporting incremental updates for efficiency
+`brainwires-rag` is a dual-purpose Rust crate that provides RAG (Retrieval-Augmented Generation) capabilities for understanding and searching large codebases. It can be used as a Rust library (`RagClient`) or as a standalone MCP server (`RagMcpServer`) for AI assistant integration.
+
+**Design principles:**
+
+- **Hybrid search** — combines FastEmbed vector similarity with Tantivy BM25 keyword matching via Reciprocal Rank Fusion (RRF) for optimal results
+- **AST-aware chunking** — Tree-sitter parsing extracts semantic units (functions, classes, methods) for 12 languages, with fixed-line fallback for others
+- **Dual database backends** — embedded LanceDB (default, zero external dependencies) or external Qdrant server
+- **Smart incremental indexing** — persistent SHA-256 hash cache auto-detects changed files; cross-process filesystem locks prevent corruption
+- **Code navigation** — find definitions, references, and call graphs with hybrid precision (AST-based for all languages)
+- **Git history search** — semantic search over commit messages and diffs with on-demand indexing
+- **Local-first** — all processing happens locally using `fastembed` (all-MiniLM-L6-v2); no API keys, no network calls
+- **Dual API** — use as a Rust library or as an MCP server exposing 9 tools and 9 slash commands
+
+```text
+  ┌──────────────────────────────────────────────────────────────────────┐
+  │                         brainwires-rag                               │
+  │                                                                      │
+  │  ┌─── RagClient (Library API) ────────────────────────────────────┐  │
+  │  │                                                                 │  │
+  │  │  index_codebase() ──► FileWalker ──► CodeChunker ──► Embedder  │  │
+  │  │       │                 (.gitignore    (Tree-sitter    (FastEmbed│  │
+  │  │       │                  aware)         AST parsing)   MiniLM)  │  │
+  │  │       ▼                                     │                   │  │
+  │  │  HashCache (SHA-256)                        ▼                   │  │
+  │  │  (incremental updates)              VectorDatabase              │  │
+  │  │                                    ┌────────┴────────┐          │  │
+  │  │  query_codebase() ──►              │                 │          │  │
+  │  │  search_by_filters() ──►     LanceDB           Qdrant          │  │
+  │  │                              (embedded)        (external)       │  │
+  │  │                                    │                            │  │
+  │  │  search_git_history() ──►    BM25 (Tantivy) ◄── Hybrid RRF    │  │
+  │  │  find_definition() ──►       RelationsProvider                  │  │
+  │  │  find_references() ──►       (AST-based symbol extraction)      │  │
+  │  │  get_call_graph() ──►                                           │  │
+  │  └─────────────────────────────────────────────────────────────────┘  │
+  │                                                                      │
+  │  ┌─── RagMcpServer (MCP Protocol Wrapper) ────────────────────────┐  │
+  │  │                                                                 │  │
+  │  │  9 MCP Tools ──► RagClient methods                              │  │
+  │  │  9 Slash Commands (/project:index, /project:query, ...)         │  │
+  │  │  Stdio transport (JSON-RPC 2.0)                                 │  │
+  │  └─────────────────────────────────────────────────────────────────┘  │
+  └──────────────────────────────────────────────────────────────────────┘
+```
+
+## Quick Start
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+brainwires-rag = "0.1"
+```
+
+Index a codebase and search it:
+
+```rust
+use brainwires_rag::{RagClient, IndexRequest, QueryRequest};
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let client = RagClient::new().await?;
+
+    // Index a codebase (auto-detects full vs incremental)
+    let index_req = IndexRequest {
+        path: "/path/to/codebase".to_string(),
+        project: Some("my-project".to_string()),
+        include_patterns: vec!["**/*.rs".to_string()],
+        exclude_patterns: vec!["**/target/**".to_string()],
+        max_file_size: 1_048_576,
+    };
+    let response = client.index_codebase(index_req).await?;
+    println!("Indexed {} files, {} chunks", response.files_indexed, response.chunks_created);
+
+    // Semantic search with hybrid vector + keyword matching
+    let query_req = QueryRequest {
+        query: "authentication middleware".to_string(),
+        project: Some("my-project".to_string()),
+        limit: 10,
+        min_score: 0.7,
+        hybrid: true,
+        path: None,
+    };
+    let results = client.query_codebase(query_req).await?;
+    for r in results.results {
+        println!("{} (L{}-{}): score {:.2}", r.file_path, r.start_line, r.end_line, r.score);
+    }
+
+    Ok(())
+}
+```
 
 ## Features
 
-- **Local-First**: All processing happens locally using fastembed-rs (no API keys required)
-- **Hybrid Search**: Combines vector similarity with BM25 keyword matching using Reciprocal Rank Fusion (RRF) for optimal results
-- **AST-Based Chunking**: Uses Tree-sitter to extract semantic units (functions, classes, methods) for 12 languages
-- **Comprehensive File Support**: Indexes 40+ file types including code, documentation (with PDF→Markdown conversion), and configuration files
-- **Git History Search**: Search commit history with smart on-demand indexing (default: 10 commits, only indexes deeper as needed)
-- **Multi-Project Support**: Index and query multiple codebases simultaneously with project filtering
-- **Smart Indexing**: Automatically performs full indexing for new codebases or incremental updates for previously indexed ones
-- **Cross-Process Locking**: Filesystem-based locks prevent multiple processes (e.g., multiple Claude Code sessions) from indexing the same codebase simultaneously
-- **Concurrent Access Protection**: Safe lock management prevents index corruption when multiple agents try to index simultaneously
-- **Stable Embedded Database**: LanceDB vector database (default, no external dependencies) with optional Qdrant support
-- **Language Detection**: Automatic detection of 40+ file types (programming languages, documentation formats, and config files)
-- **Advanced Filtering**: Search by file type, language, or path patterns
-- **Respects .gitignore**: Automatically excludes ignored files during indexing
-- **Code Navigation**: Find definitions, references, and call graphs (lightweight LSP-like features)
-- **Adaptive Search Thresholds**: Automatically lowers similarity threshold when no results found (0.7 → 0.6 → 0.5 → 0.4 → 0.3)
-- **Slash Commands**: 9 convenient slash commands via MCP Prompts
-
-## MCP Slash Commands
-
-The server provides 9 slash commands for quick access with MCP clients:
-
-1. **`/project:index`** - Index a codebase directory (automatically performs full or incremental)
-2. **`/project:query`** - Search the indexed codebase
-3. **`/project:stats`** - Get index statistics
-4. **`/project:clear`** - Clear all indexed data
-5. **`/project:search`** - Advanced search with filters
-6. **`/project:git-search`** - Search git commit history with on-demand indexing
-7. **`/project:definition`** - Find where a symbol is defined (LSP-like)
-8. **`/project:references`** - Find all references to a symbol
-9. **`/project:callgraph`** - Get call graph for a function (callers/callees)
-
-See [slash-commands.md](docs/slash-commands.md) for detailed usage.
-
-## Supported File Types
-
-Project RAG automatically indexes and searches **40+ file types** across three categories:
-
-### Programming Languages (24 languages)
-Supports AST-based semantic chunking for these languages:
-- **Rust** (`.rs`)
-- **Python** (`.py`)
-- **JavaScript** (`.js`, `.mjs`, `.cjs`), **TypeScript** (`.ts`), **JSX** (`.jsx`), **TSX** (`.tsx`)
-- **Go** (`.go`)
-- **Java** (`.java`)
-- **C** (`.c`), **C++** (`.cpp`, `.cc`, `.cxx`), **C/C++ Headers** (`.h`, `.hpp`)
-- **C#** (`.cs`)
-- **Swift** (`.swift`)
-- **Kotlin** (`.kt`, `.kts`)
-- **Scala** (`.scala`)
-- **Ruby** (`.rb`)
-- **PHP** (`.php`)
-- **Shell** (`.sh`, `.bash`)
-- **SQL** (`.sql`)
-- **HTML** (`.html`, `.htm`)
-- **CSS** (`.css`), **SCSS** (`.scss`, `.sass`)
-
-### Documentation Formats (8 formats)
-With special handling for rich content:
-- **Markdown** (`.md`, `.markdown`)
-- **PDF** (`.pdf`) - **Automatically converted to Markdown** with table preservation
-- **reStructuredText** (`.rst`)
-- **AsciiDoc** (`.adoc`, `.asciidoc`)
-- **Org Mode** (`.org`)
-- **Plain Text** (`.txt`)
-- **Log Files** (`.log`)
-
-**PDF Conversion Features:**
-- Extracts text content using `pdf-extract` library
-- Converts to Markdown format automatically
-- Preserves **table structures** (detects tab/space-separated columns)
-- Detects and formats **headings** (ALL CAPS lines and section markers)
-- Handles multi-column layouts intelligently
-- Chunks like any other text file (50 lines per chunk by default)
-
-### Configuration Files (8 formats)
-For complete project understanding:
-- **JSON** (`.json`)
-- **YAML** (`.yaml`, `.yml`)
-- **TOML** (`.toml`)
-- **XML** (`.xml`)
-- **INI** (`.ini`)
-- **Config files** (`.conf`, `.config`, `.cfg`)
-- **Properties** (`.properties`)
-- **Environment** (`.env`)
-
-### Example Use Cases
-```bash
-# Index documentation PDFs in your project
-query_codebase("API authentication flow")  # Finds content in .pdf, .md, .rst files
-
-# Search configuration files
-query_codebase("database connection string")  # Finds .yaml, .toml, .env, .conf files
-
-# Find code implementations
-search_by_filters(query="JWT validation", file_extensions=["rs", "go"])
-```
-
-## MCP Tools
-
-The server provides 9 tools that can be used directly:
-
-1. **index_codebase** - Smartly index a codebase directory
-   - Automatically performs full indexing for new codebases
-   - Automatically performs incremental updates for previously indexed codebases
-   - Respects .gitignore and exclude patterns
-   - Returns mode information (full or incremental)
-
-2. **query_codebase** - Hybrid semantic + keyword search across the indexed code
-   - Combines vector similarity with BM25 keyword matching (enabled by default)
-   - Returns relevant code chunks with both vector and keyword scores
-   - Configurable result limit and score threshold
-   - Optional project filtering for multi-project setups
-
-3. **get_statistics** - Get statistics about the indexed codebase
-   - File counts, chunk counts, embedding counts
-   - Language breakdown
-
-4. **clear_index** - Clear all indexed data
-   - Deletes the entire vector database collection
-   - Prepares for fresh indexing
-
-5. **search_by_filters** - Advanced hybrid search with filters
-   - Always uses hybrid search for best results
-   - Filter by file extensions (e.g., ["rs", "toml"])
-   - Filter by programming languages
-   - Filter by path patterns
-   - Optional project filtering
-
-6. **search_git_history** - Search git commit history using semantic search
-   - Automatically indexes commits on-demand (default: 10 commits, configurable)
-   - Searches commit messages, diffs, author info, and changed files
-   - Smart caching: only indexes new commits as needed
-   - Regex filtering by author name/email and file paths
-   - Date range filtering (ISO 8601 or Unix timestamp)
-   - Branch selection support
-
-7. **find_definition** - Find where a symbol is defined (LSP-like)
-   - Specify file path, line number, and column
-   - Returns definition location with symbol metadata
-   - Uses hybrid approach: high-precision stack-graphs (Python, TypeScript, Java, Ruby) or AST-based RepoMap fallback
-   - Reports precision level of results
-
-8. **find_references** - Find all references to a symbol
-   - Specify file path, line number, and column
-   - Returns all locations where the symbol is used
-   - Categorizes reference types: Call, Read, Write, Import, TypeReference, Inheritance, Instantiation
-   - Optional: include definition site in results
-
-9. **get_call_graph** - Get call graph for a function
-   - Specify file path, line number, and column for a function
-   - Returns callers (what calls this function) and callees (what this function calls)
-   - Configurable traversal depth (default: 1 level)
-   - Useful for understanding code flow and impact analysis
-
-## Prerequisites
-
-- **Rust**: 1.88+ with Rust 2024 edition support
-- **protobuf-compiler**: Required for building (install via `sudo apt-get install protobuf-compiler` on Ubuntu/Debian)
-
-### Vector Database Options
-
-**LanceDB (Default - Embedded, Stable)**
-
-No additional setup needed! LanceDB is an embedded vector database that runs directly in the application. It stores data in `./.lancedb` directory by default.
-
-**Why LanceDB is the default:**
-- **Embedded** - No external dependencies or servers required
-- **Stable** - Production-proven with ACID transactions
-- **Feature-rich** - Full SQL-like filtering capabilities
-- **Hybrid search built-in** - Tantivy BM25 + LanceDB vector with Reciprocal Rank Fusion
-- **Columnar storage** - Efficient for large datasets with Apache Arrow
-- **Zero-copy** - Memory-mapped files for fast queries
-
-**Qdrant (Optional - Server-Based)**
-
-To use Qdrant instead of LanceDB, build with the `qdrant-backend` feature:
-
-```bash
-cargo build --release --no-default-features --features qdrant-backend
-```
-
-Then start a Qdrant instance:
-
-**Using Docker (Recommended):**
-```bash
-docker run -p 6333:6333 -p 6334:6334 \
-    -v $(pwd)/qdrant_data:/qdrant/storage \
-    qdrant/qdrant
-```
-
-**Using Docker Compose:**
-```yaml
-version: '3.8'
-services:
-  qdrant:
-    image: qdrant/qdrant
-    ports:
-      - "6333:6333"
-      - "6334:6334"
-    volumes:
-      - ./qdrant_data:/qdrant/storage
-```
-
-**Or download standalone:** https://qdrant.tech/documentation/guides/installation/
-
-## Installation
-
-```bash
-# Navigate to the project
-cd brainwires-rag
-
-# Install protobuf compiler (Ubuntu/Debian)
-sudo apt-get install protobuf-compiler
-
-# Build the release binary (with default LanceDB backend - stable and embedded!)
-cargo build --release
-
-# Or build with Qdrant backend (requires external server)
-cargo build --release --no-default-features --features qdrant-backend
-
-# The binary will be at target/release/brainwires-rag
-```
-
-## Usage
-
-### Running as MCP Server
-
-The server communicates over stdio following the MCP protocol:
-
-```bash
-./target/release/brainwires-rag
-```
-
-### Configuring in Claude Code
-
-Add the MCP server to Claude Code using the CLI:
-
-```bash
-# Navigate to the project directory first
-cd /path/to/brainwires-rag
-
-# Add the MCP server to Claude Code
-claude mcp add project --command "$(pwd)/target/release/brainwires-rag"
-
-# Or with logging enabled
-claude mcp add project --command "$(pwd)/target/release/brainwires-rag" --env RUST_LOG=info
-```
-
-After adding, restart Claude Code to load the server. The slash commands (`/project:index`, `/project:query`, etc.) will be available immediately.
-
-### Configuring in Claude Desktop
-
-Add to your Claude Desktop config:
-
-**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Linux**: `~/.config/Claude/claude_desktop_config.json`
-**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-
-```json
-{
-  "mcpServers": {
-    "brainwires-rag": {
-      "command": "/absolute/path/to/brainwires-rag/target/release/brainwires-rag",
-      "env": {
-        "RUST_LOG": "info"
-      }
-    }
-  }
-}
-```
-
-**Note**: Claude Code and Claude Desktop are different products with different configuration methods.
-
-### Example Tool Usage
-
-**Index a codebase:**
-```json
-{
-  "path": "/path/to/your/project",
-  "include_patterns": ["**/*.rs", "**/*.toml"],
-  "exclude_patterns": ["**/target/**", "**/node_modules/**"],
-  "max_file_size": 1048576
-}
-```
-
-**Query the codebase:**
-```json
-{
-  "query": "How does authentication work?",
-  "limit": 10,
-  "min_score": 0.7
-}
-```
-
-**Advanced filtered search:**
-```json
-{
-  "query": "database connection pool",
-  "limit": 5,
-  "min_score": 0.75,
-  "file_extensions": ["rs"],
-  "languages": ["Rust"],
-  "path_patterns": ["src/db"]
-}
-```
-
-**Index (or re-index) a codebase:**
-```json
-{
-  "path": "/path/to/your/project",
-  "include_patterns": [],
-  "exclude_patterns": []
-}
-```
-*Note: This automatically performs a full index for new codebases or an incremental update for previously indexed ones.*
-
-**Find definition of a symbol:**
-```json
-{
-  "file_path": "/path/to/your/project/src/main.rs",
-  "line": 42,
-  "column": 10
-}
-```
-
-**Find all references to a symbol:**
-```json
-{
-  "file_path": "/path/to/your/project/src/lib.rs",
-  "line": 15,
-  "column": 8,
-  "include_definition": false
-}
-```
-
-**Get call graph for a function:**
-```json
-{
-  "file_path": "/path/to/your/project/src/api.rs",
-  "line": 100,
-  "column": 4,
-  "depth": 2
-}
+| Feature | Default | Description |
+|---------|---------|-------------|
+| `native` | Yes | Enables all heavy dependencies: Tree-sitter, FastEmbed, LanceDB, Tantivy, git2, MCP server |
+| `wasm` | No | WASM-compatible build (types and error modules only, no embeddings or databases) |
+| `lancedb-backend` | Yes | Embedded LanceDB vector database (no external dependencies) |
+| `qdrant-backend` | No | External Qdrant vector database server support |
+| `alt-folder-name` | No | Custom folder naming for data storage paths |
+| `stack-graphs` | No | High-precision code navigation (prepared, not fully implemented) |
+
+```toml
+# Default (native with embedded LanceDB)
+brainwires-rag = "0.1"
+
+# With Qdrant instead of LanceDB
+brainwires-rag = { version = "0.1", features = ["native", "qdrant-backend"] }
+
+# WASM target (types only, no processing)
+brainwires-rag = { version = "0.1", default-features = false, features = ["wasm"] }
 ```
 
 ## Architecture
 
-```
-brainwires-rag/
-├── src/
-│   ├── bm25_search.rs      # Tantivy BM25 keyword search with RRF fusion
-│   ├── client/             # High-level client API
-│   │   ├── mod.rs          # RagClient - unified interface for all operations
-│   │   └── indexing/       # Indexing pipeline with progress reporting
-│   ├── embedding/          # FastEmbed integration for local embeddings
-│   │   ├── mod.rs          # EmbeddingProvider trait
-│   │   └── fastembed_manager.rs  # all-MiniLM-L6-v2 implementation
-│   ├── vector_db/          # Vector database implementations
-│   │   ├── mod.rs          # VectorDatabase trait
-│   │   ├── lance_client.rs # LanceDB + Tantivy hybrid search (default)
-│   │   └── qdrant_client.rs  # Qdrant implementation (optional)
-│   ├── indexer/            # File walking and code chunking
-│   │   ├── mod.rs          # Module exports
-│   │   ├── file_walker.rs  # Directory traversal with .gitignore + 40+ file types
-│   │   ├── chunker.rs      # Chunking strategies (AST-based, fixed-lines, sliding window)
-│   │   ├── ast_parser.rs   # Tree-sitter AST parsing for 12 languages
-│   │   └── pdf_extractor.rs # PDF to Markdown converter with table support
-│   ├── relations/          # Code relationship analysis (LSP-like features)
-│   │   ├── mod.rs          # RelationsProvider trait, HybridRelationsProvider
-│   │   ├── types.rs        # SymbolId, Definition, Reference, CallEdge types
-│   │   ├── repomap/        # AST-based symbol extraction (fallback provider)
-│   │   │   ├── mod.rs      # RepoMapProvider
-│   │   │   ├── symbol_extractor.rs  # Extract definitions from AST
-│   │   │   └── reference_finder.rs  # Find references via identifier matching
-│   │   ├── storage/        # Relations storage layer
-│   │   │   ├── mod.rs      # RelationsStore trait
-│   │   │   └── lance_store.rs  # LanceDB storage (placeholder)
-│   │   └── stack_graphs/   # Optional: High-precision name resolution
-│   │       └── mod.rs      # StackGraphsProvider (feature-gated)
-│   ├── mcp_server.rs       # MCP server with 9 tools
-│   ├── types/              # Request/Response types with JSON schema
-│   │   └── mod.rs          # All MCP request/response types
-│   ├── main.rs             # Binary entry point with stdio transport
-│   └── lib.rs              # Library root
-├── Cargo.toml              # Rust 2024 edition with dependencies
-├── README.md               # This file
-├── CONTRIBUTING.md         # Contributor guidelines
-├── TESTING.md              # Testing guide
-└── CLAUDE.md               # AI assistant instructions
-```
+### RagClient
 
-## Configuration
+The main library interface providing all RAG functionality.
 
-### Environment Variables
-- `RUST_LOG` - Set logging level (options: `error`, `warn`, `info`, `debug`, `trace`)
-  - Example: `RUST_LOG=debug cargo run`
+| Method | Description |
+|--------|-------------|
+| `new()` | Create with default config (loads from file or defaults + env overrides) |
+| `with_config(config)` | Create with custom `Config` |
+| `index_codebase(req)` | Smart indexing — auto-detects full or incremental mode |
+| `query_codebase(req)` | Hybrid semantic + keyword search with adaptive thresholds |
+| `search_by_filters(req)` | Filtered search by language, extension, or path pattern |
+| `get_statistics()` | Index statistics (files, chunks, embeddings, language breakdown) |
+| `clear_index()` | Clear all indexed data |
+| `search_git_history(req)` | Semantic search over git commit history |
+| `find_definition(req)` | Find where a symbol is defined (LSP-like) |
+| `find_references(req)` | Find all references to a symbol |
+| `get_call_graph(req)` | Get callers and callees for a function |
 
-### Qdrant Configuration
-- Currently hardcoded to `http://localhost:6334`
-- Future: Add configuration file support
+**Internal components:**
 
-### Embedding Model
-- Default: `all-MiniLM-L6-v2` (384 dimensions)
-- First run downloads model (~50MB) to cache
+| Component | Role |
+|-----------|------|
+| `FastEmbedManager` | Local embedding generation (all-MiniLM-L6-v2, 384 dimensions) |
+| `LanceVectorDB` / `QdrantVectorDB` | Vector storage and similarity search |
+| `CodeChunker` | AST-based and fixed-line code chunking |
+| `HashCache` | Persistent SHA-256 cache for incremental updates |
+| `GitCache` | Tracks indexed commits per repository |
+| `HybridRelationsProvider` | Code navigation (definitions, references, call graphs) |
 
-### Chunking Strategy
-- **Default**: Hybrid AST-based with fallback to fixed-lines
-- **AST Parsing**: Extracts semantic units (functions, classes, methods) for Rust, Python, JavaScript, TypeScript, Go, Java, Swift, C, C++, C#, Ruby, PHP
-- **Fallback**: 50 lines per chunk for unsupported languages
-- **Alternative**: Sliding window with configurable overlap
+### Indexing Pipeline
 
-## Technical Details
+#### FileWalker
 
-### Embeddings
-- **Model**: all-MiniLM-L6-v2 (Sentence Transformers)
-- **Dimensions**: 384
-- **Library**: fastembed-rs with ONNX runtime
-- **Performance**: ~500 embeddings/second
+Traverses directories respecting `.gitignore` via the `ignore` crate. Detects 40+ file types across three categories:
+
+| Category | Count | Examples |
+|----------|-------|---------|
+| Programming Languages | 24 | Rust, Python, JavaScript, TypeScript, Go, Java, Swift, C/C++, C#, Ruby, PHP, Kotlin, Scala, Shell, SQL |
+| Documentation | 8 | Markdown, PDF (auto-converted to Markdown), RST, AsciiDoc, Org, Text |
+| Configuration | 8 | JSON, YAML, TOML, XML, INI, Properties, .env |
+
+#### CodeChunker
+
+Two chunking strategies:
+
+| Strategy | When Used | Description |
+|----------|-----------|-------------|
+| **AST-Based** | 12 languages with Tree-sitter support | Extracts semantic units (functions, classes, methods, structs) |
+| **Fixed-Lines** | All other file types | 50 lines per chunk (configurable) |
+
+Supported Tree-sitter languages: Rust, Python, JavaScript, TypeScript, Go, Java, Swift, C, C++, C#, Ruby, PHP.
+
+#### Embedding
+
+| Property | Value |
+|----------|-------|
+| Model | all-MiniLM-L6-v2 |
+| Dimensions | 384 |
+| Library | FastEmbed (ONNX runtime) |
+| Batch size | 8 (configurable) |
+| Performance | ~500 embeddings/second |
+| Privacy | Fully local, no API calls |
 
 ### Vector Database
-- **Engine**: Qdrant
-- **Distance Metric**: Cosine similarity
-- **Index**: HNSW for fast approximate nearest neighbor search
-- **Payload**: Stores file path, project, line numbers, language, hash, timestamp, content
+
+**Trait-based design** — `VectorDatabase` trait with two implementations:
+
+#### LanceDB (Default)
+
+- Embedded, zero external dependencies
+- Apache Arrow columnar storage with ACID transactions
+- Zero-copy memory-mapped files
+- Hybrid search: vector similarity + Tantivy BM25 with RRF fusion
+- Stored at `~/.local/share/brainwires-rag/lancedb/`
+
+#### Qdrant (Optional)
+
+- External server at `http://localhost:6334`
+- High-performance vector similarity search
+- Self-hosted or cloud-hosted
 
 ### Hybrid Search
-- **Vector Similarity**: Semantic understanding via embeddings (LanceDB or Qdrant)
-- **Keyword Matching**: Full-text BM25 search via Tantivy inverted index
-- **Fusion Algorithm**: Reciprocal Rank Fusion (RRF) with k=60 constant
-- **BM25 Parameters**: Uses Tantivy's optimized BM25 implementation
-- **Ranking**: RRF combines both rankings using 1/(k+rank) formula
-- **Performance**: Both indexes queried in parallel for fast results
 
-### Adaptive Threshold Logic
+Combines two ranking signals using Reciprocal Rank Fusion (RRF):
 
-Both `query_codebase` and `search_by_filters` tools implement intelligent adaptive threshold lowering:
+| Signal | Method | Description |
+|--------|--------|-------------|
+| **Vector** | Cosine similarity | Semantic meaning from embeddings |
+| **Keyword** | Tantivy BM25 | Exact token matching |
+| **Combined** | RRF (k=60) | `1/(k + rank_vector) + 1/(k + rank_keyword)` |
 
-**How it works:**
-1. Initial search uses the requested `min_score` threshold (default: 0.7)
-2. If no results found and threshold > 0.3, automatically retries with lower thresholds
-3. Fallback thresholds tried in order: 0.6 → 0.5 → 0.4 → 0.3
-4. Response includes `threshold_used` and `threshold_lowered` fields for transparency
+**Adaptive thresholds:** when no results are found, the threshold is automatically lowered step-by-step: 0.7 → 0.6 → 0.5 → 0.4 → 0.3.
 
-**Benefits:**
-- Prevents empty results when semantic similarity is lower than expected
-- Maintains search quality by preferring higher thresholds when possible
-- Transparent: you always know the actual threshold used
+### Code Relations
 
-**Example Response:**
-```json
-{
-  "results": [...],
-  "duration_ms": 45,
-  "threshold_used": 0.4,
-  "threshold_lowered": true
+Provides lightweight LSP-like code navigation:
+
+| Feature | Description |
+|---------|-------------|
+| **Find Definition** | Locate where symbols are defined |
+| **Find References** | Find all usages, categorized by type (Call, Read, Write, Import, TypeReference, Inheritance, Instantiation) |
+| **Get Call Graph** | Analyze function relationships (callers and callees to configurable depth) |
+
+Uses `HybridRelationsProvider` which falls back to `RepoMapProvider` (AST-based symbol extraction and identifier matching) for all Tree-sitter-supported languages.
+
+### Git History Search
+
+| Feature | Description |
+|---------|-------------|
+| **On-demand indexing** | Default: indexes only 10 most recent commits, expands as needed |
+| **Commit content** | Indexes both commit messages and diff content |
+| **Filtering** | Author, date range, branch, file pattern |
+| **Smart caching** | `GitCache` prevents re-indexing the same commits |
+
+### Cross-Process Coordination
+
+| Mechanism | Scope | Purpose |
+|-----------|-------|---------|
+| **Filesystem locks** (`flock`) | Cross-process | Prevents multiple processes from indexing simultaneously |
+| **Broadcast channels** | In-process | Shares indexing results to waiting tasks |
+| **Dirty index tracking** | Persistent | Detects and recovers from interrupted indexing operations |
+
+## Request / Response Types
+
+### IndexRequest
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `path` | `String` | — | Directory path to index |
+| `project` | `Option<String>` | `None` | Project name for multi-project support |
+| `include_patterns` | `Vec<String>` | `[]` | Glob patterns to include (e.g., `["**/*.rs"]`) |
+| `exclude_patterns` | `Vec<String>` | `[]` | Glob patterns to exclude (e.g., `["**/target/**"]`) |
+| `max_file_size` | `usize` | `1_048_576` | Maximum file size in bytes (1 MB) |
+
+### IndexResponse
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `mode` | `IndexingMode` | `Full` or `Incremental` |
+| `files_indexed` | `usize` | Files successfully indexed |
+| `chunks_created` | `usize` | Code chunks created |
+| `embeddings_generated` | `usize` | Embeddings generated |
+| `duration_ms` | `u64` | Time taken |
+| `errors` | `Vec<String>` | Non-fatal errors encountered |
+| `files_updated` | `usize` | Files updated (incremental only) |
+| `files_removed` | `usize` | Files removed (incremental only) |
+
+### QueryRequest
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `query` | `String` | — | Natural language search query |
+| `path` | `Option<String>` | `None` | Filter by indexed codebase path |
+| `project` | `Option<String>` | `None` | Filter by project name |
+| `limit` | `usize` | `10` | Maximum results to return |
+| `min_score` | `f32` | `0.7` | Minimum similarity score (0.0–1.0) |
+| `hybrid` | `bool` | `true` | Enable hybrid vector + keyword search |
+
+### SearchResult
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `file_path` | `String` | File path relative to indexed root |
+| `root_path` | `Option<String>` | Absolute path to indexed root |
+| `content` | `String` | The matching code chunk |
+| `score` | `f32` | Combined similarity score (0.0–1.0) |
+| `vector_score` | `f32` | Vector similarity score |
+| `keyword_score` | `Option<f32>` | BM25 keyword score (hybrid only) |
+| `start_line` | `usize` | Starting line number |
+| `end_line` | `usize` | Ending line number |
+| `language` | `String` | Detected programming language |
+| `project` | `Option<String>` | Project name |
+
+### SearchGitHistoryRequest
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `query` | `String` | — | Search query for commit history |
+| `path` | `String` | `"."` | Codebase path (discovers git repo) |
+| `branch` | `Option<String>` | `None` | Branch name (default: current) |
+| `max_commits` | `usize` | `10` | Maximum commits to index/search |
+| `limit` | `usize` | `10` | Maximum results to return |
+| `min_score` | `f32` | `0.7` | Minimum similarity score |
+| `author` | `Option<String>` | `None` | Filter by author (regex) |
+| `since` | `Option<String>` | `None` | Filter by start date (ISO 8601) |
+| `until` | `Option<String>` | `None` | Filter by end date (ISO 8601) |
+| `file_pattern` | `Option<String>` | `None` | Filter by file path (regex) |
+
+### GitSearchResult
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `commit_hash` | `String` | Git commit SHA |
+| `commit_message` | `String` | Commit message |
+| `author` | `String` | Author name |
+| `author_email` | `String` | Author email |
+| `commit_date` | `i64` | Commit date (Unix timestamp) |
+| `score` | `f32` | Combined similarity score |
+| `vector_score` | `f32` | Vector similarity score |
+| `keyword_score` | `Option<f32>` | Keyword match score |
+| `files_changed` | `Vec<String>` | Files changed in commit |
+| `diff_snippet` | `String` | Diff snippet (~500 chars) |
+
+### Code Navigation Requests
+
+**FindDefinitionRequest:** `file_path`, `line` (1-based), `column` (0-based), `project?`
+
+**FindReferencesRequest:** `file_path`, `line`, `column`, `limit` (default: 100), `project?`, `include_definition` (default: true)
+
+**GetCallGraphRequest:** `file_path`, `line`, `column`, `depth` (default: 2, max: 10), `project?`, `include_callers` (default: true), `include_callees` (default: true)
+
+## Usage Examples
+
+### Index and query with custom config
+
+```rust
+use brainwires_rag::{RagClient, Config, IndexRequest, QueryRequest};
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let mut config = Config::default();
+    config.embedding.batch_size = 16;
+    config.search.min_score = 0.5;
+    config.search.hybrid = true;
+
+    let client = RagClient::with_config(config).await?;
+
+    let req = IndexRequest {
+        path: "/home/user/project".to_string(),
+        project: Some("my-app".to_string()),
+        include_patterns: vec!["**/*.rs".to_string(), "**/*.toml".to_string()],
+        exclude_patterns: vec!["**/target/**".to_string()],
+        max_file_size: 1_048_576,
+    };
+    let resp = client.index_codebase(req).await?;
+    println!("{:?} mode: {} files, {} chunks", resp.mode, resp.files_indexed, resp.chunks_created);
+
+    Ok(())
 }
 ```
 
-### Lightweight LSP Features
+### Advanced filtered search
 
-Project RAG provides code navigation capabilities similar to a Language Server Protocol (LSP) implementation, but optimized for semantic search use cases:
+```rust
+use brainwires_rag::{RagClient, AdvancedSearchRequest};
 
-**Find Definition** (`find_definition`):
-- Locate where symbols (functions, classes, variables) are defined
-- Uses hybrid approach: high-precision stack-graphs for Python, TypeScript, Java, Ruby
-- Falls back to AST-based RepoMap analysis for all other languages
-- Reports precision level (High, Medium, Low) in results
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let client = RagClient::new().await?;
 
-**Find References** (`find_references`):
-- Find all locations where a symbol is used across the codebase
-- Categorizes reference types: Call, Read, Write, Import, TypeReference, Inheritance, Instantiation
-- Useful for understanding how code is connected
-- Option to include/exclude the definition site
+    let req = AdvancedSearchRequest {
+        query: "error handling patterns".to_string(),
+        path: None,
+        project: Some("my-app".to_string()),
+        limit: 5,
+        min_score: 0.6,
+        file_extensions: vec!["rs".to_string()],
+        languages: vec!["Rust".to_string()],
+        path_patterns: vec!["src/".to_string()],
+    };
+    let results = client.search_by_filters(req).await?;
+    for r in results.results {
+        println!("[{}] {} L{}-{}", r.language, r.file_path, r.start_line, r.end_line);
+    }
 
-**Get Call Graph** (`get_call_graph`):
-- Analyze function call relationships
-- Shows both callers (what calls this function) and callees (what this function calls)
-- Configurable traversal depth for multi-level analysis
-- Great for impact analysis and understanding code flow
-
-**Architecture:**
-```
-RelationsProvider (trait)
-├── StackGraphsProvider (high precision: ~95%)
-│   └── Supports: Python, TypeScript, Java, Ruby
-└── RepoMapProvider (fallback: ~70% precision)
-    └── Supports: All tree-sitter languages (12+)
+    Ok(())
+}
 ```
 
-**When to Use:**
-- **Find Definition**: "Where is this function defined?"
-- **Find References**: "Where is this function called from?"
-- **Get Call Graph**: "What functions does this code depend on?"
+### Search git history
 
-### Cross-Process Locking
+```rust
+use brainwires_rag::{RagClient, SearchGitHistoryRequest};
 
-Project RAG uses a **two-layer locking system** to prevent multiple processes from indexing the same codebase simultaneously:
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let client = RagClient::new().await?;
 
-**Layer 1: Filesystem Locks (Cross-Process)**
-- Uses `flock()` system call for OS-level exclusive locks
-- Lock files stored in `~/.local/share/brainwires-rag/locks/` (or `brainwires/locks/`)
-- Automatically released when process exits (even on crash)
-- Prevents multiple Claude Code sessions from hammering CPU with duplicate indexing
+    let req = SearchGitHistoryRequest {
+        query: "fix authentication bug".to_string(),
+        path: "/home/user/project".to_string(),
+        branch: None,
+        max_commits: 50,
+        limit: 5,
+        min_score: 0.5,
+        author: None,
+        since: Some("2025-01-01".to_string()),
+        until: None,
+        file_pattern: None,
+        project: None,
+    };
+    let resp = client.search_git_history(req).await?;
+    for r in resp.results {
+        println!("{} ({}) — {}", &r.commit_hash[..8], r.author, r.commit_message);
+    }
 
-**Layer 2: In-Memory Locks (In-Process)**
-- Broadcast channels allow waiting tasks to receive results
-- Prevents duplicate work within the same process
-
-**How It Works:**
-```
-Process A (Claude Session 1)          Process B (Claude Session 2)
-─────────────────────────────          ─────────────────────────────
-index_codebase("/project")             index_codebase("/project")
-        │                                       │
-        ▼                                       ▼
-Acquire filesystem lock                Try filesystem lock
-        │                                       │
-        ▼                                       ▼
-     ACQUIRED                              BLOCKED (waits)
-        │                                       │
-        ▼                                       │
-Do full indexing...                             │
-        │                                       │
-        ▼                                       │
-Release lock ──────────────────────────────────►│
-                                                ▼
-                                         Lock acquired
-                                                │
-                                                ▼
-                                         Return (index is current)
+    Ok(())
+}
 ```
 
-**Benefits:**
-- No duplicate CPU work across multiple Claude Code sessions
-- No database corruption from concurrent writes
-- Automatic cleanup on process crash (OS releases flock)
-- Waiting process gets immediate response when indexing completes
+### Find definition and references
 
-### BM25 Index Lock Safety
+```rust
+use brainwires_rag::{RagClient, FindDefinitionRequest, FindReferencesRequest};
 
-The BM25 (Tantivy) index uses additional file-based locks to prevent concurrent writes:
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let client = RagClient::new().await?;
 
-**Stale Lock Detection:**
-- Lock files are checked for staleness (>5 minutes old)
-- Uses file modification timestamps to detect crashed processes
-- Fresh locks (<5 minutes) are treated as active
+    // Find where a symbol is defined
+    let def_req = FindDefinitionRequest {
+        file_path: "src/main.rs".to_string(),
+        line: 42,
+        column: 10,
+        project: None,
+    };
+    let def_resp = client.find_definition(def_req).await?;
+    if let Some(def) = def_resp.definition {
+        println!("Defined at {}:{}:{}", def.file_path, def.line, def.column);
+    }
 
-**Automatic Recovery:**
-- When indexing fails with a lock error, the system checks if locks are stale
-- **Stale locks** (from crashes): Automatically cleaned up and indexing retries
-- **Active locks** (from running agents): Returns clear error message asking to wait
+    // Find all references to a symbol
+    let ref_req = FindReferencesRequest {
+        file_path: "src/main.rs".to_string(),
+        line: 42,
+        column: 10,
+        limit: 50,
+        project: None,
+        include_definition: true,
+    };
+    let ref_resp = client.find_references(ref_req).await?;
+    println!("Found {} references to {:?}", ref_resp.total_count, ref_resp.symbol_name);
 
-**Error Messages:**
-- Active indexing detected: `"BM25 index is currently being used by another process. Please wait and try again later."`
-- Stale locks cleaned: Logs warnings and retries automatically
-
-**Thread Safety:**
-- In-process synchronization: Mutex prevents concurrent writers within the same process
-- Cross-process safety: File-based locks prevent concurrent writers across different processes
-- Read operations are always safe and never blocked
-
-**Best Practices:**
-- If you see the "currently being used" error, wait for the other indexing operation to complete
-- Indexing operations typically complete in seconds to minutes depending on codebase size
-- Multiple agents can safely perform search operations simultaneously (reads are never locked)
-
-### Code Chunking
-- **Default**: Hybrid AST-based chunking
-- **AST Support**: Rust, Python, JavaScript, TypeScript, Go, Java, Swift, C, C++, C#, Ruby, PHP
-- **Fallback**: 50 lines per chunk for unsupported languages
-- **Metadata**: Tracks start/end lines, language, file hash, project
-
-### File Processing
-- **Binary Detection**: 30% non-printable byte threshold (PDFs handled specially)
-- **Language Detection**: 40+ file types supported (code, docs, configs)
-- **PDF Processing**: Automatic text extraction and Markdown conversion with table preservation
-- **Hash Algorithm**: SHA256 for change detection (works for all file types including PDFs)
-- **.gitignore Support**: Uses `ignore` crate
-
-## Development
-
-### Running Tests
-
-```bash
-# Run all unit tests (413 tests with ~94% coverage)
-cargo test --lib
-
-# Run specific module tests
-cargo test --lib types::tests
-cargo test --lib chunker::tests
-cargo test --lib pdf_extractor::tests  # PDF to Markdown conversion tests
-cargo test --lib bm25_search::tests    # Includes concurrent access & lock safety tests
-cargo test --lib config::tests         # Includes validation & env override tests
-cargo test --lib indexing::tests       # Includes error path & edge case tests
-
-# Run with output
-cargo test --lib -- --nocapture
-
-# Run with code coverage
-cargo llvm-cov --lib --html
-# Open target/llvm-cov/html/index.html to view coverage report
+    Ok(())
+}
 ```
 
-### Building
+### Run as MCP server
 
-```bash
-# Debug build
-cargo build
+```rust
+use brainwires_rag::mcp_server::RagMcpServer;
 
-# Release build (optimized)
-cargo build --release
-
-# Check without building
-cargo check
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    // Create and serve over stdio
+    let server = RagMcpServer::new().await?;
+    server.serve_stdio().await?;
+    Ok(())
+}
 ```
 
-### Code Quality
+Or wrap an existing client:
 
-```bash
-# Format code
-cargo fmt
+```rust
+use brainwires_rag::{RagClient, mcp_server::RagMcpServer};
+use std::sync::Arc;
 
-# Lint with clippy
-cargo clippy
-
-# Fix clippy warnings
-cargo clippy --fix
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let client = RagClient::new().await?;
+    let server = RagMcpServer::with_client(Arc::new(client))?;
+    server.serve_stdio().await?;
+    Ok(())
+}
 ```
 
-### Debugging
+## MCP Tools & Slash Commands
 
-```bash
-# Run with debug logging
-RUST_LOG=debug cargo run
+When running as an MCP server, 9 tools and 9 slash commands are exposed:
 
-# Run with trace logging
-RUST_LOG=trace cargo run
+| Tool | Slash Command | Description |
+|------|---------------|-------------|
+| `index_codebase` | `/project:index` | Smart indexing (auto full or incremental) |
+| `query_codebase` | `/project:query` | Semantic search with adaptive thresholds |
+| `get_statistics` | `/project:stats` | Index statistics and language breakdown |
+| `clear_index` | `/project:clear` | Clear all indexed data |
+| `search_by_filters` | `/project:search` | Filtered search by language, extension, path |
+| `search_git_history` | `/project:git-search` | Semantic git history search |
+| `find_definition` | `/project:definition` | Find symbol definition |
+| `find_references` | `/project:references` | Find all symbol references |
+| `get_call_graph` | `/project:callgraph` | Function call graph analysis |
+
+## Configuration
+
+### Config
+
+Configuration is loaded with priority: environment variables > config file > defaults.
+
+#### VectorDbConfig
+
+| Field | Type | Default | Env Var | Description |
+|-------|------|---------|---------|-------------|
+| `backend` | `String` | `"lancedb"` | `PROJECT_RAG_DB_BACKEND` | Database backend (`"lancedb"` or `"qdrant"`) |
+| `lancedb_path` | `PathBuf` | `~/.local/share/brainwires-rag/lancedb/` | `PROJECT_RAG_LANCEDB_PATH` | LanceDB data directory |
+| `qdrant_url` | `String` | `"http://localhost:6334"` | `PROJECT_RAG_QDRANT_URL` | Qdrant server URL |
+| `collection_name` | `String` | `"code_embeddings"` | — | Vector collection name |
+
+#### EmbeddingConfig
+
+| Field | Type | Default | Env Var | Description |
+|-------|------|---------|---------|-------------|
+| `model_name` | `String` | `"all-MiniLM-L6-v2"` | `PROJECT_RAG_MODEL` | Embedding model name |
+| `batch_size` | `usize` | `8` | `PROJECT_RAG_BATCH_SIZE` | Batch size per embedding call |
+| `timeout_secs` | `u64` | `10` | — | Per-batch timeout in seconds |
+| `cancellation_check_interval` | `usize` | `4` | — | Chunks between cancellation checks |
+
+#### IndexingConfig
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `chunk_size` | `usize` | `50` | Lines per chunk (fixed-lines strategy) |
+| `max_file_size` | `usize` | `1_048_576` | Maximum file size to index (1 MB) |
+| `include_patterns` | `Vec<String>` | `[]` | Default include glob patterns |
+| `exclude_patterns` | `Vec<String>` | `["target", "node_modules", ".git", "dist", "build"]` | Default exclude patterns |
+
+#### SearchConfig
+
+| Field | Type | Default | Env Var | Description |
+|-------|------|---------|---------|-------------|
+| `min_score` | `f32` | `0.7` | `PROJECT_RAG_MIN_SCORE` | Default minimum similarity score (0.0–1.0) |
+| `limit` | `usize` | `10` | — | Default result limit |
+| `hybrid` | `bool` | `true` | — | Enable hybrid search by default |
+
+#### CacheConfig
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `hash_cache_path` | `PathBuf` | `~/.local/share/brainwires-rag/hash_cache.json` | Persistent file hash cache |
+| `git_cache_path` | `PathBuf` | `~/.local/share/brainwires-rag/git_cache.json` | Git commit tracking cache |
+
+### Config file
+
+Load from `~/.brainwires-rag/config.toml`:
+
+```rust
+use brainwires_rag::Config;
+use std::path::Path;
+
+let config = Config::from_file(Path::new("config.toml"))?;
+// or
+let config = Config::load_or_default()?;
+// or with env overrides
+let config = Config::new()?;
 ```
+
+## Error Handling
+
+`RagError` is a comprehensive error enum with domain-specific variants:
+
+| Variant | Source | Description |
+|---------|--------|-------------|
+| `Embedding` | `EmbeddingError` | Model init, generation, timeout, dimension mismatch |
+| `VectorDb` | `VectorDbError` | Connection, collection, store, search, clear |
+| `Indexing` | `IndexingError` | File walking, reading errors |
+| `Chunking` | `ChunkingError` | AST parsing, chunking errors |
+| `Config` | `ConfigError` | File not found, parse failed, invalid values |
+| `Validation` | `ValidationError` | Input validation failures |
+| `Git` | `GitError` | Git repository operations |
+| `Cache` | `CacheError` | Cache load/save errors |
+| `Io` | `std::io::Error` | Filesystem I/O |
+
+Helper methods: `to_user_string()`, `is_user_error()`, `is_retryable()`.
 
 ## Performance
 
-### Benchmarks (Typical Hardware)
+| Metric | Value |
+|--------|-------|
+| Indexing speed | ~1000 files/minute |
+| Search latency | 20–30 ms |
+| Memory usage | ~100 MB base + 50 MB model + ~4 MB per 10k chunks |
+| Storage per chunk | ~1.5 KB |
+| Model download | ~50 MB (first run only, cached locally) |
 
-- **Indexing Speed**: ~1000 files/minute
-  - Depends on file size and complexity
-  - Includes file I/O, hashing, chunking, embedding generation
+## Integration
 
-- **Search Latency**: 20-30ms per query
-  - ~95% recall with HNSW index
-  - Sub-50ms for most queries
+Use via the `brainwires` facade crate with the `rag` feature, or depend on `brainwires-rag` directly:
 
-- **Memory Usage**:
-  - Base: ~100MB
-  - Embedding model: ~50MB
-  - Per 10k chunks: ~40MB (embeddings + metadata)
+```toml
+# Via facade
+[dependencies]
+brainwires = { version = "0.1", features = ["rag"] }
 
-- **Storage**:
-  - Embeddings: ~1.5KB per chunk (384 floats)
-  - Typical project (1000 files): ~75MB in Qdrant
-
-### Optimization Tips
-
-1. **Adjust chunk size**: Smaller chunks = more precise but slower indexing
-2. **Use filters**: Pre-filter by language/extension for faster searches
-3. **Batch processing**: Default 32 chunks per batch is optimal for most systems
-4. **Incremental updates**: Use after initial index to save time
-
-## Current Status
-
-### ✅ Production Ready - 100% Complete
-
-- Core architecture with modular design
-- All 9 MCP tools implemented and working
-- **All 9 MCP slash commands implemented**
-- **Hybrid search** - Vector similarity + Full BM25 with IDF
-- **AST-based chunking** - Semantic code extraction for 12 languages
-- **Code navigation** - Find definitions, references, and call graphs (LSP-like)
-- **Multi-project support** - Index and query multiple codebases
-- **Persistent hash cache** - Fast incremental updates across restarts
-- **Concurrent access protection** - Smart lock management prevents index corruption
-- FastEmbed integration for local embeddings
-- Qdrant vector database integration
-- File walking with .gitignore support
-- Language detection (40+ file types: code, docs, configs)
-- PDF to Markdown conversion with table preservation
-- SHA256-based change detection
-- 413 unit tests passing (including relations, PDF extraction, BM25/RRF, adaptive threshold, cross-process locking, and lock safety tests)
-- Comprehensive documentation
-- **Full MCP prompts support enabled**
-- **Hybrid search with Tantivy BM25 + LanceDB vector using RRF**
-- **Hybrid relations provider** - Stack-graphs for Python/TS/Java/Ruby, RepoMap fallback for all languages
-
-### 📋 Known Limitations
-
-1. **Qdrant API Changes**
-   - Requires builder patterns (UpsertPointsBuilder, SearchPointsBuilder, etc.)
-   - All builders implemented correctly
-
-2. **FastEmbed Mutability**
-   - Uses unsafe workaround for mutable model access
-   - Works correctly but should be refactored to use Arc<Mutex<>>
-
-3. **Async Trait Warnings**
-   - 9 harmless warnings about `async fn` in public traits
-   - Cosmetic issue, does not affect functionality
-
-## Limitations
-
-### Current Limitations
-
-- **Qdrant Backend**: Requires external Qdrant server when using qdrant-backend feature
-  - Default LanceDB backend is fully embedded with no external dependencies
-
-- **Model Download**: First run downloads ~50MB model
-  - Future: Include model in binary or provide offline installer
-
-- **Path Filtering**: Currently post-query filtering (not optimized)
-  - Future: Add Qdrant payload indexing for path patterns
-
-- **No Configuration File**: All settings hardcoded
-  - Future: Add TOML/YAML config support
-
-### Scale Limitations
-
-- **Large Codebases**: Projects with 100k+ files may take significant time to index
-  - Mitigation: Use incremental updates
-
-- **Memory**: Very large indexes (1M+ chunks) may require significant RAM
-  - Typical project (5k files) uses <500MB total
-
-## Troubleshooting
-
-### Index Lock Errors
-
-**Error: "BM25 index is currently being used by another process"**
-
-This means another agent or process is actively indexing. This is expected behavior to prevent index corruption.
-
-**Solutions:**
-1. **Wait**: Let the current indexing operation complete (typically seconds to minutes)
-2. **Check processes**: Verify no other Claude Code/Desktop instances are running indexing operations
-3. **Force cleanup** (last resort): If you're certain no other process is running, manually remove stale locks:
-   ```bash
-   rm ~/.local/share/brainwires-rag/lancedb/lancedb_bm25/.tantivy-*.lock
-   ```
-
-**Note:** The system automatically detects and cleans up stale locks (>5 minutes old) from crashed processes. You should rarely need manual intervention.
-
-### Qdrant Connection Fails
-```bash
-# Check if Qdrant is running
-curl http://localhost:6334/health
-
-# View Qdrant logs
-docker logs <container-id>
+# Direct
+[dependencies]
+brainwires-rag = "0.1"
 ```
 
-### Model Download Fails
-```bash
-# Pre-download model
-python -c "from fastembed import TextEmbedding; TextEmbedding()"
+The crate re-exports all request/response types at the top level:
 
-# Or set HuggingFace mirror
-export HF_ENDPOINT=https://hf-mirror.com
+```rust
+use brainwires_rag::{
+    RagClient, Config,
+    IndexRequest, IndexResponse, IndexingMode,
+    QueryRequest, QueryResponse, SearchResult,
+    AdvancedSearchRequest,
+    SearchGitHistoryRequest, SearchGitHistoryResponse, GitSearchResult,
+    FindDefinitionRequest, FindDefinitionResponse,
+    FindReferencesRequest, FindReferencesResponse,
+    GetCallGraphRequest, GetCallGraphResponse,
+    StatisticsRequest, StatisticsResponse,
+    ClearRequest, ClearResponse,
+    RagError,
+};
 ```
-
-### Out of Memory
-```bash
-# Reduce batch size (edit source)
-# Or index in smaller chunks
-# Or use smaller embedding model
-```
-
-### Slow Indexing
-```bash
-# Check disk I/O
-# Reduce max_file_size
-# Use exclude_patterns to skip unnecessary files
-```
-
-## Future Enhancements
-
-### High Priority
-- [ ] Add comprehensive integration tests
-- [ ] Configuration file support (TOML)
-- [ ] Cache IDF statistics to disk for faster startup
-
-### Medium Priority
-- [ ] Embedded vector DB option (no external dependencies)
-- [ ] Support for more embedding models
-- [ ] Performance benchmarks and profiling
-- [ ] AST support for more languages (Kotlin, Perl, Scala, etc.)
-
-### Low Priority
-- [ ] Web UI for testing/debugging
-- [ ] Metrics and monitoring endpoints
-- [ ] Multi-language documentation
-- [ ] Alternative transport mechanisms (HTTP, WebSocket)
 
 ## License
 
-MIT License - see LICENSE file for details
-
-## Contributing
-
-Contributions welcome! Please ensure:
-
-1. **Code Quality**:
-   - Source files stay under 600 lines (enforced)
-   - Code is formatted with `cargo fmt`
-   - Clippy lints pass (`cargo clippy`)
-
-2. **Testing**:
-   - Add tests for new functionality
-   - Existing tests pass (`cargo test`)
-   - Update documentation
-
-3. **Commits**:
-   - Clear, descriptive commit messages
-   - One logical change per commit
-   - Reference issues where applicable
-
-## Support
-
-- **Issues**: https://github.com/Brainwires/brainwires-rag/issues
-- **Documentation**: See [docs/](docs/) for deployment, troubleshooting, and slash commands
-- **Architecture**: See [docs/adr/](docs/adr/) for architecture decision records
-
-## Acknowledgments
-
-- **rmcp**: Official Rust Model Context Protocol SDK
-- **Qdrant**: High-performance vector database
-- **FastEmbed**: Fast local embedding generation
-- **Claude**: For MCP protocol and testing
-
----
-
-Built with ❤️ using Rust 2024 Edition
+Licensed under the MIT License. See [LICENSE](../../LICENSE) for details.
