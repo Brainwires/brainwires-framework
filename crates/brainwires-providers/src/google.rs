@@ -511,6 +511,116 @@ struct GeminiStreamChunk {
     usage_metadata: Option<GeminiUsageMetadata>,
 }
 
+// ---------------------------------------------------------------------------
+// Model listing
+// ---------------------------------------------------------------------------
+
+use crate::model_listing::{
+    AvailableModel, GoogleListResponse, ModelCapability, ModelLister,
+};
+
+/// Lists models available from the Google Gemini API.
+pub struct GoogleModelLister {
+    api_key: String,
+    http_client: Client,
+}
+
+impl GoogleModelLister {
+    pub fn new(api_key: String) -> Self {
+        Self {
+            api_key,
+            http_client: Client::new(),
+        }
+    }
+
+    /// Infer capabilities from `supportedGenerationMethods`.
+    fn infer_capabilities(methods: &[String]) -> Vec<ModelCapability> {
+        let mut caps = Vec::new();
+
+        let has_generate = methods.iter().any(|m| m == "generateContent");
+        let has_embed = methods.iter().any(|m| m == "embedContent");
+
+        if has_generate {
+            caps.push(ModelCapability::Chat);
+            caps.push(ModelCapability::ToolUse);
+            caps.push(ModelCapability::Vision);
+        }
+        if has_embed {
+            caps.push(ModelCapability::Embedding);
+        }
+
+        if caps.is_empty() {
+            // Fallback: at least mark as Chat if we can't determine
+            caps.push(ModelCapability::Chat);
+        }
+
+        caps
+    }
+}
+
+#[async_trait]
+impl ModelLister for GoogleModelLister {
+    async fn list_models(&self) -> Result<Vec<AvailableModel>> {
+        let mut all_models = Vec::new();
+        let mut page_token: Option<String> = None;
+
+        loop {
+            let mut url = format!(
+                "{}/models?key={}&pageSize=1000",
+                GEMINI_API_BASE, self.api_key
+            );
+            if let Some(ref token) = page_token {
+                url.push_str(&format!("&pageToken={}", token));
+            }
+
+            let resp = self
+                .http_client
+                .get(&url)
+                .send()
+                .await
+                .context("Failed to list Google models")?;
+
+            if !resp.status().is_success() {
+                let status = resp.status();
+                let body = resp.text().await.unwrap_or_default();
+                return Err(anyhow::anyhow!(
+                    "Google models API returned {}: {}",
+                    status,
+                    body
+                ));
+            }
+
+            let page: GoogleListResponse = resp.json().await
+                .context("Failed to parse Google models response")?;
+
+            for entry in &page.models {
+                // Strip "models/" prefix from name
+                let id = entry.name.strip_prefix("models/")
+                    .unwrap_or(&entry.name)
+                    .to_string();
+
+                all_models.push(AvailableModel {
+                    id,
+                    display_name: entry.display_name.clone(),
+                    provider: crate::ProviderType::Google,
+                    capabilities: Self::infer_capabilities(&entry.supported_generation_methods),
+                    owned_by: Some("google".to_string()),
+                    context_window: entry.input_token_limit,
+                    max_output_tokens: entry.output_token_limit,
+                    created_at: None,
+                });
+            }
+
+            match page.next_page_token {
+                Some(token) if !token.is_empty() => page_token = Some(token),
+                _ => break,
+            }
+        }
+
+        Ok(all_models)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

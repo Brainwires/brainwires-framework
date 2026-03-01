@@ -358,6 +358,73 @@ struct OllamaStreamChunk {
     eval_count: Option<u32>,
 }
 
+// ---------------------------------------------------------------------------
+// Model listing
+// ---------------------------------------------------------------------------
+
+use crate::model_listing::{
+    AvailableModel, ModelCapability, ModelLister, OllamaTagsResponse,
+};
+
+/// Lists locally downloaded models from an Ollama instance.
+pub struct OllamaModelLister {
+    base_url: String,
+    http_client: Client,
+}
+
+impl OllamaModelLister {
+    pub fn new(base_url: Option<String>) -> Self {
+        Self {
+            base_url: base_url.unwrap_or_else(|| "http://localhost:11434".to_string()),
+            http_client: Client::new(),
+        }
+    }
+}
+
+#[async_trait]
+impl ModelLister for OllamaModelLister {
+    async fn list_models(&self) -> Result<Vec<AvailableModel>> {
+        let url = format!("{}/api/tags", self.base_url);
+
+        let resp = self
+            .http_client
+            .get(&url)
+            .send()
+            .await
+            .context("Failed to connect to Ollama. Is it running?")?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            return Err(anyhow::anyhow!(
+                "Ollama API returned {}: {}",
+                status,
+                body
+            ));
+        }
+
+        let tags: OllamaTagsResponse = resp.json().await
+            .context("Failed to parse Ollama tags response")?;
+
+        let models = tags
+            .models
+            .into_iter()
+            .map(|entry| AvailableModel {
+                id: entry.name.clone(),
+                display_name: Some(entry.name),
+                provider: crate::ProviderType::Ollama,
+                capabilities: vec![ModelCapability::Chat],
+                owned_by: Some("local".to_string()),
+                context_window: None,
+                max_output_tokens: None,
+                created_at: None,
+            })
+            .collect();
+
+        Ok(models)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

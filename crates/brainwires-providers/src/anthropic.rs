@@ -405,6 +405,92 @@ struct AnthropicDelta {
     text: Option<String>,
 }
 
+// ---------------------------------------------------------------------------
+// Model listing
+// ---------------------------------------------------------------------------
+
+use crate::model_listing::{
+    AnthropicListResponse, AvailableModel, ModelCapability, ModelLister,
+};
+
+const ANTHROPIC_MODELS_URL: &str = "https://api.anthropic.com/v1/models";
+
+/// Lists models available from the Anthropic API.
+pub struct AnthropicModelLister {
+    api_key: String,
+    http_client: Client,
+}
+
+impl AnthropicModelLister {
+    pub fn new(api_key: String) -> Self {
+        Self {
+            api_key,
+            http_client: Client::new(),
+        }
+    }
+}
+
+#[async_trait]
+impl ModelLister for AnthropicModelLister {
+    async fn list_models(&self) -> Result<Vec<AvailableModel>> {
+        let mut all_models = Vec::new();
+        let mut after_id: Option<String> = None;
+
+        loop {
+            let mut url = format!("{}?limit=1000", ANTHROPIC_MODELS_URL);
+            if let Some(ref cursor) = after_id {
+                url.push_str(&format!("&after_id={}", cursor));
+            }
+
+            let resp = self
+                .http_client
+                .get(&url)
+                .header("x-api-key", &self.api_key)
+                .header("anthropic-version", ANTHROPIC_VERSION)
+                .send()
+                .await
+                .context("Failed to list Anthropic models")?;
+
+            if !resp.status().is_success() {
+                let status = resp.status();
+                let body = resp.text().await.unwrap_or_default();
+                return Err(anyhow::anyhow!(
+                    "Anthropic models API returned {}: {}",
+                    status,
+                    body
+                ));
+            }
+
+            let page: AnthropicListResponse = resp.json().await
+                .context("Failed to parse Anthropic models response")?;
+
+            for entry in &page.data {
+                all_models.push(AvailableModel {
+                    id: entry.id.clone(),
+                    display_name: Some(entry.display_name.clone()),
+                    provider: crate::ProviderType::Anthropic,
+                    capabilities: vec![
+                        ModelCapability::Chat,
+                        ModelCapability::ToolUse,
+                        ModelCapability::Vision,
+                    ],
+                    owned_by: Some("anthropic".to_string()),
+                    context_window: None,
+                    max_output_tokens: None,
+                    created_at: None,
+                });
+            }
+
+            if !page.has_more {
+                break;
+            }
+            after_id = page.last_id;
+        }
+
+        Ok(all_models)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

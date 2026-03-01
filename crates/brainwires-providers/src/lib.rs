@@ -30,6 +30,10 @@ pub mod ollama;
 #[cfg(feature = "native")]
 pub mod brainwires_http;
 
+// Model listing (query available models from provider APIs)
+#[cfg(feature = "native")]
+pub mod model_listing;
+
 // Provider factory
 #[cfg(feature = "native")]
 pub mod factory;
@@ -52,6 +56,8 @@ pub use ollama::OllamaProvider;
 pub use brainwires_http::BrainwiresHttpProvider;
 #[cfg(feature = "native")]
 pub use factory::ProviderFactory;
+#[cfg(feature = "native")]
+pub use model_listing::{AvailableModel, ModelCapability, ModelLister, create_model_lister};
 pub use local_llm::*;
 
 use serde::{Deserialize, Serialize};
