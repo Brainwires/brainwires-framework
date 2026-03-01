@@ -10,14 +10,14 @@ authors.workspace = true
 
 [dependencies]
 brainwires-core = { workspace = true }
-brainwires-tools = { workspace = true, optional = true }
+brainwires-tooling = { workspace = true, optional = true }
 tracing = { workspace = true }
 serde = { workspace = true }
 regex = { workspace = true }
 
 [features]
 default = ["native"]
-native = ["brainwires-core/native", "dep:brainwires-tools", "brainwires-tools/native"]
+native = ["brainwires-core/native", "dep:brainwires-tooling", "brainwires-tooling/native"]
 
 [dev-dependencies]
 serde_json = { workspace = true }

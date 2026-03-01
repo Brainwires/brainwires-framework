@@ -1,5 +1,5 @@
 [package]
-name = "brainwires-tools"
+name = "brainwires-tooling"
 description = "Built-in tool implementations for the Brainwires Agent Framework"
 version.workspace = true
 edition.workspace = true

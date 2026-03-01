@@ -13,7 +13,7 @@ authors.workspace = true
 brainwires-core.workspace = true
 
 # Feature-gated framework crates
-brainwires-tools = { workspace = true, optional = true }
+brainwires-tooling = { workspace = true, optional = true }
 brainwires-agents = { workspace = true, optional = true }
 brainwires-storage = { workspace = true, optional = true }
 brainwires-mcp = { workspace = true, optional = true }
@@ -62,7 +62,7 @@ tracing-subscriber = { workspace = true }
 [features]
 default = ["tools", "agents"]
 wasm = ["brainwires-core/wasm"]
-tools = ["dep:brainwires-tools"]
+tools = ["dep:brainwires-tooling"]
 agents = ["dep:brainwires-agents"]
 storage = ["dep:brainwires-storage"]
 mcp = ["dep:brainwires-mcp"]
@@ -70,7 +70,7 @@ mdap = ["dep:brainwires-mdap"]
 knowledge = ["dep:brainwires-knowledge", "storage"]
 prompting = ["dep:brainwires-prompting"]
 permissions = ["dep:brainwires-permissions"]
-orchestrator = ["tools", "brainwires-tools/orchestrator"]
+orchestrator = ["tools", "brainwires-tooling/orchestrator"]
 rag = ["dep:brainwires-rag"]
 interpreters = ["dep:brainwires-code-interpreters"]
 providers = ["dep:brainwires-providers"]

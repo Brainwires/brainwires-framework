@@ -41,7 +41,7 @@
 //! 7. If failed: record failure for pattern avoidance
 
 use brainwires_core::graph::EntityType;
-use brainwires_tools::{ToolErrorCategory, ToolOutcome};
+use brainwires_tooling::{ToolErrorCategory, ToolOutcome};
 use brainwires_agents::ResponseConfidence;
 use crate::query_core::{QueryCore, QuestionType};
 use std::collections::HashMap;

@@ -31,8 +31,8 @@
 // Re-export core types
 pub use brainwires_core;
 
-// Re-export brainwires-tools for ToolExecutor trait
-pub use brainwires_tools;
+// Re-export brainwires-tooling for ToolExecutor trait
+pub use brainwires_tooling;
 
 // ── Agent runtime ────────────────────────────────────────────────────────────
 
@@ -129,7 +129,7 @@ pub use task_agent::{
     spawn_task_agent, FailureCategory, TaskAgent, TaskAgentConfig, TaskAgentResult,
     TaskAgentStatus,
 };
-pub use brainwires_tools::{PreHookDecision, ToolPreHook};
+pub use brainwires_tooling::{PreHookDecision, ToolPreHook};
 
 /// Prelude module for convenient imports
 pub mod prelude {
@@ -140,7 +140,7 @@ pub mod prelude {
     pub use super::task_agent::{
         FailureCategory, TaskAgent, TaskAgentConfig, TaskAgentResult, TaskAgentStatus,
     };
-    pub use brainwires_tools::{PreHookDecision, ToolPreHook};
+    pub use brainwires_tooling::{PreHookDecision, ToolPreHook};
 
     // Core components
     pub use super::communication::{AgentMessage, CommunicationHub, ConflictInfo, ConflictType};

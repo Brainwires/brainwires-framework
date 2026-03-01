@@ -107,7 +107,7 @@ async fn main() -> anyhow::Result<()> {
 
 | Feature | Default | Description |
 |---------|---------|-------------|
-| `native` | Yes | Enables `brainwires-core/native`, `brainwires-tools` (for `ToolCategory`), and their transitive dependencies |
+| `native` | Yes | Enables `brainwires-core/native`, `brainwires-tooling` (for `ToolCategory`), and their transitive dependencies |
 
 ```toml
 # Default (full functionality)
@@ -196,7 +196,7 @@ Classifies queries into tool categories for semantic routing (replaces keyword m
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `categories` | `Vec<ToolCategory>` | Matched tool categories (from `brainwires-tools`) |
+| `categories` | `Vec<ToolCategory>` | Matched tool categories (from `brainwires-tooling`) |
 | `confidence` | `f32` | Classification confidence (0.0–1.0) |
 | `used_local_llm` | `bool` | Whether LLM inference was used |
 

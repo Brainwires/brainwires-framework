@@ -11,7 +11,7 @@ authors.workspace = true
 [dependencies]
 # Internal crates
 brainwires-core.workspace = true
-brainwires-tools.workspace = true
+brainwires-tooling.workspace = true
 
 # Async runtime
 tokio = { workspace = true, features = ["sync", "time", "rt", "macros"] }
@@ -53,7 +53,7 @@ tempfile.workspace = true
 
 [features]
 default = ["native"]
-native = ["dep:git2", "dep:libc", "brainwires-core/native", "brainwires-tools/native"]
-wasm = ["brainwires-core/wasm", "brainwires-tools/wasm"]
-# tools feature is kept for backward compatibility; brainwires-tools is now always available
+native = ["dep:git2", "dep:libc", "brainwires-core/native", "brainwires-tooling/native"]
+wasm = ["brainwires-core/wasm", "brainwires-tooling/wasm"]
+# tools feature is kept for backward compatibility; brainwires-tooling is now always available
 tools = []

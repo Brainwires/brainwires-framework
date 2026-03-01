@@ -3,10 +3,10 @@
 //! This example shows how to register file system tools and use them
 //! in orchestrated scripts.
 //!
-//! Run with: `cargo run -p brainwires-tools --features orchestrator --example file_operations`
+//! Run with: `cargo run -p brainwires-tooling --features orchestrator --example file_operations`
 
 use std::fs;
-use brainwires_tools::orchestrator::{ExecutionLimits, ToolOrchestrator};
+use brainwires_tooling::orchestrator::{ExecutionLimits, ToolOrchestrator};
 
 fn main() {
     println!("=== File Operations Example ===\n");
