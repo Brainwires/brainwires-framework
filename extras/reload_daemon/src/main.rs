@@ -7,7 +7,7 @@
 //! ## Usage
 //!
 //! ```sh
-//! cargo run -p brainwires-extras --example reload_daemon -- \
+//! cargo run -p reload-daemon -- \
 //!   --config extras/reload_daemon/config.json
 //! ```
 //!

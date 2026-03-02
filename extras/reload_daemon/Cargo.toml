@@ -1,0 +1,28 @@
+[package]
+name = "reload-daemon"
+description = "Minimal MCP server that enables AI coding clients to kill and restart themselves with transformed arguments"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "reload-daemon"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+rmcp = { workspace = true, features = ["server", "macros", "transport-streamable-http-server"] }
+schemars = { workspace = true }
+clap = { version = "4", features = ["derive"] }
+axum = "0.8"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

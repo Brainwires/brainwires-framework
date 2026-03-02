@@ -97,14 +97,14 @@ In the example config, this means: keep `--allow-dangerously-skip-permissions` i
 ### 1. Start the daemon
 
 ```sh
-cargo run -p brainwires-extras --example reload_daemon -- \
+cargo run -p reload-daemon -- \
   --config extras/reload_daemon/config.json
 ```
 
 Or with debug logging:
 
 ```sh
-RUST_LOG=debug cargo run -p brainwires-extras --example reload_daemon -- \
+RUST_LOG=debug cargo run -p reload-daemon -- \
   --config extras/reload_daemon/config.json
 ```
 
