@@ -20,9 +20,9 @@ Priority definitions:
 - [x] **Add README.md to `brainwires-training`** — New crate, needs documentation of cloud providers, local Burn training, adapter methods.
 - [x] **Add README.md to framework root** — `crates/brainwires-framework/README.md` is the entry point for developers discovering the project.
 - [x] **Add README.md to `extras/brainwires-proxy`** — Proxy crate already had a README.
-- [ ] **Align `brainwires-rag` version** — Currently at `0.1.1` while all other crates are `0.1.0`. Synchronize before first public release.
+- [x] **Align `brainwires-rag` version** — Synchronized to `0.1.0` in both crate and workspace dependency.
 - [x] **Document Rust 1.85+ minimum** — All crates use `edition = "2024"` which requires Rust 1.85+. Documented in framework root README.
-- [ ] **Verify `rag` facade feature scope** — The `brainwires-rag` crate pulls 20+ optional tree-sitter language bindings under the `native` feature. Verify that enabling `rag` in the facade crate doesn't transitively pull all tree-sitter parsers. Consider adding a `rag-full-languages` feature flag if it does.
+- [x] **Verify `rag` facade feature scope** — Fixed: extracted 12 tree-sitter parsers into `tree-sitter-languages` feature. Facade `rag` enables `native` + `lancedb-backend` without parsers; `rag-full-languages` adds them. RAG falls back to line-based chunking without parsers.
 
 ---
 

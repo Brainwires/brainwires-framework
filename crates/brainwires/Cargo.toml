@@ -79,7 +79,8 @@ knowledge = ["prompting", "brainwires-prompting/knowledge"]
 prompting = ["dep:brainwires-prompting"]
 permissions = ["dep:brainwires-permissions"]
 orchestrator = ["tools", "brainwires-model-tools/orchestrator"]
-rag = ["dep:brainwires-rag"]
+rag = ["dep:brainwires-rag", "brainwires-rag/native", "brainwires-rag/lancedb-backend"]
+rag-full-languages = ["rag", "brainwires-rag/tree-sitter-languages"]
 interpreters = ["dep:brainwires-code-interpreters"]
 providers = ["dep:brainwires-providers"]
 reasoning = ["agents", "brainwires-agents/reasoning"]
@@ -104,7 +105,7 @@ learning = ["seal", "knowledge", "brainwires-seal/knowledge"]
 agent-full = ["agents", "permissions", "prompting", "tools"]
 full = [
     "tools", "agents", "storage", "mcp", "mdap", "knowledge",
-    "prompting", "permissions", "orchestrator", "rag", "interpreters",
+    "prompting", "permissions", "orchestrator", "rag-full-languages", "interpreters",
     "providers", "reasoning", "seal", "relay",
     "brainwires-seal/knowledge", "brainwires-seal/mdap",
     "llama-cpp-2", "mcp-server", "skills", "eval", "proxy",

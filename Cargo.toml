@@ -45,7 +45,7 @@ brainwires-mcp = { path = "crates/brainwires-mcp", version = "0.1.0" }
 brainwires-mdap = { path = "crates/brainwires-mdap", version = "0.1.0" }
 brainwires-prompting = { path = "crates/brainwires-prompting", version = "0.1.0" }
 brainwires-permissions = { path = "crates/brainwires-permissions", version = "0.1.0" }
-brainwires-rag = { path = "crates/brainwires-rag", version = "0.1.1" }
+brainwires-rag = { path = "crates/brainwires-rag", version = "0.1.0", default-features = false }
 brainwires-code-interpreters = { path = "crates/brainwires-code-interpreters", version = "0.1.0" }
 brainwires-wasm = { path = "crates/brainwires-wasm", version = "0.1.0" }
 brainwires-relay = { path = "crates/brainwires-relay", version = "0.1.0" }

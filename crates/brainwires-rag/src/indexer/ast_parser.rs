@@ -18,29 +18,42 @@ pub struct AstParser {
     language_name: String,
 }
 
+#[cfg(feature = "tree-sitter-languages")]
+fn resolve_language(extension: &str) -> Result<(Language, &'static str)> {
+    match extension.to_lowercase().as_str() {
+        "rs" => Ok((tree_sitter_rust::LANGUAGE.into(), "Rust")),
+        "py" => Ok((tree_sitter_python::LANGUAGE.into(), "Python")),
+        "js" | "mjs" | "cjs" | "jsx" => Ok((tree_sitter_javascript::LANGUAGE.into(), "JavaScript")),
+        "ts" | "tsx" => Ok((
+            tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
+            "TypeScript",
+        )),
+        "go" => Ok((tree_sitter_go::LANGUAGE.into(), "Go")),
+        "java" => Ok((tree_sitter_java::LANGUAGE.into(), "Java")),
+        "swift" => Ok((tree_sitter_swift::LANGUAGE.into(), "Swift")),
+        "c" | "h" => Ok((tree_sitter_c::LANGUAGE.into(), "C")),
+        "cpp" | "cc" | "cxx" | "hpp" | "hxx" | "hh" => {
+            Ok((tree_sitter_cpp::LANGUAGE.into(), "C++"))
+        }
+        "cs" => Ok((tree_sitter_c_sharp::LANGUAGE.into(), "C#")),
+        "rb" => Ok((tree_sitter_ruby::LANGUAGE.into(), "Ruby")),
+        "php" => Ok((tree_sitter_php::LANGUAGE_PHP.into(), "PHP")),
+        _ => anyhow::bail!("Unsupported language for AST parsing: {}", extension),
+    }
+}
+
+#[cfg(not(feature = "tree-sitter-languages"))]
+fn resolve_language(extension: &str) -> Result<(Language, &'static str)> {
+    anyhow::bail!(
+        "AST parsing for .{} files requires the `tree-sitter-languages` feature",
+        extension
+    )
+}
+
 impl AstParser {
     /// Create a new AST parser for the given language
     pub fn new(extension: &str) -> Result<Self> {
-        let (language, language_name) = match extension.to_lowercase().as_str() {
-            "rs" => (tree_sitter_rust::LANGUAGE.into(), "Rust"),
-            "py" => (tree_sitter_python::LANGUAGE.into(), "Python"),
-            "js" | "mjs" | "cjs" | "jsx" => (tree_sitter_javascript::LANGUAGE.into(), "JavaScript"),
-            "ts" | "tsx" => (
-                tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
-                "TypeScript",
-            ),
-            "go" => (tree_sitter_go::LANGUAGE.into(), "Go"),
-            "java" => (tree_sitter_java::LANGUAGE.into(), "Java"),
-            "swift" => (tree_sitter_swift::LANGUAGE.into(), "Swift"),
-            "c" | "h" => (tree_sitter_c::LANGUAGE.into(), "C"),
-            "cpp" | "cc" | "cxx" | "hpp" | "hxx" | "hh" => {
-                (tree_sitter_cpp::LANGUAGE.into(), "C++")
-            }
-            "cs" => (tree_sitter_c_sharp::LANGUAGE.into(), "C#"),
-            "rb" => (tree_sitter_ruby::LANGUAGE.into(), "Ruby"),
-            "php" => (tree_sitter_php::LANGUAGE_PHP.into(), "PHP"),
-            _ => anyhow::bail!("Unsupported language for AST parsing: {}", extension),
-        };
+        let (language, language_name) = resolve_language(extension)?;
 
         let mut parser = Parser::new();
         parser
@@ -193,6 +206,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg(feature = "tree-sitter-languages")]
     fn test_rust_parsing() {
         let source = r#"
 fn main() {
@@ -220,6 +234,7 @@ impl MyStruct {
     }
 
     #[test]
+    #[cfg(feature = "tree-sitter-languages")]
     fn test_python_parsing() {
         let source = r#"
 def hello():
@@ -242,6 +257,7 @@ class MyClass:
     }
 
     #[test]
+    #[cfg(feature = "tree-sitter-languages")]
     fn test_javascript_parsing() {
         let source = r#"
 function hello() {
@@ -270,6 +286,7 @@ class MyClass {
     }
 
     #[test]
+    #[cfg(feature = "tree-sitter-languages")]
     fn test_swift_parsing() {
         let source = r#"
 func greet(name: String) {
@@ -299,12 +316,14 @@ class MyClass {
     }
 
     #[test]
+    #[cfg(feature = "tree-sitter-languages")]
     fn test_unsupported_language() {
         let result = AstParser::new("xyz");
         assert!(result.is_err());
     }
 
     #[test]
+    #[cfg(feature = "tree-sitter-languages")]
     fn test_c_parsing() {
         let source = r#"
 int add(int a, int b) {
@@ -325,6 +344,7 @@ struct Point {
     }
 
     #[test]
+    #[cfg(feature = "tree-sitter-languages")]
     fn test_cpp_parsing() {
         let source = r#"
 class MyClass {
@@ -347,6 +367,7 @@ namespace MyNamespace {
     }
 
     #[test]
+    #[cfg(feature = "tree-sitter-languages")]
     fn test_csharp_parsing() {
         let source = r#"
 class MyClass {
@@ -370,6 +391,7 @@ class MyClass {
     }
 
     #[test]
+    #[cfg(feature = "tree-sitter-languages")]
     fn test_ruby_parsing() {
         let source = r#"
 def hello(name)
@@ -395,6 +417,7 @@ end
     }
 
     #[test]
+    #[cfg(feature = "tree-sitter-languages")]
     fn test_php_parsing() {
         let source = r#"
 <?php

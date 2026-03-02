@@ -155,6 +155,7 @@ impl Default for SymbolExtractor {
 }
 
 /// Get the tree-sitter language for a file extension
+#[cfg(feature = "tree-sitter-languages")]
 fn get_language_for_extension(extension: &str) -> Option<(Language, String)> {
     match extension.to_lowercase().as_str() {
         "rs" => Some((tree_sitter_rust::LANGUAGE.into(), "Rust".to_string())),
@@ -179,6 +180,12 @@ fn get_language_for_extension(extension: &str) -> Option<(Language, String)> {
         "php" => Some((tree_sitter_php::LANGUAGE_PHP.into(), "PHP".to_string())),
         _ => None,
     }
+}
+
+/// Stub when tree-sitter language parsers are not compiled in
+#[cfg(not(feature = "tree-sitter-languages"))]
+fn get_language_for_extension(_extension: &str) -> Option<(Language, String)> {
+    None
 }
 
 /// Check if a node kind represents a definition
