@@ -36,14 +36,15 @@ impl GitWalker {
         let path = path.as_ref();
 
         // Discover the repository (walks up directory tree)
-        let repo_path = Repository::discover(path)
-            .context("Failed to discover git repository")?
-            .path()
-            .parent()
-            .context("Invalid repository path")?
-            .to_path_buf();
+        let repo = Repository::discover(path).context("Failed to discover git repository")?;
 
-        let repo = Repository::open(&repo_path).context("Failed to open git repository")?;
+        // Use workdir() to get the actual working directory — this handles
+        // submodules correctly (unlike path().parent() which points into
+        // .git/modules/... for submodules)
+        let repo_path = repo
+            .workdir()
+            .context("Repository has no working directory (bare repository)")?
+            .to_path_buf();
 
         tracing::info!("Opened git repository at: {}", repo_path.display());
 

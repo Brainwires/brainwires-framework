@@ -73,7 +73,7 @@ impl CommitChunker {
         // Create chunk metadata
         // Note: Git commits don't have line numbers, so we use 0
         let metadata = ChunkMetadata {
-            file_path: format!("git://{}", repo_path),
+            file_path: format!("git://{}/{}", repo_path, commit.hash),
             root_path: None,
             project,
             start_line: 0,
@@ -135,7 +135,7 @@ mod tests {
             .commit_to_chunk(&commit, "/repo/path", None)
             .expect("Should convert commit to chunk");
 
-        assert_eq!(chunk.metadata.file_path, "git:///repo/path");
+        assert_eq!(chunk.metadata.file_path, "git:///repo/path/abc123def456");
         assert_eq!(chunk.metadata.language, Some("git-commit".to_string()));
         assert_eq!(chunk.metadata.file_hash, "abc123def456");
         assert!(chunk.content.contains("Fix authentication bug"));
