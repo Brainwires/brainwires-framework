@@ -1,0 +1,42 @@
+[package]
+name = "brainwires-training"
+description = "Model training and fine-tuning for the Brainwires Agent Framework — cloud fine-tuning and local LoRA/QLoRA/DoRA training"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+# Always available
+brainwires-core.workspace = true
+brainwires-datasets.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+async-trait.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+
+# Cloud feature
+reqwest = { version = "0.12", features = ["json", "stream", "multipart"], optional = true }
+tokio = { workspace = true, optional = true }
+brainwires-providers = { workspace = true, optional = true }
+
+# Local feature — burn deferred until libsqlite3-sys conflict is resolved
+# (burn 0.16 → rusqlite 0.32 → libsqlite3-sys 0.30, conflicts with rustpython-stdlib's 0.28)
+# burn = { version = "0.16", optional = true, features = ["wgpu", "autodiff"] }
+
+[features]
+default = ["cloud"]
+cloud = ["dep:reqwest", "dep:tokio", "dep:brainwires-providers"]
+local = ["dep:tokio"]
+full = ["cloud", "local"]
+
+[dev-dependencies]
+serde_json.workspace = true
+tempfile.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

@@ -1,0 +1,36 @@
+[package]
+name = "brainwires-datasets"
+description = "Training data pipelines for the Brainwires Agent Framework — JSONL I/O, tokenization, deduplication, format conversion"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+brainwires-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+
+# Feature-gated
+tokenizers = { version = "0.21", optional = true }
+tiktoken-rs = { version = "0.7", optional = true }
+sha2 = { workspace = true, optional = true }
+rand = { workspace = true, optional = true }
+
+[features]
+default = ["hf-tokenizer"]
+hf-tokenizer = ["dep:tokenizers"]
+tiktoken = ["dep:tiktoken-rs"]
+dedup = ["dep:sha2", "dep:rand"]
+full = ["hf-tokenizer", "tiktoken", "dedup"]
+
+[dev-dependencies]
+serde_json.workspace = true
+tempfile.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

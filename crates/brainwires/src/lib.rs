@@ -113,6 +113,16 @@ pub mod audio {
     pub use brainwires_audio::*;
 }
 
+#[cfg(feature = "datasets")]
+pub mod datasets {
+    pub use brainwires_datasets::*;
+}
+
+#[cfg(feature = "training")]
+pub mod training {
+    pub use brainwires_training::*;
+}
+
 /// Re-exports for building MCP servers (rmcp, schemars, CancellationToken).
 ///
 /// Enabled with the `mcp-server` feature.

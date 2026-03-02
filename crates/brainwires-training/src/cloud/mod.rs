@@ -1,0 +1,138 @@
+pub mod openai;
+pub mod together;
+pub mod fireworks;
+pub mod anyscale;
+pub mod bedrock;
+pub mod vertex;
+pub mod polling;
+pub mod cost;
+
+use async_trait::async_trait;
+use brainwires_datasets::DataFormat;
+
+use crate::config::{TrainingHyperparams, LoraConfig, AlignmentMethod};
+use crate::error::TrainingError;
+use crate::types::{TrainingJobId, TrainingJobStatus, TrainingJobSummary, DatasetId};
+
+/// Configuration for a cloud fine-tuning job.
+#[derive(Debug, Clone)]
+pub struct CloudFineTuneConfig {
+    /// Base model to fine-tune (provider-specific ID).
+    pub base_model: String,
+    /// Uploaded training dataset ID.
+    pub training_dataset: DatasetId,
+    /// Optional validation dataset ID.
+    pub validation_dataset: Option<DatasetId>,
+    /// Training hyperparameters.
+    pub hyperparams: TrainingHyperparams,
+    /// LoRA config (if provider supports PEFT).
+    pub lora: Option<LoraConfig>,
+    /// Alignment method (DPO/ORPO if provider supports it).
+    pub alignment: AlignmentMethod,
+    /// Suffix appended to fine-tuned model name.
+    pub suffix: Option<String>,
+}
+
+impl CloudFineTuneConfig {
+    pub fn new(base_model: impl Into<String>, training_dataset: DatasetId) -> Self {
+        Self {
+            base_model: base_model.into(),
+            training_dataset,
+            validation_dataset: None,
+            hyperparams: TrainingHyperparams::default(),
+            lora: None,
+            alignment: AlignmentMethod::None,
+            suffix: None,
+        }
+    }
+
+    pub fn with_validation(mut self, dataset: DatasetId) -> Self {
+        self.validation_dataset = Some(dataset);
+        self
+    }
+
+    pub fn with_hyperparams(mut self, h: TrainingHyperparams) -> Self {
+        self.hyperparams = h;
+        self
+    }
+
+    pub fn with_lora(mut self, lora: LoraConfig) -> Self {
+        self.lora = Some(lora);
+        self
+    }
+
+    pub fn with_alignment(mut self, alignment: AlignmentMethod) -> Self {
+        self.alignment = alignment;
+        self
+    }
+
+    pub fn with_suffix(mut self, suffix: impl Into<String>) -> Self {
+        self.suffix = Some(suffix.into());
+        self
+    }
+}
+
+/// Trait for cloud fine-tuning providers.
+#[async_trait]
+pub trait FineTuneProvider: Send + Sync {
+    /// Provider name.
+    fn name(&self) -> &str;
+
+    /// List base models available for fine-tuning.
+    fn supported_base_models(&self) -> Vec<String>;
+
+    /// Whether this provider supports DPO/preference optimization.
+    fn supports_dpo(&self) -> bool;
+
+    /// Upload a dataset (JSONL bytes) and get a dataset ID.
+    async fn upload_dataset(&self, data: &[u8], format: DataFormat) -> Result<DatasetId, TrainingError>;
+
+    /// Create a fine-tuning job.
+    async fn create_job(&self, config: CloudFineTuneConfig) -> Result<TrainingJobId, TrainingError>;
+
+    /// Get the current status of a training job.
+    async fn get_job_status(&self, job_id: &TrainingJobId) -> Result<TrainingJobStatus, TrainingError>;
+
+    /// Cancel a running training job.
+    async fn cancel_job(&self, job_id: &TrainingJobId) -> Result<(), TrainingError>;
+
+    /// List all training jobs.
+    async fn list_jobs(&self) -> Result<Vec<TrainingJobSummary>, TrainingError>;
+
+    /// Delete a fine-tuned model.
+    async fn delete_model(&self, model_id: &str) -> Result<(), TrainingError>;
+}
+
+/// Factory for creating cloud fine-tune providers.
+pub struct FineTuneProviderFactory;
+
+impl FineTuneProviderFactory {
+    /// Create an OpenAI fine-tune provider.
+    pub fn openai(api_key: impl Into<String>) -> openai::OpenAiFineTune {
+        openai::OpenAiFineTune::new(api_key)
+    }
+
+    /// Create a Together AI fine-tune provider.
+    pub fn together(api_key: impl Into<String>) -> together::TogetherFineTune {
+        together::TogetherFineTune::new(api_key)
+    }
+
+    /// Create a Fireworks AI fine-tune provider.
+    pub fn fireworks(api_key: impl Into<String>) -> fireworks::FireworksFineTune {
+        fireworks::FireworksFineTune::new(api_key)
+    }
+
+    /// Create an Anyscale fine-tune provider.
+    pub fn anyscale(api_key: impl Into<String>) -> anyscale::AnyscaleFineTune {
+        anyscale::AnyscaleFineTune::new(api_key)
+    }
+}
+
+pub use self::openai::OpenAiFineTune;
+pub use self::together::TogetherFineTune;
+pub use self::fireworks::FireworksFineTune;
+pub use self::anyscale::AnyscaleFineTune;
+pub use self::bedrock::BedrockFineTune;
+pub use self::vertex::VertexFineTune;
+pub use self::cost::CostEstimator;
+pub use self::polling::JobPoller;

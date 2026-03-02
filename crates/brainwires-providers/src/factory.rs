@@ -58,6 +58,21 @@ impl ProviderFactory {
                     config.model.clone(),
                 )))
             }
+            ProviderType::Together => {
+                let api_key = config.api_key.clone()
+                    .ok_or_else(|| anyhow!("Together provider requires an API key"))?;
+                Ok(Arc::new(super::TogetherProvider::new(api_key, config.model.clone())))
+            }
+            ProviderType::Fireworks => {
+                let api_key = config.api_key.clone()
+                    .ok_or_else(|| anyhow!("Fireworks provider requires an API key"))?;
+                Ok(Arc::new(super::FireworksProvider::new(api_key, config.model.clone())))
+            }
+            ProviderType::Anyscale => {
+                let api_key = config.api_key.clone()
+                    .ok_or_else(|| anyhow!("Anyscale provider requires an API key"))?;
+                Ok(Arc::new(super::AnyscaleProvider::new(api_key, config.model.clone())))
+            }
             ProviderType::Custom => {
                 Err(anyhow!("Custom provider type requires a custom factory implementation"))
             }

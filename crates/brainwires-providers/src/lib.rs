@@ -64,6 +64,21 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
 
+// OpenAI-compatible providers (Together, Fireworks, Anyscale)
+#[cfg(feature = "native")]
+pub mod together;
+#[cfg(feature = "native")]
+pub mod fireworks;
+#[cfg(feature = "native")]
+pub mod anyscale;
+
+#[cfg(feature = "native")]
+pub use together::TogetherProvider;
+#[cfg(feature = "native")]
+pub use fireworks::FireworksProvider;
+#[cfg(feature = "native")]
+pub use anyscale::AnyscaleProvider;
+
 /// AI provider types
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "lowercase")]
@@ -74,6 +89,9 @@ pub enum ProviderType {
     Groq,
     Ollama,
     Brainwires,
+    Together,
+    Fireworks,
+    Anyscale,
     Custom,
 }
 
@@ -87,6 +105,9 @@ impl ProviderType {
             Self::Groq => "llama-3.3-70b-versatile",
             Self::Ollama => "llama3.1",
             Self::Brainwires => "gpt-5-mini",
+            Self::Together => "meta-llama/Llama-3.1-8B-Instruct",
+            Self::Fireworks => "accounts/fireworks/models/llama-v3p1-8b-instruct",
+            Self::Anyscale => "meta-llama/Meta-Llama-3.1-8B-Instruct",
             Self::Custom => "claude-3-5-sonnet-20241022",
         }
     }
@@ -100,6 +121,9 @@ impl ProviderType {
             "groq" => Some(Self::Groq),
             "ollama" => Some(Self::Ollama),
             "brainwires" => Some(Self::Brainwires),
+            "together" => Some(Self::Together),
+            "fireworks" => Some(Self::Fireworks),
+            "anyscale" => Some(Self::Anyscale),
             "custom" => Some(Self::Custom),
             _ => None,
         }
@@ -114,16 +138,16 @@ impl ProviderType {
             Self::Groq => "groq",
             Self::Ollama => "ollama",
             Self::Brainwires => "brainwires",
+            Self::Together => "together",
+            Self::Fireworks => "fireworks",
+            Self::Anyscale => "anyscale",
             Self::Custom => "custom",
         }
     }
 
     /// Whether this provider requires an API key
     pub fn requires_api_key(&self) -> bool {
-        match self {
-            Self::Ollama => false,
-            _ => true,
-        }
+        !matches!(self, Self::Ollama)
     }
 }
 
@@ -197,6 +221,9 @@ mod tests {
         assert_eq!(ProviderType::Groq.default_model(), "llama-3.3-70b-versatile");
         assert_eq!(ProviderType::Ollama.default_model(), "llama3.1");
         assert_eq!(ProviderType::Brainwires.default_model(), "gpt-5-mini");
+        assert_eq!(ProviderType::Together.default_model(), "meta-llama/Llama-3.1-8B-Instruct");
+        assert_eq!(ProviderType::Fireworks.default_model(), "accounts/fireworks/models/llama-v3p1-8b-instruct");
+        assert_eq!(ProviderType::Anyscale.default_model(), "meta-llama/Meta-Llama-3.1-8B-Instruct");
     }
 
     #[test]
@@ -208,6 +235,9 @@ mod tests {
         assert_eq!(ProviderType::from_str_opt("groq"), Some(ProviderType::Groq));
         assert_eq!(ProviderType::from_str_opt("ollama"), Some(ProviderType::Ollama));
         assert_eq!(ProviderType::from_str_opt("brainwires"), Some(ProviderType::Brainwires));
+        assert_eq!(ProviderType::from_str_opt("together"), Some(ProviderType::Together));
+        assert_eq!(ProviderType::from_str_opt("fireworks"), Some(ProviderType::Fireworks));
+        assert_eq!(ProviderType::from_str_opt("anyscale"), Some(ProviderType::Anyscale));
         assert_eq!(ProviderType::from_str_opt("custom"), Some(ProviderType::Custom));
         assert_eq!(ProviderType::from_str_opt("unknown"), None);
     }
@@ -216,6 +246,9 @@ mod tests {
     fn test_provider_type_as_str() {
         assert_eq!(ProviderType::Groq.as_str(), "groq");
         assert_eq!(ProviderType::Brainwires.as_str(), "brainwires");
+        assert_eq!(ProviderType::Together.as_str(), "together");
+        assert_eq!(ProviderType::Fireworks.as_str(), "fireworks");
+        assert_eq!(ProviderType::Anyscale.as_str(), "anyscale");
     }
 
     #[test]
@@ -226,6 +259,9 @@ mod tests {
         assert!(ProviderType::Groq.requires_api_key());
         assert!(!ProviderType::Ollama.requires_api_key());
         assert!(ProviderType::Brainwires.requires_api_key());
+        assert!(ProviderType::Together.requires_api_key());
+        assert!(ProviderType::Fireworks.requires_api_key());
+        assert!(ProviderType::Anyscale.requires_api_key());
     }
 
     #[test]

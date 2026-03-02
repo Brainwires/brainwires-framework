@@ -20,6 +20,8 @@ members = [
     "crates/brainwires-mesh",
     "crates/brainwires-a2a",
     "crates/brainwires-audio",
+    "crates/brainwires-datasets",
+    "crates/brainwires-training",
     "extras/brainwires-proxy",
 ]
 resolver = "2"
@@ -54,7 +56,17 @@ brainwires-eval = { path = "crates/brainwires-eval", version = "0.1.0" }
 brainwires-mesh = { path = "crates/brainwires-mesh", version = "0.1.0" }
 brainwires-a2a = { path = "crates/brainwires-a2a", version = "0.1.0" }
 brainwires-audio = { path = "crates/brainwires-audio", version = "0.1.0" }
+brainwires-datasets = { path = "crates/brainwires-datasets", version = "0.1.0" }
+brainwires-training = { path = "crates/brainwires-training", version = "0.1.0" }
 brainwires-proxy = { path = "extras/brainwires-proxy", version = "0.1.0" }
+
+# Tokenizer dependencies
+tokenizers = "0.21"
+tiktoken-rs = "0.7"
+
+# ML training framework — deferred until libsqlite3-sys conflict is resolved
+# burn requires rusqlite 0.32 (libsqlite3-sys 0.30) but rustpython-stdlib pins 0.28
+# burn = { version = "0.16", features = ["wgpu", "autodiff"] }
 
 # Async runtime & utilities
 tokio = { version = "1.43", features = ["full"] }

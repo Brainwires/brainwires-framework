@@ -155,6 +155,23 @@ pub fn create_model_lister(
                 base_url.map(|s| s.to_string()),
             )))
         }
+        ProviderType::Together | ProviderType::Fireworks | ProviderType::Anyscale => {
+            // These use OpenAI-compatible API; reuse OpenAI model lister with custom base URL
+            let key = api_key
+                .ok_or_else(|| anyhow::anyhow!("{} requires an API key", provider_type))?
+                .to_string();
+            let default_url = match provider_type {
+                ProviderType::Together => "https://api.together.xyz/v1",
+                ProviderType::Fireworks => "https://api.fireworks.ai/inference/v1",
+                ProviderType::Anyscale => "https://api.endpoints.anyscale.com/v1",
+                _ => unreachable!(),
+            };
+            let url = base_url.unwrap_or(default_url);
+            Ok(Box::new(super::openai::OpenAIModelLister::new(
+                key,
+                Some(url.to_string()),
+            )))
+        }
         ProviderType::Brainwires | ProviderType::Custom => {
             Err(anyhow::anyhow!(
                 "Model listing is not supported for {} provider via this interface",
