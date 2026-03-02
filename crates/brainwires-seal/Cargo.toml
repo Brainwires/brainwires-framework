@@ -10,7 +10,7 @@ authors.workspace = true
 
 [dependencies]
 brainwires-core = { workspace = true }
-brainwires-tooling = { workspace = true }
+brainwires-model-tools = { workspace = true }
 brainwires-agents = { workspace = true }
 brainwires-mdap = { workspace = true, optional = true }
 brainwires-prompting = { workspace = true, optional = true }

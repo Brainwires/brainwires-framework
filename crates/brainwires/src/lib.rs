@@ -23,7 +23,7 @@ pub mod core {
 // Feature-gated framework crates as modules
 #[cfg(feature = "tools")]
 pub mod tools {
-    pub use brainwires_tooling::*;
+    pub use brainwires_model_tools::*;
 }
 
 #[cfg(feature = "agents")]
@@ -66,7 +66,7 @@ pub mod seal {
     pub use brainwires_seal::*;
 }
 
-// Orchestrator is re-exported via brainwires_tooling::orchestrator when orchestrator feature is on
+// Orchestrator is re-exported via brainwires_model_tools::orchestrator when orchestrator feature is on
 
 #[cfg(feature = "rag")]
 pub mod rag {
@@ -151,7 +151,7 @@ pub mod prelude {
 
     // Tools — available with "tools" feature
     #[cfg(feature = "tools")]
-    pub use brainwires_tooling::{
+    pub use brainwires_model_tools::{
         BashTool, FileOpsTool, GitTool, SearchTool, ToolSearchTool, ValidationTool, WebTool,
         ToolCategory, ToolRegistry,
         classify_error, ToolErrorCategory, RetryStrategy, ToolOutcome,

@@ -85,7 +85,7 @@ println!("{} iterations, success={}", result.iterations, result.success);
 |---------|---------|-------------|
 | `native` | Yes | Git worktree management (`git2`) and process liveness checking (`libc`) |
 | `wasm` | No | WebAssembly-compatible build (disables native-only functionality) |
-| `tools` | No | Kept for backward compatibility; `brainwires-tooling` is always available |
+| `tools` | No | Kept for backward compatibility; `brainwires-model-tools` is always available |
 
 Enable features in `Cargo.toml`:
 
@@ -420,7 +420,7 @@ Use via the `brainwires` facade crate:
 brainwires = { version = "0.1", features = ["agents"] }
 ```
 
-Or use standalone — `brainwires-agents` depends only on `brainwires-core` and `brainwires-tooling`.
+Or use standalone — `brainwires-agents` depends only on `brainwires-core` and `brainwires-model-tools`.
 
 ## License
 

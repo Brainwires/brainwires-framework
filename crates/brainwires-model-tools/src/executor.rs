@@ -18,7 +18,7 @@ use brainwires_core::{Tool, ToolContext, ToolResult, ToolUse};
 /// # Example
 ///
 /// ```rust,ignore
-/// use brainwires_tooling::ToolExecutor;
+/// use brainwires_model_tools::ToolExecutor;
 /// use brainwires_core::{Tool, ToolContext, ToolResult, ToolUse};
 /// use async_trait::async_trait;
 ///

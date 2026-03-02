@@ -8,7 +8,7 @@ use tracing::{debug, warn};
 
 use brainwires_core::message::Message;
 use brainwires_core::provider::{ChatOptions, Provider};
-use brainwires_tooling::ToolCategory;
+use brainwires_model_tools::ToolCategory;
 
 use super::InferenceTimer;
 

@@ -22,7 +22,7 @@
 //!
 //! ```rust,ignore
 //! use std::sync::Arc;
-//! use brainwires_tooling::transaction::TransactionManager;
+//! use brainwires_model_tools::transaction::TransactionManager;
 //! use brainwires_core::{StagedWrite, ToolContext};
 //!
 //! let mgr = Arc::new(TransactionManager::new().unwrap());

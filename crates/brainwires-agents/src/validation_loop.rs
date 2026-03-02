@@ -3,7 +3,7 @@
 //! Wraps task agent execution to automatically validate work before allowing completion.
 //! If validation fails, forces the agent to fix issues before succeeding.
 //!
-//! When the `tools` feature is enabled, uses brainwires-tooling validation functions
+//! When the `tools` feature is enabled, uses brainwires-model-tools validation functions
 //! (check_duplicates, verify_build, check_syntax). Without it, those checks are skipped.
 
 use anyhow::{Result, anyhow};
@@ -212,7 +212,7 @@ pub async fn run_validation(config: &ValidationConfig) -> Result<ValidationResul
 
 #[cfg(feature = "tools")]
 async fn run_duplicates_check(changed_files: &[String], issues: &mut Vec<ValidationIssue>) {
-    use brainwires_tooling::validation::check_duplicates;
+    use brainwires_model_tools::validation::check_duplicates;
 
     for file in changed_files {
         if !is_source_file(file) { continue; }
@@ -254,7 +254,7 @@ async fn run_duplicates_check(_changed_files: &[String], _issues: &mut Vec<Valid
 
 #[cfg(feature = "tools")]
 async fn run_syntax_check(changed_files: &[String], issues: &mut Vec<ValidationIssue>) {
-    use brainwires_tooling::validation::check_syntax;
+    use brainwires_model_tools::validation::check_syntax;
 
     for file in changed_files {
         if !is_source_file(file) { continue; }
@@ -291,7 +291,7 @@ async fn run_syntax_check(_changed_files: &[String], _issues: &mut Vec<Validatio
 
 #[cfg(feature = "tools")]
 async fn run_build_check(working_directory: &str, build_type: &str, issues: &mut Vec<ValidationIssue>) {
-    use brainwires_tooling::validation::verify_build;
+    use brainwires_model_tools::validation::verify_build;
 
     match verify_build(working_directory, build_type).await {
         Ok(result) => {

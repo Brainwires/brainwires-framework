@@ -13,7 +13,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use brainwires_core::WorkingSet;
-use brainwires_tooling::{ToolExecutor, ToolPreHook};
+use brainwires_model_tools::{ToolExecutor, ToolPreHook};
 
 use crate::communication::CommunicationHub;
 use crate::file_locks::FileLockManager;

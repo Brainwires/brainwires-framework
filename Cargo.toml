@@ -2,7 +2,7 @@
 members = [
     "crates/brainwires-core",
     "crates/brainwires",
-    "crates/brainwires-tooling",
+    "crates/brainwires-model-tools",
     "crates/brainwires-agents",
     "crates/brainwires-storage",
     "crates/brainwires-mcp",
@@ -35,7 +35,7 @@ authors = ["Brainwires"]
 [workspace.dependencies]
 # Internal crates
 brainwires-core = { path = "crates/brainwires-core", version = "0.1.0" }
-brainwires-tooling = { path = "crates/brainwires-tooling", version = "0.1.0" }
+brainwires-model-tools = { path = "crates/brainwires-model-tools", version = "0.1.0" }
 brainwires-agents = { path = "crates/brainwires-agents", version = "0.1.0" }
 brainwires-storage = { path = "crates/brainwires-storage", version = "0.1.0" }
 brainwires-mcp = { path = "crates/brainwires-mcp", version = "0.1.0" }

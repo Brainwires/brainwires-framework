@@ -9,9 +9,9 @@ use std::rc::Rc;
 
 use wasm_bindgen::prelude::*;
 
-use brainwires_tooling::orchestrator::dynamic_to_json;
-use brainwires_tooling::orchestrator::ExecutionLimits as CoreExecutionLimits;
-use brainwires_tooling::orchestrator::{OrchestratorResult as CoreOrchestratorResult, ToolCall as CoreToolCall};
+use brainwires_model_tools::orchestrator::dynamic_to_json;
+use brainwires_model_tools::orchestrator::ExecutionLimits as CoreExecutionLimits;
+use brainwires_model_tools::orchestrator::{OrchestratorResult as CoreOrchestratorResult, ToolCall as CoreToolCall};
 
 // ============================================================================
 // Engine Configuration Constants

@@ -62,7 +62,7 @@ let response = provider.chat(&messages, None, &options).await?;
 
 | Feature | Default | Activates | Description |
 |---------|---------|-----------|-------------|
-| `tools` | **yes** | `brainwires-tooling` | File, bash, git, search, web, and validation tools |
+| `tools` | **yes** | `brainwires-model-tools` | File, bash, git, search, web, and validation tools |
 | `agents` | **yes** | `brainwires-agents` | Agent runtime, communication hub, task manager, validation loop |
 | `storage` | no | `brainwires-storage` | LanceDB-backed tiered memory (hot/warm/cold) |
 | `mcp` | no | `brainwires-mcp` | MCP client for connecting to external MCP servers |
@@ -70,7 +70,7 @@ let response = provider.chat(&messages, None, &options).await?;
 | `prompting` | no | `brainwires-prompting` | Prompt generation, technique library, temperature optimizer |
 | `knowledge` | no | `brainwires-prompting/knowledge` | Behavioral + personal knowledge caches (implies `prompting`) |
 | `permissions` | no | `brainwires-permissions` | Capability profiles, trust levels, policy engine, audit logging |
-| `orchestrator` | no | `brainwires-tooling/orchestrator` | Tool orchestration layer (implies `tools`) |
+| `orchestrator` | no | `brainwires-model-tools/orchestrator` | Tool orchestration layer (implies `tools`) |
 | `rag` | no | `brainwires-rag` | Semantic code search with vector + BM25 hybrid search |
 | `interpreters` | no | `brainwires-code-interpreters` | Sandboxed JavaScript and Python code execution |
 | `providers` | no | `brainwires-providers` | AI providers (Anthropic, OpenAI, Google, Ollama) |

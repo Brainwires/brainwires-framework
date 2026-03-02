@@ -28,7 +28,7 @@ serde-wasm-bindgen = "0.6"
 brainwires-code-interpreters = { path = "../brainwires-code-interpreters", version = "0.1.0", default-features = false, features = ["wasm"], optional = true }
 
 # Orchestrator deps (behind orchestrator feature)
-brainwires-tooling = { path = "../brainwires-tooling", version = "0.1.0", default-features = false, features = ["wasm", "orchestrator-wasm"], optional = true }
+brainwires-model-tools = { path = "../brainwires-model-tools", version = "0.1.0", default-features = false, features = ["wasm", "orchestrator-wasm"], optional = true }
 rhai = { version = "1.23", default-features = false, features = ["serde", "std"], optional = true }
 js-sys = { version = "0.3", optional = true }
 web-sys = { version = "0.3", features = ["console"], optional = true }
@@ -40,7 +40,7 @@ instant = { version = "0.1", features = ["wasm-bindgen"], optional = true }
 default = []
 interpreters = ["dep:brainwires-code-interpreters"]
 orchestrator = [
-    "dep:brainwires-tooling", "dep:rhai", "dep:js-sys", "dep:web-sys",
+    "dep:brainwires-model-tools", "dep:rhai", "dep:js-sys", "dep:web-sys",
     "dep:web-time", "dep:console_error_panic_hook", "dep:instant",
 ]
 
