@@ -6,18 +6,31 @@
 
 Agent skills system for the Brainwires Agent Framework.
 
+## Attribution
+
+This crate implements the [Agent Skills](https://agentskills.io/) open standard, originally developed by [Anthropic](https://www.anthropic.com/) and published as an open specification on December 18, 2025. The Agent Skills format was designed by Barry Zhang, Keith Lazuka, and Mahesh Murag at Anthropic.
+
+**Official resources:**
+
+- [Agent Skills Specification](https://agentskills.io/specification) — the complete format specification
+- [anthropics/skills](https://github.com/anthropics/skills) — Anthropic's official example skills repository
+- [agentskills/agentskills](https://github.com/agentskills/agentskills) — the open standard repository and reference library
+- [Blog: Equipping agents for the real world with Agent Skills](https://claude.com/blog/equipping-agents-for-the-real-world-with-agent-skills)
+
+`brainwires-skills` aims to faithfully implement the Agent Skills specification while adding Brainwires-specific extensions. All spec-compliant fields and validation rules are supported. Extensions beyond the spec are clearly documented in the [Brainwires Extensions](#brainwires-extensions) section below.
+
 ## Overview
 
-`brainwires-skills` implements a markdown-based skills system that extends agent capabilities through composable, reusable skill packages. Skills are defined in `SKILL.md` files with YAML frontmatter for metadata and markdown body for instructions. The crate provides parsing, registry management, keyword-based routing, and multi-mode execution — enabling agents to discover, match, and run skills on demand.
+`brainwires-skills` implements the Agent Skills markdown-based format that extends agent capabilities through composable, reusable skill packages. Skills are defined in `SKILL.md` files with YAML frontmatter for metadata and markdown body for instructions. The crate provides parsing, registry management, keyword-based routing, and multi-mode execution — enabling agents to discover, match, and run skills on demand.
 
-The system uses a **progressive disclosure** pattern: at startup, only lightweight metadata (name, description) is loaded for fast matching. Full skill content is loaded on-demand when a skill is activated, and cached for subsequent use. This enables fast startup and efficient memory usage even with hundreds of registered skills.
+The system uses a **progressive disclosure** pattern (as defined by the spec): at startup, only lightweight metadata (name, description) is loaded for fast matching. Full skill content is loaded on-demand when a skill is activated, and cached for subsequent use. This enables fast startup and efficient memory usage even with hundreds of registered skills.
 
 **Design principles:**
 
 - **Progressive disclosure** — metadata loaded at startup (~100 bytes per skill), full instructions loaded lazily on activation and cached in memory
 - **Three execution modes** — inline (instructions injected into conversation), subagent (background task via AgentPool), and script (Rhai script via OrchestratorTool)
 - **Skill hierarchy** — personal (`~/.brainwires/skills/`), project (`.brainwires/skills/`), and built-in skills; project skills override personal skills with the same name
-- **Tool restrictions** — optional `allowed-tools` list restricts which tools a skill can use during execution
+- **Tool restrictions** — optional `allowed-tools` list restricts which tools a skill can use during execution (accepts both YAML lists and spec-compliant space-delimited strings)
 - **Template rendering** — simple `{{arg}}` substitution and `{{#if var}}...{{/if}}` conditionals for parameterized skills
 
 ```text
@@ -110,20 +123,21 @@ async fn main() -> anyhow::Result<()> {
 
 ### SKILL.md Format
 
-Skills are defined as markdown files with YAML frontmatter:
+Skills are defined as markdown files with YAML frontmatter per the [Agent Skills specification](https://agentskills.io/specification):
 
 ```markdown
 ---
 name: review-pr
 description: Reviews pull requests for code quality and security issues.
-allowed-tools:
-  - Read
-  - Grep
+allowed-tools: Read Grep                     # spec format: space-delimited
 license: MIT
-model: claude-sonnet-4
+compatibility: Requires git CLI
+model: claude-sonnet-4                       # Brainwires extension
 metadata:
   category: code-review
-  execution: subagent
+  execution: subagent                        # Brainwires extension
+hooks:                                       # Brainwires extension
+  - agent_started
 ---
 
 # PR Review Instructions
@@ -132,6 +146,13 @@ When reviewing a pull request:
 1. Check for code quality issues
 2. Look for security vulnerabilities
 3. Verify test coverage
+```
+
+`allowed-tools` also accepts YAML list format:
+```yaml
+allowed-tools:
+  - Read
+  - Grep
 ```
 
 **Supported file layouts:**
@@ -145,16 +166,18 @@ When reviewing a pull request:
 
 Lightweight metadata loaded at startup for fast matching and display.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | `String` | Skill identifier (lowercase, hyphens only, max 64 chars) |
-| `description` | `String` | Used for semantic matching (max 1024 chars) |
-| `allowed_tools` | `Option<Vec<String>>` | Tool restrictions (`None` = all tools allowed) |
-| `license` | `Option<String>` | Software license |
-| `model` | `Option<String>` | Model override for execution |
-| `metadata` | `Option<HashMap<String, String>>` | Custom key-value pairs (category, execution, author, version) |
-| `source` | `SkillSource` | Where the skill was loaded from |
-| `source_path` | `PathBuf` | File path for lazy loading |
+| Field | Type | Spec | Description |
+|-------|------|------|-------------|
+| `name` | `String` | Required | Skill identifier (lowercase, hyphens only, max 64 chars, no consecutive hyphens) |
+| `description` | `String` | Required | Used for semantic matching (max 1024 chars) |
+| `allowed_tools` | `Option<Vec<String>>` | Optional | Tool restrictions (`None` = all tools allowed). Accepts YAML list or space-delimited string |
+| `license` | `Option<String>` | Optional | Software license |
+| `compatibility` | `Option<String>` | Optional | Environment requirements (max 500 chars) |
+| `metadata` | `Option<HashMap<String, String>>` | Optional | Custom key-value pairs (category, execution, author, version) |
+| `model` | `Option<String>` | Extension | Model override for execution (Brainwires extension) |
+| `hooks` | `Option<Vec<String>>` | Extension | Lifecycle hook event subscriptions (Brainwires extension) |
+| `source` | `SkillSource` | Internal | Where the skill was loaded from |
+| `source_path` | `PathBuf` | Internal | File path for lazy loading |
 
 | Method | Description |
 |--------|-------------|
@@ -306,13 +329,15 @@ Functions for parsing SKILL.md files and rendering templates.
 | `parse_skill_file(path)` | Parse complete file (metadata + instructions) → `Result<Skill>` |
 | `render_template(template, args)` | Substitute `{{arg}}` placeholders and `{{#if var}}...{{/if}}` conditionals |
 
-**Skill name validation rules:**
+**Skill name validation rules** (per [Agent Skills specification](https://agentskills.io/specification)):
 
 | Rule | Constraint |
 |------|------------|
 | Characters | Lowercase letters, digits, and hyphens only |
-| Length | 1–64 characters |
+| Length | 1-64 characters |
 | Boundaries | Cannot start or end with a hyphen |
+| Consecutive hyphens | Cannot contain `--` |
+| Directory match | Name should match parent directory name (warning if mismatched) |
 | Examples | `review-pr`, `commit`, `explain-code-123` |
 
 ## Usage Examples
@@ -523,6 +548,20 @@ use brainwires_skills::{
     SkillMatch, MatchSource,
 };
 ```
+
+## Brainwires Extensions
+
+This crate extends the [Agent Skills specification](https://agentskills.io/specification) with the following Brainwires-specific features. These are clearly marked as extensions and do not conflict with spec-compliant skills.
+
+| Extension | Description |
+|-----------|-------------|
+| `model` field | Optional model override per skill (e.g., `model: claude-sonnet-4`). Overrides the default model when executing the skill. |
+| `hooks` field | Optional lifecycle hook event subscriptions (e.g., `hooks: [agent_started, tool_after_execute]`). Registers the skill to fire on matching lifecycle events. |
+| Execution modes | The `metadata.execution` key controls how a skill runs: `inline` (default, injected into conversation), `subagent` (spawned via AgentPool), or `script` (Rhai script via OrchestratorTool). |
+| Flat file layout | Skills can be defined as a single file (`skills/review-pr.md`) in addition to the spec-defined subdirectory layout (`skills/review-pr/SKILL.md`). |
+| YAML list `allowed-tools` | In addition to the spec's space-delimited string format, `allowed-tools` also accepts YAML lists for convenience. |
+
+Skills that use only spec-defined fields (`name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools`) are fully portable across any Agent Skills-compatible agent.
 
 ## License
 

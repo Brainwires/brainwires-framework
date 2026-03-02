@@ -39,17 +39,72 @@ struct SkillFrontmatter {
     /// Description (max 1024 chars, used for semantic matching)
     description: String,
     /// Optional: Restrict available tools
-    #[serde(rename = "allowed-tools")]
+    /// Accepts both a YAML list and a space-delimited string per the Agent Skills spec.
+    #[serde(rename = "allowed-tools", default, deserialize_with = "deserialize_allowed_tools")]
     allowed_tools: Option<Vec<String>>,
     /// Optional: Software license
     license: Option<String>,
-    /// Optional: Specific model to use
+    /// Optional: Environment requirements (max 500 chars)
+    compatibility: Option<String>,
+    /// Optional: Specific model to use (Brainwires extension)
     model: Option<String>,
     /// Optional: Custom key-value pairs
     metadata: Option<HashMap<String, String>>,
-    /// Optional: lifecycle hook event types
+    /// Optional: lifecycle hook event types (Brainwires extension)
     #[serde(default)]
     hooks: Option<Vec<String>>,
+}
+
+/// Deserialize `allowed-tools` from either a YAML list or a space-delimited string.
+///
+/// The Agent Skills specification defines allowed-tools as a space-delimited string
+/// (e.g., `allowed-tools: Bash(git:*) Read`), but we also accept YAML lists for
+/// convenience (e.g., `allowed-tools:\n  - Read\n  - Grep`).
+fn deserialize_allowed_tools<'de, D>(deserializer: D) -> Result<Option<Vec<String>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::de;
+
+    struct AllowedToolsVisitor;
+
+    impl<'de> de::Visitor<'de> for AllowedToolsVisitor {
+        type Value = Option<Vec<String>>;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("a list of strings or a space-delimited string")
+        }
+
+        fn visit_none<E: de::Error>(self) -> Result<Self::Value, E> {
+            Ok(None)
+        }
+
+        fn visit_unit<E: de::Error>(self) -> Result<Self::Value, E> {
+            Ok(None)
+        }
+
+        fn visit_str<E: de::Error>(self, value: &str) -> Result<Self::Value, E> {
+            if value.is_empty() {
+                Ok(None)
+            } else {
+                Ok(Some(value.split_whitespace().map(|s| s.to_string()).collect()))
+            }
+        }
+
+        fn visit_seq<A: de::SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+            let mut tools = Vec::new();
+            while let Some(tool) = seq.next_element::<String>()? {
+                tools.push(tool);
+            }
+            if tools.is_empty() {
+                Ok(None)
+            } else {
+                Ok(Some(tools))
+            }
+        }
+    }
+
+    deserializer.deserialize_any(AllowedToolsVisitor)
 }
 
 /// Parse only the skill metadata (frontmatter) from a SKILL.md file
@@ -84,12 +139,20 @@ fn parse_metadata_from_content(content: &str, path: &Path) -> Result<SkillMetada
         .with_context(|| format!("Invalid skill name in {}", path.display()))?;
     validate_description(&frontmatter.description)
         .with_context(|| format!("Invalid skill description in {}", path.display()))?;
+    if let Some(ref compat) = frontmatter.compatibility {
+        validate_compatibility(compat)
+            .with_context(|| format!("Invalid compatibility in {}", path.display()))?;
+    }
+
+    // Warn if skill name doesn't match parent directory name (spec recommendation)
+    warn_name_directory_mismatch(&frontmatter.name, path);
 
     Ok(SkillMetadata {
         name: frontmatter.name,
         description: frontmatter.description,
         allowed_tools: frontmatter.allowed_tools,
         license: frontmatter.license,
+        compatibility: frontmatter.compatibility,
         model: frontmatter.model,
         metadata: frontmatter.metadata,
         hooks: frontmatter.hooks,
@@ -136,12 +199,12 @@ fn parse_skill_from_content(content: &str, path: &Path) -> Result<Skill> {
     })
 }
 
-/// Validate skill name constraints
+/// Validate skill name constraints per the Agent Skills specification.
 ///
-/// - Must be lowercase
-/// - Only letters, numbers, and hyphens allowed
-/// - Max 64 characters
+/// - Must be 1-64 characters
+/// - Only lowercase letters, digits, and hyphens allowed
 /// - Cannot start or end with hyphen
+/// - Cannot contain consecutive hyphens (`--`)
 fn validate_skill_name(name: &str) -> Result<()> {
     if name.is_empty() {
         anyhow::bail!("Skill name cannot be empty");
@@ -157,6 +220,13 @@ fn validate_skill_name(name: &str) -> Result<()> {
 
     if name.starts_with('-') || name.ends_with('-') {
         anyhow::bail!("Skill name cannot start or end with a hyphen: '{}'", name);
+    }
+
+    if name.contains("--") {
+        anyhow::bail!(
+            "Skill name cannot contain consecutive hyphens: '{}'",
+            name
+        );
     }
 
     for c in name.chars() {
@@ -189,6 +259,48 @@ fn validate_description(desc: &str) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Validate compatibility field constraints per the Agent Skills specification.
+///
+/// - Must be 1-500 characters if provided
+fn validate_compatibility(compat: &str) -> Result<()> {
+    if compat.trim().is_empty() {
+        anyhow::bail!("Compatibility field cannot be empty when provided");
+    }
+
+    if compat.len() > 500 {
+        anyhow::bail!(
+            "Compatibility field exceeds 500 characters (got {})",
+            compat.len()
+        );
+    }
+
+    Ok(())
+}
+
+/// Warn if the skill name doesn't match the parent directory name.
+///
+/// The Agent Skills specification requires that the name field must match the parent
+/// directory name. We emit a warning rather than an error since brainwires-skills also
+/// supports flat file layout (`skills/review-pr.md`) which the spec doesn't define.
+fn warn_name_directory_mismatch(name: &str, path: &Path) {
+    // Only check for subdirectory layout (skill-name/SKILL.md)
+    if path.file_name().map(|f| f == "SKILL.md").unwrap_or(false) {
+        if let Some(parent) = path.parent() {
+            if let Some(dir_name) = parent.file_name().and_then(|n| n.to_str()) {
+                if dir_name != name {
+                    tracing::warn!(
+                        "Skill name '{}' does not match parent directory '{}' in {}. \
+                         The Agent Skills spec requires these to match.",
+                        name,
+                        dir_name,
+                        path.display()
+                    );
+                }
+            }
+        }
+    }
 }
 
 /// Render skill template with arguments
@@ -269,6 +381,10 @@ mod tests {
         // Hyphen at start/end
         assert!(validate_skill_name("-review").is_err());
         assert!(validate_skill_name("review-").is_err());
+
+        // Consecutive hyphens (per Agent Skills spec)
+        assert!(validate_skill_name("review--pr").is_err());
+        assert!(validate_skill_name("a--b--c").is_err());
     }
 
     #[test]
@@ -443,5 +559,103 @@ Instructions"#;
 
         assert!(metadata.description.contains("multiline description"));
         assert!(metadata.description.contains("spans multiple lines"));
+    }
+
+    #[test]
+    fn test_validate_compatibility() {
+        // Valid
+        assert!(validate_compatibility("Requires git and docker").is_ok());
+        assert!(validate_compatibility(&"a".repeat(500)).is_ok());
+
+        // Invalid: empty
+        assert!(validate_compatibility("").is_err());
+        assert!(validate_compatibility("   ").is_err());
+
+        // Invalid: too long
+        assert!(validate_compatibility(&"a".repeat(501)).is_err());
+    }
+
+    #[test]
+    fn test_parse_skill_with_compatibility() {
+        let content = r#"---
+name: deploy
+description: Deploys the application to production
+compatibility: Requires docker, kubectl, and access to the internet
+license: MIT
+---
+
+# Deploy Instructions
+
+Run the deploy script."#;
+
+        let path = Path::new("deploy.md");
+        let metadata = parse_metadata_from_content(content, path).unwrap();
+
+        assert_eq!(metadata.name, "deploy");
+        assert_eq!(
+            metadata.compatibility,
+            Some("Requires docker, kubectl, and access to the internet".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_allowed_tools_space_delimited() {
+        let content = r#"---
+name: git-helper
+description: Helps with git operations
+allowed-tools: Bash(git:*) Bash(jq:*) Read
+---
+
+# Git Helper
+
+Help with git."#;
+
+        let path = Path::new("git-helper.md");
+        let metadata = parse_metadata_from_content(content, path).unwrap();
+
+        assert_eq!(
+            metadata.allowed_tools,
+            Some(vec![
+                "Bash(git:*)".to_string(),
+                "Bash(jq:*)".to_string(),
+                "Read".to_string(),
+            ])
+        );
+    }
+
+    #[test]
+    fn test_parse_allowed_tools_yaml_list() {
+        let content = r#"---
+name: reviewer
+description: Reviews code
+allowed-tools:
+  - Read
+  - Grep
+---
+
+# Reviewer
+
+Review code."#;
+
+        let path = Path::new("reviewer.md");
+        let metadata = parse_metadata_from_content(content, path).unwrap();
+
+        assert_eq!(
+            metadata.allowed_tools,
+            Some(vec!["Read".to_string(), "Grep".to_string()])
+        );
+    }
+
+    #[test]
+    fn test_consecutive_hyphens_rejected() {
+        let content = r#"---
+name: bad--name
+description: A skill with consecutive hyphens
+---
+
+Instructions"#;
+
+        let path = Path::new("bad.md");
+        assert!(parse_metadata_from_content(content, path).is_err());
     }
 }
