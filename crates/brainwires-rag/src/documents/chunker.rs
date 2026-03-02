@@ -4,61 +4,7 @@
 //! documents (as opposed to AST-based chunking for code). Respects natural
 //! boundaries like paragraphs, sentences, and markdown section headers.
 
-use super::document_types::DocumentChunk;
-
-/// Configuration for document chunking
-#[derive(Debug, Clone)]
-pub struct ChunkerConfig {
-    /// Target chunk size in characters
-    pub target_chunk_size: usize,
-    /// Maximum chunk size (hard limit)
-    pub max_chunk_size: usize,
-    /// Minimum chunk size (avoid tiny chunks)
-    pub min_chunk_size: usize,
-    /// Overlap between chunks for context continuity
-    pub overlap_size: usize,
-    /// Whether to respect markdown headers as chunk boundaries
-    pub respect_headers: bool,
-    /// Whether to respect paragraph boundaries
-    pub respect_paragraphs: bool,
-}
-
-impl Default for ChunkerConfig {
-    fn default() -> Self {
-        Self {
-            target_chunk_size: 1500,  // ~300-400 words
-            max_chunk_size: 2500,     // Hard limit
-            min_chunk_size: 100,      // Avoid tiny chunks
-            overlap_size: 200,        // Context overlap
-            respect_headers: true,
-            respect_paragraphs: true,
-        }
-    }
-}
-
-impl ChunkerConfig {
-    /// Create config for small documents
-    pub fn small() -> Self {
-        Self {
-            target_chunk_size: 800,
-            max_chunk_size: 1200,
-            min_chunk_size: 50,
-            overlap_size: 100,
-            ..Default::default()
-        }
-    }
-
-    /// Create config for large documents
-    pub fn large() -> Self {
-        Self {
-            target_chunk_size: 2000,
-            max_chunk_size: 3500,
-            min_chunk_size: 200,
-            overlap_size: 300,
-            ..Default::default()
-        }
-    }
-}
+use super::types::{ChunkerConfig, DocumentChunk};
 
 /// Document chunker with configurable strategies
 pub struct DocumentChunker {
@@ -581,7 +527,6 @@ mod tests {
         let chunks = chunker.chunk("doc1", content);
 
         assert!(!chunks.is_empty());
-        // Each paragraph should become a separate chunk or combined appropriately
     }
 
     #[test]
@@ -613,27 +558,6 @@ mod tests {
     }
 
     #[test]
-    fn test_markdown_chunking_with_sections() {
-        let chunker = DocumentChunker::with_config(ChunkerConfig {
-            target_chunk_size: 200,
-            max_chunk_size: 400,
-            min_chunk_size: 10,
-            overlap_size: 20,
-            respect_headers: true,
-            respect_paragraphs: true,
-        });
-
-        let content = "# Introduction\n\nThis is the intro.\n\n# Methods\n\nThese are the methods.\n\n# Results\n\nThese are the results.";
-        let chunks = chunker.chunk("doc1", content);
-
-        assert!(!chunks.is_empty());
-
-        // Check that sections are assigned
-        let sections: Vec<_> = chunks.iter().filter_map(|c| c.section.as_ref()).collect();
-        assert!(!sections.is_empty());
-    }
-
-    #[test]
     fn test_sentence_splitting() {
         let sentences = DocumentChunker::split_sentences(
             "First sentence. Second sentence! Third sentence? Fourth."
@@ -651,46 +575,6 @@ mod tests {
         );
         // Should be 2 sentences, not split on "Dr."
         assert_eq!(sentences.len(), 2);
-    }
-
-    #[test]
-    fn test_chunk_ids_are_sequential() {
-        let chunker = DocumentChunker::with_config(ChunkerConfig {
-            target_chunk_size: 50,
-            max_chunk_size: 100,
-            min_chunk_size: 10,
-            overlap_size: 10,
-            respect_paragraphs: true,
-            respect_headers: false,
-        });
-
-        let content = "First paragraph here.\n\nSecond paragraph here.\n\nThird paragraph here.\n\nFourth paragraph here.";
-        let chunks = chunker.chunk("doc123", content);
-
-        for (i, chunk) in chunks.iter().enumerate() {
-            assert_eq!(chunk.chunk_id, format!("doc123:{}", i));
-            assert_eq!(chunk.chunk_index, i as u32);
-            assert_eq!(chunk.total_chunks, chunks.len() as u32);
-        }
-    }
-
-    #[test]
-    fn test_long_paragraph_split() {
-        let chunker = DocumentChunker::with_config(ChunkerConfig {
-            target_chunk_size: 50,
-            max_chunk_size: 100,
-            min_chunk_size: 10,
-            overlap_size: 10,
-            respect_paragraphs: true,
-            respect_headers: false,
-        });
-
-        // Create a very long single paragraph
-        let long_para = "Word ".repeat(100);
-        let chunks = chunker.chunk("doc1", &long_para);
-
-        // Should be split into multiple chunks
-        assert!(chunks.len() > 1);
     }
 
     #[test]

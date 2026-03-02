@@ -8,7 +8,7 @@ use futures::TryStreamExt;
 use lancedb::query::{ExecutableQuery, QueryBase};
 use std::sync::Arc;
 
-use super::{EmbeddingProvider, LanceClient};
+use super::{EmbeddingProvider, EmbeddingProviderTrait as _, LanceClient};
 
 /// Metadata for a message
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

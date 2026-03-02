@@ -12,7 +12,6 @@ authors.workspace = true
 # Internal crates
 brainwires-core.workspace = true
 brainwires-agents = { workspace = true, optional = true }
-brainwires-rag = { workspace = true, optional = true }
 
 # Vector database & columnar storage (native only)
 lancedb = { workspace = true, optional = true }
@@ -34,6 +33,9 @@ anyhow.workspace = true
 uuid.workspace = true
 chrono.workspace = true
 
+# Embeddings (FastEmbed ONNX model)
+fastembed = { workspace = true, optional = true }
+
 # Caching (embedding memoization)
 lru = { workspace = true, optional = true }
 
@@ -47,7 +49,6 @@ rusqlite = { workspace = true, optional = true }
 regex.workspace = true
 
 # File format processing (native only)
-zip = { version = "2", optional = true }
 base64 = { version = "0.22", optional = true }
 
 # System info (for lock store, native only)
@@ -64,9 +65,9 @@ tracing.workspace = true
 [features]
 default = ["native"]
 native = [
-    "dep:brainwires-rag", "dep:lancedb", "dep:arrow-array", "dep:arrow-schema",
+    "dep:fastembed", "dep:lancedb", "dep:arrow-array", "dep:arrow-schema",
     "dep:futures", "dep:lru", "dep:sha2", "dep:rusqlite",
-    "dep:zip", "dep:base64", "dep:gethostname", "dep:dirs", "dep:libc",
+    "dep:base64", "dep:gethostname", "dep:dirs", "dep:libc",
     "tokio/rt", "tokio/macros",
     "brainwires-core/native",
     "agents",

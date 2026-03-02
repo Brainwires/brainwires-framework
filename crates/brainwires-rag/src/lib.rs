@@ -171,3 +171,8 @@ pub use client::RagClient;
 pub mod mcp_server;
 #[cfg(feature = "native")]
 pub use config::Config;
+
+// ── Document processing (requires documents feature) ────────────────────────
+
+#[cfg(feature = "documents")]
+pub mod documents;

@@ -12,7 +12,7 @@ use futures::TryStreamExt;
 use lancedb::query::{ExecutableQuery, QueryBase};
 use std::sync::Arc;
 
-use super::{EmbeddingProvider, LanceClient};
+use super::{EmbeddingProvider, EmbeddingProviderTrait as _, LanceClient};
 use super::tiered_memory::MessageSummary;
 
 /// Store for warm tier message summaries with semantic search

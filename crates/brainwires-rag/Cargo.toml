@@ -34,6 +34,9 @@ tracing = "0.1"
 # Async runtime (minimal for WASM, full for native)
 tokio = { version = "1.43", features = ["sync", "time"] }
 
+# Internal crates (optional, for document processing)
+brainwires-core = { workspace = true, optional = true }
+
 # Native-only dependencies
 rmcp = { version = "0.8", features = ["server", "transport-io", "macros"], optional = true }
 schemars = { version = "1.0", optional = true }
@@ -72,6 +75,10 @@ rayon = { version = "1.10", optional = true }
 tokio-util = { version = "0.7", optional = true }
 fs2 = { version = "0.4", optional = true }
 
+# Document processing (optional, for document feature)
+zip = { version = "2", optional = true }
+uuid = { workspace = true, optional = true }
+
 [dev-dependencies]
 tempfile = "3.0"
 criterion = { version = "0.5", features = ["async_tokio"] }
@@ -96,6 +103,13 @@ native = [
     "dep:tree-sitter-c-sharp", "dep:tree-sitter-ruby", "dep:tree-sitter-php",
     "dep:clap", "dep:toml", "dep:pdf-extract", "dep:rayon", "dep:tokio-util", "dep:fs2",
     "tokio/full",
+    "documents",
+]
+
+# Document processing (PDF, DOCX, chunking, hybrid search)
+documents = [
+    "dep:brainwires-core",
+    "dep:zip", "dep:uuid",
 ]
 
 # WASM mode: only types and error modules

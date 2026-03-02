@@ -13,7 +13,7 @@ use lancedb::query::{ExecutableQuery, QueryBase};
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 
-use super::embeddings::EmbeddingProvider;
+use super::embeddings::{EmbeddingProvider, EmbeddingProviderTrait as _};
 use super::image_types::{
     ImageFormat, ImageMetadata, ImageSearchRequest, ImageSearchResult, ImageStorage,
 };

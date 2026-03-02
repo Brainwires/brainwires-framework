@@ -1,10 +1,10 @@
 //! Document BM25 Search
 //!
-//! Wraps the brainwires-rag BM25Search with document-specific functionality.
-//! Provides per-scope isolation (conversation/project) and document-aware search.
+//! Provides per-scope isolation (conversation/project) and document-aware
+//! BM25 keyword search using Tantivy.
 
 use anyhow::{Context, Result};
-use brainwires_rag::bm25_search::BM25Search;
+use crate::bm25_search::BM25Search;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -117,14 +117,10 @@ impl DocumentBM25Manager {
             .search(query, limit)
             .context("Failed to search BM25 index")?;
 
-        // We need to map back from u64 ids to chunk_ids
-        // Since we're using file_path to store chunk_id in BM25Search,
-        // we can retrieve it from there. But BM25Result only returns id and score.
-        // We'll return the hash IDs and let the caller map them back.
         Ok(results
             .into_iter()
             .map(|r| DocumentBM25Result {
-                chunk_id: format!("bm25:{}", r.id), // Caller must resolve this
+                chunk_id: format!("bm25:{}", r.id),
                 score: r.score,
             })
             .collect())
@@ -162,10 +158,6 @@ impl DocumentBM25Manager {
     }
 
     /// Delete document chunks from a scope
-    ///
-    /// # Arguments
-    /// * `scope` - Scope identifier
-    /// * `chunk_ids` - Chunk IDs to delete
     pub fn delete_chunks(&self, scope: &str, chunk_ids: &[String]) -> Result<()> {
         let index = self.get_index(scope)?;
 
@@ -180,16 +172,9 @@ impl DocumentBM25Manager {
     }
 
     /// Delete all chunks for a document in a scope
-    ///
-    /// # Arguments
-    /// * `scope` - Scope identifier
-    /// * `document_id` - Document ID (chunks have IDs like document_id:chunk_index)
     pub fn delete_document(&self, scope: &str, document_id: &str) -> Result<()> {
         let index = self.get_index(scope)?;
 
-        // BM25Search uses file_path field to store chunk_id
-        // Delete by file_path prefix would require iterating all docs
-        // Instead, we delete by the file_path pattern
         index
             .delete_by_file_path(document_id)
             .context("Failed to delete document from BM25 index")?;
@@ -230,21 +215,13 @@ pub struct DocumentBM25Stats {
 
 /// Perform RRF fusion between vector and BM25 document results
 ///
-/// Uses the generic RRF implementation from the RAG module.
-///
-/// # Arguments
-/// * `vector_results` - Vec of (chunk_id, score) from vector search
-/// * `bm25_results` - Vec of DocumentBM25Result from BM25 search
-/// * `limit` - Maximum results to return
-///
-/// # Returns
-/// Vec of (chunk_id, combined_rrf_score)
+/// Uses the generic RRF implementation from the bm25_search module.
 pub fn document_rrf_fusion(
     vector_results: Vec<(String, f32)>,
     bm25_results: Vec<DocumentBM25Result>,
     limit: usize,
 ) -> Vec<(String, f32)> {
-    use brainwires_rag::bm25_search::reciprocal_rank_fusion_generic;
+    use crate::bm25_search::reciprocal_rank_fusion_generic;
 
     let bm25_tuples: Vec<(String, f32)> = bm25_results
         .into_iter()
@@ -306,15 +283,11 @@ mod tests {
 
         let fused = document_rrf_fusion(vector_results, bm25_results, 5);
 
-        // chunk-a and chunk-b should be ranked highest (appear in both)
         assert!(fused.len() >= 2);
 
-        // Find scores for chunks that appear in both
         let chunk_a_score = fused.iter().find(|(id, _)| id == "chunk-a").map(|(_, s)| *s);
         let chunk_d_score = fused.iter().find(|(id, _)| id == "chunk-d").map(|(_, s)| *s);
 
-        // chunk-a appears in both lists, chunk-d only in BM25
-        // So chunk-a should have higher score
         if let (Some(a_score), Some(d_score)) = (chunk_a_score, chunk_d_score) {
             assert!(a_score > d_score);
         }
@@ -324,9 +297,7 @@ mod tests {
     fn test_manager_creation() {
         let temp = TempDir::new().unwrap();
         let manager = DocumentBM25Manager::new(temp.path());
-
-        // Should not fail to create
-        assert!(manager.base_path.exists() || true); // TempDir already exists
+        assert!(manager.base_path.exists() || true);
     }
 
     #[test]
@@ -340,10 +311,8 @@ mod tests {
             ("doc-1:1".to_string(), "Another chunk with different content about programming.".to_string()),
         ];
 
-        // Index chunks
         manager.index_chunks(scope, chunks).unwrap();
 
-        // Search
         let results = manager.search(scope, "programming", 5).unwrap();
         assert!(!results.is_empty());
     }

@@ -8,7 +8,7 @@ use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::Path;
 
-use super::document_types::{DocumentType, ExtractedDocument};
+use super::types::{DocumentType, ExtractedDocument};
 
 /// Document processor for text extraction
 pub struct DocumentProcessor;

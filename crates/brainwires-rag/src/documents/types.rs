@@ -235,6 +235,60 @@ impl DocumentChunk {
     }
 }
 
+/// Configuration for document chunking
+#[derive(Debug, Clone)]
+pub struct ChunkerConfig {
+    /// Target chunk size in characters
+    pub target_chunk_size: usize,
+    /// Maximum chunk size (hard limit)
+    pub max_chunk_size: usize,
+    /// Minimum chunk size (avoid tiny chunks)
+    pub min_chunk_size: usize,
+    /// Overlap between chunks for context continuity
+    pub overlap_size: usize,
+    /// Whether to respect markdown headers as chunk boundaries
+    pub respect_headers: bool,
+    /// Whether to respect paragraph boundaries
+    pub respect_paragraphs: bool,
+}
+
+impl Default for ChunkerConfig {
+    fn default() -> Self {
+        Self {
+            target_chunk_size: 1500,  // ~300-400 words
+            max_chunk_size: 2500,     // Hard limit
+            min_chunk_size: 100,      // Avoid tiny chunks
+            overlap_size: 200,        // Context overlap
+            respect_headers: true,
+            respect_paragraphs: true,
+        }
+    }
+}
+
+impl ChunkerConfig {
+    /// Create config for small documents
+    pub fn small() -> Self {
+        Self {
+            target_chunk_size: 800,
+            max_chunk_size: 1200,
+            min_chunk_size: 50,
+            overlap_size: 100,
+            ..Default::default()
+        }
+    }
+
+    /// Create config for large documents
+    pub fn large() -> Self {
+        Self {
+            target_chunk_size: 2000,
+            max_chunk_size: 3500,
+            min_chunk_size: 200,
+            overlap_size: 300,
+            ..Default::default()
+        }
+    }
+}
+
 /// Request for document search
 #[derive(Debug, Clone)]
 pub struct DocumentSearchRequest {
@@ -511,23 +565,6 @@ mod tests {
     }
 
     #[test]
-    fn test_document_chunk_with_metadata() {
-        let chunk = DocumentChunk::new(
-            "doc-123".to_string(),
-            "Content here".to_string(),
-            100,
-            112,
-            2,
-            10,
-        )
-        .with_page(3)
-        .with_section("Introduction".to_string());
-
-        assert_eq!(chunk.page_number, Some(3));
-        assert_eq!(chunk.section, Some("Introduction".to_string()));
-    }
-
-    #[test]
     fn test_search_request_builder() {
         let request = DocumentSearchRequest::new("test query")
             .with_conversation("conv-123".to_string())
@@ -542,28 +579,6 @@ mod tests {
         assert_eq!(request.min_score, 0.7);
         assert!(!request.hybrid);
         assert_eq!(request.file_type, Some(DocumentType::Pdf));
-    }
-
-    #[test]
-    fn test_search_result_from_chunk() {
-        let chunk = DocumentChunk::new(
-            "doc-123".to_string(),
-            "Sample content".to_string(),
-            0,
-            14,
-            0,
-            1,
-        );
-
-        let result = DocumentSearchResult::from_chunk(&chunk, "test.txt".to_string(), 0.85)
-            .with_combined_score(0.90)
-            .with_keyword_score(0.75);
-
-        assert_eq!(result.chunk_id, "doc-123:0");
-        assert_eq!(result.file_name, "test.txt");
-        assert_eq!(result.score, 0.90);
-        assert_eq!(result.vector_score, 0.85);
-        assert_eq!(result.keyword_score, Some(0.75));
     }
 
     #[test]

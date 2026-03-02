@@ -22,7 +22,7 @@ use anyhow::Result;
 use chrono::Utc;
 use uuid::Uuid;
 
-use super::{EmbeddingProvider, FactStore, LanceClient, MessageMetadata, MessageStore, SummaryStore, TierMetadataStore};
+use super::{EmbeddingProvider, EmbeddingProviderTrait as _, FactStore, LanceClient, MessageMetadata, MessageStore, SummaryStore, TierMetadataStore};
 
 // ── Memory authority hierarchy ────────────────────────────────────────────────
 

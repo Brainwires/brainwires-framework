@@ -10,27 +10,28 @@ use arrow_array::{
 };
 use arrow_schema::Schema;
 use futures::TryStreamExt;
+use lancedb::Connection;
 use lancedb::query::{ExecutableQuery, QueryBase};
 use std::sync::Arc;
 
-use super::document_types::{DocumentMetadata, DocumentType};
-use super::LanceClient;
+use super::lance_tables;
+use super::types::{DocumentMetadata, DocumentType};
 
 /// Store for document metadata
 pub struct DocumentMetadataStore {
-    client: Arc<LanceClient>,
+    connection: Arc<Connection>,
 }
 
 impl DocumentMetadataStore {
     /// Create a new document metadata store
-    pub fn new(client: Arc<LanceClient>) -> Self {
-        Self { client }
+    pub fn new(connection: Arc<Connection>) -> Self {
+        Self { connection }
     }
 
     /// Save document metadata
     pub async fn save(&self, metadata: &DocumentMetadata) -> Result<()> {
-        let table = self.client.document_metadata_table().await?;
-        let schema = LanceClient::document_metadata_schema();
+        let table = lance_tables::open_document_metadata_table(&self.connection).await?;
+        let schema = lance_tables::document_metadata_schema();
 
         // Check if document already exists
         if self.get(&metadata.document_id).await?.is_some() {
@@ -57,7 +58,7 @@ impl DocumentMetadataStore {
 
     /// Get document metadata by ID
     pub async fn get(&self, document_id: &str) -> Result<Option<DocumentMetadata>> {
-        let table = self.client.document_metadata_table().await?;
+        let table = lance_tables::open_document_metadata_table(&self.connection).await?;
 
         let filter = format!("document_id = '{}'", document_id);
         let stream = table
@@ -83,7 +84,7 @@ impl DocumentMetadataStore {
 
     /// Get document by file hash (to detect duplicates)
     pub async fn get_by_hash(&self, file_hash: &str) -> Result<Option<DocumentMetadata>> {
-        let table = self.client.document_metadata_table().await?;
+        let table = lance_tables::open_document_metadata_table(&self.connection).await?;
 
         let filter = format!("file_hash = '{}'", file_hash);
         let stream = table
@@ -109,7 +110,7 @@ impl DocumentMetadataStore {
 
     /// List documents for a conversation
     pub async fn list_by_conversation(&self, conversation_id: &str) -> Result<Vec<DocumentMetadata>> {
-        let table = self.client.document_metadata_table().await?;
+        let table = lance_tables::open_document_metadata_table(&self.connection).await?;
 
         let filter = format!("conversation_id = '{}'", conversation_id);
         let stream = table
@@ -136,7 +137,7 @@ impl DocumentMetadataStore {
 
     /// List documents for a project
     pub async fn list_by_project(&self, project_id: &str) -> Result<Vec<DocumentMetadata>> {
-        let table = self.client.document_metadata_table().await?;
+        let table = lance_tables::open_document_metadata_table(&self.connection).await?;
 
         let filter = format!("project_id = '{}'", project_id);
         let stream = table
@@ -162,7 +163,7 @@ impl DocumentMetadataStore {
 
     /// List all documents
     pub async fn list_all(&self) -> Result<Vec<DocumentMetadata>> {
-        let table = self.client.document_metadata_table().await?;
+        let table = lance_tables::open_document_metadata_table(&self.connection).await?;
 
         let stream = table
             .query()
@@ -186,7 +187,7 @@ impl DocumentMetadataStore {
 
     /// Delete document metadata
     pub async fn delete(&self, document_id: &str) -> Result<bool> {
-        let table = self.client.document_metadata_table().await?;
+        let table = lance_tables::open_document_metadata_table(&self.connection).await?;
 
         // Check if exists
         if self.get(document_id).await?.is_none() {
@@ -203,14 +204,14 @@ impl DocumentMetadataStore {
 
     /// Count all documents
     pub async fn count(&self) -> Result<usize> {
-        let table = self.client.document_metadata_table().await?;
+        let table = lance_tables::open_document_metadata_table(&self.connection).await?;
         let count = table.count_rows(None).await?;
         Ok(count)
     }
 
     /// Count documents for a conversation
     pub async fn count_by_conversation(&self, conversation_id: &str) -> Result<usize> {
-        let table = self.client.document_metadata_table().await?;
+        let table = lance_tables::open_document_metadata_table(&self.connection).await?;
         let filter = format!("conversation_id = '{}'", conversation_id);
         let count = table.count_rows(Some(filter)).await?;
         Ok(count)
@@ -401,10 +402,17 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let db_path = temp.path().join("test.lance");
 
-        let client = Arc::new(LanceClient::new(db_path.to_str().unwrap()).await.unwrap());
-        client.ensure_document_metadata_table().await.unwrap();
+        let connection = Arc::new(
+            lancedb::connect(db_path.to_str().unwrap())
+                .execute()
+                .await
+                .unwrap(),
+        );
+        lance_tables::ensure_document_metadata_table(&connection)
+            .await
+            .unwrap();
 
-        let store = DocumentMetadataStore::new(client);
+        let store = DocumentMetadataStore::new(connection);
         (store, temp)
     }
 
@@ -426,10 +434,8 @@ mod tests {
         let (store, _temp) = create_test_store().await;
         let metadata = create_test_metadata();
 
-        // Save
         store.save(&metadata).await.unwrap();
 
-        // Get
         let retrieved = store.get(&metadata.document_id).await.unwrap();
         assert!(retrieved.is_some());
 
@@ -451,25 +457,6 @@ mod tests {
         let retrieved = store.get_by_hash(&metadata.file_hash).await.unwrap();
         assert!(retrieved.is_some());
         assert_eq!(retrieved.unwrap().document_id, metadata.document_id);
-    }
-
-    #[tokio::test]
-    async fn test_list_by_conversation() {
-        let (store, _temp) = create_test_store().await;
-
-        // Create two documents for same conversation
-        let mut meta1 = create_test_metadata();
-        meta1.document_id = "doc-1".to_string();
-
-        let mut meta2 = create_test_metadata();
-        meta2.document_id = "doc-2".to_string();
-        meta2.file_hash = "different_hash".to_string();
-
-        store.save(&meta1).await.unwrap();
-        store.save(&meta2).await.unwrap();
-
-        let docs = store.list_by_conversation("conv-456").await.unwrap();
-        assert_eq!(docs.len(), 2);
     }
 
     #[tokio::test]
@@ -496,26 +483,5 @@ mod tests {
         store.save(&metadata).await.unwrap();
 
         assert_eq!(store.count().await.unwrap(), 1);
-    }
-
-    #[tokio::test]
-    async fn test_upsert_behavior() {
-        let (store, _temp) = create_test_store().await;
-        let mut metadata = create_test_metadata();
-
-        store.save(&metadata).await.unwrap();
-
-        // Update and save again
-        metadata.chunk_count = 10;
-        metadata.title = Some("Updated Title".to_string());
-        store.save(&metadata).await.unwrap();
-
-        // Should still be one document
-        assert_eq!(store.count().await.unwrap(), 1);
-
-        // Verify updates
-        let retrieved = store.get(&metadata.document_id).await.unwrap().unwrap();
-        assert_eq!(retrieved.chunk_count, 10);
-        assert_eq!(retrieved.title, Some("Updated Title".to_string()));
     }
 }

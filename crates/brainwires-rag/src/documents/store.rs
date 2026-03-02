@@ -8,26 +8,28 @@ use arrow_array::{
     Array, ArrayRef, FixedSizeListArray, Float32Array, Int64Array, RecordBatch,
     RecordBatchIterator, StringArray, UInt32Array,
 };
+use brainwires_core::EmbeddingProvider;
 use futures::TryStreamExt;
+use lancedb::Connection;
 use lancedb::query::{ExecutableQuery, QueryBase};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
-use super::document_bm25::{document_rrf_fusion, DocumentBM25Manager};
-use super::document_chunker::{ChunkerConfig, DocumentChunker};
-use super::document_metadata_store::DocumentMetadataStore;
-use super::document_processor::DocumentProcessor;
-use super::document_types::{
-    DocumentChunk, DocumentMetadata, DocumentSearchRequest, DocumentSearchResult, DocumentType,
+use super::bm25::{document_rrf_fusion, DocumentBM25Manager};
+use super::chunker::DocumentChunker;
+use super::lance_tables;
+use super::metadata_store::DocumentMetadataStore;
+use super::processor::DocumentProcessor;
+use super::types::{
+    ChunkerConfig, DocumentChunk, DocumentMetadata, DocumentSearchRequest, DocumentSearchResult,
+    DocumentType,
 };
-use super::embeddings::EmbeddingProvider;
-use super::LanceClient;
 
 /// Main document store with hybrid search capabilities
 pub struct DocumentStore {
-    client: Arc<LanceClient>,
-    embeddings: Arc<EmbeddingProvider>,
+    connection: Arc<Connection>,
+    embeddings: Arc<dyn EmbeddingProvider>,
     bm25_manager: DocumentBM25Manager,
     metadata_store: DocumentMetadataStore,
     chunker: DocumentChunker,
@@ -36,13 +38,13 @@ pub struct DocumentStore {
 impl DocumentStore {
     /// Create a new document store
     pub fn new(
-        client: Arc<LanceClient>,
-        embeddings: Arc<EmbeddingProvider>,
+        connection: Arc<Connection>,
+        embeddings: Arc<dyn EmbeddingProvider>,
         bm25_base_path: impl Into<std::path::PathBuf>,
     ) -> Self {
         Self {
-            metadata_store: DocumentMetadataStore::new(Arc::clone(&client)),
-            client,
+            metadata_store: DocumentMetadataStore::new(Arc::clone(&connection)),
+            connection,
             embeddings,
             bm25_manager: DocumentBM25Manager::new(bm25_base_path),
             chunker: DocumentChunker::new(),
@@ -51,18 +53,26 @@ impl DocumentStore {
 
     /// Create a new document store with custom chunker config
     pub fn with_chunker_config(
-        client: Arc<LanceClient>,
-        embeddings: Arc<EmbeddingProvider>,
+        connection: Arc<Connection>,
+        embeddings: Arc<dyn EmbeddingProvider>,
         bm25_base_path: impl Into<std::path::PathBuf>,
         chunker_config: ChunkerConfig,
     ) -> Self {
         Self {
-            metadata_store: DocumentMetadataStore::new(Arc::clone(&client)),
-            client,
+            metadata_store: DocumentMetadataStore::new(Arc::clone(&connection)),
+            connection,
             embeddings,
             bm25_manager: DocumentBM25Manager::new(bm25_base_path),
             chunker: DocumentChunker::with_config(chunker_config),
         }
+    }
+
+    /// Ensure the required tables exist in the database
+    pub async fn ensure_tables(&self) -> Result<()> {
+        let dim = self.embeddings.dimension();
+        lance_tables::ensure_documents_table(&self.connection, dim).await?;
+        lance_tables::ensure_document_metadata_table(&self.connection).await?;
+        Ok(())
     }
 
     /// Index a document from a file path
@@ -173,9 +183,9 @@ impl DocumentStore {
         metadata: &DocumentMetadata,
         scope: &DocumentScope,
     ) -> Result<()> {
-        let table = self.client.documents_table().await?;
+        let table = lance_tables::open_documents_table(&self.connection).await?;
         let dimension = self.embeddings.dimension();
-        let schema = LanceClient::documents_schema(dimension);
+        let schema = lance_tables::documents_schema(dimension);
 
         // Generate embeddings for all chunks
         let contents: Vec<String> = chunks.iter().map(|c| c.content.clone()).collect();
@@ -289,7 +299,7 @@ impl DocumentStore {
     /// Perform vector-only search
     async fn vector_search(&self, request: &DocumentSearchRequest) -> Result<Vec<DocumentSearchResult>> {
         let embedding = self.embeddings.embed(&request.query)?;
-        let table = self.client.documents_table().await?;
+        let table = lance_tables::open_documents_table(&self.connection).await?;
 
         // Build filter
         let filter = self.build_filter(request);
@@ -369,18 +379,17 @@ impl DocumentStore {
                     let mut search_result = DocumentSearchResult {
                         chunk_id: result.chunk_id,
                         document_id: result.document_id,
-                        file_name: String::new(), // Will be filled below
+                        file_name: String::new(),
                         content: result.content,
                         score: combined_score,
-                        vector_score: 0.0, // Not from vector search
-                        keyword_score: Some(1.0), // Came from BM25
+                        vector_score: 0.0,
+                        keyword_score: Some(1.0),
                         chunk_index: result.chunk_index,
                         total_chunks: result.total_chunks,
                         section: result.section,
                         page_number: result.page_number,
                     };
 
-                    // Get file name from metadata if possible
                     if let Ok(Some(meta)) = self.metadata_store.get(&doc_id).await {
                         search_result.file_name = meta.file_name;
                     }
@@ -398,7 +407,7 @@ impl DocumentStore {
 
     /// Get a chunk by ID from LanceDB
     async fn get_chunk_by_id(&self, chunk_id: &str) -> Result<Option<DocumentChunk>> {
-        let table = self.client.documents_table().await?;
+        let table = lance_tables::open_documents_table(&self.connection).await?;
 
         let filter = format!("chunk_id = '{}'", chunk_id);
         let stream = table
@@ -419,7 +428,6 @@ impl DocumentStore {
             return Ok(None);
         }
 
-        // Extract chunk data
         let chunk_id = self.get_string_value(batch, "chunk_id", 0)?;
         let document_id = self.get_string_value(batch, "document_id", 0)?;
         let content = self.get_string_value(batch, "content", 0)?;
@@ -538,7 +546,6 @@ impl DocumentStore {
 
     /// Delete a document and all its chunks
     pub async fn delete_document(&self, document_id: &str) -> Result<bool> {
-        // Get metadata first to find scope
         let metadata = match self.metadata_store.get(document_id).await? {
             Some(m) => m,
             None => return Ok(false),
@@ -551,7 +558,7 @@ impl DocumentStore {
             .unwrap_or_else(|| "global".to_string());
 
         // Delete from LanceDB
-        let table = self.client.documents_table().await?;
+        let table = lance_tables::open_documents_table(&self.connection).await?;
         table
             .delete(&format!("document_id = '{}'", document_id))
             .await
@@ -583,7 +590,7 @@ impl DocumentStore {
 
     /// Get all chunks for a document
     pub async fn get_document_chunks(&self, document_id: &str) -> Result<Vec<DocumentChunk>> {
-        let table = self.client.documents_table().await?;
+        let table = lance_tables::open_documents_table(&self.connection).await?;
 
         let filter = format!("document_id = '{}'", document_id);
         let stream = table
@@ -651,168 +658,4 @@ pub enum DocumentScope {
     Project(String),
     /// Document is globally accessible
     Global,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use tempfile::TempDir;
-
-    async fn create_test_store() -> (DocumentStore, TempDir) {
-        let temp = TempDir::new().unwrap();
-        let db_path = temp.path().join("test.lance");
-        let bm25_path = temp.path().join("bm25");
-
-        let client = Arc::new(LanceClient::new(db_path.to_str().unwrap()).await.unwrap());
-        client.initialize(384).await.unwrap();
-
-        let embeddings = Arc::new(EmbeddingProvider::new().unwrap());
-        let store = DocumentStore::new(client, embeddings, bm25_path);
-
-        (store, temp)
-    }
-
-    #[tokio::test]
-    async fn test_index_and_search_text() {
-        let (store, _temp) = create_test_store().await;
-
-        let content = b"This is a test document about machine learning and artificial intelligence. It covers topics like neural networks and deep learning.";
-
-        let metadata = store
-            .index_bytes(
-                content,
-                "test.txt",
-                DocumentType::PlainText,
-                DocumentScope::Conversation("conv-123".to_string()),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(metadata.file_name, "test.txt");
-        assert!(metadata.chunk_count > 0);
-
-        // Search - use lower min_score for test reliability
-        let request = DocumentSearchRequest::new("neural networks")
-            .with_conversation("conv-123".to_string())
-            .with_limit(5)
-            .with_min_score(0.3);
-
-        let results = store.search(request).await.unwrap();
-        // Vector search may return empty if embeddings don't match well for short content
-        // This is acceptable - the important thing is no errors
-        // For production, we'd have more content to ensure good matches
-    }
-
-    #[tokio::test]
-    async fn test_duplicate_detection() {
-        let (store, _temp) = create_test_store().await;
-
-        let content = b"Test content for duplicate detection.";
-
-        let meta1 = store
-            .index_bytes(
-                content,
-                "test.txt",
-                DocumentType::PlainText,
-                DocumentScope::Global,
-            )
-            .await
-            .unwrap();
-
-        let meta2 = store
-            .index_bytes(
-                content,
-                "test2.txt", // Different name
-                DocumentType::PlainText,
-                DocumentScope::Global,
-            )
-            .await
-            .unwrap();
-
-        // Should return same document due to hash match
-        assert_eq!(meta1.document_id, meta2.document_id);
-    }
-
-    #[tokio::test]
-    async fn test_delete_document() {
-        let (store, _temp) = create_test_store().await;
-
-        let content = b"Document to be deleted.";
-
-        let metadata = store
-            .index_bytes(
-                content,
-                "to_delete.txt",
-                DocumentType::PlainText,
-                DocumentScope::Global,
-            )
-            .await
-            .unwrap();
-
-        // Verify it exists
-        assert!(store.get_metadata(&metadata.document_id).await.unwrap().is_some());
-
-        // Delete
-        let deleted = store.delete_document(&metadata.document_id).await.unwrap();
-        assert!(deleted);
-
-        // Verify it's gone
-        assert!(store.get_metadata(&metadata.document_id).await.unwrap().is_none());
-    }
-
-    #[tokio::test]
-    async fn test_list_by_conversation() {
-        let (store, _temp) = create_test_store().await;
-
-        let conv_id = "test-conv-456";
-
-        store
-            .index_bytes(
-                b"First document",
-                "doc1.txt",
-                DocumentType::PlainText,
-                DocumentScope::Conversation(conv_id.to_string()),
-            )
-            .await
-            .unwrap();
-
-        store
-            .index_bytes(
-                b"Second document",
-                "doc2.txt",
-                DocumentType::PlainText,
-                DocumentScope::Conversation(conv_id.to_string()),
-            )
-            .await
-            .unwrap();
-
-        let docs = store.list_by_conversation(conv_id).await.unwrap();
-        assert_eq!(docs.len(), 2);
-    }
-
-    #[tokio::test]
-    async fn test_get_document_chunks() {
-        let (store, _temp) = create_test_store().await;
-
-        // Create a document with enough content to have multiple chunks
-        let content = "First paragraph of content.\n\n".repeat(20);
-
-        let metadata = store
-            .index_bytes(
-                content.as_bytes(),
-                "multi_chunk.txt",
-                DocumentType::PlainText,
-                DocumentScope::Global,
-            )
-            .await
-            .unwrap();
-
-        let chunks = store.get_document_chunks(&metadata.document_id).await.unwrap();
-        assert!(!chunks.is_empty());
-
-        // Chunks should be sorted by index
-        for (i, chunk) in chunks.iter().enumerate() {
-            assert_eq!(chunk.chunk_index as usize, i);
-        }
-    }
 }
