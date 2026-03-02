@@ -42,11 +42,11 @@ AI coding assistants (Claude Code, Cursor, etc.) sometimes need to restart thems
 
 | File | Purpose |
 |------|---------|
-| `main.rs` | CLI entry point, Axum HTTP server setup, graceful shutdown |
-| `config.rs` | `DaemonConfig`, `ClientStrategy`, and `ArgsTransform` structs |
+| `src/main.rs` | CLI entry point, Axum HTTP server setup, graceful shutdown |
+| `src/config.rs` | `DaemonConfig`, `ClientStrategy`, and `ArgsTransform` structs |
 | `config.json` | Example configuration for Claude Code |
-| `server.rs` | `ReloadServer` MCP handler with `reload_app` tool definition |
-| `reload.rs` | Process killing (escalating signals), arg transformation, spawning |
+| `src/server.rs` | `ReloadServer` MCP handler with `reload_app` tool definition |
+| `src/reload.rs` | Process killing (escalating signals), arg transformation, spawning |
 
 ## Configuration
 
@@ -98,14 +98,14 @@ In the example config, this means: keep `--allow-dangerously-skip-permissions` i
 
 ```sh
 cargo run -p reload-daemon -- \
-  --config extras/reload_daemon/config.json
+  --config extras/reload-daemon/config.json
 ```
 
 Or with debug logging:
 
 ```sh
 RUST_LOG=debug cargo run -p reload-daemon -- \
-  --config extras/reload_daemon/config.json
+  --config extras/reload-daemon/config.json
 ```
 
 ### 2. Register with Claude Code

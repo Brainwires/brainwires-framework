@@ -5,4 +5,4 @@ Standalone utilities and supplementary crates that build on top of the Brainwire
 | Directory | Description |
 |-----------|-------------|
 | [`brainwires-proxy/`](brainwires-proxy/) | Protocol-agnostic proxy framework with pluggable middleware, multiple transports (HTTP, WebSocket, TCP, Unix, SSE), and traffic inspection. |
-| [`reload_daemon/`](reload_daemon/) | Minimal MCP server that enables AI coding clients to kill and restart themselves with transformed arguments. |
+| [`reload-daemon/`](reload-daemon/) | Minimal MCP server that enables AI coding clients to kill and restart themselves with transformed arguments. |

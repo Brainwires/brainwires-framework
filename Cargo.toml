@@ -23,7 +23,7 @@ members = [
     "crates/brainwires-autonomy",
     "crates/brainwires-brain",
     "extras/brainwires-proxy",
-    "extras/reload_daemon",
+    "extras/reload-daemon",
 ]
 resolver = "2"
 
