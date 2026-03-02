@@ -19,6 +19,7 @@ members = [
     "crates/brainwires-eval",
     "crates/brainwires-mesh",
     "crates/brainwires-a2a",
+    "crates/brainwires-audio",
     "extras/brainwires-proxy",
 ]
 resolver = "2"
@@ -52,6 +53,7 @@ brainwires-skills = { path = "crates/brainwires-skills", version = "0.1.0" }
 brainwires-eval = { path = "crates/brainwires-eval", version = "0.1.0" }
 brainwires-mesh = { path = "crates/brainwires-mesh", version = "0.1.0" }
 brainwires-a2a = { path = "crates/brainwires-a2a", version = "0.1.0" }
+brainwires-audio = { path = "crates/brainwires-audio", version = "0.1.0" }
 brainwires-proxy = { path = "extras/brainwires-proxy", version = "0.1.0" }
 
 # Async runtime & utilities
@@ -169,6 +171,9 @@ hyper-util = { version = "0.1", features = ["tokio", "server-auto", "client-lega
 http = "1.1"
 http-body-util = "0.1"
 bytes = "1"
+
+# Async stream adapters
+tokio-stream = "0.1"
 
 # Testing
 tempfile = "3"

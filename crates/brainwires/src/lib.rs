@@ -108,6 +108,11 @@ pub mod mesh {
     pub use brainwires_mesh::*;
 }
 
+#[cfg(feature = "audio")]
+pub mod audio {
+    pub use brainwires_audio::*;
+}
+
 /// Re-exports for building MCP servers (rmcp, schemars, CancellationToken).
 ///
 /// Enabled with the `mcp-server` feature.
@@ -209,5 +214,13 @@ pub mod prelude {
         AgentCapabilities, ApprovalAction, ApprovalResponse, ApprovalSeverity,
         AuditLogger, CapabilityProfile, PermissionsConfig, PolicyEngine,
         TrustLevel, TrustManager,
+    };
+
+    // Audio — available with "audio" feature
+    #[cfg(feature = "audio")]
+    pub use brainwires_audio::{
+        AudioCapture, AudioPlayback, SpeechToText, TextToSpeech,
+        AudioBuffer, AudioConfig, AudioDevice, AudioError, AudioResult,
+        Transcript, TtsOptions, SttOptions, Voice,
     };
 }

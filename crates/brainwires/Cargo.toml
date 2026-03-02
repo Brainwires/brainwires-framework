@@ -49,6 +49,9 @@ brainwires-a2a = { workspace = true, optional = true }
 # Mesh networking
 brainwires-mesh = { workspace = true, optional = true }
 
+# Audio I/O, STT, TTS
+brainwires-audio = { workspace = true, optional = true }
+
 # MCP server re-exports (optional)
 rmcp = { workspace = true, optional = true }
 schemars = { workspace = true, optional = true }
@@ -83,6 +86,7 @@ eval = ["dep:brainwires-eval"]
 proxy = ["dep:brainwires-proxy"]
 a2a = ["dep:brainwires-a2a"]
 mesh = ["dep:brainwires-mesh"]
+audio = ["dep:brainwires-audio"]
 llama-cpp-2 = ["providers", "brainwires-providers/llama-cpp-2"]
 mcp-server = ["dep:rmcp", "dep:schemars", "dep:tokio-util"]
 # Convenience: enables all learning/knowledge subsystems with integration
@@ -95,7 +99,7 @@ full = [
     "providers", "reasoning", "seal", "relay",
     "brainwires-seal/knowledge", "brainwires-seal/mdap",
     "llama-cpp-2", "mcp-server", "skills", "eval", "proxy",
-    "a2a", "mesh",
+    "a2a", "mesh", "audio",
 ]
 
 [[example]]
