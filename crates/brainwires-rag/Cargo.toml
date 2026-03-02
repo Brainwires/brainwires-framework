@@ -151,3 +151,19 @@ required-features = ["native"]
 [[bench]]
 name = "indexing_benchmark"
 harness = false
+
+[[example]]
+name = "basic_indexing"
+required-features = ["native"]
+
+[[example]]
+name = "advanced_search"
+required-features = ["native"]
+
+[[example]]
+name = "mcp_server"
+required-features = ["native"]
+
+[[example]]
+name = "git_search"
+required-features = ["native"]
