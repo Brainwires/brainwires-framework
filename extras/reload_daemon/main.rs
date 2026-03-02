@@ -8,7 +8,7 @@
 //!
 //! ```sh
 //! cargo run -p brainwires-extras --example reload_daemon -- \
-//!   --config crates/brainwires-extras/examples/reload_daemon/config.json
+//!   --config extras/reload_daemon/config.json
 //! ```
 //!
 //! ## Register with Claude Code

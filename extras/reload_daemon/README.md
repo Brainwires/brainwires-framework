@@ -98,14 +98,14 @@ In the example config, this means: keep `--allow-dangerously-skip-permissions` i
 
 ```sh
 cargo run -p brainwires-extras --example reload_daemon -- \
-  --config extras/examples/reload_daemon/config.json
+  --config extras/reload_daemon/config.json
 ```
 
 Or with debug logging:
 
 ```sh
 RUST_LOG=debug cargo run -p brainwires-extras --example reload_daemon -- \
-  --config extras/examples/reload_daemon/config.json
+  --config extras/reload_daemon/config.json
 ```
 
 ### 2. Register with Claude Code
