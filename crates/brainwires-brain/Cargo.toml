@@ -1,0 +1,57 @@
+[package]
+name = "brainwires-brain"
+description = "Open Brain MCP server — exposes persistent knowledge (thoughts, PKS, BKS) to any AI tool via MCP protocol"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[lib]
+name = "brainwires_brain"
+path = "src/lib.rs"
+
+[[bin]]
+name = "brainwires-brain"
+path = "src/main.rs"
+
+[[example]]
+name = "mcp_server"
+
+[dependencies]
+# Internal crates
+brainwires-storage = { workspace = true }
+brainwires-prompting = { workspace = true, features = ["knowledge"] }
+
+# MCP server
+rmcp = { workspace = true, features = ["server", "transport-io", "macros"] }
+schemars.workspace = true
+tokio-util.workspace = true
+
+# Core
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tokio.workspace = true
+regex.workspace = true
+clap = { version = "4", features = ["derive"] }
+
+# Arrow (for LanceDB record batch construction)
+arrow-array.workspace = true
+arrow-schema.workspace = true
+futures.workspace = true
+
+# LanceDB
+lancedb.workspace = true
+
+# Dirs for default paths
+dirs = "6"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full", "test-util"] }
+tempfile.workspace = true
