@@ -69,7 +69,7 @@ impl Deduplicator {
         let deduped = examples
             .iter()
             .zip(keep.iter())
-            .filter(|(_, &k)| k)
+            .filter(|&(_, &k)| k)
             .map(|(e, _)| e.clone())
             .collect();
 
@@ -95,7 +95,7 @@ impl Deduplicator {
             let base_hash = self.hash_shingle(shingle);
             for (i, sig) in signature.iter_mut().enumerate() {
                 // Different hash function per slot: hash XOR with slot-dependent constant
-                let h = base_hash.wrapping_mul(i as u64 + 1).wrapping_add(i as u64 * 0x9E3779B97F4A7C15);
+                let h = base_hash.wrapping_mul((i as u64).wrapping_add(1)).wrapping_add((i as u64).wrapping_mul(0x9E3779B97F4A7C15));
                 if h < *sig {
                     *sig = h;
                 }

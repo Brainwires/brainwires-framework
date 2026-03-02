@@ -1,4 +1,5 @@
 pub mod burn_backend;
+pub mod burn_modules;
 pub mod adapters;
 pub mod alignment;
 pub mod architectures;

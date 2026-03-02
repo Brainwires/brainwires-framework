@@ -49,8 +49,7 @@ impl Tokenizer for TiktokenTokenizer {
     }
 
     fn decode(&self, ids: &[u32]) -> DatasetResult<String> {
-        let ids_usize: Vec<usize> = ids.iter().map(|&id| id as usize).collect();
-        self.bpe.decode(ids_usize)
+        self.bpe.decode(ids.to_vec())
             .map_err(|e| DatasetError::Tokenizer {
                 message: format!("Decoding error: {}", e),
             })
