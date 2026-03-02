@@ -360,6 +360,40 @@ brainwires = { version = "0.1", features = ["training"] }
 
 Or depend on `brainwires-training` directly for standalone training capabilities. The crate depends on `brainwires-datasets` for data types, so both are pulled in together.
 
+## References
+
+### Papers
+
+- [DPO: Direct Preference Optimization](https://arxiv.org/abs/2305.18290) (2023) — the alignment method behind `AlignmentMethod::Dpo`
+- [ORPO: Monolithic Preference Optimization](https://arxiv.org/html/2403.07691v2) (2024) — single-stage alignment, `AlignmentMethod::Orpo`
+- [Cramming: Training on a Single GPU in One Day](https://openreview.net/forum?id=gUL6zYN4Uaf) (2023) — efficient small-model training strategies
+- [Ring Attention: Near-Infinite Context](https://proceedings.iclr.cc/paper_files/paper/2024/file/1119587863e78451f080da2a768c4935-Paper-Conference.pdf) (ICLR 2024) — long-context training
+- [Evolution Strategies for Billion-Parameter Fine-Tuning](https://arxiv.org/abs/2509.24372) (Sept 2025)
+- [IR-Tuning: Efficient Layer-wise Fine-tuning](https://arxiv.org/abs/2510.00268) (Sept 2025)
+- [QTHA: Quantum-Enhanced Fine Tuning](https://arxiv.org/abs/2503.12790) (March 2025)
+- [Complexity-aware Fine-tuning](https://arxiv.org/abs/2506.21220) (June 2025)
+- [LUNE: Efficient LLM Unlearning via LoRA](https://arxiv.org/html/2512.07375v1) (Dec 2025)
+- [Mamba-3: State Space Models](https://openreview.net/forum?id=HwCvaJOiCj) (2025)
+- [Revisiting Chinchilla Scaling Laws](https://aclanthology.org/2025.acl-long.1163.pdf) (ACL 2025)
+
+### Technical Blogs & Guides
+
+- [LoRA/QLoRA/DoRA Production Guide](https://medium.com/@abhi-84/lora-qlora-dora-rslora-the-complete-guide-to-7-production-ready-fine-tuning-variants-283ff3e574a3) (Dec 2025) — comprehensive adapter comparison
+- [DoRA — NVIDIA Technical Blog](https://developer.nvidia.com/blog/introducing-dora-a-high-performing-alternative-to-lora-for-fine-tuning/) — weight-decomposed low-rank adaptation
+- [How to Align LLMs in 2025 with DPO](https://www.philschmid.de/rl-with-llms-in-2025-dpo) — practical DPO guide
+- [Small LLM Training Guide 2026](https://blog.premai.io/how-to-train-a-small-language-model-the-complete-guide/) — end-to-end training walkthrough
+- [Mixed Precision: FP8 vs BF16](https://acecloud.ai/blog/fp8-vs-bf16-mixed-precision-tensor-cores/) — precision trade-offs
+- [NVIDIA FP8 Training Blog](https://developer.nvidia.com/blog/floating-point-8-an-introduction-to-efficient-lower-precision-ai-training/)
+- [FSDP vs DeepSpeed — HuggingFace](https://huggingface.co/docs/accelerate/en/concept_guides/fsdp_and_deepspeed) — distributed training comparison
+
+### Rust ML Ecosystem
+
+- [Burn Framework](https://burn.dev/) — the local training backend used by this crate
+- [Candle — HuggingFace](https://github.com/huggingface/candle) — Rust inference framework
+- [tch-rs: PyTorch Rust Bindings](https://github.com/LaurentMazare/tch-rs)
+- [PyO3 for AI/Data Science](https://medium.com/@muruganantham52524/why-python-developers-are-turning-to-rust-with-pyo3-for-faster-ai-and-data-science-in-2025-cd5991973a4d) (2025)
+- [Rust + CUDA for ML](https://dasroot.net/posts/2025/12/rust-cuda-gpu-programming-ml-applications/) (2025)
+
 ## License
 
 Licensed under the MIT License. See [LICENSE](../../LICENSE) for details.

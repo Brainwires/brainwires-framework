@@ -287,6 +287,30 @@ Or depend on `brainwires-datasets` directly for standalone dataset tooling witho
 
 The `brainwires-training` crate consumes `brainwires-datasets` types directly — datasets flow seamlessly into both cloud and local training pipelines.
 
+## References
+
+### Papers
+
+- [FED: GPU-Accelerated Deduplication Framework](https://arxiv.org/html/2501.01046v2) (Jan 2025) — high-throughput dedup strategies
+- [LSHBloom: Internet-Scale Deduplication](https://arxiv.org/html/2411.04257v3) (Nov 2024) — locality-sensitive hashing for massive datasets
+- [Linguistic Laws & Subword Tokenization](https://arxiv.org/html/2411.17669v1) (Nov 2024) — analysis of tokenizer behavior
+- [DPO: Direct Preference Optimization](https://arxiv.org/abs/2305.18290) (2023) — the preference pair format consumed by `PreferenceDataset`
+- [ORPO: Monolithic Preference Optimization](https://arxiv.org/html/2403.07691v2) (2024) — single-stage alignment data format
+- [SLM-Bench: Small Language Model Benchmark](https://aclanthology.org/2025.findings-emnlp.1165/) (EMNLP 2025) — evaluation datasets for small models
+
+### Technical Blogs & Guides
+
+- [Modern Tokenization Techniques — CodeSignal](https://codesignal.com/learn/courses/2-modern-tokenization-techniques-for-ai-llms/) — BPE, WordPiece, and SentencePiece
+- [Tokenization Deep Dive — Let's Data Science](https://www.letsdatascience.com/blog/tokenization-deep-dive-why-it-matters-more-than-you-think) — why tokenization matters
+- [Diffusion Curriculum (DisCL) — ICCV 2025](https://joliang17.github.io/DisCL/) — curriculum learning strategies (cf. `curriculum_order`)
+- [Synthetic Data for ML 2025](https://cleverx.com/blog/synthetic-data-for-ml-the-game-changer-in-training-for-2025/) — generating training data
+
+### Data Tools
+
+- [Duplodocus — Allen AI](https://github.com/allenai/duplodocus) — large-scale deduplication
+- [fastdedup](https://github.com/wapplewhite4/fastdedup) — fast exact dedup
+- [DataTrove — HuggingFace](https://github.com/huggingface/datatrove) — data processing pipelines
+
 ## License
 
 Licensed under the MIT License. See [LICENSE](../../LICENSE) for details.
