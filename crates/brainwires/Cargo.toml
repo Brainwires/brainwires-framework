@@ -37,14 +37,8 @@ brainwires-relay = { workspace = true, optional = true }
 # Skills system
 brainwires-skills = { workspace = true, optional = true }
 
-# Evaluation framework
-brainwires-eval = { workspace = true, optional = true }
-
 # Proxy framework
 brainwires-proxy = { workspace = true, optional = true }
-
-# A2A protocol
-brainwires-a2a = { workspace = true, optional = true }
 
 # Mesh networking
 brainwires-mesh = { workspace = true, optional = true }
@@ -58,6 +52,9 @@ brainwires-training = { workspace = true, optional = true }
 
 # Autonomy
 brainwires-autonomy = { workspace = true, optional = true }
+
+# Brain (Open Brain MCP server)
+brainwires-brain = { workspace = true, optional = true }
 
 # MCP server re-exports (optional)
 rmcp = { workspace = true, optional = true }
@@ -90,9 +87,9 @@ reasoning = ["agents", "brainwires-agents/reasoning"]
 seal = ["dep:brainwires-seal"]
 relay = ["dep:brainwires-relay"]
 skills = ["dep:brainwires-skills"]
-eval = ["dep:brainwires-eval"]
+eval = ["agents", "brainwires-agents/eval"]
 proxy = ["dep:brainwires-proxy"]
-a2a = ["dep:brainwires-a2a"]
+a2a = ["relay", "brainwires-relay/a2a"]
 mesh = ["dep:brainwires-mesh"]
 audio = ["dep:brainwires-audio"]
 datasets = ["dep:brainwires-datasets"]
@@ -101,6 +98,7 @@ training-cloud = ["training", "brainwires-training/cloud"]
 training-local = ["training", "brainwires-training/local"]
 training-full = ["training", "brainwires-training/full", "datasets", "brainwires-datasets/full"]
 autonomy = ["dep:brainwires-autonomy"]
+brain = ["dep:brainwires-brain"]
 llama-cpp-2 = ["providers", "brainwires-providers/llama-cpp-2"]
 mcp-server = ["dep:rmcp", "dep:schemars", "dep:tokio-util"]
 # Convenience: enables all learning/knowledge subsystems with integration
@@ -115,7 +113,7 @@ full = [
     "llama-cpp-2", "mcp-server", "skills", "eval", "proxy",
     "a2a", "mesh", "audio",
     "training-cloud", "datasets",
-    "autonomy",
+    "autonomy", "brain",
 ]
 
 [[example]]

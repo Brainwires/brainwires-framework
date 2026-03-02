@@ -90,7 +90,7 @@ pub mod skills {
 
 #[cfg(feature = "eval")]
 pub mod eval {
-    pub use brainwires_eval::*;
+    pub use brainwires_agents::eval::*;
 }
 
 #[cfg(feature = "proxy")]
@@ -100,7 +100,7 @@ pub mod proxy {
 
 #[cfg(feature = "a2a")]
 pub mod a2a {
-    pub use brainwires_a2a::*;
+    pub use brainwires_relay::a2a::*;
 }
 
 #[cfg(feature = "mesh")]
@@ -126,6 +126,11 @@ pub mod training {
 #[cfg(feature = "autonomy")]
 pub mod autonomy {
     pub use brainwires_autonomy::*;
+}
+
+#[cfg(feature = "brain")]
+pub mod brain {
+    pub use brainwires_brain::*;
 }
 
 /// Re-exports for building MCP servers (rmcp, schemars, CancellationToken).

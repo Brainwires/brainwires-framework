@@ -61,11 +61,9 @@ The Brainwires Framework is a workspace of 22 crates (plus 1 extra) that provide
 | **brainwires-relay** | MCP server mode, IPC, and remote relay for agent management |
 | **brainwires-rag** | RAG engine — AST-aware chunking, hybrid search, Git-aware indexing |
 | **brainwires-skills** | Skill definitions and slash command registry |
-| **brainwires-eval** | N-trial Monte Carlo evaluation framework for agent benchmarking |
 | **brainwires-code-interpreters** | Sandboxed JavaScript and Python code execution |
 | **brainwires-wasm** | WASM bindings for browser-based agent deployment |
 | **brainwires-seal** | Self-Evolving Agentic Learning — feedback-driven prompt improvement |
-| **brainwires-a2a** | Google A2A (Agent-to-Agent) protocol implementation |
 | **brainwires-mesh** | Distributed agent mesh networking with topology and routing |
 | **brainwires-audio** | Audio I/O, speech-to-text, text-to-speech |
 | **brainwires-datasets** | Training data pipelines — JSONL I/O, tokenization, dedup, format conversion |
@@ -195,7 +193,7 @@ cargo test -p brainwires-core
   │   └── brainwires-providers (cloud feature)
   ├── brainwires-mesh
   │   ├── brainwires-core
-  │   └── brainwires-a2a (a2a feature)
+  │   └── brainwires-relay (a2a feature)
   └── brainwires-audio
       (standalone — no internal deps beyond core traits)
 ```

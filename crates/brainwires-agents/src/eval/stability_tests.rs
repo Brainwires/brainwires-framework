@@ -11,8 +11,8 @@ use std::collections::VecDeque;
 
 use async_trait::async_trait;
 
-use crate::trial::TrialResult;
-use crate::case::EvaluationCase;
+use super::trial::TrialResult;
+use super::case::EvaluationCase;
 
 // ── Loop detection simulation ────────────────────────────────────────────────
 
@@ -281,7 +281,7 @@ pub fn long_horizon_stability_suite() -> Vec<std::sync::Arc<dyn EvaluationCase>>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::suite::EvaluationSuite;
+    use crate::eval::suite::EvaluationSuite;
 
     #[test]
     fn test_loop_sim_fires_at_correct_step() {

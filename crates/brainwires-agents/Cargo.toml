@@ -46,6 +46,10 @@ async-trait.workspace = true
 # Code search (optional, for reasoning module)
 regex = { workspace = true, optional = true }
 
+# Eval framework (optional)
+thiserror = { workspace = true, optional = true }
+futures = { workspace = true, optional = true }
+
 # Logging
 tracing.workspace = true
 
@@ -62,3 +66,5 @@ wasm = ["brainwires-core/wasm", "brainwires-model-tools/wasm"]
 tools = []
 # Reasoning module (merged from brainwires-reasoning)
 reasoning = ["dep:regex"]
+# Evaluation framework (merged from brainwires-eval)
+eval = ["dep:thiserror", "dep:futures"]

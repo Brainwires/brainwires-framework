@@ -33,8 +33,8 @@ use std::collections::HashMap;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
-use crate::suite::SuiteResult;
-use crate::trial::EvaluationStats;
+use super::suite::SuiteResult;
+use super::trial::EvaluationStats;
 
 // ── Baseline ──────────────────────────────────────────────────────────────────
 
@@ -201,7 +201,7 @@ impl RegressionSuite {
         // category → [all trial results from that category]
         // NOTE: SuiteResult only has case-level stats. We infer per-category
         // stats by re-aggregating from case_results using trial data.
-        let mut category_trials: HashMap<String, Vec<crate::trial::TrialResult>> = HashMap::new();
+        let mut category_trials: HashMap<String, Vec<super::trial::TrialResult>> = HashMap::new();
 
         // For aggregation we need to know which case belongs to which category.
         // SuiteResult stores results keyed by case name. The category is embedded
@@ -316,7 +316,7 @@ impl RegressionSuite {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::trial::TrialResult;
+    use crate::eval::trial::TrialResult;
 
     fn make_stats(successes: usize, total: usize) -> EvaluationStats {
         let trials: Vec<TrialResult> = (0..total)

@@ -6,8 +6,8 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use brainwires_core::Provider;
-use brainwires_eval::fault_report::analyze_suite_for_faults;
-use brainwires_eval::{
+use brainwires_agents::eval::fault_report::analyze_suite_for_faults;
+use brainwires_agents::eval::{
     EvaluationCase, EvaluationSuite, RegressionSuite, SuiteConfig, SuiteResult,
 };
 

@@ -82,6 +82,10 @@ pub mod plan_executor;
 #[cfg(feature = "reasoning")]
 pub mod reasoning;
 
+// ── Evaluation framework (merged from brainwires-eval) ──────────────────────
+#[cfg(feature = "eval")]
+pub mod eval;
+
 // ── Analysis & validation ────────────────────────────────────────────────────
 
 pub mod resource_checker;

@@ -12,7 +12,6 @@ authors.workspace = true
 brainwires-core.workspace = true
 brainwires-agents = { workspace = true, optional = true }
 brainwires-model-tools = { workspace = true, optional = true }
-brainwires-eval = { workspace = true, optional = true }
 brainwires-training = { workspace = true, optional = true }
 brainwires-mdap = { workspace = true, optional = true }
 brainwires-rag = { workspace = true, optional = true }
@@ -50,7 +49,7 @@ wasm = ["brainwires-core/wasm"]
 
 # Self-improvement (extracted from CLI)
 self-improve = ["dep:brainwires-agents", "dep:brainwires-model-tools", "dep:regex", "dep:walkdir"]
-eval-driven = ["self-improve", "dep:brainwires-eval"]
+eval-driven = ["self-improve", "dep:brainwires-agents", "brainwires-agents/eval"]
 
 # Agent operations
 supervisor = ["dep:brainwires-agents"]

@@ -16,14 +16,14 @@ members = [
     "crates/brainwires-seal",
     "crates/brainwires-providers",
     "crates/brainwires-skills",
-    "crates/brainwires-eval",
     "crates/brainwires-mesh",
-    "crates/brainwires-a2a",
     "crates/brainwires-audio",
     "crates/brainwires-datasets",
     "crates/brainwires-training",
     "crates/brainwires-autonomy",
+    "crates/brainwires-brain",
     "extras/brainwires-proxy",
+    "extras/reload_daemon",
 ]
 resolver = "2"
 
@@ -53,13 +53,12 @@ brainwires-relay = { path = "crates/brainwires-relay", version = "0.1.0" }
 brainwires-seal = { path = "crates/brainwires-seal", version = "0.1.0" }
 brainwires-providers = { path = "crates/brainwires-providers", version = "0.1.0" }
 brainwires-skills = { path = "crates/brainwires-skills", version = "0.1.0" }
-brainwires-eval = { path = "crates/brainwires-eval", version = "0.1.0" }
 brainwires-mesh = { path = "crates/brainwires-mesh", version = "0.1.0" }
-brainwires-a2a = { path = "crates/brainwires-a2a", version = "0.1.0" }
 brainwires-audio = { path = "crates/brainwires-audio", version = "0.1.0" }
 brainwires-datasets = { path = "crates/brainwires-datasets", version = "0.1.0" }
 brainwires-training = { path = "crates/brainwires-training", version = "0.1.0" }
 brainwires-autonomy = { path = "crates/brainwires-autonomy", version = "0.1.0", default-features = false }
+brainwires-brain = { path = "crates/brainwires-brain", version = "0.1.0" }
 brainwires-proxy = { path = "extras/brainwires-proxy", version = "0.1.0" }
 
 # Tokenizer dependencies

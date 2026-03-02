@@ -13,8 +13,8 @@
 //! 4. **NewCapability** — no baseline recorded yet and `success_rate ≥ 0.8`
 //!    (capture it before a future regression goes unnoticed).
 
-use crate::regression::RegressionSuite;
-use crate::suite::SuiteResult;
+use super::regression::RegressionSuite;
+use super::suite::SuiteResult;
 
 // ── FaultKind ─────────────────────────────────────────────────────────────────
 
@@ -311,9 +311,9 @@ pub fn analyze_suite_for_faults(
 mod tests {
     use super::*;
     use std::collections::HashMap;
-    use crate::regression::RegressionSuite;
-    use crate::suite::SuiteResult;
-    use crate::trial::{EvaluationStats, TrialResult};
+    use crate::eval::regression::RegressionSuite;
+    use crate::eval::suite::SuiteResult;
+    use crate::eval::trial::{EvaluationStats, TrialResult};
 
     fn make_suite_result(case_name: &str, successes: usize, total: usize) -> SuiteResult {
         let trials: Vec<TrialResult> = (0..total)

@@ -4,7 +4,7 @@
 
 use async_trait::async_trait;
 
-use crate::trial::TrialResult;
+use super::trial::TrialResult;
 
 /// A single evaluation scenario.
 ///

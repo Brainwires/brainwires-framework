@@ -13,7 +13,7 @@ Priority definitions:
 ## Pre-Release Hygiene
 > **Priority: HIGH**
 
-- [x] **Add README.md to `brainwires-a2a`** — Crate has no README; needed for crates.io publish and developer onboarding.
+- [x] **Add README.md to `brainwires-a2a`** — ~~Crate has no README.~~ *Crate merged into `brainwires-relay` as `a2a` feature; README no longer needed.*
 - [x] **Add README.md to `brainwires-mesh`** — Crate has no README.
 - [x] **Add README.md to `brainwires-audio`** — Crate has no README.
 - [x] **Add README.md to `brainwires-datasets`** — New crate, needs documentation of format converters, tokenizer features, quality tools.
@@ -27,12 +27,12 @@ Priority definitions:
 ---
 
 ## Crate Consolidation
-> **Priority: MEDIUM** — Reduces maintenance surface from 22 to 18 crates without losing functionality.
+> **Priority: MEDIUM** — Reduces maintenance surface. 2 of 4 candidates completed (22 → 20 crates).
 
-- [ ] **Evaluate collapsing `brainwires-mdap` into `brainwires-agents`** — MDAP is tightly coupled to agents (voting/decomposition layer on top of agent orchestration). No other crate uses it independently. Would become a feature `mdap` on `brainwires-agents`.
-- [ ] **Evaluate collapsing `brainwires-permissions` into `brainwires-core`** — Permission policies are a cross-cutting concern. Most crates that need permissions already depend on core. Would become a feature `permissions` on `brainwires-core`.
-- [ ] **Evaluate collapsing `brainwires-eval` into `brainwires-agents`** — Evaluation is always of agents. The N-trial Monte Carlo evaluator can't meaningfully run without the agent system. Would become a feature `eval` on `brainwires-agents`.
-- [ ] **Evaluate collapsing `brainwires-a2a` into `brainwires-relay`** — A2A protocol is a specialization of agent communication. Relay already handles MCP server/client comms with shared transport concerns. Would become a feature `a2a` on `brainwires-relay`.
+- [ ] **Evaluate collapsing `brainwires-mdap` into `brainwires-agents`** — MDAP is tightly coupled to agents (voting/decomposition layer on top of agent orchestration). No other crate uses it independently. Would become a feature `mdap` on `brainwires-agents`. *Evaluated: skip — too large (6,268 LOC), 3-4 consumers.*
+- [ ] **Evaluate collapsing `brainwires-permissions` into `brainwires-core`** — Permission policies are a cross-cutting concern. Most crates that need permissions already depend on core. Would become a feature `permissions` on `brainwires-core`. *Evaluated: skip — would bloat core, adds tokio/glob deps.*
+- [x] **Collapse `brainwires-eval` into `brainwires-agents`** — Merged as `brainwires-agents/eval` feature. All eval types available via `brainwires_agents::eval::*` or `brainwires::eval::*` through the facade.
+- [x] **Collapse `brainwires-a2a` into `brainwires-relay`** — Merged as `brainwires-relay/a2a` feature. All A2A types available via `brainwires_relay::a2a::*` or `brainwires::a2a::*` through the facade.
 
 ---
 
@@ -77,7 +77,7 @@ Priority definitions:
 
 - [ ] **Verify `brainwires-wasm`** — Audit WASM bindings for all core types; ensure browser target builds succeed with `wasm-pack`; run basic WASM smoke tests.
 - [ ] **Complete `brainwires-seal`** — Wire SEAL (Self-Evolving Agentic Learning) integration through `brainwires-prompting` (knowledge feature); implement the learning loop that reads `AuditLogger` feedback to improve prompting strategies over time.
-- [ ] **`brainwires-eval` as standalone crate** — Extract as a publishable crate usable by projects outside the CLI. (May be superseded by crate consolidation above.)
+- [x] **`brainwires-eval` as standalone crate** — *Superseded: merged into `brainwires-agents` as `eval` feature. Available via the facade.*
 - [ ] **CLI thin-wrapper audit** — Review every module in `src/` against its framework counterpart; confirm each is a genuine thin wrapper with no duplicated logic; document any intentional divergences.
 
 ---
@@ -97,7 +97,7 @@ Priority definitions:
 | Section | Items | Priority | Notes |
 |---------|-------|----------|-------|
 | Pre-Release Hygiene | 10 | **High** | Blockers for crates.io publish |
-| Crate Consolidation | 4 | Medium | 22 → 18 crates, evaluate before release |
+| Crate Consolidation | 4 | Medium | 22 → 20 crates (2 done, 2 evaluated & skipped) |
 | Multi-Agent Coordination | 2 | Medium | Retained from previous checklist |
 | Security Hardening | 1 | Medium | Retained from previous checklist |
 | Training Completion | 4 | Medium | New training crate scaffolds |

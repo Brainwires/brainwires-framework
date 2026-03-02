@@ -65,6 +65,7 @@ keyring = { workspace = true, optional = true }
 default = ["server", "client"]
 server = []
 client = []
+a2a = []
 auth-keyring = ["keyring"]
 
 [dev-dependencies]

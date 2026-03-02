@@ -9,8 +9,8 @@ use std::sync::Arc;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-use crate::case::EvaluationCase;
-use crate::trial::{EvaluationStats, TrialResult};
+use super::case::EvaluationCase;
+use super::trial::{EvaluationStats, TrialResult};
 
 // ── Suite result ──────────────────────────────────────────────────────────────
 
@@ -201,7 +201,7 @@ impl EvaluationSuite {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::case::{AlwaysFailCase, AlwaysPassCase, StochasticCase};
+    use crate::eval::case::{AlwaysFailCase, AlwaysPassCase, StochasticCase};
 
     #[tokio::test]
     async fn test_suite_all_pass() {
