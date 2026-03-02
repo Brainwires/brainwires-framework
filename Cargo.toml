@@ -22,6 +22,7 @@ members = [
     "crates/brainwires-audio",
     "crates/brainwires-datasets",
     "crates/brainwires-training",
+    "crates/brainwires-autonomy",
     "extras/brainwires-proxy",
 ]
 resolver = "2"
@@ -58,6 +59,7 @@ brainwires-a2a = { path = "crates/brainwires-a2a", version = "0.1.0" }
 brainwires-audio = { path = "crates/brainwires-audio", version = "0.1.0" }
 brainwires-datasets = { path = "crates/brainwires-datasets", version = "0.1.0" }
 brainwires-training = { path = "crates/brainwires-training", version = "0.1.0" }
+brainwires-autonomy = { path = "crates/brainwires-autonomy", version = "0.1.0", default-features = false }
 brainwires-proxy = { path = "extras/brainwires-proxy", version = "0.1.0" }
 
 # Tokenizer dependencies

@@ -1,0 +1,205 @@
+//! Agent health monitoring and degradation detection.
+
+use std::collections::HashMap;
+use std::time::Instant;
+
+use serde::{Deserialize, Serialize};
+
+/// Health status of an agent.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum HealthStatus {
+    /// Agent is operating normally.
+    Healthy,
+    /// Agent is experiencing minor issues but still functional.
+    Degraded,
+    /// Agent is unresponsive or critically failed.
+    Unhealthy,
+    /// Agent status is unknown (no recent heartbeat).
+    Unknown,
+}
+
+/// Signal indicating a specific type of degradation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum DegradationSignal {
+    /// Agent is taking longer than expected per iteration.
+    SlowIterations { avg_ms: u64, threshold_ms: u64 },
+    /// Agent is consuming excessive tokens.
+    HighTokenUsage { tokens_used: u64, budget: u64 },
+    /// Agent is stuck in a loop (repeating similar actions).
+    LoopDetected { repeated_action: String, count: u32 },
+    /// Agent has not sent a heartbeat recently.
+    MissedHeartbeat { last_seen_secs_ago: u64 },
+    /// Agent's error rate is above threshold.
+    HighErrorRate { error_rate: f64, threshold: f64 },
+    /// Agent is making no progress (no file changes, no tool calls).
+    Stalled { idle_secs: u64 },
+}
+
+/// Performance metrics for an agent.
+#[derive(Debug, Clone, Default)]
+pub struct PerformanceMetrics {
+    pub iterations: u32,
+    pub total_tokens: u64,
+    pub total_cost: f64,
+    pub errors: u32,
+    pub tool_calls: u32,
+    pub files_modified: u32,
+    pub last_activity: Option<Instant>,
+}
+
+impl PerformanceMetrics {
+    pub fn error_rate(&self) -> f64 {
+        if self.tool_calls == 0 {
+            0.0
+        } else {
+            self.errors as f64 / self.tool_calls as f64
+        }
+    }
+
+    pub fn avg_tokens_per_iteration(&self) -> u64 {
+        if self.iterations == 0 {
+            0
+        } else {
+            self.total_tokens / self.iterations as u64
+        }
+    }
+}
+
+/// Monitors agent health by tracking performance metrics and detecting degradation.
+pub struct HealthMonitor {
+    agents: HashMap<String, AgentHealth>,
+    config: HealthMonitorConfig,
+}
+
+struct AgentHealth {
+    status: HealthStatus,
+    metrics: PerformanceMetrics,
+    signals: Vec<DegradationSignal>,
+    last_heartbeat: Instant,
+}
+
+/// Configuration for health monitoring thresholds.
+#[derive(Debug, Clone)]
+pub struct HealthMonitorConfig {
+    /// Max milliseconds per iteration before flagging as slow.
+    pub slow_iteration_threshold_ms: u64,
+    /// Max error rate (0.0-1.0) before flagging.
+    pub error_rate_threshold: f64,
+    /// Seconds without heartbeat before marking as unknown.
+    pub heartbeat_timeout_secs: u64,
+    /// Seconds without activity before marking as stalled.
+    pub stall_timeout_secs: u64,
+}
+
+impl Default for HealthMonitorConfig {
+    fn default() -> Self {
+        Self {
+            slow_iteration_threshold_ms: 30_000,
+            error_rate_threshold: 0.3,
+            heartbeat_timeout_secs: 120,
+            stall_timeout_secs: 300,
+        }
+    }
+}
+
+impl HealthMonitor {
+    pub fn new(config: HealthMonitorConfig) -> Self {
+        Self {
+            agents: HashMap::new(),
+            config,
+        }
+    }
+
+    /// Register an agent for monitoring.
+    pub fn register(&mut self, agent_id: &str) {
+        self.agents.insert(
+            agent_id.to_string(),
+            AgentHealth {
+                status: HealthStatus::Healthy,
+                metrics: PerformanceMetrics::default(),
+                signals: Vec::new(),
+                last_heartbeat: Instant::now(),
+            },
+        );
+    }
+
+    /// Record a heartbeat from an agent.
+    pub fn heartbeat(&mut self, agent_id: &str) {
+        if let Some(agent) = self.agents.get_mut(agent_id) {
+            agent.last_heartbeat = Instant::now();
+            agent.metrics.last_activity = Some(Instant::now());
+        }
+    }
+
+    /// Update metrics for an agent.
+    pub fn update_metrics(&mut self, agent_id: &str, metrics: PerformanceMetrics) {
+        if let Some(agent) = self.agents.get_mut(agent_id) {
+            agent.metrics = metrics;
+        }
+    }
+
+    /// Evaluate all agents and return those with degradation signals.
+    pub fn evaluate_all(&mut self) -> Vec<(String, HealthStatus, Vec<DegradationSignal>)> {
+        let mut results = Vec::new();
+        let config = self.config.clone();
+
+        for (id, agent) in &mut self.agents {
+            let mut signals = Vec::new();
+
+            // Check heartbeat
+            let secs_since_heartbeat = agent.last_heartbeat.elapsed().as_secs();
+            if secs_since_heartbeat > config.heartbeat_timeout_secs {
+                signals.push(DegradationSignal::MissedHeartbeat {
+                    last_seen_secs_ago: secs_since_heartbeat,
+                });
+            }
+
+            // Check error rate
+            let error_rate = agent.metrics.error_rate();
+            if error_rate > config.error_rate_threshold && agent.metrics.tool_calls > 5 {
+                signals.push(DegradationSignal::HighErrorRate {
+                    error_rate,
+                    threshold: config.error_rate_threshold,
+                });
+            }
+
+            // Check stall
+            if let Some(last) = agent.metrics.last_activity {
+                let idle_secs = last.elapsed().as_secs();
+                if idle_secs > config.stall_timeout_secs {
+                    signals.push(DegradationSignal::Stalled { idle_secs });
+                }
+            }
+
+            // Determine status
+            agent.status = if signals.is_empty() {
+                HealthStatus::Healthy
+            } else if signals.iter().any(|s| matches!(s, DegradationSignal::MissedHeartbeat { .. })) {
+                HealthStatus::Unknown
+            } else {
+                HealthStatus::Degraded
+            };
+
+            agent.signals = signals.clone();
+
+            if agent.status != HealthStatus::Healthy {
+                results.push((id.clone(), agent.status, signals));
+            }
+        }
+
+        results
+    }
+
+    /// Get the current status of a specific agent.
+    pub fn status(&self, agent_id: &str) -> HealthStatus {
+        self.agents
+            .get(agent_id)
+            .map(|a| a.status)
+            .unwrap_or(HealthStatus::Unknown)
+    }
+
+    /// Remove an agent from monitoring.
+    pub fn unregister(&mut self, agent_id: &str) {
+        self.agents.remove(agent_id);
+    }
+}

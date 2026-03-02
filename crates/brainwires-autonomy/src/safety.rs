@@ -1,0 +1,472 @@
+//! Safety mechanisms for autonomous operations.
+//!
+//! Provides circuit breakers, budget tracking, approval policies, and
+//! dead man's switches to prevent runaway autonomous operations.
+
+use std::fmt;
+use std::sync::Arc;
+use std::time::Instant;
+
+use async_trait::async_trait;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+
+use crate::config::{SafetyConfig, SelfImprovementConfig};
+
+// ── Safety stop reasons ─────────────────────────────────────────────────────
+
+/// Reason an autonomous operation was stopped by a safety mechanism.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum SafetyStop {
+    BudgetExceeded(f64),
+    CycleLimitReached(u32),
+    CircuitBreakerTripped(u32),
+    DiffLimitExceeded(u32),
+    HeartbeatTimeout,
+    DailyLimitReached(u32),
+    OperationRejected(String),
+}
+
+impl fmt::Display for SafetyStop {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SafetyStop::BudgetExceeded(cost) => write!(f, "Budget exceeded: ${cost:.2}"),
+            SafetyStop::CycleLimitReached(cycles) => write!(f, "Cycle limit reached: {cycles}"),
+            SafetyStop::CircuitBreakerTripped(failures) => {
+                write!(f, "Circuit breaker tripped after {failures} consecutive failures")
+            }
+            SafetyStop::DiffLimitExceeded(lines) => {
+                write!(f, "Total diff limit exceeded: {lines} lines")
+            }
+            SafetyStop::HeartbeatTimeout => write!(f, "Dead man's switch: heartbeat timeout"),
+            SafetyStop::DailyLimitReached(count) => {
+                write!(f, "Daily operation limit reached: {count}")
+            }
+            SafetyStop::OperationRejected(reason) => {
+                write!(f, "Operation rejected: {reason}")
+            }
+        }
+    }
+}
+
+// ── Autonomous operation types ──────────────────────────────────────────────
+
+/// Describes an autonomous operation that may require approval.
+#[derive(Debug, Clone)]
+pub enum AutonomousOperation {
+    StartImprovement { strategy: String, estimated_cost: f64 },
+    CommitChanges { diff_lines: u32, files: Vec<String> },
+    CreatePullRequest { branch: String, title: String },
+    MergePullRequest { pr_id: String, confidence: f64 },
+    SpawnAgent { description: String },
+    RestartAgent { agent_id: String, reason: String },
+    StartTrainingJob { provider: String, dataset_size: usize },
+}
+
+impl fmt::Display for AutonomousOperation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::StartImprovement { strategy, .. } => write!(f, "start improvement: {strategy}"),
+            Self::CommitChanges { diff_lines, .. } => write!(f, "commit {diff_lines} changed lines"),
+            Self::CreatePullRequest { title, .. } => write!(f, "create PR: {title}"),
+            Self::MergePullRequest { pr_id, .. } => write!(f, "merge PR: {pr_id}"),
+            Self::SpawnAgent { description } => write!(f, "spawn agent: {description}"),
+            Self::RestartAgent { agent_id, .. } => write!(f, "restart agent: {agent_id}"),
+            Self::StartTrainingJob { provider, .. } => write!(f, "training job: {provider}"),
+        }
+    }
+}
+
+// ── Approval policy ─────────────────────────────────────────────────────────
+
+/// Gate for autonomous operations — implementations decide whether to allow,
+/// wait for human approval, or reject.
+#[async_trait]
+pub trait ApprovalPolicy: Send + Sync {
+    /// Check whether the given operation is allowed.
+    async fn check(&self, op: &AutonomousOperation) -> Result<(), SafetyStop>;
+}
+
+/// Default policy that approves everything (for testing / trusted environments).
+pub struct AlwaysApprove;
+
+#[async_trait]
+impl ApprovalPolicy for AlwaysApprove {
+    async fn check(&self, _op: &AutonomousOperation) -> Result<(), SafetyStop> {
+        Ok(())
+    }
+}
+
+/// Policy that rejects all autonomous operations (require manual execution).
+pub struct AlwaysReject;
+
+#[async_trait]
+impl ApprovalPolicy for AlwaysReject {
+    async fn check(&self, op: &AutonomousOperation) -> Result<(), SafetyStop> {
+        Err(SafetyStop::OperationRejected(format!(
+            "Manual approval required for: {op}"
+        )))
+    }
+}
+
+// ── Circuit breaker ─────────────────────────────────────────────────────────
+
+/// Circuit breaker state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CircuitBreakerState {
+    /// Normal operation — failures are counted.
+    Closed,
+    /// Tripped — all operations rejected until cooldown expires.
+    Open,
+    /// Cooldown expired — allow one probe operation.
+    HalfOpen,
+}
+
+/// Circuit breaker that trips after consecutive failures and resets after cooldown.
+#[derive(Debug)]
+pub struct CircuitBreaker {
+    state: CircuitBreakerState,
+    consecutive_failures: u32,
+    threshold: u32,
+    cooldown_secs: u64,
+    last_failure: Option<Instant>,
+}
+
+impl CircuitBreaker {
+    pub fn new(threshold: u32, cooldown_secs: u64) -> Self {
+        Self {
+            state: CircuitBreakerState::Closed,
+            consecutive_failures: 0,
+            threshold,
+            cooldown_secs,
+            last_failure: None,
+        }
+    }
+
+    /// Check if the circuit breaker allows operations.
+    pub fn check(&mut self) -> Result<(), SafetyStop> {
+        match self.state {
+            CircuitBreakerState::Closed => Ok(()),
+            CircuitBreakerState::Open => {
+                // Check if cooldown has expired
+                if let Some(last) = self.last_failure {
+                    if last.elapsed().as_secs() >= self.cooldown_secs {
+                        self.state = CircuitBreakerState::HalfOpen;
+                        tracing::info!("Circuit breaker entering half-open state");
+                        return Ok(());
+                    }
+                }
+                Err(SafetyStop::CircuitBreakerTripped(self.consecutive_failures))
+            }
+            CircuitBreakerState::HalfOpen => {
+                // Allow one probe operation
+                Ok(())
+            }
+        }
+    }
+
+    /// Record a successful operation.
+    pub fn record_success(&mut self) {
+        self.consecutive_failures = 0;
+        self.state = CircuitBreakerState::Closed;
+    }
+
+    /// Record a failed operation.
+    pub fn record_failure(&mut self) {
+        self.consecutive_failures += 1;
+        self.last_failure = Some(Instant::now());
+
+        if self.consecutive_failures >= self.threshold {
+            self.state = CircuitBreakerState::Open;
+            tracing::warn!(
+                "Circuit breaker tripped after {} consecutive failures",
+                self.consecutive_failures
+            );
+        }
+    }
+
+    pub fn state(&self) -> CircuitBreakerState {
+        self.state
+    }
+
+    pub fn consecutive_failures(&self) -> u32 {
+        self.consecutive_failures
+    }
+}
+
+// ── Budget tracker ──────────────────────────────────────────────────────────
+
+/// Tracks spending and enforces budget limits.
+#[derive(Debug)]
+pub struct BudgetTracker {
+    total_cost: f64,
+    max_total: f64,
+    max_per_op: f64,
+    daily_operations: u32,
+    max_daily_operations: u32,
+    day_start: DateTime<Utc>,
+}
+
+impl BudgetTracker {
+    pub fn new(max_total: f64, max_per_op: f64, max_daily_operations: u32) -> Self {
+        Self {
+            total_cost: 0.0,
+            max_total,
+            max_per_op,
+            daily_operations: 0,
+            max_daily_operations,
+            day_start: Utc::now(),
+        }
+    }
+
+    /// Check if the budget allows an operation with the estimated cost.
+    pub fn check(&mut self, estimated_cost: f64) -> Result<(), SafetyStop> {
+        self.maybe_reset_daily();
+
+        if self.total_cost + estimated_cost > self.max_total {
+            return Err(SafetyStop::BudgetExceeded(self.total_cost));
+        }
+        if estimated_cost > self.max_per_op {
+            return Err(SafetyStop::BudgetExceeded(estimated_cost));
+        }
+        if self.daily_operations >= self.max_daily_operations {
+            return Err(SafetyStop::DailyLimitReached(self.daily_operations));
+        }
+        Ok(())
+    }
+
+    /// Record an operation's actual cost.
+    pub fn record_cost(&mut self, cost: f64) {
+        self.total_cost += cost;
+        self.daily_operations += 1;
+    }
+
+    pub fn total_cost(&self) -> f64 {
+        self.total_cost
+    }
+
+    pub fn daily_operations(&self) -> u32 {
+        self.daily_operations
+    }
+
+    fn maybe_reset_daily(&mut self) {
+        let now = Utc::now();
+        if now.date_naive() != self.day_start.date_naive() {
+            self.daily_operations = 0;
+            self.day_start = now;
+        }
+    }
+}
+
+// ── Dead man's switch ───────────────────────────────────────────────────────
+
+/// Dead man's switch that trips if no heartbeat is received within the timeout.
+#[derive(Debug)]
+pub struct DeadManSwitch {
+    last_heartbeat: Instant,
+    timeout_secs: u64,
+}
+
+impl DeadManSwitch {
+    pub fn new(timeout_secs: u64) -> Self {
+        Self {
+            last_heartbeat: Instant::now(),
+            timeout_secs,
+        }
+    }
+
+    /// Send a heartbeat to keep the switch alive.
+    pub fn heartbeat(&mut self) {
+        self.last_heartbeat = Instant::now();
+    }
+
+    /// Check if the switch has timed out.
+    pub fn check(&self) -> Result<(), SafetyStop> {
+        if self.last_heartbeat.elapsed().as_secs() >= self.timeout_secs {
+            Err(SafetyStop::HeartbeatTimeout)
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn elapsed_secs(&self) -> u64 {
+        self.last_heartbeat.elapsed().as_secs()
+    }
+}
+
+// ── SafetyGuard (composite) ─────────────────────────────────────────────────
+
+/// Composite safety guard combining circuit breaker, budget tracker, diff limits,
+/// and dead man's switch.
+pub struct SafetyGuard {
+    circuit_breaker: CircuitBreaker,
+    budget: BudgetTracker,
+    dead_man: DeadManSwitch,
+    total_diff_lines: u32,
+    max_total_diff: u32,
+    cycles_completed: u32,
+    max_cycles: u32,
+    approval_policy: Arc<dyn ApprovalPolicy>,
+}
+
+impl SafetyGuard {
+    /// Create from a full SafetyConfig.
+    pub fn from_config(config: &SafetyConfig, max_cycles: u32) -> Self {
+        Self {
+            circuit_breaker: CircuitBreaker::new(
+                config.circuit_breaker_threshold,
+                config.circuit_breaker_cooldown_secs,
+            ),
+            budget: BudgetTracker::new(
+                config.max_total_cost,
+                config.max_per_operation_cost,
+                config.max_daily_operations,
+            ),
+            dead_man: DeadManSwitch::new(config.heartbeat_timeout_secs),
+            total_diff_lines: 0,
+            max_total_diff: config.max_total_diff,
+            cycles_completed: 0,
+            max_cycles,
+            approval_policy: Arc::new(AlwaysApprove),
+        }
+    }
+
+    /// Create from the simpler SelfImprovementConfig (backwards-compatible).
+    pub fn new(config: &SelfImprovementConfig) -> Self {
+        Self {
+            circuit_breaker: CircuitBreaker::new(config.circuit_breaker_threshold, 300),
+            budget: BudgetTracker::new(config.max_budget, config.max_budget, 1000),
+            dead_man: DeadManSwitch::new(1800),
+            total_diff_lines: 0,
+            max_total_diff: config.max_total_diff,
+            cycles_completed: 0,
+            max_cycles: config.max_cycles,
+            approval_policy: Arc::new(AlwaysApprove),
+        }
+    }
+
+    /// Set the approval policy.
+    pub fn with_approval_policy(mut self, policy: Arc<dyn ApprovalPolicy>) -> Self {
+        self.approval_policy = policy;
+        self
+    }
+
+    /// Check all safety constraints before continuing.
+    pub fn check_can_continue(&mut self) -> Result<(), SafetyStop> {
+        self.circuit_breaker.check()?;
+        self.budget.check(0.0)?;
+        self.dead_man.check()?;
+
+        if self.cycles_completed >= self.max_cycles {
+            return Err(SafetyStop::CycleLimitReached(self.cycles_completed));
+        }
+        if self.total_diff_lines >= self.max_total_diff {
+            return Err(SafetyStop::DiffLimitExceeded(self.total_diff_lines));
+        }
+        Ok(())
+    }
+
+    /// Check approval policy for an operation.
+    pub async fn check_approval(&self, op: &AutonomousOperation) -> Result<(), SafetyStop> {
+        self.approval_policy.check(op).await
+    }
+
+    /// Record a successful cycle.
+    pub fn record_success(&mut self, diff_lines: u32) {
+        self.circuit_breaker.record_success();
+        self.total_diff_lines += diff_lines;
+        self.cycles_completed += 1;
+    }
+
+    /// Record a failed cycle.
+    pub fn record_failure(&mut self) {
+        self.circuit_breaker.record_failure();
+        self.cycles_completed += 1;
+    }
+
+    /// Record cost for budget tracking.
+    pub fn record_cost(&mut self, cost: f64) {
+        self.budget.record_cost(cost);
+    }
+
+    /// Send heartbeat to dead man's switch.
+    pub fn heartbeat(&mut self) {
+        self.dead_man.heartbeat();
+    }
+
+    pub fn cycles_completed(&self) -> u32 {
+        self.cycles_completed
+    }
+
+    pub fn total_cost(&self) -> f64 {
+        self.budget.total_cost()
+    }
+
+    pub fn total_diff_lines(&self) -> u32 {
+        self.total_diff_lines
+    }
+
+    pub fn circuit_breaker_state(&self) -> CircuitBreakerState {
+        self.circuit_breaker.state()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_circuit_breaker_trips() {
+        let mut cb = CircuitBreaker::new(3, 60);
+        assert_eq!(cb.state(), CircuitBreakerState::Closed);
+
+        cb.record_failure();
+        cb.record_failure();
+        assert_eq!(cb.state(), CircuitBreakerState::Closed);
+
+        cb.record_failure();
+        assert_eq!(cb.state(), CircuitBreakerState::Open);
+        assert!(cb.check().is_err());
+    }
+
+    #[test]
+    fn test_circuit_breaker_resets_on_success() {
+        let mut cb = CircuitBreaker::new(3, 60);
+        cb.record_failure();
+        cb.record_failure();
+        cb.record_success();
+        assert_eq!(cb.consecutive_failures(), 0);
+        assert_eq!(cb.state(), CircuitBreakerState::Closed);
+    }
+
+    #[test]
+    fn test_budget_tracker() {
+        let mut bt = BudgetTracker::new(10.0, 5.0, 100);
+        assert!(bt.check(3.0).is_ok());
+        bt.record_cost(3.0);
+        assert!(bt.check(3.0).is_ok());
+        bt.record_cost(3.0);
+        // Now at $6, trying to add $5 would exceed $10
+        assert!(bt.check(5.0).is_err());
+    }
+
+    #[test]
+    fn test_dead_man_switch() {
+        let dms = DeadManSwitch::new(1800);
+        assert!(dms.check().is_ok());
+    }
+
+    #[test]
+    fn test_safety_guard_cycle_limit() {
+        let config = SelfImprovementConfig {
+            max_cycles: 2,
+            ..Default::default()
+        };
+        let mut guard = SafetyGuard::new(&config);
+        assert!(guard.check_can_continue().is_ok());
+        guard.record_success(10);
+        assert!(guard.check_can_continue().is_ok());
+        guard.record_success(10);
+        assert!(guard.check_can_continue().is_err());
+    }
+}

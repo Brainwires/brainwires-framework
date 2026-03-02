@@ -1,0 +1,65 @@
+[package]
+name = "brainwires-autonomy"
+description = "Autonomous agent operations — self-improvement, Git workflows, and human-out-of-loop execution"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+brainwires-core.workspace = true
+brainwires-agents = { workspace = true, optional = true }
+brainwires-model-tools = { workspace = true, optional = true }
+brainwires-eval = { workspace = true, optional = true }
+brainwires-training = { workspace = true, optional = true }
+brainwires-mdap = { workspace = true, optional = true }
+brainwires-rag = { workspace = true, optional = true }
+brainwires-datasets = { workspace = true, optional = true }
+
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+tracing = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+
+# Native-only
+git2 = { workspace = true, optional = true }
+reqwest = { workspace = true, optional = true }
+toml = { workspace = true, optional = true }
+regex = { workspace = true, optional = true }
+walkdir = { workspace = true, optional = true }
+
+# Webhook server
+axum = { version = "0.8", optional = true }
+hmac = { version = "0.12", optional = true }
+sha1 = { version = "0.10", optional = true }
+subtle = { workspace = true, optional = true }
+
+[features]
+default = ["native"]
+native = ["dep:git2", "brainwires-core/native"]
+wasm = ["brainwires-core/wasm"]
+
+# Self-improvement (extracted from CLI)
+self-improve = ["dep:brainwires-agents", "dep:brainwires-model-tools", "dep:regex", "dep:walkdir"]
+eval-driven = ["self-improve", "dep:brainwires-eval"]
+
+# Agent operations
+supervisor = ["dep:brainwires-agents"]
+attention = ["dep:brainwires-rag"]
+parallel = ["dep:brainwires-agents", "dep:brainwires-mdap"]
+training = ["dep:brainwires-training", "dep:brainwires-datasets"]
+
+# Git workflow
+git-workflow = ["dep:brainwires-agents", "dep:brainwires-model-tools", "dep:reqwest", "dep:toml"]
+webhook = ["git-workflow", "dep:axum", "dep:hmac", "dep:sha1", "dep:subtle"]
+
+full = ["self-improve", "eval-driven", "supervisor", "attention", "parallel", "training", "git-workflow", "webhook"]

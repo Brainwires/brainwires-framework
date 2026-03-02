@@ -56,6 +56,9 @@ brainwires-audio = { workspace = true, optional = true }
 brainwires-datasets = { workspace = true, optional = true }
 brainwires-training = { workspace = true, optional = true }
 
+# Autonomy
+brainwires-autonomy = { workspace = true, optional = true }
+
 # MCP server re-exports (optional)
 rmcp = { workspace = true, optional = true }
 schemars = { workspace = true, optional = true }
@@ -97,6 +100,7 @@ training = ["dep:brainwires-training"]
 training-cloud = ["training", "brainwires-training/cloud"]
 training-local = ["training", "brainwires-training/local"]
 training-full = ["training", "brainwires-training/full", "datasets", "brainwires-datasets/full"]
+autonomy = ["dep:brainwires-autonomy"]
 llama-cpp-2 = ["providers", "brainwires-providers/llama-cpp-2"]
 mcp-server = ["dep:rmcp", "dep:schemars", "dep:tokio-util"]
 # Convenience: enables all learning/knowledge subsystems with integration
@@ -111,6 +115,7 @@ full = [
     "llama-cpp-2", "mcp-server", "skills", "eval", "proxy",
     "a2a", "mesh", "audio",
     "training-cloud", "datasets",
+    "autonomy",
 ]
 
 [[example]]

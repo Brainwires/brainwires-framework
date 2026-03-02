@@ -123,6 +123,11 @@ pub mod training {
     pub use brainwires_training::*;
 }
 
+#[cfg(feature = "autonomy")]
+pub mod autonomy {
+    pub use brainwires_autonomy::*;
+}
+
 /// Re-exports for building MCP servers (rmcp, schemars, CancellationToken).
 ///
 /// Enabled with the `mcp-server` feature.
