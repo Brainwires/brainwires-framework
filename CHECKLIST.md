@@ -39,7 +39,7 @@ Priority definitions:
 ## Multi-Agent Coordination
 > **Priority: MEDIUM**
 
-- [ ] **Validator agent type** — Implement `ValidatorAgent` as a distinct agent type that holds only read locks, runs external validators (`verify_build`, `check_syntax`, `check_duplicates`), and returns a structured `ValidationResult` to the orchestrator.
+- [x] **Validator agent type** — Implement `ValidatorAgent` as a distinct agent type that holds only read locks, runs external validators (`verify_build`, `check_syntax`, `check_duplicates`), and returns a structured `ValidationResult` to the orchestrator.
 - [ ] **Orchestrator ↔ TaskManager integration** — Wire `OrchestratorAgent` subtask assignment through `TaskManager`'s dependency graph so task ordering and status are tracked centrally.
 
 ---
