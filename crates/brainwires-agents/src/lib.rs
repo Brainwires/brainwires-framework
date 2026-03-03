@@ -45,6 +45,7 @@ pub mod execution_graph;
 pub mod pool;
 pub mod system_prompts;
 pub mod task_agent;
+pub mod validator_agent;
 
 // ── Core components ──────────────────────────────────────────────────────────
 
@@ -137,6 +138,10 @@ pub use task_agent::{
     spawn_task_agent, FailureCategory, TaskAgent, TaskAgentConfig, TaskAgentResult,
     TaskAgentStatus,
 };
+pub use validator_agent::{
+    spawn_validator_agent, ValidatorAgent, ValidatorAgentConfig, ValidatorAgentResult,
+    ValidatorAgentStatus,
+};
 pub use brainwires_model_tools::{PreHookDecision, ToolPreHook};
 
 /// Prelude module for convenient imports
@@ -147,6 +152,9 @@ pub mod prelude {
     pub use super::pool::{AgentPool, AgentPoolStats};
     pub use super::task_agent::{
         FailureCategory, TaskAgent, TaskAgentConfig, TaskAgentResult, TaskAgentStatus,
+    };
+    pub use super::validator_agent::{
+        ValidatorAgent, ValidatorAgentConfig, ValidatorAgentResult, ValidatorAgentStatus,
     };
     pub use brainwires_model_tools::{PreHookDecision, ToolPreHook};
 
