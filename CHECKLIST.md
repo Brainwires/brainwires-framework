@@ -27,10 +27,10 @@ Priority definitions:
 ---
 
 ## Crate Consolidation
-> **Priority: MEDIUM** — Reduces maintenance surface. 2 of 4 candidates completed (22 → 20 crates).
+> **Priority: MEDIUM** — Reduces maintenance surface. All 4 candidates evaluated (22 → 20 crates; 2 merged, 2 kept separate).
 
-- [ ] **Evaluate collapsing `brainwires-mdap` into `brainwires-agents`** — MDAP is tightly coupled to agents (voting/decomposition layer on top of agent orchestration). No other crate uses it independently. Would become a feature `mdap` on `brainwires-agents`. *Evaluated: skip — too large (6,268 LOC), 3-4 consumers.*
-- [ ] **Evaluate collapsing `brainwires-permissions` into `brainwires-core`** — Permission policies are a cross-cutting concern. Most crates that need permissions already depend on core. Would become a feature `permissions` on `brainwires-core`. *Evaluated: skip — would bloat core, adds tokio/glob deps.*
+- [x] **Evaluate collapsing `brainwires-mdap` into `brainwires-agents`** — *Evaluated: skip — too large (6,268 LOC), 3-4 consumers. Keep as separate crate.*
+- [x] **Evaluate collapsing `brainwires-permissions` into `brainwires-core`** — *Evaluated: skip — would bloat core, adds tokio/glob deps. Keep as separate crate.*
 - [x] **Collapse `brainwires-eval` into `brainwires-agents`** — Merged as `brainwires-agents/eval` feature. All eval types available via `brainwires_agents::eval::*` or `brainwires::eval::*` through the facade.
 - [x] **Collapse `brainwires-a2a` into `brainwires-relay`** — Merged as `brainwires-relay/a2a` feature. All A2A types available via `brainwires_relay::a2a::*` or `brainwires::a2a::*` through the facade.
 
@@ -97,7 +97,7 @@ Priority definitions:
 | Section | Items | Priority | Notes |
 |---------|-------|----------|-------|
 | Pre-Release Hygiene | 10 | **High** | Blockers for crates.io publish |
-| Crate Consolidation | 4 | Medium | 22 → 20 crates (2 done, 2 evaluated & skipped) |
+| Crate Consolidation | 4 | Medium | Complete — 22 → 20 crates (2 merged, 2 kept separate) |
 | Multi-Agent Coordination | 2 | Medium | Retained from previous checklist |
 | Security Hardening | 1 | Medium | Retained from previous checklist |
 | Training Completion | 4 | Medium | New training crate scaffolds |

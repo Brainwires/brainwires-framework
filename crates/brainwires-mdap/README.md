@@ -45,24 +45,24 @@ This implementation also integrates techniques from three supplementary papers:
   ┌──────────────────────────────────────────────────────────────────────┐
   │                         brainwires-mdap                              │
   │                                                                      │
-  │  Task ──► Decomposition (Alg.4) ──► Subtask DAG                     │
+  │  Task ──► Decomposition (Alg.4) ──► Subtask DAG                      │
   │                                         │                            │
   │               ┌─────────────────────────┘                            │
   │               ▼                                                      │
-  │  ┌─── Per Subtask ─────────────────────────────────────────────┐    │
+  │  ┌─── Per Subtask ──────────────────────────────────────────────┐    │
   │  │                                                              │    │
-  │  │  Microagent ──► Sample k responses ──► Red Flags (Alg.3)   │    │
+  │  │  Microagent ──► Sample k responses ──► Red Flags (Alg.3)     │    │
   │  │  (m=1 steps)        │                      │                 │    │
   │  │                     ▼                      ▼                 │    │
   │  │              Valid responses ──► Voting (Alg.2)              │    │
   │  │                                      │                       │    │
   │  │              ┌───────────────────────┘                       │    │
   │  │              ▼                                               │    │
-  │  │  Winner + VoteResult + SubtaskMetric                        │    │
+  │  │  Winner + VoteResult + SubtaskMetric                         │    │
   │  └──────────────────────────────────────────────────────────────┘    │
   │               │                                                      │
   │               ▼                                                      │
-  │  Composer ──► Final result        Scaling (Eq.13-19) ──► Estimates  │
+  │  Composer ──► Final result        Scaling (Eq.13-19) ──► Estimates   │
   │                                   Metrics ──► Cost/performance data  │
   └──────────────────────────────────────────────────────────────────────┘
 ```
