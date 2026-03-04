@@ -142,7 +142,7 @@ impl TaskManager {
     }
 
     /// Unblock tasks that depend on a completed/skipped task
-    pub(crate) async fn unblock_dependents(&self, completed_task_id: &str) -> Result<()> {
+    pub async fn unblock_dependents(&self, completed_task_id: &str) -> Result<()> {
         let mut tasks = self.tasks.write().await;
 
         // Find all tasks that depend on the completed task

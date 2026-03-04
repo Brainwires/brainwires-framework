@@ -79,6 +79,10 @@ pub mod git_coordination;
 
 pub mod plan_executor;
 
+// ── Task orchestration ────────────────────────────────────────────────────────
+
+pub mod task_orchestrator;
+
 // ── Reasoning (merged from brainwires-reasoning) ────────────────────────────
 #[cfg(feature = "reasoning")]
 pub mod reasoning;
@@ -120,6 +124,9 @@ pub use git_coordination::{GitCoordinator, GitLockRequirements, GitOperationLock
 
 // Plan execution
 pub use plan_executor::{PlanExecutorAgent, PlanExecutionConfig, PlanExecutionStatus, ExecutionApprovalMode, ExecutionProgress};
+
+// Task orchestration
+pub use task_orchestrator::{TaskOrchestrator, TaskOrchestratorConfig, FailurePolicy, OrchestrationResult, TaskSpec};
 
 // Coordination patterns
 pub use contract_net::ContractNetManager;
@@ -180,6 +187,9 @@ pub mod prelude {
 
     // Plan execution
     pub use super::plan_executor::{PlanExecutorAgent, PlanExecutionConfig, ExecutionApprovalMode};
+
+    // Task orchestration
+    pub use super::task_orchestrator::{TaskOrchestrator, TaskOrchestratorConfig, FailurePolicy};
 
     // Coordination patterns
     pub use super::contract_net::ContractNetManager;

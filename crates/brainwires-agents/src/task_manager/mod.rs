@@ -102,6 +102,17 @@ impl TaskManager {
     pub async fn export_tasks(&self) -> Vec<Task> {
         self.get_all_tasks().await
     }
+
+    /// Assign a task to an agent (sets the `assigned_to` field).
+    pub async fn assign_task(&self, task_id: &str, agent_id: &str) -> Result<()> {
+        let mut tasks = self.tasks.write().await;
+        let task = tasks.get_mut(task_id)
+            .context(format!("Task '{}' not found", task_id))?;
+
+        task.assigned_to = Some(agent_id.to_string());
+        task.updated_at = chrono::Utc::now().timestamp();
+        Ok(())
+    }
 }
 
 impl Default for TaskManager {

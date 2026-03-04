@@ -16,21 +16,24 @@ impl TaskManager {
         status: TaskStatus,
         summary: Option<String>,
     ) -> Result<()> {
-        let mut tasks = self.tasks.write().await;
-        let task = tasks.get_mut(task_id)
-            .context(format!("Task '{}' not found", task_id))?;
+        let parent_id = {
+            let mut tasks = self.tasks.write().await;
+            let task = tasks.get_mut(task_id)
+                .context(format!("Task '{}' not found", task_id))?;
 
-        task.status = status.clone();
-        if let Some(s) = summary {
-            task.summary = Some(s);
-        }
-        task.updated_at = chrono::Utc::now().timestamp();
+            task.status = status.clone();
+            if let Some(s) = summary {
+                task.summary = Some(s);
+            }
+            task.updated_at = chrono::Utc::now().timestamp();
 
-        // If completing a task, check if parent can be updated
+            task.parent_id.clone()
+        };
+
+        // If completing a task, unblock dependents and check parent
         if status == TaskStatus::Completed {
-            // Check if all siblings are complete
-            if let Some(ref parent_id) = task.parent_id.clone() {
-                drop(tasks);
+            self.unblock_dependents(task_id).await?;
+            if let Some(ref parent_id) = parent_id {
                 self.check_parent_completion(parent_id).await?;
             }
         }
