@@ -4,15 +4,8 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use brainwires_core::Task;
-
-/// Priority levels for tasks
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum TaskPriority {
-    Low = 0,
-    Normal = 1,
-    High = 2,
-    Urgent = 3,
-}
+// Re-export from core to maintain public API compatibility
+pub use brainwires_core::TaskPriority;
 
 /// A queued task with priority and metadata
 #[derive(Debug, Clone)]

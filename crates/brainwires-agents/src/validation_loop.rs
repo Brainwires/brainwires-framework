@@ -45,6 +45,8 @@ pub struct ValidationIssue {
 pub enum ValidationSeverity {
     Error,
     Warning,
+    /// Informational only (does not block completion)
+    Info,
 }
 
 /// Configuration for validation loop

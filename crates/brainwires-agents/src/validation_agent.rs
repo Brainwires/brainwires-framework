@@ -16,6 +16,7 @@ use std::sync::Arc;
 
 use crate::resource_checker::{ConflictCheck, ResourceChecker};
 use crate::state_model::{StateModelProposedOperation, StateSnapshot, ThreeStateModel};
+use crate::validation_loop::ValidationSeverity;
 
 /// Type alias for proposed operations used in validation (private to this module)
 type ProposedOperation = StateModelProposedOperation;
@@ -549,16 +550,7 @@ impl ValidationOutcome {
     }
 }
 
-/// Severity of validation failures
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ValidationSeverity {
-    /// Must not proceed - operation is invalid
-    Error,
-    /// Can proceed but with caution
-    Warning,
-    /// Informational only
-    Info,
-}
+// ValidationSeverity is imported from crate::validation_loop
 
 /// Result of an operation (for post-validation)
 #[derive(Debug, Clone)]

@@ -148,6 +148,7 @@ The `brainwires` facade crate exposes feature flags corresponding to each sub-cr
 | `mesh` | No | Distributed agent mesh |
 | `a2a` | No | Agent-to-Agent protocol |
 | `wasm` | No | WASM browser bindings |
+| `researcher` | No | Bundle: providers + agents + storage + rag + training + datasets |
 
 ## Building
 

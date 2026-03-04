@@ -66,13 +66,31 @@ tokio = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+async-trait = { workspace = true }
+async-stream = { workspace = true }
+futures = { workspace = true }
+
+[[example]]
+name = "custom_provider"
+required-features = ["providers"]
+
+[[example]]
+name = "custom_embedding"
+
+[[example]]
+name = "agent_quickstart"
+required-features = ["agents"]
+
+[[example]]
+name = "rag_custom_pipeline"
+required-features = ["rag"]
 
 [features]
 default = ["tools", "agents"]
 wasm = ["brainwires-core/wasm"]
 tools = ["dep:brainwires-model-tools"]
 agents = ["dep:brainwires-agents"]
-storage = ["dep:brainwires-storage"]
+storage = ["dep:brainwires-storage", "brainwires-storage/native"]
 mcp = ["dep:brainwires-mcp"]
 mdap = ["dep:brainwires-mdap"]
 knowledge = ["brain"]
@@ -105,6 +123,8 @@ mcp-server = ["dep:rmcp", "dep:schemars", "dep:tokio-util"]
 learning = ["seal", "knowledge", "brainwires-seal/knowledge"]
 # Convenience: everything needed for agent workflows
 agent-full = ["agents", "permissions", "prompting", "tools"]
+# Convenience: everything a researcher typically needs
+researcher = ["providers", "agents", "storage", "rag", "training", "datasets"]
 full = [
     "tools", "agents", "storage", "mcp", "mdap", "knowledge",
     "prompting", "permissions", "orchestrator", "rag-full-languages", "interpreters",

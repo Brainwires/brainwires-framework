@@ -310,8 +310,65 @@ pub struct BM25Stats {
     pub total_documents: usize,
 }
 
+/// Trait for custom search scoring/fusion strategies.
+///
+/// Implement this trait to replace the default Reciprocal Rank Fusion (RRF) with
+/// your own fusion algorithm (e.g., weighted linear combination, learned fusion,
+/// cross-encoder reranking).
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use brainwires_rag::bm25_search::{SearchScorer, BM25Result};
+///
+/// struct WeightedFusion { vector_weight: f32, keyword_weight: f32 }
+///
+/// impl SearchScorer for WeightedFusion {
+///     fn fuse(
+///         &self,
+///         vector_results: Vec<(u64, f32)>,
+///         bm25_results: Vec<BM25Result>,
+///         limit: usize,
+///     ) -> Vec<(u64, f32)> {
+///         // Your custom fusion logic here
+///         vec![]
+///     }
+/// }
+/// ```
+pub trait SearchScorer: Send + Sync {
+    /// Combine vector search and BM25 keyword results into a single ranked list.
+    ///
+    /// - `vector_results`: (id, similarity_score) pairs from vector search, sorted by score desc
+    /// - `bm25_results`: keyword search results with raw BM25 scores
+    /// - `limit`: maximum number of combined results to return
+    ///
+    /// Returns (id, combined_score) pairs sorted by score descending.
+    fn fuse(
+        &self,
+        vector_results: Vec<(u64, f32)>,
+        bm25_results: Vec<BM25Result>,
+        limit: usize,
+    ) -> Vec<(u64, f32)>;
+}
+
 /// Standard RRF constant (60.0 is the commonly used value from the RRF paper)
 pub const RRF_K_CONSTANT: f32 = 60.0;
+
+/// Default scorer using Reciprocal Rank Fusion (RRF).
+///
+/// The standard RRF approach from the paper, using k=60.
+pub struct RrfScorer;
+
+impl SearchScorer for RrfScorer {
+    fn fuse(
+        &self,
+        vector_results: Vec<(u64, f32)>,
+        bm25_results: Vec<BM25Result>,
+        limit: usize,
+    ) -> Vec<(u64, f32)> {
+        reciprocal_rank_fusion(vector_results, bm25_results, limit)
+    }
+}
 
 /// Reciprocal Rank Fusion (RRF) for combining vector and BM25 results
 ///

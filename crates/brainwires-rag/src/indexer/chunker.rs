@@ -2,7 +2,32 @@ use super::CodeChunk;
 use crate::indexer::ast_parser::AstParser;
 use crate::indexer::file_info::FileInfo;
 use crate::types::ChunkMetadata;
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+/// Trait for custom chunking implementations.
+///
+/// Implement this trait to plug in your own chunking algorithm (e.g., semantic
+/// chunking, sliding window with custom overlap, ML-based segmentation).
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use brainwires_rag::indexer::{Chunker, CodeChunk, FileInfo};
+///
+/// struct MyChunker { max_lines: usize }
+///
+/// impl Chunker for MyChunker {
+///     fn chunk_file(&self, file_info: &FileInfo) -> Vec<CodeChunk> {
+///         // Your custom chunking logic here
+///         vec![]
+///     }
+/// }
+/// ```
+pub trait Chunker: Send + Sync {
+    /// Chunk a file into code chunks.
+    fn chunk_file(&self, file_info: &FileInfo) -> Vec<CodeChunk>;
+}
 
 /// Strategy for chunking code
 pub enum ChunkStrategy {
@@ -14,6 +39,8 @@ pub enum ChunkStrategy {
     AstBased,
     /// Hybrid: AST-based with fallback to fixed lines
     Hybrid { fallback_lines: usize },
+    /// Custom chunker implementation
+    Custom(Arc<dyn Chunker>),
 }
 
 pub struct CodeChunker {
@@ -49,6 +76,7 @@ impl CodeChunker {
                     ast_chunks
                 }
             }
+            ChunkStrategy::Custom(chunker) => chunker.chunk_file(file_info),
         }
     }
 
@@ -230,6 +258,12 @@ impl CodeChunker {
         }
 
         chunks
+    }
+}
+
+impl Chunker for CodeChunker {
+    fn chunk_file(&self, file_info: &FileInfo) -> Vec<CodeChunk> {
+        self.chunk_file(file_info)
     }
 }
 

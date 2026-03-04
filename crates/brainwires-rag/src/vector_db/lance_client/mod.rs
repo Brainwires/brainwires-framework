@@ -8,7 +8,7 @@
 //!
 //! Future refactoring could extract search logic into traits if needed.
 
-use crate::bm25_search::BM25Search;
+use crate::bm25_search::{BM25Search, RrfScorer, SearchScorer};
 use crate::glob_utils;
 use crate::types::{ChunkMetadata, SearchResult};
 use crate::vector_db::{DatabaseStats, VectorDatabase};
@@ -35,6 +35,8 @@ pub struct LanceVectorDB {
     /// Per-project BM25 search indexes for keyword matching
     /// Key: hashed root path, Value: BM25Search instance
     bm25_indexes: Arc<RwLock<HashMap<String, BM25Search>>>,
+    /// Pluggable search scorer for hybrid result fusion (default: RRF)
+    scorer: Arc<dyn SearchScorer>,
 }
 
 impl LanceVectorDB {
@@ -62,7 +64,17 @@ impl LanceVectorDB {
             table_name: "code_embeddings".to_string(),
             db_path: db_path.to_string(),
             bm25_indexes,
+            scorer: Arc::new(RrfScorer),
         })
+    }
+
+    /// Set a custom search scorer for hybrid result fusion.
+    ///
+    /// By default, Reciprocal Rank Fusion (RRF) is used. Call this to swap in
+    /// your own fusion strategy.
+    pub fn with_scorer(mut self, scorer: Arc<dyn SearchScorer>) -> Self {
+        self.scorer = scorer;
+        self
     }
 
     /// Get default database path (public for CLI version info)
@@ -465,10 +477,8 @@ impl VectorDatabase for LanceVectorDB {
 
             let bm25_results = all_bm25_results;
 
-            // Combine results with Reciprocal Rank Fusion
-            // RRF produces scores ~0.01-0.03, so don't apply min_score to combined scores
-            let combined =
-                crate::bm25_search::reciprocal_rank_fusion(vector_results, bm25_results, limit);
+            // Combine results using the pluggable scorer (default: RRF)
+            let combined = self.scorer.fuse(vector_results, bm25_results, limit);
 
             // Build final results by looking up the combined IDs in the vector results
             let mut search_results = Vec::new();
