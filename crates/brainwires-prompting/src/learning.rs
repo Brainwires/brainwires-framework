@@ -5,7 +5,7 @@
 
 use super::techniques::PromptingTechnique;
 #[cfg(feature = "knowledge")]
-use crate::knowledge::{BehavioralKnowledgeCache, BehavioralTruth, TruthCategory, TruthSource};
+use brainwires_brain::knowledge::{BehavioralKnowledgeCache, BehavioralTruth, TruthCategory, TruthSource};
 use anyhow::Result;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};

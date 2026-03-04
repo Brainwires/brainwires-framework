@@ -13,9 +13,9 @@
 //! - **Temperature**: Adaptive temperature optimization per cluster
 //! - **Storage**: SQLite persistence for clusters and performance data
 
-// Knowledge systems (merged from brainwires-knowledge)
+// Knowledge systems re-exported from brainwires-brain (optional)
 #[cfg(feature = "knowledge")]
-pub mod knowledge;
+pub use brainwires_brain::knowledge;
 
 pub mod clustering;
 pub mod generator;

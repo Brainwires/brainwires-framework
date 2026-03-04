@@ -1,0 +1,36 @@
+[package]
+name = "brainwires-rag-server"
+description = "Project-RAG MCP server binary — RAG-based codebase indexing and semantic search"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[lib]
+name = "brainwires_rag_server"
+path = "src/lib.rs"
+
+[[bin]]
+name = "brainwires-rag"
+path = "src/main.rs"
+
+[build-dependencies]
+chrono = "0.4"
+
+[dependencies]
+brainwires-rag = { workspace = true, features = ["native", "lancedb-backend"] }
+rmcp = { workspace = true, features = ["server", "transport-io", "macros"] }
+schemars.workspace = true
+tokio-util.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tokio.workspace = true
+clap = { version = "4", features = ["derive", "env"] }
+
+[dev-dependencies]
+tempfile.workspace = true

@@ -21,7 +21,7 @@
 //! let safe = wrap_with_content_source(raw, ContentSource::ExternalContent);
 //! assert!(safe.contains("[REDACTED: potential prompt injection]"));
 //!
-//! let tool_result = "Found API key: sk-proj-abc123XYZ... in config.json";
+//! let tool_result = "Found API key: sk-proj-abc123XYZdef456GHIjkl789 in config.json";
 //! let filtered = filter_tool_output(tool_result);
 //! assert!(filtered.contains("[REDACTED"));
 //! ```

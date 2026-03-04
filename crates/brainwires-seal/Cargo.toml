@@ -13,7 +13,7 @@ brainwires-core = { workspace = true }
 brainwires-model-tools = { workspace = true }
 brainwires-agents = { workspace = true }
 brainwires-mdap = { workspace = true, optional = true }
-brainwires-prompting = { workspace = true, optional = true }
+brainwires-brain = { workspace = true, optional = true }
 anyhow = { workspace = true }
 regex = { workspace = true }
 chrono = { workspace = true }
@@ -25,8 +25,9 @@ tokio = { workspace = true, optional = true }
 default = ["native"]
 native = ["brainwires-core/native"]
 mdap = ["dep:brainwires-mdap"]
-knowledge = ["dep:brainwires-prompting", "brainwires-prompting/knowledge", "dep:tokio"]
+knowledge = ["dep:brainwires-brain", "dep:tokio"]
 
 [dev-dependencies]
 brainwires-storage = { workspace = true }
+brainwires-brain = { workspace = true }
 serde_json = { workspace = true }

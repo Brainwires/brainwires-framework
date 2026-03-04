@@ -49,6 +49,7 @@
 //!     // Query the codebase
 //!     let query_req = QueryRequest {
 //!         query: "authentication logic".to_string(),
+//!         path: None,
 //!         project: Some("my-project".to_string()),
 //!         limit: 10,
 //!         min_score: 0.7,
@@ -63,48 +64,15 @@
 //! }
 //! ```
 //!
-//! ## MCP Server Usage Example
+//! ## MCP Server
 //!
-//! The MCP server wraps RagClient and exposes it via the MCP protocol:
-//!
-//! ```no_run
-//! use brainwires_rag::mcp_server::RagMcpServer;
-//!
-//! #[tokio::main]
-//! async fn main() -> anyhow::Result<()> {
-//!     // Create server (internally creates a RagClient)
-//!     let server = RagMcpServer::new().await?;
-//!
-//!     // Serve over stdio (MCP protocol)
-//!     server.serve_stdio().await?;
-//!
-//!     Ok(())
-//! }
-//! ```
-//!
-//! Or you can create a server with an existing client:
-//!
-//! ```no_run
-//! use brainwires_rag::{RagClient, mcp_server::RagMcpServer};
-//! use std::sync::Arc;
-//!
-//! #[tokio::main]
-//! async fn main() -> anyhow::Result<()> {
-//!     // Create client with custom configuration
-//!     let client = RagClient::new().await?;
-//!
-//!     // Wrap client in MCP server
-//!     let server = RagMcpServer::with_client(Arc::new(client))?;
-//!
-//!     server.serve_stdio().await?;
-//!     Ok(())
-//! }
-//! ```
+//! The MCP server is provided by the separate `brainwires-rag-server` crate
+//! (in `extras/brainwires-rag-server/`), which wraps `RagClient` and exposes
+//! it via the MCP protocol.
 //!
 //! ## Modules
 //!
 //! - [`client`]: Core library client API with all functionality
-//! - [`mcp_server`]: MCP protocol server implementation that wraps the client
 //! - [`embedding`]: Embedding generation using FastEmbed
 //! - [`vector_db`]: Vector database abstraction (LanceDB and Qdrant)
 //! - [`bm25_search`]: BM25 keyword search using Tantivy
@@ -167,8 +135,6 @@ pub mod vector_db;
 pub mod client;
 #[cfg(feature = "native")]
 pub use client::RagClient;
-#[cfg(feature = "native")]
-pub mod mcp_server;
 #[cfg(feature = "native")]
 pub use config::Config;
 

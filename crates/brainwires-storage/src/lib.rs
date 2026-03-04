@@ -23,13 +23,6 @@
 //! - **SummaryStore** - Compressed message summaries (warm tier)
 //! - **FactStore** - Key facts extraction (cold tier)
 //! - **TierMetadataStore** - Tier tracking metadata
-//!
-//! ## Knowledge Graph
-//! - **RelationshipGraph** - Entity relationship graph for context retrieval
-//! - **FileContextManager** - File content management with smart chunking
-//!
-//! ## Entity Types
-//! - **Entity**, **EntityType**, **Relationship** - Knowledge graph types
 
 // Re-export core types
 pub use brainwires_core;
@@ -37,8 +30,6 @@ pub use brainwires_core;
 // ── Always available (pure types/logic) ──────────────────────────────────
 
 pub mod image_types;
-pub mod entity;
-pub mod relationship_graph;
 pub mod template_store;
 
 // These have native deps (sha2, LanceDB types)
@@ -84,13 +75,6 @@ pub use image_types::{
     ImageFormat, ImageMetadata, ImageSearchRequest, ImageSearchResult, ImageStorage,
 };
 
-// Knowledge graph types
-pub use entity::{
-    ContradictionEvent, ContradictionKind, Entity, EntityType, ExtractionResult,
-    EntityStoreStats, Relationship,
-};
-pub use relationship_graph::{RelationshipGraph, GraphNode, GraphEdge, EdgeType, EntityContext};
-
 // Template store
 pub use template_store::{PlanTemplate, TemplateStore};
 
@@ -125,8 +109,6 @@ pub use tiered_memory::{
 };
 #[cfg(feature = "native")]
 pub use file_context::{FileChunk, FileContent, FileContextManager};
-#[cfg(feature = "native")]
-pub use entity::EntityStore;
 #[cfg(all(feature = "native", feature = "agents"))]
 pub use persistent_task_manager::{PersistentTaskManager, SharedPersistentTaskManager};
 
@@ -134,8 +116,6 @@ pub use persistent_task_manager::{PersistentTaskManager, SharedPersistentTaskMan
 pub mod prelude {
     // Always available
     pub use super::template_store::{PlanTemplate, TemplateStore};
-    pub use super::entity::{Entity, EntityType, Relationship};
-    pub use super::relationship_graph::{RelationshipGraph, EntityContext};
 
     // Native only
     #[cfg(feature = "native")]
@@ -154,8 +134,6 @@ pub mod prelude {
     pub use super::lock_store::{LockStore, LockRecord};
     #[cfg(feature = "native")]
     pub use super::image_store::ImageStore;
-    #[cfg(feature = "native")]
-    pub use super::entity::EntityStore;
     #[cfg(feature = "native")]
     pub use super::tiered_memory::{
         CanonicalWriteToken, MemoryAuthority, MemoryTier,

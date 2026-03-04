@@ -66,7 +66,11 @@ impl CommitChunker {
 
         // Truncate if too long
         if content.len() > self.max_content_length {
-            content.truncate(self.max_content_length);
+            let mut truncate_at = self.max_content_length;
+            while !content.is_char_boundary(truncate_at) {
+                truncate_at -= 1;
+            }
+            content.truncate(truncate_at);
             content.push_str("\n\n[... content truncated for embedding ...]");
         }
 

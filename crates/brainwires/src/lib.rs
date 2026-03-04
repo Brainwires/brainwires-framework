@@ -215,9 +215,9 @@ pub mod prelude {
         StandardRedFlagValidator, FirstToAheadByKVoter,
     };
 
-    // Knowledge — available with "knowledge" feature (now in prompting::knowledge)
+    // Knowledge — available with "knowledge" feature (now in brainwires-brain::knowledge)
     #[cfg(feature = "knowledge")]
-    pub use brainwires_prompting::knowledge::{
+    pub use brainwires_brain::knowledge::{
         BehavioralKnowledgeCache, BehavioralTruth, PersonalKnowledgeCache, TruthCategory,
     };
 

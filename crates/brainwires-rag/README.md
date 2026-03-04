@@ -8,7 +8,7 @@ RAG-based codebase indexing and semantic search for the Brainwires Agent Framewo
 
 ## Overview
 
-`brainwires-rag` is a dual-purpose Rust crate that provides RAG (Retrieval-Augmented Generation) capabilities for understanding and searching large codebases. It can be used as a Rust library (`RagClient`) or as a standalone MCP server (`RagMcpServer`) for AI assistant integration.
+`brainwires-rag` is a Rust library crate that provides RAG (Retrieval-Augmented Generation) capabilities for understanding and searching large codebases via `RagClient`. The MCP server binary is provided separately by the `brainwires-rag-server` crate (in `extras/brainwires-rag-server/`).
 
 **Design principles:**
 
@@ -19,7 +19,7 @@ RAG-based codebase indexing and semantic search for the Brainwires Agent Framewo
 - **Code navigation** — find definitions, references, and call graphs with hybrid precision (AST-based for all languages)
 - **Git history search** — semantic search over commit messages and diffs with on-demand indexing
 - **Local-first** — all processing happens locally using `fastembed` (all-MiniLM-L6-v2); no API keys, no network calls
-- **Dual API** — use as a Rust library or as an MCP server exposing 9 tools and 9 slash commands
+- **Library-first** — use as a Rust library; MCP server binary is in `extras/brainwires-rag-server/` (9 tools, 9 slash commands)
 
 ```text
   ┌──────────────────────────────────────────────────────────────────────┐
@@ -44,12 +44,8 @@ RAG-based codebase indexing and semantic search for the Brainwires Agent Framewo
   │  │  get_call_graph() ──►                                           │  │
   │  └─────────────────────────────────────────────────────────────────┘  │
   │                                                                      │
-  │  ┌─── RagMcpServer (MCP Protocol Wrapper) ────────────────────────┐  │
-  │  │                                                                 │  │
-  │  │  9 MCP Tools ──► RagClient methods                              │  │
-  │  │  9 Slash Commands (/project:index, /project:query, ...)         │  │
-  │  │  Stdio transport (JSON-RPC 2.0)                                 │  │
-  │  └─────────────────────────────────────────────────────────────────┘  │
+  │  MCP server binary: extras/brainwires-rag-server/                    │
+  │  (9 MCP Tools, 9 Slash Commands, Stdio transport)                   │
   └──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -104,7 +100,7 @@ async fn main() -> anyhow::Result<()> {
 
 | Feature | Default | Description |
 |---------|---------|-------------|
-| `native` | Yes | Enables all heavy dependencies: Tree-sitter, FastEmbed, LanceDB, Tantivy, git2, MCP server |
+| `native` | Yes | Enables all heavy dependencies: Tree-sitter, FastEmbed, LanceDB, Tantivy, git2 |
 | `wasm` | No | WASM-compatible build (types and error modules only, no embeddings or databases) |
 | `lancedb-backend` | Yes | Embedded LanceDB vector database (no external dependencies) |
 | `qdrant-backend` | No | External Qdrant vector database server support |
@@ -463,36 +459,15 @@ async fn main() -> anyhow::Result<()> {
 
 ### Run as MCP server
 
-```rust
-use brainwires_rag::mcp_server::RagMcpServer;
+The MCP server binary is in the separate `brainwires-rag-server` crate:
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    // Create and serve over stdio
-    let server = RagMcpServer::new().await?;
-    server.serve_stdio().await?;
-    Ok(())
-}
-```
-
-Or wrap an existing client:
-
-```rust
-use brainwires_rag::{RagClient, mcp_server::RagMcpServer};
-use std::sync::Arc;
-
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    let client = RagClient::new().await?;
-    let server = RagMcpServer::with_client(Arc::new(client))?;
-    server.serve_stdio().await?;
-    Ok(())
-}
+```bash
+cargo run -p brainwires-rag-server -- serve
 ```
 
 ## MCP Tools & Slash Commands
 
-When running as an MCP server, 9 tools and 9 slash commands are exposed:
+When running the MCP server (`brainwires-rag-server`), 9 tools and 9 slash commands are exposed:
 
 | Tool | Slash Command | Description |
 |------|---------------|-------------|

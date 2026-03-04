@@ -9,7 +9,7 @@
 
 use super::clustering::TaskCluster;
 #[cfg(feature = "knowledge")]
-use crate::knowledge::{BehavioralKnowledgeCache, BehavioralTruth, TruthCategory, TruthSource};
+use brainwires_brain::knowledge::{BehavioralKnowledgeCache, BehavioralTruth, TruthCategory, TruthSource};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

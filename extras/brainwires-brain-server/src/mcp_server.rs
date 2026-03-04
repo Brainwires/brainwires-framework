@@ -1,5 +1,5 @@
-use crate::brain_client::BrainClient;
-use crate::types::*;
+use brainwires_brain::brain_client::BrainClient;
+use brainwires_brain::types::*;
 
 use anyhow::{Context, Result};
 use rmcp::{

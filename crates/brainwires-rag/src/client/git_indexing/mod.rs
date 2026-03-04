@@ -246,7 +246,12 @@ where
             if diff_section.starts_with("Diff:") {
                 let diff_content = diff_section.strip_prefix("Diff:\n").unwrap_or(diff_section);
                 if diff_content.len() > 500 {
-                    format!("{}...", &diff_content[..500])
+                    let end = {
+                        let mut i = 500;
+                        while !diff_content.is_char_boundary(i) { i -= 1; }
+                        i
+                    };
+                    format!("{}...", &diff_content[..end])
                 } else {
                     diff_content.to_string()
                 }

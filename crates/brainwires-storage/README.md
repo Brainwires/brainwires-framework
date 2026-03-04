@@ -50,11 +50,10 @@ LanceDB-backed storage, tiered memory, and document management for the Brainwire
   │  │  DocumentMetadataStore ──► hash-based deduplication             │ │
   │  └─────────────────────────────────────────────────────────────────┘ │
   │                                                                      │
-  │  ┌─── Knowledge Graph & Images ────────────────────────────────────┐ │
-  │  │  EntityStore ──► entity tracking, contradiction detection       │ │
-  │  │  RelationshipGraph ──► nodes, edges, shortest path, scoring     │ │
+  │  ┌─── Images ────────────────────────────────────────────────────────┐ │
   │  │  ImageStore ──► analyzed images with semantic search             │ │
   │  └─────────────────────────────────────────────────────────────────┘ │
+  │  Note: EntityStore and RelationshipGraph moved to brainwires-brain  │
   │                                                                      │
   │  ┌─── Coordination & Templates ────────────────────────────────────┐ │
   │  │  LockStore ──► SQLite WAL locks, stale detection, cleanup       │ │
@@ -135,7 +134,7 @@ brainwires-storage = { version = "0.1", default-features = false, features = ["n
 | Module | Always | `native` | `agents` |
 |--------|--------|----------|----------|
 | `document_types`, `document_chunker` | Yes | — | — |
-| `image_types`, `entity`, `relationship_graph` | Yes | — | — |
+| `image_types` | Yes | — | — |
 | `template_store` | Yes | — | — |
 | `lance_client`, `embeddings` | — | Yes | — |
 | `message_store`, `conversation_store` | — | Yes | — |
@@ -678,8 +677,10 @@ for result in &results {
 
 ### Track entities and detect contradictions
 
+> **Note:** `EntityStore` and `RelationshipGraph` have moved to `brainwires-brain`.
+
 ```rust
-use brainwires_storage::{EntityStore, Entity, EntityType, Relationship, ExtractionResult};
+use brainwires_brain::{EntityStore, Entity, EntityType, Relationship, ExtractionResult};
 
 let mut store = EntityStore::new();
 

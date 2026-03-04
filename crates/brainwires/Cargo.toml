@@ -75,7 +75,7 @@ agents = ["dep:brainwires-agents"]
 storage = ["dep:brainwires-storage"]
 mcp = ["dep:brainwires-mcp"]
 mdap = ["dep:brainwires-mdap"]
-knowledge = ["prompting", "brainwires-prompting/knowledge"]
+knowledge = ["brain"]
 prompting = ["dep:brainwires-prompting"]
 permissions = ["dep:brainwires-permissions"]
 orchestrator = ["tools", "brainwires-model-tools/orchestrator"]
@@ -116,6 +116,3 @@ full = [
     "autonomy", "brain",
 ]
 
-[[example]]
-name = "rag_mcp_server"
-required-features = ["rag", "mcp-server"]

@@ -1,6 +1,6 @@
 //! Brainwires Knowledge - Behavioral and personal knowledge systems
 //!
-//! This crate provides two knowledge systems for the Brainwires Agent Framework:
+//! This module provides two knowledge systems for the Brainwires Agent Framework:
 //!
 //! ## Behavioral Knowledge System (BKS)
 //!
@@ -30,10 +30,8 @@ pub use brainwires_core;
 // ── Behavioral Knowledge System ────────────────────────────────────────────
 
 pub mod truth;
-#[cfg(feature = "native")]
 pub mod cache;
 pub mod collector;
-#[cfg(feature = "native")]
 pub mod api;
 pub mod inference;
 pub mod matcher;
@@ -44,28 +42,21 @@ pub mod personal;
 
 // ── Re-exports ─────────────────────────────────────────────────────────────
 
-// BKS types (always available)
+// BKS types
 pub use truth::{BehavioralTruth, TruthCategory, TruthSource};
 pub use collector::{LearningCollector, detect_correction};
 pub use inference::TruthInferenceEngine;
 pub use matcher::ContextMatcher;
-
-// BKS types (native only - require rusqlite/reqwest)
-#[cfg(feature = "native")]
 pub use cache::BehavioralKnowledgeCache;
-#[cfg(feature = "native")]
 pub use api::KnowledgeApiClient;
 
-// PKS types (always available)
+// PKS types
 pub use personal::{
     PersonalFact, PersonalFactCategory, PersonalFactSource,
     PersonalFactCollector, PersonalFactMatcher,
     PersonalKnowledgeSettings,
+    PersonalKnowledgeCache, PersonalKnowledgeApiClient,
 };
-
-// PKS types (native only - require rusqlite/reqwest)
-#[cfg(feature = "native")]
-pub use personal::{PersonalKnowledgeCache, PersonalKnowledgeApiClient};
 
 /// Configuration for the Behavioral Knowledge System
 #[derive(Debug, Clone)]
@@ -164,11 +155,8 @@ pub mod prelude {
         PersonalKnowledgeSettings,
     };
     pub use super::KnowledgeSettings;
-
-    #[cfg(feature = "native")]
     pub use super::cache::BehavioralKnowledgeCache;
-    #[cfg(feature = "native")]
-    pub use super::personal::{PersonalKnowledgeCache};
+    pub use super::personal::PersonalKnowledgeCache;
 }
 
 #[cfg(test)]

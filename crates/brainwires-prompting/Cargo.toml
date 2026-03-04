@@ -1,6 +1,6 @@
 [package]
 name = "brainwires-prompting"
-description = "Adaptive prompting techniques, task clustering, temperature optimization, and knowledge systems for the Brainwires Agent Framework"
+description = "Adaptive prompting techniques, task clustering, and temperature optimization for the Brainwires Agent Framework"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -11,6 +11,7 @@ authors.workspace = true
 [dependencies]
 # Internal crates
 brainwires-core.workspace = true
+brainwires-brain = { workspace = true, optional = true }
 
 # Serialization
 serde = { workspace = true }
@@ -25,7 +26,7 @@ tokio = { version = "1.43", features = ["sync", "time"] }
 # Time
 chrono.workspace = true
 
-# Identifiers (for knowledge module)
+# Identifiers
 uuid.workspace = true
 
 # Logging
@@ -40,18 +41,15 @@ ndarray = { workspace = true, optional = true }
 rusqlite = { workspace = true, optional = true }
 bincode = { workspace = true, optional = true }
 
-# Knowledge module deps (optional)
-reqwest = { workspace = true, optional = true }
+# Knowledge module deps (needed by learning/library/generator/temperature when knowledge feature is on)
 regex = { workspace = true, optional = true }
-urlencoding = { workspace = true, optional = true }
 
 [features]
 default = ["native"]
-native = ["knowledge", "dep:rusqlite", "dep:reqwest", "dep:linfa", "dep:linfa-clustering", "dep:ndarray", "dep:bincode", "tokio/rt", "tokio/fs", "tokio/process", "tokio/macros"]
+native = ["knowledge", "dep:rusqlite", "dep:linfa", "dep:linfa-clustering", "dep:ndarray", "dep:bincode", "tokio/rt", "tokio/fs", "tokio/process", "tokio/macros"]
 wasm = ["brainwires-core/wasm"]
-# Knowledge module (merged from brainwires-knowledge)
-knowledge = ["dep:regex", "dep:urlencoding"]
-knowledge-native = ["knowledge", "dep:rusqlite", "dep:reqwest", "brainwires-core/native"]
+# Knowledge re-export from brainwires-brain
+knowledge = ["dep:brainwires-brain", "dep:regex"]
 
 [dev-dependencies]
 tempfile.workspace = true

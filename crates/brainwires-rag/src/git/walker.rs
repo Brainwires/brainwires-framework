@@ -246,7 +246,12 @@ impl GitWalker {
 
         // Truncate if too large and add marker
         if diff_content.len() > 8000 {
-            diff_content.truncate(8000);
+            // Find nearest char boundary at or before 8000
+            let mut truncate_at = 8000;
+            while !diff_content.is_char_boundary(truncate_at) {
+                truncate_at -= 1;
+            }
+            diff_content.truncate(truncate_at);
             diff_content.push_str("\n\n[... diff truncated ...]");
             tracing::warn!("Truncated large diff for commit {}", commit.id());
         }

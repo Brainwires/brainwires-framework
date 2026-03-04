@@ -27,23 +27,17 @@
 //! - **Relationship**: connections between facts, Zettelkasten-style (decay: 60 days)
 
 pub mod fact;
-#[cfg(feature = "native")]
 pub mod cache;
-#[cfg(feature = "native")]
 pub mod api;
 pub mod collector;
 pub mod matcher;
-#[cfg(feature = "native")]
 pub mod integration;
 
 pub use fact::{PersonalFact, PersonalFactCategory, PersonalFactFeedback, PersonalFactSource};
-#[cfg(feature = "native")]
 pub use cache::PersonalKnowledgeCache;
-#[cfg(feature = "native")]
 pub use api::PersonalKnowledgeApiClient;
 pub use collector::PersonalFactCollector;
 pub use matcher::PersonalFactMatcher;
-#[cfg(feature = "native")]
 pub use integration::{
     DetectedFact, DetectionSource, PksBackgroundProcessor, PksIntegration, PksSseListener,
 };

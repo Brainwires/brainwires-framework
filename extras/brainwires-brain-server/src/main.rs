@@ -1,5 +1,5 @@
 use anyhow::Result;
-use brainwires_brain::mcp_server::BrainMcpServer;
+use brainwires_brain_server::mcp_server::BrainMcpServer;
 use clap::{Parser, Subcommand};
 use std::panic;
 

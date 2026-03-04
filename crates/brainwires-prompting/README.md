@@ -493,7 +493,7 @@ optimizer.check_and_promote_temperature("code-generation", 0.6).await?;
 use brainwires_prompting::{
     PromptGenerator, TechniqueLibrary, TaskClusterManager, SealProcessingResult,
 };
-use brainwires_knowledge::{BehavioralKnowledgeCache, PersonalKnowledgeCache};
+use brainwires_brain::knowledge::{BehavioralKnowledgeCache, PersonalKnowledgeCache};
 
 let library = TechniqueLibrary::new();
 let clusters = TaskClusterManager::new();
@@ -531,7 +531,7 @@ Use via the `brainwires` facade crate:
 brainwires = "0.1"
 ```
 
-Or use standalone — `brainwires-prompting` depends on `brainwires-core` (the `knowledge` module is now merged into this crate behind the `knowledge` feature).
+Or use standalone — `brainwires-prompting` depends on `brainwires-core` and optionally on `brainwires-brain` for knowledge integration (BKS/PKS). The knowledge systems live in `brainwires-brain`; this crate re-exports them behind the `knowledge` feature.
 
 ## License
 

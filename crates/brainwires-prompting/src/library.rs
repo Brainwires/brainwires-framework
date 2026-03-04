@@ -9,7 +9,7 @@ use super::techniques::{
     TechniqueMetadata,
 };
 #[cfg(feature = "knowledge")]
-use crate::knowledge::{BehavioralKnowledgeCache, BehavioralTruth, TruthCategory};
+use brainwires_brain::knowledge::{BehavioralKnowledgeCache, BehavioralTruth, TruthCategory};
 use anyhow::Result;
 use std::collections::HashMap;
 use std::sync::Arc;

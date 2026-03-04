@@ -435,7 +435,12 @@ fn extract_signature(node: Node, source: &str, _language: &str) -> String {
     // Get first line or first 200 chars, whichever is shorter
     let first_line = text.lines().next().unwrap_or("");
     if first_line.len() > 200 {
-        format!("{}...", &first_line[..200])
+        let end = {
+            let mut i = 200;
+            while !first_line.is_char_boundary(i) { i -= 1; }
+            i
+        };
+        format!("{}...", &first_line[..end])
     } else {
         first_line.to_string()
     }

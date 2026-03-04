@@ -54,12 +54,13 @@ The Brainwires Framework is a workspace of 22 crates (plus 1 extra) that provide
 | **brainwires-model-tools** | Tool definitions and execution for AI model interactions |
 | **brainwires-agents** | Multi-agent orchestration, task decomposition, file lock coordination |
 | **brainwires-mdap** | Multi-Dimensional Adaptive Planning — k-agent voting for reliable execution |
+| **brainwires-brain** | Central knowledge crate — persistent thoughts, PKS/BKS, entity graphs, relationship graphs |
 | **brainwires-storage** | LanceDB vector storage, semantic search, tiered memory |
-| **brainwires-prompting** | Prompt construction, entity extraction, knowledge graphs, context injection |
+| **brainwires-prompting** | Prompt construction, task clustering, multi-source selection (delegates knowledge to brain) |
 | **brainwires-permissions** | Permission policies (auto, ask, reject) for tool execution |
 | **brainwires-mcp** | MCP client — connect to external MCP servers and use their tools |
 | **brainwires-relay** | MCP server mode, IPC, and remote relay for agent management |
-| **brainwires-rag** | RAG engine — AST-aware chunking, hybrid search, Git-aware indexing |
+| **brainwires-rag** | RAG engine — AST-aware chunking, hybrid search, Git-aware indexing (library-only) |
 | **brainwires-skills** | Skill definitions and slash command registry |
 | **brainwires-code-interpreters** | Sandboxed JavaScript and Python code execution |
 | **brainwires-wasm** | WASM bindings for browser-based agent deployment |
@@ -69,6 +70,8 @@ The Brainwires Framework is a workspace of 22 crates (plus 1 extra) that provide
 | **brainwires-datasets** | Training data pipelines — JSONL I/O, tokenization, dedup, format conversion |
 | **brainwires-training** | Cloud fine-tuning (6 providers) and local LoRA/QLoRA/DoRA via Burn |
 | **brainwires-proxy** | HTTP proxy for AI API request routing *(extras/)* |
+| **brainwires-brain-server** | MCP server binary for brainwires-brain *(extras/)* |
+| **brainwires-rag-server** | MCP server binary for brainwires-rag *(extras/)* |
 
 ## Getting Started
 
@@ -176,10 +179,14 @@ cargo test -p brainwires-core
   │   └── brainwires-permissions
   ├── brainwires-mdap
   │   └── brainwires-agents
+  ├── brainwires-brain
+  │   ├── brainwires-core
+  │   └── brainwires-storage
   ├── brainwires-storage
   │   └── brainwires-core
   ├── brainwires-prompting
-  │   └── brainwires-core
+  │   ├── brainwires-core
+  │   └── brainwires-brain (optional, knowledge feature)
   ├── brainwires-mcp
   │   └── brainwires-core
   ├── brainwires-relay

@@ -1,33 +1,40 @@
-//! # Brainwires Brain — Open Brain MCP Server
+//! # Brainwires Brain — Central Knowledge Crate
 //!
-//! Exposes persistent knowledge systems (thoughts, PKS, BKS) to any AI tool
-//! via the Model Context Protocol (MCP).
+//! The canonical home for all knowledge systems in the Brainwires Agent Framework:
 //!
-//! ## Dual Purpose
+//! - **Knowledge Systems**: BKS (behavioral truths) and PKS (personal facts)
+//! - **Entity Graph**: Entity types, entity store, relationship graph
+//! - **Brain Client**: Persistent thought storage with semantic search
+//! - **Thought Types**: Categories, sources, and metadata
+//! - **Fact Extraction**: Automatic categorization and tag extraction
 //!
-//! - **Library**: Use `BrainClient` directly to capture and search thoughts programmatically
-//! - **MCP Server**: Run `BrainMcpServer::serve_stdio()` to expose 7 tools + 5 prompts
-//!
-//! ## Quick Start
+//! ## Library Usage
 //!
 //! ```no_run
-//! use brainwires_brain::mcp_server::BrainMcpServer;
+//! use brainwires_brain::BrainClient;
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
-//!     BrainMcpServer::serve_stdio().await
+//!     let client = BrainClient::new().await?;
+//!     Ok(())
 //! }
 //! ```
 
 pub mod brain_client;
+pub mod entity;
 pub mod fact_extractor;
-pub mod mcp_server;
+pub mod knowledge;
+pub mod relationship_graph;
 pub mod thought;
 pub mod types;
 
 // Re-export main types
 pub use brain_client::BrainClient;
-pub use mcp_server::BrainMcpServer;
+pub use entity::{
+    ContradictionEvent, ContradictionKind, Entity, EntityStore, EntityStoreStats, EntityType,
+    ExtractionResult, Relationship,
+};
+pub use relationship_graph::{EdgeType, EntityContext, GraphEdge, GraphNode, RelationshipGraph};
 pub use thought::{Thought, ThoughtCategory, ThoughtSource};
 pub use types::{
     CaptureThoughtRequest, CaptureThoughtResponse, DeleteThoughtRequest, DeleteThoughtResponse,

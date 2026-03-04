@@ -48,7 +48,7 @@
 //! ```
 
 use crate::{QueryCore, QueryPattern, ResolvedReference, SealProcessingResult};
-use brainwires_prompting::knowledge::{
+use brainwires_brain::knowledge::{
     BehavioralKnowledgeCache, BehavioralTruth, PersonalKnowledgeCache, TruthCategory, TruthSource,
 };
 use anyhow::{Context as _, Result};

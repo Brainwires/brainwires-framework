@@ -12,7 +12,7 @@ use futures::TryStreamExt;
 use lancedb::query::{ExecutableQuery, QueryBase};
 use tracing;
 
-use brainwires_prompting::knowledge::{
+use crate::knowledge::{
     BehavioralKnowledgeCache, PersonalFactCollector, PersonalKnowledgeCache,
 };
 use brainwires_storage::{EmbeddingProvider, LanceClient};

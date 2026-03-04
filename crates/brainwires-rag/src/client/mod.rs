@@ -483,6 +483,7 @@ impl RagClient {
     ///
     /// let request = QueryRequest {
     ///     query: "authentication logic".to_string(),
+    ///     path: None,
     ///     project: Some("my-project".to_string()),
     ///     limit: 10,
     ///     min_score: 0.7,
@@ -1088,8 +1089,8 @@ impl RagClient {
     }
 }
 
-// Indexing operations module
-pub(crate) mod indexing;
+// Indexing operations module (public for MCP server binary)
+pub mod indexing;
 // Git indexing operations module
 pub(crate) mod git_indexing;
 

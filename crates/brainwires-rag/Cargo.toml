@@ -2,7 +2,7 @@
 name = "brainwires-rag"
 version = "0.1.0"
 edition = "2024"
-description = "RAG-based codebase indexing and semantic search - dual purpose library and MCP server"
+description = "RAG-based codebase indexing and semantic search library for the Brainwires Agent Framework"
 authors = ["Brainwires"]
 license = "MIT"
 repository = "https://github.com/Brainwires/brainwires-rag"
@@ -84,9 +84,6 @@ tempfile = "3.0"
 criterion = { version = "0.5", features = ["async_tokio"] }
 filetime = "0.2"
 
-[build-dependencies]
-chrono = "0.4"
-
 [features]
 # Default: native with LanceDB backend and all tree-sitter language parsers
 default = ["native", "lancedb-backend", "tree-sitter-languages"]
@@ -96,8 +93,8 @@ native = [
     "dep:rmcp", "dep:schemars", "dep:lancedb", "dep:arrow-array", "dep:arrow-schema",
     "dep:futures", "dep:fastembed", "dep:tantivy", "dep:git2", "dep:async-trait",
     "dep:walkdir", "dep:dirs", "dep:sha2", "dep:ignore", "dep:globset",
-    "dep:tracing-subscriber", "dep:tree-sitter",
-    "dep:clap", "dep:toml", "dep:pdf-extract", "dep:rayon", "dep:tokio-util", "dep:fs2",
+    "dep:tree-sitter", "dep:tracing-subscriber",
+    "dep:toml", "dep:pdf-extract", "dep:rayon", "dep:tokio-util", "dep:fs2",
     "tokio/full",
     "documents",
 ]
@@ -133,20 +130,9 @@ alt-folder-name = []
 # When enabled, uses stack-graphs for ~95% accuracy name resolution
 stack-graphs = []
 
-# Note: There is no "mcp" feature - both library and MCP server are always built together
-# This is a dual-purpose crate that provides:
-# - RagClient: Core library API for embedding in Rust applications
-# - RagMcpServer: MCP protocol server that wraps RagClient
-# - Binary: MCP server that can be run standalone
-
 [lib]
 name = "brainwires_rag"
 path = "src/lib.rs"
-
-[[bin]]
-name = "brainwires-rag"
-path = "src/main.rs"
-required-features = ["native"]
 
 [[bench]]
 name = "indexing_benchmark"
@@ -158,10 +144,6 @@ required-features = ["native"]
 
 [[example]]
 name = "advanced_search"
-required-features = ["native"]
-
-[[example]]
-name = "mcp_server"
 required-features = ["native"]
 
 [[example]]
