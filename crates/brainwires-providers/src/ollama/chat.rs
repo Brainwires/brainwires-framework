@@ -1,8 +1,8 @@
 //! Ollama chat provider.
 //!
-//! Delegates to the `OllamaProvider` in `brainwires-providers` which still
-//! implements `Provider` directly (Ollama has no separate API client/chat split
-//! since it only does chat).
+//! Delegates to the `OllamaProvider` which still implements `Provider`
+//! directly (Ollama has no separate API client/chat split since it only
+//! does chat).
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -12,21 +12,21 @@ use brainwires_core::{ChatOptions, ChatResponse, Message, Provider, StreamChunk,
 
 /// Ollama local model chat provider.
 pub struct OllamaChatProvider {
-    inner: brainwires_providers::OllamaProvider,
+    inner: super::OllamaProvider,
 }
 
 impl OllamaChatProvider {
     /// Create a new Ollama chat provider.
     pub fn new(model: String, base_url: Option<String>) -> Self {
         Self {
-            inner: brainwires_providers::OllamaProvider::new(model, base_url),
+            inner: super::OllamaProvider::new(model, base_url),
         }
     }
 
     /// Create with rate limiting.
     pub fn with_rate_limit(model: String, base_url: Option<String>, rpm: u32) -> Self {
         Self {
-            inner: brainwires_providers::OllamaProvider::with_rate_limit(model, base_url, rpm),
+            inner: super::OllamaProvider::with_rate_limit(model, base_url, rpm),
         }
     }
 }

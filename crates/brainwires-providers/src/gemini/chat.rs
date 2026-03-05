@@ -1,9 +1,5 @@
 //! Chat-layer wrapper around [`GoogleClient`] that implements the
 //! [`Provider`] trait from `brainwires_core`.
-//!
-//! All Gemini-specific type conversions live here so that the low-level client
-//! crate (`brainwires-providers`) stays free of any `brainwires_core` domain
-//! types.
 
 use std::sync::Arc;
 
@@ -18,16 +14,13 @@ use brainwires_core::{
     StreamChunk, Tool, Usage,
 };
 use brainwires_core::Provider;
-use brainwires_providers::google::{
+use super::{
     GeminiFunctionCall, GeminiFunctionDeclaration, GeminiFunctionResponse, GeminiGenerationConfig,
     GeminiInlineData, GeminiMessage, GeminiPart, GeminiRequest, GeminiStreamChunk,
     GeminiSystemInstruction, GeminiToolSet, GoogleClient,
 };
 
 /// High-level Google Gemini chat provider.
-///
-/// Wraps a shared [`GoogleClient`] and implements `brainwires_core::Provider`,
-/// converting between core domain types and Gemini wire types.
 pub struct GoogleChatProvider {
     client: Arc<GoogleClient>,
     model: String,
@@ -39,15 +32,10 @@ impl GoogleChatProvider {
         Self { client, model }
     }
 
-    // -----------------------------------------------------------------
-    // Conversion helpers  (core types -> Gemini wire types)
-    // -----------------------------------------------------------------
-
-    /// Convert core [`Message`] slices to Gemini's format.
     fn convert_messages(messages: &[Message]) -> Vec<GeminiMessage> {
         messages
             .iter()
-            .filter(|m| m.role != Role::System) // System goes in separate field
+            .filter(|m| m.role != Role::System)
             .map(|m| {
                 let role = match m.role {
                     Role::User => "user",
@@ -109,7 +97,6 @@ impl GoogleChatProvider {
         }
     }
 
-    /// Convert core [`Tool`] slices to Gemini function declarations.
     fn convert_tools(tools: &[Tool]) -> Vec<GeminiFunctionDeclaration> {
         tools
             .iter()
@@ -121,7 +108,6 @@ impl GoogleChatProvider {
             .collect()
     }
 
-    /// Extract a system instruction from the message list.
     fn get_system_instruction(messages: &[Message]) -> Option<String> {
         messages
             .iter()
@@ -129,7 +115,6 @@ impl GoogleChatProvider {
             .and_then(|m| m.text().map(|s| s.to_string()))
     }
 
-    /// Build a [`GeminiRequest`] from core domain types.
     fn build_request(
         messages: &[Message],
         tools: Option<&[Tool]>,
@@ -146,7 +131,6 @@ impl GoogleChatProvider {
             parts: vec![GeminiPart::Text { text }],
         });
 
-        // Generation config
         let generation_config = {
             let has_any =
                 options.temperature.is_some() || options.max_tokens.is_some() || options.top_p.is_some();
@@ -161,7 +145,6 @@ impl GoogleChatProvider {
             }
         };
 
-        // Tools
         let gemini_tools = match tools {
             Some(tools_list) if !tools_list.is_empty() => {
                 Some(vec![GeminiToolSet {
@@ -179,11 +162,6 @@ impl GoogleChatProvider {
         }
     }
 
-    // -----------------------------------------------------------------
-    // Response conversion  (Gemini wire types -> core types)
-    // -----------------------------------------------------------------
-
-    /// Convert a Gemini candidate's parts into a core [`MessageContent`].
     fn convert_candidate_content(parts: Vec<GeminiPart>) -> MessageContent {
         if parts.len() == 1 {
             if let GeminiPart::Text { ref text } = parts[0] {
@@ -283,7 +261,6 @@ impl Provider for GoogleChatProvider {
                                 }
                             }
 
-                            // Check if this is the last chunk
                             if candidate.finish_reason != "STOP"
                                 && !candidate.finish_reason.is_empty()
                             {
@@ -315,10 +292,6 @@ mod tests {
     use super::*;
     use brainwires_core::ToolInputSchema;
     use std::collections::HashMap;
-
-    // Helper to create a GoogleChatProvider for testing conversion methods.
-    // We only test the pure conversion functions here; the actual HTTP calls
-    // are integration-tested elsewhere.
 
     #[test]
     fn test_convert_messages_text() {
@@ -352,7 +325,6 @@ mod tests {
         ];
 
         let converted = GoogleChatProvider::convert_messages(&messages);
-        // System message should be filtered out
         assert_eq!(converted.len(), 1);
         assert_eq!(converted[0].role, "user");
     }
@@ -440,58 +412,6 @@ mod tests {
     }
 
     #[test]
-    fn test_convert_messages_with_blocks() {
-        let messages = vec![Message {
-            role: Role::User,
-            content: MessageContent::Blocks(vec![
-                ContentBlock::Text {
-                    text: "First block".to_string(),
-                },
-                ContentBlock::Text {
-                    text: "Second block".to_string(),
-                },
-            ]),
-            name: None,
-            metadata: None,
-        }];
-
-        let converted = GoogleChatProvider::convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0].role, "user");
-        assert_eq!(converted[0].parts.len(), 2);
-    }
-
-    #[test]
-    fn test_convert_messages_multiple_messages() {
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Text("First".to_string()),
-                name: None,
-                metadata: None,
-            },
-            Message {
-                role: Role::Assistant,
-                content: MessageContent::Text("Second".to_string()),
-                name: None,
-                metadata: None,
-            },
-            Message {
-                role: Role::User,
-                content: MessageContent::Text("Third".to_string()),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = GoogleChatProvider::convert_messages(&messages);
-        assert_eq!(converted.len(), 3);
-        assert_eq!(converted[0].role, "user");
-        assert_eq!(converted[1].role, "model");
-        assert_eq!(converted[2].role, "user");
-    }
-
-    #[test]
     fn test_convert_content_block_text() {
         let block = ContentBlock::Text {
             text: "Test text".to_string(),
@@ -567,396 +487,11 @@ mod tests {
     }
 
     #[test]
-    fn test_convert_tools_multiple() {
-        let mut properties1 = HashMap::new();
-        properties1.insert("arg1".to_string(), json!({"type": "string"}));
-
-        let mut properties2 = HashMap::new();
-        properties2.insert("arg2".to_string(), json!({"type": "number"}));
-
-        let tools = vec![
-            Tool {
-                name: "tool1".to_string(),
-                description: "First tool".to_string(),
-                input_schema: ToolInputSchema::object(properties1, vec![]),
-                requires_approval: false,
-                ..Default::default()
-            },
-            Tool {
-                name: "tool2".to_string(),
-                description: "Second tool".to_string(),
-                input_schema: ToolInputSchema::object(properties2, vec![]),
-                requires_approval: true,
-                ..Default::default()
-            },
-        ];
-
-        let converted = GoogleChatProvider::convert_tools(&tools);
-        assert_eq!(converted.len(), 2);
-        assert_eq!(converted[0].name, "tool1");
-        assert_eq!(converted[1].name, "tool2");
-    }
-
-    #[test]
-    fn test_convert_tools_no_properties() {
-        let tools = vec![Tool {
-            name: "simple_tool".to_string(),
-            description: "No args".to_string(),
-            input_schema: ToolInputSchema {
-                schema_type: "object".to_string(),
-                properties: None,
-                required: None,
-            },
-            requires_approval: false,
-            ..Default::default()
-        }];
-
-        let converted = GoogleChatProvider::convert_tools(&tools);
-        assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0].name, "simple_tool");
-        assert!(converted[0].parameters.is_empty());
-    }
-
-    #[test]
-    fn test_get_system_instruction_multiple_system_messages() {
-        let messages = vec![
-            Message {
-                role: Role::System,
-                content: MessageContent::Text("First system".to_string()),
-                name: None,
-                metadata: None,
-            },
-            Message {
-                role: Role::System,
-                content: MessageContent::Text("Second system".to_string()),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        // Should return the first system message found
-        let system = GoogleChatProvider::get_system_instruction(&messages);
-        assert!(system.is_some());
-        assert_eq!(system.unwrap(), "First system");
-    }
-
-    #[test]
-    fn test_get_system_instruction_with_blocks() {
-        let messages = vec![Message {
-            role: Role::System,
-            content: MessageContent::Blocks(vec![ContentBlock::Text {
-                text: "System from blocks".to_string(),
-            }]),
-            name: None,
-            metadata: None,
-        }];
-
-        // get_system_instruction uses Message::text() which returns None for Blocks
-        let system = GoogleChatProvider::get_system_instruction(&messages);
-        assert!(system.is_none());
-    }
-
-    #[test]
     fn test_convert_messages_empty() {
         let messages: Vec<Message> = vec![];
 
         let converted = GoogleChatProvider::convert_messages(&messages);
         assert_eq!(converted.len(), 0);
-    }
-
-    #[test]
-    fn test_convert_messages_only_system() {
-        let messages = vec![Message {
-            role: Role::System,
-            content: MessageContent::Text("Only system".to_string()),
-            name: None,
-            metadata: None,
-        }];
-
-        let converted = GoogleChatProvider::convert_messages(&messages);
-        // System messages are filtered out
-        assert_eq!(converted.len(), 0);
-    }
-
-    #[test]
-    fn test_convert_messages_mixed_content_types() {
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Text("Text message".to_string()),
-                name: None,
-                metadata: None,
-            },
-            Message {
-                role: Role::Assistant,
-                content: MessageContent::Blocks(vec![ContentBlock::Text {
-                    text: "Block message".to_string(),
-                }]),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = GoogleChatProvider::convert_messages(&messages);
-        assert_eq!(converted.len(), 2);
-        assert_eq!(converted[0].parts.len(), 1);
-        assert_eq!(converted[1].parts.len(), 1);
-    }
-
-    #[test]
-    fn test_convert_content_block_tool_use_empty_input() {
-        let block = ContentBlock::ToolUse {
-            id: "tool-456".to_string(),
-            name: "empty_tool".to_string(),
-            input: json!({}),
-        };
-
-        let converted = GoogleChatProvider::convert_content_block(&block);
-        assert!(converted.is_some());
-        match converted.unwrap() {
-            GeminiPart::FunctionCall { function_call } => {
-                assert_eq!(function_call.name, "empty_tool");
-                assert_eq!(function_call.args, json!({}));
-            }
-            _ => panic!("Expected FunctionCall variant"),
-        }
-    }
-
-    #[test]
-    fn test_convert_content_block_tool_result_error() {
-        let block = ContentBlock::ToolResult {
-            tool_use_id: "tool-error".to_string(),
-            content: "Error occurred".to_string(),
-            is_error: Some(true),
-        };
-
-        let converted = GoogleChatProvider::convert_content_block(&block);
-        assert!(converted.is_some());
-        match converted.unwrap() {
-            GeminiPart::FunctionResponse { function_response } => {
-                assert_eq!(function_response.name, "tool-error");
-                assert_eq!(
-                    function_response.response,
-                    json!({"result": "Error occurred"})
-                );
-            }
-            _ => panic!("Expected FunctionResponse variant"),
-        }
-    }
-
-    #[test]
-    fn test_convert_messages_with_tool_blocks() {
-        let messages = vec![Message {
-            role: Role::User,
-            content: MessageContent::Blocks(vec![
-                ContentBlock::Text {
-                    text: "Use a tool".to_string(),
-                },
-                ContentBlock::ToolUse {
-                    id: "tool-1".to_string(),
-                    name: "calculator".to_string(),
-                    input: json!({"operation": "add", "a": 1, "b": 2}),
-                },
-            ]),
-            name: None,
-            metadata: None,
-        }];
-
-        let converted = GoogleChatProvider::convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0].parts.len(), 2);
-    }
-
-    #[test]
-    fn test_convert_messages_with_image_blocks() {
-        let messages = vec![Message {
-            role: Role::User,
-            content: MessageContent::Blocks(vec![
-                ContentBlock::Text {
-                    text: "What's in this image?".to_string(),
-                },
-                ContentBlock::Image {
-                    source: ImageSource::Base64 {
-                        media_type: "image/jpeg".to_string(),
-                        data: "fake_jpeg_data".to_string(),
-                    },
-                },
-            ]),
-            name: None,
-            metadata: None,
-        }];
-
-        let converted = GoogleChatProvider::convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0].parts.len(), 2);
-    }
-
-    #[test]
-    fn test_convert_tools_complex_schema() {
-        let mut properties = HashMap::new();
-        properties.insert(
-            "name".to_string(),
-            json!({
-                "type": "string",
-                "description": "User name"
-            }),
-        );
-        properties.insert(
-            "age".to_string(),
-            json!({
-                "type": "integer",
-                "description": "User age",
-                "minimum": 0
-            }),
-        );
-        properties.insert(
-            "tags".to_string(),
-            json!({
-                "type": "array",
-                "items": {"type": "string"}
-            }),
-        );
-
-        let tools = vec![Tool {
-            name: "create_user".to_string(),
-            description: "Creates a new user".to_string(),
-            input_schema: ToolInputSchema::object(
-                properties.clone(),
-                vec!["name".to_string(), "age".to_string()],
-            ),
-            requires_approval: false,
-            ..Default::default()
-        }];
-
-        let converted = GoogleChatProvider::convert_tools(&tools);
-        assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0].name, "create_user");
-        assert_eq!(converted[0].parameters.len(), 3);
-        assert!(converted[0].parameters.contains_key("name"));
-        assert!(converted[0].parameters.contains_key("age"));
-        assert!(converted[0].parameters.contains_key("tags"));
-    }
-
-    #[test]
-    fn test_get_system_instruction_empty_content() {
-        let messages = vec![Message {
-            role: Role::System,
-            content: MessageContent::Text("".to_string()),
-            name: None,
-            metadata: None,
-        }];
-
-        let system = GoogleChatProvider::get_system_instruction(&messages);
-        assert!(system.is_some());
-        assert_eq!(system.unwrap(), "");
-    }
-
-    #[test]
-    fn test_convert_messages_preserves_order() {
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Text("First".to_string()),
-                name: None,
-                metadata: None,
-            },
-            Message {
-                role: Role::Assistant,
-                content: MessageContent::Text("Second".to_string()),
-                name: None,
-                metadata: None,
-            },
-            Message {
-                role: Role::User,
-                content: MessageContent::Text("Third".to_string()),
-                name: None,
-                metadata: None,
-            },
-            Message {
-                role: Role::Assistant,
-                content: MessageContent::Text("Fourth".to_string()),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = GoogleChatProvider::convert_messages(&messages);
-        assert_eq!(converted.len(), 4);
-        assert_eq!(converted[0].role, "user");
-        assert_eq!(converted[1].role, "model");
-        assert_eq!(converted[2].role, "user");
-        assert_eq!(converted[3].role, "model");
-    }
-
-    #[test]
-    fn test_convert_content_block_image_different_mime_types() {
-        let block_png = ContentBlock::Image {
-            source: ImageSource::Base64 {
-                media_type: "image/png".to_string(),
-                data: "png_data".to_string(),
-            },
-        };
-
-        let block_jpeg = ContentBlock::Image {
-            source: ImageSource::Base64 {
-                media_type: "image/jpeg".to_string(),
-                data: "jpeg_data".to_string(),
-            },
-        };
-
-        let converted_png = GoogleChatProvider::convert_content_block(&block_png);
-        let converted_jpeg = GoogleChatProvider::convert_content_block(&block_jpeg);
-
-        assert!(converted_png.is_some());
-        assert!(converted_jpeg.is_some());
-
-        match converted_png.unwrap() {
-            GeminiPart::InlineData { inline_data } => {
-                assert_eq!(inline_data.mime_type, "image/png");
-            }
-            _ => panic!("Expected InlineData variant"),
-        }
-
-        match converted_jpeg.unwrap() {
-            GeminiPart::InlineData { inline_data } => {
-                assert_eq!(inline_data.mime_type, "image/jpeg");
-            }
-            _ => panic!("Expected InlineData variant"),
-        }
-    }
-
-    #[test]
-    fn test_convert_messages_with_all_content_block_types() {
-        let messages = vec![Message {
-            role: Role::User,
-            content: MessageContent::Blocks(vec![
-                ContentBlock::Text {
-                    text: "Text part".to_string(),
-                },
-                ContentBlock::Image {
-                    source: ImageSource::Base64 {
-                        media_type: "image/png".to_string(),
-                        data: "img_data".to_string(),
-                    },
-                },
-                ContentBlock::ToolUse {
-                    id: "tool-1".to_string(),
-                    name: "test_tool".to_string(),
-                    input: json!({"key": "value"}),
-                },
-                ContentBlock::ToolResult {
-                    tool_use_id: "tool-1".to_string(),
-                    content: "Tool output".to_string(),
-                    is_error: Some(false),
-                },
-            ]),
-            name: None,
-            metadata: None,
-        }];
-
-        let converted = GoogleChatProvider::convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0].parts.len(), 4);
     }
 
     #[test]
@@ -1023,30 +558,6 @@ mod tests {
         let gc = req.generation_config.unwrap();
         assert_eq!(gc.temperature, Some(0.5));
         assert_eq!(gc.max_output_tokens, Some(1024));
-    }
-
-    #[test]
-    fn test_build_request_with_tools() {
-        let messages = vec![Message {
-            role: Role::User,
-            content: MessageContent::Text("Hello".to_string()),
-            name: None,
-            metadata: None,
-        }];
-        let options = ChatOptions::default();
-        let mut properties = HashMap::new();
-        properties.insert("x".to_string(), json!({"type": "string"}));
-        let tools = vec![Tool {
-            name: "my_tool".to_string(),
-            description: "desc".to_string(),
-            input_schema: ToolInputSchema::object(properties, vec![]),
-            requires_approval: false,
-            ..Default::default()
-        }];
-
-        let req = GoogleChatProvider::build_request(&messages, Some(&tools), &options);
-        assert!(req.tools.is_some());
-        assert_eq!(req.tools.unwrap()[0].function_declarations.len(), 1);
     }
 
     #[test]

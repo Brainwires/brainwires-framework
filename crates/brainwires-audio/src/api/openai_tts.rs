@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use futures::stream::BoxStream;
 
-use brainwires_providers::openai::{CreateSpeechRequest, OpenAiClient};
+use brainwires_providers::openai_chat::{CreateSpeechRequest, OpenAiClient};
 
 use crate::error::{AudioError, AudioResult};
 use crate::tts::TextToSpeech;

@@ -1,3 +1,13 @@
+pub mod chat;
+pub mod models;
+
+#[cfg(feature = "bedrock")]
+pub mod bedrock;
+#[cfg(feature = "vertex-ai")]
+pub mod vertex;
+
+pub use chat::*;
+
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use futures::stream::{BoxStream, StreamExt};
@@ -5,7 +15,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use super::rate_limiter::RateLimiter;
+use crate::rate_limiter::RateLimiter;
 
 const ANTHROPIC_API_URL: &str = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION: &str = "2023-06-01";
@@ -18,7 +28,7 @@ const ANTHROPIC_VERSION: &str = "2023-06-01";
 ///
 /// This struct handles authentication, rate-limiting, and HTTP transport.
 /// It exposes raw API methods that return Anthropic-native types; higher-level
-/// abstractions (e.g. the `Provider` trait) live in the `brainwires-chat` crate.
+/// abstractions (e.g. the `Provider` trait) live in [`chat`].
 pub struct AnthropicClient {
     api_key: String,
     model: String,

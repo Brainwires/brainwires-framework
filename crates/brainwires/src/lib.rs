@@ -64,9 +64,16 @@ pub mod providers {
 }
 
 /// Chat provider implementations (Provider trait wrappers over API clients).
+///
+/// Re-exported from `brainwires_providers` — Groq, Together, Fireworks, and
+/// Anyscale are now served by `OpenAiChatProvider` with a custom provider name.
 #[cfg(feature = "chat")]
 pub mod chat {
-    pub use brainwires_chat::*;
+    pub use brainwires_providers::{
+        OpenAiChatProvider, AnthropicChatProvider, GoogleChatProvider,
+        OllamaChatProvider, OpenAiResponsesProvider,
+        ChatProviderFactory,
+    };
 }
 
 #[cfg(feature = "seal")]

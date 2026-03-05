@@ -1,12 +1,11 @@
 #![warn(missing_docs)]
-//! Pure API connection layer for the Brainwires Agent Framework.
+//! Provider layer for the Brainwires Agent Framework.
 //!
-//! Each provider module contains a low-level API client struct that handles
-//! HTTP transport, authentication, rate limiting, and (de)serialisation of
-//! provider-specific wire types.  Domain-level abstractions (the `Provider`
-//! trait, message conversion, etc.) live in `brainwires-chat`.
+//! Contains both low-level API client structs (HTTP transport, auth, rate
+//! limiting, serde) and high-level chat provider implementations that wrap
+//! them with the `brainwires_core::Provider` trait.
 
-// Re-export core traits for convenience (kept for backward compat)
+// Re-export core traits for convenience
 pub use brainwires_core::provider::{ChatOptions, Provider};
 
 // Rate limiting and HTTP client
@@ -20,37 +19,33 @@ pub use http_client::RateLimitedClient;
 #[cfg(feature = "native")]
 pub use rate_limiter::RateLimiter;
 
-// ── Chat-capable API clients ────────────────────────────────────────────
+// ── Protocol directories ──────────────────────────────────────────────
 
-/// Anthropic (Claude) API client.
+/// OpenAI Chat Completions protocol (also used by Groq, Together, Fireworks, Anyscale).
+#[cfg(feature = "native")]
+pub mod openai_chat;
+
+/// OpenAI Responses API protocol (`/v1/responses`).
+#[cfg(feature = "native")]
+pub mod openai_responses;
+
+/// Anthropic Messages protocol (also used by Bedrock, Vertex AI).
 #[cfg(feature = "native")]
 pub mod anthropic;
-/// OpenAI API client.
+
+/// Google Gemini generateContent protocol.
 #[cfg(feature = "native")]
-pub mod openai;
-/// Google (Gemini) API client.
-#[cfg(feature = "native")]
-pub mod google;
-/// Groq constants and model listing.
-#[cfg(feature = "native")]
-pub mod groq;
-/// Ollama local model API client.
+pub mod gemini;
+
+/// Ollama native chat protocol.
 #[cfg(feature = "native")]
 pub mod ollama;
-/// Brainwires HTTP relay API client.
+
+/// Brainwires HTTP relay protocol.
 #[cfg(feature = "native")]
 pub mod brainwires_http;
-/// Together AI constants.
-#[cfg(feature = "native")]
-pub mod together;
-/// Fireworks AI constants.
-#[cfg(feature = "native")]
-pub mod fireworks;
-/// Anyscale constants.
-#[cfg(feature = "native")]
-pub mod anyscale;
 
-// ── Audio/speech API clients ────────────────────────────────────────────
+// ── Audio/speech API clients ──────────────────────────────────────────
 
 /// ElevenLabs TTS/STT API client.
 #[cfg(feature = "native")]
@@ -74,38 +69,51 @@ pub mod cartesia;
 #[cfg(feature = "native")]
 pub mod murf;
 
-// ── Model listing ───────────────────────────────────────────────────────
+// ── Registry ──────────────────────────────────────────────────────────
+
+/// Provider registry — protocol, auth, and endpoint metadata for all known providers.
+pub mod registry;
+
+// ── Model listing ─────────────────────────────────────────────────────
 
 /// Model listing — query available models from provider APIs.
 #[cfg(feature = "native")]
 pub mod model_listing;
 
-/// Provider factory (deprecated — use `brainwires-chat::ChatProviderFactory`).
+/// Chat provider factory — registry-driven protocol dispatch.
 #[cfg(feature = "native")]
-pub mod factory;
+pub mod chat_factory;
 
-// ── Local LLM ───────────────────────────────────────────────────────────
+// ── Local LLM ─────────────────────────────────────────────────────────
 
 /// Local LLM inference (always compiled, llama.cpp behind feature flag).
 pub mod local_llm;
 
-// ── Re-exports ──────────────────────────────────────────────────────────
+// ── Re-exports ────────────────────────────────────────────────────────
 
 // Chat-capable API clients
 #[cfg(feature = "native")]
+pub use openai_chat::OpenAiClient;
+#[cfg(feature = "native")]
 pub use anthropic::AnthropicClient;
 #[cfg(feature = "native")]
-pub use openai::OpenAiClient;
-#[cfg(feature = "native")]
-pub use google::GoogleClient;
+pub use gemini::GoogleClient;
 #[cfg(feature = "native")]
 pub use ollama::OllamaProvider;
 #[cfg(feature = "native")]
 pub use brainwires_http::BrainwiresHttpProvider;
 
-// Groq model listing
+// Chat providers
 #[cfg(feature = "native")]
-pub use groq::GroqModelLister;
+pub use openai_chat::chat::OpenAiChatProvider;
+#[cfg(feature = "native")]
+pub use anthropic::chat::AnthropicChatProvider;
+#[cfg(feature = "native")]
+pub use gemini::chat::GoogleChatProvider;
+#[cfg(feature = "native")]
+pub use ollama::chat::OllamaChatProvider;
+#[cfg(feature = "native")]
+pub use openai_responses::OpenAiResponsesProvider;
 
 // Audio API clients
 #[cfg(feature = "native")]
@@ -123,27 +131,16 @@ pub use cartesia::CartesiaClient;
 #[cfg(feature = "native")]
 pub use murf::MurfClient;
 
-// Factory + model listing
-#[cfg(feature = "native")]
-pub use factory::ProviderFactory;
+// Model listing
 #[cfg(feature = "native")]
 pub use model_listing::{AvailableModel, ModelCapability, ModelLister, create_model_lister};
 
+// Factory
+#[cfg(feature = "native")]
+pub use chat_factory::ChatProviderFactory;
+
 // Local LLM
 pub use local_llm::*;
-
-// ── Backward-compat type aliases ────────────────────────────────────────
-// The old names pointed to structs that have been renamed. Downstream code
-// that hasn't migrated to `brainwires-chat` yet can still compile.
-#[cfg(feature = "native")]
-/// Backward-compat alias for [`AnthropicClient`].
-pub type AnthropicProvider = AnthropicClient;
-#[cfg(feature = "native")]
-/// Backward-compat alias for [`OpenAiClient`].
-pub type OpenAIProvider = OpenAiClient;
-#[cfg(feature = "native")]
-/// Backward-compat alias for [`GoogleClient`].
-pub type GoogleProvider = GoogleClient;
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -171,6 +168,10 @@ pub enum ProviderType {
     Fireworks,
     /// Anyscale.
     Anyscale,
+    /// Amazon Bedrock (Anthropic Messages via AWS SigV4).
+    Bedrock,
+    /// Google Vertex AI (Anthropic Messages via OAuth2).
+    VertexAI,
     /// ElevenLabs.
     ElevenLabs,
     /// Deepgram.
@@ -200,6 +201,8 @@ impl ProviderType {
             Self::Together => "meta-llama/Llama-3.1-8B-Instruct",
             Self::Fireworks => "accounts/fireworks/models/llama-v3p1-8b-instruct",
             Self::Anyscale => "meta-llama/Meta-Llama-3.1-8B-Instruct",
+            Self::Bedrock => "anthropic.claude-3-5-sonnet-20241022-v2:0",
+            Self::VertexAI => "claude-3-5-sonnet-v2@20241022",
             Self::ElevenLabs => "eleven_multilingual_v2",
             Self::Deepgram => "nova-2",
             Self::Azure => "en-US-JennyNeural",
@@ -222,6 +225,8 @@ impl ProviderType {
             "together" => Some(Self::Together),
             "fireworks" => Some(Self::Fireworks),
             "anyscale" => Some(Self::Anyscale),
+            "bedrock" => Some(Self::Bedrock),
+            "vertex-ai" | "vertexai" | "vertex_ai" => Some(Self::VertexAI),
             "elevenlabs" => Some(Self::ElevenLabs),
             "deepgram" => Some(Self::Deepgram),
             "azure" => Some(Self::Azure),
@@ -245,6 +250,8 @@ impl ProviderType {
             Self::Together => "together",
             Self::Fireworks => "fireworks",
             Self::Anyscale => "anyscale",
+            Self::Bedrock => "bedrock",
+            Self::VertexAI => "vertex-ai",
             Self::ElevenLabs => "elevenlabs",
             Self::Deepgram => "deepgram",
             Self::Azure => "azure",
@@ -257,7 +264,7 @@ impl ProviderType {
 
     /// Whether this provider requires an API key
     pub fn requires_api_key(&self) -> bool {
-        !matches!(self, Self::Ollama)
+        !matches!(self, Self::Ollama | Self::Bedrock | Self::VertexAI)
     }
 }
 

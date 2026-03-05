@@ -139,7 +139,7 @@ pub fn create_model_lister(
             let key = api_key
                 .ok_or_else(|| anyhow::anyhow!("OpenAI requires an API key"))?
                 .to_string();
-            Ok(Box::new(super::openai::OpenAIModelLister::new(
+            Ok(Box::new(super::openai_chat::OpenAIModelLister::new(
                 key,
                 base_url.map(|s| s.to_string()),
             )))
@@ -148,37 +148,30 @@ pub fn create_model_lister(
             let key = api_key
                 .ok_or_else(|| anyhow::anyhow!("Google requires an API key"))?
                 .to_string();
-            Ok(Box::new(super::google::GoogleModelLister::new(key)))
+            Ok(Box::new(super::gemini::GoogleModelLister::new(key)))
         }
-        ProviderType::Groq => {
+        ProviderType::Groq | ProviderType::Together | ProviderType::Fireworks | ProviderType::Anyscale => {
+            // All OpenAI-compatible: reuse OpenAI model lister with the registry's models URL
             let key = api_key
-                .ok_or_else(|| anyhow::anyhow!("Groq requires an API key"))?
+                .ok_or_else(|| anyhow::anyhow!("{} requires an API key", provider_type))?
                 .to_string();
-            Ok(Box::new(super::groq::GroqModelLister::new(key)))
+            let registry_url = super::registry::lookup(provider_type)
+                .and_then(|e| e.models_url);
+            let url = base_url
+                .or(registry_url)
+                .unwrap_or("https://api.openai.com/v1/models");
+            Ok(Box::new(super::openai_chat::OpenAIModelLister::new(
+                key,
+                Some(url.to_string()),
+            )))
         }
         ProviderType::Ollama => {
             Ok(Box::new(super::ollama::OllamaModelLister::new(
                 base_url.map(|s| s.to_string()),
             )))
         }
-        ProviderType::Together | ProviderType::Fireworks | ProviderType::Anyscale => {
-            // These use OpenAI-compatible API; reuse OpenAI model lister with custom base URL
-            let key = api_key
-                .ok_or_else(|| anyhow::anyhow!("{} requires an API key", provider_type))?
-                .to_string();
-            let default_url = match provider_type {
-                ProviderType::Together => "https://api.together.xyz/v1",
-                ProviderType::Fireworks => "https://api.fireworks.ai/inference/v1",
-                ProviderType::Anyscale => "https://api.endpoints.anyscale.com/v1",
-                _ => unreachable!(),
-            };
-            let url = base_url.unwrap_or(default_url);
-            Ok(Box::new(super::openai::OpenAIModelLister::new(
-                key,
-                Some(url.to_string()),
-            )))
-        }
         ProviderType::Brainwires | ProviderType::Custom
+        | ProviderType::Bedrock | ProviderType::VertexAI
         | ProviderType::ElevenLabs | ProviderType::Deepgram
         | ProviderType::Azure | ProviderType::Fish
         | ProviderType::Cartesia | ProviderType::Murf => {

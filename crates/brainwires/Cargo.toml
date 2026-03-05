@@ -28,9 +28,6 @@ brainwires-code-interpreters = { workspace = true, optional = true }
 # Providers
 brainwires-providers = { workspace = true, optional = true }
 
-# Chat (Provider trait impls)
-brainwires-chat = { workspace = true, optional = true }
-
 # SEAL
 brainwires-seal = { workspace = true, optional = true }
 
@@ -104,7 +101,7 @@ rag = ["dep:brainwires-rag", "brainwires-rag/native", "brainwires-rag/lancedb-ba
 rag-full-languages = ["rag", "brainwires-rag/tree-sitter-languages"]
 interpreters = ["dep:brainwires-code-interpreters"]
 providers = ["dep:brainwires-providers"]
-chat = ["dep:brainwires-chat"]
+chat = ["providers"]
 reasoning = ["agents", "brainwires-agents/reasoning"]
 seal = ["dep:brainwires-seal"]
 relay = ["dep:brainwires-relay"]

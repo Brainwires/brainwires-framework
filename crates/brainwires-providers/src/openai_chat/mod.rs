@@ -1,11 +1,20 @@
+//! OpenAI (and OpenAI-compatible) API client, wire types, and submodules.
+
+pub mod audio;
+pub mod chat;
+pub mod models;
+
+pub use audio::*;
+pub use chat::*;
+pub use models::*;
+
 use anyhow::{Context, Result};
-use async_trait::async_trait;
 use futures::stream::{BoxStream, StreamExt};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use super::rate_limiter::RateLimiter;
+use crate::rate_limiter::RateLimiter;
 
 const OPENAI_API_URL: &str = "https://api.openai.com/v1/chat/completions";
 
@@ -26,65 +35,6 @@ pub struct OpenAiRequestOptions {
     pub stop: Option<Vec<String>>,
     /// System message prepended to the conversation.
     pub system: Option<String>,
-}
-
-// ---------------------------------------------------------------------------
-// Speech / Transcription request & response types
-// ---------------------------------------------------------------------------
-
-/// Request body for the text-to-speech endpoint (`/v1/audio/speech`).
-#[derive(Debug, Clone, Serialize)]
-pub struct CreateSpeechRequest {
-    /// TTS model id (e.g. `"tts-1"`, `"tts-1-hd"`).
-    pub model: String,
-    /// The text to synthesise.
-    pub input: String,
-    /// Voice to use (e.g. `"alloy"`, `"echo"`, `"fable"`, `"onyx"`, `"nova"`, `"shimmer"`).
-    pub voice: String,
-    /// Audio format – `"mp3"`, `"opus"`, `"aac"`, `"flac"`, `"wav"`, `"pcm"`.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub response_format: Option<String>,
-    /// Playback speed (0.25 – 4.0).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub speed: Option<f64>,
-}
-
-/// Request parameters for the transcription endpoint (`/v1/audio/transcriptions`).
-#[derive(Debug, Clone)]
-pub struct TranscriptionRequest {
-    /// Whisper model id (e.g. `"whisper-1"`).
-    pub model: String,
-    /// BCP-47 language code of the input audio (e.g. `"en"`).
-    pub language: Option<String>,
-    /// An optional prompt to guide the model's style.
-    pub prompt: Option<String>,
-    /// Whether to include word-level timestamps.
-    pub timestamps: Option<bool>,
-}
-
-/// Response from the transcription endpoint.
-#[derive(Debug, Clone, Deserialize)]
-pub struct TranscriptionResponse {
-    /// The transcribed text.
-    pub text: String,
-    /// Detected or supplied language.
-    #[serde(default)]
-    pub language: Option<String>,
-    /// Duration of the audio in seconds.
-    #[serde(default)]
-    pub duration: Option<f64>,
-    /// Word- or segment-level timestamps (when requested).
-    #[serde(default)]
-    pub segments: Option<Vec<TranscriptionSegment>>,
-}
-
-/// A single segment returned by the transcription endpoint.
-#[derive(Debug, Clone, Deserialize)]
-pub struct TranscriptionSegment {
-    pub id: Option<u32>,
-    pub start: Option<f64>,
-    pub end: Option<f64>,
-    pub text: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -605,101 +555,8 @@ pub struct OpenAIStreamDelta {
 }
 
 // ---------------------------------------------------------------------------
-// Models listing types
+// Tests
 // ---------------------------------------------------------------------------
-
-/// Response from the `/v1/models` endpoint.
-#[derive(Debug, Deserialize, Clone)]
-pub struct OpenAIListModelsResponse {
-    pub data: Vec<OpenAIModelEntry>,
-}
-
-/// A single entry in the models list.
-#[derive(Debug, Deserialize, Clone)]
-pub struct OpenAIModelEntry {
-    pub id: String,
-    pub owned_by: Option<String>,
-    pub created: Option<i64>,
-}
-
-// ---------------------------------------------------------------------------
-// Model listing (higher-level, uses AvailableModel from model_listing)
-// ---------------------------------------------------------------------------
-
-use crate::model_listing::{
-    AvailableModel, ModelLister, OpenAIListResponse,
-    infer_openai_capabilities,
-};
-
-const OPENAI_MODELS_LIST_URL: &str = "https://api.openai.com/v1/models";
-
-/// Lists models available from the OpenAI API (or any OpenAI-compatible endpoint).
-pub struct OpenAIModelLister {
-    api_key: String,
-    base_url: String,
-    http_client: Client,
-}
-
-impl OpenAIModelLister {
-    /// Create a new model lister with the given API key and optional base URL.
-    pub fn new(api_key: String, base_url: Option<String>) -> Self {
-        Self {
-            api_key,
-            base_url: base_url.unwrap_or_else(|| OPENAI_MODELS_LIST_URL.to_string()),
-            http_client: Client::new(),
-        }
-    }
-}
-
-#[async_trait]
-impl ModelLister for OpenAIModelLister {
-    async fn list_models(&self) -> Result<Vec<AvailableModel>> {
-        // If the caller passed a chat-completions URL, derive the models URL
-        let models_url = if self.base_url.ends_with("/chat/completions") {
-            self.base_url.replace("/chat/completions", "/models")
-        } else {
-            self.base_url.clone()
-        };
-
-        let resp = self
-            .http_client
-            .get(&models_url)
-            .header("Authorization", format!("Bearer {}", self.api_key))
-            .send()
-            .await
-            .context("Failed to list OpenAI models")?;
-
-        if !resp.status().is_success() {
-            let status = resp.status();
-            let body = resp.text().await.unwrap_or_default();
-            return Err(anyhow::anyhow!(
-                "OpenAI models API returned {}: {}",
-                status,
-                body
-            ));
-        }
-
-        let list: OpenAIListResponse = resp.json().await
-            .context("Failed to parse OpenAI models response")?;
-
-        let models = list
-            .data
-            .into_iter()
-            .map(|entry| AvailableModel {
-                id: entry.id.clone(),
-                display_name: None,
-                provider: crate::ProviderType::OpenAI,
-                capabilities: infer_openai_capabilities(&entry.id),
-                owned_by: entry.owned_by,
-                context_window: None,
-                max_output_tokens: None,
-                created_at: entry.created,
-            })
-            .collect();
-
-        Ok(models)
-    }
-}
 
 #[cfg(test)]
 mod tests {

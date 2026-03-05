@@ -9,7 +9,7 @@ use brainwires_core::{
     ChatOptions, ChatResponse, ContentBlock, ImageSource, Message, MessageContent, Provider, Role,
     StreamChunk, Tool, Usage,
 };
-use brainwires_providers::openai::{
+use super::{
     OpenAIContent, OpenAIContentPart, OpenAIFunction, OpenAIImageUrl, OpenAIMessage,
     OpenAIStreamChunk, OpenAITool, OpenAiClient, OpenAiRequestOptions,
 };
@@ -26,22 +26,29 @@ use brainwires_providers::openai::{
 pub struct OpenAiChatProvider {
     client: Arc<OpenAiClient>,
     model: String,
+    provider_name: String,
 }
 
 impl OpenAiChatProvider {
     /// Create a new chat provider backed by the given client.
     pub fn new(client: Arc<OpenAiClient>, model: String) -> Self {
-        Self { client, model }
+        Self { client, model, provider_name: "openai".to_string() }
+    }
+
+    /// Override the provider name reported by [`Provider::name`].
+    pub fn with_provider_name(mut self, name: impl Into<String>) -> Self {
+        self.provider_name = name.into();
+        self
     }
 }
 
 #[async_trait]
 impl Provider for OpenAiChatProvider {
     fn name(&self) -> &str {
-        "openai"
+        &self.provider_name
     }
 
-    #[tracing::instrument(name = "provider.chat", skip_all, fields(provider = "openai", model = %self.model))]
+    #[tracing::instrument(name = "provider.chat", skip_all, fields(provider = %self.provider_name, model = %self.model))]
     async fn chat(
         &self,
         messages: &[Message],
@@ -76,7 +83,7 @@ impl Provider for OpenAiChatProvider {
         tools: Option<&'a [Tool]>,
         options: &'a ChatOptions,
     ) -> BoxStream<'a, Result<StreamChunk>> {
-        tracing::info!(provider = "openai", model = %self.model, "provider.stream started");
+        tracing::info!(provider = %self.provider_name, model = %self.model, "provider.stream started");
 
         // O1 models don't support streaming - fall back to non-streaming.
         if OpenAiClient::is_o1_model(&self.model) {
@@ -232,7 +239,7 @@ pub fn convert_tools(tools: &[Tool]) -> Vec<OpenAITool> {
 
 /// Parse a raw `OpenAIResponse` into the brainwires-core `ChatResponse`.
 pub fn parse_response(
-    openai_response: brainwires_providers::openai::OpenAIResponse,
+    openai_response: super::OpenAIResponse,
 ) -> Result<ChatResponse> {
     let usage = Usage {
         prompt_tokens: openai_response.usage.prompt_tokens,
@@ -725,7 +732,7 @@ mod tests {
 
     #[test]
     fn test_parse_response_basic() {
-        use brainwires_providers::openai::{
+        use crate::openai_chat::{
             OpenAIChoice, OpenAIContent, OpenAIResponse, OpenAIResponseMessage, OpenAIUsage,
         };
 
@@ -754,7 +761,7 @@ mod tests {
 
     #[test]
     fn test_parse_response_no_choices() {
-        use brainwires_providers::openai::{OpenAIResponse, OpenAIUsage};
+        use crate::openai_chat::{OpenAIResponse, OpenAIUsage};
 
         let response = OpenAIResponse {
             choices: vec![],
@@ -771,7 +778,7 @@ mod tests {
 
     #[test]
     fn test_convert_stream_chunk_text() {
-        use brainwires_providers::openai::{OpenAIStreamChoice, OpenAIStreamDelta};
+        use crate::openai_chat::{OpenAIStreamChoice, OpenAIStreamDelta};
 
         let chunk = OpenAIStreamChunk {
             choices: vec![OpenAIStreamChoice {
@@ -793,7 +800,7 @@ mod tests {
 
     #[test]
     fn test_convert_stream_chunk_usage() {
-        use brainwires_providers::openai::OpenAIUsage;
+        use crate::openai_chat::OpenAIUsage;
 
         let chunk = OpenAIStreamChunk {
             choices: vec![],
@@ -853,5 +860,20 @@ mod tests {
         // it maps without panicking.
         assert!(req_opts.stop.is_none());
         assert!(req_opts.system.is_none());
+    }
+
+    #[test]
+    fn test_provider_name_default() {
+        let client = Arc::new(OpenAiClient::new("key".to_string(), "gpt-4".to_string()));
+        let provider = OpenAiChatProvider::new(client, "gpt-4".to_string());
+        assert_eq!(provider.name(), "openai");
+    }
+
+    #[test]
+    fn test_provider_name_custom() {
+        let client = Arc::new(OpenAiClient::new("key".to_string(), "gpt-4".to_string()));
+        let provider = OpenAiChatProvider::new(client, "gpt-4".to_string())
+            .with_provider_name("groq");
+        assert_eq!(provider.name(), "groq");
     }
 }

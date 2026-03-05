@@ -1,0 +1,199 @@
+//! Chat provider factory — registry-driven protocol dispatch.
+//!
+//! Creates `Arc<dyn Provider>` from a [`ProviderConfig`] by looking up the
+//! provider in the [`registry`](super::registry) and dispatching to the
+//! appropriate protocol handler.
+
+use std::sync::Arc;
+
+use anyhow::{anyhow, Result};
+
+use brainwires_core::Provider;
+use super::registry::{self, ChatProtocol};
+use super::{ProviderConfig, ProviderType};
+
+/// Pure chat provider factory — creates provider instances from config.
+///
+/// No CLI dependencies (no SessionManager, no keyring, no file I/O).
+/// The caller is responsible for resolving API keys and base URLs
+/// before calling `create()`.
+pub struct ChatProviderFactory;
+
+impl ChatProviderFactory {
+    /// Create a chat provider from a fully-resolved config.
+    ///
+    /// All fields (api_key, base_url, model) must already be populated.
+    pub fn create(config: &ProviderConfig) -> Result<Arc<dyn Provider>> {
+        let entry = registry::lookup(config.provider)
+            .ok_or_else(|| anyhow!("Provider type '{}' is not a chat provider", config.provider))?;
+
+        match entry.chat_protocol {
+            ChatProtocol::OpenAiChatCompletions => {
+                Self::create_openai_compat(config, entry.default_base_url)
+            }
+            ChatProtocol::OpenAiResponses => {
+                Self::create_openai_responses(config)
+            }
+            ChatProtocol::AnthropicMessages => {
+                Self::create_anthropic(config)
+            }
+            ChatProtocol::GeminiGenerateContent => {
+                Self::create_gemini(config)
+            }
+            ChatProtocol::OllamaChat => {
+                Self::create_ollama(config)
+            }
+            ChatProtocol::BrainwiresRelay => {
+                Self::create_brainwires(config)
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Protocol-specific constructors
+    // -----------------------------------------------------------------------
+
+    fn create_openai_compat(
+        config: &ProviderConfig,
+        default_base_url: &str,
+    ) -> Result<Arc<dyn Provider>> {
+        let api_key = config.api_key.clone()
+            .ok_or_else(|| anyhow!("{} provider requires an API key", config.provider))?;
+        let mut client = super::openai_chat::OpenAiClient::new(api_key, config.model.clone());
+        let base_url = config.base_url.as_deref().unwrap_or(default_base_url);
+        client = client.with_base_url(base_url.to_string());
+        let client = Arc::new(client);
+        Ok(Arc::new(
+            super::openai_chat::chat::OpenAiChatProvider::new(client, config.model.clone())
+                .with_provider_name(config.provider.as_str()),
+        ))
+    }
+
+    fn create_openai_responses(config: &ProviderConfig) -> Result<Arc<dyn Provider>> {
+        let api_key = config.api_key.clone()
+            .ok_or_else(|| anyhow!("OpenAI Responses provider requires an API key"))?;
+        let client = Arc::new(super::openai_responses::ResponsesClient::new(api_key));
+        Ok(Arc::new(
+            super::openai_responses::OpenAiResponsesProvider::new(
+                client,
+                config.model.clone(),
+            ),
+        ))
+    }
+
+    fn create_anthropic(config: &ProviderConfig) -> Result<Arc<dyn Provider>> {
+        match config.provider {
+            #[cfg(feature = "bedrock")]
+            ProviderType::Bedrock => {
+                return Err(anyhow!(
+                    "Bedrock provider requires AWS SigV4 auth — use create_bedrock() instead (not yet wired)"
+                ));
+            }
+            #[cfg(feature = "vertex-ai")]
+            ProviderType::VertexAI => {
+                return Err(anyhow!(
+                    "Vertex AI provider requires Google OAuth — use create_vertex() instead (not yet wired)"
+                ));
+            }
+            _ => {}
+        }
+
+        let api_key = config.api_key.clone()
+            .ok_or_else(|| anyhow!("{} provider requires an API key", config.provider))?;
+        let client = Arc::new(super::anthropic::AnthropicClient::new(
+            api_key,
+            config.model.clone(),
+        ));
+        Ok(Arc::new(
+            super::anthropic::chat::AnthropicChatProvider::new(client, config.model.clone())
+                .with_provider_name(config.provider.as_str()),
+        ))
+    }
+
+    fn create_gemini(config: &ProviderConfig) -> Result<Arc<dyn Provider>> {
+        let api_key = config.api_key.clone()
+            .ok_or_else(|| anyhow!("Google provider requires an API key"))?;
+        let client = Arc::new(super::gemini::GoogleClient::new(
+            api_key,
+            config.model.clone(),
+        ));
+        Ok(Arc::new(super::gemini::chat::GoogleChatProvider::new(
+            client,
+            config.model.clone(),
+        )))
+    }
+
+    fn create_ollama(config: &ProviderConfig) -> Result<Arc<dyn Provider>> {
+        Ok(Arc::new(super::ollama::chat::OllamaChatProvider::new(
+            config.model.clone(),
+            config.base_url.clone(),
+        )))
+    }
+
+    fn create_brainwires(config: &ProviderConfig) -> Result<Arc<dyn Provider>> {
+        let api_key = config.api_key.clone()
+            .ok_or_else(|| anyhow!("Brainwires provider requires an API key"))?;
+        let backend_url = config.base_url.clone()
+            .unwrap_or_else(|| "https://brainwires.studio".to_string());
+        Ok(Arc::new(super::brainwires_http::BrainwiresHttpProvider::new(
+            api_key,
+            backend_url,
+            config.model.clone(),
+        )))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_create_ollama_no_key_required() {
+        let config = ProviderConfig::new(ProviderType::Ollama, "llama3.1".to_string());
+        let result = ChatProviderFactory::create(&config);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().name(), "ollama");
+    }
+
+    #[test]
+    fn test_create_anthropic_requires_key() {
+        let config = ProviderConfig::new(ProviderType::Anthropic, "claude-3".to_string());
+        let result = ChatProviderFactory::create(&config);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_create_groq_with_key() {
+        let config = ProviderConfig::new(ProviderType::Groq, "llama-3.3-70b-versatile".to_string())
+            .with_api_key("gsk_test");
+        let result = ChatProviderFactory::create(&config);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().name(), "groq");
+    }
+
+    #[test]
+    fn test_create_together_with_key() {
+        let config = ProviderConfig::new(ProviderType::Together, "meta-llama/Llama-3.1-8B-Instruct".to_string())
+            .with_api_key("tok_test");
+        let result = ChatProviderFactory::create(&config);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().name(), "together");
+    }
+
+    #[test]
+    fn test_create_fireworks_with_key() {
+        let config = ProviderConfig::new(ProviderType::Fireworks, "llama-v3p1-8b-instruct".to_string())
+            .with_api_key("fw_test");
+        let result = ChatProviderFactory::create(&config);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().name(), "fireworks");
+    }
+
+    #[test]
+    fn test_audio_only_provider_rejected() {
+        let config = ProviderConfig::new(ProviderType::ElevenLabs, "eleven_multilingual_v2".to_string())
+            .with_api_key("key");
+        let result = ChatProviderFactory::create(&config);
+        assert!(result.is_err());
+    }
+}

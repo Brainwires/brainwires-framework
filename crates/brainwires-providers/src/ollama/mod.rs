@@ -9,7 +9,10 @@ use brainwires_core::{ChatResponse, ContentBlock, Message, MessageContent, Role,
 use brainwires_core::{ChatOptions, Provider};
 use brainwires_core::Tool;
 
-use super::rate_limiter::RateLimiter;
+use crate::rate_limiter::RateLimiter;
+
+pub mod chat;
+pub use chat::*;
 
 /// Ollama local model provider.
 pub struct OllamaProvider {
