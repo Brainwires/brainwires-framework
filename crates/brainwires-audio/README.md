@@ -15,7 +15,7 @@ Audio I/O, speech-to-text, and text-to-speech for the Brainwires Agent Framework
 - **Trait-driven** — `AudioCapture`, `AudioPlayback`, `SpeechToText`, and `TextToSpeech` are all trait objects for swappable backends
 - **Hardware-agnostic** — CPAL handles cross-platform audio device access (Linux, macOS, Windows)
 - **Cloud + local** — OpenAI APIs for zero-setup, local Whisper for offline/private deployments
-- **WAV-native** — built-in WAV encode/decode via `hound`, no external codec dependencies
+- **WAV + FLAC** — built-in WAV encode/decode via `hound`, lossless FLAC encode/decode via `flacenc`/`claxon` (all pure Rust)
 - **Ring-buffered** — `AudioRingBuffer` for lock-free streaming between capture and processing
 
 ```text
@@ -24,15 +24,15 @@ Audio I/O, speech-to-text, and text-to-speech for the Brainwires Agent Framework
   │                                                          │
   │  ┌────────────┐     ┌────────────┐     ┌─────────────┐  │
   │  │  Hardware   │     │  Capture   │     │  Playback   │  │
-  │  │  CpalCapture│────▶│  (trait)   │     │  (trait)    │  │
+  │  │  CpalCapture│────>│  (trait)   │     │  (trait)    │  │
   │  │  CpalPlay   │     │ AudioBuffer│     │ AudioBuffer │  │
   │  └────────────┘     └──────┬─────┘     └──────┬──────┘  │
   │                            │                   │         │
-  │                            ▼                   ▼         │
+  │                            v                   v         │
   │  ┌────────────┐     ┌────────────┐     ┌─────────────┐  │
-  │  │    WAV     │     │    STT     │     │    TTS      │  │
-  │  │ encode/    │     │  (trait)   │     │  (trait)    │  │
-  │  │ decode     │     │ Transcript │     │  Voice      │  │
+  │  │  WAV/FLAC  │     │    STT     │     │    TTS      │  │
+  │  │  encode/   │     │  (trait)   │     │  (trait)    │  │
+  │  │  decode    │     │ Transcript │     │  Voice      │  │
   │  └────────────┘     └──────┬─────┘     └──────┬──────┘  │
   │                            │                   │         │
   │                   ┌────────┴────────┐  ┌──────┴──────┐  │
@@ -42,7 +42,7 @@ Audio I/O, speech-to-text, and text-to-speech for the Brainwires Agent Framework
   │                   └─────────────────┘  └─────────────┘  │
   └──────────────────────────────────────────────────────────┘
 
-  Flow: Hardware → Capture/Playback → STT/TTS → API/Local backends
+  Flow: Hardware -> Capture/Playback -> STT/TTS -> API/Local backends
 ```
 
 ## Quick Start
@@ -54,33 +54,33 @@ Add to your `Cargo.toml`:
 brainwires-audio = "0.1"
 ```
 
-Capture audio and transcribe it:
+Capture audio, save as WAV, and transcribe:
 
 ```rust
 use brainwires_audio::{
     AudioConfig, AudioCapture, SpeechToText,
-    SttOptions, Transcript,
+    CpalCapture, OpenAiStt,
+    SttOptions, encode_wav,
 };
 
-// Configure audio format
-let config = AudioConfig {
-    sample_rate: 16000,
-    channels: 1,
-    ..Default::default()
-};
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let capture = CpalCapture::new();
+    let config = AudioConfig::speech(); // 16 kHz mono i16
 
-// Capture from default microphone (requires `native` feature)
-#[cfg(feature = "native")]
-{
-    use brainwires_audio::CpalCapture;
-    let capture = CpalCapture::new(config.clone())?;
-    let buffer = capture.record_seconds(5.0).await?;
+    // Record 5 seconds from default mic
+    let buffer = capture.record(None, &config, 5.0).await?;
 
-    // Transcribe with OpenAI Whisper API
-    use brainwires_audio::OpenAiStt;
+    // Save to WAV
+    let wav = encode_wav(&buffer)?;
+    std::fs::write("recording.wav", &wav)?;
+
+    // Transcribe with OpenAI Whisper
     let stt = OpenAiStt::new("your-api-key");
-    let transcript: Transcript = stt.transcribe(&buffer, SttOptions::default()).await?;
+    let transcript = stt.transcribe(&buffer, &SttOptions::default()).await?;
     println!("You said: {}", transcript.text);
+
+    Ok(())
 }
 ```
 
@@ -88,17 +88,22 @@ let config = AudioConfig {
 
 | Feature | Default | Description |
 |---------|---------|-------------|
-| `native` | Yes | Hardware audio via CPAL, cloud APIs via reqwest, async streaming |
-| `local-stt` | No | Local speech-to-text via `whisper-rs` — requires Whisper model weights on disk |
+| `native` | Yes | Hardware audio via CPAL, cloud APIs via reqwest, async streaming. Includes `flac`. |
+| `flac` | Yes (via `native`) | FLAC lossless encode (`flacenc`) and decode (`claxon`) — pure Rust, no system deps |
+| `local-stt` | No | Local speech-to-text via `whisper-rs` — requires Whisper GGML model weights on disk |
 
 ```toml
 # Lightweight — no hardware or network deps (WAV encode/decode + traits only)
 [dependencies]
 brainwires-audio = { version = "0.1", default-features = false }
 
-# With local Whisper STT
+# Default + local Whisper STT
 [dependencies]
 brainwires-audio = { version = "0.1", features = ["local-stt"] }
+
+# FLAC only, no hardware
+[dependencies]
+brainwires-audio = { version = "0.1", default-features = false, features = ["flac"] }
 ```
 
 ## Architecture
@@ -109,8 +114,10 @@ In-memory audio data with format metadata.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `samples` | `Vec<f32>` | PCM samples normalized to [-1.0, 1.0] |
+| `data` | `Vec<u8>` | Raw PCM samples (little-endian bytes) |
 | `config` | `AudioConfig` | Sample rate, channel count, sample format |
+
+**Methods:** `from_pcm(data, config)`, `duration_secs()`, `num_frames()`, `is_empty()`
 
 ### AudioConfig
 
@@ -118,15 +125,21 @@ In-memory audio data with format metadata.
 |-------|------|---------|-------------|
 | `sample_rate` | `u32` | `16000` | Samples per second |
 | `channels` | `u16` | `1` | Mono (1) or stereo (2) |
-| `sample_format` | `SampleFormat` | `F32` | Sample data type |
+| `sample_format` | `SampleFormat` | `I16` | `I16` or `F32` |
+
+**Presets:** `AudioConfig::speech()` (16 kHz mono i16), `AudioConfig::cd_quality()` (44.1 kHz stereo i16), `AudioConfig::high_quality()` (48 kHz stereo f32)
 
 ### AudioCapture (trait)
 
 ```rust
 #[async_trait]
 pub trait AudioCapture: Send + Sync {
-    async fn record_seconds(&self, duration: f64) -> Result<AudioBuffer>;
-    async fn start_stream(&self) -> Result<AudioStream>;
+    fn list_devices(&self) -> AudioResult<Vec<AudioDevice>>;
+    fn default_device(&self) -> AudioResult<Option<AudioDevice>>;
+    fn start_capture(&self, device: Option<&AudioDevice>, config: &AudioConfig)
+        -> AudioResult<BoxStream<'static, AudioResult<AudioBuffer>>>;
+    async fn record(&self, device: Option<&AudioDevice>, config: &AudioConfig, duration_secs: f64)
+        -> AudioResult<AudioBuffer>;
 }
 ```
 
@@ -137,7 +150,11 @@ pub trait AudioCapture: Send + Sync {
 ```rust
 #[async_trait]
 pub trait AudioPlayback: Send + Sync {
-    async fn play(&self, buffer: &AudioBuffer) -> Result<()>;
+    fn list_devices(&self) -> AudioResult<Vec<AudioDevice>>;
+    fn default_device(&self) -> AudioResult<Option<AudioDevice>>;
+    async fn play(&self, device: Option<&AudioDevice>, buffer: &AudioBuffer) -> AudioResult<()>;
+    async fn play_stream(&self, device: Option<&AudioDevice>, config: &AudioConfig,
+        stream: BoxStream<'static, AudioResult<AudioBuffer>>) -> AudioResult<()>;
 }
 ```
 
@@ -148,7 +165,10 @@ pub trait AudioPlayback: Send + Sync {
 ```rust
 #[async_trait]
 pub trait SpeechToText: Send + Sync {
-    async fn transcribe(&self, audio: &AudioBuffer, options: SttOptions) -> Result<Transcript>;
+    fn name(&self) -> &str;
+    async fn transcribe(&self, audio: &AudioBuffer, options: &SttOptions) -> AudioResult<Transcript>;
+    fn transcribe_stream(&self, audio_stream: BoxStream<'static, AudioResult<AudioBuffer>>,
+        options: &SttOptions) -> BoxStream<'static, AudioResult<Transcript>>;
 }
 ```
 
@@ -159,7 +179,11 @@ pub trait SpeechToText: Send + Sync {
 ```rust
 #[async_trait]
 pub trait TextToSpeech: Send + Sync {
-    async fn synthesize(&self, text: &str, options: TtsOptions) -> Result<AudioBuffer>;
+    fn name(&self) -> &str;
+    async fn list_voices(&self) -> AudioResult<Vec<Voice>>;
+    async fn synthesize(&self, text: &str, options: &TtsOptions) -> AudioResult<AudioBuffer>;
+    fn synthesize_stream(&self, text: &str, options: &TtsOptions)
+        -> BoxStream<'static, AudioResult<AudioBuffer>>;
 }
 ```
 
@@ -170,78 +194,91 @@ pub trait TextToSpeech: Send + Sync {
 | Field | Type | Description |
 |-------|------|-------------|
 | `text` | `String` | Full transcription text |
-| `segments` | `Vec<TranscriptSegment>` | Word-level or phrase-level segments with timestamps |
+| `segments` | `Vec<TranscriptSegment>` | Timed segments with `start`/`end` in seconds |
 | `language` | `Option<String>` | Detected language code |
+| `duration_secs` | `Option<f64>` | Audio duration |
 
 ### AudioDevice
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `name` | `String` | Device display name |
-| `direction` | `DeviceDirection` | `Input`, `Output`, or `Both` |
+| `id` | `String` | Platform-specific device identifier |
+| `name` | `String` | Human-readable display name |
+| `direction` | `DeviceDirection` | `Input` or `Output` |
 | `is_default` | `bool` | Whether this is the system default device |
 
 ### AudioRingBuffer
 
 Lock-free ring buffer for streaming audio between producer (capture) and consumer (processing) threads. Fixed capacity, overwrites oldest samples when full.
 
+**Methods:** `new(config, duration_secs)`, `push(bytes)`, `read_all()`, `duration_secs()`, `clear()`, `is_full()`
+
 ## Usage Examples
+
+### Record and Save as WAV or FLAC
+
+```rust
+use brainwires_audio::{AudioConfig, AudioCapture, CpalCapture, encode_wav};
+
+let capture = CpalCapture::new();
+let config = AudioConfig::speech();
+let buffer = capture.record(None, &config, 5.0).await?;
+
+// Save as WAV
+let wav = encode_wav(&buffer)?;
+std::fs::write("recording.wav", &wav)?;
+
+// Save as FLAC (smaller, lossless)
+#[cfg(feature = "flac")]
+{
+    let flac = brainwires_audio::encode_flac(&buffer)?;
+    std::fs::write("recording.flac", &flac)?;
+}
+```
+
+### Load and Play Audio (WAV or FLAC)
+
+```rust
+use brainwires_audio::{CpalPlayback, AudioPlayback, decode_wav};
+
+// WAV
+let buffer = decode_wav(&std::fs::read("recording.wav")?)?;
+
+// FLAC
+#[cfg(feature = "flac")]
+let buffer = brainwires_audio::decode_flac(&std::fs::read("recording.flac")?)?;
+
+let playback = CpalPlayback::new();
+playback.play(None, &buffer).await?;
+```
 
 ### Text-to-Speech
 
 ```rust
-use brainwires_audio::{TextToSpeech, TtsOptions, Voice};
+use brainwires_audio::{TextToSpeech, TtsOptions, CpalPlayback, AudioPlayback, OpenAiTts};
 
-#[cfg(feature = "native")]
-{
-    use brainwires_audio::{OpenAiTts, CpalPlayback, AudioPlayback};
+let tts = OpenAiTts::new("your-api-key");
+let audio = tts.synthesize("Hello from Brainwires!", &TtsOptions::default()).await?;
 
-    let tts = OpenAiTts::new("your-api-key");
-    let options = TtsOptions {
-        voice: Voice::alloy(),
-        speed: 1.0,
-        ..Default::default()
-    };
-
-    let audio = tts.synthesize("Hello from Brainwires!", options).await?;
-
-    // Play through speakers
-    let playback = CpalPlayback::new(audio.config.clone())?;
-    playback.play(&audio).await?;
-}
-```
-
-### WAV File I/O
-
-```rust
-use brainwires_audio::{encode_wav, decode_wav, AudioBuffer, AudioConfig};
-
-// Decode a WAV file
-let buffer = decode_wav("recording.wav")?;
-println!("Duration: {:.1}s", buffer.duration_seconds());
-
-// Encode audio to WAV
-let config = AudioConfig { sample_rate: 16000, channels: 1, ..Default::default() };
-let buffer = AudioBuffer { samples: vec![0.0; 16000], config };
-encode_wav(&buffer, "silence.wav")?;
+let playback = CpalPlayback::new();
+playback.play(None, &audio).await?;
 ```
 
 ### Listing Audio Devices
 
 ```rust
-use brainwires_audio::{AudioDevice, DeviceDirection};
+use brainwires_audio::{CpalCapture, CpalPlayback, AudioCapture, AudioPlayback};
 
-#[cfg(feature = "native")]
-{
-    let devices = AudioDevice::enumerate()?;
-    for device in &devices {
-        println!(
-            "{} ({:?}){}",
-            device.name,
-            device.direction,
-            if device.is_default { " [default]" } else { "" }
-        );
-    }
+let capture = CpalCapture::new();
+for dev in capture.list_devices()? {
+    let tag = if dev.is_default { " (default)" } else { "" };
+    println!("Input:  {}{tag}", dev.name);
+}
+
+let playback = CpalPlayback::new();
+for dev in playback.list_devices()? {
+    let tag = if dev.is_default { " (default)" } else { "" };
+    println!("Output: {}{tag}", dev.name);
 }
 ```
 
@@ -254,17 +291,33 @@ use brainwires_audio::{SpeechToText, SttOptions};
 {
     use brainwires_audio::WhisperStt;
 
-    // Load a local Whisper model
-    let stt = WhisperStt::from_file("models/ggml-base.en.bin")?;
-    let transcript = stt.transcribe(&buffer, SttOptions {
+    let stt = WhisperStt::new("models/ggml-base.en.bin");
+    let transcript = stt.transcribe(&buffer, &SttOptions {
         language: Some("en".into()),
+        timestamps: true,
         ..Default::default()
     }).await?;
 
-    for segment in &transcript.segments {
-        println!("[{:.1}s - {:.1}s] {}", segment.start, segment.end, segment.text);
+    for seg in &transcript.segments {
+        println!("[{:.1}s - {:.1}s] {}", seg.start, seg.end, seg.text);
     }
 }
+```
+
+## Examples
+
+Run the included examples:
+
+```bash
+# Record 5 seconds to WAV (default)
+cargo run --example capture_audio
+
+# Record 10 seconds to FLAC
+cargo run --example capture_audio -- --duration 10 --format flac
+
+# Play a WAV or FLAC file
+cargo run --example play_audio -- recording.wav
+cargo run --example play_audio -- recording.flac
 ```
 
 ## Integration with Brainwires
