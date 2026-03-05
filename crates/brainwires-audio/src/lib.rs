@@ -57,6 +57,6 @@ pub use hardware::{CpalCapture, CpalPlayback};
 #[cfg(feature = "native")]
 pub use api::{OpenAiStt, OpenAiTts};
 #[cfg(feature = "flac")]
-pub use flac::encode_flac;
+pub use flac::{decode_flac, encode_flac};
 #[cfg(feature = "local-stt")]
 pub use local::WhisperStt;

@@ -1,17 +1,22 @@
-//! Load a WAV file and play it through the default speaker.
+//! Load a WAV or FLAC file and play it through the default speaker.
 //!
 //! Usage:
-//!   cargo run --example play_wav -- recording.wav
-//!   cargo run --example play_wav -- --file recording.wav
+//!   cargo run --example play_audio -- recording.wav
+//!   cargo run --example play_audio -- recording.flac
+//!   cargo run --example play_audio -- --file recording.flac
 
-use brainwires_audio::{CpalPlayback, AudioPlayback, decode_wav};
+use brainwires_audio::{AudioBuffer, CpalPlayback, AudioPlayback, decode_wav};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let path = wav_path_from_args()?;
+    let path = audio_path_from_args()?;
+    let raw = std::fs::read(&path)?;
 
-    let wav_bytes = std::fs::read(&path)?;
-    let buffer = decode_wav(&wav_bytes)?;
+    let buffer: AudioBuffer = if path.ends_with(".flac") {
+        decode_flac_or_bail(&raw)?
+    } else {
+        decode_wav(&raw)?
+    };
 
     println!(
         "Loaded {} ({:.2}s, {} Hz, {} ch, {:?})",
@@ -39,10 +44,19 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn wav_path_from_args() -> anyhow::Result<String> {
+#[cfg(feature = "flac")]
+fn decode_flac_or_bail(raw: &[u8]) -> anyhow::Result<AudioBuffer> {
+    Ok(brainwires_audio::decode_flac(raw)?)
+}
+
+#[cfg(not(feature = "flac"))]
+fn decode_flac_or_bail(_raw: &[u8]) -> anyhow::Result<AudioBuffer> {
+    anyhow::bail!("FLAC support requires the `flac` feature")
+}
+
+fn audio_path_from_args() -> anyhow::Result<String> {
     let args: Vec<String> = std::env::args().collect();
 
-    // Support both `play_wav recording.wav` and `play_wav --file recording.wav`
     if let Some(i) = args.iter().position(|a| a == "--file") {
         if let Some(path) = args.get(i + 1) {
             return Ok(path.clone());
@@ -56,5 +70,5 @@ fn wav_path_from_args() -> anyhow::Result<String> {
         }
     }
 
-    anyhow::bail!("Usage: play_wav <file.wav>  or  play_wav --file <file.wav>")
+    anyhow::bail!("Usage: play_audio <file.wav|file.flac>")
 }

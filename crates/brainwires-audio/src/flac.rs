@@ -2,7 +2,7 @@ use flacenc::component::BitRepr;
 use flacenc::error::Verify;
 
 use crate::error::{AudioError, AudioResult};
-use crate::types::{AudioBuffer, SampleFormat};
+use crate::types::{AudioBuffer, AudioConfig, SampleFormat};
 
 /// Encode an [`AudioBuffer`] to FLAC format bytes.
 ///
@@ -56,6 +56,52 @@ pub fn encode_flac(buffer: &AudioBuffer) -> AudioResult<Vec<u8>> {
     Ok(sink.into_inner())
 }
 
+/// Decode FLAC format bytes into an [`AudioBuffer`].
+///
+/// Only 16-bit FLAC streams are returned as `I16`; all other bit depths
+/// (8, 20, 24, 32) are normalised to `F32` in the `[-1, 1]` range.
+pub fn decode_flac(flac_bytes: &[u8]) -> AudioResult<AudioBuffer> {
+    let cursor = std::io::Cursor::new(flac_bytes);
+    let mut reader = claxon::FlacReader::new(cursor)
+        .map_err(|e| AudioError::Format(format!("FLAC decode error: {e}")))?;
+
+    let info = reader.streaminfo();
+    let channels = info.channels as u16;
+    let sample_rate = info.sample_rate;
+    let bps = info.bits_per_sample;
+
+    if bps == 16 {
+        let config = AudioConfig {
+            sample_rate,
+            channels,
+            sample_format: SampleFormat::I16,
+        };
+        let data: Vec<u8> = reader
+            .samples()
+            .map(|s| s.map_err(|e| AudioError::Format(format!("FLAC sample error: {e}"))))
+            .collect::<AudioResult<Vec<i32>>>()?
+            .iter()
+            .flat_map(|&s| (s as i16).to_le_bytes())
+            .collect();
+        Ok(AudioBuffer { data, config })
+    } else {
+        let config = AudioConfig {
+            sample_rate,
+            channels,
+            sample_format: SampleFormat::F32,
+        };
+        let max_val = ((1_i64 << (bps - 1)) - 1) as f32;
+        let data: Vec<u8> = reader
+            .samples()
+            .map(|s| s.map_err(|e| AudioError::Format(format!("FLAC sample error: {e}"))))
+            .collect::<AudioResult<Vec<i32>>>()?
+            .iter()
+            .flat_map(|&s| (s as f32 / max_val).to_le_bytes())
+            .collect();
+        Ok(AudioBuffer { data, config })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -96,5 +142,21 @@ mod tests {
 
         let flac_bytes = encode_flac(&buffer).unwrap();
         assert_eq!(&flac_bytes[..4], b"fLaC");
+    }
+
+    #[test]
+    fn test_flac_roundtrip_i16() {
+        let config = AudioConfig::speech();
+        let samples: Vec<i16> = (0..1600).map(|i| ((i % 256) as i16) * 100).collect();
+        let data: Vec<u8> = samples.iter().flat_map(|s| s.to_le_bytes()).collect();
+        let buffer = AudioBuffer::from_pcm(data.clone(), config);
+
+        let flac_bytes = encode_flac(&buffer).unwrap();
+        let decoded = decode_flac(&flac_bytes).unwrap();
+
+        assert_eq!(decoded.config.sample_rate, 16000);
+        assert_eq!(decoded.config.channels, 1);
+        assert_eq!(decoded.config.sample_format, SampleFormat::I16);
+        assert_eq!(decoded.data, data);
     }
 }
