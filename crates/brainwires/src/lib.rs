@@ -63,6 +63,12 @@ pub mod providers {
     pub use brainwires_providers::*;
 }
 
+/// Chat provider implementations (Provider trait wrappers over API clients).
+#[cfg(feature = "chat")]
+pub mod chat {
+    pub use brainwires_chat::*;
+}
+
 #[cfg(feature = "seal")]
 pub mod seal {
     pub use brainwires_seal::*;

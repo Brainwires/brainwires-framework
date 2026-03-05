@@ -3,67 +3,45 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use futures::stream::BoxStream;
 
-use brainwires_providers::openai::{OpenAiClient, TranscriptionRequest};
+use brainwires_providers::deepgram::{DeepgramClient, DeepgramListenRequest};
 
 use crate::error::{AudioError, AudioResult};
 use crate::stt::SpeechToText;
 use crate::types::{AudioBuffer, SttOptions, Transcript, TranscriptSegment};
 use crate::wav::encode_wav;
 
-/// OpenAI Whisper API speech-to-text implementation.
+/// Deepgram Nova STT speech-to-text implementation.
 ///
-/// Wraps an [`OpenAiClient`] from `brainwires-providers`.
-pub struct OpenAiStt {
-    client: Arc<OpenAiClient>,
+/// Wraps a [`DeepgramClient`] from `brainwires-providers` for the actual HTTP
+/// transport; this struct adds the `SpeechToText` trait and audio-domain logic.
+pub struct DeepgramStt {
+    client: Arc<DeepgramClient>,
     model: String,
 }
 
-impl OpenAiStt {
-    /// Create a new OpenAI STT client.
+impl DeepgramStt {
+    /// Create a new Deepgram STT client with the given API key.
     pub fn new(api_key: impl Into<String>) -> Self {
-        let client = Arc::new(OpenAiClient::new(api_key.into(), "whisper-1".to_string()));
+        let client = Arc::new(DeepgramClient::new(api_key));
         Self {
             client,
-            model: "whisper-1".to_string(),
+            model: "nova-2".to_string(),
         }
     }
 
-    /// Create from an existing [`OpenAiClient`].
-    pub fn from_client(client: Arc<OpenAiClient>, model: impl Into<String>) -> Self {
+    /// Create from an existing [`DeepgramClient`].
+    pub fn from_client(client: Arc<DeepgramClient>, model: impl Into<String>) -> Self {
         Self {
             client,
             model: model.into(),
         }
     }
-
-    /// Create with a custom base URL.
-    pub fn new_with_base_url(
-        api_key: impl Into<String>,
-        base_url: impl Into<String>,
-        model: impl Into<String>,
-    ) -> Self {
-        let model_str = model.into();
-        let client = Arc::new(
-            OpenAiClient::new(api_key.into(), model_str.clone())
-                .with_base_url(base_url.into()),
-        );
-        Self {
-            client,
-            model: model_str,
-        }
-    }
-
-    /// Set the model name.
-    pub fn with_model(mut self, model: impl Into<String>) -> Self {
-        self.model = model.into();
-        self
-    }
 }
 
 #[async_trait]
-impl SpeechToText for OpenAiStt {
+impl SpeechToText for DeepgramStt {
     fn name(&self) -> &str {
-        "openai-whisper"
+        "deepgram-stt"
     }
 
     async fn transcribe(
@@ -73,36 +51,46 @@ impl SpeechToText for OpenAiStt {
     ) -> AudioResult<Transcript> {
         let wav_data = encode_wav(audio)?;
 
-        let req = TranscriptionRequest {
-            model: self.model.clone(),
+        let req = DeepgramListenRequest {
+            model: Some(self.model.clone()),
             language: options.language.clone(),
-            prompt: options.prompt.clone(),
-            timestamps: Some(options.timestamps),
+            punctuate: true,
+            diarize: false,
+            content_type: Some("audio/wav".to_string()),
         };
 
         let resp = self
             .client
-            .create_transcription(wav_data, &req)
+            .listen(wav_data, &req)
             .await
-            .map_err(|e| AudioError::Api(format!("OpenAI STT: {e}")))?;
+            .map_err(|e| AudioError::Api(format!("Deepgram STT: {e}")))?;
 
-        let segments = resp
-            .segments
-            .unwrap_or_default()
+        // Extract the best alternative from the first channel.
+        let alt = resp
+            .results
+            .channels
             .into_iter()
-            .filter_map(|seg| {
-                Some(TranscriptSegment {
-                    text: seg.text?,
-                    start: seg.start?,
-                    end: seg.end?,
-                })
+            .next()
+            .and_then(|ch| ch.alternatives.into_iter().next());
+
+        let (text, words) = match alt {
+            Some(a) => (a.transcript, a.words),
+            None => (String::new(), Vec::new()),
+        };
+
+        let segments = words
+            .into_iter()
+            .map(|w| TranscriptSegment {
+                text: w.word,
+                start: w.start,
+                end: w.end,
             })
             .collect();
 
         Ok(Transcript {
-            text: resp.text,
-            language: resp.language,
-            duration_secs: resp.duration,
+            text,
+            language: options.language.clone(),
+            duration_secs: None,
             segments,
         })
     }
@@ -140,7 +128,7 @@ impl SpeechToText for OpenAiStt {
 
             if let Some(cfg) = config {
                 let full_buffer = AudioBuffer::from_pcm(all_data, cfg);
-                let stt = OpenAiStt { client, model };
+                let stt = DeepgramStt { client, model };
                 yield stt.transcribe(&full_buffer, &options).await;
             }
         };

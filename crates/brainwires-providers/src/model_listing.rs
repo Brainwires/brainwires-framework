@@ -178,7 +178,10 @@ pub fn create_model_lister(
                 Some(url.to_string()),
             )))
         }
-        ProviderType::Brainwires | ProviderType::Custom => {
+        ProviderType::Brainwires | ProviderType::Custom
+        | ProviderType::ElevenLabs | ProviderType::Deepgram
+        | ProviderType::Azure | ProviderType::Fish
+        | ProviderType::Cartesia | ProviderType::Murf => {
             Err(anyhow::anyhow!(
                 "Model listing is not supported for {} provider via this interface",
                 provider_type

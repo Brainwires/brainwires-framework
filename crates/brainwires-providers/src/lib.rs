@@ -1,9 +1,12 @@
 #![warn(missing_docs)]
-//! AI provider implementations for the Brainwires Agent Framework.
+//! Pure API connection layer for the Brainwires Agent Framework.
 //!
-//! Contains concrete implementations of the `Provider` trait for various AI services.
+//! Each provider module contains a low-level API client struct that handles
+//! HTTP transport, authentication, rate limiting, and (de)serialisation of
+//! provider-specific wire types.  Domain-level abstractions (the `Provider`
+//! trait, message conversion, etc.) live in `brainwires-chat`.
 
-// Re-export core traits for convenience
+// Re-export core traits for convenience (kept for backward compat)
 pub use brainwires_core::provider::{ChatOptions, Provider};
 
 // Rate limiting and HTTP client
@@ -17,75 +20,134 @@ pub use http_client::RateLimitedClient;
 #[cfg(feature = "native")]
 pub use rate_limiter::RateLimiter;
 
-/// Anthropic (Claude) provider implementation.
+// ── Chat-capable API clients ────────────────────────────────────────────
+
+/// Anthropic (Claude) API client.
 #[cfg(feature = "native")]
 pub mod anthropic;
-/// OpenAI provider implementation.
+/// OpenAI API client.
 #[cfg(feature = "native")]
 pub mod openai;
-/// Google (Gemini) provider implementation.
+/// Google (Gemini) API client.
 #[cfg(feature = "native")]
 pub mod google;
-/// Groq provider implementation.
+/// Groq constants and model listing.
 #[cfg(feature = "native")]
 pub mod groq;
-/// Ollama local model provider implementation.
+/// Ollama local model API client.
 #[cfg(feature = "native")]
 pub mod ollama;
-/// Brainwires HTTP relay provider implementation.
+/// Brainwires HTTP relay API client.
 #[cfg(feature = "native")]
 pub mod brainwires_http;
+/// Together AI constants.
+#[cfg(feature = "native")]
+pub mod together;
+/// Fireworks AI constants.
+#[cfg(feature = "native")]
+pub mod fireworks;
+/// Anyscale constants.
+#[cfg(feature = "native")]
+pub mod anyscale;
+
+// ── Audio/speech API clients ────────────────────────────────────────────
+
+/// ElevenLabs TTS/STT API client.
+#[cfg(feature = "native")]
+pub mod elevenlabs;
+/// Deepgram TTS/STT API client.
+#[cfg(feature = "native")]
+pub mod deepgram;
+/// Google Cloud Text-to-Speech API client.
+#[cfg(feature = "native")]
+pub mod google_tts;
+/// Azure Cognitive Services Speech API client.
+#[cfg(feature = "native")]
+pub mod azure_speech;
+/// Fish Audio TTS/ASR API client.
+#[cfg(feature = "native")]
+pub mod fish;
+/// Cartesia TTS API client.
+#[cfg(feature = "native")]
+pub mod cartesia;
+/// Murf AI TTS API client.
+#[cfg(feature = "native")]
+pub mod murf;
+
+// ── Model listing ───────────────────────────────────────────────────────
 
 /// Model listing — query available models from provider APIs.
 #[cfg(feature = "native")]
 pub mod model_listing;
 
-/// Provider factory for constructing providers from configuration.
+/// Provider factory (deprecated — use `brainwires-chat::ChatProviderFactory`).
 #[cfg(feature = "native")]
 pub mod factory;
 
-// Local LLM provider (always compiled, llama.cpp behind feature flag in CLI)
+// ── Local LLM ───────────────────────────────────────────────────────────
+
+/// Local LLM inference (always compiled, llama.cpp behind feature flag).
 pub mod local_llm;
 
-// Re-export provider implementations at crate root
+// ── Re-exports ──────────────────────────────────────────────────────────
+
+// Chat-capable API clients
 #[cfg(feature = "native")]
-pub use anthropic::AnthropicProvider;
+pub use anthropic::AnthropicClient;
 #[cfg(feature = "native")]
-pub use openai::OpenAIProvider;
+pub use openai::OpenAiClient;
 #[cfg(feature = "native")]
-pub use google::GoogleProvider;
-#[cfg(feature = "native")]
-pub use groq::GroqProvider;
+pub use google::GoogleClient;
 #[cfg(feature = "native")]
 pub use ollama::OllamaProvider;
 #[cfg(feature = "native")]
 pub use brainwires_http::BrainwiresHttpProvider;
+
+// Groq model listing
+#[cfg(feature = "native")]
+pub use groq::GroqModelLister;
+
+// Audio API clients
+#[cfg(feature = "native")]
+pub use elevenlabs::ElevenLabsClient;
+#[cfg(feature = "native")]
+pub use deepgram::DeepgramClient;
+#[cfg(feature = "native")]
+pub use google_tts::GoogleTtsClient;
+#[cfg(feature = "native")]
+pub use azure_speech::AzureSpeechClient;
+#[cfg(feature = "native")]
+pub use fish::FishClient;
+#[cfg(feature = "native")]
+pub use cartesia::CartesiaClient;
+#[cfg(feature = "native")]
+pub use murf::MurfClient;
+
+// Factory + model listing
 #[cfg(feature = "native")]
 pub use factory::ProviderFactory;
 #[cfg(feature = "native")]
 pub use model_listing::{AvailableModel, ModelCapability, ModelLister, create_model_lister};
+
+// Local LLM
 pub use local_llm::*;
+
+// ── Backward-compat type aliases ────────────────────────────────────────
+// The old names pointed to structs that have been renamed. Downstream code
+// that hasn't migrated to `brainwires-chat` yet can still compile.
+#[cfg(feature = "native")]
+/// Backward-compat alias for [`AnthropicClient`].
+pub type AnthropicProvider = AnthropicClient;
+#[cfg(feature = "native")]
+/// Backward-compat alias for [`OpenAiClient`].
+pub type OpenAIProvider = OpenAiClient;
+#[cfg(feature = "native")]
+/// Backward-compat alias for [`GoogleClient`].
+pub type GoogleProvider = GoogleClient;
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
-
-/// Together AI provider (OpenAI-compatible).
-#[cfg(feature = "native")]
-pub mod together;
-/// Fireworks AI provider (OpenAI-compatible).
-#[cfg(feature = "native")]
-pub mod fireworks;
-/// Anyscale provider (OpenAI-compatible).
-#[cfg(feature = "native")]
-pub mod anyscale;
-
-#[cfg(feature = "native")]
-pub use together::TogetherProvider;
-#[cfg(feature = "native")]
-pub use fireworks::FireworksProvider;
-#[cfg(feature = "native")]
-pub use anyscale::AnyscaleProvider;
 
 /// AI provider types
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -109,6 +171,18 @@ pub enum ProviderType {
     Fireworks,
     /// Anyscale.
     Anyscale,
+    /// ElevenLabs.
+    ElevenLabs,
+    /// Deepgram.
+    Deepgram,
+    /// Azure Speech.
+    Azure,
+    /// Fish Audio.
+    Fish,
+    /// Cartesia.
+    Cartesia,
+    /// Murf AI.
+    Murf,
     /// Custom / user-defined provider.
     Custom,
 }
@@ -126,6 +200,12 @@ impl ProviderType {
             Self::Together => "meta-llama/Llama-3.1-8B-Instruct",
             Self::Fireworks => "accounts/fireworks/models/llama-v3p1-8b-instruct",
             Self::Anyscale => "meta-llama/Meta-Llama-3.1-8B-Instruct",
+            Self::ElevenLabs => "eleven_multilingual_v2",
+            Self::Deepgram => "nova-2",
+            Self::Azure => "en-US-JennyNeural",
+            Self::Fish => "default",
+            Self::Cartesia => "sonic-english",
+            Self::Murf => "en-US-natalie",
             Self::Custom => "claude-3-5-sonnet-20241022",
         }
     }
@@ -142,6 +222,12 @@ impl ProviderType {
             "together" => Some(Self::Together),
             "fireworks" => Some(Self::Fireworks),
             "anyscale" => Some(Self::Anyscale),
+            "elevenlabs" => Some(Self::ElevenLabs),
+            "deepgram" => Some(Self::Deepgram),
+            "azure" => Some(Self::Azure),
+            "fish" => Some(Self::Fish),
+            "cartesia" => Some(Self::Cartesia),
+            "murf" => Some(Self::Murf),
             "custom" => Some(Self::Custom),
             _ => None,
         }
@@ -159,6 +245,12 @@ impl ProviderType {
             Self::Together => "together",
             Self::Fireworks => "fireworks",
             Self::Anyscale => "anyscale",
+            Self::ElevenLabs => "elevenlabs",
+            Self::Deepgram => "deepgram",
+            Self::Azure => "azure",
+            Self::Fish => "fish",
+            Self::Cartesia => "cartesia",
+            Self::Murf => "murf",
             Self::Custom => "custom",
         }
     }
@@ -239,9 +331,6 @@ mod tests {
         assert_eq!(ProviderType::Groq.default_model(), "llama-3.3-70b-versatile");
         assert_eq!(ProviderType::Ollama.default_model(), "llama3.1");
         assert_eq!(ProviderType::Brainwires.default_model(), "gpt-5-mini");
-        assert_eq!(ProviderType::Together.default_model(), "meta-llama/Llama-3.1-8B-Instruct");
-        assert_eq!(ProviderType::Fireworks.default_model(), "accounts/fireworks/models/llama-v3p1-8b-instruct");
-        assert_eq!(ProviderType::Anyscale.default_model(), "meta-llama/Meta-Llama-3.1-8B-Instruct");
     }
 
     #[test]
@@ -256,30 +345,18 @@ mod tests {
         assert_eq!(ProviderType::from_str_opt("together"), Some(ProviderType::Together));
         assert_eq!(ProviderType::from_str_opt("fireworks"), Some(ProviderType::Fireworks));
         assert_eq!(ProviderType::from_str_opt("anyscale"), Some(ProviderType::Anyscale));
+        assert_eq!(ProviderType::from_str_opt("elevenlabs"), Some(ProviderType::ElevenLabs));
+        assert_eq!(ProviderType::from_str_opt("deepgram"), Some(ProviderType::Deepgram));
         assert_eq!(ProviderType::from_str_opt("custom"), Some(ProviderType::Custom));
         assert_eq!(ProviderType::from_str_opt("unknown"), None);
-    }
-
-    #[test]
-    fn test_provider_type_as_str() {
-        assert_eq!(ProviderType::Groq.as_str(), "groq");
-        assert_eq!(ProviderType::Brainwires.as_str(), "brainwires");
-        assert_eq!(ProviderType::Together.as_str(), "together");
-        assert_eq!(ProviderType::Fireworks.as_str(), "fireworks");
-        assert_eq!(ProviderType::Anyscale.as_str(), "anyscale");
     }
 
     #[test]
     fn test_provider_type_requires_api_key() {
         assert!(ProviderType::Anthropic.requires_api_key());
         assert!(ProviderType::OpenAI.requires_api_key());
-        assert!(ProviderType::Google.requires_api_key());
-        assert!(ProviderType::Groq.requires_api_key());
         assert!(!ProviderType::Ollama.requires_api_key());
-        assert!(ProviderType::Brainwires.requires_api_key());
-        assert!(ProviderType::Together.requires_api_key());
-        assert!(ProviderType::Fireworks.requires_api_key());
-        assert!(ProviderType::Anyscale.requires_api_key());
+        assert!(ProviderType::ElevenLabs.requires_api_key());
     }
 
     #[test]

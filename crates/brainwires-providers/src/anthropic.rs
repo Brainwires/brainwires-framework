@@ -5,25 +5,29 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use brainwires_core::{ChatResponse, ContentBlock, Message, MessageContent, Role, StreamChunk, Usage};
-use brainwires_core::{ChatOptions, Provider};
-use brainwires_core::Tool;
-
 use super::rate_limiter::RateLimiter;
 
 const ANTHROPIC_API_URL: &str = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION: &str = "2023-06-01";
 
-/// Anthropic (Claude) API provider.
-pub struct AnthropicProvider {
+// ---------------------------------------------------------------------------
+// API client
+// ---------------------------------------------------------------------------
+
+/// Low-level Anthropic (Claude) API client.
+///
+/// This struct handles authentication, rate-limiting, and HTTP transport.
+/// It exposes raw API methods that return Anthropic-native types; higher-level
+/// abstractions (e.g. the `Provider` trait) live in the `brainwires-chat` crate.
+pub struct AnthropicClient {
     api_key: String,
     model: String,
     http_client: Client,
     rate_limiter: Option<std::sync::Arc<RateLimiter>>,
 }
 
-impl AnthropicProvider {
-    /// Create a new Anthropic provider with the given API key and model.
+impl AnthropicClient {
+    /// Create a new Anthropic client with the given API key and model.
     pub fn new(api_key: String, model: String) -> Self {
         Self {
             api_key,
@@ -33,7 +37,7 @@ impl AnthropicProvider {
         }
     }
 
-    /// Create a provider with rate limiting (requests per minute).
+    /// Create a client with rate limiting (requests per minute).
     pub fn with_rate_limit(api_key: String, model: String, requests_per_minute: u32) -> Self {
         Self {
             api_key,
@@ -43,6 +47,16 @@ impl AnthropicProvider {
         }
     }
 
+    /// Return the model name this client was created with.
+    pub fn model(&self) -> &str {
+        &self.model
+    }
+
+    /// Return the API key (useful when constructing an `AnthropicModelLister`).
+    pub fn api_key(&self) -> &str {
+        &self.api_key
+    }
+
     /// Wait for rate-limit clearance (no-op if not configured).
     async fn acquire_rate_limit(&self) {
         if let Some(ref limiter) = self.rate_limiter {
@@ -50,109 +64,38 @@ impl AnthropicProvider {
         }
     }
 
-    /// Convert our Message format to Anthropic's format
-    fn convert_messages(&self, messages: &[Message]) -> Vec<AnthropicMessage> {
-        messages
-            .iter()
-            .filter(|m| m.role != Role::System) // System goes in separate field
-            .map(|m| AnthropicMessage {
-                role: match m.role {
-                    Role::User => "user".to_string(),
-                    Role::Assistant => "assistant".to_string(),
-                    _ => "user".to_string(),
-                },
-                content: match &m.content {
-                    MessageContent::Text(text) => vec![AnthropicContentBlock::Text {
-                        text: text.clone(),
-                    }],
-                    MessageContent::Blocks(blocks) => blocks
-                        .iter()
-                        .filter_map(|b| match b {
-                            ContentBlock::Text { text } => Some(AnthropicContentBlock::Text {
-                                text: text.clone(),
-                            }),
-                            ContentBlock::ToolUse { id, name, input } => {
-                                Some(AnthropicContentBlock::ToolUse {
-                                    id: id.clone(),
-                                    name: name.clone(),
-                                    input: input.clone(),
-                                })
-                            }
-                            ContentBlock::ToolResult {
-                                tool_use_id,
-                                content,
-                                ..
-                            } => Some(AnthropicContentBlock::ToolResult {
-                                tool_use_id: tool_use_id.clone(),
-                                content: content.clone(),
-                            }),
-                            _ => None,
-                        })
-                        .collect(),
-                },
-            })
-            .collect()
-    }
+    // -----------------------------------------------------------------------
+    // Raw API methods
+    // -----------------------------------------------------------------------
 
-    /// Convert our Tool format to Anthropic's format
-    fn convert_tools(&self, tools: &[Tool]) -> Vec<AnthropicTool> {
-        tools
-            .iter()
-            .map(|t| AnthropicTool {
-                name: t.name.clone(),
-                description: t.description.clone(),
-                input_schema: t.input_schema.properties.clone().unwrap_or_default(),
-            })
-            .collect()
-    }
-
-    /// Get system message from messages
-    fn get_system_message(&self, messages: &[Message]) -> Option<String> {
-        messages
-            .iter()
-            .find(|m| m.role == Role::System)
-            .and_then(|m| m.text().map(|s| s.to_string()))
-    }
-}
-
-#[async_trait]
-impl Provider for AnthropicProvider {
-    fn name(&self) -> &str {
-        "anthropic"
-    }
-
-    #[tracing::instrument(name = "provider.chat", skip_all, fields(provider = "anthropic", model = %self.model))]
-    async fn chat(
-        &self,
-        messages: &[Message],
-        tools: Option<&[Tool]>,
-        options: &ChatOptions,
-    ) -> Result<ChatResponse> {
-        let anthropic_messages = self.convert_messages(messages);
-        let system = options
-            .system
-            .clone()
-            .or_else(|| self.get_system_message(messages));
-
+    /// Send a non-streaming request to `/v1/messages` and return the parsed
+    /// response.
+    pub async fn messages(&self, req: &AnthropicRequest) -> Result<AnthropicResponse> {
         let mut request_body = json!({
-            "model": self.model,
-            "messages": anthropic_messages,
-            "max_tokens": options.max_tokens.unwrap_or(4096),
+            "model": req.model,
+            "messages": req.messages,
+            "max_tokens": req.max_tokens,
+            "stream": false,
         });
 
-        if let Some(sys) = system {
+        if let Some(ref sys) = req.system {
             request_body["system"] = json!(sys);
         }
-
-        if let Some(temp) = options.temperature {
+        if let Some(temp) = req.temperature {
             request_body["temperature"] = json!(temp);
         }
-
-        if let Some(tools_list) = tools {
-            request_body["tools"] = json!(self.convert_tools(tools_list));
+        if let Some(top_p) = req.top_p {
+            request_body["top_p"] = json!(top_p);
+        }
+        if let Some(ref stop) = req.stop_sequences {
+            request_body["stop_sequences"] = json!(stop);
+        }
+        if let Some(ref tools) = req.tools {
+            request_body["tools"] = json!(tools);
         }
 
         self.acquire_rate_limit().await;
+
         let response = self
             .http_client
             .post(ANTHROPIC_API_URL)
@@ -166,7 +109,10 @@ impl Provider for AnthropicProvider {
 
         if !response.status().is_success() {
             let status = response.status();
-            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
             anyhow::bail!("Anthropic API error ({}): {}", status, error_text);
         }
 
@@ -175,93 +121,41 @@ impl Provider for AnthropicProvider {
             .await
             .context("Failed to parse Anthropic response")?;
 
-        // Convert response to our format
-        let content = if anthropic_response.content.len() == 1 {
-            match &anthropic_response.content[0] {
-                AnthropicContentBlock::Text { text } => MessageContent::Text(text.clone()),
-                _ => MessageContent::Blocks(
-                    anthropic_response
-                        .content
-                        .into_iter()
-                        .filter_map(|block| match block {
-                            AnthropicContentBlock::Text { text } => {
-                                Some(ContentBlock::Text { text })
-                            }
-                            AnthropicContentBlock::ToolUse { id, name, input } => {
-                                Some(ContentBlock::ToolUse { id, name, input })
-                            }
-                            _ => None,
-                        })
-                        .collect(),
-                ),
-            }
-        } else {
-            MessageContent::Blocks(
-                anthropic_response
-                    .content
-                    .into_iter()
-                    .filter_map(|block| match block {
-                        AnthropicContentBlock::Text { text } => Some(ContentBlock::Text { text }),
-                        AnthropicContentBlock::ToolUse { id, name, input } => {
-                            Some(ContentBlock::ToolUse { id, name, input })
-                        }
-                        _ => None,
-                    })
-                    .collect(),
-            )
-        };
-
-        Ok(ChatResponse {
-            message: Message {
-                role: Role::Assistant,
-                content,
-                name: None,
-                metadata: None,
-            },
-            usage: Usage {
-                prompt_tokens: anthropic_response.usage.input_tokens,
-                completion_tokens: anthropic_response.usage.output_tokens,
-                total_tokens: anthropic_response.usage.input_tokens
-                    + anthropic_response.usage.output_tokens,
-            },
-            finish_reason: Some(anthropic_response.stop_reason),
-        })
+        Ok(anthropic_response)
     }
 
-    fn stream_chat<'a>(
+    /// Send a streaming request to `/v1/messages` and return a stream of raw
+    /// SSE events.
+    pub fn stream_messages<'a>(
         &'a self,
-        messages: &'a [Message],
-        tools: Option<&'a [Tool]>,
-        options: &'a ChatOptions,
-    ) -> BoxStream<'a, Result<StreamChunk>> {
-        tracing::info!(provider = "anthropic", model = %self.model, "provider.stream started");
+        req: &'a AnthropicRequest,
+    ) -> BoxStream<'a, Result<AnthropicStreamEvent>> {
         Box::pin(async_stream::stream! {
-            let anthropic_messages = self.convert_messages(messages);
-            let system = options
-                .system
-                .clone()
-                .or_else(|| self.get_system_message(messages));
-
             let mut request_body = json!({
-                "model": self.model,
-                "messages": anthropic_messages,
-                "max_tokens": options.max_tokens.unwrap_or(4096),
+                "model": req.model,
+                "messages": req.messages,
+                "max_tokens": req.max_tokens,
                 "stream": true,
             });
 
-            if let Some(sys) = system {
+            if let Some(ref sys) = req.system {
                 request_body["system"] = json!(sys);
             }
-
-            if let Some(temp) = options.temperature {
+            if let Some(temp) = req.temperature {
                 request_body["temperature"] = json!(temp);
             }
-
-            if let Some(tools_list) = tools {
-                request_body["tools"] = json!(self.convert_tools(tools_list));
+            if let Some(top_p) = req.top_p {
+                request_body["top_p"] = json!(top_p);
+            }
+            if let Some(ref stop) = req.stop_sequences {
+                request_body["stop_sequences"] = json!(stop);
+            }
+            if let Some(ref tools) = req.tools {
+                request_body["tools"] = json!(tools);
             }
 
             self.acquire_rate_limit().await;
+
             let response = match self
                 .http_client
                 .post(ANTHROPIC_API_URL)
@@ -309,33 +203,12 @@ impl Provider for AnthropicProvider {
                     // Parse SSE event
                     if let Some(data) = event_data.strip_prefix("data: ") {
                         if data == "[DONE]" {
-                            yield Ok(StreamChunk::Done);
                             continue;
                         }
 
                         match serde_json::from_str::<AnthropicStreamEvent>(data) {
                             Ok(event) => {
-                                match event.event_type.as_str() {
-                                    "content_block_delta" => {
-                                        if let Some(delta) = event.delta
-                                            && let Some(text) = delta.text {
-                                                yield Ok(StreamChunk::Text(text));
-                                            }
-                                    }
-                                    "message_delta" => {
-                                        if let Some(usage) = event.usage {
-                                            yield Ok(StreamChunk::Usage(Usage {
-                                                prompt_tokens: 0,
-                                                completion_tokens: usage.output_tokens,
-                                                total_tokens: usage.output_tokens,
-                                            }));
-                                        }
-                                    }
-                                    "message_stop" => {
-                                        yield Ok(StreamChunk::Done);
-                                    }
-                                    _ => {}
-                                }
+                                yield Ok(event);
                             }
                             Err(e) => {
                                 tracing::warn!("Failed to parse Anthropic stream event: {}", e);
@@ -346,19 +219,102 @@ impl Provider for AnthropicProvider {
             }
         })
     }
+
+    /// Paginated listing of models available via `/v1/models`.
+    pub async fn list_models(&self) -> Result<Vec<AnthropicModelEntry>> {
+        let mut all_models = Vec::new();
+        let mut after_id: Option<String> = None;
+
+        loop {
+            let mut url = format!("{}?limit=1000", ANTHROPIC_MODELS_URL);
+            if let Some(ref cursor) = after_id {
+                url.push_str(&format!("&after_id={}", cursor));
+            }
+
+            let resp = self
+                .http_client
+                .get(&url)
+                .header("x-api-key", &self.api_key)
+                .header("anthropic-version", ANTHROPIC_VERSION)
+                .send()
+                .await
+                .context("Failed to list Anthropic models")?;
+
+            if !resp.status().is_success() {
+                let status = resp.status();
+                let body = resp.text().await.unwrap_or_default();
+                return Err(anyhow::anyhow!(
+                    "Anthropic models API returned {}: {}",
+                    status,
+                    body
+                ));
+            }
+
+            let page: AnthropicListResponse = resp
+                .json()
+                .await
+                .context("Failed to parse Anthropic models response")?;
+
+            for entry in page.data {
+                all_models.push(entry);
+            }
+
+            if !page.has_more {
+                break;
+            }
+            after_id = page.last_id;
+        }
+
+        Ok(all_models)
+    }
 }
 
-// Anthropic API types
+// ---------------------------------------------------------------------------
+// Request type
+// ---------------------------------------------------------------------------
 
-#[derive(Debug, Serialize)]
-struct AnthropicMessage {
-    role: String,
-    content: Vec<AnthropicContentBlock>,
+/// A request to the Anthropic `/v1/messages` endpoint.
+#[derive(Debug, Clone, Serialize)]
+pub struct AnthropicRequest {
+    /// Model identifier (e.g. `"claude-sonnet-4-20250514"`).
+    pub model: String,
+    /// Conversation messages.
+    pub messages: Vec<AnthropicMessage>,
+    /// Optional system prompt (sent as a top-level field, not a message).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub system: Option<String>,
+    /// Maximum number of tokens to generate.
+    pub max_tokens: u32,
+    /// Sampling temperature.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
+    /// Nucleus sampling parameter.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_p: Option<f32>,
+    /// Stop sequences.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stop_sequences: Option<Vec<String>>,
+    /// Tools available to the model.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<AnthropicTool>>,
+    /// Whether to stream the response.
+    #[serde(default)]
+    pub stream: bool,
+}
+
+// ---------------------------------------------------------------------------
+// Anthropic API serde types
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AnthropicMessage {
+    pub role: String,
+    pub content: Vec<AnthropicContentBlock>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "type", rename_all = "snake_case")]
-enum AnthropicContentBlock {
+pub enum AnthropicContentBlock {
     Text {
         text: String,
     },
@@ -373,37 +329,37 @@ enum AnthropicContentBlock {
     },
 }
 
-#[derive(Debug, Serialize)]
-struct AnthropicTool {
-    name: String,
-    description: String,
-    input_schema: std::collections::HashMap<String, serde_json::Value>,
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AnthropicTool {
+    pub name: String,
+    pub description: String,
+    pub input_schema: std::collections::HashMap<String, serde_json::Value>,
 }
 
-#[derive(Debug, Deserialize)]
-struct AnthropicResponse {
-    content: Vec<AnthropicContentBlock>,
-    stop_reason: String,
-    usage: AnthropicUsage,
+#[derive(Debug, Deserialize, Clone)]
+pub struct AnthropicResponse {
+    pub content: Vec<AnthropicContentBlock>,
+    pub stop_reason: String,
+    pub usage: AnthropicUsage,
 }
 
-#[derive(Debug, Deserialize)]
-struct AnthropicUsage {
-    input_tokens: u32,
-    output_tokens: u32,
+#[derive(Debug, Deserialize, Clone)]
+pub struct AnthropicUsage {
+    pub input_tokens: u32,
+    pub output_tokens: u32,
 }
 
-#[derive(Debug, Deserialize)]
-struct AnthropicStreamEvent {
+#[derive(Debug, Deserialize, Clone)]
+pub struct AnthropicStreamEvent {
     #[serde(rename = "type")]
-    event_type: String,
-    delta: Option<AnthropicDelta>,
-    usage: Option<AnthropicUsage>,
+    pub event_type: String,
+    pub delta: Option<AnthropicDelta>,
+    pub usage: Option<AnthropicUsage>,
 }
 
-#[derive(Debug, Deserialize)]
-struct AnthropicDelta {
-    text: Option<String>,
+#[derive(Debug, Deserialize, Clone)]
+pub struct AnthropicDelta {
+    pub text: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -411,7 +367,7 @@ struct AnthropicDelta {
 // ---------------------------------------------------------------------------
 
 use crate::model_listing::{
-    AnthropicListResponse, AvailableModel, ModelCapability, ModelLister,
+    AnthropicListResponse, AnthropicModelEntry, AvailableModel, ModelCapability, ModelLister,
 };
 
 const ANTHROPIC_MODELS_URL: &str = "https://api.anthropic.com/v1/models";
@@ -463,7 +419,9 @@ impl ModelLister for AnthropicModelLister {
                 ));
             }
 
-            let page: AnthropicListResponse = resp.json().await
+            let page: AnthropicListResponse = resp
+                .json()
+                .await
                 .context("Failed to parse Anthropic models response")?;
 
             for entry in &page.data {
@@ -496,261 +454,42 @@ impl ModelLister for AnthropicModelLister {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use brainwires_core::ToolInputSchema;
-    use std::collections::HashMap;
 
     #[test]
-    fn test_anthropic_provider_new() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        assert_eq!(provider.api_key, "test-key");
-        assert_eq!(provider.model, "claude-3-sonnet");
+    fn test_anthropic_client_new() {
+        let client = AnthropicClient::new("test-key".to_string(), "claude-3-sonnet".to_string());
+        assert_eq!(client.api_key, "test-key");
+        assert_eq!(client.model, "claude-3-sonnet");
     }
 
     #[test]
-    fn test_provider_name() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        assert_eq!(provider.name(), "anthropic");
+    fn test_client_model_accessor() {
+        let client = AnthropicClient::new("test-key".to_string(), "claude-3-sonnet".to_string());
+        assert_eq!(client.model(), "claude-3-sonnet");
     }
 
     #[test]
-    fn test_convert_messages_text() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Text("Hello".to_string()),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0].role, "user");
+    fn test_client_api_key_accessor() {
+        let client = AnthropicClient::new("test-key".to_string(), "claude-3-sonnet".to_string());
+        assert_eq!(client.api_key(), "test-key");
     }
 
     #[test]
-    fn test_convert_messages_filters_system() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let messages = vec![
-            Message {
-                role: Role::System,
-                content: MessageContent::Text("System prompt".to_string()),
-                name: None,
-                metadata: None,
-            },
-            Message {
-                role: Role::User,
-                content: MessageContent::Text("Hello".to_string()),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        // System message should be filtered out
-        assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0].role, "user");
+    fn test_anthropic_client_with_empty_api_key() {
+        let client = AnthropicClient::new("".to_string(), "claude-3-sonnet".to_string());
+        assert_eq!(client.api_key, "");
+        assert_eq!(client.model, "claude-3-sonnet");
     }
 
     #[test]
-    fn test_convert_messages_with_blocks() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let messages = vec![
-            Message {
-                role: Role::Assistant,
-                content: MessageContent::Blocks(vec![
-                    ContentBlock::Text { text: "Response".to_string() },
-                    ContentBlock::ToolUse {
-                        id: "tool-1".to_string(),
-                        name: "test_tool".to_string(),
-                        input: json!({"arg": "value"}),
-                    },
-                ]),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0].role, "assistant");
-        assert_eq!(converted[0].content.len(), 2);
-    }
-
-    #[test]
-    fn test_convert_messages_with_tool_result() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Blocks(vec![
-                    ContentBlock::ToolResult {
-                        tool_use_id: "tool-1".to_string(),
-                        content: "Result".to_string(),
-                        is_error: Some(false),
-                    },
-                ]),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0].content.len(), 1);
-    }
-
-    #[test]
-    fn test_convert_tools() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let mut properties = HashMap::new();
-        properties.insert(
-            "arg1".to_string(),
-            json!({
-                "type": "string",
-                "description": "First argument"
-            }),
-        );
-
-        let tools = vec![
-            Tool {
-                name: "test_tool".to_string(),
-                description: "A test tool".to_string(),
-                input_schema: ToolInputSchema::object(properties.clone(), vec!["arg1".to_string()]),
-                requires_approval: false,
-                ..Default::default()
-            },
-        ];
-
-        let converted = provider.convert_tools(&tools);
-        assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0].name, "test_tool");
-        assert_eq!(converted[0].description, "A test tool");
-        assert!(converted[0].input_schema.contains_key("arg1"));
-    }
-
-    #[test]
-    fn test_convert_tools_empty() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let tools: Vec<Tool> = vec![];
-
-        let converted = provider.convert_tools(&tools);
-        assert_eq!(converted.len(), 0);
-    }
-
-    #[test]
-    fn test_get_system_message_found() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let messages = vec![
-            Message {
-                role: Role::System,
-                content: MessageContent::Text("You are a helpful assistant".to_string()),
-                name: None,
-                metadata: None,
-            },
-            Message {
-                role: Role::User,
-                content: MessageContent::Text("Hello".to_string()),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let system = provider.get_system_message(&messages);
-        assert!(system.is_some());
-        assert_eq!(system.unwrap(), "You are a helpful assistant");
-    }
-
-    #[test]
-    fn test_get_system_message_not_found() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Text("Hello".to_string()),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let system = provider.get_system_message(&messages);
-        assert!(system.is_none());
-    }
-
-    #[test]
-    fn test_convert_messages_multiple_roles() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Text("Question".to_string()),
-                name: None,
-                metadata: None,
-            },
-            Message {
-                role: Role::Assistant,
-                content: MessageContent::Text("Answer".to_string()),
-                name: None,
-                metadata: None,
-            },
-            Message {
-                role: Role::User,
-                content: MessageContent::Text("Follow-up".to_string()),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 3);
-        assert_eq!(converted[0].role, "user");
-        assert_eq!(converted[1].role, "assistant");
-        assert_eq!(converted[2].role, "user");
-    }
-
-    #[test]
-    fn test_convert_tools_multiple() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let tools = vec![
-            Tool {
-                name: "tool1".to_string(),
-                description: "First tool".to_string(),
-                input_schema: ToolInputSchema::object(HashMap::new(), vec![]),
-                requires_approval: false,
-                ..Default::default()
-            },
-            Tool {
-                name: "tool2".to_string(),
-                description: "Second tool".to_string(),
-                input_schema: ToolInputSchema::object(HashMap::new(), vec![]),
-                requires_approval: true,
-                ..Default::default()
-            },
-        ];
-
-        let converted = provider.convert_tools(&tools);
-        assert_eq!(converted.len(), 2);
-        assert_eq!(converted[0].name, "tool1");
-        assert_eq!(converted[1].name, "tool2");
-    }
-
-    #[test]
-    fn test_anthropic_provider_with_empty_api_key() {
-        let provider = AnthropicProvider::new("".to_string(), "claude-3-sonnet".to_string());
-        assert_eq!(provider.api_key, "");
-        assert_eq!(provider.model, "claude-3-sonnet");
-    }
-
-    #[test]
-    fn test_anthropic_provider_with_special_characters_in_api_key() {
+    fn test_anthropic_client_with_special_characters_in_api_key() {
         let api_key = "sk-ant-api03-!@#$%^&*()_+-=[]{}|;':\",./<>?".to_string();
-        let provider = AnthropicProvider::new(api_key.clone(), "claude-3-opus".to_string());
-        assert_eq!(provider.api_key, api_key);
+        let client = AnthropicClient::new(api_key.clone(), "claude-3-opus".to_string());
+        assert_eq!(client.api_key, api_key);
     }
 
     #[test]
-    fn test_anthropic_provider_with_various_model_names() {
+    fn test_anthropic_client_with_various_model_names() {
         let models = vec![
             "claude-3-opus-20240229",
             "claude-3-sonnet-20240229",
@@ -761,575 +500,8 @@ mod tests {
         ];
 
         for model in models {
-            let provider = AnthropicProvider::new("test-key".to_string(), model.to_string());
-            assert_eq!(provider.model, model);
-        }
-    }
-
-    #[test]
-    fn test_convert_messages_empty_list() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let messages: Vec<Message> = vec![];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 0);
-    }
-
-    #[test]
-    fn test_convert_messages_with_special_characters() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Text("Hello! <>&\"'\n\t\r".to_string()),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        if let AnthropicContentBlock::Text { text } = &converted[0].content[0] {
-            assert!(text.contains("<>&\"'"));
-        } else {
-            panic!("Expected text block");
-        }
-    }
-
-    #[test]
-    fn test_convert_messages_with_unicode() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Text("你好世界 🌍 こんにちは".to_string()),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        if let AnthropicContentBlock::Text { text } = &converted[0].content[0] {
-            assert!(text.contains("你好世界"));
-            assert!(text.contains("🌍"));
-            assert!(text.contains("こんにちは"));
-        } else {
-            panic!("Expected text block");
-        }
-    }
-
-    #[test]
-    fn test_convert_messages_filters_image_blocks() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Blocks(vec![
-                    ContentBlock::Text { text: "Look at this".to_string() },
-                    ContentBlock::Image {
-                        source: brainwires_core::ImageSource::Base64 {
-                            media_type: "image/png".to_string(),
-                            data: "base64data".to_string(),
-                        },
-                    },
-                    ContentBlock::Text { text: "What do you see?".to_string() },
-                ]),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        // Image block should be filtered out (returns None in filter_map)
-        assert_eq!(converted[0].content.len(), 2);
-    }
-
-    #[test]
-    fn test_convert_messages_only_system_messages() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let messages = vec![
-            Message {
-                role: Role::System,
-                content: MessageContent::Text("System 1".to_string()),
-                name: None,
-                metadata: None,
-            },
-            Message {
-                role: Role::System,
-                content: MessageContent::Text("System 2".to_string()),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        // All system messages should be filtered out
-        assert_eq!(converted.len(), 0);
-    }
-
-    #[test]
-    fn test_convert_messages_blocks_with_only_images() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Blocks(vec![
-                    ContentBlock::Image {
-                        source: brainwires_core::ImageSource::Base64 {
-                            media_type: "image/png".to_string(),
-                            data: "base64_1".to_string(),
-                        },
-                    },
-                    ContentBlock::Image {
-                        source: brainwires_core::ImageSource::Base64 {
-                            media_type: "image/jpeg".to_string(),
-                            data: "base64_2".to_string(),
-                        },
-                    },
-                ]),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        // All image blocks should be filtered out
-        assert_eq!(converted[0].content.len(), 0);
-    }
-
-    #[test]
-    fn test_convert_messages_mixed_content_blocks() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let messages = vec![
-            Message {
-                role: Role::Assistant,
-                content: MessageContent::Blocks(vec![
-                    ContentBlock::Text { text: "Let me help".to_string() },
-                    ContentBlock::ToolUse {
-                        id: "tool-123".to_string(),
-                        name: "search".to_string(),
-                        input: json!({"query": "test"}),
-                    },
-                    ContentBlock::Text { text: "Here's what I found".to_string() },
-                ]),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0].content.len(), 3);
-        assert_eq!(converted[0].role, "assistant");
-    }
-
-    #[test]
-    fn test_convert_messages_tool_result_with_error() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Blocks(vec![
-                    ContentBlock::ToolResult {
-                        tool_use_id: "tool-456".to_string(),
-                        content: "Error: File not found".to_string(),
-                        is_error: Some(true),
-                    },
-                ]),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0].content.len(), 1);
-        if let AnthropicContentBlock::ToolResult { tool_use_id, content } = &converted[0].content[0] {
-            assert_eq!(tool_use_id, "tool-456");
-            assert!(content.contains("Error"));
-        } else {
-            panic!("Expected tool result block");
-        }
-    }
-
-    #[test]
-    fn test_convert_tools_with_complex_schema() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let mut properties = HashMap::new();
-        properties.insert(
-            "nested_object".to_string(),
-            json!({
-                "type": "object",
-                "properties": {
-                    "field1": {"type": "string"},
-                    "field2": {"type": "number"}
-                },
-                "required": ["field1"]
-            }),
-        );
-        properties.insert(
-            "array_field".to_string(),
-            json!({
-                "type": "array",
-                "items": {"type": "string"}
-            }),
-        );
-
-        let tools = vec![
-            Tool {
-                name: "complex_tool".to_string(),
-                description: "A tool with complex schema".to_string(),
-                input_schema: ToolInputSchema::object(properties.clone(), vec!["nested_object".to_string()]),
-                requires_approval: false,
-                ..Default::default()
-            },
-        ];
-
-        let converted = provider.convert_tools(&tools);
-        assert_eq!(converted.len(), 1);
-        assert!(converted[0].input_schema.contains_key("nested_object"));
-        assert!(converted[0].input_schema.contains_key("array_field"));
-    }
-
-    #[test]
-    fn test_convert_tools_with_no_properties() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let tools = vec![
-            Tool {
-                name: "simple_tool".to_string(),
-                description: "A tool with no input".to_string(),
-                input_schema: ToolInputSchema {
-                    schema_type: "object".to_string(),
-                    properties: None,
-                    required: None,
-                },
-                requires_approval: false,
-                ..Default::default()
-            },
-        ];
-
-        let converted = provider.convert_tools(&tools);
-        assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0].input_schema.len(), 0);
-    }
-
-    #[test]
-    fn test_convert_tools_with_special_characters_in_names() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let tools = vec![
-            Tool {
-                name: "tool_with_underscores_123".to_string(),
-                description: "Tool with special chars: !@#$%^&*()".to_string(),
-                input_schema: ToolInputSchema::object(HashMap::new(), vec![]),
-                requires_approval: false,
-                ..Default::default()
-            },
-        ];
-
-        let converted = provider.convert_tools(&tools);
-        assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0].name, "tool_with_underscores_123");
-        assert!(converted[0].description.contains("!@#$%^&*()"));
-    }
-
-    #[test]
-    fn test_get_system_message_with_blocks() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let messages = vec![
-            Message {
-                role: Role::System,
-                content: MessageContent::Blocks(vec![
-                    ContentBlock::Text { text: "System instruction".to_string() },
-                ]),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        // System messages with Blocks content return None from text() method
-        let system = provider.get_system_message(&messages);
-        assert!(system.is_none());
-    }
-
-    #[test]
-    fn test_get_system_message_multiple_system_messages() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let messages = vec![
-            Message {
-                role: Role::System,
-                content: MessageContent::Text("First system".to_string()),
-                name: None,
-                metadata: None,
-            },
-            Message {
-                role: Role::User,
-                content: MessageContent::Text("Hello".to_string()),
-                name: None,
-                metadata: None,
-            },
-            Message {
-                role: Role::System,
-                content: MessageContent::Text("Second system".to_string()),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let system = provider.get_system_message(&messages);
-        // Should return the first system message found
-        assert!(system.is_some());
-        assert_eq!(system.unwrap(), "First system");
-    }
-
-    #[test]
-    fn test_get_system_message_empty_messages() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let messages: Vec<Message> = vec![];
-
-        let system = provider.get_system_message(&messages);
-        assert!(system.is_none());
-    }
-
-    #[test]
-    fn test_convert_messages_preserves_tool_use_id() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let tool_id = "call_abc123xyz789";
-        let messages = vec![
-            Message {
-                role: Role::Assistant,
-                content: MessageContent::Blocks(vec![
-                    ContentBlock::ToolUse {
-                        id: tool_id.to_string(),
-                        name: "calculate".to_string(),
-                        input: json!({"expression": "2+2"}),
-                    },
-                ]),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        if let AnthropicContentBlock::ToolUse { id, name, input } = &converted[0].content[0] {
-            assert_eq!(id, tool_id);
-            assert_eq!(name, "calculate");
-            assert_eq!(input["expression"], "2+2");
-        } else {
-            panic!("Expected tool use block");
-        }
-    }
-
-    #[test]
-    fn test_convert_messages_large_text_content() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let large_text = "a".repeat(10000);
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Text(large_text.clone()),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        if let AnthropicContentBlock::Text { text } = &converted[0].content[0] {
-            assert_eq!(text.len(), 10000);
-        } else {
-            panic!("Expected text block");
-        }
-    }
-
-    #[test]
-    fn test_convert_messages_multiple_tool_uses() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let messages = vec![
-            Message {
-                role: Role::Assistant,
-                content: MessageContent::Blocks(vec![
-                    ContentBlock::ToolUse {
-                        id: "tool-1".to_string(),
-                        name: "search".to_string(),
-                        input: json!({"query": "rust"}),
-                    },
-                    ContentBlock::ToolUse {
-                        id: "tool-2".to_string(),
-                        name: "calculate".to_string(),
-                        input: json!({"expr": "1+1"}),
-                    },
-                    ContentBlock::ToolUse {
-                        id: "tool-3".to_string(),
-                        name: "fetch".to_string(),
-                        input: json!({"url": "example.com"}),
-                    },
-                ]),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0].content.len(), 3);
-    }
-
-    #[test]
-    fn test_convert_messages_alternating_roles() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Text("Q1".to_string()),
-                name: None,
-                metadata: None,
-            },
-            Message {
-                role: Role::Assistant,
-                content: MessageContent::Text("A1".to_string()),
-                name: None,
-                metadata: None,
-            },
-            Message {
-                role: Role::User,
-                content: MessageContent::Text("Q2".to_string()),
-                name: None,
-                metadata: None,
-            },
-            Message {
-                role: Role::Assistant,
-                content: MessageContent::Text("A2".to_string()),
-                name: None,
-                metadata: None,
-            },
-            Message {
-                role: Role::User,
-                content: MessageContent::Text("Q3".to_string()),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 5);
-        assert_eq!(converted[0].role, "user");
-        assert_eq!(converted[1].role, "assistant");
-        assert_eq!(converted[2].role, "user");
-        assert_eq!(converted[3].role, "assistant");
-        assert_eq!(converted[4].role, "user");
-    }
-
-    #[test]
-    fn test_convert_tools_with_empty_description() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let tools = vec![
-            Tool {
-                name: "minimal_tool".to_string(),
-                description: "".to_string(),
-                input_schema: ToolInputSchema::object(HashMap::new(), vec![]),
-                requires_approval: false,
-                ..Default::default()
-            },
-        ];
-
-        let converted = provider.convert_tools(&tools);
-        assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0].description, "");
-    }
-
-    #[test]
-    fn test_convert_messages_tool_result_empty_content() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Blocks(vec![
-                    ContentBlock::ToolResult {
-                        tool_use_id: "tool-999".to_string(),
-                        content: "".to_string(),
-                        is_error: Some(false),
-                    },
-                ]),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0].content.len(), 1);
-        if let AnthropicContentBlock::ToolResult { tool_use_id, content } = &converted[0].content[0] {
-            assert_eq!(tool_use_id, "tool-999");
-            assert_eq!(content, "");
-        } else {
-            panic!("Expected tool result block");
-        }
-    }
-
-    #[test]
-    fn test_convert_messages_complex_nested_json() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let complex_input = json!({
-            "nested": {
-                "level1": {
-                    "level2": {
-                        "array": [1, 2, 3],
-                        "string": "value",
-                        "bool": true
-                    }
-                }
-            }
-        });
-
-        let messages = vec![
-            Message {
-                role: Role::Assistant,
-                content: MessageContent::Blocks(vec![
-                    ContentBlock::ToolUse {
-                        id: "complex-tool".to_string(),
-                        name: "process".to_string(),
-                        input: complex_input.clone(),
-                    },
-                ]),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        if let AnthropicContentBlock::ToolUse { input, .. } = &converted[0].content[0] {
-            assert_eq!(input["nested"]["level1"]["level2"]["array"], json!([1, 2, 3]));
-        } else {
-            panic!("Expected tool use block with complex input");
-        }
-    }
-
-    #[test]
-    fn test_convert_messages_empty_text_block() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let messages = vec![
-            Message {
-                role: Role::Assistant,
-                content: MessageContent::Blocks(vec![
-                    ContentBlock::Text { text: "".to_string() },
-                ]),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0].content.len(), 1);
-        if let AnthropicContentBlock::Text { text } = &converted[0].content[0] {
-            assert_eq!(text, "");
-        } else {
-            panic!("Expected empty text block");
+            let client = AnthropicClient::new("test-key".to_string(), model.to_string());
+            assert_eq!(client.model, model);
         }
     }
 
@@ -1340,76 +512,147 @@ mod tests {
     }
 
     #[test]
-    fn test_convert_messages_whitespace_only_text() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Text("   \n\t\r   ".to_string()),
-                name: None,
-                metadata: None,
-            },
-        ];
+    fn test_anthropic_request_serialization() {
+        let req = AnthropicRequest {
+            model: "claude-3-sonnet".to_string(),
+            messages: vec![AnthropicMessage {
+                role: "user".to_string(),
+                content: vec![AnthropicContentBlock::Text {
+                    text: "Hello".to_string(),
+                }],
+            }],
+            system: Some("You are helpful".to_string()),
+            max_tokens: 4096,
+            temperature: Some(0.7),
+            top_p: None,
+            stop_sequences: None,
+            tools: None,
+            stream: false,
+        };
 
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        if let AnthropicContentBlock::Text { text } = &converted[0].content[0] {
-            assert!(text.contains("\n"));
-            assert!(text.contains("\t"));
-        } else {
-            panic!("Expected text block with whitespace");
-        }
+        let json = serde_json::to_value(&req).unwrap();
+        assert_eq!(json["model"], "claude-3-sonnet");
+        assert_eq!(json["max_tokens"], 4096);
+        let temp = json["temperature"].as_f64().unwrap();
+        assert!((temp - 0.7).abs() < 1e-6, "temperature {temp} not close to 0.7");
+        assert!(json.get("top_p").is_none());
+        assert!(json.get("stop_sequences").is_none());
+        assert!(json.get("tools").is_none());
     }
 
     #[test]
-    fn test_convert_tools_very_long_description() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let long_desc = "This is a very long description. ".repeat(100);
-        let tools = vec![
-            Tool {
-                name: "verbose_tool".to_string(),
-                description: long_desc.clone(),
-                input_schema: ToolInputSchema::object(HashMap::new(), vec![]),
-                requires_approval: false,
-                ..Default::default()
-            },
-        ];
-
-        let converted = provider.convert_tools(&tools);
-        assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0].description.len(), long_desc.len());
+    fn test_anthropic_content_block_text_serde() {
+        let block = AnthropicContentBlock::Text {
+            text: "hello".to_string(),
+        };
+        let json = serde_json::to_value(&block).unwrap();
+        assert_eq!(json["type"], "text");
+        assert_eq!(json["text"], "hello");
     }
 
     #[test]
-    fn test_convert_messages_sequential_tool_results() {
-        let provider = AnthropicProvider::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Blocks(vec![
-                    ContentBlock::ToolResult {
-                        tool_use_id: "tool-1".to_string(),
-                        content: "Result 1".to_string(),
-                        is_error: Some(false),
-                    },
-                    ContentBlock::ToolResult {
-                        tool_use_id: "tool-2".to_string(),
-                        content: "Result 2".to_string(),
-                        is_error: Some(false),
-                    },
-                    ContentBlock::ToolResult {
-                        tool_use_id: "tool-3".to_string(),
-                        content: "Result 3".to_string(),
-                        is_error: Some(false),
-                    },
-                ]),
-                name: None,
-                metadata: None,
-            },
-        ];
+    fn test_anthropic_content_block_tool_use_serde() {
+        let block = AnthropicContentBlock::ToolUse {
+            id: "tool-1".to_string(),
+            name: "search".to_string(),
+            input: serde_json::json!({"query": "test"}),
+        };
+        let json = serde_json::to_value(&block).unwrap();
+        assert_eq!(json["type"], "tool_use");
+        assert_eq!(json["id"], "tool-1");
+        assert_eq!(json["name"], "search");
+        assert_eq!(json["input"]["query"], "test");
+    }
 
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0].content.len(), 3);
+    #[test]
+    fn test_anthropic_content_block_tool_result_serde() {
+        let block = AnthropicContentBlock::ToolResult {
+            tool_use_id: "tool-1".to_string(),
+            content: "result text".to_string(),
+        };
+        let json = serde_json::to_value(&block).unwrap();
+        assert_eq!(json["type"], "tool_result");
+        assert_eq!(json["tool_use_id"], "tool-1");
+        assert_eq!(json["content"], "result text");
+    }
+
+    #[test]
+    fn test_anthropic_message_serialization() {
+        let msg = AnthropicMessage {
+            role: "user".to_string(),
+            content: vec![
+                AnthropicContentBlock::Text {
+                    text: "Look at this".to_string(),
+                },
+                AnthropicContentBlock::ToolUse {
+                    id: "t1".to_string(),
+                    name: "read".to_string(),
+                    input: serde_json::json!({}),
+                },
+            ],
+        };
+        let json = serde_json::to_value(&msg).unwrap();
+        assert_eq!(json["role"], "user");
+        assert_eq!(json["content"].as_array().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn test_anthropic_response_deserialization() {
+        let json = r#"{
+            "content": [
+                {"type": "text", "text": "Hello!"}
+            ],
+            "stop_reason": "end_turn",
+            "usage": {
+                "input_tokens": 10,
+                "output_tokens": 5
+            }
+        }"#;
+        let resp: AnthropicResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.stop_reason, "end_turn");
+        assert_eq!(resp.usage.input_tokens, 10);
+        assert_eq!(resp.usage.output_tokens, 5);
+        assert_eq!(resp.content.len(), 1);
+    }
+
+    #[test]
+    fn test_anthropic_stream_event_deserialization() {
+        let json = r#"{
+            "type": "content_block_delta",
+            "delta": {"text": "Hi"},
+            "usage": null
+        }"#;
+        let event: AnthropicStreamEvent = serde_json::from_str(json).unwrap();
+        assert_eq!(event.event_type, "content_block_delta");
+        assert_eq!(event.delta.unwrap().text.unwrap(), "Hi");
+    }
+
+    #[test]
+    fn test_anthropic_stream_event_message_delta() {
+        let json = r#"{
+            "type": "message_delta",
+            "delta": null,
+            "usage": {"input_tokens": 0, "output_tokens": 42}
+        }"#;
+        let event: AnthropicStreamEvent = serde_json::from_str(json).unwrap();
+        assert_eq!(event.event_type, "message_delta");
+        assert_eq!(event.usage.unwrap().output_tokens, 42);
+    }
+
+    #[test]
+    fn test_anthropic_tool_serialization() {
+        let mut schema = std::collections::HashMap::new();
+        schema.insert(
+            "query".to_string(),
+            serde_json::json!({"type": "string", "description": "Search query"}),
+        );
+        let tool = AnthropicTool {
+            name: "search".to_string(),
+            description: "Search the web".to_string(),
+            input_schema: schema,
+        };
+        let json = serde_json::to_value(&tool).unwrap();
+        assert_eq!(json["name"], "search");
+        assert!(json["input_schema"]["query"].is_object());
     }
 }

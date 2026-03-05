@@ -26,8 +26,13 @@ hound = "3.5"
 cpal = { version = "0.15", optional = true }
 tokio-stream = { workspace = true, optional = true }
 
-# HTTP for API backends (native only)
-reqwest = { workspace = true, optional = true, features = ["multipart"] }
+# Provider API clients (native only — replaces direct reqwest usage)
+brainwires-providers = { workspace = true, optional = true }
+
+# Base64 decoding (needed for Google TTS response)
+base64 = { workspace = true, optional = true }
+
+# Streaming support (native only)
 async-stream = { workspace = true, optional = true }
 
 # FLAC encode/decode (pure Rust)
@@ -39,7 +44,7 @@ whisper-rs = { version = "0.15", optional = true }
 
 [features]
 default = ["native"]
-native = ["dep:cpal", "dep:tokio-stream", "dep:reqwest", "dep:async-stream", "flac"]
+native = ["dep:cpal", "dep:tokio-stream", "dep:brainwires-providers", "dep:async-stream", "dep:base64", "flac"]
 flac = ["dep:flacenc", "dep:claxon"]
 local-stt = ["dep:whisper-rs"]
 

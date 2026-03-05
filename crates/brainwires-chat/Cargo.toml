@@ -1,6 +1,6 @@
 [package]
-name = "brainwires-providers"
-description = "AI provider implementations for the Brainwires Agent Framework"
+name = "brainwires-chat"
+description = "Chat provider implementations for the Brainwires Agent Framework"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,33 +10,27 @@ authors.workspace = true
 
 [dependencies]
 brainwires-core = { workspace = true }
+brainwires-providers = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-
-# Always needed for local_llm module (always compiled)
 async-trait = { workspace = true }
 futures = { workspace = true }
-dirs = { workspace = true }
+uuid = { workspace = true }
 
 # HTTP providers (native feature)
-reqwest = { workspace = true, optional = true, features = ["multipart"] }
 async-stream = { workspace = true, optional = true }
 tracing = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
-uuid = { workspace = true, optional = true }
-
-# Local LLM inference (optional heavy dep)
-llama-cpp-2 = { version = "0.1", optional = true }
 
 [features]
 default = ["native"]
 native = [
-    "dep:reqwest", "dep:async-stream",
-    "dep:tracing", "dep:tokio", "dep:uuid",
+    "dep:async-stream", "dep:tracing", "dep:tokio",
+    "brainwires-providers/native",
 ]
-llama-cpp-2 = ["dep:tracing", "dep:tokio", "dep:llama-cpp-2"]
+llama-cpp-2 = ["brainwires-providers/llama-cpp-2"]
 
 [dev-dependencies]
 serde_json = { workspace = true }

@@ -1,0 +1,1127 @@
+use std::sync::Arc;
+
+use anyhow::Result;
+use async_trait::async_trait;
+use futures::stream::BoxStream;
+use serde_json::json;
+
+use brainwires_core::{
+    ChatOptions, ChatResponse, ContentBlock, Message, MessageContent, Provider, Role, StreamChunk,
+    Tool, Usage,
+};
+use brainwires_providers::anthropic::{
+    AnthropicClient, AnthropicContentBlock, AnthropicMessage, AnthropicRequest, AnthropicTool,
+    AnthropicStreamEvent,
+};
+
+// ---------------------------------------------------------------------------
+// Chat provider
+// ---------------------------------------------------------------------------
+
+/// High-level chat provider that wraps an [`AnthropicClient`] and implements
+/// the `Provider` trait from `brainwires_core`.
+pub struct AnthropicChatProvider {
+    client: Arc<AnthropicClient>,
+    model: String,
+}
+
+impl AnthropicChatProvider {
+    /// Create a new chat provider backed by the given client.
+    pub fn new(client: Arc<AnthropicClient>, model: String) -> Self {
+        Self { client, model }
+    }
+
+    // -----------------------------------------------------------------------
+    // Conversion helpers
+    // -----------------------------------------------------------------------
+
+    /// Convert core `Message` values to Anthropic-native messages.
+    fn convert_messages(messages: &[Message]) -> Vec<AnthropicMessage> {
+        messages
+            .iter()
+            .filter(|m| m.role != Role::System) // System goes in separate field
+            .map(|m| AnthropicMessage {
+                role: match m.role {
+                    Role::User => "user".to_string(),
+                    Role::Assistant => "assistant".to_string(),
+                    _ => "user".to_string(),
+                },
+                content: match &m.content {
+                    MessageContent::Text(text) => vec![AnthropicContentBlock::Text {
+                        text: text.clone(),
+                    }],
+                    MessageContent::Blocks(blocks) => blocks
+                        .iter()
+                        .filter_map(|b| match b {
+                            ContentBlock::Text { text } => Some(AnthropicContentBlock::Text {
+                                text: text.clone(),
+                            }),
+                            ContentBlock::ToolUse { id, name, input } => {
+                                Some(AnthropicContentBlock::ToolUse {
+                                    id: id.clone(),
+                                    name: name.clone(),
+                                    input: input.clone(),
+                                })
+                            }
+                            ContentBlock::ToolResult {
+                                tool_use_id,
+                                content,
+                                ..
+                            } => Some(AnthropicContentBlock::ToolResult {
+                                tool_use_id: tool_use_id.clone(),
+                                content: content.clone(),
+                            }),
+                            _ => None,
+                        })
+                        .collect(),
+                },
+            })
+            .collect()
+    }
+
+    /// Convert core `Tool` values to Anthropic-native tool definitions.
+    fn convert_tools(tools: &[Tool]) -> Vec<AnthropicTool> {
+        tools
+            .iter()
+            .map(|t| AnthropicTool {
+                name: t.name.clone(),
+                description: t.description.clone(),
+                input_schema: t.input_schema.properties.clone().unwrap_or_default(),
+            })
+            .collect()
+    }
+
+    /// Extract the first system message from the message list.
+    fn get_system_message(messages: &[Message]) -> Option<String> {
+        messages
+            .iter()
+            .find(|m| m.role == Role::System)
+            .and_then(|m| m.text().map(|s| s.to_string()))
+    }
+
+    /// Parse an `AnthropicResponse` into a core `ChatResponse`.
+    fn parse_response(
+        response: brainwires_providers::anthropic::AnthropicResponse,
+    ) -> ChatResponse {
+        let content = if response.content.len() == 1 {
+            match &response.content[0] {
+                AnthropicContentBlock::Text { text } => MessageContent::Text(text.clone()),
+                _ => MessageContent::Blocks(
+                    response
+                        .content
+                        .into_iter()
+                        .filter_map(|block| match block {
+                            AnthropicContentBlock::Text { text } => {
+                                Some(ContentBlock::Text { text })
+                            }
+                            AnthropicContentBlock::ToolUse { id, name, input } => {
+                                Some(ContentBlock::ToolUse { id, name, input })
+                            }
+                            _ => None,
+                        })
+                        .collect(),
+                ),
+            }
+        } else {
+            MessageContent::Blocks(
+                response
+                    .content
+                    .into_iter()
+                    .filter_map(|block| match block {
+                        AnthropicContentBlock::Text { text } => {
+                            Some(ContentBlock::Text { text })
+                        }
+                        AnthropicContentBlock::ToolUse { id, name, input } => {
+                            Some(ContentBlock::ToolUse { id, name, input })
+                        }
+                        _ => None,
+                    })
+                    .collect(),
+            )
+        };
+
+        ChatResponse {
+            message: Message {
+                role: Role::Assistant,
+                content,
+                name: None,
+                metadata: None,
+            },
+            usage: Usage {
+                prompt_tokens: response.usage.input_tokens,
+                completion_tokens: response.usage.output_tokens,
+                total_tokens: response.usage.input_tokens + response.usage.output_tokens,
+            },
+            finish_reason: Some(response.stop_reason),
+        }
+    }
+}
+
+#[async_trait]
+impl Provider for AnthropicChatProvider {
+    fn name(&self) -> &str {
+        "anthropic"
+    }
+
+    #[tracing::instrument(name = "provider.chat", skip_all, fields(provider = "anthropic", model = %self.model))]
+    async fn chat(
+        &self,
+        messages: &[Message],
+        tools: Option<&[Tool]>,
+        options: &ChatOptions,
+    ) -> Result<ChatResponse> {
+        let anthropic_messages = Self::convert_messages(messages);
+        let system = options
+            .system
+            .clone()
+            .or_else(|| Self::get_system_message(messages));
+
+        let req = AnthropicRequest {
+            model: self.model.clone(),
+            messages: anthropic_messages,
+            system,
+            max_tokens: options.max_tokens.unwrap_or(4096),
+            temperature: options.temperature,
+            top_p: None,
+            stop_sequences: None,
+            tools: tools.map(|t| Self::convert_tools(t)),
+            stream: false,
+        };
+
+        let anthropic_response = self.client.messages(&req).await?;
+        Ok(Self::parse_response(anthropic_response))
+    }
+
+    fn stream_chat<'a>(
+        &'a self,
+        messages: &'a [Message],
+        tools: Option<&'a [Tool]>,
+        options: &'a ChatOptions,
+    ) -> BoxStream<'a, Result<StreamChunk>> {
+        tracing::info!(provider = "anthropic", model = %self.model, "provider.stream started");
+        Box::pin(async_stream::stream! {
+            let anthropic_messages = Self::convert_messages(messages);
+            let system = options
+                .system
+                .clone()
+                .or_else(|| Self::get_system_message(messages));
+
+            let req = AnthropicRequest {
+                model: self.model.clone(),
+                messages: anthropic_messages,
+                system,
+                max_tokens: options.max_tokens.unwrap_or(4096),
+                temperature: options.temperature,
+                top_p: None,
+                stop_sequences: None,
+                tools: tools.map(|t| Self::convert_tools(t)),
+                stream: true,
+            };
+
+            let mut stream = self.client.stream_messages(&req);
+
+            use futures::StreamExt;
+            while let Some(event_result) = stream.next().await {
+                match event_result {
+                    Ok(event) => {
+                        match event.event_type.as_str() {
+                            "content_block_delta" => {
+                                if let Some(delta) = event.delta
+                                    && let Some(text) = delta.text {
+                                        yield Ok(StreamChunk::Text(text));
+                                    }
+                            }
+                            "message_delta" => {
+                                if let Some(usage) = event.usage {
+                                    yield Ok(StreamChunk::Usage(Usage {
+                                        prompt_tokens: 0,
+                                        completion_tokens: usage.output_tokens,
+                                        total_tokens: usage.output_tokens,
+                                    }));
+                                }
+                            }
+                            "message_stop" => {
+                                yield Ok(StreamChunk::Done);
+                            }
+                            _ => {}
+                        }
+                    }
+                    Err(e) => {
+                        yield Err(e);
+                    }
+                }
+            }
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use brainwires_core::ToolInputSchema;
+    use std::collections::HashMap;
+
+    // Helper: build a throwaway client wrapped in Arc (never hits the network
+    // in these unit tests).
+    fn dummy_client() -> Arc<AnthropicClient> {
+        Arc::new(AnthropicClient::new(
+            "test-key".to_string(),
+            "claude-3-sonnet".to_string(),
+        ))
+    }
+
+    fn provider() -> AnthropicChatProvider {
+        AnthropicChatProvider::new(dummy_client(), "claude-3-sonnet".to_string())
+    }
+
+    #[test]
+    fn test_provider_name() {
+        let p = provider();
+        assert_eq!(p.name(), "anthropic");
+    }
+
+    #[test]
+    fn test_convert_messages_text() {
+        let messages = vec![Message {
+            role: Role::User,
+            content: MessageContent::Text("Hello".to_string()),
+            name: None,
+            metadata: None,
+        }];
+
+        let converted = AnthropicChatProvider::convert_messages(&messages);
+        assert_eq!(converted.len(), 1);
+        assert_eq!(converted[0].role, "user");
+    }
+
+    #[test]
+    fn test_convert_messages_filters_system() {
+        let messages = vec![
+            Message {
+                role: Role::System,
+                content: MessageContent::Text("System prompt".to_string()),
+                name: None,
+                metadata: None,
+            },
+            Message {
+                role: Role::User,
+                content: MessageContent::Text("Hello".to_string()),
+                name: None,
+                metadata: None,
+            },
+        ];
+
+        let converted = AnthropicChatProvider::convert_messages(&messages);
+        // System message should be filtered out
+        assert_eq!(converted.len(), 1);
+        assert_eq!(converted[0].role, "user");
+    }
+
+    #[test]
+    fn test_convert_messages_with_blocks() {
+        let messages = vec![Message {
+            role: Role::Assistant,
+            content: MessageContent::Blocks(vec![
+                ContentBlock::Text {
+                    text: "Response".to_string(),
+                },
+                ContentBlock::ToolUse {
+                    id: "tool-1".to_string(),
+                    name: "test_tool".to_string(),
+                    input: json!({"arg": "value"}),
+                },
+            ]),
+            name: None,
+            metadata: None,
+        }];
+
+        let converted = AnthropicChatProvider::convert_messages(&messages);
+        assert_eq!(converted.len(), 1);
+        assert_eq!(converted[0].role, "assistant");
+        assert_eq!(converted[0].content.len(), 2);
+    }
+
+    #[test]
+    fn test_convert_messages_with_tool_result() {
+        let messages = vec![Message {
+            role: Role::User,
+            content: MessageContent::Blocks(vec![ContentBlock::ToolResult {
+                tool_use_id: "tool-1".to_string(),
+                content: "Result".to_string(),
+                is_error: Some(false),
+            }]),
+            name: None,
+            metadata: None,
+        }];
+
+        let converted = AnthropicChatProvider::convert_messages(&messages);
+        assert_eq!(converted.len(), 1);
+        assert_eq!(converted[0].content.len(), 1);
+    }
+
+    #[test]
+    fn test_convert_tools() {
+        let mut properties = HashMap::new();
+        properties.insert(
+            "arg1".to_string(),
+            json!({
+                "type": "string",
+                "description": "First argument"
+            }),
+        );
+
+        let tools = vec![Tool {
+            name: "test_tool".to_string(),
+            description: "A test tool".to_string(),
+            input_schema: ToolInputSchema::object(properties.clone(), vec!["arg1".to_string()]),
+            requires_approval: false,
+            ..Default::default()
+        }];
+
+        let converted = AnthropicChatProvider::convert_tools(&tools);
+        assert_eq!(converted.len(), 1);
+        assert_eq!(converted[0].name, "test_tool");
+        assert_eq!(converted[0].description, "A test tool");
+        assert!(converted[0].input_schema.contains_key("arg1"));
+    }
+
+    #[test]
+    fn test_convert_tools_empty() {
+        let tools: Vec<Tool> = vec![];
+
+        let converted = AnthropicChatProvider::convert_tools(&tools);
+        assert_eq!(converted.len(), 0);
+    }
+
+    #[test]
+    fn test_get_system_message_found() {
+        let messages = vec![
+            Message {
+                role: Role::System,
+                content: MessageContent::Text("You are a helpful assistant".to_string()),
+                name: None,
+                metadata: None,
+            },
+            Message {
+                role: Role::User,
+                content: MessageContent::Text("Hello".to_string()),
+                name: None,
+                metadata: None,
+            },
+        ];
+
+        let system = AnthropicChatProvider::get_system_message(&messages);
+        assert!(system.is_some());
+        assert_eq!(system.unwrap(), "You are a helpful assistant");
+    }
+
+    #[test]
+    fn test_get_system_message_not_found() {
+        let messages = vec![Message {
+            role: Role::User,
+            content: MessageContent::Text("Hello".to_string()),
+            name: None,
+            metadata: None,
+        }];
+
+        let system = AnthropicChatProvider::get_system_message(&messages);
+        assert!(system.is_none());
+    }
+
+    #[test]
+    fn test_convert_messages_multiple_roles() {
+        let messages = vec![
+            Message {
+                role: Role::User,
+                content: MessageContent::Text("Question".to_string()),
+                name: None,
+                metadata: None,
+            },
+            Message {
+                role: Role::Assistant,
+                content: MessageContent::Text("Answer".to_string()),
+                name: None,
+                metadata: None,
+            },
+            Message {
+                role: Role::User,
+                content: MessageContent::Text("Follow-up".to_string()),
+                name: None,
+                metadata: None,
+            },
+        ];
+
+        let converted = AnthropicChatProvider::convert_messages(&messages);
+        assert_eq!(converted.len(), 3);
+        assert_eq!(converted[0].role, "user");
+        assert_eq!(converted[1].role, "assistant");
+        assert_eq!(converted[2].role, "user");
+    }
+
+    #[test]
+    fn test_convert_tools_multiple() {
+        let tools = vec![
+            Tool {
+                name: "tool1".to_string(),
+                description: "First tool".to_string(),
+                input_schema: ToolInputSchema::object(HashMap::new(), vec![]),
+                requires_approval: false,
+                ..Default::default()
+            },
+            Tool {
+                name: "tool2".to_string(),
+                description: "Second tool".to_string(),
+                input_schema: ToolInputSchema::object(HashMap::new(), vec![]),
+                requires_approval: true,
+                ..Default::default()
+            },
+        ];
+
+        let converted = AnthropicChatProvider::convert_tools(&tools);
+        assert_eq!(converted.len(), 2);
+        assert_eq!(converted[0].name, "tool1");
+        assert_eq!(converted[1].name, "tool2");
+    }
+
+    #[test]
+    fn test_convert_messages_empty_list() {
+        let messages: Vec<Message> = vec![];
+
+        let converted = AnthropicChatProvider::convert_messages(&messages);
+        assert_eq!(converted.len(), 0);
+    }
+
+    #[test]
+    fn test_convert_messages_with_special_characters() {
+        let messages = vec![Message {
+            role: Role::User,
+            content: MessageContent::Text("Hello! <>&\"'\n\t\r".to_string()),
+            name: None,
+            metadata: None,
+        }];
+
+        let converted = AnthropicChatProvider::convert_messages(&messages);
+        assert_eq!(converted.len(), 1);
+        if let AnthropicContentBlock::Text { text } = &converted[0].content[0] {
+            assert!(text.contains("<>&\"'"));
+        } else {
+            panic!("Expected text block");
+        }
+    }
+
+    #[test]
+    fn test_convert_messages_with_unicode() {
+        let messages = vec![Message {
+            role: Role::User,
+            content: MessageContent::Text("你好世界 🌍 こんにちは".to_string()),
+            name: None,
+            metadata: None,
+        }];
+
+        let converted = AnthropicChatProvider::convert_messages(&messages);
+        assert_eq!(converted.len(), 1);
+        if let AnthropicContentBlock::Text { text } = &converted[0].content[0] {
+            assert!(text.contains("你好世界"));
+            assert!(text.contains("🌍"));
+            assert!(text.contains("こんにちは"));
+        } else {
+            panic!("Expected text block");
+        }
+    }
+
+    #[test]
+    fn test_convert_messages_filters_image_blocks() {
+        let messages = vec![Message {
+            role: Role::User,
+            content: MessageContent::Blocks(vec![
+                ContentBlock::Text {
+                    text: "Look at this".to_string(),
+                },
+                ContentBlock::Image {
+                    source: brainwires_core::ImageSource::Base64 {
+                        media_type: "image/png".to_string(),
+                        data: "base64data".to_string(),
+                    },
+                },
+                ContentBlock::Text {
+                    text: "What do you see?".to_string(),
+                },
+            ]),
+            name: None,
+            metadata: None,
+        }];
+
+        let converted = AnthropicChatProvider::convert_messages(&messages);
+        assert_eq!(converted.len(), 1);
+        // Image block should be filtered out (returns None in filter_map)
+        assert_eq!(converted[0].content.len(), 2);
+    }
+
+    #[test]
+    fn test_convert_messages_only_system_messages() {
+        let messages = vec![
+            Message {
+                role: Role::System,
+                content: MessageContent::Text("System 1".to_string()),
+                name: None,
+                metadata: None,
+            },
+            Message {
+                role: Role::System,
+                content: MessageContent::Text("System 2".to_string()),
+                name: None,
+                metadata: None,
+            },
+        ];
+
+        let converted = AnthropicChatProvider::convert_messages(&messages);
+        // All system messages should be filtered out
+        assert_eq!(converted.len(), 0);
+    }
+
+    #[test]
+    fn test_convert_messages_blocks_with_only_images() {
+        let messages = vec![Message {
+            role: Role::User,
+            content: MessageContent::Blocks(vec![
+                ContentBlock::Image {
+                    source: brainwires_core::ImageSource::Base64 {
+                        media_type: "image/png".to_string(),
+                        data: "base64_1".to_string(),
+                    },
+                },
+                ContentBlock::Image {
+                    source: brainwires_core::ImageSource::Base64 {
+                        media_type: "image/jpeg".to_string(),
+                        data: "base64_2".to_string(),
+                    },
+                },
+            ]),
+            name: None,
+            metadata: None,
+        }];
+
+        let converted = AnthropicChatProvider::convert_messages(&messages);
+        assert_eq!(converted.len(), 1);
+        // All image blocks should be filtered out
+        assert_eq!(converted[0].content.len(), 0);
+    }
+
+    #[test]
+    fn test_convert_messages_mixed_content_blocks() {
+        let messages = vec![Message {
+            role: Role::Assistant,
+            content: MessageContent::Blocks(vec![
+                ContentBlock::Text {
+                    text: "Let me help".to_string(),
+                },
+                ContentBlock::ToolUse {
+                    id: "tool-123".to_string(),
+                    name: "search".to_string(),
+                    input: json!({"query": "test"}),
+                },
+                ContentBlock::Text {
+                    text: "Here's what I found".to_string(),
+                },
+            ]),
+            name: None,
+            metadata: None,
+        }];
+
+        let converted = AnthropicChatProvider::convert_messages(&messages);
+        assert_eq!(converted.len(), 1);
+        assert_eq!(converted[0].content.len(), 3);
+        assert_eq!(converted[0].role, "assistant");
+    }
+
+    #[test]
+    fn test_convert_messages_tool_result_with_error() {
+        let messages = vec![Message {
+            role: Role::User,
+            content: MessageContent::Blocks(vec![ContentBlock::ToolResult {
+                tool_use_id: "tool-456".to_string(),
+                content: "Error: File not found".to_string(),
+                is_error: Some(true),
+            }]),
+            name: None,
+            metadata: None,
+        }];
+
+        let converted = AnthropicChatProvider::convert_messages(&messages);
+        assert_eq!(converted.len(), 1);
+        assert_eq!(converted[0].content.len(), 1);
+        if let AnthropicContentBlock::ToolResult {
+            tool_use_id,
+            content,
+        } = &converted[0].content[0]
+        {
+            assert_eq!(tool_use_id, "tool-456");
+            assert!(content.contains("Error"));
+        } else {
+            panic!("Expected tool result block");
+        }
+    }
+
+    #[test]
+    fn test_convert_tools_with_complex_schema() {
+        let mut properties = HashMap::new();
+        properties.insert(
+            "nested_object".to_string(),
+            json!({
+                "type": "object",
+                "properties": {
+                    "field1": {"type": "string"},
+                    "field2": {"type": "number"}
+                },
+                "required": ["field1"]
+            }),
+        );
+        properties.insert(
+            "array_field".to_string(),
+            json!({
+                "type": "array",
+                "items": {"type": "string"}
+            }),
+        );
+
+        let tools = vec![Tool {
+            name: "complex_tool".to_string(),
+            description: "A tool with complex schema".to_string(),
+            input_schema: ToolInputSchema::object(
+                properties.clone(),
+                vec!["nested_object".to_string()],
+            ),
+            requires_approval: false,
+            ..Default::default()
+        }];
+
+        let converted = AnthropicChatProvider::convert_tools(&tools);
+        assert_eq!(converted.len(), 1);
+        assert!(converted[0].input_schema.contains_key("nested_object"));
+        assert!(converted[0].input_schema.contains_key("array_field"));
+    }
+
+    #[test]
+    fn test_convert_tools_with_no_properties() {
+        let tools = vec![Tool {
+            name: "simple_tool".to_string(),
+            description: "A tool with no input".to_string(),
+            input_schema: ToolInputSchema {
+                schema_type: "object".to_string(),
+                properties: None,
+                required: None,
+            },
+            requires_approval: false,
+            ..Default::default()
+        }];
+
+        let converted = AnthropicChatProvider::convert_tools(&tools);
+        assert_eq!(converted.len(), 1);
+        assert_eq!(converted[0].input_schema.len(), 0);
+    }
+
+    #[test]
+    fn test_convert_tools_with_special_characters_in_names() {
+        let tools = vec![Tool {
+            name: "tool_with_underscores_123".to_string(),
+            description: "Tool with special chars: !@#$%^&*()".to_string(),
+            input_schema: ToolInputSchema::object(HashMap::new(), vec![]),
+            requires_approval: false,
+            ..Default::default()
+        }];
+
+        let converted = AnthropicChatProvider::convert_tools(&tools);
+        assert_eq!(converted.len(), 1);
+        assert_eq!(converted[0].name, "tool_with_underscores_123");
+        assert!(converted[0].description.contains("!@#$%^&*()"));
+    }
+
+    #[test]
+    fn test_get_system_message_with_blocks() {
+        let messages = vec![Message {
+            role: Role::System,
+            content: MessageContent::Blocks(vec![ContentBlock::Text {
+                text: "System instruction".to_string(),
+            }]),
+            name: None,
+            metadata: None,
+        }];
+
+        // System messages with Blocks content return None from text() method
+        let system = AnthropicChatProvider::get_system_message(&messages);
+        assert!(system.is_none());
+    }
+
+    #[test]
+    fn test_get_system_message_multiple_system_messages() {
+        let messages = vec![
+            Message {
+                role: Role::System,
+                content: MessageContent::Text("First system".to_string()),
+                name: None,
+                metadata: None,
+            },
+            Message {
+                role: Role::User,
+                content: MessageContent::Text("Hello".to_string()),
+                name: None,
+                metadata: None,
+            },
+            Message {
+                role: Role::System,
+                content: MessageContent::Text("Second system".to_string()),
+                name: None,
+                metadata: None,
+            },
+        ];
+
+        let system = AnthropicChatProvider::get_system_message(&messages);
+        // Should return the first system message found
+        assert!(system.is_some());
+        assert_eq!(system.unwrap(), "First system");
+    }
+
+    #[test]
+    fn test_get_system_message_empty_messages() {
+        let messages: Vec<Message> = vec![];
+
+        let system = AnthropicChatProvider::get_system_message(&messages);
+        assert!(system.is_none());
+    }
+
+    #[test]
+    fn test_convert_messages_preserves_tool_use_id() {
+        let tool_id = "call_abc123xyz789";
+        let messages = vec![Message {
+            role: Role::Assistant,
+            content: MessageContent::Blocks(vec![ContentBlock::ToolUse {
+                id: tool_id.to_string(),
+                name: "calculate".to_string(),
+                input: json!({"expression": "2+2"}),
+            }]),
+            name: None,
+            metadata: None,
+        }];
+
+        let converted = AnthropicChatProvider::convert_messages(&messages);
+        assert_eq!(converted.len(), 1);
+        if let AnthropicContentBlock::ToolUse { id, name, input } = &converted[0].content[0] {
+            assert_eq!(id, tool_id);
+            assert_eq!(name, "calculate");
+            assert_eq!(input["expression"], "2+2");
+        } else {
+            panic!("Expected tool use block");
+        }
+    }
+
+    #[test]
+    fn test_convert_messages_large_text_content() {
+        let large_text = "a".repeat(10000);
+        let messages = vec![Message {
+            role: Role::User,
+            content: MessageContent::Text(large_text.clone()),
+            name: None,
+            metadata: None,
+        }];
+
+        let converted = AnthropicChatProvider::convert_messages(&messages);
+        assert_eq!(converted.len(), 1);
+        if let AnthropicContentBlock::Text { text } = &converted[0].content[0] {
+            assert_eq!(text.len(), 10000);
+        } else {
+            panic!("Expected text block");
+        }
+    }
+
+    #[test]
+    fn test_convert_messages_multiple_tool_uses() {
+        let messages = vec![Message {
+            role: Role::Assistant,
+            content: MessageContent::Blocks(vec![
+                ContentBlock::ToolUse {
+                    id: "tool-1".to_string(),
+                    name: "search".to_string(),
+                    input: json!({"query": "rust"}),
+                },
+                ContentBlock::ToolUse {
+                    id: "tool-2".to_string(),
+                    name: "calculate".to_string(),
+                    input: json!({"expr": "1+1"}),
+                },
+                ContentBlock::ToolUse {
+                    id: "tool-3".to_string(),
+                    name: "fetch".to_string(),
+                    input: json!({"url": "example.com"}),
+                },
+            ]),
+            name: None,
+            metadata: None,
+        }];
+
+        let converted = AnthropicChatProvider::convert_messages(&messages);
+        assert_eq!(converted.len(), 1);
+        assert_eq!(converted[0].content.len(), 3);
+    }
+
+    #[test]
+    fn test_convert_messages_alternating_roles() {
+        let messages = vec![
+            Message {
+                role: Role::User,
+                content: MessageContent::Text("Q1".to_string()),
+                name: None,
+                metadata: None,
+            },
+            Message {
+                role: Role::Assistant,
+                content: MessageContent::Text("A1".to_string()),
+                name: None,
+                metadata: None,
+            },
+            Message {
+                role: Role::User,
+                content: MessageContent::Text("Q2".to_string()),
+                name: None,
+                metadata: None,
+            },
+            Message {
+                role: Role::Assistant,
+                content: MessageContent::Text("A2".to_string()),
+                name: None,
+                metadata: None,
+            },
+            Message {
+                role: Role::User,
+                content: MessageContent::Text("Q3".to_string()),
+                name: None,
+                metadata: None,
+            },
+        ];
+
+        let converted = AnthropicChatProvider::convert_messages(&messages);
+        assert_eq!(converted.len(), 5);
+        assert_eq!(converted[0].role, "user");
+        assert_eq!(converted[1].role, "assistant");
+        assert_eq!(converted[2].role, "user");
+        assert_eq!(converted[3].role, "assistant");
+        assert_eq!(converted[4].role, "user");
+    }
+
+    #[test]
+    fn test_convert_tools_with_empty_description() {
+        let tools = vec![Tool {
+            name: "minimal_tool".to_string(),
+            description: "".to_string(),
+            input_schema: ToolInputSchema::object(HashMap::new(), vec![]),
+            requires_approval: false,
+            ..Default::default()
+        }];
+
+        let converted = AnthropicChatProvider::convert_tools(&tools);
+        assert_eq!(converted.len(), 1);
+        assert_eq!(converted[0].description, "");
+    }
+
+    #[test]
+    fn test_convert_messages_tool_result_empty_content() {
+        let messages = vec![Message {
+            role: Role::User,
+            content: MessageContent::Blocks(vec![ContentBlock::ToolResult {
+                tool_use_id: "tool-999".to_string(),
+                content: "".to_string(),
+                is_error: Some(false),
+            }]),
+            name: None,
+            metadata: None,
+        }];
+
+        let converted = AnthropicChatProvider::convert_messages(&messages);
+        assert_eq!(converted.len(), 1);
+        assert_eq!(converted[0].content.len(), 1);
+        if let AnthropicContentBlock::ToolResult {
+            tool_use_id,
+            content,
+        } = &converted[0].content[0]
+        {
+            assert_eq!(tool_use_id, "tool-999");
+            assert_eq!(content, "");
+        } else {
+            panic!("Expected tool result block");
+        }
+    }
+
+    #[test]
+    fn test_convert_messages_complex_nested_json() {
+        let complex_input = json!({
+            "nested": {
+                "level1": {
+                    "level2": {
+                        "array": [1, 2, 3],
+                        "string": "value",
+                        "bool": true
+                    }
+                }
+            }
+        });
+
+        let messages = vec![Message {
+            role: Role::Assistant,
+            content: MessageContent::Blocks(vec![ContentBlock::ToolUse {
+                id: "complex-tool".to_string(),
+                name: "process".to_string(),
+                input: complex_input.clone(),
+            }]),
+            name: None,
+            metadata: None,
+        }];
+
+        let converted = AnthropicChatProvider::convert_messages(&messages);
+        assert_eq!(converted.len(), 1);
+        if let AnthropicContentBlock::ToolUse { input, .. } = &converted[0].content[0] {
+            assert_eq!(input["nested"]["level1"]["level2"]["array"], json!([1, 2, 3]));
+        } else {
+            panic!("Expected tool use block with complex input");
+        }
+    }
+
+    #[test]
+    fn test_convert_messages_empty_text_block() {
+        let messages = vec![Message {
+            role: Role::Assistant,
+            content: MessageContent::Blocks(vec![ContentBlock::Text {
+                text: "".to_string(),
+            }]),
+            name: None,
+            metadata: None,
+        }];
+
+        let converted = AnthropicChatProvider::convert_messages(&messages);
+        assert_eq!(converted.len(), 1);
+        assert_eq!(converted[0].content.len(), 1);
+        if let AnthropicContentBlock::Text { text } = &converted[0].content[0] {
+            assert_eq!(text, "");
+        } else {
+            panic!("Expected empty text block");
+        }
+    }
+
+    #[test]
+    fn test_convert_messages_whitespace_only_text() {
+        let messages = vec![Message {
+            role: Role::User,
+            content: MessageContent::Text("   \n\t\r   ".to_string()),
+            name: None,
+            metadata: None,
+        }];
+
+        let converted = AnthropicChatProvider::convert_messages(&messages);
+        assert_eq!(converted.len(), 1);
+        if let AnthropicContentBlock::Text { text } = &converted[0].content[0] {
+            assert!(text.contains("\n"));
+            assert!(text.contains("\t"));
+        } else {
+            panic!("Expected text block with whitespace");
+        }
+    }
+
+    #[test]
+    fn test_convert_tools_very_long_description() {
+        let long_desc = "This is a very long description. ".repeat(100);
+        let tools = vec![Tool {
+            name: "verbose_tool".to_string(),
+            description: long_desc.clone(),
+            input_schema: ToolInputSchema::object(HashMap::new(), vec![]),
+            requires_approval: false,
+            ..Default::default()
+        }];
+
+        let converted = AnthropicChatProvider::convert_tools(&tools);
+        assert_eq!(converted.len(), 1);
+        assert_eq!(converted[0].description.len(), long_desc.len());
+    }
+
+    #[test]
+    fn test_convert_messages_sequential_tool_results() {
+        let messages = vec![Message {
+            role: Role::User,
+            content: MessageContent::Blocks(vec![
+                ContentBlock::ToolResult {
+                    tool_use_id: "tool-1".to_string(),
+                    content: "Result 1".to_string(),
+                    is_error: Some(false),
+                },
+                ContentBlock::ToolResult {
+                    tool_use_id: "tool-2".to_string(),
+                    content: "Result 2".to_string(),
+                    is_error: Some(false),
+                },
+                ContentBlock::ToolResult {
+                    tool_use_id: "tool-3".to_string(),
+                    content: "Result 3".to_string(),
+                    is_error: Some(false),
+                },
+            ]),
+            name: None,
+            metadata: None,
+        }];
+
+        let converted = AnthropicChatProvider::convert_messages(&messages);
+        assert_eq!(converted.len(), 1);
+        assert_eq!(converted[0].content.len(), 3);
+    }
+
+    #[test]
+    fn test_parse_response_single_text() {
+        let response = brainwires_providers::anthropic::AnthropicResponse {
+            content: vec![AnthropicContentBlock::Text {
+                text: "Hello!".to_string(),
+            }],
+            stop_reason: "end_turn".to_string(),
+            usage: brainwires_providers::anthropic::AnthropicUsage {
+                input_tokens: 10,
+                output_tokens: 5,
+            },
+        };
+
+        let chat_response = AnthropicChatProvider::parse_response(response);
+        assert_eq!(chat_response.message.role, Role::Assistant);
+        assert_eq!(chat_response.usage.prompt_tokens, 10);
+        assert_eq!(chat_response.usage.completion_tokens, 5);
+        assert_eq!(chat_response.usage.total_tokens, 15);
+        assert_eq!(chat_response.finish_reason, Some("end_turn".to_string()));
+
+        if let MessageContent::Text(text) = &chat_response.message.content {
+            assert_eq!(text, "Hello!");
+        } else {
+            panic!("Expected Text content for single text response");
+        }
+    }
+
+    #[test]
+    fn test_parse_response_multiple_blocks() {
+        let response = brainwires_providers::anthropic::AnthropicResponse {
+            content: vec![
+                AnthropicContentBlock::Text {
+                    text: "Let me search".to_string(),
+                },
+                AnthropicContentBlock::ToolUse {
+                    id: "call_1".to_string(),
+                    name: "search".to_string(),
+                    input: json!({"q": "test"}),
+                },
+            ],
+            stop_reason: "tool_use".to_string(),
+            usage: brainwires_providers::anthropic::AnthropicUsage {
+                input_tokens: 20,
+                output_tokens: 15,
+            },
+        };
+
+        let chat_response = AnthropicChatProvider::parse_response(response);
+        if let MessageContent::Blocks(blocks) = &chat_response.message.content {
+            assert_eq!(blocks.len(), 2);
+        } else {
+            panic!("Expected Blocks content for multi-block response");
+        }
+    }
+}

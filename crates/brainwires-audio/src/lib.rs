@@ -55,7 +55,16 @@ pub use buffer::AudioRingBuffer;
 #[cfg(feature = "native")]
 pub use hardware::{CpalCapture, CpalPlayback};
 #[cfg(feature = "native")]
-pub use api::{OpenAiStt, OpenAiTts};
+pub use api::{
+    OpenAiStt, OpenAiTts,
+    ElevenLabsTts, ElevenLabsStt,
+    DeepgramTts, DeepgramStt,
+    GoogleTts,
+    AzureTts, AzureStt,
+    FishTts, FishStt,
+    CartesiaTts,
+    MurfTts,
+};
 #[cfg(feature = "flac")]
 pub use flac::{decode_flac, encode_flac};
 #[cfg(feature = "local-stt")]

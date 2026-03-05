@@ -5,16 +5,98 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use brainwires_core::{ChatResponse, ContentBlock, Message, MessageContent, Role, StreamChunk, Usage};
-use brainwires_core::{ChatOptions, Provider};
-use brainwires_core::Tool;
-
 use super::rate_limiter::RateLimiter;
 
 const OPENAI_API_URL: &str = "https://api.openai.com/v1/chat/completions";
 
-/// OpenAI (GPT) API provider.
-pub struct OpenAIProvider {
+// ---------------------------------------------------------------------------
+// Request options
+// ---------------------------------------------------------------------------
+
+/// Options for chat completion requests sent to the OpenAI API.
+#[derive(Debug, Clone, Default)]
+pub struct OpenAiRequestOptions {
+    /// Sampling temperature (0.0 - 2.0).
+    pub temperature: Option<f32>,
+    /// Maximum number of tokens to generate.
+    pub max_tokens: Option<u32>,
+    /// Nucleus sampling parameter.
+    pub top_p: Option<f32>,
+    /// Up to 4 sequences where the API will stop generating further tokens.
+    pub stop: Option<Vec<String>>,
+    /// System message prepended to the conversation.
+    pub system: Option<String>,
+}
+
+// ---------------------------------------------------------------------------
+// Speech / Transcription request & response types
+// ---------------------------------------------------------------------------
+
+/// Request body for the text-to-speech endpoint (`/v1/audio/speech`).
+#[derive(Debug, Clone, Serialize)]
+pub struct CreateSpeechRequest {
+    /// TTS model id (e.g. `"tts-1"`, `"tts-1-hd"`).
+    pub model: String,
+    /// The text to synthesise.
+    pub input: String,
+    /// Voice to use (e.g. `"alloy"`, `"echo"`, `"fable"`, `"onyx"`, `"nova"`, `"shimmer"`).
+    pub voice: String,
+    /// Audio format – `"mp3"`, `"opus"`, `"aac"`, `"flac"`, `"wav"`, `"pcm"`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub response_format: Option<String>,
+    /// Playback speed (0.25 – 4.0).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub speed: Option<f64>,
+}
+
+/// Request parameters for the transcription endpoint (`/v1/audio/transcriptions`).
+#[derive(Debug, Clone)]
+pub struct TranscriptionRequest {
+    /// Whisper model id (e.g. `"whisper-1"`).
+    pub model: String,
+    /// BCP-47 language code of the input audio (e.g. `"en"`).
+    pub language: Option<String>,
+    /// An optional prompt to guide the model's style.
+    pub prompt: Option<String>,
+    /// Whether to include word-level timestamps.
+    pub timestamps: Option<bool>,
+}
+
+/// Response from the transcription endpoint.
+#[derive(Debug, Clone, Deserialize)]
+pub struct TranscriptionResponse {
+    /// The transcribed text.
+    pub text: String,
+    /// Detected or supplied language.
+    #[serde(default)]
+    pub language: Option<String>,
+    /// Duration of the audio in seconds.
+    #[serde(default)]
+    pub duration: Option<f64>,
+    /// Word- or segment-level timestamps (when requested).
+    #[serde(default)]
+    pub segments: Option<Vec<TranscriptionSegment>>,
+}
+
+/// A single segment returned by the transcription endpoint.
+#[derive(Debug, Clone, Deserialize)]
+pub struct TranscriptionSegment {
+    pub id: Option<u32>,
+    pub start: Option<f64>,
+    pub end: Option<f64>,
+    pub text: Option<String>,
+}
+
+// ---------------------------------------------------------------------------
+// OpenAI API client
+// ---------------------------------------------------------------------------
+
+/// Low-level HTTP client for the OpenAI (and OpenAI-compatible) REST API.
+///
+/// This struct is provider-type agnostic: it speaks only in OpenAI wire
+/// types (`OpenAIMessage`, `OpenAITool`, etc.) and leaves higher-level
+/// concerns such as converting from `brainwires_core::Message` to callers.
+pub struct OpenAiClient {
     api_key: String,
     model: String,
     base_url: String,
@@ -23,8 +105,8 @@ pub struct OpenAIProvider {
     rate_limiter: Option<std::sync::Arc<RateLimiter>>,
 }
 
-impl OpenAIProvider {
-    /// Create a new OpenAI provider with the given API key and model.
+impl OpenAiClient {
+    /// Create a new OpenAI client with the given API key and default model.
     pub fn new(api_key: String, model: String) -> Self {
         Self {
             api_key,
@@ -36,7 +118,7 @@ impl OpenAIProvider {
         }
     }
 
-    /// Create a provider with rate limiting (requests per minute).
+    /// Create a client with rate limiting (requests per minute).
     pub fn with_rate_limit(api_key: String, model: String, requests_per_minute: u32) -> Self {
         Self {
             api_key,
@@ -54,6 +136,12 @@ impl OpenAIProvider {
         self
     }
 
+    /// Set the organization ID for API requests.
+    pub fn with_organization(mut self, org_id: String) -> Self {
+        self.organization_id = Some(org_id);
+        self
+    }
+
     /// Wait for rate-limit clearance (no-op if not configured).
     async fn acquire_rate_limit(&self) {
         if let Some(ref limiter) = self.rate_limiter {
@@ -61,124 +149,31 @@ impl OpenAIProvider {
         }
     }
 
-    /// Set the organization ID for API requests.
-    pub fn with_organization(mut self, org_id: String) -> Self {
-        self.organization_id = Some(org_id);
-        self
+    /// Check if the default model is an O1/O3 model (no streaming, no system messages).
+    pub fn is_o1_model(model: &str) -> bool {
+        model.starts_with("o1-") || model.starts_with("o3-")
     }
 
-    /// Convert our Message format to OpenAI's format
-    fn convert_messages(&self, messages: &[Message]) -> Vec<OpenAIMessage> {
-        messages
-            .iter()
-            .map(|m| {
-                let role = match m.role {
-                    Role::User => "user",
-                    Role::Assistant => "assistant",
-                    Role::System => "system",
-                    Role::Tool => "tool",
-                };
+    // -------------------------------------------------------------------
+    // Raw API methods
+    // -------------------------------------------------------------------
 
-                let content = match &m.content {
-                    MessageContent::Text(text) => OpenAIContent::Text(text.clone()),
-                    MessageContent::Blocks(blocks) => {
-                        // Check if we have multiple blocks or special types
-                        if blocks.len() == 1 {
-                            match &blocks[0] {
-                                ContentBlock::Text { text } => OpenAIContent::Text(text.clone()),
-                                _ => OpenAIContent::Array(
-                                    blocks
-                                        .iter()
-                                        .filter_map(|b| self.convert_content_block(b))
-                                        .collect(),
-                                ),
-                            }
-                        } else {
-                            OpenAIContent::Array(
-                                blocks
-                                    .iter()
-                                    .filter_map(|b| self.convert_content_block(b))
-                                    .collect(),
-                            )
-                        }
-                    }
-                };
-
-                OpenAIMessage {
-                    role: role.to_string(),
-                    content,
-                    name: m.name.clone(),
-                    tool_calls: None,
-                    tool_call_id: None,
-                }
-            })
-            .collect()
-    }
-
-    fn convert_content_block(&self, block: &ContentBlock) -> Option<OpenAIContentPart> {
-        match block {
-            ContentBlock::Text { text } => Some(OpenAIContentPart::Text {
-                text: text.clone(),
-            }),
-            ContentBlock::Image { source } => {
-                // Convert image source to OpenAI format
-                match source {
-                    brainwires_core::ImageSource::Base64 { media_type, data } => {
-                        Some(OpenAIContentPart::ImageUrl {
-                            image_url: OpenAIImageUrl {
-                                url: format!("data:{};base64,{}", media_type, data),
-                            },
-                        })
-                    }
-                }
-            }
-            _ => None,
-        }
-    }
-
-    /// Convert our Tool format to OpenAI's format
-    fn convert_tools(&self, tools: &[Tool]) -> Vec<OpenAITool> {
-        tools
-            .iter()
-            .map(|t| OpenAITool {
-                r#type: "function".to_string(),
-                function: OpenAIFunction {
-                    name: t.name.clone(),
-                    description: t.description.clone(),
-                    parameters: t.input_schema.properties.clone().unwrap_or_default(),
-                },
-            })
-            .collect()
-    }
-
-    /// Check if this is an O1 model (no streaming, no system messages)
-    fn is_o1_model(&self) -> bool {
-        self.model.starts_with("o1-") || self.model.starts_with("o3-")
-    }
-}
-
-#[async_trait]
-impl Provider for OpenAIProvider {
-    fn name(&self) -> &str {
-        "openai"
-    }
-
-    #[tracing::instrument(name = "provider.chat", skip_all, fields(provider = "openai", model = %self.model))]
-    async fn chat(
+    /// Send a non-streaming chat completion request and return the raw
+    /// provider response.
+    #[tracing::instrument(name = "openai_client.chat_completions", skip_all, fields(model = %model))]
+    pub async fn chat_completions(
         &self,
-        messages: &[Message],
-        tools: Option<&[Tool]>,
-        options: &ChatOptions,
-    ) -> Result<ChatResponse> {
-        let openai_messages = self.convert_messages(messages);
-
+        messages: &[OpenAIMessage],
+        model: &str,
+        tools: Option<&[OpenAITool]>,
+        options: &OpenAiRequestOptions,
+    ) -> Result<OpenAIResponse> {
         let mut request_body = json!({
-            "model": self.model,
-            "messages": openai_messages,
+            "model": model,
+            "messages": messages,
         });
 
-        // O1 models don't support max_tokens, temperature, or system messages
-        if !self.is_o1_model() {
+        if !Self::is_o1_model(model) {
             if let Some(max_tokens) = options.max_tokens {
                 request_body["max_tokens"] = json!(max_tokens);
             }
@@ -188,12 +183,16 @@ impl Provider for OpenAIProvider {
             if let Some(top_p) = options.top_p {
                 request_body["top_p"] = json!(top_p);
             }
+            if let Some(ref stop) = options.stop {
+                request_body["stop"] = json!(stop);
+            }
         }
 
         if let Some(tools_list) = tools
-            && !tools_list.is_empty() {
-                request_body["tools"] = json!(self.convert_tools(tools_list));
-            }
+            && !tools_list.is_empty()
+        {
+            request_body["tools"] = json!(tools_list);
+        }
 
         let mut request = self
             .http_client
@@ -214,7 +213,10 @@ impl Provider for OpenAIProvider {
 
         if !response.status().is_success() {
             let status = response.status();
-            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
             anyhow::bail!("OpenAI API error ({}): {}", status, error_text);
         }
 
@@ -223,91 +225,45 @@ impl Provider for OpenAIProvider {
             .await
             .context("Failed to parse OpenAI response")?;
 
-        let choice = openai_response
-            .choices
-            .into_iter()
-            .next()
-            .ok_or_else(|| anyhow::anyhow!("No choices in OpenAI response"))?;
-
-        // Convert response to our format
-        let content = match choice.message.content {
-            OpenAIContent::Text(text) => MessageContent::Text(text),
-            OpenAIContent::Array(parts) => MessageContent::Blocks(
-                parts
-                    .into_iter()
-                    .filter_map(|part| match part {
-                        OpenAIContentPart::Text { text, .. } => Some(ContentBlock::Text { text }),
-                        _ => None,
-                    })
-                    .collect(),
-            ),
-        };
-
-        Ok(ChatResponse {
-            message: Message {
-                role: Role::Assistant,
-                content,
-                name: None,
-                metadata: None,
-            },
-            usage: Usage {
-                prompt_tokens: openai_response.usage.prompt_tokens,
-                completion_tokens: openai_response.usage.completion_tokens,
-                total_tokens: openai_response.usage.total_tokens,
-            },
-            finish_reason: Some(choice.finish_reason),
-        })
+        Ok(openai_response)
     }
 
-    fn stream_chat<'a>(
+    /// Open a streaming chat completion and return a stream of raw
+    /// provider-specific chunks.
+    pub fn stream_chat_completions<'a>(
         &'a self,
-        messages: &'a [Message],
-        tools: Option<&'a [Tool]>,
-        options: &'a ChatOptions,
-    ) -> BoxStream<'a, Result<StreamChunk>> {
-        tracing::info!(provider = "openai", model = %self.model, "provider.stream started");
-        // O1 models don't support streaming
-        if self.is_o1_model() {
-            return Box::pin(async_stream::stream! {
-                // Fall back to non-streaming for O1 models
-                match self.chat(messages, tools, options).await {
-                    Ok(response) => {
-                        if let Some(text) = response.message.text() {
-                            yield Ok(StreamChunk::Text(text.to_string()));
-                        }
-                        yield Ok(StreamChunk::Usage(response.usage));
-                        yield Ok(StreamChunk::Done);
-                    }
-                    Err(e) => {
-                        yield Err(e);
-                    }
-                }
-            });
-        }
-
+        messages: &'a [OpenAIMessage],
+        model: &'a str,
+        tools: Option<&'a [OpenAITool]>,
+        options: &'a OpenAiRequestOptions,
+    ) -> BoxStream<'a, Result<OpenAIStreamChunk>> {
         Box::pin(async_stream::stream! {
-            let openai_messages = self.convert_messages(messages);
-
             let mut request_body = json!({
-                "model": self.model,
-                "messages": openai_messages,
+                "model": model,
+                "messages": messages,
                 "stream": true,
             });
 
-            if let Some(max_tokens) = options.max_tokens {
-                request_body["max_tokens"] = json!(max_tokens);
-            }
-            if let Some(temp) = options.temperature {
-                request_body["temperature"] = json!(temp);
-            }
-            if let Some(top_p) = options.top_p {
-                request_body["top_p"] = json!(top_p);
+            if !Self::is_o1_model(model) {
+                if let Some(max_tokens) = options.max_tokens {
+                    request_body["max_tokens"] = json!(max_tokens);
+                }
+                if let Some(temp) = options.temperature {
+                    request_body["temperature"] = json!(temp);
+                }
+                if let Some(top_p) = options.top_p {
+                    request_body["top_p"] = json!(top_p);
+                }
+                if let Some(ref stop) = options.stop {
+                    request_body["stop"] = json!(stop);
+                }
             }
 
             if let Some(tools_list) = tools
-                && !tools_list.is_empty() {
-                    request_body["tools"] = json!(self.convert_tools(tools_list));
-                }
+                && !tools_list.is_empty()
+            {
+                request_body["tools"] = json!(tools_list);
+            }
 
             let mut request = self
                 .http_client
@@ -358,34 +314,14 @@ impl Provider for OpenAIProvider {
                     // Parse SSE event
                     if let Some(data) = event_data.strip_prefix("data: ") {
                         if data == "[DONE]" {
-                            yield Ok(StreamChunk::Done);
-                            continue;
+                            // Signal end-of-stream via None in the
+                            // stream (the stream simply ends).
+                            return;
                         }
 
                         match serde_json::from_str::<OpenAIStreamChunk>(data) {
-                            Ok(chunk) => {
-                                if let Some(choice) = chunk.choices.into_iter().next()
-                                    && let Some(delta) = choice.delta {
-                                        if let Some(content) = delta.content {
-                                            yield Ok(StreamChunk::Text(content));
-                                        }
-                                        if let Some(tool_calls) = delta.tool_calls {
-                                            for tool_call in tool_calls {
-                                                yield Ok(StreamChunk::ToolUse {
-                                                    id: tool_call.id.unwrap_or_default(),
-                                                    name: tool_call.function.name.unwrap_or_default(),
-                                                });
-                                            }
-                                        }
-                                    }
-
-                                if let Some(usage) = chunk.usage {
-                                    yield Ok(StreamChunk::Usage(Usage {
-                                        prompt_tokens: usage.prompt_tokens,
-                                        completion_tokens: usage.completion_tokens,
-                                        total_tokens: usage.total_tokens,
-                                    }));
-                                }
+                            Ok(parsed) => {
+                                yield Ok(parsed);
                             }
                             Err(e) => {
                                 tracing::warn!("Failed to parse OpenAI stream chunk: {}", e);
@@ -396,32 +332,190 @@ impl Provider for OpenAIProvider {
             }
         })
     }
+
+    /// Synthesise speech from text via the `/v1/audio/speech` endpoint.
+    ///
+    /// Returns the raw audio bytes in the requested format.
+    pub async fn create_speech(&self, req: &CreateSpeechRequest) -> Result<Vec<u8>> {
+        let speech_url = if self.base_url.ends_with("/chat/completions") {
+            self.base_url.replace("/chat/completions", "/audio/speech")
+        } else {
+            format!("{}/audio/speech", self.base_url.trim_end_matches('/'))
+        };
+
+        let mut request = self
+            .http_client
+            .post(&speech_url)
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .header("Content-Type", "application/json");
+
+        if let Some(org_id) = &self.organization_id {
+            request = request.header("OpenAI-Organization", org_id);
+        }
+
+        self.acquire_rate_limit().await;
+        let response = request
+            .json(req)
+            .send()
+            .await
+            .context("Failed to send speech request to OpenAI")?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
+            anyhow::bail!("OpenAI speech API error ({}): {}", status, error_text);
+        }
+
+        let bytes = response
+            .bytes()
+            .await
+            .context("Failed to read speech response body")?;
+
+        Ok(bytes.to_vec())
+    }
+
+    /// Transcribe audio via the `/v1/audio/transcriptions` endpoint.
+    ///
+    /// `audio_wav` should contain the raw bytes of the audio file (WAV,
+    /// MP3, etc.).
+    pub async fn create_transcription(
+        &self,
+        audio_wav: Vec<u8>,
+        req: &TranscriptionRequest,
+    ) -> Result<TranscriptionResponse> {
+        let transcription_url = if self.base_url.ends_with("/chat/completions") {
+            self.base_url
+                .replace("/chat/completions", "/audio/transcriptions")
+        } else {
+            format!(
+                "{}/audio/transcriptions",
+                self.base_url.trim_end_matches('/')
+            )
+        };
+
+        let file_part = reqwest::multipart::Part::bytes(audio_wav)
+            .file_name("audio.wav")
+            .mime_str("audio/wav")?;
+
+        let mut form = reqwest::multipart::Form::new()
+            .text("model", req.model.clone())
+            .part("file", file_part);
+
+        if let Some(ref lang) = req.language {
+            form = form.text("language", lang.clone());
+        }
+        if let Some(ref prompt) = req.prompt {
+            form = form.text("prompt", prompt.clone());
+        }
+        if let Some(true) = req.timestamps {
+            form = form.text("response_format", "verbose_json");
+            form = form.text("timestamp_granularities[]", "segment");
+        }
+
+        let mut request = self
+            .http_client
+            .post(&transcription_url)
+            .header("Authorization", format!("Bearer {}", self.api_key));
+
+        if let Some(org_id) = &self.organization_id {
+            request = request.header("OpenAI-Organization", org_id);
+        }
+
+        self.acquire_rate_limit().await;
+        let response = request
+            .multipart(form)
+            .send()
+            .await
+            .context("Failed to send transcription request to OpenAI")?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
+            anyhow::bail!(
+                "OpenAI transcription API error ({}): {}",
+                status,
+                error_text
+            );
+        }
+
+        let transcription: TranscriptionResponse = response
+            .json()
+            .await
+            .context("Failed to parse transcription response")?;
+
+        Ok(transcription)
+    }
+
+    /// List available models via the `/v1/models` endpoint.
+    pub async fn list_models(&self) -> Result<OpenAIListModelsResponse> {
+        let models_url = if self.base_url.ends_with("/chat/completions") {
+            self.base_url.replace("/chat/completions", "/models")
+        } else {
+            format!("{}/models", self.base_url.trim_end_matches('/'))
+        };
+
+        let mut request = self
+            .http_client
+            .get(&models_url)
+            .header("Authorization", format!("Bearer {}", self.api_key));
+
+        if let Some(org_id) = &self.organization_id {
+            request = request.header("OpenAI-Organization", org_id);
+        }
+
+        self.acquire_rate_limit().await;
+        let response = request
+            .send()
+            .await
+            .context("Failed to list OpenAI models")?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            anyhow::bail!("OpenAI models API returned {}: {}", status, body);
+        }
+
+        let list: OpenAIListModelsResponse = response
+            .json()
+            .await
+            .context("Failed to parse OpenAI models response")?;
+
+        Ok(list)
+    }
 }
 
-// OpenAI API types
+// ---------------------------------------------------------------------------
+// OpenAI API serde types (all pub)
+// ---------------------------------------------------------------------------
 
-#[derive(Debug, Serialize)]
-struct OpenAIMessage {
-    role: String,
-    content: OpenAIContent,
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct OpenAIMessage {
+    pub role: String,
+    pub content: OpenAIContent,
     #[serde(skip_serializing_if = "Option::is_none")]
-    name: Option<String>,
+    pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    tool_calls: Option<Vec<OpenAIToolCall>>,
+    pub tool_calls: Option<Vec<OpenAIToolCall>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    tool_call_id: Option<String>,
+    pub tool_call_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
-enum OpenAIContent {
+pub enum OpenAIContent {
     Text(String),
     Array(Vec<OpenAIContentPart>),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "type", rename_all = "snake_case")]
-enum OpenAIContentPart {
+pub enum OpenAIContentPart {
     Text {
         text: String,
     },
@@ -431,85 +525,105 @@ enum OpenAIContentPart {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-struct OpenAIImageUrl {
-    url: String,
+pub struct OpenAIImageUrl {
+    pub url: String,
 }
 
-#[derive(Debug, Serialize)]
-struct OpenAITool {
-    r#type: String,
-    function: OpenAIFunction,
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct OpenAITool {
+    pub r#type: String,
+    pub function: OpenAIFunction,
 }
 
-#[derive(Debug, Serialize)]
-struct OpenAIFunction {
-    name: String,
-    description: String,
-    parameters: std::collections::HashMap<String, serde_json::Value>,
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct OpenAIFunction {
+    pub name: String,
+    pub description: String,
+    pub parameters: std::collections::HashMap<String, serde_json::Value>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct OpenAIToolCall {
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct OpenAIToolCall {
     #[serde(skip_serializing_if = "Option::is_none")]
-    id: Option<String>,
-    r#type: String,
-    function: OpenAIFunctionCall,
+    pub id: Option<String>,
+    pub r#type: String,
+    pub function: OpenAIFunctionCall,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct OpenAIFunctionCall {
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct OpenAIFunctionCall {
     #[serde(skip_serializing_if = "Option::is_none")]
-    name: Option<String>,
+    pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    arguments: Option<String>,
+    pub arguments: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
-struct OpenAIResponse {
-    choices: Vec<OpenAIChoice>,
-    usage: OpenAIUsage,
+#[derive(Debug, Deserialize, Clone)]
+pub struct OpenAIResponse {
+    pub choices: Vec<OpenAIChoice>,
+    pub usage: OpenAIUsage,
 }
 
-#[derive(Debug, Deserialize)]
-struct OpenAIChoice {
-    message: OpenAIResponseMessage,
-    finish_reason: String,
+#[derive(Debug, Deserialize, Clone)]
+pub struct OpenAIChoice {
+    pub message: OpenAIResponseMessage,
+    pub finish_reason: String,
 }
 
-#[derive(Debug, Deserialize)]
-struct OpenAIResponseMessage {
-    content: OpenAIContent,
+#[derive(Debug, Deserialize, Clone)]
+pub struct OpenAIResponseMessage {
+    pub content: OpenAIContent,
+    #[serde(default)]
+    pub tool_calls: Option<Vec<OpenAIToolCall>>,
 }
 
-#[derive(Debug, Deserialize)]
-struct OpenAIUsage {
-    prompt_tokens: u32,
-    completion_tokens: u32,
-    total_tokens: u32,
+#[derive(Debug, Deserialize, Clone)]
+pub struct OpenAIUsage {
+    pub prompt_tokens: u32,
+    pub completion_tokens: u32,
+    pub total_tokens: u32,
 }
 
-#[derive(Debug, Deserialize)]
-struct OpenAIStreamChunk {
-    choices: Vec<OpenAIStreamChoice>,
+#[derive(Debug, Deserialize, Clone)]
+pub struct OpenAIStreamChunk {
+    pub choices: Vec<OpenAIStreamChoice>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    usage: Option<OpenAIUsage>,
+    pub usage: Option<OpenAIUsage>,
 }
 
-#[derive(Debug, Deserialize)]
-struct OpenAIStreamChoice {
-    delta: Option<OpenAIStreamDelta>,
+#[derive(Debug, Deserialize, Clone)]
+pub struct OpenAIStreamChoice {
+    pub delta: Option<OpenAIStreamDelta>,
 }
 
-#[derive(Debug, Deserialize)]
-struct OpenAIStreamDelta {
+#[derive(Debug, Deserialize, Clone)]
+pub struct OpenAIStreamDelta {
     #[serde(skip_serializing_if = "Option::is_none")]
-    content: Option<String>,
+    pub content: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    tool_calls: Option<Vec<OpenAIToolCall>>,
+    pub tool_calls: Option<Vec<OpenAIToolCall>>,
 }
 
 // ---------------------------------------------------------------------------
-// Model listing
+// Models listing types
+// ---------------------------------------------------------------------------
+
+/// Response from the `/v1/models` endpoint.
+#[derive(Debug, Deserialize, Clone)]
+pub struct OpenAIListModelsResponse {
+    pub data: Vec<OpenAIModelEntry>,
+}
+
+/// A single entry in the models list.
+#[derive(Debug, Deserialize, Clone)]
+pub struct OpenAIModelEntry {
+    pub id: String,
+    pub owned_by: Option<String>,
+    pub created: Option<i64>,
+}
+
+// ---------------------------------------------------------------------------
+// Model listing (higher-level, uses AvailableModel from model_listing)
 // ---------------------------------------------------------------------------
 
 use crate::model_listing::{
@@ -590,457 +704,74 @@ impl ModelLister for OpenAIModelLister {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use brainwires_core::ToolInputSchema;
     use std::collections::HashMap;
 
     #[test]
-    fn test_openai_provider_new() {
-        let provider = OpenAIProvider::new("test-key".to_string(), "gpt-4".to_string());
-        assert_eq!(provider.api_key, "test-key");
-        assert_eq!(provider.model, "gpt-4");
-        assert!(provider.organization_id.is_none());
+    fn test_openai_client_new() {
+        let client = OpenAiClient::new("test-key".to_string(), "gpt-4".to_string());
+        assert_eq!(client.api_key, "test-key");
+        assert_eq!(client.model, "gpt-4");
+        assert!(client.organization_id.is_none());
     }
 
     #[test]
-    fn test_openai_provider_with_organization() {
-        let provider = OpenAIProvider::new("test-key".to_string(), "gpt-4".to_string())
+    fn test_openai_client_with_organization() {
+        let client = OpenAiClient::new("test-key".to_string(), "gpt-4".to_string())
             .with_organization("org-123".to_string());
-        assert!(provider.organization_id.is_some());
-        assert_eq!(provider.organization_id.unwrap(), "org-123");
-    }
-
-    #[test]
-    fn test_provider_name() {
-        let provider = OpenAIProvider::new("test-key".to_string(), "gpt-4".to_string());
-        assert_eq!(provider.name(), "openai");
+        assert!(client.organization_id.is_some());
+        assert_eq!(client.organization_id.unwrap(), "org-123");
     }
 
     #[test]
     fn test_is_o1_model_true() {
-        let provider = OpenAIProvider::new("test-key".to_string(), "o1-preview".to_string());
-        assert!(provider.is_o1_model());
+        assert!(OpenAiClient::is_o1_model("o1-preview"));
     }
 
     #[test]
     fn test_is_o1_model_false() {
-        let provider = OpenAIProvider::new("test-key".to_string(), "gpt-4".to_string());
-        assert!(!provider.is_o1_model());
-    }
-
-    #[test]
-    fn test_convert_messages_text() {
-        let provider = OpenAIProvider::new("test-key".to_string(), "gpt-4".to_string());
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Text("Hello".to_string()),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0].role, "user");
-    }
-
-    #[test]
-    fn test_convert_messages_system() {
-        let provider = OpenAIProvider::new("test-key".to_string(), "gpt-4".to_string());
-        let messages = vec![
-            Message {
-                role: Role::System,
-                content: MessageContent::Text("You are helpful".to_string()),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0].role, "system");
-    }
-
-    #[test]
-    fn test_convert_tools() {
-        let provider = OpenAIProvider::new("test-key".to_string(), "gpt-4".to_string());
-        let mut properties = HashMap::new();
-        properties.insert(
-            "arg1".to_string(),
-            json!({
-                "type": "string",
-                "description": "First argument"
-            }),
-        );
-
-        let tools = vec![
-            Tool {
-                name: "test_tool".to_string(),
-                description: "A test tool".to_string(),
-                input_schema: ToolInputSchema::object(properties.clone(), vec!["arg1".to_string()]),
-                requires_approval: false,
-                ..Default::default()
-            },
-        ];
-
-        let converted = provider.convert_tools(&tools);
-        assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0].r#type, "function");
-        assert_eq!(converted[0].function.name, "test_tool");
-    }
-
-    #[test]
-    fn test_convert_tools_empty() {
-        let provider = OpenAIProvider::new("test-key".to_string(), "gpt-4".to_string());
-        let tools: Vec<Tool> = vec![];
-
-        let converted = provider.convert_tools(&tools);
-        assert_eq!(converted.len(), 0);
+        assert!(!OpenAiClient::is_o1_model("gpt-4"));
     }
 
     #[test]
     fn test_is_o3_model_true() {
-        let provider = OpenAIProvider::new("test-key".to_string(), "o3-preview".to_string());
-        assert!(provider.is_o1_model());
+        assert!(OpenAiClient::is_o1_model("o3-preview"));
     }
 
     #[test]
     fn test_is_o1_mini_model_true() {
-        let provider = OpenAIProvider::new("test-key".to_string(), "o1-mini".to_string());
-        assert!(provider.is_o1_model());
+        assert!(OpenAiClient::is_o1_model("o1-mini"));
     }
 
     #[test]
-    fn test_openai_provider_new_with_different_models() {
+    fn test_openai_client_new_with_different_models() {
         let models = vec!["gpt-4-turbo", "gpt-3.5-turbo", "gpt-4o"];
         for model in models {
-            let provider = OpenAIProvider::new("test-key".to_string(), model.to_string());
-            assert_eq!(provider.model, model);
-            assert_eq!(provider.api_key, "test-key");
+            let client = OpenAiClient::new("test-key".to_string(), model.to_string());
+            assert_eq!(client.model, model);
+            assert_eq!(client.api_key, "test-key");
         }
-    }
-
-    #[test]
-    fn test_convert_messages_assistant_role() {
-        let provider = OpenAIProvider::new("test-key".to_string(), "gpt-4".to_string());
-        let messages = vec![
-            Message {
-                role: Role::Assistant,
-                content: MessageContent::Text("I can help with that".to_string()),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0].role, "assistant");
-    }
-
-    #[test]
-    fn test_convert_messages_tool_role() {
-        let provider = OpenAIProvider::new("test-key".to_string(), "gpt-4".to_string());
-        let messages = vec![
-            Message {
-                role: Role::Tool,
-                content: MessageContent::Text("Tool response".to_string()),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0].role, "tool");
-    }
-
-    #[test]
-    fn test_convert_messages_with_name() {
-        let provider = OpenAIProvider::new("test-key".to_string(), "gpt-4".to_string());
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Text("Hello".to_string()),
-                name: Some("user_1".to_string()),
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0].name, Some("user_1".to_string()));
-    }
-
-    #[test]
-    fn test_convert_messages_with_text_block() {
-        let provider = OpenAIProvider::new("test-key".to_string(), "gpt-4".to_string());
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Blocks(vec![
-                    ContentBlock::Text { text: "Hello world".to_string() },
-                ]),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        match &converted[0].content {
-            OpenAIContent::Text(text) => assert_eq!(text, "Hello world"),
-            _ => panic!("Expected text content"),
-        }
-    }
-
-    #[test]
-    fn test_convert_messages_with_multiple_blocks() {
-        let provider = OpenAIProvider::new("test-key".to_string(), "gpt-4".to_string());
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Blocks(vec![
-                    ContentBlock::Text { text: "First block".to_string() },
-                    ContentBlock::Text { text: "Second block".to_string() },
-                ]),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        match &converted[0].content {
-            OpenAIContent::Array(parts) => assert_eq!(parts.len(), 2),
-            _ => panic!("Expected array content"),
-        }
-    }
-
-    #[test]
-    fn test_convert_messages_with_image_block() {
-        let provider = OpenAIProvider::new("test-key".to_string(), "gpt-4".to_string());
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Blocks(vec![
-                    ContentBlock::Image {
-                        source: brainwires_core::ImageSource::Base64 {
-                            media_type: "image/png".to_string(),
-                            data: "base64data".to_string(),
-                        },
-                    },
-                ]),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        match &converted[0].content {
-            OpenAIContent::Array(parts) => {
-                assert_eq!(parts.len(), 1);
-                match &parts[0] {
-                    OpenAIContentPart::ImageUrl { image_url } => {
-                        assert!(image_url.url.starts_with("data:image/png;base64,"));
-                    }
-                    _ => panic!("Expected image url content"),
-                }
-            }
-            _ => panic!("Expected array content"),
-        }
-    }
-
-    #[test]
-    fn test_convert_messages_mixed_text_and_image() {
-        let provider = OpenAIProvider::new("test-key".to_string(), "gpt-4".to_string());
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Blocks(vec![
-                    ContentBlock::Text { text: "Check this image".to_string() },
-                    ContentBlock::Image {
-                        source: brainwires_core::ImageSource::Base64 {
-                            media_type: "image/jpeg".to_string(),
-                            data: "imagedata".to_string(),
-                        },
-                    },
-                ]),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 1);
-        match &converted[0].content {
-            OpenAIContent::Array(parts) => assert_eq!(parts.len(), 2),
-            _ => panic!("Expected array content"),
-        }
-    }
-
-    #[test]
-    fn test_convert_content_block_text() {
-        let provider = OpenAIProvider::new("test-key".to_string(), "gpt-4".to_string());
-        let block = ContentBlock::Text { text: "Test text".to_string() };
-
-        let converted = provider.convert_content_block(&block);
-        assert!(converted.is_some());
-        match converted.unwrap() {
-            OpenAIContentPart::Text { text } => assert_eq!(text, "Test text"),
-            _ => panic!("Expected text part"),
-        }
-    }
-
-    #[test]
-    fn test_convert_content_block_image() {
-        let provider = OpenAIProvider::new("test-key".to_string(), "gpt-4".to_string());
-        let block = ContentBlock::Image {
-            source: brainwires_core::ImageSource::Base64 {
-                media_type: "image/webp".to_string(),
-                data: "webpdata".to_string(),
-            },
-        };
-
-        let converted = provider.convert_content_block(&block);
-        assert!(converted.is_some());
-        match converted.unwrap() {
-            OpenAIContentPart::ImageUrl { image_url } => {
-                assert_eq!(image_url.url, "data:image/webp;base64,webpdata");
-            }
-            _ => panic!("Expected image url part"),
-        }
-    }
-
-    #[test]
-    fn test_convert_content_block_tool_use() {
-        let provider = OpenAIProvider::new("test-key".to_string(), "gpt-4".to_string());
-        let block = ContentBlock::ToolUse {
-            id: "tool-1".to_string(),
-            name: "test_tool".to_string(),
-            input: json!({"key": "value"}),
-        };
-
-        // Tool use blocks should return None for OpenAI
-        let converted = provider.convert_content_block(&block);
-        assert!(converted.is_none());
-    }
-
-    #[test]
-    fn test_convert_multiple_messages() {
-        let provider = OpenAIProvider::new("test-key".to_string(), "gpt-4".to_string());
-        let messages = vec![
-            Message {
-                role: Role::System,
-                content: MessageContent::Text("You are helpful".to_string()),
-                name: None,
-                metadata: None,
-            },
-            Message {
-                role: Role::User,
-                content: MessageContent::Text("Hello".to_string()),
-                name: None,
-                metadata: None,
-            },
-            Message {
-                role: Role::Assistant,
-                content: MessageContent::Text("Hi there!".to_string()),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 3);
-        assert_eq!(converted[0].role, "system");
-        assert_eq!(converted[1].role, "user");
-        assert_eq!(converted[2].role, "assistant");
-    }
-
-    #[test]
-    fn test_convert_tools_multiple() {
-        let provider = OpenAIProvider::new("test-key".to_string(), "gpt-4".to_string());
-        let mut properties1 = HashMap::new();
-        properties1.insert("arg1".to_string(), json!({"type": "string"}));
-
-        let mut properties2 = HashMap::new();
-        properties2.insert("arg2".to_string(), json!({"type": "number"}));
-
-        let tools = vec![
-            Tool {
-                name: "tool1".to_string(),
-                description: "First tool".to_string(),
-                input_schema: ToolInputSchema::object(properties1, vec![]),
-                requires_approval: false,
-                ..Default::default()
-            },
-            Tool {
-                name: "tool2".to_string(),
-                description: "Second tool".to_string(),
-                input_schema: ToolInputSchema::object(properties2, vec![]),
-                requires_approval: true,
-                ..Default::default()
-            },
-        ];
-
-        let converted = provider.convert_tools(&tools);
-        assert_eq!(converted.len(), 2);
-        assert_eq!(converted[0].function.name, "tool1");
-        assert_eq!(converted[1].function.name, "tool2");
-    }
-
-    #[test]
-    fn test_convert_tools_without_properties() {
-        let provider = OpenAIProvider::new("test-key".to_string(), "gpt-4".to_string());
-        let tools = vec![
-            Tool {
-                name: "simple_tool".to_string(),
-                description: "A simple tool".to_string(),
-                input_schema: ToolInputSchema {
-                    schema_type: "object".to_string(),
-                    properties: None,
-                    required: None,
-                },
-                requires_approval: false,
-                ..Default::default()
-            },
-        ];
-
-        let converted = provider.convert_tools(&tools);
-        assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0].function.name, "simple_tool");
-        assert!(converted[0].function.parameters.is_empty());
     }
 
     #[test]
     fn test_organization_id_chaining() {
-        let provider = OpenAIProvider::new("key".to_string(), "gpt-4".to_string())
+        let client = OpenAiClient::new("key".to_string(), "gpt-4".to_string())
             .with_organization("org-abc".to_string());
 
-        assert_eq!(provider.organization_id, Some("org-abc".to_string()));
-        assert_eq!(provider.api_key, "key");
-        assert_eq!(provider.model, "gpt-4");
+        assert_eq!(client.organization_id, Some("org-abc".to_string()));
+        assert_eq!(client.api_key, "key");
+        assert_eq!(client.model, "gpt-4");
     }
 
     #[test]
     fn test_empty_api_key() {
-        let provider = OpenAIProvider::new("".to_string(), "gpt-4".to_string());
-        assert_eq!(provider.api_key, "");
+        let client = OpenAiClient::new("".to_string(), "gpt-4".to_string());
+        assert_eq!(client.api_key, "");
     }
 
     #[test]
     fn test_empty_model() {
-        let provider = OpenAIProvider::new("key".to_string(), "".to_string());
-        assert_eq!(provider.model, "");
-    }
-
-    #[test]
-    fn test_convert_messages_empty() {
-        let provider = OpenAIProvider::new("test-key".to_string(), "gpt-4".to_string());
-        let messages: Vec<Message> = vec![];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 0);
+        let client = OpenAiClient::new("key".to_string(), "".to_string());
+        assert_eq!(client.model, "");
     }
 
     #[test]
@@ -1198,121 +929,41 @@ mod tests {
     }
 
     #[test]
-    fn test_convert_messages_preserves_order() {
-        let provider = OpenAIProvider::new("test-key".to_string(), "gpt-4".to_string());
-        let messages = vec![
-            Message {
-                role: Role::System,
-                content: MessageContent::Text("System message".to_string()),
-                name: None,
-                metadata: None,
-            },
-            Message {
-                role: Role::User,
-                content: MessageContent::Text("User message 1".to_string()),
-                name: None,
-                metadata: None,
-            },
-            Message {
-                role: Role::Assistant,
-                content: MessageContent::Text("Assistant message".to_string()),
-                name: None,
-                metadata: None,
-            },
-            Message {
-                role: Role::User,
-                content: MessageContent::Text("User message 2".to_string()),
-                name: None,
-                metadata: None,
-            },
-        ];
-
-        let converted = provider.convert_messages(&messages);
-        assert_eq!(converted.len(), 4);
-        assert_eq!(converted[0].role, "system");
-        assert_eq!(converted[1].role, "user");
-        assert_eq!(converted[2].role, "assistant");
-        assert_eq!(converted[3].role, "user");
-    }
-
-    #[test]
-    fn test_different_image_media_types() {
-        let provider = OpenAIProvider::new("test-key".to_string(), "gpt-4".to_string());
-        let media_types = vec!["image/png", "image/jpeg", "image/webp", "image/gif"];
-
-        for media_type in media_types {
-            let block = ContentBlock::Image {
-                source: brainwires_core::ImageSource::Base64 {
-                    media_type: media_type.to_string(),
-                    data: "data123".to_string(),
-                },
-            };
-
-            let converted = provider.convert_content_block(&block);
-            assert!(converted.is_some());
-            match converted.unwrap() {
-                OpenAIContentPart::ImageUrl { image_url } => {
-                    assert!(image_url.url.starts_with(&format!("data:{};base64,", media_type)));
-                }
-                _ => panic!("Expected image url part"),
-            }
-        }
-    }
-
-    #[test]
     fn test_is_o1_model_with_various_names() {
         let o1_models = vec!["o1-preview", "o1-mini", "o1-turbo", "o3-preview", "o3-mini"];
         let non_o1_models = vec!["gpt-4", "gpt-3.5-turbo", "gpt-4o", "gpt-4-turbo", "o1", "o3"];
 
         for model in o1_models {
-            let provider = OpenAIProvider::new("key".to_string(), model.to_string());
-            assert!(provider.is_o1_model(), "Expected {} to be detected as o1 model", model);
+            assert!(OpenAiClient::is_o1_model(model), "Expected {} to be detected as o1 model", model);
         }
 
         for model in non_o1_models {
-            let provider = OpenAIProvider::new("key".to_string(), model.to_string());
-            assert!(!provider.is_o1_model(), "Expected {} to not be detected as o1 model", model);
+            assert!(!OpenAiClient::is_o1_model(model), "Expected {} to not be detected as o1 model", model);
         }
     }
 
     #[test]
-    fn test_convert_tools_with_complex_parameters() {
-        let provider = OpenAIProvider::new("test-key".to_string(), "gpt-4".to_string());
-        let mut properties = HashMap::new();
-        properties.insert(
-            "location".to_string(),
-            json!({
-                "type": "object",
-                "properties": {
-                    "city": {"type": "string"},
-                    "country": {"type": "string"}
-                },
-                "required": ["city"]
-            }),
-        );
-        properties.insert(
-            "units".to_string(),
-            json!({
-                "type": "string",
-                "enum": ["celsius", "fahrenheit"]
-            }),
-        );
+    fn test_openai_list_models_response_deserialization() {
+        let json = r#"{
+            "data": [
+                {"id": "gpt-4o", "owned_by": "openai", "created": 1700000000},
+                {"id": "gpt-3.5-turbo", "owned_by": "openai", "created": 1690000000}
+            ]
+        }"#;
 
-        let tools = vec![
-            Tool {
-                name: "get_weather".to_string(),
-                description: "Get weather for a location".to_string(),
-                input_schema: ToolInputSchema::object(properties.clone(), vec!["location".to_string()]),
-                requires_approval: false,
-                ..Default::default()
-            },
-        ];
+        let resp: OpenAIListModelsResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(resp.data.len(), 2);
+        assert_eq!(resp.data[0].id, "gpt-4o");
+        assert_eq!(resp.data[1].id, "gpt-3.5-turbo");
+    }
 
-        let converted = provider.convert_tools(&tools);
-        assert_eq!(converted.len(), 1);
-        assert_eq!(converted[0].function.name, "get_weather");
-        assert_eq!(converted[0].function.parameters.len(), 2);
-        assert!(converted[0].function.parameters.contains_key("location"));
-        assert!(converted[0].function.parameters.contains_key("units"));
+    #[test]
+    fn test_request_options_default() {
+        let opts = OpenAiRequestOptions::default();
+        assert!(opts.temperature.is_none());
+        assert!(opts.max_tokens.is_none());
+        assert!(opts.top_p.is_none());
+        assert!(opts.stop.is_none());
+        assert!(opts.system.is_none());
     }
 }

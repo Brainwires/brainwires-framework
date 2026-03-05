@@ -15,6 +15,7 @@ members = [
     "crates/brainwires-relay",
     "crates/brainwires-seal",
     "crates/brainwires-providers",
+    "crates/brainwires-chat",
     "crates/brainwires-skills",
     "crates/brainwires-mesh",
     "crates/brainwires-audio",
@@ -58,6 +59,7 @@ brainwires-wasm = { path = "crates/brainwires-wasm", version = "0.1.0" }
 brainwires-relay = { path = "crates/brainwires-relay", version = "0.1.0" }
 brainwires-seal = { path = "crates/brainwires-seal", version = "0.1.0" }
 brainwires-providers = { path = "crates/brainwires-providers", version = "0.1.0" }
+brainwires-chat = { path = "crates/brainwires-chat", version = "0.1.0" }
 brainwires-skills = { path = "crates/brainwires-skills", version = "0.1.0" }
 brainwires-mesh = { path = "crates/brainwires-mesh", version = "0.1.0" }
 brainwires-audio = { path = "crates/brainwires-audio", version = "0.1.0" }

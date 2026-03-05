@@ -1,46 +1,26 @@
+//! Provider factory — DEPRECATED.
+//!
+//! The canonical factory now lives in `brainwires-chat::ChatProviderFactory`.
+//! This stub is kept so that `brainwires_providers::ProviderFactory` still resolves,
+//! but it only supports providers that still implement `Provider` directly
+//! (Ollama, BrainwiresHttp).  For the full set, use `brainwires-chat`.
+
 use anyhow::{anyhow, Result};
 use std::sync::Arc;
 
 use brainwires_core::provider::Provider;
 use super::{ProviderConfig, ProviderType};
 
-/// Pure provider factory — creates provider instances from config.
-///
-/// No CLI dependencies (no SessionManager, no keyring, no file I/O).
-/// The caller is responsible for resolving API keys and base URLs
-/// before calling `create()`.
+/// Deprecated — prefer [`brainwires_chat::ChatProviderFactory`].
 pub struct ProviderFactory;
 
 impl ProviderFactory {
-    /// Create a provider from a fully-resolved config.
+    /// Create a provider from config.
     ///
-    /// All fields (api_key, base_url, model) must already be populated.
+    /// Only Ollama and Brainwires are supported here.
+    /// For all providers use `brainwires_chat::ChatProviderFactory::create()`.
     pub fn create(config: &ProviderConfig) -> Result<Arc<dyn Provider>> {
         match config.provider {
-            ProviderType::Anthropic => {
-                let api_key = config.api_key.clone()
-                    .ok_or_else(|| anyhow!("Anthropic provider requires an API key"))?;
-                Ok(Arc::new(super::AnthropicProvider::new(api_key, config.model.clone())))
-            }
-            ProviderType::OpenAI => {
-                let api_key = config.api_key.clone()
-                    .ok_or_else(|| anyhow!("OpenAI provider requires an API key"))?;
-                let mut provider = super::OpenAIProvider::new(api_key, config.model.clone());
-                if let Some(ref url) = config.base_url {
-                    provider = provider.with_base_url(url.clone());
-                }
-                Ok(Arc::new(provider))
-            }
-            ProviderType::Google => {
-                let api_key = config.api_key.clone()
-                    .ok_or_else(|| anyhow!("Google provider requires an API key"))?;
-                Ok(Arc::new(super::GoogleProvider::new(api_key, config.model.clone())))
-            }
-            ProviderType::Groq => {
-                let api_key = config.api_key.clone()
-                    .ok_or_else(|| anyhow!("Groq provider requires an API key"))?;
-                Ok(Arc::new(super::GroqProvider::new(api_key, config.model.clone())))
-            }
             ProviderType::Ollama => {
                 Ok(Arc::new(super::OllamaProvider::new(
                     config.model.clone(),
@@ -58,23 +38,12 @@ impl ProviderFactory {
                     config.model.clone(),
                 )))
             }
-            ProviderType::Together => {
-                let api_key = config.api_key.clone()
-                    .ok_or_else(|| anyhow!("Together provider requires an API key"))?;
-                Ok(Arc::new(super::TogetherProvider::new(api_key, config.model.clone())))
-            }
-            ProviderType::Fireworks => {
-                let api_key = config.api_key.clone()
-                    .ok_or_else(|| anyhow!("Fireworks provider requires an API key"))?;
-                Ok(Arc::new(super::FireworksProvider::new(api_key, config.model.clone())))
-            }
-            ProviderType::Anyscale => {
-                let api_key = config.api_key.clone()
-                    .ok_or_else(|| anyhow!("Anyscale provider requires an API key"))?;
-                Ok(Arc::new(super::AnyscaleProvider::new(api_key, config.model.clone())))
-            }
-            ProviderType::Custom => {
-                Err(anyhow!("Custom provider type requires a custom factory implementation"))
+            other => {
+                Err(anyhow!(
+                    "Provider '{}' no longer supported in brainwires-providers::ProviderFactory. \
+                     Use brainwires_chat::ChatProviderFactory instead.",
+                    other
+                ))
             }
         }
     }
@@ -93,24 +62,6 @@ mod tests {
     }
 
     #[test]
-    fn test_create_anthropic_requires_key() {
-        let config = ProviderConfig::new(ProviderType::Anthropic, "claude-3".to_string());
-        let result = ProviderFactory::create(&config);
-        assert!(result.is_err());
-        let err = result.err().unwrap();
-        assert!(err.to_string().contains("requires an API key"));
-    }
-
-    #[test]
-    fn test_create_groq_with_key() {
-        let config = ProviderConfig::new(ProviderType::Groq, "llama-3.3-70b-versatile".to_string())
-            .with_api_key("gsk_test");
-        let result = ProviderFactory::create(&config);
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap().name(), "groq");
-    }
-
-    #[test]
     fn test_create_brainwires_with_key() {
         let config = ProviderConfig::new(ProviderType::Brainwires, "gpt-5-mini".to_string())
             .with_api_key("bw_test_key")
@@ -121,11 +72,11 @@ mod tests {
     }
 
     #[test]
-    fn test_create_custom_unsupported() {
-        let config = ProviderConfig::new(ProviderType::Custom, "model".to_string());
+    fn test_create_anthropic_redirects() {
+        let config = ProviderConfig::new(ProviderType::Anthropic, "claude-3".to_string())
+            .with_api_key("sk-test");
         let result = ProviderFactory::create(&config);
         assert!(result.is_err());
-        let err = result.err().unwrap();
-        assert!(err.to_string().contains("Custom provider"));
+        assert!(result.err().unwrap().to_string().contains("ChatProviderFactory"));
     }
 }

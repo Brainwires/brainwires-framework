@@ -28,6 +28,9 @@ brainwires-code-interpreters = { workspace = true, optional = true }
 # Providers
 brainwires-providers = { workspace = true, optional = true }
 
+# Chat (Provider trait impls)
+brainwires-chat = { workspace = true, optional = true }
+
 # SEAL
 brainwires-seal = { workspace = true, optional = true }
 
@@ -101,6 +104,7 @@ rag = ["dep:brainwires-rag", "brainwires-rag/native", "brainwires-rag/lancedb-ba
 rag-full-languages = ["rag", "brainwires-rag/tree-sitter-languages"]
 interpreters = ["dep:brainwires-code-interpreters"]
 providers = ["dep:brainwires-providers"]
+chat = ["dep:brainwires-chat"]
 reasoning = ["agents", "brainwires-agents/reasoning"]
 seal = ["dep:brainwires-seal"]
 relay = ["dep:brainwires-relay"]
@@ -128,7 +132,7 @@ researcher = ["providers", "agents", "storage", "rag", "training", "datasets"]
 full = [
     "tools", "agents", "storage", "mcp", "mdap", "knowledge",
     "prompting", "permissions", "orchestrator", "rag-full-languages", "interpreters",
-    "providers", "reasoning", "seal", "relay",
+    "providers", "chat", "reasoning", "seal", "relay",
     "brainwires-seal/knowledge", "brainwires-seal/mdap",
     "llama-cpp-2", "mcp-server", "skills", "eval", "proxy",
     "a2a", "mesh", "audio",
