@@ -44,6 +44,7 @@ fn format_to_string(format: OutputFormat) -> &'static str {
         OutputFormat::Mp3 => "mp3",
         OutputFormat::Pcm => "pcm",
         OutputFormat::Opus => "opus",
+        OutputFormat::Flac => "flac",
     }
 }
 

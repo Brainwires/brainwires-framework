@@ -31,6 +31,10 @@ pub mod hardware;
 #[cfg(feature = "native")]
 pub mod api;
 
+/// FLAC encoding utilities.
+#[cfg(feature = "flac")]
+pub mod flac;
+
 #[cfg(feature = "local-stt")]
 pub mod local;
 
@@ -52,5 +56,7 @@ pub use buffer::AudioRingBuffer;
 pub use hardware::{CpalCapture, CpalPlayback};
 #[cfg(feature = "native")]
 pub use api::{OpenAiStt, OpenAiTts};
+#[cfg(feature = "flac")]
+pub use flac::encode_flac;
 #[cfg(feature = "local-stt")]
 pub use local::WhisperStt;

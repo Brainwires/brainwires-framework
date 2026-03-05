@@ -30,12 +30,16 @@ tokio-stream = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true, features = ["multipart"] }
 async-stream = { workspace = true, optional = true }
 
+# FLAC encoding (pure Rust)
+flacenc = { version = "0.5", optional = true }
+
 # Local STT (optional heavy dep)
 whisper-rs = { version = "0.15", optional = true }
 
 [features]
 default = ["native"]
-native = ["dep:cpal", "dep:tokio-stream", "dep:reqwest", "dep:async-stream"]
+native = ["dep:cpal", "dep:tokio-stream", "dep:reqwest", "dep:async-stream", "flac"]
+flac = ["dep:flacenc"]
 local-stt = ["dep:whisper-rs"]
 
 [dev-dependencies]

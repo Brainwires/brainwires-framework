@@ -150,6 +150,8 @@ pub enum OutputFormat {
     Pcm,
     /// Opus compressed format.
     Opus,
+    /// FLAC lossless compressed format.
+    Flac,
 }
 
 /// Options for text-to-speech generation.
