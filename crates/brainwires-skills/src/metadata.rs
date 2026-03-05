@@ -48,7 +48,7 @@ pub enum SkillExecutionMode {
 
 impl SkillExecutionMode {
     /// Parse execution mode from string
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "subagent" => SkillExecutionMode::Subagent,
             "script" => SkillExecutionMode::Script,
@@ -160,7 +160,7 @@ impl SkillMetadata {
         self.metadata
             .as_ref()
             .and_then(|m| m.get("execution"))
-            .map(|e| SkillExecutionMode::from_str(e))
+            .map(|e| SkillExecutionMode::parse(e))
             .unwrap_or_default()
     }
 
@@ -361,11 +361,11 @@ mod tests {
 
     #[test]
     fn test_execution_mode_from_str() {
-        assert_eq!(SkillExecutionMode::from_str("inline"), SkillExecutionMode::Inline);
-        assert_eq!(SkillExecutionMode::from_str("subagent"), SkillExecutionMode::Subagent);
-        assert_eq!(SkillExecutionMode::from_str("script"), SkillExecutionMode::Script);
-        assert_eq!(SkillExecutionMode::from_str("SUBAGENT"), SkillExecutionMode::Subagent);
-        assert_eq!(SkillExecutionMode::from_str("unknown"), SkillExecutionMode::Inline);
+        assert_eq!(SkillExecutionMode::parse("inline"), SkillExecutionMode::Inline);
+        assert_eq!(SkillExecutionMode::parse("subagent"), SkillExecutionMode::Subagent);
+        assert_eq!(SkillExecutionMode::parse("script"), SkillExecutionMode::Script);
+        assert_eq!(SkillExecutionMode::parse("SUBAGENT"), SkillExecutionMode::Subagent);
+        assert_eq!(SkillExecutionMode::parse("unknown"), SkillExecutionMode::Inline);
     }
 
     #[test]

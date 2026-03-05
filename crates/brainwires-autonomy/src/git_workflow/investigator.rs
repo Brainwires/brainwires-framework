@@ -31,6 +31,7 @@ pub struct IssueInvestigator {
 }
 
 impl IssueInvestigator {
+    /// Create a new issue investigator with the given AI provider.
     pub fn new(provider: Arc<dyn Provider>) -> Self {
         Self { provider }
     }

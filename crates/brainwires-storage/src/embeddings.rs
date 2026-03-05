@@ -205,11 +205,10 @@ impl CachedEmbeddingProvider {
         let cache_key = Self::hash_text(text);
 
         // Check cache first (read lock)
-        if let Ok(cache) = self.cache.read() {
-            if let Some(embedding) = cache.peek(&cache_key) {
+        if let Ok(cache) = self.cache.read()
+            && let Some(embedding) = cache.peek(&cache_key) {
                 return Ok(embedding.clone());
             }
-        }
 
         // Generate embedding
         let embedding = self.inner.embed(text)?;

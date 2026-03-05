@@ -22,20 +22,42 @@ pub struct ParallelTask {
 /// Result from a parallel task execution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParallelTaskResult {
+    /// Identifier of the completed task.
     pub task_id: String,
+    /// Whether the task succeeded.
     pub success: bool,
+    /// Summary of the task result.
     pub summary: String,
+    /// Number of iterations used.
     pub iterations: u32,
+    /// Estimated cost in USD.
     pub cost: f64,
 }
 
 /// Status of a parallel execution plan.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ParallelPlanStatus {
+    /// Plan has not started executing.
     Pending,
-    Running { completed: usize, total: usize },
-    Completed { results: Vec<ParallelTaskResult> },
-    Failed { reason: String, partial_results: Vec<ParallelTaskResult> },
+    /// Plan is currently running.
+    Running {
+        /// Number of tasks completed so far.
+        completed: usize,
+        /// Total number of tasks in the plan.
+        total: usize,
+    },
+    /// All tasks completed successfully.
+    Completed {
+        /// Results from all tasks.
+        results: Vec<ParallelTaskResult>,
+    },
+    /// One or more tasks failed.
+    Failed {
+        /// Reason for the failure.
+        reason: String,
+        /// Results collected before the failure.
+        partial_results: Vec<ParallelTaskResult>,
+    },
 }
 
 /// Configuration for the parallel coordinator.
@@ -70,6 +92,7 @@ pub struct ParallelCoordinator {
 }
 
 impl ParallelCoordinator {
+    /// Create a new parallel coordinator with the given configuration.
     pub fn new(config: ParallelConfig) -> Self {
         Self {
             config,
@@ -158,10 +181,16 @@ impl ParallelCoordinator {
 /// Aggregate statistics for a parallel execution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParallelStats {
+    /// Total number of tasks in the plan.
     pub total_tasks: usize,
+    /// Number of tasks completed.
     pub completed: usize,
+    /// Number of tasks that succeeded.
     pub succeeded: usize,
+    /// Number of tasks that failed.
     pub failed: usize,
+    /// Total iterations across all tasks.
     pub total_iterations: u64,
+    /// Total cost across all tasks in USD.
     pub total_cost: f64,
 }

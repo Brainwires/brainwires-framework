@@ -9,11 +9,13 @@ use super::OpenAIProvider;
 const FIREWORKS_API_URL: &str = "https://api.fireworks.ai/inference/v1/chat/completions";
 
 /// Fireworks AI provider (OpenAI-compatible API).
+/// Fireworks AI provider (OpenAI-compatible).
 pub struct FireworksProvider {
     inner: OpenAIProvider,
 }
 
 impl FireworksProvider {
+    /// Create a new Fireworks AI provider with the given API key and model.
     pub fn new(api_key: String, model: String) -> Self {
         Self {
             inner: OpenAIProvider::new(api_key, model).with_base_url(FIREWORKS_API_URL.to_string()),

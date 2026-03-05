@@ -13,11 +13,17 @@ use super::lance_client::LanceClient;
 /// Metadata for a conversation
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ConversationMetadata {
+    /// Unique conversation identifier.
     pub conversation_id: String,
+    /// Optional conversation title.
     pub title: Option<String>,
+    /// Model used in this conversation.
     pub model_id: Option<String>,
+    /// Creation timestamp (Unix seconds).
     pub created_at: i64,
+    /// Last update timestamp (Unix seconds).
     pub updated_at: i64,
+    /// Number of messages in this conversation.
     pub message_count: i32,
 }
 
@@ -54,7 +60,7 @@ impl ConversationStore {
         };
 
         // Create record batch
-        let batch = self.metadata_to_batch(&[metadata.clone()])?;
+        let batch = self.metadata_to_batch(std::slice::from_ref(&metadata))?;
 
         // Add to table
         let table = self.client.conversations_table().await?;

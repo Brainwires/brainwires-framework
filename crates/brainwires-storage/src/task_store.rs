@@ -17,21 +17,37 @@ use brainwires_core::{Task, TaskPriority, TaskStatus};
 /// Metadata for storing tasks
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TaskMetadata {
+    /// Unique task identifier.
     pub task_id: String,
+    /// Conversation this task belongs to.
     pub conversation_id: String,
+    /// Plan this task belongs to.
     pub plan_id: Option<String>,
+    /// Task description.
     pub description: String,
+    /// Current task status.
     pub status: String,
+    /// Parent task identifier.
     pub parent_id: Option<String>,
+    /// Child task IDs (JSON array).
     pub children: String,       // JSON array
+    /// Task dependency IDs (JSON array).
     pub depends_on: String,     // JSON array
+    /// Task priority level.
     pub priority: String,
+    /// Agent assigned to this task.
     pub assigned_to: Option<String>,
+    /// Number of iterations completed.
     pub iterations: i32,
+    /// Task completion summary.
     pub summary: Option<String>,
+    /// Creation timestamp (Unix seconds).
     pub created_at: i64,
+    /// Last update timestamp (Unix seconds).
     pub updated_at: i64,
+    /// Start timestamp (Unix seconds).
     pub started_at: Option<i64>,
+    /// Completion timestamp (Unix seconds).
     pub completed_at: Option<i64>,
 }
 
@@ -380,13 +396,21 @@ impl TaskStore {
 /// Metadata for storing agent state
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AgentStateMetadata {
+    /// Unique agent identifier.
     pub agent_id: String,
+    /// Task the agent is working on.
     pub task_id: String,
+    /// Conversation context.
     pub conversation_id: String,
+    /// Current agent status.
     pub status: String,
+    /// Current iteration number.
     pub iteration: i32,
+    /// Serialized agent context (JSON).
     pub context_json: String,  // Serialized AgentContext
+    /// Creation timestamp (Unix seconds).
     pub created_at: i64,
+    /// Last update timestamp (Unix seconds).
     pub updated_at: i64,
 }
 

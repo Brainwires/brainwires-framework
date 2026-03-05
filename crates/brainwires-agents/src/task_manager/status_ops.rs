@@ -120,13 +120,12 @@ impl TaskManager {
 
                 // Auto-complete the parent task
                 let mut tasks = self.tasks.write().await;
-                if let Some(parent) = tasks.get_mut(parent_id) {
-                    if parent.status == TaskStatus::InProgress || parent.status == TaskStatus::Pending {
+                if let Some(parent) = tasks.get_mut(parent_id)
+                    && (parent.status == TaskStatus::InProgress || parent.status == TaskStatus::Pending) {
                         parent.status = TaskStatus::Completed;
                         parent.summary = Some(format!("All {} subtasks completed", parent.children.len()));
                         parent.updated_at = chrono::Utc::now().timestamp();
                     }
-                }
                 drop(tasks);
 
                 // Recursively check grandparent

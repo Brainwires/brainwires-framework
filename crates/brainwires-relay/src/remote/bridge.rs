@@ -70,10 +70,15 @@ impl Default for BridgeConfig {
 /// Bridge state
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BridgeState {
+    /// Not connected to the backend.
     Disconnected,
+    /// Connection in progress.
     Connecting,
+    /// Connected but not yet authenticated.
     Connected,
+    /// Successfully authenticated with the backend.
     Authenticated,
+    /// Gracefully shutting down.
     ShuttingDown,
 }
 
@@ -99,9 +104,13 @@ pub enum ConnectionMode {
 /// Realtime credentials returned by backend
 #[derive(Debug, Clone)]
 pub struct RealtimeCredentials {
+    /// JWT token for Supabase Realtime authentication.
     pub realtime_token: String,
+    /// WebSocket URL for Supabase Realtime.
     pub realtime_url: String,
+    /// Channel name to subscribe to.
     pub channel_name: String,
+    /// Supabase anonymous key for Kong auth.
     pub supabase_anon_key: String,
 }
 
@@ -113,6 +122,7 @@ pub struct RealtimeCredentials {
 pub struct RemoteBridge {
     config: BridgeConfig,
     http_client: reqwest::Client,
+    /// Current bridge connection state.
     pub state: Arc<RwLock<BridgeState>>,
     connection_mode: Arc<RwLock<ConnectionMode>>,
     session_token: Arc<RwLock<Option<String>>>,
@@ -122,6 +132,7 @@ pub struct RemoteBridge {
     subscription_tasks: Arc<RwLock<HashMap<String, AgentSubscription>>>,
     heartbeat_collector: Arc<RwLock<HeartbeatCollector>>,
     command_result_queue: Arc<RwLock<Vec<RemoteMessage>>>,
+    #[allow(clippy::type_complexity)]
     stream_tx: Arc<RwLock<Option<tokio::sync::mpsc::Sender<(String, StreamChunkType, String)>>>>,
     sync_trigger_tx: Arc<RwLock<Option<tokio::sync::mpsc::Sender<()>>>>,
     shutdown_tx: Option<tokio::sync::broadcast::Sender<()>>,
@@ -654,11 +665,10 @@ impl RemoteBridge {
 
             BackendCommand::RequestSync => {
                 tracing::info!("Backend requested sync, triggering immediate heartbeat");
-                if let Some(tx) = self.sync_trigger_tx.read().await.as_ref() {
-                    if let Err(e) = tx.send(()).await {
+                if let Some(tx) = self.sync_trigger_tx.read().await.as_ref()
+                    && let Err(e) = tx.send(()).await {
                         tracing::error!("Failed to trigger sync: {}", e);
                     }
-                }
             }
 
             BackendCommand::Subscribe { agent_id } => {

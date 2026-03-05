@@ -5,7 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Maximum number of files in the working set by default
 pub const DEFAULT_MAX_FILES: usize = 15;
@@ -16,16 +16,24 @@ pub const DEFAULT_MAX_TOKENS: usize = 100_000;
 /// A file entry in the working set
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkingSetEntry {
+    /// File path.
     pub path: PathBuf,
+    /// Estimated token count for this file.
     pub tokens: usize,
+    /// Number of times this file has been accessed.
     pub access_count: u32,
+    /// Turn number when this file was last accessed.
     pub last_access_turn: u32,
+    /// Turn number when this file was added.
     pub added_at_turn: u32,
+    /// Whether this file is pinned (immune to eviction).
     pub pinned: bool,
+    /// Optional label for categorizing the entry.
     pub label: Option<String>,
 }
 
 impl WorkingSetEntry {
+    /// Create a new working set entry at the given turn.
     pub fn new(path: PathBuf, tokens: usize, current_turn: u32) -> Self {
         Self {
             path,
@@ -38,11 +46,13 @@ impl WorkingSetEntry {
         }
     }
 
+    /// Attach a label to this entry (builder pattern).
     pub fn with_label(mut self, label: impl Into<String>) -> Self {
         self.label = Some(label.into());
         self
     }
 
+    /// Mark this entry as pinned (builder pattern).
     pub fn pinned(mut self) -> Self {
         self.pinned = true;
         self
@@ -52,9 +62,13 @@ impl WorkingSetEntry {
 /// Working set configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkingSetConfig {
+    /// Maximum number of files allowed in the working set.
     pub max_files: usize,
+    /// Maximum total token count across all files.
     pub max_tokens: usize,
+    /// Number of turns after which an unpinned file is considered stale.
     pub stale_after_turns: u32,
+    /// Whether to automatically evict stale files on each turn.
     pub auto_evict: bool,
 }
 
@@ -79,6 +93,7 @@ pub struct WorkingSet {
 }
 
 impl WorkingSet {
+    /// Create a new working set with default configuration.
     pub fn new() -> Self {
         Self {
             entries: HashMap::new(),
@@ -88,6 +103,7 @@ impl WorkingSet {
         }
     }
 
+    /// Create a new working set with the given configuration.
     pub fn with_config(config: WorkingSetConfig) -> Self {
         Self {
             entries: HashMap::new(),
@@ -97,6 +113,7 @@ impl WorkingSet {
         }
     }
 
+    /// Advance to the next turn, triggering stale eviction if enabled.
     pub fn next_turn(&mut self) {
         self.current_turn += 1;
         if self.config.auto_evict {
@@ -104,10 +121,12 @@ impl WorkingSet {
         }
     }
 
+    /// Returns the current turn number.
     pub fn current_turn(&self) -> u32 {
         self.current_turn
     }
 
+    /// Add a file to the working set, evicting LRU entries if needed.
     pub fn add(&mut self, path: PathBuf, tokens: usize) -> Option<String> {
         let key = path.to_string_lossy().to_string();
         if let Some(entry) = self.entries.get_mut(&key) {
@@ -121,6 +140,7 @@ impl WorkingSet {
         eviction_reason
     }
 
+    /// Add a file with a label, evicting LRU entries if needed.
     pub fn add_labeled(&mut self, path: PathBuf, tokens: usize, label: &str) -> Option<String> {
         let key = path.to_string_lossy().to_string();
         if let Some(entry) = self.entries.get_mut(&key) {
@@ -135,6 +155,7 @@ impl WorkingSet {
         eviction_reason
     }
 
+    /// Add a pinned file that is immune to eviction.
     pub fn add_pinned(&mut self, path: PathBuf, tokens: usize, label: Option<&str>) {
         let key = path.to_string_lossy().to_string();
         if let Some(entry) = self.entries.get_mut(&key) {
@@ -153,7 +174,8 @@ impl WorkingSet {
         self.entries.insert(key, entry);
     }
 
-    pub fn touch(&mut self, path: &PathBuf) -> bool {
+    /// Touch a file to update its access count and turn.
+    pub fn touch(&mut self, path: &Path) -> bool {
         let key = path.to_string_lossy().to_string();
         if let Some(entry) = self.entries.get_mut(&key) {
             entry.access_count += 1;
@@ -164,12 +186,14 @@ impl WorkingSet {
         }
     }
 
-    pub fn remove(&mut self, path: &PathBuf) -> bool {
+    /// Remove a file from the working set.
+    pub fn remove(&mut self, path: &Path) -> bool {
         let key = path.to_string_lossy().to_string();
         self.entries.remove(&key).is_some()
     }
 
-    pub fn pin(&mut self, path: &PathBuf) -> bool {
+    /// Pin a file to prevent eviction.
+    pub fn pin(&mut self, path: &Path) -> bool {
         let key = path.to_string_lossy().to_string();
         if let Some(entry) = self.entries.get_mut(&key) {
             entry.pinned = true;
@@ -179,7 +203,8 @@ impl WorkingSet {
         }
     }
 
-    pub fn unpin(&mut self, path: &PathBuf) -> bool {
+    /// Unpin a file, allowing it to be evicted.
+    pub fn unpin(&mut self, path: &Path) -> bool {
         let key = path.to_string_lossy().to_string();
         if let Some(entry) = self.entries.get_mut(&key) {
             entry.pinned = false;
@@ -189,6 +214,7 @@ impl WorkingSet {
         }
     }
 
+    /// Clear the working set, optionally keeping pinned entries.
     pub fn clear(&mut self, keep_pinned: bool) {
         if keep_pinned {
             self.entries.retain(|_, entry| entry.pinned);
@@ -198,36 +224,44 @@ impl WorkingSet {
         self.last_eviction = None;
     }
 
+    /// Iterate over all entries in the working set.
     pub fn entries(&self) -> impl Iterator<Item = &WorkingSetEntry> {
         self.entries.values()
     }
 
-    pub fn get(&self, path: &PathBuf) -> Option<&WorkingSetEntry> {
+    /// Get an entry by path.
+    pub fn get(&self, path: &Path) -> Option<&WorkingSetEntry> {
         let key = path.to_string_lossy().to_string();
         self.entries.get(&key)
     }
 
-    pub fn contains(&self, path: &PathBuf) -> bool {
+    /// Check if a path is in the working set.
+    pub fn contains(&self, path: &Path) -> bool {
         let key = path.to_string_lossy().to_string();
         self.entries.contains_key(&key)
     }
 
+    /// Returns the number of entries in the working set.
     pub fn len(&self) -> usize {
         self.entries.len()
     }
 
+    /// Returns true if the working set is empty.
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
 
+    /// Returns the total estimated token count across all entries.
     pub fn total_tokens(&self) -> usize {
         self.entries.values().map(|e| e.tokens).sum()
     }
 
+    /// Returns the last eviction message, if any.
     pub fn last_eviction(&self) -> Option<&str> {
         self.last_eviction.as_deref()
     }
 
+    /// Returns all file paths in the working set.
     pub fn file_paths(&self) -> Vec<&PathBuf> {
         self.entries.values().map(|e| &e.path).collect()
     }
@@ -284,12 +318,12 @@ impl WorkingSet {
 
 /// Estimate tokens for a string (rough: ~4 chars per token)
 pub fn estimate_tokens(content: &str) -> usize {
-    (content.len() + 3) / 4
+    content.len().div_ceil(4)
 }
 
 /// Estimate tokens for a file by size
 pub fn estimate_tokens_from_size(bytes: u64) -> usize {
-    ((bytes as usize) + 3) / 4
+    (bytes as usize).div_ceil(4)
 }
 
 #[cfg(test)]

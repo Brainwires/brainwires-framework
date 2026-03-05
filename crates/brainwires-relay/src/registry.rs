@@ -6,15 +6,21 @@ use serde_json::Value;
 use crate::connection::RequestContext;
 use crate::error::RelayError;
 
+/// Definition of an MCP tool.
 #[derive(Debug, Clone)]
 pub struct McpToolDef {
+    /// Tool name.
     pub name: String,
+    /// Human-readable description.
     pub description: String,
+    /// JSON Schema for tool input.
     pub input_schema: Value,
 }
 
+/// Trait for tool execution handlers.
 #[async_trait]
 pub trait ToolHandler: Send + Sync {
+    /// Execute the tool with the given arguments.
     async fn call(&self, args: Value, ctx: &RequestContext) -> Result<CallToolResult>;
 }
 
@@ -23,15 +29,18 @@ struct RegisteredTool {
     handler: Box<dyn ToolHandler>,
 }
 
+/// Registry of MCP tools with their handlers.
 pub struct McpToolRegistry {
     tools: Vec<RegisteredTool>,
 }
 
 impl McpToolRegistry {
+    /// Create a new empty tool registry.
     pub fn new() -> Self {
         Self { tools: Vec::new() }
     }
 
+    /// Register a tool with its handler.
     pub fn register(
         &mut self,
         name: &str,
@@ -49,14 +58,17 @@ impl McpToolRegistry {
         });
     }
 
+    /// List all registered tool definitions (by reference).
     pub fn list_tools(&self) -> Vec<&McpToolDef> {
         self.tools.iter().map(|t| &t.def).collect()
     }
 
+    /// List all registered tool definitions (cloned).
     pub fn list_tool_defs(&self) -> Vec<McpToolDef> {
         self.tools.iter().map(|t| t.def.clone()).collect()
     }
 
+    /// Dispatch a tool call to its registered handler.
     pub async fn dispatch(
         &self,
         name: &str,
@@ -71,6 +83,7 @@ impl McpToolRegistry {
         Err(RelayError::ToolNotFound(name.to_string()).into())
     }
 
+    /// Check if a tool is registered.
     pub fn has_tool(&self, name: &str) -> bool {
         self.tools.iter().any(|t| t.def.name == name)
     }

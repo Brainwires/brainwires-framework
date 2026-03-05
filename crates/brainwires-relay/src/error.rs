@@ -1,26 +1,36 @@
 use brainwires_mcp::JsonRpcError;
 
+/// Errors that can occur in the relay layer.
 #[derive(Debug, thiserror::Error)]
 pub enum RelayError {
+    /// JSON-RPC parse error.
     #[error("Parse error: {0}")]
     ParseError(String),
+    /// Requested method does not exist.
     #[error("Method not found: {0}")]
     MethodNotFound(String),
+    /// Invalid parameters supplied.
     #[error("Invalid params: {0}")]
     InvalidParams(String),
+    /// Internal server error.
     #[error("Internal error: {0}")]
     Internal(#[from] anyhow::Error),
+    /// Transport-level error.
     #[error("Transport error: {0}")]
     Transport(String),
+    /// Requested tool does not exist.
     #[error("Tool not found: {0}")]
     ToolNotFound(String),
+    /// Request was rate-limited.
     #[error("Rate limited")]
     RateLimited,
+    /// Request was not authorized.
     #[error("Unauthorized")]
     Unauthorized,
 }
 
 impl RelayError {
+    /// Convert to a JSON-RPC error with the appropriate code.
     pub fn to_json_rpc_error(&self) -> JsonRpcError {
         match self {
             RelayError::ParseError(msg) => JsonRpcError {

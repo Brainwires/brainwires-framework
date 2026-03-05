@@ -166,18 +166,29 @@ pub enum SuggestedFix {
     /// Retry with a modified query
     RetryWithQuery(QueryCore),
     /// Expand search scope by adding relationships
-    ExpandScope { relation: String },
+    ExpandScope {
+        /// The relationship to expand search by.
+        relation: String,
+    },
     /// Narrow scope with a filter
-    NarrowScope { filter: String },
+    NarrowScope {
+        /// The filter expression to apply.
+        filter: String,
+    },
     /// Suggest a different entity resolution
     ResolveEntity {
+        /// The original entity name.
         original: String,
+        /// The suggested replacement entity name.
         suggested: String,
     },
     /// Add a relationship that might be missing
     AddRelation {
+        /// Source entity.
         from: String,
+        /// Target entity.
         to: String,
+        /// Relationship type.
         relation: String,
     },
     /// Requires manual intervention
@@ -447,14 +458,13 @@ impl ReflectionModule {
                 // Check if any edges of this type exist for the entities
                 if let Some(name) = subject_name.or(object_name) {
                     let edges = graph.get_edges(name);
-                    if let Some(edge_type) = relation.to_edge_type() {
-                        if !edges.iter().any(|e| e.edge_type == edge_type) {
+                    if let Some(edge_type) = relation.to_edge_type()
+                        && !edges.iter().any(|e| e.edge_type == edge_type) {
                             return Some(format!(
                                 "No {:?} relationships found for '{}'",
                                 relation, name
                             ));
                         }
-                    }
                 }
 
                 None
@@ -482,6 +492,7 @@ impl ReflectionModule {
         self.validate_expr(&query.root, graph, report);
     }
 
+    #[allow(clippy::only_used_in_recursion)]
     fn validate_expr(
         &self,
         expr: &QueryExpr,
@@ -503,8 +514,7 @@ impl ReflectionModule {
                             | RelationType::CreatedAt
                             | RelationType::ModifiedAt
                     )
-                {
-                    if let RelationType::Custom(name) = relation {
+                    && let RelationType::Custom(name) = relation {
                         report.issues.push(
                             Issue::new(
                                 ErrorType::RelationMismatch(name.clone()),
@@ -514,7 +524,6 @@ impl ReflectionModule {
                             .with_source(&format!("{:?}", relation)),
                         );
                     }
-                }
 
                 // Recursively validate sub-expressions
                 self.validate_expr(subject, graph, report);

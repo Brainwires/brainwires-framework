@@ -183,9 +183,9 @@ pub fn steps_to_tasks(steps: &[ParsedStep], plan_id: &str) -> Vec<Task> {
     for i in 0..tasks.len() {
         if let Some(ref parent_id) = tasks[i].parent_id.clone() {
             // Find parent and add this task as child
-            for j in 0..tasks.len() {
-                if tasks[j].id == *parent_id {
-                    tasks[j].children.push(task_ids[i].clone());
+            for task in tasks.iter_mut() {
+                if task.id == *parent_id {
+                    task.children.push(task_ids[i].clone());
                     break;
                 }
             }

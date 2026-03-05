@@ -32,6 +32,7 @@ pub struct WebhookServer {
 }
 
 impl WebhookServer {
+    /// Create a new webhook server with the given listen address, port, and optional secret.
     pub fn new(listen_addr: String, port: u16, secret: Option<String>) -> Self {
         Self {
             listen_addr,

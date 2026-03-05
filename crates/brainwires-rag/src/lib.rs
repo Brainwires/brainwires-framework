@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 //! # Brainwires RAG - RAG-based Codebase Indexing and Semantic Search
 //!
 //! A dual-purpose Rust library and MCP server for semantic code search using RAG
@@ -109,28 +110,40 @@ pub use error::RagError;
 
 // ── Native-only modules ──────────────────────────────────────────────────────
 
+/// BM25 keyword search using Tantivy.
 #[cfg(feature = "native")]
 pub mod bm25_search;
+/// Persistent file hash cache for incremental updates.
 #[cfg(feature = "native")]
 pub mod cache;
+/// Configuration management with environment variable support.
 #[cfg(feature = "native")]
 pub mod config;
+/// Embedding generation using FastEmbed.
 #[cfg(feature = "native")]
 pub mod embedding;
+/// Git history walking and commit chunking.
 #[cfg(feature = "native")]
 pub mod git;
+/// Git commit tracking cache.
 #[cfg(feature = "native")]
 pub mod git_cache;
+/// Glob pattern matching utilities.
 #[cfg(feature = "native")]
 pub mod glob_utils;
+/// File walking, AST parsing, and code chunking.
 #[cfg(feature = "native")]
 pub mod indexer;
+/// Path normalization utilities.
 #[cfg(feature = "native")]
 pub mod paths;
+/// Code relationship extraction (definitions, references, call graphs).
 #[cfg(feature = "native")]
 pub mod relations;
+/// Vector database abstraction (LanceDB and Qdrant).
 #[cfg(feature = "native")]
 pub mod vector_db;
+/// Core library client API.
 #[cfg(feature = "native")]
 pub mod client;
 #[cfg(feature = "native")]
@@ -140,5 +153,6 @@ pub use config::Config;
 
 // ── Document processing (requires documents feature) ────────────────────────
 
+/// Document processing (PDF, markdown, etc.) with vector search.
 #[cfg(feature = "documents")]
 pub mod documents;

@@ -29,7 +29,7 @@
 //! // resolved[0].antecedent = "main.rs"
 //! ```
 
-use brainwires_core::graph::{EntityStoreT, EntityType, GraphNode, RelationshipGraphT};
+use brainwires_core::graph::{EntityStoreT, EntityType, RelationshipGraphT};
 use regex::Regex;
 use std::collections::HashMap;
 
@@ -41,9 +41,15 @@ pub enum ReferenceType {
     /// Plural pronouns: "they", "them", "those", "these"
     Plural,
     /// Definite noun phrase with entity type: "the file", "the function"
-    DefiniteNP { entity_type: EntityType },
+    DefiniteNP {
+        /// The entity type referenced by the noun phrase.
+        entity_type: EntityType,
+    },
     /// Demonstrative with entity type: "that error", "this type"
-    Demonstrative { entity_type: EntityType },
+    Demonstrative {
+        /// The entity type referenced by the demonstrative.
+        entity_type: EntityType,
+    },
     /// Missing subject from context (implied reference)
     Ellipsis,
 }
@@ -456,12 +462,11 @@ impl CoreferenceResolver {
 
         // Check focus stack first (most likely candidates)
         for name in &dialog_state.focus_stack {
-            if let Some(entity_type) = dialog_state.get_entity_type(name) {
-                if compatible_types.contains(entity_type) {
+            if let Some(entity_type) = dialog_state.get_entity_type(name)
+                && compatible_types.contains(entity_type) {
                     let salience = self.compute_salience(name, entity_type, dialog_state, graph);
                     candidates.push((name, entity_type, salience));
                 }
-            }
         }
 
         // Also check entity store for additional candidates

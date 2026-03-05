@@ -228,17 +228,15 @@ fn get_system_load() -> f32 {
     // Try to read from /proc/loadavg on Linux
     #[cfg(target_os = "linux")]
     {
-        if let Ok(contents) = std::fs::read_to_string("/proc/loadavg") {
-            if let Some(first) = contents.split_whitespace().next() {
-                if let Ok(load) = first.parse::<f32>() {
+        if let Ok(contents) = std::fs::read_to_string("/proc/loadavg")
+            && let Some(first) = contents.split_whitespace().next()
+                && let Ok(load) = first.parse::<f32>() {
                     // Normalize by number of CPUs
                     let num_cpus = std::thread::available_parallelism()
                         .map(|p| p.get() as f32)
                         .unwrap_or(1.0);
                     return (load / num_cpus).min(1.0);
                 }
-            }
-        }
     }
 
     // Try sysctl on macOS

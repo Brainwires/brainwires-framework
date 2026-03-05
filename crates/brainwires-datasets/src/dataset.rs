@@ -3,13 +3,20 @@ use crate::types::{PreferencePair, TrainingExample};
 
 /// Core dataset abstraction.
 pub trait Dataset: Send + Sync {
+    /// The item type stored in this dataset.
     type Item: Clone;
 
+    /// Return the number of items in the dataset.
     fn len(&self) -> usize;
+    /// Return true if the dataset is empty.
     fn is_empty(&self) -> bool { self.len() == 0 }
+    /// Get an item by index.
     fn get(&self, index: usize) -> Option<&Self::Item>;
+    /// Return an iterator over all items.
     fn iter(&self) -> Box<dyn Iterator<Item = &Self::Item> + '_>;
+    /// Shuffle the dataset in place using the given seed.
     fn shuffle(&mut self, seed: u64);
+    /// Split the dataset by ratio into two vectors.
     fn split(&self, ratio: f32) -> (Vec<Self::Item>, Vec<Self::Item>);
 }
 
@@ -20,24 +27,29 @@ pub struct InstructDataset {
 }
 
 impl InstructDataset {
+    /// Create a new instruct dataset from a vector of examples.
     pub fn new(examples: Vec<TrainingExample>) -> Self {
         Self { examples }
     }
 
+    /// Create a new instruct dataset from an iterator of examples.
     pub fn from_examples(examples: impl IntoIterator<Item = TrainingExample>) -> Self {
         Self {
             examples: examples.into_iter().collect(),
         }
     }
 
+    /// Append a single example to the dataset.
     pub fn push(&mut self, example: TrainingExample) {
         self.examples.push(example);
     }
 
+    /// Extend the dataset with an iterator of examples.
     pub fn extend(&mut self, examples: impl IntoIterator<Item = TrainingExample>) {
         self.examples.extend(examples);
     }
 
+    /// Remove and return the example at the given index.
     pub fn remove(&mut self, index: usize) -> DatasetResult<TrainingExample> {
         if index >= self.examples.len() {
             return Err(DatasetError::IndexOutOfBounds {
@@ -120,22 +132,27 @@ pub struct PreferenceDataset {
 }
 
 impl PreferenceDataset {
+    /// Create a new preference dataset from a vector of pairs.
     pub fn new(pairs: Vec<PreferencePair>) -> Self {
         Self { pairs }
     }
 
+    /// Append a single preference pair to the dataset.
     pub fn push(&mut self, pair: PreferencePair) {
         self.pairs.push(pair);
     }
 
+    /// Total estimated tokens across all preference pairs.
     pub fn total_estimated_tokens(&self) -> usize {
         self.pairs.iter().map(|p| p.estimated_tokens()).sum()
     }
 
+    /// Get all pairs as a slice.
     pub fn as_slice(&self) -> &[PreferencePair] {
         &self.pairs
     }
 
+    /// Consume self and return the underlying vector of pairs.
     pub fn into_inner(self) -> Vec<PreferencePair> {
         self.pairs
     }

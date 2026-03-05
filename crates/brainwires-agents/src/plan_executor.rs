@@ -13,20 +13,17 @@ use crate::task_manager::TaskManager;
 
 /// Approval mode for plan execution
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum ExecutionApprovalMode {
     /// Suggest mode - ask user before each task (safest)
     Suggest,
     /// Auto-edit mode - auto-approve file edits, ask for shell commands
     AutoEdit,
     /// Full-auto mode - auto-approve everything (default for plan execution)
+    #[default]
     FullAuto,
 }
 
-impl Default for ExecutionApprovalMode {
-    fn default() -> Self {
-        Self::FullAuto
-    }
-}
 
 impl std::fmt::Display for ExecutionApprovalMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -382,15 +379,25 @@ impl PlanExecutorAgent {
 /// Execution progress information
 #[derive(Debug, Clone)]
 pub struct ExecutionProgress {
+    /// Total number of tasks in the plan.
     pub total_tasks: usize,
+    /// Number of completed tasks.
     pub completed_tasks: usize,
+    /// Number of tasks currently in progress.
     pub in_progress_tasks: usize,
+    /// Number of pending tasks.
     pub pending_tasks: usize,
+    /// Number of blocked tasks.
     pub blocked_tasks: usize,
+    /// Number of skipped tasks.
     pub skipped_tasks: usize,
+    /// Number of failed tasks.
     pub failed_tasks: usize,
+    /// Total elapsed duration in seconds.
     pub total_duration_secs: i64,
+    /// Average task duration in seconds.
     pub average_task_duration_secs: Option<i64>,
+    /// Estimated remaining time in seconds.
     pub estimated_remaining_secs: Option<i64>,
 }
 

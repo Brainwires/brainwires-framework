@@ -34,7 +34,7 @@ struct ServerFact {
 }
 
 impl ServerFact {
-    fn to_personal_fact(self) -> PersonalFact {
+    fn into_personal_fact(self) -> PersonalFact {
         PersonalFact {
             id: self.id,
             category: parse_category(&self.category),
@@ -174,11 +174,17 @@ struct SyncStats {
 /// Result of a sync operation
 #[derive(Debug)]
 pub struct SyncResult {
+    /// Facts received from server.
     pub facts: Vec<PersonalFact>,
+    /// Server sync timestamp.
     pub sync_timestamp: String,
+    /// Whether more facts are available.
     pub has_more: bool,
+    /// Number of facts received.
     pub facts_received: i32,
+    /// Number of facts sent.
     pub facts_sent: i32,
+    /// Number of feedback reports sent.
     pub feedback_sent: i32,
 }
 
@@ -272,7 +278,7 @@ impl PersonalKnowledgeApiClient {
             facts: sync_response
                 .facts
                 .into_iter()
-                .map(|f| f.to_personal_fact())
+                .map(|f| f.into_personal_fact())
                 .collect(),
             sync_timestamp: sync_response.sync_timestamp,
             has_more: sync_response.has_more,
@@ -313,7 +319,7 @@ impl PersonalKnowledgeApiClient {
             .await
             .context("Failed to parse submit response")?;
 
-        Ok(result.fact.to_personal_fact())
+        Ok(result.fact.into_personal_fact())
     }
 
     /// Reinforce a fact
@@ -358,7 +364,7 @@ impl PersonalKnowledgeApiClient {
             .await
             .context("Failed to parse reinforce response")?;
 
-        Ok(result.fact.to_personal_fact())
+        Ok(result.fact.into_personal_fact())
     }
 
     /// Contradict a fact
@@ -400,6 +406,7 @@ impl PersonalKnowledgeApiClient {
         #[derive(Deserialize)]
         struct ContradictResponse {
             fact: ServerFact,
+            #[allow(dead_code)]
             was_deleted: bool,
         }
 
@@ -408,7 +415,7 @@ impl PersonalKnowledgeApiClient {
             .await
             .context("Failed to parse contradict response")?;
 
-        Ok(result.fact.to_personal_fact())
+        Ok(result.fact.into_personal_fact())
     }
 
     /// Get all personal facts from server
@@ -458,7 +465,7 @@ impl PersonalKnowledgeApiClient {
             .await
             .context("Failed to parse facts response")?;
 
-        Ok(result.facts.into_iter().map(|f| f.to_personal_fact()).collect())
+        Ok(result.facts.into_iter().map(|f| f.into_personal_fact()).collect())
     }
 }
 

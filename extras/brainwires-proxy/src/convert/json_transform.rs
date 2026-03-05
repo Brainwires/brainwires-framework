@@ -46,11 +46,10 @@ impl JsonTransformer {
 fn apply_rule(mut value: Value, rule: &JsonRule) -> ProxyResult<Value> {
     match rule {
         JsonRule::RenameField { from, to } => {
-            if let Value::Object(ref mut map) = value {
-                if let Some(v) = map.remove(from) {
+            if let Value::Object(ref mut map) = value
+                && let Some(v) = map.remove(from) {
                     map.insert(to.clone(), v);
                 }
-            }
             Ok(value)
         }
         JsonRule::RemoveField(path) => {

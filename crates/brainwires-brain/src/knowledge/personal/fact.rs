@@ -365,6 +365,7 @@ pub struct PendingFactSubmission {
 }
 
 impl PendingFactSubmission {
+    /// Create a new pending submission for the given fact.
     pub fn new(fact: PersonalFact) -> Self {
         Self {
             fact,
@@ -374,6 +375,7 @@ impl PendingFactSubmission {
         }
     }
 
+    /// Record a submission attempt with an optional error.
     pub fn record_attempt(&mut self, error: Option<String>) {
         self.attempts += 1;
         self.last_error = error;
@@ -397,6 +399,7 @@ pub struct PersonalFactFeedback {
 }
 
 impl PersonalFactFeedback {
+    /// Create a reinforcement feedback for the given fact.
     pub fn reinforcement(fact_id: String, context: Option<String>) -> Self {
         Self {
             fact_id,
@@ -406,6 +409,7 @@ impl PersonalFactFeedback {
         }
     }
 
+    /// Create a contradiction feedback for the given fact.
     pub fn contradiction(fact_id: String, context: Option<String>) -> Self {
         Self {
             fact_id,

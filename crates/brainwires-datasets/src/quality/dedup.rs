@@ -22,6 +22,7 @@ impl Default for Deduplicator {
 }
 
 impl Deduplicator {
+    /// Create a new deduplicator with the given number of hashes and similarity threshold.
     pub fn new(num_hashes: usize, similarity_threshold: f64) -> Self {
         Self {
             num_hashes,
@@ -30,6 +31,7 @@ impl Deduplicator {
         }
     }
 
+    /// Set the shingle (n-gram) size for MinHash computation.
     pub fn with_shingle_size(mut self, size: usize) -> Self {
         self.shingle_size = size;
         self

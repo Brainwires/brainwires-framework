@@ -32,22 +32,34 @@ impl Default for TrainingLoopConfig {
 /// Result of a single training round.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrainingRoundResult {
+    /// Round number (1-based).
     pub round: u32,
+    /// Number of examples in the training dataset.
     pub dataset_size: usize,
+    /// Final training loss for this round.
     pub training_loss: f64,
+    /// Validation loss, if a validation set was used.
     pub validation_loss: Option<f64>,
+    /// Evaluation score from the eval suite, if available.
     pub eval_score: Option<f64>,
+    /// Cost of this round in USD.
     pub cost: f64,
+    /// Duration of this round in seconds.
     pub duration_secs: f64,
 }
 
 /// Report for a complete training loop execution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrainingLoopReport {
+    /// Results from each training round.
     pub rounds: Vec<TrainingRoundResult>,
+    /// Total duration of the training loop in seconds.
     pub total_duration_secs: f64,
+    /// Total cost across all rounds in USD.
     pub total_cost: f64,
+    /// Whether training converged before reaching the max round limit.
     pub converged: bool,
+    /// Final evaluation score from the last round, if available.
     pub final_eval_score: Option<f64>,
 }
 
@@ -61,6 +73,7 @@ pub struct AutonomousTrainingLoop {
 }
 
 impl AutonomousTrainingLoop {
+    /// Create a new autonomous training loop with the given configuration.
     pub fn new(config: TrainingLoopConfig) -> Self {
         Self { config }
     }

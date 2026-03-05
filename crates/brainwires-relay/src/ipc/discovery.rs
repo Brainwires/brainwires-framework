@@ -110,8 +110,8 @@ pub fn list_agent_sessions(sessions_dir: &Path) -> Result<Vec<String>> {
             }
 
             // Only process agent IPC sockets (.sock)
-            if filename.ends_with(".sock") {
-                let session_id = &filename[..filename.len() - 5]; // Remove ".sock"
+            if let Some(session_id) = filename.strip_suffix(".sock") {
+                // Remove ".sock"
                 sessions.push(session_id.to_string());
             }
         }
@@ -134,15 +134,11 @@ pub async fn is_agent_alive(sessions_dir: &Path, session_id: &str) -> bool {
 
     // Try to connect with a reasonable timeout
     // This is the only reliable way to know if the socket is accepting connections
-    match tokio::time::timeout(
+    matches!(tokio::time::timeout(
         std::time::Duration::from_secs(2),
         UnixStream::connect(&socket_path),
     )
-    .await
-    {
-        Ok(Ok(_)) => true,
-        _ => false,
-    }
+    .await, Ok(Ok(_)))
 }
 
 /// Clean up stale socket files
@@ -213,8 +209,8 @@ pub fn list_agent_sessions_with_metadata(sessions_dir: &Path) -> Result<Vec<Agen
             }
 
             // Only process agent IPC sockets (.sock)
-            if filename.ends_with(".sock") {
-                let session_id = &filename[..filename.len() - 5]; // Remove ".sock"
+            if let Some(session_id) = filename.strip_suffix(".sock") {
+                // Remove ".sock"
 
                 // Try to read metadata
                 match read_agent_metadata(sessions_dir, session_id) {

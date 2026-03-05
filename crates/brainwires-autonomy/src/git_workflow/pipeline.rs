@@ -27,6 +27,7 @@ pub struct GitWorkflowPipeline {
 }
 
 impl GitWorkflowPipeline {
+    /// Create a new Git workflow pipeline.
     pub fn new(
         config: GitWorkflowConfig,
         forge: Arc<dyn GitForge>,

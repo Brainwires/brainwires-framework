@@ -9,12 +9,22 @@ use crate::transport::{InboundConnection, TransportConnector};
 use std::sync::Arc;
 use tokio::sync::{mpsc, watch};
 
+/// A boxed listener factory that produces a future accepting inbound connections.
+pub(crate) type ListenerFactory = Box<
+    dyn Fn(
+            mpsc::Sender<InboundConnection>,
+            watch::Receiver<bool>,
+        ) -> futures::future::BoxFuture<'static, ProxyResult<()>>
+        + Send
+        + Sync,
+>;
+
 /// The assembled proxy service. Call [`run()`](ProxyService::run) to start.
 pub struct ProxyService {
     pub(crate) config: ProxyConfig,
     pub(crate) middleware: MiddlewareStack,
     pub(crate) connector: Box<dyn TransportConnector>,
-    pub(crate) listener_factory: Box<dyn Fn(mpsc::Sender<InboundConnection>, watch::Receiver<bool>) -> futures::future::BoxFuture<'static, ProxyResult<()>> + Send + Sync>,
+    pub(crate) listener_factory: ListenerFactory,
     pub(crate) conversions: ConversionRegistry,
     pub(crate) event_store: Arc<EventStore>,
     pub(crate) event_broadcaster: Arc<EventBroadcaster>,

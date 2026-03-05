@@ -33,21 +33,31 @@ pub trait Chunker: Send + Sync {
 pub enum ChunkStrategy {
     /// Fixed number of lines per chunk
     FixedLines(usize),
-    /// Sliding window with overlap
-    SlidingWindow { size: usize, overlap: usize },
+    /// Sliding window with overlap.
+    SlidingWindow {
+        /// Window size in lines.
+        size: usize,
+        /// Number of overlapping lines between chunks.
+        overlap: usize,
+    },
     /// AST-based chunking (functions, classes, methods)
     AstBased,
-    /// Hybrid: AST-based with fallback to fixed lines
-    Hybrid { fallback_lines: usize },
+    /// Hybrid: AST-based with fallback to fixed lines.
+    Hybrid {
+        /// Fallback line count when AST parsing is unavailable.
+        fallback_lines: usize,
+    },
     /// Custom chunker implementation
     Custom(Arc<dyn Chunker>),
 }
 
+/// Code chunker that splits source files into indexed chunks.
 pub struct CodeChunker {
     strategy: ChunkStrategy,
 }
 
 impl CodeChunker {
+    /// Create a new chunker with the given strategy.
     pub fn new(strategy: ChunkStrategy) -> Self {
         Self { strategy }
     }

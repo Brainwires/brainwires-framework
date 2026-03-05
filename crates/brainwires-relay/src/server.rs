@@ -11,6 +11,7 @@ use crate::handler::McpHandler;
 use crate::middleware::{Middleware, MiddlewareChain};
 use crate::transport::{ServerTransport, StdioServerTransport};
 
+/// MCP server that processes JSON-RPC requests via a transport.
 pub struct McpServer<H: McpHandler> {
     handler: H,
     middleware: MiddlewareChain,
@@ -18,6 +19,7 @@ pub struct McpServer<H: McpHandler> {
 }
 
 impl<H: McpHandler> McpServer<H> {
+    /// Create a new server with the given handler and stdio transport.
     pub fn new(handler: H) -> Self {
         Self {
             handler,
@@ -26,16 +28,19 @@ impl<H: McpHandler> McpServer<H> {
         }
     }
 
+    /// Set a custom transport.
     pub fn with_transport(mut self, transport: impl ServerTransport + 'static) -> Self {
         self.transport = Box::new(transport);
         self
     }
 
+    /// Add a middleware to the processing pipeline.
     pub fn with_middleware(mut self, mw: impl Middleware) -> Self {
         self.middleware.add(mw);
         self
     }
 
+    /// Run the server event loop until the transport closes.
     pub async fn run(mut self) -> Result<()> {
         let mut ctx = RequestContext::new(json!(null));
         tracing::info!("MCP Relay server starting");

@@ -138,7 +138,10 @@ pub enum CompositionFunction {
     /// Custom composition (described as a prompt)
     Custom(String),
     /// Reduce with an operation
-    Reduce { operation: String },
+    Reduce {
+        /// The reduce operation to apply.
+        operation: String,
+    },
 }
 
 impl CompositionFunction {
@@ -160,15 +163,24 @@ impl CompositionFunction {
 #[derive(Clone, Debug)]
 pub enum DecompositionStrategy {
     /// Binary recursive decomposition (paper's approach for multiplication)
-    BinaryRecursive { max_depth: u32 },
+    BinaryRecursive {
+        /// Maximum recursion depth.
+        max_depth: u32,
+    },
     /// Simple text-based decomposition (for testing)
-    Simple { max_depth: u32 },
+    Simple {
+        /// Maximum recursion depth.
+        max_depth: u32,
+    },
     /// Sequential step-by-step decomposition
     Sequential,
     /// Domain-specific decomposition for code operations
     CodeOperations,
     /// AI-driven decomposition with discriminator voting
-    AIDriven { discriminator_k: u32 },
+    AIDriven {
+        /// Number of discriminator votes (k).
+        discriminator_k: u32,
+    },
     /// No decomposition (execute as single task)
     None,
 }
@@ -202,6 +214,7 @@ pub struct SequentialDecomposer {
 }
 
 impl SequentialDecomposer {
+    /// Create a new sequential decomposer with the given step limit.
     pub fn new(max_steps: u32) -> Self {
         Self { max_steps }
     }

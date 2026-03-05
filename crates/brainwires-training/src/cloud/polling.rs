@@ -30,20 +30,24 @@ impl Default for JobPoller {
 }
 
 impl JobPoller {
+    /// Create a new job poller with default settings.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Set the initial polling interval.
     pub fn with_initial_interval(mut self, interval: Duration) -> Self {
         self.initial_interval = interval;
         self
     }
 
+    /// Set the maximum polling interval.
     pub fn with_max_interval(mut self, interval: Duration) -> Self {
         self.max_interval = interval;
         self
     }
 
+    /// Set the overall polling timeout.
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;
         self

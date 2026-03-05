@@ -1,10 +1,18 @@
+/// OpenAI fine-tuning provider.
 pub mod openai;
+/// Together AI fine-tuning provider.
 pub mod together;
+/// Fireworks AI fine-tuning provider.
 pub mod fireworks;
+/// Anyscale fine-tuning provider.
 pub mod anyscale;
+/// AWS Bedrock fine-tuning provider.
 pub mod bedrock;
+/// Google Vertex AI fine-tuning provider.
 pub mod vertex;
+/// Job polling utilities.
 pub mod polling;
+/// Cost estimation utilities.
 pub mod cost;
 
 use async_trait::async_trait;
@@ -34,6 +42,7 @@ pub struct CloudFineTuneConfig {
 }
 
 impl CloudFineTuneConfig {
+    /// Create a new cloud fine-tune config with default hyperparameters.
     pub fn new(base_model: impl Into<String>, training_dataset: DatasetId) -> Self {
         Self {
             base_model: base_model.into(),
@@ -46,26 +55,31 @@ impl CloudFineTuneConfig {
         }
     }
 
+    /// Set the validation dataset.
     pub fn with_validation(mut self, dataset: DatasetId) -> Self {
         self.validation_dataset = Some(dataset);
         self
     }
 
+    /// Set training hyperparameters.
     pub fn with_hyperparams(mut self, h: TrainingHyperparams) -> Self {
         self.hyperparams = h;
         self
     }
 
+    /// Set LoRA configuration.
     pub fn with_lora(mut self, lora: LoraConfig) -> Self {
         self.lora = Some(lora);
         self
     }
 
+    /// Set alignment method.
     pub fn with_alignment(mut self, alignment: AlignmentMethod) -> Self {
         self.alignment = alignment;
         self
     }
 
+    /// Set model name suffix.
     pub fn with_suffix(mut self, suffix: impl Into<String>) -> Self {
         self.suffix = Some(suffix.into());
         self

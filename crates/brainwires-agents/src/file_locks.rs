@@ -57,6 +57,7 @@ impl LockInfo {
 
 /// Internal lock state for a file
 #[derive(Debug, Clone)]
+#[derive(Default)]
 struct FileLockState {
     /// Write lock (exclusive)
     write_lock: Option<LockInfo>,
@@ -64,14 +65,6 @@ struct FileLockState {
     read_locks: Vec<LockInfo>,
 }
 
-impl Default for FileLockState {
-    fn default() -> Self {
-        Self {
-            write_lock: None,
-            read_locks: Vec::new(),
-        }
-    }
-}
 
 /// Guard that releases a lock when dropped
 pub struct LockGuard {
@@ -181,15 +174,14 @@ impl FileLockManager {
         match lock_type {
             LockType::Read => {
                 // Check for write lock
-                if let Some(write_lock) = &state.write_lock {
-                    if write_lock.agent_id != agent_id {
+                if let Some(write_lock) = &state.write_lock
+                    && write_lock.agent_id != agent_id {
                         return Err(anyhow!(
                             "File {} is write-locked by agent {}",
                             path.display(),
                             write_lock.agent_id
                         ));
                     }
-                }
 
                 // Add read lock
                 state.read_locks.push(LockInfo {
@@ -357,11 +349,10 @@ impl FileLockManager {
                 // Find who holds those paths
                 for waiting_path in waiting_for {
                     if let Some(state) = locks.get(waiting_path) {
-                        if let Some(write_lock) = &state.write_lock {
-                            if !visited.contains(&write_lock.agent_id) {
+                        if let Some(write_lock) = &state.write_lock
+                            && !visited.contains(&write_lock.agent_id) {
                                 stack.push(write_lock.agent_id.clone());
                             }
-                        }
                         for read_lock in &state.read_locks {
                             if !visited.contains(&read_lock.agent_id) {
                                 stack.push(read_lock.agent_id.clone());
@@ -489,12 +480,11 @@ impl FileLockManager {
 
         for state in locks.values_mut() {
             // Release write lock
-            if let Some(write_lock) = &state.write_lock {
-                if write_lock.agent_id == agent_id {
+            if let Some(write_lock) = &state.write_lock
+                && write_lock.agent_id == agent_id {
                     state.write_lock = None;
                     released += 1;
                 }
-            }
 
             // Release read locks
             let original_len = state.read_locks.len();
@@ -532,11 +522,10 @@ impl FileLockManager {
         let locks = self.locks.read().await;
 
         if let Some(state) = locks.get(path.as_ref()) {
-            if let Some(write_lock) = &state.write_lock {
-                if write_lock.agent_id == agent_id {
+            if let Some(write_lock) = &state.write_lock
+                && write_lock.agent_id == agent_id {
                     return true;
                 }
-            }
             if state.read_locks.iter().any(|lock| lock.agent_id == agent_id) {
                 return true;
             }
@@ -565,11 +554,10 @@ impl FileLockManager {
                 }
                 LockType::Write => {
                     // Can write if no other agent has any lock
-                    if let Some(write_lock) = &state.write_lock {
-                        if write_lock.agent_id != agent_id {
+                    if let Some(write_lock) = &state.write_lock
+                        && write_lock.agent_id != agent_id {
                             return false;
                         }
-                    }
                     !state
                         .read_locks
                         .iter()
@@ -615,11 +603,10 @@ impl FileLockManager {
         let mut result = Vec::new();
 
         for (path, state) in locks.iter() {
-            if let Some(write_lock) = &state.write_lock {
-                if write_lock.agent_id == agent_id {
+            if let Some(write_lock) = &state.write_lock
+                && write_lock.agent_id == agent_id {
                     result.push((path.clone(), write_lock.clone()));
                 }
-            }
             for read_lock in &state.read_locks {
                 if read_lock.agent_id == agent_id {
                     result.push((path.clone(), read_lock.clone()));
@@ -642,12 +629,11 @@ impl FileLockManager {
 
         for state in locks.values_mut() {
             // Clean expired write lock
-            if let Some(write_lock) = &state.write_lock {
-                if write_lock.is_expired() {
+            if let Some(write_lock) = &state.write_lock
+                && write_lock.is_expired() {
                     state.write_lock = None;
                     cleaned += 1;
                 }
-            }
 
             // Clean expired read locks
             let original_len = state.read_locks.len();

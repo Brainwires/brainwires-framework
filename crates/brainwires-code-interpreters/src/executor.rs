@@ -77,7 +77,7 @@ impl Executor {
 
     /// Execute code from a string, parsing the language
     pub fn execute_str(&self, language: &str, code: &str) -> ExecutionResult {
-        match Language::from_str(language) {
+        match Language::parse(language) {
             Some(lang) => self.execute(ExecutionRequest {
                 language: lang,
                 code: code.to_string(),
@@ -175,21 +175,21 @@ mod tests {
     fn test_language_aliases() {
         // Test that language parsing works for aliases
         // (whether the language is actually supported depends on features)
-        assert!(Language::from_str("python").is_some());
-        assert!(Language::from_str("py").is_some());
-        assert!(Language::from_str("javascript").is_some());
-        assert!(Language::from_str("js").is_some());
-        assert!(Language::from_str("lua").is_some());
-        assert!(Language::from_str("rhai").is_some());
+        assert!(Language::parse("python").is_some());
+        assert!(Language::parse("py").is_some());
+        assert!(Language::parse("javascript").is_some());
+        assert!(Language::parse("js").is_some());
+        assert!(Language::parse("lua").is_some());
+        assert!(Language::parse("rhai").is_some());
 
         // Ensure both aliases map to the same variant
         assert_eq!(
-            Language::from_str("python"),
-            Language::from_str("py")
+            Language::parse("python"),
+            Language::parse("py")
         );
         assert_eq!(
-            Language::from_str("javascript"),
-            Language::from_str("js")
+            Language::parse("javascript"),
+            Language::parse("js")
         );
     }
 }

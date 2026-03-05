@@ -20,6 +20,7 @@ use super::bridge::{BridgeConfig, RemoteBridge};
 use crate::traits::{AgentSpawner, BridgeConfigProvider};
 
 /// Internal manager state
+#[derive(Default)]
 struct ManagerState {
     /// Handle to the bridge task
     task_handle: Option<JoinHandle<()>>,
@@ -29,15 +30,6 @@ struct ManagerState {
     running: bool,
 }
 
-impl Default for ManagerState {
-    fn default() -> Self {
-        Self {
-            task_handle: None,
-            shutdown_tx: None,
-            running: false,
-        }
-    }
-}
 
 /// Remote Bridge Manager
 ///

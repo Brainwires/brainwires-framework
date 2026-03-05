@@ -348,6 +348,7 @@ pub struct PendingTruthSubmission {
 }
 
 impl PendingTruthSubmission {
+    /// Create a new pending submission for the given truth.
     pub fn new(truth: BehavioralTruth) -> Self {
         Self {
             truth,
@@ -357,6 +358,7 @@ impl PendingTruthSubmission {
         }
     }
 
+    /// Record a submission attempt with an optional error.
     pub fn record_attempt(&mut self, error: Option<String>) {
         self.attempts += 1;
         self.last_error = error;
@@ -380,6 +382,7 @@ pub struct TruthFeedback {
 }
 
 impl TruthFeedback {
+    /// Create a reinforcement feedback for the given truth.
     pub fn reinforcement(truth_id: String, context: Option<String>) -> Self {
         Self {
             truth_id,
@@ -389,6 +392,7 @@ impl TruthFeedback {
         }
     }
 
+    /// Create a contradiction feedback for the given truth.
     pub fn contradiction(truth_id: String, context: Option<String>) -> Self {
         Self {
             truth_id,

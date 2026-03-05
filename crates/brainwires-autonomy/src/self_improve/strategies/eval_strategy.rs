@@ -13,10 +13,15 @@ use super::{ImprovementCategory, ImprovementStrategy, ImprovementTask};
 /// Configuration for the eval-driven strategy.
 #[derive(Debug, Clone)]
 pub struct EvalStrategyConfig {
+    /// Number of eval trials to run.
     pub n_trials: usize,
+    /// Path to the baselines JSON file.
     pub baselines_path: Option<String>,
+    /// Failure rate threshold for consistent failures.
     pub consistent_failure_threshold: f64,
+    /// Threshold for flaky CI detection.
     pub flaky_ci_threshold: f64,
+    /// Maximum number of tasks to generate.
     pub max_tasks: usize,
 }
 
@@ -39,6 +44,7 @@ pub struct EvalStrategy {
 }
 
 impl EvalStrategy {
+    /// Create a new eval-driven strategy with the given cases and configuration.
     pub fn new(cases: Vec<Arc<dyn EvaluationCase>>, eval_config: EvalStrategyConfig) -> Self {
         Self { cases, eval_config }
     }

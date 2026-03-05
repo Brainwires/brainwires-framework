@@ -4,9 +4,11 @@ use brainwires_mcp::{JsonRpcRequest, JsonRpcResponse};
 use super::{Middleware, MiddlewareResult};
 use crate::connection::RequestContext;
 
+/// Middleware that logs all requests and responses.
 pub struct LoggingMiddleware;
 
 impl LoggingMiddleware {
+    /// Create a new logging middleware.
     pub fn new() -> Self {
         Self
     }

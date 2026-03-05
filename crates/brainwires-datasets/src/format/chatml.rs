@@ -75,7 +75,7 @@ impl FormatConverter for ChatMlFormat {
         Ok(json!({ "text": text }))
     }
 
-    fn from_json(&self, value: &serde_json::Value) -> DatasetResult<TrainingExample> {
+    fn parse_json(&self, value: &serde_json::Value) -> DatasetResult<TrainingExample> {
         let text = value
             .get("text")
             .and_then(|v| v.as_str())
@@ -108,7 +108,7 @@ mod tests {
         assert!(text.contains("<|im_start|>assistant"));
         assert!(text.contains("<|im_end|>"));
 
-        let parsed = format.from_json(&json).unwrap();
+        let parsed = format.parse_json(&json).unwrap();
         assert_eq!(parsed.messages.len(), 3);
         assert_eq!(parsed.messages[0].role, TrainingRole::System);
         assert_eq!(parsed.messages[2].content, "Rust is a systems programming language.");

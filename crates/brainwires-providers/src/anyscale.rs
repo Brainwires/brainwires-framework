@@ -9,11 +9,13 @@ use super::OpenAIProvider;
 const ANYSCALE_API_URL: &str = "https://api.endpoints.anyscale.com/v1/chat/completions";
 
 /// Anyscale provider (OpenAI-compatible API drop-in).
+/// Anyscale provider (OpenAI-compatible).
 pub struct AnyscaleProvider {
     inner: OpenAIProvider,
 }
 
 impl AnyscaleProvider {
+    /// Create a new Anyscale provider with the given API key and model.
     pub fn new(api_key: String, model: String) -> Self {
         Self {
             inner: OpenAIProvider::new(api_key, model).with_base_url(ANYSCALE_API_URL.to_string()),

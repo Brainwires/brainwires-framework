@@ -5,9 +5,13 @@ use serde_json::Value;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum Role {
+    /// Message from the user.
     User,
+    /// Message from the AI assistant.
     Assistant,
+    /// System prompt or instruction.
     System,
+    /// Tool result message.
     Tool,
 }
 
@@ -25,22 +29,32 @@ pub enum MessageContent {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentBlock {
-    /// Text content block
-    Text { text: String },
-    /// Image content block (base64 encoded)
+    /// Text content block.
+    Text {
+        /// The text content.
+        text: String,
+    },
+    /// Image content block (base64 encoded).
     Image {
+        /// The image source data.
         source: ImageSource,
     },
-    /// Tool use request
+    /// Tool use request.
     ToolUse {
+        /// Unique identifier for this tool invocation.
         id: String,
+        /// Name of the tool to call.
         name: String,
+        /// Input arguments for the tool.
         input: Value,
     },
-    /// Tool result
+    /// Tool result.
     ToolResult {
+        /// ID of the tool use this result corresponds to.
         tool_use_id: String,
+        /// Result content.
         content: String,
+        /// Whether this result represents an error.
         #[serde(skip_serializing_if = "Option::is_none")]
         is_error: Option<bool>,
     },
@@ -50,8 +64,11 @@ pub enum ContentBlock {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ImageSource {
+    /// Base64-encoded image data.
     Base64 {
+        /// MIME type (e.g. "image/png").
         media_type: String,
+        /// Base64-encoded image data.
         data: String,
     },
 }
@@ -309,23 +326,33 @@ pub fn serialize_messages_to_stateless_history(messages: &[Message]) -> Vec<Valu
 pub enum StreamChunk {
     /// Text delta
     Text(String),
-    /// Tool use started
+    /// Tool use started.
     ToolUse {
+        /// Unique tool use identifier.
         id: String,
+        /// Name of the tool being invoked.
         name: String,
     },
-    /// Tool input delta
+    /// Tool input delta (partial JSON streaming).
     ToolInputDelta {
+        /// Tool use identifier this delta belongs to.
         id: String,
+        /// Partial JSON fragment.
         partial_json: String,
     },
-    /// Tool call request from backend (for client-side execution)
+    /// Tool call request from backend (for client-side execution).
     ToolCall {
+        /// Unique call identifier.
         call_id: String,
+        /// Response identifier for correlating results.
         response_id: String,
+        /// Chat session identifier, if any.
         chat_id: Option<String>,
+        /// Name of the tool to execute.
         tool_name: String,
+        /// MCP server name hosting the tool.
         server: String,
+        /// Parameters for the tool call.
         parameters: serde_json::Value,
     },
     /// Usage statistics (usually sent at the end)

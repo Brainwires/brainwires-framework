@@ -4,13 +4,12 @@
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use super::profiles::CapabilityProfile;
 use super::types::{
-    AgentCapabilities, FilesystemCapabilities, GitCapabilities, GitOperation, NetworkCapabilities,
-    PathPattern, ResourceQuotas, SpawningCapabilities, ToolCapabilities, ToolCategory,
+    AgentCapabilities, GitOperation,
+    PathPattern, ToolCategory,
 };
 
 /// Root configuration structure for permissions.toml
@@ -251,22 +250,34 @@ fn default_enforcement() -> String {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum PolicyConditionConfig {
+    /// Match by file path pattern.
     FilePath {
+        /// The file path pattern.
         file_path: String,
     },
+    /// Match by tool name.
     Tool {
+        /// The tool name.
         tool: String,
     },
+    /// Match by tool category.
     ToolCategory {
+        /// The tool category name.
         tool_category: String,
     },
+    /// Match by git operation.
     GitOp {
+        /// The git operation name.
         git_op: String,
     },
+    /// Match by trust level.
     TrustLevel {
+        /// Trust level condition.
         trust_level: TrustLevelConditionConfig,
     },
+    /// Match by network domain.
     Domain {
+        /// The domain name.
         domain: String,
     },
 }
@@ -274,10 +285,13 @@ pub enum PolicyConditionConfig {
 /// Trust level condition configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrustLevelConditionConfig {
+    /// Minimum trust level (inclusive).
     #[serde(default)]
     pub at_least: Option<String>,
+    /// Maximum trust level (inclusive).
     #[serde(default)]
     pub at_most: Option<String>,
+    /// Exact trust level required.
     #[serde(default)]
     pub exactly: Option<String>,
 }
@@ -288,11 +302,17 @@ pub type PolicyRule = PolicyRuleConfig;
 /// Simplified policy condition for policy engine
 #[derive(Debug, Clone, Default)]
 pub struct PolicyCondition {
+    /// Tool name to match.
     pub tool: Option<String>,
+    /// Tool category to match.
     pub tool_category: Option<String>,
+    /// File path pattern to match.
     pub file_path: Option<String>,
+    /// Network domain to match.
     pub domain: Option<String>,
+    /// Git operation to match.
     pub git_op: Option<String>,
+    /// Minimum trust level required.
     pub min_trust_level: Option<u8>,
 }
 
@@ -368,7 +388,7 @@ impl PermissionsConfig {
     /// Convert to AgentCapabilities
     pub fn to_capabilities(&self) -> AgentCapabilities {
         // Start with base profile
-        let profile = CapabilityProfile::from_str(&self.default.profile)
+        let profile = CapabilityProfile::parse(&self.default.profile)
             .unwrap_or(CapabilityProfile::StandardDev);
         let mut caps = AgentCapabilities::from_profile(profile);
 

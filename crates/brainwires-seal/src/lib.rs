@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 //! SEAL (Self-Evolving Agentic Learning) Integration Module
 //!
 //! This module implements techniques from the SEAL paper to enhance
@@ -235,8 +236,8 @@ impl SealProcessor {
         }
 
         // Step 3: Check Learning Coordinator for patterns
-        if self.config.enable_learning {
-            if let Some(pattern) = self.learning_coordinator.process_query(
+        if self.config.enable_learning
+            && let Some(pattern) = self.learning_coordinator.process_query(
                 query,
                 &result.resolved_query,
                 result.query_core.clone(),
@@ -244,7 +245,6 @@ impl SealProcessor {
             ) {
                 result.matched_pattern = Some(pattern.id.clone());
             }
-        }
 
         // Step 4: Reflection analysis (if we have a query core)
         if self.config.enable_reflection && result.query_core.is_some() {

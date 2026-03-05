@@ -22,32 +22,66 @@ pub enum HealthStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DegradationSignal {
     /// Agent is taking longer than expected per iteration.
-    SlowIterations { avg_ms: u64, threshold_ms: u64 },
+    SlowIterations {
+        /// Average milliseconds per iteration.
+        avg_ms: u64,
+        /// Threshold in milliseconds.
+        threshold_ms: u64,
+    },
     /// Agent is consuming excessive tokens.
-    HighTokenUsage { tokens_used: u64, budget: u64 },
+    HighTokenUsage {
+        /// Tokens consumed so far.
+        tokens_used: u64,
+        /// Token budget.
+        budget: u64,
+    },
     /// Agent is stuck in a loop (repeating similar actions).
-    LoopDetected { repeated_action: String, count: u32 },
+    LoopDetected {
+        /// The action being repeated.
+        repeated_action: String,
+        /// Number of repetitions detected.
+        count: u32,
+    },
     /// Agent has not sent a heartbeat recently.
-    MissedHeartbeat { last_seen_secs_ago: u64 },
+    MissedHeartbeat {
+        /// Seconds since the last heartbeat.
+        last_seen_secs_ago: u64,
+    },
     /// Agent's error rate is above threshold.
-    HighErrorRate { error_rate: f64, threshold: f64 },
+    HighErrorRate {
+        /// Current error rate.
+        error_rate: f64,
+        /// Maximum acceptable error rate.
+        threshold: f64,
+    },
     /// Agent is making no progress (no file changes, no tool calls).
-    Stalled { idle_secs: u64 },
+    Stalled {
+        /// Seconds since last activity.
+        idle_secs: u64,
+    },
 }
 
 /// Performance metrics for an agent.
 #[derive(Debug, Clone, Default)]
 pub struct PerformanceMetrics {
+    /// Number of iterations completed.
     pub iterations: u32,
+    /// Total tokens consumed.
     pub total_tokens: u64,
+    /// Total cost in USD.
     pub total_cost: f64,
+    /// Number of errors encountered.
     pub errors: u32,
+    /// Number of tool calls made.
     pub tool_calls: u32,
+    /// Number of files modified.
     pub files_modified: u32,
+    /// Timestamp of the last activity.
     pub last_activity: Option<Instant>,
 }
 
 impl PerformanceMetrics {
+    /// Compute the error rate as errors divided by tool calls.
     pub fn error_rate(&self) -> f64 {
         if self.tool_calls == 0 {
             0.0
@@ -56,6 +90,7 @@ impl PerformanceMetrics {
         }
     }
 
+    /// Compute the average number of tokens used per iteration.
     pub fn avg_tokens_per_iteration(&self) -> u64 {
         if self.iterations == 0 {
             0
@@ -103,6 +138,7 @@ impl Default for HealthMonitorConfig {
 }
 
 impl HealthMonitor {
+    /// Create a new health monitor with the given configuration.
     pub fn new(config: HealthMonitorConfig) -> Self {
         Self {
             agents: HashMap::new(),

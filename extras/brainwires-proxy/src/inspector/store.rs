@@ -97,16 +97,14 @@ pub struct EventFilter {
 
 impl EventFilter {
     pub fn matches(&self, event: &TrafficEvent) -> bool {
-        if let Some(dir) = self.direction {
-            if event.direction != dir {
+        if let Some(dir) = self.direction
+            && event.direction != dir {
                 return false;
             }
-        }
-        if let Some(ref rid) = self.request_id {
-            if event.request_id.to_string() != *rid {
+        if let Some(ref rid) = self.request_id
+            && event.request_id.to_string() != *rid {
                 return false;
             }
-        }
         if let Some(ref kind) = self.kind {
             let event_kind = match &event.kind {
                 TrafficEventKind::Request { .. } => "request",
@@ -121,11 +119,10 @@ impl EventFilter {
                 return false;
             }
         }
-        if let Some(since) = self.since {
-            if event.timestamp < since {
+        if let Some(since) = self.since
+            && event.timestamp < since {
                 return false;
             }
-        }
         true
     }
 }

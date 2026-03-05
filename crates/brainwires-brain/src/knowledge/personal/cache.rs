@@ -4,7 +4,7 @@
 //! queue support for when the server is unavailable.
 
 use super::fact::{PersonalFact, PendingFactSubmission, PersonalFactCategory, PersonalFactFeedback};
-use anyhow::{Context, Result};
+use anyhow::Result;
 use rusqlite::{params, Connection, OptionalExtension};
 use std::collections::HashMap;
 use std::path::Path;
@@ -270,14 +270,13 @@ impl PersonalKnowledgeCache {
     /// Add or update a fact (upsert by key)
     pub fn upsert_fact(&mut self, mut fact: PersonalFact) -> Result<()> {
         // Check if we already have a fact with this key
-        if let Some(existing_id) = self.facts_by_key.get(&fact.key) {
-            if let Some(existing) = self.facts.get(existing_id) {
+        if let Some(existing_id) = self.facts_by_key.get(&fact.key)
+            && let Some(existing) = self.facts.get(existing_id) {
                 // Update existing fact
                 fact.id = existing.id.clone();
                 fact.reinforcements = existing.reinforcements + 1;
                 fact.confidence = fact.confidence.max(existing.confidence);
             }
-        }
 
         self.save_fact_to_db(&fact)?;
         self.facts_by_key.insert(fact.key.clone(), fact.id.clone());
@@ -298,7 +297,7 @@ impl PersonalKnowledgeCache {
         &mut self,
         key: &str,
         value: &str,
-        confidence: f32,
+        _confidence: f32,
         local_only: bool,
     ) -> Result<()> {
         use super::fact::{PersonalFactCategory, PersonalFactSource};
@@ -466,11 +465,10 @@ impl PersonalKnowledgeCache {
     /// Queue feedback for sending to server
     pub fn queue_feedback(&mut self, feedback: PersonalFactFeedback) -> Result<bool> {
         // Check if the fact is local-only
-        if let Some(fact) = self.facts.get(&feedback.fact_id) {
-            if fact.local_only {
+        if let Some(fact) = self.facts.get(&feedback.fact_id)
+            && fact.local_only {
                 return Ok(false); // Don't sync feedback for local-only facts
             }
-        }
 
         if self.pending_feedback.len() >= self.max_queue_size {
             return Ok(false);
@@ -629,27 +627,39 @@ impl PersonalKnowledgeCache {
 /// Result of merging facts from server
 #[derive(Debug, Clone)]
 pub struct MergeResult {
+    /// Number of new facts added.
     pub added: u32,
+    /// Number of existing facts updated.
     pub updated: u32,
+    /// Number of merge conflicts.
     pub conflicts: u32,
 }
 
 /// Result of importing facts
 #[derive(Debug, Clone)]
 pub struct ImportResult {
+    /// Number of facts imported.
     pub imported: u32,
+    /// Number of existing facts updated.
     pub updated: u32,
 }
 
 /// Statistics about the cache
 #[derive(Debug, Clone)]
 pub struct CacheStats {
+    /// Total number of cached facts.
     pub total_facts: u32,
+    /// Counts by category.
     pub by_category: HashMap<PersonalFactCategory, u32>,
+    /// Average confidence score.
     pub avg_confidence: f32,
+    /// Facts that exist only locally.
     pub local_only_facts: u32,
+    /// Number of pending fact submissions.
     pub pending_submissions: usize,
+    /// Number of pending feedback reports.
     pub pending_feedback: usize,
+    /// Unix timestamp of last sync.
     pub last_sync: i64,
 }
 

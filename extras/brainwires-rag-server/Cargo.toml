@@ -32,5 +32,8 @@ tracing-subscriber.workspace = true
 tokio.workspace = true
 clap = { version = "4", features = ["derive", "env"] }
 
+[features]
+qdrant-backend = []
+
 [dev-dependencies]
 tempfile.workspace = true

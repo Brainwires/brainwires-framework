@@ -95,7 +95,9 @@ impl IpcWriter {
 
 /// IPC connection handle (combines reader and writer)
 pub struct IpcConnection {
+    /// The reader half of the connection.
     pub reader: IpcReader,
+    /// The writer half of the connection.
     pub writer: IpcWriter,
 }
 
@@ -252,7 +254,9 @@ impl EncryptedIpcWriter {
 
 /// Encrypted IPC connection handle
 pub struct EncryptedIpcConnection {
+    /// The encrypted reader half of the connection.
     pub reader: EncryptedIpcReader,
+    /// The encrypted writer half of the connection.
     pub writer: EncryptedIpcWriter,
 }
 

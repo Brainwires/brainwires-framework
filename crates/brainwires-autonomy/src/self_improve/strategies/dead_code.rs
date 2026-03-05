@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use crate::config::StrategyConfig;
 use super::{ImprovementCategory, ImprovementStrategy, ImprovementTask};
 
+/// Strategy that detects dead and unreachable code.
 pub struct DeadCodeStrategy;
 
 #[async_trait]

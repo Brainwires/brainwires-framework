@@ -8,20 +8,35 @@ use brainwires_core::Tool;
 /// Tool categories for filtering tools by purpose
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ToolCategory {
+    /// File operation tools.
     FileOps,
+    /// Code search tools.
     Search,
+    /// Semantic/RAG search tools.
     SemanticSearch,
+    /// Git version control tools.
     Git,
+    /// Task management tools.
     TaskManager,
+    /// Agent pool management tools.
     AgentPool,
+    /// Web fetching tools.
     Web,
+    /// Web search tools.
     WebSearch,
+    /// Shell command execution tools.
     Bash,
+    /// Planning tools.
     Planning,
+    /// Context recall tools.
     Context,
+    /// Script orchestrator tools.
     Orchestrator,
+    /// Code execution/interpreter tools.
     CodeExecution,
+    /// Session task tools.
     SessionTask,
+    /// Validation tools.
     Validation,
 }
 

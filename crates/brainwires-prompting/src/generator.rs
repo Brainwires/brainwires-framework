@@ -114,11 +114,10 @@ impl PromptGenerator {
         let mut selected = Vec::new();
 
         // 1. Always include role playing (paper's rule)
-        if let Some(role) = self.library.get(&PromptingTechnique::RolePlaying) {
-            if role.min_seal_quality <= seal_quality {
+        if let Some(role) = self.library.get(&PromptingTechnique::RolePlaying)
+            && role.min_seal_quality <= seal_quality {
                 selected.push(role);
             }
-        }
 
         // 2. Select emotional stimulus from cluster techniques
         let emotion_options: Vec<&TechniqueMetadata> = cluster
@@ -279,7 +278,7 @@ impl PromptGenerator {
                 let techniques: Vec<PromptingTechnique> = fact
                     .value
                     .split(',')
-                    .filter_map(|s: &str| PromptingTechnique::from_str(s.trim()).ok())
+                    .filter_map(|s: &str| PromptingTechnique::parse_id(s.trim()).ok())
                     .collect();
                 Ok(techniques)
             } else {

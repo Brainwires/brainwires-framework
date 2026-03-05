@@ -10,6 +10,7 @@ use crate::types::{JsonRpcMessage, JsonRpcNotification, JsonRpcRequest, JsonRpcR
 /// Transport layer for MCP communication
 #[derive(Debug)]
 pub enum Transport {
+    /// Standard I/O transport.
     Stdio(StdioTransport),
 }
 
@@ -135,7 +136,7 @@ impl StdioTransport {
             Err(e) => {
                 // Check for specific error types
                 let error_msg = if e.kind() == std::io::ErrorKind::BrokenPipe {
-                    format!("MCP server process terminated unexpectedly (broken pipe). The server may have crashed during tool execution. Check stderr output for panic messages.")
+                    "MCP server process terminated unexpectedly (broken pipe). The server may have crashed during tool execution. Check stderr output for panic messages.".to_string()
                 } else if e.kind() == std::io::ErrorKind::UnexpectedEof {
                     "MCP server process exited unexpectedly (unexpected EOF)".to_string()
                 } else {

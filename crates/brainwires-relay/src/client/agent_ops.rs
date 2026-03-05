@@ -5,48 +5,55 @@ use super::client::RelayClient;
 use super::error::RelayClientError;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
+/// Configuration for spawning an agent.
 pub struct AgentConfig {
+    /// Maximum number of iterations.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_iterations: Option<u32>,
+    /// Whether to enable validation.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enable_validation: Option<bool>,
+    /// Build system type (e.g. "typescript", "cargo").
     #[serde(skip_serializing_if = "Option::is_none")]
     pub build_type: Option<String>,
+    /// Whether to enable MDAP.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enable_mdap: Option<bool>,
+    /// MDAP preset name.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mdap_preset: Option<String>,
 }
 
-impl Default for AgentConfig {
-    fn default() -> Self {
-        Self {
-            max_iterations: None,
-            enable_validation: None,
-            build_type: None,
-            enable_mdap: None,
-            mdap_preset: None,
-        }
-    }
-}
 
+/// Result of an agent execution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentResult {
+    /// Agent unique identifier.
     pub agent_id: String,
+    /// Whether the agent completed successfully.
     pub success: bool,
+    /// Number of iterations used.
     pub iterations: u32,
+    /// Summary of the result.
     pub summary: String,
+    /// Raw output text.
     pub raw_output: String,
 }
 
+/// Information about a running or completed agent.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentInfo {
+    /// Agent unique identifier.
     pub agent_id: String,
+    /// Current status.
     pub status: String,
+    /// Description of the assigned task.
     pub task_description: String,
 }
 
 impl RelayClient {
+    /// Spawn a new agent with the given description and config.
     pub async fn spawn_agent(
         &mut self,
         description: &str,
@@ -82,6 +89,7 @@ impl RelayClient {
         Ok(agent_id)
     }
 
+    /// Wait for an agent to complete, with optional timeout.
     pub async fn await_agent(
         &mut self,
         agent_id: &str,
@@ -96,17 +104,20 @@ impl RelayClient {
         parse_agent_result(&result, agent_id)
     }
 
+    /// List all agents.
     pub async fn list_agents(&mut self) -> Result<Vec<AgentInfo>, RelayClientError> {
         let result = self.call_tool("agent_list", json!({})).await?;
         parse_agent_list(&result)
     }
 
+    /// Stop a running agent by ID.
     pub async fn stop_agent(&mut self, agent_id: &str) -> Result<(), RelayClientError> {
         self.call_tool("agent_stop", json!({ "agent_id": agent_id }))
             .await?;
         Ok(())
     }
 
+    /// Get the current status of an agent by ID.
     pub async fn get_agent_status(
         &mut self,
         agent_id: &str,
@@ -124,11 +135,10 @@ fn extract_agent_id(result: &serde_json::Value) -> Result<String, RelayClientErr
         for item in content {
             if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
                 // Parse the text to find agent_id
-                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(text) {
-                    if let Some(id) = parsed.get("agent_id").and_then(|i| i.as_str()) {
+                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(text)
+                    && let Some(id) = parsed.get("agent_id").and_then(|i| i.as_str()) {
                         return Ok(id.to_string());
                     }
-                }
                 // Try to find agent_id pattern in text
                 if text.contains("agent_id") {
                     // Simple extraction

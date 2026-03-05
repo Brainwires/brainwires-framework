@@ -32,6 +32,7 @@ pub enum A2aError {
     /// Serialization or deserialization failure.
     #[error("serialization error: {source}")]
     Serialization {
+        /// The underlying serialization error.
         #[from]
         source: serde_json::Error,
     },

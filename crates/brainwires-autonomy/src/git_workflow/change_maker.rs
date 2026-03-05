@@ -10,10 +10,15 @@ use super::investigator::InvestigationResult;
 /// Result of making changes to fix an issue.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChangeResult {
+    /// Whether the changes were applied successfully.
     pub success: bool,
+    /// List of modified file paths.
     pub files_modified: Vec<String>,
+    /// Summary of the changes made.
     pub summary: String,
+    /// Number of diff lines produced.
     pub diff_lines: u32,
+    /// Number of iterations used.
     pub iterations: u32,
 }
 
@@ -24,6 +29,7 @@ pub struct ChangeMaker {
 }
 
 impl ChangeMaker {
+    /// Create a new change maker with the given provider and iteration limit.
     pub fn new(provider: Arc<dyn Provider>, max_iterations: u32) -> Self {
         Self { provider, max_iterations }
     }

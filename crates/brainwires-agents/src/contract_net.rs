@@ -117,20 +117,24 @@ pub struct TaskRequirements {
 }
 
 impl TaskRequirements {
+    /// Create empty task requirements with defaults.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Set required capabilities.
     pub fn with_capabilities(mut self, capabilities: Vec<String>) -> Self {
         self.capabilities = capabilities;
         self
     }
 
+    /// Set estimated complexity (clamped to 1-10).
     pub fn with_complexity(mut self, complexity: u8) -> Self {
         self.complexity = complexity.min(10);
         self
     }
 
+    /// Set priority level.
     pub fn with_priority(mut self, priority: u8) -> Self {
         self.priority = priority;
         self
@@ -232,8 +236,10 @@ impl TaskBid {
 
 /// Strategy for evaluating bids
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub enum BidEvaluationStrategy {
     /// Highest overall score wins
+    #[default]
     HighestScore,
     /// Lowest estimated duration wins
     FastestCompletion,
@@ -241,19 +247,17 @@ pub enum BidEvaluationStrategy {
     LoadBalancing,
     /// Highest capability score wins
     BestCapability,
-    /// Custom weights for scoring
+    /// Custom weights for scoring.
     CustomWeights {
+        /// Weight for capability score.
         capability: f32,
+        /// Weight for availability score.
         availability: f32,
+        /// Weight for speed score.
         speed: f32,
     },
 }
 
-impl Default for BidEvaluationStrategy {
-    fn default() -> Self {
-        BidEvaluationStrategy::HighestScore
-    }
-}
 
 /// Protocol messages
 #[derive(Debug, Clone)]
@@ -262,38 +266,54 @@ pub enum ContractMessage {
     Announce(TaskAnnouncement),
     /// Agent submits bid
     Bid(TaskBid),
-    /// Task awarded to agent
+    /// Task awarded to agent.
     Award {
+        /// Task identifier.
         task_id: String,
+        /// Winning agent identifier.
         winner: String,
+        /// Winning bid score.
         score: f32,
     },
-    /// Task bidding closed with no winner
+    /// Task bidding closed with no winner.
     NoAward {
+        /// Task identifier.
         task_id: String,
+        /// Reason no award was made.
         reason: String,
     },
-    /// Winner confirms acceptance
+    /// Winner confirms acceptance.
     Accept {
+        /// Task identifier.
         task_id: String,
+        /// Accepting agent identifier.
         agent_id: String,
     },
-    /// Winner declines (e.g., state changed since bid)
+    /// Winner declines (e.g., state changed since bid).
     Decline {
+        /// Task identifier.
         task_id: String,
+        /// Declining agent identifier.
         agent_id: String,
+        /// Reason for declining.
         reason: String,
     },
-    /// Task completed notification
+    /// Task completed notification.
     Complete {
+        /// Task identifier.
         task_id: String,
+        /// Agent that completed the task.
         agent_id: String,
+        /// Whether the task succeeded.
         success: bool,
+        /// Optional result output.
         result: Option<String>,
     },
-    /// Task cancelled
+    /// Task cancelled.
     Cancel {
+        /// Task identifier.
         task_id: String,
+        /// Reason for cancellation.
         reason: String,
     },
 }
@@ -301,11 +321,17 @@ pub enum ContractMessage {
 /// Information about an awarded contract
 #[derive(Debug, Clone)]
 pub struct AwardedContract {
+    /// Task identifier.
     pub task_id: String,
+    /// Winning agent identifier.
     pub winner: String,
+    /// The winning bid details.
     pub winning_bid: TaskBid,
+    /// When the contract was awarded.
     pub awarded_at: Instant,
+    /// Whether the winner accepted the contract.
     pub accepted: bool,
+    /// Completion status (None if still in progress).
     pub completed: Option<bool>,
 }
 

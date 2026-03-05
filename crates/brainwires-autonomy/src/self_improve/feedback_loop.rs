@@ -19,14 +19,23 @@ use super::strategies::eval_strategy::{EvalStrategy, EvalStrategyConfig};
 /// Configuration for the feedback loop.
 #[derive(Debug, Clone)]
 pub struct FeedbackLoopConfig {
+    /// Self-improvement configuration.
     pub self_improve: SelfImprovementConfig,
+    /// Path to the eval baselines JSON file.
     pub baselines_path: String,
+    /// Whether to auto-update baselines after improvement.
     pub auto_update_baselines: bool,
+    /// Minimum improvement fraction to update baselines.
     pub improvement_threshold: f64,
+    /// Maximum number of feedback rounds.
     pub max_feedback_rounds: u32,
+    /// Number of eval trials per round.
     pub n_eval_trials: usize,
+    /// Whether to commit updated baselines to Git.
     pub commit_baselines: bool,
+    /// Failure rate threshold for consistent failures.
     pub consistent_failure_threshold: f64,
+    /// Threshold for flaky CI detection.
     pub flaky_ci_threshold: f64,
 }
 
@@ -49,23 +58,33 @@ impl Default for FeedbackLoopConfig {
 /// Per-round result summary.
 #[derive(Debug, Clone)]
 pub struct FeedbackRoundResult {
+    /// Round number (1-based).
     pub round: u32,
+    /// Number of faults detected before improvement.
     pub faults_before: usize,
+    /// Number of faults detected after improvement.
     pub faults_after: usize,
+    /// Categories that improved this round.
     pub improved_categories: Vec<String>,
+    /// Categories that did not improve.
     pub unimproved_categories: Vec<String>,
+    /// Session report for the improvement run.
     pub session_report: SessionReport,
 }
 
 /// Aggregate report for a complete feedback loop run.
 #[derive(Debug, Clone)]
 pub struct FeedbackLoopReport {
+    /// Results from each feedback round.
     pub rounds: Vec<FeedbackRoundResult>,
+    /// Total duration of the loop in seconds.
     pub total_duration_secs: f64,
+    /// Whether the loop converged (zero faults).
     pub converged: bool,
 }
 
 impl FeedbackLoopReport {
+    /// Render the report as a Markdown document.
     pub fn to_markdown(&self) -> String {
         let mut md = String::new();
         md.push_str("# Eval-Driven Feedback Loop Report\n\n");
@@ -111,6 +130,7 @@ pub struct AutonomousFeedbackLoop {
 }
 
 impl AutonomousFeedbackLoop {
+    /// Create a new autonomous feedback loop.
     pub fn new(
         config: FeedbackLoopConfig,
         cases: Vec<Arc<dyn EvaluationCase>>,
@@ -119,6 +139,7 @@ impl AutonomousFeedbackLoop {
         Self { config, cases, provider }
     }
 
+    /// Run the feedback loop, returning a report when complete.
     pub async fn run(&self) -> Result<FeedbackLoopReport> {
         let start = Instant::now();
         let mut rounds = Vec::new();

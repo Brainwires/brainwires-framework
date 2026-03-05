@@ -12,14 +12,18 @@ use crate::ToolRegistry;
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum SearchMode {
+    /// Keyword-based search (default).
     #[default]
     Keyword,
+    /// Regex-based search.
     Regex,
 }
 
+/// Meta-tool for discovering available tools dynamically.
 pub struct ToolSearchTool;
 
 impl ToolSearchTool {
+    /// Return tool definitions for tool search.
     pub fn get_tools() -> Vec<Tool> {
         vec![Self::search_tools_tool()]
     }
@@ -39,6 +43,7 @@ impl ToolSearchTool {
         }
     }
 
+    /// Execute the tool search tool by name.
     #[tracing::instrument(name = "tool.execute", skip(input, _context, registry), fields(tool_name))]
     pub fn execute(tool_use_id: &str, tool_name: &str, input: &Value, _context: &ToolContext, registry: &ToolRegistry) -> ToolResult {
         let result = match tool_name {

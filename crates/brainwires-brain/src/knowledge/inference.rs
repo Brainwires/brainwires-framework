@@ -279,11 +279,10 @@ impl TruthInferenceEngine {
 /// Extract context from a rule string
 fn extract_context_from_rule(rule: &str) -> String {
     // Look for quoted strings first
-    if let Some(start) = rule.find('\'') {
-        if let Some(end) = rule[start + 1..].find('\'') {
+    if let Some(start) = rule.find('\'')
+        && let Some(end) = rule[start + 1..].find('\'') {
             return rule[start + 1..start + 1 + end].to_string();
         }
-    }
 
     // Look for command-like patterns
     let words: Vec<&str> = rule.split_whitespace().collect();

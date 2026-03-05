@@ -9,6 +9,7 @@ use walkdir::WalkDir;
 use crate::config::StrategyConfig;
 use super::{ImprovementCategory, ImprovementStrategy, ImprovementTask};
 
+/// Strategy that detects missing or incomplete documentation.
 pub struct DocGapsStrategy;
 
 #[async_trait]

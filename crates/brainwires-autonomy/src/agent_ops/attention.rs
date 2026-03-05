@@ -30,6 +30,7 @@ pub struct AttentionWindow {
 }
 
 impl AttentionWindow {
+    /// Create a new empty attention window with the given limits.
     pub fn new(max_files: usize, max_tokens: usize) -> Self {
         Self {
             ranked_files: Vec::new(),
@@ -62,6 +63,7 @@ pub struct AttentionMechanism {
 }
 
 impl AttentionMechanism {
+    /// Create a new attention mechanism with default window limits.
     pub fn new(max_files: usize, max_tokens: usize) -> Self {
         Self {
             cache: HashMap::new(),

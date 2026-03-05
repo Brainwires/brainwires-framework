@@ -260,21 +260,27 @@ impl LocalModelType {
 /// Configuration errors for local LLM
 #[derive(Debug, thiserror::Error)]
 pub enum LocalLlmConfigError {
+    /// Model path was not provided.
     #[error("Model path is required")]
     MissingModelPath,
 
+    /// Model file does not exist at the given path.
     #[error("Model file not found: {0}")]
     ModelNotFound(PathBuf),
 
+    /// Context size was set to zero.
     #[error("Context size must be greater than 0")]
     InvalidContextSize,
 
+    /// Batch size was set to zero.
     #[error("Batch size must be greater than 0")]
     InvalidBatchSize,
 
+    /// Model loading failed.
     #[error("Failed to load model: {0}")]
     ModelLoadError(String),
 
+    /// Inference failed during generation.
     #[error("Inference error: {0}")]
     InferenceError(String),
 }

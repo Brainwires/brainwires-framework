@@ -8,24 +8,32 @@ use futures::TryStreamExt;
 use lancedb::query::{ExecutableQuery, QueryBase};
 use std::sync::Arc;
 
-use super::{EmbeddingProvider, EmbeddingProviderTrait as _, LanceClient};
+use super::{EmbeddingProvider, LanceClient};
 
 /// Metadata for a message
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MessageMetadata {
+    /// Unique message identifier.
     pub message_id: String,
+    /// Conversation this message belongs to.
     pub conversation_id: String,
+    /// Message role (e.g., "user", "assistant").
     pub role: String,
+    /// Message text content.
     pub content: String,
+    /// Token count estimate.
     pub token_count: Option<i32>,
+    /// Model that generated this message.
     pub model_id: Option<String>,
+    /// Image references as JSON array string.
     pub images: Option<String>, // JSON array as string
+    /// Creation timestamp (Unix seconds).
     pub created_at: i64,
     /// Optional Unix timestamp after which this entry should be evicted.
     ///
     /// `None` means no expiry (the entry persists indefinitely).  Use
     /// [`MessageStore::delete_expired`] to perform bulk eviction, or call
-    /// [`TieredMemory::evict_expired`] for tier-aware cleanup.
+    /// [`TieredMemory::evict_expired`](crate::TieredMemory::evict_expired) for tier-aware cleanup.
     pub expires_at: Option<i64>,
 }
 
@@ -176,7 +184,7 @@ impl MessageStore {
                 .downcast_ref::<Float32Array>()
                 .context("Invalid _distance type")?;
 
-            let messages = self.batch_to_messages(&[batch.clone()])?;
+            let messages = self.batch_to_messages(std::slice::from_ref(batch))?;
 
             for (i, message) in messages.into_iter().enumerate() {
                 let distance = distances.value(i);

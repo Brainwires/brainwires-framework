@@ -71,11 +71,9 @@ impl DocumentProcessor {
         }
 
         // Try to extract title from first line if it looks like a title
-        if let Some(first_line) = doc.content.lines().next() {
-            let trimmed = first_line.trim();
-            if !trimmed.is_empty() && trimmed.len() < 200 {
-                doc = doc.with_title(trimmed.to_string());
-            }
+        let title = doc.content.lines().next().map(|l| l.trim().to_string());
+        if let Some(trimmed) = title.filter(|t| !t.is_empty() && t.len() < 200) {
+            doc = doc.with_title(trimmed);
         }
 
         Ok(doc)
@@ -108,12 +106,11 @@ impl DocumentProcessor {
                 current_string.clear();
             } else if c == ')' && in_string {
                 in_string = false;
-                if current_string.chars().all(|c| c.is_ascii_graphic() || c.is_whitespace()) {
-                    if !current_string.is_empty() {
+                if current_string.chars().all(|c| c.is_ascii_graphic() || c.is_whitespace())
+                    && !current_string.is_empty() {
                         result.push_str(&current_string);
                         result.push(' ');
                     }
-                }
             } else if in_string && c.is_ascii() {
                 current_string.push(c);
             }
@@ -135,8 +132,8 @@ impl DocumentProcessor {
         // Extract title from first header
         for line in content.lines() {
             let trimmed = line.trim();
-            if trimmed.starts_with("# ") {
-                doc = doc.with_title(trimmed[2..].trim().to_string());
+            if let Some(title) = trimmed.strip_prefix("# ") {
+                doc = doc.with_title(title.trim().to_string());
                 break;
             }
         }
@@ -196,7 +193,7 @@ impl DocumentProcessor {
     fn extract_text_from_xml(xml: &str) -> String {
         let mut result = String::new();
         let mut in_tag = false;
-        let mut in_text = false;
+        let in_text = false;
         let mut current_text = String::new();
 
         // Simple state machine to extract text between <w:t> tags
@@ -258,11 +255,10 @@ impl DocumentProcessor {
         if bytes.starts_with(b"PK\x03\x04") {
             // Could be DOCX - check for word/ directory
             let reader = std::io::Cursor::new(bytes);
-            if let Ok(mut archive) = zip::ZipArchive::new(reader) {
-                if archive.by_name("word/document.xml").is_ok() {
+            if let Ok(mut archive) = zip::ZipArchive::new(reader)
+                && archive.by_name("word/document.xml").is_ok() {
                     return DocumentType::Docx;
                 }
-            }
         }
 
         // Check for text-based formats

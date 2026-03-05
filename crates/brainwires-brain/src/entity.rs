@@ -11,15 +11,22 @@ pub use brainwires_core::graph::EntityType;
 /// A named entity extracted from conversation
 #[derive(Debug, Clone)]
 pub struct Entity {
+    /// Display name of the entity.
     pub name: String,
+    /// The kind of entity (file, function, type, etc.).
     pub entity_type: EntityType,
+    /// Message IDs where this entity appears.
     pub message_ids: Vec<String>,
+    /// Unix timestamp when first seen.
     pub first_seen: i64,
+    /// Unix timestamp when last seen.
     pub last_seen: i64,
+    /// Total number of mentions.
     pub mention_count: u32,
 }
 
 impl Entity {
+    /// Create a new entity with its first mention.
     pub fn new(name: String, entity_type: EntityType, message_id: String, timestamp: i64) -> Self {
         Self {
             name,
@@ -31,6 +38,7 @@ impl Entity {
         }
     }
 
+    /// Record an additional mention of this entity.
     pub fn add_mention(&mut self, message_id: String, timestamp: i64) {
         if !self.message_ids.contains(&message_id) {
             self.message_ids.push(message_id);
@@ -43,18 +51,62 @@ impl Entity {
 /// Relationship between entities
 #[derive(Debug, Clone)]
 pub enum Relationship {
-    Defines { definer: String, defined: String, context: String },
-    References { from: String, to: String },
-    Modifies { modifier: String, modified: String, change_type: String },
-    DependsOn { dependent: String, dependency: String },
-    Contains { container: String, contained: String },
-    CoOccurs { entity_a: String, entity_b: String, message_id: String },
+    /// One entity defines another.
+    Defines {
+        /// The defining entity.
+        definer: String,
+        /// The entity being defined.
+        defined: String,
+        /// Context of the definition.
+        context: String,
+    },
+    /// One entity references another.
+    References {
+        /// Source entity.
+        from: String,
+        /// Target entity.
+        to: String,
+    },
+    /// One entity modifies another.
+    Modifies {
+        /// The modifying entity.
+        modifier: String,
+        /// The modified entity.
+        modified: String,
+        /// Kind of modification.
+        change_type: String,
+    },
+    /// One entity depends on another.
+    DependsOn {
+        /// The dependent entity.
+        dependent: String,
+        /// The dependency.
+        dependency: String,
+    },
+    /// One entity contains another.
+    Contains {
+        /// The container entity.
+        container: String,
+        /// The contained entity.
+        contained: String,
+    },
+    /// Two entities co-occur in a message.
+    CoOccurs {
+        /// First entity.
+        entity_a: String,
+        /// Second entity.
+        entity_b: String,
+        /// Message where co-occurrence was observed.
+        message_id: String,
+    },
 }
 
 /// Extraction result from a single message
 #[derive(Debug, Clone)]
 pub struct ExtractionResult {
+    /// Extracted entities as (name, type) pairs.
     pub entities: Vec<(String, EntityType)>,
+    /// Extracted relationships between entities.
     pub relationships: Vec<Relationship>,
 }
 
@@ -98,10 +150,12 @@ pub struct EntityStore {
 }
 
 impl EntityStore {
+    /// Create a new empty entity store.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Add an extraction result, recording entities and relationships.
     pub fn add_extraction(&mut self, result: ExtractionResult, message_id: &str, timestamp: i64) {
         for (name, entity_type) in result.entities {
             let key = format!("{}:{}", entity_type.as_str(), name);
@@ -129,8 +183,8 @@ impl EntityStore {
         match new_rel {
             Relationship::Defines { definer, defined, context: new_ctx } => {
                 for existing in &self.relationships {
-                    if let Relationship::Defines { definer: ex_definer, defined: ex_defined, context: ex_ctx } = existing {
-                        if ex_definer == definer && ex_defined == defined && ex_ctx != new_ctx {
+                    if let Relationship::Defines { definer: ex_definer, defined: ex_defined, context: ex_ctx } = existing
+                        && ex_definer == definer && ex_defined == defined && ex_ctx != new_ctx {
                             self.contradictions.push(ContradictionEvent {
                                 kind: ContradictionKind::ConflictingDefinition,
                                 subject: format!("{}::{}", definer, defined),
@@ -139,13 +193,12 @@ impl EntityStore {
                             });
                             break;
                         }
-                    }
                 }
             }
             Relationship::Modifies { modifier, modified, change_type: new_change } => {
                 for existing in &self.relationships {
-                    if let Relationship::Modifies { modifier: ex_modifier, modified: ex_modified, change_type: ex_change } = existing {
-                        if ex_modifier == modifier && ex_modified == modified && ex_change != new_change {
+                    if let Relationship::Modifies { modifier: ex_modifier, modified: ex_modified, change_type: ex_change } = existing
+                        && ex_modifier == modifier && ex_modified == modified && ex_change != new_change {
                             self.contradictions.push(ContradictionEvent {
                                 kind: ContradictionKind::ConflictingModification,
                                 subject: format!("{}::{}", modifier, modified),
@@ -154,7 +207,6 @@ impl EntityStore {
                             });
                             break;
                         }
-                    }
                 }
             }
             _ => {}
@@ -173,21 +225,25 @@ impl EntityStore {
         std::mem::take(&mut self.contradictions)
     }
 
+    /// Look up an entity by name and type.
     pub fn get(&self, name: &str, entity_type: &EntityType) -> Option<&Entity> {
         let key = format!("{}:{}", entity_type.as_str(), name);
         self.entities.get(&key)
     }
 
+    /// Get all entities of a given type.
     pub fn get_by_type(&self, entity_type: &EntityType) -> Vec<&Entity> {
         self.entities.values().filter(|e| &e.entity_type == entity_type).collect()
     }
 
+    /// Get the most-mentioned entities, up to `limit`.
     pub fn get_top_entities(&self, limit: usize) -> Vec<&Entity> {
         let mut entities: Vec<_> = self.entities.values().collect();
         entities.sort_by(|a, b| b.mention_count.cmp(&a.mention_count));
         entities.into_iter().take(limit).collect()
     }
 
+    /// Get names of entities related to the given entity.
     pub fn get_related(&self, entity_name: &str) -> Vec<String> {
         let mut related = HashSet::new();
         for rel in &self.relationships {
@@ -221,6 +277,7 @@ impl EntityStore {
         related.into_iter().collect()
     }
 
+    /// Get all message IDs associated with an entity name.
     pub fn get_message_ids(&self, entity_name: &str) -> Vec<String> {
         self.entities.values()
             .filter(|e| e.name == entity_name)
@@ -228,14 +285,17 @@ impl EntityStore {
             .collect()
     }
 
+    /// Iterate over all stored entities.
     pub fn all_entities(&self) -> impl Iterator<Item = &Entity> {
         self.entities.values()
     }
 
+    /// Get all stored relationships.
     pub fn all_relationships(&self) -> &[Relationship] {
         &self.relationships
     }
 
+    /// Get statistics about the entity store.
     pub fn stats(&self) -> EntityStoreStats {
         let mut by_type = HashMap::new();
         for entity in self.entities.values() {
@@ -265,10 +325,14 @@ impl brainwires_core::graph::EntityStoreT for EntityStore {
     }
 }
 
+/// Statistics about the entity store.
 #[derive(Debug)]
 pub struct EntityStoreStats {
+    /// Total number of entities.
     pub total_entities: usize,
+    /// Total number of relationships.
     pub total_relationships: usize,
+    /// Entity counts grouped by type.
     pub entities_by_type: HashMap<&'static str, usize>,
 }
 

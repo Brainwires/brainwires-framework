@@ -44,7 +44,9 @@ pub struct PksIntegration {
 /// A fact detected from user interaction
 #[derive(Debug, Clone)]
 pub struct DetectedFact {
+    /// The detected personal fact.
     pub fact: PersonalFact,
+    /// How the fact was detected.
     pub detection_source: DetectionSource,
 }
 
@@ -74,11 +76,6 @@ impl PksIntegration {
             tool_usage: ToolUsageTracker::new(),
             fact_tx: None,
         }
-    }
-
-    /// Create with default settings
-    pub fn default() -> Self {
-        Self::new(PersonalKnowledgeSettings::default())
     }
 
     /// Set the cache reference
@@ -164,13 +161,11 @@ impl PksIntegration {
         }
 
         // Store directly in cache if available
-        if let Some(ref cache) = self.cache {
-            if let Ok(mut cache) = cache.lock() {
-                if let Err(e) = cache.upsert_fact(fact) {
+        if let Some(ref cache) = self.cache
+            && let Ok(mut cache) = cache.lock()
+                && let Err(e) = cache.upsert_fact(fact) {
                     tracing::warn!("Failed to store detected fact: {}", e);
                 }
-            }
-        }
     }
 
     /// Check if PKS is enabled
@@ -184,12 +179,19 @@ impl PksIntegration {
     }
 }
 
+impl Default for PksIntegration {
+    fn default() -> Self {
+        Self::new(PersonalKnowledgeSettings::default())
+    }
+}
+
 /// Tracks tool usage patterns for behavioral inference
 pub struct ToolUsageTracker {
     /// Tool usage counts: tool_name -> (success_count, failure_count)
     usage: HashMap<String, (u32, u32)>,
 
     /// When tracking started (for rate limiting inference)
+    #[allow(dead_code)]
     started_at: Instant,
 
     /// Last time we emitted inference facts
@@ -502,15 +504,12 @@ impl PksSseListener {
                 }
 
                 // Clear the pending submissions queue after successful upload
-                if uploaded_count > 0 {
-                    if let Some(ref cache) = self.cache {
-                        if let Ok(mut cache) = cache.lock() {
-                            if let Err(e) = cache.clear_pending_submissions() {
+                if uploaded_count > 0
+                    && let Some(ref cache) = self.cache
+                        && let Ok(mut cache) = cache.lock()
+                            && let Err(e) = cache.clear_pending_submissions() {
                                 tracing::warn!("Failed to clear pending submissions: {}", e);
                             }
-                        }
-                    }
-                }
 
                 // Log sync activity (only if something happened)
                 if received_count > 0 || uploaded_count > 0 {
@@ -528,33 +527,7 @@ impl PksSseListener {
     }
 }
 
-fn parse_category(s: &str) -> PersonalFactCategory {
-    match s {
-        "identity" => PersonalFactCategory::Identity,
-        "preference" => PersonalFactCategory::Preference,
-        "capability" => PersonalFactCategory::Capability,
-        "context" => PersonalFactCategory::Context,
-        "constraint" => PersonalFactCategory::Constraint,
-        "relationship" => PersonalFactCategory::Relationship,
-        _ => PersonalFactCategory::Preference,
-    }
-}
-
-fn parse_source(s: &str) -> PersonalFactSource {
-    match s {
-        "explicit_statement" => PersonalFactSource::ExplicitStatement,
-        "inferred_from_behavior" => PersonalFactSource::InferredFromBehavior,
-        "profile_setup" => PersonalFactSource::ProfileSetup,
-        "system_observed" => PersonalFactSource::SystemObserved,
-        _ => PersonalFactSource::ExplicitStatement,
-    }
-}
-
-fn parse_timestamp(s: &str) -> i64 {
-    chrono::DateTime::parse_from_rfc3339(s)
-        .map(|dt| dt.timestamp())
-        .unwrap_or_else(|_| chrono::Utc::now().timestamp())
-}
+// parse_category, parse_source, parse_timestamp live in api.rs
 
 // ============================================================================
 // Background Processor for Detected Facts
@@ -574,6 +547,7 @@ pub struct PksBackgroundProcessor {
     cache: Arc<Mutex<PersonalKnowledgeCache>>,
 
     /// Settings
+    #[allow(dead_code)]
     settings: PersonalKnowledgeSettings,
 }
 

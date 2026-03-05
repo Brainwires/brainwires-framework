@@ -20,6 +20,7 @@ pub struct OpenAiFineTune {
 }
 
 impl OpenAiFineTune {
+    /// Create a new OpenAI fine-tune provider.
     pub fn new(api_key: impl Into<String>) -> Self {
         Self {
             api_key: api_key.into(),
@@ -28,6 +29,7 @@ impl OpenAiFineTune {
         }
     }
 
+    /// Set a custom base URL.
     pub fn with_base_url(mut self, url: impl Into<String>) -> Self {
         self.base_url = url.into();
         self
@@ -121,7 +123,7 @@ impl FineTuneProvider for OpenAiFineTune {
 
         let response = self
             .client
-            .post(&self.files_url())
+            .post(self.files_url())
             .bearer_auth(&self.api_key)
             .multipart(form)
             .send()
@@ -176,7 +178,7 @@ impl FineTuneProvider for OpenAiFineTune {
 
         let response = self
             .client
-            .post(&self.finetune_url())
+            .post(self.finetune_url())
             .bearer_auth(&self.api_key)
             .json(&body)
             .send()
@@ -277,7 +279,7 @@ impl FineTuneProvider for OpenAiFineTune {
     async fn list_jobs(&self) -> Result<Vec<TrainingJobSummary>, TrainingError> {
         let response = self
             .client
-            .get(&self.finetune_url())
+            .get(self.finetune_url())
             .bearer_auth(&self.api_key)
             .send()
             .await?;

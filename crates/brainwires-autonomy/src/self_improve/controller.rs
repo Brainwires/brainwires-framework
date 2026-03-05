@@ -19,9 +19,13 @@ use super::task_generator::TaskGenerator;
 
 /// Result of a single improvement cycle.
 pub struct CycleResult {
+    /// The task that was executed.
     pub task: ImprovementTask,
+    /// Path result from execution, if available.
     pub result: Option<PathResult>,
+    /// Whether the changes were committed.
     pub committed: bool,
+    /// Commit hash, if committed.
     pub commit_hash: Option<String>,
 }
 

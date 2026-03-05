@@ -58,13 +58,13 @@ pub trait KeyStore: Send + Sync {
 ///
 /// CLI implements this reading from `config::constants`.
 pub trait AuthEndpoints: Send + Sync {
-    /// Full URL for the CLI authentication endpoint (e.g., "https://brainwires.studio/api/cli/auth")
+    /// Full URL for the CLI authentication endpoint (e.g., `https://brainwires.studio/api/cli/auth`)
     fn auth_endpoint(&self) -> String;
 
     /// Regex pattern for validating API key format
     fn api_key_pattern(&self) -> &str;
 
-    /// Base backend URL (e.g., "https://brainwires.studio")
+    /// Base backend URL (e.g., `https://brainwires.studio`)
     fn backend_url(&self) -> &str;
 }
 

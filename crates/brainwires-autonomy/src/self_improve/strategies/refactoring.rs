@@ -7,6 +7,7 @@ use walkdir::WalkDir;
 use crate::config::StrategyConfig;
 use super::{ImprovementCategory, ImprovementStrategy, ImprovementTask};
 
+/// Strategy that identifies refactoring opportunities (large files, long functions).
 pub struct RefactoringStrategy;
 
 #[async_trait]

@@ -24,10 +24,11 @@ struct McpConnection {
     server_info: ServerInfo,
     capabilities: ServerCapabilities,
     /// Channel for forwarding notifications received during requests
-    notification_tx: Option<mpsc::UnboundedSender<JsonRpcNotification>>,
+    _notification_tx: Option<mpsc::UnboundedSender<JsonRpcNotification>>,
 }
 
 impl McpClient {
+    /// Create a new MCP client with the given name and version.
     pub fn new(client_name: impl Into<String>, client_version: impl Into<String>) -> Self {
         Self {
             connections: Arc::new(RwLock::new(HashMap::new())),
@@ -52,7 +53,7 @@ impl McpClient {
             transport,
             server_info: init_result.server_info,
             capabilities: init_result.capabilities,
-            notification_tx: None,
+            _notification_tx: None,
         };
 
         // Store connection

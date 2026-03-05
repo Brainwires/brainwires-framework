@@ -29,6 +29,7 @@ pub const MAX_ATTACHMENT_SIZE: u64 = 100 * 1024 * 1024;
 
 /// State of an in-progress attachment upload
 #[derive(Debug)]
+#[allow(dead_code)]
 struct PendingAttachment {
     /// Unique attachment ID
     id: String,
@@ -73,6 +74,7 @@ impl AttachmentReceiver {
     }
 
     /// Start receiving a new attachment
+    #[allow(clippy::too_many_arguments)]
     pub async fn start_upload(
         &self,
         command_id: String,

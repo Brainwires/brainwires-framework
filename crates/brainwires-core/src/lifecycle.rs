@@ -35,58 +35,87 @@ use std::sync::Arc;
 pub enum LifecycleEvent {
     /// An agent has been created and is about to start.
     AgentStarted {
+        /// The agent's unique identifier.
         agent_id: String,
+        /// Description of the task assigned to the agent.
         task_description: String,
     },
     /// An agent completed its task successfully.
     AgentCompleted {
+        /// The agent's unique identifier.
         agent_id: String,
+        /// Number of iterations the agent executed.
         iterations: u32,
+        /// Summary of the completed work.
         summary: String,
     },
     /// An agent failed to complete its task.
     AgentFailed {
+        /// The agent's unique identifier.
         agent_id: String,
+        /// Error message describing the failure.
         error: String,
+        /// Number of iterations before failure.
         iterations: u32,
     },
     /// A tool is about to be executed.
     ToolBeforeExecute {
+        /// The agent invoking the tool, if any.
         agent_id: Option<String>,
+        /// Name of the tool being invoked.
         tool_name: String,
+        /// Arguments passed to the tool.
         args: Value,
     },
     /// A tool has finished executing.
     ToolAfterExecute {
+        /// The agent that invoked the tool, if any.
         agent_id: Option<String>,
+        /// Name of the tool that was executed.
         tool_name: String,
+        /// Whether the tool execution succeeded.
         success: bool,
+        /// Duration of the tool execution in milliseconds.
         duration_ms: u64,
     },
     /// A request is about to be sent to an AI provider.
     ProviderRequest {
+        /// The agent making the request, if any.
         agent_id: Option<String>,
+        /// Provider name (e.g. "anthropic", "openai").
         provider: String,
+        /// Model identifier.
         model: String,
     },
     /// A response was received from an AI provider.
     ProviderResponse {
+        /// The agent that made the request, if any.
         agent_id: Option<String>,
+        /// Provider name.
         provider: String,
+        /// Model identifier.
         model: String,
+        /// Number of input tokens consumed.
         input_tokens: u64,
+        /// Number of output tokens generated.
         output_tokens: u64,
+        /// Duration of the request in milliseconds.
         duration_ms: u64,
     },
     /// Validation has started for an agent's work.
     ValidationStarted {
+        /// The agent whose work is being validated.
         agent_id: String,
+        /// Names of the validation checks being run.
         checks: Vec<String>,
     },
     /// Validation completed for an agent's work.
     ValidationCompleted {
+        /// The agent whose work was validated.
         agent_id: String,
+        /// Whether all validation checks passed.
         passed: bool,
+        /// List of validation issues found.
         issues: Vec<String>,
     },
 }
@@ -138,7 +167,10 @@ pub enum HookResult {
     /// Continue processing normally.
     Continue,
     /// Cancel the operation with a reason.
-    Cancel { reason: String },
+    Cancel {
+        /// Human-readable reason for cancellation.
+        reason: String,
+    },
     /// Continue but with modified data (e.g., modified tool args).
     Modified(Value),
 }
@@ -169,13 +201,11 @@ impl EventFilter {
                 return false;
             }
         }
-        if !self.tool_names.is_empty() {
-            if let Some(name) = event.tool_name() {
-                if !self.tool_names.contains(name) {
+        if !self.tool_names.is_empty()
+            && let Some(name) = event.tool_name()
+                && !self.tool_names.contains(name) {
                     return false;
                 }
-            }
-        }
         true
     }
 }
@@ -206,6 +236,7 @@ pub struct HookRegistry {
 }
 
 impl HookRegistry {
+    /// Create an empty hook registry.
     pub fn new() -> Self {
         Self { hooks: Vec::new() }
     }

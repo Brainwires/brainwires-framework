@@ -22,6 +22,7 @@ pub struct BedrockFineTune {
 }
 
 impl BedrockFineTune {
+    /// Create a new AWS Bedrock fine-tune provider.
     pub fn new(region: impl Into<String>) -> Self {
         Self {
             region: region.into(),
@@ -31,6 +32,7 @@ impl BedrockFineTune {
         }
     }
 
+    /// Set explicit AWS credentials.
     pub fn with_credentials(
         mut self,
         access_key_id: impl Into<String>,

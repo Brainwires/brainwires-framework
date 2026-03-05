@@ -282,7 +282,7 @@ impl ClusterStorage {
             |row| row.get(0),
         )?;
 
-        let db_size_bytes = std::fs::metadata(&self.conn.path().unwrap_or_default())
+        let db_size_bytes = std::fs::metadata(self.conn.path().unwrap_or_default())
             .map(|m| m.len())
             .unwrap_or(0);
 
@@ -304,9 +304,13 @@ impl ClusterStorage {
 /// Statistics about stored data
 #[derive(Debug, Clone)]
 pub struct StorageStats {
+    /// Number of stored task clusters.
     pub cluster_count: u32,
+    /// Number of technique performance records.
     pub technique_perf_count: u32,
+    /// Number of temperature performance records.
     pub temp_perf_count: u32,
+    /// Total database size in bytes.
     pub db_size_bytes: u64,
 }
 

@@ -63,6 +63,7 @@ pub enum PreHookDecision {
 /// Hook is set via `AgentContext::with_pre_execute_hook()`.
 #[async_trait]
 pub trait ToolPreHook: Send + Sync {
+    /// Called before tool execution to validate or reject the call.
     async fn before_execute(
         &self,
         tool_use: &ToolUse,

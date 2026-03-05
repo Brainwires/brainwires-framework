@@ -13,7 +13,7 @@ use lancedb::query::{ExecutableQuery, QueryBase};
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 
-use super::embeddings::{EmbeddingProvider, EmbeddingProviderTrait as _};
+use super::embeddings::EmbeddingProvider;
 use super::image_types::{
     ImageFormat, ImageMetadata, ImageSearchRequest, ImageSearchResult, ImageStorage,
 };
@@ -165,11 +165,10 @@ impl ImageStore {
             .await
             .context("Failed to query images by hash")?;
 
-        if let Some(batch) = results.try_next().await? {
-            if batch.num_rows() > 0 {
+        if let Some(batch) = results.try_next().await?
+            && batch.num_rows() > 0 {
                 return Ok(Some(self.batch_to_metadata(&batch, 0)?));
             }
-        }
 
         Ok(None)
     }
@@ -188,11 +187,10 @@ impl ImageStore {
             .await
             .context("Failed to query image by ID")?;
 
-        if let Some(batch) = results.try_next().await? {
-            if batch.num_rows() > 0 {
+        if let Some(batch) = results.try_next().await?
+            && batch.num_rows() > 0 {
                 return Ok(Some(self.batch_to_metadata(&batch, 0)?));
             }
-        }
 
         Ok(None)
     }
@@ -373,8 +371,8 @@ impl ImageStore {
             .await
             .context("Failed to query image data")?;
 
-        if let Some(batch) = results.try_next().await? {
-            if batch.num_rows() > 0 {
+        if let Some(batch) = results.try_next().await?
+            && batch.num_rows() > 0 {
                 let storage_type = batch
                     .column_by_name("storage_type")
                     .and_then(|c| c.as_any().downcast_ref::<StringArray>())
@@ -396,7 +394,6 @@ impl ImageStore {
 
                 return Ok(Some(storage));
             }
-        }
 
         Ok(None)
     }

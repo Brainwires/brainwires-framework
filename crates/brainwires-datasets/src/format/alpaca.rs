@@ -59,7 +59,7 @@ impl FormatConverter for AlpacaFormat {
         Ok(result)
     }
 
-    fn from_json(&self, value: &serde_json::Value) -> DatasetResult<TrainingExample> {
+    fn parse_json(&self, value: &serde_json::Value) -> DatasetResult<TrainingExample> {
         let instruction = value
             .get("instruction")
             .and_then(|v| v.as_str())
@@ -110,7 +110,7 @@ mod tests {
         assert_eq!(json["input"], "You are a math tutor");
         assert_eq!(json["output"], "4");
 
-        let parsed = format.from_json(&json).unwrap();
+        let parsed = format.parse_json(&json).unwrap();
         assert_eq!(parsed.messages.len(), 3);
         assert_eq!(parsed.messages[0].role, TrainingRole::System);
     }
@@ -126,7 +126,7 @@ mod tests {
         let json = format.to_json(&example).unwrap();
         assert_eq!(json["input"], "");
 
-        let parsed = format.from_json(&json).unwrap();
+        let parsed = format.parse_json(&json).unwrap();
         assert_eq!(parsed.messages.len(), 2);
     }
 }

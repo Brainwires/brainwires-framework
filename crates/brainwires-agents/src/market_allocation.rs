@@ -107,7 +107,7 @@ impl ResourceBid {
 
     /// Set urgency multiplier
     pub fn with_urgency(mut self, multiplier: f32, reason: impl Into<String>) -> Self {
-        self.urgency_multiplier = multiplier.max(0.1).min(10.0);
+        self.urgency_multiplier = multiplier.clamp(0.1, 10.0);
         self.urgency_reason = reason.into();
         self
     }
@@ -209,54 +209,64 @@ impl AgentBudget {
 
 /// Strategy for calculating prices
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub enum PricingStrategy {
     /// Winner pays their bid
     FirstPrice,
     /// Winner pays second-highest bid + 1
+    #[default]
     SecondPrice,
     /// Fixed price based on resource type
     FixedPrice(HashMap<String, u32>),
     /// Dynamic based on demand
     Dynamic {
+        /// Base price before demand adjustment.
         base_price: u32,
+        /// Multiplier applied per competing bid.
         demand_multiplier: f32,
     },
     /// Free (no budget consumption)
     Free,
 }
 
-impl Default for PricingStrategy {
-    fn default() -> Self {
-        PricingStrategy::SecondPrice
-    }
-}
 
 /// Result of an allocation attempt
 #[derive(Debug, Clone)]
 pub enum AllocationResult {
     /// Resource allocated to agent
     Allocated {
+        /// Winning agent identifier.
         agent_id: String,
+        /// Price paid for the allocation.
         price: u32,
+        /// Position in bid ranking.
         position: usize,
     },
     /// No valid bids
     NoBids,
     /// Resource still held by current owner
     StillHeld {
+        /// Agent currently holding the resource.
         holder: String,
+        /// Estimated time until release.
         remaining: Option<Duration>,
     },
     /// Agent doesn't have enough budget
     InsufficientBudget {
+        /// Agent that could not afford.
         agent_id: String,
+        /// Budget required.
         required: u32,
+        /// Budget available.
         available: u32,
     },
     /// Bid was outbid by another agent
     Outbid {
+        /// Agent that was outbid.
         agent_id: String,
+        /// Agent that won.
         winning_agent: String,
+        /// Winning bid score.
         winning_score: f32,
     },
 }
@@ -495,14 +505,12 @@ impl MarketAllocator {
     /// Release a resource (current holder done)
     pub async fn release(&self, resource_id: &str, agent_id: &str) -> bool {
         let mut auctions = self.auctions.write().await;
-        if let Some(auction) = auctions.get_mut(resource_id) {
-            if let Some(ref holder) = auction.current_holder {
-                if holder.agent_id == agent_id {
+        if let Some(auction) = auctions.get_mut(resource_id)
+            && let Some(ref holder) = auction.current_holder
+                && holder.agent_id == agent_id {
                     auction.current_holder = None;
                     return true;
                 }
-            }
-        }
         false
     }
 

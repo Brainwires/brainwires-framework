@@ -29,7 +29,7 @@
 //! let result: TaskAgentResult = agent.execute().await?;
 //! ```
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -228,7 +228,7 @@ pub struct TaskAgentConfig {
     /// operation targeting a path that is not prefixed by at least one entry
     /// in this list.  When `None`, file access is unrestricted.
     ///
-    /// Uses [`Path::starts_with`] for prefix matching, which is
+    /// Uses [`Path::starts_with`](std::path::Path::starts_with) for prefix matching, which is
     /// component-aware: `"/src"` allows `"/src/main.rs"` but denies
     /// `"/src_extra/file.txt"`.
     pub allowed_files: Option<Vec<PathBuf>>,
@@ -463,8 +463,8 @@ impl TaskAgent {
     ) -> Result<Option<TaskAgentResult>> {
         let task_id = self.task.read().await.id.clone();
 
-        if let Some(ref validation_config) = self.config.validation_config {
-            if validation_config.enabled {
+        if let Some(ref validation_config) = self.config.validation_config
+            && validation_config.enabled {
                 tracing::info!(
                     agent_id = %self.id,
                     "running validation before completion"
@@ -504,7 +504,6 @@ impl TaskAgent {
                     }
                 }
             }
-        }
 
         // Finalise the task.
         self.task.write().await.complete(message_text);
@@ -836,8 +835,7 @@ impl TaskAgent {
                 .communication_hub
                 .try_receive_message(&self.id)
                 .await
-            {
-                if let AgentMessage::HelpResponse {
+                && let AgentMessage::HelpResponse {
                     request_id,
                     response,
                 } = envelope.message
@@ -850,11 +848,10 @@ impl TaskAgent {
                             request_id, response
                         )));
                 }
-            }
 
             // ── Budget: timeout ──────────────────────────────────────────────
-            if let Some(secs) = self.config.timeout_secs {
-                if start_time.elapsed().as_secs() >= secs {
+            if let Some(secs) = self.config.timeout_secs
+                && start_time.elapsed().as_secs() >= secs {
                     let elapsed = start_time.elapsed().as_secs();
                     let partial = self.last_assistant_text().await;
                     let error = format!(
@@ -903,11 +900,10 @@ impl TaskAgent {
                         pre_execution_plan: pre_execution_plan.clone(),
                     });
                 }
-            }
 
             // ── Budget: token ceiling ────────────────────────────────────────
-            if let Some(max) = self.config.max_total_tokens {
-                if total_tokens_used >= max {
+            if let Some(max) = self.config.max_total_tokens
+                && total_tokens_used >= max {
                     let partial = self.last_assistant_text().await;
                     let error = format!(
                         "Agent {} exceeded token budget ({}/{} tokens)",
@@ -955,11 +951,10 @@ impl TaskAgent {
                         pre_execution_plan: pre_execution_plan.clone(),
                     });
                 }
-            }
 
             // ── Budget: cost ceiling ─────────────────────────────────────────
-            if let Some(max) = self.config.max_cost_usd {
-                if total_cost_usd >= max {
+            if let Some(max) = self.config.max_cost_usd
+                && total_cost_usd >= max {
                     let partial = self.last_assistant_text().await;
                     let error = format!(
                         "Agent {} exceeded cost budget (${:.6}/{:.6} USD)",
@@ -1007,18 +1002,16 @@ impl TaskAgent {
                         pre_execution_plan: pre_execution_plan.clone(),
                     });
                 }
-            }
 
             // ── Goal re-validation ───────────────────────────────────────────
-            if let Some(interval) = self.config.goal_revalidation_interval {
-                if interval > 0 && iterations > 1 && (iterations - 1) % interval == 0 {
+            if let Some(interval) = self.config.goal_revalidation_interval
+                && interval > 0 && iterations > 1 && (iterations - 1).is_multiple_of(interval) {
                     self.conversation_history.write().await.push(Message::user(format!(
                         "GOAL CHECK (iteration {}): Your original task was:\n\n\"{}\"\n\n\
                          Confirm you are still on track. Correct course if you have drifted.",
                         iterations, task_description
                     )));
                 }
-            }
 
             // ── Call provider ───────────────────────────────────────────────
             let response = self.call_provider().await?;
@@ -1208,8 +1201,8 @@ impl TaskAgent {
                     Self::get_lock_requirement(tool_use)
                 {
                     // ── File scope whitelist check (Item 3) ──────────────
-                    if let Some(ref allowed) = self.config.allowed_files {
-                        if !Self::is_file_path_allowed(&path, allowed) {
+                    if let Some(ref allowed) = self.config.allowed_files
+                        && !Self::is_file_path_allowed(&path, allowed) {
                             tracing::warn!(
                                 agent_id = %self.id,
                                 path = %path,
@@ -1228,7 +1221,6 @@ impl TaskAgent {
                                 .push(Self::tool_result_message(&result));
                             continue;
                         }
-                    }
 
                     self.set_status(TaskAgentStatus::WaitingForLock(path.clone()))
                         .await;
@@ -1304,8 +1296,8 @@ impl TaskAgent {
                 );
 
                 // Track file in working set for file-write operations.
-                if !tool_result.is_error && Self::is_file_operation(&tool_use.name) {
-                    if let Some(fp) = Self::extract_file_path(tool_use) {
+                if !tool_result.is_error && Self::is_file_operation(&tool_use.name)
+                    && let Some(fp) = Self::extract_file_path(tool_use) {
                         let tokens = estimate_tokens_from_size(
                             std::fs::metadata(&fp)
                                 .ok()
@@ -1314,7 +1306,6 @@ impl TaskAgent {
                         );
                         self.context.working_set.write().await.add(fp, tokens);
                     }
-                }
 
                 // Sanitize + wrap external tool results before injecting into
                 // conversation history (Items 1 + 2: input sanitization and
@@ -1341,8 +1332,8 @@ impl TaskAgent {
             }
 
             // ── Loop detection ───────────────────────────────────────────────
-            if let Some(ref ld) = self.config.loop_detection {
-                if ld.enabled {
+            if let Some(ref ld) = self.config.loop_detection
+                && ld.enabled {
                     for tool_use in &tool_uses {
                         if recent_tool_names.len() == ld.window_size {
                             recent_tool_names.pop_front();
@@ -1405,7 +1396,6 @@ impl TaskAgent {
                         });
                     }
                 }
-            }
         }
     }
 

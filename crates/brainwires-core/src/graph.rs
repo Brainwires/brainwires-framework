@@ -9,16 +9,24 @@ use serde::{Deserialize, Serialize};
 /// Types of entities tracked in the knowledge graph.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum EntityType {
+    /// A source file entity.
     File,
+    /// A function or method entity.
     Function,
+    /// A type (struct, enum, class) entity.
     Type,
+    /// A variable or constant entity.
     Variable,
+    /// An abstract concept entity.
     Concept,
+    /// An error or exception entity.
     Error,
+    /// A CLI command entity.
     Command,
 }
 
 impl EntityType {
+    /// Returns the string representation of this entity type.
     pub fn as_str(&self) -> &'static str {
         match self {
             EntityType::File => "file",
@@ -35,11 +43,17 @@ impl EntityType {
 /// Types of edges in the relationship graph.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum EdgeType {
+    /// Entities co-occur in the same context.
     CoOccurs,
+    /// One entity contains another.
     Contains,
+    /// One entity references another.
     References,
+    /// One entity depends on another.
     DependsOn,
+    /// One entity modifies another.
     Modifies,
+    /// One entity defines another.
     Defines,
 }
 
@@ -60,20 +74,30 @@ impl EdgeType {
 /// A node in the relationship graph.
 #[derive(Debug, Clone)]
 pub struct GraphNode {
+    /// Name of the entity.
     pub entity_name: String,
+    /// Type classification of the entity.
     pub entity_type: EntityType,
+    /// IDs of messages where this entity was mentioned.
     pub message_ids: Vec<String>,
+    /// Total number of mentions across all messages.
     pub mention_count: u32,
+    /// Computed importance score.
     pub importance: f32,
 }
 
 /// An edge in the relationship graph.
 #[derive(Debug, Clone)]
 pub struct GraphEdge {
+    /// Source entity name.
     pub from: String,
+    /// Target entity name.
     pub to: String,
+    /// Type of relationship.
     pub edge_type: EdgeType,
+    /// Strength of the relationship.
     pub weight: f32,
+    /// Message ID where this edge was established, if any.
     pub message_id: Option<String>,
 }
 

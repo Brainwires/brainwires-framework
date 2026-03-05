@@ -21,6 +21,7 @@ pub struct AnyscaleFineTune {
 }
 
 impl AnyscaleFineTune {
+    /// Create a new Anyscale fine-tune provider.
     pub fn new(api_key: impl Into<String>) -> Self {
         Self {
             api_key: api_key.into(),
@@ -29,6 +30,7 @@ impl AnyscaleFineTune {
         }
     }
 
+    /// Set a custom base URL.
     pub fn with_base_url(mut self, url: impl Into<String>) -> Self {
         self.base_url = url.into();
         self
@@ -65,7 +67,7 @@ impl FineTuneProvider for AnyscaleFineTune {
 
         let response = self
             .client
-            .post(&format!("{}/files", self.base_url))
+            .post(format!("{}/files", self.base_url))
             .bearer_auth(&self.api_key)
             .multipart(form)
             .send()
@@ -107,7 +109,7 @@ impl FineTuneProvider for AnyscaleFineTune {
 
         let response = self
             .client
-            .post(&format!("{}/fine_tuning/jobs", self.base_url))
+            .post(format!("{}/fine_tuning/jobs", self.base_url))
             .bearer_auth(&self.api_key)
             .json(&body)
             .send()
@@ -180,7 +182,7 @@ impl FineTuneProvider for AnyscaleFineTune {
     async fn list_jobs(&self) -> Result<Vec<TrainingJobSummary>, TrainingError> {
         let response = self
             .client
-            .get(&format!("{}/fine_tuning/jobs", self.base_url))
+            .get(format!("{}/fine_tuning/jobs", self.base_url))
             .bearer_auth(&self.api_key)
             .send()
             .await?;

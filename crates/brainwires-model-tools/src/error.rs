@@ -8,23 +8,59 @@ use std::time::Duration;
 /// Error taxonomy based on AgentDebug paper (arxiv:2509.25370)
 #[derive(Debug, Clone, PartialEq)]
 pub enum ToolErrorCategory {
-    /// Transient errors that may succeed on retry (network issues, timeouts)
-    Transient { error: String, retry_strategy: RetryStrategy },
-    /// Input validation errors - need different input parameters
-    InputValidation { error: String, suggestion: Option<String> },
-    /// External service errors (API limits, service unavailable)
-    ExternalService { error: String, service: String, retry_after: Option<Duration> },
-    /// Permission/access errors - won't succeed without user action
-    Permission { error: String, required_permission: String },
-    /// Logic errors - indicates model misunderstanding of tool usage
-    Logic { error: String, context: String },
-    /// Resource errors - file not found, memory, disk space
-    Resource { error: String, resource_type: ResourceType },
-    /// Unknown/unclassified errors
-    Unknown { error: String },
+    /// Transient errors that may succeed on retry (network issues, timeouts).
+    Transient {
+        /// Error message.
+        error: String,
+        /// Retry strategy for this error.
+        retry_strategy: RetryStrategy,
+    },
+    /// Input validation errors - need different input parameters.
+    InputValidation {
+        /// Error message.
+        error: String,
+        /// Suggested fix for the input.
+        suggestion: Option<String>,
+    },
+    /// External service errors (API limits, service unavailable).
+    ExternalService {
+        /// Error message.
+        error: String,
+        /// Name of the external service.
+        service: String,
+        /// Suggested delay before retry.
+        retry_after: Option<Duration>,
+    },
+    /// Permission/access errors - won't succeed without user action.
+    Permission {
+        /// Error message.
+        error: String,
+        /// The permission required to proceed.
+        required_permission: String,
+    },
+    /// Logic errors - indicates model misunderstanding of tool usage.
+    Logic {
+        /// Error message.
+        error: String,
+        /// Context in which the logic error occurred.
+        context: String,
+    },
+    /// Resource errors - file not found, memory, disk space.
+    Resource {
+        /// Error message.
+        error: String,
+        /// Type of resource involved.
+        resource_type: ResourceType,
+    },
+    /// Unknown/unclassified errors.
+    Unknown {
+        /// Error message.
+        error: String,
+    },
 }
 
 impl ToolErrorCategory {
+    /// Return the category name as a static string.
     pub fn category_name(&self) -> &'static str {
         match self {
             ToolErrorCategory::Transient { .. } => "transient",
@@ -37,6 +73,7 @@ impl ToolErrorCategory {
         }
     }
 
+    /// Return the error message string.
     pub fn error_message(&self) -> &str {
         match self {
             ToolErrorCategory::Transient { error, .. } => error,
@@ -49,10 +86,12 @@ impl ToolErrorCategory {
         }
     }
 
+    /// Whether this error category is retryable.
     pub fn is_retryable(&self) -> bool {
         matches!(self, ToolErrorCategory::Transient { .. } | ToolErrorCategory::ExternalService { .. })
     }
 
+    /// Return the retry strategy for this error.
     pub fn retry_strategy(&self) -> RetryStrategy {
         match self {
             ToolErrorCategory::Transient { retry_strategy, .. } => retry_strategy.clone(),
@@ -67,6 +106,7 @@ impl ToolErrorCategory {
         }
     }
 
+    /// Get a suggestion for resolving this error, if available.
     pub fn get_suggestion(&self) -> Option<String> {
         match self {
             ToolErrorCategory::InputValidation { suggestion, .. } => suggestion.clone(),
@@ -80,24 +120,48 @@ impl ToolErrorCategory {
 /// Resource types for Resource errors
 #[derive(Debug, Clone, PartialEq)]
 pub enum ResourceType {
+    /// File not found.
     FileNotFound,
+    /// Directory not found.
     DirectoryNotFound,
+    /// Insufficient disk space.
     DiskSpace,
+    /// Insufficient memory.
     Memory,
+    /// Process limit reached.
     ProcessLimit,
+    /// Other resource type.
     Other(String),
 }
 
 /// Retry strategy for transient errors
 #[derive(Debug, Clone, PartialEq)]
 pub enum RetryStrategy {
+    /// Do not retry.
     NoRetry,
-    Immediate { max_attempts: u32 },
-    FixedDelay { delay: Duration, max_attempts: u32 },
-    ExponentialBackoff { base: Duration, max_attempts: u32 },
+    /// Retry immediately up to a maximum number of attempts.
+    Immediate {
+        /// Maximum number of retry attempts.
+        max_attempts: u32,
+    },
+    /// Retry with a fixed delay between attempts.
+    FixedDelay {
+        /// Delay between retries.
+        delay: Duration,
+        /// Maximum number of retry attempts.
+        max_attempts: u32,
+    },
+    /// Retry with exponential backoff.
+    ExponentialBackoff {
+        /// Base duration for backoff calculation.
+        base: Duration,
+        /// Maximum number of retry attempts.
+        max_attempts: u32,
+    },
 }
 
 impl RetryStrategy {
+    /// Compute the delay for a given retry attempt, or `None` if exhausted.
     pub fn delay_for_attempt(&self, attempt: u32) -> Option<Duration> {
         match self {
             RetryStrategy::NoRetry => None,
@@ -113,6 +177,7 @@ impl RetryStrategy {
         }
     }
 
+    /// Return the maximum number of retry attempts.
     pub fn max_attempts(&self) -> u32 {
         match self {
             RetryStrategy::NoRetry => 0,
@@ -223,17 +288,24 @@ fn classify_web_error(error: &str) -> ToolErrorCategory {
 /// Outcome of a tool execution (for SEAL learning)
 #[derive(Debug, Clone)]
 pub struct ToolOutcome {
+    /// Name of the tool that was executed.
     pub tool_name: String,
+    /// Whether execution succeeded.
     pub success: bool,
+    /// Number of retries performed.
     pub retries: u32,
+    /// Error category if the tool failed.
     pub error_category: Option<ToolErrorCategory>,
+    /// Execution time in milliseconds.
     pub execution_time_ms: u64,
 }
 
 impl ToolOutcome {
+    /// Create a successful tool outcome.
     pub fn success(tool_name: &str, retries: u32, execution_time_ms: u64) -> Self {
         Self { tool_name: tool_name.to_string(), success: true, retries, error_category: None, execution_time_ms }
     }
+    /// Create a failed tool outcome.
     pub fn failure(tool_name: &str, retries: u32, error_category: ToolErrorCategory, execution_time_ms: u64) -> Self {
         Self { tool_name: tool_name.to_string(), success: false, retries, error_category: Some(error_category), execution_time_ms }
     }

@@ -4,29 +4,36 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum TaskStatus {
+    /// Task is waiting to be started.
     Pending,
+    /// Task is currently being executed.
     InProgress,
+    /// Task completed successfully.
     Completed,
+    /// Task failed.
     Failed,
+    /// Task is blocked by dependencies.
     Blocked,
+    /// Task was skipped.
     Skipped,
 }
 
 /// Task priority levels
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum TaskPriority {
+    /// Low priority.
     Low = 0,
+    /// Normal (default) priority.
+    #[default]
     Normal = 1,
+    /// High priority.
     High = 2,
+    /// Urgent priority.
     Urgent = 3,
 }
 
-impl Default for TaskPriority {
-    fn default() -> Self {
-        Self::Normal
-    }
-}
 
 /// A task being executed by an agent (supports tree structure)
 #[derive(Debug, Clone, Serialize, Deserialize)]

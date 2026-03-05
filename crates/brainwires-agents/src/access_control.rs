@@ -55,8 +55,11 @@ pub enum ContentionStrategy {
     WaitWithTimeout(Duration),
     /// Retry with exponential backoff
     RetryWithBackoff {
+        /// Initial delay between retries.
         initial_delay: Duration,
+        /// Maximum number of retries.
         max_retries: u32,
+        /// Maximum delay cap.
         max_delay: Duration,
     },
 }
@@ -345,16 +348,14 @@ impl AccessControlManager {
         }
 
         // Handle bash commands (build/test)
-        if tool_name == "execute_command" {
-            if let Some(command) = input.get("command").and_then(|v| v.as_str()) {
-                if let Some((resource_type, scope)) = self.get_resource_requirement(command) {
+        if tool_name == "execute_command"
+            && let Some(command) = input.get("command").and_then(|v| v.as_str())
+                && let Some((resource_type, scope)) = self.get_resource_requirement(command) {
                     let resource_lock = self
                         .acquire_resource_lock_with_retry(agent_id, resource_type, scope)
                         .await?;
                     bundle.resource_lock = Some(resource_lock);
                 }
-            }
-        }
 
         Ok(bundle)
     }

@@ -8,18 +8,15 @@ use std::sync::{Arc, Mutex};
 /// Implements Anthropic's `allowed_callers` pattern for programmatic tool calling.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum ToolCaller {
     /// Tool can be called directly by the AI
+    #[default]
     Direct,
     /// Tool can only be called from within code/script execution
     CodeExecution,
 }
 
-impl Default for ToolCaller {
-    fn default() -> Self {
-        Self::Direct
-    }
-}
 
 /// A tool that can be used by the AI agent
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -50,10 +47,13 @@ pub struct Tool {
 /// JSON Schema for tool input
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolInputSchema {
+    /// Schema type (typically "object").
     #[serde(rename = "type", default = "default_schema_type")]
     pub schema_type: String,
+    /// Property definitions mapping name to JSON Schema.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub properties: Option<HashMap<String, Value>>,
+    /// List of required property names.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub required: Option<Vec<String>>,
 }

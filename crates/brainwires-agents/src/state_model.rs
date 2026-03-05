@@ -27,8 +27,11 @@ use tokio::sync::RwLock;
 
 /// Three-State Model for comprehensive state tracking
 pub struct ThreeStateModel {
+    /// Domain-level resource tracking.
     pub application_state: Arc<ApplicationState>,
+    /// Execution logging and history.
     pub operation_state: Arc<OperationState>,
+    /// Resource relationship graph.
     pub dependency_state: Arc<DependencyState>,
 }
 
@@ -179,6 +182,7 @@ pub struct ApplicationState {
 }
 
 impl ApplicationState {
+    /// Create a new empty application state.
     pub fn new() -> Self {
         Self {
             files: RwLock::new(HashMap::new()),
@@ -288,13 +292,19 @@ impl Default for ApplicationState {
     }
 }
 
+/// Status of a tracked file in application state.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileStatus {
+    /// Whether the file exists on disk.
     pub exists: bool,
+    /// Hash of the file contents.
     pub content_hash: String,
+    /// Last modification time.
     #[serde(skip, default = "default_system_time")]
     pub last_modified: SystemTime,
+    /// Agent currently holding a lock on this file.
     pub locked_by: Option<String>,
+    /// Whether the file has uncommitted changes.
     pub dirty: bool,
 }
 
@@ -302,19 +312,29 @@ fn default_system_time() -> SystemTime {
     SystemTime::UNIX_EPOCH
 }
 
+/// Status of a build artifact.
 #[derive(Debug, Clone)]
 pub struct ArtifactStatus {
+    /// Whether the artifact is still valid.
     pub valid: bool,
+    /// Hash of the source that produced this artifact.
     pub built_from_hash: String,
+    /// When the artifact was built.
     pub build_time: Instant,
 }
 
+/// Git repository state snapshot.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct GitState {
+    /// Current branch name.
     pub current_branch: String,
+    /// HEAD commit hash.
     pub head_commit: String,
+    /// Files staged for commit.
     pub staged_files: Vec<String>,
+    /// Modified but unstaged files.
     pub modified_files: Vec<String>,
+    /// Whether there are merge conflicts.
     pub has_conflicts: bool,
 }
 
@@ -335,6 +355,7 @@ pub struct OperationState {
 }
 
 impl OperationState {
+    /// Create a new empty operation state.
     pub fn new() -> Self {
         Self {
             operations: RwLock::new(HashMap::new()),
@@ -462,24 +483,39 @@ impl Default for OperationState {
     }
 }
 
+/// Log entry for a tracked operation.
 #[derive(Debug, Clone)]
 pub struct OperationLog {
+    /// Unique operation identifier.
     pub id: String,
+    /// ID of the agent performing the operation.
     pub agent_id: String,
+    /// Type of operation (e.g., "build", "test").
     pub operation_type: String,
+    /// When the operation started.
     pub started_at: Instant,
+    /// When the operation completed (if finished).
     pub completed_at: Option<Instant>,
+    /// Current status of the operation.
     pub status: OperationLogStatus,
+    /// Input parameters for the operation.
     pub inputs: serde_json::Value,
+    /// Output data (if completed).
     pub outputs: Option<serde_json::Value>,
+    /// Error message (if failed).
     pub error: Option<String>,
+    /// IDs of child operations spawned by this one.
     pub child_operations: Vec<String>,
+    /// ID of the parent operation (if this is a child).
     pub parent_operation: Option<String>,
+    /// Resources required by this operation.
     pub resources_needed: Vec<String>,
+    /// Resources produced by this operation.
     pub resources_produced: Vec<String>,
 }
 
 impl OperationLog {
+    /// Create a new operation log entry.
     pub fn new(
         id: String,
         agent_id: String,
@@ -503,6 +539,7 @@ impl OperationLog {
         }
     }
 
+    /// Set the resources needed and produced by this operation.
     pub fn with_resources(
         mut self,
         needed: Vec<String>,
@@ -513,17 +550,24 @@ impl OperationLog {
         self
     }
 
+    /// Get the duration of the operation (if completed).
     pub fn duration(&self) -> Option<std::time::Duration> {
         self.completed_at.map(|end| end.duration_since(self.started_at))
     }
 }
 
+/// Status of an operation in its lifecycle.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OperationLogStatus {
+    /// Not yet started.
     Pending,
+    /// Currently executing.
     Running,
+    /// Finished successfully.
     Completed,
+    /// Finished with an error.
     Failed,
+    /// Rolled back via saga compensation.
     Compensated,
 }
 
@@ -540,6 +584,7 @@ pub struct DependencyState {
 }
 
 impl DependencyState {
+    /// Create a new empty dependency state.
     pub fn new() -> Self {
         Self {
             graph: RwLock::new(DiGraph::new()),
@@ -591,11 +636,10 @@ impl DependencyState {
         let mut graph = self.graph.write().await;
 
         // Edge was added from to→from, so we need to find it that way
-        if let (Some(&from_idx), Some(&to_idx)) = (index.get(from), index.get(to)) {
-            if let Some(edge) = graph.find_edge(to_idx, from_idx) {
+        if let (Some(&from_idx), Some(&to_idx)) = (index.get(from), index.get(to))
+            && let Some(edge) = graph.find_edge(to_idx, from_idx) {
                 graph.remove_edge(edge);
             }
-        }
     }
 
     /// Check if acquiring resources would create a deadlock
@@ -657,11 +701,10 @@ impl DependencyState {
         if let Some(&node_idx) = index.get(resource_id) {
             // Find all incoming edges (resources that this resource depends on)
             for edge_ref in graph.edges_directed(node_idx, Direction::Incoming) {
-                if let Some(source_node) = graph.node_weight(edge_ref.source()) {
-                    if source_node.current_holder.is_some() {
+                if let Some(source_node) = graph.node_weight(edge_ref.source())
+                    && source_node.current_holder.is_some() {
                         blocking.push(source_node.resource_id.clone());
                     }
-                }
             }
         }
 
@@ -673,11 +716,10 @@ impl DependencyState {
         let index = self.resource_index.read().await;
         let mut graph = self.graph.write().await;
 
-        if let Some(&node_idx) = index.get(resource_id) {
-            if let Some(node) = graph.node_weight_mut(node_idx) {
+        if let Some(&node_idx) = index.get(resource_id)
+            && let Some(node) = graph.node_weight_mut(node_idx) {
                 node.current_holder = agent_id.map(String::from);
             }
-        }
     }
 
     /// Get current resource holders
@@ -766,30 +808,46 @@ impl Default for DependencyState {
     }
 }
 
+/// A node in the resource dependency graph.
 #[derive(Debug, Clone)]
 pub struct ResourceNode {
+    /// Unique resource identifier.
     pub resource_id: String,
+    /// Type of this resource.
     pub resource_type: ResourceNodeType,
+    /// Agent currently holding this resource.
     pub current_holder: Option<String>,
 }
 
+/// Type of resource node in the dependency graph.
 #[derive(Debug, Clone)]
 pub enum ResourceNodeType {
+    /// A file resource.
     File(PathBuf),
+    /// Build system lock.
     BuildLock,
+    /// Test system lock.
     TestLock,
+    /// Git index lock.
     GitIndex,
+    /// Git branch resource.
     GitBranch(String),
+    /// An agent node (for wait-for graphs).
     Agent(String),
+    /// Generic resource.
     Generic,
 }
 
+/// An edge in the dependency graph between resources.
 #[derive(Debug, Clone)]
 pub struct DependencyEdge {
+    /// Type of dependency relationship.
     pub dependency_type: DependencyType,
+    /// How strictly the dependency must be respected.
     pub strength: DependencyStrength,
 }
 
+/// Type of dependency relationship between resources
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DependencyType {
     /// A depends on B (A needs B to complete first)
@@ -806,6 +864,7 @@ pub enum DependencyType {
     WaitsFor,
 }
 
+/// How strictly a dependency must be respected
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DependencyStrength {
     /// Must be respected
@@ -823,12 +882,16 @@ pub enum DependencyStrength {
 /// Result of validating an operation
 #[derive(Debug, Clone)]
 pub struct ValidationResult {
+    /// Whether the operation passed validation.
     pub valid: bool,
+    /// Validation errors (if any).
     pub errors: Vec<String>,
+    /// Validation warnings (if any).
     pub warnings: Vec<String>,
 }
 
 impl ValidationResult {
+    /// Create a passing validation result.
     pub fn ok() -> Self {
         Self {
             valid: true,
@@ -837,6 +900,7 @@ impl ValidationResult {
         }
     }
 
+    /// Create a failing validation result with a single error.
     pub fn error(msg: impl Into<String>) -> Self {
         Self {
             valid: false,
@@ -849,36 +913,69 @@ impl ValidationResult {
 /// A proposed operation to validate (for the three-state model)
 #[derive(Debug, Clone)]
 pub struct StateModelProposedOperation {
+    /// ID of the agent proposing the operation.
     pub agent_id: String,
+    /// Type of proposed operation.
     pub operation_type: String,
+    /// Resources needed by the operation.
     pub resources_needed: Vec<String>,
+    /// Resources that will be produced.
     pub resources_produced: Vec<String>,
 }
 
 /// State change to record
 #[derive(Debug, Clone)]
 pub struct StateChange {
+    /// ID of the operation that caused this change.
     pub operation_id: String,
+    /// Application-level changes.
     pub application_changes: Vec<ApplicationChange>,
+    /// New dependency relationships (from, to, edge).
     pub new_dependencies: Vec<(String, String, DependencyEdge)>,
 }
 
 /// Types of application state changes
 #[derive(Debug, Clone)]
 pub enum ApplicationChange {
-    FileModified { path: PathBuf, new_hash: String },
-    ArtifactInvalidated { artifact_id: String },
-    GitStateChanged { new_state: GitState },
-    ResourceCreated { resource_id: String },
-    ResourceDeleted { resource_id: String },
+    /// A file was modified.
+    FileModified {
+        /// Path of the modified file.
+        path: PathBuf,
+        /// New content hash.
+        new_hash: String,
+    },
+    /// A build artifact was invalidated.
+    ArtifactInvalidated {
+        /// ID of the invalidated artifact.
+        artifact_id: String,
+    },
+    /// Git repository state changed.
+    GitStateChanged {
+        /// New git state.
+        new_state: GitState,
+    },
+    /// A new resource was created.
+    ResourceCreated {
+        /// ID of the created resource.
+        resource_id: String,
+    },
+    /// A resource was deleted.
+    ResourceDeleted {
+        /// ID of the deleted resource.
+        resource_id: String,
+    },
 }
 
 /// Snapshot of current state
 #[derive(Debug, Clone)]
 pub struct StateSnapshot {
+    /// All tracked files and their status.
     pub files: HashMap<PathBuf, FileStatus>,
+    /// Current resource locks (resource -> holder agent).
     pub locks: HashMap<String, String>,
+    /// Current git repository state.
     pub git_state: GitState,
+    /// IDs of currently active operations.
     pub active_operations: Vec<String>,
 }
 

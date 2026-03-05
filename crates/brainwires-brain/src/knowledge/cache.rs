@@ -4,7 +4,7 @@
 //! queue support for when the server is unavailable.
 
 use super::truth::{BehavioralTruth, PendingTruthSubmission, TruthCategory, TruthFeedback};
-use anyhow::{Context, Result};
+use anyhow::Result;
 use rusqlite::{params, Connection, OptionalExtension};
 use std::collections::HashMap;
 use std::path::Path;
@@ -530,19 +530,28 @@ impl BehavioralKnowledgeCache {
 /// Result of merging truths from server
 #[derive(Debug, Clone)]
 pub struct MergeResult {
+    /// Number of new truths added.
     pub added: u32,
+    /// Number of existing truths updated.
     pub updated: u32,
+    /// Number of merge conflicts.
     pub conflicts: u32,
 }
 
 /// Statistics about the cache
 #[derive(Debug, Clone)]
 pub struct CacheStats {
+    /// Total number of cached truths.
     pub total_truths: u32,
+    /// Counts by category.
     pub by_category: HashMap<TruthCategory, u32>,
+    /// Average confidence score.
     pub avg_confidence: f32,
+    /// Number of pending truth submissions.
     pub pending_submissions: usize,
+    /// Number of pending feedback reports.
     pub pending_feedback: usize,
+    /// Unix timestamp of last sync.
     pub last_sync: i64,
 }
 

@@ -299,14 +299,13 @@ impl SkillRegistry {
             output.push_str(&format!("**Model**: {}\n", model));
         }
 
-        if let Some(ref meta) = metadata.metadata {
-            if !meta.is_empty() {
+        if let Some(ref meta) = metadata.metadata
+            && !meta.is_empty() {
                 output.push_str("\n**Metadata**:\n");
                 for (key, value) in meta {
                     output.push_str(&format!("  - {}: {}\n", key, value));
                 }
             }
-        }
 
         output.push_str(&format!(
             "\n**File**: {}\n",

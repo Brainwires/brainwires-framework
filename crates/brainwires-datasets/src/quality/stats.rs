@@ -3,30 +3,49 @@ use crate::types::{TrainingExample, TrainingRole};
 /// Statistics about a training dataset.
 #[derive(Debug, Clone)]
 pub struct DatasetStats {
+    /// Total number of training examples.
     pub total_examples: usize,
+    /// Total number of messages across all examples.
     pub total_messages: usize,
+    /// Total estimated tokens across all examples.
     pub total_estimated_tokens: usize,
+    /// Average messages per example.
     pub avg_messages_per_example: f64,
+    /// Average estimated tokens per example.
     pub avg_tokens_per_example: f64,
+    /// Minimum tokens in any single example.
     pub min_tokens: usize,
+    /// Maximum tokens in any single example.
     pub max_tokens: usize,
+    /// Number of examples that include a system message.
     pub examples_with_system: usize,
+    /// Message counts per role.
     pub role_counts: RoleCounts,
+    /// Token count distribution histogram.
     pub token_histogram: Vec<HistogramBucket>,
 }
 
+/// Message counts broken down by role.
 #[derive(Debug, Clone, Default)]
 pub struct RoleCounts {
+    /// Number of system messages.
     pub system: usize,
+    /// Number of user messages.
     pub user: usize,
+    /// Number of assistant messages.
     pub assistant: usize,
+    /// Number of tool messages.
     pub tool: usize,
 }
 
+/// A single bucket in the token count histogram.
 #[derive(Debug, Clone)]
 pub struct HistogramBucket {
+    /// Inclusive lower bound of the bucket range.
     pub range_start: usize,
+    /// Exclusive upper bound of the bucket range.
     pub range_end: usize,
+    /// Number of examples falling in this range.
     pub count: usize,
 }
 
@@ -132,7 +151,7 @@ fn build_histogram(token_counts: &[usize]) -> Vec<HistogramBucket> {
     }
 
     // Remove empty trailing buckets
-    while buckets.last().map_or(false, |b| b.count == 0) {
+    while buckets.last().is_some_and(|b| b.count == 0) {
         buckets.pop();
     }
 

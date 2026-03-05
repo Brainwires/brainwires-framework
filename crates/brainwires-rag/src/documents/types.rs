@@ -28,7 +28,7 @@ impl DocumentType {
     pub fn from_path(path: &Path) -> Self {
         path.extension()
             .and_then(|ext| ext.to_str())
-            .map(|ext| Self::from_extension(ext))
+            .map(Self::from_extension)
             .unwrap_or(Self::Unknown)
     }
 

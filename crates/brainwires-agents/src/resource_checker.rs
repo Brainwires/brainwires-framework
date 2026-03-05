@@ -92,7 +92,10 @@ impl Conflict {
 #[derive(Debug, Clone)]
 pub enum ResourceConflictType {
     /// File write lock blocks a build operation
-    FileWriteBlocksBuild { path: PathBuf },
+    FileWriteBlocksBuild {
+        /// Path of the locked file.
+        path: PathBuf,
+    },
     /// Build in progress blocks file write
     BuildBlocksFileWrite,
     /// Test in progress blocks file write
@@ -100,7 +103,10 @@ pub enum ResourceConflictType {
     /// Git operation blocks file write
     GitBlocksFileWrite,
     /// File write lock blocks git operation
-    FileWriteBlocksGit { path: PathBuf },
+    FileWriteBlocksGit {
+        /// Path of the locked file.
+        path: PathBuf,
+    },
     /// Build in progress blocks git operation
     BuildBlocksGit,
 }
@@ -109,40 +115,58 @@ pub enum ResourceConflictType {
 #[derive(Debug, Clone)]
 pub enum ProposedOperation {
     /// File write operation
-    FileWrite { path: PathBuf, agent_id: String },
+    FileWrite {
+        /// Path of the file to write.
+        path: PathBuf,
+        /// Agent performing the write.
+        agent_id: String,
+    },
     /// Build operation
     Build {
+        /// Scope of the build.
         scope: ResourceScope,
+        /// Agent performing the build.
         agent_id: String,
     },
     /// Test operation
     Test {
+        /// Scope of the test.
         scope: ResourceScope,
+        /// Agent performing the test.
         agent_id: String,
     },
     /// Git staging operation
     GitStaging {
+        /// Scope of the staging operation.
         scope: ResourceScope,
+        /// Agent performing the staging.
         agent_id: String,
     },
     /// Git commit operation
     GitCommit {
+        /// Scope of the commit operation.
         scope: ResourceScope,
+        /// Agent performing the commit.
         agent_id: String,
     },
     /// Git push operation
     GitPush {
+        /// Scope of the push operation.
         scope: ResourceScope,
+        /// Agent performing the push.
         agent_id: String,
     },
     /// Git pull operation
     GitPull {
+        /// Scope of the pull operation.
         scope: ResourceScope,
+        /// Agent performing the pull.
         agent_id: String,
     },
 }
 
 impl ProposedOperation {
+    /// Get the agent ID for this proposed operation.
     pub fn agent_id(&self) -> &str {
         match self {
             ProposedOperation::FileWrite { agent_id, .. }

@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 //! # Brainwires
 //!
 //! The Brainwires Agent Framework — build any AI application in Rust.
@@ -15,17 +16,18 @@
 //! use brainwires::prelude::*;
 //! ```
 
-// Core — available via brainwires::core::* or brainwires::prelude::*
+/// Core types and traits — available via `brainwires::core::*` or `brainwires::prelude::*`.
 pub mod core {
     pub use brainwires_core::*;
 }
 
-// Feature-gated framework crates as modules
+/// Model tools — file ops, bash, git, search, validation, and web tools.
 #[cfg(feature = "tools")]
 pub mod tools {
     pub use brainwires_model_tools::*;
 }
 
+/// Agent runtime, communication hub, task management, and validation.
 #[cfg(feature = "agents")]
 pub mod agents {
     pub use brainwires_agents::*;

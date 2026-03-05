@@ -1,5 +1,8 @@
+/// Authentication client for the Brainwires backend.
 pub mod client;
+/// Authentication types (session, profile, config).
 pub mod types;
+/// Session persistence and management.
 pub mod session;
 
 #[cfg(feature = "auth-keyring")]

@@ -186,7 +186,7 @@ impl EarlyStoppingConfig {
 /// First-to-ahead-by-k voter implementing Algorithm 2 from the MAKER paper
 ///
 /// The algorithm continues sampling until one candidate has at least k more
-/// votes than any other candidate: V[y] >= k + max(V[v] for v != y)
+/// votes than any other candidate: `V[y] >= k + max(V[v] for v != y)`
 ///
 /// Enhanced with:
 /// - Early stopping (RASC paper: arxiv:2408.17017)
@@ -341,8 +341,8 @@ impl FirstToAheadByKVoter {
                         }
 
                         // Check for early stopping (RASC paper)
-                        if self.early_stopping.enabled {
-                            if let Some((winner_key, winner_value)) = self.check_early_stop(&votes) {
+                        if self.early_stopping.enabled
+                            && let Some((winner_key, winner_value)) = self.check_early_stop(&votes) {
                                 let vote_distribution: HashMap<String, u32> =
                                     votes.iter().map(|(k, (v, _))| (k.clone(), *v)).collect();
 
@@ -378,7 +378,6 @@ impl FirstToAheadByKVoter {
                                     voting_method: self.voting_method.clone(),
                                 });
                             }
-                        }
 
                         // Check winner based on voting method
                         let winner_result = match self.voting_method {
@@ -447,8 +446,8 @@ impl FirstToAheadByKVoter {
 
             // Check for loss-of-hope condition (RASC paper enhancement)
             // If no candidate can possibly win, return the current leader
-            if self.early_stopping.loss_of_hope_enabled && self.check_loss_of_hope(&votes, total_samples) {
-                if let Some((leader_key, (leader_votes, leader_value))) = votes
+            if self.early_stopping.loss_of_hope_enabled && self.check_loss_of_hope(&votes, total_samples)
+                && let Some((leader_key, (leader_votes, leader_value))) = votes
                     .iter()
                     .max_by_key(|(_, (v, _))| *v)
                 {
@@ -487,7 +486,6 @@ impl FirstToAheadByKVoter {
                         voting_method: self.voting_method.clone(),
                     });
                 }
-            }
         }
     }
 
@@ -805,6 +803,7 @@ impl Default for VoterBuilder {
 }
 
 impl VoterBuilder {
+    /// Create a new voter builder with default settings.
     pub fn new() -> Self {
         Self::default()
     }

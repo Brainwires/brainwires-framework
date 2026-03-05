@@ -10,6 +10,7 @@ use brainwires_core::{Tool, ToolContext, ToolInputSchema, ToolResult};
 pub struct WebTool;
 
 impl WebTool {
+    /// Return tool definitions for web operations.
     pub fn get_tools() -> Vec<Tool> {
         vec![Self::fetch_url_tool()]
     }
@@ -26,6 +27,7 @@ impl WebTool {
         }
     }
 
+    /// Execute a web tool by name.
     #[tracing::instrument(name = "tool.execute", skip(input, _context), fields(tool_name))]
     pub async fn execute(tool_use_id: &str, tool_name: &str, input: &Value, _context: &ToolContext) -> ToolResult {
         let result = match tool_name {

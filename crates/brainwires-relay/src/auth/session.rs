@@ -111,14 +111,12 @@ impl SessionManager {
     /// Delete session from disk and key store
     pub fn delete(&self) -> Result<()> {
         // First, try to get the user_id to delete the key store entry
-        if let Ok(Some(session)) = self.load() {
-            if let Some(ref key_store) = self.key_store {
-                if let Err(e) = key_store.delete_key(&session.user.user_id) {
+        if let Ok(Some(session)) = self.load()
+            && let Some(ref key_store) = self.key_store
+                && let Err(e) = key_store.delete_key(&session.user.user_id) {
                     debug!("Failed to delete API key from key store: {}", e);
                     // Continue anyway - deleting session file is more important
                 }
-            }
-        }
 
         if self.session_file.exists() {
             fs::remove_file(&self.session_file)

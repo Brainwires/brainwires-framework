@@ -5,7 +5,6 @@
 
 use super::fact::{PersonalFact, PersonalFactCategory, PersonalFactSource};
 use regex::Regex;
-use std::collections::HashMap;
 
 /// Collector for detecting personal facts from conversation
 pub struct PersonalFactCollector {
@@ -290,8 +289,8 @@ impl PersonalFactCollector {
         let mut facts = Vec::new();
 
         for rule in patterns {
-            if let Some(captures) = rule.pattern.captures(message) {
-                if let Some(value_match) = captures.get(rule.value_group) {
+            if let Some(captures) = rule.pattern.captures(message)
+                && let Some(value_match) = captures.get(rule.value_group) {
                     let value = value_match.as_str().trim().to_string();
 
                     // Skip very short or very long values
@@ -322,7 +321,6 @@ impl PersonalFactCollector {
 
                     facts.push(adjusted_fact);
                 }
-            }
         }
 
         facts
@@ -335,12 +333,11 @@ impl PersonalFactCollector {
         // Replace {n} patterns with capture groups
         let re = Regex::new(r"\{(\d+)\}").unwrap();
         for cap in re.captures_iter(template) {
-            if let Ok(group_num) = cap[1].parse::<usize>() {
-                if let Some(value) = captures.get(group_num) {
+            if let Ok(group_num) = cap[1].parse::<usize>()
+                && let Some(value) = captures.get(group_num) {
                     let replacement = value.as_str().to_lowercase().replace(' ', "_");
                     key = key.replace(&cap[0], &replacement);
                 }
-            }
         }
 
         key.to_lowercase().replace(' ', "_")

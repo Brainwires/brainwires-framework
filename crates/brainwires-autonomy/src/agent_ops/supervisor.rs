@@ -56,6 +56,7 @@ pub struct AgentSupervisor {
 }
 
 impl AgentSupervisor {
+    /// Create a new supervisor with the given configuration, lifecycle manager, and approval policy.
     pub fn new(
         config: SupervisorConfig,
         lifecycle: Arc<dyn AgentLifecycleManager>,
@@ -180,8 +181,30 @@ impl AgentSupervisor {
 /// Events produced by the supervisor.
 #[derive(Debug, Clone)]
 pub enum SupervisorEvent {
-    Restarted { agent_id: String, attempt: u32 },
-    RestartFailed { agent_id: String, error: String },
-    ShutDown { agent_id: String },
-    Escalated { agent_id: String, reason: String },
+    /// An agent was successfully restarted.
+    Restarted {
+        /// Identifier of the restarted agent.
+        agent_id: String,
+        /// Restart attempt number.
+        attempt: u32,
+    },
+    /// An agent restart attempt failed.
+    RestartFailed {
+        /// Identifier of the agent.
+        agent_id: String,
+        /// Error message from the failed restart.
+        error: String,
+    },
+    /// An agent was shut down.
+    ShutDown {
+        /// Identifier of the shut-down agent.
+        agent_id: String,
+    },
+    /// An issue was escalated for human attention.
+    Escalated {
+        /// Identifier of the agent.
+        agent_id: String,
+        /// Reason for escalation.
+        reason: String,
+    },
 }

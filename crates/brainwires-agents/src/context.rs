@@ -44,7 +44,7 @@ pub struct AgentContext {
     /// Optional pre-execution hook for semantic tool validation.
     ///
     /// When set, the hook is called before every tool execution. Returning
-    /// [`PreHookDecision::Reject`] causes the tool call to be skipped and
+    /// [`PreHookDecision::Reject`](crate::PreHookDecision::Reject) causes the tool call to be skipped and
     /// the rejection message injected as a `ToolResult::error`.
     pub pre_execute_hook: Option<Arc<dyn ToolPreHook>>,
 }

@@ -22,33 +22,44 @@ pub enum TechniqueCategory {
 /// 15 prompting techniques from the paper (Table 1)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum PromptingTechnique {
-    // Role Assignment
+    /// Role-playing persona assignment.
     RolePlaying,
 
-    // Emotional Stimulus
+    /// Emotion-based prompting stimulus.
     EmotionPrompting,
+    /// Stress / urgency-based prompting stimulus.
     StressPrompting,
 
-    // Reasoning (7 techniques)
+    /// Chain-of-thought reasoning.
     ChainOfThought,
+    /// Logic-of-thought structured reasoning.
     LogicOfThought,
+    /// Least-to-most decomposition.
     LeastToMost,
+    /// Thread-of-thought sequential reasoning.
     ThreadOfThought,
+    /// Plan-and-solve two-stage reasoning.
     PlanAndSolve,
+    /// Skeleton-of-thought parallel generation.
     SkeletonOfThought,
+    /// Scratchpad-based working memory.
     ScratchpadPrompting,
 
-    // Others (6 techniques)
+    /// Decomposed multi-step prompting.
     DecomposedPrompting,
+    /// Ignore irrelevant conditions filtering.
     IgnoreIrrelevantConditions,
+    /// Highlighted chain-of-thought.
     HighlightedCoT,
+    /// Skills-in-context grounding.
     SkillsInContext,
+    /// Automatic information filtering.
     AutomaticInformationFiltering,
 }
 
 impl PromptingTechnique {
     /// Parse technique from string ID
-    pub fn from_str(s: &str) -> Result<Self, &'static str> {
+    pub fn parse_id(s: &str) -> Result<Self, &'static str> {
         match s.to_lowercase().as_str() {
             "role_playing" | "roleplaying" => Ok(Self::RolePlaying),
             "emotion_prompting" | "emotionprompting" => Ok(Self::EmotionPrompting),
@@ -111,26 +122,41 @@ pub enum ComplexityLevel {
 /// Task characteristics for technique matching
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum TaskCharacteristic {
+    /// Requires multi-step reasoning chains.
     MultiStepReasoning,
+    /// Involves numerical calculations.
     NumericalCalculation,
+    /// Requires logical deduction.
     LogicalDeduction,
+    /// Creative or open-ended generation.
     CreativeGeneration,
+    /// Summarization of long context.
     LongContextSummarization,
+    /// Spatial reasoning tasks.
     SpatialReasoning,
+    /// Visual understanding tasks.
     VisualUnderstanding,
+    /// Code generation tasks.
     CodeGeneration,
+    /// Algorithmic problem solving.
     AlgorithmicProblem,
 }
 
 /// Metadata for each technique (SEAL-enhanced)
 #[derive(Debug, Clone)]
 pub struct TechniqueMetadata {
+    /// The prompting technique this metadata describes.
     pub technique: PromptingTechnique,
+    /// Category of the technique.
     pub category: TechniqueCategory,
+    /// Human-readable name.
     pub name: String,
+    /// Description of the technique.
     pub description: String,
-    pub template: String, // Template for generating prompts
-    pub best_for: Vec<TaskCharacteristic>, // When to use this
+    /// Template string for generating prompts.
+    pub template: String,
+    /// Task characteristics this technique works best for.
+    pub best_for: Vec<TaskCharacteristic>,
 
     // SEAL integration
     /// Minimum SEAL quality to use this technique (0.0-1.0)
@@ -143,6 +169,7 @@ pub struct TechniqueMetadata {
 
 impl TechniqueMetadata {
     /// Create new technique metadata
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         technique: PromptingTechnique,
         category: TechniqueCategory,

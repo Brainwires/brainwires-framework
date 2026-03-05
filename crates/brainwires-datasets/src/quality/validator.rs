@@ -4,35 +4,46 @@ use crate::types::{TrainingExample, TrainingRole, PreferencePair};
 /// Validation issue severity.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IssueSeverity {
+    /// A blocking error that makes the example invalid.
     Error,
+    /// A non-blocking warning about potential issues.
     Warning,
 }
 
 /// A single validation issue found in a dataset example.
 #[derive(Debug, Clone)]
 pub struct ValidationIssue {
+    /// ID of the example where the issue was found.
     pub example_id: String,
+    /// Severity of the issue.
     pub severity: IssueSeverity,
+    /// Human-readable description of the issue.
     pub message: String,
 }
 
 /// Result of validating a dataset.
 #[derive(Debug, Clone)]
 pub struct ValidationReport {
+    /// All issues found during validation.
     pub issues: Vec<ValidationIssue>,
+    /// Total number of examples validated.
     pub total_examples: usize,
+    /// Number of examples that passed without errors.
     pub valid_examples: usize,
 }
 
 impl ValidationReport {
+    /// Return true if any error-level issues exist.
     pub fn has_errors(&self) -> bool {
         self.issues.iter().any(|i| i.severity == IssueSeverity::Error)
     }
 
+    /// Count the number of error-level issues.
     pub fn error_count(&self) -> usize {
         self.issues.iter().filter(|i| i.severity == IssueSeverity::Error).count()
     }
 
+    /// Count the number of warning-level issues.
     pub fn warning_count(&self) -> usize {
         self.issues.iter().filter(|i| i.severity == IssueSeverity::Warning).count()
     }
@@ -77,10 +88,12 @@ pub struct DataValidator {
 }
 
 impl DataValidator {
+    /// Create a new validator with the given configuration.
     pub fn new(config: ValidatorConfig) -> Self {
         Self { config }
     }
 
+    /// Create a new validator with default configuration.
     pub fn with_defaults() -> Self {
         Self::new(ValidatorConfig::default())
     }

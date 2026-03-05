@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 //! # Brainwires Brain — Central Knowledge Crate
 //!
 //! The canonical home for all knowledge systems in the Brainwires Agent Framework:
@@ -20,12 +21,19 @@
 //! }
 //! ```
 
+/// Persistent thought storage with semantic search.
 pub mod brain_client;
+/// Entity types and store for the knowledge graph.
 pub mod entity;
+/// Automatic fact extraction from text.
 pub mod fact_extractor;
+/// Knowledge systems (BKS and PKS).
 pub mod knowledge;
+/// Entity relationship graph storage and queries.
 pub mod relationship_graph;
+/// Thought types, categories, and sources.
 pub mod thought;
+/// Request/response types for MCP tool endpoints.
 pub mod types;
 
 // Re-export main types

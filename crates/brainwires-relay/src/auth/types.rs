@@ -4,10 +4,14 @@ use serde::{Deserialize, Serialize};
 /// User profile information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserProfile {
+    /// Unique user identifier.
     #[serde(alias = "id")]
     pub user_id: String,
+    /// Login username.
     pub username: String,
+    /// Human-readable display name.
     pub display_name: String,
+    /// User role (e.g. "user", "admin").
     pub role: String,
 }
 
@@ -17,7 +21,9 @@ pub struct UserProfile {
 /// Supabase configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SupabaseConfig {
+    /// Supabase project URL.
     pub url: String,
+    /// Supabase anonymous key.
     #[serde(alias = "anonKey")]
     pub anon_key: String,
 }
@@ -63,6 +69,7 @@ impl AuthSession {
 /// Authentication request payload
 #[derive(Debug, Serialize)]
 pub struct AuthRequest {
+    /// The API key to authenticate with.
     #[serde(rename = "apiKey")]
     pub api_key: String,
 }
@@ -70,8 +77,11 @@ pub struct AuthRequest {
 /// Authentication response from backend
 #[derive(Debug, Deserialize)]
 pub struct AuthResponse {
+    /// Authenticated user profile.
     pub user: UserProfile,
+    /// Supabase configuration.
     pub supabase: SupabaseConfig,
+    /// Name of the API key used.
     #[serde(rename = "keyName")]
     pub key_name: String,
 }

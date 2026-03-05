@@ -11,6 +11,7 @@ pub struct TaskGenerator {
 }
 
 impl TaskGenerator {
+    /// Create a new task generator with the given strategies.
     pub fn new(strategies: Vec<Box<dyn ImprovementStrategy>>) -> Self {
         Self { strategies }
     }

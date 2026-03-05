@@ -88,6 +88,7 @@ impl<P: MicroagentProvider + 'static> BinaryRecursiveDecomposer<P> {
     }
 
     /// Build the system prompt for decomposition
+    #[allow(dead_code)]
     fn build_decomposition_prompt(&self, context: &DecomposeContext) -> String {
         Self::build_decomposition_prompt_static(context, self.max_depth)
     }
@@ -117,6 +118,7 @@ impl<P: MicroagentProvider + 'static> BinaryRecursiveDecomposer<P> {
     }
 
     /// Parse the decomposition response
+    #[allow(dead_code)]
     fn parse_decomposition(
         &self,
         response: &str,
@@ -335,6 +337,7 @@ pub struct SimpleRecursiveDecomposer {
 }
 
 impl SimpleRecursiveDecomposer {
+    /// Create a new simple recursive decomposer with the given depth limit.
     pub fn new(max_depth: u32) -> Self {
         Self {
             max_depth,
@@ -349,7 +352,7 @@ impl SimpleRecursiveDecomposer {
 
         // Split by sentences
         let sentences: Vec<&str> = task
-            .split(|c| c == '.' || c == ';')
+            .split(['.', ';'])
             .map(|s| s.trim())
             .filter(|s| !s.is_empty())
             .collect();

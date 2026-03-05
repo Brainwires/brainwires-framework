@@ -56,8 +56,8 @@ impl ValidationAgent {
                     if resource.starts_with('/') || resource.contains('/') {
                         // Looks like a file path
                         let path = PathBuf::from(resource);
-                        if let Some(file_status) = ctx.current_state.files.get(&path) {
-                            if !file_status.exists {
+                        if let Some(file_status) = ctx.current_state.files.get(&path)
+                            && !file_status.exists {
                                 return ValidationOutcome {
                                     passed: false,
                                     rule_name: "file_exists_for_edit".into(),
@@ -65,7 +65,6 @@ impl ValidationAgent {
                                     severity: ValidationSeverity::Warning,
                                 };
                             }
-                        }
                         // File not in state could mean it exists on disk but isn't tracked
                     }
                 }
@@ -81,8 +80,8 @@ impl ValidationAgent {
             check: Box::new(|ctx| {
                 // Check if any resource needed is locked by another agent
                 for resource in &ctx.operation.resources_needed {
-                    if let Some(holder) = ctx.current_state.locks.get(resource) {
-                        if holder != &ctx.agent_id {
+                    if let Some(holder) = ctx.current_state.locks.get(resource)
+                        && holder != &ctx.agent_id {
                             return ValidationOutcome {
                                 passed: false,
                                 rule_name: "no_conflicting_locks".into(),
@@ -93,7 +92,6 @@ impl ValidationAgent {
                                 severity: ValidationSeverity::Error,
                             };
                         }
-                    }
                 }
                 ValidationOutcome::pass("no_conflicting_locks")
             }),
@@ -106,11 +104,10 @@ impl ValidationAgent {
             rule_type: RuleType::PreCondition,
             check: Box::new(|ctx| {
                 // Only check for git-related operations
-                if ctx.operation.operation_type.starts_with("git_")
+                if (ctx.operation.operation_type.starts_with("git_")
                     || ctx.operation.operation_type == "commit"
-                    || ctx.operation.operation_type == "push"
-                {
-                    if ctx.current_state.git_state.has_conflicts {
+                    || ctx.operation.operation_type == "push")
+                    && ctx.current_state.git_state.has_conflicts {
                         return ValidationOutcome {
                             passed: false,
                             rule_name: "no_git_conflicts".into(),
@@ -118,7 +115,6 @@ impl ValidationAgent {
                             severity: ValidationSeverity::Error,
                         };
                     }
-                }
                 ValidationOutcome::pass("no_git_conflicts")
             }),
         });
@@ -134,8 +130,8 @@ impl ValidationAgent {
                     || ctx.operation.operation_type == "file_edit"
                 {
                     for resource in &ctx.operation.resources_produced {
-                        if let Some(file_status) = ctx.current_state.files.get(&PathBuf::from(resource)) {
-                            if !file_status.dirty {
+                        if let Some(file_status) = ctx.current_state.files.get(&PathBuf::from(resource))
+                            && !file_status.dirty {
                                 return ValidationOutcome {
                                     passed: false,
                                     rule_name: "artifacts_invalidated_after_edit".into(),
@@ -146,7 +142,6 @@ impl ValidationAgent {
                                     severity: ValidationSeverity::Warning,
                                 };
                             }
-                        }
                     }
                 }
                 ValidationOutcome::pass("artifacts_invalidated_after_edit")
@@ -202,8 +197,8 @@ impl ValidationAgent {
                         if !overlap.is_empty() {
                             // Other agent holds something we need
                             // If they're waiting for something we hold, it's a potential deadlock
-                            if let Some(ref waiting_for) = other_agent.waiting_for {
-                                if our_locks.contains(waiting_for) {
+                            if let Some(ref waiting_for) = other_agent.waiting_for
+                                && our_locks.contains(waiting_for) {
                                     return ValidationOutcome {
                                         passed: false,
                                         rule_name: "no_deadlock".into(),
@@ -216,7 +211,6 @@ impl ValidationAgent {
                                         severity: ValidationSeverity::Error,
                                     };
                                 }
-                            }
                         }
                     }
                 }
@@ -233,8 +227,8 @@ impl ValidationAgent {
                 // Check if our git operation conflicts with other agents
                 if ctx.operation.operation_type.starts_with("git_") {
                     for other_agent in &ctx.other_agents {
-                        if let Some(ref other_op) = other_agent.current_operation {
-                            if other_op.starts_with("git_") {
+                        if let Some(ref other_op) = other_agent.current_operation
+                            && other_op.starts_with("git_") {
                                 // Two git operations running concurrently
                                 // Some combinations are OK (e.g., git_status + git_log)
                                 // But others conflict (e.g., git_commit + git_commit)
@@ -265,7 +259,6 @@ impl ValidationAgent {
                                     };
                                 }
                             }
-                        }
                     }
                 }
                 ValidationOutcome::pass("git_coordination")
@@ -280,8 +273,8 @@ impl ValidationAgent {
             check: Box::new(|ctx| {
                 if ctx.operation.operation_type == "build" || ctx.operation.operation_type == "test" {
                     for other_agent in &ctx.other_agents {
-                        if let Some(ref other_op) = other_agent.current_operation {
-                            if other_op == "build" || other_op == "test" {
+                        if let Some(ref other_op) = other_agent.current_operation
+                            && (other_op == "build" || other_op == "test") {
                                 // Check if operating on same project/scope
                                 // For now, assume same scope if resources overlap
                                 let our_resources: std::collections::HashSet<_> =
@@ -301,7 +294,6 @@ impl ValidationAgent {
                                     };
                                 }
                             }
-                        }
                     }
                 }
                 ValidationOutcome::pass("build_coordination")

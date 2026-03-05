@@ -19,6 +19,7 @@ impl JsonlReader<std::fs::File> {
 }
 
 impl<R: Read> JsonlReader<R> {
+    /// Create a new JSONL reader wrapping the given reader.
     pub fn new(reader: R) -> Self {
         Self {
             reader: BufReader::new(reader),

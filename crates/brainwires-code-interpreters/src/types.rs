@@ -28,7 +28,7 @@ impl Language {
     }
 
     /// Parse a language from string (case-insensitive)
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "rhai" => Some(Language::Rhai),
             "lua" => Some(Language::Lua),
@@ -256,20 +256,6 @@ impl ExecutionLimits {
         10_000
     }
 
-    /// Create default limits
-    pub fn default() -> Self {
-        Self {
-            max_timeout_ms: Self::default_timeout_ms(),
-            max_memory_mb: Self::default_memory_mb(),
-            max_output_bytes: Self::default_output_bytes(),
-            max_operations: Self::default_operations(),
-            max_call_depth: Self::default_call_depth(),
-            max_string_length: Self::default_string_length(),
-            max_array_length: Self::default_array_length(),
-            max_map_size: Self::default_map_size(),
-        }
-    }
-
     /// Create strict limits for untrusted code
     pub fn strict() -> Self {
         Self {
@@ -301,39 +287,57 @@ impl ExecutionLimits {
 
 impl Default for ExecutionLimits {
     fn default() -> Self {
-        Self::default()
+        Self {
+            max_timeout_ms: Self::default_timeout_ms(),
+            max_memory_mb: Self::default_memory_mb(),
+            max_output_bytes: Self::default_output_bytes(),
+            max_operations: Self::default_operations(),
+            max_call_depth: Self::default_call_depth(),
+            max_string_length: Self::default_string_length(),
+            max_array_length: Self::default_array_length(),
+            max_map_size: Self::default_map_size(),
+        }
     }
 }
 
 /// Error types for code execution
 #[derive(Debug, Clone, thiserror::Error, Serialize, Deserialize)]
 pub enum ExecutionError {
+    /// The requested language is not supported or not enabled.
     #[error("Language '{0}' is not supported or not enabled")]
     UnsupportedLanguage(String),
 
+    /// Execution timed out after the given number of milliseconds.
     #[error("Execution timed out after {0}ms")]
     Timeout(u64),
 
+    /// Memory limit exceeded (in MB).
     #[error("Memory limit exceeded: {0}MB")]
     MemoryLimitExceeded(u32),
 
+    /// Operation limit exceeded.
     #[error("Operation limit exceeded: {0} operations")]
     OperationLimitExceeded(u64),
 
+    /// Output exceeded the maximum size (in bytes).
     #[error("Output too large: {0} bytes")]
     OutputTooLarge(usize),
 
+    /// Syntax error in the submitted code.
     #[error("Syntax error: {0}")]
     SyntaxError(String),
 
+    /// Runtime error during execution.
     #[error("Runtime error: {0}")]
     RuntimeError(String),
 
+    /// Internal executor error.
     #[error("Internal error: {0}")]
     InternalError(String),
 }
 
 impl ExecutionError {
+    /// Convert this error into an [`ExecutionResult`] with the given timing.
     pub fn to_result(&self, timing_ms: u64) -> ExecutionResult {
         ExecutionResult::error(self.to_string(), timing_ms)
     }
@@ -341,10 +345,12 @@ impl ExecutionError {
 
 /// Sandbox profile presets
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum SandboxProfile {
     /// Minimal - No I/O, basic math only
     Minimal,
     /// Standard - Console output, JSON, basic stdlib
+    #[default]
     Standard,
     /// Extended - More stdlib, regex, datetime
     Extended,
@@ -363,11 +369,6 @@ impl SandboxProfile {
     }
 }
 
-impl Default for SandboxProfile {
-    fn default() -> Self {
-        SandboxProfile::Standard
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -375,13 +376,13 @@ mod tests {
 
     #[test]
     fn test_language_parsing() {
-        assert_eq!(Language::from_str("python"), Some(Language::Python));
-        assert_eq!(Language::from_str("py"), Some(Language::Python));
-        assert_eq!(Language::from_str("JAVASCRIPT"), Some(Language::JavaScript));
-        assert_eq!(Language::from_str("js"), Some(Language::JavaScript));
-        assert_eq!(Language::from_str("lua"), Some(Language::Lua));
-        assert_eq!(Language::from_str("rhai"), Some(Language::Rhai));
-        assert_eq!(Language::from_str("unknown"), None);
+        assert_eq!(Language::parse("python"), Some(Language::Python));
+        assert_eq!(Language::parse("py"), Some(Language::Python));
+        assert_eq!(Language::parse("JAVASCRIPT"), Some(Language::JavaScript));
+        assert_eq!(Language::parse("js"), Some(Language::JavaScript));
+        assert_eq!(Language::parse("lua"), Some(Language::Lua));
+        assert_eq!(Language::parse("rhai"), Some(Language::Rhai));
+        assert_eq!(Language::parse("unknown"), None);
     }
 
     #[test]

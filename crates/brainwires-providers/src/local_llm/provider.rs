@@ -62,6 +62,7 @@ impl LocalLlmProvider {
         })
     }
 
+    /// Create a new local LLM provider (stub when `llama-cpp-2` feature is disabled).
     #[cfg(not(feature = "llama-cpp-2"))]
     pub fn new(config: LocalLlmConfig) -> Result<Self> {
         config.validate().map_err(|e| anyhow!(e))?;
@@ -93,6 +94,7 @@ impl LocalLlmProvider {
         self.model.lock().map(|g| g.is_some()).unwrap_or(false)
     }
 
+    /// Check if the model is loaded (always false without `llama-cpp-2` feature).
     #[cfg(not(feature = "llama-cpp-2"))]
     pub async fn is_loaded(&self) -> bool {
         false
@@ -137,6 +139,7 @@ impl LocalLlmProvider {
         Ok(())
     }
 
+    /// Load the model (errors without `llama-cpp-2` feature).
     #[cfg(not(feature = "llama-cpp-2"))]
     pub async fn load(&self) -> Result<()> {
         Err(anyhow!(
@@ -153,6 +156,7 @@ impl LocalLlmProvider {
         tracing::info!("Local model unloaded: {}", self.config.name);
     }
 
+    /// Unload the model (no-op without `llama-cpp-2` feature).
     #[cfg(not(feature = "llama-cpp-2"))]
     pub async fn unload(&self) {
         // No-op when feature not enabled
@@ -177,8 +181,8 @@ impl LocalLlmProvider {
         let mut prompt = String::new();
 
         // Add system message if present
-        if let Some(sys) = &system_msg {
-            if template.contains("{system}") {
+        if let Some(sys) = &system_msg
+            && template.contains("{system}") {
                 // Template has system placeholder
                 let sys_part = template
                     .split("{user}")
@@ -187,7 +191,6 @@ impl LocalLlmProvider {
                     .replace("{system}", sys);
                 prompt.push_str(&sys_part);
             }
-        }
 
         // Add conversation turns
         for msg in messages {
@@ -371,6 +374,7 @@ impl LocalLlmProvider {
 
 #[async_trait]
 impl Provider for LocalLlmProvider {
+    #[allow(clippy::misnamed_getters)] // Returns config.id intentionally — this is a trait method, not a field getter
     fn name(&self) -> &str {
         &self.config.id
     }

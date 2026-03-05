@@ -6,33 +6,43 @@ use thiserror::Error;
 /// Main error type for the RAG system
 #[derive(Error, Debug)]
 pub enum RagError {
+    /// Embedding generation error.
     #[error("Embedding error: {0}")]
     Embedding(#[from] EmbeddingError),
 
+    /// Vector database error.
     #[error("Vector database error: {0}")]
     VectorDb(#[from] VectorDbError),
 
+    /// File indexing error.
     #[error("Indexing error: {0}")]
     Indexing(#[from] IndexingError),
 
+    /// Code chunking error.
     #[error("Chunking error: {0}")]
     Chunking(#[from] ChunkingError),
 
+    /// Configuration error.
     #[error("Configuration error: {0}")]
     Config(#[from] ConfigError),
 
+    /// Input validation error.
     #[error("Validation error: {0}")]
     Validation(#[from] ValidationError),
 
+    /// Git operation error.
     #[error("Git error: {0}")]
     Git(#[from] GitError),
 
+    /// Cache operation error.
     #[error("Cache error: {0}")]
     Cache(#[from] CacheError),
 
+    /// I/O error.
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 
+    /// Catch-all error with a message string.
     #[error("{0}")]
     Other(String),
 }
@@ -40,21 +50,32 @@ pub enum RagError {
 /// Errors related to embedding generation
 #[derive(Error, Debug)]
 pub enum EmbeddingError {
+    /// Model initialization failure.
     #[error("Failed to initialize embedding model: {0}")]
     InitializationFailed(String),
 
+    /// Embedding generation failure.
     #[error("Failed to generate embeddings: {0}")]
     GenerationFailed(String),
 
+    /// Empty batch provided for embedding.
     #[error("Embedding batch is empty")]
     EmptyBatch,
 
+    /// Embedding generation timed out.
     #[error("Embedding generation timed out after {0} seconds")]
     Timeout(u64),
 
+    /// Dimension mismatch between expected and actual embedding vectors.
     #[error("Invalid embedding dimension: expected {expected}, got {actual}")]
-    DimensionMismatch { expected: usize, actual: usize },
+    DimensionMismatch {
+        /// Expected dimension.
+        expected: usize,
+        /// Actual dimension received.
+        actual: usize,
+    },
 
+    /// Internal model lock was poisoned.
     #[error("Model lock was poisoned: {0}")]
     LockPoisoned(String),
 }
@@ -62,36 +83,52 @@ pub enum EmbeddingError {
 /// Errors related to vector database operations
 #[derive(Error, Debug)]
 pub enum VectorDbError {
+    /// Database initialization failure.
     #[error("Failed to initialize vector database: {0}")]
     InitializationFailed(String),
 
+    /// Database connection failure.
     #[error("Failed to connect to vector database: {0}")]
     ConnectionFailed(String),
 
+    /// Collection creation failure.
     #[error("Failed to create collection '{collection}': {reason}")]
-    CollectionCreationFailed { collection: String, reason: String },
+    CollectionCreationFailed {
+        /// Collection name.
+        collection: String,
+        /// Failure reason.
+        reason: String,
+    },
 
+    /// Collection not found.
     #[error("Collection '{0}' not found")]
     CollectionNotFound(String),
 
+    /// Failed to store embeddings.
     #[error("Failed to store embeddings: {0}")]
     StoreFailed(String),
 
+    /// Failed to search embeddings.
     #[error("Failed to search embeddings: {0}")]
     SearchFailed(String),
 
+    /// Failed to delete embeddings.
     #[error("Failed to delete embeddings: {0}")]
     DeleteFailed(String),
 
+    /// Failed to get statistics.
     #[error("Failed to get statistics: {0}")]
     StatisticsFailed(String),
 
+    /// Failed to clear database.
     #[error("Failed to clear database: {0}")]
     ClearFailed(String),
 
+    /// Invalid search parameters.
     #[error("Invalid search parameters: {0}")]
     InvalidSearchParams(String),
 
+    /// Database not initialized.
     #[error("Database is not initialized")]
     NotInitialized,
 }
@@ -99,33 +136,53 @@ pub enum VectorDbError {
 /// Errors related to file indexing
 #[derive(Error, Debug)]
 pub enum IndexingError {
+    /// Directory not found.
     #[error("Directory not found: {0}")]
     DirectoryNotFound(String),
 
+    /// Path is not a directory.
     #[error("Path is not a directory: {0}")]
     NotADirectory(String),
 
+    /// Failed to walk directory tree.
     #[error("Failed to walk directory: {0}")]
     WalkFailed(String),
 
+    /// Failed to read a file.
     #[error("Failed to read file '{file}': {reason}")]
-    FileReadFailed { file: String, reason: String },
+    FileReadFailed {
+        /// File path that failed.
+        file: String,
+        /// Failure reason.
+        reason: String,
+    },
 
+    /// File is not valid UTF-8.
     #[error("File is not valid UTF-8: {0}")]
     InvalidUtf8(String),
 
+    /// File is binary and cannot be indexed.
     #[error("File is binary and cannot be indexed: {0}")]
     BinaryFile(String),
 
+    /// File size exceeds maximum.
     #[error("File size exceeds maximum: {size} > {max}")]
-    FileTooLarge { size: usize, max: usize },
+    FileTooLarge {
+        /// Actual file size.
+        size: usize,
+        /// Maximum allowed size.
+        max: usize,
+    },
 
+    /// Failed to calculate file hash.
     #[error("Failed to calculate file hash: {0}")]
     HashCalculationFailed(String),
 
+    /// No files found to index.
     #[error("No files found to index")]
     NoFilesFound,
 
+    /// Indexing was cancelled.
     #[error("Indexing was cancelled")]
     Cancelled,
 }
@@ -133,18 +190,23 @@ pub enum IndexingError {
 /// Errors related to code chunking
 #[derive(Error, Debug)]
 pub enum ChunkingError {
+    /// Code parsing failure.
     #[error("Failed to parse code: {0}")]
     ParseFailed(String),
 
+    /// Unsupported programming language.
     #[error("Unsupported language: {0}")]
     UnsupportedLanguage(String),
 
+    /// Invalid chunk size configuration.
     #[error("Invalid chunk size: {0}")]
     InvalidChunkSize(String),
 
+    /// No chunks generated from the file.
     #[error("No chunks generated from file: {0}")]
     NoChunksGenerated(String),
 
+    /// AST parsing failure.
     #[error("AST parsing failed: {0}")]
     AstParsingFailed(String),
 }
@@ -152,21 +214,32 @@ pub enum ChunkingError {
 /// Errors related to configuration
 #[derive(Error, Debug)]
 pub enum ConfigError {
+    /// Configuration file loading failure.
     #[error("Failed to load configuration file: {0}")]
     LoadFailed(String),
 
+    /// Configuration parsing failure.
     #[error("Failed to parse configuration: {0}")]
     ParseFailed(String),
 
+    /// Invalid configuration value.
     #[error("Invalid configuration value for '{key}': {reason}")]
-    InvalidValue { key: String, reason: String },
+    InvalidValue {
+        /// Configuration key name.
+        key: String,
+        /// Reason why the value is invalid.
+        reason: String,
+    },
 
+    /// Missing required configuration.
     #[error("Missing required configuration: {0}")]
     MissingRequired(String),
 
+    /// Configuration saving failure.
     #[error("Failed to save configuration: {0}")]
     SaveFailed(String),
 
+    /// Configuration file not found.
     #[error("Configuration file not found: {0}")]
     FileNotFound(String),
 }
@@ -174,31 +247,42 @@ pub enum ConfigError {
 /// Errors related to input validation
 #[derive(Error, Debug)]
 pub enum ValidationError {
+    /// Path does not exist.
     #[error("Path does not exist: {0}")]
     PathNotFound(String),
 
+    /// Path is not absolute.
     #[error("Path is not absolute: {0}")]
     PathNotAbsolute(String),
 
+    /// Invalid path.
     #[error("Invalid path: {0}")]
     InvalidPath(String),
 
+    /// Invalid project name.
     #[error("Invalid project name: {0}")]
     InvalidProjectName(String),
 
+    /// Invalid glob pattern.
     #[error("Invalid pattern: {0}")]
     InvalidPattern(String),
 
+    /// Constraint violation on a field value.
     #[error("{field} must be {constraint}, got {actual}")]
     ConstraintViolation {
+        /// Field name that violated the constraint.
         field: String,
+        /// Description of the constraint.
         constraint: String,
+        /// Actual value provided.
         actual: String,
     },
 
+    /// Invalid value for a parameter.
     #[error("Invalid value for {0}: {1}")]
     InvalidValue(String, String),
 
+    /// Required field is empty.
     #[error("Empty {0}")]
     Empty(String),
 }
@@ -206,27 +290,35 @@ pub enum ValidationError {
 /// Errors related to git operations
 #[derive(Error, Debug)]
 pub enum GitError {
+    /// Git repository not found.
     #[error("Git repository not found at: {0}")]
     RepoNotFound(String),
 
+    /// Failed to open git repository.
     #[error("Failed to open git repository: {0}")]
     OpenFailed(String),
 
+    /// Git reference not found.
     #[error("Failed to get git reference: {0}")]
     RefNotFound(String),
 
+    /// Failed to iterate over commits.
     #[error("Failed to iterate commits: {0}")]
     IterFailed(String),
 
+    /// Invalid commit hash.
     #[error("Invalid commit hash: {0}")]
     InvalidCommitHash(String),
 
+    /// Failed to parse commit data.
     #[error("Failed to parse commit: {0}")]
     ParseFailed(String),
 
+    /// Branch not found.
     #[error("Branch not found: {0}")]
     BranchNotFound(String),
 
+    /// No commits found matching search criteria.
     #[error("No commits found matching criteria")]
     NoCommitsFound,
 }
@@ -234,18 +326,33 @@ pub enum GitError {
 /// Errors related to cache operations
 #[derive(Error, Debug)]
 pub enum CacheError {
+    /// Failed to load cache.
     #[error("Failed to load cache from '{path}': {reason}")]
-    LoadFailed { path: String, reason: String },
+    LoadFailed {
+        /// Cache file path.
+        path: String,
+        /// Failure reason.
+        reason: String,
+    },
 
+    /// Failed to save cache.
     #[error("Failed to save cache to '{path}': {reason}")]
-    SaveFailed { path: String, reason: String },
+    SaveFailed {
+        /// Cache file path.
+        path: String,
+        /// Failure reason.
+        reason: String,
+    },
 
+    /// Cache file parsing failure.
     #[error("Failed to parse cache file: {0}")]
     ParseFailed(String),
 
+    /// Cache data is corrupted.
     #[error("Cache is corrupted: {0}")]
     Corrupted(String),
 
+    /// Failed to create cache directory.
     #[error("Failed to create cache directory: {0}")]
     DirectoryCreationFailed(String),
 }

@@ -77,10 +77,10 @@ The Brainwires Framework is a workspace of 22 crates (plus 1 extra) that provide
 
 ### Requirements
 
-- **Rust 1.85+** (edition 2024)
+- **Rust 1.88+** (edition 2024)
 - **Cargo** (comes with Rust)
 
-> **Note:** This framework uses `edition = "2024"` which requires Rust 1.85 or newer. Check your version with `rustc --version` and update with `rustup update stable` if needed.
+> **Note:** This framework uses `edition = "2024"` which requires Rust 1.88 or newer. Check your version with `rustc --version` and update with `rustup update stable` if needed.
 
 ### Using the Facade Crate
 

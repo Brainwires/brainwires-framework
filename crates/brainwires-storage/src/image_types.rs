@@ -8,11 +8,17 @@ use serde::{Deserialize, Serialize};
 /// Supported image formats
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ImageFormat {
+    /// PNG format.
     Png,
+    /// JPEG format.
     Jpeg,
+    /// GIF format.
     Gif,
+    /// WebP format.
     Webp,
+    /// SVG format.
     Svg,
+    /// Unknown format.
     Unknown,
 }
 
@@ -274,8 +280,9 @@ pub struct ImageSearchResult {
     pub tags: Vec<String>,
     /// Similarity score
     pub score: f32,
-    /// Image dimensions
+    /// Image width in pixels.
     pub width: Option<u32>,
+    /// Image height in pixels.
     pub height: Option<u32>,
     /// Creation timestamp
     pub created_at: i64,

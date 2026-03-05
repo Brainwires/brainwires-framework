@@ -20,11 +20,10 @@ impl JsonFieldDetector {
 impl FormatDetector for JsonFieldDetector {
     fn detect(&self, body: &[u8], content_type: Option<&str>) -> Option<FormatId> {
         // Quick content-type check
-        if let Some(ct) = content_type {
-            if !ct.contains("json") && !ct.contains("text") {
+        if let Some(ct) = content_type
+            && !ct.contains("json") && !ct.contains("text") {
                 return None;
             }
-        }
 
         // Try to parse as JSON
         let value: serde_json::Value = serde_json::from_slice(body).ok()?;
@@ -50,11 +49,10 @@ pub struct GenericJsonDetector;
 
 impl FormatDetector for GenericJsonDetector {
     fn detect(&self, body: &[u8], content_type: Option<&str>) -> Option<FormatId> {
-        if let Some(ct) = content_type {
-            if ct.contains("json") {
+        if let Some(ct) = content_type
+            && ct.contains("json") {
                 return Some(FormatId::new("json"));
             }
-        }
 
         // Try parsing
         if serde_json::from_slice::<serde_json::Value>(body).is_ok() {

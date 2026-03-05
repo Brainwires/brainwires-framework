@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use crate::config::StrategyConfig;
 use super::{ImprovementCategory, ImprovementStrategy, ImprovementTask};
 
+/// Strategy that runs `cargo clippy` and generates fix tasks from warnings.
 pub struct ClippyStrategy;
 
 #[derive(Deserialize)]

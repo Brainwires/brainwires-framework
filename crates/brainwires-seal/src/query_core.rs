@@ -36,7 +36,7 @@
 //! // }
 //! ```
 
-use brainwires_core::graph::{EdgeType, EntityType, GraphNode, RelationshipGraphT};
+use brainwires_core::graph::{EdgeType, EntityType, RelationshipGraphT};
 use regex::Regex;
 use std::collections::HashMap;
 
@@ -45,8 +45,11 @@ use std::collections::HashMap;
 pub enum QueryOp {
     /// Join two expressions via a relationship
     Join {
+        /// The relationship connecting subject and object.
         relation: RelationType,
+        /// The subject expression.
         subject: Box<QueryExpr>,
+        /// The object expression.
         object: Box<QueryExpr>,
     },
     /// Logical AND of expressions
@@ -57,15 +60,20 @@ pub enum QueryOp {
     Values(Vec<String>),
     /// Filter results by predicate
     Filter {
+        /// The expression to filter.
         source: Box<QueryExpr>,
+        /// The filter predicate to apply.
         predicate: FilterPredicate,
     },
     /// Count results
     Count(Box<QueryExpr>),
     /// Superlative query (argmax/argmin)
     Superlative {
+        /// The expression to evaluate.
         source: Box<QueryExpr>,
+        /// The property to compare.
         property: String,
+        /// Whether to find the maximum or minimum.
         direction: SuperlativeDir,
     },
 }
@@ -123,16 +131,27 @@ impl QueryExpr {
 /// Relation types that map to graph edge types
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum RelationType {
+    /// Containment relationship (e.g., file contains function).
     Contains,
+    /// Reference relationship (e.g., function references type).
     References,
+    /// Dependency relationship.
     DependsOn,
+    /// Modification relationship.
     Modifies,
+    /// Definition relationship.
     Defines,
+    /// Co-occurrence relationship.
     CoOccurs,
+    /// Type annotation relationship.
     HasType,
+    /// Error association relationship.
     HasError,
+    /// Creation timestamp relationship.
     CreatedAt,
+    /// Modification timestamp relationship.
     ModifiedAt,
+    /// User-defined relationship type.
     Custom(String),
 }
 
@@ -176,8 +195,11 @@ pub enum FilterPredicate {
     NotIn(Vec<String>),
     /// Property comparison
     Property {
+        /// The property name.
         name: String,
+        /// The comparison operator.
         op: CompareOp,
+        /// The value to compare against.
         value: String,
     },
 }
@@ -185,21 +207,32 @@ pub enum FilterPredicate {
 /// Comparison operators
 #[derive(Debug, Clone)]
 pub enum CompareOp {
+    /// Equal.
     Eq,
+    /// Not equal.
     Ne,
+    /// Less than.
     Lt,
+    /// Less than or equal.
     Le,
+    /// Greater than.
     Gt,
+    /// Greater than or equal.
     Ge,
+    /// Contains substring.
     Contains,
+    /// Starts with prefix.
     StartsWith,
+    /// Ends with suffix.
     EndsWith,
 }
 
 /// Direction for superlative queries
 #[derive(Debug, Clone)]
 pub enum SuperlativeDir {
+    /// Find the maximum value.
     Max,
+    /// Find the minimum value.
     Min,
 }
 
@@ -727,7 +760,7 @@ impl<'a> QueryExecutor<'a> {
                         .iter()
                         .zip(edges.iter())
                         .filter(|(_, edge)| {
-                            edge_type.as_ref().map_or(true, |et| edge.edge_type == *et)
+                            edge_type.as_ref().is_none_or(|et| edge.edge_type == *et)
                         })
                         .map(|(node, edge)| QueryResultValue {
                             value: node.entity_name.clone(),
@@ -747,7 +780,7 @@ impl<'a> QueryExecutor<'a> {
                         .iter()
                         .zip(edges.iter())
                         .filter(|(_, edge)| {
-                            edge_type.as_ref().map_or(true, |et| edge.edge_type == *et)
+                            edge_type.as_ref().is_none_or(|et| edge.edge_type == *et)
                         })
                         .map(|(node, edge)| QueryResultValue {
                             value: node.entity_name.clone(),

@@ -16,22 +16,34 @@ use tokio::sync::Mutex;
 /// Record of technique effectiveness for a specific task execution
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TechniqueEffectivenessRecord {
+    /// The prompting technique that was used.
     pub technique: PromptingTechnique,
+    /// The cluster this task belongs to.
     pub cluster_id: String,
+    /// Description of the task that was executed.
     pub task_description: String,
+    /// Whether the task completed successfully.
     pub success: bool,
+    /// Number of iterations consumed.
     pub iterations_used: u32,
+    /// Quality score from 0.0 to 1.0.
     pub quality_score: f32,
+    /// Unix timestamp of the execution.
     pub timestamp: i64,
 }
 
 /// Statistics for a technique in a specific cluster
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TechniqueStats {
+    /// Number of successful executions.
     pub success_count: u32,
+    /// Number of failed executions.
     pub failure_count: u32,
+    /// Average iterations used across executions.
     pub avg_iterations: f32,
+    /// Average quality score across executions.
     pub avg_quality: f32,
+    /// Unix timestamp of the last execution.
     pub last_used: i64,
 }
 
@@ -179,7 +191,7 @@ impl PromptingLearningCoordinator {
         quality: f32,
     ) {
         let key = (cluster_id.to_string(), technique.clone());
-        let stats = self.technique_stats.entry(key).or_insert_with(TechniqueStats::new);
+        let stats = self.technique_stats.entry(key).or_default();
         stats.update(success, iterations, quality);
     }
 
@@ -337,8 +349,11 @@ impl PromptingLearningCoordinator {
 /// Summary of technique performance for a cluster
 #[derive(Debug, Clone)]
 pub struct ClusterSummary {
+    /// The cluster identifier.
     pub cluster_id: String,
+    /// Total number of task executions in this cluster.
     pub total_executions: u32,
+    /// Per-technique performance statistics.
     pub techniques: HashMap<PromptingTechnique, TechniqueStats>,
 }
 

@@ -9,18 +9,30 @@ use super::forge::{CheckState, GitForge, MergeMethod, PullRequest, RepoRef};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MergeDecision {
     /// Approve the merge with a specific method.
-    Approve { method: MergeMethod },
+    Approve {
+        /// Merge method to use.
+        method: MergeMethod,
+    },
     /// Wait for some condition to be met.
-    Wait { reason: String },
+    Wait {
+        /// Reason for waiting.
+        reason: String,
+    },
     /// Reject the merge.
-    Reject { reason: String },
+    Reject {
+        /// Reason for rejection.
+        reason: String,
+    },
 }
 
 /// Context for merge policy evaluation.
 #[derive(Debug, Clone)]
 pub struct MergeContext {
+    /// Investigation confidence score (0.0 to 1.0).
     pub confidence: f64,
+    /// Number of diff lines in the changes.
     pub diff_lines: u32,
+    /// Number of files modified.
     pub files_modified: usize,
 }
 
@@ -50,6 +62,7 @@ pub struct CiPassPolicy {
 }
 
 impl CiPassPolicy {
+    /// Create a CI pass policy with the given forge and merge method.
     pub fn new(forge: std::sync::Arc<dyn GitForge>, merge_method: MergeMethod) -> Self {
         Self { forge, merge_method }
     }
@@ -92,6 +105,7 @@ pub struct ConfidenceBasedPolicy {
 }
 
 impl ConfidenceBasedPolicy {
+    /// Create a confidence-based policy with the given threshold and merge method.
     pub fn new(min_confidence: f64, merge_method: MergeMethod) -> Self {
         Self { min_confidence, merge_method }
     }

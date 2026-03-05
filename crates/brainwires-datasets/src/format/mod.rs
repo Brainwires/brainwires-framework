@@ -1,7 +1,12 @@
+/// OpenAI fine-tuning format converter.
 pub mod openai;
+/// Together AI fine-tuning format converter.
 pub mod together;
+/// Alpaca instruction-following format converter.
 pub mod alpaca;
+/// ShareGPT conversation format converter.
 pub mod sharegpt;
+/// ChatML template format converter.
 pub mod chatml;
 
 use crate::error::DatasetResult;
@@ -16,7 +21,7 @@ pub trait FormatConverter: Send + Sync {
     fn to_json(&self, example: &TrainingExample) -> DatasetResult<serde_json::Value>;
 
     /// Parse this format's JSON back into a TrainingExample.
-    fn from_json(&self, value: &serde_json::Value) -> DatasetResult<TrainingExample>;
+    fn parse_json(&self, value: &serde_json::Value) -> DatasetResult<TrainingExample>;
 
     /// Convert a batch of examples to this format.
     fn to_json_batch(&self, examples: &[TrainingExample]) -> DatasetResult<Vec<serde_json::Value>> {
@@ -24,8 +29,8 @@ pub trait FormatConverter: Send + Sync {
     }
 
     /// Parse a batch of JSON values into training examples.
-    fn from_json_batch(&self, values: &[serde_json::Value]) -> DatasetResult<Vec<TrainingExample>> {
-        values.iter().map(|v| self.from_json(v)).collect()
+    fn parse_json_batch(&self, values: &[serde_json::Value]) -> DatasetResult<Vec<TrainingExample>> {
+        values.iter().map(|v| self.parse_json(v)).collect()
     }
 }
 

@@ -77,9 +77,13 @@ pub trait VectorDatabase: Send + Sync {
     async fn get_indexed_files(&self, root_path: &str) -> Result<Vec<String>>;
 }
 
+/// Statistics about the vector database contents.
 #[derive(Debug, Clone)]
 pub struct DatabaseStats {
+    /// Total number of stored points.
     pub total_points: usize,
+    /// Total number of vectors.
     pub total_vectors: usize,
+    /// Breakdown of indexed chunks by programming language.
     pub language_breakdown: Vec<(String, usize)>,
 }

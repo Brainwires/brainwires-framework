@@ -14,6 +14,7 @@ use super::rate_limiter::RateLimiter;
 
 const GEMINI_API_BASE: &str = "https://generativelanguage.googleapis.com/v1beta";
 
+/// Google Gemini API provider.
 pub struct GoogleProvider {
     api_key: String,
     model: String,
@@ -22,6 +23,7 @@ pub struct GoogleProvider {
 }
 
 impl GoogleProvider {
+    /// Create a new Google provider with the given API key and model.
     pub fn new(api_key: String, model: String) -> Self {
         Self {
             api_key,
@@ -178,13 +180,12 @@ impl Provider for GoogleProvider {
         }
 
         // Tools
-        if let Some(tools_list) = tools {
-            if !tools_list.is_empty() {
+        if let Some(tools_list) = tools
+            && !tools_list.is_empty() {
                 request_body["tools"] = json!([{
                     "function_declarations": self.convert_tools(tools_list)
                 }]);
             }
-        }
 
         let url = format!(
             "{}/models/{}:generateContent?key={}",
@@ -320,13 +321,12 @@ impl Provider for GoogleProvider {
             }
 
             // Tools
-            if let Some(tools_list) = tools {
-                if !tools_list.is_empty() {
+            if let Some(tools_list) = tools
+                && !tools_list.is_empty() {
                     request_body["tools"] = json!([{
                         "function_declarations": self.convert_tools(tools_list)
                     }]);
                 }
-            }
 
             let url = format!(
                 "{}/models/{}:streamGenerateContent?key={}",
@@ -526,6 +526,7 @@ pub struct GoogleModelLister {
 }
 
 impl GoogleModelLister {
+    /// Create a new model lister with the given API key.
     pub fn new(api_key: String) -> Self {
         Self {
             api_key,

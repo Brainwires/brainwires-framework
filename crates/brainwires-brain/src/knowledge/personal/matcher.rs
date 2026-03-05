@@ -84,11 +84,10 @@ impl PersonalFactMatcher {
         score += reinforcement_boost;
 
         // Boost if matches current context
-        if let Some(ctx) = context {
-            if self.matches_context(fact, ctx) {
+        if let Some(ctx) = context
+            && self.matches_context(fact, ctx) {
                 score *= 1.3;
             }
-        }
 
         score
     }
@@ -130,11 +129,10 @@ impl PersonalFactMatcher {
         }
 
         // Check fact context matches
-        if let Some(ref fact_ctx) = fact.context {
-            if context_lower.contains(&fact_ctx.to_lowercase()) {
+        if let Some(ref fact_ctx) = fact.context
+            && context_lower.contains(&fact_ctx.to_lowercase()) {
                 return true;
             }
-        }
 
         false
     }

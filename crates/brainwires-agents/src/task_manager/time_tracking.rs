@@ -7,24 +7,38 @@ use brainwires_core::TaskStatus;
 /// Statistics about tasks
 #[derive(Debug, Clone, Default)]
 pub struct TaskStats {
+    /// Total number of tasks.
     pub total: usize,
+    /// Number of pending tasks.
     pub pending: usize,
+    /// Number of in-progress tasks.
     pub in_progress: usize,
+    /// Number of completed tasks.
     pub completed: usize,
+    /// Number of failed tasks.
     pub failed: usize,
+    /// Number of blocked tasks.
     pub blocked: usize,
+    /// Number of skipped tasks.
     pub skipped: usize,
 }
 
 /// Time tracking information for a single task
 #[derive(Debug, Clone)]
 pub struct TaskTimeInfo {
+    /// Task identifier.
     pub task_id: String,
+    /// Human-readable task description.
     pub description: String,
+    /// Current task status.
     pub status: TaskStatus,
+    /// Unix timestamp when the task started.
     pub started_at: Option<i64>,
+    /// Unix timestamp when the task completed.
     pub completed_at: Option<i64>,
+    /// Total duration in seconds (for completed tasks).
     pub duration_secs: Option<i64>,
+    /// Elapsed seconds since start (for in-progress tasks).
     pub elapsed_secs: Option<i64>,
 }
 
@@ -44,10 +58,15 @@ impl TaskTimeInfo {
 /// Time statistics for all tasks
 #[derive(Debug, Clone, Default)]
 pub struct TimeStats {
+    /// Sum of all completed task durations in seconds.
     pub total_duration_secs: i64,
+    /// Number of completed tasks.
     pub completed_tasks: usize,
+    /// Average task duration in seconds.
     pub average_duration_secs: Option<i64>,
+    /// Total elapsed time for in-progress tasks in seconds.
     pub current_elapsed_secs: i64,
+    /// Number of currently in-progress tasks.
     pub in_progress_tasks: usize,
 }
 

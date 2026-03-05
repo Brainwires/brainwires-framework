@@ -362,11 +362,10 @@ impl LockStore {
         let now = Utc::now().timestamp_millis();
 
         // Check if expired
-        if let Some(expires_at) = lock.expires_at {
-            if now > expires_at {
+        if let Some(expires_at) = lock.expires_at
+            && now > expires_at {
                 return true;
             }
-        }
 
         // Check if process is dead (only if same hostname)
         if lock.hostname == self.current_hostname && !Self::is_process_alive(lock.process_id) {

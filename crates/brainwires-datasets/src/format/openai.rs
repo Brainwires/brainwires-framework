@@ -39,7 +39,7 @@ impl FormatConverter for OpenAiFormat {
         Ok(json!({ "messages": messages }))
     }
 
-    fn from_json(&self, value: &serde_json::Value) -> DatasetResult<TrainingExample> {
+    fn parse_json(&self, value: &serde_json::Value) -> DatasetResult<TrainingExample> {
         let messages_value = value.get("messages").ok_or_else(|| DatasetError::FormatConversion {
             message: "Missing 'messages' field".to_string(),
         })?;
@@ -72,8 +72,7 @@ impl FormatConverter for OpenAiFormat {
                 .to_string();
 
             let tool_calls = msg_value.get("tool_calls")
-                .and_then(|v| v.as_array())
-                .map(|arr| arr.clone());
+                .and_then(|v| v.as_array()).cloned();
 
             let tool_call_id = msg_value.get("tool_call_id")
                 .and_then(|v| v.as_str())
@@ -110,7 +109,7 @@ mod tests {
         ]);
 
         let json = format.to_json(&example).unwrap();
-        let parsed = format.from_json(&json).unwrap();
+        let parsed = format.parse_json(&json).unwrap();
 
         assert_eq!(parsed.messages.len(), 3);
         assert_eq!(parsed.messages[0].role, TrainingRole::System);

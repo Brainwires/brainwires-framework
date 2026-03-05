@@ -4,11 +4,13 @@ use brainwires_mcp::{JsonRpcError, JsonRpcRequest};
 use super::{Middleware, MiddlewareResult};
 use crate::connection::RequestContext;
 
+/// Token-based authentication middleware.
 pub struct AuthMiddleware {
     token: String,
 }
 
 impl AuthMiddleware {
+    /// Create a new auth middleware with the given token.
     pub fn new(token: impl Into<String>) -> Self {
         Self {
             token: token.into(),
@@ -29,24 +31,21 @@ impl Middleware for AuthMiddleware {
         }
 
         // Check for token in metadata (set during initialize)
-        if let Some(serde_json::Value::String(token)) = ctx.get_metadata("auth_token") {
-            if token == &self.token {
+        if let Some(serde_json::Value::String(token)) = ctx.get_metadata("auth_token")
+            && token == &self.token {
                 return MiddlewareResult::Continue;
             }
-        }
 
         // Check params for auth token
-        if let Some(params) = &request.params {
-            if let Some(token) = params.get("_auth_token").and_then(|v| v.as_str()) {
-                if token == self.token {
+        if let Some(params) = &request.params
+            && let Some(token) = params.get("_auth_token").and_then(|v| v.as_str())
+                && token == self.token {
                     ctx.set_metadata(
                         "auth_token".to_string(),
                         serde_json::Value::String(token.to_string()),
                     );
                     return MiddlewareResult::Continue;
                 }
-            }
-        }
 
         MiddlewareResult::Reject(JsonRpcError {
             code: -32003,

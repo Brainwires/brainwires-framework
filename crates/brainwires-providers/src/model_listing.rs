@@ -12,11 +12,17 @@ use super::ProviderType;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ModelCapability {
+    /// Text chat / completions.
     Chat,
+    /// Tool / function calling.
     ToolUse,
+    /// Image / vision understanding.
     Vision,
+    /// Text embedding generation.
     Embedding,
+    /// Audio processing.
     Audio,
+    /// Image generation.
     ImageGeneration,
 }
 

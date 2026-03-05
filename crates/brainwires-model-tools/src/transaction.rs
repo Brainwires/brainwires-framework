@@ -144,7 +144,7 @@ impl StagingBackend for TransactionManager {
         let mut committed = 0;
         let mut paths = Vec::new();
 
-        for (_key, entry) in &inner.staged {
+        for entry in inner.staged.values() {
             // Ensure target parent directory exists
             if let Some(parent) = entry.target_path.parent() {
                 fs::create_dir_all(parent).with_context(|| {
@@ -174,7 +174,7 @@ impl StagingBackend for TransactionManager {
 
     fn rollback(&self) {
         let mut inner = self.inner.lock().unwrap();
-        for (_key, entry) in &inner.staged {
+        for entry in inner.staged.values() {
             let _ = fs::remove_file(&entry.staged_path);
         }
         inner.staged.clear();

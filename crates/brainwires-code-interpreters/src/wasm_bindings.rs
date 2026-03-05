@@ -75,7 +75,7 @@ impl WasmExecutor {
     /// Check if a language is supported
     #[wasm_bindgen]
     pub fn is_supported(&self, language: &str) -> bool {
-        Language::from_str(language)
+        Language::parse(language)
             .map(|l| self.executor.is_supported(l))
             .unwrap_or(false)
     }

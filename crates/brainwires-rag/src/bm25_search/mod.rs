@@ -22,7 +22,9 @@ pub struct BM25Search {
 /// Search result from BM25
 #[derive(Debug, Clone)]
 pub struct BM25Result {
+    /// Document identifier.
     pub id: u64,
+    /// BM25 relevance score.
     pub score: f32,
 }
 
@@ -307,6 +309,7 @@ impl BM25Search {
 /// Statistics about the BM25 index
 #[derive(Debug, Clone)]
 pub struct BM25Stats {
+    /// Total number of indexed documents.
     pub total_documents: usize,
 }
 

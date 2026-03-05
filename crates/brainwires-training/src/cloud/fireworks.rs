@@ -22,6 +22,7 @@ pub struct FireworksFineTune {
 }
 
 impl FireworksFineTune {
+    /// Create a new Fireworks AI fine-tune provider.
     pub fn new(api_key: impl Into<String>) -> Self {
         Self {
             api_key: api_key.into(),
@@ -31,6 +32,7 @@ impl FireworksFineTune {
         }
     }
 
+    /// Set the Fireworks account ID.
     pub fn with_account_id(mut self, account_id: impl Into<String>) -> Self {
         self.account_id = Some(account_id.into());
         self
@@ -66,7 +68,7 @@ impl FineTuneProvider for FireworksFineTune {
 
         let response = self
             .client
-            .post(&format!("{}/datasets", self.base_url))
+            .post(format!("{}/datasets", self.base_url))
             .bearer_auth(&self.api_key)
             .multipart(form)
             .send()
@@ -104,7 +106,7 @@ impl FineTuneProvider for FireworksFineTune {
 
         let response = self
             .client
-            .post(&format!("{}/fine-tuning/jobs", self.base_url))
+            .post(format!("{}/fine-tuning/jobs", self.base_url))
             .bearer_auth(&self.api_key)
             .json(&body)
             .send()
@@ -175,7 +177,7 @@ impl FineTuneProvider for FireworksFineTune {
     async fn list_jobs(&self) -> Result<Vec<TrainingJobSummary>, TrainingError> {
         let response = self
             .client
-            .get(&format!("{}/fine-tuning/jobs", self.base_url))
+            .get(format!("{}/fine-tuning/jobs", self.base_url))
             .bearer_auth(&self.api_key)
             .send()
             .await?;

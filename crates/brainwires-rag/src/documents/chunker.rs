@@ -185,7 +185,7 @@ impl DocumentChunker {
 
             // Check if adding this paragraph would exceed target size
             let would_exceed = current_chunk.len() + para_trimmed.len() > self.config.target_chunk_size;
-            let is_last = i == paragraphs.len() - 1;
+            let _is_last = i == paragraphs.len() - 1;
 
             if would_exceed && !current_chunk.is_empty() {
                 // Flush current chunk

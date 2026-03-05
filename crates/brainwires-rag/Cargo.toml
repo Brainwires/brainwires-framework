@@ -1,15 +1,15 @@
 [package]
 name = "brainwires-rag"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
 description = "RAG-based codebase indexing and semantic search library for the Brainwires Agent Framework"
-authors = ["Brainwires"]
-license = "MIT"
-repository = "https://github.com/Brainwires/brainwires-rag"
-homepage = "https://github.com/Brainwires/brainwires-rag"
 documentation = "https://docs.rs/brainwires-rag"
 readme = "README.md"
-rust-version = "1.88"
 keywords = ["mcp", "rag", "embeddings", "semantic-search", "code-analysis"]
 categories = ["command-line-utilities", "development-tools"]
 exclude = [
@@ -94,7 +94,7 @@ native = [
     "dep:futures", "dep:fastembed", "dep:tantivy", "dep:git2", "dep:async-trait",
     "dep:walkdir", "dep:dirs", "dep:sha2", "dep:ignore", "dep:globset",
     "dep:tree-sitter", "dep:tracing-subscriber",
-    "dep:toml", "dep:pdf-extract", "dep:rayon", "dep:tokio-util", "dep:fs2",
+    "dep:toml", "pdf-extract", "dep:rayon", "dep:tokio-util", "dep:fs2",
     "tokio/full",
     "documents",
 ]
@@ -117,6 +117,9 @@ documents = [
 
 # WASM mode: only types and error modules
 wasm = []
+
+# PDF extraction support
+pdf-extract = ["dep:pdf-extract"]
 
 # Vector database backend selection
 lancedb-backend = []

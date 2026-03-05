@@ -35,7 +35,7 @@ impl FormatConverter for ShareGptFormat {
         Ok(json!({ "conversations": conversations }))
     }
 
-    fn from_json(&self, value: &serde_json::Value) -> DatasetResult<TrainingExample> {
+    fn parse_json(&self, value: &serde_json::Value) -> DatasetResult<TrainingExample> {
         let conversations = value
             .get("conversations")
             .and_then(|v| v.as_array())
@@ -96,7 +96,7 @@ mod tests {
         assert_eq!(convs[1]["from"], "human");
         assert_eq!(convs[2]["from"], "gpt");
 
-        let parsed = format.from_json(&json).unwrap();
+        let parsed = format.parse_json(&json).unwrap();
         assert_eq!(parsed.messages.len(), 3);
         assert_eq!(parsed.messages[1].role, TrainingRole::User);
     }
@@ -110,7 +110,7 @@ mod tests {
                 {"from": "chatgpt", "value": "Hi!"},
             ]
         });
-        let parsed = format.from_json(&json).unwrap();
+        let parsed = format.parse_json(&json).unwrap();
         assert_eq!(parsed.messages[0].role, TrainingRole::User);
         assert_eq!(parsed.messages[1].role, TrainingRole::Assistant);
     }

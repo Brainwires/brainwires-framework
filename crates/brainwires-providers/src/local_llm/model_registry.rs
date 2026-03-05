@@ -226,8 +226,7 @@ fn create_config_from_filename(
 /// Format a filename into a human-readable model name
 fn format_model_name(filename: &str) -> String {
     filename
-        .replace('-', " ")
-        .replace('_', " ")
+        .replace(['-', '_'], " ")
         .split_whitespace()
         .map(|word| {
             let mut chars = word.chars();
@@ -243,14 +242,23 @@ fn format_model_name(filename: &str) -> String {
 /// Pre-configured model definitions for easy downloading
 #[derive(Debug, Clone)]
 pub struct KnownModel {
+    /// Unique model identifier.
     pub id: &'static str,
+    /// Human-readable model name.
     pub name: &'static str,
+    /// HuggingFace repository path.
     pub huggingface_repo: &'static str,
+    /// Model filename within the repository.
     pub filename: &'static str,
+    /// Model architecture type.
     pub model_type: LocalModelType,
+    /// Default context window size in tokens.
     pub context_size: u32,
+    /// Estimated RAM usage in megabytes.
     pub estimated_ram_mb: u32,
+    /// Whether the model supports tool/function calling.
     pub supports_tools: bool,
+    /// Short description of the model.
     pub description: &'static str,
 }
 

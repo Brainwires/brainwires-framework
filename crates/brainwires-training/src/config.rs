@@ -95,18 +95,26 @@ pub enum AdapterMethod {
     /// Low-Rank Adaptation.
     LoRA,
     /// Quantized LoRA (4-bit or 8-bit base weights).
-    QLoRA { bits: u8 },
+    QLoRA {
+        /// Quantization bit width.
+        bits: u8,
+    },
     /// Weight-Decomposed Low-Rank Adaptation (direction + magnitude).
     DoRA,
     /// Quantized DoRA.
-    QDoRA { bits: u8 },
+    QDoRA {
+        /// Quantization bit width.
+        bits: u8,
+    },
 }
 
 impl AdapterMethod {
+    /// Whether this adapter method uses quantization.
     pub fn is_quantized(&self) -> bool {
         matches!(self, Self::QLoRA { .. } | Self::QDoRA { .. })
     }
 
+    /// Return quantization bit width, if applicable.
     pub fn quantization_bits(&self) -> Option<u8> {
         match self {
             Self::QLoRA { bits } | Self::QDoRA { bits } => Some(*bits),
@@ -118,26 +126,31 @@ impl AdapterMethod {
 /// Alignment training method.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum AlignmentMethod {
     /// Direct Preference Optimization.
-    DPO { beta: f64 },
+    DPO {
+        /// DPO beta parameter.
+        beta: f64,
+    },
     /// Odds Ratio Preference Optimization (single-pass).
-    ORPO { lambda: f64 },
+    ORPO {
+        /// ORPO lambda parameter.
+        lambda: f64,
+    },
     /// No alignment, standard SFT only.
+    #[default]
     None,
 }
 
-impl Default for AlignmentMethod {
-    fn default() -> Self {
-        Self::None
-    }
-}
 
 impl AlignmentMethod {
+    /// Create DPO alignment with default beta.
     pub fn dpo() -> Self {
         Self::DPO { beta: 0.1 }
     }
 
+    /// Create ORPO alignment with default lambda.
     pub fn orpo() -> Self {
         Self::ORPO { lambda: 0.5 }
     }

@@ -1,6 +1,9 @@
+/// Dataset validation rules and reporting.
 pub mod validator;
+/// Dataset statistics computation.
 pub mod stats;
 
+/// MinHash-based and exact deduplication.
 #[cfg(feature = "dedup")]
 pub mod dedup;
 

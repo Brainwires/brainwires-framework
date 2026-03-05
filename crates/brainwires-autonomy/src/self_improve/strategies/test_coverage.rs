@@ -7,6 +7,7 @@ use walkdir::WalkDir;
 use crate::config::StrategyConfig;
 use super::{ImprovementCategory, ImprovementStrategy, ImprovementTask};
 
+/// Strategy that identifies files with missing or insufficient test coverage.
 pub struct TestCoverageStrategy;
 
 #[async_trait]

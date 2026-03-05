@@ -12,7 +12,7 @@ use futures::TryStreamExt;
 use lancedb::query::{ExecutableQuery, QueryBase};
 use std::sync::Arc;
 
-use super::{EmbeddingProvider, EmbeddingProviderTrait as _, LanceClient};
+use super::{EmbeddingProvider, LanceClient};
 use super::tiered_memory::MessageSummary;
 
 /// Store for warm tier message summaries with semantic search
@@ -351,7 +351,7 @@ impl SummaryStore {
         let mut results = Vec::new();
 
         for batch in batches {
-            let summaries = self.batch_to_summaries(&[batch.clone()])?;
+            let summaries = self.batch_to_summaries(std::slice::from_ref(batch))?;
 
             // Get distance scores if available
             let distances = batch

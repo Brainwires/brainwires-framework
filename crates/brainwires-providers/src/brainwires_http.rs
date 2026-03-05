@@ -20,6 +20,7 @@ pub struct BrainwiresHttpProvider {
 }
 
 impl BrainwiresHttpProvider {
+    /// Create a new Brainwires HTTP provider.
     pub fn new(api_key: String, backend_url: String, model: String) -> Self {
         Self {
             api_key,
@@ -29,7 +30,7 @@ impl BrainwiresHttpProvider {
         }
     }
 
-    fn get_system_message(&self, messages: &[Message]) -> Option<String> {
+    fn _get_system_message(&self, messages: &[Message]) -> Option<String> {
         messages
             .iter()
             .find(|m| m.role == Role::System)
@@ -152,11 +153,11 @@ impl Provider for BrainwiresHttpProvider {
                 if let MessageContent::Blocks(blocks) = &last_msg.content {
                     for block in blocks {
                         if let ContentBlock::ToolResult { tool_use_id, content, .. } = block {
-                            if let Some(prev_msg) = messages.get(messages.len().saturating_sub(2)) {
-                                if let MessageContent::Blocks(prev_blocks) = &prev_msg.content {
+                            if let Some(prev_msg) = messages.get(messages.len().saturating_sub(2))
+                                && let MessageContent::Blocks(prev_blocks) = &prev_msg.content {
                                     for prev_block in prev_blocks {
-                                        if let ContentBlock::ToolUse { id, name, .. } = prev_block {
-                                            if id == tool_use_id {
+                                        if let ContentBlock::ToolUse { id, name, .. } = prev_block
+                                            && id == tool_use_id {
                                                 func_output = Some(json!({
                                                     "call_id": tool_use_id,
                                                     "name": name,
@@ -164,10 +165,8 @@ impl Provider for BrainwiresHttpProvider {
                                                 }));
                                                 break;
                                             }
-                                        }
                                     }
                                 }
-                            }
                             break;
                         }
                     }
@@ -316,13 +315,12 @@ impl Provider for BrainwiresHttpProvider {
                     let content = first.get("content").and_then(|c| c.as_str()).unwrap_or("");
                     tracing::debug!("First msg [{}]: {}...", role, &content[..content.len().min(50)]);
                 }
-                if conversation_history.len() > 1 {
-                    if let Some(last) = conversation_history.last() {
+                if conversation_history.len() > 1
+                    && let Some(last) = conversation_history.last() {
                         let role = last.get("role").and_then(|r| r.as_str()).unwrap_or("?");
                         let content = last.get("content").and_then(|c| c.as_str()).unwrap_or("");
                         tracing::debug!("Last msg [{}]: {}...", role, &content[..content.len().min(50)]);
                     }
-                }
             }
             if let Some(mcp_tools) = request_body.get("selectedMCPTools") {
                 let tool_count = mcp_tools.as_array().map(|a| a.len()).unwrap_or(0);
@@ -392,20 +390,17 @@ impl Provider for BrainwiresHttpProvider {
                     if let (Some(evt_type), Some(data)) = (event_type, event_data) {
                         match evt_type.as_str() {
                             "delta" => {
-                                if let Ok(delta_data) = serde_json::from_str::<serde_json::Value>(&data) {
-                                    if let Some(text) = delta_data.get("delta").and_then(|t| t.as_str()) {
+                                if let Ok(delta_data) = serde_json::from_str::<serde_json::Value>(&data)
+                                    && let Some(text) = delta_data.get("delta").and_then(|t| t.as_str()) {
                                         yield Ok(StreamChunk::Text(text.to_string()));
                                     }
-                                }
                             }
                             "complete" => {
-                                if let Ok(complete_data) = serde_json::from_str::<serde_json::Value>(&data) {
-                                    if let Some(usage_data) = complete_data.get("usage") {
-                                        if let Ok(usage) = serde_json::from_value(usage_data.clone()) {
+                                if let Ok(complete_data) = serde_json::from_str::<serde_json::Value>(&data)
+                                    && let Some(usage_data) = complete_data.get("usage")
+                                        && let Ok(usage) = serde_json::from_value(usage_data.clone()) {
                                             yield Ok(StreamChunk::Usage(usage));
                                         }
-                                    }
-                                }
                                 yield Ok(StreamChunk::Done);
                             }
                             "error" => {
@@ -535,7 +530,7 @@ mod tests {
             },
         ];
 
-        let system = provider.get_system_message(&messages);
+        let system = provider._get_system_message(&messages);
         assert_eq!(system, Some("You are a helpful assistant".to_string()));
     }
 }

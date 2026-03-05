@@ -21,20 +21,20 @@ use crate::types::{ExecutionLimits, ExecutionRequest, ExecutionResult};
 
 /// Rhai code executor
 pub struct RhaiExecutor {
-    limits: ExecutionLimits,
+    _limits: ExecutionLimits,
 }
 
 impl RhaiExecutor {
     /// Create a new Rhai executor with default limits
     pub fn new() -> Self {
         Self {
-            limits: ExecutionLimits::default(),
+            _limits: ExecutionLimits::default(),
         }
     }
 
     /// Create a new Rhai executor with custom limits
     pub fn with_limits(limits: ExecutionLimits) -> Self {
-        Self { limits }
+        Self { _limits: limits }
     }
 
     /// Configure a Rhai engine with safety limits
@@ -42,7 +42,7 @@ impl RhaiExecutor {
         let mut engine = Engine::new();
 
         // Apply safety limits
-        engine.set_max_operations(limits.max_operations as u64);
+        engine.set_max_operations(limits.max_operations);
         engine.set_max_string_size(limits.max_string_length);
         engine.set_max_array_size(limits.max_array_length);
         engine.set_max_map_size(limits.max_map_size);
@@ -217,11 +217,10 @@ fn dynamic_to_json(value: &Dynamic) -> Option<serde_json::Value> {
     }
 
     if value.is_float() {
-        if let Some(f) = value.as_float().ok() {
-            if let Some(n) = serde_json::Number::from_f64(f) {
+        if let Ok(f) = value.as_float()
+            && let Some(n) = serde_json::Number::from_f64(f) {
                 return Some(serde_json::Value::Number(n));
             }
-        }
         return None;
     }
 
@@ -231,18 +230,17 @@ fn dynamic_to_json(value: &Dynamic) -> Option<serde_json::Value> {
         ));
     }
 
-    if value.is_array() {
-        if let Ok(arr) = value.clone().into_array() {
+    if value.is_array()
+        && let Ok(arr) = value.clone().into_array() {
             let json_arr: Vec<serde_json::Value> = arr
                 .into_iter()
                 .filter_map(|v| dynamic_to_json(&v))
                 .collect();
             return Some(serde_json::Value::Array(json_arr));
         }
-    }
 
-    if value.is_map() {
-        if let Some(map) = value.clone().try_cast::<rhai::Map>() {
+    if value.is_map()
+        && let Some(map) = value.clone().try_cast::<rhai::Map>() {
             let mut json_map = serde_json::Map::new();
             for (k, v) in map {
                 if let Some(json_v) = dynamic_to_json(&v) {
@@ -251,7 +249,6 @@ fn dynamic_to_json(value: &Dynamic) -> Option<serde_json::Value> {
             }
             return Some(serde_json::Value::Object(json_map));
         }
-    }
 
     // Default: convert to string representation
     Some(serde_json::Value::String(format!("{}", value)))

@@ -302,15 +302,14 @@ impl RagClient {
     ///
     /// Returns an error if the path is dirty, otherwise Ok(())
     async fn check_path_not_dirty(&self, path: Option<&str>) -> Result<()> {
-        if let Some(p) = path {
-            if self.is_index_dirty(p).await {
+        if let Some(p) = path
+            && self.is_index_dirty(p).await {
                 anyhow::bail!(
                     "Index for '{}' is dirty (previous indexing was interrupted). \
                     Please re-run index_codebase to rebuild the index before querying.",
                     p
                 );
             }
-        }
         Ok(())
     }
 
@@ -923,7 +922,7 @@ impl RagClient {
                 r.target_symbol_id.contains(&symbol_name_str)
             })
             .take(request.limit)
-            .map(|r| ReferenceResult::from(r))
+            .map(ReferenceResult::from)
             .collect();
 
         let total_count = matching_refs.len();
@@ -983,7 +982,7 @@ impl RagClient {
         let root_symbol = match target_function {
             Some(func) => crate::relations::SymbolInfo {
                 name: func.symbol_id.name.clone(),
-                kind: func.symbol_id.kind.clone(),
+                kind: func.symbol_id.kind,
                 file_path: request.file_path.clone(),
                 start_line: func.symbol_id.start_line,
                 end_line: func.end_line,
@@ -1039,7 +1038,7 @@ impl RagClient {
             .filter(|def| seen_callers.insert(def.symbol_id.name.clone()))
             .map(|def| crate::relations::CallGraphNode {
                 name: def.symbol_id.name.clone(),
-                kind: def.symbol_id.kind.clone(),
+                kind: def.symbol_id.kind,
                 file_path: request.file_path.clone(),
                 line: def.symbol_id.start_line,
                 children: Vec::new(),
@@ -1072,7 +1071,7 @@ impl RagClient {
             })
             .map(|def| crate::relations::CallGraphNode {
                 name: def.symbol_id.name.clone(),
-                kind: def.symbol_id.kind.clone(),
+                kind: def.symbol_id.kind,
                 file_path: request.file_path.clone(),
                 line: def.symbol_id.start_line,
                 children: Vec::new(),
@@ -1089,7 +1088,7 @@ impl RagClient {
     }
 }
 
-// Indexing operations module (public for MCP server binary)
+/// Indexing operations (public for MCP server binary).
 pub mod indexing;
 // Git indexing operations module
 pub(crate) mod git_indexing;

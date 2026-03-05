@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 //! Brainwires Tools - Built-in tool implementations for the Brainwires Agent Framework
 //!
 //! This crate provides a composable set of tools that agents can use:

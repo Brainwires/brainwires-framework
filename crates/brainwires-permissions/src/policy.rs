@@ -45,8 +45,10 @@ pub enum EnforcementMode {
 /// Action to take when a policy matches
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum PolicyAction {
     /// Allow the action
+    #[default]
     Allow,
     /// Deny the action
     Deny,
@@ -60,11 +62,6 @@ pub enum PolicyAction {
     Escalate,
 }
 
-impl Default for PolicyAction {
-    fn default() -> Self {
-        Self::Allow
-    }
-}
 
 /// Condition for policy matching
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -83,7 +80,12 @@ pub enum PolicyCondition {
     /// Match git operation
     GitOp(GitOperation),
     /// Match time range (hour of day, 0-23)
-    TimeRange { start_hour: u8, end_hour: u8 },
+    TimeRange {
+        /// Start hour (0-23).
+        start_hour: u8,
+        /// End hour (0-23).
+        end_hour: u8,
+    },
     /// Logical AND of conditions
     And(Vec<PolicyCondition>),
     /// Logical OR of conditions
@@ -99,10 +101,10 @@ impl PolicyCondition {
     pub fn matches(&self, request: &PolicyRequest) -> bool {
         match self {
             PolicyCondition::Tool(name) => {
-                request.tool_name.as_ref().map_or(false, |t| t == name)
+                request.tool_name.as_ref() == Some(name)
             }
             PolicyCondition::ToolCategory(cat) => {
-                request.tool_category.as_ref().map_or(false, |c| c == cat)
+                request.tool_category.as_ref() == Some(cat)
             }
             PolicyCondition::FilePath(pattern) => {
                 if let Some(path) = &request.file_path {
@@ -126,7 +128,7 @@ impl PolicyCondition {
                 }
             }
             PolicyCondition::GitOp(op) => {
-                request.git_operation.as_ref().map_or(false, |o| o == op)
+                request.git_operation.as_ref() == Some(op)
             }
             PolicyCondition::TimeRange {
                 start_hour,
@@ -590,22 +592,20 @@ impl PolicyEngine {
         if let Some(tool) = &condition.tool {
             return Some(PolicyCondition::Tool(tool.clone()));
         }
-        if let Some(category) = &condition.tool_category {
-            if let Some(cat) = super::config::parse_tool_category(category) {
+        if let Some(category) = &condition.tool_category
+            && let Some(cat) = super::config::parse_tool_category(category) {
                 return Some(PolicyCondition::ToolCategory(cat));
             }
-        }
         if let Some(path) = &condition.file_path {
             return Some(PolicyCondition::FilePath(path.clone()));
         }
         if let Some(domain) = &condition.domain {
             return Some(PolicyCondition::Domain(domain.clone()));
         }
-        if let Some(git_op) = &condition.git_op {
-            if let Some(op) = super::config::parse_git_operation(git_op) {
+        if let Some(git_op) = &condition.git_op
+            && let Some(op) = super::config::parse_git_operation(git_op) {
                 return Some(PolicyCondition::GitOp(op));
             }
-        }
         if let Some(trust) = condition.min_trust_level {
             return Some(PolicyCondition::MinTrustLevel(trust));
         }

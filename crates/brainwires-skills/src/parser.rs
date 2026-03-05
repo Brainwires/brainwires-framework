@@ -29,7 +29,9 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::Path;
 
-use super::metadata::{Skill, SkillExecutionMode, SkillMetadata, SkillSource};
+use super::metadata::{Skill, SkillMetadata, SkillSource};
+#[cfg(test)]
+use super::metadata::SkillExecutionMode;
 
 /// YAML frontmatter for skill definition
 #[derive(Debug, Deserialize)]
@@ -286,10 +288,10 @@ fn validate_compatibility(compat: &str) -> Result<()> {
 /// supports flat file layout (`skills/review-pr.md`) which the spec doesn't define.
 fn warn_name_directory_mismatch(name: &str, path: &Path) {
     // Only check for subdirectory layout (skill-name/SKILL.md)
-    if path.file_name().map(|f| f == "SKILL.md").unwrap_or(false) {
-        if let Some(parent) = path.parent() {
-            if let Some(dir_name) = parent.file_name().and_then(|n| n.to_str()) {
-                if dir_name != name {
+    if path.file_name().map(|f| f == "SKILL.md").unwrap_or(false)
+        && let Some(parent) = path.parent()
+            && let Some(dir_name) = parent.file_name().and_then(|n| n.to_str())
+                && dir_name != name {
                     tracing::warn!(
                         "Skill name '{}' does not match parent directory '{}' in {}. \
                          The Agent Skills spec requires these to match.",
@@ -298,9 +300,6 @@ fn warn_name_directory_mismatch(name: &str, path: &Path) {
                         path.display()
                     );
                 }
-            }
-        }
-    }
 }
 
 /// Render skill template with arguments

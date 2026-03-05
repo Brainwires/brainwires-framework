@@ -3,6 +3,7 @@ use serde_json::{json, Value};
 
 use super::error::RelayClientError;
 
+/// Build a JSON-RPC initialize request with standard client info.
 pub fn build_initialize_request(id: u64) -> JsonRpcRequest {
     JsonRpcRequest {
         jsonrpc: "2.0".to_string(),
@@ -19,6 +20,7 @@ pub fn build_initialize_request(id: u64) -> JsonRpcRequest {
     }
 }
 
+/// Build the initialized notification string to send after handshake.
 pub fn build_initialized_notification() -> String {
     serde_json::to_string(&json!({
         "jsonrpc": "2.0",
@@ -27,6 +29,7 @@ pub fn build_initialized_notification() -> String {
     .expect("Failed to serialize initialized notification")
 }
 
+/// Build a JSON-RPC request to list available tools.
 pub fn build_tools_list_request(id: u64) -> JsonRpcRequest {
     JsonRpcRequest {
         jsonrpc: "2.0".to_string(),
@@ -36,6 +39,7 @@ pub fn build_tools_list_request(id: u64) -> JsonRpcRequest {
     }
 }
 
+/// Build a JSON-RPC request to call a tool by name with arguments.
 pub fn build_tools_call_request(id: u64, name: &str, args: Value) -> JsonRpcRequest {
     JsonRpcRequest {
         jsonrpc: "2.0".to_string(),
@@ -48,12 +52,14 @@ pub fn build_tools_call_request(id: u64, name: &str, args: Value) -> JsonRpcRequ
     }
 }
 
+/// Parse a JSON-RPC response from a raw line of text.
 pub fn parse_response(line: &str) -> Result<JsonRpcResponse, RelayClientError> {
     serde_json::from_str(line).map_err(|e| {
         RelayClientError::Protocol(format!("Failed to parse response: {e}: {line}"))
     })
 }
 
+/// Extract the result value from a JSON-RPC response, returning errors as needed.
 pub fn extract_result(response: JsonRpcResponse) -> Result<Value, RelayClientError> {
     if let Some(error) = response.error {
         return Err(RelayClientError::JsonRpc {

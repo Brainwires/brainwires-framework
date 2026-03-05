@@ -69,8 +69,8 @@ impl SymbolExtractor {
         let kind = node.kind();
 
         // Check if this node is a definition we care about
-        if is_definition_node(kind, language) {
-            if let Some(def) = self.node_to_definition(node, source, language, file_info, &parent_id)
+        if is_definition_node(kind, language)
+            && let Some(def) = self.node_to_definition(node, source, language, file_info, &parent_id)
             {
                 let new_parent_id = Some(def.to_storage_id());
                 result.push(def);
@@ -89,7 +89,6 @@ impl SymbolExtractor {
                 }
                 return;
             }
-        }
 
         // Recurse into children
         let mut cursor = node.walk();
@@ -305,11 +304,10 @@ fn find_name_node<'a>(node: Node<'a>, language: &str) -> Option<Node<'a>> {
                 return Some(name_node);
             }
             // For impl items, look for type name
-            if kind == "impl_item" {
-                if let Some(type_node) = node.child_by_field_name("type") {
+            if kind == "impl_item"
+                && let Some(type_node) = node.child_by_field_name("type") {
                     return Some(type_node);
                 }
-            }
         }
         "Python" => {
             // Python: class and function have "name" field
@@ -334,13 +332,11 @@ fn find_name_node<'a>(node: Node<'a>, language: &str) -> Option<Node<'a>> {
             // Arrow functions in variable declarations need special handling
             if kind == "arrow_function" {
                 // Look at parent for variable name
-                if let Some(parent) = node.parent() {
-                    if parent.kind() == "variable_declarator" {
-                        if let Some(name_node) = parent.child_by_field_name("name") {
+                if let Some(parent) = node.parent()
+                    && parent.kind() == "variable_declarator"
+                        && let Some(name_node) = parent.child_by_field_name("name") {
                             return Some(name_node);
                         }
-                    }
-                }
             }
         }
         "Go" => {
@@ -365,11 +361,10 @@ fn find_name_node<'a>(node: Node<'a>, language: &str) -> Option<Node<'a>> {
                 return find_innermost_identifier(declarator);
             }
             // For struct/class, name is in the type specifier
-            if kind == "struct_specifier" || kind == "class_specifier" || kind == "enum_specifier" {
-                if let Some(name_node) = node.child_by_field_name("name") {
+            if (kind == "struct_specifier" || kind == "class_specifier" || kind == "enum_specifier")
+                && let Some(name_node) = node.child_by_field_name("name") {
                     return Some(name_node);
                 }
-            }
         }
         "C#" => {
             if let Some(name_node) = node.child_by_field_name("name") {
@@ -391,16 +386,9 @@ fn find_name_node<'a>(node: Node<'a>, language: &str) -> Option<Node<'a>> {
 
     // Fallback: find first identifier child
     let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        if child.kind() == "identifier"
+    node.children(&mut cursor).find(|&child| child.kind() == "identifier"
             || child.kind() == "type_identifier"
-            || child.kind() == "name"
-        {
-            return Some(child);
-        }
-    }
-
-    None
+            || child.kind() == "name")
 }
 
 /// Find the innermost identifier in a declarator chain (for C/C++)

@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 //! Brainwires Storage - LanceDB-backed storage for the Brainwires Agent Framework
 //!
 //! This crate provides persistent storage with semantic search capabilities:
@@ -40,12 +41,16 @@ pub mod file_context;
 
 // ── Native-only modules (require lancedb, arrow, rusqlite, etc.) ─────────
 
+/// LanceDB client wrapper.
 #[cfg(feature = "native")]
 pub mod lance_client;
+/// Embedding provider for vector operations.
 #[cfg(feature = "native")]
 pub mod embeddings;
+/// Conversation metadata storage.
 #[cfg(feature = "native")]
 pub mod conversation_store;
+/// Message storage with vector search.
 #[cfg(feature = "native")]
 pub mod message_store;
 #[cfg(feature = "native")]

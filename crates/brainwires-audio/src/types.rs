@@ -129,6 +129,7 @@ pub struct Voice {
 }
 
 impl Voice {
+    /// Create a new voice with the given identifier.
     pub fn new(id: impl Into<String>) -> Self {
         Self {
             id: id.into(),
@@ -141,9 +142,13 @@ impl Voice {
 /// Output audio format for TTS.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum OutputFormat {
+    /// WAV format.
     Wav,
+    /// MP3 format.
     Mp3,
+    /// Raw PCM samples.
     Pcm,
+    /// Opus compressed format.
     Opus,
 }
 
@@ -170,6 +175,7 @@ impl Default for TtsOptions {
 
 /// Options for speech-to-text transcription.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct SttOptions {
     /// Language hint (ISO-639-1 code, e.g., "en").
     pub language: Option<String>,
@@ -179,15 +185,6 @@ pub struct SttOptions {
     pub prompt: Option<String>,
 }
 
-impl Default for SttOptions {
-    fn default() -> Self {
-        Self {
-            language: None,
-            timestamps: false,
-            prompt: None,
-        }
-    }
-}
 
 /// Result of a speech-to-text transcription.
 #[derive(Debug, Clone, Serialize, Deserialize)]

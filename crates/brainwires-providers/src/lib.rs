@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 //! AI provider implementations for the Brainwires Agent Framework.
 //!
 //! Contains concrete implementations of the `Provider` trait for various AI services.
@@ -16,25 +17,30 @@ pub use http_client::RateLimitedClient;
 #[cfg(feature = "native")]
 pub use rate_limiter::RateLimiter;
 
-// Generic HTTP providers (feature-gated behind "native")
+/// Anthropic (Claude) provider implementation.
 #[cfg(feature = "native")]
 pub mod anthropic;
+/// OpenAI provider implementation.
 #[cfg(feature = "native")]
 pub mod openai;
+/// Google (Gemini) provider implementation.
 #[cfg(feature = "native")]
 pub mod google;
+/// Groq provider implementation.
 #[cfg(feature = "native")]
 pub mod groq;
+/// Ollama local model provider implementation.
 #[cfg(feature = "native")]
 pub mod ollama;
+/// Brainwires HTTP relay provider implementation.
 #[cfg(feature = "native")]
 pub mod brainwires_http;
 
-// Model listing (query available models from provider APIs)
+/// Model listing — query available models from provider APIs.
 #[cfg(feature = "native")]
 pub mod model_listing;
 
-// Provider factory
+/// Provider factory for constructing providers from configuration.
 #[cfg(feature = "native")]
 pub mod factory;
 
@@ -64,11 +70,13 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
 
-// OpenAI-compatible providers (Together, Fireworks, Anyscale)
+/// Together AI provider (OpenAI-compatible).
 #[cfg(feature = "native")]
 pub mod together;
+/// Fireworks AI provider (OpenAI-compatible).
 #[cfg(feature = "native")]
 pub mod fireworks;
+/// Anyscale provider (OpenAI-compatible).
 #[cfg(feature = "native")]
 pub mod anyscale;
 
@@ -83,15 +91,25 @@ pub use anyscale::AnyscaleProvider;
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "lowercase")]
 pub enum ProviderType {
+    /// Anthropic (Claude).
     Anthropic,
+    /// OpenAI (GPT).
     OpenAI,
+    /// Google (Gemini).
     Google,
+    /// Groq inference.
     Groq,
+    /// Ollama local models.
     Ollama,
+    /// Brainwires HTTP relay.
     Brainwires,
+    /// Together AI.
     Together,
+    /// Fireworks AI.
     Fireworks,
+    /// Anyscale.
     Anyscale,
+    /// Custom / user-defined provider.
     Custom,
 }
 

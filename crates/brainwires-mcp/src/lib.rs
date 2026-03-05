@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 //! Brainwires MCP - Model Context Protocol client and types
 //!
 //! This crate provides MCP client functionality for the Brainwires Agent Framework:
@@ -10,11 +11,15 @@
 // Re-export core types
 pub use brainwires_core;
 
+/// MCP protocol types and JSON-RPC types.
 pub mod types;
+/// Stdio-based transport layer for MCP communication.
 #[cfg(feature = "native")]
 pub mod transport;
+/// MCP client for connecting to external servers.
 #[cfg(feature = "native")]
 pub mod client;
+/// MCP server configuration management.
 pub mod config;
 
 // Re-exports - native-only modules

@@ -22,7 +22,7 @@ use anyhow::Result;
 use chrono::Utc;
 use uuid::Uuid;
 
-use super::{EmbeddingProvider, EmbeddingProviderTrait as _, FactStore, LanceClient, MessageMetadata, MessageStore, SummaryStore, TierMetadataStore};
+use super::{EmbeddingProvider, FactStore, LanceClient, MessageMetadata, MessageStore, SummaryStore, TierMetadataStore};
 
 // ── Memory authority hierarchy ────────────────────────────────────────────────
 
@@ -33,10 +33,12 @@ use super::{EmbeddingProvider, EmbeddingProviderTrait as _, FactStore, LanceClie
 /// gate when calling [`TieredMemory::add_canonical_message`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum MemoryAuthority {
     /// Transient — may be discarded between runs without notice.
     Ephemeral,
     /// Default for agent messages — persists for the duration of a session.
+    #[default]
     Session,
     /// Long-lived, authoritative knowledge.
     ///
@@ -45,11 +47,6 @@ pub enum MemoryAuthority {
     Canonical,
 }
 
-impl Default for MemoryAuthority {
-    fn default() -> Self {
-        Self::Session
-    }
-}
 
 impl MemoryAuthority {
     /// Display string used as the stored column value.
@@ -62,7 +59,7 @@ impl MemoryAuthority {
     }
 
     /// Parse from a stored string.
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s {
             "ephemeral" => Self::Ephemeral,
             "canonical" => Self::Canonical,
@@ -89,6 +86,7 @@ pub struct CanonicalWriteToken(());
 
 impl CanonicalWriteToken {
     /// Create a new token.  Only callable within this crate.
+    #[allow(dead_code)]
     pub(crate) fn new() -> Self {
         Self(())
     }
@@ -130,11 +128,17 @@ impl MemoryTier {
 /// Metadata tracking for tiered storage
 #[derive(Debug, Clone)]
 pub struct TierMetadata {
+    /// Message identifier.
     pub message_id: String,
+    /// Current memory tier.
     pub tier: MemoryTier,
+    /// Importance score (0.0-1.0).
     pub importance: f32,
+    /// Last access timestamp (Unix seconds).
     pub last_accessed: i64,
+    /// Number of times accessed.
     pub access_count: u32,
+    /// Creation timestamp (Unix seconds).
     pub created_at: i64,
     /// Authority level of this memory entry.
     ///
@@ -145,6 +149,7 @@ pub struct TierMetadata {
 }
 
 impl TierMetadata {
+    /// Create new tier metadata with the given importance score.
     pub fn new(message_id: String, importance: f32) -> Self {
         let now = Utc::now().timestamp();
         Self {
@@ -185,34 +190,53 @@ impl TierMetadata {
 /// Summary of a message for warm tier storage
 #[derive(Debug, Clone)]
 pub struct MessageSummary {
+    /// Unique summary identifier.
     pub summary_id: String,
+    /// Original message that was summarized.
     pub original_message_id: String,
+    /// Conversation this summary belongs to.
     pub conversation_id: String,
+    /// Role of the original message.
     pub role: String,
+    /// Summarized text.
     pub summary: String,
+    /// Key entities mentioned in the message.
     pub key_entities: Vec<String>,
+    /// Creation timestamp (Unix seconds).
     pub created_at: i64,
 }
 
 /// Key fact extracted from messages for cold tier storage
 #[derive(Debug, Clone)]
 pub struct KeyFact {
+    /// Unique fact identifier.
     pub fact_id: String,
+    /// Messages this fact was extracted from.
     pub original_message_ids: Vec<String>,
+    /// Conversation this fact belongs to.
     pub conversation_id: String,
+    /// The fact text.
     pub fact: String,
+    /// Category of the fact.
     pub fact_type: FactType,
+    /// Creation timestamp (Unix seconds).
     pub created_at: i64,
 }
 
 /// Type of key fact
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FactType {
+    /// A decision that was made.
     Decision,
+    /// A definition or concept.
     Definition,
+    /// A requirement or constraint.
     Requirement,
+    /// A code change or modification.
     CodeChange,
+    /// A configuration setting.
     Configuration,
+    /// Other type of fact.
     Other,
 }
 
@@ -251,11 +275,15 @@ impl MultiFactorScore {
 /// Result from adaptive search across tiers
 #[derive(Debug, Clone)]
 pub struct TieredSearchResult {
+    /// The content text.
     pub content: String,
-    /// Raw similarity score returned by the vector store (0–1).
+    /// Raw similarity score returned by the vector store (0-1).
     pub score: f32,
+    /// Memory tier this result came from.
     pub tier: MemoryTier,
+    /// Original message identifier.
     pub original_message_id: Option<String>,
+    /// Full message metadata if available.
     pub metadata: Option<MessageMetadata>,
     /// Multi-factor score blending similarity, recency, and importance.
     /// Populated by [`TieredMemory::search_adaptive_multi_factor`]; `None` when
@@ -322,6 +350,7 @@ pub struct TieredMemory {
     config: TieredMemoryConfig,
 
     /// Embedding provider for searches
+    #[allow(dead_code)]
     embeddings: Arc<EmbeddingProvider>,
 }
 
@@ -355,7 +384,7 @@ impl TieredMemory {
     /// Add a message to the hot tier with `Session` authority.
     ///
     /// If `TieredMemoryConfig::session_ttl_secs` is set, the message will be
-    /// assigned an expiry timestamp and will be removed by [`evict_expired`]
+    /// assigned an expiry timestamp and will be removed by [`Self::evict_expired`]
     /// after the configured duration.
     pub async fn add_message(&mut self, mut message: MessageMetadata, importance: f32) -> Result<()> {
         // Apply TTL if configured
@@ -429,11 +458,10 @@ impl TieredMemory {
 
         for (msg, score) in hot_results {
             // Lazy eviction: skip entries whose TTL has expired
-            if let Some(exp) = msg.expires_at {
-                if exp <= Utc::now().timestamp() {
+            if let Some(exp) = msg.expires_at
+                && exp <= Utc::now().timestamp() {
                     continue;
                 }
-            }
 
             // Record access for retention tracking
             let _ = self.record_access(&msg.message_id).await;
@@ -650,9 +678,13 @@ impl TieredMemory {
 /// Statistics about tiered memory usage
 #[derive(Debug, Clone)]
 pub struct TieredMemoryStats {
+    /// Number of entries in the hot tier.
     pub hot_count: usize,
+    /// Number of entries in the warm tier.
     pub warm_count: usize,
+    /// Number of entries in the cold tier.
     pub cold_count: usize,
+    /// Total tracked entries across all tiers.
     pub total_tracked: usize,
 }
 
@@ -764,13 +796,13 @@ mod tests {
     #[test]
     fn test_memory_authority_round_trip() {
         for auth in [MemoryAuthority::Ephemeral, MemoryAuthority::Session, MemoryAuthority::Canonical] {
-            assert_eq!(MemoryAuthority::from_str(auth.as_str()), auth);
+            assert_eq!(MemoryAuthority::parse(auth.as_str()), auth);
         }
     }
 
     #[test]
     fn test_memory_authority_unknown_defaults_to_session() {
-        assert_eq!(MemoryAuthority::from_str("bogus"), MemoryAuthority::Session);
+        assert_eq!(MemoryAuthority::parse("bogus"), MemoryAuthority::Session);
     }
 
     #[test]

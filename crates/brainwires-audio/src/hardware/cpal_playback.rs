@@ -15,6 +15,7 @@ use super::cpal_common;
 pub struct CpalPlayback;
 
 impl CpalPlayback {
+    /// Create a new cpal-based audio playback instance.
     pub fn new() -> Self {
         Self
     }

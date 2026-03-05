@@ -131,7 +131,7 @@ pub fn calculate_k_min(num_steps: f64, p: f64, target: f64) -> u32 {
             return 10; // Default high k for extreme cases
         }
         let k = (a.ln() / ratio.ln()).ceil() as u32;
-        return k.max(1).min(100); // Cap at reasonable values
+        return k.clamp(1, 100); // Cap at reasonable values
     }
 
     let a = target.powf(-1.0 / num_steps) - 1.0;

@@ -47,11 +47,13 @@ pub enum ViewerMessage {
 
     /// Change tool mode
     SetToolMode {
+        /// The new tool mode to set.
         mode: ToolMode,
     },
 
     /// Queue a message for injection during agent processing
     QueueMessage {
+        /// The message content to queue.
         content: String,
     },
 

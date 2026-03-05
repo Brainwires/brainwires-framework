@@ -169,12 +169,11 @@ impl FileOpsTool {
         // 1. Idempotency check — return cached result on exact retry
         let content_hash = Sha256::digest(params.content.as_bytes());
         let key = Self::derive_idempotency_key("write_file", &full_path, &content_hash);
-        if let Some(ref registry) = context.idempotency_registry {
-            if let Some(record) = registry.get(&key) {
+        if let Some(ref registry) = context.idempotency_registry
+            && let Some(record) = registry.get(&key) {
                 tracing::debug!(path = %full_path.display(), "write_file: idempotent retry, returning cached result");
                 return Ok(record.cached_result);
             }
-        }
 
         // 2. Staging check — stage write for two-phase commit when backend present
         if let Some(ref backend) = context.staging_backend {
@@ -218,12 +217,11 @@ impl FileOpsTool {
         let key = Self::derive_idempotency_key("edit_file", &full_path, &content_hash);
 
         // 1. Idempotency check
-        if let Some(ref registry) = context.idempotency_registry {
-            if let Some(record) = registry.get(&key) {
+        if let Some(ref registry) = context.idempotency_registry
+            && let Some(record) = registry.get(&key) {
                 tracing::debug!(path = %full_path.display(), "edit_file: idempotent retry, returning cached result");
                 return Ok(record.cached_result);
             }
-        }
 
         // Compute new content (needed for both staging and direct write)
         let current = fs::read_to_string(&full_path).with_context(|| format!("Failed to read file: {}", full_path.display()))?;
@@ -265,12 +263,11 @@ impl FileOpsTool {
         let key = Self::derive_idempotency_key("patch_file", &full_path, &patch_hash);
 
         // 1. Idempotency check
-        if let Some(ref registry) = context.idempotency_registry {
-            if let Some(record) = registry.get(&key) {
+        if let Some(ref registry) = context.idempotency_registry
+            && let Some(record) = registry.get(&key) {
                 tracing::debug!(path = %full_path.display(), "patch_file: idempotent retry, returning cached result");
                 return Ok(record.cached_result);
             }
-        }
 
         // Compute patched content (needed for both staging and direct write)
         let content = fs::read_to_string(&full_path).with_context(|| format!("Failed to read file: {}", full_path.display()))?;

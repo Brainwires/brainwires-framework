@@ -24,19 +24,31 @@ use crate::communication::{AgentMessage, CommunicationHub, GitOperationType};
 use crate::resource_checker::ResourceChecker;
 use crate::resource_locks::{ResourceLockGuard, ResourceLockManager, ResourceScope, ResourceType};
 
-/// Git tool names
+/// Git tool name constants
 pub mod git_tools {
+    /// Git status tool name.
     pub const STATUS: &str = "git_status";
+    /// Git diff tool name.
     pub const DIFF: &str = "git_diff";
+    /// Git log tool name.
     pub const LOG: &str = "git_log";
+    /// Git search tool name.
     pub const SEARCH: &str = "git_search";
+    /// Git fetch tool name.
     pub const FETCH: &str = "git_fetch";
+    /// Git stage tool name.
     pub const STAGE: &str = "git_stage";
+    /// Git unstage tool name.
     pub const UNSTAGE: &str = "git_unstage";
+    /// Git commit tool name.
     pub const COMMIT: &str = "git_commit";
+    /// Git push tool name.
     pub const PUSH: &str = "git_push";
+    /// Git pull tool name.
     pub const PULL: &str = "git_pull";
+    /// Git branch tool name.
     pub const BRANCH: &str = "git_branch";
+    /// Git discard tool name.
     pub const DISCARD: &str = "git_discard";
 }
 
@@ -298,8 +310,8 @@ impl GitCoordinator {
         }
 
         // Check cross-resource conflicts
-        if let Some(checker) = &self.resource_checker {
-            if requirements.check_file_conflicts {
+        if let Some(checker) = &self.resource_checker
+            && requirements.check_file_conflicts {
                 let git_op_type = match requirements.operation_type {
                     GitOperationType::Staging => ResourceType::GitIndex,
                     GitOperationType::Commit => ResourceType::GitCommit,
@@ -318,7 +330,6 @@ impl GitCoordinator {
                     return false;
                 }
             }
-        }
 
         true
     }
@@ -352,7 +363,9 @@ impl GitCoordinator {
 /// The locks are released when this struct is dropped.
 pub struct GitOperationLocks {
     guards: Vec<ResourceLockGuard>,
+    /// Type of git operation.
     pub operation_type: GitOperationType,
+    /// Human-readable description.
     pub description: String,
 }
 

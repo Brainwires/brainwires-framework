@@ -1,3 +1,8 @@
+//! Priority-based task queue for agent scheduling
+//!
+//! Provides a thread-safe queue with priority levels (Urgent, High, Normal, Low)
+//! for scheduling tasks across worker agents.
+
 use anyhow::Result;
 use std::collections::VecDeque;
 use std::sync::Arc;
@@ -10,10 +15,14 @@ pub use brainwires_core::TaskPriority;
 /// A queued task with priority and metadata
 #[derive(Debug, Clone)]
 pub struct QueuedTask {
+    /// The underlying task.
     pub task: Task,
+    /// Priority level.
     pub priority: TaskPriority,
+    /// When the task was queued.
     pub queued_at: std::time::SystemTime,
-    pub assigned_to: Option<String>, // Worker ID if assigned
+    /// Worker ID if assigned.
+    pub assigned_to: Option<String>,
 }
 
 impl QueuedTask {

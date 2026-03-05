@@ -14,33 +14,49 @@ use std::collections::HashMap;
 pub enum LearningSignal {
     /// User explicitly taught something via /learn command
     ExplicitTeaching {
+        /// The rule being taught.
         rule: String,
+        /// Rationale for the rule.
         rationale: Option<String>,
+        /// Category of the truth.
         category: TruthCategory,
+        /// Context where the rule applies.
         context: Option<String>,
     },
 
     /// User corrected the agent in conversation
     Correction {
+        /// Context of the correction.
         context: String,
+        /// What the agent did wrong.
         wrong_behavior: String,
+        /// What the agent should have done.
         right_behavior: String,
     },
 
     /// Tool execution outcome
     ToolOutcome {
+        /// Name of the tool executed.
         tool_name: String,
+        /// Command or arguments used.
         command: String,
+        /// Whether execution succeeded.
         success: bool,
+        /// Error message if failed.
         error_message: Option<String>,
+        /// Execution time in milliseconds.
         execution_time_ms: u64,
     },
 
     /// Strategy outcome (how a task was approached)
     StrategyOutcome {
+        /// Description of the strategy used.
         strategy: String,
+        /// Context of the task.
         context: String,
+        /// Whether the strategy succeeded.
         success: bool,
+        /// Additional details.
         details: Option<String>,
     },
 }
@@ -65,6 +81,7 @@ pub struct FailurePattern {
 }
 
 impl FailurePattern {
+    /// Create a new failure pattern with its first occurrence.
     pub fn new(pattern: String, error_pattern: Option<String>, context: String) -> Self {
         Self {
             pattern,
@@ -75,6 +92,7 @@ impl FailurePattern {
         }
     }
 
+    /// Record an additional occurrence of this failure pattern.
     pub fn record_occurrence(&mut self, context: String) {
         self.occurrences += 1;
         self.timestamps.push(Utc::now().timestamp());
@@ -164,7 +182,7 @@ impl LearningCollector {
         if success {
             *self.success_patterns.entry(pattern_key).or_insert(0) += 1;
         } else {
-            let error_pattern = error_message.map(|e| Self::extract_error_pattern(e));
+            let error_pattern = error_message.map(Self::extract_error_pattern);
 
             if let Some(existing) = self.failure_patterns.get_mut(&pattern_key) {
                 existing.record_occurrence(command.to_string());
@@ -435,9 +453,13 @@ impl LearningCollector {
 /// Statistics about the collector
 #[derive(Debug, Clone)]
 pub struct CollectorStats {
+    /// Number of unprocessed learning signals.
     pub pending_signals: usize,
+    /// Number of tracked failure patterns.
     pub tracked_failure_patterns: usize,
+    /// Number of tracked success patterns.
     pub tracked_success_patterns: usize,
+    /// Number of failures that crossed the significance threshold.
     pub significant_failures: usize,
 }
 

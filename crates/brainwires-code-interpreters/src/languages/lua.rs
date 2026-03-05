@@ -22,20 +22,20 @@ use crate::types::{ExecutionLimits, ExecutionRequest, ExecutionResult};
 
 /// Lua code executor
 pub struct LuaExecutor {
-    limits: ExecutionLimits,
+    _limits: ExecutionLimits,
 }
 
 impl LuaExecutor {
     /// Create a new Lua executor with default limits
     pub fn new() -> Self {
         Self {
-            limits: ExecutionLimits::default(),
+            _limits: ExecutionLimits::default(),
         }
     }
 
     /// Create a new Lua executor with custom limits
     pub fn with_limits(limits: ExecutionLimits) -> Self {
-        Self { limits }
+        Self { _limits: limits }
     }
 
     /// Execute Lua code
@@ -44,9 +44,7 @@ impl LuaExecutor {
         let start = Instant::now();
 
         // Create Lua instance
-        let lua = match Lua::new() {
-            lua => lua,
-        };
+        let lua = Lua::new();
 
         // Set memory limit
         let _ = lua.set_memory_limit(limits.max_memory_mb as usize * 1024 * 1024);
@@ -63,14 +61,13 @@ impl LuaExecutor {
         }
 
         // Inject context variables
-        if let Some(context) = &request.context {
-            if let Err(e) = self.inject_context(&lua, context) {
+        if let Some(context) = &request.context
+            && let Err(e) = self.inject_context(&lua, context) {
                 return ExecutionResult::error(
                     format!("Failed to inject context: {}", e),
                     start.elapsed().as_millis() as u64,
                 );
             }
-        }
 
         // Execute the code
         let result = lua.load(&request.code).eval::<Value>();

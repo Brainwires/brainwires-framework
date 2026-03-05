@@ -61,22 +61,19 @@ impl ProtocolCapability {
 /// Priority level for commands
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum CommandPriority {
     /// Critical commands (e.g., emergency stop, security)
     Critical = 0,
     /// High priority (e.g., user-initiated actions)
     High = 1,
     /// Normal priority (default)
+    #[default]
     Normal = 2,
     /// Low priority (background tasks)
     Low = 3,
 }
 
-impl Default for CommandPriority {
-    fn default() -> Self {
-        Self::Normal
-    }
-}
 
 /// Retry policy for failed commands
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -206,9 +203,13 @@ impl Default for NegotiatedProtocol {
 pub enum RemoteMessage {
     /// Initial registration with API key and protocol negotiation
     Register {
+        /// API key for authentication.
         api_key: String,
+        /// Client hostname.
         hostname: String,
+        /// Client operating system.
         os: String,
+        /// Client version string.
         version: String,
         /// Protocol negotiation (optional for backward compatibility)
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -217,37 +218,51 @@ pub enum RemoteMessage {
 
     /// Regular heartbeat with agent status
     Heartbeat {
+        /// Session token for authentication.
         session_token: String,
+        /// List of active agents.
         agents: Vec<RemoteAgentInfo>,
+        /// Current system load (0.0-1.0).
         system_load: f32,
     },
 
     /// Response to a command
     CommandResult {
+        /// ID of the command being responded to.
         command_id: String,
+        /// Whether the command succeeded.
         success: bool,
+        /// Result data if successful.
         #[serde(skip_serializing_if = "Option::is_none")]
         result: Option<serde_json::Value>,
+        /// Error message if failed.
         #[serde(skip_serializing_if = "Option::is_none")]
         error: Option<String>,
     },
 
     /// Agent event (new agent, agent exit, state change)
     AgentEvent {
+        /// Type of agent event.
         event_type: AgentEventType,
+        /// ID of the agent this event relates to.
         agent_id: String,
+        /// Event-specific data payload.
         data: serde_json::Value,
     },
 
     /// Stream chunk from agent (for real-time viewing)
     AgentStream {
+        /// ID of the agent producing the stream.
         agent_id: String,
+        /// Type of stream chunk.
         chunk_type: StreamChunkType,
+        /// Chunk content text.
         content: String,
     },
 
     /// Pong response to backend ping
     Pong {
+        /// Timestamp from the original ping.
         timestamp: i64,
     },
 
@@ -280,8 +295,11 @@ pub enum RemoteMessage {
 pub enum BackendCommand {
     /// Authenticated - here's your session token and negotiated protocol
     Authenticated {
+        /// Session token for subsequent requests.
         session_token: String,
+        /// Authenticated user ID.
         user_id: String,
+        /// Interval in seconds between heartbeats.
         refresh_interval_secs: u32,
         /// Negotiated protocol (optional for backward compatibility)
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -290,36 +308,54 @@ pub enum BackendCommand {
 
     /// Send input to an agent
     SendInput {
+        /// Unique command identifier.
         command_id: String,
+        /// Target agent ID.
         agent_id: String,
+        /// Input content to send.
         content: String,
     },
 
     /// Execute slash command on agent
     SlashCommand {
+        /// Unique command identifier.
         command_id: String,
+        /// Target agent ID.
         agent_id: String,
+        /// Slash command name.
         command: String,
+        /// Command arguments.
         args: Vec<String>,
     },
 
     /// Cancel current operation
     CancelOperation {
+        /// Unique command identifier.
         command_id: String,
+        /// Target agent ID.
         agent_id: String,
     },
 
     /// Subscribe to agent stream
-    Subscribe { agent_id: String },
+    Subscribe {
+        /// Agent ID to subscribe to.
+        agent_id: String,
+    },
 
     /// Unsubscribe from agent stream
-    Unsubscribe { agent_id: String },
+    Unsubscribe {
+        /// Agent ID to unsubscribe from.
+        agent_id: String,
+    },
 
     /// Spawn new agent
     SpawnAgent {
+        /// Unique command identifier.
         command_id: String,
+        /// Model to use for the new agent.
         #[serde(skip_serializing_if = "Option::is_none")]
         model: Option<String>,
+        /// Working directory for the new agent.
         #[serde(skip_serializing_if = "Option::is_none")]
         working_directory: Option<String>,
     },
@@ -328,13 +364,22 @@ pub enum BackendCommand {
     RequestSync,
 
     /// Ping to check connection health
-    Ping { timestamp: i64 },
+    Ping {
+        /// Timestamp for round-trip measurement.
+        timestamp: i64,
+    },
 
     /// Disconnect (server closing)
-    Disconnect { reason: String },
+    Disconnect {
+        /// Reason for disconnection.
+        reason: String,
+    },
 
     /// Authentication failed
-    AuthenticationFailed { error: String },
+    AuthenticationFailed {
+        /// Error message describing the failure.
+        error: String,
+    },
 
     // ========================================================================
     // Attachment Commands (Phase 3)
@@ -342,7 +387,9 @@ pub enum BackendCommand {
 
     /// Start of an attachment upload
     AttachmentUpload {
+        /// Unique command identifier.
         command_id: String,
+        /// Target agent ID.
         agent_id: String,
         /// Unique ID for this attachment
         attachment_id: String,
@@ -375,6 +422,7 @@ pub enum BackendCommand {
 
     /// Attachment upload complete - verify checksum
     AttachmentComplete {
+        /// ID of the completed attachment.
         attachment_id: String,
         /// SHA-256 checksum of the complete (uncompressed) file
         checksum: String,

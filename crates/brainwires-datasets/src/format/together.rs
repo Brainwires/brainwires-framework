@@ -22,10 +22,12 @@ impl Default for TogetherFormat {
 }
 
 impl TogetherFormat {
+    /// Create a Together format using chat messages (OpenAI-compatible).
     pub fn chat() -> Self {
         Self { use_chat_format: true }
     }
 
+    /// Create a Together format using text template wrapping.
     pub fn text() -> Self {
         Self { use_chat_format: false }
     }
@@ -77,7 +79,7 @@ impl FormatConverter for TogetherFormat {
         }
     }
 
-    fn from_json(&self, value: &serde_json::Value) -> DatasetResult<TrainingExample> {
+    fn parse_json(&self, value: &serde_json::Value) -> DatasetResult<TrainingExample> {
         // Prefer chat format parsing
         if let Some(messages) = value.get("messages") {
             let arr = messages.as_array().ok_or_else(|| DatasetError::FormatConversion {
@@ -107,12 +109,11 @@ impl FormatConverter for TogetherFormat {
             let text = text.trim_start_matches("<s>").trim_end_matches("</s>").trim();
 
             // Extract system message if present
-            if let Some(sys_start) = text.find("<<SYS>>") {
-                if let Some(sys_end) = text.find("<</SYS>>") {
+            if let Some(sys_start) = text.find("<<SYS>>")
+                && let Some(sys_end) = text.find("<</SYS>>") {
                     let system_content = text[sys_start + 7..sys_end].trim().to_string();
                     messages.push(TrainingMessage::system(system_content));
                 }
-            }
 
             // Extract [INST]...[/INST] pairs
             let mut remaining = text;
@@ -162,7 +163,7 @@ mod tests {
         ]);
 
         let json = format.to_json(&example).unwrap();
-        let parsed = format.from_json(&json).unwrap();
+        let parsed = format.parse_json(&json).unwrap();
         assert_eq!(parsed.messages.len(), 2);
     }
 

@@ -143,12 +143,11 @@ impl TaskManager {
                 total_duration += duration;
                 completed_count += 1;
             }
-            if task.status == TaskStatus::InProgress {
-                if let Some(elapsed) = task.elapsed_secs() {
+            if task.status == TaskStatus::InProgress
+                && let Some(elapsed) = task.elapsed_secs() {
                     total_elapsed += elapsed;
                     in_progress_count += 1;
                 }
-            }
         }
 
         TimeStats {

@@ -101,7 +101,10 @@ pub enum WorktreeResult {
     /// Worktree already exists
     AlreadyExists(AgentWorktree),
     /// Worktree removed successfully
-    Removed { path: PathBuf },
+    Removed {
+        /// Path of the removed worktree.
+        path: PathBuf,
+    },
     /// Operation failed
     Error(String),
 }
@@ -470,8 +473,8 @@ impl WorktreeManager {
                 // Try to extract agent ID from path
                 if let Some(name) = git_wt.path.file_name() {
                     let name_str = name.to_string_lossy();
-                    if let Some(agent_id) = name_str.strip_prefix(&self.config.prefix) {
-                        if !tracked.contains_key(agent_id) {
+                    if let Some(agent_id) = name_str.strip_prefix(&self.config.prefix)
+                        && !tracked.contains_key(agent_id) {
                             tracked.insert(
                                 agent_id.to_string(),
                                 AgentWorktree {
@@ -486,7 +489,6 @@ impl WorktreeManager {
                             );
                             added += 1;
                         }
-                    }
                 }
             }
         }

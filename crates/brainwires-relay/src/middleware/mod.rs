@@ -1,6 +1,10 @@
+/// Authentication middleware.
 pub mod auth;
+/// Request logging middleware.
 pub mod logging;
+/// Rate limiting middleware.
 pub mod rate_limit;
+/// Tool filtering middleware.
 pub mod tool_filter;
 
 use anyhow::Result;
@@ -9,35 +13,45 @@ use brainwires_mcp::{JsonRpcError, JsonRpcRequest, JsonRpcResponse};
 
 use crate::connection::RequestContext;
 
+/// Result of middleware processing.
 pub enum MiddlewareResult {
+    /// Allow the request to continue.
     Continue,
+    /// Reject the request with an error.
     Reject(JsonRpcError),
 }
 
+/// Trait for request/response middleware.
 #[async_trait]
 pub trait Middleware: Send + Sync + 'static {
+    /// Process an incoming request. Return `Continue` or `Reject`.
     async fn process_request(
         &self,
         request: &JsonRpcRequest,
         ctx: &mut RequestContext,
     ) -> MiddlewareResult;
 
+    /// Optionally process the outgoing response (no-op by default).
     async fn process_response(&self, _response: &mut JsonRpcResponse, _ctx: &RequestContext) {}
 }
 
+/// Ordered chain of middleware layers.
 pub struct MiddlewareChain {
     layers: Vec<Box<dyn Middleware>>,
 }
 
 impl MiddlewareChain {
+    /// Create a new empty middleware chain.
     pub fn new() -> Self {
         Self { layers: Vec::new() }
     }
 
+    /// Add a middleware layer to the chain.
     pub fn add(&mut self, middleware: impl Middleware) {
         self.layers.push(Box::new(middleware));
     }
 
+    /// Run all middleware on the request, stopping on first reject.
     pub async fn process_request(
         &self,
         request: &JsonRpcRequest,
@@ -52,6 +66,7 @@ impl MiddlewareChain {
         Ok(())
     }
 
+    /// Run all middleware on the response.
     pub async fn process_response(&self, response: &mut JsonRpcResponse, ctx: &RequestContext) {
         for layer in &self.layers {
             layer.process_response(response, ctx).await;

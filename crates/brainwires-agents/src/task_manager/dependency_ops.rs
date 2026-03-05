@@ -131,11 +131,10 @@ impl TaskManager {
                     .unwrap_or(false)
             });
 
-            if all_deps_done {
-                if let Some(task) = tasks.get_mut(task_id) {
+            if all_deps_done
+                && let Some(task) = tasks.get_mut(task_id) {
                     task.status = TaskStatus::Pending;
                 }
-            }
         }
 
         Ok(())
@@ -154,11 +153,10 @@ impl TaskManager {
         // Collect the dependency lists for each task first
         let mut tasks_to_check: Vec<(String, Vec<String>)> = Vec::new();
         for dep_id in &dependent_ids {
-            if let Some(task) = tasks.get(dep_id) {
-                if task.status == TaskStatus::Blocked {
+            if let Some(task) = tasks.get(dep_id)
+                && task.status == TaskStatus::Blocked {
                     tasks_to_check.push((dep_id.clone(), task.depends_on.clone()));
                 }
-            }
         }
 
         // Now update tasks based on dependency status
@@ -170,12 +168,11 @@ impl TaskManager {
                     .unwrap_or(false)
             });
 
-            if all_deps_done {
-                if let Some(task) = tasks.get_mut(&dep_id) {
+            if all_deps_done
+                && let Some(task) = tasks.get_mut(&dep_id) {
                     task.status = TaskStatus::Pending;
                     task.updated_at = chrono::Utc::now().timestamp();
                 }
-            }
         }
 
         Ok(())

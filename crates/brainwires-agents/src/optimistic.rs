@@ -80,24 +80,24 @@ impl ResourceVersion {
 
 /// Strategy for resolving conflicts
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub enum ResolutionStrategy {
     /// Last writer wins (overwrite)
     LastWriterWins,
     /// First writer wins (reject later)
+    #[default]
     FirstWriterWins,
     /// Attempt to merge changes
     Merge(MergeStrategy),
     /// Escalate to orchestrator/user
     Escalate,
     /// Retry the operation with fresh state
-    Retry { max_attempts: u32 },
+    Retry {
+        /// Maximum number of retry attempts.
+        max_attempts: u32,
+    },
 }
 
-impl Default for ResolutionStrategy {
-    fn default() -> Self {
-        ResolutionStrategy::FirstWriterWins
-    }
-}
 
 /// Strategies for merging conflicting changes
 #[derive(Debug, Clone)]
@@ -168,13 +168,16 @@ pub enum Resolution {
     AbortBoth,
     /// Keep both as separate resources
     KeepBoth {
+        /// Suffix for the first version.
         suffix_a: String,
+        /// Suffix for the second version.
         suffix_b: String,
     },
     /// Retry with fresh state
     Retry,
     /// Escalate to higher authority
     Escalate {
+        /// Reason for escalation.
         reason: String,
     },
 }
@@ -271,8 +274,8 @@ impl OptimisticController {
         let mut versions = self.versions.write().await;
 
         // Check for conflict
-        if let Some(current) = versions.get(&token.resource_id) {
-            if current.version != token.base_version {
+        if let Some(current) = versions.get(&token.resource_id)
+            && current.version != token.base_version {
                 return Err(OptimisticConflict {
                     resource_id: token.resource_id,
                     conflicting_agent: token.agent_id,
@@ -282,7 +285,6 @@ impl OptimisticController {
                     detected_at: Instant::now(),
                 });
             }
-        }
 
         // No conflict - commit the change
         let new_version = token.base_version + 1;
@@ -561,19 +563,44 @@ impl Default for OptimisticController {
 #[derive(Debug, Clone)]
 pub enum CommitResult {
     /// Successfully committed
-    Committed { version: u64 },
+    Committed {
+        /// New version number.
+        version: u64,
+    },
     /// Merged with existing changes
-    Merged { version: u64, merged_hash: String },
+    Merged {
+        /// New version number.
+        version: u64,
+        /// Hash of the merged content.
+        merged_hash: String,
+    },
     /// Need to retry with fresh state
-    RetryNeeded { current_version: u64 },
+    RetryNeeded {
+        /// Current version to retry against.
+        current_version: u64,
+    },
     /// Commit was rejected
-    Rejected { reason: String },
+    Rejected {
+        /// Reason for rejection.
+        reason: String,
+    },
     /// Both operations aborted
-    Aborted { reason: String },
+    Aborted {
+        /// Reason for abort.
+        reason: String,
+    },
     /// Split into separate resources
-    Split { suffix_a: String, suffix_b: String },
+    Split {
+        /// Suffix for the first version.
+        suffix_a: String,
+        /// Suffix for the second version.
+        suffix_b: String,
+    },
     /// Escalated to higher authority
-    Escalated { reason: String },
+    Escalated {
+        /// Reason for escalation.
+        reason: String,
+    },
 }
 
 impl CommitResult {

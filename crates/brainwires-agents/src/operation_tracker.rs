@@ -11,7 +11,6 @@
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{broadcast, oneshot, RwLock};
@@ -94,44 +93,69 @@ impl ActiveOperation {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum OperationEvent {
-    /// Operation started
+    /// Operation started.
     Started {
+        /// Unique operation identifier.
         operation_id: String,
+        /// Agent performing the operation.
         agent_id: String,
+        /// Type of resource being used.
         resource_type: String,
+        /// Scope of the operation.
         scope: String,
+        /// Human-readable description.
         description: String,
     },
-    /// Heartbeat received with status update
+    /// Heartbeat received with status update.
     Heartbeat {
+        /// Unique operation identifier.
         operation_id: String,
+        /// Agent performing the operation.
         agent_id: String,
+        /// Current status message.
         status: String,
+        /// Seconds elapsed since operation started.
         elapsed_secs: u64,
     },
-    /// Operation completed successfully
+    /// Operation completed.
     Completed {
+        /// Unique operation identifier.
         operation_id: String,
+        /// Agent that performed the operation.
         agent_id: String,
+        /// Type of resource that was used.
         resource_type: String,
+        /// Scope of the operation.
         scope: String,
+        /// Total duration in seconds.
         duration_secs: u64,
+        /// Whether the operation succeeded.
         success: bool,
+        /// Summary of the outcome.
         summary: String,
     },
-    /// Operation detected as stale (no heartbeats)
+    /// Operation detected as stale (no heartbeats).
     Stale {
+        /// Unique operation identifier.
         operation_id: String,
+        /// Agent that was performing the operation.
         agent_id: String,
+        /// Type of resource that was held.
         resource_type: String,
+        /// Scope of the operation.
         scope: String,
+        /// Seconds since last heartbeat.
         last_heartbeat_secs_ago: u64,
     },
-    /// Process attached to operation terminated
+    /// Process attached to operation terminated.
     ProcessTerminated {
+        /// Unique operation identifier.
         operation_id: String,
+        /// Agent that owned the process.
         agent_id: String,
+        /// OS process identifier.
         process_id: u32,
+        /// Exit status code if available.
         exit_status: Option<i32>,
     },
 }
@@ -139,16 +163,27 @@ pub enum OperationEvent {
 /// Status of an operation for querying
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OperationStatus {
+    /// Unique operation identifier.
     pub operation_id: String,
+    /// Agent performing the operation.
     pub agent_id: String,
+    /// Type of resource being used.
     pub resource_type: String,
+    /// Scope of the operation.
     pub scope: String,
+    /// Seconds since the operation started.
     pub started_at_secs_ago: u64,
+    /// Seconds since the last heartbeat.
     pub last_heartbeat_secs_ago: u64,
+    /// Whether the operation is still alive.
     pub is_alive: bool,
+    /// Current status message.
     pub status: String,
+    /// Human-readable description.
     pub description: String,
+    /// Attached OS process identifier, if any.
     pub process_id: Option<u32>,
+    /// Recent output lines from the operation.
     pub recent_output: Vec<String>,
 }
 
@@ -161,8 +196,8 @@ pub struct OperationHandle {
     tracker: Arc<OperationTracker>,
     operation_id: String,
     agent_id: String,
-    resource_type: ResourceType,
-    scope: ResourceScope,
+    _resource_type: ResourceType,
+    _scope: ResourceScope,
     heartbeat_task: Option<JoinHandle<()>>,
     completion_sender: Option<oneshot::Sender<OperationCompletion>>,
 }
@@ -273,8 +308,8 @@ impl OperationTracker {
                     }
 
                     // Check process liveness if attached
-                    if let Some(pid) = op.process_id {
-                        if !is_process_alive(pid) {
+                    if let Some(pid) = op.process_id
+                        && !is_process_alive(pid) {
                             drop(ops);
                             // Process died - mark operation as potentially stale
                             let _ = tracker.event_sender.send(OperationEvent::ProcessTerminated {
@@ -284,7 +319,6 @@ impl OperationTracker {
                                 exit_status: None, // Could try to get this
                             });
                         }
-                    }
                 } else {
                     // Operation was removed
                     break;
@@ -318,8 +352,8 @@ impl OperationTracker {
             tracker: Arc::clone(self),
             operation_id,
             agent_id: agent_id.to_string(),
-            resource_type,
-            scope,
+            _resource_type: resource_type,
+            _scope: scope,
             heartbeat_task: Some(heartbeat_task),
             completion_sender: Some(completion_sender),
         })
@@ -385,11 +419,10 @@ impl OperationTracker {
             }
 
             // Check process if attached
-            if let Some(pid) = op.process_id {
-                if !is_process_alive(pid) {
+            if let Some(pid) = op.process_id
+                && !is_process_alive(pid) {
                     return false;
                 }
-            }
 
             true
         } else {
@@ -408,7 +441,7 @@ impl OperationTracker {
             started_at_secs_ago: op.elapsed().as_secs(),
             last_heartbeat_secs_ago: op.time_since_heartbeat().as_secs(),
             is_alive: op.is_heartbeat_alive(self.heartbeat_interval, self.max_missed_heartbeats)
-                && op.process_id.map_or(true, is_process_alive),
+                && op.process_id.is_none_or(is_process_alive),
             status: op.status.clone(),
             description: op.description.clone(),
             process_id: op.process_id,
@@ -429,7 +462,7 @@ impl OperationTracker {
                 started_at_secs_ago: op.elapsed().as_secs(),
                 last_heartbeat_secs_ago: op.time_since_heartbeat().as_secs(),
                 is_alive: op.is_heartbeat_alive(self.heartbeat_interval, self.max_missed_heartbeats)
-                    && op.process_id.map_or(true, is_process_alive),
+                    && op.process_id.is_none_or(is_process_alive),
                 status: op.status.clone(),
                 description: op.description.clone(),
                 process_id: op.process_id,
@@ -451,7 +484,7 @@ impl OperationTracker {
                 started_at_secs_ago: op.elapsed().as_secs(),
                 last_heartbeat_secs_ago: op.time_since_heartbeat().as_secs(),
                 is_alive: op.is_heartbeat_alive(self.heartbeat_interval, self.max_missed_heartbeats)
-                    && op.process_id.map_or(true, is_process_alive),
+                    && op.process_id.is_none_or(is_process_alive),
                 status: op.status.clone(),
                 description: op.description.clone(),
                 process_id: op.process_id,
@@ -477,7 +510,7 @@ impl OperationTracker {
                 started_at_secs_ago: op.elapsed().as_secs(),
                 last_heartbeat_secs_ago: op.time_since_heartbeat().as_secs(),
                 is_alive: op.is_heartbeat_alive(self.heartbeat_interval, self.max_missed_heartbeats)
-                    && op.process_id.map_or(true, is_process_alive),
+                    && op.process_id.is_none_or(is_process_alive),
                 status: op.status.clone(),
                 description: op.description.clone(),
                 process_id: op.process_id,
@@ -496,7 +529,7 @@ impl OperationTracker {
             }
 
             let is_alive = op.is_heartbeat_alive(self.heartbeat_interval, self.max_missed_heartbeats)
-                && op.process_id.map_or(true, is_process_alive);
+                && op.process_id.is_none_or(is_process_alive);
 
             if !is_alive {
                 stale.push(id.clone());
@@ -571,6 +604,7 @@ struct OperationTrackerInner {
 }
 
 impl OperationTrackerInner {
+    #[allow(dead_code)]
     async fn remove_operation(&self, operation_id: &str) {
         let mut ops = self.operations.write().await;
         ops.remove(operation_id);
@@ -686,6 +720,7 @@ fn is_process_alive(_pid: u32) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     #[tokio::test]
     async fn test_start_operation() {

@@ -275,7 +275,7 @@ impl TierMetadataStore {
 
             for i in 0..batch.num_rows() {
                 let authority = authorities
-                    .map(|arr| MemoryAuthority::from_str(arr.value(i)))
+                    .map(|arr| MemoryAuthority::parse(arr.value(i)))
                     .unwrap_or_default();
 
                 metadata.push(TierMetadata {

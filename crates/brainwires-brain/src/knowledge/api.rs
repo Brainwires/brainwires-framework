@@ -217,6 +217,7 @@ impl KnowledgeApiClient {
 
 /// Request for sync endpoint
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct SyncRequest {
     /// ISO timestamp - get truths updated since this time
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -243,18 +244,6 @@ pub struct SyncRequest {
     pub feedback: Option<Vec<TruthFeedback>>,
 }
 
-impl Default for SyncRequest {
-    fn default() -> Self {
-        Self {
-            since: None,
-            client_id: None,
-            min_confidence: None,
-            limit: None,
-            truths: None,
-            feedback: None,
-        }
-    }
-}
 
 /// Response from sync endpoint
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -273,30 +262,49 @@ pub struct SyncResponse {
     pub stats: SyncStats,
 }
 
+/// Statistics about a sync operation.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SyncStats {
+    /// Number of truths received from server.
     pub truths_received: u32,
+    /// Number of truths sent to server.
     pub truths_sent: u32,
+    /// Number of feedback reports sent.
     pub feedback_sent: u32,
 }
 
 /// Truth as returned from server (snake_case fields)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerTruth {
+    /// Server-assigned truth ID.
     pub id: String,
+    /// Truth category (snake_case).
     pub category: String,
+    /// Context pattern this truth applies to.
     pub context_pattern: String,
+    /// The behavioral rule.
     pub rule: String,
+    /// Rationale for this truth.
     pub rationale: String,
+    /// How the truth was learned.
     pub source: String,
+    /// Confidence score.
     pub confidence: f32,
+    /// Number of reinforcements.
     pub reinforcements: i32,
+    /// Number of contradictions.
     pub contradictions: i32,
+    /// User who created the truth.
     pub created_by: Option<String>,
+    /// Whether this truth has been deleted.
     pub deleted: bool,
+    /// Version number.
     pub version: i32,
+    /// ISO 8601 creation timestamp.
     pub created_at: String,
+    /// ISO 8601 last update timestamp.
     pub updated_at: String,
+    /// ISO 8601 last usage timestamp.
     pub last_used: String,
 }
 
@@ -352,28 +360,38 @@ impl ServerTruth {
 /// Params for get truths endpoint
 #[derive(Debug, Clone, Default)]
 pub struct GetTruthsParams {
+    /// Filter by category.
     pub category: Option<String>,
+    /// Search query string.
     pub query: Option<String>,
+    /// Minimum confidence threshold.
     pub min_confidence: Option<f32>,
+    /// Maximum number of results.
     pub limit: Option<u32>,
+    /// Whether to include statistics.
     pub stats: bool,
 }
 
 /// Response from get truths endpoint
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetTruthsResponse {
+    /// Returned truths.
     #[serde(default)]
     pub truths: Vec<ServerTruth>,
 
-    // Stats fields (when stats=true)
+    /// Total truth count (when stats=true).
     #[serde(default)]
     pub total_truths: Option<u32>,
+    /// Counts by category (when stats=true).
     #[serde(default)]
     pub by_category: Option<std::collections::HashMap<String, u32>>,
+    /// Average confidence (when stats=true).
     #[serde(default)]
     pub avg_confidence: Option<f32>,
+    /// Total reinforcements (when stats=true).
     #[serde(default)]
     pub total_reinforcements: Option<u32>,
+    /// Total contradictions (when stats=true).
     #[serde(default)]
     pub total_contradictions: Option<u32>,
 }
@@ -381,11 +399,17 @@ pub struct GetTruthsResponse {
 /// Truth submission to server
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TruthSubmission {
+    /// Truth category (snake_case).
     pub category: String,
+    /// Context pattern.
     pub context_pattern: String,
+    /// The behavioral rule.
     pub rule: String,
+    /// Rationale.
     pub rationale: String,
+    /// How the truth was learned.
     pub source: String,
+    /// Optional confidence override.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub confidence: Option<f32>,
 }
@@ -406,6 +430,7 @@ impl From<&BehavioralTruth> for TruthSubmission {
 /// Response from submit endpoint
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SubmitResponse {
+    /// The submitted truth as stored on server.
     pub truth: ServerTruth,
 }
 
@@ -421,7 +446,9 @@ struct ReinforcementRequest {
 /// Response from reinforcement
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReinforcementResponse {
+    /// Updated truth (if still active).
     pub truth: Option<ServerTruth>,
+    /// Server message.
     pub message: String,
 }
 
@@ -439,8 +466,11 @@ struct ContradictionRequest {
 /// Response from contradiction
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContradictionResponse {
+    /// Updated truth (if still active).
     pub truth: Option<ServerTruth>,
+    /// Server message.
     pub message: String,
+    /// Whether the truth was deleted due to low confidence.
     #[serde(default)]
     pub was_deleted: bool,
 }

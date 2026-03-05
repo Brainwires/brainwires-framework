@@ -3,7 +3,6 @@
 //! Manages agents waiting for locked resources with priority ordering
 //! and notification when resources become available.
 
-use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
@@ -62,34 +61,49 @@ impl WaitQueueHandle {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum WaitQueueEvent {
-    /// Agent registered in queue
+    /// Agent registered in queue.
     Registered {
+        /// Agent that registered.
         agent_id: String,
+        /// Resource being waited for.
         resource_key: String,
+        /// Initial position in the queue.
         position: usize,
+        /// Agent's priority level.
         priority: u8,
     },
-    /// Agent's position changed (due to higher priority agent joining)
+    /// Agent's position changed (due to higher priority agent joining).
     PositionChanged {
+        /// Affected agent identifier.
         agent_id: String,
+        /// Resource being waited for.
         resource_key: String,
+        /// Previous position in queue.
         old_position: usize,
+        /// New position in queue.
         new_position: usize,
     },
-    /// Agent reached front of queue and can acquire
+    /// Agent reached front of queue and can acquire.
     Ready {
+        /// Agent that is ready.
         agent_id: String,
+        /// Resource now available.
         resource_key: String,
+        /// Time spent waiting in milliseconds.
         wait_duration_ms: u64,
     },
-    /// Agent was removed from queue (cancelled or resource acquired)
+    /// Agent was removed from queue (cancelled or resource acquired).
     Removed {
+        /// Agent that was removed.
         agent_id: String,
+        /// Resource that was being waited for.
         resource_key: String,
+        /// Why the agent was removed.
         reason: RemovalReason,
     },
-    /// Queue became empty for a resource
+    /// Queue became empty for a resource.
     QueueEmpty {
+        /// Resource whose queue is now empty.
         resource_key: String,
     },
 }
@@ -111,19 +125,28 @@ pub enum RemovalReason {
 /// Status of a wait queue for a resource
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QueueStatus {
+    /// Resource identifier.
     pub resource_key: String,
+    /// Number of agents waiting.
     pub queue_length: usize,
+    /// Details about each waiter.
     pub waiters: Vec<WaiterInfo>,
+    /// Estimated wait time in milliseconds.
     pub estimated_wait_ms: Option<u64>,
 }
 
 /// Information about a waiter in the queue
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WaiterInfo {
+    /// Agent identifier.
     pub agent_id: String,
+    /// Current position in queue (0 = front).
     pub position: usize,
+    /// Priority level (lower = higher priority).
     pub priority: u8,
+    /// Seconds since the agent started waiting.
     pub waiting_since_secs: u64,
+    /// Whether to auto-acquire when reaching front.
     pub auto_acquire: bool,
 }
 
@@ -215,8 +238,8 @@ impl WaitQueue {
     pub async fn cancel(&self, resource_key: &str, agent_id: &str) -> bool {
         let mut queues = self.queues.write().await;
 
-        if let Some(queue) = queues.get_mut(resource_key) {
-            if let Some(pos) = queue.iter().position(|e| e.agent_id == agent_id) {
+        if let Some(queue) = queues.get_mut(resource_key)
+            && let Some(pos) = queue.iter().position(|e| e.agent_id == agent_id) {
                 queue.remove(pos);
 
                 // Notify agents whose position changed
@@ -244,7 +267,6 @@ impl WaitQueue {
 
                 return true;
             }
-        }
         false
     }
 
@@ -254,8 +276,8 @@ impl WaitQueue {
     pub async fn notify_released(&self, resource_key: &str) -> Option<String> {
         let mut queues = self.queues.write().await;
 
-        if let Some(queue) = queues.get_mut(resource_key) {
-            if let Some(mut entry) = queue.pop_front() {
+        if let Some(queue) = queues.get_mut(resource_key)
+            && let Some(mut entry) = queue.pop_front() {
                 let wait_duration = entry.registered_at.elapsed();
 
                 // Record wait time for estimation
@@ -300,7 +322,6 @@ impl WaitQueue {
 
                 return Some(agent_id);
             }
-        }
         None
     }
 
@@ -424,11 +445,10 @@ impl WaitQueue {
     /// Check if agent should auto-acquire (is at front and has auto_acquire set)
     pub async fn should_auto_acquire(&self, resource_key: &str, agent_id: &str) -> bool {
         let queues = self.queues.read().await;
-        if let Some(queue) = queues.get(resource_key) {
-            if let Some(front) = queue.front() {
+        if let Some(queue) = queues.get(resource_key)
+            && let Some(front) = queue.front() {
                 return front.agent_id == agent_id && front.auto_acquire;
             }
-        }
         false
     }
 }

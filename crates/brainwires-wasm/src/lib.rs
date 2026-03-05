@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 //! # Brainwires WASM
 //!
 //! WASM bindings for the Brainwires Agent Framework.

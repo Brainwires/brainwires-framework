@@ -18,6 +18,7 @@ pub struct RelationshipGraph {
 }
 
 impl RelationshipGraph {
+    /// Create a new empty relationship graph.
     pub fn new() -> Self {
         Self::default()
     }
@@ -574,55 +575,80 @@ impl brainwires_core::graph::RelationshipGraphT for RelationshipGraph {
 /// Entity impacted by changes to another entity
 #[derive(Debug, Clone)]
 pub struct ImpactedEntity {
+    /// Entity name.
     pub name: String,
+    /// Entity type.
     pub entity_type: EntityType,
+    /// Graph distance from the change source.
     pub distance: usize,
+    /// Computed impact score.
     pub impact_score: f32,
+    /// Path of entities from source to this entity.
     pub impact_path: Vec<String>,
 }
 
 /// A cluster of related entities
 #[derive(Debug)]
 pub struct EntityCluster {
+    /// Cluster identifier.
     pub id: usize,
+    /// Nodes in this cluster.
     pub nodes: Vec<GraphNode>,
+    /// Average importance of nodes.
     pub avg_importance: f32,
+    /// Most common entity type in the cluster.
     pub dominant_type: Option<EntityType>,
 }
 
 /// A suggested related entity
 #[derive(Debug)]
 pub struct SuggestedEntity {
+    /// Entity name.
     pub name: String,
+    /// Entity type.
     pub entity_type: EntityType,
+    /// How relevant this suggestion is.
     pub relevance_score: f32,
+    /// Why this entity was suggested.
     pub reason: String,
 }
 
 /// Context gathered for an entity
 #[derive(Debug)]
 pub struct EntityContext {
+    /// Root entity name.
     pub root: String,
+    /// Entities related to the root.
     pub related_entities: Vec<RelatedEntity>,
+    /// Message IDs relevant to this context.
     pub message_ids: HashSet<String>,
 }
 
 /// A related entity with relationship info
 #[derive(Debug)]
 pub struct RelatedEntity {
+    /// Entity name.
     pub name: String,
+    /// Entity type.
     pub entity_type: EntityType,
+    /// Type of relationship to the root.
     pub relationship: EdgeType,
+    /// Graph distance from the root.
     pub distance: usize,
+    /// Relevance score.
     pub relevance: f32,
 }
 
 /// Graph statistics
 #[derive(Debug)]
 pub struct GraphStats {
+    /// Total number of nodes.
     pub node_count: usize,
+    /// Total number of edges.
     pub edge_count: usize,
+    /// Node counts grouped by entity type.
     pub nodes_by_type: HashMap<&'static str, usize>,
+    /// Edge counts grouped by edge type.
     pub edges_by_type: HashMap<String, usize>,
 }
 

@@ -18,13 +18,26 @@ use crate::config::{SafetyConfig, SelfImprovementConfig};
 /// Reason an autonomous operation was stopped by a safety mechanism.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SafetyStop {
-    BudgetExceeded(f64),
-    CycleLimitReached(u32),
-    CircuitBreakerTripped(u32),
-    DiffLimitExceeded(u32),
+    /// Budget limit was exceeded.
+    BudgetExceeded(/// Total cost incurred.
+        f64),
+    /// Maximum cycle count reached.
+    CycleLimitReached(/// Number of cycles completed.
+        u32),
+    /// Circuit breaker tripped after consecutive failures.
+    CircuitBreakerTripped(/// Number of consecutive failures.
+        u32),
+    /// Total diff line limit exceeded.
+    DiffLimitExceeded(/// Number of diff lines.
+        u32),
+    /// Dead man's switch heartbeat timed out.
     HeartbeatTimeout,
-    DailyLimitReached(u32),
-    OperationRejected(String),
+    /// Daily operation limit reached.
+    DailyLimitReached(/// Number of daily operations completed.
+        u32),
+    /// Operation was explicitly rejected.
+    OperationRejected(/// Rejection reason.
+        String),
 }
 
 impl fmt::Display for SafetyStop {
@@ -54,13 +67,53 @@ impl fmt::Display for SafetyStop {
 /// Describes an autonomous operation that may require approval.
 #[derive(Debug, Clone)]
 pub enum AutonomousOperation {
-    StartImprovement { strategy: String, estimated_cost: f64 },
-    CommitChanges { diff_lines: u32, files: Vec<String> },
-    CreatePullRequest { branch: String, title: String },
-    MergePullRequest { pr_id: String, confidence: f64 },
-    SpawnAgent { description: String },
-    RestartAgent { agent_id: String, reason: String },
-    StartTrainingJob { provider: String, dataset_size: usize },
+    /// Start a self-improvement session.
+    StartImprovement {
+        /// Name of the improvement strategy.
+        strategy: String,
+        /// Estimated cost in USD.
+        estimated_cost: f64,
+    },
+    /// Commit code changes.
+    CommitChanges {
+        /// Number of changed lines.
+        diff_lines: u32,
+        /// List of modified files.
+        files: Vec<String>,
+    },
+    /// Create a pull request.
+    CreatePullRequest {
+        /// Branch name for the PR.
+        branch: String,
+        /// Title of the pull request.
+        title: String,
+    },
+    /// Merge a pull request.
+    MergePullRequest {
+        /// Pull request identifier.
+        pr_id: String,
+        /// Confidence score for the merge.
+        confidence: f64,
+    },
+    /// Spawn a new agent.
+    SpawnAgent {
+        /// Description of the agent's task.
+        description: String,
+    },
+    /// Restart a running agent.
+    RestartAgent {
+        /// Identifier of the agent to restart.
+        agent_id: String,
+        /// Reason for the restart.
+        reason: String,
+    },
+    /// Start a model training job.
+    StartTrainingJob {
+        /// Training provider name.
+        provider: String,
+        /// Number of training examples.
+        dataset_size: usize,
+    },
 }
 
 impl fmt::Display for AutonomousOperation {
@@ -133,6 +186,7 @@ pub struct CircuitBreaker {
 }
 
 impl CircuitBreaker {
+    /// Create a new circuit breaker with the given failure threshold and cooldown.
     pub fn new(threshold: u32, cooldown_secs: u64) -> Self {
         Self {
             state: CircuitBreakerState::Closed,
@@ -149,13 +203,12 @@ impl CircuitBreaker {
             CircuitBreakerState::Closed => Ok(()),
             CircuitBreakerState::Open => {
                 // Check if cooldown has expired
-                if let Some(last) = self.last_failure {
-                    if last.elapsed().as_secs() >= self.cooldown_secs {
+                if let Some(last) = self.last_failure
+                    && last.elapsed().as_secs() >= self.cooldown_secs {
                         self.state = CircuitBreakerState::HalfOpen;
                         tracing::info!("Circuit breaker entering half-open state");
                         return Ok(());
                     }
-                }
                 Err(SafetyStop::CircuitBreakerTripped(self.consecutive_failures))
             }
             CircuitBreakerState::HalfOpen => {
@@ -185,10 +238,12 @@ impl CircuitBreaker {
         }
     }
 
+    /// Return the current circuit breaker state.
     pub fn state(&self) -> CircuitBreakerState {
         self.state
     }
 
+    /// Return the number of consecutive failures recorded.
     pub fn consecutive_failures(&self) -> u32 {
         self.consecutive_failures
     }
@@ -208,6 +263,7 @@ pub struct BudgetTracker {
 }
 
 impl BudgetTracker {
+    /// Create a new budget tracker with the given limits.
     pub fn new(max_total: f64, max_per_op: f64, max_daily_operations: u32) -> Self {
         Self {
             total_cost: 0.0,
@@ -241,10 +297,12 @@ impl BudgetTracker {
         self.daily_operations += 1;
     }
 
+    /// Return the total cost incurred so far.
     pub fn total_cost(&self) -> f64 {
         self.total_cost
     }
 
+    /// Return the number of operations performed today.
     pub fn daily_operations(&self) -> u32 {
         self.daily_operations
     }
@@ -268,6 +326,7 @@ pub struct DeadManSwitch {
 }
 
 impl DeadManSwitch {
+    /// Create a new dead man's switch with the given timeout in seconds.
     pub fn new(timeout_secs: u64) -> Self {
         Self {
             last_heartbeat: Instant::now(),
@@ -289,6 +348,7 @@ impl DeadManSwitch {
         }
     }
 
+    /// Return the number of seconds since the last heartbeat.
     pub fn elapsed_secs(&self) -> u64 {
         self.last_heartbeat.elapsed().as_secs()
     }
@@ -394,18 +454,22 @@ impl SafetyGuard {
         self.dead_man.heartbeat();
     }
 
+    /// Return the number of cycles completed.
     pub fn cycles_completed(&self) -> u32 {
         self.cycles_completed
     }
 
+    /// Return the total cost tracked by the budget.
     pub fn total_cost(&self) -> f64 {
         self.budget.total_cost()
     }
 
+    /// Return the total number of diff lines accumulated.
     pub fn total_diff_lines(&self) -> u32 {
         self.total_diff_lines
     }
 
+    /// Return the current circuit breaker state.
     pub fn circuit_breaker_state(&self) -> CircuitBreakerState {
         self.circuit_breaker.state()
     }

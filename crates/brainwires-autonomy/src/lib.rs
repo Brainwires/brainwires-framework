@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 //! # brainwires-autonomy
 //!
 //! Autonomous agent operations — self-improvement, Git workflows, and

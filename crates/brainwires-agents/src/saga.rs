@@ -58,7 +58,9 @@ pub trait CompensableOperation: Send + Sync {
 /// Result of an operation, needed for compensation
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OperationResult {
+    /// Unique identifier for this operation.
     pub operation_id: String,
+    /// Whether the operation succeeded.
     pub success: bool,
     /// State captured before operation (for rollback)
     #[serde(skip)]
@@ -70,6 +72,7 @@ pub struct OperationResult {
 }
 
 impl OperationResult {
+    /// Create a successful operation result.
     pub fn success(operation_id: impl Into<String>) -> Self {
         Self {
             operation_id: operation_id.into(),
@@ -80,6 +83,7 @@ impl OperationResult {
         }
     }
 
+    /// Create a successful operation result with compensation data.
     pub fn success_with_data(
         operation_id: impl Into<String>,
         data: serde_json::Value,
@@ -93,6 +97,7 @@ impl OperationResult {
         }
     }
 
+    /// Create a failed operation result.
     pub fn failure(operation_id: impl Into<String>) -> Self {
         Self {
             operation_id: operation_id.into(),
@@ -103,11 +108,13 @@ impl OperationResult {
         }
     }
 
+    /// Attach a checkpoint for rollback.
     pub fn with_checkpoint(mut self, checkpoint: Checkpoint) -> Self {
         self.checkpoint = Some(checkpoint);
         self
     }
 
+    /// Attach output text to the result.
     pub fn with_output(mut self, output: impl Into<String>) -> Self {
         self.output = Some(output.into());
         self
@@ -117,7 +124,9 @@ impl OperationResult {
 /// Checkpoint for state restoration
 #[derive(Debug, Clone)]
 pub struct Checkpoint {
+    /// Checkpoint identifier.
     pub id: String,
+    /// When the checkpoint was created.
     pub timestamp: Instant,
     /// File states before modification
     pub file_states: Vec<FileState>,
@@ -126,6 +135,7 @@ pub struct Checkpoint {
 }
 
 impl Checkpoint {
+    /// Create a new checkpoint with the given identifier.
     pub fn new(id: impl Into<String>) -> Self {
         Self {
             id: id.into(),
@@ -135,6 +145,7 @@ impl Checkpoint {
         }
     }
 
+    /// Add a file state to the checkpoint.
     pub fn with_file(mut self, path: PathBuf, content: String) -> Self {
         self.file_states.push(FileState {
             path,
@@ -144,11 +155,13 @@ impl Checkpoint {
         self
     }
 
+    /// Set all file states at once.
     pub fn with_files(mut self, files: Vec<FileState>) -> Self {
         self.file_states = files;
         self
     }
 
+    /// Attach a git checkpoint.
     pub fn with_git(mut self, git_state: GitCheckpoint) -> Self {
         self.git_state = Some(git_state);
         self
@@ -164,15 +177,19 @@ impl Checkpoint {
     }
 }
 
+/// Snapshot of a file's state for restoration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileState {
+    /// File path.
     pub path: PathBuf,
+    /// Hash of the file content.
     pub content_hash: String,
     /// Original content for small files (for direct restoration)
     pub original_content: Option<String>,
 }
 
 impl FileState {
+    /// Create a file state with path and content hash.
     pub fn new(path: PathBuf, content_hash: String) -> Self {
         Self {
             path,
@@ -181,6 +198,7 @@ impl FileState {
         }
     }
 
+    /// Create a file state with path and full content (auto-hashed).
     pub fn with_content(path: PathBuf, content: String) -> Self {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
@@ -196,14 +214,19 @@ impl FileState {
     }
 }
 
+/// Snapshot of git state for restoration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GitCheckpoint {
+    /// HEAD commit hash.
     pub head_commit: String,
+    /// List of staged files.
     pub staged_files: Vec<String>,
+    /// Current branch name.
     pub branch: String,
 }
 
 impl GitCheckpoint {
+    /// Create a new git checkpoint.
     pub fn new(head_commit: impl Into<String>, branch: impl Into<String>) -> Self {
         Self {
             head_commit: head_commit.into(),
@@ -212,6 +235,7 @@ impl GitCheckpoint {
         }
     }
 
+    /// Set staged files for this checkpoint.
     pub fn with_staged(mut self, files: Vec<String>) -> Self {
         self.staged_files = files;
         self
@@ -293,11 +317,13 @@ pub struct SagaExecutor {
     /// Completed operations in execution order
     completed_ops: RwLock<Vec<(Arc<dyn CompensableOperation>, OperationResult)>>,
     /// Compensation callbacks
+    #[allow(clippy::type_complexity)]
     compensation_hooks: RwLock<Vec<Box<dyn Fn(&str, bool) + Send + Sync>>>,
     /// Current status
     status: RwLock<SagaStatus>,
 }
 
+/// Current status of a saga execution.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SagaStatus {
     /// Saga is in progress
@@ -313,6 +339,7 @@ pub enum SagaStatus {
 }
 
 impl SagaExecutor {
+    /// Create a new saga executor for the given agent and description.
     pub fn new(agent_id: impl Into<String>, description: impl Into<String>) -> Self {
         let agent_id = agent_id.into();
         let description = description.into();
@@ -493,13 +520,18 @@ impl SagaExecutor {
 /// Report of compensation actions
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompensationReport {
+    /// Saga this report belongs to.
     pub saga_id: String,
+    /// Status of each compensation action.
     pub operations: Vec<CompensationStatus>,
+    /// When compensation started (epoch millis).
     pub started_at: u64,
+    /// When compensation finished (epoch millis).
     pub completed_at: Option<u64>,
 }
 
 impl CompensationReport {
+    /// Create a new empty compensation report.
     pub fn new(saga_id: String) -> Self {
         Self {
             saga_id,
@@ -512,6 +544,7 @@ impl CompensationReport {
         }
     }
 
+    /// Record a successful compensation action.
     pub fn add_success(&mut self, description: &str) {
         self.operations.push(CompensationStatus {
             description: description.to_string(),
@@ -520,6 +553,7 @@ impl CompensationReport {
         });
     }
 
+    /// Record a failed compensation action.
     pub fn add_failure(&mut self, description: &str, error: String) {
         self.operations.push(CompensationStatus {
             description: description.to_string(),
@@ -528,6 +562,7 @@ impl CompensationReport {
         });
     }
 
+    /// Record a skipped compensation action.
     pub fn add_skipped(&mut self, description: &str, reason: &str) {
         self.operations.push(CompensationStatus {
             description: description.to_string(),
@@ -536,12 +571,14 @@ impl CompensationReport {
         });
     }
 
+    /// Returns true if all compensations succeeded or were skipped.
     pub fn all_successful(&self) -> bool {
         self.operations
             .iter()
             .all(|s| matches!(s.status, CompensationOutcome::Success | CompensationOutcome::Skipped))
     }
 
+    /// Generate a human-readable summary of compensation outcomes.
     pub fn summary(&self) -> String {
         let successful = self
             .operations
@@ -568,6 +605,7 @@ impl CompensationReport {
         )
     }
 
+    /// Mark the compensation report as completed with a timestamp.
     pub fn mark_completed(&mut self) {
         self.completed_at = Some(
             std::time::SystemTime::now()
@@ -578,17 +616,25 @@ impl CompensationReport {
     }
 }
 
+/// Status of a single compensation action.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompensationStatus {
+    /// Description of the compensated operation.
     pub description: String,
+    /// Outcome of the compensation attempt.
     pub status: CompensationOutcome,
+    /// Error message if compensation failed.
     pub error: Option<String>,
 }
 
+/// Outcome of a compensation attempt.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CompensationOutcome {
+    /// Compensation succeeded.
     Success,
+    /// Compensation failed.
     Failed,
+    /// Compensation was skipped.
     Skipped,
 }
 
@@ -598,8 +644,11 @@ pub enum CompensationOutcome {
 
 /// File write operation with compensation
 pub struct FileWriteOp {
+    /// Path to the file being written.
     pub path: PathBuf,
+    /// Content to write.
     pub content: String,
+    /// Whether this creates a new file or overwrites an existing one.
     pub is_new_file: bool,
 }
 
@@ -643,11 +692,10 @@ impl CompensableOperation for FileWriteOp {
             }
         } else if let Some(checkpoint) = &result.checkpoint {
             // Restore original content
-            if let Some(file_state) = checkpoint.file_states.first() {
-                if let Some(original_content) = &file_state.original_content {
+            if let Some(file_state) = checkpoint.file_states.first()
+                && let Some(original_content) = &file_state.original_content {
                     tokio::fs::write(&self.path, original_content).await?;
                 }
-            }
         }
         Ok(())
     }
@@ -667,8 +715,11 @@ impl CompensableOperation for FileWriteOp {
 
 /// File edit operation with compensation
 pub struct FileEditOp {
+    /// Path to the file being edited.
     pub path: PathBuf,
+    /// Original file content before edit.
     pub old_content: String,
+    /// New file content after edit.
     pub new_content: String,
 }
 
@@ -689,13 +740,11 @@ impl CompensableOperation for FileEditOp {
     }
 
     async fn compensate(&self, result: &OperationResult) -> Result<()> {
-        if let Some(checkpoint) = &result.checkpoint {
-            if let Some(file_state) = checkpoint.file_states.first() {
-                if let Some(original_content) = &file_state.original_content {
+        if let Some(checkpoint) = &result.checkpoint
+            && let Some(file_state) = checkpoint.file_states.first()
+                && let Some(original_content) = &file_state.original_content {
                     tokio::fs::write(&self.path, original_content).await?;
                 }
-            }
-        }
         Ok(())
     }
 
@@ -710,7 +759,9 @@ impl CompensableOperation for FileEditOp {
 
 /// Git stage operation with compensation
 pub struct GitStageOp {
+    /// Files to stage.
     pub files: Vec<PathBuf>,
+    /// Working directory for the git command.
     pub working_dir: PathBuf,
 }
 
@@ -759,7 +810,9 @@ impl CompensableOperation for GitStageOp {
 
 /// Git commit operation with compensation
 pub struct GitCommitOp {
+    /// Commit message.
     pub message: String,
+    /// Working directory for the git command.
     pub working_dir: PathBuf,
 }
 
@@ -824,7 +877,9 @@ impl CompensableOperation for GitCommitOp {
 
 /// No-op compensable operation (for operations that don't need compensation)
 pub struct NoOpCompensation {
+    /// Description of the operation.
     pub description: String,
+    /// Type of the operation.
     pub op_type: SagaOperationType,
 }
 

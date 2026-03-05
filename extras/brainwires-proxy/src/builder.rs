@@ -7,12 +7,11 @@ use crate::inspector::{EventBroadcaster, EventStore};
 use crate::middleware::MiddlewareStack;
 use crate::middleware::inspector::InspectorLayer;
 use crate::middleware::logging::LoggingLayer;
-use crate::proxy::ProxyService;
-use crate::transport::{InboundConnection, TransportConnector, TransportListener};
+use crate::proxy::{ListenerFactory, ProxyService};
+use crate::transport::{TransportConnector, TransportListener};
 
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::sync::{mpsc, watch};
 
 /// Ergonomic builder for constructing a [`ProxyService`].
 pub struct ProxyBuilder {
@@ -187,7 +186,7 @@ impl ProxyBuilder {
         };
 
         // Build listener factory
-        let listener_factory: Box<dyn Fn(mpsc::Sender<InboundConnection>, watch::Receiver<bool>) -> futures::future::BoxFuture<'static, ProxyResult<()>> + Send + Sync> =
+        let listener_factory: ListenerFactory =
             if let Some(listener) = self.custom_listener {
                 let listener = Arc::new(listener);
                 Box::new(move |tx, shutdown| {
@@ -239,16 +238,7 @@ fn build_connector(config: &ProxyConfig) -> ProxyResult<Box<dyn TransportConnect
 
 fn build_listener_factory(
     config: &ProxyConfig,
-) -> ProxyResult<
-    Box<
-        dyn Fn(
-                mpsc::Sender<InboundConnection>,
-                watch::Receiver<bool>,
-            ) -> futures::future::BoxFuture<'static, ProxyResult<()>>
-            + Send
-            + Sync,
-    >,
-> {
+) -> ProxyResult<ListenerFactory> {
     match &config.listener {
         #[cfg(feature = "http")]
         ListenerConfig::Tcp { addr } => {

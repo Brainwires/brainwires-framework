@@ -23,18 +23,15 @@ use crate::task_manager::TaskStats;
 
 /// What happens when an agent's task fails.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Default)]
 pub enum FailurePolicy {
     /// Stop scheduling new tasks and drain running agents (default).
+    #[default]
     StopOnFirstFailure,
     /// Keep scheduling independent tasks that aren't blocked by the failure.
     ContinueOnFailure,
 }
 
-impl Default for FailurePolicy {
-    fn default() -> Self {
-        Self::StopOnFirstFailure
-    }
-}
 
 /// Configuration for the orchestration loop.
 #[derive(Debug, Clone)]

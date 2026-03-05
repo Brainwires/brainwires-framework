@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 /// Top-level configuration for the autonomy subsystem.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct AutonomyConfig {
     /// Self-improvement session configuration.
     #[serde(default)]
@@ -16,15 +17,6 @@ pub struct AutonomyConfig {
     pub git_workflow: GitWorkflowConfig,
 }
 
-impl Default for AutonomyConfig {
-    fn default() -> Self {
-        Self {
-            self_improve: SelfImprovementConfig::default(),
-            safety: SafetyConfig::default(),
-            git_workflow: GitWorkflowConfig::default(),
-        }
-    }
-}
 
 /// Configuration for self-improvement sessions.
 #[derive(Debug, Clone, Serialize, Deserialize)]

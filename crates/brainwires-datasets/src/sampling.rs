@@ -24,7 +24,9 @@ impl Default for SplitConfig {
 
 /// Split result containing train and eval datasets.
 pub struct SplitResult {
+    /// The training split.
     pub train: InstructDataset,
+    /// The evaluation split.
     pub eval: InstructDataset,
 }
 
@@ -54,7 +56,7 @@ pub fn curriculum_order(examples: &mut [TrainingExample]) {
 
 /// Sort examples by token count (descending) for anti-curriculum.
 pub fn anti_curriculum_order(examples: &mut [TrainingExample]) {
-    examples.sort_by(|a, b| b.estimated_tokens().cmp(&a.estimated_tokens()));
+    examples.sort_by_key(|b| std::cmp::Reverse(b.estimated_tokens()));
 }
 
 /// Sample `n` examples uniformly (with seed for reproducibility).

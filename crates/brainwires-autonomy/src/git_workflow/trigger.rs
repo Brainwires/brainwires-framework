@@ -9,11 +9,45 @@ use super::forge::{Comment, CommitRef, Issue, PullRequest, RepoRef};
 /// Events that can trigger a workflow.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum WorkflowEvent {
-    IssueOpened { issue: Issue, repo: RepoRef },
-    IssueCommented { issue: Issue, comment: Comment, repo: RepoRef },
-    PushReceived { branch: String, commits: Vec<CommitRef>, repo: RepoRef },
-    PrReviewApproved { pr: PullRequest, repo: RepoRef },
-    Manual { description: String, repo: RepoRef },
+    /// A new issue was opened.
+    IssueOpened {
+        /// The opened issue.
+        issue: Issue,
+        /// Repository where the issue was opened.
+        repo: RepoRef,
+    },
+    /// A comment was added to an issue.
+    IssueCommented {
+        /// The issue that was commented on.
+        issue: Issue,
+        /// The new comment.
+        comment: Comment,
+        /// Repository of the issue.
+        repo: RepoRef,
+    },
+    /// Commits were pushed to a branch.
+    PushReceived {
+        /// Branch that received the push.
+        branch: String,
+        /// Commits that were pushed.
+        commits: Vec<CommitRef>,
+        /// Repository of the push.
+        repo: RepoRef,
+    },
+    /// A PR review was approved.
+    PrReviewApproved {
+        /// The approved pull request.
+        pr: PullRequest,
+        /// Repository of the PR.
+        repo: RepoRef,
+    },
+    /// A manually triggered event.
+    Manual {
+        /// Description of the manual trigger.
+        description: String,
+        /// Target repository.
+        repo: RepoRef,
+    },
 }
 
 /// Trait for event sources that emit workflow events.
@@ -29,6 +63,7 @@ pub struct ProgrammaticTrigger {
 }
 
 impl ProgrammaticTrigger {
+    /// Create a new programmatic trigger (not yet connected to a channel).
     pub fn new() -> Self {
         Self { tx: None }
     }

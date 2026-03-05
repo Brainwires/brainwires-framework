@@ -43,15 +43,14 @@ pub async fn check_duplicates(file_path: &str) -> Result<ToolResult> {
     let mut exports = HashMap::new();
     let mut duplicates = Vec::new();
     for (line_num, line) in lines.iter().enumerate() {
-        if is_export_line(line) {
-            if let Some(name) = extract_export_name(line) {
+        if is_export_line(line)
+            && let Some(name) = extract_export_name(line) {
                 if let Some(first) = exports.get(&name) {
                     duplicates.push(json!({"name": name, "first_line": first, "duplicate_line": line_num + 1, "code": line.trim()}));
                 } else {
                     exports.insert(name, line_num + 1);
                 }
             }
-        }
     }
     let result = json!({"file": validated_path.display().to_string(), "has_duplicates": !duplicates.is_empty(), "duplicate_count": duplicates.len(), "duplicates": duplicates, "total_exports": exports.len()});
     Ok(ToolResult { tool_use_id: String::new(), content: serde_json::to_string_pretty(&result)?, is_error: false })
@@ -260,6 +259,7 @@ pub async fn check_syntax(file_path: &str) -> Result<ToolResult> {
 pub struct ValidationTool;
 
 impl ValidationTool {
+    /// Return validation tool definitions.
     pub fn get_tools() -> Vec<Tool> {
         get_validation_tools()
     }

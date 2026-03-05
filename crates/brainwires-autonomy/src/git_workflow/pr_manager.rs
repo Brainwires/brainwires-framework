@@ -11,6 +11,7 @@ pub struct PullRequestManager {
 }
 
 impl PullRequestManager {
+    /// Create a new pull request manager using the given forge.
     pub fn new(forge: Arc<dyn GitForge>) -> Self {
         Self { forge }
     }

@@ -42,6 +42,7 @@ pub enum AudioError {
     /// IO error.
     #[error("io error: {source}")]
     Io {
+        /// The underlying IO error.
         #[from]
         source: std::io::Error,
     },

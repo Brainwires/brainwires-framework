@@ -9,6 +9,7 @@ use walkdir::WalkDir;
 use crate::config::StrategyConfig;
 use super::{ImprovementCategory, ImprovementStrategy, ImprovementTask};
 
+/// Strategy that scans for TODO and FIXME comments and generates tasks to resolve them.
 pub struct TodoScannerStrategy;
 
 #[async_trait]

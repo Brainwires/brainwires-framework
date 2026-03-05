@@ -95,10 +95,15 @@ pub struct MdapMetrics {
 /// Summary of MDAP configuration for metrics
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ConfigSummary {
+    /// First-to-ahead-by-k value.
     pub k: u32,
+    /// Target success rate.
     pub target_success_rate: f64,
+    /// Number of parallel samples.
     pub parallel_samples: u32,
+    /// Maximum samples per subtask.
     pub max_samples_per_subtask: u32,
+    /// Decomposition strategy name.
     pub decomposition_strategy: String,
 }
 

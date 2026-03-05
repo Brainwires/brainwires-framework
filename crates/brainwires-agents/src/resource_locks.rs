@@ -194,20 +194,29 @@ impl Drop for ResourceLockGuard {
 pub enum LockNotification {
     /// Lock was acquired
     Acquired {
+        /// Agent that acquired the lock.
         agent_id: String,
+        /// Type of resource locked.
         resource_type: ResourceType,
+        /// Scope of the lock.
         scope: ResourceScope,
     },
     /// Lock was released
     Released {
+        /// Agent that released the lock.
         agent_id: String,
+        /// Type of resource unlocked.
         resource_type: ResourceType,
+        /// Scope of the lock.
         scope: ResourceScope,
     },
     /// Lock became stale (holder stopped sending heartbeats)
     Stale {
+        /// Agent whose lock became stale.
         agent_id: String,
+        /// Type of stale resource lock.
         resource_type: ResourceType,
+        /// Scope of the stale lock.
         scope: ResourceScope,
     },
 }

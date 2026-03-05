@@ -33,10 +33,14 @@ resolver = "2"
 version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
-rust-version = "1.85"
+rust-version = "1.88"
 repository = "https://github.com/Brainwires/brainwires-framework"
 homepage = "https://github.com/Brainwires/brainwires-framework"
 authors = ["Brainwires"]
+keywords = ["ai-agents", "llm", "mcp", "multi-agent", "framework"]
+categories = ["development-tools", "science::robotics"]
+readme = "README.md"
+documentation = "https://docs.rs/brainwires"
 
 [workspace.dependencies]
 # Internal crates

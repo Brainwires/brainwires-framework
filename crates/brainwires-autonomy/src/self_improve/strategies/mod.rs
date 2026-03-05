@@ -18,11 +18,17 @@ use crate::config::StrategyConfig;
 /// Categories of improvement tasks.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ImprovementCategory {
+    /// Linting and clippy warnings.
     Linting,
+    /// Test coverage gaps.
     Testing,
+    /// Missing or incomplete documentation.
     Documentation,
+    /// Code refactoring opportunities.
     Refactoring,
+    /// Dead or unreachable code.
     DeadCode,
+    /// Eval-suite-driven improvements.
     EvalDriven,
 }
 
@@ -42,21 +48,32 @@ impl std::fmt::Display for ImprovementCategory {
 /// A generated improvement task.
 #[derive(Debug, Clone)]
 pub struct ImprovementTask {
+    /// Unique task identifier.
     pub id: String,
+    /// Name of the strategy that generated this task.
     pub strategy: String,
+    /// Category of improvement.
     pub category: ImprovementCategory,
+    /// Human-readable description of the task.
     pub description: String,
+    /// Files targeted by this task.
     pub target_files: Vec<String>,
+    /// Priority (higher = more important).
     pub priority: u8,
+    /// Estimated number of diff lines this task will produce.
     pub estimated_diff_lines: u32,
+    /// Additional context for the AI agent.
     pub context: String,
 }
 
 /// Trait for improvement strategies that scan code and generate tasks.
 #[async_trait]
 pub trait ImprovementStrategy: Send + Sync {
+    /// Return the strategy name.
     fn name(&self) -> &str;
+    /// Return the improvement category.
     fn category(&self) -> ImprovementCategory;
+    /// Generate improvement tasks by scanning the repository.
     async fn generate_tasks(
         &self,
         repo_path: &str,

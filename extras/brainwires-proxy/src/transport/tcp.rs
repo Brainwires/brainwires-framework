@@ -82,12 +82,11 @@ impl TransportListener for TcpRawListener {
                         };
 
                         let (resp_tx, resp_rx) = oneshot::channel();
-                        if tx.send((request, resp_tx)).await.is_ok() {
-                            if let Ok(resp) = resp_rx.await {
+                        if tx.send((request, resp_tx)).await.is_ok()
+                            && let Ok(resp) = resp_rx.await {
                                 use tokio::io::AsyncWriteExt;
                                 let _ = stream.write_all(resp.body.as_bytes()).await;
                             }
-                        }
                     });
                 }
                 _ = shutdown.changed() => {

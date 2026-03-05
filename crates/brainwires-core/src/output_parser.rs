@@ -51,6 +51,7 @@ pub struct JsonOutputParser<T> {
 }
 
 impl<T> JsonOutputParser<T> {
+    /// Create a new JSON output parser.
     pub fn new() -> Self {
         Self {
             _phantom: PhantomData,
@@ -84,6 +85,7 @@ pub struct JsonListParser<T> {
 }
 
 impl<T> JsonListParser<T> {
+    /// Create a new JSON list parser.
     pub fn new() -> Self {
         Self {
             _phantom: PhantomData,

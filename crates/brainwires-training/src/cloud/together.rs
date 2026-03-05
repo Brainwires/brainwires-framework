@@ -21,6 +21,7 @@ pub struct TogetherFineTune {
 }
 
 impl TogetherFineTune {
+    /// Create a new Together AI fine-tune provider.
     pub fn new(api_key: impl Into<String>) -> Self {
         Self {
             api_key: api_key.into(),
@@ -29,6 +30,7 @@ impl TogetherFineTune {
         }
     }
 
+    /// Set a custom base URL.
     pub fn with_base_url(mut self, url: impl Into<String>) -> Self {
         self.base_url = url.into();
         self
@@ -67,7 +69,7 @@ impl FineTuneProvider for TogetherFineTune {
 
         let response = self
             .client
-            .post(&format!("{}/files", self.base_url))
+            .post(format!("{}/files", self.base_url))
             .bearer_auth(&self.api_key)
             .multipart(form)
             .send()
@@ -106,7 +108,7 @@ impl FineTuneProvider for TogetherFineTune {
 
         let response = self
             .client
-            .post(&format!("{}/fine-tunes", self.base_url))
+            .post(format!("{}/fine-tunes", self.base_url))
             .bearer_auth(&self.api_key)
             .json(&body)
             .send()
@@ -195,7 +197,7 @@ impl FineTuneProvider for TogetherFineTune {
     async fn list_jobs(&self) -> Result<Vec<TrainingJobSummary>, TrainingError> {
         let response = self
             .client
-            .get(&format!("{}/fine-tunes", self.base_url))
+            .get(format!("{}/fine-tunes", self.base_url))
             .bearer_auth(&self.api_key)
             .send()
             .await?;

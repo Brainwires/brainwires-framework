@@ -210,6 +210,7 @@ impl DocumentBM25Manager {
 /// Statistics about a document BM25 index
 #[derive(Debug, Clone)]
 pub struct DocumentBM25Stats {
+    /// Total number of indexed document chunks.
     pub total_chunks: usize,
 }
 

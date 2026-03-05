@@ -6,7 +6,7 @@
 //! When the `tools` feature is enabled, uses brainwires-model-tools validation functions
 //! (check_duplicates, verify_build, check_syntax). Without it, those checks are skipped.
 
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 #[cfg(feature = "native")]
@@ -18,32 +18,51 @@ pub enum ValidationCheck {
     /// Check for duplicate exports/constants
     NoDuplicates,
     /// Verify build succeeds
-    BuildSuccess { build_type: String },
+    BuildSuccess {
+        /// Build system type (e.g. "typescript", "rust").
+        build_type: String,
+    },
     /// Check syntax validity
     SyntaxValid,
     /// Custom validation command
-    CustomCommand { command: String, args: Vec<String> },
+    CustomCommand {
+        /// Command to run.
+        command: String,
+        /// Arguments for the command.
+        args: Vec<String>,
+    },
 }
 
 /// Result of validation checks
 #[derive(Debug, Clone)]
 pub struct ValidationResult {
+    /// Whether all checks passed.
     pub passed: bool,
+    /// Issues found during validation.
     pub issues: Vec<ValidationIssue>,
 }
 
+/// A single issue found during validation
 #[derive(Debug, Clone)]
 pub struct ValidationIssue {
+    /// Name of the check that found this issue.
     pub check: String,
+    /// Severity of the issue.
     pub severity: ValidationSeverity,
+    /// Human-readable description.
     pub message: String,
+    /// File where the issue was found.
     pub file: Option<String>,
+    /// Line number of the issue.
     pub line: Option<usize>,
 }
 
+/// Severity level for a validation issue
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ValidationSeverity {
+    /// Blocks completion.
     Error,
+    /// Non-blocking but notable.
     Warning,
     /// Informational only (does not block completion)
     Info,
@@ -384,8 +403,7 @@ fn get_modified_files(working_directory: &str) -> Result<Vec<String>> {
         .args(["diff", "--name-only", "HEAD"])
         .current_dir(working_directory)
         .output()
-    {
-        if output.status.success() {
+        && output.status.success() {
             let files: Vec<String> = String::from_utf8_lossy(&output.stdout)
                 .lines()
                 .map(|s| s.to_string())
@@ -396,7 +414,6 @@ fn get_modified_files(working_directory: &str) -> Result<Vec<String>> {
                 return Ok(files);
             }
         }
-    }
 
     // Fallback: check for recently modified files
     let path = PathBuf::from(working_directory);
@@ -404,13 +421,11 @@ fn get_modified_files(working_directory: &str) -> Result<Vec<String>> {
 
     if let Ok(entries) = std::fs::read_dir(&path) {
         for entry in entries.flatten() {
-            if let Ok(metadata) = entry.metadata() {
-                if metadata.is_file() {
-                    if let Some(file_name) = entry.file_name().to_str() {
+            if let Ok(metadata) = entry.metadata()
+                && metadata.is_file()
+                    && let Some(file_name) = entry.file_name().to_str() {
                         files.push(file_name.to_string());
                     }
-                }
-            }
         }
     }
 
@@ -424,6 +439,7 @@ fn get_modified_files(_working_directory: &str) -> Result<Vec<String>> {
 }
 
 /// Check if file is a source code file worth validating
+#[allow(dead_code)]
 fn is_source_file(path: &str) -> bool {
     let path_lower = path.to_lowercase();
 

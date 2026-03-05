@@ -11,11 +11,13 @@ use super::openai::OpenAIProvider;
 const GROQ_API_URL: &str = "https://api.groq.com/openai/v1/chat/completions";
 
 /// Groq provider — thin wrapper around OpenAI-compatible API.
+/// Groq inference API provider (OpenAI-compatible).
 pub struct GroqProvider {
     inner: OpenAIProvider,
 }
 
 impl GroqProvider {
+    /// Create a new Groq provider with the given API key and model.
     pub fn new(api_key: String, model: String) -> Self {
         let inner = OpenAIProvider::new(api_key, model)
             .with_base_url(GROQ_API_URL.to_string());
@@ -67,6 +69,7 @@ pub struct GroqModelLister {
 }
 
 impl GroqModelLister {
+    /// Create a new model lister with the given API key.
     pub fn new(api_key: String) -> Self {
         Self {
             api_key,

@@ -21,6 +21,7 @@ pub struct VertexFineTune {
 }
 
 impl VertexFineTune {
+    /// Create a new Google Vertex AI fine-tune provider.
     pub fn new(project_id: impl Into<String>, location: impl Into<String>) -> Self {
         Self {
             project_id: project_id.into(),
@@ -30,6 +31,7 @@ impl VertexFineTune {
         }
     }
 
+    /// Set an explicit access token.
     pub fn with_access_token(mut self, token: impl Into<String>) -> Self {
         self.access_token = Some(token.into());
         self

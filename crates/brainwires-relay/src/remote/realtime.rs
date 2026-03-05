@@ -56,10 +56,15 @@ pub struct RealtimeConfig {
 /// Connection state
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RealtimeState {
+    /// Not connected to the Realtime server.
     Disconnected,
+    /// Connection in progress.
     Connecting,
+    /// WebSocket connected but channel not yet joined.
     Connected,
+    /// Channel joined and ready for messages.
     Subscribed,
+    /// Gracefully shutting down.
     ShuttingDown,
 }
 
@@ -70,65 +75,90 @@ pub enum PhoenixMessage {
     /// Join a channel
     #[serde(rename = "phx_join")]
     PhxJoin {
+        /// Channel topic to join.
         topic: String,
+        /// Join parameters.
         payload: serde_json::Value,
+        /// Message reference ID.
         #[serde(rename = "ref")]
         msg_ref: String,
     },
     /// Reply to a message
     #[serde(rename = "phx_reply")]
     PhxReply {
+        /// Channel topic.
         topic: String,
+        /// Reply payload with status.
         payload: PhxReplyPayload,
+        /// Message reference ID.
         #[serde(rename = "ref")]
         msg_ref: String,
     },
     /// Heartbeat (keep-alive)
     #[serde(rename = "heartbeat")]
     Heartbeat {
+        /// Channel topic (usually "phoenix").
         topic: String,
+        /// Heartbeat payload.
         payload: serde_json::Value,
+        /// Message reference ID.
         #[serde(rename = "ref")]
         msg_ref: String,
     },
     /// Broadcast message
     #[serde(rename = "broadcast")]
     Broadcast {
+        /// Channel topic.
         topic: String,
+        /// Broadcast payload containing the event data.
         payload: BroadcastPayload,
+        /// Optional message reference ID.
         #[serde(rename = "ref")]
         msg_ref: Option<String>,
     },
     /// Presence state
     #[serde(rename = "presence_state")]
     PresenceState {
+        /// Channel topic.
         topic: String,
+        /// Presence state data.
         payload: serde_json::Value,
+        /// Optional message reference ID.
         #[serde(rename = "ref")]
         msg_ref: Option<String>,
     },
     /// Presence diff
     #[serde(rename = "presence_diff")]
     PresenceDiff {
+        /// Channel topic.
         topic: String,
+        /// Presence diff data.
         payload: serde_json::Value,
+        /// Optional message reference ID.
         #[serde(rename = "ref")]
         msg_ref: Option<String>,
     },
 }
 
+/// Payload for Phoenix reply messages.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PhxReplyPayload {
+    /// Reply status (e.g., "ok" or "error").
     pub status: String,
+    /// Response data.
     #[serde(default)]
     pub response: serde_json::Value,
 }
 
+/// Payload for broadcast messages on a Realtime channel.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BroadcastPayload {
+    /// Broadcast type identifier.
     #[serde(rename = "type")]
     pub broadcast_type: String,
+    /// Event name.
     pub event: String,
+    /// Event payload data.
     pub payload: serde_json::Value,
 }
 
@@ -136,41 +166,73 @@ pub struct BroadcastPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum RemoteRealtimeMessage {
-    /// CLI → Backend: Initial registration
+    /// CLI to Backend: Initial registration
     #[serde(rename = "remote.register")]
-    Register { payload: RegisterPayload },
-    /// CLI → Backend: Status update with agents
+    Register {
+        /// Registration payload.
+        payload: RegisterPayload,
+    },
+    /// CLI to Backend: Status update with agents
     #[serde(rename = "remote.heartbeat")]
-    Heartbeat { payload: HeartbeatPayload },
-    /// CLI → Backend: Agent output stream
+    Heartbeat {
+        /// Heartbeat payload with agent info.
+        payload: HeartbeatPayload,
+    },
+    /// CLI to Backend: Agent output stream
     #[serde(rename = "remote.stream")]
-    Stream { payload: StreamPayload },
-    /// CLI → Backend: Result of a command
+    Stream {
+        /// Stream chunk payload.
+        payload: StreamPayload,
+    },
+    /// CLI to Backend: Result of a command
     #[serde(rename = "remote.command_result")]
-    CommandResult { payload: CommandResultPayload },
-    /// CLI → Backend: Agent event
+    CommandResult {
+        /// Command result payload.
+        payload: CommandResultPayload,
+    },
+    /// CLI to Backend: Agent event
     #[serde(rename = "remote.event")]
-    Event { payload: EventPayload },
-    /// Backend → CLI: Command to execute
+    Event {
+        /// Agent event payload.
+        payload: EventPayload,
+    },
+    /// Backend to CLI: Command to execute
     #[serde(rename = "remote.command")]
-    Command { payload: CommandPayload },
-    /// Backend → CLI: Ping
+    Command {
+        /// Command payload from backend.
+        payload: CommandPayload,
+    },
+    /// Backend to CLI: Ping
     #[serde(rename = "remote.ping")]
-    Ping { payload: PingPongPayload },
-    /// CLI → Backend: Pong
+    Ping {
+        /// Ping payload with timestamp.
+        payload: PingPongPayload,
+    },
+    /// CLI to Backend: Pong
     #[serde(rename = "remote.pong")]
-    Pong { payload: PingPongPayload },
-    /// CLI → Backend: Graceful disconnect notification
+    Pong {
+        /// Pong payload with timestamp.
+        payload: PingPongPayload,
+    },
+    /// CLI to Backend: Graceful disconnect notification
     #[serde(rename = "remote.disconnect")]
-    Disconnect { payload: DisconnectPayload },
+    Disconnect {
+        /// Disconnect payload with reason.
+        payload: DisconnectPayload,
+    },
 }
 
+/// Payload for CLI registration with the backend.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RegisterPayload {
+    /// Client hostname.
     pub hostname: String,
+    /// Client operating system.
     pub os: String,
+    /// CLI version string.
     pub version: String,
+    /// Session token for authentication.
     pub session_token: String,
     /// Include agents in register so frontend gets them immediately
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -180,77 +242,110 @@ pub struct RegisterPayload {
     pub system_load: Option<f32>,
 }
 
+/// Payload for periodic heartbeat messages with agent status.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HeartbeatPayload {
+    /// List of active agents.
     pub agents: Vec<RemoteAgentInfo>,
+    /// Current system load (0.0-1.0).
     pub system_load: f32,
+    /// Client hostname.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hostname: Option<String>,
+    /// Client operating system.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub os: Option<String>,
+    /// CLI version string.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub version: Option<String>,
 }
 
+/// Payload for agent output stream chunks.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StreamPayload {
+    /// ID of the agent producing the stream.
     pub agent_id: String,
+    /// Type of stream chunk.
     pub chunk_type: StreamChunkType,
+    /// Chunk content text.
     pub content: String,
 }
 
+/// Payload for command execution results.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CommandResultPayload {
+    /// ID of the command being responded to.
     pub command_id: String,
+    /// Whether the command succeeded.
     pub success: bool,
+    /// Result data if successful.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub result: Option<serde_json::Value>,
+    /// Error message if failed.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
 }
 
+/// Payload for agent event notifications.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EventPayload {
+    /// Type of agent event.
     pub event_type: String,
+    /// ID of the agent this event relates to.
     pub agent_id: String,
+    /// Event-specific data.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<serde_json::Value>,
 }
 
+/// Payload for commands received from the backend.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CommandPayload {
+    /// Unique command identifier.
     pub command_id: String,
+    /// Type of command (e.g., "send_input", "slash_command").
     pub command_type: String,
+    /// Target agent ID.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,
+    /// Input content for send_input commands.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
+    /// Slash command name.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub command: Option<String>,
+    /// Slash command arguments.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub args: Option<Vec<String>>,
+    /// Model for spawn_agent commands.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
+    /// Working directory for spawn_agent commands.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub working_directory: Option<String>,
+    /// Reason for certain commands (e.g., disconnect).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
 }
 
+/// Payload for ping/pong messages.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PingPongPayload {
+    /// Server timestamp for round-trip measurement.
     pub server_timestamp: i64,
 }
 
+/// Payload for graceful disconnect notifications.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DisconnectPayload {
+    /// Reason for disconnection.
     pub reason: String,
     /// Hostname of disconnecting bridge (for multi-bridge support)
     pub hostname: String,

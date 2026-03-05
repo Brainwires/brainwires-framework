@@ -10,14 +10,23 @@ use uuid::Uuid;
 /// with Canonical authority (no TTL, never auto-evicted).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Thought {
+    /// Unique identifier (UUID).
     pub id: String,
+    /// The thought content text.
     pub content: String,
+    /// Category for filtering and organisation.
     pub category: ThoughtCategory,
+    /// User-provided or auto-extracted tags.
     pub tags: Vec<String>,
+    /// How the thought was captured.
     pub source: ThoughtSource,
+    /// Importance score in 0.0--1.0.
     pub importance: f32,
+    /// Unix timestamp of creation.
     pub created_at: i64,
+    /// Unix timestamp of last update.
     pub updated_at: i64,
+    /// Soft-delete flag.
     pub deleted: bool,
 }
 
@@ -67,13 +76,21 @@ impl Thought {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ThoughtCategory {
+    /// A decision that was made.
     Decision,
+    /// A person mentioned or discussed.
     Person,
+    /// An insight or observation.
     Insight,
+    /// Notes from a meeting.
     MeetingNote,
+    /// An idea or proposal.
     Idea,
+    /// An action item or TODO.
     ActionItem,
+    /// A reference link or document.
     Reference,
+    /// General uncategorised thought.
     General,
 }
 
@@ -90,6 +107,7 @@ impl ThoughtCategory {
         Self::General,
     ];
 
+    /// Returns the snake_case string representation.
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Decision => "decision",
@@ -103,7 +121,8 @@ impl ThoughtCategory {
         }
     }
 
-    pub fn from_str(s: &str) -> Self {
+    /// Parse a string into a category, defaulting to `General`.
+    pub fn parse(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "decision" => Self::Decision,
             "person" => Self::Person,
@@ -127,12 +146,16 @@ impl fmt::Display for ThoughtCategory {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ThoughtSource {
+    /// User explicitly captured the thought.
     ManualCapture,
+    /// Extracted from conversation context.
     ConversationExtract,
+    /// Imported from external source.
     Import,
 }
 
 impl ThoughtSource {
+    /// Returns the snake_case string representation.
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::ManualCapture => "manual",
@@ -141,7 +164,8 @@ impl ThoughtSource {
         }
     }
 
-    pub fn from_str(s: &str) -> Self {
+    /// Parse a string into a source, defaulting to `ManualCapture`.
+    pub fn parse(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "manual" | "manual_capture" => Self::ManualCapture,
             "conversation" | "conversation_extract" => Self::ConversationExtract,
@@ -178,7 +202,7 @@ mod tests {
     fn test_category_roundtrip() {
         for cat in ThoughtCategory::ALL {
             let s = cat.as_str();
-            let parsed = ThoughtCategory::from_str(s);
+            let parsed = ThoughtCategory::parse(s);
             assert_eq!(*cat, parsed);
         }
     }

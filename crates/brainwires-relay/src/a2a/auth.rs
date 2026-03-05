@@ -1,7 +1,7 @@
 //! Authentication configuration for A2A communication.
 //!
 //! The A2A protocol supports multiple authentication schemes. An agent's
-//! [`AgentCard`](crate::AgentCard) can advertise required auth, and clients
+//! [`AgentCard`](crate::a2a::AgentCard) can advertise required auth, and clients
 //! use [`AuthConfig`] to supply credentials when connecting.
 
 use serde::{Deserialize, Serialize};

@@ -251,18 +251,25 @@ impl Default for CommandQueue {
 /// Queue statistics
 #[derive(Debug, Clone, Default)]
 pub struct QueueStats {
+    /// Total number of commands in the queue.
     pub total: usize,
+    /// Number of critical priority commands.
     pub critical: usize,
+    /// Number of high priority commands.
     pub high: usize,
+    /// Number of normal priority commands.
     pub normal: usize,
+    /// Number of low priority commands.
     pub low: usize,
 }
 
 /// Queue errors
 #[derive(Debug, thiserror::Error)]
 pub enum QueueError {
+    /// The queue has reached its maximum depth.
     #[error("Queue is full")]
     QueueFull,
+    /// The command has exceeded its maximum retry attempts.
     #[error("Maximum retries exceeded")]
     MaxRetriesExceeded,
 }

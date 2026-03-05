@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 //! # Code Interpreters
 //!
 //! Sandboxed code execution for multiple programming languages.
@@ -38,7 +39,7 @@ mod wasm_bindings;
 pub use types::*;
 pub use executor::Executor;
 
-// Re-export language-specific executors for advanced use
+/// Re-exports of language-specific executors for advanced use.
 pub mod lang {
     #[cfg(feature = "rhai")]
     pub use crate::languages::rhai::RhaiExecutor;
@@ -54,6 +55,7 @@ pub mod lang {
 }
 
 /// Get a list of supported languages based on enabled features
+#[allow(clippy::vec_init_then_push)]
 pub fn supported_languages() -> Vec<Language> {
     let mut languages = Vec::new();
 

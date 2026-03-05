@@ -4,19 +4,21 @@ use serde::{Deserialize, Serialize};
 /// Status of a plan
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum PlanStatus {
+    /// Plan is in draft state (not yet started).
+    #[default]
     Draft,
+    /// Plan is actively being executed.
     Active,
+    /// Plan execution is paused.
     Paused,
+    /// Plan has been completed successfully.
     Completed,
+    /// Plan has been abandoned.
     Abandoned,
 }
 
-impl Default for PlanStatus {
-    fn default() -> Self {
-        Self::Draft
-    }
-}
 
 impl std::fmt::Display for PlanStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -48,28 +50,46 @@ impl std::str::FromStr for PlanStatus {
 /// Metadata for a persisted execution plan
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlanMetadata {
+    /// Unique plan identifier.
     pub plan_id: String,
+    /// Conversation this plan belongs to.
     pub conversation_id: String,
+    /// Short title derived from the task description.
     pub title: String,
+    /// Full task description the plan was created for.
     pub task_description: String,
+    /// The plan content (steps, instructions).
     pub plan_content: String,
+    /// Model used to generate the plan, if known.
     pub model_id: Option<String>,
+    /// Current status of the plan.
     pub status: PlanStatus,
+    /// Whether the plan has been executed.
     pub executed: bool,
+    /// Number of iterations used during execution.
     pub iterations_used: u32,
+    /// Unix timestamp when the plan was created.
     pub created_at: i64,
+    /// Unix timestamp when the plan was last updated.
     pub updated_at: i64,
+    /// File path if the plan was exported to disk.
     pub file_path: Option<String>,
+    /// Optional embedding vector for similarity search.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embedding: Option<Vec<f32>>,
+    /// Parent plan ID for branched plans.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parent_plan_id: Option<String>,
+    /// IDs of child (branched) plans.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub child_plan_ids: Vec<String>,
+    /// Branch name for branched plans.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub branch_name: Option<String>,
+    /// Whether this branch has been merged back.
     #[serde(default)]
     pub merged: bool,
+    /// Nesting depth in the plan tree.
     #[serde(default)]
     pub depth: u32,
 }
@@ -253,7 +273,7 @@ pub struct PlanStep {
 }
 
 /// Budget constraints that a serializable plan must satisfy before execution
-/// begins. Used in [`TaskAgentConfig::plan_budget`].
+/// begins. Used in `TaskAgentConfig::plan_budget`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlanBudget {
     /// Reject plans with more steps than this limit.
@@ -310,42 +330,39 @@ impl PlanBudget {
         let total_tokens = plan.total_estimated_tokens();
         let total_cost = total_tokens as f64 * self.cost_per_token;
 
-        if let Some(max) = self.max_steps {
-            if step_count > max {
+        if let Some(max) = self.max_steps
+            && step_count > max {
                 return Err(format!(
                     "plan has {} steps but limit is {}",
                     step_count, max
                 ));
             }
-        }
 
-        if let Some(max) = self.max_estimated_tokens {
-            if total_tokens > max {
+        if let Some(max) = self.max_estimated_tokens
+            && total_tokens > max {
                 return Err(format!(
                     "plan estimates {} tokens but limit is {}",
                     total_tokens, max
                 ));
             }
-        }
 
-        if let Some(max) = self.max_estimated_cost_usd {
-            if total_cost > max {
+        if let Some(max) = self.max_estimated_cost_usd
+            && total_cost > max {
                 return Err(format!(
                     "plan estimates ${:.6} USD but limit is ${:.6}",
                     total_cost, max
                 ));
             }
-        }
 
         Ok(())
     }
 }
 
 /// A serializable execution plan produced by the agent *before* any side
-/// effects occur.  When [`TaskAgentConfig::plan_budget`] is set, the agent
+/// effects occur.  When `TaskAgentConfig::plan_budget` is set, the agent
 /// generates this plan in a separate provider call and validates it against the
 /// budget; if the budget is exceeded the run fails immediately with
-/// [`FailureCategory::PlanBudgetExceeded`].
+/// `FailureCategory::PlanBudgetExceeded`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SerializablePlan {
     /// Unique identifier for this plan.

@@ -9,23 +9,32 @@ use chrono::{DateTime, Utc};
 /// One tool call within a single iteration step.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ToolCallRecord {
+    /// Unique identifier for this tool use invocation.
     pub tool_use_id: String,
+    /// Name of the tool that was called.
     pub tool_name: String,
+    /// Whether the tool call resulted in an error.
     pub is_error: bool,
+    /// When the tool call was executed.
     pub executed_at: DateTime<Utc>,
 }
 
 /// One provider-call iteration in the `execute()` loop.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct StepNode {
+    /// Iteration number within the execution loop.
     pub iteration: u32,
+    /// When this step started.
     pub started_at: DateTime<Utc>,
+    /// When this step ended.
     pub ended_at: DateTime<Utc>,
     /// Prompt tokens for this call (from `Usage::prompt_tokens`).
     pub prompt_tokens: u32,
     /// Completion tokens for this call (from `Usage::completion_tokens`).
     pub completion_tokens: u32,
+    /// Tool calls made during this step.
     pub tool_calls: Vec<ToolCallRecord>,
+    /// Reason the provider stopped generating.
     pub finish_reason: Option<String>,
 }
 
@@ -39,6 +48,7 @@ pub struct ExecutionGraph {
     /// SHA-256 of (system prompt bytes + sorted tool name bytes), hex-encoded.
     /// Changes whenever the prompt or tool registry changes.
     pub prompt_hash: String,
+    /// When the run started.
     pub run_started_at: DateTime<Utc>,
     /// One [`StepNode`] per provider call iteration.
     pub steps: Vec<StepNode>,
@@ -103,18 +113,29 @@ impl ExecutionGraph {
 /// Derived from an [`ExecutionGraph`] via [`RunTelemetry::from_graph`].
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RunTelemetry {
+    /// Hash of the system prompt and tool registry.
     pub prompt_hash: String,
+    /// When the run started.
     pub run_started_at: DateTime<Utc>,
+    /// When the run ended.
     pub run_ended_at: DateTime<Utc>,
+    /// Total run duration in milliseconds.
     pub duration_ms: u64,
+    /// Number of provider call iterations.
     pub total_iterations: u32,
+    /// Total number of tool calls across all iterations.
     pub total_tool_calls: u32,
+    /// Number of tool calls that returned errors.
     pub tool_error_count: u32,
     /// Unique tool names, deduped in first-use order.
     pub tools_used: Vec<String>,
+    /// Total prompt tokens consumed.
     pub total_prompt_tokens: u32,
+    /// Total completion tokens consumed.
     pub total_completion_tokens: u32,
+    /// Total estimated cost in USD.
     pub total_cost_usd: f64,
+    /// Whether the run completed successfully.
     pub success: bool,
 }
 

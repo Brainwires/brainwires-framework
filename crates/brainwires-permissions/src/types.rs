@@ -261,7 +261,7 @@ pub enum CapabilityProfile {
 
 impl CapabilityProfile {
     /// Parse from string
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "read_only" | "readonly" | "read-only" => Some(Self::ReadOnly),
             "standard_dev" | "standarddev" | "standard-dev" | "standard" => Some(Self::StandardDev),
@@ -1068,21 +1068,37 @@ impl GitCapabilities {
 /// Git operations
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GitOperation {
+    /// View working tree status.
     Status,
+    /// Show changes between commits.
     Diff,
+    /// View commit history.
     Log,
+    /// Stage changes.
     Add,
+    /// Create a commit.
     Commit,
+    /// Push to remote.
     Push,
+    /// Pull from remote.
     Pull,
+    /// Fetch from remote.
     Fetch,
+    /// Branch operations.
     Branch,
+    /// Switch branches.
     Checkout,
+    /// Merge branches.
     Merge,
+    /// Rebase commits.
     Rebase,
+    /// Reset to a previous state.
     Reset,
+    /// Stash changes.
     Stash,
+    /// Tag a commit.
     Tag,
+    /// Force push to remote.
     ForcePush,
 }
 
@@ -1381,17 +1397,17 @@ mod tests {
     #[test]
     fn test_profile_parsing() {
         assert_eq!(
-            CapabilityProfile::from_str("read_only"),
+            CapabilityProfile::parse("read_only"),
             Some(CapabilityProfile::ReadOnly)
         );
         assert_eq!(
-            CapabilityProfile::from_str("standard_dev"),
+            CapabilityProfile::parse("standard_dev"),
             Some(CapabilityProfile::StandardDev)
         );
         assert_eq!(
-            CapabilityProfile::from_str("full_access"),
+            CapabilityProfile::parse("full_access"),
             Some(CapabilityProfile::FullAccess)
         );
-        assert_eq!(CapabilityProfile::from_str("invalid"), None);
+        assert_eq!(CapabilityProfile::parse("invalid"), None);
     }
 }

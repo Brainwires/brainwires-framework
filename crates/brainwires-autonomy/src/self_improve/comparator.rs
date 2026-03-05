@@ -7,15 +7,22 @@ use serde::{Deserialize, Serialize};
 /// Result from a single execution path (direct or bridge).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PathResult {
+    /// Whether the execution path succeeded.
     pub success: bool,
+    /// Number of iterations used.
     pub iterations: u32,
+    /// Git diff output.
     pub diff: String,
+    /// Number of diff lines.
     pub diff_lines: u32,
+    /// Wall-clock duration of the execution.
     pub duration: Duration,
+    /// Error message, if the path failed.
     pub error: Option<String>,
 }
 
 impl PathResult {
+    /// Create a failed path result with the given error and duration.
     pub fn failure(error: String, duration: Duration) -> Self {
         Self {
             success: false,
@@ -35,6 +42,7 @@ pub use crate::metrics::ComparisonResult;
 pub struct Comparator;
 
 impl Comparator {
+    /// Compare two execution path results and produce a comparison report.
     pub fn compare(direct: &PathResult, bridge: &PathResult) -> ComparisonResult {
         let both_succeeded = direct.success && bridge.success;
         let both_failed = !direct.success && !bridge.success;

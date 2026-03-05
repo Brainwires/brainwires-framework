@@ -492,8 +492,10 @@ impl TrustManager {
 
     /// Get statistics
     pub fn statistics(&self) -> TrustStatistics {
-        let mut stats = TrustStatistics::default();
-        stats.total_agents = self.factors.len();
+        let mut stats = TrustStatistics {
+            total_agents: self.factors.len(),
+            ..Default::default()
+        };
 
         for factor in self.factors.values() {
             match factor.level {
@@ -522,14 +524,23 @@ impl TrustManager {
 /// Trust statistics
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct TrustStatistics {
+    /// Total number of tracked agents.
     pub total_agents: usize,
+    /// Number of untrusted agents.
     pub untrusted: usize,
+    /// Number of low-trust agents.
     pub low_trust: usize,
+    /// Number of medium-trust agents.
     pub medium_trust: usize,
+    /// Number of high-trust agents.
     pub high_trust: usize,
+    /// Number of system-level agents.
     pub system: usize,
+    /// Total policy violations across all agents.
     pub total_violations: usize,
+    /// Total operations across all agents.
     pub total_operations: usize,
+    /// Average trust score.
     pub average_score: f32,
 }
 

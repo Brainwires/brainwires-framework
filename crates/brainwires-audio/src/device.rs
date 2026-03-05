@@ -16,6 +16,8 @@ pub struct AudioDevice {
 /// Whether a device is for input (capture) or output (playback).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DeviceDirection {
+    /// Capture / microphone input.
     Input,
+    /// Playback / speaker output.
     Output,
 }

@@ -283,36 +283,30 @@ impl AuditQuery {
 
     /// Check if an event matches this query
     pub fn matches(&self, event: &AuditEvent) -> bool {
-        if let Some(ref agent_id) = self.agent_id {
-            if event.agent_id.as_ref() != Some(agent_id) {
+        if let Some(ref agent_id) = self.agent_id
+            && event.agent_id.as_ref() != Some(agent_id) {
                 return false;
             }
-        }
-        if let Some(event_type) = self.event_type {
-            if event.event_type != event_type {
+        if let Some(event_type) = self.event_type
+            && event.event_type != event_type {
                 return false;
             }
-        }
-        if let Some(ref action) = self.action {
-            if !event.action.contains(action) {
+        if let Some(ref action) = self.action
+            && !event.action.contains(action) {
                 return false;
             }
-        }
-        if let Some(outcome) = self.outcome {
-            if event.outcome != outcome {
+        if let Some(outcome) = self.outcome
+            && event.outcome != outcome {
                 return false;
             }
-        }
-        if let Some(since) = self.since {
-            if event.timestamp < since {
+        if let Some(since) = self.since
+            && event.timestamp < since {
                 return false;
             }
-        }
-        if let Some(until) = self.until {
-            if event.timestamp > until {
+        if let Some(until) = self.until
+            && event.timestamp > until {
                 return false;
             }
-        }
         true
     }
 }
@@ -371,8 +365,8 @@ impl AuditLogger {
 
     /// Attach an anomaly detector (builder pattern).
     ///
-    /// Every event passed to [`log`] will be fed to the detector.
-    /// Call [`drain_anomalies`] to retrieve any flagged events.
+    /// Every event passed to [`Self::log`] will be fed to the detector.
+    /// Call [`Self::drain_anomalies`] to retrieve any flagged events.
     pub fn with_anomaly_detection(mut self, config: crate::anomaly::AnomalyConfig) -> Self {
         self.anomaly_detector = Some(crate::anomaly::AnomalyDetector::new(config));
         self
@@ -667,11 +661,10 @@ impl AuditLogger {
                 if line.is_empty() {
                     continue;
                 }
-                if let Ok(event) = serde_json::from_str::<AuditEvent>(&line) {
-                    if query.matches(&event) {
+                if let Ok(event) = serde_json::from_str::<AuditEvent>(&line)
+                    && query.matches(&event) {
                         results.push(event);
                     }
-                }
             }
         }
 
@@ -735,8 +728,10 @@ impl AuditLogger {
 
         let events = self.query(&query)?;
 
-        let mut stats = AuditStatistics::default();
-        stats.total_events = events.len();
+        let mut stats = AuditStatistics {
+            total_events: events.len(),
+            ..Default::default()
+        };
 
         for event in &events {
             match event.event_type {
@@ -768,12 +763,19 @@ impl Drop for AuditLogger {
 /// Audit statistics
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AuditStatistics {
+    /// Total number of audit events.
     pub total_events: usize,
+    /// Number of tool executions.
     pub tool_executions: usize,
+    /// Number of policy violations.
     pub policy_violations: usize,
+    /// Number of human interventions.
     pub human_interventions: usize,
+    /// Number of successful actions.
     pub successful_actions: usize,
+    /// Number of denied actions.
     pub denied_actions: usize,
+    /// Number of failed actions.
     pub failed_actions: usize,
 }
 

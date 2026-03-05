@@ -22,6 +22,7 @@ pub struct TrainingManager {
 }
 
 impl TrainingManager {
+    /// Create a new training manager.
     pub fn new() -> Self {
         Self {
             #[cfg(feature = "cloud")]

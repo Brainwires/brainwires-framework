@@ -297,6 +297,7 @@ impl Composer {
 
 /// Trait for custom composition handlers
 pub trait CompositionHandler: Send + Sync {
+    /// Compose subtask outputs into a final result.
     fn compose(&self, results: &[SubtaskOutput]) -> MdapResult<Value>;
 }
 
@@ -343,6 +344,7 @@ pub struct CompositionBuilder {
 }
 
 impl CompositionBuilder {
+    /// Create a new composition builder with the given function.
     pub fn new(function: CompositionFunction) -> Self {
         Self {
             results: Vec::new(),
@@ -351,21 +353,25 @@ impl CompositionBuilder {
         }
     }
 
+    /// Add a single subtask output to the composition.
     pub fn add_result(mut self, result: SubtaskOutput) -> Self {
         self.results.push(result);
         self
     }
 
+    /// Add multiple subtask outputs to the composition.
     pub fn add_results(mut self, results: Vec<SubtaskOutput>) -> Self {
         self.results.extend(results);
         self
     }
 
+    /// Disable input validation before composing.
     pub fn skip_validation(mut self) -> Self {
         self.validate = false;
         self
     }
 
+    /// Execute the composition and return the combined result.
     pub fn compose(self) -> MdapResult<Value> {
         if self.validate {
             self.validate_inputs()?;
@@ -386,8 +392,8 @@ impl CompositionBuilder {
             if op == "sum" || op == "multiply" || op == "max" || op == "min" {
                 // All values should be numeric
                 for result in &self.results {
-                    if !result.value.is_number()
-                        && !(result.value.is_string()
+                    if !(result.value.is_number()
+                        || result.value.is_string()
                             && result
                                 .value
                                 .as_str()

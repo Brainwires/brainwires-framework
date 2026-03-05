@@ -15,6 +15,7 @@ pub mod python;
 use crate::types::{ExecutionLimits, ExecutionRequest, ExecutionResult};
 
 /// Trait for language executors
+#[allow(dead_code)]
 pub trait LanguageExecutor {
     /// Execute code and return the result
     fn execute(&self, request: &ExecutionRequest) -> ExecutionResult;
@@ -29,10 +30,11 @@ pub trait LanguageExecutor {
 /// Helper to create execution limits from request
 pub(crate) fn get_limits(request: &ExecutionRequest) -> ExecutionLimits {
     request.limits.clone().unwrap_or_else(|| {
-        let mut limits = ExecutionLimits::default();
-        limits.max_timeout_ms = request.timeout_ms;
-        limits.max_memory_mb = request.memory_limit_mb;
-        limits
+        ExecutionLimits {
+            max_timeout_ms: request.timeout_ms,
+            max_memory_mb: request.memory_limit_mb,
+            ..ExecutionLimits::default()
+        }
     })
 }
 

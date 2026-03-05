@@ -19,6 +19,7 @@ impl JsonlWriter<std::fs::File> {
 }
 
 impl<W: Write> JsonlWriter<W> {
+    /// Create a new JSONL writer wrapping the given writer.
     pub fn new(writer: W) -> Self {
         Self {
             writer: BufWriter::new(writer),

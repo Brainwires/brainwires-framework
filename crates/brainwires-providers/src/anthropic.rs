@@ -14,6 +14,7 @@ use super::rate_limiter::RateLimiter;
 const ANTHROPIC_API_URL: &str = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION: &str = "2023-06-01";
 
+/// Anthropic (Claude) API provider.
 pub struct AnthropicProvider {
     api_key: String,
     model: String,
@@ -22,6 +23,7 @@ pub struct AnthropicProvider {
 }
 
 impl AnthropicProvider {
+    /// Create a new Anthropic provider with the given API key and model.
     pub fn new(api_key: String, model: String) -> Self {
         Self {
             api_key,
@@ -315,11 +317,10 @@ impl Provider for AnthropicProvider {
                             Ok(event) => {
                                 match event.event_type.as_str() {
                                     "content_block_delta" => {
-                                        if let Some(delta) = event.delta {
-                                            if let Some(text) = delta.text {
+                                        if let Some(delta) = event.delta
+                                            && let Some(text) = delta.text {
                                                 yield Ok(StreamChunk::Text(text));
                                             }
-                                        }
                                     }
                                     "message_delta" => {
                                         if let Some(usage) = event.usage {
@@ -422,6 +423,7 @@ pub struct AnthropicModelLister {
 }
 
 impl AnthropicModelLister {
+    /// Create a new model lister with the given API key.
     pub fn new(api_key: String) -> Self {
         Self {
             api_key,

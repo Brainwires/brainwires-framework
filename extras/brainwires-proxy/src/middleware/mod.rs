@@ -60,7 +60,7 @@ impl MiddlewareStack {
         &self,
         mut request: ProxyRequest,
     ) -> ProxyResult<Result<(ProxyRequest, usize), ProxyResponse>> {
-        for (_i, layer) in self.layers.iter().enumerate() {
+        for layer in self.layers.iter() {
             match layer.on_request(request).await? {
                 LayerAction::Forward(req) => request = req,
                 LayerAction::Respond(resp) => return Ok(Err(resp)),

@@ -30,6 +30,7 @@ pub struct TemperaturePerformance {
 }
 
 impl TemperaturePerformance {
+    /// Create a new performance record with neutral defaults.
     pub fn new() -> Self {
         Self {
             success_rate: 0.5, // Neutral starting point
@@ -136,15 +137,14 @@ impl TemperatureOptimizer {
 
         for &temp in &self.candidates {
             let temp_key = Self::temp_to_key(temp);
-            if let Some(perf) = self.performance_map.get(&(cluster_id.to_string(), temp_key)) {
-                if perf.sample_count >= self.min_samples {
+            if let Some(perf) = self.performance_map.get(&(cluster_id.to_string(), temp_key))
+                && perf.sample_count >= self.min_samples {
                     let score = perf.score();
                     if score > best_score {
                         best_score = score;
                         best_temp = Some(temp);
                     }
                 }
-            }
         }
 
         best_temp
@@ -163,11 +163,10 @@ impl TemperatureOptimizer {
             // Example: "For numerical_reasoning, use temperature 0.0 for optimal results"
             for truth in truths {
                 // Filter for TaskStrategy category
-                if truth.category == TruthCategory::TaskStrategy {
-                    if let Some(temp) = self.parse_temperature_from_truth(truth) {
+                if truth.category == TruthCategory::TaskStrategy
+                    && let Some(temp) = self.parse_temperature_from_truth(truth) {
                         return Some(temp);
                     }
-                }
             }
         }
 
@@ -185,11 +184,10 @@ impl TemperatureOptimizer {
             // Find first number after "temperature"
             let parts: Vec<&str> = substr.split_whitespace().collect();
             for part in parts.iter().skip(1) {
-                if let Ok(temp) = part.parse::<f32>() {
-                    if self.candidates.contains(&temp) {
+                if let Ok(temp) = part.parse::<f32>()
+                    && self.candidates.contains(&temp) {
                         return Some(temp);
                     }
-                }
             }
         }
 
@@ -255,7 +253,7 @@ impl TemperatureOptimizer {
         let perf = self
             .performance_map
             .entry(key)
-            .or_insert_with(TemperaturePerformance::new);
+            .or_default();
 
         perf.update(success, quality);
     }
@@ -271,8 +269,8 @@ impl TemperatureOptimizer {
         let temp_key = Self::temp_to_key(temperature);
         let key = (cluster_id.to_string(), temp_key);
 
-        if let Some(perf) = self.performance_map.get(&key) {
-            if perf.sample_count >= min_samples && perf.score() >= min_score {
+        if let Some(perf) = self.performance_map.get(&key)
+            && perf.sample_count >= min_samples && perf.score() >= min_score {
                 // Promote to BKS
                 if let Some(ref bks_cache) = self.bks_cache {
                     let truth = BehavioralTruth::new(
@@ -296,7 +294,6 @@ impl TemperatureOptimizer {
                     bks.queue_submission(truth)?;
                 }
             }
-        }
 
         Ok(())
     }

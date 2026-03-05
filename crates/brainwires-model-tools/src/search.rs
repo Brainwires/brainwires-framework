@@ -12,6 +12,7 @@ use brainwires_core::{Tool, ToolContext, ToolInputSchema, ToolResult};
 pub struct SearchTool;
 
 impl SearchTool {
+    /// Return tool definitions for code search.
     pub fn get_tools() -> Vec<Tool> {
         vec![Self::search_code_tool()]
     }
@@ -29,6 +30,7 @@ impl SearchTool {
         }
     }
 
+    /// Execute a search tool by name.
     #[tracing::instrument(name = "tool.execute", skip(input, context), fields(tool_name))]
     pub fn execute(tool_use_id: &str, tool_name: &str, input: &Value, context: &ToolContext) -> ToolResult {
         let result = match tool_name {
@@ -53,8 +55,8 @@ impl SearchTool {
         let mut matches = Vec::new();
         for entry in WalkBuilder::new(search_path).build() {
             let entry = entry?;
-            if entry.path().is_file() {
-                if let Ok(content) = fs::read_to_string(entry.path()) {
+            if entry.path().is_file()
+                && let Ok(content) = fs::read_to_string(entry.path()) {
                     for (line_num, line) in content.lines().enumerate() {
                         if regex.is_match(line) {
                             matches.push(format!("{}:{} - {}", entry.path().display(), line_num + 1, line.trim()));
@@ -62,7 +64,6 @@ impl SearchTool {
                         }
                     }
                 }
-            }
         }
         Ok(format!("Search Results:\nPattern: {}\nMatches: {}\n\n{}", params.pattern, matches.len(), matches.join("\n")))
     }

@@ -11,6 +11,7 @@ use brainwires_core::Tool;
 
 use super::rate_limiter::RateLimiter;
 
+/// Ollama local model provider.
 pub struct OllamaProvider {
     model: String,
     base_url: String,
@@ -19,6 +20,7 @@ pub struct OllamaProvider {
 }
 
 impl OllamaProvider {
+    /// Create a new Ollama provider with the given model and optional base URL.
     pub fn new(model: String, base_url: Option<String>) -> Self {
         Self {
             model,
@@ -136,11 +138,10 @@ impl Provider for OllamaProvider {
         }
 
         // Tools (Ollama has experimental tool support)
-        if let Some(tools_list) = tools {
-            if !tools_list.is_empty() {
+        if let Some(tools_list) = tools
+            && !tools_list.is_empty() {
                 request_body["tools"] = json!(self.convert_tools(tools_list));
             }
-        }
 
         let url = format!("{}/api/chat", self.base_url);
 
@@ -214,11 +215,10 @@ impl Provider for OllamaProvider {
             }
 
             // Tools (Ollama has experimental tool support)
-            if let Some(tools_list) = tools {
-                if !tools_list.is_empty() {
+            if let Some(tools_list) = tools
+                && !tools_list.is_empty() {
                     request_body["tools"] = json!(self.convert_tools(tools_list));
                 }
-            }
 
             let url = format!("{}/api/chat", self.base_url);
 
@@ -272,11 +272,10 @@ impl Provider for OllamaProvider {
                     // Parse the JSON line
                     match serde_json::from_str::<OllamaStreamChunk>(&line) {
                         Ok(chunk) => {
-                            if let Some(message) = chunk.message {
-                                if !message.content.is_empty() {
+                            if let Some(message) = chunk.message
+                                && !message.content.is_empty() {
                                     yield Ok(StreamChunk::Text(message.content));
                                 }
-                            }
 
                             if chunk.done {
                                 // Emit usage if available
@@ -373,6 +372,7 @@ pub struct OllamaModelLister {
 }
 
 impl OllamaModelLister {
+    /// Create a new model lister with an optional Ollama base URL.
     pub fn new(base_url: Option<String>) -> Self {
         Self {
             base_url: base_url.unwrap_or_else(|| "http://localhost:11434".to_string()),

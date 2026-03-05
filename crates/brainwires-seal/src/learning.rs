@@ -192,6 +192,7 @@ impl LocalMemory {
     }
 
     /// Record a query execution
+    #[allow(clippy::too_many_arguments)]
     pub fn record_query(
         &mut self,
         original: &str,
@@ -217,7 +218,7 @@ impl LocalMemory {
     /// Get entities by frequency (most frequent first)
     pub fn get_frequent_entities(&self, limit: usize) -> Vec<&TrackedEntity> {
         let mut entities: Vec<_> = self.entities.values().collect();
-        entities.sort_by(|a, b| b.frequency().cmp(&a.frequency()));
+        entities.sort_by_key(|e| std::cmp::Reverse(e.frequency()));
         entities.into_iter().take(limit).collect()
     }
 
@@ -626,7 +627,7 @@ pub struct LearningCoordinator {
     /// Global memory for cross-session patterns
     pub global: GlobalMemory,
     /// Learning rate for pattern updates
-    learning_rate: f32,
+    _learning_rate: f32,
     /// Minimum successes before pattern is trusted
     min_successes: u32,
 }
@@ -637,7 +638,7 @@ impl LearningCoordinator {
         Self {
             local: LocalMemory::new(conversation_id),
             global: GlobalMemory::new(),
-            learning_rate: 0.3,
+            _learning_rate: 0.3,
             min_successes: 3,
         }
     }
@@ -674,15 +675,14 @@ impl LearningCoordinator {
         query_core: Option<&QueryCore>,
     ) {
         // Update pattern statistics if we used one
-        if let Some(id) = pattern_id {
-            if let Some(pattern) = self.global.get_pattern_mut(id) {
+        if let Some(id) = pattern_id
+            && let Some(pattern) = self.global.get_pattern_mut(id) {
                 if success {
                     pattern.record_success(result_count);
                 } else {
                     pattern.record_failure();
                 }
             }
-        }
 
         // Record in local memory
         if let Some(core) = query_core {
@@ -720,11 +720,9 @@ impl LearningCoordinator {
         if let Some(existing) = self
             .global
             .get_best_pattern(&query.question_type, &required_types)
-        {
-            if existing.template == template {
+            && existing.template == template {
                 return None; // Already have this pattern
             }
-        }
 
         // Create and add the new pattern
         let mut pattern = QueryPattern::new(query.question_type.clone(), template, required_types);

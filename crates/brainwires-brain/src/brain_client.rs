@@ -140,7 +140,7 @@ impl BrainClient {
     pub async fn capture_thought(&mut self, req: CaptureThoughtRequest) -> Result<CaptureThoughtResponse> {
         // Build the Thought
         let category = match &req.category {
-            Some(c) => ThoughtCategory::from_str(c),
+            Some(c) => ThoughtCategory::parse(c),
             None => fact_extractor::detect_category(&req.content),
         };
 
@@ -157,7 +157,7 @@ impl BrainClient {
         let source = req
             .source
             .as_deref()
-            .map(ThoughtSource::from_str)
+            .map(ThoughtSource::parse)
             .unwrap_or(ThoughtSource::ManualCapture);
 
         let thought = Thought::new(req.content.clone())
@@ -212,11 +212,11 @@ impl BrainClient {
         let search_thoughts = req
             .sources
             .as_ref()
-            .map_or(true, |s| s.iter().any(|x| x == "thoughts"));
+            .is_none_or(|s| s.iter().any(|x| x == "thoughts"));
         let search_facts = req
             .sources
             .as_ref()
-            .map_or(true, |s| s.iter().any(|x| x == "facts"));
+            .is_none_or(|s| s.iter().any(|x| x == "facts"));
 
         let mut results = Vec::new();
 
@@ -234,7 +234,7 @@ impl BrainClient {
 
             // Optional category filter
             if let Some(ref cat) = req.category {
-                let cat_str = ThoughtCategory::from_str(cat).as_str().to_string();
+                let cat_str = ThoughtCategory::parse(cat).as_str().to_string();
                 search = search.only_if(format!("category = '{}'", cat_str));
             }
 
@@ -249,7 +249,7 @@ impl BrainClient {
                     .downcast_ref::<Float32Array>()
                     .context("Invalid _distance type")?;
 
-                let thoughts = self.batch_to_thoughts(&[batch.clone()])?;
+                let thoughts = self.batch_to_thoughts(std::slice::from_ref(batch))?;
 
                 for (i, thought) in thoughts.into_iter().enumerate() {
                     let distance = distances.value(i);
@@ -298,6 +298,7 @@ impl BrainClient {
 
     // ── List recent ──────────────────────────────────────────────────────
 
+    /// List recent thoughts, optionally filtered by category and time range.
     pub async fn list_recent(&self, req: ListRecentRequest) -> Result<ListRecentResponse> {
         let since_ts = match &req.since {
             Some(s) => chrono::DateTime::parse_from_rfc3339(s)
@@ -310,7 +311,7 @@ impl BrainClient {
 
         let mut filter = format!("deleted = false AND created_at >= {}", since_ts);
         if let Some(ref cat) = req.category {
-            let cat_str = ThoughtCategory::from_str(cat).as_str().to_string();
+            let cat_str = ThoughtCategory::parse(cat).as_str().to_string();
             filter.push_str(&format!(" AND category = '{}'", cat_str));
         }
 
@@ -347,6 +348,7 @@ impl BrainClient {
 
     // ── Get by ID ────────────────────────────────────────────────────────
 
+    /// Get a single thought by ID.
     pub async fn get_thought(&self, id: &str) -> Result<Option<GetThoughtResponse>> {
         let table = self.thoughts_table().await?;
         let filter = format!("id = '{}' AND deleted = false", id);
@@ -368,15 +370,16 @@ impl BrainClient {
 
     // ── Search knowledge (PKS/BKS) ──────────────────────────────────────
 
+    /// Search PKS and/or BKS knowledge stores.
     pub fn search_knowledge(&self, req: SearchKnowledgeRequest) -> Result<SearchKnowledgeResponse> {
         let search_pks = req
             .source
             .as_ref()
-            .map_or(true, |s| s == "all" || s == "personal");
+            .is_none_or(|s| s == "all" || s == "personal");
         let search_bks = req
             .source
             .as_ref()
-            .map_or(true, |s| s == "all" || s == "behavioral");
+            .is_none_or(|s| s == "all" || s == "behavioral");
 
         let mut results = Vec::new();
 
@@ -426,6 +429,7 @@ impl BrainClient {
 
     // ── Stats ────────────────────────────────────────────────────────────
 
+    /// Get aggregate statistics across all memory stores.
     pub async fn memory_stats(&self) -> Result<MemoryStatsResponse> {
         let now = Utc::now().timestamp();
         let one_day = 86_400i64;
@@ -642,9 +646,9 @@ impl BrainClient {
                 result.push(Thought {
                     id: ids.value(i).to_string(),
                     content: contents.value(i).to_string(),
-                    category: ThoughtCategory::from_str(categories.value(i)),
+                    category: ThoughtCategory::parse(categories.value(i)),
                     tags,
-                    source: ThoughtSource::from_str(sources.value(i)),
+                    source: ThoughtSource::parse(sources.value(i)),
                     importance: importances.value(i),
                     created_at: created_ats.value(i),
                     updated_at: updated_ats.value(i),

@@ -6,11 +6,14 @@ use serde::{Deserialize, Serialize};
 /// Reference to a repository.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RepoRef {
+    /// Repository owner (user or organization).
     pub owner: String,
+    /// Repository name.
     pub name: String,
 }
 
 impl RepoRef {
+    /// Return the full `owner/name` string.
     pub fn full_name(&self) -> String {
         format!("{}/{}", self.owner, self.name)
     }
@@ -19,89 +22,132 @@ impl RepoRef {
 /// An issue from the forge.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Issue {
+    /// Issue identifier.
     pub id: String,
+    /// Issue number.
     pub number: u64,
+    /// Issue title.
     pub title: String,
+    /// Issue body text.
     pub body: String,
+    /// Labels applied to the issue.
     pub labels: Vec<String>,
+    /// Author username.
     pub author: String,
+    /// URL of the issue.
     pub url: String,
 }
 
 /// A comment on an issue or PR.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Comment {
+    /// Comment identifier.
     pub id: String,
+    /// Author username.
     pub author: String,
+    /// Comment body text.
     pub body: String,
 }
 
 /// A commit reference.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CommitRef {
+    /// Commit SHA hash.
     pub sha: String,
+    /// Commit message.
     pub message: String,
 }
 
 /// A pull request.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PullRequest {
+    /// Pull request identifier.
     pub id: String,
+    /// PR number.
     pub number: u64,
+    /// PR title.
     pub title: String,
+    /// PR body text.
     pub body: String,
+    /// Source branch name.
     pub head_branch: String,
+    /// Target branch name.
     pub base_branch: String,
+    /// URL of the pull request.
     pub url: String,
+    /// Current PR state.
     pub state: PrState,
 }
 
 /// Pull request state.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PrState {
+    /// PR is open and accepting changes.
     Open,
+    /// PR has been closed without merging.
     Closed,
+    /// PR has been merged.
     Merged,
 }
 
 /// Parameters for creating a pull request.
 #[derive(Debug, Clone)]
 pub struct CreatePrParams {
+    /// Title for the new PR.
     pub title: String,
+    /// Body text for the new PR.
     pub body: String,
+    /// Source branch name.
     pub head_branch: String,
+    /// Target branch name.
     pub base_branch: String,
+    /// Labels to apply to the PR.
     pub labels: Vec<String>,
+    /// Whether to create as a draft PR.
     pub draft: bool,
 }
 
 /// Merge method.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MergeMethod {
+    /// Standard merge commit.
     Merge,
+    /// Squash and merge.
     Squash,
+    /// Rebase and merge.
     Rebase,
 }
 
 /// CI/CD check status.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CheckStatus {
+    /// Aggregate check state.
     pub state: CheckState,
+    /// Individual check runs.
     pub checks: Vec<CheckRun>,
 }
 
+/// Overall state of CI checks.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CheckState {
+    /// Checks are still running.
     Pending,
+    /// All checks passed.
     Success,
+    /// One or more checks failed.
     Failure,
+    /// An error occurred evaluating checks.
     Error,
 }
 
+/// A single CI check run.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CheckRun {
+    /// Name of the check run.
     pub name: String,
+    /// Current status (e.g. "completed", "in_progress").
     pub status: String,
+    /// Conclusion if the check has completed (e.g. "success", "failure").
     pub conclusion: Option<String>,
 }
 
@@ -161,6 +207,7 @@ pub struct GitHubForge {
 }
 
 impl GitHubForge {
+    /// Create a new GitHub forge client with the given API token.
     pub fn new(token: String) -> Self {
         Self {
             token,
@@ -169,6 +216,7 @@ impl GitHubForge {
         }
     }
 
+    /// Override the API base URL (for GitHub Enterprise).
     pub fn with_api_base(mut self, base: String) -> Self {
         self.api_base = base;
         self

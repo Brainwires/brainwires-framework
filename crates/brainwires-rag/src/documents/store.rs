@@ -181,7 +181,7 @@ impl DocumentStore {
         &self,
         chunks: &[DocumentChunk],
         metadata: &DocumentMetadata,
-        scope: &DocumentScope,
+        _scope: &DocumentScope,
     ) -> Result<()> {
         let table = lance_tables::open_documents_table(&self.connection).await?;
         let dimension = self.embeddings.dimension();

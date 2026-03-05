@@ -5,8 +5,11 @@ use serde::{Deserialize, Serialize};
 /// Information about a created branch.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BranchInfo {
+    /// Branch name.
     pub name: String,
+    /// Base branch this was created from.
     pub base_branch: String,
+    /// Path to the worktree, if using git worktrees.
     pub worktree_path: Option<String>,
 }
 
@@ -16,6 +19,7 @@ pub struct BranchManager {
 }
 
 impl BranchManager {
+    /// Create a new branch manager with the given prefix.
     pub fn new(branch_prefix: String) -> Self {
         Self { branch_prefix }
     }

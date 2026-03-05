@@ -15,7 +15,7 @@ use super::types::{AuthRequest, AuthResponse};
 /// keyring storage. The caller is responsible for persisting the auth response.
 pub struct AuthClient {
     http_client: Client,
-    /// Full backend URL (e.g., "https://brainwires.studio")
+    /// Full backend URL (e.g., `https://brainwires.studio`)
     backend_url: String,
     /// Auth endpoint path (e.g., "/api/cli/auth")
     auth_endpoint: String,
@@ -27,7 +27,7 @@ impl AuthClient {
     /// Create a new authentication client
     ///
     /// # Arguments
-    /// * `backend_url` - Base URL (e.g., "https://brainwires.studio")
+    /// * `backend_url` - Base URL (e.g., `https://brainwires.studio`)
     /// * `auth_endpoint` - Auth endpoint path (e.g., "/api/cli/auth")
     /// * `api_key_pattern` - Regex pattern for API key validation (e.g., r"^bw_(prod|dev|test)_[a-z0-9]{32}$")
     pub fn new(backend_url: String, auth_endpoint: String, api_key_pattern: &str) -> Self {

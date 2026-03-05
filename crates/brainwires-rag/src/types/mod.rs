@@ -161,9 +161,13 @@ pub struct StatisticsResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "native", derive(schemars::JsonSchema))]
+/// Statistics for a single programming language in the index.
 pub struct LanguageStats {
+    /// Language name.
     pub language: String,
+    /// Number of indexed files for this language.
     pub file_count: usize,
+    /// Number of code chunks for this language.
     pub chunk_count: usize,
 }
 

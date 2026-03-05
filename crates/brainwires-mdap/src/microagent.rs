@@ -388,37 +388,44 @@ impl Default for MicroagentConfigBuilder {
 }
 
 impl MicroagentConfigBuilder {
+    /// Create a new builder with default configuration.
     pub fn new() -> Self {
         Self {
             config: MicroagentConfig::default(),
         }
     }
 
+    /// Set the maximum output tokens.
     pub fn max_output_tokens(mut self, tokens: u32) -> Self {
         self.config.max_output_tokens = tokens;
         self
     }
 
+    /// Set the temperature for sampling (clamped to 0.0-2.0).
     pub fn temperature(mut self, temp: f32) -> Self {
         self.config.temperature = temp.clamp(0.0, 2.0);
         self
     }
 
+    /// Set the system prompt template.
     pub fn system_prompt(mut self, prompt: impl Into<String>) -> Self {
         self.config.system_prompt_template = prompt.into();
         self
     }
 
+    /// Set the red-flag validation configuration.
     pub fn red_flag_config(mut self, config: RedFlagConfig) -> Self {
         self.config.red_flag_config = config;
         self
     }
 
+    /// Set the execution timeout in milliseconds.
     pub fn timeout_ms(mut self, timeout: u64) -> Self {
         self.config.timeout_ms = timeout;
         self
     }
 
+    /// Build the microagent configuration.
     pub fn build(self) -> MicroagentConfig {
         self.config
     }

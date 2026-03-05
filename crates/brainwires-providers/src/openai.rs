@@ -13,6 +13,7 @@ use super::rate_limiter::RateLimiter;
 
 const OPENAI_API_URL: &str = "https://api.openai.com/v1/chat/completions";
 
+/// OpenAI (GPT) API provider.
 pub struct OpenAIProvider {
     api_key: String,
     model: String,
@@ -23,6 +24,7 @@ pub struct OpenAIProvider {
 }
 
 impl OpenAIProvider {
+    /// Create a new OpenAI provider with the given API key and model.
     pub fn new(api_key: String, model: String) -> Self {
         Self {
             api_key,
@@ -59,6 +61,7 @@ impl OpenAIProvider {
         }
     }
 
+    /// Set the organization ID for API requests.
     pub fn with_organization(mut self, org_id: String) -> Self {
         self.organization_id = Some(org_id);
         self
@@ -187,11 +190,10 @@ impl Provider for OpenAIProvider {
             }
         }
 
-        if let Some(tools_list) = tools {
-            if !tools_list.is_empty() {
+        if let Some(tools_list) = tools
+            && !tools_list.is_empty() {
                 request_body["tools"] = json!(self.convert_tools(tools_list));
             }
-        }
 
         let mut request = self
             .http_client
@@ -302,11 +304,10 @@ impl Provider for OpenAIProvider {
                 request_body["top_p"] = json!(top_p);
             }
 
-            if let Some(tools_list) = tools {
-                if !tools_list.is_empty() {
+            if let Some(tools_list) = tools
+                && !tools_list.is_empty() {
                     request_body["tools"] = json!(self.convert_tools(tools_list));
                 }
-            }
 
             let mut request = self
                 .http_client
@@ -363,8 +364,8 @@ impl Provider for OpenAIProvider {
 
                         match serde_json::from_str::<OpenAIStreamChunk>(data) {
                             Ok(chunk) => {
-                                if let Some(choice) = chunk.choices.into_iter().next() {
-                                    if let Some(delta) = choice.delta {
+                                if let Some(choice) = chunk.choices.into_iter().next()
+                                    && let Some(delta) = choice.delta {
                                         if let Some(content) = delta.content {
                                             yield Ok(StreamChunk::Text(content));
                                         }
@@ -377,7 +378,6 @@ impl Provider for OpenAIProvider {
                                             }
                                         }
                                     }
-                                }
 
                                 if let Some(usage) = chunk.usage {
                                     yield Ok(StreamChunk::Usage(Usage {
@@ -527,6 +527,7 @@ pub struct OpenAIModelLister {
 }
 
 impl OpenAIModelLister {
+    /// Create a new model lister with the given API key and optional base URL.
     pub fn new(api_key: String, base_url: Option<String>) -> Self {
         Self {
             api_key,

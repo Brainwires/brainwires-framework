@@ -9,24 +9,31 @@ use anyhow::{anyhow, Context as _, Result};
 #[cfg(feature = "native")]
 use linfa::prelude::*;
 #[cfg(feature = "native")]
-use linfa_clustering::{KMeans, KMeansParams};
+use linfa_clustering::KMeans;
 #[cfg(feature = "native")]
-use ndarray::{Array1, Array2, Axis};
+use ndarray::Array2;
 use serde::{Deserialize, Serialize};
 
 /// A task cluster identified by semantic similarity (SEAL-enhanced)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskCluster {
+    /// Unique cluster identifier.
     pub id: String,
-    pub description: String,     // LLM-generated semantic description
-    pub embedding: Vec<f32>,      // Embedding of cluster description
-    pub techniques: Vec<PromptingTechnique>, // Mapped techniques (3-4)
+    /// LLM-generated semantic description of this cluster.
+    pub description: String,
+    /// Embedding vector of the cluster description.
+    pub embedding: Vec<f32>,
+    /// Prompting techniques mapped to this cluster (typically 3-4).
+    pub techniques: Vec<PromptingTechnique>,
+    /// Example task descriptions belonging to this cluster.
     pub example_tasks: Vec<String>,
 
-    // SEAL integration
-    pub seal_query_cores: Vec<String>, // Example query cores from SEAL
-    pub avg_seal_quality: f32,         // Average SEAL quality for tasks in this cluster
-    pub recommended_complexity: ComplexityLevel, // Based on avg_seal_quality
+    /// Example query cores from SEAL for tasks in this cluster.
+    pub seal_query_cores: Vec<String>,
+    /// Average SEAL quality score for tasks in this cluster.
+    pub avg_seal_quality: f32,
+    /// Recommended complexity level based on average SEAL quality.
+    pub recommended_complexity: ComplexityLevel,
 }
 
 impl TaskCluster {
@@ -67,7 +74,7 @@ impl TaskCluster {
 /// Manages task clustering
 pub struct TaskClusterManager {
     clusters: Vec<TaskCluster>,
-    embedding_dim: usize,
+    _embedding_dim: usize,
 }
 
 impl TaskClusterManager {
@@ -75,7 +82,7 @@ impl TaskClusterManager {
     pub fn new() -> Self {
         Self {
             clusters: Vec::new(),
-            embedding_dim: 768, // Default for most embedding models
+            _embedding_dim: 768, // Default for most embedding models
         }
     }
 
@@ -83,7 +90,7 @@ impl TaskClusterManager {
     pub fn with_embedding_dim(embedding_dim: usize) -> Self {
         Self {
             clusters: Vec::new(),
-            embedding_dim,
+            _embedding_dim: embedding_dim,
         }
     }
 
@@ -251,8 +258,8 @@ impl TaskClusterManager {
 
             let mut a_i = 0.0;
             let mut same_cluster_count = 0;
-            for j in 0..n {
-                if i != j && assignments[j] == cluster_i {
+            for (j, &assignment_j) in assignments.iter().enumerate().take(n) {
+                if i != j && assignment_j == cluster_i {
                     a_i += euclidean_distance(
                         &embeddings.row(i).to_vec(),
                         &embeddings.row(j).to_vec(),
@@ -272,8 +279,8 @@ impl TaskClusterManager {
 
                 let mut dist_sum = 0.0;
                 let mut other_count = 0;
-                for j in 0..n {
-                    if assignments[j] == other_cluster {
+                for (j, &assignment_j) in assignments.iter().enumerate().take(n) {
+                    if assignment_j == other_cluster {
                         dist_sum += euclidean_distance(
                             &embeddings.row(i).to_vec(),
                             &embeddings.row(j).to_vec(),

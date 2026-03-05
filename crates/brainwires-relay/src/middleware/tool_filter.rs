@@ -5,22 +5,28 @@ use std::collections::HashSet;
 use super::{Middleware, MiddlewareResult};
 use crate::connection::RequestContext;
 
+/// Tool filtering mode.
 pub enum FilterMode {
+    /// Only allow listed tools.
     AllowList(HashSet<String>),
+    /// Deny listed tools, allow all others.
     DenyList(HashSet<String>),
 }
 
+/// Middleware that filters tool calls by allow/deny lists.
 pub struct ToolFilterMiddleware {
     mode: FilterMode,
 }
 
 impl ToolFilterMiddleware {
+    /// Create a filter that only allows the specified tools.
     pub fn allow_only(tools: impl IntoIterator<Item = impl Into<String>>) -> Self {
         Self {
             mode: FilterMode::AllowList(tools.into_iter().map(|t| t.into()).collect()),
         }
     }
 
+    /// Create a filter that denies the specified tools.
     pub fn deny(tools: impl IntoIterator<Item = impl Into<String>>) -> Self {
         Self {
             mode: FilterMode::DenyList(tools.into_iter().map(|t| t.into()).collect()),

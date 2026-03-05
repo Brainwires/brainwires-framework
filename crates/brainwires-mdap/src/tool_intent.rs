@@ -342,8 +342,8 @@ pub fn parse_tool_intent(
 /// Extract tool_intent JSON from response text
 fn extract_tool_intent_json(text: &str) -> Option<serde_json::Value> {
     // Look for ```json blocks first
-    if let Some(json_block) = extract_json_code_block(text) {
-        if let Ok(value) = serde_json::from_str::<serde_json::Value>(&json_block) {
+    if let Some(json_block) = extract_json_code_block(text)
+        && let Ok(value) = serde_json::from_str::<serde_json::Value>(&json_block) {
             if value.get("tool_intent").is_some() {
                 return value.get("tool_intent").cloned();
             }
@@ -352,13 +352,12 @@ fn extract_tool_intent_json(text: &str) -> Option<serde_json::Value> {
                 return Some(value);
             }
         }
-    }
 
     // Look for inline JSON with tool_intent
     for line in text.lines() {
         let trimmed = line.trim();
-        if trimmed.starts_with('{') && trimmed.ends_with('}') {
-            if let Ok(value) = serde_json::from_str::<serde_json::Value>(trimmed) {
+        if trimmed.starts_with('{') && trimmed.ends_with('}')
+            && let Ok(value) = serde_json::from_str::<serde_json::Value>(trimmed) {
                 if value.get("tool_intent").is_some() {
                     return value.get("tool_intent").cloned();
                 }
@@ -366,7 +365,6 @@ fn extract_tool_intent_json(text: &str) -> Option<serde_json::Value> {
                     return Some(value);
                 }
             }
-        }
     }
 
     None

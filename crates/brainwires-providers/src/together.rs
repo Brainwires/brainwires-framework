@@ -9,11 +9,13 @@ use super::OpenAIProvider;
 const TOGETHER_API_URL: &str = "https://api.together.xyz/v1/chat/completions";
 
 /// Together AI provider (OpenAI-compatible API).
+/// Together AI provider (OpenAI-compatible).
 pub struct TogetherProvider {
     inner: OpenAIProvider,
 }
 
 impl TogetherProvider {
+    /// Create a new Together AI provider with the given API key and model.
     pub fn new(api_key: String, model: String) -> Self {
         Self {
             inner: OpenAIProvider::new(api_key, model).with_base_url(TOGETHER_API_URL.to_string()),

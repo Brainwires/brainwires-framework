@@ -38,22 +38,29 @@ pub enum AnomalyKind {
     /// The same agent triggered policy violations more than `threshold` times
     /// within the sliding window.
     RepeatedPolicyViolation {
+        /// Number of violations observed.
         count: u32,
+        /// Sliding window duration in seconds.
         window_secs: u64,
     },
     /// An agent made tool calls at a rate exceeding `threshold` calls per window.
     HighFrequencyToolCalls {
+        /// Number of tool calls observed.
         count: u32,
+        /// Sliding window duration in seconds.
         window_secs: u64,
     },
     /// An agent accessed a path that lies outside all expected path prefixes.
     UnusualFileScopeRequest {
+        /// The unexpected path accessed.
         path: String,
     },
     /// An agent's trust level changed more than `threshold` times within the
     /// sliding window.
     RapidTrustChange {
+        /// Number of trust level changes.
         changes: u32,
+        /// Sliding window duration in seconds.
         window_secs: u64,
     },
 }
@@ -147,7 +154,7 @@ impl WindowCounter {
     fn record_and_count(&mut self, now_secs: i64) -> u32 {
         self.timestamps.push_back(now_secs);
         let cutoff = now_secs - self.window_secs as i64;
-        while self.timestamps.front().map_or(false, |&t| t <= cutoff) {
+        while self.timestamps.front().is_some_and(|&t| t <= cutoff) {
             self.timestamps.pop_front();
         }
         self.timestamps.len() as u32
@@ -253,8 +260,8 @@ impl AnomalyDetector {
                 }
 
                 // Path-scope check
-                if !expected_prefixes.is_empty() {
-                    if let Some(ref target) = event.target {
+                if !expected_prefixes.is_empty()
+                    && let Some(ref target) = event.target {
                         let is_expected = expected_prefixes
                             .iter()
                             .any(|prefix| target.starts_with(prefix.as_str()));
@@ -271,7 +278,6 @@ impl AnomalyDetector {
                             ));
                         }
                     }
-                }
             }
 
             AuditEventType::TrustChange => {

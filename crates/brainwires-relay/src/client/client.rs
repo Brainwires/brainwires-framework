@@ -6,19 +6,27 @@ use tokio::process::{Child, ChildStdin, ChildStdout, Command};
 use super::error::RelayClientError;
 use super::protocol;
 
+/// MCP relay client that communicates with a subprocess over stdio.
 pub struct RelayClient {
+    /// Child process handle.
     child: Child,
+    /// Buffered writer to the child's stdin.
     stdin: BufWriter<ChildStdin>,
+    /// Buffered reader from the child's stdout.
     stdout: BufReader<ChildStdout>,
+    /// Monotonically increasing request ID counter.
     request_id: AtomicU64,
+    /// Whether the initialize handshake has completed.
     initialized: bool,
 }
 
 impl RelayClient {
+    /// Connect to a relay process using default MCP server arguments.
     pub async fn connect(binary_path: &str) -> Result<Self, RelayClientError> {
         Self::connect_with_args(binary_path, &["chat", "--mcp-server"]).await
     }
 
+    /// Connect to a relay process with custom arguments.
     pub async fn connect_with_args(
         binary_path: &str,
         args: &[&str],
@@ -53,6 +61,7 @@ impl RelayClient {
         self.request_id.fetch_add(1, Ordering::SeqCst)
     }
 
+    /// Send a JSON-RPC request and read the response.
     pub async fn send_request(
         &mut self,
         method: &str,
@@ -70,8 +79,8 @@ impl RelayClient {
         self.stdin
             .write_all(format!("{json}\n").as_bytes())
             .await
-            .map_err(|e| RelayClientError::Io(e))?;
-        self.stdin.flush().await.map_err(|e| RelayClientError::Io(e))?;
+            .map_err(RelayClientError::Io)?;
+        self.stdin.flush().await.map_err(RelayClientError::Io)?;
 
         // Read response
         let mut line = String::new();
@@ -79,7 +88,7 @@ impl RelayClient {
             .stdout
             .read_line(&mut line)
             .await
-            .map_err(|e| RelayClientError::Io(e))?;
+            .map_err(RelayClientError::Io)?;
 
         if bytes == 0 {
             return Err(RelayClientError::ProcessExited);
@@ -89,6 +98,7 @@ impl RelayClient {
         protocol::extract_result(response)
     }
 
+    /// Perform the MCP initialize handshake with the relay process.
     pub async fn initialize(&mut self) -> Result<serde_json::Value, RelayClientError> {
         let id = self.next_id();
         let request = protocol::build_initialize_request(id);
@@ -97,8 +107,8 @@ impl RelayClient {
         self.stdin
             .write_all(format!("{json}\n").as_bytes())
             .await
-            .map_err(|e| RelayClientError::Io(e))?;
-        self.stdin.flush().await.map_err(|e| RelayClientError::Io(e))?;
+            .map_err(RelayClientError::Io)?;
+        self.stdin.flush().await.map_err(RelayClientError::Io)?;
 
         // Read initialize response
         let mut line = String::new();
@@ -106,7 +116,7 @@ impl RelayClient {
             .stdout
             .read_line(&mut line)
             .await
-            .map_err(|e| RelayClientError::Io(e))?;
+            .map_err(RelayClientError::Io)?;
 
         if bytes == 0 {
             return Err(RelayClientError::ProcessExited);
@@ -120,13 +130,14 @@ impl RelayClient {
         self.stdin
             .write_all(format!("{notif}\n").as_bytes())
             .await
-            .map_err(|e| RelayClientError::Io(e))?;
-        self.stdin.flush().await.map_err(|e| RelayClientError::Io(e))?;
+            .map_err(RelayClientError::Io)?;
+        self.stdin.flush().await.map_err(RelayClientError::Io)?;
 
         self.initialized = true;
         Ok(result)
     }
 
+    /// Call a tool on the relay server by name with the given arguments.
     pub async fn call_tool(
         &mut self,
         name: &str,
@@ -146,6 +157,7 @@ impl RelayClient {
         .await
     }
 
+    /// List all tools available on the relay server.
     pub async fn list_tools(&mut self) -> Result<serde_json::Value, RelayClientError> {
         if !self.initialized {
             return Err(RelayClientError::NotInitialized);
@@ -153,6 +165,7 @@ impl RelayClient {
         self.send_request("tools/list", None).await
     }
 
+    /// Shut down the relay client and terminate the child process.
     pub async fn shutdown(mut self) -> Result<(), RelayClientError> {
         // Close stdin to signal EOF to the child process
         drop(self.stdin);
@@ -165,6 +178,7 @@ impl RelayClient {
         Ok(())
     }
 
+    /// Check whether the client has completed initialization.
     pub fn is_initialized(&self) -> bool {
         self.initialized
     }

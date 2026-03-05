@@ -5,11 +5,16 @@ use std::fs;
 #[cfg(feature = "native")]
 use std::path::PathBuf;
 
+/// Configuration for a single MCP server.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpServerConfig {
+    /// Unique name for this server.
     pub name: String,
+    /// Command to launch the server.
     pub command: String,
+    /// Arguments to pass to the command.
     pub args: Vec<String>,
+    /// Optional environment variables.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub env: Option<std::collections::HashMap<String, String>>,
 }
@@ -20,6 +25,7 @@ struct McpConfigFile {
     servers: Vec<McpServerConfig>,
 }
 
+/// Manages MCP server configurations on disk.
 #[cfg(feature = "native")]
 pub struct McpConfigManager {
     config_path: PathBuf,

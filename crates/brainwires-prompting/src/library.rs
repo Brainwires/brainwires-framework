@@ -9,7 +9,7 @@ use super::techniques::{
     TechniqueMetadata,
 };
 #[cfg(feature = "knowledge")]
-use brainwires_brain::knowledge::{BehavioralKnowledgeCache, BehavioralTruth, TruthCategory};
+use brainwires_brain::knowledge::{BehavioralKnowledgeCache, BehavioralTruth};
 use anyhow::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -448,11 +448,11 @@ mod tests {
     #[test]
     fn test_technique_string_conversion() {
         assert_eq!(
-            PromptingTechnique::from_str("chain_of_thought").unwrap(),
+            PromptingTechnique::parse_id("chain_of_thought").unwrap(),
             PromptingTechnique::ChainOfThought
         );
         assert_eq!(
-            PromptingTechnique::from_str("CoT").unwrap(),
+            PromptingTechnique::parse_id("CoT").unwrap(),
             PromptingTechnique::ChainOfThought
         );
         assert_eq!(

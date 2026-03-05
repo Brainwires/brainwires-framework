@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 //! # Brainwires Datasets
 //!
 //! Training data pipelines for the Brainwires Agent Framework.
@@ -5,13 +6,21 @@
 //! Provides JSONL I/O, tokenization, deduplication, format conversion, and
 //! dataset management for cloud and local model fine-tuning workflows.
 
+/// Error types for dataset operations.
 pub mod error;
+/// Core training data types (messages, examples, preference pairs).
 pub mod types;
+/// Dataset trait and concrete dataset implementations.
 pub mod dataset;
+/// JSONL reader and writer for streaming I/O.
 pub mod jsonl;
+/// Tokenizer abstractions and implementations.
 pub mod tokenizer;
+/// Data quality validation, statistics, and deduplication.
 pub mod quality;
+/// Format converters for various fine-tuning providers.
 pub mod format;
+/// Train/eval splitting, curriculum ordering, and sampling utilities.
 pub mod sampling;
 
 // Re-export core types

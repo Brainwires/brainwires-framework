@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 //! # brainwires-mesh
 //!
 //! Distributed agent mesh networking for the Brainwires Agent Framework.
@@ -7,11 +8,17 @@
 //! management, message routing, peer discovery, node lifecycle tracking,
 //! and federation policies.
 
+/// Peer discovery protocols for locating nodes in the mesh.
 pub mod discovery;
+/// Error types for mesh operations.
 pub mod error;
+/// Federation gateways and policies for cross-mesh communication.
 pub mod federation;
+/// Mesh node definitions and capability tracking.
 pub mod node;
+/// Message routing strategies and route tables.
 pub mod routing;
+/// Mesh topology management and layout types.
 pub mod topology;
 
 // ---- Re-exports ----

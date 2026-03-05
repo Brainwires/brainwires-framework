@@ -13,6 +13,7 @@ struct RateLimitBucket {
     last_refill: Instant,
 }
 
+/// Token-bucket rate limiting middleware.
 pub struct RateLimitMiddleware {
     max_requests_per_second: f64,
     per_tool_limits: HashMap<String, f64>,
@@ -20,6 +21,7 @@ pub struct RateLimitMiddleware {
 }
 
 impl RateLimitMiddleware {
+    /// Create a new rate limiter with a global requests-per-second limit.
     pub fn new(max_requests_per_second: f64) -> Self {
         Self {
             max_requests_per_second,
@@ -28,6 +30,7 @@ impl RateLimitMiddleware {
         }
     }
 
+    /// Set a per-tool rate limit override.
     pub fn with_tool_limit(mut self, tool_name: &str, limit: f64) -> Self {
         self.per_tool_limits.insert(tool_name.to_string(), limit);
         self

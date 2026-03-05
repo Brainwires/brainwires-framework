@@ -16,6 +16,7 @@ use super::cpal_common;
 pub struct CpalCapture;
 
 impl CpalCapture {
+    /// Create a new cpal-based audio capture instance.
     pub fn new() -> Self {
         Self
     }

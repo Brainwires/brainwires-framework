@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 //! Adaptive Prompting Techniques
 //!
 //! This crate implements the adaptive prompting system from

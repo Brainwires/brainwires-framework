@@ -25,21 +25,45 @@ pub struct ApprovalRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ApprovalAction {
     /// Writing to a file (create or overwrite).
-    WriteFile { path: String },
+    WriteFile {
+        /// File path being written.
+        path: String,
+    },
     /// Editing a file (find/replace).
-    EditFile { path: String },
+    EditFile {
+        /// File path being edited.
+        path: String,
+    },
     /// Deleting a file or directory.
-    DeleteFile { path: String },
+    DeleteFile {
+        /// File path being deleted.
+        path: String,
+    },
     /// Creating a directory.
-    CreateDirectory { path: String },
+    CreateDirectory {
+        /// Directory path being created.
+        path: String,
+    },
     /// Executing a shell command.
-    ExecuteCommand { command: String },
+    ExecuteCommand {
+        /// The command to execute.
+        command: String,
+    },
     /// Git operations that modify state.
-    GitModify { operation: String },
+    GitModify {
+        /// The git operation name.
+        operation: String,
+    },
     /// Network access (non-read operations).
-    NetworkAccess { domain: String },
+    NetworkAccess {
+        /// The target domain.
+        domain: String,
+    },
     /// Other actions requiring approval.
-    Other { description: String },
+    Other {
+        /// Description of the action.
+        description: String,
+    },
 }
 
 impl ApprovalAction {

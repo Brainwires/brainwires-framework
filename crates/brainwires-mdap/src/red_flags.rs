@@ -85,41 +85,49 @@ pub struct RedFlagConfigBuilder {
 }
 
 impl RedFlagConfigBuilder {
+    /// Set the maximum response token count.
     pub fn max_response_tokens(mut self, tokens: u32) -> Self {
         self.config.max_response_tokens = tokens;
         self
     }
 
+    /// Set whether exact format matching is required.
     pub fn require_exact_format(mut self, require: bool) -> Self {
         self.config.require_exact_format = require;
         self
     }
 
+    /// Set whether to flag self-correction patterns.
     pub fn flag_self_correction(mut self, flag: bool) -> Self {
         self.config.flag_self_correction = flag;
         self
     }
 
+    /// Add a confusion pattern to detect.
     pub fn add_confusion_pattern(mut self, pattern: impl Into<String>) -> Self {
         self.config.confusion_patterns.push(pattern.into());
         self
     }
 
+    /// Set all confusion patterns.
     pub fn confusion_patterns(mut self, patterns: Vec<String>) -> Self {
         self.config.confusion_patterns = patterns;
         self
     }
 
+    /// Set the minimum response length.
     pub fn min_response_length(mut self, length: u32) -> Self {
         self.config.min_response_length = length;
         self
     }
 
+    /// Set the maximum empty line ratio.
     pub fn max_empty_line_ratio(mut self, ratio: f32) -> Self {
         self.config.max_empty_line_ratio = ratio;
         self
     }
 
+    /// Build the red-flag configuration.
     pub fn build(self) -> RedFlagConfig {
         self.config
     }
@@ -130,8 +138,9 @@ impl RedFlagConfigBuilder {
 pub enum RedFlagResult {
     /// Response passed validation
     Valid,
-    /// Response was flagged and should be discarded
+    /// Response was flagged and should be discarded.
     Flagged {
+        /// The reason for flagging.
         reason: RedFlagReason,
         /// Severity from 0.0 (minor) to 1.0 (critical)
         severity: f32,
@@ -153,28 +162,66 @@ impl RedFlagResult {
 /// Reasons for red-flagging a response
 #[derive(Clone, Debug)]
 pub enum RedFlagReason {
-    /// Response exceeded token limit (paper: error rate increases past ~700 tokens)
-    ResponseTooLong { tokens: u32, limit: u32 },
-    /// Response was too short (possibly truncated or incomplete)
-    ResponseTooShort { length: u32, minimum: u32 },
-    /// Response format didn't match expected format
-    InvalidFormat { expected: String, got: String },
-    /// Self-correction detected (indicates model confusion)
-    SelfCorrectionDetected { pattern: String },
-    /// Confused reasoning pattern detected
-    ConfusedReasoning { pattern: String },
-    /// Failed to parse response
-    ParseError { message: String },
-    /// Empty response
+    /// Response exceeded token limit (paper: error rate increases past ~700 tokens).
+    ResponseTooLong {
+        /// Actual token count.
+        tokens: u32,
+        /// Maximum allowed tokens.
+        limit: u32,
+    },
+    /// Response was too short (possibly truncated or incomplete).
+    ResponseTooShort {
+        /// Actual response length.
+        length: u32,
+        /// Minimum required length.
+        minimum: u32,
+    },
+    /// Response format didn't match expected format.
+    InvalidFormat {
+        /// Expected format.
+        expected: String,
+        /// Actual format received.
+        got: String,
+    },
+    /// Self-correction detected (indicates model confusion).
+    SelfCorrectionDetected {
+        /// Detected pattern.
+        pattern: String,
+    },
+    /// Confused reasoning pattern detected.
+    ConfusedReasoning {
+        /// Detected confusion pattern.
+        pattern: String,
+    },
+    /// Failed to parse response.
+    ParseError {
+        /// Parse error message.
+        message: String,
+    },
+    /// Empty response.
     EmptyResponse,
-    /// Response has too many empty lines (formatting issue)
-    TooManyEmptyLines { ratio: f32, max: f32 },
-    /// Invalid JSON structure
-    InvalidJson { message: String },
-    /// Missing required field in structured output
-    MissingField { field: String },
-    /// Response was truncated (finish_reason indicates truncation)
-    Truncated { reason: String },
+    /// Response has too many empty lines (formatting issue).
+    TooManyEmptyLines {
+        /// Actual empty line ratio.
+        ratio: f32,
+        /// Maximum allowed ratio.
+        max: f32,
+    },
+    /// Invalid JSON structure.
+    InvalidJson {
+        /// Error message.
+        message: String,
+    },
+    /// Missing required field in structured output.
+    MissingField {
+        /// Name of the missing field.
+        field: String,
+    },
+    /// Response was truncated (finish_reason indicates truncation).
+    Truncated {
+        /// Truncation reason.
+        reason: String,
+    },
 }
 
 impl std::fmt::Display for RedFlagReason {
@@ -324,8 +371,8 @@ impl StandardRedFlagValidator {
             return None;
         }
 
-        if let Some(ref format) = self.expected_format {
-            if !format.matches(response) {
+        if let Some(ref format) = self.expected_format
+            && !format.matches(response) {
                 return Some(RedFlagResult::Flagged {
                     reason: RedFlagReason::InvalidFormat {
                         expected: format.description(),
@@ -334,7 +381,6 @@ impl StandardRedFlagValidator {
                     severity: 0.9,
                 });
             }
-        }
 
         None
     }
@@ -434,11 +480,21 @@ pub enum OutputFormat {
     /// Must parse as valid JSON with specific structure
     JsonWithFields(Vec<String>),
     /// Must contain specific markers
-    Markers { start: String, end: String },
+    Markers {
+        /// Required start marker.
+        start: String,
+        /// Required end marker.
+        end: String,
+    },
     /// Must be one of specific values
     OneOf(Vec<String>),
     /// Custom validator function (stored as description)
-    Custom { description: String, validator_id: String },
+    Custom {
+        /// Human-readable description of the custom validator.
+        description: String,
+        /// Identifier for the custom validator function.
+        validator_id: String,
+    },
 }
 
 impl OutputFormat {
@@ -454,11 +510,10 @@ impl OutputFormat {
             }
             OutputFormat::Json => serde_json::from_str::<serde_json::Value>(trimmed).is_ok(),
             OutputFormat::JsonWithFields(fields) => {
-                if let Ok(value) = serde_json::from_str::<serde_json::Value>(trimmed) {
-                    if let Some(obj) = value.as_object() {
+                if let Ok(value) = serde_json::from_str::<serde_json::Value>(trimmed)
+                    && let Some(obj) = value.as_object() {
                         return fields.iter().all(|f| obj.contains_key(f));
                     }
-                }
                 false
             }
             OutputFormat::Markers { start, end } => {
@@ -504,13 +559,15 @@ pub struct CompositeValidator {
 }
 
 impl CompositeValidator {
+    /// Create a new empty composite validator.
     pub fn new() -> Self {
         Self {
             validators: Vec::new(),
         }
     }
 
-    pub fn add(mut self, validator: Box<dyn RedFlagValidator>) -> Self {
+    /// Add a validator to this composite.
+    pub fn with_validator(mut self, validator: Box<dyn RedFlagValidator>) -> Self {
         self.validators.push(validator);
         self
     }
@@ -707,7 +764,7 @@ mod tests {
     #[test]
     fn test_composite_validator() {
         let validator = CompositeValidator::new()
-            .add(Box::new(StandardRedFlagValidator::strict()));
+            .with_validator(Box::new(StandardRedFlagValidator::strict()));
 
         assert!(validator.validate("valid", &make_metadata(10)).is_valid());
         assert!(validator.validate("", &make_metadata(0)).is_flagged());

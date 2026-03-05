@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+/// Walks a directory tree to discover indexable files.
 pub struct FileWalker {
     pub(crate) root: PathBuf,
     pub(crate) project: Option<String>,
@@ -22,6 +23,7 @@ pub struct FileWalker {
 }
 
 impl FileWalker {
+    /// Create a new file walker rooted at the given path.
     pub fn new(root: impl AsRef<Path>, max_file_size: usize) -> Self {
         Self {
             root: root.as_ref().to_path_buf(),
@@ -47,11 +49,13 @@ impl FileWalker {
             .is_some_and(|flag| flag.load(Ordering::Relaxed))
     }
 
+    /// Set the project name for indexed files.
     pub fn with_project(mut self, project: Option<String>) -> Self {
         self.project = project;
         self
     }
 
+    /// Set include and exclude glob patterns for file filtering.
     pub fn with_patterns(
         mut self,
         include_patterns: Vec<String>,

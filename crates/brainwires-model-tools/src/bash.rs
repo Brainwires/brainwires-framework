@@ -416,7 +416,7 @@ impl BashTool {
         use std::io::Write;
         use std::process::Stdio;
 
-        let effective_command = if command.starts_with("sudo ") { &command[5..] } else { command };
+        let effective_command = command.strip_prefix("sudo ").unwrap_or(command);
         let sudo_command = format!("sudo -S bash -o pipefail -c {}", shell_escape(effective_command));
 
         let mut child = Command::new("bash")

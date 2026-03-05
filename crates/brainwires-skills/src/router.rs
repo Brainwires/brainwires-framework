@@ -18,7 +18,9 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use super::metadata::{MatchSource, SkillMatch, SkillMetadata};
+use super::metadata::{SkillMatch, SkillMetadata};
+#[cfg(test)]
+use super::metadata::MatchSource;
 use super::registry::SkillRegistry;
 
 
@@ -180,6 +182,7 @@ impl SkillRouter {
 }
 
 /// Truncate description for prompt building
+#[cfg(test)]
 fn truncate_desc(desc: &str, max_len: usize) -> String {
     let first_line = desc.lines().next().unwrap_or(desc);
     if first_line.len() <= max_len {
