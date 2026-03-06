@@ -43,7 +43,7 @@ pub struct LoraLinearConfig {
 }
 
 impl LoraLinearConfig {
-    /// Initialize LoRA linear layer.
+    /// Initialize LoRA linear layer with random base weights.
     ///
     /// Base weights are initialized from a normal distribution (would be loaded from model).
     /// LoRA A is initialized with Kaiming uniform, B is initialized to zero
@@ -63,6 +63,38 @@ impl LoraLinearConfig {
             .with_bias(false);
         let mut lora_b = lora_b_config.init(device);
         // Zero-initialize B so the LoRA contribution starts at zero
+        lora_b.weight = lora_b.weight.map(|w| w.zeros_like());
+
+        LoraLinear {
+            base,
+            lora_a,
+            lora_b,
+            scaling: self.alpha / self.rank as f32,
+            active: true,
+        }
+    }
+
+    /// Initialize LoRA linear layer with pre-loaded base weights.
+    ///
+    /// Use this when loading real model weights from SafeTensors.
+    /// The base weight tensor should have shape `[in_features, out_features]`.
+    pub fn init_with_base_weights<B: Backend>(
+        &self,
+        base_weight: Tensor<B, 2>,
+        device: &B::Device,
+    ) -> LoraLinear<B> {
+        let base = nn::Linear {
+            weight: Param::from_tensor(base_weight),
+            bias: None,
+        };
+
+        let lora_a = nn::LinearConfig::new(self.in_features, self.rank)
+            .with_bias(false)
+            .init(device);
+
+        let lora_b_config = nn::LinearConfig::new(self.rank, self.out_features)
+            .with_bias(false);
+        let mut lora_b = lora_b_config.init(device);
         lora_b.weight = lora_b.weight.map(|w| w.zeros_like());
 
         LoraLinear {
@@ -266,7 +298,7 @@ pub struct DoraLinearConfig {
 }
 
 impl DoraLinearConfig {
-    /// Initialize a DoRA linear layer on the given device.
+    /// Initialize a DoRA linear layer with random base weights.
     pub fn init<B: Backend>(&self, device: &B::Device) -> DoraLinear<B> {
         let base = nn::LinearConfig::new(self.in_features, self.out_features)
             .with_bias(false)
@@ -282,11 +314,44 @@ impl DoraLinearConfig {
         lora_b.weight = lora_b.weight.map(|w| w.zeros_like());
 
         // Initialize magnitude from base weight column norms.
-        // Burn stores Linear weights as [in_features, out_features], so each column
-        // corresponds to one output neuron. Sum across dim 0 (input dim) for per-output norms.
         let base_w = base.weight.val();
         let col_norms = base_w.clone().powf_scalar(2.0).sum_dim(0).sqrt().squeeze::<1>();
         let magnitude = Param::from_tensor(col_norms);
+
+        DoraLinear {
+            base,
+            lora_a,
+            lora_b,
+            magnitude,
+            scaling: self.alpha / self.rank as f32,
+        }
+    }
+
+    /// Initialize a DoRA linear layer with pre-loaded base weights.
+    ///
+    /// Use this when loading real model weights from SafeTensors.
+    /// The base weight tensor should have shape `[in_features, out_features]`.
+    pub fn init_with_base_weights<B: Backend>(
+        &self,
+        base_weight: Tensor<B, 2>,
+        device: &B::Device,
+    ) -> DoraLinear<B> {
+        let col_norms = base_weight.clone().powf_scalar(2.0).sum_dim(0).sqrt().squeeze::<1>();
+        let magnitude = Param::from_tensor(col_norms);
+
+        let base = nn::Linear {
+            weight: Param::from_tensor(base_weight),
+            bias: None,
+        };
+
+        let lora_a = nn::LinearConfig::new(self.in_features, self.rank)
+            .with_bias(false)
+            .init(device);
+
+        let lora_b_config = nn::LinearConfig::new(self.rank, self.out_features)
+            .with_bias(false);
+        let mut lora_b = lora_b_config.init(device);
+        lora_b.weight = lora_b.weight.map(|w| w.zeros_like());
 
         DoraLinear {
             base,
@@ -347,6 +412,150 @@ impl<B: Backend> DoraLinear<B> {
         a_shape.dims[0] * a_shape.dims[1]
             + b_shape.dims[0] * b_shape.dims[1]
             + m_shape.dims[0]
+    }
+}
+
+/// QLoRA adapter module in Burn.
+///
+/// Like `LoraLinear`, but the base weight was loaded from a quantized source
+/// and dequantized at init time. The frozen base linear is identical in structure;
+/// memory savings come from the quantized *storage* format (SafeTensors + INT4/INT8).
+#[derive(Module, Debug)]
+pub struct QLoraLinear<B: Backend> {
+    /// Frozen base weight (dequantized from quantized storage).
+    base: nn::Linear<B>,
+    /// Down-projection: (in_features → rank).
+    lora_a: nn::Linear<B>,
+    /// Up-projection: (rank → out_features).
+    lora_b: nn::Linear<B>,
+    /// Scaling factor: alpha / rank.
+    #[module(skip)]
+    scaling: f32,
+    /// Whether the LoRA adapter is active.
+    #[module(skip)]
+    active: bool,
+}
+
+/// Configuration for creating a QLoRA linear layer.
+#[derive(Config, Debug)]
+pub struct QLoraLinearConfig {
+    /// Input dimension.
+    pub in_features: usize,
+    /// Output dimension.
+    pub out_features: usize,
+    /// LoRA rank (bottleneck dimension).
+    #[config(default = "16")]
+    pub rank: usize,
+    /// Alpha scaling factor.
+    #[config(default = "32.0")]
+    pub alpha: f32,
+    /// Quantization bits (4 or 8).
+    #[config(default = "4")]
+    pub bits: u8,
+}
+
+impl QLoraLinearConfig {
+    /// Initialize QLoRA with pre-dequantized base weights.
+    ///
+    /// The `base_weight_f32` slice contains weights that have already been
+    /// through the quantize → dequantize pipeline (i.e., they carry quantization
+    /// noise but are in f32 format for training).
+    pub fn init_quantized<B: Backend>(
+        &self,
+        base_weight_f32: &[f32],
+        device: &B::Device,
+    ) -> QLoraLinear<B> {
+        let weight_tensor = Tensor::<B, 1>::from_floats(
+            burn_core::tensor::TensorData::new(
+                base_weight_f32.to_vec(),
+                [base_weight_f32.len()],
+            ),
+            device,
+        )
+        .reshape([self.in_features, self.out_features]);
+
+        let base = nn::Linear {
+            weight: Param::from_tensor(weight_tensor),
+            bias: None,
+        };
+
+        let lora_a = nn::LinearConfig::new(self.in_features, self.rank)
+            .with_bias(false)
+            .init(device);
+
+        let lora_b_config = nn::LinearConfig::new(self.rank, self.out_features)
+            .with_bias(false);
+        let mut lora_b = lora_b_config.init(device);
+        lora_b.weight = lora_b.weight.map(|w| w.zeros_like());
+
+        QLoraLinear {
+            base,
+            lora_a,
+            lora_b,
+            scaling: self.alpha / self.rank as f32,
+            active: true,
+        }
+    }
+
+    /// Initialize QLoRA with random base weights (fallback when no model file).
+    pub fn init<B: Backend>(&self, device: &B::Device) -> QLoraLinear<B> {
+        let base = nn::LinearConfig::new(self.in_features, self.out_features)
+            .with_bias(false)
+            .init(device);
+
+        let lora_a = nn::LinearConfig::new(self.in_features, self.rank)
+            .with_bias(false)
+            .init(device);
+
+        let lora_b_config = nn::LinearConfig::new(self.rank, self.out_features)
+            .with_bias(false);
+        let mut lora_b = lora_b_config.init(device);
+        lora_b.weight = lora_b.weight.map(|w| w.zeros_like());
+
+        QLoraLinear {
+            base,
+            lora_a,
+            lora_b,
+            scaling: self.alpha / self.rank as f32,
+            active: true,
+        }
+    }
+}
+
+impl<B: Backend> QLoraLinear<B> {
+    /// Forward pass: base + LoRA adapter (identical to LoRA).
+    pub fn forward(&self, input: Tensor<B, 2>) -> Tensor<B, 2> {
+        let base_out = self.base.forward(input.clone());
+
+        if !self.active {
+            return base_out;
+        }
+
+        let lora_out = self.lora_b.forward(self.lora_a.forward(input));
+        let lora_scaled = lora_out.mul_scalar(self.scaling);
+        base_out + lora_scaled
+    }
+
+    /// Get LoRA A weight data for serialization.
+    pub fn lora_a_weight(&self) -> Tensor<B, 2> {
+        self.lora_a.weight.val()
+    }
+
+    /// Get LoRA B weight data for serialization.
+    pub fn lora_b_weight(&self) -> Tensor<B, 2> {
+        self.lora_b.weight.val()
+    }
+
+    /// Number of trainable parameters (A + B only, base is frozen).
+    pub fn trainable_param_count(&self) -> usize {
+        let a_shape = self.lora_a.weight.val().shape();
+        let b_shape = self.lora_b.weight.val().shape();
+        a_shape.dims[0] * a_shape.dims[1] + b_shape.dims[0] * b_shape.dims[1]
+    }
+
+    /// Set whether the LoRA adapter is active.
+    pub fn set_active(&mut self, active: bool) {
+        self.active = active;
     }
 }
 
@@ -687,5 +896,87 @@ mod tests {
         );
         let output = block.forward(input);
         assert_eq!(output.dims(), [8, 64], "Transformer block should preserve shape");
+    }
+
+    #[test]
+    fn test_lora_init_with_base_weights() {
+        let device = Default::default();
+        let config = LoraLinearConfig::new(32, 64).with_rank(8);
+
+        // Create known base weight
+        let base_weight = Tensor::<TestBackend, 2>::random(
+            [32, 64],
+            burn_core::tensor::Distribution::Normal(0.0, 0.1),
+            &device,
+        );
+
+        let layer = config.init_with_base_weights::<TestBackend>(base_weight.clone(), &device);
+        let input = Tensor::<TestBackend, 2>::random(
+            [4, 32],
+            burn_core::tensor::Distribution::Normal(0.0, 1.0),
+            &device,
+        );
+        let output = layer.forward(input.clone());
+        assert_eq!(output.dims(), [4, 64]);
+
+        // With zero-init B, output should match base @ input
+        let expected = input.matmul(base_weight);
+        let diff = (output - expected).abs().sum().into_scalar();
+        assert!(diff < 1e-4, "LoRA with base weights should match base output initially, diff={}", diff);
+    }
+
+    #[test]
+    fn test_dora_init_with_base_weights() {
+        let device = Default::default();
+        let config = DoraLinearConfig::new(32, 64).with_rank(8);
+
+        let base_weight = Tensor::<TestBackend, 2>::random(
+            [32, 64],
+            burn_core::tensor::Distribution::Normal(0.0, 0.1),
+            &device,
+        );
+
+        let layer = config.init_with_base_weights::<TestBackend>(base_weight, &device);
+        let input = Tensor::<TestBackend, 2>::random(
+            [4, 32],
+            burn_core::tensor::Distribution::Normal(0.0, 1.0),
+            &device,
+        );
+        let output = layer.forward(input);
+        assert_eq!(output.dims(), [4, 64]);
+    }
+
+    #[test]
+    fn test_qlora_forward() {
+        let device = Default::default();
+        let config = QLoraLinearConfig::new(64, 128).with_rank(8);
+        let layer = config.init::<TestBackend>(&device);
+
+        let input = Tensor::<TestBackend, 2>::random(
+            [4, 64],
+            burn_core::tensor::Distribution::Normal(0.0, 1.0),
+            &device,
+        );
+        let output = layer.forward(input);
+        assert_eq!(output.dims(), [4, 128]);
+    }
+
+    #[test]
+    fn test_qlora_init_quantized() {
+        let device = Default::default();
+        let config = QLoraLinearConfig::new(16, 32).with_rank(4).with_bits(4);
+
+        // Simulate dequantized weights
+        let base_weights: Vec<f32> = (0..16 * 32).map(|i| (i as f32) * 0.001).collect();
+        let layer = config.init_quantized::<TestBackend>(&base_weights, &device);
+
+        let input = Tensor::<TestBackend, 2>::random(
+            [2, 16],
+            burn_core::tensor::Distribution::Normal(0.0, 1.0),
+            &device,
+        );
+        let output = layer.forward(input);
+        assert_eq!(output.dims(), [2, 32]);
+        assert_eq!(layer.trainable_param_count(), 4 * 16 + 32 * 4);
     }
 }

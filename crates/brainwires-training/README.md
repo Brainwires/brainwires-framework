@@ -6,6 +6,8 @@
 
 Model training and fine-tuning for the Brainwires Agent Framework — cloud fine-tuning and local LoRA/QLoRA/DoRA training.
 
+> **Powered by [Burn](https://burn.dev/)** — Local training in this crate is built on the [Burn deep learning framework](https://github.com/tracel-ai/burn), a comprehensive deep learning framework written in Rust. Burn provides the GPU-accelerated tensor operations, automatic differentiation, and neural network modules that make local LoRA/QLoRA/DoRA adapter training possible. We are grateful to the Burn team and contributors for their excellent work on the Rust ML ecosystem.
+
 ## Overview
 
 `brainwires-training` provides a unified `TrainingManager` that dispatches fine-tuning jobs to either cloud providers (OpenAI, Together, Fireworks, Anyscale, AWS Bedrock, Google Vertex AI) or a local Burn-based training backend supporting LoRA, QLoRA, and DoRA adapter methods with DPO/ORPO alignment losses.

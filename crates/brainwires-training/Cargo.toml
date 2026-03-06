@@ -38,6 +38,8 @@ burn-optim = { workspace = true, optional = true }
 burn-autodiff = { workspace = true, optional = true }
 burn-wgpu = { workspace = true, optional = true }
 burn-ndarray = { workspace = true, optional = true }
+tokenizers = { workspace = true, optional = true }
+safetensors = { workspace = true, optional = true }
 
 [features]
 default = ["cloud"]
@@ -46,6 +48,7 @@ local = [
     "dep:tokio",
     "dep:burn-core", "dep:burn-nn", "dep:burn-optim",
     "dep:burn-autodiff", "dep:burn-wgpu", "dep:burn-ndarray",
+    "dep:tokenizers", "dep:safetensors",
 ]
 full = ["cloud", "local"]
 

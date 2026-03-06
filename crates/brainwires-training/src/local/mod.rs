@@ -18,6 +18,8 @@ pub mod lr_schedule;
 pub mod quantization;
 /// Model export in various formats (GGUF, SafeTensors, adapter-only).
 pub mod export;
+/// SafeTensors model weight loading.
+pub mod weight_loader;
 
 use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
@@ -65,6 +67,9 @@ pub struct LocalTrainingConfig {
     pub dataset_path: PathBuf,
     /// Optional validation dataset.
     pub validation_path: Option<PathBuf>,
+    /// Optional path to a `tokenizer.json` file (BPE tokenizer).
+    /// When provided, uses the model's real tokenizer instead of byte-level fallback.
+    pub tokenizer_path: Option<PathBuf>,
     /// Output directory for checkpoints and final model.
     pub output_dir: PathBuf,
     /// Training hyperparameters.
@@ -88,6 +93,7 @@ impl LocalTrainingConfig {
             model_path: model_path.into(),
             dataset_path: dataset_path.into(),
             validation_path: None,
+            tokenizer_path: None,
             output_dir: output_dir.into(),
             hyperparams: TrainingHyperparams::default(),
             lora: LoraConfig::default(),
@@ -107,6 +113,12 @@ impl LocalTrainingConfig {
     /// Set the validation dataset path.
     pub fn with_validation(mut self, path: impl Into<PathBuf>) -> Self {
         self.validation_path = Some(path.into());
+        self
+    }
+
+    /// Set the tokenizer file path (a `tokenizer.json` BPE tokenizer).
+    pub fn with_tokenizer(mut self, path: impl Into<PathBuf>) -> Self {
+        self.tokenizer_path = Some(path.into());
         self
     }
 }
