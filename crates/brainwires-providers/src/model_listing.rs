@@ -170,6 +170,16 @@ pub fn create_model_lister(
                 base_url.map(|s| s.to_string()),
             )))
         }
+        ProviderType::OpenAiResponses => {
+            // Shares the same models endpoint as OpenAI Chat Completions
+            let key = api_key
+                .ok_or_else(|| anyhow::anyhow!("OpenAI Responses requires an API key"))?
+                .to_string();
+            Ok(Box::new(super::openai_chat::OpenAIModelLister::new(
+                key,
+                base_url.map(|s| s.to_string()),
+            )))
+        }
         ProviderType::Brainwires | ProviderType::Custom
         | ProviderType::Bedrock | ProviderType::VertexAI
         | ProviderType::ElevenLabs | ProviderType::Deepgram

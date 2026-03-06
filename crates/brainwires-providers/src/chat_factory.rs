@@ -74,12 +74,17 @@ impl ChatProviderFactory {
     fn create_openai_responses(config: &ProviderConfig) -> Result<Arc<dyn Provider>> {
         let api_key = config.api_key.clone()
             .ok_or_else(|| anyhow!("OpenAI Responses provider requires an API key"))?;
-        let client = Arc::new(super::openai_responses::ResponsesClient::new(api_key));
+        let mut client = super::openai_responses::ResponsesClient::new(api_key);
+        if let Some(ref base_url) = config.base_url {
+            client = client.with_base_url(base_url.clone());
+        }
+        let client = Arc::new(client);
         Ok(Arc::new(
             super::openai_responses::OpenAiResponsesProvider::new(
                 client,
                 config.model.clone(),
-            ),
+            )
+            .with_provider_name(config.provider.as_str()),
         ))
     }
 

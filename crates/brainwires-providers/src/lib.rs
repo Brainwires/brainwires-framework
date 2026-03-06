@@ -184,6 +184,8 @@ pub enum ProviderType {
     Cartesia,
     /// Murf AI.
     Murf,
+    /// OpenAI Responses API.
+    OpenAiResponses,
     /// Custom / user-defined provider.
     Custom,
 }
@@ -209,6 +211,7 @@ impl ProviderType {
             Self::Fish => "default",
             Self::Cartesia => "sonic-english",
             Self::Murf => "en-US-natalie",
+            Self::OpenAiResponses => "gpt-4o",
             Self::Custom => "claude-3-5-sonnet-20241022",
         }
     }
@@ -233,6 +236,7 @@ impl ProviderType {
             "fish" => Some(Self::Fish),
             "cartesia" => Some(Self::Cartesia),
             "murf" => Some(Self::Murf),
+            "openai-responses" | "openai_responses" => Some(Self::OpenAiResponses),
             "custom" => Some(Self::Custom),
             _ => None,
         }
@@ -258,6 +262,7 @@ impl ProviderType {
             Self::Fish => "fish",
             Self::Cartesia => "cartesia",
             Self::Murf => "murf",
+            Self::OpenAiResponses => "openai-responses",
             Self::Custom => "custom",
         }
     }

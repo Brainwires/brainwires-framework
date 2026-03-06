@@ -156,6 +156,15 @@ pub static PROVIDER_REGISTRY: &[ProviderEntry] = &[
         models_url: Some("http://localhost:11434/api/tags"),
     },
     ProviderEntry {
+        provider_type: ProviderType::OpenAiResponses,
+        chat_protocol: ChatProtocol::OpenAiResponses,
+        default_base_url: "https://api.openai.com/v1/responses",
+        default_model: "gpt-4o",
+        auth: AuthScheme::BearerToken,
+        supports_model_listing: true,
+        models_url: Some("https://api.openai.com/v1/models"),
+    },
+    ProviderEntry {
         provider_type: ProviderType::Brainwires,
         chat_protocol: ChatProtocol::BrainwiresRelay,
         default_base_url: "https://brainwires.studio",
@@ -187,6 +196,7 @@ mod tests {
         assert!(lookup(ProviderType::VertexAI).is_some());
         assert!(lookup(ProviderType::Google).is_some());
         assert!(lookup(ProviderType::Ollama).is_some());
+        assert!(lookup(ProviderType::OpenAiResponses).is_some());
         assert!(lookup(ProviderType::Brainwires).is_some());
     }
 
