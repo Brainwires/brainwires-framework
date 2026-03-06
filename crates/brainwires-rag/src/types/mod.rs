@@ -120,6 +120,10 @@ pub struct SearchResult {
     pub language: String,
     /// Optional project name for multi-project support
     pub project: Option<String>,
+    /// Timestamp when the chunk was indexed (Unix epoch seconds).
+    /// For git commits this equals the commit date.
+    #[serde(default)]
+    pub indexed_at: i64,
 }
 
 /// Response from query operation

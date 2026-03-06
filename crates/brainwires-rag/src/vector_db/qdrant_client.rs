@@ -425,6 +425,11 @@ impl VectorDatabase for QdrantVectorDB {
                 }
             }
 
+            let indexed_at = payload
+                .get("indexed_at")
+                .and_then(|v| v.as_integer())
+                .unwrap_or(0);
+
             results.push(SearchResult {
                 file_path,
                 root_path: result_root_path,
@@ -436,6 +441,7 @@ impl VectorDatabase for QdrantVectorDB {
                 end_line,
                 language,
                 project,
+                indexed_at,
             });
         }
 

@@ -339,12 +339,13 @@ pub async fn do_index(
         .collect();
 
     let mut cache = client.hash_cache.write().await;
-    cache.update_root(path, file_hashes);
+    cache.update_root(path.clone(), file_hashes);
 
     // Persist to disk
     if let Err(e) = cache.save(&client.cache_path) {
         tracing::warn!("Failed to save hash cache: {}", e);
     }
+    drop(cache);
 
     // Send progress before flush
     if let (Some(peer), Some(token)) = (&peer, &progress_token) {
@@ -364,6 +365,17 @@ pub async fn do_index(
         .flush()
         .await
         .map_err(|e| anyhow::anyhow!("Failed to flush index to disk: {}", e))?;
+
+    // Clear dirty flag early — embeddings + cache are persisted, so the index
+    // is consistent even if the process is killed after this point.
+    {
+        let mut cache = client.hash_cache.write().await;
+        cache.clear_dirty(&path);
+        if let Err(e) = cache.save(&client.cache_path) {
+            tracing::warn!("Failed to clear dirty flag after full index: {}", e);
+        }
+        tracing::debug!("Cleared dirty flag early (full index) for: {}", path);
+    }
 
     // Send final completion progress
     if let (Some(peer), Some(token)) = (&peer, &progress_token) {
@@ -631,7 +643,7 @@ pub async fn do_incremental_update(
 
     // Update persistent cache
     let mut cache = client.hash_cache.write().await;
-    cache.update_root(path, new_hashes);
+    cache.update_root(path.clone(), new_hashes);
 
     // Persist to disk
     if let Err(e) = cache.save(&client.cache_path) {
@@ -657,6 +669,17 @@ pub async fn do_incremental_update(
         .flush()
         .await
         .context("Failed to flush index to disk")?;
+
+    // Clear dirty flag early — embeddings + cache are persisted, so the index
+    // is consistent even if the process is killed after this point.
+    {
+        let mut cache = client.hash_cache.write().await;
+        cache.clear_dirty(&path);
+        if let Err(e) = cache.save(&client.cache_path) {
+            tracing::warn!("Failed to clear dirty flag after incremental update: {}", e);
+        }
+        tracing::debug!("Cleared dirty flag early (incremental) for: {}", path);
+    }
 
     // Send final completion progress
     if let (Some(peer), Some(token)) = (&peer, &progress_token) {

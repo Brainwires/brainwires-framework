@@ -5,6 +5,19 @@ All notable changes to the Brainwires Framework will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+#### RAG (`brainwires-rag`)
+- Git search results now return the actual commit date instead of hardcoded `0`. The `commit_date` field in `GitSearchResult` is now populated from the `indexed_at` metadata stored in the vector database during indexing.
+- Dirty flag is now cleared immediately after embeddings + cache are flushed to disk in both full and incremental indexing paths. Previously, the dirty flag was only cleared in the outer `do_index_smart` wrapper, so an unclean exit after successful indexing could leave the flag stuck, causing unnecessary full reindexes on next startup.
+
+### Added
+
+#### RAG (`brainwires-rag`)
+- `indexed_at` field on `SearchResult` — exposes the chunk indexing timestamp (Unix epoch seconds) from the vector database. Defaults to `0` for backwards compatibility.
+
 ## [0.1.0] - 2025-03-06
 
 ### Added

@@ -387,6 +387,11 @@ async fn test_search_git_history_response_structure() {
     for result in &response.results {
         assert!(!result.commit_hash.is_empty(), "Hash should not be empty");
         assert!(result.score >= 0.0, "Score should be non-negative");
+        assert!(
+            result.commit_date > 0,
+            "Commit date should be a positive Unix timestamp, got {}",
+            result.commit_date
+        );
     }
 }
 
@@ -456,4 +461,51 @@ async fn test_search_git_history_limit_respected() {
         response.results.len() <= 3,
         "Results should respect limit parameter"
     );
+}
+
+#[tokio::test]
+async fn test_search_git_history_commit_date_populated() {
+    // Verify commit_date is extracted from vector DB metadata (not hardcoded to 0)
+    let (client, temp_dir) = create_test_client().await;
+    let cache_path = temp_dir.path().join("git_cache.json");
+
+    let req = SearchGitHistoryRequest {
+        query: "commit".to_string(),
+        path: ".".to_string(),
+        project: None,
+        branch: None,
+        since: None,
+        until: None,
+        author: None,
+        file_pattern: None,
+        max_commits: 5,
+        limit: 5,
+        min_score: 0.0,
+    };
+
+    let response = do_search_git_history(
+        client.embedding_provider.clone(),
+        client.vector_db.clone(),
+        client.git_cache.clone(),
+        &cache_path,
+        req,
+    )
+    .await
+    .unwrap();
+
+    // Every returned result must have a real commit date (positive Unix timestamp)
+    for result in &response.results {
+        assert!(
+            result.commit_date > 0,
+            "commit_date should be populated from indexed_at metadata, got 0 for commit {}",
+            result.commit_hash
+        );
+        // Sanity: commit dates should be after 2020-01-01 (1577836800)
+        assert!(
+            result.commit_date > 1_577_836_800,
+            "commit_date {} looks implausibly old for commit {}",
+            result.commit_date,
+            result.commit_hash
+        );
+    }
 }

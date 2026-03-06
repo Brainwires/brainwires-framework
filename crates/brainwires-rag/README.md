@@ -292,6 +292,7 @@ Uses `HybridRelationsProvider` which falls back to `RepoMapProvider` (AST-based 
 | `end_line` | `usize` | Ending line number |
 | `language` | `String` | Detected programming language |
 | `project` | `Option<String>` | Project name |
+| `indexed_at` | `i64` | Timestamp when chunk was indexed (Unix epoch seconds, default `0`) |
 
 ### SearchGitHistoryRequest
 

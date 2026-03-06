@@ -513,6 +513,9 @@ impl VectorDatabase for LanceVectorDB {
                         let project_array = batch
                             .column_by_name("project")
                             .and_then(|c| c.as_any().downcast_ref::<StringArray>());
+                        let indexed_at_array = batch
+                            .column_by_name("indexed_at")
+                            .and_then(|c| c.as_any().downcast_ref::<StringArray>());
 
                         if let (
                             Some(fp),
@@ -572,6 +575,9 @@ impl VectorDatabase for LanceVectorDB {
                                     } else {
                                         Some(proj.value(idx).to_string())
                                     },
+                                    indexed_at: indexed_at_array
+                                        .and_then(|ia| ia.value(idx).parse::<i64>().ok())
+                                        .unwrap_or(0),
                                 });
                             }
                             found = true;
@@ -668,6 +674,10 @@ impl VectorDatabase for LanceVectorDB {
                     .downcast_ref::<Float32Array>()
                     .context("Invalid _distance type")?;
 
+                let indexed_at_array = batch
+                    .column_by_name("indexed_at")
+                    .and_then(|c| c.as_any().downcast_ref::<StringArray>());
+
                 for i in 0..batch.num_rows() {
                     let distance = distance_array.value(i);
                     let score = 1.0 / (1.0 + distance);
@@ -700,6 +710,9 @@ impl VectorDatabase for LanceVectorDB {
                             } else {
                                 Some(project_array.value(i).to_string())
                             },
+                            indexed_at: indexed_at_array
+                                .and_then(|ia| ia.value(i).parse::<i64>().ok())
+                                .unwrap_or(0),
                         });
                     }
                 }

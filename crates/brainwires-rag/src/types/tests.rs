@@ -101,12 +101,54 @@ fn test_search_result_creation() {
         end_line: 10,
         language: "Rust".to_string(),
         project: None,
+        indexed_at: 0,
     };
 
     assert_eq!(result.score, 0.95);
     assert_eq!(result.vector_score, 0.92);
     assert_eq!(result.keyword_score, Some(0.85));
     assert_eq!(result.language, "Rust");
+    assert_eq!(result.indexed_at, 0);
+}
+
+#[test]
+fn test_search_result_indexed_at_serialization() {
+    let result = SearchResult {
+        file_path: "git:///repo/abc123".to_string(),
+        root_path: None,
+        content: "Commit Message:\nFix bug".to_string(),
+        score: 0.9,
+        vector_score: 0.85,
+        keyword_score: None,
+        start_line: 0,
+        end_line: 0,
+        language: "git-commit".to_string(),
+        project: None,
+        indexed_at: 1704067200,
+    };
+
+    let json = serde_json::to_string(&result).unwrap();
+    assert!(json.contains("\"indexed_at\":1704067200"));
+
+    let deserialized: SearchResult = serde_json::from_str(&json).unwrap();
+    assert_eq!(deserialized.indexed_at, 1704067200);
+}
+
+#[test]
+fn test_search_result_indexed_at_defaults_to_zero() {
+    // Old JSON without indexed_at should deserialize with default 0
+    let json = r#"{
+        "file_path": "src/main.rs",
+        "content": "fn main() {}",
+        "score": 0.9,
+        "vector_score": 0.85,
+        "start_line": 1,
+        "end_line": 10,
+        "language": "Rust"
+    }"#;
+
+    let result: SearchResult = serde_json::from_str(json).unwrap();
+    assert_eq!(result.indexed_at, 0);
 }
 
 #[test]
@@ -580,6 +622,7 @@ fn test_query_response_serialization() {
             end_line: 10,
             language: "Rust".to_string(),
             project: None,
+            indexed_at: 0,
         }],
         duration_ms: 100,
         threshold_used: 0.7,
