@@ -688,12 +688,12 @@ impl LearningCoordinator {
         if let Some(core) = query_core {
             self.local.record_query(
                 &core.original,
-                &core.original, // TODO: Use resolved query
+                &core.original, // FUTURE(0.2): Pass resolved query once QueryCore tracks it
                 core.question_type.clone(),
                 Some(core.to_sexp()),
                 success,
                 result_count,
-                0, // TODO: Track actual execution time
+                0, // FUTURE(0.2): Instrument query execution timing
             );
 
             // If successful and we don't have a pattern, create one

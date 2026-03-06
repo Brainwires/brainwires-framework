@@ -8,8 +8,10 @@ license.workspace = true
 repository.workspace = true
 homepage.workspace = true
 description = "Sandboxed code execution for multiple languages (Rhai, Lua, JavaScript, Python)"
-keywords = ["interpreter", "sandbox", "wasm", "code-execution"]
-categories = ["development-tools", "wasm"]
+readme = "README.md"
+documentation = "https://docs.rs/brainwires-code-interpreters"
+keywords = ["code-execution", "sandbox", "javascript", "python", "interpreter"]
+categories = ["development-tools"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]

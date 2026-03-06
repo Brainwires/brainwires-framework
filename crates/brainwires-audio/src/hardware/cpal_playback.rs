@@ -67,14 +67,14 @@ impl AudioPlayback for CpalPlayback {
                     cpal_device.build_output_stream(
                         &stream_config,
                         move |output: &mut [i16], _: &cpal::OutputCallbackInfo| {
-                            let mut p = pos.lock().unwrap();
+                            let mut p = pos.lock().expect("audio playback position lock poisoned");
                             for sample in output.iter_mut() {
                                 if *p + 2 <= data.len() {
                                     *sample = i16::from_le_bytes([data[*p], data[*p + 1]]);
                                     *p += 2;
                                 } else {
                                     *sample = 0;
-                                    if let Some(tx) = done_tx.lock().unwrap().take() {
+                                    if let Some(tx) = done_tx.lock().expect("audio playback done signal lock poisoned").take() {
                                         let _ = tx.send(());
                                     }
                                 }
@@ -93,7 +93,7 @@ impl AudioPlayback for CpalPlayback {
                     cpal_device.build_output_stream(
                         &stream_config,
                         move |output: &mut [f32], _: &cpal::OutputCallbackInfo| {
-                            let mut p = pos.lock().unwrap();
+                            let mut p = pos.lock().expect("audio playback position lock poisoned");
                             for sample in output.iter_mut() {
                                 if *p + 4 <= data.len() {
                                     *sample = f32::from_le_bytes([
@@ -105,7 +105,7 @@ impl AudioPlayback for CpalPlayback {
                                     *p += 4;
                                 } else {
                                     *sample = 0.0;
-                                    if let Some(tx) = done_tx.lock().unwrap().take() {
+                                    if let Some(tx) = done_tx.lock().expect("audio playback done signal lock poisoned").take() {
                                         let _ = tx.send(());
                                     }
                                 }

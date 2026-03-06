@@ -3,7 +3,6 @@ use std::sync::Arc;
 use anyhow::Result;
 use async_trait::async_trait;
 use futures::stream::{BoxStream, StreamExt};
-use serde_json::json;
 
 use brainwires_core::{
     ChatOptions, ChatResponse, ContentBlock, ImageSource, Message, MessageContent, Provider, Role,
@@ -57,7 +56,7 @@ impl Provider for OpenAiChatProvider {
     ) -> Result<ChatResponse> {
         let openai_messages = convert_messages(messages);
         let openai_tools: Vec<OpenAITool> = tools
-            .map(|t| convert_tools(t))
+            .map(convert_tools)
             .unwrap_or_default();
         let tools_ref: Option<&[OpenAITool]> = if openai_tools.is_empty() {
             None
@@ -105,7 +104,7 @@ impl Provider for OpenAiChatProvider {
 
         let openai_messages = convert_messages(messages);
         let openai_tools: Vec<OpenAITool> = tools
-            .map(|t| convert_tools(t))
+            .map(convert_tools)
             .unwrap_or_default();
 
         let opts = chat_options_to_request_options(options);
@@ -177,7 +176,7 @@ pub fn convert_messages(messages: &[Message]) -> Vec<OpenAIMessage> {
                             _ => OpenAIContent::Array(
                                 blocks
                                     .iter()
-                                    .filter_map(|b| convert_content_block(b))
+                                    .filter_map(convert_content_block)
                                     .collect(),
                             ),
                         }
@@ -185,7 +184,7 @@ pub fn convert_messages(messages: &[Message]) -> Vec<OpenAIMessage> {
                         OpenAIContent::Array(
                             blocks
                                 .iter()
-                                .filter_map(|b| convert_content_block(b))
+                                .filter_map(convert_content_block)
                                 .collect(),
                         )
                     }
@@ -317,6 +316,7 @@ fn convert_stream_chunk(chunk: OpenAIStreamChunk) -> Vec<StreamChunk> {
 mod tests {
     use super::*;
     use brainwires_core::ToolInputSchema;
+    use serde_json::json;
     use std::collections::HashMap;
 
     #[test]

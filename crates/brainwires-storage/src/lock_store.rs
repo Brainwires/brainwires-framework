@@ -91,7 +91,7 @@ impl LockStore {
 
     /// Ensure the locks table exists
     fn ensure_table(&self) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("SQLite connection lock poisoned");
         conn.execute(
             "CREATE TABLE IF NOT EXISTS locks (
                 lock_id TEXT PRIMARY KEY,
@@ -131,7 +131,7 @@ impl LockStore {
         timeout: Option<Duration>,
     ) -> Result<bool> {
         let lock_id = Self::generate_lock_id(lock_type, resource_path);
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("SQLite connection lock poisoned");
 
         // Check if lock already exists
         let existing: Option<LockRecord> = conn
@@ -207,7 +207,7 @@ impl LockStore {
         agent_id: &str,
     ) -> Result<bool> {
         let lock_id = Self::generate_lock_id(lock_type, resource_path);
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("SQLite connection lock poisoned");
 
         // Delete only if owned by this agent in this process
         let deleted = conn.execute(
@@ -220,7 +220,7 @@ impl LockStore {
 
     /// Release all locks held by a specific agent in the current process
     pub async fn release_all_for_agent(&self, agent_id: &str) -> Result<usize> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("SQLite connection lock poisoned");
 
         let deleted = conn
             .execute(
@@ -239,7 +239,7 @@ impl LockStore {
         resource_path: &str,
     ) -> Result<Option<LockRecord>> {
         let lock_id = Self::generate_lock_id(lock_type, resource_path);
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("SQLite connection lock poisoned");
 
         conn.query_row(
             "SELECT lock_id, lock_type, resource_path, agent_id, process_id,
@@ -266,7 +266,7 @@ impl LockStore {
     /// Cleanup expired and stale locks
     pub async fn cleanup_stale(&self) -> Result<usize> {
         let now = Utc::now().timestamp_millis();
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("SQLite connection lock poisoned");
 
         // First, delete expired locks
         let expired_count = conn
@@ -319,7 +319,7 @@ impl LockStore {
 
     /// List all active locks
     pub async fn list_locks(&self) -> Result<Vec<LockRecord>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("SQLite connection lock poisoned");
 
         let mut stmt = conn
             .prepare(
@@ -351,7 +351,7 @@ impl LockStore {
 
     /// Force release a lock by ID (admin operation)
     pub async fn force_release(&self, lock_id: &str) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("SQLite connection lock poisoned");
         conn.execute("DELETE FROM locks WHERE lock_id = ?", [lock_id])
             .context("Failed to force release lock")?;
         Ok(())

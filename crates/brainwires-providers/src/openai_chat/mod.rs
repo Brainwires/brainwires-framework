@@ -48,6 +48,7 @@ pub struct OpenAiRequestOptions {
 /// concerns such as converting from `brainwires_core::Message` to callers.
 pub struct OpenAiClient {
     api_key: String,
+    #[allow(dead_code)] // stored as default; callers pass model per-request
     model: String,
     base_url: String,
     http_client: Client,

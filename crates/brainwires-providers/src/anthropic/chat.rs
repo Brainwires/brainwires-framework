@@ -193,7 +193,7 @@ impl Provider for AnthropicChatProvider {
             temperature: options.temperature,
             top_p: None,
             stop_sequences: None,
-            tools: tools.map(|t| Self::convert_tools(t)),
+            tools: tools.map(Self::convert_tools),
             stream: false,
         };
 
@@ -223,7 +223,7 @@ impl Provider for AnthropicChatProvider {
                 temperature: options.temperature,
                 top_p: None,
                 stop_sequences: None,
-                tools: tools.map(|t| Self::convert_tools(t)),
+                tools: tools.map(Self::convert_tools),
                 stream: true,
             };
 

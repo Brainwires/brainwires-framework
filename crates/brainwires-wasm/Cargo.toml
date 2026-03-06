@@ -6,7 +6,12 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 repository.workspace = true
+homepage.workspace = true
 authors.workspace = true
+readme = "README.md"
+documentation = "https://docs.rs/brainwires-wasm"
+keywords = ["wasm", "webassembly", "ai-agents", "browser", "llm"]
+categories = ["wasm"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]

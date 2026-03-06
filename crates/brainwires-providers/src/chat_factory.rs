@@ -10,7 +10,7 @@ use anyhow::{anyhow, Result};
 
 use brainwires_core::Provider;
 use super::registry::{self, ChatProtocol};
-use super::{ProviderConfig, ProviderType};
+use super::ProviderConfig;
 
 /// Pure chat provider factory — creates provider instances from config.
 ///
@@ -146,6 +146,7 @@ impl ChatProviderFactory {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ProviderType;
 
     #[test]
     fn test_create_ollama_no_key_required() {

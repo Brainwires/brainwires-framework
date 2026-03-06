@@ -126,7 +126,7 @@ impl PersonalKnowledgeCache {
 
     /// Load facts and state from database
     fn load_from_db(&mut self) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("personal knowledge cache connection lock poisoned");
 
         // Load last sync timestamp
         self.last_sync = conn
@@ -220,7 +220,7 @@ impl PersonalKnowledgeCache {
 
     /// Save a fact to the database
     fn save_fact_to_db(&self, fact: &PersonalFact) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("personal knowledge cache connection lock poisoned");
         let category = serde_json::to_string(&fact.category)?
             .trim_matches('"')
             .to_string();
@@ -259,7 +259,7 @@ impl PersonalKnowledgeCache {
     /// Update last sync timestamp
     pub fn set_last_sync(&mut self, timestamp: i64) -> Result<()> {
         self.last_sync = timestamp;
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("personal knowledge cache connection lock poisoned");
         conn.execute(
             "INSERT OR REPLACE INTO personal_sync_state (key, value) VALUES ('last_sync', ?1)",
             params![timestamp.to_string()],
@@ -439,7 +439,7 @@ impl PersonalKnowledgeCache {
         let submission = PendingFactSubmission::new(fact);
         let json = serde_json::to_string(&submission.fact)?;
 
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("personal knowledge cache connection lock poisoned");
         conn.execute(
             "INSERT INTO pending_fact_submissions (fact_json, queued_at, attempts) VALUES (?1, ?2, ?3)",
             params![json, submission.queued_at, submission.attempts],
@@ -457,7 +457,7 @@ impl PersonalKnowledgeCache {
     /// Clear all pending submissions (after successful sync)
     pub fn clear_pending_submissions(&mut self) -> Result<()> {
         self.pending_submissions.clear();
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("personal knowledge cache connection lock poisoned");
         conn.execute("DELETE FROM pending_fact_submissions", [])?;
         Ok(())
     }
@@ -474,7 +474,7 @@ impl PersonalKnowledgeCache {
             return Ok(false);
         }
 
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("personal knowledge cache connection lock poisoned");
         conn.execute(
             "INSERT INTO pending_fact_feedback (fact_id, is_reinforcement, context, timestamp)
              VALUES (?1, ?2, ?3, ?4)",
@@ -498,7 +498,7 @@ impl PersonalKnowledgeCache {
     /// Clear all pending feedback (after successful sync)
     pub fn clear_pending_feedback(&mut self) -> Result<()> {
         self.pending_feedback.clear();
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("personal knowledge cache connection lock poisoned");
         conn.execute("DELETE FROM pending_fact_feedback", [])?;
         Ok(())
     }

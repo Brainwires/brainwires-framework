@@ -88,12 +88,6 @@ impl<P: MicroagentProvider + 'static> BinaryRecursiveDecomposer<P> {
     }
 
     /// Build the system prompt for decomposition
-    #[allow(dead_code)]
-    fn build_decomposition_prompt(&self, context: &DecomposeContext) -> String {
-        Self::build_decomposition_prompt_static(context, self.max_depth)
-    }
-
-    /// Build the system prompt for decomposition (static version)
     fn build_decomposition_prompt_static(context: &DecomposeContext, max_depth: u32) -> String {
         let tools_str = if context.available_tools.is_empty() {
             "No specific tools available".to_string()

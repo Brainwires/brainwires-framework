@@ -70,18 +70,6 @@ fn references_schema() -> Arc<Schema> {
     ]))
 }
 
-/// Arrow schema for the call_edges table
-#[allow(dead_code)]
-fn call_edges_schema() -> Arc<Schema> {
-    Arc::new(Schema::new(vec![
-        Field::new("caller_id", DataType::Utf8, false),
-        Field::new("callee_id", DataType::Utf8, false),
-        Field::new("call_site_file", DataType::Utf8, false),
-        Field::new("call_site_line", DataType::UInt32, false),
-        Field::new("call_site_col", DataType::UInt32, false),
-    ]))
-}
-
 impl LanceRelationsStore {
     /// Create a new LanceDB relations store
     pub async fn new(db_path: PathBuf) -> Result<Self> {
@@ -151,28 +139,6 @@ impl LanceRelationsStore {
             .execute()
             .await
             .context("Failed to create references table")?;
-
-        Ok(())
-    }
-
-    /// Ensure call_edges table exists
-    #[allow(dead_code)]
-    async fn ensure_call_edges_table(&self) -> Result<()> {
-        let db = self.get_connection().await?;
-        let table_names = db.table_names().execute().await?;
-
-        if table_names.contains(&CALL_EDGES_TABLE.to_string()) {
-            return Ok(());
-        }
-
-        let schema = call_edges_schema();
-        let empty_batch = RecordBatch::new_empty(schema.clone());
-        let batches = RecordBatchIterator::new(vec![Ok(empty_batch)], schema);
-
-        db.create_table(CALL_EDGES_TABLE, Box::new(batches))
-            .execute()
-            .await
-            .context("Failed to create call_edges table")?;
 
         Ok(())
     }

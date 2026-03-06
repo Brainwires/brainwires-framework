@@ -16,7 +16,7 @@ use brainwires_core::{
 use brainwires_core::Provider;
 use super::{
     GeminiFunctionCall, GeminiFunctionDeclaration, GeminiFunctionResponse, GeminiGenerationConfig,
-    GeminiInlineData, GeminiMessage, GeminiPart, GeminiRequest, GeminiStreamChunk,
+    GeminiInlineData, GeminiMessage, GeminiPart, GeminiRequest,
     GeminiSystemInstruction, GeminiToolSet, GoogleClient,
 };
 
@@ -163,11 +163,10 @@ impl GoogleChatProvider {
     }
 
     fn convert_candidate_content(parts: Vec<GeminiPart>) -> MessageContent {
-        if parts.len() == 1 {
-            if let GeminiPart::Text { ref text } = parts[0] {
+        if parts.len() == 1
+            && let GeminiPart::Text { ref text } = parts[0] {
                 return MessageContent::Text(text.clone());
             }
-        }
 
         MessageContent::Blocks(
             parts

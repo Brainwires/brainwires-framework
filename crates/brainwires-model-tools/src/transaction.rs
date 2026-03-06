@@ -100,7 +100,7 @@ impl TransactionManager {
 
 impl StagingBackend for TransactionManager {
     fn stage(&self, write: StagedWrite) -> bool {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock().expect("transaction log lock poisoned");
 
         // Idempotent: same key staged twice is a no-op (first write wins)
         if inner.staged.contains_key(&write.key) {
@@ -140,7 +140,7 @@ impl StagingBackend for TransactionManager {
     }
 
     fn commit(&self) -> Result<CommitResult> {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock().expect("transaction log lock poisoned");
         let mut committed = 0;
         let mut paths = Vec::new();
 
@@ -173,7 +173,7 @@ impl StagingBackend for TransactionManager {
     }
 
     fn rollback(&self) {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock().expect("transaction log lock poisoned");
         for entry in inner.staged.values() {
             let _ = fs::remove_file(&entry.staged_path);
         }
@@ -182,7 +182,7 @@ impl StagingBackend for TransactionManager {
     }
 
     fn pending_count(&self) -> usize {
-        self.inner.lock().unwrap().staged.len()
+        self.inner.lock().expect("transaction log lock poisoned").staged.len()
     }
 }
 
@@ -192,7 +192,7 @@ impl Drop for TransactionManager {
         if Arc::strong_count(&self.inner) == 1 {
             self.rollback();
             // Best-effort: remove the (now-empty) staging directory
-            let inner = self.inner.lock().unwrap();
+            let inner = self.inner.lock().expect("transaction log lock poisoned");
             let _ = fs::remove_dir(&inner.staging_dir);
         }
     }

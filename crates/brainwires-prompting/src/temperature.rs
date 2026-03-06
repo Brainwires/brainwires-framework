@@ -91,12 +91,6 @@ impl TemperatureOptimizer {
         (temp * 10.0).round() as i32
     }
 
-    /// Convert temperature i32 key back to f32
-    #[allow(dead_code)]
-    fn key_to_temp(key: i32) -> f32 {
-        key as f32 / 10.0
-    }
-
     /// Set BKS cache for querying shared temperature knowledge
     pub fn with_bks(mut self, bks_cache: Arc<Mutex<BehavioralKnowledgeCache>>) -> Self {
         self.bks_cache = Some(bks_cache);

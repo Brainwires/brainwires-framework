@@ -81,7 +81,7 @@ impl OllamaProvider {
                 OllamaMessage {
                     role: role.to_string(),
                     content,
-                    images: None, // TODO: Add image support later
+                    images: None, // FUTURE(0.2): Add image support for multimodal Ollama models
                 }
             })
             .collect()
@@ -99,7 +99,7 @@ impl OllamaProvider {
                     parameters: OllamaFunctionParameters {
                         r#type: "object".to_string(),
                         properties: t.input_schema.properties.clone().unwrap_or_default(),
-                        required: vec![], // TODO: Extract required fields from schema
+                        required: t.input_schema.required.clone().unwrap_or_default(),
                     },
                 },
             })

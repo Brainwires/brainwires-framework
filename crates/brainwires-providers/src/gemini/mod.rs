@@ -386,6 +386,7 @@ use crate::model_listing::{AvailableModel, ModelCapability, ModelLister};
 /// Lists models available from the Google Gemini API.
 pub struct GoogleModelLister {
     api_key: String,
+    #[allow(dead_code)] // reserved for direct HTTP calls in future
     http_client: Client,
 }
 

@@ -142,7 +142,7 @@ impl ProxyLayer for AdapterLayer {
                 original_model,
                 mapper: converted.mapper,
             };
-            self.pending.lock().unwrap().insert(request.id.clone(), meta);
+            self.pending.lock().expect("adapter pending requests lock poisoned").insert(request.id.clone(), meta);
         }
 
         // Rewrite the request
@@ -171,7 +171,7 @@ impl ProxyLayer for AdapterLayer {
 
     async fn on_response(&self, mut response: ProxyResponse) -> ProxyResult<ProxyResponse> {
         // Look up the per-request metadata
-        let meta = self.pending.lock().unwrap().remove(&response.id);
+        let meta = self.pending.lock().expect("adapter pending requests lock poisoned").remove(&response.id);
         let Some(meta) = meta else {
             // No metadata → this wasn't our request (e.g. health check). Pass through.
             return Ok(response);

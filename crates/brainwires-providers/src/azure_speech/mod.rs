@@ -64,7 +64,7 @@ impl AzureSpeechClient {
 
         let response = self
             .http_client
-            .post(&self.tts_endpoint())
+            .post(self.tts_endpoint())
             .header("Ocp-Apim-Subscription-Key", &self.subscription_key)
             .header("Content-Type", "application/ssml+xml")
             .header("X-Microsoft-OutputFormat", output_format)
@@ -142,7 +142,7 @@ impl AzureSpeechClient {
 
         let response = self
             .http_client
-            .get(&self.voices_endpoint())
+            .get(self.voices_endpoint())
             .header("Ocp-Apim-Subscription-Key", &self.subscription_key)
             .send()
             .await

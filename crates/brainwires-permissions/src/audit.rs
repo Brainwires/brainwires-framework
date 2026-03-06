@@ -419,7 +419,7 @@ impl AuditLogger {
             self.write_event(&event)?;
         } else {
             // Add to buffer for normal events
-            let mut buffer = self.buffer.lock().unwrap();
+            let mut buffer = self.buffer.lock().expect("audit log buffer lock poisoned");
             buffer.push(event);
 
             // Flush if buffer is full
@@ -603,7 +603,7 @@ impl AuditLogger {
 
     /// Flush the buffer to disk
     pub fn flush(&self) -> Result<()> {
-        let mut buffer = self.buffer.lock().unwrap();
+        let mut buffer = self.buffer.lock().expect("audit log buffer lock poisoned");
         self.flush_buffer_internal(&mut buffer)
     }
 
@@ -643,7 +643,7 @@ impl AuditLogger {
 
         // First check buffer
         {
-            let buffer = self.buffer.lock().unwrap();
+            let buffer = self.buffer.lock().expect("audit log buffer lock poisoned");
             for event in buffer.iter() {
                 if query.matches(event) {
                     results.push(event.clone());

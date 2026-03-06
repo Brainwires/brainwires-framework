@@ -31,3 +31,72 @@ pub enum MeshError {
     #[error("internal error: {0}")]
     Internal(String),
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn node_not_found_display() {
+        let err = MeshError::NodeNotFound("abc-123".into());
+        assert_eq!(err.to_string(), "node not found: abc-123");
+    }
+
+    #[test]
+    fn routing_failed_display() {
+        let err = MeshError::RoutingFailed("no path".into());
+        assert_eq!(err.to_string(), "routing failed: no path");
+    }
+
+    #[test]
+    fn discovery_failed_display() {
+        let err = MeshError::DiscoveryFailed("timeout".into());
+        assert_eq!(err.to_string(), "discovery failed: timeout");
+    }
+
+    #[test]
+    fn federation_denied_display() {
+        let err = MeshError::FederationDenied("policy violation".into());
+        assert_eq!(err.to_string(), "federation denied: policy violation");
+    }
+
+    #[test]
+    fn topology_error_display() {
+        let err = MeshError::TopologyError("cycle detected".into());
+        assert_eq!(err.to_string(), "topology error: cycle detected");
+    }
+
+    #[test]
+    fn transport_error_display() {
+        let err = MeshError::Transport("connection refused".into());
+        assert_eq!(err.to_string(), "transport error: connection refused");
+    }
+
+    #[test]
+    fn internal_error_display() {
+        let err = MeshError::Internal("unexpected state".into());
+        assert_eq!(err.to_string(), "internal error: unexpected state");
+    }
+
+    #[test]
+    fn error_is_std_error() {
+        let err = MeshError::Internal("test".into());
+        // Verify it implements std::error::Error via trait object coercion
+        let _: &dyn std::error::Error = &err;
+    }
+
+    #[test]
+    fn error_debug_format() {
+        let err = MeshError::NodeNotFound("xyz".into());
+        let debug = format!("{:?}", err);
+        assert!(debug.contains("NodeNotFound"));
+        assert!(debug.contains("xyz"));
+    }
+
+    #[test]
+    fn error_clone() {
+        let err = MeshError::RoutingFailed("no route".into());
+        let cloned = err.clone();
+        assert_eq!(err.to_string(), cloned.to_string());
+    }
+}

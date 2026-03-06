@@ -120,7 +120,7 @@ impl BehavioralKnowledgeCache {
 
     /// Load truths and state from database
     fn load_from_db(&mut self) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("knowledge cache connection lock poisoned");
 
         // Load last sync timestamp
         self.last_sync = conn
@@ -212,7 +212,7 @@ impl BehavioralKnowledgeCache {
 
     /// Save a truth to the database
     fn save_truth_to_db(&self, truth: &BehavioralTruth) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("knowledge cache connection lock poisoned");
         let category = serde_json::to_string(&truth.category)?
             .trim_matches('"')
             .to_string();
@@ -250,7 +250,7 @@ impl BehavioralKnowledgeCache {
     /// Update last sync timestamp
     pub fn set_last_sync(&mut self, timestamp: i64) -> Result<()> {
         self.last_sync = timestamp;
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("knowledge cache connection lock poisoned");
         conn.execute(
             "INSERT OR REPLACE INTO sync_state (key, value) VALUES ('last_sync', ?1)",
             params![timestamp.to_string()],
@@ -386,7 +386,7 @@ impl BehavioralKnowledgeCache {
         let submission = PendingTruthSubmission::new(truth);
         let json = serde_json::to_string(&submission.truth)?;
 
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("knowledge cache connection lock poisoned");
         conn.execute(
             "INSERT INTO pending_submissions (truth_json, queued_at, attempts) VALUES (?1, ?2, ?3)",
             params![json, submission.queued_at, submission.attempts],
@@ -404,7 +404,7 @@ impl BehavioralKnowledgeCache {
     /// Clear all pending submissions (after successful sync)
     pub fn clear_pending_submissions(&mut self) -> Result<()> {
         self.pending_submissions.clear();
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("knowledge cache connection lock poisoned");
         conn.execute("DELETE FROM pending_submissions", [])?;
         Ok(())
     }
@@ -415,7 +415,7 @@ impl BehavioralKnowledgeCache {
             return Ok(false);
         }
 
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("knowledge cache connection lock poisoned");
         conn.execute(
             "INSERT INTO pending_feedback (truth_id, is_reinforcement, context, timestamp)
              VALUES (?1, ?2, ?3, ?4)",
@@ -439,7 +439,7 @@ impl BehavioralKnowledgeCache {
     /// Clear all pending feedback (after successful sync)
     pub fn clear_pending_feedback(&mut self) -> Result<()> {
         self.pending_feedback.clear();
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("knowledge cache connection lock poisoned");
         conn.execute("DELETE FROM pending_feedback", [])?;
         Ok(())
     }

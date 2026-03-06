@@ -603,14 +603,6 @@ struct OperationTrackerInner {
     operations: Arc<RwLock<HashMap<String, ActiveOperation>>>,
 }
 
-impl OperationTrackerInner {
-    #[allow(dead_code)]
-    async fn remove_operation(&self, operation_id: &str) {
-        let mut ops = self.operations.write().await;
-        ops.remove(operation_id);
-    }
-}
-
 impl Default for OperationTracker {
     fn default() -> Self {
         let (event_sender, _) = broadcast::channel(256);

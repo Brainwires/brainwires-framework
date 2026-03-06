@@ -264,7 +264,7 @@ where
 
         // Parse commit date from start_line (we stored it there as a hack)
         // Actually, we should get it from the vector DB metadata
-        let commit_date = 0; // TODO: Extract from proper metadata
+        let commit_date = 0; // FUTURE(0.2): Extract commit date from vector DB metadata
 
         filtered_results.push(GitSearchResult {
             commit_hash: commit_hash.to_string(),

@@ -68,7 +68,7 @@ let response = provider.chat(&messages, None, &options).await?;
 | `mcp` | no | `brainwires-mcp` | MCP client for connecting to external MCP servers |
 | `mdap` | no | `brainwires-mdap` | Multi-Dimensional Adaptive Planning with k-agent voting |
 | `prompting` | no | `brainwires-prompting` | Prompt generation, technique library, temperature optimizer |
-| `knowledge` | no | `brainwires-prompting/knowledge` | Behavioral + personal knowledge caches (implies `prompting`) |
+| `knowledge` | no | `brainwires-brain/knowledge` | Behavioral + personal knowledge caches (implies `brain`) |
 | `permissions` | no | `brainwires-permissions` | Capability profiles, trust levels, policy engine, audit logging |
 | `orchestrator` | no | `brainwires-model-tools/orchestrator` | Tool orchestration layer (implies `tools`) |
 | `rag` | no | `brainwires-rag` | Semantic code search with vector + BM25 hybrid search |
@@ -78,10 +78,15 @@ let response = provider.chat(&messages, None, &options).await?;
 | `seal` | no | `brainwires-seal` | Self-Evolving Autonomous Learner |
 | `relay` | no | `brainwires-relay` | Remote relay / bridge for IPC and remote control |
 | `skills` | no | `brainwires-skills` | Pluggable skills system |
-| `eval` | no | `brainwires-eval` | Evaluation framework for benchmarking agents |
+| `eval` | no | `brainwires-agents/eval` | Evaluation framework for benchmarking agents (implies `agents`) |
 | `proxy` | no | `brainwires-proxy` | AI proxy framework |
-| `a2a` | no | `brainwires-a2a` | Agent-to-Agent protocol |
+| `a2a` | no | `brainwires-relay/a2a` | Agent-to-Agent protocol (implies `relay`) |
 | `mesh` | no | `brainwires-mesh` | Mesh networking for distributed agents |
+| `audio` | no | `brainwires-audio` | Audio capture, STT, TTS |
+| `datasets` | no | `brainwires-datasets` | Training data pipelines (JSONL, tokenization, dedup) |
+| `training` | no | `brainwires-training` | Model fine-tuning (cloud + local) |
+| `autonomy` | no | `brainwires-autonomy` | Self-improvement and evaluation-driven optimization |
+| `brain` | no | `brainwires-brain` | Persistent knowledge, entity graphs, PKS/BKS |
 | `mcp-server` | no | `rmcp` + `schemars` + `tokio-util` | Re-exports for building MCP servers |
 | `llama-cpp-2` | no | `brainwires-providers/llama-cpp-2` | Local LLM inference (implies `providers`) |
 
@@ -90,6 +95,7 @@ let response = provider.chat(&messages, None, &options).await?;
 | Feature | Enables | Use Case |
 |---------|---------|----------|
 | `agent-full` | `agents` + `permissions` + `prompting` + `tools` | Complete agent workflow with permissions |
+| `researcher` | `providers` + `agents` + `storage` + `rag` + `training` + `datasets` | Full research workflow |
 | `learning` | `seal` + `knowledge` + `brainwires-seal/knowledge` | Full learning subsystem with knowledge integration |
 | `full` | Everything | Kitchen sink — all sub-crates and cross-crate features |
 

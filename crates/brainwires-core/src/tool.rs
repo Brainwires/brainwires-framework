@@ -154,14 +154,14 @@ impl IdempotencyRegistry {
 
     /// Return the cached result for `key`, or `None` if not yet executed.
     pub fn get(&self, key: &str) -> Option<IdempotencyRecord> {
-        self.0.lock().unwrap().get(key).cloned()
+        self.0.lock().expect("idempotency registry lock poisoned").get(key).cloned()
     }
 
     /// Record that `key` produced `result`.
     ///
     /// If `key` was already recorded (concurrent retry), the first result wins.
     pub fn record(&self, key: String, result: String) {
-        let mut map = self.0.lock().unwrap();
+        let mut map = self.0.lock().expect("idempotency registry lock poisoned");
         map.entry(key).or_insert_with(|| {
             use chrono::Utc;
             IdempotencyRecord {
@@ -173,7 +173,7 @@ impl IdempotencyRegistry {
 
     /// Number of recorded operations.
     pub fn len(&self) -> usize {
-        self.0.lock().unwrap().len()
+        self.0.lock().expect("idempotency registry lock poisoned").len()
     }
 
     /// Returns `true` if no operations have been recorded yet.

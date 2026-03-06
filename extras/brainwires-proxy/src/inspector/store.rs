@@ -28,7 +28,7 @@ impl EventStore {
 
     /// Push an event into the store, evicting the oldest if at capacity.
     pub fn push(&self, event: TrafficEvent) {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock().expect("event store lock poisoned");
         if inner.events.len() >= inner.capacity {
             inner.events.pop_front();
         }
@@ -38,7 +38,7 @@ impl EventStore {
 
     /// Query events with optional filters.
     pub fn query(&self, filter: &EventFilter) -> Vec<TrafficEvent> {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock().expect("event store lock poisoned");
         inner
             .events
             .iter()
@@ -50,13 +50,13 @@ impl EventStore {
 
     /// Get all events (up to the buffer capacity).
     pub fn all(&self) -> Vec<TrafficEvent> {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock().expect("event store lock poisoned");
         inner.events.iter().cloned().collect()
     }
 
     /// Current number of stored events.
     pub fn len(&self) -> usize {
-        self.inner.lock().unwrap().events.len()
+        self.inner.lock().expect("event store lock poisoned").events.len()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -65,17 +65,17 @@ impl EventStore {
 
     /// Total events ever pushed (including evicted).
     pub fn total_pushed(&self) -> u64 {
-        self.inner.lock().unwrap().total_pushed
+        self.inner.lock().expect("event store lock poisoned").total_pushed
     }
 
     /// Clear all events.
     pub fn clear(&self) {
-        self.inner.lock().unwrap().events.clear();
+        self.inner.lock().expect("event store lock poisoned").events.clear();
     }
 
     /// Get store statistics.
     pub fn stats(&self) -> StoreStats {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock().expect("event store lock poisoned");
         StoreStats {
             stored: inner.events.len(),
             capacity: inner.capacity,

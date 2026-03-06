@@ -194,12 +194,11 @@ impl ResponsesClient {
         if let Some(instructions) = instructions {
             body["instructions"] = json!(instructions);
         }
-        if let Some(tools) = tools {
-            if !tools.is_empty() {
+        if let Some(tools) = tools
+            && !tools.is_empty() {
                 body["tools"] = json!(tools);
                 body["tool_choice"] = json!("auto");
             }
-        }
         if let Some(prev_id) = previous_response_id {
             body["previous_response_id"] = json!(prev_id);
         }
@@ -256,12 +255,11 @@ impl ResponsesClient {
             if let Some(instructions) = instructions {
                 body["instructions"] = json!(instructions);
             }
-            if let Some(tools) = tools {
-                if !tools.is_empty() {
+            if let Some(tools) = tools
+                && !tools.is_empty() {
                     body["tools"] = json!(tools);
                     body["tool_choice"] = json!("auto");
                 }
-            }
             if let Some(prev_id) = previous_response_id {
                 body["previous_response_id"] = json!(prev_id);
             }
@@ -519,7 +517,7 @@ impl Provider for OpenAiResponsesProvider {
     ) -> Result<ChatResponse> {
         let (input, system) = convert_messages_to_input(messages);
         let response_tools: Vec<ResponseTool> =
-            tools.map(|t| convert_tools(t)).unwrap_or_default();
+            tools.map(convert_tools).unwrap_or_default();
         let tools_ref = if response_tools.is_empty() {
             None
         } else {
@@ -546,7 +544,7 @@ impl Provider for OpenAiResponsesProvider {
 
         let (input, system) = convert_messages_to_input(messages);
         let response_tools: Vec<ResponseTool> =
-            tools.map(|t| convert_tools(t)).unwrap_or_default();
+            tools.map(convert_tools).unwrap_or_default();
 
         Box::pin(async_stream::stream! {
             let tools_ref = if response_tools.is_empty() {
@@ -576,8 +574,8 @@ impl Provider for OpenAiResponsesProvider {
                                 }
                             }
                             "response.completed" => {
-                                if let Some(resp) = event.response {
-                                    if let Some(usage) = resp.usage {
+                                if let Some(resp) = event.response
+                                    && let Some(usage) = resp.usage {
                                         yield Ok(StreamChunk::Usage(Usage {
                                             prompt_tokens: usage.input_tokens,
                                             completion_tokens: usage.output_tokens,
@@ -585,7 +583,6 @@ impl Provider for OpenAiResponsesProvider {
                                                 .unwrap_or(usage.input_tokens + usage.output_tokens),
                                         }));
                                     }
-                                }
                                 yield Ok(StreamChunk::Done);
                             }
                             _ => {}

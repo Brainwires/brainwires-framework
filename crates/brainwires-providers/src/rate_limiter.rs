@@ -68,7 +68,7 @@ impl RateLimiter {
 
     /// Refill tokens based on elapsed time since last refill.
     fn refill(&self) {
-        let mut last = self.last_refill.lock().unwrap();
+        let mut last = self.last_refill.lock().expect("rate limiter state lock poisoned");
         let elapsed = last.elapsed();
         let new_tokens = (elapsed.as_millis() / self.refill_interval.as_millis().max(1)) as u32;
 

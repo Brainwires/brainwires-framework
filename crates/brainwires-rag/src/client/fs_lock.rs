@@ -217,7 +217,6 @@ mod tests {
         assert_ne!(lock1, lock2, "Different paths should have different lock files");
         assert_eq!(lock1, lock1_dup, "Same path should have same lock file");
     }
-}
 
     #[tokio::test]
     async fn test_concurrent_lock_fails_async() {
@@ -242,3 +241,4 @@ mod tests {
 
         assert!(guard2.is_none(), "Second lock should fail because first is held");
     }
+}

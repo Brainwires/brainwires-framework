@@ -197,8 +197,7 @@ pub(crate) struct AnthropicListResponse {
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-pub(crate) struct AnthropicModelEntry {
+pub struct AnthropicModelEntry {
     pub id: String,
     pub display_name: String,
     #[serde(rename = "type")]
@@ -221,6 +220,7 @@ pub(crate) struct OpenAIModelEntry {
 
 /// Google `models` list response.
 #[derive(Debug, Deserialize)]
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) struct GoogleListResponse {
     #[serde(default)]
     pub models: Vec<GoogleModelEntry>,
@@ -229,6 +229,7 @@ pub(crate) struct GoogleListResponse {
 }
 
 #[derive(Debug, Deserialize)]
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) struct GoogleModelEntry {
     /// e.g. "models/gemini-2.0-flash"
     pub name: String,

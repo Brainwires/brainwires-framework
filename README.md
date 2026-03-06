@@ -88,14 +88,14 @@ The simplest way to use the framework is through the `brainwires` facade crate, 
 
 ```toml
 [dependencies]
-brainwires = "0.1"
+brainwires = "0.1"  # defaults: tools + agents
 ```
 
 Enable only what you need:
 
 ```toml
 [dependencies]
-brainwires = { version = "0.1", features = ["agents", "providers", "rag"] }
+brainwires = { version = "0.1", features = ["providers", "rag"] }
 ```
 
 ### Using Individual Crates
@@ -113,18 +113,25 @@ brainwires-agents = "0.1"
 
 ```rust
 use brainwires::prelude::*;
+use brainwires::providers::{ChatProviderFactory, ProviderConfig, ProviderType};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // Create a provider
-    let provider = AnthropicProvider::new("your-api-key")?;
+    // Create a provider via the factory
+    let config = ProviderConfig {
+        provider: ProviderType::Anthropic,
+        model: "claude-sonnet-4-20250514".into(),
+        api_key: Some("your-api-key".into()),
+        base_url: None,
+    };
+    let provider = ChatProviderFactory::create(&config)?;
 
     // Send a message
     let messages = vec![Message::user("Hello, what can you do?")];
     let options = ChatOptions::default();
-    let response = provider.chat(messages, options).await?;
+    let response = provider.chat(&messages, None, &options).await?;
 
-    println!("{}", response.content);
+    println!("{}", response.message.content);
     Ok(())
 }
 ```
@@ -135,11 +142,12 @@ The `brainwires` facade crate exposes feature flags corresponding to each sub-cr
 
 | Feature | Default | What it enables |
 |---------|---------|-----------------|
-| `core` | Yes | Core types and traits |
-| `providers` | Yes | AI provider integrations |
+| `core` | Always | Core types and traits (not feature-gated) |
+| `tools` | Yes | Tool definitions and execution |
 | `agents` | Yes | Multi-agent orchestration |
-| `storage` | Yes | Vector storage and semantic search |
-| `mcp` | Yes | MCP client support |
+| `providers` | No | AI provider integrations |
+| `storage` | No | Vector storage and semantic search |
+| `mcp` | No | MCP client support |
 | `relay` | No | MCP server mode and IPC |
 | `rag` | No | RAG engine with code search |
 | `audio` | No | Audio capture, STT, TTS |

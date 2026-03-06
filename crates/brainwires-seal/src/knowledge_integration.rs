@@ -607,7 +607,7 @@ impl SealKnowledgeCoordinator {
     /// Returns None if the truth doesn't map to a SEAL pattern.
     fn truth_to_pattern_hint(&self, truth: &BehavioralTruth) -> Option<String> {
         // For now, return a simple string representation
-        // TODO: Extend SEAL's GlobalMemory to store structured hints
+        // FUTURE(0.2): Extend SEAL's GlobalMemory to store structured hints
         Some(format!(
             "Context: {} | Rule: {} | Confidence: {:.2}",
             truth.context_pattern, truth.rule, truth.confidence

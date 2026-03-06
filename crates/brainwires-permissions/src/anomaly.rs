@@ -200,7 +200,7 @@ impl AnomalyDetector {
     /// This is designed to be called inside `AuditLogger::log()` before the event
     /// is moved into the buffer.
     pub fn observe(&self, event: &AuditEvent) {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock().expect("anomaly detector state lock poisoned");
         let now_secs = event.timestamp.timestamp();
         let agent_key = event
             .agent_id
@@ -307,13 +307,13 @@ impl AnomalyDetector {
 
     /// Drain all pending anomaly events (clears the internal queue).
     pub fn drain_anomalies(&self) -> Vec<AnomalyEvent> {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock().expect("anomaly detector state lock poisoned");
         std::mem::take(&mut inner.pending)
     }
 
     /// Return the number of pending anomaly events without draining.
     pub fn pending_count(&self) -> usize {
-        self.inner.lock().unwrap().pending.len()
+        self.inner.lock().expect("anomaly detector state lock poisoned").pending.len()
     }
 }
 

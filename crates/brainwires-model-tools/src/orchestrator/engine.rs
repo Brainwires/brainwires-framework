@@ -124,7 +124,7 @@ fn clone_shared<T: ?Sized>(shared: &Rc<T>) -> Rc<T> {
 
 #[cfg(feature = "orchestrator")]
 fn lock_vec<T: Clone>(shared: &SharedVec<T>) -> Vec<T> {
-    shared.lock().unwrap().clone()
+    shared.lock().expect("orchestrator results lock poisoned").clone()
 }
 
 #[cfg(feature = "orchestrator-wasm")]
@@ -134,7 +134,7 @@ fn lock_vec<T: Clone>(shared: &SharedVec<T>) -> Vec<T> {
 
 #[cfg(feature = "orchestrator")]
 fn push_to_vec<T>(shared: &SharedVec<T>, item: T) {
-    shared.lock().unwrap().push(item);
+    shared.lock().expect("orchestrator results lock poisoned").push(item);
 }
 
 #[cfg(feature = "orchestrator-wasm")]
@@ -144,7 +144,7 @@ fn push_to_vec<T>(shared: &SharedVec<T>, item: T) {
 
 #[cfg(feature = "orchestrator")]
 fn increment_counter(shared: &SharedCounter, max: usize) -> Result<(), ()> {
-    let mut c = shared.lock().unwrap();
+    let mut c = shared.lock().expect("orchestrator step counter lock poisoned");
     if *c >= max {
         return Err(());
     }
