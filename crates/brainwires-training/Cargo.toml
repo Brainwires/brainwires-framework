@@ -31,13 +31,22 @@ reqwest = { version = "0.12", features = ["json", "stream", "multipart"], option
 tokio = { workspace = true, optional = true }
 brainwires-providers = { workspace = true, optional = true }
 
-# Local feature — default-features = false excludes burn-dataset (avoids libsqlite3-sys conflict)
-burn = { workspace = true, optional = true }
+# Local feature — individual burn crates to avoid cubecl-cpu links conflict
+burn-core = { workspace = true, optional = true }
+burn-nn = { workspace = true, optional = true }
+burn-optim = { workspace = true, optional = true }
+burn-autodiff = { workspace = true, optional = true }
+burn-wgpu = { workspace = true, optional = true }
+burn-ndarray = { workspace = true, optional = true }
 
 [features]
 default = ["cloud"]
 cloud = ["dep:reqwest", "dep:tokio", "dep:brainwires-providers"]
-local = ["dep:tokio", "dep:burn"]
+local = [
+    "dep:tokio",
+    "dep:burn-core", "dep:burn-nn", "dep:burn-optim",
+    "dep:burn-autodiff", "dep:burn-wgpu", "dep:burn-ndarray",
+]
 full = ["cloud", "local"]
 
 [dev-dependencies]

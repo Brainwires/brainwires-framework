@@ -10,6 +10,10 @@ pub mod alignment;
 pub mod architectures;
 /// Training checkpoint management.
 pub mod checkpointing;
+/// Dataset loading and tokenization for local training.
+pub mod dataset_loader;
+/// Learning rate scheduling (warmup + decay).
+pub mod lr_schedule;
 /// Quantization utilities for model compression.
 pub mod quantization;
 /// Model export in various formats (GGUF, SafeTensors, adapter-only).

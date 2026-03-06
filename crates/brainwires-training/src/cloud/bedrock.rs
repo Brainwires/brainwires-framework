@@ -12,12 +12,15 @@ use super::{CloudFineTuneConfig, FineTuneProvider};
 ///
 /// Supports Claude Haiku fine-tuning and other Bedrock foundation models.
 /// Requires AWS credentials (access key + secret or IAM role).
+///
+/// **Status**: Not yet implemented. Requires AWS SDK integration for SigV4 signing.
 pub struct BedrockFineTune {
     region: String,
     #[allow(dead_code)]
     client: Client,
-    // AWS credentials are resolved via environment or IAM
+    #[allow(dead_code)]
     access_key_id: Option<String>,
+    #[allow(dead_code)]
     secret_access_key: Option<String>,
 }
 
@@ -43,8 +46,16 @@ impl BedrockFineTune {
         self
     }
 
+    #[allow(dead_code)]
     fn base_url(&self) -> String {
         format!("https://bedrock.{}.amazonaws.com", self.region)
+    }
+
+    fn not_implemented(&self, feature: &str) -> TrainingError {
+        TrainingError::NotImplemented {
+            provider: "AWS Bedrock".to_string(),
+            feature: format!("{} (requires AWS SDK for SigV4 request signing)", feature),
+        }
     }
 }
 
@@ -68,44 +79,30 @@ impl FineTuneProvider for BedrockFineTune {
 
     async fn upload_dataset(&self, data: &[u8], _format: DataFormat) -> Result<DatasetId, TrainingError> {
         debug!("Bedrock fine-tuning requires data in S3. Dataset size: {} bytes", data.len());
-        // Bedrock uses S3 URIs for training data, not direct upload.
-        // This would need to upload to S3 first, then reference the S3 URI.
-        Err(TrainingError::Provider(
-            "Bedrock requires dataset upload to S3 first. Use upload_to_s3() then pass the S3 URI as DatasetId.".to_string(),
-        ))
+        Err(self.not_implemented("dataset upload (data must be in S3)"))
     }
 
     async fn create_job(&self, config: CloudFineTuneConfig) -> Result<TrainingJobId, TrainingError> {
         debug!("Creating Bedrock fine-tuning job for: {}", config.base_model);
-
-        // Bedrock uses CreateModelCustomizationJob API
-        // The training data must already be in S3
-        let _url = format!("{}/model-customization-jobs", self.base_url());
-
-        Err(TrainingError::Provider(
-            "Bedrock fine-tuning requires AWS SDK integration. Use AWS SDK directly or configure credentials.".to_string(),
-        ))
+        Err(self.not_implemented("job creation"))
     }
 
     async fn get_job_status(&self, job_id: &TrainingJobId) -> Result<TrainingJobStatus, TrainingError> {
         debug!("Checking Bedrock job status: {}", job_id);
-
-        Err(TrainingError::Provider(
-            "Bedrock job status requires AWS SDK integration.".to_string(),
-        ))
+        Err(self.not_implemented("job status"))
     }
 
     async fn cancel_job(&self, job_id: &TrainingJobId) -> Result<(), TrainingError> {
         debug!("Cancelling Bedrock job: {}", job_id);
-        Err(TrainingError::Provider("Bedrock cancellation requires AWS SDK.".to_string()))
+        Err(self.not_implemented("job cancellation"))
     }
 
     async fn list_jobs(&self) -> Result<Vec<TrainingJobSummary>, TrainingError> {
-        Err(TrainingError::Provider("Bedrock job listing requires AWS SDK.".to_string()))
+        Err(self.not_implemented("job listing"))
     }
 
     async fn delete_model(&self, model_id: &str) -> Result<(), TrainingError> {
         debug!("Deleting Bedrock model: {}", model_id);
-        Err(TrainingError::Provider("Bedrock model deletion requires AWS SDK.".to_string()))
+        Err(self.not_implemented("model deletion"))
     }
 }

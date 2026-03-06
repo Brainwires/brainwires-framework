@@ -71,9 +71,14 @@ brainwires-proxy = { path = "extras/brainwires-proxy", version = "0.1.0" }
 tokenizers = "0.21"
 tiktoken-rs = "0.7"
 
-# ML training framework — default-features = false to exclude burn-dataset (which pulls
-# rusqlite 0.32 → libsqlite3-sys 0.30, conflicting with rustpython-stdlib's 0.28)
-burn = { version = "0.16", default-features = false, features = ["std", "wgpu", "autodiff", "ndarray"] }
+# ML training framework — individual crates to avoid cubecl-cpu (links = "lzma" conflict
+# with xz2 from datafusion/lancedb). Using individual crates instead of umbrella `burn`.
+burn-core = { version = "0.20", default-features = false, features = ["std"] }
+burn-nn = { version = "0.20", default-features = false, features = ["std"] }
+burn-optim = { version = "0.20", default-features = false, features = ["std"] }
+burn-autodiff = { version = "0.20", default-features = false, features = ["std"] }
+burn-wgpu = { version = "0.20", default-features = false, features = ["std", "autotune"] }
+burn-ndarray = { version = "0.20", default-features = false, features = ["std"] }
 
 # Async runtime & utilities
 tokio = { version = "1.43", features = ["full"] }

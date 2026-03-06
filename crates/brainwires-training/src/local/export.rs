@@ -92,7 +92,7 @@ pub fn write_export_metadata(
 ) -> std::io::Result<()> {
     let meta_path = output_dir.join("export_metadata.json");
     let json = serde_json::to_string_pretty(metadata)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        .map_err(std::io::Error::other)?;
     std::fs::write(&meta_path, json)?;
     info!("Export metadata written to {:?}", meta_path);
     Ok(())

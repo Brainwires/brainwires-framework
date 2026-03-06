@@ -6,6 +6,11 @@
 //! Supports cloud fine-tuning (OpenAI, Together, Fireworks, Anyscale, Bedrock, Vertex)
 //! and local adapter training (LoRA, QLoRA, DoRA) via Burn framework.
 
+// Re-export burn_core as `burn` so that Burn's derive macros (Module, Config) can resolve
+// their internal `burn::` paths when using individual burn-* crates.
+#[cfg(feature = "local")]
+extern crate burn_core as burn;
+
 /// Training error types.
 pub mod error;
 /// Training job types and status.

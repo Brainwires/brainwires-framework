@@ -53,7 +53,7 @@ impl CheckpointManager {
 
     /// Whether we should save a checkpoint at this step.
     pub fn should_save(&self, step: u64) -> bool {
-        step > 0 && step % self.save_every_steps == 0
+        step > 0 && step.is_multiple_of(self.save_every_steps)
     }
 
     /// Get the path for a checkpoint at a given step.
@@ -68,7 +68,7 @@ impl CheckpointManager {
 
         let meta_path = dir.join("checkpoint_meta.json");
         let json = serde_json::to_string_pretty(meta)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            .map_err(std::io::Error::other)?;
         std::fs::write(&meta_path, json)?;
 
         info!("Saved checkpoint at step {} to {:?}", step, dir);

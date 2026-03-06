@@ -2,10 +2,10 @@
 //!
 //! These are actual `burn::module::Module` implementations that run on GPU via WGPU.
 
-use burn::prelude::*;
-use burn::module::{Module, Param};
-use burn::nn;
-use burn::tensor::activation;
+use burn_core::prelude::*;
+use burn_core::module::{Module, Param};
+use burn_nn as nn;
+use burn_core::tensor::activation;
 
 /// LoRA adapter module in Burn.
 ///
@@ -76,6 +76,16 @@ impl LoraLinearConfig {
 }
 
 impl<B: Backend> LoraLinear<B> {
+    /// Get LoRA A weight data for serialization.
+    pub fn lora_a_weight(&self) -> Tensor<B, 2> {
+        self.lora_a.weight.val()
+    }
+
+    /// Get LoRA B weight data for serialization.
+    pub fn lora_b_weight(&self) -> Tensor<B, 2> {
+        self.lora_b.weight.val()
+    }
+
     /// Forward pass: base + LoRA adapter.
     pub fn forward(&self, input: Tensor<B, 2>) -> Tensor<B, 2> {
         let base_out = self.base.forward(input.clone());
@@ -143,7 +153,7 @@ impl<B: Backend> RmsNorm<B> {
         let variance = x.clone().powf_scalar(2.0).mean_dim(1);
         let rms = (variance + self.eps).sqrt();
         let normed = x / rms;
-        normed * self.weight.val().unsqueeze()
+        normed * self.weight.val().unsqueeze_dim(0)
     }
 }
 
@@ -275,7 +285,7 @@ impl DoraLinearConfig {
         // Burn stores Linear weights as [in_features, out_features], so each column
         // corresponds to one output neuron. Sum across dim 0 (input dim) for per-output norms.
         let base_w = base.weight.val();
-        let col_norms = base_w.clone().powf_scalar(2.0).sum_dim(0).sqrt().squeeze(0);
+        let col_norms = base_w.clone().powf_scalar(2.0).sum_dim(0).sqrt().squeeze::<1>();
         let magnitude = Param::from_tensor(col_norms);
 
         DoraLinear {
@@ -289,6 +299,21 @@ impl DoraLinearConfig {
 }
 
 impl<B: Backend> DoraLinear<B> {
+    /// Get LoRA A weight data for serialization.
+    pub fn lora_a_weight(&self) -> Tensor<B, 2> {
+        self.lora_a.weight.val()
+    }
+
+    /// Get LoRA B weight data for serialization.
+    pub fn lora_b_weight(&self) -> Tensor<B, 2> {
+        self.lora_b.weight.val()
+    }
+
+    /// Get magnitude vector data for serialization.
+    pub fn magnitude_data(&self) -> Tensor<B, 1> {
+        self.magnitude.val()
+    }
+
     /// Forward pass with direction-magnitude decomposition.
     pub fn forward(&self, input: Tensor<B, 2>) -> Tensor<B, 2> {
         // Burn stores Linear weights as [in_features, out_features].
@@ -361,9 +386,10 @@ pub fn orpo_alignment_loss<B: Backend>(
     let chosen_clamped = chosen_probs.clamp(eps, one_minus_eps);
     let rejected_clamped = rejected_probs.clamp(eps, one_minus_eps);
 
-    // odds = p / (1-p)
-    let chosen_odds = chosen_clamped.clone() / (chosen_clamped.neg() + 1.0);
-    let rejected_odds = rejected_clamped.clone() / (rejected_clamped.neg() + 1.0);
+    // odds = p / (1 - p)
+    let ones = Tensor::ones_like(&chosen_clamped);
+    let chosen_odds = chosen_clamped.clone() / (ones.clone() - chosen_clamped);
+    let rejected_odds = rejected_clamped.clone() / (ones - rejected_clamped);
 
     // log odds ratio
     let log_odds_ratio = (chosen_odds / rejected_odds).log();
@@ -473,7 +499,7 @@ impl<B: Backend> BurnTransformerBlock<B> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn::backend::NdArray;
+    use burn_ndarray::NdArray;
 
     type TestBackend = NdArray;
 
@@ -485,7 +511,7 @@ mod tests {
 
         let input = Tensor::<TestBackend, 2>::random(
             [4, 64],
-            burn::tensor::Distribution::Normal(0.0, 1.0),
+            burn_core::tensor::Distribution::Normal(0.0, 1.0),
             &device,
         );
         let output = layer.forward(input);
@@ -503,7 +529,7 @@ mod tests {
         // so output should equal base output
         let input = Tensor::<TestBackend, 2>::random(
             [2, 32],
-            burn::tensor::Distribution::Normal(0.0, 1.0),
+            burn_core::tensor::Distribution::Normal(0.0, 1.0),
             &device,
         );
 
@@ -523,7 +549,7 @@ mod tests {
 
         let input = Tensor::<TestBackend, 2>::random(
             [2, 32],
-            burn::tensor::Distribution::Normal(0.0, 1.0),
+            burn_core::tensor::Distribution::Normal(0.0, 1.0),
             &device,
         );
         let base_out = layer.base.forward(input.clone());
@@ -540,7 +566,7 @@ mod tests {
 
         let input = Tensor::<TestBackend, 2>::random(
             [4, 64],
-            burn::tensor::Distribution::Normal(0.0, 1.0),
+            burn_core::tensor::Distribution::Normal(0.0, 1.0),
             &device,
         );
         let output = norm.forward(input);
@@ -555,7 +581,7 @@ mod tests {
 
         let input = Tensor::<TestBackend, 2>::random(
             [4, 64],
-            burn::tensor::Distribution::Normal(0.0, 1.0),
+            burn_core::tensor::Distribution::Normal(0.0, 1.0),
             &device,
         );
         let output = ffn.forward(input);
@@ -583,7 +609,7 @@ mod tests {
 
         let input = Tensor::<TestBackend, 2>::random(
             [4, 64],
-            burn::tensor::Distribution::Normal(0.0, 1.0),
+            burn_core::tensor::Distribution::Normal(0.0, 1.0),
             &device,
         );
         let output = layer.forward(input);
@@ -656,7 +682,7 @@ mod tests {
 
         let input = Tensor::<TestBackend, 2>::random(
             [8, 64],
-            burn::tensor::Distribution::Normal(0.0, 0.1),
+            burn_core::tensor::Distribution::Normal(0.0, 0.1),
             &device,
         );
         let output = block.forward(input);

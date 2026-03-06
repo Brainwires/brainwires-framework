@@ -76,7 +76,7 @@ tokio-util = { version = "0.7", optional = true }
 fs2 = { version = "0.4", optional = true }
 
 # Document processing (optional, for document feature)
-zip = { version = "2", optional = true }
+zip = { version = "8", optional = true }
 uuid = { workspace = true, optional = true }
 
 [dev-dependencies]

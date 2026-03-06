@@ -12,11 +12,14 @@ use super::{CloudFineTuneConfig, FineTuneProvider};
 ///
 /// Supports Gemini model tuning (enterprise only).
 /// Requires GCP service account credentials.
+///
+/// **Status**: Not yet implemented. Requires GCP OAuth2/service account auth.
 pub struct VertexFineTune {
     project_id: String,
     location: String,
     #[allow(dead_code)]
     client: Client,
+    #[allow(dead_code)]
     access_token: Option<String>,
 }
 
@@ -37,11 +40,19 @@ impl VertexFineTune {
         self
     }
 
+    #[allow(dead_code)]
     fn base_url(&self) -> String {
         format!(
             "https://{}-aiplatform.googleapis.com/v1/projects/{}/locations/{}",
             self.location, self.project_id, self.location
         )
+    }
+
+    fn not_implemented(&self, feature: &str) -> TrainingError {
+        TrainingError::NotImplemented {
+            provider: "Google Vertex AI".to_string(),
+            feature: format!("{} (requires GCP OAuth2/service account authentication)", feature),
+        }
     }
 }
 
@@ -67,41 +78,30 @@ impl FineTuneProvider for VertexFineTune {
             "Vertex AI fine-tuning requires data in GCS. Dataset size: {} bytes",
             data.len()
         );
-        // Vertex uses GCS URIs for training data
-        Err(TrainingError::Provider(
-            "Vertex AI requires dataset upload to GCS first. Upload to GCS then pass the URI as DatasetId.".to_string(),
-        ))
+        Err(self.not_implemented("dataset upload (data must be in GCS)"))
     }
 
     async fn create_job(&self, config: CloudFineTuneConfig) -> Result<TrainingJobId, TrainingError> {
         debug!("Creating Vertex AI tuning job for: {}", config.base_model);
-
-        let _url = format!("{}/tuningJobs", self.base_url());
-
-        Err(TrainingError::Provider(
-            "Vertex AI tuning requires GCP authentication setup. Configure service account credentials.".to_string(),
-        ))
+        Err(self.not_implemented("job creation"))
     }
 
     async fn get_job_status(&self, job_id: &TrainingJobId) -> Result<TrainingJobStatus, TrainingError> {
         debug!("Checking Vertex AI job status: {}", job_id);
-
-        Err(TrainingError::Provider(
-            "Vertex AI status check requires GCP authentication.".to_string(),
-        ))
+        Err(self.not_implemented("job status"))
     }
 
     async fn cancel_job(&self, job_id: &TrainingJobId) -> Result<(), TrainingError> {
         debug!("Cancelling Vertex AI job: {}", job_id);
-        Err(TrainingError::Provider("Vertex AI cancellation requires GCP auth.".to_string()))
+        Err(self.not_implemented("job cancellation"))
     }
 
     async fn list_jobs(&self) -> Result<Vec<TrainingJobSummary>, TrainingError> {
-        Err(TrainingError::Provider("Vertex AI job listing requires GCP auth.".to_string()))
+        Err(self.not_implemented("job listing"))
     }
 
     async fn delete_model(&self, model_id: &str) -> Result<(), TrainingError> {
         debug!("Deleting Vertex AI model: {}", model_id);
-        Err(TrainingError::Provider("Vertex AI model deletion requires GCP auth.".to_string()))
+        Err(self.not_implemented("model deletion"))
     }
 }

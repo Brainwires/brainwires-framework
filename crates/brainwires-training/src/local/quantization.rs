@@ -1,6 +1,6 @@
-/// Quantization utilities for QLoRA and model compression.
-///
-/// Supports INT4 and INT8 quantization with per-group scaling factors.
+//! Quantization utilities for QLoRA and model compression.
+//!
+//! Supports INT4 and INT8 quantization with per-group scaling factors.
 
 /// Quantization configuration.
 #[derive(Debug, Clone)]
@@ -32,7 +32,7 @@ pub fn quantize_tensor(
     data: &[f32],
     config: &QuantConfig,
 ) -> (Vec<u8>, Vec<f32>, Vec<f32>) {
-    let num_groups = (data.len() + config.group_size - 1) / config.group_size;
+    let num_groups = data.len().div_ceil(config.group_size);
     let mut quantized = Vec::new();
     let mut scales = Vec::with_capacity(num_groups);
     let mut zero_points = Vec::with_capacity(num_groups);
