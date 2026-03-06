@@ -1,4 +1,4 @@
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 //! # brainwires-audio
 //!
 //! Audio capture, playback, speech-to-text, and text-to-speech for the

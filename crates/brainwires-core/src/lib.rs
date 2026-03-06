@@ -1,4 +1,4 @@
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 //! # Brainwires Core
 //!
 //! Foundation types, traits, and error handling for the Brainwires Agent Framework.

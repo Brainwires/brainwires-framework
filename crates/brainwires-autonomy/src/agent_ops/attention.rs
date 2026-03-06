@@ -102,3 +102,61 @@ impl AttentionMechanism {
         self.cache.clear();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn attention_window_new_starts_empty() {
+        let w = AttentionWindow::new(10, 5000);
+        assert!(w.ranked_files.is_empty());
+        assert_eq!(w.max_files, 10);
+        assert_eq!(w.max_tokens, 5000);
+    }
+
+    #[test]
+    fn add_maintains_descending_score_order() {
+        let mut w = AttentionWindow::new(10, 5000);
+        w.add(RelevanceScore { path: "a.rs".into(), score: 0.5, reason: "".into() });
+        w.add(RelevanceScore { path: "b.rs".into(), score: 0.9, reason: "".into() });
+        w.add(RelevanceScore { path: "c.rs".into(), score: 0.7, reason: "".into() });
+
+        assert_eq!(w.ranked_files[0].path, "b.rs");
+        assert_eq!(w.ranked_files[1].path, "c.rs");
+        assert_eq!(w.ranked_files[2].path, "a.rs");
+    }
+
+    #[test]
+    fn top_files_returns_correct_count() {
+        let mut w = AttentionWindow::new(5, 5000);
+        for i in 0..10 {
+            w.add(RelevanceScore {
+                path: format!("file{i}.rs"),
+                score: i as f64 / 10.0,
+                reason: "".into(),
+            });
+        }
+        // top_files(n) returns min(n, max_files) items
+        assert_eq!(w.top_files(3).len(), 3);
+        assert_eq!(w.top_files(10).len(), 5); // capped by max_files=5
+    }
+
+    #[test]
+    fn attention_mechanism_from_search_results_and_get() {
+        let mut mech = AttentionMechanism::new(10, 5000);
+        let results = vec![
+            ("src/main.rs".to_string(), 0.9, "entry point".to_string()),
+            ("src/lib.rs".to_string(), 0.7, "library".to_string()),
+        ];
+        let window = mech.from_search_results("task-1", results);
+        assert_eq!(window.ranked_files.len(), 2);
+        assert_eq!(window.ranked_files[0].path, "src/main.rs");
+
+        // get returns the cached window
+        let cached = mech.get("task-1").expect("should be cached");
+        assert_eq!(cached.ranked_files.len(), 2);
+
+        assert!(mech.get("nonexistent").is_none());
+    }
+}

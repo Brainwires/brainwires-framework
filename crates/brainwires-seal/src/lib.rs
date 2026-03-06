@@ -1,4 +1,4 @@
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 //! SEAL (Self-Evolving Agentic Learning) Integration Module
 //!
 //! This module implements techniques from the SEAL paper to enhance
@@ -81,7 +81,7 @@ pub use coreference::{
     CoreferenceResolver, DialogState, ReferenceType, ResolvedReference, SalienceScore,
     UnresolvedReference,
 };
-pub use learning::{GlobalMemory, LearningCoordinator, LocalMemory, QueryPattern, TrackedEntity};
+pub use learning::{GlobalMemory, LearningCoordinator, LocalMemory, PatternHint, QueryPattern, TrackedEntity};
 pub use query_core::{
     FilterPredicate, QueryCore, QueryCoreExtractor, QueryExpr, QueryOp, QueryResult, QuestionType,
     RelationType, SuperlativeDir,
@@ -233,6 +233,13 @@ impl SealProcessor {
             result.query_core = self
                 .query_extractor
                 .extract(&result.resolved_query, &entities);
+
+            // If coreference resolution changed the query, track both versions
+            if let Some(ref mut core) = result.query_core {
+                if result.resolved_query != query {
+                    core.resolved = Some(result.resolved_query.clone());
+                }
+            }
         }
 
         // Step 3: Check Learning Coordinator for patterns
@@ -270,10 +277,11 @@ impl SealProcessor {
         success: bool,
         result_count: usize,
         query_core: Option<&QueryCore>,
+        execution_time_ms: u64,
     ) {
         if self.config.enable_learning {
             self.learning_coordinator
-                .record_outcome(pattern_id, success, result_count, query_core);
+                .record_outcome(pattern_id, success, result_count, query_core, execution_time_ms);
         }
     }
 
@@ -333,6 +341,7 @@ impl SealProcessor {
             metrics.final_success,
             metrics.completed_steps as usize,
             None,
+            0, // MDAP metrics don't track individual query timing
         );
 
         // Could add more sophisticated learning here:

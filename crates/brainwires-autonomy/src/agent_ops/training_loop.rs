@@ -122,3 +122,69 @@ impl AutonomousTrainingLoop {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn should_continue_false_when_max_rounds_reached() {
+        let tl = AutonomousTrainingLoop::new(TrainingLoopConfig {
+            max_rounds: 3,
+            ..Default::default()
+        });
+        assert!(!tl.should_continue(3, Some(0.8), Some(0.9)));
+    }
+
+    #[test]
+    fn should_continue_true_when_no_scores() {
+        let tl = AutonomousTrainingLoop::new(TrainingLoopConfig::default());
+        assert!(tl.should_continue(1, None, None));
+        assert!(tl.should_continue(1, Some(0.5), None));
+    }
+
+    #[test]
+    fn should_continue_false_when_improvement_below_threshold() {
+        let tl = AutonomousTrainingLoop::new(TrainingLoopConfig {
+            min_improvement: 0.05,
+            max_rounds: 10,
+            ..Default::default()
+        });
+        // Improvement of 0.01 < 0.05 threshold
+        assert!(!tl.should_continue(2, Some(0.80), Some(0.81)));
+        // Improvement of 0.10 >= 0.05 threshold
+        assert!(tl.should_continue(2, Some(0.80), Some(0.90)));
+    }
+
+    #[test]
+    fn generate_report_computes_totals() {
+        let tl = AutonomousTrainingLoop::new(TrainingLoopConfig::default());
+        let rounds = vec![
+            TrainingRoundResult {
+                round: 1,
+                dataset_size: 100,
+                training_loss: 0.5,
+                validation_loss: Some(0.6),
+                eval_score: Some(0.7),
+                cost: 1.0,
+                duration_secs: 10.0,
+            },
+            TrainingRoundResult {
+                round: 2,
+                dataset_size: 200,
+                training_loss: 0.3,
+                validation_loss: Some(0.4),
+                eval_score: Some(0.85),
+                cost: 2.0,
+                duration_secs: 20.0,
+            },
+        ];
+
+        let report = tl.generate_report(rounds, 30.0, true);
+        assert!((report.total_cost - 3.0).abs() < f64::EPSILON);
+        assert!((report.total_duration_secs - 30.0).abs() < f64::EPSILON);
+        assert!(report.converged);
+        assert_eq!(report.final_eval_score, Some(0.85));
+        assert_eq!(report.rounds.len(), 2);
+    }
+}

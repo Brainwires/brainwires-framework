@@ -1,4 +1,4 @@
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 //! # Brainwires
 //!
 //! The Brainwires Agent Framework — build any AI application in Rust.

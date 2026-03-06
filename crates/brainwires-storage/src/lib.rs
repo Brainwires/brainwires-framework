@@ -1,4 +1,4 @@
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 //! Brainwires Storage - LanceDB-backed storage for the Brainwires Agent Framework
 //!
 //! This crate provides persistent storage with semantic search capabilities:

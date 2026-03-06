@@ -184,3 +184,83 @@ impl Default for WebhookConfig {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn autonomy_config_default_succeeds() {
+        let config = AutonomyConfig::default();
+        // Verify field types are accessible
+        let _si: &SelfImprovementConfig = &config.self_improve;
+        let _safety: &SafetyConfig = &config.safety;
+        let _git: &GitWorkflowConfig = &config.git_workflow;
+    }
+
+    #[test]
+    fn self_improvement_config_default_has_sensible_values() {
+        let config = SelfImprovementConfig::default();
+        assert_eq!(config.max_cycles, 10);
+        assert!((config.max_budget - 10.0).abs() < f64::EPSILON);
+        assert!(!config.dry_run);
+        assert!(config.strategies.is_empty());
+        assert_eq!(config.agent_iterations, 25);
+        assert_eq!(config.circuit_breaker_threshold, 3);
+        assert_eq!(config.branch_prefix, "self-improve/");
+        assert!(config.model.is_none());
+        assert!(config.provider.is_none());
+    }
+
+    #[test]
+    fn safety_config_default_has_sensible_values() {
+        let config = SafetyConfig::default();
+        assert!((config.max_total_cost - 50.0).abs() < f64::EPSILON);
+        assert!((config.max_per_operation_cost - 5.0).abs() < f64::EPSILON);
+        assert_eq!(config.max_daily_operations, 100);
+        assert_eq!(config.circuit_breaker_threshold, 3);
+        assert_eq!(config.circuit_breaker_cooldown_secs, 300);
+        assert_eq!(config.max_concurrent_agents, 5);
+        assert_eq!(config.heartbeat_timeout_secs, 1800);
+        assert!(config.allowed_paths.is_empty());
+        assert!(config.forbidden_paths.is_empty());
+    }
+
+    #[test]
+    fn git_workflow_config_default_has_sensible_values() {
+        let config = GitWorkflowConfig::default();
+        assert_eq!(config.branch_prefix, "autonomy/");
+        assert!(!config.auto_merge);
+        assert_eq!(config.merge_method, "squash");
+        assert!((config.min_confidence - 0.7).abs() < f64::EPSILON);
+        assert_eq!(config.webhook.port, 3000);
+    }
+
+    #[test]
+    fn serde_roundtrip_autonomy_config() {
+        let config = AutonomyConfig::default();
+        let json = serde_json::to_string(&config).expect("serialize");
+        let deserialized: AutonomyConfig = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(deserialized.self_improve.max_cycles, config.self_improve.max_cycles);
+        assert_eq!(deserialized.safety.max_total_cost, config.safety.max_total_cost);
+        assert_eq!(deserialized.git_workflow.branch_prefix, config.git_workflow.branch_prefix);
+    }
+
+    #[test]
+    fn is_strategy_enabled_empty_list_enables_all() {
+        let config = SelfImprovementConfig::default();
+        assert!(config.is_strategy_enabled("clippy"));
+        assert!(config.is_strategy_enabled("anything"));
+    }
+
+    #[test]
+    fn is_strategy_enabled_specific_list() {
+        let config = SelfImprovementConfig {
+            strategies: vec!["clippy".to_string(), "todo".to_string()],
+            ..Default::default()
+        };
+        assert!(config.is_strategy_enabled("clippy"));
+        assert!(config.is_strategy_enabled("todo"));
+        assert!(!config.is_strategy_enabled("dead_code"));
+    }
+}

@@ -479,6 +479,19 @@ impl ConfidenceStats {
     }
 }
 
+/// A structured hint derived from behavioral knowledge (BKS)
+#[derive(Debug, Clone)]
+pub struct PatternHint {
+    /// Context pattern describing when this hint applies
+    pub context_pattern: String,
+    /// The learned rule or guideline
+    pub rule: String,
+    /// Confidence of the source truth (0.0-1.0)
+    pub confidence: f64,
+    /// Source system that produced this hint (e.g. "bks", "seal")
+    pub source: String,
+}
+
 /// Global memory for cross-session learning
 #[derive(Debug, Default)]
 pub struct GlobalMemory {
@@ -492,12 +505,24 @@ pub struct GlobalMemory {
     pub tool_stats: HashMap<String, ToolStats>,
     /// Response confidence statistics
     pub confidence_stats: ConfidenceStats,
+    /// Structured hints from behavioral knowledge
+    pub pattern_hints: Vec<PatternHint>,
 }
 
 impl GlobalMemory {
     /// Create new global memory
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Add a structured pattern hint from behavioral knowledge
+    pub fn add_pattern_hint(&mut self, hint: PatternHint) {
+        self.pattern_hints.push(hint);
+    }
+
+    /// Get all stored pattern hints
+    pub fn get_pattern_hints(&self) -> &[PatternHint] {
+        &self.pattern_hints
     }
 
     /// Add a query pattern
@@ -673,6 +698,7 @@ impl LearningCoordinator {
         success: bool,
         result_count: usize,
         query_core: Option<&QueryCore>,
+        execution_time_ms: u64,
     ) {
         // Update pattern statistics if we used one
         if let Some(id) = pattern_id
@@ -688,12 +714,12 @@ impl LearningCoordinator {
         if let Some(core) = query_core {
             self.local.record_query(
                 &core.original,
-                &core.original, // FUTURE(0.2): Pass resolved query once QueryCore tracks it
+                core.resolved.as_deref().unwrap_or(&core.original),
                 core.question_type.clone(),
                 Some(core.to_sexp()),
                 success,
                 result_count,
-                0, // FUTURE(0.2): Instrument query execution timing
+                execution_time_ms,
             );
 
             // If successful and we don't have a pattern, create one
@@ -994,7 +1020,7 @@ mod tests {
             "What is main.rs?".to_string(),
         );
 
-        coordinator.record_outcome(None, true, 1, Some(&core));
+        coordinator.record_outcome(None, true, 1, Some(&core), 0);
 
         let stats = coordinator.get_stats();
         assert_eq!(stats.session_queries, 1);

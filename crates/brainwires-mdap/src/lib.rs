@@ -1,4 +1,4 @@
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 //! Brainwires MDAP - MAKER voting framework
 //!
 //! Multi-Dimensional Adaptive Planning system implementing the MAKER paper's

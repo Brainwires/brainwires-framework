@@ -51,8 +51,12 @@ pub struct TranscriptionResponse {
 /// A single segment returned by the transcription endpoint.
 #[derive(Debug, Clone, Deserialize)]
 pub struct TranscriptionSegment {
+    /// Segment index.
     pub id: Option<u32>,
+    /// Start time in seconds.
     pub start: Option<f64>,
+    /// End time in seconds.
     pub end: Option<f64>,
+    /// Transcribed text for this segment.
     pub text: Option<String>,
 }

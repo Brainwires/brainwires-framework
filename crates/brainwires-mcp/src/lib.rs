@@ -1,4 +1,4 @@
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 //! Brainwires MCP - Model Context Protocol client and types
 //!
 //! This crate provides MCP client functionality for the Brainwires Agent Framework:

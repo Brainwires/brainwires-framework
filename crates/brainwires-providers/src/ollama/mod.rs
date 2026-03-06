@@ -5,7 +5,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use brainwires_core::{ChatResponse, ContentBlock, Message, MessageContent, Role, StreamChunk, Usage};
+use brainwires_core::{ChatResponse, ContentBlock, ImageSource, Message, MessageContent, Role, StreamChunk, Usage};
 use brainwires_core::{ChatOptions, Provider};
 use brainwires_core::Tool;
 
@@ -62,26 +62,29 @@ impl OllamaProvider {
                     Role::Tool => "tool",
                 };
 
-                let content = match &m.content {
-                    MessageContent::Text(text) => text.clone(),
+                let (content, images) = match &m.content {
+                    MessageContent::Text(text) => (text.clone(), None),
                     MessageContent::Blocks(blocks) => {
-                        // Ollama primarily uses text content
-                        // Concatenate text blocks, ignore others for now
-                        blocks
-                            .iter()
-                            .filter_map(|b| match b {
-                                ContentBlock::Text { text } => Some(text.as_str()),
-                                _ => None,
-                            })
-                            .collect::<Vec<_>>()
-                            .join("\n")
+                        let mut text_parts = Vec::new();
+                        let mut image_data = Vec::new();
+                        for b in blocks {
+                            match b {
+                                ContentBlock::Text { text } => text_parts.push(text.as_str()),
+                                ContentBlock::Image { source: ImageSource::Base64 { data, .. } } => {
+                                    image_data.push(data.clone());
+                                }
+                                _ => {}
+                            }
+                        }
+                        let images = if image_data.is_empty() { None } else { Some(image_data) };
+                        (text_parts.join("\n"), images)
                     }
                 };
 
                 OllamaMessage {
                     role: role.to_string(),
                     content,
-                    images: None, // FUTURE(0.2): Add image support for multimodal Ollama models
+                    images,
                 }
             })
             .collect()
@@ -597,6 +600,88 @@ mod tests {
         assert_eq!(converted.len(), 1);
         // Only text blocks should be included
         assert_eq!(converted[0].content, "Text content");
+    }
+
+    #[test]
+    fn test_convert_messages_with_image_blocks() {
+        let provider = OllamaProvider::new("llava".to_string(), None);
+        let messages = vec![
+            Message {
+                role: Role::User,
+                content: MessageContent::Blocks(vec![
+                    ContentBlock::Text { text: "What's in this image?".to_string() },
+                    ContentBlock::Image {
+                        source: brainwires_core::ImageSource::Base64 {
+                            media_type: "image/png".to_string(),
+                            data: "iVBORw0KGgo=".to_string(),
+                        },
+                    },
+                ]),
+                name: None,
+                metadata: None,
+            },
+        ];
+
+        let converted = provider.convert_messages(&messages);
+        assert_eq!(converted.len(), 1);
+        assert_eq!(converted[0].content, "What's in this image?");
+        assert!(converted[0].images.is_some());
+        let images = converted[0].images.as_ref().unwrap();
+        assert_eq!(images.len(), 1);
+        assert_eq!(images[0], "iVBORw0KGgo=");
+    }
+
+    #[test]
+    fn test_convert_messages_with_multiple_images() {
+        let provider = OllamaProvider::new("llava".to_string(), None);
+        let messages = vec![
+            Message {
+                role: Role::User,
+                content: MessageContent::Blocks(vec![
+                    ContentBlock::Text { text: "Compare these images".to_string() },
+                    ContentBlock::Image {
+                        source: brainwires_core::ImageSource::Base64 {
+                            media_type: "image/png".to_string(),
+                            data: "image1data".to_string(),
+                        },
+                    },
+                    ContentBlock::Image {
+                        source: brainwires_core::ImageSource::Base64 {
+                            media_type: "image/jpeg".to_string(),
+                            data: "image2data".to_string(),
+                        },
+                    },
+                ]),
+                name: None,
+                metadata: None,
+            },
+        ];
+
+        let converted = provider.convert_messages(&messages);
+        assert_eq!(converted.len(), 1);
+        let images = converted[0].images.as_ref().unwrap();
+        assert_eq!(images.len(), 2);
+        assert_eq!(images[0], "image1data");
+        assert_eq!(images[1], "image2data");
+    }
+
+    #[test]
+    fn test_convert_messages_text_only_no_images() {
+        let provider = OllamaProvider::new("llama2".to_string(), None);
+        let messages = vec![
+            Message {
+                role: Role::User,
+                content: MessageContent::Blocks(vec![
+                    ContentBlock::Text { text: "Just text".to_string() },
+                ]),
+                name: None,
+                metadata: None,
+            },
+        ];
+
+        let converted = provider.convert_messages(&messages);
+        assert_eq!(converted.len(), 1);
+        assert!(converted[0].images.is_none());
     }
 
     #[test]

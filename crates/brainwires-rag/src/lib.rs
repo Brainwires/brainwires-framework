@@ -1,4 +1,4 @@
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 //! # Brainwires RAG - RAG-based Codebase Indexing and Semantic Search
 //!
 //! A dual-purpose Rust library and MCP server for semantic code search using RAG

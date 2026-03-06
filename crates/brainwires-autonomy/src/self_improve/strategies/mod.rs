@@ -92,3 +92,24 @@ pub fn all_strategies() -> Vec<Box<dyn ImprovementStrategy>> {
         Box::new(dead_code::DeadCodeStrategy),
     ]
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn all_strategies_returns_expected_count() {
+        let strategies = all_strategies();
+        assert_eq!(strategies.len(), 6);
+    }
+
+    #[test]
+    fn improvement_category_display_formatting() {
+        assert_eq!(ImprovementCategory::Linting.to_string(), "linting");
+        assert_eq!(ImprovementCategory::Testing.to_string(), "testing");
+        assert_eq!(ImprovementCategory::Documentation.to_string(), "documentation");
+        assert_eq!(ImprovementCategory::Refactoring.to_string(), "refactoring");
+        assert_eq!(ImprovementCategory::DeadCode.to_string(), "dead_code");
+        assert_eq!(ImprovementCategory::EvalDriven.to_string(), "eval_driven");
+    }
+}

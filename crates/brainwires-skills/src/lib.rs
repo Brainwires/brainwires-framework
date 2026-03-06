@@ -1,4 +1,4 @@
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 //! # brainwires-skills
 //!
 //! Agent skills system — SKILL.md parsing, registry, routing, and execution.

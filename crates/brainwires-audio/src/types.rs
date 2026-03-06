@@ -211,3 +211,105 @@ pub struct TranscriptSegment {
     /// End time in seconds.
     pub end: f64,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn speech_config_values() {
+        let cfg = AudioConfig::speech();
+        assert_eq!(cfg.sample_rate, 16000);
+        assert_eq!(cfg.channels, 1);
+        assert_eq!(cfg.sample_format, SampleFormat::I16);
+    }
+
+    #[test]
+    fn cd_quality_config_values() {
+        let cfg = AudioConfig::cd_quality();
+        assert_eq!(cfg.sample_rate, 44100);
+        assert_eq!(cfg.channels, 2);
+        assert_eq!(cfg.sample_format, SampleFormat::I16);
+    }
+
+    #[test]
+    fn high_quality_config_values() {
+        let cfg = AudioConfig::high_quality();
+        assert_eq!(cfg.sample_rate, 48000);
+        assert_eq!(cfg.channels, 2);
+        assert_eq!(cfg.sample_format, SampleFormat::F32);
+    }
+
+    #[test]
+    fn bytes_per_sample_i16() {
+        let cfg = AudioConfig::speech(); // I16
+        assert_eq!(cfg.bytes_per_sample(), 2);
+    }
+
+    #[test]
+    fn bytes_per_sample_f32() {
+        let cfg = AudioConfig::high_quality(); // F32
+        assert_eq!(cfg.bytes_per_sample(), 4);
+    }
+
+    #[test]
+    fn bytes_per_frame_mono_i16() {
+        let cfg = AudioConfig::speech(); // 1 channel, I16
+        assert_eq!(cfg.bytes_per_frame(), 2); // 2 * 1
+    }
+
+    #[test]
+    fn bytes_per_frame_stereo_f32() {
+        let cfg = AudioConfig::high_quality(); // 2 channels, F32
+        assert_eq!(cfg.bytes_per_frame(), 8); // 4 * 2
+    }
+
+    #[test]
+    fn audio_buffer_new_is_empty() {
+        let buf = AudioBuffer::new(AudioConfig::speech());
+        assert!(buf.is_empty());
+        assert_eq!(buf.num_frames(), 0);
+    }
+
+    #[test]
+    fn audio_buffer_from_pcm_stores_data() {
+        let data = vec![0u8; 64];
+        let cfg = AudioConfig::speech();
+        let buf = AudioBuffer::from_pcm(data.clone(), cfg);
+        assert_eq!(buf.data, data);
+        assert_eq!(buf.config.sample_rate, 16000);
+        assert!(!buf.is_empty());
+    }
+
+    #[test]
+    fn audio_buffer_num_frames() {
+        // 16kHz mono I16 => 2 bytes per frame
+        // 100 bytes => 50 frames
+        let buf = AudioBuffer::from_pcm(vec![0u8; 100], AudioConfig::speech());
+        assert_eq!(buf.num_frames(), 50);
+    }
+
+    #[test]
+    fn audio_buffer_duration_secs() {
+        // 16kHz mono I16 => 2 bytes/frame
+        // 32000 bytes => 16000 frames => 1.0 second
+        let buf = AudioBuffer::from_pcm(vec![0u8; 32000], AudioConfig::speech());
+        assert!((buf.duration_secs() - 1.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn voice_new_sets_id_and_defaults() {
+        let v = Voice::new("shimmer");
+        assert_eq!(v.id, "shimmer");
+        assert!(v.name.is_none());
+        assert!(v.language.is_none());
+    }
+
+    #[test]
+    fn output_format_debug_is_reasonable() {
+        let dbg = format!("{:?}", OutputFormat::Wav);
+        assert_eq!(dbg, "Wav");
+        let dbg_mp3 = format!("{:?}", OutputFormat::Mp3);
+        assert_eq!(dbg_mp3, "Mp3");
+    }
+}

@@ -1,4 +1,4 @@
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 //! # Code Interpreters
 //!
 //! Sandboxed code execution for multiple programming languages.

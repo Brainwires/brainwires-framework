@@ -239,3 +239,52 @@ impl HealthMonitor {
         self.agents.remove(agent_id);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn error_rate_zero_when_no_tool_calls() {
+        let m = PerformanceMetrics::default();
+        assert!((m.error_rate() - 0.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn error_rate_correct_value() {
+        let m = PerformanceMetrics {
+            errors: 3,
+            tool_calls: 10,
+            ..Default::default()
+        };
+        assert!((m.error_rate() - 0.3).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn avg_tokens_per_iteration_zero_when_no_iterations() {
+        let m = PerformanceMetrics::default();
+        assert_eq!(m.avg_tokens_per_iteration(), 0);
+    }
+
+    #[test]
+    fn avg_tokens_per_iteration_correct_value() {
+        let m = PerformanceMetrics {
+            iterations: 4,
+            total_tokens: 1000,
+            ..Default::default()
+        };
+        assert_eq!(m.avg_tokens_per_iteration(), 250);
+    }
+
+    #[test]
+    fn health_monitor_register_and_status() {
+        let mut monitor = HealthMonitor::new(HealthMonitorConfig::default());
+        assert_eq!(monitor.status("agent-1"), HealthStatus::Unknown);
+
+        monitor.register("agent-1");
+        assert_eq!(monitor.status("agent-1"), HealthStatus::Healthy);
+
+        monitor.unregister("agent-1");
+        assert_eq!(monitor.status("agent-1"), HealthStatus::Unknown);
+    }
+}

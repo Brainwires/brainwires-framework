@@ -194,3 +194,111 @@ pub struct ParallelStats {
     /// Total cost across all tasks in USD.
     pub total_cost: f64,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_task(id: &str, deps: Vec<&str>) -> ParallelTask {
+        ParallelTask {
+            id: id.to_string(),
+            description: format!("Task {id}"),
+            working_directory: "/tmp".to_string(),
+            depends_on: deps.into_iter().map(|s| s.to_string()).collect(),
+            max_iterations: 10,
+        }
+    }
+
+    fn make_result(task_id: &str, success: bool) -> ParallelTaskResult {
+        ParallelTaskResult {
+            task_id: task_id.to_string(),
+            success,
+            summary: "done".to_string(),
+            iterations: 5,
+            cost: 0.01,
+        }
+    }
+
+    #[test]
+    fn new_coordinator_is_empty() {
+        let coord = ParallelCoordinator::new(ParallelConfig::default());
+        assert!(coord.is_complete()); // no tasks = vacuously complete
+        assert!(!coord.has_failure());
+    }
+
+    #[test]
+    fn add_task_and_ready_tasks() {
+        let mut coord = ParallelCoordinator::new(ParallelConfig::default());
+        coord.add_task(make_task("a", vec![]));
+        coord.add_task(make_task("b", vec!["a"]));
+
+        let ready = coord.ready_tasks();
+        assert_eq!(ready.len(), 1);
+        assert_eq!(ready[0].id, "a");
+    }
+
+    #[test]
+    fn record_result_unlocks_dependents() {
+        let mut coord = ParallelCoordinator::new(ParallelConfig::default());
+        coord.add_task(make_task("a", vec![]));
+        coord.add_task(make_task("b", vec!["a"]));
+
+        coord.record_result(make_result("a", true));
+        let ready = coord.ready_tasks();
+        assert_eq!(ready.len(), 1);
+        assert_eq!(ready[0].id, "b");
+    }
+
+    #[test]
+    fn failed_dependency_blocks_dependents() {
+        let mut coord = ParallelCoordinator::new(ParallelConfig::default());
+        coord.add_task(make_task("a", vec![]));
+        coord.add_task(make_task("b", vec!["a"]));
+
+        coord.record_result(make_result("a", false));
+        // "b" depends on "a" succeeding, so it should NOT be ready
+        let ready = coord.ready_tasks();
+        assert!(ready.is_empty());
+    }
+
+    #[test]
+    fn is_complete_when_all_done() {
+        let mut coord = ParallelCoordinator::new(ParallelConfig::default());
+        coord.add_task(make_task("a", vec![]));
+        coord.add_task(make_task("b", vec![]));
+
+        assert!(!coord.is_complete());
+        coord.record_result(make_result("a", true));
+        assert!(!coord.is_complete());
+        coord.record_result(make_result("b", true));
+        assert!(coord.is_complete());
+    }
+
+    #[test]
+    fn stats_aggregates_correctly() {
+        let mut coord = ParallelCoordinator::new(ParallelConfig::default());
+        coord.add_task(make_task("a", vec![]));
+        coord.add_task(make_task("b", vec![]));
+        coord.record_result(make_result("a", true));
+        coord.record_result(make_result("b", false));
+
+        let stats = coord.stats();
+        assert_eq!(stats.total_tasks, 2);
+        assert_eq!(stats.completed, 2);
+        assert_eq!(stats.succeeded, 1);
+        assert_eq!(stats.failed, 1);
+        assert_eq!(stats.total_iterations, 10);
+        assert!((stats.total_cost - 0.02).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn status_transitions() {
+        let mut coord = ParallelCoordinator::new(ParallelConfig::default());
+        coord.add_task(make_task("a", vec![]));
+
+        assert!(matches!(coord.status(), ParallelPlanStatus::Pending));
+
+        coord.record_result(make_result("a", true));
+        assert!(matches!(coord.status(), ParallelPlanStatus::Completed { .. }));
+    }
+}

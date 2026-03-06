@@ -257,3 +257,95 @@ impl SessionReport {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn session_metrics_new_starts_empty() {
+        let m = SessionMetrics::new();
+        assert_eq!(m.tasks_attempted, 0);
+        assert_eq!(m.tasks_succeeded, 0);
+        assert_eq!(m.tasks_failed, 0);
+        assert!(m.per_strategy.is_empty());
+        assert!(m.commits.is_empty());
+    }
+
+    #[test]
+    fn record_attempt_increments_counters() {
+        let mut m = SessionMetrics::new();
+        m.record_attempt("clippy");
+        m.record_attempt("clippy");
+        m.record_attempt("todo");
+        assert_eq!(m.tasks_attempted, 3);
+        assert_eq!(m.per_strategy["clippy"].tasks_attempted, 2);
+        assert_eq!(m.per_strategy["todo"].tasks_attempted, 1);
+    }
+
+    #[test]
+    fn record_success_increments_and_tracks_iterations() {
+        let mut m = SessionMetrics::new();
+        m.record_success("clippy", 5);
+        m.record_success("clippy", 10);
+        assert_eq!(m.tasks_succeeded, 2);
+        assert_eq!(m.total_iterations, 15);
+        assert_eq!(m.per_strategy["clippy"].tasks_succeeded, 2);
+    }
+
+    #[test]
+    fn record_failure_increments_counters() {
+        let mut m = SessionMetrics::new();
+        m.record_failure("clippy");
+        assert_eq!(m.tasks_failed, 1);
+        // record_failure also increments tasks_attempted on the strategy
+        assert_eq!(m.per_strategy["clippy"].tasks_attempted, 1);
+    }
+
+    #[test]
+    fn success_rate_zero_when_no_attempts() {
+        let m = SessionMetrics::new();
+        assert!((m.success_rate() - 0.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn success_rate_correct_value() {
+        let mut m = SessionMetrics::new();
+        m.record_attempt("a");
+        m.record_attempt("a");
+        m.record_attempt("a");
+        m.record_attempt("a");
+        m.record_success("a", 1);
+        m.record_success("a", 1);
+        m.record_success("a", 1);
+        // 3 successes out of 4 attempts
+        assert!((m.success_rate() - 0.75).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn session_report_to_markdown_produces_valid_output() {
+        let mut metrics = SessionMetrics::new();
+        metrics.record_attempt("clippy");
+        metrics.record_success("clippy", 5);
+        metrics.record_commit("abc123".to_string());
+
+        let report = SessionReport::new(metrics, Duration::from_secs(42), None);
+        let md = report.to_markdown();
+
+        assert!(md.contains("# Self-Improvement Session Report"));
+        assert!(md.contains("Tasks Attempted"));
+        assert!(md.contains("Tasks Succeeded"));
+        assert!(md.contains("42.0s"));
+        assert!(md.contains("`abc123`"));
+    }
+
+    #[test]
+    fn session_report_to_json_produces_valid_json() {
+        let metrics = SessionMetrics::new();
+        let report = SessionReport::new(metrics, Duration::from_secs(10), None);
+        let json_str = report.to_json().expect("to_json should succeed");
+        let parsed: serde_json::Value = serde_json::from_str(&json_str).expect("should be valid JSON");
+        assert!(parsed.get("metrics").is_some());
+        assert!(parsed.get("duration").is_some());
+    }
+}

@@ -196,12 +196,17 @@ pub(crate) struct AnthropicListResponse {
     pub last_id: Option<String>,
 }
 
+/// A model entry from the Anthropic API.
 #[derive(Debug, Deserialize)]
 pub struct AnthropicModelEntry {
+    /// Model identifier (e.g. `"claude-sonnet-4-20250514"`).
     pub id: String,
+    /// Human-readable name.
     pub display_name: String,
+    /// Resource type (always `"model"`).
     #[serde(rename = "type")]
     pub _type: Option<String>,
+    /// ISO 8601 creation timestamp.
     pub created_at: Option<String>,
 }
 

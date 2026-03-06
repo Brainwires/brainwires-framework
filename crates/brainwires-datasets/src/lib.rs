@@ -1,4 +1,4 @@
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 //! # Brainwires Datasets
 //!
 //! Training data pipelines for the Brainwires Agent Framework.

@@ -1,4 +1,4 @@
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 //! # Brainwires Brain — Central Knowledge Crate
 //!
 //! The canonical home for all knowledge systems in the Brainwires Agent Framework:

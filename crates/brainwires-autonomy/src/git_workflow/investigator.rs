@@ -133,3 +133,36 @@ fn extract_complexity(text: &str) -> String {
         "medium".to_string()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn extract_confidence_from_text() {
+        assert!((extract_confidence("My confidence: 0.85") - 0.85).abs() < f64::EPSILON);
+        assert!((extract_confidence("I have 0.9 confidence in this") - 0.9).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn extract_confidence_default_when_missing() {
+        assert!((extract_confidence("no score here") - 0.5).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn extract_files_finds_file_paths() {
+        let text = "Affected files:\n- src/main.rs\n- src/lib.rs\n- README.md\n";
+        let files = extract_files(text);
+        assert!(files.contains(&"src/main.rs".to_string()));
+        assert!(files.contains(&"src/lib.rs".to_string()));
+    }
+
+    #[test]
+    fn extract_complexity_variants() {
+        assert_eq!(extract_complexity("This is high complexity work"), "high");
+        assert_eq!(extract_complexity("Complexity: high"), "high");
+        assert_eq!(extract_complexity("This is low complexity"), "low");
+        assert_eq!(extract_complexity("Complexity: low"), "low");
+        assert_eq!(extract_complexity("Something else entirely"), "medium");
+    }
+}

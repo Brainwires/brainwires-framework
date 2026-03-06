@@ -60,3 +60,68 @@ pub enum AutonomyError {
 
 /// Convenience result alias.
 pub type AutonomyResult<T> = Result<T, AutonomyError>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn display_safety_stop() {
+        let err = AutonomyError::SafetyStop("test reason".to_string());
+        assert_eq!(err.to_string(), "Safety stop: test reason");
+    }
+
+    #[test]
+    fn display_budget_exceeded() {
+        let err = AutonomyError::BudgetExceeded(12.5);
+        assert_eq!(err.to_string(), "Budget exceeded: $12.50");
+    }
+
+    #[test]
+    fn display_circuit_breaker_tripped() {
+        let err = AutonomyError::CircuitBreakerTripped(5);
+        assert_eq!(err.to_string(), "Circuit breaker tripped after 5 consecutive failures");
+    }
+
+    #[test]
+    fn display_diff_limit_exceeded() {
+        let err = AutonomyError::DiffLimitExceeded(300);
+        assert_eq!(err.to_string(), "Diff limit exceeded: 300 lines");
+    }
+
+    #[test]
+    fn display_remaining_variants() {
+        assert_eq!(
+            AutonomyError::CycleLimitReached(10).to_string(),
+            "Cycle limit reached: 10"
+        );
+        assert_eq!(
+            AutonomyError::GitError("bad ref".to_string()).to_string(),
+            "Git error: bad ref"
+        );
+        assert_eq!(
+            AutonomyError::ForgeError("404".to_string()).to_string(),
+            "Forge error: 404"
+        );
+        assert_eq!(
+            AutonomyError::WebhookError("bad sig".to_string()).to_string(),
+            "Webhook error: bad sig"
+        );
+        assert_eq!(
+            AutonomyError::ConfigError("missing".to_string()).to_string(),
+            "Configuration error: missing"
+        );
+        assert_eq!(
+            AutonomyError::AgentError("timeout".to_string()).to_string(),
+            "Agent error: timeout"
+        );
+        assert_eq!(
+            AutonomyError::InvestigationError("parse".to_string()).to_string(),
+            "Investigation error: parse"
+        );
+        assert_eq!(
+            AutonomyError::MergePolicyError("blocked".to_string()).to_string(),
+            "Merge policy error: blocked"
+        );
+    }
+}

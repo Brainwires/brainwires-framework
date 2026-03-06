@@ -465,3 +465,26 @@ impl GitForge for GitHubForge {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn repo_ref_full_name() {
+        let r = RepoRef {
+            owner: "nightness".to_string(),
+            name: "brainwires".to_string(),
+        };
+        assert_eq!(r.full_name(), "nightness/brainwires");
+    }
+
+    #[test]
+    fn repo_ref_full_name_with_org() {
+        let r = RepoRef {
+            owner: "my-org".to_string(),
+            name: "my-repo".to_string(),
+        };
+        assert_eq!(r.full_name(), "my-org/my-repo");
+    }
+}

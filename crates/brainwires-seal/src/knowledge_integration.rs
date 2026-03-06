@@ -467,11 +467,9 @@ impl SealKnowledgeCoordinator {
 
         let mut loaded = 0;
         for truth in truths {
-            // Convert BKS truth to SEAL pattern hint
-            // This is heuristic-based since BKS and SEAL use different schemas
-            if let Some(pattern_hint) = self.truth_to_pattern_hint(&truth) {
-                // Store in SEAL's global memory as advisory pattern
-                // (This would require extending SEAL's GlobalMemory API)
+            // Convert BKS truth to structured SEAL pattern hint and store it
+            if let Some(hint) = self.truth_to_pattern_hint(&truth) {
+                seal_learning.global.add_pattern_hint(hint);
                 tracing::debug!(
                     "Loaded BKS truth into SEAL: {} -> {}",
                     truth.context_pattern,
@@ -601,17 +599,17 @@ impl SealKnowledgeCoordinator {
         )
     }
 
-    /// Convert BKS truth to SEAL pattern hint (heuristic)
+    /// Convert BKS truth to a structured SEAL pattern hint.
     ///
     /// This is a best-effort conversion since BKS and SEAL use different schemas.
     /// Returns None if the truth doesn't map to a SEAL pattern.
-    fn truth_to_pattern_hint(&self, truth: &BehavioralTruth) -> Option<String> {
-        // For now, return a simple string representation
-        // FUTURE(0.2): Extend SEAL's GlobalMemory to store structured hints
-        Some(format!(
-            "Context: {} | Rule: {} | Confidence: {:.2}",
-            truth.context_pattern, truth.rule, truth.confidence
-        ))
+    fn truth_to_pattern_hint(&self, truth: &BehavioralTruth) -> Option<crate::learning::PatternHint> {
+        Some(crate::learning::PatternHint {
+            context_pattern: truth.context_pattern.clone(),
+            rule: truth.rule.clone(),
+            confidence: truth.confidence,
+            source: "bks".to_string(),
+        })
     }
 }
 

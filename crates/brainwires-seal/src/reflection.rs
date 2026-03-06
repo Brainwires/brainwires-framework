@@ -723,6 +723,7 @@ impl ReflectionModule {
             success,
             result_count,
             Some(&report.query),
+            0, // Reflection doesn't track query execution timing
         );
 
         // Track specific error patterns for future avoidance

@@ -234,117 +234,170 @@ impl GoogleClient {
 // Gemini API wire types  (all pub for reuse in the chat-layer crate)
 // =========================================================================
 
+/// A request body for the Gemini `generateContent` endpoint.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GeminiRequest {
+    /// Conversation messages.
     pub contents: Vec<GeminiMessage>,
+    /// Optional system-level instruction.
     #[serde(rename = "systemInstruction", skip_serializing_if = "Option::is_none")]
     pub system_instruction: Option<GeminiSystemInstruction>,
+    /// Optional generation configuration (temperature, etc.).
     #[serde(rename = "generationConfig", skip_serializing_if = "Option::is_none")]
     pub generation_config: Option<GeminiGenerationConfig>,
+    /// Optional tool declarations available to the model.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tools: Option<Vec<GeminiToolSet>>,
 }
 
+/// A system-level instruction for the Gemini API.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GeminiSystemInstruction {
+    /// The parts that make up the system instruction.
     pub parts: Vec<GeminiPart>,
 }
 
+/// Generation configuration for a Gemini request.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GeminiGenerationConfig {
+    /// Sampling temperature.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub temperature: Option<f32>,
+    /// Maximum number of tokens to generate.
     #[serde(rename = "maxOutputTokens", skip_serializing_if = "Option::is_none")]
     pub max_output_tokens: Option<u32>,
+    /// Nucleus sampling parameter.
     #[serde(rename = "topP", skip_serializing_if = "Option::is_none")]
     pub top_p: Option<f32>,
 }
 
+/// A set of function declarations that the model may call.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GeminiToolSet {
+    /// The function declarations in this tool set.
     pub function_declarations: Vec<GeminiFunctionDeclaration>,
 }
 
+/// A single message in a Gemini conversation.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GeminiMessage {
+    /// The role of the message author (e.g. `"user"`, `"model"`).
     pub role: String,
+    /// The content parts of this message.
     pub parts: Vec<GeminiPart>,
 }
 
+/// A single content part within a Gemini message.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum GeminiPart {
+    /// Plain text content.
     Text {
+        /// The text string.
         text: String,
     },
+    /// Inline binary data (e.g. an image).
     InlineData {
+        /// The inline data payload.
         inline_data: GeminiInlineData,
     },
+    /// A function call requested by the model.
     FunctionCall {
+        /// The function call details.
         function_call: GeminiFunctionCall,
     },
+    /// A response to a previous function call.
     FunctionResponse {
+        /// The function response details.
         function_response: GeminiFunctionResponse,
     },
 }
 
+/// Inline binary data embedded in a Gemini message part.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GeminiInlineData {
+    /// The MIME type of the data (e.g. `"image/png"`).
     pub mime_type: String,
+    /// Base64-encoded data.
     pub data: String,
 }
 
+/// A function call produced by the Gemini model.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GeminiFunctionCall {
+    /// The name of the function to call.
     pub name: String,
+    /// The arguments to pass to the function.
     pub args: serde_json::Value,
 }
 
+/// A response to a Gemini function call.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GeminiFunctionResponse {
+    /// The name of the function that was called.
     pub name: String,
+    /// The response payload from the function.
     pub response: serde_json::Value,
 }
 
+/// A function declaration exposed to the Gemini model.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GeminiFunctionDeclaration {
+    /// The function name.
     pub name: String,
+    /// A description of what the function does.
     pub description: String,
+    /// JSON Schema describing the function parameters.
     pub parameters: std::collections::HashMap<String, serde_json::Value>,
 }
 
+/// Response from the Gemini `generateContent` endpoint.
 #[derive(Debug, Deserialize)]
 pub struct GeminiResponse {
+    /// Candidate completions returned by the model.
     pub candidates: Vec<GeminiCandidate>,
+    /// Token usage metadata.
     #[serde(rename = "usageMetadata")]
     pub usage_metadata: Option<GeminiUsageMetadata>,
 }
 
+/// A single candidate completion from the Gemini model.
 #[derive(Debug, Deserialize)]
 pub struct GeminiCandidate {
+    /// The generated content.
     pub content: GeminiContent,
+    /// The reason the model stopped generating (e.g. `"STOP"`).
     #[serde(rename = "finishReason")]
     pub finish_reason: String,
 }
 
+/// The content of a Gemini candidate response.
 #[derive(Debug, Deserialize)]
 pub struct GeminiContent {
+    /// The parts that make up this content.
     pub parts: Vec<GeminiPart>,
 }
 
+/// Token usage metadata from a Gemini response.
 #[derive(Debug, Deserialize, Clone)]
 pub struct GeminiUsageMetadata {
+    /// Number of tokens in the prompt.
     #[serde(rename = "promptTokenCount")]
     pub prompt_token_count: u32,
+    /// Number of tokens in the generated candidates.
     #[serde(rename = "candidatesTokenCount")]
     pub candidates_token_count: u32,
+    /// Total token count (prompt + candidates).
     #[serde(rename = "totalTokenCount")]
     pub total_token_count: u32,
 }
 
+/// A single chunk from a streaming Gemini response.
 #[derive(Debug, Deserialize)]
 pub struct GeminiStreamChunk {
+    /// Candidate completions in this chunk.
     pub candidates: Vec<GeminiCandidate>,
+    /// Token usage metadata (typically present in the final chunk).
     #[serde(rename = "usageMetadata")]
     pub usage_metadata: Option<GeminiUsageMetadata>,
 }
@@ -356,14 +409,18 @@ pub struct GeminiStreamChunk {
 /// A single model entry returned by the Google `models` endpoint.
 #[derive(Debug, Deserialize, Clone)]
 pub struct GoogleModelEntry {
-    /// e.g. "models/gemini-2.0-flash"
+    /// The model resource name, e.g. `"models/gemini-2.0-flash"`.
     pub name: String,
+    /// Human-readable display name.
     #[serde(rename = "displayName")]
     pub display_name: Option<String>,
+    /// Maximum number of input tokens the model supports.
     #[serde(rename = "inputTokenLimit")]
     pub input_token_limit: Option<u32>,
+    /// Maximum number of output tokens the model supports.
     #[serde(rename = "outputTokenLimit")]
     pub output_token_limit: Option<u32>,
+    /// Generation methods supported by this model (e.g. `"generateContent"`).
     #[serde(rename = "supportedGenerationMethods", default)]
     pub supported_generation_methods: Vec<String>,
 }
@@ -371,8 +428,10 @@ pub struct GoogleModelEntry {
 /// Paginated response from the Google `models` endpoint.
 #[derive(Debug, Deserialize)]
 pub struct GoogleListResponse {
+    /// The model entries in this page.
     #[serde(default)]
     pub models: Vec<GoogleModelEntry>,
+    /// Token for fetching the next page, if any.
     #[serde(rename = "nextPageToken")]
     pub next_page_token: Option<String>,
 }

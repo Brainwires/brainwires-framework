@@ -110,3 +110,37 @@ impl BranchManager {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn branch_name_basic() {
+        let bm = BranchManager::new("autonomy/".to_string());
+        let name = bm.branch_name(42, "fix login bug");
+        assert_eq!(name, "autonomy/issue-42-fix-login-bug");
+    }
+
+    #[test]
+    fn branch_name_sanitizes_special_chars() {
+        let bm = BranchManager::new("fix/".to_string());
+        let name = bm.branch_name(7, "Hello, World! @#$%");
+        // Non-alphanumeric chars become hyphens, leading/trailing hyphens trimmed
+        assert!(name.starts_with("fix/issue-7-"));
+        assert!(!name.ends_with('-'));
+        // Should not contain special characters
+        let slug_part = name.strip_prefix("fix/issue-7-").unwrap();
+        assert!(slug_part.chars().all(|c| c.is_alphanumeric() || c == '-'));
+    }
+
+    #[test]
+    fn branch_name_truncates_long_slugs() {
+        let bm = BranchManager::new("auto/".to_string());
+        let long_slug = "a".repeat(100);
+        let name = bm.branch_name(1, &long_slug);
+        // Slug is truncated to 40 chars
+        let slug_part = name.strip_prefix("auto/issue-1-").unwrap();
+        assert!(slug_part.len() <= 40);
+    }
+}

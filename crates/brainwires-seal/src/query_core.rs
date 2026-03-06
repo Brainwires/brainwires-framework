@@ -270,6 +270,8 @@ pub struct QueryCore {
     pub entities: Vec<(String, EntityType)>,
     /// Original question text
     pub original: String,
+    /// Resolved question text (after coreference resolution), if different from original
+    pub resolved: Option<String>,
     /// Confidence score (0.0 - 1.0)
     pub confidence: f32,
 }
@@ -287,6 +289,7 @@ impl QueryCore {
             root,
             entities,
             original,
+            resolved: None,
             confidence: 1.0,
         }
     }
@@ -294,6 +297,12 @@ impl QueryCore {
     /// Set the confidence score
     pub fn with_confidence(mut self, confidence: f32) -> Self {
         self.confidence = confidence;
+        self
+    }
+
+    /// Set the resolved query text (after coreference resolution)
+    pub fn with_resolved(mut self, resolved: String) -> Self {
+        self.resolved = Some(resolved);
         self
     }
 

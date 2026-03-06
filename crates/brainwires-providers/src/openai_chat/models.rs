@@ -17,14 +17,18 @@ use crate::model_listing::{
 /// Response from the `/v1/models` endpoint.
 #[derive(Debug, Deserialize, Clone)]
 pub struct OpenAIListModelsResponse {
+    /// List of available models.
     pub data: Vec<OpenAIModelEntry>,
 }
 
 /// A single entry in the models list.
 #[derive(Debug, Deserialize, Clone)]
 pub struct OpenAIModelEntry {
+    /// Model identifier (e.g. `"gpt-4o"`).
     pub id: String,
+    /// Organization that owns the model.
     pub owned_by: Option<String>,
+    /// Unix timestamp when the model was created.
     pub created: Option<i64>,
 }
 

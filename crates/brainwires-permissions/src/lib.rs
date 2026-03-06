@@ -1,4 +1,4 @@
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 //! Permission system for agent capability management
 //!
 //! This crate provides a comprehensive capability-based permission system for

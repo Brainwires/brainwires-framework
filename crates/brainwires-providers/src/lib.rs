@@ -1,4 +1,4 @@
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 //! Provider layer for the Brainwires Agent Framework.
 //!
 //! Contains both low-level API client structs (HTTP transport, auth, rate

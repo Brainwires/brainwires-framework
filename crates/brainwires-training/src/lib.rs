@@ -1,4 +1,4 @@
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 //! # Brainwires Training
 //!
 //! Model training and fine-tuning for the Brainwires Agent Framework.

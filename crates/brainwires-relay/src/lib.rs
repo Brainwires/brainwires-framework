@@ -1,4 +1,4 @@
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 //! # Brainwires Relay -- MCP Server Framework & Agent Communication
 //!
 //! Provides an MCP server framework, middleware pipeline, agent IPC,
