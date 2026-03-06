@@ -1476,7 +1476,7 @@ mod tests {
             _tools: Option<&'a [Tool]>,
             _options: &'a ChatOptions,
         ) -> BoxStream<'a, Result<StreamChunk>> {
-            unimplemented!()
+            Box::pin(futures::stream::empty())
         }
     }
 
@@ -1664,7 +1664,7 @@ mod tests {
                 _tools: Option<&'a [Tool]>,
                 _options: &'a ChatOptions,
             ) -> futures::stream::BoxStream<'a, Result<brainwires_core::StreamChunk>> {
-                unimplemented!()
+                Box::pin(futures::stream::empty())
             }
         }
 

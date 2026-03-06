@@ -357,7 +357,7 @@ mod tests {
             _: Option<&'a [Tool]>,
             _: &'a ChatOptions,
         ) -> BoxStream<'a, Result<StreamChunk>> {
-            unimplemented!()
+            Box::pin(futures::stream::empty())
         }
     }
 
