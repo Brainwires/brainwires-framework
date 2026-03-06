@@ -7,16 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+#### Providers (`brainwires-providers`)
+- **OpenAI Responses API**: Upgraded from partial implementation to full-spec coverage — all 7 tool types, 11 output item types, 35+ streaming event types, structured outputs, reasoning config, and all 6 REST endpoints (create, retrieve, delete, cancel, list_input_items, compact).
+- Refactored monolithic `openai_responses/mod.rs` into structured modules (`client.rs`, `convert.rs`, `provider.rs`, `types/`).
+- Added `ProviderType::OpenAiResponses` with registry entry, factory integration, model listing support, and `base_url` passthrough.
+- Response ID tracking for automatic conversation chaining.
+- 54 new tests covering serde round-trips for all wire types.
+
+#### Training (`brainwires-training`)
+- **Breaking:** Upgraded Burn from 0.16 to 0.20. Switched from umbrella `burn` crate to individual crates (`burn-core`, `burn-nn`, `burn-optim`, `burn-autodiff`, `burn-wgpu`, `burn-ndarray`) to avoid `cubecl-cpu` links="lzma" conflict with `xz2` from datafusion/lancedb.
+- Fixed `squeeze`/`unsqueeze` API calls for Burn 0.19+ compatibility.
+- Added `extern crate burn_core as burn` shim for derive macro resolution.
+- Cloud providers (Together, Fireworks, Anyscale): extracted `extract_error()` and `parse_job_status()` helpers; `list_jobs()` now parses actual job status instead of hardcoding `Pending`; improved error messages from API responses.
+- Cloud providers (Bedrock, Vertex): all methods now return explicit `TrainingError::NotImplemented` errors instead of ad-hoc strings.
+- ORPO loss uses explicit ones tensor instead of neg+add pattern.
+- Explicit unsqueeze dimensions throughout local training modules.
+
+### Added
+
+#### Training (`brainwires-training`)
+- `TrainingError::NotImplemented` variant for clear stub errors on unimplemented provider methods.
+- Dataset loading: JSONL parser supporting prompt/completion and chat message formats (`dataset_loader.rs`).
+- Learning rate scheduling: warmup phase + constant/linear/cosine/cosine-warm-restarts strategies (`lr_schedule.rs`).
+- Multi-adapter dispatch: LoRA and DoRA training paths with QLoRA/QDoRA fallbacks.
+- Validation loop: optional eval dataset evaluated each epoch during local training.
+- Weight serialization: adapter weights (A, B, magnitude) written as binary for export.
+- Token count tracking in training metrics.
+- Weight accessor methods on `LoraLinear` and `DoraLinear` for export.
+
+#### RAG (`brainwires-rag`)
+- `indexed_at` field on `SearchResult` — exposes the chunk indexing timestamp (Unix epoch seconds) from the vector database. Defaults to `0` for backwards compatibility.
+- Upgraded `zip` dependency from v2 to v8 (pure-Rust `lzma-rust2`).
+
 ### Fixed
 
 #### RAG (`brainwires-rag`)
 - Git search results now return the actual commit date instead of hardcoded `0`. The `commit_date` field in `GitSearchResult` is now populated from the `indexed_at` metadata stored in the vector database during indexing.
 - Dirty flag is now cleared immediately after embeddings + cache are flushed to disk in both full and incremental indexing paths. Previously, the dirty flag was only cleared in the outer `do_index_smart` wrapper, so an unclean exit after successful indexing could leave the flag stuck, causing unnecessary full reindexes on next startup.
-
-### Added
-
-#### RAG (`brainwires-rag`)
-- `indexed_at` field on `SearchResult` — exposes the chunk indexing timestamp (Unix epoch seconds) from the vector database. Defaults to `0` for backwards compatibility.
 
 ## [0.1.0] - 2025-03-06
 
