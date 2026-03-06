@@ -199,6 +199,9 @@ http = "1.1"
 http-body-util = "0.1"
 bytes = "1"
 
+# Token decoding (used by llama-cpp-2)
+encoding_rs = "0.8"
+
 # Async stream adapters
 tokio-stream = "0.1"
 

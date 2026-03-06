@@ -34,6 +34,7 @@ uuid = { workspace = true, optional = true }
 
 # Local LLM inference (optional heavy dep)
 llama-cpp-2 = { version = "0.1", optional = true }
+encoding_rs = { workspace = true, optional = true }
 
 # Bedrock auth (AWS SigV4) — official AWS crates
 aws-sigv4 = { workspace = true, optional = true }
@@ -50,7 +51,7 @@ native = [
     "dep:reqwest", "dep:async-stream",
     "dep:tracing", "dep:tokio", "dep:uuid",
 ]
-llama-cpp-2 = ["dep:tracing", "dep:tokio", "dep:llama-cpp-2"]
+llama-cpp-2 = ["dep:tracing", "dep:tokio", "dep:llama-cpp-2", "dep:encoding_rs"]
 bedrock = ["native", "dep:aws-sigv4", "dep:aws-credential-types", "dep:aws-smithy-runtime-api", "dep:http"]
 vertex-ai = ["native", "dep:gcp_auth"]
 

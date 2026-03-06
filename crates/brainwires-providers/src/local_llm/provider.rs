@@ -13,7 +13,6 @@ use futures::stream::BoxStream;
 use std::sync::Arc;
 
 #[cfg(feature = "llama-cpp-2")]
-#[allow(deprecated)] // token_to_str / Special — migrate to token_to_piece in 0.2
 use llama_cpp_2::{
     context::params::LlamaContextParams,
     llama_backend::LlamaBackend,
@@ -21,7 +20,6 @@ use llama_cpp_2::{
     model::LlamaModel,
     model::params::LlamaModelParams,
     model::AddBos,
-    model::Special,
     sampling::LlamaSampler,
 };
 
@@ -282,6 +280,7 @@ impl LocalLlmProvider {
         ]);
 
         // Generate tokens
+        let mut decoder = encoding_rs::UTF_8.new_decoder();
         let mut output = String::new();
         let stop_tokens = self.config.model_type.stop_tokens();
         let mut generated = 0u32;
@@ -297,8 +296,7 @@ impl LocalLlmProvider {
             }
 
             // Decode token to string
-            #[allow(deprecated)] // migrate to token_to_piece in 0.2
-            let piece = model.token_to_str(token, Special::Tokenize)
+            let piece = model.token_to_piece(token, &mut decoder, true, None)
                 .map_err(|e| anyhow!("Token decode failed: {:?}", e))?;
 
             // Check for stop sequences
