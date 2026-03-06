@@ -1,8 +1,8 @@
-// LanceDB is the default embedded vector database (stable, feature-rich)
+/// LanceDB is the default embedded vector database (stable, feature-rich).
 pub mod lance_client;
 pub use lance_client::LanceVectorDB;
 
-// Qdrant is optional (requires external server)
+/// Qdrant vector database backend (requires external server).
 #[cfg(feature = "qdrant-backend")]
 pub mod qdrant_client;
 #[cfg(feature = "qdrant-backend")]

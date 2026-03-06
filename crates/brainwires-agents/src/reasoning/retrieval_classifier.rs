@@ -4,7 +4,7 @@
 //! replacing pattern-based detection with understanding of intent.
 
 use std::sync::Arc;
-use tracing::{debug, warn};
+use tracing::warn;
 
 use brainwires_core::message::Message;
 use brainwires_core::provider::{ChatOptions, Provider};
@@ -273,20 +273,24 @@ impl Default for RetrievalClassifierBuilder {
 }
 
 impl RetrievalClassifierBuilder {
+    /// Create a new builder with default settings.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Set the provider to use for retrieval classification.
     pub fn provider(mut self, provider: Arc<dyn Provider>) -> Self {
         self.provider = Some(provider);
         self
     }
 
+    /// Set the model ID to use for inference.
     pub fn model_id(mut self, model_id: impl Into<String>) -> Self {
         self.model_id = model_id.into();
         self
     }
 
+    /// Build the retrieval classifier, returning `None` if no provider was set.
     pub fn build(self) -> Option<RetrievalClassifier> {
         self.provider.map(|p| RetrievalClassifier::new(p, self.model_id))
     }

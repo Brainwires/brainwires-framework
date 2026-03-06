@@ -11,6 +11,8 @@ use anyhow::{anyhow, Result};
 use brainwires_core::Provider;
 use super::registry::{self, ChatProtocol};
 use super::ProviderConfig;
+#[cfg(any(feature = "bedrock", feature = "vertex-ai"))]
+use super::ProviderType;
 
 /// Pure chat provider factory — creates provider instances from config.
 ///

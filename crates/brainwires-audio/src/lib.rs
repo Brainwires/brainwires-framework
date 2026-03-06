@@ -35,6 +35,7 @@ pub mod api;
 #[cfg(feature = "flac")]
 pub mod flac;
 
+/// Local inference backends (whisper.cpp via whisper-rs).
 #[cfg(feature = "local-stt")]
 pub mod local;
 

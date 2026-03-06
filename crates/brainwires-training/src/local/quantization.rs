@@ -14,10 +14,12 @@ pub struct QuantConfig {
 }
 
 impl QuantConfig {
+    /// Create an INT4 quantization configuration (4-bit, group size 64, double quant enabled).
     pub fn int4() -> Self {
         Self { bits: 4, group_size: 64, double_quant: true }
     }
 
+    /// Create an INT8 quantization configuration (8-bit, group size 128).
     pub fn int8() -> Self {
         Self { bits: 8, group_size: 128, double_quant: false }
     }

@@ -25,6 +25,7 @@ pub struct DoraLayer {
 }
 
 impl DoraLayer {
+    /// Create a new DoRA layer with the given dimensions, rank, and alpha.
     pub fn new(in_features: usize, out_features: usize, rank: usize, alpha: f32) -> Self {
         Self {
             in_features,

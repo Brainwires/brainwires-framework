@@ -45,7 +45,7 @@ impl TiktokenTokenizer {
 impl Tokenizer for TiktokenTokenizer {
     fn encode(&self, text: &str) -> DatasetResult<Vec<u32>> {
         let tokens = self.bpe.encode_with_special_tokens(text);
-        Ok(tokens.into_iter().map(|t| t as u32).collect())
+        Ok(tokens.into_iter().collect())
     }
 
     fn decode(&self, ids: &[u32]) -> DatasetResult<String> {

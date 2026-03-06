@@ -26,20 +26,20 @@ use crate::types::{ExecutionLimits, ExecutionRequest, ExecutionResult};
 
 /// Python code executor using RustPython
 pub struct PythonExecutor {
-    limits: ExecutionLimits,
+    _limits: ExecutionLimits,
 }
 
 impl PythonExecutor {
     /// Create a new Python executor with default limits
     pub fn new() -> Self {
         Self {
-            limits: ExecutionLimits::default(),
+            _limits: ExecutionLimits::default(),
         }
     }
 
     /// Create a new Python executor with custom limits
     pub fn with_limits(limits: ExecutionLimits) -> Self {
-        Self { limits }
+        Self { _limits: limits }
     }
 
     /// Execute Python code

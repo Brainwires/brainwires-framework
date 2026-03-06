@@ -4,7 +4,7 @@
 //! what regex patterns can capture, enriching the knowledge graph.
 
 use std::sync::Arc;
-use tracing::{debug, warn};
+use tracing::warn;
 
 use brainwires_core::message::Message;
 use brainwires_core::provider::{ChatOptions, Provider};
@@ -14,38 +14,54 @@ use super::InferenceTimer;
 /// Enhanced entity type with semantic classification
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SemanticEntityType {
-    /// Code entities
+    /// A source file.
     File,
+    /// A function or method.
     Function,
+    /// A type, struct, class, or interface.
     Type,
+    /// A variable or constant.
     Variable,
+    /// A module or namespace.
     Module,
+    /// A package, crate, or library.
     Package,
 
-    /// Domain concepts
+    /// A general domain concept.
     Concept,
+    /// A design or architectural pattern.
     Pattern,
+    /// An algorithm or computational technique.
     Algorithm,
+    /// A communication or network protocol.
     Protocol,
 
-    /// Actions/Operations
+    /// A CLI or shell command.
     Command,
+    /// A runtime operation or action.
     Operation,
+    /// A task or work item.
     Task,
 
-    /// Problem/Solution
+    /// An error or exception.
     Error,
+    /// A bug or known defect.
     Bug,
+    /// A fix or patch for a defect.
     Fix,
+    /// A product or code feature.
     Feature,
 
-    /// People/Roles
+    /// A person or user.
     Person,
+    /// A role or permission level.
     Role,
 
-    /// Resources
+    /// A URL or web link.
     Url,
+    /// A filesystem path.
     Path,
+    /// A generic identifier or ID.
     Identifier,
 }
 
@@ -123,6 +139,7 @@ pub struct EnhancedEntity {
 }
 
 impl EnhancedEntity {
+    /// Create a new enhanced entity with the given name, type, and confidence.
     pub fn new(name: String, entity_type: SemanticEntityType, confidence: f32) -> Self {
         Self {
             name,
@@ -132,6 +149,7 @@ impl EnhancedEntity {
         }
     }
 
+    /// Attach contextual information describing where the entity was found.
     pub fn with_context(mut self, context: String) -> Self {
         self.context = Some(context);
         self
@@ -154,31 +172,46 @@ pub struct EnhancedRelationship {
 /// Types of relationships we detect semantically
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RelationType {
-    /// Structural relationships
+    /// A contains B (parent-child).
     Contains,
+    /// A is defined inside B.
     DefinedIn,
+    /// A imports B.
     Imports,
+    /// A exports B.
     Exports,
+    /// A extends or inherits from B.
     Extends,
+    /// A implements the interface or trait B.
     Implements,
 
-    /// Behavioral relationships
+    /// A calls or invokes B.
     Calls,
+    /// A uses or references B.
     Uses,
+    /// A modifies B.
     Modifies,
+    /// A creates or constructs B.
     Creates,
+    /// A deletes or removes B.
     Deletes,
 
-    /// Semantic relationships
+    /// A is semantically related to B.
     RelatedTo,
+    /// A is similar to B.
     SimilarTo,
+    /// A depends on B.
     DependsOn,
+    /// A causes B.
     Causes,
+    /// A fixes or resolves B.
     Fixes,
+    /// A replaces B.
     Replaces,
 }
 
 impl RelationType {
+    /// Parse a relation type from a string label.
     pub fn from_str(s: &str) -> Option<Self> {
         let lower = s.to_lowercase();
         match lower.as_str() {
@@ -203,6 +236,7 @@ impl RelationType {
         }
     }
 
+    /// Return the canonical string label for this relation type.
     pub fn as_str(&self) -> &'static str {
         match self {
             RelationType::Contains => "contains",
@@ -240,6 +274,7 @@ pub struct EnhancementResult {
 }
 
 impl EnhancementResult {
+    /// Create an empty enhancement result (no entities, relationships, or concepts).
     pub fn empty() -> Self {
         Self {
             entities: Vec::new(),
@@ -249,6 +284,7 @@ impl EnhancementResult {
         }
     }
 
+    /// Create an enhancement result from LLM-extracted data.
     pub fn from_local(
         entities: Vec<EnhancedEntity>,
         relationships: Vec<EnhancedRelationship>,
@@ -720,30 +756,36 @@ impl Default for EntityEnhancerBuilder {
 }
 
 impl EntityEnhancerBuilder {
+    /// Create a new builder with default settings.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Set the provider to use for entity extraction.
     pub fn provider(mut self, provider: Arc<dyn Provider>) -> Self {
         self.provider = Some(provider);
         self
     }
 
+    /// Set the model ID to use for inference.
     pub fn model_id(mut self, model_id: impl Into<String>) -> Self {
         self.model_id = model_id.into();
         self
     }
 
+    /// Set the minimum confidence threshold for extracted entities.
     pub fn min_confidence(mut self, confidence: f32) -> Self {
         self.min_confidence = confidence.clamp(0.0, 1.0);
         self
     }
 
+    /// Set the maximum number of entities to extract per call.
     pub fn max_entities(mut self, max: usize) -> Self {
         self.max_entities = max.max(1);
         self
     }
 
+    /// Build the entity enhancer, returning `None` if no provider was set.
     pub fn build(self) -> Option<EntityEnhancer> {
         self.provider.map(|p| {
             EntityEnhancer::new(p, self.model_id)

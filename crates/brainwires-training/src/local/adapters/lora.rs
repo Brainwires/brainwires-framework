@@ -24,6 +24,7 @@ pub struct LoraLayer {
 }
 
 impl LoraLayer {
+    /// Create a new LoRA layer with the given dimensions, rank, and alpha.
     pub fn new(in_features: usize, out_features: usize, rank: usize, alpha: f32) -> Self {
         Self {
             in_features,
@@ -35,6 +36,7 @@ impl LoraLayer {
         }
     }
 
+    /// Set the dropout rate for the LoRA adapter.
     pub fn with_dropout(mut self, dropout: f32) -> Self {
         self.dropout = dropout;
         self

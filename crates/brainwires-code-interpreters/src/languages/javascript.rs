@@ -30,20 +30,20 @@ use crate::types::{ExecutionLimits, ExecutionRequest, ExecutionResult};
 
 /// JavaScript code executor using Boa engine
 pub struct JavaScriptExecutor {
-    limits: ExecutionLimits,
+    _limits: ExecutionLimits,
 }
 
 impl JavaScriptExecutor {
     /// Create a new JavaScript executor with default limits
     pub fn new() -> Self {
         Self {
-            limits: ExecutionLimits::default(),
+            _limits: ExecutionLimits::default(),
         }
     }
 
     /// Create a new JavaScript executor with custom limits
     pub fn with_limits(limits: ExecutionLimits) -> Self {
-        Self { limits }
+        Self { _limits: limits }
     }
 
     /// Execute JavaScript code

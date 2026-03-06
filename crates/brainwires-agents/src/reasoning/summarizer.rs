@@ -4,7 +4,7 @@
 //! reducing the need for expensive API calls for context compression.
 
 use std::sync::Arc;
-use tracing::{debug, warn};
+use tracing::warn;
 
 use brainwires_core::message::Message;
 use brainwires_core::provider::{ChatOptions, Provider};
@@ -56,12 +56,19 @@ pub struct ExtractedFact {
 /// Category of extracted facts
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FactCategory {
+    /// A decision that was made.
     Decision,
+    /// A definition or clarification of a term.
     Definition,
+    /// A requirement or constraint.
     Requirement,
+    /// A code change, fix, or modification.
     CodeChange,
+    /// A configuration or settings change.
     Configuration,
+    /// A reference to external documentation or resources.
     Reference,
+    /// An uncategorized fact.
     Other,
 }
 
@@ -445,30 +452,36 @@ impl Default for LocalSummarizerBuilder {
 }
 
 impl LocalSummarizerBuilder {
+    /// Create a new builder with default settings.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Set the provider to use for summarization.
     pub fn provider(mut self, provider: Arc<dyn Provider>) -> Self {
         self.provider = Some(provider);
         self
     }
 
+    /// Set the model ID to use for inference.
     pub fn model_id(mut self, model_id: impl Into<String>) -> Self {
         self.model_id = model_id.into();
         self
     }
 
+    /// Set the maximum number of tokens for summary output.
     pub fn max_summary_tokens(mut self, tokens: u32) -> Self {
         self.max_summary_tokens = tokens;
         self
     }
 
+    /// Set the maximum number of facts to extract per summary.
     pub fn max_facts(mut self, facts: usize) -> Self {
         self.max_facts = facts;
         self
     }
 
+    /// Build the summarizer, returning `None` if no provider was set.
     pub fn build(self) -> Option<LocalSummarizer> {
         self.provider.map(|p| {
             LocalSummarizer::new(p, self.model_id)

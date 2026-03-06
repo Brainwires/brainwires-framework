@@ -106,24 +106,22 @@ impl SpeechToText for WhisperStt {
                 .full(params, &samples)
                 .map_err(|e| AudioError::Transcription(format!("inference failed: {e}")))?;
 
-            let num_segments = state.full_n_segments()
-                .map_err(|e| AudioError::Transcription(format!("failed to get segments: {e}")))?;
+            let num_segments = state.full_n_segments();
             let mut text = String::new();
             let mut segments = Vec::new();
 
             for i in 0..num_segments {
-                let segment_text = state
-                    .full_get_segment_text(i)
-                    .map_err(|e| {
-                        AudioError::Transcription(format!("failed to get segment text: {e}"))
-                    })?;
+                let seg = state.get_segment(i).ok_or_else(|| {
+                    AudioError::Transcription(format!("segment {i} out of range"))
+                })?;
+                let segment_text = seg.to_str().map_err(|e| {
+                    AudioError::Transcription(format!("failed to get segment text: {e}"))
+                })?.to_string();
                 text.push_str(&segment_text);
 
                 if timestamps {
-                    let start = state.full_get_segment_t0(i)
-                        .map_err(|e| AudioError::Transcription(format!("failed to get segment t0: {e}")))?;
-                    let end = state.full_get_segment_t1(i)
-                        .map_err(|e| AudioError::Transcription(format!("failed to get segment t1: {e}")))?;
+                    let start = seg.start_timestamp();
+                    let end = seg.end_timestamp();
                     segments.push(TranscriptSegment {
                         text: segment_text,
                         start: start as f64 / 100.0, // whisper timestamps are in centiseconds

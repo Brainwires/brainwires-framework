@@ -24,6 +24,7 @@ struct IdfStats {
     doc_frequencies: HashMap<String, usize>,
 }
 
+/// Qdrant-backed vector database for code embeddings.
 pub struct QdrantVectorDB {
     client: Qdrant,
     /// IDF statistics for BM25 calculation

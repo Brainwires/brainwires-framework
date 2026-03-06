@@ -119,12 +119,15 @@ pub struct RmsNorm<B: Backend> {
 /// Configuration for RMS normalization.
 #[derive(Config, Debug)]
 pub struct RmsNormConfig {
+    /// Hidden dimension size.
     pub hidden_size: usize,
+    /// Epsilon for numerical stability.
     #[config(default = "1e-5")]
     pub eps: f64,
 }
 
 impl RmsNormConfig {
+    /// Initialize an RMS normalization layer on the given device.
     pub fn init<B: Backend>(&self, device: &B::Device) -> RmsNorm<B> {
         let weight = Tensor::ones([self.hidden_size], device);
         RmsNorm {
@@ -135,6 +138,7 @@ impl RmsNormConfig {
 }
 
 impl<B: Backend> RmsNorm<B> {
+    /// Forward pass: normalize input using root mean square.
     pub fn forward(&self, x: Tensor<B, 2>) -> Tensor<B, 2> {
         let variance = x.clone().powf_scalar(2.0).mean_dim(1);
         let rms = (variance + self.eps).sqrt();
@@ -154,11 +158,14 @@ pub struct SwiGluFfn<B: Backend> {
 /// Configuration for SwiGLU FFN.
 #[derive(Config, Debug)]
 pub struct SwiGluFfnConfig {
+    /// Model hidden dimension.
     pub hidden_size: usize,
+    /// FFN intermediate dimension.
     pub intermediate_size: usize,
 }
 
 impl SwiGluFfnConfig {
+    /// Initialize a SwiGLU feed-forward network on the given device.
     pub fn init<B: Backend>(&self, device: &B::Device) -> SwiGluFfn<B> {
         SwiGluFfn {
             gate_proj: nn::LinearConfig::new(self.hidden_size, self.intermediate_size)
@@ -175,6 +182,7 @@ impl SwiGluFfnConfig {
 }
 
 impl<B: Backend> SwiGluFfn<B> {
+    /// Forward pass: gate with SiLU activation, element-wise multiply, and project down.
     pub fn forward(&self, x: Tensor<B, 2>) -> Tensor<B, 2> {
         let gate = activation::silu(self.gate_proj.forward(x.clone()));
         let up = self.up_proj.forward(x);
@@ -201,7 +209,9 @@ pub fn cross_entropy_loss<B: Backend>(
 /// Training step output.
 #[derive(Debug)]
 pub struct TrainStepOutput<B: Backend> {
+    /// Loss tensor from the training step.
     pub loss: Tensor<B, 1>,
+    /// Number of tokens processed in this step.
     pub num_tokens: usize,
 }
 
@@ -233,15 +243,20 @@ pub struct DoraLinear<B: Backend> {
 /// Configuration for DoRA linear layer.
 #[derive(Config, Debug)]
 pub struct DoraLinearConfig {
+    /// Input dimension.
     pub in_features: usize,
+    /// Output dimension.
     pub out_features: usize,
+    /// LoRA rank for the directional component.
     #[config(default = "16")]
     pub rank: usize,
+    /// Alpha scaling factor.
     #[config(default = "32.0")]
     pub alpha: f32,
 }
 
 impl DoraLinearConfig {
+    /// Initialize a DoRA linear layer on the given device.
     pub fn init<B: Backend>(&self, device: &B::Device) -> DoraLinear<B> {
         let base = nn::LinearConfig::new(self.in_features, self.out_features)
             .with_bias(false)
@@ -392,12 +407,16 @@ pub struct BurnTransformerBlock<B: Backend> {
 /// Configuration for a transformer block.
 #[derive(Config, Debug)]
 pub struct BurnTransformerBlockConfig {
+    /// Model hidden dimension.
     pub hidden_size: usize,
+    /// Number of attention heads.
     pub num_heads: usize,
+    /// FFN intermediate dimension.
     pub intermediate_size: usize,
 }
 
 impl BurnTransformerBlockConfig {
+    /// Initialize a transformer block on the given device.
     pub fn init<B: Backend>(&self, device: &B::Device) -> BurnTransformerBlock<B> {
         let head_dim = self.hidden_size / self.num_heads;
 

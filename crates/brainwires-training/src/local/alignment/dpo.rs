@@ -29,10 +29,12 @@ impl Default for DpoLoss {
 }
 
 impl DpoLoss {
+    /// Create a new DPO loss with the given temperature parameter.
     pub fn new(beta: f64) -> Self {
         Self { beta, label_smoothing: 0.0 }
     }
 
+    /// Set the label smoothing factor for robustness.
     pub fn with_label_smoothing(mut self, smoothing: f64) -> Self {
         self.label_smoothing = smoothing;
         self

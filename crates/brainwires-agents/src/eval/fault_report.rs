@@ -24,23 +24,30 @@ pub enum FaultKind {
     /// A previously-passing case dropped in success rate below the regression
     /// tolerance.
     Regression {
+        /// The baseline success rate before the regression.
         previous_rate: f64,
+        /// The current success rate after the regression.
         current_rate: f64,
+        /// The absolute drop in success rate (`previous - current`).
         drop: f64,
     },
     /// A new case (no baseline exists) showing stable high success — worth
     /// capturing as a baseline before future regressions sneak in.
     NewCapability {
+        /// Human-readable description of the new capability.
         description: String,
     },
     /// Success rate is below the minimum acceptable threshold regardless of
     /// any stored baseline.
     ConsistentFailure {
+        /// The observed success rate.
         success_rate: f64,
     },
     /// Wide confidence interval — the case result is highly non-deterministic.
     Flaky {
+        /// Mean success rate across trials.
         mean_rate: f64,
+        /// Width of the 95% confidence interval.
         ci_width: f64,
     },
 }

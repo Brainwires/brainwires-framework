@@ -28,6 +28,7 @@ async fn get_rag_client() -> Result<Arc<RagClient>> {
         .map(Arc::clone)
 }
 
+/// Tool definitions and executor for semantic codebase search powered by RAG.
 pub struct SemanticSearchTool;
 
 impl SemanticSearchTool {

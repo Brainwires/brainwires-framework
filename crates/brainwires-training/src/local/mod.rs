@@ -1,10 +1,18 @@
+/// Burn framework training backend with WGPU GPU support.
 pub mod burn_backend;
+/// Burn-native neural network modules for LoRA fine-tuning.
 pub mod burn_modules;
+/// Adapter implementations (LoRA, QLoRA, DoRA).
 pub mod adapters;
+/// Alignment methods (DPO, ORPO).
 pub mod alignment;
+/// Model architecture definitions and configurations.
 pub mod architectures;
+/// Training checkpoint management.
 pub mod checkpointing;
+/// Quantization utilities for model compression.
 pub mod quantization;
+/// Model export in various formats (GGUF, SafeTensors, adapter-only).
 pub mod export;
 
 use std::path::PathBuf;
@@ -17,9 +25,19 @@ use crate::types::TrainingProgress;
 /// Available compute devices.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ComputeDevice {
+    /// CPU compute device.
     Cpu,
-    Gpu { index: usize, name: String, vram_mb: u64 },
-    Mps, // Apple Metal
+    /// GPU compute device with index, name, and VRAM capacity.
+    Gpu {
+        /// GPU index (for multi-GPU systems).
+        index: usize,
+        /// Human-readable GPU name.
+        name: String,
+        /// Available VRAM in megabytes.
+        vram_mb: u64,
+    },
+    /// Apple Metal Performance Shaders device.
+    Mps,
 }
 
 impl std::fmt::Display for ComputeDevice {
@@ -60,6 +78,7 @@ pub struct LocalTrainingConfig {
 }
 
 impl LocalTrainingConfig {
+    /// Create a new local training configuration with required paths.
     pub fn new(model_path: impl Into<PathBuf>, dataset_path: impl Into<PathBuf>, output_dir: impl Into<PathBuf>) -> Self {
         Self {
             model_path: model_path.into(),
@@ -75,11 +94,13 @@ impl LocalTrainingConfig {
         }
     }
 
+    /// Set the compute device for training.
     pub fn with_device(mut self, device: ComputeDevice) -> Self {
         self.device = device;
         self
     }
 
+    /// Set the validation dataset path.
     pub fn with_validation(mut self, path: impl Into<PathBuf>) -> Self {
         self.validation_path = Some(path.into());
         self

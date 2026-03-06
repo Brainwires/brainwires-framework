@@ -49,6 +49,10 @@ impl BedrockAuth {
     }
 
     /// Sign a reqwest::Request with SigV4 for the `bedrock` service.
+    ///
+    /// AWS SigV4 operates on `http::Request` types. This method extracts
+    /// headers from the reqwest request, signs them, then applies the
+    /// resulting auth headers back onto the reqwest request.
     pub async fn sign_request(&self, request: &mut reqwest::Request) -> Result<()> {
         use aws_credential_types::Credentials;
         use aws_sigv4::http_request::{
@@ -66,8 +70,9 @@ impl BedrockAuth {
         );
 
         let settings = SigningSettings::default();
+        let identity = credentials.into();
         let signing_params = v4::SigningParams::builder()
-            .identity(&credentials.into())
+            .identity(&identity)
             .region(&self.region)
             .name("bedrock")
             .time(SystemTime::now())
@@ -85,7 +90,17 @@ impl BedrockAuth {
         )?;
 
         let (signing_instructions, _signature) = sign(signable_request, &signing_params)?.into_parts();
-        signing_instructions.apply_to_request_http1x(request);
+
+        // Build a temporary http::Request to apply signing instructions,
+        // then copy the resulting headers back onto the reqwest request.
+        let mut tmp = http::Request::builder()
+            .method(request.method().as_str())
+            .uri(request.url().as_str())
+            .body(())
+            .expect("valid request parts");
+        *tmp.headers_mut() = request.headers().clone();
+        signing_instructions.apply_to_request_http1x(&mut tmp);
+        *request.headers_mut() = tmp.into_parts().0.headers;
 
         // Add Anthropic version header for Bedrock
         request.headers_mut().insert(

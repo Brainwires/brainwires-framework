@@ -235,11 +235,10 @@ impl SealProcessor {
                 .extract(&result.resolved_query, &entities);
 
             // If coreference resolution changed the query, track both versions
-            if let Some(ref mut core) = result.query_core {
-                if result.resolved_query != query {
+            if let Some(ref mut core) = result.query_core
+                && result.resolved_query != query {
                     core.resolved = Some(result.resolved_query.clone());
                 }
-            }
         }
 
         // Step 3: Check Learning Coordinator for patterns

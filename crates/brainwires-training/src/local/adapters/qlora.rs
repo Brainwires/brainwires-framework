@@ -22,6 +22,7 @@ pub struct QLoraLayer {
 }
 
 impl QLoraLayer {
+    /// Create a new QLoRA layer with the given dimensions, rank, alpha, and quantization bits.
     pub fn new(in_features: usize, out_features: usize, rank: usize, alpha: f32, bits: u8) -> Self {
         Self {
             in_features,

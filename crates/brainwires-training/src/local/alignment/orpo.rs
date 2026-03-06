@@ -26,6 +26,7 @@ impl Default for OrpoLoss {
 }
 
 impl OrpoLoss {
+    /// Create a new ORPO loss with the given alignment weight lambda.
     pub fn new(lambda: f64) -> Self {
         Self { lambda }
     }

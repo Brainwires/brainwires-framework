@@ -4,7 +4,7 @@
 //! enabling adaptive k adjustment in MDAP voting.
 
 use std::sync::Arc;
-use tracing::{debug, warn};
+use tracing::warn;
 
 use brainwires_core::message::Message;
 use brainwires_core::provider::{ChatOptions, Provider};
@@ -223,20 +223,24 @@ impl Default for ComplexityScorerBuilder {
 }
 
 impl ComplexityScorerBuilder {
+    /// Create a new builder with default settings.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Set the provider to use for complexity scoring.
     pub fn provider(mut self, provider: Arc<dyn Provider>) -> Self {
         self.provider = Some(provider);
         self
     }
 
+    /// Set the model ID to use for inference.
     pub fn model_id(mut self, model_id: impl Into<String>) -> Self {
         self.model_id = model_id.into();
         self
     }
 
+    /// Build the complexity scorer, returning `None` if no provider was set.
     pub fn build(self) -> Option<ComplexityScorer> {
         self.provider.map(|p| ComplexityScorer::new(p, self.model_id))
     }

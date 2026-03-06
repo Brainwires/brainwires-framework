@@ -47,12 +47,11 @@
 //!     Enhanced Context → OrchestratorAgent
 //! ```
 
-use crate::{QueryCore, QueryPattern, ResolvedReference, SealProcessingResult};
+use crate::{QueryPattern, ResolvedReference, SealProcessingResult};
 use brainwires_brain::knowledge::{
     BehavioralKnowledgeCache, BehavioralTruth, PersonalKnowledgeCache, TruthCategory, TruthSource,
 };
-use anyhow::{Context as _, Result};
-use chrono::Utc;
+use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -182,7 +181,9 @@ pub enum EntityResolutionStrategy {
 
     /// Weighted combination of SEAL and PKS confidence
     Hybrid {
+        /// Weight given to SEAL confidence scores.
         seal_weight: f32,
+        /// Weight given to PKS confidence scores.
         pks_weight: f32,
     },
 }
@@ -468,7 +469,7 @@ impl SealKnowledgeCoordinator {
         let mut loaded = 0;
         for truth in truths {
             // Convert BKS truth to structured SEAL pattern hint and store it
-            if let Some(hint) = self.truth_to_pattern_hint(&truth) {
+            if let Some(hint) = self.truth_to_pattern_hint(truth) {
                 seal_learning.global.add_pattern_hint(hint);
                 tracing::debug!(
                     "Loaded BKS truth into SEAL: {} -> {}",
@@ -607,7 +608,7 @@ impl SealKnowledgeCoordinator {
         Some(crate::learning::PatternHint {
             context_pattern: truth.context_pattern.clone(),
             rule: truth.rule.clone(),
-            confidence: truth.confidence,
+            confidence: truth.confidence as f64,
             source: "bks".to_string(),
         })
     }

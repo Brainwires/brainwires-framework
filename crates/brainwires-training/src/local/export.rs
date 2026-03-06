@@ -37,6 +37,7 @@ pub struct ExportConfig {
 }
 
 impl ExportConfig {
+    /// Create a GGUF export configuration with default Q4_K_M quantization.
     pub fn gguf(output_path: impl Into<PathBuf>) -> Self {
         Self {
             format: ExportFormat::Gguf,
@@ -46,6 +47,7 @@ impl ExportConfig {
         }
     }
 
+    /// Create a SafeTensors export configuration.
     pub fn safetensors(output_path: impl Into<PathBuf>) -> Self {
         Self {
             format: ExportFormat::SafeTensors,
@@ -55,6 +57,7 @@ impl ExportConfig {
         }
     }
 
+    /// Create an adapter-only export configuration.
     pub fn adapter_only(output_path: impl Into<PathBuf>) -> Self {
         Self {
             format: ExportFormat::AdapterOnly,
@@ -68,11 +71,17 @@ impl ExportConfig {
 /// Export metadata written alongside the model.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ExportMetadata {
+    /// Export format name (e.g., "gguf", "safetensors", "adapter_only").
     pub format: String,
+    /// Path or identifier of the base model used for training.
     pub base_model: String,
+    /// Adapter method used (e.g., "LoRA", "QLoRA", "DoRA"), if applicable.
     pub adapter_method: Option<String>,
+    /// Number of training epochs completed.
     pub training_epochs: u32,
+    /// Final training loss at export time.
     pub final_loss: Option<f64>,
+    /// Timestamp when the model was exported.
     pub exported_at: chrono::DateTime<chrono::Utc>,
 }
 

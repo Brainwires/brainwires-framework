@@ -4,7 +4,7 @@
 //! enhancing the pattern-based red-flagging system.
 
 use std::sync::Arc;
-use tracing::{debug, warn};
+use tracing::warn;
 
 use brainwires_core::message::Message;
 use brainwires_core::provider::{ChatOptions, Provider};
@@ -14,14 +14,18 @@ use super::InferenceTimer;
 /// Result of local validation
 #[derive(Clone, Debug)]
 pub enum ValidationResult {
-    /// Response is valid
+    /// Response is valid.
     Valid {
+        /// Confidence in the validity assessment (0.0-1.0).
         confidence: f32,
     },
-    /// Response has issues
+    /// Response has issues.
     Invalid {
+        /// Description of the validation issue.
         reason: String,
+        /// Severity of the issue (0.0-1.0).
         severity: f32,
+        /// Confidence in the invalidity assessment (0.0-1.0).
         confidence: f32,
     },
     /// Validation was skipped (fallback to pattern-based)
@@ -29,10 +33,12 @@ pub enum ValidationResult {
 }
 
 impl ValidationResult {
+    /// Returns `true` if the response passed validation.
     pub fn is_valid(&self) -> bool {
         matches!(self, ValidationResult::Valid { .. })
     }
 
+    /// Returns `true` if the response failed validation.
     pub fn is_invalid(&self) -> bool {
         matches!(self, ValidationResult::Invalid { .. })
     }
@@ -224,20 +230,24 @@ impl Default for LocalValidatorBuilder {
 }
 
 impl LocalValidatorBuilder {
+    /// Create a new builder with default settings.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Set the provider to use for validation.
     pub fn provider(mut self, provider: Arc<dyn Provider>) -> Self {
         self.provider = Some(provider);
         self
     }
 
+    /// Set the model ID to use for inference.
     pub fn model_id(mut self, model_id: impl Into<String>) -> Self {
         self.model_id = model_id.into();
         self
     }
 
+    /// Build the validator, returning `None` if no provider was set.
     pub fn build(self) -> Option<LocalValidator> {
         self.provider.map(|p| LocalValidator::new(p, self.model_id))
     }

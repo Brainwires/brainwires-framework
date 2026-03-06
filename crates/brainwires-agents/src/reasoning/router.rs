@@ -4,7 +4,7 @@
 //! replacing keyword-based pattern matching with semantic understanding.
 
 use std::sync::Arc;
-use tracing::{debug, warn};
+use tracing::warn;
 
 use brainwires_core::message::Message;
 use brainwires_core::provider::{ChatOptions, Provider};
@@ -175,20 +175,24 @@ impl Default for LocalRouterBuilder {
 }
 
 impl LocalRouterBuilder {
+    /// Create a new builder with default settings.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Set the provider to use for query routing.
     pub fn provider(mut self, provider: Arc<dyn Provider>) -> Self {
         self.provider = Some(provider);
         self
     }
 
+    /// Set the model ID to use for inference.
     pub fn model_id(mut self, model_id: impl Into<String>) -> Self {
         self.model_id = model_id.into();
         self
     }
 
+    /// Build the local router, returning `None` if no provider was set.
     pub fn build(self) -> Option<LocalRouter> {
         self.provider.map(|p| LocalRouter::new(p, self.model_id))
     }

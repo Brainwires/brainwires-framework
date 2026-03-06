@@ -52,12 +52,16 @@ pub trait EvaluationCase: Send + Sync {
 /// A minimal no-op evaluation case useful for unit-testing the evaluation
 /// infrastructure itself.
 pub struct AlwaysPassCase {
+    /// Short identifier for this case.
     pub name: String,
+    /// Category label for grouping.
     pub category: String,
+    /// Simulated duration in milliseconds returned by each trial.
     pub duration_ms: u64,
 }
 
 impl AlwaysPassCase {
+    /// Create a new always-passing case with the given name.
     pub fn new(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
@@ -66,6 +70,7 @@ impl AlwaysPassCase {
         }
     }
 
+    /// Set the simulated duration in milliseconds for each trial.
     pub fn with_duration(mut self, ms: u64) -> Self {
         self.duration_ms = ms;
         self
@@ -87,12 +92,16 @@ impl EvaluationCase for AlwaysPassCase {
 
 /// A no-op evaluation case that always fails — useful for testing failure paths.
 pub struct AlwaysFailCase {
+    /// Short identifier for this case.
     pub name: String,
+    /// Category label for grouping.
     pub category: String,
+    /// Error message returned by each trial.
     pub error_msg: String,
 }
 
 impl AlwaysFailCase {
+    /// Create a new always-failing case with the given name and error message.
     pub fn new(name: impl Into<String>, error: impl Into<String>) -> Self {
         Self {
             name: name.into(),
@@ -117,11 +126,14 @@ impl EvaluationCase for AlwaysFailCase {
 
 /// A case that succeeds with a configurable probability (for testing statistics).
 pub struct StochasticCase {
+    /// Short identifier for this case.
     pub name: String,
+    /// Probability of success per trial (0.0-1.0).
     pub success_rate: f64,
 }
 
 impl StochasticCase {
+    /// Create a new stochastic case with the given name and success probability.
     pub fn new(name: impl Into<String>, success_rate: f64) -> Self {
         Self {
             name: name.into(),

@@ -5,11 +5,17 @@ use tracing::{info, debug};
 /// Checkpoint metadata stored alongside model weights.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CheckpointMeta {
+    /// Current epoch number.
     pub epoch: u32,
+    /// Global training step count.
     pub step: u64,
+    /// Training loss at this checkpoint.
     pub train_loss: f64,
+    /// Evaluation loss at this checkpoint (if available).
     pub eval_loss: Option<f64>,
+    /// Current learning rate.
     pub learning_rate: f64,
+    /// Timestamp when this checkpoint was saved.
     pub timestamp: chrono::DateTime<chrono::Utc>,
 }
 
@@ -24,6 +30,7 @@ pub struct CheckpointManager {
 }
 
 impl CheckpointManager {
+    /// Create a new checkpoint manager writing to the given directory.
     pub fn new(output_dir: impl Into<PathBuf>) -> Self {
         Self {
             output_dir: output_dir.into(),
@@ -32,11 +39,13 @@ impl CheckpointManager {
         }
     }
 
+    /// Set the maximum number of checkpoints to retain.
     pub fn with_max_checkpoints(mut self, max: usize) -> Self {
         self.max_checkpoints = max;
         self
     }
 
+    /// Set the checkpoint save interval in training steps.
     pub fn with_save_every_steps(mut self, steps: u64) -> Self {
         self.save_every_steps = steps;
         self

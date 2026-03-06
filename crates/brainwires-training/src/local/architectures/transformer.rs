@@ -11,16 +11,24 @@ use super::config::TransformerConfig;
 /// 6. Residual connection
 #[derive(Debug, Clone)]
 pub struct TransformerBlock {
+    /// Index of this layer within the model.
     pub layer_index: usize,
+    /// Hidden dimension size.
     pub hidden_size: usize,
+    /// Number of attention heads.
     pub num_heads: usize,
+    /// Number of key-value heads (for grouped-query attention).
     pub num_kv_heads: usize,
+    /// Dimension per attention head.
     pub head_dim: usize,
+    /// FFN intermediate dimension.
     pub intermediate_size: usize,
+    /// Whether to use SwiGLU activation in the FFN.
     pub use_swiglu: bool,
 }
 
 impl TransformerBlock {
+    /// Create a new transformer block from a model config and layer index.
     pub fn new(config: &TransformerConfig, layer_index: usize) -> Self {
         Self {
             layer_index,

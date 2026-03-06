@@ -4,7 +4,6 @@
 //! directly in the browser via WebAssembly.
 
 use wasm_bindgen::prelude::*;
-use serde_wasm_bindgen;
 use crate::{Executor, ExecutionRequest, ExecutionLimits, Language};
 
 /// WASM-compatible code executor

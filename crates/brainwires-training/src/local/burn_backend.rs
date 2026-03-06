@@ -19,6 +19,7 @@ type TrainBackend = Autodiff<WgpuBackend>;
 pub struct BurnBackend;
 
 impl BurnBackend {
+    /// Create a new Burn training backend instance.
     pub fn new() -> Self {
         Self
     }

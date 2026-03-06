@@ -33,31 +33,37 @@ pub mod agents {
     pub use brainwires_agents::*;
 }
 
+/// Persistent storage — LanceDB vector database, tiered memory, embeddings.
 #[cfg(feature = "storage")]
 pub mod storage {
     pub use brainwires_storage::*;
 }
 
+/// MCP client — connect to external MCP servers and use their tools.
 #[cfg(feature = "mcp")]
 pub mod mcp {
     pub use brainwires_mcp::*;
 }
 
+/// MDAP — Multi-Dimensional Adaptive Planning with MAKER voting.
 #[cfg(feature = "mdap")]
 pub mod mdap {
     pub use brainwires_mdap::*;
 }
 
+/// Adaptive prompting — technique library, clustering, temperature optimization.
 #[cfg(feature = "prompting")]
 pub mod prompting {
     pub use brainwires_prompting::*;
 }
 
+/// Permissions — capability profiles, policy engine, audit logging.
 #[cfg(feature = "permissions")]
 pub mod permissions {
     pub use brainwires_permissions::*;
 }
 
+/// AI provider implementations — OpenAI, Anthropic, Google, Ollama, and more.
 #[cfg(feature = "providers")]
 pub mod providers {
     pub use brainwires_providers::*;
@@ -76,6 +82,7 @@ pub mod chat {
     };
 }
 
+/// SEAL — Self-Evolving Adaptive Learning for coreference and knowledge.
 #[cfg(feature = "seal")]
 pub mod seal {
     pub use brainwires_seal::*;
@@ -83,66 +90,79 @@ pub mod seal {
 
 // Orchestrator is re-exported via brainwires_model_tools::orchestrator when orchestrator feature is on
 
+/// RAG — codebase indexing, semantic search, and retrieval-augmented generation.
 #[cfg(feature = "rag")]
 pub mod rag {
     pub use brainwires_rag::*;
 }
 
+/// Sandboxed code interpreters — Rhai, Lua, JavaScript (Boa), Python (RustPython).
 #[cfg(feature = "interpreters")]
 pub mod interpreters {
     pub use brainwires_code_interpreters::*;
 }
 
+/// Relay — MCP server framework, agent IPC, remote communication.
 #[cfg(feature = "relay")]
 pub mod relay {
     pub use brainwires_relay::*;
 }
 
+/// Skills — SKILL.md parsing, skill registry, and execution.
 #[cfg(feature = "skills")]
 pub mod skills {
     pub use brainwires_skills::*;
 }
 
+/// Evaluation framework — Monte Carlo runner, Wilson CI, adversarial tests.
 #[cfg(feature = "eval")]
 pub mod eval {
     pub use brainwires_agents::eval::*;
 }
 
+/// Protocol proxy framework for debugging and inspecting AI traffic.
 #[cfg(feature = "proxy")]
 pub mod proxy {
     pub use brainwires_proxy::*;
 }
 
+/// A2A (Agent-to-Agent) protocol support.
 #[cfg(feature = "a2a")]
 pub mod a2a {
     pub use brainwires_relay::a2a::*;
 }
 
+/// Distributed mesh networking — topology, discovery, federation, routing.
 #[cfg(feature = "mesh")]
 pub mod mesh {
     pub use brainwires_mesh::*;
 }
 
+/// Audio — capture, playback, speech-to-text, text-to-speech.
 #[cfg(feature = "audio")]
 pub mod audio {
     pub use brainwires_audio::*;
 }
 
+/// Training data pipelines — JSONL, format conversion, tokenization, dedup.
 #[cfg(feature = "datasets")]
 pub mod datasets {
     pub use brainwires_datasets::*;
 }
 
+/// Model training — cloud fine-tuning, local Burn-based LoRA/QLoRA/DoRA.
 #[cfg(feature = "training")]
 pub mod training {
     pub use brainwires_training::*;
 }
 
+/// Autonomous operations — self-improvement, git workflows, safety checks.
 #[cfg(feature = "autonomy")]
 pub mod autonomy {
     pub use brainwires_autonomy::*;
 }
 
+/// Central knowledge — BKS, PKS, entity graphs, thought processing.
 #[cfg(feature = "brain")]
 pub mod brain {
     pub use brainwires_brain::*;

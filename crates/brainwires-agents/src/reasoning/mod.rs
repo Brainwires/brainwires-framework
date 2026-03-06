@@ -233,6 +233,7 @@ pub struct InferenceTimer {
 }
 
 impl InferenceTimer {
+    /// Create a new inference timer for the given task and model.
     pub fn new(task: impl Into<String>, model: impl Into<String>) -> Self {
         Self {
             start: Instant::now(),
@@ -241,11 +242,13 @@ impl InferenceTimer {
         }
     }
 
+    /// Stop the timer and log the inference event.
     pub fn finish(self, success: bool) {
         let latency_ms = self.start.elapsed().as_millis() as u64;
         log_inference(&self.task, &self.model, latency_ms, success);
     }
 
+    /// Return the elapsed time in milliseconds since the timer was created.
     pub fn elapsed_ms(&self) -> u64 {
         self.start.elapsed().as_millis() as u64
     }

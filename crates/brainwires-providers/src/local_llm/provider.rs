@@ -13,8 +13,8 @@ use futures::stream::BoxStream;
 use std::sync::Arc;
 
 #[cfg(feature = "llama-cpp-2")]
+#[allow(deprecated)] // token_to_str / Special — migrate to token_to_piece in 0.2
 use llama_cpp_2::{
-    context::LlamaContext,
     context::params::LlamaContextParams,
     llama_backend::LlamaBackend,
     llama_batch::LlamaBatch,
@@ -123,7 +123,7 @@ impl LocalLlmProvider {
 
         // Configure model parameters
         let model_params = LlamaModelParams::default()
-            .with_n_gpu_layers(self.config.gpu_layers as u32);
+            .with_n_gpu_layers(self.config.gpu_layers);
 
         // Get backend reference
         let backend_guard = self.backend.lock().map_err(|e| anyhow!("Lock poisoned: {}", e))?;
@@ -297,6 +297,7 @@ impl LocalLlmProvider {
             }
 
             // Decode token to string
+            #[allow(deprecated)] // migrate to token_to_piece in 0.2
             let piece = model.token_to_str(token, Special::Tokenize)
                 .map_err(|e| anyhow!("Token decode failed: {:?}", e))?;
 
