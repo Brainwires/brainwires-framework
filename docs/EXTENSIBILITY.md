@@ -10,11 +10,11 @@ The framework is trait-based: implement a trait, pass it to the component, done.
 
 | Trait | Required Methods | Purpose |
 |-------|-----------------|---------|
-| `Provider` | `name`, `chat`, `stream_chat` | AI chat completion backend |
+| `Provider` | `name`, `chat`, `stream_chat` (+`max_output_tokens` default) | AI chat completion backend |
 | `EmbeddingProvider` | `embed`, `dimension`, `model_name` | Text embedding generation |
 | `VectorStore` | `initialize`, `upsert`, `search`, `delete`, `clear`, `count` | Embedding storage/search |
 | `OutputParser` | `parse`, `format_instructions` | Structured LLM output parsing |
-| `LifecycleHook` | `name`, `on_event` | Framework event interception |
+| `LifecycleHook` | `name`, `on_event` (+`priority`, `filter` defaults) | Framework event interception |
 | `StagingBackend` | `stage`, `commit`, `rollback`, `pending_count` | Two-phase file write commits |
 
 ### RAG Traits (brainwires-rag)
@@ -30,9 +30,9 @@ The framework is trait-based: implement a trait, pass it to the component, done.
 
 | Trait | Required Methods | Purpose |
 |-------|-----------------|---------|
-| `AgentRuntime` | 10 methods (call_provider, execute_tool, etc.) | Custom agent execution loop |
+| `AgentRuntime` | 11 methods (call_provider, execute_tool, etc.) | Custom agent execution loop |
 | `LockPersistence` | `try_acquire`, `release`, `release_all_for_agent`, `cleanup_stale` | Cross-process lock backend |
-| `CompensableOperation` | `execute`, `compensate`, `description` | Saga step with rollback |
+| `CompensableOperation` | `execute`, `compensate`, `description` (+`operation_type` default) | Saga step with rollback |
 | `EvaluationCase` | `name`, `category`, `run` | Eval scenario |
 
 ### Tool Traits (brainwires-model-tools)
@@ -206,7 +206,7 @@ Implement `AgentRuntime` from `brainwires::agents`:
 use brainwires::agents::{AgentRuntime, AgentExecutionResult, run_agent_loop};
 use brainwires::agents::{CommunicationHub, FileLockManager, LockType};
 
-// AgentRuntime requires 10 methods:
+// AgentRuntime requires 11 methods:
 //   agent_id, max_iterations, call_provider, extract_tool_uses,
 //   is_completion, execute_tool, get_lock_requirement,
 //   on_provider_response, on_tool_result, on_completion, on_iteration_limit
