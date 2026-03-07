@@ -6,7 +6,7 @@ A modular Rust framework for building AI agents with multi-provider support, too
 
 The Brainwires Framework is a workspace of 22 crates (plus 1 extra) that provide everything needed to build, train, deploy, and coordinate AI agents. Each crate is independently publishable to crates.io and usable standalone, but they compose together through the `brainwires` facade crate for a batteries-included experience.
 
-**Key capabilities:**
+**[Full feature list](FEATURES.md)** | **Key capabilities:**
 
 - **Multi-provider AI** — Anthropic, OpenAI, Google, Ollama, and local LLMs behind a unified `Provider` trait
 - **Agent orchestration** — hierarchical task decomposition, multi-agent coordination with file locks, MDAP voting
