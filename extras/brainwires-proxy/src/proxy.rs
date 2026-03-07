@@ -9,6 +9,8 @@ use crate::transport::{InboundConnection, TransportConnector};
 use std::sync::Arc;
 use tokio::sync::{mpsc, watch};
 
+const CONNECTION_CHANNEL_CAPACITY: usize = 256;
+
 /// A boxed listener factory that produces a future accepting inbound connections.
 pub(crate) type ListenerFactory = Box<
     dyn Fn(
@@ -34,7 +36,7 @@ impl ProxyService {
     /// Run the proxy until shutdown.
     pub async fn run(self) -> ProxyResult<()> {
         let (shutdown_tx, shutdown_rx) = watch::channel(false);
-        let (conn_tx, mut conn_rx) = mpsc::channel::<InboundConnection>(256);
+        let (conn_tx, mut conn_rx) = mpsc::channel::<InboundConnection>(CONNECTION_CHANNEL_CAPACITY);
 
         // Spawn the inspector API if configured
         #[cfg(feature = "inspector-api")]

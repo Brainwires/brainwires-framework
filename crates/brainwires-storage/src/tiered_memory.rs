@@ -24,6 +24,17 @@ use uuid::Uuid;
 
 use super::{EmbeddingProvider, FactStore, LanceClient, MessageMetadata, MessageStore, SummaryStore, TierMetadataStore};
 
+const SECS_PER_HOUR: f32 = 3600.0;
+const SIMILARITY_WEIGHT: f32 = 0.50;
+const RECENCY_WEIGHT: f32 = 0.30;
+const IMPORTANCE_WEIGHT: f32 = 0.20;
+const DEFAULT_HOT_RETENTION_HOURS: u64 = 24;
+const DEFAULT_WARM_RETENTION_HOURS: u64 = 168;
+const DEFAULT_HOT_IMPORTANCE_THRESHOLD: f32 = 0.3;
+const DEFAULT_WARM_IMPORTANCE_THRESHOLD: f32 = 0.1;
+const DEFAULT_MAX_HOT_MESSAGES: usize = 1000;
+const DEFAULT_MAX_WARM_SUMMARIES: usize = 5000;
+
 // ── Memory authority hierarchy ────────────────────────────────────────────────
 
 /// Trust level of a memory entry's origin.
@@ -179,11 +190,11 @@ impl TierMetadata {
 
     /// Calculate a score for demotion priority (lower = demote first)
     pub fn retention_score(&self) -> f32 {
-        let age_hours = (Utc::now().timestamp() - self.last_accessed) as f32 / 3600.0;
+        let age_hours = (Utc::now().timestamp() - self.last_accessed) as f32 / SECS_PER_HOUR;
         let recency_factor = (-0.01 * age_hours).exp(); // Decay over time
         let access_factor = (self.access_count as f32).ln_1p() * 0.1; // Log access count
 
-        self.importance * 0.5 + recency_factor * 0.3 + access_factor * 0.2
+        self.importance * SIMILARITY_WEIGHT + recency_factor * RECENCY_WEIGHT + access_factor * IMPORTANCE_WEIGHT
     }
 }
 
@@ -259,7 +270,7 @@ pub struct MultiFactorScore {
 impl MultiFactorScore {
     /// Compute the combined score from its components.
     pub fn compute(similarity: f32, recency: f32, importance: f32) -> Self {
-        let combined = similarity * 0.50 + recency * 0.30 + importance * 0.20;
+        let combined = similarity * SIMILARITY_WEIGHT + recency * RECENCY_WEIGHT + importance * IMPORTANCE_WEIGHT;
         Self { similarity, recency, importance, combined }
     }
 
@@ -321,12 +332,12 @@ pub struct TieredMemoryConfig {
 impl Default for TieredMemoryConfig {
     fn default() -> Self {
         Self {
-            hot_retention_hours: 24,
-            warm_retention_hours: 168, // 1 week
-            hot_importance_threshold: 0.3,
-            warm_importance_threshold: 0.1,
-            max_hot_messages: 1000,
-            max_warm_summaries: 5000,
+            hot_retention_hours: DEFAULT_HOT_RETENTION_HOURS,
+            warm_retention_hours: DEFAULT_WARM_RETENTION_HOURS,
+            hot_importance_threshold: DEFAULT_HOT_IMPORTANCE_THRESHOLD,
+            warm_importance_threshold: DEFAULT_WARM_IMPORTANCE_THRESHOLD,
+            max_hot_messages: DEFAULT_MAX_HOT_MESSAGES,
+            max_warm_summaries: DEFAULT_MAX_WARM_SUMMARIES,
             session_ttl_secs: None,
         }
     }

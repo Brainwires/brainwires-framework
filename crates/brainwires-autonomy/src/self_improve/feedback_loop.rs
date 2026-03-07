@@ -16,6 +16,13 @@ use crate::metrics::{SessionMetrics, SessionReport};
 use super::controller::SelfImprovementController;
 use super::strategies::eval_strategy::{EvalStrategy, EvalStrategyConfig};
 
+/// Minimum improvement fraction required to update eval baselines.
+const IMPROVEMENT_THRESHOLD: f64 = 0.05;
+/// Failure rate threshold for detecting consistent failures.
+const CONSISTENT_FAILURE_THRESHOLD: f64 = 0.2;
+/// Threshold for flaky CI detection.
+const FLAKY_CI_THRESHOLD: f64 = 0.25;
+
 /// Configuration for the feedback loop.
 #[derive(Debug, Clone)]
 pub struct FeedbackLoopConfig {
@@ -45,12 +52,12 @@ impl Default for FeedbackLoopConfig {
             self_improve: SelfImprovementConfig::default(),
             baselines_path: "eval-baselines.json".to_string(),
             auto_update_baselines: true,
-            improvement_threshold: 0.05,
+            improvement_threshold: IMPROVEMENT_THRESHOLD,
             max_feedback_rounds: 3,
             n_eval_trials: 10,
             commit_baselines: false,
-            consistent_failure_threshold: 0.2,
-            flaky_ci_threshold: 0.25,
+            consistent_failure_threshold: CONSISTENT_FAILURE_THRESHOLD,
+            flaky_ci_threshold: FLAKY_CI_THRESHOLD,
         }
     }
 }

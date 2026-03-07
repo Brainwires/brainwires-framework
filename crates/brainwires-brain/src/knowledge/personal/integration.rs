@@ -18,6 +18,11 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 
+/// Interval in seconds between behavioral inference emissions.
+const KNOWLEDGE_INFERENCE_INTERVAL_SECS: u64 = 300;
+/// Interval in seconds between background sync cycles.
+const KNOWLEDGE_SYNC_INTERVAL_SECS: u64 = 60;
+
 /// PKS Integration Manager
 ///
 /// Coordinates all PKS integration points:
@@ -211,7 +216,7 @@ impl ToolUsageTracker {
             usage: HashMap::new(),
             started_at: now,
             last_inference: now,
-            inference_interval: Duration::from_secs(300), // 5 minutes
+            inference_interval: Duration::from_secs(KNOWLEDGE_INFERENCE_INTERVAL_SECS), // 5 minutes
             min_uses_for_inference: 5,
         }
     }
@@ -381,7 +386,7 @@ impl PksSseListener {
             fact_tx,
             cache: None,
             shutdown_rx: None,
-            sync_interval: Duration::from_secs(60),
+            sync_interval: Duration::from_secs(KNOWLEDGE_SYNC_INTERVAL_SECS),
             last_sync: None,
         }
     }

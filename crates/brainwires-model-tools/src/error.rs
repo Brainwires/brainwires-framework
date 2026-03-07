@@ -5,6 +5,10 @@
 
 use std::time::Duration;
 
+const DEFAULT_MAX_RETRY_ATTEMPTS: u32 = 3;
+const EXPONENTIAL_BACKOFF_BASE_SECS: u64 = 2;
+const DEFAULT_BACKOFF_BASE_MS: u64 = 500;
+
 /// Error taxonomy based on AgentDebug paper (arxiv:2509.25370)
 #[derive(Debug, Clone, PartialEq)]
 pub enum ToolErrorCategory {
@@ -97,9 +101,9 @@ impl ToolErrorCategory {
             ToolErrorCategory::Transient { retry_strategy, .. } => retry_strategy.clone(),
             ToolErrorCategory::ExternalService { retry_after, .. } => {
                 if let Some(delay) = retry_after {
-                    RetryStrategy::FixedDelay { delay: *delay, max_attempts: 3 }
+                    RetryStrategy::FixedDelay { delay: *delay, max_attempts: DEFAULT_MAX_RETRY_ATTEMPTS }
                 } else {
-                    RetryStrategy::ExponentialBackoff { base: Duration::from_secs(2), max_attempts: 3 }
+                    RetryStrategy::ExponentialBackoff { base: Duration::from_secs(EXPONENTIAL_BACKOFF_BASE_SECS), max_attempts: DEFAULT_MAX_RETRY_ATTEMPTS }
                 }
             }
             _ => RetryStrategy::NoRetry,
@@ -190,7 +194,7 @@ impl RetryStrategy {
 
 impl Default for RetryStrategy {
     fn default() -> Self {
-        RetryStrategy::ExponentialBackoff { base: Duration::from_millis(500), max_attempts: 3 }
+        RetryStrategy::ExponentialBackoff { base: Duration::from_millis(DEFAULT_BACKOFF_BASE_MS), max_attempts: DEFAULT_MAX_RETRY_ATTEMPTS }
     }
 }
 

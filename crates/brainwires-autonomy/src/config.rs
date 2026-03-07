@@ -2,6 +2,9 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Default dead man's switch heartbeat timeout in seconds (30 minutes).
+const DEFAULT_HEARTBEAT_TIMEOUT_SECS: u64 = 1800;
+
 /// Top-level configuration for the autonomy subsystem.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[derive(Default)]
@@ -129,7 +132,7 @@ impl Default for SafetyConfig {
             max_diff_per_task: 200,
             max_total_diff: 1000,
             max_concurrent_agents: 5,
-            heartbeat_timeout_secs: 1800,
+            heartbeat_timeout_secs: DEFAULT_HEARTBEAT_TIMEOUT_SECS,
             allowed_paths: Vec::new(),
             forbidden_paths: Vec::new(),
         }

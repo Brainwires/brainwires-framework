@@ -10,6 +10,8 @@ use tracing::debug;
 
 use super::protocol::{BackendCommand, CommandPriority, PrioritizedCommand};
 
+const DEFAULT_QUEUE_MAX_DEPTH: usize = 1000;
+
 /// Entry in the priority queue
 #[derive(Debug)]
 pub struct QueueEntry {
@@ -244,7 +246,7 @@ impl CommandQueue {
 
 impl Default for CommandQueue {
     fn default() -> Self {
-        Self::new(1000) // Default max depth
+        Self::new(DEFAULT_QUEUE_MAX_DEPTH)
     }
 }
 

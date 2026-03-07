@@ -10,6 +10,9 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 
+const DEFAULT_LOCK_TIMEOUT_SECS: u64 = 300;
+const LOCK_POLL_INTERVAL_MS: u64 = 50;
+
 /// Type of file lock
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LockType {
@@ -117,7 +120,7 @@ impl FileLockManager {
     pub fn new() -> Self {
         Self {
             locks: RwLock::new(HashMap::new()),
-            default_timeout: Some(Duration::from_secs(300)), // 5 minute default
+            default_timeout: Some(Duration::from_secs(DEFAULT_LOCK_TIMEOUT_SECS)),
             waiting: RwLock::new(HashMap::new()),
         }
     }
@@ -258,7 +261,7 @@ impl FileLockManager {
     ) -> Result<LockGuard> {
         let path = path.as_ref().to_path_buf();
         let deadline = Instant::now() + wait_timeout;
-        let poll_interval = Duration::from_millis(50);
+        let poll_interval = Duration::from_millis(LOCK_POLL_INTERVAL_MS);
 
         loop {
             // Check for deadlock before waiting

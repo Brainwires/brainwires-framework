@@ -3,6 +3,8 @@ use crate::indexer::CodeChunk;
 use crate::types::ChunkMetadata;
 use anyhow::Result;
 
+const DEFAULT_GIT_MAX_CONTENT_LENGTH: usize = 6000;
+
 /// Converts git commits into chunks suitable for embedding
 pub struct CommitChunker {
     /// Maximum content length before truncation
@@ -13,7 +15,7 @@ impl CommitChunker {
     /// Create a new commit chunker with default settings
     pub fn new() -> Self {
         Self {
-            max_content_length: 6000, // ~1500 tokens for all-MiniLM-L6-v2
+            max_content_length: DEFAULT_GIT_MAX_CONTENT_LENGTH,
         }
     }
 

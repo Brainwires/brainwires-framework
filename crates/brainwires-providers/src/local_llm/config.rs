@@ -5,6 +5,9 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+/// Default batch size for local LLM prompt processing.
+const DEFAULT_LOCAL_LLM_BATCH_SIZE: usize = 512;
+
 /// Configuration for a local LLM model
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LocalLlmConfig {
@@ -67,7 +70,7 @@ fn default_context_size() -> u32 {
 }
 
 fn default_batch_size() -> u32 {
-    512
+    DEFAULT_LOCAL_LLM_BATCH_SIZE as u32
 }
 
 fn default_max_tokens() -> u32 {

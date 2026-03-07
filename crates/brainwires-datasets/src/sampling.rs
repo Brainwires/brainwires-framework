@@ -1,6 +1,11 @@
 use crate::dataset::{Dataset, InstructDataset, PreferenceDataset};
 use crate::types::{PreferencePair, TrainingExample};
 
+/// PCG random number generator multiplier constant.
+const PCG_MULTIPLIER: u64 = 6_364_136_223_846_793_005;
+/// PCG random number generator increment constant.
+const PCG_INCREMENT: u64 = 1_442_695_040_888_963_407;
+
 /// Split configuration for train/eval datasets.
 #[derive(Debug, Clone)]
 pub struct SplitConfig {
@@ -71,7 +76,7 @@ pub fn sample_n(examples: &[TrainingExample], n: usize, seed: u64) -> Vec<Traini
     let mut indices: Vec<usize> = (0..examples.len()).collect();
     let mut state = seed;
     for i in 0..n {
-        state = state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        state = state.wrapping_mul(PCG_MULTIPLIER).wrapping_add(PCG_INCREMENT);
         let j = i + ((state >> 33) as usize % (examples.len() - i));
         indices.swap(i, j);
     }
@@ -122,7 +127,7 @@ pub fn preference_sample_n(pairs: &[PreferencePair], n: usize, seed: u64) -> Vec
     let mut indices: Vec<usize> = (0..pairs.len()).collect();
     let mut state = seed;
     for i in 0..n {
-        state = state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        state = state.wrapping_mul(PCG_MULTIPLIER).wrapping_add(PCG_INCREMENT);
         let j = i + ((state >> 33) as usize % (pairs.len() - i));
         indices.swap(i, j);
     }

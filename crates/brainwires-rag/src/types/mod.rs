@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
 
+/// Maximum allowed length for project names.
+const PROJECT_NAME_MAX_LENGTH: usize = 256;
+
 /// Request to index a codebase
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "native", derive(schemars::JsonSchema))]
@@ -581,8 +584,8 @@ impl IndexRequest {
             if project.is_empty() {
                 return Err("project name cannot be empty".to_string());
             }
-            if project.len() > 256 {
-                return Err("project name too long (max 256 characters)".to_string());
+            if project.len() > PROJECT_NAME_MAX_LENGTH {
+                return Err(format!("project name too long (max {} characters)", PROJECT_NAME_MAX_LENGTH));
             }
         }
 
@@ -630,8 +633,8 @@ impl QueryRequest {
             if project.is_empty() {
                 return Err("project name cannot be empty".to_string());
             }
-            if project.len() > 256 {
-                return Err("project name too long (max 256 characters)".to_string());
+            if project.len() > PROJECT_NAME_MAX_LENGTH {
+                return Err(format!("project name too long (max {} characters)", PROJECT_NAME_MAX_LENGTH));
             }
         }
 
@@ -737,8 +740,8 @@ impl SearchGitHistoryRequest {
             if project.is_empty() {
                 return Err("project name cannot be empty".to_string());
             }
-            if project.len() > 256 {
-                return Err("project name too long (max 256 characters)".to_string());
+            if project.len() > PROJECT_NAME_MAX_LENGTH {
+                return Err(format!("project name too long (max {} characters)", PROJECT_NAME_MAX_LENGTH));
             }
         }
 

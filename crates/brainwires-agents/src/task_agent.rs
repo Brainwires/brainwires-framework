@@ -60,6 +60,9 @@ const EXTERNAL_CONTENT_TOOLS: &[&str] = &[
     "semantic_search",
 ];
 
+const DEFAULT_LOOP_DETECTION_WINDOW: usize = 5;
+const DEFAULT_MAX_ITERATIONS: u32 = 100;
+
 /// Configuration for stuck-agent (loop) detection.
 #[derive(Debug, Clone)]
 pub struct LoopDetectionConfig {
@@ -72,7 +75,7 @@ pub struct LoopDetectionConfig {
 impl Default for LoopDetectionConfig {
     fn default() -> Self {
         Self {
-            window_size: 5,
+            window_size: DEFAULT_LOOP_DETECTION_WINDOW,
             enabled: true,
         }
     }
@@ -248,7 +251,7 @@ pub struct TaskAgentConfig {
 impl Default for TaskAgentConfig {
     fn default() -> Self {
         Self {
-            max_iterations: 100,
+            max_iterations: DEFAULT_MAX_ITERATIONS,
             system_prompt: None,
             temperature: 0.7,
             max_tokens: 4096,

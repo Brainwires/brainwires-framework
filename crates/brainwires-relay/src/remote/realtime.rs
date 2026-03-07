@@ -30,6 +30,9 @@ use url::Url;
 
 use super::protocol::{BackendCommand, RemoteAgentInfo, StreamChunkType};
 
+/// Phoenix protocol heartbeat interval in seconds (must be < 60s to keep connection alive).
+const PHOENIX_HEARTBEAT_INTERVAL_SECS: u64 = 25;
+
 /// Supabase Realtime connection configuration
 #[derive(Debug, Clone)]
 pub struct RealtimeConfig {
@@ -475,7 +478,7 @@ impl RealtimeClient {
         let version = self.config.version.clone();
 
         // Phoenix heartbeat interval (must be < 60s to keep connection alive)
-        let mut phoenix_heartbeat = tokio::time::interval(Duration::from_secs(25));
+        let mut phoenix_heartbeat = tokio::time::interval(Duration::from_secs(PHOENIX_HEARTBEAT_INTERVAL_SECS));
 
         // Track if we've sent the initial register message
         let mut register_sent = false;

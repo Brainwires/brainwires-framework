@@ -15,6 +15,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
+const REMOTE_BRIDGE_TIMEOUT_SECS: u64 = 30;
+
 use anyhow::{bail, Context, Result};
 use tokio::sync::RwLock;
 
@@ -150,7 +152,7 @@ impl RemoteBridge {
     /// * `agent_spawner` - Optional agent spawner for remote agent creation
     pub fn new(config: BridgeConfig, agent_spawner: Option<Arc<dyn AgentSpawner>>) -> Self {
         let http_client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(30))
+            .timeout(Duration::from_secs(REMOTE_BRIDGE_TIMEOUT_SECS))
             .build()
             .expect("Failed to create HTTP client");
 

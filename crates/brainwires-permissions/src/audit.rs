@@ -33,6 +33,9 @@ use std::sync::{Arc, Mutex};
 
 use super::policy::PolicyDecision;
 
+/// Default maximum number of audit events to buffer before flushing to disk.
+const DEFAULT_AUDIT_BUFFER_SIZE: usize = 100;
+
 /// Type of audit event
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -341,7 +344,7 @@ impl AuditLogger {
         Ok(Self {
             log_path,
             buffer: Arc::new(Mutex::new(Vec::new())),
-            max_buffer_size: 100,
+            max_buffer_size: DEFAULT_AUDIT_BUFFER_SIZE,
             enabled: true,
             anomaly_detector: None,
         })
@@ -357,7 +360,7 @@ impl AuditLogger {
         Ok(Self {
             log_path: path,
             buffer: Arc::new(Mutex::new(Vec::new())),
-            max_buffer_size: 100,
+            max_buffer_size: DEFAULT_AUDIT_BUFFER_SIZE,
             enabled: true,
             anomaly_detector: None,
         })

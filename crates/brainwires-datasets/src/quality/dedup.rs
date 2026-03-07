@@ -2,6 +2,9 @@ use crate::types::{PreferencePair, TrainingExample};
 
 use sha2::{Sha256, Digest};
 
+/// Default similarity threshold for near-duplicate detection.
+const DEFAULT_DEDUP_SIMILARITY_THRESHOLD: f64 = 0.85;
+
 /// MinHash-based deduplication for training datasets.
 ///
 /// Uses shingling + MinHash to detect near-duplicate examples.
@@ -15,7 +18,7 @@ impl Default for Deduplicator {
     fn default() -> Self {
         Self {
             num_hashes: 128,
-            similarity_threshold: 0.85,
+            similarity_threshold: DEFAULT_DEDUP_SIMILARITY_THRESHOLD,
             shingle_size: 3,
         }
     }

@@ -20,6 +20,8 @@ use std::sync::{Arc, RwLock};
 
 /// Default cache size for embeddings (1000 entries)
 const DEFAULT_CACHE_SIZE: usize = 1000;
+const EMBEDDING_DIM_MINILM: usize = 384;
+const EMBEDDING_DIM_BGE_BASE: usize = 768;
 
 // ── FastEmbedManager ────────────────────────────────────────────────────────
 
@@ -62,11 +64,11 @@ impl FastEmbedManager {
         tracing::info!("Initializing FastEmbed model: {:?}", model);
 
         let (dimension, name) = match model {
-            EmbeddingModel::AllMiniLML6V2 => (384, "all-MiniLM-L6-v2"),
-            EmbeddingModel::AllMiniLML12V2 => (384, "all-MiniLM-L12-v2"),
-            EmbeddingModel::BGEBaseENV15 => (768, "BAAI/bge-base-en-v1.5"),
-            EmbeddingModel::BGESmallENV15 => (384, "BAAI/bge-small-en-v1.5"),
-            _ => (384, "all-MiniLM-L6-v2"),
+            EmbeddingModel::AllMiniLML6V2 => (EMBEDDING_DIM_MINILM, "all-MiniLM-L6-v2"),
+            EmbeddingModel::AllMiniLML12V2 => (EMBEDDING_DIM_MINILM, "all-MiniLM-L12-v2"),
+            EmbeddingModel::BGEBaseENV15 => (EMBEDDING_DIM_BGE_BASE, "BAAI/bge-base-en-v1.5"),
+            EmbeddingModel::BGESmallENV15 => (EMBEDDING_DIM_MINILM, "BAAI/bge-small-en-v1.5"),
+            _ => (EMBEDDING_DIM_MINILM, "all-MiniLM-L6-v2"),
         };
 
         let mut options = InitOptions::default();

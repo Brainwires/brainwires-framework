@@ -8,6 +8,24 @@
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
+// Default chunk configuration
+const DEFAULT_TARGET_CHUNK_SIZE: usize = 1500;
+const DEFAULT_MAX_CHUNK_SIZE: usize = 2500;
+const DEFAULT_MIN_CHUNK_SIZE: usize = 100;
+const DEFAULT_OVERLAP_SIZE: usize = 200;
+
+// Small document chunk configuration
+const SMALL_TARGET_CHUNK_SIZE: usize = 800;
+const SMALL_MAX_CHUNK_SIZE: usize = 1200;
+const SMALL_MIN_CHUNK_SIZE: usize = 50;
+const SMALL_OVERLAP_SIZE: usize = 100;
+
+// Large document chunk configuration
+const LARGE_TARGET_CHUNK_SIZE: usize = 2000;
+const LARGE_MAX_CHUNK_SIZE: usize = 3500;
+const LARGE_MIN_CHUNK_SIZE: usize = 200;
+const LARGE_OVERLAP_SIZE: usize = 300;
+
 /// Document type classification
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DocumentType {
@@ -255,10 +273,10 @@ pub struct ChunkerConfig {
 impl Default for ChunkerConfig {
     fn default() -> Self {
         Self {
-            target_chunk_size: 1500,  // ~300-400 words
-            max_chunk_size: 2500,     // Hard limit
-            min_chunk_size: 100,      // Avoid tiny chunks
-            overlap_size: 200,        // Context overlap
+            target_chunk_size: DEFAULT_TARGET_CHUNK_SIZE,
+            max_chunk_size: DEFAULT_MAX_CHUNK_SIZE,
+            min_chunk_size: DEFAULT_MIN_CHUNK_SIZE,
+            overlap_size: DEFAULT_OVERLAP_SIZE,
             respect_headers: true,
             respect_paragraphs: true,
         }
@@ -269,10 +287,10 @@ impl ChunkerConfig {
     /// Create config for small documents
     pub fn small() -> Self {
         Self {
-            target_chunk_size: 800,
-            max_chunk_size: 1200,
-            min_chunk_size: 50,
-            overlap_size: 100,
+            target_chunk_size: SMALL_TARGET_CHUNK_SIZE,
+            max_chunk_size: SMALL_MAX_CHUNK_SIZE,
+            min_chunk_size: SMALL_MIN_CHUNK_SIZE,
+            overlap_size: SMALL_OVERLAP_SIZE,
             ..Default::default()
         }
     }
@@ -280,10 +298,10 @@ impl ChunkerConfig {
     /// Create config for large documents
     pub fn large() -> Self {
         Self {
-            target_chunk_size: 2000,
-            max_chunk_size: 3500,
-            min_chunk_size: 200,
-            overlap_size: 300,
+            target_chunk_size: LARGE_TARGET_CHUNK_SIZE,
+            max_chunk_size: LARGE_MAX_CHUNK_SIZE,
+            min_chunk_size: LARGE_MIN_CHUNK_SIZE,
+            overlap_size: LARGE_OVERLAP_SIZE,
             ..Default::default()
         }
     }

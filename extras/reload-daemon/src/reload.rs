@@ -2,6 +2,8 @@ use crate::config::{ArgsTransform, ClientStrategy};
 use std::process::Command;
 use std::time::Duration;
 
+const PROCESS_CHECK_POLL_MS: u64 = 100;
+
 /// Parse a signal name (e.g. "SIGINT") into its numeric value.
 #[cfg(unix)]
 fn parse_signal(name: &str) -> Option<i32> {
@@ -57,7 +59,7 @@ pub async fn kill_process(pid: i32, strategy: &ClientStrategy) -> Result<(), Str
         // Poll for process exit.
         let deadline = tokio::time::Instant::now() + Duration::from_millis(timeout_ms);
         loop {
-            tokio::time::sleep(Duration::from_millis(100)).await;
+            tokio::time::sleep(Duration::from_millis(PROCESS_CHECK_POLL_MS)).await;
             if !process_alive(pid) {
                 return Ok(());
             }

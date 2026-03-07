@@ -24,6 +24,8 @@ use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
+const WORKTREE_MAX_AGE_SECS: u64 = 86_400;
+
 /// Manages Git worktrees for agent isolation
 pub struct WorktreeManager {
     /// The main repository path
@@ -52,7 +54,7 @@ pub struct WorktreeConfig {
 impl Default for WorktreeConfig {
     fn default() -> Self {
         Self {
-            max_age: Duration::from_secs(3600 * 24), // 24 hours
+            max_age: Duration::from_secs(WORKTREE_MAX_AGE_SECS),
             auto_cleanup: true,
             prefix: "agent-wt-".to_string(),
             max_worktrees: 10,

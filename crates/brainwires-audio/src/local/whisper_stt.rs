@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use crate::error::{AudioError, AudioResult};
 use crate::stt::SpeechToText;
-use crate::types::{AudioBuffer, AudioConfig, SampleFormat, SttOptions, Transcript, TranscriptSegment};
+use crate::types::{AudioBuffer, AudioConfig, SampleFormat, SttOptions, Transcript, TranscriptSegment, SAMPLE_RATE_SPEECH};
 
 /// Local whisper.cpp speech-to-text implementation via whisper-rs.
 pub struct WhisperStt {
@@ -46,8 +46,8 @@ impl WhisperStt {
         };
 
         // Simple nearest-neighbor resample to 16kHz if needed
-        if audio.config.sample_rate != 16000 {
-            let ratio = 16000.0 / audio.config.sample_rate as f64;
+        if audio.config.sample_rate != SAMPLE_RATE_SPEECH {
+            let ratio = SAMPLE_RATE_SPEECH as f64 / audio.config.sample_rate as f64;
             let new_len = (mono.len() as f64 * ratio) as usize;
             let resampled: Vec<f32> = (0..new_len)
                 .map(|i| {

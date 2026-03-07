@@ -55,6 +55,9 @@ use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+/// Default minimum pattern reliability for BKS promotion (80% success rate).
+const DEFAULT_PATTERN_PROMOTION_THRESHOLD: f32 = 0.8;
+
 /// Configuration for SEAL + Knowledge integration
 #[derive(Debug, Clone)]
 pub struct IntegrationConfig {
@@ -110,7 +113,7 @@ impl Default for IntegrationConfig {
             knowledge_to_seal: true,
             min_seal_quality_for_bks_boost: 0.7,
             min_seal_quality_for_pks_boost: 0.5,
-            pattern_promotion_threshold: 0.8,
+            pattern_promotion_threshold: DEFAULT_PATTERN_PROMOTION_THRESHOLD,
             min_pattern_uses: 5,
             cache_bks_in_seal: true,
             entity_resolution_strategy: EntityResolutionStrategy::Hybrid {

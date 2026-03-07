@@ -1,5 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+pub(crate) const SAMPLE_RATE_SPEECH: u32 = 16_000;
+pub(crate) const SAMPLE_RATE_CD: u32 = 44_100;
+pub(crate) const SAMPLE_RATE_HIGH_QUALITY: u32 = 48_000;
+
 /// Supported audio sample formats.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SampleFormat {
@@ -24,7 +28,7 @@ impl AudioConfig {
     /// Standard speech config: 16kHz mono 16-bit (Whisper, most STT APIs).
     pub fn speech() -> Self {
         Self {
-            sample_rate: 16000,
+            sample_rate: SAMPLE_RATE_SPEECH,
             channels: 1,
             sample_format: SampleFormat::I16,
         }
@@ -33,7 +37,7 @@ impl AudioConfig {
     /// CD quality: 44.1kHz stereo 16-bit.
     pub fn cd_quality() -> Self {
         Self {
-            sample_rate: 44100,
+            sample_rate: SAMPLE_RATE_CD,
             channels: 2,
             sample_format: SampleFormat::I16,
         }
@@ -42,7 +46,7 @@ impl AudioConfig {
     /// High quality: 48kHz stereo float.
     pub fn high_quality() -> Self {
         Self {
-            sample_rate: 48000,
+            sample_rate: SAMPLE_RATE_HIGH_QUALITY,
             channels: 2,
             sample_format: SampleFormat::F32,
         }

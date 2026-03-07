@@ -13,6 +13,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+/// Default minimum reliability threshold for promoting a technique to BKS.
+const DEFAULT_PROMOTION_THRESHOLD: f64 = 0.8;
+
 /// Record of technique effectiveness for a specific task execution
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TechniqueEffectivenessRecord {
@@ -120,7 +123,7 @@ impl PromptingLearningCoordinator {
             records: Vec::new(),
             bks_cache,
             technique_stats: HashMap::new(),
-            promotion_threshold: 0.8,
+            promotion_threshold: DEFAULT_PROMOTION_THRESHOLD as f32,
             min_uses_for_promotion: 5,
         }
     }

@@ -33,6 +33,9 @@ use super::metadata::{Skill, SkillMetadata, SkillSource};
 #[cfg(test)]
 use super::metadata::SkillExecutionMode;
 
+/// Maximum allowed length for a skill description.
+const SKILL_DESCRIPTION_MAX_LENGTH: usize = 1024;
+
 /// YAML frontmatter for skill definition
 #[derive(Debug, Deserialize)]
 struct SkillFrontmatter {
@@ -253,7 +256,7 @@ fn validate_description(desc: &str) -> Result<()> {
         anyhow::bail!("Skill description cannot be empty");
     }
 
-    if desc.len() > 1024 {
+    if desc.len() > SKILL_DESCRIPTION_MAX_LENGTH {
         anyhow::bail!(
             "Skill description exceeds 1024 characters (got {})",
             desc.len()

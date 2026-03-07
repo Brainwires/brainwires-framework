@@ -12,6 +12,8 @@ use std::path::PathBuf;
 #[cfg(feature = "native")]
 use std::process::Command;
 
+const DEFAULT_VALIDATION_MAX_RETRIES: usize = 3;
+
 /// Validation checks to enforce
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ValidationCheck {
@@ -91,7 +93,7 @@ impl Default for ValidationConfig {
                 ValidationCheck::SyntaxValid,
             ],
             working_directory: ".".to_string(),
-            max_retries: 3,
+            max_retries: DEFAULT_VALIDATION_MAX_RETRIES,
             enabled: true,
             working_set_files: Vec::new(),
         }

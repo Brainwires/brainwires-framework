@@ -2,6 +2,9 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Maximum string length for the relaxed execution limits profile (100MB).
+const RELAXED_MAX_STRING_LENGTH: usize = 104_857_600;
+
 /// Supported programming languages
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -278,7 +281,7 @@ impl ExecutionLimits {
             max_output_bytes: 10_485_760, // 10MB
             max_operations: 10_000_000,
             max_call_depth: 128,
-            max_string_length: 104_857_600, // 100MB
+            max_string_length: RELAXED_MAX_STRING_LENGTH,
             max_array_length: 1_000_000,
             max_map_size: 100_000,
         }

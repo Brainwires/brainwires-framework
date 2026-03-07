@@ -14,6 +14,15 @@ use tokio::sync::RwLock;
 use crate::file_locks::{FileLockManager, LockGuard, LockType};
 use crate::resource_locks::{ResourceLockGuard, ResourceLockManager, ResourceScope, ResourceType};
 
+const DEFAULT_INITIAL_DELAY_MS: u64 = 100;
+const DEFAULT_MAX_RETRIES: u32 = 5;
+const DEFAULT_MAX_DELAY_SECS: u64 = 5;
+const PERSISTENT_LOCK_TIMEOUT_SECS: u64 = 300;
+const FILE_LOCK_BACKOFF_INITIAL_MS: u64 = 50;
+const FILE_LOCK_BACKOFF_MAX_MS: u64 = 500;
+const RESOURCE_LOCK_BACKOFF_INITIAL_MS: u64 = 100;
+const RESOURCE_LOCK_BACKOFF_MAX_SECS: u64 = 1;
+
 /// Trait for persistent lock storage (inter-process coordination)
 ///
 /// Implement this trait to enable cross-process lock coordination.
@@ -67,9 +76,9 @@ pub enum ContentionStrategy {
 impl Default for ContentionStrategy {
     fn default() -> Self {
         ContentionStrategy::RetryWithBackoff {
-            initial_delay: Duration::from_millis(100),
-            max_retries: 5,
-            max_delay: Duration::from_secs(5),
+            initial_delay: Duration::from_millis(DEFAULT_INITIAL_DELAY_MS),
+            max_retries: DEFAULT_MAX_RETRIES,
+            max_delay: Duration::from_secs(DEFAULT_MAX_DELAY_SECS),
         }
     }
 }
@@ -396,7 +405,7 @@ impl AccessControlManager {
                     lock_type_str,
                     resource_path,
                     agent_id,
-                    Some(Duration::from_secs(300)), // 5-minute timeout
+                    Some(Duration::from_secs(PERSISTENT_LOCK_TIMEOUT_SECS)),
                 )
                 .await
         } else {
@@ -455,7 +464,7 @@ impl AccessControlManager {
             }
             ContentionStrategy::WaitWithTimeout(timeout) => {
                 let deadline = tokio::time::Instant::now() + *timeout;
-                let mut delay = Duration::from_millis(50);
+                let mut delay = Duration::from_millis(FILE_LOCK_BACKOFF_INITIAL_MS);
 
                 loop {
                     // Try persistent lock first
@@ -488,7 +497,7 @@ impl AccessControlManager {
                     }
 
                     tokio::time::sleep(delay).await;
-                    delay = std::cmp::min(delay * 2, Duration::from_millis(500));
+                    delay = std::cmp::min(delay * 2, Duration::from_millis(FILE_LOCK_BACKOFF_MAX_MS));
                 }
             }
             ContentionStrategy::RetryWithBackoff {
@@ -606,7 +615,7 @@ impl AccessControlManager {
             }
             ContentionStrategy::WaitWithTimeout(timeout) => {
                 let deadline = tokio::time::Instant::now() + *timeout;
-                let mut delay = Duration::from_millis(100);
+                let mut delay = Duration::from_millis(RESOURCE_LOCK_BACKOFF_INITIAL_MS);
                 let description = format!("{} lock", resource_type);
 
                 loop {
@@ -644,7 +653,7 @@ impl AccessControlManager {
                     }
 
                     tokio::time::sleep(delay).await;
-                    delay = std::cmp::min(delay * 2, Duration::from_secs(1));
+                    delay = std::cmp::min(delay * 2, Duration::from_secs(RESOURCE_LOCK_BACKOFF_MAX_SECS));
                 }
             }
             ContentionStrategy::RetryWithBackoff {

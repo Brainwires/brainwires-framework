@@ -19,6 +19,8 @@ use crate::task_agent::{TaskAgentConfig, TaskAgentResult};
 use crate::task_manager::TaskManager;
 use crate::task_manager::TaskStats;
 
+const DEFAULT_POLL_INTERVAL_MS: u64 = 250;
+
 // ── Public types ────────────────────────────────────────────────────────────
 
 /// What happens when an agent's task fails.
@@ -51,7 +53,7 @@ impl Default for TaskOrchestratorConfig {
         Self {
             failure_policy: FailurePolicy::default(),
             default_agent_config: TaskAgentConfig::default(),
-            poll_interval_ms: 250,
+            poll_interval_ms: DEFAULT_POLL_INTERVAL_MS,
             orchestrator_id: "orchestrator".to_string(),
         }
     }

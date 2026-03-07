@@ -4,6 +4,8 @@ use crate::error::ProxyResult;
 use crate::middleware::{LayerAction, ProxyLayer};
 use crate::types::{ProxyRequest, ProxyResponse};
 
+const DEFAULT_MAX_BODY_LOG_BYTES: usize = 4096;
+
 /// Logs request/response pairs as structured JSON via `tracing`.
 pub struct LoggingLayer {
     /// Whether to include body content in logs.
@@ -16,7 +18,7 @@ impl LoggingLayer {
     pub fn new() -> Self {
         Self {
             log_bodies: false,
-            max_body_log_bytes: 4096,
+            max_body_log_bytes: DEFAULT_MAX_BODY_LOG_BYTES,
         }
     }
 

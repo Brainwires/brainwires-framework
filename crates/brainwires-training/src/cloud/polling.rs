@@ -6,6 +6,13 @@ use crate::error::TrainingError;
 use crate::types::{TrainingJobId, TrainingJobStatus};
 use super::FineTuneProvider;
 
+/// Default initial polling interval in seconds.
+const DEFAULT_POLL_INITIAL_SECS: u64 = 10;
+/// Default maximum polling interval in seconds.
+const DEFAULT_POLL_MAX_SECS: u64 = 300;
+/// Default total polling timeout in seconds (24 hours).
+const DEFAULT_POLL_TIMEOUT_SECS: u64 = 86_400;
+
 /// Exponential-backoff job status poller.
 pub struct JobPoller {
     /// Initial polling interval.
@@ -21,10 +28,10 @@ pub struct JobPoller {
 impl Default for JobPoller {
     fn default() -> Self {
         Self {
-            initial_interval: Duration::from_secs(10),
-            max_interval: Duration::from_secs(300),
+            initial_interval: Duration::from_secs(DEFAULT_POLL_INITIAL_SECS),
+            max_interval: Duration::from_secs(DEFAULT_POLL_MAX_SECS),
             multiplier: 1.5,
-            timeout: Duration::from_secs(86400), // 24 hours
+            timeout: Duration::from_secs(DEFAULT_POLL_TIMEOUT_SECS), // 24 hours
         }
     }
 }

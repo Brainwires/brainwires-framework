@@ -5,6 +5,17 @@ use std::time::Instant;
 
 use serde::{Deserialize, Serialize};
 
+// --- HealthMonitorConfig default threshold constants ---
+
+/// Default max milliseconds per iteration before flagging as slow (30 seconds).
+const DEFAULT_SLOW_ITERATION_THRESHOLD_MS: u64 = 30_000;
+/// Default max error rate (0.0-1.0) before flagging (30%).
+const DEFAULT_ERROR_RATE_THRESHOLD: f64 = 0.3;
+/// Default seconds without heartbeat before marking as unknown (2 minutes).
+const DEFAULT_HEARTBEAT_TIMEOUT_SECS: u64 = 120;
+/// Default seconds without activity before marking as stalled (5 minutes).
+const DEFAULT_STALL_TIMEOUT_SECS: u64 = 300;
+
 /// Health status of an agent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum HealthStatus {
@@ -129,10 +140,10 @@ pub struct HealthMonitorConfig {
 impl Default for HealthMonitorConfig {
     fn default() -> Self {
         Self {
-            slow_iteration_threshold_ms: 30_000,
-            error_rate_threshold: 0.3,
-            heartbeat_timeout_secs: 120,
-            stall_timeout_secs: 300,
+            slow_iteration_threshold_ms: DEFAULT_SLOW_ITERATION_THRESHOLD_MS,
+            error_rate_threshold: DEFAULT_ERROR_RATE_THRESHOLD,
+            heartbeat_timeout_secs: DEFAULT_HEARTBEAT_TIMEOUT_SECS,
+            stall_timeout_secs: DEFAULT_STALL_TIMEOUT_SECS,
         }
     }
 }

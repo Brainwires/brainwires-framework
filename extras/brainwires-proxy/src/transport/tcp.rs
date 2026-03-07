@@ -11,6 +11,10 @@ use tokio::io::AsyncReadExt;
 use tokio::net::TcpListener;
 use tokio::sync::{mpsc, oneshot, watch};
 
+const DEFAULT_MAX_READ_BYTES: usize = 10 * 1024 * 1024;
+const BUFFER_INITIAL_CAPACITY: usize = 4096;
+const READ_CHUNK_SIZE: usize = 8192;
+
 /// Raw TCP listener — reads the full payload as a single ProxyRequest body.
 pub struct TcpRawListener {
     addr: SocketAddr,
@@ -21,7 +25,7 @@ impl TcpRawListener {
     pub fn new(addr: SocketAddr) -> Self {
         Self {
             addr,
-            max_read: 10 * 1024 * 1024, // 10 MiB default
+            max_read: DEFAULT_MAX_READ_BYTES, // 10 MiB default
         }
     }
 
@@ -49,8 +53,8 @@ impl TransportListener for TcpRawListener {
                     let max_read = self.max_read;
 
                     tokio::spawn(async move {
-                        let mut buf = Vec::with_capacity(4096);
-                        let mut tmp = vec![0u8; 8192];
+                        let mut buf = Vec::with_capacity(BUFFER_INITIAL_CAPACITY);
+                        let mut tmp = vec![0u8; READ_CHUNK_SIZE];
 
                         loop {
                             match stream.read(&mut tmp).await {

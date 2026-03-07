@@ -11,6 +11,28 @@ use tokio::sync::Semaphore;
 use super::error::{MdapError, MdapResult, VotingError};
 use super::red_flags::{RedFlagResult, RedFlagValidator};
 
+// --- EarlyStoppingConfig default preset constants ---
+const DEFAULT_MIN_CONFIDENCE: f64 = 0.85;
+const DEFAULT_MIN_VOTES: u32 = 3;
+const DEFAULT_MAX_VARIANCE_THRESHOLD: f64 = 0.15;
+const DEFAULT_MIN_WEIGHTED_CONFIDENCE: f64 = 0.80;
+
+// --- EarlyStoppingConfig aggressive preset constants ---
+const AGGRESSIVE_MIN_CONFIDENCE: f64 = 0.75;
+const AGGRESSIVE_MIN_VOTES: u32 = 2;
+const AGGRESSIVE_MAX_VARIANCE_THRESHOLD: f64 = 0.20;
+const AGGRESSIVE_MIN_WEIGHTED_CONFIDENCE: f64 = 0.70;
+
+// --- EarlyStoppingConfig conservative preset constants ---
+const CONSERVATIVE_MIN_CONFIDENCE: f64 = 0.90;
+const CONSERVATIVE_MIN_VOTES: u32 = 5;
+const CONSERVATIVE_MAX_VARIANCE_THRESHOLD: f64 = 0.10;
+const CONSERVATIVE_MIN_WEIGHTED_CONFIDENCE: f64 = 0.85;
+
+// --- Voter parallel sampling constants ---
+const DEFAULT_PARALLEL_LIMIT: usize = 4;
+const DEFAULT_BATCH_SIZE: usize = 4;
+
 /// Response with metadata for red-flag checking
 #[derive(Clone, Debug)]
 pub struct SampledResponse<T> {
@@ -128,12 +150,12 @@ pub struct EarlyStoppingConfig {
 impl Default for EarlyStoppingConfig {
     fn default() -> Self {
         Self {
-            min_confidence: 0.85,          // 85% agreement
-            min_votes: 3,                   // At least 3 votes
+            min_confidence: DEFAULT_MIN_CONFIDENCE,
+            min_votes: DEFAULT_MIN_VOTES,
             enabled: true,
-            max_variance_threshold: 0.15,   // Stop if variance < 15%
-            loss_of_hope_enabled: true,     // Enable loss-of-hope detection
-            min_weighted_confidence: 0.80,  // Min weighted confidence for stopping
+            max_variance_threshold: DEFAULT_MAX_VARIANCE_THRESHOLD,
+            loss_of_hope_enabled: true,
+            min_weighted_confidence: DEFAULT_MIN_WEIGHTED_CONFIDENCE,
         }
     }
 }
@@ -161,24 +183,24 @@ impl EarlyStoppingConfig {
     /// Create an aggressive early stopping config (saves more samples but may sacrifice accuracy)
     pub fn aggressive() -> Self {
         Self {
-            min_confidence: 0.75,           // Lower threshold
-            min_votes: 2,                    // Fewer votes required
+            min_confidence: AGGRESSIVE_MIN_CONFIDENCE,
+            min_votes: AGGRESSIVE_MIN_VOTES,
             enabled: true,
-            max_variance_threshold: 0.20,    // Higher variance tolerance
+            max_variance_threshold: AGGRESSIVE_MAX_VARIANCE_THRESHOLD,
             loss_of_hope_enabled: true,
-            min_weighted_confidence: 0.70,
+            min_weighted_confidence: AGGRESSIVE_MIN_WEIGHTED_CONFIDENCE,
         }
     }
 
     /// Create a conservative early stopping config (more accurate but uses more samples)
     pub fn conservative() -> Self {
         Self {
-            min_confidence: 0.90,           // Higher threshold
-            min_votes: 5,                    // More votes required
+            min_confidence: CONSERVATIVE_MIN_CONFIDENCE,
+            min_votes: CONSERVATIVE_MIN_VOTES,
             enabled: true,
-            max_variance_threshold: 0.10,    // Lower variance tolerance
+            max_variance_threshold: CONSERVATIVE_MAX_VARIANCE_THRESHOLD,
             loss_of_hope_enabled: true,
-            min_weighted_confidence: 0.85,
+            min_weighted_confidence: CONSERVATIVE_MIN_WEIGHTED_CONFIDENCE,
         }
     }
 }
@@ -223,8 +245,8 @@ impl FirstToAheadByKVoter {
         Self {
             k,
             max_samples,
-            parallel_limit: Arc::new(Semaphore::new(4)), // Max 4 parallel as per user requirement
-            batch_size: 4, // Sample up to 4 at a time
+            parallel_limit: Arc::new(Semaphore::new(DEFAULT_PARALLEL_LIMIT)),
+            batch_size: DEFAULT_BATCH_SIZE,
             early_stopping: EarlyStoppingConfig::default(),
             voting_method: VotingMethod::FirstToAheadByK,
             use_confidence_weights: false,
@@ -729,10 +751,10 @@ impl FirstToAheadByKVoter {
         F: Fn() -> Fut + Send + Sync,
         Fut: Future<Output = MdapResult<SampledResponse<T>>> + Send + 'static,
     {
-        let mut handles = Vec::with_capacity(count.min(4));
+        let mut handles = Vec::with_capacity(count.min(DEFAULT_PARALLEL_LIMIT));
         let semaphore = self.parallel_limit.clone();
 
-        for _ in 0..count.min(4) {
+        for _ in 0..count.min(DEFAULT_PARALLEL_LIMIT) {
             let permit = semaphore.clone().acquire_owned().await?;
             let fut = sampler();
             handles.push(tokio::spawn(async move {
@@ -793,8 +815,8 @@ impl Default for VoterBuilder {
         Self {
             k: 3,
             max_samples: 50,
-            parallel_limit: 4,
-            batch_size: 4,
+            parallel_limit: DEFAULT_PARALLEL_LIMIT as u32,
+            batch_size: DEFAULT_BATCH_SIZE,
             early_stopping: EarlyStoppingConfig::default(),
             voting_method: VotingMethod::FirstToAheadByK,
             use_confidence_weights: false,
@@ -843,7 +865,7 @@ impl VoterBuilder {
 
     /// Set the parallel limit (1-4)
     pub fn parallel_limit(mut self, limit: u32) -> Self {
-        self.parallel_limit = limit.clamp(1, 4);
+        self.parallel_limit = limit.clamp(1, DEFAULT_PARALLEL_LIMIT as u32);
         self
     }
 
@@ -858,7 +880,7 @@ impl VoterBuilder {
         FirstToAheadByKVoter {
             k: self.k.max(1),
             max_samples: self.max_samples.max(1),
-            parallel_limit: Arc::new(Semaphore::new(self.parallel_limit.clamp(1, 4) as usize)),
+            parallel_limit: Arc::new(Semaphore::new(self.parallel_limit.clamp(1, DEFAULT_PARALLEL_LIMIT as u32) as usize)),
             batch_size: self.batch_size.max(1),
             early_stopping: self.early_stopping,
             voting_method: self.voting_method,

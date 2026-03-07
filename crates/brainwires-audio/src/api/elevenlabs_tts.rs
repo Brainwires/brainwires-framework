@@ -7,7 +7,7 @@ use brainwires_providers::elevenlabs::{ElevenLabsClient, ElevenLabsTtsRequest};
 
 use crate::error::{AudioError, AudioResult};
 use crate::tts::TextToSpeech;
-use crate::types::{AudioBuffer, AudioConfig, OutputFormat, SampleFormat, TtsOptions, Voice};
+use crate::types::{AudioBuffer, AudioConfig, OutputFormat, SampleFormat, TtsOptions, Voice, SAMPLE_RATE_SPEECH, SAMPLE_RATE_CD};
 
 /// ElevenLabs text-to-speech implementation.
 ///
@@ -60,8 +60,8 @@ fn output_format_string(format: OutputFormat) -> &'static str {
 /// Return the sample rate implied by the ElevenLabs output format string.
 fn sample_rate_for_format(format: OutputFormat) -> u32 {
     match format {
-        OutputFormat::Pcm | OutputFormat::Wav => 16000,
-        _ => 44100,
+        OutputFormat::Pcm | OutputFormat::Wav => SAMPLE_RATE_SPEECH,
+        _ => SAMPLE_RATE_CD,
     }
 }
 

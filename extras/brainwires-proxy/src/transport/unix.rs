@@ -10,6 +10,10 @@ use std::path::PathBuf;
 use tokio::io::AsyncReadExt;
 use tokio::sync::{mpsc, oneshot, watch};
 
+const DEFAULT_MAX_READ_BYTES: usize = 10 * 1024 * 1024;
+const BUFFER_INITIAL_CAPACITY: usize = 4096;
+const READ_CHUNK_SIZE: usize = 8192;
+
 /// Unix domain socket listener.
 pub struct UnixListener {
     path: PathBuf,
@@ -20,7 +24,7 @@ impl UnixListener {
     pub fn new(path: impl Into<PathBuf>) -> Self {
         Self {
             path: path.into(),
-            max_read: 10 * 1024 * 1024,
+            max_read: DEFAULT_MAX_READ_BYTES,
         }
     }
 
@@ -54,8 +58,8 @@ impl TransportListener for UnixListener {
                     let path_str = self.path.display().to_string();
 
                     tokio::spawn(async move {
-                        let mut buf = Vec::with_capacity(4096);
-                        let mut tmp = vec![0u8; 8192];
+                        let mut buf = Vec::with_capacity(BUFFER_INITIAL_CAPACITY);
+                        let mut tmp = vec![0u8; READ_CHUNK_SIZE];
 
                         loop {
                             match stream.read(&mut tmp).await {

@@ -11,6 +11,8 @@ use brainwires_core::provider::{ChatOptions, Provider};
 
 use super::InferenceTimer;
 
+const CONTEXT_BUFFER_CAPACITY: usize = 4000;
+
 /// Result of a summarization operation
 #[derive(Clone, Debug)]
 pub struct SummarizationResult {
@@ -227,7 +229,7 @@ impl LocalSummarizer {
         let to_compact = &messages[..messages.len() - keep_recent];
 
         // Build a condensed representation
-        let mut context = String::with_capacity(4000);
+        let mut context = String::with_capacity(CONTEXT_BUFFER_CAPACITY);
         for (role, content) in to_compact.iter().take(20) {
             let truncated = if content.len() > 200 { &content[..200] } else { content };
             context.push_str(&format!("[{}]: {}\n", role, truncated));
