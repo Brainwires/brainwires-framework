@@ -1,4 +1,4 @@
-use crate::types::{TrainingExample, TrainingRole};
+use crate::types::{PreferencePair, TrainingExample, TrainingRole};
 
 /// Statistics about a training dataset.
 #[derive(Debug, Clone)]
@@ -113,6 +113,89 @@ pub fn compute_stats(examples: &[TrainingExample]) -> DatasetStats {
     }
 }
 
+/// Statistics about a preference training dataset.
+#[derive(Debug, Clone)]
+pub struct PreferenceStats {
+    /// Total number of preference pairs.
+    pub total_pairs: usize,
+    /// Total estimated tokens across all pairs.
+    pub total_estimated_tokens: usize,
+    /// Average tokens in prompt messages.
+    pub avg_prompt_tokens: f64,
+    /// Average tokens in chosen messages.
+    pub avg_chosen_tokens: f64,
+    /// Average tokens in rejected messages.
+    pub avg_rejected_tokens: f64,
+    /// Minimum tokens in any single pair.
+    pub min_tokens: usize,
+    /// Maximum tokens in any single pair.
+    pub max_tokens: usize,
+    /// Average ratio of chosen to rejected length.
+    pub chosen_rejected_length_ratio: f64,
+    /// Token count distribution histogram.
+    pub token_histogram: Vec<HistogramBucket>,
+}
+
+/// Compute statistics for a set of preference pairs.
+pub fn compute_preference_stats(pairs: &[PreferencePair]) -> PreferenceStats {
+    if pairs.is_empty() {
+        return PreferenceStats {
+            total_pairs: 0,
+            total_estimated_tokens: 0,
+            avg_prompt_tokens: 0.0,
+            avg_chosen_tokens: 0.0,
+            avg_rejected_tokens: 0.0,
+            min_tokens: 0,
+            max_tokens: 0,
+            chosen_rejected_length_ratio: 0.0,
+            token_histogram: Vec::new(),
+        };
+    }
+
+    let mut total_tokens = 0;
+    let mut total_prompt_tokens = 0;
+    let mut total_chosen_tokens = 0;
+    let mut total_rejected_tokens = 0;
+    let mut min_tokens = usize::MAX;
+    let mut max_tokens = 0;
+    let mut ratio_sum = 0.0;
+    let mut token_counts: Vec<usize> = Vec::with_capacity(pairs.len());
+
+    for pair in pairs {
+        let prompt_t: usize = pair.prompt.iter().map(|m| m.estimated_tokens()).sum();
+        let chosen_t: usize = pair.chosen.iter().map(|m| m.estimated_tokens()).sum();
+        let rejected_t: usize = pair.rejected.iter().map(|m| m.estimated_tokens()).sum();
+        let pair_tokens = prompt_t + chosen_t + rejected_t;
+
+        token_counts.push(pair_tokens);
+        total_tokens += pair_tokens;
+        total_prompt_tokens += prompt_t;
+        total_chosen_tokens += chosen_t;
+        total_rejected_tokens += rejected_t;
+        min_tokens = min_tokens.min(pair_tokens);
+        max_tokens = max_tokens.max(pair_tokens);
+
+        let chosen_len = chosen_t.max(1) as f64;
+        let rejected_len = rejected_t.max(1) as f64;
+        ratio_sum += chosen_len / rejected_len;
+    }
+
+    let n = pairs.len() as f64;
+    let histogram = build_histogram(&token_counts);
+
+    PreferenceStats {
+        total_pairs: pairs.len(),
+        total_estimated_tokens: total_tokens,
+        avg_prompt_tokens: total_prompt_tokens as f64 / n,
+        avg_chosen_tokens: total_chosen_tokens as f64 / n,
+        avg_rejected_tokens: total_rejected_tokens as f64 / n,
+        min_tokens,
+        max_tokens,
+        chosen_rejected_length_ratio: ratio_sum / n,
+        token_histogram: histogram,
+    }
+}
+
 fn build_histogram(token_counts: &[usize]) -> Vec<HistogramBucket> {
     if token_counts.is_empty() {
         return Vec::new();
@@ -200,5 +283,33 @@ mod tests {
         let stats = compute_stats(&[]);
         assert_eq!(stats.total_examples, 0);
         assert_eq!(stats.avg_tokens_per_example, 0.0);
+    }
+
+    #[test]
+    fn test_compute_preference_stats() {
+        use crate::types::PreferencePair;
+        let pairs = vec![
+            PreferencePair::new(
+                vec![TrainingMessage::user("Question one here")],
+                vec![TrainingMessage::assistant("A good answer")],
+                vec![TrainingMessage::assistant("Bad")],
+            ),
+            PreferencePair::new(
+                vec![TrainingMessage::user("Another question")],
+                vec![TrainingMessage::assistant("Another good answer")],
+                vec![TrainingMessage::assistant("Another bad answer")],
+            ),
+        ];
+        let stats = compute_preference_stats(&pairs);
+        assert_eq!(stats.total_pairs, 2);
+        assert!(stats.total_estimated_tokens > 0);
+        assert!(stats.avg_prompt_tokens > 0.0);
+        assert!(stats.chosen_rejected_length_ratio > 0.0);
+    }
+
+    #[test]
+    fn test_empty_preference_stats() {
+        let stats = compute_preference_stats(&[]);
+        assert_eq!(stats.total_pairs, 0);
     }
 }

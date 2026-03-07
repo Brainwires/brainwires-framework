@@ -98,6 +98,80 @@ pub fn write_export_metadata(
     Ok(())
 }
 
+/// Export a trained model in the specified format.
+pub fn export_model(
+    config: &ExportConfig,
+    weights: &std::collections::HashMap<String, (Vec<f32>, Vec<usize>)>,
+    metadata: &ExportMetadata,
+) -> std::io::Result<()> {
+    std::fs::create_dir_all(&config.output_path)?;
+
+    match config.format {
+        ExportFormat::SafeTensors => {
+            let tensors: std::collections::HashMap<String, safetensors::tensor::TensorView<'_>> = weights
+                .iter()
+                .filter_map(|(name, (data, shape))| {
+                    let bytes: Vec<u8> = data.iter().flat_map(|f| f.to_le_bytes()).collect();
+                    let bytes = Box::leak(bytes.into_boxed_slice());
+                    safetensors::tensor::TensorView::new(
+                        safetensors::Dtype::F32,
+                        shape.clone(),
+                        bytes,
+                    )
+                    .ok()
+                    .map(|view| (name.clone(), view))
+                })
+                .collect();
+
+            let serialized = safetensors::tensor::serialize(&tensors, None)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("SafeTensors error: {}", e)))?;
+            std::fs::write(config.output_path.join("model.safetensors"), serialized)?;
+            info!("Exported {} tensors as SafeTensors", weights.len());
+        }
+        ExportFormat::AdapterOnly => {
+            let adapter_weights: std::collections::HashMap<String, (Vec<f32>, Vec<usize>)> = weights
+                .iter()
+                .filter(|(name, _)| {
+                    name.contains("lora_a") || name.contains("lora_b") || name.contains("magnitude")
+                })
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect();
+
+            let tensors: std::collections::HashMap<String, safetensors::tensor::TensorView<'_>> = adapter_weights
+                .iter()
+                .filter_map(|(name, (data, shape))| {
+                    let bytes: Vec<u8> = data.iter().flat_map(|f| f.to_le_bytes()).collect();
+                    let bytes = Box::leak(bytes.into_boxed_slice());
+                    safetensors::tensor::TensorView::new(
+                        safetensors::Dtype::F32,
+                        shape.clone(),
+                        bytes,
+                    )
+                    .ok()
+                    .map(|view| (name.clone(), view))
+                })
+                .collect();
+
+            let serialized = safetensors::tensor::serialize(&tensors, None)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("SafeTensors error: {}", e)))?;
+            std::fs::write(config.output_path.join("adapter_weights.safetensors"), serialized)?;
+            info!("Exported {} adapter tensors", adapter_weights.len());
+        }
+        ExportFormat::Gguf => {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Unsupported,
+                "GGUF export not supported. Convert SafeTensors output using llama.cpp tools (convert-safetensors-to-gguf.py)."
+            ));
+        }
+    }
+
+    if config.include_metadata {
+        write_export_metadata(&config.output_path, metadata)?;
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -118,5 +192,66 @@ mod tests {
         let st = ExportConfig::safetensors("/tmp/model.safetensors");
         assert_eq!(st.format, ExportFormat::SafeTensors);
         assert!(st.gguf_quantization.is_none());
+    }
+
+    #[test]
+    fn test_export_safetensors() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = ExportConfig::safetensors(dir.path());
+
+        let mut weights = std::collections::HashMap::new();
+        weights.insert("layer.weight".to_string(), (vec![1.0f32, 2.0, 3.0, 4.0], vec![2, 2]));
+
+        let metadata = ExportMetadata {
+            format: "safetensors".to_string(),
+            base_model: "test-model".to_string(),
+            adapter_method: Some("LoRA".to_string()),
+            training_epochs: 3,
+            final_loss: Some(0.5),
+            exported_at: chrono::Utc::now(),
+        };
+
+        export_model(&config, &weights, &metadata).unwrap();
+        assert!(dir.path().join("model.safetensors").exists());
+        assert!(dir.path().join("export_metadata.json").exists());
+    }
+
+    #[test]
+    fn test_export_adapter_only() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = ExportConfig::adapter_only(dir.path());
+
+        let mut weights = std::collections::HashMap::new();
+        weights.insert("layer.lora_a".to_string(), (vec![1.0f32, 2.0], vec![1, 2]));
+        weights.insert("layer.lora_b".to_string(), (vec![3.0f32, 4.0], vec![2, 1]));
+        weights.insert("layer.base_weight".to_string(), (vec![5.0f32; 100], vec![10, 10]));
+
+        let metadata = ExportMetadata {
+            format: "adapter_only".to_string(),
+            base_model: "test-model".to_string(),
+            adapter_method: Some("LoRA".to_string()),
+            training_epochs: 3,
+            final_loss: Some(0.5),
+            exported_at: chrono::Utc::now(),
+        };
+
+        export_model(&config, &weights, &metadata).unwrap();
+        assert!(dir.path().join("adapter_weights.safetensors").exists());
+    }
+
+    #[test]
+    fn test_export_gguf_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = ExportConfig::gguf(dir.path());
+        let weights = std::collections::HashMap::new();
+        let metadata = ExportMetadata {
+            format: "gguf".to_string(),
+            base_model: "test".to_string(),
+            adapter_method: None,
+            training_epochs: 1,
+            final_loss: None,
+            exported_at: chrono::Utc::now(),
+        };
+        assert!(export_model(&config, &weights, &metadata).is_err());
     }
 }

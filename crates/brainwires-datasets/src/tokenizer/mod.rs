@@ -13,6 +13,21 @@ pub trait Tokenizer: Send + Sync {
     fn count_tokens(&self, text: &str) -> DatasetResult<usize> {
         Ok(self.encode(text)?.len())
     }
+
+    /// Encode a batch of texts into token ID sequences.
+    fn encode_batch(&self, texts: &[&str]) -> DatasetResult<Vec<Vec<u32>>> {
+        texts.iter().map(|t| self.encode(t)).collect()
+    }
+
+    /// Decode a batch of token ID sequences back into text.
+    fn decode_batch(&self, ids_batch: &[&[u32]]) -> DatasetResult<Vec<String>> {
+        ids_batch.iter().map(|ids| self.decode(ids)).collect()
+    }
+
+    /// Return special tokens and their IDs (if known).
+    fn special_tokens(&self) -> Vec<(String, u32)> {
+        Vec::new()
+    }
 }
 
 /// HuggingFace tokenizer integration.

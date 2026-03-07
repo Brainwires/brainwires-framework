@@ -45,4 +45,20 @@ impl Tokenizer for HfTokenizer {
     fn vocab_size(&self) -> usize {
         self.tokenizer.get_vocab_size(true)
     }
+
+    fn encode_batch(&self, texts: &[&str]) -> DatasetResult<Vec<Vec<u32>>> {
+        let encodings = self.tokenizer.encode_batch(texts.to_vec(), false)
+            .map_err(|e| DatasetError::Tokenizer {
+                message: format!("Batch encoding error: {}", e),
+            })?;
+        Ok(encodings.iter().map(|e| e.get_ids().to_vec()).collect())
+    }
+
+    fn special_tokens(&self) -> Vec<(String, u32)> {
+        self.tokenizer.get_vocab(true)
+            .into_iter()
+            .filter(|(token, _)| token.starts_with('<') || token.starts_with('['))
+            .map(|(token, id)| (token, id))
+            .collect()
+    }
 }

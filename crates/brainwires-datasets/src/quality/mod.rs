@@ -8,7 +8,7 @@ pub mod stats;
 pub mod dedup;
 
 pub use validator::{DataValidator, ValidatorConfig, ValidationReport, ValidationIssue, IssueSeverity};
-pub use stats::{DatasetStats, RoleCounts, compute_stats};
+pub use stats::{DatasetStats, RoleCounts, compute_stats, HistogramBucket, PreferenceStats, compute_preference_stats};
 
 #[cfg(feature = "dedup")]
-pub use dedup::{Deduplicator, exact_dedup};
+pub use dedup::{Deduplicator, exact_dedup, exact_dedup_preferences};

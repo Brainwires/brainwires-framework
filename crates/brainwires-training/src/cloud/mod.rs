@@ -140,6 +140,16 @@ impl FineTuneProviderFactory {
     pub fn anyscale(api_key: impl Into<String>) -> anyscale::AnyscaleFineTune {
         anyscale::AnyscaleFineTune::new(api_key)
     }
+
+    /// Create an AWS Bedrock fine-tune provider.
+    pub fn bedrock(region: impl Into<String>) -> bedrock::BedrockFineTune {
+        bedrock::BedrockFineTune::new(region)
+    }
+
+    /// Create a Google Vertex AI fine-tune provider.
+    pub fn vertex(project_id: impl Into<String>, location: impl Into<String>) -> vertex::VertexFineTune {
+        vertex::VertexFineTune::new(project_id, location)
+    }
 }
 
 pub use self::openai::OpenAiFineTune;

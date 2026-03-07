@@ -10,7 +10,7 @@ pub mod sharegpt;
 pub mod chatml;
 
 use crate::error::DatasetResult;
-use crate::types::TrainingExample;
+use crate::types::{DataFormat, PreferencePair, TrainingExample};
 
 /// Convert training examples to/from a specific provider format.
 pub trait FormatConverter: Send + Sync {
@@ -32,6 +32,48 @@ pub trait FormatConverter: Send + Sync {
     fn parse_json_batch(&self, values: &[serde_json::Value]) -> DatasetResult<Vec<TrainingExample>> {
         values.iter().map(|v| self.parse_json(v)).collect()
     }
+}
+
+/// Convert preference pairs to/from a specific provider format.
+pub trait PreferenceConverter: Send + Sync {
+    /// Name of this format.
+    fn name(&self) -> &str;
+
+    /// Convert a PreferencePair to this format's JSON representation.
+    fn preference_to_json(&self, pair: &PreferencePair) -> DatasetResult<serde_json::Value>;
+
+    /// Parse this format's JSON back into a PreferencePair.
+    fn parse_preference_json(&self, value: &serde_json::Value) -> DatasetResult<PreferencePair>;
+
+    /// Convert a batch of preference pairs to this format.
+    fn preference_to_json_batch(&self, pairs: &[PreferencePair]) -> DatasetResult<Vec<serde_json::Value>> {
+        pairs.iter().map(|p| self.preference_to_json(p)).collect()
+    }
+
+    /// Parse a batch of JSON values into preference pairs.
+    fn parse_preference_json_batch(&self, values: &[serde_json::Value]) -> DatasetResult<Vec<PreferencePair>> {
+        values.iter().map(|v| self.parse_preference_json(v)).collect()
+    }
+}
+
+/// Auto-detect the format of a JSON value.
+pub fn detect_format(value: &serde_json::Value) -> Option<DataFormat> {
+    if value.get("messages").is_some() {
+        return Some(DataFormat::OpenAI);
+    }
+    if value.get("instruction").is_some() && value.get("output").is_some() {
+        return Some(DataFormat::Alpaca);
+    }
+    if value.get("conversations").is_some() {
+        return Some(DataFormat::ShareGpt);
+    }
+    if let Some(text) = value.get("text").and_then(|v| v.as_str()) {
+        if text.contains("<|im_start|>") {
+            return Some(DataFormat::ChatMl);
+        }
+        return Some(DataFormat::Together);
+    }
+    None
 }
 
 pub use openai::OpenAiFormat;

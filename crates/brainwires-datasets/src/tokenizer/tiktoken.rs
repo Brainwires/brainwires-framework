@@ -58,4 +58,18 @@ impl Tokenizer for TiktokenTokenizer {
     fn vocab_size(&self) -> usize {
         self.vocab_size
     }
+
+    fn special_tokens(&self) -> Vec<(String, u32)> {
+        // tiktoken-rs doesn't expose special tokens directly, provide known ones
+        let known = vec![
+            ("<|endoftext|>", 100257u32),
+            ("<|fim_prefix|>", 100258),
+            ("<|fim_middle|>", 100259),
+            ("<|fim_suffix|>", 100260),
+        ];
+        known.into_iter()
+            .filter(|&(_, id)| (id as usize) < self.vocab_size)
+            .map(|(name, id)| (name.to_string(), id))
+            .collect()
+    }
 }

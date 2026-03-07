@@ -1,4 +1,4 @@
-use crate::types::TrainingExample;
+use crate::types::{PreferencePair, TrainingExample};
 
 use sha2::{Sha256, Digest};
 
@@ -76,6 +76,57 @@ impl Deduplicator {
             .collect();
 
         (deduped, removed)
+    }
+
+    /// Remove near-duplicate preference pairs.
+    pub fn deduplicate_preferences(&self, pairs: &[PreferencePair]) -> (Vec<PreferencePair>, usize) {
+        if pairs.len() <= 1 {
+            return (pairs.to_vec(), 0);
+        }
+
+        let signatures: Vec<Vec<u64>> = pairs
+            .iter()
+            .map(|p| {
+                let text = self.preference_text(p);
+                self.minhash_signature(&text)
+            })
+            .collect();
+
+        let mut keep = vec![true; pairs.len()];
+        let mut removed = 0;
+
+        for i in 0..pairs.len() {
+            if !keep[i] {
+                continue;
+            }
+            for j in (i + 1)..pairs.len() {
+                if !keep[j] {
+                    continue;
+                }
+                let sim = self.jaccard_estimate(&signatures[i], &signatures[j]);
+                if sim >= self.similarity_threshold {
+                    keep[j] = false;
+                    removed += 1;
+                }
+            }
+        }
+
+        let deduped = pairs
+            .iter()
+            .zip(keep.iter())
+            .filter(|&(_, &k)| k)
+            .map(|(p, _)| p.clone())
+            .collect();
+
+        (deduped, removed)
+    }
+
+    /// Extract text from a preference pair for hashing.
+    fn preference_text(&self, pair: &PreferencePair) -> String {
+        let prompt: String = pair.prompt.iter().map(|m| m.content.as_str()).collect::<Vec<_>>().join(" ");
+        let chosen: String = pair.chosen.iter().map(|m| m.content.as_str()).collect::<Vec<_>>().join(" ");
+        let rejected: String = pair.rejected.iter().map(|m| m.content.as_str()).collect::<Vec<_>>().join(" ");
+        format!("{} {} {}", prompt, chosen, rejected)
     }
 
     /// Extract text from an example for hashing.
@@ -162,6 +213,38 @@ pub fn exact_dedup(examples: &[TrainingExample]) -> (Vec<TrainingExample>, usize
     (deduped, removed)
 }
 
+/// Exact deduplication for preference pairs.
+pub fn exact_dedup_preferences(pairs: &[PreferencePair]) -> (Vec<PreferencePair>, usize) {
+    let mut seen = std::collections::HashSet::new();
+    let mut deduped = Vec::new();
+    let mut removed = 0;
+
+    for pair in pairs {
+        let mut hasher = Sha256::new();
+        for msg in &pair.prompt {
+            hasher.update(msg.role.to_string().as_bytes());
+            hasher.update(msg.content.as_bytes());
+        }
+        for msg in &pair.chosen {
+            hasher.update(b"chosen:");
+            hasher.update(msg.content.as_bytes());
+        }
+        for msg in &pair.rejected {
+            hasher.update(b"rejected:");
+            hasher.update(msg.content.as_bytes());
+        }
+        let hash = format!("{:x}", hasher.finalize());
+
+        if seen.insert(hash) {
+            deduped.push(pair.clone());
+        } else {
+            removed += 1;
+        }
+    }
+
+    (deduped, removed)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -218,5 +301,30 @@ mod tests {
         let (deduped, removed) = exact_dedup(&[]);
         assert!(deduped.is_empty());
         assert_eq!(removed, 0);
+    }
+
+    #[test]
+    fn test_exact_dedup_preferences() {
+        use crate::types::PreferencePair;
+        let pairs = vec![
+            PreferencePair::new(
+                vec![TrainingMessage::user("Q")],
+                vec![TrainingMessage::assistant("Good")],
+                vec![TrainingMessage::assistant("Bad")],
+            ),
+            PreferencePair::new(
+                vec![TrainingMessage::user("Q")],
+                vec![TrainingMessage::assistant("Good")],
+                vec![TrainingMessage::assistant("Bad")],
+            ),
+            PreferencePair::new(
+                vec![TrainingMessage::user("Different")],
+                vec![TrainingMessage::assistant("A")],
+                vec![TrainingMessage::assistant("B")],
+            ),
+        ];
+        let (deduped, removed) = exact_dedup_preferences(&pairs);
+        assert_eq!(deduped.len(), 2);
+        assert_eq!(removed, 1);
     }
 }

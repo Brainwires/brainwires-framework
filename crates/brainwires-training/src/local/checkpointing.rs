@@ -113,6 +113,67 @@ impl CheckpointManager {
             .collect()
     }
 
+    /// Save adapter weights as SafeTensors alongside the checkpoint metadata.
+    pub fn save_weights(
+        &self,
+        step: u64,
+        weights: &std::collections::HashMap<String, (Vec<f32>, Vec<usize>)>,
+    ) -> std::io::Result<()> {
+        let dir = self.checkpoint_path(step);
+        std::fs::create_dir_all(&dir)?;
+
+        let tensors: std::collections::HashMap<String, safetensors::tensor::TensorView<'_>> = weights
+            .iter()
+            .filter_map(|(name, (data, shape))| {
+                let bytes: Vec<u8> = data.iter().flat_map(|f| f.to_le_bytes()).collect();
+                // TensorView needs owned data; use leaked box for lifetime (small checkpoint files)
+                let bytes = Box::leak(bytes.into_boxed_slice());
+                safetensors::tensor::TensorView::new(
+                    safetensors::Dtype::F32,
+                    shape.clone(),
+                    bytes,
+                )
+                .ok()
+                .map(|view| (name.clone(), view))
+            })
+            .collect();
+
+        let serialized = safetensors::tensor::serialize(&tensors, None)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("SafeTensors serialize error: {}", e)))?;
+
+        let weights_path = dir.join("adapter_weights.safetensors");
+        std::fs::write(&weights_path, serialized)?;
+        info!("Saved adapter weights at step {} ({} tensors)", step, weights.len());
+        Ok(())
+    }
+
+    /// Load adapter weights from a checkpoint directory.
+    pub fn load_weights(
+        checkpoint_dir: &Path,
+    ) -> std::io::Result<std::collections::HashMap<String, (Vec<f32>, Vec<usize>)>> {
+        let weights_path = checkpoint_dir.join("adapter_weights.safetensors");
+        let data = std::fs::read(&weights_path)?;
+
+        let st = safetensors::SafeTensors::deserialize(&data)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, format!("SafeTensors parse error: {}", e)))?;
+
+        let mut weights = std::collections::HashMap::new();
+        for name in st.names() {
+            let view = st.tensor(name)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, format!("Tensor '{}': {}", name, e)))?;
+            let shape = view.shape().to_vec();
+            let f32_data: Vec<f32> = view
+                .data()
+                .chunks_exact(4)
+                .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
+                .collect();
+            weights.insert(name.to_string(), (f32_data, shape));
+        }
+
+        debug!("Loaded {} adapter weight tensors from {:?}", weights.len(), checkpoint_dir);
+        Ok(weights)
+    }
+
     /// Remove old checkpoints, keeping only the most recent `max_checkpoints`.
     fn cleanup_old_checkpoints(&self) -> std::io::Result<()> {
         let mut checkpoints = self.list_checkpoints();
@@ -150,5 +211,31 @@ mod tests {
             mgr.checkpoint_path(500),
             PathBuf::from("/tmp/training/checkpoint-500")
         );
+    }
+
+    #[test]
+    fn test_save_and_load_weights() {
+        let dir = tempfile::tempdir().unwrap();
+        let mgr = CheckpointManager::new(dir.path());
+
+        let mut weights = std::collections::HashMap::new();
+        weights.insert(
+            "lora_a".to_string(),
+            (vec![1.0f32, 2.0, 3.0, 4.0], vec![2, 2]),
+        );
+        weights.insert(
+            "lora_b".to_string(),
+            (vec![0.5f32, 0.6, 0.7, 0.8], vec![2, 2]),
+        );
+
+        mgr.save_weights(100, &weights).unwrap();
+
+        let checkpoint_dir = mgr.checkpoint_path(100);
+        let loaded = CheckpointManager::load_weights(&checkpoint_dir).unwrap();
+        assert_eq!(loaded.len(), 2);
+        assert!(loaded.contains_key("lora_a"));
+        let (data, shape) = &loaded["lora_a"];
+        assert_eq!(shape, &[2, 2]);
+        assert!((data[0] - 1.0).abs() < 1e-6);
     }
 }

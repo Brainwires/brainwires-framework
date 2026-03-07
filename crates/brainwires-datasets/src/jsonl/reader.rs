@@ -2,7 +2,7 @@ use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
 
 use crate::error::{DatasetError, DatasetResult};
-use crate::types::TrainingExample;
+use crate::types::{PreferencePair, TrainingExample};
 
 /// Streaming JSONL reader — memory-efficient, reads one line at a time.
 pub struct JsonlReader<R: Read> {
@@ -59,7 +59,44 @@ impl<R: Read> JsonlReader<R> {
         while let Some(example) = self.next_example()? {
             examples.push(example);
         }
+        tracing::debug!("Read {} examples from JSONL", examples.len());
         Ok(examples)
+    }
+
+    /// Read the next preference pair from the JSONL stream.
+    pub fn next_preference(&mut self) -> DatasetResult<Option<PreferencePair>> {
+        let mut line = String::new();
+        loop {
+            line.clear();
+            let bytes_read = self.reader.read_line(&mut line)?;
+            self.line_number += 1;
+
+            if bytes_read == 0 {
+                return Ok(None);
+            }
+
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+
+            let pair: PreferencePair = serde_json::from_str(trimmed).map_err(|e| {
+                DatasetError::Validation {
+                    message: format!("line {}: {}", self.line_number, e),
+                }
+            })?;
+            return Ok(Some(pair));
+        }
+    }
+
+    /// Read all preference pairs into a Vec.
+    pub fn read_all_preferences(&mut self) -> DatasetResult<Vec<PreferencePair>> {
+        let mut pairs = Vec::new();
+        while let Some(pair) = self.next_preference()? {
+            pairs.push(pair);
+        }
+        tracing::debug!("Read {} preference pairs from JSONL", pairs.len());
+        Ok(pairs)
     }
 
     /// Current line number (1-based).
@@ -72,6 +109,12 @@ impl<R: Read> JsonlReader<R> {
 pub fn read_jsonl(path: impl AsRef<Path>) -> DatasetResult<Vec<TrainingExample>> {
     let mut reader = JsonlReader::open(path)?;
     reader.read_all()
+}
+
+/// Convenience: read all preference pairs from a JSONL file path.
+pub fn read_jsonl_preferences(path: impl AsRef<Path>) -> DatasetResult<Vec<PreferencePair>> {
+    let mut reader = JsonlReader::open(path)?;
+    reader.read_all_preferences()
 }
 
 /// Iterator adapter over JsonlReader.
@@ -135,5 +178,17 @@ mod tests {
         let mut reader = JsonlReader::new(cursor);
         let result = reader.next_example();
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_read_preference_pairs() {
+        let data = r#"{"prompt":[{"role":"user","content":"Q1"}],"chosen":[{"role":"assistant","content":"Good"}],"rejected":[{"role":"assistant","content":"Bad"}]}
+{"prompt":[{"role":"user","content":"Q2"}],"chosen":[{"role":"assistant","content":"Yes"}],"rejected":[{"role":"assistant","content":"No"}]}
+"#;
+        let cursor = Cursor::new(data);
+        let mut reader = JsonlReader::new(cursor);
+        let pairs = reader.read_all_preferences().unwrap();
+        assert_eq!(pairs.len(), 2);
+        assert_eq!(pairs[0].prompt[0].content, "Q1");
     }
 }

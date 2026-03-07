@@ -2,7 +2,7 @@ use std::io::{BufWriter, Write};
 use std::path::Path;
 
 use crate::error::DatasetResult;
-use crate::types::TrainingExample;
+use crate::types::{PreferencePair, TrainingExample};
 
 /// Buffered JSONL writer.
 pub struct JsonlWriter<W: Write> {
@@ -51,6 +51,22 @@ impl<W: Write> JsonlWriter<W> {
         Ok(())
     }
 
+    /// Write a single preference pair as a JSONL line.
+    pub fn write_preference(&mut self, pair: &PreferencePair) -> DatasetResult<()> {
+        serde_json::to_writer(&mut self.writer, pair)?;
+        self.writer.write_all(b"\n")?;
+        self.count += 1;
+        Ok(())
+    }
+
+    /// Write multiple preference pairs.
+    pub fn write_all_preferences(&mut self, pairs: &[PreferencePair]) -> DatasetResult<()> {
+        for pair in pairs {
+            self.write_preference(pair)?;
+        }
+        Ok(())
+    }
+
     /// Flush the underlying buffer.
     pub fn flush(&mut self) -> DatasetResult<()> {
         self.writer.flush()?;
@@ -70,6 +86,17 @@ pub fn write_jsonl(
 ) -> DatasetResult<usize> {
     let mut writer = JsonlWriter::create(path)?;
     writer.write_all(examples)?;
+    writer.flush()?;
+    Ok(writer.count())
+}
+
+/// Convenience: write preference pairs to a JSONL file.
+pub fn write_jsonl_preferences(
+    path: impl AsRef<Path>,
+    pairs: &[PreferencePair],
+) -> DatasetResult<usize> {
+    let mut writer = JsonlWriter::create(path)?;
+    writer.write_all_preferences(pairs)?;
     writer.flush()?;
     Ok(writer.count())
 }
@@ -116,5 +143,30 @@ mod tests {
         assert_eq!(read_back.len(), 2);
         assert_eq!(read_back[0].messages.len(), 2);
         assert_eq!(read_back[1].messages.len(), 3);
+    }
+
+    #[test]
+    fn test_write_and_read_preferences() {
+        use crate::types::TrainingMessage;
+        let pairs = vec![PreferencePair::new(
+            vec![TrainingMessage::user("Q")],
+            vec![TrainingMessage::assistant("Good")],
+            vec![TrainingMessage::assistant("Bad")],
+        )];
+
+        let mut buf = Vec::new();
+        {
+            let cursor = Cursor::new(&mut buf);
+            let mut writer = JsonlWriter::new(cursor);
+            writer.write_all_preferences(&pairs).unwrap();
+            writer.flush().unwrap();
+            assert_eq!(writer.count(), 1);
+        }
+
+        let cursor = Cursor::new(&buf);
+        let mut reader = crate::jsonl::reader::JsonlReader::new(cursor);
+        let read_back = reader.read_all_preferences().unwrap();
+        assert_eq!(read_back.len(), 1);
+        assert_eq!(read_back[0].prompt[0].content, "Q");
     }
 }

@@ -62,11 +62,13 @@ impl TrainingDataset {
 
             let example = if value.get("messages").is_some() {
                 parse_chat_format(&value, line_num + 1)?
-            } else if value.get("prompt").is_some() {
+            } else if value.get("prompt").is_some() && value.get("completion").is_some() {
                 parse_prompt_completion(&value, line_num + 1)?
+            } else if value.get("instruction").is_some() {
+                parse_alpaca_format(&value, line_num + 1)?
             } else {
                 return Err(TrainingError::Config(format!(
-                    "Line {}: expected 'prompt'+'completion' or 'messages' field",
+                    "Line {}: expected 'prompt'+'completion', 'messages', or 'instruction'+'output' field",
                     line_num + 1,
                 )));
             };
@@ -315,6 +317,42 @@ impl Tokenizer for ModelTokenizer {
     }
 }
 
+/// Parse `{"instruction": "...", "input": "...", "output": "..."}` Alpaca format.
+fn parse_alpaca_format(
+    value: &serde_json::Value,
+    line_num: usize,
+) -> Result<TrainingExample, TrainingError> {
+    let instruction = value
+        .get("instruction")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| {
+            TrainingError::Config(format!("Line {}: 'instruction' must be a string", line_num))
+        })?;
+
+    let input = value
+        .get("input")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+
+    let output = value
+        .get("output")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| {
+            TrainingError::Config(format!("Line {}: 'output' must be a string", line_num))
+        })?;
+
+    let prompt = if input.is_empty() {
+        instruction.to_string()
+    } else {
+        format!("{}\n{}", instruction, input)
+    };
+
+    Ok(TrainingExample {
+        prompt,
+        completion: output.to_string(),
+    })
+}
+
 /// A single preference pair example for DPO/ORPO alignment training.
 #[derive(Debug, Clone)]
 pub struct PreferenceExample {
@@ -475,6 +513,22 @@ mod tests {
         assert_eq!(dataset.len(), 1);
         assert_eq!(dataset.examples[0].prompt, "Hi");
         assert_eq!(dataset.examples[0].completion, "Hello!");
+    }
+
+    #[test]
+    fn test_load_alpaca_format() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("train.jsonl");
+        let mut f = std::fs::File::create(&path).unwrap();
+        writeln!(f, r#"{{"instruction": "Translate to French", "input": "Hello", "output": "Bonjour"}}"#).unwrap();
+        writeln!(f, r#"{{"instruction": "What is 2+2?", "output": "4"}}"#).unwrap();
+
+        let dataset = TrainingDataset::load_jsonl(&path).unwrap();
+        assert_eq!(dataset.len(), 2);
+        assert!(dataset.examples[0].prompt.contains("Translate to French"));
+        assert!(dataset.examples[0].prompt.contains("Hello"));
+        assert_eq!(dataset.examples[0].completion, "Bonjour");
+        assert_eq!(dataset.examples[1].prompt, "What is 2+2?");
     }
 
     #[test]

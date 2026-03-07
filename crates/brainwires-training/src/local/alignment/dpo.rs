@@ -66,6 +66,29 @@ impl DpoLoss {
             -log_sigmoid(logits)
         }
     }
+
+    /// Compute average DPO loss over a batch of preference pairs.
+    pub fn compute_batch(
+        &self,
+        chosen_logps: &[f64],
+        rejected_logps: &[f64],
+        ref_chosen_logps: &[f64],
+        ref_rejected_logps: &[f64],
+    ) -> f64 {
+        if chosen_logps.is_empty() {
+            return 0.0;
+        }
+
+        let sum: f64 = chosen_logps
+            .iter()
+            .zip(rejected_logps.iter())
+            .zip(ref_chosen_logps.iter())
+            .zip(ref_rejected_logps.iter())
+            .map(|(((c, r), rc), rr)| self.compute(*c, *r, *rc, *rr))
+            .sum();
+
+        sum / chosen_logps.len() as f64
+    }
 }
 
 /// Numerically stable log-sigmoid.
@@ -96,6 +119,19 @@ mod tests {
         // If chosen and rejected are equally likely, loss should be log(2)
         let l = loss.compute(-2.0, -2.0, -2.0, -2.0);
         assert!((l - 2.0_f64.ln()).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_dpo_batch() {
+        let loss = DpoLoss::new(0.1);
+        let batch_loss = loss.compute_batch(
+            &[-1.0, -1.5],
+            &[-3.0, -2.5],
+            &[-1.5, -1.5],
+            &[-1.5, -1.5],
+        );
+        let individual_avg = (loss.compute(-1.0, -3.0, -1.5, -1.5) + loss.compute(-1.5, -2.5, -1.5, -1.5)) / 2.0;
+        assert!((batch_loss - individual_avg).abs() < 1e-10);
     }
 
     #[test]

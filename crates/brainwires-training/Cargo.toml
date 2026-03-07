@@ -41,6 +41,15 @@ burn-ndarray = { workspace = true, optional = true }
 tokenizers = { workspace = true, optional = true }
 safetensors = { workspace = true, optional = true }
 
+# Bedrock feature
+aws-sigv4 = { workspace = true, optional = true }
+aws-credential-types = { workspace = true, optional = true }
+aws-smithy-runtime-api = { workspace = true, optional = true }
+http = { workspace = true, optional = true }
+
+# Vertex feature
+gcp_auth = { workspace = true, optional = true }
+
 [features]
 default = ["cloud"]
 cloud = ["dep:reqwest", "dep:tokio", "dep:brainwires-providers"]
@@ -50,7 +59,9 @@ local = [
     "dep:burn-autodiff", "dep:burn-wgpu", "dep:burn-ndarray",
     "dep:tokenizers", "dep:safetensors",
 ]
-full = ["cloud", "local"]
+bedrock = ["cloud", "dep:aws-sigv4", "dep:aws-credential-types", "dep:aws-smithy-runtime-api", "dep:http"]
+vertex = ["cloud", "dep:gcp_auth"]
+full = ["cloud", "local", "bedrock", "vertex"]
 
 [dev-dependencies]
 serde_json.workspace = true

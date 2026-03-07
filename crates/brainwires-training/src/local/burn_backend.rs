@@ -320,7 +320,11 @@ impl BurnBackend {
         let device = WgpuDevice::default();
         let start = Instant::now();
         let rank = config.lora.rank as usize;
-        let dim = rank * 64;
+        let dim = SafeTensorsLoader::open(&config.model_path)
+            .ok()
+            .and_then(|loader| loader.load_config())
+            .map(|c| c.hidden_size)
+            .unwrap_or(rank * 64);
 
         info!("Initializing LoRA training on WGPU device");
 
@@ -463,7 +467,11 @@ impl BurnBackend {
         let device = WgpuDevice::default();
         let start = Instant::now();
         let rank = config.lora.rank as usize;
-        let dim = rank * 64;
+        let dim = SafeTensorsLoader::open(&config.model_path)
+            .ok()
+            .and_then(|loader| loader.load_config())
+            .map(|c| c.hidden_size)
+            .unwrap_or(rank * 64);
 
         info!("Initializing DoRA training on WGPU device");
 
@@ -607,7 +615,11 @@ impl BurnBackend {
         let device = WgpuDevice::default();
         let start = Instant::now();
         let rank = config.lora.rank as usize;
-        let dim = rank * 64;
+        let dim = SafeTensorsLoader::open(&config.model_path)
+            .ok()
+            .and_then(|loader| loader.load_config())
+            .map(|c| c.hidden_size)
+            .unwrap_or(rank * 64);
 
         info!("Initializing QLoRA ({}-bit) training on WGPU device", bits);
 
@@ -751,7 +763,11 @@ impl BurnBackend {
         let device = WgpuDevice::default();
         let start = Instant::now();
         let rank = config.lora.rank as usize;
-        let dim = rank * 64;
+        let dim = SafeTensorsLoader::open(&config.model_path)
+            .ok()
+            .and_then(|loader| loader.load_config())
+            .map(|c| c.hidden_size)
+            .unwrap_or(rank * 64);
 
         info!("Initializing DPO alignment training (beta={}) on WGPU device", beta);
 
@@ -898,7 +914,11 @@ impl BurnBackend {
         let device = WgpuDevice::default();
         let start = Instant::now();
         let rank = config.lora.rank as usize;
-        let dim = rank * 64;
+        let dim = SafeTensorsLoader::open(&config.model_path)
+            .ok()
+            .and_then(|loader| loader.load_config())
+            .map(|c| c.hidden_size)
+            .unwrap_or(rank * 64);
 
         info!("Initializing ORPO alignment training (lambda={}) on WGPU device", lambda);
 
@@ -1026,11 +1046,31 @@ impl TrainingBackend for BurnBackend {
 
         #[cfg(not(target_arch = "wasm32"))]
         {
-            devices.push(ComputeDevice::Gpu {
-                index: 0,
-                name: "Default GPU (WGPU)".to_string(),
-                vram_mb: 0,
-            });
+            // Use WGPU adapter enumeration to get GPU info
+            let instance = burn_wgpu::wgpu::Instance::default();
+            let adapters = instance.enumerate_adapters(burn_wgpu::wgpu::Backends::all());
+
+            for (index, adapter) in adapters.into_iter().enumerate() {
+                let info = adapter.get_info();
+                // WGPU doesn't directly expose VRAM; use max_buffer_size as a proxy
+                let limits = adapter.limits();
+                let vram_mb = (limits.max_buffer_size / (1024 * 1024)) as u64;
+
+                devices.push(ComputeDevice::Gpu {
+                    index,
+                    name: info.name.clone(),
+                    vram_mb,
+                });
+            }
+
+            // Fallback if no adapters found
+            if devices.len() == 1 {
+                devices.push(ComputeDevice::Gpu {
+                    index: 0,
+                    name: "Default GPU (WGPU)".to_string(),
+                    vram_mb: 0,
+                });
+            }
         }
 
         devices

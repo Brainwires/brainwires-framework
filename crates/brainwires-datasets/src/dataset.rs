@@ -142,6 +142,39 @@ impl PreferenceDataset {
         self.pairs.push(pair);
     }
 
+    /// Create a new preference dataset from an iterator of pairs.
+    pub fn from_pairs(pairs: impl IntoIterator<Item = PreferencePair>) -> Self {
+        Self {
+            pairs: pairs.into_iter().collect(),
+        }
+    }
+
+    /// Extend the dataset with an iterator of pairs.
+    pub fn extend(&mut self, pairs: impl IntoIterator<Item = PreferencePair>) {
+        self.pairs.extend(pairs);
+    }
+
+    /// Remove and return the pair at the given index.
+    pub fn remove(&mut self, index: usize) -> DatasetResult<PreferencePair> {
+        if index >= self.pairs.len() {
+            return Err(DatasetError::IndexOutOfBounds {
+                index,
+                len: self.pairs.len(),
+            });
+        }
+        Ok(self.pairs.remove(index))
+    }
+
+    /// Filter pairs by a predicate.
+    pub fn filter<F>(&self, predicate: F) -> Self
+    where
+        F: Fn(&PreferencePair) -> bool,
+    {
+        Self {
+            pairs: self.pairs.iter().filter(|p| predicate(p)).cloned().collect(),
+        }
+    }
+
     /// Total estimated tokens across all preference pairs.
     pub fn total_estimated_tokens(&self) -> usize {
         self.pairs.iter().map(|p| p.estimated_tokens()).sum()
@@ -259,5 +292,65 @@ mod tests {
         let ds = PreferenceDataset::new(pairs);
         assert_eq!(ds.len(), 1);
         assert!(ds.get(0).is_some());
+    }
+
+    #[test]
+    fn test_preference_dataset_from_pairs() {
+        let pairs = vec![
+            PreferencePair::new(
+                vec![TrainingMessage::user("Q1")],
+                vec![TrainingMessage::assistant("Good1")],
+                vec![TrainingMessage::assistant("Bad1")],
+            ),
+            PreferencePair::new(
+                vec![TrainingMessage::user("Q2")],
+                vec![TrainingMessage::assistant("Good2")],
+                vec![TrainingMessage::assistant("Bad2")],
+            ),
+        ];
+        let ds = PreferenceDataset::from_pairs(pairs);
+        assert_eq!(ds.len(), 2);
+    }
+
+    #[test]
+    fn test_preference_dataset_extend() {
+        let mut ds = PreferenceDataset::new(vec![]);
+        ds.extend(vec![PreferencePair::new(
+            vec![TrainingMessage::user("Q")],
+            vec![TrainingMessage::assistant("Good")],
+            vec![TrainingMessage::assistant("Bad")],
+        )]);
+        assert_eq!(ds.len(), 1);
+    }
+
+    #[test]
+    fn test_preference_dataset_remove() {
+        let mut ds = PreferenceDataset::new(vec![PreferencePair::new(
+            vec![TrainingMessage::user("Q")],
+            vec![TrainingMessage::assistant("Good")],
+            vec![TrainingMessage::assistant("Bad")],
+        )]);
+        let removed = ds.remove(0).unwrap();
+        assert_eq!(removed.prompt.len(), 1);
+        assert!(ds.is_empty());
+        assert!(ds.remove(0).is_err());
+    }
+
+    #[test]
+    fn test_preference_dataset_filter() {
+        let ds = PreferenceDataset::new(vec![
+            PreferencePair::new(
+                vec![TrainingMessage::user("short")],
+                vec![TrainingMessage::assistant("a")],
+                vec![TrainingMessage::assistant("b")],
+            ),
+            PreferencePair::new(
+                vec![TrainingMessage::user("this is a longer prompt message")],
+                vec![TrainingMessage::assistant("good")],
+                vec![TrainingMessage::assistant("bad")],
+            ),
+        ]);
+        let filtered = ds.filter(|p| p.estimated_tokens() > 5);
+        assert_eq!(filtered.len(), 1);
     }
 }

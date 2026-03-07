@@ -95,6 +95,73 @@ impl FormatConverter for OpenAiFormat {
     }
 }
 
+use super::PreferenceConverter;
+use crate::types::PreferencePair;
+
+impl PreferenceConverter for OpenAiFormat {
+    fn name(&self) -> &str {
+        "openai"
+    }
+
+    fn preference_to_json(&self, pair: &PreferencePair) -> DatasetResult<serde_json::Value> {
+        let to_msgs = |msgs: &[TrainingMessage]| -> Vec<serde_json::Value> {
+            msgs.iter().map(|msg| {
+                json!({ "role": msg.role.to_string(), "content": msg.content })
+            }).collect()
+        };
+
+        let mut result = json!({
+            "prompt": to_msgs(&pair.prompt),
+            "chosen": to_msgs(&pair.chosen),
+            "rejected": to_msgs(&pair.rejected),
+        });
+
+        if !pair.metadata.is_empty() {
+            result["metadata"] = json!(pair.metadata);
+        }
+
+        Ok(result)
+    }
+
+    fn parse_preference_json(&self, value: &serde_json::Value) -> DatasetResult<PreferencePair> {
+        let parse_msgs = |key: &str| -> DatasetResult<Vec<TrainingMessage>> {
+            let arr = value.get(key)
+                .and_then(|v| v.as_array())
+                .ok_or_else(|| DatasetError::FormatConversion {
+                    message: format!("Missing or invalid '{}' field", key),
+                })?;
+            let mut msgs = Vec::new();
+            for msg in arr {
+                let role = match msg.get("role").and_then(|v| v.as_str()) {
+                    Some("system") => TrainingRole::System,
+                    Some("user") => TrainingRole::User,
+                    Some("assistant") => TrainingRole::Assistant,
+                    Some("tool") => TrainingRole::Tool,
+                    _ => return Err(DatasetError::FormatConversion {
+                        message: format!("Invalid role in '{}' messages", key),
+                    }),
+                };
+                let content = msg.get("content").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                msgs.push(TrainingMessage::new(role, content));
+            }
+            Ok(msgs)
+        };
+
+        let prompt = parse_msgs("prompt")?;
+        let chosen = parse_msgs("chosen")?;
+        let rejected = parse_msgs("rejected")?;
+
+        let mut pair = PreferencePair::new(prompt, chosen, rejected);
+        if let Some(meta) = value.get("metadata").and_then(|v| v.as_object()) {
+            for (k, v) in meta {
+                pair.metadata.insert(k.clone(), v.clone());
+            }
+        }
+
+        Ok(pair)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -130,5 +197,22 @@ mod tests {
         let messages = json["messages"].as_array().unwrap();
         assert_eq!(messages.len(), 2);
         assert_eq!(messages[0]["role"], "user");
+    }
+
+    #[test]
+    fn test_openai_preference_roundtrip() {
+        use super::PreferenceConverter;
+        use crate::types::PreferencePair;
+        let format = OpenAiFormat;
+        let pair = PreferencePair::new(
+            vec![TrainingMessage::user("What is 2+2?")],
+            vec![TrainingMessage::assistant("4")],
+            vec![TrainingMessage::assistant("22")],
+        );
+        let json = format.preference_to_json(&pair).unwrap();
+        let parsed = format.parse_preference_json(&json).unwrap();
+        assert_eq!(parsed.prompt[0].content, "What is 2+2?");
+        assert_eq!(parsed.chosen[0].content, "4");
+        assert_eq!(parsed.rejected[0].content, "22");
     }
 }

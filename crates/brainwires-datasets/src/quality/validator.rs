@@ -19,6 +19,10 @@ pub struct ValidationIssue {
     pub severity: IssueSeverity,
     /// Human-readable description of the issue.
     pub message: String,
+    /// Optional line number where the issue was found.
+    pub line_number: Option<usize>,
+    /// Optional suggestion for how to fix the issue.
+    pub suggestion: Option<String>,
 }
 
 /// Result of validating a dataset.
@@ -113,6 +117,8 @@ impl DataValidator {
                     example.messages.len(),
                     self.config.min_messages
                 ),
+                line_number: None,
+                suggestion: None,
             });
         }
 
@@ -125,6 +131,8 @@ impl DataValidator {
                     example.messages.len(),
                     self.config.max_messages
                 ),
+                line_number: None,
+                suggestion: None,
             });
         }
 
@@ -138,6 +146,8 @@ impl DataValidator {
                     "Estimated tokens ({}) exceeds max ({})",
                     tokens, self.config.max_tokens
                 ),
+                line_number: None,
+                suggestion: None,
             });
         }
 
@@ -147,6 +157,8 @@ impl DataValidator {
                 example_id: id.clone(),
                 severity: IssueSeverity::Warning,
                 message: "Missing system message".to_string(),
+                line_number: None,
+                suggestion: None,
             });
         }
 
@@ -156,6 +168,8 @@ impl DataValidator {
                 example_id: id.clone(),
                 severity: IssueSeverity::Error,
                 message: "Last message must be from assistant".to_string(),
+                line_number: None,
+                suggestion: None,
             });
         }
 
@@ -167,6 +181,8 @@ impl DataValidator {
                         example_id: id.clone(),
                         severity: IssueSeverity::Error,
                         message: format!("Message {} has empty content", i),
+                        line_number: None,
+                        suggestion: None,
                     });
                 }
             }
@@ -188,6 +204,8 @@ impl DataValidator {
                             "Consecutive {} messages (expected alternating)",
                             window[0].role
                         ),
+                        line_number: None,
+                        suggestion: None,
                     });
                     break;
                 }
@@ -207,6 +225,8 @@ impl DataValidator {
                 example_id: id.clone(),
                 severity: IssueSeverity::Error,
                 message: "Preference pair has empty prompt".to_string(),
+                line_number: None,
+                suggestion: Some("Add at least one prompt message".to_string()),
             });
         }
 
@@ -215,6 +235,8 @@ impl DataValidator {
                 example_id: id.clone(),
                 severity: IssueSeverity::Error,
                 message: "Preference pair has empty chosen response".to_string(),
+                line_number: None,
+                suggestion: Some("Add at least one chosen response message".to_string()),
             });
         }
 
@@ -223,10 +245,112 @@ impl DataValidator {
                 example_id: id.clone(),
                 severity: IssueSeverity::Error,
                 message: "Preference pair has empty rejected response".to_string(),
+                line_number: None,
+                suggestion: Some("Add at least one rejected response message".to_string()),
+            });
+        }
+
+        // Check empty content in messages
+        if self.config.reject_empty_content {
+            for (i, msg) in pair.prompt.iter().enumerate() {
+                if msg.content.trim().is_empty() {
+                    issues.push(ValidationIssue {
+                        example_id: id.clone(),
+                        severity: IssueSeverity::Error,
+                        message: format!("Prompt message {} has empty content", i),
+                        line_number: None,
+                        suggestion: None,
+                    });
+                }
+            }
+            for (i, msg) in pair.chosen.iter().enumerate() {
+                if msg.content.trim().is_empty() {
+                    issues.push(ValidationIssue {
+                        example_id: id.clone(),
+                        severity: IssueSeverity::Error,
+                        message: format!("Chosen message {} has empty content", i),
+                        line_number: None,
+                        suggestion: None,
+                    });
+                }
+            }
+            for (i, msg) in pair.rejected.iter().enumerate() {
+                if msg.content.trim().is_empty() {
+                    issues.push(ValidationIssue {
+                        example_id: id.clone(),
+                        severity: IssueSeverity::Error,
+                        message: format!("Rejected message {} has empty content", i),
+                        line_number: None,
+                        suggestion: None,
+                    });
+                }
+            }
+        }
+
+        // Warn if chosen == rejected
+        if !pair.chosen.is_empty() && !pair.rejected.is_empty() {
+            let chosen_text: String = pair.chosen.iter().map(|m| m.content.as_str()).collect::<Vec<_>>().join("");
+            let rejected_text: String = pair.rejected.iter().map(|m| m.content.as_str()).collect::<Vec<_>>().join("");
+            if chosen_text == rejected_text {
+                issues.push(ValidationIssue {
+                    example_id: id.clone(),
+                    severity: IssueSeverity::Warning,
+                    message: "Chosen and rejected responses are identical".to_string(),
+                    line_number: None,
+                    suggestion: Some("Ensure chosen and rejected responses differ".to_string()),
+                });
+            }
+
+            // Warn if length ratio > 10x
+            let chosen_len = chosen_text.len().max(1);
+            let rejected_len = rejected_text.len().max(1);
+            let ratio = chosen_len.max(rejected_len) as f64 / chosen_len.min(rejected_len) as f64;
+            if ratio > 10.0 {
+                issues.push(ValidationIssue {
+                    example_id: id.clone(),
+                    severity: IssueSeverity::Warning,
+                    message: format!("Length ratio between chosen and rejected is {:.1}x (>10x)", ratio),
+                    line_number: None,
+                    suggestion: Some("Large length differences may indicate data quality issues".to_string()),
+                });
+            }
+        }
+
+        // Token count check
+        let tokens = pair.estimated_tokens();
+        if tokens > self.config.max_tokens {
+            issues.push(ValidationIssue {
+                example_id: id.clone(),
+                severity: IssueSeverity::Warning,
+                message: format!("Estimated tokens ({}) exceeds max ({})", tokens, self.config.max_tokens),
+                line_number: None,
+                suggestion: None,
             });
         }
 
         issues
+    }
+
+    /// Validate a full preference dataset, producing a report.
+    pub fn validate_preference_dataset(&self, pairs: &[PreferencePair]) -> DatasetResult<ValidationReport> {
+        let mut all_issues = Vec::new();
+        let mut valid_count = 0;
+
+        for pair in pairs {
+            let issues = self.validate_preference(pair);
+            if issues.iter().all(|i| i.severity != IssueSeverity::Error) {
+                valid_count += 1;
+            }
+            all_issues.extend(issues);
+        }
+
+        tracing::debug!("Validated {} preference pairs: {} valid, {} issues", pairs.len(), valid_count, all_issues.len());
+
+        Ok(ValidationReport {
+            issues: all_issues,
+            total_examples: pairs.len(),
+            valid_examples: valid_count,
+        })
     }
 
     /// Validate a full dataset, producing a report.
@@ -241,6 +365,8 @@ impl DataValidator {
             }
             all_issues.extend(issues);
         }
+
+        tracing::debug!("Validated {} examples: {} valid, {} issues", examples.len(), valid_count, all_issues.len());
 
         Ok(ValidationReport {
             issues: all_issues,
@@ -304,5 +430,49 @@ mod tests {
         assert_eq!(report.total_examples, 2);
         assert_eq!(report.valid_examples, 1);
         assert!(report.has_errors());
+    }
+
+    #[test]
+    fn test_preference_validation_identical() {
+        let validator = DataValidator::with_defaults();
+        let pair = PreferencePair::new(
+            vec![TrainingMessage::user("Q")],
+            vec![TrainingMessage::assistant("Same")],
+            vec![TrainingMessage::assistant("Same")],
+        );
+        let issues = validator.validate_preference(&pair);
+        assert!(issues.iter().any(|i| i.message.contains("identical")));
+    }
+
+    #[test]
+    fn test_preference_validation_empty_content() {
+        let validator = DataValidator::with_defaults();
+        let pair = PreferencePair::new(
+            vec![TrainingMessage::user("")],
+            vec![TrainingMessage::assistant("Good")],
+            vec![TrainingMessage::assistant("Bad")],
+        );
+        let issues = validator.validate_preference(&pair);
+        assert!(issues.iter().any(|i| i.message.contains("empty content")));
+    }
+
+    #[test]
+    fn test_validate_preference_dataset() {
+        let validator = DataValidator::with_defaults();
+        let pairs = vec![
+            PreferencePair::new(
+                vec![TrainingMessage::user("Q")],
+                vec![TrainingMessage::assistant("Good")],
+                vec![TrainingMessage::assistant("Bad")],
+            ),
+            PreferencePair::new(
+                vec![],
+                vec![TrainingMessage::assistant("Good")],
+                vec![TrainingMessage::assistant("Bad")],
+            ),
+        ];
+        let report = validator.validate_preference_dataset(&pairs).unwrap();
+        assert_eq!(report.total_examples, 2);
+        assert_eq!(report.valid_examples, 1);
     }
 }

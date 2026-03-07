@@ -118,6 +118,49 @@ impl SafeTensorsLoader {
         Ok((dequantized, shape))
     }
 
+    /// Load a tensor that may already be pre-quantized (INT8/U8).
+    ///
+    /// If the tensor dtype is I8 or U8, returns the raw quantized bytes along with
+    /// an associated scale tensor (looked up as `{name}_scale`).
+    /// Returns `Ok(None)` if the tensor is not pre-quantized.
+    pub fn load_tensor_prequantized(
+        &self,
+        name: &str,
+    ) -> Result<Option<(Vec<u8>, Vec<f32>, Vec<usize>)>, TrainingError> {
+        let st = SafeTensors::deserialize(&self.data).map_err(|e| {
+            TrainingError::Backend(format!("Failed to parse SafeTensors: {}", e))
+        })?;
+
+        let view = st.tensor(name).map_err(|e| {
+            TrainingError::Backend(format!("Tensor '{}' not found: {}", name, e))
+        })?;
+
+        match view.dtype() {
+            safetensors::Dtype::I8 | safetensors::Dtype::U8 => {
+                let shape = view.shape().to_vec();
+                let quantized_bytes = view.data().to_vec();
+
+                // Look for associated scale tensor
+                let scale_name = format!("{}_scale", name);
+                let scales = match st.tensor(&scale_name) {
+                    Ok(scale_view) => {
+                        scale_view.data()
+                            .chunks_exact(4)
+                            .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
+                            .collect()
+                    }
+                    Err(_) => {
+                        warn!("No scale tensor found for pre-quantized tensor '{}', using default scale 1.0", name);
+                        vec![1.0f32]
+                    }
+                };
+
+                Ok(Some((quantized_bytes, scales, shape)))
+            }
+            _ => Ok(None),
+        }
+    }
+
     /// Try to extract model config from SafeTensors metadata.
     ///
     /// Looks for common metadata keys like `vocab_size`, `hidden_size`, etc.

@@ -1,26 +1,28 @@
 use async_trait::async_trait;
 use reqwest::Client;
-use tracing::debug;
+use serde_json::json;
+use tracing::{debug, info};
 
 use brainwires_datasets::DataFormat;
 
 use crate::error::TrainingError;
-use crate::types::{TrainingJobId, TrainingJobStatus, TrainingJobSummary, DatasetId};
+use crate::types::{TrainingJobId, TrainingJobStatus, TrainingJobSummary, TrainingProgress, DatasetId};
 use super::{CloudFineTuneConfig, FineTuneProvider};
 
 /// Google Vertex AI fine-tuning provider.
 ///
-/// Supports Gemini model tuning (enterprise only).
-/// Requires GCP service account credentials.
+/// Supports Gemini model tuning.
+/// Requires GCP service account credentials or an explicit access token.
 ///
-/// **Status**: Not yet implemented. Requires GCP OAuth2/service account auth.
+/// **Note**: Vertex AI requires training data in GCS. Use `DatasetId::from_gcs_uri()`
+/// to pass GCS URIs directly rather than uploading through this API.
 pub struct VertexFineTune {
     project_id: String,
     location: String,
-    #[allow(dead_code)]
     client: Client,
-    #[allow(dead_code)]
     access_token: Option<String>,
+    #[cfg(feature = "vertex")]
+    auth_manager: Option<std::sync::Arc<tokio::sync::Mutex<gcp_auth::AuthenticationManager>>>,
 }
 
 impl VertexFineTune {
@@ -31,6 +33,8 @@ impl VertexFineTune {
             location: location.into(),
             client: Client::new(),
             access_token: None,
+            #[cfg(feature = "vertex")]
+            auth_manager: None,
         }
     }
 
@@ -40,7 +44,29 @@ impl VertexFineTune {
         self
     }
 
-    #[allow(dead_code)]
+    /// Set up authentication from a GCP service account JSON file.
+    #[cfg(feature = "vertex")]
+    pub async fn from_service_account(
+        project_id: impl Into<String>,
+        location: impl Into<String>,
+        service_account_path: &std::path::Path,
+    ) -> Result<Self, TrainingError> {
+        let sa_json = std::fs::read_to_string(service_account_path).map_err(|e| {
+            TrainingError::Config(format!("Failed to read service account file: {}", e))
+        })?;
+        let credentials = gcp_auth::CustomServiceAccount::from_json(&sa_json)
+            .map_err(|e| TrainingError::Config(format!("Invalid service account: {}", e)))?;
+        let auth_manager = gcp_auth::AuthenticationManager::from(credentials);
+
+        Ok(Self {
+            project_id: project_id.into(),
+            location: location.into(),
+            client: Client::new(),
+            access_token: None,
+            auth_manager: Some(std::sync::Arc::new(tokio::sync::Mutex::new(auth_manager))),
+        })
+    }
+
     fn base_url(&self) -> String {
         format!(
             "https://{}-aiplatform.googleapis.com/v1/projects/{}/locations/{}",
@@ -48,11 +74,75 @@ impl VertexFineTune {
         )
     }
 
-    fn not_implemented(&self, feature: &str) -> TrainingError {
-        TrainingError::NotImplemented {
-            provider: "Google Vertex AI".to_string(),
-            feature: format!("{} (requires GCP OAuth2/service account authentication)", feature),
+    async fn get_token(&self) -> Result<String, TrainingError> {
+        if let Some(ref token) = self.access_token {
+            return Ok(token.clone());
         }
+
+        #[cfg(feature = "vertex")]
+        if let Some(ref auth) = self.auth_manager {
+            let manager = auth.lock().await;
+            let token = manager
+                .get_token(&["https://www.googleapis.com/auth/cloud-platform"])
+                .await
+                .map_err(|e| TrainingError::Config(format!("GCP token error: {}", e)))?;
+            return Ok(token.as_str().to_string());
+        }
+
+        Err(TrainingError::Config(
+            "No Vertex AI credentials configured. Use with_access_token() or from_service_account()".to_string()
+        ))
+    }
+
+    async fn api_request(
+        &self,
+        method: &str,
+        path: &str,
+        body: Option<serde_json::Value>,
+    ) -> Result<serde_json::Value, TrainingError> {
+        let token = self.get_token().await?;
+        let url = format!("{}{}", self.base_url(), path);
+
+        let mut request = match method {
+            "POST" => {
+                let mut r = self.client.post(&url);
+                if let Some(b) = body {
+                    r = r.json(&b);
+                }
+                r
+            }
+            "GET" => self.client.get(&url),
+            "DELETE" => self.client.delete(&url),
+            _ => return Err(TrainingError::Config(format!("Unsupported method: {}", method))),
+        };
+
+        request = request
+            .header("Authorization", format!("Bearer {}", token))
+            .header("Content-Type", "application/json");
+
+        let response = request.send().await.map_err(|e| {
+            TrainingError::Provider(format!("Vertex AI request failed: {}", e))
+        })?;
+
+        let status = response.status();
+        let text = response.text().await.map_err(|e| {
+            TrainingError::Provider(format!("Failed to read Vertex AI response: {}", e))
+        })?;
+
+        if !status.is_success() {
+            return Err(TrainingError::Api {
+                message: format!("Vertex AI API error: {}", text),
+                status_code: status.as_u16(),
+            });
+        }
+
+        if text.is_empty() {
+            return Ok(json!({}));
+        }
+
+        serde_json::from_str(&text).map_err(|e| {
+            TrainingError::Provider(format!("Failed to parse Vertex AI response: {}", e))
+        })
     }
 }
 
@@ -78,30 +168,139 @@ impl FineTuneProvider for VertexFineTune {
             "Vertex AI fine-tuning requires data in GCS. Dataset size: {} bytes",
             data.len()
         );
-        Err(self.not_implemented("dataset upload (data must be in GCS)"))
+        Err(TrainingError::Config(
+            "Vertex AI requires dataset in GCS. Use DatasetId::from_gcs_uri() and pass directly to create_job".to_string()
+        ))
     }
 
     async fn create_job(&self, config: CloudFineTuneConfig) -> Result<TrainingJobId, TrainingError> {
-        debug!("Creating Vertex AI tuning job for: {}", config.base_model);
-        Err(self.not_implemented("job creation"))
+        info!("Creating Vertex AI tuning job for: {}", config.base_model);
+
+        let body = json!({
+            "baseModel": config.base_model,
+            "supervisedTuningSpec": {
+                "trainingDatasetUri": config.training_dataset.0,
+                "validationDatasetUri": config.validation_dataset.as_ref().map(|d| d.0.as_str()),
+                "hyperParameters": {
+                    "epochCount": config.hyperparams.epochs,
+                    "learningRateMultiplier": config.hyperparams.learning_rate / 0.001,
+                }
+            },
+            "tunedModelDisplayName": config.suffix.as_deref().unwrap_or("brainwires-ft"),
+        });
+
+        let response = self.api_request("POST", "/tuningJobs", Some(body)).await?;
+
+        let job_name = response.get("name")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| TrainingError::Provider("Missing 'name' in response".to_string()))?;
+
+        info!("Created Vertex AI job: {}", job_name);
+        Ok(TrainingJobId(job_name.to_string()))
     }
 
     async fn get_job_status(&self, job_id: &TrainingJobId) -> Result<TrainingJobStatus, TrainingError> {
         debug!("Checking Vertex AI job status: {}", job_id);
-        Err(self.not_implemented("job status"))
+
+        // Job IDs are full resource names like projects/X/locations/Y/tuningJobs/Z
+        // Extract the relative path
+        let path = if job_id.0.starts_with("projects/") {
+            // Already a full resource path, need to reconstruct URL
+            format!("/{}", job_id.0.split("locations/").last().map(|s| format!("tuningJobs/{}", s.split('/').last().unwrap_or(""))).unwrap_or_default())
+        } else {
+            format!("/tuningJobs/{}", job_id.0)
+        };
+
+        let response = self.api_request("GET", &path, None).await?;
+
+        let state = response.get("state")
+            .and_then(|v| v.as_str())
+            .unwrap_or("STATE_UNSPECIFIED");
+
+        match state {
+            "JOB_STATE_SUCCEEDED" => {
+                let model_id = response.get("tunedModel")
+                    .and_then(|v| v.get("model"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                Ok(TrainingJobStatus::Succeeded { model_id })
+            }
+            "JOB_STATE_FAILED" => {
+                let error = response.get("error")
+                    .and_then(|v| v.get("message"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("Unknown error")
+                    .to_string();
+                Ok(TrainingJobStatus::Failed { error })
+            }
+            "JOB_STATE_CANCELLED" => Ok(TrainingJobStatus::Cancelled),
+            "JOB_STATE_RUNNING" => Ok(TrainingJobStatus::Running {
+                progress: TrainingProgress::default(),
+            }),
+            "JOB_STATE_PENDING" | "JOB_STATE_QUEUED" => Ok(TrainingJobStatus::Pending),
+            _ => Ok(TrainingJobStatus::Pending),
+        }
     }
 
     async fn cancel_job(&self, job_id: &TrainingJobId) -> Result<(), TrainingError> {
-        debug!("Cancelling Vertex AI job: {}", job_id);
-        Err(self.not_implemented("job cancellation"))
+        info!("Cancelling Vertex AI job: {}", job_id);
+        let path = format!("/tuningJobs/{}:cancel", job_id.0);
+        self.api_request("POST", &path, Some(json!({}))).await?;
+        Ok(())
     }
 
     async fn list_jobs(&self) -> Result<Vec<TrainingJobSummary>, TrainingError> {
-        Err(self.not_implemented("job listing"))
+        let response = self.api_request("GET", "/tuningJobs", None).await?;
+
+        let jobs = response.get("tuningJobs")
+            .and_then(|v| v.as_array())
+            .unwrap_or(&Vec::new())
+            .iter()
+            .filter_map(|job| {
+                let name = job.get("name")?.as_str()?;
+                let base_model = job.get("baseModel")?.as_str()?;
+                let state = job.get("state")?.as_str()?;
+                let status = match state {
+                    "JOB_STATE_SUCCEEDED" => TrainingJobStatus::Succeeded {
+                        model_id: job.get("tunedModel")
+                            .and_then(|v| v.get("model"))
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string(),
+                    },
+                    "JOB_STATE_FAILED" => TrainingJobStatus::Failed {
+                        error: job.get("error")
+                            .and_then(|v| v.get("message"))
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string(),
+                    },
+                    "JOB_STATE_CANCELLED" => TrainingJobStatus::Cancelled,
+                    "JOB_STATE_RUNNING" => TrainingJobStatus::Running {
+                        progress: TrainingProgress::default(),
+                    },
+                    _ => TrainingJobStatus::Pending,
+                };
+
+                Some(TrainingJobSummary {
+                    job_id: TrainingJobId(name.to_string()),
+                    provider: "vertex".to_string(),
+                    base_model: base_model.to_string(),
+                    status,
+                    created_at: chrono::Utc::now(),
+                    metrics: None,
+                })
+            })
+            .collect();
+
+        Ok(jobs)
     }
 
     async fn delete_model(&self, model_id: &str) -> Result<(), TrainingError> {
-        debug!("Deleting Vertex AI model: {}", model_id);
-        Err(self.not_implemented("model deletion"))
+        info!("Deleting Vertex AI model: {}", model_id);
+        let path = format!("/models/{}", model_id);
+        self.api_request("DELETE", &path, None).await?;
+        Ok(())
     }
 }

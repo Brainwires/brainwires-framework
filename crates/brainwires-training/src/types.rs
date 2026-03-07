@@ -32,6 +32,18 @@ impl<S: Into<String>> From<S> for DatasetId {
     }
 }
 
+impl DatasetId {
+    /// Create a DatasetId from an S3 URI (for Bedrock).
+    pub fn from_s3_uri(uri: &str) -> Self {
+        Self(uri.to_string())
+    }
+
+    /// Create a DatasetId from a GCS URI (for Vertex AI).
+    pub fn from_gcs_uri(uri: &str) -> Self {
+        Self(uri.to_string())
+    }
+}
+
 /// Status of a training job.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "status", rename_all = "snake_case")]
