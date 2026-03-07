@@ -26,6 +26,7 @@ members = [
     "extras/brainwires-brain-server",
     "extras/brainwires-rag-server",
     "extras/reload-daemon",
+    "extras/agent-chat",
 ]
 resolver = "2"
 
