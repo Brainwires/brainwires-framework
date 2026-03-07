@@ -329,6 +329,22 @@ impl ProviderConfig {
         self.base_url = Some(base_url.into());
         self
     }
+
+    /// Set a provider-specific option.
+    pub fn with_option(mut self, key: impl Into<String>, value: serde_json::Value) -> Self {
+        self.options.insert(key.into(), value);
+        self
+    }
+
+    /// Set the AWS region (for Bedrock) or GCP region (for Vertex AI).
+    pub fn with_region(self, region: impl Into<String>) -> Self {
+        self.with_option("region", serde_json::Value::String(region.into()))
+    }
+
+    /// Set the GCP project ID (for Vertex AI).
+    pub fn with_project_id(self, project_id: impl Into<String>) -> Self {
+        self.with_option("project_id", serde_json::Value::String(project_id.into()))
+    }
 }
 
 #[cfg(test)]

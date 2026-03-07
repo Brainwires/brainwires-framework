@@ -23,6 +23,34 @@ const ANTHROPIC_API_URL: &str = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION: &str = "2023-06-01";
 
 // ---------------------------------------------------------------------------
+// Auth strategy
+// ---------------------------------------------------------------------------
+
+/// Authentication strategy for the Anthropic Messages protocol.
+///
+/// All three variants speak the same wire protocol but use different
+/// endpoints and auth mechanisms.
+pub enum AuthStrategy {
+    /// Direct Anthropic API — `x-api-key` header.
+    Anthropic {
+        /// The Anthropic API key.
+        api_key: String,
+    },
+    /// Amazon Bedrock — AWS SigV4 signed requests.
+    #[cfg(feature = "bedrock")]
+    Bedrock {
+        /// Bedrock SigV4 auth context.
+        auth: bedrock::BedrockAuth,
+    },
+    /// Google Vertex AI — OAuth2 Bearer token.
+    #[cfg(feature = "vertex-ai")]
+    VertexAI {
+        /// Vertex AI OAuth2 auth context.
+        auth: vertex::VertexAuth,
+    },
+}
+
+// ---------------------------------------------------------------------------
 // API client
 // ---------------------------------------------------------------------------
 
@@ -31,8 +59,13 @@ const ANTHROPIC_VERSION: &str = "2023-06-01";
 /// This struct handles authentication, rate-limiting, and HTTP transport.
 /// It exposes raw API methods that return Anthropic-native types; higher-level
 /// abstractions (e.g. the `Provider` trait) live in [`chat`].
+///
+/// Supports three backends via [`AuthStrategy`]:
+/// - Direct Anthropic API
+/// - Amazon Bedrock (feature `bedrock`)
+/// - Google Vertex AI (feature `vertex-ai`)
 pub struct AnthropicClient {
-    api_key: String,
+    auth_strategy: AuthStrategy,
     model: String,
     http_client: Client,
     rate_limiter: Option<std::sync::Arc<RateLimiter>>,
@@ -42,7 +75,7 @@ impl AnthropicClient {
     /// Create a new Anthropic client with the given API key and model.
     pub fn new(api_key: String, model: String) -> Self {
         Self {
-            api_key,
+            auth_strategy: AuthStrategy::Anthropic { api_key },
             model,
             http_client: Client::new(),
             rate_limiter: None,
@@ -52,10 +85,32 @@ impl AnthropicClient {
     /// Create a client with rate limiting (requests per minute).
     pub fn with_rate_limit(api_key: String, model: String, requests_per_minute: u32) -> Self {
         Self {
-            api_key,
+            auth_strategy: AuthStrategy::Anthropic { api_key },
             model,
             http_client: Client::new(),
             rate_limiter: Some(std::sync::Arc::new(RateLimiter::new(requests_per_minute))),
+        }
+    }
+
+    /// Create a Bedrock-backed client.
+    #[cfg(feature = "bedrock")]
+    pub fn bedrock(auth: bedrock::BedrockAuth, model: String) -> Self {
+        Self {
+            auth_strategy: AuthStrategy::Bedrock { auth },
+            model,
+            http_client: Client::new(),
+            rate_limiter: None,
+        }
+    }
+
+    /// Create a Vertex AI-backed client.
+    #[cfg(feature = "vertex-ai")]
+    pub fn vertex(auth: vertex::VertexAuth, model: String) -> Self {
+        Self {
+            auth_strategy: AuthStrategy::VertexAI { auth },
+            model,
+            http_client: Client::new(),
+            rate_limiter: None,
         }
     }
 
@@ -64,9 +119,17 @@ impl AnthropicClient {
         &self.model
     }
 
-    /// Return the API key (useful when constructing an `AnthropicModelLister`).
-    pub fn api_key(&self) -> &str {
-        &self.api_key
+    /// Return the API key, if using direct Anthropic auth.
+    ///
+    /// Returns `None` for Bedrock and Vertex AI backends.
+    pub fn api_key(&self) -> Option<&str> {
+        match &self.auth_strategy {
+            AuthStrategy::Anthropic { api_key } => Some(api_key),
+            #[cfg(feature = "bedrock")]
+            AuthStrategy::Bedrock { .. } => None,
+            #[cfg(feature = "vertex-ai")]
+            AuthStrategy::VertexAI { .. } => None,
+        }
     }
 
     /// Wait for rate-limit clearance (no-op if not configured).
@@ -77,47 +140,164 @@ impl AnthropicClient {
     }
 
     // -----------------------------------------------------------------------
+    // URL resolution
+    // -----------------------------------------------------------------------
+
+    /// Resolve the endpoint URL for the given streaming mode.
+    #[allow(unused_variables)]
+    fn resolve_url(&self, streaming: bool) -> String {
+        match &self.auth_strategy {
+            AuthStrategy::Anthropic { .. } => ANTHROPIC_API_URL.to_string(),
+            #[cfg(feature = "bedrock")]
+            AuthStrategy::Bedrock { auth } => {
+                if streaming {
+                    bedrock::bedrock_stream_url(auth.region(), &self.model)
+                } else {
+                    bedrock::bedrock_invoke_url(auth.region(), &self.model)
+                }
+            }
+            #[cfg(feature = "vertex-ai")]
+            AuthStrategy::VertexAI { auth } => {
+                if streaming {
+                    auth.stream_url(&self.model)
+                } else {
+                    auth.raw_predict_url(&self.model)
+                }
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Request body building
+    // -----------------------------------------------------------------------
+
+    /// Build the JSON request body, adapting for backend differences.
+    ///
+    /// - **Anthropic**: includes `model`, `anthropic-version` as header
+    /// - **Bedrock**: omits `model` (in URL), `anthropic_version` set by SigV4 signer
+    /// - **Vertex AI**: includes `model`, adds `anthropic_version` to body
+    fn build_body(&self, req: &AnthropicRequest, streaming: bool) -> serde_json::Value {
+        let mut body = json!({
+            "messages": req.messages,
+            "max_tokens": req.max_tokens,
+            "stream": streaming,
+        });
+
+        // Model field: omitted for Bedrock (model is in URL)
+        match &self.auth_strategy {
+            #[cfg(feature = "bedrock")]
+            AuthStrategy::Bedrock { .. } => {}
+            _ => {
+                body["model"] = json!(req.model);
+            }
+        }
+
+        // Vertex AI: anthropic_version in body
+        #[cfg(feature = "vertex-ai")]
+        if matches!(&self.auth_strategy, AuthStrategy::VertexAI { .. }) {
+            body["anthropic_version"] = json!(ANTHROPIC_VERSION);
+        }
+
+        if let Some(ref sys) = req.system {
+            body["system"] = json!(sys);
+        }
+        if let Some(temp) = req.temperature {
+            body["temperature"] = json!(temp);
+        }
+        if let Some(top_p) = req.top_p {
+            body["top_p"] = json!(top_p);
+        }
+        if let Some(ref stop) = req.stop_sequences {
+            body["stop_sequences"] = json!(stop);
+        }
+        if let Some(ref tools) = req.tools {
+            body["tools"] = json!(tools);
+        }
+
+        body
+    }
+
+    // -----------------------------------------------------------------------
+    // Auth application + send
+    // -----------------------------------------------------------------------
+
+    /// Build, authenticate, and send a request. Returns the raw response.
+    async fn send_request(
+        &self,
+        url: &str,
+        body: &serde_json::Value,
+    ) -> Result<reqwest::Response> {
+        match &self.auth_strategy {
+            AuthStrategy::Anthropic { api_key } => {
+                self.http_client
+                    .post(url)
+                    .header("x-api-key", api_key)
+                    .header("anthropic-version", ANTHROPIC_VERSION)
+                    .header("content-type", "application/json")
+                    .json(body)
+                    .send()
+                    .await
+                    .context("Failed to send request to Anthropic")
+            }
+            #[cfg(feature = "bedrock")]
+            AuthStrategy::Bedrock { auth } => {
+                let body_bytes = serde_json::to_vec(body)
+                    .context("Failed to serialize request body")?;
+                let mut request = self.http_client
+                    .post(url)
+                    .header("content-type", "application/json")
+                    .body(body_bytes)
+                    .build()
+                    .context("Failed to build Bedrock request")?;
+
+                auth.sign_request(&mut request).await
+                    .context("Failed to sign Bedrock request with SigV4")?;
+
+                self.http_client
+                    .execute(request)
+                    .await
+                    .context("Failed to send request to Bedrock")
+            }
+            #[cfg(feature = "vertex-ai")]
+            AuthStrategy::VertexAI { auth } => {
+                let token = auth.get_token().await
+                    .context("Failed to get Vertex AI OAuth2 token")?;
+
+                self.http_client
+                    .post(url)
+                    .header("Authorization", format!("Bearer {}", token))
+                    .header("content-type", "application/json")
+                    .json(body)
+                    .send()
+                    .await
+                    .context("Failed to send request to Vertex AI")
+            }
+        }
+    }
+
+    /// Return a label for the current backend (used in error messages).
+    fn backend_label(&self) -> &'static str {
+        match &self.auth_strategy {
+            AuthStrategy::Anthropic { .. } => "Anthropic",
+            #[cfg(feature = "bedrock")]
+            AuthStrategy::Bedrock { .. } => "Bedrock",
+            #[cfg(feature = "vertex-ai")]
+            AuthStrategy::VertexAI { .. } => "Vertex AI",
+        }
+    }
+
+    // -----------------------------------------------------------------------
     // Raw API methods
     // -----------------------------------------------------------------------
 
-    /// Send a non-streaming request to `/v1/messages` and return the parsed
-    /// response.
+    /// Send a non-streaming request and return the parsed response.
     pub async fn messages(&self, req: &AnthropicRequest) -> Result<AnthropicResponse> {
-        let mut request_body = json!({
-            "model": req.model,
-            "messages": req.messages,
-            "max_tokens": req.max_tokens,
-            "stream": false,
-        });
-
-        if let Some(ref sys) = req.system {
-            request_body["system"] = json!(sys);
-        }
-        if let Some(temp) = req.temperature {
-            request_body["temperature"] = json!(temp);
-        }
-        if let Some(top_p) = req.top_p {
-            request_body["top_p"] = json!(top_p);
-        }
-        if let Some(ref stop) = req.stop_sequences {
-            request_body["stop_sequences"] = json!(stop);
-        }
-        if let Some(ref tools) = req.tools {
-            request_body["tools"] = json!(tools);
-        }
+        let url = self.resolve_url(false);
+        let body = self.build_body(req, false);
 
         self.acquire_rate_limit().await;
 
-        let response = self
-            .http_client
-            .post(ANTHROPIC_API_URL)
-            .header("x-api-key", &self.api_key)
-            .header("anthropic-version", ANTHROPIC_VERSION)
-            .header("content-type", "application/json")
-            .json(&request_body)
-            .send()
-            .await
-            .context("Failed to send request to Anthropic")?;
+        let response = self.send_request(&url, &body).await?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -125,62 +305,32 @@ impl AnthropicClient {
                 .text()
                 .await
                 .unwrap_or_else(|_| "Unknown error".to_string());
-            anyhow::bail!("Anthropic API error ({}): {}", status, error_text);
+            anyhow::bail!("{} API error ({}): {}", self.backend_label(), status, error_text);
         }
 
         let anthropic_response: AnthropicResponse = response
             .json()
             .await
-            .context("Failed to parse Anthropic response")?;
+            .context("Failed to parse response")?;
 
         Ok(anthropic_response)
     }
 
-    /// Send a streaming request to `/v1/messages` and return a stream of raw
-    /// SSE events.
+    /// Send a streaming request and return a stream of raw SSE events.
     pub fn stream_messages<'a>(
         &'a self,
         req: &'a AnthropicRequest,
     ) -> BoxStream<'a, Result<AnthropicStreamEvent>> {
         Box::pin(async_stream::stream! {
-            let mut request_body = json!({
-                "model": req.model,
-                "messages": req.messages,
-                "max_tokens": req.max_tokens,
-                "stream": true,
-            });
-
-            if let Some(ref sys) = req.system {
-                request_body["system"] = json!(sys);
-            }
-            if let Some(temp) = req.temperature {
-                request_body["temperature"] = json!(temp);
-            }
-            if let Some(top_p) = req.top_p {
-                request_body["top_p"] = json!(top_p);
-            }
-            if let Some(ref stop) = req.stop_sequences {
-                request_body["stop_sequences"] = json!(stop);
-            }
-            if let Some(ref tools) = req.tools {
-                request_body["tools"] = json!(tools);
-            }
+            let url = self.resolve_url(true);
+            let body = self.build_body(req, true);
 
             self.acquire_rate_limit().await;
 
-            let response = match self
-                .http_client
-                .post(ANTHROPIC_API_URL)
-                .header("x-api-key", &self.api_key)
-                .header("anthropic-version", ANTHROPIC_VERSION)
-                .header("content-type", "application/json")
-                .json(&request_body)
-                .send()
-                .await
-            {
+            let response = match self.send_request(&url, &body).await {
                 Ok(r) => r,
                 Err(e) => {
-                    yield Err(e.into());
+                    yield Err(e);
                     return;
                 }
             };
@@ -188,11 +338,11 @@ impl AnthropicClient {
             if !response.status().is_success() {
                 let status = response.status();
                 let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
-                yield Err(anyhow::anyhow!("Anthropic API error ({}): {}", status, error_text));
+                yield Err(anyhow::anyhow!("{} API error ({}): {}", self.backend_label(), status, error_text));
                 return;
             }
 
-            // Parse SSE stream
+            // Parse SSE stream — identical format for all three backends
             let mut stream = response.bytes_stream();
             let mut buffer = String::new();
 
@@ -223,7 +373,7 @@ impl AnthropicClient {
                                 yield Ok(event);
                             }
                             Err(e) => {
-                                tracing::warn!("Failed to parse Anthropic stream event: {}", e);
+                                tracing::warn!("Failed to parse stream event: {}", e);
                             }
                         }
                     }
@@ -233,7 +383,16 @@ impl AnthropicClient {
     }
 
     /// Paginated listing of models available via `/v1/models`.
+    ///
+    /// Only supported for direct Anthropic API. Returns an empty list for
+    /// Bedrock and Vertex AI backends.
     pub async fn list_models(&self) -> Result<Vec<AnthropicModelEntry>> {
+        // Model listing is only available on direct Anthropic API
+        let api_key = match self.api_key() {
+            Some(key) => key,
+            None => return Ok(Vec::new()),
+        };
+
         let mut all_models = Vec::new();
         let mut after_id: Option<String> = None;
 
@@ -246,7 +405,7 @@ impl AnthropicClient {
             let resp = self
                 .http_client
                 .get(&url)
-                .header("x-api-key", &self.api_key)
+                .header("x-api-key", api_key)
                 .header("anthropic-version", ANTHROPIC_VERSION)
                 .send()
                 .await
@@ -500,7 +659,7 @@ mod tests {
     #[test]
     fn test_anthropic_client_new() {
         let client = AnthropicClient::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        assert_eq!(client.api_key, "test-key");
+        assert_eq!(client.api_key(), Some("test-key"));
         assert_eq!(client.model, "claude-3-sonnet");
     }
 
@@ -513,13 +672,13 @@ mod tests {
     #[test]
     fn test_client_api_key_accessor() {
         let client = AnthropicClient::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        assert_eq!(client.api_key(), "test-key");
+        assert_eq!(client.api_key(), Some("test-key"));
     }
 
     #[test]
     fn test_anthropic_client_with_empty_api_key() {
         let client = AnthropicClient::new("".to_string(), "claude-3-sonnet".to_string());
-        assert_eq!(client.api_key, "");
+        assert_eq!(client.api_key(), Some(""));
         assert_eq!(client.model, "claude-3-sonnet");
     }
 
@@ -527,7 +686,7 @@ mod tests {
     fn test_anthropic_client_with_special_characters_in_api_key() {
         let api_key = "sk-ant-api03-!@#$%^&*()_+-=[]{}|;':\",./<>?".to_string();
         let client = AnthropicClient::new(api_key.clone(), "claude-3-opus".to_string());
-        assert_eq!(client.api_key, api_key);
+        assert_eq!(client.api_key(), Some(api_key.as_str()));
     }
 
     #[test]
@@ -551,6 +710,64 @@ mod tests {
     fn test_anthropic_constants() {
         assert_eq!(ANTHROPIC_API_URL, "https://api.anthropic.com/v1/messages");
         assert_eq!(ANTHROPIC_VERSION, "2023-06-01");
+    }
+
+    #[test]
+    fn test_resolve_url_anthropic() {
+        let client = AnthropicClient::new("key".to_string(), "claude-3-sonnet".to_string());
+        assert_eq!(client.resolve_url(false), ANTHROPIC_API_URL);
+        assert_eq!(client.resolve_url(true), ANTHROPIC_API_URL);
+    }
+
+    #[test]
+    fn test_backend_label() {
+        let client = AnthropicClient::new("key".to_string(), "claude-3-sonnet".to_string());
+        assert_eq!(client.backend_label(), "Anthropic");
+    }
+
+    #[cfg(feature = "bedrock")]
+    #[test]
+    fn test_bedrock_client() {
+        let auth = bedrock::BedrockAuth::new(
+            "us-west-2".to_string(),
+            "AKID".to_string(),
+            "secret".to_string(),
+            None,
+        );
+        let client = AnthropicClient::bedrock(auth, "anthropic.claude-3-5-sonnet-20241022-v2:0".to_string());
+        assert_eq!(client.api_key(), None);
+        assert_eq!(client.backend_label(), "Bedrock");
+        assert!(client.resolve_url(false).contains("us-west-2"));
+        assert!(client.resolve_url(false).contains("/invoke"));
+        assert!(client.resolve_url(true).contains("invoke-with-response-stream"));
+    }
+
+    #[cfg(feature = "bedrock")]
+    #[test]
+    fn test_bedrock_from_environment() {
+        // Don't rely on actual env vars in test — just test with explicit credentials
+        let auth = bedrock::BedrockAuth::new(
+            "eu-west-1".to_string(),
+            "test-access-key".to_string(),
+            "test-secret-key".to_string(),
+            Some("test-session-token".to_string()),
+        );
+        assert_eq!(auth.region(), "eu-west-1");
+    }
+
+    #[cfg(feature = "vertex-ai")]
+    #[test]
+    fn test_vertex_client() {
+        let auth = vertex::VertexAuth::new(
+            "my-project".to_string(),
+            "us-central1".to_string(),
+        );
+        let client = AnthropicClient::vertex(auth, "claude-3-5-sonnet-v2@20241022".to_string());
+        assert_eq!(client.api_key(), None);
+        assert_eq!(client.backend_label(), "Vertex AI");
+        assert!(client.resolve_url(false).contains("rawPredict"));
+        assert!(!client.resolve_url(false).contains("stream"));
+        assert!(client.resolve_url(true).contains("streamRawPredict"));
     }
 
     #[test]
@@ -696,5 +913,24 @@ mod tests {
         let json = serde_json::to_value(&tool).unwrap();
         assert_eq!(json["name"], "search");
         assert!(json["input_schema"]["query"].is_object());
+    }
+
+    #[test]
+    fn test_build_body_anthropic() {
+        let client = AnthropicClient::new("key".to_string(), "claude-3-sonnet".to_string());
+        let req = AnthropicRequest {
+            model: "claude-3-sonnet".to_string(),
+            messages: vec![],
+            system: None,
+            max_tokens: 1024,
+            temperature: None,
+            top_p: None,
+            stop_sequences: None,
+            tools: None,
+            stream: false,
+        };
+        let body = client.build_body(&req, false);
+        assert_eq!(body["model"], "claude-3-sonnet");
+        assert_eq!(body["stream"], false);
     }
 }

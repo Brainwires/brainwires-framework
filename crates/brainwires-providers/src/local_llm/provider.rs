@@ -280,7 +280,8 @@ impl LocalLlmProvider {
         ]);
 
         // Generate tokens
-        let mut decoder = encoding_rs::UTF_8.new_decoder();
+        #[allow(unused_imports)]
+        use llama_cpp_2::model::Special;
         let mut output = String::new();
         let stop_tokens = self.config.model_type.stop_tokens();
         let mut generated = 0u32;
@@ -296,7 +297,7 @@ impl LocalLlmProvider {
             }
 
             // Decode token to string
-            let piece = model.token_to_piece(token, &mut decoder, true, None)
+            let piece = model.token_to_str(token, Special::Tokenize)
                 .map_err(|e| anyhow!("Token decode failed: {:?}", e))?;
 
             // Check for stop sequences

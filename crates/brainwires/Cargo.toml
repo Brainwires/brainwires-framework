@@ -123,6 +123,8 @@ training-local = ["training", "brainwires-training/local"]
 training-full = ["training", "brainwires-training/full", "datasets", "brainwires-datasets/full"]
 autonomy = ["dep:brainwires-autonomy"]
 brain = ["dep:brainwires-brain"]
+bedrock = ["providers", "brainwires-providers/bedrock"]
+vertex-ai = ["providers", "brainwires-providers/vertex-ai"]
 llama-cpp-2 = ["providers", "brainwires-providers/llama-cpp-2"]
 mcp-server = ["dep:rmcp", "dep:schemars", "dep:tokio-util"]
 # Convenience: enables all learning/knowledge subsystems with integration

@@ -43,6 +43,27 @@ impl BedrockAuth {
         Self { region, access_key, secret_key, session_token }
     }
 
+    /// Create from standard AWS environment variables.
+    ///
+    /// Reads `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`,
+    /// and `AWS_DEFAULT_REGION` (defaults to `us-east-1`).
+    pub fn from_environment(region_override: Option<String>) -> anyhow::Result<Self> {
+        let access_key = std::env::var("AWS_ACCESS_KEY_ID")
+            .map_err(|_| anyhow::anyhow!(
+                "AWS_ACCESS_KEY_ID not set. Configure AWS credentials for Bedrock access."
+            ))?;
+        let secret_key = std::env::var("AWS_SECRET_ACCESS_KEY")
+            .map_err(|_| anyhow::anyhow!(
+                "AWS_SECRET_ACCESS_KEY not set. Configure AWS credentials for Bedrock access."
+            ))?;
+        let session_token = std::env::var("AWS_SESSION_TOKEN").ok();
+        let region = region_override
+            .or_else(|| std::env::var("AWS_DEFAULT_REGION").ok())
+            .unwrap_or_else(|| "us-east-1".to_string());
+
+        Ok(Self { region, access_key, secret_key, session_token })
+    }
+
     /// The AWS region for this auth context.
     pub fn region(&self) -> &str {
         &self.region

@@ -92,15 +92,11 @@ impl ChatProviderFactory {
         match config.provider {
             #[cfg(feature = "bedrock")]
             ProviderType::Bedrock => {
-                return Err(anyhow!(
-                    "Bedrock provider requires AWS SigV4 auth — use create_bedrock() instead (not yet wired)"
-                ));
+                return Self::create_bedrock(config);
             }
             #[cfg(feature = "vertex-ai")]
             ProviderType::VertexAI => {
-                return Err(anyhow!(
-                    "Vertex AI provider requires Google OAuth — use create_vertex() instead (not yet wired)"
-                ));
+                return Self::create_vertex(config);
             }
             _ => {}
         }
@@ -114,6 +110,71 @@ impl ChatProviderFactory {
         Ok(Arc::new(
             super::anthropic::chat::AnthropicChatProvider::new(client, config.model.clone())
                 .with_provider_name(config.provider.as_str()),
+        ))
+    }
+
+    #[cfg(feature = "bedrock")]
+    fn create_bedrock(config: &ProviderConfig) -> Result<Arc<dyn Provider>> {
+        use super::anthropic::bedrock::BedrockAuth;
+
+        let region = config.options.get("region")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
+        // Try explicit credentials from options, fall back to environment
+        let auth = if let (Some(access_key), Some(secret_key)) = (
+            config.options.get("access_key_id").and_then(|v| v.as_str()),
+            config.options.get("secret_access_key").and_then(|v| v.as_str()),
+        ) {
+            let session_token = config.options.get("session_token")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            BedrockAuth::new(
+                region.unwrap_or_else(|| "us-east-1".to_string()),
+                access_key.to_string(),
+                secret_key.to_string(),
+                session_token,
+            )
+        } else {
+            BedrockAuth::from_environment(region)?
+        };
+
+        let client = Arc::new(super::anthropic::AnthropicClient::bedrock(
+            auth,
+            config.model.clone(),
+        ));
+        Ok(Arc::new(
+            super::anthropic::chat::AnthropicChatProvider::new(client, config.model.clone())
+                .with_provider_name("bedrock"),
+        ))
+    }
+
+    #[cfg(feature = "vertex-ai")]
+    fn create_vertex(config: &ProviderConfig) -> Result<Arc<dyn Provider>> {
+        use super::anthropic::vertex::VertexAuth;
+
+        let project_id = config.options.get("project_id")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .or_else(|| std::env::var("GOOGLE_CLOUD_PROJECT").ok())
+            .ok_or_else(|| anyhow!(
+                "Vertex AI requires a project_id. Set it via config options or GOOGLE_CLOUD_PROJECT env var."
+            ))?;
+
+        let region = config.options.get("region")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "us-central1".to_string());
+
+        let auth = VertexAuth::new(project_id, region);
+
+        let client = Arc::new(super::anthropic::AnthropicClient::vertex(
+            auth,
+            config.model.clone(),
+        ));
+        Ok(Arc::new(
+            super::anthropic::chat::AnthropicChatProvider::new(client, config.model.clone())
+                .with_provider_name("vertex-ai"),
         ))
     }
 
@@ -203,5 +264,52 @@ mod tests {
             .with_api_key("key");
         let result = ChatProviderFactory::create(&config);
         assert!(result.is_err());
+    }
+
+    #[cfg(feature = "bedrock")]
+    #[test]
+    fn test_create_bedrock_with_explicit_credentials() {
+        let config = ProviderConfig::new(
+            ProviderType::Bedrock,
+            "anthropic.claude-3-5-sonnet-20241022-v2:0".to_string(),
+        )
+        .with_option("region", serde_json::json!("us-west-2"))
+        .with_option("access_key_id", serde_json::json!("AKID_TEST"))
+        .with_option("secret_access_key", serde_json::json!("SECRET_TEST"));
+
+        let result = ChatProviderFactory::create(&config);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().name(), "bedrock");
+    }
+
+    #[cfg(feature = "vertex-ai")]
+    #[test]
+    fn test_create_vertex_requires_project_id() {
+        // No project_id set and no GOOGLE_CLOUD_PROJECT env var
+        let config = ProviderConfig::new(
+            ProviderType::VertexAI,
+            "claude-3-5-sonnet-v2@20241022".to_string(),
+        );
+
+        // This should fail unless GOOGLE_CLOUD_PROJECT is set in the test environment
+        let result = ChatProviderFactory::create(&config);
+        if std::env::var("GOOGLE_CLOUD_PROJECT").is_err() {
+            assert!(result.is_err());
+        }
+    }
+
+    #[cfg(feature = "vertex-ai")]
+    #[test]
+    fn test_create_vertex_with_project_id() {
+        let config = ProviderConfig::new(
+            ProviderType::VertexAI,
+            "claude-3-5-sonnet-v2@20241022".to_string(),
+        )
+        .with_project_id("my-test-project")
+        .with_region("europe-west1");
+
+        let result = ChatProviderFactory::create(&config);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().name(), "vertex-ai");
     }
 }
