@@ -44,6 +44,7 @@ use brainwires_core::{
 };
 use brainwires_model_tools::{wrap_with_content_source, PreHookDecision};
 
+use crate::agent_hooks::{ConversationView, IterationContext, IterationDecision, ToolDecision};
 use crate::communication::AgentMessage;
 use crate::context::AgentContext;
 use crate::execution_graph::{ExecutionGraph, RunTelemetry, ToolCallRecord};
@@ -184,6 +185,7 @@ pub struct TaskAgentResult {
 }
 
 /// Configuration for a task agent.
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct TaskAgentConfig {
     /// Maximum provider call iterations before the agent is forced to fail.
@@ -246,6 +248,16 @@ pub struct TaskAgentConfig {
     ///
     /// Set to `None` (the default) to skip the planning phase entirely.
     pub plan_budget: Option<brainwires_core::PlanBudget>,
+
+    /// Context budget in tokens.
+    ///
+    /// When the estimated conversation token count exceeds this value,
+    /// the [`on_context_pressure`][crate::agent_hooks::AgentLifecycleHooks::on_context_pressure]
+    /// hook is called so the consumer can summarize or evict messages.
+    ///
+    /// Only effective when lifecycle hooks are set on the [`AgentContext`].
+    /// Default: `None` (no context pressure callbacks).
+    pub context_budget_tokens: Option<u64>,
 }
 
 impl Default for TaskAgentConfig {
@@ -264,6 +276,7 @@ impl Default for TaskAgentConfig {
             timeout_secs: None,
             allowed_files: None,
             plan_budget: None,
+            context_budget_tokens: None,
         }
     }
 }
@@ -328,6 +341,21 @@ impl TaskAgent {
     /// Get a snapshot of the task.
     pub async fn task(&self) -> Task {
         self.task.read().await.clone()
+    }
+
+    /// Get a read-only snapshot of the conversation history.
+    pub async fn conversation_snapshot(&self) -> Vec<Message> {
+        self.conversation_history.read().await.clone()
+    }
+
+    /// Get the current message count.
+    pub async fn conversation_len(&self) -> usize {
+        self.conversation_history.read().await.len()
+    }
+
+    /// Inject a message into the conversation (e.g., from a parent agent).
+    pub async fn inject_message(&self, msg: Message) {
+        self.conversation_history.write().await.push(msg);
     }
 
     // ── Internal helpers ─────────────────────────────────────────────────────
@@ -771,6 +799,61 @@ impl TaskAgent {
             let step_started_at = Utc::now();
             let step_idx = execution_graph.push_step(iterations, step_started_at);
 
+            // ── Hook A: on_before_iteration ──────────────────────────────────
+            if let Some(ref hooks) = self.context.lifecycle_hooks {
+                let conv_len = self.conversation_history.read().await.len();
+                let iter_ctx = self.build_iteration_context(
+                    iterations, total_tokens_used, total_cost_usd, &start_time, conv_len,
+                );
+                let mut history = self.conversation_history.write().await;
+                let mut view = ConversationView::new(&mut history);
+                match hooks.on_before_iteration(&iter_ctx, &mut view).await {
+                    IterationDecision::Continue => {}
+                    IterationDecision::Skip => {
+                        drop(history);
+                        continue;
+                    }
+                    IterationDecision::Abort(reason) => {
+                        drop(history);
+                        let error = format!("Agent {} aborted by hook: {}", self.id, reason);
+                        tracing::error!(agent_id = %self.id, %error);
+                        self.task.write().await.fail(&error);
+                        self.set_status(TaskAgentStatus::Failed(error.clone())).await;
+                        let _ = self.context.communication_hub.broadcast(
+                            self.id.clone(),
+                            AgentMessage::TaskResult {
+                                task_id: task_id.clone(),
+                                success: false,
+                                result: error.clone(),
+                            },
+                        ).await;
+                        let _ = self.context.communication_hub.unregister_agent(&self.id).await;
+                        self.context.file_lock_manager.release_all_locks(&self.id).await;
+                        let run_ended_at = Utc::now();
+                        let telemetry = RunTelemetry::from_graph(
+                            &execution_graph, run_ended_at, false, total_cost_usd,
+                        );
+                        return Ok(TaskAgentResult {
+                            agent_id: self.id.clone(),
+                            task_id,
+                            success: false,
+                            summary: error,
+                            iterations,
+                            replan_count: *self.replan_count.read().await,
+                            budget_exhausted: false,
+                            partial_output: None,
+                            total_tokens_used,
+                            total_cost_usd,
+                            timed_out: false,
+                            failure_category: Some(FailureCategory::Unknown),
+                            execution_graph: execution_graph.clone(),
+                            telemetry,
+                            pre_execution_plan: pre_execution_plan.clone(),
+                        });
+                    }
+                }
+            }
+
             // ── Iteration limit ──────────────────────────────────────────────
             if iterations >= self.config.max_iterations {
                 let error = format!(
@@ -1016,12 +1099,32 @@ impl TaskAgent {
                     )));
                 }
 
+            // ── Hook B: on_before_provider_call ──────────────────────────────
+            if let Some(ref hooks) = self.context.lifecycle_hooks {
+                let conv_len = self.conversation_history.read().await.len();
+                let iter_ctx = self.build_iteration_context(
+                    iterations, total_tokens_used, total_cost_usd, &start_time, conv_len,
+                );
+                let mut history = self.conversation_history.write().await;
+                let mut view = ConversationView::new(&mut history);
+                hooks.on_before_provider_call(&iter_ctx, &mut view).await;
+            }
+
             // ── Call provider ───────────────────────────────────────────────
             let response = self.call_provider().await?;
 
             // ── Accumulate token usage ───────────────────────────────────────
             total_tokens_used += response.usage.total_tokens as u64;
             total_cost_usd += response.usage.total_tokens as f64 * COST_PER_TOKEN;
+
+            // ── Hook C: on_after_provider_call ───────────────────────────────
+            if let Some(ref hooks) = self.context.lifecycle_hooks {
+                let conv_len = self.conversation_history.read().await.len();
+                let iter_ctx = self.build_iteration_context(
+                    iterations, total_tokens_used, total_cost_usd, &start_time, conv_len,
+                );
+                hooks.on_after_provider_call(&iter_ctx, &response).await;
+            }
 
             // ── Finalise step node ───────────────────────────────────────────
             execution_graph.finalize_step(
@@ -1107,6 +1210,18 @@ impl TaskAgent {
                     .text()
                     .unwrap_or("Task completed")
                     .to_string();
+
+                // ── Hook F: on_before_completion ─────────────────────────────
+                if let Some(ref hooks) = self.context.lifecycle_hooks {
+                    let conv_len = self.conversation_history.read().await.len();
+                    let iter_ctx = self.build_iteration_context(
+                        iterations, total_tokens_used, total_cost_usd, &start_time, conv_len,
+                    );
+                    if !hooks.on_before_completion(&iter_ctx, &text).await {
+                        continue; // Hook rejected completion
+                    }
+                }
+
                 if let Some(result) = self
                     .attempt_validated_completion(
                         &text,
@@ -1118,6 +1233,14 @@ impl TaskAgent {
                     )
                     .await?
                 {
+                    // ── Hook: on_after_completion ────────────────────────────
+                    if let Some(ref hooks) = self.context.lifecycle_hooks {
+                        let conv_len = self.conversation_history.read().await.len();
+                        let iter_ctx = self.build_iteration_context(
+                            iterations, total_tokens_used, total_cost_usd, &start_time, conv_len,
+                        );
+                        hooks.on_after_completion(&iter_ctx, &result).await;
+                    }
                     return Ok(result);
                 }
                 continue; // Validation failed — let the agent self-correct.
@@ -1133,6 +1256,18 @@ impl TaskAgent {
                     .text()
                     .unwrap_or("Task completed")
                     .to_string();
+
+                // ── Hook F: on_before_completion (implicit) ──────────────────
+                if let Some(ref hooks) = self.context.lifecycle_hooks {
+                    let conv_len = self.conversation_history.read().await.len();
+                    let iter_ctx = self.build_iteration_context(
+                        iterations, total_tokens_used, total_cost_usd, &start_time, conv_len,
+                    );
+                    if !hooks.on_before_completion(&iter_ctx, &text).await {
+                        continue; // Hook rejected completion
+                    }
+                }
+
                 if let Some(result) = self
                     .attempt_validated_completion(
                         &text,
@@ -1144,6 +1279,14 @@ impl TaskAgent {
                     )
                     .await?
                 {
+                    // ── Hook: on_after_completion ────────────────────────────
+                    if let Some(ref hooks) = self.context.lifecycle_hooks {
+                        let conv_len = self.conversation_history.read().await.len();
+                        let iter_ctx = self.build_iteration_context(
+                            iterations, total_tokens_used, total_cost_usd, &start_time, conv_len,
+                        );
+                        hooks.on_after_completion(&iter_ctx, &result).await;
+                    }
                     return Ok(result);
                 }
                 continue;
@@ -1161,6 +1304,80 @@ impl TaskAgent {
                     tool = %tool_use.name,
                     "executing tool"
                 );
+
+                // ── Hook D: on_before_tool_execution ─────────────────────────
+                if let Some(ref hooks) = self.context.lifecycle_hooks {
+                    let conv_len = self.conversation_history.read().await.len();
+                    let iter_ctx = self.build_iteration_context(
+                        iterations, total_tokens_used, total_cost_usd, &start_time, conv_len,
+                    );
+                    match hooks.on_before_tool_execution(&iter_ctx, tool_use).await {
+                        ToolDecision::Execute => {} // proceed normally
+                        ToolDecision::Override(result) => {
+                            execution_graph.record_tool_call(
+                                step_idx,
+                                ToolCallRecord {
+                                    tool_use_id: tool_use.id.clone(),
+                                    tool_name: tool_use.name.clone(),
+                                    is_error: result.is_error,
+                                    executed_at: Utc::now(),
+                                },
+                            );
+                            self.conversation_history
+                                .write()
+                                .await
+                                .push(Self::tool_result_message(&result));
+                            continue;
+                        }
+                        ToolDecision::Delegate(request) => {
+                            match hooks.execute_delegation(&request).await {
+                                Ok(delegation_result) => {
+                                    let tool_result = ToolResult::success(
+                                        tool_use.id.clone(),
+                                        format!(
+                                            "Delegated to sub-agent {}: {}",
+                                            delegation_result.agent_id,
+                                            delegation_result.output
+                                        ),
+                                    );
+                                    execution_graph.record_tool_call(
+                                        step_idx,
+                                        ToolCallRecord {
+                                            tool_use_id: tool_use.id.clone(),
+                                            tool_name: tool_use.name.clone(),
+                                            is_error: !delegation_result.success,
+                                            executed_at: Utc::now(),
+                                        },
+                                    );
+                                    self.conversation_history
+                                        .write()
+                                        .await
+                                        .push(Self::tool_result_message(&tool_result));
+                                }
+                                Err(e) => {
+                                    let tool_result = ToolResult::error(
+                                        tool_use.id.clone(),
+                                        format!("Delegation failed: {}", e),
+                                    );
+                                    execution_graph.record_tool_call(
+                                        step_idx,
+                                        ToolCallRecord {
+                                            tool_use_id: tool_use.id.clone(),
+                                            tool_name: tool_use.name.clone(),
+                                            is_error: true,
+                                            executed_at: Utc::now(),
+                                        },
+                                    );
+                                    self.conversation_history
+                                        .write()
+                                        .await
+                                        .push(Self::tool_result_message(&tool_result));
+                                }
+                            }
+                            continue;
+                        }
+                    }
+                }
 
                 // ── Pre-execute hook ─────────────────────────────────────────
                 if let Some(ref hook) = self.context.pre_execute_hook {
@@ -1332,6 +1549,19 @@ impl TaskAgent {
                     .write()
                     .await
                     .push(Self::tool_result_message(&final_result));
+
+                // ── Hook E: on_after_tool_execution ──────────────────────────
+                if let Some(ref hooks) = self.context.lifecycle_hooks {
+                    let conv_len = self.conversation_history.read().await.len();
+                    let iter_ctx = self.build_iteration_context(
+                        iterations, total_tokens_used, total_cost_usd, &start_time, conv_len,
+                    );
+                    let mut history = self.conversation_history.write().await;
+                    let mut view = ConversationView::new(&mut history);
+                    hooks
+                        .on_after_tool_execution(&iter_ctx, tool_use, &final_result, &mut view)
+                        .await;
+                }
             }
 
             // ── Loop detection ───────────────────────────────────────────────
@@ -1399,6 +1629,51 @@ impl TaskAgent {
                         });
                     }
                 }
+
+            // ── Hook G: on_after_iteration + context pressure ────────────────
+            if let Some(ref hooks) = self.context.lifecycle_hooks {
+                let conv_len = self.conversation_history.read().await.len();
+                let iter_ctx = self.build_iteration_context(
+                    iterations, total_tokens_used, total_cost_usd, &start_time, conv_len,
+                );
+
+                // Context pressure check
+                if let Some(budget) = self.config.context_budget_tokens {
+                    let mut history = self.conversation_history.write().await;
+                    let mut view = ConversationView::new(&mut history);
+                    let est_tokens = view.estimated_tokens();
+                    if est_tokens > budget {
+                        hooks
+                            .on_context_pressure(&iter_ctx, &mut view, est_tokens, budget)
+                            .await;
+                    }
+                }
+
+                // After-iteration hook
+                let mut history = self.conversation_history.write().await;
+                let mut view = ConversationView::new(&mut history);
+                hooks.on_after_iteration(&iter_ctx, &mut view).await;
+            }
+        }
+    }
+
+    /// Build an [`IterationContext`] snapshot from current loop state.
+    fn build_iteration_context<'a>(
+        &'a self,
+        iteration: u32,
+        total_tokens_used: u64,
+        total_cost_usd: f64,
+        start_time: &std::time::Instant,
+        conversation_len: usize,
+    ) -> IterationContext<'a> {
+        IterationContext {
+            agent_id: &self.id,
+            iteration,
+            max_iterations: self.config.max_iterations,
+            total_tokens_used,
+            total_cost_usd,
+            elapsed: start_time.elapsed(),
+            conversation_len,
         }
     }
 

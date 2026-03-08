@@ -35,6 +35,10 @@ pub use brainwires_core;
 // Re-export brainwires-model-tools for ToolExecutor trait
 pub use brainwires_model_tools;
 
+// ── Agent loop hooks ─────────────────────────────────────────────────────────
+
+pub mod agent_hooks;
+
 // ── Agent runtime ────────────────────────────────────────────────────────────
 
 pub mod runtime;
@@ -101,6 +105,12 @@ pub mod worktree;
 
 // ── Re-exports ───────────────────────────────────────────────────────────────
 
+// Agent loop hooks
+pub use agent_hooks::{
+    AgentLifecycleHooks, ConversationView, DefaultDelegationHandler, DelegationRequest,
+    DelegationResult, IterationContext, IterationDecision, ToolDecision,
+};
+
 // Agent runtime
 pub use runtime::{AgentRuntime, AgentExecutionResult, run_agent_loop};
 
@@ -154,6 +164,12 @@ pub use brainwires_model_tools::{PreHookDecision, ToolPreHook};
 
 /// Prelude module for convenient imports
 pub mod prelude {
+    // Agent loop hooks
+    pub use super::agent_hooks::{
+        AgentLifecycleHooks, ConversationView, DefaultDelegationHandler, DelegationRequest,
+        DelegationResult, IterationContext, IterationDecision, ToolDecision,
+    };
+
     // Concrete agent types
     pub use super::context::AgentContext;
     pub use super::execution_graph::{ExecutionGraph, RunTelemetry, StepNode, ToolCallRecord};

@@ -15,6 +15,7 @@ use tokio::sync::RwLock;
 use brainwires_core::WorkingSet;
 use brainwires_model_tools::{ToolExecutor, ToolPreHook};
 
+use crate::agent_hooks::AgentLifecycleHooks;
 use crate::communication::CommunicationHub;
 use crate::file_locks::FileLockManager;
 
@@ -22,6 +23,7 @@ use crate::file_locks::FileLockManager;
 ///
 /// Pass this to [`TaskAgent::new`][super::task_agent::TaskAgent::new] at
 /// construction time. All fields are cheaply cloneable via `Arc`.
+#[non_exhaustive]
 pub struct AgentContext {
     /// Working directory used for resolving relative file paths.
     pub working_directory: String,
@@ -47,6 +49,15 @@ pub struct AgentContext {
     /// [`PreHookDecision::Reject`](crate::PreHookDecision::Reject) causes the tool call to be skipped and
     /// the rejection message injected as a `ToolResult::error`.
     pub pre_execute_hook: Option<Arc<dyn ToolPreHook>>,
+
+    /// Optional lifecycle hooks for granular loop control.
+    ///
+    /// When set, the agent loop calls these hooks at every phase: iteration
+    /// boundaries, provider calls, tool execution, completion, and context
+    /// management. All hook methods have default no-op implementations.
+    ///
+    /// See [`AgentLifecycleHooks`] for the full hook surface.
+    pub lifecycle_hooks: Option<Arc<dyn AgentLifecycleHooks>>,
 }
 
 impl AgentContext {
@@ -68,6 +79,7 @@ impl AgentContext {
             working_set: Arc::new(RwLock::new(WorkingSet::new())),
             metadata: HashMap::new(),
             pre_execute_hook: None,
+            lifecycle_hooks: None,
         }
     }
 
@@ -87,6 +99,7 @@ impl AgentContext {
             working_set,
             metadata: HashMap::new(),
             pre_execute_hook: None,
+            lifecycle_hooks: None,
         }
     }
 
@@ -99,6 +112,12 @@ impl AgentContext {
     /// Set a pre-execution hook for semantic tool validation.
     pub fn with_pre_execute_hook(mut self, hook: Arc<dyn ToolPreHook>) -> Self {
         self.pre_execute_hook = Some(hook);
+        self
+    }
+
+    /// Set lifecycle hooks for granular loop control.
+    pub fn with_lifecycle_hooks(mut self, hooks: Arc<dyn AgentLifecycleHooks>) -> Self {
+        self.lifecycle_hooks = Some(hooks);
         self
     }
 }
