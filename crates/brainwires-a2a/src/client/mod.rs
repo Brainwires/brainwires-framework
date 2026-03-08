@@ -57,7 +57,7 @@ impl A2aClient {
         let client = reqwest::Client::new();
         Self {
             transport: Transport::JsonRpc,
-            jsonrpc: Some(Arc::new(JsonRpcTransport::new(base_url, client))),
+            jsonrpc: Some(Arc::new(JsonRpcTransport::new(base_url, client, None))),
             rest: None,
             #[cfg(feature = "grpc-client")]
             grpc: None,
@@ -70,7 +70,7 @@ impl A2aClient {
         Self {
             transport: Transport::Rest,
             jsonrpc: None,
-            rest: Some(Arc::new(RestTransport::new(base_url, client))),
+            rest: Some(Arc::new(RestTransport::new(base_url, client, None))),
             #[cfg(feature = "grpc-client")]
             grpc: None,
         }
@@ -86,6 +86,50 @@ impl A2aClient {
             rest: None,
             grpc: Some(Arc::new(tokio::sync::Mutex::new(transport))),
         })
+    }
+
+    /// Set a bearer token for authentication.
+    ///
+    /// Returns a new client with the token applied to the active transport.
+    pub fn with_bearer_token(self, token: &str) -> Self {
+        let token = token.to_string();
+        match self.transport {
+            Transport::JsonRpc => {
+                if let Some(t) = &self.jsonrpc {
+                    let new_transport = JsonRpcTransport::new(
+                        t.base_url().clone(),
+                        t.http_client().clone(),
+                        Some(token),
+                    );
+                    Self {
+                        jsonrpc: Some(Arc::new(new_transport)),
+                        ..self
+                    }
+                } else {
+                    self
+                }
+            }
+            Transport::Rest => {
+                if let Some(t) = &self.rest {
+                    let new_transport = RestTransport::new(
+                        t.base_url().clone(),
+                        t.http_client().clone(),
+                        Some(token),
+                    );
+                    Self {
+                        rest: Some(Arc::new(new_transport)),
+                        ..self
+                    }
+                } else {
+                    self
+                }
+            }
+            Transport::Grpc => {
+                // gRPC auth is set at connect time; log a warning
+                tracing::warn!("Bearer token on existing gRPC transport not supported; pass token at connect time");
+                self
+            }
+        }
     }
 
     /// Discover an agent card from a well-known URL.
@@ -151,13 +195,15 @@ impl A2aClient {
             Transport::Grpc => {
                 if let Some(t) = &self.grpc {
                     let grpc = t.clone();
-                    let req_clone = req;
                     Box::pin(async_stream::stream! {
-                        let mut guard = grpc.lock().await;
-                        match guard.send_streaming_message(req_clone).await {
-                            Ok(mut inner) => {
+                        let inner = {
+                            let mut guard = grpc.lock().await;
+                            guard.send_streaming_message(req).await
+                        }; // lock dropped here
+                        match inner {
+                            Ok(mut stream) => {
                                 use futures::StreamExt;
-                                while let Some(item) = inner.next().await {
+                                while let Some(item) = stream.next().await {
                                     yield item;
                                 }
                             }
@@ -282,11 +328,14 @@ impl A2aClient {
                 if let Some(t) = &self.grpc {
                     let grpc = t.clone();
                     Box::pin(async_stream::stream! {
-                        let mut guard = grpc.lock().await;
-                        match guard.subscribe_to_task(req).await {
-                            Ok(mut inner) => {
+                        let inner = {
+                            let mut guard = grpc.lock().await;
+                            guard.subscribe_to_task(req).await
+                        }; // lock dropped here
+                        match inner {
+                            Ok(mut stream) => {
                                 use futures::StreamExt;
-                                while let Some(item) = inner.next().await {
+                                while let Some(item) = stream.next().await {
                                     yield item;
                                 }
                             }
@@ -324,7 +373,14 @@ impl A2aClient {
                 let result = t.post(&path, &config).await?;
                 serde_json::from_value(result).map_err(Into::into)
             }
-            _ => Err(A2aError::unsupported_operation("Push config not available on this transport")),
+            #[cfg(feature = "grpc-client")]
+            Transport::Grpc => {
+                let t = self.grpc.as_ref().ok_or_else(|| A2aError::internal("No gRPC transport"))?;
+                let mut guard = t.lock().await;
+                guard.create_push_config(config).await
+            }
+            #[cfg(not(feature = "grpc-client"))]
+            Transport::Grpc => Err(A2aError::unsupported_operation("gRPC not enabled")),
         }
     }
 
@@ -346,7 +402,14 @@ impl A2aClient {
                 let result = t.get(&path).await?;
                 serde_json::from_value(result).map_err(Into::into)
             }
-            _ => Err(A2aError::unsupported_operation("Push config not available on this transport")),
+            #[cfg(feature = "grpc-client")]
+            Transport::Grpc => {
+                let t = self.grpc.as_ref().ok_or_else(|| A2aError::internal("No gRPC transport"))?;
+                let mut guard = t.lock().await;
+                guard.get_push_config(req).await
+            }
+            #[cfg(not(feature = "grpc-client"))]
+            Transport::Grpc => Err(A2aError::unsupported_operation("gRPC not enabled")),
         }
     }
 
@@ -367,7 +430,14 @@ impl A2aClient {
                 let path = format!("/tasks/{}/pushNotificationConfigs/{}", req.task_id, req.id);
                 t.delete(&path).await
             }
-            _ => Err(A2aError::unsupported_operation("Push config not available on this transport")),
+            #[cfg(feature = "grpc-client")]
+            Transport::Grpc => {
+                let t = self.grpc.as_ref().ok_or_else(|| A2aError::internal("No gRPC transport"))?;
+                let mut guard = t.lock().await;
+                guard.delete_push_config(req).await
+            }
+            #[cfg(not(feature = "grpc-client"))]
+            Transport::Grpc => Err(A2aError::unsupported_operation("gRPC not enabled")),
         }
     }
 
@@ -389,7 +459,14 @@ impl A2aClient {
                 let result = t.get(&path).await?;
                 serde_json::from_value(result).map_err(Into::into)
             }
-            _ => Err(A2aError::unsupported_operation("Push config not available on this transport")),
+            #[cfg(feature = "grpc-client")]
+            Transport::Grpc => {
+                let t = self.grpc.as_ref().ok_or_else(|| A2aError::internal("No gRPC transport"))?;
+                let mut guard = t.lock().await;
+                guard.list_push_configs(req).await
+            }
+            #[cfg(not(feature = "grpc-client"))]
+            Transport::Grpc => Err(A2aError::unsupported_operation("gRPC not enabled")),
         }
     }
 

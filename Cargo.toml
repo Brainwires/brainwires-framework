@@ -204,6 +204,7 @@ gcp_auth = "0.12"
 hyper = { version = "1", features = ["server", "client", "http1", "http2"] }
 hyper-util = { version = "0.1", features = ["tokio", "server-auto", "client-legacy"] }
 http = "1.1"
+http-body = "1"
 http-body-util = "0.1"
 bytes = "1"
 

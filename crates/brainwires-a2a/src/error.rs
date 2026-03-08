@@ -97,6 +97,11 @@ impl A2aError {
         )
     }
 
+    /// Invalid request error.
+    pub fn invalid_request(detail: impl Into<String>) -> Self {
+        Self::new(INVALID_REQUEST, detail)
+    }
+
     /// Internal error.
     pub fn internal(message: impl Into<String>) -> Self {
         Self::new(INTERNAL_ERROR, message)

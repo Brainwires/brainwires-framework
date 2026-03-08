@@ -28,7 +28,18 @@ mod grpc_impl {
     }
 
     fn a2a_err_to_status(e: A2aError) -> Status {
-        Status::internal(e.message)
+        use crate::error::*;
+        let code = match e.code {
+            TASK_NOT_FOUND => tonic::Code::NotFound,
+            INVALID_PARAMS | INVALID_REQUEST => tonic::Code::InvalidArgument,
+            METHOD_NOT_FOUND | UNSUPPORTED_OPERATION => tonic::Code::Unimplemented,
+            TASK_NOT_CANCELABLE => tonic::Code::FailedPrecondition,
+            PUSH_NOT_SUPPORTED => tonic::Code::Unimplemented,
+            CONTENT_TYPE_NOT_SUPPORTED | JSON_PARSE_ERROR => tonic::Code::InvalidArgument,
+            EXTENDED_CARD_NOT_CONFIGURED => tonic::Code::FailedPrecondition,
+            _ => tonic::Code::Internal,
+        };
+        Status::new(code, e.message)
     }
 
     #[tonic::async_trait]

@@ -12,16 +12,39 @@ use crate::streaming::StreamEvent;
 pub struct RestTransport {
     base_url: Url,
     client: reqwest::Client,
+    bearer_token: Option<String>,
 }
 
 impl RestTransport {
     /// Create a new REST transport.
-    pub fn new(base_url: Url, client: reqwest::Client) -> Self {
-        Self { base_url, client }
+    pub fn new(base_url: Url, client: reqwest::Client, bearer_token: Option<String>) -> Self {
+        Self {
+            base_url,
+            client,
+            bearer_token,
+        }
+    }
+
+    /// Get the base URL.
+    pub fn base_url(&self) -> &Url {
+        &self.base_url
+    }
+
+    /// Get the HTTP client.
+    pub fn http_client(&self) -> &reqwest::Client {
+        &self.client
     }
 
     fn url(&self, path: &str) -> String {
         format!("{}{}", self.base_url.as_str().trim_end_matches('/'), path)
+    }
+
+    fn apply_auth(&self, builder: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        if let Some(ref token) = self.bearer_token {
+            builder.bearer_auth(token)
+        } else {
+            builder
+        }
     }
 
     /// POST with JSON body, return JSON.
@@ -30,10 +53,9 @@ impl RestTransport {
         path: &str,
         body: &impl serde::Serialize,
     ) -> Result<serde_json::Value, A2aError> {
+        let builder = self.client.post(&self.url(path)).json(body);
         let resp = self
-            .client
-            .post(&self.url(path))
-            .json(body)
+            .apply_auth(builder)
             .send()
             .await
             .map_err(|e| A2aError::internal(format!("REST request failed: {e}")))?;
@@ -52,9 +74,9 @@ impl RestTransport {
 
     /// GET, return JSON.
     pub async fn get(&self, path: &str) -> Result<serde_json::Value, A2aError> {
+        let builder = self.client.get(&self.url(path));
         let resp = self
-            .client
-            .get(&self.url(path))
+            .apply_auth(builder)
             .send()
             .await
             .map_err(|e| A2aError::internal(format!("REST request failed: {e}")))?;
@@ -73,9 +95,9 @@ impl RestTransport {
 
     /// DELETE, return nothing.
     pub async fn delete(&self, path: &str) -> Result<(), A2aError> {
+        let builder = self.client.delete(&self.url(path));
         let resp = self
-            .client
-            .delete(&self.url(path))
+            .apply_auth(builder)
             .send()
             .await
             .map_err(|e| A2aError::internal(format!("REST DELETE failed: {e}")))?;
@@ -98,14 +120,14 @@ impl RestTransport {
     ) -> Pin<Box<dyn Stream<Item = Result<StreamEvent, A2aError>> + Send>> {
         let url = self.url(path);
         let client = self.client.clone();
+        let token = self.bearer_token.clone();
 
         Box::pin(async_stream::stream! {
-            let resp = match client
-                .post(&url)
-                .json(&body)
-                .send()
-                .await
-            {
+            let mut builder = client.post(&url).json(&body);
+            if let Some(ref t) = token {
+                builder = builder.bearer_auth(t);
+            }
+            let resp = match builder.send().await {
                 Ok(r) => r,
                 Err(e) => {
                     yield Err(A2aError::internal(format!("REST stream request failed: {e}")));
@@ -113,26 +135,13 @@ impl RestTransport {
                 }
             };
 
-            let text = match resp.text().await {
-                Ok(t) => t,
-                Err(e) => {
-                    yield Err(A2aError::internal(format!("Failed to read stream: {e}")));
-                    return;
-                }
-            };
-
-            // Parse as JSON array of StreamEvents (REST streaming response)
-            if let Ok(events) = serde_json::from_str::<Vec<StreamEvent>>(&text) {
-                for event in events {
-                    yield Ok(event);
-                }
-            } else {
-                // Try SSE format
-                use futures::StreamExt;
-                let mut stream = std::pin::pin!(crate::client::sse::parse_sse_stream(text));
-                while let Some(item) = stream.next().await {
-                    yield item;
-                }
+            use futures::StreamExt;
+            let byte_stream = resp.bytes_stream();
+            let mut sse_stream = std::pin::pin!(
+                crate::client::sse::parse_sse_rest_byte_stream(byte_stream)
+            );
+            while let Some(item) = sse_stream.next().await {
+                yield item;
             }
         })
     }
@@ -144,9 +153,14 @@ impl RestTransport {
     ) -> Pin<Box<dyn Stream<Item = Result<StreamEvent, A2aError>> + Send>> {
         let url = self.url(path);
         let client = self.client.clone();
+        let token = self.bearer_token.clone();
 
         Box::pin(async_stream::stream! {
-            let resp = match client.get(&url).send().await {
+            let mut builder = client.get(&url);
+            if let Some(ref t) = token {
+                builder = builder.bearer_auth(t);
+            }
+            let resp = match builder.send().await {
                 Ok(r) => r,
                 Err(e) => {
                     yield Err(A2aError::internal(format!("REST stream GET failed: {e}")));
@@ -154,24 +168,13 @@ impl RestTransport {
                 }
             };
 
-            let text = match resp.text().await {
-                Ok(t) => t,
-                Err(e) => {
-                    yield Err(A2aError::internal(format!("Failed to read stream: {e}")));
-                    return;
-                }
-            };
-
-            if let Ok(events) = serde_json::from_str::<Vec<StreamEvent>>(&text) {
-                for event in events {
-                    yield Ok(event);
-                }
-            } else {
-                use futures::StreamExt;
-                let mut stream = std::pin::pin!(crate::client::sse::parse_sse_stream(text));
-                while let Some(item) = stream.next().await {
-                    yield item;
-                }
+            use futures::StreamExt;
+            let byte_stream = resp.bytes_stream();
+            let mut sse_stream = std::pin::pin!(
+                crate::client::sse::parse_sse_rest_byte_stream(byte_stream)
+            );
+            while let Some(item) = sse_stream.next().await {
+                yield item;
             }
         })
     }

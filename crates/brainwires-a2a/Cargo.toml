@@ -37,6 +37,7 @@ reqwest = { workspace = true, optional = true }
 hyper = { workspace = true, optional = true }
 hyper-util = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
+http-body = { workspace = true, optional = true }
 http-body-util = { workspace = true, optional = true }
 
 # gRPC
@@ -51,7 +52,7 @@ tonic-build = { version = "0.12", optional = true }
 default = ["native"]
 native = ["client", "server"]
 client = ["dep:reqwest"]
-server = ["dep:hyper", "dep:hyper-util", "dep:http", "dep:http-body-util"]
+server = ["dep:hyper", "dep:hyper-util", "dep:http", "dep:http-body", "dep:http-body-util"]
 grpc = ["dep:tonic", "dep:prost", "dep:prost-types", "dep:tonic-build"]
 grpc-client = ["grpc", "client"]
 grpc-server = ["grpc", "server"]

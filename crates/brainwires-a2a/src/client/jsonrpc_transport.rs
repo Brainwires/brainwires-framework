@@ -13,17 +13,29 @@ use crate::streaming::StreamEvent;
 pub struct JsonRpcTransport {
     base_url: Url,
     client: reqwest::Client,
+    bearer_token: Option<String>,
     request_counter: std::sync::atomic::AtomicI64,
 }
 
 impl JsonRpcTransport {
     /// Create a new transport pointing at the given base URL.
-    pub fn new(base_url: Url, client: reqwest::Client) -> Self {
+    pub fn new(base_url: Url, client: reqwest::Client, bearer_token: Option<String>) -> Self {
         Self {
             base_url,
             client,
+            bearer_token,
             request_counter: std::sync::atomic::AtomicI64::new(1),
         }
+    }
+
+    /// Get the base URL.
+    pub fn base_url(&self) -> &Url {
+        &self.base_url
+    }
+
+    /// Get the HTTP client.
+    pub fn http_client(&self) -> &reqwest::Client {
+        &self.client
     }
 
     fn next_id(&self) -> RequestId {
@@ -31,6 +43,14 @@ impl JsonRpcTransport {
             .request_counter
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         RequestId::Number(id)
+    }
+
+    fn apply_auth(&self, builder: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+        if let Some(ref token) = self.bearer_token {
+            builder.bearer_auth(token)
+        } else {
+            builder
+        }
     }
 
     /// Send a JSON-RPC request and get the response.
@@ -47,10 +67,9 @@ impl JsonRpcTransport {
             id: id.clone(),
         };
 
+        let builder = self.client.post(self.base_url.as_str()).json(&request);
         let resp = self
-            .client
-            .post(self.base_url.as_str())
-            .json(&request)
+            .apply_auth(builder)
             .send()
             .await
             .map_err(|e| A2aError::internal(format!("HTTP request failed: {e}")))?;
@@ -64,10 +83,12 @@ impl JsonRpcTransport {
             return Err(err);
         }
 
-        rpc_resp.result.ok_or_else(|| A2aError::internal("Empty result"))
+        rpc_resp
+            .result
+            .ok_or_else(|| A2aError::internal("Empty result"))
     }
 
-    /// Send a JSON-RPC request and stream SSE responses.
+    /// Send a JSON-RPC request and stream SSE responses incrementally.
     pub fn call_stream(
         &self,
         method: &str,
@@ -82,14 +103,14 @@ impl JsonRpcTransport {
         };
         let client = self.client.clone();
         let url = self.base_url.clone();
+        let token = self.bearer_token.clone();
 
         Box::pin(async_stream::stream! {
-            let resp = match client
-                .post(url.as_str())
-                .json(&request)
-                .send()
-                .await
-            {
+            let mut builder = client.post(url.as_str()).json(&request);
+            if let Some(ref t) = token {
+                builder = builder.bearer_auth(t);
+            }
+            let resp = match builder.send().await {
                 Ok(r) => r,
                 Err(e) => {
                     yield Err(A2aError::internal(format!("HTTP request failed: {e}")));
@@ -97,17 +118,12 @@ impl JsonRpcTransport {
                 }
             };
 
-            let text = match resp.text().await {
-                Ok(t) => t,
-                Err(e) => {
-                    yield Err(A2aError::internal(format!("Failed to read response: {e}")));
-                    return;
-                }
-            };
-
             use futures::StreamExt;
-            let mut stream = std::pin::pin!(crate::client::sse::parse_sse_stream(text));
-            while let Some(item) = stream.next().await {
+            let byte_stream = resp.bytes_stream();
+            let mut sse_stream = std::pin::pin!(
+                crate::client::sse::parse_sse_byte_stream(byte_stream)
+            );
+            while let Some(item) = sse_stream.next().await {
                 yield item;
             }
         })

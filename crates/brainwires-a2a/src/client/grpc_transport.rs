@@ -160,6 +160,82 @@ mod grpc_impl {
             Ok(resp.into_inner().into())
         }
 
+        /// Create a push notification config.
+        pub async fn create_push_config(
+            &mut self,
+            config: crate::push_notification::TaskPushNotificationConfig,
+        ) -> Result<crate::push_notification::TaskPushNotificationConfig, A2aError> {
+            let proto_req: lf_a2a_v1::TaskPushNotificationConfig = config.into();
+            let resp = self
+                .client
+                .create_task_push_notification_config(proto_req)
+                .await
+                .map_err(|e| A2aError::internal(format!("gRPC error: {e}")))?;
+            Ok(resp.into_inner().into())
+        }
+
+        /// Get a push notification config.
+        pub async fn get_push_config(
+            &mut self,
+            req: params::GetTaskPushNotificationConfigRequest,
+        ) -> Result<crate::push_notification::TaskPushNotificationConfig, A2aError> {
+            let proto_req = lf_a2a_v1::GetTaskPushNotificationConfigRequest {
+                tenant: req.tenant.unwrap_or_default(),
+                task_id: req.task_id,
+                id: req.id,
+            };
+            let resp = self
+                .client
+                .get_task_push_notification_config(proto_req)
+                .await
+                .map_err(|e| A2aError::internal(format!("gRPC error: {e}")))?;
+            Ok(resp.into_inner().into())
+        }
+
+        /// List push notification configs.
+        pub async fn list_push_configs(
+            &mut self,
+            req: params::ListTaskPushNotificationConfigsRequest,
+        ) -> Result<params::ListTaskPushNotificationConfigsResponse, A2aError> {
+            let proto_req = lf_a2a_v1::ListTaskPushNotificationConfigsRequest {
+                tenant: req.tenant.unwrap_or_default(),
+                task_id: req.task_id,
+                page_size: req.page_size.unwrap_or(0),
+                page_token: req.page_token.unwrap_or_default(),
+            };
+            let resp = self
+                .client
+                .list_task_push_notification_configs(proto_req)
+                .await
+                .map_err(|e| A2aError::internal(format!("gRPC error: {e}")))?;
+            let inner = resp.into_inner();
+            Ok(params::ListTaskPushNotificationConfigsResponse {
+                configs: inner.configs.into_iter().map(Into::into).collect(),
+                next_page_token: if inner.next_page_token.is_empty() {
+                    None
+                } else {
+                    Some(inner.next_page_token)
+                },
+            })
+        }
+
+        /// Delete a push notification config.
+        pub async fn delete_push_config(
+            &mut self,
+            req: params::DeleteTaskPushNotificationConfigRequest,
+        ) -> Result<(), A2aError> {
+            let proto_req = lf_a2a_v1::DeleteTaskPushNotificationConfigRequest {
+                tenant: req.tenant.unwrap_or_default(),
+                task_id: req.task_id,
+                id: req.id,
+            };
+            self.client
+                .delete_task_push_notification_config(proto_req)
+                .await
+                .map_err(|e| A2aError::internal(format!("gRPC error: {e}")))?;
+            Ok(())
+        }
+
         /// Subscribe to task updates.
         pub async fn subscribe_to_task(
             &mut self,
