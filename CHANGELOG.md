@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+#### Agents (`brainwires-agents`)
+- Replaced `panic!()`/`unwrap()` in eval suite with graceful `TrialResult::failure` conversions.
+- Implemented `TextMerge` (line-by-line dedup) and `JsonMerge` (recursive deep merge) optimistic concurrency strategies.
+- Replaced silent `let _ =` broadcast/send drops with `tracing::warn` logging across contract_net, task_orchestrator, and validator_agent.
+
+#### Framework-wide
+- Production-readiness audit across 15 crates (40 files): replaced 121 `unwrap()` calls with `context()`/`expect()`/`LazyLock`; fixed 10 clippy warnings; removed 3 deprecated zero-caller functions; removed 3 dead code items; resolved 2 TODO comments.
+
 #### Providers (`brainwires-providers`)
 - **OpenAI Responses API**: Upgraded from partial implementation to full-spec coverage — all 7 tool types, 11 output item types, 35+ streaming event types, structured outputs, reasoning config, and all 6 REST endpoints (create, retrieve, delete, cancel, list_input_items, compact).
 - Refactored monolithic `openai_responses/mod.rs` into structured modules (`client.rs`, `convert.rs`, `provider.rs`, `types/`).
@@ -41,13 +49,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Token count tracking in training metrics.
 - Weight accessor methods on `LoraLinear` and `DoraLinear` for export.
 
+#### A2A (`brainwires-a2a`)
+- New crate: full Agent-to-Agent protocol — JSON-RPC 2.0, HTTP/REST, and gRPC bindings.
+- `A2aClient` with unified transport selection, `A2aServer` with `A2aHandler` trait.
+- AgentCard discovery at `/.well-known/agent-card.json`, SSE streaming, push notification CRUD.
+- gRPC support via tonic-build from official `a2a.proto` with full type conversions.
+- 71 tests covering serde roundtrips, SSE parsing, streaming, HTTP integration.
+
+#### Agents (`brainwires-agents`)
+- `AgentLifecycleHooks` trait with 10 hook points: before/after iteration, provider call, tool execution, completion, and context pressure.
+- `ToolDecision::Delegate` for sub-agent spawning, `ConversationView` for history manipulation, `DefaultDelegationHandler` wrapping `AgentPool`.
+- `#[non_exhaustive]` on `AgentContext` and `TaskAgentConfig`.
+
 #### RAG (`brainwires-rag`)
 - `indexed_at` field on `SearchResult` — exposes the chunk indexing timestamp (Unix epoch seconds) from the vector database. Defaults to `0` for backwards compatibility.
 - Upgraded `zip` dependency from v2 to v8 (pure-Rust `lzma-rust2`).
 
 ### Fixed
 
+#### A2A (`brainwires-a2a`)
+- Capped SSE stream buffers at 16MB to prevent unbounded memory growth.
+- Added bearer token auth on all transports.
+- Fixed gRPC error code mapping, mutex for streaming, and bind error propagation.
+- Added CORS headers, resilient accept loop, and graceful shutdown.
+- Incremental SSE parser with multi-line data support.
+
+#### Audio (`brainwires-audio`)
+- Proper error handling for non-UTF-8 model paths in `WhisperStt`.
+
 #### RAG (`brainwires-rag`)
+- Fixed use-after-move of `symbol_name` in `find_references`.
 - Git search results now return the actual commit date instead of hardcoded `0`. The `commit_date` field in `GitSearchResult` is now populated from the `indexed_at` metadata stored in the vector database during indexing.
 - Dirty flag is now cleared immediately after embeddings + cache are flushed to disk in both full and incremental indexing paths. Previously, the dirty flag was only cleared in the outer `do_index_smart` wrapper, so an unclean exit after successful indexing could leave the flag stuck, causing unnecessary full reindexes on next startup.
 
