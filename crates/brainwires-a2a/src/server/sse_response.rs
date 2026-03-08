@@ -19,14 +19,25 @@ pub fn stream_to_sse(
 ) -> Pin<Box<dyn Stream<Item = Result<http_body::Frame<Bytes>, std::io::Error>> + Send>> {
     let mapped = stream.map(move |item| {
         let response = match item {
-            Ok(event) => {
-                let val = serde_json::to_value(&event).unwrap_or(serde_json::Value::Null);
-                JsonRpcResponse::success(id.clone(), val)
-            }
+            Ok(event) => match serde_json::to_value(&event) {
+                Ok(val) => JsonRpcResponse::success(id.clone(), val),
+                Err(e) => JsonRpcResponse::error(
+                    id.clone(),
+                    A2aError::internal(format!("Failed to serialize event: {e}")),
+                ),
+            },
             Err(e) => JsonRpcResponse::error(id.clone(), e),
         };
 
-        let json = serde_json::to_string(&response).unwrap_or_default();
+        // JsonRpcResponse is a simple struct with Serialize — serialization is infallible
+        // in practice, but we handle it gracefully just in case.
+        let json = serde_json::to_string(&response).unwrap_or_else(|e| {
+            let fallback = JsonRpcResponse::error(
+                id.clone(),
+                A2aError::internal(format!("SSE serialization error: {e}")),
+            );
+            serde_json::to_string(&fallback).unwrap_or_default()
+        });
         let sse_line = format!("data: {json}\n\n");
         Ok(http_body::Frame::data(Bytes::from(sse_line)))
     });
@@ -42,8 +53,13 @@ pub fn stream_to_sse_rest(
 ) -> Pin<Box<dyn Stream<Item = Result<http_body::Frame<Bytes>, std::io::Error>> + Send>> {
     let mapped = stream.map(|item| {
         let json = match item {
-            Ok(event) => serde_json::to_string(&event).unwrap_or_default(),
-            Err(e) => serde_json::to_string(&e).unwrap_or_default(),
+            Ok(event) => serde_json::to_string(&event).unwrap_or_else(|e| {
+                let err = A2aError::internal(format!("Failed to serialize event: {e}"));
+                serde_json::to_string(&err).unwrap_or_default()
+            }),
+            Err(e) => serde_json::to_string(&e).unwrap_or_else(|e2| {
+                format!("{{\"code\":-32603,\"message\":\"Serialization error: {e2}\"}}")
+            }),
         };
         let sse_line = format!("data: {json}\n\n");
         Ok(http_body::Frame::data(Bytes::from(sse_line)))

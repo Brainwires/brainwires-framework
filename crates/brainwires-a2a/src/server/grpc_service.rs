@@ -36,6 +36,7 @@ mod grpc_impl {
             TASK_NOT_CANCELABLE => tonic::Code::FailedPrecondition,
             PUSH_NOT_SUPPORTED => tonic::Code::Unimplemented,
             CONTENT_TYPE_NOT_SUPPORTED | JSON_PARSE_ERROR => tonic::Code::InvalidArgument,
+            INVALID_AGENT_RESPONSE => tonic::Code::Internal,
             EXTENDED_CARD_NOT_CONFIGURED => tonic::Code::FailedPrecondition,
             _ => tonic::Code::Internal,
         };

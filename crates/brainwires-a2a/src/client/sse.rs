@@ -7,6 +7,10 @@ use crate::error::A2aError;
 use crate::jsonrpc::JsonRpcResponse;
 use crate::streaming::StreamEvent;
 
+/// Maximum SSE buffer size (16 MB). If a single SSE frame exceeds this,
+/// the parser yields an error and stops.
+const MAX_SSE_BUFFER_SIZE: usize = 16 * 1024 * 1024;
+
 /// Parse an SSE response body into a stream of `StreamEvent`.
 ///
 /// Expects lines of the form `data: {...}\n\n` where each data line
@@ -51,6 +55,9 @@ pub fn parse_sse_bytes(
 /// Reads chunks from a `reqwest::Response::bytes_stream()`, buffers until
 /// complete SSE frames (`\n\n` boundaries) are found, then parses each frame.
 /// Handles multi-line `data:` fields per the SSE specification.
+///
+/// The buffer is capped at [`MAX_SSE_BUFFER_SIZE`] to prevent unbounded memory
+/// growth from malicious or misbehaving servers.
 pub fn parse_sse_byte_stream(
     stream: impl Stream<Item = Result<Bytes, reqwest::Error>> + Send + 'static,
 ) -> impl Stream<Item = Result<StreamEvent, A2aError>> + Send {
@@ -69,22 +76,25 @@ pub fn parse_sse_byte_stream(
             };
             buffer.push_str(&String::from_utf8_lossy(&chunk));
 
+            if buffer.len() > MAX_SSE_BUFFER_SIZE {
+                yield Err(A2aError::internal(
+                    "SSE stream buffer exceeded maximum size"
+                ));
+                return;
+            }
+
             // Process complete SSE frames (delimited by \n\n)
             while let Some(boundary) = buffer.find("\n\n") {
                 let frame = buffer[..boundary].to_string();
                 buffer = buffer[boundary + 2..].to_string();
 
-                if let Some(event) = parse_sse_frame_jsonrpc(&frame) {
-                    yield event;
-                }
+                yield parse_sse_frame_jsonrpc_or_error(&frame);
             }
         }
 
         // Process any remaining data in the buffer
         if !buffer.trim().is_empty() {
-            if let Some(event) = parse_sse_frame_jsonrpc(&buffer) {
-                yield event;
-            }
+            yield parse_sse_frame_jsonrpc_or_error(&buffer);
         }
     }
 }
@@ -93,6 +103,8 @@ pub fn parse_sse_byte_stream(
 ///
 /// Like `parse_sse_byte_stream` but expects `data:` lines containing raw
 /// `StreamEvent` JSON rather than a JSON-RPC response wrapper.
+///
+/// The buffer is capped at [`MAX_SSE_BUFFER_SIZE`].
 pub fn parse_sse_rest_byte_stream(
     stream: impl Stream<Item = Result<Bytes, reqwest::Error>> + Send + 'static,
 ) -> impl Stream<Item = Result<StreamEvent, A2aError>> + Send {
@@ -111,20 +123,23 @@ pub fn parse_sse_rest_byte_stream(
             };
             buffer.push_str(&String::from_utf8_lossy(&chunk));
 
+            if buffer.len() > MAX_SSE_BUFFER_SIZE {
+                yield Err(A2aError::internal(
+                    "SSE stream buffer exceeded maximum size"
+                ));
+                return;
+            }
+
             while let Some(boundary) = buffer.find("\n\n") {
                 let frame = buffer[..boundary].to_string();
                 buffer = buffer[boundary + 2..].to_string();
 
-                if let Some(event) = parse_sse_frame_rest(&frame) {
-                    yield event;
-                }
+                yield parse_sse_frame_rest_or_error(&frame);
             }
         }
 
         if !buffer.trim().is_empty() {
-            if let Some(event) = parse_sse_frame_rest(&buffer) {
-                yield event;
-            }
+            yield parse_sse_frame_rest_or_error(&buffer);
         }
     }
 }
@@ -157,30 +172,39 @@ fn extract_sse_data(frame: &str) -> Option<String> {
     }
 }
 
-/// Parse an SSE frame with JSON-RPC envelope.
-fn parse_sse_frame_jsonrpc(frame: &str) -> Option<Result<StreamEvent, A2aError>> {
-    let data = extract_sse_data(frame)?;
+/// Parse an SSE frame with JSON-RPC envelope, always returning a result.
+///
+/// Frames without `data:` lines yield a parse error instead of being silently dropped.
+fn parse_sse_frame_jsonrpc_or_error(frame: &str) -> Result<StreamEvent, A2aError> {
+    let data = match extract_sse_data(frame) {
+        Some(d) => d,
+        None => return Err(A2aError::parse_error("SSE frame contains no data field")),
+    };
 
-    Some(match serde_json::from_str::<JsonRpcResponse>(&data) {
+    match serde_json::from_str::<JsonRpcResponse>(&data) {
         Ok(resp) => {
             if let Some(err) = resp.error {
                 Err(err)
             } else if let Some(result) = resp.result {
                 serde_json::from_value::<StreamEvent>(result).map_err(A2aError::from)
             } else {
-                return None;
+                Err(A2aError::parse_error("JSON-RPC response has neither result nor error"))
             }
         }
         Err(e) => Err(A2aError::parse_error(e.to_string())),
-    })
+    }
 }
 
-/// Parse an SSE frame with raw StreamEvent JSON (no JSON-RPC envelope).
-fn parse_sse_frame_rest(frame: &str) -> Option<Result<StreamEvent, A2aError>> {
-    let data = extract_sse_data(frame)?;
+/// Parse an SSE frame with raw StreamEvent JSON, always returning a result.
+///
+/// Frames without `data:` lines yield a parse error instead of being silently dropped.
+fn parse_sse_frame_rest_or_error(frame: &str) -> Result<StreamEvent, A2aError> {
+    let data = match extract_sse_data(frame) {
+        Some(d) => d,
+        None => return Err(A2aError::parse_error("SSE frame contains no data field")),
+    };
 
-    Some(
-        serde_json::from_str::<StreamEvent>(&data)
-            .map_err(|e| A2aError::parse_error(e.to_string())),
-    )
+    serde_json::from_str::<StreamEvent>(&data)
+        .map_err(|e| A2aError::parse_error(e.to_string()))
 }
+

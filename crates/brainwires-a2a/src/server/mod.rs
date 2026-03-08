@@ -182,7 +182,7 @@ fn json_response(status: u16, body: String) -> hyper::Response<BoxBody> {
         .body(http_body_util::Either::Left(http_body_util::Full::new(
             bytes::Bytes::from(body),
         )))
-        .unwrap();
+        .expect("response builder with valid status and headers cannot fail");
     let _ = &mut resp;
     resp
 }
@@ -204,7 +204,7 @@ fn sse_response(
         .body(http_body_util::Either::Right(
             http_body_util::StreamBody::new(stream),
         ))
-        .unwrap()
+        .expect("response builder with valid status and headers cannot fail")
 }
 
 // ---------------------------------------------------------------------------
