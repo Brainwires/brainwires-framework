@@ -79,9 +79,15 @@ impl SpeechToText for WhisperStt {
         let timestamps = options.timestamps;
 
         // Run inference on a blocking thread since whisper.cpp is CPU-bound
-        let result = tokio::task::spawn_blocking(move || {
+        tokio::task::spawn_blocking(move || {
+            let path_str = model_path.to_str().ok_or_else(|| {
+                AudioError::Transcription(format!(
+                    "model path contains invalid UTF-8: {}",
+                    model_path.display()
+                ))
+            })?;
             let ctx = whisper_rs::WhisperContext::new_with_params(
-                model_path.to_str().unwrap_or(""),
+                path_str,
                 whisper_rs::WhisperContextParameters::default(),
             )
             .map_err(|e| AudioError::Transcription(format!("failed to load model: {e}")))?;
@@ -140,9 +146,7 @@ impl SpeechToText for WhisperStt {
             })
         })
         .await
-        .map_err(|e| AudioError::Transcription(format!("task join error: {e}")))?;
-
-        result
+        .map_err(|e| AudioError::Transcription(format!("task join error: {e}")))?
     }
 
     fn transcribe_stream(
