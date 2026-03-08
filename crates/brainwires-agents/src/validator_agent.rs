@@ -158,7 +158,7 @@ impl ValidatorAgent {
             .register_agent(self.id.clone())
             .await?;
 
-        let _ = self
+        if let Err(e) = self
             .communication_hub
             .broadcast(
                 self.id.clone(),
@@ -167,7 +167,10 @@ impl ValidatorAgent {
                     task_id: format!("validation-{}", self.id),
                 },
             )
-            .await;
+            .await
+        {
+            tracing::warn!(agent_id = %self.id, "Failed to broadcast validator spawn: {}", e);
+        }
 
         // ── 2. Acquire read locks (best-effort) ─────────────────────────
         self.set_status(ValidatorAgentStatus::AcquiringLocks).await;
@@ -274,7 +277,7 @@ impl ValidatorAgent {
         // locks explicitly.
         self.file_lock_manager.release_all_locks(&self.id).await;
 
-        let _ = self
+        if let Err(e) = self
             .communication_hub
             .broadcast(
                 self.id.clone(),
@@ -284,12 +287,18 @@ impl ValidatorAgent {
                     summary: summary.to_string(),
                 },
             )
-            .await;
+            .await
+        {
+            tracing::warn!(agent_id = %self.id, "Failed to broadcast validator completion: {}", e);
+        }
 
-        let _ = self
+        if let Err(e) = self
             .communication_hub
             .unregister_agent(&self.id)
-            .await;
+            .await
+        {
+            tracing::warn!(agent_id = %self.id, "Failed to unregister validator agent: {}", e);
+        }
     }
 }
 

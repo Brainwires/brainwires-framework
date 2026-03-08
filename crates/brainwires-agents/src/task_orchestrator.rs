@@ -232,20 +232,24 @@ impl TaskOrchestrator {
                                     .complete_task(&task_id, summary.clone())
                                     .await?;
 
-                                let _ = self.communication_hub.broadcast(self.config.orchestrator_id.clone(), AgentMessage::AgentCompleted {
+                                if let Err(e) = self.communication_hub.broadcast(self.config.orchestrator_id.clone(), AgentMessage::AgentCompleted {
                                     agent_id: agent_id.clone(),
                                     task_id: task_id.clone(),
                                     summary,
-                                }).await;
+                                }).await {
+                                    tracing::warn!(agent_id = %agent_id, task_id = %task_id, "Failed to broadcast agent completion: {}", e);
+                                }
                             } else {
                                 let error = agent_result.summary.clone();
                                 self.task_manager.fail_task(&task_id, error.clone()).await?;
 
-                                let _ = self.communication_hub.broadcast(self.config.orchestrator_id.clone(), AgentMessage::AgentCompleted {
+                                if let Err(e) = self.communication_hub.broadcast(self.config.orchestrator_id.clone(), AgentMessage::AgentCompleted {
                                     agent_id: agent_id.clone(),
                                     task_id: task_id.clone(),
                                     summary: format!("FAILED: {}", error),
-                                }).await;
+                                }).await {
+                                    tracing::warn!(agent_id = %agent_id, task_id = %task_id, "Failed to broadcast agent failure: {}", e);
+                                }
 
                                 if self.config.failure_policy == FailurePolicy::StopOnFirstFailure {
                                     halted = true;
@@ -257,11 +261,13 @@ impl TaskOrchestrator {
                             let error = format!("Agent panicked: {}", e);
                             self.task_manager.fail_task(&task_id, error.clone()).await?;
 
-                            let _ = self.communication_hub.broadcast(self.config.orchestrator_id.clone(), AgentMessage::AgentCompleted {
+                            if let Err(e) = self.communication_hub.broadcast(self.config.orchestrator_id.clone(), AgentMessage::AgentCompleted {
                                 agent_id: agent_id.clone(),
                                 task_id: task_id.clone(),
                                 summary: error,
-                            }).await;
+                            }).await {
+                                tracing::warn!(agent_id = %agent_id, task_id = %task_id, "Failed to broadcast agent panic: {}", e);
+                            }
 
                             if self.config.failure_policy == FailurePolicy::StopOnFirstFailure {
                                 halted = true;
@@ -325,10 +331,12 @@ impl TaskOrchestrator {
                                 .await
                                 .insert(agent_id.clone(), task.id.clone());
 
-                            let _ = self.communication_hub.broadcast(self.config.orchestrator_id.clone(), AgentMessage::AgentSpawned {
+                            if let Err(e) = self.communication_hub.broadcast(self.config.orchestrator_id.clone(), AgentMessage::AgentSpawned {
                                 agent_id,
                                 task_id: task.id.clone(),
-                            }).await;
+                            }).await {
+                                tracing::warn!(task_id = %task.id, "Failed to broadcast agent spawn: {}", e);
+                            }
 
                             spawned += 1;
                         }

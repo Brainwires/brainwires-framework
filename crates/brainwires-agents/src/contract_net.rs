@@ -423,7 +423,10 @@ impl ContractNetManager {
         }
 
         // Broadcast the bid
-        let _ = self.broadcast_tx.send(ContractMessage::Bid(bid));
+        let bid_task_id = bid.task_id.clone();
+        if let Err(e) = self.broadcast_tx.send(ContractMessage::Bid(bid)) {
+            tracing::warn!("Failed to broadcast bid for task {}: {}", bid_task_id, e);
+        }
 
         Ok(())
     }
@@ -434,10 +437,12 @@ impl ContractNetManager {
         let task_bids = bids.get(task_id)?;
 
         if task_bids.is_empty() {
-            let _ = self.broadcast_tx.send(ContractMessage::NoAward {
+            if let Err(e) = self.broadcast_tx.send(ContractMessage::NoAward {
                 task_id: task_id.to_string(),
                 reason: "No bids received".to_string(),
-            });
+            }) {
+                tracing::warn!("Failed to broadcast no-award for task {}: {}", task_id, e);
+            }
             return None;
         }
 

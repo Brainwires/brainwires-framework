@@ -138,12 +138,19 @@ impl EvaluationSuite {
                 tokio::spawn(async move {
                     let _permit = permit;
                     let result = case_arc.run(trial_id).await;
-                    let trial = if catch_errors {
-                        result.unwrap_or_else(|e| TrialResult::failure(trial_id, 0, e.to_string()))
-                    } else {
-                        result.unwrap()
+                    let trial = match result {
+                        Ok(t) => t,
+                        Err(e) if catch_errors => {
+                            TrialResult::failure(trial_id, 0, e.to_string())
+                        }
+                        Err(e) => {
+                            tracing::error!("Trial {} errored (catch_errors_as_failures=false): {}", trial_id, e);
+                            TrialResult::failure(trial_id, 0, format!("Trial errored: {e}"))
+                        }
                     };
-                    let _ = tx.send(trial);
+                    if tx.send(trial).is_err() {
+                        tracing::warn!("Trial {} result dropped: receiver closed", trial_id);
+                    }
                 });
             }
             drop(tx);
@@ -193,7 +200,10 @@ impl EvaluationSuite {
             Err(e) if self.config.catch_errors_as_failures => {
                 TrialResult::failure(trial_id, 0, e.to_string())
             }
-            Err(e) => panic!("Trial {} errored: {}", trial_id, e),
+            Err(e) => {
+                tracing::error!("Trial {} errored (catch_errors_as_failures=false): {}", trial_id, e);
+                TrialResult::failure(trial_id, 0, format!("Trial errored: {e}"))
+            }
         }
     }
 }

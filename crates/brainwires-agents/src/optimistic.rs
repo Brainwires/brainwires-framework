@@ -461,17 +461,45 @@ impl OptimisticController {
                 let merged = format!("{}\n{}", a, b);
                 Resolution::Merged(hash_content(&merged))
             }
-            (MergeStrategy::TextMerge, Some(_a), Some(_b)) => {
-                // Would implement line-by-line merge
-                // For now, escalate
-                Resolution::Escalate {
-                    reason: "Text merge not yet implemented".to_string(),
+            (MergeStrategy::TextMerge, Some(a), Some(b)) => {
+                // Line-by-line merge: deduplicate shared lines, append unique lines from both
+                let lines_a: Vec<&str> = a.lines().collect();
+                let lines_b: Vec<&str> = b.lines().collect();
+                let mut merged = Vec::new();
+                let mut used_b: Vec<bool> = vec![false; lines_b.len()];
+
+                for line_a in &lines_a {
+                    merged.push(*line_a);
+                    // Mark matching lines in b as consumed
+                    for (i, line_b) in lines_b.iter().enumerate() {
+                        if !used_b[i] && line_a == line_b {
+                            used_b[i] = true;
+                            break;
+                        }
+                    }
                 }
+                // Append lines from b that weren't already present
+                for (i, line_b) in lines_b.iter().enumerate() {
+                    if !used_b[i] {
+                        merged.push(*line_b);
+                    }
+                }
+
+                let merged_content = merged.join("\n");
+                Resolution::Merged(hash_content(&merged_content))
             }
-            (MergeStrategy::JsonMerge, Some(_a), Some(_b)) => {
-                // Would implement JSON deep merge
-                Resolution::Escalate {
-                    reason: "JSON merge not yet implemented".to_string(),
+            (MergeStrategy::JsonMerge, Some(a), Some(b)) => {
+                // JSON deep merge: parse both as JSON objects and merge keys
+                match (serde_json::from_str::<serde_json::Value>(a), serde_json::from_str::<serde_json::Value>(b)) {
+                    (Ok(mut val_a), Ok(val_b)) => {
+                        json_deep_merge(&mut val_a, &val_b);
+                        let merged_content = serde_json::to_string_pretty(&val_a)
+                            .unwrap_or_else(|_| format!("{}", val_a));
+                        Resolution::Merged(hash_content(&merged_content))
+                    }
+                    _ => Resolution::Escalate {
+                        reason: "Failed to parse content as JSON for merge".to_string(),
+                    },
                 }
             }
             _ => Resolution::Escalate {
@@ -634,6 +662,21 @@ pub struct OptimisticStats {
 }
 
 /// Helper function to hash content
+/// Recursively merge `source` into `target`. For objects, keys from `source`
+/// are inserted/overwritten in `target`. For non-object values, `source` wins.
+fn json_deep_merge(target: &mut serde_json::Value, source: &serde_json::Value) {
+    match (target, source) {
+        (serde_json::Value::Object(t), serde_json::Value::Object(s)) => {
+            for (key, value) in s {
+                json_deep_merge(t.entry(key.clone()).or_insert(serde_json::Value::Null), value);
+            }
+        }
+        (target, source) => {
+            *target = source.clone();
+        }
+    }
+}
+
 fn hash_content(content: &str) -> String {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
