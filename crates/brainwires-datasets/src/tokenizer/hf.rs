@@ -58,7 +58,6 @@ impl Tokenizer for HfTokenizer {
         self.tokenizer.get_vocab(true)
             .into_iter()
             .filter(|(token, _)| token.starts_with('<') || token.starts_with('['))
-            .map(|(token, id)| (token, id))
             .collect()
     }
 }

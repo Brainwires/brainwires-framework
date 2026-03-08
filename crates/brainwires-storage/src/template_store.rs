@@ -97,7 +97,11 @@ impl PlanTemplate {
     /// Extract variables from template content
     fn extract_variables(content: &str) -> Vec<String> {
         use regex::Regex;
-        let re = Regex::new(r"\{\{([a-zA-Z_][a-zA-Z0-9_]*)\}\}").unwrap();
+        use std::sync::LazyLock;
+        static RE: LazyLock<Regex> = LazyLock::new(|| {
+            Regex::new(r"\{\{([a-zA-Z_][a-zA-Z0-9_]*)\}\}").expect("valid regex")
+        });
+        let re = &*RE;
         let mut vars: Vec<String> = re
             .captures_iter(content)
             .map(|cap| cap[1].to_string())

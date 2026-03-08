@@ -272,45 +272,4 @@ impl ResponsesClient {
         response.json().await.context("Failed to parse compact response")
     }
 
-    // ── Deprecated wrappers (backward compatibility) ────────────────
-
-    /// Deprecated: use [`create`] instead.
-    #[deprecated(note = "Use `create()` with a `CreateResponseRequest` instead")]
-    pub async fn create_response(
-        &self,
-        model: &str,
-        input: Vec<super::types::ResponseInputItem>,
-        instructions: Option<&str>,
-        tools: Option<&[super::types::ResponseTool]>,
-        options: &brainwires_core::ChatOptions,
-        previous_response_id: Option<&str>,
-    ) -> Result<ResponseObject> {
-        let req = super::convert::build_request(
-            model, input, instructions, tools, options, previous_response_id,
-        );
-        self.create(&req).await
-    }
-
-    /// Deprecated: use [`create_stream`] instead.
-    #[deprecated(note = "Use `create_stream()` with a `CreateResponseRequest` instead")]
-    pub fn stream_response<'a>(
-        &'a self,
-        model: &'a str,
-        input: Vec<super::types::ResponseInputItem>,
-        instructions: Option<&'a str>,
-        tools: Option<&'a [super::types::ResponseTool]>,
-        options: &'a brainwires_core::ChatOptions,
-        previous_response_id: Option<&'a str>,
-    ) -> BoxStream<'a, Result<ResponseStreamEvent>> {
-        // We need to build the request inline since we can't use async in a non-async fn
-        Box::pin(async_stream::stream! {
-            let req = super::convert::build_request(
-                model, input, instructions, tools, options, previous_response_id,
-            );
-            let mut inner = self.create_stream(&req);
-            while let Some(event) = inner.next().await {
-                yield event;
-            }
-        })
-    }
 }

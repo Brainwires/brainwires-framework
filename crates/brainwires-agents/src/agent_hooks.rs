@@ -25,10 +25,10 @@
 //!         tool_use: &ToolUse,
 //!     ) -> ToolDecision {
 //!         if tool_use.name == "write_file" {
-//!             ToolDecision::Delegate(DelegationRequest {
+//!             ToolDecision::Delegate(Box::new(DelegationRequest {
 //!                 task_description: format!("Write file: {:?}", tool_use.input),
 //!                 ..Default::default()
-//!             })
+//!             }))
 //!         } else {
 //!             ToolDecision::Execute
 //!         }
@@ -93,7 +93,7 @@ pub enum ToolDecision {
     /// Skip execution and inject this result instead.
     Override(ToolResult),
     /// Delegate the tool call to a sub-agent.
-    Delegate(DelegationRequest),
+    Delegate(Box<DelegationRequest>),
 }
 
 // ── Delegation types ─────────────────────────────────────────────────────────
@@ -553,7 +553,7 @@ mod tests {
     fn test_tool_decision_variants() {
         let _execute = ToolDecision::Execute;
         let _override = ToolDecision::Override(ToolResult::success("id".to_string(), "ok".to_string()));
-        let _delegate = ToolDecision::Delegate(DelegationRequest::default());
+        let _delegate = ToolDecision::Delegate(Box::new(DelegationRequest::default()));
     }
 
     #[test]

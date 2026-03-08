@@ -39,6 +39,66 @@
 use brainwires_core::graph::{EdgeType, EntityType, RelationshipGraphT};
 use regex::Regex;
 use std::collections::HashMap;
+use std::sync::LazyLock;
+
+// --- LazyLock regex statics for question classification patterns ---
+
+// Definition patterns
+static RE_WHAT_IS: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)what\s+is\s+(\w+)").expect("valid regex"));
+static RE_EXPLAIN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)explain\s+(\w+)").expect("valid regex"));
+
+// Location patterns
+static RE_WHERE_IS: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)where\s+is\s+(.+?)\s*(defined|declared|located)").expect("valid regex")
+});
+static RE_WHICH_FILE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)which\s+file\s+(contains|has|defines)\s+(.+)").expect("valid regex")
+});
+static RE_FIND_IN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)find\s+(.+?)\s+in").expect("valid regex"));
+
+// Dependency patterns
+static RE_WHAT_USES: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)what\s+(uses|depends\s+on|calls|imports)\s+(.+)").expect("valid regex")
+});
+static RE_WHAT_DOES_USE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)what\s+does\s+(.+?)\s+(use|depend\s+on|call|import)").expect("valid regex")
+});
+static RE_SHOW_DEPS: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)show\s+(dependencies|usages)\s+(of|for)\s+(.+)").expect("valid regex")
+});
+
+// Count patterns
+static RE_HOW_MANY: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)how\s+many\s+(.+)").expect("valid regex"));
+static RE_COUNT: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)count\s+(.+)").expect("valid regex"));
+
+// Superlative patterns
+static RE_WHICH_MOST: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)which\s+(.+?)\s+has\s+the\s+(most|least|highest|lowest)")
+        .expect("valid regex")
+});
+static RE_LARGEST: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(largest|smallest|biggest)\s+(.+)").expect("valid regex")
+});
+
+// Enumeration patterns
+static RE_LIST: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)list\s+(all\s+)?(.+)").expect("valid regex"));
+static RE_SHOW: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)show\s+(all\s+)?(.+)").expect("valid regex"));
+
+// Boolean patterns
+static RE_DOES_USE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)does\s+(.+?)\s+(use|depend|call|import|contain)\s+(.+)")
+        .expect("valid regex")
+});
+static RE_IS_USED_BY: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)is\s+(.+?)\s+(used|called|imported)\s+by\s+(.+)").expect("valid regex")
+});
 
 /// Core operations in the query language (S-expression inspired)
 #[derive(Debug, Clone)]
@@ -431,7 +491,7 @@ impl QueryResult {
 
 /// Question pattern for classification
 struct QuestionPattern {
-    regex: Regex,
+    regex: &'static Regex,
     question_type: QuestionType,
     relation: Option<RelationType>,
 }
@@ -454,96 +514,88 @@ impl QueryCoreExtractor {
         vec![
             // Definition patterns
             QuestionPattern {
-                regex: Regex::new(r"(?i)what\s+is\s+(\w+)").unwrap(),
+                regex: &RE_WHAT_IS,
                 question_type: QuestionType::Definition,
                 relation: Some(RelationType::Defines),
             },
             QuestionPattern {
-                regex: Regex::new(r"(?i)explain\s+(\w+)").unwrap(),
+                regex: &RE_EXPLAIN,
                 question_type: QuestionType::Definition,
                 relation: Some(RelationType::Defines),
             },
             // Location patterns
             QuestionPattern {
-                regex: Regex::new(r"(?i)where\s+is\s+(.+?)\s*(defined|declared|located)")
-                    .unwrap(),
+                regex: &RE_WHERE_IS,
                 question_type: QuestionType::Location,
                 relation: Some(RelationType::Contains),
             },
             QuestionPattern {
-                regex: Regex::new(r"(?i)which\s+file\s+(contains|has|defines)\s+(.+)")
-                    .unwrap(),
+                regex: &RE_WHICH_FILE,
                 question_type: QuestionType::Location,
                 relation: Some(RelationType::Contains),
             },
             QuestionPattern {
-                regex: Regex::new(r"(?i)find\s+(.+?)\s+in").unwrap(),
+                regex: &RE_FIND_IN,
                 question_type: QuestionType::Location,
                 relation: Some(RelationType::Contains),
             },
             // Dependency patterns
             QuestionPattern {
-                regex: Regex::new(r"(?i)what\s+(uses|depends\s+on|calls|imports)\s+(.+)")
-                    .unwrap(),
+                regex: &RE_WHAT_USES,
                 question_type: QuestionType::Dependency,
                 relation: Some(RelationType::DependsOn),
             },
             QuestionPattern {
-                regex: Regex::new(r"(?i)what\s+does\s+(.+?)\s+(use|depend\s+on|call|import)")
-                    .unwrap(),
+                regex: &RE_WHAT_DOES_USE,
                 question_type: QuestionType::Dependency,
                 relation: Some(RelationType::DependsOn),
             },
             QuestionPattern {
-                regex: Regex::new(r"(?i)show\s+(dependencies|usages)\s+(of|for)\s+(.+)")
-                    .unwrap(),
+                regex: &RE_SHOW_DEPS,
                 question_type: QuestionType::Dependency,
                 relation: Some(RelationType::DependsOn),
             },
             // Count patterns
             QuestionPattern {
-                regex: Regex::new(r"(?i)how\s+many\s+(.+)").unwrap(),
+                regex: &RE_HOW_MANY,
                 question_type: QuestionType::Count,
                 relation: None,
             },
             QuestionPattern {
-                regex: Regex::new(r"(?i)count\s+(.+)").unwrap(),
+                regex: &RE_COUNT,
                 question_type: QuestionType::Count,
                 relation: None,
             },
             // Superlative patterns
             QuestionPattern {
-                regex: Regex::new(r"(?i)which\s+(.+?)\s+has\s+the\s+(most|least|highest|lowest)")
-                    .unwrap(),
+                regex: &RE_WHICH_MOST,
                 question_type: QuestionType::Superlative,
                 relation: None,
             },
             QuestionPattern {
-                regex: Regex::new(r"(?i)(largest|smallest|biggest)\s+(.+)").unwrap(),
+                regex: &RE_LARGEST,
                 question_type: QuestionType::Superlative,
                 relation: None,
             },
             // Enumeration patterns
             QuestionPattern {
-                regex: Regex::new(r"(?i)list\s+(all\s+)?(.+)").unwrap(),
+                regex: &RE_LIST,
                 question_type: QuestionType::Enumeration,
                 relation: None,
             },
             QuestionPattern {
-                regex: Regex::new(r"(?i)show\s+(all\s+)?(.+)").unwrap(),
+                regex: &RE_SHOW,
                 question_type: QuestionType::Enumeration,
                 relation: None,
             },
             // Boolean patterns
             QuestionPattern {
-                regex: Regex::new(r"(?i)does\s+(.+?)\s+(use|depend|call|import|contain)\s+(.+)")
-                    .unwrap(),
+                regex: &RE_DOES_USE,
                 question_type: QuestionType::Boolean,
                 relation: Some(RelationType::DependsOn),
             },
             QuestionPattern {
-                regex: Regex::new(r"(?i)is\s+(.+?)\s+(used|called|imported)\s+by\s+(.+)")
-                    .unwrap(),
+                regex: &RE_IS_USED_BY,
                 question_type: QuestionType::Boolean,
                 relation: Some(RelationType::DependsOn),
             },
@@ -859,11 +911,9 @@ impl<'a> QueryExecutor<'a> {
 
                 result.values.retain(|v| match predicate {
                     FilterPredicate::HasType(t) => v.entity_type.as_ref() == Some(t),
-                    FilterPredicate::NameMatches(pattern) => {
-                        Regex::new(pattern)
-                            .map(|r| r.is_match(&v.value))
-                            .unwrap_or(false)
-                    }
+                    FilterPredicate::NameMatches(pattern) => Regex::new(pattern)
+                        .map(|r| r.is_match(&v.value))
+                        .unwrap_or(false),
                     FilterPredicate::In(set) => set.contains(&v.value),
                     FilterPredicate::NotIn(set) => !set.contains(&v.value),
                     FilterPredicate::Property { name, op, value } => {

@@ -101,7 +101,7 @@ impl CodeChunker {
 
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .expect("system clock is after UNIX epoch")
             .as_secs() as i64;
 
         for (chunk_idx, chunk_lines) in lines.chunks(lines_per_chunk).enumerate() {
@@ -148,7 +148,7 @@ impl CodeChunker {
 
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .expect("system clock is after UNIX epoch")
             .as_secs() as i64;
 
         let step = if overlap < size { size - overlap } else { 1 };
@@ -224,7 +224,7 @@ impl CodeChunker {
 
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .expect("system clock is after UNIX epoch")
             .as_secs() as i64;
 
         let mut chunks = Vec::new();

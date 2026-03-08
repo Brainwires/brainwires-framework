@@ -59,7 +59,7 @@ impl Composer {
 
             CompositionFunction::ObjectMerge => self.object_merge(results),
 
-            CompositionFunction::LastOnly => Ok(results.last().unwrap().value.clone()),
+            CompositionFunction::LastOnly => Ok(results.last().expect("checked non-empty above").value.clone()),
 
             CompositionFunction::Custom(description) => self.custom_compose(results, description),
 

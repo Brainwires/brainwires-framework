@@ -596,17 +596,7 @@ impl Handshake {
         }
     }
 
-    /// Create a reattach handshake without token (for backwards compatibility)
-    /// This will be rejected by agents that require token authentication
-    #[deprecated(note = "Use reattach() with session_token for secure reattachment")]
-    pub fn reattach_insecure(session_id: String) -> Self {
-        Self {
-            version: Self::PROTOCOL_VERSION,
-            is_reattach: true,
-            session_id: Some(session_id),
-            session_token: None,
-        }
-    }
+
 }
 
 /// Handshake response from agent

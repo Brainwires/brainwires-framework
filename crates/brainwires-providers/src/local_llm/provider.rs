@@ -280,7 +280,6 @@ impl LocalLlmProvider {
         ]);
 
         // Generate tokens
-        #[allow(unused_imports)]
         use llama_cpp_2::model::Special;
         let mut output = String::new();
         let stop_tokens = self.config.model_type.stop_tokens();

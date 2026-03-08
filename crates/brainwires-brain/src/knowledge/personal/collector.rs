@@ -331,7 +331,11 @@ impl PersonalFactCollector {
         let mut key = template.to_string();
 
         // Replace {n} patterns with capture groups
-        let re = Regex::new(r"\{(\d+)\}").unwrap();
+        use std::sync::LazyLock;
+        static RE: LazyLock<Regex> = LazyLock::new(|| {
+            Regex::new(r"\{(\d+)\}").expect("valid regex")
+        });
+        let re = &*RE;
         for cap in re.captures_iter(template) {
             if let Ok(group_num) = cap[1].parse::<usize>()
                 && let Some(value) = captures.get(group_num) {

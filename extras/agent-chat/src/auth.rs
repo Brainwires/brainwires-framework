@@ -62,12 +62,11 @@ pub fn resolve_api_key(provider: &str, cli_key: Option<&str>) -> Result<Option<S
         _ => "",
     };
 
-    if !env_var.is_empty() {
-        if let Ok(key) = std::env::var(env_var) {
-            if !key.is_empty() {
-                return Ok(Some(key));
-            }
-        }
+    if !env_var.is_empty()
+        && let Ok(key) = std::env::var(env_var)
+        && !key.is_empty()
+    {
+        return Ok(Some(key));
     }
 
     let keys = ApiKeys::load()?;

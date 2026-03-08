@@ -206,7 +206,7 @@ impl FineTuneProvider for VertexFineTune {
         // Extract the relative path
         let path = if job_id.0.starts_with("projects/") {
             // Already a full resource path, need to reconstruct URL
-            format!("/{}", job_id.0.split("locations/").last().map(|s| format!("tuningJobs/{}", s.split('/').last().unwrap_or(""))).unwrap_or_default())
+            format!("/{}", job_id.0.rsplit("locations/").next().map(|s| format!("tuningJobs/{}", s.rsplit('/').next().unwrap_or(""))).unwrap_or_default())
         } else {
             format!("/tuningJobs/{}", job_id.0)
         };

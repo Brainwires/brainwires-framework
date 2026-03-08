@@ -147,7 +147,7 @@ impl SkillRegistry {
             self.loaded_cache.insert(name.to_string(), skill);
         }
 
-        Ok(self.loaded_cache.get(name).unwrap())
+        Ok(self.loaded_cache.get(name).expect("just inserted into cache"))
     }
 
     /// Get a mutable reference to the full skill
@@ -162,7 +162,7 @@ impl SkillRegistry {
             self.loaded_cache.insert(name.to_string(), skill);
         }
 
-        Ok(self.loaded_cache.get_mut(name).unwrap())
+        Ok(self.loaded_cache.get_mut(name).expect("just inserted into cache"))
     }
 
     /// Check if a skill exists

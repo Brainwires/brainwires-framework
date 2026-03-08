@@ -896,7 +896,7 @@ impl RagClient {
             });
         }
 
-        let symbol_name_str = symbol_name.clone().unwrap();
+        let symbol_name_str = symbol_name.as_ref().expect("checked is_none above and returned early");
 
         // Build symbol index from definitions
         let mut symbol_index: std::collections::HashMap<String, Vec<crate::relations::Definition>> =
@@ -919,7 +919,7 @@ impl RagClient {
             .iter()
             .filter(|r| {
                 // Check if this reference points to our target symbol
-                r.target_symbol_id.contains(&symbol_name_str)
+                r.target_symbol_id.contains(symbol_name_str.as_str())
             })
             .take(request.limit)
             .map(ReferenceResult::from)
@@ -1046,7 +1046,7 @@ impl RagClient {
             .collect();
 
         // Find callees (calls made from within our function)
-        let target_func = target_function.unwrap();
+        let target_func = target_function.expect("early return on None above guarantees Some");
         let mut seen_callees = std::collections::HashSet::new();
         let callees: Vec<crate::relations::CallGraphNode> = references
             .iter()

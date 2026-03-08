@@ -32,6 +32,41 @@
 use brainwires_core::graph::{EntityStoreT, EntityType, RelationshipGraphT};
 use regex::Regex;
 use std::collections::HashMap;
+use std::sync::LazyLock;
+
+// --- LazyLock regex statics for coreference pattern detection ---
+
+// Pronoun patterns
+static RE_SINGULAR_NEUTRAL: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\b(it|this|that)\b").expect("valid regex"));
+static RE_PLURAL: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\b(they|them|those|these)\b").expect("valid regex"));
+
+// Definite NP patterns
+static RE_THE_FILE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\bthe\s+(file|files)\b").expect("valid regex"));
+static RE_THE_FUNCTION: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\bthe\s+(function|method|fn)\b").expect("valid regex"));
+static RE_THE_TYPE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\bthe\s+(type|struct|class|enum|interface)\b").expect("valid regex")
+});
+static RE_THE_ERROR: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\bthe\s+(error|bug|issue)\b").expect("valid regex"));
+static RE_THE_VARIABLE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\bthe\s+(variable|var|const|let)\b").expect("valid regex"));
+static RE_THE_COMMAND: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\bthe\s+(command|cmd)\b").expect("valid regex"));
+
+// Demonstrative patterns
+static RE_DEMO_FILE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\b(that|this)\s+(file)\b").expect("valid regex"));
+static RE_DEMO_FUNCTION: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\b(that|this)\s+(function|method|fn)\b").expect("valid regex"));
+static RE_DEMO_TYPE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\b(that|this)\s+(type|struct|class|enum)\b").expect("valid regex")
+});
+static RE_DEMO_ERROR: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\b(that|this)\s+(error|bug|issue)\b").expect("valid regex"));
 
 /// Types of anaphoric references we can detect
 #[derive(Debug, Clone, PartialEq)]
@@ -255,7 +290,7 @@ impl DialogState {
 
 /// Pattern definition for detecting references
 struct ReferencePattern {
-    regex: Regex,
+    regex: &'static Regex,
     ref_type_fn: fn(&regex::Captures) -> ReferenceType,
 }
 
@@ -282,11 +317,11 @@ impl CoreferenceResolver {
     fn build_pronoun_patterns() -> Vec<ReferencePattern> {
         vec![
             ReferencePattern {
-                regex: Regex::new(r"\b(it|this|that)\b").unwrap(),
+                regex: &RE_SINGULAR_NEUTRAL,
                 ref_type_fn: |_| ReferenceType::SingularNeutral,
             },
             ReferencePattern {
-                regex: Regex::new(r"\b(they|them|those|these)\b").unwrap(),
+                regex: &RE_PLURAL,
                 ref_type_fn: |_| ReferenceType::Plural,
             },
         ]
@@ -295,37 +330,37 @@ impl CoreferenceResolver {
     fn build_definite_np_patterns() -> Vec<ReferencePattern> {
         vec![
             ReferencePattern {
-                regex: Regex::new(r"\bthe\s+(file|files)\b").unwrap(),
+                regex: &RE_THE_FILE,
                 ref_type_fn: |_| ReferenceType::DefiniteNP {
                     entity_type: EntityType::File,
                 },
             },
             ReferencePattern {
-                regex: Regex::new(r"\bthe\s+(function|method|fn)\b").unwrap(),
+                regex: &RE_THE_FUNCTION,
                 ref_type_fn: |_| ReferenceType::DefiniteNP {
                     entity_type: EntityType::Function,
                 },
             },
             ReferencePattern {
-                regex: Regex::new(r"\bthe\s+(type|struct|class|enum|interface)\b").unwrap(),
+                regex: &RE_THE_TYPE,
                 ref_type_fn: |_| ReferenceType::DefiniteNP {
                     entity_type: EntityType::Type,
                 },
             },
             ReferencePattern {
-                regex: Regex::new(r"\bthe\s+(error|bug|issue)\b").unwrap(),
+                regex: &RE_THE_ERROR,
                 ref_type_fn: |_| ReferenceType::DefiniteNP {
                     entity_type: EntityType::Error,
                 },
             },
             ReferencePattern {
-                regex: Regex::new(r"\bthe\s+(variable|var|const|let)\b").unwrap(),
+                regex: &RE_THE_VARIABLE,
                 ref_type_fn: |_| ReferenceType::DefiniteNP {
                     entity_type: EntityType::Variable,
                 },
             },
             ReferencePattern {
-                regex: Regex::new(r"\bthe\s+(command|cmd)\b").unwrap(),
+                regex: &RE_THE_COMMAND,
                 ref_type_fn: |_| ReferenceType::DefiniteNP {
                     entity_type: EntityType::Command,
                 },
@@ -336,25 +371,25 @@ impl CoreferenceResolver {
     fn build_demonstrative_patterns() -> Vec<ReferencePattern> {
         vec![
             ReferencePattern {
-                regex: Regex::new(r"\b(that|this)\s+(file)\b").unwrap(),
+                regex: &RE_DEMO_FILE,
                 ref_type_fn: |_| ReferenceType::Demonstrative {
                     entity_type: EntityType::File,
                 },
             },
             ReferencePattern {
-                regex: Regex::new(r"\b(that|this)\s+(function|method|fn)\b").unwrap(),
+                regex: &RE_DEMO_FUNCTION,
                 ref_type_fn: |_| ReferenceType::Demonstrative {
                     entity_type: EntityType::Function,
                 },
             },
             ReferencePattern {
-                regex: Regex::new(r"\b(that|this)\s+(type|struct|class|enum)\b").unwrap(),
+                regex: &RE_DEMO_TYPE,
                 ref_type_fn: |_| ReferenceType::Demonstrative {
                     entity_type: EntityType::Type,
                 },
             },
             ReferencePattern {
-                regex: Regex::new(r"\b(that|this)\s+(error|bug|issue)\b").unwrap(),
+                regex: &RE_DEMO_ERROR,
                 ref_type_fn: |_| ReferenceType::Demonstrative {
                     entity_type: EntityType::Error,
                 },

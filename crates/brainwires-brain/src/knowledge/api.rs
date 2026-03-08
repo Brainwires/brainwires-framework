@@ -510,6 +510,7 @@ impl ToSnakeCase for TruthSource {
 // ============ Mock client for testing ============
 
 #[cfg(test)]
+#[allow(missing_docs)]
 /// Mock client for testing knowledge API interactions.
 pub struct MockKnowledgeApiClient {
     pub truths: Vec<BehavioralTruth>,
@@ -519,6 +520,7 @@ pub struct MockKnowledgeApiClient {
 }
 
 #[cfg(test)]
+#[allow(missing_docs)]
 impl MockKnowledgeApiClient {
     pub fn new() -> Self {
         Self {

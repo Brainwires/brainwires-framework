@@ -216,18 +216,23 @@ impl DocumentProcessor {
         }
 
         // More sophisticated approach: use regex to find text nodes
-        let re = regex::Regex::new(r"<w:t[^>]*>([^<]*)</w:t>").unwrap();
+        use std::sync::LazyLock;
+        static RE_TEXT: LazyLock<regex::Regex> = LazyLock::new(|| {
+            regex::Regex::new(r"<w:t[^>]*>([^<]*)</w:t>").expect("valid regex")
+        });
+        static RE_PARA: LazyLock<regex::Regex> = LazyLock::new(|| {
+            regex::Regex::new(r"</w:p>").expect("valid regex")
+        });
         result.clear();
 
-        for cap in re.captures_iter(xml) {
+        for cap in RE_TEXT.captures_iter(xml) {
             if let Some(text) = cap.get(1) {
                 result.push_str(text.as_str());
             }
         }
 
         // Add paragraph breaks
-        let re_para = regex::Regex::new(r"</w:p>").unwrap();
-        let with_breaks = re_para.replace_all(&result, "\n\n");
+        let with_breaks = RE_PARA.replace_all(&result, "\n\n");
 
         with_breaks.to_string()
     }

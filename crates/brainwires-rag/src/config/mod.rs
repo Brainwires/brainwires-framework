@@ -414,9 +414,14 @@ impl Config {
 // Tests are inline in this module
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
-    fn test_config_placeholder() {
-        // Placeholder for config tests
-        // TODO: Add comprehensive config tests
+    fn default_config_is_valid() {
+        let config = Config::default();
+        assert!(config.indexing.chunk_size > 0);
+        assert!(config.indexing.max_file_size > 0);
+        assert!(config.search.limit > 0);
+        assert!(config.search.min_score >= 0.0 && config.search.min_score <= 1.0);
     }
 }

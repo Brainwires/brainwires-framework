@@ -306,18 +306,18 @@ impl PlanStore {
 
     /// Convert record batch to plan metadata
     fn batch_to_plans(&self, batch: &RecordBatch) -> Result<Vec<PlanMetadata>> {
-        let plan_ids = batch.column(0).as_any().downcast_ref::<StringArray>().unwrap();
-        let conversation_ids = batch.column(1).as_any().downcast_ref::<StringArray>().unwrap();
-        let titles = batch.column(2).as_any().downcast_ref::<StringArray>().unwrap();
-        let task_descriptions = batch.column(3).as_any().downcast_ref::<StringArray>().unwrap();
-        let plan_contents = batch.column(4).as_any().downcast_ref::<StringArray>().unwrap();
-        let model_ids = batch.column(5).as_any().downcast_ref::<StringArray>().unwrap();
-        let statuses = batch.column(6).as_any().downcast_ref::<StringArray>().unwrap();
-        let executed_col = batch.column(7).as_any().downcast_ref::<BooleanArray>().unwrap();
-        let iterations_used = batch.column(8).as_any().downcast_ref::<Int32Array>().unwrap();
-        let created_ats = batch.column(9).as_any().downcast_ref::<Int64Array>().unwrap();
-        let updated_ats = batch.column(10).as_any().downcast_ref::<Int64Array>().unwrap();
-        let file_paths = batch.column(11).as_any().downcast_ref::<StringArray>().unwrap();
+        let plan_ids = batch.column(0).as_any().downcast_ref::<StringArray>().context("column 0 type mismatch: expected StringArray")?;
+        let conversation_ids = batch.column(1).as_any().downcast_ref::<StringArray>().context("column 1 type mismatch: expected StringArray")?;
+        let titles = batch.column(2).as_any().downcast_ref::<StringArray>().context("column 2 type mismatch: expected StringArray")?;
+        let task_descriptions = batch.column(3).as_any().downcast_ref::<StringArray>().context("column 3 type mismatch: expected StringArray")?;
+        let plan_contents = batch.column(4).as_any().downcast_ref::<StringArray>().context("column 4 type mismatch: expected StringArray")?;
+        let model_ids = batch.column(5).as_any().downcast_ref::<StringArray>().context("column 5 type mismatch: expected StringArray")?;
+        let statuses = batch.column(6).as_any().downcast_ref::<StringArray>().context("column 6 type mismatch: expected StringArray")?;
+        let executed_col = batch.column(7).as_any().downcast_ref::<BooleanArray>().context("column 7 type mismatch: expected BooleanArray")?;
+        let iterations_used = batch.column(8).as_any().downcast_ref::<Int32Array>().context("column 8 type mismatch: expected Int32Array")?;
+        let created_ats = batch.column(9).as_any().downcast_ref::<Int64Array>().context("column 9 type mismatch: expected Int64Array")?;
+        let updated_ats = batch.column(10).as_any().downcast_ref::<Int64Array>().context("column 10 type mismatch: expected Int64Array")?;
+        let file_paths = batch.column(11).as_any().downcast_ref::<StringArray>().context("column 11 type mismatch: expected StringArray")?;
 
         // Branching fields (may not exist in older databases)
         let parent_plan_ids = batch.column_by_name("parent_plan_id")

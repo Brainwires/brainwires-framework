@@ -15,7 +15,7 @@ pub fn detect_category(text: &str) -> ThoughtCategory {
     // Person indicators — capitalized names after relational keywords (check before action items
     // because phrases like "spoke to Sarah about the deadline" should be Person, not ActionItem)
     static PERSON_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)\b(?:spoke to|met with|talked to|met|told)\s+[A-Z][a-z]+").unwrap()
+        Regex::new(r"(?i)\b(?:spoke to|met with|talked to|met|told)\s+[A-Z][a-z]+").expect("valid regex")
     });
     if PERSON_RE.is_match(text) {
         return ThoughtCategory::Person;
@@ -38,7 +38,7 @@ pub fn detect_category(text: &str) -> ThoughtCategory {
 
     // Meeting note indicators (use word-boundary-aware matching for "sync")
     static MEETING_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)\b(?:standup|meeting|discussed|retro|sprint|call with|1:1)\b|\bsync\b").unwrap()
+        Regex::new(r"(?i)\b(?:standup|meeting|discussed|retro|sprint|call with|1:1)\b|\bsync\b").expect("valid regex")
     });
     if MEETING_RE.is_match(text) {
         return ThoughtCategory::MeetingNote;
@@ -46,7 +46,7 @@ pub fn detect_category(text: &str) -> ThoughtCategory {
 
     // Reference indicators
     static URL_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"https?://").unwrap()
+        Regex::new(r"https?://").expect("valid regex")
     });
     if URL_RE.is_match(text) || contains_any(&lower, &["docs at", "reference:", "link:", "see also"]) {
         return ThoughtCategory::Reference;
@@ -67,7 +67,7 @@ pub fn extract_tags(text: &str) -> Vec<String> {
 
     // #hashtag extraction
     static HASHTAG_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"#([A-Za-z][A-Za-z0-9_-]{1,30})").unwrap()
+        Regex::new(r"#([A-Za-z][A-Za-z0-9_-]{1,30})").expect("valid regex")
     });
     for cap in HASHTAG_RE.captures_iter(text) {
         let tag = cap[1].to_lowercase();

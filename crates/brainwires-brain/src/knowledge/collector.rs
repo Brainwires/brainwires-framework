@@ -243,8 +243,15 @@ impl LearningCollector {
             .to_lowercase();
 
         // Remove numbers and paths
-        let re_numbers = regex::Regex::new(r"\d+").unwrap();
-        let re_paths = regex::Regex::new(r"/[\w/.-]+").unwrap();
+        use std::sync::LazyLock;
+        static RE_NUMBERS: LazyLock<regex::Regex> = LazyLock::new(|| {
+            regex::Regex::new(r"\d+").expect("valid regex")
+        });
+        static RE_PATHS: LazyLock<regex::Regex> = LazyLock::new(|| {
+            regex::Regex::new(r"/[\w/.-]+").expect("valid regex")
+        });
+        let re_numbers = &*RE_NUMBERS;
+        let re_paths = &*RE_PATHS;
 
         let normalized = re_numbers.replace_all(&normalized, "<N>");
         let normalized = re_paths.replace_all(&normalized, "<PATH>");

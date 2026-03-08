@@ -89,7 +89,7 @@ impl AttentionMechanism {
         }
 
         self.cache.insert(task_id.to_string(), window);
-        self.cache.get(task_id).unwrap()
+        self.cache.get(task_id).expect("just inserted")
     }
 
     /// Get a cached attention window for a task.

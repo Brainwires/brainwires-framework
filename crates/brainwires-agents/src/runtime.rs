@@ -248,56 +248,56 @@ pub async fn run_agent_loop(
         iterations += 1;
 
         // ── Hook A: on_before_iteration ──────────────────────────────────
-        if let Some(hooks) = hooks {
-            if let Some(conv_lock) = agent.conversation() {
-                let conv_len = conv_lock.read().await.len();
-                let iter_ctx = IterationContext {
-                    agent_id: &agent_id,
-                    iteration: iterations as u32,
-                    max_iterations: agent.max_iterations() as u32,
-                    total_tokens_used: 0,
-                    total_cost_usd: 0.0,
-                    elapsed: start_time.elapsed(),
-                    conversation_len: conv_len,
-                };
-                let mut history = conv_lock.write().await;
-                let mut view = ConversationView::new(&mut history);
-                match hooks.on_before_iteration(&iter_ctx, &mut view).await {
-                    IterationDecision::Continue => {}
-                    IterationDecision::Skip => continue,
-                    IterationDecision::Abort(reason) => {
-                        let output = format!("Aborted by hook: {}", reason);
-                        let _ = hub.unregister_agent(&agent_id).await;
-                        lock_manager.release_all_locks(&agent_id).await;
-                        return Ok(AgentExecutionResult {
-                            agent_id,
-                            success: false,
-                            output,
-                            iterations,
-                            tools_used,
-                        });
-                    }
+        if let Some(hooks) = hooks
+            && let Some(conv_lock) = agent.conversation()
+        {
+            let conv_len = conv_lock.read().await.len();
+            let iter_ctx = IterationContext {
+                agent_id: &agent_id,
+                iteration: iterations as u32,
+                max_iterations: agent.max_iterations() as u32,
+                total_tokens_used: 0,
+                total_cost_usd: 0.0,
+                elapsed: start_time.elapsed(),
+                conversation_len: conv_len,
+            };
+            let mut history = conv_lock.write().await;
+            let mut view = ConversationView::new(&mut history);
+            match hooks.on_before_iteration(&iter_ctx, &mut view).await {
+                IterationDecision::Continue => {}
+                IterationDecision::Skip => continue,
+                IterationDecision::Abort(reason) => {
+                    let output = format!("Aborted by hook: {}", reason);
+                    let _ = hub.unregister_agent(&agent_id).await;
+                    lock_manager.release_all_locks(&agent_id).await;
+                    return Ok(AgentExecutionResult {
+                        agent_id,
+                        success: false,
+                        output,
+                        iterations,
+                        tools_used,
+                    });
                 }
             }
         }
 
         // ── Hook B: on_before_provider_call ──────────────────────────────
-        if let Some(hooks) = hooks {
-            if let Some(conv_lock) = agent.conversation() {
-                let conv_len = conv_lock.read().await.len();
-                let iter_ctx = IterationContext {
-                    agent_id: &agent_id,
-                    iteration: iterations as u32,
-                    max_iterations: agent.max_iterations() as u32,
-                    total_tokens_used: 0,
-                    total_cost_usd: 0.0,
-                    elapsed: start_time.elapsed(),
-                    conversation_len: conv_len,
-                };
-                let mut history = conv_lock.write().await;
-                let mut view = ConversationView::new(&mut history);
-                hooks.on_before_provider_call(&iter_ctx, &mut view).await;
-            }
+        if let Some(hooks) = hooks
+            && let Some(conv_lock) = agent.conversation()
+        {
+            let conv_len = conv_lock.read().await.len();
+            let iter_ctx = IterationContext {
+                agent_id: &agent_id,
+                iteration: iterations as u32,
+                max_iterations: agent.max_iterations() as u32,
+                total_tokens_used: 0,
+                total_cost_usd: 0.0,
+                elapsed: start_time.elapsed(),
+                conversation_len: conv_len,
+            };
+            let mut history = conv_lock.write().await;
+            let mut view = ConversationView::new(&mut history);
+            hooks.on_before_provider_call(&iter_ctx, &mut view).await;
         }
 
         // Call provider
@@ -451,24 +451,24 @@ pub async fn run_agent_loop(
             agent.on_tool_result(tool_use, &tool_result).await;
 
             // ── Hook E: on_after_tool_execution ──────────────────────────
-            if let Some(hooks) = hooks {
-                if let Some(conv_lock) = agent.conversation() {
-                    let conv_len = conv_lock.read().await.len();
-                    let iter_ctx = IterationContext {
-                        agent_id: &agent_id,
-                        iteration: iterations as u32,
-                        max_iterations: agent.max_iterations() as u32,
-                        total_tokens_used: 0,
-                        total_cost_usd: 0.0,
-                        elapsed: start_time.elapsed(),
-                        conversation_len: conv_len,
-                    };
-                    let mut history = conv_lock.write().await;
-                    let mut view = ConversationView::new(&mut history);
-                    hooks
-                        .on_after_tool_execution(&iter_ctx, tool_use, &tool_result, &mut view)
-                        .await;
-                }
+            if let Some(hooks) = hooks
+                && let Some(conv_lock) = agent.conversation()
+            {
+                let conv_len = conv_lock.read().await.len();
+                let iter_ctx = IterationContext {
+                    agent_id: &agent_id,
+                    iteration: iterations as u32,
+                    max_iterations: agent.max_iterations() as u32,
+                    total_tokens_used: 0,
+                    total_cost_usd: 0.0,
+                    elapsed: start_time.elapsed(),
+                    conversation_len: conv_len,
+                };
+                let mut history = conv_lock.write().await;
+                let mut view = ConversationView::new(&mut history);
+                hooks
+                    .on_after_tool_execution(&iter_ctx, tool_use, &tool_result, &mut view)
+                    .await;
             }
         }
 
@@ -493,36 +493,36 @@ pub async fn run_agent_loop(
         }
 
         // ── Hook G: on_after_iteration + context pressure ────────────────
-        if let Some(hooks) = hooks {
-            if let Some(conv_lock) = agent.conversation() {
-                let conv_len = conv_lock.read().await.len();
-                let iter_ctx = IterationContext {
-                    agent_id: &agent_id,
-                    iteration: iterations as u32,
-                    max_iterations: agent.max_iterations() as u32,
-                    total_tokens_used: 0,
-                    total_cost_usd: 0.0,
-                    elapsed: start_time.elapsed(),
-                    conversation_len: conv_len,
-                };
+        if let Some(hooks) = hooks
+            && let Some(conv_lock) = agent.conversation()
+        {
+            let conv_len = conv_lock.read().await.len();
+            let iter_ctx = IterationContext {
+                agent_id: &agent_id,
+                iteration: iterations as u32,
+                max_iterations: agent.max_iterations() as u32,
+                total_tokens_used: 0,
+                total_cost_usd: 0.0,
+                elapsed: start_time.elapsed(),
+                conversation_len: conv_len,
+            };
 
-                // Context pressure check
-                if let Some(budget) = agent.context_budget_tokens() {
-                    let mut history = conv_lock.write().await;
-                    let mut view = ConversationView::new(&mut history);
-                    let est_tokens = view.estimated_tokens();
-                    if est_tokens > budget {
-                        hooks
-                            .on_context_pressure(&iter_ctx, &mut view, est_tokens, budget)
-                            .await;
-                    }
-                }
-
-                // After-iteration hook
+            // Context pressure check
+            if let Some(budget) = agent.context_budget_tokens() {
                 let mut history = conv_lock.write().await;
                 let mut view = ConversationView::new(&mut history);
-                hooks.on_after_iteration(&iter_ctx, &mut view).await;
+                let est_tokens = view.estimated_tokens();
+                if est_tokens > budget {
+                    hooks
+                        .on_context_pressure(&iter_ctx, &mut view, est_tokens, budget)
+                        .await;
+                }
             }
+
+            // After-iteration hook
+            let mut history = conv_lock.write().await;
+            let mut view = ConversationView::new(&mut history);
+            hooks.on_after_iteration(&iter_ctx, &mut view).await;
         }
     }
 }

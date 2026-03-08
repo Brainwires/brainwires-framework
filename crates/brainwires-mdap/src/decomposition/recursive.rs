@@ -112,16 +112,6 @@ impl<P: MicroagentProvider + 'static> BinaryRecursiveDecomposer<P> {
     }
 
     /// Parse the decomposition response
-    #[allow(dead_code)]
-    fn parse_decomposition(
-        &self,
-        response: &str,
-        original_task: &str,
-    ) -> MdapResult<DecompositionResult> {
-        Self::parse_decomposition_static(response, original_task)
-    }
-
-    /// Parse the decomposition response (static version)
     fn parse_decomposition_static(
         response: &str,
         original_task: &str,
@@ -442,10 +432,13 @@ mod tests {
 
     #[test]
     fn test_parse_decomposition() {
-        let decomposer = BinaryRecursiveDecomposer::new(Arc::new(MockProvider), 10, 3);
-
         let response = "SUBTASK_1: Read the file\nSUBTASK_2: Process the content\nCOMPOSE: sequence";
-        let result = decomposer.parse_decomposition(response, "test task").unwrap();
+        let result =
+            BinaryRecursiveDecomposer::<MockProvider>::parse_decomposition_static(
+                response,
+                "test task",
+            )
+            .unwrap();
 
         assert_eq!(result.subtasks.len(), 2);
         assert!(!result.is_minimal);
@@ -453,10 +446,13 @@ mod tests {
 
     #[test]
     fn test_parse_decomposition_invalid() {
-        let decomposer = BinaryRecursiveDecomposer::new(Arc::new(MockProvider), 10, 3);
-
         let response = "Invalid response without proper format";
-        let result = decomposer.parse_decomposition(response, "test task").unwrap();
+        let result =
+            BinaryRecursiveDecomposer::<MockProvider>::parse_decomposition_static(
+                response,
+                "test task",
+            )
+            .unwrap();
 
         // Should fall back to atomic
         assert!(result.is_minimal);

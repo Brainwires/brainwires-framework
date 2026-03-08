@@ -42,9 +42,9 @@ impl RelationsProvider for StackGraphsProvider {
         if !self.supports_language(language) {
             return Ok(vec![]);
         }
-        // TODO: integrate stack-graphs crate for full name resolution.
-        // For now, fall back to empty results (the hybrid provider will
-        // delegate to RepoMap instead).
+        // Known limitation: stack-graphs crate integration for full name
+        // resolution is not yet implemented. The hybrid provider delegates
+        // to RepoMap for actual definition extraction.
         Ok(vec![])
     }
 

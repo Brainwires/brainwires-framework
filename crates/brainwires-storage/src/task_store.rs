@@ -289,22 +289,22 @@ impl TaskStore {
 
     /// Convert record batch to task metadata
     fn batch_to_tasks(&self, batch: &RecordBatch) -> Result<Vec<TaskMetadata>> {
-        let task_ids = batch.column(0).as_any().downcast_ref::<StringArray>().unwrap();
-        let conversation_ids = batch.column(1).as_any().downcast_ref::<StringArray>().unwrap();
-        let plan_ids = batch.column(2).as_any().downcast_ref::<StringArray>().unwrap();
-        let descriptions = batch.column(3).as_any().downcast_ref::<StringArray>().unwrap();
-        let statuses = batch.column(4).as_any().downcast_ref::<StringArray>().unwrap();
-        let parent_ids = batch.column(5).as_any().downcast_ref::<StringArray>().unwrap();
-        let children_col = batch.column(6).as_any().downcast_ref::<StringArray>().unwrap();
-        let depends_on_col = batch.column(7).as_any().downcast_ref::<StringArray>().unwrap();
-        let priorities = batch.column(8).as_any().downcast_ref::<StringArray>().unwrap();
-        let assigned_tos = batch.column(9).as_any().downcast_ref::<StringArray>().unwrap();
-        let iterations = batch.column(10).as_any().downcast_ref::<Int32Array>().unwrap();
-        let summaries = batch.column(11).as_any().downcast_ref::<StringArray>().unwrap();
-        let created_ats = batch.column(12).as_any().downcast_ref::<Int64Array>().unwrap();
-        let updated_ats = batch.column(13).as_any().downcast_ref::<Int64Array>().unwrap();
-        let started_ats = batch.column(14).as_any().downcast_ref::<Int64Array>().unwrap();
-        let completed_ats = batch.column(15).as_any().downcast_ref::<Int64Array>().unwrap();
+        let task_ids = batch.column(0).as_any().downcast_ref::<StringArray>().context("column 0 type mismatch: expected StringArray")?;
+        let conversation_ids = batch.column(1).as_any().downcast_ref::<StringArray>().context("column 1 type mismatch: expected StringArray")?;
+        let plan_ids = batch.column(2).as_any().downcast_ref::<StringArray>().context("column 2 type mismatch: expected StringArray")?;
+        let descriptions = batch.column(3).as_any().downcast_ref::<StringArray>().context("column 3 type mismatch: expected StringArray")?;
+        let statuses = batch.column(4).as_any().downcast_ref::<StringArray>().context("column 4 type mismatch: expected StringArray")?;
+        let parent_ids = batch.column(5).as_any().downcast_ref::<StringArray>().context("column 5 type mismatch: expected StringArray")?;
+        let children_col = batch.column(6).as_any().downcast_ref::<StringArray>().context("column 6 type mismatch: expected StringArray")?;
+        let depends_on_col = batch.column(7).as_any().downcast_ref::<StringArray>().context("column 7 type mismatch: expected StringArray")?;
+        let priorities = batch.column(8).as_any().downcast_ref::<StringArray>().context("column 8 type mismatch: expected StringArray")?;
+        let assigned_tos = batch.column(9).as_any().downcast_ref::<StringArray>().context("column 9 type mismatch: expected StringArray")?;
+        let iterations = batch.column(10).as_any().downcast_ref::<Int32Array>().context("column 10 type mismatch: expected Int32Array")?;
+        let summaries = batch.column(11).as_any().downcast_ref::<StringArray>().context("column 11 type mismatch: expected StringArray")?;
+        let created_ats = batch.column(12).as_any().downcast_ref::<Int64Array>().context("column 12 type mismatch: expected Int64Array")?;
+        let updated_ats = batch.column(13).as_any().downcast_ref::<Int64Array>().context("column 13 type mismatch: expected Int64Array")?;
+        let started_ats = batch.column(14).as_any().downcast_ref::<Int64Array>().context("column 14 type mismatch: expected Int64Array")?;
+        let completed_ats = batch.column(15).as_any().downcast_ref::<Int64Array>().context("column 15 type mismatch: expected Int64Array")?;
 
         let mut tasks = Vec::new();
         for i in 0..batch.num_rows() {
@@ -593,14 +593,14 @@ impl AgentStateStore {
 
     /// Convert record batch to agent states
     fn batch_to_states(&self, batch: &RecordBatch) -> Result<Vec<AgentStateMetadata>> {
-        let agent_ids = batch.column(0).as_any().downcast_ref::<StringArray>().unwrap();
-        let task_ids = batch.column(1).as_any().downcast_ref::<StringArray>().unwrap();
-        let conversation_ids = batch.column(2).as_any().downcast_ref::<StringArray>().unwrap();
-        let statuses = batch.column(3).as_any().downcast_ref::<StringArray>().unwrap();
-        let iterations = batch.column(4).as_any().downcast_ref::<Int32Array>().unwrap();
-        let context_jsons = batch.column(5).as_any().downcast_ref::<StringArray>().unwrap();
-        let created_ats = batch.column(6).as_any().downcast_ref::<Int64Array>().unwrap();
-        let updated_ats = batch.column(7).as_any().downcast_ref::<Int64Array>().unwrap();
+        let agent_ids = batch.column(0).as_any().downcast_ref::<StringArray>().context("column 0 type mismatch: expected StringArray")?;
+        let task_ids = batch.column(1).as_any().downcast_ref::<StringArray>().context("column 1 type mismatch: expected StringArray")?;
+        let conversation_ids = batch.column(2).as_any().downcast_ref::<StringArray>().context("column 2 type mismatch: expected StringArray")?;
+        let statuses = batch.column(3).as_any().downcast_ref::<StringArray>().context("column 3 type mismatch: expected StringArray")?;
+        let iterations = batch.column(4).as_any().downcast_ref::<Int32Array>().context("column 4 type mismatch: expected Int32Array")?;
+        let context_jsons = batch.column(5).as_any().downcast_ref::<StringArray>().context("column 5 type mismatch: expected StringArray")?;
+        let created_ats = batch.column(6).as_any().downcast_ref::<Int64Array>().context("column 6 type mismatch: expected Int64Array")?;
+        let updated_ats = batch.column(7).as_any().downcast_ref::<Int64Array>().context("column 7 type mismatch: expected Int64Array")?;
 
         let mut states = Vec::new();
         for i in 0..batch.num_rows() {

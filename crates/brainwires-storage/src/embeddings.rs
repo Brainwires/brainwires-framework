@@ -180,7 +180,7 @@ impl CachedEmbeddingProvider {
 
         Ok(Self {
             inner: Arc::new(inner),
-            cache: RwLock::new(LruCache::new(NonZeroUsize::new(DEFAULT_CACHE_SIZE).unwrap())),
+            cache: RwLock::new(LruCache::new(NonZeroUsize::new(DEFAULT_CACHE_SIZE).expect("DEFAULT_CACHE_SIZE is non-zero"))),
         })
     }
 
@@ -188,7 +188,7 @@ impl CachedEmbeddingProvider {
     pub fn with_manager(manager: Arc<FastEmbedManager>) -> Self {
         Self {
             inner: manager,
-            cache: RwLock::new(LruCache::new(NonZeroUsize::new(DEFAULT_CACHE_SIZE).unwrap())),
+            cache: RwLock::new(LruCache::new(NonZeroUsize::new(DEFAULT_CACHE_SIZE).expect("DEFAULT_CACHE_SIZE is non-zero"))),
         }
     }
 
@@ -286,7 +286,7 @@ impl Clone for CachedEmbeddingProvider {
     fn clone(&self) -> Self {
         Self {
             inner: Arc::clone(&self.inner),
-            cache: RwLock::new(LruCache::new(NonZeroUsize::new(DEFAULT_CACHE_SIZE).unwrap())),
+            cache: RwLock::new(LruCache::new(NonZeroUsize::new(DEFAULT_CACHE_SIZE).expect("DEFAULT_CACHE_SIZE is non-zero"))),
         }
     }
 }

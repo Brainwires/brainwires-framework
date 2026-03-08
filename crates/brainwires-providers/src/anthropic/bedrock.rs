@@ -126,7 +126,7 @@ impl BedrockAuth {
         // Add Anthropic version header for Bedrock
         request.headers_mut().insert(
             "anthropic_version",
-            "bedrock-2023-05-31".parse().unwrap(),
+            "bedrock-2023-05-31".parse().expect("valid header value"),
         );
 
         Ok(())

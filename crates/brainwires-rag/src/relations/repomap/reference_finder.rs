@@ -23,7 +23,7 @@ impl ReferenceFinder {
     pub fn new() -> Self {
         // Match word boundaries around identifiers
         Self {
-            identifier_regex: Regex::new(r"\b[a-zA-Z_][a-zA-Z0-9_]*\b").unwrap(),
+            identifier_regex: Regex::new(r"\b[a-zA-Z_][a-zA-Z0-9_]*\b").expect("valid regex"),
         }
     }
 

@@ -54,9 +54,9 @@ impl ProtocolMetrics {
 
     /// Record connection start
     pub fn record_connection_start(&self) {
-        let mut start = self.connection_start.write().unwrap();
+        let mut start = self.connection_start.write().expect("metrics lock poisoned");
         *start = Some(Instant::now());
-        let mut activity = self.last_activity.write().unwrap();
+        let mut activity = self.last_activity.write().expect("metrics lock poisoned");
         *activity = Some(Instant::now());
     }
 
@@ -64,7 +64,7 @@ impl ProtocolMetrics {
     pub fn record_message_sent(&self, bytes: u64) {
         self.messages_sent.fetch_add(1, Ordering::Relaxed);
         self.bytes_sent.fetch_add(bytes, Ordering::Relaxed);
-        let mut activity = self.last_activity.write().unwrap();
+        let mut activity = self.last_activity.write().expect("metrics lock poisoned");
         *activity = Some(Instant::now());
     }
 
@@ -76,7 +76,7 @@ impl ProtocolMetrics {
     /// Record bytes received
     pub fn record_bytes_received(&self, bytes: u64) {
         self.bytes_received.fetch_add(bytes, Ordering::Relaxed);
-        let mut activity = self.last_activity.write().unwrap();
+        let mut activity = self.last_activity.write().expect("metrics lock poisoned");
         *activity = Some(Instant::now());
     }
 
@@ -89,7 +89,7 @@ impl ProtocolMetrics {
     /// Record message latency (one-way)
     pub fn record_latency(&self, latency: Duration) {
         let ms = latency.as_millis() as u64;
-        let mut samples = self.latency_samples.write().unwrap();
+        let mut samples = self.latency_samples.write().expect("metrics lock poisoned");
         if samples.len() >= MAX_LATENCY_SAMPLES {
             samples.pop_front();
         }
@@ -99,7 +99,7 @@ impl ProtocolMetrics {
     /// Record command roundtrip time
     pub fn record_roundtrip(&self, roundtrip: Duration) {
         let ms = roundtrip.as_millis() as u64;
-        let mut samples = self.roundtrip_samples.write().unwrap();
+        let mut samples = self.roundtrip_samples.write().expect("metrics lock poisoned");
         if samples.len() >= MAX_LATENCY_SAMPLES {
             samples.pop_front();
         }
@@ -108,10 +108,10 @@ impl ProtocolMetrics {
 
     /// Get current metrics snapshot
     pub fn snapshot(&self) -> MetricsSnapshot {
-        let latency_samples = self.latency_samples.read().unwrap();
-        let roundtrip_samples = self.roundtrip_samples.read().unwrap();
-        let connection_start = self.connection_start.read().unwrap();
-        let last_activity = self.last_activity.read().unwrap();
+        let latency_samples = self.latency_samples.read().expect("metrics lock poisoned");
+        let roundtrip_samples = self.roundtrip_samples.read().expect("metrics lock poisoned");
+        let connection_start = self.connection_start.read().expect("metrics lock poisoned");
+        let last_activity = self.last_activity.read().expect("metrics lock poisoned");
 
         let uptime_secs = connection_start
             .map(|s| s.elapsed().as_secs())
@@ -148,16 +148,16 @@ impl ProtocolMetrics {
 
     /// Reset all metrics
     pub fn reset(&self) {
-        self.latency_samples.write().unwrap().clear();
-        self.roundtrip_samples.write().unwrap().clear();
+        self.latency_samples.write().expect("metrics lock poisoned").clear();
+        self.roundtrip_samples.write().expect("metrics lock poisoned").clear();
         self.messages_sent.store(0, Ordering::Relaxed);
         self.messages_failed.store(0, Ordering::Relaxed);
         self.bytes_sent.store(0, Ordering::Relaxed);
         self.bytes_received.store(0, Ordering::Relaxed);
         self.bytes_uncompressed.store(0, Ordering::Relaxed);
         self.bytes_compressed.store(0, Ordering::Relaxed);
-        *self.connection_start.write().unwrap() = None;
-        *self.last_activity.write().unwrap() = None;
+        *self.connection_start.write().expect("metrics lock poisoned") = None;
+        *self.last_activity.write().expect("metrics lock poisoned") = None;
     }
 }
 

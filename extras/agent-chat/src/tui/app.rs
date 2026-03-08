@@ -67,7 +67,7 @@ pub enum AppEvent {
 
 impl App {
     pub fn new(session: ChatSession) -> Self {
-        let status_text = format!("{}", session.provider_name());
+        let status_text = session.provider_name().to_string();
         Self {
             session,
             mode: AppMode::Normal,
@@ -107,12 +107,11 @@ impl App {
             terminal.draw(|f| render::draw(f, self))?;
 
             // Poll for crossterm events with a short timeout
-            if event::poll(Duration::from_millis(50))? {
-                if let Event::Key(key) = event::read()? {
-                    if self.handle_key(key, &event_tx, &approval_tx).await? {
-                        break;
-                    }
-                }
+            if event::poll(Duration::from_millis(50))?
+                && let Event::Key(key) = event::read()?
+                && self.handle_key(key, &event_tx, &approval_tx).await?
+            {
+                break;
             }
 
             // Process any pending app events
@@ -334,11 +333,11 @@ impl App {
         match event {
             AppEvent::StreamEvent(se) => match se {
                 StreamEvent::Text(t) => {
-                    if let Some(last) = self.display_messages.last_mut() {
-                        if last.role == MessageRole::Assistant {
-                            last.content.push_str(&t);
-                            return;
-                        }
+                    if let Some(last) = self.display_messages.last_mut()
+                        && last.role == MessageRole::Assistant
+                    {
+                        last.content.push_str(&t);
+                        return;
                     }
                     self.display_messages.push(ChatMessage {
                         role: MessageRole::Assistant,

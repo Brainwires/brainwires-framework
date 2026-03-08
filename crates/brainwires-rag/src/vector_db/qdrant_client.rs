@@ -254,7 +254,7 @@ impl VectorDatabase for QdrantVectorDB {
                     "content": content,
                 })
                 .try_into()
-                .unwrap();
+                .expect("JSON object always converts to Payload");
 
                 PointStruct::new(idx as u64, embedding, payload)
             })
@@ -580,7 +580,7 @@ impl VectorDatabase for QdrantVectorDB {
 impl Default for QdrantVectorDB {
     fn default() -> Self {
         tokio::runtime::Runtime::new()
-            .unwrap()
+            .expect("failed to create tokio runtime")
             .block_on(Self::new())
             .expect("Failed to create default Qdrant client")
     }

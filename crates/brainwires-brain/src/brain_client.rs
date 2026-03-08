@@ -50,9 +50,9 @@ impl BrainClient {
         let bks_path = base.join("bks.db");
 
         Self::with_paths(
-            lance_path.to_str().unwrap(),
-            pks_path.to_str().unwrap(),
-            bks_path.to_str().unwrap(),
+            lance_path.to_str().context("lance path is not valid UTF-8")?,
+            pks_path.to_str().context("pks path is not valid UTF-8")?,
+            bks_path.to_str().context("bks path is not valid UTF-8")?,
         )
         .await
     }

@@ -232,7 +232,7 @@ impl PromptingLearningCoordinator {
 
         let stats = self.technique_stats
             .get(&(cluster_id.to_string(), technique.clone()))
-            .unwrap(); // Safe because should_promote checks this
+            .expect("should_promote verified this entry exists");
 
         let reliability = stats.reliability();
         let uses = stats.total_uses();

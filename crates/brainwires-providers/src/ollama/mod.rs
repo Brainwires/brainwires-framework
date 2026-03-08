@@ -139,7 +139,7 @@ impl Provider for OllamaProvider {
         if let Some(top_p) = options.top_p {
             opts["top_p"] = json!(top_p);
         }
-        if !opts.as_object().unwrap().is_empty() {
+        if !opts.as_object().expect("opts is always a JSON object").is_empty() {
             request_body["options"] = opts;
         }
 
@@ -216,7 +216,7 @@ impl Provider for OllamaProvider {
             if let Some(top_p) = options.top_p {
                 opts["top_p"] = json!(top_p);
             }
-            if !opts.as_object().unwrap().is_empty() {
+            if !opts.as_object().expect("opts is always a JSON object").is_empty() {
                 request_body["options"] = opts;
             }
 

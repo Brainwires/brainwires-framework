@@ -195,10 +195,6 @@ pub struct ToolUsageTracker {
     /// Tool usage counts: tool_name -> (success_count, failure_count)
     usage: HashMap<String, (u32, u32)>,
 
-    /// When tracking started (for rate limiting inference)
-    #[allow(dead_code)]
-    started_at: Instant,
-
     /// Last time we emitted inference facts
     last_inference: Instant,
 
@@ -211,11 +207,9 @@ pub struct ToolUsageTracker {
 
 impl ToolUsageTracker {
     fn new() -> Self {
-        let now = Instant::now();
         Self {
             usage: HashMap::new(),
-            started_at: now,
-            last_inference: now,
+            last_inference: Instant::now(),
             inference_interval: Duration::from_secs(KNOWLEDGE_INFERENCE_INTERVAL_SECS), // 5 minutes
             min_uses_for_inference: 5,
         }
@@ -550,10 +544,6 @@ pub struct PksBackgroundProcessor {
 
     /// Local cache
     cache: Arc<Mutex<PersonalKnowledgeCache>>,
-
-    /// Settings
-    #[allow(dead_code)]
-    settings: PersonalKnowledgeSettings,
 }
 
 impl PksBackgroundProcessor {
@@ -561,12 +551,11 @@ impl PksBackgroundProcessor {
     pub fn new(
         fact_rx: mpsc::UnboundedReceiver<DetectedFact>,
         cache: Arc<Mutex<PersonalKnowledgeCache>>,
-        settings: PersonalKnowledgeSettings,
+        _settings: PersonalKnowledgeSettings,
     ) -> Self {
         Self {
             fact_rx,
             cache,
-            settings,
         }
     }
 

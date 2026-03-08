@@ -101,7 +101,7 @@ impl ImprovementStrategy for RefactoringStrategy {
                     }
 
                     if brace_depth == 0 && fn_start.is_some() {
-                        let start = fn_start.unwrap();
+                        let start = fn_start.expect("checked is_some above");
                         let fn_lines = i - start + 1;
                         if fn_lines > 60 {
                             smells.push((

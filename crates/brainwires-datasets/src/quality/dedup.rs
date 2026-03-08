@@ -178,7 +178,7 @@ impl Deduplicator {
         let mut hasher = Sha256::new();
         hasher.update(shingle.as_bytes());
         let result = hasher.finalize();
-        u64::from_le_bytes(result[..8].try_into().unwrap())
+        u64::from_le_bytes(result[..8].try_into().expect("SHA256 always produces >= 8 bytes"))
     }
 
     /// Estimate Jaccard similarity from two MinHash signatures.

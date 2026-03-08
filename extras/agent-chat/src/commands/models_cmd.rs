@@ -67,10 +67,8 @@ pub async fn run(args: ModelsArgs) -> Result<()> {
     let filter = args.provider.as_deref().map(|s| s.to_lowercase());
 
     for info in KNOWN_MODELS {
-        if let Some(ref f) = filter {
-            if info.provider != f.as_str() {
-                continue;
-            }
+        if let Some(ref f) = filter && info.provider != f.as_str() {
+            continue;
         }
         println!("{}:", info.provider);
         for model in info.models {
@@ -79,10 +77,8 @@ pub async fn run(args: ModelsArgs) -> Result<()> {
         println!();
     }
 
-    if let Some(ref f) = filter {
-        if !KNOWN_MODELS.iter().any(|m| m.provider == f.as_str()) {
-            eprintln!("Unknown provider: {f}");
-        }
+    if let Some(ref f) = filter && !KNOWN_MODELS.iter().any(|m| m.provider == f.as_str()) {
+        eprintln!("Unknown provider: {f}");
     }
 
     Ok(())
