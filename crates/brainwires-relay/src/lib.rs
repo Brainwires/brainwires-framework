@@ -69,8 +69,3 @@ pub mod client;
 #[cfg(feature = "client")]
 pub use client::{RelayClient, RelayClientError, AgentConfig};
 
-// ============================================================================
-// A2A Protocol (merged from brainwires-a2a)
-// ============================================================================
-#[cfg(feature = "a2a")]
-pub mod a2a;

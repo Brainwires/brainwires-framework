@@ -39,6 +39,9 @@ brainwires-seal = { workspace = true, optional = true }
 # Relay (merged bridge + bridge-client)
 brainwires-relay = { workspace = true, optional = true }
 
+# A2A protocol
+brainwires-a2a = { workspace = true, optional = true }
+
 # Skills system
 brainwires-skills = { workspace = true, optional = true }
 
@@ -113,7 +116,7 @@ relay = ["dep:brainwires-relay"]
 skills = ["dep:brainwires-skills"]
 eval = ["agents", "brainwires-agents/eval"]
 proxy = ["dep:brainwires-proxy"]
-a2a = ["relay", "brainwires-relay/a2a"]
+a2a = ["dep:brainwires-a2a", "brainwires-a2a/native"]
 mesh = ["dep:brainwires-mesh"]
 audio = ["dep:brainwires-audio"]
 datasets = ["dep:brainwires-datasets"]

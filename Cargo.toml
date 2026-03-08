@@ -13,6 +13,7 @@ members = [
     "crates/brainwires-code-interpreters",
     "crates/brainwires-wasm",
     "crates/brainwires-relay",
+    "crates/brainwires-a2a",
     "crates/brainwires-seal",
     "crates/brainwires-providers",
     "crates/brainwires-skills",
@@ -57,6 +58,7 @@ brainwires-rag = { path = "crates/brainwires-rag", version = "0.1.0", default-fe
 brainwires-code-interpreters = { path = "crates/brainwires-code-interpreters", version = "0.1.0" }
 brainwires-wasm = { path = "crates/brainwires-wasm", version = "0.1.0" }
 brainwires-relay = { path = "crates/brainwires-relay", version = "0.1.0" }
+brainwires-a2a = { path = "crates/brainwires-a2a", version = "0.1.0", default-features = false }
 brainwires-seal = { path = "crates/brainwires-seal", version = "0.1.0" }
 brainwires-providers = { path = "crates/brainwires-providers", version = "0.1.0" }
 brainwires-skills = { path = "crates/brainwires-skills", version = "0.1.0" }
@@ -204,6 +206,11 @@ hyper-util = { version = "0.1", features = ["tokio", "server-auto", "client-lega
 http = "1.1"
 http-body-util = "0.1"
 bytes = "1"
+
+# gRPC
+tonic = "0.12"
+prost = "0.13"
+prost-types = "0.13"
 
 # Token decoding (used by llama-cpp-2)
 encoding_rs = "0.8"

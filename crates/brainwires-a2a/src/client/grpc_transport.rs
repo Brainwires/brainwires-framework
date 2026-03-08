@@ -1,0 +1,243 @@
+//! gRPC transport using tonic.
+
+#[cfg(feature = "grpc-client")]
+mod grpc_impl {
+    use std::pin::Pin;
+
+    use futures::Stream;
+    use tokio_stream::StreamExt;
+
+    use crate::error::A2aError;
+    use crate::params;
+    use crate::proto::lf_a2a_v1;
+    use crate::streaming::StreamEvent;
+    use crate::task::Task;
+
+    /// gRPC transport client.
+    pub struct GrpcTransport {
+        client: lf_a2a_v1::a2a_service_client::A2aServiceClient<tonic::transport::Channel>,
+    }
+
+    impl GrpcTransport {
+        /// Connect to a gRPC endpoint.
+        pub async fn connect(endpoint: &str) -> Result<Self, A2aError> {
+            let client =
+                lf_a2a_v1::a2a_service_client::A2aServiceClient::connect(endpoint.to_string())
+                    .await
+                    .map_err(|e| A2aError::internal(format!("gRPC connect failed: {e}")))?;
+            Ok(Self { client })
+        }
+
+        /// Send a message (unary).
+        pub async fn send_message(
+            &mut self,
+            req: params::SendMessageRequest,
+        ) -> Result<crate::streaming::SendMessageResponse, A2aError> {
+            let proto_req = lf_a2a_v1::SendMessageRequest {
+                tenant: req.tenant.unwrap_or_default(),
+                message: Some(req.message.into()),
+                configuration: None,
+                metadata: None,
+            };
+            let resp = self
+                .client
+                .send_message(proto_req)
+                .await
+                .map_err(|e| A2aError::internal(format!("gRPC error: {e}")))?;
+            let inner = resp.into_inner();
+            match inner.payload {
+                Some(lf_a2a_v1::send_message_response::Payload::Task(t)) => {
+                    Ok(crate::streaming::SendMessageResponse::Task(t.into()))
+                }
+                Some(lf_a2a_v1::send_message_response::Payload::Message(m)) => {
+                    Ok(crate::streaming::SendMessageResponse::Message(m.into()))
+                }
+                None => Err(A2aError::internal("Empty gRPC response")),
+            }
+        }
+
+        /// Send a streaming message.
+        pub async fn send_streaming_message(
+            &mut self,
+            req: params::SendMessageRequest,
+        ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamEvent, A2aError>> + Send>>, A2aError>
+        {
+            let proto_req = lf_a2a_v1::SendMessageRequest {
+                tenant: req.tenant.unwrap_or_default(),
+                message: Some(req.message.into()),
+                configuration: None,
+                metadata: None,
+            };
+            let resp = self
+                .client
+                .send_streaming_message(proto_req)
+                .await
+                .map_err(|e| A2aError::internal(format!("gRPC error: {e}")))?;
+
+            let stream = resp.into_inner().map(|item| {
+                item.map_err(|e| A2aError::internal(format!("gRPC stream error: {e}")))
+                    .and_then(|sr| proto_stream_response_to_event(sr))
+            });
+
+            Ok(Box::pin(stream))
+        }
+
+        /// Get a task by ID.
+        pub async fn get_task(&mut self, req: params::GetTaskRequest) -> Result<Task, A2aError> {
+            let proto_req = lf_a2a_v1::GetTaskRequest {
+                tenant: req.tenant.unwrap_or_default(),
+                id: req.id,
+                history_length: req.history_length,
+            };
+            let resp = self
+                .client
+                .get_task(proto_req)
+                .await
+                .map_err(|e| A2aError::internal(format!("gRPC error: {e}")))?;
+            Ok(resp.into_inner().into())
+        }
+
+        /// Cancel a task.
+        pub async fn cancel_task(
+            &mut self,
+            req: params::CancelTaskRequest,
+        ) -> Result<Task, A2aError> {
+            let proto_req = lf_a2a_v1::CancelTaskRequest {
+                tenant: req.tenant.unwrap_or_default(),
+                id: req.id,
+                metadata: None,
+            };
+            let resp = self
+                .client
+                .cancel_task(proto_req)
+                .await
+                .map_err(|e| A2aError::internal(format!("gRPC error: {e}")))?;
+            Ok(resp.into_inner().into())
+        }
+
+        /// List tasks.
+        pub async fn list_tasks(
+            &mut self,
+            req: params::ListTasksRequest,
+        ) -> Result<crate::params::ListTasksResponse, A2aError> {
+            let proto_req = lf_a2a_v1::ListTasksRequest {
+                tenant: req.tenant.unwrap_or_default(),
+                context_id: req.context_id.unwrap_or_default(),
+                status: req.status.map(i32::from).unwrap_or(0),
+                page_size: req.page_size,
+                page_token: req.page_token.unwrap_or_default(),
+                history_length: req.history_length,
+                status_timestamp_after: None,
+                include_artifacts: req.include_artifacts,
+            };
+            let resp = self
+                .client
+                .list_tasks(proto_req)
+                .await
+                .map_err(|e| A2aError::internal(format!("gRPC error: {e}")))?;
+            let inner = resp.into_inner();
+            Ok(crate::params::ListTasksResponse {
+                tasks: inner.tasks.into_iter().map(Into::into).collect(),
+                next_page_token: inner.next_page_token,
+                page_size: inner.page_size,
+                total_size: inner.total_size,
+            })
+        }
+
+        /// Get the authenticated extended agent card.
+        pub async fn get_extended_agent_card(
+            &mut self,
+            req: params::GetExtendedAgentCardRequest,
+        ) -> Result<crate::agent_card::AgentCard, A2aError> {
+            let proto_req = lf_a2a_v1::GetExtendedAgentCardRequest {
+                tenant: req.tenant.unwrap_or_default(),
+            };
+            let resp = self
+                .client
+                .get_extended_agent_card(proto_req)
+                .await
+                .map_err(|e| A2aError::internal(format!("gRPC error: {e}")))?;
+            Ok(resp.into_inner().into())
+        }
+
+        /// Subscribe to task updates.
+        pub async fn subscribe_to_task(
+            &mut self,
+            req: params::SubscribeToTaskRequest,
+        ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamEvent, A2aError>> + Send>>, A2aError>
+        {
+            let proto_req = lf_a2a_v1::SubscribeToTaskRequest {
+                tenant: req.tenant.unwrap_or_default(),
+                id: req.id,
+            };
+            let resp = self
+                .client
+                .subscribe_to_task(proto_req)
+                .await
+                .map_err(|e| A2aError::internal(format!("gRPC error: {e}")))?;
+
+            let stream = resp.into_inner().map(|item| {
+                item.map_err(|e| A2aError::internal(format!("gRPC stream error: {e}")))
+                    .and_then(|sr| proto_stream_response_to_event(sr))
+            });
+
+            Ok(Box::pin(stream))
+        }
+    }
+
+    fn proto_stream_response_to_event(
+        sr: lf_a2a_v1::StreamResponse,
+    ) -> Result<StreamEvent, A2aError> {
+        match sr.payload {
+            Some(lf_a2a_v1::stream_response::Payload::Task(t)) => {
+                Ok(StreamEvent::Task(t.into()))
+            }
+            Some(lf_a2a_v1::stream_response::Payload::Message(m)) => {
+                Ok(StreamEvent::Message(m.into()))
+            }
+            Some(lf_a2a_v1::stream_response::Payload::StatusUpdate(su)) => {
+                Ok(StreamEvent::StatusUpdate(
+                    crate::streaming::TaskStatusUpdateEvent {
+                        task_id: su.task_id,
+                        context_id: su.context_id,
+                        status: su
+                            .status
+                            .map(Into::into)
+                            .unwrap_or(crate::task::TaskStatus {
+                                state: crate::task::TaskState::Unknown,
+                                message: None,
+                                timestamp: None,
+                            }),
+                        metadata: None,
+                    },
+                ))
+            }
+            Some(lf_a2a_v1::stream_response::Payload::ArtifactUpdate(au)) => {
+                Ok(StreamEvent::ArtifactUpdate(
+                    crate::streaming::TaskArtifactUpdateEvent {
+                        task_id: au.task_id,
+                        context_id: au.context_id,
+                        artifact: au
+                            .artifact
+                            .map(Into::into)
+                            .unwrap_or(crate::types::Artifact {
+                                artifact_id: String::new(),
+                                name: None,
+                                description: None,
+                                parts: vec![],
+                                metadata: None,
+                                extensions: None,
+                            }),
+                        append: Some(au.append),
+                        last_chunk: Some(au.last_chunk),
+                        metadata: None,
+                    },
+                ))
+            }
+            None => Err(A2aError::internal("Empty stream response")),
+        }
+    }
+}
+
+#[cfg(feature = "grpc-client")]
+pub use grpc_impl::GrpcTransport;

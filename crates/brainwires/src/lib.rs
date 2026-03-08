@@ -129,7 +129,7 @@ pub mod proxy {
 /// A2A (Agent-to-Agent) protocol support.
 #[cfg(feature = "a2a")]
 pub mod a2a {
-    pub use brainwires_relay::a2a::*;
+    pub use brainwires_a2a::*;
 }
 
 /// Distributed mesh networking — topology, discovery, federation, routing.
