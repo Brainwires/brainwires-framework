@@ -5,7 +5,7 @@ Thank you for your interest in contributing! This guide will help you get starte
 ## Getting Started
 
 **Prerequisites:**
-- Rust 1.88+ (edition 2024)
+- Rust 1.91+ (edition 2024)
 - `cargo` (comes with Rust)
 
 ```bash
