@@ -20,6 +20,8 @@ jobs:
         with:
           toolchain: "1.91"
       - uses: Swatinem/rust-cache@v2
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
       - run: cargo check --workspace
 
   clippy:
@@ -32,6 +34,8 @@ jobs:
           toolchain: "1.91"
           components: clippy
       - uses: Swatinem/rust-cache@v2
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
       - run: cargo clippy --workspace -- -D warnings
 
   fmt:
@@ -54,6 +58,8 @@ jobs:
         with:
           toolchain: "1.91"
       - uses: Swatinem/rust-cache@v2
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
       - run: cargo test --workspace
 
   doc:
@@ -65,4 +71,6 @@ jobs:
         with:
           toolchain: "1.91"
       - uses: Swatinem/rust-cache@v2
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
       - run: cargo doc --workspace --no-deps
