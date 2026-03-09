@@ -61,6 +61,10 @@ tracing.workspace = true
 rhai = { version = "1.23", default-features = false, features = ["serde", "std"], optional = true }
 web-time = { version = "1.1", optional = true }
 
+# OpenAPI spec parsing (behind openapi feature)
+openapiv3 = { version = "2", optional = true }
+serde_yaml = { version = "0.9", optional = true }
+
 # Feature-gated dependencies
 brainwires-rag = { workspace = true, optional = true }
 brainwires-code-interpreters = { workspace = true, optional = true }
@@ -84,7 +88,8 @@ orchestrator-wasm = ["dep:rhai", "dep:web-time"]
 rag = ["dep:brainwires-rag", "brainwires-rag/native", "brainwires-rag/lancedb-backend", "brainwires-rag/tree-sitter-languages"]
 interpreters = ["dep:brainwires-code-interpreters"]
 smart-router = []
-full = ["orchestrator", "rag", "interpreters", "smart-router"]
+openapi = ["dep:openapiv3", "dep:serde_yaml", "dep:reqwest"]
+full = ["orchestrator", "rag", "interpreters", "smart-router", "openapi"]
 
 [[bench]]
 name = "token_comparison"

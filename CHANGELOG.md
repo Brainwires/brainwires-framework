@@ -49,6 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PlanExecutorAgent` for structured plan execution
 - Extended reasoning support (feature-gated)
 - Evaluation framework for benchmarking (feature-gated)
+- **Workflow Graph Builder**: Declarative DAG workflows with `WorkflowBuilder`, parallel fan-out/fan-in, conditional routing, shared `WorkflowContext` state, and failure propagation. Topological validation via `petgraph`.
+- **Named Reasoning Strategies** (feature-gated `reasoning`): `ReActStrategy`, `ReflexionStrategy`, `ChainOfThoughtStrategy`, `TreeOfThoughtsStrategy` — each with system prompts, completion detection, and step limits. `StrategyPreset` enum for factory creation.
+- **OpenTelemetry Export** (feature-gated `otel`): `export_to_otel()` maps `ExecutionGraph` to hierarchical OTel spans (`agent.run` → `agent.iteration.N` → `agent.tool.name`). `telemetry_attributes()` for attaching metrics to existing spans.
 - `AgentLifecycleHooks` trait with 10 hook points: before/after iteration, provider call, tool execution, completion, and context pressure.
 - `ToolDecision::Delegate` for sub-agent spawning, `ConversationView` for history manipulation, `DefaultDelegationHandler` wrapping `AgentPool`.
 - `#[non_exhaustive]` on `AgentContext` and `TaskAgentConfig`.
@@ -92,6 +95,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Validation tools (syntax, duplicates, build)
 - Tool orchestration engine (feature-gated)
 - Smart router for tool selection (feature-gated)
+- **OpenAPI Tool Generation** (feature-gated `openapi`): `openapi_to_tools()` parses OpenAPI 3.x JSON/YAML specs into `Tool` definitions. `execute_openapi_tool()` handles path/query param substitution and Bearer/API-key/Basic auth.
 
 #### MCP (`brainwires-mcp`)
 - MCP client for connecting to external MCP servers

@@ -86,6 +86,9 @@ println!("{} iterations, success={}", result.iterations, result.success);
 | `native` | Yes | Git worktree management (`git2`) and process liveness checking (`libc`) |
 | `wasm` | No | WebAssembly-compatible build (disables native-only functionality) |
 | `tools` | No | Kept for backward compatibility; `brainwires-model-tools` is always available |
+| `reasoning` | No | Named reasoning strategies (ReAct, Reflexion, CoT, ToT) and local inference |
+| `eval` | No | Evaluation framework (trials, adversarial, regression, stability) |
+| `otel` | No | OpenTelemetry span export for agent execution traces |
 
 Enable features in `Cargo.toml`:
 
@@ -410,6 +413,117 @@ let config = ValidationConfig {
     working_set_files: vec!["src/main.rs".into()],
 };
 ```
+
+## Workflow Graph Builder
+
+Build declarative DAG workflows with parallel execution, conditional routing, and shared state:
+
+```rust
+use brainwires_agents::workflow::{WorkflowBuilder, WorkflowContext};
+
+let workflow = WorkflowBuilder::new("review-pipeline")
+    .node("fetch", |ctx| Box::pin(async move {
+        ctx.set("code", serde_json::json!("fn main() {}")).await;
+        Ok(serde_json::json!({"status": "fetched"}))
+    }))
+    .node("lint", |ctx| Box::pin(async move {
+        let _code = ctx.get("code").await;
+        Ok(serde_json::json!({"lint": "passed"}))
+    }))
+    .node("review", |ctx| Box::pin(async move {
+        Ok(serde_json::json!({"review": "approved"}))
+    }))
+    .node("summarize", |ctx| Box::pin(async move {
+        Ok(serde_json::json!({"summary": "all good"}))
+    }))
+    .edge("fetch", "lint")
+    .edge("fetch", "review")       // lint and review run in parallel
+    .edge("lint", "summarize")
+    .edge("review", "summarize")   // summarize waits for both
+    .build()?;
+
+let result = workflow.run().await?;
+assert!(result.success);
+```
+
+**Features:**
+- Topological validation via `petgraph` (cycle detection)
+- Parallel fan-out / fan-in execution
+- Conditional routing based on node output
+- Shared state via `WorkflowContext` (`Arc<RwLock<HashMap<String, Value>>>`)
+- Failure propagation — downstream nodes are skipped when predecessors fail
+
+## Reasoning Strategies
+
+Named reasoning patterns behind the `reasoning` feature flag:
+
+```toml
+brainwires-agents = { version = "0.1", features = ["reasoning"] }
+```
+
+```rust
+use brainwires_agents::reasoning::strategies::*;
+
+// Factory creation via preset
+let strategy = StrategyPreset::ReAct.create();
+println!("{}: {}", strategy.name(), strategy.description());
+
+// Get the system prompt for an agent
+let prompt = strategy.system_prompt("agent-1", "/my/project");
+
+// Check completion based on step history
+let steps = vec![
+    StrategyStep::Thought("Analyzing the problem".into()),
+    StrategyStep::Action { tool: "read_file".into(), args: serde_json::json!({"path": "src/lib.rs"}) },
+    StrategyStep::Observation("File contents...".into()),
+    StrategyStep::FinalAnswer("The function is correct.".into()),
+];
+assert!(strategy.is_complete(&steps));
+```
+
+**Available strategies:**
+
+| Strategy | Pattern | Max Steps |
+|----------|---------|-----------|
+| `ReActStrategy` | Think → Act → Observe loop | 25 |
+| `ReflexionStrategy` | Act → Reflect → Revise loop | 15 |
+| `ChainOfThoughtStrategy` | Step-by-step reasoning chain | 10 |
+| `TreeOfThoughtsStrategy` | Parallel branch exploration with scoring | 20 |
+
+## OpenTelemetry Export
+
+Export agent execution traces to Jaeger, Datadog, Grafana, or any OpenTelemetry-compatible backend. Requires the `otel` feature:
+
+```toml
+brainwires-agents = { version = "0.1", features = ["otel"] }
+```
+
+```rust
+use brainwires_agents::otel::{export_to_otel, telemetry_attributes};
+use opentelemetry::global;
+
+let tracer = global::tracer("brainwires-agent");
+
+// Export full span hierarchy: agent.run → agent.iteration.N → agent.tool.name
+export_to_otel(&execution_graph, &telemetry, &tracer);
+
+// Or attach telemetry to an existing span
+let attrs = telemetry_attributes(&telemetry);
+```
+
+**Span hierarchy:**
+
+```
+agent.run (root)
+├── agent.iteration.0
+│   ├── agent.tool.read_file
+│   └── agent.tool.edit_file
+├── agent.iteration.1
+│   └── agent.tool.bash
+└── agent.iteration.2
+```
+
+**Span attributes:** `prompt_hash`, `total_iterations`, `total_tool_calls`, `tool_error_count`, `total_prompt_tokens`, `total_completion_tokens`, `total_cost_usd`, `duration_ms`, `success`, `tools_used`
 
 ## Integration with Brainwires
 

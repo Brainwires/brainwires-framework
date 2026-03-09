@@ -75,6 +75,9 @@ mod semantic_search;
 #[cfg(feature = "smart-router")]
 pub mod smart_router;
 
+#[cfg(feature = "openapi")]
+pub mod openapi;
+
 // ── Public re-exports ────────────────────────────────────────────────────────
 
 // Always-available tools
@@ -117,4 +120,10 @@ pub use semantic_search::SemanticSearchTool;
 pub use smart_router::{
     analyze_query, analyze_messages, get_smart_tools, get_smart_tools_with_mcp,
     get_tools_for_categories, get_context_for_analysis,
+};
+
+#[cfg(feature = "openapi")]
+pub use openapi::{
+    execute_openapi_tool, openapi_to_tools, HttpMethod, OpenApiAuth, OpenApiEndpoint,
+    OpenApiParam, OpenApiTool,
 };

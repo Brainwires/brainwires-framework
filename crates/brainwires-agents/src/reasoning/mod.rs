@@ -42,6 +42,7 @@ mod entity_enhancer;
 mod relevance_scorer;
 mod retrieval_classifier;
 mod router;
+pub mod strategies;
 mod strategy_selector;
 mod summarizer;
 mod validator;
@@ -62,6 +63,10 @@ pub use strategy_selector::{
 };
 pub use summarizer::{
     ExtractedFact, FactCategory, LocalSummarizer, LocalSummarizerBuilder, SummarizationResult,
+};
+pub use strategies::{
+    ChainOfThoughtStrategy, ReActStrategy, ReasoningStrategy, ReflexionStrategy,
+    StrategyPreset, StrategyStep, TreeOfThoughtsStrategy,
 };
 pub use validator::{LocalValidator, LocalValidatorBuilder, ValidationResult};
 

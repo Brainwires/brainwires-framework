@@ -55,6 +55,9 @@ regex = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }
 futures = { workspace = true, optional = true }
 
+# OpenTelemetry (optional, for otel feature)
+opentelemetry = { version = "0.28", optional = true }
+
 # Logging
 tracing.workspace = true
 
@@ -73,3 +76,5 @@ tools = []
 reasoning = ["dep:regex"]
 # Evaluation framework (merged from brainwires-eval)
 eval = ["dep:thiserror", "dep:futures"]
+# OpenTelemetry span export for agent execution traces
+otel = ["dep:opentelemetry"]

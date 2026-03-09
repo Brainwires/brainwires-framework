@@ -88,9 +88,17 @@ pub mod plan_executor;
 
 pub mod task_orchestrator;
 
+// ── Workflow graph builder ───────────────────────────────────────────────────
+
+pub mod workflow;
+
 // ── Reasoning (merged from brainwires-reasoning) ────────────────────────────
 #[cfg(feature = "reasoning")]
 pub mod reasoning;
+
+// ── OpenTelemetry export ─────────────────────────────────────────────────────
+#[cfg(feature = "otel")]
+pub mod otel;
 
 // ── Evaluation framework (merged from brainwires-eval) ──────────────────────
 #[cfg(feature = "eval")]
@@ -138,6 +146,9 @@ pub use plan_executor::{PlanExecutorAgent, PlanExecutionConfig, PlanExecutionSta
 
 // Task orchestration
 pub use task_orchestrator::{TaskOrchestrator, TaskOrchestratorConfig, FailurePolicy, OrchestrationResult, TaskSpec};
+
+// Workflow graph builder
+pub use workflow::{WorkflowBuilder, WorkflowContext, WorkflowResult};
 
 // Coordination patterns
 pub use contract_net::ContractNetManager;
@@ -207,6 +218,9 @@ pub mod prelude {
 
     // Task orchestration
     pub use super::task_orchestrator::{TaskOrchestrator, TaskOrchestratorConfig, FailurePolicy};
+
+    // Workflow graph builder
+    pub use super::workflow::{WorkflowBuilder, WorkflowContext, WorkflowResult};
 
     // Coordination patterns
     pub use super::contract_net::ContractNetManager;

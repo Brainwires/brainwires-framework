@@ -91,7 +91,8 @@ let matches = registry.search_tools("file");
 | `rag` | No | RAG-powered semantic codebase search |
 | `interpreters` | No | Sandboxed multi-language code execution |
 | `smart-router` | No | Context-aware tool selection and routing |
-| `full` | No | All optional features (`orchestrator` + `rag` + `interpreters` + `smart-router`) |
+| `openapi` | No | OpenAPI 3.x spec parsing to auto-generate tools |
+| `full` | No | All optional features (`orchestrator` + `rag` + `interpreters` + `smart-router` + `openapi`) |
 
 ## Architecture
 
@@ -208,6 +209,40 @@ use brainwires_model_tools::OrchestratorTool;
 ```
 
 Requires the `orchestrator` feature. See `examples/` for complete workflows.
+
+### OpenAPI Tool Generation
+
+Automatically create tools from OpenAPI 3.x specs (feature-gated: `openapi`):
+
+```toml
+brainwires-model-tools = { version = "0.1", features = ["native", "openapi"] }
+```
+
+```rust
+use brainwires_model_tools::openapi::{openapi_to_tools, execute_openapi_tool, OpenApiAuth};
+
+// Parse an OpenAPI spec (JSON or YAML)
+let spec = std::fs::read_to_string("petstore.json")?;
+let tools = openapi_to_tools(&spec)?;
+
+for tool in &tools {
+    println!("{} {} — {}", tool.endpoint.method, tool.endpoint.path, tool.tool.description);
+}
+
+// Execute a tool with auth
+let client = reqwest::Client::new();
+let auth = OpenApiAuth::Bearer("sk-...".into());
+let args = serde_json::json!({"petId": 42});
+let result = execute_openapi_tool(&tools[0], &args, &client, Some(&auth)).await?;
+```
+
+**Supported auth:** `Bearer`, `ApiKey { header, value }`, `Basic { username, password }`
+
+Each endpoint becomes a `Tool` with:
+- Path and query parameters mapped to input schema properties
+- Request body fields merged into properties
+- Automatic path parameter substitution and query string building
+- JSON/YAML spec auto-detection
 
 ## Integration
 

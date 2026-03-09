@@ -79,6 +79,8 @@ let response = provider.chat(&messages, None, &options).await?;
 | `relay` | no | `brainwires-relay` | Remote relay / bridge for IPC and remote control |
 | `skills` | no | `brainwires-skills` | Pluggable skills system |
 | `eval` | no | `brainwires-agents/eval` | Evaluation framework for benchmarking agents (implies `agents`) |
+| `otel` | no | `brainwires-agents/otel` | OpenTelemetry span export for agent traces (implies `agents`) |
+| `openapi` | no | `brainwires-model-tools/openapi` | Auto-generate tools from OpenAPI 3.x specs (implies `tools`) |
 | `proxy` | no | `brainwires-proxy` | AI proxy framework |
 | `a2a` | no | `brainwires-relay/a2a` | Agent-to-Agent protocol (implies `relay`) |
 | `mesh` | no | `brainwires-mesh` | Mesh networking for distributed agents |
