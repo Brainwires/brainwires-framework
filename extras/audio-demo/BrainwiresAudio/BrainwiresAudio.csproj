@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Native libraries (built by build-native.sh) -->
+    <Content Include="runtimes/**/*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

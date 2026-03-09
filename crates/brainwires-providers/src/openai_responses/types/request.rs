@@ -5,6 +5,18 @@ use serde::{Deserialize, Serialize};
 use super::input::ResponseInputItem;
 use super::tools::ResponseTool;
 
+/// Audio output configuration for the Responses API.
+///
+/// Required when `modalities` includes `"audio"`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AudioOutputConfig {
+    /// Voice ID: "alloy", "ash", "ballad", "coral", "echo", "fable", "onyx",
+    /// "nova", "sage", "shimmer".
+    pub voice: String,
+    /// Output format: "wav", "mp3", "flac", "opus", "pcm16".
+    pub format: String,
+}
+
 /// The `input` field: either a plain text string or an array of input items.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -164,6 +176,12 @@ pub struct CreateResponseRequest {
     /// Context management configuration.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub context_management: Option<Vec<ContextManagement>>,
+    /// Output modalities: `["text"]`, `["text", "audio"]`, or `["audio"]`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub modalities: Option<Vec<String>>,
+    /// Audio output configuration (required when modalities includes "audio").
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub audio: Option<AudioOutputConfig>,
 }
 
 impl CreateResponseRequest {
@@ -195,6 +213,8 @@ impl CreateResponseRequest {
             service_tier: None,
             conversation: None,
             context_management: None,
+            modalities: None,
+            audio: None,
         }
     }
 }

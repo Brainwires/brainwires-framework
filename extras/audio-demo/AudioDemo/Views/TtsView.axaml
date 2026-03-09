@@ -1,0 +1,84 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AudioDemo.ViewModels"
+             x:Class="AudioDemo.Views.TtsView"
+             x:DataType="vm:TtsViewModel">
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="12">
+        <!-- Provider + Voice selection -->
+        <Grid Row="0" ColumnDefinitions="*,*" Margin="0,0,0,8">
+            <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                <TextBlock Text="Provider" FontWeight="SemiBold" Margin="0,0,0,4" />
+                <ComboBox ItemsSource="{Binding Providers}"
+                          SelectedItem="{Binding SelectedProvider}"
+                          HorizontalAlignment="Stretch">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding DisplayName}" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                <TextBlock Text="Voice" FontWeight="SemiBold" Margin="0,0,0,4" />
+                <ComboBox ItemsSource="{Binding Voices}"
+                          SelectedItem="{Binding SelectedVoice}"
+                          HorizontalAlignment="Stretch">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Name}" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </StackPanel>
+        </Grid>
+
+        <!-- Speed + Format -->
+        <Grid Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+            <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                <TextBlock FontWeight="SemiBold" Margin="0,0,0,4">
+                    <TextBlock.Text>
+                        <MultiBinding StringFormat="Speed: {0:F2}x">
+                            <Binding Path="Speed" />
+                        </MultiBinding>
+                    </TextBlock.Text>
+                </TextBlock>
+                <Slider Minimum="0.25" Maximum="4.0"
+                        Value="{Binding Speed}"
+                        TickFrequency="0.25" IsSnapToTickEnabled="True" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" VerticalAlignment="Bottom">
+                <TextBlock Text="Format" FontWeight="SemiBold" Margin="0,0,0,4" />
+                <ComboBox ItemsSource="{Binding OutputFormats}"
+                          SelectedItem="{Binding SelectedFormat}"
+                          Width="100" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Text input -->
+        <TextBox Row="2" Text="{Binding InputText}"
+                 AcceptsReturn="True" TextWrapping="Wrap"
+                 Watermark="Enter text to synthesize..."
+                 Margin="0,0,0,8" />
+
+        <!-- Buttons -->
+        <StackPanel Row="3" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+            <Button Content="Synthesize"
+                    Command="{Binding SynthesizeCommand}"
+                    IsEnabled="{Binding !IsProcessing}"
+                    Classes="accent" />
+            <Button Content="Play"
+                    Command="{Binding PlayCommand}"
+                    IsEnabled="{Binding !IsProcessing}" />
+        </StackPanel>
+
+        <!-- Status -->
+        <StackPanel Row="4">
+            <ProgressBar IsIndeterminate="True"
+                         IsVisible="{Binding IsProcessing}"
+                         Margin="0,0,0,4" />
+            <TextBlock Text="{Binding StatusMessage}" Opacity="0.7" />
+        </StackPanel>
+    </Grid>
+
+</UserControl>

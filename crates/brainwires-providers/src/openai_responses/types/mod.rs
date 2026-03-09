@@ -15,8 +15,8 @@ pub use output::{
     ReasoningSummaryPart, ResponseOutputItem,
 };
 pub use request::{
-    ContextManagement, ConversationRef, CreateResponseRequest, ReasoningConfig, ResponseInput,
-    TextFormat, TextFormatConfig, ToolChoice,
+    AudioOutputConfig, ContextManagement, ConversationRef, CreateResponseRequest, ReasoningConfig,
+    ResponseInput, TextFormat, TextFormatConfig, ToolChoice,
 };
 pub use response::{
     DeleteResponse, InputItemsList, OutputTokensDetails, ResponseError, ResponseObject,

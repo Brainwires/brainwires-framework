@@ -178,6 +178,19 @@ pub enum OutputContentBlock {
         /// The refusal text.
         refusal: String,
     },
+    /// Audio output from the model.
+    OutputAudio {
+        /// Unique audio ID.
+        id: String,
+        /// Base64-encoded audio data.
+        data: String,
+        /// Text transcript of the audio.
+        #[serde(default)]
+        transcript: Option<String>,
+        /// Expiration timestamp (Unix epoch).
+        #[serde(default)]
+        expires_at: Option<f64>,
+    },
 }
 
 /// An annotation on output text.

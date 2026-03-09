@@ -104,6 +104,13 @@ pub fn response_to_chat_response(resp: &ResponseObject) -> Result<ChatResponse> 
                                 text: refusal.clone(),
                             });
                         }
+                        OutputContentBlock::OutputAudio { transcript, .. } => {
+                            if let Some(text) = transcript {
+                                content_blocks.push(ContentBlock::Text {
+                                    text: text.clone(),
+                                });
+                            }
+                        }
                     }
                 }
             }
@@ -246,6 +253,8 @@ pub fn build_request(
         service_tier: None,
         conversation: None,
         context_management: None,
+        modalities: None,
+        audio: None,
     }
 }
 

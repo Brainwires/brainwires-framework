@@ -56,7 +56,8 @@ pub use wav::{decode_wav, encode_wav};
 #[cfg(feature = "native")]
 pub use api::{
     AzureStt, AzureTts, CartesiaTts, DeepgramStt, DeepgramTts, ElevenLabsStt, ElevenLabsTts,
-    FishStt, FishTts, GoogleTts, MurfTts, OpenAiStt, OpenAiTts,
+    FishStt, FishTts, GoogleTts, MurfTts, OpenAiResponsesStt, OpenAiResponsesTts, OpenAiStt,
+    OpenAiTts,
 };
 #[cfg(feature = "flac")]
 pub use flac::{decode_flac, encode_flac};

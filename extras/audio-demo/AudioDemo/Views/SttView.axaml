@@ -1,0 +1,99 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AudioDemo.ViewModels"
+             x:Class="AudioDemo.Views.SttView"
+             x:DataType="vm:SttViewModel">
+
+    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" Margin="12">
+        <!-- Provider selection -->
+        <StackPanel Row="0" Margin="0,0,0,8">
+            <TextBlock Text="Provider" FontWeight="SemiBold" Margin="0,0,0,4" />
+            <ComboBox ItemsSource="{Binding Providers}"
+                      SelectedItem="{Binding SelectedProvider}"
+                      HorizontalAlignment="Stretch">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding DisplayName}" />
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+        </StackPanel>
+
+        <!-- Recording controls -->
+        <Grid Row="1" ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,0,0,8">
+            <Button Grid.Column="0"
+                    Content="Record"
+                    Command="{Binding RecordCommand}"
+                    IsEnabled="{Binding !IsProcessing}"
+                    Classes="accent"
+                    Margin="0,0,8,0" />
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <TextBlock FontWeight="SemiBold" Margin="0,0,0,2">
+                    <TextBlock.Text>
+                        <MultiBinding StringFormat="Duration: {0:F1}s">
+                            <Binding Path="RecordDuration" />
+                        </MultiBinding>
+                    </TextBlock.Text>
+                </TextBlock>
+                <Slider Minimum="1" Maximum="30"
+                        Value="{Binding RecordDuration}"
+                        TickFrequency="1" IsSnapToTickEnabled="True" />
+            </StackPanel>
+            <Button Grid.Column="2"
+                    Content="Play Recording"
+                    Command="{Binding PlayRecordingCommand}"
+                    IsEnabled="{Binding HasRecording}"
+                    Margin="8,0,0,0" />
+            <Button Grid.Column="3"
+                    Content="Transcribe"
+                    Command="{Binding TranscribeCommand}"
+                    IsEnabled="{Binding HasRecording}"
+                    Margin="8,0,0,0" />
+        </Grid>
+
+        <!-- Options -->
+        <StackPanel Row="2" Orientation="Horizontal" Spacing="12" Margin="0,0,0,8">
+            <StackPanel>
+                <TextBlock Text="Language (optional)" FontWeight="SemiBold" Margin="0,0,0,4" />
+                <TextBox Text="{Binding LanguageHint}" Width="120"
+                         Watermark="en" />
+            </StackPanel>
+            <CheckBox Content="Include timestamps"
+                      IsChecked="{Binding EnableTimestamps}"
+                      VerticalAlignment="Bottom" Margin="0,0,0,4" />
+        </StackPanel>
+
+        <!-- Transcription result -->
+        <Grid Row="3" RowDefinitions="*,Auto" Margin="0,0,0,8">
+            <TextBox Row="0" Text="{Binding TranscriptionResult}"
+                     IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+                     Watermark="Transcription will appear here..." />
+            <ListBox Row="1" ItemsSource="{Binding Segments}"
+                     MaxHeight="150"
+                     IsVisible="{Binding EnableTimestamps}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock>
+                            <TextBlock.Text>
+                                <MultiBinding StringFormat="[{0:F2}s - {1:F2}s] {2}">
+                                    <Binding Path="Start" />
+                                    <Binding Path="End" />
+                                    <Binding Path="Text" />
+                                </MultiBinding>
+                            </TextBlock.Text>
+                        </TextBlock>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Grid>
+
+        <!-- Status -->
+        <StackPanel Row="4">
+            <ProgressBar IsIndeterminate="True"
+                         IsVisible="{Binding IsProcessing}"
+                         Margin="0,0,0,4" />
+            <TextBlock Text="{Binding StatusMessage}" Opacity="0.7" />
+        </StackPanel>
+    </Grid>
+
+</UserControl>

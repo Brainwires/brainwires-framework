@@ -23,9 +23,9 @@ pub use provider::OpenAiResponsesProvider;
 
 // Re-export wire types used by external code
 pub use types::{
-    CreateResponseRequest, InputContent, OutputContentBlock, ResponseInput, ResponseInputItem,
-    ResponseObject, ResponseOutputItem, ResponseStreamEvent, ResponseTool, ResponseUsage,
-    ToolChoice,
+    AudioOutputConfig, CreateResponseRequest, InputContent, InputContentPart, OutputContentBlock,
+    ResponseInput, ResponseInputItem, ResponseObject, ResponseOutputItem, ResponseStreamEvent,
+    ResponseTool, ResponseUsage, ToolChoice,
 };
 
 // WebSocket transport

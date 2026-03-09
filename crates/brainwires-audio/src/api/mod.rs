@@ -20,6 +20,10 @@ pub mod fish_tts;
 pub mod google_tts;
 /// Murf AI text-to-speech API client.
 pub mod murf_tts;
+/// OpenAI Responses API speech-to-text client.
+pub mod openai_responses_stt;
+/// OpenAI Responses API text-to-speech client.
+pub mod openai_responses_tts;
 /// OpenAI speech-to-text API client.
 pub mod openai_stt;
 /// OpenAI text-to-speech API client.
@@ -36,5 +40,7 @@ pub use fish_stt::FishStt;
 pub use fish_tts::FishTts;
 pub use google_tts::GoogleTts;
 pub use murf_tts::MurfTts;
+pub use openai_responses_stt::OpenAiResponsesStt;
+pub use openai_responses_tts::OpenAiResponsesTts;
 pub use openai_stt::OpenAiStt;
 pub use openai_tts::OpenAiTts;
