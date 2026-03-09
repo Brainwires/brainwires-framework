@@ -10,7 +10,7 @@ homepage.workspace = true
 authors.workspace = true
 readme = "README.md"
 documentation = "https://docs.rs/brainwires-mcp"
-keywords = ["mcp", "model-context-protocol", "ai-tools", "llm", "protocol"]
+keywords = ["mcp", "context-protocol", "ai-tools", "llm", "protocol"]
 categories = ["development-tools"]
 
 [dependencies]

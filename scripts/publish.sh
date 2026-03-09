@@ -100,10 +100,16 @@ for i in "${!CRATES[@]}"; do
     fi
 
     # Live publish
-    if cargo publish -p "$crate" 2>&1; then
+    publish_output=$(cargo publish -p "$crate" 2>&1) && publish_rc=0 || publish_rc=$?
+    if [ "$publish_rc" -eq 0 ]; then
         echo "OK: $crate"
         PUBLISHED=$((PUBLISHED + 1))
+    elif echo "$publish_output" | grep -q "already exists"; then
+        echo "SKIP: $crate (already published)"
+        PUBLISHED=$((PUBLISHED + 1))
+        continue
     else
+        echo "$publish_output"
         echo "FAILED: $crate"
         FAILED=$((FAILED + 1))
         echo ""
