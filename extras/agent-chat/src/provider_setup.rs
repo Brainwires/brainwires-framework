@@ -21,7 +21,7 @@ pub fn create_provider(cli: &Cli, config: &ChatConfig) -> Result<Arc<dyn Provide
     let model = cli
         .model
         .as_deref()
-        .unwrap_or(&config.default_model)
+        .unwrap_or_else(|| provider_type.default_model())
         .to_string();
 
     let api_key = auth::resolve_api_key(provider_str, cli.api_key.as_deref())?;

@@ -1,84 +1,74 @@
 use anyhow::Result;
 
+use brainwires_providers::{create_model_lister, ProviderType};
+
+use crate::auth;
 use crate::cli::ModelsArgs;
 
-struct ModelInfo {
-    provider: &'static str,
-    models: &'static [&'static str],
-}
-
-const KNOWN_MODELS: &[ModelInfo] = &[
-    ModelInfo {
-        provider: "anthropic",
-        models: &[
-            "claude-opus-4-20250514",
-            "claude-sonnet-4-20250514",
-            "claude-haiku-4-20250414",
-            "claude-3-5-sonnet-20241022",
-            "claude-3-5-haiku-20241022",
-        ],
-    },
-    ModelInfo {
-        provider: "openai",
-        models: &[
-            "gpt-4o",
-            "gpt-4o-mini",
-            "gpt-4-turbo",
-            "o3-mini",
-            "o1",
-        ],
-    },
-    ModelInfo {
-        provider: "google",
-        models: &[
-            "gemini-2.5-pro",
-            "gemini-2.5-flash",
-            "gemini-2.0-flash",
-        ],
-    },
-    ModelInfo {
-        provider: "groq",
-        models: &[
-            "llama-3.3-70b-versatile",
-            "llama-3.1-8b-instant",
-            "mixtral-8x7b-32768",
-        ],
-    },
-    ModelInfo {
-        provider: "ollama",
-        models: &["llama3.1", "codellama", "mistral", "phi3"],
-    },
-    ModelInfo {
-        provider: "together",
-        models: &[
-            "meta-llama/Llama-3.3-70B-Instruct-Turbo",
-            "mistralai/Mixtral-8x7B-Instruct-v0.1",
-        ],
-    },
-    ModelInfo {
-        provider: "fireworks",
-        models: &[
-            "accounts/fireworks/models/llama-v3p3-70b-instruct",
-        ],
-    },
+/// Providers that support live model listing.
+const LISTABLE_PROVIDERS: &[(&str, ProviderType)] = &[
+    ("anthropic", ProviderType::Anthropic),
+    ("openai", ProviderType::OpenAI),
+    ("google", ProviderType::Google),
+    ("groq", ProviderType::Groq),
+    ("together", ProviderType::Together),
+    ("fireworks", ProviderType::Fireworks),
+    ("ollama", ProviderType::Ollama),
 ];
 
 pub async fn run(args: ModelsArgs) -> Result<()> {
     let filter = args.provider.as_deref().map(|s| s.to_lowercase());
 
-    for info in KNOWN_MODELS {
-        if let Some(ref f) = filter && info.provider != f.as_str() {
-            continue;
+    let providers: Vec<_> = LISTABLE_PROVIDERS
+        .iter()
+        .filter(|(name, _)| filter.as_deref().is_none_or(|f| *name == f))
+        .collect();
+
+    if providers.is_empty() {
+        if let Some(ref f) = filter {
+            eprintln!("Unknown or unsupported provider: {f}");
         }
-        println!("{}:", info.provider);
-        for model in info.models {
-            println!("  {model}");
-        }
-        println!();
+        return Ok(());
     }
 
-    if let Some(ref f) = filter && !KNOWN_MODELS.iter().any(|m| m.provider == f.as_str()) {
-        eprintln!("Unknown provider: {f}");
+    for (name, provider_type) in providers {
+        let api_key = auth::resolve_api_key(name, None)?;
+
+        let lister = match create_model_lister(*provider_type, api_key.as_deref(), None) {
+            Ok(l) => l,
+            Err(_) => {
+                println!("{name}:");
+                println!("  (no API key configured — set with: agent-chat auth set {name})");
+                println!();
+                continue;
+            }
+        };
+
+        match lister.list_models().await {
+            Ok(models) => {
+                let mut chat_models: Vec<_> = models
+                    .into_iter()
+                    .filter(|m| m.is_chat_capable())
+                    .collect();
+                chat_models.sort_by(|a, b| a.id.cmp(&b.id));
+
+                println!("{name}: ({} chat models)", chat_models.len());
+                for model in &chat_models {
+                    let display = model
+                        .display_name
+                        .as_deref()
+                        .map(|d| format!("  {:<45} {d}", model.id))
+                        .unwrap_or_else(|| format!("  {}", model.id));
+                    println!("{display}");
+                }
+                println!();
+            }
+            Err(e) => {
+                println!("{name}:");
+                println!("  (failed to fetch models: {e})");
+                println!();
+            }
+        }
     }
 
     Ok(())

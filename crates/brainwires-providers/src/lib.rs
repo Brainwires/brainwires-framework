@@ -196,25 +196,25 @@ impl ProviderType {
     /// Get the default model for this provider
     pub fn default_model(&self) -> &'static str {
         match self {
-            Self::Anthropic => "claude-3-5-sonnet-20241022",
-            Self::OpenAI => "gpt-4o",
-            Self::Google => "gemini-2.0-flash-exp",
+            Self::Anthropic => "claude-sonnet-4-20250514",
+            Self::OpenAI => "gpt-5-mini",
+            Self::Google => "gemini-2.5-flash",
             Self::Groq => "llama-3.3-70b-versatile",
-            Self::Ollama => "llama3.1",
+            Self::Ollama => "llama3.3",
             Self::Brainwires => "gpt-5-mini",
             Self::Together => "meta-llama/Llama-3.1-8B-Instruct",
             Self::Fireworks => "accounts/fireworks/models/llama-v3p1-8b-instruct",
             Self::Anyscale => "meta-llama/Meta-Llama-3.1-8B-Instruct",
-            Self::Bedrock => "anthropic.claude-3-5-sonnet-20241022-v2:0",
-            Self::VertexAI => "claude-3-5-sonnet-v2@20241022",
+            Self::Bedrock => "anthropic.claude-sonnet-4-20250514-v1:0",
+            Self::VertexAI => "claude-sonnet-4@20250514",
             Self::ElevenLabs => "eleven_multilingual_v2",
             Self::Deepgram => "nova-2",
             Self::Azure => "en-US-JennyNeural",
             Self::Fish => "default",
             Self::Cartesia => "sonic-english",
             Self::Murf => "en-US-natalie",
-            Self::OpenAiResponses => "gpt-4o",
-            Self::Custom => "claude-3-5-sonnet-20241022",
+            Self::OpenAiResponses => "gpt-5-mini",
+            Self::Custom => "claude-sonnet-4-20250514",
         }
     }
 
@@ -355,11 +355,11 @@ mod tests {
 
     #[test]
     fn test_provider_type_default_model() {
-        assert_eq!(ProviderType::Anthropic.default_model(), "claude-3-5-sonnet-20241022");
-        assert_eq!(ProviderType::OpenAI.default_model(), "gpt-4o");
-        assert_eq!(ProviderType::Google.default_model(), "gemini-2.0-flash-exp");
+        assert_eq!(ProviderType::Anthropic.default_model(), "claude-sonnet-4-20250514");
+        assert_eq!(ProviderType::OpenAI.default_model(), "gpt-5-mini");
+        assert_eq!(ProviderType::Google.default_model(), "gemini-2.5-flash");
         assert_eq!(ProviderType::Groq.default_model(), "llama-3.3-70b-versatile");
-        assert_eq!(ProviderType::Ollama.default_model(), "llama3.1");
+        assert_eq!(ProviderType::Ollama.default_model(), "llama3.3");
         assert_eq!(ProviderType::Brainwires.default_model(), "gpt-5-mini");
     }
 
