@@ -124,6 +124,15 @@ Multi-agent infrastructure for autonomous task execution.
 - **PlanExecutorAgent** — Executes multi-step plans with approval modes (auto, manual, checkpoint)
 - **TaskOrchestrator** — Hierarchical task decomposition with failure policies (fail-fast, continue, retry)
 
+### Workflow Graph Builder
+
+- **WorkflowBuilder** — Declarative DAG-based workflow pipelines with `node()`, `edge()`, `conditional()`, and `build()`
+- **WorkflowContext** — Shared state map accessible to all workflow nodes during execution
+- **WorkflowResult** — Collected per-node results after execution
+- **Parallel fan-out / fan-in** — Nodes with shared predecessors run concurrently via `tokio::spawn`
+- **Conditional routing** — Skip downstream branches based on runtime conditions
+- **Cycle detection** — Compile-time validation via `petgraph::algo::is_cyclic_directed`
+
 ### Runtime & Lifecycle
 
 - **AgentRuntime** — Core agent execution loop with `run_agent_loop()`
@@ -163,6 +172,13 @@ Multi-agent infrastructure for autonomous task execution.
 - **GitCoordinator** — Git operation locking with `GitLockRequirements`
 - **GitOperationRunner** — Safe concurrent git operations
 - **WorktreeManager** — Git worktree management for agent isolation (feature: `native`)
+
+### OpenTelemetry Export (feature: `otel`)
+
+- **export_to_otel()** — Maps `ExecutionGraph` and `RunTelemetry` to hierarchical OpenTelemetry spans
+- **Span hierarchy** — Root `agent.run` → `agent.iteration.{N}` → `agent.tool.{name}`
+- **Attributes** — Token counts, costs, timing, and error information attached as span attributes
+- **Compatible** — Works with Jaeger, Datadog, Grafana, and any OpenTelemetry-compatible backend
 
 ### Validation
 
@@ -204,6 +220,15 @@ Composable tool implementations for agent use.
 - **CodeExecTool** — Sandboxed multi-language code execution (feature: `interpreters`)
 - **SemanticSearchTool** — RAG-powered semantic codebase search (feature: `rag`)
 - **SmartRouter** — Context-aware tool routing with MCP support (feature: `smart-router`)
+
+### OpenAPI Tool Generation (feature: `openapi`)
+
+- **openapi_to_tools()** — Parse OpenAPI 3.x specs (JSON or YAML) and generate `Tool` definitions
+- **OpenApiTool** — Pairs a `Tool` definition with its `OpenApiEndpoint` metadata (method, path, parameters, base URL)
+- **execute_openapi_tool()** — Execute an OpenAPI-generated tool call against the live API
+- **OpenApiAuth** — Authentication support: `Bearer`, `ApiKey` (header/query), `Basic`
+- **OpenApiParam** — Parameter extraction from path, query, header, and request body
+- **HttpMethod** — GET, POST, PUT, PATCH, DELETE support
 
 ---
 
@@ -679,6 +704,15 @@ Self-improvement, Git workflows, and human-out-of-loop execution.
 
 Provider-agnostic inference components for quality and cost optimization.
 
+### Named Reasoning Strategies
+
+- **ReasoningStrategy** trait — Common interface for reasoning loop control (`system_prompt()`, `is_complete()`, `next_action()`)
+- **ReActStrategy** — Thought → Action → Observation loop (Yao et al., 2022) with configurable max steps
+- **ReflexionStrategy** — Self-critique after each action with revised plans (Shinn et al., 2023)
+- **ChainOfThoughtStrategy** — "Let's think step by step" structured reasoning (Wei et al., 2022)
+- **TreeOfThoughtsStrategy** — Multi-branch exploration with pruning and best-path selection (Yao et al., 2023)
+- **StrategyStep** — Typed reasoning trace steps: `Thought`, `Action`, `Observation`, `Reflection`, `Branch`
+
 ### Tier 1 — Quick Wins
 
 - **LocalRouter** — Semantic query classification for tool routing
@@ -796,6 +830,8 @@ Re-exports all framework crates behind feature flags.
 | `interpreters` | No | Sandboxed code interpreters |
 | `orchestrator` | No | Rhai script orchestration |
 | `reasoning` | No | Local inference components |
+| `openapi` | No | OpenAPI 3.x spec → Tool generation |
+| `otel` | No | OpenTelemetry span export for agent traces |
 | `eval` | No | Evaluation framework |
 | `skills` | No | SKILL.md skill system |
 | `audio` | No | Audio capture, STT, TTS |
