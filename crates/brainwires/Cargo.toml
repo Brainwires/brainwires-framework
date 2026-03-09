@@ -133,7 +133,7 @@ vertex-ai = ["providers", "brainwires-providers/vertex-ai"]
 llama-cpp-2 = ["providers", "brainwires-providers/llama-cpp-2"]
 mcp-server = ["dep:rmcp", "dep:schemars", "dep:tokio-util"]
 # Convenience: enables all learning/knowledge subsystems with integration
-learning = ["seal", "knowledge", "brainwires-seal/knowledge"]
+learning = ["seal", "knowledge", "permissions", "brainwires-seal/knowledge", "brainwires-seal/feedback"]
 # Convenience: everything needed for agent workflows
 agent-full = ["agents", "permissions", "prompting", "tools"]
 # Convenience: everything a researcher typically needs
@@ -142,7 +142,7 @@ full = [
     "tools", "agents", "storage", "mcp", "mdap", "knowledge",
     "prompting", "permissions", "orchestrator", "rag-full-languages", "interpreters",
     "providers", "chat", "reasoning", "seal", "relay",
-    "brainwires-seal/knowledge", "brainwires-seal/mdap",
+    "brainwires-seal/knowledge", "brainwires-seal/mdap", "brainwires-seal/feedback",
     "llama-cpp-2", "mcp-server", "skills", "eval", "proxy",
     "a2a", "mesh", "audio",
     "training-cloud", "datasets",

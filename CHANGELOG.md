@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.1] - 2026-03-09
 
+### Added
+
+#### SEAL (`brainwires-seal`)
+- **Feedback Bridge** (`feedback_bridge.rs`): New module that wires `AuditLogger` user feedback (thumbs-up/down + corrections) into the SEAL learning loop. `FeedbackBridge` pulls `FeedbackSignal` events on demand and converts them into `LearningCoordinator` outcomes and `PatternHint` entries in global memory.
+- New `feedback` feature gate (`dep:brainwires-permissions`, `dep:tokio`) keeps the `AuditLogger` dependency optional.
+- 7 unit tests covering per-run processing, recent-feedback queries, correction application, and run isolation.
+
+#### Facade (`brainwires`)
+- `learning` convenience feature now includes `permissions` and `brainwires-seal/feedback`, completing the full feedback loop: `AuditLogger → FeedbackBridge → LearningCoordinator → BKS promotion`.
+
 ### Changed
 
 #### Framework-wide

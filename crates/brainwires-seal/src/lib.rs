@@ -71,6 +71,8 @@
 //! ```
 
 pub mod coreference;
+#[cfg(feature = "feedback")]
+pub mod feedback_bridge;
 #[cfg(feature = "knowledge")]
 pub mod knowledge_integration;
 pub mod learning;
@@ -81,6 +83,8 @@ pub use coreference::{
     CoreferenceResolver, DialogState, ReferenceType, ResolvedReference, SalienceScore,
     UnresolvedReference,
 };
+#[cfg(feature = "feedback")]
+pub use feedback_bridge::{FeedbackBridge, FeedbackProcessingStats};
 #[cfg(feature = "knowledge")]
 pub use knowledge_integration::{
     EntityResolutionStrategy, IntegrationConfig, SealKnowledgeCoordinator,

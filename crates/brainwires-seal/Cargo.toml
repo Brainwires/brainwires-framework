@@ -19,6 +19,7 @@ brainwires-tool-system = { workspace = true }
 brainwires-agents = { workspace = true }
 brainwires-mdap = { workspace = true, optional = true }
 brainwires-brain = { workspace = true, optional = true }
+brainwires-permissions = { workspace = true, optional = true }
 anyhow = { workspace = true }
 regex = { workspace = true }
 chrono = { workspace = true }
@@ -31,8 +32,11 @@ default = ["native"]
 native = ["brainwires-core/native"]
 mdap = ["dep:brainwires-mdap"]
 knowledge = ["dep:brainwires-brain", "dep:tokio"]
+feedback = ["dep:brainwires-permissions", "dep:tokio"]
 
 [dev-dependencies]
 brainwires-storage = { workspace = true }
 brainwires-brain = { workspace = true }
+brainwires-permissions = { workspace = true }
 serde_json = { workspace = true }
+tempfile = { workspace = true }
