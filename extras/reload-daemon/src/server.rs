@@ -95,21 +95,17 @@ impl ReloadServer {
 #[tool_handler(router = self.tool_router)]
 impl ServerHandler for ReloadServer {
     fn get_info(&self) -> ServerInfo {
-        ServerInfo {
-            protocol_version: ProtocolVersion::default(),
-            capabilities: ServerCapabilities::builder().enable_tools().build(),
-            server_info: Implementation {
-                name: "reload-daemon".into(),
-                title: Some("Reload Daemon — process restart MCP server".into()),
-                version: env!("CARGO_PKG_VERSION").into(),
-                icons: None,
-                website_url: None,
-            },
-            instructions: Some(
+        {
+            let mut info = ServerInfo::default();
+            info.capabilities = ServerCapabilities::builder().enable_tools().build();
+            info.server_info = Implementation::new("reload-daemon", env!("CARGO_PKG_VERSION"))
+                .with_title("Reload Daemon — process restart MCP server");
+            info.instructions = Some(
                 "Exposes a single tool `reload_app` that kills a process and restarts it \
                  with transformed arguments. Restart strategies are config-driven."
                     .into(),
-            ),
+            );
+            info
         }
     }
 }

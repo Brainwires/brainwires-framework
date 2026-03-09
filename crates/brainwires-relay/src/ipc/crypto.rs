@@ -8,7 +8,7 @@ use chacha20poly1305::{
     ChaCha20Poly1305, Nonce,
     aead::{Aead, KeyInit},
 };
-use rand::RngCore;
+use rand::Rng;
 use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
@@ -42,7 +42,7 @@ impl IpcCipher {
     pub fn encrypt(&self, plaintext: &[u8]) -> Result<Vec<u8>> {
         // Generate random nonce
         let mut nonce_bytes = [0u8; NONCE_SIZE];
-        rand::thread_rng().fill_bytes(&mut nonce_bytes);
+        rand::rng().fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::from_slice(&nonce_bytes);
 
         // Encrypt with authentication
@@ -120,7 +120,7 @@ fn derive_key_from_token(token: &str) -> Zeroizing<[u8; KEY_SIZE]> {
 /// Generate a random encryption key (for testing or direct use)
 pub fn generate_random_key() -> Zeroizing<[u8; KEY_SIZE]> {
     let mut key = Zeroizing::new([0u8; KEY_SIZE]);
-    rand::thread_rng().fill_bytes(&mut *key);
+    rand::rng().fill_bytes(&mut *key);
     key
 }
 

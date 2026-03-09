@@ -10,9 +10,7 @@ use anyhow::{Context, Result};
 use futures::SinkExt;
 use futures::stream::{BoxStream, StreamExt};
 use tokio::sync::Mutex;
-use tokio_tungstenite::tungstenite::{
-    Message as WsMessage, client::IntoClientRequest, http::HeaderValue,
-};
+use tokio_tungstenite::tungstenite::Message as WsMessage;
 
 use super::types::websocket::WsResponseCreate;
 use super::types::{CreateResponseRequest, ResponseStreamEvent};
@@ -84,24 +82,17 @@ impl ResponsesWebSocket {
         }
 
         // Build the WebSocket request with auth headers
-        let mut request = self
-            .ws_url
-            .clone()
-            .into_client_request()
-            .context("Failed to build WebSocket request")?;
+        let mut builder = tokio_tungstenite::tungstenite::http::Request::builder()
+            .uri(&self.ws_url)
+            .header("Authorization", format!("Bearer {}", self.api_key));
 
-        let headers = request.headers_mut();
-        headers.insert(
-            "Authorization",
-            HeaderValue::from_str(&format!("Bearer {}", self.api_key))
-                .context("Invalid API key for header")?,
-        );
         if let Some(ref org) = self.organization {
-            headers.insert(
-                "OpenAI-Organization",
-                HeaderValue::from_str(org).context("Invalid organization for header")?,
-            );
+            builder = builder.header("OpenAI-Organization", org.as_str());
         }
+
+        let request = builder
+            .body(())
+            .context("Failed to build WebSocket request")?;
 
         let (ws_stream, _response) = tokio_tungstenite::connect_async(request)
             .await
@@ -152,7 +143,7 @@ impl ResponsesWebSocket {
             };
 
             // Send the request
-            if let Err(e) = ws.send(WsMessage::Text(json)).await {
+            if let Err(e) = ws.send(WsMessage::Text(json.into())).await {
                 // Connection failed — drop it so next call reconnects
                 *conn = None;
                 yield Err(anyhow::anyhow!("Failed to send WebSocket message: {}", e));

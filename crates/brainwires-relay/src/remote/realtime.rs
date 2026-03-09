@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::{RwLock, mpsc};
 use tokio_tungstenite::{
     connect_async,
-    tungstenite::{Message, client::IntoClientRequest},
+    tungstenite::Message,
 };
 use url::Url;
 
@@ -418,17 +418,15 @@ impl RealtimeClient {
             url.host_str().unwrap_or("unknown")
         );
 
-        // Convert URL to a WebSocket request (this adds all required WebSocket headers)
-        let mut request = url.into_client_request()?;
-
-        // Add JWT auth header for user authentication within Realtime
-        request.headers_mut().insert(
-            "Authorization",
-            format!("Bearer {}", self.config.realtime_token).parse()?,
-        );
+        // Build a WebSocket request with auth header
+        let request = tokio_tungstenite::tungstenite::http::Request::builder()
+            .uri(url.as_str())
+            .header("Authorization", format!("Bearer {}", self.config.realtime_token))
+            .body(())
+            .context("Failed to build WebSocket request")?;
 
         // Connect WebSocket
-        let (ws_stream, _response) = match connect_async(request).await {
+        let (ws_stream, _response): (tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>, _) = match connect_async(request).await {
             Ok(result) => result,
             Err(e) => {
                 tracing::error!("WebSocket connection error: {:?}", e);
@@ -469,7 +467,7 @@ impl RealtimeClient {
         });
 
         write
-            .send(Message::Text(serde_json::to_string(&join_msg)?))
+            .send(Message::Text(serde_json::to_string(&join_msg)?.into()))
             .await
             .context("Failed to send join message")?;
 
@@ -564,7 +562,7 @@ impl RealtimeClient {
                             break;
                         }
                     };
-                    if let Err(e) = write.send(Message::Text(heartbeat_str)).await {
+                    if let Err(e) = write.send(Message::Text(heartbeat_str.into())).await {
                         tracing::error!("Failed to send Phoenix heartbeat: {}", e);
                         break;
                     }
@@ -851,7 +849,7 @@ impl RealtimeClient {
         });
 
         write
-            .send(Message::Text(serde_json::to_string(&broadcast)?))
+            .send(Message::Text(serde_json::to_string(&broadcast)?.into()))
             .await
             .context("Failed to send broadcast")?;
 

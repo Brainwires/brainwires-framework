@@ -91,12 +91,7 @@ impl McpClient {
             "initialize".to_string(),
             Some(InitializeParams {
                 protocol_version: "2024-11-05".to_string(),
-                capabilities: ClientCapabilities {
-                    experimental: None,
-                    roots: None,
-                    sampling: None,
-                    elicitation: None,
-                },
+                capabilities: ClientCapabilities::default(),
                 client_info: ClientInfo {
                     name: self.client_name.clone(),
                     version: self.client_version.clone(),
@@ -203,9 +198,10 @@ impl McpClient {
         let request = JsonRpcRequest::new(
             request_id,
             "tools/call".to_string(),
-            Some(CallToolParams {
-                name: std::borrow::Cow::Owned(tool_name.to_string()),
-                arguments: arguments_obj,
+            Some({
+                let mut params = CallToolParams::new(tool_name.to_string());
+                params.arguments = arguments_obj;
+                params
             }),
         )
         .context("Failed to serialize tools/call params")?;

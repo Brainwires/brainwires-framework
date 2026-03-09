@@ -23,8 +23,8 @@ tracing.workspace = true
 uuid.workspace = true
 
 # Feature-gated
-tokenizers = { version = "0.21", optional = true }
-tiktoken-rs = { version = "0.7", optional = true }
+tokenizers = { version = "0.22", optional = true }
+tiktoken-rs = { version = "0.9", optional = true }
 sha2 = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 

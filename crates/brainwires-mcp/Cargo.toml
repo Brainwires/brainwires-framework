@@ -18,7 +18,7 @@ categories = ["development-tools"]
 brainwires-core.workspace = true
 
 # MCP protocol (native only)
-rmcp = { version = "0.8", features = ["client"], optional = true }
+rmcp = { version = "1.1", features = ["client"], optional = true }
 
 # Serialization
 serde = { workspace = true }

@@ -305,9 +305,9 @@ pub fn get_session_token_path(sessions_dir: &Path, session_id: &str) -> PathBuf 
 
 /// Generate a cryptographically secure session token (64 hex characters = 256 bits)
 pub fn generate_session_token() -> String {
-    use rand::RngCore;
+    use rand::Rng;
     let mut bytes = [0u8; 32];
-    rand::thread_rng().fill_bytes(&mut bytes);
+    rand::rng().fill_bytes(&mut bytes);
     hex::encode(bytes)
 }
 

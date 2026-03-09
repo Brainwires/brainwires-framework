@@ -302,13 +302,10 @@ impl RagMcpServer {
             ),
         )];
 
-        Ok(GetPromptResult {
-            description: Some(format!(
-                "Index codebase at {} (auto-detects full/incremental)",
-                path
-            )),
-            messages,
-        })
+        Ok(GetPromptResult::new(messages).with_description(format!(
+            "Index codebase at {} (auto-detects full/incremental)",
+            path
+        )))
     }
 
     #[prompt(
@@ -453,25 +450,21 @@ impl RagMcpServer {
 #[prompt_handler]
 impl ServerHandler for RagMcpServer {
     fn get_info(&self) -> ServerInfo {
-        ServerInfo {
-            protocol_version: ProtocolVersion::default(),
-            capabilities: ServerCapabilities::builder()
+        {
+            let mut info = ServerInfo::default();
+            info.capabilities = ServerCapabilities::builder()
                 .enable_tools()
                 .enable_prompts()
-                .build(),
-            server_info: Implementation {
-                name: "project".into(),
-                title: Some("Project RAG - Code Understanding with Semantic Search".into()),
-                version: env!("CARGO_PKG_VERSION").into(),
-                icons: None,
-                website_url: None,
-            },
-            instructions: Some(
+                .build();
+            info.server_info = Implementation::new("project", env!("CARGO_PKG_VERSION"))
+                .with_title("Project RAG - Code Understanding with Semantic Search");
+            info.instructions = Some(
                 "RAG-based codebase indexing and semantic search. \
                 Use index_codebase to create embeddings (automatically performs full or incremental indexing), \
                 query_codebase to search, and search_by_filters for advanced queries."
                     .into(),
-            ),
+            );
+            info
         }
     }
 }

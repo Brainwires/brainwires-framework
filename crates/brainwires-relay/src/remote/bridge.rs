@@ -1200,9 +1200,9 @@ impl RemoteBridge {
         };
 
         // Generate a cryptographically secure session ID
-        use rand::RngCore;
+        use rand::Rng;
         let mut random_bytes = [0u8; 16];
-        rand::thread_rng().fill_bytes(&mut random_bytes);
+        rand::rng().fill_bytes(&mut random_bytes);
         let session_id = format!("session-{}", hex::encode(random_bytes));
 
         // Delegate to spawner

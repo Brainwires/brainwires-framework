@@ -142,7 +142,7 @@ fn parse_metadata_from_content(content: &str, path: &Path) -> Result<SkillMetada
     }
 
     // Parse YAML frontmatter
-    let frontmatter: SkillFrontmatter = serde_yaml::from_str(parts[1].trim())
+    let frontmatter: SkillFrontmatter = serde_yml::from_str(parts[1].trim())
         .with_context(|| format!("Failed to parse skill frontmatter in {}", path.display()))?;
 
     // Validate constraints

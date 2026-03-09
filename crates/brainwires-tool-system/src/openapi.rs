@@ -146,7 +146,7 @@ pub struct OpenApiParam {
 /// the HTTP method and path.
 pub fn openapi_to_tools(spec: &str) -> Result<Vec<OpenApiTool>> {
     let openapi: OpenAPI = serde_json::from_str(spec)
-        .or_else(|_| serde_yaml::from_str(spec))
+        .or_else(|_| serde_yml::from_str(spec))
         .map_err(|e| anyhow!("Failed to parse OpenAPI spec: {}", e))?;
 
     let base_url = openapi

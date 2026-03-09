@@ -101,7 +101,8 @@ impl ClusterStorage {
     /// Save a task cluster to the database
     pub fn save_cluster(&mut self, cluster: &TaskCluster) -> Result<()> {
         let embedding_bytes =
-            bincode::serialize(&cluster.embedding).context("Failed to serialize embedding")?;
+            bincode::serde::encode_to_vec(&cluster.embedding, bincode::config::standard())
+                .context("Failed to serialize embedding")?;
 
         let techniques_json =
             serde_json::to_string(&cluster.techniques).context("Failed to serialize techniques")?;
@@ -147,8 +148,9 @@ impl ClusterStorage {
                 let tasks_json: String = row.get(4)?;
 
                 // Deserialize embedding
-                let embedding: Vec<f32> = bincode::deserialize(&embedding_bytes)
-                    .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+                let (embedding, _): (Vec<f32>, _) =
+                    bincode::serde::decode_from_slice(&embedding_bytes, bincode::config::standard())
+                        .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
 
                 // Deserialize techniques
                 let techniques: Vec<PromptingTechnique> = serde_json::from_str(&techniques_json)
@@ -191,7 +193,8 @@ impl ClusterStorage {
             let techniques_json: String = row.get(3)?;
             let tasks_json: String = row.get(4)?;
 
-            let embedding = bincode::deserialize(&embedding_bytes)?;
+            let (embedding, _): (Vec<f32>, _) =
+                bincode::serde::decode_from_slice(&embedding_bytes, bincode::config::standard())?;
             let techniques = serde_json::from_str(&techniques_json)?;
             let example_tasks = serde_json::from_str(&tasks_json)?;
 

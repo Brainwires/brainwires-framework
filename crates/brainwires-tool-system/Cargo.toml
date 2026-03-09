@@ -41,7 +41,7 @@ regex = "1"
 ignore = { version = "0.4", optional = true }
 
 # Git operations (native only)
-git2 = { version = "0.19", optional = true }
+git2 = { version = "0.20", optional = true }
 
 # Web operations (native only)
 reqwest = { workspace = true, optional = true }
@@ -63,7 +63,7 @@ web-time = { version = "1.1", optional = true }
 
 # OpenAPI spec parsing (behind openapi feature)
 openapiv3 = { version = "2", optional = true }
-serde_yaml = { version = "0.9", optional = true }
+serde_yml = { version = "0.0.12", optional = true }
 
 # Feature-gated dependencies
 brainwires-rag = { workspace = true, optional = true }
@@ -88,7 +88,7 @@ orchestrator-wasm = ["dep:rhai", "dep:web-time"]
 rag = ["dep:brainwires-rag", "brainwires-rag/native", "brainwires-rag/lancedb-backend", "brainwires-rag/tree-sitter-languages"]
 interpreters = ["dep:brainwires-code-interpreters"]
 smart-router = []
-openapi = ["dep:openapiv3", "dep:serde_yaml", "dep:reqwest"]
+openapi = ["dep:openapiv3", "dep:serde_yml", "dep:reqwest"]
 full = ["orchestrator", "rag", "interpreters", "smart-router", "openapi"]
 
 [[bench]]

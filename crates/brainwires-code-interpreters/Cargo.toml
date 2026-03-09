@@ -39,10 +39,10 @@ thiserror = "2.0"
 rhai = { version = "1.20", optional = true }
 
 # Lua - mlua with Lua 5.4 (small, fast)
-mlua = { version = "0.10", features = ["lua54", "vendored"], optional = true }
+mlua = { version = "0.10.3", features = ["lua54", "vendored"], optional = true }
 
 # JavaScript - Boa engine (ECMAScript compliant)
-boa_engine = { version = "0.20", optional = true }
+boa_engine = { version = "0.21", optional = true }
 
 # Python - RustPython (CPython 3.12 compatible)
 rustpython-vm = { version = "0.4", optional = true, default-features = false, features = ["freeze-stdlib"] }

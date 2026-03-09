@@ -4,7 +4,7 @@ use crate::types_openai::{
     OpenAIFunction, OpenAIFunctionCall, OpenAITool, OpenAIToolCall, OpenAIToolChoice,
     OpenAIToolChoiceFunction,
 };
-use rand::Rng;
+use rand::RngExt;
 
 /// Convert Anthropic tool definitions to OpenAI function-calling format.
 pub fn convert_tools_to_openai(
@@ -61,10 +61,10 @@ pub fn convert_tool_choice_to_openai(
 /// Generate an Anthropic-style tool use ID: `toolu_` + 24 random alphanumeric chars.
 pub fn generate_tool_use_id() -> String {
     const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let suffix: String = (0..24)
         .map(|_| {
-            let idx = rng.gen_range(0..CHARSET.len());
+            let idx = rng.random_range(0..CHARSET.len());
             CHARSET[idx] as char
         })
         .collect();

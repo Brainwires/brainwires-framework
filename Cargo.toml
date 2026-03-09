@@ -71,8 +71,8 @@ brainwires-brain = { path = "crates/brainwires-brain", version = "0.1.0" }
 brainwires-proxy = { path = "extras/brainwires-proxy", version = "0.1.0" }
 
 # Tokenizer dependencies
-tokenizers = "0.21"
-tiktoken-rs = "0.7"
+tokenizers = "0.22"
+tiktoken-rs = "0.9"
 
 # ML training framework — individual crates to avoid cubecl-cpu (links = "lzma" conflict
 # with xz2 from datafusion/lancedb). Using individual crates instead of umbrella `burn`.
@@ -92,7 +92,7 @@ async-stream = "0.3"
 # Serialization
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-serde_yaml = "0.9"
+serde_yml = "0.0.12"
 
 # Error handling
 anyhow = "1"
@@ -106,7 +106,7 @@ chrono = { version = "0.4", features = ["serde"] }
 reqwest = { version = "0.12", features = ["json", "stream"] }
 
 # MCP protocol
-rmcp = { version = "0.8", features = ["client", "server", "transport-sse-client", "transport-child-process", "transport-io", "macros"] }
+rmcp = { version = "1.1", features = ["client", "server", "client-side-sse", "transport-child-process", "transport-io", "macros"] }
 
 # MCP server support
 schemars = "1.0"
@@ -117,16 +117,16 @@ tracing = "0.1"
 tracing-subscriber = "0.3"
 
 # Vector database & columnar storage
-lancedb = "0.23"
-arrow = "56.2"
-arrow-array = "56.2"
-arrow-schema = "56.2"
+lancedb = "0.26"
+arrow = "57"
+arrow-array = "57"
+arrow-schema = "57"
 
 # Embeddings
 fastembed = "5.1"
 
 # Caching
-lru = "0.12"
+lru = "0.16"
 
 # Hashing
 sha2 = "0.10"
@@ -150,13 +150,13 @@ urlencoding = "2"
 dirs = "6"
 
 # Git
-git2 = "0.19"
+git2 = "0.20"
 
 # Security
 zeroize = { version = "1", features = ["derive"] }
 
 # Config parsing
-toml = "0.8"
+toml = "1.0"
 
 # ML / Clustering
 linfa = "0.7"
@@ -164,11 +164,11 @@ linfa-clustering = "0.7"
 ndarray = "0.15"
 
 # Binary encoding
-bincode = "1"
+bincode = { version = "2", features = ["serde"] }
 
 # Crypto
 chacha20poly1305 = "0.10"
-rand = "0.8"
+rand = "0.10"
 base64 = "0.22"
 hex = "0.4"
 subtle = "2.6"
@@ -177,7 +177,7 @@ subtle = "2.6"
 keyring = "3"
 
 # WebSocket
-tokio-tungstenite = { version = "0.21", features = ["native-tls"] }
+tokio-tungstenite = { version = "0.26", features = ["native-tls"] }
 
 # URL parsing
 url = "2.5"
@@ -209,9 +209,9 @@ http-body-util = "0.1"
 bytes = "1"
 
 # gRPC
-tonic = "0.12"
-prost = "0.13"
-prost-types = "0.13"
+tonic = "0.13"
+prost = "0.14"
+prost-types = "0.14"
 
 # Token decoding (used by llama-cpp-2)
 encoding_rs = "0.8"

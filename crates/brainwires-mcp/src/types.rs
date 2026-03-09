@@ -10,7 +10,7 @@ use serde_json::Value;
 // Re-export rmcp types with compatibility aliases (native only)
 #[cfg(feature = "native")]
 pub use rmcp::model::{
-    CallToolRequestParam, CallToolResult, Content, Prompt as RmcpPrompt, ProtocolVersion,
+    CallToolRequestParams, CallToolResult, Content, Prompt as RmcpPrompt, ProtocolVersion,
     Resource as RmcpResource, Tool as RmcpTool,
 };
 
@@ -39,7 +39,7 @@ pub type McpPrompt = RmcpPrompt;
 
 #[cfg(feature = "native")]
 /// Compatibility alias for CallToolParams
-pub type CallToolParams = CallToolRequestParam;
+pub type CallToolParams = CallToolRequestParams;
 
 #[cfg(feature = "native")]
 /// Compatibility alias for ServerCapabilities

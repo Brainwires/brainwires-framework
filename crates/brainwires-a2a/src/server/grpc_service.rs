@@ -43,7 +43,6 @@ mod grpc_impl {
         Status::new(code, e.message)
     }
 
-    #[tonic::async_trait]
     impl<H: A2aHandler> A2aService for GrpcBridge<H> {
         async fn send_message(
             &self,

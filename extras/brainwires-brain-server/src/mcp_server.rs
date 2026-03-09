@@ -238,27 +238,23 @@ impl BrainMcpServer {
 #[prompt_handler]
 impl ServerHandler for BrainMcpServer {
     fn get_info(&self) -> ServerInfo {
-        ServerInfo {
-            protocol_version: ProtocolVersion::default(),
-            capabilities: ServerCapabilities::builder()
+        {
+            let mut info = ServerInfo::default();
+            info.capabilities = ServerCapabilities::builder()
                 .enable_tools()
                 .enable_prompts()
-                .build(),
-            server_info: Implementation {
-                name: "brainwires-brain".into(),
-                title: Some("Open Brain — Persistent Knowledge for Any AI Tool".into()),
-                version: env!("CARGO_PKG_VERSION").into(),
-                icons: None,
-                website_url: None,
-            },
-            instructions: Some(
+                .build();
+            info.server_info = Implementation::new("brainwires-brain", env!("CARGO_PKG_VERSION"))
+                .with_title("Open Brain — Persistent Knowledge for Any AI Tool");
+            info.instructions = Some(
                 "Open Brain MCP server — persistent knowledge storage with semantic search. \
                 Use capture_thought to store thoughts/decisions/insights, \
                 search_memory for semantic retrieval, \
                 search_knowledge for PKS/BKS facts, \
                 and memory_stats for a dashboard."
                     .into(),
-            ),
+            );
+            info
         }
     }
 }
