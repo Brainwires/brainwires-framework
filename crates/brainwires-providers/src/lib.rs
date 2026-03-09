@@ -44,6 +44,8 @@ pub mod ollama;
 /// Brainwires HTTP relay protocol.
 #[cfg(feature = "native")]
 pub mod brainwires_http;
+#[cfg(feature = "native")]
+pub use brainwires_http::{get_backend_from_api_key, DEFAULT_BACKEND_URL, DEV_BACKEND_URL};
 
 // ── Audio/speech API clients ──────────────────────────────────────────
 

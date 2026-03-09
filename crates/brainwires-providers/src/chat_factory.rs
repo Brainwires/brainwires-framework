@@ -202,7 +202,9 @@ impl ChatProviderFactory {
         let api_key = config.api_key.clone()
             .ok_or_else(|| anyhow!("Brainwires provider requires an API key"))?;
         let backend_url = config.base_url.clone()
-            .unwrap_or_else(|| "https://brainwires.studio".to_string());
+            .unwrap_or_else(|| {
+                super::brainwires_http::get_backend_from_api_key(&api_key).to_string()
+            });
         Ok(Arc::new(super::brainwires_http::BrainwiresHttpProvider::new(
             api_key,
             backend_url,

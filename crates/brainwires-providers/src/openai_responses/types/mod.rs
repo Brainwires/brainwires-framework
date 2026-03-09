@@ -6,6 +6,7 @@ pub mod request;
 pub mod response;
 pub mod streaming;
 pub mod tools;
+pub mod websocket;
 
 // Re-export key types at the types module level
 pub use input::{InputContent, InputContentPart, ResponseInputItem};

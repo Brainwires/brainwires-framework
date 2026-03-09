@@ -45,11 +45,16 @@ http = { workspace = true, optional = true }
 # Vertex AI auth (Google OAuth2)
 gcp_auth = { workspace = true, optional = true }
 
+# WebSocket transport (OpenAI Responses API)
+tokio-tungstenite = { workspace = true, optional = true }
+url = { workspace = true, optional = true }
+
 [features]
 default = ["native"]
 native = [
     "dep:reqwest", "dep:async-stream",
     "dep:tracing", "dep:tokio", "dep:uuid",
+    "dep:tokio-tungstenite", "dep:url",
 ]
 llama-cpp-2 = ["dep:tracing", "dep:tokio", "dep:llama-cpp-2", "dep:encoding_rs"]
 bedrock = ["native", "dep:aws-sigv4", "dep:aws-credential-types", "dep:aws-smithy-runtime-api", "dep:http"]

@@ -106,7 +106,7 @@ impl ChatSession {
             };
 
             // Collect stream completely, then drop it before mutating self
-            let (text_buf, tool_uses, events) =
+            let (text_buf, tool_uses, events, response_id) =
                 self.collect_stream(tools_opt, &tool_defs).await?;
             all_events.extend(events);
 
@@ -129,11 +129,12 @@ impl ChatSession {
                     input: tu.input.clone(),
                 });
             }
+            let metadata = response_id.map(|rid| serde_json::json!({"response_id": rid}));
             self.messages.push(Message {
                 role: brainwires_core::Role::Assistant,
                 content: MessageContent::Blocks(blocks),
                 name: None,
-                metadata: None,
+                metadata,
             });
 
             // Execute tools
@@ -175,7 +176,7 @@ impl ChatSession {
         &self,
         tools_opt: Option<&[Tool]>,
         _tool_defs: &[Tool],
-    ) -> Result<(String, Vec<ToolUse>, Vec<StreamEvent>)> {
+    ) -> Result<(String, Vec<ToolUse>, Vec<StreamEvent>, Option<String>)> {
         let mut stream = self.provider.stream_chat(&self.messages, tools_opt, &self.options);
 
         let mut text_buf = String::new();
@@ -184,6 +185,7 @@ impl ChatSession {
         let mut current_tool_id = String::new();
         let mut current_tool_name = String::new();
         let mut current_tool_input = String::new();
+        let mut last_response_id: Option<String> = None;
 
         while let Some(chunk) = stream.next().await {
             match chunk? {
@@ -209,6 +211,15 @@ impl ChatSession {
                 StreamChunk::ToolInputDelta { partial_json, .. } => {
                     current_tool_input.push_str(&partial_json);
                 }
+                StreamChunk::ToolCall { call_id, response_id, tool_name, parameters, .. } => {
+                    // Brainwires backend sends complete tool calls in a single event
+                    last_response_id = Some(response_id);
+                    tool_uses.push(ToolUse {
+                        id: call_id,
+                        name: tool_name,
+                        input: parameters,
+                    });
+                }
                 StreamChunk::Usage(usage) => {
                     events.push(StreamEvent::Usage {
                         prompt_tokens: usage.prompt_tokens,
@@ -216,7 +227,6 @@ impl ChatSession {
                     });
                 }
                 StreamChunk::Done => {}
-                _ => {}
             }
         }
 
@@ -231,7 +241,7 @@ impl ChatSession {
             });
         }
 
-        Ok((text_buf, tool_uses, events))
+        Ok((text_buf, tool_uses, events, last_response_id))
     }
 
     async fn execute_tool(&mut self, tool_use: &ToolUse) -> ToolResult {

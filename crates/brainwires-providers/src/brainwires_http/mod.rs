@@ -8,6 +8,23 @@ use brainwires_core::provider::{ChatOptions, Provider};
 use brainwires_core::message::{ChatResponse, ContentBlock, Message, MessageContent, Role, StreamChunk};
 use brainwires_core::tool::Tool;
 
+/// Production backend URL.
+pub const DEFAULT_BACKEND_URL: &str = "https://brainwires.studio";
+/// Development backend URL.
+pub const DEV_BACKEND_URL: &str = "https://dev.brainwires.net";
+
+/// Determine the backend URL from an API key prefix.
+///
+/// Keys starting with `bw_dev_` route to the dev backend;
+/// all others (including `bw_prod_` and `bw_test_`) route to production.
+pub fn get_backend_from_api_key(api_key: &str) -> &'static str {
+    if api_key.starts_with("bw_dev_") {
+        DEV_BACKEND_URL
+    } else {
+        DEFAULT_BACKEND_URL
+    }
+}
+
 /// HTTP-based Brainwires provider using Server-Sent Events for streaming.
 ///
 /// Connects to the Brainwires Studio backend which routes requests to

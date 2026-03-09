@@ -14,6 +14,8 @@ pub mod types;
 pub mod client;
 pub mod convert;
 pub mod provider;
+pub mod websocket;
+pub mod ws_provider;
 
 // Re-export key public types at module level for ergonomic imports
 pub use client::ResponsesClient;
@@ -25,6 +27,10 @@ pub use types::{
     ResponseOutputItem, ResponseStreamEvent, ResponseTool, ResponseUsage, OutputContentBlock,
     ToolChoice,
 };
+
+// WebSocket transport
+pub use websocket::ResponsesWebSocket;
+pub use ws_provider::OpenAiResponsesWsProvider;
 
 // Backward-compatible alias
 pub use convert::ResponseApiResponse;
