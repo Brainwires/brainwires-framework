@@ -3,8 +3,8 @@
 //! Provides JavaScript/TypeScript bindings for executing code in various languages
 //! directly in the browser via WebAssembly.
 
+use crate::{ExecutionLimits, ExecutionRequest, Executor, Language};
 use wasm_bindgen::prelude::*;
-use crate::{Executor, ExecutionRequest, ExecutionLimits, Language};
 
 /// WASM-compatible code executor
 #[wasm_bindgen]
@@ -46,8 +46,7 @@ impl WasmExecutor {
     #[wasm_bindgen]
     pub fn execute(&self, language: &str, code: &str) -> Result<JsValue, JsValue> {
         let result = self.executor.execute_str(language, code);
-        serde_wasm_bindgen::to_value(&result)
-            .map_err(|e| JsValue::from_str(&e.to_string()))
+        serde_wasm_bindgen::to_value(&result).map_err(|e| JsValue::from_str(&e.to_string()))
     }
 
     /// Execute code with a full request object (JSON string)
@@ -57,8 +56,7 @@ impl WasmExecutor {
             .map_err(|e| JsValue::from_str(&format!("Invalid request: {}", e)))?;
 
         let result = self.executor.execute(request);
-        serde_wasm_bindgen::to_value(&result)
-            .map_err(|e| JsValue::from_str(&e.to_string()))
+        serde_wasm_bindgen::to_value(&result).map_err(|e| JsValue::from_str(&e.to_string()))
     }
 
     /// Get list of supported languages
@@ -93,8 +91,7 @@ pub fn execute_code(language: &str, code: &str) -> Result<JsValue, JsValue> {
     console_error_panic_hook::set_once();
     let executor = Executor::new();
     let result = executor.execute_str(language, code);
-    serde_wasm_bindgen::to_value(&result)
-        .map_err(|e| JsValue::from_str(&e.to_string()))
+    serde_wasm_bindgen::to_value(&result).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
 /// Get list of all supported languages

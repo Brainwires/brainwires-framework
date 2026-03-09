@@ -4,8 +4,8 @@ use ratatui::prelude::*;
 use std::time::Duration;
 use tokio::sync::mpsc;
 
-use crate::chat_session::{ApprovalResponse, ChatSession, StreamEvent};
 use super::render;
+use crate::chat_session::{ApprovalResponse, ChatSession, StreamEvent};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AppMode {
@@ -188,45 +188,39 @@ impl App {
             },
             AppMode::Waiting => {
                 // While waiting for response, only Ctrl+C works
-                if key.code == KeyCode::Char('c')
-                    && key.modifiers.contains(KeyModifiers::CONTROL)
-                {
+                if key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL) {
                     self.mode = AppMode::ExitDialog;
                 }
             }
-            AppMode::Normal => {
-                match key.code {
-                    KeyCode::Char('c')
-                        if key.modifiers.contains(KeyModifiers::CONTROL) =>
-                    {
-                        self.mode = AppMode::ExitDialog;
-                    }
-                    KeyCode::F(1) => {
-                        self.mode = AppMode::HelpDialog;
-                    }
-                    KeyCode::F(2) => {
-                        self.mode = AppMode::ConsoleView;
-                    }
-                    KeyCode::F(3) => {
-                        self.mode = AppMode::ConversationFullscreen;
-                    }
-                    KeyCode::F(4) => {
-                        self.mode = AppMode::InputFullscreen;
-                    }
-                    KeyCode::Enter => {
-                        if !self.input.trim().is_empty() {
-                            self.submit_message(event_tx).await;
-                        }
-                    }
-                    KeyCode::Up => {
-                        self.scroll_offset = self.scroll_offset.saturating_add(1);
-                    }
-                    KeyCode::Down => {
-                        self.scroll_offset = self.scroll_offset.saturating_sub(1);
-                    }
-                    _ => self.handle_input_key(key),
+            AppMode::Normal => match key.code {
+                KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                    self.mode = AppMode::ExitDialog;
                 }
-            }
+                KeyCode::F(1) => {
+                    self.mode = AppMode::HelpDialog;
+                }
+                KeyCode::F(2) => {
+                    self.mode = AppMode::ConsoleView;
+                }
+                KeyCode::F(3) => {
+                    self.mode = AppMode::ConversationFullscreen;
+                }
+                KeyCode::F(4) => {
+                    self.mode = AppMode::InputFullscreen;
+                }
+                KeyCode::Enter => {
+                    if !self.input.trim().is_empty() {
+                        self.submit_message(event_tx).await;
+                    }
+                }
+                KeyCode::Up => {
+                    self.scroll_offset = self.scroll_offset.saturating_add(1);
+                }
+                KeyCode::Down => {
+                    self.scroll_offset = self.scroll_offset.saturating_sub(1);
+                }
+                _ => self.handle_input_key(key),
+            },
         }
         Ok(false)
     }
@@ -355,8 +349,7 @@ impl App {
                         role: MessageRole::Tool,
                         content: format!("[calling {name}: {truncated}]"),
                     });
-                    self.console_log
-                        .push(format!("Tool call: {name}"));
+                    self.console_log.push(format!("Tool call: {name}"));
                 }
                 StreamEvent::ToolResult {
                     name,

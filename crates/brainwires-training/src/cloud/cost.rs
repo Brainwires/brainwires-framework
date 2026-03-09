@@ -79,7 +79,9 @@ impl CostEstimator {
         hyperparams: &TrainingHyperparams,
     ) -> CostEstimate {
         let cost_per_million = match model {
-            m if m.contains("7b") || m.contains("7B") || m.contains("8b") || m.contains("8B") => 0.40,
+            m if m.contains("7b") || m.contains("7B") || m.contains("8b") || m.contains("8B") => {
+                0.40
+            }
             m if m.contains("13b") || m.contains("13B") => 0.80,
             m if m.contains("70b") || m.contains("70B") => 3.00,
             m if m.contains("Mixtral") || m.contains("mixtral") => 2.00,
@@ -104,7 +106,9 @@ impl CostEstimator {
         hyperparams: &TrainingHyperparams,
     ) -> CostEstimate {
         let cost_per_million = match model {
-            m if m.contains("7b") || m.contains("7B") || m.contains("8b") || m.contains("8B") => 0.30,
+            m if m.contains("7b") || m.contains("7B") || m.contains("8b") || m.contains("8B") => {
+                0.30
+            }
             m if m.contains("13b") || m.contains("13B") => 0.60,
             m if m.contains("70b") || m.contains("70B") => 2.50,
             m if m.contains("Mixtral") || m.contains("mixtral") => 1.50,
@@ -188,7 +192,11 @@ mod tests {
     #[test]
     fn test_together_cost_estimation() {
         let hyperparams = TrainingHyperparams::default();
-        let estimate = CostEstimator::together("meta-llama/Meta-Llama-3.1-8B-Instruct", 500_000, &hyperparams);
+        let estimate = CostEstimator::together(
+            "meta-llama/Meta-Llama-3.1-8B-Instruct",
+            500_000,
+            &hyperparams,
+        );
 
         assert_eq!(estimate.provider, "together");
         // 500K tokens * 3 epochs * $0.50/1M = $0.75

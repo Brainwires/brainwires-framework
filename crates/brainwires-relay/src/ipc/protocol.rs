@@ -94,7 +94,6 @@ pub enum ViewerMessage {
     // ========================================================================
     // Multi-Agent Messages
     // ========================================================================
-
     /// Request list of all active agents
     ListAgents,
 
@@ -128,7 +127,6 @@ pub enum ViewerMessage {
     // ========================================================================
     // Plan Mode Messages
     // ========================================================================
-
     /// Enter plan mode with optional focus/goal
     EnterPlanMode {
         /// Optional focus or goal for the planning session
@@ -341,7 +339,6 @@ pub enum AgentMessage {
     // ========================================================================
     // Multi-Agent Messages
     // ========================================================================
-
     /// A new child agent was spawned
     AgentSpawned {
         /// Session ID of the new agent
@@ -381,7 +378,6 @@ pub enum AgentMessage {
     // ========================================================================
     // Plan Mode Messages
     // ========================================================================
-
     /// Plan mode entered successfully
     PlanModeEntered {
         /// Plan session ID
@@ -595,8 +591,6 @@ impl Handshake {
             session_token: Some(session_token),
         }
     }
-
-
 }
 
 /// Handshake response from agent
@@ -647,11 +641,7 @@ pub struct AgentMetadata {
 
 impl AgentMetadata {
     /// Create new metadata for an agent
-    pub fn new(
-        session_id: String,
-        model: String,
-        working_directory: String,
-    ) -> Self {
+    pub fn new(session_id: String, model: String, working_directory: String) -> Self {
         let now = chrono::Utc::now().timestamp();
         Self {
             session_id,
@@ -777,7 +767,12 @@ mod tests {
         let json = serde_json::to_string(&msg).unwrap();
         let parsed: AgentMessage = serde_json::from_str(&json).unwrap();
         match parsed {
-            AgentMessage::ToolResult { id, name, output, error } => {
+            AgentMessage::ToolResult {
+                id,
+                name,
+                output,
+                error,
+            } => {
                 assert_eq!(id, "tool-1");
                 assert_eq!(name, "read_file");
                 assert_eq!(output, Some("content".to_string()));

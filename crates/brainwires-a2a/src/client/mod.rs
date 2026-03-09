@@ -126,7 +126,9 @@ impl A2aClient {
             }
             Transport::Grpc => {
                 // gRPC auth is set at connect time; log a warning
-                tracing::warn!("Bearer token on existing gRPC transport not supported; pass token at connect time");
+                tracing::warn!(
+                    "Bearer token on existing gRPC transport not supported; pass token at connect time"
+                );
                 self
             }
         }
@@ -144,19 +146,28 @@ impl A2aClient {
     ) -> Result<SendMessageResponse, A2aError> {
         match self.transport {
             Transport::JsonRpc => {
-                let t = self.jsonrpc.as_ref().ok_or_else(|| A2aError::internal("No JSON-RPC transport"))?;
+                let t = self
+                    .jsonrpc
+                    .as_ref()
+                    .ok_or_else(|| A2aError::internal("No JSON-RPC transport"))?;
                 let params = serde_json::to_value(&req)?;
                 let result = t.call(jsonrpc::METHOD_MESSAGE_SEND, params).await?;
                 serde_json::from_value(result).map_err(Into::into)
             }
             Transport::Rest => {
-                let t = self.rest.as_ref().ok_or_else(|| A2aError::internal("No REST transport"))?;
+                let t = self
+                    .rest
+                    .as_ref()
+                    .ok_or_else(|| A2aError::internal("No REST transport"))?;
                 let result = t.post("/message:send", &req).await?;
                 serde_json::from_value(result).map_err(Into::into)
             }
             #[cfg(feature = "grpc-client")]
             Transport::Grpc => {
-                let t = self.grpc.as_ref().ok_or_else(|| A2aError::internal("No gRPC transport"))?;
+                let t = self
+                    .grpc
+                    .as_ref()
+                    .ok_or_else(|| A2aError::internal("No gRPC transport"))?;
                 let mut guard = t.lock().await;
                 guard.send_message(req).await
             }
@@ -227,19 +238,28 @@ impl A2aClient {
     pub async fn get_task(&self, req: GetTaskRequest) -> Result<Task, A2aError> {
         match self.transport {
             Transport::JsonRpc => {
-                let t = self.jsonrpc.as_ref().ok_or_else(|| A2aError::internal("No JSON-RPC transport"))?;
+                let t = self
+                    .jsonrpc
+                    .as_ref()
+                    .ok_or_else(|| A2aError::internal("No JSON-RPC transport"))?;
                 let params = serde_json::to_value(&req)?;
                 let result = t.call(jsonrpc::METHOD_TASKS_GET, params).await?;
                 serde_json::from_value(result).map_err(Into::into)
             }
             Transport::Rest => {
-                let t = self.rest.as_ref().ok_or_else(|| A2aError::internal("No REST transport"))?;
+                let t = self
+                    .rest
+                    .as_ref()
+                    .ok_or_else(|| A2aError::internal("No REST transport"))?;
                 let result = t.get(&format!("/tasks/{}", req.id)).await?;
                 serde_json::from_value(result).map_err(Into::into)
             }
             #[cfg(feature = "grpc-client")]
             Transport::Grpc => {
-                let t = self.grpc.as_ref().ok_or_else(|| A2aError::internal("No gRPC transport"))?;
+                let t = self
+                    .grpc
+                    .as_ref()
+                    .ok_or_else(|| A2aError::internal("No gRPC transport"))?;
                 let mut guard = t.lock().await;
                 guard.get_task(req).await
             }
@@ -252,19 +272,28 @@ impl A2aClient {
     pub async fn list_tasks(&self, req: ListTasksRequest) -> Result<ListTasksResponse, A2aError> {
         match self.transport {
             Transport::JsonRpc => {
-                let t = self.jsonrpc.as_ref().ok_or_else(|| A2aError::internal("No JSON-RPC transport"))?;
+                let t = self
+                    .jsonrpc
+                    .as_ref()
+                    .ok_or_else(|| A2aError::internal("No JSON-RPC transport"))?;
                 let params = serde_json::to_value(&req)?;
                 let result = t.call(jsonrpc::METHOD_TASKS_LIST, params).await?;
                 serde_json::from_value(result).map_err(Into::into)
             }
             Transport::Rest => {
-                let t = self.rest.as_ref().ok_or_else(|| A2aError::internal("No REST transport"))?;
+                let t = self
+                    .rest
+                    .as_ref()
+                    .ok_or_else(|| A2aError::internal("No REST transport"))?;
                 let result = t.get("/tasks").await?;
                 serde_json::from_value(result).map_err(Into::into)
             }
             #[cfg(feature = "grpc-client")]
             Transport::Grpc => {
-                let t = self.grpc.as_ref().ok_or_else(|| A2aError::internal("No gRPC transport"))?;
+                let t = self
+                    .grpc
+                    .as_ref()
+                    .ok_or_else(|| A2aError::internal("No gRPC transport"))?;
                 let mut guard = t.lock().await;
                 guard.list_tasks(req).await
             }
@@ -277,19 +306,28 @@ impl A2aClient {
     pub async fn cancel_task(&self, req: CancelTaskRequest) -> Result<Task, A2aError> {
         match self.transport {
             Transport::JsonRpc => {
-                let t = self.jsonrpc.as_ref().ok_or_else(|| A2aError::internal("No JSON-RPC transport"))?;
+                let t = self
+                    .jsonrpc
+                    .as_ref()
+                    .ok_or_else(|| A2aError::internal("No JSON-RPC transport"))?;
                 let params = serde_json::to_value(&req)?;
                 let result = t.call(jsonrpc::METHOD_TASKS_CANCEL, params).await?;
                 serde_json::from_value(result).map_err(Into::into)
             }
             Transport::Rest => {
-                let t = self.rest.as_ref().ok_or_else(|| A2aError::internal("No REST transport"))?;
+                let t = self
+                    .rest
+                    .as_ref()
+                    .ok_or_else(|| A2aError::internal("No REST transport"))?;
                 let result = t.post(&format!("/tasks/{}:cancel", req.id), &req).await?;
                 serde_json::from_value(result).map_err(Into::into)
             }
             #[cfg(feature = "grpc-client")]
             Transport::Grpc => {
-                let t = self.grpc.as_ref().ok_or_else(|| A2aError::internal("No gRPC transport"))?;
+                let t = self
+                    .grpc
+                    .as_ref()
+                    .ok_or_else(|| A2aError::internal("No gRPC transport"))?;
                 let mut guard = t.lock().await;
                 guard.cancel_task(req).await
             }
@@ -362,20 +400,29 @@ impl A2aClient {
     ) -> Result<TaskPushNotificationConfig, A2aError> {
         match self.transport {
             Transport::JsonRpc => {
-                let t = self.jsonrpc.as_ref().ok_or_else(|| A2aError::internal("No JSON-RPC transport"))?;
+                let t = self
+                    .jsonrpc
+                    .as_ref()
+                    .ok_or_else(|| A2aError::internal("No JSON-RPC transport"))?;
                 let params = serde_json::to_value(&config)?;
                 let result = t.call(jsonrpc::METHOD_PUSH_CONFIG_SET, params).await?;
                 serde_json::from_value(result).map_err(Into::into)
             }
             Transport::Rest => {
-                let t = self.rest.as_ref().ok_or_else(|| A2aError::internal("No REST transport"))?;
+                let t = self
+                    .rest
+                    .as_ref()
+                    .ok_or_else(|| A2aError::internal("No REST transport"))?;
                 let path = format!("/tasks/{}/pushNotificationConfigs", config.task_id);
                 let result = t.post(&path, &config).await?;
                 serde_json::from_value(result).map_err(Into::into)
             }
             #[cfg(feature = "grpc-client")]
             Transport::Grpc => {
-                let t = self.grpc.as_ref().ok_or_else(|| A2aError::internal("No gRPC transport"))?;
+                let t = self
+                    .grpc
+                    .as_ref()
+                    .ok_or_else(|| A2aError::internal("No gRPC transport"))?;
                 let mut guard = t.lock().await;
                 guard.create_push_config(config).await
             }
@@ -391,20 +438,29 @@ impl A2aClient {
     ) -> Result<TaskPushNotificationConfig, A2aError> {
         match self.transport {
             Transport::JsonRpc => {
-                let t = self.jsonrpc.as_ref().ok_or_else(|| A2aError::internal("No JSON-RPC transport"))?;
+                let t = self
+                    .jsonrpc
+                    .as_ref()
+                    .ok_or_else(|| A2aError::internal("No JSON-RPC transport"))?;
                 let params = serde_json::to_value(&req)?;
                 let result = t.call(jsonrpc::METHOD_PUSH_CONFIG_GET, params).await?;
                 serde_json::from_value(result).map_err(Into::into)
             }
             Transport::Rest => {
-                let t = self.rest.as_ref().ok_or_else(|| A2aError::internal("No REST transport"))?;
+                let t = self
+                    .rest
+                    .as_ref()
+                    .ok_or_else(|| A2aError::internal("No REST transport"))?;
                 let path = format!("/tasks/{}/pushNotificationConfigs/{}", req.task_id, req.id);
                 let result = t.get(&path).await?;
                 serde_json::from_value(result).map_err(Into::into)
             }
             #[cfg(feature = "grpc-client")]
             Transport::Grpc => {
-                let t = self.grpc.as_ref().ok_or_else(|| A2aError::internal("No gRPC transport"))?;
+                let t = self
+                    .grpc
+                    .as_ref()
+                    .ok_or_else(|| A2aError::internal("No gRPC transport"))?;
                 let mut guard = t.lock().await;
                 guard.get_push_config(req).await
             }
@@ -420,19 +476,28 @@ impl A2aClient {
     ) -> Result<(), A2aError> {
         match self.transport {
             Transport::JsonRpc => {
-                let t = self.jsonrpc.as_ref().ok_or_else(|| A2aError::internal("No JSON-RPC transport"))?;
+                let t = self
+                    .jsonrpc
+                    .as_ref()
+                    .ok_or_else(|| A2aError::internal("No JSON-RPC transport"))?;
                 let params = serde_json::to_value(&req)?;
                 let _ = t.call(jsonrpc::METHOD_PUSH_CONFIG_DELETE, params).await?;
                 Ok(())
             }
             Transport::Rest => {
-                let t = self.rest.as_ref().ok_or_else(|| A2aError::internal("No REST transport"))?;
+                let t = self
+                    .rest
+                    .as_ref()
+                    .ok_or_else(|| A2aError::internal("No REST transport"))?;
                 let path = format!("/tasks/{}/pushNotificationConfigs/{}", req.task_id, req.id);
                 t.delete(&path).await
             }
             #[cfg(feature = "grpc-client")]
             Transport::Grpc => {
-                let t = self.grpc.as_ref().ok_or_else(|| A2aError::internal("No gRPC transport"))?;
+                let t = self
+                    .grpc
+                    .as_ref()
+                    .ok_or_else(|| A2aError::internal("No gRPC transport"))?;
                 let mut guard = t.lock().await;
                 guard.delete_push_config(req).await
             }
@@ -448,20 +513,29 @@ impl A2aClient {
     ) -> Result<ListTaskPushNotificationConfigsResponse, A2aError> {
         match self.transport {
             Transport::JsonRpc => {
-                let t = self.jsonrpc.as_ref().ok_or_else(|| A2aError::internal("No JSON-RPC transport"))?;
+                let t = self
+                    .jsonrpc
+                    .as_ref()
+                    .ok_or_else(|| A2aError::internal("No JSON-RPC transport"))?;
                 let params = serde_json::to_value(&req)?;
                 let result = t.call(jsonrpc::METHOD_PUSH_CONFIG_LIST, params).await?;
                 serde_json::from_value(result).map_err(Into::into)
             }
             Transport::Rest => {
-                let t = self.rest.as_ref().ok_or_else(|| A2aError::internal("No REST transport"))?;
+                let t = self
+                    .rest
+                    .as_ref()
+                    .ok_or_else(|| A2aError::internal("No REST transport"))?;
                 let path = format!("/tasks/{}/pushNotificationConfigs", req.task_id);
                 let result = t.get(&path).await?;
                 serde_json::from_value(result).map_err(Into::into)
             }
             #[cfg(feature = "grpc-client")]
             Transport::Grpc => {
-                let t = self.grpc.as_ref().ok_or_else(|| A2aError::internal("No gRPC transport"))?;
+                let t = self
+                    .grpc
+                    .as_ref()
+                    .ok_or_else(|| A2aError::internal("No gRPC transport"))?;
                 let mut guard = t.lock().await;
                 guard.list_push_configs(req).await
             }
@@ -477,19 +551,28 @@ impl A2aClient {
     ) -> Result<AgentCard, A2aError> {
         match self.transport {
             Transport::JsonRpc => {
-                let t = self.jsonrpc.as_ref().ok_or_else(|| A2aError::internal("No JSON-RPC transport"))?;
+                let t = self
+                    .jsonrpc
+                    .as_ref()
+                    .ok_or_else(|| A2aError::internal("No JSON-RPC transport"))?;
                 let params = serde_json::to_value(&req)?;
                 let result = t.call(jsonrpc::METHOD_EXTENDED_CARD, params).await?;
                 serde_json::from_value(result).map_err(Into::into)
             }
             Transport::Rest => {
-                let t = self.rest.as_ref().ok_or_else(|| A2aError::internal("No REST transport"))?;
+                let t = self
+                    .rest
+                    .as_ref()
+                    .ok_or_else(|| A2aError::internal("No REST transport"))?;
                 let result = t.get("/extendedAgentCard").await?;
                 serde_json::from_value(result).map_err(Into::into)
             }
             #[cfg(feature = "grpc-client")]
             Transport::Grpc => {
-                let t = self.grpc.as_ref().ok_or_else(|| A2aError::internal("No gRPC transport"))?;
+                let t = self
+                    .grpc
+                    .as_ref()
+                    .ok_or_else(|| A2aError::internal("No gRPC transport"))?;
                 let mut guard = t.lock().await;
                 guard.get_extended_agent_card(req).await
             }

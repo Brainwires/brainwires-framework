@@ -56,7 +56,11 @@ impl EventStore {
 
     /// Current number of stored events.
     pub fn len(&self) -> usize {
-        self.inner.lock().expect("event store lock poisoned").events.len()
+        self.inner
+            .lock()
+            .expect("event store lock poisoned")
+            .events
+            .len()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -65,12 +69,19 @@ impl EventStore {
 
     /// Total events ever pushed (including evicted).
     pub fn total_pushed(&self) -> u64 {
-        self.inner.lock().expect("event store lock poisoned").total_pushed
+        self.inner
+            .lock()
+            .expect("event store lock poisoned")
+            .total_pushed
     }
 
     /// Clear all events.
     pub fn clear(&self) {
-        self.inner.lock().expect("event store lock poisoned").events.clear();
+        self.inner
+            .lock()
+            .expect("event store lock poisoned")
+            .events
+            .clear();
     }
 
     /// Get store statistics.
@@ -98,13 +109,15 @@ pub struct EventFilter {
 impl EventFilter {
     pub fn matches(&self, event: &TrafficEvent) -> bool {
         if let Some(dir) = self.direction
-            && event.direction != dir {
-                return false;
-            }
+            && event.direction != dir
+        {
+            return false;
+        }
         if let Some(ref rid) = self.request_id
-            && event.request_id.to_string() != *rid {
-                return false;
-            }
+            && event.request_id.to_string() != *rid
+        {
+            return false;
+        }
         if let Some(ref kind) = self.kind {
             let event_kind = match &event.kind {
                 TrafficEventKind::Request { .. } => "request",
@@ -120,9 +133,10 @@ impl EventFilter {
             }
         }
         if let Some(since) = self.since
-            && event.timestamp < since {
-                return false;
-            }
+            && event.timestamp < since
+        {
+            return false;
+        }
         true
     }
 }
@@ -233,7 +247,9 @@ mod tests {
         store.push(make_response_event());
         store.push(make_event(
             EventDirection::Inbound,
-            TrafficEventKind::Error { message: "oops".into() },
+            TrafficEventKind::Error {
+                message: "oops".into(),
+            },
         ));
 
         let filter = EventFilter {

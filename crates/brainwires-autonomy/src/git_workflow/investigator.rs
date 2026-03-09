@@ -62,11 +62,7 @@ impl IssueInvestigator {
         let options = brainwires_core::ChatOptions::default();
 
         let response = self.provider.chat(&messages, None, &options).await?;
-        let content = response
-            .message
-            .text()
-            .unwrap_or_default()
-            .to_string();
+        let content = response.message.text().unwrap_or_default().to_string();
 
         // Parse the AI response (best-effort extraction)
         Ok(InvestigationResult {
@@ -86,7 +82,10 @@ fn extract_confidence(text: &str) -> f64 {
         let lower = line.to_lowercase();
         if lower.contains("confidence") {
             for word in lower.split_whitespace() {
-                if let Ok(val) = word.trim_matches(|c: char| !c.is_ascii_digit() && c != '.').parse::<f64>() {
+                if let Ok(val) = word
+                    .trim_matches(|c: char| !c.is_ascii_digit() && c != '.')
+                    .parse::<f64>()
+                {
                     if (0.0..=1.0).contains(&val) {
                         return val;
                     }
@@ -100,9 +99,11 @@ fn extract_confidence(text: &str) -> f64 {
 fn extract_files(text: &str) -> Vec<String> {
     let mut files = Vec::new();
     for line in text.lines() {
-        let trimmed = line.trim().trim_start_matches("- ").trim_start_matches("* ");
-        if (trimmed.contains('/') || trimmed.contains('.'))
-            && trimmed.ends_with(".rs")
+        let trimmed = line
+            .trim()
+            .trim_start_matches("- ")
+            .trim_start_matches("* ");
+        if (trimmed.contains('/') || trimmed.contains('.')) && trimmed.ends_with(".rs")
             || trimmed.ends_with(".ts")
             || trimmed.ends_with(".py")
             || trimmed.ends_with(".js")

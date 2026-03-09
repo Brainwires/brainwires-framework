@@ -70,30 +70,38 @@ impl SymbolExtractor {
 
         // Check if this node is a definition we care about
         if is_definition_node(kind, language)
-            && let Some(def) = self.node_to_definition(node, source, language, file_info, &parent_id)
-            {
-                let new_parent_id = Some(def.to_storage_id());
-                result.push(def);
+            && let Some(def) =
+                self.node_to_definition(node, source, language, file_info, &parent_id)
+        {
+            let new_parent_id = Some(def.to_storage_id());
+            result.push(def);
 
-                // Extract nested definitions with this as parent
-                let mut cursor = node.walk();
-                for child in node.children(&mut cursor) {
-                    self.extract_from_node(
-                        child,
-                        source,
-                        language,
-                        file_info,
-                        new_parent_id.clone(),
-                        result,
-                    );
-                }
-                return;
+            // Extract nested definitions with this as parent
+            let mut cursor = node.walk();
+            for child in node.children(&mut cursor) {
+                self.extract_from_node(
+                    child,
+                    source,
+                    language,
+                    file_info,
+                    new_parent_id.clone(),
+                    result,
+                );
             }
+            return;
+        }
 
         // Recurse into children
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
-            self.extract_from_node(child, source, language, file_info, parent_id.clone(), result);
+            self.extract_from_node(
+                child,
+                source,
+                language,
+                file_info,
+                parent_id.clone(),
+                result,
+            );
         }
     }
 
@@ -305,9 +313,10 @@ fn find_name_node<'a>(node: Node<'a>, language: &str) -> Option<Node<'a>> {
             }
             // For impl items, look for type name
             if kind == "impl_item"
-                && let Some(type_node) = node.child_by_field_name("type") {
-                    return Some(type_node);
-                }
+                && let Some(type_node) = node.child_by_field_name("type")
+            {
+                return Some(type_node);
+            }
         }
         "Python" => {
             // Python: class and function have "name" field
@@ -334,9 +343,10 @@ fn find_name_node<'a>(node: Node<'a>, language: &str) -> Option<Node<'a>> {
                 // Look at parent for variable name
                 if let Some(parent) = node.parent()
                     && parent.kind() == "variable_declarator"
-                        && let Some(name_node) = parent.child_by_field_name("name") {
-                            return Some(name_node);
-                        }
+                    && let Some(name_node) = parent.child_by_field_name("name")
+                {
+                    return Some(name_node);
+                }
             }
         }
         "Go" => {
@@ -362,9 +372,10 @@ fn find_name_node<'a>(node: Node<'a>, language: &str) -> Option<Node<'a>> {
             }
             // For struct/class, name is in the type specifier
             if (kind == "struct_specifier" || kind == "class_specifier" || kind == "enum_specifier")
-                && let Some(name_node) = node.child_by_field_name("name") {
-                    return Some(name_node);
-                }
+                && let Some(name_node) = node.child_by_field_name("name")
+            {
+                return Some(name_node);
+            }
         }
         "C#" => {
             if let Some(name_node) = node.child_by_field_name("name") {
@@ -386,9 +397,9 @@ fn find_name_node<'a>(node: Node<'a>, language: &str) -> Option<Node<'a>> {
 
     // Fallback: find first identifier child
     let mut cursor = node.walk();
-    node.children(&mut cursor).find(|&child| child.kind() == "identifier"
-            || child.kind() == "type_identifier"
-            || child.kind() == "name")
+    node.children(&mut cursor).find(|&child| {
+        child.kind() == "identifier" || child.kind() == "type_identifier" || child.kind() == "name"
+    })
 }
 
 /// Find the innermost identifier in a declarator chain (for C/C++)
@@ -425,7 +436,9 @@ fn extract_signature(node: Node, source: &str, _language: &str) -> String {
     if first_line.len() > 200 {
         let end = {
             let mut i = 200;
-            while !first_line.is_char_boundary(i) { i -= 1; }
+            while !first_line.is_char_boundary(i) {
+                i -= 1;
+            }
             i
         };
         format!("{}...", &first_line[..end])

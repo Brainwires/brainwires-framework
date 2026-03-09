@@ -4,13 +4,13 @@ use anyhow::Result;
 use async_trait::async_trait;
 use futures::stream::BoxStream;
 
-use brainwires_core::{
-    ChatOptions, ChatResponse, ContentBlock, Message, MessageContent, Provider, Role, StreamChunk,
-    Tool, Usage,
-};
 use super::{
     AnthropicClient, AnthropicContentBlock, AnthropicMessage, AnthropicRequest, AnthropicResponse,
     AnthropicTool,
+};
+use brainwires_core::{
+    ChatOptions, ChatResponse, ContentBlock, Message, MessageContent, Provider, Role, StreamChunk,
+    Tool, Usage,
 };
 
 // ---------------------------------------------------------------------------
@@ -28,7 +28,11 @@ pub struct AnthropicChatProvider {
 impl AnthropicChatProvider {
     /// Create a new chat provider backed by the given client.
     pub fn new(client: Arc<AnthropicClient>, model: String) -> Self {
-        Self { client, model, provider_name: "anthropic".to_string() }
+        Self {
+            client,
+            model,
+            provider_name: "anthropic".to_string(),
+        }
     }
 
     /// Override the provider name reported by [`Provider::name`].
@@ -56,15 +60,15 @@ impl AnthropicChatProvider {
                     _ => "user".to_string(),
                 },
                 content: match &m.content {
-                    MessageContent::Text(text) => vec![AnthropicContentBlock::Text {
-                        text: text.clone(),
-                    }],
+                    MessageContent::Text(text) => {
+                        vec![AnthropicContentBlock::Text { text: text.clone() }]
+                    }
                     MessageContent::Blocks(blocks) => blocks
                         .iter()
                         .filter_map(|b| match b {
-                            ContentBlock::Text { text } => Some(AnthropicContentBlock::Text {
-                                text: text.clone(),
-                            }),
+                            ContentBlock::Text { text } => {
+                                Some(AnthropicContentBlock::Text { text: text.clone() })
+                            }
                             ContentBlock::ToolUse { id, name, input } => {
                                 Some(AnthropicContentBlock::ToolUse {
                                     id: id.clone(),
@@ -109,9 +113,7 @@ impl AnthropicChatProvider {
     }
 
     /// Parse an `AnthropicResponse` into a core `ChatResponse`.
-    fn parse_response(
-        response: AnthropicResponse,
-    ) -> ChatResponse {
+    fn parse_response(response: AnthropicResponse) -> ChatResponse {
         let content = if response.content.len() == 1 {
             match &response.content[0] {
                 AnthropicContentBlock::Text { text } => MessageContent::Text(text.clone()),
@@ -137,9 +139,7 @@ impl AnthropicChatProvider {
                     .content
                     .into_iter()
                     .filter_map(|block| match block {
-                        AnthropicContentBlock::Text { text } => {
-                            Some(ContentBlock::Text { text })
-                        }
+                        AnthropicContentBlock::Text { text } => Some(ContentBlock::Text { text }),
                         AnthropicContentBlock::ToolUse { id, name, input } => {
                             Some(ContentBlock::ToolUse { id, name, input })
                         }

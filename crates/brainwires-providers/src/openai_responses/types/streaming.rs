@@ -13,7 +13,6 @@ use super::response::ResponseObject;
 #[serde(tag = "type")]
 pub enum ResponseStreamEvent {
     // ── Response lifecycle ───────────────────────────────────────────
-
     /// Stream initialized.
     #[serde(rename = "response.created")]
     ResponseCreated {
@@ -46,7 +45,6 @@ pub enum ResponseStreamEvent {
     },
 
     // ── Output items ────────────────────────────────────────────────
-
     /// New output item started.
     #[serde(rename = "response.output_item.added")]
     OutputItemAdded {
@@ -65,7 +63,6 @@ pub enum ResponseStreamEvent {
     },
 
     // ── Content parts ───────────────────────────────────────────────
-
     /// Content part started.
     #[serde(rename = "response.content_part.added")]
     ContentPartAdded {
@@ -92,7 +89,6 @@ pub enum ResponseStreamEvent {
     },
 
     // ── Text deltas ─────────────────────────────────────────────────
-
     /// Incremental text.
     #[serde(rename = "response.output_text.delta")]
     OutputTextDelta {
@@ -119,7 +115,6 @@ pub enum ResponseStreamEvent {
     },
 
     // ── Function call arguments ─────────────────────────────────────
-
     /// Incremental function args.
     #[serde(rename = "response.function_call_arguments.delta")]
     FunctionCallArgumentsDelta {
@@ -142,7 +137,6 @@ pub enum ResponseStreamEvent {
     },
 
     // ── Refusal ─────────────────────────────────────────────────────
-
     /// Incremental refusal text.
     #[serde(rename = "response.refusal.delta")]
     RefusalDelta {
@@ -165,7 +159,6 @@ pub enum ResponseStreamEvent {
     },
 
     // ── Reasoning ───────────────────────────────────────────────────
-
     /// Reasoning summary part started.
     #[serde(rename = "response.reasoning_summary_part.added")]
     ReasoningSummaryPartAdded {
@@ -208,7 +201,6 @@ pub enum ResponseStreamEvent {
     },
 
     // ── Built-in tool progress ──────────────────────────────────────
-
     /// File search in progress.
     #[serde(rename = "response.file_search_call.in_progress")]
     FileSearchCallInProgress {
@@ -352,7 +344,6 @@ pub enum ResponseStreamEvent {
     },
 
     // ── Error ───────────────────────────────────────────────────────
-
     /// Error event.
     #[serde(rename = "error")]
     Error {
@@ -376,7 +367,9 @@ mod tests {
             "content_index": 0
         });
         let event: ResponseStreamEvent = serde_json::from_value(json).unwrap();
-        assert!(matches!(event, ResponseStreamEvent::OutputTextDelta { delta, .. } if delta == "Hello"));
+        assert!(
+            matches!(event, ResponseStreamEvent::OutputTextDelta { delta, .. } if delta == "Hello")
+        );
     }
 
     #[test]
@@ -388,7 +381,10 @@ mod tests {
             "output_index": 0
         });
         let event: ResponseStreamEvent = serde_json::from_value(json).unwrap();
-        assert!(matches!(event, ResponseStreamEvent::FunctionCallArgumentsDelta { .. }));
+        assert!(matches!(
+            event,
+            ResponseStreamEvent::FunctionCallArgumentsDelta { .. }
+        ));
     }
 
     #[test]
@@ -474,7 +470,10 @@ mod tests {
             "summary_index": 0
         });
         let event: ResponseStreamEvent = serde_json::from_value(json).unwrap();
-        assert!(matches!(event, ResponseStreamEvent::ReasoningSummaryTextDelta { .. }));
+        assert!(matches!(
+            event,
+            ResponseStreamEvent::ReasoningSummaryTextDelta { .. }
+        ));
     }
 
     #[test]

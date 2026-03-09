@@ -44,8 +44,7 @@ impl OpenAiStt {
     ) -> Self {
         let model_str = model.into();
         let client = Arc::new(
-            OpenAiClient::new(api_key.into(), model_str.clone())
-                .with_base_url(base_url.into()),
+            OpenAiClient::new(api_key.into(), model_str.clone()).with_base_url(base_url.into()),
         );
         Self {
             client,

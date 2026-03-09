@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 
-use super::forge::{CreatePrParams, GitForge, Issue, PullRequest, RepoRef};
 use super::change_maker::ChangeResult;
+use super::forge::{CreatePrParams, GitForge, Issue, PullRequest, RepoRef};
 
 /// Manages PR creation and linking to issues.
 pub struct PullRequestManager {

@@ -154,12 +154,7 @@ impl LearningCollector {
     }
 
     /// Record a correction from conversation
-    pub fn record_correction(
-        &mut self,
-        context: &str,
-        wrong_behavior: &str,
-        right_behavior: &str,
-    ) {
+    pub fn record_correction(&mut self, context: &str, wrong_behavior: &str, right_behavior: &str) {
         self.signals.push(LearningSignal::Correction {
             context: context.to_string(),
             wrong_behavior: wrong_behavior.to_string(),
@@ -244,12 +239,10 @@ impl LearningCollector {
 
         // Remove numbers and paths
         use std::sync::LazyLock;
-        static RE_NUMBERS: LazyLock<regex::Regex> = LazyLock::new(|| {
-            regex::Regex::new(r"\d+").expect("valid regex")
-        });
-        static RE_PATHS: LazyLock<regex::Regex> = LazyLock::new(|| {
-            regex::Regex::new(r"/[\w/.-]+").expect("valid regex")
-        });
+        static RE_NUMBERS: LazyLock<regex::Regex> =
+            LazyLock::new(|| regex::Regex::new(r"\d+").expect("valid regex"));
+        static RE_PATHS: LazyLock<regex::Regex> =
+            LazyLock::new(|| regex::Regex::new(r"/[\w/.-]+").expect("valid regex"));
         let re_numbers = &*RE_NUMBERS;
         let re_paths = &*RE_PATHS;
 
@@ -383,7 +376,10 @@ impl LearningCollector {
                 truncate(error, 50)
             )
         } else {
-            format!("'{}' frequently fails ({} times)", pattern.pattern, pattern.occurrences)
+            format!(
+                "'{}' frequently fails ({} times)",
+                pattern.pattern, pattern.occurrences
+            )
         };
 
         let rationale = format!(
@@ -409,7 +405,10 @@ impl LearningCollector {
 
         // Find first word that looks like a command
         for (i, word) in words.iter().enumerate() {
-            if word.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+            if word
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+            {
                 if i + 1 < words.len() {
                     return format!("{} {}", word, words[i + 1]);
                 }
@@ -425,15 +424,28 @@ impl LearningCollector {
     fn infer_category(context: &str, behavior: &str) -> TruthCategory {
         let combined = format!("{} {}", context, behavior).to_lowercase();
 
-        if combined.contains("spawn") || combined.contains("agent") || combined.contains("monitor") {
+        if combined.contains("spawn") || combined.contains("agent") || combined.contains("monitor")
+        {
             TruthCategory::TaskStrategy
-        } else if combined.contains("error") || combined.contains("fail") || combined.contains("retry") {
+        } else if combined.contains("error")
+            || combined.contains("fail")
+            || combined.contains("retry")
+        {
             TruthCategory::ErrorRecovery
-        } else if combined.contains("context") || combined.contains("token") || combined.contains("parallel") {
+        } else if combined.contains("context")
+            || combined.contains("token")
+            || combined.contains("parallel")
+        {
             TruthCategory::ResourceManagement
-        } else if combined.contains("don't") || combined.contains("avoid") || combined.contains("never") {
+        } else if combined.contains("don't")
+            || combined.contains("avoid")
+            || combined.contains("never")
+        {
             TruthCategory::PatternAvoidance
-        } else if combined.contains("--") || combined.contains("flag") || combined.contains("option") {
+        } else if combined.contains("--")
+            || combined.contains("flag")
+            || combined.contains("option")
+        {
             TruthCategory::CommandUsage
         } else {
             TruthCategory::ToolBehavior
@@ -496,12 +508,14 @@ pub fn detect_correction(message: &str) -> Option<(String, String)> {
 
         // Extract the "wrong" from before and "right" from after
         if let Some(use_idx) = after.to_lowercase().find("use ") {
-            let right = after[use_idx + 4..].split_whitespace()
+            let right = after[use_idx + 4..]
+                .split_whitespace()
                 .take(5)
                 .collect::<Vec<_>>()
                 .join(" ");
 
-            let wrong = before.split_whitespace()
+            let wrong = before
+                .split_whitespace()
                 .rev()
                 .take(5)
                 .collect::<Vec<_>>()
@@ -604,10 +618,7 @@ mod tests {
             LearningCollector::extract_command_pattern("cargo build"),
             "cargo build"
         );
-        assert_eq!(
-            LearningCollector::extract_command_pattern("ls"),
-            "ls"
-        );
+        assert_eq!(LearningCollector::extract_command_pattern("ls"), "ls");
     }
 
     #[test]

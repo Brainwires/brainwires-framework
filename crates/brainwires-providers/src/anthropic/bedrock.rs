@@ -40,7 +40,12 @@ impl BedrockAuth {
         secret_key: String,
         session_token: Option<String>,
     ) -> Self {
-        Self { region, access_key, secret_key, session_token }
+        Self {
+            region,
+            access_key,
+            secret_key,
+            session_token,
+        }
     }
 
     /// Create from standard AWS environment variables.
@@ -48,20 +53,27 @@ impl BedrockAuth {
     /// Reads `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`,
     /// and `AWS_DEFAULT_REGION` (defaults to `us-east-1`).
     pub fn from_environment(region_override: Option<String>) -> anyhow::Result<Self> {
-        let access_key = std::env::var("AWS_ACCESS_KEY_ID")
-            .map_err(|_| anyhow::anyhow!(
+        let access_key = std::env::var("AWS_ACCESS_KEY_ID").map_err(|_| {
+            anyhow::anyhow!(
                 "AWS_ACCESS_KEY_ID not set. Configure AWS credentials for Bedrock access."
-            ))?;
-        let secret_key = std::env::var("AWS_SECRET_ACCESS_KEY")
-            .map_err(|_| anyhow::anyhow!(
+            )
+        })?;
+        let secret_key = std::env::var("AWS_SECRET_ACCESS_KEY").map_err(|_| {
+            anyhow::anyhow!(
                 "AWS_SECRET_ACCESS_KEY not set. Configure AWS credentials for Bedrock access."
-            ))?;
+            )
+        })?;
         let session_token = std::env::var("AWS_SESSION_TOKEN").ok();
         let region = region_override
             .or_else(|| std::env::var("AWS_DEFAULT_REGION").ok())
             .unwrap_or_else(|| "us-east-1".to_string());
 
-        Ok(Self { region, access_key, secret_key, session_token })
+        Ok(Self {
+            region,
+            access_key,
+            secret_key,
+            session_token,
+        })
     }
 
     /// The AWS region for this auth context.
@@ -76,9 +88,7 @@ impl BedrockAuth {
     /// resulting auth headers back onto the reqwest request.
     pub async fn sign_request(&self, request: &mut reqwest::Request) -> Result<()> {
         use aws_credential_types::Credentials;
-        use aws_sigv4::http_request::{
-            sign, SignableBody, SignableRequest, SigningSettings,
-        };
+        use aws_sigv4::http_request::{SignableBody, SignableRequest, SigningSettings, sign};
         use aws_sigv4::sign::v4;
         use std::time::SystemTime;
 
@@ -104,13 +114,15 @@ impl BedrockAuth {
         let signable_request = SignableRequest::new(
             request.method().as_str(),
             request.url().as_str(),
-            request.headers()
+            request
+                .headers()
                 .iter()
                 .map(|(k, v)| (k.as_str(), std::str::from_utf8(v.as_bytes()).unwrap_or(""))),
             SignableBody::Bytes(request.body().and_then(|b| b.as_bytes()).unwrap_or(&[])),
         )?;
 
-        let (signing_instructions, _signature) = sign(signable_request, &signing_params)?.into_parts();
+        let (signing_instructions, _signature) =
+            sign(signable_request, &signing_params)?.into_parts();
 
         // Build a temporary http::Request to apply signing instructions,
         // then copy the resulting headers back onto the reqwest request.

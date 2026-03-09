@@ -10,9 +10,9 @@ pub use brainwires_core::provider::{ChatOptions, Provider};
 
 // Rate limiting and HTTP client
 #[cfg(feature = "native")]
-pub mod rate_limiter;
-#[cfg(feature = "native")]
 pub mod http_client;
+#[cfg(feature = "native")]
+pub mod rate_limiter;
 
 #[cfg(feature = "native")]
 pub use http_client::RateLimitedClient;
@@ -45,28 +45,28 @@ pub mod ollama;
 #[cfg(feature = "native")]
 pub mod brainwires_http;
 #[cfg(feature = "native")]
-pub use brainwires_http::{get_backend_from_api_key, DEFAULT_BACKEND_URL, DEV_BACKEND_URL};
+pub use brainwires_http::{DEFAULT_BACKEND_URL, DEV_BACKEND_URL, get_backend_from_api_key};
 
 // ── Audio/speech API clients ──────────────────────────────────────────
 
-/// ElevenLabs TTS/STT API client.
-#[cfg(feature = "native")]
-pub mod elevenlabs;
-/// Deepgram TTS/STT API client.
-#[cfg(feature = "native")]
-pub mod deepgram;
-/// Google Cloud Text-to-Speech API client.
-#[cfg(feature = "native")]
-pub mod google_tts;
 /// Azure Cognitive Services Speech API client.
 #[cfg(feature = "native")]
 pub mod azure_speech;
-/// Fish Audio TTS/ASR API client.
-#[cfg(feature = "native")]
-pub mod fish;
 /// Cartesia TTS API client.
 #[cfg(feature = "native")]
 pub mod cartesia;
+/// Deepgram TTS/STT API client.
+#[cfg(feature = "native")]
+pub mod deepgram;
+/// ElevenLabs TTS/STT API client.
+#[cfg(feature = "native")]
+pub mod elevenlabs;
+/// Fish Audio TTS/ASR API client.
+#[cfg(feature = "native")]
+pub mod fish;
+/// Google Cloud Text-to-Speech API client.
+#[cfg(feature = "native")]
+pub mod google_tts;
 /// Murf AI TTS API client.
 #[cfg(feature = "native")]
 pub mod murf;
@@ -95,19 +95,17 @@ pub mod local_llm;
 
 // Chat-capable API clients
 #[cfg(feature = "native")]
-pub use openai_chat::OpenAiClient;
-#[cfg(feature = "native")]
 pub use anthropic::AnthropicClient;
+#[cfg(feature = "native")]
+pub use brainwires_http::BrainwiresHttpProvider;
 #[cfg(feature = "native")]
 pub use gemini::GoogleClient;
 #[cfg(feature = "native")]
 pub use ollama::OllamaProvider;
 #[cfg(feature = "native")]
-pub use brainwires_http::BrainwiresHttpProvider;
+pub use openai_chat::OpenAiClient;
 
 // Chat providers
-#[cfg(feature = "native")]
-pub use openai_chat::chat::OpenAiChatProvider;
 #[cfg(feature = "native")]
 pub use anthropic::chat::AnthropicChatProvider;
 #[cfg(feature = "native")]
@@ -115,21 +113,23 @@ pub use gemini::chat::GoogleChatProvider;
 #[cfg(feature = "native")]
 pub use ollama::chat::OllamaChatProvider;
 #[cfg(feature = "native")]
+pub use openai_chat::chat::OpenAiChatProvider;
+#[cfg(feature = "native")]
 pub use openai_responses::OpenAiResponsesProvider;
 
 // Audio API clients
 #[cfg(feature = "native")]
-pub use elevenlabs::ElevenLabsClient;
+pub use azure_speech::AzureSpeechClient;
+#[cfg(feature = "native")]
+pub use cartesia::CartesiaClient;
 #[cfg(feature = "native")]
 pub use deepgram::DeepgramClient;
 #[cfg(feature = "native")]
-pub use google_tts::GoogleTtsClient;
-#[cfg(feature = "native")]
-pub use azure_speech::AzureSpeechClient;
+pub use elevenlabs::ElevenLabsClient;
 #[cfg(feature = "native")]
 pub use fish::FishClient;
 #[cfg(feature = "native")]
-pub use cartesia::CartesiaClient;
+pub use google_tts::GoogleTtsClient;
 #[cfg(feature = "native")]
 pub use murf::MurfClient;
 
@@ -285,8 +285,7 @@ impl FromStr for ProviderType {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::from_str_opt(s)
-            .ok_or_else(|| anyhow::anyhow!("Unknown provider: {}", s))
+        Self::from_str_opt(s).ok_or_else(|| anyhow::anyhow!("Unknown provider: {}", s))
     }
 }
 
@@ -355,29 +354,71 @@ mod tests {
 
     #[test]
     fn test_provider_type_default_model() {
-        assert_eq!(ProviderType::Anthropic.default_model(), "claude-sonnet-4-20250514");
+        assert_eq!(
+            ProviderType::Anthropic.default_model(),
+            "claude-sonnet-4-20250514"
+        );
         assert_eq!(ProviderType::OpenAI.default_model(), "gpt-5-mini");
         assert_eq!(ProviderType::Google.default_model(), "gemini-2.5-flash");
-        assert_eq!(ProviderType::Groq.default_model(), "llama-3.3-70b-versatile");
+        assert_eq!(
+            ProviderType::Groq.default_model(),
+            "llama-3.3-70b-versatile"
+        );
         assert_eq!(ProviderType::Ollama.default_model(), "llama3.3");
         assert_eq!(ProviderType::Brainwires.default_model(), "gpt-5-mini");
     }
 
     #[test]
     fn test_provider_type_from_str() {
-        assert_eq!(ProviderType::from_str_opt("anthropic"), Some(ProviderType::Anthropic));
-        assert_eq!(ProviderType::from_str_opt("openai"), Some(ProviderType::OpenAI));
-        assert_eq!(ProviderType::from_str_opt("google"), Some(ProviderType::Google));
-        assert_eq!(ProviderType::from_str_opt("gemini"), Some(ProviderType::Google));
+        assert_eq!(
+            ProviderType::from_str_opt("anthropic"),
+            Some(ProviderType::Anthropic)
+        );
+        assert_eq!(
+            ProviderType::from_str_opt("openai"),
+            Some(ProviderType::OpenAI)
+        );
+        assert_eq!(
+            ProviderType::from_str_opt("google"),
+            Some(ProviderType::Google)
+        );
+        assert_eq!(
+            ProviderType::from_str_opt("gemini"),
+            Some(ProviderType::Google)
+        );
         assert_eq!(ProviderType::from_str_opt("groq"), Some(ProviderType::Groq));
-        assert_eq!(ProviderType::from_str_opt("ollama"), Some(ProviderType::Ollama));
-        assert_eq!(ProviderType::from_str_opt("brainwires"), Some(ProviderType::Brainwires));
-        assert_eq!(ProviderType::from_str_opt("together"), Some(ProviderType::Together));
-        assert_eq!(ProviderType::from_str_opt("fireworks"), Some(ProviderType::Fireworks));
-        assert_eq!(ProviderType::from_str_opt("anyscale"), Some(ProviderType::Anyscale));
-        assert_eq!(ProviderType::from_str_opt("elevenlabs"), Some(ProviderType::ElevenLabs));
-        assert_eq!(ProviderType::from_str_opt("deepgram"), Some(ProviderType::Deepgram));
-        assert_eq!(ProviderType::from_str_opt("custom"), Some(ProviderType::Custom));
+        assert_eq!(
+            ProviderType::from_str_opt("ollama"),
+            Some(ProviderType::Ollama)
+        );
+        assert_eq!(
+            ProviderType::from_str_opt("brainwires"),
+            Some(ProviderType::Brainwires)
+        );
+        assert_eq!(
+            ProviderType::from_str_opt("together"),
+            Some(ProviderType::Together)
+        );
+        assert_eq!(
+            ProviderType::from_str_opt("fireworks"),
+            Some(ProviderType::Fireworks)
+        );
+        assert_eq!(
+            ProviderType::from_str_opt("anyscale"),
+            Some(ProviderType::Anyscale)
+        );
+        assert_eq!(
+            ProviderType::from_str_opt("elevenlabs"),
+            Some(ProviderType::ElevenLabs)
+        );
+        assert_eq!(
+            ProviderType::from_str_opt("deepgram"),
+            Some(ProviderType::Deepgram)
+        );
+        assert_eq!(
+            ProviderType::from_str_opt("custom"),
+            Some(ProviderType::Custom)
+        );
         assert_eq!(ProviderType::from_str_opt("unknown"), None);
     }
 

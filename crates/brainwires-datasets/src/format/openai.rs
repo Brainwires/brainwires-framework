@@ -1,8 +1,8 @@
 use serde_json::json;
 
+use super::FormatConverter;
 use crate::error::{DatasetError, DatasetResult};
 use crate::types::{TrainingExample, TrainingMessage, TrainingRole};
-use super::FormatConverter;
 
 /// OpenAI chat fine-tuning JSONL format.
 ///
@@ -40,17 +40,24 @@ impl FormatConverter for OpenAiFormat {
     }
 
     fn parse_json(&self, value: &serde_json::Value) -> DatasetResult<TrainingExample> {
-        let messages_value = value.get("messages").ok_or_else(|| DatasetError::FormatConversion {
-            message: "Missing 'messages' field".to_string(),
-        })?;
+        let messages_value =
+            value
+                .get("messages")
+                .ok_or_else(|| DatasetError::FormatConversion {
+                    message: "Missing 'messages' field".to_string(),
+                })?;
 
-        let messages_arr = messages_value.as_array().ok_or_else(|| DatasetError::FormatConversion {
-            message: "'messages' must be an array".to_string(),
-        })?;
+        let messages_arr =
+            messages_value
+                .as_array()
+                .ok_or_else(|| DatasetError::FormatConversion {
+                    message: "'messages' must be an array".to_string(),
+                })?;
 
         let mut messages = Vec::with_capacity(messages_arr.len());
         for msg_value in messages_arr {
-            let role_str = msg_value.get("role")
+            let role_str = msg_value
+                .get("role")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| DatasetError::FormatConversion {
                     message: "Message missing 'role'".to_string(),
@@ -61,24 +68,31 @@ impl FormatConverter for OpenAiFormat {
                 "user" => TrainingRole::User,
                 "assistant" => TrainingRole::Assistant,
                 "tool" => TrainingRole::Tool,
-                other => return Err(DatasetError::FormatConversion {
-                    message: format!("Unknown role: {}", other),
-                }),
+                other => {
+                    return Err(DatasetError::FormatConversion {
+                        message: format!("Unknown role: {}", other),
+                    });
+                }
             };
 
-            let content = msg_value.get("content")
+            let content = msg_value
+                .get("content")
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
 
-            let tool_calls = msg_value.get("tool_calls")
-                .and_then(|v| v.as_array()).cloned();
+            let tool_calls = msg_value
+                .get("tool_calls")
+                .and_then(|v| v.as_array())
+                .cloned();
 
-            let tool_call_id = msg_value.get("tool_call_id")
+            let tool_call_id = msg_value
+                .get("tool_call_id")
                 .and_then(|v| v.as_str())
                 .map(String::from);
 
-            let name = msg_value.get("name")
+            let name = msg_value
+                .get("name")
                 .and_then(|v| v.as_str())
                 .map(String::from);
 
@@ -105,9 +119,9 @@ impl PreferenceConverter for OpenAiFormat {
 
     fn preference_to_json(&self, pair: &PreferencePair) -> DatasetResult<serde_json::Value> {
         let to_msgs = |msgs: &[TrainingMessage]| -> Vec<serde_json::Value> {
-            msgs.iter().map(|msg| {
-                json!({ "role": msg.role.to_string(), "content": msg.content })
-            }).collect()
+            msgs.iter()
+                .map(|msg| json!({ "role": msg.role.to_string(), "content": msg.content }))
+                .collect()
         };
 
         let mut result = json!({
@@ -125,11 +139,11 @@ impl PreferenceConverter for OpenAiFormat {
 
     fn parse_preference_json(&self, value: &serde_json::Value) -> DatasetResult<PreferencePair> {
         let parse_msgs = |key: &str| -> DatasetResult<Vec<TrainingMessage>> {
-            let arr = value.get(key)
-                .and_then(|v| v.as_array())
-                .ok_or_else(|| DatasetError::FormatConversion {
+            let arr = value.get(key).and_then(|v| v.as_array()).ok_or_else(|| {
+                DatasetError::FormatConversion {
                     message: format!("Missing or invalid '{}' field", key),
-                })?;
+                }
+            })?;
             let mut msgs = Vec::new();
             for msg in arr {
                 let role = match msg.get("role").and_then(|v| v.as_str()) {
@@ -137,11 +151,17 @@ impl PreferenceConverter for OpenAiFormat {
                     Some("user") => TrainingRole::User,
                     Some("assistant") => TrainingRole::Assistant,
                     Some("tool") => TrainingRole::Tool,
-                    _ => return Err(DatasetError::FormatConversion {
-                        message: format!("Invalid role in '{}' messages", key),
-                    }),
+                    _ => {
+                        return Err(DatasetError::FormatConversion {
+                            message: format!("Invalid role in '{}' messages", key),
+                        });
+                    }
                 };
-                let content = msg.get("content").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                let content = msg
+                    .get("content")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
                 msgs.push(TrainingMessage::new(role, content));
             }
             Ok(msgs)

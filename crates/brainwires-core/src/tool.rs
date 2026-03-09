@@ -17,7 +17,6 @@ pub enum ToolCaller {
     CodeExecution,
 }
 
-
 /// A tool that can be used by the AI agent
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Tool {
@@ -154,7 +153,11 @@ impl IdempotencyRegistry {
 
     /// Return the cached result for `key`, or `None` if not yet executed.
     pub fn get(&self, key: &str) -> Option<IdempotencyRecord> {
-        self.0.lock().expect("idempotency registry lock poisoned").get(key).cloned()
+        self.0
+            .lock()
+            .expect("idempotency registry lock poisoned")
+            .get(key)
+            .cloned()
     }
 
     /// Record that `key` produced `result`.
@@ -173,7 +176,10 @@ impl IdempotencyRegistry {
 
     /// Number of recorded operations.
     pub fn len(&self) -> usize {
-        self.0.lock().expect("idempotency registry lock poisoned").len()
+        self.0
+            .lock()
+            .expect("idempotency registry lock poisoned")
+            .len()
     }
 
     /// Returns `true` if no operations have been recorded yet.

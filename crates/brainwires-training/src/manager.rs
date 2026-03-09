@@ -5,10 +5,10 @@ use crate::error::TrainingError;
 use crate::types::{TrainingJobId, TrainingJobStatus, TrainingJobSummary};
 
 #[cfg(feature = "cloud")]
-use crate::cloud::{FineTuneProvider, CloudFineTuneConfig, JobPoller};
+use crate::cloud::{CloudFineTuneConfig, FineTuneProvider, JobPoller};
 
 #[cfg(feature = "local")]
-use crate::local::{TrainingBackend, LocalTrainingConfig, TrainedModelArtifact};
+use crate::local::{LocalTrainingConfig, TrainedModelArtifact, TrainingBackend};
 
 /// High-level training orchestrator.
 ///
@@ -66,14 +66,13 @@ impl TrainingManager {
         provider_name: &str,
         config: CloudFineTuneConfig,
     ) -> Result<TrainingJobId, TrainingError> {
-        let provider = self
-            .cloud_providers
-            .get(provider_name)
-            .ok_or_else(|| TrainingError::Provider(format!(
+        let provider = self.cloud_providers.get(provider_name).ok_or_else(|| {
+            TrainingError::Provider(format!(
                 "Unknown provider: {}. Available: {:?}",
                 provider_name,
                 self.cloud_providers.keys().collect::<Vec<_>>()
-            )))?;
+            ))
+        })?;
 
         info!(
             "Starting cloud fine-tuning job on {} with model {}",
@@ -90,10 +89,9 @@ impl TrainingManager {
         provider_name: &str,
         job_id: &TrainingJobId,
     ) -> Result<TrainingJobStatus, TrainingError> {
-        let provider = self
-            .cloud_providers
-            .get(provider_name)
-            .ok_or_else(|| TrainingError::Provider(format!("Unknown provider: {}", provider_name)))?;
+        let provider = self.cloud_providers.get(provider_name).ok_or_else(|| {
+            TrainingError::Provider(format!("Unknown provider: {}", provider_name))
+        })?;
 
         let poller = JobPoller::default();
         poller.poll_with_logging(provider.as_ref(), job_id).await
@@ -106,10 +104,9 @@ impl TrainingManager {
         provider_name: &str,
         job_id: &TrainingJobId,
     ) -> Result<TrainingJobStatus, TrainingError> {
-        let provider = self
-            .cloud_providers
-            .get(provider_name)
-            .ok_or_else(|| TrainingError::Provider(format!("Unknown provider: {}", provider_name)))?;
+        let provider = self.cloud_providers.get(provider_name).ok_or_else(|| {
+            TrainingError::Provider(format!("Unknown provider: {}", provider_name))
+        })?;
 
         provider.get_job_status(job_id).await
     }
@@ -121,10 +118,9 @@ impl TrainingManager {
         provider_name: &str,
         job_id: &TrainingJobId,
     ) -> Result<(), TrainingError> {
-        let provider = self
-            .cloud_providers
-            .get(provider_name)
-            .ok_or_else(|| TrainingError::Provider(format!("Unknown provider: {}", provider_name)))?;
+        let provider = self.cloud_providers.get(provider_name).ok_or_else(|| {
+            TrainingError::Provider(format!("Unknown provider: {}", provider_name))
+        })?;
 
         provider.cancel_job(job_id).await
     }
@@ -151,10 +147,9 @@ impl TrainingManager {
         config: LocalTrainingConfig,
         callback: Box<dyn Fn(crate::types::TrainingProgress) + Send>,
     ) -> Result<TrainedModelArtifact, TrainingError> {
-        let backend = self
-            .local_backend
-            .as_ref()
-            .ok_or_else(|| TrainingError::Backend("No local training backend configured".to_string()))?;
+        let backend = self.local_backend.as_ref().ok_or_else(|| {
+            TrainingError::Backend("No local training backend configured".to_string())
+        })?;
 
         info!("Starting local training with {} backend", backend.name());
         backend.train(config, callback)

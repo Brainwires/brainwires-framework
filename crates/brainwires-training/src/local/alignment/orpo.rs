@@ -115,11 +115,7 @@ mod tests {
     #[test]
     fn test_orpo_batch() {
         let loss = OrpoLoss::new(0.5);
-        let batch_loss = loss.compute_batch(
-            &[2.0, 1.5],
-            &[0.7, 0.8],
-            &[0.3, 0.4],
-        );
+        let batch_loss = loss.compute_batch(&[2.0, 1.5], &[0.7, 0.8], &[0.3, 0.4]);
         let individual_avg = (loss.compute(2.0, 0.7, 0.3) + loss.compute(1.5, 0.8, 0.4)) / 2.0;
         assert!((batch_loss - individual_avg).abs() < 1e-10);
     }

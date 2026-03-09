@@ -1,8 +1,8 @@
 use serde_json::json;
 
+use super::FormatConverter;
 use crate::error::{DatasetError, DatasetResult};
 use crate::types::{TrainingExample, TrainingMessage, TrainingRole};
-use super::FormatConverter;
 
 /// Together AI fine-tuning format.
 ///
@@ -17,19 +17,25 @@ pub struct TogetherFormat {
 
 impl Default for TogetherFormat {
     fn default() -> Self {
-        Self { use_chat_format: true }
+        Self {
+            use_chat_format: true,
+        }
     }
 }
 
 impl TogetherFormat {
     /// Create a Together format using chat messages (OpenAI-compatible).
     pub fn chat() -> Self {
-        Self { use_chat_format: true }
+        Self {
+            use_chat_format: true,
+        }
     }
 
     /// Create a Together format using text template wrapping.
     pub fn text() -> Self {
-        Self { use_chat_format: false }
+        Self {
+            use_chat_format: false,
+        }
     }
 
     fn messages_to_text(messages: &[TrainingMessage]) -> String {
@@ -82,9 +88,11 @@ impl FormatConverter for TogetherFormat {
     fn parse_json(&self, value: &serde_json::Value) -> DatasetResult<TrainingExample> {
         // Prefer chat format parsing
         if let Some(messages) = value.get("messages") {
-            let arr = messages.as_array().ok_or_else(|| DatasetError::FormatConversion {
-                message: "'messages' must be an array".to_string(),
-            })?;
+            let arr = messages
+                .as_array()
+                .ok_or_else(|| DatasetError::FormatConversion {
+                    message: "'messages' must be an array".to_string(),
+                })?;
             let mut msgs = Vec::new();
             for msg in arr {
                 let role = match msg.get("role").and_then(|v| v.as_str()) {
@@ -92,11 +100,14 @@ impl FormatConverter for TogetherFormat {
                     Some("user") => TrainingRole::User,
                     Some("assistant") => TrainingRole::Assistant,
                     Some("tool") => TrainingRole::Tool,
-                    _ => return Err(DatasetError::FormatConversion {
-                        message: "Invalid or missing role".to_string(),
-                    }),
+                    _ => {
+                        return Err(DatasetError::FormatConversion {
+                            message: "Invalid or missing role".to_string(),
+                        });
+                    }
                 };
-                let content = msg.get("content")
+                let content = msg
+                    .get("content")
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string();
@@ -106,14 +117,18 @@ impl FormatConverter for TogetherFormat {
         } else if let Some(text) = value.get("text").and_then(|v| v.as_str()) {
             // Basic text format parsing — extract user/assistant turns
             let mut messages = Vec::new();
-            let text = text.trim_start_matches("<s>").trim_end_matches("</s>").trim();
+            let text = text
+                .trim_start_matches("<s>")
+                .trim_end_matches("</s>")
+                .trim();
 
             // Extract system message if present
             if let Some(sys_start) = text.find("<<SYS>>")
-                && let Some(sys_end) = text.find("<</SYS>>") {
-                    let system_content = text[sys_start + 7..sys_end].trim().to_string();
-                    messages.push(TrainingMessage::system(system_content));
-                }
+                && let Some(sys_end) = text.find("<</SYS>>")
+            {
+                let system_content = text[sys_start + 7..sys_end].trim().to_string();
+                messages.push(TrainingMessage::system(system_content));
+            }
 
             // Extract [INST]...[/INST] pairs
             let mut remaining = text;
@@ -160,9 +175,9 @@ impl PreferenceConverter for TogetherFormat {
 
     fn preference_to_json(&self, pair: &PreferencePair) -> DatasetResult<serde_json::Value> {
         let to_msgs = |msgs: &[TrainingMessage]| -> Vec<serde_json::Value> {
-            msgs.iter().map(|msg| {
-                json!({ "role": msg.role.to_string(), "content": msg.content })
-            }).collect()
+            msgs.iter()
+                .map(|msg| json!({ "role": msg.role.to_string(), "content": msg.content }))
+                .collect()
         };
 
         let mut result = json!({
@@ -180,11 +195,11 @@ impl PreferenceConverter for TogetherFormat {
 
     fn parse_preference_json(&self, value: &serde_json::Value) -> DatasetResult<PreferencePair> {
         let parse_msgs = |key: &str| -> DatasetResult<Vec<TrainingMessage>> {
-            let arr = value.get(key)
-                .and_then(|v| v.as_array())
-                .ok_or_else(|| DatasetError::FormatConversion {
+            let arr = value.get(key).and_then(|v| v.as_array()).ok_or_else(|| {
+                DatasetError::FormatConversion {
                     message: format!("Missing or invalid '{}' field", key),
-                })?;
+                }
+            })?;
             let mut msgs = Vec::new();
             for msg in arr {
                 let role = match msg.get("role").and_then(|v| v.as_str()) {
@@ -192,11 +207,17 @@ impl PreferenceConverter for TogetherFormat {
                     Some("user") => TrainingRole::User,
                     Some("assistant") => TrainingRole::Assistant,
                     Some("tool") => TrainingRole::Tool,
-                    _ => return Err(DatasetError::FormatConversion {
-                        message: format!("Invalid role in '{}' messages", key),
-                    }),
+                    _ => {
+                        return Err(DatasetError::FormatConversion {
+                            message: format!("Invalid role in '{}' messages", key),
+                        });
+                    }
                 };
-                let content = msg.get("content").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                let content = msg
+                    .get("content")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
                 msgs.push(TrainingMessage::new(role, content));
             }
             Ok(msgs)

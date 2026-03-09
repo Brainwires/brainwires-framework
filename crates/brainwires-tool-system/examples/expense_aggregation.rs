@@ -29,19 +29,13 @@ fn main() {
                 ("Hotel", 450.00),
                 ("Client dinner", 180.00),
             ],
-            3 => vec![
-                ("Equipment", 899.00),
-                ("Training course", 199.00),
-            ],
+            3 => vec![("Equipment", 899.00), ("Training course", 199.00)],
             4 => vec![
                 ("Marketing materials", 350.00),
                 ("Advertising", 2500.00),
                 ("Event sponsorship", 1000.00),
             ],
-            5 => vec![
-                ("Cloud services", 450.00),
-                ("Domain renewal", 15.00),
-            ],
+            5 => vec![("Cloud services", 450.00), ("Domain renewal", 15.00)],
             _ => vec![],
         };
 

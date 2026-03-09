@@ -118,12 +118,12 @@ impl ConversionRegistry {
             }
         };
 
-        let converter = self
-            .get_converter(source, target)
-            .ok_or_else(|| ProxyError::UnsupportedConversion {
+        let converter = self.get_converter(source, target).ok_or_else(|| {
+            ProxyError::UnsupportedConversion {
                 src: source.to_string(),
                 dst: target.to_string(),
-            })?;
+            }
+        })?;
 
         converter.convert(body).await
     }
@@ -156,8 +156,12 @@ mod tests {
 
     #[async_trait::async_trait]
     impl Converter for UpperCaseConverter {
-        fn source(&self) -> &FormatId { &self.source }
-        fn target(&self) -> &FormatId { &self.target }
+        fn source(&self) -> &FormatId {
+            &self.source
+        }
+        fn target(&self) -> &FormatId {
+            &self.target
+        }
         async fn convert(&self, body: Bytes) -> ProxyResult<Bytes> {
             let text = String::from_utf8_lossy(&body).to_uppercase();
             Ok(Bytes::from(text))
@@ -175,7 +179,9 @@ mod tests {
                 None
             }
         }
-        fn name(&self) -> &str { "text_detector" }
+        fn name(&self) -> &str {
+            "text_detector"
+        }
     }
 
     #[tokio::test]

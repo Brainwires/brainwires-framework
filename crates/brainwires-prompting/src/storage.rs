@@ -6,7 +6,7 @@ use super::clustering::TaskCluster;
 use super::techniques::PromptingTechnique;
 use super::temperature::TemperaturePerformance;
 use anyhow::{Context, Result};
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use serde_json;
 use std::path::Path;
 
@@ -100,11 +100,11 @@ impl ClusterStorage {
 
     /// Save a task cluster to the database
     pub fn save_cluster(&mut self, cluster: &TaskCluster) -> Result<()> {
-        let embedding_bytes = bincode::serialize(&cluster.embedding)
-            .context("Failed to serialize embedding")?;
+        let embedding_bytes =
+            bincode::serialize(&cluster.embedding).context("Failed to serialize embedding")?;
 
-        let techniques_json = serde_json::to_string(&cluster.techniques)
-            .context("Failed to serialize techniques")?;
+        let techniques_json =
+            serde_json::to_string(&cluster.techniques).context("Failed to serialize techniques")?;
 
         let tasks_json = serde_json::to_string(&cluster.example_tasks)
             .context("Failed to serialize example tasks")?;
@@ -135,39 +135,41 @@ impl ClusterStorage {
         let mut stmt = self.conn.prepare(
             "SELECT id, description, embedding, techniques, example_tasks
              FROM clusters
-             ORDER BY updated_at DESC"
+             ORDER BY updated_at DESC",
         )?;
 
-        let clusters = stmt.query_map([], |row| {
-            let id: String = row.get(0)?;
-            let description: String = row.get(1)?;
-            let embedding_bytes: Vec<u8> = row.get(2)?;
-            let techniques_json: String = row.get(3)?;
-            let tasks_json: String = row.get(4)?;
+        let clusters = stmt
+            .query_map([], |row| {
+                let id: String = row.get(0)?;
+                let description: String = row.get(1)?;
+                let embedding_bytes: Vec<u8> = row.get(2)?;
+                let techniques_json: String = row.get(3)?;
+                let tasks_json: String = row.get(4)?;
 
-            // Deserialize embedding
-            let embedding: Vec<f32> = bincode::deserialize(&embedding_bytes)
-                .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+                // Deserialize embedding
+                let embedding: Vec<f32> = bincode::deserialize(&embedding_bytes)
+                    .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
 
-            // Deserialize techniques
-            let techniques: Vec<PromptingTechnique> = serde_json::from_str(&techniques_json)
-                .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+                // Deserialize techniques
+                let techniques: Vec<PromptingTechnique> = serde_json::from_str(&techniques_json)
+                    .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
 
-            // Deserialize example tasks
-            let example_tasks: Vec<String> = serde_json::from_str(&tasks_json)
-                .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+                // Deserialize example tasks
+                let example_tasks: Vec<String> = serde_json::from_str(&tasks_json)
+                    .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
 
-            Ok(TaskCluster {
-                id,
-                description,
-                embedding,
-                techniques,
-                example_tasks,
-                seal_query_cores: Vec::new(), // Not stored currently
-                avg_seal_quality: 0.5, // Not stored currently
-                recommended_complexity: super::techniques::ComplexityLevel::Moderate,
-            })
-        })?.collect::<Result<Vec<_>, _>>()?;
+                Ok(TaskCluster {
+                    id,
+                    description,
+                    embedding,
+                    techniques,
+                    example_tasks,
+                    seal_query_cores: Vec::new(), // Not stored currently
+                    avg_seal_quality: 0.5,        // Not stored currently
+                    recommended_complexity: super::techniques::ComplexityLevel::Moderate,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
 
         Ok(clusters)
     }
@@ -177,7 +179,7 @@ impl ClusterStorage {
         let mut stmt = self.conn.prepare(
             "SELECT id, description, embedding, techniques, example_tasks
              FROM clusters
-             WHERE id = ?1"
+             WHERE id = ?1",
         )?;
 
         let mut rows = stmt.query([cluster_id])?;
@@ -210,7 +212,8 @@ impl ClusterStorage {
 
     /// Delete a cluster and all its associated performance data
     pub fn delete_cluster(&mut self, cluster_id: &str) -> Result<()> {
-        self.conn.execute("DELETE FROM clusters WHERE id = ?1", [cluster_id])?;
+        self.conn
+            .execute("DELETE FROM clusters WHERE id = ?1", [cluster_id])?;
         Ok(())
     }
 
@@ -245,42 +248,42 @@ impl ClusterStorage {
         let mut stmt = self.conn.prepare(
             "SELECT temperature_key, success_rate, avg_quality, sample_count, last_updated
              FROM temperature_performance
-             WHERE cluster_id = ?1"
+             WHERE cluster_id = ?1",
         )?;
 
-        let perfs = stmt.query_map([cluster_id], |row| {
-            let temp_key: i32 = row.get(0)?;
-            let perf = TemperaturePerformance {
-                success_rate: row.get(1)?,
-                avg_quality: row.get(2)?,
-                sample_count: row.get(3)?,
-                last_updated: row.get(4)?,
-            };
-            Ok((temp_key, perf))
-        })?.collect::<Result<Vec<_>, _>>()?;
+        let perfs = stmt
+            .query_map([cluster_id], |row| {
+                let temp_key: i32 = row.get(0)?;
+                let perf = TemperaturePerformance {
+                    success_rate: row.get(1)?,
+                    avg_quality: row.get(2)?,
+                    sample_count: row.get(3)?,
+                    last_updated: row.get(4)?,
+                };
+                Ok((temp_key, perf))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
 
         Ok(perfs)
     }
 
     /// Get statistics about stored data
     pub fn get_stats(&self) -> Result<StorageStats> {
-        let cluster_count: u32 = self.conn.query_row(
-            "SELECT COUNT(*) FROM clusters",
-            [],
-            |row| row.get(0),
-        )?;
+        let cluster_count: u32 =
+            self.conn
+                .query_row("SELECT COUNT(*) FROM clusters", [], |row| row.get(0))?;
 
-        let technique_perf_count: u32 = self.conn.query_row(
-            "SELECT COUNT(*) FROM technique_performance",
-            [],
-            |row| row.get(0),
-        )?;
+        let technique_perf_count: u32 =
+            self.conn
+                .query_row("SELECT COUNT(*) FROM technique_performance", [], |row| {
+                    row.get(0)
+                })?;
 
-        let temp_perf_count: u32 = self.conn.query_row(
-            "SELECT COUNT(*) FROM temperature_performance",
-            [],
-            |row| row.get(0),
-        )?;
+        let temp_perf_count: u32 =
+            self.conn
+                .query_row("SELECT COUNT(*) FROM temperature_performance", [], |row| {
+                    row.get(0)
+                })?;
 
         let db_size_bytes = std::fs::metadata(self.conn.path().unwrap_or_default())
             .map(|m| m.len())
@@ -331,7 +334,10 @@ mod tests {
             id: "test_cluster".to_string(),
             description: "Test cluster description".to_string(),
             embedding: vec![0.1, 0.2, 0.3, 0.4],
-            techniques: vec![PromptingTechnique::ChainOfThought, PromptingTechnique::RolePlaying],
+            techniques: vec![
+                PromptingTechnique::ChainOfThought,
+                PromptingTechnique::RolePlaying,
+            ],
             example_tasks: vec!["Task 1".to_string(), "Task 2".to_string()],
             seal_query_cores: vec![],
             avg_seal_quality: 0.8,
@@ -424,7 +430,9 @@ mod tests {
             last_updated: 12345,
         };
 
-        storage.save_temperature_performance("test", 0, &perf).unwrap();
+        storage
+            .save_temperature_performance("test", 0, &perf)
+            .unwrap();
 
         // Load temperature performance
         let loaded = storage.load_temperature_performance("test").unwrap();

@@ -5,7 +5,7 @@
 
 use super::truth::{BehavioralTruth, PendingTruthSubmission, TruthCategory, TruthFeedback};
 use anyhow::Result;
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension, params};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
@@ -120,7 +120,10 @@ impl BehavioralKnowledgeCache {
 
     /// Load truths and state from database
     fn load_from_db(&mut self) -> Result<()> {
-        let conn = self.conn.lock().expect("knowledge cache connection lock poisoned");
+        let conn = self
+            .conn
+            .lock()
+            .expect("knowledge cache connection lock poisoned");
 
         // Load last sync timestamp
         self.last_sync = conn
@@ -175,7 +178,11 @@ impl BehavioralKnowledgeCache {
         let submissions = stmt.query_map([], |row| {
             let json: String = row.get(0)?;
             let truth: BehavioralTruth = serde_json::from_str(&json).map_err(|e| {
-                rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(e))
+                rusqlite::Error::FromSqlConversionFailure(
+                    0,
+                    rusqlite::types::Type::Text,
+                    Box::new(e),
+                )
             })?;
             Ok(PendingTruthSubmission {
                 truth,
@@ -212,7 +219,10 @@ impl BehavioralKnowledgeCache {
 
     /// Save a truth to the database
     fn save_truth_to_db(&self, truth: &BehavioralTruth) -> Result<()> {
-        let conn = self.conn.lock().expect("knowledge cache connection lock poisoned");
+        let conn = self
+            .conn
+            .lock()
+            .expect("knowledge cache connection lock poisoned");
         let category = serde_json::to_string(&truth.category)?
             .trim_matches('"')
             .to_string();
@@ -250,7 +260,10 @@ impl BehavioralKnowledgeCache {
     /// Update last sync timestamp
     pub fn set_last_sync(&mut self, timestamp: i64) -> Result<()> {
         self.last_sync = timestamp;
-        let conn = self.conn.lock().expect("knowledge cache connection lock poisoned");
+        let conn = self
+            .conn
+            .lock()
+            .expect("knowledge cache connection lock poisoned");
         conn.execute(
             "INSERT OR REPLACE INTO sync_state (key, value) VALUES ('last_sync', ?1)",
             params![timestamp.to_string()],
@@ -316,8 +329,11 @@ impl BehavioralKnowledgeCache {
         self.truths
             .values()
             .filter(|t| {
-                !t.deleted && t.context_pattern.to_lowercase().split_whitespace()
-                    .any(|word| context_lower.contains(word))
+                !t.deleted
+                    && t.context_pattern
+                        .to_lowercase()
+                        .split_whitespace()
+                        .any(|word| context_lower.contains(word))
             })
             .collect()
     }
@@ -333,7 +349,8 @@ impl BehavioralKnowledgeCache {
         let context_lower = context.to_lowercase();
         let context_words: Vec<&str> = context_lower.split_whitespace().collect();
 
-        let mut matches: Vec<(&BehavioralTruth, f32)> = self.truths
+        let mut matches: Vec<(&BehavioralTruth, f32)> = self
+            .truths
             .values()
             .filter(|t| !t.deleted && t.confidence >= min_confidence)
             .filter_map(|truth| {
@@ -344,7 +361,9 @@ impl BehavioralKnowledgeCache {
                 let mut score = 0.0f32;
                 for pattern_word in &pattern_words {
                     for context_word in &context_words {
-                        if context_word.contains(pattern_word) || pattern_word.contains(context_word) {
+                        if context_word.contains(pattern_word)
+                            || pattern_word.contains(context_word)
+                        {
                             score += 1.0;
                         }
                     }
@@ -370,7 +389,11 @@ impl BehavioralKnowledgeCache {
     }
 
     /// Get truths above a confidence threshold
-    pub fn get_reliable_truths(&self, min_confidence: f32, decay_days: u32) -> Vec<&BehavioralTruth> {
+    pub fn get_reliable_truths(
+        &self,
+        min_confidence: f32,
+        decay_days: u32,
+    ) -> Vec<&BehavioralTruth> {
         self.truths
             .values()
             .filter(|t| !t.deleted && t.is_reliable(min_confidence, decay_days))
@@ -386,7 +409,10 @@ impl BehavioralKnowledgeCache {
         let submission = PendingTruthSubmission::new(truth);
         let json = serde_json::to_string(&submission.truth)?;
 
-        let conn = self.conn.lock().expect("knowledge cache connection lock poisoned");
+        let conn = self
+            .conn
+            .lock()
+            .expect("knowledge cache connection lock poisoned");
         conn.execute(
             "INSERT INTO pending_submissions (truth_json, queued_at, attempts) VALUES (?1, ?2, ?3)",
             params![json, submission.queued_at, submission.attempts],
@@ -404,7 +430,10 @@ impl BehavioralKnowledgeCache {
     /// Clear all pending submissions (after successful sync)
     pub fn clear_pending_submissions(&mut self) -> Result<()> {
         self.pending_submissions.clear();
-        let conn = self.conn.lock().expect("knowledge cache connection lock poisoned");
+        let conn = self
+            .conn
+            .lock()
+            .expect("knowledge cache connection lock poisoned");
         conn.execute("DELETE FROM pending_submissions", [])?;
         Ok(())
     }
@@ -415,7 +444,10 @@ impl BehavioralKnowledgeCache {
             return Ok(false);
         }
 
-        let conn = self.conn.lock().expect("knowledge cache connection lock poisoned");
+        let conn = self
+            .conn
+            .lock()
+            .expect("knowledge cache connection lock poisoned");
         conn.execute(
             "INSERT INTO pending_feedback (truth_id, is_reinforcement, context, timestamp)
              VALUES (?1, ?2, ?3, ?4)",
@@ -439,13 +471,19 @@ impl BehavioralKnowledgeCache {
     /// Clear all pending feedback (after successful sync)
     pub fn clear_pending_feedback(&mut self) -> Result<()> {
         self.pending_feedback.clear();
-        let conn = self.conn.lock().expect("knowledge cache connection lock poisoned");
+        let conn = self
+            .conn
+            .lock()
+            .expect("knowledge cache connection lock poisoned");
         conn.execute("DELETE FROM pending_feedback", [])?;
         Ok(())
     }
 
     /// Merge truths from server (handles version conflicts)
-    pub fn merge_from_server(&mut self, server_truths: Vec<BehavioralTruth>) -> Result<MergeResult> {
+    pub fn merge_from_server(
+        &mut self,
+        server_truths: Vec<BehavioralTruth>,
+    ) -> Result<MergeResult> {
         let mut added = 0;
         let mut updated = 0;
         let mut conflicts = 0;
@@ -594,8 +632,12 @@ mod tests {
     fn test_matching_truths() {
         let mut cache = BehavioralKnowledgeCache::in_memory(100).unwrap();
 
-        cache.add_truth(create_test_truth("pm2 logs", "Use --nostream")).unwrap();
-        cache.add_truth(create_test_truth("cargo build", "Use cargo-watch")).unwrap();
+        cache
+            .add_truth(create_test_truth("pm2 logs", "Use --nostream"))
+            .unwrap();
+        cache
+            .add_truth(create_test_truth("cargo build", "Use cargo-watch"))
+            .unwrap();
 
         let matches = cache.get_matching_truths("pm2 logs myapp");
         assert_eq!(matches.len(), 1);
@@ -606,7 +648,9 @@ mod tests {
     fn test_truths_by_category() {
         let mut cache = BehavioralKnowledgeCache::in_memory(100).unwrap();
 
-        cache.add_truth(create_test_truth("test1", "rule1")).unwrap();
+        cache
+            .add_truth(create_test_truth("test1", "rule1"))
+            .unwrap();
 
         let mut task_truth = create_test_truth("test2", "rule2");
         task_truth.category = TruthCategory::TaskStrategy;
@@ -666,12 +710,19 @@ mod tests {
     fn test_stats() {
         let mut cache = BehavioralKnowledgeCache::in_memory(100).unwrap();
 
-        cache.add_truth(create_test_truth("test1", "rule1")).unwrap();
-        cache.add_truth(create_test_truth("test2", "rule2")).unwrap();
+        cache
+            .add_truth(create_test_truth("test1", "rule1"))
+            .unwrap();
+        cache
+            .add_truth(create_test_truth("test2", "rule2"))
+            .unwrap();
 
         let stats = cache.stats();
         assert_eq!(stats.total_truths, 2);
-        assert_eq!(*stats.by_category.get(&TruthCategory::CommandUsage).unwrap(), 2);
+        assert_eq!(
+            *stats.by_category.get(&TruthCategory::CommandUsage).unwrap(),
+            2
+        );
         assert!(stats.avg_confidence > 0.0);
     }
 }

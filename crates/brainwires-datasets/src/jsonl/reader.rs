@@ -44,11 +44,10 @@ impl<R: Read> JsonlReader<R> {
                 continue;
             }
 
-            let example: TrainingExample = serde_json::from_str(trimmed).map_err(|e| {
-                DatasetError::Validation {
+            let example: TrainingExample =
+                serde_json::from_str(trimmed).map_err(|e| DatasetError::Validation {
                     message: format!("line {}: {}", self.line_number, e),
-                }
-            })?;
+                })?;
             return Ok(Some(example));
         }
     }
@@ -80,11 +79,10 @@ impl<R: Read> JsonlReader<R> {
                 continue;
             }
 
-            let pair: PreferencePair = serde_json::from_str(trimmed).map_err(|e| {
-                DatasetError::Validation {
+            let pair: PreferencePair =
+                serde_json::from_str(trimmed).map_err(|e| DatasetError::Validation {
                     message: format!("line {}: {}", self.line_number, e),
-                }
-            })?;
+                })?;
             return Ok(Some(pair));
         }
     }

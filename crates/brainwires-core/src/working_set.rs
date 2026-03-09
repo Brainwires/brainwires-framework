@@ -267,11 +267,12 @@ impl WorkingSet {
     }
 
     fn evict_stale(&mut self) {
-        let stale_threshold = self.current_turn.saturating_sub(self.config.stale_after_turns);
+        let stale_threshold = self
+            .current_turn
+            .saturating_sub(self.config.stale_after_turns);
         let before_count = self.entries.len();
-        self.entries.retain(|_, entry| {
-            entry.pinned || entry.last_access_turn > stale_threshold
-        });
+        self.entries
+            .retain(|_, entry| entry.pinned || entry.last_access_turn > stale_threshold);
         let evicted = before_count - self.entries.len();
         if evicted > 0 {
             self.last_eviction = Some(format!("Evicted {} stale file(s)", evicted));

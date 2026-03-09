@@ -14,11 +14,7 @@ pub trait TextToSpeech: Send + Sync {
     async fn list_voices(&self) -> AudioResult<Vec<Voice>>;
 
     /// Synthesize text to a complete audio buffer.
-    async fn synthesize(
-        &self,
-        text: &str,
-        options: &TtsOptions,
-    ) -> AudioResult<AudioBuffer>;
+    async fn synthesize(&self, text: &str, options: &TtsOptions) -> AudioResult<AudioBuffer>;
 
     /// Synthesize text to a stream of audio chunks for real-time playback.
     ///

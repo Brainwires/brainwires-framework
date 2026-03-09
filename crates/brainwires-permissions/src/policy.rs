@@ -62,7 +62,6 @@ pub enum PolicyAction {
     Escalate,
 }
 
-
 /// Condition for policy matching
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -100,12 +99,8 @@ impl PolicyCondition {
     /// Check if this condition matches the given request
     pub fn matches(&self, request: &PolicyRequest) -> bool {
         match self {
-            PolicyCondition::Tool(name) => {
-                request.tool_name.as_ref() == Some(name)
-            }
-            PolicyCondition::ToolCategory(cat) => {
-                request.tool_category.as_ref() == Some(cat)
-            }
+            PolicyCondition::Tool(name) => request.tool_name.as_ref() == Some(name),
+            PolicyCondition::ToolCategory(cat) => request.tool_category.as_ref() == Some(cat),
             PolicyCondition::FilePath(pattern) => {
                 if let Some(path) = &request.file_path {
                     let pat = PathPattern::new(pattern);
@@ -127,9 +122,7 @@ impl PolicyCondition {
                     false
                 }
             }
-            PolicyCondition::GitOp(op) => {
-                request.git_operation.as_ref() == Some(op)
-            }
+            PolicyCondition::GitOp(op) => request.git_operation.as_ref() == Some(op),
             PolicyCondition::TimeRange {
                 start_hour,
                 end_hour,
@@ -142,12 +135,8 @@ impl PolicyCondition {
                     hour >= *start_hour || hour < *end_hour
                 }
             }
-            PolicyCondition::And(conditions) => {
-                conditions.iter().all(|c| c.matches(request))
-            }
-            PolicyCondition::Or(conditions) => {
-                conditions.iter().any(|c| c.matches(request))
-            }
+            PolicyCondition::And(conditions) => conditions.iter().all(|c| c.matches(request)),
+            PolicyCondition::Or(conditions) => conditions.iter().any(|c| c.matches(request)),
             PolicyCondition::Not(condition) => !condition.matches(request),
             PolicyCondition::Always => true,
         }
@@ -542,9 +531,7 @@ impl PolicyEngine {
     }
 
     /// Parse a policy rule from config
-    fn parse_policy_rule(
-        rule: &super::config::PolicyRuleConfig,
-    ) -> Option<Policy> {
+    fn parse_policy_rule(rule: &super::config::PolicyRuleConfig) -> Option<Policy> {
         let mut policy = Policy::new(&rule.name)
             .with_name(&rule.name)
             .with_priority(rule.priority as i32);
@@ -586,16 +573,15 @@ impl PolicyEngine {
     }
 
     /// Parse a condition from config
-    fn parse_condition(
-        condition: &super::config::PolicyCondition,
-    ) -> Option<PolicyCondition> {
+    fn parse_condition(condition: &super::config::PolicyCondition) -> Option<PolicyCondition> {
         if let Some(tool) = &condition.tool {
             return Some(PolicyCondition::Tool(tool.clone()));
         }
         if let Some(category) = &condition.tool_category
-            && let Some(cat) = super::config::parse_tool_category(category) {
-                return Some(PolicyCondition::ToolCategory(cat));
-            }
+            && let Some(cat) = super::config::parse_tool_category(category)
+        {
+            return Some(PolicyCondition::ToolCategory(cat));
+        }
         if let Some(path) = &condition.file_path {
             return Some(PolicyCondition::FilePath(path.clone()));
         }
@@ -603,9 +589,10 @@ impl PolicyEngine {
             return Some(PolicyCondition::Domain(domain.clone()));
         }
         if let Some(git_op) = &condition.git_op
-            && let Some(op) = super::config::parse_git_operation(git_op) {
-                return Some(PolicyCondition::GitOp(op));
-            }
+            && let Some(op) = super::config::parse_git_operation(git_op)
+        {
+            return Some(PolicyCondition::GitOp(op));
+        }
         if let Some(trust) = condition.min_trust_level {
             return Some(PolicyCondition::MinTrustLevel(trust));
         }

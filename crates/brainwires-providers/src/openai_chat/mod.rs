@@ -695,9 +695,9 @@ mod tests {
 
     #[test]
     fn test_openai_content_array_serialization() {
-        let content = OpenAIContent::Array(vec![
-            OpenAIContentPart::Text { text: "Test".to_string() },
-        ]);
+        let content = OpenAIContent::Array(vec![OpenAIContentPart::Text {
+            text: "Test".to_string(),
+        }]);
         let serialized = serde_json::to_string(&content).unwrap();
         assert!(serialized.contains("Test"));
     }
@@ -843,14 +843,29 @@ mod tests {
     #[test]
     fn test_is_o1_model_with_various_names() {
         let o1_models = vec!["o1-preview", "o1-mini", "o1-turbo", "o3-preview", "o3-mini"];
-        let non_o1_models = vec!["gpt-4", "gpt-3.5-turbo", "gpt-4o", "gpt-4-turbo", "o1", "o3"];
+        let non_o1_models = vec![
+            "gpt-4",
+            "gpt-3.5-turbo",
+            "gpt-4o",
+            "gpt-4-turbo",
+            "o1",
+            "o3",
+        ];
 
         for model in o1_models {
-            assert!(OpenAiClient::is_o1_model(model), "Expected {} to be detected as o1 model", model);
+            assert!(
+                OpenAiClient::is_o1_model(model),
+                "Expected {} to be detected as o1 model",
+                model
+            );
         }
 
         for model in non_o1_models {
-            assert!(!OpenAiClient::is_o1_model(model), "Expected {} to not be detected as o1 model", model);
+            assert!(
+                !OpenAiClient::is_o1_model(model),
+                "Expected {} to not be detected as o1 model",
+                model
+            );
         }
     }
 

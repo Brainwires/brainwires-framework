@@ -5,8 +5,8 @@
 //!
 //! Run with: `cargo run -p brainwires-tool-system --features orchestrator --example file_operations`
 
-use std::fs;
 use brainwires_tool_system::orchestrator::{ExecutionLimits, ToolOrchestrator};
+use std::fs;
 
 fn main() {
     println!("=== File Operations Example ===\n");

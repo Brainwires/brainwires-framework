@@ -4,8 +4,8 @@
 
 use std::collections::HashMap;
 
-use super::time_tracking::{TaskStats, TaskTimeInfo, TimeStats};
 use super::TaskManager;
+use super::time_tracking::{TaskStats, TaskTimeInfo, TimeStats};
 use brainwires_core::{Task, TaskPriority, TaskStatus};
 
 impl TaskManager {
@@ -18,8 +18,11 @@ impl TaskManager {
             if task.status == TaskStatus::Pending || task.status == TaskStatus::Blocked {
                 // Check if all dependencies are complete or skipped
                 let deps_complete = task.depends_on.iter().all(|dep_id| {
-                    tasks.get(dep_id)
-                        .map(|t| t.status == TaskStatus::Completed || t.status == TaskStatus::Skipped)
+                    tasks
+                        .get(dep_id)
+                        .map(|t| {
+                            t.status == TaskStatus::Completed || t.status == TaskStatus::Skipped
+                        })
                         .unwrap_or(false)
                 });
 
@@ -37,10 +40,7 @@ impl TaskManager {
     /// Get all root tasks (tasks without parents)
     pub async fn get_root_tasks(&self) -> Vec<Task> {
         let tasks = self.tasks.read().await;
-        tasks.values()
-            .filter(|t| t.is_root())
-            .cloned()
-            .collect()
+        tasks.values().filter(|t| t.is_root()).cloned().collect()
     }
 
     /// Get task tree starting from a task (or all roots if None)
@@ -89,7 +89,8 @@ impl TaskManager {
     /// Get tasks by status
     pub async fn get_tasks_by_status(&self, status: TaskStatus) -> Vec<Task> {
         let tasks = self.tasks.read().await;
-        tasks.values()
+        tasks
+            .values()
             .filter(|t| t.status == status)
             .cloned()
             .collect()
@@ -144,10 +145,11 @@ impl TaskManager {
                 completed_count += 1;
             }
             if task.status == TaskStatus::InProgress
-                && let Some(elapsed) = task.elapsed_secs() {
-                    total_elapsed += elapsed;
-                    in_progress_count += 1;
-                }
+                && let Some(elapsed) = task.elapsed_secs()
+            {
+                total_elapsed += elapsed;
+                in_progress_count += 1;
+            }
         }
 
         TimeStats {
@@ -179,11 +181,25 @@ impl TaskManager {
                 }
             } else {
                 // Parent task - calculate based on children
-                let completed = task.children.iter()
-                    .filter(|id| tasks.get(*id).map(|t| t.status == TaskStatus::Completed).unwrap_or(false))
+                let completed = task
+                    .children
+                    .iter()
+                    .filter(|id| {
+                        tasks
+                            .get(*id)
+                            .map(|t| t.status == TaskStatus::Completed)
+                            .unwrap_or(false)
+                    })
                     .count();
-                let in_progress = task.children.iter()
-                    .filter(|id| tasks.get(*id).map(|t| t.status == TaskStatus::InProgress).unwrap_or(false))
+                let in_progress = task
+                    .children
+                    .iter()
+                    .filter(|id| {
+                        tasks
+                            .get(*id)
+                            .map(|t| t.status == TaskStatus::InProgress)
+                            .unwrap_or(false)
+                    })
                     .count();
 
                 let total = task.children.len() as f64;
@@ -215,9 +231,7 @@ impl TaskManager {
     /// Get average task duration in seconds (from completed tasks)
     pub async fn get_average_duration(&self) -> Option<i64> {
         let tasks = self.tasks.read().await;
-        let durations: Vec<i64> = tasks.values()
-            .filter_map(|t| t.duration_secs())
-            .collect();
+        let durations: Vec<i64> = tasks.values().filter_map(|t| t.duration_secs()).collect();
 
         if durations.is_empty() {
             None
@@ -241,9 +255,7 @@ impl TaskManager {
         let mut output = String::new();
 
         // Get root tasks
-        let mut roots: Vec<_> = tasks.values()
-            .filter(|t| t.is_root())
-            .collect();
+        let mut roots: Vec<_> = tasks.values().filter(|t| t.is_root()).collect();
         roots.sort_by(|a, b| b.priority.cmp(&a.priority));
 
         let root_count = roots.len();
@@ -294,10 +306,7 @@ impl TaskManager {
 
         output.push_str(&format!(
             "{}{} {}{}\n",
-            current_prefix,
-            status_icon,
-            priority_icon,
-            task.description
+            current_prefix, status_icon, priority_icon, task.description
         ));
 
         // Build prefix for children
@@ -314,7 +323,14 @@ impl TaskManager {
         for (idx, child_id) in task.children.iter().enumerate() {
             if let Some(child) = tasks.get(child_id) {
                 let child_is_last = idx == child_count - 1;
-                self.format_task_recursive(tasks, child, depth + 1, child_is_last, &child_prefix, output);
+                self.format_task_recursive(
+                    tasks,
+                    child,
+                    depth + 1,
+                    child_is_last,
+                    &child_prefix,
+                    output,
+                );
             }
         }
     }

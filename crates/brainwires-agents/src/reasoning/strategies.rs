@@ -68,7 +68,11 @@ impl fmt::Display for StrategyStep {
             StrategyStep::Action { tool, .. } => write!(f, "Action: {}", tool),
             StrategyStep::Observation(o) => write!(f, "Observation: {}", o),
             StrategyStep::Reflection { critique, .. } => write!(f, "Reflection: {}", critique),
-            StrategyStep::Branch { branch_id, thought, score } => {
+            StrategyStep::Branch {
+                branch_id,
+                thought,
+                score,
+            } => {
                 write!(f, "Branch[{}] (score={:.2}): {}", branch_id, score, thought)
             }
             StrategyStep::FinalAnswer(a) => write!(f, "Final: {}", a),
@@ -189,7 +193,9 @@ Do NOT continue cycling after the task is done."#,
         if steps.len() >= self.max_steps {
             return true;
         }
-        steps.iter().any(|s| matches!(s, StrategyStep::FinalAnswer(_)))
+        steps
+            .iter()
+            .any(|s| matches!(s, StrategyStep::FinalAnswer(_)))
     }
 
     fn max_steps(&self) -> usize {
@@ -213,7 +219,10 @@ pub struct ReflexionStrategy {
 impl ReflexionStrategy {
     /// Create a new Reflexion strategy.
     pub fn new(max_steps: usize, max_reflections: usize) -> Self {
-        Self { max_steps, max_reflections }
+        Self {
+            max_steps,
+            max_reflections,
+        }
     }
 }
 
@@ -289,13 +298,16 @@ your summary."#,
         if steps.len() >= self.max_steps {
             return true;
         }
-        let reflection_count = steps.iter()
+        let reflection_count = steps
+            .iter()
             .filter(|s| matches!(s, StrategyStep::Reflection { .. }))
             .count();
         if reflection_count >= self.max_reflections {
             return true;
         }
-        steps.iter().any(|s| matches!(s, StrategyStep::FinalAnswer(_)))
+        steps
+            .iter()
+            .any(|s| matches!(s, StrategyStep::FinalAnswer(_)))
     }
 
     fn max_steps(&self) -> usize {
@@ -387,7 +399,9 @@ After all steps are verified, provide your final answer."#,
         if steps.len() >= self.max_steps {
             return true;
         }
-        steps.iter().any(|s| matches!(s, StrategyStep::FinalAnswer(_)))
+        steps
+            .iter()
+            .any(|s| matches!(s, StrategyStep::FinalAnswer(_)))
     }
 
     fn max_steps(&self) -> usize {
@@ -503,7 +517,9 @@ the final approach was chosen."#,
         if steps.len() >= self.max_steps {
             return true;
         }
-        steps.iter().any(|s| matches!(s, StrategyStep::FinalAnswer(_)))
+        steps
+            .iter()
+            .any(|s| matches!(s, StrategyStep::FinalAnswer(_)))
     }
 
     fn max_steps(&self) -> usize {
@@ -581,7 +597,10 @@ mod tests {
         let strategy = ReActStrategy::new(3);
         let steps = vec![
             StrategyStep::Thought("thinking".to_string()),
-            StrategyStep::Action { tool: "read".to_string(), args: serde_json::json!({}) },
+            StrategyStep::Action {
+                tool: "read".to_string(),
+                args: serde_json::json!({}),
+            },
         ];
         assert!(!strategy.is_complete(&steps));
 
@@ -615,8 +634,14 @@ mod tests {
     fn test_reflexion_max_reflections() {
         let strategy = ReflexionStrategy::new(20, 2);
         let steps = vec![
-            StrategyStep::Reflection { critique: "a".into(), revised_plan: "b".into() },
-            StrategyStep::Reflection { critique: "c".into(), revised_plan: "d".into() },
+            StrategyStep::Reflection {
+                critique: "a".into(),
+                revised_plan: "b".into(),
+            },
+            StrategyStep::Reflection {
+                critique: "c".into(),
+                revised_plan: "d".into(),
+            },
         ];
         assert!(strategy.is_complete(&steps));
     }

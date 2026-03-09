@@ -1,6 +1,6 @@
-use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
-use tracing::{info, debug};
+use std::path::{Path, PathBuf};
+use tracing::{debug, info};
 
 /// Checkpoint metadata stored alongside model weights.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -67,8 +67,7 @@ impl CheckpointManager {
         std::fs::create_dir_all(&dir)?;
 
         let meta_path = dir.join("checkpoint_meta.json");
-        let json = serde_json::to_string_pretty(meta)
-            .map_err(std::io::Error::other)?;
+        let json = serde_json::to_string_pretty(meta).map_err(std::io::Error::other)?;
         std::fs::write(&meta_path, json)?;
 
         info!("Saved checkpoint at step {} to {:?}", step, dir);
@@ -122,28 +121,37 @@ impl CheckpointManager {
         let dir = self.checkpoint_path(step);
         std::fs::create_dir_all(&dir)?;
 
-        let tensors: std::collections::HashMap<String, safetensors::tensor::TensorView<'_>> = weights
-            .iter()
-            .filter_map(|(name, (data, shape))| {
-                let bytes: Vec<u8> = data.iter().flat_map(|f| f.to_le_bytes()).collect();
-                // TensorView needs owned data; use leaked box for lifetime (small checkpoint files)
-                let bytes = Box::leak(bytes.into_boxed_slice());
-                safetensors::tensor::TensorView::new(
-                    safetensors::Dtype::F32,
-                    shape.clone(),
-                    bytes,
-                )
-                .ok()
-                .map(|view| (name.clone(), view))
-            })
-            .collect();
+        let tensors: std::collections::HashMap<String, safetensors::tensor::TensorView<'_>> =
+            weights
+                .iter()
+                .filter_map(|(name, (data, shape))| {
+                    let bytes: Vec<u8> = data.iter().flat_map(|f| f.to_le_bytes()).collect();
+                    // TensorView needs owned data; use leaked box for lifetime (small checkpoint files)
+                    let bytes = Box::leak(bytes.into_boxed_slice());
+                    safetensors::tensor::TensorView::new(
+                        safetensors::Dtype::F32,
+                        shape.clone(),
+                        bytes,
+                    )
+                    .ok()
+                    .map(|view| (name.clone(), view))
+                })
+                .collect();
 
-        let serialized = safetensors::tensor::serialize(&tensors, None)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("SafeTensors serialize error: {}", e)))?;
+        let serialized = safetensors::tensor::serialize(&tensors, None).map_err(|e| {
+            std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("SafeTensors serialize error: {}", e),
+            )
+        })?;
 
         let weights_path = dir.join("adapter_weights.safetensors");
         std::fs::write(&weights_path, serialized)?;
-        info!("Saved adapter weights at step {} ({} tensors)", step, weights.len());
+        info!(
+            "Saved adapter weights at step {} ({} tensors)",
+            step,
+            weights.len()
+        );
         Ok(())
     }
 
@@ -154,13 +162,21 @@ impl CheckpointManager {
         let weights_path = checkpoint_dir.join("adapter_weights.safetensors");
         let data = std::fs::read(&weights_path)?;
 
-        let st = safetensors::SafeTensors::deserialize(&data)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, format!("SafeTensors parse error: {}", e)))?;
+        let st = safetensors::SafeTensors::deserialize(&data).map_err(|e| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("SafeTensors parse error: {}", e),
+            )
+        })?;
 
         let mut weights = std::collections::HashMap::new();
         for name in st.names() {
-            let view = st.tensor(name)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, format!("Tensor '{}': {}", name, e)))?;
+            let view = st.tensor(name).map_err(|e| {
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("Tensor '{}': {}", name, e),
+                )
+            })?;
             let shape = view.shape().to_vec();
             let f32_data: Vec<f32> = view
                 .data()
@@ -170,7 +186,11 @@ impl CheckpointManager {
             weights.insert(name.to_string(), (f32_data, shape));
         }
 
-        debug!("Loaded {} adapter weight tensors from {:?}", weights.len(), checkpoint_dir);
+        debug!(
+            "Loaded {} adapter weight tensors from {:?}",
+            weights.len(),
+            checkpoint_dir
+        );
         Ok(weights)
     }
 

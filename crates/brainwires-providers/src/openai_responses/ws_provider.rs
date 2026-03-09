@@ -81,7 +81,9 @@ impl Provider for OpenAiResponsesWsProvider {
         options: &ChatOptions,
     ) -> Result<ChatResponse> {
         let (input, system) = convert::messages_to_input(messages);
-        let response_tools = tools.map(convert::tools_to_response_tools).unwrap_or_default();
+        let response_tools = tools
+            .map(convert::tools_to_response_tools)
+            .unwrap_or_default();
         let instructions = system.as_deref().or(options.system.as_deref());
 
         let prev_id = self.last_response_id.lock().await.clone();
@@ -90,7 +92,11 @@ impl Provider for OpenAiResponsesWsProvider {
             &self.model,
             input,
             instructions,
-            if response_tools.is_empty() { None } else { Some(&response_tools) },
+            if response_tools.is_empty() {
+                None
+            } else {
+                Some(&response_tools)
+            },
             options,
             prev_id.as_deref(),
         );
@@ -107,7 +113,9 @@ impl Provider for OpenAiResponsesWsProvider {
         while let Some(event_result) = stream.next().await {
             match event_result {
                 Ok(event) => {
-                    if let super::types::ResponseStreamEvent::ResponseCompleted { ref response } = event {
+                    if let super::types::ResponseStreamEvent::ResponseCompleted { ref response } =
+                        event
+                    {
                         last_response = Some(response.clone());
                     }
                 }
@@ -115,8 +123,9 @@ impl Provider for OpenAiResponsesWsProvider {
             }
         }
 
-        let resp = last_response
-            .ok_or_else(|| anyhow::anyhow!("WebSocket stream ended without a completed response"))?;
+        let resp = last_response.ok_or_else(|| {
+            anyhow::anyhow!("WebSocket stream ended without a completed response")
+        })?;
 
         // Store response ID for chaining
         *self.last_response_id.lock().await = Some(resp.id.clone());
@@ -133,7 +142,9 @@ impl Provider for OpenAiResponsesWsProvider {
         tracing::info!(provider = %self.provider_name, model = %self.model, "provider.ws_stream started");
 
         let (input, system) = convert::messages_to_input(messages);
-        let response_tools = tools.map(convert::tools_to_response_tools).unwrap_or_default();
+        let response_tools = tools
+            .map(convert::tools_to_response_tools)
+            .unwrap_or_default();
 
         Box::pin(async_stream::stream! {
             let instructions = system.as_deref().or(options.system.as_deref());
@@ -207,8 +218,7 @@ mod tests {
     #[test]
     fn test_store_configurable() {
         let ws = Arc::new(ResponsesWebSocket::new("test-key".to_string()));
-        let provider = OpenAiResponsesWsProvider::new(ws, "gpt-4o".to_string())
-            .with_store(true);
+        let provider = OpenAiResponsesWsProvider::new(ws, "gpt-4o".to_string()).with_store(true);
         assert!(provider.store);
     }
 

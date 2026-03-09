@@ -1,8 +1,8 @@
 use serde_json::json;
 
+use super::FormatConverter;
 use crate::error::{DatasetError, DatasetResult};
 use crate::types::{TrainingExample, TrainingMessage, TrainingRole};
-use super::FormatConverter;
 
 /// ChatML template format.
 ///
@@ -14,7 +14,10 @@ impl ChatMlFormat {
         let mut text = String::new();
         for msg in messages {
             let role = msg.role.to_string();
-            text.push_str(&format!("<|im_start|>{}\n{}<|im_end|>\n", role, msg.content));
+            text.push_str(&format!(
+                "<|im_start|>{}\n{}<|im_end|>\n",
+                role, msg.content
+            ));
         }
         text
     }
@@ -26,9 +29,12 @@ impl ChatMlFormat {
         while let Some(start) = remaining.find("<|im_start|>") {
             remaining = &remaining[start + 12..]; // skip "<|im_start|>"
 
-            let end = remaining.find("<|im_end|>").ok_or_else(|| DatasetError::FormatConversion {
-                message: "Unclosed <|im_start|> tag".to_string(),
-            })?;
+            let end =
+                remaining
+                    .find("<|im_end|>")
+                    .ok_or_else(|| DatasetError::FormatConversion {
+                        message: "Unclosed <|im_start|> tag".to_string(),
+                    })?;
 
             let block = &remaining[..end];
             let newline_pos = block.find('\n').unwrap_or(block.len());
@@ -47,7 +53,7 @@ impl ChatMlFormat {
                 other => {
                     return Err(DatasetError::FormatConversion {
                         message: format!("Unknown ChatML role: {}", other),
-                    })
+                    });
                 }
             };
 
@@ -76,12 +82,11 @@ impl FormatConverter for ChatMlFormat {
     }
 
     fn parse_json(&self, value: &serde_json::Value) -> DatasetResult<TrainingExample> {
-        let text = value
-            .get("text")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| DatasetError::FormatConversion {
+        let text = value.get("text").and_then(|v| v.as_str()).ok_or_else(|| {
+            DatasetError::FormatConversion {
                 message: "Missing 'text' field for ChatML format".to_string(),
-            })?;
+            }
+        })?;
 
         let messages = Self::parse_chatml(text)?;
         Ok(TrainingExample::new(messages))
@@ -115,19 +120,22 @@ impl PreferenceConverter for ChatMlFormat {
     }
 
     fn parse_preference_json(&self, value: &serde_json::Value) -> DatasetResult<PreferencePair> {
-        let prompt_text = value.get("prompt")
+        let prompt_text = value
+            .get("prompt")
             .and_then(|v| v.as_str())
             .ok_or_else(|| DatasetError::FormatConversion {
                 message: "Missing 'prompt' field for ChatML preference".to_string(),
             })?;
 
-        let chosen_text = value.get("chosen")
+        let chosen_text = value
+            .get("chosen")
             .and_then(|v| v.as_str())
             .ok_or_else(|| DatasetError::FormatConversion {
                 message: "Missing 'chosen' field for ChatML preference".to_string(),
             })?;
 
-        let rejected_text = value.get("rejected")
+        let rejected_text = value
+            .get("rejected")
             .and_then(|v| v.as_str())
             .ok_or_else(|| DatasetError::FormatConversion {
                 message: "Missing 'rejected' field for ChatML preference".to_string(),
@@ -171,7 +179,10 @@ mod tests {
         let parsed = format.parse_json(&json).unwrap();
         assert_eq!(parsed.messages.len(), 3);
         assert_eq!(parsed.messages[0].role, TrainingRole::System);
-        assert_eq!(parsed.messages[2].content, "Rust is a systems programming language.");
+        assert_eq!(
+            parsed.messages[2].content,
+            "Rust is a systems programming language."
+        );
     }
 
     #[test]

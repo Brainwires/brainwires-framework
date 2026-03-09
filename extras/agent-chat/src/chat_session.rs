@@ -20,8 +20,7 @@ pub enum ApprovalResponse {
     Always,
 }
 
-pub type ApprovalCallback =
-    Box<dyn Fn(&str, &serde_json::Value) -> ApprovalResponse + Send + Sync>;
+pub type ApprovalCallback = Box<dyn Fn(&str, &serde_json::Value) -> ApprovalResponse + Send + Sync>;
 
 pub struct ChatSession {
     provider: Arc<dyn Provider>,
@@ -118,9 +117,7 @@ impl ChatSession {
             // Build assistant message with tool uses
             let mut blocks = Vec::new();
             if !text_buf.is_empty() {
-                blocks.push(ContentBlock::Text {
-                    text: text_buf,
-                });
+                blocks.push(ContentBlock::Text { text: text_buf });
             }
             for tu in &tool_uses {
                 blocks.push(ContentBlock::ToolUse {
@@ -177,7 +174,9 @@ impl ChatSession {
         tools_opt: Option<&[Tool]>,
         _tool_defs: &[Tool],
     ) -> Result<(String, Vec<ToolUse>, Vec<StreamEvent>, Option<String>)> {
-        let mut stream = self.provider.stream_chat(&self.messages, tools_opt, &self.options);
+        let mut stream = self
+            .provider
+            .stream_chat(&self.messages, tools_opt, &self.options);
 
         let mut text_buf = String::new();
         let mut events = Vec::new();
@@ -195,9 +194,8 @@ impl ChatSession {
                 }
                 StreamChunk::ToolUse { id, name } => {
                     if !current_tool_id.is_empty() {
-                        let input: serde_json::Value =
-                            serde_json::from_str(&current_tool_input)
-                                .unwrap_or(serde_json::Value::Null);
+                        let input: serde_json::Value = serde_json::from_str(&current_tool_input)
+                            .unwrap_or(serde_json::Value::Null);
                         tool_uses.push(ToolUse {
                             id: std::mem::take(&mut current_tool_id),
                             name: std::mem::take(&mut current_tool_name),
@@ -211,7 +209,13 @@ impl ChatSession {
                 StreamChunk::ToolInputDelta { partial_json, .. } => {
                     current_tool_input.push_str(&partial_json);
                 }
-                StreamChunk::ToolCall { call_id, response_id, tool_name, parameters, .. } => {
+                StreamChunk::ToolCall {
+                    call_id,
+                    response_id,
+                    tool_name,
+                    parameters,
+                    ..
+                } => {
                     // Brainwires backend sends complete tool calls in a single event
                     last_response_id = Some(response_id);
                     tool_uses.push(ToolUse {
@@ -232,8 +236,8 @@ impl ChatSession {
 
         // Flush last tool
         if !current_tool_id.is_empty() {
-            let input: serde_json::Value = serde_json::from_str(&current_tool_input)
-                .unwrap_or(serde_json::Value::Null);
+            let input: serde_json::Value =
+                serde_json::from_str(&current_tool_input).unwrap_or(serde_json::Value::Null);
             tool_uses.push(ToolUse {
                 id: current_tool_id,
                 name: current_tool_name,
@@ -245,9 +249,7 @@ impl ChatSession {
     }
 
     async fn execute_tool(&mut self, tool_use: &ToolUse) -> ToolResult {
-        if self.permission_mode == "ask"
-            && !self.auto_approved_tools.contains(&tool_use.name)
-        {
+        if self.permission_mode == "ask" && !self.auto_approved_tools.contains(&tool_use.name) {
             if let Some(ref cb) = self.approval_callback {
                 match cb(&tool_use.name, &tool_use.input) {
                     ApprovalResponse::Yes => {}
@@ -265,8 +267,14 @@ impl ChatSession {
         } else if self.permission_mode == "reject" {
             let read_only = matches!(
                 tool_use.name.as_str(),
-                "read_file" | "list_directory" | "search_code" | "search_files"
-                    | "fetch_url" | "git_status" | "git_diff" | "git_log"
+                "read_file"
+                    | "list_directory"
+                    | "search_code"
+                    | "search_files"
+                    | "fetch_url"
+                    | "git_status"
+                    | "git_diff"
+                    | "git_log"
             );
             if !read_only {
                 return ToolResult::error(
@@ -296,18 +304,14 @@ async fn dispatch_tool(
     context: &ToolContext,
 ) -> ToolResult {
     match tool_name {
-        "bash" | "execute_command" => {
-            BashTool::execute(tool_use_id, tool_name, input, context)
-        }
+        "bash" | "execute_command" => BashTool::execute(tool_use_id, tool_name, input, context),
         "read_file" | "write_file" | "edit_file" | "patch_file" | "list_directory"
         | "delete_file" | "create_directory" | "file_search" => {
             FileOpsTool::execute(tool_use_id, tool_name, input, context)
         }
         "git_status" | "git_diff" | "git_log" | "git_stage" | "git_commit" | "git_push"
-        | "git_pull" | "git_branch" | "git_checkout" | "git_stash" | "git_reset"
-        | "git_show" | "git_blame" => {
-            GitTool::execute(tool_use_id, tool_name, input, context)
-        }
+        | "git_pull" | "git_branch" | "git_checkout" | "git_stash" | "git_reset" | "git_show"
+        | "git_blame" => GitTool::execute(tool_use_id, tool_name, input, context),
         "search_code" | "search_files" => {
             SearchTool::execute(tool_use_id, tool_name, input, context)
         }
@@ -315,7 +319,10 @@ async fn dispatch_tool(
             ValidationTool::execute(tool_use_id, tool_name, input, context).await
         }
         "fetch_url" => WebTool::execute(tool_use_id, tool_name, input, context).await,
-        _ => ToolResult::error(tool_use_id.to_string(), format!("Unknown tool: {tool_name}")),
+        _ => ToolResult::error(
+            tool_use_id.to_string(),
+            format!("Unknown tool: {tool_name}"),
+        ),
     }
 }
 

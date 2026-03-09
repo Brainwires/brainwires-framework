@@ -68,8 +68,7 @@ impl BrainMcpServer {
             .capture_thought(req)
             .await
             .map_err(|e| format!("{:#}", e))?;
-        serde_json::to_string_pretty(&response)
-            .map_err(|e| format!("Serialization failed: {}", e))
+        serde_json::to_string_pretty(&response).map_err(|e| format!("Serialization failed: {}", e))
     }
 
     #[tool(
@@ -84,8 +83,7 @@ impl BrainMcpServer {
             .search_memory(req)
             .await
             .map_err(|e| format!("{:#}", e))?;
-        serde_json::to_string_pretty(&response)
-            .map_err(|e| format!("Serialization failed: {}", e))
+        serde_json::to_string_pretty(&response).map_err(|e| format!("Serialization failed: {}", e))
     }
 
     #[tool(
@@ -100,8 +98,7 @@ impl BrainMcpServer {
             .list_recent(req)
             .await
             .map_err(|e| format!("{:#}", e))?;
-        serde_json::to_string_pretty(&response)
-            .map_err(|e| format!("Serialization failed: {}", e))
+        serde_json::to_string_pretty(&response).map_err(|e| format!("Serialization failed: {}", e))
     }
 
     #[tool(description = "Retrieve a specific thought by its UUID.")]
@@ -132,8 +129,7 @@ impl BrainMcpServer {
         let response = client
             .search_knowledge(req)
             .map_err(|e| format!("{:#}", e))?;
-        serde_json::to_string_pretty(&response)
-            .map_err(|e| format!("Serialization failed: {}", e))
+        serde_json::to_string_pretty(&response).map_err(|e| format!("Serialization failed: {}", e))
     }
 
     #[tool(
@@ -148,11 +144,12 @@ impl BrainMcpServer {
             .memory_stats()
             .await
             .map_err(|e| format!("{:#}", e))?;
-        serde_json::to_string_pretty(&response)
-            .map_err(|e| format!("Serialization failed: {}", e))
+        serde_json::to_string_pretty(&response).map_err(|e| format!("Serialization failed: {}", e))
     }
 
-    #[tool(description = "Delete a thought by its UUID. Does not remove any PKS facts that were extracted from it.")]
+    #[tool(
+        description = "Delete a thought by its UUID. Does not remove any PKS facts that were extracted from it."
+    )]
     async fn delete_thought(
         &self,
         Parameters(req): Parameters<DeleteThoughtRequest>,
@@ -162,8 +159,7 @@ impl BrainMcpServer {
             .delete_thought(&req.id)
             .await
             .map_err(|e| format!("{:#}", e))?;
-        serde_json::to_string_pretty(&response)
-            .map_err(|e| format!("Serialization failed: {}", e))
+        serde_json::to_string_pretty(&response).map_err(|e| format!("Serialization failed: {}", e))
     }
 }
 
@@ -179,10 +175,7 @@ impl BrainMcpServer {
         &self,
         Parameters(args): Parameters<serde_json::Value>,
     ) -> Result<Vec<PromptMessage>, McpError> {
-        let content = args
-            .get("content")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+        let content = args.get("content").and_then(|v| v.as_str()).unwrap_or("");
 
         Ok(vec![PromptMessage::new_text(
             PromptMessageRole::User,
@@ -193,18 +186,12 @@ impl BrainMcpServer {
         )])
     }
 
-    #[prompt(
-        name = "search",
-        description = "Semantic search across all memory"
-    )]
+    #[prompt(name = "search", description = "Semantic search across all memory")]
     async fn search_prompt(
         &self,
         Parameters(args): Parameters<serde_json::Value>,
     ) -> Result<Vec<PromptMessage>, McpError> {
-        let query = args
-            .get("query")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+        let query = args.get("query").and_then(|v| v.as_str()).unwrap_or("");
 
         Ok(vec![PromptMessage::new_text(
             PromptMessageRole::User,
@@ -212,10 +199,7 @@ impl BrainMcpServer {
         )])
     }
 
-    #[prompt(
-        name = "recent",
-        description = "List recently captured thoughts"
-    )]
+    #[prompt(name = "recent", description = "List recently captured thoughts")]
     async fn recent_prompt(&self) -> Vec<PromptMessage> {
         vec![PromptMessage::new_text(
             PromptMessageRole::User,
@@ -223,10 +207,7 @@ impl BrainMcpServer {
         )]
     }
 
-    #[prompt(
-        name = "stats",
-        description = "Show memory statistics dashboard"
-    )]
+    #[prompt(name = "stats", description = "Show memory statistics dashboard")]
     async fn stats_prompt(&self) -> Vec<PromptMessage> {
         vec![PromptMessage::new_text(
             PromptMessageRole::User,
@@ -242,10 +223,7 @@ impl BrainMcpServer {
         &self,
         Parameters(args): Parameters<serde_json::Value>,
     ) -> Result<Vec<PromptMessage>, McpError> {
-        let query = args
-            .get("query")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+        let query = args.get("query").and_then(|v| v.as_str()).unwrap_or("");
 
         Ok(vec![PromptMessage::new_text(
             PromptMessageRole::User,

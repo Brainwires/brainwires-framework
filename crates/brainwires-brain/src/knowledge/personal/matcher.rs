@@ -63,7 +63,9 @@ impl PersonalFactMatcher {
         relevant.sort_by(|a, b| {
             let score_a = self.relevance_score(a, context);
             let score_b = self.relevance_score(b, context);
-            score_b.partial_cmp(&score_a).unwrap_or(std::cmp::Ordering::Equal)
+            score_b
+                .partial_cmp(&score_a)
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
 
         // Limit to max facts
@@ -85,9 +87,10 @@ impl PersonalFactMatcher {
 
         // Boost if matches current context
         if let Some(ctx) = context
-            && self.matches_context(fact, ctx) {
-                score *= 1.3;
-            }
+            && self.matches_context(fact, ctx)
+        {
+            score *= 1.3;
+        }
 
         score
     }
@@ -122,17 +125,21 @@ impl PersonalFactMatcher {
         }
 
         // Check value matches
-        if fact.value.to_lowercase().split_whitespace().any(|word| {
-            word.len() > 3 && context_lower.contains(word)
-        }) {
+        if fact
+            .value
+            .to_lowercase()
+            .split_whitespace()
+            .any(|word| word.len() > 3 && context_lower.contains(word))
+        {
             return true;
         }
 
         // Check fact context matches
         if let Some(ref fact_ctx) = fact.context
-            && context_lower.contains(&fact_ctx.to_lowercase()) {
-                return true;
-            }
+            && context_lower.contains(&fact_ctx.to_lowercase())
+        {
+            return true;
+        }
 
         false
     }
@@ -184,13 +191,22 @@ impl PersonalFactMatcher {
         let mut sections = Vec::new();
 
         // Find name
-        if let Some(name_fact) = facts.iter().find(|f| f.key == "name" || f.key == "preferred_name") {
+        if let Some(name_fact) = facts
+            .iter()
+            .find(|f| f.key == "name" || f.key == "preferred_name")
+        {
             sections.push(format!("Name: {}", name_fact.value));
         }
 
         // Find role/organization
-        let role = facts.iter().find(|f| f.key == "role").map(|f| f.value.as_str());
-        let org = facts.iter().find(|f| f.key == "organization").map(|f| f.value.as_str());
+        let role = facts
+            .iter()
+            .find(|f| f.key == "role")
+            .map(|f| f.value.as_str());
+        let org = facts
+            .iter()
+            .find(|f| f.key == "organization")
+            .map(|f| f.value.as_str());
         match (role, org) {
             (Some(r), Some(o)) => sections.push(format!("Role: {} at {}", r, o)),
             (Some(r), None) => sections.push(format!("Role: {}", r)),
@@ -204,8 +220,14 @@ impl PersonalFactMatcher {
         }
 
         // Count preferences and capabilities
-        let pref_count = facts.iter().filter(|f| f.category == PersonalFactCategory::Preference).count();
-        let cap_count = facts.iter().filter(|f| f.category == PersonalFactCategory::Capability).count();
+        let pref_count = facts
+            .iter()
+            .filter(|f| f.category == PersonalFactCategory::Preference)
+            .count();
+        let cap_count = facts
+            .iter()
+            .filter(|f| f.category == PersonalFactCategory::Capability)
+            .count();
 
         if pref_count > 0 {
             sections.push(format!("Preferences: {} recorded", pref_count));
@@ -225,23 +247,155 @@ impl PersonalFactMatcher {
 /// Extract keywords from a message for context matching
 pub fn extract_keywords(text: &str) -> HashSet<String> {
     let stopwords: HashSet<&str> = [
-        "a", "an", "the", "is", "are", "was", "were", "be", "been", "being",
-        "have", "has", "had", "do", "does", "did", "will", "would", "could",
-        "should", "may", "might", "can", "to", "of", "in", "for", "on", "with",
-        "at", "by", "from", "as", "into", "through", "during", "before", "after",
-        "above", "below", "between", "under", "again", "further", "then", "once",
-        "here", "there", "when", "where", "why", "how", "all", "each", "few",
-        "more", "most", "other", "some", "such", "no", "nor", "not", "only",
-        "own", "same", "so", "than", "too", "very", "just", "and", "but", "if",
-        "or", "because", "until", "while", "of", "about", "against", "between",
-        "into", "through", "during", "before", "after", "above", "below", "to",
-        "from", "up", "down", "in", "out", "on", "off", "over", "under", "again",
-        "i", "me", "my", "myself", "we", "our", "ours", "ourselves", "you", "your",
-        "yours", "yourself", "yourselves", "he", "him", "his", "himself", "she",
-        "her", "hers", "herself", "it", "its", "itself", "they", "them", "their",
-        "theirs", "themselves", "what", "which", "who", "whom", "this", "that",
-        "these", "those", "am", "is", "are", "was", "were", "be", "been", "being",
-    ].iter().cloned().collect();
+        "a",
+        "an",
+        "the",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "have",
+        "has",
+        "had",
+        "do",
+        "does",
+        "did",
+        "will",
+        "would",
+        "could",
+        "should",
+        "may",
+        "might",
+        "can",
+        "to",
+        "of",
+        "in",
+        "for",
+        "on",
+        "with",
+        "at",
+        "by",
+        "from",
+        "as",
+        "into",
+        "through",
+        "during",
+        "before",
+        "after",
+        "above",
+        "below",
+        "between",
+        "under",
+        "again",
+        "further",
+        "then",
+        "once",
+        "here",
+        "there",
+        "when",
+        "where",
+        "why",
+        "how",
+        "all",
+        "each",
+        "few",
+        "more",
+        "most",
+        "other",
+        "some",
+        "such",
+        "no",
+        "nor",
+        "not",
+        "only",
+        "own",
+        "same",
+        "so",
+        "than",
+        "too",
+        "very",
+        "just",
+        "and",
+        "but",
+        "if",
+        "or",
+        "because",
+        "until",
+        "while",
+        "of",
+        "about",
+        "against",
+        "between",
+        "into",
+        "through",
+        "during",
+        "before",
+        "after",
+        "above",
+        "below",
+        "to",
+        "from",
+        "up",
+        "down",
+        "in",
+        "out",
+        "on",
+        "off",
+        "over",
+        "under",
+        "again",
+        "i",
+        "me",
+        "my",
+        "myself",
+        "we",
+        "our",
+        "ours",
+        "ourselves",
+        "you",
+        "your",
+        "yours",
+        "yourself",
+        "yourselves",
+        "he",
+        "him",
+        "his",
+        "himself",
+        "she",
+        "her",
+        "hers",
+        "herself",
+        "it",
+        "its",
+        "itself",
+        "they",
+        "them",
+        "their",
+        "theirs",
+        "themselves",
+        "what",
+        "which",
+        "who",
+        "whom",
+        "this",
+        "that",
+        "these",
+        "those",
+        "am",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+    ]
+    .iter()
+    .cloned()
+    .collect();
 
     text.to_lowercase()
         .split(|c: char| !c.is_alphanumeric() && c != '_' && c != '-')

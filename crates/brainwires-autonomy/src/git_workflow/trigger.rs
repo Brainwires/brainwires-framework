@@ -71,7 +71,9 @@ impl ProgrammaticTrigger {
     /// Send an event manually.
     pub async fn emit(&self, event: WorkflowEvent) -> anyhow::Result<()> {
         if let Some(tx) = &self.tx {
-            tx.send(event).await.map_err(|e| anyhow::anyhow!("Failed to send event: {e}"))?;
+            tx.send(event)
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to send event: {e}"))?;
         }
         Ok(())
     }

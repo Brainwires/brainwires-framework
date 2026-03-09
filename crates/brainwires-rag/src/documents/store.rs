@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
-use super::bm25::{document_rrf_fusion, DocumentBM25Manager};
+use super::bm25::{DocumentBM25Manager, document_rrf_fusion};
 use super::chunker::DocumentChunker;
 use super::lance_tables;
 use super::metadata_store::DocumentMetadataStore;
@@ -161,7 +161,8 @@ impl DocumentStore {
         metadata = metadata.with_chunk_count(chunks.len() as u32);
 
         // Index chunks in LanceDB with embeddings
-        self.index_chunks_to_lance(&chunks, &metadata, &scope).await?;
+        self.index_chunks_to_lance(&chunks, &metadata, &scope)
+            .await?;
 
         // Index chunks in BM25
         let bm25_chunks: Vec<(String, String)> = chunks
@@ -282,7 +283,10 @@ impl DocumentStore {
     }
 
     /// Search documents with hybrid search (vector + BM25)
-    pub async fn search(&self, request: DocumentSearchRequest) -> Result<Vec<DocumentSearchResult>> {
+    pub async fn search(
+        &self,
+        request: DocumentSearchRequest,
+    ) -> Result<Vec<DocumentSearchResult>> {
         let scope_id = request
             .conversation_id
             .clone()
@@ -297,21 +301,29 @@ impl DocumentStore {
     }
 
     /// Perform vector-only search
-    async fn vector_search(&self, request: &DocumentSearchRequest) -> Result<Vec<DocumentSearchResult>> {
+    async fn vector_search(
+        &self,
+        request: &DocumentSearchRequest,
+    ) -> Result<Vec<DocumentSearchResult>> {
         let embedding = self.embeddings.embed(&request.query)?;
         let table = lance_tables::open_documents_table(&self.connection).await?;
 
         // Build filter
         let filter = self.build_filter(request);
 
-        let mut query = table.vector_search(embedding).context("Failed to create vector search")?;
+        let mut query = table
+            .vector_search(embedding)
+            .context("Failed to create vector search")?;
         query = query.limit(request.limit);
 
         if let Some(filter) = filter {
             query = query.only_if(filter);
         }
 
-        let stream = query.execute().await.context("Failed to execute vector search")?;
+        let stream = query
+            .execute()
+            .await
+            .context("Failed to execute vector search")?;
 
         let batches: Vec<RecordBatch> = stream.try_collect().await?;
 
@@ -348,7 +360,9 @@ impl DocumentStore {
     ) -> Result<Vec<DocumentSearchResult>> {
         // Run vector and BM25 searches in parallel
         let vector_future = self.vector_search(request);
-        let bm25_results = self.bm25_manager.search(scope_id, &request.query, request.limit * 2)?;
+        let bm25_results = self
+            .bm25_manager
+            .search(scope_id, &request.query, request.limit * 2)?;
 
         let vector_results = vector_future.await?;
 
@@ -400,7 +414,11 @@ impl DocumentStore {
         }
 
         // Sort by combined score
-        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        results.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         Ok(results)
     }
@@ -574,8 +592,13 @@ impl DocumentStore {
     }
 
     /// List documents for a conversation
-    pub async fn list_by_conversation(&self, conversation_id: &str) -> Result<Vec<DocumentMetadata>> {
-        self.metadata_store.list_by_conversation(conversation_id).await
+    pub async fn list_by_conversation(
+        &self,
+        conversation_id: &str,
+    ) -> Result<Vec<DocumentMetadata>> {
+        self.metadata_store
+            .list_by_conversation(conversation_id)
+            .await
     }
 
     /// List documents for a project

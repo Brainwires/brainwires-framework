@@ -8,8 +8,8 @@ use ignore::WalkBuilder;
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Walks a directory tree to discover indexable files.
 pub struct FileWalker {

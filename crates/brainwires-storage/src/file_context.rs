@@ -153,7 +153,8 @@ impl FileContextManager {
         let all_chunks = self.build_file_chunks(content);
 
         // Cache chunks for future reference
-        self.file_chunks.insert(path.to_string(), all_chunks.clone());
+        self.file_chunks
+            .insert(path.to_string(), all_chunks.clone());
 
         // If we have a query, try to find relevant chunks
         if let Some(query) = query_context {
@@ -455,6 +456,8 @@ mod tests {
 
         assert!(!relevant.is_empty());
         // The chunks containing "login" or "authentication" should be ranked higher
-        assert!(relevant[0].content.contains("login") || relevant[0].content.contains("authentication"));
+        assert!(
+            relevant[0].content.contains("login") || relevant[0].content.contains("authentication")
+        );
     }
 }

@@ -71,17 +71,23 @@
 //! ```
 
 pub mod coreference;
-pub mod query_core;
-pub mod learning;
-pub mod reflection;
 #[cfg(feature = "knowledge")]
 pub mod knowledge_integration;
+pub mod learning;
+pub mod query_core;
+pub mod reflection;
 
 pub use coreference::{
     CoreferenceResolver, DialogState, ReferenceType, ResolvedReference, SalienceScore,
     UnresolvedReference,
 };
-pub use learning::{GlobalMemory, LearningCoordinator, LocalMemory, PatternHint, QueryPattern, TrackedEntity};
+#[cfg(feature = "knowledge")]
+pub use knowledge_integration::{
+    EntityResolutionStrategy, IntegrationConfig, SealKnowledgeCoordinator,
+};
+pub use learning::{
+    GlobalMemory, LearningCoordinator, LocalMemory, PatternHint, QueryPattern, TrackedEntity,
+};
 pub use query_core::{
     FilterPredicate, QueryCore, QueryCoreExtractor, QueryExpr, QueryOp, QueryResult, QuestionType,
     RelationType, SuperlativeDir,
@@ -90,13 +96,9 @@ pub use reflection::{
     CorrectionRecord, ErrorType, Issue, ReflectionConfig, ReflectionModule, ReflectionReport,
     Severity, SuggestedFix,
 };
-#[cfg(feature = "knowledge")]
-pub use knowledge_integration::{
-    EntityResolutionStrategy, IntegrationConfig, SealKnowledgeCoordinator,
-};
 
-use brainwires_core::graph::{EntityStoreT, RelationshipGraphT};
 use anyhow::Result;
+use brainwires_core::graph::{EntityStoreT, RelationshipGraphT};
 
 /// Configuration for the SEAL processor
 #[derive(Debug, Clone)]
@@ -236,9 +238,10 @@ impl SealProcessor {
 
             // If coreference resolution changed the query, track both versions
             if let Some(ref mut core) = result.query_core
-                && result.resolved_query != query {
-                    core.resolved = Some(result.resolved_query.clone());
-                }
+                && result.resolved_query != query
+            {
+                core.resolved = Some(result.resolved_query.clone());
+            }
         }
 
         // Step 3: Check Learning Coordinator for patterns
@@ -248,9 +251,10 @@ impl SealProcessor {
                 &result.resolved_query,
                 result.query_core.clone(),
                 dialog_state.current_turn,
-            ) {
-                result.matched_pattern = Some(pattern.id.clone());
-            }
+            )
+        {
+            result.matched_pattern = Some(pattern.id.clone());
+        }
 
         // Step 4: Reflection analysis (if we have a query core)
         if self.config.enable_reflection && result.query_core.is_some() {
@@ -279,8 +283,13 @@ impl SealProcessor {
         execution_time_ms: u64,
     ) {
         if self.config.enable_learning {
-            self.learning_coordinator
-                .record_outcome(pattern_id, success, result_count, query_core, execution_time_ms);
+            self.learning_coordinator.record_outcome(
+                pattern_id,
+                success,
+                result_count,
+                query_core,
+                execution_time_ms,
+            );
         }
     }
 

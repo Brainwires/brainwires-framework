@@ -17,7 +17,7 @@ use mlua::{Lua, MultiValue, Result as LuaResult, Value};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use super::{get_limits, truncate_output, LanguageExecutor};
+use super::{LanguageExecutor, get_limits, truncate_output};
 use crate::types::{ExecutionLimits, ExecutionRequest, ExecutionResult};
 
 /// Lua code executor
@@ -62,22 +62,20 @@ impl LuaExecutor {
 
         // Inject context variables
         if let Some(context) = &request.context
-            && let Err(e) = self.inject_context(&lua, context) {
-                return ExecutionResult::error(
-                    format!("Failed to inject context: {}", e),
-                    start.elapsed().as_millis() as u64,
-                );
-            }
+            && let Err(e) = self.inject_context(&lua, context)
+        {
+            return ExecutionResult::error(
+                format!("Failed to inject context: {}", e),
+                start.elapsed().as_millis() as u64,
+            );
+        }
 
         // Execute the code
         let result = lua.load(&request.code).eval::<Value>();
         let timing_ms = start.elapsed().as_millis() as u64;
 
         // Get captured output
-        let stdout = output
-            .lock()
-            .map(|out| out.join("\n"))
-            .unwrap_or_default();
+        let stdout = output.lock().map(|out| out.join("\n")).unwrap_or_default();
         let stdout = truncate_output(&stdout, limits.max_output_bytes);
 
         // Get memory usage
@@ -126,10 +124,7 @@ impl LuaExecutor {
     /// Setup print function to capture output
     fn setup_print(&self, lua: &Lua, output: Arc<Mutex<Vec<String>>>) -> LuaResult<()> {
         let print_fn = lua.create_function(move |_, args: MultiValue| {
-            let parts: Vec<String> = args
-                .into_iter()
-                .map(|v| format_lua_value(&v))
-                .collect();
+            let parts: Vec<String> = args.into_iter().map(|v| format_lua_value(&v)).collect();
             let line = parts.join("\t");
 
             if let Ok(mut out) = output.lock() {
@@ -219,7 +214,10 @@ fn lua_to_json(value: &Value) -> Option<serde_json::Value> {
         Value::Boolean(b) => Some(serde_json::Value::Bool(*b)),
         Value::Integer(i) => Some(serde_json::Value::Number(serde_json::Number::from(*i))),
         Value::Number(f) => serde_json::Number::from_f64(*f).map(serde_json::Value::Number),
-        Value::String(s) => s.to_str().ok().map(|s| serde_json::Value::String(s.to_string())),
+        Value::String(s) => s
+            .to_str()
+            .ok()
+            .map(|s| serde_json::Value::String(s.to_string())),
         Value::Table(t) => {
             // Try to determine if it's an array or object
             let mut is_array = true;
@@ -227,7 +225,11 @@ fn lua_to_json(value: &Value) -> Option<serde_json::Value> {
             let mut has_string_keys = false;
 
             // Check keys
-            if let Ok(pairs) = t.clone().pairs::<Value, Value>().collect::<LuaResult<Vec<_>>>() {
+            if let Ok(pairs) = t
+                .clone()
+                .pairs::<Value, Value>()
+                .collect::<LuaResult<Vec<_>>>()
+            {
                 for (k, _) in &pairs {
                     match k {
                         Value::Integer(i) if *i > 0 => {
@@ -283,11 +285,18 @@ fn format_lua_value(value: &Value) -> String {
         Value::Boolean(b) => b.to_string(),
         Value::Integer(i) => i.to_string(),
         Value::Number(f) => f.to_string(),
-        Value::String(s) => s.to_str().map(|s| s.to_string()).unwrap_or_else(|_| "[invalid utf8]".to_string()),
+        Value::String(s) => s
+            .to_str()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|_| "[invalid utf8]".to_string()),
         Value::Table(t) => {
             // Simple table representation
             let mut parts = Vec::new();
-            if let Ok(pairs) = t.clone().pairs::<Value, Value>().collect::<LuaResult<Vec<_>>>() {
+            if let Ok(pairs) = t
+                .clone()
+                .pairs::<Value, Value>()
+                .collect::<LuaResult<Vec<_>>>()
+            {
                 for (k, v) in pairs.iter().take(10) {
                     parts.push(format!("{}={}", format_lua_value(k), format_lua_value(v)));
                 }

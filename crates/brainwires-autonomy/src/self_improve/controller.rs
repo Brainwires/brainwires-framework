@@ -10,12 +10,12 @@ use std::time::Instant;
 
 use brainwires_core::Provider;
 
-use crate::config::SelfImprovementConfig;
-use crate::metrics::{SessionMetrics, SessionReport};
-use crate::safety::{SafetyGuard, SafetyStop};
 use super::comparator::PathResult;
 use super::strategies::ImprovementTask;
 use super::task_generator::TaskGenerator;
+use crate::config::SelfImprovementConfig;
+use crate::metrics::{SessionMetrics, SessionReport};
+use crate::safety::{SafetyGuard, SafetyStop};
 
 /// Result of a single improvement cycle.
 pub struct CycleResult {
@@ -145,9 +145,7 @@ impl SelfImprovementController {
     }
 
     async fn run_cycle(&self, task: &ImprovementTask) -> Result<CycleResult> {
-        let repo_path = std::env::current_dir()?
-            .to_string_lossy()
-            .to_string();
+        let repo_path = std::env::current_dir()?.to_string_lossy().to_string();
 
         let start = Instant::now();
 
@@ -186,11 +184,7 @@ impl SelfImprovementController {
         })
     }
 
-    async fn execute_task(
-        &self,
-        task: &ImprovementTask,
-        _working_dir: &str,
-    ) -> Result<PathResult> {
+    async fn execute_task(&self, task: &ImprovementTask, _working_dir: &str) -> Result<PathResult> {
         let start = Instant::now();
 
         // Build the prompt for the AI provider
@@ -223,11 +217,7 @@ impl SelfImprovementController {
         }
     }
 
-    async fn commit_changes(
-        &self,
-        worktree_path: &str,
-        task: &ImprovementTask,
-    ) -> Result<String> {
+    async fn commit_changes(&self, worktree_path: &str, task: &ImprovementTask) -> Result<String> {
         let add = tokio::process::Command::new("git")
             .args(["add", "-A"])
             .current_dir(worktree_path)
@@ -300,7 +290,10 @@ impl SelfImprovementController {
         println!("  Max cycles: {}", self.config.max_cycles);
         println!("  Max budget: ${:.2}", self.config.max_budget);
         println!("  Agent iterations: {}", self.config.agent_iterations);
-        println!("  Max diff per task: {} lines", self.config.max_diff_per_task);
+        println!(
+            "  Max diff per task: {} lines",
+            self.config.max_diff_per_task
+        );
     }
 
     /// Access to the provider (for testing or extension).

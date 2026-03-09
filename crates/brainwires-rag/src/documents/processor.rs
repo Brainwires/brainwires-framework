@@ -53,8 +53,7 @@ impl DocumentProcessor {
     fn extract_pdf(bytes: &[u8]) -> Result<ExtractedDocument> {
         use pdf_extract::extract_text_from_mem;
 
-        let text = extract_text_from_mem(bytes)
-            .context("Failed to extract text from PDF")?;
+        let text = extract_text_from_mem(bytes).context("Failed to extract text from PDF")?;
 
         // Try to detect page count (approximate from text)
         let page_breaks = text.matches('\x0c').count(); // Form feed is often used
@@ -106,21 +105,21 @@ impl DocumentProcessor {
                 current_string.clear();
             } else if c == ')' && in_string {
                 in_string = false;
-                if current_string.chars().all(|c| c.is_ascii_graphic() || c.is_whitespace())
-                    && !current_string.is_empty() {
-                        result.push_str(&current_string);
-                        result.push(' ');
-                    }
+                if current_string
+                    .chars()
+                    .all(|c| c.is_ascii_graphic() || c.is_whitespace())
+                    && !current_string.is_empty()
+                {
+                    result.push_str(&current_string);
+                    result.push(' ');
+                }
             } else if in_string && c.is_ascii() {
                 current_string.push(c);
             }
         }
 
         // Clean up the result
-        result
-            .split_whitespace()
-            .collect::<Vec<_>>()
-            .join(" ")
+        result.split_whitespace().collect::<Vec<_>>().join(" ")
     }
 
     /// Extract text from Markdown bytes
@@ -153,8 +152,7 @@ impl DocumentProcessor {
         use zip::ZipArchive;
 
         let reader = Cursor::new(bytes);
-        let mut archive = ZipArchive::new(reader)
-            .context("Failed to open DOCX as ZIP archive")?;
+        let mut archive = ZipArchive::new(reader).context("Failed to open DOCX as ZIP archive")?;
 
         // DOCX stores content in word/document.xml
         let mut content = String::new();
@@ -217,12 +215,10 @@ impl DocumentProcessor {
 
         // More sophisticated approach: use regex to find text nodes
         use std::sync::LazyLock;
-        static RE_TEXT: LazyLock<regex::Regex> = LazyLock::new(|| {
-            regex::Regex::new(r"<w:t[^>]*>([^<]*)</w:t>").expect("valid regex")
-        });
-        static RE_PARA: LazyLock<regex::Regex> = LazyLock::new(|| {
-            regex::Regex::new(r"</w:p>").expect("valid regex")
-        });
+        static RE_TEXT: LazyLock<regex::Regex> =
+            LazyLock::new(|| regex::Regex::new(r"<w:t[^>]*>([^<]*)</w:t>").expect("valid regex"));
+        static RE_PARA: LazyLock<regex::Regex> =
+            LazyLock::new(|| regex::Regex::new(r"</w:p>").expect("valid regex"));
         result.clear();
 
         for cap in RE_TEXT.captures_iter(xml) {
@@ -261,9 +257,10 @@ impl DocumentProcessor {
             // Could be DOCX - check for word/ directory
             let reader = std::io::Cursor::new(bytes);
             if let Ok(mut archive) = zip::ZipArchive::new(reader)
-                && archive.by_name("word/document.xml").is_ok() {
-                    return DocumentType::Docx;
-                }
+                && archive.by_name("word/document.xml").is_ok()
+            {
+                return DocumentType::Docx;
+            }
         }
 
         // Check for text-based formats

@@ -21,9 +21,11 @@ impl FormatDetector for JsonFieldDetector {
     fn detect(&self, body: &[u8], content_type: Option<&str>) -> Option<FormatId> {
         // Quick content-type check
         if let Some(ct) = content_type
-            && !ct.contains("json") && !ct.contains("text") {
-                return None;
-            }
+            && !ct.contains("json")
+            && !ct.contains("text")
+        {
+            return None;
+        }
 
         // Try to parse as JSON
         let value: serde_json::Value = serde_json::from_slice(body).ok()?;
@@ -50,9 +52,10 @@ pub struct GenericJsonDetector;
 impl FormatDetector for GenericJsonDetector {
     fn detect(&self, body: &[u8], content_type: Option<&str>) -> Option<FormatId> {
         if let Some(ct) = content_type
-            && ct.contains("json") {
-                return Some(FormatId::new("json"));
-            }
+            && ct.contains("json")
+        {
+            return Some(FormatId::new("json"));
+        }
 
         // Try parsing
         if serde_json::from_slice::<serde_json::Value>(body).is_ok() {
@@ -85,10 +88,7 @@ mod tests {
 
     #[test]
     fn json_field_detector_no_match() {
-        let detector = JsonFieldDetector::new(
-            FormatId::new("openai"),
-            vec!["model".into()],
-        );
+        let detector = JsonFieldDetector::new(FormatId::new("openai"), vec!["model".into()]);
 
         let body = br#"{"data": "something else"}"#;
         let result = detector.detect(body, Some("application/json"));
@@ -97,10 +97,7 @@ mod tests {
 
     #[test]
     fn json_field_detector_rejects_non_json_content_type() {
-        let detector = JsonFieldDetector::new(
-            FormatId::new("openai"),
-            vec!["model".into()],
-        );
+        let detector = JsonFieldDetector::new(FormatId::new("openai"), vec!["model".into()]);
 
         let body = br#"{"model": "gpt-4"}"#;
         let result = detector.detect(body, Some("application/xml"));
@@ -109,10 +106,7 @@ mod tests {
 
     #[test]
     fn json_field_detector_invalid_json() {
-        let detector = JsonFieldDetector::new(
-            FormatId::new("test"),
-            vec!["key".into()],
-        );
+        let detector = JsonFieldDetector::new(FormatId::new("test"), vec!["key".into()]);
 
         let body = b"not json at all";
         let result = detector.detect(body, Some("application/json"));

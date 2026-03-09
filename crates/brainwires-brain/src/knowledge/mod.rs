@@ -29,12 +29,12 @@ pub use brainwires_core;
 
 // ── Behavioral Knowledge System ────────────────────────────────────────────
 
-pub mod truth;
+pub mod api;
 pub mod cache;
 pub mod collector;
-pub mod api;
 pub mod inference;
 pub mod matcher;
+pub mod truth;
 
 // ── Personal Knowledge System ──────────────────────────────────────────────
 
@@ -43,19 +43,18 @@ pub mod personal;
 // ── Re-exports ─────────────────────────────────────────────────────────────
 
 // BKS types
-pub use truth::{BehavioralTruth, TruthCategory, TruthSource};
+pub use api::KnowledgeApiClient;
+pub use cache::BehavioralKnowledgeCache;
 pub use collector::{LearningCollector, detect_correction};
 pub use inference::TruthInferenceEngine;
 pub use matcher::ContextMatcher;
-pub use cache::BehavioralKnowledgeCache;
-pub use api::KnowledgeApiClient;
+pub use truth::{BehavioralTruth, TruthCategory, TruthSource};
 
 // PKS types
 pub use personal::{
-    PersonalFact, PersonalFactCategory, PersonalFactSource,
-    PersonalFactCollector, PersonalFactMatcher,
+    PersonalFact, PersonalFactCategory, PersonalFactCollector, PersonalFactMatcher,
+    PersonalFactSource, PersonalKnowledgeApiClient, PersonalKnowledgeCache,
     PersonalKnowledgeSettings,
-    PersonalKnowledgeCache, PersonalKnowledgeApiClient,
 };
 
 /// Configuration for the Behavioral Knowledge System
@@ -145,18 +144,17 @@ impl KnowledgeSettings {
 
 /// Prelude module for convenient imports
 pub mod prelude {
-    pub use super::truth::{BehavioralTruth, TruthCategory, TruthSource};
-    pub use super::collector::LearningCollector;
-    pub use super::matcher::ContextMatcher;
-    pub use super::inference::TruthInferenceEngine;
-    pub use super::personal::{
-        PersonalFact, PersonalFactCategory, PersonalFactSource,
-        PersonalFactCollector, PersonalFactMatcher,
-        PersonalKnowledgeSettings,
-    };
     pub use super::KnowledgeSettings;
     pub use super::cache::BehavioralKnowledgeCache;
+    pub use super::collector::LearningCollector;
+    pub use super::inference::TruthInferenceEngine;
+    pub use super::matcher::ContextMatcher;
     pub use super::personal::PersonalKnowledgeCache;
+    pub use super::personal::{
+        PersonalFact, PersonalFactCategory, PersonalFactCollector, PersonalFactMatcher,
+        PersonalFactSource, PersonalKnowledgeSettings,
+    };
+    pub use super::truth::{BehavioralTruth, TruthCategory, TruthSource};
 }
 
 #[cfg(test)]

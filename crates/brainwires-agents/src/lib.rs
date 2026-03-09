@@ -120,15 +120,21 @@ pub use agent_hooks::{
 };
 
 // Agent runtime
-pub use runtime::{AgentRuntime, AgentExecutionResult, run_agent_loop};
+pub use runtime::{AgentExecutionResult, AgentRuntime, run_agent_loop};
 
 // Core components
-pub use communication::{AgentMessage, CommunicationHub, ConflictInfo, ConflictType, GitOperationType};
-pub use confidence::{extract_confidence, quick_confidence_check, ResponseConfidence, ConfidenceFactors};
+pub use communication::{
+    AgentMessage, CommunicationHub, ConflictInfo, ConflictType, GitOperationType,
+};
+pub use confidence::{
+    ConfidenceFactors, ResponseConfidence, extract_confidence, quick_confidence_check,
+};
 pub use file_locks::{FileLockManager, LockType};
 pub use operation_tracker::OperationTracker;
-pub use resource_checker::{ResourceChecker, ConflictCheck};
-pub use resource_locks::{ResourceLockManager, ResourceScope, ResourceType as ResourceLockType, ResourceLockGuard};
+pub use resource_checker::{ConflictCheck, ResourceChecker};
+pub use resource_locks::{
+    ResourceLockGuard, ResourceLockManager, ResourceScope, ResourceType as ResourceLockType,
+};
 pub use task_manager::{TaskManager, format_duration_secs};
 pub use task_queue::TaskQueue;
 pub use validation_loop::*;
@@ -139,13 +145,21 @@ pub use worktree::WorktreeManager;
 pub use access_control::{AccessControlManager, ContentionStrategy, LockBundle, LockPersistence};
 
 // Git coordination
-pub use git_coordination::{GitCoordinator, GitLockRequirements, GitOperationLocks, GitOperationRunner, git_tools, get_lock_requirements};
+pub use git_coordination::{
+    GitCoordinator, GitLockRequirements, GitOperationLocks, GitOperationRunner,
+    get_lock_requirements, git_tools,
+};
 
 // Plan execution
-pub use plan_executor::{PlanExecutorAgent, PlanExecutionConfig, PlanExecutionStatus, ExecutionApprovalMode, ExecutionProgress};
+pub use plan_executor::{
+    ExecutionApprovalMode, ExecutionProgress, PlanExecutionConfig, PlanExecutionStatus,
+    PlanExecutorAgent,
+};
 
 // Task orchestration
-pub use task_orchestrator::{TaskOrchestrator, TaskOrchestratorConfig, FailurePolicy, OrchestrationResult, TaskSpec};
+pub use task_orchestrator::{
+    FailurePolicy, OrchestrationResult, TaskOrchestrator, TaskOrchestratorConfig, TaskSpec,
+};
 
 // Workflow graph builder
 pub use workflow::{WorkflowBuilder, WorkflowContext, WorkflowResult};
@@ -155,23 +169,22 @@ pub use contract_net::ContractNetManager;
 pub use market_allocation::MarketAllocator;
 pub use optimistic::OptimisticController;
 pub use saga::SagaExecutor;
-pub use state_model::{StateSnapshot, ThreeStateModel, StateModelProposedOperation};
+pub use state_model::{StateModelProposedOperation, StateSnapshot, ThreeStateModel};
 pub use wait_queue::WaitQueue;
 
 // Concrete agent types
+pub use brainwires_tool_system::{PreHookDecision, ToolPreHook};
 pub use context::AgentContext;
 pub use execution_graph::{ExecutionGraph, RunTelemetry, StepNode, ToolCallRecord};
 pub use pool::{AgentPool, AgentPoolStats};
 pub use system_prompts::{reasoning_agent_prompt, simple_agent_prompt};
 pub use task_agent::{
-    spawn_task_agent, FailureCategory, TaskAgent, TaskAgentConfig, TaskAgentResult,
-    TaskAgentStatus,
+    FailureCategory, TaskAgent, TaskAgentConfig, TaskAgentResult, TaskAgentStatus, spawn_task_agent,
 };
 pub use validator_agent::{
-    spawn_validator_agent, ValidatorAgent, ValidatorAgentConfig, ValidatorAgentResult,
-    ValidatorAgentStatus,
+    ValidatorAgent, ValidatorAgentConfig, ValidatorAgentResult, ValidatorAgentStatus,
+    spawn_validator_agent,
 };
-pub use brainwires_tool_system::{PreHookDecision, ToolPreHook};
 
 /// Prelude module for convenient imports
 pub mod prelude {
@@ -195,15 +208,17 @@ pub mod prelude {
 
     // Core components
     pub use super::communication::{AgentMessage, CommunicationHub, ConflictInfo, ConflictType};
-    pub use super::confidence::{ResponseConfidence, ConfidenceFactors};
+    pub use super::confidence::{ConfidenceFactors, ResponseConfidence};
     pub use super::file_locks::{FileLockManager, LockType};
     pub use super::operation_tracker::OperationTracker;
-    pub use super::resource_checker::{ResourceChecker, ConflictCheck};
+    pub use super::resource_checker::{ConflictCheck, ResourceChecker};
     pub use super::resource_locks::{ResourceLockManager, ResourceScope};
     pub use super::state_model::{StateSnapshot, ThreeStateModel};
     pub use super::task_manager::{TaskManager, format_duration_secs};
     pub use super::task_queue::TaskQueue;
-    pub use super::validation_loop::{ValidationConfig, ValidationCheck, ValidationResult, ValidationIssue};
+    pub use super::validation_loop::{
+        ValidationCheck, ValidationConfig, ValidationIssue, ValidationResult,
+    };
     #[cfg(feature = "native")]
     pub use super::worktree::WorktreeManager;
 
@@ -214,10 +229,10 @@ pub mod prelude {
     pub use super::git_coordination::{GitCoordinator, git_tools};
 
     // Plan execution
-    pub use super::plan_executor::{PlanExecutorAgent, PlanExecutionConfig, ExecutionApprovalMode};
+    pub use super::plan_executor::{ExecutionApprovalMode, PlanExecutionConfig, PlanExecutorAgent};
 
     // Task orchestration
-    pub use super::task_orchestrator::{TaskOrchestrator, TaskOrchestratorConfig, FailurePolicy};
+    pub use super::task_orchestrator::{FailurePolicy, TaskOrchestrator, TaskOrchestratorConfig};
 
     // Workflow graph builder
     pub use super::workflow::{WorkflowBuilder, WorkflowContext, WorkflowResult};

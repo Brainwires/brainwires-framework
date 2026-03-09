@@ -66,7 +66,9 @@ impl<P: MicroagentProvider + 'static> BinaryRecursiveDecomposer<P> {
         );
 
         let start = std::time::Instant::now();
-        let response = provider.chat(&system_prompt, &user_prompt, 0.3, 500).await?;
+        let response = provider
+            .chat(&system_prompt, &user_prompt, 0.3, 500)
+            .await?;
         let elapsed = start.elapsed();
 
         let metadata = ResponseMetadata {
@@ -245,7 +247,8 @@ impl<P: MicroagentProvider + 'static> BinaryRecursiveDecomposer<P> {
                     let task = task_owned.clone();
                     let context = context_owned.clone();
                     async move {
-                        Self::sample_decomposition_static(provider, &task, &context, max_depth).await
+                        Self::sample_decomposition_static(provider, &task, &context, max_depth)
+                            .await
                     }
                 },
                 &validator,
@@ -273,7 +276,8 @@ impl<P: MicroagentProvider + 'static> BinaryRecursiveDecomposer<P> {
         let mut final_subtasks = Vec::new();
 
         for subtask in decomposition.subtasks {
-            let sub_result = Box::pin(self.decompose_recursive(&subtask.description, &child_context)).await?;
+            let sub_result =
+                Box::pin(self.decompose_recursive(&subtask.description, &child_context)).await?;
 
             // Add all resulting subtasks
             for mut sub_subtask in sub_result.subtasks {
@@ -329,7 +333,11 @@ impl SimpleRecursiveDecomposer {
         }
     }
 
-    fn decompose_by_sentences(&self, task: &str, context: &DecomposeContext) -> DecompositionResult {
+    fn decompose_by_sentences(
+        &self,
+        task: &str,
+        context: &DecomposeContext,
+    ) -> DecompositionResult {
         if context.at_max_depth() || task.len() < self.min_task_length {
             return DecompositionResult::atomic(Subtask::atomic(task));
         }
@@ -407,7 +415,8 @@ mod tests {
             _max_tokens: u32,
         ) -> MdapResult<MicroagentResponse> {
             Ok(MicroagentResponse {
-                text: "SUBTASK_1: First part\nSUBTASK_2: Second part\nCOMPOSE: sequence".to_string(),
+                text: "SUBTASK_1: First part\nSUBTASK_2: Second part\nCOMPOSE: sequence"
+                    .to_string(),
                 input_tokens: 100,
                 output_tokens: 50,
                 finish_reason: Some("stop".to_string()),
@@ -425,20 +434,20 @@ mod tests {
         assert!(decomposer.is_task_minimal("Calculate 2+2"));
 
         // Tasks with conjunctions are not minimal
-        assert!(!decomposer.is_task_minimal(
-            "First do this and then do that. Then verify the result."
-        ));
+        assert!(
+            !decomposer.is_task_minimal("First do this and then do that. Then verify the result.")
+        );
     }
 
     #[test]
     fn test_parse_decomposition() {
-        let response = "SUBTASK_1: Read the file\nSUBTASK_2: Process the content\nCOMPOSE: sequence";
-        let result =
-            BinaryRecursiveDecomposer::<MockProvider>::parse_decomposition_static(
-                response,
-                "test task",
-            )
-            .unwrap();
+        let response =
+            "SUBTASK_1: Read the file\nSUBTASK_2: Process the content\nCOMPOSE: sequence";
+        let result = BinaryRecursiveDecomposer::<MockProvider>::parse_decomposition_static(
+            response,
+            "test task",
+        )
+        .unwrap();
 
         assert_eq!(result.subtasks.len(), 2);
         assert!(!result.is_minimal);
@@ -447,12 +456,11 @@ mod tests {
     #[test]
     fn test_parse_decomposition_invalid() {
         let response = "Invalid response without proper format";
-        let result =
-            BinaryRecursiveDecomposer::<MockProvider>::parse_decomposition_static(
-                response,
-                "test task",
-            )
-            .unwrap();
+        let result = BinaryRecursiveDecomposer::<MockProvider>::parse_decomposition_static(
+            response,
+            "test task",
+        )
+        .unwrap();
 
         // Should fall back to atomic
         assert!(result.is_minimal);

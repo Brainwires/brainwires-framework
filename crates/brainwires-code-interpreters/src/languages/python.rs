@@ -14,14 +14,14 @@
 //! - C extension modules not supported
 
 use rustpython_vm::{
+    AsObject, Interpreter, PyObjectRef, PyRef, PyResult, Settings, VirtualMachine,
     builtins::{PyBaseException, PyDict, PyList, PyNamespace},
     function::FuncArgs,
-    AsObject, Interpreter, PyObjectRef, PyRef, PyResult, Settings, VirtualMachine,
 };
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use super::{get_limits, truncate_output, LanguageExecutor};
+use super::{LanguageExecutor, get_limits, truncate_output};
 use crate::types::{ExecutionLimits, ExecutionRequest, ExecutionResult};
 
 /// Python code executor using RustPython
@@ -68,7 +68,11 @@ impl PythonExecutor {
 
             // Compile and execute
             let code_obj = vm
-                .compile(&request.code, rustpython_vm::compiler::Mode::Exec, "<script>".to_owned())
+                .compile(
+                    &request.code,
+                    rustpython_vm::compiler::Mode::Exec,
+                    "<script>".to_owned(),
+                )
                 .map_err(|e| vm.new_syntax_error(&e, Some(&request.code)))?;
 
             vm.run_code_obj(code_obj, scope)
@@ -91,9 +95,7 @@ impl PythonExecutor {
         match result {
             Ok(value) => {
                 // Convert result to JSON
-                let result_value = interp.enter(|vm| {
-                    py_to_json(vm, &value)
-                });
+                let result_value = interp.enter(|vm| py_to_json(vm, &value));
 
                 ExecutionResult {
                     success: true,
@@ -107,9 +109,7 @@ impl PythonExecutor {
                 }
             }
             Err(exc) => {
-                let error_message = interp.enter(|vm| {
-                    format_python_error(vm, &exc)
-                });
+                let error_message = interp.enter(|vm| format_python_error(vm, &exc));
 
                 ExecutionResult {
                     success: false,
@@ -141,58 +141,62 @@ impl PythonExecutor {
 
         // Create stdout write function
         let stdout_clone = stdout.clone();
-        let stdout_writer = vm.new_function("write", move |args: FuncArgs, vm: &VirtualMachine| -> PyResult<PyObjectRef> {
-            if let Some(arg) = args.args.first() {
-                if let Ok(s) = arg.str(vm) {
-                    if let Ok(mut out) = stdout_clone.lock() {
-                        out.push(s.as_str().to_string());
+        let stdout_writer = vm.new_function(
+            "write",
+            move |args: FuncArgs, vm: &VirtualMachine| -> PyResult<PyObjectRef> {
+                if let Some(arg) = args.args.first() {
+                    if let Ok(s) = arg.str(vm) {
+                        if let Ok(mut out) = stdout_clone.lock() {
+                            out.push(s.as_str().to_string());
+                        }
                     }
                 }
-            }
-            Ok(vm.ctx.none())
-        });
+                Ok(vm.ctx.none())
+            },
+        );
 
         // Create stdout flush function
-        let stdout_flush = vm.new_function("flush", |_: FuncArgs, vm: &VirtualMachine| -> PyResult<PyObjectRef> {
-            Ok(vm.ctx.none())
-        });
+        let stdout_flush = vm.new_function(
+            "flush",
+            |_: FuncArgs, vm: &VirtualMachine| -> PyResult<PyObjectRef> { Ok(vm.ctx.none()) },
+        );
 
         // Set attributes on stdout object
         stdout_obj
             .as_object()
             .set_attr("write", stdout_writer, vm)?;
-        stdout_obj
-            .as_object()
-            .set_attr("flush", stdout_flush, vm)?;
+        stdout_obj.as_object().set_attr("flush", stdout_flush, vm)?;
 
         // Create stderr namespace object
         let stderr_obj = PyNamespace::new_ref(&vm.ctx);
 
         // Create stderr write function
         let stderr_clone = stderr.clone();
-        let stderr_writer = vm.new_function("write", move |args: FuncArgs, vm: &VirtualMachine| -> PyResult<PyObjectRef> {
-            if let Some(arg) = args.args.first() {
-                if let Ok(s) = arg.str(vm) {
-                    if let Ok(mut err) = stderr_clone.lock() {
-                        err.push(s.as_str().to_string());
+        let stderr_writer = vm.new_function(
+            "write",
+            move |args: FuncArgs, vm: &VirtualMachine| -> PyResult<PyObjectRef> {
+                if let Some(arg) = args.args.first() {
+                    if let Ok(s) = arg.str(vm) {
+                        if let Ok(mut err) = stderr_clone.lock() {
+                            err.push(s.as_str().to_string());
+                        }
                     }
                 }
-            }
-            Ok(vm.ctx.none())
-        });
+                Ok(vm.ctx.none())
+            },
+        );
 
         // Create stderr flush function
-        let stderr_flush = vm.new_function("flush", |_: FuncArgs, vm: &VirtualMachine| -> PyResult<PyObjectRef> {
-            Ok(vm.ctx.none())
-        });
+        let stderr_flush = vm.new_function(
+            "flush",
+            |_: FuncArgs, vm: &VirtualMachine| -> PyResult<PyObjectRef> { Ok(vm.ctx.none()) },
+        );
 
         // Set attributes on stderr object
         stderr_obj
             .as_object()
             .set_attr("write", stderr_writer, vm)?;
-        stderr_obj
-            .as_object()
-            .set_attr("flush", stderr_flush, vm)?;
+        stderr_obj.as_object().set_attr("flush", stderr_flush, vm)?;
 
         // Set sys.stdout and sys.stderr
         let sys = vm.import("sys", 0)?;

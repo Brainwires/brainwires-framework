@@ -18,7 +18,8 @@ impl TaskManager {
     ) -> Result<()> {
         let parent_id = {
             let mut tasks = self.tasks.write().await;
-            let task = tasks.get_mut(task_id)
+            let task = tasks
+                .get_mut(task_id)
                 .context(format!("Task '{}' not found", task_id))?;
 
             task.status = status.clone();
@@ -43,24 +44,28 @@ impl TaskManager {
 
     /// Mark a task as started
     pub async fn start_task(&self, task_id: &str) -> Result<()> {
-        self.update_status(task_id, TaskStatus::InProgress, None).await
+        self.update_status(task_id, TaskStatus::InProgress, None)
+            .await
     }
 
     /// Mark a task as completed
     pub async fn complete_task(&self, task_id: &str, summary: String) -> Result<()> {
-        self.update_status(task_id, TaskStatus::Completed, Some(summary)).await
+        self.update_status(task_id, TaskStatus::Completed, Some(summary))
+            .await
     }
 
     /// Mark a task as failed
     pub async fn fail_task(&self, task_id: &str, error: String) -> Result<()> {
-        self.update_status(task_id, TaskStatus::Failed, Some(error)).await
+        self.update_status(task_id, TaskStatus::Failed, Some(error))
+            .await
     }
 
     /// Mark a task as skipped
     pub async fn skip_task(&self, task_id: &str, reason: Option<String>) -> Result<()> {
         let parent_id = {
             let mut tasks = self.tasks.write().await;
-            let task = tasks.get_mut(task_id)
+            let task = tasks
+                .get_mut(task_id)
                 .context(format!("Task '{}' not found", task_id))?;
 
             let now = chrono::Utc::now().timestamp();
@@ -89,7 +94,8 @@ impl TaskManager {
     /// Mark a task as blocked with optional reason
     pub async fn block_task(&self, task_id: &str, reason: Option<String>) -> Result<()> {
         let mut tasks = self.tasks.write().await;
-        let task = tasks.get_mut(task_id)
+        let task = tasks
+            .get_mut(task_id)
             .context(format!("Task '{}' not found", task_id))?;
 
         task.status = TaskStatus::Blocked;
@@ -109,7 +115,8 @@ impl TaskManager {
         if let Some(parent) = tasks.get(parent_id) {
             // Check if all children are complete
             let all_complete = parent.children.iter().all(|child_id| {
-                tasks.get(child_id)
+                tasks
+                    .get(child_id)
                     .map(|t| t.status == TaskStatus::Completed)
                     .unwrap_or(false)
             });
@@ -121,11 +128,14 @@ impl TaskManager {
                 // Auto-complete the parent task
                 let mut tasks = self.tasks.write().await;
                 if let Some(parent) = tasks.get_mut(parent_id)
-                    && (parent.status == TaskStatus::InProgress || parent.status == TaskStatus::Pending) {
-                        parent.status = TaskStatus::Completed;
-                        parent.summary = Some(format!("All {} subtasks completed", parent.children.len()));
-                        parent.updated_at = chrono::Utc::now().timestamp();
-                    }
+                    && (parent.status == TaskStatus::InProgress
+                        || parent.status == TaskStatus::Pending)
+                {
+                    parent.status = TaskStatus::Completed;
+                    parent.summary =
+                        Some(format!("All {} subtasks completed", parent.children.len()));
+                    parent.updated_at = chrono::Utc::now().timestamp();
+                }
                 drop(tasks);
 
                 // Recursively check grandparent

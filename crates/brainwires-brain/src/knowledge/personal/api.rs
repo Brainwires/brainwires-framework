@@ -3,7 +3,7 @@
 //! Handles sync, submission, and feedback with the server-side PKS.
 
 use super::fact::{PersonalFact, PersonalFactCategory, PersonalFactFeedback, PersonalFactSource};
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
@@ -400,7 +400,11 @@ impl PersonalKnowledgeApiClient {
         if !response.status().is_success() {
             let status = response.status();
             let text = response.text().await.unwrap_or_default();
-            return Err(anyhow!("Contradict failed with status {}: {}", status, text));
+            return Err(anyhow!(
+                "Contradict failed with status {}: {}",
+                status,
+                text
+            ));
         }
 
         #[derive(Deserialize)]
@@ -465,7 +469,11 @@ impl PersonalKnowledgeApiClient {
             .await
             .context("Failed to parse facts response")?;
 
-        Ok(result.facts.into_iter().map(|f| f.into_personal_fact()).collect())
+        Ok(result
+            .facts
+            .into_iter()
+            .map(|f| f.into_personal_fact())
+            .collect())
     }
 }
 
@@ -506,15 +514,27 @@ mod tests {
     #[test]
     fn test_parse_category() {
         assert_eq!(parse_category("identity"), PersonalFactCategory::Identity);
-        assert_eq!(parse_category("preference"), PersonalFactCategory::Preference);
+        assert_eq!(
+            parse_category("preference"),
+            PersonalFactCategory::Preference
+        );
         assert_eq!(parse_category("context"), PersonalFactCategory::Context);
         assert_eq!(parse_category("unknown"), PersonalFactCategory::Preference); // Default
     }
 
     #[test]
     fn test_parse_source() {
-        assert_eq!(parse_source("explicit_statement"), PersonalFactSource::ExplicitStatement);
-        assert_eq!(parse_source("inferred_from_behavior"), PersonalFactSource::InferredFromBehavior);
-        assert_eq!(parse_source("unknown"), PersonalFactSource::ExplicitStatement); // Default
+        assert_eq!(
+            parse_source("explicit_statement"),
+            PersonalFactSource::ExplicitStatement
+        );
+        assert_eq!(
+            parse_source("inferred_from_behavior"),
+            PersonalFactSource::InferredFromBehavior
+        );
+        assert_eq!(
+            parse_source("unknown"),
+            PersonalFactSource::ExplicitStatement
+        ); // Default
     }
 }

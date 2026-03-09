@@ -35,36 +35,36 @@ pub mod template_store;
 
 // These have native deps (sha2, LanceDB types)
 #[cfg(feature = "native")]
-pub mod tiered_memory;
-#[cfg(feature = "native")]
 pub mod file_context;
+#[cfg(feature = "native")]
+pub mod tiered_memory;
 
 // ── Native-only modules (require lancedb, arrow, rusqlite, etc.) ─────────
 
-/// LanceDB client wrapper.
-#[cfg(feature = "native")]
-pub mod lance_client;
-/// Embedding provider for vector operations.
-#[cfg(feature = "native")]
-pub mod embeddings;
 /// Conversation metadata storage.
 #[cfg(feature = "native")]
 pub mod conversation_store;
+/// Embedding provider for vector operations.
+#[cfg(feature = "native")]
+pub mod embeddings;
+#[cfg(feature = "native")]
+pub mod fact_store;
+#[cfg(feature = "native")]
+pub mod image_store;
+/// LanceDB client wrapper.
+#[cfg(feature = "native")]
+pub mod lance_client;
+#[cfg(feature = "native")]
+pub mod lock_store;
 /// Message storage with vector search.
 #[cfg(feature = "native")]
 pub mod message_store;
 #[cfg(feature = "native")]
-pub mod task_store;
-#[cfg(feature = "native")]
 pub mod plan_store;
-#[cfg(feature = "native")]
-pub mod lock_store;
-#[cfg(feature = "native")]
-pub mod image_store;
 #[cfg(feature = "native")]
 pub mod summary_store;
 #[cfg(feature = "native")]
-pub mod fact_store;
+pub mod task_store;
 #[cfg(feature = "native")]
 pub mod tier_metadata_store;
 
@@ -86,36 +86,38 @@ pub use template_store::{PlanTemplate, TemplateStore};
 // ── Re-exports (native only) ─────────────────────────────────────────────
 
 #[cfg(feature = "native")]
-pub use lance_client::LanceClient;
-#[cfg(feature = "native")]
-pub use embeddings::{CachedEmbeddingProvider, EmbeddingProvider, EmbeddingProviderTrait, FastEmbedManager};
-#[cfg(feature = "native")]
 pub use conversation_store::{ConversationMetadata, ConversationStore};
 #[cfg(feature = "native")]
-pub use message_store::{MessageMetadata, MessageStore};
+pub use embeddings::{
+    CachedEmbeddingProvider, EmbeddingProvider, EmbeddingProviderTrait, FastEmbedManager,
+};
 #[cfg(feature = "native")]
-pub use task_store::{AgentStateMetadata, AgentStateStore, TaskMetadata, TaskStore};
+pub use fact_store::FactStore;
 #[cfg(feature = "native")]
-pub use plan_store::PlanStore;
-#[cfg(feature = "native")]
-pub use lock_store::{LockStore, LockRecord, LockStats};
+pub use file_context::{FileChunk, FileContent, FileContextManager};
 #[cfg(feature = "native")]
 pub use image_store::ImageStore;
 #[cfg(feature = "native")]
+pub use lance_client::LanceClient;
+#[cfg(feature = "native")]
+pub use lock_store::{LockRecord, LockStats, LockStore};
+#[cfg(feature = "native")]
+pub use message_store::{MessageMetadata, MessageStore};
+#[cfg(all(feature = "native", feature = "agents"))]
+pub use persistent_task_manager::{PersistentTaskManager, SharedPersistentTaskManager};
+#[cfg(feature = "native")]
+pub use plan_store::PlanStore;
+#[cfg(feature = "native")]
 pub use summary_store::SummaryStore;
 #[cfg(feature = "native")]
-pub use fact_store::FactStore;
+pub use task_store::{AgentStateMetadata, AgentStateStore, TaskMetadata, TaskStore};
 #[cfg(feature = "native")]
 pub use tier_metadata_store::TierMetadataStore;
 #[cfg(feature = "native")]
 pub use tiered_memory::{
-    CanonicalWriteToken, MemoryAuthority, MemoryTier,
-    MultiFactorScore, TieredMemory, TieredMemoryConfig, TieredSearchResult,
+    CanonicalWriteToken, MemoryAuthority, MemoryTier, MultiFactorScore, TieredMemory,
+    TieredMemoryConfig, TieredSearchResult,
 };
-#[cfg(feature = "native")]
-pub use file_context::{FileChunk, FileContent, FileContextManager};
-#[cfg(all(feature = "native", feature = "agents"))]
-pub use persistent_task_manager::{PersistentTaskManager, SharedPersistentTaskManager};
 
 /// Prelude module for convenient imports
 pub mod prelude {
@@ -124,26 +126,28 @@ pub mod prelude {
 
     // Native only
     #[cfg(feature = "native")]
-    pub use super::lance_client::LanceClient;
-    #[cfg(feature = "native")]
-    pub use super::embeddings::{CachedEmbeddingProvider, EmbeddingProvider, EmbeddingProviderTrait, FastEmbedManager};
-    #[cfg(feature = "native")]
     pub use super::conversation_store::{ConversationMetadata, ConversationStore};
     #[cfg(feature = "native")]
-    pub use super::message_store::{MessageMetadata, MessageStore};
-    #[cfg(feature = "native")]
-    pub use super::task_store::{TaskMetadata, TaskStore};
-    #[cfg(feature = "native")]
-    pub use super::plan_store::PlanStore;
-    #[cfg(feature = "native")]
-    pub use super::lock_store::{LockStore, LockRecord};
-    #[cfg(feature = "native")]
-    pub use super::image_store::ImageStore;
-    #[cfg(feature = "native")]
-    pub use super::tiered_memory::{
-        CanonicalWriteToken, MemoryAuthority, MemoryTier,
-        TieredMemory, TieredMemoryConfig, TieredSearchResult,
+    pub use super::embeddings::{
+        CachedEmbeddingProvider, EmbeddingProvider, EmbeddingProviderTrait, FastEmbedManager,
     };
     #[cfg(feature = "native")]
     pub use super::file_context::{FileContent, FileContextManager};
+    #[cfg(feature = "native")]
+    pub use super::image_store::ImageStore;
+    #[cfg(feature = "native")]
+    pub use super::lance_client::LanceClient;
+    #[cfg(feature = "native")]
+    pub use super::lock_store::{LockRecord, LockStore};
+    #[cfg(feature = "native")]
+    pub use super::message_store::{MessageMetadata, MessageStore};
+    #[cfg(feature = "native")]
+    pub use super::plan_store::PlanStore;
+    #[cfg(feature = "native")]
+    pub use super::task_store::{TaskMetadata, TaskStore};
+    #[cfg(feature = "native")]
+    pub use super::tiered_memory::{
+        CanonicalWriteToken, MemoryAuthority, MemoryTier, TieredMemory, TieredMemoryConfig,
+        TieredSearchResult,
+    };
 }

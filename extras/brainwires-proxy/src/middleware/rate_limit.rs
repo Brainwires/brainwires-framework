@@ -5,8 +5,8 @@ use crate::middleware::{LayerAction, ProxyLayer};
 use crate::types::{ProxyRequest, ProxyResponse};
 use http::StatusCode;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use std::time::Instant;
+use tokio::sync::Mutex;
 
 /// Token-bucket rate limiter.
 pub struct RateLimitLayer {

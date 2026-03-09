@@ -150,11 +150,7 @@ impl RunTelemetry {
         let duration_ms = (run_ended_at - graph.run_started_at)
             .num_milliseconds()
             .max(0) as u64;
-        let total_tool_calls: u32 = graph
-            .steps
-            .iter()
-            .map(|s| s.tool_calls.len() as u32)
-            .sum();
+        let total_tool_calls: u32 = graph.steps.iter().map(|s| s.tool_calls.len() as u32).sum();
         let tool_error_count: u32 = graph
             .steps
             .iter()
@@ -162,8 +158,7 @@ impl RunTelemetry {
             .filter(|tc| tc.is_error)
             .count() as u32;
         let total_prompt_tokens: u32 = graph.steps.iter().map(|s| s.prompt_tokens).sum();
-        let total_completion_tokens: u32 =
-            graph.steps.iter().map(|s| s.completion_tokens).sum();
+        let total_completion_tokens: u32 = graph.steps.iter().map(|s| s.completion_tokens).sum();
         let mut seen = std::collections::HashSet::new();
         let tools_used: Vec<String> = graph
             .tool_sequence
@@ -222,18 +217,24 @@ mod tests {
     fn test_record_tool_call_appends_sequence() {
         let mut g = make_graph();
         let idx = g.push_step(1, Utc::now());
-        g.record_tool_call(idx, ToolCallRecord {
-            tool_use_id: "u1".to_string(),
-            tool_name: "read_file".to_string(),
-            is_error: false,
-            executed_at: Utc::now(),
-        });
-        g.record_tool_call(idx, ToolCallRecord {
-            tool_use_id: "u2".to_string(),
-            tool_name: "write_file".to_string(),
-            is_error: false,
-            executed_at: Utc::now(),
-        });
+        g.record_tool_call(
+            idx,
+            ToolCallRecord {
+                tool_use_id: "u1".to_string(),
+                tool_name: "read_file".to_string(),
+                is_error: false,
+                executed_at: Utc::now(),
+            },
+        );
+        g.record_tool_call(
+            idx,
+            ToolCallRecord {
+                tool_use_id: "u2".to_string(),
+                tool_name: "write_file".to_string(),
+                is_error: false,
+                executed_at: Utc::now(),
+            },
+        );
         assert_eq!(g.tool_sequence, vec!["read_file", "write_file"]);
         assert_eq!(g.steps[idx].tool_calls.len(), 2);
     }
@@ -244,18 +245,24 @@ mod tests {
         let mut g = ExecutionGraph::new("hash".to_string(), start);
         let idx = g.push_step(1, start);
         g.finalize_step(idx, Utc::now(), 100, 50, None);
-        g.record_tool_call(idx, ToolCallRecord {
-            tool_use_id: "u1".to_string(),
-            tool_name: "bash".to_string(),
-            is_error: false,
-            executed_at: Utc::now(),
-        });
-        g.record_tool_call(idx, ToolCallRecord {
-            tool_use_id: "u2".to_string(),
-            tool_name: "bash".to_string(),
-            is_error: true,
-            executed_at: Utc::now(),
-        });
+        g.record_tool_call(
+            idx,
+            ToolCallRecord {
+                tool_use_id: "u1".to_string(),
+                tool_name: "bash".to_string(),
+                is_error: false,
+                executed_at: Utc::now(),
+            },
+        );
+        g.record_tool_call(
+            idx,
+            ToolCallRecord {
+                tool_use_id: "u2".to_string(),
+                tool_name: "bash".to_string(),
+                is_error: true,
+                executed_at: Utc::now(),
+            },
+        );
 
         let telem = RunTelemetry::from_graph(&g, Utc::now(), true, 0.01);
         assert_eq!(telem.total_iterations, 1);
@@ -273,12 +280,15 @@ mod tests {
         let mut g = make_graph();
         let idx = g.push_step(1, Utc::now());
         for name in &["a", "b", "c", "b", "a"] {
-            g.record_tool_call(idx, ToolCallRecord {
-                tool_use_id: "x".to_string(),
-                tool_name: name.to_string(),
-                is_error: false,
-                executed_at: Utc::now(),
-            });
+            g.record_tool_call(
+                idx,
+                ToolCallRecord {
+                    tool_use_id: "x".to_string(),
+                    tool_name: name.to_string(),
+                    is_error: false,
+                    executed_at: Utc::now(),
+                },
+            );
         }
         assert_eq!(g.tool_sequence, vec!["a", "b", "c", "b", "a"]);
     }

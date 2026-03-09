@@ -95,7 +95,10 @@ fn test_task_state_serde() {
     ];
     for (state, expected) in states {
         let json = serde_json::to_string(&state).unwrap();
-        assert_eq!(json, expected, "TaskState::{state:?} serialization mismatch");
+        assert_eq!(
+            json, expected,
+            "TaskState::{state:?} serialization mismatch"
+        );
         let back: TaskState = serde_json::from_str(&json).unwrap();
         assert_eq!(back, state);
     }
@@ -149,7 +152,9 @@ fn test_jsonrpc_roundtrip() {
     let req = JsonRpcRequest {
         jsonrpc: "2.0".into(),
         method: "message/send".into(),
-        params: Some(serde_json::json!({"message": {"messageId": "1", "role": "user", "parts": []}})),
+        params: Some(
+            serde_json::json!({"message": {"messageId": "1", "role": "user", "parts": []}}),
+        ),
         id: RequestId::String("req-1".into()),
     };
     roundtrip(&req);

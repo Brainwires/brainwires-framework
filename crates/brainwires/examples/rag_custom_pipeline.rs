@@ -80,10 +80,7 @@ impl SearchScorer for WeightedScorer {
         }
 
         // Normalize BM25 scores to 0-1 range, then weight
-        let max_bm25 = bm25_results
-            .iter()
-            .map(|r| r.score)
-            .fold(0.0f32, f32::max);
+        let max_bm25 = bm25_results.iter().map(|r| r.score).fold(0.0f32, f32::max);
 
         if max_bm25 > 0.0 {
             for result in &bm25_results {
@@ -109,7 +106,9 @@ fn main() {
         project: Some("demo".to_string()),
         extension: Some("rs".to_string()),
         language: Some("Rust".to_string()),
-        content: "First sentence. Second sentence. Third sentence. Fourth sentence. Fifth sentence.".to_string(),
+        content:
+            "First sentence. Second sentence. Third sentence. Fourth sentence. Fifth sentence."
+                .to_string(),
         hash: "abc123".to_string(),
     };
 

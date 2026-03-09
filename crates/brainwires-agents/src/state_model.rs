@@ -18,10 +18,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Instant, SystemTime};
 
+use petgraph::Direction;
 use petgraph::algo::is_cyclic_directed;
 use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::visit::EdgeRef;
-use petgraph::Direction;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
@@ -52,11 +52,7 @@ impl ThreeStateModel {
 
         // Check application state - do required resources exist?
         for resource in &op.resources_needed {
-            if !self
-                .application_state
-                .resource_exists(resource)
-                .await
-            {
+            if !self.application_state.resource_exists(resource).await {
                 // Not necessarily an error - resource might be created
                 warnings.push(format!("Resource '{}' does not exist yet", resource));
             }
@@ -78,9 +74,7 @@ impl ThreeStateModel {
                 .chain(op.resources_produced.iter())
                 .collect();
 
-            let overlap: Vec<_> = active_resources
-                .intersection(&proposed_resources)
-                .collect();
+            let overlap: Vec<_> = active_resources.intersection(&proposed_resources).collect();
 
             if !overlap.is_empty() {
                 errors.push(format!(
@@ -378,7 +372,10 @@ impl OperationState {
         let id = log.id.clone();
 
         // Add to operations map
-        self.operations.write().await.insert(id.clone(), log.clone());
+        self.operations
+            .write()
+            .await
+            .insert(id.clone(), log.clone());
 
         // Add to agent's operations
         self.agent_operations
@@ -438,7 +435,12 @@ impl OperationState {
 
     /// Get active operation IDs
     pub async fn get_active_operation_ids(&self) -> Vec<String> {
-        self.active_operations.read().await.iter().cloned().collect()
+        self.active_operations
+            .read()
+            .await
+            .iter()
+            .cloned()
+            .collect()
     }
 
     /// Get operation by ID
@@ -540,11 +542,7 @@ impl OperationLog {
     }
 
     /// Set the resources needed and produced by this operation.
-    pub fn with_resources(
-        mut self,
-        needed: Vec<String>,
-        produced: Vec<String>,
-    ) -> Self {
+    pub fn with_resources(mut self, needed: Vec<String>, produced: Vec<String>) -> Self {
         self.resources_needed = needed;
         self.resources_produced = produced;
         self
@@ -552,7 +550,8 @@ impl OperationLog {
 
     /// Get the duration of the operation (if completed).
     pub fn duration(&self) -> Option<std::time::Duration> {
-        self.completed_at.map(|end| end.duration_since(self.started_at))
+        self.completed_at
+            .map(|end| end.duration_since(self.started_at))
     }
 }
 
@@ -618,12 +617,8 @@ impl DependencyState {
     /// "op-a is blocked by op-b", so op-b must execute before op-a.
     /// The edge direction is from→to (to comes before from in execution order).
     pub async fn add_dependency(&self, from: &str, to: &str, edge: DependencyEdge) {
-        let from_idx = self
-            .ensure_node(from, ResourceNodeType::Generic)
-            .await;
-        let to_idx = self
-            .ensure_node(to, ResourceNodeType::Generic)
-            .await;
+        let from_idx = self.ensure_node(from, ResourceNodeType::Generic).await;
+        let to_idx = self.ensure_node(to, ResourceNodeType::Generic).await;
 
         // Edge from "to" to "from" because "from" depends on "to"
         // In graph terms: to → from (to must be processed before from)
@@ -637,9 +632,10 @@ impl DependencyState {
 
         // Edge was added from to→from, so we need to find it that way
         if let (Some(&from_idx), Some(&to_idx)) = (index.get(from), index.get(to))
-            && let Some(edge) = graph.find_edge(to_idx, from_idx) {
-                graph.remove_edge(edge);
-            }
+            && let Some(edge) = graph.find_edge(to_idx, from_idx)
+        {
+            graph.remove_edge(edge);
+        }
     }
 
     /// Check if acquiring resources would create a deadlock
@@ -702,9 +698,10 @@ impl DependencyState {
             // Find all incoming edges (resources that this resource depends on)
             for edge_ref in graph.edges_directed(node_idx, Direction::Incoming) {
                 if let Some(source_node) = graph.node_weight(edge_ref.source())
-                    && source_node.current_holder.is_some() {
-                        blocking.push(source_node.resource_id.clone());
-                    }
+                    && source_node.current_holder.is_some()
+                {
+                    blocking.push(source_node.resource_id.clone());
+                }
             }
         }
 
@@ -717,9 +714,10 @@ impl DependencyState {
         let mut graph = self.graph.write().await;
 
         if let Some(&node_idx) = index.get(resource_id)
-            && let Some(node) = graph.node_weight_mut(node_idx) {
-                node.current_holder = agent_id.map(String::from);
-            }
+            && let Some(node) = graph.node_weight_mut(node_idx)
+        {
+            node.current_holder = agent_id.map(String::from);
+        }
     }
 
     /// Get current resource holders
@@ -998,7 +996,9 @@ mod tests {
         let app_state = ApplicationState::new();
 
         let path = PathBuf::from("/test/file.rs");
-        app_state.update_file(path.clone(), "hash123".to_string()).await;
+        app_state
+            .update_file(path.clone(), "hash123".to_string())
+            .await;
 
         let files = app_state.get_all_files().await;
         assert!(files.contains_key(&path));
@@ -1111,7 +1111,12 @@ mod tests {
 
         let snapshot = model.snapshot().await;
         assert!(snapshot.files.contains_key(&PathBuf::from("/test/file.rs")));
-        assert!(model.application_state.resource_exists("build-artifact").await);
+        assert!(
+            model
+                .application_state
+                .resource_exists("build-artifact")
+                .await
+        );
     }
 
     #[tokio::test]

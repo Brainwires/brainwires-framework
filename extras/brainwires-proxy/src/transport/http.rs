@@ -81,7 +81,11 @@ async fn handle_http_request(
     tx: mpsc::Sender<InboundConnection>,
 ) -> Result<hyper::Response<Full<Bytes>>, hyper::Error> {
     let (parts, body) = req.into_parts();
-    let body_bytes = body.collect().await.map(|b| b.to_bytes()).unwrap_or_default();
+    let body_bytes = body
+        .collect()
+        .await
+        .map(|b| b.to_bytes())
+        .unwrap_or_default();
 
     let proxy_req = ProxyRequest {
         id: RequestId::new(),
@@ -119,9 +123,7 @@ fn proxy_response_to_hyper(resp: ProxyResponse) -> hyper::Response<Full<Bytes>> 
     }
     builder
         .body(Full::new(resp.body.into_bytes()))
-        .unwrap_or_else(|_| {
-            hyper::Response::new(Full::new(Bytes::from("Internal proxy error")))
-        })
+        .unwrap_or_else(|_| hyper::Response::new(Full::new(Bytes::from("Internal proxy error"))))
 }
 
 /// HTTP connector — forwards requests to an upstream URL using hyper client.
@@ -141,8 +143,7 @@ impl TransportConnector for HttpConnector {
         use hyper_util::client::legacy::Client;
         use hyper_util::rt::TokioExecutor;
 
-        let client: Client<_, Full<Bytes>> =
-            Client::builder(TokioExecutor::new()).build_http();
+        let client: Client<_, Full<Bytes>> = Client::builder(TokioExecutor::new()).build_http();
 
         // Build upstream URI by combining upstream base URL with request path/query
         let mut upstream_uri = self.upstream_url.clone();
@@ -154,9 +155,7 @@ impl TransportConnector for HttpConnector {
             .parse()
             .map_err(|e: http::uri::InvalidUri| ProxyError::Connection(e.to_string()))?;
 
-        let mut builder = hyper::Request::builder()
-            .method(request.method)
-            .uri(uri);
+        let mut builder = hyper::Request::builder().method(request.method).uri(uri);
 
         if let Some(headers) = builder.headers_mut() {
             *headers = request.headers;

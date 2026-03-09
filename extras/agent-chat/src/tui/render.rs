@@ -7,9 +7,9 @@ pub fn draw(f: &mut Frame, app: &App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Min(5),        // Chat history
-            Constraint::Length(3),      // Input
-            Constraint::Length(1),      // Status bar
+            Constraint::Min(5),    // Chat history
+            Constraint::Length(3), // Input
+            Constraint::Length(1), // Status bar
         ])
         .split(f.area());
 

@@ -47,7 +47,9 @@ impl Composer {
         function: &CompositionFunction,
     ) -> MdapResult<Value> {
         if results.is_empty() {
-            return Err(CompositionError::MissingResult("No results to compose".to_string()).into());
+            return Err(
+                CompositionError::MissingResult("No results to compose".to_string()).into(),
+            );
         }
 
         match function {
@@ -59,7 +61,11 @@ impl Composer {
 
             CompositionFunction::ObjectMerge => self.object_merge(results),
 
-            CompositionFunction::LastOnly => Ok(results.last().expect("checked non-empty above").value.clone()),
+            CompositionFunction::LastOnly => Ok(results
+                .last()
+                .expect("checked non-empty above")
+                .value
+                .clone()),
 
             CompositionFunction::Custom(description) => self.custom_compose(results, description),
 
@@ -285,7 +291,10 @@ impl Composer {
 
         // Default: just concatenate with the description as context
         let mut composed = serde_json::Map::new();
-        composed.insert("composition".to_string(), Value::String(description.to_string()));
+        composed.insert(
+            "composition".to_string(),
+            Value::String(description.to_string()),
+        );
         composed.insert(
             "results".to_string(),
             Value::Array(results.iter().map(|r| r.value.clone()).collect()),
@@ -328,7 +337,9 @@ impl ResultComposer for StandardComposer {
             .collect();
 
         if outputs.is_empty() {
-            return Err(CompositionError::MissingResult("No results to compose".to_string()).into());
+            return Err(
+                CompositionError::MissingResult("No results to compose".to_string()).into(),
+            );
         }
 
         let composer = Composer::new();
@@ -661,7 +672,10 @@ mod tests {
         ];
 
         let result = composer
-            .compose(&results, &CompositionFunction::Custom("test composition".to_string()))
+            .compose(
+                &results,
+                &CompositionFunction::Custom("test composition".to_string()),
+            )
             .unwrap();
 
         assert!(result.is_object());

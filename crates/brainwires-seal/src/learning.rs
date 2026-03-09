@@ -40,12 +40,12 @@
 //! 6. If successful: generalize pattern, add to global memory
 //! 7. If failed: record failure for pattern avoidance
 
+use crate::query_core::{QueryCore, QuestionType};
+use brainwires_agents::ResponseConfidence;
 use brainwires_core::graph::EntityType;
 use brainwires_tool_system::{ToolErrorCategory, ToolOutcome};
-use brainwires_agents::ResponseConfidence;
-use crate::query_core::{QueryCore, QuestionType};
-use std::collections::HashMap;
 use chrono::Utc;
+use std::collections::HashMap;
 
 /// A tracked entity in local memory
 #[derive(Debug, Clone)]
@@ -400,7 +400,8 @@ impl ToolStats {
 
         // Update average execution time with exponential moving average
         let alpha = 0.3;
-        self.avg_execution_time_ms = alpha * execution_time_ms as f64 + (1.0 - alpha) * self.avg_execution_time_ms;
+        self.avg_execution_time_ms =
+            alpha * execution_time_ms as f64 + (1.0 - alpha) * self.avg_execution_time_ms;
     }
 
     /// Record a failed execution
@@ -410,7 +411,8 @@ impl ToolStats {
         self.last_used = Utc::now().timestamp();
 
         let alpha = 0.3;
-        self.avg_execution_time_ms = alpha * execution_time_ms as f64 + (1.0 - alpha) * self.avg_execution_time_ms;
+        self.avg_execution_time_ms =
+            alpha * execution_time_ms as f64 + (1.0 - alpha) * self.avg_execution_time_ms;
     }
 
     /// Get the success rate
@@ -581,7 +583,8 @@ impl GlobalMemory {
 
     /// Record a tool outcome for learning
     pub fn record_tool_outcome(&mut self, outcome: &ToolOutcome) {
-        let stats = self.tool_stats
+        let stats = self
+            .tool_stats
             .entry(outcome.tool_name.clone())
             .or_default();
 
@@ -634,7 +637,11 @@ impl GlobalMemory {
         if hints.is_empty() {
             None
         } else {
-            Some(format!("Common pitfalls for {}: {}", tool_name, hints.join("; ")))
+            Some(format!(
+                "Common pitfalls for {}: {}",
+                tool_name,
+                hints.join("; ")
+            ))
         }
     }
 
@@ -683,7 +690,10 @@ impl LearningCoordinator {
             let entity_types: Vec<_> = c.entities.iter().map(|(_, t)| t.clone()).collect();
 
             // Check for matching pattern in global memory
-            if let Some(pattern) = self.global.get_best_pattern(&c.question_type, &entity_types) {
+            if let Some(pattern) = self
+                .global
+                .get_best_pattern(&c.question_type, &entity_types)
+            {
                 return Some(pattern);
             }
         }
@@ -702,13 +712,14 @@ impl LearningCoordinator {
     ) {
         // Update pattern statistics if we used one
         if let Some(id) = pattern_id
-            && let Some(pattern) = self.global.get_pattern_mut(id) {
-                if success {
-                    pattern.record_success(result_count);
-                } else {
-                    pattern.record_failure();
-                }
+            && let Some(pattern) = self.global.get_pattern_mut(id)
+        {
+            if success {
+                pattern.record_success(result_count);
+            } else {
+                pattern.record_failure();
             }
+        }
 
         // Record in local memory
         if let Some(core) = query_core {
@@ -746,9 +757,10 @@ impl LearningCoordinator {
         if let Some(existing) = self
             .global
             .get_best_pattern(&query.question_type, &required_types)
-            && existing.template == template {
-                return None; // Already have this pattern
-            }
+            && existing.template == template
+        {
+            return None; // Already have this pattern
+        }
 
         // Create and add the new pattern
         let mut pattern = QueryPattern::new(query.question_type.clone(), template, required_types);
@@ -1073,7 +1085,9 @@ mod tests {
 
         coordinator.local.track_entity("main.rs", EntityType::File);
         coordinator.local.track_entity("main.rs", EntityType::File);
-        coordinator.local.track_entity("config.toml", EntityType::File);
+        coordinator
+            .local
+            .track_entity("config.toml", EntityType::File);
 
         let context = coordinator.get_context_for_prompt();
 

@@ -80,7 +80,10 @@ mod tests {
     #[test]
     fn display_circuit_breaker_tripped() {
         let err = AutonomyError::CircuitBreakerTripped(5);
-        assert_eq!(err.to_string(), "Circuit breaker tripped after 5 consecutive failures");
+        assert_eq!(
+            err.to_string(),
+            "Circuit breaker tripped after 5 consecutive failures"
+        );
     }
 
     #[test]

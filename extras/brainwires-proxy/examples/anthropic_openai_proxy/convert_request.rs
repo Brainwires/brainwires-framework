@@ -230,8 +230,7 @@ fn convert_assistant_message(
 fn is_prefill(text: &str) -> bool {
     let trimmed = text.trim();
     matches!(trimmed, "{" | "[" | "```" | "<")
-        || trimmed.starts_with("<tool_code")
-            && !trimmed.contains("</tool_code")
+        || trimmed.starts_with("<tool_code") && !trimmed.contains("</tool_code")
 }
 
 /// Deduplicate tool IDs: if this ID was already seen, generate a unique replacement

@@ -147,7 +147,10 @@ impl SkillRegistry {
             self.loaded_cache.insert(name.to_string(), skill);
         }
 
-        Ok(self.loaded_cache.get(name).expect("just inserted into cache"))
+        Ok(self
+            .loaded_cache
+            .get(name)
+            .expect("just inserted into cache"))
     }
 
     /// Get a mutable reference to the full skill
@@ -162,7 +165,10 @@ impl SkillRegistry {
             self.loaded_cache.insert(name.to_string(), skill);
         }
 
-        Ok(self.loaded_cache.get_mut(name).expect("just inserted into cache"))
+        Ok(self
+            .loaded_cache
+            .get_mut(name)
+            .expect("just inserted into cache"))
     }
 
     /// Check if a skill exists
@@ -300,17 +306,15 @@ impl SkillRegistry {
         }
 
         if let Some(ref meta) = metadata.metadata
-            && !meta.is_empty() {
-                output.push_str("\n**Metadata**:\n");
-                for (key, value) in meta {
-                    output.push_str(&format!("  - {}: {}\n", key, value));
-                }
+            && !meta.is_empty()
+        {
+            output.push_str("\n**Metadata**:\n");
+            for (key, value) in meta {
+                output.push_str(&format!("  - {}: {}\n", key, value));
             }
+        }
 
-        output.push_str(&format!(
-            "\n**File**: {}\n",
-            metadata.source_path.display()
-        ));
+        output.push_str(&format!("\n**File**: {}\n", metadata.source_path.display()));
 
         Ok(output)
     }
@@ -376,8 +380,7 @@ Do the thing."#,
     #[test]
     fn test_registry_get_metadata() {
         let mut registry = SkillRegistry::new();
-        let metadata =
-            SkillMetadata::new("test".to_string(), "A test skill".to_string());
+        let metadata = SkillMetadata::new("test".to_string(), "A test skill".to_string());
 
         registry.register(metadata);
 
@@ -391,9 +394,18 @@ Do the thing."#,
     #[test]
     fn test_registry_list_skills() {
         let mut registry = SkillRegistry::new();
-        registry.register(SkillMetadata::new("zebra".to_string(), "Z skill".to_string()));
-        registry.register(SkillMetadata::new("alpha".to_string(), "A skill".to_string()));
-        registry.register(SkillMetadata::new("beta".to_string(), "B skill".to_string()));
+        registry.register(SkillMetadata::new(
+            "zebra".to_string(),
+            "Z skill".to_string(),
+        ));
+        registry.register(SkillMetadata::new(
+            "alpha".to_string(),
+            "A skill".to_string(),
+        ));
+        registry.register(SkillMetadata::new(
+            "beta".to_string(),
+            "B skill".to_string(),
+        ));
 
         let names = registry.list_skills();
         assert_eq!(names, vec!["alpha", "beta", "zebra"]); // Sorted
@@ -517,7 +529,10 @@ Instructions"#;
     #[test]
     fn test_truncate_description() {
         assert_eq!(truncate_description("Short", 10), "Short");
-        assert_eq!(truncate_description("This is a long description", 15), "This is a lo...");
+        assert_eq!(
+            truncate_description("This is a long description", 15),
+            "This is a lo..."
+        );
         assert_eq!(
             truncate_description("Line 1\nLine 2\nLine 3", 100),
             "Line 1"

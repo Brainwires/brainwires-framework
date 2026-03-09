@@ -1,30 +1,30 @@
-/// Burn framework training backend with WGPU GPU support.
-pub mod burn_backend;
-/// Burn-native neural network modules for LoRA fine-tuning.
-pub mod burn_modules;
 /// Adapter implementations (LoRA, QLoRA, DoRA).
 pub mod adapters;
 /// Alignment methods (DPO, ORPO).
 pub mod alignment;
 /// Model architecture definitions and configurations.
 pub mod architectures;
+/// Burn framework training backend with WGPU GPU support.
+pub mod burn_backend;
+/// Burn-native neural network modules for LoRA fine-tuning.
+pub mod burn_modules;
 /// Training checkpoint management.
 pub mod checkpointing;
 /// Dataset loading and tokenization for local training.
 pub mod dataset_loader;
+/// Model export in various formats (GGUF, SafeTensors, adapter-only).
+pub mod export;
 /// Learning rate scheduling (warmup + decay).
 pub mod lr_schedule;
 /// Quantization utilities for model compression.
 pub mod quantization;
-/// Model export in various formats (GGUF, SafeTensors, adapter-only).
-pub mod export;
 /// SafeTensors model weight loading.
 pub mod weight_loader;
 
-use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
-use crate::config::{TrainingHyperparams, LoraConfig, AlignmentMethod};
+use crate::config::{AlignmentMethod, LoraConfig, TrainingHyperparams};
 use crate::error::TrainingError;
 use crate::types::TrainingProgress;
 
@@ -50,7 +50,11 @@ impl std::fmt::Display for ComputeDevice {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Cpu => write!(f, "CPU"),
-            Self::Gpu { index, name, vram_mb } => {
+            Self::Gpu {
+                index,
+                name,
+                vram_mb,
+            } => {
                 write!(f, "GPU:{} ({}, {}MB VRAM)", index, name, vram_mb)
             }
             Self::Mps => write!(f, "MPS (Apple Metal)"),
@@ -88,7 +92,11 @@ pub struct LocalTrainingConfig {
 
 impl LocalTrainingConfig {
     /// Create a new local training configuration with required paths.
-    pub fn new(model_path: impl Into<PathBuf>, dataset_path: impl Into<PathBuf>, output_dir: impl Into<PathBuf>) -> Self {
+    pub fn new(
+        model_path: impl Into<PathBuf>,
+        dataset_path: impl Into<PathBuf>,
+        output_dir: impl Into<PathBuf>,
+    ) -> Self {
         Self {
             model_path: model_path.into(),
             dataset_path: dataset_path.into(),

@@ -492,16 +492,31 @@ mod tests {
 
     #[test]
     fn test_category_parsing() {
-        assert_eq!("id".parse::<PersonalFactCategory>().unwrap(), PersonalFactCategory::Identity);
-        assert_eq!("pref".parse::<PersonalFactCategory>().unwrap(), PersonalFactCategory::Preference);
-        assert_eq!("ctx".parse::<PersonalFactCategory>().unwrap(), PersonalFactCategory::Context);
+        assert_eq!(
+            "id".parse::<PersonalFactCategory>().unwrap(),
+            PersonalFactCategory::Identity
+        );
+        assert_eq!(
+            "pref".parse::<PersonalFactCategory>().unwrap(),
+            PersonalFactCategory::Preference
+        );
+        assert_eq!(
+            "ctx".parse::<PersonalFactCategory>().unwrap(),
+            PersonalFactCategory::Context
+        );
         assert!("invalid".parse::<PersonalFactCategory>().is_err());
     }
 
     #[test]
     fn test_source_initial_confidence() {
-        assert_eq!(PersonalFactSource::ExplicitStatement.initial_confidence(), 0.9);
-        assert_eq!(PersonalFactSource::InferredFromBehavior.initial_confidence(), 0.7);
+        assert_eq!(
+            PersonalFactSource::ExplicitStatement.initial_confidence(),
+            0.9
+        );
+        assert_eq!(
+            PersonalFactSource::InferredFromBehavior.initial_confidence(),
+            0.7
+        );
         assert_eq!(PersonalFactSource::ProfileSetup.initial_confidence(), 0.85);
         assert_eq!(PersonalFactSource::SystemObserved.initial_confidence(), 0.6);
     }

@@ -523,7 +523,10 @@ mod tests {
     #[test]
     fn test_document_type_from_extension() {
         assert_eq!(DocumentType::from_extension("PDF"), DocumentType::Pdf);
-        assert_eq!(DocumentType::from_extension("markdown"), DocumentType::Markdown);
+        assert_eq!(
+            DocumentType::from_extension("markdown"),
+            DocumentType::Markdown
+        );
         assert_eq!(DocumentType::from_extension("TXT"), DocumentType::PlainText);
     }
 

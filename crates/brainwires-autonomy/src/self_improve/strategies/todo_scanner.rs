@@ -6,8 +6,8 @@ use regex::Regex;
 use std::collections::HashMap;
 use walkdir::WalkDir;
 
-use crate::config::StrategyConfig;
 use super::{ImprovementCategory, ImprovementStrategy, ImprovementTask};
+use crate::config::StrategyConfig;
 
 /// Strategy that scans for TODO and FIXME comments and generates tasks to resolve them.
 pub struct TodoScannerStrategy;
@@ -56,10 +56,11 @@ impl ImprovementStrategy for TodoScannerStrategy {
                         .map(|m| m.as_str().trim())
                         .unwrap_or("")
                         .to_string();
-                    todos_by_file
-                        .entry(rel_path.clone())
-                        .or_default()
-                        .push((line_num as u32 + 1, tag.to_uppercase(), text));
+                    todos_by_file.entry(rel_path.clone()).or_default().push((
+                        line_num as u32 + 1,
+                        tag.to_uppercase(),
+                        text,
+                    ));
                 }
             }
         }

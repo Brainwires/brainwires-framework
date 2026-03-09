@@ -67,17 +67,15 @@ impl FishClient {
             anyhow::bail!("Fish TTS API error ({}): {}", status, body);
         }
 
-        let bytes = response.bytes().await
+        let bytes = response
+            .bytes()
+            .await
             .context("Failed to read Fish TTS response")?;
         Ok(bytes.to_vec())
     }
 
     /// Automatic speech recognition. Returns transcription.
-    pub async fn asr(
-        &self,
-        audio_data: Vec<u8>,
-        req: &FishAsrRequest,
-    ) -> Result<FishAsrResponse> {
+    pub async fn asr(&self, audio_data: Vec<u8>, req: &FishAsrRequest) -> Result<FishAsrResponse> {
         self.acquire_rate_limit().await;
 
         let url = format!("{}/asr", self.base_url);
@@ -87,8 +85,7 @@ impl FishClient {
             .mime_str("audio/wav")
             .context("Failed to create multipart")?;
 
-        let mut form = reqwest::multipart::Form::new()
-            .part("audio", file_part);
+        let mut form = reqwest::multipart::Form::new().part("audio", file_part);
 
         if let Some(ref lang) = req.language {
             form = form.text("language", lang.clone());
@@ -109,7 +106,9 @@ impl FishClient {
             anyhow::bail!("Fish ASR API error ({}): {}", status, body);
         }
 
-        response.json().await
+        response
+            .json()
+            .await
             .context("Failed to parse Fish ASR response")
     }
 }

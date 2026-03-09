@@ -76,7 +76,8 @@ impl HeartbeatCollector {
             tracing::warn!("Failed to cleanup stale sockets: {}", e);
         }
 
-        let metadata_list = list_agent_sessions_with_metadata(&self.sessions_dir).unwrap_or_default();
+        let metadata_list =
+            list_agent_sessions_with_metadata(&self.sessions_dir).unwrap_or_default();
 
         let agents: Vec<RemoteAgentInfo> = metadata_list
             .into_iter()
@@ -102,7 +103,8 @@ impl HeartbeatCollector {
     ///
     /// Returns a list of agent events representing what changed.
     pub fn detect_changes(&mut self) -> Result<Vec<AgentEvent>> {
-        let current_metadata = list_agent_sessions_with_metadata(&self.sessions_dir).unwrap_or_default();
+        let current_metadata =
+            list_agent_sessions_with_metadata(&self.sessions_dir).unwrap_or_default();
         let current_agents: HashMap<String, RemoteAgentInfo> = current_metadata
             .into_iter()
             .map(|m| {
@@ -230,13 +232,14 @@ fn get_system_load() -> f32 {
     {
         if let Ok(contents) = std::fs::read_to_string("/proc/loadavg")
             && let Some(first) = contents.split_whitespace().next()
-                && let Ok(load) = first.parse::<f32>() {
-                    // Normalize by number of CPUs
-                    let num_cpus = std::thread::available_parallelism()
-                        .map(|p| p.get() as f32)
-                        .unwrap_or(1.0);
-                    return (load / num_cpus).min(1.0);
-                }
+            && let Ok(load) = first.parse::<f32>()
+        {
+            // Normalize by number of CPUs
+            let num_cpus = std::thread::available_parallelism()
+                .map(|p| p.get() as f32)
+                .unwrap_or(1.0);
+            return (load / num_cpus).min(1.0);
+        }
     }
 
     // Try sysctl on macOS
@@ -256,10 +259,8 @@ mod tests {
     #[test]
     fn test_heartbeat_collector_new() {
         let temp_dir = tempfile::tempdir().unwrap();
-        let collector = HeartbeatCollector::new(
-            temp_dir.path().to_path_buf(),
-            "0.1.0-test".to_string(),
-        );
+        let collector =
+            HeartbeatCollector::new(temp_dir.path().to_path_buf(), "0.1.0-test".to_string());
         assert!(!collector.has_agents());
         assert_eq!(collector.agent_count(), 0);
     }

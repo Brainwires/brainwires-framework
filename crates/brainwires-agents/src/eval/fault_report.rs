@@ -206,8 +206,7 @@ pub fn analyze_suite_for_faults(
         let n_trials = stats.n_trials;
         let n_failures = n_trials - stats.successes;
         let success_rate = stats.success_rate;
-        let ci_width =
-            stats.confidence_interval_95.upper - stats.confidence_interval_95.lower;
+        let ci_width = stats.confidence_interval_95.upper - stats.confidence_interval_95.lower;
 
         // Sample up to 3 error messages from failed trials.
         let sample_errors: Vec<String> = suite_result
@@ -317,10 +316,10 @@ pub fn analyze_suite_for_faults(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
     use crate::eval::regression::RegressionSuite;
     use crate::eval::suite::SuiteResult;
     use crate::eval::trial::{EvaluationStats, TrialResult};
+    use std::collections::HashMap;
 
     fn make_suite_result(case_name: &str, successes: usize, total: usize) -> SuiteResult {
         let trials: Vec<TrialResult> = (0..total)
@@ -344,40 +343,62 @@ mod tests {
     #[test]
     fn test_priority_regression_scaled_by_drop() {
         // 5 pp drop → priority 5
-        let fk = FaultKind::Regression { previous_rate: 0.9, current_rate: 0.85, drop: 0.05 };
+        let fk = FaultKind::Regression {
+            previous_rate: 0.9,
+            current_rate: 0.85,
+            drop: 0.05,
+        };
         assert_eq!(fk.priority(), 5);
     }
 
     #[test]
     fn test_priority_regression_capped_at_10() {
         // 25 pp drop → capped at 10
-        let fk = FaultKind::Regression { previous_rate: 1.0, current_rate: 0.75, drop: 0.25 };
+        let fk = FaultKind::Regression {
+            previous_rate: 1.0,
+            current_rate: 0.75,
+            drop: 0.25,
+        };
         assert_eq!(fk.priority(), 10);
     }
 
     #[test]
     fn test_priority_consistent_failure() {
-        assert_eq!(FaultKind::ConsistentFailure { success_rate: 0.1 }.priority(), 8);
+        assert_eq!(
+            FaultKind::ConsistentFailure { success_rate: 0.1 }.priority(),
+            8
+        );
     }
 
     #[test]
     fn test_priority_new_capability() {
-        assert_eq!(FaultKind::NewCapability { description: "x".into() }.priority(), 5);
+        assert_eq!(
+            FaultKind::NewCapability {
+                description: "x".into()
+            }
+            .priority(),
+            5
+        );
     }
 
     #[test]
     fn test_priority_flaky() {
-        assert_eq!(FaultKind::Flaky { mean_rate: 0.5, ci_width: 0.3 }.priority(), 4);
+        assert_eq!(
+            FaultKind::Flaky {
+                mean_rate: 0.5,
+                ci_width: 0.3
+            }
+            .priority(),
+            4
+        );
     }
 
     // ── FaultReport constructors ───────────────────────────────────────────
 
     #[test]
     fn test_regression_constructor_sets_fields() {
-        let report = FaultReport::regression(
-            "my_case", "smoke", 0.9, 0.7,
-            vec!["err1".into()], 3, 10,
-        );
+        let report =
+            FaultReport::regression("my_case", "smoke", 0.9, 0.7, vec!["err1".into()], 3, 10);
         assert_eq!(report.case_name, "my_case");
         assert_eq!(report.category, "smoke");
         assert_eq!(report.n_failures, 3);
@@ -385,7 +406,11 @@ mod tests {
         assert!(report.suggested_task_description.contains("my_case"));
         assert!(report.suggested_task_description.contains("regression"));
         match &report.fault_kind {
-            FaultKind::Regression { drop, previous_rate, current_rate } => {
+            FaultKind::Regression {
+                drop,
+                previous_rate,
+                current_rate,
+            } => {
                 assert!((*drop - 0.2).abs() < 1e-9);
                 assert!((*previous_rate - 0.9).abs() < 1e-9);
                 assert!((*current_rate - 0.7).abs() < 1e-9);
@@ -396,9 +421,7 @@ mod tests {
 
     #[test]
     fn test_new_capability_constructor() {
-        let report = FaultReport::new_capability(
-            "new_case", "cat", "desc", 0.85, 1, 10,
-        );
+        let report = FaultReport::new_capability("new_case", "cat", "desc", 0.85, 1, 10);
         assert_eq!(report.case_name, "new_case");
         assert!(matches!(report.fault_kind, FaultKind::NewCapability { .. }));
         assert!(report.sample_errors.is_empty());
@@ -424,14 +447,22 @@ mod tests {
         let mut reg = RegressionSuite::new();
         // Baseline was 90% → 20 pp drop, well above 3 pp tolerance.
         let baseline_trials: Vec<TrialResult> = (0..10)
-            .map(|i| if i < 9 { TrialResult::success(i, 1) } else { TrialResult::failure(i, 1, "e") })
+            .map(|i| {
+                if i < 9 {
+                    TrialResult::success(i, 1)
+                } else {
+                    TrialResult::failure(i, 1, "e")
+                }
+            })
             .collect();
         let baseline_stats = EvaluationStats::from_trials(&baseline_trials).unwrap();
         reg.add_baseline("my_case", &baseline_stats);
 
         let reports = analyze_suite_for_faults(&result, Some(&reg), 0.2, 0.25);
         assert!(
-            reports.iter().any(|r| matches!(r.fault_kind, FaultKind::Regression { .. })),
+            reports
+                .iter()
+                .any(|r| matches!(r.fault_kind, FaultKind::Regression { .. })),
             "expected Regression fault"
         );
     }
@@ -442,7 +473,13 @@ mod tests {
         let result = make_suite_result("ok_case", 88, 100);
         let mut reg = RegressionSuite::new();
         let baseline_trials: Vec<TrialResult> = (0..100)
-            .map(|i| if i < 90 { TrialResult::success(i, 1) } else { TrialResult::failure(i, 1, "e") })
+            .map(|i| {
+                if i < 90 {
+                    TrialResult::success(i, 1)
+                } else {
+                    TrialResult::failure(i, 1, "e")
+                }
+            })
             .collect();
         let baseline_stats = EvaluationStats::from_trials(&baseline_trials).unwrap();
         reg.add_baseline("ok_case", &baseline_stats);
@@ -469,7 +506,9 @@ mod tests {
         let reg = RegressionSuite::new(); // empty — no baseline for "new_case"
         let reports = analyze_suite_for_faults(&result, Some(&reg), 0.2, 0.25);
         assert!(
-            reports.iter().any(|r| matches!(r.fault_kind, FaultKind::NewCapability { .. })),
+            reports
+                .iter()
+                .any(|r| matches!(r.fault_kind, FaultKind::NewCapability { .. })),
             "should report NewCapability for high-success case with no baseline"
         );
     }
@@ -481,19 +520,40 @@ mod tests {
 
         // consistent_failure case: 10% → priority 8
         let bad: Vec<TrialResult> = (0..10)
-            .map(|i| if i < 1 { TrialResult::success(i, 1) } else { TrialResult::failure(i, 1, "e") })
+            .map(|i| {
+                if i < 1 {
+                    TrialResult::success(i, 1)
+                } else {
+                    TrialResult::failure(i, 1, "e")
+                }
+            })
             .collect();
-        stats_map.insert("bad".to_string(), EvaluationStats::from_trials(&bad).unwrap());
+        stats_map.insert(
+            "bad".to_string(),
+            EvaluationStats::from_trials(&bad).unwrap(),
+        );
         case_results.insert("bad".to_string(), bad);
 
         // flaky case: 50% with 10 trials — CI width ~ 0.52 > 0.25 → priority 4
         let flaky: Vec<TrialResult> = (0..10)
-            .map(|i| if i < 5 { TrialResult::success(i, 1) } else { TrialResult::failure(i, 1, "e") })
+            .map(|i| {
+                if i < 5 {
+                    TrialResult::success(i, 1)
+                } else {
+                    TrialResult::failure(i, 1, "e")
+                }
+            })
             .collect();
-        stats_map.insert("flaky".to_string(), EvaluationStats::from_trials(&flaky).unwrap());
+        stats_map.insert(
+            "flaky".to_string(),
+            EvaluationStats::from_trials(&flaky).unwrap(),
+        );
         case_results.insert("flaky".to_string(), flaky);
 
-        let result = SuiteResult { case_results, stats: stats_map };
+        let result = SuiteResult {
+            case_results,
+            stats: stats_map,
+        };
         let reports = analyze_suite_for_faults(&result, None, 0.2, 0.25);
 
         assert!(reports.len() >= 2);

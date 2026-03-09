@@ -19,7 +19,7 @@ use tokio::sync::RwLock;
 use brainwires_core::{Task, TaskPriority};
 
 // Re-export public types
-pub use time_tracking::{format_duration_secs, TaskStats, TaskTimeInfo, TimeStats};
+pub use time_tracking::{TaskStats, TaskTimeInfo, TimeStats, format_duration_secs};
 
 /// Manages a tree of tasks with dependencies
 #[derive(Debug, Clone)]
@@ -52,7 +52,8 @@ impl TaskManager {
 
         // If parent_id is provided, validate and update parent
         if let Some(ref pid) = parent_id {
-            let parent = tasks.get_mut(pid)
+            let parent = tasks
+                .get_mut(pid)
                 .context(format!("Parent task '{}' not found", pid))?;
             parent.add_child(task_id.clone());
             task.parent_id = Some(pid.clone());
@@ -63,12 +64,9 @@ impl TaskManager {
     }
 
     /// Add a subtask to an existing task
-    pub async fn add_subtask(
-        &self,
-        parent_id: String,
-        description: String,
-    ) -> Result<String> {
-        self.create_task(description, Some(parent_id), TaskPriority::Normal).await
+    pub async fn add_subtask(&self, parent_id: String, description: String) -> Result<String> {
+        self.create_task(description, Some(parent_id), TaskPriority::Normal)
+            .await
     }
 
     /// Get a task by ID
@@ -106,7 +104,8 @@ impl TaskManager {
     /// Assign a task to an agent (sets the `assigned_to` field).
     pub async fn assign_task(&self, task_id: &str, agent_id: &str) -> Result<()> {
         let mut tasks = self.tasks.write().await;
-        let task = tasks.get_mut(task_id)
+        let task = tasks
+            .get_mut(task_id)
             .context(format!("Task '{}' not found", task_id))?;
 
         task.assigned_to = Some(agent_id.to_string());

@@ -2,7 +2,7 @@ use anyhow::Result;
 use ignore::WalkBuilder;
 use regex::Regex;
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::fs;
 
@@ -19,8 +19,14 @@ impl SearchTool {
 
     fn search_code_tool() -> Tool {
         let mut properties = HashMap::new();
-        properties.insert("pattern".to_string(), json!({"type": "string", "description": "Regex pattern to search for"}));
-        properties.insert("path".to_string(), json!({"type": "string", "description": "Path to search in", "default": "."}));
+        properties.insert(
+            "pattern".to_string(),
+            json!({"type": "string", "description": "Regex pattern to search for"}),
+        );
+        properties.insert(
+            "path".to_string(),
+            json!({"type": "string", "description": "Path to search in", "default": "."}),
+        );
         Tool {
             name: "search_code".to_string(),
             description: "Search for code patterns in files using regex.".to_string(),
@@ -32,7 +38,12 @@ impl SearchTool {
 
     /// Execute a search tool by name.
     #[tracing::instrument(name = "tool.execute", skip(input, context), fields(tool_name))]
-    pub fn execute(tool_use_id: &str, tool_name: &str, input: &Value, context: &ToolContext) -> ToolResult {
+    pub fn execute(
+        tool_use_id: &str,
+        tool_name: &str,
+        input: &Value,
+        context: &ToolContext,
+    ) -> ToolResult {
         let result = match tool_name {
             "search_code" => Self::search_code(input, context),
             _ => Err(anyhow::anyhow!("Unknown search tool: {}", tool_name)),
@@ -45,27 +56,50 @@ impl SearchTool {
 
     fn search_code(input: &Value, context: &ToolContext) -> Result<String> {
         #[derive(Deserialize)]
-        struct Input { pattern: String, #[serde(default = "default_path")] path: String }
-        fn default_path() -> String { ".".to_string() }
+        struct Input {
+            pattern: String,
+            #[serde(default = "default_path")]
+            path: String,
+        }
+        fn default_path() -> String {
+            ".".to_string()
+        }
 
         let params: Input = serde_json::from_value(input.clone())?;
         let regex = Regex::new(&params.pattern)?;
-        let search_path = if params.path == "." { &context.working_directory } else { &params.path };
+        let search_path = if params.path == "." {
+            &context.working_directory
+        } else {
+            &params.path
+        };
 
         let mut matches = Vec::new();
         for entry in WalkBuilder::new(search_path).build() {
             let entry = entry?;
             if entry.path().is_file()
-                && let Ok(content) = fs::read_to_string(entry.path()) {
-                    for (line_num, line) in content.lines().enumerate() {
-                        if regex.is_match(line) {
-                            matches.push(format!("{}:{} - {}", entry.path().display(), line_num + 1, line.trim()));
-                            if matches.len() >= 100 { break; }
+                && let Ok(content) = fs::read_to_string(entry.path())
+            {
+                for (line_num, line) in content.lines().enumerate() {
+                    if regex.is_match(line) {
+                        matches.push(format!(
+                            "{}:{} - {}",
+                            entry.path().display(),
+                            line_num + 1,
+                            line.trim()
+                        ));
+                        if matches.len() >= 100 {
+                            break;
                         }
                     }
                 }
+            }
         }
-        Ok(format!("Search Results:\nPattern: {}\nMatches: {}\n\n{}", params.pattern, matches.len(), matches.join("\n")))
+        Ok(format!(
+            "Search Results:\nPattern: {}\nMatches: {}\n\n{}",
+            params.pattern,
+            matches.len(),
+            matches.join("\n")
+        ))
     }
 }
 
@@ -75,7 +109,11 @@ mod tests {
 
     fn create_test_context() -> ToolContext {
         ToolContext {
-            working_directory: std::env::current_dir().unwrap().to_str().unwrap().to_string(),
+            working_directory: std::env::current_dir()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_string(),
             ..Default::default()
         }
     }

@@ -32,16 +32,16 @@
 
 // Re-export core types for convenience
 pub use brainwires_core::{
-    CommitResult, IdempotencyRecord, IdempotencyRegistry, StagedWrite, StagingBackend,
-    Tool, ToolContext, ToolInputSchema, ToolResult,
+    CommitResult, IdempotencyRecord, IdempotencyRegistry, StagedWrite, StagingBackend, Tool,
+    ToolContext, ToolInputSchema, ToolResult,
 };
 
 // ── Always-available modules (pure logic, WASM-safe) ────────────────────────
 
-pub mod executor;
-pub mod sanitization;
 mod error;
+pub mod executor;
 mod registry;
+pub mod sanitization;
 mod tool_search;
 
 // ── Native-only modules (require filesystem, process, network) ──────────────
@@ -81,12 +81,12 @@ pub mod openapi;
 // ── Public re-exports ────────────────────────────────────────────────────────
 
 // Always-available tools
-pub use error::{classify_error, ResourceType, RetryStrategy, ToolErrorCategory, ToolOutcome};
+pub use error::{ResourceType, RetryStrategy, ToolErrorCategory, ToolOutcome, classify_error};
 pub use executor::{PreHookDecision, ToolExecutor, ToolPreHook};
 pub use registry::{ToolCategory, ToolRegistry};
 pub use sanitization::{
-    contains_sensitive_data, filter_tool_output, is_injection_attempt,
-    redact_sensitive_data, sanitize_external_content, wrap_with_content_source,
+    contains_sensitive_data, filter_tool_output, is_injection_attempt, redact_sensitive_data,
+    sanitize_external_content, wrap_with_content_source,
 };
 pub use tool_search::ToolSearchTool;
 
@@ -102,7 +102,7 @@ pub use search::SearchTool;
 #[cfg(feature = "native")]
 pub use transaction::TransactionManager;
 #[cfg(feature = "native")]
-pub use validation::{get_validation_tools, ValidationTool};
+pub use validation::{ValidationTool, get_validation_tools};
 #[cfg(feature = "native")]
 pub use web::WebTool;
 
@@ -118,12 +118,12 @@ pub use semantic_search::SemanticSearchTool;
 
 #[cfg(feature = "smart-router")]
 pub use smart_router::{
-    analyze_query, analyze_messages, get_smart_tools, get_smart_tools_with_mcp,
-    get_tools_for_categories, get_context_for_analysis,
+    analyze_messages, analyze_query, get_context_for_analysis, get_smart_tools,
+    get_smart_tools_with_mcp, get_tools_for_categories,
 };
 
 #[cfg(feature = "openapi")]
 pub use openapi::{
-    execute_openapi_tool, openapi_to_tools, HttpMethod, OpenApiAuth, OpenApiEndpoint,
-    OpenApiParam, OpenApiTool,
+    HttpMethod, OpenApiAuth, OpenApiEndpoint, OpenApiParam, OpenApiTool, execute_openapi_tool,
+    openapi_to_tools,
 };

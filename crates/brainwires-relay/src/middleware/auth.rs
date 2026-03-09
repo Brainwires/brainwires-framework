@@ -32,20 +32,22 @@ impl Middleware for AuthMiddleware {
 
         // Check for token in metadata (set during initialize)
         if let Some(serde_json::Value::String(token)) = ctx.get_metadata("auth_token")
-            && token == &self.token {
-                return MiddlewareResult::Continue;
-            }
+            && token == &self.token
+        {
+            return MiddlewareResult::Continue;
+        }
 
         // Check params for auth token
         if let Some(params) = &request.params
             && let Some(token) = params.get("_auth_token").and_then(|v| v.as_str())
-                && token == self.token {
-                    ctx.set_metadata(
-                        "auth_token".to_string(),
-                        serde_json::Value::String(token.to_string()),
-                    );
-                    return MiddlewareResult::Continue;
-                }
+            && token == self.token
+        {
+            ctx.set_metadata(
+                "auth_token".to_string(),
+                serde_json::Value::String(token.to_string()),
+            );
+            return MiddlewareResult::Continue;
+        }
 
         MiddlewareResult::Reject(JsonRpcError {
             code: -32003,

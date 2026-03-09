@@ -153,7 +153,9 @@ impl EvaluationCase for StochasticCase {
     async fn run(&self, trial_id: usize) -> anyhow::Result<TrialResult> {
         // Deterministic per trial_id so tests are reproducible.
         // Uses a simple LCG hash: seed = trial_id * prime, mapped to [0, 1).
-        let seed = (trial_id as u64).wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        let seed = (trial_id as u64)
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         // Map the full u64 range to [0, 1) uniformly.
         let norm = seed as f64 / u64::MAX as f64;
         if norm < self.success_rate {
@@ -191,7 +193,10 @@ mod tests {
         let case = StochasticCase::new("test", 0.7);
         let r1 = case.run(42).await.unwrap();
         let r2 = case.run(42).await.unwrap();
-        assert_eq!(r1.success, r2.success, "same trial_id must give same result");
+        assert_eq!(
+            r1.success, r2.success,
+            "same trial_id must give same result"
+        );
     }
 
     #[tokio::test]
@@ -204,6 +209,10 @@ mod tests {
             }
         }
         // Allow ±15 % variance around the expected ~120 successes
-        assert!(successes > 90 && successes < 170, "expected ~120 successes, got {}", successes);
+        assert!(
+            successes > 90 && successes < 170,
+            "expected ~120 successes, got {}",
+            successes
+        );
     }
 }

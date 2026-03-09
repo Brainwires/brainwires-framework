@@ -62,10 +62,10 @@ impl KeyStore for KeyringKeyStore {
 /// The key is associated with the user_id for multi-account support.
 pub fn store_api_key(user_id: &str, api_key: &str) -> Result<()> {
     let account = format!("{}:{}", API_KEY_ACCOUNT, user_id);
-    let entry = Entry::new(SERVICE_NAME, &account)
-        .context("Failed to create keyring entry")?;
+    let entry = Entry::new(SERVICE_NAME, &account).context("Failed to create keyring entry")?;
 
-    entry.set_password(api_key)
+    entry
+        .set_password(api_key)
         .context("Failed to store API key in keyring")?;
 
     debug!("API key stored in system keyring for user {}", user_id);
@@ -78,8 +78,7 @@ pub fn store_api_key(user_id: &str, api_key: &str) -> Result<()> {
 /// when dropped.
 pub fn get_api_key(user_id: &str) -> Result<Option<Zeroizing<String>>> {
     let account = format!("{}:{}", API_KEY_ACCOUNT, user_id);
-    let entry = Entry::new(SERVICE_NAME, &account)
-        .context("Failed to create keyring entry")?;
+    let entry = Entry::new(SERVICE_NAME, &account).context("Failed to create keyring entry")?;
 
     match entry.get_password() {
         Ok(key) => {
@@ -100,8 +99,7 @@ pub fn get_api_key(user_id: &str) -> Result<Option<Zeroizing<String>>> {
 /// Delete an API key from the system keyring
 pub fn delete_api_key(user_id: &str) -> Result<()> {
     let account = format!("{}:{}", API_KEY_ACCOUNT, user_id);
-    let entry = Entry::new(SERVICE_NAME, &account)
-        .context("Failed to create keyring entry")?;
+    let entry = Entry::new(SERVICE_NAME, &account).context("Failed to create keyring entry")?;
 
     match entry.delete_credential() {
         Ok(()) => {

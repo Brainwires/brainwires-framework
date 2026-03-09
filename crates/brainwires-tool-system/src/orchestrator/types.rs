@@ -225,11 +225,7 @@ mod tests {
 
     #[test]
     fn test_orchestrator_result_success() {
-        let result = OrchestratorResult::success(
-            "output".to_string(),
-            vec![],
-            100,
-        );
+        let result = OrchestratorResult::success("output".to_string(), vec![], 100);
         assert!(result.success);
         assert_eq!(result.output, "output");
         assert!(result.error.is_none());
@@ -237,11 +233,7 @@ mod tests {
 
     #[test]
     fn test_orchestrator_result_error() {
-        let result = OrchestratorResult::error(
-            "failed".to_string(),
-            vec![],
-            50,
-        );
+        let result = OrchestratorResult::error("failed".to_string(), vec![], 50);
         assert!(!result.success);
         assert_eq!(result.error, Some("failed".to_string()));
     }

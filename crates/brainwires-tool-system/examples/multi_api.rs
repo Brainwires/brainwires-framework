@@ -45,16 +45,37 @@ fn main() {
         let is_snowy = input_str.contains("snowy");
 
         let activities = if is_snowy {
-            vec!["Skiing", "Snowboarding", "Hot cocoa at a cafe", "Indoor climbing"]
+            vec![
+                "Skiing",
+                "Snowboarding",
+                "Hot cocoa at a cafe",
+                "Indoor climbing",
+            ]
         } else if is_rainy {
-            vec!["Visit a museum", "Coffee shop hopping", "Indoor rock climbing", "Movie marathon"]
+            vec![
+                "Visit a museum",
+                "Coffee shop hopping",
+                "Indoor rock climbing",
+                "Movie marathon",
+            ]
         } else if is_outdoor_weather {
             vec!["Beach day", "Hiking", "Outdoor dining", "Park picnic"]
         } else {
-            vec!["Local exploration", "Try a new restaurant", "Visit a bookstore"]
+            vec![
+                "Local exploration",
+                "Try a new restaurant",
+                "Visit a bookstore",
+            ]
         };
 
-        Ok(format!("[{}]", activities.iter().map(|a| format!("\"{}\"", a)).collect::<Vec<_>>().join(",")))
+        Ok(format!(
+            "[{}]",
+            activities
+                .iter()
+                .map(|a| format!("\"{}\"", a))
+                .collect::<Vec<_>>()
+                .join(",")
+        ))
     });
 
     orchestrator.register_executor("send_notification", |input| {

@@ -221,7 +221,10 @@ impl HealthMonitor {
             // Determine status
             agent.status = if signals.is_empty() {
                 HealthStatus::Healthy
-            } else if signals.iter().any(|s| matches!(s, DegradationSignal::MissedHeartbeat { .. })) {
+            } else if signals
+                .iter()
+                .any(|s| matches!(s, DegradationSignal::MissedHeartbeat { .. }))
+            {
                 HealthStatus::Unknown
             } else {
                 HealthStatus::Degraded

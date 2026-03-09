@@ -180,8 +180,7 @@ impl Default for TtsOptions {
 }
 
 /// Options for speech-to-text transcription.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SttOptions {
     /// Language hint (ISO-639-1 code, e.g., "en").
     pub language: Option<String>,
@@ -190,7 +189,6 @@ pub struct SttOptions {
     /// Optional prompt to guide the model.
     pub prompt: Option<String>,
 }
-
 
 /// Result of a speech-to-text transcription.
 #[derive(Debug, Clone, Serialize, Deserialize)]

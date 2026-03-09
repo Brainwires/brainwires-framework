@@ -116,6 +116,9 @@ pub mod bm25_search;
 /// Persistent file hash cache for incremental updates.
 #[cfg(feature = "native")]
 pub mod cache;
+/// Core library client API.
+#[cfg(feature = "native")]
+pub mod client;
 /// Configuration management with environment variable support.
 #[cfg(feature = "native")]
 pub mod config;
@@ -143,9 +146,6 @@ pub mod relations;
 /// Vector database abstraction (LanceDB and Qdrant).
 #[cfg(feature = "native")]
 pub mod vector_db;
-/// Core library client API.
-#[cfg(feature = "native")]
-pub mod client;
 #[cfg(feature = "native")]
 pub use client::RagClient;
 #[cfg(feature = "native")]

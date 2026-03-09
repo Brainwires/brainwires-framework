@@ -32,9 +32,13 @@ impl TaskType {
         let lower = s.to_lowercase();
         if lower.contains("code") || lower.contains("implement") || lower.contains("refactor") {
             TaskType::Code
-        } else if lower.contains("plan") || lower.contains("design") || lower.contains("architect") {
+        } else if lower.contains("plan") || lower.contains("design") || lower.contains("architect")
+        {
             TaskType::Planning
-        } else if lower.contains("analy") || lower.contains("research") || lower.contains("investigate") {
+        } else if lower.contains("analy")
+            || lower.contains("research")
+            || lower.contains("investigate")
+        {
             TaskType::Analysis
         } else if lower.contains("simple") || lower.contains("single") || lower.contains("atomic") {
             TaskType::Simple
@@ -195,26 +199,46 @@ impl StrategySelector {
     fn classify_task_type(&self, lower: &str) -> TaskType {
         // Code indicators
         let code_indicators = [
-            "implement", "code", "function", "class", "method", "refactor",
-            "debug", "fix bug", "write a", "create a function", "add a feature",
+            "implement",
+            "code",
+            "function",
+            "class",
+            "method",
+            "refactor",
+            "debug",
+            "fix bug",
+            "write a",
+            "create a function",
+            "add a feature",
         ];
 
         // Planning indicators
         let planning_indicators = [
-            "plan", "design", "architect", "strategy", "roadmap",
-            "outline", "structure", "organize",
+            "plan",
+            "design",
+            "architect",
+            "strategy",
+            "roadmap",
+            "outline",
+            "structure",
+            "organize",
         ];
 
         // Analysis indicators
         let analysis_indicators = [
-            "analyze", "research", "investigate", "explain", "understand",
-            "review", "audit", "examine", "study",
+            "analyze",
+            "research",
+            "investigate",
+            "explain",
+            "understand",
+            "review",
+            "audit",
+            "examine",
+            "study",
         ];
 
         // Simple indicators
-        let simple_indicators = [
-            "just", "simply", "only", "quick", "small change",
-        ];
+        let simple_indicators = ["just", "simply", "only", "quick", "small change"];
 
         // Check code first (common case)
         if code_indicators.iter().any(|i| lower.contains(i)) {
@@ -344,7 +368,8 @@ impl StrategySelectorBuilder {
 
     /// Build the strategy selector, returning `None` if no provider was set.
     pub fn build(self) -> Option<StrategySelector> {
-        self.provider.map(|p| StrategySelector::new(p, self.model_id))
+        self.provider
+            .map(|p| StrategySelector::new(p, self.model_id))
     }
 }
 
@@ -356,7 +381,10 @@ mod tests {
     fn test_task_type_parsing() {
         assert_eq!(TaskType::from_str("code"), TaskType::Code);
         assert_eq!(TaskType::from_str("implement feature"), TaskType::Code);
-        assert_eq!(TaskType::from_str("design architecture"), TaskType::Planning);
+        assert_eq!(
+            TaskType::from_str("design architecture"),
+            TaskType::Planning
+        );
         assert_eq!(TaskType::from_str("analyze the data"), TaskType::Analysis);
         assert_eq!(TaskType::from_str("simple fix"), TaskType::Simple);
         assert_eq!(TaskType::from_str("random text"), TaskType::Unknown);
@@ -378,7 +406,8 @@ mod tests {
 
     #[test]
     fn test_heuristic_selection_planning() {
-        let result = select_heuristic_direct("Design the system architecture for the new microservice");
+        let result =
+            select_heuristic_direct("Design the system architecture for the new microservice");
         assert_eq!(result.task_type, TaskType::Planning);
     }
 
@@ -447,7 +476,10 @@ TYPE: CODE
 REASON: Task involves multiple implementation steps"#;
 
         let result = parse_selection_direct(output);
-        assert!(matches!(result.strategy, RecommendedStrategy::BinaryRecursive { .. }));
+        assert!(matches!(
+            result.strategy,
+            RecommendedStrategy::BinaryRecursive { .. }
+        ));
         assert_eq!(result.task_type, TaskType::Code);
         assert!(result.reasoning.is_some());
     }

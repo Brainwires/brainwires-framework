@@ -17,11 +17,7 @@ pub trait AudioPlayback: Send + Sync {
     /// Play a complete audio buffer through the output device.
     ///
     /// Blocks (asynchronously) until playback completes.
-    async fn play(
-        &self,
-        device: Option<&AudioDevice>,
-        buffer: &AudioBuffer,
-    ) -> AudioResult<()>;
+    async fn play(&self, device: Option<&AudioDevice>, buffer: &AudioBuffer) -> AudioResult<()>;
 
     /// Play audio from a stream of buffers (real-time streaming playback).
     ///

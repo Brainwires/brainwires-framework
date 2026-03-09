@@ -45,8 +45,7 @@ impl OpenAiTts {
     ) -> Self {
         let model_str = model.into();
         let client = Arc::new(
-            OpenAiClient::new(api_key.into(), model_str.clone())
-                .with_base_url(base_url.into()),
+            OpenAiClient::new(api_key.into(), model_str.clone()).with_base_url(base_url.into()),
         );
         Self {
             client,
@@ -79,20 +78,40 @@ impl TextToSpeech for OpenAiTts {
 
     async fn list_voices(&self) -> AudioResult<Vec<Voice>> {
         Ok(vec![
-            Voice { id: "alloy".into(),   name: Some("Alloy".into()),   language: None },
-            Voice { id: "echo".into(),    name: Some("Echo".into()),    language: None },
-            Voice { id: "fable".into(),   name: Some("Fable".into()),   language: None },
-            Voice { id: "onyx".into(),    name: Some("Onyx".into()),    language: None },
-            Voice { id: "nova".into(),    name: Some("Nova".into()),    language: None },
-            Voice { id: "shimmer".into(), name: Some("Shimmer".into()), language: None },
+            Voice {
+                id: "alloy".into(),
+                name: Some("Alloy".into()),
+                language: None,
+            },
+            Voice {
+                id: "echo".into(),
+                name: Some("Echo".into()),
+                language: None,
+            },
+            Voice {
+                id: "fable".into(),
+                name: Some("Fable".into()),
+                language: None,
+            },
+            Voice {
+                id: "onyx".into(),
+                name: Some("Onyx".into()),
+                language: None,
+            },
+            Voice {
+                id: "nova".into(),
+                name: Some("Nova".into()),
+                language: None,
+            },
+            Voice {
+                id: "shimmer".into(),
+                name: Some("Shimmer".into()),
+                language: None,
+            },
         ])
     }
 
-    async fn synthesize(
-        &self,
-        text: &str,
-        options: &TtsOptions,
-    ) -> AudioResult<AudioBuffer> {
+    async fn synthesize(&self, text: &str, options: &TtsOptions) -> AudioResult<AudioBuffer> {
         let req = CreateSpeechRequest {
             model: self.model.clone(),
             input: text.to_string(),

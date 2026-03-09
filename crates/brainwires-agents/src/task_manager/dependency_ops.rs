@@ -14,7 +14,8 @@ impl TaskManager {
         if self.would_create_cycle(task_id, depends_on).await? {
             anyhow::bail!(
                 "Adding dependency '{}' -> '{}' would create a circular dependency",
-                task_id, depends_on
+                task_id,
+                depends_on
             );
         }
 
@@ -25,17 +26,21 @@ impl TaskManager {
             anyhow::bail!("Dependency task '{}' not found", depends_on);
         }
 
-        let task = tasks.get_mut(task_id)
+        let task = tasks
+            .get_mut(task_id)
             .context(format!("Task '{}' not found", task_id))?;
 
         task.add_dependency(depends_on.to_string());
 
         // If dependency is not complete/skipped, mark task as blocked
-        let dep_status = tasks.get(depends_on)
+        let dep_status = tasks
+            .get(depends_on)
             .expect("dependency existence verified above")
-            .status.clone();
+            .status
+            .clone();
         if dep_status != TaskStatus::Completed && dep_status != TaskStatus::Skipped {
-            tasks.get_mut(task_id)
+            tasks
+                .get_mut(task_id)
                 .expect("task existence verified above")
                 .status = TaskStatus::Blocked;
         }
@@ -91,14 +96,20 @@ impl TaskManager {
         };
 
         // If task is already completed, failed, or skipped, it can't be started
-        if matches!(task.status, TaskStatus::Completed | TaskStatus::Failed | TaskStatus::Skipped) {
+        if matches!(
+            task.status,
+            TaskStatus::Completed | TaskStatus::Failed | TaskStatus::Skipped
+        ) {
             return Ok(false);
         }
 
         // Collect blocking dependencies
-        let blocking: Vec<String> = task.depends_on.iter()
+        let blocking: Vec<String> = task
+            .depends_on
+            .iter()
             .filter(|dep_id| {
-                tasks.get(*dep_id)
+                tasks
+                    .get(*dep_id)
                     .map(|t| t.status != TaskStatus::Completed && t.status != TaskStatus::Skipped)
                     .unwrap_or(true) // Missing dependency is considered blocking
             })
@@ -118,7 +129,8 @@ impl TaskManager {
 
         // First get the task, update it, and collect info for the check
         let (is_blocked, remaining_deps) = {
-            let task = tasks.get_mut(task_id)
+            let task = tasks
+                .get_mut(task_id)
                 .context(format!("Task '{}' not found", task_id))?;
 
             task.depends_on.retain(|d| d != depends_on);
@@ -130,15 +142,15 @@ impl TaskManager {
         // Check if task should be unblocked
         if is_blocked {
             let all_deps_done = remaining_deps.iter().all(|dep_id| {
-                tasks.get(dep_id)
+                tasks
+                    .get(dep_id)
                     .map(|t| t.status == TaskStatus::Completed || t.status == TaskStatus::Skipped)
                     .unwrap_or(false)
             });
 
-            if all_deps_done
-                && let Some(task) = tasks.get_mut(task_id) {
-                    task.status = TaskStatus::Pending;
-                }
+            if all_deps_done && let Some(task) = tasks.get_mut(task_id) {
+                task.status = TaskStatus::Pending;
+            }
         }
 
         Ok(())
@@ -149,7 +161,8 @@ impl TaskManager {
         let mut tasks = self.tasks.write().await;
 
         // Find all tasks that depend on the completed task
-        let dependent_ids: Vec<String> = tasks.values()
+        let dependent_ids: Vec<String> = tasks
+            .values()
             .filter(|t| t.depends_on.contains(&completed_task_id.to_string()))
             .map(|t| t.id.clone())
             .collect();
@@ -158,25 +171,26 @@ impl TaskManager {
         let mut tasks_to_check: Vec<(String, Vec<String>)> = Vec::new();
         for dep_id in &dependent_ids {
             if let Some(task) = tasks.get(dep_id)
-                && task.status == TaskStatus::Blocked {
-                    tasks_to_check.push((dep_id.clone(), task.depends_on.clone()));
-                }
+                && task.status == TaskStatus::Blocked
+            {
+                tasks_to_check.push((dep_id.clone(), task.depends_on.clone()));
+            }
         }
 
         // Now update tasks based on dependency status
         for (dep_id, deps) in tasks_to_check {
             // Check if all dependencies are now complete/skipped
             let all_deps_done = deps.iter().all(|d| {
-                tasks.get(d)
+                tasks
+                    .get(d)
                     .map(|t| t.status == TaskStatus::Completed || t.status == TaskStatus::Skipped)
                     .unwrap_or(false)
             });
 
-            if all_deps_done
-                && let Some(task) = tasks.get_mut(&dep_id) {
-                    task.status = TaskStatus::Pending;
-                    task.updated_at = chrono::Utc::now().timestamp();
-                }
+            if all_deps_done && let Some(task) = tasks.get_mut(&dep_id) {
+                task.status = TaskStatus::Pending;
+                task.updated_at = chrono::Utc::now().timestamp();
+            }
         }
 
         Ok(())

@@ -10,8 +10,8 @@ use tokio::sync::RwLock;
 use brainwires_agents::task_manager::TaskManager;
 use brainwires_core::{Task, TaskPriority, TaskStatus};
 
-use crate::task_store::TaskStore;
 use crate::lance_client::LanceClient;
+use crate::task_store::TaskStore;
 
 /// A TaskManager that automatically persists to LanceDB
 pub struct PersistentTaskManager {
@@ -32,7 +32,10 @@ impl PersistentTaskManager {
         let manager = TaskManager::new();
 
         // Load existing tasks for this conversation
-        let tasks = store.get_by_conversation(&conversation_id).await.unwrap_or_default();
+        let tasks = store
+            .get_by_conversation(&conversation_id)
+            .await
+            .unwrap_or_default();
         if !tasks.is_empty() {
             manager.load_tasks(tasks).await;
         }
@@ -85,7 +88,10 @@ impl PersistentTaskManager {
         parent_id: Option<String>,
         priority: TaskPriority,
     ) -> Result<String> {
-        let task_id = self.manager.create_task(description, parent_id, priority).await?;
+        let task_id = self
+            .manager
+            .create_task(description, parent_id, priority)
+            .await?;
 
         // Set plan_id on the task and persist
         if let Some(mut task) = self.manager.get_task(&task_id).await {
@@ -168,7 +174,9 @@ impl PersistentTaskManager {
         if let Some(ref plan_id) = self.plan_id {
             self.store.delete_by_plan(plan_id).await?;
         } else {
-            self.store.delete_by_conversation(&self.conversation_id).await?;
+            self.store
+                .delete_by_conversation(&self.conversation_id)
+                .await?;
         }
 
         Ok(())
@@ -188,7 +196,9 @@ impl PersistentTaskManager {
         let tasks = if let Some(ref plan_id) = self.plan_id {
             self.store.get_by_plan(plan_id).await?
         } else {
-            self.store.get_by_conversation(&self.conversation_id).await?
+            self.store
+                .get_by_conversation(&self.conversation_id)
+                .await?
         };
 
         self.manager.load_tasks(tasks).await;

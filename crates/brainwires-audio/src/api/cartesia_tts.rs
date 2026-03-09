@@ -89,11 +89,7 @@ impl TextToSpeech for CartesiaTts {
         ])
     }
 
-    async fn synthesize(
-        &self,
-        text: &str,
-        options: &TtsOptions,
-    ) -> AudioResult<AudioBuffer> {
+    async fn synthesize(&self, text: &str, options: &TtsOptions) -> AudioResult<AudioBuffer> {
         let output_format = build_output_format(options.output_format);
 
         let req = CartesiaTtsRequest {

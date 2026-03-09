@@ -1,7 +1,7 @@
-/// Benchmarks for indexing and search performance
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 use brainwires_rag::config::Config;
 use brainwires_rag::mcp_server::RagMcpServer;
+/// Benchmarks for indexing and search performance
+use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 use tempfile::TempDir;
 use tokio::runtime::Runtime;
 

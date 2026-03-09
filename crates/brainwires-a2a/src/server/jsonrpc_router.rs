@@ -22,8 +22,8 @@ pub async fn dispatch<H: A2aHandler>(
 
     match request.method.as_str() {
         METHOD_MESSAGE_SEND => {
-            let req: SendMessageRequest =
-                serde_json::from_value(params).map_err(|e| JsonRpcResponse::error(id.clone(), A2aError::from(e)))?;
+            let req: SendMessageRequest = serde_json::from_value(params)
+                .map_err(|e| JsonRpcResponse::error(id.clone(), A2aError::from(e)))?;
             match handler.on_send_message(req).await {
                 Ok(result) => {
                     let val = serde_json::to_value(result)
@@ -38,8 +38,8 @@ pub async fn dispatch<H: A2aHandler>(
             Ok(None)
         }
         METHOD_TASKS_GET => {
-            let req: GetTaskRequest =
-                serde_json::from_value(params).map_err(|e| JsonRpcResponse::error(id.clone(), A2aError::from(e)))?;
+            let req: GetTaskRequest = serde_json::from_value(params)
+                .map_err(|e| JsonRpcResponse::error(id.clone(), A2aError::from(e)))?;
             match handler.on_get_task(req).await {
                 Ok(task) => {
                     let val = serde_json::to_value(task)
@@ -50,8 +50,8 @@ pub async fn dispatch<H: A2aHandler>(
             }
         }
         METHOD_TASKS_LIST => {
-            let req: ListTasksRequest =
-                serde_json::from_value(params).map_err(|e| JsonRpcResponse::error(id.clone(), A2aError::from(e)))?;
+            let req: ListTasksRequest = serde_json::from_value(params)
+                .map_err(|e| JsonRpcResponse::error(id.clone(), A2aError::from(e)))?;
             match handler.on_list_tasks(req).await {
                 Ok(resp) => {
                     let val = serde_json::to_value(resp)
@@ -62,8 +62,8 @@ pub async fn dispatch<H: A2aHandler>(
             }
         }
         METHOD_TASKS_CANCEL => {
-            let req: CancelTaskRequest =
-                serde_json::from_value(params).map_err(|e| JsonRpcResponse::error(id.clone(), A2aError::from(e)))?;
+            let req: CancelTaskRequest = serde_json::from_value(params)
+                .map_err(|e| JsonRpcResponse::error(id.clone(), A2aError::from(e)))?;
             match handler.on_cancel_task(req).await {
                 Ok(task) => {
                     let val = serde_json::to_value(task)
@@ -74,8 +74,8 @@ pub async fn dispatch<H: A2aHandler>(
             }
         }
         METHOD_PUSH_CONFIG_SET => {
-            let config: TaskPushNotificationConfig =
-                serde_json::from_value(params).map_err(|e| JsonRpcResponse::error(id.clone(), A2aError::from(e)))?;
+            let config: TaskPushNotificationConfig = serde_json::from_value(params)
+                .map_err(|e| JsonRpcResponse::error(id.clone(), A2aError::from(e)))?;
             match handler.on_create_push_config(config).await {
                 Ok(result) => {
                     let val = serde_json::to_value(result)
@@ -86,8 +86,8 @@ pub async fn dispatch<H: A2aHandler>(
             }
         }
         METHOD_PUSH_CONFIG_GET => {
-            let req: GetTaskPushNotificationConfigRequest =
-                serde_json::from_value(params).map_err(|e| JsonRpcResponse::error(id.clone(), A2aError::from(e)))?;
+            let req: GetTaskPushNotificationConfigRequest = serde_json::from_value(params)
+                .map_err(|e| JsonRpcResponse::error(id.clone(), A2aError::from(e)))?;
             match handler.on_get_push_config(req).await {
                 Ok(result) => {
                     let val = serde_json::to_value(result)
@@ -98,8 +98,8 @@ pub async fn dispatch<H: A2aHandler>(
             }
         }
         METHOD_PUSH_CONFIG_LIST => {
-            let req: ListTaskPushNotificationConfigsRequest =
-                serde_json::from_value(params).map_err(|e| JsonRpcResponse::error(id.clone(), A2aError::from(e)))?;
+            let req: ListTaskPushNotificationConfigsRequest = serde_json::from_value(params)
+                .map_err(|e| JsonRpcResponse::error(id.clone(), A2aError::from(e)))?;
             match handler.on_list_push_configs(req).await {
                 Ok(result) => {
                     let val = serde_json::to_value(result)
@@ -110,16 +110,16 @@ pub async fn dispatch<H: A2aHandler>(
             }
         }
         METHOD_PUSH_CONFIG_DELETE => {
-            let req: DeleteTaskPushNotificationConfigRequest =
-                serde_json::from_value(params).map_err(|e| JsonRpcResponse::error(id.clone(), A2aError::from(e)))?;
+            let req: DeleteTaskPushNotificationConfigRequest = serde_json::from_value(params)
+                .map_err(|e| JsonRpcResponse::error(id.clone(), A2aError::from(e)))?;
             match handler.on_delete_push_config(req).await {
                 Ok(()) => Ok(Some(JsonRpcResponse::success(id, serde_json::Value::Null))),
                 Err(e) => Err(JsonRpcResponse::error(id, e)),
             }
         }
         METHOD_EXTENDED_CARD => {
-            let req: GetExtendedAgentCardRequest =
-                serde_json::from_value(params).map_err(|e| JsonRpcResponse::error(id.clone(), A2aError::from(e)))?;
+            let req: GetExtendedAgentCardRequest = serde_json::from_value(params)
+                .map_err(|e| JsonRpcResponse::error(id.clone(), A2aError::from(e)))?;
             match handler.on_get_extended_agent_card(req).await {
                 Ok(card) => {
                     let val = serde_json::to_value(card)

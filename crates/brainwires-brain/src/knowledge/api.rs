@@ -3,7 +3,7 @@
 //! Handles communication with the Brainwires server for syncing truths,
 //! submitting new truths, and reporting reinforcements/contradictions.
 
-use super::truth::{BehavioralTruth, TruthCategory, TruthSource, TruthFeedback};
+use super::truth::{BehavioralTruth, TruthCategory, TruthFeedback, TruthSource};
 use anyhow::{Context, Result};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -44,10 +44,7 @@ impl KnowledgeApiClient {
             req = req.header("Authorization", auth);
         }
 
-        let response = req
-            .send()
-            .await
-            .context("Failed to send sync request")?;
+        let response = req.send().await.context("Failed to send sync request")?;
 
         if response.status().is_success() {
             let sync_response: SyncResponse = response
@@ -119,10 +116,7 @@ impl KnowledgeApiClient {
             req = req.header("Authorization", auth);
         }
 
-        let response = req
-            .send()
-            .await
-            .context("Failed to send submit request")?;
+        let response = req.send().await.context("Failed to send submit request")?;
 
         if response.status().is_success() {
             let submit_response: SubmitResponse = response
@@ -138,8 +132,15 @@ impl KnowledgeApiClient {
     }
 
     /// Report reinforcement of a truth
-    pub async fn reinforce(&self, truth_id: &str, context: Option<&str>) -> Result<ReinforcementResponse> {
-        let url = format!("{}/api/knowledge/truths/{}/reinforce", self.base_url, truth_id);
+    pub async fn reinforce(
+        &self,
+        truth_id: &str,
+        context: Option<&str>,
+    ) -> Result<ReinforcementResponse> {
+        let url = format!(
+            "{}/api/knowledge/truths/{}/reinforce",
+            self.base_url, truth_id
+        );
 
         let body = ReinforcementRequest {
             context: context.map(|s| s.to_string()),
@@ -170,8 +171,16 @@ impl KnowledgeApiClient {
     }
 
     /// Report contradiction of a truth
-    pub async fn contradict(&self, truth_id: &str, reason: Option<&str>, context: Option<&str>) -> Result<ContradictionResponse> {
-        let url = format!("{}/api/knowledge/truths/{}/contradict", self.base_url, truth_id);
+    pub async fn contradict(
+        &self,
+        truth_id: &str,
+        reason: Option<&str>,
+        context: Option<&str>,
+    ) -> Result<ContradictionResponse> {
+        let url = format!(
+            "{}/api/knowledge/truths/{}/contradict",
+            self.base_url, truth_id
+        );
 
         let body = ContradictionRequest {
             context: context.map(|s| s.to_string()),
@@ -216,8 +225,7 @@ impl KnowledgeApiClient {
 // ============ Request/Response Types ============
 
 /// Request for sync endpoint
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SyncRequest {
     /// ISO timestamp - get truths updated since this time
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -243,7 +251,6 @@ pub struct SyncRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub feedback: Option<Vec<TruthFeedback>>,
 }
-
 
 /// Response from sync endpoint
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -492,7 +499,8 @@ impl ToSnakeCase for TruthCategory {
             TruthCategory::PatternAvoidance => "pattern_avoidance",
             TruthCategory::PromptingTechnique => "prompting_technique",
             TruthCategory::ClarifyingQuestions => "clarifying_questions",
-        }.to_string()
+        }
+        .to_string()
     }
 }
 
@@ -503,7 +511,8 @@ impl ToSnakeCase for TruthSource {
             TruthSource::ConversationCorrection => "conversation_correction",
             TruthSource::SuccessPattern => "success_pattern",
             TruthSource::FailurePattern => "failure_pattern",
-        }.to_string()
+        }
+        .to_string()
     }
 }
 
@@ -543,27 +552,31 @@ impl MockKnowledgeApiClient {
     pub async fn sync(&self, _request: SyncRequest) -> Result<SyncResponse> {
         use chrono::{TimeZone, Utc};
         Ok(SyncResponse {
-            truths: self.truths.iter().map(|t| {
-                let created = Utc.timestamp_opt(t.created_at, 0).unwrap();
-                let used = Utc.timestamp_opt(t.last_used, 0).unwrap();
-                ServerTruth {
-                    id: t.id.clone(),
-                    category: t.category.to_snake_case(),
-                    context_pattern: t.context_pattern.clone(),
-                    rule: t.rule.clone(),
-                    rationale: t.rationale.clone(),
-                    source: t.source.to_snake_case(),
-                    confidence: t.confidence,
-                    reinforcements: t.reinforcements as i32,
-                    contradictions: t.contradictions as i32,
-                    created_by: t.created_by.clone(),
-                    deleted: t.deleted,
-                    version: t.version as i32,
-                    created_at: created.to_rfc3339(),
-                    updated_at: created.to_rfc3339(),
-                    last_used: used.to_rfc3339(),
-                }
-            }).collect(),
+            truths: self
+                .truths
+                .iter()
+                .map(|t| {
+                    let created = Utc.timestamp_opt(t.created_at, 0).unwrap();
+                    let used = Utc.timestamp_opt(t.last_used, 0).unwrap();
+                    ServerTruth {
+                        id: t.id.clone(),
+                        category: t.category.to_snake_case(),
+                        context_pattern: t.context_pattern.clone(),
+                        rule: t.rule.clone(),
+                        rationale: t.rationale.clone(),
+                        source: t.source.to_snake_case(),
+                        confidence: t.confidence,
+                        reinforcements: t.reinforcements as i32,
+                        contradictions: t.contradictions as i32,
+                        created_by: t.created_by.clone(),
+                        deleted: t.deleted,
+                        version: t.version as i32,
+                        created_at: created.to_rfc3339(),
+                        updated_at: created.to_rfc3339(),
+                        last_used: used.to_rfc3339(),
+                    }
+                })
+                .collect(),
             sync_timestamp: Utc::now().to_rfc3339(),
             has_more: false,
             stats: SyncStats::default(),
@@ -596,7 +609,11 @@ impl MockKnowledgeApiClient {
         })
     }
 
-    pub async fn reinforce(&mut self, truth_id: &str, _context: Option<&str>) -> Result<ReinforcementResponse> {
+    pub async fn reinforce(
+        &mut self,
+        truth_id: &str,
+        _context: Option<&str>,
+    ) -> Result<ReinforcementResponse> {
         self.reinforced.push(truth_id.to_string());
         Ok(ReinforcementResponse {
             truth: None,
@@ -604,7 +621,12 @@ impl MockKnowledgeApiClient {
         })
     }
 
-    pub async fn contradict(&mut self, truth_id: &str, _reason: Option<&str>, _context: Option<&str>) -> Result<ContradictionResponse> {
+    pub async fn contradict(
+        &mut self,
+        truth_id: &str,
+        _reason: Option<&str>,
+        _context: Option<&str>,
+    ) -> Result<ContradictionResponse> {
         self.contradicted.push(truth_id.to_string());
         Ok(ContradictionResponse {
             truth: None,

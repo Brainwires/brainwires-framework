@@ -194,10 +194,8 @@ impl MdapMetrics {
 
         // Track vote statistics
         if metric.total_votes > 0 {
-            self.max_votes_for_single_step =
-                self.max_votes_for_single_step.max(metric.total_votes);
-            self.min_votes_for_single_step =
-                self.min_votes_for_single_step.min(metric.total_votes);
+            self.max_votes_for_single_step = self.max_votes_for_single_step.max(metric.total_votes);
+            self.min_votes_for_single_step = self.min_votes_for_single_step.min(metric.total_votes);
         }
 
         // Track red-flag breakdown
@@ -339,9 +337,7 @@ impl MdapMetrics {
         );
         map.insert(
             "red_flag_rate".to_string(),
-            serde_json::json!(
-                self.red_flagged_samples as f64 / self.total_samples.max(1) as f64
-            ),
+            serde_json::json!(self.red_flagged_samples as f64 / self.total_samples.max(1) as f64),
         );
         map.insert(
             "cost_per_step".to_string(),
@@ -412,8 +408,7 @@ impl AggregatedMetrics {
 
         let red_flag_rate =
             metrics.red_flagged_samples as f64 / metrics.total_samples.max(1) as f64;
-        self.average_red_flag_rate =
-            (self.average_red_flag_rate * (n - 1.0) + red_flag_rate) / n;
+        self.average_red_flag_rate = (self.average_red_flag_rate * (n - 1.0) + red_flag_rate) / n;
 
         // Aggregate red-flag reasons
         for (reason, count) in &metrics.red_flag_breakdown {

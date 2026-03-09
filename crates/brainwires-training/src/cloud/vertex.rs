@@ -5,9 +5,11 @@ use tracing::{debug, info};
 
 use brainwires_datasets::DataFormat;
 
-use crate::error::TrainingError;
-use crate::types::{TrainingJobId, TrainingJobStatus, TrainingJobSummary, TrainingProgress, DatasetId};
 use super::{CloudFineTuneConfig, FineTuneProvider};
+use crate::error::TrainingError;
+use crate::types::{
+    DatasetId, TrainingJobId, TrainingJobStatus, TrainingJobSummary, TrainingProgress,
+};
 
 /// Google Vertex AI fine-tuning provider.
 ///
@@ -113,16 +115,22 @@ impl VertexFineTune {
             }
             "GET" => self.client.get(&url),
             "DELETE" => self.client.delete(&url),
-            _ => return Err(TrainingError::Config(format!("Unsupported method: {}", method))),
+            _ => {
+                return Err(TrainingError::Config(format!(
+                    "Unsupported method: {}",
+                    method
+                )));
+            }
         };
 
         request = request
             .header("Authorization", format!("Bearer {}", token))
             .header("Content-Type", "application/json");
 
-        let response = request.send().await.map_err(|e| {
-            TrainingError::Provider(format!("Vertex AI request failed: {}", e))
-        })?;
+        let response = request
+            .send()
+            .await
+            .map_err(|e| TrainingError::Provider(format!("Vertex AI request failed: {}", e)))?;
 
         let status = response.status();
         let text = response.text().await.map_err(|e| {
@@ -163,7 +171,11 @@ impl FineTuneProvider for VertexFineTune {
         false // Vertex uses RLHF, not DPO
     }
 
-    async fn upload_dataset(&self, data: &[u8], _format: DataFormat) -> Result<DatasetId, TrainingError> {
+    async fn upload_dataset(
+        &self,
+        data: &[u8],
+        _format: DataFormat,
+    ) -> Result<DatasetId, TrainingError> {
         debug!(
             "Vertex AI fine-tuning requires data in GCS. Dataset size: {} bytes",
             data.len()
@@ -173,7 +185,10 @@ impl FineTuneProvider for VertexFineTune {
         ))
     }
 
-    async fn create_job(&self, config: CloudFineTuneConfig) -> Result<TrainingJobId, TrainingError> {
+    async fn create_job(
+        &self,
+        config: CloudFineTuneConfig,
+    ) -> Result<TrainingJobId, TrainingError> {
         info!("Creating Vertex AI tuning job for: {}", config.base_model);
 
         let body = json!({
@@ -191,7 +206,8 @@ impl FineTuneProvider for VertexFineTune {
 
         let response = self.api_request("POST", "/tuningJobs", Some(body)).await?;
 
-        let job_name = response.get("name")
+        let job_name = response
+            .get("name")
             .and_then(|v| v.as_str())
             .ok_or_else(|| TrainingError::Provider("Missing 'name' in response".to_string()))?;
 
@@ -199,27 +215,40 @@ impl FineTuneProvider for VertexFineTune {
         Ok(TrainingJobId(job_name.to_string()))
     }
 
-    async fn get_job_status(&self, job_id: &TrainingJobId) -> Result<TrainingJobStatus, TrainingError> {
+    async fn get_job_status(
+        &self,
+        job_id: &TrainingJobId,
+    ) -> Result<TrainingJobStatus, TrainingError> {
         debug!("Checking Vertex AI job status: {}", job_id);
 
         // Job IDs are full resource names like projects/X/locations/Y/tuningJobs/Z
         // Extract the relative path
         let path = if job_id.0.starts_with("projects/") {
             // Already a full resource path, need to reconstruct URL
-            format!("/{}", job_id.0.rsplit("locations/").next().map(|s| format!("tuningJobs/{}", s.rsplit('/').next().unwrap_or(""))).unwrap_or_default())
+            format!(
+                "/{}",
+                job_id
+                    .0
+                    .rsplit("locations/")
+                    .next()
+                    .map(|s| format!("tuningJobs/{}", s.rsplit('/').next().unwrap_or("")))
+                    .unwrap_or_default()
+            )
         } else {
             format!("/tuningJobs/{}", job_id.0)
         };
 
         let response = self.api_request("GET", &path, None).await?;
 
-        let state = response.get("state")
+        let state = response
+            .get("state")
             .and_then(|v| v.as_str())
             .unwrap_or("STATE_UNSPECIFIED");
 
         match state {
             "JOB_STATE_SUCCEEDED" => {
-                let model_id = response.get("tunedModel")
+                let model_id = response
+                    .get("tunedModel")
                     .and_then(|v| v.get("model"))
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
@@ -227,7 +256,8 @@ impl FineTuneProvider for VertexFineTune {
                 Ok(TrainingJobStatus::Succeeded { model_id })
             }
             "JOB_STATE_FAILED" => {
-                let error = response.get("error")
+                let error = response
+                    .get("error")
                     .and_then(|v| v.get("message"))
                     .and_then(|v| v.as_str())
                     .unwrap_or("Unknown error")
@@ -253,7 +283,8 @@ impl FineTuneProvider for VertexFineTune {
     async fn list_jobs(&self) -> Result<Vec<TrainingJobSummary>, TrainingError> {
         let response = self.api_request("GET", "/tuningJobs", None).await?;
 
-        let jobs = response.get("tuningJobs")
+        let jobs = response
+            .get("tuningJobs")
             .and_then(|v| v.as_array())
             .unwrap_or(&Vec::new())
             .iter()
@@ -263,14 +294,16 @@ impl FineTuneProvider for VertexFineTune {
                 let state = job.get("state")?.as_str()?;
                 let status = match state {
                     "JOB_STATE_SUCCEEDED" => TrainingJobStatus::Succeeded {
-                        model_id: job.get("tunedModel")
+                        model_id: job
+                            .get("tunedModel")
                             .and_then(|v| v.get("model"))
                             .and_then(|v| v.as_str())
                             .unwrap_or("")
                             .to_string(),
                     },
                     "JOB_STATE_FAILED" => TrainingJobStatus::Failed {
-                        error: job.get("error")
+                        error: job
+                            .get("error")
                             .and_then(|v| v.get("message"))
                             .and_then(|v| v.as_str())
                             .unwrap_or("")

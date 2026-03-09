@@ -100,7 +100,9 @@ impl TaskQueue {
         let mut queues = self.queues.lock().await;
 
         // Try to dequeue from highest priority first
-        queues.urgent.pop_front()
+        queues
+            .urgent
+            .pop_front()
             .or_else(|| queues.high.pop_front())
             .or_else(|| queues.normal.pop_front())
             .or_else(|| queues.low.pop_front())
@@ -111,7 +113,9 @@ impl TaskQueue {
         let mut queues = self.queues.lock().await;
 
         // Try to dequeue from highest priority first
-        let mut task = queues.urgent.pop_front()
+        let mut task = queues
+            .urgent
+            .pop_front()
             .or_else(|| queues.high.pop_front())
             .or_else(|| queues.normal.pop_front())
             .or_else(|| queues.low.pop_front());
@@ -127,7 +131,9 @@ impl TaskQueue {
     pub async fn peek(&self) -> Option<QueuedTask> {
         let queues = self.queues.lock().await;
 
-        queues.urgent.front()
+        queues
+            .urgent
+            .front()
             .or_else(|| queues.high.front())
             .or_else(|| queues.normal.front())
             .or_else(|| queues.low.front())
@@ -215,10 +221,7 @@ impl TaskQueue {
 
     /// Helper to calculate total size
     fn total_size(&self, queues: &PriorityQueues) -> usize {
-        queues.urgent.len()
-            + queues.high.len()
-            + queues.normal.len()
-            + queues.low.len()
+        queues.urgent.len() + queues.high.len() + queues.normal.len() + queues.low.len()
     }
 }
 
@@ -237,7 +240,10 @@ mod tests {
         let queue = TaskQueue::new(10);
         let task = Task::new("test-1".to_string(), "Test task".to_string());
 
-        queue.enqueue(task.clone(), TaskPriority::Normal).await.unwrap();
+        queue
+            .enqueue(task.clone(), TaskPriority::Normal)
+            .await
+            .unwrap();
         assert_eq!(queue.size().await, 1);
 
         let dequeued = queue.dequeue().await;
@@ -322,7 +328,10 @@ mod tests {
         let queue = TaskQueue::new(10);
         let task = Task::new("test-1".to_string(), "Test task".to_string());
 
-        queue.enqueue(task.clone(), TaskPriority::High).await.unwrap();
+        queue
+            .enqueue(task.clone(), TaskPriority::High)
+            .await
+            .unwrap();
 
         let peeked = queue.peek().await;
         assert!(peeked.is_some());
@@ -372,10 +381,34 @@ mod tests {
     async fn test_size_by_priority() {
         let queue = TaskQueue::new(10);
 
-        queue.enqueue(Task::new("1".to_string(), "T1".to_string()), TaskPriority::Urgent).await.unwrap();
-        queue.enqueue(Task::new("2".to_string(), "T2".to_string()), TaskPriority::High).await.unwrap();
-        queue.enqueue(Task::new("3".to_string(), "T3".to_string()), TaskPriority::High).await.unwrap();
-        queue.enqueue(Task::new("4".to_string(), "T4".to_string()), TaskPriority::Normal).await.unwrap();
+        queue
+            .enqueue(
+                Task::new("1".to_string(), "T1".to_string()),
+                TaskPriority::Urgent,
+            )
+            .await
+            .unwrap();
+        queue
+            .enqueue(
+                Task::new("2".to_string(), "T2".to_string()),
+                TaskPriority::High,
+            )
+            .await
+            .unwrap();
+        queue
+            .enqueue(
+                Task::new("3".to_string(), "T3".to_string()),
+                TaskPriority::High,
+            )
+            .await
+            .unwrap();
+        queue
+            .enqueue(
+                Task::new("4".to_string(), "T4".to_string()),
+                TaskPriority::Normal,
+            )
+            .await
+            .unwrap();
 
         let (urgent, high, normal, low) = queue.size_by_priority().await;
         assert_eq!(urgent, 1);

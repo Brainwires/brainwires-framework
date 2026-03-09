@@ -211,24 +211,15 @@ mod tests {
     #[test]
     fn test_severity_levels() {
         assert_eq!(
-            ApprovalAction::DeleteFile {
-                path: "x".into()
-            }
-            .severity(),
+            ApprovalAction::DeleteFile { path: "x".into() }.severity(),
             ApprovalSeverity::High
         );
         assert_eq!(
-            ApprovalAction::WriteFile {
-                path: "x".into()
-            }
-            .severity(),
+            ApprovalAction::WriteFile { path: "x".into() }.severity(),
             ApprovalSeverity::Medium
         );
         assert_eq!(
-            ApprovalAction::CreateDirectory {
-                path: "x".into()
-            }
-            .severity(),
+            ApprovalAction::CreateDirectory { path: "x".into() }.severity(),
             ApprovalSeverity::Low
         );
     }

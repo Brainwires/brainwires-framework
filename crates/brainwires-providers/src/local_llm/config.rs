@@ -229,21 +229,15 @@ impl LocalModelType {
             Self::Lfm2 | Self::Lfm2Agentic => {
                 "<|system|>\n{system}<|end|>\n<|user|>\n{user}<|end|>\n<|assistant|>\n"
             }
-            Self::Granite => {
-                "<|system|>\n{system}\n<|user|>\n{user}\n<|assistant|>\n"
-            }
+            Self::Granite => "<|system|>\n{system}\n<|user|>\n{user}\n<|assistant|>\n",
             Self::Qwen => {
                 "<|im_start|>system\n{system}<|im_end|>\n<|im_start|>user\n{user}<|im_end|>\n<|im_start|>assistant\n"
             }
             Self::Llama => {
                 "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n{system}<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n{user}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
             }
-            Self::Phi => {
-                "<|system|>\n{system}<|end|>\n<|user|>\n{user}<|end|>\n<|assistant|>\n"
-            }
-            Self::Generic => {
-                "### System:\n{system}\n\n### User:\n{user}\n\n### Assistant:\n"
-            }
+            Self::Phi => "<|system|>\n{system}<|end|>\n<|user|>\n{user}<|end|>\n<|assistant|>\n",
+            Self::Generic => "### System:\n{system}\n\n### User:\n{user}\n\n### Assistant:\n",
         }
     }
 

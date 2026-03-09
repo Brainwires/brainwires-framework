@@ -1,10 +1,7 @@
 use crate::config::DaemonConfig;
 use crate::reload;
 use rmcp::{
-    ServerHandler,
-    handler::server::tool::ToolRouter,
-    model::*,
-    tool, tool_handler, tool_router,
+    ServerHandler, handler::server::tool::ToolRouter, model::*, tool, tool_handler, tool_router,
 };
 use schemars::JsonSchema;
 use serde::Deserialize;

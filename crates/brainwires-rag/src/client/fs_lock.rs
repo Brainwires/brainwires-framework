@@ -112,10 +112,7 @@ impl FsLockGuard {
         loop {
             match Self::try_acquire(normalized_path)? {
                 Some(guard) => {
-                    tracing::info!(
-                        "Acquired filesystem lock after {:?}",
-                        start.elapsed()
-                    );
+                    tracing::info!("Acquired filesystem lock after {:?}", start.elapsed());
                     return Ok(Some(guard));
                 }
                 None => {
@@ -214,7 +211,10 @@ mod tests {
         let lock2 = lock_file_path(path2);
         let lock1_dup = lock_file_path(path1_dup);
 
-        assert_ne!(lock1, lock2, "Different paths should have different lock files");
+        assert_ne!(
+            lock1, lock2,
+            "Different paths should have different lock files"
+        );
         assert_eq!(lock1, lock1_dup, "Same path should have same lock file");
     }
 
@@ -224,21 +224,24 @@ mod tests {
 
         // Acquire lock in spawn_blocking (simulating what RagClient does)
         let path1 = path.to_string();
-        let guard1 = tokio::task::spawn_blocking(move || {
-            FsLockGuard::try_acquire(&path1).unwrap()
-        }).await.unwrap();
-        
+        let guard1 = tokio::task::spawn_blocking(move || FsLockGuard::try_acquire(&path1).unwrap())
+            .await
+            .unwrap();
+
         assert!(guard1.is_some(), "First lock should succeed");
-        
+
         // Hold the guard in this task
         let _held_guard = guard1.unwrap();
 
         // Try to acquire again from spawn_blocking
         let path2 = path.to_string();
-        let guard2 = tokio::task::spawn_blocking(move || {
-            FsLockGuard::try_acquire(&path2).unwrap()
-        }).await.unwrap();
+        let guard2 = tokio::task::spawn_blocking(move || FsLockGuard::try_acquire(&path2).unwrap())
+            .await
+            .unwrap();
 
-        assert!(guard2.is_none(), "Second lock should fail because first is held");
+        assert!(
+            guard2.is_none(),
+            "Second lock should fail because first is held"
+        );
     }
 }

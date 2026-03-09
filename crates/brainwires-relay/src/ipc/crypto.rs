@@ -5,8 +5,8 @@
 
 use anyhow::{Context, Result};
 use chacha20poly1305::{
-    aead::{Aead, KeyInit},
     ChaCha20Poly1305, Nonce,
+    aead::{Aead, KeyInit},
 };
 use rand::RngCore;
 use sha2::{Digest, Sha256};
@@ -95,11 +95,9 @@ impl IpcCipher {
     ///
     /// Convenient method for decrypting string messages.
     pub fn decrypt_string(&self, encrypted_b64: &str) -> Result<String> {
-        let encrypted = base64::Engine::decode(
-            &base64::engine::general_purpose::STANDARD,
-            encrypted_b64,
-        )
-        .context("Invalid base64 encoding")?;
+        let encrypted =
+            base64::Engine::decode(&base64::engine::general_purpose::STANDARD, encrypted_b64)
+                .context("Invalid base64 encoding")?;
 
         let plaintext = self.decrypt(&encrypted)?;
         String::from_utf8(plaintext).context("Decrypted data is not valid UTF-8")
@@ -155,7 +153,11 @@ mod tests {
         let encrypted = cipher.encrypt_string(message).unwrap();
 
         // Encrypted is base64
-        assert!(encrypted.chars().all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '/' || c == '='));
+        assert!(
+            encrypted
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '/' || c == '=')
+        );
 
         let decrypted = cipher.decrypt_string(&encrypted).unwrap();
         assert_eq!(decrypted, message);

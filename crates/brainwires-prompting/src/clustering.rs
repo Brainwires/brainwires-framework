@@ -5,7 +5,7 @@
 
 use super::techniques::{ComplexityLevel, PromptingTechnique};
 use crate::seal::SealProcessingResult;
-use anyhow::{anyhow, Context as _, Result};
+use anyhow::{Context as _, Result, anyhow};
 #[cfg(feature = "native")]
 use linfa::prelude::*;
 #[cfg(feature = "native")]
@@ -190,7 +190,12 @@ impl TaskClusterManager {
         let assignments = self.perform_kmeans(&task_embeddings, optimal_k)?;
 
         // Build cluster objects
-        self.build_cluster_objects(&task_embeddings, &task_descriptions, &assignments, optimal_k)?;
+        self.build_cluster_objects(
+            &task_embeddings,
+            &task_descriptions,
+            &assignments,
+            optimal_k,
+        )?;
 
         Ok(assignments)
     }

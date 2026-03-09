@@ -12,9 +12,7 @@ use futures::TryStreamExt;
 use lancedb::query::{ExecutableQuery, QueryBase};
 use tracing;
 
-use crate::knowledge::{
-    BehavioralKnowledgeCache, PersonalFactCollector, PersonalKnowledgeCache,
-};
+use crate::knowledge::{BehavioralKnowledgeCache, PersonalFactCollector, PersonalKnowledgeCache};
 use brainwires_storage::{EmbeddingProvider, LanceClient};
 
 use crate::fact_extractor;
@@ -50,7 +48,9 @@ impl BrainClient {
         let bks_path = base.join("bks.db");
 
         Self::with_paths(
-            lance_path.to_str().context("lance path is not valid UTF-8")?,
+            lance_path
+                .to_str()
+                .context("lance path is not valid UTF-8")?,
             pks_path.to_str().context("pks path is not valid UTF-8")?,
             bks_path.to_str().context("bks path is not valid UTF-8")?,
         )
@@ -137,7 +137,10 @@ impl BrainClient {
     // ── Capture ──────────────────────────────────────────────────────────
 
     /// Capture a new thought, embed it, detect category, extract PKS facts.
-    pub async fn capture_thought(&mut self, req: CaptureThoughtRequest) -> Result<CaptureThoughtResponse> {
+    pub async fn capture_thought(
+        &mut self,
+        req: CaptureThoughtRequest,
+    ) -> Result<CaptureThoughtResponse> {
         // Build the Thought
         let category = match &req.category {
             Some(c) => ThoughtCategory::parse(c),
@@ -289,7 +292,11 @@ impl BrainClient {
         }
 
         // Sort by score descending
-        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        results.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         results.truncate(req.limit);
 
         let total = results.len();
@@ -436,11 +443,7 @@ impl BrainClient {
 
         // Thought stats: query all non-deleted
         let table = self.thoughts_table().await?;
-        let stream = table
-            .query()
-            .only_if("deleted = false")
-            .execute()
-            .await?;
+        let stream = table.query().only_if("deleted = false").execute().await?;
         let batches: Vec<RecordBatch> = stream.try_collect().await?;
         let all_thoughts = self.batch_to_thoughts(&batches)?;
 
@@ -452,9 +455,7 @@ impl BrainClient {
         let mut recent_30d = 0usize;
 
         for t in &all_thoughts {
-            *by_category
-                .entry(t.category.to_string())
-                .or_insert(0) += 1;
+            *by_category.entry(t.category.to_string()).or_insert(0) += 1;
             for tag in &t.tags {
                 *tag_counts.entry(tag.clone()).or_insert(0) += 1;
             }
@@ -640,8 +641,7 @@ impl BrainClient {
 
             for i in 0..batch.num_rows() {
                 let tags_str = tags_col.value(i);
-                let tags: Vec<String> =
-                    serde_json::from_str(tags_str).unwrap_or_default();
+                let tags: Vec<String> = serde_json::from_str(tags_str).unwrap_or_default();
 
                 result.push(Thought {
                     id: ids.value(i).to_string(),

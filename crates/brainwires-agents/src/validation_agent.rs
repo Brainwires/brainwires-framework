@@ -30,10 +30,7 @@ pub struct ValidationAgent {
 
 impl ValidationAgent {
     /// Create a new validation agent
-    pub fn new(
-        state_model: Arc<ThreeStateModel>,
-        resource_checker: Arc<ResourceChecker>,
-    ) -> Self {
+    pub fn new(state_model: Arc<ThreeStateModel>, resource_checker: Arc<ResourceChecker>) -> Self {
         let mut agent = Self {
             state_model,
             resource_checker,
@@ -57,14 +54,15 @@ impl ValidationAgent {
                         // Looks like a file path
                         let path = PathBuf::from(resource);
                         if let Some(file_status) = ctx.current_state.files.get(&path)
-                            && !file_status.exists {
-                                return ValidationOutcome {
-                                    passed: false,
-                                    rule_name: "file_exists_for_edit".into(),
-                                    message: format!("File does not exist: {}", resource),
-                                    severity: ValidationSeverity::Warning,
-                                };
-                            }
+                            && !file_status.exists
+                        {
+                            return ValidationOutcome {
+                                passed: false,
+                                rule_name: "file_exists_for_edit".into(),
+                                message: format!("File does not exist: {}", resource),
+                                severity: ValidationSeverity::Warning,
+                            };
+                        }
                         // File not in state could mean it exists on disk but isn't tracked
                     }
                 }
@@ -81,17 +79,18 @@ impl ValidationAgent {
                 // Check if any resource needed is locked by another agent
                 for resource in &ctx.operation.resources_needed {
                     if let Some(holder) = ctx.current_state.locks.get(resource)
-                        && holder != &ctx.agent_id {
-                            return ValidationOutcome {
-                                passed: false,
-                                rule_name: "no_conflicting_locks".into(),
-                                message: format!(
-                                    "Resource '{}' is locked by agent '{}'",
-                                    resource, holder
-                                ),
-                                severity: ValidationSeverity::Error,
-                            };
-                        }
+                        && holder != &ctx.agent_id
+                    {
+                        return ValidationOutcome {
+                            passed: false,
+                            rule_name: "no_conflicting_locks".into(),
+                            message: format!(
+                                "Resource '{}' is locked by agent '{}'",
+                                resource, holder
+                            ),
+                            severity: ValidationSeverity::Error,
+                        };
+                    }
                 }
                 ValidationOutcome::pass("no_conflicting_locks")
             }),
@@ -107,14 +106,15 @@ impl ValidationAgent {
                 if (ctx.operation.operation_type.starts_with("git_")
                     || ctx.operation.operation_type == "commit"
                     || ctx.operation.operation_type == "push")
-                    && ctx.current_state.git_state.has_conflicts {
-                        return ValidationOutcome {
-                            passed: false,
-                            rule_name: "no_git_conflicts".into(),
-                            message: "Git working tree has unresolved conflicts".into(),
-                            severity: ValidationSeverity::Error,
-                        };
-                    }
+                    && ctx.current_state.git_state.has_conflicts
+                {
+                    return ValidationOutcome {
+                        passed: false,
+                        rule_name: "no_git_conflicts".into(),
+                        message: "Git working tree has unresolved conflicts".into(),
+                        severity: ValidationSeverity::Error,
+                    };
+                }
                 ValidationOutcome::pass("no_git_conflicts")
             }),
         });
@@ -130,18 +130,20 @@ impl ValidationAgent {
                     || ctx.operation.operation_type == "file_edit"
                 {
                     for resource in &ctx.operation.resources_produced {
-                        if let Some(file_status) = ctx.current_state.files.get(&PathBuf::from(resource))
-                            && !file_status.dirty {
-                                return ValidationOutcome {
-                                    passed: false,
-                                    rule_name: "artifacts_invalidated_after_edit".into(),
-                                    message: format!(
-                                        "File '{}' should be marked dirty after edit",
-                                        resource
-                                    ),
-                                    severity: ValidationSeverity::Warning,
-                                };
-                            }
+                        if let Some(file_status) =
+                            ctx.current_state.files.get(&PathBuf::from(resource))
+                            && !file_status.dirty
+                        {
+                            return ValidationOutcome {
+                                passed: false,
+                                rule_name: "artifacts_invalidated_after_edit".into(),
+                                message: format!(
+                                    "File '{}' should be marked dirty after edit",
+                                    resource
+                                ),
+                                severity: ValidationSeverity::Warning,
+                            };
+                        }
                     }
                 }
                 ValidationOutcome::pass("artifacts_invalidated_after_edit")
@@ -228,37 +230,38 @@ impl ValidationAgent {
                 if ctx.operation.operation_type.starts_with("git_") {
                     for other_agent in &ctx.other_agents {
                         if let Some(ref other_op) = other_agent.current_operation
-                            && other_op.starts_with("git_") {
-                                // Two git operations running concurrently
-                                // Some combinations are OK (e.g., git_status + git_log)
-                                // But others conflict (e.g., git_commit + git_commit)
+                            && other_op.starts_with("git_")
+                        {
+                            // Two git operations running concurrently
+                            // Some combinations are OK (e.g., git_status + git_log)
+                            // But others conflict (e.g., git_commit + git_commit)
 
-                                let conflicting_ops = [
-                                    "git_commit",
-                                    "git_push",
-                                    "git_pull",
-                                    "git_merge",
-                                    "git_rebase",
-                                    "git_checkout",
-                                    "git_branch_create",
-                                    "git_branch_delete",
-                                ];
+                            let conflicting_ops = [
+                                "git_commit",
+                                "git_push",
+                                "git_pull",
+                                "git_merge",
+                                "git_rebase",
+                                "git_checkout",
+                                "git_branch_create",
+                                "git_branch_delete",
+                            ];
 
-                                let our_op = &ctx.operation.operation_type;
-                                if conflicting_ops.contains(&our_op.as_str())
-                                    && conflicting_ops.contains(&other_op.as_str())
-                                {
-                                    return ValidationOutcome {
-                                        passed: false,
-                                        rule_name: "git_coordination".into(),
-                                        message: format!(
-                                            "Git operation '{}' conflicts with '{}' by agent '{}'",
-                                            our_op, other_op, other_agent.agent_id
-                                        ),
-                                        severity: ValidationSeverity::Error,
-                                    };
-                                }
+                            let our_op = &ctx.operation.operation_type;
+                            if conflicting_ops.contains(&our_op.as_str())
+                                && conflicting_ops.contains(&other_op.as_str())
+                            {
+                                return ValidationOutcome {
+                                    passed: false,
+                                    rule_name: "git_coordination".into(),
+                                    message: format!(
+                                        "Git operation '{}' conflicts with '{}' by agent '{}'",
+                                        our_op, other_op, other_agent.agent_id
+                                    ),
+                                    severity: ValidationSeverity::Error,
+                                };
                             }
+                        }
                     }
                 }
                 ValidationOutcome::pass("git_coordination")
@@ -271,29 +274,31 @@ impl ValidationAgent {
             description: "Build operations should not run concurrently on same project".into(),
             rule_type: RuleType::InterAgent,
             check: Box::new(|ctx| {
-                if ctx.operation.operation_type == "build" || ctx.operation.operation_type == "test" {
+                if ctx.operation.operation_type == "build" || ctx.operation.operation_type == "test"
+                {
                     for other_agent in &ctx.other_agents {
                         if let Some(ref other_op) = other_agent.current_operation
-                            && (other_op == "build" || other_op == "test") {
-                                // Check if operating on same project/scope
-                                // For now, assume same scope if resources overlap
-                                let our_resources: std::collections::HashSet<_> =
-                                    ctx.operation.resources_needed.iter().collect();
-                                let their_resources: std::collections::HashSet<_> =
-                                    other_agent.held_resources.iter().collect();
+                            && (other_op == "build" || other_op == "test")
+                        {
+                            // Check if operating on same project/scope
+                            // For now, assume same scope if resources overlap
+                            let our_resources: std::collections::HashSet<_> =
+                                ctx.operation.resources_needed.iter().collect();
+                            let their_resources: std::collections::HashSet<_> =
+                                other_agent.held_resources.iter().collect();
 
-                                if !our_resources.is_disjoint(&their_resources) {
-                                    return ValidationOutcome {
-                                        passed: false,
-                                        rule_name: "build_coordination".into(),
-                                        message: format!(
-                                            "Build/test operation conflicts with '{}' by agent '{}'",
-                                            other_op, other_agent.agent_id
-                                        ),
-                                        severity: ValidationSeverity::Error,
-                                    };
-                                }
+                            if !our_resources.is_disjoint(&their_resources) {
+                                return ValidationOutcome {
+                                    passed: false,
+                                    rule_name: "build_coordination".into(),
+                                    message: format!(
+                                        "Build/test operation conflicts with '{}' by agent '{}'",
+                                        other_op, other_agent.agent_id
+                                    ),
+                                    severity: ValidationSeverity::Error,
+                                };
                             }
+                        }
                     }
                 }
                 ValidationOutcome::pass("build_coordination")
@@ -401,7 +406,11 @@ impl ValidationAgent {
         let snapshot = self.state_model.snapshot().await;
 
         // Get other agents' status from operation state
-        let active_ops = self.state_model.operation_state.get_active_operations().await;
+        let active_ops = self
+            .state_model
+            .operation_state
+            .get_active_operations()
+            .await;
         let other_agents: Vec<AgentStatus> = active_ops
             .iter()
             .filter(|op| op.agent_id != agent_id)
@@ -428,18 +437,11 @@ impl ValidationAgent {
         operation: &ProposedOperation,
     ) -> Vec<ValidationOutcome> {
         let results = self.pre_validate(agent_id, operation).await;
-        results
-            .into_iter()
-            .filter(|r| !r.passed)
-            .collect()
+        results.into_iter().filter(|r| !r.passed).collect()
     }
 
     /// Check if an operation can proceed (no Error-level failures)
-    pub async fn can_proceed(
-        &self,
-        agent_id: &str,
-        operation: &ProposedOperation,
-    ) -> bool {
+    pub async fn can_proceed(&self, agent_id: &str, operation: &ProposedOperation) -> bool {
         let results = self.pre_validate(agent_id, operation).await;
         !results
             .iter()
@@ -724,7 +726,9 @@ mod tests {
 
         // Get snapshot to populate locks
         let mut snapshot = state_model.snapshot().await;
-        snapshot.locks.insert("/test/file.rs".to_string(), "agent-2".to_string());
+        snapshot
+            .locks
+            .insert("/test/file.rs".to_string(), "agent-2".to_string());
 
         // The validation should detect the lock conflict
         let results = agent.pre_validate("agent-1", &operation).await;

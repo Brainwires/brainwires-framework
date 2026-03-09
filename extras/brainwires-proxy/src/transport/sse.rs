@@ -106,10 +106,16 @@ mod tests {
     #[test]
     fn detect_sse_response() {
         let mut headers = HeaderMap::new();
-        headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("text/event-stream"));
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("text/event-stream"),
+        );
         assert!(is_sse_response(&headers));
 
-        headers.insert(header::CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/json"),
+        );
         assert!(!is_sse_response(&headers));
 
         let empty = HeaderMap::new();

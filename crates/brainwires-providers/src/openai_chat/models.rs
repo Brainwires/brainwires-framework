@@ -6,8 +6,7 @@ use reqwest::Client;
 use serde::Deserialize;
 
 use crate::model_listing::{
-    AvailableModel, ModelLister, OpenAIListResponse,
-    infer_openai_capabilities,
+    AvailableModel, ModelLister, OpenAIListResponse, infer_openai_capabilities,
 };
 
 // ---------------------------------------------------------------------------
@@ -84,7 +83,9 @@ impl ModelLister for OpenAIModelLister {
             ));
         }
 
-        let list: OpenAIListResponse = resp.json().await
+        let list: OpenAIListResponse = resp
+            .json()
+            .await
             .context("Failed to parse OpenAI models response")?;
 
         let models = list

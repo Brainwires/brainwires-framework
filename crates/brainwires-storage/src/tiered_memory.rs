@@ -22,7 +22,10 @@ use anyhow::Result;
 use chrono::Utc;
 use uuid::Uuid;
 
-use super::{EmbeddingProvider, FactStore, LanceClient, MessageMetadata, MessageStore, SummaryStore, TierMetadataStore};
+use super::{
+    EmbeddingProvider, FactStore, LanceClient, MessageMetadata, MessageStore, SummaryStore,
+    TierMetadataStore,
+};
 
 const SECS_PER_HOUR: f32 = 3600.0;
 const SIMILARITY_WEIGHT: f32 = 0.50;
@@ -57,7 +60,6 @@ pub enum MemoryAuthority {
     /// `Ephemeral` or `Session` authority sources.
     Canonical,
 }
-
 
 impl MemoryAuthority {
     /// Display string used as the stored column value.
@@ -194,7 +196,9 @@ impl TierMetadata {
         let recency_factor = (-0.01 * age_hours).exp(); // Decay over time
         let access_factor = (self.access_count as f32).ln_1p() * 0.1; // Log access count
 
-        self.importance * SIMILARITY_WEIGHT + recency_factor * RECENCY_WEIGHT + access_factor * IMPORTANCE_WEIGHT
+        self.importance * SIMILARITY_WEIGHT
+            + recency_factor * RECENCY_WEIGHT
+            + access_factor * IMPORTANCE_WEIGHT
     }
 }
 
@@ -270,8 +274,15 @@ pub struct MultiFactorScore {
 impl MultiFactorScore {
     /// Compute the combined score from its components.
     pub fn compute(similarity: f32, recency: f32, importance: f32) -> Self {
-        let combined = similarity * SIMILARITY_WEIGHT + recency * RECENCY_WEIGHT + importance * IMPORTANCE_WEIGHT;
-        Self { similarity, recency, importance, combined }
+        let combined = similarity * SIMILARITY_WEIGHT
+            + recency * RECENCY_WEIGHT
+            + importance * IMPORTANCE_WEIGHT;
+        Self {
+            similarity,
+            recency,
+            importance,
+            combined,
+        }
     }
 
     /// Decay rate used for the recency factor (per hour).
@@ -397,7 +408,11 @@ impl TieredMemory {
     /// If `TieredMemoryConfig::session_ttl_secs` is set, the message will be
     /// assigned an expiry timestamp and will be removed by [`Self::evict_expired`]
     /// after the configured duration.
-    pub async fn add_message(&mut self, mut message: MessageMetadata, importance: f32) -> Result<()> {
+    pub async fn add_message(
+        &mut self,
+        mut message: MessageMetadata,
+        importance: f32,
+    ) -> Result<()> {
         // Apply TTL if configured
         if let Some(ttl_secs) = self.config.session_ttl_secs {
             message.expires_at = Some(Utc::now().timestamp() + ttl_secs as i64);
@@ -438,7 +453,11 @@ impl TieredMemory {
     pub async fn evict_expired(&self) -> Result<usize> {
         let evicted = self.hot.delete_expired().await?;
         if evicted > 0 {
-            tracing::info!(evicted, "TieredMemory: evicted {} expired message(s)", evicted);
+            tracing::info!(
+                evicted,
+                "TieredMemory: evicted {} expired message(s)",
+                evicted
+            );
         }
         Ok(evicted)
     }
@@ -470,9 +489,10 @@ impl TieredMemory {
         for (msg, score) in hot_results {
             // Lazy eviction: skip entries whose TTL has expired
             if let Some(exp) = msg.expires_at
-                && exp <= Utc::now().timestamp() {
-                    continue;
-                }
+                && exp <= Utc::now().timestamp()
+            {
+                continue;
+            }
 
             // Record access for retention tracking
             let _ = self.record_access(&msg.message_id).await;
@@ -494,7 +514,9 @@ impl TieredMemory {
 
         // 2. Search warm tier (summaries)
         let warm_results = if let Some(conv_id) = conversation_id {
-            self.warm.search_conversation(conv_id, query, 3, 0.5).await?
+            self.warm
+                .search_conversation(conv_id, query, 3, 0.5)
+                .await?
         } else {
             self.warm.search(query, 3, 0.5).await?
         };
@@ -513,7 +535,9 @@ impl TieredMemory {
         // 3. If still no good results, search cold tier
         if results.iter().all(|r| r.score < 0.7) {
             let cold_results = if let Some(conv_id) = conversation_id {
-                self.cold.search_conversation(conv_id, query, 3, 0.4).await?
+                self.cold
+                    .search_conversation(conv_id, query, 3, 0.4)
+                    .await?
             } else {
                 self.cold.search(query, 3, 0.4).await?
             };
@@ -531,7 +555,11 @@ impl TieredMemory {
         }
 
         // Sort by score descending
-        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        results.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         Ok(results)
     }
@@ -579,13 +607,20 @@ impl TieredMemory {
                 (1.0_f32, 0.5_f32)
             };
 
-            result.multi_factor_score = Some(MultiFactorScore::compute(similarity, recency, importance));
+            result.multi_factor_score =
+                Some(MultiFactorScore::compute(similarity, recency, importance));
         }
 
         // Re-sort by combined score (highest first).
         results.sort_by(|a, b| {
-            let sa = a.multi_factor_score.as_ref().map_or(a.score, |s| s.combined);
-            let sb = b.multi_factor_score.as_ref().map_or(b.score, |s| s.combined);
+            let sa = a
+                .multi_factor_score
+                .as_ref()
+                .map_or(a.score, |s| s.combined);
+            let sb = b
+                .multi_factor_score
+                .as_ref()
+                .map_or(b.score, |s| s.combined);
             sb.partial_cmp(&sa).unwrap_or(std::cmp::Ordering::Equal)
         });
 
@@ -593,7 +628,11 @@ impl TieredMemory {
     }
 
     /// Demote a message from hot to warm tier
-    pub async fn demote_to_warm(&mut self, message_id: &str, summary: MessageSummary) -> Result<()> {
+    pub async fn demote_to_warm(
+        &mut self,
+        message_id: &str,
+        summary: MessageSummary,
+    ) -> Result<()> {
         // Update tier metadata
         if let Some(mut meta) = self.tier_metadata.get(message_id).await? {
             meta.tier = MemoryTier::Warm;
@@ -628,7 +667,11 @@ impl TieredMemory {
     }
 
     /// Get messages that should be considered for demotion
-    pub async fn get_demotion_candidates(&self, tier: MemoryTier, count: usize) -> Result<Vec<String>> {
+    pub async fn get_demotion_candidates(
+        &self,
+        tier: MemoryTier,
+        count: usize,
+    ) -> Result<Vec<String>> {
         let all_metadata = self.tier_metadata.get_by_tier(tier).await?;
 
         let mut candidates: Vec<_> = all_metadata
@@ -637,9 +680,7 @@ impl TieredMemory {
             .collect();
 
         // Sort by retention score (lowest first = demote first)
-        candidates.sort_by(|a, b| {
-            a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal)
-        });
+        candidates.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
 
         Ok(candidates
             .into_iter()
@@ -709,7 +750,10 @@ mod tests {
     fn test_multi_factor_score_weights_sum_to_one() {
         // weights: 0.50 + 0.30 + 0.20 = 1.0
         let score = MultiFactorScore::compute(1.0, 1.0, 1.0);
-        assert!((score.combined - 1.0).abs() < 1e-6, "all-one inputs should yield combined=1");
+        assert!(
+            (score.combined - 1.0).abs() < 1e-6,
+            "all-one inputs should yield combined=1"
+        );
     }
 
     #[test]
@@ -730,22 +774,30 @@ mod tests {
         let r_now = MultiFactorScore::recency_from_hours(0.0);
         let r_day = MultiFactorScore::recency_from_hours(24.0);
         let r_week = MultiFactorScore::recency_from_hours(168.0);
-        assert!(r_now > r_day, "fresh entry must score higher than 1-day-old");
-        assert!(r_day > r_week, "1-day-old must score higher than 1-week-old");
+        assert!(
+            r_now > r_day,
+            "fresh entry must score higher than 1-day-old"
+        );
+        assert!(
+            r_day > r_week,
+            "1-day-old must score higher than 1-week-old"
+        );
         assert!(r_week > 0.0, "recency factor must remain positive");
     }
 
     #[test]
     fn test_high_similarity_low_recency_can_be_beaten_by_balanced_entry() {
         // High similarity but stale (1 week old, no importance)
-        let stale = MultiFactorScore::compute(0.95, MultiFactorScore::recency_from_hours(168.0), 0.0);
+        let stale =
+            MultiFactorScore::compute(0.95, MultiFactorScore::recency_from_hours(168.0), 0.0);
         // Moderate similarity but recent and important
         let fresh = MultiFactorScore::compute(0.70, MultiFactorScore::recency_from_hours(1.0), 0.9);
         // The balanced entry should edge ahead
         assert!(
             fresh.combined > stale.combined,
             "fresh important entry ({:.3}) should beat stale high-similarity entry ({:.3})",
-            fresh.combined, stale.combined
+            fresh.combined,
+            stale.combined
         );
     }
 
@@ -806,7 +858,11 @@ mod tests {
 
     #[test]
     fn test_memory_authority_round_trip() {
-        for auth in [MemoryAuthority::Ephemeral, MemoryAuthority::Session, MemoryAuthority::Canonical] {
+        for auth in [
+            MemoryAuthority::Ephemeral,
+            MemoryAuthority::Session,
+            MemoryAuthority::Canonical,
+        ] {
             assert_eq!(MemoryAuthority::parse(auth.as_str()), auth);
         }
     }

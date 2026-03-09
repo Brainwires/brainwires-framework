@@ -29,12 +29,10 @@ pub trait LanguageExecutor {
 
 /// Helper to create execution limits from request
 pub(crate) fn get_limits(request: &ExecutionRequest) -> ExecutionLimits {
-    request.limits.clone().unwrap_or_else(|| {
-        ExecutionLimits {
-            max_timeout_ms: request.timeout_ms,
-            max_memory_mb: request.memory_limit_mb,
-            ..ExecutionLimits::default()
-        }
+    request.limits.clone().unwrap_or_else(|| ExecutionLimits {
+        max_timeout_ms: request.timeout_ms,
+        max_memory_mb: request.memory_limit_mb,
+        ..ExecutionLimits::default()
     })
 }
 
@@ -44,6 +42,9 @@ pub(crate) fn truncate_output(output: &str, max_bytes: usize) -> String {
         output.to_string()
     } else {
         let truncated = &output[..max_bytes];
-        format!("{}...\n[Output truncated at {} bytes]", truncated, max_bytes)
+        format!(
+            "{}...\n[Output truncated at {} bytes]",
+            truncated, max_bytes
+        )
     }
 }

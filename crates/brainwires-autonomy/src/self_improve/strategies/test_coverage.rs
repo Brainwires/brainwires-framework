@@ -4,8 +4,8 @@ use anyhow::Result;
 use async_trait::async_trait;
 use walkdir::WalkDir;
 
-use crate::config::StrategyConfig;
 use super::{ImprovementCategory, ImprovementStrategy, ImprovementTask};
+use crate::config::StrategyConfig;
 
 /// Strategy that identifies files with missing or insufficient test coverage.
 pub struct TestCoverageStrategy;

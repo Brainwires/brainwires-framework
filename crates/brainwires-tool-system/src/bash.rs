@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::process::Command;
 use std::time::Duration;
@@ -59,13 +59,36 @@ pub struct OutputLimits {
 
 /// Interactive commands that should be rejected
 const INTERACTIVE_COMMANDS: &[&str] = &[
-    "vim", "vi", "nvim", "nano", "emacs", "pico",
-    "less", "more", "most",
-    "top", "htop", "btop", "glances",
-    "man", "info",
-    "ssh", "telnet", "ftp", "sftp",
-    "python", "python3", "node", "irb", "ghci", "lua",
-    "mysql", "psql", "sqlite3", "mongo", "redis-cli",
+    "vim",
+    "vi",
+    "nvim",
+    "nano",
+    "emacs",
+    "pico",
+    "less",
+    "more",
+    "most",
+    "top",
+    "htop",
+    "btop",
+    "glances",
+    "man",
+    "info",
+    "ssh",
+    "telnet",
+    "ftp",
+    "sftp",
+    "python",
+    "python3",
+    "node",
+    "irb",
+    "ghci",
+    "lua",
+    "mysql",
+    "psql",
+    "sqlite3",
+    "mongo",
+    "redis-cli",
 ];
 
 /// Bash execution tool implementation
@@ -147,7 +170,12 @@ impl BashTool {
 
     /// Execute a bash command tool
     #[tracing::instrument(name = "tool.execute", skip(input, context), fields(tool_name))]
-    pub fn execute(tool_use_id: &str, tool_name: &str, input: &Value, context: &ToolContext) -> ToolResult {
+    pub fn execute(
+        tool_use_id: &str,
+        tool_name: &str,
+        input: &Value,
+        context: &ToolContext,
+    ) -> ToolResult {
         let result = match tool_name {
             "execute_command" => Self::execute_command(input, context),
             _ => Err(anyhow::anyhow!("Unknown bash tool: {}", tool_name)),
@@ -155,7 +183,10 @@ impl BashTool {
 
         match result {
             Ok(output) => ToolResult::success(tool_use_id.to_string(), output),
-            Err(e) => ToolResult::error(tool_use_id.to_string(), format!("Command execution failed: {}", e)),
+            Err(e) => ToolResult::error(
+                tool_use_id.to_string(),
+                format!("Command execution failed: {}", e),
+            ),
         }
     }
 
@@ -165,7 +196,11 @@ impl BashTool {
         if Self::is_interactive_command(&params.command) {
             return Err(anyhow::anyhow!(
                 "Interactive command detected: '{}'. Use non-interactive alternatives instead.",
-                params.command.split_whitespace().next().unwrap_or(&params.command)
+                params
+                    .command
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or(&params.command)
             ));
         }
 
@@ -199,80 +234,126 @@ impl BashTool {
 
         match first_word {
             "cargo" if cmd_lower.contains("build") => OutputLimits {
-                max_lines: Some(80), output_mode: OutputMode::Head,
-                stderr_mode: StderrMode::Combined, ..Default::default()
+                max_lines: Some(80),
+                output_mode: OutputMode::Head,
+                stderr_mode: StderrMode::Combined,
+                ..Default::default()
             },
             "cargo" if cmd_lower.contains("test") => OutputLimits {
-                max_lines: Some(100), output_mode: OutputMode::Head,
-                stderr_mode: StderrMode::Combined, ..Default::default()
+                max_lines: Some(100),
+                output_mode: OutputMode::Head,
+                stderr_mode: StderrMode::Combined,
+                ..Default::default()
             },
             "cargo" if cmd_lower.contains("check") => OutputLimits {
-                max_lines: Some(60), output_mode: OutputMode::Head,
-                stderr_mode: StderrMode::Combined, ..Default::default()
+                max_lines: Some(60),
+                output_mode: OutputMode::Head,
+                stderr_mode: StderrMode::Combined,
+                ..Default::default()
             },
             "cargo" if cmd_lower.contains("clippy") => OutputLimits {
-                max_lines: Some(80), output_mode: OutputMode::Head,
-                stderr_mode: StderrMode::Combined, ..Default::default()
+                max_lines: Some(80),
+                output_mode: OutputMode::Head,
+                stderr_mode: StderrMode::Combined,
+                ..Default::default()
             },
             "npm" | "yarn" | "pnpm" | "bun" => OutputLimits {
-                max_lines: Some(50), output_mode: OutputMode::Head,
-                stderr_mode: StderrMode::Combined, ..Default::default()
+                max_lines: Some(50),
+                output_mode: OutputMode::Head,
+                stderr_mode: StderrMode::Combined,
+                ..Default::default()
             },
             "make" | "cmake" | "ninja" => OutputLimits {
-                max_lines: Some(100), output_mode: OutputMode::Head,
-                stderr_mode: StderrMode::Combined, ..Default::default()
+                max_lines: Some(100),
+                output_mode: OutputMode::Head,
+                stderr_mode: StderrMode::Combined,
+                ..Default::default()
             },
             "go" if cmd_lower.contains("build") || cmd_lower.contains("test") => OutputLimits {
-                max_lines: Some(50), output_mode: OutputMode::Head,
-                stderr_mode: StderrMode::Combined, ..Default::default()
+                max_lines: Some(50),
+                output_mode: OutputMode::Head,
+                stderr_mode: StderrMode::Combined,
+                ..Default::default()
             },
             "find" | "fd" => OutputLimits {
-                max_lines: Some(50), output_mode: OutputMode::Head, ..Default::default()
+                max_lines: Some(50),
+                output_mode: OutputMode::Head,
+                ..Default::default()
             },
             "locate" => OutputLimits {
-                max_lines: Some(30), output_mode: OutputMode::Head, ..Default::default()
+                max_lines: Some(30),
+                output_mode: OutputMode::Head,
+                ..Default::default()
             },
             "git" if cmd_lower.contains("log") => OutputLimits {
-                max_lines: Some(30), output_mode: OutputMode::Head, ..Default::default()
+                max_lines: Some(30),
+                output_mode: OutputMode::Head,
+                ..Default::default()
             },
             "git" if cmd_lower.contains("diff") => OutputLimits {
-                max_lines: Some(100), output_mode: OutputMode::Head, ..Default::default()
+                max_lines: Some(100),
+                output_mode: OutputMode::Head,
+                ..Default::default()
             },
             "git" if cmd_lower.contains("status") => OutputLimits {
-                max_lines: Some(50), output_mode: OutputMode::Head, ..Default::default()
+                max_lines: Some(50),
+                output_mode: OutputMode::Head,
+                ..Default::default()
             },
             "ps" => OutputLimits {
-                max_lines: Some(30), output_mode: OutputMode::Head, ..Default::default()
+                max_lines: Some(30),
+                output_mode: OutputMode::Head,
+                ..Default::default()
             },
             "docker" if cmd_lower.contains("logs") => OutputLimits {
-                max_lines: Some(50), output_mode: OutputMode::Tail, ..Default::default()
+                max_lines: Some(50),
+                output_mode: OutputMode::Tail,
+                ..Default::default()
             },
             "docker" if cmd_lower.contains("ps") => OutputLimits {
-                max_lines: Some(30), output_mode: OutputMode::Head, ..Default::default()
+                max_lines: Some(30),
+                output_mode: OutputMode::Head,
+                ..Default::default()
             },
             "kubectl" if cmd_lower.contains("logs") => OutputLimits {
-                max_lines: Some(50), output_mode: OutputMode::Tail, ..Default::default()
+                max_lines: Some(50),
+                output_mode: OutputMode::Tail,
+                ..Default::default()
             },
             "kubectl" => OutputLimits {
-                max_lines: Some(50), output_mode: OutputMode::Head, ..Default::default()
+                max_lines: Some(50),
+                output_mode: OutputMode::Head,
+                ..Default::default()
             },
             "pm2" if cmd_lower.contains("logs") => OutputLimits {
-                max_lines: Some(50), output_mode: OutputMode::Tail, ..Default::default()
+                max_lines: Some(50),
+                output_mode: OutputMode::Tail,
+                ..Default::default()
             },
             "journalctl" => OutputLimits {
-                max_lines: Some(100), output_mode: OutputMode::Tail, ..Default::default()
+                max_lines: Some(100),
+                output_mode: OutputMode::Tail,
+                ..Default::default()
             },
             "supervisorctl" if cmd_lower.contains("tail") => OutputLimits {
-                max_lines: Some(100), output_mode: OutputMode::Tail, ..Default::default()
+                max_lines: Some(100),
+                output_mode: OutputMode::Tail,
+                ..Default::default()
             },
             "ls" => OutputLimits {
-                max_lines: Some(50), output_mode: OutputMode::Head, ..Default::default()
+                max_lines: Some(50),
+                output_mode: OutputMode::Head,
+                ..Default::default()
             },
             "tree" => OutputLimits {
-                max_lines: Some(80), output_mode: OutputMode::Head, ..Default::default()
+                max_lines: Some(80),
+                output_mode: OutputMode::Head,
+                ..Default::default()
             },
             "grep" | "rg" | "ag" | "ack" => OutputLimits {
-                max_lines: Some(50), output_mode: OutputMode::Head, ..Default::default()
+                max_lines: Some(50),
+                output_mode: OutputMode::Head,
+                ..Default::default()
             },
             _ => OutputLimits::default(),
         }
@@ -298,20 +379,30 @@ impl BashTool {
                 }
                 format!("{} -n {}", result, lines)
             }
-            "docker" if cmd_lower.contains("logs") && (cmd_lower.contains("-f") || cmd_lower.contains("--follow")) => {
+            "docker"
+                if cmd_lower.contains("logs")
+                    && (cmd_lower.contains("-f") || cmd_lower.contains("--follow")) =>
+            {
                 let cleaned = command
-                    .replace(" -f ", " ").replace(" -f", "")
-                    .replace(" --follow ", " ").replace(" --follow", "");
+                    .replace(" -f ", " ")
+                    .replace(" -f", "")
+                    .replace(" --follow ", " ")
+                    .replace(" --follow", "");
                 if !cleaned.to_lowercase().contains("--tail") {
                     format!("{} --tail {}", cleaned, lines)
                 } else {
                     cleaned
                 }
             }
-            "kubectl" if cmd_lower.contains("logs") && (cmd_lower.contains("-f") || cmd_lower.contains("--follow")) => {
+            "kubectl"
+                if cmd_lower.contains("logs")
+                    && (cmd_lower.contains("-f") || cmd_lower.contains("--follow")) =>
+            {
                 let cleaned = command
-                    .replace(" -f ", " ").replace(" -f", "")
-                    .replace(" --follow ", " ").replace(" --follow", "");
+                    .replace(" -f ", " ")
+                    .replace(" -f", "")
+                    .replace(" --follow ", " ")
+                    .replace(" --follow", "");
                 if !cleaned.to_lowercase().contains("--tail") {
                     format!("{} --tail={}", cleaned, lines)
                 } else {
@@ -335,9 +426,15 @@ impl BashTool {
         }
 
         match limits.stderr_mode {
-            StderrMode::Combined => { cmd = format!("{} 2>&1", cmd); }
-            StderrMode::StderrOnly => { cmd = format!("{} 2>&1 >/dev/null", cmd); }
-            StderrMode::Suppress => { cmd = format!("{} 2>/dev/null", cmd); }
+            StderrMode::Combined => {
+                cmd = format!("{} 2>&1", cmd);
+            }
+            StderrMode::StderrOnly => {
+                cmd = format!("{} 2>&1 >/dev/null", cmd);
+            }
+            StderrMode::Suppress => {
+                cmd = format!("{} 2>/dev/null", cmd);
+            }
             StderrMode::Separate => {}
         }
 
@@ -348,8 +445,12 @@ impl BashTool {
 
         if let Some(n) = limits.max_lines {
             match limits.output_mode {
-                OutputMode::Tail => { cmd = format!("{} | tail -n {}", cmd, n); }
-                OutputMode::Count => { cmd = format!("{} | wc -l", cmd); }
+                OutputMode::Tail => {
+                    cmd = format!("{} | tail -n {}", cmd, n);
+                }
+                OutputMode::Count => {
+                    cmd = format!("{} | wc -l", cmd);
+                }
                 OutputMode::Head | OutputMode::Smart | OutputMode::Full | OutputMode::Filter => {
                     if limits.output_mode != OutputMode::Full {
                         cmd = format!("{} | head -n {}", cmd, n);
@@ -367,12 +468,17 @@ impl BashTool {
 
     fn validate_command(command: &str) -> Result<()> {
         let dangerous_patterns = vec![
-            "rm -rf /", "mkfs", "> /dev/sda", "dd if=/dev/zero", ":(){ :|:& };:",
+            "rm -rf /",
+            "mkfs",
+            "> /dev/sda",
+            "dd if=/dev/zero",
+            ":(){ :|:& };:",
         ];
         for pattern in dangerous_patterns {
             if command.contains(pattern) {
                 return Err(anyhow::anyhow!(
-                    "Command contains potentially dangerous pattern: {}", pattern
+                    "Command contains potentially dangerous pattern: {}",
+                    pattern
                 ));
             }
         }
@@ -393,36 +499,61 @@ impl BashTool {
         };
         match result {
             Ok(output) => ToolResult::success(tool_use_id.to_string(), output),
-            Err(e) => ToolResult::error(tool_use_id.to_string(), format!("Command execution failed: {}", e)),
+            Err(e) => ToolResult::error(
+                tool_use_id.to_string(),
+                format!("Command execution failed: {}", e),
+            ),
         }
     }
 
-    fn execute_command_with_sudo(input: &Value, context: &ToolContext, password: Zeroizing<String>) -> Result<String> {
+    fn execute_command_with_sudo(
+        input: &Value,
+        context: &ToolContext,
+        password: Zeroizing<String>,
+    ) -> Result<String> {
         let params = Self::parse_command_params(input)?;
         if Self::is_interactive_command(&params.command) {
             return Err(anyhow::anyhow!(
                 "Interactive command detected: '{}'. Use non-interactive alternatives instead.",
-                params.command.split_whitespace().next().unwrap_or(&params.command)
+                params
+                    .command
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or(&params.command)
             ));
         }
         Self::validate_command(&params.command)?;
         let limits = Self::resolve_output_limits(&params);
         let transformed_command = Self::transform_command(&params.command, &limits);
-        let output = Self::run_command_with_sudo(&transformed_command, &context.working_directory, password)?;
+        let output = Self::run_command_with_sudo(
+            &transformed_command,
+            &context.working_directory,
+            password,
+        )?;
         Self::format_command_output(&params.command, &transformed_command, &output, &limits)
     }
 
-    fn run_command_with_sudo(command: &str, working_dir: &str, password: Zeroizing<String>) -> Result<CommandOutput> {
+    fn run_command_with_sudo(
+        command: &str,
+        working_dir: &str,
+        password: Zeroizing<String>,
+    ) -> Result<CommandOutput> {
         use std::io::Write;
         use std::process::Stdio;
 
         let effective_command = command.strip_prefix("sudo ").unwrap_or(command);
-        let sudo_command = format!("sudo -S bash -o pipefail -c {}", shell_escape(effective_command));
+        let sudo_command = format!(
+            "sudo -S bash -o pipefail -c {}",
+            shell_escape(effective_command)
+        );
 
         let mut child = Command::new("bash")
-            .arg("-c").arg(&sudo_command)
+            .arg("-c")
+            .arg(&sudo_command)
             .current_dir(working_dir)
-            .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped())
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
             .spawn()
             .with_context(|| format!("Failed to spawn sudo command: {}", command))?;
 
@@ -431,16 +562,23 @@ impl BashTool {
         }
         drop(password);
 
-        let output = child.wait_with_output()
+        let output = child
+            .wait_with_output()
             .with_context(|| format!("Failed to wait for sudo command: {}", command))?;
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
         let exit_code = output.status.code().unwrap_or(-1);
-        let filtered_stderr = stderr.lines()
+        let filtered_stderr = stderr
+            .lines()
             .filter(|line| !line.contains("[sudo] password for"))
-            .collect::<Vec<_>>().join("\n");
+            .collect::<Vec<_>>()
+            .join("\n");
 
-        Ok(CommandOutput { stdout, stderr: filtered_stderr, exit_code })
+        Ok(CommandOutput {
+            stdout,
+            stderr: filtered_stderr,
+            exit_code,
+        })
     }
 
     fn parse_command_params(input: &Value) -> Result<ParsedCommandParams> {
@@ -460,58 +598,89 @@ impl BashTool {
             #[serde(default = "default_auto_limit")]
             auto_limit: bool,
         }
-        fn default_timeout() -> u64 { 30 }
-        fn default_auto_limit() -> bool { true }
+        fn default_timeout() -> u64 {
+            30
+        }
+        fn default_auto_limit() -> bool {
+            true
+        }
 
         let raw: ExecuteCommandInput = serde_json::from_value(input.clone())?;
         Ok(ParsedCommandParams {
-            command: raw.command, timeout: raw.timeout, max_lines: raw.max_lines,
-            output_mode: raw.output_mode, filter_pattern: raw.filter_pattern,
-            stderr_mode: raw.stderr_mode, auto_limit: raw.auto_limit,
+            command: raw.command,
+            timeout: raw.timeout,
+            max_lines: raw.max_lines,
+            output_mode: raw.output_mode,
+            filter_pattern: raw.filter_pattern,
+            stderr_mode: raw.stderr_mode,
+            auto_limit: raw.auto_limit,
         })
     }
 
     fn resolve_output_limits(params: &ParsedCommandParams) -> OutputLimits {
         let mut limits = OutputLimits {
-            max_lines: params.max_lines, output_mode: params.output_mode.clone(),
-            filter_pattern: params.filter_pattern.clone(), stderr_mode: params.stderr_mode.clone(),
+            max_lines: params.max_lines,
+            output_mode: params.output_mode.clone(),
+            filter_pattern: params.filter_pattern.clone(),
+            stderr_mode: params.stderr_mode.clone(),
             auto_limit: params.auto_limit,
         };
         if limits.auto_limit && limits.output_mode == OutputMode::Smart {
             let smart_limits = Self::get_smart_limits(&params.command);
-            if limits.max_lines.is_none() { limits.max_lines = smart_limits.max_lines; }
-            if limits.output_mode == OutputMode::Smart { limits.output_mode = smart_limits.output_mode; }
-            if limits.stderr_mode == StderrMode::Separate { limits.stderr_mode = smart_limits.stderr_mode; }
+            if limits.max_lines.is_none() {
+                limits.max_lines = smart_limits.max_lines;
+            }
+            if limits.output_mode == OutputMode::Smart {
+                limits.output_mode = smart_limits.output_mode;
+            }
+            if limits.stderr_mode == StderrMode::Separate {
+                limits.stderr_mode = smart_limits.stderr_mode;
+            }
         }
         limits
     }
 
     fn format_command_output(
-        original_command: &str, transformed_command: &str,
-        output: &CommandOutput, limits: &OutputLimits,
+        original_command: &str,
+        transformed_command: &str,
+        output: &CommandOutput,
+        limits: &OutputLimits,
     ) -> Result<String> {
         let mut result = format!("Command: {}\n", original_command);
         if transformed_command != original_command {
             result.push_str(&format!("Transformed: {}\n", transformed_command));
         }
         result.push_str(&format!("Exit Code: {}\n\n", output.exit_code));
-        if limits.stderr_mode == StderrMode::Combined || limits.stderr_mode == StderrMode::StderrOnly {
+        if limits.stderr_mode == StderrMode::Combined
+            || limits.stderr_mode == StderrMode::StderrOnly
+        {
             result.push_str(&format!("Output:\n{}", output.stdout));
             if !output.stderr.is_empty() {
                 result.push_str(&format!("\n\nStderr (unmerged):\n{}", output.stderr));
             }
         } else {
-            result.push_str(&format!("Stdout:\n{}\n\nStderr:\n{}", output.stdout, output.stderr));
+            result.push_str(&format!(
+                "Stdout:\n{}\n\nStderr:\n{}",
+                output.stdout, output.stderr
+            ));
         }
         Ok(result)
     }
 
-    fn run_command_with_timeout(command: &str, working_dir: &str, _timeout: Duration) -> Result<CommandOutput> {
+    fn run_command_with_timeout(
+        command: &str,
+        working_dir: &str,
+        _timeout: Duration,
+    ) -> Result<CommandOutput> {
         use std::process::Stdio;
         let output = Command::new("bash")
-            .arg("-o").arg("pipefail").arg("-c").arg(command)
+            .arg("-o")
+            .arg("pipefail")
+            .arg("-c")
+            .arg(command)
             .current_dir(working_dir)
-            .stdout(Stdio::piped()).stderr(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
             .output()
             .with_context(|| format!("Failed to execute command: {}", command))?;
 
@@ -611,7 +780,9 @@ mod tests {
     #[test]
     fn test_transform_command_head_limit() {
         let limits = OutputLimits {
-            max_lines: Some(50), output_mode: OutputMode::Head, ..Default::default()
+            max_lines: Some(50),
+            output_mode: OutputMode::Head,
+            ..Default::default()
         };
         let result = BashTool::transform_command("cat file.txt", &limits);
         assert!(result.contains("head -n 50"));

@@ -12,9 +12,7 @@ pub fn default_host() -> cpal::Host {
 /// List all input devices.
 pub fn list_input_devices() -> AudioResult<Vec<AudioDevice>> {
     let host = default_host();
-    let default_name = host
-        .default_input_device()
-        .and_then(|d| d.name().ok());
+    let default_name = host.default_input_device().and_then(|d| d.name().ok());
 
     let devices = host
         .input_devices()
@@ -22,9 +20,7 @@ pub fn list_input_devices() -> AudioResult<Vec<AudioDevice>> {
 
     let mut result = Vec::new();
     for device in devices {
-        let name = device
-            .name()
-            .unwrap_or_else(|_| "Unknown".to_string());
+        let name = device.name().unwrap_or_else(|_| "Unknown".to_string());
         let is_default = default_name.as_deref() == Some(&name);
         result.push(AudioDevice {
             id: name.clone(),
@@ -39,9 +35,7 @@ pub fn list_input_devices() -> AudioResult<Vec<AudioDevice>> {
 /// List all output devices.
 pub fn list_output_devices() -> AudioResult<Vec<AudioDevice>> {
     let host = default_host();
-    let default_name = host
-        .default_output_device()
-        .and_then(|d| d.name().ok());
+    let default_name = host.default_output_device().and_then(|d| d.name().ok());
 
     let devices = host
         .output_devices()
@@ -49,9 +43,7 @@ pub fn list_output_devices() -> AudioResult<Vec<AudioDevice>> {
 
     let mut result = Vec::new();
     for device in devices {
-        let name = device
-            .name()
-            .unwrap_or_else(|_| "Unknown".to_string());
+        let name = device.name().unwrap_or_else(|_| "Unknown".to_string());
         let is_default = default_name.as_deref() == Some(&name);
         result.push(AudioDevice {
             id: name.clone(),

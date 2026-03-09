@@ -78,12 +78,10 @@ static RE_COUNT: LazyLock<Regex> =
 
 // Superlative patterns
 static RE_WHICH_MOST: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)which\s+(.+?)\s+has\s+the\s+(most|least|highest|lowest)")
-        .expect("valid regex")
+    Regex::new(r"(?i)which\s+(.+?)\s+has\s+the\s+(most|least|highest|lowest)").expect("valid regex")
 });
-static RE_LARGEST: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(largest|smallest|biggest)\s+(.+)").expect("valid regex")
-});
+static RE_LARGEST: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)(largest|smallest|biggest)\s+(.+)").expect("valid regex"));
 
 // Enumeration patterns
 static RE_LIST: LazyLock<Regex> =
@@ -93,8 +91,7 @@ static RE_SHOW: LazyLock<Regex> =
 
 // Boolean patterns
 static RE_DOES_USE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)does\s+(.+?)\s+(use|depend|call|import|contain)\s+(.+)")
-        .expect("valid regex")
+    Regex::new(r"(?i)does\s+(.+?)\s+(use|depend|call|import|contain)\s+(.+)").expect("valid regex")
 });
 static RE_IS_USED_BY: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)is\s+(.+?)\s+(used|called|imported)\s+by\s+(.+)").expect("valid regex")
@@ -400,11 +397,7 @@ impl QueryCore {
                     format!("(VALUES {})", vals.join(" "))
                 }
                 QueryOp::Filter { source, predicate } => {
-                    format!(
-                        "(FILTER {} {:?})",
-                        self.expr_to_sexp(source),
-                        predicate
-                    )
+                    format!("(FILTER {} {:?})", self.expr_to_sexp(source), predicate)
                 }
                 QueryOp::Count(inner) => {
                     format!("(COUNT {})", self.expr_to_sexp(inner))
@@ -603,11 +596,7 @@ impl QueryCoreExtractor {
     }
 
     /// Extract a query core from natural language
-    pub fn extract(
-        &self,
-        query: &str,
-        entities: &[(String, EntityType)],
-    ) -> Option<QueryCore> {
+    pub fn extract(&self, query: &str, entities: &[(String, EntityType)]) -> Option<QueryCore> {
         // Classify the question
         let (question_type, relation) = self.classify_question(query);
 
@@ -894,18 +883,16 @@ impl<'a> QueryExecutor<'a> {
 
                 QueryResult::with_values(values)
             }
-            QueryOp::Values(vals) => {
-                QueryResult::with_values(
-                    vals.iter()
-                        .map(|v| QueryResultValue {
-                            value: v.clone(),
-                            entity_type: None,
-                            score: 1.0,
-                            metadata: HashMap::new(),
-                        })
-                        .collect(),
-                )
-            }
+            QueryOp::Values(vals) => QueryResult::with_values(
+                vals.iter()
+                    .map(|v| QueryResultValue {
+                        value: v.clone(),
+                        entity_type: None,
+                        score: 1.0,
+                        metadata: HashMap::new(),
+                    })
+                    .collect(),
+            ),
             QueryOp::Filter { source, predicate } => {
                 let mut result = self.execute_expr(source);
 
@@ -953,12 +940,14 @@ impl<'a> QueryExecutor<'a> {
 
                 // Sort by score
                 result.values.sort_by(|a, b| match direction {
-                    SuperlativeDir::Max => {
-                        b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal)
-                    }
-                    SuperlativeDir::Min => {
-                        a.score.partial_cmp(&b.score).unwrap_or(std::cmp::Ordering::Equal)
-                    }
+                    SuperlativeDir::Max => b
+                        .score
+                        .partial_cmp(&a.score)
+                        .unwrap_or(std::cmp::Ordering::Equal),
+                    SuperlativeDir::Min => a
+                        .score
+                        .partial_cmp(&b.score)
+                        .unwrap_or(std::cmp::Ordering::Equal),
                 });
 
                 // Take the top result

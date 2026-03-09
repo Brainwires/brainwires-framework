@@ -175,12 +175,13 @@ pub struct CachedEmbeddingProvider {
 impl CachedEmbeddingProvider {
     /// Create a new cached embedding provider with the default model
     pub fn new() -> Result<Self> {
-        let inner = FastEmbedManager::new()
-            .context("Failed to create embedding provider")?;
+        let inner = FastEmbedManager::new().context("Failed to create embedding provider")?;
 
         Ok(Self {
             inner: Arc::new(inner),
-            cache: RwLock::new(LruCache::new(NonZeroUsize::new(DEFAULT_CACHE_SIZE).expect("DEFAULT_CACHE_SIZE is non-zero"))),
+            cache: RwLock::new(LruCache::new(
+                NonZeroUsize::new(DEFAULT_CACHE_SIZE).expect("DEFAULT_CACHE_SIZE is non-zero"),
+            )),
         })
     }
 
@@ -188,7 +189,9 @@ impl CachedEmbeddingProvider {
     pub fn with_manager(manager: Arc<FastEmbedManager>) -> Self {
         Self {
             inner: manager,
-            cache: RwLock::new(LruCache::new(NonZeroUsize::new(DEFAULT_CACHE_SIZE).expect("DEFAULT_CACHE_SIZE is non-zero"))),
+            cache: RwLock::new(LruCache::new(
+                NonZeroUsize::new(DEFAULT_CACHE_SIZE).expect("DEFAULT_CACHE_SIZE is non-zero"),
+            )),
         }
     }
 
@@ -208,9 +211,10 @@ impl CachedEmbeddingProvider {
 
         // Check cache first (read lock)
         if let Ok(cache) = self.cache.read()
-            && let Some(embedding) = cache.peek(&cache_key) {
-                return Ok(embedding.clone());
-            }
+            && let Some(embedding) = cache.peek(&cache_key)
+        {
+            return Ok(embedding.clone());
+        }
 
         // Generate embedding
         let embedding = self.inner.embed(text)?;
@@ -286,7 +290,9 @@ impl Clone for CachedEmbeddingProvider {
     fn clone(&self) -> Self {
         Self {
             inner: Arc::clone(&self.inner),
-            cache: RwLock::new(LruCache::new(NonZeroUsize::new(DEFAULT_CACHE_SIZE).expect("DEFAULT_CACHE_SIZE is non-zero"))),
+            cache: RwLock::new(LruCache::new(
+                NonZeroUsize::new(DEFAULT_CACHE_SIZE).expect("DEFAULT_CACHE_SIZE is non-zero"),
+            )),
         }
     }
 }

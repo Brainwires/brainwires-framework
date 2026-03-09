@@ -2,10 +2,10 @@
 //!
 //! These are actual `burn::module::Module` implementations that run on GPU via WGPU.
 
-use burn_core::prelude::*;
 use burn_core::module::{Module, Param};
-use burn_nn as nn;
+use burn_core::prelude::*;
 use burn_core::tensor::activation;
+use burn_nn as nn;
 
 /// LoRA adapter module in Burn.
 ///
@@ -59,8 +59,7 @@ impl LoraLinearConfig {
             .init(device);
 
         // B: (rank → out_features) — zero init so LoRA starts as identity
-        let lora_b_config = nn::LinearConfig::new(self.rank, self.out_features)
-            .with_bias(false);
+        let lora_b_config = nn::LinearConfig::new(self.rank, self.out_features).with_bias(false);
         let mut lora_b = lora_b_config.init(device);
         // Zero-initialize B so the LoRA contribution starts at zero
         lora_b.weight = lora_b.weight.map(|w| w.zeros_like());
@@ -92,8 +91,7 @@ impl LoraLinearConfig {
             .with_bias(false)
             .init(device);
 
-        let lora_b_config = nn::LinearConfig::new(self.rank, self.out_features)
-            .with_bias(false);
+        let lora_b_config = nn::LinearConfig::new(self.rank, self.out_features).with_bias(false);
         let mut lora_b = lora_b_config.init(device);
         lora_b.weight = lora_b.weight.map(|w| w.zeros_like());
 
@@ -234,7 +232,7 @@ impl<B: Backend> SwiGluFfn<B> {
 
 /// Simple cross-entropy loss for language modeling.
 pub fn cross_entropy_loss<B: Backend>(
-    logits: Tensor<B, 2>, // [batch * seq_len, vocab_size]
+    logits: Tensor<B, 2>,       // [batch * seq_len, vocab_size]
     targets: Tensor<B, 1, Int>, // [batch * seq_len]
 ) -> Tensor<B, 1> {
     let log_softmax = activation::log_softmax(logits, 1);
@@ -308,14 +306,18 @@ impl DoraLinearConfig {
             .with_bias(false)
             .init(device);
 
-        let lora_b_config = nn::LinearConfig::new(self.rank, self.out_features)
-            .with_bias(false);
+        let lora_b_config = nn::LinearConfig::new(self.rank, self.out_features).with_bias(false);
         let mut lora_b = lora_b_config.init(device);
         lora_b.weight = lora_b.weight.map(|w| w.zeros_like());
 
         // Initialize magnitude from base weight column norms.
         let base_w = base.weight.val();
-        let col_norms = base_w.clone().powf_scalar(2.0).sum_dim(0).sqrt().squeeze::<1>();
+        let col_norms = base_w
+            .clone()
+            .powf_scalar(2.0)
+            .sum_dim(0)
+            .sqrt()
+            .squeeze::<1>();
         let magnitude = Param::from_tensor(col_norms);
 
         DoraLinear {
@@ -336,7 +338,12 @@ impl DoraLinearConfig {
         base_weight: Tensor<B, 2>,
         device: &B::Device,
     ) -> DoraLinear<B> {
-        let col_norms = base_weight.clone().powf_scalar(2.0).sum_dim(0).sqrt().squeeze::<1>();
+        let col_norms = base_weight
+            .clone()
+            .powf_scalar(2.0)
+            .sum_dim(0)
+            .sqrt()
+            .squeeze::<1>();
         let magnitude = Param::from_tensor(col_norms);
 
         let base = nn::Linear {
@@ -348,8 +355,7 @@ impl DoraLinearConfig {
             .with_bias(false)
             .init(device);
 
-        let lora_b_config = nn::LinearConfig::new(self.rank, self.out_features)
-            .with_bias(false);
+        let lora_b_config = nn::LinearConfig::new(self.rank, self.out_features).with_bias(false);
         let mut lora_b = lora_b_config.init(device);
         lora_b.weight = lora_b.weight.map(|w| w.zeros_like());
 
@@ -409,9 +415,7 @@ impl<B: Backend> DoraLinear<B> {
         let a_shape = self.lora_a.weight.val().shape();
         let b_shape = self.lora_b.weight.val().shape();
         let m_shape = self.magnitude.val().shape();
-        a_shape.dims[0] * a_shape.dims[1]
-            + b_shape.dims[0] * b_shape.dims[1]
-            + m_shape.dims[0]
+        a_shape.dims[0] * a_shape.dims[1] + b_shape.dims[0] * b_shape.dims[1] + m_shape.dims[0]
     }
 }
 
@@ -466,10 +470,7 @@ impl QLoraLinearConfig {
         device: &B::Device,
     ) -> QLoraLinear<B> {
         let weight_tensor = Tensor::<B, 1>::from_floats(
-            burn_core::tensor::TensorData::new(
-                base_weight_f32.to_vec(),
-                [base_weight_f32.len()],
-            ),
+            burn_core::tensor::TensorData::new(base_weight_f32.to_vec(), [base_weight_f32.len()]),
             device,
         )
         .reshape([self.in_features, self.out_features]);
@@ -483,8 +484,7 @@ impl QLoraLinearConfig {
             .with_bias(false)
             .init(device);
 
-        let lora_b_config = nn::LinearConfig::new(self.rank, self.out_features)
-            .with_bias(false);
+        let lora_b_config = nn::LinearConfig::new(self.rank, self.out_features).with_bias(false);
         let mut lora_b = lora_b_config.init(device);
         lora_b.weight = lora_b.weight.map(|w| w.zeros_like());
 
@@ -507,8 +507,7 @@ impl QLoraLinearConfig {
             .with_bias(false)
             .init(device);
 
-        let lora_b_config = nn::LinearConfig::new(self.rank, self.out_features)
-            .with_bias(false);
+        let lora_b_config = nn::LinearConfig::new(self.rank, self.out_features).with_bias(false);
         let mut lora_b = lora_b_config.init(device);
         lora_b.weight = lora_b.weight.map(|w| w.zeros_like());
 
@@ -563,9 +562,9 @@ impl<B: Backend> QLoraLinear<B> {
 ///
 /// L_DPO = -log σ(β * (log π(y_w|x)/π_ref(y_w|x) - log π(y_l|x)/π_ref(y_l|x)))
 pub fn dpo_loss<B: Backend>(
-    chosen_logps: Tensor<B, 1>,      // Log-prob of chosen under policy
-    rejected_logps: Tensor<B, 1>,    // Log-prob of rejected under policy
-    ref_chosen_logps: Tensor<B, 1>,  // Log-prob of chosen under reference
+    chosen_logps: Tensor<B, 1>,       // Log-prob of chosen under policy
+    rejected_logps: Tensor<B, 1>,     // Log-prob of rejected under policy
+    ref_chosen_logps: Tensor<B, 1>,   // Log-prob of chosen under reference
     ref_rejected_logps: Tensor<B, 1>, // Log-prob of rejected under reference
     beta: f32,
 ) -> Tensor<B, 1> {
@@ -746,7 +745,11 @@ mod tests {
         let full_out = layer.forward(input);
 
         let diff = (full_out - base_out).abs().sum().into_scalar();
-        assert!(diff < 1e-5, "LoRA should contribute zero initially, diff={}", diff);
+        assert!(
+            diff < 1e-5,
+            "LoRA should contribute zero initially, diff={}",
+            diff
+        );
     }
 
     #[test]
@@ -857,7 +860,11 @@ mod tests {
         let logps = Tensor::<TestBackend, 1>::from_floats([-2.0], &device);
         let loss = dpo_loss(logps.clone(), logps.clone(), logps.clone(), logps, 0.1);
         let val: f32 = loss.into_scalar();
-        assert!((val - (2.0f32).ln()).abs() < 0.01, "Expected ~ln(2), got {}", val);
+        assert!(
+            (val - (2.0f32).ln()).abs() < 0.01,
+            "Expected ~ln(2), got {}",
+            val
+        );
     }
 
     #[test]
@@ -895,7 +902,11 @@ mod tests {
             &device,
         );
         let output = block.forward(input);
-        assert_eq!(output.dims(), [8, 64], "Transformer block should preserve shape");
+        assert_eq!(
+            output.dims(),
+            [8, 64],
+            "Transformer block should preserve shape"
+        );
     }
 
     #[test]
@@ -922,7 +933,11 @@ mod tests {
         // With zero-init B, output should match base @ input
         let expected = input.matmul(base_weight);
         let diff = (output - expected).abs().sum().into_scalar();
-        assert!(diff < 1e-4, "LoRA with base weights should match base output initially, diff={}", diff);
+        assert!(
+            diff < 1e-4,
+            "LoRA with base weights should match base output initially, diff={}",
+            diff
+        );
     }
 
     #[test]

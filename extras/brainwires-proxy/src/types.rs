@@ -1,7 +1,7 @@
 use bytes::Bytes;
 use http::{HeaderMap, Method, StatusCode, Uri};
-use std::collections::HashMap;
 use std::any::Any;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::request_id::RequestId;
@@ -57,7 +57,11 @@ impl ProxyBody {
 
 impl From<Bytes> for ProxyBody {
     fn from(b: Bytes) -> Self {
-        if b.is_empty() { ProxyBody::Empty } else { ProxyBody::Full(b) }
+        if b.is_empty() {
+            ProxyBody::Empty
+        } else {
+            ProxyBody::Full(b)
+        }
     }
 }
 
@@ -281,8 +285,7 @@ mod tests {
     fn proxy_response_for_request() {
         let req = ProxyRequest::new(Method::POST, "/submit".parse().unwrap());
         let req_id = req.id.clone();
-        let resp = ProxyResponse::for_request(req.id, StatusCode::OK)
-            .with_body("ok");
+        let resp = ProxyResponse::for_request(req.id, StatusCode::OK).with_body("ok");
 
         assert_eq!(resp.id, req_id);
         assert_eq!(resp.status, StatusCode::OK);

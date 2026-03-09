@@ -9,9 +9,11 @@ use std::rc::Rc;
 
 use wasm_bindgen::prelude::*;
 
-use brainwires_tool_system::orchestrator::dynamic_to_json;
 use brainwires_tool_system::orchestrator::ExecutionLimits as CoreExecutionLimits;
-use brainwires_tool_system::orchestrator::{OrchestratorResult as CoreOrchestratorResult, ToolCall as CoreToolCall};
+use brainwires_tool_system::orchestrator::dynamic_to_json;
+use brainwires_tool_system::orchestrator::{
+    OrchestratorResult as CoreOrchestratorResult, ToolCall as CoreToolCall,
+};
 
 // ============================================================================
 // Engine Configuration Constants
@@ -264,16 +266,18 @@ impl WasmOrchestrator {
                         |s| (s, true),
                     ),
                     Err(e) => {
-                        let err_msg = e
-                            .as_string()
-                            .map_or_else(|| "Tool execution failed".to_string(), |s| format!("Tool error: {s}"));
+                        let err_msg = e.as_string().map_or_else(
+                            || "Tool execution failed".to_string(),
+                            |s| format!("Tool error: {s}"),
+                        );
                         (err_msg, false)
                     }
                 };
 
                 // Record the call
                 {
-                    let duration_ms = u64::try_from(call_start.elapsed().as_millis()).unwrap_or(u64::MAX);
+                    let duration_ms =
+                        u64::try_from(call_start.elapsed().as_millis()).unwrap_or(u64::MAX);
                     let call = CoreToolCall::new(
                         tool_name.clone(),
                         json_input,
@@ -320,8 +324,7 @@ impl WasmOrchestrator {
                 };
 
                 let result = CoreOrchestratorResult::success(output, calls, execution_time_ms);
-                serde_wasm_bindgen::to_value(&result)
-                    .map_err(|e| JsValue::from_str(&e.to_string()))
+                serde_wasm_bindgen::to_value(&result).map_err(|e| JsValue::from_str(&e.to_string()))
             }
             Err(e) => {
                 let error_msg = match *e {
@@ -341,8 +344,7 @@ impl WasmOrchestrator {
                 };
 
                 let result = CoreOrchestratorResult::error(error_msg, calls, execution_time_ms);
-                serde_wasm_bindgen::to_value(&result)
-                    .map_err(|e| JsValue::from_str(&e.to_string()))
+                serde_wasm_bindgen::to_value(&result).map_err(|e| JsValue::from_str(&e.to_string()))
             }
         }
     }

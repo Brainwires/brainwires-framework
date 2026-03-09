@@ -51,9 +51,9 @@
 //! }
 //! ```
 
-use brainwires_core::graph::RelationshipGraphT;
 use crate::learning::LearningCoordinator;
 use crate::query_core::{QueryCore, QueryExpr, QueryOp, QueryResult, RelationType};
+use brainwires_core::graph::RelationshipGraphT;
 use std::collections::HashMap;
 
 /// Types of errors that can be detected
@@ -206,7 +206,10 @@ impl SuggestedFix {
             SuggestedFix::NarrowScope { filter } => {
                 format!("Narrow scope with filter: {}", filter)
             }
-            SuggestedFix::ResolveEntity { original, suggested } => {
+            SuggestedFix::ResolveEntity {
+                original,
+                suggested,
+            } => {
                 format!("Resolve '{}' as '{}'", original, suggested)
             }
             SuggestedFix::AddRelation { from, to, relation } => {
@@ -265,8 +268,7 @@ impl ReflectionReport {
 
     /// Check if the result is acceptable
     pub fn is_acceptable(&self) -> bool {
-        self.quality_score >= 0.5
-            && !self.issues.iter().any(|i| i.severity >= Severity::Error)
+        self.quality_score >= 0.5 && !self.issues.iter().any(|i| i.severity >= Severity::Error)
     }
 
     /// Get the highest severity issue
@@ -391,7 +393,10 @@ impl ReflectionModule {
 
         // Update error pattern counts
         for issue in &report.issues {
-            *self.error_patterns.entry(issue.error_type.clone()).or_insert(0) += 1;
+            *self
+                .error_patterns
+                .entry(issue.error_type.clone())
+                .or_insert(0) += 1;
         }
 
         report
@@ -405,7 +410,10 @@ impl ReflectionModule {
                 return Issue::new(
                     ErrorType::EntityNotFound(entity_name.clone()),
                     Severity::Error,
-                    &format!("Entity '{}' not found - query cannot return results", entity_name),
+                    &format!(
+                        "Entity '{}' not found - query cannot return results",
+                        entity_name
+                    ),
                 );
             }
         }
@@ -459,12 +467,13 @@ impl ReflectionModule {
                 if let Some(name) = subject_name.or(object_name) {
                     let edges = graph.get_edges(name);
                     if let Some(edge_type) = relation.to_edge_type()
-                        && !edges.iter().any(|e| e.edge_type == edge_type) {
-                            return Some(format!(
-                                "No {:?} relationships found for '{}'",
-                                relation, name
-                            ));
-                        }
+                        && !edges.iter().any(|e| e.edge_type == edge_type)
+                    {
+                        return Some(format!(
+                            "No {:?} relationships found for '{}'",
+                            relation, name
+                        ));
+                    }
                 }
 
                 None
@@ -514,16 +523,17 @@ impl ReflectionModule {
                             | RelationType::CreatedAt
                             | RelationType::ModifiedAt
                     )
-                    && let RelationType::Custom(name) = relation {
-                        report.issues.push(
-                            Issue::new(
-                                ErrorType::RelationMismatch(name.clone()),
-                                Severity::Warning,
-                                &format!("Custom relationship '{}' may not exist", name),
-                            )
-                            .with_source(&format!("{:?}", relation)),
-                        );
-                    }
+                    && let RelationType::Custom(name) = relation
+                {
+                    report.issues.push(
+                        Issue::new(
+                            ErrorType::RelationMismatch(name.clone()),
+                            Severity::Warning,
+                            &format!("Custom relationship '{}' may not exist", name),
+                        )
+                        .with_source(&format!("{:?}", relation)),
+                    );
+                }
 
                 // Recursively validate sub-expressions
                 self.validate_expr(subject, graph, report);
@@ -561,7 +571,10 @@ impl ReflectionModule {
         }
 
         // Check for valid question type
-        if matches!(query.question_type, crate::query_core::QuestionType::Unknown) {
+        if matches!(
+            query.question_type,
+            crate::query_core::QuestionType::Unknown
+        ) {
             issues.push(Issue::new(
                 ErrorType::SchemaAlignment("Unknown question type".to_string()),
                 Severity::Info,
@@ -597,11 +610,15 @@ impl ReflectionModule {
 
             for fix in &issue.suggested_fixes {
                 match fix {
-                    SuggestedFix::ResolveEntity { original, suggested } => {
+                    SuggestedFix::ResolveEntity {
+                        original,
+                        suggested,
+                    } => {
                         // Try resolving to a different entity
                         if graph.get_node(suggested).is_some() {
                             // Create a corrected query by substituting the entity
-                            let corrected = self.substitute_entity(&report.query, original, suggested);
+                            let corrected =
+                                self.substitute_entity(&report.query, original, suggested);
                             if let Some(corrected) = corrected {
                                 report.corrected_query = Some(corrected);
                                 // Note: Would re-execute here, but we don't have executor access
@@ -680,9 +697,11 @@ impl ReflectionModule {
                     source: Box::new(self.substitute_in_expr(source, original, replacement)),
                     predicate: predicate.clone(),
                 },
-                QueryOp::Count(inner) => {
-                    QueryOp::Count(Box::new(self.substitute_in_expr(inner, original, replacement)))
-                }
+                QueryOp::Count(inner) => QueryOp::Count(Box::new(self.substitute_in_expr(
+                    inner,
+                    original,
+                    replacement,
+                ))),
                 QueryOp::Superlative {
                     source,
                     property,
@@ -760,9 +779,9 @@ impl Default for ReflectionModule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use brainwires_core::graph::EntityType;
-    use brainwires_brain::RelationshipGraph;
     use crate::query_core::{QueryExpr, QuestionType};
+    use brainwires_brain::RelationshipGraph;
+    use brainwires_core::graph::EntityType;
 
     fn create_test_query() -> QueryCore {
         QueryCore::new(
@@ -812,10 +831,12 @@ mod tests {
 
         let report = reflection.analyze(&query, &result, &graph);
 
-        assert!(report
-            .issues
-            .iter()
-            .any(|i| i.error_type == ErrorType::ResultOverflow));
+        assert!(
+            report
+                .issues
+                .iter()
+                .any(|i| i.error_type == ErrorType::ResultOverflow)
+        );
     }
 
     #[test]
@@ -836,15 +857,11 @@ mod tests {
 
     #[test]
     fn test_issue_creation() {
-        let issue = Issue::new(
-            ErrorType::EmptyResult,
-            Severity::Warning,
-            "No results",
-        )
-        .with_fix(SuggestedFix::ExpandScope {
-            relation: "All".to_string(),
-        })
-        .with_source("query_root");
+        let issue = Issue::new(ErrorType::EmptyResult, Severity::Warning, "No results")
+            .with_fix(SuggestedFix::ExpandScope {
+                relation: "All".to_string(),
+            })
+            .with_source("query_root");
 
         assert_eq!(issue.severity, Severity::Warning);
         assert_eq!(issue.suggested_fixes.len(), 1);
@@ -871,11 +888,9 @@ mod tests {
         assert!(!report.is_acceptable());
 
         report.quality_score = 0.7;
-        report.issues.push(Issue::new(
-            ErrorType::EmptyResult,
-            Severity::Error,
-            "Error",
-        ));
+        report
+            .issues
+            .push(Issue::new(ErrorType::EmptyResult, Severity::Error, "Error"));
         assert!(!report.is_acceptable());
     }
 
@@ -913,10 +928,7 @@ mod tests {
         assert!(corrected.is_some());
 
         let corrected = corrected.unwrap();
-        assert!(corrected
-            .entities
-            .iter()
-            .any(|(name, _)| name == "main.rs"));
+        assert!(corrected.entities.iter().any(|(name, _)| name == "main.rs"));
     }
 
     #[test]

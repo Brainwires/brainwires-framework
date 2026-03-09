@@ -29,15 +29,15 @@
 //! assert_eq!(result.stdout, "3");
 //! ```
 
-mod types;
 mod executor;
 mod languages;
+mod types;
 
 #[cfg(feature = "wasm")]
 mod wasm_bindings;
 
-pub use types::*;
 pub use executor::Executor;
+pub use types::*;
 
 /// Re-exports of language-specific executors for advanced use.
 pub mod lang {

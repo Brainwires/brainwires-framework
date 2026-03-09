@@ -248,7 +248,9 @@ where
                 if diff_content.len() > 500 {
                     let end = {
                         let mut i = 500;
-                        while !diff_content.is_char_boundary(i) { i -= 1; }
+                        while !diff_content.is_char_boundary(i) {
+                            i -= 1;
+                        }
                         i
                     };
                     format!("{}...", &diff_content[..end])

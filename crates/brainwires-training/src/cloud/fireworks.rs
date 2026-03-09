@@ -5,9 +5,11 @@ use tracing::debug;
 
 use brainwires_datasets::DataFormat;
 
-use crate::error::TrainingError;
-use crate::types::{TrainingJobId, TrainingJobStatus, TrainingJobSummary, TrainingProgress, DatasetId};
 use super::{CloudFineTuneConfig, FineTuneProvider};
+use crate::error::TrainingError;
+use crate::types::{
+    DatasetId, TrainingJobId, TrainingJobStatus, TrainingJobSummary, TrainingProgress,
+};
 
 const FIREWORKS_API_URL: &str = "https://api.fireworks.ai/v1";
 
@@ -52,7 +54,8 @@ impl FireworksFineTune {
 
     /// Parse job status from API response. Fireworks uses "state" field with UPPER_CASE values.
     fn parse_job_status(body: &serde_json::Value) -> TrainingJobStatus {
-        let status_str = body.get("state")
+        let status_str = body
+            .get("state")
             .or_else(|| body.get("status"))
             .and_then(|v| v.as_str())
             .unwrap_or("pending");
@@ -98,11 +101,14 @@ impl FineTuneProvider for FireworksFineTune {
         false // Fireworks uses RFT, not DPO
     }
 
-    async fn upload_dataset(&self, data: &[u8], _format: DataFormat) -> Result<DatasetId, TrainingError> {
+    async fn upload_dataset(
+        &self,
+        data: &[u8],
+        _format: DataFormat,
+    ) -> Result<DatasetId, TrainingError> {
         debug!("Uploading dataset to Fireworks AI ({} bytes)", data.len());
 
-        let part = reqwest::multipart::Part::bytes(data.to_vec())
-            .file_name("training_data.jsonl");
+        let part = reqwest::multipart::Part::bytes(data.to_vec()).file_name("training_data.jsonl");
 
         let form = reqwest::multipart::Form::new().part("file", part);
 
@@ -133,8 +139,14 @@ impl FineTuneProvider for FireworksFineTune {
         Ok(DatasetId(dataset_id))
     }
 
-    async fn create_job(&self, config: CloudFineTuneConfig) -> Result<TrainingJobId, TrainingError> {
-        debug!("Creating Fireworks fine-tuning job for: {}", config.base_model);
+    async fn create_job(
+        &self,
+        config: CloudFineTuneConfig,
+    ) -> Result<TrainingJobId, TrainingError> {
+        debug!(
+            "Creating Fireworks fine-tuning job for: {}",
+            config.base_model
+        );
 
         let body = json!({
             "dataset": config.training_dataset.0,
@@ -171,7 +183,10 @@ impl FineTuneProvider for FireworksFineTune {
         Ok(TrainingJobId(job_id))
     }
 
-    async fn get_job_status(&self, job_id: &TrainingJobId) -> Result<TrainingJobStatus, TrainingError> {
+    async fn get_job_status(
+        &self,
+        job_id: &TrainingJobId,
+    ) -> Result<TrainingJobStatus, TrainingError> {
         let url = format!("{}/fine-tuning/jobs/{}", self.base_url, job_id.0);
 
         let response = self
@@ -187,7 +202,12 @@ impl FineTuneProvider for FireworksFineTune {
 
     async fn cancel_job(&self, job_id: &TrainingJobId) -> Result<(), TrainingError> {
         let url = format!("{}/fine-tuning/jobs/{}/cancel", self.base_url, job_id.0);
-        let response = self.client.post(&url).bearer_auth(&self.api_key).send().await?;
+        let response = self
+            .client
+            .post(&url)
+            .bearer_auth(&self.api_key)
+            .send()
+            .await?;
 
         if !response.status().is_success() {
             let body: serde_json::Value = response.json().await.unwrap_or_default();
@@ -227,7 +247,12 @@ impl FineTuneProvider for FireworksFineTune {
 
     async fn delete_model(&self, model_id: &str) -> Result<(), TrainingError> {
         let url = format!("{}/models/{}", self.base_url, model_id);
-        let response = self.client.delete(&url).bearer_auth(&self.api_key).send().await?;
+        let response = self
+            .client
+            .delete(&url)
+            .bearer_auth(&self.api_key)
+            .send()
+            .await?;
 
         if !response.status().is_success() {
             let body: serde_json::Value = response.json().await.unwrap_or_default();

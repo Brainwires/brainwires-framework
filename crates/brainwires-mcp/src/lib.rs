@@ -11,16 +11,16 @@
 // Re-export core types
 pub use brainwires_core;
 
-/// MCP protocol types and JSON-RPC types.
-pub mod types;
-/// Stdio-based transport layer for MCP communication.
-#[cfg(feature = "native")]
-pub mod transport;
 /// MCP client for connecting to external servers.
 #[cfg(feature = "native")]
 pub mod client;
 /// MCP server configuration management.
 pub mod config;
+/// Stdio-based transport layer for MCP communication.
+#[cfg(feature = "native")]
+pub mod transport;
+/// MCP protocol types and JSON-RPC types.
+pub mod types;
 
 // Re-exports - native-only modules
 #[cfg(feature = "native")]
@@ -29,27 +29,24 @@ pub use client::McpClient;
 pub use transport::{StdioTransport, Transport};
 
 // Re-exports - always available
-pub use config::McpServerConfig;
 #[cfg(feature = "native")]
 pub use config::McpConfigManager;
+pub use config::McpServerConfig;
 
 // JSON-RPC types (always available)
 pub use types::{
-    JsonRpcRequest, JsonRpcResponse, JsonRpcError, JsonRpcNotification, JsonRpcMessage,
-    ProgressParams, McpNotification,
+    JsonRpcError, JsonRpcMessage, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse,
+    McpNotification, ProgressParams,
 };
 
 // MCP types (require rmcp, native only)
 #[cfg(feature = "native")]
 pub use types::{
-    McpTool, McpResource, McpPrompt, CallToolParams, CallToolResult,
-    Content, ToolsCapability, ResourcesCapability, PromptsCapability,
-    ServerCapabilities, ClientCapabilities, ServerInfo, ClientInfo,
-    InitializeParams, InitializeResult,
-    ListToolsResult, ListResourcesResult, ListPromptsResult,
-    ReadResourceParams, ReadResourceResult, ResourceContent,
-    GetPromptParams, GetPromptResult, PromptMessage, PromptContent, PromptArgument,
-    ToolResultContent,
+    CallToolParams, CallToolResult, ClientCapabilities, ClientInfo, Content, GetPromptParams,
+    GetPromptResult, InitializeParams, InitializeResult, ListPromptsResult, ListResourcesResult,
+    ListToolsResult, McpPrompt, McpResource, McpTool, PromptArgument, PromptContent, PromptMessage,
+    PromptsCapability, ReadResourceParams, ReadResourceResult, ResourceContent,
+    ResourcesCapability, ServerCapabilities, ServerInfo, ToolResultContent, ToolsCapability,
 };
 
 /// Prelude module for convenient imports
@@ -61,12 +58,9 @@ pub mod prelude {
     pub use super::config::McpServerConfig;
     #[cfg(feature = "native")]
     pub use super::transport::{StdioTransport, Transport};
-    pub use super::types::{
-        JsonRpcRequest, JsonRpcResponse, JsonRpcNotification, JsonRpcMessage,
-    };
     #[cfg(feature = "native")]
     pub use super::types::{
-        McpTool, McpResource, McpPrompt, CallToolResult,
-        ServerCapabilities, ClientCapabilities,
+        CallToolResult, ClientCapabilities, McpPrompt, McpResource, McpTool, ServerCapabilities,
     };
+    pub use super::types::{JsonRpcMessage, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse};
 }

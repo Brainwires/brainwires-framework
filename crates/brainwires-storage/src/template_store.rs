@@ -98,9 +98,8 @@ impl PlanTemplate {
     fn extract_variables(content: &str) -> Vec<String> {
         use regex::Regex;
         use std::sync::LazyLock;
-        static RE: LazyLock<Regex> = LazyLock::new(|| {
-            Regex::new(r"\{\{([a-zA-Z_][a-zA-Z0-9_]*)\}\}").expect("valid regex")
-        });
+        static RE: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new(r"\{\{([a-zA-Z_][a-zA-Z0-9_]*)\}\}").expect("valid regex"));
         let re = &*RE;
         let mut vars: Vec<String> = re
             .captures_iter(content)
@@ -155,19 +154,18 @@ impl TemplateStore {
         if !self.file_path.exists() {
             return Ok(TemplateData::default());
         }
-        let content = std::fs::read_to_string(&self.file_path)
-            .context("Failed to read templates file")?;
-        let data: TemplateData = serde_json::from_str(&content)
-            .context("Failed to parse templates file")?;
+        let content =
+            std::fs::read_to_string(&self.file_path).context("Failed to read templates file")?;
+        let data: TemplateData =
+            serde_json::from_str(&content).context("Failed to parse templates file")?;
         Ok(data)
     }
 
     /// Save all templates to file
     fn save_data(&self, data: &TemplateData) -> Result<()> {
-        let content = serde_json::to_string_pretty(data)
-            .context("Failed to serialize templates")?;
-        std::fs::write(&self.file_path, content)
-            .context("Failed to write templates file")?;
+        let content =
+            serde_json::to_string_pretty(data).context("Failed to serialize templates")?;
+        std::fs::write(&self.file_path, content).context("Failed to write templates file")?;
         Ok(())
     }
 
@@ -176,7 +174,8 @@ impl TemplateStore {
         let mut data = self.load()?;
 
         // Remove existing template with same ID if any
-        data.templates.retain(|t| t.template_id != template.template_id);
+        data.templates
+            .retain(|t| t.template_id != template.template_id);
 
         // Add new template
         data.templates.push(template.clone());
@@ -187,7 +186,10 @@ impl TemplateStore {
     /// Get a template by ID
     pub fn get(&self, template_id: &str) -> Result<Option<PlanTemplate>> {
         let data = self.load()?;
-        Ok(data.templates.into_iter().find(|t| t.template_id == template_id))
+        Ok(data
+            .templates
+            .into_iter()
+            .find(|t| t.template_id == template_id))
     }
 
     /// Get a template by name (case-insensitive partial match)
@@ -195,8 +197,7 @@ impl TemplateStore {
         let data = self.load()?;
         let name_lower = name.to_lowercase();
         Ok(data.templates.into_iter().find(|t| {
-            t.name.to_lowercase().contains(&name_lower) ||
-            t.template_id.starts_with(name)
+            t.name.to_lowercase().contains(&name_lower) || t.template_id.starts_with(name)
         }))
     }
 
@@ -231,7 +232,9 @@ impl TemplateStore {
             .filter(|t| {
                 t.name.to_lowercase().contains(&query_lower)
                     || t.description.to_lowercase().contains(&query_lower)
-                    || t.tags.iter().any(|tag| tag.to_lowercase().contains(&query_lower))
+                    || t.tags
+                        .iter()
+                        .any(|tag| tag.to_lowercase().contains(&query_lower))
             })
             .collect())
     }

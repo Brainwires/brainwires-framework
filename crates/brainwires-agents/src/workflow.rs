@@ -39,7 +39,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use petgraph::algo::is_cyclic_directed;
 use petgraph::graph::{DiGraph, NodeIndex};
 use serde_json::Value;
@@ -108,16 +108,12 @@ impl Default for WorkflowContext {
 
 /// A boxed async function that a workflow node executes.
 pub type NodeFn = Box<
-    dyn Fn(WorkflowContext) -> Pin<Box<dyn Future<Output = Result<Value>> + Send>>
-        + Send
-        + Sync,
+    dyn Fn(WorkflowContext) -> Pin<Box<dyn Future<Output = Result<Value>> + Send>> + Send + Sync,
 >;
 
 /// A conditional edge function that returns the name of the next node(s)
 /// to activate based on the current node's result.
-pub type ConditionalFn = Box<
-    dyn Fn(&Value) -> Vec<String> + Send + Sync,
->;
+pub type ConditionalFn = Box<dyn Fn(&Value) -> Vec<String> + Send + Sync>;
 
 // ── Internal node representation ─────────────────────────────────────────────
 
@@ -130,7 +126,10 @@ enum EdgeType {
     /// Always-active edge from `from` to `to`.
     Direct { from: String, to: String },
     /// Conditional edge: `evaluator` returns which downstream nodes to activate.
-    Conditional { from: String, evaluator: ConditionalFn },
+    Conditional {
+        from: String,
+        evaluator: ConditionalFn,
+    },
 }
 
 // ── WorkflowBuilder ──────────────────────────────────────────────────────────
@@ -233,14 +232,10 @@ impl WorkflowBuilder {
             match edge {
                 EdgeType::Direct { from, to } => {
                     if !name_to_idx.contains_key(&from) {
-                        return Err(anyhow!(
-                            "Edge references unknown source node '{}'", from
-                        ));
+                        return Err(anyhow!("Edge references unknown source node '{}'", from));
                     }
                     if !name_to_idx.contains_key(&to) {
-                        return Err(anyhow!(
-                            "Edge references unknown target node '{}'", to
-                        ));
+                        return Err(anyhow!("Edge references unknown target node '{}'", to));
                     }
                     graph.add_edge(name_to_idx[&from], name_to_idx[&to], ());
                     direct_edges.push((from, to));
@@ -248,7 +243,8 @@ impl WorkflowBuilder {
                 EdgeType::Conditional { from, evaluator } => {
                     if !name_to_idx.contains_key(&from) {
                         return Err(anyhow!(
-                            "Conditional edge references unknown source node '{}'", from
+                            "Conditional edge references unknown source node '{}'",
+                            from
                         ));
                     }
                     conditional_edges.push((from, evaluator));
@@ -262,7 +258,9 @@ impl WorkflowBuilder {
 
         // Identify entry nodes (no incoming direct edges)
         let targets: HashSet<&str> = direct_edges.iter().map(|(_, t)| t.as_str()).collect();
-        let entry_nodes: Vec<String> = self.nodes.iter()
+        let entry_nodes: Vec<String> = self
+            .nodes
+            .iter()
             .map(|n| &n.name)
             .filter(|n| !targets.contains(n.as_str()))
             .cloned()
@@ -270,7 +268,8 @@ impl WorkflowBuilder {
 
         if entry_nodes.is_empty() {
             return Err(anyhow!(
-                "Workflow '{}' has no entry nodes (every node has an incoming edge)", self.name
+                "Workflow '{}' has no entry nodes (every node has an incoming edge)",
+                self.name
             ));
         }
 
@@ -396,9 +395,9 @@ impl Workflow {
                         !done.contains(*name)
                             && !fail.contains_key(*name)
                             && !skip.contains(*name)
-                            && predecessors.iter().all(|p| {
-                                done.contains(p) || skip.contains(p)
-                            })
+                            && predecessors
+                                .iter()
+                                .all(|p| done.contains(p) || skip.contains(p))
                     })
                     .map(|(name, _)| name.clone())
                     .collect()
@@ -432,7 +431,8 @@ impl Workflow {
                                         ctx.set(
                                             format!("__conditional_activated_{}", node_name),
                                             serde_json::json!(activated),
-                                        ).await;
+                                        )
+                                        .await;
                                     }
                                 }
 
@@ -443,10 +443,10 @@ impl Workflow {
                             }
                         }
                     } else {
-                        failed.write().await.insert(
-                            node_name,
-                            "Handler not found".to_string(),
-                        );
+                        failed
+                            .write()
+                            .await
+                            .insert(node_name, "Handler not found".to_string());
                     }
                 });
                 handles.push(handle);
@@ -520,16 +520,20 @@ mod tests {
     #[tokio::test]
     async fn test_simple_linear_workflow() {
         let workflow = WorkflowBuilder::new("linear")
-            .node("a", |ctx| Box::pin(async move {
-                ctx.set("counter", serde_json::json!(1)).await;
-                Ok(serde_json::json!({"step": "a"}))
-            }))
-            .node("b", |ctx| Box::pin(async move {
-                let val = ctx.get("counter").await.unwrap();
-                let n = val.as_i64().unwrap();
-                ctx.set("counter", serde_json::json!(n + 1)).await;
-                Ok(serde_json::json!({"step": "b"}))
-            }))
+            .node("a", |ctx| {
+                Box::pin(async move {
+                    ctx.set("counter", serde_json::json!(1)).await;
+                    Ok(serde_json::json!({"step": "a"}))
+                })
+            })
+            .node("b", |ctx| {
+                Box::pin(async move {
+                    let val = ctx.get("counter").await.unwrap();
+                    let n = val.as_i64().unwrap();
+                    ctx.set("counter", serde_json::json!(n + 1)).await;
+                    Ok(serde_json::json!({"step": "b"}))
+                })
+            })
             .edge("a", "b")
             .build()
             .unwrap();
@@ -543,20 +547,22 @@ mod tests {
     #[tokio::test]
     async fn test_parallel_workflow() {
         let workflow = WorkflowBuilder::new("parallel")
-            .node("start", |_ctx| Box::pin(async move {
-                Ok(serde_json::json!("started"))
-            }))
-            .node("branch_a", |_ctx| Box::pin(async move {
-                Ok(serde_json::json!("a_done"))
-            }))
-            .node("branch_b", |_ctx| Box::pin(async move {
-                Ok(serde_json::json!("b_done"))
-            }))
-            .node("join", |ctx| Box::pin(async move {
-                let a = ctx.node_result("branch_a").await;
-                let b = ctx.node_result("branch_b").await;
-                Ok(serde_json::json!({"a": a, "b": b}))
-            }))
+            .node("start", |_ctx| {
+                Box::pin(async move { Ok(serde_json::json!("started")) })
+            })
+            .node("branch_a", |_ctx| {
+                Box::pin(async move { Ok(serde_json::json!("a_done")) })
+            })
+            .node("branch_b", |_ctx| {
+                Box::pin(async move { Ok(serde_json::json!("b_done")) })
+            })
+            .node("join", |ctx| {
+                Box::pin(async move {
+                    let a = ctx.node_result("branch_a").await;
+                    let b = ctx.node_result("branch_b").await;
+                    Ok(serde_json::json!({"a": a, "b": b}))
+                })
+            })
             .edge("start", "branch_a")
             .edge("start", "branch_b")
             .edge("branch_a", "join")
@@ -575,11 +581,13 @@ mod tests {
             .node("a", |_| Box::pin(async { Ok(serde_json::json!(1)) }))
             .node("b", |_| Box::pin(async { Ok(serde_json::json!(2)) }))
             .node("c", |_| Box::pin(async { Ok(serde_json::json!(3)) }))
-            .node("d", |ctx| Box::pin(async move {
-                let b = ctx.node_result("b").await.unwrap();
-                let c = ctx.node_result("c").await.unwrap();
-                Ok(serde_json::json!(b.as_i64().unwrap() + c.as_i64().unwrap()))
-            }))
+            .node("d", |ctx| {
+                Box::pin(async move {
+                    let b = ctx.node_result("b").await.unwrap();
+                    let c = ctx.node_result("c").await.unwrap();
+                    Ok(serde_json::json!(b.as_i64().unwrap() + c.as_i64().unwrap()))
+                })
+            })
             .edge("a", "b")
             .edge("a", "c")
             .edge("b", "d")
@@ -595,19 +603,20 @@ mod tests {
     #[tokio::test]
     async fn test_conditional_workflow() {
         let workflow = WorkflowBuilder::new("conditional")
-            .node("check", |_| Box::pin(async {
-                Ok(serde_json::json!({"route": "fast"}))
-            }))
-            .node("fast_path", |_| Box::pin(async {
-                Ok(serde_json::json!("fast_done"))
-            }))
-            .node("slow_path", |_| Box::pin(async {
-                Ok(serde_json::json!("slow_done"))
-            }))
+            .node("check", |_| {
+                Box::pin(async { Ok(serde_json::json!({"route": "fast"})) })
+            })
+            .node("fast_path", |_| {
+                Box::pin(async { Ok(serde_json::json!("fast_done")) })
+            })
+            .node("slow_path", |_| {
+                Box::pin(async { Ok(serde_json::json!("slow_done")) })
+            })
             .edge("check", "fast_path")
             .edge("check", "slow_path")
             .conditional("check", |result| {
-                let route = result.get("route")
+                let route = result
+                    .get("route")
                     .and_then(|v| v.as_str())
                     .unwrap_or("fast");
                 if route == "fast" {
@@ -659,7 +668,9 @@ mod tests {
     #[tokio::test]
     async fn test_single_node_workflow() {
         let workflow = WorkflowBuilder::new("single")
-            .node("only", |_| Box::pin(async { Ok(serde_json::json!("done")) }))
+            .node("only", |_| {
+                Box::pin(async { Ok(serde_json::json!("done")) })
+            })
             .build()
             .unwrap();
 
@@ -671,12 +682,10 @@ mod tests {
     #[tokio::test]
     async fn test_node_failure_skips_dependents() {
         let workflow = WorkflowBuilder::new("fail")
-            .node("a", |_| Box::pin(async {
-                Err(anyhow::anyhow!("boom"))
-            }))
-            .node("b", |_| Box::pin(async {
-                Ok(serde_json::json!("should not run"))
-            }))
+            .node("a", |_| Box::pin(async { Err(anyhow::anyhow!("boom")) }))
+            .node("b", |_| {
+                Box::pin(async { Ok(serde_json::json!("should not run")) })
+            })
             .edge("a", "b")
             .build()
             .unwrap();
@@ -693,10 +702,12 @@ mod tests {
         ctx.set("input", serde_json::json!("hello")).await;
 
         let workflow = WorkflowBuilder::new("with-ctx")
-            .node("use_input", |ctx| Box::pin(async move {
-                let input = ctx.get("input").await.unwrap();
-                Ok(serde_json::json!({"received": input}))
-            }))
+            .node("use_input", |ctx| {
+                Box::pin(async move {
+                    let input = ctx.get("input").await.unwrap();
+                    Ok(serde_json::json!({"received": input}))
+                })
+            })
             .build()
             .unwrap();
 

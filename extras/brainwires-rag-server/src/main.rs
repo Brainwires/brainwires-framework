@@ -1,6 +1,6 @@
 use anyhow::Result;
-use clap::{Parser, Subcommand};
 use brainwires_rag_server::mcp_server::RagMcpServer;
+use clap::{Parser, Subcommand};
 use std::panic;
 
 /// Project-RAG: RAG-based codebase indexing and semantic search MCP server

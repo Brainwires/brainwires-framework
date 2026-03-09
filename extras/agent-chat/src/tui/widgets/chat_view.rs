@@ -17,15 +17,16 @@ pub fn draw(f: &mut Frame, area: Rect, app: &App) {
         let (prefix, style) = match msg.role {
             MessageRole::User => (
                 "You: ",
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
             ),
-            MessageRole::Assistant => (
-                "AI: ",
-                Style::default().fg(Color::White),
-            ),
+            MessageRole::Assistant => ("AI: ", Style::default().fg(Color::White)),
             MessageRole::Tool => (
                 "",
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::DIM),
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::DIM),
             ),
             MessageRole::Error => (
                 "Error: ",

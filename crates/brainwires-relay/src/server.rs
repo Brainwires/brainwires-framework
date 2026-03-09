@@ -1,8 +1,6 @@
 use anyhow::Result;
-use brainwires_mcp::{
-    InitializeParams, InitializeResult, JsonRpcRequest, JsonRpcResponse,
-};
-use serde_json::{json, Value};
+use brainwires_mcp::{InitializeParams, InitializeResult, JsonRpcRequest, JsonRpcResponse};
+use serde_json::{Value, json};
 use tracing;
 
 use crate::connection::{ClientInfo, RequestContext};
@@ -236,10 +234,7 @@ impl<H: McpHandler> McpServer<H> {
             }
         };
 
-        let args = params
-            .get("arguments")
-            .cloned()
-            .unwrap_or(json!({}));
+        let args = params.get("arguments").cloned().unwrap_or(json!({}));
 
         match self.handler.call_tool(tool_name, args, ctx).await {
             Ok(result) => {

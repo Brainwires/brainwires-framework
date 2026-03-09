@@ -61,10 +61,7 @@ impl RestTransport {
             .map_err(|e| A2aError::internal(format!("REST request failed: {e}")))?;
 
         if !resp.status().is_success() {
-            return Err(A2aError::internal(format!(
-                "REST error: {}",
-                resp.status()
-            )));
+            return Err(A2aError::internal(format!("REST error: {}", resp.status())));
         }
 
         resp.json()
@@ -82,10 +79,7 @@ impl RestTransport {
             .map_err(|e| A2aError::internal(format!("REST request failed: {e}")))?;
 
         if !resp.status().is_success() {
-            return Err(A2aError::internal(format!(
-                "REST error: {}",
-                resp.status()
-            )));
+            return Err(A2aError::internal(format!("REST error: {}", resp.status())));
         }
 
         resp.json()

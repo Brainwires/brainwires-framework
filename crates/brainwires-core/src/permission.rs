@@ -22,7 +22,6 @@ pub enum PermissionMode {
     Full,
 }
 
-
 impl PermissionMode {
     /// Parse from string
     pub fn parse(s: &str) -> Option<Self> {
@@ -52,7 +51,10 @@ mod tests {
 
     #[test]
     fn test_permission_mode_from_str() {
-        assert_eq!(PermissionMode::parse("read-only"), Some(PermissionMode::ReadOnly));
+        assert_eq!(
+            PermissionMode::parse("read-only"),
+            Some(PermissionMode::ReadOnly)
+        );
         assert_eq!(PermissionMode::parse("auto"), Some(PermissionMode::Auto));
         assert_eq!(PermissionMode::parse("full"), Some(PermissionMode::Full));
         assert_eq!(PermissionMode::parse("invalid"), None);

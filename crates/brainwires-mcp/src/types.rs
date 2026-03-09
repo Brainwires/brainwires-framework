@@ -10,23 +10,15 @@ use serde_json::Value;
 // Re-export rmcp types with compatibility aliases (native only)
 #[cfg(feature = "native")]
 pub use rmcp::model::{
-    Tool as RmcpTool,
-    Resource as RmcpResource,
-    Prompt as RmcpPrompt,
-    CallToolRequestParam,
-    CallToolResult,
-    Content,
-    ProtocolVersion,
+    CallToolRequestParam, CallToolResult, Content, Prompt as RmcpPrompt, ProtocolVersion,
+    Resource as RmcpResource, Tool as RmcpTool,
 };
 
 // Re-export capabilities (native only)
 #[cfg(feature = "native")]
 pub use rmcp::model::{
-    ServerCapabilities as RmcpServerCapabilities,
-    ClientCapabilities as RmcpClientCapabilities,
-    ToolsCapability,
-    ResourcesCapability,
-    PromptsCapability,
+    ClientCapabilities as RmcpClientCapabilities, PromptsCapability, ResourcesCapability,
+    ServerCapabilities as RmcpServerCapabilities, ToolsCapability,
 };
 
 // ===========================================================================
@@ -248,9 +240,10 @@ impl McpNotification {
         match notif.method.as_str() {
             "notifications/progress" => {
                 if let Some(ref params) = notif.params
-                    && let Ok(progress) = serde_json::from_value::<ProgressParams>(params.clone()) {
-                        return McpNotification::Progress(progress);
-                    }
+                    && let Ok(progress) = serde_json::from_value::<ProgressParams>(params.clone())
+                {
+                    return McpNotification::Progress(progress);
+                }
                 McpNotification::Unknown {
                     method: notif.method.clone(),
                     params: notif.params.clone(),
@@ -487,7 +480,9 @@ mod tests {
 
     #[test]
     fn test_json_rpc_request_new() {
-        let request = JsonRpcRequest::new(1, "test_method".to_string(), Some(json!({"key": "value"}))).unwrap();
+        let request =
+            JsonRpcRequest::new(1, "test_method".to_string(), Some(json!({"key": "value"})))
+                .unwrap();
 
         assert_eq!(request.jsonrpc, "2.0");
         assert_eq!(request.id, json!(1));

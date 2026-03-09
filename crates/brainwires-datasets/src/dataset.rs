@@ -9,7 +9,9 @@ pub trait Dataset: Send + Sync {
     /// Return the number of items in the dataset.
     fn len(&self) -> usize;
     /// Return true if the dataset is empty.
-    fn is_empty(&self) -> bool { self.len() == 0 }
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
     /// Get an item by index.
     fn get(&self, index: usize) -> Option<&Self::Item>;
     /// Return an iterator over all items.
@@ -71,7 +73,12 @@ impl InstructDataset {
         F: Fn(&TrainingExample) -> bool,
     {
         Self {
-            examples: self.examples.iter().filter(|e| predicate(e)).cloned().collect(),
+            examples: self
+                .examples
+                .iter()
+                .filter(|e| predicate(e))
+                .cloned()
+                .collect(),
         }
     }
 
@@ -110,7 +117,9 @@ impl Dataset for InstructDataset {
         let mut state = seed;
         for i in (1..len).rev() {
             // Simple LCG for deterministic shuffle
-            state = state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
             let j = (state >> 33) as usize % (i + 1);
             self.examples.swap(i, j);
         }
@@ -171,7 +180,12 @@ impl PreferenceDataset {
         F: Fn(&PreferencePair) -> bool,
     {
         Self {
-            pairs: self.pairs.iter().filter(|p| predicate(p)).cloned().collect(),
+            pairs: self
+                .pairs
+                .iter()
+                .filter(|p| predicate(p))
+                .cloned()
+                .collect(),
         }
     }
 
@@ -213,7 +227,9 @@ impl Dataset for PreferenceDataset {
         }
         let mut state = seed;
         for i in (1..len).rev() {
-            state = state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
             let j = (state >> 33) as usize % (i + 1);
             self.pairs.swap(i, j);
         }

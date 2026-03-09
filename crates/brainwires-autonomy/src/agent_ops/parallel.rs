@@ -112,9 +112,9 @@ impl ParallelCoordinator {
             .iter()
             .filter(|t| {
                 !self.results.contains_key(&t.id)
-                    && t.depends_on.iter().all(|dep| {
-                        self.results.get(dep).is_some_and(|r| r.success)
-                    })
+                    && t.depends_on
+                        .iter()
+                        .all(|dep| self.results.get(dep).is_some_and(|r| r.success))
             })
             .collect()
     }
@@ -299,6 +299,9 @@ mod tests {
         assert!(matches!(coord.status(), ParallelPlanStatus::Pending));
 
         coord.record_result(make_result("a", true));
-        assert!(matches!(coord.status(), ParallelPlanStatus::Completed { .. }));
+        assert!(matches!(
+            coord.status(),
+            ParallelPlanStatus::Completed { .. }
+        ));
     }
 }

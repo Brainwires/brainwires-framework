@@ -5,7 +5,7 @@
 //!   cargo run --example capture_to_wav -- --duration 10 --output recording.wav
 //!   cargo run --example capture_to_wav -- --format flac
 
-use brainwires_audio::{AudioConfig, CpalCapture, AudioCapture, encode_wav};
+use brainwires_audio::{AudioCapture, AudioConfig, CpalCapture, encode_wav};
 use std::path::PathBuf;
 
 #[tokio::main]

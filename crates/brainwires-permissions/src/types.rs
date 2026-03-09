@@ -93,10 +93,13 @@ impl AgentCapabilities {
             }
 
             // Search operations
-            "search_code" | "index_codebase" | "query_codebase" | "search_with_filters"
-            | "get_rag_statistics" | "clear_rag_index" | "search_git_history" => {
-                ToolCategory::Search
-            }
+            "search_code"
+            | "index_codebase"
+            | "query_codebase"
+            | "search_with_filters"
+            | "get_rag_statistics"
+            | "clear_rag_index"
+            | "search_git_history" => ToolCategory::Search,
 
             // Git operations - check for destructive operations first
             name if name.starts_with("git_") => {
@@ -481,14 +484,26 @@ impl AgentCapabilities {
                     .filesystem
                     .read_paths
                     .iter()
-                    .filter(|p| other.filesystem.read_paths.iter().any(|op| op.pattern() == p.pattern()))
+                    .filter(|p| {
+                        other
+                            .filesystem
+                            .read_paths
+                            .iter()
+                            .any(|op| op.pattern() == p.pattern())
+                    })
                     .cloned()
                     .collect(),
                 write_paths: self
                     .filesystem
                     .write_paths
                     .iter()
-                    .filter(|p| other.filesystem.write_paths.iter().any(|op| op.pattern() == p.pattern()))
+                    .filter(|p| {
+                        other
+                            .filesystem
+                            .write_paths
+                            .iter()
+                            .any(|op| op.pattern() == p.pattern())
+                    })
                     .cloned()
                     .collect(),
                 // Union of denied paths (more restrictive)
@@ -501,11 +516,16 @@ impl AgentCapabilities {
                     }
                     denied
                 },
-                follow_symlinks: self.filesystem.follow_symlinks && other.filesystem.follow_symlinks,
+                follow_symlinks: self.filesystem.follow_symlinks
+                    && other.filesystem.follow_symlinks,
                 access_hidden: self.filesystem.access_hidden && other.filesystem.access_hidden,
                 can_delete: self.filesystem.can_delete && other.filesystem.can_delete,
-                can_create_dirs: self.filesystem.can_create_dirs && other.filesystem.can_create_dirs,
-                max_write_size: match (self.filesystem.max_write_size, other.filesystem.max_write_size) {
+                can_create_dirs: self.filesystem.can_create_dirs
+                    && other.filesystem.can_create_dirs,
+                max_write_size: match (
+                    self.filesystem.max_write_size,
+                    other.filesystem.max_write_size,
+                ) {
                     (Some(a), Some(b)) => Some(a.min(b)),
                     (Some(a), None) => Some(a),
                     (None, Some(b)) => Some(b),
@@ -546,7 +566,9 @@ impl AgentCapabilities {
                     .network
                     .allowed_domains
                     .iter()
-                    .filter(|d| other.network.allowed_domains.contains(d) || other.network.allow_all)
+                    .filter(|d| {
+                        other.network.allowed_domains.contains(d) || other.network.allow_all
+                    })
                     .cloned()
                     .collect(),
                 denied_domains: {
@@ -564,7 +586,10 @@ impl AgentCapabilities {
                     (None, None) => None,
                 },
                 allow_api_calls: self.network.allow_api_calls && other.network.allow_api_calls,
-                max_response_size: match (self.network.max_response_size, other.network.max_response_size) {
+                max_response_size: match (
+                    self.network.max_response_size,
+                    other.network.max_response_size,
+                ) {
                     (Some(a), Some(b)) => Some(a.min(b)),
                     (Some(a), None) => Some(a),
                     (None, Some(b)) => Some(b),
@@ -602,7 +627,10 @@ impl AgentCapabilities {
                 },
             },
             quotas: ResourceQuotas {
-                max_execution_time: match (self.quotas.max_execution_time, other.quotas.max_execution_time) {
+                max_execution_time: match (
+                    self.quotas.max_execution_time,
+                    other.quotas.max_execution_time,
+                ) {
                     (Some(a), Some(b)) => Some(a.min(b)),
                     (Some(a), None) => Some(a),
                     (None, Some(b)) => Some(b),
@@ -626,7 +654,10 @@ impl AgentCapabilities {
                     (None, Some(b)) => Some(b),
                     (None, None) => None,
                 },
-                max_files_modified: match (self.quotas.max_files_modified, other.quotas.max_files_modified) {
+                max_files_modified: match (
+                    self.quotas.max_files_modified,
+                    other.quotas.max_files_modified,
+                ) {
                     (Some(a), Some(b)) => Some(a.min(b)),
                     (Some(a), None) => Some(a),
                     (None, Some(b)) => Some(b),
@@ -1157,7 +1188,7 @@ impl ResourceQuotas {
     /// Create conservative quotas
     pub fn conservative() -> Self {
         Self {
-            max_execution_time: Some(5 * 60), // 5 minutes
+            max_execution_time: Some(5 * 60),    // 5 minutes
             max_memory: Some(512 * 1024 * 1024), // 512MB
             max_tokens: Some(10_000),
             max_tool_calls: Some(50),
@@ -1249,9 +1280,15 @@ mod tests {
     #[test]
     fn test_full_access_pattern() {
         let pattern = PathPattern::new("**/*");
-        assert!(pattern.matches("index.html"), "**/* should match root files");
+        assert!(
+            pattern.matches("index.html"),
+            "**/* should match root files"
+        );
         assert!(pattern.matches("./index.html"), "**/* should match ./file");
-        assert!(pattern.matches("src/main.rs"), "**/* should match nested files");
+        assert!(
+            pattern.matches("src/main.rs"),
+            "**/* should match nested files"
+        );
     }
 
     #[test]
@@ -1303,10 +1340,7 @@ mod tests {
     fn test_domain_matching() {
         let caps = AgentCapabilities {
             network: NetworkCapabilities {
-                allowed_domains: vec![
-                    "github.com".to_string(),
-                    "*.github.com".to_string(),
-                ],
+                allowed_domains: vec!["github.com".to_string(), "*.github.com".to_string()],
                 ..Default::default()
             },
             ..Default::default()

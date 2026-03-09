@@ -54,7 +54,8 @@ impl TransformerBlock {
     pub fn ffn_params(&self) -> usize {
         if self.use_swiglu {
             // gate_proj + up_proj + down_proj
-            self.hidden_size * self.intermediate_size * 2 + self.intermediate_size * self.hidden_size
+            self.hidden_size * self.intermediate_size * 2
+                + self.intermediate_size * self.hidden_size
         } else {
             // up_proj + down_proj
             self.hidden_size * self.intermediate_size + self.intermediate_size * self.hidden_size

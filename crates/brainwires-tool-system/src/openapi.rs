@@ -36,13 +36,13 @@
 
 use std::collections::HashMap;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use openapiv3::{
-    OpenAPI, Operation, Parameter, ParameterSchemaOrContent, PathItem, ReferenceOr,
-    Schema, SchemaKind, Type as OApiType,
+    OpenAPI, Operation, Parameter, ParameterSchemaOrContent, PathItem, ReferenceOr, Schema,
+    SchemaKind, Type as OApiType,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use brainwires_core::{Tool, ToolInputSchema};
 
@@ -190,18 +190,15 @@ fn parse_operation(
     operation: &Operation,
 ) -> Option<OpenApiTool> {
     // Generate tool name from operationId or method+path
-    let tool_name = operation
-        .operation_id
-        .clone()
-        .unwrap_or_else(|| {
-            let clean_path = path
-                .replace('/', "_")
-                .replace('{', "")
-                .replace('}', "")
-                .trim_matches('_')
-                .to_string();
-            format!("{}_{}", method.to_string().to_lowercase(), clean_path)
-        });
+    let tool_name = operation.operation_id.clone().unwrap_or_else(|| {
+        let clean_path = path
+            .replace('/', "_")
+            .replace('{', "")
+            .replace('}', "")
+            .trim_matches('_')
+            .to_string();
+        format!("{}_{}", method.to_string().to_lowercase(), clean_path)
+    });
 
     // Generate description
     let description = operation
@@ -303,25 +300,32 @@ fn process_parameter(
     required_params: &mut Vec<String>,
 ) {
     let (name, required, location, schema_or_content, description) = match param {
-        Parameter::Query { parameter_data, style: _, allow_reserved: _, allow_empty_value: _ } => {
-            (
-                &parameter_data.name,
-                parameter_data.required,
-                "query",
-                &parameter_data.format,
-                &parameter_data.description,
-            )
-        }
-        Parameter::Header { parameter_data, style: _ } => {
-            (
-                &parameter_data.name,
-                parameter_data.required,
-                "header",
-                &parameter_data.format,
-                &parameter_data.description,
-            )
-        }
-        Parameter::Path { parameter_data, style: _ } => {
+        Parameter::Query {
+            parameter_data,
+            style: _,
+            allow_reserved: _,
+            allow_empty_value: _,
+        } => (
+            &parameter_data.name,
+            parameter_data.required,
+            "query",
+            &parameter_data.format,
+            &parameter_data.description,
+        ),
+        Parameter::Header {
+            parameter_data,
+            style: _,
+        } => (
+            &parameter_data.name,
+            parameter_data.required,
+            "header",
+            &parameter_data.format,
+            &parameter_data.description,
+        ),
+        Parameter::Path {
+            parameter_data,
+            style: _,
+        } => {
             (
                 &parameter_data.name,
                 true, // Path params are always required
@@ -474,14 +478,22 @@ pub async fn execute_openapi_tool(
     }
 
     // Execute request
-    let response = request.send().await.map_err(|e| anyhow!("HTTP request failed: {}", e))?;
+    let response = request
+        .send()
+        .await
+        .map_err(|e| anyhow!("HTTP request failed: {}", e))?;
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
 
     if status.is_success() {
         Ok(body)
     } else {
-        Err(anyhow!("HTTP {} {}: {}", status.as_u16(), status.canonical_reason().unwrap_or(""), body))
+        Err(anyhow!(
+            "HTTP {} {}: {}",
+            status.as_u16(),
+            status.canonical_reason().unwrap_or(""),
+            body
+        ))
     }
 }
 

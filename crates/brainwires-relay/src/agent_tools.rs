@@ -250,9 +250,7 @@ mod tests {
             .expect("agent_spawn tool should exist");
 
         assert_eq!(spawn_tool.name, "agent_spawn");
-        assert!(spawn_tool
-            .description
-            .contains("autonomous"));
+        assert!(spawn_tool.description.contains("autonomous"));
         assert!(!spawn_tool.requires_approval);
 
         // Check schema structure

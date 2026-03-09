@@ -33,7 +33,10 @@ impl BranchManager {
             .take(40)
             .collect();
         let clean_slug = clean_slug.trim_matches('-').to_string();
-        format!("{}issue-{}-{}", self.branch_prefix, issue_number, clean_slug)
+        format!(
+            "{}issue-{}-{}",
+            self.branch_prefix, issue_number, clean_slug
+        )
     }
 
     /// Create a new branch from the current HEAD.
@@ -52,7 +55,12 @@ impl BranchManager {
 
         // Create branch
         let output = tokio::process::Command::new("git")
-            .args(["checkout", "-b", branch_name, &format!("origin/{base_branch}")])
+            .args([
+                "checkout",
+                "-b",
+                branch_name,
+                &format!("origin/{base_branch}"),
+            ])
             .current_dir(repo_path)
             .output()
             .await?;
@@ -70,11 +78,7 @@ impl BranchManager {
     }
 
     /// Push a branch to the remote.
-    pub async fn push_branch(
-        &self,
-        repo_path: &str,
-        branch_name: &str,
-    ) -> anyhow::Result<()> {
+    pub async fn push_branch(&self, repo_path: &str, branch_name: &str) -> anyhow::Result<()> {
         let output = tokio::process::Command::new("git")
             .args(["push", "-u", "origin", branch_name])
             .current_dir(repo_path)
@@ -90,11 +94,7 @@ impl BranchManager {
     }
 
     /// Clean up a branch after merge.
-    pub async fn delete_branch(
-        &self,
-        repo_path: &str,
-        branch_name: &str,
-    ) -> anyhow::Result<()> {
+    pub async fn delete_branch(&self, repo_path: &str, branch_name: &str) -> anyhow::Result<()> {
         let _ = tokio::process::Command::new("git")
             .args(["branch", "-D", branch_name])
             .current_dir(repo_path)

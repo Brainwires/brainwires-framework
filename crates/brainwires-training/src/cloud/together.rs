@@ -5,9 +5,11 @@ use tracing::debug;
 
 use brainwires_datasets::DataFormat;
 
-use crate::error::TrainingError;
-use crate::types::{TrainingJobId, TrainingJobStatus, TrainingJobSummary, TrainingProgress, DatasetId};
 use super::{CloudFineTuneConfig, FineTuneProvider};
+use crate::error::TrainingError;
+use crate::types::{
+    DatasetId, TrainingJobId, TrainingJobStatus, TrainingJobSummary, TrainingProgress,
+};
 
 const TOGETHER_API_URL: &str = "https://api.together.xyz/v1";
 
@@ -51,7 +53,10 @@ impl TogetherFineTune {
 
     /// Parse job status from API response.
     fn parse_job_status(body: &serde_json::Value) -> TrainingJobStatus {
-        let status_str = body.get("status").and_then(|v| v.as_str()).unwrap_or("pending");
+        let status_str = body
+            .get("status")
+            .and_then(|v| v.as_str())
+            .unwrap_or("pending");
 
         match status_str {
             "pending" | "queued" => TrainingJobStatus::Queued,
@@ -96,11 +101,14 @@ impl FineTuneProvider for TogetherFineTune {
         true
     }
 
-    async fn upload_dataset(&self, data: &[u8], _format: DataFormat) -> Result<DatasetId, TrainingError> {
+    async fn upload_dataset(
+        &self,
+        data: &[u8],
+        _format: DataFormat,
+    ) -> Result<DatasetId, TrainingError> {
         debug!("Uploading dataset to Together AI ({} bytes)", data.len());
 
-        let part = reqwest::multipart::Part::bytes(data.to_vec())
-            .file_name("training_data.jsonl");
+        let part = reqwest::multipart::Part::bytes(data.to_vec()).file_name("training_data.jsonl");
 
         let form = reqwest::multipart::Form::new()
             .text("purpose", "fine-tune")
@@ -133,8 +141,14 @@ impl FineTuneProvider for TogetherFineTune {
         Ok(DatasetId(file_id))
     }
 
-    async fn create_job(&self, config: CloudFineTuneConfig) -> Result<TrainingJobId, TrainingError> {
-        debug!("Creating Together AI fine-tuning job for: {}", config.base_model);
+    async fn create_job(
+        &self,
+        config: CloudFineTuneConfig,
+    ) -> Result<TrainingJobId, TrainingError> {
+        debug!(
+            "Creating Together AI fine-tuning job for: {}",
+            config.base_model
+        );
 
         let mut body = json!({
             "training_file": config.training_dataset.0,
@@ -175,7 +189,10 @@ impl FineTuneProvider for TogetherFineTune {
         Ok(TrainingJobId(job_id))
     }
 
-    async fn get_job_status(&self, job_id: &TrainingJobId) -> Result<TrainingJobStatus, TrainingError> {
+    async fn get_job_status(
+        &self,
+        job_id: &TrainingJobId,
+    ) -> Result<TrainingJobStatus, TrainingError> {
         let url = format!("{}/fine-tunes/{}", self.base_url, job_id.0);
 
         let response = self

@@ -181,32 +181,54 @@ impl EntityStore {
     /// so no information is silently discarded.
     fn check_and_record_contradiction(&mut self, new_rel: &Relationship) {
         match new_rel {
-            Relationship::Defines { definer, defined, context: new_ctx } => {
+            Relationship::Defines {
+                definer,
+                defined,
+                context: new_ctx,
+            } => {
                 for existing in &self.relationships {
-                    if let Relationship::Defines { definer: ex_definer, defined: ex_defined, context: ex_ctx } = existing
-                        && ex_definer == definer && ex_defined == defined && ex_ctx != new_ctx {
-                            self.contradictions.push(ContradictionEvent {
-                                kind: ContradictionKind::ConflictingDefinition,
-                                subject: format!("{}::{}", definer, defined),
-                                existing_context: ex_ctx.clone(),
-                                new_context: new_ctx.clone(),
-                            });
-                            break;
-                        }
+                    if let Relationship::Defines {
+                        definer: ex_definer,
+                        defined: ex_defined,
+                        context: ex_ctx,
+                    } = existing
+                        && ex_definer == definer
+                        && ex_defined == defined
+                        && ex_ctx != new_ctx
+                    {
+                        self.contradictions.push(ContradictionEvent {
+                            kind: ContradictionKind::ConflictingDefinition,
+                            subject: format!("{}::{}", definer, defined),
+                            existing_context: ex_ctx.clone(),
+                            new_context: new_ctx.clone(),
+                        });
+                        break;
+                    }
                 }
             }
-            Relationship::Modifies { modifier, modified, change_type: new_change } => {
+            Relationship::Modifies {
+                modifier,
+                modified,
+                change_type: new_change,
+            } => {
                 for existing in &self.relationships {
-                    if let Relationship::Modifies { modifier: ex_modifier, modified: ex_modified, change_type: ex_change } = existing
-                        && ex_modifier == modifier && ex_modified == modified && ex_change != new_change {
-                            self.contradictions.push(ContradictionEvent {
-                                kind: ContradictionKind::ConflictingModification,
-                                subject: format!("{}::{}", modifier, modified),
-                                existing_context: ex_change.clone(),
-                                new_context: new_change.clone(),
-                            });
-                            break;
-                        }
+                    if let Relationship::Modifies {
+                        modifier: ex_modifier,
+                        modified: ex_modified,
+                        change_type: ex_change,
+                    } = existing
+                        && ex_modifier == modifier
+                        && ex_modified == modified
+                        && ex_change != new_change
+                    {
+                        self.contradictions.push(ContradictionEvent {
+                            kind: ContradictionKind::ConflictingModification,
+                            subject: format!("{}::{}", modifier, modified),
+                            existing_context: ex_change.clone(),
+                            new_context: new_change.clone(),
+                        });
+                        break;
+                    }
                 }
             }
             _ => {}
@@ -233,7 +255,10 @@ impl EntityStore {
 
     /// Get all entities of a given type.
     pub fn get_by_type(&self, entity_type: &EntityType) -> Vec<&Entity> {
-        self.entities.values().filter(|e| &e.entity_type == entity_type).collect()
+        self.entities
+            .values()
+            .filter(|e| &e.entity_type == entity_type)
+            .collect()
     }
 
     /// Get the most-mentioned entities, up to `limit`.
@@ -248,29 +273,59 @@ impl EntityStore {
         let mut related = HashSet::new();
         for rel in &self.relationships {
             match rel {
-                Relationship::CoOccurs { entity_a, entity_b, .. } => {
-                    if entity_a == entity_name { related.insert(entity_b.clone()); }
-                    else if entity_b == entity_name { related.insert(entity_a.clone()); }
+                Relationship::CoOccurs {
+                    entity_a, entity_b, ..
+                } => {
+                    if entity_a == entity_name {
+                        related.insert(entity_b.clone());
+                    } else if entity_b == entity_name {
+                        related.insert(entity_a.clone());
+                    }
                 }
-                Relationship::Contains { container, contained } => {
-                    if container == entity_name { related.insert(contained.clone()); }
-                    else if contained == entity_name { related.insert(container.clone()); }
+                Relationship::Contains {
+                    container,
+                    contained,
+                } => {
+                    if container == entity_name {
+                        related.insert(contained.clone());
+                    } else if contained == entity_name {
+                        related.insert(container.clone());
+                    }
                 }
                 Relationship::References { from, to } => {
-                    if from == entity_name { related.insert(to.clone()); }
-                    else if to == entity_name { related.insert(from.clone()); }
+                    if from == entity_name {
+                        related.insert(to.clone());
+                    } else if to == entity_name {
+                        related.insert(from.clone());
+                    }
                 }
-                Relationship::DependsOn { dependent, dependency } => {
-                    if dependent == entity_name { related.insert(dependency.clone()); }
-                    else if dependency == entity_name { related.insert(dependent.clone()); }
+                Relationship::DependsOn {
+                    dependent,
+                    dependency,
+                } => {
+                    if dependent == entity_name {
+                        related.insert(dependency.clone());
+                    } else if dependency == entity_name {
+                        related.insert(dependent.clone());
+                    }
                 }
-                Relationship::Modifies { modifier, modified, .. } => {
-                    if modifier == entity_name { related.insert(modified.clone()); }
-                    else if modified == entity_name { related.insert(modifier.clone()); }
+                Relationship::Modifies {
+                    modifier, modified, ..
+                } => {
+                    if modifier == entity_name {
+                        related.insert(modified.clone());
+                    } else if modified == entity_name {
+                        related.insert(modifier.clone());
+                    }
                 }
-                Relationship::Defines { definer, defined, .. } => {
-                    if definer == entity_name { related.insert(defined.clone()); }
-                    else if defined == entity_name { related.insert(definer.clone()); }
+                Relationship::Defines {
+                    definer, defined, ..
+                } => {
+                    if definer == entity_name {
+                        related.insert(defined.clone());
+                    } else if defined == entity_name {
+                        related.insert(definer.clone());
+                    }
                 }
             }
         }
@@ -279,7 +334,8 @@ impl EntityStore {
 
     /// Get all message IDs associated with an entity name.
     pub fn get_message_ids(&self, entity_name: &str) -> Vec<String> {
-        self.entities.values()
+        self.entities
+            .values()
             .filter(|e| e.name == entity_name)
             .flat_map(|e| e.message_ids.clone())
             .collect()
@@ -376,13 +432,11 @@ mod tests {
         let mut store = EntityStore::new();
         let result = ExtractionResult {
             entities: vec![],
-            relationships: vec![
-                Relationship::Defines {
-                    definer: "main".into(),
-                    defined: "return_type".into(),
-                    context: "returns i32".into(),
-                },
-            ],
+            relationships: vec![Relationship::Defines {
+                definer: "main".into(),
+                defined: "return_type".into(),
+                context: "returns i32".into(),
+            }],
         };
         store.add_extraction(result, "msg-1", 100);
         assert!(store.pending_contradictions().is_empty());
@@ -392,32 +446,39 @@ mod tests {
     fn test_contradicting_definitions_flagged() {
         let mut store = EntityStore::new();
 
-        store.add_extraction(ExtractionResult {
-            entities: vec![],
-            relationships: vec![
-                Relationship::Defines {
+        store.add_extraction(
+            ExtractionResult {
+                entities: vec![],
+                relationships: vec![Relationship::Defines {
                     definer: "main".into(),
                     defined: "return_type".into(),
                     context: "returns i32".into(),
-                },
-            ],
-        }, "msg-1", 100);
+                }],
+            },
+            "msg-1",
+            100,
+        );
 
         // Same definer/defined, different context → contradiction
-        store.add_extraction(ExtractionResult {
-            entities: vec![],
-            relationships: vec![
-                Relationship::Defines {
+        store.add_extraction(
+            ExtractionResult {
+                entities: vec![],
+                relationships: vec![Relationship::Defines {
                     definer: "main".into(),
                     defined: "return_type".into(),
                     context: "returns String".into(),
-                },
-            ],
-        }, "msg-2", 200);
+                }],
+            },
+            "msg-2",
+            200,
+        );
 
         let contradictions = store.pending_contradictions();
         assert_eq!(contradictions.len(), 1);
-        assert_eq!(contradictions[0].kind, ContradictionKind::ConflictingDefinition);
+        assert_eq!(
+            contradictions[0].kind,
+            ContradictionKind::ConflictingDefinition
+        );
         assert_eq!(contradictions[0].subject, "main::return_type");
         assert_eq!(contradictions[0].existing_context, "returns i32");
         assert_eq!(contradictions[0].new_context, "returns String");
@@ -428,16 +489,18 @@ mod tests {
         let mut store = EntityStore::new();
 
         for msg_id in ["msg-1", "msg-2"] {
-            store.add_extraction(ExtractionResult {
-                entities: vec![],
-                relationships: vec![
-                    Relationship::Defines {
+            store.add_extraction(
+                ExtractionResult {
+                    entities: vec![],
+                    relationships: vec![Relationship::Defines {
                         definer: "Config".into(),
                         defined: "timeout".into(),
                         context: "30 seconds".into(),
-                    },
-                ],
-            }, msg_id, 100);
+                    }],
+                },
+                msg_id,
+                100,
+            );
         }
 
         assert!(store.pending_contradictions().is_empty());
@@ -447,31 +510,38 @@ mod tests {
     fn test_contradicting_modifications_flagged() {
         let mut store = EntityStore::new();
 
-        store.add_extraction(ExtractionResult {
-            entities: vec![],
-            relationships: vec![
-                Relationship::Modifies {
+        store.add_extraction(
+            ExtractionResult {
+                entities: vec![],
+                relationships: vec![Relationship::Modifies {
                     modifier: "patch_v2".into(),
                     modified: "timeout".into(),
                     change_type: "increase".into(),
-                },
-            ],
-        }, "msg-1", 100);
+                }],
+            },
+            "msg-1",
+            100,
+        );
 
-        store.add_extraction(ExtractionResult {
-            entities: vec![],
-            relationships: vec![
-                Relationship::Modifies {
+        store.add_extraction(
+            ExtractionResult {
+                entities: vec![],
+                relationships: vec![Relationship::Modifies {
                     modifier: "patch_v2".into(),
                     modified: "timeout".into(),
                     change_type: "decrease".into(),
-                },
-            ],
-        }, "msg-2", 200);
+                }],
+            },
+            "msg-2",
+            200,
+        );
 
         let contradictions = store.pending_contradictions();
         assert_eq!(contradictions.len(), 1);
-        assert_eq!(contradictions[0].kind, ContradictionKind::ConflictingModification);
+        assert_eq!(
+            contradictions[0].kind,
+            ContradictionKind::ConflictingModification
+        );
     }
 
     #[test]
@@ -479,16 +549,18 @@ mod tests {
         let mut store = EntityStore::new();
 
         for ctx in ["returns i32", "returns String"] {
-            store.add_extraction(ExtractionResult {
-                entities: vec![],
-                relationships: vec![
-                    Relationship::Defines {
+            store.add_extraction(
+                ExtractionResult {
+                    entities: vec![],
+                    relationships: vec![Relationship::Defines {
                         definer: "main".into(),
                         defined: "return_type".into(),
                         context: ctx.into(),
-                    },
-                ],
-            }, "msg-1", 100);
+                    }],
+                },
+                "msg-1",
+                100,
+            );
         }
 
         assert!(!store.pending_contradictions().is_empty());
@@ -501,27 +573,31 @@ mod tests {
     fn test_both_relationships_retained_after_contradiction() {
         let mut store = EntityStore::new();
 
-        store.add_extraction(ExtractionResult {
-            entities: vec![],
-            relationships: vec![
-                Relationship::Defines {
+        store.add_extraction(
+            ExtractionResult {
+                entities: vec![],
+                relationships: vec![Relationship::Defines {
                     definer: "fn".into(),
                     defined: "x".into(),
                     context: "old".into(),
-                },
-            ],
-        }, "msg-1", 100);
+                }],
+            },
+            "msg-1",
+            100,
+        );
 
-        store.add_extraction(ExtractionResult {
-            entities: vec![],
-            relationships: vec![
-                Relationship::Defines {
+        store.add_extraction(
+            ExtractionResult {
+                entities: vec![],
+                relationships: vec![Relationship::Defines {
                     definer: "fn".into(),
                     defined: "x".into(),
                     context: "new".into(),
-                },
-            ],
-        }, "msg-2", 200);
+                }],
+            },
+            "msg-2",
+            200,
+        );
 
         // Both relationships are kept — no silent overwrite
         assert_eq!(store.all_relationships().len(), 2);

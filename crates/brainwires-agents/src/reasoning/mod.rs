@@ -58,15 +58,15 @@ pub use retrieval_classifier::{
     RetrievalNeed as LocalRetrievalNeed,
 };
 pub use router::{LocalRouter, LocalRouterBuilder, RouteResult};
+pub use strategies::{
+    ChainOfThoughtStrategy, ReActStrategy, ReasoningStrategy, ReflexionStrategy, StrategyPreset,
+    StrategyStep, TreeOfThoughtsStrategy,
+};
 pub use strategy_selector::{
     RecommendedStrategy, StrategyResult, StrategySelector, StrategySelectorBuilder, TaskType,
 };
 pub use summarizer::{
     ExtractedFact, FactCategory, LocalSummarizer, LocalSummarizerBuilder, SummarizationResult,
-};
-pub use strategies::{
-    ChainOfThoughtStrategy, ReActStrategy, ReasoningStrategy, ReflexionStrategy,
-    StrategyPreset, StrategyStep, TreeOfThoughtsStrategy,
 };
 pub use validator::{LocalValidator, LocalValidatorBuilder, ValidationResult};
 

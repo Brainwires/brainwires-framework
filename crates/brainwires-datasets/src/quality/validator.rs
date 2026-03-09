@@ -1,5 +1,5 @@
 use crate::error::DatasetResult;
-use crate::types::{TrainingExample, TrainingRole, PreferencePair};
+use crate::types::{PreferencePair, TrainingExample, TrainingRole};
 
 /// Validation issue severity.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -39,17 +39,25 @@ pub struct ValidationReport {
 impl ValidationReport {
     /// Return true if any error-level issues exist.
     pub fn has_errors(&self) -> bool {
-        self.issues.iter().any(|i| i.severity == IssueSeverity::Error)
+        self.issues
+            .iter()
+            .any(|i| i.severity == IssueSeverity::Error)
     }
 
     /// Count the number of error-level issues.
     pub fn error_count(&self) -> usize {
-        self.issues.iter().filter(|i| i.severity == IssueSeverity::Error).count()
+        self.issues
+            .iter()
+            .filter(|i| i.severity == IssueSeverity::Error)
+            .count()
     }
 
     /// Count the number of warning-level issues.
     pub fn warning_count(&self) -> usize {
-        self.issues.iter().filter(|i| i.severity == IssueSeverity::Warning).count()
+        self.issues
+            .iter()
+            .filter(|i| i.severity == IssueSeverity::Warning)
+            .count()
     }
 }
 
@@ -289,8 +297,18 @@ impl DataValidator {
 
         // Warn if chosen == rejected
         if !pair.chosen.is_empty() && !pair.rejected.is_empty() {
-            let chosen_text: String = pair.chosen.iter().map(|m| m.content.as_str()).collect::<Vec<_>>().join("");
-            let rejected_text: String = pair.rejected.iter().map(|m| m.content.as_str()).collect::<Vec<_>>().join("");
+            let chosen_text: String = pair
+                .chosen
+                .iter()
+                .map(|m| m.content.as_str())
+                .collect::<Vec<_>>()
+                .join("");
+            let rejected_text: String = pair
+                .rejected
+                .iter()
+                .map(|m| m.content.as_str())
+                .collect::<Vec<_>>()
+                .join("");
             if chosen_text == rejected_text {
                 issues.push(ValidationIssue {
                     example_id: id.clone(),
@@ -309,9 +327,14 @@ impl DataValidator {
                 issues.push(ValidationIssue {
                     example_id: id.clone(),
                     severity: IssueSeverity::Warning,
-                    message: format!("Length ratio between chosen and rejected is {:.1}x (>10x)", ratio),
+                    message: format!(
+                        "Length ratio between chosen and rejected is {:.1}x (>10x)",
+                        ratio
+                    ),
                     line_number: None,
-                    suggestion: Some("Large length differences may indicate data quality issues".to_string()),
+                    suggestion: Some(
+                        "Large length differences may indicate data quality issues".to_string(),
+                    ),
                 });
             }
         }
@@ -322,7 +345,10 @@ impl DataValidator {
             issues.push(ValidationIssue {
                 example_id: id.clone(),
                 severity: IssueSeverity::Warning,
-                message: format!("Estimated tokens ({}) exceeds max ({})", tokens, self.config.max_tokens),
+                message: format!(
+                    "Estimated tokens ({}) exceeds max ({})",
+                    tokens, self.config.max_tokens
+                ),
                 line_number: None,
                 suggestion: None,
             });
@@ -332,7 +358,10 @@ impl DataValidator {
     }
 
     /// Validate a full preference dataset, producing a report.
-    pub fn validate_preference_dataset(&self, pairs: &[PreferencePair]) -> DatasetResult<ValidationReport> {
+    pub fn validate_preference_dataset(
+        &self,
+        pairs: &[PreferencePair],
+    ) -> DatasetResult<ValidationReport> {
         let mut all_issues = Vec::new();
         let mut valid_count = 0;
 
@@ -344,7 +373,12 @@ impl DataValidator {
             all_issues.extend(issues);
         }
 
-        tracing::debug!("Validated {} preference pairs: {} valid, {} issues", pairs.len(), valid_count, all_issues.len());
+        tracing::debug!(
+            "Validated {} preference pairs: {} valid, {} issues",
+            pairs.len(),
+            valid_count,
+            all_issues.len()
+        );
 
         Ok(ValidationReport {
             issues: all_issues,
@@ -354,7 +388,10 @@ impl DataValidator {
     }
 
     /// Validate a full dataset, producing a report.
-    pub fn validate_dataset(&self, examples: &[TrainingExample]) -> DatasetResult<ValidationReport> {
+    pub fn validate_dataset(
+        &self,
+        examples: &[TrainingExample],
+    ) -> DatasetResult<ValidationReport> {
         let mut all_issues = Vec::new();
         let mut valid_count = 0;
 
@@ -366,7 +403,12 @@ impl DataValidator {
             all_issues.extend(issues);
         }
 
-        tracing::debug!("Validated {} examples: {} valid, {} issues", examples.len(), valid_count, all_issues.len());
+        tracing::debug!(
+            "Validated {} examples: {} valid, {} issues",
+            examples.len(),
+            valid_count,
+            all_issues.len()
+        );
 
         Ok(ValidationReport {
             issues: all_issues,
@@ -384,10 +426,13 @@ mod tests {
     #[test]
     fn test_valid_example() {
         let validator = DataValidator::with_defaults();
-        let example = TrainingExample::with_id("test", vec![
-            TrainingMessage::user("Hello"),
-            TrainingMessage::assistant("Hi!"),
-        ]);
+        let example = TrainingExample::with_id(
+            "test",
+            vec![
+                TrainingMessage::user("Hello"),
+                TrainingMessage::assistant("Hi!"),
+            ],
+        );
         let issues = validator.validate_example(&example);
         assert!(issues.is_empty());
     }
@@ -395,21 +440,23 @@ mod tests {
     #[test]
     fn test_too_few_messages() {
         let validator = DataValidator::with_defaults();
-        let example = TrainingExample::with_id("test", vec![
-            TrainingMessage::user("Hello"),
-        ]);
+        let example = TrainingExample::with_id("test", vec![TrainingMessage::user("Hello")]);
         let issues = validator.validate_example(&example);
         assert!(issues.iter().any(|i| i.message.contains("Too few")));
-        assert!(issues.iter().any(|i| i.message.contains("must be from assistant")));
+        assert!(
+            issues
+                .iter()
+                .any(|i| i.message.contains("must be from assistant"))
+        );
     }
 
     #[test]
     fn test_empty_content_rejected() {
         let validator = DataValidator::with_defaults();
-        let example = TrainingExample::with_id("test", vec![
-            TrainingMessage::user(""),
-            TrainingMessage::assistant("Hi"),
-        ]);
+        let example = TrainingExample::with_id(
+            "test",
+            vec![TrainingMessage::user(""), TrainingMessage::assistant("Hi")],
+        );
         let issues = validator.validate_example(&example);
         assert!(issues.iter().any(|i| i.message.contains("empty content")));
     }
@@ -418,13 +465,11 @@ mod tests {
     fn test_validation_report() {
         let validator = DataValidator::with_defaults();
         let examples = vec![
-            TrainingExample::with_id("good", vec![
-                TrainingMessage::user("Q"),
-                TrainingMessage::assistant("A"),
-            ]),
-            TrainingExample::with_id("bad", vec![
-                TrainingMessage::user("Q"),
-            ]),
+            TrainingExample::with_id(
+                "good",
+                vec![TrainingMessage::user("Q"), TrainingMessage::assistant("A")],
+            ),
+            TrainingExample::with_id("bad", vec![TrainingMessage::user("Q")]),
         ];
         let report = validator.validate_dataset(&examples).unwrap();
         assert_eq!(report.total_examples, 2);

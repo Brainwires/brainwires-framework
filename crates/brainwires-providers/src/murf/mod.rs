@@ -67,7 +67,9 @@ impl MurfClient {
             anyhow::bail!("Murf API error ({}): {}", status, body);
         }
 
-        response.json().await
+        response
+            .json()
+            .await
             .context("Failed to parse Murf generate response")
     }
 
@@ -85,7 +87,9 @@ impl MurfClient {
             anyhow::bail!("Murf download error ({})", status);
         }
 
-        let bytes = response.bytes().await
+        let bytes = response
+            .bytes()
+            .await
             .context("Failed to read Murf audio bytes")?;
         Ok(bytes.to_vec())
     }
@@ -110,7 +114,9 @@ impl MurfClient {
             anyhow::bail!("Murf voices API error ({}): {}", status, body);
         }
 
-        response.json().await
+        response
+            .json()
+            .await
             .context("Failed to parse Murf voices response")
     }
 }
@@ -206,7 +212,10 @@ mod tests {
             "audioDuration": 2.5
         }"#;
         let resp: MurfGenerateResponse = serde_json::from_str(json).unwrap();
-        assert_eq!(resp.audio_file, Some("https://cdn.murf.ai/audio/123.wav".to_string()));
+        assert_eq!(
+            resp.audio_file,
+            Some("https://cdn.murf.ai/audio/123.wav".to_string())
+        );
         assert_eq!(resp.audio_duration, Some(2.5));
     }
 }

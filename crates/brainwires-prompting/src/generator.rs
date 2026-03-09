@@ -5,11 +5,13 @@
 
 use super::clustering::TaskClusterManager;
 use super::library::TechniqueLibrary;
-use super::techniques::{ComplexityLevel, PromptingTechnique, TechniqueCategory, TechniqueMetadata};
+use super::techniques::{
+    ComplexityLevel, PromptingTechnique, TechniqueCategory, TechniqueMetadata,
+};
+use crate::seal::SealProcessingResult;
+use anyhow::{Result, anyhow};
 #[cfg(feature = "knowledge")]
 use brainwires_brain::knowledge::{BehavioralKnowledgeCache, PersonalKnowledgeCache};
-use crate::seal::SealProcessingResult;
-use anyhow::{anyhow, Result};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -78,7 +80,8 @@ impl PromptGenerator {
             .await?;
 
         // Step 4: Generate prompt from techniques
-        let prompt_text = self.compose_prompt(task_description, &techniques, cluster.description.as_str());
+        let prompt_text =
+            self.compose_prompt(task_description, &techniques, cluster.description.as_str());
 
         Ok(GeneratedPrompt {
             system_prompt: prompt_text,
@@ -115,9 +118,10 @@ impl PromptGenerator {
 
         // 1. Always include role playing (paper's rule)
         if let Some(role) = self.library.get(&PromptingTechnique::RolePlaying)
-            && role.min_seal_quality <= seal_quality {
-                selected.push(role);
-            }
+            && role.min_seal_quality <= seal_quality
+        {
+            selected.push(role);
+        }
 
         // 2. Select emotional stimulus from cluster techniques
         let emotion_options: Vec<&TechniqueMetadata> = cluster
@@ -130,11 +134,9 @@ impl PromptGenerator {
             })
             .collect();
 
-        if let Some(emotion) = self.select_best_by_priority(
-            &pks_techniques,
-            &bks_techniques,
-            &emotion_options,
-        ) {
+        if let Some(emotion) =
+            self.select_best_by_priority(&pks_techniques, &bks_techniques, &emotion_options)
+        {
             selected.push(emotion);
         }
 
@@ -168,11 +170,9 @@ impl PromptGenerator {
                 })
                 .collect();
 
-            if let Some(support) = self.select_best_by_priority(
-                &pks_techniques,
-                &bks_techniques,
-                &support_options,
-            ) {
+            if let Some(support) =
+                self.select_best_by_priority(&pks_techniques, &bks_techniques, &support_options)
+            {
                 selected.push(support);
             }
         }
@@ -220,7 +220,10 @@ impl PromptGenerator {
     ///
     /// Queries the BKS cache directly for techniques that have been promoted
     /// based on collective user experience.
-    async fn get_bks_recommended_techniques(&self, cluster_id: &str) -> Result<Vec<PromptingTechnique>> {
+    async fn get_bks_recommended_techniques(
+        &self,
+        cluster_id: &str,
+    ) -> Result<Vec<PromptingTechnique>> {
         if let Some(ref bks_cache) = self.bks_cache {
             let bks = bks_cache.lock().await;
 
@@ -265,7 +268,10 @@ impl PromptGenerator {
     }
 
     /// Get PKS preferred techniques for a cluster
-    async fn get_pks_preferred_techniques(&self, cluster_id: &str) -> Result<Vec<PromptingTechnique>> {
+    async fn get_pks_preferred_techniques(
+        &self,
+        cluster_id: &str,
+    ) -> Result<Vec<PromptingTechnique>> {
         if let Some(ref pks_cache) = self.pks_cache {
             let pks = pks_cache.lock().await;
 
@@ -388,9 +394,7 @@ impl PromptGenerator {
         // Extract role and domain from cluster/task for Role Playing
         if technique.technique == PromptingTechnique::RolePlaying {
             let (role, domain) = self.infer_role_and_domain(task_description, cluster_description);
-            result = result
-                .replace("{role}", &role)
-                .replace("{domain}", &domain);
+            result = result.replace("{role}", &role).replace("{domain}", &domain);
         }
 
         // Extract task type and quality for Emotion Prompting
@@ -408,17 +412,33 @@ impl PromptGenerator {
     }
 
     /// Infer role and domain from task/cluster description
-    fn infer_role_and_domain(&self, task_description: &str, cluster_description: &str) -> (String, String) {
+    fn infer_role_and_domain(
+        &self,
+        task_description: &str,
+        cluster_description: &str,
+    ) -> (String, String) {
         let task_lower = task_description.to_lowercase();
         let cluster_lower = cluster_description.to_lowercase();
 
         // Simple heuristics
-        if task_lower.contains("code") || task_lower.contains("function") || task_lower.contains("implement") {
-            ("software engineer".to_string(), "software development".to_string())
+        if task_lower.contains("code")
+            || task_lower.contains("function")
+            || task_lower.contains("implement")
+        {
+            (
+                "software engineer".to_string(),
+                "software development".to_string(),
+            )
         } else if task_lower.contains("algorithm") || task_lower.contains("optimize") {
-            ("computer scientist".to_string(), "algorithms and data structures".to_string())
+            (
+                "computer scientist".to_string(),
+                "algorithms and data structures".to_string(),
+            )
         } else if task_lower.contains("calculate") || task_lower.contains("numerical") {
-            ("mathematician".to_string(), "numerical analysis".to_string())
+            (
+                "mathematician".to_string(),
+                "numerical analysis".to_string(),
+            )
         } else if task_lower.contains("analyze") || task_lower.contains("understand") {
             ("analyst".to_string(), "problem analysis".to_string())
         } else if cluster_lower.contains("code") {
@@ -493,8 +513,14 @@ mod tests {
     fn test_infer_task_type() {
         let generator = PromptGenerator::new(TechniqueLibrary::new(), TaskClusterManager::new());
 
-        assert_eq!(generator.infer_task_type("Calculate the sum"), "calculation");
-        assert_eq!(generator.infer_task_type("Implement a class"), "implementation");
+        assert_eq!(
+            generator.infer_task_type("Calculate the sum"),
+            "calculation"
+        );
+        assert_eq!(
+            generator.infer_task_type("Implement a class"),
+            "implementation"
+        );
         assert_eq!(generator.infer_task_type("Analyze the code"), "analysis");
         assert_eq!(generator.infer_task_type("Fix the bug"), "debugging");
     }

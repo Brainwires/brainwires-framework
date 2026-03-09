@@ -6,11 +6,10 @@ use brainwires_core::{TaskPriority, TaskStatus};
 #[tokio::test]
 async fn test_create_task() {
     let manager = TaskManager::new();
-    let id = manager.create_task(
-        "Test task".to_string(),
-        None,
-        TaskPriority::Normal,
-    ).await.unwrap();
+    let id = manager
+        .create_task("Test task".to_string(), None, TaskPriority::Normal)
+        .await
+        .unwrap();
 
     let task = manager.get_task(&id).await.unwrap();
     assert_eq!(task.description, "Test task");
@@ -20,16 +19,15 @@ async fn test_create_task() {
 #[tokio::test]
 async fn test_create_subtask() {
     let manager = TaskManager::new();
-    let parent_id = manager.create_task(
-        "Parent task".to_string(),
-        None,
-        TaskPriority::Normal,
-    ).await.unwrap();
+    let parent_id = manager
+        .create_task("Parent task".to_string(), None, TaskPriority::Normal)
+        .await
+        .unwrap();
 
-    let child_id = manager.add_subtask(
-        parent_id.clone(),
-        "Child task".to_string(),
-    ).await.unwrap();
+    let child_id = manager
+        .add_subtask(parent_id.clone(), "Child task".to_string())
+        .await
+        .unwrap();
 
     let parent = manager.get_task(&parent_id).await.unwrap();
     let child = manager.get_task(&child_id).await.unwrap();
@@ -41,11 +39,10 @@ async fn test_create_subtask() {
 #[tokio::test]
 async fn test_task_lifecycle() {
     let manager = TaskManager::new();
-    let id = manager.create_task(
-        "Lifecycle test".to_string(),
-        None,
-        TaskPriority::High,
-    ).await.unwrap();
+    let id = manager
+        .create_task("Lifecycle test".to_string(), None, TaskPriority::High)
+        .await
+        .unwrap();
 
     // Start
     manager.start_task(&id).await.unwrap();
@@ -53,7 +50,10 @@ async fn test_task_lifecycle() {
     assert_eq!(task.status, TaskStatus::InProgress);
 
     // Complete
-    manager.complete_task(&id, "Done!".to_string()).await.unwrap();
+    manager
+        .complete_task(&id, "Done!".to_string())
+        .await
+        .unwrap();
     let task = manager.get_task(&id).await.unwrap();
     assert_eq!(task.status, TaskStatus::Completed);
     assert_eq!(task.summary, Some("Done!".to_string()));
@@ -63,17 +63,19 @@ async fn test_task_lifecycle() {
 async fn test_dependencies() {
     let manager = TaskManager::new();
 
-    let task_a = manager.create_task(
-        "Task A".to_string(),
-        None,
-        TaskPriority::Normal,
-    ).await.unwrap();
+    let task_a = manager
+        .create_task("Task A".to_string(), None, TaskPriority::Normal)
+        .await
+        .unwrap();
 
-    let task_b = manager.create_task(
-        "Task B (depends on A)".to_string(),
-        None,
-        TaskPriority::Normal,
-    ).await.unwrap();
+    let task_b = manager
+        .create_task(
+            "Task B (depends on A)".to_string(),
+            None,
+            TaskPriority::Normal,
+        )
+        .await
+        .unwrap();
 
     manager.add_dependency(&task_b, &task_a).await.unwrap();
 
@@ -91,12 +93,24 @@ async fn test_dependencies() {
 async fn test_get_stats() {
     let manager = TaskManager::new();
 
-    let id1 = manager.create_task("Task 1".to_string(), None, TaskPriority::Normal).await.unwrap();
-    let id2 = manager.create_task("Task 2".to_string(), None, TaskPriority::High).await.unwrap();
-    let _id3 = manager.create_task("Task 3".to_string(), None, TaskPriority::Low).await.unwrap();
+    let id1 = manager
+        .create_task("Task 1".to_string(), None, TaskPriority::Normal)
+        .await
+        .unwrap();
+    let id2 = manager
+        .create_task("Task 2".to_string(), None, TaskPriority::High)
+        .await
+        .unwrap();
+    let _id3 = manager
+        .create_task("Task 3".to_string(), None, TaskPriority::Low)
+        .await
+        .unwrap();
 
     manager.start_task(&id1).await.unwrap();
-    manager.complete_task(&id2, "Done".to_string()).await.unwrap();
+    manager
+        .complete_task(&id2, "Done".to_string())
+        .await
+        .unwrap();
 
     let stats = manager.get_stats().await;
     assert_eq!(stats.total, 3);
@@ -109,8 +123,14 @@ async fn test_get_stats() {
 async fn test_skip_task() {
     let manager = TaskManager::new();
 
-    let id = manager.create_task("Skip me".to_string(), None, TaskPriority::Normal).await.unwrap();
-    manager.skip_task(&id, Some("Not needed".to_string())).await.unwrap();
+    let id = manager
+        .create_task("Skip me".to_string(), None, TaskPriority::Normal)
+        .await
+        .unwrap();
+    manager
+        .skip_task(&id, Some("Not needed".to_string()))
+        .await
+        .unwrap();
 
     let task = manager.get_task(&id).await.unwrap();
     assert_eq!(task.status, TaskStatus::Skipped);
@@ -122,8 +142,14 @@ async fn test_skip_task() {
 async fn test_skip_unblocks_dependents() {
     let manager = TaskManager::new();
 
-    let task_a = manager.create_task("Task A".to_string(), None, TaskPriority::Normal).await.unwrap();
-    let task_b = manager.create_task("Task B".to_string(), None, TaskPriority::Normal).await.unwrap();
+    let task_a = manager
+        .create_task("Task A".to_string(), None, TaskPriority::Normal)
+        .await
+        .unwrap();
+    let task_b = manager
+        .create_task("Task B".to_string(), None, TaskPriority::Normal)
+        .await
+        .unwrap();
 
     manager.add_dependency(&task_b, &task_a).await.unwrap();
 
@@ -142,8 +168,14 @@ async fn test_skip_unblocks_dependents() {
 async fn test_circular_dependency_detection() {
     let manager = TaskManager::new();
 
-    let task_a = manager.create_task("Task A".to_string(), None, TaskPriority::Normal).await.unwrap();
-    let task_b = manager.create_task("Task B".to_string(), None, TaskPriority::Normal).await.unwrap();
+    let task_a = manager
+        .create_task("Task A".to_string(), None, TaskPriority::Normal)
+        .await
+        .unwrap();
+    let task_b = manager
+        .create_task("Task B".to_string(), None, TaskPriority::Normal)
+        .await
+        .unwrap();
 
     // A depends on B
     manager.add_dependency(&task_a, &task_b).await.unwrap();
@@ -158,7 +190,10 @@ async fn test_circular_dependency_detection() {
 async fn test_self_dependency_detection() {
     let manager = TaskManager::new();
 
-    let task_a = manager.create_task("Task A".to_string(), None, TaskPriority::Normal).await.unwrap();
+    let task_a = manager
+        .create_task("Task A".to_string(), None, TaskPriority::Normal)
+        .await
+        .unwrap();
 
     // Self-dependency should fail
     let result = manager.add_dependency(&task_a, &task_a).await;
@@ -170,8 +205,14 @@ async fn test_self_dependency_detection() {
 async fn test_can_start() {
     let manager = TaskManager::new();
 
-    let task_a = manager.create_task("Task A".to_string(), None, TaskPriority::Normal).await.unwrap();
-    let task_b = manager.create_task("Task B".to_string(), None, TaskPriority::Normal).await.unwrap();
+    let task_a = manager
+        .create_task("Task A".to_string(), None, TaskPriority::Normal)
+        .await
+        .unwrap();
+    let task_b = manager
+        .create_task("Task B".to_string(), None, TaskPriority::Normal)
+        .await
+        .unwrap();
 
     manager.add_dependency(&task_b, &task_a).await.unwrap();
 
@@ -185,7 +226,10 @@ async fn test_can_start() {
     assert_eq!(result.unwrap_err(), vec![task_a.clone()]);
 
     // Complete A, then B can start
-    manager.complete_task(&task_a, "Done".to_string()).await.unwrap();
+    manager
+        .complete_task(&task_a, "Done".to_string())
+        .await
+        .unwrap();
     assert_eq!(manager.can_start(&task_b).await, Ok(true));
 }
 
@@ -193,8 +237,14 @@ async fn test_can_start() {
 async fn test_remove_dependency() {
     let manager = TaskManager::new();
 
-    let task_a = manager.create_task("Task A".to_string(), None, TaskPriority::Normal).await.unwrap();
-    let task_b = manager.create_task("Task B".to_string(), None, TaskPriority::Normal).await.unwrap();
+    let task_a = manager
+        .create_task("Task A".to_string(), None, TaskPriority::Normal)
+        .await
+        .unwrap();
+    let task_b = manager
+        .create_task("Task B".to_string(), None, TaskPriority::Normal)
+        .await
+        .unwrap();
 
     manager.add_dependency(&task_b, &task_a).await.unwrap();
 
@@ -214,8 +264,14 @@ async fn test_remove_dependency() {
 async fn test_block_task() {
     let manager = TaskManager::new();
 
-    let id = manager.create_task("Block me".to_string(), None, TaskPriority::Normal).await.unwrap();
-    manager.block_task(&id, Some("Waiting on external".to_string())).await.unwrap();
+    let id = manager
+        .create_task("Block me".to_string(), None, TaskPriority::Normal)
+        .await
+        .unwrap();
+    manager
+        .block_task(&id, Some("Waiting on external".to_string()))
+        .await
+        .unwrap();
 
     let task = manager.get_task(&id).await.unwrap();
     assert_eq!(task.status, TaskStatus::Blocked);
@@ -237,11 +293,20 @@ async fn test_format_duration() {
 async fn test_skipped_in_stats() {
     let manager = TaskManager::new();
 
-    let id1 = manager.create_task("Task 1".to_string(), None, TaskPriority::Normal).await.unwrap();
-    let id2 = manager.create_task("Task 2".to_string(), None, TaskPriority::Normal).await.unwrap();
+    let id1 = manager
+        .create_task("Task 1".to_string(), None, TaskPriority::Normal)
+        .await
+        .unwrap();
+    let id2 = manager
+        .create_task("Task 2".to_string(), None, TaskPriority::Normal)
+        .await
+        .unwrap();
 
     manager.skip_task(&id1, None).await.unwrap();
-    manager.complete_task(&id2, "Done".to_string()).await.unwrap();
+    manager
+        .complete_task(&id2, "Done".to_string())
+        .await
+        .unwrap();
 
     let stats = manager.get_stats().await;
     assert_eq!(stats.total, 2);

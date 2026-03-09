@@ -133,11 +133,13 @@ impl A2aHandler for FullTestHandler {
         &self,
         req: SubscribeToTaskRequest,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamEvent, A2aError>> + Send>>, A2aError> {
-        let task = self.on_get_task(GetTaskRequest {
-            tenant: None,
-            id: req.id,
-            history_length: None,
-        }).await?;
+        let task = self
+            .on_get_task(GetTaskRequest {
+                tenant: None,
+                id: req.id,
+                history_length: None,
+            })
+            .await?;
 
         let stream = async_stream::stream! {
             yield Ok(StreamEvent::Task(task));
@@ -197,12 +199,15 @@ async fn test_jsonrpc_cancel_task() {
     let send_req = JsonRpcRequest {
         jsonrpc: "2.0".into(),
         method: "message/send".into(),
-        params: Some(serde_json::to_value(&SendMessageRequest {
-            tenant: None,
-            message: Message::user_text("Create me"),
-            configuration: None,
-            metadata: None,
-        }).unwrap()),
+        params: Some(
+            serde_json::to_value(&SendMessageRequest {
+                tenant: None,
+                message: Message::user_text("Create me"),
+                configuration: None,
+                metadata: None,
+            })
+            .unwrap(),
+        ),
         id: RequestId::Number(1),
     };
     let result = brainwires_a2a::server::jsonrpc_router::dispatch(&handler, &send_req)
@@ -237,12 +242,15 @@ async fn test_jsonrpc_list_tasks() {
         let req = JsonRpcRequest {
             jsonrpc: "2.0".into(),
             method: "message/send".into(),
-            params: Some(serde_json::to_value(&SendMessageRequest {
-                tenant: None,
-                message: Message::user_text(msg),
-                configuration: None,
-                metadata: None,
-            }).unwrap()),
+            params: Some(
+                serde_json::to_value(&SendMessageRequest {
+                    tenant: None,
+                    message: Message::user_text(msg),
+                    configuration: None,
+                    metadata: None,
+                })
+                .unwrap(),
+            ),
             id: RequestId::Number(1),
         };
         brainwires_a2a::server::jsonrpc_router::dispatch(&handler, &req)
@@ -296,11 +304,16 @@ async fn test_rest_streaming_message() {
         message: Message::user_text("Stream please"),
         configuration: None,
         metadata: None,
-    }).unwrap();
+    })
+    .unwrap();
 
     let result = brainwires_a2a::server::rest_router::dispatch_rest(
-        &handler, "POST", "/message:stream", &body,
-    ).await;
+        &handler,
+        "POST",
+        "/message:stream",
+        &body,
+    )
+    .await;
 
     match result {
         Ok(brainwires_a2a::server::rest_router::RestResult::Stream(stream)) => {
@@ -337,21 +350,36 @@ async fn test_rest_cancel_task() {
         message: Message::user_text("Cancel me"),
         configuration: None,
         metadata: None,
-    }).unwrap();
+    })
+    .unwrap();
     let result = brainwires_a2a::server::rest_router::dispatch_rest(
-        &handler, "POST", "/message:send", &body,
-    ).await.unwrap();
+        &handler,
+        "POST",
+        "/message:send",
+        &body,
+    )
+    .await
+    .unwrap();
     let task: Task = match result {
-        brainwires_a2a::server::rest_router::RestResult::Json(v) => serde_json::from_value(v).unwrap(),
+        brainwires_a2a::server::rest_router::RestResult::Json(v) => {
+            serde_json::from_value(v).unwrap()
+        }
         _ => panic!("Expected JSON"),
     };
 
     // Cancel it
     let result = brainwires_a2a::server::rest_router::dispatch_rest(
-        &handler, "POST", &format!("/tasks/{}:cancel", task.id), &[],
-    ).await.unwrap();
+        &handler,
+        "POST",
+        &format!("/tasks/{}:cancel", task.id),
+        &[],
+    )
+    .await
+    .unwrap();
     let canceled: Task = match result {
-        brainwires_a2a::server::rest_router::RestResult::Json(v) => serde_json::from_value(v).unwrap(),
+        brainwires_a2a::server::rest_router::RestResult::Json(v) => {
+            serde_json::from_value(v).unwrap()
+        }
         _ => panic!("Expected JSON"),
     };
     assert_eq!(canceled.status.state, TaskState::Canceled);
@@ -369,21 +397,36 @@ async fn test_rest_get_single_task() {
         message: Message::user_text("Get me"),
         configuration: None,
         metadata: None,
-    }).unwrap();
+    })
+    .unwrap();
     let result = brainwires_a2a::server::rest_router::dispatch_rest(
-        &handler, "POST", "/message:send", &body,
-    ).await.unwrap();
+        &handler,
+        "POST",
+        "/message:send",
+        &body,
+    )
+    .await
+    .unwrap();
     let task: Task = match result {
-        brainwires_a2a::server::rest_router::RestResult::Json(v) => serde_json::from_value(v).unwrap(),
+        brainwires_a2a::server::rest_router::RestResult::Json(v) => {
+            serde_json::from_value(v).unwrap()
+        }
         _ => panic!("Expected JSON"),
     };
 
     // Get it
     let result = brainwires_a2a::server::rest_router::dispatch_rest(
-        &handler, "GET", &format!("/tasks/{}", task.id), &[],
-    ).await.unwrap();
+        &handler,
+        "GET",
+        &format!("/tasks/{}", task.id),
+        &[],
+    )
+    .await
+    .unwrap();
     let fetched: Task = match result {
-        brainwires_a2a::server::rest_router::RestResult::Json(v) => serde_json::from_value(v).unwrap(),
+        brainwires_a2a::server::rest_router::RestResult::Json(v) => {
+            serde_json::from_value(v).unwrap()
+        }
         _ => panic!("Expected JSON"),
     };
     assert_eq!(fetched.id, task.id);
@@ -401,19 +444,32 @@ async fn test_rest_subscribe_to_task() {
         message: Message::user_text("Subscribe test"),
         configuration: None,
         metadata: None,
-    }).unwrap();
+    })
+    .unwrap();
     let result = brainwires_a2a::server::rest_router::dispatch_rest(
-        &handler, "POST", "/message:send", &body,
-    ).await.unwrap();
+        &handler,
+        "POST",
+        "/message:send",
+        &body,
+    )
+    .await
+    .unwrap();
     let task: Task = match result {
-        brainwires_a2a::server::rest_router::RestResult::Json(v) => serde_json::from_value(v).unwrap(),
+        brainwires_a2a::server::rest_router::RestResult::Json(v) => {
+            serde_json::from_value(v).unwrap()
+        }
         _ => panic!("Expected JSON"),
     };
 
     // Subscribe
     let result = brainwires_a2a::server::rest_router::dispatch_rest(
-        &handler, "GET", &format!("/tasks/{}:subscribe", task.id), &[],
-    ).await.unwrap();
+        &handler,
+        "GET",
+        &format!("/tasks/{}:subscribe", task.id),
+        &[],
+    )
+    .await
+    .unwrap();
     match result {
         brainwires_a2a::server::rest_router::RestResult::Stream(stream) => {
             let items: Vec<_> = stream.collect().await;
@@ -435,8 +491,12 @@ async fn test_rest_tenant_prefix_stripped() {
 
     // With tenant prefix: /my-tenant/tasks
     let result = brainwires_a2a::server::rest_router::dispatch_rest(
-        &handler, "GET", "/my-tenant/tasks", &[],
-    ).await;
+        &handler,
+        "GET",
+        "/my-tenant/tasks",
+        &[],
+    )
+    .await;
     // Should work — tenant is stripped, routes to /tasks
     match result {
         Ok(brainwires_a2a::server::rest_router::RestResult::Json(_)) => {}
@@ -450,9 +510,9 @@ async fn test_rest_tenant_prefix_stripped() {
 async fn test_rest_unknown_route() {
     let handler = Arc::new(FullTestHandler::new());
 
-    let result = brainwires_a2a::server::rest_router::dispatch_rest(
-        &handler, "GET", "/nonexistent", &[],
-    ).await;
+    let result =
+        brainwires_a2a::server::rest_router::dispatch_rest(&handler, "GET", "/nonexistent", &[])
+            .await;
     match result {
         Err(e) => assert_eq!(e.code, brainwires_a2a::error::METHOD_NOT_FOUND),
         Ok(_) => panic!("Expected error for unknown route"),
@@ -466,8 +526,12 @@ async fn test_rest_extended_card_not_configured() {
     let handler = Arc::new(FullTestHandler::new());
 
     let result = brainwires_a2a::server::rest_router::dispatch_rest(
-        &handler, "GET", "/extendedAgentCard", &[],
-    ).await;
+        &handler,
+        "GET",
+        "/extendedAgentCard",
+        &[],
+    )
+    .await;
     match result {
         Err(e) => assert_eq!(e.code, brainwires_a2a::error::EXTENDED_CARD_NOT_CONFIGURED),
         Ok(_) => panic!("Expected extended card not configured error"),
@@ -566,7 +630,10 @@ async fn test_sse_response_error_event() {
     let inner = text.trim_start_matches("data: ").trim();
     let resp: JsonRpcResponse = serde_json::from_str(inner).unwrap();
     assert!(resp.error.is_some());
-    assert_eq!(resp.error.unwrap().code, brainwires_a2a::error::TASK_NOT_FOUND);
+    assert_eq!(
+        resp.error.unwrap().code,
+        brainwires_a2a::error::TASK_NOT_FOUND
+    );
 }
 
 // ---- JSON-RPC push notification CRUD ----
@@ -661,8 +728,12 @@ async fn test_rest_push_config_create_unsupported() {
     let body = serde_json::to_vec(&config).unwrap();
 
     let result = brainwires_a2a::server::rest_router::dispatch_rest(
-        &handler, "POST", "/tasks/t-1/pushNotificationConfigs", &body,
-    ).await;
+        &handler,
+        "POST",
+        "/tasks/t-1/pushNotificationConfigs",
+        &body,
+    )
+    .await;
     match result {
         Err(e) => assert_eq!(e.code, brainwires_a2a::error::PUSH_NOT_SUPPORTED),
         Ok(_) => panic!("Expected push not supported error"),

@@ -38,8 +38,7 @@ pub async fn kill_process(pid: i32, strategy: &ClientStrategy) -> Result<(), Str
         .iter()
         .zip(strategy.kill_timeouts_ms.iter())
     {
-        let sig = parse_signal(sig_name)
-            .ok_or_else(|| format!("unknown signal: {sig_name}"))?;
+        let sig = parse_signal(sig_name).ok_or_else(|| format!("unknown signal: {sig_name}"))?;
 
         let rc = unsafe { libc::kill(pid, sig) };
         if rc != 0 {

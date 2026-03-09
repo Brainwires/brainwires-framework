@@ -81,7 +81,9 @@ impl DeepgramClient {
             anyhow::bail!("Deepgram speak API error ({}): {}", status, body);
         }
 
-        let bytes = response.bytes().await
+        let bytes = response
+            .bytes()
+            .await
             .context("Failed to read Deepgram speak response")?;
         Ok(bytes.to_vec())
     }
@@ -131,7 +133,9 @@ impl DeepgramClient {
             anyhow::bail!("Deepgram listen API error ({}): {}", status, body);
         }
 
-        response.json().await
+        response
+            .json()
+            .await
             .context("Failed to parse Deepgram listen response")
     }
 }
@@ -239,6 +243,9 @@ mod tests {
             }
         }"#;
         let resp: DeepgramListenResponse = serde_json::from_str(json).unwrap();
-        assert_eq!(resp.results.channels[0].alternatives[0].transcript, "hello world");
+        assert_eq!(
+            resp.results.channels[0].alternatives[0].transcript,
+            "hello world"
+        );
     }
 }

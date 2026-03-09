@@ -20,97 +20,204 @@ const CATEGORY_PATTERNS: &[CategoryPatterns] = &[
     CategoryPatterns {
         category: ToolCategory::FileOps,
         keywords: &[
-            "file", "read", "write", "edit", "create", "delete", "directory", "folder",
-            "list", "content", "save", "open", "path", "rename", "move", "copy",
-            "mkdir", "touch", "cat", "ls",
+            "file",
+            "read",
+            "write",
+            "edit",
+            "create",
+            "delete",
+            "directory",
+            "folder",
+            "list",
+            "content",
+            "save",
+            "open",
+            "path",
+            "rename",
+            "move",
+            "copy",
+            "mkdir",
+            "touch",
+            "cat",
+            "ls",
         ],
     },
     CategoryPatterns {
         category: ToolCategory::Search,
         keywords: &[
-            "search", "find", "grep", "look", "where", "locate", "pattern", "match",
-            "regex", "occurrence", "rg", "ripgrep",
+            "search",
+            "find",
+            "grep",
+            "look",
+            "where",
+            "locate",
+            "pattern",
+            "match",
+            "regex",
+            "occurrence",
+            "rg",
+            "ripgrep",
         ],
     },
     CategoryPatterns {
         category: ToolCategory::SemanticSearch,
         keywords: &[
-            "semantic", "meaning", "similar", "related", "understand", "codebase",
-            "index", "rag", "embedding", "concept", "query",
+            "semantic",
+            "meaning",
+            "similar",
+            "related",
+            "understand",
+            "codebase",
+            "index",
+            "rag",
+            "embedding",
+            "concept",
+            "query",
         ],
     },
     CategoryPatterns {
         category: ToolCategory::Git,
         keywords: &[
-            "git", "commit", "diff", "branch", "merge", "push", "pull", "clone",
-            "status", "log", "history", "version", "repository", "repo", "checkout",
-            "stash", "rebase", "cherry-pick",
+            "git",
+            "commit",
+            "diff",
+            "branch",
+            "merge",
+            "push",
+            "pull",
+            "clone",
+            "status",
+            "log",
+            "history",
+            "version",
+            "repository",
+            "repo",
+            "checkout",
+            "stash",
+            "rebase",
+            "cherry-pick",
         ],
     },
     CategoryPatterns {
         category: ToolCategory::TaskManager,
         keywords: &[
-            "task", "todo", "progress", "complete", "pending", "assign", "track",
-            "subtask", "dependency",
+            "task",
+            "todo",
+            "progress",
+            "complete",
+            "pending",
+            "assign",
+            "track",
+            "subtask",
+            "dependency",
         ],
     },
     CategoryPatterns {
         category: ToolCategory::AgentPool,
         keywords: &[
-            "agent", "spawn", "parallel", "concurrent", "worker", "pool", "background",
-            "async", "thread",
+            "agent",
+            "spawn",
+            "parallel",
+            "concurrent",
+            "worker",
+            "pool",
+            "background",
+            "async",
+            "thread",
         ],
     },
     CategoryPatterns {
         category: ToolCategory::Web,
         keywords: &[
-            "url", "fetch", "http", "api", "endpoint", "request", "download",
-            "curl", "get", "post",
+            "url", "fetch", "http", "api", "endpoint", "request", "download", "curl", "get", "post",
         ],
     },
     CategoryPatterns {
         category: ToolCategory::WebSearch,
         keywords: &[
-            "web", "search", "google", "browse", "scrape", "internet", "online",
-            "website", "page", "html", "duckduckgo", "bing",
+            "web",
+            "search",
+            "google",
+            "browse",
+            "scrape",
+            "internet",
+            "online",
+            "website",
+            "page",
+            "html",
+            "duckduckgo",
+            "bing",
         ],
     },
     CategoryPatterns {
         category: ToolCategory::Bash,
         keywords: &[
-            "run", "execute", "command", "shell", "bash", "terminal", "script",
-            "npm", "cargo", "pip", "make", "build", "install", "test", "compile",
-            "yarn", "pnpm", "docker", "kubectl",
+            "run", "execute", "command", "shell", "bash", "terminal", "script", "npm", "cargo",
+            "pip", "make", "build", "install", "test", "compile", "yarn", "pnpm", "docker",
+            "kubectl",
         ],
     },
     CategoryPatterns {
         category: ToolCategory::Planning,
         keywords: &[
-            "plan", "design", "architect", "strategy", "approach", "implement",
-            "roadmap", "outline",
+            "plan",
+            "design",
+            "architect",
+            "strategy",
+            "approach",
+            "implement",
+            "roadmap",
+            "outline",
         ],
     },
     CategoryPatterns {
         category: ToolCategory::Context,
         keywords: &[
-            "context", "remember", "recall", "previous", "earlier", "mentioned",
-            "before", "history",
+            "context",
+            "remember",
+            "recall",
+            "previous",
+            "earlier",
+            "mentioned",
+            "before",
+            "history",
         ],
     },
     CategoryPatterns {
         category: ToolCategory::Orchestrator,
         keywords: &[
-            "batch", "loop", "iterate", "for each", "every", "all files",
-            "multiple", "process all", "count all", "script", "orchestrate",
-            "workflow", "automate", "chain", "pipeline", "sequential",
-            "conditional", "each file",
+            "batch",
+            "loop",
+            "iterate",
+            "for each",
+            "every",
+            "all files",
+            "multiple",
+            "process all",
+            "count all",
+            "script",
+            "orchestrate",
+            "workflow",
+            "automate",
+            "chain",
+            "pipeline",
+            "sequential",
+            "conditional",
+            "each file",
         ],
     },
     CategoryPatterns {
         category: ToolCategory::CodeExecution,
         keywords: &[
-            "execute code", "run code", "python", "javascript", "compile",
-            "interpreter", "sandbox", "piston", "run script",
+            "execute code",
+            "run code",
+            "python",
+            "javascript",
+            "compile",
+            "interpreter",
+            "sandbox",
+            "piston",
+            "run script",
         ],
     },
 ];
@@ -120,10 +227,7 @@ const CATEGORY_PATTERNS: &[CategoryPatterns] = &[
 /// - Medium prompts (50-150 chars): analyze last 2 messages
 /// - Detailed prompts (> 150 chars): analyze current message only
 pub fn get_context_for_analysis(messages: &[Message]) -> String {
-    let last_msg = messages
-        .last()
-        .and_then(|m| m.text())
-        .unwrap_or("");
+    let last_msg = messages.last().and_then(|m| m.text()).unwrap_or("");
     let msg_len = last_msg.len();
 
     if msg_len > 150 {
@@ -193,10 +297,7 @@ pub fn analyze_messages(messages: &[Message]) -> Vec<ToolCategory> {
 }
 
 /// Get tools for the given categories from the registry
-pub fn get_tools_for_categories(
-    registry: &ToolRegistry,
-    categories: &[ToolCategory],
-) -> Vec<Tool> {
+pub fn get_tools_for_categories(registry: &ToolRegistry, categories: &[ToolCategory]) -> Vec<Tool> {
     let mut tools = Vec::new();
     let mut seen_names = HashSet::new();
 
@@ -228,7 +329,9 @@ pub fn get_smart_tools_with_mcp(messages: &[Message], mcp_tools: &[Tool]) -> Vec
 
     // Add MCP tools that match any of the detected categories
     for mcp_tool in mcp_tools {
-        if !seen_names.contains(&mcp_tool.name) && mcp_tool_matches_categories(mcp_tool, &categories) {
+        if !seen_names.contains(&mcp_tool.name)
+            && mcp_tool_matches_categories(mcp_tool, &categories)
+        {
             tools.push(mcp_tool.clone());
             seen_names.insert(mcp_tool.name.clone());
         }
@@ -244,40 +347,66 @@ fn mcp_tool_matches_categories(tool: &Tool, categories: &[ToolCategory]) -> bool
     for category in categories {
         let matches = match category {
             ToolCategory::FileOps => {
-                text.contains("file") || text.contains("read") || text.contains("write") ||
-                text.contains("directory") || text.contains("path") || text.contains("folder")
+                text.contains("file")
+                    || text.contains("read")
+                    || text.contains("write")
+                    || text.contains("directory")
+                    || text.contains("path")
+                    || text.contains("folder")
             }
             ToolCategory::Search => {
-                text.contains("search") || text.contains("find") || text.contains("query") ||
-                text.contains("lookup") || text.contains("grep")
+                text.contains("search")
+                    || text.contains("find")
+                    || text.contains("query")
+                    || text.contains("lookup")
+                    || text.contains("grep")
             }
             ToolCategory::SemanticSearch => {
-                text.contains("semantic") || text.contains("embedding") || text.contains("rag") ||
-                text.contains("vector") || text.contains("similarity")
+                text.contains("semantic")
+                    || text.contains("embedding")
+                    || text.contains("rag")
+                    || text.contains("vector")
+                    || text.contains("similarity")
             }
             ToolCategory::Git => {
-                text.contains("git") || text.contains("commit") || text.contains("branch") ||
-                text.contains("pull") || text.contains("push") || text.contains("repository")
+                text.contains("git")
+                    || text.contains("commit")
+                    || text.contains("branch")
+                    || text.contains("pull")
+                    || text.contains("push")
+                    || text.contains("repository")
             }
             ToolCategory::Web => {
-                text.contains("http") || text.contains("url") || text.contains("api") ||
-                text.contains("fetch") || text.contains("request")
+                text.contains("http")
+                    || text.contains("url")
+                    || text.contains("api")
+                    || text.contains("fetch")
+                    || text.contains("request")
             }
             ToolCategory::WebSearch => {
-                text.contains("web") || text.contains("browse") || text.contains("scrape") ||
-                text.contains("google")
+                text.contains("web")
+                    || text.contains("browse")
+                    || text.contains("scrape")
+                    || text.contains("google")
             }
             ToolCategory::Bash => {
-                text.contains("shell") || text.contains("exec") || text.contains("command") ||
-                text.contains("run") || text.contains("terminal")
+                text.contains("shell")
+                    || text.contains("exec")
+                    || text.contains("command")
+                    || text.contains("run")
+                    || text.contains("terminal")
             }
             ToolCategory::TaskManager => {
-                text.contains("task") || text.contains("todo") || text.contains("issue") ||
-                text.contains("ticket")
+                text.contains("task")
+                    || text.contains("todo")
+                    || text.contains("issue")
+                    || text.contains("ticket")
             }
             ToolCategory::AgentPool => {
-                text.contains("agent") || text.contains("spawn") || text.contains("worker") ||
-                text.contains("parallel")
+                text.contains("agent")
+                    || text.contains("spawn")
+                    || text.contains("worker")
+                    || text.contains("parallel")
             }
             ToolCategory::Planning => {
                 text.contains("plan") || text.contains("design") || text.contains("architect")
@@ -286,21 +415,33 @@ fn mcp_tool_matches_categories(tool: &Tool, categories: &[ToolCategory]) -> bool
                 text.contains("context") || text.contains("recall") || text.contains("memory")
             }
             ToolCategory::Orchestrator => {
-                text.contains("script") || text.contains("orchestrat") || text.contains("automat") ||
-                text.contains("workflow") || text.contains("batch")
+                text.contains("script")
+                    || text.contains("orchestrat")
+                    || text.contains("automat")
+                    || text.contains("workflow")
+                    || text.contains("batch")
             }
             ToolCategory::CodeExecution => {
-                text.contains("execute") || text.contains("run") || text.contains("code") ||
-                text.contains("python") || text.contains("javascript") || text.contains("compile")
+                text.contains("execute")
+                    || text.contains("run")
+                    || text.contains("code")
+                    || text.contains("python")
+                    || text.contains("javascript")
+                    || text.contains("compile")
             }
             ToolCategory::SessionTask => {
                 // Session tasks are internal-only, never match external MCP tools
                 false
             }
             ToolCategory::Validation => {
-                text.contains("valid") || text.contains("check") || text.contains("verify") ||
-                text.contains("lint") || text.contains("build") || text.contains("syntax") ||
-                text.contains("duplicate") || text.contains("test")
+                text.contains("valid")
+                    || text.contains("check")
+                    || text.contains("verify")
+                    || text.contains("lint")
+                    || text.contains("build")
+                    || text.contains("syntax")
+                    || text.contains("duplicate")
+                    || text.contains("test")
             }
         };
         if matches {

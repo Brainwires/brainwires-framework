@@ -3,8 +3,8 @@
 //! Provides per-scope isolation (conversation/project) and document-aware
 //! BM25 keyword search using Tantivy.
 
-use anyhow::{Context, Result};
 use crate::bm25_search::BM25Search;
+use anyhow::{Context, Result};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -54,7 +54,9 @@ impl DocumentBM25Manager {
 
         // Create new index
         let scope_hash = Self::hash_scope(scope);
-        let index_path = self.base_path.join(format!("doc_bm25_{}", &scope_hash[..16]));
+        let index_path = self
+            .base_path
+            .join(format!("doc_bm25_{}", &scope_hash[..16]));
 
         let index = BM25Search::new(&index_path)
             .with_context(|| format!("Failed to create BM25 index for scope: {}", scope))?;
@@ -110,7 +112,12 @@ impl DocumentBM25Manager {
     /// * `scope` - Scope identifier
     /// * `query` - Search query
     /// * `limit` - Maximum results
-    pub fn search(&self, scope: &str, query: &str, limit: usize) -> Result<Vec<DocumentBM25Result>> {
+    pub fn search(
+        &self,
+        scope: &str,
+        query: &str,
+        limit: usize,
+    ) -> Result<Vec<DocumentBM25Result>> {
         let index = self.get_index(scope)?;
 
         let results = index
@@ -232,7 +239,6 @@ pub fn document_rrf_fusion(
     reciprocal_rank_fusion_generic([vector_results, bm25_tuples], limit)
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -286,8 +292,14 @@ mod tests {
 
         assert!(fused.len() >= 2);
 
-        let chunk_a_score = fused.iter().find(|(id, _)| id == "chunk-a").map(|(_, s)| *s);
-        let chunk_d_score = fused.iter().find(|(id, _)| id == "chunk-d").map(|(_, s)| *s);
+        let chunk_a_score = fused
+            .iter()
+            .find(|(id, _)| id == "chunk-a")
+            .map(|(_, s)| *s);
+        let chunk_d_score = fused
+            .iter()
+            .find(|(id, _)| id == "chunk-d")
+            .map(|(_, s)| *s);
 
         if let (Some(a_score), Some(d_score)) = (chunk_a_score, chunk_d_score) {
             assert!(a_score > d_score);
@@ -308,8 +320,14 @@ mod tests {
 
         let scope = "test-conversation";
         let chunks = vec![
-            ("doc-1:0".to_string(), "Hello world, this is a test document.".to_string()),
-            ("doc-1:1".to_string(), "Another chunk with different content about programming.".to_string()),
+            (
+                "doc-1:0".to_string(),
+                "Hello world, this is a test document.".to_string(),
+            ),
+            (
+                "doc-1:1".to_string(),
+                "Another chunk with different content about programming.".to_string(),
+            ),
         ];
 
         manager.index_chunks(scope, chunks).unwrap();

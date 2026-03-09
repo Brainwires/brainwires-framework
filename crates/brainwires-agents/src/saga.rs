@@ -84,10 +84,7 @@ impl OperationResult {
     }
 
     /// Create a successful operation result with compensation data.
-    pub fn success_with_data(
-        operation_id: impl Into<String>,
-        data: serde_json::Value,
-    ) -> Self {
+    pub fn success_with_data(operation_id: impl Into<String>, data: serde_json::Value) -> Self {
         Self {
             operation_id: operation_id.into(),
             success: true,
@@ -282,7 +279,9 @@ impl SagaOperationType {
             | SagaOperationType::GitBranchCreate
             | SagaOperationType::GitBranchDelete => true,
             // Build and test are idempotent, no compensation needed
-            SagaOperationType::Build | SagaOperationType::Test | SagaOperationType::Generic => false,
+            SagaOperationType::Build | SagaOperationType::Test | SagaOperationType::Generic => {
+                false
+            }
         }
     }
 
@@ -374,10 +373,7 @@ impl SagaExecutor {
     }
 
     /// Execute an operation within the saga
-    pub async fn execute_step(
-        &self,
-        op: Arc<dyn CompensableOperation>,
-    ) -> Result<OperationResult> {
+    pub async fn execute_step(&self, op: Arc<dyn CompensableOperation>) -> Result<OperationResult> {
         // Check if saga is still running
         if *self.status.read().await != SagaStatus::Running {
             anyhow::bail!("Cannot execute step: saga is not running");
@@ -573,9 +569,12 @@ impl CompensationReport {
 
     /// Returns true if all compensations succeeded or were skipped.
     pub fn all_successful(&self) -> bool {
-        self.operations
-            .iter()
-            .all(|s| matches!(s.status, CompensationOutcome::Success | CompensationOutcome::Skipped))
+        self.operations.iter().all(|s| {
+            matches!(
+                s.status,
+                CompensationOutcome::Success | CompensationOutcome::Skipped
+            )
+        })
     }
 
     /// Generate a human-readable summary of compensation outcomes.
@@ -693,9 +692,10 @@ impl CompensableOperation for FileWriteOp {
         } else if let Some(checkpoint) = &result.checkpoint {
             // Restore original content
             if let Some(file_state) = checkpoint.file_states.first()
-                && let Some(original_content) = &file_state.original_content {
-                    tokio::fs::write(&self.path, original_content).await?;
-                }
+                && let Some(original_content) = &file_state.original_content
+            {
+                tokio::fs::write(&self.path, original_content).await?;
+            }
         }
         Ok(())
     }
@@ -732,19 +732,19 @@ impl CompensableOperation for FileEditOp {
         // Write new content
         tokio::fs::write(&self.path, &self.new_content).await?;
 
-        Ok(OperationResult::success(format!(
-            "file-edit-{}",
-            self.path.display()
-        ))
-        .with_checkpoint(checkpoint))
+        Ok(
+            OperationResult::success(format!("file-edit-{}", self.path.display()))
+                .with_checkpoint(checkpoint),
+        )
     }
 
     async fn compensate(&self, result: &OperationResult) -> Result<()> {
         if let Some(checkpoint) = &result.checkpoint
             && let Some(file_state) = checkpoint.file_states.first()
-                && let Some(original_content) = &file_state.original_content {
-                    tokio::fs::write(&self.path, original_content).await?;
-                }
+            && let Some(original_content) = &file_state.original_content
+        {
+            tokio::fs::write(&self.path, original_content).await?;
+        }
         Ok(())
     }
 
@@ -1038,7 +1038,10 @@ mod tests {
 
         assert_eq!(checkpoint.id, "test-cp");
         assert_eq!(checkpoint.file_states.len(), 1);
-        assert_eq!(checkpoint.file_states[0].path, PathBuf::from("/test/file.txt"));
+        assert_eq!(
+            checkpoint.file_states[0].path,
+            PathBuf::from("/test/file.txt")
+        );
         assert!(checkpoint.file_states[0].original_content.is_some());
     }
 }

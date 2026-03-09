@@ -71,10 +71,7 @@ pub fn document_metadata_schema() -> Arc<Schema> {
 
 /// Ensure the documents (chunks) table exists in the database
 pub async fn ensure_documents_table(connection: &Connection, embedding_dim: usize) -> Result<()> {
-    let table_names = connection
-        .table_names()
-        .execute()
-        .await?;
+    let table_names = connection.table_names().execute().await?;
 
     if table_names.contains(&DOCUMENTS_TABLE.to_string()) {
         return Ok(());
@@ -95,10 +92,7 @@ pub async fn ensure_documents_table(connection: &Connection, embedding_dim: usiz
 
 /// Ensure the document metadata table exists in the database
 pub async fn ensure_document_metadata_table(connection: &Connection) -> Result<()> {
-    let table_names = connection
-        .table_names()
-        .execute()
-        .await?;
+    let table_names = connection.table_names().execute().await?;
 
     if table_names.contains(&DOCUMENT_METADATA_TABLE.to_string()) {
         return Ok(());

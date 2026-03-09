@@ -12,13 +12,13 @@
 //! The encrypted variants use the session token to derive the encryption key,
 //! providing confidentiality and integrity for all messages after handshake.
 
-use anyhow::{bail, Context, Result};
-use serde::{de::DeserializeOwned, Serialize};
+use anyhow::{Context, Result, bail};
+use serde::{Serialize, de::DeserializeOwned};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
-use tokio::net::unix::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::UnixStream;
+use tokio::net::unix::{OwnedReadHalf, OwnedWriteHalf};
 
 use super::crypto::IpcCipher;
 
@@ -78,8 +78,7 @@ impl IpcWriter {
     ///
     /// Messages are serialized as newline-delimited JSON.
     pub async fn write<T: Serialize>(&mut self, message: &T) -> Result<()> {
-        let json = serde_json::to_string(message)
-            .context("Failed to serialize IPC message")?;
+        let json = serde_json::to_string(message).context("Failed to serialize IPC message")?;
 
         if json.len() > MAX_MESSAGE_SIZE {
             bail!("Message exceeds maximum size of {} bytes", MAX_MESSAGE_SIZE);
@@ -117,9 +116,12 @@ impl IpcConnection {
             bail!("Agent socket not found: {}", socket_path.display());
         }
 
-        let stream = UnixStream::connect(socket_path)
-            .await
-            .with_context(|| format!("Failed to connect to agent socket: {}", socket_path.display()))?;
+        let stream = UnixStream::connect(socket_path).await.with_context(|| {
+            format!(
+                "Failed to connect to agent socket: {}",
+                socket_path.display()
+            )
+        })?;
 
         Ok(Self::from_stream(stream))
     }
@@ -187,7 +189,10 @@ impl EncryptedIpcReader {
         let msg_len = u32::from_be_bytes(len_buf) as usize;
 
         if msg_len > MAX_MESSAGE_SIZE {
-            bail!("Encrypted message exceeds maximum size of {} bytes", MAX_MESSAGE_SIZE);
+            bail!(
+                "Encrypted message exceeds maximum size of {} bytes",
+                MAX_MESSAGE_SIZE
+            );
         }
 
         // Read encrypted message
@@ -195,12 +200,14 @@ impl EncryptedIpcReader {
         self.inner.reader.read_exact(&mut encrypted).await?;
 
         // Decrypt
-        let plaintext = self.cipher.decrypt(&encrypted)
+        let plaintext = self
+            .cipher
+            .decrypt(&encrypted)
             .context("Failed to decrypt IPC message")?;
 
         // Deserialize
-        let message: T = serde_json::from_slice(&plaintext)
-            .context("Failed to parse decrypted IPC message")?;
+        let message: T =
+            serde_json::from_slice(&plaintext).context("Failed to parse decrypted IPC message")?;
 
         Ok(Some(message))
     }
@@ -229,15 +236,16 @@ impl EncryptedIpcWriter {
     /// Messages are serialized, encrypted, then length-prefixed.
     pub async fn write<T: Serialize>(&mut self, message: &T) -> Result<()> {
         // Serialize
-        let json = serde_json::to_vec(message)
-            .context("Failed to serialize IPC message")?;
+        let json = serde_json::to_vec(message).context("Failed to serialize IPC message")?;
 
         if json.len() > MAX_MESSAGE_SIZE {
             bail!("Message exceeds maximum size of {} bytes", MAX_MESSAGE_SIZE);
         }
 
         // Encrypt
-        let encrypted = self.cipher.encrypt(&json)
+        let encrypted = self
+            .cipher
+            .encrypt(&json)
             .context("Failed to encrypt IPC message")?;
 
         // Write length prefix (4 bytes, big-endian)
@@ -266,14 +274,8 @@ impl EncryptedIpcConnection {
         let cipher = Arc::new(IpcCipher::from_session_token(session_token));
         let (read_half, write_half) = stream.into_split();
         Self {
-            reader: EncryptedIpcReader::new(
-                IpcReader::new(read_half),
-                Arc::clone(&cipher),
-            ),
-            writer: EncryptedIpcWriter::new(
-                IpcWriter::new(write_half),
-                cipher,
-            ),
+            reader: EncryptedIpcReader::new(IpcReader::new(read_half), Arc::clone(&cipher)),
+            writer: EncryptedIpcWriter::new(IpcWriter::new(write_half), cipher),
         }
     }
 
@@ -329,7 +331,10 @@ pub fn write_session_token(sessions_dir: &Path, session_id: &str, token: &str) -
         std::fs::set_permissions(&token_path, std::fs::Permissions::from_mode(0o600))?;
     }
 
-    tracing::debug!("Wrote session token: {} (0600 permissions)", token_path.display());
+    tracing::debug!(
+        "Wrote session token: {} (0600 permissions)",
+        token_path.display()
+    );
     Ok(())
 }
 
@@ -368,7 +373,10 @@ pub fn validate_session_token(sessions_dir: &Path, session_id: &str, provided_to
         Ok(Some(stored_token)) => {
             // Use constant-time comparison to prevent timing attacks
             use subtle::ConstantTimeEq;
-            provided_token.as_bytes().ct_eq(stored_token.as_bytes()).into()
+            provided_token
+                .as_bytes()
+                .ct_eq(stored_token.as_bytes())
+                .into()
         }
         Ok(None) => {
             tracing::warn!("No session token found for session {}", session_id);
@@ -383,8 +391,8 @@ pub fn validate_session_token(sessions_dir: &Path, session_id: &str, provided_to
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::protocol::{AgentMessage, ViewerMessage};
+    use super::*;
     use tokio::net::UnixListener;
 
     #[tokio::test]
@@ -605,7 +613,11 @@ mod tests {
         assert_eq!(read_token, Some(token.clone()));
 
         assert!(validate_session_token(sessions_dir, "test-session", &token));
-        assert!(!validate_session_token(sessions_dir, "test-session", "wrong-token"));
+        assert!(!validate_session_token(
+            sessions_dir,
+            "test-session",
+            "wrong-token"
+        ));
 
         delete_session_token(sessions_dir, "test-session").unwrap();
         let read_after_delete = read_session_token(sessions_dir, "test-session").unwrap();

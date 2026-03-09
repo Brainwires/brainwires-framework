@@ -290,37 +290,38 @@ impl PersonalFactCollector {
 
         for rule in patterns {
             if let Some(captures) = rule.pattern.captures(message)
-                && let Some(value_match) = captures.get(rule.value_group) {
-                    let value = value_match.as_str().trim().to_string();
+                && let Some(value_match) = captures.get(rule.value_group)
+            {
+                let value = value_match.as_str().trim().to_string();
 
-                    // Skip very short or very long values
-                    if value.len() < 2 || value.len() > 100 {
-                        continue;
-                    }
-
-                    // Build the key (may contain template placeholders)
-                    let key = self.build_key(&rule.key_template, &captures);
-
-                    // Get optional context
-                    let context = rule.context_group.and_then(|g| {
-                        captures.get(g).map(|m| m.as_str().trim().to_string())
-                    });
-
-                    let fact = PersonalFact::new(
-                        rule.category,
-                        key,
-                        value,
-                        context,
-                        PersonalFactSource::InferredFromBehavior,
-                        false, // Default to synced, not local-only
-                    );
-
-                    // Adjust confidence based on rule
-                    let mut adjusted_fact = fact;
-                    adjusted_fact.confidence = rule.confidence;
-
-                    facts.push(adjusted_fact);
+                // Skip very short or very long values
+                if value.len() < 2 || value.len() > 100 {
+                    continue;
                 }
+
+                // Build the key (may contain template placeholders)
+                let key = self.build_key(&rule.key_template, &captures);
+
+                // Get optional context
+                let context = rule
+                    .context_group
+                    .and_then(|g| captures.get(g).map(|m| m.as_str().trim().to_string()));
+
+                let fact = PersonalFact::new(
+                    rule.category,
+                    key,
+                    value,
+                    context,
+                    PersonalFactSource::InferredFromBehavior,
+                    false, // Default to synced, not local-only
+                );
+
+                // Adjust confidence based on rule
+                let mut adjusted_fact = fact;
+                adjusted_fact.confidence = rule.confidence;
+
+                facts.push(adjusted_fact);
+            }
         }
 
         facts
@@ -332,16 +333,16 @@ impl PersonalFactCollector {
 
         // Replace {n} patterns with capture groups
         use std::sync::LazyLock;
-        static RE: LazyLock<Regex> = LazyLock::new(|| {
-            Regex::new(r"\{(\d+)\}").expect("valid regex")
-        });
+        static RE: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new(r"\{(\d+)\}").expect("valid regex"));
         let re = &*RE;
         for cap in re.captures_iter(template) {
             if let Ok(group_num) = cap[1].parse::<usize>()
-                && let Some(value) = captures.get(group_num) {
-                    let replacement = value.as_str().to_lowercase().replace(' ', "_");
-                    key = key.replace(&cap[0], &replacement);
-                }
+                && let Some(value) = captures.get(group_num)
+            {
+                let replacement = value.as_str().to_lowercase().replace(' ', "_");
+                key = key.replace(&cap[0], &replacement);
+            }
         }
 
         key.to_lowercase().replace(' ', "_")

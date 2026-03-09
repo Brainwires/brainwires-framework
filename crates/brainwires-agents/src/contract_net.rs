@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
-use tokio::sync::{broadcast, RwLock};
+use tokio::sync::{RwLock, broadcast};
 
 /// Contract-Net Protocol manager
 pub struct ContractNetManager {
@@ -218,7 +218,12 @@ impl TaskBid {
     }
 
     /// Calculate score with custom weights
-    pub fn score_weighted(&self, capability_weight: f32, availability_weight: f32, speed_weight: f32) -> f32 {
+    pub fn score_weighted(
+        &self,
+        capability_weight: f32,
+        availability_weight: f32,
+        speed_weight: f32,
+    ) -> f32 {
         let total_weight = capability_weight + availability_weight + speed_weight;
         if total_weight == 0.0 {
             return 0.0;
@@ -235,8 +240,7 @@ impl TaskBid {
 }
 
 /// Strategy for evaluating bids
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub enum BidEvaluationStrategy {
     /// Highest overall score wins
     #[default]
@@ -257,7 +261,6 @@ pub enum BidEvaluationStrategy {
         speed: f32,
     },
 }
-
 
 /// Protocol messages
 #[derive(Debug, Clone)]
@@ -388,7 +391,9 @@ impl ContractNetManager {
         self.bids.write().await.insert(task_id.clone(), Vec::new());
 
         // Broadcast the announcement
-        let _ = self.broadcast_tx.send(ContractMessage::Announce(announcement));
+        let _ = self
+            .broadcast_tx
+            .send(ContractMessage::Announce(announcement));
 
         task_id
     }
@@ -485,22 +490,18 @@ impl ContractNetManager {
         }
 
         let winning_bid = match &self.evaluation_strategy {
-            BidEvaluationStrategy::HighestScore => {
-                bids.iter()
-                    .max_by(|a, b| safe_f32_cmp(a.score(), b.score()))
-            }
+            BidEvaluationStrategy::HighestScore => bids
+                .iter()
+                .max_by(|a, b| safe_f32_cmp(a.score(), b.score())),
             BidEvaluationStrategy::FastestCompletion => {
                 bids.iter().min_by_key(|b| b.estimated_duration)
             }
-            BidEvaluationStrategy::LoadBalancing => {
-                bids.iter()
-                    .min_by(|a, b| safe_f32_cmp(a.current_load, b.current_load))
-            }
-            BidEvaluationStrategy::BestCapability => {
-                bids.iter().max_by(|a, b| {
-                    safe_f32_cmp(a.capability_score, b.capability_score)
-                })
-            }
+            BidEvaluationStrategy::LoadBalancing => bids
+                .iter()
+                .min_by(|a, b| safe_f32_cmp(a.current_load, b.current_load)),
+            BidEvaluationStrategy::BestCapability => bids
+                .iter()
+                .max_by(|a, b| safe_f32_cmp(a.capability_score, b.capability_score)),
             BidEvaluationStrategy::CustomWeights {
                 capability,
                 availability,
@@ -739,18 +740,12 @@ impl ContractParticipant {
 
     /// Accept a task (add to current tasks)
     pub async fn accept_task(&self, task_id: &str) {
-        self.current_tasks
-            .write()
-            .await
-            .push(task_id.to_string());
+        self.current_tasks.write().await.push(task_id.to_string());
     }
 
     /// Complete a task (remove from current tasks)
     pub async fn complete_task(&self, task_id: &str) {
-        self.current_tasks
-            .write()
-            .await
-            .retain(|t| t != task_id);
+        self.current_tasks.write().await.retain(|t| t != task_id);
     }
 
     /// Get current task count
@@ -902,9 +897,7 @@ mod tests {
         manager.announce_task(announcement).await;
 
         // Try to bid - should fail
-        let result = manager
-            .receive_bid(TaskBid::new("agent-1", "task-1"))
-            .await;
+        let result = manager.receive_bid(TaskBid::new("agent-1", "task-1")).await;
 
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("deadline"));
@@ -960,8 +953,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_contract_participant() {
-        let participant = ContractParticipant::new("agent-1", vec!["rust".to_string(), "git".to_string()])
-            .with_max_concurrent(2);
+        let participant =
+            ContractParticipant::new("agent-1", vec!["rust".to_string(), "git".to_string()])
+                .with_max_concurrent(2);
 
         let announcement = TaskAnnouncement::new(
             "task-1",
@@ -994,8 +988,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_capacity_limit() {
-        let participant = ContractParticipant::new("agent-1", vec!["rust".to_string()])
-            .with_max_concurrent(1);
+        let participant =
+            ContractParticipant::new("agent-1", vec!["rust".to_string()]).with_max_concurrent(1);
 
         // Accept one task
         participant.accept_task("task-1").await;

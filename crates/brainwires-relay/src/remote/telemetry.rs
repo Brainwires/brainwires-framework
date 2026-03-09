@@ -5,8 +5,8 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::RwLock;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 /// Maximum number of latency samples to keep for histogram
@@ -54,7 +54,10 @@ impl ProtocolMetrics {
 
     /// Record connection start
     pub fn record_connection_start(&self) {
-        let mut start = self.connection_start.write().expect("metrics lock poisoned");
+        let mut start = self
+            .connection_start
+            .write()
+            .expect("metrics lock poisoned");
         *start = Some(Instant::now());
         let mut activity = self.last_activity.write().expect("metrics lock poisoned");
         *activity = Some(Instant::now());
@@ -82,8 +85,10 @@ impl ProtocolMetrics {
 
     /// Record compression ratio (uncompressed -> compressed)
     pub fn record_compression(&self, uncompressed: u64, compressed: u64) {
-        self.bytes_uncompressed.fetch_add(uncompressed, Ordering::Relaxed);
-        self.bytes_compressed.fetch_add(compressed, Ordering::Relaxed);
+        self.bytes_uncompressed
+            .fetch_add(uncompressed, Ordering::Relaxed);
+        self.bytes_compressed
+            .fetch_add(compressed, Ordering::Relaxed);
     }
 
     /// Record message latency (one-way)
@@ -99,7 +104,10 @@ impl ProtocolMetrics {
     /// Record command roundtrip time
     pub fn record_roundtrip(&self, roundtrip: Duration) {
         let ms = roundtrip.as_millis() as u64;
-        let mut samples = self.roundtrip_samples.write().expect("metrics lock poisoned");
+        let mut samples = self
+            .roundtrip_samples
+            .write()
+            .expect("metrics lock poisoned");
         if samples.len() >= MAX_LATENCY_SAMPLES {
             samples.pop_front();
         }
@@ -109,17 +117,16 @@ impl ProtocolMetrics {
     /// Get current metrics snapshot
     pub fn snapshot(&self) -> MetricsSnapshot {
         let latency_samples = self.latency_samples.read().expect("metrics lock poisoned");
-        let roundtrip_samples = self.roundtrip_samples.read().expect("metrics lock poisoned");
+        let roundtrip_samples = self
+            .roundtrip_samples
+            .read()
+            .expect("metrics lock poisoned");
         let connection_start = self.connection_start.read().expect("metrics lock poisoned");
         let last_activity = self.last_activity.read().expect("metrics lock poisoned");
 
-        let uptime_secs = connection_start
-            .map(|s| s.elapsed().as_secs())
-            .unwrap_or(0);
+        let uptime_secs = connection_start.map(|s| s.elapsed().as_secs()).unwrap_or(0);
 
-        let idle_secs = last_activity
-            .map(|s| s.elapsed().as_secs())
-            .unwrap_or(0);
+        let idle_secs = last_activity.map(|s| s.elapsed().as_secs()).unwrap_or(0);
 
         let bytes_uncompressed = self.bytes_uncompressed.load(Ordering::Relaxed);
         let bytes_compressed = self.bytes_compressed.load(Ordering::Relaxed);
@@ -148,15 +155,24 @@ impl ProtocolMetrics {
 
     /// Reset all metrics
     pub fn reset(&self) {
-        self.latency_samples.write().expect("metrics lock poisoned").clear();
-        self.roundtrip_samples.write().expect("metrics lock poisoned").clear();
+        self.latency_samples
+            .write()
+            .expect("metrics lock poisoned")
+            .clear();
+        self.roundtrip_samples
+            .write()
+            .expect("metrics lock poisoned")
+            .clear();
         self.messages_sent.store(0, Ordering::Relaxed);
         self.messages_failed.store(0, Ordering::Relaxed);
         self.bytes_sent.store(0, Ordering::Relaxed);
         self.bytes_received.store(0, Ordering::Relaxed);
         self.bytes_uncompressed.store(0, Ordering::Relaxed);
         self.bytes_compressed.store(0, Ordering::Relaxed);
-        *self.connection_start.write().expect("metrics lock poisoned") = None;
+        *self
+            .connection_start
+            .write()
+            .expect("metrics lock poisoned") = None;
         *self.last_activity.write().expect("metrics lock poisoned") = None;
     }
 }
@@ -330,9 +346,21 @@ mod tests {
         let p50 = snapshot.latency_p50.unwrap();
         let p95 = snapshot.latency_p95.unwrap();
         let p99 = snapshot.latency_p99.unwrap();
-        assert!(p50 >= 49 && p50 <= 51, "p50 should be around 50, got {}", p50);
-        assert!(p95 >= 94 && p95 <= 96, "p95 should be around 95, got {}", p95);
-        assert!(p99 >= 98 && p99 <= 100, "p99 should be around 99, got {}", p99);
+        assert!(
+            p50 >= 49 && p50 <= 51,
+            "p50 should be around 50, got {}",
+            p50
+        );
+        assert!(
+            p95 >= 94 && p95 <= 96,
+            "p95 should be around 95, got {}",
+            p95
+        );
+        assert!(
+            p99 >= 98 && p99 <= 100,
+            "p99 should be around 99, got {}",
+            p99
+        );
     }
 
     #[test]

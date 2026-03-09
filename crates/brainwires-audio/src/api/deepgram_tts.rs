@@ -63,26 +63,70 @@ impl TextToSpeech for DeepgramTts {
 
     async fn list_voices(&self) -> AudioResult<Vec<Voice>> {
         Ok(vec![
-            Voice { id: "aura-asteria-en".into(),  name: Some("Asteria".into()),  language: Some("en".into()) },
-            Voice { id: "aura-luna-en".into(),      name: Some("Luna".into()),     language: Some("en".into()) },
-            Voice { id: "aura-stella-en".into(),    name: Some("Stella".into()),   language: Some("en".into()) },
-            Voice { id: "aura-athena-en".into(),    name: Some("Athena".into()),   language: Some("en".into()) },
-            Voice { id: "aura-hera-en".into(),      name: Some("Hera".into()),     language: Some("en".into()) },
-            Voice { id: "aura-orion-en".into(),     name: Some("Orion".into()),    language: Some("en".into()) },
-            Voice { id: "aura-arcas-en".into(),     name: Some("Arcas".into()),    language: Some("en".into()) },
-            Voice { id: "aura-perseus-en".into(),   name: Some("Perseus".into()),  language: Some("en".into()) },
-            Voice { id: "aura-angus-en".into(),     name: Some("Angus".into()),    language: Some("en".into()) },
-            Voice { id: "aura-orpheus-en".into(),   name: Some("Orpheus".into()),  language: Some("en".into()) },
-            Voice { id: "aura-helios-en".into(),    name: Some("Helios".into()),   language: Some("en".into()) },
-            Voice { id: "aura-zeus-en".into(),      name: Some("Zeus".into()),     language: Some("en".into()) },
+            Voice {
+                id: "aura-asteria-en".into(),
+                name: Some("Asteria".into()),
+                language: Some("en".into()),
+            },
+            Voice {
+                id: "aura-luna-en".into(),
+                name: Some("Luna".into()),
+                language: Some("en".into()),
+            },
+            Voice {
+                id: "aura-stella-en".into(),
+                name: Some("Stella".into()),
+                language: Some("en".into()),
+            },
+            Voice {
+                id: "aura-athena-en".into(),
+                name: Some("Athena".into()),
+                language: Some("en".into()),
+            },
+            Voice {
+                id: "aura-hera-en".into(),
+                name: Some("Hera".into()),
+                language: Some("en".into()),
+            },
+            Voice {
+                id: "aura-orion-en".into(),
+                name: Some("Orion".into()),
+                language: Some("en".into()),
+            },
+            Voice {
+                id: "aura-arcas-en".into(),
+                name: Some("Arcas".into()),
+                language: Some("en".into()),
+            },
+            Voice {
+                id: "aura-perseus-en".into(),
+                name: Some("Perseus".into()),
+                language: Some("en".into()),
+            },
+            Voice {
+                id: "aura-angus-en".into(),
+                name: Some("Angus".into()),
+                language: Some("en".into()),
+            },
+            Voice {
+                id: "aura-orpheus-en".into(),
+                name: Some("Orpheus".into()),
+                language: Some("en".into()),
+            },
+            Voice {
+                id: "aura-helios-en".into(),
+                name: Some("Helios".into()),
+                language: Some("en".into()),
+            },
+            Voice {
+                id: "aura-zeus-en".into(),
+                name: Some("Zeus".into()),
+                language: Some("en".into()),
+            },
         ])
     }
 
-    async fn synthesize(
-        &self,
-        text: &str,
-        options: &TtsOptions,
-    ) -> AudioResult<AudioBuffer> {
+    async fn synthesize(&self, text: &str, options: &TtsOptions) -> AudioResult<AudioBuffer> {
         let req = DeepgramSpeakRequest {
             text: text.to_string(),
             model: Some(options.voice.id.clone()),

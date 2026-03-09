@@ -347,8 +347,7 @@ impl ExecutionError {
 }
 
 /// Sandbox profile presets
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum SandboxProfile {
     /// Minimal - No I/O, basic math only
     Minimal,
@@ -371,7 +370,6 @@ impl SandboxProfile {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -400,11 +398,8 @@ mod tests {
 
     #[test]
     fn test_execution_result_creation() {
-        let success = ExecutionResult::success(
-            "Hello".to_string(),
-            Some(serde_json::json!(42)),
-            100,
-        );
+        let success =
+            ExecutionResult::success("Hello".to_string(), Some(serde_json::json!(42)), 100);
         assert!(success.success);
         assert_eq!(success.stdout, "Hello");
 

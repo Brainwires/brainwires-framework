@@ -39,17 +39,17 @@ use sha2::{Digest, Sha256};
 use tokio::sync::RwLock;
 
 use brainwires_core::{
-    estimate_tokens_from_size, ChatOptions, ChatResponse, ContentBlock, ContentSource, Message,
-    MessageContent, Provider, Role, Task, ToolContext, ToolResult, ToolUse,
+    ChatOptions, ChatResponse, ContentBlock, ContentSource, Message, MessageContent, Provider,
+    Role, Task, ToolContext, ToolResult, ToolUse, estimate_tokens_from_size,
 };
-use brainwires_tool_system::{wrap_with_content_source, PreHookDecision};
+use brainwires_tool_system::{PreHookDecision, wrap_with_content_source};
 
 use crate::agent_hooks::{ConversationView, IterationContext, IterationDecision, ToolDecision};
 use crate::communication::AgentMessage;
 use crate::context::AgentContext;
 use crate::execution_graph::{ExecutionGraph, RunTelemetry, ToolCallRecord};
 use crate::file_locks::LockType;
-use crate::validation_loop::{format_validation_feedback, run_validation, ValidationConfig};
+use crate::validation_loop::{ValidationConfig, format_validation_feedback, run_validation};
 
 /// Tool names whose results originate from external / untrusted sources and
 /// must be sanitised before injection into the conversation history.
@@ -459,10 +459,7 @@ impl TaskAgent {
         let tools = self.context.tool_executor.available_tools();
 
         let system_prompt = self.config.system_prompt.clone().unwrap_or_else(|| {
-            crate::system_prompts::reasoning_agent_prompt(
-                &self.id,
-                &self.context.working_directory,
-            )
+            crate::system_prompts::reasoning_agent_prompt(&self.id, &self.context.working_directory)
         });
 
         let options = ChatOptions {
@@ -473,9 +470,7 @@ impl TaskAgent {
             system: Some(system_prompt),
         };
 
-        self.provider
-            .chat(&history, Some(&tools), &options)
-            .await
+        self.provider.chat(&history, Some(&tools), &options).await
     }
 
     /// Run validation checks and, if they pass, finalise the task.
@@ -495,46 +490,47 @@ impl TaskAgent {
         let task_id = self.task.read().await.id.clone();
 
         if let Some(ref validation_config) = self.config.validation_config
-            && validation_config.enabled {
-                tracing::info!(
-                    agent_id = %self.id,
-                    "running validation before completion"
-                );
+            && validation_config.enabled
+        {
+            tracing::info!(
+                agent_id = %self.id,
+                "running validation before completion"
+            );
 
-                let working_set_files = {
-                    let ws = self.context.working_set.read().await;
-                    ws.file_paths()
-                        .iter()
-                        .map(|p| p.to_string_lossy().to_string())
-                        .collect::<Vec<_>>()
-                };
+            let working_set_files = {
+                let ws = self.context.working_set.read().await;
+                ws.file_paths()
+                    .iter()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .collect::<Vec<_>>()
+            };
 
-                let mut config_with_ws = validation_config.clone();
-                config_with_ws.working_set_files = working_set_files;
+            let mut config_with_ws = validation_config.clone();
+            config_with_ws.working_set_files = working_set_files;
 
-                match run_validation(&config_with_ws).await {
-                    Ok(result) if !result.passed => {
-                        tracing::warn!(
-                            agent_id = %self.id,
-                            issues = result.issues.len(),
-                            "validation failed, continuing loop"
-                        );
-                        let feedback = format_validation_feedback(&result);
-                        self.conversation_history
-                            .write()
-                            .await
-                            .push(Message::user(feedback));
-                        return Ok(None);
-                    }
-                    Ok(_) => {
-                        tracing::info!(agent_id = %self.id, "validation passed");
-                    }
-                    Err(e) => {
-                        // Validation infrastructure error — proceed anyway.
-                        tracing::error!(agent_id = %self.id, "validation error: {}", e);
-                    }
+            match run_validation(&config_with_ws).await {
+                Ok(result) if !result.passed => {
+                    tracing::warn!(
+                        agent_id = %self.id,
+                        issues = result.issues.len(),
+                        "validation failed, continuing loop"
+                    );
+                    let feedback = format_validation_feedback(&result);
+                    self.conversation_history
+                        .write()
+                        .await
+                        .push(Message::user(feedback));
+                    return Ok(None);
+                }
+                Ok(_) => {
+                    tracing::info!(agent_id = %self.id, "validation passed");
+                }
+                Err(e) => {
+                    // Validation infrastructure error — proceed anyway.
+                    tracing::error!(agent_id = %self.id, "validation error: {}", e);
                 }
             }
+        }
 
         // Finalise the task.
         self.task.write().await.complete(message_text);
@@ -605,12 +601,7 @@ impl TaskAgent {
         );
 
         // Register with the communication hub.
-        if !self
-            .context
-            .communication_hub
-            .is_registered(&self.id)
-            .await
-        {
+        if !self.context.communication_hub.is_registered(&self.id).await {
             self.context
                 .communication_hub
                 .register_agent(self.id.clone())
@@ -672,10 +663,15 @@ impl TaskAgent {
                 top_p: None,
                 stop: None,
                 system: Some(
-                    "You are a planning assistant. Respond only with a valid JSON execution plan.".to_string(),
+                    "You are a planning assistant. Respond only with a valid JSON execution plan."
+                        .to_string(),
                 ),
             };
-            match self.provider.chat(&[planning_msg], None, &planning_options).await {
+            match self
+                .provider
+                .chat(&[planning_msg], None, &planning_options)
+                .await
+            {
                 Ok(response) => {
                     let plan_text = response.message.text().unwrap_or("").to_string();
                     if let Some(plan) = brainwires_core::SerializablePlan::parse_from_text(
@@ -699,7 +695,8 @@ impl TaskAgent {
                                 );
                                 tracing::error!(agent_id = %self.id, %error);
                                 self.task.write().await.fail(&error);
-                                self.set_status(TaskAgentStatus::Failed(error.clone())).await;
+                                self.set_status(TaskAgentStatus::Failed(error.clone()))
+                                    .await;
                                 let _ = self
                                     .context
                                     .communication_hub
@@ -803,7 +800,11 @@ impl TaskAgent {
             if let Some(ref hooks) = self.context.lifecycle_hooks {
                 let conv_len = self.conversation_history.read().await.len();
                 let iter_ctx = self.build_iteration_context(
-                    iterations, total_tokens_used, total_cost_usd, &start_time, conv_len,
+                    iterations,
+                    total_tokens_used,
+                    total_cost_usd,
+                    &start_time,
+                    conv_len,
                 );
                 let mut history = self.conversation_history.write().await;
                 let mut view = ConversationView::new(&mut history);
@@ -818,20 +819,35 @@ impl TaskAgent {
                         let error = format!("Agent {} aborted by hook: {}", self.id, reason);
                         tracing::error!(agent_id = %self.id, %error);
                         self.task.write().await.fail(&error);
-                        self.set_status(TaskAgentStatus::Failed(error.clone())).await;
-                        let _ = self.context.communication_hub.broadcast(
-                            self.id.clone(),
-                            AgentMessage::TaskResult {
-                                task_id: task_id.clone(),
-                                success: false,
-                                result: error.clone(),
-                            },
-                        ).await;
-                        let _ = self.context.communication_hub.unregister_agent(&self.id).await;
-                        self.context.file_lock_manager.release_all_locks(&self.id).await;
+                        self.set_status(TaskAgentStatus::Failed(error.clone()))
+                            .await;
+                        let _ = self
+                            .context
+                            .communication_hub
+                            .broadcast(
+                                self.id.clone(),
+                                AgentMessage::TaskResult {
+                                    task_id: task_id.clone(),
+                                    success: false,
+                                    result: error.clone(),
+                                },
+                            )
+                            .await;
+                        let _ = self
+                            .context
+                            .communication_hub
+                            .unregister_agent(&self.id)
+                            .await;
+                        self.context
+                            .file_lock_manager
+                            .release_all_locks(&self.id)
+                            .await;
                         let run_ended_at = Utc::now();
                         let telemetry = RunTelemetry::from_graph(
-                            &execution_graph, run_ended_at, false, total_cost_usd,
+                            &execution_graph,
+                            run_ended_at,
+                            false,
+                            total_cost_usd,
                         );
                         return Ok(TaskAgentResult {
                             agent_id: self.id.clone(),
@@ -890,12 +906,8 @@ impl TaskAgent {
                     .await;
 
                 let run_ended_at = Utc::now();
-                let telemetry = RunTelemetry::from_graph(
-                    &execution_graph,
-                    run_ended_at,
-                    false,
-                    total_cost_usd,
-                );
+                let telemetry =
+                    RunTelemetry::from_graph(&execution_graph, run_ended_at, false, total_cost_usd);
                 return Ok(TaskAgentResult {
                     agent_id: self.id.clone(),
                     task_id,
@@ -925,185 +937,210 @@ impl TaskAgent {
                     request_id,
                     response,
                 } = envelope.message
-                {
-                    self.conversation_history
-                        .write()
-                        .await
-                        .push(Message::user(format!(
-                            "Response to help request {}: {}",
-                            request_id, response
-                        )));
-                }
+            {
+                self.conversation_history
+                    .write()
+                    .await
+                    .push(Message::user(format!(
+                        "Response to help request {}: {}",
+                        request_id, response
+                    )));
+            }
 
             // ── Budget: timeout ──────────────────────────────────────────────
             if let Some(secs) = self.config.timeout_secs
-                && start_time.elapsed().as_secs() >= secs {
-                    let elapsed = start_time.elapsed().as_secs();
-                    let partial = self.last_assistant_text().await;
-                    let error = format!(
-                        "Agent {} timed out after {}s (limit: {}s)",
-                        self.id, elapsed, secs
-                    );
-                    tracing::error!(agent_id = %self.id, %error);
-                    self.task.write().await.fail(&error);
-                    self.set_status(TaskAgentStatus::Failed(error.clone())).await;
-                    let _ = self
-                        .context
-                        .communication_hub
-                        .broadcast(
-                            self.id.clone(),
-                            AgentMessage::TaskResult {
-                                task_id: task_id.clone(),
-                                success: false,
-                                result: error.clone(),
-                            },
-                        )
-                        .await;
-                    let _ = self.context.communication_hub.unregister_agent(&self.id).await;
-                    self.context.file_lock_manager.release_all_locks(&self.id).await;
-                    let run_ended_at = Utc::now();
-                    let telemetry = RunTelemetry::from_graph(
-                        &execution_graph,
-                        run_ended_at,
-                        false,
-                        total_cost_usd,
-                    );
-                    return Ok(TaskAgentResult {
-                        agent_id: self.id.clone(),
-                        task_id,
-                        success: false,
-                        summary: error,
-                        iterations,
-                        replan_count: *self.replan_count.read().await,
-                        budget_exhausted: false,
-                        partial_output: partial,
-                        total_tokens_used,
-                        total_cost_usd,
-                        timed_out: true,
-                        failure_category: Some(FailureCategory::WallClockTimeout),
-                        execution_graph: execution_graph.clone(),
-                        telemetry,
-                        pre_execution_plan: pre_execution_plan.clone(),
-                    });
-                }
+                && start_time.elapsed().as_secs() >= secs
+            {
+                let elapsed = start_time.elapsed().as_secs();
+                let partial = self.last_assistant_text().await;
+                let error = format!(
+                    "Agent {} timed out after {}s (limit: {}s)",
+                    self.id, elapsed, secs
+                );
+                tracing::error!(agent_id = %self.id, %error);
+                self.task.write().await.fail(&error);
+                self.set_status(TaskAgentStatus::Failed(error.clone()))
+                    .await;
+                let _ = self
+                    .context
+                    .communication_hub
+                    .broadcast(
+                        self.id.clone(),
+                        AgentMessage::TaskResult {
+                            task_id: task_id.clone(),
+                            success: false,
+                            result: error.clone(),
+                        },
+                    )
+                    .await;
+                let _ = self
+                    .context
+                    .communication_hub
+                    .unregister_agent(&self.id)
+                    .await;
+                self.context
+                    .file_lock_manager
+                    .release_all_locks(&self.id)
+                    .await;
+                let run_ended_at = Utc::now();
+                let telemetry =
+                    RunTelemetry::from_graph(&execution_graph, run_ended_at, false, total_cost_usd);
+                return Ok(TaskAgentResult {
+                    agent_id: self.id.clone(),
+                    task_id,
+                    success: false,
+                    summary: error,
+                    iterations,
+                    replan_count: *self.replan_count.read().await,
+                    budget_exhausted: false,
+                    partial_output: partial,
+                    total_tokens_used,
+                    total_cost_usd,
+                    timed_out: true,
+                    failure_category: Some(FailureCategory::WallClockTimeout),
+                    execution_graph: execution_graph.clone(),
+                    telemetry,
+                    pre_execution_plan: pre_execution_plan.clone(),
+                });
+            }
 
             // ── Budget: token ceiling ────────────────────────────────────────
             if let Some(max) = self.config.max_total_tokens
-                && total_tokens_used >= max {
-                    let partial = self.last_assistant_text().await;
-                    let error = format!(
-                        "Agent {} exceeded token budget ({}/{} tokens)",
-                        self.id, total_tokens_used, max
-                    );
-                    tracing::error!(agent_id = %self.id, %error);
-                    self.task.write().await.fail(&error);
-                    self.set_status(TaskAgentStatus::Failed(error.clone())).await;
-                    let _ = self
-                        .context
-                        .communication_hub
-                        .broadcast(
-                            self.id.clone(),
-                            AgentMessage::TaskResult {
-                                task_id: task_id.clone(),
-                                success: false,
-                                result: error.clone(),
-                            },
-                        )
-                        .await;
-                    let _ = self.context.communication_hub.unregister_agent(&self.id).await;
-                    self.context.file_lock_manager.release_all_locks(&self.id).await;
-                    let run_ended_at = Utc::now();
-                    let telemetry = RunTelemetry::from_graph(
-                        &execution_graph,
-                        run_ended_at,
-                        false,
-                        total_cost_usd,
-                    );
-                    return Ok(TaskAgentResult {
-                        agent_id: self.id.clone(),
-                        task_id,
-                        success: false,
-                        summary: error,
-                        iterations,
-                        replan_count: *self.replan_count.read().await,
-                        budget_exhausted: true,
-                        partial_output: partial,
-                        total_tokens_used,
-                        total_cost_usd,
-                        timed_out: false,
-                        failure_category: Some(FailureCategory::TokenBudgetExceeded),
-                        execution_graph: execution_graph.clone(),
-                        telemetry,
-                        pre_execution_plan: pre_execution_plan.clone(),
-                    });
-                }
+                && total_tokens_used >= max
+            {
+                let partial = self.last_assistant_text().await;
+                let error = format!(
+                    "Agent {} exceeded token budget ({}/{} tokens)",
+                    self.id, total_tokens_used, max
+                );
+                tracing::error!(agent_id = %self.id, %error);
+                self.task.write().await.fail(&error);
+                self.set_status(TaskAgentStatus::Failed(error.clone()))
+                    .await;
+                let _ = self
+                    .context
+                    .communication_hub
+                    .broadcast(
+                        self.id.clone(),
+                        AgentMessage::TaskResult {
+                            task_id: task_id.clone(),
+                            success: false,
+                            result: error.clone(),
+                        },
+                    )
+                    .await;
+                let _ = self
+                    .context
+                    .communication_hub
+                    .unregister_agent(&self.id)
+                    .await;
+                self.context
+                    .file_lock_manager
+                    .release_all_locks(&self.id)
+                    .await;
+                let run_ended_at = Utc::now();
+                let telemetry =
+                    RunTelemetry::from_graph(&execution_graph, run_ended_at, false, total_cost_usd);
+                return Ok(TaskAgentResult {
+                    agent_id: self.id.clone(),
+                    task_id,
+                    success: false,
+                    summary: error,
+                    iterations,
+                    replan_count: *self.replan_count.read().await,
+                    budget_exhausted: true,
+                    partial_output: partial,
+                    total_tokens_used,
+                    total_cost_usd,
+                    timed_out: false,
+                    failure_category: Some(FailureCategory::TokenBudgetExceeded),
+                    execution_graph: execution_graph.clone(),
+                    telemetry,
+                    pre_execution_plan: pre_execution_plan.clone(),
+                });
+            }
 
             // ── Budget: cost ceiling ─────────────────────────────────────────
             if let Some(max) = self.config.max_cost_usd
-                && total_cost_usd >= max {
-                    let partial = self.last_assistant_text().await;
-                    let error = format!(
-                        "Agent {} exceeded cost budget (${:.6}/{:.6} USD)",
-                        self.id, total_cost_usd, max
-                    );
-                    tracing::error!(agent_id = %self.id, %error);
-                    self.task.write().await.fail(&error);
-                    self.set_status(TaskAgentStatus::Failed(error.clone())).await;
-                    let _ = self
-                        .context
-                        .communication_hub
-                        .broadcast(
-                            self.id.clone(),
-                            AgentMessage::TaskResult {
-                                task_id: task_id.clone(),
-                                success: false,
-                                result: error.clone(),
-                            },
-                        )
-                        .await;
-                    let _ = self.context.communication_hub.unregister_agent(&self.id).await;
-                    self.context.file_lock_manager.release_all_locks(&self.id).await;
-                    let run_ended_at = Utc::now();
-                    let telemetry = RunTelemetry::from_graph(
-                        &execution_graph,
-                        run_ended_at,
-                        false,
-                        total_cost_usd,
-                    );
-                    return Ok(TaskAgentResult {
-                        agent_id: self.id.clone(),
-                        task_id,
-                        success: false,
-                        summary: error,
-                        iterations,
-                        replan_count: *self.replan_count.read().await,
-                        budget_exhausted: true,
-                        partial_output: partial,
-                        total_tokens_used,
-                        total_cost_usd,
-                        timed_out: false,
-                        failure_category: Some(FailureCategory::CostBudgetExceeded),
-                        execution_graph: execution_graph.clone(),
-                        telemetry,
-                        pre_execution_plan: pre_execution_plan.clone(),
-                    });
-                }
+                && total_cost_usd >= max
+            {
+                let partial = self.last_assistant_text().await;
+                let error = format!(
+                    "Agent {} exceeded cost budget (${:.6}/{:.6} USD)",
+                    self.id, total_cost_usd, max
+                );
+                tracing::error!(agent_id = %self.id, %error);
+                self.task.write().await.fail(&error);
+                self.set_status(TaskAgentStatus::Failed(error.clone()))
+                    .await;
+                let _ = self
+                    .context
+                    .communication_hub
+                    .broadcast(
+                        self.id.clone(),
+                        AgentMessage::TaskResult {
+                            task_id: task_id.clone(),
+                            success: false,
+                            result: error.clone(),
+                        },
+                    )
+                    .await;
+                let _ = self
+                    .context
+                    .communication_hub
+                    .unregister_agent(&self.id)
+                    .await;
+                self.context
+                    .file_lock_manager
+                    .release_all_locks(&self.id)
+                    .await;
+                let run_ended_at = Utc::now();
+                let telemetry =
+                    RunTelemetry::from_graph(&execution_graph, run_ended_at, false, total_cost_usd);
+                return Ok(TaskAgentResult {
+                    agent_id: self.id.clone(),
+                    task_id,
+                    success: false,
+                    summary: error,
+                    iterations,
+                    replan_count: *self.replan_count.read().await,
+                    budget_exhausted: true,
+                    partial_output: partial,
+                    total_tokens_used,
+                    total_cost_usd,
+                    timed_out: false,
+                    failure_category: Some(FailureCategory::CostBudgetExceeded),
+                    execution_graph: execution_graph.clone(),
+                    telemetry,
+                    pre_execution_plan: pre_execution_plan.clone(),
+                });
+            }
 
             // ── Goal re-validation ───────────────────────────────────────────
             if let Some(interval) = self.config.goal_revalidation_interval
-                && interval > 0 && iterations > 1 && (iterations - 1).is_multiple_of(interval) {
-                    self.conversation_history.write().await.push(Message::user(format!(
+                && interval > 0
+                && iterations > 1
+                && (iterations - 1).is_multiple_of(interval)
+            {
+                self.conversation_history
+                    .write()
+                    .await
+                    .push(Message::user(format!(
                         "GOAL CHECK (iteration {}): Your original task was:\n\n\"{}\"\n\n\
                          Confirm you are still on track. Correct course if you have drifted.",
                         iterations, task_description
                     )));
-                }
+            }
 
             // ── Hook B: on_before_provider_call ──────────────────────────────
             if let Some(ref hooks) = self.context.lifecycle_hooks {
                 let conv_len = self.conversation_history.read().await.len();
                 let iter_ctx = self.build_iteration_context(
-                    iterations, total_tokens_used, total_cost_usd, &start_time, conv_len,
+                    iterations,
+                    total_tokens_used,
+                    total_cost_usd,
+                    &start_time,
+                    conv_len,
                 );
                 let mut history = self.conversation_history.write().await;
                 let mut view = ConversationView::new(&mut history);
@@ -1121,7 +1158,11 @@ impl TaskAgent {
             if let Some(ref hooks) = self.context.lifecycle_hooks {
                 let conv_len = self.conversation_history.read().await.len();
                 let iter_ctx = self.build_iteration_context(
-                    iterations, total_tokens_used, total_cost_usd, &start_time, conv_len,
+                    iterations,
+                    total_tokens_used,
+                    total_cost_usd,
+                    &start_time,
+                    conv_len,
                 );
                 hooks.on_after_provider_call(&iter_ctx, &response).await;
             }
@@ -1155,7 +1196,8 @@ impl TaskAgent {
                         );
                         tracing::error!(agent_id = %self.id, %error);
                         self.task.write().await.fail(&error);
-                        self.set_status(TaskAgentStatus::Failed(error.clone())).await;
+                        self.set_status(TaskAgentStatus::Failed(error.clone()))
+                            .await;
                         let _ = self
                             .context
                             .communication_hub
@@ -1168,8 +1210,15 @@ impl TaskAgent {
                                 },
                             )
                             .await;
-                        let _ = self.context.communication_hub.unregister_agent(&self.id).await;
-                        self.context.file_lock_manager.release_all_locks(&self.id).await;
+                        let _ = self
+                            .context
+                            .communication_hub
+                            .unregister_agent(&self.id)
+                            .await;
+                        self.context
+                            .file_lock_manager
+                            .release_all_locks(&self.id)
+                            .await;
                         let run_ended_at = Utc::now();
                         let telemetry = RunTelemetry::from_graph(
                             &execution_graph,
@@ -1215,7 +1264,11 @@ impl TaskAgent {
                 if let Some(ref hooks) = self.context.lifecycle_hooks {
                     let conv_len = self.conversation_history.read().await.len();
                     let iter_ctx = self.build_iteration_context(
-                        iterations, total_tokens_used, total_cost_usd, &start_time, conv_len,
+                        iterations,
+                        total_tokens_used,
+                        total_cost_usd,
+                        &start_time,
+                        conv_len,
                     );
                     if !hooks.on_before_completion(&iter_ctx, &text).await {
                         continue; // Hook rejected completion
@@ -1237,7 +1290,11 @@ impl TaskAgent {
                     if let Some(ref hooks) = self.context.lifecycle_hooks {
                         let conv_len = self.conversation_history.read().await.len();
                         let iter_ctx = self.build_iteration_context(
-                            iterations, total_tokens_used, total_cost_usd, &start_time, conv_len,
+                            iterations,
+                            total_tokens_used,
+                            total_cost_usd,
+                            &start_time,
+                            conv_len,
                         );
                         hooks.on_after_completion(&iter_ctx, &result).await;
                     }
@@ -1261,7 +1318,11 @@ impl TaskAgent {
                 if let Some(ref hooks) = self.context.lifecycle_hooks {
                     let conv_len = self.conversation_history.read().await.len();
                     let iter_ctx = self.build_iteration_context(
-                        iterations, total_tokens_used, total_cost_usd, &start_time, conv_len,
+                        iterations,
+                        total_tokens_used,
+                        total_cost_usd,
+                        &start_time,
+                        conv_len,
                     );
                     if !hooks.on_before_completion(&iter_ctx, &text).await {
                         continue; // Hook rejected completion
@@ -1283,7 +1344,11 @@ impl TaskAgent {
                     if let Some(ref hooks) = self.context.lifecycle_hooks {
                         let conv_len = self.conversation_history.read().await.len();
                         let iter_ctx = self.build_iteration_context(
-                            iterations, total_tokens_used, total_cost_usd, &start_time, conv_len,
+                            iterations,
+                            total_tokens_used,
+                            total_cost_usd,
+                            &start_time,
+                            conv_len,
                         );
                         hooks.on_after_completion(&iter_ctx, &result).await;
                     }
@@ -1309,7 +1374,11 @@ impl TaskAgent {
                 if let Some(ref hooks) = self.context.lifecycle_hooks {
                     let conv_len = self.conversation_history.read().await.len();
                     let iter_ctx = self.build_iteration_context(
-                        iterations, total_tokens_used, total_cost_usd, &start_time, conv_len,
+                        iterations,
+                        total_tokens_used,
+                        total_cost_usd,
+                        &start_time,
+                        conv_len,
                     );
                     match hooks.on_before_tool_execution(&iter_ctx, tool_use).await {
                         ToolDecision::Execute => {} // proceed normally
@@ -1336,8 +1405,7 @@ impl TaskAgent {
                                         tool_use.id.clone(),
                                         format!(
                                             "Delegated to sub-agent {}: {}",
-                                            delegation_result.agent_id,
-                                            delegation_result.output
+                                            delegation_result.agent_id, delegation_result.output
                                         ),
                                     );
                                     execution_graph.record_tool_call(
@@ -1398,8 +1466,7 @@ impl TaskAgent {
                                     executed_at: Utc::now(),
                                 },
                             );
-                            let rejection =
-                                ToolResult::error(tool_use.id.clone(), reason);
+                            let rejection = ToolResult::error(tool_use.id.clone(), reason);
                             self.conversation_history
                                 .write()
                                 .await
@@ -1417,12 +1484,12 @@ impl TaskAgent {
                     }
                 }
 
-                let tool_result = if let Some((path, lock_type)) =
-                    Self::get_lock_requirement(tool_use)
-                {
-                    // ── File scope whitelist check (Item 3) ──────────────
-                    if let Some(ref allowed) = self.config.allowed_files
-                        && !Self::is_file_path_allowed(&path, allowed) {
+                let tool_result =
+                    if let Some((path, lock_type)) = Self::get_lock_requirement(tool_use) {
+                        // ── File scope whitelist check (Item 3) ──────────────
+                        if let Some(ref allowed) = self.config.allowed_files
+                            && !Self::is_file_path_allowed(&path, allowed)
+                        {
                             tracing::warn!(
                                 agent_id = %self.id,
                                 path = %path,
@@ -1442,67 +1509,67 @@ impl TaskAgent {
                             continue;
                         }
 
-                    self.set_status(TaskAgentStatus::WaitingForLock(path.clone()))
-                        .await;
-
-                    match self
-                        .context
-                        .file_lock_manager
-                        .acquire_lock(&self.id, &path, lock_type)
-                        .await
-                    {
-                        Ok(_guard) => {
-                            self.set_status(TaskAgentStatus::Working(format!(
-                                "Executing {}",
-                                tool_use.name
-                            )))
+                        self.set_status(TaskAgentStatus::WaitingForLock(path.clone()))
                             .await;
-                            match self
-                                .context
-                                .tool_executor
-                                .execute(tool_use, &tool_context)
-                                .await
-                            {
-                                Ok(r) => r,
-                                Err(e) => ToolResult::error(
-                                    tool_use.id.clone(),
-                                    format!("Tool execution failed: {}", e),
-                                ),
+
+                        match self
+                            .context
+                            .file_lock_manager
+                            .acquire_lock(&self.id, &path, lock_type)
+                            .await
+                        {
+                            Ok(_guard) => {
+                                self.set_status(TaskAgentStatus::Working(format!(
+                                    "Executing {}",
+                                    tool_use.name
+                                )))
+                                .await;
+                                match self
+                                    .context
+                                    .tool_executor
+                                    .execute(tool_use, &tool_context)
+                                    .await
+                                {
+                                    Ok(r) => r,
+                                    Err(e) => ToolResult::error(
+                                        tool_use.id.clone(),
+                                        format!("Tool execution failed: {}", e),
+                                    ),
+                                }
+                                // _guard dropped here — lock released.
                             }
-                            // _guard dropped here — lock released.
+                            Err(e) => {
+                                tracing::warn!(
+                                    agent_id = %self.id,
+                                    path = %path,
+                                    "failed to acquire lock: {}",
+                                    e
+                                );
+                                ToolResult::error(
+                                    tool_use.id.clone(),
+                                    format!("Could not acquire file lock: {}", e),
+                                )
+                            }
                         }
-                        Err(e) => {
-                            tracing::warn!(
-                                agent_id = %self.id,
-                                path = %path,
-                                "failed to acquire lock: {}",
-                                e
-                            );
-                            ToolResult::error(
+                    } else {
+                        self.set_status(TaskAgentStatus::Working(format!(
+                            "Executing {}",
+                            tool_use.name
+                        )))
+                        .await;
+                        match self
+                            .context
+                            .tool_executor
+                            .execute(tool_use, &tool_context)
+                            .await
+                        {
+                            Ok(r) => r,
+                            Err(e) => ToolResult::error(
                                 tool_use.id.clone(),
-                                format!("Could not acquire file lock: {}", e),
-                            )
+                                format!("Tool execution failed: {}", e),
+                            ),
                         }
-                    }
-                } else {
-                    self.set_status(TaskAgentStatus::Working(format!(
-                        "Executing {}",
-                        tool_use.name
-                    )))
-                    .await;
-                    match self
-                        .context
-                        .tool_executor
-                        .execute(tool_use, &tool_context)
-                        .await
-                    {
-                        Ok(r) => r,
-                        Err(e) => ToolResult::error(
-                            tool_use.id.clone(),
-                            format!("Tool execution failed: {}", e),
-                        ),
-                    }
-                };
+                    };
 
                 // ── Record tool call in execution graph ──────────────────────
                 execution_graph.record_tool_call(
@@ -1516,22 +1583,20 @@ impl TaskAgent {
                 );
 
                 // Track file in working set for file-write operations.
-                if !tool_result.is_error && Self::is_file_operation(&tool_use.name)
-                    && let Some(fp) = Self::extract_file_path(tool_use) {
-                        let tokens = estimate_tokens_from_size(
-                            std::fs::metadata(&fp)
-                                .ok()
-                                .map(|m| m.len())
-                                .unwrap_or(0),
-                        );
-                        self.context.working_set.write().await.add(fp, tokens);
-                    }
+                if !tool_result.is_error
+                    && Self::is_file_operation(&tool_use.name)
+                    && let Some(fp) = Self::extract_file_path(tool_use)
+                {
+                    let tokens = estimate_tokens_from_size(
+                        std::fs::metadata(&fp).ok().map(|m| m.len()).unwrap_or(0),
+                    );
+                    self.context.working_set.write().await.add(fp, tokens);
+                }
 
                 // Sanitize + wrap external tool results before injecting into
                 // conversation history (Items 1 + 2: input sanitization and
                 // instruction hierarchy enforcement).
-                let final_result = if EXTERNAL_CONTENT_TOOLS
-                    .contains(&tool_use.name.as_str())
+                let final_result = if EXTERNAL_CONTENT_TOOLS.contains(&tool_use.name.as_str())
                     && !tool_result.is_error
                 {
                     ToolResult {
@@ -1554,7 +1619,11 @@ impl TaskAgent {
                 if let Some(ref hooks) = self.context.lifecycle_hooks {
                     let conv_len = self.conversation_history.read().await.len();
                     let iter_ctx = self.build_iteration_context(
-                        iterations, total_tokens_used, total_cost_usd, &start_time, conv_len,
+                        iterations,
+                        total_tokens_used,
+                        total_cost_usd,
+                        &start_time,
+                        conv_len,
                     );
                     let mut history = self.conversation_history.write().await;
                     let mut view = ConversationView::new(&mut history);
@@ -1566,75 +1635,89 @@ impl TaskAgent {
 
             // ── Loop detection ───────────────────────────────────────────────
             if let Some(ref ld) = self.config.loop_detection
-                && ld.enabled {
-                    for tool_use in &tool_uses {
-                        if recent_tool_names.len() == ld.window_size {
-                            recent_tool_names.pop_front();
-                        }
-                        recent_tool_names.push_back(tool_use.name.clone());
+                && ld.enabled
+            {
+                for tool_use in &tool_uses {
+                    if recent_tool_names.len() == ld.window_size {
+                        recent_tool_names.pop_front();
                     }
-                    if recent_tool_names.len() == ld.window_size
-                        && recent_tool_names
-                            .iter()
-                            .all(|n| n == &recent_tool_names[0])
-                    {
-                        let stuck = recent_tool_names[0].clone();
-                        let error = format!(
-                            "Loop detected: '{}' called {} times consecutively. Aborting.",
-                            stuck, ld.window_size
-                        );
-                        tracing::error!(agent_id = %self.id, %error);
-                        self.conversation_history.write().await.push(Message::user(format!(
+                    recent_tool_names.push_back(tool_use.name.clone());
+                }
+                if recent_tool_names.len() == ld.window_size
+                    && recent_tool_names.iter().all(|n| n == &recent_tool_names[0])
+                {
+                    let stuck = recent_tool_names[0].clone();
+                    let error = format!(
+                        "Loop detected: '{}' called {} times consecutively. Aborting.",
+                        stuck, ld.window_size
+                    );
+                    tracing::error!(agent_id = %self.id, %error);
+                    self.conversation_history
+                        .write()
+                        .await
+                        .push(Message::user(format!(
                             "SYSTEM: {error} Stop calling '{stuck}' and summarise progress."
                         )));
-                        self.task.write().await.fail(&error);
-                        self.set_status(TaskAgentStatus::Failed(error.clone())).await;
-                        let _ = self
-                            .context
-                            .communication_hub
-                            .broadcast(
-                                self.id.clone(),
-                                AgentMessage::TaskResult {
-                                    task_id: task_id.clone(),
-                                    success: false,
-                                    result: error.clone(),
-                                },
-                            )
-                            .await;
-                        let _ = self.context.communication_hub.unregister_agent(&self.id).await;
-                        self.context.file_lock_manager.release_all_locks(&self.id).await;
-                        let run_ended_at = Utc::now();
-                        let telemetry = RunTelemetry::from_graph(
-                            &execution_graph,
-                            run_ended_at,
-                            false,
-                            total_cost_usd,
-                        );
-                        return Ok(TaskAgentResult {
-                            agent_id: self.id.clone(),
-                            task_id,
-                            success: false,
-                            summary: error,
-                            iterations,
-                            replan_count: *self.replan_count.read().await,
-                            budget_exhausted: false,
-                            partial_output: None,
-                            total_tokens_used,
-                            total_cost_usd,
-                            timed_out: false,
-                            failure_category: Some(FailureCategory::LoopDetected),
-                            execution_graph: execution_graph.clone(),
-                            telemetry,
-                            pre_execution_plan: pre_execution_plan.clone(),
-                        });
-                    }
+                    self.task.write().await.fail(&error);
+                    self.set_status(TaskAgentStatus::Failed(error.clone()))
+                        .await;
+                    let _ = self
+                        .context
+                        .communication_hub
+                        .broadcast(
+                            self.id.clone(),
+                            AgentMessage::TaskResult {
+                                task_id: task_id.clone(),
+                                success: false,
+                                result: error.clone(),
+                            },
+                        )
+                        .await;
+                    let _ = self
+                        .context
+                        .communication_hub
+                        .unregister_agent(&self.id)
+                        .await;
+                    self.context
+                        .file_lock_manager
+                        .release_all_locks(&self.id)
+                        .await;
+                    let run_ended_at = Utc::now();
+                    let telemetry = RunTelemetry::from_graph(
+                        &execution_graph,
+                        run_ended_at,
+                        false,
+                        total_cost_usd,
+                    );
+                    return Ok(TaskAgentResult {
+                        agent_id: self.id.clone(),
+                        task_id,
+                        success: false,
+                        summary: error,
+                        iterations,
+                        replan_count: *self.replan_count.read().await,
+                        budget_exhausted: false,
+                        partial_output: None,
+                        total_tokens_used,
+                        total_cost_usd,
+                        timed_out: false,
+                        failure_category: Some(FailureCategory::LoopDetected),
+                        execution_graph: execution_graph.clone(),
+                        telemetry,
+                        pre_execution_plan: pre_execution_plan.clone(),
+                    });
                 }
+            }
 
             // ── Hook G: on_after_iteration + context pressure ────────────────
             if let Some(ref hooks) = self.context.lifecycle_hooks {
                 let conv_len = self.conversation_history.read().await.len();
                 let iter_ctx = self.build_iteration_context(
-                    iterations, total_tokens_used, total_cost_usd, &start_time, conv_len,
+                    iterations,
+                    total_tokens_used,
+                    total_cost_usd,
+                    &start_time,
+                    conv_len,
                 );
 
                 // Context pressure check
@@ -1694,9 +1777,7 @@ impl TaskAgent {
 ///
 /// Returns a [`JoinHandle`][tokio::task::JoinHandle] that resolves to the
 /// agent's [`TaskAgentResult`] when execution finishes.
-pub fn spawn_task_agent(
-    agent: Arc<TaskAgent>,
-) -> tokio::task::JoinHandle<Result<TaskAgentResult>> {
+pub fn spawn_task_agent(agent: Arc<TaskAgent>) -> tokio::task::JoinHandle<Result<TaskAgentResult>> {
     tokio::spawn(async move { agent.execute().await })
 }
 
@@ -1707,7 +1788,9 @@ mod tests {
     use crate::context::AgentContext;
     use crate::file_locks::FileLockManager;
     use async_trait::async_trait;
-    use brainwires_core::{ChatResponse, StreamChunk, Tool, ToolContext, ToolResult, ToolUse, Usage};
+    use brainwires_core::{
+        ChatResponse, StreamChunk, Tool, ToolContext, ToolResult, ToolUse, Usage,
+    };
     use brainwires_tool_system::ToolExecutor;
     use futures::stream::BoxStream;
 
@@ -1875,7 +1958,10 @@ mod tests {
         // telemetry must match
         assert_eq!(result.telemetry.total_iterations, 1);
         assert!(result.telemetry.success);
-        assert_eq!(result.telemetry.prompt_hash, result.execution_graph.prompt_hash);
+        assert_eq!(
+            result.telemetry.prompt_hash,
+            result.execution_graph.prompt_hash
+        );
     }
 
     #[tokio::test]
@@ -1981,6 +2067,11 @@ mod tests {
         assert_eq!(rejected.len(), 1);
         assert_eq!(rejected[0].tool_name, "bash");
         // And "bash" should still appear in the tool_sequence
-        assert!(result.execution_graph.tool_sequence.contains(&"bash".to_string()));
+        assert!(
+            result
+                .execution_graph
+                .tool_sequence
+                .contains(&"bash".to_string())
+        );
     }
 }

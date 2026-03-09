@@ -53,11 +53,7 @@ impl QueueEntry {
     pub fn time_until_deadline(&self) -> Option<Duration> {
         self.deadline.and_then(|d| {
             let now = Instant::now();
-            if now < d {
-                Some(d - now)
-            } else {
-                None
-            }
+            if now < d { Some(d - now) } else { None }
         })
     }
 
@@ -278,8 +274,8 @@ pub enum QueueError {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::protocol::RetryPolicy;
+    use super::*;
 
     fn make_command(priority: CommandPriority) -> PrioritizedCommand {
         PrioritizedCommand {
@@ -366,9 +362,11 @@ mod tests {
         ));
 
         // But critical should succeed even when full
-        assert!(queue
-            .enqueue(make_command(CommandPriority::Critical))
-            .is_ok());
+        assert!(
+            queue
+                .enqueue(make_command(CommandPriority::Critical))
+                .is_ok()
+        );
     }
 
     #[test]

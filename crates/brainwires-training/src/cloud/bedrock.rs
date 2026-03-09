@@ -5,9 +5,11 @@ use tracing::{debug, info};
 
 use brainwires_datasets::DataFormat;
 
-use crate::error::TrainingError;
-use crate::types::{TrainingJobId, TrainingJobStatus, TrainingJobSummary, TrainingProgress, DatasetId};
 use super::{CloudFineTuneConfig, FineTuneProvider};
+use crate::error::TrainingError;
+use crate::types::{
+    DatasetId, TrainingJobId, TrainingJobStatus, TrainingJobSummary, TrainingProgress,
+};
 
 /// AWS Bedrock fine-tuning provider.
 ///
@@ -51,7 +53,10 @@ impl BedrockFineTune {
 
     fn get_credentials(&self) -> Result<(&str, &str), TrainingError> {
         let access_key = self.access_key_id.as_deref().ok_or_else(|| {
-            TrainingError::Config("AWS access key ID not set. Use with_credentials() or set AWS_ACCESS_KEY_ID".to_string())
+            TrainingError::Config(
+                "AWS access key ID not set. Use with_credentials() or set AWS_ACCESS_KEY_ID"
+                    .to_string(),
+            )
         })?;
         let secret_key = self.secret_access_key.as_deref().ok_or_else(|| {
             TrainingError::Config("AWS secret access key not set. Use with_credentials() or set AWS_SECRET_ACCESS_KEY".to_string())
@@ -68,12 +73,13 @@ impl BedrockFineTune {
         access_key: &str,
         secret_key: &str,
     ) -> Result<Vec<(String, String)>, TrainingError> {
-        use aws_sigv4::http_request::{sign, SigningSettings, SignableBody, SignableRequest};
-        use aws_sigv4::sign::v4;
         use aws_credential_types::Credentials;
+        use aws_sigv4::http_request::{SignableBody, SignableRequest, SigningSettings, sign};
+        use aws_sigv4::sign::v4;
         use std::time::SystemTime;
 
-        let credentials = Credentials::new(access_key, secret_key, None, None, "brainwires-training");
+        let credentials =
+            Credentials::new(access_key, secret_key, None, None, "brainwires-training");
 
         let mut settings = SigningSettings::default();
         settings.signature_location = aws_sigv4::http_request::SignatureLocation::Headers;
@@ -92,7 +98,8 @@ impl BedrockFineTune {
             uri,
             std::iter::once(("content-type", "application/json")),
             SignableBody::Bytes(body),
-        ).map_err(|e| TrainingError::Config(format!("Signable request error: {}", e)))?;
+        )
+        .map_err(|e| TrainingError::Config(format!("Signable request error: {}", e)))?;
 
         let (signing_instructions, _signature) = sign(signable_request, &signing_params.into())
             .map_err(|e| TrainingError::Config(format!("SigV4 signing error: {}", e)))?
@@ -115,7 +122,9 @@ impl BedrockFineTune {
         _access_key: &str,
         _secret_key: &str,
     ) -> Result<Vec<(String, String)>, TrainingError> {
-        Err(TrainingError::Config("Bedrock feature not enabled. Build with --features bedrock".to_string()))
+        Err(TrainingError::Config(
+            "Bedrock feature not enabled. Build with --features bedrock".to_string(),
+        ))
     }
 
     async fn signed_request(
@@ -137,7 +146,12 @@ impl BedrockFineTune {
             "POST" => self.client.post(&url).body(body_bytes),
             "GET" => self.client.get(&url),
             "DELETE" => self.client.delete(&url),
-            _ => return Err(TrainingError::Config(format!("Unsupported method: {}", method))),
+            _ => {
+                return Err(TrainingError::Config(format!(
+                    "Unsupported method: {}",
+                    method
+                )));
+            }
         };
 
         request = request.header("content-type", "application/json");
@@ -145,9 +159,10 @@ impl BedrockFineTune {
             request = request.header(&name, &value);
         }
 
-        let response = request.send().await.map_err(|e| {
-            TrainingError::Provider(format!("Bedrock request failed: {}", e))
-        })?;
+        let response = request
+            .send()
+            .await
+            .map_err(|e| TrainingError::Provider(format!("Bedrock request failed: {}", e)))?;
 
         let status = response.status();
         let text = response.text().await.map_err(|e| {
@@ -185,15 +200,28 @@ impl FineTuneProvider for BedrockFineTune {
         false
     }
 
-    async fn upload_dataset(&self, data: &[u8], _format: DataFormat) -> Result<DatasetId, TrainingError> {
-        debug!("Bedrock fine-tuning requires data in S3. Dataset size: {} bytes", data.len());
+    async fn upload_dataset(
+        &self,
+        data: &[u8],
+        _format: DataFormat,
+    ) -> Result<DatasetId, TrainingError> {
+        debug!(
+            "Bedrock fine-tuning requires data in S3. Dataset size: {} bytes",
+            data.len()
+        );
         Err(TrainingError::Config(
             "Bedrock requires dataset in S3. Use DatasetId::from_s3_uri() and pass directly to create_job".to_string()
         ))
     }
 
-    async fn create_job(&self, config: CloudFineTuneConfig) -> Result<TrainingJobId, TrainingError> {
-        info!("Creating Bedrock fine-tuning job for: {}", config.base_model);
+    async fn create_job(
+        &self,
+        config: CloudFineTuneConfig,
+    ) -> Result<TrainingJobId, TrainingError> {
+        info!(
+            "Creating Bedrock fine-tuning job for: {}",
+            config.base_model
+        );
 
         let mut body = json!({
             "baseModelIdentifier": config.base_model,
@@ -213,9 +241,12 @@ impl FineTuneProvider for BedrockFineTune {
             body["validationDataConfig"] = json!({ "s3Uri": val_dataset.0 });
         }
 
-        let response = self.signed_request("POST", "/model-customization-jobs", Some(body)).await?;
+        let response = self
+            .signed_request("POST", "/model-customization-jobs", Some(body))
+            .await?;
 
-        let job_arn = response.get("jobArn")
+        let job_arn = response
+            .get("jobArn")
             .and_then(|v| v.as_str())
             .ok_or_else(|| TrainingError::Provider("Missing jobArn in response".to_string()))?;
 
@@ -223,13 +254,17 @@ impl FineTuneProvider for BedrockFineTune {
         Ok(TrainingJobId(job_arn.to_string()))
     }
 
-    async fn get_job_status(&self, job_id: &TrainingJobId) -> Result<TrainingJobStatus, TrainingError> {
+    async fn get_job_status(
+        &self,
+        job_id: &TrainingJobId,
+    ) -> Result<TrainingJobStatus, TrainingError> {
         debug!("Checking Bedrock job status: {}", job_id);
 
         let path = format!("/model-customization-jobs/{}", job_id.0);
         let response = self.signed_request("GET", &path, None).await?;
 
-        let status = response.get("status")
+        let status = response
+            .get("status")
             .and_then(|v| v.as_str())
             .unwrap_or("Unknown");
 
@@ -238,14 +273,16 @@ impl FineTuneProvider for BedrockFineTune {
                 progress: TrainingProgress::default(),
             }),
             "Completed" => {
-                let model_id = response.get("outputModelArn")
+                let model_id = response
+                    .get("outputModelArn")
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string();
                 Ok(TrainingJobStatus::Succeeded { model_id })
             }
             "Failed" => {
-                let error = response.get("failureMessage")
+                let error = response
+                    .get("failureMessage")
                     .and_then(|v| v.as_str())
                     .unwrap_or("Unknown error")
                     .to_string();
@@ -265,9 +302,12 @@ impl FineTuneProvider for BedrockFineTune {
     }
 
     async fn list_jobs(&self) -> Result<Vec<TrainingJobSummary>, TrainingError> {
-        let response = self.signed_request("GET", "/model-customization-jobs", None).await?;
+        let response = self
+            .signed_request("GET", "/model-customization-jobs", None)
+            .await?;
 
-        let jobs = response.get("modelCustomizationJobSummaries")
+        let jobs = response
+            .get("modelCustomizationJobSummaries")
             .and_then(|v| v.as_array())
             .unwrap_or(&Vec::new())
             .iter()
@@ -277,10 +317,18 @@ impl FineTuneProvider for BedrockFineTune {
                 let status_str = job.get("status")?.as_str()?;
                 let status = match status_str {
                     "Completed" => TrainingJobStatus::Succeeded {
-                        model_id: job.get("outputModelArn").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                        model_id: job
+                            .get("outputModelArn")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string(),
                     },
                     "Failed" => TrainingJobStatus::Failed {
-                        error: job.get("failureMessage").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                        error: job
+                            .get("failureMessage")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string(),
                     },
                     "InProgress" | "Training" => TrainingJobStatus::Running {
                         progress: TrainingProgress::default(),

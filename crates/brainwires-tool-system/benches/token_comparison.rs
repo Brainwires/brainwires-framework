@@ -5,8 +5,8 @@
 //!
 //! Run with: `cargo bench -p brainwires-tool-system --features orchestrator`
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use brainwires_tool_system::orchestrator::{ExecutionLimits, ToolOrchestrator};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
 /// Simulates traditional approach: each tool result would go back to LLM
 fn traditional_approach_simulation(employee_count: usize) -> TraditionalMetrics {

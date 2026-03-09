@@ -74,7 +74,6 @@ pub enum CommandPriority {
     Low = 3,
 }
 
-
 /// Retry policy for failed commands
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RetryPolicy {
@@ -269,7 +268,6 @@ pub enum RemoteMessage {
     // ========================================================================
     // Attachment Responses (Phase 3)
     // ========================================================================
-
     /// Acknowledgment that attachment was received
     AttachmentReceived {
         /// The attachment ID
@@ -384,7 +382,6 @@ pub enum BackendCommand {
     // ========================================================================
     // Attachment Commands (Phase 3)
     // ========================================================================
-
     /// Start of an attachment upload
     AttachmentUpload {
         /// Unique command identifier.
@@ -571,14 +568,19 @@ mod tests {
         let cmd: BackendCommand = serde_json::from_str(json).unwrap();
 
         match cmd {
-            BackendCommand::Authenticated {
-                protocol,
-                ..
-            } => {
+            BackendCommand::Authenticated { protocol, .. } => {
                 let proto = protocol.expect("Expected protocol");
                 assert_eq!(proto.selected_version, "1.1");
-                assert!(proto.enabled_capabilities.contains(&ProtocolCapability::Streaming));
-                assert!(proto.enabled_capabilities.contains(&ProtocolCapability::Tools));
+                assert!(
+                    proto
+                        .enabled_capabilities
+                        .contains(&ProtocolCapability::Streaming)
+                );
+                assert!(
+                    proto
+                        .enabled_capabilities
+                        .contains(&ProtocolCapability::Tools)
+                );
             }
             _ => panic!("Expected Authenticated command"),
         }
@@ -598,7 +600,10 @@ mod tests {
     fn test_negotiated_protocol() {
         let accept = ProtocolAccept {
             selected_version: "1.1".to_string(),
-            enabled_capabilities: vec![ProtocolCapability::Streaming, ProtocolCapability::Compression],
+            enabled_capabilities: vec![
+                ProtocolCapability::Streaming,
+                ProtocolCapability::Compression,
+            ],
         };
 
         let negotiated = NegotiatedProtocol::from_accept(accept);

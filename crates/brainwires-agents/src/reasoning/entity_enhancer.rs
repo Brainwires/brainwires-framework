@@ -435,8 +435,7 @@ impl EntityEnhancer {
         let mut entities = Vec::new();
 
         // URL pattern
-        let url_pattern =
-            regex::Regex::new(r#"https?://[^\s<>"']+"#).expect("valid url regex");
+        let url_pattern = regex::Regex::new(r#"https?://[^\s<>"']+"#).expect("valid url regex");
         for cap in url_pattern.find_iter(text) {
             entities.push(EnhancedEntity::new(
                 cap.as_str().to_string(),
@@ -463,8 +462,8 @@ impl EntityEnhancer {
         }
 
         // Package/crate names (Rust-style)
-        let crate_pattern =
-            regex::Regex::new(r"(?:use|extern crate|mod)\s+([a-z_][a-z0-9_]*)").expect("valid crate regex");
+        let crate_pattern = regex::Regex::new(r"(?:use|extern crate|mod)\s+([a-z_][a-z0-9_]*)")
+            .expect("valid crate regex");
         for cap in crate_pattern.captures_iter(text) {
             if let Some(m) = cap.get(1) {
                 entities.push(EnhancedEntity::new(
@@ -479,8 +478,9 @@ impl EntityEnhancer {
         let lower = text.to_lowercase();
         if lower.contains("bug") || lower.contains("issue") || lower.contains("problem") {
             // Look for identifiers near these words
-            let bug_context = regex::Regex::new(r"(?i)(?:bug|issue|problem)\s*(?:#|:)?\s*(\d+|[A-Z]+-\d+)")
-                .expect("valid bug regex");
+            let bug_context =
+                regex::Regex::new(r"(?i)(?:bug|issue|problem)\s*(?:#|:)?\s*(\d+|[A-Z]+-\d+)")
+                    .expect("valid bug regex");
             for cap in bug_context.captures_iter(text) {
                 if let Some(m) = cap.get(1) {
                     entities.push(EnhancedEntity::new(
@@ -508,8 +508,9 @@ impl EntityEnhancer {
 
         // Feature indicators
         if lower.contains("feature") || lower.contains("implement") || lower.contains("add") {
-            let feature_context = regex::Regex::new(r"(?i)(?:feature|implement|add)\s+(\w+(?:\s+\w+)?)")
-                .expect("valid feature regex");
+            let feature_context =
+                regex::Regex::new(r"(?i)(?:feature|implement|add)\s+(\w+(?:\s+\w+)?)")
+                    .expect("valid feature regex");
             for cap in feature_context.captures_iter(text) {
                 if let Some(m) = cap.get(1) {
                     let feature = m.as_str().trim();
@@ -645,11 +646,7 @@ Concepts:"#,
                     _ => continue,
                 };
 
-                entities.push(EnhancedEntity::new(
-                    name.to_string(),
-                    entity_type,
-                    0.8,
-                ));
+                entities.push(EnhancedEntity::new(name.to_string(), entity_type, 0.8));
 
                 if entities.len() >= self.max_entities {
                     break;
@@ -833,20 +830,32 @@ mod tests {
     fn test_heuristic_extraction_url() {
         let enhancer = EntityEnhancerBuilder::default();
         let result = extract_heuristic_direct("Check https://example.com/docs for more info");
-        assert!(result.iter().any(|e| e.entity_type == SemanticEntityType::Url));
+        assert!(
+            result
+                .iter()
+                .any(|e| e.entity_type == SemanticEntityType::Url)
+        );
     }
 
     #[test]
     fn test_heuristic_extraction_path() {
         let result = extract_heuristic_direct("Look at /home/user/project/src");
-        assert!(result.iter().any(|e| e.entity_type == SemanticEntityType::Path));
+        assert!(
+            result
+                .iter()
+                .any(|e| e.entity_type == SemanticEntityType::Path)
+        );
     }
 
     #[test]
     fn test_heuristic_extraction_bug() {
         // "Fixed #123" should match the fix pattern
         let result = extract_heuristic_direct("Fixed #123 in the parser");
-        assert!(result.iter().any(|e| e.entity_type == SemanticEntityType::Fix));
+        assert!(
+            result
+                .iter()
+                .any(|e| e.entity_type == SemanticEntityType::Fix)
+        );
     }
 
     fn extract_heuristic_direct(text: &str) -> Vec<EnhancedEntity> {
@@ -880,7 +889,8 @@ mod tests {
         // Fix pattern
         let lower = text.to_lowercase();
         if lower.contains("fix") {
-            let fix_context = regex::Regex::new(r"(?i)fix(?:ed|es)?\s+(?:#|:)?\s*(\d+|[A-Z]+-\d+)").unwrap();
+            let fix_context =
+                regex::Regex::new(r"(?i)fix(?:ed|es)?\s+(?:#|:)?\s*(\d+|[A-Z]+-\d+)").unwrap();
             for cap in fix_context.captures_iter(text) {
                 if let Some(m) = cap.get(1) {
                     entities.push(EnhancedEntity::new(
@@ -904,7 +914,11 @@ CONCEPT: dependency injection"#;
         let entities = parse_entities_direct(output);
         assert_eq!(entities.len(), 3);
         assert!(entities.iter().any(|e| e.name == "process_data"));
-        assert!(entities.iter().any(|e| e.entity_type == SemanticEntityType::Error));
+        assert!(
+            entities
+                .iter()
+                .any(|e| e.entity_type == SemanticEntityType::Error)
+        );
     }
 
     fn parse_entities_direct(output: &str) -> Vec<EnhancedEntity> {
@@ -944,9 +958,11 @@ CONCEPT: dependency injection"#;
 
         let relationships = parse_relationships_direct(output);
         assert_eq!(relationships.len(), 2);
-        assert!(relationships
-            .iter()
-            .any(|r| r.relation_type == RelationType::Calls));
+        assert!(
+            relationships
+                .iter()
+                .any(|r| r.relation_type == RelationType::Calls)
+        );
     }
 
     fn parse_relationships_direct(output: &str) -> Vec<EnhancedRelationship> {

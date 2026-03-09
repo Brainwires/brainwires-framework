@@ -498,10 +498,11 @@ impl CoreferenceResolver {
         // Check focus stack first (most likely candidates)
         for name in &dialog_state.focus_stack {
             if let Some(entity_type) = dialog_state.get_entity_type(name)
-                && compatible_types.contains(entity_type) {
-                    let salience = self.compute_salience(name, entity_type, dialog_state, graph);
-                    candidates.push((name, entity_type, salience));
-                }
+                && compatible_types.contains(entity_type)
+            {
+                let salience = self.compute_salience(name, entity_type, dialog_state, graph);
+                candidates.push((name, entity_type, salience));
+            }
         }
 
         // Also check entity store for additional candidates
@@ -517,12 +518,14 @@ impl CoreferenceResolver {
 
         for (entity_name, entity_type) in &entity_names {
             // Skip if already in candidates
-            if candidates.iter().any(|(n, _, _)| *n == entity_name.as_str()) {
+            if candidates
+                .iter()
+                .any(|(n, _, _)| *n == entity_name.as_str())
+            {
                 continue;
             }
 
-            let salience =
-                self.compute_salience(entity_name, entity_type, dialog_state, graph);
+            let salience = self.compute_salience(entity_name, entity_type, dialog_state, graph);
             candidates.push((entity_name, entity_type, salience));
         }
 
@@ -534,15 +537,15 @@ impl CoreferenceResolver {
         });
 
         // Take the best candidate
-        candidates.first().map(|(name, entity_type, salience)| {
-            ResolvedReference {
+        candidates
+            .first()
+            .map(|(name, entity_type, salience)| ResolvedReference {
                 reference: reference.clone(),
                 antecedent: name.to_string(),
                 entity_type: (*entity_type).clone(),
                 confidence: salience.total(),
                 salience: salience.clone(),
-            }
-        })
+            })
     }
 
     /// Compute salience score for a candidate antecedent

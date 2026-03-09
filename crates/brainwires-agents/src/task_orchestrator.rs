@@ -8,7 +8,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use tokio::sync::RwLock;
 
 use brainwires_core::{Task, TaskPriority, TaskStatus};
@@ -24,8 +24,7 @@ const DEFAULT_POLL_INTERVAL_MS: u64 = 250;
 // ── Public types ────────────────────────────────────────────────────────────
 
 /// What happens when an agent's task fails.
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum FailurePolicy {
     /// Stop scheduling new tasks and drain running agents (default).
     #[default]
@@ -33,7 +32,6 @@ pub enum FailurePolicy {
     /// Keep scheduling independent tasks that aren't blocked by the failure.
     ContinueOnFailure,
 }
-
 
 /// Configuration for the orchestration loop.
 #[derive(Debug, Clone)]
@@ -219,9 +217,7 @@ impl TaskOrchestrator {
             // ── 1. Harvest completed agents ──────────────────────────────
             let completed = self.agent_pool.cleanup_completed().await;
             for (agent_id, result) in completed {
-                let task_id = {
-                    self.agent_to_task.write().await.remove(&agent_id)
-                };
+                let task_id = { self.agent_to_task.write().await.remove(&agent_id) };
 
                 if let Some(task_id) = task_id {
                     match result {
@@ -232,22 +228,36 @@ impl TaskOrchestrator {
                                     .complete_task(&task_id, summary.clone())
                                     .await?;
 
-                                if let Err(e) = self.communication_hub.broadcast(self.config.orchestrator_id.clone(), AgentMessage::AgentCompleted {
-                                    agent_id: agent_id.clone(),
-                                    task_id: task_id.clone(),
-                                    summary,
-                                }).await {
+                                if let Err(e) = self
+                                    .communication_hub
+                                    .broadcast(
+                                        self.config.orchestrator_id.clone(),
+                                        AgentMessage::AgentCompleted {
+                                            agent_id: agent_id.clone(),
+                                            task_id: task_id.clone(),
+                                            summary,
+                                        },
+                                    )
+                                    .await
+                                {
                                     tracing::warn!(agent_id = %agent_id, task_id = %task_id, "Failed to broadcast agent completion: {}", e);
                                 }
                             } else {
                                 let error = agent_result.summary.clone();
                                 self.task_manager.fail_task(&task_id, error.clone()).await?;
 
-                                if let Err(e) = self.communication_hub.broadcast(self.config.orchestrator_id.clone(), AgentMessage::AgentCompleted {
-                                    agent_id: agent_id.clone(),
-                                    task_id: task_id.clone(),
-                                    summary: format!("FAILED: {}", error),
-                                }).await {
+                                if let Err(e) = self
+                                    .communication_hub
+                                    .broadcast(
+                                        self.config.orchestrator_id.clone(),
+                                        AgentMessage::AgentCompleted {
+                                            agent_id: agent_id.clone(),
+                                            task_id: task_id.clone(),
+                                            summary: format!("FAILED: {}", error),
+                                        },
+                                    )
+                                    .await
+                                {
                                     tracing::warn!(agent_id = %agent_id, task_id = %task_id, "Failed to broadcast agent failure: {}", e);
                                 }
 
@@ -261,11 +271,18 @@ impl TaskOrchestrator {
                             let error = format!("Agent panicked: {}", e);
                             self.task_manager.fail_task(&task_id, error.clone()).await?;
 
-                            if let Err(e) = self.communication_hub.broadcast(self.config.orchestrator_id.clone(), AgentMessage::AgentCompleted {
-                                agent_id: agent_id.clone(),
-                                task_id: task_id.clone(),
-                                summary: error,
-                            }).await {
+                            if let Err(e) = self
+                                .communication_hub
+                                .broadcast(
+                                    self.config.orchestrator_id.clone(),
+                                    AgentMessage::AgentCompleted {
+                                        agent_id: agent_id.clone(),
+                                        task_id: task_id.clone(),
+                                        summary: error,
+                                    },
+                                )
+                                .await
+                            {
                                 tracing::warn!(agent_id = %agent_id, task_id = %task_id, "Failed to broadcast agent panic: {}", e);
                             }
 
@@ -313,7 +330,9 @@ impl TaskOrchestrator {
                     // Resolve config for this task.
                     let agent_config = {
                         let overrides = self.per_task_configs.read().await;
-                        overrides.get(&task.id).cloned()
+                        overrides
+                            .get(&task.id)
+                            .cloned()
                             .unwrap_or_else(|| self.config.default_agent_config.clone())
                     };
 
@@ -323,7 +342,11 @@ impl TaskOrchestrator {
                     // Start + assign in TaskManager.
                     self.task_manager.start_task(&task.id).await?;
 
-                    match self.agent_pool.spawn_agent(agent_task, Some(agent_config)).await {
+                    match self
+                        .agent_pool
+                        .spawn_agent(agent_task, Some(agent_config))
+                        .await
+                    {
                         Ok(agent_id) => {
                             self.task_manager.assign_task(&task.id, &agent_id).await?;
                             self.agent_to_task
@@ -331,10 +354,17 @@ impl TaskOrchestrator {
                                 .await
                                 .insert(agent_id.clone(), task.id.clone());
 
-                            if let Err(e) = self.communication_hub.broadcast(self.config.orchestrator_id.clone(), AgentMessage::AgentSpawned {
-                                agent_id,
-                                task_id: task.id.clone(),
-                            }).await {
+                            if let Err(e) = self
+                                .communication_hub
+                                .broadcast(
+                                    self.config.orchestrator_id.clone(),
+                                    AgentMessage::AgentSpawned {
+                                        agent_id,
+                                        task_id: task.id.clone(),
+                                    },
+                                )
+                                .await
+                            {
                                 tracing::warn!(task_id = %task.id, "Failed to broadcast agent spawn: {}", e);
                             }
 
@@ -343,7 +373,9 @@ impl TaskOrchestrator {
                         Err(e) => {
                             tracing::warn!(task_id = %task.id, error = %e, "failed to spawn agent");
                             // Revert status back to Pending so it can be retried.
-                            self.task_manager.update_status(&task.id, TaskStatus::Pending, None).await?;
+                            self.task_manager
+                                .update_status(&task.id, TaskStatus::Pending, None)
+                                .await?;
                         }
                     }
                 }
@@ -363,7 +395,8 @@ impl TaskOrchestrator {
                     map.values().cloned().collect()
                 };
                 // Only leaf tasks (no children) are schedulable.
-                let schedulable: Vec<_> = ready.iter()
+                let schedulable: Vec<_> = ready
+                    .iter()
                     .filter(|t| !assigned.contains(&t.id) && t.children.is_empty())
                     .collect();
 
@@ -380,10 +413,7 @@ impl TaskOrchestrator {
         let all_tasks = self.task_manager.get_task_tree(Some(root_task_id)).await;
         let unstarted: Vec<String> = all_tasks
             .iter()
-            .filter(|t| {
-                t.status == TaskStatus::Pending
-                    || t.status == TaskStatus::Blocked
-            })
+            .filter(|t| t.status == TaskStatus::Pending || t.status == TaskStatus::Blocked)
             .map(|t| t.id.clone())
             .collect();
 
@@ -429,8 +459,8 @@ mod tests {
 
     use async_trait::async_trait;
     use brainwires_core::{
-        ChatOptions, ChatResponse, Message, Provider, StreamChunk, Tool,
-        ToolContext, ToolResult, ToolUse, Usage,
+        ChatOptions, ChatResponse, Message, Provider, StreamChunk, Tool, ToolContext, ToolResult,
+        ToolUse, Usage,
     };
     use brainwires_tool_system::ToolExecutor;
     use futures::stream::BoxStream;
@@ -583,15 +613,27 @@ mod tests {
             .await
             .unwrap();
         let a = tm
-            .create_task("step A".to_string(), Some(parent.clone()), TaskPriority::Normal)
+            .create_task(
+                "step A".to_string(),
+                Some(parent.clone()),
+                TaskPriority::Normal,
+            )
             .await
             .unwrap();
         let b = tm
-            .create_task("step B".to_string(), Some(parent.clone()), TaskPriority::Normal)
+            .create_task(
+                "step B".to_string(),
+                Some(parent.clone()),
+                TaskPriority::Normal,
+            )
             .await
             .unwrap();
         let c = tm
-            .create_task("step C".to_string(), Some(parent.clone()), TaskPriority::Normal)
+            .create_task(
+                "step C".to_string(),
+                Some(parent.clone()),
+                TaskPriority::Normal,
+            )
             .await
             .unwrap();
 
@@ -613,15 +655,27 @@ mod tests {
             .await
             .unwrap();
         let _a = tm
-            .create_task("task A".to_string(), Some(parent.clone()), TaskPriority::Normal)
+            .create_task(
+                "task A".to_string(),
+                Some(parent.clone()),
+                TaskPriority::Normal,
+            )
             .await
             .unwrap();
         let _b = tm
-            .create_task("task B".to_string(), Some(parent.clone()), TaskPriority::Normal)
+            .create_task(
+                "task B".to_string(),
+                Some(parent.clone()),
+                TaskPriority::Normal,
+            )
             .await
             .unwrap();
         let _c = tm
-            .create_task("task C".to_string(), Some(parent.clone()), TaskPriority::Normal)
+            .create_task(
+                "task C".to_string(),
+                Some(parent.clone()),
+                TaskPriority::Normal,
+            )
             .await
             .unwrap();
 
@@ -682,7 +736,12 @@ mod tests {
 
         let tm = Arc::new(TaskManager::new());
         let pool = Arc::new(AgentPool::new(
-            5, provider, executor, Arc::clone(&hub), flm, "/tmp",
+            5,
+            provider,
+            executor,
+            Arc::clone(&hub),
+            flm,
+            "/tmp",
         ));
 
         let orch = TaskOrchestrator::new(
@@ -699,12 +758,23 @@ mod tests {
         // A -> B (sequential), so if A succeeds normally, B should follow.
         // For this test, we create independent tasks so the orchestrator sees
         // failures on independent paths.
-        let parent = tm.create_task("parent".to_string(), None, TaskPriority::Normal).await.unwrap();
-        let a = tm.create_task("A".to_string(), Some(parent.clone()), TaskPriority::Normal).await.unwrap();
-        let b = tm.create_task("B".to_string(), Some(parent.clone()), TaskPriority::Normal).await.unwrap();
+        let parent = tm
+            .create_task("parent".to_string(), None, TaskPriority::Normal)
+            .await
+            .unwrap();
+        let a = tm
+            .create_task("A".to_string(), Some(parent.clone()), TaskPriority::Normal)
+            .await
+            .unwrap();
+        let b = tm
+            .create_task("B".to_string(), Some(parent.clone()), TaskPriority::Normal)
+            .await
+            .unwrap();
 
         // Pre-fail task A so the orchestrator picks it up as failed immediately.
-        tm.fail_task(&a, "forced failure".to_string()).await.unwrap();
+        tm.fail_task(&a, "forced failure".to_string())
+            .await
+            .unwrap();
 
         let result = orch.run(&parent).await.unwrap();
         // A is failed, B may or may not have run depending on timing.
@@ -720,7 +790,12 @@ mod tests {
 
         let tm = Arc::new(TaskManager::new());
         let pool = Arc::new(AgentPool::new(
-            5, provider, executor, Arc::clone(&hub), flm, "/tmp",
+            5,
+            provider,
+            executor,
+            Arc::clone(&hub),
+            flm,
+            "/tmp",
         ));
 
         let orch = TaskOrchestrator::new(
@@ -734,12 +809,23 @@ mod tests {
             },
         );
 
-        let parent = tm.create_task("parent".to_string(), None, TaskPriority::Normal).await.unwrap();
-        let a = tm.create_task("A".to_string(), Some(parent.clone()), TaskPriority::Normal).await.unwrap();
-        let b_id = tm.create_task("B".to_string(), Some(parent.clone()), TaskPriority::Normal).await.unwrap();
+        let parent = tm
+            .create_task("parent".to_string(), None, TaskPriority::Normal)
+            .await
+            .unwrap();
+        let a = tm
+            .create_task("A".to_string(), Some(parent.clone()), TaskPriority::Normal)
+            .await
+            .unwrap();
+        let b_id = tm
+            .create_task("B".to_string(), Some(parent.clone()), TaskPriority::Normal)
+            .await
+            .unwrap();
 
         // Pre-fail A, B is independent and should still run.
-        tm.fail_task(&a, "forced failure".to_string()).await.unwrap();
+        tm.fail_task(&a, "forced failure".to_string())
+            .await
+            .unwrap();
 
         let result = orch.run(&parent).await.unwrap();
         // B should have completed even though A failed.
@@ -753,10 +839,22 @@ mod tests {
         let (tm, pool, hub) = make_deps(1);
         let orch = make_orchestrator(tm.clone(), pool, hub);
 
-        let parent = tm.create_task("parent".to_string(), None, TaskPriority::Normal).await.unwrap();
-        let _a = tm.create_task("A".to_string(), Some(parent.clone()), TaskPriority::Normal).await.unwrap();
-        let _b = tm.create_task("B".to_string(), Some(parent.clone()), TaskPriority::Normal).await.unwrap();
-        let _c = tm.create_task("C".to_string(), Some(parent.clone()), TaskPriority::Normal).await.unwrap();
+        let parent = tm
+            .create_task("parent".to_string(), None, TaskPriority::Normal)
+            .await
+            .unwrap();
+        let _a = tm
+            .create_task("A".to_string(), Some(parent.clone()), TaskPriority::Normal)
+            .await
+            .unwrap();
+        let _b = tm
+            .create_task("B".to_string(), Some(parent.clone()), TaskPriority::Normal)
+            .await
+            .unwrap();
+        let _c = tm
+            .create_task("C".to_string(), Some(parent.clone()), TaskPriority::Normal)
+            .await
+            .unwrap();
 
         let result = orch.run(&parent).await.unwrap();
         assert!(result.all_succeeded);

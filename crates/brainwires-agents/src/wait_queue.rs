@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::sync::{broadcast, oneshot, RwLock};
+use tokio::sync::{RwLock, broadcast, oneshot};
 
 /// Priority-ordered wait queue for resource locks
 pub struct WaitQueue {
@@ -53,7 +53,9 @@ pub struct WaitQueueHandle {
 impl WaitQueueHandle {
     /// Cancel waiting and remove from queue
     pub async fn cancel(self) -> bool {
-        self.wait_queue.cancel(&self.resource_key, &self.agent_id).await
+        self.wait_queue
+            .cancel(&self.resource_key, &self.agent_id)
+            .await
     }
 }
 
@@ -239,34 +241,35 @@ impl WaitQueue {
         let mut queues = self.queues.write().await;
 
         if let Some(queue) = queues.get_mut(resource_key)
-            && let Some(pos) = queue.iter().position(|e| e.agent_id == agent_id) {
-                queue.remove(pos);
+            && let Some(pos) = queue.iter().position(|e| e.agent_id == agent_id)
+        {
+            queue.remove(pos);
 
-                // Notify agents whose position changed
-                for (i, e) in queue.iter().enumerate().skip(pos) {
-                    let _ = self.event_sender.send(WaitQueueEvent::PositionChanged {
-                        agent_id: e.agent_id.clone(),
-                        resource_key: resource_key.to_string(),
-                        old_position: i + 1,
-                        new_position: i,
-                    });
-                }
-
-                let _ = self.event_sender.send(WaitQueueEvent::Removed {
-                    agent_id: agent_id.to_string(),
+            // Notify agents whose position changed
+            for (i, e) in queue.iter().enumerate().skip(pos) {
+                let _ = self.event_sender.send(WaitQueueEvent::PositionChanged {
+                    agent_id: e.agent_id.clone(),
                     resource_key: resource_key.to_string(),
-                    reason: RemovalReason::Cancelled,
+                    old_position: i + 1,
+                    new_position: i,
                 });
-
-                if queue.is_empty() {
-                    queues.remove(resource_key);
-                    let _ = self.event_sender.send(WaitQueueEvent::QueueEmpty {
-                        resource_key: resource_key.to_string(),
-                    });
-                }
-
-                return true;
             }
+
+            let _ = self.event_sender.send(WaitQueueEvent::Removed {
+                agent_id: agent_id.to_string(),
+                resource_key: resource_key.to_string(),
+                reason: RemovalReason::Cancelled,
+            });
+
+            if queue.is_empty() {
+                queues.remove(resource_key);
+                let _ = self.event_sender.send(WaitQueueEvent::QueueEmpty {
+                    resource_key: resource_key.to_string(),
+                });
+            }
+
+            return true;
+        }
         false
     }
 
@@ -277,51 +280,52 @@ impl WaitQueue {
         let mut queues = self.queues.write().await;
 
         if let Some(queue) = queues.get_mut(resource_key)
-            && let Some(mut entry) = queue.pop_front() {
-                let wait_duration = entry.registered_at.elapsed();
+            && let Some(mut entry) = queue.pop_front()
+        {
+            let wait_duration = entry.registered_at.elapsed();
 
-                // Record wait time for estimation
-                {
-                    let mut history = self.wait_history.write().await;
-                    let times = history.entry(resource_key.to_string()).or_default();
-                    times.push(wait_duration);
-                    if times.len() > self.max_history_entries {
-                        times.remove(0);
-                    }
+            // Record wait time for estimation
+            {
+                let mut history = self.wait_history.write().await;
+                let times = history.entry(resource_key.to_string()).or_default();
+                times.push(wait_duration);
+                if times.len() > self.max_history_entries {
+                    times.remove(0);
                 }
-
-                // Notify the waiter
-                if let Some(sender) = entry.notify_sender.take() {
-                    let _ = sender.send(());
-                }
-
-                let agent_id = entry.agent_id.clone();
-
-                let _ = self.event_sender.send(WaitQueueEvent::Ready {
-                    agent_id: agent_id.clone(),
-                    resource_key: resource_key.to_string(),
-                    wait_duration_ms: wait_duration.as_millis() as u64,
-                });
-
-                // Update positions for remaining waiters
-                for (i, e) in queue.iter().enumerate() {
-                    let _ = self.event_sender.send(WaitQueueEvent::PositionChanged {
-                        agent_id: e.agent_id.clone(),
-                        resource_key: resource_key.to_string(),
-                        old_position: i + 1,
-                        new_position: i,
-                    });
-                }
-
-                if queue.is_empty() {
-                    queues.remove(resource_key);
-                    let _ = self.event_sender.send(WaitQueueEvent::QueueEmpty {
-                        resource_key: resource_key.to_string(),
-                    });
-                }
-
-                return Some(agent_id);
             }
+
+            // Notify the waiter
+            if let Some(sender) = entry.notify_sender.take() {
+                let _ = sender.send(());
+            }
+
+            let agent_id = entry.agent_id.clone();
+
+            let _ = self.event_sender.send(WaitQueueEvent::Ready {
+                agent_id: agent_id.clone(),
+                resource_key: resource_key.to_string(),
+                wait_duration_ms: wait_duration.as_millis() as u64,
+            });
+
+            // Update positions for remaining waiters
+            for (i, e) in queue.iter().enumerate() {
+                let _ = self.event_sender.send(WaitQueueEvent::PositionChanged {
+                    agent_id: e.agent_id.clone(),
+                    resource_key: resource_key.to_string(),
+                    old_position: i + 1,
+                    new_position: i,
+                });
+            }
+
+            if queue.is_empty() {
+                queues.remove(resource_key);
+                let _ = self.event_sender.send(WaitQueueEvent::QueueEmpty {
+                    resource_key: resource_key.to_string(),
+                });
+            }
+
+            return Some(agent_id);
+        }
         None
     }
 
@@ -446,9 +450,10 @@ impl WaitQueue {
     pub async fn should_auto_acquire(&self, resource_key: &str, agent_id: &str) -> bool {
         let queues = self.queues.read().await;
         if let Some(queue) = queues.get(resource_key)
-            && let Some(front) = queue.front() {
-                return front.agent_id == agent_id && front.auto_acquire;
-            }
+            && let Some(front) = queue.front()
+        {
+            return front.agent_id == agent_id && front.auto_acquire;
+        }
         false
     }
 }

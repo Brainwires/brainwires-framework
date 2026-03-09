@@ -232,10 +232,7 @@ mod tests {
     }
 
     fn create_test_skill() -> Skill {
-        let mut metadata = SkillMetadata::new(
-            "test-skill".to_string(),
-            "A test skill".to_string(),
-        );
+        let mut metadata = SkillMetadata::new("test-skill".to_string(), "A test skill".to_string());
         metadata.allowed_tools = Some(vec!["Read".to_string(), "Grep".to_string()]);
 
         Skill {
@@ -375,7 +372,10 @@ mod tests {
         let mut args = HashMap::new();
         args.insert("value".to_string(), "42".to_string());
 
-        let prepared = executor.prepare_script(&skill, &available, args).await.unwrap();
+        let prepared = executor
+            .prepare_script(&skill, &available, args)
+            .await
+            .unwrap();
 
         assert!(prepared.script_content.contains("let result = 42"));
         assert_eq!(prepared.skill_name, "test-skill");

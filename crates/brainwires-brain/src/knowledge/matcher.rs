@@ -25,16 +25,15 @@ impl ContextMatcher {
     /// Create a new context matcher
     pub fn new(min_confidence: f32, decay_days: u32, max_results: usize) -> Self {
         let stop_words: HashSet<String> = [
-            "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
-            "have", "has", "had", "do", "does", "did", "will", "would", "could",
-            "should", "may", "might", "must", "shall", "can", "need", "to", "of",
-            "in", "for", "on", "with", "at", "by", "from", "as", "into", "through",
-            "during", "before", "after", "above", "below", "between", "under",
-            "again", "further", "then", "once", "here", "there", "when", "where",
-            "why", "how", "all", "each", "few", "more", "most", "other", "some",
-            "such", "no", "nor", "not", "only", "own", "same", "so", "than", "too",
-            "very", "just", "also", "now", "and", "but", "or", "if", "because",
-            "until", "while", "this", "that", "these", "those", "it", "its",
+            "the", "a", "an", "is", "are", "was", "were", "be", "been", "being", "have", "has",
+            "had", "do", "does", "did", "will", "would", "could", "should", "may", "might", "must",
+            "shall", "can", "need", "to", "of", "in", "for", "on", "with", "at", "by", "from",
+            "as", "into", "through", "during", "before", "after", "above", "below", "between",
+            "under", "again", "further", "then", "once", "here", "there", "when", "where", "why",
+            "how", "all", "each", "few", "more", "most", "other", "some", "such", "no", "nor",
+            "not", "only", "own", "same", "so", "than", "too", "very", "just", "also", "now",
+            "and", "but", "or", "if", "because", "until", "while", "this", "that", "these",
+            "those", "it", "its",
         ]
         .iter()
         .map(|s| s.to_string())
@@ -76,7 +75,9 @@ impl ContextMatcher {
         matches.sort_by(|a, b| {
             let score_a = a.combined_score();
             let score_b = b.combined_score();
-            score_b.partial_cmp(&score_a).unwrap_or(std::cmp::Ordering::Equal)
+            score_b
+                .partial_cmp(&score_a)
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
 
         matches.truncate(self.max_results);
@@ -123,7 +124,9 @@ impl ContextMatcher {
             .collect();
 
         matches.sort_by(|a, b| {
-            b.match_score.partial_cmp(&a.match_score).unwrap_or(std::cmp::Ordering::Equal)
+            b.match_score
+                .partial_cmp(&a.match_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
 
         matches.truncate(self.max_results);
@@ -140,7 +143,11 @@ impl ContextMatcher {
     }
 
     /// Calculate match score for context matching
-    fn calculate_match_score(&self, context_words: &HashSet<String>, truth: &BehavioralTruth) -> f64 {
+    fn calculate_match_score(
+        &self,
+        context_words: &HashSet<String>,
+        truth: &BehavioralTruth,
+    ) -> f64 {
         let pattern_words = self.tokenize(&truth.context_pattern);
 
         if pattern_words.is_empty() {
@@ -166,7 +173,11 @@ impl ContextMatcher {
     }
 
     /// Calculate match score for search
-    fn calculate_search_score(&self, query_words: &HashSet<String>, truth: &BehavioralTruth) -> f64 {
+    fn calculate_search_score(
+        &self,
+        query_words: &HashSet<String>,
+        truth: &BehavioralTruth,
+    ) -> f64 {
         if query_words.is_empty() {
             return 0.0;
         }
@@ -210,7 +221,11 @@ impl ContextMatcher {
     }
 
     /// Check if a truth conflicts with user instruction
-    pub fn detect_conflict(&self, instruction: &str, truth: &BehavioralTruth) -> Option<ConflictInfo> {
+    pub fn detect_conflict(
+        &self,
+        instruction: &str,
+        truth: &BehavioralTruth,
+    ) -> Option<ConflictInfo> {
         let instruction_lower = instruction.to_lowercase();
         let pattern_lower = truth.context_pattern.to_lowercase();
 
@@ -238,7 +253,10 @@ impl ContextMatcher {
                     return Some(ConflictInfo {
                         truth_id: truth.id.clone(),
                         conflict_type: ConflictType::MissingSuggested,
-                        suggested_action: format!("Add {} as suggested by learned rule", suggested_word),
+                        suggested_action: format!(
+                            "Add {} as suggested by learned rule",
+                            suggested_word
+                        ),
                         confidence: truth.decayed_confidence(self.decay_days),
                     });
                 }

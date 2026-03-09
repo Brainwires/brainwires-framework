@@ -154,26 +154,55 @@ impl ToolRegistry {
     pub fn get_by_category(&self, category: ToolCategory) -> Vec<&Tool> {
         let names: &[&str] = match category {
             ToolCategory::FileOps => &[
-                "read_file", "write_file", "edit_file", "patch_file",
-                "list_directory", "search_files", "delete_file", "create_directory",
+                "read_file",
+                "write_file",
+                "edit_file",
+                "patch_file",
+                "list_directory",
+                "search_files",
+                "delete_file",
+                "create_directory",
             ],
             ToolCategory::Search => &["search_code", "search_files"],
             ToolCategory::SemanticSearch => &[
-                "index_codebase", "query_codebase", "search_with_filters",
-                "get_rag_statistics", "clear_rag_index", "search_git_history",
+                "index_codebase",
+                "query_codebase",
+                "search_with_filters",
+                "get_rag_statistics",
+                "clear_rag_index",
+                "search_git_history",
             ],
             ToolCategory::Git => &[
-                "git_status", "git_diff", "git_log", "git_stage", "git_unstage",
-                "git_commit", "git_push", "git_pull", "git_fetch",
-                "git_discard", "git_branch",
+                "git_status",
+                "git_diff",
+                "git_log",
+                "git_stage",
+                "git_unstage",
+                "git_commit",
+                "git_push",
+                "git_pull",
+                "git_fetch",
+                "git_discard",
+                "git_branch",
             ],
             ToolCategory::TaskManager => &[
-                "task_create", "task_start", "task_complete", "task_list",
-                "task_skip", "task_add", "task_block", "task_depends",
-                "task_ready", "task_time",
+                "task_create",
+                "task_start",
+                "task_complete",
+                "task_list",
+                "task_skip",
+                "task_add",
+                "task_block",
+                "task_depends",
+                "task_ready",
+                "task_time",
             ],
             ToolCategory::AgentPool => &[
-                "agent_spawn", "agent_status", "agent_list", "agent_stop", "agent_await",
+                "agent_spawn",
+                "agent_status",
+                "agent_list",
+                "agent_stop",
+                "agent_await",
             ],
             ToolCategory::Web => &["fetch_url"],
             ToolCategory::WebSearch => &["web_search", "web_browse", "web_scrape"],
@@ -200,10 +229,20 @@ impl ToolRegistry {
     /// Get core tools for basic project exploration
     pub fn get_core(&self) -> Vec<&Tool> {
         let core_names = [
-            "read_file", "write_file", "edit_file", "list_directory",
-            "search_code", "execute_command", "git_status", "git_diff",
-            "git_log", "git_stage", "git_commit", "search_tools",
-            "index_codebase", "query_codebase",
+            "read_file",
+            "write_file",
+            "edit_file",
+            "list_directory",
+            "search_code",
+            "execute_command",
+            "git_status",
+            "git_diff",
+            "git_log",
+            "git_stage",
+            "git_commit",
+            "search_tools",
+            "index_codebase",
+            "query_codebase",
         ];
         self.tools
             .iter()
@@ -272,10 +311,7 @@ mod tests {
     #[test]
     fn test_register_multiple() {
         let mut registry = ToolRegistry::new();
-        registry.register_tools(vec![
-            make_tool("tool1", false),
-            make_tool("tool2", false),
-        ]);
+        registry.register_tools(vec![make_tool("tool1", false), make_tool("tool2", false)]);
         assert_eq!(registry.len(), 2);
     }
 

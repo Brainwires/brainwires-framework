@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use brainwires_providers::{create_model_lister, ProviderType};
+use brainwires_providers::{ProviderType, create_model_lister};
 
 use crate::auth;
 use crate::cli::ModelsArgs;
@@ -46,10 +46,8 @@ pub async fn run(args: ModelsArgs) -> Result<()> {
 
         match lister.list_models().await {
             Ok(models) => {
-                let mut chat_models: Vec<_> = models
-                    .into_iter()
-                    .filter(|m| m.is_chat_capable())
-                    .collect();
+                let mut chat_models: Vec<_> =
+                    models.into_iter().filter(|m| m.is_chat_capable()).collect();
                 chat_models.sort_by(|a, b| a.id.cmp(&b.id));
 
                 println!("{name}: ({} chat models)", chat_models.len());

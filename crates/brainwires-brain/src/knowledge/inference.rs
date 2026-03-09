@@ -3,8 +3,8 @@
 //! Converts patterns and signals into behavioral truths.
 //! Handles deduplication, merging, and confidence scoring.
 
-use super::truth::{BehavioralTruth, TruthCategory, TruthSource};
 use super::collector::FailurePattern;
+use super::truth::{BehavioralTruth, TruthCategory, TruthSource};
 use std::collections::HashMap;
 
 /// Engine for inferring truths from patterns
@@ -165,15 +165,25 @@ impl TruthInferenceEngine {
         let combined = format!("{} {} {}", context, wrong, right).to_lowercase();
 
         // Check for specific patterns
-        if combined.contains("spawn") || combined.contains("agent") || combined.contains("monitor") {
+        if combined.contains("spawn") || combined.contains("agent") || combined.contains("monitor")
+        {
             TruthCategory::TaskStrategy
         } else if combined.contains("--") || combined.contains("flag") {
             TruthCategory::CommandUsage
-        } else if combined.contains("error") || combined.contains("fail") || combined.contains("retry") {
+        } else if combined.contains("error")
+            || combined.contains("fail")
+            || combined.contains("retry")
+        {
             TruthCategory::ErrorRecovery
-        } else if combined.contains("context") || combined.contains("token") || combined.contains("parallel") {
+        } else if combined.contains("context")
+            || combined.contains("token")
+            || combined.contains("parallel")
+        {
             TruthCategory::ResourceManagement
-        } else if combined.contains("don't") || combined.contains("avoid") || combined.contains("never") {
+        } else if combined.contains("don't")
+            || combined.contains("avoid")
+            || combined.contains("never")
+        {
             TruthCategory::PatternAvoidance
         } else {
             TruthCategory::ToolBehavior
@@ -250,10 +260,8 @@ impl TruthInferenceEngine {
         );
 
         // Similar rules
-        let rule_similarity = jaccard_similarity(
-            &existing.rule.to_lowercase(),
-            &new.rule.to_lowercase(),
-        );
+        let rule_similarity =
+            jaccard_similarity(&existing.rule.to_lowercase(), &new.rule.to_lowercase());
 
         context_similarity > 0.5 && rule_similarity > 0.3
     }
@@ -280,23 +288,29 @@ impl TruthInferenceEngine {
 fn extract_context_from_rule(rule: &str) -> String {
     // Look for quoted strings first
     if let Some(start) = rule.find('\'')
-        && let Some(end) = rule[start + 1..].find('\'') {
-            return rule[start + 1..start + 1 + end].to_string();
-        }
+        && let Some(end) = rule[start + 1..].find('\'')
+    {
+        return rule[start + 1..start + 1 + end].to_string();
+    }
 
     // Look for command-like patterns
     let words: Vec<&str> = rule.split_whitespace().collect();
 
     for (i, word) in words.iter().enumerate() {
         // Skip common words
-        if ["use", "with", "the", "a", "to", "for", "when", "if", "instead", "of"]
-            .contains(&word.to_lowercase().as_str())
+        if [
+            "use", "with", "the", "a", "to", "for", "when", "if", "instead", "of",
+        ]
+        .contains(&word.to_lowercase().as_str())
         {
             continue;
         }
 
         // Found a potential command
-        if word.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+        if word
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        {
             if i + 1 < words.len() {
                 return format!("{} {}", word, words[i + 1]);
             }
@@ -397,8 +411,14 @@ mod tests {
 
     #[test]
     fn test_extract_context() {
-        assert_eq!(extract_context_from_rule("Use '--nostream' with pm2 logs"), "--nostream");
-        assert_eq!(extract_context_from_rule("cargo build should use cargo-watch"), "cargo build");
+        assert_eq!(
+            extract_context_from_rule("Use '--nostream' with pm2 logs"),
+            "--nostream"
+        );
+        assert_eq!(
+            extract_context_from_rule("cargo build should use cargo-watch"),
+            "cargo build"
+        );
     }
 
     #[test]

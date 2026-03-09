@@ -1,5 +1,5 @@
-use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
 use tracing::info;
 
 /// Export format for trained models.
@@ -86,13 +86,9 @@ pub struct ExportMetadata {
 }
 
 /// Write export metadata to a JSON file next to the model.
-pub fn write_export_metadata(
-    output_dir: &Path,
-    metadata: &ExportMetadata,
-) -> std::io::Result<()> {
+pub fn write_export_metadata(output_dir: &Path, metadata: &ExportMetadata) -> std::io::Result<()> {
     let meta_path = output_dir.join("export_metadata.json");
-    let json = serde_json::to_string_pretty(metadata)
-        .map_err(std::io::Error::other)?;
+    let json = serde_json::to_string_pretty(metadata).map_err(std::io::Error::other)?;
     std::fs::write(&meta_path, json)?;
     info!("Export metadata written to {:?}", meta_path);
     Ok(())
@@ -108,59 +104,75 @@ pub fn export_model(
 
     match config.format {
         ExportFormat::SafeTensors => {
-            let tensors: std::collections::HashMap<String, safetensors::tensor::TensorView<'_>> = weights
-                .iter()
-                .filter_map(|(name, (data, shape))| {
-                    let bytes: Vec<u8> = data.iter().flat_map(|f| f.to_le_bytes()).collect();
-                    let bytes = Box::leak(bytes.into_boxed_slice());
-                    safetensors::tensor::TensorView::new(
-                        safetensors::Dtype::F32,
-                        shape.clone(),
-                        bytes,
-                    )
-                    .ok()
-                    .map(|view| (name.clone(), view))
-                })
-                .collect();
+            let tensors: std::collections::HashMap<String, safetensors::tensor::TensorView<'_>> =
+                weights
+                    .iter()
+                    .filter_map(|(name, (data, shape))| {
+                        let bytes: Vec<u8> = data.iter().flat_map(|f| f.to_le_bytes()).collect();
+                        let bytes = Box::leak(bytes.into_boxed_slice());
+                        safetensors::tensor::TensorView::new(
+                            safetensors::Dtype::F32,
+                            shape.clone(),
+                            bytes,
+                        )
+                        .ok()
+                        .map(|view| (name.clone(), view))
+                    })
+                    .collect();
 
-            let serialized = safetensors::tensor::serialize(&tensors, None)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("SafeTensors error: {}", e)))?;
+            let serialized = safetensors::tensor::serialize(&tensors, None).map_err(|e| {
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("SafeTensors error: {}", e),
+                )
+            })?;
             std::fs::write(config.output_path.join("model.safetensors"), serialized)?;
             info!("Exported {} tensors as SafeTensors", weights.len());
         }
         ExportFormat::AdapterOnly => {
-            let adapter_weights: std::collections::HashMap<String, (Vec<f32>, Vec<usize>)> = weights
-                .iter()
-                .filter(|(name, _)| {
-                    name.contains("lora_a") || name.contains("lora_b") || name.contains("magnitude")
-                })
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect();
+            let adapter_weights: std::collections::HashMap<String, (Vec<f32>, Vec<usize>)> =
+                weights
+                    .iter()
+                    .filter(|(name, _)| {
+                        name.contains("lora_a")
+                            || name.contains("lora_b")
+                            || name.contains("magnitude")
+                    })
+                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .collect();
 
-            let tensors: std::collections::HashMap<String, safetensors::tensor::TensorView<'_>> = adapter_weights
-                .iter()
-                .filter_map(|(name, (data, shape))| {
-                    let bytes: Vec<u8> = data.iter().flat_map(|f| f.to_le_bytes()).collect();
-                    let bytes = Box::leak(bytes.into_boxed_slice());
-                    safetensors::tensor::TensorView::new(
-                        safetensors::Dtype::F32,
-                        shape.clone(),
-                        bytes,
-                    )
-                    .ok()
-                    .map(|view| (name.clone(), view))
-                })
-                .collect();
+            let tensors: std::collections::HashMap<String, safetensors::tensor::TensorView<'_>> =
+                adapter_weights
+                    .iter()
+                    .filter_map(|(name, (data, shape))| {
+                        let bytes: Vec<u8> = data.iter().flat_map(|f| f.to_le_bytes()).collect();
+                        let bytes = Box::leak(bytes.into_boxed_slice());
+                        safetensors::tensor::TensorView::new(
+                            safetensors::Dtype::F32,
+                            shape.clone(),
+                            bytes,
+                        )
+                        .ok()
+                        .map(|view| (name.clone(), view))
+                    })
+                    .collect();
 
-            let serialized = safetensors::tensor::serialize(&tensors, None)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("SafeTensors error: {}", e)))?;
-            std::fs::write(config.output_path.join("adapter_weights.safetensors"), serialized)?;
+            let serialized = safetensors::tensor::serialize(&tensors, None).map_err(|e| {
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("SafeTensors error: {}", e),
+                )
+            })?;
+            std::fs::write(
+                config.output_path.join("adapter_weights.safetensors"),
+                serialized,
+            )?;
             info!("Exported {} adapter tensors", adapter_weights.len());
         }
         ExportFormat::Gguf => {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Unsupported,
-                "GGUF export not supported. Convert SafeTensors output using llama.cpp tools (convert-safetensors-to-gguf.py)."
+                "GGUF export not supported. Convert SafeTensors output using llama.cpp tools (convert-safetensors-to-gguf.py).",
             ));
         }
     }
@@ -200,7 +212,10 @@ mod tests {
         let config = ExportConfig::safetensors(dir.path());
 
         let mut weights = std::collections::HashMap::new();
-        weights.insert("layer.weight".to_string(), (vec![1.0f32, 2.0, 3.0, 4.0], vec![2, 2]));
+        weights.insert(
+            "layer.weight".to_string(),
+            (vec![1.0f32, 2.0, 3.0, 4.0], vec![2, 2]),
+        );
 
         let metadata = ExportMetadata {
             format: "safetensors".to_string(),
@@ -224,7 +239,10 @@ mod tests {
         let mut weights = std::collections::HashMap::new();
         weights.insert("layer.lora_a".to_string(), (vec![1.0f32, 2.0], vec![1, 2]));
         weights.insert("layer.lora_b".to_string(), (vec![3.0f32, 4.0], vec![2, 1]));
-        weights.insert("layer.base_weight".to_string(), (vec![5.0f32; 100], vec![10, 10]));
+        weights.insert(
+            "layer.base_weight".to_string(),
+            (vec![5.0f32; 100], vec![10, 10]),
+        );
 
         let metadata = ExportMetadata {
             format: "adapter_only".to_string(),

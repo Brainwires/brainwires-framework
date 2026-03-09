@@ -6,11 +6,11 @@ use anyhow::{Context, Result};
 use futures::stream::{BoxStream, StreamExt};
 use reqwest::Client;
 
-use crate::rate_limiter::RateLimiter;
 use super::types::{
     CreateResponseRequest, DeleteResponse, InputItemsList, ResponseInput, ResponseObject,
     ResponseStreamEvent,
 };
+use crate::rate_limiter::RateLimiter;
 
 const DEFAULT_BASE_URL: &str = "https://api.openai.com/v1/responses";
 
@@ -198,7 +198,10 @@ impl ResponsesClient {
             anyhow::bail!("Responses API error ({}): {}", status, error_text);
         }
 
-        response.json().await.context("Failed to parse delete response")
+        response
+            .json()
+            .await
+            .context("Failed to parse delete response")
     }
 
     /// `POST /v1/responses/{response_id}/cancel` — cancel an in-progress response.
@@ -217,7 +220,10 @@ impl ResponsesClient {
             anyhow::bail!("Responses API error ({}): {}", status, error_text);
         }
 
-        response.json().await.context("Failed to parse cancel response")
+        response
+            .json()
+            .await
+            .context("Failed to parse cancel response")
     }
 
     /// `GET /v1/responses/{response_id}/input_items` — list input items.
@@ -236,7 +242,10 @@ impl ResponsesClient {
             anyhow::bail!("Responses API error ({}): {}", status, error_text);
         }
 
-        response.json().await.context("Failed to parse input items list")
+        response
+            .json()
+            .await
+            .context("Failed to parse input items list")
     }
 
     /// `POST /v1/responses/compact` — compress conversation context.
@@ -269,7 +278,9 @@ impl ResponsesClient {
             anyhow::bail!("Responses API error ({}): {}", status, error_text);
         }
 
-        response.json().await.context("Failed to parse compact response")
+        response
+            .json()
+            .await
+            .context("Failed to parse compact response")
     }
-
 }

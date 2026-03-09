@@ -428,7 +428,10 @@ mod tests {
         };
 
         let result = reg.check(&suite_result);
-        assert!(result.is_ci_passing(), "8% drop within 10% threshold should pass");
+        assert!(
+            result.is_ci_passing(),
+            "8% drop within 10% threshold should pass"
+        );
     }
 
     #[test]
@@ -515,10 +518,7 @@ mod tests {
                     })
                     .collect(),
             )]),
-            stats: std::collections::HashMap::from([(
-                "smoke".to_string(),
-                make_stats(90, 100),
-            )]),
+            stats: std::collections::HashMap::from([("smoke".to_string(), make_stats(90, 100))]),
         };
 
         let result = reg.check(&suite_result);

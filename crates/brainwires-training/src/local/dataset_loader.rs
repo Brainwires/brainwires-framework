@@ -53,11 +53,7 @@ impl TrainingDataset {
             }
 
             let value: serde_json::Value = serde_json::from_str(&line).map_err(|e| {
-                TrainingError::Config(format!(
-                    "Invalid JSON on line {}: {}",
-                    line_num + 1,
-                    e
-                ))
+                TrainingError::Config(format!("Invalid JSON on line {}: {}", line_num + 1, e))
             })?;
 
             let example = if value.get("messages").is_some() {
@@ -82,7 +78,11 @@ impl TrainingDataset {
             ));
         }
 
-        info!("Loaded {} training examples from {:?}", examples.len(), path);
+        info!(
+            "Loaded {} training examples from {:?}",
+            examples.len(),
+            path
+        );
         Ok(Self { examples })
     }
 
@@ -229,8 +229,7 @@ impl Tokenizer for SimpleTokenizer {
 
         // Targets: shifted input_ids, with prompt portion masked
         let mut target_ids = vec![u32::MAX; input_ids.len()];
-        target_ids[prompt_len..input_ids.len()]
-            .copy_from_slice(&input_ids[prompt_len..]);
+        target_ids[prompt_len..input_ids.len()].copy_from_slice(&input_ids[prompt_len..]);
 
         (input_ids, target_ids)
     }
@@ -306,8 +305,7 @@ impl Tokenizer for ModelTokenizer {
         input_ids.truncate(self.max_seq_len);
 
         let mut target_ids = vec![u32::MAX; input_ids.len()];
-        target_ids[prompt_len..input_ids.len()]
-            .copy_from_slice(&input_ids[prompt_len..]);
+        target_ids[prompt_len..input_ids.len()].copy_from_slice(&input_ids[prompt_len..]);
 
         (input_ids, target_ids)
     }
@@ -329,10 +327,7 @@ fn parse_alpaca_format(
             TrainingError::Config(format!("Line {}: 'instruction' must be a string", line_num))
         })?;
 
-    let input = value
-        .get("input")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
+    let input = value.get("input").and_then(|v| v.as_str()).unwrap_or("");
 
     let output = value
         .get("output")
@@ -396,11 +391,7 @@ impl PreferenceDataset {
             }
 
             let value: serde_json::Value = serde_json::from_str(&line).map_err(|e| {
-                TrainingError::Config(format!(
-                    "Invalid JSON on line {}: {}",
-                    line_num + 1,
-                    e
-                ))
+                TrainingError::Config(format!("Invalid JSON on line {}: {}", line_num + 1, e))
             })?;
 
             let prompt = value
@@ -520,7 +511,11 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("train.jsonl");
         let mut f = std::fs::File::create(&path).unwrap();
-        writeln!(f, r#"{{"instruction": "Translate to French", "input": "Hello", "output": "Bonjour"}}"#).unwrap();
+        writeln!(
+            f,
+            r#"{{"instruction": "Translate to French", "input": "Hello", "output": "Bonjour"}}"#
+        )
+        .unwrap();
         writeln!(f, r#"{{"instruction": "What is 2+2?", "output": "4"}}"#).unwrap();
 
         let dataset = TrainingDataset::load_jsonl(&path).unwrap();

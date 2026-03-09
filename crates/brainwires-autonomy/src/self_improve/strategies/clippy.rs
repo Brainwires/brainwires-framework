@@ -5,8 +5,8 @@ use async_trait::async_trait;
 use serde::Deserialize;
 use std::collections::HashMap;
 
-use crate::config::StrategyConfig;
 use super::{ImprovementCategory, ImprovementStrategy, ImprovementTask};
+use crate::config::StrategyConfig;
 
 /// Strategy that runs `cargo clippy` and generates fix tasks from warnings.
 pub struct ClippyStrategy;

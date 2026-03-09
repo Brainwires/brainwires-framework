@@ -112,12 +112,7 @@ mod tests {
     #[test]
     fn test_registry_register_and_list() {
         let mut registry = McpToolRegistry::new();
-        registry.register(
-            "echo",
-            "Echo tool",
-            json!({"type": "object"}),
-            EchoHandler,
-        );
+        registry.register("echo", "Echo tool", json!({"type": "object"}), EchoHandler);
 
         let tools = registry.list_tools();
         assert_eq!(tools.len(), 1);
@@ -127,12 +122,7 @@ mod tests {
     #[test]
     fn test_registry_has_tool() {
         let mut registry = McpToolRegistry::new();
-        registry.register(
-            "test",
-            "Test tool",
-            json!({"type": "object"}),
-            EchoHandler,
-        );
+        registry.register("test", "Test tool", json!({"type": "object"}), EchoHandler);
 
         assert!(registry.has_tool("test"));
         assert!(!registry.has_tool("nonexistent"));

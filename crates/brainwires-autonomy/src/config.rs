@@ -6,8 +6,7 @@ use serde::{Deserialize, Serialize};
 const DEFAULT_HEARTBEAT_TIMEOUT_SECS: u64 = 1800;
 
 /// Top-level configuration for the autonomy subsystem.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AutonomyConfig {
     /// Self-improvement session configuration.
     #[serde(default)]
@@ -19,7 +18,6 @@ pub struct AutonomyConfig {
     #[serde(default)]
     pub git_workflow: GitWorkflowConfig,
 }
-
 
 /// Configuration for self-improvement sessions.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -244,9 +242,18 @@ mod tests {
         let config = AutonomyConfig::default();
         let json = serde_json::to_string(&config).expect("serialize");
         let deserialized: AutonomyConfig = serde_json::from_str(&json).expect("deserialize");
-        assert_eq!(deserialized.self_improve.max_cycles, config.self_improve.max_cycles);
-        assert_eq!(deserialized.safety.max_total_cost, config.safety.max_total_cost);
-        assert_eq!(deserialized.git_workflow.branch_prefix, config.git_workflow.branch_prefix);
+        assert_eq!(
+            deserialized.self_improve.max_cycles,
+            config.self_improve.max_cycles
+        );
+        assert_eq!(
+            deserialized.safety.max_total_cost,
+            config.safety.max_total_cost
+        );
+        assert_eq!(
+            deserialized.git_workflow.branch_prefix,
+            config.git_workflow.branch_prefix
+        );
     }
 
     #[test]

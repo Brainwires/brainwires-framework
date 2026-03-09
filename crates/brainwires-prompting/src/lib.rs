@@ -29,14 +29,14 @@ pub mod techniques;
 pub mod temperature;
 
 // Re-export main types
-pub use techniques::{
-    ComplexityLevel, PromptingTechnique, TaskCharacteristic, TechniqueCategory, TechniqueMetadata,
-};
-pub use clustering::{cosine_similarity, TaskCluster, TaskClusterManager};
+pub use clustering::{TaskCluster, TaskClusterManager, cosine_similarity};
 pub use generator::{GeneratedPrompt, PromptGenerator};
 pub use learning::{ClusterSummary, PromptingLearningCoordinator, TechniqueStats};
 pub use library::TechniqueLibrary;
 pub use seal::SealProcessingResult;
 #[cfg(feature = "native")]
 pub use storage::{ClusterStorage, StorageStats};
+pub use techniques::{
+    ComplexityLevel, PromptingTechnique, TaskCharacteristic, TechniqueCategory, TechniqueMetadata,
+};
 pub use temperature::{TemperatureOptimizer, TemperaturePerformance};

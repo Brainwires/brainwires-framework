@@ -94,11 +94,7 @@ impl RetrievalClassifier {
     /// Classify retrieval need using the provider
     ///
     /// Returns classification with intent understanding.
-    pub async fn classify(
-        &self,
-        query: &str,
-        context_len: usize,
-    ) -> Option<ClassificationResult> {
+    pub async fn classify(&self, query: &str, context_len: usize) -> Option<ClassificationResult> {
         let timer = InferenceTimer::new("retrieval_classify", &self.model_id);
 
         let prompt = self.build_classification_prompt(query, context_len);
@@ -131,10 +127,25 @@ impl RetrievalClassifier {
 
         // Reference patterns (high weight)
         let reference_patterns = [
-            "earlier", "before", "we discussed", "remember when", "what was",
-            "didn't we", "you mentioned", "as i said", "previously", "last time",
-            "originally", "initially", "you said", "i said", "we talked",
-            "back when", "recall", "mentioned earlier", "as mentioned",
+            "earlier",
+            "before",
+            "we discussed",
+            "remember when",
+            "what was",
+            "didn't we",
+            "you mentioned",
+            "as i said",
+            "previously",
+            "last time",
+            "originally",
+            "initially",
+            "you said",
+            "i said",
+            "we talked",
+            "back when",
+            "recall",
+            "mentioned earlier",
+            "as mentioned",
         ];
 
         for pattern in reference_patterns {
@@ -146,7 +157,12 @@ impl RetrievalClassifier {
 
         // Question patterns (medium weight)
         let question_patterns = [
-            "what did", "when did", "why did", "how did", "where was", "who was",
+            "what did",
+            "when did",
+            "why did",
+            "how did",
+            "where was",
+            "who was",
         ];
 
         for pattern in question_patterns {
@@ -158,8 +174,13 @@ impl RetrievalClassifier {
 
         // Continuation patterns (low weight)
         let continuation_patterns = [
-            "continue", "keep going", "and then", "what about",
-            "more about", "tell me more", "go on",
+            "continue",
+            "keep going",
+            "and then",
+            "what about",
+            "more about",
+            "tell me more",
+            "go on",
         ];
 
         for pattern in continuation_patterns {
@@ -181,7 +202,10 @@ impl RetrievalClassifier {
         // Pronoun patterns (only for short queries)
         if context_len < 10 && query.len() < 100 && lower.contains('?') {
             let pronouns = ["it", "they", "that", "those", "the one"];
-            if pronouns.iter().any(|p| lower.split_whitespace().any(|w| w == *p)) {
+            if pronouns
+                .iter()
+                .any(|p| lower.split_whitespace().any(|w| w == *p))
+            {
                 score += 0.2;
             }
         }
@@ -222,7 +246,11 @@ Output format: LEVEL: brief reason
 Example: HIGH: references "earlier" and asks about past discussion
 
 Classification:"#,
-            if query.len() > 200 { &query[..200] } else { query },
+            if query.len() > 200 {
+                &query[..200]
+            } else {
+                query
+            },
             context_len
         )
     }
@@ -292,7 +320,8 @@ impl RetrievalClassifierBuilder {
 
     /// Build the retrieval classifier, returning `None` if no provider was set.
     pub fn build(self) -> Option<RetrievalClassifier> {
-        self.provider.map(|p| RetrievalClassifier::new(p, self.model_id))
+        self.provider
+            .map(|p| RetrievalClassifier::new(p, self.model_id))
     }
 }
 
@@ -353,9 +382,7 @@ mod tests {
         let mut score = 0.0f32;
         let mut matches = 0;
 
-        let reference_patterns = [
-            "earlier", "before", "we discussed", "previously",
-        ];
+        let reference_patterns = ["earlier", "before", "we discussed", "previously"];
 
         for pattern in reference_patterns {
             if lower.contains(pattern) {
@@ -398,7 +425,11 @@ mod tests {
             _ => RetrievalNeed::None,
         };
 
-        let confidence = if matches > 0 { 0.7 + (matches as f32 * 0.05).min(0.2) } else { 0.5 };
+        let confidence = if matches > 0 {
+            0.7 + (matches as f32 * 0.05).min(0.2)
+        } else {
+            0.5
+        };
 
         ClassificationResult::from_fallback(need, confidence)
     }

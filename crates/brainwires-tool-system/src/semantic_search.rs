@@ -6,8 +6,10 @@
 //! Requires the `rag` feature flag.
 
 use anyhow::Result;
-use brainwires_rag::{AdvancedSearchRequest, IndexRequest, QueryRequest, RagClient, SearchGitHistoryRequest};
-use serde_json::{json, Value};
+use brainwires_rag::{
+    AdvancedSearchRequest, IndexRequest, QueryRequest, RagClient, SearchGitHistoryRequest,
+};
+use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::OnceCell;
@@ -233,7 +235,10 @@ impl SemanticSearchTool {
                 result.file_path,
                 result.score
             ));
-            output.push_str(&format!("   Lines {}-{}\n", result.start_line, result.end_line));
+            output.push_str(&format!(
+                "   Lines {}-{}\n",
+                result.start_line, result.end_line
+            ));
             output.push_str(&format!(
                 "   {}\n\n",
                 result.content.lines().next().unwrap_or("")

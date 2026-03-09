@@ -50,15 +50,25 @@ mod grpc_impl {
             request: Request<lf_a2a_v1::SendMessageRequest>,
         ) -> Result<Response<lf_a2a_v1::SendMessageResponse>, Status> {
             let proto_req = request.into_inner();
-            let msg = proto_req.message.ok_or_else(|| Status::invalid_argument("missing message"))?;
+            let msg = proto_req
+                .message
+                .ok_or_else(|| Status::invalid_argument("missing message"))?;
             let req = params::SendMessageRequest {
-                tenant: if proto_req.tenant.is_empty() { None } else { Some(proto_req.tenant) },
+                tenant: if proto_req.tenant.is_empty() {
+                    None
+                } else {
+                    Some(proto_req.tenant)
+                },
                 message: msg.into(),
                 configuration: None,
                 metadata: None,
             };
 
-            let result = self.handler.on_send_message(req).await.map_err(a2a_err_to_status)?;
+            let result = self
+                .handler
+                .on_send_message(req)
+                .await
+                .map_err(a2a_err_to_status)?;
 
             let payload = match result {
                 crate::streaming::SendMessageResponse::Task(t) => {
@@ -80,9 +90,15 @@ mod grpc_impl {
             request: Request<lf_a2a_v1::SendMessageRequest>,
         ) -> Result<Response<Self::SendStreamingMessageStream>, Status> {
             let proto_req = request.into_inner();
-            let msg = proto_req.message.ok_or_else(|| Status::invalid_argument("missing message"))?;
+            let msg = proto_req
+                .message
+                .ok_or_else(|| Status::invalid_argument("missing message"))?;
             let req = params::SendMessageRequest {
-                tenant: if proto_req.tenant.is_empty() { None } else { Some(proto_req.tenant) },
+                tenant: if proto_req.tenant.is_empty() {
+                    None
+                } else {
+                    Some(proto_req.tenant)
+                },
                 message: msg.into(),
                 configuration: None,
                 metadata: None,
@@ -94,43 +110,41 @@ mod grpc_impl {
                 .await
                 .map_err(a2a_err_to_status)?;
 
-            let mapped = stream.map(|item| {
-                match item {
-                    Ok(event) => {
-                        let payload = match event {
-                            crate::streaming::StreamEvent::Task(t) => {
-                                Some(lf_a2a_v1::stream_response::Payload::Task(t.into()))
-                            }
-                            crate::streaming::StreamEvent::Message(m) => {
-                                Some(lf_a2a_v1::stream_response::Payload::Message(m.into()))
-                            }
-                            crate::streaming::StreamEvent::StatusUpdate(su) => {
-                                Some(lf_a2a_v1::stream_response::Payload::StatusUpdate(
-                                    lf_a2a_v1::TaskStatusUpdateEvent {
-                                        task_id: su.task_id,
-                                        context_id: su.context_id,
-                                        status: Some(su.status.into()),
-                                        metadata: None,
-                                    },
-                                ))
-                            }
-                            crate::streaming::StreamEvent::ArtifactUpdate(au) => {
-                                Some(lf_a2a_v1::stream_response::Payload::ArtifactUpdate(
-                                    lf_a2a_v1::TaskArtifactUpdateEvent {
-                                        task_id: au.task_id,
-                                        context_id: au.context_id,
-                                        artifact: Some(au.artifact.into()),
-                                        append: au.append.unwrap_or(false),
-                                        last_chunk: au.last_chunk.unwrap_or(false),
-                                        metadata: None,
-                                    },
-                                ))
-                            }
-                        };
-                        Ok(lf_a2a_v1::StreamResponse { payload })
-                    }
-                    Err(e) => Err(a2a_err_to_status(e)),
+            let mapped = stream.map(|item| match item {
+                Ok(event) => {
+                    let payload = match event {
+                        crate::streaming::StreamEvent::Task(t) => {
+                            Some(lf_a2a_v1::stream_response::Payload::Task(t.into()))
+                        }
+                        crate::streaming::StreamEvent::Message(m) => {
+                            Some(lf_a2a_v1::stream_response::Payload::Message(m.into()))
+                        }
+                        crate::streaming::StreamEvent::StatusUpdate(su) => {
+                            Some(lf_a2a_v1::stream_response::Payload::StatusUpdate(
+                                lf_a2a_v1::TaskStatusUpdateEvent {
+                                    task_id: su.task_id,
+                                    context_id: su.context_id,
+                                    status: Some(su.status.into()),
+                                    metadata: None,
+                                },
+                            ))
+                        }
+                        crate::streaming::StreamEvent::ArtifactUpdate(au) => {
+                            Some(lf_a2a_v1::stream_response::Payload::ArtifactUpdate(
+                                lf_a2a_v1::TaskArtifactUpdateEvent {
+                                    task_id: au.task_id,
+                                    context_id: au.context_id,
+                                    artifact: Some(au.artifact.into()),
+                                    append: au.append.unwrap_or(false),
+                                    last_chunk: au.last_chunk.unwrap_or(false),
+                                    metadata: None,
+                                },
+                            ))
+                        }
+                    };
+                    Ok(lf_a2a_v1::StreamResponse { payload })
                 }
+                Err(e) => Err(a2a_err_to_status(e)),
             });
 
             Ok(Response::new(Box::pin(mapped)))
@@ -142,11 +156,19 @@ mod grpc_impl {
         ) -> Result<Response<lf_a2a_v1::Task>, Status> {
             let proto_req = request.into_inner();
             let req = params::GetTaskRequest {
-                tenant: if proto_req.tenant.is_empty() { None } else { Some(proto_req.tenant) },
+                tenant: if proto_req.tenant.is_empty() {
+                    None
+                } else {
+                    Some(proto_req.tenant)
+                },
                 id: proto_req.id,
                 history_length: proto_req.history_length,
             };
-            let task = self.handler.on_get_task(req).await.map_err(a2a_err_to_status)?;
+            let task = self
+                .handler
+                .on_get_task(req)
+                .await
+                .map_err(a2a_err_to_status)?;
             Ok(Response::new(task.into()))
         }
 
@@ -156,16 +178,36 @@ mod grpc_impl {
         ) -> Result<Response<lf_a2a_v1::ListTasksResponse>, Status> {
             let proto_req = request.into_inner();
             let req = params::ListTasksRequest {
-                tenant: if proto_req.tenant.is_empty() { None } else { Some(proto_req.tenant) },
-                context_id: if proto_req.context_id.is_empty() { None } else { Some(proto_req.context_id) },
-                status: if proto_req.status == 0 { None } else { Some(proto_req.status.into()) },
+                tenant: if proto_req.tenant.is_empty() {
+                    None
+                } else {
+                    Some(proto_req.tenant)
+                },
+                context_id: if proto_req.context_id.is_empty() {
+                    None
+                } else {
+                    Some(proto_req.context_id)
+                },
+                status: if proto_req.status == 0 {
+                    None
+                } else {
+                    Some(proto_req.status.into())
+                },
                 page_size: proto_req.page_size,
-                page_token: if proto_req.page_token.is_empty() { None } else { Some(proto_req.page_token) },
+                page_token: if proto_req.page_token.is_empty() {
+                    None
+                } else {
+                    Some(proto_req.page_token)
+                },
                 history_length: proto_req.history_length,
                 status_timestamp_after: None,
                 include_artifacts: proto_req.include_artifacts,
             };
-            let result = self.handler.on_list_tasks(req).await.map_err(a2a_err_to_status)?;
+            let result = self
+                .handler
+                .on_list_tasks(req)
+                .await
+                .map_err(a2a_err_to_status)?;
             Ok(Response::new(lf_a2a_v1::ListTasksResponse {
                 tasks: result.tasks.into_iter().map(Into::into).collect(),
                 next_page_token: result.next_page_token,
@@ -180,11 +222,19 @@ mod grpc_impl {
         ) -> Result<Response<lf_a2a_v1::Task>, Status> {
             let proto_req = request.into_inner();
             let req = params::CancelTaskRequest {
-                tenant: if proto_req.tenant.is_empty() { None } else { Some(proto_req.tenant) },
+                tenant: if proto_req.tenant.is_empty() {
+                    None
+                } else {
+                    Some(proto_req.tenant)
+                },
                 id: proto_req.id,
                 metadata: None,
             };
-            let task = self.handler.on_cancel_task(req).await.map_err(a2a_err_to_status)?;
+            let task = self
+                .handler
+                .on_cancel_task(req)
+                .await
+                .map_err(a2a_err_to_status)?;
             Ok(Response::new(task.into()))
         }
 
@@ -197,7 +247,11 @@ mod grpc_impl {
         ) -> Result<Response<Self::SubscribeToTaskStream>, Status> {
             let proto_req = request.into_inner();
             let req = params::SubscribeToTaskRequest {
-                tenant: if proto_req.tenant.is_empty() { None } else { Some(proto_req.tenant) },
+                tenant: if proto_req.tenant.is_empty() {
+                    None
+                } else {
+                    Some(proto_req.tenant)
+                },
                 id: proto_req.id,
             };
             let stream = self
@@ -266,7 +320,11 @@ mod grpc_impl {
         ) -> Result<Response<lf_a2a_v1::TaskPushNotificationConfig>, Status> {
             let proto_req = request.into_inner();
             let req = params::GetTaskPushNotificationConfigRequest {
-                tenant: if proto_req.tenant.is_empty() { None } else { Some(proto_req.tenant) },
+                tenant: if proto_req.tenant.is_empty() {
+                    None
+                } else {
+                    Some(proto_req.tenant)
+                },
                 task_id: proto_req.task_id,
                 id: proto_req.id,
             };
@@ -284,20 +342,34 @@ mod grpc_impl {
         ) -> Result<Response<lf_a2a_v1::ListTaskPushNotificationConfigsResponse>, Status> {
             let proto_req = request.into_inner();
             let req = params::ListTaskPushNotificationConfigsRequest {
-                tenant: if proto_req.tenant.is_empty() { None } else { Some(proto_req.tenant) },
+                tenant: if proto_req.tenant.is_empty() {
+                    None
+                } else {
+                    Some(proto_req.tenant)
+                },
                 task_id: proto_req.task_id,
-                page_size: if proto_req.page_size == 0 { None } else { Some(proto_req.page_size) },
-                page_token: if proto_req.page_token.is_empty() { None } else { Some(proto_req.page_token) },
+                page_size: if proto_req.page_size == 0 {
+                    None
+                } else {
+                    Some(proto_req.page_size)
+                },
+                page_token: if proto_req.page_token.is_empty() {
+                    None
+                } else {
+                    Some(proto_req.page_token)
+                },
             };
             let result = self
                 .handler
                 .on_list_push_configs(req)
                 .await
                 .map_err(a2a_err_to_status)?;
-            Ok(Response::new(lf_a2a_v1::ListTaskPushNotificationConfigsResponse {
-                configs: result.configs.into_iter().map(Into::into).collect(),
-                next_page_token: result.next_page_token.unwrap_or_default(),
-            }))
+            Ok(Response::new(
+                lf_a2a_v1::ListTaskPushNotificationConfigsResponse {
+                    configs: result.configs.into_iter().map(Into::into).collect(),
+                    next_page_token: result.next_page_token.unwrap_or_default(),
+                },
+            ))
         }
 
         async fn get_extended_agent_card(
@@ -306,7 +378,11 @@ mod grpc_impl {
         ) -> Result<Response<lf_a2a_v1::AgentCard>, Status> {
             let proto_req = request.into_inner();
             let req = params::GetExtendedAgentCardRequest {
-                tenant: if proto_req.tenant.is_empty() { None } else { Some(proto_req.tenant) },
+                tenant: if proto_req.tenant.is_empty() {
+                    None
+                } else {
+                    Some(proto_req.tenant)
+                },
             };
             let card = self
                 .handler
@@ -322,7 +398,11 @@ mod grpc_impl {
         ) -> Result<Response<()>, Status> {
             let proto_req = request.into_inner();
             let req = params::DeleteTaskPushNotificationConfigRequest {
-                tenant: if proto_req.tenant.is_empty() { None } else { Some(proto_req.tenant) },
+                tenant: if proto_req.tenant.is_empty() {
+                    None
+                } else {
+                    Some(proto_req.tenant)
+                },
                 task_id: proto_req.task_id,
                 id: proto_req.id,
             };

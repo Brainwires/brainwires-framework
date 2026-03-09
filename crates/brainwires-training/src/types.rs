@@ -76,7 +76,10 @@ pub enum TrainingJobStatus {
 impl TrainingJobStatus {
     /// Whether the job has reached a terminal state.
     pub fn is_terminal(&self) -> bool {
-        matches!(self, Self::Succeeded { .. } | Self::Failed { .. } | Self::Cancelled)
+        matches!(
+            self,
+            Self::Succeeded { .. } | Self::Failed { .. } | Self::Cancelled
+        )
     }
 
     /// Whether the job is currently running.
@@ -165,8 +168,18 @@ mod tests {
     fn test_job_status_terminal() {
         assert!(!TrainingJobStatus::Pending.is_terminal());
         assert!(!TrainingJobStatus::Queued.is_terminal());
-        assert!(TrainingJobStatus::Succeeded { model_id: "m".into() }.is_terminal());
-        assert!(TrainingJobStatus::Failed { error: "err".into() }.is_terminal());
+        assert!(
+            TrainingJobStatus::Succeeded {
+                model_id: "m".into()
+            }
+            .is_terminal()
+        );
+        assert!(
+            TrainingJobStatus::Failed {
+                error: "err".into()
+            }
+            .is_terminal()
+        );
         assert!(TrainingJobStatus::Cancelled.is_terminal());
     }
 

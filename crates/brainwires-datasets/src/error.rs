@@ -47,8 +47,10 @@ pub enum DatasetError {
 
     /// Generic error with a message.
     #[error("{0}")]
-    Other(/// Error message.
-        String),
+    Other(
+        /// Error message.
+        String,
+    ),
 }
 
 /// Convenience alias for `Result<T, DatasetError>`.

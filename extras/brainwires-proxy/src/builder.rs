@@ -162,7 +162,10 @@ impl ProxyBuilder {
             // and accept that inspector was pushed first via the new_stack
             self.middleware = {
                 let mut stack = MiddlewareStack::new();
-                stack.push(InspectorLayer::new(event_store.clone(), event_broadcaster.clone()));
+                stack.push(InspectorLayer::new(
+                    event_store.clone(),
+                    event_broadcaster.clone(),
+                ));
                 stack
             };
             // We'll re-add user layers below — but since we already built middleware,
@@ -173,9 +176,8 @@ impl ProxyBuilder {
         }
 
         if self.enable_logging {
-            self.middleware.push(
-                LoggingLayer::new().with_bodies(self.log_bodies),
-            );
+            self.middleware
+                .push(LoggingLayer::new().with_bodies(self.log_bodies));
         }
 
         // Build connector from config
@@ -186,16 +188,15 @@ impl ProxyBuilder {
         };
 
         // Build listener factory
-        let listener_factory: ListenerFactory =
-            if let Some(listener) = self.custom_listener {
-                let listener = Arc::new(listener);
-                Box::new(move |tx, shutdown| {
-                    let listener = listener.clone();
-                    Box::pin(async move { listener.listen(tx, shutdown).await })
-                })
-            } else {
-                build_listener_factory(&self.config)?
-            };
+        let listener_factory: ListenerFactory = if let Some(listener) = self.custom_listener {
+            let listener = Arc::new(listener);
+            Box::new(move |tx, shutdown| {
+                let listener = listener.clone();
+                Box::pin(async move { listener.listen(tx, shutdown).await })
+            })
+        } else {
+            build_listener_factory(&self.config)?
+        };
 
         Ok(ProxyService {
             config: self.config,
@@ -224,21 +225,19 @@ fn build_connector(config: &ProxyConfig) -> ProxyResult<Box<dyn TransportConnect
             Ok(Box::new(crate::transport::http::HttpConnector::new(parsed)))
         }
         #[cfg(not(feature = "http"))]
-        UpstreamConfig::Url { .. } => {
-            Err(ProxyError::Config("HTTP transport requires the 'http' feature".into()))
-        }
-        UpstreamConfig::Tcp { .. } => {
-            Err(ProxyError::Config("TCP upstream connector not yet implemented; use a custom connector".into()))
-        }
-        UpstreamConfig::Unix { .. } => {
-            Err(ProxyError::Config("Unix upstream connector not yet implemented; use a custom connector".into()))
-        }
+        UpstreamConfig::Url { .. } => Err(ProxyError::Config(
+            "HTTP transport requires the 'http' feature".into(),
+        )),
+        UpstreamConfig::Tcp { .. } => Err(ProxyError::Config(
+            "TCP upstream connector not yet implemented; use a custom connector".into(),
+        )),
+        UpstreamConfig::Unix { .. } => Err(ProxyError::Config(
+            "Unix upstream connector not yet implemented; use a custom connector".into(),
+        )),
     }
 }
 
-fn build_listener_factory(
-    config: &ProxyConfig,
-) -> ProxyResult<ListenerFactory> {
+fn build_listener_factory(config: &ProxyConfig) -> ProxyResult<ListenerFactory> {
     match &config.listener {
         #[cfg(feature = "http")]
         ListenerConfig::Tcp { addr } => {
@@ -249,9 +248,9 @@ fn build_listener_factory(
             }))
         }
         #[cfg(not(feature = "http"))]
-        ListenerConfig::Tcp { .. } => {
-            Err(ProxyError::Config("TCP listener requires the 'http' feature".into()))
-        }
+        ListenerConfig::Tcp { .. } => Err(ProxyError::Config(
+            "TCP listener requires the 'http' feature".into(),
+        )),
         ListenerConfig::Unix { path } => {
             let path = path.clone();
             Ok(Box::new(move |tx, shutdown| {

@@ -44,9 +44,8 @@ pub fn encode_flac(buffer: &AudioBuffer) -> AudioResult<Vec<u8>> {
         .into_verified()
         .map_err(|e| AudioError::Format(format!("FLAC config error: {e:?}")))?;
 
-    let stream =
-        flacenc::encode_with_fixed_block_size(&config, source, config.block_size)
-            .map_err(|e| AudioError::Format(format!("FLAC encode error: {e}")))?;
+    let stream = flacenc::encode_with_fixed_block_size(&config, source, config.block_size)
+        .map_err(|e| AudioError::Format(format!("FLAC encode error: {e}")))?;
 
     let mut sink = flacenc::bitsink::ByteSink::new();
     stream

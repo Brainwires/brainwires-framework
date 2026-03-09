@@ -60,10 +60,9 @@ impl AdapterConfig {
             &self.models.sonnet
         };
 
-        let provider = self
-            .providers
-            .get(&mapping.provider)
-            .ok_or_else(|| anyhow::anyhow!("provider '{}' not found in config", mapping.provider))?;
+        let provider = self.providers.get(&mapping.provider).ok_or_else(|| {
+            anyhow::anyhow!("provider '{}' not found in config", mapping.provider)
+        })?;
 
         Ok(ResolvedModel {
             provider,

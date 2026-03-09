@@ -11,7 +11,7 @@ use axum::{
     response::IntoResponse,
     routing::{get, post},
 };
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::{RwLock, mpsc};
 
 use super::forge::RepoRef;
 use super::trigger::WorkflowEvent;
@@ -127,7 +127,11 @@ async fn handle_webhook(
     }
 
     if let Some(key) = &key {
-        state.active_investigations.write().await.insert(key.clone());
+        state
+            .active_investigations
+            .write()
+            .await
+            .insert(key.clone());
     }
 
     if let Err(e) = state.tx.send(event).await {
@@ -156,8 +160,8 @@ fn verify_signature(secret: &str, body: &[u8], signature: &str) -> bool {
     // Fallback to SHA-1 (x-hub-signature)
     if let Some(hex_sig) = signature.strip_prefix("sha1=") {
         use sha1::Sha1;
-        let mut mac = Hmac::<Sha1>::new_from_slice(secret.as_bytes())
-            .expect("HMAC can take key of any size");
+        let mut mac =
+            Hmac::<Sha1>::new_from_slice(secret.as_bytes()).expect("HMAC can take key of any size");
         mac.update(body);
         let expected = mac.finalize().into_bytes();
         let expected_hex = hex::encode(expected);
@@ -197,7 +201,11 @@ fn parse_github_event(event_type: &str, payload: &serde_json::Value) -> Option<W
                     .unwrap_or("")
                     .to_string(),
             };
-            Some(WorkflowEvent::IssueCommented { issue, comment, repo })
+            Some(WorkflowEvent::IssueCommented {
+                issue,
+                comment,
+                repo,
+            })
         }
         "push" => {
             let branch = payload["ref"]
@@ -216,7 +224,11 @@ fn parse_github_event(event_type: &str, payload: &serde_json::Value) -> Option<W
                         .collect()
                 })
                 .unwrap_or_default();
-            Some(WorkflowEvent::PushReceived { branch, commits, repo })
+            Some(WorkflowEvent::PushReceived {
+                branch,
+                commits,
+                repo,
+            })
         }
         _ => None,
     }
@@ -236,10 +248,7 @@ fn parse_issue(payload: &serde_json::Value) -> Option<super::forge::Issue> {
                     .collect()
             })
             .unwrap_or_default(),
-        author: payload["user"]["login"]
-            .as_str()
-            .unwrap_or("")
-            .to_string(),
+        author: payload["user"]["login"].as_str().unwrap_or("").to_string(),
         url: payload["html_url"].as_str().unwrap_or("").to_string(),
     })
 }
@@ -247,7 +256,7 @@ fn parse_issue(payload: &serde_json::Value) -> Option<super::forge::Issue> {
 fn event_key(event: &WorkflowEvent) -> Option<String> {
     match event {
         WorkflowEvent::IssueOpened { issue, repo } => {
-            Some(format!("{}#{}",  repo.full_name(), issue.number))
+            Some(format!("{}#{}", repo.full_name(), issue.number))
         }
         _ => None,
     }

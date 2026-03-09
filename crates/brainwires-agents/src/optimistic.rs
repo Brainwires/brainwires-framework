@@ -79,8 +79,7 @@ impl ResourceVersion {
 }
 
 /// Strategy for resolving conflicts
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub enum ResolutionStrategy {
     /// Last writer wins (overwrite)
     LastWriterWins,
@@ -97,7 +96,6 @@ pub enum ResolutionStrategy {
         max_attempts: u32,
     },
 }
-
 
 /// Strategies for merging conflicting changes
 #[derive(Debug, Clone)]
@@ -245,11 +243,7 @@ impl OptimisticController {
     }
 
     /// Start an optimistic operation - returns token with current version
-    pub async fn begin_optimistic(
-        &self,
-        agent_id: &str,
-        resource_id: &str,
-    ) -> OptimisticToken {
+    pub async fn begin_optimistic(&self, agent_id: &str, resource_id: &str) -> OptimisticToken {
         let versions = self.versions.read().await;
         let (base_version, base_hash) = versions
             .get(resource_id)
@@ -275,16 +269,17 @@ impl OptimisticController {
 
         // Check for conflict
         if let Some(current) = versions.get(&token.resource_id)
-            && current.version != token.base_version {
-                return Err(OptimisticConflict {
-                    resource_id: token.resource_id,
-                    conflicting_agent: token.agent_id,
-                    expected_version: token.base_version,
-                    actual_version: current.version,
-                    holder_agent: current.last_modifier.clone(),
-                    detected_at: Instant::now(),
-                });
-            }
+            && current.version != token.base_version
+        {
+            return Err(OptimisticConflict {
+                resource_id: token.resource_id,
+                conflicting_agent: token.agent_id,
+                expected_version: token.base_version,
+                actual_version: current.version,
+                holder_agent: current.last_modifier.clone(),
+                detected_at: Instant::now(),
+            });
+        }
 
         // No conflict - commit the change
         let new_version = token.base_version + 1;
@@ -308,12 +303,13 @@ impl OptimisticController {
         new_content_hash: &str,
         new_content: Option<&str>,
     ) -> Result<CommitResult, String> {
-        match self.commit_optimistic(token.clone(), new_content_hash).await {
+        match self
+            .commit_optimistic(token.clone(), new_content_hash)
+            .await
+        {
             Ok(version) => Ok(CommitResult::Committed { version }),
             Err(conflict) => {
-                let resolution = self
-                    .resolve_conflict_auto(&conflict, new_content)
-                    .await;
+                let resolution = self.resolve_conflict_auto(&conflict, new_content).await;
 
                 // Record the conflict
                 self.record_conflict(conflict.clone(), resolution.clone())
@@ -348,10 +344,9 @@ impl OptimisticController {
                     Resolution::AbortBoth => Ok(CommitResult::Aborted {
                         reason: "Both operations aborted due to conflict".to_string(),
                     }),
-                    Resolution::KeepBoth { suffix_a, suffix_b } => Ok(CommitResult::Split {
-                        suffix_a,
-                        suffix_b,
-                    }),
+                    Resolution::KeepBoth { suffix_a, suffix_b } => {
+                        Ok(CommitResult::Split { suffix_a, suffix_b })
+                    }
                     Resolution::Escalate { reason } => Ok(CommitResult::Escalated { reason }),
                 }
             }
@@ -359,17 +354,9 @@ impl OptimisticController {
     }
 
     /// Force commit without version check (for resolution)
-    async fn force_commit(
-        &self,
-        resource_id: &str,
-        content_hash: &str,
-        agent_id: &str,
-    ) -> u64 {
+    async fn force_commit(&self, resource_id: &str, content_hash: &str, agent_id: &str) -> u64 {
         let mut versions = self.versions.write().await;
-        let current_version = versions
-            .get(resource_id)
-            .map(|v| v.version)
-            .unwrap_or(0);
+        let current_version = versions.get(resource_id).map(|v| v.version).unwrap_or(0);
         let new_version = current_version + 1;
 
         versions.insert(
@@ -410,10 +397,7 @@ impl OptimisticController {
                     Resolution::Retry
                 } else {
                     Resolution::Escalate {
-                        reason: format!(
-                            "Max retry attempts ({}) exceeded",
-                            max_attempts
-                        ),
+                        reason: format!("Max retry attempts ({}) exceeded", max_attempts),
                     }
                 }
             }
@@ -438,12 +422,8 @@ impl OptimisticController {
             .unwrap_or_else(|| self.default_strategy.clone());
 
         match strategy {
-            ResolutionStrategy::LastWriterWins => {
-                Resolution::UseVersion(conflict.agent_b.clone())
-            }
-            ResolutionStrategy::FirstWriterWins => {
-                Resolution::UseVersion(conflict.agent_a.clone())
-            }
+            ResolutionStrategy::LastWriterWins => Resolution::UseVersion(conflict.agent_b.clone()),
+            ResolutionStrategy::FirstWriterWins => Resolution::UseVersion(conflict.agent_a.clone()),
             ResolutionStrategy::Merge(merge_strategy) => {
                 self.try_merge(conflict, &merge_strategy).await
             }
@@ -455,7 +435,11 @@ impl OptimisticController {
     }
 
     /// Attempt to merge content
-    async fn try_merge(&self, conflict: &OptimisticConflictDetails, strategy: &MergeStrategy) -> Resolution {
+    async fn try_merge(
+        &self,
+        conflict: &OptimisticConflictDetails,
+        strategy: &MergeStrategy,
+    ) -> Resolution {
         match (strategy, &conflict.content_a, &conflict.content_b) {
             (MergeStrategy::Append, Some(a), Some(b)) => {
                 let merged = format!("{}\n{}", a, b);
@@ -490,7 +474,10 @@ impl OptimisticController {
             }
             (MergeStrategy::JsonMerge, Some(a), Some(b)) => {
                 // JSON deep merge: parse both as JSON objects and merge keys
-                match (serde_json::from_str::<serde_json::Value>(a), serde_json::from_str::<serde_json::Value>(b)) {
+                match (
+                    serde_json::from_str::<serde_json::Value>(a),
+                    serde_json::from_str::<serde_json::Value>(b),
+                ) {
                     (Ok(mut val_a), Ok(val_b)) => {
                         json_deep_merge(&mut val_a, &val_b);
                         let merged_content = serde_json::to_string_pretty(&val_a)
@@ -634,7 +621,10 @@ pub enum CommitResult {
 impl CommitResult {
     /// Check if the commit succeeded
     pub fn is_success(&self) -> bool {
-        matches!(self, CommitResult::Committed { .. } | CommitResult::Merged { .. })
+        matches!(
+            self,
+            CommitResult::Committed { .. } | CommitResult::Merged { .. }
+        )
     }
 
     /// Get the new version if successful
@@ -668,7 +658,10 @@ fn json_deep_merge(target: &mut serde_json::Value, source: &serde_json::Value) {
     match (target, source) {
         (serde_json::Value::Object(t), serde_json::Value::Object(s)) => {
             for (key, value) in s {
-                json_deep_merge(t.entry(key.clone()).or_insert(serde_json::Value::Null), value);
+                json_deep_merge(
+                    t.entry(key.clone()).or_insert(serde_json::Value::Null),
+                    value,
+                );
             }
         }
         (target, source) => {
@@ -699,9 +692,7 @@ mod tests {
         assert_eq!(token.base_version, 0);
 
         // Commit should succeed
-        let result = controller
-            .commit_optimistic(token, "hash123")
-            .await;
+        let result = controller.commit_optimistic(token, "hash123").await;
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 1);
@@ -718,15 +709,11 @@ mod tests {
         let token2 = controller.begin_optimistic("agent-2", "file.txt").await;
 
         // Agent 1 commits first
-        let result1 = controller
-            .commit_optimistic(token1, "hash1")
-            .await;
+        let result1 = controller.commit_optimistic(token1, "hash1").await;
         assert!(result1.is_ok());
 
         // Agent 2 tries to commit - should fail
-        let result2 = controller
-            .commit_optimistic(token2, "hash2")
-            .await;
+        let result2 = controller.commit_optimistic(token2, "hash2").await;
 
         assert!(result2.is_err());
         let conflict = result2.unwrap_err();
@@ -831,9 +818,7 @@ mod tests {
         controller.commit_optimistic(token1, "hash1").await.unwrap();
 
         // This will create a conflict
-        let _ = controller
-            .commit_or_resolve(token2, "hash2", None)
-            .await;
+        let _ = controller.commit_or_resolve(token2, "hash2", None).await;
 
         // Check history
         let history = controller.get_conflict_history().await;

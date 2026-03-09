@@ -31,7 +31,10 @@ impl Default for DpoLoss {
 impl DpoLoss {
     /// Create a new DPO loss with the given temperature parameter.
     pub fn new(beta: f64) -> Self {
-        Self { beta, label_smoothing: 0.0 }
+        Self {
+            beta,
+            label_smoothing: 0.0,
+        }
     }
 
     /// Set the label smoothing factor for robustness.
@@ -124,13 +127,10 @@ mod tests {
     #[test]
     fn test_dpo_batch() {
         let loss = DpoLoss::new(0.1);
-        let batch_loss = loss.compute_batch(
-            &[-1.0, -1.5],
-            &[-3.0, -2.5],
-            &[-1.5, -1.5],
-            &[-1.5, -1.5],
-        );
-        let individual_avg = (loss.compute(-1.0, -3.0, -1.5, -1.5) + loss.compute(-1.5, -2.5, -1.5, -1.5)) / 2.0;
+        let batch_loss =
+            loss.compute_batch(&[-1.0, -1.5], &[-3.0, -2.5], &[-1.5, -1.5], &[-1.5, -1.5]);
+        let individual_avg =
+            (loss.compute(-1.0, -3.0, -1.5, -1.5) + loss.compute(-1.5, -2.5, -1.5, -1.5)) / 2.0;
         assert!((batch_loss - individual_avg).abs() < 1e-10);
     }
 

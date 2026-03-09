@@ -4,13 +4,13 @@ use anyhow::Result;
 use async_trait::async_trait;
 use futures::stream::{BoxStream, StreamExt};
 
-use brainwires_core::{
-    ChatOptions, ChatResponse, ContentBlock, ImageSource, Message, MessageContent, Provider, Role,
-    StreamChunk, Tool, Usage,
-};
 use super::{
     OpenAIContent, OpenAIContentPart, OpenAIFunction, OpenAIImageUrl, OpenAIMessage,
     OpenAIStreamChunk, OpenAITool, OpenAiClient, OpenAiRequestOptions,
+};
+use brainwires_core::{
+    ChatOptions, ChatResponse, ContentBlock, ImageSource, Message, MessageContent, Provider, Role,
+    StreamChunk, Tool, Usage,
 };
 
 // ---------------------------------------------------------------------------
@@ -31,7 +31,11 @@ pub struct OpenAiChatProvider {
 impl OpenAiChatProvider {
     /// Create a new chat provider backed by the given client.
     pub fn new(client: Arc<OpenAiClient>, model: String) -> Self {
-        Self { client, model, provider_name: "openai".to_string() }
+        Self {
+            client,
+            model,
+            provider_name: "openai".to_string(),
+        }
     }
 
     /// Override the provider name reported by [`Provider::name`].
@@ -55,9 +59,7 @@ impl Provider for OpenAiChatProvider {
         options: &ChatOptions,
     ) -> Result<ChatResponse> {
         let openai_messages = convert_messages(messages);
-        let openai_tools: Vec<OpenAITool> = tools
-            .map(convert_tools)
-            .unwrap_or_default();
+        let openai_tools: Vec<OpenAITool> = tools.map(convert_tools).unwrap_or_default();
         let tools_ref: Option<&[OpenAITool]> = if openai_tools.is_empty() {
             None
         } else {
@@ -103,9 +105,7 @@ impl Provider for OpenAiChatProvider {
         }
 
         let openai_messages = convert_messages(messages);
-        let openai_tools: Vec<OpenAITool> = tools
-            .map(convert_tools)
-            .unwrap_or_default();
+        let openai_tools: Vec<OpenAITool> = tools.map(convert_tools).unwrap_or_default();
 
         let opts = chat_options_to_request_options(options);
 
@@ -174,18 +174,12 @@ pub fn convert_messages(messages: &[Message]) -> Vec<OpenAIMessage> {
                         match &blocks[0] {
                             ContentBlock::Text { text } => OpenAIContent::Text(text.clone()),
                             _ => OpenAIContent::Array(
-                                blocks
-                                    .iter()
-                                    .filter_map(convert_content_block)
-                                    .collect(),
+                                blocks.iter().filter_map(convert_content_block).collect(),
                             ),
                         }
                     } else {
                         OpenAIContent::Array(
-                            blocks
-                                .iter()
-                                .filter_map(convert_content_block)
-                                .collect(),
+                            blocks.iter().filter_map(convert_content_block).collect(),
                         )
                     }
                 }
@@ -205,17 +199,13 @@ pub fn convert_messages(messages: &[Message]) -> Vec<OpenAIMessage> {
 /// Convert a single `ContentBlock` to the OpenAI content-part format.
 fn convert_content_block(block: &ContentBlock) -> Option<OpenAIContentPart> {
     match block {
-        ContentBlock::Text { text } => Some(OpenAIContentPart::Text {
-            text: text.clone(),
-        }),
+        ContentBlock::Text { text } => Some(OpenAIContentPart::Text { text: text.clone() }),
         ContentBlock::Image { source } => match source {
-            ImageSource::Base64 { media_type, data } => {
-                Some(OpenAIContentPart::ImageUrl {
-                    image_url: OpenAIImageUrl {
-                        url: format!("data:{};base64,{}", media_type, data),
-                    },
-                })
-            }
+            ImageSource::Base64 { media_type, data } => Some(OpenAIContentPart::ImageUrl {
+                image_url: OpenAIImageUrl {
+                    url: format!("data:{};base64,{}", media_type, data),
+                },
+            }),
         },
         _ => None,
     }
@@ -237,9 +227,7 @@ pub fn convert_tools(tools: &[Tool]) -> Vec<OpenAITool> {
 }
 
 /// Parse a raw `OpenAIResponse` into the brainwires-core `ChatResponse`.
-pub fn parse_response(
-    openai_response: super::OpenAIResponse,
-) -> Result<ChatResponse> {
+pub fn parse_response(openai_response: super::OpenAIResponse) -> Result<ChatResponse> {
     let usage = Usage {
         prompt_tokens: openai_response.usage.prompt_tokens,
         completion_tokens: openai_response.usage.completion_tokens,
@@ -689,10 +677,7 @@ mod tests {
         let tools = vec![Tool {
             name: "get_weather".to_string(),
             description: "Get weather for a location".to_string(),
-            input_schema: ToolInputSchema::object(
-                properties.clone(),
-                vec!["location".to_string()],
-            ),
+            input_schema: ToolInputSchema::object(properties.clone(), vec!["location".to_string()]),
             requires_approval: false,
             ..Default::default()
         }];
@@ -721,9 +706,11 @@ mod tests {
             assert!(converted.is_some());
             match converted.unwrap() {
                 OpenAIContentPart::ImageUrl { image_url } => {
-                    assert!(image_url
-                        .url
-                        .starts_with(&format!("data:{};base64,", media_type)));
+                    assert!(
+                        image_url
+                            .url
+                            .starts_with(&format!("data:{};base64,", media_type))
+                    );
                 }
                 _ => panic!("Expected image url part"),
             }
@@ -872,8 +859,8 @@ mod tests {
     #[test]
     fn test_provider_name_custom() {
         let client = Arc::new(OpenAiClient::new("key".to_string(), "gpt-4".to_string()));
-        let provider = OpenAiChatProvider::new(client, "gpt-4".to_string())
-            .with_provider_name("groq");
+        let provider =
+            OpenAiChatProvider::new(client, "gpt-4".to_string()).with_provider_name("groq");
         assert_eq!(provider.name(), "groq");
     }
 }

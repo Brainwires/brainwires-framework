@@ -65,16 +65,23 @@ fn main() -> Result<()> {
     let c = provider.embed("banana smoothie")?;
 
     println!("\nCosine similarities:");
-    println!("  'machine learning' vs 'deep learning': {:.4}", cosine_similarity(&a, &b));
-    println!("  'machine learning' vs 'banana smoothie': {:.4}", cosine_similarity(&a, &c));
+    println!(
+        "  'machine learning' vs 'deep learning': {:.4}",
+        cosine_similarity(&a, &b)
+    );
+    println!(
+        "  'machine learning' vs 'banana smoothie': {:.4}",
+        cosine_similarity(&a, &c)
+    );
 
     // Batch embedding
-    let texts = vec![
-        "first document".to_string(),
-        "second document".to_string(),
-    ];
+    let texts = vec!["first document".to_string(), "second document".to_string()];
     let batch = provider.embed_batch(&texts)?;
-    println!("\nBatch embedded {} texts, each with {} dimensions", batch.len(), batch[0].len());
+    println!(
+        "\nBatch embedded {} texts, each with {} dimensions",
+        batch.len(),
+        batch[0].len()
+    );
 
     Ok(())
 }

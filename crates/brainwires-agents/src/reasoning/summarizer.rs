@@ -82,7 +82,10 @@ impl FactCategory {
             FactCategory::Decision
         } else if lower.contains("definition") || lower.contains("define") {
             FactCategory::Definition
-        } else if lower.contains("requirement") || lower.contains("must") || lower.contains("should") {
+        } else if lower.contains("requirement")
+            || lower.contains("must")
+            || lower.contains("should")
+        {
             FactCategory::Requirement
         } else if lower.contains("code") || lower.contains("change") || lower.contains("fix") {
             FactCategory::CodeChange
@@ -132,7 +135,11 @@ impl LocalSummarizer {
     /// Summarize a message for warm tier storage
     ///
     /// Generates a 50-100 word summary suitable for the warm memory tier.
-    pub async fn summarize_message(&self, content: &str, role: &str) -> Option<SummarizationResult> {
+    pub async fn summarize_message(
+        &self,
+        content: &str,
+        role: &str,
+    ) -> Option<SummarizationResult> {
         let timer = InferenceTimer::new("summarize_message", &self.model_id);
 
         // Skip very short content
@@ -144,7 +151,11 @@ impl LocalSummarizer {
             "Summarize this {} message in 50-100 words. Preserve key information, decisions, and technical details.\n\nMessage:\n{}\n\nSummary:",
             role,
             // Truncate very long content for efficiency
-            if content.len() > 2000 { &content[..2000] } else { content }
+            if content.len() > 2000 {
+                &content[..2000]
+            } else {
+                content
+            }
         );
 
         let messages = vec![Message::user(&prompt)];
@@ -186,8 +197,7 @@ impl LocalSummarizer {
 
         let prompt = format!(
             "Extract {} key facts from this text. Format each as: TYPE: fact\nTypes: Decision, Definition, Requirement, CodeChange, Configuration, Reference, Other\n\nText:\n{}\n\nFacts:",
-            self.max_facts,
-            summary
+            self.max_facts, summary
         );
 
         let messages = vec![Message::user(&prompt)];
@@ -231,12 +241,19 @@ impl LocalSummarizer {
         // Build a condensed representation
         let mut context = String::with_capacity(CONTEXT_BUFFER_CAPACITY);
         for (role, content) in to_compact.iter().take(20) {
-            let truncated = if content.len() > 200 { &content[..200] } else { content };
+            let truncated = if content.len() > 200 {
+                &content[..200]
+            } else {
+                content
+            };
             context.push_str(&format!("[{}]: {}\n", role, truncated));
         }
 
         if to_compact.len() > 20 {
-            context.push_str(&format!("\n... ({} more messages)\n", to_compact.len() - 20));
+            context.push_str(&format!(
+                "\n... ({} more messages)\n",
+                to_compact.len() - 20
+            ));
         }
 
         let prompt = format!(
@@ -272,10 +289,7 @@ impl LocalSummarizer {
         let mut entities = Vec::new();
 
         // Extract file paths
-        let path_patterns = [
-            r"([a-zA-Z0-9_\-/]+\.[a-z]{2,4})",
-            r"src/[a-zA-Z0-9_\-/]+",
-        ];
+        let path_patterns = [r"([a-zA-Z0-9_\-/]+\.[a-z]{2,4})", r"src/[a-zA-Z0-9_\-/]+"];
         for pattern in path_patterns {
             if let Ok(re) = regex::Regex::new(pattern) {
                 for cap in re.captures_iter(content) {
@@ -296,7 +310,10 @@ impl LocalSummarizer {
                     let entity = m.as_str().to_string();
                     if !entities.contains(&entity)
                         && entity.len() > 3
-                        && !["This", "That", "These", "Those", "What", "When", "Where", "Which"].contains(&entity.as_str())
+                        && ![
+                            "This", "That", "These", "Those", "What", "When", "Where", "Which",
+                        ]
+                        .contains(&entity.as_str())
                     {
                         entities.push(entity);
                     }
@@ -324,7 +341,12 @@ impl LocalSummarizer {
         let mut cleaned = output.trim().to_string();
 
         // Remove common prefixes
-        let prefixes = ["Summary:", "Here's a summary:", "Here is a summary:", "The summary is:"];
+        let prefixes = [
+            "Summary:",
+            "Here's a summary:",
+            "Here is a summary:",
+            "The summary is:",
+        ];
         for prefix in prefixes {
             if cleaned.to_lowercase().starts_with(&prefix.to_lowercase()) {
                 cleaned = cleaned[prefix.len()..].trim().to_string();
@@ -392,13 +414,22 @@ impl LocalSummarizer {
             }
 
             let lower = sentence.to_lowercase();
-            let fact_type = if lower.contains("decided") || lower.contains("will use") || lower.contains("chose") {
+            let fact_type = if lower.contains("decided")
+                || lower.contains("will use")
+                || lower.contains("chose")
+            {
                 FactCategory::Decision
-            } else if lower.contains("must") || lower.contains("should") || lower.contains("need to") {
+            } else if lower.contains("must")
+                || lower.contains("should")
+                || lower.contains("need to")
+            {
                 FactCategory::Requirement
             } else if lower.contains("is defined as") || lower.contains("means") {
                 FactCategory::Definition
-            } else if lower.contains("changed") || lower.contains("fixed") || lower.contains("updated") {
+            } else if lower.contains("changed")
+                || lower.contains("fixed")
+                || lower.contains("updated")
+            {
                 FactCategory::CodeChange
             } else if lower.contains("configured") || lower.contains("set to") {
                 FactCategory::Configuration
@@ -511,8 +542,14 @@ mod tests {
     #[test]
     fn test_fact_category_parsing() {
         assert_eq!(FactCategory::from_str("Decision"), FactCategory::Decision);
-        assert_eq!(FactCategory::from_str("REQUIREMENT"), FactCategory::Requirement);
-        assert_eq!(FactCategory::from_str("code change"), FactCategory::CodeChange);
+        assert_eq!(
+            FactCategory::from_str("REQUIREMENT"),
+            FactCategory::Requirement
+        );
+        assert_eq!(
+            FactCategory::from_str("code change"),
+            FactCategory::CodeChange
+        );
         assert_eq!(FactCategory::from_str("random"), FactCategory::Other);
     }
 
@@ -524,8 +561,16 @@ mod tests {
         let content = "Modified src/main.rs and added LocalSummarizer to handle_request function";
         let entities = extract_entities_direct(content);
 
-        assert!(entities.iter().any(|e| e.contains("main.rs") || e.contains("src/")));
-        assert!(entities.iter().any(|e| e.contains("LocalSummarizer") || e.contains("handle_request")));
+        assert!(
+            entities
+                .iter()
+                .any(|e| e.contains("main.rs") || e.contains("src/"))
+        );
+        assert!(
+            entities
+                .iter()
+                .any(|e| e.contains("LocalSummarizer") || e.contains("handle_request"))
+        );
     }
 
     fn extract_entities_direct(content: &str) -> Vec<String> {
@@ -557,7 +602,8 @@ mod tests {
 
     #[test]
     fn test_heuristic_fact_extraction() {
-        let content = "We decided to use Rust. The config must be updated. The function was changed.";
+        let content =
+            "We decided to use Rust. The config must be updated. The function was changed.";
         let facts = extract_facts_heuristic_direct(content);
 
         assert!(!facts.is_empty());

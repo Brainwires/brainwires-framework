@@ -5,8 +5,6 @@ use std::sync::Arc;
 use brainwires_core::Provider;
 use tokio::sync::mpsc;
 
-use crate::config::GitWorkflowConfig;
-use crate::safety::{ApprovalPolicy, AutonomousOperation};
 use super::branch_manager::BranchManager;
 use super::change_maker::ChangeMaker;
 use super::forge::{GitForge, Issue, RepoRef};
@@ -14,6 +12,8 @@ use super::investigator::IssueInvestigator;
 use super::merge_policy::{MergeContext, MergeDecision, MergePolicy};
 use super::pr_manager::PullRequestManager;
 use super::trigger::WorkflowEvent;
+use crate::config::GitWorkflowConfig;
+use crate::safety::{ApprovalPolicy, AutonomousOperation};
 
 /// The end-to-end pipeline: trigger -> investigate -> branch -> fix -> PR -> merge.
 pub struct GitWorkflowPipeline {
@@ -68,12 +68,12 @@ impl GitWorkflowPipeline {
     }
 
     /// Handle a single issue through the full pipeline.
-    pub async fn handle_issue(
-        &self,
-        issue: &Issue,
-        _repo: &RepoRef,
-    ) -> anyhow::Result<()> {
-        tracing::info!("Pipeline: processing issue #{} - {}", issue.number, issue.title);
+    pub async fn handle_issue(&self, issue: &Issue, _repo: &RepoRef) -> anyhow::Result<()> {
+        tracing::info!(
+            "Pipeline: processing issue #{} - {}",
+            issue.number,
+            issue.title
+        );
 
         // Stage 1: Investigate
         let investigator = IssueInvestigator::new(self.provider.clone());
@@ -99,7 +99,9 @@ impl GitWorkflowPipeline {
 
         // Stage 3: Make changes
         let change_maker = ChangeMaker::new(self.provider.clone(), 20);
-        let changes = change_maker.make_changes(&investigation, &repo_path).await?;
+        let changes = change_maker
+            .make_changes(&investigation, &repo_path)
+            .await?;
 
         if !changes.success {
             tracing::warn!("Change maker failed for issue #{}", issue.number);
@@ -121,7 +123,10 @@ impl GitWorkflowPipeline {
             branch: branch_name.clone(),
             title: issue.title.clone(),
         };
-        self.approval.check(&pr_op).await.map_err(|e| anyhow::anyhow!("{e}"))?;
+        self.approval
+            .check(&pr_op)
+            .await
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
 
         let pr = pr_mgr
             .create_pr(&self.repo, issue, &branch_name, &self.base_branch, &changes)

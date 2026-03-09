@@ -18,11 +18,10 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use super::metadata::{SkillMatch, SkillMetadata};
 #[cfg(test)]
 use super::metadata::MatchSource;
+use super::metadata::{SkillMatch, SkillMetadata};
 use super::registry::SkillRegistry;
-
 
 /// Minimum confidence for showing skill suggestions
 const MIN_SUGGESTION_CONFIDENCE: f32 = 0.5;
@@ -71,7 +70,11 @@ impl SkillRouter {
         matches.retain(|m| m.confidence >= self.min_confidence);
 
         // Sort by confidence (highest first)
-        matches.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap_or(std::cmp::Ordering::Equal));
+        matches.sort_by(|a, b| {
+            b.confidence
+                .partial_cmp(&a.confidence)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         matches
     }
@@ -128,9 +131,8 @@ impl SkillRouter {
 
                 if match_count > 0 {
                     // Calculate confidence based on match count
-                    let confidence = (KEYWORD_MATCH_CONFIDENCE
-                        + (match_count as f32 * 0.05))
-                        .min(0.9);
+                    let confidence =
+                        (KEYWORD_MATCH_CONFIDENCE + (match_count as f32 * 0.05)).min(0.9);
 
                     Some(SkillMatch::keyword(m.name.clone(), confidence))
                 } else {
@@ -202,13 +204,15 @@ mod tests {
         // Add test skills
         let mut review_meta = SkillMetadata::new(
             "review-pr".to_string(),
-            "Reviews pull requests for code quality, security issues, and best practices".to_string(),
+            "Reviews pull requests for code quality, security issues, and best practices"
+                .to_string(),
         );
         review_meta.allowed_tools = Some(vec!["Read".to_string(), "Grep".to_string()]);
 
         let commit_meta = SkillMetadata::new(
             "commit".to_string(),
-            "Creates well-formatted git commits following conventional commit standards".to_string(),
+            "Creates well-formatted git commits following conventional commit standards"
+                .to_string(),
         );
 
         let explain_meta = SkillMetadata::new(
@@ -347,9 +351,6 @@ mod tests {
             truncate_desc("This is a very long description that exceeds the limit", 20),
             "This is a very lo..."
         );
-        assert_eq!(
-            truncate_desc("First line\nSecond line", 100),
-            "First line"
-        );
+        assert_eq!(truncate_desc("First line\nSecond line", 100), "First line");
     }
 }

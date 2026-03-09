@@ -100,8 +100,9 @@ pub fn response_to_chat_response(resp: &ResponseObject) -> Result<ChatResponse> 
                             content_blocks.push(ContentBlock::Text { text: text.clone() });
                         }
                         OutputContentBlock::Refusal { refusal } => {
-                            content_blocks
-                                .push(ContentBlock::Text { text: refusal.clone() });
+                            content_blocks.push(ContentBlock::Text {
+                                text: refusal.clone(),
+                            });
                         }
                     }
                 }
@@ -112,8 +113,7 @@ pub fn response_to_chat_response(resp: &ResponseObject) -> Result<ChatResponse> 
                 arguments,
                 ..
             } => {
-                let input: serde_json::Value =
-                    serde_json::from_str(arguments).unwrap_or(json!({}));
+                let input: serde_json::Value = serde_json::from_str(arguments).unwrap_or(json!({}));
                 content_blocks.push(ContentBlock::ToolUse {
                     id: call_id.clone(),
                     name: name.clone(),
@@ -178,10 +178,7 @@ pub fn stream_event_to_chunk(
             Some(vec![StreamChunk::Text(delta.clone())])
         }
         ResponseStreamEvent::OutputItemAdded { item, .. } => {
-            if let ResponseOutputItem::FunctionCall {
-                call_id, name, ..
-            } = item
-            {
+            if let ResponseOutputItem::FunctionCall { call_id, name, .. } = item {
                 Some(vec![StreamChunk::ToolUse {
                     id: call_id.clone(),
                     name: name.clone(),
@@ -190,20 +187,18 @@ pub fn stream_event_to_chunk(
                 None
             }
         }
-        ResponseStreamEvent::FunctionCallArgumentsDelta {
-            delta, item_id, ..
-        } => Some(vec![StreamChunk::ToolInputDelta {
-            id: item_id.clone(),
-            partial_json: delta.clone(),
-        }]),
+        ResponseStreamEvent::FunctionCallArgumentsDelta { delta, item_id, .. } => {
+            Some(vec![StreamChunk::ToolInputDelta {
+                id: item_id.clone(),
+                partial_json: delta.clone(),
+            }])
+        }
         ResponseStreamEvent::ResponseCompleted { response } => {
             let usage = convert_usage(response.usage.as_ref());
             Some(vec![StreamChunk::Usage(usage), StreamChunk::Done])
         }
         ResponseStreamEvent::ResponseFailed { .. }
-        | ResponseStreamEvent::ResponseIncomplete { .. } => {
-            Some(vec![StreamChunk::Done])
-        }
+        | ResponseStreamEvent::ResponseIncomplete { .. } => Some(vec![StreamChunk::Done]),
         _ => None,
     }
 }
@@ -217,9 +212,7 @@ pub fn build_request(
     options: &ChatOptions,
     previous_response_id: Option<&str>,
 ) -> CreateResponseRequest {
-    let response_tools = tools
-        .filter(|t| !t.is_empty())
-        .map(|t| t.to_vec());
+    let response_tools = tools.filter(|t| !t.is_empty()).map(|t| t.to_vec());
 
     let tool_choice = if response_tools.is_some() {
         Some(ToolChoice::Mode("auto".to_string()))

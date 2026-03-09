@@ -4,8 +4,7 @@ use serde_json::json;
 use super::client::RelayClient;
 use super::error::RelayClientError;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 /// Configuration for spawning an agent.
 pub struct AgentConfig {
     /// Maximum number of iterations.
@@ -24,7 +23,6 @@ pub struct AgentConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mdap_preset: Option<String>,
 }
-
 
 /// Result of an agent execution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -136,9 +134,10 @@ fn extract_agent_id(result: &serde_json::Value) -> Result<String, RelayClientErr
             if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
                 // Parse the text to find agent_id
                 if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(text)
-                    && let Some(id) = parsed.get("agent_id").and_then(|i| i.as_str()) {
-                        return Ok(id.to_string());
-                    }
+                    && let Some(id) = parsed.get("agent_id").and_then(|i| i.as_str())
+                {
+                    return Ok(id.to_string());
+                }
                 // Try to find agent_id pattern in text
                 if text.contains("agent_id") {
                     // Simple extraction

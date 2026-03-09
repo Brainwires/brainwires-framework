@@ -459,30 +459,50 @@ fn extract_response_confidence(text: &str, metadata: &ResponseMetadata) -> f64 {
     // 3. Check for hedging/uncertainty patterns (reduces confidence)
     let text_lower = text.to_lowercase();
     let hedging_patterns = [
-        "i'm not sure", "i think", "possibly", "might be", "could be",
-        "probably", "perhaps", "maybe", "unclear", "i guess",
+        "i'm not sure",
+        "i think",
+        "possibly",
+        "might be",
+        "could be",
+        "probably",
+        "perhaps",
+        "maybe",
+        "unclear",
+        "i guess",
     ];
-    let hedging_count = hedging_patterns.iter()
+    let hedging_count = hedging_patterns
+        .iter()
         .filter(|p| text_lower.contains(*p))
         .count();
     confidence -= (hedging_count as f64 * 0.08).min(0.30);
 
     // 4. Check for self-correction patterns (reduces confidence more)
     let self_correction_patterns = [
-        "wait,", "actually,", "let me reconsider", "i made a mistake",
-        "correction:", "i was wrong", "on second thought",
+        "wait,",
+        "actually,",
+        "let me reconsider",
+        "i made a mistake",
+        "correction:",
+        "i was wrong",
+        "on second thought",
     ];
-    let correction_count = self_correction_patterns.iter()
+    let correction_count = self_correction_patterns
+        .iter()
         .filter(|p| text_lower.contains(*p))
         .count();
     confidence -= (correction_count as f64 * 0.15).min(0.30);
 
     // 5. Check for confident assertion patterns (slight boost)
     let confident_patterns = [
-        "the answer is", "definitely", "certainly", "clearly",
-        "the solution is", "this will work",
+        "the answer is",
+        "definitely",
+        "certainly",
+        "clearly",
+        "the solution is",
+        "this will work",
     ];
-    let confident_count = confident_patterns.iter()
+    let confident_count = confident_patterns
+        .iter()
         .filter(|p| text_lower.contains(*p))
         .count();
     confidence += (confident_count as f64 * 0.05).min(0.10);
@@ -617,8 +637,7 @@ mod tests {
             response: "".to_string(),
         });
 
-        let subtask = Subtask::atomic("Test task")
-            .with_instructions("Be precise");
+        let subtask = Subtask::atomic("Test task").with_instructions("Be precise");
         let agent = Microagent::with_defaults(provider, subtask);
 
         let prompt = agent.build_user_prompt(&serde_json::json!({"x": 1}));

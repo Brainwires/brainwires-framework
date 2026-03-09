@@ -5,8 +5,8 @@ use async_trait::async_trait;
 use regex::Regex;
 use std::collections::HashMap;
 
-use crate::config::StrategyConfig;
 use super::{ImprovementCategory, ImprovementStrategy, ImprovementTask};
+use crate::config::StrategyConfig;
 
 /// Strategy that detects dead and unreachable code.
 pub struct DeadCodeStrategy;
@@ -67,14 +67,9 @@ impl ImprovementStrategy for DeadCodeStrategy {
 
                     if let Some(spans) = message.get("spans").and_then(|s| s.as_array()) {
                         if let Some(span) = spans.first() {
-                            let file = span
-                                .get("file_name")
-                                .and_then(|f| f.as_str())
-                                .unwrap_or("");
-                            let line_start = span
-                                .get("line_start")
-                                .and_then(|l| l.as_u64())
-                                .unwrap_or(0);
+                            let file = span.get("file_name").and_then(|f| f.as_str()).unwrap_or("");
+                            let line_start =
+                                span.get("line_start").and_then(|l| l.as_u64()).unwrap_or(0);
 
                             if file.starts_with("src/") {
                                 unused_by_file

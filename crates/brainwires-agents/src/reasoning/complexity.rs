@@ -180,7 +180,8 @@ Consider:
 - Dependencies between parts
 - Potential for errors
 
-Output ONLY a decimal number between 0.0 and 1.0."#.to_string()
+Output ONLY a decimal number between 0.0 and 1.0."#
+            .to_string()
     }
 
     /// Parse the LLM output to extract a score
@@ -242,7 +243,8 @@ impl ComplexityScorerBuilder {
 
     /// Build the complexity scorer, returning `None` if no provider was set.
     pub fn build(self) -> Option<ComplexityScorer> {
-        self.provider.map(|p| ComplexityScorer::new(p, self.model_id))
+        self.provider
+            .map(|p| ComplexityScorer::new(p, self.model_id))
     }
 }
 
@@ -297,11 +299,7 @@ mod tests {
             ("distributed", 0.2),
         ];
 
-        let simple_indicators = [
-            ("simple", -0.1),
-            ("just", -0.05),
-            ("basic", -0.1),
-        ];
+        let simple_indicators = [("simple", -0.1), ("just", -0.05), ("basic", -0.1)];
 
         for (keyword, adjustment) in complex_indicators {
             if desc_lower.contains(keyword) {

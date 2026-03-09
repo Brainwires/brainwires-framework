@@ -200,7 +200,10 @@ impl AnomalyDetector {
     /// This is designed to be called inside `AuditLogger::log()` before the event
     /// is moved into the buffer.
     pub fn observe(&self, event: &AuditEvent) {
-        let mut inner = self.inner.lock().expect("anomaly detector state lock poisoned");
+        let mut inner = self
+            .inner
+            .lock()
+            .expect("anomaly detector state lock poisoned");
         let now_secs = event.timestamp.timestamp();
         let agent_key = event
             .agent_id
@@ -261,23 +264,24 @@ impl AnomalyDetector {
 
                 // Path-scope check
                 if !expected_prefixes.is_empty()
-                    && let Some(ref target) = event.target {
-                        let is_expected = expected_prefixes
-                            .iter()
-                            .any(|prefix| target.starts_with(prefix.as_str()));
-                        if !is_expected {
-                            inner.pending.push(AnomalyEvent::new(
-                                event.agent_id.clone(),
-                                AnomalyKind::UnusualFileScopeRequest {
-                                    path: target.clone(),
-                                },
-                                format!(
-                                    "Agent '{}' requested path '{}' outside expected scope",
-                                    agent_key, target
-                                ),
-                            ));
-                        }
+                    && let Some(ref target) = event.target
+                {
+                    let is_expected = expected_prefixes
+                        .iter()
+                        .any(|prefix| target.starts_with(prefix.as_str()));
+                    if !is_expected {
+                        inner.pending.push(AnomalyEvent::new(
+                            event.agent_id.clone(),
+                            AnomalyKind::UnusualFileScopeRequest {
+                                path: target.clone(),
+                            },
+                            format!(
+                                "Agent '{}' requested path '{}' outside expected scope",
+                                agent_key, target
+                            ),
+                        ));
                     }
+                }
             }
 
             AuditEventType::TrustChange => {
@@ -307,13 +311,20 @@ impl AnomalyDetector {
 
     /// Drain all pending anomaly events (clears the internal queue).
     pub fn drain_anomalies(&self) -> Vec<AnomalyEvent> {
-        let mut inner = self.inner.lock().expect("anomaly detector state lock poisoned");
+        let mut inner = self
+            .inner
+            .lock()
+            .expect("anomaly detector state lock poisoned");
         std::mem::take(&mut inner.pending)
     }
 
     /// Return the number of pending anomaly events without draining.
     pub fn pending_count(&self) -> usize {
-        self.inner.lock().expect("anomaly detector state lock poisoned").pending.len()
+        self.inner
+            .lock()
+            .expect("anomaly detector state lock poisoned")
+            .pending
+            .len()
     }
 }
 
@@ -330,11 +341,7 @@ mod tests {
             .with_action("test_action")
     }
 
-    fn make_event_with_target(
-        event_type: AuditEventType,
-        agent: &str,
-        target: &str,
-    ) -> AuditEvent {
+    fn make_event_with_target(event_type: AuditEventType, agent: &str, target: &str) -> AuditEvent {
         AuditEvent::new(event_type)
             .with_agent(agent)
             .with_action("test_action")
@@ -400,11 +407,7 @@ mod tests {
             tool_call_threshold: 1_000,
             ..Default::default()
         });
-        let e = make_event_with_target(
-            AuditEventType::ToolExecution,
-            "agent-3",
-            "/etc/secrets",
-        );
+        let e = make_event_with_target(AuditEventType::ToolExecution, "agent-3", "/etc/secrets");
         detector.observe(&e);
         let anomalies = detector.drain_anomalies();
         assert!(anomalies.iter().any(|a| matches!(
@@ -427,10 +430,11 @@ mod tests {
         );
         detector.observe(&e);
         let anomalies = detector.drain_anomalies();
-        assert!(!anomalies.iter().any(|a| matches!(
-            a.kind,
-            AnomalyKind::UnusualFileScopeRequest { .. }
-        )));
+        assert!(
+            !anomalies
+                .iter()
+                .any(|a| matches!(a.kind, AnomalyKind::UnusualFileScopeRequest { .. }))
+        );
     }
 
     #[test]
@@ -445,10 +449,11 @@ mod tests {
             detector.observe(&e);
         }
         let anomalies = detector.drain_anomalies();
-        assert!(anomalies.iter().any(|a| matches!(
-            a.kind,
-            AnomalyKind::RapidTrustChange { changes: 3, .. }
-        )));
+        assert!(
+            anomalies
+                .iter()
+                .any(|a| matches!(a.kind, AnomalyKind::RapidTrustChange { changes: 3, .. }))
+        );
     }
 
     #[test]

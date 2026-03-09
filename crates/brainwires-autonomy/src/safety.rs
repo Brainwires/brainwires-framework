@@ -19,25 +19,37 @@ use crate::config::{SafetyConfig, SelfImprovementConfig};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SafetyStop {
     /// Budget limit was exceeded.
-    BudgetExceeded(/// Total cost incurred.
-        f64),
+    BudgetExceeded(
+        /// Total cost incurred.
+        f64,
+    ),
     /// Maximum cycle count reached.
-    CycleLimitReached(/// Number of cycles completed.
-        u32),
+    CycleLimitReached(
+        /// Number of cycles completed.
+        u32,
+    ),
     /// Circuit breaker tripped after consecutive failures.
-    CircuitBreakerTripped(/// Number of consecutive failures.
-        u32),
+    CircuitBreakerTripped(
+        /// Number of consecutive failures.
+        u32,
+    ),
     /// Total diff line limit exceeded.
-    DiffLimitExceeded(/// Number of diff lines.
-        u32),
+    DiffLimitExceeded(
+        /// Number of diff lines.
+        u32,
+    ),
     /// Dead man's switch heartbeat timed out.
     HeartbeatTimeout,
     /// Daily operation limit reached.
-    DailyLimitReached(/// Number of daily operations completed.
-        u32),
+    DailyLimitReached(
+        /// Number of daily operations completed.
+        u32,
+    ),
     /// Operation was explicitly rejected.
-    OperationRejected(/// Rejection reason.
-        String),
+    OperationRejected(
+        /// Rejection reason.
+        String,
+    ),
 }
 
 impl fmt::Display for SafetyStop {
@@ -46,7 +58,10 @@ impl fmt::Display for SafetyStop {
             SafetyStop::BudgetExceeded(cost) => write!(f, "Budget exceeded: ${cost:.2}"),
             SafetyStop::CycleLimitReached(cycles) => write!(f, "Cycle limit reached: {cycles}"),
             SafetyStop::CircuitBreakerTripped(failures) => {
-                write!(f, "Circuit breaker tripped after {failures} consecutive failures")
+                write!(
+                    f,
+                    "Circuit breaker tripped after {failures} consecutive failures"
+                )
             }
             SafetyStop::DiffLimitExceeded(lines) => {
                 write!(f, "Total diff limit exceeded: {lines} lines")
@@ -120,7 +135,9 @@ impl fmt::Display for AutonomousOperation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::StartImprovement { strategy, .. } => write!(f, "start improvement: {strategy}"),
-            Self::CommitChanges { diff_lines, .. } => write!(f, "commit {diff_lines} changed lines"),
+            Self::CommitChanges { diff_lines, .. } => {
+                write!(f, "commit {diff_lines} changed lines")
+            }
             Self::CreatePullRequest { title, .. } => write!(f, "create PR: {title}"),
             Self::MergePullRequest { pr_id, .. } => write!(f, "merge PR: {pr_id}"),
             Self::SpawnAgent { description } => write!(f, "spawn agent: {description}"),
@@ -204,11 +221,12 @@ impl CircuitBreaker {
             CircuitBreakerState::Open => {
                 // Check if cooldown has expired
                 if let Some(last) = self.last_failure
-                    && last.elapsed().as_secs() >= self.cooldown_secs {
-                        self.state = CircuitBreakerState::HalfOpen;
-                        tracing::info!("Circuit breaker entering half-open state");
-                        return Ok(());
-                    }
+                    && last.elapsed().as_secs() >= self.cooldown_secs
+                {
+                    self.state = CircuitBreakerState::HalfOpen;
+                    tracing::info!("Circuit breaker entering half-open state");
+                    return Ok(());
+                }
                 Err(SafetyStop::CircuitBreakerTripped(self.consecutive_failures))
             }
             CircuitBreakerState::HalfOpen => {

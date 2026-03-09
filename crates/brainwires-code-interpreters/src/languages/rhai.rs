@@ -16,7 +16,7 @@ use rhai::{Dynamic, Engine, EvalAltResult, Scope};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use super::{get_limits, truncate_output, LanguageExecutor};
+use super::{LanguageExecutor, get_limits, truncate_output};
 use crate::types::{ExecutionLimits, ExecutionRequest, ExecutionResult};
 
 /// Rhai code executor
@@ -46,7 +46,10 @@ impl RhaiExecutor {
         engine.set_max_string_size(limits.max_string_length);
         engine.set_max_array_size(limits.max_array_length);
         engine.set_max_map_size(limits.max_map_size);
-        engine.set_max_expr_depths(limits.max_call_depth as usize, limits.max_call_depth as usize);
+        engine.set_max_expr_depths(
+            limits.max_call_depth as usize,
+            limits.max_call_depth as usize,
+        );
 
         // Disable potentially dangerous features for sandboxing
         engine.set_allow_looping(true); // Allow loops (controlled by max_operations)
@@ -99,14 +102,12 @@ impl RhaiExecutor {
         });
 
         // Execute the script
-        let result: Result<Dynamic, Box<EvalAltResult>> = engine.eval_with_scope(&mut scope, &request.code);
+        let result: Result<Dynamic, Box<EvalAltResult>> =
+            engine.eval_with_scope(&mut scope, &request.code);
         let timing_ms = start.elapsed().as_millis() as u64;
 
         // Get captured output
-        let stdout = output
-            .lock()
-            .map(|out| out.join("\n"))
-            .unwrap_or_default();
+        let stdout = output.lock().map(|out| out.join("\n")).unwrap_or_default();
         let stdout = truncate_output(&stdout, limits.max_output_bytes);
 
         match result {
@@ -211,16 +212,17 @@ fn dynamic_to_json(value: &Dynamic) -> Option<serde_json::Value> {
     }
 
     if value.is_int() {
-        return Some(serde_json::Value::Number(
-            serde_json::Number::from(value.as_int().unwrap_or(0)),
-        ));
+        return Some(serde_json::Value::Number(serde_json::Number::from(
+            value.as_int().unwrap_or(0),
+        )));
     }
 
     if value.is_float() {
         if let Ok(f) = value.as_float()
-            && let Some(n) = serde_json::Number::from_f64(f) {
-                return Some(serde_json::Value::Number(n));
-            }
+            && let Some(n) = serde_json::Number::from_f64(f)
+        {
+            return Some(serde_json::Value::Number(n));
+        }
         return None;
     }
 
@@ -231,24 +233,26 @@ fn dynamic_to_json(value: &Dynamic) -> Option<serde_json::Value> {
     }
 
     if value.is_array()
-        && let Ok(arr) = value.clone().into_array() {
-            let json_arr: Vec<serde_json::Value> = arr
-                .into_iter()
-                .filter_map(|v| dynamic_to_json(&v))
-                .collect();
-            return Some(serde_json::Value::Array(json_arr));
-        }
+        && let Ok(arr) = value.clone().into_array()
+    {
+        let json_arr: Vec<serde_json::Value> = arr
+            .into_iter()
+            .filter_map(|v| dynamic_to_json(&v))
+            .collect();
+        return Some(serde_json::Value::Array(json_arr));
+    }
 
     if value.is_map()
-        && let Some(map) = value.clone().try_cast::<rhai::Map>() {
-            let mut json_map = serde_json::Map::new();
-            for (k, v) in map {
-                if let Some(json_v) = dynamic_to_json(&v) {
-                    json_map.insert(k.to_string(), json_v);
-                }
+        && let Some(map) = value.clone().try_cast::<rhai::Map>()
+    {
+        let mut json_map = serde_json::Map::new();
+        for (k, v) in map {
+            if let Some(json_v) = dynamic_to_json(&v) {
+                json_map.insert(k.to_string(), json_v);
             }
-            return Some(serde_json::Value::Object(json_map));
         }
+        return Some(serde_json::Value::Object(json_map));
+    }
 
     // Default: convert to string representation
     Some(serde_json::Value::String(format!("{}", value)))

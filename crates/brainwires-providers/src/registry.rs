@@ -115,7 +115,9 @@ pub static PROVIDER_REGISTRY: &[ProviderEntry] = &[
         chat_protocol: ChatProtocol::AnthropicMessages,
         default_base_url: "https://api.anthropic.com/v1/messages",
         default_model: "claude-3-5-sonnet-20241022",
-        auth: AuthScheme::CustomHeader { header: "x-api-key" },
+        auth: AuthScheme::CustomHeader {
+            header: "x-api-key",
+        },
         supports_model_listing: true,
         models_url: Some("https://api.anthropic.com/v1/models"),
     },
@@ -177,7 +179,9 @@ pub static PROVIDER_REGISTRY: &[ProviderEntry] = &[
 
 /// Look up the registry entry for a given provider type.
 pub fn lookup(provider_type: ProviderType) -> Option<&'static ProviderEntry> {
-    PROVIDER_REGISTRY.iter().find(|e| e.provider_type == provider_type)
+    PROVIDER_REGISTRY
+        .iter()
+        .find(|e| e.provider_type == provider_type)
 }
 
 #[cfg(test)]
@@ -230,7 +234,12 @@ mod tests {
         assert_eq!(vertex.chat_protocol, ChatProtocol::AnthropicMessages);
 
         // But different auth schemes
-        assert_eq!(anthropic.auth, AuthScheme::CustomHeader { header: "x-api-key" });
+        assert_eq!(
+            anthropic.auth,
+            AuthScheme::CustomHeader {
+                header: "x-api-key"
+            }
+        );
         assert_eq!(bedrock.auth, AuthScheme::AwsSigV4);
         assert_eq!(vertex.auth, AuthScheme::GoogleOAuth);
     }

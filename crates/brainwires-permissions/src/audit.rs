@@ -287,29 +287,35 @@ impl AuditQuery {
     /// Check if an event matches this query
     pub fn matches(&self, event: &AuditEvent) -> bool {
         if let Some(ref agent_id) = self.agent_id
-            && event.agent_id.as_ref() != Some(agent_id) {
-                return false;
-            }
+            && event.agent_id.as_ref() != Some(agent_id)
+        {
+            return false;
+        }
         if let Some(event_type) = self.event_type
-            && event.event_type != event_type {
-                return false;
-            }
+            && event.event_type != event_type
+        {
+            return false;
+        }
         if let Some(ref action) = self.action
-            && !event.action.contains(action) {
-                return false;
-            }
+            && !event.action.contains(action)
+        {
+            return false;
+        }
         if let Some(outcome) = self.outcome
-            && event.outcome != outcome {
-                return false;
-            }
+            && event.outcome != outcome
+        {
+            return false;
+        }
         if let Some(since) = self.since
-            && event.timestamp < since {
-                return false;
-            }
+            && event.timestamp < since
+        {
+            return false;
+        }
         if let Some(until) = self.until
-            && event.timestamp > until {
-                return false;
-            }
+            && event.timestamp > until
+        {
+            return false;
+        }
         true
     }
 }
@@ -665,9 +671,10 @@ impl AuditLogger {
                     continue;
                 }
                 if let Ok(event) = serde_json::from_str::<AuditEvent>(&line)
-                    && query.matches(&event) {
-                        results.push(event);
-                    }
+                    && query.matches(&event)
+                {
+                    results.push(event);
+                }
             }
         }
 
@@ -703,7 +710,8 @@ impl AuditLogger {
     /// Export audit log to CSV
     pub fn export_csv(&self, query: &AuditQuery) -> Result<String> {
         let events = self.query(query)?;
-        let mut csv = String::from("timestamp,event_type,agent_id,action,target,outcome,policy_id\n");
+        let mut csv =
+            String::from("timestamp,event_type,agent_id,action,target,outcome,policy_id\n");
 
         for event in events {
             csv.push_str(&format!(
@@ -897,7 +905,12 @@ mod tests {
         let (logger, _temp) = create_test_logger();
 
         logger
-            .log_denied(Some("agent-123"), "write_file", Some("/.env"), "Protected file")
+            .log_denied(
+                Some("agent-123"),
+                "write_file",
+                Some("/.env"),
+                "Protected file",
+            )
             .unwrap();
 
         logger.flush().unwrap();
@@ -914,14 +927,12 @@ mod tests {
 
         logger
             .log(
-                AuditEvent::new(AuditEventType::ToolExecution)
-                    .with_outcome(ActionOutcome::Success),
+                AuditEvent::new(AuditEventType::ToolExecution).with_outcome(ActionOutcome::Success),
             )
             .unwrap();
         logger
             .log(
-                AuditEvent::new(AuditEventType::ToolExecution)
-                    .with_outcome(ActionOutcome::Success),
+                AuditEvent::new(AuditEventType::ToolExecution).with_outcome(ActionOutcome::Success),
             )
             .unwrap();
         logger

@@ -3,7 +3,7 @@
 //! HTTP client for authenticating with the Brainwires Studio backend.
 //! Uses injected endpoint configuration instead of CLI-specific constants.
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use regex::Regex;
 use reqwest::Client;
 
@@ -35,8 +35,7 @@ impl AuthClient {
             http_client: Client::new(),
             backend_url,
             auth_endpoint,
-            api_key_pattern: Regex::new(api_key_pattern)
-                .expect("Invalid API key regex pattern"),
+            api_key_pattern: Regex::new(api_key_pattern).expect("Invalid API key regex pattern"),
         }
     }
 
@@ -126,15 +125,35 @@ mod tests {
         let client = make_client();
 
         // Valid keys
-        assert!(client.validate_api_key_format("bw_dev_12345678901234567890123456789012").is_ok());
-        assert!(client.validate_api_key_format("bw_prod_abcdefghijklmnopqrstuvwxyz123456").is_ok());
-        assert!(client.validate_api_key_format("bw_test_00000000000000000000000000000000").is_ok());
+        assert!(
+            client
+                .validate_api_key_format("bw_dev_12345678901234567890123456789012")
+                .is_ok()
+        );
+        assert!(
+            client
+                .validate_api_key_format("bw_prod_abcdefghijklmnopqrstuvwxyz123456")
+                .is_ok()
+        );
+        assert!(
+            client
+                .validate_api_key_format("bw_test_00000000000000000000000000000000")
+                .is_ok()
+        );
 
         // Invalid keys
         assert!(client.validate_api_key_format("invalid").is_err());
-        assert!(client.validate_api_key_format("bw_invalid_12345678901234567890123456789012").is_err());
+        assert!(
+            client
+                .validate_api_key_format("bw_invalid_12345678901234567890123456789012")
+                .is_err()
+        );
         assert!(client.validate_api_key_format("bw_dev_short").is_err());
-        assert!(client.validate_api_key_format("bw_dev_UPPERCASE0000000000000000000000").is_err());
+        assert!(
+            client
+                .validate_api_key_format("bw_dev_UPPERCASE0000000000000000000000")
+                .is_err()
+        );
     }
 
     #[test]
@@ -159,9 +178,25 @@ mod tests {
         assert!(client.validate_api_key_format("").is_err());
         assert!(client.validate_api_key_format("   ").is_err());
         assert!(client.validate_api_key_format("bw_dev_123").is_err()); // too short
-        assert!(client.validate_api_key_format("bw_dev_123456789012345678901234567890123").is_err()); // too long
-        assert!(client.validate_api_key_format("dev_12345678901234567890123456789012").is_err()); // missing prefix
-        assert!(client.validate_api_key_format("bw__12345678901234567890123456789012").is_err()); // missing env
-        assert!(client.validate_api_key_format("bw_Dev_12345678901234567890123456789012").is_err()); // mixed case env
+        assert!(
+            client
+                .validate_api_key_format("bw_dev_123456789012345678901234567890123")
+                .is_err()
+        ); // too long
+        assert!(
+            client
+                .validate_api_key_format("dev_12345678901234567890123456789012")
+                .is_err()
+        ); // missing prefix
+        assert!(
+            client
+                .validate_api_key_format("bw__12345678901234567890123456789012")
+                .is_err()
+        ); // missing env
+        assert!(
+            client
+                .validate_api_key_format("bw_Dev_12345678901234567890123456789012")
+                .is_err()
+        ); // mixed case env
     }
 }

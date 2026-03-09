@@ -20,7 +20,7 @@ use tokio::sync::RwLock;
 use crate::communication::{AgentMessage, CommunicationHub};
 use crate::file_locks::{FileLockManager, LockGuard, LockType};
 use crate::validation_loop::{
-    format_validation_feedback, run_validation, ValidationConfig, ValidationResult,
+    ValidationConfig, ValidationResult, format_validation_feedback, run_validation,
 };
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -216,10 +216,8 @@ impl ValidatorAgent {
                     return Err(e);
                 }
                 Err(_elapsed) => {
-                    let err_msg = format!(
-                        "Validation timed out after {}s",
-                        self.config.timeout_secs
-                    );
+                    let err_msg =
+                        format!("Validation timed out after {}s", self.config.timeout_secs);
                     self.set_status(ValidatorAgentStatus::Error(err_msg.clone()))
                         .await;
                     self.cleanup(&lock_guards, false, &err_msg, start).await;
@@ -292,11 +290,7 @@ impl ValidatorAgent {
             tracing::warn!(agent_id = %self.id, "Failed to broadcast validator completion: {}", e);
         }
 
-        if let Err(e) = self
-            .communication_hub
-            .unregister_agent(&self.id)
-            .await
-        {
+        if let Err(e) = self.communication_hub.unregister_agent(&self.id).await {
             tracing::warn!(agent_id = %self.id, "Failed to unregister validator agent: {}", e);
         }
     }
@@ -349,11 +343,13 @@ mod tests {
 
         let result = agent.validate().await.unwrap();
         assert!(!result.success);
-        assert!(result
-            .validation_result
-            .issues
-            .iter()
-            .any(|i| i.check == "file_existence"));
+        assert!(
+            result
+                .validation_result
+                .issues
+                .iter()
+                .any(|i| i.check == "file_existence")
+        );
     }
 
     #[tokio::test]

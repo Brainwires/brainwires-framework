@@ -48,10 +48,10 @@
 //! ```
 
 use crate::{QueryPattern, ResolvedReference, SealProcessingResult};
+use anyhow::Result;
 use brainwires_brain::knowledge::{
     BehavioralKnowledgeCache, BehavioralTruth, PersonalKnowledgeCache, TruthCategory, TruthSource,
 };
-use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -151,9 +151,7 @@ impl IntegrationConfig {
 
     /// Validate configuration
     pub fn validate(&self) -> Result<()> {
-        if self.min_seal_quality_for_bks_boost < 0.0
-            || self.min_seal_quality_for_bks_boost > 1.0
-        {
+        if self.min_seal_quality_for_bks_boost < 0.0 || self.min_seal_quality_for_bks_boost > 1.0 {
             anyhow::bail!("min_seal_quality_for_bks_boost must be between 0.0 and 1.0");
         }
 
@@ -236,7 +234,10 @@ impl SealKnowledgeCoordinator {
     /// - SEAL resolves "it" → "main.rs"
     /// - PKS has: "main.rs is entry point for brainwires-cli"
     /// - Returns: Formatted context string with relevant facts
-    pub async fn get_pks_context(&self, seal_result: &SealProcessingResult) -> Result<Option<String>> {
+    pub async fn get_pks_context(
+        &self,
+        seal_result: &SealProcessingResult,
+    ) -> Result<Option<String>> {
         if !self.config.enabled {
             return Ok(None);
         }
@@ -264,7 +265,8 @@ impl SealKnowledgeCoordinator {
         for entity in entities {
             // Get facts related to this entity by looking for keys containing the entity name
             // This is a simple heuristic - could be improved with fuzzy matching
-            let all_facts: Vec<_> = pks.get_all_facts()
+            let all_facts: Vec<_> = pks
+                .get_all_facts()
                 .into_iter()
                 .filter(|f| !f.deleted && (f.key.contains(entity) || f.value.contains(entity)))
                 .collect();
@@ -275,7 +277,10 @@ impl SealKnowledgeCoordinator {
                 for fact in all_facts {
                     // Filter by confidence (only include reliable facts)
                     if fact.confidence >= 0.5 {
-                        context_parts.push(format!("  - {} (confidence: {:.2})", fact.value, fact.confidence));
+                        context_parts.push(format!(
+                            "  - {} (confidence: {:.2})",
+                            fact.value, fact.confidence
+                        ));
                     }
                 }
             }
@@ -426,7 +431,7 @@ impl SealKnowledgeCoordinator {
             rule,
             rationale,
             TruthSource::SuccessPattern, // Pattern emerged from successful usage
-            None, // Anonymous
+            None,                        // Anonymous
         );
 
         // Submit to BKS
@@ -589,7 +594,8 @@ impl SealKnowledgeCoordinator {
     /// Generalize a SEAL pattern template into a BKS rule
     fn generalize_pattern_to_rule(&self, pattern: &QueryPattern) -> String {
         // Note: QueryPattern has required_types, not entity_types
-        let types_str = pattern.required_types
+        let types_str = pattern
+            .required_types
             .iter()
             .map(|t| format!("{:?}", t))
             .collect::<Vec<_>>()
@@ -597,9 +603,7 @@ impl SealKnowledgeCoordinator {
 
         format!(
             "For '{:?}' queries about {}, use pattern: {}",
-            pattern.question_type,
-            types_str,
-            pattern.template
+            pattern.question_type, types_str, pattern.template
         )
     }
 
@@ -607,7 +611,10 @@ impl SealKnowledgeCoordinator {
     ///
     /// This is a best-effort conversion since BKS and SEAL use different schemas.
     /// Returns None if the truth doesn't map to a SEAL pattern.
-    fn truth_to_pattern_hint(&self, truth: &BehavioralTruth) -> Option<crate::learning::PatternHint> {
+    fn truth_to_pattern_hint(
+        &self,
+        truth: &BehavioralTruth,
+    ) -> Option<crate::learning::PatternHint> {
         Some(crate::learning::PatternHint {
             context_pattern: truth.context_pattern.clone(),
             rule: truth.rule.clone(),
@@ -673,9 +680,7 @@ mod tests {
         let bks_cache = Arc::new(Mutex::new(
             BehavioralKnowledgeCache::in_memory(100).unwrap(),
         ));
-        let pks_cache = Arc::new(Mutex::new(
-            PersonalKnowledgeCache::in_memory(100).unwrap(),
-        ));
+        let pks_cache = Arc::new(Mutex::new(PersonalKnowledgeCache::in_memory(100).unwrap()));
 
         SealKnowledgeCoordinator::new(bks_cache, pks_cache, IntegrationConfig::default()).unwrap()
     }

@@ -265,51 +265,45 @@ mod grpc_impl {
         sr: lf_a2a_v1::StreamResponse,
     ) -> Result<StreamEvent, A2aError> {
         match sr.payload {
-            Some(lf_a2a_v1::stream_response::Payload::Task(t)) => {
-                Ok(StreamEvent::Task(t.into()))
-            }
+            Some(lf_a2a_v1::stream_response::Payload::Task(t)) => Ok(StreamEvent::Task(t.into())),
             Some(lf_a2a_v1::stream_response::Payload::Message(m)) => {
                 Ok(StreamEvent::Message(m.into()))
             }
-            Some(lf_a2a_v1::stream_response::Payload::StatusUpdate(su)) => {
-                Ok(StreamEvent::StatusUpdate(
-                    crate::streaming::TaskStatusUpdateEvent {
-                        task_id: su.task_id,
-                        context_id: su.context_id,
-                        status: su
-                            .status
-                            .map(Into::into)
-                            .unwrap_or(crate::task::TaskStatus {
-                                state: crate::task::TaskState::Unknown,
-                                message: None,
-                                timestamp: None,
-                            }),
-                        metadata: None,
-                    },
-                ))
-            }
-            Some(lf_a2a_v1::stream_response::Payload::ArtifactUpdate(au)) => {
-                Ok(StreamEvent::ArtifactUpdate(
-                    crate::streaming::TaskArtifactUpdateEvent {
-                        task_id: au.task_id,
-                        context_id: au.context_id,
-                        artifact: au
-                            .artifact
-                            .map(Into::into)
-                            .unwrap_or(crate::types::Artifact {
-                                artifact_id: String::new(),
-                                name: None,
-                                description: None,
-                                parts: vec![],
-                                metadata: None,
-                                extensions: None,
-                            }),
-                        append: Some(au.append),
-                        last_chunk: Some(au.last_chunk),
-                        metadata: None,
-                    },
-                ))
-            }
+            Some(lf_a2a_v1::stream_response::Payload::StatusUpdate(su)) => Ok(
+                StreamEvent::StatusUpdate(crate::streaming::TaskStatusUpdateEvent {
+                    task_id: su.task_id,
+                    context_id: su.context_id,
+                    status: su
+                        .status
+                        .map(Into::into)
+                        .unwrap_or(crate::task::TaskStatus {
+                            state: crate::task::TaskState::Unknown,
+                            message: None,
+                            timestamp: None,
+                        }),
+                    metadata: None,
+                }),
+            ),
+            Some(lf_a2a_v1::stream_response::Payload::ArtifactUpdate(au)) => Ok(
+                StreamEvent::ArtifactUpdate(crate::streaming::TaskArtifactUpdateEvent {
+                    task_id: au.task_id,
+                    context_id: au.context_id,
+                    artifact: au
+                        .artifact
+                        .map(Into::into)
+                        .unwrap_or(crate::types::Artifact {
+                            artifact_id: String::new(),
+                            name: None,
+                            description: None,
+                            parts: vec![],
+                            metadata: None,
+                            extensions: None,
+                        }),
+                    append: Some(au.append),
+                    last_chunk: Some(au.last_chunk),
+                    metadata: None,
+                }),
+            ),
             None => Err(A2aError::internal("Empty stream response")),
         }
     }

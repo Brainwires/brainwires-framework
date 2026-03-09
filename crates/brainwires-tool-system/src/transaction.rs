@@ -77,8 +77,8 @@ impl TransactionManager {
     /// The staging directory is `<tmpdir>/brainwires-txn-<uuid>` and is created
     /// on construction.
     pub fn new() -> Result<Self> {
-        let staging_dir = std::env::temp_dir()
-            .join(format!("brainwires-txn-{}", uuid::Uuid::new_v4()));
+        let staging_dir =
+            std::env::temp_dir().join(format!("brainwires-txn-{}", uuid::Uuid::new_v4()));
         Self::with_dir(staging_dir)
     }
 
@@ -86,9 +86,8 @@ impl TransactionManager {
     ///
     /// The directory is created if it does not already exist.
     pub fn with_dir(staging_dir: PathBuf) -> Result<Self> {
-        fs::create_dir_all(&staging_dir).with_context(|| {
-            format!("Failed to create staging dir: {}", staging_dir.display())
-        })?;
+        fs::create_dir_all(&staging_dir)
+            .with_context(|| format!("Failed to create staging dir: {}", staging_dir.display()))?;
         Ok(Self {
             inner: Arc::new(Mutex::new(Inner {
                 staging_dir,
@@ -182,7 +181,11 @@ impl StagingBackend for TransactionManager {
     }
 
     fn pending_count(&self) -> usize {
-        self.inner.lock().expect("transaction log lock poisoned").staged.len()
+        self.inner
+            .lock()
+            .expect("transaction log lock poisoned")
+            .staged
+            .len()
     }
 }
 

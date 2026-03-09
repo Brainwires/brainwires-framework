@@ -8,7 +8,7 @@
 
 use anyhow::{Context, Result};
 use chrono::Utc;
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension, params};
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::Duration;
@@ -363,9 +363,10 @@ impl LockStore {
 
         // Check if expired
         if let Some(expires_at) = lock.expires_at
-            && now > expires_at {
-                return true;
-            }
+            && now > expires_at
+        {
+            return true;
+        }
 
         // Check if process is dead (only if same hostname)
         if lock.hostname == self.current_hostname && !Self::is_process_alive(lock.process_id) {
@@ -478,15 +479,11 @@ impl brainwires_agents::access_control::LockPersistence for LockStore {
         agent_id: &str,
         timeout: Option<std::time::Duration>,
     ) -> Result<bool> {
-        self.try_acquire(lock_type, resource_path, agent_id, timeout).await
+        self.try_acquire(lock_type, resource_path, agent_id, timeout)
+            .await
     }
 
-    async fn release(
-        &self,
-        lock_type: &str,
-        resource_path: &str,
-        agent_id: &str,
-    ) -> Result<()> {
+    async fn release(&self, lock_type: &str, resource_path: &str, agent_id: &str) -> Result<()> {
         self.release(lock_type, resource_path, agent_id).await?;
         Ok(())
     }

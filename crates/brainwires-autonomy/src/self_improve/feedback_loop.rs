@@ -5,16 +5,16 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Instant;
 
-use brainwires_core::Provider;
 use brainwires_agents::eval::fault_report::analyze_suite_for_faults;
 use brainwires_agents::eval::{
     EvaluationCase, EvaluationSuite, RegressionSuite, SuiteConfig, SuiteResult,
 };
+use brainwires_core::Provider;
 
-use crate::config::SelfImprovementConfig;
-use crate::metrics::{SessionMetrics, SessionReport};
 use super::controller::SelfImprovementController;
 use super::strategies::eval_strategy::{EvalStrategy, EvalStrategyConfig};
+use crate::config::SelfImprovementConfig;
+use crate::metrics::{SessionMetrics, SessionReport};
 
 /// Minimum improvement fraction required to update eval baselines.
 const IMPROVEMENT_THRESHOLD: f64 = 0.05;
@@ -95,7 +95,10 @@ impl FeedbackLoopReport {
     pub fn to_markdown(&self) -> String {
         let mut md = String::new();
         md.push_str("# Eval-Driven Feedback Loop Report\n\n");
-        md.push_str(&format!("**Total duration**: {:.1}s  \n", self.total_duration_secs));
+        md.push_str(&format!(
+            "**Total duration**: {:.1}s  \n",
+            self.total_duration_secs
+        ));
         md.push_str(&format!("**Rounds completed**: {}  \n", self.rounds.len()));
         md.push_str(&format!(
             "**Converged**: {}  \n\n",
@@ -143,7 +146,11 @@ impl AutonomousFeedbackLoop {
         cases: Vec<Arc<dyn EvaluationCase>>,
         provider: Arc<dyn Provider>,
     ) -> Self {
-        Self { config, cases, provider }
+        Self {
+            config,
+            cases,
+            provider,
+        }
     }
 
     /// Run the feedback loop, returning a report when complete.
@@ -189,7 +196,11 @@ impl AutonomousFeedbackLoop {
             self.config.flaky_ci_threshold,
         );
 
-        tracing::info!("Round {}: {} fault(s) before improvement", round, faults_before.len());
+        tracing::info!(
+            "Round {}: {} fault(s) before improvement",
+            round,
+            faults_before.len()
+        );
 
         if faults_before.is_empty() {
             let empty_report =

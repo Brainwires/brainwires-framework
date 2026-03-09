@@ -3,9 +3,11 @@
 //! Maintains a local copy of personal facts synced from the server, with offline
 //! queue support for when the server is unavailable.
 
-use super::fact::{PersonalFact, PendingFactSubmission, PersonalFactCategory, PersonalFactFeedback};
+use super::fact::{
+    PendingFactSubmission, PersonalFact, PersonalFactCategory, PersonalFactFeedback,
+};
 use anyhow::Result;
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension, params};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
@@ -126,7 +128,10 @@ impl PersonalKnowledgeCache {
 
     /// Load facts and state from database
     fn load_from_db(&mut self) -> Result<()> {
-        let conn = self.conn.lock().expect("personal knowledge cache connection lock poisoned");
+        let conn = self
+            .conn
+            .lock()
+            .expect("personal knowledge cache connection lock poisoned");
 
         // Load last sync timestamp
         self.last_sync = conn
@@ -183,7 +188,11 @@ impl PersonalKnowledgeCache {
         let submissions = stmt.query_map([], |row| {
             let json: String = row.get(0)?;
             let fact: PersonalFact = serde_json::from_str(&json).map_err(|e| {
-                rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(e))
+                rusqlite::Error::FromSqlConversionFailure(
+                    0,
+                    rusqlite::types::Type::Text,
+                    Box::new(e),
+                )
             })?;
             Ok(PendingFactSubmission {
                 fact,
@@ -220,7 +229,10 @@ impl PersonalKnowledgeCache {
 
     /// Save a fact to the database
     fn save_fact_to_db(&self, fact: &PersonalFact) -> Result<()> {
-        let conn = self.conn.lock().expect("personal knowledge cache connection lock poisoned");
+        let conn = self
+            .conn
+            .lock()
+            .expect("personal knowledge cache connection lock poisoned");
         let category = serde_json::to_string(&fact.category)?
             .trim_matches('"')
             .to_string();
@@ -259,7 +271,10 @@ impl PersonalKnowledgeCache {
     /// Update last sync timestamp
     pub fn set_last_sync(&mut self, timestamp: i64) -> Result<()> {
         self.last_sync = timestamp;
-        let conn = self.conn.lock().expect("personal knowledge cache connection lock poisoned");
+        let conn = self
+            .conn
+            .lock()
+            .expect("personal knowledge cache connection lock poisoned");
         conn.execute(
             "INSERT OR REPLACE INTO personal_sync_state (key, value) VALUES ('last_sync', ?1)",
             params![timestamp.to_string()],
@@ -271,12 +286,13 @@ impl PersonalKnowledgeCache {
     pub fn upsert_fact(&mut self, mut fact: PersonalFact) -> Result<()> {
         // Check if we already have a fact with this key
         if let Some(existing_id) = self.facts_by_key.get(&fact.key)
-            && let Some(existing) = self.facts.get(existing_id) {
-                // Update existing fact
-                fact.id = existing.id.clone();
-                fact.reinforcements = existing.reinforcements + 1;
-                fact.confidence = fact.confidence.max(existing.confidence);
-            }
+            && let Some(existing) = self.facts.get(existing_id)
+        {
+            // Update existing fact
+            fact.id = existing.id.clone();
+            fact.reinforcements = existing.reinforcements + 1;
+            fact.confidence = fact.confidence.max(existing.confidence);
+        }
 
         self.save_fact_to_db(&fact)?;
         self.facts_by_key.insert(fact.key.clone(), fact.id.clone());
@@ -316,15 +332,13 @@ impl PersonalKnowledgeCache {
 
     /// Get all non-deleted facts
     pub fn get_all_facts(&self) -> Vec<&PersonalFact> {
-        self.facts
-            .values()
-            .filter(|f| !f.deleted)
-            .collect()
+        self.facts.values().filter(|f| !f.deleted).collect()
     }
 
     /// Get facts by key prefix (e.g., "recent_entity:" gets all recent entity facts)
     pub fn get_facts_by_key_prefix(&self, prefix: &str) -> Result<Vec<&PersonalFact>> {
-        Ok(self.facts
+        Ok(self
+            .facts
             .values()
             .filter(|f| !f.deleted && f.key.starts_with(prefix))
             .collect())
@@ -439,7 +453,10 @@ impl PersonalKnowledgeCache {
         let submission = PendingFactSubmission::new(fact);
         let json = serde_json::to_string(&submission.fact)?;
 
-        let conn = self.conn.lock().expect("personal knowledge cache connection lock poisoned");
+        let conn = self
+            .conn
+            .lock()
+            .expect("personal knowledge cache connection lock poisoned");
         conn.execute(
             "INSERT INTO pending_fact_submissions (fact_json, queued_at, attempts) VALUES (?1, ?2, ?3)",
             params![json, submission.queued_at, submission.attempts],
@@ -457,7 +474,10 @@ impl PersonalKnowledgeCache {
     /// Clear all pending submissions (after successful sync)
     pub fn clear_pending_submissions(&mut self) -> Result<()> {
         self.pending_submissions.clear();
-        let conn = self.conn.lock().expect("personal knowledge cache connection lock poisoned");
+        let conn = self
+            .conn
+            .lock()
+            .expect("personal knowledge cache connection lock poisoned");
         conn.execute("DELETE FROM pending_fact_submissions", [])?;
         Ok(())
     }
@@ -466,15 +486,19 @@ impl PersonalKnowledgeCache {
     pub fn queue_feedback(&mut self, feedback: PersonalFactFeedback) -> Result<bool> {
         // Check if the fact is local-only
         if let Some(fact) = self.facts.get(&feedback.fact_id)
-            && fact.local_only {
-                return Ok(false); // Don't sync feedback for local-only facts
-            }
+            && fact.local_only
+        {
+            return Ok(false); // Don't sync feedback for local-only facts
+        }
 
         if self.pending_feedback.len() >= self.max_queue_size {
             return Ok(false);
         }
 
-        let conn = self.conn.lock().expect("personal knowledge cache connection lock poisoned");
+        let conn = self
+            .conn
+            .lock()
+            .expect("personal knowledge cache connection lock poisoned");
         conn.execute(
             "INSERT INTO pending_fact_feedback (fact_id, is_reinforcement, context, timestamp)
              VALUES (?1, ?2, ?3, ?4)",
@@ -498,7 +522,10 @@ impl PersonalKnowledgeCache {
     /// Clear all pending feedback (after successful sync)
     pub fn clear_pending_feedback(&mut self) -> Result<()> {
         self.pending_feedback.clear();
-        let conn = self.conn.lock().expect("personal knowledge cache connection lock poisoned");
+        let conn = self
+            .conn
+            .lock()
+            .expect("personal knowledge cache connection lock poisoned");
         conn.execute("DELETE FROM pending_fact_feedback", [])?;
         Ok(())
     }
@@ -520,7 +547,8 @@ impl PersonalKnowledgeCache {
                 if server_fact.version > local_fact.version {
                     // Server wins - update local
                     self.save_fact_to_db(&server_fact)?;
-                    self.facts_by_key.insert(server_fact.key.clone(), server_fact.id.clone());
+                    self.facts_by_key
+                        .insert(server_fact.key.clone(), server_fact.id.clone());
                     self.facts.insert(server_fact.id.clone(), server_fact);
                     updated += 1;
                 } else if server_fact.version < local_fact.version {
@@ -531,7 +559,8 @@ impl PersonalKnowledgeCache {
             } else {
                 // New fact from server
                 self.save_fact_to_db(&server_fact)?;
-                self.facts_by_key.insert(server_fact.key.clone(), server_fact.id.clone());
+                self.facts_by_key
+                    .insert(server_fact.key.clone(), server_fact.id.clone());
                 self.facts.insert(server_fact.id.clone(), server_fact);
                 added += 1;
             }
@@ -701,7 +730,9 @@ mod tests {
     #[test]
     fn test_get_by_key() {
         let mut cache = PersonalKnowledgeCache::in_memory(100).unwrap();
-        cache.add_fact(create_test_fact("language", "Rust")).unwrap();
+        cache
+            .add_fact(create_test_fact("language", "Rust"))
+            .unwrap();
 
         let retrieved = cache.get_fact_by_key("language").unwrap();
         assert_eq!(retrieved.value, "Rust");
@@ -712,11 +743,15 @@ mod tests {
         let mut cache = PersonalKnowledgeCache::in_memory(100).unwrap();
 
         // Add initial fact
-        cache.upsert_fact(create_test_fact("language", "Python")).unwrap();
+        cache
+            .upsert_fact(create_test_fact("language", "Python"))
+            .unwrap();
         assert_eq!(cache.get_fact_by_key("language").unwrap().value, "Python");
 
         // Upsert with same key should update
-        cache.upsert_fact(create_test_fact("language", "Rust")).unwrap();
+        cache
+            .upsert_fact(create_test_fact("language", "Rust"))
+            .unwrap();
         let fact = cache.get_fact_by_key("language").unwrap();
         assert_eq!(fact.value, "Rust");
         assert_eq!(fact.reinforcements, 1); // Should be incremented
@@ -743,8 +778,12 @@ mod tests {
     fn test_search_facts() {
         let mut cache = PersonalKnowledgeCache::in_memory(100).unwrap();
 
-        cache.add_fact(create_test_fact("language", "Rust")).unwrap();
-        cache.add_fact(create_test_fact("framework", "Actix")).unwrap();
+        cache
+            .add_fact(create_test_fact("language", "Rust"))
+            .unwrap();
+        cache
+            .add_fact(create_test_fact("framework", "Actix"))
+            .unwrap();
 
         let results = cache.search_facts("rust");
         assert_eq!(results.len(), 1);
@@ -771,7 +810,9 @@ mod tests {
         let mut cache = PersonalKnowledgeCache::in_memory(100).unwrap();
 
         cache.add_fact(create_test_fact("lang", "Rust")).unwrap();
-        cache.add_fact(create_test_fact("editor", "VSCode")).unwrap();
+        cache
+            .add_fact(create_test_fact("editor", "VSCode"))
+            .unwrap();
 
         let json = cache.export_json().unwrap();
 

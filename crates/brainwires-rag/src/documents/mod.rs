@@ -11,21 +11,21 @@
 //! - **DocumentBM25Manager** - Per-scope BM25 keyword search
 //! - **DocumentMetadataStore** - Document-level metadata persistence
 
-pub mod types;
-pub mod chunker;
-pub mod processor;
 pub mod bm25;
+pub mod chunker;
 pub mod lance_tables;
 pub mod metadata_store;
+pub mod processor;
 pub mod store;
+pub mod types;
 
 // Re-export key types
-pub use types::{
-    ChunkerConfig, DocumentChunk, DocumentMetadata, DocumentSearchRequest,
-    DocumentSearchResult, DocumentType, ExtractedDocument,
-};
-pub use chunker::DocumentChunker;
-pub use processor::DocumentProcessor;
 pub use bm25::{DocumentBM25Manager, DocumentBM25Result, DocumentBM25Stats, document_rrf_fusion};
+pub use chunker::DocumentChunker;
 pub use metadata_store::DocumentMetadataStore;
+pub use processor::DocumentProcessor;
 pub use store::{DocumentScope, DocumentStore};
+pub use types::{
+    ChunkerConfig, DocumentChunk, DocumentMetadata, DocumentSearchRequest, DocumentSearchResult,
+    DocumentType, ExtractedDocument,
+};

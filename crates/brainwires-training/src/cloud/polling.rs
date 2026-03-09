@@ -2,9 +2,9 @@ use std::time::Duration;
 use tokio::time::sleep;
 use tracing::{debug, info};
 
+use super::FineTuneProvider;
 use crate::error::TrainingError;
 use crate::types::{TrainingJobId, TrainingJobStatus};
-use super::FineTuneProvider;
 
 /// Default initial polling interval in seconds.
 const DEFAULT_POLL_INITIAL_SECS: u64 = 10;
@@ -107,20 +107,18 @@ impl JobPoller {
         provider: &dyn FineTuneProvider,
         job_id: &TrainingJobId,
     ) -> Result<TrainingJobStatus, TrainingError> {
-        self.poll_until_complete(provider, job_id, |status| {
-            match status {
-                TrainingJobStatus::Running { progress } => {
-                    info!(
-                        "Training progress: {:.1}% (step {}/{})",
-                        progress.completion_fraction() * 100.0,
-                        progress.step,
-                        progress.total_steps
-                    );
-                }
-                TrainingJobStatus::Queued => info!("Job is queued..."),
-                TrainingJobStatus::Validating => info!("Validating files..."),
-                status => info!("Status: {:?}", status),
+        self.poll_until_complete(provider, job_id, |status| match status {
+            TrainingJobStatus::Running { progress } => {
+                info!(
+                    "Training progress: {:.1}% (step {}/{})",
+                    progress.completion_fraction() * 100.0,
+                    progress.step,
+                    progress.total_steps
+                );
             }
+            TrainingJobStatus::Queued => info!("Job is queued..."),
+            TrainingJobStatus::Validating => info!("Validating files..."),
+            status => info!("Status: {:?}", status),
         })
         .await
     }

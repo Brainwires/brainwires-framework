@@ -143,7 +143,6 @@ pub enum AlignmentMethod {
     None,
 }
 
-
 impl AlignmentMethod {
     /// Create DPO alignment with default beta.
     pub fn dpo() -> Self {
@@ -179,7 +178,10 @@ mod tests {
     fn test_adapter_method_quantized() {
         assert!(!AdapterMethod::LoRA.is_quantized());
         assert!(AdapterMethod::QLoRA { bits: 4 }.is_quantized());
-        assert_eq!(AdapterMethod::QLoRA { bits: 4 }.quantization_bits(), Some(4));
+        assert_eq!(
+            AdapterMethod::QLoRA { bits: 4 }.quantization_bits(),
+            Some(4)
+        );
         assert!(AdapterMethod::DoRA.quantization_bits().is_none());
     }
 
@@ -189,7 +191,9 @@ mod tests {
         assert!(matches!(dpo, AlignmentMethod::DPO { beta } if (beta - 0.1).abs() < f64::EPSILON));
 
         let orpo = AlignmentMethod::orpo();
-        assert!(matches!(orpo, AlignmentMethod::ORPO { lambda } if (lambda - 0.5).abs() < f64::EPSILON));
+        assert!(
+            matches!(orpo, AlignmentMethod::ORPO { lambda } if (lambda - 0.5).abs() < f64::EPSILON)
+        );
     }
 
     #[test]

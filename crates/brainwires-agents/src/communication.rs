@@ -8,8 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::{mpsc, Mutex, RwLock};
-
+use tokio::sync::{Mutex, RwLock, mpsc};
 
 /// Types of messages agents can send to each other
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -128,7 +127,6 @@ pub enum AgentMessage {
     },
 
     // === New messages for agent coordination ===
-
     /// Notification that an exclusive operation has started
     OperationStarted {
         /// ID of the agent performing the operation.
@@ -234,7 +232,6 @@ pub enum AgentMessage {
     },
 
     // === Saga Protocol Messages ===
-
     /// A saga (multi-step transaction) has started
     SagaStarted {
         /// Unique saga identifier.
@@ -285,7 +282,6 @@ pub enum AgentMessage {
     },
 
     // === Contract-Net Protocol Messages ===
-
     /// A task has been announced for bidding
     TaskAnnounced {
         /// Unique task identifier.
@@ -335,7 +331,6 @@ pub enum AgentMessage {
     },
 
     // === Market Allocation Messages ===
-
     /// A resource is available for bidding
     ResourceAvailable {
         /// Unique resource identifier.
@@ -372,7 +367,6 @@ pub enum AgentMessage {
     },
 
     // === Worktree Messages ===
-
     /// A worktree has been created for an agent
     WorktreeCreated {
         /// ID of the agent that owns the worktree.
@@ -400,7 +394,6 @@ pub enum AgentMessage {
     },
 
     // === Validation Messages ===
-
     /// A validation check has failed
     ValidationFailed {
         /// ID of the agent that failed validation.
@@ -425,7 +418,6 @@ pub enum AgentMessage {
     },
 
     // === Optimistic Concurrency Messages ===
-
     /// A version conflict was detected
     VersionConflict {
         /// Resource with the version conflict.

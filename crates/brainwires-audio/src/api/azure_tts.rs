@@ -66,11 +66,7 @@ impl TextToSpeech for AzureTts {
         Ok(voices)
     }
 
-    async fn synthesize(
-        &self,
-        text: &str,
-        options: &TtsOptions,
-    ) -> AudioResult<AudioBuffer> {
+    async fn synthesize(&self, text: &str, options: &TtsOptions) -> AudioResult<AudioBuffer> {
         let output_format = format_to_azure(options.output_format);
 
         let bytes = self

@@ -322,7 +322,10 @@ impl TaskDecomposer for AtomicDecomposer {
 /// Validate decomposition result
 pub fn validate_decomposition(result: &DecompositionResult) -> MdapResult<()> {
     if result.subtasks.is_empty() {
-        return Err(DecompositionError::EmptyResult("Decomposition produced no subtasks".to_string()).into());
+        return Err(DecompositionError::EmptyResult(
+            "Decomposition produced no subtasks".to_string(),
+        )
+        .into());
     }
 
     // Check for circular dependencies
@@ -524,8 +527,10 @@ mod tests {
     #[test]
     fn test_validate_decomposition_invalid_dep() {
         let result = DecompositionResult::composite(
-            vec![Subtask::new("a", "Task A", serde_json::Value::Null)
-                .depends_on(vec!["nonexistent".to_string()])],
+            vec![
+                Subtask::new("a", "Task A", serde_json::Value::Null)
+                    .depends_on(vec!["nonexistent".to_string()]),
+            ],
             CompositionFunction::Sequence,
         );
 

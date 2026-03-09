@@ -36,7 +36,8 @@ impl ProxyService {
     /// Run the proxy until shutdown.
     pub async fn run(self) -> ProxyResult<()> {
         let (shutdown_tx, shutdown_rx) = watch::channel(false);
-        let (conn_tx, mut conn_rx) = mpsc::channel::<InboundConnection>(CONNECTION_CHANNEL_CAPACITY);
+        let (conn_tx, mut conn_rx) =
+            mpsc::channel::<InboundConnection>(CONNECTION_CHANNEL_CAPACITY);
 
         // Spawn the inspector API if configured
         #[cfg(feature = "inspector-api")]
@@ -46,8 +47,13 @@ impl ProxyService {
             let api_shutdown = shutdown_rx.clone();
             tokio::spawn(async move {
                 if let Err(e) = crate::inspector::api::run_inspector_api(
-                    api_addr, store, broadcaster, api_shutdown,
-                ).await {
+                    api_addr,
+                    store,
+                    broadcaster,
+                    api_shutdown,
+                )
+                .await
+                {
                     tracing::error!(error = %e, "Inspector API failed");
                 }
             });

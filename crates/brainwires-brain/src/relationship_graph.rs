@@ -93,24 +93,43 @@ impl RelationshipGraph {
     /// Add relationship as edge
     pub fn add_relationship(&mut self, rel: &Relationship) {
         let (from, to, edge_type, message_id) = match rel {
-            Relationship::CoOccurs { entity_a, entity_b, message_id } => {
-                (entity_a.clone(), entity_b.clone(), EdgeType::CoOccurs, Some(message_id.clone()))
-            }
-            Relationship::Contains { container, contained } => {
-                (container.clone(), contained.clone(), EdgeType::Contains, None)
-            }
+            Relationship::CoOccurs {
+                entity_a,
+                entity_b,
+                message_id,
+            } => (
+                entity_a.clone(),
+                entity_b.clone(),
+                EdgeType::CoOccurs,
+                Some(message_id.clone()),
+            ),
+            Relationship::Contains {
+                container,
+                contained,
+            } => (
+                container.clone(),
+                contained.clone(),
+                EdgeType::Contains,
+                None,
+            ),
             Relationship::References { from, to } => {
                 (from.clone(), to.clone(), EdgeType::References, None)
             }
-            Relationship::DependsOn { dependent, dependency } => {
-                (dependent.clone(), dependency.clone(), EdgeType::DependsOn, None)
-            }
-            Relationship::Modifies { modifier, modified, .. } => {
-                (modifier.clone(), modified.clone(), EdgeType::Modifies, None)
-            }
-            Relationship::Defines { definer, defined, .. } => {
-                (definer.clone(), defined.clone(), EdgeType::Defines, None)
-            }
+            Relationship::DependsOn {
+                dependent,
+                dependency,
+            } => (
+                dependent.clone(),
+                dependency.clone(),
+                EdgeType::DependsOn,
+                None,
+            ),
+            Relationship::Modifies {
+                modifier, modified, ..
+            } => (modifier.clone(), modified.clone(), EdgeType::Modifies, None),
+            Relationship::Defines {
+                definer, defined, ..
+            } => (definer.clone(), defined.clone(), EdgeType::Defines, None),
         };
 
         // Only add edge if both nodes exist
@@ -259,7 +278,9 @@ impl RelationshipGraph {
 
         // Sort by relevance
         context.related_entities.sort_by(|a, b| {
-            b.relevance.partial_cmp(&a.relevance).unwrap_or(std::cmp::Ordering::Equal)
+            b.relevance
+                .partial_cmp(&a.relevance)
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
 
         context
@@ -291,7 +312,8 @@ impl RelationshipGraph {
                 }
                 // Word overlap
                 else {
-                    let name_words: HashSet<_> = name_lower.split(|c: char| !c.is_alphanumeric()).collect();
+                    let name_words: HashSet<_> =
+                        name_lower.split(|c: char| !c.is_alphanumeric()).collect();
                     let overlap = query_words.intersection(&name_words).count();
                     score += overlap as f32 * 0.3;
                 }
@@ -306,7 +328,11 @@ impl RelationshipGraph {
 
         scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
-        scored.into_iter().take(limit).map(|(node, _)| node).collect()
+        scored
+            .into_iter()
+            .take(limit)
+            .map(|(node, _)| node)
+            .collect()
     }
 
     /// Get graph statistics
@@ -318,7 +344,9 @@ impl RelationshipGraph {
 
         let mut edge_type_counts = HashMap::new();
         for edge in &self.edges {
-            *edge_type_counts.entry(format!("{:?}", edge.edge_type)).or_insert(0) += 1;
+            *edge_type_counts
+                .entry(format!("{:?}", edge.edge_type))
+                .or_insert(0) += 1;
         }
 
         GraphStats {
@@ -479,8 +507,9 @@ impl RelationshipGraph {
                     if !entity_set.contains(second_neighbor.entity_name.as_str())
                         && second_neighbor.entity_name != *entity
                     {
-                        *scores.entry(second_neighbor.entity_name.clone()).or_default() +=
-                            second_neighbor.importance * 0.5;
+                        *scores
+                            .entry(second_neighbor.entity_name.clone())
+                            .or_default() += second_neighbor.importance * 0.5;
                     }
                 }
             }
@@ -541,10 +570,7 @@ impl RelationshipGraph {
             })
             .collect();
 
-        centrality.sort_by(|a, b| {
-            b.1.partial_cmp(&a.1)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
+        centrality.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
         centrality.into_iter().take(limit).map(|(n, _)| n).collect()
     }

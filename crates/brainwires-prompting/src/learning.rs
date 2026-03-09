@@ -4,9 +4,11 @@
 //! promoting successful patterns to BKS for collective learning.
 
 use super::techniques::PromptingTechnique;
-#[cfg(feature = "knowledge")]
-use brainwires_brain::knowledge::{BehavioralKnowledgeCache, BehavioralTruth, TruthCategory, TruthSource};
 use anyhow::Result;
+#[cfg(feature = "knowledge")]
+use brainwires_brain::knowledge::{
+    BehavioralKnowledgeCache, BehavioralTruth, TruthCategory, TruthSource,
+};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -207,7 +209,10 @@ impl PromptingLearningCoordinator {
     /// # Returns
     /// * `true` if technique qualifies for promotion
     pub fn should_promote(&self, cluster_id: &str, technique: &PromptingTechnique) -> bool {
-        if let Some(stats) = self.technique_stats.get(&(cluster_id.to_string(), technique.clone())) {
+        if let Some(stats) = self
+            .technique_stats
+            .get(&(cluster_id.to_string(), technique.clone()))
+        {
             let reliability = stats.reliability();
             let uses = stats.total_uses();
 
@@ -230,7 +235,8 @@ impl PromptingLearningCoordinator {
             return Ok(false);
         }
 
-        let stats = self.technique_stats
+        let stats = self
+            .technique_stats
             .get(&(cluster_id.to_string(), technique.clone()))
             .expect("should_promote verified this entry exists");
 
@@ -251,9 +257,7 @@ impl PromptingLearningCoordinator {
                 "Learned from {} executions with avg quality {:.2}. \
                 Average iterations: {:.1}. \
                 This technique has proven effective for this task cluster.",
-                uses,
-                stats.avg_quality,
-                stats.avg_iterations
+                uses, stats.avg_quality, stats.avg_iterations
             ), // rationale
             TruthSource::SuccessPattern,
             None, // No specific user attribution
@@ -284,17 +288,19 @@ impl PromptingLearningCoordinator {
         let mut promoted = Vec::new();
 
         // Collect eligible techniques (to avoid borrowing issues)
-        let eligible: Vec<_> = self.technique_stats
+        let eligible: Vec<_> = self
+            .technique_stats
             .keys()
-            .filter(|(cluster_id, technique)| {
-                self.should_promote(cluster_id, technique)
-            })
+            .filter(|(cluster_id, technique)| self.should_promote(cluster_id, technique))
             .cloned()
             .collect();
 
         // Promote each eligible technique
         for (cluster_id, technique) in eligible {
-            if self.promote_technique_to_bks(&cluster_id, &technique).await? {
+            if self
+                .promote_technique_to_bks(&cluster_id, &technique)
+                .await?
+            {
                 promoted.push((cluster_id, technique));
             }
         }
@@ -303,8 +309,13 @@ impl PromptingLearningCoordinator {
     }
 
     /// Get statistics for a specific technique in a cluster
-    pub fn get_stats(&self, cluster_id: &str, technique: &PromptingTechnique) -> Option<&TechniqueStats> {
-        self.technique_stats.get(&(cluster_id.to_string(), technique.clone()))
+    pub fn get_stats(
+        &self,
+        cluster_id: &str,
+        technique: &PromptingTechnique,
+    ) -> Option<&TechniqueStats> {
+        self.technique_stats
+            .get(&(cluster_id.to_string(), technique.clone()))
     }
 
     /// Get all statistics
@@ -383,9 +394,7 @@ impl ClusterSummary {
     pub fn promotable_techniques(&self, threshold: f32, min_uses: u32) -> Vec<&PromptingTechnique> {
         self.techniques
             .iter()
-            .filter(|(_, stats)| {
-                stats.reliability() >= threshold && stats.total_uses() >= min_uses
-            })
+            .filter(|(_, stats)| stats.reliability() >= threshold && stats.total_uses() >= min_uses)
             .map(|(technique, _)| technique)
             .collect()
     }
@@ -414,7 +423,7 @@ mod tests {
     #[test]
     fn test_should_promote() {
         let bks_cache = Arc::new(Mutex::new(
-            BehavioralKnowledgeCache::in_memory(100).unwrap()
+            BehavioralKnowledgeCache::in_memory(100).unwrap(),
         ));
         let mut coordinator = PromptingLearningCoordinator::new(bks_cache);
 
@@ -439,7 +448,7 @@ mod tests {
     #[test]
     fn test_not_enough_uses() {
         let bks_cache = Arc::new(Mutex::new(
-            BehavioralKnowledgeCache::in_memory(100).unwrap()
+            BehavioralKnowledgeCache::in_memory(100).unwrap(),
         ));
         let mut coordinator = PromptingLearningCoordinator::new(bks_cache);
 
@@ -464,7 +473,7 @@ mod tests {
     #[test]
     fn test_reliability_too_low() {
         let bks_cache = Arc::new(Mutex::new(
-            BehavioralKnowledgeCache::in_memory(100).unwrap()
+            BehavioralKnowledgeCache::in_memory(100).unwrap(),
         ));
         let mut coordinator = PromptingLearningCoordinator::new(bks_cache);
 
@@ -499,7 +508,7 @@ mod tests {
     #[test]
     fn test_cluster_summary() {
         let bks_cache = Arc::new(Mutex::new(
-            BehavioralKnowledgeCache::in_memory(100).unwrap()
+            BehavioralKnowledgeCache::in_memory(100).unwrap(),
         ));
         let mut coordinator = PromptingLearningCoordinator::new(bks_cache);
 
@@ -532,7 +541,7 @@ mod tests {
     #[tokio::test]
     async fn test_promotion_to_bks() {
         let bks_cache = Arc::new(Mutex::new(
-            BehavioralKnowledgeCache::in_memory(100).unwrap()
+            BehavioralKnowledgeCache::in_memory(100).unwrap(),
         ));
         let mut coordinator = PromptingLearningCoordinator::new(bks_cache.clone());
 
@@ -552,7 +561,10 @@ mod tests {
         }
 
         // Promote to BKS
-        let promoted = coordinator.promote_technique_to_bks(cluster_id, &technique).await.unwrap();
+        let promoted = coordinator
+            .promote_technique_to_bks(cluster_id, &technique)
+            .await
+            .unwrap();
         assert!(promoted);
 
         // Verify BKS contains the truth

@@ -3,8 +3,8 @@
 use crate::error::ProxyResult;
 use crate::middleware::{LayerAction, ProxyLayer};
 use crate::types::{ProxyRequest, ProxyResponse};
-use http::header::{AUTHORIZATION, HeaderValue};
 use http::StatusCode;
+use http::header::{AUTHORIZATION, HeaderValue};
 
 /// Strategy for handling authentication tokens.
 pub enum AuthStrategy {
@@ -127,10 +127,7 @@ mod tests {
         let result = layer.on_request(req).await.unwrap();
         match result {
             LayerAction::Forward(req) => {
-                assert_eq!(
-                    req.headers.get(AUTHORIZATION).unwrap(),
-                    "Bearer my-token"
-                );
+                assert_eq!(req.headers.get(AUTHORIZATION).unwrap(), "Bearer my-token");
             }
             _ => panic!("expected forward"),
         }

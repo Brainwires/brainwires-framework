@@ -109,7 +109,10 @@ impl DocumentMetadataStore {
     }
 
     /// List documents for a conversation
-    pub async fn list_by_conversation(&self, conversation_id: &str) -> Result<Vec<DocumentMetadata>> {
+    pub async fn list_by_conversation(
+        &self,
+        conversation_id: &str,
+    ) -> Result<Vec<DocumentMetadata>> {
         let table = lance_tables::open_document_metadata_table(&self.connection).await?;
 
         let filter = format!("conversation_id = '{}'", conversation_id);
@@ -224,10 +227,8 @@ impl DocumentMetadataStore {
         schema: &Arc<Schema>,
     ) -> Result<RecordBatch> {
         let document_id = StringArray::from(vec![metadata.document_id.as_str()]);
-        let conversation_id = StringArray::from(vec![metadata
-            .conversation_id
-            .as_deref()
-            .unwrap_or("")]);
+        let conversation_id =
+            StringArray::from(vec![metadata.conversation_id.as_deref().unwrap_or("")]);
         let project_id = StringArray::from(vec![metadata.project_id.as_deref().unwrap_or("")]);
         let file_name = StringArray::from(vec![metadata.file_name.as_str()]);
         let file_type = StringArray::from(vec![format!("{:?}", metadata.file_type).as_str()]);

@@ -7,13 +7,12 @@ use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use brainwires_core::{Task, PlanMetadata};
+use brainwires_core::{PlanMetadata, Task};
 
 use crate::task_manager::TaskManager;
 
 /// Approval mode for plan execution
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ExecutionApprovalMode {
     /// Suggest mode - ask user before each task (safest)
     Suggest,
@@ -23,7 +22,6 @@ pub enum ExecutionApprovalMode {
     #[default]
     FullAuto,
 }
-
 
 impl std::fmt::Display for ExecutionApprovalMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -161,7 +159,7 @@ impl PlanExecutorAgent {
     /// Check if a task needs approval based on current mode
     pub fn needs_approval(&self, _task: &Task) -> bool {
         match self.config.approval_mode {
-            ExecutionApprovalMode::Suggest => true, // Always ask
+            ExecutionApprovalMode::Suggest => true,   // Always ask
             ExecutionApprovalMode::AutoEdit => false, // Auto-approve (shell commands need separate handling)
             ExecutionApprovalMode::FullAuto => false, // Never ask
         }
@@ -184,7 +182,10 @@ impl PlanExecutorAgent {
         match task_mgr.can_start(task_id).await {
             Ok(true) => {}
             Ok(false) => {
-                anyhow::bail!("Task '{}' cannot be started (may already be completed)", task_id);
+                anyhow::bail!(
+                    "Task '{}' cannot be started (may already be completed)",
+                    task_id
+                );
             }
             Err(blocking_tasks) => {
                 anyhow::bail!(
@@ -415,7 +416,7 @@ fn format_duration(secs: i64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use brainwires_core::{TaskPriority, TaskStatus, PlanStatus};
+    use brainwires_core::{PlanStatus, TaskPriority, TaskStatus};
 
     fn create_test_plan() -> PlanMetadata {
         PlanMetadata {

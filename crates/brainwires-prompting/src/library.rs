@@ -5,12 +5,11 @@
 //! technique effectiveness across users.
 
 use super::techniques::{
-    ComplexityLevel, PromptingTechnique, TaskCharacteristic, TechniqueCategory,
-    TechniqueMetadata,
+    ComplexityLevel, PromptingTechnique, TaskCharacteristic, TechniqueCategory, TechniqueMetadata,
 };
+use anyhow::Result;
 #[cfg(feature = "knowledge")]
 use brainwires_brain::knowledge::{BehavioralKnowledgeCache, BehavioralTruth};
-use anyhow::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -419,7 +418,9 @@ mod tests {
         let library = TechniqueLibrary::new();
 
         assert_eq!(
-            library.get_by_category(TechniqueCategory::RoleAssignment).len(),
+            library
+                .get_by_category(TechniqueCategory::RoleAssignment)
+                .len(),
             1
         );
         assert_eq!(
@@ -428,7 +429,10 @@ mod tests {
                 .len(),
             2
         );
-        assert_eq!(library.get_by_category(TechniqueCategory::Reasoning).len(), 7);
+        assert_eq!(
+            library.get_by_category(TechniqueCategory::Reasoning).len(),
+            7
+        );
         assert_eq!(library.get_by_category(TechniqueCategory::Others).len(), 5);
     }
 

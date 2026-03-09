@@ -31,8 +31,8 @@ pub fn write_agent_metadata(sessions_dir: &Path, metadata: &AgentMetadata) -> Re
         std::fs::create_dir_all(parent)?;
     }
 
-    let json = serde_json::to_string_pretty(metadata)
-        .context("Failed to serialize agent metadata")?;
+    let json =
+        serde_json::to_string_pretty(metadata).context("Failed to serialize agent metadata")?;
 
     std::fs::write(&meta_path, json)
         .with_context(|| format!("Failed to write metadata to {}", meta_path.display()))?;
@@ -134,11 +134,14 @@ pub async fn is_agent_alive(sessions_dir: &Path, session_id: &str) -> bool {
 
     // Try to connect with a reasonable timeout
     // This is the only reliable way to know if the socket is accepting connections
-    matches!(tokio::time::timeout(
-        std::time::Duration::from_secs(2),
-        UnixStream::connect(&socket_path),
+    matches!(
+        tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            UnixStream::connect(&socket_path),
+        )
+        .await,
+        Ok(Ok(_))
     )
-    .await, Ok(Ok(_)))
 }
 
 /// Clean up stale socket files
@@ -229,10 +232,7 @@ pub fn list_agent_sessions_with_metadata(sessions_dir: &Path) -> Result<Vec<Agen
                         agents.push(metadata);
                     }
                     Err(e) => {
-                        tracing::warn!(
-                            "Failed to read metadata for session {}: {}",
-                            session_id, e
-                        );
+                        tracing::warn!("Failed to read metadata for session {}: {}", session_id, e);
                     }
                 }
             }
@@ -246,7 +246,10 @@ pub fn list_agent_sessions_with_metadata(sessions_dir: &Path) -> Result<Vec<Agen
 }
 
 /// Get children of a given agent
-pub fn get_child_agents(sessions_dir: &Path, parent_session_id: &str) -> Result<Vec<AgentMetadata>> {
+pub fn get_child_agents(
+    sessions_dir: &Path,
+    parent_session_id: &str,
+) -> Result<Vec<AgentMetadata>> {
     let all_agents = list_agent_sessions_with_metadata(sessions_dir)?;
 
     Ok(all_agents
@@ -275,15 +278,13 @@ pub fn get_agent_depth(sessions_dir: &Path, session_id: &str) -> Result<u32> {
 
     loop {
         match read_agent_metadata(sessions_dir, &current_id) {
-            Ok(Some(metadata)) => {
-                match metadata.parent_agent_id {
-                    Some(parent_id) => {
-                        depth += 1;
-                        current_id = parent_id;
-                    }
-                    None => break,
+            Ok(Some(metadata)) => match metadata.parent_agent_id {
+                Some(parent_id) => {
+                    depth += 1;
+                    current_id = parent_id;
                 }
-            }
+                None => break,
+            },
             Ok(None) => break, // No metadata = assume root
             Err(_) => break,   // Error reading = stop traversal
         }
@@ -343,13 +344,7 @@ pub fn format_agent_tree(sessions_dir: &Path, current_session_id: Option<&str>) 
 
             output.push_str(&format!(
                 "{}{}{} [{}] {}{}{}\n",
-                prefix,
-                connector,
-                agent.session_id,
-                agent.model,
-                status,
-                reason_str,
-                marker,
+                prefix, connector, agent.session_id, agent.model, status, reason_str, marker,
             ));
 
             // Render children
@@ -398,7 +393,11 @@ mod tests {
             "child-session".to_string(),
             "gpt-3.5".to_string(),
             "/home/user/project".to_string(),
-        ).with_parent("parent-session".to_string(), Some("investigate bug".to_string()));
+        )
+        .with_parent(
+            "parent-session".to_string(),
+            Some("investigate bug".to_string()),
+        );
 
         assert_eq!(metadata.parent_agent_id, Some("parent-session".to_string()));
         assert_eq!(metadata.spawn_reason, Some("investigate bug".to_string()));
@@ -426,8 +425,11 @@ mod tests {
         // Update metadata
         update_agent_metadata(sessions_dir, "test-io-session", |m| {
             m.set_busy(true);
-        }).unwrap();
-        let updated = read_agent_metadata(sessions_dir, "test-io-session").unwrap().unwrap();
+        })
+        .unwrap();
+        let updated = read_agent_metadata(sessions_dir, "test-io-session")
+            .unwrap()
+            .unwrap();
         assert!(updated.is_busy);
 
         // Delete metadata
@@ -448,16 +450,19 @@ mod tests {
                 "child-1".to_string(),
                 "gpt-3.5".to_string(),
                 "/home".to_string(),
-            ).with_parent("parent-1".to_string(), Some("investigate".to_string())),
+            )
+            .with_parent("parent-1".to_string(), Some("investigate".to_string())),
             AgentMetadata::new(
                 "child-2".to_string(),
                 "claude".to_string(),
                 "/home".to_string(),
-            ).with_parent("parent-1".to_string(), Some("code review".to_string())),
+            )
+            .with_parent("parent-1".to_string(), Some("code review".to_string())),
         ];
 
         // Verify parent-child relationships
-        let children: Vec<_> = agents.iter()
+        let children: Vec<_> = agents
+            .iter()
             .filter(|a| a.parent_agent_id.as_deref() == Some("parent-1"))
             .collect();
 

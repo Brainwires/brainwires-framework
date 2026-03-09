@@ -7,10 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 use super::profiles::CapabilityProfile;
-use super::types::{
-    AgentCapabilities, GitOperation,
-    PathPattern, ToolCategory,
-};
+use super::types::{AgentCapabilities, GitOperation, PathPattern, ToolCategory};
 
 /// Root configuration structure for permissions.toml
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -340,15 +337,18 @@ impl From<&PolicyConditionConfig> for PolicyCondition {
                 ..Default::default()
             },
             PolicyConditionConfig::TrustLevel { trust_level } => {
-                let level = trust_level.at_least.as_ref()
-                    .and_then(|s| match s.to_lowercase().as_str() {
-                        "untrusted" => Some(0),
-                        "low" => Some(1),
-                        "medium" => Some(2),
-                        "high" => Some(3),
-                        "system" => Some(4),
-                        _ => s.parse().ok(),
-                    });
+                let level =
+                    trust_level
+                        .at_least
+                        .as_ref()
+                        .and_then(|s| match s.to_lowercase().as_str() {
+                            "untrusted" => Some(0),
+                            "low" => Some(1),
+                            "medium" => Some(2),
+                            "high" => Some(3),
+                            "system" => Some(4),
+                            _ => s.parse().ok(),
+                        });
                 PolicyCondition {
                     min_trust_level: level,
                     ..Default::default()
@@ -420,10 +420,8 @@ impl PermissionsConfig {
 
         // Apply tools overrides
         if let Some(ref cats) = self.tools.allowed_categories {
-            caps.tools.allowed_categories = cats
-                .iter()
-                .filter_map(|c| parse_tool_category(c))
-                .collect();
+            caps.tools.allowed_categories =
+                cats.iter().filter_map(|c| parse_tool_category(c)).collect();
         }
         if let Some(ref tools) = self.tools.denied_tools {
             caps.tools.denied_tools = tools.iter().cloned().collect();
@@ -565,8 +563,7 @@ enforcement = "Coercive"
 /// Uses ~/.brainwires/permissions.toml
 #[cfg(feature = "native")]
 pub fn default_permissions_path() -> Result<PathBuf> {
-    let home = dirs::home_dir()
-        .ok_or_else(|| anyhow::anyhow!("Failed to get home directory"))?;
+    let home = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Failed to get home directory"))?;
     Ok(home.join(".brainwires").join("permissions.toml"))
 }
 
@@ -678,8 +675,14 @@ mod tests {
 
     #[test]
     fn test_parse_tool_category() {
-        assert_eq!(parse_tool_category("FileRead"), Some(ToolCategory::FileRead));
-        assert_eq!(parse_tool_category("file_read"), Some(ToolCategory::FileRead));
+        assert_eq!(
+            parse_tool_category("FileRead"),
+            Some(ToolCategory::FileRead)
+        );
+        assert_eq!(
+            parse_tool_category("file_read"),
+            Some(ToolCategory::FileRead)
+        );
         assert_eq!(parse_tool_category("Git"), Some(ToolCategory::Git));
         assert_eq!(parse_tool_category("invalid"), None);
     }
@@ -688,15 +691,25 @@ mod tests {
     fn test_parse_git_operation() {
         assert_eq!(parse_git_operation("Status"), Some(GitOperation::Status));
         assert_eq!(parse_git_operation("push"), Some(GitOperation::Push));
-        assert_eq!(parse_git_operation("ForcePush"), Some(GitOperation::ForcePush));
-        assert_eq!(parse_git_operation("force_push"), Some(GitOperation::ForcePush));
+        assert_eq!(
+            parse_git_operation("ForcePush"),
+            Some(GitOperation::ForcePush)
+        );
+        assert_eq!(
+            parse_git_operation("force_push"),
+            Some(GitOperation::ForcePush)
+        );
     }
 
     #[test]
     fn test_default_toml_parses() {
         let toml_str = PermissionsConfig::default_toml();
         let config: Result<PermissionsConfig, _> = toml::from_str(&toml_str);
-        assert!(config.is_ok(), "Default TOML should parse: {:?}", config.err());
+        assert!(
+            config.is_ok(),
+            "Default TOML should parse: {:?}",
+            config.err()
+        );
     }
 
     #[test]

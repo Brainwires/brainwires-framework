@@ -24,8 +24,7 @@ mod server;
 use clap::Parser;
 use config::DaemonConfig;
 use rmcp::transport::streamable_http_server::{
-    StreamableHttpServerConfig, StreamableHttpService,
-    session::local::LocalSessionManager,
+    StreamableHttpServerConfig, StreamableHttpService, session::local::LocalSessionManager,
 };
 use server::ReloadServer;
 use std::sync::Arc;
@@ -42,8 +41,7 @@ struct Cli {
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info".into()),
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
         )
         .init();
 
@@ -69,10 +67,7 @@ async fn main() -> anyhow::Result<()> {
         streamable_http_config,
     );
 
-    let app = axum::Router::new().route(
-        "/mcp",
-        axum::routing::any_service(service),
-    );
+    let app = axum::Router::new().route("/mcp", axum::routing::any_service(service));
 
     let listener = tokio::net::TcpListener::bind(&listen_addr).await?;
     tracing::info!("reload-daemon listening on {listen_addr}");

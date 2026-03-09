@@ -38,7 +38,10 @@ impl Executor {
             Language::Rhai => {
                 use crate::languages::rhai::RhaiExecutor;
                 let executor = RhaiExecutor::with_limits(
-                    request.limits.clone().unwrap_or_else(ExecutionLimits::default),
+                    request
+                        .limits
+                        .clone()
+                        .unwrap_or_else(ExecutionLimits::default),
                 );
                 executor.execute_code(&request)
             }
@@ -47,7 +50,10 @@ impl Executor {
             Language::Lua => {
                 use crate::languages::lua::LuaExecutor;
                 let executor = LuaExecutor::with_limits(
-                    request.limits.clone().unwrap_or_else(ExecutionLimits::default),
+                    request
+                        .limits
+                        .clone()
+                        .unwrap_or_else(ExecutionLimits::default),
                 );
                 executor.execute_code(&request)
             }
@@ -56,7 +62,10 @@ impl Executor {
             Language::JavaScript => {
                 use crate::languages::javascript::JavaScriptExecutor;
                 let executor = JavaScriptExecutor::with_limits(
-                    request.limits.clone().unwrap_or_else(ExecutionLimits::default),
+                    request
+                        .limits
+                        .clone()
+                        .unwrap_or_else(ExecutionLimits::default),
                 );
                 executor.execute_code(&request)
             }
@@ -65,7 +74,10 @@ impl Executor {
             Language::Python => {
                 use crate::languages::python::PythonExecutor;
                 let executor = PythonExecutor::with_limits(
-                    request.limits.clone().unwrap_or_else(ExecutionLimits::default),
+                    request
+                        .limits
+                        .clone()
+                        .unwrap_or_else(ExecutionLimits::default),
                 );
                 executor.execute_code(&request)
             }
@@ -183,13 +195,7 @@ mod tests {
         assert!(Language::parse("rhai").is_some());
 
         // Ensure both aliases map to the same variant
-        assert_eq!(
-            Language::parse("python"),
-            Language::parse("py")
-        );
-        assert_eq!(
-            Language::parse("javascript"),
-            Language::parse("js")
-        );
+        assert_eq!(Language::parse("python"), Language::parse("py"));
+        assert_eq!(Language::parse("javascript"), Language::parse("js"));
     }
 }

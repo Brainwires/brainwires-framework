@@ -184,7 +184,8 @@ impl DocumentChunker {
             }
 
             // Check if adding this paragraph would exceed target size
-            let would_exceed = current_chunk.len() + para_trimmed.len() > self.config.target_chunk_size;
+            let would_exceed =
+                current_chunk.len() + para_trimmed.len() > self.config.target_chunk_size;
             let _is_last = i == paragraphs.len() - 1;
 
             if would_exceed && !current_chunk.is_empty() {
@@ -407,9 +408,7 @@ impl DocumentChunker {
             current.push(c);
 
             // End of sentence markers
-            if (c == '.' || c == '!' || c == '?')
-                && current.len() > 1
-            {
+            if (c == '.' || c == '!' || c == '?') && current.len() > 1 {
                 // Check for common abbreviations
                 let lower = current.to_lowercase();
                 let is_abbreviation = lower.ends_with("mr.")
@@ -476,7 +475,12 @@ impl DocumentChunker {
 
             // Move start forward, accounting for overlap
             start = actual_end.saturating_sub(self.config.overlap_size);
-            if start <= chunks.last().map(|c| c.start_offset - base_offset).unwrap_or(0) {
+            if start
+                <= chunks
+                    .last()
+                    .map(|c| c.start_offset - base_offset)
+                    .unwrap_or(0)
+            {
                 start = actual_end;
             }
         }
@@ -532,9 +536,13 @@ mod tests {
     #[test]
     fn test_markdown_header_detection() {
         assert!(DocumentChunker::looks_like_markdown("# Title\n\nContent"));
-        assert!(DocumentChunker::looks_like_markdown("Some text\n## Subtitle\n"));
+        assert!(DocumentChunker::looks_like_markdown(
+            "Some text\n## Subtitle\n"
+        ));
         assert!(DocumentChunker::looks_like_markdown("```rust\ncode\n```"));
-        assert!(!DocumentChunker::looks_like_markdown("Plain text without any markdown."));
+        assert!(!DocumentChunker::looks_like_markdown(
+            "Plain text without any markdown."
+        ));
     }
 
     #[test]
@@ -560,7 +568,7 @@ mod tests {
     #[test]
     fn test_sentence_splitting() {
         let sentences = DocumentChunker::split_sentences(
-            "First sentence. Second sentence! Third sentence? Fourth."
+            "First sentence. Second sentence! Third sentence? Fourth.",
         );
         assert_eq!(sentences.len(), 4);
         assert_eq!(sentences[0], "First sentence.");
@@ -570,9 +578,8 @@ mod tests {
 
     #[test]
     fn test_abbreviations_not_split() {
-        let sentences = DocumentChunker::split_sentences(
-            "Dr. Smith went to the store. He bought milk."
-        );
+        let sentences =
+            DocumentChunker::split_sentences("Dr. Smith went to the store. He bought milk.");
         // Should be 2 sentences, not split on "Dr."
         assert_eq!(sentences.len(), 2);
     }

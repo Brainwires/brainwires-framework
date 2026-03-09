@@ -6,42 +6,43 @@
 //! Provides JSONL I/O, tokenization, deduplication, format conversion, and
 //! dataset management for cloud and local model fine-tuning workflows.
 
-/// Error types for dataset operations.
-pub mod error;
-/// Core training data types (messages, examples, preference pairs).
-pub mod types;
 /// Dataset trait and concrete dataset implementations.
 pub mod dataset;
-/// JSONL reader and writer for streaming I/O.
-pub mod jsonl;
-/// Tokenizer abstractions and implementations.
-pub mod tokenizer;
-/// Data quality validation, statistics, and deduplication.
-pub mod quality;
+/// Error types for dataset operations.
+pub mod error;
 /// Format converters for various fine-tuning providers.
 pub mod format;
+/// JSONL reader and writer for streaming I/O.
+pub mod jsonl;
+/// Data quality validation, statistics, and deduplication.
+pub mod quality;
 /// Train/eval splitting, curriculum ordering, and sampling utilities.
 pub mod sampling;
+/// Tokenizer abstractions and implementations.
+pub mod tokenizer;
+/// Core training data types (messages, examples, preference pairs).
+pub mod types;
 
 // Re-export core types
-pub use error::{DatasetError, DatasetResult};
-pub use types::{
-    DataFormat, PreferencePair, TrainingExample, TrainingMessage, TrainingRole,
-};
 pub use dataset::{Dataset, InstructDataset, PreferenceDataset};
-pub use jsonl::{JsonlReader, JsonlWriter, read_jsonl, write_jsonl, read_jsonl_preferences, write_jsonl_preferences};
-pub use quality::{
-    DataValidator, ValidatorConfig, ValidationReport, ValidationIssue, IssueSeverity,
-    DatasetStats, RoleCounts, compute_stats, HistogramBucket, PreferenceStats, compute_preference_stats,
-};
+pub use error::{DatasetError, DatasetResult};
 pub use format::{
-    FormatConverter, PreferenceConverter, detect_format,
-    OpenAiFormat, TogetherFormat, AlpacaFormat, ShareGptFormat, ChatMlFormat,
+    AlpacaFormat, ChatMlFormat, FormatConverter, OpenAiFormat, PreferenceConverter, ShareGptFormat,
+    TogetherFormat, detect_format,
+};
+pub use jsonl::{
+    JsonlReader, JsonlWriter, read_jsonl, read_jsonl_preferences, write_jsonl,
+    write_jsonl_preferences,
+};
+pub use quality::{
+    DataValidator, DatasetStats, HistogramBucket, IssueSeverity, PreferenceStats, RoleCounts,
+    ValidationIssue, ValidationReport, ValidatorConfig, compute_preference_stats, compute_stats,
 };
 pub use sampling::{
-    SplitConfig, SplitResult, train_eval_split, curriculum_order, sample_n,
-    PreferenceSplitResult, preference_train_eval_split, preference_curriculum_order, preference_sample_n,
+    PreferenceSplitResult, SplitConfig, SplitResult, curriculum_order, preference_curriculum_order,
+    preference_sample_n, preference_train_eval_split, sample_n, train_eval_split,
 };
+pub use types::{DataFormat, PreferencePair, TrainingExample, TrainingMessage, TrainingRole};
 
 // Feature-gated re-exports
 #[cfg(feature = "hf-tokenizer")]

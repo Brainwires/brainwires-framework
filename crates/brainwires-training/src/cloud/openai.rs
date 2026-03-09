@@ -5,9 +5,11 @@ use tracing::{debug, warn};
 
 use brainwires_datasets::DataFormat;
 
-use crate::error::TrainingError;
-use crate::types::{TrainingJobId, TrainingJobStatus, TrainingJobSummary, TrainingProgress, DatasetId};
 use super::{CloudFineTuneConfig, FineTuneProvider};
+use crate::error::TrainingError;
+use crate::types::{
+    DatasetId, TrainingJobId, TrainingJobStatus, TrainingJobSummary, TrainingProgress,
+};
 
 const OPENAI_FILES_URL: &str = "https://api.openai.com/v1/files";
 const OPENAI_FINETUNE_URL: &str = "https://api.openai.com/v1/fine_tuning/jobs";
@@ -111,11 +113,14 @@ impl FineTuneProvider for OpenAiFineTune {
         true // OpenAI supports DPO via preference data format
     }
 
-    async fn upload_dataset(&self, data: &[u8], _format: DataFormat) -> Result<DatasetId, TrainingError> {
+    async fn upload_dataset(
+        &self,
+        data: &[u8],
+        _format: DataFormat,
+    ) -> Result<DatasetId, TrainingError> {
         debug!("Uploading dataset to OpenAI ({} bytes)", data.len());
 
-        let part = reqwest::multipart::Part::bytes(data.to_vec())
-            .file_name("training_data.jsonl");
+        let part = reqwest::multipart::Part::bytes(data.to_vec()).file_name("training_data.jsonl");
 
         let form = reqwest::multipart::Form::new()
             .text("purpose", "fine-tune")
@@ -155,8 +160,14 @@ impl FineTuneProvider for OpenAiFineTune {
         Ok(DatasetId(file_id))
     }
 
-    async fn create_job(&self, config: CloudFineTuneConfig) -> Result<TrainingJobId, TrainingError> {
-        debug!("Creating OpenAI fine-tuning job for model: {}", config.base_model);
+    async fn create_job(
+        &self,
+        config: CloudFineTuneConfig,
+    ) -> Result<TrainingJobId, TrainingError> {
+        debug!(
+            "Creating OpenAI fine-tuning job for model: {}",
+            config.base_model
+        );
 
         let mut body = json!({
             "training_file": config.training_dataset.0,
@@ -210,7 +221,10 @@ impl FineTuneProvider for OpenAiFineTune {
         Ok(TrainingJobId(job_id))
     }
 
-    async fn get_job_status(&self, job_id: &TrainingJobId) -> Result<TrainingJobStatus, TrainingError> {
+    async fn get_job_status(
+        &self,
+        job_id: &TrainingJobId,
+    ) -> Result<TrainingJobStatus, TrainingError> {
         let url = format!("{}/{}", self.finetune_url(), job_id.0);
 
         let response = self
@@ -371,7 +385,9 @@ mod tests {
 
         let response = json!({"status": "succeeded", "fine_tuned_model": "ft:gpt-4o-mini:abc"});
         let status = OpenAiFineTune::parse_job_status("succeeded", &response);
-        assert!(matches!(status, TrainingJobStatus::Succeeded { model_id } if model_id == "ft:gpt-4o-mini:abc"));
+        assert!(
+            matches!(status, TrainingJobStatus::Succeeded { model_id } if model_id == "ft:gpt-4o-mini:abc")
+        );
     }
 
     #[test]

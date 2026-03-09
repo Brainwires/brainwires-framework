@@ -553,10 +553,11 @@ impl VectorDatabase for LanceVectorDB {
 
                                 // Filter by root_path if specified
                                 if let Some(ref filter_path) = root_path
-                                    && result_root_path.as_ref() != Some(filter_path) {
-                                        found = true;
-                                        break;
-                                    }
+                                    && result_root_path.as_ref() != Some(filter_path)
+                                {
+                                    found = true;
+                                    break;
+                                }
 
                                 // Use RRF combined score as the main score for ranking
                                 // But report original vector/keyword scores for transparency
@@ -691,9 +692,10 @@ impl VectorDatabase for LanceVectorDB {
 
                         // Filter by root_path if specified
                         if let Some(ref filter_path) = root_path
-                            && result_root_path.as_ref() != Some(filter_path) {
-                                continue;
-                            }
+                            && result_root_path.as_ref() != Some(filter_path)
+                        {
+                            continue;
+                        }
 
                         search_results.push(SearchResult {
                             score,
@@ -770,9 +772,10 @@ impl VectorDatabase for LanceVectorDB {
 
             // Filter by path pattern using proper glob matching
             if !path_patterns.is_empty()
-                && !glob_utils::matches_any_pattern(&result.file_path, &path_patterns) {
-                    return false;
-                }
+                && !glob_utils::matches_any_pattern(&result.file_path, &path_patterns)
+            {
+                return false;
+            }
 
             true
         });

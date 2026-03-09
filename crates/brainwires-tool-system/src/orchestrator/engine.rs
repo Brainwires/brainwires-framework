@@ -124,7 +124,10 @@ fn clone_shared<T: ?Sized>(shared: &Rc<T>) -> Rc<T> {
 
 #[cfg(feature = "orchestrator")]
 fn lock_vec<T: Clone>(shared: &SharedVec<T>) -> Vec<T> {
-    shared.lock().expect("orchestrator results lock poisoned").clone()
+    shared
+        .lock()
+        .expect("orchestrator results lock poisoned")
+        .clone()
 }
 
 #[cfg(feature = "orchestrator-wasm")]
@@ -134,7 +137,10 @@ fn lock_vec<T: Clone>(shared: &SharedVec<T>) -> Vec<T> {
 
 #[cfg(feature = "orchestrator")]
 fn push_to_vec<T>(shared: &SharedVec<T>, item: T) {
-    shared.lock().expect("orchestrator results lock poisoned").push(item);
+    shared
+        .lock()
+        .expect("orchestrator results lock poisoned")
+        .push(item);
 }
 
 #[cfg(feature = "orchestrator-wasm")]
@@ -144,7 +150,9 @@ fn push_to_vec<T>(shared: &SharedVec<T>, item: T) {
 
 #[cfg(feature = "orchestrator")]
 fn increment_counter(shared: &SharedCounter, max: usize) -> Result<(), ()> {
-    let mut c = shared.lock().expect("orchestrator step counter lock poisoned");
+    let mut c = shared
+        .lock()
+        .expect("orchestrator step counter lock poisoned");
     if *c >= max {
         return Err(());
     }
@@ -287,7 +295,8 @@ impl ToolOrchestrator {
                 };
 
                 // Record the call (saturate to u64::MAX for extremely long-running calls)
-                let duration_ms = u64::try_from(call_start.elapsed().as_millis()).unwrap_or(u64::MAX);
+                let duration_ms =
+                    u64::try_from(call_start.elapsed().as_millis()).unwrap_or(u64::MAX);
                 let call = ToolCall::new(
                     tool_name.clone(),
                     json_input,
@@ -332,7 +341,11 @@ impl ToolOrchestrator {
         };
 
         let calls = lock_vec(&tool_calls);
-        Ok(OrchestratorResult::success(output, calls, execution_time_ms))
+        Ok(OrchestratorResult::success(
+            output,
+            calls,
+            execution_time_ms,
+        ))
     }
 
     /// Get list of registered tool names.
@@ -362,7 +375,9 @@ pub fn dynamic_to_json(value: &rhai::Dynamic) -> serde_json::Value {
     if value.is_string() {
         serde_json::Value::String(value.clone().into_string().unwrap_or_default())
     } else if value.is_int() {
-        serde_json::Value::Number(serde_json::Number::from(value.clone().as_int().unwrap_or(0)))
+        serde_json::Value::Number(serde_json::Number::from(
+            value.clone().as_int().unwrap_or(0),
+        ))
     } else if value.is_float() {
         serde_json::json!(value.clone().as_float().unwrap_or(0.0))
     } else if value.is_bool() {
@@ -451,10 +466,8 @@ mod tests {
         let orchestrator = ToolOrchestrator::new();
         let limits = ExecutionLimits::default().with_max_operations(10);
 
-        let result = orchestrator.execute(
-            "let sum = 0; for i in 0..1000 { sum += i; } sum",
-            limits,
-        );
+        let result =
+            orchestrator.execute("let sum = 0; for i in 0..1000 { sum += i; } sum", limits);
 
         assert!(matches!(
             result,
@@ -470,7 +483,10 @@ mod tests {
             ExecutionLimits::default(),
         );
 
-        assert!(matches!(result, Err(OrchestratorError::CompilationError(_))));
+        assert!(matches!(
+            result,
+            Err(OrchestratorError::CompilationError(_))
+        ));
     }
 
     #[test]
@@ -556,7 +572,10 @@ mod tests {
         });
 
         let result = orchestrator
-            .execute(r#"get_value(#{ key: "test_key" })"#, ExecutionLimits::default())
+            .execute(
+                r#"get_value(#{ key: "test_key" })"#,
+                ExecutionLimits::default(),
+            )
             .unwrap();
 
         assert!(result.success);
@@ -664,7 +683,10 @@ mod tests {
     fn test_execution_time_recorded() {
         let orchestrator = ToolOrchestrator::new();
         let result = orchestrator
-            .execute("let sum = 0; for i in 0..100 { sum += i; } sum", ExecutionLimits::default())
+            .execute(
+                "let sum = 0; for i in 0..100 { sum += i; } sum",
+                ExecutionLimits::default(),
+            )
             .unwrap();
 
         assert!(result.success);

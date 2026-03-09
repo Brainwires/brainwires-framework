@@ -48,7 +48,8 @@ impl From<brainwires_core::Tool> for ToolSchema {
         // Extract parameters from input_schema
         if let Some(props) = &tool.input_schema.properties {
             for (name, value) in props {
-                let desc = value.get("description")
+                let desc = value
+                    .get("description")
                     .and_then(|v| v.as_str())
                     .unwrap_or("No description")
                     .to_string();
@@ -83,7 +84,11 @@ impl ToolSchema {
     }
 
     /// Add a required parameter
-    pub fn with_required_param(mut self, name: impl Into<String>, description: impl Into<String>) -> Self {
+    pub fn with_required_param(
+        mut self,
+        name: impl Into<String>,
+        description: impl Into<String>,
+    ) -> Self {
         let name = name.into();
         self.parameters.insert(name.clone(), description.into());
         self.required.push(name);
@@ -102,7 +107,11 @@ impl ToolSchema {
         if !self.parameters.is_empty() {
             result.push_str("  Parameters:\n");
             for (name, desc) in &self.parameters {
-                let required = if self.required.contains(name) { " (required)" } else { "" };
+                let required = if self.required.contains(name) {
+                    " (required)"
+                } else {
+                    ""
+                };
                 result.push_str(&format!("    - {}{}: {}\n", name, required, desc));
             }
         }
@@ -229,10 +238,9 @@ impl ToolCategory {
     /// Check if a tool name belongs to this category
     pub fn contains_tool(&self, tool_name: &str) -> bool {
         match self {
-            ToolCategory::FileRead => matches!(
-                tool_name,
-                "read_file" | "file_read" | "get_file_contents"
-            ),
+            ToolCategory::FileRead => {
+                matches!(tool_name, "read_file" | "file_read" | "get_file_contents")
+            }
             ToolCategory::FileWrite => matches!(
                 tool_name,
                 "write_file" | "edit_file" | "delete_file" | "create_directory" | "file_write"
@@ -257,14 +265,12 @@ impl ToolCategory {
                 tool_name,
                 "web_search" | "fetch_url" | "browse" | "http_request"
             ),
-            ToolCategory::AgentPool => matches!(
-                tool_name,
-                "spawn_agent" | "agent_pool" | "create_agent"
-            ),
-            ToolCategory::TaskManager => matches!(
-                tool_name,
-                "create_task" | "update_task" | "task_manager"
-            ),
+            ToolCategory::AgentPool => {
+                matches!(tool_name, "spawn_agent" | "agent_pool" | "create_agent")
+            }
+            ToolCategory::TaskManager => {
+                matches!(tool_name, "create_task" | "update_task" | "task_manager")
+            }
             ToolCategory::Mcp => tool_name.starts_with("mcp_") || tool_name.starts_with("mcp__"),
             ToolCategory::Custom(prefix) => tool_name.starts_with(prefix),
         }
@@ -306,10 +312,7 @@ pub enum IntentParseResult {
 /// Parse tool intent from a microagent's text response
 ///
 /// Looks for JSON blocks containing tool_intent fields.
-pub fn parse_tool_intent(
-    subtask_id: &str,
-    response_text: &str,
-) -> IntentParseResult {
+pub fn parse_tool_intent(subtask_id: &str, response_text: &str) -> IntentParseResult {
     // Try to find JSON block with tool_intent
     if let Some(intent) = extract_tool_intent_json(response_text) {
         match serde_json::from_value::<ToolIntent>(intent.clone()) {
@@ -323,18 +326,16 @@ pub fn parse_tool_intent(
                         "awaiting_tool": true,
                     }),
                 );
-                IntentParseResult::WithIntent(
-                    SubtaskOutputWithIntent::with_tool_intent(output, tool_intent)
-                )
+                IntentParseResult::WithIntent(SubtaskOutputWithIntent::with_tool_intent(
+                    output,
+                    tool_intent,
+                ))
             }
             Err(e) => IntentParseResult::ParseError(format!("Failed to parse tool intent: {}", e)),
         }
     } else {
         // No tool intent, regular output
-        let output = SubtaskOutput::new(
-            subtask_id,
-            serde_json::json!({ "text": response_text }),
-        );
+        let output = SubtaskOutput::new(subtask_id, serde_json::json!({ "text": response_text }));
         IntentParseResult::NoIntent(output)
     }
 }
@@ -343,28 +344,31 @@ pub fn parse_tool_intent(
 fn extract_tool_intent_json(text: &str) -> Option<serde_json::Value> {
     // Look for ```json blocks first
     if let Some(json_block) = extract_json_code_block(text)
-        && let Ok(value) = serde_json::from_str::<serde_json::Value>(&json_block) {
-            if value.get("tool_intent").is_some() {
-                return value.get("tool_intent").cloned();
-            }
-            // Check if the whole block is a tool intent
-            if value.get("tool_name").is_some() {
-                return Some(value);
-            }
+        && let Ok(value) = serde_json::from_str::<serde_json::Value>(&json_block)
+    {
+        if value.get("tool_intent").is_some() {
+            return value.get("tool_intent").cloned();
         }
+        // Check if the whole block is a tool intent
+        if value.get("tool_name").is_some() {
+            return Some(value);
+        }
+    }
 
     // Look for inline JSON with tool_intent
     for line in text.lines() {
         let trimmed = line.trim();
-        if trimmed.starts_with('{') && trimmed.ends_with('}')
-            && let Ok(value) = serde_json::from_str::<serde_json::Value>(trimmed) {
-                if value.get("tool_intent").is_some() {
-                    return value.get("tool_intent").cloned();
-                }
-                if value.get("tool_name").is_some() {
-                    return Some(value);
-                }
+        if trimmed.starts_with('{')
+            && trimmed.ends_with('}')
+            && let Ok(value) = serde_json::from_str::<serde_json::Value>(trimmed)
+        {
+            if value.get("tool_intent").is_some() {
+                return value.get("tool_intent").cloned();
             }
+            if value.get("tool_name").is_some() {
+                return Some(value);
+            }
+        }
     }
 
     None
@@ -379,7 +383,11 @@ fn extract_json_code_block(text: &str) -> Option<String> {
         if let Some(start_idx) = text.find(start) {
             let content_start = start_idx + start.len();
             if let Some(end_idx) = text[content_start..].find(end_marker) {
-                return Some(text[content_start..content_start + end_idx].trim().to_string());
+                return Some(
+                    text[content_start..content_start + end_idx]
+                        .trim()
+                        .to_string(),
+                );
             }
         }
     }
@@ -417,7 +425,10 @@ mod tests {
             .with_rationale("Need to read configuration");
 
         assert_eq!(intent.tool_name, "read_file");
-        assert_eq!(intent.rationale, Some("Need to read configuration".to_string()));
+        assert_eq!(
+            intent.rationale,
+            Some("Need to read configuration".to_string())
+        );
     }
 
     #[test]

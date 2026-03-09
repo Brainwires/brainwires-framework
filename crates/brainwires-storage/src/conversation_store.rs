@@ -1,7 +1,5 @@
 use anyhow::{Context, Result};
-use arrow_array::{
-    Array, Int32Array, Int64Array, RecordBatch, RecordBatchIterator, StringArray,
-};
+use arrow_array::{Array, Int32Array, Int64Array, RecordBatch, RecordBatchIterator, StringArray};
 use arrow_schema::Schema;
 use chrono::Utc;
 use futures::TryStreamExt;
@@ -39,12 +37,25 @@ impl ConversationStore {
     }
 
     /// Create a new conversation (or update if it already exists)
-    pub async fn create(&self, conversation_id: String, title: Option<String>, model_id: Option<String>, message_count: Option<i32>) -> Result<ConversationMetadata> {
+    pub async fn create(
+        &self,
+        conversation_id: String,
+        title: Option<String>,
+        model_id: Option<String>,
+        message_count: Option<i32>,
+    ) -> Result<ConversationMetadata> {
         // Check if conversation already exists - if so, just update timestamp
         if let Ok(Some(existing)) = self.get(&conversation_id).await {
             // Update existing instead of creating duplicate
-            self.update(&conversation_id, title.or(existing.title.clone()), message_count).await?;
-            return self.get(&conversation_id).await?
+            self.update(
+                &conversation_id,
+                title.or(existing.title.clone()),
+                message_count,
+            )
+            .await?;
+            return self
+                .get(&conversation_id)
+                .await?
                 .context("Conversation should exist after update");
         }
 
@@ -66,12 +77,10 @@ impl ConversationStore {
         let table = self.client.conversations_table().await?;
 
         let schema = batch.schema();
-        let batches = RecordBatchIterator::new(
-            vec![Ok(batch)],
-            schema
-        );
+        let batches = RecordBatchIterator::new(vec![Ok(batch)], schema);
 
-        table.add(Box::new(batches))
+        table
+            .add(Box::new(batches))
             .execute()
             .await
             .context("Failed to create conversation")?;
@@ -84,11 +93,7 @@ impl ConversationStore {
         let table = self.client.conversations_table().await?;
 
         let filter = format!("conversation_id = '{}'", conversation_id);
-        let stream = table
-            .query()
-            .only_if(filter)
-            .execute()
-            .await?;
+        let stream = table.query().only_if(filter).execute().await?;
 
         let results: Vec<RecordBatch> = stream.try_collect().await?;
 
@@ -122,14 +127,21 @@ impl ConversationStore {
     }
 
     /// Update conversation metadata
-    pub async fn update(&self, conversation_id: &str, title: Option<String>, message_count: Option<i32>) -> Result<()> {
+    pub async fn update(
+        &self,
+        conversation_id: &str,
+        title: Option<String>,
+        message_count: Option<i32>,
+    ) -> Result<()> {
         // Note: LanceDB doesn't support in-place updates easily
         // We need to delete and re-insert
 
         let table = self.client.conversations_table().await?;
 
         // Get current conversation
-        let current = self.get(conversation_id).await?
+        let current = self
+            .get(conversation_id)
+            .await?
             .context("Conversation not found")?;
 
         // Delete current
@@ -150,10 +162,7 @@ impl ConversationStore {
         let batch = self.metadata_to_batch(&[updated])?;
 
         let schema = batch.schema();
-        let batches = RecordBatchIterator::new(
-            vec![Ok(batch)],
-            schema
-        );
+        let batches = RecordBatchIterator::new(vec![Ok(batch)], schema);
 
         table.add(Box::new(batches)).execute().await?;
 
@@ -180,23 +189,29 @@ impl ConversationStore {
         ]));
 
         let conversation_ids = StringArray::from(
-            metadata.iter().map(|m| m.conversation_id.as_str()).collect::<Vec<_>>()
+            metadata
+                .iter()
+                .map(|m| m.conversation_id.as_str())
+                .collect::<Vec<_>>(),
         );
         let titles = StringArray::from(
-            metadata.iter().map(|m| m.title.as_deref()).collect::<Vec<_>>()
+            metadata
+                .iter()
+                .map(|m| m.title.as_deref())
+                .collect::<Vec<_>>(),
         );
         let model_ids = StringArray::from(
-            metadata.iter().map(|m| m.model_id.as_deref()).collect::<Vec<_>>()
+            metadata
+                .iter()
+                .map(|m| m.model_id.as_deref())
+                .collect::<Vec<_>>(),
         );
-        let created_ats = Int64Array::from(
-            metadata.iter().map(|m| m.created_at).collect::<Vec<_>>()
-        );
-        let updated_ats = Int64Array::from(
-            metadata.iter().map(|m| m.updated_at).collect::<Vec<_>>()
-        );
-        let message_counts = Int32Array::from(
-            metadata.iter().map(|m| m.message_count).collect::<Vec<_>>()
-        );
+        let created_ats =
+            Int64Array::from(metadata.iter().map(|m| m.created_at).collect::<Vec<_>>());
+        let updated_ats =
+            Int64Array::from(metadata.iter().map(|m| m.updated_at).collect::<Vec<_>>());
+        let message_counts =
+            Int32Array::from(metadata.iter().map(|m| m.message_count).collect::<Vec<_>>());
 
         RecordBatch::try_new(
             schema,
@@ -208,7 +223,8 @@ impl ConversationStore {
                 Arc::new(updated_ats),
                 Arc::new(message_counts),
             ],
-        ).context("Failed to create record batch")
+        )
+        .context("Failed to create record batch")
     }
 
     /// Convert RecordBatch to metadata
@@ -216,24 +232,50 @@ impl ConversationStore {
         let mut result = Vec::new();
 
         for batch in batches {
-            let conversation_ids = batch.column(0).as_any().downcast_ref::<StringArray>()
+            let conversation_ids = batch
+                .column(0)
+                .as_any()
+                .downcast_ref::<StringArray>()
                 .context("Invalid conversation_id column")?;
-            let titles = batch.column(1).as_any().downcast_ref::<StringArray>()
+            let titles = batch
+                .column(1)
+                .as_any()
+                .downcast_ref::<StringArray>()
                 .context("Invalid title column")?;
-            let model_ids = batch.column(2).as_any().downcast_ref::<StringArray>()
+            let model_ids = batch
+                .column(2)
+                .as_any()
+                .downcast_ref::<StringArray>()
                 .context("Invalid model_id column")?;
-            let created_ats = batch.column(3).as_any().downcast_ref::<Int64Array>()
+            let created_ats = batch
+                .column(3)
+                .as_any()
+                .downcast_ref::<Int64Array>()
                 .context("Invalid created_at column")?;
-            let updated_ats = batch.column(4).as_any().downcast_ref::<Int64Array>()
+            let updated_ats = batch
+                .column(4)
+                .as_any()
+                .downcast_ref::<Int64Array>()
                 .context("Invalid updated_at column")?;
-            let message_counts = batch.column(5).as_any().downcast_ref::<Int32Array>()
+            let message_counts = batch
+                .column(5)
+                .as_any()
+                .downcast_ref::<Int32Array>()
                 .context("Invalid message_count column")?;
 
             for i in 0..batch.num_rows() {
                 result.push(ConversationMetadata {
                     conversation_id: conversation_ids.value(i).to_string(),
-                    title: if titles.is_null(i) { None } else { Some(titles.value(i).to_string()) },
-                    model_id: if model_ids.is_null(i) { None } else { Some(model_ids.value(i).to_string()) },
+                    title: if titles.is_null(i) {
+                        None
+                    } else {
+                        Some(titles.value(i).to_string())
+                    },
+                    model_id: if model_ids.is_null(i) {
+                        None
+                    } else {
+                        Some(model_ids.value(i).to_string())
+                    },
                     created_at: created_ats.value(i),
                     updated_at: updated_ats.value(i),
                     message_count: message_counts.value(i),
@@ -266,12 +308,15 @@ mod tests {
     async fn test_create_conversation() {
         let (_temp, _client, store) = setup().await;
 
-        let conv = store.create(
-            "test-conv-1".to_string(),
-            Some("Test Conversation".to_string()),
-            Some("gpt-4".to_string()),
-            None,
-        ).await.unwrap();
+        let conv = store
+            .create(
+                "test-conv-1".to_string(),
+                Some("Test Conversation".to_string()),
+                Some("gpt-4".to_string()),
+                None,
+            )
+            .await
+            .unwrap();
 
         assert_eq!(conv.conversation_id, "test-conv-1");
         assert_eq!(conv.title, Some("Test Conversation".to_string()));
@@ -283,12 +328,15 @@ mod tests {
     async fn test_create_conversation_with_message_count() {
         let (_temp, _client, store) = setup().await;
 
-        let conv = store.create(
-            "test-conv-1".to_string(),
-            Some("Test Conversation".to_string()),
-            Some("gpt-4".to_string()),
-            Some(5),
-        ).await.unwrap();
+        let conv = store
+            .create(
+                "test-conv-1".to_string(),
+                Some("Test Conversation".to_string()),
+                Some("gpt-4".to_string()),
+                Some(5),
+            )
+            .await
+            .unwrap();
 
         assert_eq!(conv.conversation_id, "test-conv-1");
         assert_eq!(conv.message_count, 5);
@@ -298,12 +346,15 @@ mod tests {
     async fn test_get_conversation() {
         let (_temp, _client, store) = setup().await;
 
-        store.create(
-            "test-conv-2".to_string(),
-            Some("Test".to_string()),
-            None,
-            None,
-        ).await.unwrap();
+        store
+            .create(
+                "test-conv-2".to_string(),
+                Some("Test".to_string()),
+                None,
+                None,
+            )
+            .await
+            .unwrap();
 
         let conv = store.get("test-conv-2").await.unwrap();
         assert!(conv.is_some());
@@ -322,9 +373,18 @@ mod tests {
     async fn test_list_conversations() {
         let (_temp, _client, store) = setup().await;
 
-        store.create("conv-1".to_string(), Some("Conv 1".to_string()), None, None).await.unwrap();
-        store.create("conv-2".to_string(), Some("Conv 2".to_string()), None, None).await.unwrap();
-        store.create("conv-3".to_string(), Some("Conv 3".to_string()), None, None).await.unwrap();
+        store
+            .create("conv-1".to_string(), Some("Conv 1".to_string()), None, None)
+            .await
+            .unwrap();
+        store
+            .create("conv-2".to_string(), Some("Conv 2".to_string()), None, None)
+            .await
+            .unwrap();
+        store
+            .create("conv-3".to_string(), Some("Conv 3".to_string()), None, None)
+            .await
+            .unwrap();
 
         let convs = store.list(None).await.unwrap();
         assert_eq!(convs.len(), 3);
@@ -334,9 +394,20 @@ mod tests {
     async fn test_update_conversation() {
         let (_temp, _client, store) = setup().await;
 
-        store.create("conv-update".to_string(), Some("Original".to_string()), None, None).await.unwrap();
+        store
+            .create(
+                "conv-update".to_string(),
+                Some("Original".to_string()),
+                None,
+                None,
+            )
+            .await
+            .unwrap();
 
-        store.update("conv-update", Some("Updated".to_string()), Some(5)).await.unwrap();
+        store
+            .update("conv-update", Some("Updated".to_string()), Some(5))
+            .await
+            .unwrap();
 
         let conv = store.get("conv-update").await.unwrap().unwrap();
         assert_eq!(conv.title, Some("Updated".to_string()));
@@ -347,7 +418,10 @@ mod tests {
     async fn test_delete_conversation() {
         let (_temp, _client, store) = setup().await;
 
-        store.create("conv-delete".to_string(), None, None, None).await.unwrap();
+        store
+            .create("conv-delete".to_string(), None, None, None)
+            .await
+            .unwrap();
 
         let conv = store.get("conv-delete").await.unwrap();
         assert!(conv.is_some());

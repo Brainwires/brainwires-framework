@@ -168,9 +168,10 @@ impl PksIntegration {
         // Store directly in cache if available
         if let Some(ref cache) = self.cache
             && let Ok(mut cache) = cache.lock()
-                && let Err(e) = cache.upsert_fact(fact) {
-                    tracing::warn!("Failed to store detected fact: {}", e);
-                }
+            && let Err(e) = cache.upsert_fact(fact)
+        {
+            tracing::warn!("Failed to store detected fact: {}", e);
+        }
     }
 
     /// Check if PKS is enabled
@@ -254,7 +255,8 @@ impl ToolUsageTracker {
         }
 
         // Infer capabilities from successful tool usage
-        let file_ops = self.count_category_usage(&["read_file", "write_file", "edit_file", "glob", "grep"]);
+        let file_ops =
+            self.count_category_usage(&["read_file", "write_file", "edit_file", "glob", "grep"]);
         if file_ops >= self.min_uses_for_inference {
             facts.push(PersonalFact::new(
                 PersonalFactCategory::Capability,
@@ -266,7 +268,8 @@ impl ToolUsageTracker {
             ));
         }
 
-        let git_ops = self.count_category_usage(&["git_status", "git_diff", "git_log", "git_commit"]);
+        let git_ops =
+            self.count_category_usage(&["git_status", "git_diff", "git_log", "git_commit"]);
         if git_ops >= self.min_uses_for_inference {
             facts.push(PersonalFact::new(
                 PersonalFactCategory::Capability,
@@ -287,7 +290,8 @@ impl ToolUsageTracker {
     }
 
     fn count_category_usage(&self, tools: &[&str]) -> u32 {
-        tools.iter()
+        tools
+            .iter()
             .filter_map(|t| self.usage.get(*t))
             .map(|(s, _)| s)
             .sum()
@@ -473,11 +477,11 @@ impl PksSseListener {
             .api_client
             .sync(
                 self.last_sync.as_deref(),
-                None,                    // client_id
-                &pending_facts,          // facts to upload
-                &[],                     // no feedback
-                0.5,                     // min_confidence
-                100,                     // limit
+                None,           // client_id
+                &pending_facts, // facts to upload
+                &[],            // no feedback
+                0.5,            // min_confidence
+                100,            // limit
             )
             .await;
 
@@ -505,10 +509,11 @@ impl PksSseListener {
                 // Clear the pending submissions queue after successful upload
                 if uploaded_count > 0
                     && let Some(ref cache) = self.cache
-                        && let Ok(mut cache) = cache.lock()
-                            && let Err(e) = cache.clear_pending_submissions() {
-                                tracing::warn!("Failed to clear pending submissions: {}", e);
-                            }
+                    && let Ok(mut cache) = cache.lock()
+                    && let Err(e) = cache.clear_pending_submissions()
+                {
+                    tracing::warn!("Failed to clear pending submissions: {}", e);
+                }
 
                 // Log sync activity (only if something happened)
                 if received_count > 0 || uploaded_count > 0 {
@@ -553,10 +558,7 @@ impl PksBackgroundProcessor {
         cache: Arc<Mutex<PersonalKnowledgeCache>>,
         _settings: PersonalKnowledgeSettings,
     ) -> Self {
-        Self {
-            fact_rx,
-            cache,
-        }
+        Self { fact_rx, cache }
     }
 
     /// Run the background processor
@@ -574,7 +576,10 @@ impl PksBackgroundProcessor {
 
     /// Process a single detected fact
     fn process_fact(&self, detected: DetectedFact) -> Result<()> {
-        let mut cache = self.cache.lock().map_err(|e| anyhow::anyhow!("Cache lock error: {}", e))?;
+        let mut cache = self
+            .cache
+            .lock()
+            .map_err(|e| anyhow::anyhow!("Cache lock error: {}", e))?;
 
         // Check if fact already exists
         if let Some(existing) = cache.get_fact_by_key(&detected.fact.key) {
@@ -594,7 +599,10 @@ impl PksBackgroundProcessor {
                         let feedback = PersonalFactFeedback {
                             fact_id: existing.id.clone(),
                             is_reinforcement: true,
-                            context: Some(format!("Detected again via {:?}", detected.detection_source)),
+                            context: Some(format!(
+                                "Detected again via {:?}",
+                                detected.detection_source
+                            )),
                             timestamp: chrono::Utc::now().timestamp(),
                         };
                         let _ = cache.queue_feedback(feedback);

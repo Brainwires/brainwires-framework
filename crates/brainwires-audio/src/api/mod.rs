@@ -6,12 +6,12 @@ pub mod azure_tts;
 pub mod cartesia_tts;
 /// Deepgram speech-to-text API client.
 pub mod deepgram_stt;
+/// Deepgram text-to-speech API client.
+pub mod deepgram_tts;
 /// ElevenLabs speech-to-text API client.
 pub mod elevenlabs_stt;
 /// ElevenLabs text-to-speech API client.
 pub mod elevenlabs_tts;
-/// Deepgram text-to-speech API client.
-pub mod deepgram_tts;
 /// Fish Audio speech-to-text (ASR) API client.
 pub mod fish_stt;
 /// Fish Audio text-to-speech API client.

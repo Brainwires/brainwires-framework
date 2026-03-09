@@ -50,7 +50,11 @@ impl TrialResult {
     }
 
     /// Attach an arbitrary metadata value.
-    pub fn with_meta(mut self, key: impl Into<String>, value: impl Into<serde_json::Value>) -> Self {
+    pub fn with_meta(
+        mut self,
+        key: impl Into<String>,
+        value: impl Into<serde_json::Value>,
+    ) -> Self {
         self.metadata.insert(key.into(), value.into());
         self
     }
@@ -77,7 +81,10 @@ impl ConfidenceInterval95 {
     /// where `z = 1.96` for 95 % confidence.
     pub fn wilson(successes: usize, n: usize) -> Self {
         if n == 0 {
-            return Self { lower: 0.0, upper: 1.0 };
+            return Self {
+                lower: 0.0,
+                upper: 1.0,
+            };
         }
 
         const Z: f64 = 1.96; // 95 % two-tailed
@@ -196,7 +203,10 @@ mod tests {
     #[test]
     fn test_wilson_ci_all_successes() {
         let ci = ConfidenceInterval95::wilson(10, 10);
-        assert!(ci.lower > 0.7, "lower bound should be well above 0 for 10/10");
+        assert!(
+            ci.lower > 0.7,
+            "lower bound should be well above 0 for 10/10"
+        );
         assert!((ci.upper - 1.0).abs() < 1e-9, "upper bound should be 1.0");
     }
 

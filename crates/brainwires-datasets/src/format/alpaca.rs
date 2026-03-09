@@ -1,8 +1,8 @@
 use serde_json::json;
 
+use super::FormatConverter;
 use crate::error::{DatasetError, DatasetResult};
 use crate::types::{TrainingExample, TrainingMessage, TrainingRole};
-use super::FormatConverter;
 
 /// Stanford Alpaca format.
 ///
@@ -67,10 +67,7 @@ impl FormatConverter for AlpacaFormat {
                 message: "Missing 'instruction' field".to_string(),
             })?;
 
-        let input = value
-            .get("input")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+        let input = value.get("input").and_then(|v| v.as_str()).unwrap_or("");
 
         let output = value
             .get("output")
@@ -101,17 +98,23 @@ impl PreferenceConverter for AlpacaFormat {
     }
 
     fn preference_to_json(&self, pair: &PreferencePair) -> DatasetResult<serde_json::Value> {
-        let instruction = pair.prompt.iter()
+        let instruction = pair
+            .prompt
+            .iter()
             .find(|m| m.role == TrainingRole::User)
             .map(|m| m.content.as_str())
             .unwrap_or("");
 
-        let chosen_output = pair.chosen.iter()
+        let chosen_output = pair
+            .chosen
+            .iter()
             .find(|m| m.role == TrainingRole::Assistant)
             .map(|m| m.content.as_str())
             .unwrap_or("");
 
-        let rejected_output = pair.rejected.iter()
+        let rejected_output = pair
+            .rejected
+            .iter()
             .find(|m| m.role == TrainingRole::Assistant)
             .map(|m| m.content.as_str())
             .unwrap_or("");
@@ -130,19 +133,22 @@ impl PreferenceConverter for AlpacaFormat {
     }
 
     fn parse_preference_json(&self, value: &serde_json::Value) -> DatasetResult<PreferencePair> {
-        let instruction = value.get("instruction")
+        let instruction = value
+            .get("instruction")
             .and_then(|v| v.as_str())
             .ok_or_else(|| DatasetError::FormatConversion {
                 message: "Missing 'instruction' field".to_string(),
             })?;
 
-        let chosen_output = value.get("chosen_output")
+        let chosen_output = value
+            .get("chosen_output")
             .and_then(|v| v.as_str())
             .ok_or_else(|| DatasetError::FormatConversion {
                 message: "Missing 'chosen_output' field".to_string(),
             })?;
 
-        let rejected_output = value.get("rejected_output")
+        let rejected_output = value
+            .get("rejected_output")
             .and_then(|v| v.as_str())
             .ok_or_else(|| DatasetError::FormatConversion {
                 message: "Missing 'rejected_output' field".to_string(),

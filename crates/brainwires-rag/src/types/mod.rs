@@ -426,7 +426,10 @@ impl FindReferencesRequest {
         }
         const MAX_LIMIT: usize = 10000;
         if self.limit > MAX_LIMIT {
-            return Err(format!("limit too large: {} (max: {})", self.limit, MAX_LIMIT));
+            return Err(format!(
+                "limit too large: {} (max: {})",
+                self.limit, MAX_LIMIT
+            ));
         }
         Ok(())
     }
@@ -492,7 +495,10 @@ impl GetCallGraphRequest {
         }
         const MAX_DEPTH: usize = 10;
         if self.depth > MAX_DEPTH {
-            return Err(format!("depth too large: {} (max: {})", self.depth, MAX_DEPTH));
+            return Err(format!(
+                "depth too large: {} (max: {})",
+                self.depth, MAX_DEPTH
+            ));
         }
         Ok(())
     }
@@ -585,7 +591,10 @@ impl IndexRequest {
                 return Err("project name cannot be empty".to_string());
             }
             if project.len() > PROJECT_NAME_MAX_LENGTH {
-                return Err(format!("project name too long (max {} characters)", PROJECT_NAME_MAX_LENGTH));
+                return Err(format!(
+                    "project name too long (max {} characters)",
+                    PROJECT_NAME_MAX_LENGTH
+                ));
             }
         }
 
@@ -634,7 +643,10 @@ impl QueryRequest {
                 return Err("project name cannot be empty".to_string());
             }
             if project.len() > PROJECT_NAME_MAX_LENGTH {
-                return Err(format!("project name too long (max {} characters)", PROJECT_NAME_MAX_LENGTH));
+                return Err(format!(
+                    "project name too long (max {} characters)",
+                    PROJECT_NAME_MAX_LENGTH
+                ));
             }
         }
 
@@ -741,7 +753,10 @@ impl SearchGitHistoryRequest {
                 return Err("project name cannot be empty".to_string());
             }
             if project.len() > PROJECT_NAME_MAX_LENGTH {
-                return Err(format!("project name too long (max {} characters)", PROJECT_NAME_MAX_LENGTH));
+                return Err(format!(
+                    "project name too long (max {} characters)",
+                    PROJECT_NAME_MAX_LENGTH
+                ));
             }
         }
 

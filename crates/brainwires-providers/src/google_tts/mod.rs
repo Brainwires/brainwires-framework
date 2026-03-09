@@ -46,7 +46,10 @@ impl GoogleTtsClient {
     }
 
     /// Synthesize speech from text. Returns base64-encoded audio content.
-    pub async fn synthesize(&self, req: &GoogleTtsSynthesizeRequest) -> Result<GoogleTtsSynthesizeResponse> {
+    pub async fn synthesize(
+        &self,
+        req: &GoogleTtsSynthesizeRequest,
+    ) -> Result<GoogleTtsSynthesizeResponse> {
         self.acquire_rate_limit().await;
 
         let url = format!("{}/text:synthesize", self.base_url);
@@ -67,12 +70,17 @@ impl GoogleTtsClient {
             anyhow::bail!("Google TTS API error ({}): {}", status, body);
         }
 
-        response.json().await
+        response
+            .json()
+            .await
             .context("Failed to parse Google TTS response")
     }
 
     /// List available voices.
-    pub async fn list_voices(&self, language_code: Option<&str>) -> Result<GoogleTtsVoicesResponse> {
+    pub async fn list_voices(
+        &self,
+        language_code: Option<&str>,
+    ) -> Result<GoogleTtsVoicesResponse> {
         self.acquire_rate_limit().await;
 
         let mut url = format!("{}/voices", self.base_url);
@@ -94,7 +102,9 @@ impl GoogleTtsClient {
             anyhow::bail!("Google TTS voices API error ({}): {}", status, body);
         }
 
-        response.json().await
+        response
+            .json()
+            .await
             .context("Failed to parse Google TTS voices response")
     }
 }

@@ -67,11 +67,7 @@ impl TextToSpeech for MurfTts {
         Ok(voices)
     }
 
-    async fn synthesize(
-        &self,
-        text: &str,
-        options: &TtsOptions,
-    ) -> AudioResult<AudioBuffer> {
+    async fn synthesize(&self, text: &str, options: &TtsOptions) -> AudioResult<AudioBuffer> {
         let req = MurfGenerateRequest {
             voice_id: options.voice.id.clone(),
             text: text.to_string(),

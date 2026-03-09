@@ -514,9 +514,10 @@ mod tests {
         votes.insert("option_b".to_string(), 2);
 
         let err = VotingError::MaxSamplesExceeded { samples: 50, votes };
-        assert!(err
-            .to_string()
-            .contains("Maximum samples exceeded: 50 samples taken"));
+        assert!(
+            err.to_string()
+                .contains("Maximum samples exceeded: 50 samples taken")
+        );
     }
 
     #[test]
@@ -572,7 +573,10 @@ mod tests {
     #[test]
     fn test_config_error() {
         let err = MdapConfigError::InvalidParallelSamples(8);
-        assert_eq!(err.to_string(), "Invalid parallel samples: must be 1-4, got 8");
+        assert_eq!(
+            err.to_string(),
+            "Invalid parallel samples: must be 1-4, got 8"
+        );
     }
 
     #[test]

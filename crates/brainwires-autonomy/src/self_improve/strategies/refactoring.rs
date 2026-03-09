@@ -4,8 +4,8 @@ use anyhow::Result;
 use async_trait::async_trait;
 use walkdir::WalkDir;
 
-use crate::config::StrategyConfig;
 use super::{ImprovementCategory, ImprovementStrategy, ImprovementTask};
+use crate::config::StrategyConfig;
 
 /// Strategy that identifies refactoring opportunities (large files, long functions).
 pub struct RefactoringStrategy;
@@ -126,16 +126,18 @@ impl ImprovementStrategy for RefactoringStrategy {
             .into_iter()
             .take(config.max_tasks_per_strategy)
             .enumerate()
-            .map(|(i, (file, description, priority, estimated_diff))| ImprovementTask {
-                id: format!("refactor-{i}"),
-                strategy: "refactoring".to_string(),
-                category: ImprovementCategory::Refactoring,
-                description,
-                target_files: vec![file],
-                priority,
-                estimated_diff_lines: estimated_diff,
-                context: String::new(),
-            })
+            .map(
+                |(i, (file, description, priority, estimated_diff))| ImprovementTask {
+                    id: format!("refactor-{i}"),
+                    strategy: "refactoring".to_string(),
+                    category: ImprovementCategory::Refactoring,
+                    description,
+                    target_files: vec![file],
+                    priority,
+                    estimated_diff_lines: estimated_diff,
+                    context: String::new(),
+                },
+            )
             .collect();
 
         tasks.sort_by(|a, b| b.priority.cmp(&a.priority));

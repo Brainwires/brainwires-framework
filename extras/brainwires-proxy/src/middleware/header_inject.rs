@@ -3,8 +3,8 @@
 use crate::error::ProxyResult;
 use crate::middleware::{LayerAction, ProxyLayer};
 use crate::types::{ProxyRequest, ProxyResponse};
-use http::header::HeaderName;
 use http::HeaderValue;
+use http::header::HeaderName;
 
 /// Rule for modifying headers.
 #[derive(Clone)]
@@ -110,11 +110,10 @@ mod tests {
 
     #[tokio::test]
     async fn set_request_header() {
-        let layer = HeaderInjectLayer::new()
-            .set_request_header(
-                header::HeaderName::from_static("x-custom"),
-                HeaderValue::from_static("value"),
-            );
+        let layer = HeaderInjectLayer::new().set_request_header(
+            header::HeaderName::from_static("x-custom"),
+            HeaderValue::from_static("value"),
+        );
 
         let result = layer.on_request(make_request()).await.unwrap();
         match result {
@@ -147,11 +146,10 @@ mod tests {
 
     #[tokio::test]
     async fn set_response_header() {
-        let layer = HeaderInjectLayer::new()
-            .set_response_header(
-                header::HeaderName::from_static("x-proxy"),
-                HeaderValue::from_static("brainwires"),
-            );
+        let layer = HeaderInjectLayer::new().set_response_header(
+            header::HeaderName::from_static("x-proxy"),
+            HeaderValue::from_static("brainwires"),
+        );
 
         let resp = crate::types::ProxyResponse::new(StatusCode::OK);
         let resp = layer.on_response(resp).await.unwrap();

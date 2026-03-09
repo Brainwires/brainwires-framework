@@ -47,11 +47,11 @@ impl SessionManager {
             return Ok(None);
         }
 
-        let contents = fs::read_to_string(&self.session_file)
-            .context("Failed to read session file")?;
+        let contents =
+            fs::read_to_string(&self.session_file).context("Failed to read session file")?;
 
-        let session: AuthSession = serde_json::from_str(&contents)
-            .context("Failed to parse session file")?;
+        let session: AuthSession =
+            serde_json::from_str(&contents).context("Failed to parse session file")?;
 
         Ok(Some(session))
     }
@@ -69,7 +69,10 @@ impl SessionManager {
         if let Some(key) = api_key {
             if let Some(ref key_store) = self.key_store {
                 if let Err(e) = key_store.store_key(&session.user.user_id, key) {
-                    warn!("Failed to store API key in key store: {}. Using fallback.", e);
+                    warn!(
+                        "Failed to store API key in key store: {}. Using fallback.",
+                        e
+                    );
                     // Fall back to storing in session file (less secure)
                     let mut session_with_key = session.clone();
                     session_with_key.api_key = key.to_string();
@@ -91,11 +94,15 @@ impl SessionManager {
 
     /// Internal: Save session struct to file
     fn save_session_file(&self, session: &AuthSession) -> Result<()> {
-        let contents = serde_json::to_string_pretty(session)
-            .context("Failed to serialize session")?;
+        let contents =
+            serde_json::to_string_pretty(session).context("Failed to serialize session")?;
 
-        fs::write(&self.session_file, &contents)
-            .with_context(|| format!("Failed to write session file: {}", self.session_file.display()))?;
+        fs::write(&self.session_file, &contents).with_context(|| {
+            format!(
+                "Failed to write session file: {}",
+                self.session_file.display()
+            )
+        })?;
 
         // Set file permissions to 0600 (owner read/write only)
         #[cfg(unix)]
@@ -113,14 +120,19 @@ impl SessionManager {
         // First, try to get the user_id to delete the key store entry
         if let Ok(Some(session)) = self.load()
             && let Some(ref key_store) = self.key_store
-                && let Err(e) = key_store.delete_key(&session.user.user_id) {
-                    debug!("Failed to delete API key from key store: {}", e);
-                    // Continue anyway - deleting session file is more important
-                }
+            && let Err(e) = key_store.delete_key(&session.user.user_id)
+        {
+            debug!("Failed to delete API key from key store: {}", e);
+            // Continue anyway - deleting session file is more important
+        }
 
         if self.session_file.exists() {
-            fs::remove_file(&self.session_file)
-                .with_context(|| format!("Failed to delete session file: {}", self.session_file.display()))?;
+            fs::remove_file(&self.session_file).with_context(|| {
+                format!(
+                    "Failed to delete session file: {}",
+                    self.session_file.display()
+                )
+            })?;
         }
 
         Ok(())
@@ -175,7 +187,11 @@ impl SessionManager {
     }
 
     /// Create session from authentication response
-    pub fn create_session(response: AuthResponse, backend: String, _api_key: String) -> AuthSession {
+    pub fn create_session(
+        response: AuthResponse,
+        backend: String,
+        _api_key: String,
+    ) -> AuthSession {
         // Note: api_key is passed but stored in key store, not in session
         AuthSession {
             user: response.user,
@@ -365,7 +381,8 @@ mod tests {
         let session = create_test_session();
 
         // Without a key store, API key should be stored in the session file
-        mgr.save(&session, Some("bw_test_00000000000000000000000000000000")).unwrap();
+        mgr.save(&session, Some("bw_test_00000000000000000000000000000000"))
+            .unwrap();
 
         let loaded = mgr.load().unwrap().unwrap();
         assert_eq!(loaded.api_key, "bw_test_00000000000000000000000000000000");
@@ -377,11 +394,15 @@ mod tests {
         let session = create_test_session();
 
         // Save with API key in file (no key store)
-        mgr.save(&session, Some("bw_test_00000000000000000000000000000000")).unwrap();
+        mgr.save(&session, Some("bw_test_00000000000000000000000000000000"))
+            .unwrap();
 
         let key = mgr.get_api_key().unwrap();
         assert!(key.is_some());
-        assert_eq!(key.unwrap().as_str(), "bw_test_00000000000000000000000000000000");
+        assert_eq!(
+            key.unwrap().as_str(),
+            "bw_test_00000000000000000000000000000000"
+        );
     }
 
     #[test]

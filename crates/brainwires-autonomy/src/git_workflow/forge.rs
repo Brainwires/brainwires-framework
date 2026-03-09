@@ -184,11 +184,8 @@ pub trait GitForge: Send + Sync {
     ) -> anyhow::Result<()>;
 
     /// Get CI check status for a PR.
-    async fn get_check_status(
-        &self,
-        repo: &RepoRef,
-        pr_number: u64,
-    ) -> anyhow::Result<CheckStatus>;
+    async fn get_check_status(&self, repo: &RepoRef, pr_number: u64)
+    -> anyhow::Result<CheckStatus>;
 
     /// Request reviewers for a PR.
     async fn request_review(
@@ -279,10 +276,7 @@ impl GitForge for GitHubForge {
         repo: &RepoRef,
         params: CreatePrParams,
     ) -> anyhow::Result<PullRequest> {
-        let url = format!(
-            "{}/repos/{}/{}/pulls",
-            self.api_base, repo.owner, repo.name
-        );
+        let url = format!("{}/repos/{}/{}/pulls", self.api_base, repo.owner, repo.name);
 
         let body = serde_json::json!({
             "title": params.title,
@@ -428,9 +422,15 @@ impl GitForge for GitHubForge {
             })
             .unwrap_or_default();
 
-        let state = if checks.iter().all(|c| c.conclusion.as_deref() == Some("success")) {
+        let state = if checks
+            .iter()
+            .all(|c| c.conclusion.as_deref() == Some("success"))
+        {
             CheckState::Success
-        } else if checks.iter().any(|c| c.conclusion.as_deref() == Some("failure")) {
+        } else if checks
+            .iter()
+            .any(|c| c.conclusion.as_deref() == Some("failure"))
+        {
             CheckState::Failure
         } else if checks.iter().any(|c| c.status != "completed") {
             CheckState::Pending

@@ -10,10 +10,10 @@
 //! - Streaming uses 30+ typed event types
 //! - 6 REST endpoints: create, retrieve, delete, cancel, list_input_items, compact
 
-pub mod types;
 pub mod client;
 pub mod convert;
 pub mod provider;
+pub mod types;
 pub mod websocket;
 pub mod ws_provider;
 
@@ -23,8 +23,8 @@ pub use provider::OpenAiResponsesProvider;
 
 // Re-export wire types used by external code
 pub use types::{
-    CreateResponseRequest, InputContent, ResponseInput, ResponseInputItem, ResponseObject,
-    ResponseOutputItem, ResponseStreamEvent, ResponseTool, ResponseUsage, OutputContentBlock,
+    CreateResponseRequest, InputContent, OutputContentBlock, ResponseInput, ResponseInputItem,
+    ResponseObject, ResponseOutputItem, ResponseStreamEvent, ResponseTool, ResponseUsage,
     ToolChoice,
 };
 

@@ -146,11 +146,13 @@ impl A2aHandler for TestHandler {
         &self,
         req: SubscribeToTaskRequest,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamEvent, A2aError>> + Send>>, A2aError> {
-        let task = self.on_get_task(GetTaskRequest {
-            tenant: None,
-            id: req.id,
-            history_length: None,
-        }).await?;
+        let task = self
+            .on_get_task(GetTaskRequest {
+                tenant: None,
+                id: req.id,
+                history_length: None,
+            })
+            .await?;
 
         let stream = async_stream::stream! {
             yield Ok(StreamEvent::Task(task));
@@ -165,19 +167,26 @@ async fn test_jsonrpc_send_message() {
     let req = brainwires_a2a::jsonrpc::JsonRpcRequest {
         jsonrpc: "2.0".into(),
         method: "message/send".into(),
-        params: Some(serde_json::to_value(&SendMessageRequest {
-            tenant: None,
-            message: Message::user_text("Hello test"),
-            configuration: None,
-            metadata: None,
-        }).unwrap()),
+        params: Some(
+            serde_json::to_value(&SendMessageRequest {
+                tenant: None,
+                message: Message::user_text("Hello test"),
+                configuration: None,
+                metadata: None,
+            })
+            .unwrap(),
+        ),
         id: RequestId::Number(1),
     };
 
     let result = brainwires_a2a::server::jsonrpc_router::dispatch(&handler, &req).await;
     match result {
         Ok(Some(resp)) => {
-            assert!(resp.error.is_none(), "Expected success, got error: {:?}", resp.error);
+            assert!(
+                resp.error.is_none(),
+                "Expected success, got error: {:?}",
+                resp.error
+            );
             assert!(resp.result.is_some());
             // Verify the result is a Task
             let task: Task = serde_json::from_value(resp.result.unwrap()).unwrap();
@@ -238,11 +247,16 @@ async fn test_rest_dispatch_send_message() {
         message: Message::user_text("REST test"),
         configuration: None,
         metadata: None,
-    }).unwrap();
+    })
+    .unwrap();
 
     let result = brainwires_a2a::server::rest_router::dispatch_rest(
-        &handler, "POST", "/message:send", &body
-    ).await;
+        &handler,
+        "POST",
+        "/message:send",
+        &body,
+    )
+    .await;
 
     match result {
         Ok(brainwires_a2a::server::rest_router::RestResult::Json(val)) => {
@@ -267,15 +281,20 @@ async fn test_rest_dispatch_get_tasks() {
         message: Message::user_text("Create task"),
         configuration: None,
         metadata: None,
-    }).unwrap();
+    })
+    .unwrap();
     let _ = brainwires_a2a::server::rest_router::dispatch_rest(
-        &handler, "POST", "/message:send", &body
-    ).await.unwrap();
+        &handler,
+        "POST",
+        "/message:send",
+        &body,
+    )
+    .await
+    .unwrap();
 
     // List tasks
-    let result = brainwires_a2a::server::rest_router::dispatch_rest(
-        &handler, "GET", "/tasks", &[]
-    ).await;
+    let result =
+        brainwires_a2a::server::rest_router::dispatch_rest(&handler, "GET", "/tasks", &[]).await;
 
     match result {
         Ok(brainwires_a2a::server::rest_router::RestResult::Json(val)) => {
@@ -298,22 +317,32 @@ async fn test_agent_card_discovery_handler() {
 #[tokio::test]
 async fn test_push_notification_default_unsupported() {
     let handler = TestHandler::new();
-    let result = handler.on_create_push_config(TaskPushNotificationConfig {
-        tenant: None,
-        id: None,
-        task_id: "t-1".into(),
-        url: "https://example.com".into(),
-        token: None,
-        authentication: None,
-    }).await;
+    let result = handler
+        .on_create_push_config(TaskPushNotificationConfig {
+            tenant: None,
+            id: None,
+            task_id: "t-1".into(),
+            url: "https://example.com".into(),
+            token: None,
+            authentication: None,
+        })
+        .await;
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err().code, brainwires_a2a::error::PUSH_NOT_SUPPORTED);
+    assert_eq!(
+        result.unwrap_err().code,
+        brainwires_a2a::error::PUSH_NOT_SUPPORTED
+    );
 }
 
 #[tokio::test]
 async fn test_extended_card_default_not_configured() {
     let handler = TestHandler::new();
-    let result = handler.on_get_extended_agent_card(GetExtendedAgentCardRequest::default()).await;
+    let result = handler
+        .on_get_extended_agent_card(GetExtendedAgentCardRequest::default())
+        .await;
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err().code, brainwires_a2a::error::EXTENDED_CARD_NOT_CONFIGURED);
+    assert_eq!(
+        result.unwrap_err().code,
+        brainwires_a2a::error::EXTENDED_CARD_NOT_CONFIGURED
+    );
 }

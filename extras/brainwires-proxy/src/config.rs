@@ -50,13 +50,9 @@ impl Default for ProxyConfig {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ListenerConfig {
     /// Listen on a TCP socket.
-    Tcp {
-        addr: SocketAddr,
-    },
+    Tcp { addr: SocketAddr },
     /// Listen on a Unix domain socket.
-    Unix {
-        path: PathBuf,
-    },
+    Unix { path: PathBuf },
 }
 
 impl Default for ListenerConfig {
@@ -72,18 +68,11 @@ impl Default for ListenerConfig {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum UpstreamConfig {
     /// Connect to a URL (HTTP/HTTPS/WS/WSS).
-    Url {
-        url: String,
-    },
+    Url { url: String },
     /// Connect to a TCP host:port.
-    Tcp {
-        host: String,
-        port: u16,
-    },
+    Tcp { host: String, port: u16 },
     /// Connect to a Unix domain socket.
-    Unix {
-        path: PathBuf,
-    },
+    Unix { path: PathBuf },
 }
 
 impl Default for UpstreamConfig {

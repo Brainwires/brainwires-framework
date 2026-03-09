@@ -35,7 +35,11 @@ impl ToolCallRecord {
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_millis() as u64)
             .unwrap_or(0);
-        Self { name, args_fingerprint, timestamp_ms }
+        Self {
+            name,
+            args_fingerprint,
+            timestamp_ms,
+        }
     }
 }
 
@@ -65,7 +69,14 @@ impl SequenceDiff {
     /// Compute the diff between `expected` and `actual` name sequences.
     pub fn compute(expected: &[&str], actual: &[String]) -> Self {
         let exp: Vec<String> = expected.iter().map(|s| s.to_string()).collect();
-        let ed = levenshtein(expected, actual.iter().map(|s| s.as_str()).collect::<Vec<_>>().as_slice());
+        let ed = levenshtein(
+            expected,
+            actual
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>()
+                .as_slice(),
+        );
         let max_len = exp.len().max(actual.len());
         let similarity = if max_len == 0 {
             1.0
@@ -91,8 +102,12 @@ fn levenshtein(a: &[&str], b: &[&str]) -> usize {
     let n = a.len();
     let m = b.len();
     let mut dp = vec![vec![0usize; m + 1]; n + 1];
-    for i in 0..=n { dp[i][0] = i; }
-    for j in 0..=m { dp[0][j] = j; }
+    for i in 0..=n {
+        dp[i][0] = i;
+    }
+    for j in 0..=m {
+        dp[0][j] = j;
+    }
     for i in 1..=n {
         for j in 1..=m {
             dp[i][j] = if a[i - 1] == b[j - 1] {
@@ -134,7 +149,10 @@ impl ToolSequenceRecorder {
     /// Record a tool call.  Safe to call from multiple threads / async tasks.
     pub fn record(&self, name: impl Into<String>, args: &serde_json::Value) {
         let record = ToolCallRecord::new(name, args);
-        self.inner.lock().expect("recorder lock poisoned").push(record);
+        self.inner
+            .lock()
+            .expect("recorder lock poisoned")
+            .push(record);
     }
 
     /// Return a snapshot of all recorded calls in insertion order.
@@ -144,7 +162,8 @@ impl ToolSequenceRecorder {
 
     /// Return only the tool names in insertion order.
     pub fn call_names(&self) -> Vec<String> {
-        self.inner.lock()
+        self.inner
+            .lock()
             .expect("recorder lock poisoned")
             .iter()
             .map(|r| r.name.clone())

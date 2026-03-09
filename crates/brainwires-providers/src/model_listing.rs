@@ -150,13 +150,15 @@ pub fn create_model_lister(
                 .to_string();
             Ok(Box::new(super::gemini::GoogleModelLister::new(key)))
         }
-        ProviderType::Groq | ProviderType::Together | ProviderType::Fireworks | ProviderType::Anyscale => {
+        ProviderType::Groq
+        | ProviderType::Together
+        | ProviderType::Fireworks
+        | ProviderType::Anyscale => {
             // All OpenAI-compatible: reuse OpenAI model lister with the registry's models URL
             let key = api_key
                 .ok_or_else(|| anyhow::anyhow!("{} requires an API key", provider_type))?
                 .to_string();
-            let registry_url = super::registry::lookup(provider_type)
-                .and_then(|e| e.models_url);
+            let registry_url = super::registry::lookup(provider_type).and_then(|e| e.models_url);
             let url = base_url
                 .or(registry_url)
                 .unwrap_or("https://api.openai.com/v1/models");
@@ -165,11 +167,9 @@ pub fn create_model_lister(
                 Some(url.to_string()),
             )))
         }
-        ProviderType::Ollama => {
-            Ok(Box::new(super::ollama::OllamaModelLister::new(
-                base_url.map(|s| s.to_string()),
-            )))
-        }
+        ProviderType::Ollama => Ok(Box::new(super::ollama::OllamaModelLister::new(
+            base_url.map(|s| s.to_string()),
+        ))),
         ProviderType::OpenAiResponses => {
             // Shares the same models endpoint as OpenAI Chat Completions
             let key = api_key
@@ -180,16 +180,19 @@ pub fn create_model_lister(
                 base_url.map(|s| s.to_string()),
             )))
         }
-        ProviderType::Brainwires | ProviderType::Custom
-        | ProviderType::Bedrock | ProviderType::VertexAI
-        | ProviderType::ElevenLabs | ProviderType::Deepgram
-        | ProviderType::Azure | ProviderType::Fish
-        | ProviderType::Cartesia | ProviderType::Murf => {
-            Err(anyhow::anyhow!(
-                "Model listing is not supported for {} provider via this interface",
-                provider_type
-            ))
-        }
+        ProviderType::Brainwires
+        | ProviderType::Custom
+        | ProviderType::Bedrock
+        | ProviderType::VertexAI
+        | ProviderType::ElevenLabs
+        | ProviderType::Deepgram
+        | ProviderType::Azure
+        | ProviderType::Fish
+        | ProviderType::Cartesia
+        | ProviderType::Murf => Err(anyhow::anyhow!(
+            "Model listing is not supported for {} provider via this interface",
+            provider_type
+        )),
     }
 }
 

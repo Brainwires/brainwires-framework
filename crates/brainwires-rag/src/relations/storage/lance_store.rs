@@ -1,7 +1,9 @@
 //! LanceDB-based storage for code relationships.
 
 use anyhow::{Context, Result};
-use arrow_array::{Array, ArrayRef, Int64Array, RecordBatch, RecordBatchIterator, StringArray, UInt32Array};
+use arrow_array::{
+    Array, ArrayRef, Int64Array, RecordBatch, RecordBatchIterator, StringArray, UInt32Array,
+};
 use arrow_schema::{DataType, Field, Schema};
 use async_trait::async_trait;
 use futures::TryStreamExt;
@@ -163,7 +165,11 @@ impl LanceRelationsStore {
     }
 
     /// Helper: get optional string value (empty string becomes None)
-    fn get_optional_string(batch: &RecordBatch, column: &str, row: usize) -> Result<Option<String>> {
+    fn get_optional_string(
+        batch: &RecordBatch,
+        column: &str,
+        row: usize,
+    ) -> Result<Option<String>> {
         let arr = batch
             .column_by_name(column)
             .with_context(|| format!("Missing column: {column}"))?
@@ -354,14 +360,26 @@ impl RelationsStore for LanceRelationsStore {
             .iter()
             .map(|d| d.symbol_id.to_storage_id())
             .collect();
-        let file_paths: Vec<&str> = definitions.iter().map(|d| d.symbol_id.file_path.as_str()).collect();
-        let symbol_names: Vec<&str> = definitions.iter().map(|d| d.symbol_id.name.as_str()).collect();
+        let file_paths: Vec<&str> = definitions
+            .iter()
+            .map(|d| d.symbol_id.file_path.as_str())
+            .collect();
+        let symbol_names: Vec<&str> = definitions
+            .iter()
+            .map(|d| d.symbol_id.name.as_str())
+            .collect();
         let kinds: Vec<String> = definitions
             .iter()
             .map(|d| d.symbol_id.kind.display_name().to_string())
             .collect();
-        let start_lines: Vec<u32> = definitions.iter().map(|d| d.symbol_id.start_line as u32).collect();
-        let start_cols: Vec<u32> = definitions.iter().map(|d| d.symbol_id.start_col as u32).collect();
+        let start_lines: Vec<u32> = definitions
+            .iter()
+            .map(|d| d.symbol_id.start_line as u32)
+            .collect();
+        let start_cols: Vec<u32> = definitions
+            .iter()
+            .map(|d| d.symbol_id.start_col as u32)
+            .collect();
         let end_lines: Vec<u32> = definitions.iter().map(|d| d.end_line as u32).collect();
         let end_cols: Vec<u32> = definitions.iter().map(|d| d.end_col as u32).collect();
         let signatures: Vec<&str> = definitions.iter().map(|d| d.signature.as_str()).collect();
@@ -373,18 +391,12 @@ impl RelationsStore for LanceRelationsStore {
             .iter()
             .map(|d| format!("{:?}", d.visibility).to_lowercase())
             .collect();
-        let parent_ids: Vec<Option<&str>> = definitions
-            .iter()
-            .map(|d| d.parent_id.as_deref())
-            .collect();
-        let root_paths: Vec<Option<&str>> = definitions
-            .iter()
-            .map(|d| d.root_path.as_deref())
-            .collect();
-        let projects: Vec<Option<&str>> = definitions
-            .iter()
-            .map(|d| d.project.as_deref())
-            .collect();
+        let parent_ids: Vec<Option<&str>> =
+            definitions.iter().map(|d| d.parent_id.as_deref()).collect();
+        let root_paths: Vec<Option<&str>> =
+            definitions.iter().map(|d| d.root_path.as_deref()).collect();
+        let projects: Vec<Option<&str>> =
+            definitions.iter().map(|d| d.project.as_deref()).collect();
         let indexed_ats: Vec<i64> = definitions.iter().map(|d| d.indexed_at).collect();
 
         let symbol_id_refs: Vec<&str> = symbol_ids.iter().map(|s| s.as_str()).collect();
@@ -432,7 +444,11 @@ impl RelationsStore for LanceRelationsStore {
         Ok(count)
     }
 
-    async fn store_references(&self, references: Vec<Reference>, _root_path: &str) -> Result<usize> {
+    async fn store_references(
+        &self,
+        references: Vec<Reference>,
+        _root_path: &str,
+    ) -> Result<usize> {
         if references.is_empty() {
             return Ok(0);
         }
@@ -447,15 +463,21 @@ impl RelationsStore for LanceRelationsStore {
         let end_lines: Vec<u32> = references.iter().map(|r| r.end_line as u32).collect();
         let start_cols: Vec<u32> = references.iter().map(|r| r.start_col as u32).collect();
         let end_cols: Vec<u32> = references.iter().map(|r| r.end_col as u32).collect();
-        let target_ids: Vec<&str> = references.iter().map(|r| r.target_symbol_id.as_str()).collect();
+        let target_ids: Vec<&str> = references
+            .iter()
+            .map(|r| r.target_symbol_id.as_str())
+            .collect();
         let ref_kinds: Vec<String> = references
             .iter()
-            .map(|r| serde_json::to_value(r.reference_kind)
-                .ok()
-                .and_then(|v| v.as_str().map(|s| s.to_string()))
-                .unwrap_or_else(|| "unknown".to_string()))
+            .map(|r| {
+                serde_json::to_value(r.reference_kind)
+                    .ok()
+                    .and_then(|v| v.as_str().map(|s| s.to_string()))
+                    .unwrap_or_else(|| "unknown".to_string())
+            })
             .collect();
-        let root_paths: Vec<Option<&str>> = references.iter().map(|r| r.root_path.as_deref()).collect();
+        let root_paths: Vec<Option<&str>> =
+            references.iter().map(|r| r.root_path.as_deref()).collect();
         let projects: Vec<Option<&str>> = references.iter().map(|r| r.project.as_deref()).collect();
         let indexed_ats: Vec<i64> = references.iter().map(|r| r.indexed_at).collect();
 
@@ -784,7 +806,8 @@ impl RelationsStore for LanceRelationsStore {
 
                 // Collect unique file paths
                 if let Some(col) = batch.column_by_name("file_path")
-                    && let Some(arr) = col.as_any().downcast_ref::<StringArray>() {
+                    && let Some(arr) = col.as_any().downcast_ref::<StringArray>()
+                {
                     for i in 0..arr.len() {
                         if !arr.is_null(i) {
                             unique_files.insert(arr.value(i).to_string());
@@ -895,10 +918,7 @@ mod tests {
         assert_eq!(found[0].doc_comment, Some("Entry point".to_string()));
 
         // Query at location
-        let at_line = store
-            .find_definition_at("src/main.rs", 5, 0)
-            .await
-            .unwrap();
+        let at_line = store.find_definition_at("src/main.rs", 5, 0).await.unwrap();
         assert!(at_line.is_some());
         assert_eq!(at_line.unwrap().symbol_id.name, "main");
 
@@ -934,10 +954,7 @@ mod tests {
             .unwrap();
         assert_eq!(count, 1);
 
-        let found = store
-            .find_references("src/main.rs:main:1:0")
-            .await
-            .unwrap();
+        let found = store.find_references("src/main.rs:main:1:0").await.unwrap();
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].file_path, "src/consumer.rs");
         assert_eq!(found[0].reference_kind, ReferenceKind::Call);

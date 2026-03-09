@@ -208,8 +208,7 @@ impl AgentBudget {
 }
 
 /// Strategy for calculating prices
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub enum PricingStrategy {
     /// Winner pays their bid
     FirstPrice,
@@ -228,7 +227,6 @@ pub enum PricingStrategy {
     /// Free (no budget consumption)
     Free,
 }
-
 
 /// Result of an allocation attempt
 #[derive(Debug, Clone)]
@@ -418,9 +416,11 @@ impl MarketAllocator {
         }
 
         // Sort by score (highest first)
-        auction
-            .bids
-            .sort_by(|a, b| b.score().partial_cmp(&a.score()).unwrap_or(std::cmp::Ordering::Equal));
+        auction.bids.sort_by(|a, b| {
+            b.score()
+                .partial_cmp(&a.score())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         // Calculate price
         let price = self.calculate_price(&auction.bids);
@@ -432,8 +432,7 @@ impl MarketAllocator {
                 budget.replenish();
                 if budget.spend(price) {
                     let winner_id = bid.agent_id.clone();
-                    let expected_release =
-                        Some(Instant::now() + bid.estimated_duration);
+                    let expected_release = Some(Instant::now() + bid.estimated_duration);
 
                     // Record holder
                     auction.current_holder = Some(CurrentHolder {
@@ -507,10 +506,11 @@ impl MarketAllocator {
         let mut auctions = self.auctions.write().await;
         if let Some(auction) = auctions.get_mut(resource_id)
             && let Some(ref holder) = auction.current_holder
-                && holder.agent_id == agent_id {
-                    auction.current_holder = None;
-                    return true;
-                }
+            && holder.agent_id == agent_id
+        {
+            auction.current_holder = None;
+            return true;
+        }
         false
     }
 

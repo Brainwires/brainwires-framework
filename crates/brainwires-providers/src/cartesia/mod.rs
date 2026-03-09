@@ -69,7 +69,9 @@ impl CartesiaClient {
             anyhow::bail!("Cartesia TTS API error ({}): {}", status, body);
         }
 
-        let bytes = response.bytes().await
+        let bytes = response
+            .bytes()
+            .await
             .context("Failed to read Cartesia TTS response")?;
         Ok(bytes.to_vec())
     }

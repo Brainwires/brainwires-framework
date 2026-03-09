@@ -17,9 +17,7 @@ mod grpc_convert {
     // Helpers: HashMap<String, serde_json::Value> ↔ prost_types::Struct
     // ===================================================================
 
-    pub(crate) fn hashmap_to_struct(
-        m: HashMap<String, serde_json::Value>,
-    ) -> prost_types::Struct {
+    pub(crate) fn hashmap_to_struct(m: HashMap<String, serde_json::Value>) -> prost_types::Struct {
         prost_types::Struct {
             fields: m
                 .into_iter()
@@ -28,9 +26,7 @@ mod grpc_convert {
         }
     }
 
-    pub(crate) fn struct_to_hashmap(
-        s: prost_types::Struct,
-    ) -> HashMap<String, serde_json::Value> {
+    pub(crate) fn struct_to_hashmap(s: prost_types::Struct) -> HashMap<String, serde_json::Value> {
         s.fields
             .into_iter()
             .map(|(k, v)| (k, prost_value_to_json(v)))
@@ -62,11 +58,9 @@ mod grpc_convert {
         match v.kind {
             Some(Kind::NullValue(_)) | None => serde_json::Value::Null,
             Some(Kind::BoolValue(b)) => serde_json::Value::Bool(b),
-            Some(Kind::NumberValue(n)) => {
-                serde_json::Number::from_f64(n)
-                    .map(serde_json::Value::Number)
-                    .unwrap_or(serde_json::Value::Null)
-            }
+            Some(Kind::NumberValue(n)) => serde_json::Number::from_f64(n)
+                .map(serde_json::Value::Number)
+                .unwrap_or(serde_json::Value::Null),
             Some(Kind::StringValue(s)) => serde_json::Value::String(s),
             Some(Kind::ListValue(l)) => {
                 serde_json::Value::Array(l.values.into_iter().map(prost_value_to_json).collect())
@@ -95,7 +89,11 @@ mod grpc_convert {
     }
 
     fn opt_empty(s: &str) -> Option<String> {
-        if s.is_empty() { None } else { Some(s.to_string()) }
+        if s.is_empty() {
+            None
+        } else {
+            Some(s.to_string())
+        }
     }
 
     // ===================================================================
@@ -164,9 +162,12 @@ mod grpc_convert {
     impl From<Part> for pb::Part {
         fn from(p: Part) -> pb::Part {
             let (content, metadata_map, filename, media_type) = match p {
-                Part::Text { text, metadata } => {
-                    (Some(pb::part::Content::Text(text)), metadata, String::new(), String::new())
-                }
+                Part::Text { text, metadata } => (
+                    Some(pb::part::Content::Text(text)),
+                    metadata,
+                    String::new(),
+                    String::new(),
+                ),
                 Part::File { file, metadata } => {
                     let (content, fname, mtype) = match file {
                         FileContent::Bytes {
@@ -327,12 +328,12 @@ mod grpc_convert {
                 state: i32::from(s.state),
                 message: s.message.map(Into::into),
                 timestamp: s.timestamp.and_then(|t| {
-                    chrono::DateTime::parse_from_rfc3339(&t).ok().map(|dt| {
-                        prost_types::Timestamp {
+                    chrono::DateTime::parse_from_rfc3339(&t)
+                        .ok()
+                        .map(|dt| prost_types::Timestamp {
                             seconds: dt.timestamp(),
                             nanos: dt.timestamp_subsec_nanos() as i32,
-                        }
-                    })
+                        })
                 }),
             }
         }
@@ -668,11 +669,7 @@ mod grpc_convert {
     impl From<pb::SecurityRequirement> for SecurityRequirement {
         fn from(r: pb::SecurityRequirement) -> SecurityRequirement {
             SecurityRequirement {
-                schemes: r
-                    .schemes
-                    .into_iter()
-                    .map(|(k, v)| (k, v.list))
-                    .collect(),
+                schemes: r.schemes.into_iter().map(|(k, v)| (k, v.list)).collect(),
             }
         }
     }
@@ -720,20 +717,16 @@ mod grpc_convert {
                 SecurityScheme::OpenIdConnect {
                     open_id_connect_url,
                     description,
-                } => Some(
-                    pb::security_scheme::Scheme::OpenIdConnectSecurityScheme(
-                        pb::OpenIdConnectSecurityScheme {
-                            description: description.unwrap_or_default(),
-                            open_id_connect_url,
-                        },
-                    ),
-                ),
+                } => Some(pb::security_scheme::Scheme::OpenIdConnectSecurityScheme(
+                    pb::OpenIdConnectSecurityScheme {
+                        description: description.unwrap_or_default(),
+                        open_id_connect_url,
+                    },
+                )),
                 SecurityScheme::MutualTls { description } => Some(
-                    pb::security_scheme::Scheme::MtlsSecurityScheme(
-                        pb::MutualTlsSecurityScheme {
-                            description: description.unwrap_or_default(),
-                        },
-                    ),
+                    pb::security_scheme::Scheme::MtlsSecurityScheme(pb::MutualTlsSecurityScheme {
+                        description: description.unwrap_or_default(),
+                    }),
                 ),
             };
             pb::SecurityScheme { scheme }
@@ -961,10 +954,7 @@ mod grpc_convert {
                     Some(c.supported_interfaces.into_iter().map(Into::into).collect())
                 },
                 provider: c.provider.map(Into::into),
-                capabilities: c
-                    .capabilities
-                    .map(Into::into)
-                    .unwrap_or_default(),
+                capabilities: c.capabilities.map(Into::into).unwrap_or_default(),
                 security_schemes: {
                     let m: HashMap<String, SecurityScheme> = c
                         .security_schemes

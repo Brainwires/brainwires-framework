@@ -236,12 +236,10 @@ impl RagClient {
             .and_then(|e| e.to_str())
             .map(|s| s.to_string());
 
-        let language = extension.as_ref().and_then(|ext| {
-            detect_language(ext)
-        });
+        let language = extension.as_ref().and_then(|ext| detect_language(ext));
 
         // Compute file hash
-        use sha2::{Sha256, Digest};
+        use sha2::{Digest, Sha256};
         let mut hasher = Sha256::new();
         hasher.update(content.as_bytes());
         let hash = format!("{:x}", hasher.finalize());
@@ -303,13 +301,14 @@ impl RagClient {
     /// Returns an error if the path is dirty, otherwise Ok(())
     async fn check_path_not_dirty(&self, path: Option<&str>) -> Result<()> {
         if let Some(p) = path
-            && self.is_index_dirty(p).await {
-                anyhow::bail!(
-                    "Index for '{}' is dirty (previous indexing was interrupted). \
+            && self.is_index_dirty(p).await
+        {
+            anyhow::bail!(
+                "Index for '{}' is dirty (previous indexing was interrupted). \
                     Please re-run index_codebase to rebuild the index before querying.",
-                    p
-                );
-            }
+                p
+            );
+        }
         Ok(())
     }
 
@@ -810,7 +809,10 @@ impl RagClient {
     /// # Returns
     ///
     /// A response containing the definition if found, along with precision info
-    pub async fn find_definition(&self, request: FindDefinitionRequest) -> Result<FindDefinitionResponse> {
+    pub async fn find_definition(
+        &self,
+        request: FindDefinitionRequest,
+    ) -> Result<FindDefinitionResponse> {
         let start = Instant::now();
 
         // Validate request
@@ -857,7 +859,10 @@ impl RagClient {
     /// # Returns
     ///
     /// A response containing the list of references found
-    pub async fn find_references(&self, request: FindReferencesRequest) -> Result<FindReferencesResponse> {
+    pub async fn find_references(
+        &self,
+        request: FindReferencesRequest,
+    ) -> Result<FindReferencesResponse> {
         let start = Instant::now();
 
         // Validate request
@@ -896,7 +901,9 @@ impl RagClient {
             });
         }
 
-        let symbol_name_str = symbol_name.as_ref().expect("checked is_none above and returned early");
+        let symbol_name_str = symbol_name
+            .as_ref()
+            .expect("checked is_none above and returned early");
 
         // Build symbol index from definitions
         let mut symbol_index: std::collections::HashMap<String, Vec<crate::relations::Definition>> =
@@ -948,7 +955,10 @@ impl RagClient {
     /// # Returns
     ///
     /// A response containing the root symbol and its call graph
-    pub async fn get_call_graph(&self, request: GetCallGraphRequest) -> Result<GetCallGraphResponse> {
+    pub async fn get_call_graph(
+        &self,
+        request: GetCallGraphRequest,
+    ) -> Result<GetCallGraphResponse> {
         let start = Instant::now();
 
         // Validate request
@@ -1030,7 +1040,8 @@ impl RagClient {
                 definitions.iter().find(|def| {
                     matches!(
                         def.symbol_id.kind,
-                        crate::relations::SymbolKind::Function | crate::relations::SymbolKind::Method
+                        crate::relations::SymbolKind::Function
+                            | crate::relations::SymbolKind::Method
                     ) && r.start_line >= def.symbol_id.start_line
                         && r.start_line <= def.end_line
                 })
@@ -1067,7 +1078,10 @@ impl RagClient {
             .filter(|name| seen_callees.insert(name.clone()))
             .filter_map(|name| {
                 // Find the definition of the called function
-                symbol_index.get(&name).and_then(|defs| defs.first()).cloned()
+                symbol_index
+                    .get(&name)
+                    .and_then(|defs| defs.first())
+                    .cloned()
             })
             .map(|def| crate::relations::CallGraphNode {
                 name: def.symbol_id.name.clone(),

@@ -11,12 +11,12 @@
 #[cfg(feature = "local")]
 extern crate burn_core as burn;
 
+/// Training configuration and hyperparameters.
+pub mod config;
 /// Training error types.
 pub mod error;
 /// Training job types and status.
 pub mod types;
-/// Training configuration and hyperparameters.
-pub mod config;
 
 /// Cloud fine-tuning providers.
 #[cfg(feature = "cloud")]
@@ -30,24 +30,17 @@ pub mod local;
 pub mod manager;
 
 // Re-export core types (always available)
+pub use config::{AdapterMethod, AlignmentMethod, LoraConfig, LrScheduler, TrainingHyperparams};
 pub use error::TrainingError;
 pub use types::{
-    TrainingJobId, TrainingJobStatus, TrainingProgress, TrainingMetrics,
-    TrainingJobSummary, DatasetId,
-};
-pub use config::{
-    TrainingHyperparams, LoraConfig, AdapterMethod, AlignmentMethod,
-    LrScheduler,
+    DatasetId, TrainingJobId, TrainingJobStatus, TrainingJobSummary, TrainingMetrics,
+    TrainingProgress,
 };
 
 #[cfg(feature = "cloud")]
-pub use cloud::{
-    FineTuneProvider, CloudFineTuneConfig, FineTuneProviderFactory,
-};
+pub use cloud::{CloudFineTuneConfig, FineTuneProvider, FineTuneProviderFactory};
 
 #[cfg(feature = "local")]
-pub use local::{
-    TrainingBackend, LocalTrainingConfig, ComputeDevice, TrainedModelArtifact,
-};
+pub use local::{ComputeDevice, LocalTrainingConfig, TrainedModelArtifact, TrainingBackend};
 
 pub use manager::TrainingManager;

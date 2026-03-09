@@ -1,7 +1,7 @@
-/// Shared cpal configuration helpers.
-pub mod cpal_common;
 /// Audio capture backend using cpal.
 pub mod cpal_capture;
+/// Shared cpal configuration helpers.
+pub mod cpal_common;
 /// Audio playback backend using cpal.
 pub mod cpal_playback;
 

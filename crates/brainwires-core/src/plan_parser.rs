@@ -31,15 +31,12 @@ pub fn parse_plan_steps(content: &str) -> Vec<ParsedStep> {
     // - "- Step description" (bullets)
     // - "  1. Substep" (indented)
 
-    static NUMBERED_RE: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"^(\s*)(\d+)[.)]\s*(.+)$").expect("valid regex")
-    });
-    static STEP_COLON_RE: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"^(\s*)(?:Step\s+)?(\d+):\s*(.+)$").expect("valid regex")
-    });
-    static BULLET_RE: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"^(\s*)[-*]\s+(.+)$").expect("valid regex")
-    });
+    static NUMBERED_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"^(\s*)(\d+)[.)]\s*(.+)$").expect("valid regex"));
+    static STEP_COLON_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"^(\s*)(?:Step\s+)?(\d+):\s*(.+)$").expect("valid regex"));
+    static BULLET_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"^(\s*)[-*]\s+(.+)$").expect("valid regex"));
     let numbered_re = &*NUMBERED_RE;
     let step_colon_re = &*STEP_COLON_RE;
     let bullet_re = &*BULLET_RE;
@@ -55,8 +52,17 @@ pub fn parse_plan_steps(content: &str) -> Vec<ParsedStep> {
         // Try numbered format: "1. Description" or "1) Description"
         if let Some(caps) = numbered_re.captures(line) {
             let indent = caps.get(1).map(|m| m.as_str().len()).unwrap_or(0);
-            let _num: usize = caps.get(2).expect("group 2 always present in match").as_str().parse().unwrap_or(0);
-            let desc = caps.get(3).expect("group 3 always present in match").as_str().trim();
+            let _num: usize = caps
+                .get(2)
+                .expect("group 2 always present in match")
+                .as_str()
+                .parse()
+                .unwrap_or(0);
+            let desc = caps
+                .get(3)
+                .expect("group 3 always present in match")
+                .as_str()
+                .trim();
 
             current_number += 1;
             let indent_level = indent / 2; // Assume 2-space indentation
@@ -75,8 +81,17 @@ pub fn parse_plan_steps(content: &str) -> Vec<ParsedStep> {
         // Try "Step N:" format
         if let Some(caps) = step_colon_re.captures(line) {
             let indent = caps.get(1).map(|m| m.as_str().len()).unwrap_or(0);
-            let _num: usize = caps.get(2).expect("group 2 always present in match").as_str().parse().unwrap_or(0);
-            let desc = caps.get(3).expect("group 3 always present in match").as_str().trim();
+            let _num: usize = caps
+                .get(2)
+                .expect("group 2 always present in match")
+                .as_str()
+                .parse()
+                .unwrap_or(0);
+            let desc = caps
+                .get(3)
+                .expect("group 3 always present in match")
+                .as_str()
+                .trim();
 
             current_number += 1;
             let indent_level = indent / 2;
@@ -94,7 +109,11 @@ pub fn parse_plan_steps(content: &str) -> Vec<ParsedStep> {
         // Try bullet format (only in certain sections)
         if let Some(caps) = bullet_re.captures(line) {
             let indent = caps.get(1).map(|m| m.as_str().len()).unwrap_or(0);
-            let desc = caps.get(2).expect("group 2 always present in match").as_str().trim();
+            let desc = caps
+                .get(2)
+                .expect("group 2 always present in match")
+                .as_str()
+                .trim();
 
             // Skip bullets that look like notes/comments
             if desc.starts_with("Note:") || desc.starts_with("Warning:") {
@@ -102,23 +121,23 @@ pub fn parse_plan_steps(content: &str) -> Vec<ParsedStep> {
             }
 
             // Only include bullets that look like action items
-            if desc.len() > 10 && (
-                desc.to_lowercase().contains("create") ||
-                desc.to_lowercase().contains("add") ||
-                desc.to_lowercase().contains("implement") ||
-                desc.to_lowercase().contains("update") ||
-                desc.to_lowercase().contains("modify") ||
-                desc.to_lowercase().contains("configure") ||
-                desc.to_lowercase().contains("set up") ||
-                desc.to_lowercase().contains("install") ||
-                desc.to_lowercase().contains("test") ||
-                desc.to_lowercase().contains("verify") ||
-                desc.to_lowercase().contains("check") ||
-                desc.to_lowercase().contains("review") ||
-                desc.to_lowercase().contains("fix") ||
-                desc.to_lowercase().contains("remove") ||
-                desc.to_lowercase().contains("delete")
-            ) {
+            if desc.len() > 10
+                && (desc.to_lowercase().contains("create")
+                    || desc.to_lowercase().contains("add")
+                    || desc.to_lowercase().contains("implement")
+                    || desc.to_lowercase().contains("update")
+                    || desc.to_lowercase().contains("modify")
+                    || desc.to_lowercase().contains("configure")
+                    || desc.to_lowercase().contains("set up")
+                    || desc.to_lowercase().contains("install")
+                    || desc.to_lowercase().contains("test")
+                    || desc.to_lowercase().contains("verify")
+                    || desc.to_lowercase().contains("check")
+                    || desc.to_lowercase().contains("review")
+                    || desc.to_lowercase().contains("fix")
+                    || desc.to_lowercase().contains("remove")
+                    || desc.to_lowercase().contains("delete"))
+            {
                 current_number += 1;
                 let indent_level = indent / 2;
 

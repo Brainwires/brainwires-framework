@@ -37,8 +37,7 @@ impl JsonTransformer {
             value = apply_rule(value, rule)?;
         }
 
-        let out =
-            serde_json::to_vec(&value).map_err(|e| ProxyError::Conversion(e.to_string()))?;
+        let out = serde_json::to_vec(&value).map_err(|e| ProxyError::Conversion(e.to_string()))?;
         Ok(Bytes::from(out))
     }
 }
@@ -47,9 +46,10 @@ fn apply_rule(mut value: Value, rule: &JsonRule) -> ProxyResult<Value> {
     match rule {
         JsonRule::RenameField { from, to } => {
             if let Value::Object(ref mut map) = value
-                && let Some(v) = map.remove(from) {
-                    map.insert(to.clone(), v);
-                }
+                && let Some(v) = map.remove(from)
+            {
+                map.insert(to.clone(), v);
+            }
             Ok(value)
         }
         JsonRule::RemoveField(path) => {
@@ -65,11 +65,9 @@ fn apply_rule(mut value: Value, rule: &JsonRule) -> ProxyResult<Value> {
             map.insert(key.clone(), value);
             Ok(Value::Object(map))
         }
-        JsonRule::Unwrap(path) => {
-            get_at_path(&value, path)
-                .cloned()
-                .ok_or_else(|| ProxyError::Conversion(format!("path not found: {path}")))
-        }
+        JsonRule::Unwrap(path) => get_at_path(&value, path)
+            .cloned()
+            .ok_or_else(|| ProxyError::Conversion(format!("path not found: {path}"))),
     }
 }
 

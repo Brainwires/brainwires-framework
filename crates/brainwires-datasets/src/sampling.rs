@@ -36,10 +36,7 @@ pub struct SplitResult {
 }
 
 /// Split a dataset into train/eval sets.
-pub fn train_eval_split(
-    examples: &[TrainingExample],
-    config: &SplitConfig,
-) -> SplitResult {
+pub fn train_eval_split(examples: &[TrainingExample], config: &SplitConfig) -> SplitResult {
     let mut dataset = InstructDataset::new(examples.to_vec());
 
     if config.shuffle {
@@ -76,7 +73,9 @@ pub fn sample_n(examples: &[TrainingExample], n: usize, seed: u64) -> Vec<Traini
     let mut indices: Vec<usize> = (0..examples.len()).collect();
     let mut state = seed;
     for i in 0..n {
-        state = state.wrapping_mul(PCG_MULTIPLIER).wrapping_add(PCG_INCREMENT);
+        state = state
+            .wrapping_mul(PCG_MULTIPLIER)
+            .wrapping_add(PCG_INCREMENT);
         let j = i + ((state >> 33) as usize % (examples.len() - i));
         indices.swap(i, j);
     }
@@ -105,7 +104,11 @@ pub fn preference_train_eval_split(
 
     let (train, eval) = dataset.split(config.train_ratio);
 
-    tracing::debug!("Split preference dataset: {} train, {} eval", train.len(), eval.len());
+    tracing::debug!(
+        "Split preference dataset: {} train, {} eval",
+        train.len(),
+        eval.len()
+    );
 
     PreferenceSplitResult {
         train: PreferenceDataset::new(train),
@@ -127,7 +130,9 @@ pub fn preference_sample_n(pairs: &[PreferencePair], n: usize, seed: u64) -> Vec
     let mut indices: Vec<usize> = (0..pairs.len()).collect();
     let mut state = seed;
     for i in 0..n {
-        state = state.wrapping_mul(PCG_MULTIPLIER).wrapping_add(PCG_INCREMENT);
+        state = state
+            .wrapping_mul(PCG_MULTIPLIER)
+            .wrapping_add(PCG_INCREMENT);
         let j = i + ((state >> 33) as usize % (pairs.len() - i));
         indices.swap(i, j);
     }
@@ -195,11 +200,13 @@ mod tests {
     fn test_preference_train_eval_split() {
         use crate::types::PreferencePair;
         let pairs: Vec<PreferencePair> = (0..100)
-            .map(|i| PreferencePair::new(
-                vec![TrainingMessage::user(format!("Q{}", i))],
-                vec![TrainingMessage::assistant("Good")],
-                vec![TrainingMessage::assistant("Bad")],
-            ))
+            .map(|i| {
+                PreferencePair::new(
+                    vec![TrainingMessage::user(format!("Q{}", i))],
+                    vec![TrainingMessage::assistant("Good")],
+                    vec![TrainingMessage::assistant("Bad")],
+                )
+            })
             .collect();
         let result = preference_train_eval_split(&pairs, &SplitConfig::default());
         assert_eq!(result.train.len(), 90);
@@ -210,11 +217,13 @@ mod tests {
     fn test_preference_sample_n() {
         use crate::types::PreferencePair;
         let pairs: Vec<PreferencePair> = (0..50)
-            .map(|i| PreferencePair::new(
-                vec![TrainingMessage::user(format!("Q{}", i))],
-                vec![TrainingMessage::assistant("Good")],
-                vec![TrainingMessage::assistant("Bad")],
-            ))
+            .map(|i| {
+                PreferencePair::new(
+                    vec![TrainingMessage::user(format!("Q{}", i))],
+                    vec![TrainingMessage::assistant("Good")],
+                    vec![TrainingMessage::assistant("Bad")],
+                )
+            })
             .collect();
         let sampled = preference_sample_n(&pairs, 10, 42);
         assert_eq!(sampled.len(), 10);

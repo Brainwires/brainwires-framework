@@ -11,9 +11,9 @@ use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 use tokio::sync::RwLock;
 
 use super::protocol::CompressionAlgorithm;
@@ -211,11 +211,13 @@ impl AttachmentReceiver {
         // Generate unique filename
         let safe_filename = sanitize_filename(&pending.filename);
         let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
-        let output_path = self.output_dir.join(format!("{}_{}", timestamp, safe_filename));
+        let output_path = self
+            .output_dir
+            .join(format!("{}_{}", timestamp, safe_filename));
 
         // Write to file
-        let mut file = std::fs::File::create(&output_path)
-            .context("Failed to create attachment file")?;
+        let mut file =
+            std::fs::File::create(&output_path).context("Failed to create attachment file")?;
         file.write_all(&data)
             .context("Failed to write attachment data")?;
 
@@ -240,9 +242,9 @@ impl AttachmentReceiver {
     /// Get status of a pending upload
     pub async fn get_status(&self, attachment_id: &str) -> Option<(u32, u32, usize)> {
         let pending_map = self.pending.read().await;
-        pending_map.get(attachment_id).map(|p| {
-            (p.chunks.len() as u32, p.chunks_total, p.bytes_received)
-        })
+        pending_map
+            .get(attachment_id)
+            .map(|p| (p.chunks.len() as u32, p.chunks_total, p.bytes_received))
     }
 }
 

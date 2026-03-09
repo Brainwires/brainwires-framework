@@ -66,7 +66,9 @@ impl Provider for OpenAiResponsesProvider {
         options: &ChatOptions,
     ) -> Result<ChatResponse> {
         let (input, system) = convert::messages_to_input(messages);
-        let response_tools = tools.map(convert::tools_to_response_tools).unwrap_or_default();
+        let response_tools = tools
+            .map(convert::tools_to_response_tools)
+            .unwrap_or_default();
         let instructions = system.as_deref().or(options.system.as_deref());
 
         let prev_id = self.last_response_id.lock().await.clone();
@@ -75,7 +77,11 @@ impl Provider for OpenAiResponsesProvider {
             &self.model,
             input,
             instructions,
-            if response_tools.is_empty() { None } else { Some(&response_tools) },
+            if response_tools.is_empty() {
+                None
+            } else {
+                Some(&response_tools)
+            },
             options,
             prev_id.as_deref(),
         );
@@ -102,7 +108,9 @@ impl Provider for OpenAiResponsesProvider {
         tracing::info!(provider = %self.provider_name, model = %self.model, "provider.stream started");
 
         let (input, system) = convert::messages_to_input(messages);
-        let response_tools = tools.map(convert::tools_to_response_tools).unwrap_or_default();
+        let response_tools = tools
+            .map(convert::tools_to_response_tools)
+            .unwrap_or_default();
 
         Box::pin(async_stream::stream! {
             let instructions = system.as_deref().or(options.system.as_deref());

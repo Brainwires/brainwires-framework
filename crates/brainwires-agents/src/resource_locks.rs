@@ -9,13 +9,13 @@
 //! - Git-specific resource types for fine-grained control
 //! - Wait queue integration for coordinated access
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::sync::{broadcast, RwLock};
+use tokio::sync::{RwLock, broadcast};
 
 use crate::operation_tracker::{OperationHandle, OperationTracker};
 use crate::wait_queue::WaitQueue;
@@ -772,7 +772,11 @@ impl ResourceLockManager {
                 ))
             }
         } else {
-            Err(anyhow!("No lock found for resource {} ({})", resource_type, scope))
+            Err(anyhow!(
+                "No lock found for resource {} ({})",
+                resource_type,
+                scope
+            ))
         }
     }
 }
@@ -835,19 +839,23 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(manager
-            .check_lock(ResourceType::Build, &scope)
-            .await
-            .is_some());
+        assert!(
+            manager
+                .check_lock(ResourceType::Build, &scope)
+                .await
+                .is_some()
+        );
 
         drop(guard);
         // Give the async drop task time to run
         tokio::time::sleep(Duration::from_millis(10)).await;
 
-        assert!(manager
-            .check_lock(ResourceType::Build, &scope)
-            .await
-            .is_none());
+        assert!(
+            manager
+                .check_lock(ResourceType::Build, &scope)
+                .await
+                .is_none()
+        );
     }
 
     #[tokio::test]
@@ -883,10 +891,12 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(manager
-            .check_lock(ResourceType::Build, &scope)
-            .await
-            .is_some());
+        assert!(
+            manager
+                .check_lock(ResourceType::Build, &scope)
+                .await
+                .is_some()
+        );
     }
 
     #[tokio::test]
@@ -895,7 +905,12 @@ mod tests {
         let scope = ResourceScope::Project(PathBuf::from("/test/project"));
 
         let _guard = manager
-            .acquire_resource("agent-1", ResourceType::BuildTest, scope.clone(), "cargo build && cargo test")
+            .acquire_resource(
+                "agent-1",
+                ResourceType::BuildTest,
+                scope.clone(),
+                "cargo build && cargo test",
+            )
             .await
             .unwrap();
 
@@ -924,7 +939,12 @@ mod tests {
 
         // Build should block BuildTest
         let result = manager
-            .acquire_resource("agent-2", ResourceType::BuildTest, scope.clone(), "cargo build && cargo test")
+            .acquire_resource(
+                "agent-2",
+                ResourceType::BuildTest,
+                scope.clone(),
+                "cargo build && cargo test",
+            )
             .await;
         assert!(result.is_err());
     }
@@ -936,24 +956,38 @@ mod tests {
         let scope2 = ResourceScope::Project(PathBuf::from("/test/project2"));
 
         let _guard1 = manager
-            .acquire_resource("agent-1", ResourceType::Build, scope1.clone(), "cargo build")
+            .acquire_resource(
+                "agent-1",
+                ResourceType::Build,
+                scope1.clone(),
+                "cargo build",
+            )
             .await
             .unwrap();
 
         // Different project should work
         let _guard2 = manager
-            .acquire_resource("agent-2", ResourceType::Build, scope2.clone(), "cargo build")
+            .acquire_resource(
+                "agent-2",
+                ResourceType::Build,
+                scope2.clone(),
+                "cargo build",
+            )
             .await
             .unwrap();
 
-        assert!(manager
-            .check_lock(ResourceType::Build, &scope1)
-            .await
-            .is_some());
-        assert!(manager
-            .check_lock(ResourceType::Build, &scope2)
-            .await
-            .is_some());
+        assert!(
+            manager
+                .check_lock(ResourceType::Build, &scope1)
+                .await
+                .is_some()
+        );
+        assert!(
+            manager
+                .check_lock(ResourceType::Build, &scope2)
+                .await
+                .is_some()
+        );
     }
 
     #[tokio::test]
@@ -977,14 +1011,18 @@ mod tests {
         let released = manager.release_all_for_agent("agent-1").await;
         assert_eq!(released, 2);
 
-        assert!(manager
-            .check_lock(ResourceType::Build, &scope)
-            .await
-            .is_none());
-        assert!(manager
-            .check_lock(ResourceType::Test, &scope)
-            .await
-            .is_none());
+        assert!(
+            manager
+                .check_lock(ResourceType::Build, &scope)
+                .await
+                .is_none()
+        );
+        assert!(
+            manager
+                .check_lock(ResourceType::Test, &scope)
+                .await
+                .is_none()
+        );
     }
 
     #[tokio::test]
@@ -993,9 +1031,11 @@ mod tests {
         let scope = ResourceScope::Project(PathBuf::from("/test/project"));
 
         // No locks - can acquire
-        assert!(manager
-            .can_acquire("agent-1", ResourceType::Build, &scope)
-            .await);
+        assert!(
+            manager
+                .can_acquire("agent-1", ResourceType::Build, &scope)
+                .await
+        );
 
         let _guard = manager
             .acquire_resource("agent-1", ResourceType::Build, scope.clone(), "cargo build")
@@ -1003,14 +1043,18 @@ mod tests {
             .unwrap();
 
         // Same agent can acquire
-        assert!(manager
-            .can_acquire("agent-1", ResourceType::Build, &scope)
-            .await);
+        assert!(
+            manager
+                .can_acquire("agent-1", ResourceType::Build, &scope)
+                .await
+        );
 
         // Other agent cannot
-        assert!(!manager
-            .can_acquire("agent-2", ResourceType::Build, &scope)
-            .await);
+        assert!(
+            !manager
+                .can_acquire("agent-2", ResourceType::Build, &scope)
+                .await
+        );
     }
 
     #[tokio::test]
@@ -1023,7 +1067,12 @@ mod tests {
             .await
             .unwrap();
         let _guard2 = manager
-            .acquire_resource("agent-2", ResourceType::Test, ResourceScope::Global, "cargo test")
+            .acquire_resource(
+                "agent-2",
+                ResourceType::Test,
+                ResourceScope::Global,
+                "cargo test",
+            )
             .await
             .unwrap();
 
@@ -1041,19 +1090,34 @@ mod tests {
 
         // GitIndex lock
         let _guard = manager
-            .acquire_resource("agent-1", ResourceType::GitIndex, scope.clone(), "git stage")
+            .acquire_resource(
+                "agent-1",
+                ResourceType::GitIndex,
+                scope.clone(),
+                "git stage",
+            )
             .await
             .unwrap();
 
         // GitCommit should conflict with GitIndex
         let result = manager
-            .acquire_resource("agent-2", ResourceType::GitCommit, scope.clone(), "git commit")
+            .acquire_resource(
+                "agent-2",
+                ResourceType::GitCommit,
+                scope.clone(),
+                "git commit",
+            )
             .await;
         assert!(result.is_err());
 
         // GitRemoteWrite should NOT conflict with GitIndex
         let _guard2 = manager
-            .acquire_resource("agent-2", ResourceType::GitRemoteWrite, scope.clone(), "git push")
+            .acquire_resource(
+                "agent-2",
+                ResourceType::GitRemoteWrite,
+                scope.clone(),
+                "git push",
+            )
             .await
             .unwrap();
 
@@ -1114,7 +1178,10 @@ mod tests {
             .await
             .unwrap();
 
-        let lock = manager.check_lock(ResourceType::Build, &scope).await.unwrap();
+        let lock = manager
+            .check_lock(ResourceType::Build, &scope)
+            .await
+            .unwrap();
         assert_eq!(lock.status, "Compiling crate...");
 
         // Other agent cannot update

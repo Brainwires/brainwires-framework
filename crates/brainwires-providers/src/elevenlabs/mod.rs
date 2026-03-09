@@ -71,7 +71,9 @@ impl ElevenLabsClient {
             anyhow::bail!("ElevenLabs TTS API error ({}): {}", status, body);
         }
 
-        let bytes = response.bytes().await
+        let bytes = response
+            .bytes()
+            .await
             .context("Failed to read ElevenLabs TTS response")?;
         Ok(bytes.to_vec())
     }
@@ -91,8 +93,7 @@ impl ElevenLabsClient {
             .mime_str("audio/wav")
             .context("Failed to create multipart")?;
 
-        let mut form = reqwest::multipart::Form::new()
-            .part("audio", file_part);
+        let mut form = reqwest::multipart::Form::new().part("audio", file_part);
 
         if let Some(ref model) = req.model {
             form = form.text("model_id", model.clone());
@@ -116,7 +117,9 @@ impl ElevenLabsClient {
             anyhow::bail!("ElevenLabs STT API error ({}): {}", status, body);
         }
 
-        response.json().await
+        response
+            .json()
+            .await
             .context("Failed to parse ElevenLabs STT response")
     }
 
@@ -140,7 +143,9 @@ impl ElevenLabsClient {
             anyhow::bail!("ElevenLabs voices API error ({}): {}", status, body);
         }
 
-        response.json().await
+        response
+            .json()
+            .await
             .context("Failed to parse ElevenLabs voices response")
     }
 }

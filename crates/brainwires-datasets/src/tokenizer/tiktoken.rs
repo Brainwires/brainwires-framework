@@ -1,5 +1,5 @@
-use crate::error::{DatasetError, DatasetResult};
 use super::Tokenizer;
+use crate::error::{DatasetError, DatasetResult};
 
 /// OpenAI tiktoken tokenizer wrapper.
 pub struct TiktokenTokenizer {
@@ -10,10 +10,9 @@ pub struct TiktokenTokenizer {
 impl TiktokenTokenizer {
     /// Create a tiktoken tokenizer for a specific model (e.g., "gpt-4", "gpt-3.5-turbo").
     pub fn for_model(model: &str) -> DatasetResult<Self> {
-        let bpe = tiktoken_rs::get_bpe_from_model(model)
-            .map_err(|e| DatasetError::Tokenizer {
-                message: format!("Failed to load tiktoken for model '{}': {}", model, e),
-            })?;
+        let bpe = tiktoken_rs::get_bpe_from_model(model).map_err(|e| DatasetError::Tokenizer {
+            message: format!("Failed to load tiktoken for model '{}': {}", model, e),
+        })?;
         // tiktoken-rs doesn't expose vocab_size directly; use known values
         let vocab_size = match model {
             m if m.starts_with("gpt-4") => 100277,
@@ -25,20 +24,24 @@ impl TiktokenTokenizer {
 
     /// Create with cl100k_base encoding (GPT-4 / GPT-3.5-turbo).
     pub fn cl100k_base() -> DatasetResult<Self> {
-        let bpe = tiktoken_rs::cl100k_base()
-            .map_err(|e| DatasetError::Tokenizer {
-                message: format!("Failed to load cl100k_base: {}", e),
-            })?;
-        Ok(Self { bpe, vocab_size: 100277 })
+        let bpe = tiktoken_rs::cl100k_base().map_err(|e| DatasetError::Tokenizer {
+            message: format!("Failed to load cl100k_base: {}", e),
+        })?;
+        Ok(Self {
+            bpe,
+            vocab_size: 100277,
+        })
     }
 
     /// Create with o200k_base encoding (GPT-4o).
     pub fn o200k_base() -> DatasetResult<Self> {
-        let bpe = tiktoken_rs::o200k_base()
-            .map_err(|e| DatasetError::Tokenizer {
-                message: format!("Failed to load o200k_base: {}", e),
-            })?;
-        Ok(Self { bpe, vocab_size: 200019 })
+        let bpe = tiktoken_rs::o200k_base().map_err(|e| DatasetError::Tokenizer {
+            message: format!("Failed to load o200k_base: {}", e),
+        })?;
+        Ok(Self {
+            bpe,
+            vocab_size: 200019,
+        })
     }
 }
 
@@ -49,7 +52,8 @@ impl Tokenizer for TiktokenTokenizer {
     }
 
     fn decode(&self, ids: &[u32]) -> DatasetResult<String> {
-        self.bpe.decode(ids.to_vec())
+        self.bpe
+            .decode(ids.to_vec())
             .map_err(|e| DatasetError::Tokenizer {
                 message: format!("Decoding error: {}", e),
             })
@@ -67,7 +71,8 @@ impl Tokenizer for TiktokenTokenizer {
             ("<|fim_middle|>", 100259),
             ("<|fim_suffix|>", 100260),
         ];
-        known.into_iter()
+        known
+            .into_iter()
             .filter(|&(_, id)| (id as usize) < self.vocab_size)
             .map(|(name, id)| (name.to_string(), id))
             .collect()

@@ -18,13 +18,13 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::{RwLock, mpsc};
 use tokio_tungstenite::{
     connect_async,
-    tungstenite::{client::IntoClientRequest, Message},
+    tungstenite::{Message, client::IntoClientRequest},
 };
 use url::Url;
 
@@ -413,7 +413,10 @@ impl RealtimeClient {
             .append_pair("apikey", &self.config.supabase_anon_key)
             .append_pair("vsn", "1.0.0");
 
-        tracing::info!("Connecting to Supabase Realtime: {}", url.host_str().unwrap_or("unknown"));
+        tracing::info!(
+            "Connecting to Supabase Realtime: {}",
+            url.host_str().unwrap_or("unknown")
+        );
 
         // Convert URL to a WebSocket request (this adds all required WebSocket headers)
         let mut request = url.into_client_request()?;
@@ -429,7 +432,10 @@ impl RealtimeClient {
             Ok(result) => result,
             Err(e) => {
                 tracing::error!("WebSocket connection error: {:?}", e);
-                return Err(anyhow::anyhow!("Failed to connect to Supabase Realtime: {}", e));
+                return Err(anyhow::anyhow!(
+                    "Failed to connect to Supabase Realtime: {}",
+                    e
+                ));
             }
         };
 
@@ -478,7 +484,8 @@ impl RealtimeClient {
         let version = self.config.version.clone();
 
         // Phoenix heartbeat interval (must be < 60s to keep connection alive)
-        let mut phoenix_heartbeat = tokio::time::interval(Duration::from_secs(PHOENIX_HEARTBEAT_INTERVAL_SECS));
+        let mut phoenix_heartbeat =
+            tokio::time::interval(Duration::from_secs(PHOENIX_HEARTBEAT_INTERVAL_SECS));
 
         // Track if we've sent the initial register message
         let mut register_sent = false;
@@ -491,11 +498,12 @@ impl RealtimeClient {
 
                 // Get current agents to include in register message
                 // Uses bridge-internal discovery with injected sessions_dir
-                let agents = crate::ipc::discovery::list_agent_sessions_with_metadata(&sessions_dir)
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(RemoteAgentInfo::from)
-                    .collect::<Vec<_>>();
+                let agents =
+                    crate::ipc::discovery::list_agent_sessions_with_metadata(&sessions_dir)
+                        .unwrap_or_default()
+                        .into_iter()
+                        .map(RemoteAgentInfo::from)
+                        .collect::<Vec<_>>();
 
                 let register_msg = RemoteRealtimeMessage::Register {
                     payload: RegisterPayload {
@@ -508,7 +516,10 @@ impl RealtimeClient {
                     },
                 };
 
-                if let Err(e) = self.send_broadcast(&mut write, &channel_topic_clone, &user_id, register_msg).await {
+                if let Err(e) = self
+                    .send_broadcast(&mut write, &channel_topic_clone, &user_id, register_msg)
+                    .await
+                {
                     tracing::warn!("Failed to send register message: {}", e);
                 } else {
                     tracing::info!("Register message sent to frontend");
@@ -677,8 +688,12 @@ impl RealtimeClient {
                     tracing::info!("Broadcast wrapper payload: {:?}", wrapper);
 
                     if let Some(inner_payload) = wrapper.get("payload") {
-                        tracing::info!("Inner payload (RemoteRealtimeMessage): {:?}", inner_payload);
-                        self.handle_remote_message(inner_payload, command_tx).await?;
+                        tracing::info!(
+                            "Inner payload (RemoteRealtimeMessage): {:?}",
+                            inner_payload
+                        );
+                        self.handle_remote_message(inner_payload, command_tx)
+                            .await?;
                     } else {
                         tracing::warn!("Broadcast has no inner payload: {:?}", wrapper);
                     }
@@ -713,13 +728,20 @@ impl RealtimeClient {
                     tracing::debug!("Command payload: {:?}", payload);
                     match serde_json::from_value::<CommandPayload>(payload.clone()) {
                         Ok(cmd_payload) => {
-                            tracing::info!("Parsed command: type={}, agent_id={:?}",
-                                cmd_payload.command_type, cmd_payload.agent_id);
+                            tracing::info!(
+                                "Parsed command: type={}, agent_id={:?}",
+                                cmd_payload.command_type,
+                                cmd_payload.agent_id
+                            );
                             let backend_cmd = self.convert_to_backend_command(&cmd_payload)?;
                             command_tx.send(backend_cmd).await?;
                         }
                         Err(e) => {
-                            tracing::error!("Failed to parse CommandPayload: {}, payload was: {:?}", e, payload);
+                            tracing::error!(
+                                "Failed to parse CommandPayload: {}, payload was: {:?}",
+                                e,
+                                payload
+                            );
                         }
                     }
                 } else {
@@ -786,7 +808,10 @@ impl RealtimeClient {
                 timestamp: chrono::Utc::now().timestamp_millis(),
             },
             "disconnect" => BackendCommand::Disconnect {
-                reason: payload.reason.clone().unwrap_or_else(|| "Server requested".to_string()),
+                reason: payload
+                    .reason
+                    .clone()
+                    .unwrap_or_else(|| "Server requested".to_string()),
             },
             _ => bail!("Unknown command type: {}", payload.command_type),
         };
@@ -844,7 +869,10 @@ impl RealtimeClient {
     }
 
     /// Send heartbeat with agent status
-    pub async fn send_heartbeat(&self, heartbeat_data: super::heartbeat::HeartbeatData) -> Result<()> {
+    pub async fn send_heartbeat(
+        &self,
+        heartbeat_data: super::heartbeat::HeartbeatData,
+    ) -> Result<()> {
         self.send(RemoteRealtimeMessage::Heartbeat {
             payload: HeartbeatPayload {
                 agents: heartbeat_data.agents,
@@ -912,15 +940,33 @@ fn get_message_type(msg: &RemoteRealtimeMessage) -> &'static str {
 /// Get the payload from a RemoteRealtimeMessage
 fn get_message_payload(msg: &RemoteRealtimeMessage) -> serde_json::Value {
     match msg {
-        RemoteRealtimeMessage::Register { payload } => serde_json::to_value(payload).unwrap_or_default(),
-        RemoteRealtimeMessage::Heartbeat { payload } => serde_json::to_value(payload).unwrap_or_default(),
-        RemoteRealtimeMessage::Stream { payload } => serde_json::to_value(payload).unwrap_or_default(),
-        RemoteRealtimeMessage::CommandResult { payload } => serde_json::to_value(payload).unwrap_or_default(),
-        RemoteRealtimeMessage::Event { payload } => serde_json::to_value(payload).unwrap_or_default(),
-        RemoteRealtimeMessage::Command { payload } => serde_json::to_value(payload).unwrap_or_default(),
-        RemoteRealtimeMessage::Ping { payload } => serde_json::to_value(payload).unwrap_or_default(),
-        RemoteRealtimeMessage::Pong { payload } => serde_json::to_value(payload).unwrap_or_default(),
-        RemoteRealtimeMessage::Disconnect { payload } => serde_json::to_value(payload).unwrap_or_default(),
+        RemoteRealtimeMessage::Register { payload } => {
+            serde_json::to_value(payload).unwrap_or_default()
+        }
+        RemoteRealtimeMessage::Heartbeat { payload } => {
+            serde_json::to_value(payload).unwrap_or_default()
+        }
+        RemoteRealtimeMessage::Stream { payload } => {
+            serde_json::to_value(payload).unwrap_or_default()
+        }
+        RemoteRealtimeMessage::CommandResult { payload } => {
+            serde_json::to_value(payload).unwrap_or_default()
+        }
+        RemoteRealtimeMessage::Event { payload } => {
+            serde_json::to_value(payload).unwrap_or_default()
+        }
+        RemoteRealtimeMessage::Command { payload } => {
+            serde_json::to_value(payload).unwrap_or_default()
+        }
+        RemoteRealtimeMessage::Ping { payload } => {
+            serde_json::to_value(payload).unwrap_or_default()
+        }
+        RemoteRealtimeMessage::Pong { payload } => {
+            serde_json::to_value(payload).unwrap_or_default()
+        }
+        RemoteRealtimeMessage::Disconnect { payload } => {
+            serde_json::to_value(payload).unwrap_or_default()
+        }
     }
 }
 

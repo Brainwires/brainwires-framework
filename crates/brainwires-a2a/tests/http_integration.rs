@@ -133,8 +133,8 @@ async fn start_test_server() -> (SocketAddr, tokio::sync::watch::Sender<()>) {
     // Instead, let's use A2aServer with the actual address.
     drop(listener); // Release the port
 
-    let server = brainwires_a2a::server::A2aServer::new(handler, actual_addr)
-        .with_shutdown(shutdown_rx);
+    let server =
+        brainwires_a2a::server::A2aServer::new(handler, actual_addr).with_shutdown(shutdown_rx);
 
     tokio::spawn(async move {
         if let Err(e) = server.run().await {
@@ -164,20 +164,22 @@ async fn test_http_cors_on_options() {
         resp.headers().get("access-control-allow-origin").unwrap(),
         "*"
     );
-    assert!(resp
-        .headers()
-        .get("access-control-allow-methods")
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .contains("POST"));
-    assert!(resp
-        .headers()
-        .get("access-control-allow-headers")
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .contains("Authorization"));
+    assert!(
+        resp.headers()
+            .get("access-control-allow-methods")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .contains("POST")
+    );
+    assert!(
+        resp.headers()
+            .get("access-control-allow-headers")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .contains("Authorization")
+    );
 
     drop(shutdown_tx);
 }
@@ -229,12 +231,15 @@ async fn test_http_jsonrpc_send_message() {
     let rpc_req = JsonRpcRequest {
         jsonrpc: "2.0".into(),
         method: "message/send".into(),
-        params: Some(serde_json::to_value(&SendMessageRequest {
-            tenant: None,
-            message: Message::user_text("HTTP test"),
-            configuration: None,
-            metadata: None,
-        }).unwrap()),
+        params: Some(
+            serde_json::to_value(&SendMessageRequest {
+                tenant: None,
+                message: Message::user_text("HTTP test"),
+                configuration: None,
+                metadata: None,
+            })
+            .unwrap(),
+        ),
         id: RequestId::Number(1),
     };
 
@@ -261,12 +266,15 @@ async fn test_http_jsonrpc_streaming_returns_sse() {
     let rpc_req = JsonRpcRequest {
         jsonrpc: "2.0".into(),
         method: "message/stream".into(),
-        params: Some(serde_json::to_value(&SendMessageRequest {
-            tenant: None,
-            message: Message::user_text("Stream me"),
-            configuration: None,
-            metadata: None,
-        }).unwrap()),
+        params: Some(
+            serde_json::to_value(&SendMessageRequest {
+                tenant: None,
+                message: Message::user_text("Stream me"),
+                configuration: None,
+                metadata: None,
+            })
+            .unwrap(),
+        ),
         id: RequestId::Number(1),
     };
 
@@ -289,10 +297,7 @@ async fn test_http_jsonrpc_streaming_returns_sse() {
 
     // Read the full body — should have SSE data lines
     let body = resp.text().await.unwrap();
-    let data_lines: Vec<&str> = body
-        .lines()
-        .filter(|l| l.starts_with("data: "))
-        .collect();
+    let data_lines: Vec<&str> = body.lines().filter(|l| l.starts_with("data: ")).collect();
     assert_eq!(data_lines.len(), 2, "Expected 2 SSE events, body: {body}");
 
     // Each line should be valid JSON-RPC
@@ -361,10 +366,7 @@ async fn test_http_rest_streaming_returns_sse() {
     );
 
     let body = resp.text().await.unwrap();
-    let data_lines: Vec<&str> = body
-        .lines()
-        .filter(|l| l.starts_with("data: "))
-        .collect();
+    let data_lines: Vec<&str> = body.lines().filter(|l| l.starts_with("data: ")).collect();
     assert_eq!(data_lines.len(), 2);
 
     // REST SSE: raw StreamEvent (no JSON-RPC wrapper)
@@ -435,7 +437,10 @@ async fn test_http_graceful_shutdown() {
             break;
         }
     }
-    assert!(refused, "Server should stop accepting connections after shutdown");
+    assert!(
+        refused,
+        "Server should stop accepting connections after shutdown"
+    );
 }
 
 #[tokio::test]

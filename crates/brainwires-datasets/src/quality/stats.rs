@@ -203,7 +203,11 @@ fn build_histogram(token_counts: &[usize]) -> Vec<HistogramBucket> {
 
     let max = *token_counts.iter().max().unwrap_or(&0);
     if max == 0 {
-        return vec![HistogramBucket { range_start: 0, range_end: 1, count: token_counts.len() }];
+        return vec![HistogramBucket {
+            range_start: 0,
+            range_end: 1,
+            count: token_counts.len(),
+        }];
     }
 
     // Use power-of-2 bucket boundaries: 0-128, 128-256, 256-512, etc.
@@ -248,20 +252,31 @@ mod tests {
 
     fn sample_examples() -> Vec<TrainingExample> {
         vec![
-            TrainingExample::with_id("1", vec![
-                TrainingMessage::system("Be helpful"),
-                TrainingMessage::user("Hello"),
-                TrainingMessage::assistant("Hi there! How can I help?"),
-            ]),
-            TrainingExample::with_id("2", vec![
-                TrainingMessage::user("What is 2+2?"),
-                TrainingMessage::assistant("4"),
-            ]),
-            TrainingExample::with_id("3", vec![
-                TrainingMessage::system("Expert mode"),
-                TrainingMessage::user("Explain quantum computing"),
-                TrainingMessage::assistant("Quantum computing leverages quantum mechanical phenomena..."),
-            ]),
+            TrainingExample::with_id(
+                "1",
+                vec![
+                    TrainingMessage::system("Be helpful"),
+                    TrainingMessage::user("Hello"),
+                    TrainingMessage::assistant("Hi there! How can I help?"),
+                ],
+            ),
+            TrainingExample::with_id(
+                "2",
+                vec![
+                    TrainingMessage::user("What is 2+2?"),
+                    TrainingMessage::assistant("4"),
+                ],
+            ),
+            TrainingExample::with_id(
+                "3",
+                vec![
+                    TrainingMessage::system("Expert mode"),
+                    TrainingMessage::user("Explain quantum computing"),
+                    TrainingMessage::assistant(
+                        "Quantum computing leverages quantum mechanical phenomena...",
+                    ),
+                ],
+            ),
         ]
     }
 

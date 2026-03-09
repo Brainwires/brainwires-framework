@@ -17,7 +17,7 @@ use std::time::Duration;
 
 const REMOTE_BRIDGE_TIMEOUT_SECS: u64 = 30;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use tokio::sync::RwLock;
 
 use super::attachments::AttachmentReceiver;
@@ -156,10 +156,8 @@ impl RemoteBridge {
             .build()
             .expect("Failed to create HTTP client");
 
-        let heartbeat_collector = HeartbeatCollector::new(
-            config.sessions_dir.clone(),
-            config.version.clone(),
-        );
+        let heartbeat_collector =
+            HeartbeatCollector::new(config.sessions_dir.clone(), config.version.clone());
 
         let attachment_receiver = AttachmentReceiver::new(config.attachment_dir.clone());
 
@@ -253,12 +251,15 @@ impl RemoteBridge {
                         *self.connection_mode.write().await = ConnectionMode::Realtime;
                         tracing::info!("Using Supabase Realtime for communication");
 
-                        if let Err(e) = self.run_realtime_loop(shutdown_tx.subscribe(), creds).await {
+                        if let Err(e) = self.run_realtime_loop(shutdown_tx.subscribe(), creds).await
+                        {
                             tracing::error!("Remote bridge Realtime error: {:?}", e);
                         }
                     } else {
                         *self.connection_mode.write().await = ConnectionMode::Polling;
-                        tracing::info!("Using HTTP polling for communication (Realtime not available)");
+                        tracing::info!(
+                            "Using HTTP polling for communication (Realtime not available)"
+                        );
 
                         if let Err(e) = self.run_polling_loop(shutdown_tx.subscribe()).await {
                             tracing::error!("Remote bridge polling error: {}", e);
@@ -371,14 +372,16 @@ impl RemoteBridge {
 
         // Handle protocol negotiation response
         if let Some(protocol_value) = auth_response.get("protocol") {
-            match serde_json::from_value::<super::protocol::ProtocolAccept>(protocol_value.clone()) {
+            match serde_json::from_value::<super::protocol::ProtocolAccept>(protocol_value.clone())
+            {
                 Ok(accept) => {
                     tracing::info!(
                         "Protocol negotiated: version={}, capabilities={:?}",
                         accept.selected_version,
                         accept.enabled_capabilities
                     );
-                    *self.negotiated_protocol.write().await = NegotiatedProtocol::from_accept(accept);
+                    *self.negotiated_protocol.write().await =
+                        NegotiatedProtocol::from_accept(accept);
                 }
                 Err(e) => {
                     tracing::warn!("Failed to parse protocol accept: {}, using defaults", e);
@@ -397,22 +400,19 @@ impl RemoteBridge {
             .unwrap_or(false);
 
         if use_realtime {
-            let realtime_token = auth_response
-                .get("realtime_token")
-                .and_then(|v| v.as_str());
-            let realtime_url = auth_response
-                .get("realtime_url")
-                .and_then(|v| v.as_str());
-            let channel_name = auth_response
-                .get("channel_name")
-                .and_then(|v| v.as_str());
+            let realtime_token = auth_response.get("realtime_token").and_then(|v| v.as_str());
+            let realtime_url = auth_response.get("realtime_url").and_then(|v| v.as_str());
+            let channel_name = auth_response.get("channel_name").and_then(|v| v.as_str());
             let supabase_anon_key = auth_response
                 .get("supabase_anon_key")
                 .and_then(|v| v.as_str());
 
-            if let (Some(token), Some(url), Some(channel), Some(anon_key)) =
-                (realtime_token, realtime_url, channel_name, supabase_anon_key)
-            {
+            if let (Some(token), Some(url), Some(channel), Some(anon_key)) = (
+                realtime_token,
+                realtime_url,
+                channel_name,
+                supabase_anon_key,
+            ) {
                 tracing::info!("Realtime credentials received, channel: {}", channel);
                 *self.realtime_credentials.write().await = Some(RealtimeCredentials {
                     realtime_token: token.to_string(),
@@ -473,8 +473,7 @@ impl RemoteBridge {
         *self.sync_trigger_tx.write().await = Some(sync_trigger_tx);
 
         // Create command channel
-        let (command_tx, mut command_rx) =
-            tokio::sync::mpsc::channel::<BackendCommand>(100);
+        let (command_tx, mut command_rx) = tokio::sync::mpsc::channel::<BackendCommand>(100);
 
         // Spawn command processor task
         let self_clone = self.clone();
@@ -574,12 +573,7 @@ impl RemoteBridge {
 
     /// Send heartbeat and process any commands returned
     async fn send_heartbeat_and_process_commands(&self) -> Result<()> {
-        let session_token = self
-            .session_token
-            .read()
-            .await
-            .clone()
-            .unwrap_or_default();
+        let session_token = self.session_token.read().await.clone().unwrap_or_default();
 
         let heartbeat_data = self.heartbeat_collector.write().await.collect().await?;
 
@@ -644,11 +638,7 @@ impl RemoteBridge {
                         }
                     }
                     Err(e) => {
-                        tracing::error!(
-                            "Failed to parse backend command {:?}: {}",
-                            cmd_value,
-                            e
-                        );
+                        tracing::error!("Failed to parse backend command {:?}: {}", cmd_value, e);
                     }
                 }
             }
@@ -668,9 +658,10 @@ impl RemoteBridge {
             BackendCommand::RequestSync => {
                 tracing::info!("Backend requested sync, triggering immediate heartbeat");
                 if let Some(tx) = self.sync_trigger_tx.read().await.as_ref()
-                    && let Err(e) = tx.send(()).await {
-                        tracing::error!("Failed to trigger sync: {}", e);
-                    }
+                    && let Err(e) = tx.send(()).await
+                {
+                    tracing::error!("Failed to trigger sync: {}", e);
+                }
             }
 
             BackendCommand::Subscribe { agent_id } => {
@@ -798,21 +789,12 @@ impl RemoteBridge {
                 {
                     Ok(all_received) => {
                         if all_received {
-                            tracing::info!(
-                                "All chunks received for attachment: {}",
-                                attachment_id
-                            );
+                            tracing::info!("All chunks received for attachment: {}", attachment_id);
                         }
                     }
                     Err(e) => {
-                        tracing::error!(
-                            "Failed to receive chunk for {}: {}",
-                            attachment_id,
-                            e
-                        );
-                        self.attachment_receiver
-                            .cancel_upload(&attachment_id)
-                            .await;
+                        tracing::error!("Failed to receive chunk for {}: {}", attachment_id, e);
+                        self.attachment_receiver.cancel_upload(&attachment_id).await;
                     }
                 }
             }
@@ -927,11 +909,7 @@ impl RemoteBridge {
                 return;
             }
             Err(e) => {
-                tracing::error!(
-                    "Failed to read session token for agent {}: {}",
-                    agent_id,
-                    e
-                );
+                tracing::error!("Failed to read session token for agent {}: {}", agent_id, e);
                 return;
             }
         };
@@ -1273,9 +1251,7 @@ fn convert_agent_message_to_stream(msg: &AgentMessage) -> Option<(StreamChunkTyp
             Some((StreamChunkType::ToolResult, content))
         }
         AgentMessage::Error { message, .. } => Some((StreamChunkType::Error, message.clone())),
-        AgentMessage::StatusUpdate { status } => {
-            Some((StreamChunkType::System, status.clone()))
-        }
+        AgentMessage::StatusUpdate { status } => Some((StreamChunkType::System, status.clone())),
         AgentMessage::MessageAdded { message } => {
             if message.role == "user" {
                 Some((StreamChunkType::UserInput, message.content.clone()))
@@ -1284,8 +1260,7 @@ fn convert_agent_message_to_stream(msg: &AgentMessage) -> Option<(StreamChunkTyp
             }
         }
         AgentMessage::ConversationSync { messages, .. } => {
-            let history_json =
-                serde_json::to_string(messages).unwrap_or_else(|_| "[]".to_string());
+            let history_json = serde_json::to_string(messages).unwrap_or_else(|_| "[]".to_string());
             Some((StreamChunkType::History, history_json))
         }
         AgentMessage::SlashCommandResult {

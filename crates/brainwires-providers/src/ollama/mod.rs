@@ -5,9 +5,11 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use brainwires_core::{ChatResponse, ContentBlock, ImageSource, Message, MessageContent, Role, StreamChunk, Usage};
-use brainwires_core::{ChatOptions, Provider};
 use brainwires_core::Tool;
+use brainwires_core::{ChatOptions, Provider};
+use brainwires_core::{
+    ChatResponse, ContentBlock, ImageSource, Message, MessageContent, Role, StreamChunk, Usage,
+};
 
 use crate::rate_limiter::RateLimiter;
 
@@ -34,7 +36,11 @@ impl OllamaProvider {
     }
 
     /// Create a provider with rate limiting (requests per minute).
-    pub fn with_rate_limit(model: String, base_url: Option<String>, requests_per_minute: u32) -> Self {
+    pub fn with_rate_limit(
+        model: String,
+        base_url: Option<String>,
+        requests_per_minute: u32,
+    ) -> Self {
         Self {
             model,
             base_url: base_url.unwrap_or_else(|| "http://localhost:11434".to_string()),
@@ -70,13 +76,19 @@ impl OllamaProvider {
                         for b in blocks {
                             match b {
                                 ContentBlock::Text { text } => text_parts.push(text.as_str()),
-                                ContentBlock::Image { source: ImageSource::Base64 { data, .. } } => {
+                                ContentBlock::Image {
+                                    source: ImageSource::Base64 { data, .. },
+                                } => {
                                     image_data.push(data.clone());
                                 }
                                 _ => {}
                             }
                         }
-                        let images = if image_data.is_empty() { None } else { Some(image_data) };
+                        let images = if image_data.is_empty() {
+                            None
+                        } else {
+                            Some(image_data)
+                        };
                         (text_parts.join("\n"), images)
                     }
                 };
@@ -139,15 +151,20 @@ impl Provider for OllamaProvider {
         if let Some(top_p) = options.top_p {
             opts["top_p"] = json!(top_p);
         }
-        if !opts.as_object().expect("opts is always a JSON object").is_empty() {
+        if !opts
+            .as_object()
+            .expect("opts is always a JSON object")
+            .is_empty()
+        {
             request_body["options"] = opts;
         }
 
         // Tools (Ollama has experimental tool support)
         if let Some(tools_list) = tools
-            && !tools_list.is_empty() {
-                request_body["tools"] = json!(self.convert_tools(tools_list));
-            }
+            && !tools_list.is_empty()
+        {
+            request_body["tools"] = json!(self.convert_tools(tools_list));
+        }
 
         let url = format!("{}/api/chat", self.base_url);
 
@@ -163,7 +180,10 @@ impl Provider for OllamaProvider {
 
         if !response.status().is_success() {
             let status = response.status();
-            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
             anyhow::bail!("Ollama API error ({}): {}", status, error_text);
         }
 
@@ -188,7 +208,11 @@ impl Provider for OllamaProvider {
                 total_tokens: ollama_response.prompt_eval_count.unwrap_or(0)
                     + ollama_response.eval_count.unwrap_or(0),
             },
-            finish_reason: Some(ollama_response.done_reason.unwrap_or_else(|| "stop".to_string())),
+            finish_reason: Some(
+                ollama_response
+                    .done_reason
+                    .unwrap_or_else(|| "stop".to_string()),
+            ),
         })
     }
 
@@ -367,9 +391,7 @@ struct OllamaStreamChunk {
 // Model listing
 // ---------------------------------------------------------------------------
 
-use crate::model_listing::{
-    AvailableModel, ModelCapability, ModelLister, OllamaTagsResponse,
-};
+use crate::model_listing::{AvailableModel, ModelCapability, ModelLister, OllamaTagsResponse};
 
 /// Lists locally downloaded models from an Ollama instance.
 pub struct OllamaModelLister {
@@ -402,14 +424,12 @@ impl ModelLister for OllamaModelLister {
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
-            return Err(anyhow::anyhow!(
-                "Ollama API returned {}: {}",
-                status,
-                body
-            ));
+            return Err(anyhow::anyhow!("Ollama API returned {}: {}", status, body));
         }
 
-        let tags: OllamaTagsResponse = resp.json().await
+        let tags: OllamaTagsResponse = resp
+            .json()
+            .await
             .context("Failed to parse Ollama tags response")?;
 
         let models = tags
@@ -446,7 +466,8 @@ mod tests {
 
     #[test]
     fn test_ollama_provider_new_with_custom_url() {
-        let provider = OllamaProvider::new("llama2".to_string(), Some("http://custom:8080".to_string()));
+        let provider =
+            OllamaProvider::new("llama2".to_string(), Some("http://custom:8080".to_string()));
         assert_eq!(provider.model, "llama2");
         assert_eq!(provider.base_url, "http://custom:8080");
     }
@@ -460,14 +481,12 @@ mod tests {
     #[test]
     fn test_convert_messages_text() {
         let provider = OllamaProvider::new("llama2".to_string(), None);
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Text("Hello".to_string()),
-                name: None,
-                metadata: None,
-            },
-        ];
+        let messages = vec![Message {
+            role: Role::User,
+            content: MessageContent::Text("Hello".to_string()),
+            name: None,
+            metadata: None,
+        }];
 
         let converted = provider.convert_messages(&messages);
         assert_eq!(converted.len(), 1);
@@ -478,14 +497,12 @@ mod tests {
     #[test]
     fn test_convert_messages_system_role() {
         let provider = OllamaProvider::new("llama2".to_string(), None);
-        let messages = vec![
-            Message {
-                role: Role::System,
-                content: MessageContent::Text("You are helpful".to_string()),
-                name: None,
-                metadata: None,
-            },
-        ];
+        let messages = vec![Message {
+            role: Role::System,
+            content: MessageContent::Text("You are helpful".to_string()),
+            name: None,
+            metadata: None,
+        }];
 
         let converted = provider.convert_messages(&messages);
         assert_eq!(converted.len(), 1);
@@ -495,17 +512,19 @@ mod tests {
     #[test]
     fn test_convert_messages_with_blocks() {
         let provider = OllamaProvider::new("llama2".to_string(), None);
-        let messages = vec![
-            Message {
-                role: Role::Assistant,
-                content: MessageContent::Blocks(vec![
-                    ContentBlock::Text { text: "First".to_string() },
-                    ContentBlock::Text { text: "Second".to_string() },
-                ]),
-                name: None,
-                metadata: None,
-            },
-        ];
+        let messages = vec![Message {
+            role: Role::Assistant,
+            content: MessageContent::Blocks(vec![
+                ContentBlock::Text {
+                    text: "First".to_string(),
+                },
+                ContentBlock::Text {
+                    text: "Second".to_string(),
+                },
+            ]),
+            name: None,
+            metadata: None,
+        }];
 
         let converted = provider.convert_messages(&messages);
         assert_eq!(converted.len(), 1);
@@ -551,15 +570,13 @@ mod tests {
             }),
         );
 
-        let tools = vec![
-            Tool {
-                name: "test_tool".to_string(),
-                description: "A test tool".to_string(),
-                input_schema: ToolInputSchema::object(properties.clone(), vec!["arg1".to_string()]),
-                requires_approval: false,
-                ..Default::default()
-            },
-        ];
+        let tools = vec![Tool {
+            name: "test_tool".to_string(),
+            description: "A test tool".to_string(),
+            input_schema: ToolInputSchema::object(properties.clone(), vec!["arg1".to_string()]),
+            requires_approval: false,
+            ..Default::default()
+        }];
 
         let converted = provider.convert_tools(&tools);
         assert_eq!(converted.len(), 1);
@@ -580,21 +597,21 @@ mod tests {
     #[test]
     fn test_convert_messages_filters_non_text_blocks() {
         let provider = OllamaProvider::new("llama2".to_string(), None);
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Blocks(vec![
-                    ContentBlock::Text { text: "Text content".to_string() },
-                    ContentBlock::ToolUse {
-                        id: "tool-1".to_string(),
-                        name: "test_tool".to_string(),
-                        input: json!({"arg": "value"}),
-                    },
-                ]),
-                name: None,
-                metadata: None,
-            },
-        ];
+        let messages = vec![Message {
+            role: Role::User,
+            content: MessageContent::Blocks(vec![
+                ContentBlock::Text {
+                    text: "Text content".to_string(),
+                },
+                ContentBlock::ToolUse {
+                    id: "tool-1".to_string(),
+                    name: "test_tool".to_string(),
+                    input: json!({"arg": "value"}),
+                },
+            ]),
+            name: None,
+            metadata: None,
+        }];
 
         let converted = provider.convert_messages(&messages);
         assert_eq!(converted.len(), 1);
@@ -605,22 +622,22 @@ mod tests {
     #[test]
     fn test_convert_messages_with_image_blocks() {
         let provider = OllamaProvider::new("llava".to_string(), None);
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Blocks(vec![
-                    ContentBlock::Text { text: "What's in this image?".to_string() },
-                    ContentBlock::Image {
-                        source: brainwires_core::ImageSource::Base64 {
-                            media_type: "image/png".to_string(),
-                            data: "iVBORw0KGgo=".to_string(),
-                        },
+        let messages = vec![Message {
+            role: Role::User,
+            content: MessageContent::Blocks(vec![
+                ContentBlock::Text {
+                    text: "What's in this image?".to_string(),
+                },
+                ContentBlock::Image {
+                    source: brainwires_core::ImageSource::Base64 {
+                        media_type: "image/png".to_string(),
+                        data: "iVBORw0KGgo=".to_string(),
                     },
-                ]),
-                name: None,
-                metadata: None,
-            },
-        ];
+                },
+            ]),
+            name: None,
+            metadata: None,
+        }];
 
         let converted = provider.convert_messages(&messages);
         assert_eq!(converted.len(), 1);
@@ -634,28 +651,28 @@ mod tests {
     #[test]
     fn test_convert_messages_with_multiple_images() {
         let provider = OllamaProvider::new("llava".to_string(), None);
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Blocks(vec![
-                    ContentBlock::Text { text: "Compare these images".to_string() },
-                    ContentBlock::Image {
-                        source: brainwires_core::ImageSource::Base64 {
-                            media_type: "image/png".to_string(),
-                            data: "image1data".to_string(),
-                        },
+        let messages = vec![Message {
+            role: Role::User,
+            content: MessageContent::Blocks(vec![
+                ContentBlock::Text {
+                    text: "Compare these images".to_string(),
+                },
+                ContentBlock::Image {
+                    source: brainwires_core::ImageSource::Base64 {
+                        media_type: "image/png".to_string(),
+                        data: "image1data".to_string(),
                     },
-                    ContentBlock::Image {
-                        source: brainwires_core::ImageSource::Base64 {
-                            media_type: "image/jpeg".to_string(),
-                            data: "image2data".to_string(),
-                        },
+                },
+                ContentBlock::Image {
+                    source: brainwires_core::ImageSource::Base64 {
+                        media_type: "image/jpeg".to_string(),
+                        data: "image2data".to_string(),
                     },
-                ]),
-                name: None,
-                metadata: None,
-            },
-        ];
+                },
+            ]),
+            name: None,
+            metadata: None,
+        }];
 
         let converted = provider.convert_messages(&messages);
         assert_eq!(converted.len(), 1);
@@ -668,16 +685,14 @@ mod tests {
     #[test]
     fn test_convert_messages_text_only_no_images() {
         let provider = OllamaProvider::new("llama2".to_string(), None);
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Blocks(vec![
-                    ContentBlock::Text { text: "Just text".to_string() },
-                ]),
-                name: None,
-                metadata: None,
-            },
-        ];
+        let messages = vec![Message {
+            role: Role::User,
+            content: MessageContent::Blocks(vec![ContentBlock::Text {
+                text: "Just text".to_string(),
+            }]),
+            name: None,
+            metadata: None,
+        }];
 
         let converted = provider.convert_messages(&messages);
         assert_eq!(converted.len(), 1);
@@ -687,14 +702,12 @@ mod tests {
     #[test]
     fn test_convert_messages_tool_role() {
         let provider = OllamaProvider::new("llama2".to_string(), None);
-        let messages = vec![
-            Message {
-                role: Role::Tool,
-                content: MessageContent::Text("Tool result".to_string()),
-                name: None,
-                metadata: None,
-            },
-        ];
+        let messages = vec![Message {
+            role: Role::Tool,
+            content: MessageContent::Text("Tool result".to_string()),
+            name: None,
+            metadata: None,
+        }];
 
         let converted = provider.convert_messages(&messages);
         assert_eq!(converted.len(), 1);
@@ -714,14 +727,12 @@ mod tests {
     #[test]
     fn test_convert_messages_empty_content() {
         let provider = OllamaProvider::new("llama2".to_string(), None);
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Text("".to_string()),
-                name: None,
-                metadata: None,
-            },
-        ];
+        let messages = vec![Message {
+            role: Role::User,
+            content: MessageContent::Text("".to_string()),
+            name: None,
+            metadata: None,
+        }];
 
         let converted = provider.convert_messages(&messages);
         assert_eq!(converted.len(), 1);
@@ -731,25 +742,23 @@ mod tests {
     #[test]
     fn test_convert_messages_blocks_with_only_non_text() {
         let provider = OllamaProvider::new("llama2".to_string(), None);
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Blocks(vec![
-                    ContentBlock::ToolUse {
-                        id: "tool-1".to_string(),
-                        name: "test_tool".to_string(),
-                        input: json!({"arg": "value"}),
-                    },
-                    ContentBlock::ToolResult {
-                        tool_use_id: "tool-1".to_string(),
-                        content: "result".to_string(),
-                        is_error: Some(false),
-                    },
-                ]),
-                name: None,
-                metadata: None,
-            },
-        ];
+        let messages = vec![Message {
+            role: Role::User,
+            content: MessageContent::Blocks(vec![
+                ContentBlock::ToolUse {
+                    id: "tool-1".to_string(),
+                    name: "test_tool".to_string(),
+                    input: json!({"arg": "value"}),
+                },
+                ContentBlock::ToolResult {
+                    tool_use_id: "tool-1".to_string(),
+                    content: "result".to_string(),
+                    is_error: Some(false),
+                },
+            ]),
+            name: None,
+            metadata: None,
+        }];
 
         let converted = provider.convert_messages(&messages);
         assert_eq!(converted.len(), 1);
@@ -760,18 +769,22 @@ mod tests {
     #[test]
     fn test_convert_messages_blocks_multiple_text() {
         let provider = OllamaProvider::new("llama2".to_string(), None);
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Blocks(vec![
-                    ContentBlock::Text { text: "Line 1".to_string() },
-                    ContentBlock::Text { text: "Line 2".to_string() },
-                    ContentBlock::Text { text: "Line 3".to_string() },
-                ]),
-                name: None,
-                metadata: None,
-            },
-        ];
+        let messages = vec![Message {
+            role: Role::User,
+            content: MessageContent::Blocks(vec![
+                ContentBlock::Text {
+                    text: "Line 1".to_string(),
+                },
+                ContentBlock::Text {
+                    text: "Line 2".to_string(),
+                },
+                ContentBlock::Text {
+                    text: "Line 3".to_string(),
+                },
+            ]),
+            name: None,
+            metadata: None,
+        }];
 
         let converted = provider.convert_messages(&messages);
         assert_eq!(converted.len(), 1);
@@ -873,23 +886,24 @@ mod tests {
             json!({"type": "boolean", "description": "Active status"}),
         );
 
-        let tools = vec![
-            Tool {
-                name: "complex_tool".to_string(),
-                description: "A complex tool with multiple parameters".to_string(),
-                input_schema: ToolInputSchema::object(
-                    properties.clone(),
-                    vec!["name".to_string(), "age".to_string()]
-                ),
-                requires_approval: true,
-                ..Default::default()
-            },
-        ];
+        let tools = vec![Tool {
+            name: "complex_tool".to_string(),
+            description: "A complex tool with multiple parameters".to_string(),
+            input_schema: ToolInputSchema::object(
+                properties.clone(),
+                vec!["name".to_string(), "age".to_string()],
+            ),
+            requires_approval: true,
+            ..Default::default()
+        }];
 
         let converted = provider.convert_tools(&tools);
         assert_eq!(converted.len(), 1);
         assert_eq!(converted[0].function.name, "complex_tool");
-        assert_eq!(converted[0].function.description, "A complex tool with multiple parameters");
+        assert_eq!(
+            converted[0].function.description,
+            "A complex tool with multiple parameters"
+        );
         assert_eq!(converted[0].function.parameters.r#type, "object");
         assert_eq!(converted[0].function.parameters.properties.len(), 3);
     }
@@ -908,13 +922,22 @@ mod tests {
 
     #[test]
     fn test_provider_new_with_custom_url_variations() {
-        let provider1 = OllamaProvider::new("llama2".to_string(), Some("http://192.168.1.100:11434".to_string()));
+        let provider1 = OllamaProvider::new(
+            "llama2".to_string(),
+            Some("http://192.168.1.100:11434".to_string()),
+        );
         assert_eq!(provider1.base_url, "http://192.168.1.100:11434");
 
-        let provider2 = OllamaProvider::new("llama2".to_string(), Some("https://ollama.example.com".to_string()));
+        let provider2 = OllamaProvider::new(
+            "llama2".to_string(),
+            Some("https://ollama.example.com".to_string()),
+        );
         assert_eq!(provider2.base_url, "https://ollama.example.com");
 
-        let provider3 = OllamaProvider::new("llama2".to_string(), Some("http://localhost:8080".to_string()));
+        let provider3 = OllamaProvider::new(
+            "llama2".to_string(),
+            Some("http://localhost:8080".to_string()),
+        );
         assert_eq!(provider3.base_url, "http://localhost:8080");
     }
 
@@ -1115,8 +1138,12 @@ mod tests {
             Message {
                 role: Role::Assistant,
                 content: MessageContent::Blocks(vec![
-                    ContentBlock::Text { text: "Block 1".to_string() },
-                    ContentBlock::Text { text: "Block 2".to_string() },
+                    ContentBlock::Text {
+                        text: "Block 1".to_string(),
+                    },
+                    ContentBlock::Text {
+                        text: "Block 2".to_string(),
+                    },
                 ]),
                 name: None,
                 metadata: None,

@@ -185,8 +185,8 @@ fn calculate_completion_confidence(finish_reason: &Option<String>) -> f64 {
         Some("tool_use") => 0.90, // Structured response with tool usage
         Some("length") | Some("max_tokens") => 0.50, // Truncated = lower confidence
         Some("content_filter") => 0.30, // Content was filtered
-        None => 0.70, // Unknown status
-        _ => 0.60, // Other reasons
+        None => 0.70,             // Unknown status
+        _ => 0.60,                // Other reasons
     }
 }
 
@@ -266,7 +266,9 @@ fn calculate_structure_confidence(response: &ChatResponse) -> f64 {
             use brainwires_core::ContentBlock;
 
             // Check for tool use blocks
-            let has_tool_use = blocks.iter().any(|b| matches!(b, ContentBlock::ToolUse { .. }));
+            let has_tool_use = blocks
+                .iter()
+                .any(|b| matches!(b, ContentBlock::ToolUse { .. }));
 
             if has_tool_use {
                 0.90 // Structured response with tools
@@ -299,7 +301,9 @@ pub fn quick_confidence_check(response: &ChatResponse) -> bool {
         "that's not right",
     ];
 
-    !obvious_low_confidence.iter().any(|p| text_lower.contains(*p))
+    !obvious_low_confidence
+        .iter()
+        .any(|p| text_lower.contains(*p))
 }
 
 #[cfg(test)]
@@ -341,7 +345,11 @@ mod tests {
         let confidence = extract_confidence(&response);
 
         // This text has 5+ hedging patterns + self-correction, should be lower than high-confidence
-        assert!(confidence.score < 0.75, "Expected low confidence score, got {}", confidence.score);
+        assert!(
+            confidence.score < 0.75,
+            "Expected low confidence score, got {}",
+            confidence.score
+        );
         // At minimum, should have lower pattern confidence
         assert!(confidence.factors.pattern_confidence < 0.7);
     }
@@ -368,11 +376,14 @@ mod tests {
     #[test]
     fn test_pattern_confidence_calculation() {
         // High confidence text
-        let high = calculate_pattern_confidence("The solution is definitely correct and will certainly work.");
+        let high = calculate_pattern_confidence(
+            "The solution is definitely correct and will certainly work.",
+        );
         assert!(high > 0.7);
 
         // Low confidence text
-        let low = calculate_pattern_confidence("I'm not sure, but maybe it could possibly work perhaps.");
+        let low =
+            calculate_pattern_confidence("I'm not sure, but maybe it could possibly work perhaps.");
         assert!(low < 0.6);
     }
 
@@ -387,10 +398,16 @@ mod tests {
 
     #[test]
     fn test_confidence_level() {
-        let high = ResponseConfidence { score: 0.9, ..Default::default() };
+        let high = ResponseConfidence {
+            score: 0.9,
+            ..Default::default()
+        };
         assert_eq!(high.level(), "very_high");
 
-        let low = ResponseConfidence { score: 0.3, ..Default::default() };
+        let low = ResponseConfidence {
+            score: 0.3,
+            ..Default::default()
+        };
         assert_eq!(low.level(), "very_low");
     }
 }

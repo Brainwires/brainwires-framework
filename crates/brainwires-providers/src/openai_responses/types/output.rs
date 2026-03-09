@@ -400,11 +400,15 @@ mod tests {
 
     #[test]
     fn test_code_interpreter_output_variants() {
-        let logs = CodeInterpreterOutput::Logs { logs: "hello\n".to_string() };
+        let logs = CodeInterpreterOutput::Logs {
+            logs: "hello\n".to_string(),
+        };
         let json = serde_json::to_value(&logs).unwrap();
         assert_eq!(json["type"], "logs");
 
-        let img = CodeInterpreterOutput::Image { image_url: "https://...".to_string() };
+        let img = CodeInterpreterOutput::Image {
+            image_url: "https://...".to_string(),
+        };
         let json = serde_json::to_value(&img).unwrap();
         assert_eq!(json["type"], "image");
     }

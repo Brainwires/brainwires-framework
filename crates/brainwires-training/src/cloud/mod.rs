@@ -1,26 +1,26 @@
-/// OpenAI fine-tuning provider.
-pub mod openai;
-/// Together AI fine-tuning provider.
-pub mod together;
-/// Fireworks AI fine-tuning provider.
-pub mod fireworks;
 /// Anyscale fine-tuning provider.
 pub mod anyscale;
 /// AWS Bedrock fine-tuning provider.
 pub mod bedrock;
-/// Google Vertex AI fine-tuning provider.
-pub mod vertex;
-/// Job polling utilities.
-pub mod polling;
 /// Cost estimation utilities.
 pub mod cost;
+/// Fireworks AI fine-tuning provider.
+pub mod fireworks;
+/// OpenAI fine-tuning provider.
+pub mod openai;
+/// Job polling utilities.
+pub mod polling;
+/// Together AI fine-tuning provider.
+pub mod together;
+/// Google Vertex AI fine-tuning provider.
+pub mod vertex;
 
 use async_trait::async_trait;
 use brainwires_datasets::DataFormat;
 
-use crate::config::{TrainingHyperparams, LoraConfig, AlignmentMethod};
+use crate::config::{AlignmentMethod, LoraConfig, TrainingHyperparams};
 use crate::error::TrainingError;
-use crate::types::{TrainingJobId, TrainingJobStatus, TrainingJobSummary, DatasetId};
+use crate::types::{DatasetId, TrainingJobId, TrainingJobStatus, TrainingJobSummary};
 
 /// Configuration for a cloud fine-tuning job.
 #[derive(Debug, Clone)]
@@ -99,13 +99,21 @@ pub trait FineTuneProvider: Send + Sync {
     fn supports_dpo(&self) -> bool;
 
     /// Upload a dataset (JSONL bytes) and get a dataset ID.
-    async fn upload_dataset(&self, data: &[u8], format: DataFormat) -> Result<DatasetId, TrainingError>;
+    async fn upload_dataset(
+        &self,
+        data: &[u8],
+        format: DataFormat,
+    ) -> Result<DatasetId, TrainingError>;
 
     /// Create a fine-tuning job.
-    async fn create_job(&self, config: CloudFineTuneConfig) -> Result<TrainingJobId, TrainingError>;
+    async fn create_job(&self, config: CloudFineTuneConfig)
+    -> Result<TrainingJobId, TrainingError>;
 
     /// Get the current status of a training job.
-    async fn get_job_status(&self, job_id: &TrainingJobId) -> Result<TrainingJobStatus, TrainingError>;
+    async fn get_job_status(
+        &self,
+        job_id: &TrainingJobId,
+    ) -> Result<TrainingJobStatus, TrainingError>;
 
     /// Cancel a running training job.
     async fn cancel_job(&self, job_id: &TrainingJobId) -> Result<(), TrainingError>;
@@ -147,16 +155,19 @@ impl FineTuneProviderFactory {
     }
 
     /// Create a Google Vertex AI fine-tune provider.
-    pub fn vertex(project_id: impl Into<String>, location: impl Into<String>) -> vertex::VertexFineTune {
+    pub fn vertex(
+        project_id: impl Into<String>,
+        location: impl Into<String>,
+    ) -> vertex::VertexFineTune {
         vertex::VertexFineTune::new(project_id, location)
     }
 }
 
-pub use self::openai::OpenAiFineTune;
-pub use self::together::TogetherFineTune;
-pub use self::fireworks::FireworksFineTune;
 pub use self::anyscale::AnyscaleFineTune;
 pub use self::bedrock::BedrockFineTune;
-pub use self::vertex::VertexFineTune;
 pub use self::cost::CostEstimator;
+pub use self::fireworks::FireworksFineTune;
+pub use self::openai::OpenAiFineTune;
 pub use self::polling::JobPoller;
+pub use self::together::TogetherFineTune;
+pub use self::vertex::VertexFineTune;

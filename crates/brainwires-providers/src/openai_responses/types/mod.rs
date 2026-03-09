@@ -23,6 +23,4 @@ pub use response::{
     ResponseUsage,
 };
 pub use streaming::ResponseStreamEvent;
-pub use tools::{
-    CodeInterpreterContainer, RankingOptions, ResponseTool, UserLocation,
-};
+pub use tools::{CodeInterpreterContainer, RankingOptions, ResponseTool, UserLocation};

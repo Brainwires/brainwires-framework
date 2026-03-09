@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use cpal::traits::{DeviceTrait, StreamTrait};
-use futures::stream::BoxStream;
 use futures::StreamExt;
+use futures::stream::BoxStream;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
@@ -133,8 +133,8 @@ impl AudioCapture for CpalCapture {
     ) -> AudioResult<AudioBuffer> {
         let mut stream = self.start_capture(device, config)?;
         let mut all_data = Vec::new();
-        let target_bytes = (config.sample_rate as f64 * duration_secs) as usize
-            * config.bytes_per_frame();
+        let target_bytes =
+            (config.sample_rate as f64 * duration_secs) as usize * config.bytes_per_frame();
 
         while let Some(result) = stream.next().await {
             let buffer = result?;

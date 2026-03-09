@@ -30,7 +30,9 @@ impl SuiteResult {
         if total == 0 {
             return 0.0;
         }
-        let successes: usize = self.case_results.values()
+        let successes: usize = self
+            .case_results
+            .values()
             .flat_map(|v| v.iter())
             .filter(|r| r.success)
             .count();
@@ -140,11 +142,13 @@ impl EvaluationSuite {
                     let result = case_arc.run(trial_id).await;
                     let trial = match result {
                         Ok(t) => t,
-                        Err(e) if catch_errors => {
-                            TrialResult::failure(trial_id, 0, e.to_string())
-                        }
+                        Err(e) if catch_errors => TrialResult::failure(trial_id, 0, e.to_string()),
                         Err(e) => {
-                            tracing::error!("Trial {} errored (catch_errors_as_failures=false): {}", trial_id, e);
+                            tracing::error!(
+                                "Trial {} errored (catch_errors_as_failures=false): {}",
+                                trial_id,
+                                e
+                            );
                             TrialResult::failure(trial_id, 0, format!("Trial errored: {e}"))
                         }
                     };
@@ -174,8 +178,8 @@ impl EvaluationSuite {
 
         for case in cases {
             let results = self.run_case(Arc::clone(case)).await;
-            let case_stats = EvaluationStats::from_trials(&results)
-                .expect("case must have at least one trial");
+            let case_stats =
+                EvaluationStats::from_trials(&results).expect("case must have at least one trial");
             let name = case.name().to_string();
             tracing::info!(
                 case = %name,
@@ -189,7 +193,10 @@ impl EvaluationSuite {
             stats.insert(name, case_stats);
         }
 
-        SuiteResult { case_results, stats }
+        SuiteResult {
+            case_results,
+            stats,
+        }
     }
 
     /// Resolve a `Result<TrialResult>` from a case run into a `TrialResult`,
@@ -201,7 +208,11 @@ impl EvaluationSuite {
                 TrialResult::failure(trial_id, 0, e.to_string())
             }
             Err(e) => {
-                tracing::error!("Trial {} errored (catch_errors_as_failures=false): {}", trial_id, e);
+                tracing::error!(
+                    "Trial {} errored (catch_errors_as_failures=false): {}",
+                    trial_id,
+                    e
+                );
                 TrialResult::failure(trial_id, 0, format!("Trial errored: {e}"))
             }
         }
@@ -278,8 +289,14 @@ mod tests {
         ];
         let result = suite.run_suite(&cases).await;
         let failing = result.failing_cases(0.5);
-        assert!(failing.contains(&"flaky"), "flaky should be in failing list");
-        assert!(!failing.contains(&"good"), "good should not be in failing list");
+        assert!(
+            failing.contains(&"flaky"),
+            "flaky should be in failing list"
+        );
+        assert!(
+            !failing.contains(&"good"),
+            "good should not be in failing list"
+        );
     }
 
     #[tokio::test]

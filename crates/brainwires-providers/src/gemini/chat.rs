@@ -9,15 +9,15 @@ use futures::stream::{BoxStream, StreamExt};
 use serde_json::json;
 use uuid::Uuid;
 
+use super::{
+    GeminiFunctionCall, GeminiFunctionDeclaration, GeminiFunctionResponse, GeminiGenerationConfig,
+    GeminiInlineData, GeminiMessage, GeminiPart, GeminiRequest, GeminiSystemInstruction,
+    GeminiToolSet, GoogleClient,
+};
+use brainwires_core::Provider;
 use brainwires_core::{
     ChatOptions, ChatResponse, ContentBlock, ImageSource, Message, MessageContent, Role,
     StreamChunk, Tool, Usage,
-};
-use brainwires_core::Provider;
-use super::{
-    GeminiFunctionCall, GeminiFunctionDeclaration, GeminiFunctionResponse, GeminiGenerationConfig,
-    GeminiInlineData, GeminiMessage, GeminiPart, GeminiRequest,
-    GeminiSystemInstruction, GeminiToolSet, GoogleClient,
 };
 
 /// High-level Google Gemini chat provider.
@@ -44,9 +44,7 @@ impl GoogleChatProvider {
                 };
 
                 let parts = match &m.content {
-                    MessageContent::Text(text) => vec![GeminiPart::Text {
-                        text: text.clone(),
-                    }],
+                    MessageContent::Text(text) => vec![GeminiPart::Text { text: text.clone() }],
                     MessageContent::Blocks(blocks) => blocks
                         .iter()
                         .filter_map(Self::convert_content_block)
@@ -63,9 +61,7 @@ impl GoogleChatProvider {
 
     fn convert_content_block(block: &ContentBlock) -> Option<GeminiPart> {
         match block {
-            ContentBlock::Text { text } => Some(GeminiPart::Text {
-                text: text.clone(),
-            }),
+            ContentBlock::Text { text } => Some(GeminiPart::Text { text: text.clone() }),
             ContentBlock::Image { source } => match source {
                 ImageSource::Base64 { media_type, data } => Some(GeminiPart::InlineData {
                     inline_data: GeminiInlineData {
@@ -132,8 +128,9 @@ impl GoogleChatProvider {
         });
 
         let generation_config = {
-            let has_any =
-                options.temperature.is_some() || options.max_tokens.is_some() || options.top_p.is_some();
+            let has_any = options.temperature.is_some()
+                || options.max_tokens.is_some()
+                || options.top_p.is_some();
             if has_any {
                 Some(GeminiGenerationConfig {
                     temperature: options.temperature,
@@ -146,11 +143,9 @@ impl GoogleChatProvider {
         };
 
         let gemini_tools = match tools {
-            Some(tools_list) if !tools_list.is_empty() => {
-                Some(vec![GeminiToolSet {
-                    function_declarations: Self::convert_tools(tools_list),
-                }])
-            }
+            Some(tools_list) if !tools_list.is_empty() => Some(vec![GeminiToolSet {
+                function_declarations: Self::convert_tools(tools_list),
+            }]),
             _ => None,
         };
 
@@ -164,9 +159,10 @@ impl GoogleChatProvider {
 
     fn convert_candidate_content(parts: Vec<GeminiPart>) -> MessageContent {
         if parts.len() == 1
-            && let GeminiPart::Text { ref text } = parts[0] {
-                return MessageContent::Text(text.clone());
-            }
+            && let GeminiPart::Text { ref text } = parts[0]
+        {
+            return MessageContent::Text(text.clone());
+        }
 
         MessageContent::Blocks(
             parts

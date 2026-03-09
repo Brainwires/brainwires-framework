@@ -1,8 +1,8 @@
 //! Agent operations — supervisor, health monitoring, attention, parallel coordination,
 //! hibernation data types, and autonomous training.
 
-pub mod hibernate;
 pub mod health;
+pub mod hibernate;
 
 #[cfg(feature = "supervisor")]
 pub mod supervisor;
@@ -16,8 +16,8 @@ pub mod parallel;
 #[cfg(feature = "training")]
 pub mod training_loop;
 
-pub use hibernate::{HibernateManifest, HibernatedSession};
 pub use health::{DegradationSignal, HealthMonitor, HealthStatus, PerformanceMetrics};
+pub use hibernate::{HibernateManifest, HibernatedSession};
 
 #[cfg(feature = "supervisor")]
 pub use supervisor::AgentSupervisor;

@@ -168,7 +168,11 @@ mod duration_serde {
 
 impl SessionReport {
     /// Create a new session report from metrics, duration, and optional stop reason.
-    pub fn new(metrics: SessionMetrics, duration: Duration, stop_reason: Option<SafetyStop>) -> Self {
+    pub fn new(
+        metrics: SessionMetrics,
+        duration: Duration,
+        stop_reason: Option<SafetyStop>,
+    ) -> Self {
         Self {
             metrics,
             duration,
@@ -189,7 +193,10 @@ impl SessionReport {
             "**Date**: {}\n",
             self.metrics.start_time.format("%Y-%m-%d %H:%M:%S UTC")
         ));
-        md.push_str(&format!("**Duration**: {:.1}s\n", self.duration.as_secs_f64()));
+        md.push_str(&format!(
+            "**Duration**: {:.1}s\n",
+            self.duration.as_secs_f64()
+        ));
         md.push_str(&format!(
             "**Success Rate**: {:.1}%\n\n",
             self.metrics.success_rate() * 100.0
@@ -197,11 +204,26 @@ impl SessionReport {
 
         md.push_str("## Summary\n\n");
         md.push_str("| Metric | Value |\n|--------|-------|\n");
-        md.push_str(&format!("| Tasks Attempted | {} |\n", self.metrics.tasks_attempted));
-        md.push_str(&format!("| Tasks Succeeded | {} |\n", self.metrics.tasks_succeeded));
-        md.push_str(&format!("| Tasks Failed | {} |\n", self.metrics.tasks_failed));
-        md.push_str(&format!("| Total Iterations | {} |\n", self.metrics.total_iterations));
-        md.push_str(&format!("| Estimated Cost | ${:.4} |\n", self.metrics.total_cost));
+        md.push_str(&format!(
+            "| Tasks Attempted | {} |\n",
+            self.metrics.tasks_attempted
+        ));
+        md.push_str(&format!(
+            "| Tasks Succeeded | {} |\n",
+            self.metrics.tasks_succeeded
+        ));
+        md.push_str(&format!(
+            "| Tasks Failed | {} |\n",
+            self.metrics.tasks_failed
+        ));
+        md.push_str(&format!(
+            "| Total Iterations | {} |\n",
+            self.metrics.total_iterations
+        ));
+        md.push_str(&format!(
+            "| Estimated Cost | ${:.4} |\n",
+            self.metrics.total_cost
+        ));
         md.push_str(&format!("| Commits | {} |\n", self.metrics.commits.len()));
 
         if !self.metrics.per_strategy.is_empty() {
@@ -218,8 +240,18 @@ impl SessionReport {
 
         if !self.metrics.comparisons.is_empty() {
             md.push_str("\n## Dual-Path Comparisons\n\n");
-            let both_ok = self.metrics.comparisons.iter().filter(|c| c.both_succeeded).count();
-            let diffs_match = self.metrics.comparisons.iter().filter(|c| c.diffs_match).count();
+            let both_ok = self
+                .metrics
+                .comparisons
+                .iter()
+                .filter(|c| c.both_succeeded)
+                .count();
+            let diffs_match = self
+                .metrics
+                .comparisons
+                .iter()
+                .filter(|c| c.diffs_match)
+                .count();
             md.push_str(&format!(
                 "- Both paths succeeded: {}/{}\n",
                 both_ok,
@@ -344,7 +376,8 @@ mod tests {
         let metrics = SessionMetrics::new();
         let report = SessionReport::new(metrics, Duration::from_secs(10), None);
         let json_str = report.to_json().expect("to_json should succeed");
-        let parsed: serde_json::Value = serde_json::from_str(&json_str).expect("should be valid JSON");
+        let parsed: serde_json::Value =
+            serde_json::from_str(&json_str).expect("should be valid JSON");
         assert!(parsed.get("metrics").is_some());
         assert!(parsed.get("duration").is_some());
     }

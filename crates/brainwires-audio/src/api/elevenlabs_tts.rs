@@ -7,7 +7,10 @@ use brainwires_providers::elevenlabs::{ElevenLabsClient, ElevenLabsTtsRequest};
 
 use crate::error::{AudioError, AudioResult};
 use crate::tts::TextToSpeech;
-use crate::types::{AudioBuffer, AudioConfig, OutputFormat, SampleFormat, TtsOptions, Voice, SAMPLE_RATE_SPEECH, SAMPLE_RATE_CD};
+use crate::types::{
+    AudioBuffer, AudioConfig, OutputFormat, SAMPLE_RATE_CD, SAMPLE_RATE_SPEECH, SampleFormat,
+    TtsOptions, Voice,
+};
 
 /// ElevenLabs text-to-speech implementation.
 ///
@@ -91,11 +94,7 @@ impl TextToSpeech for ElevenLabsTts {
         Ok(voices)
     }
 
-    async fn synthesize(
-        &self,
-        text: &str,
-        options: &TtsOptions,
-    ) -> AudioResult<AudioBuffer> {
+    async fn synthesize(&self, text: &str, options: &TtsOptions) -> AudioResult<AudioBuffer> {
         let req = ElevenLabsTtsRequest {
             text: text.to_string(),
             model_id: Some(self.model_id.clone()),

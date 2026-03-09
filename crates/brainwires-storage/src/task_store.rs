@@ -3,9 +3,7 @@
 //! Also includes agent state persistence for background task agents.
 
 use anyhow::{Context, Result};
-use arrow_array::{
-    Array, Int32Array, Int64Array, RecordBatch, RecordBatchIterator, StringArray,
-};
+use arrow_array::{Array, Int32Array, Int64Array, RecordBatch, RecordBatchIterator, StringArray};
 use arrow_schema::{DataType, Field, Schema};
 use futures::TryStreamExt;
 use lancedb::query::{ExecutableQuery, QueryBase};
@@ -30,9 +28,9 @@ pub struct TaskMetadata {
     /// Parent task identifier.
     pub parent_id: Option<String>,
     /// Child task IDs (JSON array).
-    pub children: String,       // JSON array
+    pub children: String, // JSON array
     /// Task dependency IDs (JSON array).
-    pub depends_on: String,     // JSON array
+    pub depends_on: String, // JSON array
     /// Task priority level.
     pub priority: String,
     /// Agent assigned to this task.
@@ -139,7 +137,8 @@ impl TaskStore {
         let batch = self.task_to_batch(&metadata)?;
 
         // Add to table
-        let table = self.client
+        let table = self
+            .client
             .connection()
             .open_table("tasks")
             .execute()
@@ -147,12 +146,10 @@ impl TaskStore {
             .context("Failed to open tasks table")?;
 
         let schema = batch.schema();
-        let batches = RecordBatchIterator::new(
-            vec![Ok(batch)],
-            schema.clone()
-        );
+        let batches = RecordBatchIterator::new(vec![Ok(batch)], schema.clone());
 
-        table.add(Box::new(batches))
+        table
+            .add(Box::new(batches))
             .execute()
             .await
             .context("Failed to save task")?;
@@ -162,7 +159,8 @@ impl TaskStore {
 
     /// Get a task by ID
     pub async fn get(&self, task_id: &str) -> Result<Option<Task>> {
-        let table = self.client
+        let table = self
+            .client
             .connection()
             .open_table("tasks")
             .execute()
@@ -188,7 +186,8 @@ impl TaskStore {
 
     /// Get all tasks for a conversation
     pub async fn get_by_conversation(&self, conversation_id: &str) -> Result<Vec<Task>> {
-        let table = self.client
+        let table = self
+            .client
             .connection()
             .open_table("tasks")
             .execute()
@@ -210,7 +209,8 @@ impl TaskStore {
 
     /// Delete a task
     pub async fn delete(&self, task_id: &str) -> Result<()> {
-        let table = self.client
+        let table = self
+            .client
             .connection()
             .open_table("tasks")
             .execute()
@@ -227,7 +227,8 @@ impl TaskStore {
 
     /// Delete all tasks for a conversation
     pub async fn delete_by_conversation(&self, conversation_id: &str) -> Result<()> {
-        let table = self.client
+        let table = self
+            .client
             .connection()
             .open_table("tasks")
             .execute()
@@ -289,42 +290,130 @@ impl TaskStore {
 
     /// Convert record batch to task metadata
     fn batch_to_tasks(&self, batch: &RecordBatch) -> Result<Vec<TaskMetadata>> {
-        let task_ids = batch.column(0).as_any().downcast_ref::<StringArray>().context("column 0 type mismatch: expected StringArray")?;
-        let conversation_ids = batch.column(1).as_any().downcast_ref::<StringArray>().context("column 1 type mismatch: expected StringArray")?;
-        let plan_ids = batch.column(2).as_any().downcast_ref::<StringArray>().context("column 2 type mismatch: expected StringArray")?;
-        let descriptions = batch.column(3).as_any().downcast_ref::<StringArray>().context("column 3 type mismatch: expected StringArray")?;
-        let statuses = batch.column(4).as_any().downcast_ref::<StringArray>().context("column 4 type mismatch: expected StringArray")?;
-        let parent_ids = batch.column(5).as_any().downcast_ref::<StringArray>().context("column 5 type mismatch: expected StringArray")?;
-        let children_col = batch.column(6).as_any().downcast_ref::<StringArray>().context("column 6 type mismatch: expected StringArray")?;
-        let depends_on_col = batch.column(7).as_any().downcast_ref::<StringArray>().context("column 7 type mismatch: expected StringArray")?;
-        let priorities = batch.column(8).as_any().downcast_ref::<StringArray>().context("column 8 type mismatch: expected StringArray")?;
-        let assigned_tos = batch.column(9).as_any().downcast_ref::<StringArray>().context("column 9 type mismatch: expected StringArray")?;
-        let iterations = batch.column(10).as_any().downcast_ref::<Int32Array>().context("column 10 type mismatch: expected Int32Array")?;
-        let summaries = batch.column(11).as_any().downcast_ref::<StringArray>().context("column 11 type mismatch: expected StringArray")?;
-        let created_ats = batch.column(12).as_any().downcast_ref::<Int64Array>().context("column 12 type mismatch: expected Int64Array")?;
-        let updated_ats = batch.column(13).as_any().downcast_ref::<Int64Array>().context("column 13 type mismatch: expected Int64Array")?;
-        let started_ats = batch.column(14).as_any().downcast_ref::<Int64Array>().context("column 14 type mismatch: expected Int64Array")?;
-        let completed_ats = batch.column(15).as_any().downcast_ref::<Int64Array>().context("column 15 type mismatch: expected Int64Array")?;
+        let task_ids = batch
+            .column(0)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .context("column 0 type mismatch: expected StringArray")?;
+        let conversation_ids = batch
+            .column(1)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .context("column 1 type mismatch: expected StringArray")?;
+        let plan_ids = batch
+            .column(2)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .context("column 2 type mismatch: expected StringArray")?;
+        let descriptions = batch
+            .column(3)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .context("column 3 type mismatch: expected StringArray")?;
+        let statuses = batch
+            .column(4)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .context("column 4 type mismatch: expected StringArray")?;
+        let parent_ids = batch
+            .column(5)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .context("column 5 type mismatch: expected StringArray")?;
+        let children_col = batch
+            .column(6)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .context("column 6 type mismatch: expected StringArray")?;
+        let depends_on_col = batch
+            .column(7)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .context("column 7 type mismatch: expected StringArray")?;
+        let priorities = batch
+            .column(8)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .context("column 8 type mismatch: expected StringArray")?;
+        let assigned_tos = batch
+            .column(9)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .context("column 9 type mismatch: expected StringArray")?;
+        let iterations = batch
+            .column(10)
+            .as_any()
+            .downcast_ref::<Int32Array>()
+            .context("column 10 type mismatch: expected Int32Array")?;
+        let summaries = batch
+            .column(11)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .context("column 11 type mismatch: expected StringArray")?;
+        let created_ats = batch
+            .column(12)
+            .as_any()
+            .downcast_ref::<Int64Array>()
+            .context("column 12 type mismatch: expected Int64Array")?;
+        let updated_ats = batch
+            .column(13)
+            .as_any()
+            .downcast_ref::<Int64Array>()
+            .context("column 13 type mismatch: expected Int64Array")?;
+        let started_ats = batch
+            .column(14)
+            .as_any()
+            .downcast_ref::<Int64Array>()
+            .context("column 14 type mismatch: expected Int64Array")?;
+        let completed_ats = batch
+            .column(15)
+            .as_any()
+            .downcast_ref::<Int64Array>()
+            .context("column 15 type mismatch: expected Int64Array")?;
 
         let mut tasks = Vec::new();
         for i in 0..batch.num_rows() {
             tasks.push(TaskMetadata {
                 task_id: task_ids.value(i).to_string(),
                 conversation_id: conversation_ids.value(i).to_string(),
-                plan_id: if plan_ids.is_null(i) { None } else { Some(plan_ids.value(i).to_string()) },
+                plan_id: if plan_ids.is_null(i) {
+                    None
+                } else {
+                    Some(plan_ids.value(i).to_string())
+                },
                 description: descriptions.value(i).to_string(),
                 status: statuses.value(i).to_string(),
-                parent_id: if parent_ids.is_null(i) { None } else { Some(parent_ids.value(i).to_string()) },
+                parent_id: if parent_ids.is_null(i) {
+                    None
+                } else {
+                    Some(parent_ids.value(i).to_string())
+                },
                 children: children_col.value(i).to_string(),
                 depends_on: depends_on_col.value(i).to_string(),
                 priority: priorities.value(i).to_string(),
-                assigned_to: if assigned_tos.is_null(i) { None } else { Some(assigned_tos.value(i).to_string()) },
+                assigned_to: if assigned_tos.is_null(i) {
+                    None
+                } else {
+                    Some(assigned_tos.value(i).to_string())
+                },
                 iterations: iterations.value(i),
-                summary: if summaries.is_null(i) { None } else { Some(summaries.value(i).to_string()) },
+                summary: if summaries.is_null(i) {
+                    None
+                } else {
+                    Some(summaries.value(i).to_string())
+                },
                 created_at: created_ats.value(i),
                 updated_at: updated_ats.value(i),
-                started_at: if started_ats.is_null(i) { None } else { Some(started_ats.value(i)) },
-                completed_at: if completed_ats.is_null(i) { None } else { Some(completed_ats.value(i)) },
+                started_at: if started_ats.is_null(i) {
+                    None
+                } else {
+                    Some(started_ats.value(i))
+                },
+                completed_at: if completed_ats.is_null(i) {
+                    None
+                } else {
+                    Some(completed_ats.value(i))
+                },
             });
         }
 
@@ -333,7 +422,8 @@ impl TaskStore {
 
     /// Get all tasks for a plan
     pub async fn get_by_plan(&self, plan_id: &str) -> Result<Vec<Task>> {
-        let table = self.client
+        let table = self
+            .client
             .connection()
             .open_table("tasks")
             .execute()
@@ -355,7 +445,8 @@ impl TaskStore {
 
     /// Delete all tasks for a plan
     pub async fn delete_by_plan(&self, plan_id: &str) -> Result<()> {
-        let table = self.client
+        let table = self
+            .client
             .connection()
             .open_table("tasks")
             .execute()
@@ -379,8 +470,8 @@ impl TaskStore {
             Field::new("description", DataType::Utf8, false),
             Field::new("status", DataType::Utf8, false),
             Field::new("parent_id", DataType::Utf8, true),
-            Field::new("children", DataType::Utf8, false),      // JSON array
-            Field::new("depends_on", DataType::Utf8, false),    // JSON array
+            Field::new("children", DataType::Utf8, false), // JSON array
+            Field::new("depends_on", DataType::Utf8, false), // JSON array
             Field::new("priority", DataType::Utf8, false),
             Field::new("assigned_to", DataType::Utf8, true),
             Field::new("iterations", DataType::Int32, false),
@@ -407,7 +498,7 @@ pub struct AgentStateMetadata {
     /// Current iteration number.
     pub iteration: i32,
     /// Serialized agent context (JSON).
-    pub context_json: String,  // Serialized AgentContext
+    pub context_json: String, // Serialized AgentContext
     /// Creation timestamp (Unix seconds).
     pub created_at: i64,
     /// Last update timestamp (Unix seconds).
@@ -434,7 +525,8 @@ impl AgentStateStore {
         let batch = self.state_to_batch(state)?;
 
         // Add to table
-        let table = self.client
+        let table = self
+            .client
             .connection()
             .open_table("agent_states")
             .execute()
@@ -442,12 +534,10 @@ impl AgentStateStore {
             .context("Failed to open agent_states table")?;
 
         let schema = batch.schema();
-        let batches = RecordBatchIterator::new(
-            vec![Ok(batch)],
-            schema.clone()
-        );
+        let batches = RecordBatchIterator::new(vec![Ok(batch)], schema.clone());
 
-        table.add(Box::new(batches))
+        table
+            .add(Box::new(batches))
             .execute()
             .await
             .context("Failed to save agent state")?;
@@ -457,7 +547,8 @@ impl AgentStateStore {
 
     /// Get agent state by ID
     pub async fn get(&self, agent_id: &str) -> Result<Option<AgentStateMetadata>> {
-        let table = self.client
+        let table = self
+            .client
             .connection()
             .open_table("agent_states")
             .execute()
@@ -482,8 +573,12 @@ impl AgentStateStore {
     }
 
     /// Get all agent states for a conversation
-    pub async fn get_by_conversation(&self, conversation_id: &str) -> Result<Vec<AgentStateMetadata>> {
-        let table = self.client
+    pub async fn get_by_conversation(
+        &self,
+        conversation_id: &str,
+    ) -> Result<Vec<AgentStateMetadata>> {
+        let table = self
+            .client
             .connection()
             .open_table("agent_states")
             .execute()
@@ -504,7 +599,8 @@ impl AgentStateStore {
 
     /// Get agent state by task ID
     pub async fn get_by_task(&self, task_id: &str) -> Result<Option<AgentStateMetadata>> {
-        let table = self.client
+        let table = self
+            .client
             .connection()
             .open_table("agent_states")
             .execute()
@@ -530,7 +626,8 @@ impl AgentStateStore {
 
     /// Delete agent state
     pub async fn delete(&self, agent_id: &str) -> Result<()> {
-        let table = self.client
+        let table = self
+            .client
             .connection()
             .open_table("agent_states")
             .execute()
@@ -547,7 +644,8 @@ impl AgentStateStore {
 
     /// Delete all agent states for a conversation
     pub async fn delete_by_conversation(&self, conversation_id: &str) -> Result<()> {
-        let table = self.client
+        let table = self
+            .client
             .connection()
             .open_table("agent_states")
             .execute()
@@ -593,14 +691,46 @@ impl AgentStateStore {
 
     /// Convert record batch to agent states
     fn batch_to_states(&self, batch: &RecordBatch) -> Result<Vec<AgentStateMetadata>> {
-        let agent_ids = batch.column(0).as_any().downcast_ref::<StringArray>().context("column 0 type mismatch: expected StringArray")?;
-        let task_ids = batch.column(1).as_any().downcast_ref::<StringArray>().context("column 1 type mismatch: expected StringArray")?;
-        let conversation_ids = batch.column(2).as_any().downcast_ref::<StringArray>().context("column 2 type mismatch: expected StringArray")?;
-        let statuses = batch.column(3).as_any().downcast_ref::<StringArray>().context("column 3 type mismatch: expected StringArray")?;
-        let iterations = batch.column(4).as_any().downcast_ref::<Int32Array>().context("column 4 type mismatch: expected Int32Array")?;
-        let context_jsons = batch.column(5).as_any().downcast_ref::<StringArray>().context("column 5 type mismatch: expected StringArray")?;
-        let created_ats = batch.column(6).as_any().downcast_ref::<Int64Array>().context("column 6 type mismatch: expected Int64Array")?;
-        let updated_ats = batch.column(7).as_any().downcast_ref::<Int64Array>().context("column 7 type mismatch: expected Int64Array")?;
+        let agent_ids = batch
+            .column(0)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .context("column 0 type mismatch: expected StringArray")?;
+        let task_ids = batch
+            .column(1)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .context("column 1 type mismatch: expected StringArray")?;
+        let conversation_ids = batch
+            .column(2)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .context("column 2 type mismatch: expected StringArray")?;
+        let statuses = batch
+            .column(3)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .context("column 3 type mismatch: expected StringArray")?;
+        let iterations = batch
+            .column(4)
+            .as_any()
+            .downcast_ref::<Int32Array>()
+            .context("column 4 type mismatch: expected Int32Array")?;
+        let context_jsons = batch
+            .column(5)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .context("column 5 type mismatch: expected StringArray")?;
+        let created_ats = batch
+            .column(6)
+            .as_any()
+            .downcast_ref::<Int64Array>()
+            .context("column 6 type mismatch: expected Int64Array")?;
+        let updated_ats = batch
+            .column(7)
+            .as_any()
+            .downcast_ref::<Int64Array>()
+            .context("column 7 type mismatch: expected Int64Array")?;
 
         let mut states = Vec::new();
         for i in 0..batch.num_rows() {

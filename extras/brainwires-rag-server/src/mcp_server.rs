@@ -225,7 +225,9 @@ impl RagMcpServer {
         serde_json::to_string_pretty(&response).map_err(|e| format!("Serialization failed: {}", e))
     }
 
-    #[tool(description = "Find the definition of a symbol at a given file location (line and column)")]
+    #[tool(
+        description = "Find the definition of a symbol at a given file location (line and column)"
+    )]
     async fn find_definition(
         &self,
         Parameters(req): Parameters<FindDefinitionRequest>,
@@ -259,7 +261,9 @@ impl RagMcpServer {
         serde_json::to_string_pretty(&response).map_err(|e| format!("Serialization failed: {}", e))
     }
 
-    #[tool(description = "Get the call graph for a function at a given file location (callers and callees)")]
+    #[tool(
+        description = "Get the call graph for a function at a given file location (callers and callees)"
+    )]
     async fn get_call_graph(
         &self,
         Parameters(req): Parameters<GetCallGraphRequest>,

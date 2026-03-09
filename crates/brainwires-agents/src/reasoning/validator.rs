@@ -75,7 +75,11 @@ impl LocalValidator {
             "Validate if this response is appropriate for the task.\n\nTask: {}\n\nResponse: {}\n\nOutput ONLY: VALID or INVALID:<reason>",
             task,
             // Truncate response for efficiency
-            if response.len() > 500 { &response[..500] } else { response }
+            if response.len() > 500 {
+                &response[..500]
+            } else {
+                response
+            }
         );
 
         let messages = vec![Message::user(&user_prompt)];
@@ -279,7 +283,7 @@ mod tests {
         // Test refusal detection
         let result = validate_heuristic_direct(
             "Write a poem",
-            "I'm sorry, I cannot write poems as an AI assistant."
+            "I'm sorry, I cannot write poems as an AI assistant.",
         );
 
         assert!(matches!(result, ValidationResult::Invalid { .. }));
@@ -287,10 +291,7 @@ mod tests {
 
     #[test]
     fn test_heuristic_validation_valid() {
-        let result = validate_heuristic_direct(
-            "Calculate 2+2",
-            "The result of 2+2 is 4."
-        );
+        let result = validate_heuristic_direct("Calculate 2+2", "The result of 2+2 is 4.");
 
         assert!(matches!(result, ValidationResult::Valid { .. }));
     }
@@ -298,13 +299,7 @@ mod tests {
     fn validate_heuristic_direct(task: &str, response: &str) -> ValidationResult {
         let response_lower = response.to_lowercase();
 
-        let refusal_patterns = [
-            "i cannot",
-            "i can't",
-            "i'm unable",
-            "sorry, i",
-            "as an ai",
-        ];
+        let refusal_patterns = ["i cannot", "i can't", "i'm unable", "sorry, i", "as an ai"];
 
         for pattern in refusal_patterns {
             if response_lower.contains(pattern) {

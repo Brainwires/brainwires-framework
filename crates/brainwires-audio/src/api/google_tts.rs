@@ -69,11 +69,7 @@ impl TextToSpeech for GoogleTts {
         Ok(voices)
     }
 
-    async fn synthesize(
-        &self,
-        text: &str,
-        options: &TtsOptions,
-    ) -> AudioResult<AudioBuffer> {
+    async fn synthesize(&self, text: &str, options: &TtsOptions) -> AudioResult<AudioBuffer> {
         let language = options
             .voice
             .language

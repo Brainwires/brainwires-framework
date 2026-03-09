@@ -15,8 +15,8 @@ pub struct AudioRingBuffer {
 impl AudioRingBuffer {
     /// Create a new ring buffer with capacity for `duration_secs` of audio.
     pub fn new(config: AudioConfig, duration_secs: f64) -> Self {
-        let capacity = (config.sample_rate as f64 * duration_secs) as usize
-            * config.bytes_per_frame();
+        let capacity =
+            (config.sample_rate as f64 * duration_secs) as usize * config.bytes_per_frame();
         Self {
             data: vec![0u8; capacity],
             capacity,

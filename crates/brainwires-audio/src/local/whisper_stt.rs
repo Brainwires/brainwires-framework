@@ -4,7 +4,10 @@ use std::path::PathBuf;
 
 use crate::error::{AudioError, AudioResult};
 use crate::stt::SpeechToText;
-use crate::types::{AudioBuffer, AudioConfig, SampleFormat, SttOptions, Transcript, TranscriptSegment, SAMPLE_RATE_SPEECH};
+use crate::types::{
+    AudioBuffer, AudioConfig, SAMPLE_RATE_SPEECH, SampleFormat, SttOptions, Transcript,
+    TranscriptSegment,
+};
 
 /// Local whisper.cpp speech-to-text implementation via whisper-rs.
 pub struct WhisperStt {
@@ -96,9 +99,8 @@ impl SpeechToText for WhisperStt {
                 .create_state()
                 .map_err(|e| AudioError::Transcription(format!("failed to create state: {e}")))?;
 
-            let mut params = whisper_rs::FullParams::new(
-                whisper_rs::SamplingStrategy::Greedy { best_of: 1 },
-            );
+            let mut params =
+                whisper_rs::FullParams::new(whisper_rs::SamplingStrategy::Greedy { best_of: 1 });
 
             if let Some(lang) = &language {
                 params.set_language(Some(lang));
@@ -120,9 +122,12 @@ impl SpeechToText for WhisperStt {
                 let seg = state.get_segment(i).ok_or_else(|| {
                     AudioError::Transcription(format!("segment {i} out of range"))
                 })?;
-                let segment_text = seg.to_str().map_err(|e| {
-                    AudioError::Transcription(format!("failed to get segment text: {e}"))
-                })?.to_string();
+                let segment_text = seg
+                    .to_str()
+                    .map_err(|e| {
+                        AudioError::Transcription(format!("failed to get segment text: {e}"))
+                    })?
+                    .to_string();
                 text.push_str(&segment_text);
 
                 if timestamps {

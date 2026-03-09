@@ -19,7 +19,6 @@ pub enum PlanStatus {
     Abandoned,
 }
 
-
 impl std::fmt::Display for PlanStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -96,11 +95,7 @@ pub struct PlanMetadata {
 
 impl PlanMetadata {
     /// Create a new plan with the given task and content
-    pub fn new(
-        conversation_id: String,
-        task_description: String,
-        plan_content: String,
-    ) -> Self {
+    pub fn new(conversation_id: String, task_description: String, plan_content: String) -> Self {
         let now = Utc::now().timestamp();
         let plan_id = uuid::Uuid::new_v4().to_string();
 
@@ -141,11 +136,7 @@ impl PlanMetadata {
         task_description: String,
         plan_content: String,
     ) -> Self {
-        let mut branch = Self::new(
-            self.conversation_id.clone(),
-            task_description,
-            plan_content,
-        );
+        let mut branch = Self::new(self.conversation_id.clone(), task_description, plan_content);
         branch.parent_plan_id = Some(self.plan_id.clone());
         branch.branch_name = Some(branch_name);
         branch.depth = self.depth + 1;
@@ -210,8 +201,7 @@ impl PlanMetadata {
 
     /// Get created_at as DateTime
     pub fn created_at_datetime(&self) -> DateTime<Utc> {
-        DateTime::from_timestamp(self.created_at, 0)
-            .unwrap_or_else(Utc::now)
+        DateTime::from_timestamp(self.created_at, 0).unwrap_or_else(Utc::now)
     }
 
     /// Generate markdown export with YAML frontmatter
@@ -331,28 +321,31 @@ impl PlanBudget {
         let total_cost = total_tokens as f64 * self.cost_per_token;
 
         if let Some(max) = self.max_steps
-            && step_count > max {
-                return Err(format!(
-                    "plan has {} steps but limit is {}",
-                    step_count, max
-                ));
-            }
+            && step_count > max
+        {
+            return Err(format!(
+                "plan has {} steps but limit is {}",
+                step_count, max
+            ));
+        }
 
         if let Some(max) = self.max_estimated_tokens
-            && total_tokens > max {
-                return Err(format!(
-                    "plan estimates {} tokens but limit is {}",
-                    total_tokens, max
-                ));
-            }
+            && total_tokens > max
+        {
+            return Err(format!(
+                "plan estimates {} tokens but limit is {}",
+                total_tokens, max
+            ));
+        }
 
         if let Some(max) = self.max_estimated_cost_usd
-            && total_cost > max {
-                return Err(format!(
-                    "plan estimates ${:.6} USD but limit is ${:.6}",
-                    total_cost, max
-                ));
-            }
+            && total_cost > max
+        {
+            return Err(format!(
+                "plan estimates ${:.6} USD but limit is ${:.6}",
+                total_cost, max
+            ));
+        }
 
         Ok(())
     }

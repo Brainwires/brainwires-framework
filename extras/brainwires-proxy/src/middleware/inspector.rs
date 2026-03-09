@@ -1,7 +1,9 @@
 //! Traffic capture middleware — feeds events to the inspector subsystem.
 
 use crate::error::ProxyResult;
-use crate::inspector::{EventBroadcaster, EventStore, TrafficEvent, TrafficEventKind, EventDirection};
+use crate::inspector::{
+    EventBroadcaster, EventDirection, EventStore, TrafficEvent, TrafficEventKind,
+};
 use crate::middleware::{LayerAction, ProxyLayer};
 use crate::types::{ProxyRequest, ProxyResponse};
 use std::sync::Arc;

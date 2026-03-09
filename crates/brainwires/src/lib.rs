@@ -76,9 +76,8 @@ pub mod providers {
 #[cfg(feature = "chat")]
 pub mod chat {
     pub use brainwires_providers::{
-        OpenAiChatProvider, AnthropicChatProvider, GoogleChatProvider,
-        OllamaChatProvider, OpenAiResponsesProvider,
-        ChatProviderFactory,
+        AnthropicChatProvider, ChatProviderFactory, GoogleChatProvider, OllamaChatProvider,
+        OpenAiChatProvider, OpenAiResponsesProvider,
     };
 }
 
@@ -186,58 +185,93 @@ pub mod mcp_server_support {
 pub mod prelude {
     // Core types — always available
     pub use brainwires_core::{
-        // Messages
-        ChatResponse, ContentBlock, ImageSource, Message, MessageContent, Role, StreamChunk, Usage,
-        serialize_messages_to_stateless_history,
-        // Tools
-        Tool, ToolCaller, ToolContext, ToolInputSchema, ToolMode, ToolResult, ToolUse,
         // Tasks
-        AgentResponse, Task, TaskPriority, TaskStatus,
-        // Plans
-        PlanMetadata, PlanStatus,
+        AgentResponse,
         // Providers
-        ChatOptions, Provider,
+        ChatOptions,
+        // Messages
+        ChatResponse,
+        ContentBlock,
+        EdgeType,
+        // Embeddings & vector store
+        EmbeddingProvider,
+        EntityStoreT,
+        // Graph types & traits
+        EntityType,
+        // Errors
+        FrameworkError,
+        FrameworkResult,
+        GraphEdge,
+        GraphNode,
+        ImageSource,
+        Message,
+        MessageContent,
         // Permissions
         PermissionMode,
-        // Graph types & traits
-        EntityType, EdgeType, GraphNode, GraphEdge, EntityStoreT, RelationshipGraphT,
-        // Embeddings & vector store
-        EmbeddingProvider, VectorStore, VectorSearchResult,
+        // Plans
+        PlanMetadata,
+        PlanStatus,
+        Provider,
+        RelationshipGraphT,
+        Role,
+        StreamChunk,
+        Task,
+        TaskPriority,
+        TaskStatus,
+        // Tools
+        Tool,
+        ToolCaller,
+        ToolContext,
+        ToolInputSchema,
+        ToolMode,
+        ToolResult,
+        ToolUse,
+        Usage,
+        VectorSearchResult,
+        VectorStore,
         // Working set
-        WorkingSet, WorkingSetConfig,
-        // Errors
-        FrameworkError, FrameworkResult,
+        WorkingSet,
+        WorkingSetConfig,
+        serialize_messages_to_stateless_history,
     };
 
     // Tools — available with "tools" feature
     #[cfg(feature = "tools")]
     pub use brainwires_tool_system::{
-        BashTool, FileOpsTool, GitTool, SearchTool, ToolSearchTool, ValidationTool, WebTool,
-        ToolCategory, ToolRegistry,
-        classify_error, ToolErrorCategory, RetryStrategy, ToolOutcome,
+        BashTool, FileOpsTool, GitTool, RetryStrategy, SearchTool, ToolCategory, ToolErrorCategory,
+        ToolOutcome, ToolRegistry, ToolSearchTool, ValidationTool, WebTool, classify_error,
     };
 
     // Agents — available with "agents" feature
     #[cfg(feature = "agents")]
     pub use brainwires_agents::{
-        // Agent runtime
-        AgentRuntime, AgentExecutionResult, run_agent_loop,
-        CommunicationHub, FileLockManager, TaskManager, TaskQueue,
-        ValidationConfig, ValidationCheck, ValidationSeverity,
         // Access control
-        AccessControlManager, ContentionStrategy, LockPersistence,
+        AccessControlManager,
+        AgentExecutionResult,
+        // Agent runtime
+        AgentRuntime,
+        CommunicationHub,
+        ContentionStrategy,
+        ExecutionApprovalMode,
+        FileLockManager,
         // Git coordination
         GitCoordinator,
+        LockPersistence,
+        PlanExecutionConfig,
+        PlanExecutionStatus,
         // Plan execution
-        PlanExecutorAgent, PlanExecutionConfig, ExecutionApprovalMode, PlanExecutionStatus,
+        PlanExecutorAgent,
+        TaskManager,
+        TaskQueue,
+        ValidationCheck,
+        ValidationConfig,
+        ValidationSeverity,
+        run_agent_loop,
     };
 
     // Storage — available with "storage" feature
     #[cfg(feature = "storage")]
-    pub use brainwires_storage::{
-        TieredMemory,
-        EmbeddingProvider as StorageEmbeddingProvider,
-    };
+    pub use brainwires_storage::{EmbeddingProvider as StorageEmbeddingProvider, TieredMemory};
 
     // MCP — available with "mcp" feature
     #[cfg(feature = "mcp")]
@@ -246,8 +280,8 @@ pub mod prelude {
     // MDAP — available with "mdap" feature
     #[cfg(feature = "mdap")]
     pub use brainwires_mdap::{
-        Composer, MdapEstimate, MdapError, MdapResult, MicroagentConfig,
-        StandardRedFlagValidator, FirstToAheadByKVoter,
+        Composer, FirstToAheadByKVoter, MdapError, MdapEstimate, MdapResult, MicroagentConfig,
+        StandardRedFlagValidator,
     };
 
     // Knowledge — available with "knowledge" feature (now in brainwires-brain::knowledge)
@@ -259,23 +293,21 @@ pub mod prelude {
     // Prompting — available with "prompting" feature
     #[cfg(feature = "prompting")]
     pub use brainwires_prompting::{
-        GeneratedPrompt, PromptGenerator, PromptingTechnique, TaskClusterManager,
-        TechniqueLibrary, TemperatureOptimizer,
+        GeneratedPrompt, PromptGenerator, PromptingTechnique, TaskClusterManager, TechniqueLibrary,
+        TemperatureOptimizer,
     };
 
     // Permissions — available with "permissions" feature
     #[cfg(feature = "permissions")]
     pub use brainwires_permissions::{
-        AgentCapabilities, ApprovalAction, ApprovalResponse, ApprovalSeverity,
-        AuditLogger, CapabilityProfile, PermissionsConfig, PolicyEngine,
-        TrustLevel, TrustManager,
+        AgentCapabilities, ApprovalAction, ApprovalResponse, ApprovalSeverity, AuditLogger,
+        CapabilityProfile, PermissionsConfig, PolicyEngine, TrustLevel, TrustManager,
     };
 
     // Audio — available with "audio" feature
     #[cfg(feature = "audio")]
     pub use brainwires_audio::{
-        AudioCapture, AudioPlayback, SpeechToText, TextToSpeech,
-        AudioBuffer, AudioConfig, AudioDevice, AudioError, AudioResult,
-        Transcript, TtsOptions, SttOptions, Voice,
+        AudioBuffer, AudioCapture, AudioConfig, AudioDevice, AudioError, AudioPlayback,
+        AudioResult, SpeechToText, SttOptions, TextToSpeech, Transcript, TtsOptions, Voice,
     };
 }

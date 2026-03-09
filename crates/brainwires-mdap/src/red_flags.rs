@@ -231,7 +231,11 @@ impl std::fmt::Display for RedFlagReason {
                 write!(f, "Response too long: {} tokens > {} limit", tokens, limit)
             }
             RedFlagReason::ResponseTooShort { length, minimum } => {
-                write!(f, "Response too short: {} chars < {} minimum", length, minimum)
+                write!(
+                    f,
+                    "Response too short: {} chars < {} minimum",
+                    length, minimum
+                )
             }
             RedFlagReason::InvalidFormat { expected, got } => {
                 write!(f, "Invalid format: expected {}, got {}", expected, got)
@@ -247,7 +251,12 @@ impl std::fmt::Display for RedFlagReason {
             }
             RedFlagReason::EmptyResponse => write!(f, "Empty response"),
             RedFlagReason::TooManyEmptyLines { ratio, max } => {
-                write!(f, "Too many empty lines: {:.1}% > {:.1}% max", ratio * 100.0, max * 100.0)
+                write!(
+                    f,
+                    "Too many empty lines: {:.1}% > {:.1}% max",
+                    ratio * 100.0,
+                    max * 100.0
+                )
             }
             RedFlagReason::InvalidJson { message } => {
                 write!(f, "Invalid JSON: {}", message)
@@ -351,7 +360,11 @@ impl StandardRedFlagValidator {
             return None;
         }
 
-        for (regex, pattern) in self.confusion_regexes.iter().zip(&self.config.confusion_patterns) {
+        for (regex, pattern) in self
+            .confusion_regexes
+            .iter()
+            .zip(&self.config.confusion_patterns)
+        {
             if regex.is_match(response) {
                 return Some(RedFlagResult::Flagged {
                     reason: RedFlagReason::SelfCorrectionDetected {
@@ -372,15 +385,16 @@ impl StandardRedFlagValidator {
         }
 
         if let Some(ref format) = self.expected_format
-            && !format.matches(response) {
-                return Some(RedFlagResult::Flagged {
-                    reason: RedFlagReason::InvalidFormat {
-                        expected: format.description(),
-                        got: self.extract_format_sample(response),
-                    },
-                    severity: 0.9,
-                });
-            }
+            && !format.matches(response)
+        {
+            return Some(RedFlagResult::Flagged {
+                reason: RedFlagReason::InvalidFormat {
+                    expected: format.description(),
+                    got: self.extract_format_sample(response),
+                },
+                severity: 0.9,
+            });
+        }
 
         None
     }
@@ -503,17 +517,16 @@ impl OutputFormat {
         let trimmed = response.trim();
         match self {
             OutputFormat::Exact(s) => trimmed == s.trim(),
-            OutputFormat::Pattern(pattern) => {
-                Regex::new(pattern)
-                    .map(|re| re.is_match(trimmed))
-                    .unwrap_or(false)
-            }
+            OutputFormat::Pattern(pattern) => Regex::new(pattern)
+                .map(|re| re.is_match(trimmed))
+                .unwrap_or(false),
             OutputFormat::Json => serde_json::from_str::<serde_json::Value>(trimmed).is_ok(),
             OutputFormat::JsonWithFields(fields) => {
                 if let Ok(value) = serde_json::from_str::<serde_json::Value>(trimmed)
-                    && let Some(obj) = value.as_object() {
-                        return fields.iter().all(|f| obj.contains_key(f));
-                    }
+                    && let Some(obj) = value.as_object()
+                {
+                    return fields.iter().all(|f| obj.contains_key(f));
+                }
                 false
             }
             OutputFormat::Markers { start, end } => {
@@ -641,7 +654,10 @@ mod tests {
         );
         assert!(result.is_flagged());
         if let RedFlagResult::Flagged { reason, .. } = result {
-            assert!(matches!(reason, RedFlagReason::SelfCorrectionDetected { .. }));
+            assert!(matches!(
+                reason,
+                RedFlagReason::SelfCorrectionDetected { .. }
+            ));
         }
     }
 
@@ -661,7 +677,11 @@ mod tests {
             StandardRedFlagValidator::with_format(OutputFormat::Exact("hello".to_string()));
 
         assert!(validator.validate("hello", &make_metadata(10)).is_valid());
-        assert!(validator.validate("  hello  ", &make_metadata(10)).is_valid()); // Trimmed
+        assert!(
+            validator
+                .validate("  hello  ", &make_metadata(10))
+                .is_valid()
+        ); // Trimmed
         assert!(validator.validate("world", &make_metadata(10)).is_flagged());
     }
 
@@ -669,8 +689,16 @@ mod tests {
     fn test_format_validation_json() {
         let validator = StandardRedFlagValidator::with_format(OutputFormat::Json);
 
-        assert!(validator.validate(r#"{"key": "value"}"#, &make_metadata(20)).is_valid());
-        assert!(validator.validate("not json", &make_metadata(10)).is_flagged());
+        assert!(
+            validator
+                .validate(r#"{"key": "value"}"#, &make_metadata(20))
+                .is_valid()
+        );
+        assert!(
+            validator
+                .validate("not json", &make_metadata(10))
+                .is_flagged()
+        );
     }
 
     #[test]
@@ -680,12 +708,16 @@ mod tests {
             "value".to_string(),
         ]));
 
-        assert!(validator
-            .validate(r#"{"name": "test", "value": 42}"#, &make_metadata(30))
-            .is_valid());
-        assert!(validator
-            .validate(r#"{"name": "test"}"#, &make_metadata(20))
-            .is_flagged()); // Missing "value"
+        assert!(
+            validator
+                .validate(r#"{"name": "test", "value": 42}"#, &make_metadata(30))
+                .is_valid()
+        );
+        assert!(
+            validator
+                .validate(r#"{"name": "test"}"#, &make_metadata(20))
+                .is_flagged()
+        ); // Missing "value"
     }
 
     #[test]
@@ -695,10 +727,16 @@ mod tests {
             end: "```".to_string(),
         });
 
-        assert!(validator
-            .validate("```code here```", &make_metadata(20))
-            .is_valid());
-        assert!(validator.validate("no markers", &make_metadata(10)).is_flagged());
+        assert!(
+            validator
+                .validate("```code here```", &make_metadata(20))
+                .is_valid()
+        );
+        assert!(
+            validator
+                .validate("no markers", &make_metadata(10))
+                .is_flagged()
+        );
     }
 
     #[test]
@@ -711,7 +749,11 @@ mod tests {
 
         assert!(validator.validate("yes", &make_metadata(5)).is_valid());
         assert!(validator.validate("no", &make_metadata(5)).is_valid());
-        assert!(validator.validate("perhaps", &make_metadata(10)).is_flagged());
+        assert!(
+            validator
+                .validate("perhaps", &make_metadata(10))
+                .is_flagged()
+        );
     }
 
     #[test]
@@ -733,10 +775,7 @@ mod tests {
         let validator = StandardRedFlagValidator::new(config, None);
 
         // Self-correction shouldn't be flagged in relaxed mode
-        let result = validator.validate(
-            "Wait, let me reconsider this.",
-            &make_metadata(50),
-        );
+        let result = validator.validate("Wait, let me reconsider this.", &make_metadata(50));
         assert!(result.is_valid());
     }
 
@@ -758,13 +797,17 @@ mod tests {
         let validator = AcceptAllValidator;
 
         assert!(validator.validate("", &make_metadata(0)).is_valid());
-        assert!(validator.validate("anything", &make_metadata(10000)).is_valid());
+        assert!(
+            validator
+                .validate("anything", &make_metadata(10000))
+                .is_valid()
+        );
     }
 
     #[test]
     fn test_composite_validator() {
-        let validator = CompositeValidator::new()
-            .with_validator(Box::new(StandardRedFlagValidator::strict()));
+        let validator =
+            CompositeValidator::new().with_validator(Box::new(StandardRedFlagValidator::strict()));
 
         assert!(validator.validate("valid", &make_metadata(10)).is_valid());
         assert!(validator.validate("", &make_metadata(0)).is_flagged());

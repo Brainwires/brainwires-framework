@@ -12,14 +12,14 @@
 //! | [`recorder`] | [`ToolSequenceRecorder`], [`SequenceDiff`] | Record + diff tool call sequences |
 //! | [`adversarial`] | [`AdversarialTestCase`] | Prompt injection, ambiguity, budget stress |
 
-pub mod trial;
-pub mod case;
-pub mod suite;
-pub mod recorder;
 pub mod adversarial;
+pub mod case;
+pub mod fault_report;
+pub mod recorder;
 pub mod regression;
 pub mod stability_tests;
-pub mod fault_report;
+pub mod suite;
+pub mod trial;
 
 // ── Top-level re-exports ──────────────────────────────────────────────────────
 
@@ -39,10 +39,14 @@ pub use recorder::{SequenceDiff, ToolCallRecord, ToolSequenceRecorder};
 pub use adversarial::{AdversarialTestCase, AdversarialTestType};
 
 // Regression suite
-pub use regression::{CategoryBaseline, CategoryRegressionResult, RegressionConfig, RegressionResult, RegressionSuite};
+pub use regression::{
+    CategoryBaseline, CategoryRegressionResult, RegressionConfig, RegressionResult, RegressionSuite,
+};
 
 // Stability tests
-pub use stability_tests::{GoalPreservationCase, LoopDetectionSimCase, long_horizon_stability_suite};
+pub use stability_tests::{
+    GoalPreservationCase, LoopDetectionSimCase, long_horizon_stability_suite,
+};
 
 // Fault report
 pub use fault_report::{FaultKind, FaultReport, analyze_suite_for_faults};

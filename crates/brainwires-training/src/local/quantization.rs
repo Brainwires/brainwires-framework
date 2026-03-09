@@ -16,22 +16,27 @@ pub struct QuantConfig {
 impl QuantConfig {
     /// Create an INT4 quantization configuration (4-bit, group size 64, double quant enabled).
     pub fn int4() -> Self {
-        Self { bits: 4, group_size: 64, double_quant: true }
+        Self {
+            bits: 4,
+            group_size: 64,
+            double_quant: true,
+        }
     }
 
     /// Create an INT8 quantization configuration (8-bit, group size 128).
     pub fn int8() -> Self {
-        Self { bits: 8, group_size: 128, double_quant: false }
+        Self {
+            bits: 8,
+            group_size: 128,
+            double_quant: false,
+        }
     }
 }
 
 /// Quantize a f32 tensor to INT4/INT8 with per-group scale factors.
 ///
 /// Returns (quantized_data, scales, zero_points).
-pub fn quantize_tensor(
-    data: &[f32],
-    config: &QuantConfig,
-) -> (Vec<u8>, Vec<f32>, Vec<f32>) {
+pub fn quantize_tensor(data: &[f32], config: &QuantConfig) -> (Vec<u8>, Vec<f32>, Vec<f32>) {
     let num_groups = data.len().div_ceil(config.group_size);
     let mut quantized = Vec::new();
     let mut scales = Vec::with_capacity(num_groups);
@@ -94,8 +99,12 @@ mod tests {
 
         // Check that values are approximately preserved
         for (original, &recovered_val) in data.iter().zip(recovered.iter()) {
-            assert!((original - recovered_val).abs() < 0.02,
-                "Original: {}, Recovered: {}", original, recovered_val);
+            assert!(
+                (original - recovered_val).abs() < 0.02,
+                "Original: {}, Recovered: {}",
+                original,
+                recovered_val
+            );
         }
     }
 

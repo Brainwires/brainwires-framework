@@ -13,7 +13,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
-use tokio::sync::{broadcast, RwLock};
+use tokio::sync::{RwLock, broadcast};
 use tokio::task::JoinHandle;
 
 use super::bridge::{BridgeConfig, RemoteBridge};
@@ -29,7 +29,6 @@ struct ManagerState {
     /// Whether the manager is currently running
     running: bool,
 }
-
 
 /// Remote Bridge Manager
 ///
@@ -319,9 +318,15 @@ mod tests {
 
     #[test]
     fn test_remote_bridge_status_display() {
-        assert_eq!(format!("{}", RemoteBridgeStatus::Disconnected), "Disconnected");
+        assert_eq!(
+            format!("{}", RemoteBridgeStatus::Disconnected),
+            "Disconnected"
+        );
         assert_eq!(format!("{}", RemoteBridgeStatus::Connected), "Connected");
-        assert_eq!(format!("{}", RemoteBridgeStatus::Authenticated), "Authenticated");
+        assert_eq!(
+            format!("{}", RemoteBridgeStatus::Authenticated),
+            "Authenticated"
+        );
     }
 
     #[tokio::test]

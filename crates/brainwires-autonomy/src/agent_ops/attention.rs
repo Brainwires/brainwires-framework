@@ -41,13 +41,22 @@ impl AttentionWindow {
 
     /// Get the top-N most relevant files.
     pub fn top_files(&self, n: usize) -> Vec<&RelevanceScore> {
-        self.ranked_files.iter().take(n.min(self.max_files)).collect()
+        self.ranked_files
+            .iter()
+            .take(n.min(self.max_files))
+            .collect()
     }
 
     /// Add a relevance score, maintaining sorted order (highest first).
     pub fn add(&mut self, score: RelevanceScore) {
-        let pos = self.ranked_files
-            .binary_search_by(|s| s.score.partial_cmp(&score.score).unwrap_or(std::cmp::Ordering::Equal).reverse())
+        let pos = self
+            .ranked_files
+            .binary_search_by(|s| {
+                s.score
+                    .partial_cmp(&score.score)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+                    .reverse()
+            })
             .unwrap_or_else(|p| p);
         self.ranked_files.insert(pos, score);
     }
@@ -85,7 +94,11 @@ impl AttentionMechanism {
         let mut window = AttentionWindow::new(self.default_max_files, self.default_max_tokens);
 
         for (path, score, reason) in results {
-            window.add(RelevanceScore { path, score, reason });
+            window.add(RelevanceScore {
+                path,
+                score,
+                reason,
+            });
         }
 
         self.cache.insert(task_id.to_string(), window);
@@ -118,9 +131,21 @@ mod tests {
     #[test]
     fn add_maintains_descending_score_order() {
         let mut w = AttentionWindow::new(10, 5000);
-        w.add(RelevanceScore { path: "a.rs".into(), score: 0.5, reason: "".into() });
-        w.add(RelevanceScore { path: "b.rs".into(), score: 0.9, reason: "".into() });
-        w.add(RelevanceScore { path: "c.rs".into(), score: 0.7, reason: "".into() });
+        w.add(RelevanceScore {
+            path: "a.rs".into(),
+            score: 0.5,
+            reason: "".into(),
+        });
+        w.add(RelevanceScore {
+            path: "b.rs".into(),
+            score: 0.9,
+            reason: "".into(),
+        });
+        w.add(RelevanceScore {
+            path: "c.rs".into(),
+            score: 0.7,
+            reason: "".into(),
+        });
 
         assert_eq!(w.ranked_files[0].path, "b.rs");
         assert_eq!(w.ranked_files[1].path, "c.rs");

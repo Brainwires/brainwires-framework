@@ -1,28 +1,26 @@
 use std::time::Instant;
 use tracing::{info, warn};
 
-use burn_core::prelude::*;
-use burn_core::module::AutodiffModule;
-use burn_wgpu::{Wgpu, WgpuDevice};
 use burn_autodiff::Autodiff;
+use burn_core::module::AutodiffModule;
+use burn_core::prelude::*;
 use burn_optim::{AdamConfig, GradientsParams, Optimizer};
+use burn_wgpu::{Wgpu, WgpuDevice};
 
-use crate::config::{AdapterMethod, AlignmentMethod};
-use crate::error::TrainingError;
-use crate::types::TrainingProgress;
 use super::burn_modules::{
-    LoraLinearConfig, DoraLinearConfig, QLoraLinearConfig,
-    dpo_loss, orpo_loss,
+    DoraLinearConfig, LoraLinearConfig, QLoraLinearConfig, dpo_loss, orpo_loss,
 };
 use super::checkpointing::{CheckpointManager, CheckpointMeta};
 use super::dataset_loader::{
-    Tokenizer, TrainingDataset, SimpleTokenizer, ModelTokenizer,
-    PreferenceDataset,
+    ModelTokenizer, PreferenceDataset, SimpleTokenizer, Tokenizer, TrainingDataset,
 };
 use super::lr_schedule::LrSchedule;
 use super::quantization::QuantConfig;
 use super::weight_loader::SafeTensorsLoader;
 use super::{ComputeDevice, LocalTrainingConfig, TrainedModelArtifact, TrainingBackend};
+use crate::config::{AdapterMethod, AlignmentMethod};
+use crate::error::TrainingError;
+use crate::types::TrainingProgress;
 
 type WgpuBackend = Wgpu;
 type TrainBackend = Autodiff<WgpuBackend>;
@@ -46,7 +44,9 @@ impl BurnBackend {
             Ok(Box::new(tok))
         } else {
             info!("Using byte-level fallback tokenizer (vocab=257)");
-            Ok(Box::new(SimpleTokenizer::new(config.hyperparams.max_seq_len)))
+            Ok(Box::new(SimpleTokenizer::new(
+                config.hyperparams.max_seq_len,
+            )))
         }
     }
 
@@ -97,7 +97,11 @@ impl BurnBackend {
         batch_size: usize,
         dim: usize,
         device: &WgpuDevice,
-    ) -> (Tensor<TrainBackend, 2>, Tensor<TrainBackend, 2>, Tensor<TrainBackend, 2>) {
+    ) -> (
+        Tensor<TrainBackend, 2>,
+        Tensor<TrainBackend, 2>,
+        Tensor<TrainBackend, 2>,
+    ) {
         let batch = dataset.get_batch(batch_start, batch_size);
         let actual_batch = batch.len().max(1);
 
@@ -186,7 +190,8 @@ impl BurnBackend {
                 total_steps,
                 total_epochs: config.hyperparams.epochs,
                 total_tokens_trained: Some(
-                    total_steps * config.hyperparams.batch_size as u64
+                    total_steps
+                        * config.hyperparams.batch_size as u64
                         * config.hyperparams.max_seq_len as u64,
                 ),
                 duration_secs: start.elapsed().as_secs(),
@@ -224,7 +229,10 @@ impl BurnBackend {
                         match loader.load_tensor_f32(name) {
                             Ok((data, shape)) => {
                                 if shape.len() == 2 && shape[0] == dim && shape[1] == dim {
-                                    info!("Loaded base weights from '{}' [{},{}]", name, shape[0], shape[1]);
+                                    info!(
+                                        "Loaded base weights from '{}' [{},{}]",
+                                        name, shape[0], shape[1]
+                                    );
                                     let tensor = Tensor::<TrainBackend, 1>::from_floats(
                                         burn_core::tensor::TensorData::new(data, [dim * dim]),
                                         device,
@@ -240,7 +248,10 @@ impl BurnBackend {
                     }
                 }
 
-                warn!("SafeTensors file opened but no tensor with matching dimensions [{}x{}] found, using random init", dim, dim);
+                warn!(
+                    "SafeTensors file opened but no tensor with matching dimensions [{}x{}] found, using random init",
+                    dim, dim
+                );
                 None
             }
             Err(e) => {
@@ -333,11 +344,12 @@ impl BurnBackend {
             .with_alpha(config.lora.alpha);
 
         // Try loading base weights from SafeTensors
-        let model = if let Some(base_weight) = Self::try_load_safetensors_weights(config, dim, &device) {
-            lora_config.init_with_base_weights::<TrainBackend>(base_weight, &device)
-        } else {
-            lora_config.init::<TrainBackend>(&device)
-        };
+        let model =
+            if let Some(base_weight) = Self::try_load_safetensors_weights(config, dim, &device) {
+                lora_config.init_with_base_weights::<TrainBackend>(base_weight, &device)
+            } else {
+                lora_config.init::<TrainBackend>(&device)
+            };
 
         let batch_size = config.hyperparams.batch_size as usize;
         let steps_per_epoch = dataset.steps_per_epoch(batch_size);
@@ -350,10 +362,9 @@ impl BurnBackend {
             config.hyperparams.lr_scheduler,
         );
 
-        let optim_config = AdamConfig::new()
-            .with_weight_decay(Some(burn_optim::decay::WeightDecayConfig::new(
-                config.hyperparams.weight_decay as f32,
-            )));
+        let optim_config = AdamConfig::new().with_weight_decay(Some(
+            burn_optim::decay::WeightDecayConfig::new(config.hyperparams.weight_decay as f32),
+        ));
         let mut optim = optim_config.init();
 
         let checkpoint_mgr = CheckpointManager::new(&config.output_dir)
@@ -366,8 +377,11 @@ impl BurnBackend {
 
         info!(
             "Training: {} epochs, {} steps/epoch, {} total, lr={}, batch={}",
-            config.hyperparams.epochs, steps_per_epoch, total_steps,
-            config.hyperparams.learning_rate, batch_size,
+            config.hyperparams.epochs,
+            steps_per_epoch,
+            total_steps,
+            config.hyperparams.learning_rate,
+            batch_size,
         );
 
         for epoch in 0..config.hyperparams.epochs {
@@ -378,9 +392,8 @@ impl BurnBackend {
                 let lr = lr_schedule.get_lr(global_step);
 
                 let batch_start = (step as usize * batch_size) % dataset.len();
-                let (input, target) = Self::make_batch(
-                    dataset, tokenizer, batch_start, batch_size, dim, &device,
-                );
+                let (input, target) =
+                    Self::make_batch(dataset, tokenizer, batch_start, batch_size, dim, &device);
 
                 let output = model.forward(input);
                 let diff = output - target;
@@ -428,7 +441,8 @@ impl BurnBackend {
                 let mut total_loss = 0.0f32;
                 for vs in 0..vd_steps {
                     let vb_start = (vs as usize * batch_size) % vd.len();
-                    let (vi, vt) = Self::make_batch(vd, tokenizer, vb_start, batch_size, dim, &device);
+                    let (vi, vt) =
+                        Self::make_batch(vd, tokenizer, vb_start, batch_size, dim, &device);
                     let vo = model.forward(vi);
                     let vdiff = vo - vt;
                     let vloss = vdiff.clone().powf_scalar(2.0).mean();
@@ -436,16 +450,25 @@ impl BurnBackend {
                     total_loss += vl.first().copied().unwrap_or(0.0);
                 }
                 let avg = total_loss / vd_steps.max(1) as f32;
-                info!("Epoch {}/{} eval_loss: {:.6}", epoch + 1, config.hyperparams.epochs, avg);
+                info!(
+                    "Epoch {}/{} eval_loss: {:.6}",
+                    epoch + 1,
+                    config.hyperparams.epochs,
+                    avg
+                );
                 avg as f64
             });
 
             let epoch_duration = epoch_start.elapsed();
             info!(
                 "Epoch {}/{} complete in {:.1}s, train_loss: {:.6}{}",
-                epoch + 1, config.hyperparams.epochs,
-                epoch_duration.as_secs_f64(), running_loss,
-                eval_loss.map(|l| format!(", eval_loss: {:.6}", l)).unwrap_or_default(),
+                epoch + 1,
+                config.hyperparams.epochs,
+                epoch_duration.as_secs_f64(),
+                running_loss,
+                eval_loss
+                    .map(|l| format!(", eval_loss: {:.6}", l))
+                    .unwrap_or_default(),
             );
         }
 
@@ -453,7 +476,15 @@ impl BurnBackend {
         let a_data = inner.lora_a_weight().into_data();
         let b_data = inner.lora_b_weight().into_data();
 
-        Self::finalize_training(config, running_loss, total_steps, &start, &a_data.bytes, &b_data.bytes, None)
+        Self::finalize_training(
+            config,
+            running_loss,
+            total_steps,
+            &start,
+            &a_data.bytes,
+            &b_data.bytes,
+            None,
+        )
     }
 
     /// Run DoRA fine-tuning with real dataset.
@@ -479,11 +510,12 @@ impl BurnBackend {
             .with_rank(rank)
             .with_alpha(config.lora.alpha);
 
-        let model = if let Some(base_weight) = Self::try_load_safetensors_weights(config, dim, &device) {
-            dora_config.init_with_base_weights::<TrainBackend>(base_weight, &device)
-        } else {
-            dora_config.init::<TrainBackend>(&device)
-        };
+        let model =
+            if let Some(base_weight) = Self::try_load_safetensors_weights(config, dim, &device) {
+                dora_config.init_with_base_weights::<TrainBackend>(base_weight, &device)
+            } else {
+                dora_config.init::<TrainBackend>(&device)
+            };
 
         let batch_size = config.hyperparams.batch_size as usize;
         let steps_per_epoch = dataset.steps_per_epoch(batch_size);
@@ -496,10 +528,9 @@ impl BurnBackend {
             config.hyperparams.lr_scheduler,
         );
 
-        let optim_config = AdamConfig::new()
-            .with_weight_decay(Some(burn_optim::decay::WeightDecayConfig::new(
-                config.hyperparams.weight_decay as f32,
-            )));
+        let optim_config = AdamConfig::new().with_weight_decay(Some(
+            burn_optim::decay::WeightDecayConfig::new(config.hyperparams.weight_decay as f32),
+        ));
         let mut optim = optim_config.init();
 
         let checkpoint_mgr = CheckpointManager::new(&config.output_dir)
@@ -512,8 +543,11 @@ impl BurnBackend {
 
         info!(
             "Training: {} epochs, {} steps/epoch, {} total, lr={}, batch={}",
-            config.hyperparams.epochs, steps_per_epoch, total_steps,
-            config.hyperparams.learning_rate, batch_size,
+            config.hyperparams.epochs,
+            steps_per_epoch,
+            total_steps,
+            config.hyperparams.learning_rate,
+            batch_size,
         );
 
         for epoch in 0..config.hyperparams.epochs {
@@ -524,9 +558,8 @@ impl BurnBackend {
                 let lr = lr_schedule.get_lr(global_step);
 
                 let batch_start = (step as usize * batch_size) % dataset.len();
-                let (input, target) = Self::make_batch(
-                    dataset, tokenizer, batch_start, batch_size, dim, &device,
-                );
+                let (input, target) =
+                    Self::make_batch(dataset, tokenizer, batch_start, batch_size, dim, &device);
 
                 let output = model.forward(input);
                 let diff = output - target;
@@ -574,7 +607,8 @@ impl BurnBackend {
                 let mut total_loss = 0.0f32;
                 for vs in 0..vd_steps {
                     let vb_start = (vs as usize * batch_size) % vd.len();
-                    let (vi, vt) = Self::make_batch(vd, tokenizer, vb_start, batch_size, dim, &device);
+                    let (vi, vt) =
+                        Self::make_batch(vd, tokenizer, vb_start, batch_size, dim, &device);
                     let vo = model.forward(vi);
                     let vdiff = vo - vt;
                     let vloss = vdiff.clone().powf_scalar(2.0).mean();
@@ -582,16 +616,25 @@ impl BurnBackend {
                     total_loss += vl.first().copied().unwrap_or(0.0);
                 }
                 let avg = total_loss / vd_steps.max(1) as f32;
-                info!("Epoch {}/{} eval_loss: {:.6}", epoch + 1, config.hyperparams.epochs, avg);
+                info!(
+                    "Epoch {}/{} eval_loss: {:.6}",
+                    epoch + 1,
+                    config.hyperparams.epochs,
+                    avg
+                );
                 avg as f64
             });
 
             let epoch_duration = epoch_start.elapsed();
             info!(
                 "Epoch {}/{} complete in {:.1}s, train_loss: {:.6}{}",
-                epoch + 1, config.hyperparams.epochs,
-                epoch_duration.as_secs_f64(), running_loss,
-                eval_loss.map(|l| format!(", eval_loss: {:.6}", l)).unwrap_or_default(),
+                epoch + 1,
+                config.hyperparams.epochs,
+                epoch_duration.as_secs_f64(),
+                running_loss,
+                eval_loss
+                    .map(|l| format!(", eval_loss: {:.6}", l))
+                    .unwrap_or_default(),
             );
         }
 
@@ -600,7 +643,15 @@ impl BurnBackend {
         let b_data = inner.lora_b_weight().into_data();
         let m_data = inner.magnitude_data().into_data();
 
-        Self::finalize_training(config, running_loss, total_steps, &start, &a_data.bytes, &b_data.bytes, Some(&m_data.bytes))
+        Self::finalize_training(
+            config,
+            running_loss,
+            total_steps,
+            &start,
+            &a_data.bytes,
+            &b_data.bytes,
+            Some(&m_data.bytes),
+        )
     }
 
     /// Run QLoRA fine-tuning with quantized base weights.
@@ -628,7 +679,9 @@ impl BurnBackend {
             .with_alpha(config.lora.alpha)
             .with_bits(bits);
 
-        let model = if let Some(dequantized) = Self::try_load_quantized_weights(config, dim, bits, &device) {
+        let model = if let Some(dequantized) =
+            Self::try_load_quantized_weights(config, dim, bits, &device)
+        {
             qlora_config.init_quantized::<TrainBackend>(&dequantized, &device)
         } else {
             info!("No quantized weights loaded, using random init for QLoRA");
@@ -646,10 +699,9 @@ impl BurnBackend {
             config.hyperparams.lr_scheduler,
         );
 
-        let optim_config = AdamConfig::new()
-            .with_weight_decay(Some(burn_optim::decay::WeightDecayConfig::new(
-                config.hyperparams.weight_decay as f32,
-            )));
+        let optim_config = AdamConfig::new().with_weight_decay(Some(
+            burn_optim::decay::WeightDecayConfig::new(config.hyperparams.weight_decay as f32),
+        ));
         let mut optim = optim_config.init();
 
         let checkpoint_mgr = CheckpointManager::new(&config.output_dir)
@@ -662,8 +714,11 @@ impl BurnBackend {
 
         info!(
             "Training: {} epochs, {} steps/epoch, {} total, lr={}, batch={}",
-            config.hyperparams.epochs, steps_per_epoch, total_steps,
-            config.hyperparams.learning_rate, batch_size,
+            config.hyperparams.epochs,
+            steps_per_epoch,
+            total_steps,
+            config.hyperparams.learning_rate,
+            batch_size,
         );
 
         for epoch in 0..config.hyperparams.epochs {
@@ -674,9 +729,8 @@ impl BurnBackend {
                 let lr = lr_schedule.get_lr(global_step);
 
                 let batch_start = (step as usize * batch_size) % dataset.len();
-                let (input, target) = Self::make_batch(
-                    dataset, tokenizer, batch_start, batch_size, dim, &device,
-                );
+                let (input, target) =
+                    Self::make_batch(dataset, tokenizer, batch_start, batch_size, dim, &device);
 
                 let output = model.forward(input);
                 let diff = output - target;
@@ -724,7 +778,8 @@ impl BurnBackend {
                 let mut total_loss = 0.0f32;
                 for vs in 0..vd_steps {
                     let vb_start = (vs as usize * batch_size) % vd.len();
-                    let (vi, vt) = Self::make_batch(vd, tokenizer, vb_start, batch_size, dim, &device);
+                    let (vi, vt) =
+                        Self::make_batch(vd, tokenizer, vb_start, batch_size, dim, &device);
                     let vo = model.forward(vi);
                     let vdiff = vo - vt;
                     let vloss = vdiff.clone().powf_scalar(2.0).mean();
@@ -732,16 +787,25 @@ impl BurnBackend {
                     total_loss += vl.first().copied().unwrap_or(0.0);
                 }
                 let avg = total_loss / vd_steps.max(1) as f32;
-                info!("Epoch {}/{} eval_loss: {:.6}", epoch + 1, config.hyperparams.epochs, avg);
+                info!(
+                    "Epoch {}/{} eval_loss: {:.6}",
+                    epoch + 1,
+                    config.hyperparams.epochs,
+                    avg
+                );
                 avg as f64
             });
 
             let epoch_duration = epoch_start.elapsed();
             info!(
                 "Epoch {}/{} complete in {:.1}s, train_loss: {:.6}{}",
-                epoch + 1, config.hyperparams.epochs,
-                epoch_duration.as_secs_f64(), running_loss,
-                eval_loss.map(|l| format!(", eval_loss: {:.6}", l)).unwrap_or_default(),
+                epoch + 1,
+                config.hyperparams.epochs,
+                epoch_duration.as_secs_f64(),
+                running_loss,
+                eval_loss
+                    .map(|l| format!(", eval_loss: {:.6}", l))
+                    .unwrap_or_default(),
             );
         }
 
@@ -749,7 +813,15 @@ impl BurnBackend {
         let a_data = inner.lora_a_weight().into_data();
         let b_data = inner.lora_b_weight().into_data();
 
-        Self::finalize_training(config, running_loss, total_steps, &start, &a_data.bytes, &b_data.bytes, None)
+        Self::finalize_training(
+            config,
+            running_loss,
+            total_steps,
+            &start,
+            &a_data.bytes,
+            &b_data.bytes,
+            None,
+        )
     }
 
     /// Run DPO alignment training with preference pairs.
@@ -769,17 +841,21 @@ impl BurnBackend {
             .map(|c| c.hidden_size)
             .unwrap_or(rank * 64);
 
-        info!("Initializing DPO alignment training (beta={}) on WGPU device", beta);
+        info!(
+            "Initializing DPO alignment training (beta={}) on WGPU device",
+            beta
+        );
 
         let lora_config = LoraLinearConfig::new(dim, dim)
             .with_rank(rank)
             .with_alpha(config.lora.alpha);
 
-        let model = if let Some(base_weight) = Self::try_load_safetensors_weights(config, dim, &device) {
-            lora_config.init_with_base_weights::<TrainBackend>(base_weight, &device)
-        } else {
-            lora_config.init::<TrainBackend>(&device)
-        };
+        let model =
+            if let Some(base_weight) = Self::try_load_safetensors_weights(config, dim, &device) {
+                lora_config.init_with_base_weights::<TrainBackend>(base_weight, &device)
+            } else {
+                lora_config.init::<TrainBackend>(&device)
+            };
 
         // Clone initial adapter weights as frozen reference model
         let ref_model = model.valid();
@@ -795,10 +871,9 @@ impl BurnBackend {
             config.hyperparams.lr_scheduler,
         );
 
-        let optim_config = AdamConfig::new()
-            .with_weight_decay(Some(burn_optim::decay::WeightDecayConfig::new(
-                config.hyperparams.weight_decay as f32,
-            )));
+        let optim_config = AdamConfig::new().with_weight_decay(Some(
+            burn_optim::decay::WeightDecayConfig::new(config.hyperparams.weight_decay as f32),
+        ));
         let mut optim = optim_config.init();
 
         let mut global_step = 0u64;
@@ -817,7 +892,12 @@ impl BurnBackend {
 
                 let batch_start = (step as usize * batch_size) % pref_dataset.len();
                 let (input, chosen, rejected) = Self::make_preference_batch(
-                    pref_dataset, tokenizer, batch_start, batch_size, dim, &device,
+                    pref_dataset,
+                    tokenizer,
+                    batch_start,
+                    batch_size,
+                    dim,
+                    &device,
                 );
 
                 // Policy model: forward chosen and rejected
@@ -857,8 +937,10 @@ impl BurnBackend {
                     .squeeze::<1>();
 
                 // Wrap back into autodiff tensors (as constants, no grad)
-                let ref_chosen_logps = Tensor::<TrainBackend, 1>::from_inner(ref_chosen_logps_inner);
-                let ref_rejected_logps = Tensor::<TrainBackend, 1>::from_inner(ref_rejected_logps_inner);
+                let ref_chosen_logps =
+                    Tensor::<TrainBackend, 1>::from_inner(ref_chosen_logps_inner);
+                let ref_rejected_logps =
+                    Tensor::<TrainBackend, 1>::from_inner(ref_rejected_logps_inner);
 
                 let loss = dpo_loss(
                     policy_chosen_logps,
@@ -892,7 +974,9 @@ impl BurnBackend {
 
             info!(
                 "DPO Epoch {}/{} complete, loss: {:.6}",
-                epoch + 1, config.hyperparams.epochs, running_loss,
+                epoch + 1,
+                config.hyperparams.epochs,
+                running_loss,
             );
         }
 
@@ -900,7 +984,15 @@ impl BurnBackend {
         let a_data = inner.lora_a_weight().into_data();
         let b_data = inner.lora_b_weight().into_data();
 
-        Self::finalize_training(config, running_loss, total_steps, &start, &a_data.bytes, &b_data.bytes, None)
+        Self::finalize_training(
+            config,
+            running_loss,
+            total_steps,
+            &start,
+            &a_data.bytes,
+            &b_data.bytes,
+            None,
+        )
     }
 
     /// Run ORPO alignment training with preference pairs.
@@ -920,17 +1012,21 @@ impl BurnBackend {
             .map(|c| c.hidden_size)
             .unwrap_or(rank * 64);
 
-        info!("Initializing ORPO alignment training (lambda={}) on WGPU device", lambda);
+        info!(
+            "Initializing ORPO alignment training (lambda={}) on WGPU device",
+            lambda
+        );
 
         let lora_config = LoraLinearConfig::new(dim, dim)
             .with_rank(rank)
             .with_alpha(config.lora.alpha);
 
-        let model = if let Some(base_weight) = Self::try_load_safetensors_weights(config, dim, &device) {
-            lora_config.init_with_base_weights::<TrainBackend>(base_weight, &device)
-        } else {
-            lora_config.init::<TrainBackend>(&device)
-        };
+        let model =
+            if let Some(base_weight) = Self::try_load_safetensors_weights(config, dim, &device) {
+                lora_config.init_with_base_weights::<TrainBackend>(base_weight, &device)
+            } else {
+                lora_config.init::<TrainBackend>(&device)
+            };
 
         let batch_size = config.hyperparams.batch_size as usize;
         let steps_per_epoch = pref_dataset.steps_per_epoch(batch_size);
@@ -943,10 +1039,9 @@ impl BurnBackend {
             config.hyperparams.lr_scheduler,
         );
 
-        let optim_config = AdamConfig::new()
-            .with_weight_decay(Some(burn_optim::decay::WeightDecayConfig::new(
-                config.hyperparams.weight_decay as f32,
-            )));
+        let optim_config = AdamConfig::new().with_weight_decay(Some(
+            burn_optim::decay::WeightDecayConfig::new(config.hyperparams.weight_decay as f32),
+        ));
         let mut optim = optim_config.init();
 
         let mut global_step = 0u64;
@@ -965,7 +1060,12 @@ impl BurnBackend {
 
                 let batch_start = (step as usize * batch_size) % pref_dataset.len();
                 let (input, chosen, rejected) = Self::make_preference_batch(
-                    pref_dataset, tokenizer, batch_start, batch_size, dim, &device,
+                    pref_dataset,
+                    tokenizer,
+                    batch_start,
+                    batch_size,
+                    dim,
+                    &device,
                 );
 
                 // Forward through model for chosen and rejected
@@ -1018,7 +1118,9 @@ impl BurnBackend {
 
             info!(
                 "ORPO Epoch {}/{} complete, loss: {:.6}",
-                epoch + 1, config.hyperparams.epochs, running_loss,
+                epoch + 1,
+                config.hyperparams.epochs,
+                running_loss,
             );
         }
 
@@ -1026,7 +1128,15 @@ impl BurnBackend {
         let a_data = inner.lora_a_weight().into_data();
         let b_data = inner.lora_b_weight().into_data();
 
-        Self::finalize_training(config, running_loss, total_steps, &start, &a_data.bytes, &b_data.bytes, None)
+        Self::finalize_training(
+            config,
+            running_loss,
+            total_steps,
+            &start,
+            &a_data.bytes,
+            &b_data.bytes,
+            None,
+        )
     }
 }
 
@@ -1085,17 +1195,22 @@ impl TrainingBackend for BurnBackend {
         info!("Model: {:?}", config.model_path);
         info!("Dataset: {:?}", config.dataset_path);
         info!("Device: {}", config.device);
-        info!("Adapter: {:?}, rank: {}, alpha: {}", config.lora.method, config.lora.rank, config.lora.alpha);
+        info!(
+            "Adapter: {:?}, rank: {}, alpha: {}",
+            config.lora.method, config.lora.rank, config.lora.alpha
+        );
 
         if !config.model_path.exists() {
             return Err(TrainingError::Config(format!(
-                "Model file not found: {:?}", config.model_path
+                "Model file not found: {:?}",
+                config.model_path
             )));
         }
 
         if !config.dataset_path.exists() {
             return Err(TrainingError::Config(format!(
-                "Dataset file not found: {:?}", config.dataset_path
+                "Dataset file not found: {:?}",
+                config.dataset_path
             )));
         }
 
@@ -1111,12 +1226,24 @@ impl TrainingBackend for BurnBackend {
             AlignmentMethod::DPO { beta } => {
                 let pref_dataset = PreferenceDataset::load_jsonl(&config.dataset_path)?;
                 info!("Loaded {} preference examples for DPO", pref_dataset.len());
-                return Self::train_dpo_alignment(&config, &pref_dataset, &*tokenizer, beta as f32, &*callback);
+                return Self::train_dpo_alignment(
+                    &config,
+                    &pref_dataset,
+                    &*tokenizer,
+                    beta as f32,
+                    &*callback,
+                );
             }
             AlignmentMethod::ORPO { lambda } => {
                 let pref_dataset = PreferenceDataset::load_jsonl(&config.dataset_path)?;
                 info!("Loaded {} preference examples for ORPO", pref_dataset.len());
-                return Self::train_orpo_alignment(&config, &pref_dataset, &*tokenizer, lambda as f32, &*callback);
+                return Self::train_orpo_alignment(
+                    &config,
+                    &pref_dataset,
+                    &*tokenizer,
+                    lambda as f32,
+                    &*callback,
+                );
             }
             AlignmentMethod::None => {}
         }
@@ -1131,7 +1258,8 @@ impl TrainingBackend for BurnBackend {
             .map(|path| {
                 if !path.exists() {
                     return Err(TrainingError::Config(format!(
-                        "Validation dataset not found: {:?}", path
+                        "Validation dataset not found: {:?}",
+                        path
                     )));
                 }
                 TrainingDataset::load_jsonl(path)
@@ -1144,18 +1272,40 @@ impl TrainingBackend for BurnBackend {
 
         // Dispatch based on adapter method
         match config.lora.method {
-            AdapterMethod::LoRA => {
-                Self::train_lora(&config, &dataset, &*tokenizer, validation_dataset.as_ref(), &*callback)
-            }
-            AdapterMethod::DoRA => {
-                Self::train_dora(&config, &dataset, &*tokenizer, validation_dataset.as_ref(), &*callback)
-            }
-            AdapterMethod::QLoRA { bits } => {
-                Self::train_qlora(&config, &dataset, &*tokenizer, validation_dataset.as_ref(), bits, &*callback)
-            }
+            AdapterMethod::LoRA => Self::train_lora(
+                &config,
+                &dataset,
+                &*tokenizer,
+                validation_dataset.as_ref(),
+                &*callback,
+            ),
+            AdapterMethod::DoRA => Self::train_dora(
+                &config,
+                &dataset,
+                &*tokenizer,
+                validation_dataset.as_ref(),
+                &*callback,
+            ),
+            AdapterMethod::QLoRA { bits } => Self::train_qlora(
+                &config,
+                &dataset,
+                &*tokenizer,
+                validation_dataset.as_ref(),
+                bits,
+                &*callback,
+            ),
             AdapterMethod::QDoRA { bits } => {
-                info!("QDoRA ({}-bit): using DoRA training path with quantized weights", bits);
-                Self::train_dora(&config, &dataset, &*tokenizer, validation_dataset.as_ref(), &*callback)
+                info!(
+                    "QDoRA ({}-bit): using DoRA training path with quantized weights",
+                    bits
+                );
+                Self::train_dora(
+                    &config,
+                    &dataset,
+                    &*tokenizer,
+                    validation_dataset.as_ref(),
+                    &*callback,
+                )
             }
         }
     }

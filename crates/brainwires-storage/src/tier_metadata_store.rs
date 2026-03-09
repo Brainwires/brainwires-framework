@@ -99,7 +99,10 @@ impl TierMetadataStore {
         let results: Vec<RecordBatch> = stream.try_collect().await?;
         let entries = self.batch_to_metadata(&results)?;
 
-        Ok(entries.into_iter().map(|m| (m.message_id.clone(), m)).collect())
+        Ok(entries
+            .into_iter()
+            .map(|m| (m.message_id.clone(), m))
+            .collect())
     }
 
     /// Get metadata by message ID
@@ -301,7 +304,11 @@ mod tests {
     #[test]
     fn test_schema_creation() {
         let schema = TierMetadataStore::tier_metadata_schema();
-        assert_eq!(schema.fields().len(), 7, "Schema must have 7 fields including authority");
+        assert_eq!(
+            schema.fields().len(),
+            7,
+            "Schema must have 7 fields including authority"
+        );
         assert!(schema.field_with_name("message_id").is_ok());
         assert!(schema.field_with_name("tier").is_ok());
         assert!(schema.field_with_name("authority").is_ok());
@@ -316,7 +323,10 @@ mod tests {
         assert_eq!(TierMetadataStore::string_to_tier("hot"), MemoryTier::Hot);
         assert_eq!(TierMetadataStore::string_to_tier("warm"), MemoryTier::Warm);
         assert_eq!(TierMetadataStore::string_to_tier("cold"), MemoryTier::Cold);
-        assert_eq!(TierMetadataStore::string_to_tier("unknown"), MemoryTier::Hot);
+        assert_eq!(
+            TierMetadataStore::string_to_tier("unknown"),
+            MemoryTier::Hot
+        );
     }
 
     #[test]

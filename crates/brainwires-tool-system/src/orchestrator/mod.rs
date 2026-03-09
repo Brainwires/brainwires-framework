@@ -28,15 +28,23 @@ pub mod engine;
 pub mod sandbox;
 pub mod types;
 
-pub use engine::{dynamic_to_json, ToolExecutor, ToolOrchestrator};
+pub use engine::{ToolExecutor, ToolOrchestrator, dynamic_to_json};
 pub use sandbox::{
-    ExecutionLimits,
     // Default limit constants
-    DEFAULT_MAX_ARRAY_SIZE, DEFAULT_MAX_MAP_SIZE, DEFAULT_MAX_OPERATIONS, DEFAULT_MAX_STRING_SIZE,
-    DEFAULT_MAX_TOOL_CALLS, DEFAULT_TIMEOUT_MS,
+    DEFAULT_MAX_ARRAY_SIZE,
+    DEFAULT_MAX_MAP_SIZE,
+    DEFAULT_MAX_OPERATIONS,
+    DEFAULT_MAX_STRING_SIZE,
+    DEFAULT_MAX_TOOL_CALLS,
+    DEFAULT_TIMEOUT_MS,
     // Profile constants
-    EXTENDED_MAX_OPERATIONS, EXTENDED_MAX_TOOL_CALLS, EXTENDED_TIMEOUT_MS, QUICK_MAX_OPERATIONS,
-    QUICK_MAX_TOOL_CALLS, QUICK_TIMEOUT_MS,
+    EXTENDED_MAX_OPERATIONS,
+    EXTENDED_MAX_TOOL_CALLS,
+    EXTENDED_TIMEOUT_MS,
+    ExecutionLimits,
+    QUICK_MAX_OPERATIONS,
+    QUICK_MAX_TOOL_CALLS,
+    QUICK_TIMEOUT_MS,
 };
 pub use types::{OrchestratorError, OrchestratorResult, ToolCall};
 
@@ -46,7 +54,7 @@ pub use types::{OrchestratorError, OrchestratorResult, ToolCall};
 // brainwires tool system.
 
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -108,7 +116,8 @@ impl OrchestratorTool {
 
         Tool {
             name: "execute_script".to_string(),
-            description: r#"PRIMARY TOOL: Execute a Rhai script for programmatic tool orchestration.
+            description:
+                r#"PRIMARY TOOL: Execute a Rhai script for programmatic tool orchestration.
 
 This is the preferred way to interact with tools. Write Rhai scripts to orchestrate
 multiple tool calls efficiently, with intermediate results staying out of the context window.
@@ -140,7 +149,8 @@ for file in files {
     }
 }
 `Found ${count} TODO comments`
-```"#.to_string(),
+```"#
+                    .to_string(),
             input_schema: ToolInputSchema::object(properties, vec!["script".to_string()]),
             requires_approval: false,
             defer_loading: false,

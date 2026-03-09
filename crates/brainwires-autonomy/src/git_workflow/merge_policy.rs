@@ -64,7 +64,10 @@ pub struct CiPassPolicy {
 impl CiPassPolicy {
     /// Create a CI pass policy with the given forge and merge method.
     pub fn new(forge: std::sync::Arc<dyn GitForge>, merge_method: MergeMethod) -> Self {
-        Self { forge, merge_method }
+        Self {
+            forge,
+            merge_method,
+        }
     }
 }
 
@@ -107,7 +110,10 @@ pub struct ConfidenceBasedPolicy {
 impl ConfidenceBasedPolicy {
     /// Create a confidence-based policy with the given threshold and merge method.
     pub fn new(min_confidence: f64, merge_method: MergeMethod) -> Self {
-        Self { min_confidence, merge_method }
+        Self {
+            min_confidence,
+            merge_method,
+        }
     }
 }
 

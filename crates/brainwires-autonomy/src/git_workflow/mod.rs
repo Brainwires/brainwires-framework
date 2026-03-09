@@ -2,26 +2,26 @@
 //!
 //! Provides the full pipeline: trigger → investigate → branch → fix → PR → merge.
 
-pub mod forge;
-pub mod trigger;
-pub mod investigator;
 pub mod branch_manager;
 pub mod change_maker;
-pub mod pr_manager;
+pub mod forge;
+pub mod investigator;
 pub mod merge_policy;
 pub mod pipeline;
+pub mod pr_manager;
+pub mod trigger;
 
 #[cfg(feature = "webhook")]
 pub mod webhook;
 
-pub use forge::{GitForge, Issue, PullRequest, CheckStatus, MergeMethod, CreatePrParams};
-pub use trigger::{WorkflowTrigger, WorkflowEvent, ProgrammaticTrigger};
-pub use investigator::{IssueInvestigator, InvestigationResult};
 pub use branch_manager::BranchManager;
 pub use change_maker::ChangeMaker;
-pub use pr_manager::PullRequestManager;
-pub use merge_policy::{MergePolicy, MergeDecision};
+pub use forge::{CheckStatus, CreatePrParams, GitForge, Issue, MergeMethod, PullRequest};
+pub use investigator::{InvestigationResult, IssueInvestigator};
+pub use merge_policy::{MergeDecision, MergePolicy};
 pub use pipeline::GitWorkflowPipeline;
+pub use pr_manager::PullRequestManager;
+pub use trigger::{ProgrammaticTrigger, WorkflowEvent, WorkflowTrigger};
 
 #[cfg(feature = "webhook")]
 pub use webhook::WebhookServer;

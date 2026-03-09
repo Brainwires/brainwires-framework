@@ -31,7 +31,10 @@ pub struct ChangeMaker {
 impl ChangeMaker {
     /// Create a new change maker with the given provider and iteration limit.
     pub fn new(provider: Arc<dyn Provider>, max_iterations: u32) -> Self {
-        Self { provider, max_iterations }
+        Self {
+            provider,
+            max_iterations,
+        }
     }
 
     /// Apply fixes based on the investigation result.

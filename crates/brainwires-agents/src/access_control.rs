@@ -3,7 +3,7 @@
 //! Provides a single interface for managing file locks, resource locks (build/test),
 //! and read-before-write enforcement.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -41,12 +41,7 @@ pub trait LockPersistence: Send + Sync {
     ) -> Result<bool>;
 
     /// Release a persistent lock
-    async fn release(
-        &self,
-        lock_type: &str,
-        resource_path: &str,
-        agent_id: &str,
-    ) -> Result<()>;
+    async fn release(&self, lock_type: &str, resource_path: &str, agent_id: &str) -> Result<()>;
 
     /// Release all locks held by an agent
     async fn release_all_for_agent(&self, agent_id: &str) -> Result<usize>;
@@ -221,7 +216,10 @@ impl AccessControlManager {
     }
 
     /// Get the lock requirement for a file operation
-    pub fn get_file_lock_requirement(tool_name: &str, input: &Value) -> Option<(PathBuf, LockType)> {
+    pub fn get_file_lock_requirement(
+        tool_name: &str,
+        input: &Value,
+    ) -> Option<(PathBuf, LockType)> {
         let path_str = input
             .get("path")
             .or_else(|| input.get("file_path"))
@@ -359,12 +357,13 @@ impl AccessControlManager {
         // Handle bash commands (build/test)
         if tool_name == "execute_command"
             && let Some(command) = input.get("command").and_then(|v| v.as_str())
-                && let Some((resource_type, scope)) = self.get_resource_requirement(command) {
-                    let resource_lock = self
-                        .acquire_resource_lock_with_retry(agent_id, resource_type, scope)
-                        .await?;
-                    bundle.resource_lock = Some(resource_lock);
-                }
+            && let Some((resource_type, scope)) = self.get_resource_requirement(command)
+        {
+            let resource_lock = self
+                .acquire_resource_lock_with_retry(agent_id, resource_type, scope)
+                .await?;
+            bundle.resource_lock = Some(resource_lock);
+        }
 
         Ok(bundle)
     }
@@ -422,7 +421,9 @@ impl AccessControlManager {
         resource_path: &str,
     ) -> Result<()> {
         if let Some(store) = &self.lock_store {
-            store.release(lock_type_str, resource_path, agent_id).await?;
+            store
+                .release(lock_type_str, resource_path, agent_id)
+                .await?;
         }
         Ok(())
     }
@@ -451,7 +452,11 @@ impl AccessControlManager {
                 }
 
                 // Then acquire in-memory lock
-                match self.file_locks.acquire_lock(agent_id, path, lock_type).await {
+                match self
+                    .file_locks
+                    .acquire_lock(agent_id, path, lock_type)
+                    .await
+                {
                     Ok(guard) => Ok(guard),
                     Err(e) => {
                         // Release persistent lock on failure
@@ -473,12 +478,20 @@ impl AccessControlManager {
                         .await?
                     {
                         // Then try in-memory lock
-                        match self.file_locks.acquire_lock(agent_id, path, lock_type).await {
+                        match self
+                            .file_locks
+                            .acquire_lock(agent_id, path, lock_type)
+                            .await
+                        {
                             Ok(guard) => return Ok(guard),
                             Err(e) => {
                                 // Release persistent lock and retry
                                 let _ = self
-                                    .release_persistent_lock(agent_id, lock_type_str, &resource_path)
+                                    .release_persistent_lock(
+                                        agent_id,
+                                        lock_type_str,
+                                        &resource_path,
+                                    )
                                     .await;
                                 if tokio::time::Instant::now() >= deadline {
                                     return Err(anyhow!(
@@ -497,7 +510,8 @@ impl AccessControlManager {
                     }
 
                     tokio::time::sleep(delay).await;
-                    delay = std::cmp::min(delay * 2, Duration::from_millis(FILE_LOCK_BACKOFF_MAX_MS));
+                    delay =
+                        std::cmp::min(delay * 2, Duration::from_millis(FILE_LOCK_BACKOFF_MAX_MS));
                 }
             }
             ContentionStrategy::RetryWithBackoff {
@@ -515,12 +529,20 @@ impl AccessControlManager {
                         .await?
                     {
                         // Then try in-memory lock
-                        match self.file_locks.acquire_lock(agent_id, path, lock_type).await {
+                        match self
+                            .file_locks
+                            .acquire_lock(agent_id, path, lock_type)
+                            .await
+                        {
                             Ok(guard) => return Ok(guard),
                             Err(e) => {
                                 // Release persistent lock and retry
                                 let _ = self
-                                    .release_persistent_lock(agent_id, lock_type_str, &resource_path)
+                                    .release_persistent_lock(
+                                        agent_id,
+                                        lock_type_str,
+                                        &resource_path,
+                                    )
                                     .await;
                                 attempts += 1;
                                 if attempts > *max_retries {
@@ -590,10 +612,7 @@ impl AccessControlManager {
                     .try_acquire_persistent_lock(agent_id, lock_type_str, &resource_path)
                     .await?
                 {
-                    return Err(anyhow!(
-                        "{} lock is held by another process",
-                        resource_type
-                    ));
+                    return Err(anyhow!("{} lock is held by another process", resource_type));
                 }
 
                 // Then acquire in-memory lock
@@ -634,7 +653,11 @@ impl AccessControlManager {
                             Err(e) => {
                                 // Release persistent lock and retry
                                 let _ = self
-                                    .release_persistent_lock(agent_id, lock_type_str, &resource_path)
+                                    .release_persistent_lock(
+                                        agent_id,
+                                        lock_type_str,
+                                        &resource_path,
+                                    )
                                     .await;
                                 if tokio::time::Instant::now() >= deadline {
                                     return Err(anyhow!(
@@ -653,7 +676,10 @@ impl AccessControlManager {
                     }
 
                     tokio::time::sleep(delay).await;
-                    delay = std::cmp::min(delay * 2, Duration::from_secs(RESOURCE_LOCK_BACKOFF_MAX_SECS));
+                    delay = std::cmp::min(
+                        delay * 2,
+                        Duration::from_secs(RESOURCE_LOCK_BACKOFF_MAX_SECS),
+                    );
                 }
             }
             ContentionStrategy::RetryWithBackoff {
@@ -681,7 +707,11 @@ impl AccessControlManager {
                             Err(e) => {
                                 // Release persistent lock and retry
                                 let _ = self
-                                    .release_persistent_lock(agent_id, lock_type_str, &resource_path)
+                                    .release_persistent_lock(
+                                        agent_id,
+                                        lock_type_str,
+                                        &resource_path,
+                                    )
                                     .await;
                                 attempts += 1;
                                 if attempts > *max_retries {
@@ -739,7 +769,11 @@ impl AccessControlManager {
         };
 
         self.clear_tracking_for_agent(agent_id).await;
-        (file_locks_released, resource_locks_released, persistent_locks_released)
+        (
+            file_locks_released,
+            resource_locks_released,
+            persistent_locks_released,
+        )
     }
 
     /// Cleanup stale persistent locks (call on startup)
@@ -883,7 +917,9 @@ mod tests {
 
         // Read operation should succeed without prior read
         let input = serde_json::json!({"path": "/test/file.txt"});
-        let result = manager.acquire_for_tool("agent-1", "read_file", &input).await;
+        let result = manager
+            .acquire_for_tool("agent-1", "read_file", &input)
+            .await;
         assert!(result.is_ok());
         let bundle = result.unwrap();
         assert!(bundle.file_lock.is_some());
@@ -924,13 +960,16 @@ mod tests {
             .await;
 
         // Cleanup
-        let (file_released, _resource_released, _persistent_released) = manager.cleanup_agent("agent-1").await;
+        let (file_released, _resource_released, _persistent_released) =
+            manager.cleanup_agent("agent-1").await;
         assert_eq!(file_released, 1);
 
         // Tracking should be cleared
-        assert!(!manager
-            .has_read_file("agent-1", &PathBuf::from("/test/file.txt"))
-            .await);
+        assert!(
+            !manager
+                .has_read_file("agent-1", &PathBuf::from("/test/file.txt"))
+                .await
+        );
     }
 
     #[tokio::test]
@@ -949,15 +988,21 @@ mod tests {
 
         manager.clear_tracking_for_agent("agent-1").await;
 
-        assert!(!manager
-            .has_read_file("agent-1", &PathBuf::from("/test/file1.txt"))
-            .await);
-        assert!(!manager
-            .has_read_file("agent-1", &PathBuf::from("/test/file2.txt"))
-            .await);
+        assert!(
+            !manager
+                .has_read_file("agent-1", &PathBuf::from("/test/file1.txt"))
+                .await
+        );
+        assert!(
+            !manager
+                .has_read_file("agent-1", &PathBuf::from("/test/file2.txt"))
+                .await
+        );
         // agent-2 tracking should remain
-        assert!(manager
-            .has_read_file("agent-2", &PathBuf::from("/test/file1.txt"))
-            .await);
+        assert!(
+            manager
+                .has_read_file("agent-2", &PathBuf::from("/test/file1.txt"))
+                .await
+        );
     }
 }

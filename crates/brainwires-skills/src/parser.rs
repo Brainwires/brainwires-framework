@@ -29,9 +29,9 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::Path;
 
-use super::metadata::{Skill, SkillMetadata, SkillSource};
 #[cfg(test)]
 use super::metadata::SkillExecutionMode;
+use super::metadata::{Skill, SkillMetadata, SkillSource};
 
 /// Maximum allowed length for a skill description.
 const SKILL_DESCRIPTION_MAX_LENGTH: usize = 1024;
@@ -45,7 +45,11 @@ struct SkillFrontmatter {
     description: String,
     /// Optional: Restrict available tools
     /// Accepts both a YAML list and a space-delimited string per the Agent Skills spec.
-    #[serde(rename = "allowed-tools", default, deserialize_with = "deserialize_allowed_tools")]
+    #[serde(
+        rename = "allowed-tools",
+        default,
+        deserialize_with = "deserialize_allowed_tools"
+    )]
     allowed_tools: Option<Vec<String>>,
     /// Optional: Software license
     license: Option<String>,
@@ -92,7 +96,9 @@ where
             if value.is_empty() {
                 Ok(None)
             } else {
-                Ok(Some(value.split_whitespace().map(|s| s.to_string()).collect()))
+                Ok(Some(
+                    value.split_whitespace().map(|s| s.to_string()).collect(),
+                ))
             }
         }
 
@@ -228,10 +234,7 @@ fn validate_skill_name(name: &str) -> Result<()> {
     }
 
     if name.contains("--") {
-        anyhow::bail!(
-            "Skill name cannot contain consecutive hyphens: '{}'",
-            name
-        );
+        anyhow::bail!("Skill name cannot contain consecutive hyphens: '{}'", name);
     }
 
     for c in name.chars() {
@@ -293,16 +296,17 @@ fn warn_name_directory_mismatch(name: &str, path: &Path) {
     // Only check for subdirectory layout (skill-name/SKILL.md)
     if path.file_name().map(|f| f == "SKILL.md").unwrap_or(false)
         && let Some(parent) = path.parent()
-            && let Some(dir_name) = parent.file_name().and_then(|n| n.to_str())
-                && dir_name != name {
-                    tracing::warn!(
-                        "Skill name '{}' does not match parent directory '{}' in {}. \
+        && let Some(dir_name) = parent.file_name().and_then(|n| n.to_str())
+        && dir_name != name
+    {
+        tracing::warn!(
+            "Skill name '{}' does not match parent directory '{}' in {}. \
                          The Agent Skills spec requires these to match.",
-                        name,
-                        dir_name,
-                        path.display()
-                    );
-                }
+            name,
+            dir_name,
+            path.display()
+        );
+    }
 }
 
 /// Render skill template with arguments

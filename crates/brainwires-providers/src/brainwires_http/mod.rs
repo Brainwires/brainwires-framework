@@ -4,8 +4,10 @@ use futures::stream::{BoxStream, StreamExt};
 use reqwest::Client;
 use serde_json::json;
 
+use brainwires_core::message::{
+    ChatResponse, ContentBlock, Message, MessageContent, Role, StreamChunk,
+};
 use brainwires_core::provider::{ChatOptions, Provider};
-use brainwires_core::message::{ChatResponse, ContentBlock, Message, MessageContent, Role, StreamChunk};
 use brainwires_core::tool::Tool;
 
 /// Production backend URL.
@@ -108,7 +110,13 @@ impl Provider for BrainwiresHttpProvider {
                     usage_data = Some(usage);
                 }
                 StreamChunk::Done => break,
-                StreamChunk::ToolCall { call_id, response_id, tool_name, parameters, .. } => {
+                StreamChunk::ToolCall {
+                    call_id,
+                    response_id,
+                    tool_name,
+                    parameters,
+                    ..
+                } => {
                     last_response_id = Some(response_id);
                     tool_calls.push(ContentBlock::ToolUse {
                         id: call_id,
@@ -491,7 +499,6 @@ impl Provider for BrainwiresHttpProvider {
         })
     }
 }
-
 
 #[cfg(test)]
 mod tests {

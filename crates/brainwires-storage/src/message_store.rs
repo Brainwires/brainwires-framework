@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use arrow_array::{
-    Array, FixedSizeListArray, Float32Array, Int32Array, Int64Array, RecordBatch, RecordBatchIterator,
-    StringArray,
+    Array, FixedSizeListArray, Float32Array, Int32Array, Int64Array, RecordBatch,
+    RecordBatchIterator, StringArray,
 };
 use arrow_schema::{DataType, Field, Schema};
 use futures::TryStreamExt;
@@ -61,10 +61,7 @@ impl MessageStore {
         let table = self.client.messages_table().await?;
 
         let schema = batch.schema();
-        let batches = RecordBatchIterator::new(
-            vec![Ok(batch)],
-            schema
-        );
+        let batches = RecordBatchIterator::new(vec![Ok(batch)], schema);
 
         table
             .add(Box::new(batches))
@@ -92,10 +89,7 @@ impl MessageStore {
         let table = self.client.messages_table().await?;
 
         let schema = batch.schema();
-        let batches = RecordBatchIterator::new(
-            vec![Ok(batch)],
-            schema
-        );
+        let batches = RecordBatchIterator::new(vec![Ok(batch)], schema);
 
         table
             .add(Box::new(batches))
@@ -130,7 +124,12 @@ impl MessageStore {
     }
 
     /// Search messages by semantic similarity
-    pub async fn search(&self, query: &str, limit: usize, min_score: f32) -> Result<Vec<(MessageMetadata, f32)>> {
+    pub async fn search(
+        &self,
+        query: &str,
+        limit: usize,
+        min_score: f32,
+    ) -> Result<Vec<(MessageMetadata, f32)>> {
         self.search_with_filter(query, limit, min_score, None).await
     }
 
@@ -143,7 +142,8 @@ impl MessageStore {
         min_score: f32,
     ) -> Result<Vec<(MessageMetadata, f32)>> {
         let filter = format!("conversation_id = '{}'", conversation_id);
-        self.search_with_filter(query, limit, min_score, Some(&filter)).await
+        self.search_with_filter(query, limit, min_score, Some(&filter))
+            .await
     }
 
     /// Search messages with optional filter by semantic similarity
@@ -234,7 +234,11 @@ impl MessageStore {
     }
 
     /// Convert messages and embeddings to RecordBatch
-    fn messages_to_batch(&self, messages: &[MessageMetadata], embeddings: &[Vec<f32>]) -> Result<RecordBatch> {
+    fn messages_to_batch(
+        &self,
+        messages: &[MessageMetadata],
+        embeddings: &[Vec<f32>],
+    ) -> Result<RecordBatch> {
         let dimension = self.embeddings.dimension();
 
         let schema = Arc::new(Schema::new(vec![
@@ -254,7 +258,7 @@ impl MessageStore {
             Field::new("model_id", DataType::Utf8, true),
             Field::new("images", DataType::Utf8, true),
             Field::new("created_at", DataType::Int64, false),
-            Field::new("expires_at", DataType::Int64, true),  // nullable: None = no expiry
+            Field::new("expires_at", DataType::Int64, true), // nullable: None = no expiry
         ]));
 
         // Flatten embeddings into a single Float32Array
@@ -270,32 +274,42 @@ impl MessageStore {
         );
 
         let message_ids = StringArray::from(
-            messages.iter().map(|m| m.message_id.as_str()).collect::<Vec<_>>(),
+            messages
+                .iter()
+                .map(|m| m.message_id.as_str())
+                .collect::<Vec<_>>(),
         );
         let conversation_ids = StringArray::from(
-            messages.iter().map(|m| m.conversation_id.as_str()).collect::<Vec<_>>(),
+            messages
+                .iter()
+                .map(|m| m.conversation_id.as_str())
+                .collect::<Vec<_>>(),
         );
-        let roles = StringArray::from(
-            messages.iter().map(|m| m.role.as_str()).collect::<Vec<_>>(),
-        );
+        let roles = StringArray::from(messages.iter().map(|m| m.role.as_str()).collect::<Vec<_>>());
         let contents = StringArray::from(
-            messages.iter().map(|m| m.content.as_str()).collect::<Vec<_>>(),
+            messages
+                .iter()
+                .map(|m| m.content.as_str())
+                .collect::<Vec<_>>(),
         );
-        let token_counts = Int32Array::from(
-            messages.iter().map(|m| m.token_count).collect::<Vec<_>>(),
-        );
+        let token_counts =
+            Int32Array::from(messages.iter().map(|m| m.token_count).collect::<Vec<_>>());
         let model_ids = StringArray::from(
-            messages.iter().map(|m| m.model_id.as_deref()).collect::<Vec<_>>(),
+            messages
+                .iter()
+                .map(|m| m.model_id.as_deref())
+                .collect::<Vec<_>>(),
         );
         let images = StringArray::from(
-            messages.iter().map(|m| m.images.as_deref()).collect::<Vec<_>>(),
+            messages
+                .iter()
+                .map(|m| m.images.as_deref())
+                .collect::<Vec<_>>(),
         );
-        let created_ats = Int64Array::from(
-            messages.iter().map(|m| m.created_at).collect::<Vec<_>>(),
-        );
-        let expires_ats = Int64Array::from(
-            messages.iter().map(|m| m.expires_at).collect::<Vec<_>>(),
-        );
+        let created_ats =
+            Int64Array::from(messages.iter().map(|m| m.created_at).collect::<Vec<_>>());
+        let expires_ats =
+            Int64Array::from(messages.iter().map(|m| m.expires_at).collect::<Vec<_>>());
 
         RecordBatch::try_new(
             schema,
@@ -369,8 +383,13 @@ impl MessageStore {
                 .and_then(|col| col.as_any().downcast_ref::<Int64Array>());
 
             for i in 0..batch.num_rows() {
-                let expires_at = expires_ats
-                    .and_then(|arr| if arr.is_null(i) { None } else { Some(arr.value(i)) });
+                let expires_at = expires_ats.and_then(|arr| {
+                    if arr.is_null(i) {
+                        None
+                    } else {
+                        Some(arr.value(i))
+                    }
+                });
 
                 result.push(MessageMetadata {
                     message_id: message_ids.value(i).to_string(),
@@ -408,7 +427,12 @@ mod tests {
     use chrono::Utc;
     use tempfile::TempDir;
 
-    async fn setup() -> (TempDir, Arc<LanceClient>, Arc<EmbeddingProvider>, MessageStore) {
+    async fn setup() -> (
+        TempDir,
+        Arc<LanceClient>,
+        Arc<EmbeddingProvider>,
+        MessageStore,
+    ) {
         let temp = TempDir::new().unwrap();
         let db_path = temp.path().join("test.lance");
 

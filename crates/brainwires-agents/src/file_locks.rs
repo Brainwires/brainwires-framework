@@ -3,7 +3,7 @@
 //! Provides a mechanism for agents to "checkout" files, preventing concurrent
 //! modifications and ensuring consistency across background task agents.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -59,15 +59,13 @@ impl LockInfo {
 }
 
 /// Internal lock state for a file
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 struct FileLockState {
     /// Write lock (exclusive)
     write_lock: Option<LockInfo>,
     /// Read locks (shared)
     read_locks: Vec<LockInfo>,
 }
-
 
 /// Guard that releases a lock when dropped
 pub struct LockGuard {
@@ -97,7 +95,10 @@ impl Drop for LockGuard {
 
         // Spawn a task to release the lock asynchronously
         tokio::spawn(async move {
-            if let Err(e) = manager.release_lock_internal(&agent_id, &path, lock_type).await {
+            if let Err(e) = manager
+                .release_lock_internal(&agent_id, &path, lock_type)
+                .await
+            {
                 eprintln!("Warning: Failed to release lock on drop: {}", e);
             }
         });
@@ -178,13 +179,14 @@ impl FileLockManager {
             LockType::Read => {
                 // Check for write lock
                 if let Some(write_lock) = &state.write_lock
-                    && write_lock.agent_id != agent_id {
-                        return Err(anyhow!(
-                            "File {} is write-locked by agent {}",
-                            path.display(),
-                            write_lock.agent_id
-                        ));
-                    }
+                    && write_lock.agent_id != agent_id
+                {
+                    return Err(anyhow!(
+                        "File {} is write-locked by agent {}",
+                        path.display(),
+                        write_lock.agent_id
+                    ));
+                }
 
                 // Add read lock
                 state.read_locks.push(LockInfo {
@@ -274,7 +276,10 @@ impl FileLockManager {
             }
 
             // Try to acquire the lock
-            match self.acquire_lock_with_timeout(agent_id, &path, lock_type, self.default_timeout).await {
+            match self
+                .acquire_lock_with_timeout(agent_id, &path, lock_type, self.default_timeout)
+                .await
+            {
                 Ok(guard) => {
                     // Successfully acquired - remove from waiting set
                     self.stop_waiting(agent_id, &path).await;
@@ -353,9 +358,10 @@ impl FileLockManager {
                 for waiting_path in waiting_for {
                     if let Some(state) = locks.get(waiting_path) {
                         if let Some(write_lock) = &state.write_lock
-                            && !visited.contains(&write_lock.agent_id) {
-                                stack.push(write_lock.agent_id.clone());
-                            }
+                            && !visited.contains(&write_lock.agent_id)
+                        {
+                            stack.push(write_lock.agent_id.clone());
+                        }
                         for read_lock in &state.read_locks {
                             if !visited.contains(&read_lock.agent_id) {
                                 stack.push(read_lock.agent_id.clone());
@@ -430,9 +436,7 @@ impl FileLockManager {
                 LockType::Read => {
                     // Remove matching read lock
                     let original_len = state.read_locks.len();
-                    state
-                        .read_locks
-                        .retain(|lock| lock.agent_id != agent_id);
+                    state.read_locks.retain(|lock| lock.agent_id != agent_id);
 
                     if state.read_locks.len() == original_len {
                         return Err(anyhow!(
@@ -456,10 +460,7 @@ impl FileLockManager {
                             ));
                         }
                     } else {
-                        return Err(anyhow!(
-                            "No write lock found on {}",
-                            path.display()
-                        ));
+                        return Err(anyhow!("No write lock found on {}", path.display()));
                     }
                 }
             }
@@ -484,16 +485,15 @@ impl FileLockManager {
         for state in locks.values_mut() {
             // Release write lock
             if let Some(write_lock) = &state.write_lock
-                && write_lock.agent_id == agent_id {
-                    state.write_lock = None;
-                    released += 1;
-                }
+                && write_lock.agent_id == agent_id
+            {
+                state.write_lock = None;
+                released += 1;
+            }
 
             // Release read locks
             let original_len = state.read_locks.len();
-            state
-                .read_locks
-                .retain(|lock| lock.agent_id != agent_id);
+            state.read_locks.retain(|lock| lock.agent_id != agent_id);
             released += original_len - state.read_locks.len();
         }
 
@@ -526,10 +526,15 @@ impl FileLockManager {
 
         if let Some(state) = locks.get(path.as_ref()) {
             if let Some(write_lock) = &state.write_lock
-                && write_lock.agent_id == agent_id {
-                    return true;
-                }
-            if state.read_locks.iter().any(|lock| lock.agent_id == agent_id) {
+                && write_lock.agent_id == agent_id
+            {
+                return true;
+            }
+            if state
+                .read_locks
+                .iter()
+                .any(|lock| lock.agent_id == agent_id)
+            {
                 return true;
             }
         }
@@ -558,9 +563,10 @@ impl FileLockManager {
                 LockType::Write => {
                     // Can write if no other agent has any lock
                     if let Some(write_lock) = &state.write_lock
-                        && write_lock.agent_id != agent_id {
-                            return false;
-                        }
+                        && write_lock.agent_id != agent_id
+                    {
+                        return false;
+                    }
                     !state
                         .read_locks
                         .iter()
@@ -607,9 +613,10 @@ impl FileLockManager {
 
         for (path, state) in locks.iter() {
             if let Some(write_lock) = &state.write_lock
-                && write_lock.agent_id == agent_id {
-                    result.push((path.clone(), write_lock.clone()));
-                }
+                && write_lock.agent_id == agent_id
+            {
+                result.push((path.clone(), write_lock.clone()));
+            }
             for read_lock in &state.read_locks {
                 if read_lock.agent_id == agent_id {
                     result.push((path.clone(), read_lock.clone()));
@@ -633,10 +640,11 @@ impl FileLockManager {
         for state in locks.values_mut() {
             // Clean expired write lock
             if let Some(write_lock) = &state.write_lock
-                && write_lock.is_expired() {
-                    state.write_lock = None;
-                    cleaned += 1;
-                }
+                && write_lock.is_expired()
+            {
+                state.write_lock = None;
+                cleaned += 1;
+            }
 
             // Clean expired read locks
             let original_len = state.read_locks.len();
@@ -849,8 +857,16 @@ mod tests {
         let manager = Arc::new(FileLockManager::new());
 
         // No locks - can acquire anything
-        assert!(manager.can_acquire("/test/file.txt", "agent-1", LockType::Write).await);
-        assert!(manager.can_acquire("/test/file.txt", "agent-1", LockType::Read).await);
+        assert!(
+            manager
+                .can_acquire("/test/file.txt", "agent-1", LockType::Write)
+                .await
+        );
+        assert!(
+            manager
+                .can_acquire("/test/file.txt", "agent-1", LockType::Read)
+                .await
+        );
 
         let _guard = manager
             .acquire_lock("agent-1", "/test/file.txt", LockType::Write)
@@ -858,12 +874,28 @@ mod tests {
             .unwrap();
 
         // Same agent can acquire
-        assert!(manager.can_acquire("/test/file.txt", "agent-1", LockType::Write).await);
-        assert!(manager.can_acquire("/test/file.txt", "agent-1", LockType::Read).await);
+        assert!(
+            manager
+                .can_acquire("/test/file.txt", "agent-1", LockType::Write)
+                .await
+        );
+        assert!(
+            manager
+                .can_acquire("/test/file.txt", "agent-1", LockType::Read)
+                .await
+        );
 
         // Other agent cannot
-        assert!(!manager.can_acquire("/test/file.txt", "agent-2", LockType::Write).await);
-        assert!(!manager.can_acquire("/test/file.txt", "agent-2", LockType::Read).await);
+        assert!(
+            !manager
+                .can_acquire("/test/file.txt", "agent-2", LockType::Write)
+                .await
+        );
+        assert!(
+            !manager
+                .can_acquire("/test/file.txt", "agent-2", LockType::Read)
+                .await
+        );
     }
 
     #[tokio::test]
@@ -983,7 +1015,12 @@ mod tests {
 
         // Agent 2 should wait and eventually acquire
         let result = manager
-            .acquire_with_wait("agent-2", "/test/file.txt", LockType::Write, Duration::from_millis(500))
+            .acquire_with_wait(
+                "agent-2",
+                "/test/file.txt",
+                LockType::Write,
+                Duration::from_millis(500),
+            )
             .await;
 
         assert!(result.is_ok());
@@ -1001,7 +1038,12 @@ mod tests {
 
         // Agent 2 should timeout
         let result = manager
-            .acquire_with_wait("agent-2", "/test/file.txt", LockType::Write, Duration::from_millis(100))
+            .acquire_with_wait(
+                "agent-2",
+                "/test/file.txt",
+                LockType::Write,
+                Duration::from_millis(100),
+            )
             .await;
 
         assert!(result.is_err());
@@ -1025,13 +1067,23 @@ mod tests {
             .unwrap();
 
         // Simulate agent 1 waiting for file2
-        manager.start_waiting("agent-1", std::path::Path::new("/test/file2.txt")).await;
+        manager
+            .start_waiting("agent-1", std::path::Path::new("/test/file2.txt"))
+            .await;
 
         // Agent 2 trying to acquire file1 would create a deadlock
-        assert!(manager.would_deadlock("agent-2", std::path::Path::new("/test/file1.txt")).await);
+        assert!(
+            manager
+                .would_deadlock("agent-2", std::path::Path::new("/test/file1.txt"))
+                .await
+        );
 
         // But agent 3 trying to acquire file1 would NOT create a deadlock
-        assert!(!manager.would_deadlock("agent-3", std::path::Path::new("/test/file1.txt")).await);
+        assert!(
+            !manager
+                .would_deadlock("agent-3", std::path::Path::new("/test/file1.txt"))
+                .await
+        );
     }
 
     #[tokio::test]
@@ -1039,9 +1091,15 @@ mod tests {
         let manager = Arc::new(FileLockManager::new());
 
         // Record some waiting agents
-        manager.start_waiting("agent-1", std::path::Path::new("/test/file1.txt")).await;
-        manager.start_waiting("agent-1", std::path::Path::new("/test/file2.txt")).await;
-        manager.start_waiting("agent-2", std::path::Path::new("/test/file1.txt")).await;
+        manager
+            .start_waiting("agent-1", std::path::Path::new("/test/file1.txt"))
+            .await;
+        manager
+            .start_waiting("agent-1", std::path::Path::new("/test/file2.txt"))
+            .await;
+        manager
+            .start_waiting("agent-2", std::path::Path::new("/test/file1.txt"))
+            .await;
 
         let waiting = manager.get_waiting_agents().await;
         assert_eq!(waiting.len(), 2);

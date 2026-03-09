@@ -26,12 +26,18 @@ pub struct PlanStore {
 impl PlanStore {
     /// Create a new plan store
     pub fn new(client: Arc<LanceClient>) -> Self {
-        Self { client, plans_dir: None }
+        Self {
+            client,
+            plans_dir: None,
+        }
     }
 
     /// Create a plan store with a plans directory for markdown exports
     pub fn with_plans_dir(client: Arc<LanceClient>, plans_dir: impl Into<PathBuf>) -> Self {
-        Self { client, plans_dir: Some(plans_dir.into()) }
+        Self {
+            client,
+            plans_dir: Some(plans_dir.into()),
+        }
     }
 
     /// Save a plan (create or update)
@@ -43,7 +49,8 @@ impl PlanStore {
         let batch = self.plan_to_batch(plan)?;
 
         // Add to table
-        let table = self.client
+        let table = self
+            .client
             .connection()
             .open_table("plans")
             .execute()
@@ -51,12 +58,10 @@ impl PlanStore {
             .context("Failed to open plans table")?;
 
         let schema = batch.schema();
-        let batches = RecordBatchIterator::new(
-            vec![Ok(batch)],
-            schema.clone()
-        );
+        let batches = RecordBatchIterator::new(vec![Ok(batch)], schema.clone());
 
-        table.add(Box::new(batches))
+        table
+            .add(Box::new(batches))
             .execute()
             .await
             .context("Failed to save plan")?;
@@ -66,7 +71,8 @@ impl PlanStore {
 
     /// Get a plan by ID
     pub async fn get(&self, plan_id: &str) -> Result<Option<PlanMetadata>> {
-        let table = self.client
+        let table = self
+            .client
             .connection()
             .open_table("plans")
             .execute()
@@ -92,7 +98,8 @@ impl PlanStore {
 
     /// Get all plans for a conversation
     pub async fn get_by_conversation(&self, conversation_id: &str) -> Result<Vec<PlanMetadata>> {
-        let table = self.client
+        let table = self
+            .client
             .connection()
             .open_table("plans")
             .execute()
@@ -116,7 +123,8 @@ impl PlanStore {
 
     /// List recent plans across all conversations
     pub async fn list_recent(&self, limit: usize) -> Result<Vec<PlanMetadata>> {
-        let table = self.client
+        let table = self
+            .client
             .connection()
             .open_table("plans")
             .execute()
@@ -145,7 +153,8 @@ impl PlanStore {
 
     /// Delete a plan by ID
     pub async fn delete(&self, plan_id: &str) -> Result<()> {
-        let table = self.client
+        let table = self
+            .client
             .connection()
             .open_table("plans")
             .execute()
@@ -162,7 +171,8 @@ impl PlanStore {
 
     /// Delete all plans for a conversation
     pub async fn delete_by_conversation(&self, conversation_id: &str) -> Result<()> {
-        let table = self.client
+        let table = self
+            .client
             .connection()
             .open_table("plans")
             .execute()
@@ -179,7 +189,8 @@ impl PlanStore {
 
     /// Search plans by title or task description
     pub async fn search(&self, query: &str, limit: usize) -> Result<Vec<PlanMetadata>> {
-        let table = self.client
+        let table = self
+            .client
             .connection()
             .open_table("plans")
             .execute()
@@ -209,10 +220,13 @@ impl PlanStore {
     /// Requires `plans_dir` to be set via `with_plans_dir()`.
     /// Returns the path to the created file.
     pub async fn export_to_markdown(&self, plan_id: &str) -> Result<PathBuf> {
-        let plans_dir = self.plans_dir.as_ref()
-            .ok_or_else(|| anyhow::anyhow!("Plans directory not configured; use with_plans_dir()"))?;
+        let plans_dir = self.plans_dir.as_ref().ok_or_else(|| {
+            anyhow::anyhow!("Plans directory not configured; use with_plans_dir()")
+        })?;
 
-        let plan = self.get(plan_id).await?
+        let plan = self
+            .get(plan_id)
+            .await?
             .ok_or_else(|| anyhow::anyhow!("Plan not found: {}", plan_id))?;
 
         // Ensure plans directory exists
@@ -231,8 +245,9 @@ impl PlanStore {
 
     /// Save a plan and export to markdown in one operation
     pub async fn save_and_export(&self, plan: &mut PlanMetadata) -> Result<PathBuf> {
-        let plans_dir = self.plans_dir.as_ref()
-            .ok_or_else(|| anyhow::anyhow!("Plans directory not configured; use with_plans_dir()"))?;
+        let plans_dir = self.plans_dir.as_ref().ok_or_else(|| {
+            anyhow::anyhow!("Plans directory not configured; use with_plans_dir()")
+        })?;
 
         // Export to markdown first
         std::fs::create_dir_all(plans_dir)?;
@@ -274,7 +289,11 @@ impl PlanStore {
         let file_paths = StringArray::from(vec![plan.file_path.as_deref()]);
         // Branching fields
         let parent_plan_ids = StringArray::from(vec![plan.parent_plan_id.as_deref()]);
-        let child_plan_ids_json = StringArray::from(vec![serde_json::to_string(&plan.child_plan_ids).unwrap_or_default().as_str()]);
+        let child_plan_ids_json = StringArray::from(vec![
+            serde_json::to_string(&plan.child_plan_ids)
+                .unwrap_or_default()
+                .as_str(),
+        ]);
         let branch_names = StringArray::from(vec![plan.branch_name.as_deref()]);
         let merged = BooleanArray::from(vec![plan.merged]);
         let depths = Int32Array::from(vec![plan.depth as i32]);
@@ -306,29 +325,82 @@ impl PlanStore {
 
     /// Convert record batch to plan metadata
     fn batch_to_plans(&self, batch: &RecordBatch) -> Result<Vec<PlanMetadata>> {
-        let plan_ids = batch.column(0).as_any().downcast_ref::<StringArray>().context("column 0 type mismatch: expected StringArray")?;
-        let conversation_ids = batch.column(1).as_any().downcast_ref::<StringArray>().context("column 1 type mismatch: expected StringArray")?;
-        let titles = batch.column(2).as_any().downcast_ref::<StringArray>().context("column 2 type mismatch: expected StringArray")?;
-        let task_descriptions = batch.column(3).as_any().downcast_ref::<StringArray>().context("column 3 type mismatch: expected StringArray")?;
-        let plan_contents = batch.column(4).as_any().downcast_ref::<StringArray>().context("column 4 type mismatch: expected StringArray")?;
-        let model_ids = batch.column(5).as_any().downcast_ref::<StringArray>().context("column 5 type mismatch: expected StringArray")?;
-        let statuses = batch.column(6).as_any().downcast_ref::<StringArray>().context("column 6 type mismatch: expected StringArray")?;
-        let executed_col = batch.column(7).as_any().downcast_ref::<BooleanArray>().context("column 7 type mismatch: expected BooleanArray")?;
-        let iterations_used = batch.column(8).as_any().downcast_ref::<Int32Array>().context("column 8 type mismatch: expected Int32Array")?;
-        let created_ats = batch.column(9).as_any().downcast_ref::<Int64Array>().context("column 9 type mismatch: expected Int64Array")?;
-        let updated_ats = batch.column(10).as_any().downcast_ref::<Int64Array>().context("column 10 type mismatch: expected Int64Array")?;
-        let file_paths = batch.column(11).as_any().downcast_ref::<StringArray>().context("column 11 type mismatch: expected StringArray")?;
+        let plan_ids = batch
+            .column(0)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .context("column 0 type mismatch: expected StringArray")?;
+        let conversation_ids = batch
+            .column(1)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .context("column 1 type mismatch: expected StringArray")?;
+        let titles = batch
+            .column(2)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .context("column 2 type mismatch: expected StringArray")?;
+        let task_descriptions = batch
+            .column(3)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .context("column 3 type mismatch: expected StringArray")?;
+        let plan_contents = batch
+            .column(4)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .context("column 4 type mismatch: expected StringArray")?;
+        let model_ids = batch
+            .column(5)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .context("column 5 type mismatch: expected StringArray")?;
+        let statuses = batch
+            .column(6)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .context("column 6 type mismatch: expected StringArray")?;
+        let executed_col = batch
+            .column(7)
+            .as_any()
+            .downcast_ref::<BooleanArray>()
+            .context("column 7 type mismatch: expected BooleanArray")?;
+        let iterations_used = batch
+            .column(8)
+            .as_any()
+            .downcast_ref::<Int32Array>()
+            .context("column 8 type mismatch: expected Int32Array")?;
+        let created_ats = batch
+            .column(9)
+            .as_any()
+            .downcast_ref::<Int64Array>()
+            .context("column 9 type mismatch: expected Int64Array")?;
+        let updated_ats = batch
+            .column(10)
+            .as_any()
+            .downcast_ref::<Int64Array>()
+            .context("column 10 type mismatch: expected Int64Array")?;
+        let file_paths = batch
+            .column(11)
+            .as_any()
+            .downcast_ref::<StringArray>()
+            .context("column 11 type mismatch: expected StringArray")?;
 
         // Branching fields (may not exist in older databases)
-        let parent_plan_ids = batch.column_by_name("parent_plan_id")
+        let parent_plan_ids = batch
+            .column_by_name("parent_plan_id")
             .and_then(|c| c.as_any().downcast_ref::<StringArray>());
-        let child_plan_ids_json = batch.column_by_name("child_plan_ids")
+        let child_plan_ids_json = batch
+            .column_by_name("child_plan_ids")
             .and_then(|c| c.as_any().downcast_ref::<StringArray>());
-        let branch_names = batch.column_by_name("branch_name")
+        let branch_names = batch
+            .column_by_name("branch_name")
             .and_then(|c| c.as_any().downcast_ref::<StringArray>());
-        let merged_col = batch.column_by_name("merged")
+        let merged_col = batch
+            .column_by_name("merged")
             .and_then(|c| c.as_any().downcast_ref::<BooleanArray>());
-        let depths = batch.column_by_name("depth")
+        let depths = batch
+            .column_by_name("depth")
             .and_then(|c| c.as_any().downcast_ref::<Int32Array>());
 
         let mut plans = Vec::new();
@@ -337,7 +409,13 @@ impl PlanStore {
 
             // Parse child_plan_ids from JSON
             let child_plan_ids: Vec<String> = child_plan_ids_json
-                .and_then(|arr| if arr.is_null(i) { None } else { Some(arr.value(i)) })
+                .and_then(|arr| {
+                    if arr.is_null(i) {
+                        None
+                    } else {
+                        Some(arr.value(i))
+                    }
+                })
                 .and_then(|json| serde_json::from_str(json).ok())
                 .unwrap_or_default();
 
@@ -347,20 +425,38 @@ impl PlanStore {
                 title: titles.value(i).to_string(),
                 task_description: task_descriptions.value(i).to_string(),
                 plan_content: plan_contents.value(i).to_string(),
-                model_id: if model_ids.is_null(i) { None } else { Some(model_ids.value(i).to_string()) },
+                model_id: if model_ids.is_null(i) {
+                    None
+                } else {
+                    Some(model_ids.value(i).to_string())
+                },
                 status,
                 executed: executed_col.value(i),
                 iterations_used: iterations_used.value(i) as u32,
                 created_at: created_ats.value(i),
                 updated_at: updated_ats.value(i),
-                file_path: if file_paths.is_null(i) { None } else { Some(file_paths.value(i).to_string()) },
+                file_path: if file_paths.is_null(i) {
+                    None
+                } else {
+                    Some(file_paths.value(i).to_string())
+                },
                 embedding: None, // Embeddings not stored in this batch
                 // Branching fields with defaults for backwards compatibility
-                parent_plan_id: parent_plan_ids
-                    .and_then(|arr| if arr.is_null(i) { None } else { Some(arr.value(i).to_string()) }),
+                parent_plan_id: parent_plan_ids.and_then(|arr| {
+                    if arr.is_null(i) {
+                        None
+                    } else {
+                        Some(arr.value(i).to_string())
+                    }
+                }),
                 child_plan_ids,
-                branch_name: branch_names
-                    .and_then(|arr| if arr.is_null(i) { None } else { Some(arr.value(i).to_string()) }),
+                branch_name: branch_names.and_then(|arr| {
+                    if arr.is_null(i) {
+                        None
+                    } else {
+                        Some(arr.value(i).to_string())
+                    }
+                }),
                 merged: merged_col.map(|arr| arr.value(i)).unwrap_or(false),
                 depth: depths.map(|arr| arr.value(i) as u32).unwrap_or(0),
             });
@@ -395,7 +491,8 @@ impl PlanStore {
 
     /// Get all child plans (sub-plans/branches) of a plan
     pub async fn get_children(&self, plan_id: &str) -> Result<Vec<PlanMetadata>> {
-        let table = self.client
+        let table = self
+            .client
             .connection()
             .open_table("plans")
             .execute()
@@ -432,7 +529,11 @@ impl PlanStore {
     }
 
     /// Recursively collect all descendants
-    async fn collect_descendants(&self, plan_id: &str, hierarchy: &mut Vec<PlanMetadata>) -> Result<()> {
+    async fn collect_descendants(
+        &self,
+        plan_id: &str,
+        hierarchy: &mut Vec<PlanMetadata>,
+    ) -> Result<()> {
         let children = self.get_children(plan_id).await?;
         for child in children {
             let child_id = child.plan_id.clone();

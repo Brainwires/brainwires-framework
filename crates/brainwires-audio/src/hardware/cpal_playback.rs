@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use cpal::traits::{DeviceTrait, StreamTrait};
-use futures::stream::BoxStream;
 use futures::StreamExt;
+use futures::stream::BoxStream;
 use std::sync::{Arc, Mutex};
 
 use crate::device::AudioDevice;
@@ -38,11 +38,7 @@ impl AudioPlayback for CpalPlayback {
         Ok(devices.into_iter().find(|d| d.is_default))
     }
 
-    async fn play(
-        &self,
-        device: Option<&AudioDevice>,
-        buffer: &AudioBuffer,
-    ) -> AudioResult<()> {
+    async fn play(&self, device: Option<&AudioDevice>, buffer: &AudioBuffer) -> AudioResult<()> {
         if buffer.is_empty() {
             return Ok(());
         }
@@ -74,7 +70,11 @@ impl AudioPlayback for CpalPlayback {
                                     *p += 2;
                                 } else {
                                     *sample = 0;
-                                    if let Some(tx) = done_tx.lock().expect("audio playback done signal lock poisoned").take() {
+                                    if let Some(tx) = done_tx
+                                        .lock()
+                                        .expect("audio playback done signal lock poisoned")
+                                        .take()
+                                    {
                                         let _ = tx.send(());
                                     }
                                 }
@@ -105,7 +105,11 @@ impl AudioPlayback for CpalPlayback {
                                     *p += 4;
                                 } else {
                                     *sample = 0.0;
-                                    if let Some(tx) = done_tx.lock().expect("audio playback done signal lock poisoned").take() {
+                                    if let Some(tx) = done_tx
+                                        .lock()
+                                        .expect("audio playback done signal lock poisoned")
+                                        .take()
+                                    {
                                         let _ = tx.send(());
                                     }
                                 }

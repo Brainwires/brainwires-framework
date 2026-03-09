@@ -266,9 +266,15 @@ impl std::str::FromStr for TruthCategory {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "cmd" | "command" | "command_usage" | "commandusage" => Ok(TruthCategory::CommandUsage),
-            "task" | "strategy" | "task_strategy" | "taskstrategy" => Ok(TruthCategory::TaskStrategy),
-            "tool" | "behavior" | "tool_behavior" | "toolbehavior" => Ok(TruthCategory::ToolBehavior),
-            "error" | "recovery" | "error_recovery" | "errorrecovery" => Ok(TruthCategory::ErrorRecovery),
+            "task" | "strategy" | "task_strategy" | "taskstrategy" => {
+                Ok(TruthCategory::TaskStrategy)
+            }
+            "tool" | "behavior" | "tool_behavior" | "toolbehavior" => {
+                Ok(TruthCategory::ToolBehavior)
+            }
+            "error" | "recovery" | "error_recovery" | "errorrecovery" => {
+                Ok(TruthCategory::ErrorRecovery)
+            }
             "resource" | "management" | "resource_management" | "resourcemanagement" => {
                 Ok(TruthCategory::ResourceManagement)
             }
@@ -301,10 +307,10 @@ impl TruthSource {
     /// Get the initial confidence for this source type
     pub fn initial_confidence(&self) -> f32 {
         match self {
-            TruthSource::ExplicitCommand => 0.8,       // User explicitly taught
+            TruthSource::ExplicitCommand => 0.8, // User explicitly taught
             TruthSource::ConversationCorrection => 0.6, // Implicit but clear intent
-            TruthSource::SuccessPattern => 0.4,        // Needs reinforcement
-            TruthSource::FailurePattern => 0.5,        // Negative knowledge is valuable
+            TruthSource::SuccessPattern => 0.4,  // Needs reinforcement
+            TruthSource::FailurePattern => 0.5,  // Negative knowledge is valuable
         }
     }
 
@@ -485,16 +491,28 @@ mod tests {
 
     #[test]
     fn test_category_parsing() {
-        assert_eq!("cmd".parse::<TruthCategory>().unwrap(), TruthCategory::CommandUsage);
-        assert_eq!("task".parse::<TruthCategory>().unwrap(), TruthCategory::TaskStrategy);
-        assert_eq!("avoid".parse::<TruthCategory>().unwrap(), TruthCategory::PatternAvoidance);
+        assert_eq!(
+            "cmd".parse::<TruthCategory>().unwrap(),
+            TruthCategory::CommandUsage
+        );
+        assert_eq!(
+            "task".parse::<TruthCategory>().unwrap(),
+            TruthCategory::TaskStrategy
+        );
+        assert_eq!(
+            "avoid".parse::<TruthCategory>().unwrap(),
+            TruthCategory::PatternAvoidance
+        );
         assert!("invalid".parse::<TruthCategory>().is_err());
     }
 
     #[test]
     fn test_source_initial_confidence() {
         assert_eq!(TruthSource::ExplicitCommand.initial_confidence(), 0.8);
-        assert_eq!(TruthSource::ConversationCorrection.initial_confidence(), 0.6);
+        assert_eq!(
+            TruthSource::ConversationCorrection.initial_confidence(),
+            0.6
+        );
         assert_eq!(TruthSource::SuccessPattern.initial_confidence(), 0.4);
         assert_eq!(TruthSource::FailurePattern.initial_confidence(), 0.5);
     }

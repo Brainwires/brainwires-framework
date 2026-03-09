@@ -4,23 +4,18 @@
 //! Optimized for CPU inference with efficient memory usage.
 
 use super::config::{LocalInferenceParams, LocalLlmConfig};
-use brainwires_core::provider::{ChatOptions, Provider};
-use brainwires_core::message::{ChatResponse, Message, Role, StreamChunk, Usage};
-use brainwires_core::tool::Tool;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use async_trait::async_trait;
+use brainwires_core::message::{ChatResponse, Message, Role, StreamChunk, Usage};
+use brainwires_core::provider::{ChatOptions, Provider};
+use brainwires_core::tool::Tool;
 use futures::stream::BoxStream;
 use std::sync::Arc;
 
 #[cfg(feature = "llama-cpp-2")]
 use llama_cpp_2::{
-    context::params::LlamaContextParams,
-    llama_backend::LlamaBackend,
-    llama_batch::LlamaBatch,
-    model::LlamaModel,
-    model::params::LlamaModelParams,
-    model::AddBos,
-    sampling::LlamaSampler,
+    context::params::LlamaContextParams, llama_backend::LlamaBackend, llama_batch::LlamaBatch,
+    model::AddBos, model::LlamaModel, model::params::LlamaModelParams, sampling::LlamaSampler,
 };
 
 /// Local LLM Provider using llama.cpp for CPU-optimized inference
@@ -103,7 +98,10 @@ impl LocalLlmProvider {
     pub async fn load(&self) -> Result<()> {
         // First ensure backend is initialized
         {
-            let mut backend_guard = self.backend.lock().map_err(|e| anyhow!("Lock poisoned: {}", e))?;
+            let mut backend_guard = self
+                .backend
+                .lock()
+                .map_err(|e| anyhow!("Lock poisoned: {}", e))?;
             if backend_guard.is_none() {
                 let backend = LlamaBackend::init()
                     .map_err(|e| anyhow!("Failed to initialize llama backend: {:?}", e))?;
@@ -112,7 +110,10 @@ impl LocalLlmProvider {
         }
 
         // Now load model
-        let mut model_guard = self.model.lock().map_err(|e| anyhow!("Lock poisoned: {}", e))?;
+        let mut model_guard = self
+            .model
+            .lock()
+            .map_err(|e| anyhow!("Lock poisoned: {}", e))?;
         if model_guard.is_some() {
             return Ok(()); // Already loaded
         }
@@ -120,12 +121,16 @@ impl LocalLlmProvider {
         tracing::info!("Loading local model: {}", self.config.name);
 
         // Configure model parameters
-        let model_params = LlamaModelParams::default()
-            .with_n_gpu_layers(self.config.gpu_layers);
+        let model_params = LlamaModelParams::default().with_n_gpu_layers(self.config.gpu_layers);
 
         // Get backend reference
-        let backend_guard = self.backend.lock().map_err(|e| anyhow!("Lock poisoned: {}", e))?;
-        let backend = backend_guard.as_ref().ok_or_else(|| anyhow!("Backend not initialized"))?;
+        let backend_guard = self
+            .backend
+            .lock()
+            .map_err(|e| anyhow!("Lock poisoned: {}", e))?;
+        let backend = backend_guard
+            .as_ref()
+            .ok_or_else(|| anyhow!("Backend not initialized"))?;
 
         // Load the model
         let model = LlamaModel::load_from_file(backend, &self.config.model_path, &model_params)
@@ -180,15 +185,16 @@ impl LocalLlmProvider {
 
         // Add system message if present
         if let Some(sys) = &system_msg
-            && template.contains("{system}") {
-                // Template has system placeholder
-                let sys_part = template
-                    .split("{user}")
-                    .next()
-                    .unwrap_or("")
-                    .replace("{system}", sys);
-                prompt.push_str(&sys_part);
-            }
+            && template.contains("{system}")
+        {
+            // Template has system placeholder
+            let sys_part = template
+                .split("{user}")
+                .next()
+                .unwrap_or("")
+                .replace("{system}", sys);
+            prompt.push_str(&sys_part);
+        }
 
         // Add conversation turns
         for msg in messages {
@@ -233,13 +239,21 @@ impl LocalLlmProvider {
     /// Perform inference without loading (assumes model is loaded)
     #[cfg(feature = "llama-cpp-2")]
     fn generate_impl_sync(&self, prompt: &str, params: &LocalInferenceParams) -> Result<String> {
-        let model_guard = self.model.lock().map_err(|e| anyhow!("Lock poisoned: {}", e))?;
+        let model_guard = self
+            .model
+            .lock()
+            .map_err(|e| anyhow!("Lock poisoned: {}", e))?;
         let model = model_guard
             .as_ref()
             .ok_or_else(|| anyhow!("Model not loaded"))?;
 
-        let backend_guard = self.backend.lock().map_err(|e| anyhow!("Lock poisoned: {}", e))?;
-        let backend = backend_guard.as_ref().ok_or_else(|| anyhow!("Backend not initialized"))?;
+        let backend_guard = self
+            .backend
+            .lock()
+            .map_err(|e| anyhow!("Lock poisoned: {}", e))?;
+        let backend = backend_guard
+            .as_ref()
+            .ok_or_else(|| anyhow!("Backend not initialized"))?;
 
         // Configure context parameters
         let mut ctx_params = LlamaContextParams::default();
@@ -250,11 +264,13 @@ impl LocalLlmProvider {
         }
 
         // Create a context for this generation
-        let mut ctx = model.new_context(backend, ctx_params)
+        let mut ctx = model
+            .new_context(backend, ctx_params)
             .map_err(|e| anyhow!("Failed to create context: {:?}", e))?;
 
         // Tokenize the prompt
-        let tokens = model.str_to_token(prompt, AddBos::Always)
+        let tokens = model
+            .str_to_token(prompt, AddBos::Always)
             .map_err(|e| anyhow!("Tokenization failed: {:?}", e))?;
 
         // Create batch and add tokens
@@ -262,7 +278,8 @@ impl LocalLlmProvider {
 
         for (i, token) in tokens.iter().enumerate() {
             let is_last = i == tokens.len() - 1;
-            batch.add(*token, i as i32, &[0], is_last)
+            batch
+                .add(*token, i as i32, &[0], is_last)
                 .map_err(|e| anyhow!("Failed to add token to batch: {:?}", e))?;
         }
 
@@ -296,7 +313,8 @@ impl LocalLlmProvider {
             }
 
             // Decode token to string
-            let piece = model.token_to_str(token, Special::Tokenize)
+            let piece = model
+                .token_to_str(token, Special::Tokenize)
                 .map_err(|e| anyhow!("Token decode failed: {:?}", e))?;
 
             // Check for stop sequences
@@ -322,7 +340,8 @@ impl LocalLlmProvider {
 
             // Clear batch and add the new token
             batch.clear();
-            batch.add(token, cur_pos, &[0], true)
+            batch
+                .add(token, cur_pos, &[0], true)
                 .map_err(|e| anyhow!("Failed to add token: {:?}", e))?;
 
             // Process the token through the model
@@ -362,12 +381,14 @@ impl LocalLlmProvider {
     ///
     /// Optimized for fast, deterministic responses.
     pub async fn route(&self, prompt: &str) -> Result<String> {
-        self.generate(prompt, &LocalInferenceParams::routing()).await
+        self.generate(prompt, &LocalInferenceParams::routing())
+            .await
     }
 
     /// Summarize or process text
     pub async fn process(&self, prompt: &str) -> Result<String> {
-        self.generate(prompt, &LocalInferenceParams::factual()).await
+        self.generate(prompt, &LocalInferenceParams::factual())
+            .await
     }
 }
 

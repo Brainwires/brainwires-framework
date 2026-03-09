@@ -1,9 +1,9 @@
 //! Traffic inspection — event capture, storage, broadcast, and query API.
 
-pub mod store;
-pub mod broadcast;
 #[cfg(feature = "inspector-api")]
 pub mod api;
+pub mod broadcast;
+pub mod store;
 
 use crate::request_id::RequestId;
 use std::collections::HashMap;

@@ -11,8 +11,8 @@ use std::collections::VecDeque;
 
 use async_trait::async_trait;
 
-use super::trial::TrialResult;
 use super::case::EvaluationCase;
+use super::trial::TrialResult;
 
 // ── Loop detection simulation ────────────────────────────────────────────────
 
@@ -42,7 +42,12 @@ impl LoopDetectionSimCase {
     ///
     /// The looping tool repeats from `loop_starts_at` to the end of the
     /// `n_steps` sequence.
-    pub fn should_detect(n_steps: usize, looping_tool: impl Into<String>, loop_starts_at: usize, window_size: usize) -> Self {
+    pub fn should_detect(
+        n_steps: usize,
+        looping_tool: impl Into<String>,
+        loop_starts_at: usize,
+        window_size: usize,
+    ) -> Self {
         Self {
             name: format!("loop_detection_window{window_size}_step{loop_starts_at}"),
             n_steps,
@@ -85,9 +90,7 @@ impl LoopDetectionSimCase {
             window.push_back(tool);
 
             // Check: all entries in full window are the same tool.
-            if window.len() == self.window_size
-                && window.iter().all(|n| n == &window[0])
-            {
+            if window.len() == self.window_size && window.iter().all(|n| n == &window[0]) {
                 return true;
             }
         }
@@ -257,13 +260,16 @@ pub fn long_horizon_stability_suite() -> Vec<std::sync::Arc<dyn EvaluationCase>>
         // Window=7: loop starts at step 10, runs 25 steps → fires at step 16
         std::sync::Arc::new(LoopDetectionSimCase::should_detect(25, "bash", 10, 7)),
         // Window=10: loop starts at step 5, runs 30 steps → fires at step 14
-        std::sync::Arc::new(LoopDetectionSimCase::should_detect(30, "search_code", 5, 10)),
-
+        std::sync::Arc::new(LoopDetectionSimCase::should_detect(
+            30,
+            "search_code",
+            5,
+            10,
+        )),
         // ── Loop detection: should NOT fire ─────────────────────────────────
         // Diverse sequence, no repetition → loop should never fire
         std::sync::Arc::new(LoopDetectionSimCase::should_not_detect(20, 5)),
         std::sync::Arc::new(LoopDetectionSimCase::should_not_detect(30, 7)),
-
         // ── Goal preservation ────────────────────────────────────────────────
         // 15 iterations, inject every 10
         std::sync::Arc::new(GoalPreservationCase::new(15, 10)),
@@ -294,7 +300,10 @@ mod tests {
     fn test_loop_sim_does_not_fire_diverse() {
         // All diverse tool calls → no loop
         let case = LoopDetectionSimCase::should_not_detect(20, 5);
-        assert!(!case.simulate(), "expected no loop detection on diverse sequence");
+        assert!(
+            !case.simulate(),
+            "expected no loop detection on diverse sequence"
+        );
     }
 
     #[test]
@@ -340,7 +349,11 @@ mod tests {
     async fn test_loop_detection_case_succeeds_when_loop_fires() {
         let case = LoopDetectionSimCase::should_detect(20, "read_file", 3, 5);
         let result = case.run(0).await.unwrap();
-        assert!(result.success, "case should succeed when detection fires as expected: {:?}", result.error);
+        assert!(
+            result.success,
+            "case should succeed when detection fires as expected: {:?}",
+            result.error
+        );
     }
 
     #[tokio::test]
@@ -348,14 +361,21 @@ mod tests {
         // Expects detection but uses a short run where it can't fire
         let case = LoopDetectionSimCase::should_detect(2, "read_file", 1, 5);
         let result = case.run(0).await.unwrap();
-        assert!(!result.success, "case should fail when expected detection didn't fire");
+        assert!(
+            !result.success,
+            "case should fail when expected detection didn't fire"
+        );
     }
 
     #[tokio::test]
     async fn test_goal_preservation_case_succeeds() {
         let case = GoalPreservationCase::new(20, 5);
         let result = case.run(0).await.unwrap();
-        assert!(result.success, "goal preservation case should pass: {:?}", result.error);
+        assert!(
+            result.success,
+            "goal preservation case should pass: {:?}",
+            result.error
+        );
     }
 
     #[tokio::test]

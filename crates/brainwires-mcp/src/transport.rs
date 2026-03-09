@@ -1,9 +1,9 @@
 use anyhow::{Context, Result};
 use std::process::Stdio;
+use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, ChildStdout, Command};
 use tokio::sync::Mutex;
-use std::sync::Arc;
 
 use crate::types::{JsonRpcMessage, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse};
 
@@ -64,15 +64,9 @@ impl StdioTransport {
             .spawn()
             .context(format!("Failed to spawn MCP server: {}", command))?;
 
-        let stdin = child
-            .stdin
-            .take()
-            .context("Failed to get stdin handle")?;
+        let stdin = child.stdin.take().context("Failed to get stdin handle")?;
 
-        let stdout = child
-            .stdout
-            .take()
-            .context("Failed to get stdout handle")?;
+        let stdout = child.stdout.take().context("Failed to get stdout handle")?;
 
         Ok(Self {
             stdin: Arc::new(Mutex::new(stdin)),
@@ -83,8 +77,8 @@ impl StdioTransport {
 
     /// Send a JSON-RPC request via stdin
     pub async fn send_request(&mut self, request: &JsonRpcRequest) -> Result<()> {
-        let json = serde_json::to_string(request)
-            .context("Failed to serialize JSON-RPC request")?;
+        let json =
+            serde_json::to_string(request).context("Failed to serialize JSON-RPC request")?;
 
         let mut stdin = self.stdin.lock().await;
         stdin
@@ -140,7 +134,11 @@ impl StdioTransport {
                 } else if e.kind() == std::io::ErrorKind::UnexpectedEof {
                     "MCP server process exited unexpectedly (unexpected EOF)".to_string()
                 } else {
-                    format!("Failed to read from MCP server stdout: {} (kind: {:?})", e, e.kind())
+                    format!(
+                        "Failed to read from MCP server stdout: {} (kind: {:?})",
+                        e,
+                        e.kind()
+                    )
                 };
                 anyhow::bail!("{}", error_msg);
             }
@@ -156,15 +154,12 @@ impl StdioTransport {
 
         // Discriminate based on "id" field
         // Responses have a non-null "id", notifications either lack "id" or have null
-        let has_valid_id = value
-            .get("id")
-            .map(|id| !id.is_null())
-            .unwrap_or(false);
+        let has_valid_id = value.get("id").map(|id| !id.is_null()).unwrap_or(false);
 
         if has_valid_id {
             // This is a response
-            let response: JsonRpcResponse = serde_json::from_value(value)
-                .context("Failed to parse as JSON-RPC response")?;
+            let response: JsonRpcResponse =
+                serde_json::from_value(value).context("Failed to parse as JSON-RPC response")?;
             Ok(JsonRpcMessage::Response(response))
         } else {
             // This is a notification
@@ -201,12 +196,9 @@ mod tests {
 
     #[test]
     fn test_json_rpc_serialization() {
-        let request = JsonRpcRequest::new(
-            1,
-            "initialize".to_string(),
-            Some(json!({"test": "value"})),
-        )
-        .unwrap();
+        let request =
+            JsonRpcRequest::new(1, "initialize".to_string(), Some(json!({"test": "value"})))
+                .unwrap();
 
         let json = serde_json::to_string(&request).unwrap();
         assert!(json.contains("jsonrpc"));

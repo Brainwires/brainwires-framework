@@ -18,10 +18,10 @@
 //! | `webhook` | Webhook server for Git forge events |
 //! | `full` | All features enabled |
 
-pub mod error;
 pub mod config;
-pub mod safety;
+pub mod error;
 pub mod metrics;
+pub mod safety;
 
 #[cfg(feature = "self-improve")]
 pub mod self_improve;
@@ -31,7 +31,7 @@ pub mod agent_ops;
 #[cfg(feature = "git-workflow")]
 pub mod git_workflow;
 
-pub use error::AutonomyError;
 pub use config::AutonomyConfig;
-pub use safety::{ApprovalPolicy, AutonomousOperation, SafetyGuard};
+pub use error::AutonomyError;
 pub use metrics::{SessionMetrics, SessionReport};
+pub use safety::{ApprovalPolicy, AutonomousOperation, SafetyGuard};

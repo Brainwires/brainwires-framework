@@ -14,11 +14,11 @@ use serde::{Deserialize, Serialize};
 #[repr(u8)]
 pub enum ContentSource {
     /// Highest trust — operator-defined instructions. Cannot be overridden.
-    SystemPrompt    = 0,
+    SystemPrompt = 0,
     /// High trust — content originating directly from the human turn.
-    UserInput       = 1,
+    UserInput = 1,
     /// Medium trust — content produced by the agent itself during reasoning.
-    AgentReasoning  = 2,
+    AgentReasoning = 2,
     /// Lowest trust — content fetched from the web, external APIs, or
     /// any tool that retrieves data from outside the trusted principal
     /// hierarchy.  Always sanitized before injection.
@@ -45,9 +45,9 @@ impl ContentSource {
 impl std::fmt::Display for ContentSource {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ContentSource::SystemPrompt    => write!(f, "system_prompt"),
-            ContentSource::UserInput       => write!(f, "user_input"),
-            ContentSource::AgentReasoning  => write!(f, "agent_reasoning"),
+            ContentSource::SystemPrompt => write!(f, "system_prompt"),
+            ContentSource::UserInput => write!(f, "user_input"),
+            ContentSource::AgentReasoning => write!(f, "agent_reasoning"),
             ContentSource::ExternalContent => write!(f, "external_content"),
         }
     }
@@ -59,9 +59,9 @@ mod tests {
 
     #[test]
     fn ordering_is_trust_descending() {
-        assert!(ContentSource::SystemPrompt    < ContentSource::UserInput);
-        assert!(ContentSource::UserInput       < ContentSource::AgentReasoning);
-        assert!(ContentSource::AgentReasoning  < ContentSource::ExternalContent);
+        assert!(ContentSource::SystemPrompt < ContentSource::UserInput);
+        assert!(ContentSource::UserInput < ContentSource::AgentReasoning);
+        assert!(ContentSource::AgentReasoning < ContentSource::ExternalContent);
     }
 
     #[test]
@@ -69,22 +69,25 @@ mod tests {
         assert!(!ContentSource::SystemPrompt.requires_sanitization());
         assert!(!ContentSource::UserInput.requires_sanitization());
         assert!(!ContentSource::AgentReasoning.requires_sanitization());
-        assert!( ContentSource::ExternalContent.requires_sanitization());
+        assert!(ContentSource::ExternalContent.requires_sanitization());
     }
 
     #[test]
     fn can_override_respects_trust_order() {
-        assert!( ContentSource::SystemPrompt.can_override(ContentSource::UserInput));
-        assert!( ContentSource::SystemPrompt.can_override(ContentSource::ExternalContent));
+        assert!(ContentSource::SystemPrompt.can_override(ContentSource::UserInput));
+        assert!(ContentSource::SystemPrompt.can_override(ContentSource::ExternalContent));
         assert!(!ContentSource::ExternalContent.can_override(ContentSource::SystemPrompt));
         assert!(!ContentSource::UserInput.can_override(ContentSource::UserInput));
     }
 
     #[test]
     fn display_names() {
-        assert_eq!(ContentSource::SystemPrompt.to_string(),    "system_prompt");
-        assert_eq!(ContentSource::UserInput.to_string(),       "user_input");
-        assert_eq!(ContentSource::AgentReasoning.to_string(),  "agent_reasoning");
-        assert_eq!(ContentSource::ExternalContent.to_string(), "external_content");
+        assert_eq!(ContentSource::SystemPrompt.to_string(), "system_prompt");
+        assert_eq!(ContentSource::UserInput.to_string(), "user_input");
+        assert_eq!(ContentSource::AgentReasoning.to_string(), "agent_reasoning");
+        assert_eq!(
+            ContentSource::ExternalContent.to_string(),
+            "external_content"
+        );
     }
 }

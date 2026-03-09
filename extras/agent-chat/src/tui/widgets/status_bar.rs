@@ -16,10 +16,7 @@ pub fn draw(f: &mut Frame, area: Rect, app: &App) {
     };
 
     let tokens_str = if app.prompt_tokens > 0 || app.completion_tokens > 0 {
-        format!(
-            " | ~{}+{} tokens",
-            app.prompt_tokens, app.completion_tokens
-        )
+        format!(" | ~{}+{} tokens", app.prompt_tokens, app.completion_tokens)
     } else {
         String::new()
     };
@@ -29,11 +26,7 @@ pub fn draw(f: &mut Frame, area: Rect, app: &App) {
         app.status_text, mode_str, tokens_str
     );
 
-    let bar = Paragraph::new(text).style(
-        Style::default()
-            .bg(Color::DarkGray)
-            .fg(Color::White),
-    );
+    let bar = Paragraph::new(text).style(Style::default().bg(Color::DarkGray).fg(Color::White));
 
     f.render_widget(bar, area);
 }

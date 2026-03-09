@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use std::sync::Arc;
 
 use brainwires_core::Provider;
@@ -9,10 +9,7 @@ use crate::cli::Cli;
 use crate::config::ChatConfig;
 
 pub fn create_provider(cli: &Cli, config: &ChatConfig) -> Result<Arc<dyn Provider>> {
-    let provider_str = cli
-        .provider
-        .as_deref()
-        .unwrap_or(&config.default_provider);
+    let provider_str = cli.provider.as_deref().unwrap_or(&config.default_provider);
 
     let provider_type: ProviderType = provider_str
         .parse()

@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::{RwLock, mpsc};
 
 use crate::config::McpServerConfig;
 use crate::transport::{StdioTransport, Transport};
@@ -81,12 +81,7 @@ impl McpClient {
 
     /// Get list of connected servers
     pub async fn list_connected(&self) -> Vec<String> {
-        self.connections
-            .read()
-            .await
-            .keys()
-            .cloned()
-            .collect()
+        self.connections.read().await.keys().cloned().collect()
     }
 
     /// Initialize handshake with server
@@ -129,12 +124,14 @@ impl McpClient {
         .context("Failed to parse initialize result")?;
 
         // Send initialized notification
-        transport.send_request(&JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
-            id: serde_json::Value::Null,
-            method: "notifications/initialized".to_string(),
-            params: None,
-        }).await?;
+        transport
+            .send_request(&JsonRpcRequest {
+                jsonrpc: "2.0".to_string(),
+                id: serde_json::Value::Null,
+                method: "notifications/initialized".to_string(),
+                params: None,
+            })
+            .await?;
 
         Ok(result)
     }
@@ -146,23 +143,23 @@ impl McpClient {
             .get_mut(server_name)
             .context(format!("Not connected to server: {}", server_name))?;
 
-        let request = JsonRpcRequest::new(
-            self.next_request_id(),
-            "tools/list".to_string(),
-            None::<()>,
-        )
-        .context("Failed to serialize tools/list params")?;
+        let request =
+            JsonRpcRequest::new(self.next_request_id(), "tools/list".to_string(), None::<()>)
+                .context("Failed to serialize tools/list params")?;
 
         connection.transport.send_request(&request).await?;
         let response = connection.transport.receive_response().await?;
 
         if let Some(error) = response.error {
-            anyhow::bail!("tools/list failed: {} (code: {})", error.message, error.code);
+            anyhow::bail!(
+                "tools/list failed: {} (code: {})",
+                error.message,
+                error.code
+            );
         }
 
-        let result: ListToolsResult = serde_json::from_value(
-            response.result.context("Missing result")?,
-        )?;
+        let result: ListToolsResult =
+            serde_json::from_value(response.result.context("Missing result")?)?;
 
         Ok(result.tools)
     }
@@ -174,7 +171,8 @@ impl McpClient {
         tool_name: &str,
         arguments: Option<serde_json::Value>,
     ) -> Result<CallToolResult> {
-        self.call_tool_with_notifications(server_name, tool_name, arguments, None).await
+        self.call_tool_with_notifications(server_name, tool_name, arguments, None)
+            .await
     }
 
     /// Call a tool on a server with notification forwarding
@@ -223,12 +221,15 @@ impl McpClient {
                     // Check if this is the response we're waiting for
                     // (in a simple single-request-at-a-time model, it should be)
                     if let Some(error) = response.error {
-                        anyhow::bail!("tools/call failed: {} (code: {})", error.message, error.code);
+                        anyhow::bail!(
+                            "tools/call failed: {} (code: {})",
+                            error.message,
+                            error.code
+                        );
                     }
 
-                    let result: CallToolResult = serde_json::from_value(
-                        response.result.context("Missing result")?,
-                    )?;
+                    let result: CallToolResult =
+                        serde_json::from_value(response.result.context("Missing result")?)?;
 
                     return Ok(result);
                 }
@@ -261,22 +262,21 @@ impl McpClient {
         let response = connection.transport.receive_response().await?;
 
         if let Some(error) = response.error {
-            anyhow::bail!("resources/list failed: {} (code: {})", error.message, error.code);
+            anyhow::bail!(
+                "resources/list failed: {} (code: {})",
+                error.message,
+                error.code
+            );
         }
 
-        let result: ListResourcesResult = serde_json::from_value(
-            response.result.context("Missing result")?,
-        )?;
+        let result: ListResourcesResult =
+            serde_json::from_value(response.result.context("Missing result")?)?;
 
         Ok(result.resources)
     }
 
     /// Read a resource from a server
-    pub async fn read_resource(
-        &self,
-        server_name: &str,
-        uri: &str,
-    ) -> Result<ReadResourceResult> {
+    pub async fn read_resource(&self, server_name: &str, uri: &str) -> Result<ReadResourceResult> {
         let mut connections = self.connections.write().await;
         let connection = connections
             .get_mut(server_name)
@@ -295,12 +295,15 @@ impl McpClient {
         let response = connection.transport.receive_response().await?;
 
         if let Some(error) = response.error {
-            anyhow::bail!("resources/read failed: {} (code: {})", error.message, error.code);
+            anyhow::bail!(
+                "resources/read failed: {} (code: {})",
+                error.message,
+                error.code
+            );
         }
 
-        let result: ReadResourceResult = serde_json::from_value(
-            response.result.context("Missing result")?,
-        )?;
+        let result: ReadResourceResult =
+            serde_json::from_value(response.result.context("Missing result")?)?;
 
         Ok(result)
     }
@@ -323,12 +326,15 @@ impl McpClient {
         let response = connection.transport.receive_response().await?;
 
         if let Some(error) = response.error {
-            anyhow::bail!("prompts/list failed: {} (code: {})", error.message, error.code);
+            anyhow::bail!(
+                "prompts/list failed: {} (code: {})",
+                error.message,
+                error.code
+            );
         }
 
-        let result: ListPromptsResult = serde_json::from_value(
-            response.result.context("Missing result")?,
-        )?;
+        let result: ListPromptsResult =
+            serde_json::from_value(response.result.context("Missing result")?)?;
 
         Ok(result.prompts)
     }
@@ -359,12 +365,15 @@ impl McpClient {
         let response = connection.transport.receive_response().await?;
 
         if let Some(error) = response.error {
-            anyhow::bail!("prompts/get failed: {} (code: {})", error.message, error.code);
+            anyhow::bail!(
+                "prompts/get failed: {} (code: {})",
+                error.message,
+                error.code
+            );
         }
 
-        let result: GetPromptResult = serde_json::from_value(
-            response.result.context("Missing result")?,
-        )?;
+        let result: GetPromptResult =
+            serde_json::from_value(response.result.context("Missing result")?)?;
 
         Ok(result)
     }
@@ -449,4 +458,3 @@ mod tests {
         assert_eq!(client.next_request_id(), 3);
     }
 }
-

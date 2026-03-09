@@ -96,9 +96,7 @@ impl LoopDetector {
             self.recent.pop_front();
         }
         self.recent.push_back(tool_name.to_string());
-        if self.recent.len() == self.window_size
-            && self.recent.iter().all(|n| n == tool_name)
-        {
+        if self.recent.len() == self.window_size && self.recent.iter().all(|n| n == tool_name) {
             Some(tool_name.to_string())
         } else {
             None
@@ -391,8 +389,7 @@ pub async fn run_agent_loop(
                                     tool_use.id.clone(),
                                     format!(
                                         "Delegated to sub-agent {}: {}",
-                                        delegation_result.agent_id,
-                                        delegation_result.output
+                                        delegation_result.agent_id, delegation_result.output
                                     ),
                                 );
                                 agent.on_tool_result(tool_use, &result).await;
@@ -596,10 +593,7 @@ mod tests {
         }
 
         async fn execute_tool(&self, tool_use: &ToolUse) -> Result<ToolResult> {
-            Ok(ToolResult::success(
-                tool_use.id.clone(),
-                "ok".to_string(),
-            ))
+            Ok(ToolResult::success(tool_use.id.clone(), "ok".to_string()))
         }
 
         fn get_lock_requirement(&self, _tool_use: &ToolUse) -> Option<(String, LockType)> {
@@ -609,15 +603,16 @@ mod tests {
         async fn on_provider_response(&self, _response: &ChatResponse) {}
 
         async fn on_tool_result(&self, _tool_use: &ToolUse, result: &ToolResult) {
-            self.tool_results
-                .write()
-                .await
-                .push(result.content.clone());
+            self.tool_results.write().await.push(result.content.clone());
         }
 
         async fn on_completion(&self, response: &ChatResponse) -> Result<Option<String>> {
             // Only accept completion if the provider signaled it
-            if response.finish_reason.as_deref().is_some_and(|r| r == "end_turn" || r == "stop") {
+            if response
+                .finish_reason
+                .as_deref()
+                .is_some_and(|r| r == "end_turn" || r == "stop")
+            {
                 if let MessageContent::Text(ref text) = response.message.content {
                     Ok(Some(text.clone()))
                 } else {
@@ -830,8 +825,12 @@ mod tests {
 
     #[async_trait]
     impl AgentRuntime for LoopingAgent {
-        fn agent_id(&self) -> &str { &self.id }
-        fn max_iterations(&self) -> usize { 100 }
+        fn agent_id(&self) -> &str {
+            &self.id
+        }
+        fn max_iterations(&self) -> usize {
+            100
+        }
 
         async fn call_provider(&self) -> Result<ChatResponse> {
             Ok(ChatResponse {
@@ -852,24 +851,41 @@ mod tests {
 
         fn extract_tool_uses(&self, response: &ChatResponse) -> Vec<ToolUse> {
             if let MessageContent::Blocks(ref blocks) = response.message.content {
-                blocks.iter().filter_map(|b| {
-                    if let ContentBlock::ToolUse { id, name, input } = b {
-                        Some(ToolUse { id: id.clone(), name: name.clone(), input: input.clone() })
-                    } else { None }
-                }).collect()
-            } else { vec![] }
+                blocks
+                    .iter()
+                    .filter_map(|b| {
+                        if let ContentBlock::ToolUse { id, name, input } = b {
+                            Some(ToolUse {
+                                id: id.clone(),
+                                name: name.clone(),
+                                input: input.clone(),
+                            })
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            } else {
+                vec![]
+            }
         }
 
-        fn is_completion(&self, _response: &ChatResponse) -> bool { false }
+        fn is_completion(&self, _response: &ChatResponse) -> bool {
+            false
+        }
 
         async fn execute_tool(&self, tool_use: &ToolUse) -> Result<ToolResult> {
             Ok(ToolResult::success(tool_use.id.clone(), "ok".to_string()))
         }
 
-        fn get_lock_requirement(&self, _tool_use: &ToolUse) -> Option<(String, LockType)> { None }
+        fn get_lock_requirement(&self, _tool_use: &ToolUse) -> Option<(String, LockType)> {
+            None
+        }
         async fn on_provider_response(&self, _response: &ChatResponse) {}
         async fn on_tool_result(&self, _tool_use: &ToolUse, _result: &ToolResult) {}
-        async fn on_completion(&self, _response: &ChatResponse) -> Result<Option<String>> { Ok(None) }
+        async fn on_completion(&self, _response: &ChatResponse) -> Result<Option<String>> {
+            Ok(None)
+        }
         async fn on_iteration_limit(&self, iterations: usize) -> String {
             format!("Limit at {}", iterations)
         }
@@ -877,14 +893,20 @@ mod tests {
 
     #[tokio::test]
     async fn test_loop_detection_aborts() {
-        let agent = LoopingAgent { id: "loop-agent".to_string() };
+        let agent = LoopingAgent {
+            id: "loop-agent".to_string(),
+        };
         let hub = CommunicationHub::new();
         let locks = Arc::new(FileLockManager::new());
 
         let result = run_agent_loop(&agent, &hub, &locks).await.unwrap();
 
         assert!(!result.success);
-        assert!(result.output.contains("Loop detected"), "got: {}", result.output);
+        assert!(
+            result.output.contains("Loop detected"),
+            "got: {}",
+            result.output
+        );
         // Loop fires after 5 consecutive same-tool calls (window_size=5)
         assert_eq!(result.tools_used.len(), 5);
     }

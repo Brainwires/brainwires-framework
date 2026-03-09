@@ -1,6 +1,9 @@
 use crate::tool_name_mapper::ToolNameMapper;
 use crate::types_anthropic::{AnthropicToolChoice, AnthropicToolDefinition};
-use crate::types_openai::{OpenAITool, OpenAIFunction, OpenAIToolCall, OpenAIFunctionCall, OpenAIToolChoice, OpenAIToolChoiceFunction};
+use crate::types_openai::{
+    OpenAIFunction, OpenAIFunctionCall, OpenAITool, OpenAIToolCall, OpenAIToolChoice,
+    OpenAIToolChoiceFunction,
+};
 use rand::Rng;
 
 /// Convert Anthropic tool definitions to OpenAI function-calling format.

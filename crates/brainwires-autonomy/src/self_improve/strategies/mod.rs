@@ -107,7 +107,10 @@ mod tests {
     fn improvement_category_display_formatting() {
         assert_eq!(ImprovementCategory::Linting.to_string(), "linting");
         assert_eq!(ImprovementCategory::Testing.to_string(), "testing");
-        assert_eq!(ImprovementCategory::Documentation.to_string(), "documentation");
+        assert_eq!(
+            ImprovementCategory::Documentation.to_string(),
+            "documentation"
+        );
         assert_eq!(ImprovementCategory::Refactoring.to_string(), "refactoring");
         assert_eq!(ImprovementCategory::DeadCode.to_string(), "dead_code");
         assert_eq!(ImprovementCategory::EvalDriven.to_string(), "eval_driven");

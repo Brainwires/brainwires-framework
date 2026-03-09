@@ -15,17 +15,14 @@
 //! - Some edge cases may differ from browsers
 
 use boa_engine::{
-    js_string, Context, JsResult, JsValue, Source,
-    property::Attribute,
-    JsError,
-    native_function::NativeFunction,
-    object::builtins::JsArray,
+    Context, JsError, JsResult, JsValue, Source, js_string, native_function::NativeFunction,
+    object::builtins::JsArray, property::Attribute,
 };
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Instant;
 
-use super::{get_limits, truncate_output, LanguageExecutor};
+use super::{LanguageExecutor, get_limits, truncate_output};
 use crate::types::{ExecutionLimits, ExecutionRequest, ExecutionResult};
 
 /// JavaScript code executor using Boa engine
@@ -146,10 +143,7 @@ impl JavaScriptExecutor {
         // as long as we don't hold borrows across await points (we don't use async here)
         let log_fn = unsafe {
             NativeFunction::from_closure(move |_this, args, ctx| {
-                let parts: Vec<String> = args
-                    .iter()
-                    .map(|v| format_js_value(v, ctx))
-                    .collect();
+                let parts: Vec<String> = args.iter().map(|v| format_js_value(v, ctx)).collect();
                 let line = parts.join(" ");
 
                 output_log.borrow_mut().push(line);
@@ -172,10 +166,7 @@ impl JavaScriptExecutor {
         // SAFETY: Same reasoning as console.log
         let error_fn = unsafe {
             NativeFunction::from_closure(move |_this, args, ctx| {
-                let parts: Vec<String> = args
-                    .iter()
-                    .map(|v| format_js_value(v, ctx))
-                    .collect();
+                let parts: Vec<String> = args.iter().map(|v| format_js_value(v, ctx)).collect();
                 let line = parts.join(" ");
 
                 errors_err.borrow_mut().push(line);
@@ -224,10 +215,7 @@ impl JavaScriptExecutor {
         // SAFETY: Same reasoning as console.log
         let info_fn = unsafe {
             NativeFunction::from_closure(move |_this, args, ctx| {
-                let parts: Vec<String> = args
-                    .iter()
-                    .map(|v| format_js_value(v, ctx))
-                    .collect();
+                let parts: Vec<String> = args.iter().map(|v| format_js_value(v, ctx)).collect();
                 let line = parts.join(" ");
 
                 output_info.borrow_mut().push(line);
@@ -256,11 +244,7 @@ impl JavaScriptExecutor {
     }
 
     /// Inject context variables as global variables
-    fn inject_context(
-        &self,
-        context: &mut Context,
-        ctx_value: &serde_json::Value,
-    ) -> JsResult<()> {
+    fn inject_context(&self, context: &mut Context, ctx_value: &serde_json::Value) -> JsResult<()> {
         if let serde_json::Value::Object(map) = ctx_value {
             for (key, value) in map {
                 let js_value = json_to_js(value, context)?;
@@ -352,7 +336,9 @@ fn js_to_json(value: &JsValue, context: &mut Context) -> Option<serde_json::Valu
                         let mut arr = Vec::new();
                         for i in 0..(len as u32) {
                             if let Ok(v) = obj.get(i, context) {
-                                arr.push(js_to_json(&v, context).unwrap_or(serde_json::Value::Null));
+                                arr.push(
+                                    js_to_json(&v, context).unwrap_or(serde_json::Value::Null),
+                                );
                             }
                         }
                         return Some(serde_json::Value::Array(arr));
@@ -440,7 +426,12 @@ fn format_js_value(value: &JsValue, context: &mut Context) -> String {
             }
             format!("{{{}}}", parts.join(", "))
         }
-        JsValue::Symbol(s) => format!("Symbol({})", s.description().map(|d| d.to_std_string_escaped()).unwrap_or_default()),
+        JsValue::Symbol(s) => format!(
+            "Symbol({})",
+            s.description()
+                .map(|d| d.to_std_string_escaped())
+                .unwrap_or_default()
+        ),
     }
 }
 

@@ -22,8 +22,8 @@
 //! ```
 
 use opentelemetry::{
-    trace::{Span, SpanKind, Tracer, Status},
     KeyValue,
+    trace::{Span, SpanKind, Status, Tracer},
 };
 
 use crate::execution_graph::{ExecutionGraph, RunTelemetry};
@@ -37,11 +37,7 @@ use crate::execution_graph::{ExecutionGraph, RunTelemetry};
 ///
 /// All token counts, costs, timing, and error information are attached as
 /// span attributes.
-pub fn export_to_otel<T: Tracer>(
-    graph: &ExecutionGraph,
-    telemetry: &RunTelemetry,
-    tracer: &T,
-) {
+pub fn export_to_otel<T: Tracer>(graph: &ExecutionGraph, telemetry: &RunTelemetry, tracer: &T) {
     let mut root_span = tracer
         .span_builder("agent.run")
         .with_kind(SpanKind::Internal)
@@ -50,15 +46,18 @@ pub fn export_to_otel<T: Tracer>(
             KeyValue::new("agent.total_iterations", telemetry.total_iterations as i64),
             KeyValue::new("agent.total_tool_calls", telemetry.total_tool_calls as i64),
             KeyValue::new("agent.tool_error_count", telemetry.tool_error_count as i64),
-            KeyValue::new("agent.total_prompt_tokens", telemetry.total_prompt_tokens as i64),
-            KeyValue::new("agent.total_completion_tokens", telemetry.total_completion_tokens as i64),
+            KeyValue::new(
+                "agent.total_prompt_tokens",
+                telemetry.total_prompt_tokens as i64,
+            ),
+            KeyValue::new(
+                "agent.total_completion_tokens",
+                telemetry.total_completion_tokens as i64,
+            ),
             KeyValue::new("agent.total_cost_usd", telemetry.total_cost_usd),
             KeyValue::new("agent.duration_ms", telemetry.duration_ms as i64),
             KeyValue::new("agent.success", telemetry.success),
-            KeyValue::new(
-                "agent.tools_used",
-                telemetry.tools_used.join(","),
-            ),
+            KeyValue::new("agent.tools_used", telemetry.tools_used.join(",")),
         ])
         .start(tracer);
 
@@ -118,8 +117,14 @@ pub fn telemetry_attributes(telemetry: &RunTelemetry) -> Vec<KeyValue> {
         KeyValue::new("agent.total_iterations", telemetry.total_iterations as i64),
         KeyValue::new("agent.total_tool_calls", telemetry.total_tool_calls as i64),
         KeyValue::new("agent.tool_error_count", telemetry.tool_error_count as i64),
-        KeyValue::new("agent.total_prompt_tokens", telemetry.total_prompt_tokens as i64),
-        KeyValue::new("agent.total_completion_tokens", telemetry.total_completion_tokens as i64),
+        KeyValue::new(
+            "agent.total_prompt_tokens",
+            telemetry.total_prompt_tokens as i64,
+        ),
+        KeyValue::new(
+            "agent.total_completion_tokens",
+            telemetry.total_completion_tokens as i64,
+        ),
         KeyValue::new("agent.total_cost_usd", telemetry.total_cost_usd),
         KeyValue::new("agent.duration_ms", telemetry.duration_ms as i64),
         KeyValue::new("agent.success", telemetry.success),

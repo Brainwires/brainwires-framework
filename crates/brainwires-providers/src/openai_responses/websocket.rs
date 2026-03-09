@@ -7,26 +7,23 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
-use futures::stream::{BoxStream, StreamExt};
 use futures::SinkExt;
+use futures::stream::{BoxStream, StreamExt};
 use tokio::sync::Mutex;
 use tokio_tungstenite::tungstenite::{
-    client::IntoClientRequest,
-    http::HeaderValue,
-    Message as WsMessage,
+    Message as WsMessage, client::IntoClientRequest, http::HeaderValue,
 };
 
-use super::types::{CreateResponseRequest, ResponseStreamEvent};
 use super::types::websocket::WsResponseCreate;
+use super::types::{CreateResponseRequest, ResponseStreamEvent};
 
 const DEFAULT_WS_URL: &str = "wss://api.openai.com/v1/responses";
 
 /// Maximum connection lifetime before reconnect is required.
 const CONNECTION_TIMEOUT: Duration = Duration::from_secs(59 * 60); // 59 min (buffer before 60-min limit)
 
-type WsStream = tokio_tungstenite::WebSocketStream<
-    tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
->;
+type WsStream =
+    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
 
 /// Persistent WebSocket connection state.
 struct WsConnection {
@@ -87,7 +84,10 @@ impl ResponsesWebSocket {
         }
 
         // Build the WebSocket request with auth headers
-        let mut request = self.ws_url.clone().into_client_request()
+        let mut request = self
+            .ws_url
+            .clone()
+            .into_client_request()
             .context("Failed to build WebSocket request")?;
 
         let headers = request.headers_mut();
@@ -99,8 +99,7 @@ impl ResponsesWebSocket {
         if let Some(ref org) = self.organization {
             headers.insert(
                 "OpenAI-Organization",
-                HeaderValue::from_str(org)
-                    .context("Invalid organization for header")?,
+                HeaderValue::from_str(org).context("Invalid organization for header")?,
             );
         }
 

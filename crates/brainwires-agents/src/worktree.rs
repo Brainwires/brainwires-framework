@@ -116,7 +116,9 @@ impl WorktreeResult {
     pub fn is_success(&self) -> bool {
         matches!(
             self,
-            WorktreeResult::Created(_) | WorktreeResult::AlreadyExists(_) | WorktreeResult::Removed { .. }
+            WorktreeResult::Created(_)
+                | WorktreeResult::AlreadyExists(_)
+                | WorktreeResult::Removed { .. }
         )
     }
 
@@ -221,12 +223,7 @@ impl WorktreeManager {
     }
 
     /// Create a new worktree for an agent
-    async fn create_worktree(
-        &self,
-        agent_id: &str,
-        branch: &str,
-        purpose: &str,
-    ) -> WorktreeResult {
+    async fn create_worktree(&self, agent_id: &str, branch: &str, purpose: &str) -> WorktreeResult {
         // Ensure base directory exists
         if let Err(e) = std::fs::create_dir_all(&self.worktree_base) {
             return WorktreeResult::Error(format!("Failed to create worktree base: {}", e));
@@ -245,9 +242,7 @@ impl WorktreeManager {
 
         // Build git worktree command
         let mut cmd = Command::new("git");
-        cmd.current_dir(&self.repo_path)
-            .arg("worktree")
-            .arg("add");
+        cmd.current_dir(&self.repo_path).arg("worktree").arg("add");
 
         if branch_exists {
             // Checkout existing branch
@@ -260,7 +255,7 @@ impl WorktreeManager {
         let output = match cmd.output() {
             Ok(o) => o,
             Err(e) => {
-                return WorktreeResult::Error(format!("Failed to run git worktree add: {}", e))
+                return WorktreeResult::Error(format!("Failed to run git worktree add: {}", e));
             }
         };
 
@@ -320,7 +315,9 @@ impl WorktreeManager {
 
         let worktree = match worktree {
             Some(wt) => wt,
-            None => return WorktreeResult::Error(format!("No worktree found for agent {}", agent_id)),
+            None => {
+                return WorktreeResult::Error(format!("No worktree found for agent {}", agent_id));
+            }
         };
 
         // Check for uncommitted changes
@@ -344,7 +341,7 @@ impl WorktreeManager {
         let output = match cmd.output() {
             Ok(o) => o,
             Err(e) => {
-                return WorktreeResult::Error(format!("Failed to run git worktree remove: {}", e))
+                return WorktreeResult::Error(format!("Failed to run git worktree remove: {}", e));
             }
         };
 
@@ -476,21 +473,22 @@ impl WorktreeManager {
                 if let Some(name) = git_wt.path.file_name() {
                     let name_str = name.to_string_lossy();
                     if let Some(agent_id) = name_str.strip_prefix(&self.config.prefix)
-                        && !tracked.contains_key(agent_id) {
-                            tracked.insert(
-                                agent_id.to_string(),
-                                AgentWorktree {
-                                    agent_id: agent_id.to_string(),
-                                    path: git_wt.path.clone(),
-                                    branch: git_wt.branch.clone().unwrap_or_default(),
-                                    created_at: Instant::now(),
-                                    last_accessed: Instant::now(),
-                                    has_changes: false,
-                                    purpose: "Discovered via sync".to_string(),
-                                },
-                            );
-                            added += 1;
-                        }
+                        && !tracked.contains_key(agent_id)
+                    {
+                        tracked.insert(
+                            agent_id.to_string(),
+                            AgentWorktree {
+                                agent_id: agent_id.to_string(),
+                                path: git_wt.path.clone(),
+                                branch: git_wt.branch.clone().unwrap_or_default(),
+                                created_at: Instant::now(),
+                                last_accessed: Instant::now(),
+                                has_changes: false,
+                                purpose: "Discovered via sync".to_string(),
+                            },
+                        );
+                        added += 1;
+                    }
                 }
             }
         }

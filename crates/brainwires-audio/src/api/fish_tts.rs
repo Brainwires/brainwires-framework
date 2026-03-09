@@ -49,16 +49,14 @@ impl TextToSpeech for FishTts {
 
     async fn list_voices(&self) -> AudioResult<Vec<Voice>> {
         // Fish Audio does not have a voices listing API; return a static default.
-        Ok(vec![
-            Voice { id: "default".into(), name: Some("Default".into()), language: None },
-        ])
+        Ok(vec![Voice {
+            id: "default".into(),
+            name: Some("Default".into()),
+            language: None,
+        }])
     }
 
-    async fn synthesize(
-        &self,
-        text: &str,
-        options: &TtsOptions,
-    ) -> AudioResult<AudioBuffer> {
+    async fn synthesize(&self, text: &str, options: &TtsOptions) -> AudioResult<AudioBuffer> {
         let req = FishTtsRequest {
             text: text.to_string(),
             reference_id: Some(options.voice.id.clone()),

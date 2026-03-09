@@ -8,12 +8,12 @@
 //! This allows long-running operations (30+ minute builds) to hold locks
 //! without arbitrary timeout expiration.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::sync::{broadcast, oneshot, RwLock};
+use tokio::sync::{RwLock, broadcast, oneshot};
 use tokio::task::JoinHandle;
 
 use crate::resource_locks::{ResourceScope, ResourceType};
@@ -309,16 +309,19 @@ impl OperationTracker {
 
                     // Check process liveness if attached
                     if let Some(pid) = op.process_id
-                        && !is_process_alive(pid) {
-                            drop(ops);
-                            // Process died - mark operation as potentially stale
-                            let _ = tracker.event_sender.send(OperationEvent::ProcessTerminated {
+                        && !is_process_alive(pid)
+                    {
+                        drop(ops);
+                        // Process died - mark operation as potentially stale
+                        let _ = tracker
+                            .event_sender
+                            .send(OperationEvent::ProcessTerminated {
                                 operation_id: op_id.clone(),
                                 agent_id: agent.clone(),
                                 process_id: pid,
                                 exit_status: None, // Could try to get this
                             });
-                        }
+                    }
                 } else {
                     // Operation was removed
                     break;
@@ -420,9 +423,10 @@ impl OperationTracker {
 
             // Check process if attached
             if let Some(pid) = op.process_id
-                && !is_process_alive(pid) {
-                    return false;
-                }
+                && !is_process_alive(pid)
+            {
+                return false;
+            }
 
             true
         } else {
@@ -461,7 +465,8 @@ impl OperationTracker {
                 scope: format!("{:?}", op.scope),
                 started_at_secs_ago: op.elapsed().as_secs(),
                 last_heartbeat_secs_ago: op.time_since_heartbeat().as_secs(),
-                is_alive: op.is_heartbeat_alive(self.heartbeat_interval, self.max_missed_heartbeats)
+                is_alive: op
+                    .is_heartbeat_alive(self.heartbeat_interval, self.max_missed_heartbeats)
                     && op.process_id.is_none_or(is_process_alive),
                 status: op.status.clone(),
                 description: op.description.clone(),
@@ -483,7 +488,8 @@ impl OperationTracker {
                 scope: format!("{:?}", op.scope),
                 started_at_secs_ago: op.elapsed().as_secs(),
                 last_heartbeat_secs_ago: op.time_since_heartbeat().as_secs(),
-                is_alive: op.is_heartbeat_alive(self.heartbeat_interval, self.max_missed_heartbeats)
+                is_alive: op
+                    .is_heartbeat_alive(self.heartbeat_interval, self.max_missed_heartbeats)
                     && op.process_id.is_none_or(is_process_alive),
                 status: op.status.clone(),
                 description: op.description.clone(),
@@ -509,7 +515,8 @@ impl OperationTracker {
                 scope: format!("{:?}", op.scope),
                 started_at_secs_ago: op.elapsed().as_secs(),
                 last_heartbeat_secs_ago: op.time_since_heartbeat().as_secs(),
-                is_alive: op.is_heartbeat_alive(self.heartbeat_interval, self.max_missed_heartbeats)
+                is_alive: op
+                    .is_heartbeat_alive(self.heartbeat_interval, self.max_missed_heartbeats)
                     && op.process_id.is_none_or(is_process_alive),
                 status: op.status.clone(),
                 description: op.description.clone(),
@@ -528,7 +535,8 @@ impl OperationTracker {
                 return false; // Remove completed operations
             }
 
-            let is_alive = op.is_heartbeat_alive(self.heartbeat_interval, self.max_missed_heartbeats)
+            let is_alive = op
+                .is_heartbeat_alive(self.heartbeat_interval, self.max_missed_heartbeats)
                 && op.process_id.is_none_or(is_process_alive);
 
             if !is_alive {
@@ -639,7 +647,9 @@ impl OperationHandle {
 
     /// Attach a process for liveness monitoring
     pub async fn attach_process(&self, process_id: u32) -> Result<()> {
-        self.tracker.attach_process(&self.operation_id, process_id).await
+        self.tracker
+            .attach_process(&self.operation_id, process_id)
+            .await
     }
 
     /// Mark operation as completed successfully
@@ -684,9 +694,7 @@ impl Drop for OperationHandle {
 #[cfg(all(unix, feature = "native"))]
 fn is_process_alive(pid: u32) -> bool {
     // Send signal 0 to check if process exists
-    unsafe {
-        libc::kill(pid as i32, 0) == 0
-    }
+    unsafe { libc::kill(pid as i32, 0) == 0 }
 }
 
 #[cfg(windows)]
@@ -770,8 +778,8 @@ mod tests {
     #[tokio::test]
     async fn test_stale_detection() {
         let tracker = OperationTracker::with_config(
-            Duration::from_millis(10),  // 10ms heartbeat
-            2,                           // 2 missed = 20ms timeout
+            Duration::from_millis(10), // 10ms heartbeat
+            2,                         // 2 missed = 20ms timeout
         );
         let scope = ResourceScope::Project(PathBuf::from("/test/project"));
 

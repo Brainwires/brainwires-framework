@@ -88,10 +88,7 @@ pub struct ValidationConfig {
 impl Default for ValidationConfig {
     fn default() -> Self {
         Self {
-            checks: vec![
-                ValidationCheck::NoDuplicates,
-                ValidationCheck::SyntaxValid,
-            ],
+            checks: vec![ValidationCheck::NoDuplicates, ValidationCheck::SyntaxValid],
             working_directory: ".".to_string(),
             max_retries: DEFAULT_VALIDATION_MAX_RETRIES,
             enabled: true,
@@ -138,7 +135,10 @@ pub async fn run_validation(config: &ValidationConfig) -> Result<ValidationResul
 
     // Get list of modified files - prefer working set, fallback to git
     let changed_files = if !config.working_set_files.is_empty() {
-        tracing::debug!("Using working set files for validation: {:?}", config.working_set_files);
+        tracing::debug!(
+            "Using working set files for validation: {:?}",
+            config.working_set_files
+        );
         config.working_set_files.clone()
     } else {
         tracing::debug!("No working set provided, falling back to git diff");
@@ -161,7 +161,10 @@ pub async fn run_validation(config: &ValidationConfig) -> Result<ValidationResul
                 file: Some(file.clone()),
                 line: None,
             });
-            tracing::error!("Validation failed: File {} does not exist but is in working set", file);
+            tracing::error!(
+                "Validation failed: File {} does not exist but is in working set",
+                file
+            );
         }
     }
 
@@ -238,11 +241,14 @@ async fn run_duplicates_check(changed_files: &[String], issues: &mut Vec<Validat
     use brainwires_tool_system::validation::check_duplicates;
 
     for file in changed_files {
-        if !is_source_file(file) { continue; }
+        if !is_source_file(file) {
+            continue;
+        }
 
         match check_duplicates(file).await {
             Ok(result) => {
-                if let Ok(result_value) = serde_json::from_str::<serde_json::Value>(&result.content) {
+                if let Ok(result_value) = serde_json::from_str::<serde_json::Value>(&result.content)
+                {
                     if result_value["has_duplicates"].as_bool().unwrap_or(false) {
                         if let Some(duplicates) = result_value["duplicates"].as_array() {
                             for dup in duplicates {
@@ -280,18 +286,24 @@ async fn run_syntax_check(changed_files: &[String], issues: &mut Vec<ValidationI
     use brainwires_tool_system::validation::check_syntax;
 
     for file in changed_files {
-        if !is_source_file(file) { continue; }
+        if !is_source_file(file) {
+            continue;
+        }
 
         match check_syntax(file).await {
             Ok(result) => {
-                if let Ok(result_value) = serde_json::from_str::<serde_json::Value>(&result.content) {
+                if let Ok(result_value) = serde_json::from_str::<serde_json::Value>(&result.content)
+                {
                     if !result_value["valid_syntax"].as_bool().unwrap_or(true) {
                         if let Some(errors) = result_value["errors"].as_array() {
                             for error in errors {
                                 issues.push(ValidationIssue {
                                     check: "syntax_check".to_string(),
                                     severity: ValidationSeverity::Error,
-                                    message: error["message"].as_str().unwrap_or("Unknown syntax error").to_string(),
+                                    message: error["message"]
+                                        .as_str()
+                                        .unwrap_or("Unknown syntax error")
+                                        .to_string(),
                                     file: Some(file.clone()),
                                     line: None,
                                 });
@@ -313,7 +325,11 @@ async fn run_syntax_check(_changed_files: &[String], _issues: &mut Vec<Validatio
 }
 
 #[cfg(feature = "tools")]
-async fn run_build_check(working_directory: &str, build_type: &str, issues: &mut Vec<ValidationIssue>) {
+async fn run_build_check(
+    working_directory: &str,
+    build_type: &str,
+    issues: &mut Vec<ValidationIssue>,
+) {
     use brainwires_tool_system::validation::verify_build;
 
     match verify_build(working_directory, build_type).await {
@@ -327,7 +343,8 @@ async fn run_build_check(working_directory: &str, build_type: &str, issues: &mut
                             issues.push(ValidationIssue {
                                 check: "build_check".to_string(),
                                 severity: ValidationSeverity::Error,
-                                message: error["message"].as_str()
+                                message: error["message"]
+                                    .as_str()
                                     .or_else(|| error["line"].as_str())
                                     .unwrap_or("Build error")
                                     .to_string(),
@@ -362,7 +379,11 @@ async fn run_build_check(working_directory: &str, build_type: &str, issues: &mut
 }
 
 #[cfg(not(feature = "tools"))]
-async fn run_build_check(_working_directory: &str, _build_type: &str, _issues: &mut Vec<ValidationIssue>) {
+async fn run_build_check(
+    _working_directory: &str,
+    _build_type: &str,
+    _issues: &mut Vec<ValidationIssue>,
+) {
     tracing::debug!("BuildSuccess check skipped: 'tools' feature not enabled");
 }
 
@@ -392,7 +413,8 @@ pub fn format_validation_feedback(result: &ValidationResult) -> String {
     }
 
     feedback.push('\n');
-    feedback.push_str("IMPORTANT: You MUST fix ALL of these issues before the task can complete.\n");
+    feedback
+        .push_str("IMPORTANT: You MUST fix ALL of these issues before the task can complete.\n");
     feedback.push_str("After fixing, verify your changes by reading the files back.\n");
 
     feedback
@@ -405,17 +427,18 @@ fn get_modified_files(working_directory: &str) -> Result<Vec<String>> {
         .args(["diff", "--name-only", "HEAD"])
         .current_dir(working_directory)
         .output()
-        && output.status.success() {
-            let files: Vec<String> = String::from_utf8_lossy(&output.stdout)
-                .lines()
-                .map(|s| s.to_string())
-                .filter(|s| !s.is_empty())
-                .collect();
+        && output.status.success()
+    {
+        let files: Vec<String> = String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .map(|s| s.to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
 
-            if !files.is_empty() {
-                return Ok(files);
-            }
+        if !files.is_empty() {
+            return Ok(files);
         }
+    }
 
     // Fallback: check for recently modified files
     let path = PathBuf::from(working_directory);
@@ -425,9 +448,10 @@ fn get_modified_files(working_directory: &str) -> Result<Vec<String>> {
         for entry in entries.flatten() {
             if let Ok(metadata) = entry.metadata()
                 && metadata.is_file()
-                    && let Some(file_name) = entry.file_name().to_str() {
-                        files.push(file_name.to_string());
-                    }
+                && let Some(file_name) = entry.file_name().to_str()
+            {
+                files.push(file_name.to_string());
+            }
         }
     }
 
@@ -445,17 +469,17 @@ fn get_modified_files(_working_directory: &str) -> Result<Vec<String>> {
 fn is_source_file(path: &str) -> bool {
     let path_lower = path.to_lowercase();
 
-    path_lower.ends_with(".rs") ||
-    path_lower.ends_with(".ts") ||
-    path_lower.ends_with(".tsx") ||
-    path_lower.ends_with(".js") ||
-    path_lower.ends_with(".jsx") ||
-    path_lower.ends_with(".py") ||
-    path_lower.ends_with(".java") ||
-    path_lower.ends_with(".cpp") ||
-    path_lower.ends_with(".c") ||
-    path_lower.ends_with(".go") ||
-    path_lower.ends_with(".rb")
+    path_lower.ends_with(".rs")
+        || path_lower.ends_with(".ts")
+        || path_lower.ends_with(".tsx")
+        || path_lower.ends_with(".js")
+        || path_lower.ends_with(".jsx")
+        || path_lower.ends_with(".py")
+        || path_lower.ends_with(".java")
+        || path_lower.ends_with(".cpp")
+        || path_lower.ends_with(".c")
+        || path_lower.ends_with(".go")
+        || path_lower.ends_with(".rb")
 }
 
 #[cfg(test)]
@@ -475,15 +499,13 @@ mod tests {
     fn test_format_validation_feedback() {
         let result = ValidationResult {
             passed: false,
-            issues: vec![
-                ValidationIssue {
-                    check: "duplicate_check".to_string(),
-                    severity: ValidationSeverity::Error,
-                    message: "Duplicate export 'FOO'".to_string(),
-                    file: Some("src/test.ts".to_string()),
-                    line: Some(42),
-                },
-            ],
+            issues: vec![ValidationIssue {
+                check: "duplicate_check".to_string(),
+                severity: ValidationSeverity::Error,
+                message: "Duplicate export 'FOO'".to_string(),
+                file: Some("src/test.ts".to_string()),
+                line: Some(42),
+            }],
         };
 
         let feedback = format_validation_feedback(&result);

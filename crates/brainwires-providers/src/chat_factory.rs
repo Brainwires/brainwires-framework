@@ -6,13 +6,13 @@
 
 use std::sync::Arc;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 
-use brainwires_core::Provider;
-use super::registry::{self, ChatProtocol};
 use super::ProviderConfig;
 #[cfg(any(feature = "bedrock", feature = "vertex-ai"))]
 use super::ProviderType;
+use super::registry::{self, ChatProtocol};
+use brainwires_core::Provider;
 
 /// Pure chat provider factory — creates provider instances from config.
 ///
@@ -33,21 +33,11 @@ impl ChatProviderFactory {
             ChatProtocol::OpenAiChatCompletions => {
                 Self::create_openai_compat(config, entry.default_base_url)
             }
-            ChatProtocol::OpenAiResponses => {
-                Self::create_openai_responses(config)
-            }
-            ChatProtocol::AnthropicMessages => {
-                Self::create_anthropic(config)
-            }
-            ChatProtocol::GeminiGenerateContent => {
-                Self::create_gemini(config)
-            }
-            ChatProtocol::OllamaChat => {
-                Self::create_ollama(config)
-            }
-            ChatProtocol::BrainwiresRelay => {
-                Self::create_brainwires(config)
-            }
+            ChatProtocol::OpenAiResponses => Self::create_openai_responses(config),
+            ChatProtocol::AnthropicMessages => Self::create_anthropic(config),
+            ChatProtocol::GeminiGenerateContent => Self::create_gemini(config),
+            ChatProtocol::OllamaChat => Self::create_ollama(config),
+            ChatProtocol::BrainwiresRelay => Self::create_brainwires(config),
         }
     }
 
@@ -59,7 +49,9 @@ impl ChatProviderFactory {
         config: &ProviderConfig,
         default_base_url: &str,
     ) -> Result<Arc<dyn Provider>> {
-        let api_key = config.api_key.clone()
+        let api_key = config
+            .api_key
+            .clone()
             .ok_or_else(|| anyhow!("{} provider requires an API key", config.provider))?;
         let mut client = super::openai_chat::OpenAiClient::new(api_key, config.model.clone());
         let base_url = config.base_url.as_deref().unwrap_or(default_base_url);
@@ -72,7 +64,9 @@ impl ChatProviderFactory {
     }
 
     fn create_openai_responses(config: &ProviderConfig) -> Result<Arc<dyn Provider>> {
-        let api_key = config.api_key.clone()
+        let api_key = config
+            .api_key
+            .clone()
             .ok_or_else(|| anyhow!("OpenAI Responses provider requires an API key"))?;
         let mut client = super::openai_responses::ResponsesClient::new(api_key);
         if let Some(ref base_url) = config.base_url {
@@ -80,11 +74,8 @@ impl ChatProviderFactory {
         }
         let client = Arc::new(client);
         Ok(Arc::new(
-            super::openai_responses::OpenAiResponsesProvider::new(
-                client,
-                config.model.clone(),
-            )
-            .with_provider_name(config.provider.as_str()),
+            super::openai_responses::OpenAiResponsesProvider::new(client, config.model.clone())
+                .with_provider_name(config.provider.as_str()),
         ))
     }
 
@@ -101,7 +92,9 @@ impl ChatProviderFactory {
             _ => {}
         }
 
-        let api_key = config.api_key.clone()
+        let api_key = config
+            .api_key
+            .clone()
             .ok_or_else(|| anyhow!("{} provider requires an API key", config.provider))?;
         let client = Arc::new(super::anthropic::AnthropicClient::new(
             api_key,
@@ -117,16 +110,23 @@ impl ChatProviderFactory {
     fn create_bedrock(config: &ProviderConfig) -> Result<Arc<dyn Provider>> {
         use super::anthropic::bedrock::BedrockAuth;
 
-        let region = config.options.get("region")
+        let region = config
+            .options
+            .get("region")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
 
         // Try explicit credentials from options, fall back to environment
         let auth = if let (Some(access_key), Some(secret_key)) = (
             config.options.get("access_key_id").and_then(|v| v.as_str()),
-            config.options.get("secret_access_key").and_then(|v| v.as_str()),
+            config
+                .options
+                .get("secret_access_key")
+                .and_then(|v| v.as_str()),
         ) {
-            let session_token = config.options.get("session_token")
+            let session_token = config
+                .options
+                .get("session_token")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
             BedrockAuth::new(
@@ -161,7 +161,9 @@ impl ChatProviderFactory {
                 "Vertex AI requires a project_id. Set it via config options or GOOGLE_CLOUD_PROJECT env var."
             ))?;
 
-        let region = config.options.get("region")
+        let region = config
+            .options
+            .get("region")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string())
             .unwrap_or_else(|| "us-central1".to_string());
@@ -179,7 +181,9 @@ impl ChatProviderFactory {
     }
 
     fn create_gemini(config: &ProviderConfig) -> Result<Arc<dyn Provider>> {
-        let api_key = config.api_key.clone()
+        let api_key = config
+            .api_key
+            .clone()
             .ok_or_else(|| anyhow!("Google provider requires an API key"))?;
         let client = Arc::new(super::gemini::GoogleClient::new(
             api_key,
@@ -199,17 +203,20 @@ impl ChatProviderFactory {
     }
 
     fn create_brainwires(config: &ProviderConfig) -> Result<Arc<dyn Provider>> {
-        let api_key = config.api_key.clone()
+        let api_key = config
+            .api_key
+            .clone()
             .ok_or_else(|| anyhow!("Brainwires provider requires an API key"))?;
-        let backend_url = config.base_url.clone()
-            .unwrap_or_else(|| {
-                super::brainwires_http::get_backend_from_api_key(&api_key).to_string()
-            });
-        Ok(Arc::new(super::brainwires_http::BrainwiresHttpProvider::new(
-            api_key,
-            backend_url,
-            config.model.clone(),
-        )))
+        let backend_url = config.base_url.clone().unwrap_or_else(|| {
+            super::brainwires_http::get_backend_from_api_key(&api_key).to_string()
+        });
+        Ok(Arc::new(
+            super::brainwires_http::BrainwiresHttpProvider::new(
+                api_key,
+                backend_url,
+                config.model.clone(),
+            ),
+        ))
     }
 }
 
@@ -244,8 +251,11 @@ mod tests {
 
     #[test]
     fn test_create_together_with_key() {
-        let config = ProviderConfig::new(ProviderType::Together, "meta-llama/Llama-3.1-8B-Instruct".to_string())
-            .with_api_key("tok_test");
+        let config = ProviderConfig::new(
+            ProviderType::Together,
+            "meta-llama/Llama-3.1-8B-Instruct".to_string(),
+        )
+        .with_api_key("tok_test");
         let result = ChatProviderFactory::create(&config);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().name(), "together");
@@ -253,8 +263,11 @@ mod tests {
 
     #[test]
     fn test_create_fireworks_with_key() {
-        let config = ProviderConfig::new(ProviderType::Fireworks, "llama-v3p1-8b-instruct".to_string())
-            .with_api_key("fw_test");
+        let config = ProviderConfig::new(
+            ProviderType::Fireworks,
+            "llama-v3p1-8b-instruct".to_string(),
+        )
+        .with_api_key("fw_test");
         let result = ChatProviderFactory::create(&config);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().name(), "fireworks");
@@ -262,8 +275,11 @@ mod tests {
 
     #[test]
     fn test_audio_only_provider_rejected() {
-        let config = ProviderConfig::new(ProviderType::ElevenLabs, "eleven_multilingual_v2".to_string())
-            .with_api_key("key");
+        let config = ProviderConfig::new(
+            ProviderType::ElevenLabs,
+            "eleven_multilingual_v2".to_string(),
+        )
+        .with_api_key("key");
         let result = ChatProviderFactory::create(&config);
         assert!(result.is_err());
     }

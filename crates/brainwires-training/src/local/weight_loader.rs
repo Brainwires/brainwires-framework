@@ -11,7 +11,7 @@ use tracing::{info, warn};
 
 use crate::error::TrainingError;
 use crate::local::architectures::config::TransformerConfig;
-use crate::local::quantization::{QuantConfig, quantize_tensor, dequantize_tensor};
+use crate::local::quantization::{QuantConfig, dequantize_tensor, quantize_tensor};
 
 /// Loader for SafeTensors model weight files.
 pub struct SafeTensorsLoader {
@@ -39,7 +39,11 @@ impl SafeTensorsLoader {
             ))
         })?;
 
-        info!("Opened SafeTensors file: {} ({} bytes)", path.display(), data.len());
+        info!(
+            "Opened SafeTensors file: {} ({} bytes)",
+            path.display(),
+            data.len()
+        );
         Ok(Self { data })
     }
 
@@ -55,43 +59,36 @@ impl SafeTensorsLoader {
     ///
     /// Handles dtype conversion from f16/bf16/f32 to f32.
     /// Returns the flattened f32 values and the tensor shape.
-    pub fn load_tensor_f32(
-        &self,
-        name: &str,
-    ) -> Result<(Vec<f32>, Vec<usize>), TrainingError> {
-        let st = SafeTensors::deserialize(&self.data).map_err(|e| {
-            TrainingError::Backend(format!("Failed to parse SafeTensors: {}", e))
-        })?;
+    pub fn load_tensor_f32(&self, name: &str) -> Result<(Vec<f32>, Vec<usize>), TrainingError> {
+        let st = SafeTensors::deserialize(&self.data)
+            .map_err(|e| TrainingError::Backend(format!("Failed to parse SafeTensors: {}", e)))?;
 
-        let view = st.tensor(name).map_err(|e| {
-            TrainingError::Backend(format!("Tensor '{}' not found: {}", name, e))
-        })?;
+        let view = st
+            .tensor(name)
+            .map_err(|e| TrainingError::Backend(format!("Tensor '{}' not found: {}", name, e)))?;
 
         let shape: Vec<usize> = view.shape().to_vec();
         let data = view.data();
 
         let f32_data = match view.dtype() {
-            safetensors::Dtype::F32 => {
-                data.chunks_exact(4)
-                    .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
-                    .collect()
-            }
-            safetensors::Dtype::F16 => {
-                data.chunks_exact(2)
-                    .map(|c| {
-                        let bits = u16::from_le_bytes([c[0], c[1]]);
-                        f16_to_f32(bits)
-                    })
-                    .collect()
-            }
-            safetensors::Dtype::BF16 => {
-                data.chunks_exact(2)
-                    .map(|c| {
-                        let bits = u16::from_le_bytes([c[0], c[1]]);
-                        bf16_to_f32(bits)
-                    })
-                    .collect()
-            }
+            safetensors::Dtype::F32 => data
+                .chunks_exact(4)
+                .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
+                .collect(),
+            safetensors::Dtype::F16 => data
+                .chunks_exact(2)
+                .map(|c| {
+                    let bits = u16::from_le_bytes([c[0], c[1]]);
+                    f16_to_f32(bits)
+                })
+                .collect(),
+            safetensors::Dtype::BF16 => data
+                .chunks_exact(2)
+                .map(|c| {
+                    let bits = u16::from_le_bytes([c[0], c[1]]);
+                    bf16_to_f32(bits)
+                })
+                .collect(),
             other => {
                 return Err(TrainingError::Backend(format!(
                     "Unsupported tensor dtype {:?} for '{}'",
@@ -127,13 +124,12 @@ impl SafeTensorsLoader {
         &self,
         name: &str,
     ) -> Result<Option<(Vec<u8>, Vec<f32>, Vec<usize>)>, TrainingError> {
-        let st = SafeTensors::deserialize(&self.data).map_err(|e| {
-            TrainingError::Backend(format!("Failed to parse SafeTensors: {}", e))
-        })?;
+        let st = SafeTensors::deserialize(&self.data)
+            .map_err(|e| TrainingError::Backend(format!("Failed to parse SafeTensors: {}", e)))?;
 
-        let view = st.tensor(name).map_err(|e| {
-            TrainingError::Backend(format!("Tensor '{}' not found: {}", name, e))
-        })?;
+        let view = st
+            .tensor(name)
+            .map_err(|e| TrainingError::Backend(format!("Tensor '{}' not found: {}", name, e)))?;
 
         match view.dtype() {
             safetensors::Dtype::I8 | safetensors::Dtype::U8 => {
@@ -143,14 +139,16 @@ impl SafeTensorsLoader {
                 // Look for associated scale tensor
                 let scale_name = format!("{}_scale", name);
                 let scales = match st.tensor(&scale_name) {
-                    Ok(scale_view) => {
-                        scale_view.data()
-                            .chunks_exact(4)
-                            .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
-                            .collect()
-                    }
+                    Ok(scale_view) => scale_view
+                        .data()
+                        .chunks_exact(4)
+                        .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
+                        .collect(),
                     Err(_) => {
-                        warn!("No scale tensor found for pre-quantized tensor '{}', using default scale 1.0", name);
+                        warn!(
+                            "No scale tensor found for pre-quantized tensor '{}', using default scale 1.0",
+                            name
+                        );
                         vec![1.0f32]
                     }
                 };
@@ -169,12 +167,8 @@ impl SafeTensorsLoader {
         let (_, meta) = SafeTensors::read_metadata(&self.data).ok()?;
         let metadata = meta.metadata().as_ref()?;
 
-        let get_usize = |key: &str| -> Option<usize> {
-            metadata.get(key)?.parse().ok()
-        };
-        let get_f64 = |key: &str| -> Option<f64> {
-            metadata.get(key)?.parse().ok()
-        };
+        let get_usize = |key: &str| -> Option<usize> { metadata.get(key)?.parse().ok() };
+        let get_f64 = |key: &str| -> Option<f64> { metadata.get(key)?.parse().ok() };
 
         Some(TransformerConfig {
             vocab_size: get_usize("vocab_size").unwrap_or(32000),
@@ -303,10 +297,7 @@ mod tests {
 
         // Build SafeTensors data: a 2x3 f32 tensor
         let tensor_data: Vec<f32> = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-        let tensor_bytes: Vec<u8> = tensor_data
-            .iter()
-            .flat_map(|f| f.to_le_bytes())
-            .collect();
+        let tensor_bytes: Vec<u8> = tensor_data.iter().flat_map(|f| f.to_le_bytes()).collect();
 
         let mut tensors = HashMap::new();
         tensors.insert(
@@ -340,20 +331,13 @@ mod tests {
         let path = dir.path().join("test.safetensors");
 
         let tensor_data: Vec<f32> = (0..128).map(|i| i as f32 * 0.01).collect();
-        let tensor_bytes: Vec<u8> = tensor_data
-            .iter()
-            .flat_map(|f| f.to_le_bytes())
-            .collect();
+        let tensor_bytes: Vec<u8> = tensor_data.iter().flat_map(|f| f.to_le_bytes()).collect();
 
         let mut tensors = HashMap::new();
         tensors.insert(
             "weight".to_string(),
-            safetensors::tensor::TensorView::new(
-                safetensors::Dtype::F32,
-                vec![128],
-                &tensor_bytes,
-            )
-            .unwrap(),
+            safetensors::tensor::TensorView::new(safetensors::Dtype::F32, vec![128], &tensor_bytes)
+                .unwrap(),
         );
 
         let serialized = safetensors::tensor::serialize(&tensors, None).unwrap();

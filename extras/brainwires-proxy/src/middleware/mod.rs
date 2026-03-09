@@ -1,10 +1,10 @@
 //! Middleware pipeline with onion-model request/response processing.
 
-pub mod logging;
-pub mod inspector;
-pub mod rate_limit;
-pub mod header_inject;
 pub mod auth;
+pub mod header_inject;
+pub mod inspector;
+pub mod logging;
+pub mod rate_limit;
 
 use crate::error::ProxyResult;
 use crate::types::{ProxyRequest, ProxyResponse};
@@ -104,8 +104,7 @@ mod tests {
     use std::sync::Arc;
 
     fn make_request() -> ProxyRequest {
-        ProxyRequest::new(Method::GET, "/test".parse().unwrap())
-            .with_body("hello")
+        ProxyRequest::new(Method::GET, "/test".parse().unwrap()).with_body("hello")
     }
 
     /// A layer that appends a marker header and tracks call order.
@@ -117,7 +116,10 @@ mod tests {
     #[async_trait::async_trait]
     impl ProxyLayer for MarkerLayer {
         async fn on_request(&self, mut request: ProxyRequest) -> ProxyResult<LayerAction> {
-            self.order.lock().unwrap().push(format!("{}-req", self.name));
+            self.order
+                .lock()
+                .unwrap()
+                .push(format!("{}-req", self.name));
             request.headers.insert(
                 http::header::HeaderName::from_bytes(self.name.as_bytes()).unwrap(),
                 http::header::HeaderValue::from_static("true"),
@@ -126,7 +128,10 @@ mod tests {
         }
 
         async fn on_response(&self, response: ProxyResponse) -> ProxyResult<ProxyResponse> {
-            self.order.lock().unwrap().push(format!("{}-resp", self.name));
+            self.order
+                .lock()
+                .unwrap()
+                .push(format!("{}-resp", self.name));
             Ok(response)
         }
 
@@ -142,11 +147,12 @@ mod tests {
     impl ProxyLayer for BlockingLayer {
         async fn on_request(&self, request: ProxyRequest) -> ProxyResult<LayerAction> {
             Ok(LayerAction::Respond(
-                ProxyResponse::for_request(request.id, StatusCode::FORBIDDEN)
-                    .with_body("blocked"),
+                ProxyResponse::for_request(request.id, StatusCode::FORBIDDEN).with_body("blocked"),
             ))
         }
-        fn name(&self) -> &str { "blocker" }
+        fn name(&self) -> &str {
+            "blocker"
+        }
     }
 
     #[tokio::test]
@@ -165,9 +171,18 @@ mod tests {
         let order = Arc::new(std::sync::Mutex::new(Vec::new()));
         let mut stack = MiddlewareStack::new();
 
-        stack.push(MarkerLayer { name: "a".into(), order: order.clone() });
-        stack.push(MarkerLayer { name: "b".into(), order: order.clone() });
-        stack.push(MarkerLayer { name: "c".into(), order: order.clone() });
+        stack.push(MarkerLayer {
+            name: "a".into(),
+            order: order.clone(),
+        });
+        stack.push(MarkerLayer {
+            name: "b".into(),
+            order: order.clone(),
+        });
+        stack.push(MarkerLayer {
+            name: "c".into(),
+            order: order.clone(),
+        });
 
         let req = make_request();
         let result = stack.process_request(req).await.unwrap().unwrap();
@@ -179,7 +194,10 @@ mod tests {
 
         let log = order.lock().unwrap();
         // Request order: a, b, c; Response order: c, b, a
-        assert_eq!(*log, vec!["a-req", "b-req", "c-req", "c-resp", "b-resp", "a-resp"]);
+        assert_eq!(
+            *log,
+            vec!["a-req", "b-req", "c-req", "c-resp", "b-resp", "a-resp"]
+        );
     }
 
     #[tokio::test]
@@ -187,9 +205,15 @@ mod tests {
         let order = Arc::new(std::sync::Mutex::new(Vec::new()));
         let mut stack = MiddlewareStack::new();
 
-        stack.push(MarkerLayer { name: "a".into(), order: order.clone() });
+        stack.push(MarkerLayer {
+            name: "a".into(),
+            order: order.clone(),
+        });
         stack.push(BlockingLayer);
-        stack.push(MarkerLayer { name: "c".into(), order: order.clone() });
+        stack.push(MarkerLayer {
+            name: "c".into(),
+            order: order.clone(),
+        });
 
         let req = make_request();
         let result = stack.process_request(req).await.unwrap();
@@ -207,9 +231,18 @@ mod tests {
         let order = Arc::new(std::sync::Mutex::new(Vec::new()));
         let mut stack = MiddlewareStack::new();
 
-        stack.push(MarkerLayer { name: "a".into(), order: order.clone() });
-        stack.push(MarkerLayer { name: "b".into(), order: order.clone() });
-        stack.push(MarkerLayer { name: "c".into(), order: order.clone() });
+        stack.push(MarkerLayer {
+            name: "a".into(),
+            order: order.clone(),
+        });
+        stack.push(MarkerLayer {
+            name: "b".into(),
+            order: order.clone(),
+        });
+        stack.push(MarkerLayer {
+            name: "c".into(),
+            order: order.clone(),
+        });
 
         // Process response with depth=2 (only a,b should run on_response)
         let resp = ProxyResponse::new(StatusCode::OK);

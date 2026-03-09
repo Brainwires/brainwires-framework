@@ -6,8 +6,8 @@ use regex::Regex;
 use std::collections::HashMap;
 use walkdir::WalkDir;
 
-use crate::config::StrategyConfig;
 use super::{ImprovementCategory, ImprovementStrategy, ImprovementTask};
+use crate::config::StrategyConfig;
 
 /// Strategy that detects missing or incomplete documentation.
 pub struct DocGapsStrategy;
@@ -27,9 +27,8 @@ impl ImprovementStrategy for DocGapsStrategy {
         repo_path: &str,
         config: &StrategyConfig,
     ) -> Result<Vec<ImprovementTask>> {
-        let pub_item_pattern = Regex::new(
-            r"^\s*pub\s+(fn|struct|enum|trait|type|const|static|mod)\s+(\w+)",
-        )?;
+        let pub_item_pattern =
+            Regex::new(r"^\s*pub\s+(fn|struct|enum|trait|type|const|static|mod)\s+(\w+)")?;
 
         let mut gaps_by_file: HashMap<String, Vec<(u32, String, String)>> = HashMap::new();
 
@@ -94,7 +93,9 @@ impl ImprovementStrategy for DocGapsStrategy {
                 let gap_count = gaps.len();
                 let context = gaps
                     .iter()
-                    .map(|(line, kind, name)| format!("Line {line}: pub {kind} {name} - missing doc comment"))
+                    .map(|(line, kind, name)| {
+                        format!("Line {line}: pub {kind} {name} - missing doc comment")
+                    })
                     .collect::<Vec<_>>()
                     .join("\n");
 

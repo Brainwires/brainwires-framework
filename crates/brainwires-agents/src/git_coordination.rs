@@ -143,7 +143,7 @@ pub fn get_lock_requirements(tool_name: &str) -> GitLockRequirements {
         // Destructive operation
         git_tools::DISCARD => GitLockRequirements {
             resource_types: vec![ResourceType::GitDestructive, ResourceType::GitIndex],
-            check_file_conflicts: true, // Wait for files being edited
+            check_file_conflicts: true,  // Wait for files being edited
             check_build_conflicts: true, // Wait for builds
             operation_type: GitOperationType::Destructive,
             description: "Discard changes (destructive)",
@@ -275,7 +275,12 @@ impl GitCoordinator {
         for resource_type in &requirements.resource_types {
             let guard = self
                 .resource_locks
-                .acquire_resource(agent_id, *resource_type, scope.clone(), requirements.description)
+                .acquire_resource(
+                    agent_id,
+                    *resource_type,
+                    scope.clone(),
+                    requirements.description,
+                )
                 .await?;
             guards.push(guard);
         }
@@ -311,25 +316,26 @@ impl GitCoordinator {
 
         // Check cross-resource conflicts
         if let Some(checker) = &self.resource_checker
-            && requirements.check_file_conflicts {
-                let git_op_type = match requirements.operation_type {
-                    GitOperationType::Staging => ResourceType::GitIndex,
-                    GitOperationType::Commit => ResourceType::GitCommit,
-                    GitOperationType::RemoteWrite => ResourceType::GitRemoteWrite,
-                    GitOperationType::RemoteMerge => ResourceType::GitRemoteMerge,
-                    GitOperationType::Branch => ResourceType::GitBranch,
-                    GitOperationType::Destructive => ResourceType::GitDestructive,
-                    GitOperationType::ReadOnly => return true,
-                };
+            && requirements.check_file_conflicts
+        {
+            let git_op_type = match requirements.operation_type {
+                GitOperationType::Staging => ResourceType::GitIndex,
+                GitOperationType::Commit => ResourceType::GitCommit,
+                GitOperationType::RemoteWrite => ResourceType::GitRemoteWrite,
+                GitOperationType::RemoteMerge => ResourceType::GitRemoteMerge,
+                GitOperationType::Branch => ResourceType::GitBranch,
+                GitOperationType::Destructive => ResourceType::GitDestructive,
+                GitOperationType::ReadOnly => return true,
+            };
 
-                let check = checker
-                    .can_start_git_operation(git_op_type, &scope, agent_id)
-                    .await;
+            let check = checker
+                .can_start_git_operation(git_op_type, &scope, agent_id)
+                .await;
 
-                if check.is_blocked() {
-                    return false;
-                }
+            if check.is_blocked() {
+                return false;
             }
+        }
 
         true
     }
@@ -385,7 +391,12 @@ impl GitOperationLocks {
 #[async_trait::async_trait]
 pub trait GitOperationRunner {
     /// Run a git operation with automatic lock acquisition and release
-    async fn run_with_locks<F, T>(&self, agent_id: &str, tool_name: &str, operation: F) -> Result<T>
+    async fn run_with_locks<F, T>(
+        &self,
+        agent_id: &str,
+        tool_name: &str,
+        operation: F,
+    ) -> Result<T>
     where
         F: FnOnce() -> Result<T> + Send,
         T: Send;
@@ -471,8 +482,7 @@ mod tests {
     #[tokio::test]
     async fn test_coordinator_read_only_no_locks() {
         let resource_locks = Arc::new(ResourceLockManager::new());
-        let coordinator =
-            GitCoordinator::new(resource_locks, PathBuf::from("/test/project"));
+        let coordinator = GitCoordinator::new(resource_locks, PathBuf::from("/test/project"));
 
         let locks = coordinator
             .acquire_for_git_op("agent-1", git_tools::STATUS)
@@ -500,9 +510,11 @@ mod tests {
 
         // Verify the lock is held
         let scope = ResourceScope::Project(PathBuf::from("/test/project"));
-        assert!(!resource_locks
-            .can_acquire("agent-2", ResourceType::GitIndex, &scope)
-            .await);
+        assert!(
+            !resource_locks
+                .can_acquire("agent-2", ResourceType::GitIndex, &scope)
+                .await
+        );
     }
 
     #[tokio::test]
@@ -528,14 +540,18 @@ mod tests {
             GitCoordinator::new(resource_locks.clone(), PathBuf::from("/test/project"));
 
         // Read-only should always be allowed
-        assert!(coordinator
-            .can_perform_git_op("agent-1", git_tools::STATUS)
-            .await);
+        assert!(
+            coordinator
+                .can_perform_git_op("agent-1", git_tools::STATUS)
+                .await
+        );
 
         // Staging should be allowed when no conflicts
-        assert!(coordinator
-            .can_perform_git_op("agent-1", git_tools::STAGE)
-            .await);
+        assert!(
+            coordinator
+                .can_perform_git_op("agent-1", git_tools::STAGE)
+                .await
+        );
 
         // Agent 1 acquires the index lock
         let _locks = coordinator
@@ -544,13 +560,17 @@ mod tests {
             .unwrap();
 
         // Agent 2 should not be able to stage
-        assert!(!coordinator
-            .can_perform_git_op("agent-2", git_tools::STAGE)
-            .await);
+        assert!(
+            !coordinator
+                .can_perform_git_op("agent-2", git_tools::STAGE)
+                .await
+        );
 
         // But agent 1 can (idempotent)
-        assert!(coordinator
-            .can_perform_git_op("agent-1", git_tools::STAGE)
-            .await);
+        assert!(
+            coordinator
+                .can_perform_git_op("agent-1", git_tools::STAGE)
+                .await
+        );
     }
 }

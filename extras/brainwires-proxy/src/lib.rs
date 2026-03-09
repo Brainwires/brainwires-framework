@@ -28,30 +28,30 @@
 //! # }
 //! ```
 
-pub mod error;
 pub mod config;
-pub mod types;
+pub mod error;
 pub mod request_id;
+pub mod types;
 
-pub mod transport;
-pub mod middleware;
 pub mod convert;
 pub mod inspector;
+pub mod middleware;
+pub mod transport;
 
-pub mod proxy;
 pub mod builder;
+pub mod proxy;
 
 /// Convenience re-exports.
 pub mod prelude {
-    pub use crate::error::{ProxyError, ProxyResult};
-    pub use crate::config::ProxyConfig;
-    pub use crate::types::{
-        ProxyRequest, ProxyResponse, ProxyBody, TransportKind, FormatId, Extensions,
-    };
-    pub use crate::request_id::RequestId;
-    pub use crate::middleware::{ProxyLayer, LayerAction, MiddlewareStack};
-    pub use crate::transport::{TransportListener, TransportConnector};
-    pub use crate::convert::{Converter, StreamConverter, ConversionRegistry, FormatDetector};
     pub use crate::builder::ProxyBuilder;
+    pub use crate::config::ProxyConfig;
+    pub use crate::convert::{ConversionRegistry, Converter, FormatDetector, StreamConverter};
+    pub use crate::error::{ProxyError, ProxyResult};
+    pub use crate::middleware::{LayerAction, MiddlewareStack, ProxyLayer};
     pub use crate::proxy::ProxyService;
+    pub use crate::request_id::RequestId;
+    pub use crate::transport::{TransportConnector, TransportListener};
+    pub use crate::types::{
+        Extensions, FormatId, ProxyBody, ProxyRequest, ProxyResponse, TransportKind,
+    };
 }

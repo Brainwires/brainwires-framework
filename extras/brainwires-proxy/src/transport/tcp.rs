@@ -3,7 +3,7 @@
 use crate::error::ProxyResult;
 use crate::request_id::RequestId;
 use crate::transport::{InboundConnection, TransportListener};
-use crate::types::{ProxyBody, ProxyRequest, TransportKind, Extensions};
+use crate::types::{Extensions, ProxyBody, ProxyRequest, TransportKind};
 
 use http::{Method, Uri};
 use std::net::SocketAddr;

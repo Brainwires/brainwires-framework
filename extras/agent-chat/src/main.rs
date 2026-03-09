@@ -1,19 +1,18 @@
 use anyhow::Result;
 use clap::Parser;
 
+use agent_chat::chat_session::ChatSession;
 use agent_chat::cli::{Cli, Command};
 use agent_chat::commands;
 use agent_chat::config::ChatConfig;
 use agent_chat::provider_setup;
 use agent_chat::tool_setup;
-use agent_chat::chat_session::ChatSession;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "warn".into()),
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "warn".into()),
         )
         .with_target(false)
         .init();

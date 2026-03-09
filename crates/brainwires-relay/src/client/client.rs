@@ -170,11 +170,7 @@ impl RelayClient {
         // Close stdin to signal EOF to the child process
         drop(self.stdin);
         // Wait for child to exit (with timeout)
-        let _ = tokio::time::timeout(
-            std::time::Duration::from_secs(5),
-            self.child.wait(),
-        )
-        .await;
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(5), self.child.wait()).await;
         Ok(())
     }
 

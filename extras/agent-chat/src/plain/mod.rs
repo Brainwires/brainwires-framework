@@ -30,7 +30,10 @@ pub async fn run(mut session: ChatSession) -> Result<()> {
         }
     }));
 
-    println!("agent-chat ({}) - Type /help for commands, Ctrl+D to exit", session.provider_name());
+    println!(
+        "agent-chat ({}) - Type /help for commands, Ctrl+D to exit",
+        session.provider_name()
+    );
     println!();
 
     loop {
@@ -85,7 +88,10 @@ pub async fn run(mut session: ChatSession) -> Result<()> {
                             printed_newline = true;
                         }
                         StreamEvent::ToolResult {
-                            name, is_error, content, ..
+                            name,
+                            is_error,
+                            content,
+                            ..
                         } => {
                             let status = if is_error { "ERROR" } else { "ok" };
                             let preview = if content.len() > 100 {
@@ -100,9 +106,7 @@ pub async fn run(mut session: ChatSession) -> Result<()> {
                             prompt_tokens,
                             completion_tokens,
                         } => {
-                            eprintln!(
-                                "\n[tokens: {prompt_tokens} in / {completion_tokens} out]"
-                            );
+                            eprintln!("\n[tokens: {prompt_tokens} in / {completion_tokens} out]");
                             printed_newline = true;
                         }
                     }

@@ -158,7 +158,9 @@ impl Message {
                         ContentBlock::ToolUse { name, input, .. } => {
                             parts.push(format!("[Called tool: {} with args: {}]", name, input));
                         }
-                        ContentBlock::ToolResult { content, is_error, .. } => {
+                        ContentBlock::ToolResult {
+                            content, is_error, ..
+                        } => {
                             if is_error == &Some(true) {
                                 parts.push(format!("[Tool error: {}]", content));
                             } else {
@@ -280,7 +282,11 @@ pub fn serialize_messages_to_stateless_history(messages: &[Message]) -> Vec<Valu
                                 "arguments": input.to_string(),
                             }));
                         }
-                        ContentBlock::ToolResult { tool_use_id, content, .. } => {
+                        ContentBlock::ToolResult {
+                            tool_use_id,
+                            content,
+                            ..
+                        } => {
                             // Flush accumulated text before tool entry
                             if !text_parts.is_empty() {
                                 let combined = text_parts.join("\n");
@@ -401,10 +407,7 @@ mod tests {
 
     #[test]
     fn test_stateless_history_simple_text() {
-        let messages = vec![
-            Message::user("Hello"),
-            Message::assistant("Hi there"),
-        ];
+        let messages = vec![Message::user("Hello"), Message::assistant("Hi there")];
         let history = serialize_messages_to_stateless_history(&messages);
         assert_eq!(history.len(), 2);
         assert_eq!(history[0]["role"], "user");
@@ -413,10 +416,7 @@ mod tests {
 
     #[test]
     fn test_stateless_history_skips_system() {
-        let messages = vec![
-            Message::system("You are helpful"),
-            Message::user("Hello"),
-        ];
+        let messages = vec![Message::system("You are helpful"), Message::user("Hello")];
         let history = serialize_messages_to_stateless_history(&messages);
         assert_eq!(history.len(), 1);
         assert_eq!(history[0]["role"], "user");
@@ -429,7 +429,9 @@ mod tests {
             Message {
                 role: Role::Assistant,
                 content: MessageContent::Blocks(vec![
-                    ContentBlock::Text { text: "I'll check.".to_string() },
+                    ContentBlock::Text {
+                        text: "I'll check.".to_string(),
+                    },
                     ContentBlock::ToolUse {
                         id: "call-1".to_string(),
                         name: "read_file".to_string(),

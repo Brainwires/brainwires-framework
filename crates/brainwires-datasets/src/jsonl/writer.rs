@@ -80,10 +80,7 @@ impl<W: Write> JsonlWriter<W> {
 }
 
 /// Convenience: write examples to a JSONL file.
-pub fn write_jsonl(
-    path: impl AsRef<Path>,
-    examples: &[TrainingExample],
-) -> DatasetResult<usize> {
+pub fn write_jsonl(path: impl AsRef<Path>, examples: &[TrainingExample]) -> DatasetResult<usize> {
     let mut writer = JsonlWriter::create(path)?;
     writer.write_all(examples)?;
     writer.flush()?;

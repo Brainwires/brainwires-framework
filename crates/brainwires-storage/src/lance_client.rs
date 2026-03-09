@@ -17,8 +17,7 @@ impl LanceClient {
 
         // Ensure parent directory exists
         if let Some(parent) = std::path::Path::new(&db_path).parent() {
-            std::fs::create_dir_all(parent)
-                .context("Failed to create database directory")?;
+            std::fs::create_dir_all(parent).context("Failed to create database directory")?;
         }
 
         let connection = lancedb::connect(&db_path)
@@ -40,10 +39,7 @@ impl LanceClient {
     /// Create conversations table if it doesn't exist
     pub async fn ensure_conversations_table(&self) -> Result<()> {
         let table_name = "conversations";
-        let table_names = self.connection
-            .table_names()
-            .execute()
-            .await?;
+        let table_names = self.connection.table_names().execute().await?;
 
         if table_names.contains(&table_name.to_string()) {
             return Ok(());
@@ -55,10 +51,7 @@ impl LanceClient {
         // Create empty table
         let empty_batch = RecordBatch::new_empty(schema.clone());
 
-        let batches = RecordBatchIterator::new(
-            vec![Ok(empty_batch)],
-            schema.clone()
-        );
+        let batches = RecordBatchIterator::new(vec![Ok(empty_batch)], schema.clone());
 
         self.connection
             .create_table(table_name, Box::new(batches))
@@ -72,10 +65,7 @@ impl LanceClient {
     /// Create messages table if it doesn't exist
     pub async fn ensure_messages_table(&self, embedding_dim: usize) -> Result<()> {
         let table_name = "messages";
-        let table_names = self.connection
-            .table_names()
-            .execute()
-            .await?;
+        let table_names = self.connection.table_names().execute().await?;
 
         if table_names.contains(&table_name.to_string()) {
             return Ok(());
@@ -87,10 +77,7 @@ impl LanceClient {
         // Create empty table
         let empty_batch = RecordBatch::new_empty(schema.clone());
 
-        let batches = RecordBatchIterator::new(
-            vec![Ok(empty_batch)],
-            schema.clone()
-        );
+        let batches = RecordBatchIterator::new(vec![Ok(empty_batch)], schema.clone());
 
         self.connection
             .create_table(table_name, Box::new(batches))
@@ -122,10 +109,7 @@ impl LanceClient {
     /// Create tasks table if it doesn't exist
     pub async fn ensure_tasks_table(&self) -> Result<()> {
         let table_name = "tasks";
-        let table_names = self.connection
-            .table_names()
-            .execute()
-            .await?;
+        let table_names = self.connection.table_names().execute().await?;
 
         if table_names.contains(&table_name.to_string()) {
             return Ok(());
@@ -137,10 +121,7 @@ impl LanceClient {
         // Create empty table
         let empty_batch = RecordBatch::new_empty(schema.clone());
 
-        let batches = RecordBatchIterator::new(
-            vec![Ok(empty_batch)],
-            schema.clone()
-        );
+        let batches = RecordBatchIterator::new(vec![Ok(empty_batch)], schema.clone());
 
         self.connection
             .create_table(table_name, Box::new(batches))
@@ -163,10 +144,7 @@ impl LanceClient {
     /// Create plans table if it doesn't exist
     pub async fn ensure_plans_table(&self) -> Result<()> {
         let table_name = "plans";
-        let table_names = self.connection
-            .table_names()
-            .execute()
-            .await?;
+        let table_names = self.connection.table_names().execute().await?;
 
         if table_names.contains(&table_name.to_string()) {
             return Ok(());
@@ -178,10 +156,7 @@ impl LanceClient {
         // Create empty table
         let empty_batch = RecordBatch::new_empty(schema.clone());
 
-        let batches = RecordBatchIterator::new(
-            vec![Ok(empty_batch)],
-            schema.clone()
-        );
+        let batches = RecordBatchIterator::new(vec![Ok(empty_batch)], schema.clone());
 
         self.connection
             .create_table(table_name, Box::new(batches))
@@ -204,10 +179,7 @@ impl LanceClient {
     /// Create documents table if it doesn't exist
     pub async fn ensure_documents_table(&self, embedding_dim: usize) -> Result<()> {
         let table_name = "documents";
-        let table_names = self.connection
-            .table_names()
-            .execute()
-            .await?;
+        let table_names = self.connection.table_names().execute().await?;
 
         if table_names.contains(&table_name.to_string()) {
             return Ok(());
@@ -219,10 +191,7 @@ impl LanceClient {
         // Create empty table
         let empty_batch = RecordBatch::new_empty(schema.clone());
 
-        let batches = RecordBatchIterator::new(
-            vec![Ok(empty_batch)],
-            schema.clone()
-        );
+        let batches = RecordBatchIterator::new(vec![Ok(empty_batch)], schema.clone());
 
         self.connection
             .create_table(table_name, Box::new(batches))
@@ -245,10 +214,7 @@ impl LanceClient {
     /// Create document metadata table if it doesn't exist
     pub async fn ensure_document_metadata_table(&self) -> Result<()> {
         let table_name = "document_metadata";
-        let table_names = self.connection
-            .table_names()
-            .execute()
-            .await?;
+        let table_names = self.connection.table_names().execute().await?;
 
         if table_names.contains(&table_name.to_string()) {
             return Ok(());
@@ -260,10 +226,7 @@ impl LanceClient {
         // Create empty table
         let empty_batch = RecordBatch::new_empty(schema.clone());
 
-        let batches = RecordBatchIterator::new(
-            vec![Ok(empty_batch)],
-            schema.clone()
-        );
+        let batches = RecordBatchIterator::new(vec![Ok(empty_batch)], schema.clone());
 
         self.connection
             .create_table(table_name, Box::new(batches))
@@ -340,10 +303,7 @@ impl LanceClient {
     /// Create images table if it doesn't exist
     pub async fn ensure_images_table(&self, embedding_dim: usize) -> Result<()> {
         let table_name = "images";
-        let table_names = self.connection
-            .table_names()
-            .execute()
-            .await?;
+        let table_names = self.connection.table_names().execute().await?;
 
         if table_names.contains(&table_name.to_string()) {
             return Ok(());
@@ -355,10 +315,7 @@ impl LanceClient {
         // Create empty table
         let empty_batch = RecordBatch::new_empty(schema.clone());
 
-        let batches = RecordBatchIterator::new(
-            vec![Ok(empty_batch)],
-            schema.clone()
-        );
+        let batches = RecordBatchIterator::new(vec![Ok(empty_batch)], schema.clone());
 
         self.connection
             .create_table(table_name, Box::new(batches))
@@ -455,10 +412,7 @@ impl LanceClient {
     /// Create summaries table if it doesn't exist (warm tier)
     pub async fn ensure_summaries_table(&self, embedding_dim: usize) -> Result<()> {
         let table_name = "summaries";
-        let table_names = self.connection
-            .table_names()
-            .execute()
-            .await?;
+        let table_names = self.connection.table_names().execute().await?;
 
         if table_names.contains(&table_name.to_string()) {
             return Ok(());
@@ -467,10 +421,7 @@ impl LanceClient {
         let schema = crate::summary_store::SummaryStore::summaries_schema(embedding_dim);
 
         let empty_batch = RecordBatch::new_empty(schema.clone());
-        let batches = RecordBatchIterator::new(
-            vec![Ok(empty_batch)],
-            schema.clone()
-        );
+        let batches = RecordBatchIterator::new(vec![Ok(empty_batch)], schema.clone());
 
         self.connection
             .create_table(table_name, Box::new(batches))
@@ -493,10 +444,7 @@ impl LanceClient {
     /// Create facts table if it doesn't exist (cold tier)
     pub async fn ensure_facts_table(&self, embedding_dim: usize) -> Result<()> {
         let table_name = "facts";
-        let table_names = self.connection
-            .table_names()
-            .execute()
-            .await?;
+        let table_names = self.connection.table_names().execute().await?;
 
         if table_names.contains(&table_name.to_string()) {
             return Ok(());
@@ -505,10 +453,7 @@ impl LanceClient {
         let schema = crate::fact_store::FactStore::facts_schema(embedding_dim);
 
         let empty_batch = RecordBatch::new_empty(schema.clone());
-        let batches = RecordBatchIterator::new(
-            vec![Ok(empty_batch)],
-            schema.clone()
-        );
+        let batches = RecordBatchIterator::new(vec![Ok(empty_batch)], schema.clone());
 
         self.connection
             .create_table(table_name, Box::new(batches))
@@ -531,10 +476,7 @@ impl LanceClient {
     /// Create tier_metadata table if it doesn't exist
     pub async fn ensure_tier_metadata_table(&self) -> Result<()> {
         let table_name = "tier_metadata";
-        let table_names = self.connection
-            .table_names()
-            .execute()
-            .await?;
+        let table_names = self.connection.table_names().execute().await?;
 
         if table_names.contains(&table_name.to_string()) {
             return Ok(());
@@ -543,10 +485,7 @@ impl LanceClient {
         let schema = crate::tier_metadata_store::TierMetadataStore::tier_metadata_schema();
 
         let empty_batch = RecordBatch::new_empty(schema.clone());
-        let batches = RecordBatchIterator::new(
-            vec![Ok(empty_batch)],
-            schema.clone()
-        );
+        let batches = RecordBatchIterator::new(vec![Ok(empty_batch)], schema.clone());
 
         self.connection
             .create_table(table_name, Box::new(batches))
@@ -598,9 +537,7 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let db_path = temp.path().join("test.lance");
 
-        let client = LanceClient::new(db_path.to_str().unwrap())
-            .await
-            .unwrap();
+        let client = LanceClient::new(db_path.to_str().unwrap()).await.unwrap();
 
         assert_eq!(client.db_path(), db_path.to_str().unwrap());
     }
@@ -610,19 +547,13 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let db_path = temp.path().join("test.lance");
 
-        let client = LanceClient::new(db_path.to_str().unwrap())
-            .await
-            .unwrap();
+        let client = LanceClient::new(db_path.to_str().unwrap()).await.unwrap();
 
         // Initialize with 384-dimension embeddings
         client.initialize(384).await.unwrap();
 
         // Verify tables exist
-        let table_names = client.connection()
-            .table_names()
-            .execute()
-            .await
-            .unwrap();
+        let table_names = client.connection().table_names().execute().await.unwrap();
 
         assert!(table_names.contains(&"conversations".to_string()));
         assert!(table_names.contains(&"messages".to_string()));
@@ -633,9 +564,7 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let db_path = temp.path().join("test.lance");
 
-        let client = LanceClient::new(db_path.to_str().unwrap())
-            .await
-            .unwrap();
+        let client = LanceClient::new(db_path.to_str().unwrap()).await.unwrap();
 
         client.initialize(384).await.unwrap();
 

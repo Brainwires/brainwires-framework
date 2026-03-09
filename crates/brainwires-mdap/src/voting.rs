@@ -59,7 +59,12 @@ impl<T> SampledResponse<T> {
     }
 
     /// Create with explicit confidence
-    pub fn with_confidence(value: T, metadata: ResponseMetadata, raw_response: String, confidence: f64) -> Self {
+    pub fn with_confidence(
+        value: T,
+        metadata: ResponseMetadata,
+        raw_response: String,
+        confidence: f64,
+    ) -> Self {
         Self {
             value,
             metadata,
@@ -254,7 +259,11 @@ impl FirstToAheadByKVoter {
     }
 
     /// Create a voter with early stopping enabled
-    pub fn with_early_stopping(k: u32, max_samples: u32, early_stopping: EarlyStoppingConfig) -> Self {
+    pub fn with_early_stopping(
+        k: u32,
+        max_samples: u32,
+        early_stopping: EarlyStoppingConfig,
+    ) -> Self {
         let mut voter = Self::new(k, max_samples);
         voter.early_stopping = early_stopping;
         voter
@@ -351,55 +360,60 @@ impl FirstToAheadByKVoter {
                 match red_flag_validator.validate(&sample.raw_response, &sample.metadata) {
                     RedFlagResult::Valid => {
                         let key = key_extractor(&sample.value);
-                        let entry = votes.entry(key.clone()).or_insert((0, sample.value.clone()));
+                        let entry = votes
+                            .entry(key.clone())
+                            .or_insert((0, sample.value.clone()));
                         entry.0 += 1;
 
                         // Track confidence-weighted votes for Borda/CISC voting methods
                         // Always track for BordaCount and ConfidenceWeighted methods
-                        if self.use_confidence_weights ||
-                           self.voting_method == VotingMethod::BordaCount ||
-                           self.voting_method == VotingMethod::ConfidenceWeighted {
+                        if self.use_confidence_weights
+                            || self.voting_method == VotingMethod::BordaCount
+                            || self.voting_method == VotingMethod::ConfidenceWeighted
+                        {
                             *weighted_votes.entry(key.clone()).or_insert(0.0) += sample.confidence;
                         }
 
                         // Check for early stopping (RASC paper)
                         if self.early_stopping.enabled
-                            && let Some((winner_key, winner_value)) = self.check_early_stop(&votes) {
-                                let vote_distribution: HashMap<String, u32> =
-                                    votes.iter().map(|(k, (v, _))| (k.clone(), *v)).collect();
+                            && let Some((winner_key, winner_value)) = self.check_early_stop(&votes)
+                        {
+                            let vote_distribution: HashMap<String, u32> =
+                                votes.iter().map(|(k, (v, _))| (k.clone(), *v)).collect();
 
-                                let winner_votes = votes.get(&winner_key).map(|(v, _)| *v).unwrap_or(0);
-                                let total_votes: u32 = votes.values().map(|(v, _)| *v).sum();
+                            let winner_votes = votes.get(&winner_key).map(|(v, _)| *v).unwrap_or(0);
+                            let total_votes: u32 = votes.values().map(|(v, _)| *v).sum();
 
-                                let weighted_confidence = if self.use_confidence_weights {
-                                    let total_weight: f64 = weighted_votes.values().sum();
-                                    let winner_weight = weighted_votes.get(&winner_key).copied().unwrap_or(0.0);
-                                    Some(winner_weight / total_weight.max(0.001))
-                                } else {
-                                    None
-                                };
+                            let weighted_confidence = if self.use_confidence_weights {
+                                let total_weight: f64 = weighted_votes.values().sum();
+                                let winner_weight =
+                                    weighted_votes.get(&winner_key).copied().unwrap_or(0.0);
+                                Some(winner_weight / total_weight.max(0.001))
+                            } else {
+                                None
+                            };
 
-                                tracing::info!(
-                                    total_samples = total_samples,
-                                    total_votes = total_votes,
-                                    confidence = %self.calculate_confidence(winner_votes, total_votes),
-                                    "MDAP: Early stopping triggered"
-                                );
+                            tracing::info!(
+                                total_samples = total_samples,
+                                total_votes = total_votes,
+                                confidence = %self.calculate_confidence(winner_votes, total_votes),
+                                "MDAP: Early stopping triggered"
+                            );
 
-                                return Ok(VoteResult {
-                                    winner: winner_value,
-                                    winner_votes,
-                                    total_votes,
-                                    total_samples,
-                                    red_flagged_count: red_flagged,
-                                    vote_distribution,
-                                    confidence: self.calculate_confidence(winner_votes, total_votes),
-                                    red_flag_reasons,
-                                    early_stopped: true,
-                                    weighted_confidence,
-                                    voting_method: self.voting_method.clone(),
-                                });
-                            }
+                            return Ok(VoteResult {
+                                winner: winner_value,
+                                winner_votes,
+                                total_votes,
+                                total_samples,
+                                red_flagged_count: red_flagged,
+                                vote_distribution,
+                                confidence: self.calculate_confidence(winner_votes, total_votes),
+                                red_flag_reasons,
+                                early_stopped: true,
+                                weighted_confidence,
+                                voting_method: self.voting_method.clone(),
+                            });
+                        }
 
                         // Check winner based on voting method
                         let winner_result = match self.voting_method {
@@ -426,9 +440,12 @@ impl FirstToAheadByKVoter {
                             let winner_votes = votes.get(&winner_key).map(|(v, _)| *v).unwrap_or(0);
                             let total_votes: u32 = votes.values().map(|(v, _)| *v).sum();
 
-                            let weighted_confidence = if self.use_confidence_weights || self.voting_method == VotingMethod::BordaCount {
+                            let weighted_confidence = if self.use_confidence_weights
+                                || self.voting_method == VotingMethod::BordaCount
+                            {
                                 let total_weight: f64 = weighted_votes.values().sum();
-                                let winner_weight = weighted_votes.get(&winner_key).copied().unwrap_or(0.0);
+                                let winner_weight =
+                                    weighted_votes.get(&winner_key).copied().unwrap_or(0.0);
                                 Some(winner_weight / total_weight.max(0.001))
                             } else {
                                 None
@@ -468,46 +485,46 @@ impl FirstToAheadByKVoter {
 
             // Check for loss-of-hope condition (RASC paper enhancement)
             // If no candidate can possibly win, return the current leader
-            if self.early_stopping.loss_of_hope_enabled && self.check_loss_of_hope(&votes, total_samples)
-                && let Some((leader_key, (leader_votes, leader_value))) = votes
-                    .iter()
-                    .max_by_key(|(_, (v, _))| *v)
+            if self.early_stopping.loss_of_hope_enabled
+                && self.check_loss_of_hope(&votes, total_samples)
+                && let Some((leader_key, (leader_votes, leader_value))) =
+                    votes.iter().max_by_key(|(_, (v, _))| *v)
+            {
+                let vote_distribution: HashMap<String, u32> =
+                    votes.iter().map(|(k, (v, _))| (k.clone(), *v)).collect();
+                let total_votes: u32 = votes.values().map(|(v, _)| *v).sum();
+
+                let weighted_confidence = if self.use_confidence_weights
+                    || self.voting_method == VotingMethod::BordaCount
+                    || self.voting_method == VotingMethod::ConfidenceWeighted
                 {
-                    let vote_distribution: HashMap<String, u32> =
-                        votes.iter().map(|(k, (v, _))| (k.clone(), *v)).collect();
-                    let total_votes: u32 = votes.values().map(|(v, _)| *v).sum();
+                    let total_weight: f64 = weighted_votes.values().sum();
+                    let winner_weight = weighted_votes.get(leader_key).copied().unwrap_or(0.0);
+                    Some(winner_weight / total_weight.max(0.001))
+                } else {
+                    None
+                };
 
-                    let weighted_confidence = if self.use_confidence_weights ||
-                        self.voting_method == VotingMethod::BordaCount ||
-                        self.voting_method == VotingMethod::ConfidenceWeighted
-                    {
-                        let total_weight: f64 = weighted_votes.values().sum();
-                        let winner_weight = weighted_votes.get(leader_key).copied().unwrap_or(0.0);
-                        Some(winner_weight / total_weight.max(0.001))
-                    } else {
-                        None
-                    };
+                tracing::info!(
+                    total_samples = total_samples,
+                    leader_votes = leader_votes,
+                    "MDAP: Loss of hope - returning current leader"
+                );
 
-                    tracing::info!(
-                        total_samples = total_samples,
-                        leader_votes = leader_votes,
-                        "MDAP: Loss of hope - returning current leader"
-                    );
-
-                    return Ok(VoteResult {
-                        winner: leader_value.clone(),
-                        winner_votes: *leader_votes,
-                        total_votes,
-                        total_samples,
-                        red_flagged_count: red_flagged,
-                        vote_distribution,
-                        confidence: self.calculate_confidence(*leader_votes, total_votes),
-                        red_flag_reasons,
-                        early_stopped: true, // Treat as early stop
-                        weighted_confidence,
-                        voting_method: self.voting_method.clone(),
-                    });
-                }
+                return Ok(VoteResult {
+                    winner: leader_value.clone(),
+                    winner_votes: *leader_votes,
+                    total_votes,
+                    total_samples,
+                    red_flagged_count: red_flagged,
+                    vote_distribution,
+                    confidence: self.calculate_confidence(*leader_votes, total_votes),
+                    red_flag_reasons,
+                    early_stopped: true, // Treat as early stop
+                    weighted_confidence,
+                    voting_method: self.voting_method.clone(),
+                });
+            }
         }
     }
 
@@ -525,9 +542,8 @@ impl FirstToAheadByKVoter {
         }
 
         // Get leading candidate
-        let (leader_key, (leader_votes, leader_value)) = votes
-            .iter()
-            .max_by_key(|(_, (v, _))| *v)?;
+        let (leader_key, (leader_votes, leader_value)) =
+            votes.iter().max_by_key(|(_, (v, _))| *v)?;
 
         let confidence = *leader_votes as f64 / total as f64;
 
@@ -880,7 +896,9 @@ impl VoterBuilder {
         FirstToAheadByKVoter {
             k: self.k.max(1),
             max_samples: self.max_samples.max(1),
-            parallel_limit: Arc::new(Semaphore::new(self.parallel_limit.clamp(1, DEFAULT_PARALLEL_LIMIT as u32) as usize)),
+            parallel_limit: Arc::new(Semaphore::new(
+                self.parallel_limit.clamp(1, DEFAULT_PARALLEL_LIMIT as u32) as usize,
+            )),
             batch_size: self.batch_size.max(1),
             early_stopping: self.early_stopping,
             voting_method: self.voting_method,
@@ -911,7 +929,11 @@ pub fn borda_count_winner<T: Clone>(
     // Find winner by score
     scores
         .into_iter()
-        .max_by(|a, b| a.1.0.partial_cmp(&b.1.0).unwrap_or(std::cmp::Ordering::Equal))
+        .max_by(|a, b| {
+            a.1.0
+                .partial_cmp(&b.1.0)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
         .map(|(k, (score, value))| (k, value, score))
 }
 
@@ -1005,7 +1027,9 @@ mod tests {
             .unwrap();
 
         // "a" should eventually win with margin of at least 2
-        assert!(result.winner.starts_with("a") || result.vote_distribution.get("a").unwrap_or(&0) >= &2);
+        assert!(
+            result.winner.starts_with("a") || result.vote_distribution.get("a").unwrap_or(&0) >= &2
+        );
     }
 
     #[tokio::test]
@@ -1021,7 +1045,11 @@ mod tests {
                     let count = call_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                     async move {
                         // Every 3rd response is "bad"
-                        let raw = if count % 3 == 0 { "bad response" } else { "good" };
+                        let raw = if count % 3 == 0 {
+                            "bad response"
+                        } else {
+                            "good"
+                        };
                         Ok(make_response("answer".to_string(), raw))
                     }
                 },
@@ -1041,8 +1069,8 @@ mod tests {
         // Disable early stopping to test max samples behavior specifically
         // (Early stopping with loss_of_hope would return the current leader instead)
         let voter = FirstToAheadByKVoter::with_early_stopping(
-            10, // k=10 is impossible to reach with max 5 samples
-            5,  // max_samples
+            10,                              // k=10 is impossible to reach with max 5 samples
+            5,                               // max_samples
             EarlyStoppingConfig::disabled(), // Disable early stopping for this test
         );
         let validator = AcceptAllValidator;
@@ -1118,10 +1146,8 @@ mod tests {
             .await;
 
         assert!(result.is_err());
-        if let Err(MdapError::Voting(VotingError::AllSamplesRedFlagged {
-            red_flagged,
-            total,
-        })) = result
+        if let Err(MdapError::Voting(VotingError::AllSamplesRedFlagged { red_flagged, total })) =
+            result
         {
             assert!(red_flagged > 0);
             assert_eq!(red_flagged, total);

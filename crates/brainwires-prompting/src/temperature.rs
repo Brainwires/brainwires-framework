@@ -8,9 +8,11 @@
 //! Temperature performance is tracked per cluster and can be shared via BKS/PKS.
 
 use super::clustering::TaskCluster;
-#[cfg(feature = "knowledge")]
-use brainwires_brain::knowledge::{BehavioralKnowledgeCache, BehavioralTruth, TruthCategory, TruthSource};
 use anyhow::Result;
+#[cfg(feature = "knowledge")]
+use brainwires_brain::knowledge::{
+    BehavioralKnowledgeCache, BehavioralTruth, TruthCategory, TruthSource,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -43,8 +45,8 @@ impl TemperaturePerformance {
     /// Update metrics with new outcome using EMA (alpha = 0.3)
     pub fn update(&mut self, success: bool, quality: f32) {
         let alpha = 0.3;
-        self.success_rate = alpha * (if success { 1.0 } else { 0.0 })
-            + (1.0 - alpha) * self.success_rate;
+        self.success_rate =
+            alpha * (if success { 1.0 } else { 0.0 }) + (1.0 - alpha) * self.success_rate;
         self.avg_quality = alpha * quality + (1.0 - alpha) * self.avg_quality;
         self.sample_count += 1;
         self.last_updated = chrono::Utc::now().timestamp();
@@ -131,14 +133,17 @@ impl TemperatureOptimizer {
 
         for &temp in &self.candidates {
             let temp_key = Self::temp_to_key(temp);
-            if let Some(perf) = self.performance_map.get(&(cluster_id.to_string(), temp_key))
-                && perf.sample_count >= self.min_samples {
-                    let score = perf.score();
-                    if score > best_score {
-                        best_score = score;
-                        best_temp = Some(temp);
-                    }
+            if let Some(perf) = self
+                .performance_map
+                .get(&(cluster_id.to_string(), temp_key))
+                && perf.sample_count >= self.min_samples
+            {
+                let score = perf.score();
+                if score > best_score {
+                    best_score = score;
+                    best_temp = Some(temp);
                 }
+            }
         }
 
         best_temp
@@ -158,9 +163,10 @@ impl TemperatureOptimizer {
             for truth in truths {
                 // Filter for TaskStrategy category
                 if truth.category == TruthCategory::TaskStrategy
-                    && let Some(temp) = self.parse_temperature_from_truth(truth) {
-                        return Some(temp);
-                    }
+                    && let Some(temp) = self.parse_temperature_from_truth(truth)
+                {
+                    return Some(temp);
+                }
             }
         }
 
@@ -179,9 +185,10 @@ impl TemperatureOptimizer {
             let parts: Vec<&str> = substr.split_whitespace().collect();
             for part in parts.iter().skip(1) {
                 if let Ok(temp) = part.parse::<f32>()
-                    && self.candidates.contains(&temp) {
-                        return Some(temp);
-                    }
+                    && self.candidates.contains(&temp)
+                {
+                    return Some(temp);
+                }
             }
         }
 
@@ -244,10 +251,7 @@ impl TemperatureOptimizer {
     ) {
         let temp_key = Self::temp_to_key(temperature);
         let key = (cluster_id, temp_key);
-        let perf = self
-            .performance_map
-            .entry(key)
-            .or_default();
+        let perf = self.performance_map.entry(key).or_default();
 
         perf.update(success, quality);
     }
@@ -264,30 +268,32 @@ impl TemperatureOptimizer {
         let key = (cluster_id.to_string(), temp_key);
 
         if let Some(perf) = self.performance_map.get(&key)
-            && perf.sample_count >= min_samples && perf.score() >= min_score {
-                // Promote to BKS
-                if let Some(ref bks_cache) = self.bks_cache {
-                    let truth = BehavioralTruth::new(
-                        TruthCategory::TaskStrategy,
-                        cluster_id.to_string(),
-                        format!(
-                            "For {} tasks, use temperature {} for optimal results",
-                            cluster_id, temperature
-                        ),
-                        format!(
-                            "Learned from {} executions with {:.1}% success rate and {:.2} avg quality",
-                            perf.sample_count,
-                            perf.success_rate * 100.0,
-                            perf.avg_quality
-                        ),
-                        TruthSource::SuccessPattern,
-                        None,
-                    );
+            && perf.sample_count >= min_samples
+            && perf.score() >= min_score
+        {
+            // Promote to BKS
+            if let Some(ref bks_cache) = self.bks_cache {
+                let truth = BehavioralTruth::new(
+                    TruthCategory::TaskStrategy,
+                    cluster_id.to_string(),
+                    format!(
+                        "For {} tasks, use temperature {} for optimal results",
+                        cluster_id, temperature
+                    ),
+                    format!(
+                        "Learned from {} executions with {:.1}% success rate and {:.2} avg quality",
+                        perf.sample_count,
+                        perf.success_rate * 100.0,
+                        perf.avg_quality
+                    ),
+                    TruthSource::SuccessPattern,
+                    None,
+                );
 
-                    let mut bks = bks_cache.lock().await;
-                    bks.queue_submission(truth)?;
-                }
+                let mut bks = bks_cache.lock().await;
+                bks.queue_submission(truth)?;
             }
+        }
 
         Ok(())
     }
@@ -298,9 +304,14 @@ impl TemperatureOptimizer {
     }
 
     /// Get performance for a specific cluster and temperature
-    pub fn get_performance(&self, cluster_id: &str, temperature: f32) -> Option<&TemperaturePerformance> {
+    pub fn get_performance(
+        &self,
+        cluster_id: &str,
+        temperature: f32,
+    ) -> Option<&TemperaturePerformance> {
         let temp_key = Self::temp_to_key(temperature);
-        self.performance_map.get(&(cluster_id.to_string(), temp_key))
+        self.performance_map
+            .get(&(cluster_id.to_string(), temp_key))
     }
 }
 

@@ -44,11 +44,7 @@ impl RelevanceResult {
     }
 
     /// Create from fallback (keep original score)
-    pub fn from_fallback(
-        content: String,
-        original_index: usize,
-        original_score: f32,
-    ) -> Self {
+    pub fn from_fallback(content: String, original_index: usize, original_score: f32) -> Self {
         Self {
             content,
             original_index,
@@ -166,8 +162,16 @@ Output a score from 0.0 (irrelevant) to 1.0 (highly relevant).
 Output ONLY the decimal number.
 
 Score:"#,
-            if query.len() > 100 { &query[..100] } else { query },
-            if content.len() > 300 { &content[..300] } else { content }
+            if query.len() > 100 {
+                &query[..100]
+            } else {
+                query
+            },
+            if content.len() > 300 {
+                &content[..300]
+            } else {
+                content
+            }
         );
 
         let messages = vec![Message::user(&prompt)];
@@ -233,7 +237,11 @@ Query: "{}"
 
 Items:
 "#,
-            if query.len() > 150 { &query[..150] } else { query }
+            if query.len() > 150 {
+                &query[..150]
+            } else {
+                query
+            }
         );
 
         for (i, (content, _)) in items.iter().enumerate() {
@@ -393,21 +401,12 @@ mod tests {
 
     #[test]
     fn test_relevance_result() {
-        let local = RelevanceResult::from_local(
-            "test content".to_string(),
-            0,
-            0.9,
-            0.75,
-        );
+        let local = RelevanceResult::from_local("test content".to_string(), 0, 0.9, 0.75);
         assert!(local.used_local_llm);
         assert_eq!(local.relevance_score, 0.9);
         assert_eq!(local.original_score, 0.75);
 
-        let fallback = RelevanceResult::from_fallback(
-            "test content".to_string(),
-            1,
-            0.7,
-        );
+        let fallback = RelevanceResult::from_fallback("test content".to_string(), 1, 0.7);
         assert!(!fallback.used_local_llm);
         assert_eq!(fallback.relevance_score, 0.7);
     }
@@ -448,7 +447,11 @@ mod tests {
         }
 
         let overlap_ratio = matches as f32 / query_words.len() as f32;
-        let phrase_bonus = if content_lower.contains(&query_lower) { 0.2 } else { 0.0 };
+        let phrase_bonus = if content_lower.contains(&query_lower) {
+            0.2
+        } else {
+            0.0
+        };
 
         (overlap_ratio * 0.8 + phrase_bonus).min(1.0)
     }
@@ -466,9 +469,10 @@ mod tests {
         assert_eq!(results.len(), 3);
 
         // Find the highest scored item
-        let best = results.iter().max_by(|a, b| {
-            a.relevance_score.partial_cmp(&b.relevance_score).unwrap()
-        }).unwrap();
+        let best = results
+            .iter()
+            .max_by(|a, b| a.relevance_score.partial_cmp(&b.relevance_score).unwrap())
+            .unwrap();
         assert_eq!(best.original_index, 0); // First item had 0.9 score
     }
 

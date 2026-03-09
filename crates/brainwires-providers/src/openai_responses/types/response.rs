@@ -179,7 +179,10 @@ mod tests {
         assert_eq!(usage.input_tokens, 20);
         assert_eq!(usage.output_tokens, 11);
         assert_eq!(usage.total_tokens, Some(31));
-        assert_eq!(usage.output_tokens_details.unwrap().reasoning_tokens, Some(5));
+        assert_eq!(
+            usage.output_tokens_details.unwrap().reasoning_tokens,
+            Some(5)
+        );
     }
 
     #[test]

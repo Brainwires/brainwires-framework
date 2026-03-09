@@ -88,12 +88,23 @@ pub enum FrameworkError {
 impl FrameworkError {
     /// Create a provider authentication error
     pub fn provider_auth(provider: impl Into<String>, message: impl Into<String>) -> Self {
-        Self::ProviderAuth { provider: provider.into(), message: message.into() }
+        Self::ProviderAuth {
+            provider: provider.into(),
+            message: message.into(),
+        }
     }
 
     /// Create a provider model error
-    pub fn provider_model(provider: impl Into<String>, model: impl Into<String>, message: impl Into<String>) -> Self {
-        Self::ProviderModel { provider: provider.into(), model: model.into(), message: message.into() }
+    pub fn provider_model(
+        provider: impl Into<String>,
+        model: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self::ProviderModel {
+            provider: provider.into(),
+            model: model.into(),
+            message: message.into(),
+        }
     }
 
     /// Create an embedding dimension mismatch error
@@ -103,12 +114,18 @@ impl FrameworkError {
 
     /// Create a storage schema error
     pub fn storage_schema(store: impl Into<String>, message: impl Into<String>) -> Self {
-        Self::StorageSchema { store: store.into(), message: message.into() }
+        Self::StorageSchema {
+            store: store.into(),
+            message: message.into(),
+        }
     }
 
     /// Create a training configuration error
     pub fn training_config(parameter: impl Into<String>, message: impl Into<String>) -> Self {
-        Self::TrainingConfig { parameter: parameter.into(), message: message.into() }
+        Self::TrainingConfig {
+            parameter: parameter.into(),
+            message: message.into(),
+        }
     }
 }
 

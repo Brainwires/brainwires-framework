@@ -26,21 +26,21 @@
 //! - **Constraint**: limitations, access restrictions, time zones (decay: 90 days)
 //! - **Relationship**: connections between facts, Zettelkasten-style (decay: 60 days)
 
-pub mod fact;
-pub mod cache;
 pub mod api;
+pub mod cache;
 pub mod collector;
-pub mod matcher;
+pub mod fact;
 pub mod integration;
+pub mod matcher;
 
-pub use fact::{PersonalFact, PersonalFactCategory, PersonalFactFeedback, PersonalFactSource};
-pub use cache::PersonalKnowledgeCache;
 pub use api::PersonalKnowledgeApiClient;
+pub use cache::PersonalKnowledgeCache;
 pub use collector::PersonalFactCollector;
-pub use matcher::PersonalFactMatcher;
+pub use fact::{PersonalFact, PersonalFactCategory, PersonalFactFeedback, PersonalFactSource};
 pub use integration::{
     DetectedFact, DetectionSource, PksBackgroundProcessor, PksIntegration, PksSseListener,
 };
+pub use matcher::PersonalFactMatcher;
 
 /// Configuration for the Personal Knowledge System
 #[derive(Debug, Clone)]

@@ -140,7 +140,9 @@ mod tests {
         let item = ResponseInputItem::Message {
             role: "user".to_string(),
             content: InputContent::Parts(vec![
-                InputContentPart::InputText { text: "Look at this".to_string() },
+                InputContentPart::InputText {
+                    text: "Look at this".to_string(),
+                },
                 InputContentPart::InputImage {
                     image_url: Some("https://example.com/img.png".to_string()),
                     file_id: None,

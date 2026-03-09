@@ -15,9 +15,7 @@ const MAX_SSE_BUFFER_SIZE: usize = 16 * 1024 * 1024;
 ///
 /// Expects lines of the form `data: {...}\n\n` where each data line
 /// contains a JSON-RPC response with a `StreamEvent` as the result.
-pub fn parse_sse_stream(
-    body: String,
-) -> impl Stream<Item = Result<StreamEvent, A2aError>> {
+pub fn parse_sse_stream(body: String) -> impl Stream<Item = Result<StreamEvent, A2aError>> {
     async_stream::stream! {
         for line in body.lines() {
             let line = line.trim();
@@ -43,9 +41,7 @@ pub fn parse_sse_stream(
 }
 
 /// Parse SSE from a streaming byte source, yielding events as they arrive.
-pub fn parse_sse_bytes(
-    data: Bytes,
-) -> impl Stream<Item = Result<StreamEvent, A2aError>> {
+pub fn parse_sse_bytes(data: Bytes) -> impl Stream<Item = Result<StreamEvent, A2aError>> {
     let text = String::from_utf8_lossy(&data).to_string();
     parse_sse_stream(text)
 }
@@ -188,7 +184,9 @@ fn parse_sse_frame_jsonrpc_or_error(frame: &str) -> Result<StreamEvent, A2aError
             } else if let Some(result) = resp.result {
                 serde_json::from_value::<StreamEvent>(result).map_err(A2aError::from)
             } else {
-                Err(A2aError::parse_error("JSON-RPC response has neither result nor error"))
+                Err(A2aError::parse_error(
+                    "JSON-RPC response has neither result nor error",
+                ))
             }
         }
         Err(e) => Err(A2aError::parse_error(e.to_string())),
@@ -204,7 +202,5 @@ fn parse_sse_frame_rest_or_error(frame: &str) -> Result<StreamEvent, A2aError> {
         None => return Err(A2aError::parse_error("SSE frame contains no data field")),
     };
 
-    serde_json::from_str::<StreamEvent>(&data)
-        .map_err(|e| A2aError::parse_error(e.to_string()))
+    serde_json::from_str::<StreamEvent>(&data).map_err(|e| A2aError::parse_error(e.to_string()))
 }
-

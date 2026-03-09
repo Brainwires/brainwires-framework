@@ -3,7 +3,7 @@
 use crate::error::{ProxyError, ProxyResult};
 use crate::request_id::RequestId;
 use crate::transport::{InboundConnection, TransportConnector, TransportListener};
-use crate::types::{ProxyBody, ProxyRequest, ProxyResponse, TransportKind, Extensions};
+use crate::types::{Extensions, ProxyBody, ProxyRequest, ProxyResponse, TransportKind};
 
 use futures::{SinkExt, StreamExt};
 use http::{Method, StatusCode, Uri};

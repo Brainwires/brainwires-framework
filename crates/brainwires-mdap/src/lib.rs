@@ -16,44 +16,42 @@
 // Re-export core types
 pub use brainwires_core;
 
+pub mod composer;
+pub mod decomposition;
 pub mod error;
-pub mod voting;
+pub mod metrics;
 pub mod microagent;
 pub mod red_flags;
 pub mod scaling;
-pub mod metrics;
-pub mod composer;
 pub mod tool_intent;
-pub mod decomposition;
+pub mod voting;
 
 // Re-exports
+pub use composer::{Composer, CompositionBuilder, StandardComposer};
+pub use decomposition::{
+    AtomicDecomposer, BinaryRecursiveDecomposer, CompositionFunction, DecomposeContext,
+    DecompositionResult, DecompositionStrategy, SequentialDecomposer, SimpleRecursiveDecomposer,
+    TaskDecomposer,
+};
 pub use error::{MdapError, MdapResult};
-pub use voting::{FirstToAheadByKVoter, VoteResult, SampledResponse, ResponseMetadata};
+pub use metrics::MdapMetrics;
 pub use microagent::{
-    Microagent, MicroagentConfig, MicroagentConfigBuilder,
-    MicroagentProvider, MicroagentResponse,
+    Microagent, MicroagentConfig, MicroagentConfigBuilder, MicroagentProvider, MicroagentResponse,
     Subtask, SubtaskOutput,
 };
-pub use red_flags::{RedFlagConfig, StandardRedFlagValidator, OutputFormat};
+pub use red_flags::{OutputFormat, RedFlagConfig, StandardRedFlagValidator};
 pub use scaling::{MdapEstimate, ModelCosts, estimate_mdap};
-pub use metrics::MdapMetrics;
-pub use composer::{Composer, StandardComposer, CompositionBuilder};
-pub use tool_intent::{ToolIntent, ToolSchema, ToolCategory, SubtaskOutputWithIntent};
-pub use decomposition::{
-    TaskDecomposer, DecomposeContext, DecompositionResult, DecompositionStrategy,
-    CompositionFunction, SequentialDecomposer, AtomicDecomposer,
-    BinaryRecursiveDecomposer, SimpleRecursiveDecomposer,
-};
+pub use tool_intent::{SubtaskOutputWithIntent, ToolCategory, ToolIntent, ToolSchema};
+pub use voting::{FirstToAheadByKVoter, ResponseMetadata, SampledResponse, VoteResult};
 
 /// Prelude module for convenient imports
 pub mod prelude {
-    pub use super::voting::{FirstToAheadByKVoter, VoteResult, SampledResponse};
-    pub use super::microagent::{
-        Microagent, MicroagentProvider, MicroagentResponse,
-        Subtask, SubtaskOutput,
-    };
-    pub use super::red_flags::{RedFlagConfig, OutputFormat};
-    pub use super::decomposition::{TaskDecomposer, DecomposeContext, DecompositionResult};
-    pub use super::tool_intent::{ToolIntent, ToolSchema, ToolCategory};
+    pub use super::decomposition::{DecomposeContext, DecompositionResult, TaskDecomposer};
     pub use super::error::{MdapError, MdapResult};
+    pub use super::microagent::{
+        Microagent, MicroagentProvider, MicroagentResponse, Subtask, SubtaskOutput,
+    };
+    pub use super::red_flags::{OutputFormat, RedFlagConfig};
+    pub use super::tool_intent::{ToolCategory, ToolIntent, ToolSchema};
+    pub use super::voting::{FirstToAheadByKVoter, SampledResponse, VoteResult};
 }

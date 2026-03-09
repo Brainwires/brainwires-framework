@@ -63,7 +63,9 @@ impl AgentSupervisor {
         approval: Arc<dyn ApprovalPolicy>,
     ) -> Self {
         Self {
-            health: Arc::new(RwLock::new(HealthMonitor::new(HealthMonitorConfig::default()))),
+            health: Arc::new(RwLock::new(HealthMonitor::new(
+                HealthMonitorConfig::default(),
+            ))),
             config,
             lifecycle,
             approval,
@@ -112,25 +114,25 @@ impl AgentSupervisor {
                     };
 
                     match self.approval.check(&op).await {
-                        Ok(()) => {
-                            match self.lifecycle.shutdown(&agent_id).await {
-                                Ok(()) => {
-                                    *count += 1;
-                                    tracing::info!("Supervisor: restarted agent {agent_id} (attempt {count})");
-                                    events.push(SupervisorEvent::Restarted {
-                                        agent_id: agent_id.clone(),
-                                        attempt: *count,
-                                    });
-                                }
-                                Err(e) => {
-                                    tracing::error!("Supervisor: failed to restart {agent_id}: {e}");
-                                    events.push(SupervisorEvent::RestartFailed {
-                                        agent_id: agent_id.clone(),
-                                        error: e.to_string(),
-                                    });
-                                }
+                        Ok(()) => match self.lifecycle.shutdown(&agent_id).await {
+                            Ok(()) => {
+                                *count += 1;
+                                tracing::info!(
+                                    "Supervisor: restarted agent {agent_id} (attempt {count})"
+                                );
+                                events.push(SupervisorEvent::Restarted {
+                                    agent_id: agent_id.clone(),
+                                    attempt: *count,
+                                });
                             }
-                        }
+                            Err(e) => {
+                                tracing::error!("Supervisor: failed to restart {agent_id}: {e}");
+                                events.push(SupervisorEvent::RestartFailed {
+                                    agent_id: agent_id.clone(),
+                                    error: e.to_string(),
+                                });
+                            }
+                        },
                         Err(SafetyStop::OperationRejected(reason)) => {
                             tracing::warn!("Supervisor: restart of {agent_id} rejected: {reason}");
                             events.push(SupervisorEvent::Escalated {
@@ -147,7 +149,9 @@ impl AgentSupervisor {
                     if let Err(e) = self.lifecycle.shutdown(&agent_id).await {
                         tracing::error!("Supervisor: failed to shut down {agent_id}: {e}");
                     } else {
-                        events.push(SupervisorEvent::ShutDown { agent_id: agent_id.clone() });
+                        events.push(SupervisorEvent::ShutDown {
+                            agent_id: agent_id.clone(),
+                        });
                     }
                 }
                 SupervisorAction::Escalate => {

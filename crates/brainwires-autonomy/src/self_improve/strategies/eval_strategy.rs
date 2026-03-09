@@ -7,8 +7,8 @@ use std::sync::Arc;
 use brainwires_agents::eval::fault_report::analyze_suite_for_faults;
 use brainwires_agents::eval::{EvaluationCase, EvaluationSuite, RegressionSuite, SuiteConfig};
 
-use crate::config::StrategyConfig;
 use super::{ImprovementCategory, ImprovementStrategy, ImprovementTask};
+use crate::config::StrategyConfig;
 
 /// Configuration for the eval-driven strategy.
 #[derive(Debug, Clone)]

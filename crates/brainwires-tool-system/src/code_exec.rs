@@ -13,7 +13,7 @@
 use anyhow::Result;
 use brainwires_code_interpreters::{ExecutionLimits, ExecutionRequest, Executor, Language};
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::HashMap;
 
 use brainwires_core::{Tool, ToolContext, ToolInputSchema, ToolResult};
@@ -331,8 +331,7 @@ mod tests {
             "x": 10,
             "y": 20
         });
-        let result =
-            CodeExecTool::execute_native(Language::Rhai, "x + y", 10000, Some(&context));
+        let result = CodeExecTool::execute_native(Language::Rhai, "x + y", 10000, Some(&context));
         assert!(result.is_ok());
         let output = result.unwrap();
         assert!(output.contains("30"));

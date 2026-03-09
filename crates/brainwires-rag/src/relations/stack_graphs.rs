@@ -8,8 +8,8 @@
 use anyhow::Result;
 use std::collections::HashMap;
 
-use super::types::{Definition, PrecisionLevel, Reference};
 use super::RelationsProvider;
+use super::types::{Definition, PrecisionLevel, Reference};
 use crate::indexer::FileInfo;
 
 /// Stack-graphs based relations provider for high-precision name resolution.

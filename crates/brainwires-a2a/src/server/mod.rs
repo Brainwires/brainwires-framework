@@ -1,5 +1,7 @@
 //! A2A server — serves JSON-RPC, REST, and optionally gRPC.
 
+/// gRPC service implementation.
+pub mod grpc_service;
 /// Core handler trait.
 pub mod handler;
 /// JSON-RPC method dispatch.
@@ -8,8 +10,6 @@ pub mod jsonrpc_router;
 pub mod rest_router;
 /// SSE response construction.
 pub mod sse_response;
-/// gRPC service implementation.
-pub mod grpc_service;
 
 pub use handler::A2aHandler;
 
@@ -20,7 +20,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use crate::error::A2aError;
-use crate::jsonrpc::{JsonRpcRequest, RequestId, METHOD_MESSAGE_STREAM, METHOD_TASKS_RESUBSCRIBE};
+use crate::jsonrpc::{JsonRpcRequest, METHOD_MESSAGE_STREAM, METHOD_TASKS_RESUBSCRIBE, RequestId};
 use crate::params::{SendMessageRequest, SubscribeToTaskRequest};
 
 /// Maximum request body size (10 MB).
@@ -166,7 +166,10 @@ type BoxBody = http_body_util::Either<
     http_body_util::Full<bytes::Bytes>,
     http_body_util::StreamBody<
         std::pin::Pin<
-            Box<dyn futures::Stream<Item = Result<http_body::Frame<bytes::Bytes>, std::io::Error>> + Send>,
+            Box<
+                dyn futures::Stream<Item = Result<http_body::Frame<bytes::Bytes>, std::io::Error>>
+                    + Send,
+            >,
         >,
     >,
 >;
@@ -178,7 +181,10 @@ fn json_response(status: u16, body: String) -> hyper::Response<BoxBody> {
         .header("Content-Type", "application/json")
         .header("Access-Control-Allow-Origin", "*")
         .header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
-        .header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        .header(
+            "Access-Control-Allow-Headers",
+            "Content-Type, Authorization",
+        )
         .body(http_body_util::Either::Left(http_body_util::Full::new(
             bytes::Bytes::from(body),
         )))
@@ -190,7 +196,10 @@ fn json_response(status: u16, body: String) -> hyper::Response<BoxBody> {
 #[cfg(feature = "server")]
 fn sse_response(
     stream: std::pin::Pin<
-        Box<dyn futures::Stream<Item = Result<http_body::Frame<bytes::Bytes>, std::io::Error>> + Send>,
+        Box<
+            dyn futures::Stream<Item = Result<http_body::Frame<bytes::Bytes>, std::io::Error>>
+                + Send,
+        >,
     >,
 ) -> hyper::Response<BoxBody> {
     hyper::Response::builder()
@@ -200,7 +209,10 @@ fn sse_response(
         .header("Connection", "keep-alive")
         .header("Access-Control-Allow-Origin", "*")
         .header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
-        .header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        .header(
+            "Access-Control-Allow-Headers",
+            "Content-Type, Authorization",
+        )
         .body(http_body_util::Either::Right(
             http_body_util::StreamBody::new(stream),
         ))
@@ -338,7 +350,7 @@ async fn handle_jsonrpc<H: A2aHandler>(
         Ok(Some(resp)) => resp,
         Ok(None) => {
             // Should not happen — streaming methods handled above
-            
+
             crate::jsonrpc::JsonRpcResponse::error(
                 request.id,
                 A2aError::internal("Unexpected routing state"),

@@ -5,7 +5,7 @@
 //!   cargo run --example play_audio -- recording.flac
 //!   cargo run --example play_audio -- --file recording.flac
 
-use brainwires_audio::{AudioBuffer, CpalPlayback, AudioPlayback, decode_wav};
+use brainwires_audio::{AudioBuffer, AudioPlayback, CpalPlayback, decode_wav};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

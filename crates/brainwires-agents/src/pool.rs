@@ -31,7 +31,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 
@@ -41,7 +41,9 @@ use brainwires_tool_system::ToolExecutor;
 use crate::communication::CommunicationHub;
 use crate::context::AgentContext;
 use crate::file_locks::FileLockManager;
-use crate::task_agent::{spawn_task_agent, TaskAgent, TaskAgentConfig, TaskAgentResult, TaskAgentStatus};
+use crate::task_agent::{
+    TaskAgent, TaskAgentConfig, TaskAgentResult, TaskAgentStatus, spawn_task_agent,
+};
 
 // ── Internal handle ────────────────────────────────────────────────────────
 
@@ -102,11 +104,7 @@ impl AgentPool {
     /// to wait for the result.
     ///
     /// Returns an error if the pool is already at capacity.
-    pub async fn spawn_agent(
-        &self,
-        task: Task,
-        config: Option<TaskAgentConfig>,
-    ) -> Result<String> {
+    pub async fn spawn_agent(&self, task: Task, config: Option<TaskAgentConfig>) -> Result<String> {
         {
             let agents = self.agents.read().await;
             if agents.len() >= self.max_agents {
@@ -322,7 +320,10 @@ mod tests {
     use crate::communication::CommunicationHub;
     use crate::file_locks::FileLockManager;
     use async_trait::async_trait;
-    use brainwires_core::{ChatOptions, ChatResponse, Message, StreamChunk, Tool, ToolContext, ToolResult, ToolUse, Usage};
+    use brainwires_core::{
+        ChatOptions, ChatResponse, Message, StreamChunk, Tool, ToolContext, ToolResult, ToolUse,
+        Usage,
+    };
     use brainwires_tool_system::ToolExecutor;
     use futures::stream::BoxStream;
 
@@ -340,7 +341,9 @@ mod tests {
 
     #[async_trait]
     impl Provider for MockProvider {
-        fn name(&self) -> &str { "mock" }
+        fn name(&self) -> &str {
+            "mock"
+        }
 
         async fn chat(
             &self,
@@ -369,7 +372,9 @@ mod tests {
             Ok(ToolResult::success(tu.id.clone(), "ok".to_string()))
         }
 
-        fn available_tools(&self) -> Vec<Tool> { vec![] }
+        fn available_tools(&self) -> Vec<Tool> {
+            vec![]
+        }
     }
 
     fn make_pool(max: usize) -> AgentPool {
@@ -395,7 +400,10 @@ mod tests {
         let _ = pool
             .spawn_agent(
                 Task::new("t-1", "Test"),
-                Some(TaskAgentConfig { validation_config: None, ..Default::default() }),
+                Some(TaskAgentConfig {
+                    validation_config: None,
+                    ..Default::default()
+                }),
             )
             .await
             .unwrap();
@@ -405,10 +413,19 @@ mod tests {
     #[tokio::test]
     async fn test_max_agents_limit() {
         let pool = make_pool(2);
-        let cfg = || Some(TaskAgentConfig { validation_config: None, ..Default::default() });
+        let cfg = || {
+            Some(TaskAgentConfig {
+                validation_config: None,
+                ..Default::default()
+            })
+        };
 
-        pool.spawn_agent(Task::new("t-1", "T1"), cfg()).await.unwrap();
-        pool.spawn_agent(Task::new("t-2", "T2"), cfg()).await.unwrap();
+        pool.spawn_agent(Task::new("t-1", "T1"), cfg())
+            .await
+            .unwrap();
+        pool.spawn_agent(Task::new("t-2", "T2"), cfg())
+            .await
+            .unwrap();
 
         let err = pool.spawn_agent(Task::new("t-3", "T3"), cfg()).await;
         assert!(err.is_err());
@@ -421,7 +438,10 @@ mod tests {
         let id = pool
             .spawn_agent(
                 Task::new("t-1", "Finish me"),
-                Some(TaskAgentConfig { validation_config: None, ..Default::default() }),
+                Some(TaskAgentConfig {
+                    validation_config: None,
+                    ..Default::default()
+                }),
             )
             .await
             .unwrap();
@@ -434,10 +454,7 @@ mod tests {
     #[tokio::test]
     async fn test_stop_agent() {
         let pool = make_pool(5);
-        let id = pool
-            .spawn_agent(Task::new("t-1", "T"), None)
-            .await
-            .unwrap();
+        let id = pool.spawn_agent(Task::new("t-1", "T"), None).await.unwrap();
 
         pool.stop_agent(&id).await.unwrap();
         assert_eq!(pool.active_count().await, 0);
@@ -446,8 +463,12 @@ mod tests {
     #[tokio::test]
     async fn test_shutdown() {
         let pool = make_pool(5);
-        pool.spawn_agent(Task::new("t-1", "T1"), None).await.unwrap();
-        pool.spawn_agent(Task::new("t-2", "T2"), None).await.unwrap();
+        pool.spawn_agent(Task::new("t-1", "T1"), None)
+            .await
+            .unwrap();
+        pool.spawn_agent(Task::new("t-2", "T2"), None)
+            .await
+            .unwrap();
 
         pool.shutdown().await;
         assert_eq!(pool.active_count().await, 0);
@@ -464,8 +485,12 @@ mod tests {
     #[tokio::test]
     async fn test_list_active() {
         let pool = make_pool(5);
-        pool.spawn_agent(Task::new("t-1", "T1"), None).await.unwrap();
-        pool.spawn_agent(Task::new("t-2", "T2"), None).await.unwrap();
+        pool.spawn_agent(Task::new("t-1", "T1"), None)
+            .await
+            .unwrap();
+        pool.spawn_agent(Task::new("t-2", "T2"), None)
+            .await
+            .unwrap();
 
         let active = pool.list_active().await;
         assert_eq!(active.len(), 2);

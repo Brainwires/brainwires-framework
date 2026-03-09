@@ -222,35 +222,32 @@ impl AnthropicClient {
     // -----------------------------------------------------------------------
 
     /// Build, authenticate, and send a request. Returns the raw response.
-    async fn send_request(
-        &self,
-        url: &str,
-        body: &serde_json::Value,
-    ) -> Result<reqwest::Response> {
+    async fn send_request(&self, url: &str, body: &serde_json::Value) -> Result<reqwest::Response> {
         match &self.auth_strategy {
-            AuthStrategy::Anthropic { api_key } => {
-                self.http_client
-                    .post(url)
-                    .header("x-api-key", api_key)
-                    .header("anthropic-version", ANTHROPIC_VERSION)
-                    .header("content-type", "application/json")
-                    .json(body)
-                    .send()
-                    .await
-                    .context("Failed to send request to Anthropic")
-            }
+            AuthStrategy::Anthropic { api_key } => self
+                .http_client
+                .post(url)
+                .header("x-api-key", api_key)
+                .header("anthropic-version", ANTHROPIC_VERSION)
+                .header("content-type", "application/json")
+                .json(body)
+                .send()
+                .await
+                .context("Failed to send request to Anthropic"),
             #[cfg(feature = "bedrock")]
             AuthStrategy::Bedrock { auth } => {
-                let body_bytes = serde_json::to_vec(body)
-                    .context("Failed to serialize request body")?;
-                let mut request = self.http_client
+                let body_bytes =
+                    serde_json::to_vec(body).context("Failed to serialize request body")?;
+                let mut request = self
+                    .http_client
                     .post(url)
                     .header("content-type", "application/json")
                     .body(body_bytes)
                     .build()
                     .context("Failed to build Bedrock request")?;
 
-                auth.sign_request(&mut request).await
+                auth.sign_request(&mut request)
+                    .await
                     .context("Failed to sign Bedrock request with SigV4")?;
 
                 self.http_client
@@ -260,7 +257,9 @@ impl AnthropicClient {
             }
             #[cfg(feature = "vertex-ai")]
             AuthStrategy::VertexAI { auth } => {
-                let token = auth.get_token().await
+                let token = auth
+                    .get_token()
+                    .await
                     .context("Failed to get Vertex AI OAuth2 token")?;
 
                 self.http_client
@@ -305,13 +304,16 @@ impl AnthropicClient {
                 .text()
                 .await
                 .unwrap_or_else(|_| "Unknown error".to_string());
-            anyhow::bail!("{} API error ({}): {}", self.backend_label(), status, error_text);
+            anyhow::bail!(
+                "{} API error ({}): {}",
+                self.backend_label(),
+                status,
+                error_text
+            );
         }
 
-        let anthropic_response: AnthropicResponse = response
-            .json()
-            .await
-            .context("Failed to parse response")?;
+        let anthropic_response: AnthropicResponse =
+            response.json().await.context("Failed to parse response")?;
 
         Ok(anthropic_response)
     }
@@ -734,12 +736,19 @@ mod tests {
             "secret".to_string(),
             None,
         );
-        let client = AnthropicClient::bedrock(auth, "anthropic.claude-3-5-sonnet-20241022-v2:0".to_string());
+        let client = AnthropicClient::bedrock(
+            auth,
+            "anthropic.claude-3-5-sonnet-20241022-v2:0".to_string(),
+        );
         assert_eq!(client.api_key(), None);
         assert_eq!(client.backend_label(), "Bedrock");
         assert!(client.resolve_url(false).contains("us-west-2"));
         assert!(client.resolve_url(false).contains("/invoke"));
-        assert!(client.resolve_url(true).contains("invoke-with-response-stream"));
+        assert!(
+            client
+                .resolve_url(true)
+                .contains("invoke-with-response-stream")
+        );
     }
 
     #[cfg(feature = "bedrock")]
@@ -758,10 +767,7 @@ mod tests {
     #[cfg(feature = "vertex-ai")]
     #[test]
     fn test_vertex_client() {
-        let auth = vertex::VertexAuth::new(
-            "my-project".to_string(),
-            "us-central1".to_string(),
-        );
+        let auth = vertex::VertexAuth::new("my-project".to_string(), "us-central1".to_string());
         let client = AnthropicClient::vertex(auth, "claude-3-5-sonnet-v2@20241022".to_string());
         assert_eq!(client.api_key(), None);
         assert_eq!(client.backend_label(), "Vertex AI");
@@ -793,7 +799,10 @@ mod tests {
         assert_eq!(json["model"], "claude-3-sonnet");
         assert_eq!(json["max_tokens"], 4096);
         let temp = json["temperature"].as_f64().unwrap();
-        assert!((temp - 0.7).abs() < 1e-6, "temperature {temp} not close to 0.7");
+        assert!(
+            (temp - 0.7).abs() < 1e-6,
+            "temperature {temp} not close to 0.7"
+        );
         assert!(json.get("top_p").is_none());
         assert!(json.get("stop_sequences").is_none());
         assert!(json.get("tools").is_none());

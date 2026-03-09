@@ -34,7 +34,6 @@ pub enum TaskPriority {
     Urgent = 3,
 }
 
-
 /// A task being executed by an agent (supports tree structure)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Task {
@@ -150,7 +149,8 @@ impl Task {
 
     /// Get elapsed time since task started (in seconds)
     pub fn elapsed_secs(&self) -> Option<i64> {
-        self.started_at.map(|start| chrono::Utc::now().timestamp() - start)
+        self.started_at
+            .map(|start| chrono::Utc::now().timestamp() - start)
     }
 
     /// Mark task as failed

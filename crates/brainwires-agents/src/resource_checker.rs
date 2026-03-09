@@ -196,10 +196,7 @@ pub struct ResourceChecker {
 
 impl ResourceChecker {
     /// Create a new resource checker
-    pub fn new(
-        file_locks: Arc<FileLockManager>,
-        resource_locks: Arc<ResourceLockManager>,
-    ) -> Self {
+    pub fn new(file_locks: Arc<FileLockManager>, resource_locks: Arc<ResourceLockManager>) -> Self {
         Self {
             file_locks,
             resource_locks,
@@ -251,7 +248,9 @@ impl ResourceChecker {
             // Check if this file is within the scope and is a source file
             if self.is_in_scope(&path, scope) && self.is_source_file(&path) {
                 conflicts.push(Conflict {
-                    conflict_type: ResourceConflictType::FileWriteBlocksBuild { path: path.clone() },
+                    conflict_type: ResourceConflictType::FileWriteBlocksBuild {
+                        path: path.clone(),
+                    },
                     holder_agent: lock_info.agent_id.clone(),
                     resource: path.display().to_string(),
                     started_at: lock_info.acquired_at,
@@ -377,7 +376,9 @@ impl ResourceChecker {
                 }
                 if self.is_in_scope(&path, scope) && self.is_source_file(&path) {
                     conflicts.push(Conflict {
-                        conflict_type: ResourceConflictType::FileWriteBlocksGit { path: path.clone() },
+                        conflict_type: ResourceConflictType::FileWriteBlocksGit {
+                            path: path.clone(),
+                        },
                         holder_agent: lock_info.agent_id.clone(),
                         resource: path.display().to_string(),
                         started_at: lock_info.acquired_at,
@@ -480,9 +481,7 @@ impl ResourceChecker {
     fn is_in_scope(&self, path: &Path, scope: &ResourceScope) -> bool {
         match scope {
             ResourceScope::Global => true,
-            ResourceScope::Project(project_path) => {
-                path.starts_with(project_path)
-            }
+            ResourceScope::Project(project_path) => path.starts_with(project_path),
         }
     }
 

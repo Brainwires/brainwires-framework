@@ -322,7 +322,7 @@ impl ImageStorage {
     /// Create base64 storage from bytes
     #[cfg(feature = "native")]
     pub fn from_bytes(bytes: &[u8]) -> Self {
-        use base64::{engine::general_purpose::STANDARD, Engine};
+        use base64::{Engine, engine::general_purpose::STANDARD};
         Self::Base64(STANDARD.encode(bytes))
     }
 

@@ -1,6 +1,6 @@
 use crate::types::{PreferencePair, TrainingExample};
 
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 
 /// Default similarity threshold for near-duplicate detection.
 const DEFAULT_DEDUP_SIMILARITY_THRESHOLD: f64 = 0.85;
@@ -82,7 +82,10 @@ impl Deduplicator {
     }
 
     /// Remove near-duplicate preference pairs.
-    pub fn deduplicate_preferences(&self, pairs: &[PreferencePair]) -> (Vec<PreferencePair>, usize) {
+    pub fn deduplicate_preferences(
+        &self,
+        pairs: &[PreferencePair],
+    ) -> (Vec<PreferencePair>, usize) {
         if pairs.len() <= 1 {
             return (pairs.to_vec(), 0);
         }
@@ -126,9 +129,24 @@ impl Deduplicator {
 
     /// Extract text from a preference pair for hashing.
     fn preference_text(&self, pair: &PreferencePair) -> String {
-        let prompt: String = pair.prompt.iter().map(|m| m.content.as_str()).collect::<Vec<_>>().join(" ");
-        let chosen: String = pair.chosen.iter().map(|m| m.content.as_str()).collect::<Vec<_>>().join(" ");
-        let rejected: String = pair.rejected.iter().map(|m| m.content.as_str()).collect::<Vec<_>>().join(" ");
+        let prompt: String = pair
+            .prompt
+            .iter()
+            .map(|m| m.content.as_str())
+            .collect::<Vec<_>>()
+            .join(" ");
+        let chosen: String = pair
+            .chosen
+            .iter()
+            .map(|m| m.content.as_str())
+            .collect::<Vec<_>>()
+            .join(" ");
+        let rejected: String = pair
+            .rejected
+            .iter()
+            .map(|m| m.content.as_str())
+            .collect::<Vec<_>>()
+            .join(" ");
         format!("{} {} {}", prompt, chosen, rejected)
     }
 
@@ -151,7 +169,9 @@ impl Deduplicator {
             let base_hash = self.hash_shingle(shingle);
             for (i, sig) in signature.iter_mut().enumerate() {
                 // Different hash function per slot: hash XOR with slot-dependent constant
-                let h = base_hash.wrapping_mul((i as u64).wrapping_add(1)).wrapping_add((i as u64).wrapping_mul(0x9E3779B97F4A7C15));
+                let h = base_hash
+                    .wrapping_mul((i as u64).wrapping_add(1))
+                    .wrapping_add((i as u64).wrapping_mul(0x9E3779B97F4A7C15));
                 if h < *sig {
                     *sig = h;
                 }
@@ -178,7 +198,11 @@ impl Deduplicator {
         let mut hasher = Sha256::new();
         hasher.update(shingle.as_bytes());
         let result = hasher.finalize();
-        u64::from_le_bytes(result[..8].try_into().expect("SHA256 always produces >= 8 bytes"))
+        u64::from_le_bytes(
+            result[..8]
+                .try_into()
+                .expect("SHA256 always produces >= 8 bytes"),
+        )
     }
 
     /// Estimate Jaccard similarity from two MinHash signatures.
@@ -256,18 +280,27 @@ mod tests {
     #[test]
     fn test_exact_dedup() {
         let examples = vec![
-            TrainingExample::with_id("1", vec![
-                TrainingMessage::user("Hello"),
-                TrainingMessage::assistant("Hi"),
-            ]),
-            TrainingExample::with_id("2", vec![
-                TrainingMessage::user("Hello"),
-                TrainingMessage::assistant("Hi"),
-            ]),
-            TrainingExample::with_id("3", vec![
-                TrainingMessage::user("Different"),
-                TrainingMessage::assistant("Response"),
-            ]),
+            TrainingExample::with_id(
+                "1",
+                vec![
+                    TrainingMessage::user("Hello"),
+                    TrainingMessage::assistant("Hi"),
+                ],
+            ),
+            TrainingExample::with_id(
+                "2",
+                vec![
+                    TrainingMessage::user("Hello"),
+                    TrainingMessage::assistant("Hi"),
+                ],
+            ),
+            TrainingExample::with_id(
+                "3",
+                vec![
+                    TrainingMessage::user("Different"),
+                    TrainingMessage::assistant("Response"),
+                ],
+            ),
         ];
 
         let (deduped, removed) = exact_dedup(&examples);
@@ -279,18 +312,29 @@ mod tests {
     fn test_minhash_dedup() {
         let dedup = Deduplicator::new(128, 0.8);
         let examples = vec![
-            TrainingExample::with_id("1", vec![
-                TrainingMessage::user("The quick brown fox jumps over the lazy dog"),
-                TrainingMessage::assistant("That is a well-known sentence."),
-            ]),
-            TrainingExample::with_id("2", vec![
-                TrainingMessage::user("The quick brown fox jumps over the lazy dog"),
-                TrainingMessage::assistant("That is a well-known sentence indeed."),
-            ]),
-            TrainingExample::with_id("3", vec![
-                TrainingMessage::user("Explain quantum entanglement in simple terms"),
-                TrainingMessage::assistant("Quantum entanglement is when particles become linked."),
-            ]),
+            TrainingExample::with_id(
+                "1",
+                vec![
+                    TrainingMessage::user("The quick brown fox jumps over the lazy dog"),
+                    TrainingMessage::assistant("That is a well-known sentence."),
+                ],
+            ),
+            TrainingExample::with_id(
+                "2",
+                vec![
+                    TrainingMessage::user("The quick brown fox jumps over the lazy dog"),
+                    TrainingMessage::assistant("That is a well-known sentence indeed."),
+                ],
+            ),
+            TrainingExample::with_id(
+                "3",
+                vec![
+                    TrainingMessage::user("Explain quantum entanglement in simple terms"),
+                    TrainingMessage::assistant(
+                        "Quantum entanglement is when particles become linked.",
+                    ),
+                ],
+            ),
         ];
 
         let (deduped, removed) = dedup.deduplicate(&examples);

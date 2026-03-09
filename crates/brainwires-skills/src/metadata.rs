@@ -171,7 +171,10 @@ impl SkillMetadata {
 
     /// Check if skill has tool restrictions
     pub fn has_tool_restrictions(&self) -> bool {
-        self.allowed_tools.as_ref().map(|t| !t.is_empty()).unwrap_or(false)
+        self.allowed_tools
+            .as_ref()
+            .map(|t| !t.is_empty())
+            .unwrap_or(false)
     }
 
     /// Check if a tool is allowed for this skill
@@ -361,11 +364,26 @@ mod tests {
 
     #[test]
     fn test_execution_mode_from_str() {
-        assert_eq!(SkillExecutionMode::parse("inline"), SkillExecutionMode::Inline);
-        assert_eq!(SkillExecutionMode::parse("subagent"), SkillExecutionMode::Subagent);
-        assert_eq!(SkillExecutionMode::parse("script"), SkillExecutionMode::Script);
-        assert_eq!(SkillExecutionMode::parse("SUBAGENT"), SkillExecutionMode::Subagent);
-        assert_eq!(SkillExecutionMode::parse("unknown"), SkillExecutionMode::Inline);
+        assert_eq!(
+            SkillExecutionMode::parse("inline"),
+            SkillExecutionMode::Inline
+        );
+        assert_eq!(
+            SkillExecutionMode::parse("subagent"),
+            SkillExecutionMode::Subagent
+        );
+        assert_eq!(
+            SkillExecutionMode::parse("script"),
+            SkillExecutionMode::Script
+        );
+        assert_eq!(
+            SkillExecutionMode::parse("SUBAGENT"),
+            SkillExecutionMode::Subagent
+        );
+        assert_eq!(
+            SkillExecutionMode::parse("unknown"),
+            SkillExecutionMode::Inline
+        );
     }
 
     #[test]
@@ -424,11 +442,12 @@ mod tests {
 
     #[test]
     fn test_skill_creation() {
-        let metadata = SkillMetadata::new(
-            "review-pr".to_string(),
-            "Reviews pull requests".to_string(),
+        let metadata =
+            SkillMetadata::new("review-pr".to_string(), "Reviews pull requests".to_string());
+        let skill = Skill::new(
+            metadata,
+            "# Review Instructions\n\nDo the review.".to_string(),
         );
-        let skill = Skill::new(metadata, "# Review Instructions\n\nDo the review.".to_string());
 
         assert_eq!(skill.name(), "review-pr");
         assert_eq!(skill.description(), "Reviews pull requests");

@@ -12,8 +12,8 @@ use futures::TryStreamExt;
 use lancedb::query::{ExecutableQuery, QueryBase};
 use std::sync::Arc;
 
-use super::{EmbeddingProvider, LanceClient};
 use super::tiered_memory::{FactType, KeyFact};
+use super::{EmbeddingProvider, LanceClient};
 
 /// Store for cold tier key facts with semantic search
 pub struct FactStore {
@@ -157,7 +157,9 @@ impl FactStore {
 
         let table = self.client.facts_table().await?;
 
-        let mut search = table.vector_search(query_embedding).context("Vector search failed")?;
+        let mut search = table
+            .vector_search(query_embedding)
+            .context("Vector search failed")?;
 
         if let Some(filter) = filter {
             search = search.only_if(filter);
@@ -173,7 +175,10 @@ impl FactStore {
     pub async fn delete(&self, fact_id: &str) -> Result<()> {
         let table = self.client.facts_table().await?;
         let filter = format!("fact_id = '{}'", fact_id);
-        table.delete(&filter).await.context("Failed to delete fact")?;
+        table
+            .delete(&filter)
+            .await
+            .context("Failed to delete fact")?;
         Ok(())
     }
 
@@ -222,18 +227,16 @@ impl FactStore {
         let flat_embeddings: Vec<f32> = embeddings.iter().flat_map(|e| e.clone()).collect();
         let vector_data = Float32Array::from(flat_embeddings);
         let vector_field = Arc::new(Field::new("item", DataType::Float32, true));
-        let vector_array = FixedSizeListArray::new(
-            vector_field,
-            dim as i32,
-            Arc::new(vector_data),
-            None,
-        );
+        let vector_array =
+            FixedSizeListArray::new(vector_field, dim as i32, Arc::new(vector_data), None);
 
         // Create string arrays
         let fact_ids: Vec<&str> = facts.iter().map(|f| f.fact_id.as_str()).collect();
         let original_message_ids: Vec<String> = facts
             .iter()
-            .map(|f| serde_json::to_string(&f.original_message_ids).unwrap_or_else(|_| "[]".to_string()))
+            .map(|f| {
+                serde_json::to_string(&f.original_message_ids).unwrap_or_else(|_| "[]".to_string())
+            })
             .collect();
         let original_message_ids_refs: Vec<&str> =
             original_message_ids.iter().map(|s| s.as_str()).collect();
@@ -378,8 +381,14 @@ mod tests {
 
     #[test]
     fn test_fact_type_conversion() {
-        assert_eq!(FactStore::fact_type_to_string(FactType::Decision), "decision");
-        assert_eq!(FactStore::string_to_fact_type("decision"), FactType::Decision);
+        assert_eq!(
+            FactStore::fact_type_to_string(FactType::Decision),
+            "decision"
+        );
+        assert_eq!(
+            FactStore::string_to_fact_type("decision"),
+            FactType::Decision
+        );
         assert_eq!(FactStore::string_to_fact_type("unknown"), FactType::Other);
     }
 }

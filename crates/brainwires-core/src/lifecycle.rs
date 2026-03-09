@@ -203,9 +203,10 @@ impl EventFilter {
         }
         if !self.tool_names.is_empty()
             && let Some(name) = event.tool_name()
-                && !self.tool_names.contains(name) {
-                    return false;
-                }
+            && !self.tool_names.contains(name)
+        {
+            return false;
+        }
         true
     }
 }
@@ -259,10 +260,7 @@ impl HookRegistry {
     /// `Modified` results from earlier hooks are passed through.
     pub async fn dispatch(&self, event: &LifecycleEvent) -> HookResult {
         for hook in &self.hooks {
-            let matches = hook
-                .filter()
-                .map(|f| f.matches(event))
-                .unwrap_or(true);
+            let matches = hook.filter().map(|f| f.matches(event)).unwrap_or(true);
 
             if !matches {
                 continue;

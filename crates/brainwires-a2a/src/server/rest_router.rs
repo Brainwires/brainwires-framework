@@ -16,10 +16,7 @@ pub enum RestResult {
     /// Streaming SSE response — returns a stream of events.
     Stream(
         std::pin::Pin<
-            Box<
-                dyn futures::Stream<Item = Result<crate::streaming::StreamEvent, A2aError>>
-                    + Send,
-            >,
+            Box<dyn futures::Stream<Item = Result<crate::streaming::StreamEvent, A2aError>> + Send>,
         >,
     ),
 }
@@ -114,7 +111,8 @@ pub async fn dispatch_rest<H: A2aHandler>(
             }
             if remaining.contains("/pushNotificationConfigs") {
                 // GET /tasks/{task_id}/pushNotificationConfigs
-                let task_id = remaining.strip_suffix("/pushNotificationConfigs")
+                let task_id = remaining
+                    .strip_suffix("/pushNotificationConfigs")
                     .ok_or_else(|| A2aError::method_not_found(p))?;
                 let req = ListTaskPushNotificationConfigsRequest {
                     tenant: None,
@@ -155,9 +153,7 @@ pub async fn dispatch_rest<H: A2aHandler>(
 /// Strip an optional `/{tenant}` prefix from a path. Returns (tenant, remaining_path).
 fn strip_tenant(path: &str) -> (Option<String>, &str) {
     // Known non-tenant prefixes
-    let known = [
-        "/message:", "/tasks", "/extendedAgentCard", "/.well-known",
-    ];
+    let known = ["/message:", "/tasks", "/extendedAgentCard", "/.well-known"];
     for prefix in &known {
         if path.starts_with(prefix) {
             return (None, path);
@@ -166,11 +162,12 @@ fn strip_tenant(path: &str) -> (Option<String>, &str) {
 
     // Try stripping /{tenant}/...
     if let Some(rest) = path.strip_prefix('/')
-        && let Some(slash_pos) = rest.find('/') {
-            let tenant = &rest[..slash_pos];
-            let remaining = &rest[slash_pos..];
-            return (Some(tenant.to_string()), remaining);
-        }
+        && let Some(slash_pos) = rest.find('/')
+    {
+        let tenant = &rest[..slash_pos];
+        let remaining = &rest[slash_pos..];
+        return (Some(tenant.to_string()), remaining);
+    }
 
     (None, path)
 }

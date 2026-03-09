@@ -12,8 +12,8 @@ use futures::TryStreamExt;
 use lancedb::query::{ExecutableQuery, QueryBase};
 use std::sync::Arc;
 
-use super::{EmbeddingProvider, LanceClient};
 use super::tiered_memory::MessageSummary;
+use super::{EmbeddingProvider, LanceClient};
 
 /// Store for warm tier message summaries with semantic search
 pub struct SummaryStore {
@@ -158,7 +158,9 @@ impl SummaryStore {
 
         let table = self.client.summaries_table().await?;
 
-        let mut search = table.vector_search(query_embedding).context("Vector search failed")?;
+        let mut search = table
+            .vector_search(query_embedding)
+            .context("Vector search failed")?;
 
         if let Some(filter) = filter {
             search = search.only_if(filter);
@@ -174,7 +176,10 @@ impl SummaryStore {
     pub async fn delete(&self, summary_id: &str) -> Result<()> {
         let table = self.client.summaries_table().await?;
         let filter = format!("summary_id = '{}'", summary_id);
-        table.delete(&filter).await.context("Failed to delete summary")?;
+        table
+            .delete(&filter)
+            .await
+            .context("Failed to delete summary")?;
         Ok(())
     }
 
@@ -190,11 +195,7 @@ impl SummaryStore {
         let table = self.client.summaries_table().await?;
 
         // Query ordered by created_at ascending
-        let stream = table
-            .query()
-            .limit(limit)
-            .execute()
-            .await?;
+        let stream = table.query().limit(limit).execute().await?;
 
         let results: Vec<RecordBatch> = stream.try_collect().await?;
         let mut summaries = self.batch_to_summaries(&results)?;
@@ -223,12 +224,8 @@ impl SummaryStore {
         let flat_embeddings: Vec<f32> = embeddings.iter().flat_map(|e| e.clone()).collect();
         let vector_data = Float32Array::from(flat_embeddings);
         let vector_field = Arc::new(Field::new("item", DataType::Float32, true));
-        let vector_array = FixedSizeListArray::new(
-            vector_field,
-            dim as i32,
-            Arc::new(vector_data),
-            None,
-        );
+        let vector_array =
+            FixedSizeListArray::new(vector_field, dim as i32, Arc::new(vector_data), None);
 
         // Create string arrays
         let summary_ids: Vec<&str> = summaries.iter().map(|s| s.summary_id.as_str()).collect();

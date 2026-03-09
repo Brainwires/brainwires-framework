@@ -54,11 +54,11 @@ impl McpConfigManager {
 
         // Load config file if it exists
         let servers = if config_path.exists() {
-            let contents = fs::read_to_string(&config_path)
-                .context("Failed to read MCP config file")?;
+            let contents =
+                fs::read_to_string(&config_path).context("Failed to read MCP config file")?;
 
-            let config: McpConfigFile = serde_json::from_str(&contents)
-                .context("Failed to parse MCP config file")?;
+            let config: McpConfigFile =
+                serde_json::from_str(&contents).context("Failed to parse MCP config file")?;
 
             config.servers
         } else {
@@ -81,11 +81,10 @@ impl McpConfigManager {
             servers: self.servers.clone(),
         };
 
-        let json = serde_json::to_string_pretty(&config)
-            .context("Failed to serialize MCP config")?;
+        let json =
+            serde_json::to_string_pretty(&config).context("Failed to serialize MCP config")?;
 
-        fs::write(&self.config_path, json)
-            .context("Failed to write MCP config file")?;
+        fs::write(&self.config_path, json).context("Failed to write MCP config file")?;
 
         Ok(())
     }
@@ -180,7 +179,10 @@ mod tests {
         };
 
         assert!(config.env.is_some());
-        assert_eq!(config.env.as_ref().unwrap().get("API_KEY").unwrap(), "test-key");
+        assert_eq!(
+            config.env.as_ref().unwrap().get("API_KEY").unwrap(),
+            "test-key"
+        );
     }
 
     #[cfg(feature = "native")]

@@ -67,9 +67,7 @@ impl SpeechToText for AzureStt {
         Ok(Transcript {
             text: resp.display_text.unwrap_or_default(),
             language: options.language.clone(),
-            duration_secs: resp
-                .duration
-                .map(|d| d as f64 / 10_000_000.0), // Azure durations are in 100ns ticks
+            duration_secs: resp.duration.map(|d| d as f64 / 10_000_000.0), // Azure durations are in 100ns ticks
             segments: Vec::new(),
         })
     }

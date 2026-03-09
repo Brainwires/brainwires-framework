@@ -13,11 +13,11 @@ use lancedb::query::{ExecutableQuery, QueryBase};
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 
+use super::LanceClient;
 use super::embeddings::EmbeddingProvider;
 use super::image_types::{
     ImageFormat, ImageMetadata, ImageSearchRequest, ImageSearchResult, ImageStorage,
 };
-use super::LanceClient;
 
 /// Store for analyzed images with semantic search
 pub struct ImageStore {
@@ -78,15 +78,13 @@ impl ImageStore {
             vec![
                 Arc::new(embedding_list) as ArrayRef,
                 Arc::new(StringArray::from(vec![metadata.image_id.as_str()])) as ArrayRef,
-                Arc::new(StringArray::from(vec![metadata
-                    .message_id
-                    .as_deref()
-                    .unwrap_or("")])) as ArrayRef,
+                Arc::new(StringArray::from(vec![
+                    metadata.message_id.as_deref().unwrap_or(""),
+                ])) as ArrayRef,
                 Arc::new(StringArray::from(vec![metadata.conversation_id.as_str()])) as ArrayRef,
-                Arc::new(StringArray::from(vec![metadata
-                    .file_name
-                    .as_deref()
-                    .unwrap_or("")])) as ArrayRef,
+                Arc::new(StringArray::from(vec![
+                    metadata.file_name.as_deref().unwrap_or(""),
+                ])) as ArrayRef,
                 Arc::new(StringArray::from(vec![metadata.format.as_str()])) as ArrayRef,
                 Arc::new(StringArray::from(vec![metadata.mime_type.as_str()])) as ArrayRef,
                 Arc::new(UInt32Array::from(vec![metadata.width.unwrap_or(0)])) as ArrayRef,
@@ -94,10 +92,9 @@ impl ImageStore {
                 Arc::new(UInt64Array::from(vec![metadata.file_size_bytes])) as ArrayRef,
                 Arc::new(StringArray::from(vec![metadata.file_hash.as_str()])) as ArrayRef,
                 Arc::new(StringArray::from(vec![metadata.analysis.as_str()])) as ArrayRef,
-                Arc::new(StringArray::from(vec![metadata
-                    .extracted_text
-                    .as_deref()
-                    .unwrap_or("")])) as ArrayRef,
+                Arc::new(StringArray::from(vec![
+                    metadata.extracted_text.as_deref().unwrap_or(""),
+                ])) as ArrayRef,
                 Arc::new(StringArray::from(vec![tags_json.as_str()])) as ArrayRef,
                 Arc::new(StringArray::from(vec![storage.storage_type()])) as ArrayRef,
                 Arc::new(StringArray::from(vec![storage.value()])) as ArrayRef,
@@ -166,9 +163,10 @@ impl ImageStore {
             .context("Failed to query images by hash")?;
 
         if let Some(batch) = results.try_next().await?
-            && batch.num_rows() > 0 {
-                return Ok(Some(self.batch_to_metadata(&batch, 0)?));
-            }
+            && batch.num_rows() > 0
+        {
+            return Ok(Some(self.batch_to_metadata(&batch, 0)?));
+        }
 
         Ok(None)
     }
@@ -188,9 +186,10 @@ impl ImageStore {
             .context("Failed to query image by ID")?;
 
         if let Some(batch) = results.try_next().await?
-            && batch.num_rows() > 0 {
-                return Ok(Some(self.batch_to_metadata(&batch, 0)?));
-            }
+            && batch.num_rows() > 0
+        {
+            return Ok(Some(self.batch_to_metadata(&batch, 0)?));
+        }
 
         Ok(None)
     }
@@ -261,16 +260,17 @@ impl ImageStore {
         }
 
         // Sort by score descending
-        search_results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        search_results.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         Ok(search_results)
     }
 
     /// List images by conversation
-    pub async fn list_by_conversation(
-        &self,
-        conversation_id: &str,
-    ) -> Result<Vec<ImageMetadata>> {
+    pub async fn list_by_conversation(&self, conversation_id: &str) -> Result<Vec<ImageMetadata>> {
         let table = self.client.images_table().await?;
 
         let filter = format!(
@@ -372,28 +372,29 @@ impl ImageStore {
             .context("Failed to query image data")?;
 
         if let Some(batch) = results.try_next().await?
-            && batch.num_rows() > 0 {
-                let storage_type = batch
-                    .column_by_name("storage_type")
-                    .and_then(|c| c.as_any().downcast_ref::<StringArray>())
-                    .map(|a| a.value(0).to_string())
-                    .unwrap_or_default();
+            && batch.num_rows() > 0
+        {
+            let storage_type = batch
+                .column_by_name("storage_type")
+                .and_then(|c| c.as_any().downcast_ref::<StringArray>())
+                .map(|a| a.value(0).to_string())
+                .unwrap_or_default();
 
-                let storage_value = batch
-                    .column_by_name("storage_value")
-                    .and_then(|c| c.as_any().downcast_ref::<StringArray>())
-                    .map(|a| a.value(0).to_string())
-                    .unwrap_or_default();
+            let storage_value = batch
+                .column_by_name("storage_value")
+                .and_then(|c| c.as_any().downcast_ref::<StringArray>())
+                .map(|a| a.value(0).to_string())
+                .unwrap_or_default();
 
-                let storage = match storage_type.as_str() {
-                    "base64" => ImageStorage::Base64(storage_value),
-                    "file" => ImageStorage::FilePath(storage_value),
-                    "url" => ImageStorage::Url(storage_value),
-                    _ => ImageStorage::Base64(storage_value),
-                };
+            let storage = match storage_type.as_str() {
+                "base64" => ImageStorage::Base64(storage_value),
+                "file" => ImageStorage::FilePath(storage_value),
+                "url" => ImageStorage::Url(storage_value),
+                _ => ImageStorage::Base64(storage_value),
+            };
 
-                return Ok(Some(storage));
-            }
+            return Ok(Some(storage));
+        }
 
         Ok(None)
     }
@@ -492,11 +493,7 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let db_path = temp.path().join("test_images.lance");
 
-        let client = Arc::new(
-            LanceClient::new(db_path.to_str().unwrap())
-                .await
-                .unwrap(),
-        );
+        let client = Arc::new(LanceClient::new(db_path.to_str().unwrap()).await.unwrap());
 
         let embeddings = Arc::new(EmbeddingProvider::new().unwrap());
 

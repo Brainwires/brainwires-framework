@@ -67,5 +67,4 @@ pub use agent_tools::AgentToolRegistry;
 pub mod client;
 
 #[cfg(feature = "client")]
-pub use client::{RelayClient, RelayClientError, AgentConfig};
-
+pub use client::{AgentConfig, RelayClient, RelayClientError};

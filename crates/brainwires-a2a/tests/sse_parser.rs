@@ -22,10 +22,8 @@ fn make_status_event(task_id: &str, state: TaskState) -> StreamEvent {
 }
 
 fn wrap_jsonrpc(id: i64, event: &StreamEvent) -> String {
-    let resp = JsonRpcResponse::success(
-        RequestId::Number(id),
-        serde_json::to_value(event).unwrap(),
-    );
+    let resp =
+        JsonRpcResponse::success(RequestId::Number(id), serde_json::to_value(event).unwrap());
     serde_json::to_string(&resp).unwrap()
 }
 
@@ -76,7 +74,10 @@ async fn test_parse_sse_stream_with_error_response() {
     let mut stream = std::pin::pin!(brainwires_a2a::client::sse::parse_sse_stream(body));
     let item = stream.next().await.unwrap();
     assert!(item.is_err());
-    assert_eq!(item.unwrap_err().code, brainwires_a2a::error::TASK_NOT_FOUND);
+    assert_eq!(
+        item.unwrap_err().code,
+        brainwires_a2a::error::TASK_NOT_FOUND
+    );
 }
 
 #[tokio::test]
@@ -219,8 +220,7 @@ async fn test_incremental_rest_sse_single_event() {
     let json = serde_json::to_string(&event).unwrap();
     let data = format!("data: {json}\n\n");
 
-    let stream =
-        brainwires_a2a::client::sse::parse_sse_rest_byte_stream(bytes_stream(vec![&data]));
+    let stream = brainwires_a2a::client::sse::parse_sse_rest_byte_stream(bytes_stream(vec![&data]));
     let items: Vec<_> = std::pin::pin!(stream).collect().await;
     assert_eq!(items.len(), 1);
     match items[0].as_ref().unwrap() {
@@ -252,8 +252,7 @@ async fn test_incremental_rest_sse_split_chunks() {
 async fn test_incremental_rest_sse_invalid_json() {
     let data = "data: {broken}\n\n".to_string();
 
-    let stream =
-        brainwires_a2a::client::sse::parse_sse_rest_byte_stream(bytes_stream(vec![&data]));
+    let stream = brainwires_a2a::client::sse::parse_sse_rest_byte_stream(bytes_stream(vec![&data]));
     let items: Vec<_> = std::pin::pin!(stream).collect().await;
     assert_eq!(items.len(), 1);
     assert!(items[0].is_err());

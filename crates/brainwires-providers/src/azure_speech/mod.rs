@@ -79,7 +79,9 @@ impl AzureSpeechClient {
             anyhow::bail!("Azure TTS API error ({}): {}", status, body);
         }
 
-        let bytes = response.bytes().await
+        let bytes = response
+            .bytes()
+            .await
             .context("Failed to read Azure TTS response")?;
         Ok(bytes.to_vec())
     }
@@ -113,7 +115,9 @@ impl AzureSpeechClient {
         let lang = req.language.as_deref().unwrap_or("en-US");
         url = format!("{}?language={}", url, lang);
 
-        let content_type = req.content_type.as_deref()
+        let content_type = req
+            .content_type
+            .as_deref()
             .unwrap_or("audio/wav; codecs=audio/pcm; samplerate=16000");
 
         let response = self
@@ -132,7 +136,9 @@ impl AzureSpeechClient {
             anyhow::bail!("Azure STT API error ({}): {}", status, body);
         }
 
-        response.json().await
+        response
+            .json()
+            .await
             .context("Failed to parse Azure STT response")
     }
 
@@ -154,7 +160,9 @@ impl AzureSpeechClient {
             anyhow::bail!("Azure voices API error ({}): {}", status, body);
         }
 
-        response.json().await
+        response
+            .json()
+            .await
             .context("Failed to parse Azure voices response")
     }
 }

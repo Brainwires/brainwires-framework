@@ -136,7 +136,9 @@ impl TrainingExample {
 
     /// Check if the last message is from the assistant (completion target).
     pub fn ends_with_assistant(&self) -> bool {
-        self.messages.last().is_some_and(|m| m.role == TrainingRole::Assistant)
+        self.messages
+            .last()
+            .is_some_and(|m| m.role == TrainingRole::Assistant)
     }
 }
 

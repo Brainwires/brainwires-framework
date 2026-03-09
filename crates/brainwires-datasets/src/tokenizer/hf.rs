@@ -1,5 +1,5 @@
-use crate::error::{DatasetError, DatasetResult};
 use super::Tokenizer;
+use crate::error::{DatasetError, DatasetResult};
 
 /// HuggingFace tokenizers wrapper.
 pub struct HfTokenizer {
@@ -9,8 +9,8 @@ pub struct HfTokenizer {
 impl HfTokenizer {
     /// Load a tokenizer from a local JSON file.
     pub fn from_file(path: &str) -> DatasetResult<Self> {
-        let tokenizer = tokenizers::Tokenizer::from_file(path)
-            .map_err(|e| DatasetError::Tokenizer {
+        let tokenizer =
+            tokenizers::Tokenizer::from_file(path).map_err(|e| DatasetError::Tokenizer {
                 message: format!("Failed to load tokenizer from '{}': {}", path, e),
             })?;
         Ok(Self { tokenizer })
@@ -18,8 +18,8 @@ impl HfTokenizer {
 
     /// Load a tokenizer from raw JSON bytes.
     pub fn from_bytes(bytes: &[u8]) -> DatasetResult<Self> {
-        let tokenizer = tokenizers::Tokenizer::from_bytes(bytes)
-            .map_err(|e| DatasetError::Tokenizer {
+        let tokenizer =
+            tokenizers::Tokenizer::from_bytes(bytes).map_err(|e| DatasetError::Tokenizer {
                 message: format!("Failed to load tokenizer from bytes: {}", e),
             })?;
         Ok(Self { tokenizer })
@@ -28,7 +28,9 @@ impl HfTokenizer {
 
 impl Tokenizer for HfTokenizer {
     fn encode(&self, text: &str) -> DatasetResult<Vec<u32>> {
-        let encoding = self.tokenizer.encode(text, false)
+        let encoding = self
+            .tokenizer
+            .encode(text, false)
             .map_err(|e| DatasetError::Tokenizer {
                 message: format!("Encoding error: {}", e),
             })?;
@@ -36,7 +38,8 @@ impl Tokenizer for HfTokenizer {
     }
 
     fn decode(&self, ids: &[u32]) -> DatasetResult<String> {
-        self.tokenizer.decode(ids, true)
+        self.tokenizer
+            .decode(ids, true)
             .map_err(|e| DatasetError::Tokenizer {
                 message: format!("Decoding error: {}", e),
             })
@@ -47,7 +50,9 @@ impl Tokenizer for HfTokenizer {
     }
 
     fn encode_batch(&self, texts: &[&str]) -> DatasetResult<Vec<Vec<u32>>> {
-        let encodings = self.tokenizer.encode_batch(texts.to_vec(), false)
+        let encodings = self
+            .tokenizer
+            .encode_batch(texts.to_vec(), false)
             .map_err(|e| DatasetError::Tokenizer {
                 message: format!("Batch encoding error: {}", e),
             })?;
@@ -55,7 +60,8 @@ impl Tokenizer for HfTokenizer {
     }
 
     fn special_tokens(&self) -> Vec<(String, u32)> {
-        self.tokenizer.get_vocab(true)
+        self.tokenizer
+            .get_vocab(true)
             .into_iter()
             .filter(|(token, _)| token.starts_with('<') || token.starts_with('['))
             .collect()

@@ -45,7 +45,7 @@ use std::time::Duration;
 use anyhow::Result;
 use async_trait::async_trait;
 
-use brainwires_core::{estimate_tokens_from_size, Message, Role, ToolResult, ToolUse};
+use brainwires_core::{Message, Role, ToolResult, ToolUse, estimate_tokens_from_size};
 
 use crate::pool::AgentPool;
 use crate::task_agent::TaskAgentConfig;
@@ -368,10 +368,7 @@ pub trait AgentLifecycleHooks: Send + Sync {
     /// The default returns an error — consumers must override this if
     /// they use delegation. See [`DefaultDelegationHandler`] for a
     /// ready-made implementation wrapping [`AgentPool`].
-    async fn execute_delegation(
-        &self,
-        _request: &DelegationRequest,
-    ) -> Result<DelegationResult> {
+    async fn execute_delegation(&self, _request: &DelegationRequest) -> Result<DelegationResult> {
         Err(anyhow::anyhow!(
             "Delegation not implemented by this hook provider. \
              Override execute_delegation() or use DefaultDelegationHandler."
@@ -414,10 +411,7 @@ impl DefaultDelegationHandler {
             uuid::Uuid::new_v4().to_string(),
             request.task_description.clone(),
         );
-        let agent_id = self
-            .pool
-            .spawn_agent(task, request.config.clone())
-            .await?;
+        let agent_id = self.pool.spawn_agent(task, request.config.clone()).await?;
 
         if request.blocking {
             let result = self.pool.await_completion(&agent_id).await?;
@@ -465,11 +459,7 @@ mod tests {
 
     #[test]
     fn test_conversation_view_last_n() {
-        let mut msgs = vec![
-            Message::user("a"),
-            Message::user("b"),
-            Message::user("c"),
-        ];
+        let mut msgs = vec![Message::user("a"), Message::user("b"), Message::user("c")];
         let view = ConversationView::new(&mut msgs);
         assert_eq!(view.last_n(2).len(), 2);
         assert_eq!(view.last_n(2)[0].text(), Some("b"));
@@ -552,7 +542,8 @@ mod tests {
     #[test]
     fn test_tool_decision_variants() {
         let _execute = ToolDecision::Execute;
-        let _override = ToolDecision::Override(ToolResult::success("id".to_string(), "ok".to_string()));
+        let _override =
+            ToolDecision::Override(ToolResult::success("id".to_string(), "ok".to_string()));
         let _delegate = ToolDecision::Delegate(Box::new(DelegationRequest::default()));
     }
 
