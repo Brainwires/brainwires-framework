@@ -62,7 +62,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires-wasm = "0.1"
+brainwires-wasm = "0.2"
 ```
 
 Build with `wasm-pack`:
@@ -84,7 +84,7 @@ import init, {
 await init();
 
 // Check framework version
-console.log(version()); // → "0.1.1"
+console.log(version()); // → "0.2.0"
 
 // Validate a message
 const msg = JSON.stringify({
@@ -121,7 +121,7 @@ console.log(stateless); // → stateless protocol format
 
 ```toml
 # Default (validation + serialization only)
-brainwires-wasm = "0.1"
+brainwires-wasm = "0.2"
 
 # With code interpreters
 brainwires-wasm = { version = "0.1", features = ["interpreters"] }
@@ -415,7 +415,7 @@ brainwires = { version = "0.1", features = ["wasm"] }
 
 # Direct
 [dependencies]
-brainwires-wasm = "0.1"
+brainwires-wasm = "0.2"
 ```
 
 The crate re-exports all components at the top level:

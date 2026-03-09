@@ -345,7 +345,7 @@ Config file format:
 ```rust
 use brainwires_mcp::{McpClient, McpServerConfig};
 
-let client = McpClient::new("my-agent", "0.1.1");
+let client = McpClient::new("my-agent", "0.2.0");
 
 let config = McpServerConfig {
     name: "weather".into(),

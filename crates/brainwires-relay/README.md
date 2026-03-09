@@ -68,7 +68,7 @@ struct MyHandler;
 #[async_trait]
 impl McpHandler for MyHandler {
     fn server_info(&self) -> ServerInfo {
-        ServerInfo { name: "my-server".into(), version: "0.1.1".into() }
+        ServerInfo { name: "my-server".into(), version: "0.2.0".into() }
     }
 
     fn capabilities(&self) -> ServerCapabilities {
