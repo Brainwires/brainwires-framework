@@ -3,12 +3,13 @@ set -euo pipefail
 
 # Brainwires Framework — crates.io publish script
 #
-# Rate limits for BRAND NEW crates (as of 2026):
-#   - Burst: 5 new crates at once
-#   - After burst: 1 new crate every 10 minutes
-#   - 24 crates total = 5 burst + 19 × 10min = ~3.2 hours
+# Rate limits for NEW VERSIONS of existing crates (as of 2026):
+#   - Burst: 30 new versions at once
+#   - After burst: 1 crate per minute
+#   - 24 crates total = all within burst → ~6 minutes
 #
-# Strategy: publish first 5 quickly (burst), then 10-minute gaps.
+# Strategy: publish all 24 within the burst window with short index-propagation
+# delays between each. If we ever exceed 30, fall back to 1/min after burst.
 # Crates are ordered by dependency DAG (leaves first, facade last).
 #
 # Usage:
@@ -20,7 +21,7 @@ if [[ "${1:-}" == "--live" ]]; then
     DRY_RUN=false
     echo "=== LIVE PUBLISH MODE ==="
     echo "This will publish all 24 crates to crates.io."
-    echo "Estimated time: ~3.5 hours (new-crate rate limit: burst 5, then 1/10min)"
+    echo "Estimated time: ~6 minutes (burst 30, then 1/min)"
     echo "Press Ctrl+C within 5 seconds to abort..."
     sleep 5
 fi
@@ -67,9 +68,9 @@ CRATES=(
     brainwires
 )
 
-BURST_LIMIT=5
+BURST_LIMIT=30
 BURST_DELAY=15          # seconds between crates in the burst (index propagation)
-POST_BURST_DELAY=610    # 10 min 10 sec between crates after burst exhausted
+POST_BURST_DELAY=70     # 1 min 10 sec between crates after burst exhausted
 
 TOTAL=${#CRATES[@]}
 PUBLISHED=0
@@ -118,22 +119,20 @@ for i in "${!CRATES[@]}"; do
         exit 1
     fi
 
-    # Rate limiting: burst the first 5, then wait 10 min between each
+    # Rate limiting: burst the first 30, then wait 1 min between each
     if [ "$n" -lt "$TOTAL" ]; then
         if [ "$n" -lt "$BURST_LIMIT" ]; then
             echo "  [burst $n/$BURST_LIMIT] Waiting ${BURST_DELAY}s..."
             sleep "$BURST_DELAY"
         elif [ "$n" -eq "$BURST_LIMIT" ]; then
             remaining=$((TOTAL - n))
-            eta_min=$((remaining * 10))
-            echo "  [burst exhausted] Switching to 10-minute intervals."
-            echo "  $remaining crates remaining (~${eta_min} minutes)."
+            echo "  [burst exhausted] Switching to 1-minute intervals."
+            echo "  $remaining crates remaining (~${remaining} minutes)."
             echo "  Waiting ${POST_BURST_DELAY}s..."
             sleep "$POST_BURST_DELAY"
         else
             remaining=$((TOTAL - n))
-            eta_min=$((remaining * 10))
-            echo "  Waiting 10 minutes... ($remaining crates left, ~${eta_min} min remaining)"
+            echo "  Waiting 1 minute... ($remaining crates left, ~${remaining} min remaining)"
             sleep "$POST_BURST_DELAY"
         fi
     fi
