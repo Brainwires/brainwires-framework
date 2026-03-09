@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-03-09
+
+### Changed
+
+#### Framework-wide
+- **MSRV bumped from 1.88 to 1.91** — required by updated AWS SDK dependencies (`aws-config`, `aws-sigv4`, `aws-smithy-*`, etc.).
+- Updated CI toolchain from Rust 1.88 to 1.91 across all 5 GitHub Actions jobs.
+- Added `protoc` installation step to CI (required by `lance-encoding` build dependency).
+- Applied `cargo fmt --all` across workspace.
+
+#### Dependencies
+- **rmcp** 0.8 → 1.1 (non-exhaustive structs, renamed features/types)
+- **tokio-tungstenite** 0.21 → 0.26 (`Message::Text` now wraps `Utf8Bytes`)
+- **rand** 0.8 → 0.10 (`thread_rng` → `rng`, `RngCore` → `Rng`, `gen_range` → `random_range`)
+- **bincode** 1 → 2 (new serde encode/decode API)
+- **serde_yaml** → **serde_yml** 0.0.12 (crate rename)
+- **tonic** 0.12 → 0.13, **prost** 0.13 → 0.14 (removed `async_trait` macro)
+- **lancedb** 0.23 → 0.26, **arrow** 56 → 57
+- **toml** 0.8 → 1.0, **git2** 0.19 → 0.20, **lru** 0.12 → 0.16
+- **boa_engine** 0.20 → 0.21, **tokenizers** 0.21 → 0.22, **tiktoken-rs** 0.7 → 0.9
+
+### Fixed
+- Fixed invalid crates.io category slug (`science::ml` → `artificial-intelligence`) on `brainwires-training`.
+- Updated publish script rate limits for existing-crate version publishes (burst 30, then 1/min).
+
 ## [0.1.0] - 2026-03-09
 
 ### Added
@@ -191,6 +216,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upgraded `#![warn(missing_docs)]` to `#![deny(missing_docs)]` across all 22 crates
 - Added doc comments to all previously undocumented public items (~155 warnings resolved)
 
+### Refactored
+- Renamed `brainwires-model-tools` to `brainwires-tool-system` to better reflect the crate's scope (registry, execution, built-in implementations, error taxonomy, sanitization, orchestration, code execution, semantic search, OpenAPI generation, smart routing).
+
 #### Agents (`brainwires-agents`)
 - Replaced `panic!()`/`unwrap()` in eval suite with graceful `TrialResult::failure` conversions.
 - Implemented `TextMerge` (line-by-line dedup) and `JsonMerge` (recursive deep merge) optimistic concurrency strategies.
@@ -227,4 +255,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Git search results now return the actual commit date instead of hardcoded `0`.
 - Dirty flag is now cleared immediately after embeddings + cache are flushed to disk in both full and incremental indexing paths.
 
+[0.1.1]: https://github.com/Brainwires/brainwires-framework/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/Brainwires/brainwires-framework/releases/tag/v0.1.0

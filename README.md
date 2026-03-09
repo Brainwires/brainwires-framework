@@ -4,7 +4,7 @@ A modular Rust framework for building AI agents with multi-provider support, too
 
 ## Overview
 
-The Brainwires Framework is a workspace of 22 crates (plus 1 extra) that provide everything needed to build, train, deploy, and coordinate AI agents. Each crate is independently publishable to crates.io and usable standalone, but they compose together through the `brainwires` facade crate for a batteries-included experience.
+The Brainwires Framework is a workspace of 23 framework crates plus 5 extras that provide everything needed to build, train, deploy, and coordinate AI agents. Each framework crate is independently publishable to crates.io and usable standalone, but they compose together through the `brainwires` facade crate for a batteries-included experience.
 
 **[Full feature list](FEATURES.md)** | **Key capabilities:**
 
@@ -44,34 +44,43 @@ The Brainwires Framework is a workspace of 22 crates (plus 1 extra) that provide
   └────────────────────────────────────────────────────────────┘
 ```
 
-### All Crates
+### Framework Crates
 
 | Crate | Description |
 |-------|-------------|
-| **brainwires** | Facade crate — re-exports all other crates behind feature flags |
-| **brainwires-core** | Core types, traits, and error handling shared by all crates |
-| **brainwires-providers** | Multi-provider AI interface (Anthropic, OpenAI, Google, Ollama, local LLMs) |
-| **brainwires-tool-system** | Tool definitions and execution for AI model interactions |
-| **brainwires-agents** | Multi-agent orchestration, task decomposition, file lock coordination |
-| **brainwires-mdap** | Multi-Dimensional Adaptive Planning — k-agent voting for reliable execution |
-| **brainwires-brain** | Central knowledge crate — persistent thoughts, PKS/BKS, entity graphs, relationship graphs |
-| **brainwires-storage** | LanceDB vector storage, semantic search, tiered memory |
-| **brainwires-prompting** | Prompt construction, task clustering, multi-source selection (delegates knowledge to brain) |
-| **brainwires-permissions** | Permission policies (auto, ask, reject) for tool execution |
-| **brainwires-mcp** | MCP client — connect to external MCP servers and use their tools |
-| **brainwires-relay** | MCP server mode, IPC, and remote relay for agent management |
-| **brainwires-rag** | RAG engine — AST-aware chunking, hybrid search, Git-aware indexing (library-only) |
-| **brainwires-skills** | Skill definitions and slash command registry |
-| **brainwires-code-interpreters** | Sandboxed JavaScript and Python code execution |
-| **brainwires-wasm** | WASM bindings for browser-based agent deployment |
-| **brainwires-seal** | Self-Evolving Agentic Learning — feedback-driven prompt improvement |
-| **brainwires-mesh** | Distributed agent mesh networking with topology and routing |
-| **brainwires-audio** | Audio I/O, speech-to-text, text-to-speech |
-| **brainwires-datasets** | Training data pipelines — JSONL I/O, tokenization, dedup, format conversion |
-| **brainwires-training** | Cloud fine-tuning (6 providers) and local LoRA/QLoRA/DoRA via Burn |
-| **brainwires-proxy** | HTTP proxy for AI API request routing *(extras/)* |
-| **brainwires-brain-server** | MCP server binary for brainwires-brain *(extras/)* |
-| **brainwires-rag-server** | MCP server binary for brainwires-rag *(extras/)* |
+| [**brainwires**](crates/brainwires/README.md) | Facade crate — re-exports all other crates behind feature flags |
+| [**brainwires-core**](crates/brainwires-core/README.md) | Core types, traits, and error handling shared by all crates |
+| [**brainwires-providers**](crates/brainwires-providers/README.md) | Multi-provider AI interface (Anthropic, OpenAI, Google, Ollama, local LLMs) |
+| [**brainwires-tool-system**](crates/brainwires-tool-system/README.md) | Tool definitions and execution for AI model interactions |
+| [**brainwires-agents**](crates/brainwires-agents/README.md) | Multi-agent orchestration, task decomposition, file lock coordination |
+| [**brainwires-mdap**](crates/brainwires-mdap/README.md) | Multi-Dimensional Adaptive Planning — k-agent voting for reliable execution |
+| [**brainwires-brain**](crates/brainwires-brain/README.md) | Central knowledge crate — persistent thoughts, PKS/BKS, entity graphs, relationship graphs |
+| [**brainwires-storage**](crates/brainwires-storage/README.md) | LanceDB vector storage, semantic search, tiered memory |
+| [**brainwires-prompting**](crates/brainwires-prompting/README.md) | Prompt construction, task clustering, multi-source selection (delegates knowledge to brain) |
+| [**brainwires-permissions**](crates/brainwires-permissions/README.md) | Permission policies (auto, ask, reject) for tool execution |
+| [**brainwires-mcp**](crates/brainwires-mcp/README.md) | MCP client — connect to external MCP servers and use their tools |
+| [**brainwires-relay**](crates/brainwires-relay/README.md) | MCP server mode, IPC, and remote relay for agent management |
+| [**brainwires-rag**](crates/brainwires-rag/README.md) | RAG engine — AST-aware chunking, hybrid search, Git-aware indexing (library-only) |
+| [**brainwires-skills**](crates/brainwires-skills/README.md) | Skill definitions and slash command registry |
+| [**brainwires-code-interpreters**](crates/brainwires-code-interpreters/README.md) | Sandboxed JavaScript and Python code execution |
+| [**brainwires-wasm**](crates/brainwires-wasm/README.md) | WASM bindings for browser-based agent deployment |
+| [**brainwires-seal**](crates/brainwires-seal/README.md) | Self-Evolving Agentic Learning — feedback-driven prompt improvement |
+| [**brainwires-mesh**](crates/brainwires-mesh/README.md) | Distributed agent mesh networking with topology and routing |
+| [**brainwires-audio**](crates/brainwires-audio/README.md) | Audio I/O, speech-to-text, text-to-speech |
+| [**brainwires-datasets**](crates/brainwires-datasets/README.md) | Training data pipelines — JSONL I/O, tokenization, dedup, format conversion |
+| [**brainwires-training**](crates/brainwires-training/README.md) | Cloud fine-tuning (6 providers) and local LoRA/QLoRA/DoRA via Burn |
+| [**brainwires-autonomy**](crates/brainwires-autonomy/README.md) | Self-improvement strategies, evaluation-driven optimization, supervisor agents |
+| [**brainwires-a2a**](crates/brainwires-a2a/README.md) | Agent-to-Agent protocol — JSON-RPC 2.0, HTTP/REST, and gRPC bindings |
+
+### Extras
+
+| Crate | Description |
+|-------|-------------|
+| [**brainwires-proxy**](extras/brainwires-proxy/README.md) | HTTP proxy for AI API request routing |
+| [**brainwires-brain-server**](extras/brainwires-brain-server/README.md) | MCP server binary for brainwires-brain |
+| [**brainwires-rag-server**](extras/brainwires-rag-server/README.md) | MCP server binary for brainwires-rag |
+| [**agent-chat**](extras/agent-chat/README.md) | Simplified AI chat client with TUI and plain modes |
+| [**reload-daemon**](extras/reload-daemon/README.md) | MCP server for killing and restarting AI coding clients |
 
 ## Getting Started
 

@@ -84,7 +84,7 @@ import init, {
 await init();
 
 // Check framework version
-console.log(version()); // → "0.1.0"
+console.log(version()); // → "0.1.1"
 
 // Validate a message
 const msg = JSON.stringify({

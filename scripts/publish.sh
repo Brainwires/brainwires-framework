@@ -145,3 +145,18 @@ if [ "$FAILED" -gt 0 ]; then
     echo "$FAILED crate(s) failed."
 fi
 echo "============================================"
+
+# Tag the release after successful publish
+if ! $DRY_RUN && [ "$FAILED" -eq 0 ]; then
+    # Extract version from workspace Cargo.toml
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    WORKSPACE_TOML="$SCRIPT_DIR/../Cargo.toml"
+    VERSION=$(grep -m1 '^version' "$WORKSPACE_TOML" | sed 's/.*"\(.*\)"/\1/')
+
+    TAG="v${VERSION}"
+    echo ""
+    echo "Tagging release as $TAG..."
+    git tag -a "$TAG" -m "Release $TAG"
+    echo "Created tag $TAG"
+    echo "Run 'git push origin $TAG' to push the tag to remote."
+fi
