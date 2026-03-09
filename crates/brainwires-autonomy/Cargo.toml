@@ -16,7 +16,7 @@ categories = ["development-tools"]
 [dependencies]
 brainwires-core.workspace = true
 brainwires-agents = { workspace = true, optional = true }
-brainwires-model-tools = { workspace = true, optional = true }
+brainwires-tool-system = { workspace = true, optional = true }
 brainwires-training = { workspace = true, optional = true }
 brainwires-mdap = { workspace = true, optional = true }
 brainwires-rag = { workspace = true, optional = true }
@@ -53,7 +53,7 @@ native = ["dep:git2", "brainwires-core/native"]
 wasm = ["brainwires-core/wasm"]
 
 # Self-improvement (extracted from CLI)
-self-improve = ["dep:brainwires-agents", "dep:brainwires-model-tools", "dep:regex", "dep:walkdir"]
+self-improve = ["dep:brainwires-agents", "dep:brainwires-tool-system", "dep:regex", "dep:walkdir"]
 eval-driven = ["self-improve", "dep:brainwires-agents", "brainwires-agents/eval"]
 
 # Agent operations
@@ -63,7 +63,7 @@ parallel = ["dep:brainwires-agents", "dep:brainwires-mdap"]
 training = ["dep:brainwires-training", "dep:brainwires-datasets"]
 
 # Git workflow
-git-workflow = ["dep:brainwires-agents", "dep:brainwires-model-tools", "dep:reqwest", "dep:toml"]
+git-workflow = ["dep:brainwires-agents", "dep:brainwires-tool-system", "dep:reqwest", "dep:toml"]
 webhook = ["git-workflow", "dep:axum", "dep:hmac", "dep:sha1", "dep:subtle"]
 
 full = ["self-improve", "eval-driven", "supervisor", "attention", "parallel", "training", "git-workflow", "webhook"]

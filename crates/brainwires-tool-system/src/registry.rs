@@ -48,7 +48,7 @@ pub enum ToolCategory {
 ///
 /// # Example
 /// ```ignore
-/// use brainwires_model_tools::{ToolRegistry, BashTool, FileOpsTool, GitTool};
+/// use brainwires_tool_system::{ToolRegistry, BashTool, FileOpsTool, GitTool};
 ///
 /// let mut registry = ToolRegistry::new();
 /// registry.register_tools(BashTool::get_tools());

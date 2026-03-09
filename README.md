@@ -26,7 +26,7 @@ The Brainwires Framework is a workspace of 22 crates (plus 1 extra) that provide
   │                                                            │
   │  ┌───────────┐ ┌────────────┐ ┌───────────┐ ┌───────────┐  │
   │  │  agents   │ │  providers │ │  storage  │ │    mcp    │  │
-  │  │  mdap     │ │model-tools │ │  prompting│ │   relay   │  │
+  │  │  mdap     │ │tool-system │ │  prompting│ │   relay   │  │
   │  └─────┬─────┘ └──────┬─────┘ └─────┬─────┘ └─────┬─────┘  │
   │        │              │             │             │        │
   │        └──────────────┴─────────────┴─────────────┘        │
@@ -51,7 +51,7 @@ The Brainwires Framework is a workspace of 22 crates (plus 1 extra) that provide
 | **brainwires** | Facade crate — re-exports all other crates behind feature flags |
 | **brainwires-core** | Core types, traits, and error handling shared by all crates |
 | **brainwires-providers** | Multi-provider AI interface (Anthropic, OpenAI, Google, Ollama, local LLMs) |
-| **brainwires-model-tools** | Tool definitions and execution for AI model interactions |
+| **brainwires-tool-system** | Tool definitions and execution for AI model interactions |
 | **brainwires-agents** | Multi-agent orchestration, task decomposition, file lock coordination |
 | **brainwires-mdap** | Multi-Dimensional Adaptive Planning — k-agent voting for reliable execution |
 | **brainwires-brain** | Central knowledge crate — persistent thoughts, PKS/BKS, entity graphs, relationship graphs |
@@ -183,7 +183,7 @@ cargo test -p brainwires-core
   brainwires (facade)
   ├── brainwires-agents
   │   ├── brainwires-core
-  │   ├── brainwires-model-tools
+  │   ├── brainwires-tool-system
   │   ├── brainwires-providers
   │   └── brainwires-permissions
   ├── brainwires-mdap

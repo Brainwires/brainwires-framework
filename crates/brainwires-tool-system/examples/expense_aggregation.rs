@@ -3,9 +3,9 @@
 //! This example demonstrates the core value proposition of Programmatic Tool Calling:
 //! aggregating data from multiple sources without flooding the LLM context window.
 //!
-//! Run with: `cargo run -p brainwires-model-tools --features orchestrator --example expense_aggregation`
+//! Run with: `cargo run -p brainwires-tool-system --features orchestrator --example expense_aggregation`
 
-use brainwires_model_tools::orchestrator::{ExecutionLimits, ToolOrchestrator};
+use brainwires_tool_system::orchestrator::{ExecutionLimits, ToolOrchestrator};
 
 fn main() {
     println!("=== Expense Aggregation Example ===\n");

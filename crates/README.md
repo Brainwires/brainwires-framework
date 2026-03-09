@@ -18,13 +18,13 @@ brainwires  (facade — re-exports all crates via feature flags)
 │        └─> providers (opt)
 │
 ├─── Tools & Agents
-│    ├── brainwires-model-tools     Built-in tools (file ops, git, bash, web, search, validation)
+│    ├── brainwires-tool-system     Built-in tools (file ops, git, bash, web, search, validation)
 │    │   └─> core
 │    │   └─> rag (opt, "rag" feature)
 │    │   └─> code-interpreters (opt, "interpreters" feature)
 │    ├── brainwires-agents          Agent orchestration, lifecycle hooks, coordination patterns
 │    │   └─> core
-│    │   └─> model-tools
+│    │   └─> tool-system
 │    ├── brainwires-mdap            MAKER voting — microagent decomposition & reliability
 │    │   └─> core
 │    └── brainwires-permissions     Permission policies, audit logging, trust profiles
@@ -64,7 +64,7 @@ brainwires  (facade — re-exports all crates via feature flags)
 │    │   └─> providers (opt, "cloud" feature)
 │    └── brainwires-seal            SEAL — self-evolving agentic learning
 │        └─> core
-│        └─> model-tools
+│        └─> tool-system
 │        └─> agents
 │        └─> mdap (opt, "mdap" feature)
 │        └─> brain (opt, "knowledge" feature)
@@ -73,7 +73,7 @@ brainwires  (facade — re-exports all crates via feature flags)
 │    └── brainwires-autonomy        Self-improvement, Git workflows, human-out-of-loop execution
 │        └─> core
 │        └─> agents (opt)
-│        └─> model-tools (opt)
+│        └─> tool-system (opt)
 │        └─> training (opt)
 │        └─> mdap (opt)
 │        └─> rag (opt, "attention" feature)
@@ -83,7 +83,7 @@ brainwires  (facade — re-exports all crates via feature flags)
      └── brainwires-wasm            Browser deployment bindings
          └─> core (wasm)
          └─> mdap (wasm)
-         └─> model-tools (opt)
+         └─> tool-system (opt)
          └─> code-interpreters (opt)
 ```
 

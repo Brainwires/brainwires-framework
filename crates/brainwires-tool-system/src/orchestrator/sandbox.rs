@@ -21,7 +21,7 @@
 //! # Example
 //!
 //! ```ignore
-//! use brainwires_model_tools::orchestrator::ExecutionLimits;
+//! use brainwires_tool_system::orchestrator::ExecutionLimits;
 //!
 //! // Use a preset
 //! let limits = ExecutionLimits::quick();

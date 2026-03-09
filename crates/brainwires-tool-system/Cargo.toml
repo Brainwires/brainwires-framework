@@ -1,5 +1,5 @@
 [package]
-name = "brainwires-model-tools"
+name = "brainwires-tool-system"
 description = "Built-in tool implementations for the Brainwires Agent Framework"
 version.workspace = true
 edition.workspace = true
@@ -9,7 +9,7 @@ repository.workspace = true
 homepage.workspace = true
 authors.workspace = true
 readme = "README.md"
-documentation = "https://docs.rs/brainwires-model-tools"
+documentation = "https://docs.rs/brainwires-tool-system"
 keywords = ["ai-tools", "llm", "file-operations", "code-search", "validation"]
 categories = ["development-tools"]
 

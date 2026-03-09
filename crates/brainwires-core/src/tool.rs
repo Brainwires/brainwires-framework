@@ -207,10 +207,10 @@ pub struct CommitResult {
 /// Trait for staging write operations before committing to the filesystem.
 ///
 /// Defined in `brainwires-core` so that [`ToolContext`] can hold an
-/// `Arc<dyn StagingBackend>` without depending on `brainwires-model-tools`,
+/// `Arc<dyn StagingBackend>` without depending on `brainwires-tool-system`,
 /// which would create a circular crate dependency.
 ///
-/// The concrete implementation lives in `brainwires-model-tools::transaction::TransactionManager`.
+/// The concrete implementation lives in `brainwires-tool-system::transaction::TransactionManager`.
 pub trait StagingBackend: std::fmt::Debug + Send + Sync {
     /// Stage a write operation.
     ///

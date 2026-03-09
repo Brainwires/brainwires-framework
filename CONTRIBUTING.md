@@ -25,7 +25,7 @@ The framework is a Cargo workspace with 22 crates organized around a facade patt
 | **Facade** | `brainwires` | Public API re-exports |
 | **Providers** | `brainwires-providers` | AI provider integrations (Anthropic, OpenAI, Google, Ollama, etc.) |
 | **Agents** | `brainwires-agents` | Multi-agent orchestration, task execution |
-| **Tools** | `brainwires-model-tools` | Tool definitions and execution |
+| **Tools** | `brainwires-tool-system` | Tool definitions and execution |
 | **Storage** | `brainwires-storage` | Vector storage and semantic search |
 | **RAG** | `brainwires-rag` | Retrieval-augmented generation engine |
 | **MCP** | `brainwires-mcp`, `brainwires-relay` | Model Context Protocol client and server |

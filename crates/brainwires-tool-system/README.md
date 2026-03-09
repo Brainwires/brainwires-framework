@@ -1,7 +1,7 @@
-# brainwires-model-tools
+# brainwires-tool-system
 
-[![Crates.io](https://img.shields.io/crates/v/brainwires-model-tools.svg)](https://crates.io/crates/brainwires-model-tools)
-[![Documentation](https://docs.rs/brainwires-model-tools/badge.svg)](https://docs.rs/brainwires-model-tools)
+[![Crates.io](https://img.shields.io/crates/v/brainwires-tool-system.svg)](https://crates.io/crates/brainwires-tool-system)
+[![Documentation](https://docs.rs/brainwires-tool-system/badge.svg)](https://docs.rs/brainwires-tool-system)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **Composable tool infrastructure for the Brainwires Agent Framework**
@@ -10,7 +10,7 @@ The tooling layer that gives agents their capabilities: file operations, shell e
 
 ## Overview
 
-`brainwires-model-tools` provides:
+`brainwires-tool-system` provides:
 
 - **Built-in tool implementations** — Bash, file ops, git, web, code search, validation
 - **Composable ToolRegistry** — Register individual tools or categories; supports initial + deferred loading
@@ -23,7 +23,7 @@ The tooling layer that gives agents their capabilities: file operations, shell e
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        brainwires-model-tools                       │
+│                        brainwires-tool-system                       │
 ├─────────────┬───────────────┬───────────────┬───────────────────┤
 │  Registry   │   Executor    │  Sanitization │  Error Taxonomy   │
 │  ─────────  │   ─────────   │  ───────────  │  ──────────────   │
@@ -54,13 +54,13 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires-model-tools = { version = "0.1", features = ["native"] }
+brainwires-tool-system = { version = "0.1", features = ["native"] }
 ```
 
 Register tools and execute:
 
 ```rust
-use brainwires_model_tools::{ToolRegistry, ToolExecutor, BashTool, FileOpsTool, GitTool};
+use brainwires_tool_system::{ToolRegistry, ToolExecutor, BashTool, FileOpsTool, GitTool};
 
 // Compose only the tools you need
 let mut registry = ToolRegistry::new();
@@ -145,7 +145,7 @@ Pre-hooks (`ToolPreHook`) allow intercepting tool calls for permission checks, l
 Two-phase commit for atomic file operations:
 
 ```rust
-use brainwires_model_tools::TransactionManager;
+use brainwires_tool_system::TransactionManager;
 
 let tm = TransactionManager::new("/path/to/staging");
 
@@ -166,7 +166,7 @@ Auto-cleanup on drop ensures no leaked staging files.
 Defense-in-depth for agent safety:
 
 ```rust
-use brainwires_model_tools::{
+use brainwires_tool_system::{
     is_injection_attempt, contains_sensitive_data,
     redact_sensitive_data, sanitize_external_content,
 };
@@ -188,7 +188,7 @@ if contains_sensitive_data(output) {
 Taxonomy based on the AgentDebug paper (arxiv:2509.25370):
 
 ```rust
-use brainwires_model_tools::{classify_error, ToolErrorCategory, RetryStrategy};
+use brainwires_tool_system::{classify_error, ToolErrorCategory, RetryStrategy};
 
 let outcome = classify_error("connection refused");
 // → ToolErrorCategory::Transient
@@ -202,7 +202,7 @@ Seven categories: `Transient`, `InputValidation`, `ExternalService`, `Permission
 Rhai-based script engine for composing multi-step tool pipelines:
 
 ```rust
-use brainwires_model_tools::OrchestratorTool;
+use brainwires_tool_system::OrchestratorTool;
 
 // Define workflows as Rhai scripts
 // Supports sandboxed execution with resource limits
@@ -215,11 +215,11 @@ Requires the `orchestrator` feature. See `examples/` for complete workflows.
 Automatically create tools from OpenAPI 3.x specs (feature-gated: `openapi`):
 
 ```toml
-brainwires-model-tools = { version = "0.1", features = ["native", "openapi"] }
+brainwires-tool-system = { version = "0.1", features = ["native", "openapi"] }
 ```
 
 ```rust
-use brainwires_model_tools::openapi::{openapi_to_tools, execute_openapi_tool, OpenApiAuth};
+use brainwires_tool_system::openapi::{openapi_to_tools, execute_openapi_tool, OpenApiAuth};
 
 // Parse an OpenAPI spec (JSON or YAML)
 let spec = std::fs::read_to_string("petstore.json")?;
@@ -246,7 +246,7 @@ Each endpoint becomes a `Tool` with:
 
 ## Integration
 
-`brainwires-model-tools` is used by:
+`brainwires-tool-system` is used by:
 
 - **brainwires-agents** — Task agents use `ToolExecutor` for all tool dispatch and `ToolRegistry` for tool discovery
 - **brainwires-agents** (reasoning feature) — Reasoning router uses tool categories for smart delegation

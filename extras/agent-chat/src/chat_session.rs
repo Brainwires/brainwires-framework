@@ -6,7 +6,7 @@ use brainwires_core::{
     ChatOptions, ContentBlock, Message, MessageContent, Provider, StreamChunk, Tool, ToolContext,
     ToolResult, ToolUse,
 };
-use brainwires_model_tools::{
+use brainwires_tool_system::{
     BashTool, FileOpsTool, GitTool, SearchTool, ToolRegistry, ValidationTool, WebTool,
 };
 

@@ -36,7 +36,7 @@ use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 
 use brainwires_core::{Provider, Task};
-use brainwires_model_tools::ToolExecutor;
+use brainwires_tool_system::ToolExecutor;
 
 use crate::communication::CommunicationHub;
 use crate::context::AgentContext;
@@ -323,7 +323,7 @@ mod tests {
     use crate::file_locks::FileLockManager;
     use async_trait::async_trait;
     use brainwires_core::{ChatOptions, ChatResponse, Message, StreamChunk, Tool, ToolContext, ToolResult, ToolUse, Usage};
-    use brainwires_model_tools::ToolExecutor;
+    use brainwires_tool_system::ToolExecutor;
     use futures::stream::BoxStream;
 
     struct MockProvider(ChatResponse);

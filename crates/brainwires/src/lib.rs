@@ -24,7 +24,7 @@ pub mod core {
 /// Model tools — file ops, bash, git, search, validation, and web tools.
 #[cfg(feature = "tools")]
 pub mod tools {
-    pub use brainwires_model_tools::*;
+    pub use brainwires_tool_system::*;
 }
 
 /// Agent runtime, communication hub, task management, and validation.
@@ -88,7 +88,7 @@ pub mod seal {
     pub use brainwires_seal::*;
 }
 
-// Orchestrator is re-exported via brainwires_model_tools::orchestrator when orchestrator feature is on
+// Orchestrator is re-exported via brainwires_tool_system::orchestrator when orchestrator feature is on
 
 /// RAG — codebase indexing, semantic search, and retrieval-augmented generation.
 #[cfg(feature = "rag")]
@@ -211,7 +211,7 @@ pub mod prelude {
 
     // Tools — available with "tools" feature
     #[cfg(feature = "tools")]
-    pub use brainwires_model_tools::{
+    pub use brainwires_tool_system::{
         BashTool, FileOpsTool, GitTool, SearchTool, ToolSearchTool, ValidationTool, WebTool,
         ToolCategory, ToolRegistry,
         classify_error, ToolErrorCategory, RetryStrategy, ToolOutcome,

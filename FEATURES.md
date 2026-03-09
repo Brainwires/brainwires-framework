@@ -175,7 +175,7 @@ Multi-agent infrastructure for autonomous task execution.
 
 ## Tool System
 
-**Crate:** `brainwires-model-tools`
+**Crate:** `brainwires-tool-system`
 
 Composable tool implementations for agent use.
 

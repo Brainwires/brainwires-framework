@@ -1,4 +1,4 @@
-use brainwires_model_tools::{
+use brainwires_tool_system::{
     BashTool, FileOpsTool, GitTool, SearchTool, ToolRegistry, ValidationTool, WebTool,
 };
 

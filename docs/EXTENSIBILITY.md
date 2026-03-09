@@ -35,7 +35,7 @@ The framework is trait-based: implement a trait, pass it to the component, done.
 | `CompensableOperation` | `execute`, `compensate`, `description` (+`operation_type` default) | Saga step with rollback |
 | `EvaluationCase` | `name`, `category`, `run` | Eval scenario |
 
-### Tool Traits (brainwires-model-tools)
+### Tool Traits (brainwires-tool-system)
 
 | Trait | Required Methods | Purpose |
 |-------|-----------------|---------|
@@ -236,8 +236,8 @@ This enables: `providers`, `agents`, `storage`, `rag`, `training`, `datasets`.
 
 | Feature | Enables | Transitive Dependencies |
 |---------|---------|------------------------|
-| `tools` | `brainwires-model-tools` | — |
-| `agents` | `brainwires-agents` | brainwires-model-tools |
+| `tools` | `brainwires-tool-system` | — |
+| `agents` | `brainwires-agents` | brainwires-tool-system |
 | `storage` | `brainwires-storage` (with native) | lancedb, arrow, fastembed |
 | `mcp` | `brainwires-mcp` | rmcp |
 | `mdap` | `brainwires-mdap` | — |
@@ -278,7 +278,7 @@ This enables: `providers`, `agents`, `storage`, `rag`, `training`, `datasets`.
 ```
 brainwires (facade)
   ├── brainwires-core (always)       ← core traits, types, errors
-  ├── brainwires-model-tools         ← ToolExecutor, built-in tools
+  ├── brainwires-tool-system         ← ToolExecutor, built-in tools
   ├── brainwires-agents              ← AgentRuntime, CommunicationHub
   ├── brainwires-providers           ← Anthropic, OpenAI, Google, Ollama
   ├── brainwires-rag                 ← Chunker, SearchScorer, VectorDatabase
@@ -291,7 +291,7 @@ brainwires (facade)
 ### Where to define new traits
 
 - **Pure types/traits with no heavy deps** → `brainwires-core`
-- **Tool implementations** → `brainwires-model-tools`
+- **Tool implementations** → `brainwires-tool-system`
 - **Agent coordination** → `brainwires-agents`
 - **RAG pipeline components** → `brainwires-rag`
 

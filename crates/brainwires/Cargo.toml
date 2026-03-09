@@ -18,7 +18,7 @@ categories = ["development-tools"]
 brainwires-core.workspace = true
 
 # Feature-gated framework crates
-brainwires-model-tools = { workspace = true, optional = true }
+brainwires-tool-system = { workspace = true, optional = true }
 brainwires-agents = { workspace = true, optional = true }
 brainwires-storage = { workspace = true, optional = true }
 brainwires-mcp = { workspace = true, optional = true }
@@ -96,7 +96,7 @@ required-features = ["rag"]
 [features]
 default = ["tools", "agents"]
 wasm = ["brainwires-core/wasm"]
-tools = ["dep:brainwires-model-tools"]
+tools = ["dep:brainwires-tool-system"]
 agents = ["dep:brainwires-agents"]
 storage = ["dep:brainwires-storage", "brainwires-storage/native"]
 mcp = ["dep:brainwires-mcp"]
@@ -104,8 +104,8 @@ mdap = ["dep:brainwires-mdap"]
 knowledge = ["brain"]
 prompting = ["dep:brainwires-prompting"]
 permissions = ["dep:brainwires-permissions"]
-orchestrator = ["tools", "brainwires-model-tools/orchestrator"]
-openapi = ["tools", "brainwires-model-tools/openapi"]
+orchestrator = ["tools", "brainwires-tool-system/orchestrator"]
+openapi = ["tools", "brainwires-tool-system/openapi"]
 rag = ["dep:brainwires-rag", "brainwires-rag/native", "brainwires-rag/lancedb-backend"]
 rag-full-languages = ["rag", "brainwires-rag/tree-sitter-languages"]
 interpreters = ["dep:brainwires-code-interpreters"]

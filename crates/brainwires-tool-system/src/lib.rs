@@ -23,7 +23,7 @@
 //! whichever tools you need, or use `ToolRegistry::with_builtins()` for all.
 //!
 //! ```ignore
-//! use brainwires_model_tools::{ToolRegistry, BashTool, FileOpsTool};
+//! use brainwires_tool_system::{ToolRegistry, BashTool, FileOpsTool};
 //!
 //! let mut registry = ToolRegistry::new();
 //! registry.register_tools(BashTool::get_tools());

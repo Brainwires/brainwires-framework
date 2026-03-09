@@ -32,8 +32,8 @@
 // Re-export core types
 pub use brainwires_core;
 
-// Re-export brainwires-model-tools for ToolExecutor trait
-pub use brainwires_model_tools;
+// Re-export brainwires-tool-system for ToolExecutor trait
+pub use brainwires_tool_system;
 
 // ── Agent loop hooks ─────────────────────────────────────────────────────────
 
@@ -171,7 +171,7 @@ pub use validator_agent::{
     spawn_validator_agent, ValidatorAgent, ValidatorAgentConfig, ValidatorAgentResult,
     ValidatorAgentStatus,
 };
-pub use brainwires_model_tools::{PreHookDecision, ToolPreHook};
+pub use brainwires_tool_system::{PreHookDecision, ToolPreHook};
 
 /// Prelude module for convenient imports
 pub mod prelude {
@@ -191,7 +191,7 @@ pub mod prelude {
     pub use super::validator_agent::{
         ValidatorAgent, ValidatorAgentConfig, ValidatorAgentResult, ValidatorAgentStatus,
     };
-    pub use brainwires_model_tools::{PreHookDecision, ToolPreHook};
+    pub use brainwires_tool_system::{PreHookDecision, ToolPreHook};
 
     // Core components
     pub use super::communication::{AgentMessage, CommunicationHub, ConflictInfo, ConflictType};

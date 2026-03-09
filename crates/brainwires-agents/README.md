@@ -85,7 +85,7 @@ println!("{} iterations, success={}", result.iterations, result.success);
 |---------|---------|-------------|
 | `native` | Yes | Git worktree management (`git2`) and process liveness checking (`libc`) |
 | `wasm` | No | WebAssembly-compatible build (disables native-only functionality) |
-| `tools` | No | Kept for backward compatibility; `brainwires-model-tools` is always available |
+| `tools` | No | Kept for backward compatibility; `brainwires-tool-system` is always available |
 | `reasoning` | No | Named reasoning strategies (ReAct, Reflexion, CoT, ToT) and local inference |
 | `eval` | No | Evaluation framework (trials, adversarial, regression, stability) |
 | `otel` | No | OpenTelemetry span export for agent execution traces |
@@ -534,7 +534,7 @@ Use via the `brainwires` facade crate:
 brainwires = { version = "0.1", features = ["agents"] }
 ```
 
-Or use standalone — `brainwires-agents` depends only on `brainwires-core` and `brainwires-model-tools`.
+Or use standalone — `brainwires-agents` depends only on `brainwires-core` and `brainwires-tool-system`.
 
 ## License
 

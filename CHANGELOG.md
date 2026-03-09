@@ -86,7 +86,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AuditLogger` for security audit trails
 - Anomaly detection for unusual tool usage
 
-#### Model Tools (`brainwires-model-tools`)
+#### Model Tools (`brainwires-tool-system`)
 - File operations (read, write, edit, delete, list)
 - Bash command execution
 - Git operations

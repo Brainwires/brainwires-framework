@@ -62,7 +62,7 @@ let response = provider.chat(&messages, None, &options).await?;
 
 | Feature | Default | Activates | Description |
 |---------|---------|-----------|-------------|
-| `tools` | **yes** | `brainwires-model-tools` | File, bash, git, search, web, and validation tools |
+| `tools` | **yes** | `brainwires-tool-system` | File, bash, git, search, web, and validation tools |
 | `agents` | **yes** | `brainwires-agents` | Agent runtime, communication hub, task manager, validation loop |
 | `storage` | no | `brainwires-storage` | LanceDB-backed tiered memory (hot/warm/cold) |
 | `mcp` | no | `brainwires-mcp` | MCP client for connecting to external MCP servers |
@@ -70,7 +70,7 @@ let response = provider.chat(&messages, None, &options).await?;
 | `prompting` | no | `brainwires-prompting` | Prompt generation, technique library, temperature optimizer |
 | `knowledge` | no | `brainwires-brain/knowledge` | Behavioral + personal knowledge caches (implies `brain`) |
 | `permissions` | no | `brainwires-permissions` | Capability profiles, trust levels, policy engine, audit logging |
-| `orchestrator` | no | `brainwires-model-tools/orchestrator` | Tool orchestration layer (implies `tools`) |
+| `orchestrator` | no | `brainwires-tool-system/orchestrator` | Tool orchestration layer (implies `tools`) |
 | `rag` | no | `brainwires-rag` | Semantic code search with vector + BM25 hybrid search |
 | `interpreters` | no | `brainwires-code-interpreters` | Sandboxed JavaScript and Python code execution |
 | `providers` | no | `brainwires-providers` | AI providers (Anthropic, OpenAI, Google, Ollama) |
@@ -80,7 +80,7 @@ let response = provider.chat(&messages, None, &options).await?;
 | `skills` | no | `brainwires-skills` | Pluggable skills system |
 | `eval` | no | `brainwires-agents/eval` | Evaluation framework for benchmarking agents (implies `agents`) |
 | `otel` | no | `brainwires-agents/otel` | OpenTelemetry span export for agent traces (implies `agents`) |
-| `openapi` | no | `brainwires-model-tools/openapi` | Auto-generate tools from OpenAPI 3.x specs (implies `tools`) |
+| `openapi` | no | `brainwires-tool-system/openapi` | Auto-generate tools from OpenAPI 3.x specs (implies `tools`) |
 | `proxy` | no | `brainwires-proxy` | AI proxy framework |
 | `a2a` | no | `brainwires-relay/a2a` | Agent-to-Agent protocol (implies `relay`) |
 | `mesh` | no | `brainwires-mesh` | Mesh networking for distributed agents |

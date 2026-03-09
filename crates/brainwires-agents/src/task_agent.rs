@@ -42,7 +42,7 @@ use brainwires_core::{
     estimate_tokens_from_size, ChatOptions, ChatResponse, ContentBlock, ContentSource, Message,
     MessageContent, Provider, Role, Task, ToolContext, ToolResult, ToolUse,
 };
-use brainwires_model_tools::{wrap_with_content_source, PreHookDecision};
+use brainwires_tool_system::{wrap_with_content_source, PreHookDecision};
 
 use crate::agent_hooks::{ConversationView, IterationContext, IterationDecision, ToolDecision};
 use crate::communication::AgentMessage;
@@ -1708,7 +1708,7 @@ mod tests {
     use crate::file_locks::FileLockManager;
     use async_trait::async_trait;
     use brainwires_core::{ChatResponse, StreamChunk, Tool, ToolContext, ToolResult, ToolUse, Usage};
-    use brainwires_model_tools::ToolExecutor;
+    use brainwires_tool_system::ToolExecutor;
     use futures::stream::BoxStream;
 
     // ── Mock provider ──────────────────────────────────────────────────────
@@ -1880,7 +1880,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_pre_execute_hook_reject() {
-        use brainwires_model_tools::{PreHookDecision, ToolPreHook};
+        use brainwires_tool_system::{PreHookDecision, ToolPreHook};
 
         struct RejectAll;
         #[async_trait]
