@@ -60,13 +60,14 @@ fn output_format_to_responses_format(format: OutputFormat) -> &'static str {
 }
 
 /// Extract the first `OutputAudio` block from a response.
-fn extract_audio_block(
-    output: &[ResponseOutputItem],
-) -> Option<(&str, Option<&str>)> {
+fn extract_audio_block(output: &[ResponseOutputItem]) -> Option<(&str, Option<&str>)> {
     for item in output {
         if let ResponseOutputItem::Message { content, .. } = item {
             for block in content {
-                if let OutputContentBlock::OutputAudio { data, transcript, .. } = block {
+                if let OutputContentBlock::OutputAudio {
+                    data, transcript, ..
+                } = block
+                {
                     return Some((data.as_str(), transcript.as_deref()));
                 }
             }
@@ -83,30 +84,64 @@ impl TextToSpeech for OpenAiResponsesTts {
 
     async fn list_voices(&self) -> AudioResult<Vec<Voice>> {
         Ok(vec![
-            Voice { id: "alloy".into(),   name: Some("Alloy".into()),   language: None },
-            Voice { id: "ash".into(),     name: Some("Ash".into()),     language: None },
-            Voice { id: "ballad".into(),  name: Some("Ballad".into()),  language: None },
-            Voice { id: "coral".into(),   name: Some("Coral".into()),   language: None },
-            Voice { id: "echo".into(),    name: Some("Echo".into()),    language: None },
-            Voice { id: "fable".into(),   name: Some("Fable".into()),   language: None },
-            Voice { id: "onyx".into(),    name: Some("Onyx".into()),    language: None },
-            Voice { id: "nova".into(),    name: Some("Nova".into()),    language: None },
-            Voice { id: "sage".into(),    name: Some("Sage".into()),    language: None },
-            Voice { id: "shimmer".into(), name: Some("Shimmer".into()), language: None },
+            Voice {
+                id: "alloy".into(),
+                name: Some("Alloy".into()),
+                language: None,
+            },
+            Voice {
+                id: "ash".into(),
+                name: Some("Ash".into()),
+                language: None,
+            },
+            Voice {
+                id: "ballad".into(),
+                name: Some("Ballad".into()),
+                language: None,
+            },
+            Voice {
+                id: "coral".into(),
+                name: Some("Coral".into()),
+                language: None,
+            },
+            Voice {
+                id: "echo".into(),
+                name: Some("Echo".into()),
+                language: None,
+            },
+            Voice {
+                id: "fable".into(),
+                name: Some("Fable".into()),
+                language: None,
+            },
+            Voice {
+                id: "onyx".into(),
+                name: Some("Onyx".into()),
+                language: None,
+            },
+            Voice {
+                id: "nova".into(),
+                name: Some("Nova".into()),
+                language: None,
+            },
+            Voice {
+                id: "sage".into(),
+                name: Some("Sage".into()),
+                language: None,
+            },
+            Voice {
+                id: "shimmer".into(),
+                name: Some("Shimmer".into()),
+                language: None,
+            },
         ])
     }
 
-    async fn synthesize(
-        &self,
-        text: &str,
-        options: &TtsOptions,
-    ) -> AudioResult<AudioBuffer> {
+    async fn synthesize(&self, text: &str, options: &TtsOptions) -> AudioResult<AudioBuffer> {
         let format_str = output_format_to_responses_format(options.output_format);
 
-        let mut req = CreateResponseRequest::new(
-            self.model.clone(),
-            ResponseInput::Text(text.to_string()),
-        );
+        let mut req =
+            CreateResponseRequest::new(self.model.clone(), ResponseInput::Text(text.to_string()));
         req.modalities = Some(vec!["audio".to_string()]);
         req.audio = Some(AudioOutputConfig {
             voice: options.voice.id.clone(),
@@ -119,10 +154,9 @@ impl TextToSpeech for OpenAiResponsesTts {
             .await
             .map_err(|e| AudioError::Api(format!("OpenAI Responses TTS: {e}")))?;
 
-        let (b64_data, _transcript) = extract_audio_block(&resp.output)
-            .ok_or_else(|| AudioError::Api(
-                "OpenAI Responses TTS: no audio output in response".to_string(),
-            ))?;
+        let (b64_data, _transcript) = extract_audio_block(&resp.output).ok_or_else(|| {
+            AudioError::Api("OpenAI Responses TTS: no audio output in response".to_string())
+        })?;
 
         let bytes = base64::engine::general_purpose::STANDARD
             .decode(b64_data)
@@ -146,7 +180,10 @@ impl TextToSpeech for OpenAiResponsesTts {
                     channels: 1,
                     sample_format: SampleFormat::I16,
                 };
-                Ok(AudioBuffer { data: bytes, config })
+                Ok(AudioBuffer {
+                    data: bytes,
+                    config,
+                })
             }
         }
     }

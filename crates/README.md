@@ -1,6 +1,6 @@
 # Brainwires Framework — Crate Dependency Tree
 
-23 crates organized in layers. Arrows (`->`) indicate internal dependencies.
+Crates organized in layers. Arrows (`->`) indicate internal dependencies. For standalone apps built on the framework, see [`extras/`](../extras/README.md).
 
 ```
 brainwires  (facade — re-exports all crates via feature flags)
@@ -86,18 +86,6 @@ brainwires  (facade — re-exports all crates via feature flags)
          └─> tool-system (opt)
          └─> code-interpreters (opt)
 ```
-
-## Extras (`extras/`)
-
-Standalone apps built on the framework:
-
-| App | Description |
-|-----|-------------|
-| `agent-chat` | Interactive multi-agent chat application |
-| `brainwires-brain-server` | Knowledge graph server (BKS/PKS) |
-| `brainwires-proxy` | Protocol-agnostic traffic debugging proxy |
-| `brainwires-rag-server` | RAG semantic search MCP server |
-| `reload-daemon` | Hot-reload daemon for development |
 
 ## Longest Dependency Chain
 

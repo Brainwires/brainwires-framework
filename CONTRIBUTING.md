@@ -17,23 +17,7 @@ cargo test
 
 ## Project Structure
 
-The framework is a Cargo workspace with 22 crates organized around a facade pattern:
-
-| Layer | Crates | Purpose |
-|-------|--------|---------|
-| **Core** | `brainwires-core` | Shared types, traits, errors |
-| **Facade** | `brainwires` | Public API re-exports |
-| **Providers** | `brainwires-providers` | AI provider integrations (Anthropic, OpenAI, Google, Ollama, etc.) |
-| **Agents** | `brainwires-agents` | Multi-agent orchestration, task execution |
-| **Tools** | `brainwires-tool-system` | Tool definitions and execution |
-| **Storage** | `brainwires-storage` | Vector storage and semantic search |
-| **RAG** | `brainwires-rag` | Retrieval-augmented generation engine |
-| **MCP** | `brainwires-mcp`, `brainwires-relay` | Model Context Protocol client and server |
-| **Audio** | `brainwires-audio` | Speech-to-text and text-to-speech |
-| **Learning** | `brainwires-seal`, `brainwires-training`, `brainwires-datasets` | Self-evolving learning, fine-tuning |
-| **Infrastructure** | `brainwires-mesh`, `brainwires-permissions`, `brainwires-prompting`, `brainwires-skills` | Networking, permissions, prompt construction |
-
-Additional binaries and utilities live in `extras/`.
+The framework is a Cargo workspace organized around a facade pattern. For the full list of crates and architecture details, see the [README](README.md) and [crates overview](crates/README.md). Standalone apps built on the framework live in [`extras/`](extras/README.md).
 
 ## Development Workflow
 

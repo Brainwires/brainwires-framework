@@ -22,10 +22,7 @@ use anyhow::{Context, Result, bail};
 use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::sync::{RwLock, mpsc};
-use tokio_tungstenite::{
-    connect_async,
-    tungstenite::Message,
-};
+use tokio_tungstenite::{connect_async, tungstenite::Message};
 use url::Url;
 
 use super::protocol::{BackendCommand, RemoteAgentInfo, StreamChunkType};
@@ -421,12 +418,20 @@ impl RealtimeClient {
         // Build a WebSocket request with auth header
         let request = tokio_tungstenite::tungstenite::http::Request::builder()
             .uri(url.as_str())
-            .header("Authorization", format!("Bearer {}", self.config.realtime_token))
+            .header(
+                "Authorization",
+                format!("Bearer {}", self.config.realtime_token),
+            )
             .body(())
             .context("Failed to build WebSocket request")?;
 
         // Connect WebSocket
-        let (ws_stream, _response): (tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>, _) = match connect_async(request).await {
+        let (ws_stream, _response): (
+            tokio_tungstenite::WebSocketStream<
+                tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+            >,
+            _,
+        ) = match connect_async(request).await {
             Ok(result) => result,
             Err(e) => {
                 tracing::error!("WebSocket connection error: {:?}", e);

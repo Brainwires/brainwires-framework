@@ -106,9 +106,7 @@ pub fn response_to_chat_response(resp: &ResponseObject) -> Result<ChatResponse> 
                         }
                         OutputContentBlock::OutputAudio { transcript, .. } => {
                             if let Some(text) = transcript {
-                                content_blocks.push(ContentBlock::Text {
-                                    text: text.clone(),
-                                });
+                                content_blocks.push(ContentBlock::Text { text: text.clone() });
                             }
                         }
                     }

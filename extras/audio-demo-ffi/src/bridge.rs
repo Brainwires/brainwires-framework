@@ -8,8 +8,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 
 use brainwires_audio::{
-    AudioCapture, AudioConfig, AudioPlayback, CpalCapture, CpalPlayback,
-    SpeechToText, TextToSpeech,
+    AudioCapture, AudioConfig, AudioPlayback, CpalCapture, CpalPlayback, SpeechToText, TextToSpeech,
 };
 
 use crate::error::FfiAudioError;

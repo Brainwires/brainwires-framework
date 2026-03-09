@@ -87,7 +87,7 @@ fn create_provider(
         _ => {
             return Err(FfiAudioError::UnknownProvider {
                 message: format!("unknown provider: {name}"),
-            })
+            });
         }
     };
     Ok(insert_provider(entry))
@@ -230,10 +230,7 @@ fn audio_record(
 
 /// Play audio through the default output device.
 #[uniffi::export]
-fn audio_play(
-    device_id: Option<String>,
-    buffer: FfiAudioBuffer,
-) -> Result<(), FfiAudioError> {
+fn audio_play(device_id: Option<String>, buffer: FfiAudioBuffer) -> Result<(), FfiAudioError> {
     bridge::audio_play_sync(device_id, buffer)
 }
 

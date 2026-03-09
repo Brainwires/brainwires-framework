@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.0] - 2026-03-09
 
+### Changed
+
+#### Framework-wide
+- Removed hardcoded crate counts from `CONTRIBUTING.md` and `crates/README.md` to avoid staleness.
+- Replaced inline crate listing in `CONTRIBUTING.md` with links to `README.md`, `crates/README.md`, and `extras/README.md`.
+- Removed extras table from `crates/README.md`; extras are now documented in their own `extras/README.md`.
+- Applied `cargo fmt --all` across workspace.
+
 ### Added
 
 #### SEAL (`brainwires-seal`)

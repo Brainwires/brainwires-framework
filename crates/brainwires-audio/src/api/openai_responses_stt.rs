@@ -87,7 +87,9 @@ impl SpeechToText for OpenAiResponsesStt {
         }];
 
         let prompt = if let Some(ref lang) = options.language {
-            format!("Transcribe this audio. The language is {lang}. Return only the transcription text, nothing else.")
+            format!(
+                "Transcribe this audio. The language is {lang}. Return only the transcription text, nothing else."
+            )
         } else {
             "Transcribe this audio. Return only the transcription text, nothing else.".to_string()
         };

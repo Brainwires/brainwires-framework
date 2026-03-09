@@ -148,9 +148,11 @@ impl ClusterStorage {
                 let tasks_json: String = row.get(4)?;
 
                 // Deserialize embedding
-                let (embedding, _): (Vec<f32>, _) =
-                    bincode::serde::decode_from_slice(&embedding_bytes, bincode::config::standard())
-                        .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+                let (embedding, _): (Vec<f32>, _) = bincode::serde::decode_from_slice(
+                    &embedding_bytes,
+                    bincode::config::standard(),
+                )
+                .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
 
                 // Deserialize techniques
                 let techniques: Vec<PromptingTechnique> = serde_json::from_str(&techniques_json)

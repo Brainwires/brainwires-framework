@@ -67,10 +67,7 @@ pub struct FeedbackBridge<'a> {
 
 impl<'a> FeedbackBridge<'a> {
     /// Create a new feedback bridge.
-    pub fn new(
-        audit_logger: &'a AuditLogger,
-        learning: &'a mut LearningCoordinator,
-    ) -> Self {
+    pub fn new(audit_logger: &'a AuditLogger, learning: &'a mut LearningCoordinator) -> Self {
         Self {
             audit_logger,
             learning,
@@ -134,11 +131,7 @@ impl<'a> FeedbackBridge<'a> {
                     .get("feedback_id")
                     .cloned()
                     .unwrap_or_default(),
-                run_id: event
-                    .metadata
-                    .get("run_id")
-                    .cloned()
-                    .unwrap_or_default(),
+                run_id: event.metadata.get("run_id").cloned().unwrap_or_default(),
                 polarity,
                 correction: event.metadata.get("correction").cloned(),
                 submitted_at: event.timestamp,
@@ -156,11 +149,11 @@ impl<'a> FeedbackBridge<'a> {
 
         // Record as a generic outcome (no specific pattern or query core)
         self.learning.record_outcome(
-            None,    // no specific pattern ID
+            None, // no specific pattern ID
             success,
             if success { 1 } else { 0 }, // treat positive as 1 result
-            None,    // no query core context
-            0,       // no execution time
+            None,                        // no query core context
+            0,                           // no execution time
         );
 
         if success {
@@ -260,7 +253,11 @@ mod tests {
             .submit_feedback("run-3", FeedbackPolarity::ThumbsUp, None)
             .unwrap();
         logger
-            .submit_feedback("run-3", FeedbackPolarity::ThumbsDown, Some("Wrong approach"))
+            .submit_feedback(
+                "run-3",
+                FeedbackPolarity::ThumbsDown,
+                Some("Wrong approach"),
+            )
             .unwrap();
 
         let mut bridge = FeedbackBridge::new(&logger, &mut learning);
