@@ -338,11 +338,11 @@ async fn handle_jsonrpc<H: A2aHandler>(
         Ok(Some(resp)) => resp,
         Ok(None) => {
             // Should not happen — streaming methods handled above
-            let resp = crate::jsonrpc::JsonRpcResponse::error(
+            
+            crate::jsonrpc::JsonRpcResponse::error(
                 request.id,
                 A2aError::internal("Unexpected routing state"),
-            );
-            resp
+            )
         }
         Err(resp) => resp,
     };

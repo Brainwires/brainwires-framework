@@ -56,7 +56,7 @@ pub fn parse_sse_bytes(
 /// complete SSE frames (`\n\n` boundaries) are found, then parses each frame.
 /// Handles multi-line `data:` fields per the SSE specification.
 ///
-/// The buffer is capped at [`MAX_SSE_BUFFER_SIZE`] to prevent unbounded memory
+/// The buffer is capped at 16 MiB to prevent unbounded memory
 /// growth from malicious or misbehaving servers.
 pub fn parse_sse_byte_stream(
     stream: impl Stream<Item = Result<Bytes, reqwest::Error>> + Send + 'static,
@@ -104,7 +104,7 @@ pub fn parse_sse_byte_stream(
 /// Like `parse_sse_byte_stream` but expects `data:` lines containing raw
 /// `StreamEvent` JSON rather than a JSON-RPC response wrapper.
 ///
-/// The buffer is capped at [`MAX_SSE_BUFFER_SIZE`].
+/// The buffer is capped at 16 MiB.
 pub fn parse_sse_rest_byte_stream(
     stream: impl Stream<Item = Result<Bytes, reqwest::Error>> + Send + 'static,
 ) -> impl Stream<Item = Result<StreamEvent, A2aError>> + Send {

@@ -1,5 +1,6 @@
 [package]
 name = "agent-chat"
+publish = false
 description = "Simplified AI chat client for the Brainwires Framework"
 version.workspace = true
 edition.workspace = true

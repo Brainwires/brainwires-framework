@@ -53,7 +53,7 @@ impl RestTransport {
         path: &str,
         body: &impl serde::Serialize,
     ) -> Result<serde_json::Value, A2aError> {
-        let builder = self.client.post(&self.url(path)).json(body);
+        let builder = self.client.post(self.url(path)).json(body);
         let resp = self
             .apply_auth(builder)
             .send()
@@ -74,7 +74,7 @@ impl RestTransport {
 
     /// GET, return JSON.
     pub async fn get(&self, path: &str) -> Result<serde_json::Value, A2aError> {
-        let builder = self.client.get(&self.url(path));
+        let builder = self.client.get(self.url(path));
         let resp = self
             .apply_auth(builder)
             .send()
@@ -95,7 +95,7 @@ impl RestTransport {
 
     /// DELETE, return nothing.
     pub async fn delete(&self, path: &str) -> Result<(), A2aError> {
-        let builder = self.client.delete(&self.url(path));
+        let builder = self.client.delete(self.url(path));
         let resp = self
             .apply_auth(builder)
             .send()

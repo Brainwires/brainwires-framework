@@ -1,5 +1,6 @@
 [package]
 name = "brainwires-rag-server"
+publish = false
 description = "Project-RAG MCP server binary — RAG-based codebase indexing and semantic search"
 version.workspace = true
 edition.workspace = true

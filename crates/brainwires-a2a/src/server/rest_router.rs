@@ -165,13 +165,12 @@ fn strip_tenant(path: &str) -> (Option<String>, &str) {
     }
 
     // Try stripping /{tenant}/...
-    if let Some(rest) = path.strip_prefix('/') {
-        if let Some(slash_pos) = rest.find('/') {
+    if let Some(rest) = path.strip_prefix('/')
+        && let Some(slash_pos) = rest.find('/') {
             let tenant = &rest[..slash_pos];
             let remaining = &rest[slash_pos..];
             return (Some(tenant.to_string()), remaining);
         }
-    }
 
     (None, path)
 }

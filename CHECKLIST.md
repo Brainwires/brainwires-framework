@@ -54,10 +54,10 @@ Priority definitions:
 ## Training Completion
 > **Priority: MEDIUM** — Flesh out scaffolded features in the new training crates.
 
-- [ ] **Implement DPO alignment** — Currently scaffolded in `brainwires-training/src/local/alignment/dpo.rs`. Implement Direct Preference Optimization loss computation using Burn tensors.
-- [ ] **Implement ORPO alignment** — Currently scaffolded in `brainwires-training/src/local/alignment/orpo.rs`. Implement Odds Ratio Preference Optimization.
-- [ ] **Flesh out QLoRA adapter** — Currently a skeleton in `brainwires-training/src/local/adapters/qlora.rs`. Note: true QLoRA requires INT4 quantized kernels that Burn doesn't yet support (no QAT). Document limitations and implement what's feasible.
-- [ ] **Flesh out DoRA adapter** — Currently a skeleton in `brainwires-training/src/local/adapters/dora.rs`. Implement direction-magnitude decomposition on top of the existing LoRA implementation.
+- [x] **Implement DPO alignment** — Fully implemented in `brainwires-training/src/local/burn_backend.rs` (`train_dpo_alignment()`) with frozen reference model and proper loss computation.
+- [x] **Implement ORPO alignment** — Fully implemented in `brainwires-training/src/local/burn_backend.rs` (`train_orpo_alignment()`) with single-pass odds ratio loss.
+- [x] **Flesh out QLoRA adapter** — Fully implemented in `brainwires-training/src/local/burn_modules.rs` (`QLoraLinear`, `QLoraLinearConfig`) with `init_quantized()` for INT4/INT8 dequantized base weights.
+- [x] **Flesh out DoRA adapter** — Fully implemented in `brainwires-training/src/local/burn_modules.rs` (`DoraLinear`, `DoraLinearConfig`) with direction-magnitude decomposition.
 
 ---
 

@@ -1,7 +1,7 @@
 //! Provider registry — connection details for all known providers.
 //!
 //! Maps each [`ProviderType`] to its wire protocol, default endpoint, auth
-//! scheme, and model-listing URL. The [`ChatProviderFactory`](super::chat_factory)
+//! scheme, and model-listing URL. The `ChatProviderFactory`
 //! uses the registry for protocol dispatch, eliminating per-provider boilerplate.
 
 use super::ProviderType;

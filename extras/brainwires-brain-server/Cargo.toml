@@ -1,5 +1,6 @@
 [package]
 name = "brainwires-brain-server"
+publish = false
 description = "Open Brain MCP server binary — exposes persistent knowledge (thoughts, PKS, BKS) to any AI tool via MCP protocol"
 version.workspace = true
 edition.workspace = true

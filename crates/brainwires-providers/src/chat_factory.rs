@@ -1,7 +1,7 @@
 //! Chat provider factory — registry-driven protocol dispatch.
 //!
 //! Creates `Arc<dyn Provider>` from a [`ProviderConfig`] by looking up the
-//! provider in the [`registry`](super::registry) and dispatching to the
+//! provider in the registry and dispatching to the
 //! appropriate protocol handler.
 
 use std::sync::Arc;

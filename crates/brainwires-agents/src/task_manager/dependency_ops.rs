@@ -31,9 +31,13 @@ impl TaskManager {
         task.add_dependency(depends_on.to_string());
 
         // If dependency is not complete/skipped, mark task as blocked
-        let dep_task = tasks.get(depends_on).unwrap();
-        if dep_task.status != TaskStatus::Completed && dep_task.status != TaskStatus::Skipped {
-            tasks.get_mut(task_id).unwrap().status = TaskStatus::Blocked;
+        let dep_status = tasks.get(depends_on)
+            .expect("dependency existence verified above")
+            .status.clone();
+        if dep_status != TaskStatus::Completed && dep_status != TaskStatus::Skipped {
+            tasks.get_mut(task_id)
+                .expect("task existence verified above")
+                .status = TaskStatus::Blocked;
         }
 
         Ok(())

@@ -1,5 +1,6 @@
 [package]
 name = "reload-daemon"
+publish = false
 description = "Minimal MCP server that enables AI coding clients to kill and restart themselves with transformed arguments"
 version.workspace = true
 edition.workspace = true

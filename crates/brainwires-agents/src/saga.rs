@@ -348,7 +348,7 @@ impl SagaExecutor {
             agent_id,
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
+                .expect("system clock before UNIX epoch")
                 .as_millis()
         );
 
@@ -538,7 +538,7 @@ impl CompensationReport {
             operations: Vec::new(),
             started_at: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
+                .expect("system clock before UNIX epoch")
                 .as_millis() as u64,
             completed_at: None,
         }
@@ -610,7 +610,7 @@ impl CompensationReport {
         self.completed_at = Some(
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
+                .expect("system clock before UNIX epoch")
                 .as_millis() as u64,
         );
     }
