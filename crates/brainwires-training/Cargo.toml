@@ -11,7 +11,7 @@ authors.workspace = true
 readme = "README.md"
 documentation = "https://docs.rs/brainwires-training"
 keywords = ["fine-tuning", "llm-training", "lora", "qlora", "model-training"]
-categories = ["science::ml"]
+categories = ["science::machine-learning"]
 
 [dependencies]
 # Always available
