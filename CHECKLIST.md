@@ -85,7 +85,7 @@ Priority definitions:
 ## Future Enhancements
 > **Priority: LOW** — Post-release improvements informed by competitive analysis.
 
-- [ ] **ToolEmbedding for semantic tool discovery** — Inspired by Rig's `ToolEmbedding` trait. When an agent has many tools, use embedding similarity to discover the right tool rather than listing all definitions in the prompt.
+- [x] **ToolEmbedding for semantic tool discovery** — Inspired by Rig's `ToolEmbedding` trait. When an agent has many tools, use embedding similarity to discover the right tool rather than listing all definitions in the prompt.
 - [ ] **Structured extraction module** — Typed LLM output extraction (like Rig's `extractor` module). Deserialize LLM responses directly into Rust structs via JSON mode.
 - [ ] **Expand provider count** — Anyscale, Fireworks, Together providers are in progress (visible in git status). Complete and test these.
 - [ ] **HuggingFace model hub integration** — Add model downloading for local training. Currently there's no `from_pretrained()` equivalent — users must manually provide model weights.

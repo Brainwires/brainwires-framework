@@ -259,6 +259,32 @@ impl ToolRegistry {
             .collect()
     }
 
+    /// Search tools by semantic similarity using embeddings.
+    ///
+    /// Returns tools with their similarity scores, sorted by relevance.
+    /// Requires the `rag` feature to be enabled.
+    #[cfg(feature = "rag")]
+    pub fn semantic_search_tools(
+        &self,
+        query: &str,
+        limit: usize,
+        min_score: f32,
+    ) -> anyhow::Result<Vec<(&Tool, f32)>> {
+        let tool_pairs: Vec<(String, String)> = self
+            .tools
+            .iter()
+            .map(|t| (t.name.clone(), t.description.clone()))
+            .collect();
+
+        let index = crate::tool_embedding::ToolEmbeddingIndex::build(&tool_pairs)?;
+        let results = index.search(query, limit, min_score)?;
+
+        Ok(results
+            .into_iter()
+            .filter_map(|(name, score)| self.get(&name).map(|tool| (tool, score)))
+            .collect())
+    }
+
     /// Total number of registered tools
     pub fn len(&self) -> usize {
         self.tools.len()

@@ -72,6 +72,9 @@ mod code_exec;
 #[cfg(feature = "rag")]
 mod semantic_search;
 
+#[cfg(feature = "rag")]
+mod tool_embedding;
+
 #[cfg(feature = "smart-router")]
 pub mod smart_router;
 
@@ -115,6 +118,9 @@ pub use code_exec::CodeExecTool;
 
 #[cfg(feature = "rag")]
 pub use semantic_search::SemanticSearchTool;
+
+#[cfg(feature = "rag")]
+pub use tool_embedding::ToolEmbeddingIndex;
 
 #[cfg(feature = "smart-router")]
 pub use smart_router::{
