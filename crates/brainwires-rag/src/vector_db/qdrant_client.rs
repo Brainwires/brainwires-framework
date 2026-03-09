@@ -188,7 +188,7 @@ impl QdrantVectorDB {
         let normalized_score = score / query_terms.len() as f32;
 
         // Clamp to [0, 1]
-        normalized_score.min(1.0).max(0.0)
+        normalized_score.clamp(0.0, 1.0)
     }
 }
 
@@ -238,8 +238,8 @@ impl VectorDatabase for QdrantVectorDB {
 
         let points: Vec<PointStruct> = embeddings
             .into_iter()
-            .zip(metadata.into_iter())
-            .zip(contents.into_iter())
+            .zip(metadata)
+            .zip(contents)
             .enumerate()
             .map(|(idx, ((embedding, meta), content))| {
                 let payload: Payload = json!({
@@ -419,10 +419,10 @@ impl VectorDatabase for QdrantVectorDB {
                 .and_then(|v| v.as_str().map(String::from));
 
             // Filter by root_path if specified
-            if let Some(ref filter_path) = root_path {
-                if result_root_path.as_ref() != Some(filter_path) {
-                    continue;
-                }
+            if let Some(ref filter_path) = root_path
+                && result_root_path.as_ref() != Some(filter_path)
+            {
+                continue;
             }
 
             let indexed_at = payload
@@ -447,11 +447,7 @@ impl VectorDatabase for QdrantVectorDB {
 
         // Re-sort by combined score if hybrid
         if hybrid {
-            results.sort_by(|a, b| {
-                b.score
-                    .partial_cmp(&a.score)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            });
+            results.sort_by(|a, b| b.score.total_cmp(&a.score));
         }
 
         // Post-filter by path patterns using proper glob matching

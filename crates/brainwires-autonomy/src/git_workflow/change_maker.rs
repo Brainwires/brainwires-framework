@@ -25,7 +25,7 @@ pub struct ChangeResult {
 /// Makes code changes based on investigation results.
 pub struct ChangeMaker {
     provider: Arc<dyn Provider>,
-    max_iterations: u32,
+    _max_iterations: u32,
 }
 
 impl ChangeMaker {
@@ -33,7 +33,7 @@ impl ChangeMaker {
     pub fn new(provider: Arc<dyn Provider>, max_iterations: u32) -> Self {
         Self {
             provider,
-            max_iterations,
+            _max_iterations: max_iterations,
         }
     }
 

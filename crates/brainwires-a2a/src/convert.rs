@@ -175,7 +175,7 @@ mod grpc_convert {
                             mime_type,
                             name,
                         } => (
-                            pb::part::Content::Raw(bytes.into_bytes().into()),
+                            pb::part::Content::Raw(bytes.into_bytes()),
                             name.unwrap_or_default(),
                             mime_type.unwrap_or_default(),
                         ),

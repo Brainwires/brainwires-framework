@@ -65,18 +65,18 @@ impl ImprovementStrategy for DeadCodeStrategy {
                         continue;
                     }
 
-                    if let Some(spans) = message.get("spans").and_then(|s| s.as_array()) {
-                        if let Some(span) = spans.first() {
-                            let file = span.get("file_name").and_then(|f| f.as_str()).unwrap_or("");
-                            let line_start =
-                                span.get("line_start").and_then(|l| l.as_u64()).unwrap_or(0);
+                    if let Some(spans) = message.get("spans").and_then(|s| s.as_array())
+                        && let Some(span) = spans.first()
+                    {
+                        let file = span.get("file_name").and_then(|f| f.as_str()).unwrap_or("");
+                        let line_start =
+                            span.get("line_start").and_then(|l| l.as_u64()).unwrap_or(0);
 
-                            if file.starts_with("src/") {
-                                unused_by_file
-                                    .entry(file.to_string())
-                                    .or_default()
-                                    .push(format!("Line {line_start}: {msg_text}"));
-                            }
+                        if file.starts_with("src/") {
+                            unused_by_file
+                                .entry(file.to_string())
+                                .or_default()
+                                .push(format!("Line {line_start}: {msg_text}"));
                         }
                     }
                 }

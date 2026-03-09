@@ -17,12 +17,7 @@
 //! - **Parallel execution** - multiple tools in one pass
 //! - **Complex orchestration** - loops, conditionals, data processing
 
-// Require either orchestrator or orchestrator-wasm feature (but not both)
-#[cfg(all(feature = "orchestrator", feature = "orchestrator-wasm"))]
-compile_error!(
-    "The `orchestrator` and `orchestrator-wasm` features are mutually exclusive. \
-     Use `--features orchestrator` for native or `--features orchestrator-wasm` for WASM."
-);
+// When both features are active (e.g. --all-features), native `orchestrator` takes priority.
 
 pub mod engine;
 pub mod sandbox;

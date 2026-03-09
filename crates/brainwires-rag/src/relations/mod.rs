@@ -110,10 +110,10 @@ impl HybridRelationsProvider {
     /// Get the best provider for a given language.
     fn provider_for_language(&self, _language: &str) -> &dyn RelationsProvider {
         #[cfg(feature = "stack-graphs")]
-        if let Some(ref sg) = self.stack_graphs {
-            if sg.supports_language(_language) {
-                return sg;
-            }
+        if let Some(ref sg) = self.stack_graphs
+            && sg.supports_language(_language)
+        {
+            return sg;
         }
 
         &self.repomap

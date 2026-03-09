@@ -85,10 +85,9 @@ fn extract_confidence(text: &str) -> f64 {
                 if let Ok(val) = word
                     .trim_matches(|c: char| !c.is_ascii_digit() && c != '.')
                     .parse::<f64>()
+                    && (0.0..=1.0).contains(&val)
                 {
-                    if (0.0..=1.0).contains(&val) {
-                        return val;
-                    }
+                    return val;
                 }
             }
         }

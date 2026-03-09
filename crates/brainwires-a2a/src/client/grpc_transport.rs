@@ -76,7 +76,7 @@ mod grpc_impl {
 
             let stream = resp.into_inner().map(|item| {
                 item.map_err(|e| A2aError::internal(format!("gRPC stream error: {e}")))
-                    .and_then(|sr| proto_stream_response_to_event(sr))
+                    .and_then(proto_stream_response_to_event)
             });
 
             Ok(Box::pin(stream))
@@ -254,7 +254,7 @@ mod grpc_impl {
 
             let stream = resp.into_inner().map(|item| {
                 item.map_err(|e| A2aError::internal(format!("gRPC stream error: {e}")))
-                    .and_then(|sr| proto_stream_response_to_event(sr))
+                    .and_then(proto_stream_response_to_event)
             });
 
             Ok(Box::pin(stream))

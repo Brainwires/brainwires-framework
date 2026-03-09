@@ -120,12 +120,8 @@ pub fn export_model(
                     })
                     .collect();
 
-            let serialized = safetensors::tensor::serialize(&tensors, None).map_err(|e| {
-                std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("SafeTensors error: {}", e),
-                )
-            })?;
+            let serialized = safetensors::tensor::serialize(&tensors, None)
+                .map_err(|e| std::io::Error::other(format!("SafeTensors error: {}", e)))?;
             std::fs::write(config.output_path.join("model.safetensors"), serialized)?;
             info!("Exported {} tensors as SafeTensors", weights.len());
         }
@@ -157,12 +153,8 @@ pub fn export_model(
                     })
                     .collect();
 
-            let serialized = safetensors::tensor::serialize(&tensors, None).map_err(|e| {
-                std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("SafeTensors error: {}", e),
-                )
-            })?;
+            let serialized = safetensors::tensor::serialize(&tensors, None)
+                .map_err(|e| std::io::Error::other(format!("SafeTensors error: {}", e)))?;
             std::fs::write(
                 config.output_path.join("adapter_weights.safetensors"),
                 serialized,

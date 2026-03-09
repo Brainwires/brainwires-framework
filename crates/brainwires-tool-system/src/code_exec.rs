@@ -82,7 +82,7 @@ impl CodeExecTool {
 
     /// Generate language description based on available features
     fn language_description() -> String {
-        let langs = vec!["'rhai'", "'lua'", "'javascript'", "'python'"];
+        let langs = ["'rhai'", "'lua'", "'javascript'", "'python'"];
         format!(
             "Programming language identifier: {}. Native interpreters run in-process.",
             langs.join(", ")

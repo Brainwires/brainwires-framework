@@ -67,6 +67,7 @@ pub enum SemanticEntityType {
 
 impl SemanticEntityType {
     /// Parse from string
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         let lower = s.to_lowercase();
         match lower.as_str() {
@@ -212,6 +213,7 @@ pub enum RelationType {
 
 impl RelationType {
     /// Parse a relation type from a string label.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         let lower = s.to_lowercase();
         match lower.as_str() {

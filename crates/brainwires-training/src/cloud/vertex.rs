@@ -24,7 +24,7 @@ pub struct VertexFineTune {
     client: Client,
     access_token: Option<String>,
     #[cfg(feature = "vertex")]
-    auth_manager: Option<std::sync::Arc<tokio::sync::Mutex<gcp_auth::AuthenticationManager>>>,
+    token_provider: Option<std::sync::Arc<dyn gcp_auth::TokenProvider>>,
 }
 
 impl VertexFineTune {
@@ -36,7 +36,7 @@ impl VertexFineTune {
             client: Client::new(),
             access_token: None,
             #[cfg(feature = "vertex")]
-            auth_manager: None,
+            token_provider: None,
         }
     }
 
@@ -58,14 +58,13 @@ impl VertexFineTune {
         })?;
         let credentials = gcp_auth::CustomServiceAccount::from_json(&sa_json)
             .map_err(|e| TrainingError::Config(format!("Invalid service account: {}", e)))?;
-        let auth_manager = gcp_auth::AuthenticationManager::from(credentials);
 
         Ok(Self {
             project_id: project_id.into(),
             location: location.into(),
             client: Client::new(),
             access_token: None,
-            auth_manager: Some(std::sync::Arc::new(tokio::sync::Mutex::new(auth_manager))),
+            token_provider: Some(std::sync::Arc::new(credentials)),
         })
     }
 
@@ -82,10 +81,9 @@ impl VertexFineTune {
         }
 
         #[cfg(feature = "vertex")]
-        if let Some(ref auth) = self.auth_manager {
-            let manager = auth.lock().await;
-            let token = manager
-                .get_token(&["https://www.googleapis.com/auth/cloud-platform"])
+        if let Some(ref provider) = self.token_provider {
+            let token = provider
+                .token(&["https://www.googleapis.com/auth/cloud-platform"])
                 .await
                 .map_err(|e| TrainingError::Config(format!("GCP token error: {}", e)))?;
             return Ok(token.as_str().to_string());

@@ -261,11 +261,9 @@ Classification:"#,
         let trimmed = output.trim();
 
         // Extract intent from the reason part
-        let intent = if let Some(colon_pos) = trimmed.find(':') {
-            Some(trimmed[colon_pos + 1..].trim().to_string())
-        } else {
-            None
-        };
+        let intent = trimmed
+            .find(':')
+            .map(|colon_pos| trimmed[colon_pos + 1..].trim().to_string());
 
         // Parse the level
         let need = if upper.starts_with("HIGH") || upper.contains("HIGH:") {

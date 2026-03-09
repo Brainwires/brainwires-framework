@@ -120,6 +120,7 @@ impl SafeTensorsLoader {
     /// If the tensor dtype is I8 or U8, returns the raw quantized bytes along with
     /// an associated scale tensor (looked up as `{name}_scale`).
     /// Returns `Ok(None)` if the tensor is not pre-quantized.
+    #[allow(clippy::type_complexity)]
     pub fn load_tensor_prequantized(
         &self,
         name: &str,

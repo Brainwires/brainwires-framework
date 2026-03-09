@@ -168,11 +168,10 @@ pub fn openapi_to_tools(spec: &str) -> Result<Vec<OpenApiTool>> {
             ];
 
             for (method, operation) in methods {
-                if let Some(op) = operation {
-                    if let Some(tool) = parse_operation(&openapi, &base_url, path, method, item, op)
-                    {
-                        tools.push(tool);
-                    }
+                if let Some(op) = operation
+                    && let Some(tool) = parse_operation(&openapi, &base_url, path, method, item, op)
+                {
+                    tools.push(tool);
                 }
             }
         }
@@ -193,8 +192,7 @@ fn parse_operation(
     let tool_name = operation.operation_id.clone().unwrap_or_else(|| {
         let clean_path = path
             .replace('/', "_")
-            .replace('{', "")
-            .replace('}', "")
+            .replace(['{', '}'], "")
             .trim_matches('_')
             .to_string();
         format!("{}_{}", method.to_string().to_lowercase(), clean_path)
@@ -360,10 +358,8 @@ fn process_parameter(
     }
     properties.insert(name.clone(), prop);
 
-    if required {
-        if !required_params.contains(name) {
-            required_params.push(name.clone());
-        }
+    if required && !required_params.contains(name) {
+        required_params.push(name.clone());
     }
 }
 
@@ -460,10 +456,10 @@ pub async fn execute_openapi_tool(
     }
 
     // Add request body
-    if endpoint.has_body {
-        if let Some(body) = args.get("body") {
-            request = request.json(body);
-        }
+    if endpoint.has_body
+        && let Some(body) = args.get("body")
+    {
+        request = request.json(body);
     }
 
     // Add authentication

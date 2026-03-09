@@ -34,11 +34,11 @@ use std::sync::{Arc, Mutex};
 #[cfg(feature = "orchestrator")]
 use std::time::Instant;
 
-#[cfg(feature = "orchestrator-wasm")]
+#[cfg(all(feature = "orchestrator-wasm", not(feature = "orchestrator")))]
 use std::cell::RefCell;
-#[cfg(feature = "orchestrator-wasm")]
+#[cfg(all(feature = "orchestrator-wasm", not(feature = "orchestrator")))]
 use std::rc::Rc;
-#[cfg(feature = "orchestrator-wasm")]
+#[cfg(all(feature = "orchestrator-wasm", not(feature = "orchestrator")))]
 use web_time::Instant;
 
 use rhai::{Engine, EvalAltResult, Scope};
@@ -75,17 +75,17 @@ pub type SharedCounter = Arc<Mutex<usize>>;
 pub type ToolExecutor = Arc<dyn Fn(serde_json::Value) -> Result<String, String> + Send + Sync>;
 
 /// Single-threaded vector wrapper (WASM: `Rc<RefCell<Vec<T>>>`)
-#[cfg(feature = "orchestrator-wasm")]
+#[cfg(all(feature = "orchestrator-wasm", not(feature = "orchestrator")))]
 pub type SharedVec<T> = Rc<RefCell<Vec<T>>>;
 
 /// Single-threaded counter wrapper (WASM: `Rc<RefCell<usize>>`)
-#[cfg(feature = "orchestrator-wasm")]
+#[cfg(all(feature = "orchestrator-wasm", not(feature = "orchestrator")))]
 pub type SharedCounter = Rc<RefCell<usize>>;
 
 /// Tool executor function type (WASM: single-threaded `Rc<dyn Fn>`)
 ///
 /// Tools receive JSON input and return either a success string or error string.
-#[cfg(feature = "orchestrator-wasm")]
+#[cfg(all(feature = "orchestrator-wasm", not(feature = "orchestrator")))]
 pub type ToolExecutor = Rc<dyn Fn(serde_json::Value) -> Result<String, String>>;
 
 // ============================================================================
@@ -97,7 +97,7 @@ fn new_shared_vec<T>() -> SharedVec<T> {
     Arc::new(Mutex::new(Vec::new()))
 }
 
-#[cfg(feature = "orchestrator-wasm")]
+#[cfg(all(feature = "orchestrator-wasm", not(feature = "orchestrator")))]
 fn new_shared_vec<T>() -> SharedVec<T> {
     Rc::new(RefCell::new(Vec::new()))
 }
@@ -107,7 +107,7 @@ fn new_shared_counter() -> SharedCounter {
     Arc::new(Mutex::new(0))
 }
 
-#[cfg(feature = "orchestrator-wasm")]
+#[cfg(all(feature = "orchestrator-wasm", not(feature = "orchestrator")))]
 fn new_shared_counter() -> SharedCounter {
     Rc::new(RefCell::new(0))
 }
@@ -117,7 +117,7 @@ fn clone_shared<T: ?Sized>(shared: &Arc<T>) -> Arc<T> {
     Arc::clone(shared)
 }
 
-#[cfg(feature = "orchestrator-wasm")]
+#[cfg(all(feature = "orchestrator-wasm", not(feature = "orchestrator")))]
 fn clone_shared<T: ?Sized>(shared: &Rc<T>) -> Rc<T> {
     Rc::clone(shared)
 }
@@ -130,7 +130,7 @@ fn lock_vec<T: Clone>(shared: &SharedVec<T>) -> Vec<T> {
         .clone()
 }
 
-#[cfg(feature = "orchestrator-wasm")]
+#[cfg(all(feature = "orchestrator-wasm", not(feature = "orchestrator")))]
 fn lock_vec<T: Clone>(shared: &SharedVec<T>) -> Vec<T> {
     shared.borrow().clone()
 }
@@ -143,7 +143,7 @@ fn push_to_vec<T>(shared: &SharedVec<T>, item: T) {
         .push(item);
 }
 
-#[cfg(feature = "orchestrator-wasm")]
+#[cfg(all(feature = "orchestrator-wasm", not(feature = "orchestrator")))]
 fn push_to_vec<T>(shared: &SharedVec<T>, item: T) {
     shared.borrow_mut().push(item);
 }
@@ -161,7 +161,7 @@ fn increment_counter(shared: &SharedCounter, max: usize) -> Result<(), ()> {
     Ok(())
 }
 
-#[cfg(feature = "orchestrator-wasm")]
+#[cfg(all(feature = "orchestrator-wasm", not(feature = "orchestrator")))]
 fn increment_counter(shared: &SharedCounter, max: usize) -> Result<(), ()> {
     let mut c = shared.borrow_mut();
     if *c >= max {
@@ -223,7 +223,7 @@ impl ToolOrchestrator {
     }
 
     /// Register a tool executor function (WASM version - single-threaded).
-    #[cfg(feature = "orchestrator-wasm")]
+    #[cfg(all(feature = "orchestrator-wasm", not(feature = "orchestrator")))]
     pub fn register_executor<F>(&mut self, name: impl Into<String>, executor: F)
     where
         F: Fn(serde_json::Value) -> Result<String, String> + 'static,

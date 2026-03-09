@@ -162,16 +162,17 @@ impl SelfImprovementController {
         let mut committed = false;
         let mut commit_hash = None;
 
-        if let Some(ref pr) = path_result {
-            if pr.success && pr.diff_lines <= self.config.max_diff_per_task {
-                match self.commit_changes(&repo_path, task).await {
-                    Ok(hash) => {
-                        committed = true;
-                        commit_hash = Some(hash);
-                    }
-                    Err(e) => {
-                        tracing::warn!("Failed to commit: {e}");
-                    }
+        if let Some(ref pr) = path_result
+            && pr.success
+            && pr.diff_lines <= self.config.max_diff_per_task
+        {
+            match self.commit_changes(&repo_path, task).await {
+                Ok(hash) => {
+                    committed = true;
+                    commit_hash = Some(hash);
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to commit: {e}");
                 }
             }
         }

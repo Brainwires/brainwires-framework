@@ -196,12 +196,11 @@ Output ONLY a decimal number between 0.0 and 1.0."#
 
         // Look for a number pattern
         let number_pattern = regex::Regex::new(r"(\d+\.?\d*)").ok()?;
-        if let Some(captures) = number_pattern.captures(cleaned) {
-            if let Some(m) = captures.get(1) {
-                if let Ok(score) = m.as_str().parse::<f32>() {
-                    return Some(score.clamp(0.0, 1.0));
-                }
-            }
+        if let Some(captures) = number_pattern.captures(cleaned)
+            && let Some(m) = captures.get(1)
+            && let Ok(score) = m.as_str().parse::<f32>()
+        {
+            return Some(score.clamp(0.0, 1.0));
         }
 
         None

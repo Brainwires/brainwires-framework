@@ -80,12 +80,13 @@ impl BedrockFineTune {
 
         let credentials =
             Credentials::new(access_key, secret_key, None, None, "brainwires-training");
+        let identity = credentials.into();
 
         let mut settings = SigningSettings::default();
         settings.signature_location = aws_sigv4::http_request::SignatureLocation::Headers;
 
         let signing_params = v4::SigningParams::builder()
-            .identity(&credentials.into())
+            .identity(&identity)
             .region(&self.region)
             .name("bedrock")
             .time(SystemTime::now())
@@ -105,10 +106,21 @@ impl BedrockFineTune {
             .map_err(|e| TrainingError::Config(format!("SigV4 signing error: {}", e)))?
             .into_parts();
 
-        let mut headers = Vec::new();
-        signing_instructions.apply_to_request_http1x(|name, value| {
-            headers.push((name.to_string(), value.to_string()));
-        });
+        // Build a dummy HTTP request, apply signing headers, then extract them
+        let mut http_request = http::Request::builder()
+            .method(method)
+            .uri(uri)
+            .header("content-type", "application/json")
+            .body(())
+            .map_err(|e| TrainingError::Config(format!("HTTP request build error: {}", e)))?;
+
+        signing_instructions.apply_to_request_http1x(&mut http_request);
+
+        let headers: Vec<(String, String)> = http_request
+            .headers()
+            .iter()
+            .map(|(name, value)| (name.to_string(), value.to_str().unwrap_or("").to_string()))
+            .collect();
 
         Ok(headers)
     }

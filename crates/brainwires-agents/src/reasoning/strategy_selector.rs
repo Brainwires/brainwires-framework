@@ -28,6 +28,7 @@ pub enum TaskType {
 
 impl TaskType {
     /// Parse from string
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         let lower = s.to_lowercase();
         if lower.contains("code") || lower.contains("implement") || lower.contains("refactor") {

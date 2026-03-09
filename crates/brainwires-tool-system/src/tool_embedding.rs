@@ -11,16 +11,13 @@ static EMBED_MANAGER: OnceLock<Arc<FastEmbedManager>> = OnceLock::new();
 
 /// Get or initialize the shared FastEmbedManager.
 fn get_embed_manager() -> Result<&'static Arc<FastEmbedManager>> {
-    EMBED_MANAGER
-        .get()
-        .ok_or(())
-        .or_else(|_| {
-            let manager = Arc::new(FastEmbedManager::new()?);
-            // Another thread may have initialized it between our check and here;
-            // that's fine — just use whichever won the race.
-            let _ = EMBED_MANAGER.set(manager.clone());
-            Ok::<_, anyhow::Error>(EMBED_MANAGER.get().unwrap())
-        })
+    EMBED_MANAGER.get().ok_or(()).or_else(|_| {
+        let manager = Arc::new(FastEmbedManager::new()?);
+        // Another thread may have initialized it between our check and here;
+        // that's fine — just use whichever won the race.
+        let _ = EMBED_MANAGER.set(manager.clone());
+        Ok::<_, anyhow::Error>(EMBED_MANAGER.get().unwrap())
+    })
 }
 
 /// Pre-computed embedding index for semantic tool discovery.
@@ -83,12 +80,7 @@ impl ToolEmbeddingIndex {
     ///
     /// Returns `(tool_name, similarity_score)` pairs sorted by score descending,
     /// filtered by `min_score` and capped at `limit`.
-    pub fn search(
-        &self,
-        query: &str,
-        limit: usize,
-        min_score: f32,
-    ) -> Result<Vec<(String, f32)>> {
+    pub fn search(&self, query: &str, limit: usize, min_score: f32) -> Result<Vec<(String, f32)>> {
         if self.entries.is_empty() {
             return Ok(vec![]);
         }
@@ -136,11 +128,7 @@ fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     }
 
     let denom = norm_a.sqrt() * norm_b.sqrt();
-    if denom == 0.0 {
-        0.0
-    } else {
-        dot / denom
-    }
+    if denom == 0.0 { 0.0 } else { dot / denom }
 }
 
 #[cfg(test)]
@@ -236,7 +224,9 @@ mod tests {
         let index = ToolEmbeddingIndex::build(&tools).unwrap();
 
         // With a very high min_score, most results should be filtered out
-        let results = index.search("random unrelated query xyz", 10, 0.95).unwrap();
+        let results = index
+            .search("random unrelated query xyz", 10, 0.95)
+            .unwrap();
         // Very unlikely anything scores above 0.95 for an unrelated query
         assert!(
             results.len() <= 1,

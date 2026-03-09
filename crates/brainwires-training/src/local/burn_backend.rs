@@ -1154,34 +1154,14 @@ impl TrainingBackend for BurnBackend {
     fn available_devices(&self) -> Vec<ComputeDevice> {
         let mut devices = vec![ComputeDevice::Cpu];
 
+        // burn-wgpu handles GPU selection internally via WgpuDevice.
+        // Report a default GPU device — burn will discover the actual adapter.
         #[cfg(not(target_arch = "wasm32"))]
-        {
-            // Use WGPU adapter enumeration to get GPU info
-            let instance = burn_wgpu::wgpu::Instance::default();
-            let adapters = instance.enumerate_adapters(burn_wgpu::wgpu::Backends::all());
-
-            for (index, adapter) in adapters.into_iter().enumerate() {
-                let info = adapter.get_info();
-                // WGPU doesn't directly expose VRAM; use max_buffer_size as a proxy
-                let limits = adapter.limits();
-                let vram_mb = (limits.max_buffer_size / (1024 * 1024)) as u64;
-
-                devices.push(ComputeDevice::Gpu {
-                    index,
-                    name: info.name.clone(),
-                    vram_mb,
-                });
-            }
-
-            // Fallback if no adapters found
-            if devices.len() == 1 {
-                devices.push(ComputeDevice::Gpu {
-                    index: 0,
-                    name: "Default GPU (WGPU)".to_string(),
-                    vram_mb: 0,
-                });
-            }
-        }
+        devices.push(ComputeDevice::Gpu {
+            index: 0,
+            name: "Default GPU (WGPU)".to_string(),
+            vram_mb: 0,
+        });
 
         devices
     }

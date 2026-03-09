@@ -138,12 +138,8 @@ impl CheckpointManager {
                 })
                 .collect();
 
-        let serialized = safetensors::tensor::serialize(&tensors, None).map_err(|e| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("SafeTensors serialize error: {}", e),
-            )
-        })?;
+        let serialized = safetensors::tensor::serialize(&tensors, None)
+            .map_err(|e| std::io::Error::other(format!("SafeTensors serialize error: {}", e)))?;
 
         let weights_path = dir.join("adapter_weights.safetensors");
         std::fs::write(&weights_path, serialized)?;
@@ -156,6 +152,7 @@ impl CheckpointManager {
     }
 
     /// Load adapter weights from a checkpoint directory.
+    #[allow(clippy::type_complexity)]
     pub fn load_weights(
         checkpoint_dir: &Path,
     ) -> std::io::Result<std::collections::HashMap<String, (Vec<f32>, Vec<usize>)>> {

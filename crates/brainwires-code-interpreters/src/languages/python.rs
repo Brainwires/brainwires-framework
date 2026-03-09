@@ -144,12 +144,11 @@ impl PythonExecutor {
         let stdout_writer = vm.new_function(
             "write",
             move |args: FuncArgs, vm: &VirtualMachine| -> PyResult<PyObjectRef> {
-                if let Some(arg) = args.args.first() {
-                    if let Ok(s) = arg.str(vm) {
-                        if let Ok(mut out) = stdout_clone.lock() {
-                            out.push(s.as_str().to_string());
-                        }
-                    }
+                if let Some(arg) = args.args.first()
+                    && let Ok(s) = arg.str(vm)
+                    && let Ok(mut out) = stdout_clone.lock()
+                {
+                    out.push(s.as_str().to_string());
                 }
                 Ok(vm.ctx.none())
             },
@@ -175,12 +174,11 @@ impl PythonExecutor {
         let stderr_writer = vm.new_function(
             "write",
             move |args: FuncArgs, vm: &VirtualMachine| -> PyResult<PyObjectRef> {
-                if let Some(arg) = args.args.first() {
-                    if let Ok(s) = arg.str(vm) {
-                        if let Ok(mut err) = stderr_clone.lock() {
-                            err.push(s.as_str().to_string());
-                        }
-                    }
+                if let Some(arg) = args.args.first()
+                    && let Ok(s) = arg.str(vm)
+                    && let Ok(mut err) = stderr_clone.lock()
+                {
+                    err.push(s.as_str().to_string());
                 }
                 Ok(vm.ctx.none())
             },
@@ -290,10 +288,10 @@ fn py_to_json(vm: &VirtualMachine, value: &PyObjectRef) -> Option<serde_json::Va
     }
 
     // Check for int
-    if let Ok(i) = value.clone().try_int(vm) {
-        if let Ok(n) = i.try_to_primitive::<i64>(vm) {
-            return Some(serde_json::Value::Number(serde_json::Number::from(n)));
-        }
+    if let Ok(i) = value.clone().try_int(vm)
+        && let Ok(n) = i.try_to_primitive::<i64>(vm)
+    {
+        return Some(serde_json::Value::Number(serde_json::Number::from(n)));
     }
 
     // Check for float
@@ -345,12 +343,11 @@ fn format_python_error(vm: &VirtualMachine, exc: &PyRef<PyBaseException>) -> Str
 
     // Try to get the exception message from args
     let args = exc.args();
-    if !args.is_empty() {
-        if let Some(first_arg) = args.first() {
-            if let Ok(msg) = first_arg.str(vm) {
-                return format!("{}: {}", exc_type, msg.as_str());
-            }
-        }
+    if !args.is_empty()
+        && let Some(first_arg) = args.first()
+        && let Ok(msg) = first_arg.str(vm)
+    {
+        return format!("{}: {}", exc_type, msg.as_str());
     }
 
     // Fallback to just the type

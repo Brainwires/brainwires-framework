@@ -307,7 +307,7 @@ pub fn analyze_suite_for_faults(
     }
 
     // Sort by priority descending.
-    reports.sort_by(|a, b| b.priority().cmp(&a.priority()));
+    reports.sort_by_key(|b| std::cmp::Reverse(b.priority()));
     reports
 }
 

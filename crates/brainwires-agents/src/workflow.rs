@@ -463,17 +463,17 @@ impl Workflow {
                 let mut skip_guard = skipped.write().await;
                 for (from, _) in self.conditional_edges.iter() {
                     let key = format!("__conditional_activated_{}", from);
-                    if let Some(activated_val) = ctx_state.get(&key) {
-                        if let Some(activated) = activated_val.as_array() {
-                            let activated_set: HashSet<String> = activated
-                                .iter()
-                                .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                                .collect();
-                            // Find all direct-edge targets from this node
-                            for (edge_from, edge_to) in &self.direct_edges {
-                                if edge_from == from && !activated_set.contains(edge_to) {
-                                    skip_guard.insert(edge_to.clone());
-                                }
+                    if let Some(activated_val) = ctx_state.get(&key)
+                        && let Some(activated) = activated_val.as_array()
+                    {
+                        let activated_set: HashSet<String> = activated
+                            .iter()
+                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                            .collect();
+                        // Find all direct-edge targets from this node
+                        for (edge_from, edge_to) in &self.direct_edges {
+                            if edge_from == from && !activated_set.contains(edge_to) {
+                                skip_guard.insert(edge_to.clone());
                             }
                         }
                     }

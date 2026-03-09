@@ -248,24 +248,22 @@ async fn run_duplicates_check(changed_files: &[String], issues: &mut Vec<Validat
         match check_duplicates(file).await {
             Ok(result) => {
                 if let Ok(result_value) = serde_json::from_str::<serde_json::Value>(&result.content)
+                    && result_value["has_duplicates"].as_bool().unwrap_or(false)
+                    && let Some(duplicates) = result_value["duplicates"].as_array()
                 {
-                    if result_value["has_duplicates"].as_bool().unwrap_or(false) {
-                        if let Some(duplicates) = result_value["duplicates"].as_array() {
-                            for dup in duplicates {
-                                issues.push(ValidationIssue {
-                                    check: "duplicate_check".to_string(),
-                                    severity: ValidationSeverity::Error,
-                                    message: format!(
-                                        "Duplicate export '{}' found at lines {} and {}",
-                                        dup["name"].as_str().unwrap_or("unknown"),
-                                        dup["first_line"].as_u64().unwrap_or(0),
-                                        dup["duplicate_line"].as_u64().unwrap_or(0)
-                                    ),
-                                    file: Some(file.clone()),
-                                    line: dup["duplicate_line"].as_u64().map(|n| n as usize),
-                                });
-                            }
-                        }
+                    for dup in duplicates {
+                        issues.push(ValidationIssue {
+                            check: "duplicate_check".to_string(),
+                            severity: ValidationSeverity::Error,
+                            message: format!(
+                                "Duplicate export '{}' found at lines {} and {}",
+                                dup["name"].as_str().unwrap_or("unknown"),
+                                dup["first_line"].as_u64().unwrap_or(0),
+                                dup["duplicate_line"].as_u64().unwrap_or(0)
+                            ),
+                            file: Some(file.clone()),
+                            line: dup["duplicate_line"].as_u64().map(|n| n as usize),
+                        });
                     }
                 }
             }
@@ -293,22 +291,20 @@ async fn run_syntax_check(changed_files: &[String], issues: &mut Vec<ValidationI
         match check_syntax(file).await {
             Ok(result) => {
                 if let Ok(result_value) = serde_json::from_str::<serde_json::Value>(&result.content)
+                    && !result_value["valid_syntax"].as_bool().unwrap_or(true)
+                    && let Some(errors) = result_value["errors"].as_array()
                 {
-                    if !result_value["valid_syntax"].as_bool().unwrap_or(true) {
-                        if let Some(errors) = result_value["errors"].as_array() {
-                            for error in errors {
-                                issues.push(ValidationIssue {
-                                    check: "syntax_check".to_string(),
-                                    severity: ValidationSeverity::Error,
-                                    message: error["message"]
-                                        .as_str()
-                                        .unwrap_or("Unknown syntax error")
-                                        .to_string(),
-                                    file: Some(file.clone()),
-                                    line: None,
-                                });
-                            }
-                        }
+                    for error in errors {
+                        issues.push(ValidationIssue {
+                            check: "syntax_check".to_string(),
+                            severity: ValidationSeverity::Error,
+                            message: error["message"]
+                                .as_str()
+                                .unwrap_or("Unknown syntax error")
+                                .to_string(),
+                            file: Some(file.clone()),
+                            line: None,
+                        });
                     }
                 }
             }
@@ -334,35 +330,35 @@ async fn run_build_check(
 
     match verify_build(working_directory, build_type).await {
         Ok(result) => {
-            if let Ok(result_value) = serde_json::from_str::<serde_json::Value>(&result.content) {
-                if !result_value["success"].as_bool().unwrap_or(false) {
-                    let error_count = result_value["error_count"].as_u64().unwrap_or(0);
+            if let Ok(result_value) = serde_json::from_str::<serde_json::Value>(&result.content)
+                && !result_value["success"].as_bool().unwrap_or(false)
+            {
+                let error_count = result_value["error_count"].as_u64().unwrap_or(0);
 
-                    if let Some(errors) = result_value["errors"].as_array() {
-                        for error in errors.iter().take(5) {
-                            issues.push(ValidationIssue {
-                                check: "build_check".to_string(),
-                                severity: ValidationSeverity::Error,
-                                message: error["message"]
-                                    .as_str()
-                                    .or_else(|| error["line"].as_str())
-                                    .unwrap_or("Build error")
-                                    .to_string(),
-                                file: error["location"].as_str().map(|s| s.to_string()),
-                                line: None,
-                            });
-                        }
-                    }
-
-                    if error_count > 5 {
+                if let Some(errors) = result_value["errors"].as_array() {
+                    for error in errors.iter().take(5) {
                         issues.push(ValidationIssue {
                             check: "build_check".to_string(),
                             severity: ValidationSeverity::Error,
-                            message: format!("... and {} more build errors", error_count - 5),
-                            file: None,
+                            message: error["message"]
+                                .as_str()
+                                .or_else(|| error["line"].as_str())
+                                .unwrap_or("Build error")
+                                .to_string(),
+                            file: error["location"].as_str().map(|s| s.to_string()),
                             line: None,
                         });
                     }
+                }
+
+                if error_count > 5 {
+                    issues.push(ValidationIssue {
+                        check: "build_check".to_string(),
+                        severity: ValidationSeverity::Error,
+                        message: format!("... and {} more build errors", error_count - 5),
+                        file: None,
+                        line: None,
+                    });
                 }
             }
         }

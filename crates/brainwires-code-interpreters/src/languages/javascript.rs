@@ -16,7 +16,7 @@
 
 use boa_engine::{
     Context, JsError, JsResult, JsValue, Source, js_string, native_function::NativeFunction,
-    object::builtins::JsArray, property::Attribute,
+    object::builtins::JsArray, property::Attribute, value::JsVariant,
 };
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -64,13 +64,13 @@ impl JavaScriptExecutor {
         }
 
         // Inject context variables
-        if let Some(ctx) = &request.context {
-            if let Err(e) = self.inject_context(&mut context, ctx) {
-                return ExecutionResult::error(
-                    format!("Failed to inject context: {:?}", e),
-                    start.elapsed().as_millis() as u64,
-                );
-            }
+        if let Some(ctx) = &request.context
+            && let Err(e) = self.inject_context(&mut context, ctx)
+        {
+            return ExecutionResult::error(
+                format!("Failed to inject context: {:?}", e),
+                start.elapsed().as_millis() as u64,
+            );
         }
 
         // Execute the code
@@ -275,7 +275,7 @@ impl LanguageExecutor for JavaScriptExecutor {
     }
 
     fn language_version(&self) -> String {
-        "ES2022+ (Boa 0.20)".to_string()
+        "ES2022+ (Boa 0.21)".to_string()
     }
 }
 
@@ -283,17 +283,17 @@ impl LanguageExecutor for JavaScriptExecutor {
 fn json_to_js(value: &serde_json::Value, context: &mut Context) -> JsResult<JsValue> {
     match value {
         serde_json::Value::Null => Ok(JsValue::null()),
-        serde_json::Value::Bool(b) => Ok(JsValue::Boolean(*b)),
+        serde_json::Value::Bool(b) => Ok(JsValue::from(*b)),
         serde_json::Value::Number(n) => {
             if let Some(i) = n.as_i64() {
-                Ok(JsValue::Integer(i as i32))
+                Ok(JsValue::from(i as i32))
             } else if let Some(f) = n.as_f64() {
-                Ok(JsValue::Rational(f))
+                Ok(JsValue::from(f))
             } else {
                 Ok(JsValue::undefined())
             }
         }
-        serde_json::Value::String(s) => Ok(JsValue::String(js_string!(s.clone()))),
+        serde_json::Value::String(s) => Ok(JsValue::from(js_string!(s.clone()))),
         serde_json::Value::Array(arr) => {
             let js_array = JsArray::new(context);
             for (i, v) in arr.iter().enumerate() {
@@ -315,35 +315,32 @@ fn json_to_js(value: &serde_json::Value, context: &mut Context) -> JsResult<JsVa
 
 /// Convert JavaScript value to JSON
 fn js_to_json(value: &JsValue, context: &mut Context) -> Option<serde_json::Value> {
-    match value {
-        JsValue::Undefined | JsValue::Null => None,
-        JsValue::Boolean(b) => Some(serde_json::Value::Bool(*b)),
-        JsValue::Integer(i) => Some(serde_json::Value::Number(serde_json::Number::from(*i))),
-        JsValue::Rational(f) => {
+    match value.variant() {
+        JsVariant::Undefined | JsVariant::Null => None,
+        JsVariant::Boolean(b) => Some(serde_json::Value::Bool(b)),
+        JsVariant::Integer32(i) => Some(serde_json::Value::Number(serde_json::Number::from(i))),
+        JsVariant::Float64(f) => {
             if f.is_nan() || f.is_infinite() {
                 Some(serde_json::Value::Null)
             } else {
-                serde_json::Number::from_f64(*f).map(serde_json::Value::Number)
+                serde_json::Number::from_f64(f).map(serde_json::Value::Number)
             }
         }
-        JsValue::String(s) => Some(serde_json::Value::String(s.to_std_string_escaped())),
-        JsValue::BigInt(bi) => Some(serde_json::Value::String(bi.to_string())),
-        JsValue::Object(obj) => {
+        JsVariant::String(s) => Some(serde_json::Value::String(s.to_std_string_escaped())),
+        JsVariant::BigInt(bi) => Some(serde_json::Value::String(bi.to_string())),
+        JsVariant::Object(obj) => {
             // Check if it's an array
-            if obj.is_array() {
-                if let Ok(length) = obj.get(js_string!("length"), context) {
-                    if let Some(len) = length.as_number() {
-                        let mut arr = Vec::new();
-                        for i in 0..(len as u32) {
-                            if let Ok(v) = obj.get(i, context) {
-                                arr.push(
-                                    js_to_json(&v, context).unwrap_or(serde_json::Value::Null),
-                                );
-                            }
-                        }
-                        return Some(serde_json::Value::Array(arr));
+            if obj.is_array()
+                && let Ok(length) = obj.get(js_string!("length"), context)
+                && let Some(len) = length.as_number()
+            {
+                let mut arr = Vec::new();
+                for i in 0..(len as u32) {
+                    if let Ok(v) = obj.get(i, context) {
+                        arr.push(js_to_json(&v, context).unwrap_or(serde_json::Value::Null));
                     }
                 }
+                return Some(serde_json::Value::Array(arr));
             }
 
             // Regular object
@@ -351,31 +348,31 @@ fn js_to_json(value: &JsValue, context: &mut Context) -> Option<serde_json::Valu
             if let Ok(keys) = obj.own_property_keys(context) {
                 for key in keys {
                     let key_str = key.to_string();
-                    if let Ok(v) = obj.get(key, context) {
-                        if let Some(json_v) = js_to_json(&v, context) {
-                            map.insert(key_str, json_v);
-                        }
+                    if let Ok(v) = obj.get(key, context)
+                        && let Some(json_v) = js_to_json(&v, context)
+                    {
+                        map.insert(key_str, json_v);
                     }
                 }
             }
             Some(serde_json::Value::Object(map))
         }
-        JsValue::Symbol(_) => Some(serde_json::Value::String("[Symbol]".to_string())),
+        JsVariant::Symbol(_) => Some(serde_json::Value::String("[Symbol]".to_string())),
     }
 }
 
 /// Format JavaScript value for display
 fn format_js_value(value: &JsValue, context: &mut Context) -> String {
-    match value {
-        JsValue::Undefined => "undefined".to_string(),
-        JsValue::Null => "null".to_string(),
-        JsValue::Boolean(b) => b.to_string(),
-        JsValue::Integer(i) => i.to_string(),
-        JsValue::Rational(f) => {
+    match value.variant() {
+        JsVariant::Undefined => "undefined".to_string(),
+        JsVariant::Null => "null".to_string(),
+        JsVariant::Boolean(b) => b.to_string(),
+        JsVariant::Integer32(i) => i.to_string(),
+        JsVariant::Float64(f) => {
             if f.is_nan() {
                 "NaN".to_string()
             } else if f.is_infinite() {
-                if *f > 0.0 {
+                if f > 0.0 {
                     "Infinity".to_string()
                 } else {
                     "-Infinity".to_string()
@@ -384,26 +381,25 @@ fn format_js_value(value: &JsValue, context: &mut Context) -> String {
                 f.to_string()
             }
         }
-        JsValue::String(s) => s.to_std_string_escaped(),
-        JsValue::BigInt(bi) => format!("{}n", bi),
-        JsValue::Object(obj) => {
+        JsVariant::String(s) => s.to_std_string_escaped(),
+        JsVariant::BigInt(bi) => format!("{}n", bi),
+        JsVariant::Object(obj) => {
             // Check if it's an array
-            if obj.is_array() {
-                if let Ok(length) = obj.get(js_string!("length"), context) {
-                    if let Some(len) = length.as_number() {
-                        let mut parts = Vec::new();
-                        let max_items = (len as usize).min(10);
-                        for i in 0..max_items {
-                            if let Ok(v) = obj.get(i as u32, context) {
-                                parts.push(format_js_value(&v, context));
-                            }
-                        }
-                        if len as usize > 10 {
-                            parts.push("...".to_string());
-                        }
-                        return format!("[{}]", parts.join(", "));
+            if obj.is_array()
+                && let Ok(length) = obj.get(js_string!("length"), context)
+                && let Some(len) = length.as_number()
+            {
+                let mut parts = Vec::new();
+                let max_items = (len as usize).min(10);
+                for i in 0..max_items {
+                    if let Ok(v) = obj.get(i as u32, context) {
+                        parts.push(format_js_value(&v, context));
                     }
                 }
+                if len as usize > 10 {
+                    parts.push("...".to_string());
+                }
+                return format!("[{}]", parts.join(", "));
             }
 
             // Check if it's a function
@@ -426,7 +422,7 @@ fn format_js_value(value: &JsValue, context: &mut Context) -> String {
             }
             format!("{{{}}}", parts.join(", "))
         }
-        JsValue::Symbol(s) => format!(
+        JsVariant::Symbol(s) => format!(
             "Symbol({})",
             s.description()
                 .map(|d| d.to_std_string_escaped())
@@ -440,20 +436,20 @@ fn format_js_error(error: &JsError, context: &mut Context) -> String {
     // Try to get a meaningful error message
     let js_value = error.to_opaque(context);
 
-    if let JsValue::Object(obj) = &js_value {
+    if let Some(obj) = js_value.as_object() {
         // Try to get 'message' property
-        if let Ok(msg) = obj.get(js_string!("message"), context) {
-            if let JsValue::String(s) = msg {
-                let msg_str = s.to_std_string_escaped();
+        if let Ok(msg) = obj.get(js_string!("message"), context)
+            && let Some(s) = msg.as_string()
+        {
+            let msg_str = s.to_std_string_escaped();
 
-                // Try to get 'name' property
-                if let Ok(name) = obj.get(js_string!("name"), context) {
-                    if let JsValue::String(n) = name {
-                        return format!("{}: {}", n.to_std_string_escaped(), msg_str);
-                    }
-                }
-                return msg_str;
+            // Try to get 'name' property
+            if let Ok(name) = obj.get(js_string!("name"), context)
+                && let Some(n) = name.as_string()
+            {
+                return format!("{}: {}", n.to_std_string_escaped(), msg_str);
             }
+            return msg_str;
         }
     }
 

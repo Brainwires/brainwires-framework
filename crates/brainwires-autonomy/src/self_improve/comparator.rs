@@ -58,10 +58,11 @@ impl Comparator {
         let iteration_delta = bridge.iterations as i32 - direct.iterations as i32;
 
         let mut bridge_specific_errors = Vec::new();
-        if !bridge.success && direct.success {
-            if let Some(ref err) = bridge.error {
-                bridge_specific_errors.push(format!("Bridge failed while direct succeeded: {err}"));
-            }
+        if !bridge.success
+            && direct.success
+            && let Some(ref err) = bridge.error
+        {
+            bridge_specific_errors.push(format!("Bridge failed while direct succeeded: {err}"));
         }
 
         ComparisonResult {

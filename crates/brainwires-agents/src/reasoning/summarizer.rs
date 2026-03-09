@@ -76,6 +76,7 @@ pub enum FactCategory {
 
 impl FactCategory {
     /// Parse from string
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         let lower = s.to_lowercase();
         if lower.contains("decision") {
@@ -354,10 +355,10 @@ impl LocalSummarizer {
         }
 
         // Remove trailing incomplete sentences
-        if let Some(last_period) = cleaned.rfind('.') {
-            if last_period < cleaned.len() - 20 {
-                cleaned = cleaned[..=last_period].to_string();
-            }
+        if let Some(last_period) = cleaned.rfind('.')
+            && last_period < cleaned.len() - 20
+        {
+            cleaned = cleaned[..=last_period].to_string();
         }
 
         cleaned
@@ -403,11 +404,11 @@ impl LocalSummarizer {
     }
 
     /// Heuristic fact extraction (no LLM)
-    fn extract_facts_heuristic(&self, content: &str) -> Vec<ExtractedFact> {
+    fn _extract_facts_heuristic(&self, content: &str) -> Vec<ExtractedFact> {
         let mut facts = Vec::new();
 
         // Look for sentences with decision/requirement indicators
-        for sentence in content.split(|c| c == '.' || c == '!' || c == '?') {
+        for sentence in content.split(['.', '!', '?']) {
             let sentence = sentence.trim();
             if sentence.len() < 10 {
                 continue;
@@ -449,16 +450,15 @@ impl LocalSummarizer {
         }
 
         // If no facts found, create one from the first sentence
-        if facts.is_empty() {
-            if let Some(first_sentence) = content.split('.').next() {
-                if first_sentence.len() > 10 {
-                    facts.push(ExtractedFact {
-                        fact: first_sentence.trim().to_string(),
-                        fact_type: FactCategory::Other,
-                        confidence: 0.3,
-                    });
-                }
-            }
+        if facts.is_empty()
+            && let Some(first_sentence) = content.split('.').next()
+            && first_sentence.len() > 10
+        {
+            facts.push(ExtractedFact {
+                fact: first_sentence.trim().to_string(),
+                fact_type: FactCategory::Other,
+                confidence: 0.3,
+            });
         }
 
         facts
