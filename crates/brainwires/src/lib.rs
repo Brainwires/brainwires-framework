@@ -9,7 +9,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! brainwires = { version = "0.1", features = ["full"] }
+//! brainwires = { version = "0.2", features = ["full"] }
 //! ```
 //!
 //! ```rust

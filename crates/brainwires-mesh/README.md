@@ -85,7 +85,7 @@ let router = MessageRouter::new(RoutingStrategy::RoundRobin);
 ```toml
 # Without A2A integration
 [dependencies]
-brainwires-mesh = { version = "0.1", default-features = false }
+brainwires-mesh = { version = "0.2", default-features = false }
 ```
 
 ## Architecture
@@ -246,7 +246,7 @@ Use via the `brainwires` facade crate:
 
 ```toml
 [dependencies]
-brainwires = { version = "0.1", features = ["mesh"] }
+brainwires = { version = "0.2", features = ["mesh"] }
 ```
 
 Or depend on `brainwires-mesh` directly for standalone mesh networking without the rest of the framework.

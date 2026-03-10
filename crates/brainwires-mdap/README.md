@@ -145,7 +145,7 @@ println!("Recommended k={}, cost=${:.4}, P(success)={:.4}",
 brainwires-mdap = "0.1"
 
 # WASM target
-brainwires-mdap = { version = "0.1", default-features = false, features = ["wasm"] }
+brainwires-mdap = { version = "0.2", default-features = false, features = ["wasm"] }
 ```
 
 ## Architecture
@@ -737,7 +737,7 @@ Use via the `brainwires` facade crate with the `mdap` feature, or depend on `bra
 ```toml
 # Via facade
 [dependencies]
-brainwires = { version = "0.1", features = ["mdap"] }
+brainwires = { version = "0.2", features = ["mdap"] }
 
 # Direct
 [dependencies]

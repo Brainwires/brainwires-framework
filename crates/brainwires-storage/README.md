@@ -120,13 +120,13 @@ async fn main() -> anyhow::Result<()> {
 
 ```toml
 # Default (full native functionality)
-brainwires-storage = "0.1"
+brainwires-storage = "0.2"
 
 # WASM-compatible (pure types and logic only)
-brainwires-storage = { version = "0.1", default-features = false, features = ["wasm"] }
+brainwires-storage = { version = "0.2", default-features = false, features = ["wasm"] }
 
 # Native without agent integration
-brainwires-storage = { version = "0.1", default-features = false, features = ["native"] }
+brainwires-storage = { version = "0.2", default-features = false, features = ["native"] }
 ```
 
 **Module availability by feature:**
@@ -798,7 +798,7 @@ Use via the `brainwires` facade crate with the `storage` feature, or depend on `
 ```toml
 # Via facade
 [dependencies]
-brainwires = { version = "0.1", features = ["storage"] }
+brainwires = { version = "0.2", features = ["storage"] }
 
 # Direct
 [dependencies]

@@ -372,7 +372,7 @@ Use via the `brainwires` facade crate with the `brain` feature, or depend on `br
 ```toml
 # Via facade
 [dependencies]
-brainwires = { version = "0.1", features = ["brain"] }
+brainwires = { version = "0.2", features = ["brain"] }
 
 # Direct
 [dependencies]

@@ -112,10 +112,10 @@ async fn main() -> anyhow::Result<()> {
 brainwires-rag = "0.1"
 
 # With Qdrant instead of LanceDB
-brainwires-rag = { version = "0.1", features = ["native", "qdrant-backend"] }
+brainwires-rag = { version = "0.2", features = ["native", "qdrant-backend"] }
 
 # WASM target (types only, no processing)
-brainwires-rag = { version = "0.1", default-features = false, features = ["wasm"] }
+brainwires-rag = { version = "0.2", default-features = false, features = ["wasm"] }
 ```
 
 ## Architecture
@@ -580,7 +580,7 @@ Use via the `brainwires` facade crate with the `rag` feature, or depend on `brai
 ```toml
 # Via facade
 [dependencies]
-brainwires = { version = "0.1", features = ["rag"] }
+brainwires = { version = "0.2", features = ["rag"] }
 
 # Direct
 [dependencies]

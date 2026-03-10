@@ -41,7 +41,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires = "0.1"  # default features: tools + agents
+brainwires = "0.2"  # default features: tools + agents
 ```
 
 Then import via the prelude:
@@ -138,7 +138,7 @@ let response = provider.chat(&messages, None, &options).await?;
 
 ```toml
 [dependencies]
-brainwires = { version = "0.1", features = ["agent-full"] }
+brainwires = { version = "0.2", features = ["agent-full"] }
 ```
 
 ```rust
@@ -163,7 +163,7 @@ let validation = ValidationConfig {
 
 ```toml
 [dependencies]
-brainwires = { version = "0.1", features = ["rag", "mcp-server"] }
+brainwires = { version = "0.2", features = ["rag", "mcp-server"] }
 ```
 
 ```rust
@@ -181,7 +181,7 @@ async fn main() -> anyhow::Result<()> {
 
 ```toml
 [dependencies]
-brainwires = { version = "0.1", features = ["rag"] }
+brainwires = { version = "0.2", features = ["rag"] }
 ```
 
 ```rust
@@ -200,7 +200,7 @@ for result in results {
 
 ```toml
 [dependencies]
-brainwires = { version = "0.1", features = ["learning"] }
+brainwires = { version = "0.2", features = ["learning"] }
 ```
 
 ```rust

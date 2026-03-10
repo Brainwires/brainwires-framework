@@ -98,13 +98,13 @@ async fn main() -> anyhow::Result<()> {
 
 ```toml
 # Default (cloud providers only)
-brainwires-providers = "0.1"
+brainwires-providers = "0.2"
 
 # With local LLM support
-brainwires-providers = { version = "0.1", features = ["llama-cpp-2"] }
+brainwires-providers = { version = "0.2", features = ["llama-cpp-2"] }
 
 # Local LLM only (no cloud providers)
-brainwires-providers = { version = "0.1", default-features = false, features = ["llama-cpp-2"] }
+brainwires-providers = { version = "0.2", default-features = false, features = ["llama-cpp-2"] }
 ```
 
 ## Architecture
@@ -611,11 +611,11 @@ Use via the `brainwires` facade crate with the `providers` feature, or depend on
 ```toml
 # Via facade
 [dependencies]
-brainwires = { version = "0.1", features = ["providers"] }
+brainwires = { version = "0.2", features = ["providers"] }
 
 # Direct
 [dependencies]
-brainwires-providers = "0.1"
+brainwires-providers = "0.2"
 ```
 
 Re-exports at crate root for convenience:

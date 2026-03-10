@@ -132,16 +132,16 @@ fn main() -> anyhow::Result<()> {
 
 ```toml
 # Default (core SEAL processing)
-brainwires-seal = "0.1"
+brainwires-seal = "0.2"
 
 # With knowledge system integration
-brainwires-seal = { version = "0.1", features = ["knowledge"] }
+brainwires-seal = { version = "0.2", features = ["knowledge"] }
 
 # With MDAP metric recording
-brainwires-seal = { version = "0.1", features = ["mdap"] }
+brainwires-seal = { version = "0.2", features = ["mdap"] }
 
 # Everything enabled
-brainwires-seal = { version = "0.1", features = ["knowledge", "mdap"] }
+brainwires-seal = { version = "0.2", features = ["knowledge", "mdap"] }
 ```
 
 ## Architecture
@@ -583,11 +583,11 @@ Use via the `brainwires` facade crate with the `seal` feature, or depend on `bra
 ```toml
 # Via facade
 [dependencies]
-brainwires = { version = "0.1", features = ["seal"] }
+brainwires = { version = "0.2", features = ["seal"] }
 
 # Direct
 [dependencies]
-brainwires-seal = "0.1"
+brainwires-seal = "0.2"
 ```
 
 The crate re-exports all components at the top level:

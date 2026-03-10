@@ -94,10 +94,10 @@ Enable features in `Cargo.toml`:
 
 ```toml
 # Default (native)
-brainwires-agents = "0.1"
+brainwires-agents = "0.2"
 
 # WebAssembly target
-brainwires-agents = { version = "0.1", default-features = false, features = ["wasm"] }
+brainwires-agents = { version = "0.2", default-features = false, features = ["wasm"] }
 ```
 
 ## Architecture
@@ -458,7 +458,7 @@ assert!(result.success);
 Named reasoning patterns behind the `reasoning` feature flag:
 
 ```toml
-brainwires-agents = { version = "0.1", features = ["reasoning"] }
+brainwires-agents = { version = "0.2", features = ["reasoning"] }
 ```
 
 ```rust
@@ -495,7 +495,7 @@ assert!(strategy.is_complete(&steps));
 Export agent execution traces to Jaeger, Datadog, Grafana, or any OpenTelemetry-compatible backend. Requires the `otel` feature:
 
 ```toml
-brainwires-agents = { version = "0.1", features = ["otel"] }
+brainwires-agents = { version = "0.2", features = ["otel"] }
 ```
 
 ```rust
@@ -531,7 +531,7 @@ Use via the `brainwires` facade crate:
 
 ```toml
 [dependencies]
-brainwires = { version = "0.1", features = ["agents"] }
+brainwires = { version = "0.2", features = ["agents"] }
 ```
 
 Or use standalone — `brainwires-agents` depends only on `brainwires-core` and `brainwires-tool-system`.

@@ -95,15 +95,15 @@ async fn main() -> anyhow::Result<()> {
 ```toml
 # Lightweight — no hardware or network deps (WAV encode/decode + traits only)
 [dependencies]
-brainwires-audio = { version = "0.1", default-features = false }
+brainwires-audio = { version = "0.2", default-features = false }
 
 # Default + local Whisper STT
 [dependencies]
-brainwires-audio = { version = "0.1", features = ["local-stt"] }
+brainwires-audio = { version = "0.2", features = ["local-stt"] }
 
 # FLAC only, no hardware
 [dependencies]
-brainwires-audio = { version = "0.1", default-features = false, features = ["flac"] }
+brainwires-audio = { version = "0.2", default-features = false, features = ["flac"] }
 ```
 
 ## Architecture
@@ -326,7 +326,7 @@ Use via the `brainwires` facade crate:
 
 ```toml
 [dependencies]
-brainwires = { version = "0.1", features = ["audio"] }
+brainwires = { version = "0.2", features = ["audio"] }
 ```
 
 Or depend on `brainwires-audio` directly for standalone audio support without the rest of the framework.

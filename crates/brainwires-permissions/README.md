@@ -100,10 +100,10 @@ let decision = engine.evaluate(&request);
 
 ```toml
 # Default (native)
-brainwires-permissions = "0.1"
+brainwires-permissions = "0.2"
 
 # WASM target
-brainwires-permissions = { version = "0.1", default-features = false, features = ["wasm"] }
+brainwires-permissions = { version = "0.2", default-features = false, features = ["wasm"] }
 ```
 
 ## Architecture

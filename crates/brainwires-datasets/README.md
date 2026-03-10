@@ -88,15 +88,15 @@ let dataset = InstructDataset::from_examples(examples);
 ```toml
 # With tiktoken for OpenAI token counting
 [dependencies]
-brainwires-datasets = { version = "0.1", features = ["tiktoken"] }
+brainwires-datasets = { version = "0.2", features = ["tiktoken"] }
 
 # Full feature set
 [dependencies]
-brainwires-datasets = { version = "0.1", features = ["full"] }
+brainwires-datasets = { version = "0.2", features = ["full"] }
 
 # Minimal — no tokenizer, just I/O and format conversion
 [dependencies]
-brainwires-datasets = { version = "0.1", default-features = false }
+brainwires-datasets = { version = "0.2", default-features = false }
 ```
 
 ## Architecture
@@ -280,7 +280,7 @@ Use via the `brainwires` facade crate:
 
 ```toml
 [dependencies]
-brainwires = { version = "0.1", features = ["datasets"] }
+brainwires = { version = "0.2", features = ["datasets"] }
 ```
 
 Or depend on `brainwires-datasets` directly for standalone dataset tooling without the rest of the framework.

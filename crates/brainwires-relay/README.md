@@ -110,7 +110,7 @@ IPC encryption, MCP transport, middleware, and remote bridge are always availabl
 
 ```toml
 # With keyring support
-brainwires-relay = { version = "0.1", features = ["auth-keyring"] }
+brainwires-relay = { version = "0.2", features = ["auth-keyring"] }
 ```
 
 ## Architecture
@@ -525,7 +525,7 @@ Use via the `brainwires` facade crate:
 
 ```toml
 [dependencies]
-brainwires = { version = "0.1", features = ["relay"] }
+brainwires = { version = "0.2", features = ["relay"] }
 ```
 
 Or use standalone — `brainwires-relay` depends only on `brainwires-core` and `brainwires-mcp`.

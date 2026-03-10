@@ -100,10 +100,10 @@ async fn main() -> anyhow::Result<()> {
 
 ```toml
 # Default (native with clustering + storage)
-brainwires-prompting = "0.1"
+brainwires-prompting = "0.2"
 
 # WASM target
-brainwires-prompting = { version = "0.1", default-features = false, features = ["wasm"] }
+brainwires-prompting = { version = "0.2", default-features = false, features = ["wasm"] }
 ```
 
 ## Architecture
