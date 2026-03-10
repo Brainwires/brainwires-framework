@@ -158,5 +158,7 @@ if ! $DRY_RUN && [ "$FAILED" -eq 0 ]; then
     echo "Tagging release as $TAG..."
     git tag -a "$TAG" -m "Release $TAG"
     echo "Created tag $TAG"
-    echo "Run 'git push origin $TAG' to push the tag to remote."
+    # echo "Run 'git push origin $TAG' to push the tag to remote."
+    echo "Pushing tag to remote..."
+    git push origin "$TAG"
 fi
