@@ -51,13 +51,13 @@ impl TaskManager {
         match root_id {
             Some(id) => {
                 if let Some(task) = tasks.get(id) {
-                    self.collect_tree_recursive(&tasks, task, &mut result);
+                    Self::collect_tree_recursive(&tasks, task, &mut result);
                 }
             }
             None => {
                 // Get all root tasks and their trees
                 for task in tasks.values().filter(|t| t.is_root()) {
-                    self.collect_tree_recursive(&tasks, task, &mut result);
+                    Self::collect_tree_recursive(&tasks, task, &mut result);
                 }
             }
         }
@@ -66,16 +66,11 @@ impl TaskManager {
     }
 
     /// Recursively collect tasks in tree order
-    fn collect_tree_recursive(
-        &self,
-        tasks: &HashMap<String, Task>,
-        task: &Task,
-        result: &mut Vec<Task>,
-    ) {
+    fn collect_tree_recursive(tasks: &HashMap<String, Task>, task: &Task, result: &mut Vec<Task>) {
         result.push(task.clone());
         for child_id in &task.children {
             if let Some(child) = tasks.get(child_id) {
-                self.collect_tree_recursive(tasks, child, result);
+                Self::collect_tree_recursive(tasks, child, result);
             }
         }
     }
@@ -261,7 +256,7 @@ impl TaskManager {
         let root_count = roots.len();
         for (idx, root) in roots.iter().enumerate() {
             let is_last = idx == root_count - 1;
-            self.format_task_recursive(&tasks, root, 0, is_last, "", &mut output);
+            Self::format_task_recursive(&tasks, root, 0, is_last, "", &mut output);
         }
 
         if output.is_empty() {
@@ -272,7 +267,6 @@ impl TaskManager {
     }
 
     fn format_task_recursive(
-        &self,
         tasks: &HashMap<String, Task>,
         task: &Task,
         depth: usize,
@@ -323,7 +317,7 @@ impl TaskManager {
         for (idx, child_id) in task.children.iter().enumerate() {
             if let Some(child) = tasks.get(child_id) {
                 let child_is_last = idx == child_count - 1;
-                self.format_task_recursive(
+                Self::format_task_recursive(
                     tasks,
                     child,
                     depth + 1,

@@ -270,7 +270,7 @@ mod tests {
         let registry = create_test_registry().await;
         let router = SkillRouter::new(registry);
 
-        let matches = router.match_skills("completely unrelated query").await;
+        let _matches = router.match_skills("completely unrelated query").await;
         // May or may not have matches depending on threshold
         // Just ensure it doesn't panic
     }
