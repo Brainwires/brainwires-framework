@@ -766,7 +766,7 @@ mod tests {
             .create_task("A".to_string(), Some(parent.clone()), TaskPriority::Normal)
             .await
             .unwrap();
-        let b = tm
+        let _b = tm
             .create_task("B".to_string(), Some(parent.clone()), TaskPriority::Normal)
             .await
             .unwrap();

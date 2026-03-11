@@ -6,7 +6,7 @@
 //!   cargo run --example mcp_server -p brainwires-brain
 
 use brainwires_brain::{BrainClient, CaptureThoughtRequest, SearchMemoryRequest};
-use std::sync::Arc;
+
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

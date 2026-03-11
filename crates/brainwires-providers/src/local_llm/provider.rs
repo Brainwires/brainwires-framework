@@ -571,7 +571,7 @@ mod tests {
     #[test]
     fn test_pool_estimated_ram() {
         // Create a mock pool structure for testing
-        let config = LocalLlmConfig {
+        let _config = LocalLlmConfig {
             model_path: PathBuf::from("."), // Use current dir to pass validation
             estimated_ram_mb: Some(220),
             ..Default::default()

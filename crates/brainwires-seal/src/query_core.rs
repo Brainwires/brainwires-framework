@@ -386,11 +386,11 @@ impl QueryCore {
                     )
                 }
                 QueryOp::And(exprs) => {
-                    let inner: Vec<_> = exprs.iter().map(|e| Self::expr_to_sexp(e)).collect();
+                    let inner: Vec<_> = exprs.iter().map(Self::expr_to_sexp).collect();
                     format!("(AND {})", inner.join(" "))
                 }
                 QueryOp::Or(exprs) => {
-                    let inner: Vec<_> = exprs.iter().map(|e| Self::expr_to_sexp(e)).collect();
+                    let inner: Vec<_> = exprs.iter().map(Self::expr_to_sexp).collect();
                     format!("(OR {})", inner.join(" "))
                 }
                 QueryOp::Values(vals) => {

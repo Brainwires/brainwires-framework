@@ -268,8 +268,6 @@ pub type SharedPersistentTaskManager = Arc<RwLock<PersistentTaskManager>>;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     // Note: Integration tests require a running LanceDB instance
     // Unit tests can be added for the wrapper logic
 }

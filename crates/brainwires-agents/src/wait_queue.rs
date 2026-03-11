@@ -532,7 +532,7 @@ mod tests {
     async fn test_notify_released() {
         let queue = WaitQueue::new();
 
-        let handle1 = queue.register("build:/project", "agent-1", 5, false).await;
+        let _handle1 = queue.register("build:/project", "agent-1", 5, false).await;
         let _handle2 = queue.register("build:/project", "agent-2", 5, false).await;
 
         // Notify release - should return agent-1

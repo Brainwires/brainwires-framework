@@ -625,7 +625,7 @@ mod tests {
     fn test_detect_correction_instead() {
         let result = detect_correction("No, instead use --nostream flag");
         assert!(result.is_some());
-        let (wrong, right) = result.unwrap();
+        let (_wrong, right) = result.unwrap();
         assert!(right.contains("--nostream"));
     }
 

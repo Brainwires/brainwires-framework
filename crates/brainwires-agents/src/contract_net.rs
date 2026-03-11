@@ -801,7 +801,7 @@ mod tests {
         let manager = ContractNetManager::new();
 
         // Subscribe before announcing
-        let mut rx = manager.subscribe();
+        let _rx = manager.subscribe();
 
         // Announce task
         let announcement = TaskAnnouncement::new(

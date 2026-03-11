@@ -238,7 +238,7 @@ pub(crate) struct OpenAIModelEntry {
 
 /// Google `models` list response.
 #[derive(Debug, Deserialize)]
-#[cfg_attr(not(test), allow(dead_code))]
+#[allow(dead_code)]
 pub(crate) struct GoogleListResponse {
     #[serde(default)]
     pub models: Vec<GoogleModelEntry>,
@@ -247,7 +247,7 @@ pub(crate) struct GoogleListResponse {
 }
 
 #[derive(Debug, Deserialize)]
-#[cfg_attr(not(test), allow(dead_code))]
+#[allow(dead_code)]
 pub(crate) struct GoogleModelEntry {
     /// e.g. "models/gemini-2.0-flash"
     pub name: String,
