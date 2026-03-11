@@ -365,10 +365,10 @@ impl QueryCore {
 
     /// Convert to a human-readable string representation
     pub fn to_sexp(&self) -> String {
-        self.expr_to_sexp(&self.root)
+        Self::expr_to_sexp(&self.root)
     }
 
-    fn expr_to_sexp(&self, expr: &QueryExpr) -> String {
+    fn expr_to_sexp(expr: &QueryExpr) -> String {
         match expr {
             QueryExpr::Variable(name) => name.clone(),
             QueryExpr::Constant(value, _) => format!("\"{}\"", value),
@@ -381,26 +381,26 @@ impl QueryCore {
                     format!(
                         "(JOIN {:?} {} {})",
                         relation,
-                        self.expr_to_sexp(subject),
-                        self.expr_to_sexp(object)
+                        Self::expr_to_sexp(subject),
+                        Self::expr_to_sexp(object)
                     )
                 }
                 QueryOp::And(exprs) => {
-                    let inner: Vec<_> = exprs.iter().map(|e| self.expr_to_sexp(e)).collect();
+                    let inner: Vec<_> = exprs.iter().map(|e| Self::expr_to_sexp(e)).collect();
                     format!("(AND {})", inner.join(" "))
                 }
                 QueryOp::Or(exprs) => {
-                    let inner: Vec<_> = exprs.iter().map(|e| self.expr_to_sexp(e)).collect();
+                    let inner: Vec<_> = exprs.iter().map(|e| Self::expr_to_sexp(e)).collect();
                     format!("(OR {})", inner.join(" "))
                 }
                 QueryOp::Values(vals) => {
                     format!("(VALUES {})", vals.join(" "))
                 }
                 QueryOp::Filter { source, predicate } => {
-                    format!("(FILTER {} {:?})", self.expr_to_sexp(source), predicate)
+                    format!("(FILTER {} {:?})", Self::expr_to_sexp(source), predicate)
                 }
                 QueryOp::Count(inner) => {
-                    format!("(COUNT {})", self.expr_to_sexp(inner))
+                    format!("(COUNT {})", Self::expr_to_sexp(inner))
                 }
                 QueryOp::Superlative {
                     source,
@@ -411,7 +411,7 @@ impl QueryCore {
                         SuperlativeDir::Max => "ARGMAX",
                         SuperlativeDir::Min => "ARGMIN",
                     };
-                    format!("({} {} {})", dir, self.expr_to_sexp(source), property)
+                    format!("({} {} {})", dir, Self::expr_to_sexp(source), property)
                 }
             },
         }

@@ -657,12 +657,12 @@ impl ReflectionModule {
         }
 
         // Update the expression tree
-        corrected.root = self.substitute_in_expr(&query.root, original, replacement);
+        corrected.root = Self::substitute_in_expr(&query.root, original, replacement);
 
         Some(corrected)
     }
 
-    fn substitute_in_expr(&self, expr: &QueryExpr, original: &str, replacement: &str) -> QueryExpr {
+    fn substitute_in_expr(expr: &QueryExpr, original: &str, replacement: &str) -> QueryExpr {
         match expr {
             QueryExpr::Constant(name, entity_type) => {
                 if name == original {
@@ -678,26 +678,26 @@ impl ReflectionModule {
                     object,
                 } => QueryOp::Join {
                     relation: relation.clone(),
-                    subject: Box::new(self.substitute_in_expr(subject, original, replacement)),
-                    object: Box::new(self.substitute_in_expr(object, original, replacement)),
+                    subject: Box::new(Self::substitute_in_expr(subject, original, replacement)),
+                    object: Box::new(Self::substitute_in_expr(object, original, replacement)),
                 },
                 QueryOp::And(exprs) => QueryOp::And(
                     exprs
                         .iter()
-                        .map(|e| self.substitute_in_expr(e, original, replacement))
+                        .map(|e| Self::substitute_in_expr(e, original, replacement))
                         .collect(),
                 ),
                 QueryOp::Or(exprs) => QueryOp::Or(
                     exprs
                         .iter()
-                        .map(|e| self.substitute_in_expr(e, original, replacement))
+                        .map(|e| Self::substitute_in_expr(e, original, replacement))
                         .collect(),
                 ),
                 QueryOp::Filter { source, predicate } => QueryOp::Filter {
-                    source: Box::new(self.substitute_in_expr(source, original, replacement)),
+                    source: Box::new(Self::substitute_in_expr(source, original, replacement)),
                     predicate: predicate.clone(),
                 },
-                QueryOp::Count(inner) => QueryOp::Count(Box::new(self.substitute_in_expr(
+                QueryOp::Count(inner) => QueryOp::Count(Box::new(Self::substitute_in_expr(
                     inner,
                     original,
                     replacement,
@@ -707,7 +707,7 @@ impl ReflectionModule {
                     property,
                     direction,
                 } => QueryOp::Superlative {
-                    source: Box::new(self.substitute_in_expr(source, original, replacement)),
+                    source: Box::new(Self::substitute_in_expr(source, original, replacement)),
                     property: property.clone(),
                     direction: direction.clone(),
                 },

@@ -569,7 +569,7 @@ mod tests {
 
         // Verify BKS contains the truth
         let bks = bks_cache.lock().await;
-        let truths = bks.all_truths().collect::<Vec<_>>();
+        let _truths = bks.all_truths().collect::<Vec<_>>();
 
         // Check that at least one truth was queued
         let pending = bks.pending_submissions();
