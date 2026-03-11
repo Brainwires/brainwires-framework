@@ -148,6 +148,56 @@ impl AgentPool {
         Ok(agent_id)
     }
 
+    /// Spawn a new task agent with a custom [`AgentContext`].
+    ///
+    /// Unlike [`spawn_agent`][Self::spawn_agent] which uses the pool's default
+    /// working directory, this method accepts a pre-built context. This is
+    /// useful for workers that run in isolated worktrees with per-agent
+    /// working directories.
+    ///
+    /// Returns the agent ID.
+    pub async fn spawn_agent_with_context(
+        &self,
+        task: Task,
+        context: Arc<AgentContext>,
+        config: Option<TaskAgentConfig>,
+    ) -> Result<String> {
+        {
+            let agents = self.agents.read().await;
+            if agents.len() >= self.max_agents {
+                return Err(anyhow!(
+                    "Agent pool is full ({}/{})",
+                    agents.len(),
+                    self.max_agents
+                ));
+            }
+        }
+
+        let agent_id = format!("agent-{}", uuid::Uuid::new_v4());
+        let config = config.unwrap_or_default();
+
+        let agent = Arc::new(TaskAgent::new(
+            agent_id.clone(),
+            task,
+            Arc::clone(&self.provider),
+            context,
+            config,
+        ));
+
+        let handle = spawn_task_agent(Arc::clone(&agent));
+
+        self.agents.write().await.insert(
+            agent_id.clone(),
+            AgentHandle {
+                agent,
+                join_handle: handle,
+            },
+        );
+
+        tracing::info!(agent_id = %agent_id, "spawned agent with custom context");
+        Ok(agent_id)
+    }
+
     /// Get the current status of an agent.
     ///
     /// Returns `None` if the agent is not in the pool.

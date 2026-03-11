@@ -417,6 +417,40 @@ pub enum AgentMessage {
         message: String,
     },
 
+    // === Cycle Orchestration Messages ===
+    /// A Plan→Work→Judge cycle has started
+    CycleStarted {
+        /// Current cycle number (0-indexed).
+        cycle_number: u32,
+        /// The high-level goal being pursued.
+        goal: String,
+    },
+    /// A Plan→Work→Judge cycle has completed
+    CycleCompleted {
+        /// Completed cycle number.
+        cycle_number: u32,
+        /// Type of verdict reached (complete, continue, fresh_restart, abort).
+        verdict_type: String,
+    },
+    /// A planner has produced a task plan
+    PlanCreated {
+        /// Cycle number the plan belongs to.
+        cycle_number: u32,
+        /// Number of tasks in the plan.
+        task_count: usize,
+        /// Planner's rationale summary.
+        rationale: String,
+    },
+    /// A worker's branch has been merged
+    WorkerBranchMerged {
+        /// ID of the worker agent.
+        agent_id: String,
+        /// Name of the merged branch.
+        branch: String,
+        /// Merge status description.
+        status: String,
+    },
+
     // === Optimistic Concurrency Messages ===
     /// A version conflict was detected
     VersionConflict {

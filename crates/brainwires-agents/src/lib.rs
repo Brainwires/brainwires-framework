@@ -46,7 +46,10 @@ pub mod runtime;
 // ── Concrete agent implementation ────────────────────────────────────────────
 
 pub mod context;
+pub mod cycle_orchestrator;
 pub mod execution_graph;
+pub mod judge_agent;
+pub mod planner_agent;
 pub mod pool;
 pub mod system_prompts;
 pub mod task_agent;
@@ -177,7 +180,20 @@ pub use brainwires_tool_system::{PreHookDecision, ToolPreHook};
 pub use context::AgentContext;
 pub use execution_graph::{ExecutionGraph, RunTelemetry, StepNode, ToolCallRecord};
 pub use pool::{AgentPool, AgentPoolStats};
-pub use system_prompts::{reasoning_agent_prompt, simple_agent_prompt};
+pub use system_prompts::{
+    judge_agent_prompt, planner_agent_prompt, reasoning_agent_prompt, simple_agent_prompt,
+};
+
+// Cycle orchestration
+pub use cycle_orchestrator::{
+    CycleOrchestrator, CycleOrchestratorConfig, CycleOrchestratorResult, CycleRecord,
+    MergeStrategy,
+};
+pub use judge_agent::{JudgeAgent, JudgeAgentConfig, JudgeContext, JudgeVerdict, MergeStatus, WorkerResult};
+pub use planner_agent::{
+    DynamicTaskPriority, DynamicTaskSpec, PlannerAgent, PlannerAgentConfig, PlannerOutput,
+    SubPlannerRequest,
+};
 pub use task_agent::{
     FailureCategory, TaskAgent, TaskAgentConfig, TaskAgentResult, TaskAgentStatus, spawn_task_agent,
 };
@@ -243,4 +259,13 @@ pub mod prelude {
     pub use super::optimistic::OptimisticController;
     pub use super::saga::SagaExecutor;
     pub use super::wait_queue::WaitQueue;
+
+    // Cycle orchestration
+    pub use super::cycle_orchestrator::{
+        CycleOrchestrator, CycleOrchestratorConfig, CycleOrchestratorResult, MergeStrategy,
+    };
+    pub use super::judge_agent::{JudgeAgent, JudgeAgentConfig, JudgeVerdict, MergeStatus};
+    pub use super::planner_agent::{
+        DynamicTaskSpec, PlannerAgent, PlannerAgentConfig, PlannerOutput,
+    };
 }
