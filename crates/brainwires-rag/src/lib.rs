@@ -146,6 +146,9 @@ pub mod relations;
 /// Vector database abstraction (LanceDB and Qdrant).
 #[cfg(feature = "native")]
 pub mod vector_db;
+/// MSS-inspired spectral subset selection for diverse RAG retrieval.
+#[cfg(feature = "spectral-select")]
+pub mod spectral_select;
 #[cfg(feature = "native")]
 pub use client::RagClient;
 #[cfg(feature = "native")]

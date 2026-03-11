@@ -797,6 +797,115 @@ impl RagClient {
         self.embedding_provider.dimension()
     }
 
+    /// Query the indexed codebase with spectral diversity reranking.
+    ///
+    /// This oversamples candidates (3× the limit), then applies MSS-inspired
+    /// greedy log-determinant maximization to select a subset that is both
+    /// relevant AND collectively diverse. This reduces redundancy compared
+    /// to naive top-k retrieval.
+    ///
+    /// Requires the `spectral-select` feature. Falls back to standard
+    /// `query_codebase` if the feature is not enabled.
+    #[cfg(feature = "spectral-select")]
+    pub async fn query_diverse(
+        &self,
+        request: QueryRequest,
+        spectral_config: Option<crate::spectral_select::SpectralSelectConfig>,
+    ) -> Result<QueryResponse> {
+        use crate::spectral_select::{DiversityReranker, SpectralReranker};
+
+        request.validate().map_err(|e| anyhow::anyhow!(e))?;
+        self.check_path_not_dirty(request.path.as_deref()).await?;
+
+        let start = Instant::now();
+        let config = spectral_config.unwrap_or_default();
+        let final_k = config.k.unwrap_or(request.limit);
+
+        // Oversample: retrieve 3× candidates for the reranker to select from
+        let oversample_limit = final_k * 3;
+
+        let query_embedding = self
+            .embedding_provider
+            .embed_batch(vec![request.query.clone()])
+            .context("Failed to generate query embedding")?
+            .into_iter()
+            .next()
+            .ok_or_else(|| anyhow::anyhow!("No embedding generated"))?;
+
+        let original_threshold = request.min_score;
+        let mut threshold_used = original_threshold;
+        let mut threshold_lowered = false;
+
+        // Search with embeddings so we can pass them to the reranker
+        let (mut candidates, mut embeddings) = self
+            .vector_db
+            .search_with_embeddings(
+                query_embedding.clone(),
+                &request.query,
+                oversample_limit,
+                threshold_used,
+                request.project.clone(),
+                request.path.clone(),
+                request.hybrid,
+            )
+            .await
+            .context("Failed to search with embeddings")?;
+
+        // Adaptive threshold lowering if no results
+        if candidates.is_empty() && original_threshold > 0.3 {
+            let fallback_thresholds = [0.6, 0.5, 0.4, 0.3];
+            for &threshold in &fallback_thresholds {
+                if threshold >= original_threshold {
+                    continue;
+                }
+                let (c, e) = self
+                    .vector_db
+                    .search_with_embeddings(
+                        query_embedding.clone(),
+                        &request.query,
+                        oversample_limit,
+                        threshold,
+                        request.project.clone(),
+                        request.path.clone(),
+                        request.hybrid,
+                    )
+                    .await
+                    .context("Failed to search with embeddings")?;
+                if !c.is_empty() {
+                    candidates = c;
+                    embeddings = e;
+                    threshold_used = threshold;
+                    threshold_lowered = true;
+                    break;
+                }
+            }
+        }
+
+        // Apply spectral reranking if we have enough candidates
+        let results = if candidates.len() > final_k
+            && candidates.len() >= config.min_candidates
+            && embeddings.iter().all(|e| !e.is_empty())
+        {
+            let reranker = SpectralReranker::new(config);
+            let selected_indices = reranker.rerank(&candidates, &embeddings, final_k);
+            selected_indices
+                .into_iter()
+                .map(|i| candidates[i].clone())
+                .collect()
+        } else {
+            // Not enough candidates or missing embeddings — return as-is
+            candidates.truncate(final_k);
+            candidates
+        };
+
+        Ok(QueryResponse {
+            results,
+            duration_ms: start.elapsed().as_millis() as u64,
+            threshold_used,
+            threshold_lowered,
+        })
+    }
+
     /// Find the definition of a symbol at a given file location
     ///
     /// This method looks up the symbol at the specified location and returns

@@ -952,6 +952,85 @@ impl VectorDatabase for LanceVectorDB {
 
         Ok(file_paths.into_iter().collect())
     }
+
+    async fn search_with_embeddings(
+        &self,
+        query_vector: Vec<f32>,
+        query_text: &str,
+        limit: usize,
+        min_score: f32,
+        project: Option<String>,
+        root_path: Option<String>,
+        hybrid: bool,
+    ) -> Result<(Vec<SearchResult>, Vec<Vec<f32>>)> {
+        // For hybrid search, we need the raw vector search batches to extract embeddings.
+        // Delegate to the normal search path first, then look up embeddings for the results.
+        let results = self
+            .search(
+                query_vector,
+                query_text,
+                limit,
+                min_score,
+                project,
+                root_path,
+                hybrid,
+            )
+            .await?;
+
+        if results.is_empty() {
+            return Ok((results, Vec::new()));
+        }
+
+        // Look up embedding vectors for the returned results by querying the table
+        let table = self.get_table().await?;
+        let mut embeddings = Vec::with_capacity(results.len());
+
+        for result in &results {
+            let filter = format!(
+                "file_path = '{}' AND start_line = {}",
+                result.file_path, result.start_line
+            );
+            let stream = table
+                .query()
+                .only_if(filter)
+                .select(lancedb::query::Select::Columns(vec!["vector".to_string()]))
+                .limit(1)
+                .execute()
+                .await
+                .context("Failed to query embedding vector")?;
+
+            let batches: Vec<RecordBatch> = stream
+                .try_collect()
+                .await
+                .context("Failed to collect embedding vector")?;
+
+            let mut found = false;
+            for batch in &batches {
+                if batch.num_rows() > 0 {
+                    if let Some(vector_col) = batch.column_by_name("vector") {
+                        if let Some(fsl) = vector_col.as_any().downcast_ref::<FixedSizeListArray>()
+                        {
+                            let values = fsl
+                                .value(0)
+                                .as_any()
+                                .downcast_ref::<Float32Array>()
+                                .map(|a| a.values().to_vec())
+                                .unwrap_or_default();
+                            embeddings.push(values);
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            if !found {
+                // Fallback: empty vector (should not happen for valid results)
+                embeddings.push(Vec::new());
+            }
+        }
+
+        Ok((results, embeddings))
+    }
 }
 
 #[cfg(test)]

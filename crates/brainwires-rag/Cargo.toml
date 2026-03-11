@@ -74,6 +74,7 @@ pdf-extract = { version = "0.7", optional = true }
 rayon = { version = "1.10", optional = true }
 tokio-util = { version = "0.7", optional = true }
 fs2 = { version = "0.4", optional = true }
+ndarray = { workspace = true, optional = true }
 
 # Document processing (optional, for document feature)
 zip = { version = "8", optional = true }
@@ -127,6 +128,9 @@ qdrant-backend = ["qdrant-client"]
 
 # Alternative folder name for data storage (for consuming crates that want different folder)
 alt-folder-name = []
+
+# Spectral subset selection for diverse RAG retrieval (MSS-inspired log-det maximization)
+spectral-select = ["dep:ndarray"]
 
 # High-precision code navigation for Python, TypeScript, Java, Ruby
 # This feature is prepared but not yet fully implemented

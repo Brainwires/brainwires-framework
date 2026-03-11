@@ -75,6 +75,29 @@ pub trait VectorDatabase: Send + Sync {
     /// Get unique file paths indexed for a specific root path
     /// Returns a list of file paths that have embeddings in the database
     async fn get_indexed_files(&self, root_path: &str) -> Result<Vec<String>>;
+
+    /// Search and return results together with their embedding vectors.
+    ///
+    /// This is used by the spectral diversity reranker which needs the raw
+    /// embeddings to compute pairwise similarities. The default implementation
+    /// delegates to [`search`] and returns empty embedding vectors.
+    #[allow(clippy::too_many_arguments)]
+    async fn search_with_embeddings(
+        &self,
+        query_vector: Vec<f32>,
+        query_text: &str,
+        limit: usize,
+        min_score: f32,
+        project: Option<String>,
+        root_path: Option<String>,
+        hybrid: bool,
+    ) -> Result<(Vec<SearchResult>, Vec<Vec<f32>>)> {
+        let results = self
+            .search(query_vector, query_text, limit, min_score, project, root_path, hybrid)
+            .await?;
+        let empty_embeddings = vec![Vec::new(); results.len()];
+        Ok((results, empty_embeddings))
+    }
 }
 
 /// Statistics about the vector database contents.
