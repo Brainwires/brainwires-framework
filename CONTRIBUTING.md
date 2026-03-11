@@ -57,12 +57,29 @@ cargo test -- --nocapture
 
 See [TESTING.md](TESTING.md) for the evaluation framework (`brainwires-eval`).
 
-### Linting
+### Local CI
+
+Run the full GitHub Actions CI pipeline locally before pushing:
 
 ```bash
-cargo clippy --all-features
-cargo fmt --check
+cargo ci
 ```
+
+This executes all five CI steps in order: **fmt**, **check**, **clippy**, **test**, **doc**. You can also run individual steps:
+
+```bash
+cargo ci fmt          # Format check only
+cargo ci clippy test  # Multiple specific steps
+cargo ci --help       # Show all available steps
+```
+
+| Step     | Command                                        |
+|----------|------------------------------------------------|
+| `fmt`    | `cargo fmt --all --check`                      |
+| `check`  | `cargo check --workspace`                      |
+| `clippy` | `cargo clippy --workspace -- -D warnings`      |
+| `test`   | `cargo test --workspace`                       |
+| `doc`    | `cargo doc --workspace --no-deps`              |
 
 ## Code Style
 
@@ -96,7 +113,7 @@ We follow [Keep a Changelog](https://keepachangelog.com/). If your change is use
 
 1. Branch from `main`
 2. Make your changes with tests
-3. Ensure `cargo test` and `cargo clippy --all-features` pass
+3. Ensure `cargo ci` passes
 4. Update CHANGELOG.md for user-facing changes
 5. Open a PR with a clear description of what and why
 

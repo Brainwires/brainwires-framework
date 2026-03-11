@@ -29,6 +29,7 @@ members = [
     "extras/reload-daemon",
     "extras/agent-chat",
     "extras/audio-demo-ffi",
+    "xtask",
 ]
 resolver = "2"
 
