@@ -74,17 +74,6 @@ brainwires  (facade — re-exports all crates via feature flags)
          └─> code-interpreters (opt)
 ```
 
-## Crate Merges (v0.3)
-
-| Old Crate | Merged Into | Notes |
-|-----------|-------------|-------|
-| `brainwires-brain` | `brainwires-cognition` | Knowledge graphs, PKS/BKS, entity extraction → `knowledge` feature |
-| `brainwires-prompting` | `brainwires-cognition` | Adaptive prompting, clustering → `prompting` feature |
-| `brainwires-rag` | `brainwires-cognition` | Codebase indexing, semantic search → `rag` feature |
-| `brainwires-relay` | `brainwires-agent-network` | MCP server framework, IPC, remote bridge → `server` feature |
-| `brainwires-mesh` | `brainwires-agent-network` | Mesh networking, topology, routing → `mesh` feature |
-| `brainwires-seal` | `brainwires-agents/seal/` | Self-evolving agentic learning → `seal` feature |
-
 ## Longest Dependency Chain
 
 ```

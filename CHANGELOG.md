@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-03-12
+
+### Breaking Changes
+
+#### Crate Merges (23 → 19 crates)
+
+| Old Crate | Merged Into | Migration |
+|-----------|-------------|-----------|
+| `brainwires-brain` | `brainwires-cognition` | `use brainwires_brain::*` → `use brainwires_cognition::knowledge::*` (feature `knowledge`) |
+| `brainwires-prompting` | `brainwires-cognition` | `use brainwires_prompting::*` → `use brainwires_cognition::prompting::*` (feature `prompting`) |
+| `brainwires-rag` | `brainwires-cognition` | `use brainwires_rag::*` → `use brainwires_cognition::rag::*` (feature `rag`) |
+| `brainwires-relay` | `brainwires-agent-network` | `use brainwires_relay::*` → `use brainwires_agent_network::*` (feature `server`) |
+| `brainwires-mesh` | `brainwires-agent-network` | `use brainwires_mesh::*` → `use brainwires_agent_network::mesh::*` (feature `mesh`) |
+| `brainwires-seal` | `brainwires-agents/seal/` | `use brainwires_seal::*` → `use brainwires_agents::seal::*` (feature `seal`) |
+
+#### Feature Flag Removals
+- Removed zero-dependency feature flags that added no conditional compilation value.
+- Fixed import paths across all crates affected by feature flag removal.
+
+### Added
+
+#### Cognition (`brainwires-cognition`)
+- New unified intelligence crate combining knowledge graphs, adaptive prompting, RAG, spectral math, and code analysis.
+- **Knowledge subsystem** (from `brainwires-brain`): `BrainClient`, thought capture, PKS/BKS, entity graphs, semantic memory search.
+- **Prompting subsystem** (from `brainwires-prompting`): 15 techniques in 4 categories, task clustering, temperature optimization, learning coordinator.
+- **RAG subsystem** (from `brainwires-rag`): `RagClient`, codebase indexing, AST-aware chunking, hybrid vector + BM25 search, git history search, code navigation.
+- **Spectral subsystem**: MSS-inspired spectral subset selection for diverse RAG retrieval using log-determinant diversity scoring.
+- Feature flags: `knowledge` (default), `prompting` (default), `rag`, `spectral`, `code-analysis`, `tree-sitter-languages`, `native` (everything), `wasm`.
+
+#### Agents (`brainwires-agents`)
+- **Planner-Worker-Judge orchestration**: New cycle-based coordination pattern for structured multi-agent workflows.
+- **SEAL integration**: Moved `brainwires-seal` into `brainwires-agents/seal/` as a feature-gated module.
+  - Feature flags: `seal`, `seal-mdap`, `seal-knowledge`, `seal-feedback`.
+  - `SealKnowledgeCoordinator` now integrates with `brainwires-cognition` instead of `brainwires-brain`.
+- 4 standalone examples added for agent usage patterns.
+
+#### Agent Network (`brainwires-agent-network`)
+- New crate formed by merging `brainwires-relay` (MCP server framework, encrypted IPC, remote bridge) and `brainwires-mesh` (distributed mesh networking).
+- Feature flags: `server` (default), `client` (default), `mesh`, `auth-keyring`.
+
+#### Storage (`brainwires-storage`)
+- New `vector-db` feature: vector database trait + backends (LanceDB, Qdrant), BM25 keyword search, glob/path utilities — used by `brainwires-cognition` RAG subsystem.
+- Removed `agents` feature and `PersistentTaskManager` (decoupled from agents layer).
+
+#### Build & CI
+- `xtask ci` command for local CI: streamlined testing and linting.
+
+#### Licensing
+- Added Apache 2.0 and MIT license files to all crates for compliance and distribution.
+
+### Changed
+
+#### Framework-wide
+- Reduced crate count from 23 to 19 through strategic merges (see Breaking Changes above).
+- Updated all cross-crate import paths for merged crates.
+- Updated all README files to reflect post-merge crate structure and integrated documentation from dissolved crates.
+- Updated workspace dependency tree in `crates/README.md`.
+
 ## [0.2.0] - 2026-03-09
 
 ### Changed
@@ -273,5 +331,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Git search results now return the actual commit date instead of hardcoded `0`.
 - Dirty flag is now cleared immediately after embeddings + cache are flushed to disk in both full and incremental indexing paths.
 
+[0.3.0]: https://github.com/Brainwires/brainwires-framework/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Brainwires/brainwires-framework/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Brainwires/brainwires-framework/releases/tag/v0.1.0
