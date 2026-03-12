@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::error::MeshError;
-use crate::node::MeshNode;
+use super::error::MeshError;
+use super::node::MeshNode;
 
 /// Policy governing which peers may join a federated mesh.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

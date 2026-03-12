@@ -1,5 +1,5 @@
 [package]
-name = "brainwires-relay"
+name = "brainwires-agent-network"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,10 +7,10 @@ rust-version.workspace = true
 repository.workspace = true
 homepage.workspace = true
 authors.workspace = true
-description = "MCP server framework, relay client, and agent communication backbone for Brainwires"
+description = "Agent networking layer — MCP server framework, IPC, remote bridge, and mesh networking for Brainwires"
 readme = "README.md"
-documentation = "https://docs.rs/brainwires-relay"
-keywords = ["relay", "ipc", "mcp", "remote-control", "agent-communication"]
+documentation = "https://docs.rs/brainwires-agent-network"
+keywords = ["mcp", "ipc", "mesh-networking", "agent-communication", "topology"]
 categories = ["network-programming"]
 
 [dependencies]
@@ -69,6 +69,7 @@ keyring = { workspace = true, optional = true }
 default = ["server", "client"]
 server = []
 client = []
+mesh = []
 auth-keyring = ["keyring"]
 
 [dev-dependencies]

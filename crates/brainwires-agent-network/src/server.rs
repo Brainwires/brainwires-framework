@@ -4,7 +4,7 @@ use serde_json::{Value, json};
 use tracing;
 
 use crate::connection::{ClientInfo, RequestContext};
-use crate::error::RelayError;
+use crate::error::AgentNetworkError;
 use crate::handler::McpHandler;
 use crate::middleware::{Middleware, MiddlewareChain};
 use crate::transport::{ServerTransport, StdioServerTransport};
@@ -59,7 +59,7 @@ impl<H: McpHandler> McpServer<H> {
             let request: JsonRpcRequest = match serde_json::from_str(&line) {
                 Ok(req) => req,
                 Err(e) => {
-                    let error = RelayError::ParseError(e.to_string());
+                    let error = AgentNetworkError::ParseError(e.to_string());
                     let response = JsonRpcResponse {
                         jsonrpc: "2.0".to_string(),
                         id: json!(null),
@@ -119,7 +119,7 @@ impl<H: McpHandler> McpServer<H> {
             "tools/list" => self.handle_list_tools(request).await,
             "tools/call" => self.handle_call_tool(request, ctx).await,
             _ => {
-                let error = RelayError::MethodNotFound(request.method.clone());
+                let error = AgentNetworkError::MethodNotFound(request.method.clone());
                 JsonRpcResponse {
                     jsonrpc: "2.0".to_string(),
                     id: request.id.clone(),
@@ -211,7 +211,7 @@ impl<H: McpHandler> McpServer<H> {
         let params = match &request.params {
             Some(p) => p,
             None => {
-                let error = RelayError::InvalidParams("Missing params for tools/call".to_string());
+                let error = AgentNetworkError::InvalidParams("Missing params for tools/call".to_string());
                 return JsonRpcResponse {
                     jsonrpc: "2.0".to_string(),
                     id: request.id.clone(),
@@ -224,7 +224,7 @@ impl<H: McpHandler> McpServer<H> {
         let tool_name = match params.get("name").and_then(|n| n.as_str()) {
             Some(name) => name,
             None => {
-                let error = RelayError::InvalidParams("Missing 'name' in tools/call".to_string());
+                let error = AgentNetworkError::InvalidParams("Missing 'name' in tools/call".to_string());
                 return JsonRpcResponse {
                     jsonrpc: "2.0".to_string(),
                     id: request.id.clone(),
@@ -247,7 +247,7 @@ impl<H: McpHandler> McpServer<H> {
                 }
             }
             Err(e) => {
-                let error = RelayError::Internal(e);
+                let error = AgentNetworkError::Internal(e);
                 JsonRpcResponse {
                     jsonrpc: "2.0".to_string(),
                     id: request.id.clone(),

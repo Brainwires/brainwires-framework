@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::error::MeshError;
+use super::error::MeshError;
 
 /// Strategy used to route messages between mesh nodes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

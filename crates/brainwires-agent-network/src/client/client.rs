@@ -3,11 +3,11 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter};
 use tokio::process::{Child, ChildStdin, ChildStdout, Command};
 
-use super::error::RelayClientError;
+use super::error::AgentNetworkClientError;
 use super::protocol;
 
 /// MCP relay client that communicates with a subprocess over stdio.
-pub struct RelayClient {
+pub struct AgentNetworkClient {
     /// Child process handle.
     child: Child,
     /// Buffered writer to the child's stdin.
@@ -20,9 +20,9 @@ pub struct RelayClient {
     initialized: bool,
 }
 
-impl RelayClient {
+impl AgentNetworkClient {
     /// Connect to a relay process using default MCP server arguments.
-    pub async fn connect(binary_path: &str) -> Result<Self, RelayClientError> {
+    pub async fn connect(binary_path: &str) -> Result<Self, AgentNetworkClientError> {
         Self::connect_with_args(binary_path, &["chat", "--mcp-server"]).await
     }
 
@@ -30,23 +30,23 @@ impl RelayClient {
     pub async fn connect_with_args(
         binary_path: &str,
         args: &[&str],
-    ) -> Result<Self, RelayClientError> {
+    ) -> Result<Self, AgentNetworkClientError> {
         let mut child = Command::new(binary_path)
             .args(args)
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::null())
             .spawn()
-            .map_err(RelayClientError::SpawnFailed)?;
+            .map_err(AgentNetworkClientError::SpawnFailed)?;
 
         let stdin = child
             .stdin
             .take()
-            .ok_or_else(|| RelayClientError::Protocol("Failed to capture stdin".to_string()))?;
+            .ok_or_else(|| AgentNetworkClientError::Protocol("Failed to capture stdin".to_string()))?;
         let stdout = child
             .stdout
             .take()
-            .ok_or_else(|| RelayClientError::Protocol("Failed to capture stdout".to_string()))?;
+            .ok_or_else(|| AgentNetworkClientError::Protocol("Failed to capture stdout".to_string()))?;
 
         Ok(Self {
             child,
@@ -66,7 +66,7 @@ impl RelayClient {
         &mut self,
         method: &str,
         params: Option<serde_json::Value>,
-    ) -> Result<serde_json::Value, RelayClientError> {
+    ) -> Result<serde_json::Value, AgentNetworkClientError> {
         let id = self.next_id();
         let request = brainwires_mcp::JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
@@ -79,8 +79,8 @@ impl RelayClient {
         self.stdin
             .write_all(format!("{json}\n").as_bytes())
             .await
-            .map_err(RelayClientError::Io)?;
-        self.stdin.flush().await.map_err(RelayClientError::Io)?;
+            .map_err(AgentNetworkClientError::Io)?;
+        self.stdin.flush().await.map_err(AgentNetworkClientError::Io)?;
 
         // Read response
         let mut line = String::new();
@@ -88,10 +88,10 @@ impl RelayClient {
             .stdout
             .read_line(&mut line)
             .await
-            .map_err(RelayClientError::Io)?;
+            .map_err(AgentNetworkClientError::Io)?;
 
         if bytes == 0 {
-            return Err(RelayClientError::ProcessExited);
+            return Err(AgentNetworkClientError::ProcessExited);
         }
 
         let response = protocol::parse_response(line.trim())?;
@@ -99,7 +99,7 @@ impl RelayClient {
     }
 
     /// Perform the MCP initialize handshake with the relay process.
-    pub async fn initialize(&mut self) -> Result<serde_json::Value, RelayClientError> {
+    pub async fn initialize(&mut self) -> Result<serde_json::Value, AgentNetworkClientError> {
         let id = self.next_id();
         let request = protocol::build_initialize_request(id);
 
@@ -107,8 +107,8 @@ impl RelayClient {
         self.stdin
             .write_all(format!("{json}\n").as_bytes())
             .await
-            .map_err(RelayClientError::Io)?;
-        self.stdin.flush().await.map_err(RelayClientError::Io)?;
+            .map_err(AgentNetworkClientError::Io)?;
+        self.stdin.flush().await.map_err(AgentNetworkClientError::Io)?;
 
         // Read initialize response
         let mut line = String::new();
@@ -116,10 +116,10 @@ impl RelayClient {
             .stdout
             .read_line(&mut line)
             .await
-            .map_err(RelayClientError::Io)?;
+            .map_err(AgentNetworkClientError::Io)?;
 
         if bytes == 0 {
-            return Err(RelayClientError::ProcessExited);
+            return Err(AgentNetworkClientError::ProcessExited);
         }
 
         let response = protocol::parse_response(line.trim())?;
@@ -130,8 +130,8 @@ impl RelayClient {
         self.stdin
             .write_all(format!("{notif}\n").as_bytes())
             .await
-            .map_err(RelayClientError::Io)?;
-        self.stdin.flush().await.map_err(RelayClientError::Io)?;
+            .map_err(AgentNetworkClientError::Io)?;
+        self.stdin.flush().await.map_err(AgentNetworkClientError::Io)?;
 
         self.initialized = true;
         Ok(result)
@@ -142,9 +142,9 @@ impl RelayClient {
         &mut self,
         name: &str,
         args: serde_json::Value,
-    ) -> Result<serde_json::Value, RelayClientError> {
+    ) -> Result<serde_json::Value, AgentNetworkClientError> {
         if !self.initialized {
-            return Err(RelayClientError::NotInitialized);
+            return Err(AgentNetworkClientError::NotInitialized);
         }
 
         self.send_request(
@@ -158,15 +158,15 @@ impl RelayClient {
     }
 
     /// List all tools available on the relay server.
-    pub async fn list_tools(&mut self) -> Result<serde_json::Value, RelayClientError> {
+    pub async fn list_tools(&mut self) -> Result<serde_json::Value, AgentNetworkClientError> {
         if !self.initialized {
-            return Err(RelayClientError::NotInitialized);
+            return Err(AgentNetworkClientError::NotInitialized);
         }
         self.send_request("tools/list", None).await
     }
 
     /// Shut down the relay client and terminate the child process.
-    pub async fn shutdown(mut self) -> Result<(), RelayClientError> {
+    pub async fn shutdown(mut self) -> Result<(), AgentNetworkClientError> {
         // Close stdin to signal EOF to the child process
         drop(self.stdin);
         // Wait for child to exit (with timeout)

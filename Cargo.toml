@@ -10,11 +10,10 @@ members = [
     "crates/brainwires-permissions",
     "crates/brainwires-code-interpreters",
     "crates/brainwires-wasm",
-    "crates/brainwires-relay",
+    "crates/brainwires-agent-network",
     "crates/brainwires-a2a",
     "crates/brainwires-providers",
     "crates/brainwires-skills",
-    "crates/brainwires-mesh",
     "crates/brainwires-audio",
     "crates/brainwires-datasets",
     "crates/brainwires-training",
@@ -54,11 +53,10 @@ brainwires-mdap = { path = "crates/brainwires-mdap", version = "0.2.0" }
 brainwires-permissions = { path = "crates/brainwires-permissions", version = "0.2.0" }
 brainwires-code-interpreters = { path = "crates/brainwires-code-interpreters", version = "0.2.0" }
 brainwires-wasm = { path = "crates/brainwires-wasm", version = "0.2.0" }
-brainwires-relay = { path = "crates/brainwires-relay", version = "0.2.0" }
+brainwires-agent-network = { path = "crates/brainwires-agent-network", version = "0.2.0" }
 brainwires-a2a = { path = "crates/brainwires-a2a", version = "0.2.0", default-features = false }
 brainwires-providers = { path = "crates/brainwires-providers", version = "0.2.0" }
 brainwires-skills = { path = "crates/brainwires-skills", version = "0.2.0" }
-brainwires-mesh = { path = "crates/brainwires-mesh", version = "0.2.0" }
 brainwires-audio = { path = "crates/brainwires-audio", version = "0.2.0" }
 brainwires-datasets = { path = "crates/brainwires-datasets", version = "0.2.0" }
 brainwires-training = { path = "crates/brainwires-training", version = "0.2.0" }
@@ -95,7 +93,7 @@ anyhow = "1"
 thiserror = "2"
 
 # Identifiers & time
-uuid = { version = "1", features = ["v4"] }
+uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 
 # HTTP

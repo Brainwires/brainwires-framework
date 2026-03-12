@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
-use crate::error::MeshError;
-use crate::node::MeshNode;
+use super::error::MeshError;
+use super::node::MeshNode;
 
 /// Protocol used for discovering peers in the mesh.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

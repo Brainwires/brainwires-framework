@@ -1,6 +1,6 @@
 /// Errors from the relay client.
 #[derive(Debug, thiserror::Error)]
-pub enum RelayClientError {
+pub enum AgentNetworkClientError {
     /// Failed to spawn the relay subprocess.
     #[error("Failed to spawn relay process: {0}")]
     SpawnFailed(#[source] std::io::Error),

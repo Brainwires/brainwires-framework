@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use super::client::RelayClient;
-use super::error::RelayClientError;
+use super::client::AgentNetworkClient;
+use super::error::AgentNetworkClientError;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 /// Configuration for spawning an agent.
@@ -50,14 +50,14 @@ pub struct AgentInfo {
     pub task_description: String,
 }
 
-impl RelayClient {
+impl AgentNetworkClient {
     /// Spawn a new agent with the given description and config.
     pub async fn spawn_agent(
         &mut self,
         description: &str,
         working_dir: &str,
         config: AgentConfig,
-    ) -> Result<String, RelayClientError> {
+    ) -> Result<String, AgentNetworkClientError> {
         let mut args = json!({
             "description": description,
             "working_directory": working_dir,
@@ -92,7 +92,7 @@ impl RelayClient {
         &mut self,
         agent_id: &str,
         timeout_secs: Option<u64>,
-    ) -> Result<AgentResult, RelayClientError> {
+    ) -> Result<AgentResult, AgentNetworkClientError> {
         let mut args = json!({ "agent_id": agent_id });
         if let Some(timeout) = timeout_secs {
             args["timeout_secs"] = json!(timeout);
@@ -103,13 +103,13 @@ impl RelayClient {
     }
 
     /// List all agents.
-    pub async fn list_agents(&mut self) -> Result<Vec<AgentInfo>, RelayClientError> {
+    pub async fn list_agents(&mut self) -> Result<Vec<AgentInfo>, AgentNetworkClientError> {
         let result = self.call_tool("agent_list", json!({})).await?;
         parse_agent_list(&result)
     }
 
     /// Stop a running agent by ID.
-    pub async fn stop_agent(&mut self, agent_id: &str) -> Result<(), RelayClientError> {
+    pub async fn stop_agent(&mut self, agent_id: &str) -> Result<(), AgentNetworkClientError> {
         self.call_tool("agent_stop", json!({ "agent_id": agent_id }))
             .await?;
         Ok(())
@@ -119,7 +119,7 @@ impl RelayClient {
     pub async fn get_agent_status(
         &mut self,
         agent_id: &str,
-    ) -> Result<AgentInfo, RelayClientError> {
+    ) -> Result<AgentInfo, AgentNetworkClientError> {
         let result = self
             .call_tool("agent_status", json!({ "agent_id": agent_id }))
             .await?;
@@ -127,7 +127,7 @@ impl RelayClient {
     }
 }
 
-fn extract_agent_id(result: &serde_json::Value) -> Result<String, RelayClientError> {
+fn extract_agent_id(result: &serde_json::Value) -> Result<String, AgentNetworkClientError> {
     // Try to extract from content array (CallToolResult format)
     if let Some(content) = result.get("content").and_then(|c| c.as_array()) {
         for item in content {
@@ -165,7 +165,7 @@ fn extract_agent_id(result: &serde_json::Value) -> Result<String, RelayClientErr
         return Ok(id.to_string());
     }
 
-    Err(RelayClientError::Protocol(
+    Err(AgentNetworkClientError::Protocol(
         "Could not extract agent_id from spawn result".to_string(),
     ))
 }
@@ -173,7 +173,7 @@ fn extract_agent_id(result: &serde_json::Value) -> Result<String, RelayClientErr
 fn parse_agent_result(
     result: &serde_json::Value,
     agent_id: &str,
-) -> Result<AgentResult, RelayClientError> {
+) -> Result<AgentResult, AgentNetworkClientError> {
     // Try to parse from content text
     let raw = result.to_string();
 
@@ -214,7 +214,7 @@ fn parse_agent_result(
     })
 }
 
-fn parse_agent_list(result: &serde_json::Value) -> Result<Vec<AgentInfo>, RelayClientError> {
+fn parse_agent_list(result: &serde_json::Value) -> Result<Vec<AgentInfo>, AgentNetworkClientError> {
     let text = extract_text_content(result).unwrap_or_default();
 
     if let Ok(agents) = serde_json::from_str::<Vec<AgentInfo>>(&text) {
@@ -232,7 +232,7 @@ fn parse_agent_list(result: &serde_json::Value) -> Result<Vec<AgentInfo>, RelayC
 fn parse_agent_info(
     result: &serde_json::Value,
     agent_id: &str,
-) -> Result<AgentInfo, RelayClientError> {
+) -> Result<AgentInfo, AgentNetworkClientError> {
     let text = extract_text_content(result).unwrap_or_default();
 
     if let Ok(info) = serde_json::from_str::<AgentInfo>(&text) {

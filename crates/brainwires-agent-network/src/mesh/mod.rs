@@ -1,12 +1,8 @@
-#![deny(missing_docs)]
-//! # brainwires-mesh
+//! Distributed agent mesh networking.
 //!
-//! Distributed agent mesh networking for the Brainwires Agent Framework.
-//!
-//! This crate provides the building blocks for connecting agents across
-//! multiple nodes into a coordinated mesh network. It defines topology
-//! management, message routing, peer discovery, node lifecycle tracking,
-//! and federation policies.
+//! Provides building blocks for connecting agents across multiple nodes
+//! into a coordinated mesh network: topology management, message routing,
+//! peer discovery, node lifecycle tracking, and federation policies.
 
 /// Peer discovery protocols for locating nodes in the mesh.
 pub mod discovery;

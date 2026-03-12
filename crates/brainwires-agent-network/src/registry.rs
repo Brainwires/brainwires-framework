@@ -4,7 +4,7 @@ use brainwires_mcp::CallToolResult;
 use serde_json::Value;
 
 use crate::connection::RequestContext;
-use crate::error::RelayError;
+use crate::error::AgentNetworkError;
 
 /// Definition of an MCP tool.
 #[derive(Debug, Clone)]
@@ -80,7 +80,7 @@ impl McpToolRegistry {
                 return tool.handler.call(args, ctx).await;
             }
         }
-        Err(RelayError::ToolNotFound(name.to_string()).into())
+        Err(AgentNetworkError::ToolNotFound(name.to_string()).into())
     }
 
     /// Check if a tool is registered.

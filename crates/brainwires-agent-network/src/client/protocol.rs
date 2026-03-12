@@ -1,7 +1,7 @@
 use brainwires_mcp::{JsonRpcRequest, JsonRpcResponse};
 use serde_json::{Value, json};
 
-use super::error::RelayClientError;
+use super::error::AgentNetworkClientError;
 
 /// Build a JSON-RPC initialize request with standard client info.
 pub fn build_initialize_request(id: u64) -> JsonRpcRequest {
@@ -53,15 +53,15 @@ pub fn build_tools_call_request(id: u64, name: &str, args: Value) -> JsonRpcRequ
 }
 
 /// Parse a JSON-RPC response from a raw line of text.
-pub fn parse_response(line: &str) -> Result<JsonRpcResponse, RelayClientError> {
+pub fn parse_response(line: &str) -> Result<JsonRpcResponse, AgentNetworkClientError> {
     serde_json::from_str(line)
-        .map_err(|e| RelayClientError::Protocol(format!("Failed to parse response: {e}: {line}")))
+        .map_err(|e| AgentNetworkClientError::Protocol(format!("Failed to parse response: {e}: {line}")))
 }
 
 /// Extract the result value from a JSON-RPC response, returning errors as needed.
-pub fn extract_result(response: JsonRpcResponse) -> Result<Value, RelayClientError> {
+pub fn extract_result(response: JsonRpcResponse) -> Result<Value, AgentNetworkClientError> {
     if let Some(error) = response.error {
-        return Err(RelayClientError::JsonRpc {
+        return Err(AgentNetworkClientError::JsonRpc {
             code: error.code,
             message: error.message,
         });

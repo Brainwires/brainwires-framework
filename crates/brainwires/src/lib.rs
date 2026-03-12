@@ -101,10 +101,10 @@ pub mod interpreters {
     pub use brainwires_code_interpreters::*;
 }
 
-/// Relay — MCP server framework, agent IPC, remote communication.
-#[cfg(feature = "relay")]
-pub mod relay {
-    pub use brainwires_relay::*;
+/// Agent network — MCP server framework, IPC, remote bridge, mesh networking.
+#[cfg(feature = "agent-network")]
+pub mod agent_network {
+    pub use brainwires_agent_network::*;
 }
 
 /// Skills — SKILL.md parsing, skill registry, and execution.
@@ -134,7 +134,7 @@ pub mod a2a {
 /// Distributed mesh networking — topology, discovery, federation, routing.
 #[cfg(feature = "mesh")]
 pub mod mesh {
-    pub use brainwires_mesh::*;
+    pub use brainwires_agent_network::mesh::*;
 }
 
 /// Audio — capture, playback, speech-to-text, text-to-speech.
