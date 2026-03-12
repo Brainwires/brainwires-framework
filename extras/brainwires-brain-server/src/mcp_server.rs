@@ -1,5 +1,5 @@
-use brainwires_brain::brain_client::BrainClient;
-use brainwires_brain::types::*;
+use brainwires_cognition::knowledge::brain_client::BrainClient;
+use brainwires_cognition::knowledge::types::*;
 
 use anyhow::{Context, Result};
 use rmcp::{

@@ -16,8 +16,6 @@ categories = ["database"]
 [dependencies]
 # Internal crates
 brainwires-core.workspace = true
-brainwires-agents = { workspace = true, optional = true }
-
 # Vector database & columnar storage (native only)
 lancedb = { workspace = true, optional = true }
 arrow-array = { workspace = true, optional = true }
@@ -64,6 +62,11 @@ libc = { version = "0.2", optional = true }
 # Async traits (for LockPersistence impl)
 async-trait = { workspace = true, optional = true }
 
+# Vector DB deps (from brainwires-rag)
+tantivy = { version = "0.22", optional = true }
+globset = { version = "0.4", optional = true }
+qdrant-client = { version = "1.15", optional = true }
+
 # Logging
 tracing.workspace = true
 
@@ -75,9 +78,16 @@ native = [
     "dep:base64", "dep:gethostname", "dep:dirs", "dep:libc",
     "tokio/rt", "tokio/macros",
     "brainwires-core/native",
-    "agents",
 ]
-agents = ["dep:brainwires-agents", "dep:async-trait"]
+full = ["native"]
+vector-db = [
+    "dep:async-trait",
+    "dep:lancedb", "dep:arrow-array", "dep:arrow-schema",
+    "dep:futures", "dep:sha2",
+    "dep:tantivy", "dep:globset",
+]
+qdrant-backend = ["vector-db", "dep:qdrant-client"]
+alt-folder-name = []
 wasm = ["brainwires-core/wasm"]
 
 [dev-dependencies]

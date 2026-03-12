@@ -44,6 +44,8 @@ pub mod tool;
 pub mod vector_store;
 /// Working set for file context management with LRU eviction.
 pub mod working_set;
+/// Shared search types (SearchResult, ChunkMetadata, DatabaseStats).
+pub mod search;
 
 // Re-export core types at crate root
 pub use content_source::ContentSource;
@@ -64,3 +66,4 @@ pub use vector_store::{VectorSearchResult, VectorStore};
 pub use working_set::{
     WorkingSet, WorkingSetConfig, WorkingSetEntry, estimate_tokens, estimate_tokens_from_size,
 };
+pub use search::{ChunkMetadata, DatabaseStats, SearchResult};

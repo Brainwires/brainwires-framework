@@ -6,7 +6,7 @@
 //! Requires the `rag` feature flag.
 
 use anyhow::Result;
-use brainwires_rag::{
+use brainwires_cognition::{
     AdvancedSearchRequest, IndexRequest, QueryRequest, RagClient, SearchGitHistoryRequest,
 };
 use serde_json::{Value, json};

@@ -72,7 +72,7 @@ fn show_version_info() {
 
     #[cfg(not(feature = "qdrant-backend"))]
     {
-        use brainwires_rag::vector_db::lance_client::LanceVectorDB;
+        use brainwires_storage::vector_db::LanceVectorDB;
         let default_path = LanceVectorDB::default_lancedb_path();
         println!("  Default Path:    {}", default_path);
         println!("  Type:            Embedded (no external server required)");
@@ -80,7 +80,7 @@ fn show_version_info() {
 
     #[cfg(feature = "qdrant-backend")]
     {
-        use brainwires_rag::vector_db::qdrant_client::QdrantVectorDB;
+        use brainwires_storage::vector_db::QdrantVectorDB;
         let default_url = QdrantVectorDB::default_url();
         println!("  Default URL:     {}", default_url);
         println!("  Type:            External server (requires Qdrant running)");
@@ -96,7 +96,7 @@ fn show_version_info() {
 
     // Configuration
     println!("Configuration:");
-    use brainwires_rag::paths::PlatformPaths;
+    use brainwires_storage::paths::PlatformPaths;
     let config_path = PlatformPaths::default_config_path();
     println!("  Config File:     {}", config_path.display());
     println!("  Config Priority: CLI args > Env vars > Config file > Defaults");

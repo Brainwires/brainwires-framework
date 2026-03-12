@@ -33,6 +33,20 @@ pub use brainwires_core;
 pub mod image_types;
 pub mod template_store;
 
+/// Vector database trait + backends (LanceDB, Qdrant), re-exports core types.
+#[cfg(feature = "vector-db")]
+pub mod vector_db;
+
+/// BM25 keyword search using Tantivy.
+#[cfg(feature = "vector-db")]
+pub mod bm25_search;
+/// Glob pattern matching utilities.
+#[cfg(feature = "vector-db")]
+pub mod glob_utils;
+/// Platform-specific path utilities.
+#[cfg(feature = "vector-db")]
+pub mod paths;
+
 // These have native deps (sha2, LanceDB types)
 #[cfg(feature = "native")]
 pub mod file_context;
@@ -68,10 +82,6 @@ pub mod task_store;
 #[cfg(feature = "native")]
 pub mod tier_metadata_store;
 
-// ── Agent integration (requires brainwires-agents) ──────────────────────────
-
-#[cfg(all(feature = "native", feature = "agents"))]
-pub mod persistent_task_manager;
 
 // ── Re-exports (always available) ────────────────────────────────────────
 
@@ -103,8 +113,6 @@ pub use lance_client::LanceClient;
 pub use lock_store::{LockRecord, LockStats, LockStore};
 #[cfg(feature = "native")]
 pub use message_store::{MessageMetadata, MessageStore};
-#[cfg(all(feature = "native", feature = "agents"))]
-pub use persistent_task_manager::{PersistentTaskManager, SharedPersistentTaskManager};
 #[cfg(feature = "native")]
 pub use plan_store::PlanStore;
 #[cfg(feature = "native")]
