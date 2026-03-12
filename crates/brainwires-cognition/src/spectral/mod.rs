@@ -23,6 +23,7 @@
 //! With incremental Cholesky updates, the inner loop is O(k^2) per candidate,
 //! giving overall O(n*k^2).
 
+pub mod graph_ops;
 pub mod kernel;
 pub mod linalg;
 
@@ -72,12 +73,7 @@ pub trait DiversityReranker: Send + Sync {
     /// # Returns
     ///
     /// Indices into `results`, ordered by selection round (first selected = most valuable).
-    fn rerank(
-        &self,
-        results: &[SearchResult],
-        embeddings: &[Vec<f32>],
-        k: usize,
-    ) -> Vec<usize>;
+    fn rerank(&self, results: &[SearchResult], embeddings: &[Vec<f32>], k: usize) -> Vec<usize>;
 }
 
 /// Spectral reranker using greedy log-determinant maximization.
@@ -98,12 +94,7 @@ impl SpectralReranker {
 }
 
 impl DiversityReranker for SpectralReranker {
-    fn rerank(
-        &self,
-        results: &[SearchResult],
-        embeddings: &[Vec<f32>],
-        k: usize,
-    ) -> Vec<usize> {
+    fn rerank(&self, results: &[SearchResult], embeddings: &[Vec<f32>], k: usize) -> Vec<usize> {
         let n = results.len();
 
         // Edge cases
@@ -170,12 +161,8 @@ fn greedy_log_det_select(kernel: &Array2<f32>, k: usize) -> Vec<usize> {
                 // Incremental gain via Cholesky
                 let cross = cross_column(kernel, &selected, c);
                 let diag_cc = kernel[[c, c]];
-                let new_ld = log_det_incremental(
-                    chol_s.as_ref().unwrap(),
-                    &cross,
-                    diag_cc,
-                    current_log_det,
-                );
+                let new_ld =
+                    log_det_incremental(chol_s.as_ref().unwrap(), &cross, diag_cc, current_log_det);
                 new_ld - current_log_det
             };
 
@@ -266,7 +253,8 @@ mod tests {
             ..Default::default()
         };
         let reranker = SpectralReranker::new(config);
-        let results: Vec<SearchResult> = (0..5).map(|i| make_result(0.9 - i as f32 * 0.1)).collect();
+        let results: Vec<SearchResult> =
+            (0..5).map(|i| make_result(0.9 - i as f32 * 0.1)).collect();
         let embeddings: Vec<Vec<f32>> = (0..5).map(|i| vec![i as f32, 0.0]).collect();
         let result = reranker.rerank(&results, &embeddings, 3);
         // Should return first 3 indices unchanged
@@ -361,16 +349,8 @@ mod tests {
     #[test]
     fn test_k_equals_one() {
         // k=1 should pick the single best item (highest diagonal = highest score * self-sim)
-        let results = vec![
-            make_result(0.5),
-            make_result(0.9),
-            make_result(0.7),
-        ];
-        let embeddings = vec![
-            vec![1.0, 0.0],
-            vec![0.0, 1.0],
-            vec![1.0, 1.0],
-        ];
+        let results = vec![make_result(0.5), make_result(0.9), make_result(0.7)];
+        let embeddings = vec![vec![1.0, 0.0], vec![0.0, 1.0], vec![1.0, 1.0]];
 
         let reranker = SpectralReranker::new(SpectralSelectConfig {
             min_candidates: 2,

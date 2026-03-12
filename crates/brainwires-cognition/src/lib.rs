@@ -27,6 +27,7 @@
 //!
 //! ## Spectral
 //! - **SpectralReranker** — MSS-inspired log-det maximization for diverse retrieval
+//! - **GraphOps** — Laplacian, Fiedler vector, spectral clustering, sparsification
 //! - **Kernel** — Relevance-weighted kernel matrix construction
 //! - **Linalg** — Cholesky decomposition and log-determinant computation
 //!
@@ -57,7 +58,7 @@ pub mod rag;
 
 // ── Spectral math ──────────────────────────────────────────────────────────
 
-/// MSS-inspired spectral subset selection for diverse retrieval.
+/// Spectral graph methods: diverse retrieval, clustering, centrality, sparsification.
 #[cfg(feature = "spectral")]
 pub mod spectral;
 
@@ -92,20 +93,20 @@ pub use knowledge::types::{
 
 // ── Re-exports (prompting) ─────────────────────────────────────────────────
 
-pub use prompting::seal::SealProcessingResult;
-pub use prompting::techniques::{
-    ComplexityLevel, PromptingTechnique, TaskCharacteristic, TechniqueCategory, TechniqueMetadata,
-};
 #[cfg(feature = "prompting")]
-pub use prompting::clustering::{cosine_similarity, TaskCluster, TaskClusterManager};
+pub use prompting::clustering::{TaskCluster, TaskClusterManager, cosine_similarity};
 #[cfg(feature = "knowledge")]
 pub use prompting::generator::{GeneratedPrompt, PromptGenerator};
 #[cfg(feature = "knowledge")]
 pub use prompting::learning::{ClusterSummary, PromptingLearningCoordinator, TechniqueStats};
 #[cfg(feature = "knowledge")]
 pub use prompting::library::TechniqueLibrary;
+pub use prompting::seal::SealProcessingResult;
 #[cfg(feature = "prompting-storage")]
 pub use prompting::storage::{ClusterStorage, StorageStats};
+pub use prompting::techniques::{
+    ComplexityLevel, PromptingTechnique, TaskCharacteristic, TechniqueCategory, TechniqueMetadata,
+};
 #[cfg(feature = "knowledge")]
 pub use prompting::temperature::{TemperatureOptimizer, TemperaturePerformance};
 
@@ -148,9 +149,9 @@ pub mod prelude {
     #[cfg(feature = "knowledge")]
     pub use super::knowledge::thought::{Thought, ThoughtCategory};
 
-    pub use super::prompting::techniques::{PromptingTechnique, TechniqueCategory};
     #[cfg(feature = "knowledge")]
     pub use super::prompting::generator::PromptGenerator;
+    pub use super::prompting::techniques::{PromptingTechnique, TechniqueCategory};
 
     #[cfg(feature = "rag")]
     pub use super::rag::client::RagClient;
