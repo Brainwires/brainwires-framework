@@ -67,6 +67,10 @@ tantivy = { version = "0.22", optional = true }
 globset = { version = "0.4", optional = true }
 qdrant-client = { version = "1.15", optional = true }
 
+# NornicDB deps
+reqwest = { workspace = true, optional = true }
+neo4rs = { workspace = true, optional = true }
+
 # Logging
 tracing.workspace = true
 
@@ -87,6 +91,14 @@ vector-db = [
     "dep:tantivy", "dep:globset",
 ]
 qdrant-backend = ["vector-db", "dep:qdrant-client"]
+# NornicDB: base REST transport
+nornicdb-backend = ["vector-db", "dep:reqwest", "dep:async-trait"]
+# NornicDB: Bolt transport (Neo4j binary protocol)
+nornicdb-bolt = ["nornicdb-backend", "dep:neo4rs"]
+# NornicDB: gRPC transport (Qdrant-compatible)
+nornicdb-grpc = ["nornicdb-backend", "dep:qdrant-client"]
+# NornicDB: all transports
+nornicdb-full = ["nornicdb-bolt", "nornicdb-grpc"]
 alt-folder-name = []
 wasm = ["brainwires-core/wasm"]
 

@@ -24,6 +24,14 @@ pub mod qdrant_client;
 #[cfg(feature = "qdrant-backend")]
 pub use qdrant_client::QdrantVectorDB;
 
+/// NornicDB vector database backend (requires running NornicDB server).
+#[cfg(feature = "nornicdb-backend")]
+pub mod nornicdb_transport;
+#[cfg(feature = "nornicdb-backend")]
+pub mod nornicdb_client;
+#[cfg(feature = "nornicdb-backend")]
+pub use nornicdb_client::{CognitiveMemoryTier, NornicConfig, NornicVectorDB, TransportKind};
+
 /// Trait for vector database operations used by the RAG subsystem.
 ///
 /// Implementations handle connection management, BM25 keyword indexing, and

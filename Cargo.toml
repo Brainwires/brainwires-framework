@@ -207,6 +207,9 @@ tonic = "0.13"
 prost = "0.14"
 prost-types = "0.14"
 
+# Neo4j Bolt protocol
+neo4rs = "0.9.0-rc.9"
+
 # Token decoding (used by llama-cpp-2)
 encoding_rs = "0.8"
 
