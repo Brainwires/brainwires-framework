@@ -19,7 +19,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 # WASM-safe framework crates (direct path deps to override default-features)
 brainwires-core = { path = "../brainwires-core", version = "0.2.0", default-features = false, features = ["wasm"] }
-brainwires-mdap = { path = "../brainwires-mdap", version = "0.2.0", default-features = false, features = ["wasm"] }
+brainwires-mdap = { path = "../brainwires-mdap", version = "0.2.0" }
 
 # Serialization
 serde = { workspace = true }

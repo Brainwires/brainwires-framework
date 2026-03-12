@@ -15,7 +15,6 @@ categories = ["network-programming"]
 
 [dependencies]
 brainwires-core = { workspace = true }
-brainwires-a2a = { workspace = true, optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true, features = ["sync", "time"] }
@@ -24,7 +23,3 @@ uuid = { workspace = true, features = ["serde"] }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
-
-[features]
-default = ["a2a"]
-a2a = ["dep:brainwires-a2a"]

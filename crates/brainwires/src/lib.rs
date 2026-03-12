@@ -286,7 +286,7 @@ pub mod prelude {
 
     // Knowledge — available with "knowledge" feature (now in brainwires-cognition::knowledge)
     #[cfg(feature = "knowledge")]
-    pub use brainwires_cognition::knowledge::{
+    pub use brainwires_cognition::knowledge::bks_pks::{
         BehavioralKnowledgeCache, BehavioralTruth, PersonalKnowledgeCache, TruthCategory,
     };
 

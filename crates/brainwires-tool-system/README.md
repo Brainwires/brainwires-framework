@@ -90,9 +90,8 @@ let matches = registry.search_tools("file");
 | `orchestrator-wasm` | No | Orchestrator compiled for WASM targets |
 | `rag` | No | RAG-powered semantic codebase search |
 | `interpreters` | No | Sandboxed multi-language code execution |
-| `smart-router` | No | Context-aware tool selection and routing |
 | `openapi` | No | OpenAPI 3.x spec parsing to auto-generate tools |
-| `full` | No | All optional features (`orchestrator` + `rag` + `interpreters` + `smart-router` + `openapi`) |
+| `full` | No | All optional features (`orchestrator` + `rag` + `interpreters` + `openapi`) |
 
 ## Architecture
 

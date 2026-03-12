@@ -78,8 +78,6 @@ brainwires-permissions = { workspace = true }
 default = ["native"]
 native = ["dep:git2", "dep:libc", "brainwires-core/native", "brainwires-tool-system/native"]
 wasm = ["brainwires-core/wasm", "brainwires-tool-system/wasm"]
-# tools feature is kept for backward compatibility; brainwires-tool-system is now always available
-tools = []
 # Reasoning module (merged from brainwires-reasoning)
 reasoning = ["dep:regex"]
 # Evaluation framework (merged from brainwires-eval)

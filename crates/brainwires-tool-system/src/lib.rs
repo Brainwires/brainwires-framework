@@ -75,7 +75,6 @@ mod semantic_search;
 #[cfg(feature = "rag")]
 mod tool_embedding;
 
-#[cfg(feature = "smart-router")]
 pub mod smart_router;
 
 #[cfg(feature = "openapi")]
@@ -122,7 +121,6 @@ pub use semantic_search::SemanticSearchTool;
 #[cfg(feature = "rag")]
 pub use tool_embedding::ToolEmbeddingIndex;
 
-#[cfg(feature = "smart-router")]
 pub use smart_router::{
     analyze_messages, analyze_query, get_context_for_analysis, get_smart_tools,
     get_smart_tools_with_mcp, get_tools_for_categories,

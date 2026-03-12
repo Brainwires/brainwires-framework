@@ -236,7 +236,6 @@ pub async fn run_validation(config: &ValidationConfig) -> Result<ValidationResul
 
 // ── Validation tool dispatch (feature-gated) ─────────────────────────────────
 
-#[cfg(feature = "tools")]
 async fn run_duplicates_check(changed_files: &[String], issues: &mut Vec<ValidationIssue>) {
     use brainwires_tool_system::validation::check_duplicates;
 
@@ -274,12 +273,6 @@ async fn run_duplicates_check(changed_files: &[String], issues: &mut Vec<Validat
     }
 }
 
-#[cfg(not(feature = "tools"))]
-async fn run_duplicates_check(_changed_files: &[String], _issues: &mut Vec<ValidationIssue>) {
-    tracing::debug!("NoDuplicates check skipped: 'tools' feature not enabled");
-}
-
-#[cfg(feature = "tools")]
 async fn run_syntax_check(changed_files: &[String], issues: &mut Vec<ValidationIssue>) {
     use brainwires_tool_system::validation::check_syntax;
 
@@ -315,12 +308,6 @@ async fn run_syntax_check(changed_files: &[String], issues: &mut Vec<ValidationI
     }
 }
 
-#[cfg(not(feature = "tools"))]
-async fn run_syntax_check(_changed_files: &[String], _issues: &mut Vec<ValidationIssue>) {
-    tracing::debug!("SyntaxValid check skipped: 'tools' feature not enabled");
-}
-
-#[cfg(feature = "tools")]
 async fn run_build_check(
     working_directory: &str,
     build_type: &str,
@@ -372,15 +359,6 @@ async fn run_build_check(
             });
         }
     }
-}
-
-#[cfg(not(feature = "tools"))]
-async fn run_build_check(
-    _working_directory: &str,
-    _build_type: &str,
-    _issues: &mut Vec<ValidationIssue>,
-) {
-    tracing::debug!("BuildSuccess check skipped: 'tools' feature not enabled");
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

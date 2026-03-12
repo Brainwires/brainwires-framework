@@ -76,18 +76,6 @@ topology.add_node(node);
 let router = MessageRouter::new(RoutingStrategy::RoundRobin);
 ```
 
-## Features
-
-| Feature | Default | Description |
-|---------|---------|-------------|
-| `a2a` | Yes | Enables A2A protocol integration via `brainwires-a2a` for cross-framework agent discovery and task delegation |
-
-```toml
-# Without A2A integration
-[dependencies]
-brainwires-mesh = { version = "0.2", default-features = false }
-```
-
 ## Architecture
 
 ### MeshNode

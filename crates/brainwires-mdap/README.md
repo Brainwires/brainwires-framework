@@ -133,21 +133,6 @@ println!("Recommended k={}, cost=${:.4}, P(success)={:.4}",
 );
 ```
 
-## Features
-
-| Feature | Default | Description |
-|---------|---------|-------------|
-| `native` | Yes | Native platform support with full async runtime |
-| `wasm` | No | WASM-compatible build (forwards `brainwires-core/wasm`) |
-
-```toml
-# Default (native)
-brainwires-mdap = "0.1"
-
-# WASM target
-brainwires-mdap = { version = "0.2", default-features = false, features = ["wasm"] }
-```
-
 ## Architecture
 
 ### Voting (Algorithm 2)

@@ -56,6 +56,10 @@ pub mod indexer;
 /// Core library client API (indexing, querying, search, git history).
 pub mod client;
 
+/// Document processing, chunking, and hybrid search.
+#[cfg(feature = "documents")]
+pub mod documents;
+
 // ── Re-exports ──────────────────────────────────────────────────────────────
 
 pub use client::RagClient;
