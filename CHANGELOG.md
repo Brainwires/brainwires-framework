@@ -37,7 +37,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature flags: `knowledge` (default), `prompting` (default), `rag`, `spectral`, `code-analysis`, `tree-sitter-languages`, `native` (everything), `wasm`.
 
 #### Agents (`brainwires-agents`)
-- **Planner-Worker-Judge orchestration**: New cycle-based coordination pattern for structured multi-agent workflows.
+- **Planner-Worker-Judge cycle orchestration**: Plan→Work→Judge loop for scaling multi-agent coding tasks, inspired by Cursor's planner-worker pipeline pattern. Each cycle: a `PlannerAgent` explores the codebase and creates dynamic tasks, workers execute them via `TaskOrchestrator` with dependency-aware scheduling, and a `JudgeAgent` evaluates results with structured verdicts (Complete, Continue, FreshRestart, Abort).
+  - `planner_agent`: LLM-powered dynamic task planner with JSON output parsing, sub-planner recursion, and cycle detection on the task graph.
+  - `judge_agent`: LLM-powered cycle evaluator with structured verdict types.
+  - `cycle_orchestrator`: Full Plan→Work→Judge loop with fresh `TaskManager` per cycle, configurable `max_cycles`/`max_workers`, and worktree integration prep.
+  - New system prompts: `planner_agent_prompt()` and `judge_agent_prompt()`.
+  - `spawn_agent_with_context()` on agent pool for per-worker custom `AgentContext`.
+  - New communication messages: `CycleStarted`, `CycleCompleted`, `PlanCreated`, `WorkerBranchMerged`.
 - **SEAL integration**: Moved `brainwires-seal` into `brainwires-agents/seal/` as a feature-gated module.
   - Feature flags: `seal`, `seal-mdap`, `seal-knowledge`, `seal-feedback`.
   - `SealKnowledgeCoordinator` now integrates with `brainwires-cognition` instead of `brainwires-brain`.
@@ -52,7 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed `agents` feature and `PersistentTaskManager` (decoupled from agents layer).
 
 #### Build & CI
-- `xtask ci` command for local CI: streamlined testing and linting.
+- `xtask ci` command for local CI: runs `cargo fmt --check`, `cargo clippy`, and `cargo test` in a single command via the xtask pattern (`cargo xtask ci`). Added `.cargo/config.toml` alias and updated `CONTRIBUTING.md` with usage instructions.
 
 #### Licensing
 - Added Apache 2.0 and MIT license files to all crates for compliance and distribution.

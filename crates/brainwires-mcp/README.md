@@ -105,7 +105,7 @@ async fn main() -> anyhow::Result<()> {
 brainwires-mcp = "0.1"
 
 # WASM target (JSON-RPC types only, no client or transport)
-brainwires-mcp = { version = "0.2", default-features = false, features = ["wasm"] }
+brainwires-mcp = { version = "0.3", default-features = false, features = ["wasm"] }
 ```
 
 ## Architecture
@@ -497,7 +497,7 @@ Use via the `brainwires` facade crate with the `mcp` feature, or depend on `brai
 ```toml
 # Via facade
 [dependencies]
-brainwires = { version = "0.2", features = ["mcp"] }
+brainwires = { version = "0.3", features = ["mcp"] }
 
 # Direct
 [dependencies]

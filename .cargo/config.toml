@@ -1,2 +1,3 @@
 [alias]
 ci = "run -p xtask --quiet --"
+xtask = "run -p xtask --quiet --"

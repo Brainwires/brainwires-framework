@@ -103,7 +103,7 @@ let decision = engine.evaluate(&request);
 brainwires-permissions = "0.2"
 
 # WASM target
-brainwires-permissions = { version = "0.2", default-features = false, features = ["wasm"] }
+brainwires-permissions = { version = "0.3", default-features = false, features = ["wasm"] }
 ```
 
 ## Architecture

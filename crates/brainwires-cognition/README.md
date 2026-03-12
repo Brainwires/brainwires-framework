@@ -116,13 +116,13 @@ async fn main() -> anyhow::Result<()> {
 brainwires-cognition = "0.2"
 
 # Full native build
-brainwires-cognition = { version = "0.2", features = ["native"] }
+brainwires-cognition = { version = "0.3", features = ["native"] }
 
 # RAG only
-brainwires-cognition = { version = "0.2", default-features = false, features = ["rag"] }
+brainwires-cognition = { version = "0.3", default-features = false, features = ["rag"] }
 
 # WASM target
-brainwires-cognition = { version = "0.2", default-features = false, features = ["wasm"] }
+brainwires-cognition = { version = "0.3", default-features = false, features = ["wasm"] }
 ```
 
 ## Knowledge Subsystem
@@ -439,14 +439,14 @@ Use via the `brainwires` facade crate:
 
 ```toml
 [dependencies]
-brainwires = { version = "0.2", features = ["cognition"] }
+brainwires = { version = "0.3", features = ["cognition"] }
 ```
 
 Or depend on `brainwires-cognition` directly:
 
 ```toml
 [dependencies]
-brainwires-cognition = { version = "0.2", features = ["native"] }
+brainwires-cognition = { version = "0.3", features = ["native"] }
 ```
 
 **Import path migration:**

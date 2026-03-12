@@ -3,3 +3,7 @@ name = "xtask"
 version = "0.1.0"
 edition = "2024"
 publish = false
+
+[dependencies]
+toml_edit = "0.22"
+walkdir = "2.5"

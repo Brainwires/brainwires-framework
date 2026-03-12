@@ -114,11 +114,11 @@ loop {
 ```toml
 # Local training only (no cloud deps)
 [dependencies]
-brainwires-training = { version = "0.2", default-features = false, features = ["local"] }
+brainwires-training = { version = "0.3", default-features = false, features = ["local"] }
 
 # Full — cloud + local
 [dependencies]
-brainwires-training = { version = "0.2", features = ["full"] }
+brainwires-training = { version = "0.3", features = ["full"] }
 ```
 
 ## Architecture
@@ -357,7 +357,7 @@ Use via the `brainwires` facade crate:
 
 ```toml
 [dependencies]
-brainwires = { version = "0.2", features = ["training"] }
+brainwires = { version = "0.3", features = ["training"] }
 ```
 
 Or depend on `brainwires-training` directly for standalone training capabilities. The crate depends on `brainwires-datasets` for data types, so both are pulled in together.

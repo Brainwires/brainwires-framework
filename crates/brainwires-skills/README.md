@@ -519,7 +519,7 @@ Use via the `brainwires` facade crate with the `skills` feature, or depend on `b
 ```toml
 # Via facade
 [dependencies]
-brainwires = { version = "0.2", features = ["skills"] }
+brainwires = { version = "0.3", features = ["skills"] }
 
 # Direct
 [dependencies]

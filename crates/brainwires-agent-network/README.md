@@ -109,7 +109,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```toml
 # With mesh networking and keyring
-brainwires-agent-network = { version = "0.2", features = ["mesh", "auth-keyring"] }
+brainwires-agent-network = { version = "0.3", features = ["mesh", "auth-keyring"] }
 ```
 
 ## Architecture
@@ -541,7 +541,7 @@ Use via the `brainwires` facade crate:
 
 ```toml
 [dependencies]
-brainwires = { version = "0.2", features = ["agent-network", "mesh"] }
+brainwires = { version = "0.3", features = ["agent-network", "mesh"] }
 ```
 
 Or use standalone — `brainwires-agent-network` depends only on `brainwires-core` and `brainwires-mcp`.

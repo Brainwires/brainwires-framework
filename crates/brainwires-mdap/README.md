@@ -722,7 +722,7 @@ Use via the `brainwires` facade crate with the `mdap` feature, or depend on `bra
 ```toml
 # Via facade
 [dependencies]
-brainwires = { version = "0.2", features = ["mdap"] }
+brainwires = { version = "0.3", features = ["mdap"] }
 
 # Direct
 [dependencies]

@@ -103,7 +103,7 @@ Enable only what you need:
 
 ```toml
 [dependencies]
-brainwires = { version = "0.2", features = ["providers", "rag"] }
+brainwires = { version = "0.3", features = ["providers", "rag"] }
 ```
 
 ### Using Individual Crates

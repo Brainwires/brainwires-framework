@@ -1,6 +1,8 @@
 use std::env;
 use std::process::{Command, ExitCode};
 
+mod version;
+
 struct Step {
     key: &'static str,
     name: &'static str,
@@ -37,15 +39,33 @@ const STEPS: &[Step] = &[
 
 fn main() -> ExitCode {
     let args: Vec<String> = env::args().skip(1).collect();
-    let filter: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
 
-    if filter.contains(&"--help") || filter.contains(&"-h") {
-        println!("Usage: cargo ci [step ...]");
-        println!();
-        println!("Steps: fmt, check, clippy, test, doc");
-        println!("Run with no arguments to execute all steps.");
-        return ExitCode::SUCCESS;
+    // Dispatch subcommands
+    match args.first().map(|s| s.as_str()) {
+        Some("bump-version") => return version::bump_version(&args[1..]),
+        Some("--help" | "-h") => {
+            print_help();
+            return ExitCode::SUCCESS;
+        }
+        _ => {}
     }
+
+    // Default: CI mode (original behavior)
+    run_ci(&args)
+}
+
+fn print_help() {
+    println!("Usage: cargo xtask <command>");
+    println!();
+    println!("Commands:");
+    println!("  bump-version <VERSION>  Bump all crate versions (e.g. 0.3.0)");
+    println!("  [step ...]              Run CI steps: fmt, check, clippy, test, doc");
+    println!();
+    println!("Run with no arguments to execute all CI steps.");
+}
+
+fn run_ci(args: &[String]) -> ExitCode {
+    let filter: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
 
     let steps: Vec<&Step> = if filter.is_empty() {
         STEPS.iter().collect()
