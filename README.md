@@ -4,7 +4,7 @@ A modular Rust framework for building AI agents with multi-provider support, too
 
 ## Overview
 
-The Brainwires Framework is a workspace of 23 framework crates plus 7 extras that provide everything needed to build, train, deploy, and coordinate AI agents. Each framework crate is independently publishable to crates.io and usable standalone, but they compose together through the `brainwires` facade crate for a batteries-included experience.
+The Brainwires Framework is a workspace of 21 framework crates plus 7 extras that provide everything needed to build, train, deploy, and coordinate AI agents. Each framework crate is independently publishable to crates.io and usable standalone, but they compose together through the `brainwires` facade crate for a batteries-included experience.
 
 **[Full feature list](FEATURES.md)** | **Key capabilities:**
 
@@ -26,7 +26,7 @@ The Brainwires Framework is a workspace of 23 framework crates plus 7 extras tha
   │                                                            │
   │  ┌───────────┐ ┌────────────┐ ┌───────────┐ ┌───────────┐  │
   │  │  agents   │ │  providers │ │  storage  │ │    mcp    │  │
-  │  │  mdap     │ │tool-system │ │  prompting│ │   relay   │  │
+  │  │  mdap     │ │tool-system │ │ cognition │ │   relay   │  │
   │  └─────┬─────┘ └──────┬─────┘ └─────┬─────┘ └─────┬─────┘  │
   │        │              │             │             │        │
   │        └──────────────┴─────────────┴─────────────┘        │
@@ -37,9 +37,9 @@ The Brainwires Framework is a workspace of 23 framework crates plus 7 extras tha
   │                     └─────────────┘                        │
   │                                                            │
   │  ┌──────────┐ ┌────────────┐ ┌───────────┐ ┌───────────┐   │
-  │  │   rag    │ │  datasets  │ │ training  │ │   audio   │   │
-  │  │  skills  │ │    eval    │ │   seal    │ │    wasm   │   │
-  │  │code-inter│ │   mesh     │ │    a2a    │ │           │   │
+  │  │  skills  │ │  datasets  │ │ training  │ │   audio   │   │
+  │  │code-inter│ │   mesh     │ │    a2a    │ │    wasm   │   │
+  │  │ autonomy │ │            │ │           │ │           │   │
   │  └──────────┘ └────────────┘ └───────────┘ └───────────┘   │
   └────────────────────────────────────────────────────────────┘
 ```
@@ -54,17 +54,14 @@ The Brainwires Framework is a workspace of 23 framework crates plus 7 extras tha
 | [**brainwires-tool-system**](crates/brainwires-tool-system/README.md) | Tool definitions and execution for AI model interactions |
 | [**brainwires-agents**](crates/brainwires-agents/README.md) | Multi-agent orchestration, task decomposition, file lock coordination |
 | [**brainwires-mdap**](crates/brainwires-mdap/README.md) | Multi-Dimensional Adaptive Planning — k-agent voting for reliable execution |
-| [**brainwires-brain**](crates/brainwires-brain/README.md) | Central knowledge crate — persistent thoughts, PKS/BKS, entity graphs, relationship graphs |
+| [**brainwires-cognition**](crates/brainwires-cognition/README.md) | Knowledge (BKS/PKS, entity graphs), prompting (technique library, clustering), and RAG (code search, hybrid retrieval) |
 | [**brainwires-storage**](crates/brainwires-storage/README.md) | LanceDB vector storage, semantic search, tiered memory |
-| [**brainwires-prompting**](crates/brainwires-prompting/README.md) | Prompt construction, task clustering, multi-source selection (delegates knowledge to brain) |
 | [**brainwires-permissions**](crates/brainwires-permissions/README.md) | Permission policies (auto, ask, reject) for tool execution |
 | [**brainwires-mcp**](crates/brainwires-mcp/README.md) | MCP client — connect to external MCP servers and use their tools |
 | [**brainwires-relay**](crates/brainwires-relay/README.md) | MCP server mode, IPC, and remote relay for agent management |
-| [**brainwires-rag**](crates/brainwires-rag/README.md) | RAG engine — AST-aware chunking, hybrid search, Git-aware indexing (library-only) |
 | [**brainwires-skills**](crates/brainwires-skills/README.md) | Skill definitions and slash command registry |
 | [**brainwires-code-interpreters**](crates/brainwires-code-interpreters/README.md) | Sandboxed JavaScript and Python code execution |
 | [**brainwires-wasm**](crates/brainwires-wasm/README.md) | WASM bindings for browser-based agent deployment |
-| [**brainwires-seal**](crates/brainwires-seal/README.md) | Self-Evolving Agentic Learning — feedback-driven prompt improvement |
 | [**brainwires-mesh**](crates/brainwires-mesh/README.md) | Distributed agent mesh networking with topology and routing |
 | [**brainwires-audio**](crates/brainwires-audio/README.md) | Audio I/O, speech-to-text, text-to-speech |
 | [**brainwires-datasets**](crates/brainwires-datasets/README.md) | Training data pipelines — JSONL I/O, tokenization, dedup, format conversion |
@@ -195,32 +192,25 @@ cargo test -p brainwires-core
   ├── brainwires-agents
   │   ├── brainwires-core
   │   ├── brainwires-tool-system
-  │   ├── brainwires-providers
-  │   └── brainwires-permissions
+  │   └── brainwires-cognition (seal-knowledge feature)
   ├── brainwires-mdap
-  │   └── brainwires-agents
-  ├── brainwires-brain
+  │   └── brainwires-core
+  ├── brainwires-cognition
   │   ├── brainwires-core
-  │   └── brainwires-storage
+  │   └── brainwires-storage (knowledge feature)
   ├── brainwires-storage
   │   └── brainwires-core
-  ├── brainwires-prompting
-  │   ├── brainwires-core
-  │   └── brainwires-brain (optional, knowledge feature)
   ├── brainwires-mcp
   │   └── brainwires-core
   ├── brainwires-relay
   │   ├── brainwires-core
   │   └── brainwires-mcp
-  ├── brainwires-rag
-  │   └── brainwires-core
   ├── brainwires-training
   │   ├── brainwires-core
   │   ├── brainwires-datasets
   │   └── brainwires-providers (cloud feature)
   ├── brainwires-mesh
-  │   ├── brainwires-core
-  │   └── brainwires-relay (a2a feature)
+  │   └── brainwires-core
   └── brainwires-audio
       (standalone — no internal deps beyond core traits)
 ```
