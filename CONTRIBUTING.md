@@ -131,6 +131,30 @@ This updates all version references across the workspace in one command:
 
 After bumping, review the diff and run `cargo check --workspace` before committing.
 
+### Deprecating Renamed or Removed Crates
+
+When crates are renamed, merged, or removed, publish a **deprecation stub** so existing users get migration guidance. Stubs live in `deprecated/<crate-name>/` (outside the workspace).
+
+Each stub contains:
+- `Cargo.toml` — patch version bump (e.g. `0.2.1`), depends on the successor crate
+- `src/lib.rs` — `#![deprecated]` attribute + `pub use` re-export
+- `README.md` — migration instructions
+
+**Publish order** (stubs depend on successors existing on crates.io):
+
+```bash
+# 1. Publish all workspace crates at the new version first
+# 2. Then publish deprecation stubs
+for crate in deprecated/brainwires-*/; do
+  cargo publish --manifest-path "$crate/Cargo.toml"
+done
+
+# 3. Yank old versions of removed crates
+cargo yank --version 0.2.0 brainwires-brain
+```
+
+> **Do not yank the deprecation stub version** — it serves as the signpost directing users to the successor.
+
 ## Pull Requests
 
 1. Branch from `main`
