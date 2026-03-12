@@ -24,13 +24,40 @@ pub mod qdrant_client;
 #[cfg(feature = "qdrant-backend")]
 pub use qdrant_client::QdrantVectorDB;
 
+#[cfg(feature = "nornicdb-backend")]
+pub mod nornicdb_client;
 /// NornicDB vector database backend (requires running NornicDB server).
 #[cfg(feature = "nornicdb-backend")]
 pub mod nornicdb_transport;
 #[cfg(feature = "nornicdb-backend")]
-pub mod nornicdb_client;
-#[cfg(feature = "nornicdb-backend")]
 pub use nornicdb_client::{CognitiveMemoryTier, NornicConfig, NornicVectorDB, TransportKind};
+
+/// Shared BM25 helpers for backends that use client-side keyword scoring.
+pub mod bm25_helpers;
+
+/// PostgreSQL + pgvector backend (requires running PostgreSQL with pgvector extension).
+#[cfg(feature = "postgres-backend")]
+pub mod postgres_client;
+#[cfg(feature = "postgres-backend")]
+pub use postgres_client::PostgresVectorDB;
+
+/// Pinecone cloud vector database backend (requires API key and pre-created index).
+#[cfg(feature = "pinecone-backend")]
+pub mod pinecone_client;
+#[cfg(feature = "pinecone-backend")]
+pub use pinecone_client::PineconeVectorDB;
+
+/// Milvus vector database backend (requires running Milvus server).
+#[cfg(feature = "milvus-backend")]
+pub mod milvus_client;
+#[cfg(feature = "milvus-backend")]
+pub use milvus_client::MilvusVectorDB;
+
+/// Weaviate vector database backend (requires running Weaviate server).
+#[cfg(feature = "weaviate-backend")]
+pub mod weaviate_client;
+#[cfg(feature = "weaviate-backend")]
+pub use weaviate_client::WeaviateVectorDB;
 
 /// Trait for vector database operations used by the RAG subsystem.
 ///

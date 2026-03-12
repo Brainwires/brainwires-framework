@@ -1,3 +1,4 @@
+use super::bm25_helpers::{self, SharedIdfStats};
 use super::{ChunkMetadata, SearchResult};
 use super::{DatabaseStats, VectorDatabase};
 use crate::glob_utils;
@@ -9,26 +10,14 @@ use qdrant_client::qdrant::{
 };
 use qdrant_client::{Payload, Qdrant};
 use serde_json::json;
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 const COLLECTION_NAME: &str = "code_embeddings";
-
-/// Document frequency statistics for IDF calculation
-#[derive(Debug, Clone, Default)]
-struct IdfStats {
-    /// Total number of documents in corpus
-    total_docs: usize,
-    /// Term -> number of documents containing that term
-    doc_frequencies: HashMap<String, usize>,
-}
 
 /// Qdrant-backed vector database for code embeddings.
 pub struct QdrantVectorDB {
     client: Qdrant,
     /// IDF statistics for BM25 calculation
-    idf_stats: Arc<RwLock<IdfStats>>,
+    idf_stats: SharedIdfStats,
 }
 
 impl QdrantVectorDB {
@@ -52,7 +41,7 @@ impl QdrantVectorDB {
 
         let db = Self {
             client,
-            idf_stats: Arc::new(RwLock::new(IdfStats::default())),
+            idf_stats: bm25_helpers::new_shared_idf_stats(),
         };
 
         // Initialize IDF stats by scanning existing documents
@@ -69,8 +58,7 @@ impl QdrantVectorDB {
 
         tracing::info!("Refreshing IDF statistics...");
 
-        let mut doc_frequencies: HashMap<String, usize> = HashMap::new();
-        let mut total_docs = 0;
+        let mut documents = Vec::new();
         let mut offset: Option<qdrant_client::qdrant::PointId> = None;
 
         loop {
@@ -84,7 +72,7 @@ impl QdrantVectorDB {
 
             let scroll_result = match self.client.scroll(builder).await {
                 Ok(result) => result,
-                Err(_) => break, // Collection might not exist yet
+                Err(_) => break,
             };
 
             if scroll_result.result.is_empty() {
@@ -92,18 +80,8 @@ impl QdrantVectorDB {
             }
 
             for point in &scroll_result.result {
-                let payload = &point.payload;
-                if let Some(content) = payload.get("content").and_then(|v| v.as_str()) {
-                    total_docs += 1;
-
-                    // Extract unique terms from this document
-                    let terms = Self::tokenize(content);
-                    let unique_terms: std::collections::HashSet<String> =
-                        terms.into_iter().collect();
-
-                    for term in unique_terms {
-                        *doc_frequencies.entry(term).or_insert(0) += 1;
-                    }
+                if let Some(content) = point.payload.get("content").and_then(|v| v.as_str()) {
+                    documents.push(content.to_string());
                 }
             }
 
@@ -113,25 +91,10 @@ impl QdrantVectorDB {
             }
         }
 
-        let mut stats = self.idf_stats.write().await;
-        stats.total_docs = total_docs;
-        stats.doc_frequencies = doc_frequencies;
-
-        tracing::info!(
-            "IDF stats refreshed: {} documents, {} unique terms",
-            total_docs,
-            stats.doc_frequencies.len()
-        );
+        tracing::info!("Refreshing IDF stats from {} documents", documents.len());
+        bm25_helpers::update_idf_stats(&self.idf_stats, &documents).await;
 
         Ok(())
-    }
-
-    /// Tokenize text into terms
-    fn tokenize(text: &str) -> Vec<String> {
-        text.to_lowercase()
-            .split_whitespace()
-            .map(String::from)
-            .collect()
     }
 
     /// Check if collection exists
@@ -146,49 +109,6 @@ impl QdrantVectorDB {
             .collections
             .iter()
             .any(|c| c.name == COLLECTION_NAME))
-    }
-
-    /// Calculate full BM25 score with IDF for a query against content
-    async fn calculate_bm25_score(&self, query: &str, content: &str) -> f32 {
-        let query_terms = Self::tokenize(query);
-        if query_terms.is_empty() {
-            return 0.0;
-        }
-
-        let content_terms = Self::tokenize(content);
-        let content_len = content_terms.len() as f32;
-
-        let stats = self.idf_stats.read().await;
-        let total_docs = stats.total_docs as f32;
-
-        // BM25 parameters
-        let k1 = 1.5;
-        let b = 0.75;
-        let avg_doc_len = 100.0; // Approximate, could be calculated from stats
-
-        let mut score = 0.0;
-
-        for term in &query_terms {
-            // Term frequency in document
-            let tf = content_terms.iter().filter(|t| t == &term).count() as f32;
-
-            if tf > 0.0 {
-                // Calculate IDF
-                let doc_freq = stats.doc_frequencies.get(term).copied().unwrap_or(1) as f32;
-                let idf = ((total_docs - doc_freq + 0.5) / (doc_freq + 0.5) + 1.0).ln();
-
-                // BM25 formula
-                let norm = 1.0 - b + b * (content_len / avg_doc_len);
-                let term_score = idf * (tf * (k1 + 1.0)) / (tf + k1 * norm);
-                score += term_score;
-            }
-        }
-
-        // Normalize by number of query terms
-        let normalized_score = score / query_terms.len() as f32;
-
-        // Clamp to [0, 1]
-        normalized_score.clamp(0.0, 1.0)
     }
 }
 
@@ -382,10 +302,12 @@ impl VectorDatabase for QdrantVectorDB {
 
             // Calculate keyword score if hybrid search is enabled
             let (final_score, keyword_score) = if hybrid {
-                let kw_score = self.calculate_bm25_score(query_text, &content).await;
-                // Combine scores: 70% vector + 30% keyword
-                let combined = (vector_score * 0.7) + (kw_score * 0.3);
-                (combined, Some(kw_score))
+                let kw_score =
+                    bm25_helpers::calculate_bm25_score(&self.idf_stats, query_text, &content).await;
+                (
+                    bm25_helpers::combine_scores(vector_score, kw_score),
+                    Some(kw_score),
+                )
             } else {
                 (vector_score, None)
             };

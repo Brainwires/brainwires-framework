@@ -71,6 +71,10 @@ qdrant-client = { version = "1.15", optional = true }
 reqwest = { workspace = true, optional = true }
 neo4rs = { workspace = true, optional = true }
 
+# Postgres + pgvector
+sqlx = { workspace = true, optional = true }
+pgvector = { version = "0.4", features = ["sqlx"], optional = true }
+
 # Logging
 tracing.workspace = true
 
@@ -99,6 +103,14 @@ nornicdb-bolt = ["nornicdb-backend", "dep:neo4rs"]
 nornicdb-grpc = ["nornicdb-backend", "dep:qdrant-client"]
 # NornicDB: all transports
 nornicdb-full = ["nornicdb-bolt", "nornicdb-grpc"]
+# Postgres + pgvector backend
+postgres-backend = ["vector-db", "dep:sqlx", "dep:pgvector"]
+# Pinecone cloud backend (REST via reqwest)
+pinecone-backend = ["vector-db", "dep:reqwest", "dep:async-trait"]
+# Weaviate backend (REST/GraphQL via reqwest)
+weaviate-backend = ["vector-db", "dep:reqwest", "dep:async-trait"]
+# Milvus backend (REST API v2 via reqwest)
+milvus-backend = ["vector-db", "dep:reqwest", "dep:async-trait"]
 alt-folder-name = []
 wasm = ["brainwires-core/wasm"]
 
