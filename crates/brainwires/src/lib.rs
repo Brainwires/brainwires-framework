@@ -84,7 +84,7 @@ pub mod chat {
 /// SEAL — Self-Evolving Adaptive Learning for coreference and knowledge.
 #[cfg(feature = "seal")]
 pub mod seal {
-    pub use brainwires_seal::*;
+    pub use brainwires_agents::seal::*;
 }
 
 // Orchestrator is re-exported via brainwires_tool_system::orchestrator when orchestrator feature is on

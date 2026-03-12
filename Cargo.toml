@@ -12,7 +12,6 @@ members = [
     "crates/brainwires-wasm",
     "crates/brainwires-relay",
     "crates/brainwires-a2a",
-    "crates/brainwires-seal",
     "crates/brainwires-providers",
     "crates/brainwires-skills",
     "crates/brainwires-mesh",
@@ -57,7 +56,6 @@ brainwires-code-interpreters = { path = "crates/brainwires-code-interpreters", v
 brainwires-wasm = { path = "crates/brainwires-wasm", version = "0.2.0" }
 brainwires-relay = { path = "crates/brainwires-relay", version = "0.2.0" }
 brainwires-a2a = { path = "crates/brainwires-a2a", version = "0.2.0", default-features = false }
-brainwires-seal = { path = "crates/brainwires-seal", version = "0.2.0" }
 brainwires-providers = { path = "crates/brainwires-providers", version = "0.2.0" }
 brainwires-skills = { path = "crates/brainwires-skills", version = "0.2.0" }
 brainwires-mesh = { path = "crates/brainwires-mesh", version = "0.2.0" }

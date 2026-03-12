@@ -40,8 +40,8 @@
 //! 6. If successful: generalize pattern, add to global memory
 //! 7. If failed: record failure for pattern avoidance
 
-use crate::query_core::{QueryCore, QuestionType};
-use brainwires_agents::ResponseConfidence;
+use super::query_core::{QueryCore, QuestionType};
+use crate::confidence::ResponseConfidence;
 use brainwires_core::graph::EntityType;
 use brainwires_tool_system::{ToolErrorCategory, ToolOutcome};
 use chrono::Utc;
@@ -1027,7 +1027,7 @@ mod tests {
         // Record some queries
         let core = QueryCore::new(
             QuestionType::Definition,
-            crate::query_core::QueryExpr::var("x"),
+            crate::seal::query_core::QueryExpr::var("x"),
             vec![("main.rs".to_string(), EntityType::File)],
             "What is main.rs?".to_string(),
         );

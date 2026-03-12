@@ -25,7 +25,7 @@
 //! # Usage
 //!
 //! ```rust,ignore
-//! use brainwires_seal::FeedbackBridge;
+//! use brainwires_agents::seal::FeedbackBridge;
 //!
 //! let bridge = FeedbackBridge::new(&audit_logger, &mut learning_coordinator);
 //! let stats = bridge.process_feedback_for_run("run-123")?;
@@ -38,7 +38,7 @@ use brainwires_permissions::audit::{
 };
 use chrono::{DateTime, Utc};
 
-use crate::learning::{LearningCoordinator, PatternHint};
+use super::learning::{LearningCoordinator, PatternHint};
 
 /// Statistics from processing a batch of feedback signals.
 #[derive(Debug, Clone, Default)]

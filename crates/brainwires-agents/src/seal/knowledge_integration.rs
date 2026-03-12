@@ -47,7 +47,7 @@
 //!     Enhanced Context → OrchestratorAgent
 //! ```
 
-use crate::{QueryPattern, ResolvedReference, SealProcessingResult};
+use super::{QueryPattern, ResolvedReference, SealProcessingResult};
 use anyhow::Result;
 use brainwires_cognition::knowledge::bks_pks::{
     BehavioralKnowledgeCache, BehavioralTruth, PersonalKnowledgeCache, TruthCategory, TruthSource,
@@ -459,7 +459,7 @@ impl SealKnowledgeCoordinator {
     /// high-confidence behavioral truths available for pattern matching.
     pub async fn sync_bks_to_seal(
         &mut self,
-        seal_learning: &mut crate::learning::LearningCoordinator,
+        seal_learning: &mut super::learning::LearningCoordinator,
     ) -> Result<u32> {
         if !self.config.enabled || !self.config.knowledge_to_seal {
             return Ok(0);
@@ -579,8 +579,8 @@ impl SealKnowledgeCoordinator {
     // --- Private helper methods ---
 
     /// Infer BKS category from SEAL question type
-    fn infer_category(&self, question_type: &crate::query_core::QuestionType) -> TruthCategory {
-        use crate::query_core::QuestionType;
+    fn infer_category(&self, question_type: &super::query_core::QuestionType) -> TruthCategory {
+        use super::query_core::QuestionType;
 
         match question_type {
             QuestionType::Definition => TruthCategory::CommandUsage,
@@ -614,8 +614,8 @@ impl SealKnowledgeCoordinator {
     fn truth_to_pattern_hint(
         &self,
         truth: &BehavioralTruth,
-    ) -> Option<crate::learning::PatternHint> {
-        Some(crate::learning::PatternHint {
+    ) -> Option<super::learning::PatternHint> {
+        Some(super::learning::PatternHint {
             context_pattern: truth.context_pattern.clone(),
             rule: truth.rule.clone(),
             confidence: truth.confidence as f64,

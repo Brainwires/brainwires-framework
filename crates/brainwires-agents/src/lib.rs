@@ -107,6 +107,10 @@ pub mod otel;
 #[cfg(feature = "eval")]
 pub mod eval;
 
+// ── SEAL: Self-Evolving Agentic Learning ─────────────────────────────────
+#[cfg(feature = "seal")]
+pub mod seal;
+
 // ── Analysis & validation ────────────────────────────────────────────────────
 
 pub mod resource_checker;
@@ -182,6 +186,14 @@ pub use execution_graph::{ExecutionGraph, RunTelemetry, StepNode, ToolCallRecord
 pub use pool::{AgentPool, AgentPoolStats};
 pub use system_prompts::{
     judge_agent_prompt, planner_agent_prompt, reasoning_agent_prompt, simple_agent_prompt,
+};
+
+// SEAL re-exports
+#[cfg(feature = "seal")]
+pub use seal::{
+    CoreferenceResolver, DialogState, LearningCoordinator as SealLearningCoordinator,
+    QueryCore, QueryCoreExtractor, ReflectionModule, SealConfig, SealProcessingResult,
+    SealProcessor,
 };
 
 // Cycle orchestration

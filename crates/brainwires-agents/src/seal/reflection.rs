@@ -51,8 +51,8 @@
 //! }
 //! ```
 
-use crate::learning::LearningCoordinator;
-use crate::query_core::{QueryCore, QueryExpr, QueryOp, QueryResult, RelationType};
+use super::learning::LearningCoordinator;
+use super::query_core::{QueryCore, QueryExpr, QueryOp, QueryResult, RelationType};
 use brainwires_core::graph::RelationshipGraphT;
 use std::collections::HashMap;
 
@@ -573,7 +573,7 @@ impl ReflectionModule {
         // Check for valid question type
         if matches!(
             query.question_type,
-            crate::query_core::QuestionType::Unknown
+            super::query_core::QuestionType::Unknown
         ) {
             issues.push(Issue::new(
                 ErrorType::SchemaAlignment("Unknown question type".to_string()),
@@ -779,7 +779,7 @@ impl Default for ReflectionModule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query_core::{QueryExpr, QuestionType};
+    use crate::seal::query_core::{QueryExpr, QueryResultValue, QuestionType};
     use brainwires_cognition::RelationshipGraph;
     use brainwires_core::graph::EntityType;
 
@@ -819,14 +819,14 @@ mod tests {
         // Create result with many values
         let mut values = Vec::new();
         for i in 0..20 {
-            values.push(super::super::query_core::QueryResultValue {
+            values.push(QueryResultValue {
                 value: format!("entity_{}", i),
                 entity_type: Some(EntityType::File),
                 score: 0.8,
                 metadata: std::collections::HashMap::new(),
             });
         }
-        let result = super::super::query_core::QueryResult::with_values(values);
+        let result = crate::seal::query_core::QueryResult::with_values(values);
         let graph = RelationshipGraph::new();
 
         let report = reflection.analyze(&query, &result, &graph);

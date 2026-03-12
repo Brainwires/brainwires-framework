@@ -1,4 +1,3 @@
-#![deny(missing_docs)]
 //! SEAL (Self-Evolving Agentic Learning) Integration Module
 //!
 //! This module implements techniques from the SEAL paper to enhance
@@ -53,7 +52,7 @@
 //! ## Usage
 //!
 //! ```rust,ignore
-//! use brainwires_seal::{SealProcessor, SealConfig};
+//! use brainwires_agents::seal::{SealProcessor, SealConfig};
 //!
 //! let config = SealConfig::default();
 //! let mut processor = SealProcessor::new(config);
@@ -71,9 +70,9 @@
 //! ```
 
 pub mod coreference;
-#[cfg(feature = "feedback")]
+#[cfg(feature = "seal-feedback")]
 pub mod feedback_bridge;
-#[cfg(feature = "knowledge")]
+#[cfg(feature = "seal-knowledge")]
 pub mod knowledge_integration;
 pub mod learning;
 pub mod query_core;
@@ -83,9 +82,9 @@ pub use coreference::{
     CoreferenceResolver, DialogState, ReferenceType, ResolvedReference, SalienceScore,
     UnresolvedReference,
 };
-#[cfg(feature = "feedback")]
+#[cfg(feature = "seal-feedback")]
 pub use feedback_bridge::{FeedbackBridge, FeedbackProcessingStats};
-#[cfg(feature = "knowledge")]
+#[cfg(feature = "seal-knowledge")]
 pub use knowledge_integration::{
     EntityResolutionStrategy, IntegrationConfig, SealKnowledgeCoordinator,
 };
@@ -154,6 +153,21 @@ pub struct SealProcessingResult {
     pub quality_score: f32,
     /// Any issues detected by reflection
     pub issues: Vec<Issue>,
+}
+
+impl SealProcessingResult {
+    /// Create a new SealProcessingResult with the given quality score and resolved query
+    pub fn new(quality_score: f32, resolved_query: String) -> Self {
+        Self {
+            original_query: resolved_query.clone(),
+            resolved_query,
+            query_core: None,
+            matched_pattern: None,
+            resolutions: Vec::new(),
+            quality_score,
+            issues: Vec::new(),
+        }
+    }
 }
 
 /// Main SEAL processor that orchestrates all components
@@ -341,7 +355,7 @@ impl SealProcessor {
     ///
     /// This method records MDAP execution patterns to help improve
     /// future task decomposition and voting strategies.
-    #[cfg(feature = "mdap")]
+    #[cfg(feature = "seal-mdap")]
     pub fn record_mdap_metrics(&mut self, metrics: &brainwires_mdap::MdapMetrics) {
         if !self.config.enable_learning {
             return;
