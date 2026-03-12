@@ -76,14 +76,14 @@ let response = provider.chat(&messages, None, &options).await?;
 | `providers` | no | `brainwires-providers` | AI providers (Anthropic, OpenAI, Google, Ollama) |
 | `reasoning` | no | `brainwires-agents/reasoning` | Extended reasoning support (implies `agents`) |
 | `seal` | no | `brainwires-agents/seal` | Self-Evolving Autonomous Learner |
-| `relay` | no | `brainwires-relay` | Remote relay / bridge for IPC and remote control |
+| `relay` | no | `brainwires-agent-network` | Remote relay / bridge for IPC and remote control |
 | `skills` | no | `brainwires-skills` | Pluggable skills system |
 | `eval` | no | `brainwires-agents/eval` | Evaluation framework for benchmarking agents (implies `agents`) |
 | `otel` | no | `brainwires-agents/otel` | OpenTelemetry span export for agent traces (implies `agents`) |
 | `openapi` | no | `brainwires-tool-system/openapi` | Auto-generate tools from OpenAPI 3.x specs (implies `tools`) |
 | `proxy` | no | `brainwires-proxy` | AI proxy framework |
 | `a2a` | no | `brainwires-a2a` | Agent-to-Agent protocol |
-| `mesh` | no | `brainwires-mesh` | Mesh networking for distributed agents |
+| `mesh` | no | `brainwires-agent-network/mesh` | Mesh networking for distributed agents |
 | `audio` | no | `brainwires-audio` | Audio capture, STT, TTS |
 | `datasets` | no | `brainwires-datasets` | Training data pipelines (JSONL, tokenization, dedup) |
 | `training` | no | `brainwires-training` | Model fine-tuning (cloud + local) |

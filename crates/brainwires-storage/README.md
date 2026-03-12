@@ -53,12 +53,11 @@ LanceDB-backed storage, tiered memory, and document management for the Brainwire
   │  ┌─── Images ────────────────────────────────────────────────────────┐ │
   │  │  ImageStore ──► analyzed images with semantic search             │ │
   │  └─────────────────────────────────────────────────────────────────┘ │
-  │  Note: EntityStore and RelationshipGraph moved to brainwires-brain  │
+  │  Note: EntityStore and RelationshipGraph moved to brainwires-cognition │
   │                                                                      │
   │  ┌─── Coordination & Templates ────────────────────────────────────┐ │
   │  │  LockStore ──► SQLite WAL locks, stale detection, cleanup       │ │
   │  │  TemplateStore ──► reusable plans with {{variable}} substitution│ │
-  │  │  PersistentTaskManager ──► auto-persist task state for agents   │ │
   │  └─────────────────────────────────────────────────────────────────┘ │
   └───────────────────────────────────────────────────────────────────────┘
 ```
@@ -115,7 +114,7 @@ async fn main() -> anyhow::Result<()> {
 | Feature | Default | Description |
 |---------|---------|-------------|
 | `native` | Yes | Enables LanceDB, Arrow, SQLite, FastEmbed, file processing, and all native-only stores |
-| `agents` | Yes (via `native`) | Enables `PersistentTaskManager` integration with `brainwires-agents` |
+| `vector-db` | No | Vector database trait + backends (LanceDB, Qdrant), BM25 search, glob/path utilities |
 | `wasm` | No | Enables WASM-compatible compilation via `brainwires-core/wasm` |
 
 ```toml
@@ -125,8 +124,8 @@ brainwires-storage = "0.2"
 # WASM-compatible (pure types and logic only)
 brainwires-storage = { version = "0.2", default-features = false, features = ["wasm"] }
 
-# Native without agent integration
-brainwires-storage = { version = "0.2", default-features = false, features = ["native"] }
+# With vector database support (used by brainwires-cognition RAG)
+brainwires-storage = { version = "0.2", features = ["vector-db"] }
 ```
 
 **Module availability by feature:**
@@ -144,7 +143,7 @@ brainwires-storage = { version = "0.2", default-features = false, features = ["n
 | `image_store` | — | Yes | — |
 | `tiered_memory`, `summary_store`, `fact_store` | — | Yes | — |
 | `tier_metadata_store`, `file_context` | — | Yes | — |
-| `persistent_task_manager` | — | — | Yes |
+| `vector_db`, `bm25_search`, `glob_utils`, `paths` | — | — (requires `vector-db`) | — |
 
 ## Architecture
 
@@ -517,27 +516,16 @@ JSON file-based reusable plan template storage with `{{variable}}` substitution.
 | `instantiate(substitutions)` | Replace `{{var}}` placeholders |
 | `mark_used()` | Increment counter and update timestamp |
 
-### PersistentTaskManager (requires `agents` feature)
+### Vector Database (requires `vector-db` feature)
 
-Task manager that auto-persists to LanceDB on every mutation for agent integration.
+Vector database trait and backends used by `brainwires-cognition` for RAG indexing.
 
-| Method | Description |
+| Module | Description |
 |--------|-------------|
-| `new(client, conversation_id)` | Create and load existing tasks |
-| `new_for_plan(client, conversation_id, plan_id)` | Create scoped to a plan |
-| `create_task(description, parent_id, priority)` | Create and persist immediately |
-| `add_subtask(parent_id, description)` | Add child task |
-| `start_task(task_id)` | Mark in-progress |
-| `complete_task(task_id, summary)` | Mark completed |
-| `fail_task(task_id, error)` | Mark failed |
-| `add_dependency(task_id, depends_on)` | Add task dependency |
-| `persist_all()` | Force save all tasks |
-| `reload()` | Refresh from storage |
-| `clear()` | Clear memory and storage |
-
-**Read-only delegates:** `get_task()`, `get_ready_tasks()`, `get_root_tasks()`, `get_task_tree()`, `get_all_tasks()`, `get_tasks_by_status()`, `count()`, `get_stats()`, `get_progress()`, `get_overall_progress()`, `format_tree()`.
-
-**Type alias:** `SharedPersistentTaskManager = Arc<RwLock<PersistentTaskManager>>` for multi-agent sharing.
+| `vector_db` | `VectorDatabase` trait + LanceDB and Qdrant implementations |
+| `bm25_search` | BM25 keyword search using Tantivy |
+| `glob_utils` | Glob pattern matching utilities |
+| `paths` | Platform-specific path utilities |
 
 ## Usage Examples
 
@@ -677,10 +665,10 @@ for result in &results {
 
 ### Track entities and detect contradictions
 
-> **Note:** `EntityStore` and `RelationshipGraph` have moved to `brainwires-brain`.
+> **Note:** `EntityStore` and `RelationshipGraph` have moved to `brainwires-cognition` (knowledge feature).
 
 ```rust
-use brainwires_brain::{EntityStore, Entity, EntityType, Relationship, ExtractionResult};
+use brainwires_cognition::knowledge::{EntityStore, Entity, EntityType, Relationship, ExtractionResult};
 
 let mut store = EntityStore::new();
 
@@ -839,9 +827,9 @@ use brainwires_storage::{
     EntityStore,
 };
 
-// Agent integration
-#[cfg(all(feature = "native", feature = "agents"))]
-use brainwires_storage::{PersistentTaskManager, SharedPersistentTaskManager};
+// Vector database (requires vector-db feature)
+#[cfg(feature = "vector-db")]
+use brainwires_storage::vector_db::{VectorDatabase, LanceVectorDB};
 ```
 
 A `prelude` module is also available for convenient imports:
