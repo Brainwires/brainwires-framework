@@ -36,6 +36,8 @@ pub mod plan;
 pub mod plan_parser;
 /// Provider configuration and chat options.
 pub mod provider;
+/// Shared search types (SearchResult, ChunkMetadata, DatabaseStats).
+pub mod search;
 /// Task, priority, and agent response types.
 pub mod task;
 /// Tool definitions, schemas, contexts, and idempotency.
@@ -44,8 +46,6 @@ pub mod tool;
 pub mod vector_store;
 /// Working set for file context management with LRU eviction.
 pub mod working_set;
-/// Shared search types (SearchResult, ChunkMetadata, DatabaseStats).
-pub mod search;
 
 // Re-export core types at crate root
 pub use content_source::ContentSource;
@@ -60,10 +60,10 @@ pub use plan::*;
 #[cfg(feature = "planning")]
 pub use plan_parser::{ParsedStep, parse_plan_steps, steps_to_tasks};
 pub use provider::*;
+pub use search::{ChunkMetadata, DatabaseStats, SearchResult};
 pub use task::*;
 pub use tool::*;
 pub use vector_store::{VectorSearchResult, VectorStore};
 pub use working_set::{
     WorkingSet, WorkingSetConfig, WorkingSetEntry, estimate_tokens, estimate_tokens_from_size,
 };
-pub use search::{ChunkMetadata, DatabaseStats, SearchResult};

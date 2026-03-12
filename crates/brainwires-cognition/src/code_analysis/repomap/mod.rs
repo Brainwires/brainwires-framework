@@ -24,8 +24,8 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 
-use crate::rag::indexer::FileInfo;
 use crate::code_analysis::{Definition, PrecisionLevel, Reference, RelationsProvider};
+use crate::rag::indexer::FileInfo;
 
 pub use reference_finder::ReferenceFinder;
 pub use symbol_extractor::SymbolExtractor;

@@ -1,6 +1,6 @@
 mod tests {
-    use brainwires_core::ChunkMetadata;
     use crate::vector_db::{LanceVectorDB, VectorDatabase};
+    use brainwires_core::ChunkMetadata;
     use tempfile::{TempDir, tempdir};
 
     fn create_test_metadata(file_path: &str, start_line: usize, end_line: usize) -> ChunkMetadata {

@@ -12,7 +12,9 @@ use futures::TryStreamExt;
 use lancedb::query::{ExecutableQuery, QueryBase};
 use tracing;
 
-use crate::knowledge::bks_pks::{BehavioralKnowledgeCache, PersonalFactCollector, PersonalKnowledgeCache};
+use crate::knowledge::bks_pks::{
+    BehavioralKnowledgeCache, PersonalFactCollector, PersonalKnowledgeCache,
+};
 use brainwires_storage::{EmbeddingProvider, LanceClient};
 
 use crate::knowledge::fact_extractor;

@@ -188,10 +188,7 @@ impl PlannerAgent {
         let result = self.agent.execute().await?;
 
         if !result.success {
-            return Err(anyhow!(
-                "Planner agent failed: {}",
-                result.summary
-            ));
+            return Err(anyhow!("Planner agent failed: {}", result.summary));
         }
 
         let output = Self::parse_output(&result.summary, &self.config)?;
@@ -205,8 +202,8 @@ impl PlannerAgent {
         let json_str = extract_json_block(text)
             .ok_or_else(|| anyhow!("No JSON block found in planner output"))?;
 
-        let mut output: PlannerOutput =
-            serde_json::from_str(&json_str).map_err(|e| anyhow!("Failed to parse planner JSON: {}", e))?;
+        let mut output: PlannerOutput = serde_json::from_str(&json_str)
+            .map_err(|e| anyhow!("Failed to parse planner JSON: {}", e))?;
 
         // Enforce limits
         output.tasks.truncate(config.max_tasks);
@@ -327,7 +324,9 @@ fn validate_task_graph(tasks: &[DynamicTaskSpec]) -> Result<()> {
     }
 
     if visited < tasks.len() {
-        return Err(anyhow!("Circular dependency detected in planner task graph"));
+        return Err(anyhow!(
+            "Circular dependency detected in planner task graph"
+        ));
     }
 
     Ok(())

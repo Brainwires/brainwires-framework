@@ -8,10 +8,10 @@ use super::library::TechniqueLibrary;
 use super::techniques::{
     ComplexityLevel, PromptingTechnique, TechniqueCategory, TechniqueMetadata,
 };
-use crate::prompting::seal::SealProcessingResult;
-use anyhow::{Result, anyhow};
 #[cfg(feature = "knowledge")]
 use crate::knowledge::bks_pks::{BehavioralKnowledgeCache, PersonalKnowledgeCache};
+use crate::prompting::seal::SealProcessingResult;
+use anyhow::{Result, anyhow};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 

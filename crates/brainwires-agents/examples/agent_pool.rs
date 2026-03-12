@@ -12,15 +12,14 @@ use anyhow::Result;
 use async_trait::async_trait;
 use futures::stream::BoxStream;
 
-use brainwires_agents::{
-    AgentPool, AgentMessage, CommunicationHub, FileLockManager, LockType,
-    TaskAgentConfig,
-};
 use brainwires_agents::brainwires_core::{
-    ChatOptions, ChatResponse, Message, Provider, StreamChunk, Tool, ToolContext,
-    ToolResult, ToolUse, Usage, Task,
+    ChatOptions, ChatResponse, Message, Provider, StreamChunk, Task, Tool, ToolContext, ToolResult,
+    ToolUse, Usage,
 };
 use brainwires_agents::brainwires_tool_system::ToolExecutor;
+use brainwires_agents::{
+    AgentMessage, AgentPool, CommunicationHub, FileLockManager, LockType, TaskAgentConfig,
+};
 
 // ── Mock Provider ──────────────────────────────────────────────────────────
 
@@ -172,8 +171,12 @@ async fn main() -> Result<()> {
         // Explicitly release before the guards drop (Drop spawns async tasks
         // that race with the next acquire_lock call). Forget the guards to
         // prevent the Drop handler from double-releasing.
-        lock_manager.release_lock("demo-agent-1", "src/lib.rs", LockType::Read).await?;
-        lock_manager.release_lock("demo-agent-2", "src/lib.rs", LockType::Read).await?;
+        lock_manager
+            .release_lock("demo-agent-1", "src/lib.rs", LockType::Read)
+            .await?;
+        lock_manager
+            .release_lock("demo-agent-2", "src/lib.rs", LockType::Read)
+            .await?;
         std::mem::forget(read1);
         std::mem::forget(read2);
     }

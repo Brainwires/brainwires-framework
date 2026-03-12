@@ -28,11 +28,7 @@ pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     }
 
     let denom = norm_a.sqrt() * norm_b.sqrt();
-    if denom == 0.0 {
-        0.0
-    } else {
-        dot / denom
-    }
+    if denom == 0.0 { 0.0 } else { dot / denom }
 }
 
 /// Build the relevance-weighted kernel matrix.
@@ -101,10 +97,7 @@ pub fn submatrix(kernel: &Array2<f32>, indices: &[usize]) -> Array2<f32> {
 ///
 /// Returns `[L_{s_0, c}, L_{s_1, c}, ..., L_{s_{m-1}, c}]`.
 pub fn cross_column(kernel: &Array2<f32>, selected: &[usize], candidate: usize) -> Vec<f32> {
-    selected
-        .iter()
-        .map(|&s| kernel[[s, candidate]])
-        .collect()
+    selected.iter().map(|&s| kernel[[s, candidate]]).collect()
 }
 
 #[cfg(test)]

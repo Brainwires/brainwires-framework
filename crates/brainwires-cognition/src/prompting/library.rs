@@ -7,9 +7,9 @@
 use super::techniques::{
     ComplexityLevel, PromptingTechnique, TaskCharacteristic, TechniqueCategory, TechniqueMetadata,
 };
-use anyhow::Result;
 #[cfg(feature = "knowledge")]
 use crate::knowledge::bks_pks::{BehavioralKnowledgeCache, BehavioralTruth};
+use anyhow::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;

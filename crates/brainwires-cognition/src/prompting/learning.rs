@@ -4,11 +4,11 @@
 //! promoting successful patterns to BKS for collective learning.
 
 use super::techniques::PromptingTechnique;
-use anyhow::Result;
 #[cfg(feature = "knowledge")]
 use crate::knowledge::bks_pks::{
     BehavioralKnowledgeCache, BehavioralTruth, TruthCategory, TruthSource,
 };
+use anyhow::Result;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

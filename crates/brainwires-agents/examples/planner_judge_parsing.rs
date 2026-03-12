@@ -7,9 +7,7 @@
 //!
 //! Run: cargo run -p brainwires-agents --example planner_judge_parsing
 
-use brainwires_agents::{
-    JudgeAgent, JudgeVerdict, PlannerAgent, PlannerAgentConfig,
-};
+use brainwires_agents::{JudgeAgent, JudgeVerdict, PlannerAgent, PlannerAgentConfig};
 
 fn main() {
     // ── 1. Parse a planner output from a fenced JSON block ─────────────
@@ -177,7 +175,9 @@ fn print_verdict(verdict: &JudgeVerdict) {
             println!("  Hints: {hints:?}");
         }
         JudgeVerdict::FreshRestart {
-            reason, hints, summary,
+            reason,
+            hints,
+            summary,
         } => {
             println!("  Reason: {reason}");
             println!("  Summary: {summary}");

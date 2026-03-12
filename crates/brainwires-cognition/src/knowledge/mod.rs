@@ -20,14 +20,14 @@
 //! }
 //! ```
 
+/// Knowledge systems (BKS and PKS).
+pub mod bks_pks;
 /// Persistent thought storage with semantic search.
 pub mod brain_client;
 /// Entity types and store for the knowledge graph.
 pub mod entity;
 /// Automatic fact extraction from text.
 pub mod fact_extractor;
-/// Knowledge systems (BKS and PKS).
-pub mod bks_pks;
 /// Entity relationship graph storage and queries.
 pub mod relationship_graph;
 /// Thought types, categories, and sources.

@@ -242,8 +242,14 @@ impl CycleOrchestrator {
             );
             let worker_results = self.run_workers(&planner_output, cycle_number).await?;
 
-            let cycle_completed = worker_results.iter().filter(|r| r.agent_result.success).count();
-            let cycle_failed = worker_results.iter().filter(|r| !r.agent_result.success).count();
+            let cycle_completed = worker_results
+                .iter()
+                .filter(|r| r.agent_result.success)
+                .count();
+            let cycle_failed = worker_results
+                .iter()
+                .filter(|r| !r.agent_result.success)
+                .count();
             total_completed += cycle_completed;
             total_failed += cycle_failed;
 
@@ -377,17 +383,13 @@ impl CycleOrchestrator {
         let (mut output, _result) = planner.execute().await?;
 
         // Handle sub-planners recursively
-        if !output.sub_planners.is_empty()
-            && self.config.planner_config.planning_depth > 0
-        {
+        if !output.sub_planners.is_empty() && self.config.planner_config.planning_depth > 0 {
             let sub_tasks = self
                 .run_sub_planners(&output.sub_planners, cycle_number, 1)
                 .await?;
             output.tasks.extend(sub_tasks);
             // Re-enforce task limit after merging sub-planner output
-            output
-                .tasks
-                .truncate(self.config.planner_config.max_tasks);
+            output.tasks.truncate(self.config.planner_config.max_tasks);
         }
 
         Ok(output)
@@ -482,11 +484,7 @@ impl CycleOrchestrator {
         for spec in &planner_output.tasks {
             let priority: TaskPriority = spec.priority.clone().into();
             let task_id = task_manager
-                .create_task(
-                    spec.description.clone(),
-                    Some(parent_id.clone()),
-                    priority,
-                )
+                .create_task(spec.description.clone(), Some(parent_id.clone()), priority)
                 .await?;
             spec_to_task.insert(spec.id.clone(), task_id);
         }
@@ -550,7 +548,11 @@ impl CycleOrchestrator {
                 .map(|s| s.description.clone())
                 .unwrap_or_else(|| "unknown task".to_string());
 
-            let branch_name = format!("cycle-{}-{}", cycle_number, &task_id[..8.min(task_id.len())]);
+            let branch_name = format!(
+                "cycle-{}-{}",
+                cycle_number,
+                &task_id[..8.min(task_id.len())]
+            );
 
             worker_results.push(WorkerResult {
                 task_id: task_id.clone(),
@@ -575,7 +577,8 @@ impl CycleOrchestrator {
 
             let now = chrono::Utc::now();
             let graph = crate::execution_graph::ExecutionGraph::new(String::new(), now);
-            let telemetry = crate::execution_graph::RunTelemetry::from_graph(&graph, now, false, 0.0);
+            let telemetry =
+                crate::execution_graph::RunTelemetry::from_graph(&graph, now, false, 0.0);
             worker_results.push(WorkerResult {
                 task_id: task_id.clone(),
                 task_description: description,

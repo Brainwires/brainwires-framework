@@ -9,8 +9,8 @@ use anyhow::Result;
 use chrono::Utc;
 use regex::Regex;
 
-use crate::rag::indexer::FileInfo;
 use crate::code_analysis::types::{Definition, Reference, ReferenceKind};
+use crate::rag::indexer::FileInfo;
 
 /// Finds references to symbols using text-based identifier matching.
 pub struct ReferenceFinder {

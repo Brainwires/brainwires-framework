@@ -117,11 +117,7 @@ pub fn log_det_incremental(
 /// Cholesky factor of `A_{S union {c}}`.
 ///
 /// Returns `None` if the Schur complement is non-positive.
-pub fn cholesky_extend(
-    chol_s: &Array2<f32>,
-    cross: &[f32],
-    diag_cc: f32,
-) -> Option<Array2<f32>> {
+pub fn cholesky_extend(chol_s: &Array2<f32>, cross: &[f32], diag_cc: f32) -> Option<Array2<f32>> {
     let m = chol_s.nrows();
     debug_assert_eq!(cross.len(), m);
 
@@ -221,11 +217,7 @@ mod tests {
     #[test]
     fn test_cholesky_extend_matches_full() {
         // Build a 3x3 PD matrix, compute Cholesky of 2x2 sub, then extend
-        let full = array![
-            [4.0_f32, 2.0, 1.0],
-            [2.0, 5.0, 3.0],
-            [1.0, 3.0, 6.0]
-        ];
+        let full = array![[4.0_f32, 2.0, 1.0], [2.0, 5.0, 3.0], [1.0, 3.0, 6.0]];
 
         let sub = array![[4.0_f32, 2.0], [2.0, 5.0]];
         let chol_sub = cholesky(&sub).unwrap();
@@ -252,11 +244,7 @@ mod tests {
 
     #[test]
     fn test_log_det_incremental_matches_full() {
-        let full = array![
-            [4.0_f32, 2.0, 1.0],
-            [2.0, 5.0, 3.0],
-            [1.0, 3.0, 6.0]
-        ];
+        let full = array![[4.0_f32, 2.0, 1.0], [2.0, 5.0, 3.0], [1.0, 3.0, 6.0]];
 
         let sub = array![[4.0_f32, 2.0], [2.0, 5.0]];
         let chol_sub = cholesky(&sub).unwrap();

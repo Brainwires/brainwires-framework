@@ -148,7 +148,10 @@ impl FileWalker {
                 }
                 #[cfg(not(feature = "pdf-extract-feature"))]
                 {
-                    tracing::warn!("PDF extraction not available (pdf-extract-feature disabled), skipping {:?}", path);
+                    tracing::warn!(
+                        "PDF extraction not available (pdf-extract-feature disabled), skipping {:?}",
+                        path
+                    );
                     continue;
                 }
             } else {

@@ -1,7 +1,7 @@
 use crate::rag::git::walker::CommitInfo;
 use crate::rag::indexer::CodeChunk;
-use brainwires_core::ChunkMetadata;
 use anyhow::Result;
+use brainwires_core::ChunkMetadata;
 
 const DEFAULT_GIT_MAX_CONTENT_LENGTH: usize = 6000;
 

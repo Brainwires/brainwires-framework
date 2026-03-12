@@ -191,17 +191,17 @@ pub use system_prompts::{
 // SEAL re-exports
 #[cfg(feature = "seal")]
 pub use seal::{
-    CoreferenceResolver, DialogState, LearningCoordinator as SealLearningCoordinator,
-    QueryCore, QueryCoreExtractor, ReflectionModule, SealConfig, SealProcessingResult,
-    SealProcessor,
+    CoreferenceResolver, DialogState, LearningCoordinator as SealLearningCoordinator, QueryCore,
+    QueryCoreExtractor, ReflectionModule, SealConfig, SealProcessingResult, SealProcessor,
 };
 
 // Cycle orchestration
 pub use cycle_orchestrator::{
-    CycleOrchestrator, CycleOrchestratorConfig, CycleOrchestratorResult, CycleRecord,
-    MergeStrategy,
+    CycleOrchestrator, CycleOrchestratorConfig, CycleOrchestratorResult, CycleRecord, MergeStrategy,
 };
-pub use judge_agent::{JudgeAgent, JudgeAgentConfig, JudgeContext, JudgeVerdict, MergeStatus, WorkerResult};
+pub use judge_agent::{
+    JudgeAgent, JudgeAgentConfig, JudgeContext, JudgeVerdict, MergeStatus, WorkerResult,
+};
 pub use planner_agent::{
     DynamicTaskPriority, DynamicTaskSpec, PlannerAgent, PlannerAgentConfig, PlannerOutput,
     SubPlannerRequest,

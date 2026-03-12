@@ -211,7 +211,8 @@ impl<H: McpHandler> McpServer<H> {
         let params = match &request.params {
             Some(p) => p,
             None => {
-                let error = AgentNetworkError::InvalidParams("Missing params for tools/call".to_string());
+                let error =
+                    AgentNetworkError::InvalidParams("Missing params for tools/call".to_string());
                 return JsonRpcResponse {
                     jsonrpc: "2.0".to_string(),
                     id: request.id.clone(),
@@ -224,7 +225,8 @@ impl<H: McpHandler> McpServer<H> {
         let tool_name = match params.get("name").and_then(|n| n.as_str()) {
             Some(name) => name,
             None => {
-                let error = AgentNetworkError::InvalidParams("Missing 'name' in tools/call".to_string());
+                let error =
+                    AgentNetworkError::InvalidParams("Missing 'name' in tools/call".to_string());
                 return JsonRpcResponse {
                     jsonrpc: "2.0".to_string(),
                     id: request.id.clone(),

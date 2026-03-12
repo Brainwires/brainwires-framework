@@ -3,15 +3,15 @@
 //! This module provides the main client interface for using brainwires-rag
 //! as a library in your own Rust applications.
 
+#[cfg(feature = "code-analysis")]
+use crate::code_analysis::{
+    DefinitionResult, HybridRelationsProvider, ReferenceResult, RelationsProvider,
+};
 use crate::rag::cache::HashCache;
 use crate::rag::config::Config;
 use crate::rag::embedding::{EmbeddingProvider, FastEmbedManager};
 use crate::rag::git_cache::GitCache;
 use crate::rag::indexer::{CodeChunker, FileInfo, detect_language};
-#[cfg(feature = "code-analysis")]
-use crate::code_analysis::{
-    DefinitionResult, HybridRelationsProvider, ReferenceResult, RelationsProvider,
-};
 use crate::rag::types::*;
 use brainwires_storage::vector_db::VectorDatabase;
 
@@ -1021,8 +1021,10 @@ impl RagClient {
             .expect("checked is_none above and returned early");
 
         // Build symbol index from definitions
-        let mut symbol_index: std::collections::HashMap<String, Vec<crate::code_analysis::Definition>> =
-            std::collections::HashMap::new();
+        let mut symbol_index: std::collections::HashMap<
+            String,
+            Vec<crate::code_analysis::Definition>,
+        > = std::collections::HashMap::new();
         for def in definitions {
             symbol_index
                 .entry(def.symbol_id.name.clone())
@@ -1098,7 +1100,8 @@ impl RagClient {
             // Only consider functions/methods
             matches!(
                 def.symbol_id.kind,
-                crate::code_analysis::SymbolKind::Function | crate::code_analysis::SymbolKind::Method
+                crate::code_analysis::SymbolKind::Function
+                    | crate::code_analysis::SymbolKind::Method
             ) && request.line >= def.symbol_id.start_line
                 && request.line <= def.end_line
                 && (request.column == 0 || request.column >= def.symbol_id.start_col)
@@ -1128,8 +1131,10 @@ impl RagClient {
         let function_name = root_symbol.name.clone();
 
         // Build symbol index from definitions
-        let mut symbol_index: std::collections::HashMap<String, Vec<crate::code_analysis::Definition>> =
-            std::collections::HashMap::new();
+        let mut symbol_index: std::collections::HashMap<
+            String,
+            Vec<crate::code_analysis::Definition>,
+        > = std::collections::HashMap::new();
         for def in &definitions {
             symbol_index
                 .entry(def.symbol_id.name.clone())

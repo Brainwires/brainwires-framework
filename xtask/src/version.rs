@@ -87,10 +87,7 @@ fn update_workspace_cargo_toml(root: &Path, new_version: &str) -> u32 {
     let mut changed = false;
 
     // Update [workspace.package].version
-    if let Some(pkg) = doc
-        .get_mut("workspace")
-        .and_then(|w| w.get_mut("package"))
-    {
+    if let Some(pkg) = doc.get_mut("workspace").and_then(|w| w.get_mut("package")) {
         if let Some(v) = pkg.get_mut("version") {
             let old = v.as_str().unwrap_or("").to_string();
             if old != new_version {
@@ -120,7 +117,9 @@ fn update_workspace_cargo_toml(root: &Path, new_version: &str) -> u32 {
                                 *v = toml_edit::value(new_version)
                                     .into_value()
                                     .expect("string is a value");
-                                println!("  [workspace.dependencies].{key}: {old} -> {new_version}");
+                                println!(
+                                    "  [workspace.dependencies].{key}: {old} -> {new_version}"
+                                );
                                 changed = true;
                             }
                         }
@@ -197,9 +196,7 @@ fn update_member_cargo_tomls(root: &Path, new_version: &str) -> u32 {
                                 *v = toml_edit::value(new_version)
                                     .into_value()
                                     .expect("string is a value");
-                                println!(
-                                    "  [{section}].{key}: {old} -> {new_version}"
-                                );
+                                println!("  [{section}].{key}: {old} -> {new_version}");
                                 changed = true;
                             }
                         }
@@ -269,15 +266,9 @@ fn replace_version_in_rs(content: &str, new_version: &str) -> String {
     // We look for the specific pattern used in protocol.rs and similar
     let patterns = [
         // JSON-style: "version": "X.Y.Z"
-        (
-            r#""version": ""#,
-            '"',
-        ),
+        (r#""version": ""#, '"'),
         // Rust string: version: "X.Y.Z".into()
-        (
-            r#"version: ""#,
-            '"',
-        ),
+        (r#"version: ""#, '"'),
     ];
 
     for (prefix, terminator) in &patterns {
@@ -424,8 +415,13 @@ mod tests {
     fn test_rs_version_json_style() {
         // Test JSON-style version replacement in Rust source
         let input = concat!(
-            r#"    "version": ""#, "0.1.0", r#"""#, "\n",
-            r#"    version: ""#, "0.1.0", r#"".into()"#,
+            r#"    "version": ""#,
+            "0.1.0",
+            r#"""#,
+            "\n",
+            r#"    version: ""#,
+            "0.1.0",
+            r#"".into()"#,
         );
         let result = replace_version_in_rs(input, "0.5.0");
         assert!(result.contains("0.5.0"), "should contain new version");

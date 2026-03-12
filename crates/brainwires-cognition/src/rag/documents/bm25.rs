@@ -3,8 +3,8 @@
 //! Provides per-scope isolation (conversation/project) and document-aware
 //! BM25 keyword search using Tantivy.
 
-use brainwires_storage::bm25_search::BM25Search;
 use anyhow::{Context, Result};
+use brainwires_storage::bm25_search::BM25Search;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::PathBuf;

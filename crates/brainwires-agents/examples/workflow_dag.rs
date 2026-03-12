@@ -25,8 +25,11 @@ async fn main() -> anyhow::Result<()> {
         .node("fetch", |ctx| {
             Box::pin(async move {
                 println!("[fetch] Fetching source code...");
-                ctx.set("code", serde_json::json!("fn main() { println!(\"hello\"); }"))
-                    .await;
+                ctx.set(
+                    "code",
+                    serde_json::json!("fn main() { println!(\"hello\"); }"),
+                )
+                .await;
                 Ok(serde_json::json!({"status": "fetched", "lines": 1}))
             })
         })
@@ -34,8 +37,15 @@ async fn main() -> anyhow::Result<()> {
         .node("lint", |ctx| {
             Box::pin(async move {
                 let code = ctx.get("code").await.unwrap_or_default();
-                println!("[lint] Linting code: {}...", &code.to_string()[..30.min(code.to_string().len())]);
-                let warnings = if code.to_string().contains("unwrap") { 1 } else { 0 };
+                println!(
+                    "[lint] Linting code: {}...",
+                    &code.to_string()[..30.min(code.to_string().len())]
+                );
+                let warnings = if code.to_string().contains("unwrap") {
+                    1
+                } else {
+                    0
+                };
                 Ok(serde_json::json!({"warnings": warnings, "passed": true}))
             })
         })
@@ -113,7 +123,11 @@ async fn main() -> anyhow::Result<()> {
         .node("decide", |ctx| {
             Box::pin(async move {
                 let score = ctx.get("score").await.and_then(|v| v.as_i64()).unwrap_or(0);
-                let threshold = ctx.get("threshold").await.and_then(|v| v.as_i64()).unwrap_or(0);
+                let threshold = ctx
+                    .get("threshold")
+                    .await
+                    .and_then(|v| v.as_i64())
+                    .unwrap_or(0);
                 let passed = score >= threshold;
                 println!("[decide] {score} >= {threshold} -> {passed}");
                 Ok(serde_json::json!({"passed": passed}))
@@ -164,7 +178,10 @@ async fn main() -> anyhow::Result<()> {
         .build()?;
 
     let result = conditional.run().await?;
-    println!("Executed: {:?}", result.node_results.keys().collect::<Vec<_>>());
+    println!(
+        "Executed: {:?}",
+        result.node_results.keys().collect::<Vec<_>>()
+    );
     println!("Skipped: {:?}", result.skipped_nodes);
 
     println!("\nAll workflow demonstrations complete.");

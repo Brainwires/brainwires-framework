@@ -7,8 +7,8 @@ use anyhow::{Context, Result};
 use chrono::Utc;
 use tree_sitter::{Language, Node, Parser};
 
-use crate::rag::indexer::FileInfo;
 use crate::code_analysis::types::{Definition, SymbolId, SymbolKind, Visibility};
+use crate::rag::indexer::FileInfo;
 
 /// Extracts symbol definitions from source code using AST parsing.
 pub struct SymbolExtractor {

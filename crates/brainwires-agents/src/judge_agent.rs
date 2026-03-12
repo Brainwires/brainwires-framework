@@ -219,10 +219,7 @@ impl JudgeAgent {
         let result = self.agent.execute().await?;
 
         if !result.success {
-            return Err(anyhow!(
-                "Judge agent failed: {}",
-                result.summary
-            ));
+            return Err(anyhow!("Judge agent failed: {}", result.summary));
         }
 
         let verdict = Self::parse_verdict(&result.summary)?;
@@ -263,11 +260,7 @@ impl JudgeAgent {
         if !ctx.previous_verdicts.is_empty() {
             desc.push_str("## Previous Verdicts\n\n");
             for (i, v) in ctx.previous_verdicts.iter().enumerate() {
-                desc.push_str(&format!(
-                    "- Cycle {}: {}\n",
-                    i,
-                    v.verdict_type()
-                ));
+                desc.push_str(&format!("- Cycle {}: {}\n", i, v.verdict_type()));
             }
             desc.push('\n');
         }
@@ -450,8 +443,10 @@ mod tests {
     fn test_merge_status_display() {
         assert_eq!(MergeStatus::Merged.to_string(), "merged");
         assert_eq!(MergeStatus::NotAttempted.to_string(), "not_attempted");
-        assert!(MergeStatus::ConflictFailed("oops".into())
-            .to_string()
-            .contains("oops"));
+        assert!(
+            MergeStatus::ConflictFailed("oops".into())
+                .to_string()
+                .contains("oops")
+        );
     }
 }

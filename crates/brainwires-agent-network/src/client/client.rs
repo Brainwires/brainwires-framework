@@ -39,14 +39,12 @@ impl AgentNetworkClient {
             .spawn()
             .map_err(AgentNetworkClientError::SpawnFailed)?;
 
-        let stdin = child
-            .stdin
-            .take()
-            .ok_or_else(|| AgentNetworkClientError::Protocol("Failed to capture stdin".to_string()))?;
-        let stdout = child
-            .stdout
-            .take()
-            .ok_or_else(|| AgentNetworkClientError::Protocol("Failed to capture stdout".to_string()))?;
+        let stdin = child.stdin.take().ok_or_else(|| {
+            AgentNetworkClientError::Protocol("Failed to capture stdin".to_string())
+        })?;
+        let stdout = child.stdout.take().ok_or_else(|| {
+            AgentNetworkClientError::Protocol("Failed to capture stdout".to_string())
+        })?;
 
         Ok(Self {
             child,
@@ -80,7 +78,10 @@ impl AgentNetworkClient {
             .write_all(format!("{json}\n").as_bytes())
             .await
             .map_err(AgentNetworkClientError::Io)?;
-        self.stdin.flush().await.map_err(AgentNetworkClientError::Io)?;
+        self.stdin
+            .flush()
+            .await
+            .map_err(AgentNetworkClientError::Io)?;
 
         // Read response
         let mut line = String::new();
@@ -108,7 +109,10 @@ impl AgentNetworkClient {
             .write_all(format!("{json}\n").as_bytes())
             .await
             .map_err(AgentNetworkClientError::Io)?;
-        self.stdin.flush().await.map_err(AgentNetworkClientError::Io)?;
+        self.stdin
+            .flush()
+            .await
+            .map_err(AgentNetworkClientError::Io)?;
 
         // Read initialize response
         let mut line = String::new();
@@ -131,7 +135,10 @@ impl AgentNetworkClient {
             .write_all(format!("{notif}\n").as_bytes())
             .await
             .map_err(AgentNetworkClientError::Io)?;
-        self.stdin.flush().await.map_err(AgentNetworkClientError::Io)?;
+        self.stdin
+            .flush()
+            .await
+            .map_err(AgentNetworkClientError::Io)?;
 
         self.initialized = true;
         Ok(result)

@@ -1,6 +1,6 @@
+use super::{ChunkMetadata, SearchResult};
 use super::{DatabaseStats, VectorDatabase};
 use crate::glob_utils;
-use super::{ChunkMetadata, SearchResult};
 use anyhow::{Context, Result};
 use qdrant_client::qdrant::vectors_config::Config;
 use qdrant_client::qdrant::{

@@ -14,16 +14,15 @@ use async_trait::async_trait;
 use futures::stream::BoxStream;
 use tokio::sync::Mutex;
 
-use brainwires_agents::{
-    CommunicationHub, CycleOrchestrator, CycleOrchestratorConfig, FileLockManager,
-    JudgeVerdict, PlannerAgentConfig, JudgeAgentConfig,
-    TaskAgentConfig,
-};
 use brainwires_agents::brainwires_core::{
-    ChatOptions, ChatResponse, Message, Provider, StreamChunk, Tool, ToolContext,
-    ToolResult, ToolUse, Usage,
+    ChatOptions, ChatResponse, Message, Provider, StreamChunk, Tool, ToolContext, ToolResult,
+    ToolUse, Usage,
 };
 use brainwires_agents::brainwires_tool_system::ToolExecutor;
+use brainwires_agents::{
+    CommunicationHub, CycleOrchestrator, CycleOrchestratorConfig, FileLockManager,
+    JudgeAgentConfig, JudgeVerdict, PlannerAgentConfig, TaskAgentConfig,
+};
 
 // ── Queued Mock Provider ──────────────────────────────────────────────────
 
@@ -199,7 +198,9 @@ async fn main() -> Result<()> {
     );
 
     // Run the orchestration
-    let result = orchestrator.run("Implement a greeting module with tests").await?;
+    let result = orchestrator
+        .run("Implement a greeting module with tests")
+        .await?;
 
     // Print the results
     println!("\n=== Orchestration Result ===");

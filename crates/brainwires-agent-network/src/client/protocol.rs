@@ -54,8 +54,9 @@ pub fn build_tools_call_request(id: u64, name: &str, args: Value) -> JsonRpcRequ
 
 /// Parse a JSON-RPC response from a raw line of text.
 pub fn parse_response(line: &str) -> Result<JsonRpcResponse, AgentNetworkClientError> {
-    serde_json::from_str(line)
-        .map_err(|e| AgentNetworkClientError::Protocol(format!("Failed to parse response: {e}: {line}")))
+    serde_json::from_str(line).map_err(|e| {
+        AgentNetworkClientError::Protocol(format!("Failed to parse response: {e}: {line}"))
+    })
 }
 
 /// Extract the result value from a JSON-RPC response, returning errors as needed.
