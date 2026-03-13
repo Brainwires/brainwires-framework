@@ -27,6 +27,14 @@ members = [
     "extras/audio-demo-ffi",
     "xtask",
 ]
+exclude = [
+    "deprecated/brainwires-brain",
+    "deprecated/brainwires-mesh",
+    "deprecated/brainwires-prompting",
+    "deprecated/brainwires-rag",
+    "deprecated/brainwires-relay",
+    "deprecated/brainwires-seal",
+]
 resolver = "2"
 
 [workspace.package]

@@ -6,9 +6,9 @@ set -euo pipefail
 # Rate limits for NEW VERSIONS of existing crates (as of 2026):
 #   - Burst: 30 new versions at once
 #   - After burst: 1 crate per minute
-#   - 24 crates total = all within burst → ~6 minutes
+#   - 20 workspace crates total = all within burst → ~5 minutes
 #
-# Strategy: publish all 24 within the burst window with short index-propagation
+# Strategy: publish all 21 within the burst window with short index-propagation
 # delays between each. If we ever exceed 30, fall back to 1/min after burst.
 # Crates are ordered by dependency DAG (leaves first, facade last).
 #
@@ -20,13 +20,13 @@ DRY_RUN=true
 if [[ "${1:-}" == "--live" ]]; then
     DRY_RUN=false
     echo "=== LIVE PUBLISH MODE ==="
-    echo "This will publish all 24 crates to crates.io."
-    echo "Estimated time: ~6 minutes (burst 30, then 1/min)"
+    echo "This will publish all 20 workspace crates to crates.io."
+    echo "Estimated time: ~5 minutes (burst 30, then 1/min)"
     echo "Press Ctrl+C within 5 seconds to abort..."
     sleep 5
 fi
 
-# All 24 crates in strict dependency order (leaves → facade).
+# All 20 workspace crates in strict dependency order (leaves → facade).
 # Within each layer, crates have no mutual dependencies.
 CRATES=(
     # Layer 1: Leaf crates (no internal deps)
@@ -35,33 +35,29 @@ CRATES=(
     brainwires-code-interpreters
     brainwires-skills
 
-    # Layer 2: Depend only on leaves
-    brainwires-providers
+    # Layer 2: Depend only on core
     brainwires-mcp
     brainwires-mdap
     brainwires-permissions
     brainwires-datasets
-    brainwires-rag
-    brainwires-mesh
-
-    # Layer 3: Tool & agent layer
-    brainwires-tool-system
-    brainwires-agents
+    brainwires-providers
     brainwires-storage
 
-    # Layer 4: Integration layer
-    brainwires-relay
+    # Layer 3: Cognition (core + storage)
+    brainwires-cognition
+
+    # Layer 4: Tool & agent layer (depends on cognition)
+    brainwires-tool-system
+    brainwires-agent-network
     brainwires-audio
     brainwires-training
-    brainwires-brain
 
-    # Layer 5: Higher-level
-    brainwires-prompting
-    brainwires-seal
-
-    # Layer 6: Top-level
-    brainwires-autonomy
+    # Layer 5: Agents (depends on tool-system, cognition, mdap)
+    brainwires-agents
     brainwires-wasm
+
+    # Layer 6: Top-level (depends on agents, cognition, training)
+    brainwires-autonomy
     brainwires-proxy
 
     # Layer 7: Facade (must be last)

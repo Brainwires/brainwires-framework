@@ -11,3 +11,5 @@ keywords = ["deprecated"]
 
 [dependencies]
 brainwires-cognition = { version = "0.3", features = ["prompting"] }
+
+[workspace]
