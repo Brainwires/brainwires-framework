@@ -116,7 +116,7 @@ impl LanceClient {
         }
 
         // Create schema for tasks
-        let schema = crate::task_store::TaskStore::tasks_schema();
+        let schema = crate::stores::task_store::TaskStore::<crate::stores::backends::LanceBackend>::tasks_arrow_schema();
 
         // Create empty table
         let empty_batch = RecordBatch::new_empty(schema.clone());
@@ -151,7 +151,7 @@ impl LanceClient {
         }
 
         // Create schema for plans
-        let schema = crate::plan_store::PlanStore::plans_schema();
+        let schema = crate::stores::plan_store::PlanStore::<crate::stores::backends::LanceBackend>::plans_schema();
 
         // Create empty table
         let empty_batch = RecordBatch::new_empty(schema.clone());
@@ -418,7 +418,7 @@ impl LanceClient {
             return Ok(());
         }
 
-        let schema = crate::summary_store::SummaryStore::summaries_schema(embedding_dim);
+        let schema = crate::stores::summary_store::summaries_schema(embedding_dim);
 
         let empty_batch = RecordBatch::new_empty(schema.clone());
         let batches = RecordBatchIterator::new(vec![Ok(empty_batch)], schema.clone());
@@ -450,7 +450,7 @@ impl LanceClient {
             return Ok(());
         }
 
-        let schema = crate::fact_store::FactStore::facts_schema(embedding_dim);
+        let schema = crate::stores::fact_store::facts_schema(embedding_dim);
 
         let empty_batch = RecordBatch::new_empty(schema.clone());
         let batches = RecordBatchIterator::new(vec![Ok(empty_batch)], schema.clone());
@@ -482,7 +482,7 @@ impl LanceClient {
             return Ok(());
         }
 
-        let schema = crate::tier_metadata_store::TierMetadataStore::tier_metadata_schema();
+        let schema = crate::stores::tier_metadata_store::TierMetadataStore::<crate::stores::backends::LanceBackend>::tier_metadata_schema();
 
         let empty_batch = RecordBatch::new_empty(schema.clone());
         let batches = RecordBatchIterator::new(vec![Ok(empty_batch)], schema.clone());

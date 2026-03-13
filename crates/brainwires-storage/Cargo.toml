@@ -1,6 +1,6 @@
 [package]
 name = "brainwires-storage"
-description = "LanceDB-backed storage, tiered memory, and document management for the Brainwires Agent Framework"
+description = "Backend-agnostic storage, tiered memory, and document management for the Brainwires Agent Framework"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -81,6 +81,7 @@ tracing.workspace = true
 [features]
 default = ["native"]
 native = [
+    "dep:async-trait",
     "dep:fastembed", "dep:lancedb", "dep:arrow-array", "dep:arrow-schema",
     "dep:futures", "dep:lru", "dep:sha2", "dep:rusqlite",
     "dep:base64", "dep:gethostname", "dep:dirs", "dep:libc",

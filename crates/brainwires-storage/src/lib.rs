@@ -1,5 +1,5 @@
 #![deny(missing_docs)]
-//! Brainwires Storage - LanceDB-backed storage for the Brainwires Agent Framework
+//! Brainwires Storage - Persistent storage for the Brainwires Agent Framework
 //!
 //! This crate provides persistent storage with semantic search capabilities:
 //!
@@ -8,7 +8,7 @@
 //! - **FastEmbedManager** - Text embeddings via FastEmbed ONNX model
 //! - **CachedEmbeddingProvider** - LRU-cached embedding provider (wraps FastEmbedManager)
 //!
-//! ## Stores
+//! ## Stores (in [`stores`] module)
 //! - **MessageStore** - Conversation messages with vector search
 //! - **ConversationStore** - Conversation metadata
 //! - **TaskStore** - Task persistence with agent state tracking
@@ -24,6 +24,15 @@
 //! - **SummaryStore** - Compressed message summaries (warm tier)
 //! - **FactStore** - Key facts extraction (cold tier)
 //! - **TierMetadataStore** - Tier tracking metadata
+//!
+//! ## Vector Database Clients (in [`clients`] module)
+//! - **LanceVectorDB** - Embedded LanceDB backend
+//! - **QdrantVectorDB** - Qdrant backend
+//! - **PostgresVectorDB** - PostgreSQL + pgvector backend
+//! - **PineconeVectorDB** - Pinecone cloud backend
+//! - **MilvusVectorDB** - Milvus backend
+//! - **WeaviateVectorDB** - Weaviate backend
+//! - **NornicVectorDB** - NornicDB backend
 
 // Re-export core types
 pub use brainwires_core;
@@ -31,11 +40,18 @@ pub use brainwires_core;
 // ── Always available (pure types/logic) ──────────────────────────────────
 
 pub mod image_types;
-pub mod template_store;
 
-/// Vector database trait + backends (LanceDB, Qdrant), re-exports core types.
+/// Vector database clients (LanceDB, Qdrant, Postgres, etc.) and the
+/// [`VectorDatabase`](clients::VectorDatabase) trait.
 #[cfg(feature = "vector-db")]
-pub mod vector_db;
+pub mod clients;
+
+/// Backward-compatible alias for the [`clients`] module (formerly `vector_db`).
+#[cfg(feature = "vector-db")]
+#[deprecated(since = "0.3.0", note = "renamed to `clients`")]
+pub mod vector_db {
+    pub use crate::clients::*;
+}
 
 /// BM25 keyword search using Tantivy.
 #[cfg(feature = "vector-db")]
@@ -53,73 +69,62 @@ pub mod file_context;
 #[cfg(feature = "native")]
 pub mod tiered_memory;
 
-// ── Native-only modules (require lancedb, arrow, rusqlite, etc.) ─────────
-
-/// Conversation metadata storage.
-#[cfg(feature = "native")]
-pub mod conversation_store;
 /// Embedding provider for vector operations.
 #[cfg(feature = "native")]
 pub mod embeddings;
-#[cfg(feature = "native")]
-pub mod fact_store;
-#[cfg(feature = "native")]
-pub mod image_store;
-/// LanceDB client wrapper.
-#[cfg(feature = "native")]
-pub mod lance_client;
-#[cfg(feature = "native")]
-pub mod lock_store;
-/// Message storage with vector search.
-#[cfg(feature = "native")]
-pub mod message_store;
-#[cfg(feature = "native")]
-pub mod plan_store;
-#[cfg(feature = "native")]
-pub mod summary_store;
-#[cfg(feature = "native")]
-pub mod task_store;
-#[cfg(feature = "native")]
-pub mod tier_metadata_store;
+
+/// Domain stores for conversation, message, task, plan, and other data.
+pub mod stores;
 
 // ── Re-exports (always available) ────────────────────────────────────────
+
+// Storage backend abstraction
+pub use stores::backend::{
+    FieldDef, FieldType, FieldValue, Filter, Record, ScoredRecord, StorageBackend,
+};
+pub use stores::backend::record_get;
+
+// LanceBackend re-export
+#[cfg(feature = "native")]
+pub use stores::backends::LanceBackend;
 
 // Image types
 pub use image_types::{
     ImageFormat, ImageMetadata, ImageSearchRequest, ImageSearchResult, ImageStorage,
 };
 
-// Template store
-pub use template_store::{PlanTemplate, TemplateStore};
+// Template store (always available, lives in stores/)
+pub use stores::template_store::{PlanTemplate, TemplateStore};
 
 // ── Re-exports (native only) ─────────────────────────────────────────────
+// These maintain backward compatibility: `use brainwires_storage::MessageStore` still works.
 
 #[cfg(feature = "native")]
-pub use conversation_store::{ConversationMetadata, ConversationStore};
+pub use stores::conversation_store::{ConversationMetadata, ConversationStore};
 #[cfg(feature = "native")]
 pub use embeddings::{
     CachedEmbeddingProvider, EmbeddingProvider, EmbeddingProviderTrait, FastEmbedManager,
 };
 #[cfg(feature = "native")]
-pub use fact_store::FactStore;
+pub use stores::fact_store::FactStore;
 #[cfg(feature = "native")]
 pub use file_context::{FileChunk, FileContent, FileContextManager};
 #[cfg(feature = "native")]
-pub use image_store::ImageStore;
+pub use stores::image_store::ImageStore;
 #[cfg(feature = "native")]
-pub use lance_client::LanceClient;
+pub use stores::lance_client::LanceClient;
 #[cfg(feature = "native")]
-pub use lock_store::{LockRecord, LockStats, LockStore};
+pub use stores::lock_store::{LockRecord, LockStats, LockStore};
 #[cfg(feature = "native")]
-pub use message_store::{MessageMetadata, MessageStore};
+pub use stores::message_store::{MessageMetadata, MessageStore};
 #[cfg(feature = "native")]
-pub use plan_store::PlanStore;
+pub use stores::plan_store::PlanStore;
 #[cfg(feature = "native")]
-pub use summary_store::SummaryStore;
+pub use stores::summary_store::SummaryStore;
 #[cfg(feature = "native")]
-pub use task_store::{AgentStateMetadata, AgentStateStore, TaskMetadata, TaskStore};
+pub use stores::task_store::{AgentStateMetadata, AgentStateStore, TaskMetadata, TaskStore};
 #[cfg(feature = "native")]
-pub use tier_metadata_store::TierMetadataStore;
+pub use stores::tier_metadata_store::TierMetadataStore;
 #[cfg(feature = "native")]
 pub use tiered_memory::{
     CanonicalWriteToken, MemoryAuthority, MemoryTier, MultiFactorScore, TieredMemory,
@@ -129,11 +134,11 @@ pub use tiered_memory::{
 /// Prelude module for convenient imports
 pub mod prelude {
     // Always available
-    pub use super::template_store::{PlanTemplate, TemplateStore};
+    pub use super::stores::template_store::{PlanTemplate, TemplateStore};
 
     // Native only
     #[cfg(feature = "native")]
-    pub use super::conversation_store::{ConversationMetadata, ConversationStore};
+    pub use super::stores::conversation_store::{ConversationMetadata, ConversationStore};
     #[cfg(feature = "native")]
     pub use super::embeddings::{
         CachedEmbeddingProvider, EmbeddingProvider, EmbeddingProviderTrait, FastEmbedManager,
@@ -141,17 +146,17 @@ pub mod prelude {
     #[cfg(feature = "native")]
     pub use super::file_context::{FileContent, FileContextManager};
     #[cfg(feature = "native")]
-    pub use super::image_store::ImageStore;
+    pub use super::stores::image_store::ImageStore;
     #[cfg(feature = "native")]
-    pub use super::lance_client::LanceClient;
+    pub use super::stores::lance_client::LanceClient;
     #[cfg(feature = "native")]
-    pub use super::lock_store::{LockRecord, LockStore};
+    pub use super::stores::lock_store::{LockRecord, LockStore};
     #[cfg(feature = "native")]
-    pub use super::message_store::{MessageMetadata, MessageStore};
+    pub use super::stores::message_store::{MessageMetadata, MessageStore};
     #[cfg(feature = "native")]
-    pub use super::plan_store::PlanStore;
+    pub use super::stores::plan_store::PlanStore;
     #[cfg(feature = "native")]
-    pub use super::task_store::{TaskMetadata, TaskStore};
+    pub use super::stores::task_store::{TaskMetadata, TaskStore};
     #[cfg(feature = "native")]
     pub use super::tiered_memory::{
         CanonicalWriteToken, MemoryAuthority, MemoryTier, TieredMemory, TieredMemoryConfig,
