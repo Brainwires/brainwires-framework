@@ -517,12 +517,12 @@ impl CycleOrchestrator {
 
         // Set per-task configs from planner specs
         for spec in &planner_output.tasks {
-            if let Some(ref override_config) = spec.agent_config_override {
-                if let Some(task_id) = spec_to_task.get(&spec.id) {
-                    orchestrator
-                        .set_task_config(task_id, override_config.clone())
-                        .await;
-                }
+            if let Some(ref override_config) = spec.agent_config_override
+                && let Some(task_id) = spec_to_task.get(&spec.id)
+            {
+                orchestrator
+                    .set_task_config(task_id, override_config.clone())
+                    .await;
             }
         }
 

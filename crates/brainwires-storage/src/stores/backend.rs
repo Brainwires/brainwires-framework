@@ -1,16 +1,16 @@
 //! Backend-agnostic storage abstraction.
 //!
-//! The [`StorageBackend`] trait defines generic table operations (CRUD + vector
-//! search) that domain stores use instead of binding directly to a specific
-//! database.  Concrete implementations live in the [`backends`](super::backends)
-//! module.
+//! The [`StorageBackend`](crate::StorageBackend) trait defines generic table operations (CRUD +
+//! vector search) that domain stores use instead of binding directly to a specific
+//! database.  Concrete implementations live in the
+//! [`backends`](crate::stores::backends) module.
 //!
 //! # Types
 //!
-//! * [`FieldDef`] / [`FieldType`] — schema definition without Arrow dependency.
-//! * [`FieldValue`] / [`Record`] — generic row representation.
-//! * [`Filter`] — structured query filter that backends translate to native syntax.
-//! * [`ScoredRecord`] — a record returned from vector similarity search.
+//! * [`FieldDef`](crate::FieldDef) / [`FieldType`](crate::FieldType) — schema definition without Arrow dependency.
+//! * [`FieldValue`](crate::FieldValue) / [`Record`](crate::Record) — generic row representation.
+//! * [`Filter`](crate::Filter) — structured query filter that backends translate to native syntax.
+//! * [`ScoredRecord`](crate::ScoredRecord) — a record returned from vector similarity search.
 
 use anyhow::Result;
 

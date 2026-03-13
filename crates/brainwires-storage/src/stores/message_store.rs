@@ -51,7 +51,7 @@ fn table_schema(embedding_dim: usize) -> Vec<FieldDef> {
     ]
 }
 
-/// Arrow [`Schema`] for the messages table (lance_client.rs compatibility).
+/// Arrow `Schema` for the messages table (lance_client.rs compatibility).
 #[cfg(feature = "native")]
 pub fn messages_schema(embedding_dim: usize) -> Arc<arrow_schema::Schema> {
     use arrow_schema::{DataType, Field, Schema};

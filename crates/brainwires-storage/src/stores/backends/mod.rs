@@ -1,4 +1,4 @@
-//! Concrete [`StorageBackend`](super::backend::StorageBackend) implementations.
+//! Concrete [`StorageBackend`](crate::StorageBackend) implementations.
 
 /// LanceDB backend — embedded vector database (default).
 #[cfg(feature = "native")]

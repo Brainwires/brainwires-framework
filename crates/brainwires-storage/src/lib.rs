@@ -25,7 +25,7 @@
 //! - **FactStore** - Key facts extraction (cold tier)
 //! - **TierMetadataStore** - Tier tracking metadata
 //!
-//! ## Vector Database Clients (in [`clients`] module)
+//! ## Vector Database Clients (in `clients` module)
 //! - **LanceVectorDB** - Embedded LanceDB backend
 //! - **QdrantVectorDB** - Qdrant backend
 //! - **PostgresVectorDB** - PostgreSQL + pgvector backend

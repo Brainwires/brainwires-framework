@@ -1006,21 +1006,19 @@ impl VectorDatabase for LanceVectorDB {
 
             let mut found = false;
             for batch in &batches {
-                if batch.num_rows() > 0 {
-                    if let Some(vector_col) = batch.column_by_name("vector") {
-                        if let Some(fsl) = vector_col.as_any().downcast_ref::<FixedSizeListArray>()
-                        {
-                            let values = fsl
-                                .value(0)
-                                .as_any()
-                                .downcast_ref::<Float32Array>()
-                                .map(|a| a.values().to_vec())
-                                .unwrap_or_default();
-                            embeddings.push(values);
-                            found = true;
-                            break;
-                        }
-                    }
+                if batch.num_rows() > 0
+                    && let Some(vector_col) = batch.column_by_name("vector")
+                    && let Some(fsl) = vector_col.as_any().downcast_ref::<FixedSizeListArray>()
+                {
+                    let values = fsl
+                        .value(0)
+                        .as_any()
+                        .downcast_ref::<Float32Array>()
+                        .map(|a| a.values().to_vec())
+                        .unwrap_or_default();
+                    embeddings.push(values);
+                    found = true;
+                    break;
                 }
             }
             if !found {

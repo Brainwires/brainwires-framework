@@ -992,7 +992,7 @@ mod tests {
         };
 
         assert_eq!(config.channel_name, "cli:user123");
-        assert_eq!(config.version, "0.1.0-test");
+        assert_eq!(config.version, "0.3.0");
     }
 
     #[test]

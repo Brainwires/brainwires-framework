@@ -1,8 +1,8 @@
-//! LanceDB implementation of [`StorageBackend`].
+//! LanceDB implementation of [`StorageBackend`](crate::StorageBackend).
 //!
 //! This is the default backend — an embedded vector database that requires no
-//! external server. It translates the generic [`Record`] / [`Filter`] types
-//! into Arrow `RecordBatch` and LanceDB filter strings.
+//! external server. It translates the generic [`Record`](crate::Record) /
+//! [`Filter`](crate::Filter) types into Arrow `RecordBatch` and LanceDB filter strings.
 
 use anyhow::{Context, Result};
 use arrow_array::{

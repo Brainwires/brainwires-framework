@@ -560,7 +560,7 @@ impl<B: StorageBackend + 'static> AgentStateStore<B> {
             .query(AGENT_STATE_TABLE, Some(&filter), None)
             .await?;
 
-        records.iter().map(|r| state_from_record(r)).collect()
+        records.iter().map(state_from_record).collect()
     }
 
     /// Get agent state by task ID

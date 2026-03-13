@@ -6,15 +6,15 @@
 //!
 //! ## Architecture
 //!
-//! - [`client::RagClient`] — Core library API (indexing, querying, git search)
-//! - [`embedding`] — FastEmbed (all-MiniLM-L6-v2) local embedding generation
-//! - [`indexer`] — File walking, AST-based chunking for 12 languages
-//! - [`git`] — Git history walking and commit chunking
-//! - [`cache`] — Persistent hash cache for incremental updates
-//! - [`git_cache`] — Git commit tracking cache
-//! - [`config`] — Configuration management
-//! - [`types`] — Request/response types with validation
-//! - [`error`] — Domain-specific error types
+//! - `client::RagClient` — Core library API (indexing, querying, git search)
+//! - `embedding` — FastEmbed (all-MiniLM-L6-v2) local embedding generation
+//! - `indexer` — File walking, AST-based chunking for 12 languages
+//! - `git` — Git history walking and commit chunking
+//! - `cache` — Persistent hash cache for incremental updates
+//! - `git_cache` — Git commit tracking cache
+//! - `config` — Configuration management
+//! - `types` — Request/response types with validation
+//! - `error` — Domain-specific error types
 //!
 //! ## External Dependencies (from sibling crates/modules)
 //!

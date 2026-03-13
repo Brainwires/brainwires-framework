@@ -605,7 +605,7 @@ impl RelationshipGraph {
 
     /// Find semantic communities within connected components using spectral clustering.
     ///
-    /// Unlike [`find_clusters`] which only finds connected components, this method
+    /// Unlike `find_clusters` which only finds connected components, this method
     /// discovers tightly-coupled groups *within* a connected component by analyzing
     /// the graph's spectral properties (Fiedler vector of the Laplacian).
     ///
@@ -668,7 +668,7 @@ impl RelationshipGraph {
     /// high centrality are structural bridges between communities — important
     /// for understanding cross-cutting concerns in the codebase.
     ///
-    /// This complements [`get_central_nodes`] which uses degree centrality.
+    /// This complements `get_central_nodes` which uses degree centrality.
     /// Spectral centrality captures *structural position* rather than just
     /// connection count.
     #[cfg(feature = "spectral")]

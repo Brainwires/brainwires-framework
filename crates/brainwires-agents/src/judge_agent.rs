@@ -300,12 +300,12 @@ fn extract_json_block(text: &str) -> Option<String> {
             .find('\n')
             .unwrap_or(text[content_start..].len());
         let actual_start = content_start + line_end + 1;
-        if actual_start < text.len() {
-            if let Some(end) = text[actual_start..].find("```") {
-                let candidate = text[actual_start..actual_start + end].trim();
-                if candidate.starts_with('{') {
-                    return Some(candidate.to_string());
-                }
+        if actual_start < text.len()
+            && let Some(end) = text[actual_start..].find("```")
+        {
+            let candidate = text[actual_start..actual_start + end].trim();
+            if candidate.starts_with('{') {
+                return Some(candidate.to_string());
             }
         }
     }

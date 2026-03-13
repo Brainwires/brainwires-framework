@@ -1,6 +1,6 @@
 //! Persistent storage for warm tier message summaries
 //!
-//! Uses a [`StorageBackend`] for persistence with semantic search capability.
+//! Uses a [`StorageBackend`](crate::StorageBackend) for persistence with semantic search capability.
 
 use anyhow::{Context, Result};
 use std::sync::Arc;
@@ -29,7 +29,7 @@ pub fn summaries_field_defs(embedding_dim: usize) -> Vec<FieldDef> {
     ]
 }
 
-/// Return an Arrow [`Schema`] for backward compatibility with
+/// Return an Arrow `Schema` for backward compatibility with
 /// [`LanceClient`](crate::stores::lance_client::LanceClient).
 #[cfg(feature = "native")]
 pub fn summaries_schema(embedding_dim: usize) -> std::sync::Arc<arrow_schema::Schema> {

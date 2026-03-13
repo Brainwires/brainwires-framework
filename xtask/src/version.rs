@@ -87,14 +87,14 @@ fn update_workspace_cargo_toml(root: &Path, new_version: &str) -> u32 {
     let mut changed = false;
 
     // Update [workspace.package].version
-    if let Some(pkg) = doc.get_mut("workspace").and_then(|w| w.get_mut("package")) {
-        if let Some(v) = pkg.get_mut("version") {
-            let old = v.as_str().unwrap_or("").to_string();
-            if old != new_version {
-                *v = toml_edit::value(new_version);
-                println!("  [workspace.package].version: {old} -> {new_version}");
-                changed = true;
-            }
+    if let Some(pkg) = doc.get_mut("workspace").and_then(|w| w.get_mut("package"))
+        && let Some(v) = pkg.get_mut("version")
+    {
+        let old = v.as_str().unwrap_or("").to_string();
+        if old != new_version {
+            *v = toml_edit::value(new_version);
+            println!("  [workspace.package].version: {old} -> {new_version}");
+            changed = true;
         }
     }
 
@@ -102,28 +102,24 @@ fn update_workspace_cargo_toml(root: &Path, new_version: &str) -> u32 {
     if let Some(deps) = doc
         .get_mut("workspace")
         .and_then(|w| w.get_mut("dependencies"))
+        && let Some(table) = deps.as_table_like_mut()
     {
-        if let Some(table) = deps.as_table_like_mut() {
-            for (key, value) in table.iter_mut() {
-                if !key.starts_with("brainwires") {
-                    continue;
-                }
-                // Only update inline tables with a `path` key (internal crates)
-                if let Some(tbl) = value.as_inline_table_mut() {
-                    if tbl.contains_key("path") {
-                        if let Some(v) = tbl.get_mut("version") {
-                            let old = v.as_str().unwrap_or("").to_string();
-                            if old != new_version {
-                                *v = toml_edit::value(new_version)
-                                    .into_value()
-                                    .expect("string is a value");
-                                println!(
-                                    "  [workspace.dependencies].{key}: {old} -> {new_version}"
-                                );
-                                changed = true;
-                            }
-                        }
-                    }
+        for (key, value) in table.iter_mut() {
+            if !key.starts_with("brainwires") {
+                continue;
+            }
+            // Only update inline tables with a `path` key (internal crates)
+            if let Some(tbl) = value.as_inline_table_mut()
+                && tbl.contains_key("path")
+                && let Some(v) = tbl.get_mut("version")
+            {
+                let old = v.as_str().unwrap_or("").to_string();
+                if old != new_version {
+                    *v = toml_edit::value(new_version)
+                        .into_value()
+                        .expect("string is a value");
+                    println!("  [workspace.dependencies].{key}: {old} -> {new_version}");
+                    changed = true;
                 }
             }
         }
@@ -187,19 +183,18 @@ fn update_member_cargo_tomls(root: &Path, new_version: &str) -> u32 {
                 if !key.starts_with("brainwires") {
                     continue;
                 }
-                if let Some(tbl) = value.as_inline_table_mut() {
-                    // Only update deps that use `path` (direct deps, not workspace)
-                    if tbl.contains_key("path") && !tbl.contains_key("workspace") {
-                        if let Some(v) = tbl.get_mut("version") {
-                            let old = v.as_str().unwrap_or("").to_string();
-                            if old != new_version {
-                                *v = toml_edit::value(new_version)
-                                    .into_value()
-                                    .expect("string is a value");
-                                println!("  [{section}].{key}: {old} -> {new_version}");
-                                changed = true;
-                            }
-                        }
+                if let Some(tbl) = value.as_inline_table_mut()
+                    && tbl.contains_key("path")
+                    && !tbl.contains_key("workspace")
+                    && let Some(v) = tbl.get_mut("version")
+                {
+                    let old = v.as_str().unwrap_or("").to_string();
+                    if old != new_version {
+                        *v = toml_edit::value(new_version)
+                            .into_value()
+                            .expect("string is a value");
+                        println!("  [{section}].{key}: {old} -> {new_version}");
+                        changed = true;
                     }
                 }
             }

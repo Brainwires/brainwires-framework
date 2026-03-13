@@ -1,6 +1,6 @@
 //! Plan Store - Persists execution plans with conversation association
 //!
-//! Plans are stored via a [`StorageBackend`] for querying and linked to conversations.
+//! Plans are stored via a [`StorageBackend`](crate::StorageBackend) for querying and linked to conversations.
 //! They can also be exported as Markdown files for human readability.
 
 use anyhow::{Context, Result};
@@ -43,7 +43,7 @@ pub fn plans_field_defs(embedding_dim: usize) -> Vec<FieldDef> {
     ]
 }
 
-/// Return an Arrow [`Schema`] for backward compatibility with
+/// Return an Arrow `Schema` for backward compatibility with
 /// [`LanceClient::ensure_plans_table`](crate::stores::lance_client::LanceClient).
 #[cfg(feature = "native")]
 pub fn plans_schema() -> std::sync::Arc<arrow_schema::Schema> {

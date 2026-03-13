@@ -9,9 +9,9 @@
 //!
 //! | Transport | Feature flag | Description |
 //! |-----------|-------------|-------------|
-//! | [`IpcTransport`] | `ipc-transport` | Local Unix-socket IPC with ChaCha20 encryption |
-//! | [`RemoteTransport`] | `remote-transport` | Supabase Realtime / HTTP polling bridge |
-//! | [`TcpTransport`] | `tcp-transport` | Direct TCP peer-to-peer connections |
+//! | `IpcTransport` | `ipc-transport` | Local Unix-socket IPC with ChaCha20 encryption |
+//! | `RemoteTransport` | `remote-transport` | Supabase Realtime / HTTP polling bridge |
+//! | `TcpTransport` | `tcp-transport` | Direct TCP peer-to-peer connections |
 
 mod traits;
 

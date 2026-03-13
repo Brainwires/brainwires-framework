@@ -1,8 +1,8 @@
 //! Workflow Graph Builder — Declarative DAG-based workflow pipelines
 //!
 //! Provides a [`WorkflowBuilder`] API for defining multi-step workflows as
-//! directed acyclic graphs (DAGs).  Workflows compile down to [`TaskSpec`]
-//! vectors and execute via the existing [`TaskOrchestrator`].
+//! directed acyclic graphs (DAGs).  Workflows compile down to `TaskSpec`
+//! vectors and execute via the existing `TaskOrchestrator`.
 //!
 //! # Example
 //!

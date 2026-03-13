@@ -1,6 +1,6 @@
 //! # Routing Layer
 //!
-//! Decides where messages go. The [`Router`] trait takes a
+//! Decides where messages go. The [`Router`](crate::routing::Router) trait takes a
 //! [`MessageEnvelope`](crate::network::MessageEnvelope) and a
 //! [`PeerTable`](crate::routing::PeerTable) and returns the
 //! transport addresses that the message should be delivered to.
@@ -9,9 +9,9 @@
 //!
 //! | Router | Description |
 //! |--------|-------------|
-//! | [`DirectRouter`] | Point-to-point: look up the recipient in the peer table |
-//! | [`BroadcastRouter`] | Send to all known peers |
-//! | [`ContentRouter`] | Route based on topic subscriptions |
+//! | [`DirectRouter`](crate::routing::DirectRouter) | Point-to-point: look up the recipient in the peer table |
+//! | [`BroadcastRouter`](crate::routing::BroadcastRouter) | Send to all known peers |
+//! | [`ContentRouter`](crate::routing::ContentRouter) | Route based on topic subscriptions |
 
 mod broadcast;
 mod content;
