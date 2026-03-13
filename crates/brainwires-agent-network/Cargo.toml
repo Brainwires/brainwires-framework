@@ -62,14 +62,24 @@ gethostname = { workspace = true }
 flate2 = { workspace = true }
 zstd = { workspace = true }
 
+# A2A protocol (optional, for A2A transport)
+brainwires-a2a = { workspace = true, optional = true, features = ["client"] }
+
 # Keyring (optional, for secure API key storage)
 keyring = { workspace = true, optional = true }
 
 [features]
-default = ["server", "client"]
+default = ["server", "client", "ipc-transport", "remote-transport"]
 server = []
 client = []
-mesh = []
+ipc-transport = []
+remote-transport = []
+tcp-transport = []
+pubsub-transport = []
+a2a-transport = ["dep:brainwires-a2a"]
+mesh = ["tcp-transport"]
+registry-discovery = []
+full = ["mesh", "a2a-transport", "pubsub-transport", "registry-discovery"]
 auth-keyring = ["keyring"]
 
 [dev-dependencies]

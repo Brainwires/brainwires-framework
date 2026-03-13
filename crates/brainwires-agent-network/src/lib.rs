@@ -5,6 +5,16 @@
 //!
 //! Provides an MCP server framework, middleware pipeline, agent IPC,
 //! remote bridge, and optional mesh networking support.
+//!
+//! ## Protocol-Layer Stack
+//!
+//! The networking layer is organized as a 5-layer protocol stack:
+//!
+//! 1. **Identity** — agent identity, capability advertisement, credentials
+//! 2. **Transport** — how bytes move (IPC, Remote, TCP, A2A, Pub/Sub)
+//! 3. **Routing** — where messages go (direct, topology, broadcast, content)
+//! 4. **Discovery** — how agents find each other (mDNS, registry, manual)
+//! 5. **Application** — user-facing API (NetworkManager, events)
 
 // ============================================================================
 // MCP Server Framework
@@ -21,7 +31,9 @@ pub mod middleware;
 pub mod registry;
 /// MCP server lifecycle.
 pub mod server;
-/// Server transport (stdio).
+/// MCP server transport (stdio).
+pub mod mcp_transport;
+/// Networking transport layer — pluggable transports for agent communication.
 pub mod transport;
 
 pub use connection::{ClientInfo, RequestContext};
@@ -30,7 +42,7 @@ pub use handler::McpHandler;
 pub use middleware::{Middleware, MiddlewareChain, MiddlewareResult};
 pub use registry::{McpToolDef, McpToolRegistry, ToolHandler};
 pub use server::McpServer;
-pub use transport::{ServerTransport, StdioServerTransport};
+pub use mcp_transport::{ServerTransport, StdioServerTransport};
 
 // Re-export middleware implementations
 pub use middleware::auth::AuthMiddleware;
@@ -77,3 +89,33 @@ pub use client::{AgentConfig, AgentNetworkClient, AgentNetworkClientError};
 /// Distributed agent mesh networking — topology, routing, discovery, federation.
 #[cfg(feature = "mesh")]
 pub mod mesh;
+
+// ============================================================================
+// Protocol-Layer Stack (Identity, Network Core)
+// ============================================================================
+/// Agent identity, capability advertisement, and credentials.
+pub mod identity;
+/// Core network types: message envelopes, events, and errors.
+pub mod network;
+/// Message routing — direct, broadcast, and content-based routing.
+pub mod routing;
+/// Peer discovery — how agents find each other on the network.
+pub mod discovery;
+
+pub use identity::{AgentCard, AgentIdentity, ProtocolId};
+pub use network::{
+    ConnectionState, MessageEnvelope, MessageTarget, NetworkError, NetworkEvent,
+    NetworkManager, NetworkManagerBuilder, Payload, TransportType,
+};
+pub use transport::{Transport, TransportAddress};
+
+#[cfg(feature = "ipc-transport")]
+pub use transport::IpcTransport;
+#[cfg(feature = "remote-transport")]
+pub use transport::RemoteTransport;
+#[cfg(feature = "tcp-transport")]
+pub use transport::TcpTransport;
+#[cfg(feature = "pubsub-transport")]
+pub use transport::PubSubTransport;
+#[cfg(feature = "a2a-transport")]
+pub use transport::{A2aTransport, a2a_message_to_envelope};
