@@ -43,10 +43,10 @@ brainwires  (facade — re-exports all crates via feature flags)
 ├─── Networking
 │    ├── brainwires-mcp             MCP client, transport, protocol types
 │    │   └─> core
-│    └── brainwires-agent-network   MCP server framework, encrypted IPC, remote bridge, mesh networking
+│    └── brainwires-agent-network   MCP server, IPC, remote bridge, 5-layer protocol stack, mesh networking
 │        └─> core
 │        └─> mcp
-│        └─> a2a (opt, "mesh" feature)
+│        └─> a2a (opt, "a2a-transport" feature)
 │
 ├─── Learning & Training
 │    ├── brainwires-datasets        Training data pipelines — JSONL, tokenization, dedup

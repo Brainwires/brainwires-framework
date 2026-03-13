@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+#### Agent Network (`brainwires-agent-network`)
+- **5-layer protocol stack** for pluggable agent networking: Identity → Transport → Routing → Discovery → Application.
+- **Identity layer**: `AgentIdentity`, `AgentCard` (capabilities, protocols, metadata, endpoint), `ProtocolId`, `SigningKey`/`VerifyingKey` (ChaCha20-Poly1305 with SHA-256 key derivation).
+- **Transport layer**: `Transport` trait with 5 implementations:
+  - `IpcTransport` (feature `ipc-transport`) — Unix-socket with optional ChaCha20-Poly1305 encryption.
+  - `RemoteTransport` (feature `remote-transport`) — HTTP POST with `tokio::broadcast` receive channel.
+  - `TcpTransport` (feature `tcp-transport`) — length-prefixed JSON over TCP with Nagle disabled.
+  - `PubSubTransport` (feature `pubsub-transport`) — in-process topic-based messaging via `tokio::broadcast`.
+  - `A2aTransport` (feature `a2a-transport`) — A2A protocol via `brainwires-a2a` client.
+- **Routing layer**: `Router` trait with `DirectRouter`, `BroadcastRouter`, `ContentRouter`, and `PeerTable` for peer/topic tracking.
+- **Discovery layer**: `Discovery` trait with `ManualDiscovery` (in-memory) and `RegistryDiscovery` (HTTP REST, feature `registry-discovery`).
+- **Application layer**: `NetworkManager` and `NetworkManagerBuilder` tying all layers together with `send()`, `broadcast()`, and event subscription.
+- Core network types: `MessageEnvelope`, `MessageTarget` (Direct/Broadcast/Topic), `Payload` (Json/Binary/Text), `NetworkEvent`, `NetworkError`, `TransportType`, `ConnectionState`.
+- New feature flags: `ipc-transport` (default), `remote-transport` (default), `tcp-transport`, `pubsub-transport`, `a2a-transport`, `mesh` (includes `tcp-transport`), `registry-discovery`, `full`.
+- 74 new tests across all protocol stack layers.
+
+### Changed
+
+#### Agent Network (`brainwires-agent-network`)
+- Renamed `src/transport.rs` (MCP-specific `ServerTransport`) to `src/mcp_transport.rs` to avoid conflict with the new `transport/` module. `ServerTransport` and `StdioServerTransport` are still re-exported from the crate root.
+- Updated `mesh/` module with deprecation notices pointing to the new protocol-layer equivalents.
+- Default features now include `ipc-transport` and `remote-transport`.
+
 ## [0.3.0] - 2026-03-12
 
 ### Breaking Changes
