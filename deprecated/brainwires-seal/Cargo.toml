@@ -11,3 +11,5 @@ keywords = ["deprecated"]
 
 [dependencies]
 brainwires-agents = { version = "0.3", features = ["seal"] }
+
+[workspace]
