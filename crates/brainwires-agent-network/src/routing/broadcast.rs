@@ -82,9 +82,7 @@ mod tests {
 
         // Should get addresses for peer_a and peer_b, not sender
         assert_eq!(addrs.len(), 2);
-        assert!(!addrs.contains(&TransportAddress::Tcp(
-            "127.0.0.1:1000".parse().unwrap()
-        )));
+        assert!(!addrs.contains(&TransportAddress::Tcp("127.0.0.1:1000".parse().unwrap())));
     }
 
     #[tokio::test]

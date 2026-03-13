@@ -482,7 +482,9 @@ impl LanceClient {
             return Ok(());
         }
 
-        let schema = crate::stores::tier_metadata_store::TierMetadataStore::<crate::stores::backends::LanceBackend>::tier_metadata_schema();
+        let schema = crate::stores::tier_metadata_store::TierMetadataStore::<
+            crate::stores::backends::LanceBackend,
+        >::tier_metadata_schema();
 
         let empty_batch = RecordBatch::new_empty(schema.clone());
         let batches = RecordBatchIterator::new(vec![Ok(empty_batch)], schema.clone());

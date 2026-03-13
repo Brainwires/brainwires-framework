@@ -30,8 +30,7 @@ impl ManualDiscovery {
 
     /// Create a manual discovery pre-populated with peers.
     pub fn with_peers(peers: Vec<AgentIdentity>) -> Self {
-        let map: HashMap<Uuid, AgentIdentity> =
-            peers.into_iter().map(|p| (p.id, p)).collect();
+        let map: HashMap<Uuid, AgentIdentity> = peers.into_iter().map(|p| (p.id, p)).collect();
         Self {
             peers: Arc::new(RwLock::new(map)),
         }

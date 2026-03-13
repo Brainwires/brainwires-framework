@@ -6,7 +6,7 @@ use anyhow::{Context, Result};
 use std::sync::Arc;
 
 use crate::stores::backend::{
-    record_get, FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend,
+    FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
 use brainwires_core::{Task, TaskPriority, TaskStatus};
 
@@ -23,8 +23,8 @@ fn tasks_field_defs() -> Vec<FieldDef> {
         FieldDef::required("description", FieldType::Utf8),
         FieldDef::required("status", FieldType::Utf8),
         FieldDef::optional("parent_id", FieldType::Utf8),
-        FieldDef::required("children", FieldType::Utf8),     // JSON array
-        FieldDef::required("depends_on", FieldType::Utf8),    // JSON array
+        FieldDef::required("children", FieldType::Utf8), // JSON array
+        FieldDef::required("depends_on", FieldType::Utf8), // JSON array
         FieldDef::required("priority", FieldType::Utf8),
         FieldDef::optional("assigned_to", FieldType::Utf8),
         FieldDef::required("iterations", FieldType::Int32),
@@ -54,15 +54,33 @@ fn agent_states_field_defs() -> Vec<FieldDef> {
 fn task_to_record(m: &TaskMetadata) -> Record {
     vec![
         ("task_id".into(), FieldValue::Utf8(Some(m.task_id.clone()))),
-        ("conversation_id".into(), FieldValue::Utf8(Some(m.conversation_id.clone()))),
+        (
+            "conversation_id".into(),
+            FieldValue::Utf8(Some(m.conversation_id.clone())),
+        ),
         ("plan_id".into(), FieldValue::Utf8(m.plan_id.clone())),
-        ("description".into(), FieldValue::Utf8(Some(m.description.clone()))),
+        (
+            "description".into(),
+            FieldValue::Utf8(Some(m.description.clone())),
+        ),
         ("status".into(), FieldValue::Utf8(Some(m.status.clone()))),
         ("parent_id".into(), FieldValue::Utf8(m.parent_id.clone())),
-        ("children".into(), FieldValue::Utf8(Some(m.children.clone()))),
-        ("depends_on".into(), FieldValue::Utf8(Some(m.depends_on.clone()))),
-        ("priority".into(), FieldValue::Utf8(Some(m.priority.clone()))),
-        ("assigned_to".into(), FieldValue::Utf8(m.assigned_to.clone())),
+        (
+            "children".into(),
+            FieldValue::Utf8(Some(m.children.clone())),
+        ),
+        (
+            "depends_on".into(),
+            FieldValue::Utf8(Some(m.depends_on.clone())),
+        ),
+        (
+            "priority".into(),
+            FieldValue::Utf8(Some(m.priority.clone())),
+        ),
+        (
+            "assigned_to".into(),
+            FieldValue::Utf8(m.assigned_to.clone()),
+        ),
         ("iterations".into(), FieldValue::Int32(Some(m.iterations))),
         ("summary".into(), FieldValue::Utf8(m.summary.clone())),
         ("created_at".into(), FieldValue::Int64(Some(m.created_at))),
@@ -82,7 +100,9 @@ fn task_from_record(r: &Record) -> Result<TaskMetadata> {
             .and_then(|v| v.as_str())
             .context("missing conversation_id")?
             .to_string(),
-        plan_id: record_get(r, "plan_id").and_then(|v| v.as_str()).map(String::from),
+        plan_id: record_get(r, "plan_id")
+            .and_then(|v| v.as_str())
+            .map(String::from),
         description: record_get(r, "description")
             .and_then(|v| v.as_str())
             .context("missing description")?
@@ -91,7 +111,9 @@ fn task_from_record(r: &Record) -> Result<TaskMetadata> {
             .and_then(|v| v.as_str())
             .context("missing status")?
             .to_string(),
-        parent_id: record_get(r, "parent_id").and_then(|v| v.as_str()).map(String::from),
+        parent_id: record_get(r, "parent_id")
+            .and_then(|v| v.as_str())
+            .map(String::from),
         children: record_get(r, "children")
             .and_then(|v| v.as_str())
             .context("missing children")?
@@ -104,11 +126,15 @@ fn task_from_record(r: &Record) -> Result<TaskMetadata> {
             .and_then(|v| v.as_str())
             .context("missing priority")?
             .to_string(),
-        assigned_to: record_get(r, "assigned_to").and_then(|v| v.as_str()).map(String::from),
+        assigned_to: record_get(r, "assigned_to")
+            .and_then(|v| v.as_str())
+            .map(String::from),
         iterations: record_get(r, "iterations")
             .and_then(|v| v.as_i32())
             .context("missing iterations")?,
-        summary: record_get(r, "summary").and_then(|v| v.as_str()).map(String::from),
+        summary: record_get(r, "summary")
+            .and_then(|v| v.as_str())
+            .map(String::from),
         created_at: record_get(r, "created_at")
             .and_then(|v| v.as_i64())
             .context("missing created_at")?,
@@ -122,12 +148,21 @@ fn task_from_record(r: &Record) -> Result<TaskMetadata> {
 
 fn state_to_record(s: &AgentStateMetadata) -> Record {
     vec![
-        ("agent_id".into(), FieldValue::Utf8(Some(s.agent_id.clone()))),
+        (
+            "agent_id".into(),
+            FieldValue::Utf8(Some(s.agent_id.clone())),
+        ),
         ("task_id".into(), FieldValue::Utf8(Some(s.task_id.clone()))),
-        ("conversation_id".into(), FieldValue::Utf8(Some(s.conversation_id.clone()))),
+        (
+            "conversation_id".into(),
+            FieldValue::Utf8(Some(s.conversation_id.clone())),
+        ),
         ("status".into(), FieldValue::Utf8(Some(s.status.clone()))),
         ("iteration".into(), FieldValue::Int32(Some(s.iteration))),
-        ("context_json".into(), FieldValue::Utf8(Some(s.context_json.clone()))),
+        (
+            "context_json".into(),
+            FieldValue::Utf8(Some(s.context_json.clone())),
+        ),
         ("created_at".into(), FieldValue::Int64(Some(s.created_at))),
         ("updated_at".into(), FieldValue::Int64(Some(s.updated_at))),
     ]
@@ -431,9 +466,7 @@ impl TaskStore<crate::stores::backends::LanceBackend> {
     pub async fn from_lance_client(
         client: &crate::stores::lance_client::LanceClient,
     ) -> Result<Self> {
-        let backend = Arc::new(
-            crate::stores::backends::LanceBackend::new(client.db_path()).await?,
-        );
+        let backend = Arc::new(crate::stores::backends::LanceBackend::new(client.db_path()).await?);
         let store = Self { backend };
         store.ensure_table().await?;
         Ok(store)
@@ -605,9 +638,7 @@ impl AgentStateStore<crate::stores::backends::LanceBackend> {
     pub async fn from_lance_client(
         client: &crate::stores::lance_client::LanceClient,
     ) -> Result<Self> {
-        let backend = Arc::new(
-            crate::stores::backends::LanceBackend::new(client.db_path()).await?,
-        );
+        let backend = Arc::new(crate::stores::backends::LanceBackend::new(client.db_path()).await?);
         let store = Self { backend };
         store.ensure_table().await?;
         Ok(store)

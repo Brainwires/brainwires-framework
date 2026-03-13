@@ -101,9 +101,10 @@ impl Transport for TcpTransport {
     }
 
     async fn send(&self, envelope: &MessageEnvelope) -> Result<()> {
-        let conn = self.conn.as_ref().ok_or_else(|| {
-            anyhow::anyhow!("TcpTransport not connected")
-        })?;
+        let conn = self
+            .conn
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("TcpTransport not connected"))?;
 
         let json = serde_json::to_vec(envelope)?;
         if json.len() > MAX_MESSAGE_SIZE {
@@ -120,9 +121,10 @@ impl Transport for TcpTransport {
     }
 
     async fn receive(&self) -> Result<Option<MessageEnvelope>> {
-        let conn = self.conn.as_ref().ok_or_else(|| {
-            anyhow::anyhow!("TcpTransport not connected")
-        })?;
+        let conn = self
+            .conn
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("TcpTransport not connected"))?;
 
         let mut reader = conn.reader.lock().await;
 
@@ -189,17 +191,11 @@ mod tests {
         });
 
         let mut client = TcpTransport::new();
-        client
-            .connect(&TransportAddress::Tcp(addr))
-            .await
-            .unwrap();
+        client.connect(&TransportAddress::Tcp(addr)).await.unwrap();
         assert!(client.is_connected());
 
-        let env = MessageEnvelope::direct(
-            Uuid::new_v4(),
-            Uuid::new_v4(),
-            Payload::Text("ping".into()),
-        );
+        let env =
+            MessageEnvelope::direct(Uuid::new_v4(), Uuid::new_v4(), Payload::Text("ping".into()));
         client.send(&env).await.unwrap();
 
         let reply = client.receive().await.unwrap().unwrap();

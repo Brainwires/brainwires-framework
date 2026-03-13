@@ -144,8 +144,7 @@ mod tests {
         )
         .await;
 
-        let score =
-            calculate_bm25_score(&stats, "hello", "hello world rust programming").await;
+        let score = calculate_bm25_score(&stats, "hello", "hello world rust programming").await;
         assert!(score > 0.0, "Expected positive score, got {}", score);
     }
 

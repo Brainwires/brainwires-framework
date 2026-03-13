@@ -154,8 +154,7 @@ mod tests {
 
     #[test]
     fn registry_debug_redacts_key() {
-        let d = RegistryDiscovery::new("https://registry.example.com")
-            .with_api_key("secret-key");
+        let d = RegistryDiscovery::new("https://registry.example.com").with_api_key("secret-key");
         let debug = format!("{d:?}");
         assert!(debug.contains("<redacted>"));
         assert!(!debug.contains("secret-key"));

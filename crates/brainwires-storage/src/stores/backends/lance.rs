@@ -11,8 +11,8 @@ use arrow_array::{
 };
 use arrow_schema::{DataType, Field, Schema};
 use futures::TryStreamExt;
-use lancedb::query::{ExecutableQuery, QueryBase};
 use lancedb::Connection;
+use lancedb::query::{ExecutableQuery, QueryBase};
 use std::sync::Arc;
 
 use crate::stores::backend::{
@@ -369,7 +369,12 @@ fn records_to_batch(records: &[Record]) -> Result<RecordBatch> {
                 }
                 let values_array = Float32Array::from(flat_values);
                 let list_field = Arc::new(Field::new("item", DataType::Float32, true));
-                let list = FixedSizeListArray::try_new(list_field.clone(), dim, Arc::new(values_array), None)?;
+                let list = FixedSizeListArray::try_new(
+                    list_field.clone(),
+                    dim,
+                    Arc::new(values_array),
+                    None,
+                )?;
                 fields.push(Field::new(
                     name,
                     DataType::FixedSizeList(list_field, dim),
@@ -477,10 +482,7 @@ fn extract_field_value(
                 FieldValue::Vector(Vec::new())
             } else {
                 let inner = arr.value(row);
-                let floats = inner
-                    .as_any()
-                    .downcast_ref::<Float32Array>()
-                    .unwrap();
+                let floats = inner.as_any().downcast_ref::<Float32Array>().unwrap();
                 FieldValue::Vector(floats.values().to_vec())
             }
         }

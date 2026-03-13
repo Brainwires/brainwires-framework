@@ -102,9 +102,10 @@ impl Transport for IpcTransport {
     }
 
     async fn send(&self, envelope: &MessageEnvelope) -> Result<()> {
-        let conn = self.conn.as_ref().ok_or_else(|| {
-            anyhow::anyhow!("IpcTransport not connected")
-        })?;
+        let conn = self
+            .conn
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("IpcTransport not connected"))?;
 
         let json = serde_json::to_vec(envelope)?;
         if json.len() > MAX_MESSAGE_SIZE {
@@ -112,9 +113,7 @@ impl Transport for IpcTransport {
         }
 
         let wire_bytes = if let Some(cipher) = &conn.cipher {
-            cipher
-                .encrypt(&json)
-                .context("Failed to encrypt message")?
+            cipher.encrypt(&json).context("Failed to encrypt message")?
         } else {
             json
         };
@@ -129,9 +128,10 @@ impl Transport for IpcTransport {
     }
 
     async fn receive(&self) -> Result<Option<MessageEnvelope>> {
-        let conn = self.conn.as_ref().ok_or_else(|| {
-            anyhow::anyhow!("IpcTransport not connected")
-        })?;
+        let conn = self
+            .conn
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("IpcTransport not connected"))?;
 
         let mut reader = conn.reader.lock().await;
 
@@ -161,8 +161,8 @@ impl Transport for IpcTransport {
             wire_bytes
         };
 
-        let envelope: MessageEnvelope = serde_json::from_slice(&json_bytes)
-            .context("Failed to parse MessageEnvelope")?;
+        let envelope: MessageEnvelope =
+            serde_json::from_slice(&json_bytes).context("Failed to parse MessageEnvelope")?;
 
         Ok(Some(envelope))
     }
@@ -214,7 +214,10 @@ mod tests {
             let reply = envelope.reply(Uuid::new_v4(), Payload::Text("pong".into()));
             let json = serde_json::to_vec(&reply).unwrap();
             let mut writer = conn.writer.lock().await;
-            writer.write_all(&(json.len() as u32).to_be_bytes()).await.unwrap();
+            writer
+                .write_all(&(json.len() as u32).to_be_bytes())
+                .await
+                .unwrap();
             writer.write_all(&json).await.unwrap();
             writer.flush().await.unwrap();
         });
@@ -227,11 +230,8 @@ mod tests {
 
         assert!(transport.is_connected());
 
-        let env = MessageEnvelope::direct(
-            Uuid::new_v4(),
-            Uuid::new_v4(),
-            Payload::Text("ping".into()),
-        );
+        let env =
+            MessageEnvelope::direct(Uuid::new_v4(), Uuid::new_v4(), Payload::Text("ping".into()));
         transport.send(&env).await.unwrap();
 
         let reply = transport.receive().await.unwrap().unwrap();

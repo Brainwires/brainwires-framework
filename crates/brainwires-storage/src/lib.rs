@@ -79,10 +79,10 @@ pub mod stores;
 // ── Re-exports (always available) ────────────────────────────────────────
 
 // Storage backend abstraction
+pub use stores::backend::record_get;
 pub use stores::backend::{
     FieldDef, FieldType, FieldValue, Filter, Record, ScoredRecord, StorageBackend,
 };
-pub use stores::backend::record_get;
 
 // LanceBackend re-export
 #[cfg(feature = "native")]
@@ -100,15 +100,15 @@ pub use stores::template_store::{PlanTemplate, TemplateStore};
 // These maintain backward compatibility: `use brainwires_storage::MessageStore` still works.
 
 #[cfg(feature = "native")]
-pub use stores::conversation_store::{ConversationMetadata, ConversationStore};
-#[cfg(feature = "native")]
 pub use embeddings::{
     CachedEmbeddingProvider, EmbeddingProvider, EmbeddingProviderTrait, FastEmbedManager,
 };
 #[cfg(feature = "native")]
-pub use stores::fact_store::FactStore;
-#[cfg(feature = "native")]
 pub use file_context::{FileChunk, FileContent, FileContextManager};
+#[cfg(feature = "native")]
+pub use stores::conversation_store::{ConversationMetadata, ConversationStore};
+#[cfg(feature = "native")]
+pub use stores::fact_store::FactStore;
 #[cfg(feature = "native")]
 pub use stores::image_store::ImageStore;
 #[cfg(feature = "native")]
@@ -138,13 +138,13 @@ pub mod prelude {
 
     // Native only
     #[cfg(feature = "native")]
-    pub use super::stores::conversation_store::{ConversationMetadata, ConversationStore};
-    #[cfg(feature = "native")]
     pub use super::embeddings::{
         CachedEmbeddingProvider, EmbeddingProvider, EmbeddingProviderTrait, FastEmbedManager,
     };
     #[cfg(feature = "native")]
     pub use super::file_context::{FileContent, FileContextManager};
+    #[cfg(feature = "native")]
+    pub use super::stores::conversation_store::{ConversationMetadata, ConversationStore};
     #[cfg(feature = "native")]
     pub use super::stores::image_store::ImageStore;
     #[cfg(feature = "native")]

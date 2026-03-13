@@ -7,7 +7,6 @@ use thiserror::Error;
 #[derive(Debug, Clone, Error)]
 pub enum NetworkError {
     // ── Identity layer ──────────────────────────────────────────────────
-
     /// An agent identity could not be resolved.
     #[error("identity not found: {0}")]
     IdentityNotFound(String),
@@ -17,7 +16,6 @@ pub enum NetworkError {
     AuthenticationFailed(String),
 
     // ── Transport layer ─────────────────────────────────────────────────
-
     /// A transport-level connection failure.
     #[error("connection failed: {0}")]
     ConnectionFailed(String),
@@ -35,7 +33,6 @@ pub enum NetworkError {
     ReceiveFailed(String),
 
     // ── Routing layer ───────────────────────────────────────────────────
-
     /// A message could not be routed to its destination.
     #[error("routing failed: {0}")]
     RoutingFailed(String),
@@ -45,7 +42,6 @@ pub enum NetworkError {
     NoRoute(String),
 
     // ── Discovery layer ─────────────────────────────────────────────────
-
     /// Peer discovery failed.
     #[error("discovery failed: {0}")]
     DiscoveryFailed(String),
@@ -55,7 +51,6 @@ pub enum NetworkError {
     RegistrationFailed(String),
 
     // ── Application layer ───────────────────────────────────────────────
-
     /// A peer/node was not found in the peer table.
     #[error("peer not found: {0}")]
     PeerNotFound(String),
@@ -69,7 +64,6 @@ pub enum NetworkError {
     InvalidState(String),
 
     // ── General ─────────────────────────────────────────────────────────
-
     /// An internal or unexpected error.
     #[error("internal error: {0}")]
     Internal(String),
@@ -110,10 +104,7 @@ mod tests {
                 NetworkError::FederationDenied("policy".into()),
                 "federation denied: policy",
             ),
-            (
-                NetworkError::Timeout("5s".into()),
-                "timeout: 5s",
-            ),
+            (NetworkError::Timeout("5s".into()), "timeout: 5s"),
         ];
 
         for (err, expected) in cases {

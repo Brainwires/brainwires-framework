@@ -28,14 +28,10 @@ impl Router for DirectRouter {
         peers: &PeerTable,
     ) -> Result<Vec<TransportAddress>> {
         match &envelope.recipient {
-            MessageTarget::Direct(id) => {
-                peers
-                    .addresses(id)
-                    .map(|addrs| addrs.to_vec())
-                    .ok_or_else(|| {
-                        anyhow::anyhow!("no route to peer {id}")
-                    })
-            }
+            MessageTarget::Direct(id) => peers
+                .addresses(id)
+                .map(|addrs| addrs.to_vec())
+                .ok_or_else(|| anyhow::anyhow!("no route to peer {id}")),
             MessageTarget::Broadcast => {
                 bail!("DirectRouter does not handle broadcast messages");
             }
@@ -67,11 +63,7 @@ mod tests {
         let addr = TransportAddress::Tcp("127.0.0.1:9090".parse().unwrap());
         peers.upsert(identity, vec![addr.clone()]);
 
-        let env = MessageEnvelope::direct(
-            Uuid::new_v4(),
-            target_id,
-            Payload::Text("hello".into()),
-        );
+        let env = MessageEnvelope::direct(Uuid::new_v4(), target_id, Payload::Text("hello".into()));
 
         let addrs = router.route(&env, &peers).await.unwrap();
         assert_eq!(addrs, vec![addr]);

@@ -11,14 +11,14 @@
 //! | [`ManualDiscovery`] | *(always)* | Explicit peer list — no network calls |
 //! | [`RegistryDiscovery`] | `registry-discovery` | HTTP-backed central agent registry |
 
-mod traits;
 mod manual;
+mod traits;
 
 #[cfg(feature = "registry-discovery")]
 mod registry;
 
-pub use traits::{Discovery, DiscoveryProtocol};
 pub use manual::ManualDiscovery;
+pub use traits::{Discovery, DiscoveryProtocol};
 
 #[cfg(feature = "registry-discovery")]
 pub use registry::RegistryDiscovery;

@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 use std::sync::Arc;
 
 use crate::stores::backend::{
-    record_get, FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend,
+    FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
 use crate::tiered_memory::{MemoryAuthority, MemoryTier, TierMetadata};
 
@@ -28,13 +28,28 @@ fn table_schema() -> Vec<FieldDef> {
 
 fn to_record(m: &TierMetadata) -> Record {
     vec![
-        ("message_id".into(), FieldValue::Utf8(Some(m.message_id.clone()))),
-        ("tier".into(), FieldValue::Utf8(Some(tier_to_string(m.tier).to_string()))),
+        (
+            "message_id".into(),
+            FieldValue::Utf8(Some(m.message_id.clone())),
+        ),
+        (
+            "tier".into(),
+            FieldValue::Utf8(Some(tier_to_string(m.tier).to_string())),
+        ),
         ("importance".into(), FieldValue::Float32(Some(m.importance))),
-        ("last_accessed".into(), FieldValue::Int64(Some(m.last_accessed))),
-        ("access_count".into(), FieldValue::Int32(Some(m.access_count as i32))),
+        (
+            "last_accessed".into(),
+            FieldValue::Int64(Some(m.last_accessed)),
+        ),
+        (
+            "access_count".into(),
+            FieldValue::Int32(Some(m.access_count as i32)),
+        ),
         ("created_at".into(), FieldValue::Int64(Some(m.created_at))),
-        ("authority".into(), FieldValue::Utf8(Some(m.authority.as_str().to_string()))),
+        (
+            "authority".into(),
+            FieldValue::Utf8(Some(m.authority.as_str().to_string())),
+        ),
     ]
 }
 
@@ -149,10 +164,8 @@ impl<B: StorageBackend> TierMetadataStore<B> {
         let filter = Filter::In("message_id".into(), vals);
 
         let records = self.backend.query(TABLE_NAME, Some(&filter), None).await?;
-        let entries: Vec<TierMetadata> = records
-            .iter()
-            .filter_map(|r| from_record(r).ok())
-            .collect();
+        let entries: Vec<TierMetadata> =
+            records.iter().filter_map(|r| from_record(r).ok()).collect();
 
         Ok(entries
             .into_iter()
@@ -232,7 +245,11 @@ mod tests {
     #[test]
     fn test_schema_creation() {
         let schema = table_schema();
-        assert_eq!(schema.len(), 7, "Schema must have 7 fields including authority");
+        assert_eq!(
+            schema.len(),
+            7,
+            "Schema must have 7 fields including authority"
+        );
     }
 
     #[test]

@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use crate::embeddings::EmbeddingProvider;
 use crate::stores::backend::{
-    record_get, FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend,
+    FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
 
 const TABLE_NAME: &str = "messages";
@@ -89,10 +89,7 @@ fn to_record(m: &MessageMetadata, embedding: Vec<f32>) -> Record {
             FieldValue::Utf8(Some(m.conversation_id.clone())),
         ),
         ("role".into(), FieldValue::Utf8(Some(m.role.clone()))),
-        (
-            "content".into(),
-            FieldValue::Utf8(Some(m.content.clone())),
-        ),
+        ("content".into(), FieldValue::Utf8(Some(m.content.clone()))),
         ("token_count".into(), FieldValue::Int32(m.token_count)),
         ("model_id".into(), FieldValue::Utf8(m.model_id.clone())),
         ("images".into(), FieldValue::Utf8(m.images.clone())),
@@ -211,10 +208,7 @@ impl<B: StorageBackend> MessageStore<B> {
     }
 
     /// Get messages for a conversation
-    pub async fn get_by_conversation(
-        &self,
-        conversation_id: &str,
-    ) -> Result<Vec<MessageMetadata>> {
+    pub async fn get_by_conversation(&self, conversation_id: &str) -> Result<Vec<MessageMetadata>> {
         let filter = Filter::Eq(
             "conversation_id".into(),
             FieldValue::Utf8(Some(conversation_id.to_string())),
@@ -339,9 +333,7 @@ impl MessageStore<crate::stores::backends::LanceBackend> {
         client: &crate::stores::lance_client::LanceClient,
         embeddings: Arc<EmbeddingProvider>,
     ) -> Result<Self> {
-        let backend = Arc::new(
-            crate::stores::backends::LanceBackend::new(client.db_path()).await?,
-        );
+        let backend = Arc::new(crate::stores::backends::LanceBackend::new(client.db_path()).await?);
         let store = Self {
             backend,
             embeddings,

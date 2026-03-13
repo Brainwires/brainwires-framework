@@ -6,8 +6,8 @@ use tracing;
 use crate::connection::{ClientInfo, RequestContext};
 use crate::error::AgentNetworkError;
 use crate::handler::McpHandler;
-use crate::middleware::{Middleware, MiddlewareChain};
 use crate::mcp_transport::{ServerTransport, StdioServerTransport};
+use crate::middleware::{Middleware, MiddlewareChain};
 
 /// MCP server that processes JSON-RPC requests via a transport.
 pub struct McpServer<H: McpHandler> {

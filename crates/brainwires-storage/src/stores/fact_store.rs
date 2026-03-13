@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use crate::embeddings::EmbeddingProvider;
 use crate::stores::backend::{
-    record_get, FieldDef, FieldType, FieldValue, Filter, Record, ScoredRecord, StorageBackend,
+    FieldDef, FieldType, FieldValue, Filter, Record, ScoredRecord, StorageBackend, record_get,
 };
 use crate::tiered_memory::{FactType, KeyFact};
 
@@ -304,9 +304,7 @@ impl FactStore<crate::stores::backends::LanceBackend> {
         client: &crate::stores::lance_client::LanceClient,
         embeddings: Arc<EmbeddingProvider>,
     ) -> Result<Self> {
-        let backend = Arc::new(
-            crate::stores::backends::LanceBackend::new(client.db_path()).await?,
-        );
+        let backend = Arc::new(crate::stores::backends::LanceBackend::new(client.db_path()).await?);
         let store = Self {
             backend,
             embeddings,
@@ -318,10 +316,7 @@ impl FactStore<crate::stores::backends::LanceBackend> {
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
-fn scored_records_to_facts(
-    scored: &[ScoredRecord],
-    min_score: f32,
-) -> Result<Vec<(KeyFact, f32)>> {
+fn scored_records_to_facts(scored: &[ScoredRecord], min_score: f32) -> Result<Vec<(KeyFact, f32)>> {
     let mut results = Vec::new();
     for sr in scored {
         if sr.score >= min_score {

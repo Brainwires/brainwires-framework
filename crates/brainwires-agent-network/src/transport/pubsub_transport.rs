@@ -48,10 +48,7 @@ impl PubSubTransport {
     }
 
     /// Subscribe to a topic, returning a receiver for messages on that topic.
-    pub async fn subscribe_topic(
-        &self,
-        topic: &str,
-    ) -> broadcast::Receiver<MessageEnvelope> {
+    pub async fn subscribe_topic(&self, topic: &str) -> broadcast::Receiver<MessageEnvelope> {
         let mut topics = self.topics.lock().await;
         let sender = topics
             .entry(topic.to_string())
@@ -60,10 +57,7 @@ impl PubSubTransport {
     }
 
     /// Get or create a sender for a topic.
-    async fn get_topic_sender(
-        &self,
-        topic: &str,
-    ) -> broadcast::Sender<MessageEnvelope> {
+    async fn get_topic_sender(&self, topic: &str) -> broadcast::Sender<MessageEnvelope> {
         let mut topics = self.topics.lock().await;
         topics
             .entry(topic.to_string())
@@ -175,11 +169,7 @@ mod tests {
         let mut rx = transport.subscribe_topic("events").await;
 
         // Send a topic message
-        let env = MessageEnvelope::topic(
-            Uuid::new_v4(),
-            "events",
-            Payload::Text("update".into()),
-        );
+        let env = MessageEnvelope::topic(Uuid::new_v4(), "events", Payload::Text("update".into()));
         let sender = transport.get_topic_sender("events").await;
         sender.send(env.clone()).unwrap();
 

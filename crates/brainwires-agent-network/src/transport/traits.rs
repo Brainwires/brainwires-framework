@@ -77,10 +77,7 @@ mod tests {
         let unix = TransportAddress::Unix(PathBuf::from("/tmp/agent.sock"));
         assert_eq!(unix.to_string(), "unix:///tmp/agent.sock");
 
-        let tcp = TransportAddress::Tcp(SocketAddr::new(
-            IpAddr::V4(Ipv4Addr::LOCALHOST),
-            9090,
-        ));
+        let tcp = TransportAddress::Tcp(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 9090));
         assert_eq!(tcp.to_string(), "tcp://127.0.0.1:9090");
 
         let url = TransportAddress::Url("https://example.com/a2a".into());

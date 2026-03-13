@@ -75,12 +75,7 @@ impl NetworkManager {
 
     /// List all known peers.
     pub async fn peers(&self) -> Vec<AgentIdentity> {
-        self.peer_table
-            .read()
-            .await
-            .all_peers()
-            .cloned()
-            .collect()
+        self.peer_table.read().await.all_peers().cloned().collect()
     }
 
     /// Send a message to a specific peer.
@@ -118,12 +113,8 @@ impl NetworkManager {
                     self.direct_router.route(&envelope, &peer_table).await?
                 }
             }
-            MessageTarget::Broadcast => {
-                self.broadcast_router.route(&envelope, &peer_table).await?
-            }
-            MessageTarget::Topic(_) => {
-                self.content_router.route(&envelope, &peer_table).await?
-            }
+            MessageTarget::Broadcast => self.broadcast_router.route(&envelope, &peer_table).await?,
+            MessageTarget::Topic(_) => self.content_router.route(&envelope, &peer_table).await?,
         };
 
         drop(peer_table);
@@ -403,7 +394,10 @@ mod tests {
 
         identity.agent_card.endpoint = Some("unix:///tmp/agent.sock".into());
         let addrs = endpoint_to_addresses(&identity);
-        assert_eq!(addrs, vec![TransportAddress::Unix("/tmp/agent.sock".into())]);
+        assert_eq!(
+            addrs,
+            vec![TransportAddress::Unix("/tmp/agent.sock".into())]
+        );
 
         identity.agent_card.endpoint = Some("tcp://127.0.0.1:9090".into());
         let addrs = endpoint_to_addresses(&identity);

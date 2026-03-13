@@ -18,16 +18,10 @@
 //! - [`MeshTopology`] / [`TopologyType`] — mesh topology management
 
 /// Peer discovery protocols for locating nodes in the mesh.
-#[deprecated(
-    since = "0.4.0",
-    note = "Use `crate::discovery::Discovery` instead"
-)]
+#[deprecated(since = "0.4.0", note = "Use `crate::discovery::Discovery` instead")]
 pub mod discovery;
 /// Error types for mesh operations.
-#[deprecated(
-    since = "0.4.0",
-    note = "Use `crate::network::NetworkError` instead"
-)]
+#[deprecated(since = "0.4.0", note = "Use `crate::network::NetworkError` instead")]
 pub mod error;
 /// Federation gateways and policies for cross-mesh communication.
 pub mod federation;
@@ -38,10 +32,7 @@ pub mod federation;
 )]
 pub mod node;
 /// Message routing strategies and route tables.
-#[deprecated(
-    since = "0.4.0",
-    note = "Use `crate::routing::Router` instead"
-)]
+#[deprecated(since = "0.4.0", note = "Use `crate::routing::Router` instead")]
 pub mod routing;
 /// Mesh topology management and layout types.
 pub mod topology;

@@ -13,14 +13,14 @@
 //! | [`BroadcastRouter`] | Send to all known peers |
 //! | [`ContentRouter`] | Route based on topic subscriptions |
 
-mod traits;
-mod direct;
 mod broadcast;
 mod content;
+mod direct;
 mod peer_table;
+mod traits;
 
-pub use traits::{Router, RoutingStrategy};
-pub use direct::DirectRouter;
 pub use broadcast::BroadcastRouter;
 pub use content::ContentRouter;
+pub use direct::DirectRouter;
 pub use peer_table::PeerTable;
+pub use traits::{Router, RoutingStrategy};

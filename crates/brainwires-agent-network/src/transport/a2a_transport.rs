@@ -53,7 +53,8 @@ impl A2aTransport {
     /// Returns an error if the URL is not valid.
     pub fn from_url(url: impl Into<String>) -> Result<Self> {
         let url_str = url.into();
-        let parsed: url::Url = url_str.parse()
+        let parsed: url::Url = url_str
+            .parse()
             .map_err(|e| anyhow::anyhow!("invalid A2A URL: {e}"))?;
         let client = brainwires_a2a::A2aClient::new_jsonrpc(parsed);
         let (incoming_tx, incoming_rx) = broadcast::channel(256);
@@ -118,10 +119,9 @@ impl Transport for A2aTransport {
         let text = match &envelope.payload {
             Payload::Text(s) => s.clone(),
             Payload::Json(v) => serde_json::to_string(v)?,
-            Payload::Binary(b) => base64::Engine::encode(
-                &base64::engine::general_purpose::STANDARD,
-                b,
-            ),
+            Payload::Binary(b) => {
+                base64::Engine::encode(&base64::engine::general_purpose::STANDARD, b)
+            }
         };
 
         let mut message = brainwires_a2a::Message::user_text(&text);
@@ -141,9 +141,10 @@ impl Transport for A2aTransport {
             metadata: None,
         };
 
-        self.client.send_message(req).await.map_err(|e| {
-            anyhow::anyhow!("A2A send failed: {e}")
-        })?;
+        self.client
+            .send_message(req)
+            .await
+            .map_err(|e| anyhow::anyhow!("A2A send failed: {e}"))?;
 
         Ok(())
     }
@@ -246,11 +247,7 @@ mod tests {
     #[test]
     fn a2a_message_conversion() {
         let msg = brainwires_a2a::Message::user_text("Hello from A2A");
-        let env = a2a_message_to_envelope(
-            &msg,
-            uuid::Uuid::new_v4(),
-            MessageTarget::Broadcast,
-        );
+        let env = a2a_message_to_envelope(&msg, uuid::Uuid::new_v4(), MessageTarget::Broadcast);
         match env.payload {
             Payload::Text(s) => assert_eq!(s, "Hello from A2A"),
             _ => panic!("expected Text payload"),

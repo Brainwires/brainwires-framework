@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use crate::embeddings::EmbeddingProvider;
 use crate::stores::backend::{
-    record_get, FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend,
+    FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
 use brainwires_core::{PlanMetadata, PlanStatus};
 
@@ -85,10 +85,7 @@ fn to_record(plan: &PlanMetadata) -> Record {
             "conversation_id".into(),
             FieldValue::Utf8(Some(plan.conversation_id.clone())),
         ),
-        (
-            "title".into(),
-            FieldValue::Utf8(Some(plan.title.clone())),
-        ),
+        ("title".into(), FieldValue::Utf8(Some(plan.title.clone()))),
         (
             "task_description".into(),
             FieldValue::Utf8(Some(plan.task_description.clone())),
@@ -97,18 +94,12 @@ fn to_record(plan: &PlanMetadata) -> Record {
             "plan_content".into(),
             FieldValue::Utf8(Some(plan.plan_content.clone())),
         ),
-        (
-            "model_id".into(),
-            FieldValue::Utf8(plan.model_id.clone()),
-        ),
+        ("model_id".into(), FieldValue::Utf8(plan.model_id.clone())),
         (
             "status".into(),
             FieldValue::Utf8(Some(plan.status.to_string())),
         ),
-        (
-            "executed".into(),
-            FieldValue::Boolean(Some(plan.executed)),
-        ),
+        ("executed".into(), FieldValue::Boolean(Some(plan.executed))),
         (
             "iterations_used".into(),
             FieldValue::Int32(Some(plan.iterations_used as i32)),
@@ -121,10 +112,7 @@ fn to_record(plan: &PlanMetadata) -> Record {
             "updated_at".into(),
             FieldValue::Int64(Some(plan.updated_at)),
         ),
-        (
-            "file_path".into(),
-            FieldValue::Utf8(plan.file_path.clone()),
-        ),
+        ("file_path".into(), FieldValue::Utf8(plan.file_path.clone())),
         (
             "parent_plan_id".into(),
             FieldValue::Utf8(plan.parent_plan_id.clone()),
@@ -137,14 +125,8 @@ fn to_record(plan: &PlanMetadata) -> Record {
             "branch_name".into(),
             FieldValue::Utf8(plan.branch_name.clone()),
         ),
-        (
-            "merged".into(),
-            FieldValue::Boolean(Some(plan.merged)),
-        ),
-        (
-            "depth".into(),
-            FieldValue::Int32(Some(plan.depth as i32)),
-        ),
+        ("merged".into(), FieldValue::Boolean(Some(plan.merged))),
+        ("depth".into(), FieldValue::Int32(Some(plan.depth as i32))),
         (
             "embedding".into(),
             FieldValue::Vector(plan.embedding.clone().unwrap_or_default()),
@@ -218,9 +200,7 @@ fn from_record(r: &Record) -> Result<PlanMetadata> {
         merged: record_get(r, "merged")
             .and_then(|v| v.as_bool())
             .unwrap_or(false),
-        depth: record_get(r, "depth")
-            .and_then(|v| v.as_i32())
-            .unwrap_or(0) as u32,
+        depth: record_get(r, "depth").and_then(|v| v.as_i32()).unwrap_or(0) as u32,
     })
 }
 
@@ -310,10 +290,8 @@ impl<B: StorageBackend> PlanStore<B> {
         );
         let records = self.backend.query(TABLE_NAME, Some(&filter), None).await?;
 
-        let mut plans: Vec<PlanMetadata> = records
-            .iter()
-            .filter_map(|r| from_record(r).ok())
-            .collect();
+        let mut plans: Vec<PlanMetadata> =
+            records.iter().filter_map(|r| from_record(r).ok()).collect();
 
         // Sort by created_at descending (newest first)
         plans.sort_by(|a, b| b.created_at.cmp(&a.created_at));
@@ -329,10 +307,8 @@ impl<B: StorageBackend> PlanStore<B> {
             .query(TABLE_NAME, None, Some(limit * 2))
             .await?;
 
-        let mut plans: Vec<PlanMetadata> = records
-            .iter()
-            .filter_map(|r| from_record(r).ok())
-            .collect();
+        let mut plans: Vec<PlanMetadata> =
+            records.iter().filter_map(|r| from_record(r).ok()).collect();
 
         // Sort by created_at descending and take limit
         plans.sort_by(|a, b| b.created_at.cmp(&a.created_at));
@@ -453,10 +429,8 @@ impl<B: StorageBackend> PlanStore<B> {
         );
         let records = self.backend.query(TABLE_NAME, Some(&filter), None).await?;
 
-        let mut plans: Vec<PlanMetadata> = records
-            .iter()
-            .filter_map(|r| from_record(r).ok())
-            .collect();
+        let mut plans: Vec<PlanMetadata> =
+            records.iter().filter_map(|r| from_record(r).ok()).collect();
 
         // Sort by created_at ascending
         plans.sort_by(|a, b| a.created_at.cmp(&b.created_at));
@@ -508,9 +482,7 @@ impl PlanStore<crate::stores::backends::LanceBackend> {
         client: &crate::stores::lance_client::LanceClient,
         embeddings: Arc<EmbeddingProvider>,
     ) -> Result<Self> {
-        let backend = Arc::new(
-            crate::stores::backends::LanceBackend::new(client.db_path()).await?,
-        );
+        let backend = Arc::new(crate::stores::backends::LanceBackend::new(client.db_path()).await?);
         let store = Self {
             backend,
             embeddings,

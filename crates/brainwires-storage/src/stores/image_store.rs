@@ -12,7 +12,7 @@ use crate::image_types::{
     ImageFormat, ImageMetadata, ImageSearchRequest, ImageSearchResult, ImageStorage,
 };
 use crate::stores::backend::{
-    record_get, FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend,
+    FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
 
 const TABLE_NAME: &str = "images";
@@ -52,10 +52,7 @@ fn to_record(m: &ImageMetadata, storage: &ImageStorage, embedding: Vec<f32>) -> 
             "image_id".into(),
             FieldValue::Utf8(Some(m.image_id.clone())),
         ),
-        (
-            "message_id".into(),
-            FieldValue::Utf8(m.message_id.clone()),
-        ),
+        ("message_id".into(), FieldValue::Utf8(m.message_id.clone())),
         (
             "conversation_id".into(),
             FieldValue::Utf8(Some(m.conversation_id.clone())),
@@ -96,10 +93,7 @@ fn to_record(m: &ImageMetadata, storage: &ImageStorage, embedding: Vec<f32>) -> 
             "storage_value".into(),
             FieldValue::Utf8(Some(storage.value().to_string())),
         ),
-        (
-            "created_at".into(),
-            FieldValue::Int64(Some(m.created_at)),
-        ),
+        ("created_at".into(), FieldValue::Int64(Some(m.created_at))),
     ]
 }
 
@@ -410,10 +404,8 @@ impl<B: StorageBackend> ImageStore<B> {
             .await
             .context("Failed to list images by conversation")?;
 
-        let mut images: Vec<ImageMetadata> = records
-            .iter()
-            .filter_map(|r| from_record(r).ok())
-            .collect();
+        let mut images: Vec<ImageMetadata> =
+            records.iter().filter_map(|r| from_record(r).ok()).collect();
 
         // Sort by created_at descending
         images.sort_by(|a, b| b.created_at.cmp(&a.created_at));
@@ -433,10 +425,8 @@ impl<B: StorageBackend> ImageStore<B> {
             .await
             .context("Failed to list images by message")?;
 
-        let images: Vec<ImageMetadata> = records
-            .iter()
-            .filter_map(|r| from_record(r).ok())
-            .collect();
+        let images: Vec<ImageMetadata> =
+            records.iter().filter_map(|r| from_record(r).ok()).collect();
 
         Ok(images)
     }
@@ -508,9 +498,7 @@ impl ImageStore<crate::stores::backends::LanceBackend> {
         client: &crate::stores::lance_client::LanceClient,
         embeddings: Arc<EmbeddingProvider>,
     ) -> Result<Self> {
-        let backend = Arc::new(
-            crate::stores::backends::LanceBackend::new(client.db_path()).await?,
-        );
+        let backend = Arc::new(crate::stores::backends::LanceBackend::new(client.db_path()).await?);
         let store = Self {
             backend,
             embeddings,

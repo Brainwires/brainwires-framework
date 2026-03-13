@@ -3,7 +3,7 @@ use chrono::Utc;
 use std::sync::Arc;
 
 use crate::stores::backend::{
-    record_get, FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend,
+    FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
 
 const TABLE_NAME: &str = "conversations";
@@ -38,12 +38,18 @@ fn table_schema() -> Vec<FieldDef> {
 
 fn to_record(m: &ConversationMetadata) -> Record {
     vec![
-        ("conversation_id".into(), FieldValue::Utf8(Some(m.conversation_id.clone()))),
+        (
+            "conversation_id".into(),
+            FieldValue::Utf8(Some(m.conversation_id.clone())),
+        ),
         ("title".into(), FieldValue::Utf8(m.title.clone())),
         ("model_id".into(), FieldValue::Utf8(m.model_id.clone())),
         ("created_at".into(), FieldValue::Int64(Some(m.created_at))),
         ("updated_at".into(), FieldValue::Int64(Some(m.updated_at))),
-        ("message_count".into(), FieldValue::Int32(Some(m.message_count))),
+        (
+            "message_count".into(),
+            FieldValue::Int32(Some(m.message_count)),
+        ),
     ]
 }
 
@@ -53,8 +59,12 @@ fn from_record(r: &Record) -> Result<ConversationMetadata> {
             .and_then(|v| v.as_str())
             .context("missing conversation_id")?
             .to_string(),
-        title: record_get(r, "title").and_then(|v| v.as_str()).map(String::from),
-        model_id: record_get(r, "model_id").and_then(|v| v.as_str()).map(String::from),
+        title: record_get(r, "title")
+            .and_then(|v| v.as_str())
+            .map(String::from),
+        model_id: record_get(r, "model_id")
+            .and_then(|v| v.as_str())
+            .map(String::from),
         created_at: record_get(r, "created_at")
             .and_then(|v| v.as_i64())
             .context("missing created_at")?,
@@ -145,10 +155,8 @@ impl<B: StorageBackend> ConversationStore<B> {
     pub async fn list(&self, limit: Option<usize>) -> Result<Vec<ConversationMetadata>> {
         let records = self.backend.query(TABLE_NAME, None, None).await?;
 
-        let mut conversations: Vec<ConversationMetadata> = records
-            .iter()
-            .filter_map(|r| from_record(r).ok())
-            .collect();
+        let mut conversations: Vec<ConversationMetadata> =
+            records.iter().filter_map(|r| from_record(r).ok()).collect();
 
         // Sort by updated_at descending (most recent first)
         conversations.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
@@ -216,9 +224,7 @@ impl ConversationStore<crate::stores::backends::LanceBackend> {
     pub async fn from_lance_client(
         client: &crate::stores::lance_client::LanceClient,
     ) -> Result<Self> {
-        let backend = Arc::new(
-            crate::stores::backends::LanceBackend::new(client.db_path()).await?,
-        );
+        let backend = Arc::new(crate::stores::backends::LanceBackend::new(client.db_path()).await?);
         let store = Self { backend };
         store.ensure_table().await?;
         Ok(store)
@@ -230,7 +236,10 @@ mod tests {
     use super::*;
     use tempfile::TempDir;
 
-    async fn setup() -> (TempDir, ConversationStore<crate::stores::backends::LanceBackend>) {
+    async fn setup() -> (
+        TempDir,
+        ConversationStore<crate::stores::backends::LanceBackend>,
+    ) {
         let temp = TempDir::new().unwrap();
         let db_path = temp.path().join("test.lance");
 

@@ -139,8 +139,8 @@ impl From<Vec<u8>> for Payload {
 
 /// Serde helper for base64-encoding binary payloads in JSON.
 mod base64_bytes {
-    use base64::engine::general_purpose::STANDARD;
     use base64::Engine;
+    use base64::engine::general_purpose::STANDARD;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
     pub fn serialize<S: Serializer>(bytes: &Vec<u8>, s: S) -> Result<S::Ok, S::Error> {
@@ -149,9 +149,7 @@ mod base64_bytes {
 
     pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<u8>, D::Error> {
         let encoded = String::deserialize(d)?;
-        STANDARD
-            .decode(&encoded)
-            .map_err(serde::de::Error::custom)
+        STANDARD.decode(&encoded).map_err(serde::de::Error::custom)
     }
 }
 
@@ -182,10 +180,7 @@ mod tests {
     fn topic_envelope() {
         let sender = Uuid::new_v4();
         let env = MessageEnvelope::topic(sender, "status-updates", "agent online");
-        assert_eq!(
-            env.recipient,
-            MessageTarget::Topic("status-updates".into())
-        );
+        assert_eq!(env.recipient, MessageTarget::Topic("status-updates".into()));
     }
 
     #[test]

@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use crate::embeddings::EmbeddingProvider;
 use crate::stores::backend::{
-    record_get, FieldDef, FieldType, FieldValue, Filter, Record, ScoredRecord, StorageBackend,
+    FieldDef, FieldType, FieldValue, Filter, Record, ScoredRecord, StorageBackend, record_get,
 };
 use crate::tiered_memory::MessageSummary;
 
@@ -280,10 +280,8 @@ impl<B: StorageBackend> SummaryStore<B> {
     pub async fn get_oldest(&self, limit: usize) -> Result<Vec<MessageSummary>> {
         let records = self.backend.query(TABLE_NAME, None, None).await?;
 
-        let mut summaries: Vec<MessageSummary> = records
-            .iter()
-            .filter_map(|r| from_record(r).ok())
-            .collect();
+        let mut summaries: Vec<MessageSummary> =
+            records.iter().filter_map(|r| from_record(r).ok()).collect();
 
         // Sort by created_at ascending (oldest first)
         summaries.sort_by_key(|s| s.created_at);
@@ -304,9 +302,7 @@ impl SummaryStore<crate::stores::backends::LanceBackend> {
         client: &crate::stores::lance_client::LanceClient,
         embeddings: Arc<EmbeddingProvider>,
     ) -> Result<Self> {
-        let backend = Arc::new(
-            crate::stores::backends::LanceBackend::new(client.db_path()).await?,
-        );
+        let backend = Arc::new(crate::stores::backends::LanceBackend::new(client.db_path()).await?);
         let store = Self {
             backend,
             embeddings,
