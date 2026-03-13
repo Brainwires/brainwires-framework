@@ -1,0 +1,86 @@
+[package]
+name = "brainwires-agent-network"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+description = "Agent networking layer — MCP server framework, IPC, remote bridge, and mesh networking for Brainwires"
+readme = "README.md"
+documentation = "https://docs.rs/brainwires-agent-network"
+keywords = ["mcp", "ipc", "mesh-networking", "agent-communication", "topology"]
+categories = ["network-programming"]
+
+[dependencies]
+# Core framework
+brainwires-core = { workspace = true }
+brainwires-mcp = { workspace = true }
+
+# Async runtime
+tokio = { workspace = true, features = ["io-std", "io-util", "sync", "time", "macros", "net", "process", "fs"] }
+futures = { workspace = true }
+async-trait = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+
+# Crypto (IPC encryption)
+chacha20poly1305 = { workspace = true }
+sha2 = { workspace = true }
+rand = { workspace = true }
+zeroize = { workspace = true }
+base64 = { workspace = true }
+hex = { workspace = true }
+subtle = { workspace = true }
+
+# HTTP client
+reqwest = { workspace = true }
+regex = { workspace = true }
+
+# Time & identifiers
+chrono = { workspace = true }
+uuid = { workspace = true }
+
+# WebSocket (Supabase Realtime)
+tokio-tungstenite = { workspace = true }
+url = { workspace = true }
+
+# Hostname detection
+gethostname = { workspace = true }
+
+# Compression (attachments)
+flate2 = { workspace = true }
+zstd = { workspace = true }
+
+# A2A protocol (optional, for A2A transport)
+brainwires-a2a = { workspace = true, optional = true, features = ["client"] }
+
+# Keyring (optional, for secure API key storage)
+keyring = { workspace = true, optional = true }
+
+[features]
+default = ["server", "client", "ipc-transport", "remote-transport"]
+server = []
+client = []
+ipc-transport = []
+remote-transport = []
+tcp-transport = []
+pubsub-transport = []
+a2a-transport = ["dep:brainwires-a2a"]
+mesh = ["tcp-transport"]
+registry-discovery = []
+full = ["mesh", "a2a-transport", "pubsub-transport", "registry-discovery"]
+auth-keyring = ["keyring"]
+
+[dev-dependencies]
+tempfile = { workspace = true }

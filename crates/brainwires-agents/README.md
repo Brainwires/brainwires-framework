@@ -85,7 +85,10 @@ println!("{} iterations, success={}", result.iterations, result.success);
 |---------|---------|-------------|
 | `native` | Yes | Git worktree management (`git2`) and process liveness checking (`libc`) |
 | `wasm` | No | WebAssembly-compatible build (disables native-only functionality) |
-| `tools` | No | Kept for backward compatibility; `brainwires-tool-system` is always available |
+| `seal` | No | SEAL pipeline: coreference resolution, query extraction, learning, reflection |
+| `seal-mdap` | No | MDAP metric recording for SEAL via `brainwires-mdap` |
+| `seal-knowledge` | No | BKS/PKS knowledge system integration for SEAL via `brainwires-cognition` |
+| `seal-feedback` | No | Audit feedback bridge for SEAL via `brainwires-permissions` |
 | `reasoning` | No | Named reasoning strategies (ReAct, Reflexion, CoT, ToT) and local inference |
 | `eval` | No | Evaluation framework (trials, adversarial, regression, stability) |
 | `otel` | No | OpenTelemetry span export for agent execution traces |
@@ -97,7 +100,7 @@ Enable features in `Cargo.toml`:
 brainwires-agents = "0.2"
 
 # WebAssembly target
-brainwires-agents = { version = "0.2", default-features = false, features = ["wasm"] }
+brainwires-agents = { version = "0.3", default-features = false, features = ["wasm"] }
 ```
 
 ## Architecture
@@ -458,7 +461,7 @@ assert!(result.success);
 Named reasoning patterns behind the `reasoning` feature flag:
 
 ```toml
-brainwires-agents = { version = "0.2", features = ["reasoning"] }
+brainwires-agents = { version = "0.3", features = ["reasoning"] }
 ```
 
 ```rust
@@ -495,7 +498,7 @@ assert!(strategy.is_complete(&steps));
 Export agent execution traces to Jaeger, Datadog, Grafana, or any OpenTelemetry-compatible backend. Requires the `otel` feature:
 
 ```toml
-brainwires-agents = { version = "0.2", features = ["otel"] }
+brainwires-agents = { version = "0.3", features = ["otel"] }
 ```
 
 ```rust
@@ -525,13 +528,143 @@ agent.run (root)
 
 **Span attributes:** `prompt_hash`, `total_iterations`, `total_tool_calls`, `tool_error_count`, `total_prompt_tokens`, `total_completion_tokens`, `total_cost_usd`, `duration_ms`, `success`, `tools_used`
 
+## SEAL — Self-Evolving Agentic Learning (feature: `seal`)
+
+SEAL implements a research-backed framework for enhancing conversational question answering and agent decision-making. Inspired by [Wang et al., arXiv:2512.04868](https://arxiv.org/abs/2512.04868).
+
+```toml
+# Core SEAL pipeline
+brainwires-agents = { version = "0.3", features = ["seal"] }
+
+# With knowledge system integration
+brainwires-agents = { version = "0.3", features = ["seal-knowledge"] }
+```
+
+### Pipeline
+
+```text
+User Query
+    │
+    ▼
+┌─── Coreference Resolution ─────────────────────────────────────┐
+│  detect_references() → resolve() → rewrite_with_resolutions()  │
+│  "What uses it?" → "What uses [main.rs]?"                      │
+│  Salience: recency(0.35) + frequency(0.15) + centrality(0.20)  │
+│            + type_match(0.20) + syntactic(0.10)                 │
+└────────────────────────────────┬────────────────────────────────┘
+                                 │
+                                 ▼
+┌─── Query Core Extraction ──────────────────────────────────────┐
+│  classify() → build_expression() → QueryCore                   │
+│  S-expression: (JOIN DependsOn ?dep "main.rs")                 │
+│  Types: Definition, Location, Dependency, Count, Superlative,  │
+│         Enumeration, Boolean, MultiHop                         │
+└────────────────────────────────┬────────────────────────────────┘
+                                 │
+                                 ▼
+┌─── Learning Coordinator ───────────────────────────────────────┐
+│  Local Memory (per-session)  │  Global Memory (cross-session)  │
+│  Entity tracking, focus      │  Query patterns, tool errors    │
+│  Resolution history          │  Resolution patterns, templates │
+│  process_query() → match pattern or create new                 │
+│  record_outcome() → update reliability scores                  │
+└────────────────────────────────┬────────────────────────────────┘
+                                 │
+                                 ▼
+┌─── Reflection Module ──────────────────────────────────────────┐
+│  analyze() → detect issues → suggest fixes → attempt_correction│
+│  Errors: EmptyResult, Overflow, EntityNotFound, RelationMismatch│
+│  Fixes: RetryWithQuery, ExpandScope, NarrowScope, ResolveEntity│
+└────────────────────────────────────────────────────────────────┘
+```
+
+### Key Components
+
+| Component | Description |
+|-----------|-------------|
+| `SealProcessor` | Main orchestrator chaining all pipeline stages |
+| `CoreferenceResolver` | Salience-weighted anaphora resolution ("it" → "[main.rs]") |
+| `QueryCoreExtractor` | Natural language → structured S-expression queries |
+| `LearningCoordinator` | Dual-level memory (local + global) with pattern learning |
+| `ReflectionModule` | Post-execution error detection and automatic correction |
+| `SealKnowledgeCoordinator` | BKS/PKS bidirectional bridge (requires `seal-knowledge`) |
+| `FeedbackBridge` | Audit log → learning signal converter (requires `seal-feedback`) |
+
+### SealConfig
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enable_coreference` | `bool` | `true` | Enable coreference resolution stage |
+| `enable_query_cores` | `bool` | `true` | Enable query core extraction stage |
+| `enable_learning` | `bool` | `true` | Enable self-evolving learning |
+| `enable_reflection` | `bool` | `true` | Enable reflection analysis |
+| `max_reflection_retries` | `u32` | `2` | Maximum correction attempts per query |
+| `min_coreference_confidence` | `f32` | `0.5` | Minimum confidence to accept a resolution |
+| `min_pattern_reliability` | `f32` | `0.7` | Minimum pattern reliability for reuse |
+
+### Usage Example
+
+```rust
+use brainwires_agents::seal::{SealProcessor, SealConfig, DialogState};
+use brainwires_core::graph::{EntityStore, RelationshipGraph};
+
+let mut processor = SealProcessor::with_defaults();
+processor.init_conversation("session-001");
+
+let mut dialog = DialogState::default();
+dialog.current_turn = 3;
+dialog.focus_stack.push("main.rs".to_string());
+
+let entity_store = EntityStore::new();
+let graph = RelationshipGraph::new();
+
+// Process a query with an unresolved reference
+let result = processor.process(
+    "What uses it?",
+    &dialog,
+    &entity_store,
+    Some(&graph),
+)?;
+
+println!("Resolved: {}", result.resolved_query);
+// → "What uses [main.rs]?"
+
+// Record outcome for learning
+processor.record_outcome(
+    result.matched_pattern.as_deref(),
+    true,   // success
+    3,      // result count
+    result.query_core.as_ref(),
+);
+
+// Inject learned context into future prompts
+let context = processor.get_learning_context();
+```
+
+### Knowledge Integration (feature: `seal-knowledge`)
+
+The `SealKnowledgeCoordinator` bridges SEAL with the BKS/PKS knowledge system:
+
+| Method | Description |
+|--------|-------------|
+| `get_pks_context(seal_result)` | Look up personal facts about resolved entities |
+| `get_bks_context(query)` | Look up behavioral truths for query context |
+| `harmonize_confidence(seal, bks, pks)` | Weighted confidence: SEAL(0.5) + BKS(0.3) + PKS(0.2) |
+| `check_and_promote_pattern(pattern, context)` | Promote reliable patterns to BKS |
+| `record_tool_failure(tool, error, context)` | Record failure pattern as BKS truth |
+
+Promotion thresholds: >= 80% reliability and >= 5 uses before a pattern is eligible for BKS promotion.
+
 ## Integration with Brainwires
 
 Use via the `brainwires` facade crate:
 
 ```toml
 [dependencies]
-brainwires = { version = "0.2", features = ["agents"] }
+brainwires = { version = "0.3", features = ["agents"] }
+
+# With SEAL
+brainwires = { version = "0.3", features = ["agents", "seal"] }
 ```
 
 Or use standalone — `brainwires-agents` depends only on `brainwires-core` and `brainwires-tool-system`.

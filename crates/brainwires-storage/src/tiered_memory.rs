@@ -22,7 +22,7 @@ use anyhow::Result;
 use chrono::Utc;
 use uuid::Uuid;
 
-use super::{
+use crate::{
     EmbeddingProvider, FactStore, LanceClient, MessageMetadata, MessageStore, SummaryStore,
     TierMetadataStore,
 };
@@ -378,29 +378,34 @@ pub struct TieredMemory {
 
 impl TieredMemory {
     /// Create a new tiered memory system with persistent storage
-    pub fn new(
+    pub async fn new(
         hot_store: Arc<MessageStore>,
         client: Arc<LanceClient>,
         embeddings: Arc<EmbeddingProvider>,
         config: TieredMemoryConfig,
     ) -> Self {
+        let backend = Arc::new(
+            crate::stores::backends::LanceBackend::new(client.db_path())
+                .await
+                .expect("Failed to create LanceBackend for TierMetadataStore"),
+        );
         Self {
             hot: hot_store,
-            warm: SummaryStore::new(Arc::clone(&client), Arc::clone(&embeddings)),
-            cold: FactStore::new(Arc::clone(&client), Arc::clone(&embeddings)),
-            tier_metadata: TierMetadataStore::new(client),
+            warm: SummaryStore::new(Arc::clone(&backend), Arc::clone(&embeddings)),
+            cold: FactStore::new(Arc::clone(&backend), Arc::clone(&embeddings)),
+            tier_metadata: TierMetadataStore::new(backend),
             config,
             embeddings,
         }
     }
 
     /// Create with default configuration
-    pub fn with_defaults(
+    pub async fn with_defaults(
         hot_store: Arc<MessageStore>,
         client: Arc<LanceClient>,
         embeddings: Arc<EmbeddingProvider>,
     ) -> Self {
-        Self::new(hot_store, client, embeddings, TieredMemoryConfig::default())
+        Self::new(hot_store, client, embeddings, TieredMemoryConfig::default()).await
     }
 
     /// Add a message to the hot tier with `Session` authority.

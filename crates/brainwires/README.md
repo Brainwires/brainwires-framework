@@ -67,28 +67,28 @@ let response = provider.chat(&messages, None, &options).await?;
 | `storage` | no | `brainwires-storage` | LanceDB-backed tiered memory (hot/warm/cold) |
 | `mcp` | no | `brainwires-mcp` | MCP client for connecting to external MCP servers |
 | `mdap` | no | `brainwires-mdap` | Multi-Dimensional Adaptive Planning with k-agent voting |
-| `prompting` | no | `brainwires-prompting` | Prompt generation, technique library, temperature optimizer |
-| `knowledge` | no | `brainwires-brain/knowledge` | Behavioral + personal knowledge caches (implies `brain`) |
+| `prompting` | no | `brainwires-cognition/prompting` | Prompt generation, technique library, temperature optimizer |
+| `knowledge` | no | `brainwires-cognition/knowledge` | Behavioral + personal knowledge caches (implies `brain`) |
 | `permissions` | no | `brainwires-permissions` | Capability profiles, trust levels, policy engine, audit logging |
 | `orchestrator` | no | `brainwires-tool-system/orchestrator` | Tool orchestration layer (implies `tools`) |
-| `rag` | no | `brainwires-rag` | Semantic code search with vector + BM25 hybrid search |
+| `rag` | no | `brainwires-cognition/rag` | Semantic code search with vector + BM25 hybrid search |
 | `interpreters` | no | `brainwires-code-interpreters` | Sandboxed JavaScript and Python code execution |
 | `providers` | no | `brainwires-providers` | AI providers (Anthropic, OpenAI, Google, Ollama) |
 | `reasoning` | no | `brainwires-agents/reasoning` | Extended reasoning support (implies `agents`) |
-| `seal` | no | `brainwires-seal` | Self-Evolving Autonomous Learner |
-| `relay` | no | `brainwires-relay` | Remote relay / bridge for IPC and remote control |
+| `seal` | no | `brainwires-agents/seal` | Self-Evolving Autonomous Learner |
+| `relay` | no | `brainwires-agent-network` | Remote relay / bridge for IPC and remote control |
 | `skills` | no | `brainwires-skills` | Pluggable skills system |
 | `eval` | no | `brainwires-agents/eval` | Evaluation framework for benchmarking agents (implies `agents`) |
 | `otel` | no | `brainwires-agents/otel` | OpenTelemetry span export for agent traces (implies `agents`) |
 | `openapi` | no | `brainwires-tool-system/openapi` | Auto-generate tools from OpenAPI 3.x specs (implies `tools`) |
 | `proxy` | no | `brainwires-proxy` | AI proxy framework |
-| `a2a` | no | `brainwires-relay/a2a` | Agent-to-Agent protocol (implies `relay`) |
-| `mesh` | no | `brainwires-mesh` | Mesh networking for distributed agents |
+| `a2a` | no | `brainwires-a2a` | Agent-to-Agent protocol |
+| `mesh` | no | `brainwires-agent-network/mesh` | Mesh networking for distributed agents |
 | `audio` | no | `brainwires-audio` | Audio capture, STT, TTS |
 | `datasets` | no | `brainwires-datasets` | Training data pipelines (JSONL, tokenization, dedup) |
 | `training` | no | `brainwires-training` | Model fine-tuning (cloud + local) |
 | `autonomy` | no | `brainwires-autonomy` | Self-improvement and evaluation-driven optimization |
-| `brain` | no | `brainwires-brain` | Persistent knowledge, entity graphs, PKS/BKS |
+| `brain` | no | `brainwires-cognition/knowledge` | Persistent knowledge, entity graphs, PKS/BKS |
 | `mcp-server` | no | `rmcp` + `schemars` + `tokio-util` | Re-exports for building MCP servers |
 | `llama-cpp-2` | no | `brainwires-providers/llama-cpp-2` | Local LLM inference (implies `providers`) |
 
@@ -98,7 +98,7 @@ let response = provider.chat(&messages, None, &options).await?;
 |---------|---------|----------|
 | `agent-full` | `agents` + `permissions` + `prompting` + `tools` | Complete agent workflow with permissions |
 | `researcher` | `providers` + `agents` + `storage` + `rag` + `training` + `datasets` | Full research workflow |
-| `learning` | `seal` + `knowledge` + `brainwires-seal/knowledge` | Full learning subsystem with knowledge integration |
+| `learning` | `seal` + `knowledge` + `brainwires-agents/seal-knowledge` + `brainwires-agents/seal-feedback` | Full learning subsystem with knowledge integration |
 | `full` | Everything | Kitchen sink — all sub-crates and cross-crate features |
 
 ## Prelude
@@ -138,7 +138,7 @@ let response = provider.chat(&messages, None, &options).await?;
 
 ```toml
 [dependencies]
-brainwires = { version = "0.2", features = ["agent-full"] }
+brainwires = { version = "0.3", features = ["agent-full"] }
 ```
 
 ```rust
@@ -163,7 +163,7 @@ let validation = ValidationConfig {
 
 ```toml
 [dependencies]
-brainwires = { version = "0.2", features = ["rag", "mcp-server"] }
+brainwires = { version = "0.3", features = ["rag", "mcp-server"] }
 ```
 
 ```rust
@@ -181,7 +181,7 @@ async fn main() -> anyhow::Result<()> {
 
 ```toml
 [dependencies]
-brainwires = { version = "0.2", features = ["rag"] }
+brainwires = { version = "0.3", features = ["rag"] }
 ```
 
 ```rust
@@ -200,7 +200,7 @@ for result in results {
 
 ```toml
 [dependencies]
-brainwires = { version = "0.2", features = ["learning"] }
+brainwires = { version = "0.3", features = ["learning"] }
 ```
 
 ```rust

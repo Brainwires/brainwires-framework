@@ -23,21 +23,17 @@ brainwires-agents = { workspace = true, optional = true }
 brainwires-storage = { workspace = true, optional = true }
 brainwires-mcp = { workspace = true, optional = true }
 brainwires-mdap = { workspace = true, optional = true }
-brainwires-prompting = { workspace = true, optional = true }
+brainwires-cognition = { workspace = true, optional = true }
 brainwires-permissions = { workspace = true, optional = true }
 
 # Feature-gated existing crates
-brainwires-rag = { workspace = true, optional = true }
 brainwires-code-interpreters = { workspace = true, optional = true }
 
 # Providers
 brainwires-providers = { workspace = true, optional = true }
 
-# SEAL
-brainwires-seal = { workspace = true, optional = true }
-
-# Relay (merged bridge + bridge-client)
-brainwires-relay = { workspace = true, optional = true }
+# Agent network (MCP server, IPC, remote bridge, mesh)
+brainwires-agent-network = { workspace = true, optional = true }
 
 # A2A protocol
 brainwires-a2a = { workspace = true, optional = true }
@@ -48,8 +44,6 @@ brainwires-skills = { workspace = true, optional = true }
 # Proxy framework
 brainwires-proxy = { workspace = true, optional = true }
 
-# Mesh networking
-brainwires-mesh = { workspace = true, optional = true }
 
 # Audio I/O, STT, TTS
 brainwires-audio = { workspace = true, optional = true }
@@ -60,9 +54,6 @@ brainwires-training = { workspace = true, optional = true }
 
 # Autonomy
 brainwires-autonomy = { workspace = true, optional = true }
-
-# Brain (Open Brain MCP server)
-brainwires-brain = { workspace = true, optional = true }
 
 # MCP server re-exports (optional)
 rmcp = { workspace = true, optional = true }
@@ -102,24 +93,24 @@ storage = ["dep:brainwires-storage", "brainwires-storage/native"]
 mcp = ["dep:brainwires-mcp"]
 mdap = ["dep:brainwires-mdap"]
 knowledge = ["brain"]
-prompting = ["dep:brainwires-prompting"]
+prompting = ["dep:brainwires-cognition", "brainwires-cognition/prompting"]
 permissions = ["dep:brainwires-permissions"]
 orchestrator = ["tools", "brainwires-tool-system/orchestrator"]
 openapi = ["tools", "brainwires-tool-system/openapi"]
-rag = ["dep:brainwires-rag", "brainwires-rag/native", "brainwires-rag/lancedb-backend", "tools", "brainwires-tool-system/rag"]
-rag-full-languages = ["rag", "brainwires-rag/tree-sitter-languages"]
+rag = ["dep:brainwires-cognition", "brainwires-cognition/rag", "dep:brainwires-storage", "brainwires-storage/vector-db", "tools", "brainwires-tool-system/rag"]
+rag-full-languages = ["rag", "brainwires-cognition/tree-sitter-languages"]
 interpreters = ["dep:brainwires-code-interpreters"]
 providers = ["dep:brainwires-providers"]
 chat = ["providers"]
 reasoning = ["agents", "brainwires-agents/reasoning"]
-seal = ["dep:brainwires-seal"]
-relay = ["dep:brainwires-relay"]
+seal = ["agents", "brainwires-agents/seal"]
+agent-network = ["dep:brainwires-agent-network"]
 skills = ["dep:brainwires-skills"]
 eval = ["agents", "brainwires-agents/eval"]
 otel = ["agents", "brainwires-agents/otel"]
 proxy = ["dep:brainwires-proxy"]
 a2a = ["dep:brainwires-a2a", "brainwires-a2a/native"]
-mesh = ["dep:brainwires-mesh"]
+mesh = ["agent-network", "brainwires-agent-network/mesh"]
 audio = ["dep:brainwires-audio"]
 datasets = ["dep:brainwires-datasets"]
 training = ["dep:brainwires-training"]
@@ -127,13 +118,13 @@ training-cloud = ["training", "brainwires-training/cloud"]
 training-local = ["training", "brainwires-training/local"]
 training-full = ["training", "brainwires-training/full", "datasets", "brainwires-datasets/full"]
 autonomy = ["dep:brainwires-autonomy"]
-brain = ["dep:brainwires-brain"]
+brain = ["dep:brainwires-cognition", "brainwires-cognition/knowledge"]
 bedrock = ["providers", "brainwires-providers/bedrock"]
 vertex-ai = ["providers", "brainwires-providers/vertex-ai"]
 llama-cpp-2 = ["providers", "brainwires-providers/llama-cpp-2"]
 mcp-server = ["dep:rmcp", "dep:schemars", "dep:tokio-util"]
 # Convenience: enables all learning/knowledge subsystems with integration
-learning = ["seal", "knowledge", "permissions", "brainwires-seal/knowledge", "brainwires-seal/feedback"]
+learning = ["seal", "knowledge", "permissions", "brainwires-agents/seal-knowledge", "brainwires-agents/seal-feedback"]
 # Convenience: everything needed for agent workflows
 agent-full = ["agents", "permissions", "prompting", "tools"]
 # Convenience: everything a researcher typically needs
@@ -141,11 +132,11 @@ researcher = ["providers", "agents", "storage", "rag", "training", "datasets"]
 full = [
     "tools", "agents", "storage", "mcp", "mdap", "knowledge",
     "prompting", "permissions", "orchestrator", "rag-full-languages", "interpreters",
-    "providers", "chat", "reasoning", "seal", "relay",
-    "brainwires-seal/knowledge", "brainwires-seal/mdap", "brainwires-seal/feedback",
+    "providers", "chat", "reasoning", "seal", "agent-network",
+    "brainwires-agents/seal-knowledge", "brainwires-agents/seal-mdap", "brainwires-agents/seal-feedback",
     "llama-cpp-2", "mcp-server", "skills", "eval", "proxy",
     "a2a", "mesh", "audio",
     "training-cloud", "datasets",
-    "autonomy", "brain",
+    "autonomy",
 ]
 

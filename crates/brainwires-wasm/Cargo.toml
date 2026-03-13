@@ -17,9 +17,9 @@ categories = ["wasm"]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-# WASM-safe framework crates (direct path deps to override default-features)
-brainwires-core = { path = "../brainwires-core", version = "0.2.0", default-features = false, features = ["wasm"] }
-brainwires-mdap = { path = "../brainwires-mdap", version = "0.2.0", default-features = false, features = ["wasm"] }
+# WASM-safe framework crates (direct deps: need default-features = false, can't inherit from workspace)
+brainwires-core = { path = "../brainwires-core", version = "0.3.0", default-features = false, features = ["wasm"] }
+brainwires-mdap = { workspace = true }
 
 # Serialization
 serde = { workspace = true }
@@ -29,11 +29,11 @@ serde_json = { workspace = true }
 wasm-bindgen = "0.2"
 serde-wasm-bindgen = "0.6"
 
-# Optional: code interpreters for WASM
-brainwires-code-interpreters = { path = "../brainwires-code-interpreters", version = "0.2.0", default-features = false, features = ["wasm"], optional = true }
+# Optional: code interpreters for WASM (direct dep: needs default-features = false override)
+brainwires-code-interpreters = { path = "../brainwires-code-interpreters", version = "0.3.0", default-features = false, features = ["wasm"], optional = true }
 
-# Orchestrator deps (behind orchestrator feature)
-brainwires-tool-system = { path = "../brainwires-tool-system", version = "0.2.0", default-features = false, features = ["wasm", "orchestrator-wasm"], optional = true }
+# Orchestrator deps (behind orchestrator feature; direct dep: needs default-features = false override)
+brainwires-tool-system = { path = "../brainwires-tool-system", version = "0.3.0", default-features = false, features = ["wasm", "orchestrator-wasm"], optional = true }
 rhai = { version = "1.23", default-features = false, features = ["serde", "std"], optional = true }
 js-sys = { version = "0.3", optional = true }
 web-sys = { version = "0.3", features = ["console"], optional = true }

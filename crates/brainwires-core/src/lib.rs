@@ -36,6 +36,8 @@ pub mod plan;
 pub mod plan_parser;
 /// Provider configuration and chat options.
 pub mod provider;
+/// Shared search types (SearchResult, ChunkMetadata, DatabaseStats).
+pub mod search;
 /// Task, priority, and agent response types.
 pub mod task;
 /// Tool definitions, schemas, contexts, and idempotency.
@@ -58,6 +60,7 @@ pub use plan::*;
 #[cfg(feature = "planning")]
 pub use plan_parser::{ParsedStep, parse_plan_steps, steps_to_tasks};
 pub use provider::*;
+pub use search::{ChunkMetadata, DatabaseStats, SearchResult};
 pub use task::*;
 pub use tool::*;
 pub use vector_store::{VectorSearchResult, VectorStore};

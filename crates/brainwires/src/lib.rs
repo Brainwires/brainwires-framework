@@ -54,7 +54,7 @@ pub mod mdap {
 /// Adaptive prompting — technique library, clustering, temperature optimization.
 #[cfg(feature = "prompting")]
 pub mod prompting {
-    pub use brainwires_prompting::*;
+    pub use brainwires_cognition::prompting::*;
 }
 
 /// Permissions — capability profiles, policy engine, audit logging.
@@ -84,7 +84,7 @@ pub mod chat {
 /// SEAL — Self-Evolving Adaptive Learning for coreference and knowledge.
 #[cfg(feature = "seal")]
 pub mod seal {
-    pub use brainwires_seal::*;
+    pub use brainwires_agents::seal::*;
 }
 
 // Orchestrator is re-exported via brainwires_tool_system::orchestrator when orchestrator feature is on
@@ -92,7 +92,7 @@ pub mod seal {
 /// RAG — codebase indexing, semantic search, and retrieval-augmented generation.
 #[cfg(feature = "rag")]
 pub mod rag {
-    pub use brainwires_rag::*;
+    pub use brainwires_cognition::rag::*;
 }
 
 /// Sandboxed code interpreters — Rhai, Lua, JavaScript (Boa), Python (RustPython).
@@ -101,10 +101,10 @@ pub mod interpreters {
     pub use brainwires_code_interpreters::*;
 }
 
-/// Relay — MCP server framework, agent IPC, remote communication.
-#[cfg(feature = "relay")]
-pub mod relay {
-    pub use brainwires_relay::*;
+/// Agent network — MCP server framework, IPC, remote bridge, mesh networking.
+#[cfg(feature = "agent-network")]
+pub mod agent_network {
+    pub use brainwires_agent_network::*;
 }
 
 /// Skills — SKILL.md parsing, skill registry, and execution.
@@ -134,7 +134,7 @@ pub mod a2a {
 /// Distributed mesh networking — topology, discovery, federation, routing.
 #[cfg(feature = "mesh")]
 pub mod mesh {
-    pub use brainwires_mesh::*;
+    pub use brainwires_agent_network::mesh::*;
 }
 
 /// Audio — capture, playback, speech-to-text, text-to-speech.
@@ -164,7 +164,7 @@ pub mod autonomy {
 /// Central knowledge — BKS, PKS, entity graphs, thought processing.
 #[cfg(feature = "brain")]
 pub mod brain {
-    pub use brainwires_brain::*;
+    pub use brainwires_cognition::knowledge::*;
 }
 
 /// Re-exports for building MCP servers (rmcp, schemars, CancellationToken).
@@ -284,15 +284,15 @@ pub mod prelude {
         StandardRedFlagValidator,
     };
 
-    // Knowledge — available with "knowledge" feature (now in brainwires-brain::knowledge)
+    // Knowledge — available with "knowledge" feature (now in brainwires-cognition::knowledge)
     #[cfg(feature = "knowledge")]
-    pub use brainwires_brain::knowledge::{
+    pub use brainwires_cognition::knowledge::bks_pks::{
         BehavioralKnowledgeCache, BehavioralTruth, PersonalKnowledgeCache, TruthCategory,
     };
 
     // Prompting — available with "prompting" feature
     #[cfg(feature = "prompting")]
-    pub use brainwires_prompting::{
+    pub use brainwires_cognition::prompting::{
         GeneratedPrompt, PromptGenerator, PromptingTechnique, TaskClusterManager, TechniqueLibrary,
         TemperatureOptimizer,
     };

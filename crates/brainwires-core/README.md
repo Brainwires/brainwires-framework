@@ -89,7 +89,7 @@ let response = provider.chat(&messages, Some(&[tool]), &options).await?;
 brainwires-core = "0.2"
 
 # WASM target
-brainwires-core = { version = "0.2", default-features = false, features = ["wasm"] }
+brainwires-core = { version = "0.3", default-features = false, features = ["wasm"] }
 ```
 
 ## Architecture

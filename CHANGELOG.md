@@ -7,6 +7,97 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+#### Agent Network (`brainwires-agent-network`)
+- **5-layer protocol stack** for pluggable agent networking: Identity → Transport → Routing → Discovery → Application.
+- **Identity layer**: `AgentIdentity`, `AgentCard` (capabilities, protocols, metadata, endpoint), `ProtocolId`, `SigningKey`/`VerifyingKey` (ChaCha20-Poly1305 with SHA-256 key derivation).
+- **Transport layer**: `Transport` trait with 5 implementations:
+  - `IpcTransport` (feature `ipc-transport`) — Unix-socket with optional ChaCha20-Poly1305 encryption.
+  - `RemoteTransport` (feature `remote-transport`) — HTTP POST with `tokio::broadcast` receive channel.
+  - `TcpTransport` (feature `tcp-transport`) — length-prefixed JSON over TCP with Nagle disabled.
+  - `PubSubTransport` (feature `pubsub-transport`) — in-process topic-based messaging via `tokio::broadcast`.
+  - `A2aTransport` (feature `a2a-transport`) — A2A protocol via `brainwires-a2a` client.
+- **Routing layer**: `Router` trait with `DirectRouter`, `BroadcastRouter`, `ContentRouter`, and `PeerTable` for peer/topic tracking.
+- **Discovery layer**: `Discovery` trait with `ManualDiscovery` (in-memory) and `RegistryDiscovery` (HTTP REST, feature `registry-discovery`).
+- **Application layer**: `NetworkManager` and `NetworkManagerBuilder` tying all layers together with `send()`, `broadcast()`, and event subscription.
+- Core network types: `MessageEnvelope`, `MessageTarget` (Direct/Broadcast/Topic), `Payload` (Json/Binary/Text), `NetworkEvent`, `NetworkError`, `TransportType`, `ConnectionState`.
+- New feature flags: `ipc-transport` (default), `remote-transport` (default), `tcp-transport`, `pubsub-transport`, `a2a-transport`, `mesh` (includes `tcp-transport`), `registry-discovery`, `full`.
+- 74 new tests across all protocol stack layers.
+
+### Changed
+
+#### Agent Network (`brainwires-agent-network`)
+- Renamed `src/transport.rs` (MCP-specific `ServerTransport`) to `src/mcp_transport.rs` to avoid conflict with the new `transport/` module. `ServerTransport` and `StdioServerTransport` are still re-exported from the crate root.
+- Updated `mesh/` module with deprecation notices pointing to the new protocol-layer equivalents.
+- Default features now include `ipc-transport` and `remote-transport`.
+
+## [0.3.0] - 2026-03-12
+
+### Breaking Changes
+
+#### Crate Merges (23 → 19 crates)
+
+| Old Crate | Merged Into | Migration |
+|-----------|-------------|-----------|
+| `brainwires-brain` | `brainwires-cognition` | `use brainwires_brain::*` → `use brainwires_cognition::knowledge::*` (feature `knowledge`) |
+| `brainwires-prompting` | `brainwires-cognition` | `use brainwires_prompting::*` → `use brainwires_cognition::prompting::*` (feature `prompting`) |
+| `brainwires-rag` | `brainwires-cognition` | `use brainwires_rag::*` → `use brainwires_cognition::rag::*` (feature `rag`) |
+| `brainwires-relay` | `brainwires-agent-network` | `use brainwires_relay::*` → `use brainwires_agent_network::*` (feature `server`) |
+| `brainwires-mesh` | `brainwires-agent-network` | `use brainwires_mesh::*` → `use brainwires_agent_network::mesh::*` (feature `mesh`) |
+| `brainwires-seal` | `brainwires-agents/seal/` | `use brainwires_seal::*` → `use brainwires_agents::seal::*` (feature `seal`) |
+
+#### Feature Flag Removals
+- Removed zero-dependency feature flags that added no conditional compilation value.
+- Fixed import paths across all crates affected by feature flag removal.
+
+### Added
+
+#### Cognition (`brainwires-cognition`)
+- New unified intelligence crate combining knowledge graphs, adaptive prompting, RAG, spectral math, and code analysis.
+- **Knowledge subsystem** (from `brainwires-brain`): `BrainClient`, thought capture, PKS/BKS, entity graphs, semantic memory search.
+- **Prompting subsystem** (from `brainwires-prompting`): 15 techniques in 4 categories, task clustering, temperature optimization, learning coordinator.
+- **RAG subsystem** (from `brainwires-rag`): `RagClient`, codebase indexing, AST-aware chunking, hybrid vector + BM25 search, git history search, code navigation.
+- **Spectral subsystem**: MSS-inspired spectral subset selection for diverse RAG retrieval using log-determinant diversity scoring.
+- **Spectral graph operations** (`spectral::graph_ops`): Laplacian construction, Fiedler vector via inverse power iteration, spectral clustering (recursive bisection), algebraic connectivity, effective resistance, Spielman-Srivastava-inspired sparsification, and spectral centrality/bisection — extends spectral methods beyond RAG to general graph analysis.
+- **Spectral methods on `RelationshipGraph`**: `spectral_clusters(k)` for semantic community detection within connected components, `spectral_central_nodes(limit)` for structural bridge-node identification, `connectivity()` for graph health monitoring via algebraic connectivity, and `sparsify(epsilon)` for pruning redundant edges while preserving spectral properties. All feature-gated under `spectral`.
+- Feature flags: `knowledge` (default), `prompting` (default), `rag`, `spectral`, `code-analysis`, `tree-sitter-languages`, `native` (everything), `wasm`.
+
+#### Agents (`brainwires-agents`)
+- **Planner-Worker-Judge cycle orchestration**: Plan→Work→Judge loop for scaling multi-agent coding tasks, inspired by Cursor's planner-worker pipeline pattern. Each cycle: a `PlannerAgent` explores the codebase and creates dynamic tasks, workers execute them via `TaskOrchestrator` with dependency-aware scheduling, and a `JudgeAgent` evaluates results with structured verdicts (Complete, Continue, FreshRestart, Abort).
+  - `planner_agent`: LLM-powered dynamic task planner with JSON output parsing, sub-planner recursion, and cycle detection on the task graph.
+  - `judge_agent`: LLM-powered cycle evaluator with structured verdict types.
+  - `cycle_orchestrator`: Full Plan→Work→Judge loop with fresh `TaskManager` per cycle, configurable `max_cycles`/`max_workers`, and worktree integration prep.
+  - New system prompts: `planner_agent_prompt()` and `judge_agent_prompt()`.
+  - `spawn_agent_with_context()` on agent pool for per-worker custom `AgentContext`.
+  - New communication messages: `CycleStarted`, `CycleCompleted`, `PlanCreated`, `WorkerBranchMerged`.
+- **SEAL integration**: Moved `brainwires-seal` into `brainwires-agents/seal/` as a feature-gated module.
+  - Feature flags: `seal`, `seal-mdap`, `seal-knowledge`, `seal-feedback`.
+  - `SealKnowledgeCoordinator` now integrates with `brainwires-cognition` instead of `brainwires-brain`.
+- 4 standalone examples added for agent usage patterns.
+
+#### Agent Network (`brainwires-agent-network`)
+- New crate formed by merging `brainwires-relay` (MCP server framework, encrypted IPC, remote bridge) and `brainwires-mesh` (distributed mesh networking).
+- Feature flags: `server` (default), `client` (default), `mesh`, `auth-keyring`.
+
+#### Storage (`brainwires-storage`)
+- New `vector-db` feature: vector database trait + backends (LanceDB, Qdrant), BM25 keyword search, glob/path utilities — used by `brainwires-cognition` RAG subsystem.
+- Removed `agents` feature and `PersistentTaskManager` (decoupled from agents layer).
+
+#### Build & CI
+- `xtask ci` command for local CI: runs `cargo fmt --check`, `cargo clippy`, and `cargo test` in a single command via the xtask pattern (`cargo xtask ci`). Added `.cargo/config.toml` alias and updated `CONTRIBUTING.md` with usage instructions.
+
+#### Licensing
+- Added Apache 2.0 and MIT license files to all crates for compliance and distribution.
+
+### Changed
+
+#### Framework-wide
+- Reduced crate count from 23 to 19 through strategic merges (see Breaking Changes above).
+- Updated all cross-crate import paths for merged crates.
+- Updated all README files to reflect post-merge crate structure and integrated documentation from dissolved crates.
+- Updated workspace dependency tree in `crates/README.md`.
+
 ## [0.2.0] - 2026-03-09
 
 ### Changed
@@ -273,5 +364,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Git search results now return the actual commit date instead of hardcoded `0`.
 - Dirty flag is now cleared immediately after embeddings + cache are flushed to disk in both full and incremental indexing paths.
 
-[0.2.0]: https://github.com/Brainwires/brainwires-framework/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/Brainwires/brainwires-framework/releases/tag/v0.1.0
+[0.3.0]: https://github.com/Brainwires/brainwires-framework/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/Brainwires/brainwires-framework/releases/tag/v0.2.0
+[0.1.0]: Untagged initial release

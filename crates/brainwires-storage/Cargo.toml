@@ -1,6 +1,6 @@
 [package]
 name = "brainwires-storage"
-description = "LanceDB-backed storage, tiered memory, and document management for the Brainwires Agent Framework"
+description = "Backend-agnostic storage, tiered memory, and document management for the Brainwires Agent Framework"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -16,8 +16,6 @@ categories = ["database"]
 [dependencies]
 # Internal crates
 brainwires-core.workspace = true
-brainwires-agents = { workspace = true, optional = true }
-
 # Vector database & columnar storage (native only)
 lancedb = { workspace = true, optional = true }
 arrow-array = { workspace = true, optional = true }
@@ -64,20 +62,57 @@ libc = { version = "0.2", optional = true }
 # Async traits (for LockPersistence impl)
 async-trait = { workspace = true, optional = true }
 
+# Vector DB deps (from brainwires-rag)
+tantivy = { version = "0.22", optional = true }
+globset = { version = "0.4", optional = true }
+qdrant-client = { version = "1.15", optional = true }
+
+# NornicDB deps
+reqwest = { workspace = true, optional = true }
+neo4rs = { workspace = true, optional = true }
+
+# Postgres + pgvector
+sqlx = { workspace = true, optional = true }
+pgvector = { version = "0.4", features = ["sqlx"], optional = true }
+
 # Logging
 tracing.workspace = true
 
 [features]
 default = ["native"]
 native = [
+    "dep:async-trait",
     "dep:fastembed", "dep:lancedb", "dep:arrow-array", "dep:arrow-schema",
     "dep:futures", "dep:lru", "dep:sha2", "dep:rusqlite",
     "dep:base64", "dep:gethostname", "dep:dirs", "dep:libc",
     "tokio/rt", "tokio/macros",
     "brainwires-core/native",
-    "agents",
 ]
-agents = ["dep:brainwires-agents", "dep:async-trait"]
+full = ["native"]
+vector-db = [
+    "dep:async-trait",
+    "dep:lancedb", "dep:arrow-array", "dep:arrow-schema",
+    "dep:futures", "dep:sha2",
+    "dep:tantivy", "dep:globset",
+]
+qdrant-backend = ["vector-db", "dep:qdrant-client"]
+# NornicDB: base REST transport
+nornicdb-backend = ["vector-db", "dep:reqwest", "dep:async-trait"]
+# NornicDB: Bolt transport (Neo4j binary protocol)
+nornicdb-bolt = ["nornicdb-backend", "dep:neo4rs"]
+# NornicDB: gRPC transport (Qdrant-compatible)
+nornicdb-grpc = ["nornicdb-backend", "dep:qdrant-client"]
+# NornicDB: all transports
+nornicdb-full = ["nornicdb-bolt", "nornicdb-grpc"]
+# Postgres + pgvector backend
+postgres-backend = ["vector-db", "dep:sqlx", "dep:pgvector"]
+# Pinecone cloud backend (REST via reqwest)
+pinecone-backend = ["vector-db", "dep:reqwest", "dep:async-trait"]
+# Weaviate backend (REST/GraphQL via reqwest)
+weaviate-backend = ["vector-db", "dep:reqwest", "dep:async-trait"]
+# Milvus backend (REST API v2 via reqwest)
+milvus-backend = ["vector-db", "dep:reqwest", "dep:async-trait"]
+alt-folder-name = []
 wasm = ["brainwires-core/wasm"]
 
 [dev-dependencies]

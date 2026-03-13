@@ -20,7 +20,7 @@ impl TestHandler {
             card: AgentCard {
                 name: "Test Agent".into(),
                 description: "Integration test agent".into(),
-                version: "0.1.0".into(),
+                version: "0.3.0".into(),
                 supported_interfaces: None,
                 capabilities: AgentCapabilities::default(),
                 skills: vec![AgentSkill {

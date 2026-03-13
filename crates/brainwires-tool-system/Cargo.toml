@@ -66,7 +66,7 @@ openapiv3 = { version = "2", optional = true }
 serde_yml = { version = "0.0.12", optional = true }
 
 # Feature-gated dependencies
-brainwires-rag = { workspace = true, optional = true }
+brainwires-cognition = { workspace = true, optional = true }
 brainwires-code-interpreters = { workspace = true, optional = true }
 
 [dev-dependencies]
@@ -85,11 +85,10 @@ native = [
 wasm = ["brainwires-core/wasm"]
 orchestrator = ["dep:rhai", "rhai/sync"]
 orchestrator-wasm = ["dep:rhai", "dep:web-time"]
-rag = ["dep:brainwires-rag", "brainwires-rag/native", "brainwires-rag/lancedb-backend", "brainwires-rag/tree-sitter-languages"]
+rag = ["dep:brainwires-cognition", "brainwires-cognition/rag", "brainwires-cognition/lancedb-backend", "brainwires-cognition/tree-sitter-languages"]
 interpreters = ["dep:brainwires-code-interpreters"]
-smart-router = []
 openapi = ["dep:openapiv3", "dep:serde_yml", "dep:reqwest"]
-full = ["orchestrator", "rag", "interpreters", "smart-router", "openapi"]
+full = ["orchestrator", "rag", "interpreters", "openapi"]
 
 [[bench]]
 name = "token_comparison"

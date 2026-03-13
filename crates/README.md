@@ -20,54 +20,41 @@ brainwires  (facade — re-exports all crates via feature flags)
 ├─── Tools & Agents
 │    ├── brainwires-tool-system     Built-in tools (file ops, git, bash, web, search, validation)
 │    │   └─> core
-│    │   └─> rag (opt, "rag" feature)
+│    │   └─> cognition (opt, "rag" feature)
 │    │   └─> code-interpreters (opt, "interpreters" feature)
-│    ├── brainwires-agents          Agent orchestration, lifecycle hooks, coordination patterns
+│    ├── brainwires-agents          Agent orchestration, lifecycle hooks, coordination patterns, SEAL
 │    │   └─> core
 │    │   └─> tool-system
+│    │   └─> cognition (opt, "seal-knowledge" feature)
+│    │   └─> mdap (opt, "seal-mdap" feature)
+│    │   └─> permissions (opt, "seal-feedback" feature)
 │    ├── brainwires-mdap            MAKER voting — microagent decomposition & reliability
 │    │   └─> core
 │    └── brainwires-permissions     Permission policies, audit logging, trust profiles
 │        └─> core
 │
-├─── Storage & Knowledge
+├─── Storage & Intelligence
 │    ├── brainwires-storage         LanceDB vector storage, tiered memory, embeddings
 │    │   └─> core
-│    │   └─> agents (opt, "agents" feature)
-│    ├── brainwires-brain           Knowledge graphs — BKS, PKS, entity extraction, facts
-│    │   └─> core
-│    │   └─> storage
-│    └── brainwires-prompting       Adaptive prompting, task clustering, temperature optimization
+│    └── brainwires-cognition       Unified intelligence — knowledge graphs, adaptive prompting, RAG
 │        └─> core
-│        └─> brain (opt, "knowledge" feature)
-│
-├─── RAG & Search
-│    └── brainwires-rag             Codebase indexing, semantic search (LanceDB/Qdrant, tree-sitter)
-│        └─> core (opt)
+│        └─> storage (opt, "knowledge" and "rag" features)
 │
 ├─── Networking
 │    ├── brainwires-mcp             MCP client, transport, protocol types
 │    │   └─> core
-│    ├── brainwires-relay           MCP server framework, relay client, encrypted transport
-│    │   └─> core
-│    │   └─> mcp
-│    └── brainwires-mesh            Distributed agent mesh networking
+│    └── brainwires-agent-network   MCP server, IPC, remote bridge, 5-layer protocol stack, mesh networking
 │        └─> core
-│        └─> a2a (opt, "a2a" feature)
+│        └─> mcp
+│        └─> a2a (opt, "a2a-transport" feature)
 │
 ├─── Learning & Training
 │    ├── brainwires-datasets        Training data pipelines — JSONL, tokenization, dedup
 │    │   └─> core
-│    ├── brainwires-training        Fine-tuning — cloud (Anthropic/OpenAI) & local (LoRA/QLoRA)
-│    │   └─> core
-│    │   └─> datasets
-│    │   └─> providers (opt, "cloud" feature)
-│    └── brainwires-seal            SEAL — self-evolving agentic learning
+│    └── brainwires-training        Fine-tuning — cloud (Anthropic/OpenAI) & local (LoRA/QLoRA)
 │        └─> core
-│        └─> tool-system
-│        └─> agents
-│        └─> mdap (opt, "mdap" feature)
-│        └─> brain (opt, "knowledge" feature)
+│        └─> datasets
+│        └─> providers (opt, "cloud" feature)
 │
 ├─── Autonomy
 │    └── brainwires-autonomy        Self-improvement, Git workflows, human-out-of-loop execution
@@ -76,7 +63,7 @@ brainwires  (facade — re-exports all crates via feature flags)
 │        └─> tool-system (opt)
 │        └─> training (opt)
 │        └─> mdap (opt)
-│        └─> rag (opt, "attention" feature)
+│        └─> cognition (opt, "attention" feature)
 │        └─> datasets (opt)
 │
 └─── WASM
@@ -90,13 +77,13 @@ brainwires  (facade — re-exports all crates via feature flags)
 ## Longest Dependency Chain
 
 ```
-core -> storage -> brain -> prompting (knowledge feature)
+core -> storage -> cognition (knowledge feature)
 ```
 
 ## Feature Presets (facade crate)
 
 | Preset | Includes |
 |--------|----------|
-| `agent-full` | agents, permissions, prompting, tools |
-| `researcher` | providers, agents, storage, rag, training, datasets |
+| `agent-full` | agents, permissions, cognition, tools |
+| `researcher` | providers, agents, storage, cognition, training, datasets |
 | `full` | everything |

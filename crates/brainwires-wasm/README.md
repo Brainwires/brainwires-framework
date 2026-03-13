@@ -124,13 +124,13 @@ console.log(stateless); // → stateless protocol format
 brainwires-wasm = "0.2"
 
 # With code interpreters
-brainwires-wasm = { version = "0.2", features = ["interpreters"] }
+brainwires-wasm = { version = "0.3", features = ["interpreters"] }
 
 # With tool orchestration
-brainwires-wasm = { version = "0.2", features = ["orchestrator"] }
+brainwires-wasm = { version = "0.3", features = ["orchestrator"] }
 
 # Everything enabled
-brainwires-wasm = { version = "0.2", features = ["interpreters", "orchestrator"] }
+brainwires-wasm = { version = "0.3", features = ["interpreters", "orchestrator"] }
 ```
 
 ## Architecture
@@ -411,7 +411,7 @@ Use via the `brainwires` facade crate with the `wasm` feature, or depend on `bra
 ```toml
 # Via facade
 [dependencies]
-brainwires = { version = "0.2", features = ["wasm"] }
+brainwires = { version = "0.3", features = ["wasm"] }
 
 # Direct
 [dependencies]

@@ -28,10 +28,14 @@ futures = { workspace = true }
 # Plan parsing
 regex = { workspace = true, optional = true }
 
+# Schema generation (optional, for types shared with MCP tooling)
+schemars = { workspace = true, optional = true }
+
 [features]
 default = ["native"]
 native = ["planning"]
 planning = ["dep:regex"]
+schemars = ["dep:schemars"]
 wasm = ["chrono/wasmbind"]
 
 [dev-dependencies]

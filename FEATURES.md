@@ -219,7 +219,6 @@ Composable tool implementations for agent use.
 - **OrchestratorTool** — Rhai script orchestration (feature: `orchestrator`)
 - **CodeExecTool** — Sandboxed multi-language code execution (feature: `interpreters`)
 - **SemanticSearchTool** — RAG-powered semantic codebase search (feature: `rag`)
-- **SmartRouter** — Context-aware tool routing with MCP support (feature: `smart-router`)
 
 ### OpenAPI Tool Generation (feature: `openapi`)
 

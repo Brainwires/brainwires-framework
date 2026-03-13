@@ -1,6 +1,6 @@
 /// Simple integration tests for basic server functionality
 use anyhow::Result;
-use brainwires_rag::config::Config;
+use brainwires_cognition::rag::config::Config;
 use brainwires_rag_server::mcp_server::RagMcpServer;
 use tempfile::TempDir;
 

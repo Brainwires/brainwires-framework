@@ -55,6 +55,11 @@ regex = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }
 futures = { workspace = true, optional = true }
 
+# ── SEAL deps ──────────────────────────────────────────────────────────
+brainwires-cognition = { workspace = true, optional = true }
+brainwires-mdap = { workspace = true, optional = true }
+brainwires-permissions = { workspace = true, optional = true }
+
 # OpenTelemetry (optional, for otel feature)
 opentelemetry = { version = "0.28", optional = true }
 
@@ -65,16 +70,22 @@ tracing.workspace = true
 tokio = { workspace = true, features = ["full", "test-util"] }
 futures.workspace = true
 tempfile.workspace = true
+tracing-subscriber = "0.3"
+brainwires-cognition = { workspace = true, features = ["knowledge", "prompting"] }
+brainwires-permissions = { workspace = true }
 
 [features]
 default = ["native"]
 native = ["dep:git2", "dep:libc", "brainwires-core/native", "brainwires-tool-system/native"]
 wasm = ["brainwires-core/wasm", "brainwires-tool-system/wasm"]
-# tools feature is kept for backward compatibility; brainwires-tool-system is now always available
-tools = []
 # Reasoning module (merged from brainwires-reasoning)
 reasoning = ["dep:regex"]
 # Evaluation framework (merged from brainwires-eval)
 eval = ["dep:thiserror", "dep:futures"]
 # OpenTelemetry span export for agent execution traces
 otel = ["dep:opentelemetry"]
+# SEAL (Self-Evolving Agentic Learning)
+seal = ["dep:regex"]
+seal-mdap = ["seal", "dep:brainwires-mdap"]
+seal-feedback = ["seal", "dep:brainwires-permissions"]
+seal-knowledge = ["seal", "dep:brainwires-cognition", "brainwires-cognition/knowledge"]

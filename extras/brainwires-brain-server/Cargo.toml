@@ -20,7 +20,7 @@ path = "src/main.rs"
 doc = false
 
 [dependencies]
-brainwires-brain = { workspace = true }
+brainwires-cognition = { workspace = true, features = ["knowledge"] }
 rmcp = { workspace = true, features = ["server", "transport-io", "macros"] }
 schemars.workspace = true
 tokio-util.workspace = true

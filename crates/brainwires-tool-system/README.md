@@ -54,7 +54,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires-tool-system = { version = "0.2", features = ["native"] }
+brainwires-tool-system = { version = "0.3", features = ["native"] }
 ```
 
 Register tools and execute:
@@ -90,9 +90,8 @@ let matches = registry.search_tools("file");
 | `orchestrator-wasm` | No | Orchestrator compiled for WASM targets |
 | `rag` | No | RAG-powered semantic codebase search |
 | `interpreters` | No | Sandboxed multi-language code execution |
-| `smart-router` | No | Context-aware tool selection and routing |
 | `openapi` | No | OpenAPI 3.x spec parsing to auto-generate tools |
-| `full` | No | All optional features (`orchestrator` + `rag` + `interpreters` + `smart-router` + `openapi`) |
+| `full` | No | All optional features (`orchestrator` + `rag` + `interpreters` + `openapi`) |
 
 ## Architecture
 
@@ -215,7 +214,7 @@ Requires the `orchestrator` feature. See `examples/` for complete workflows.
 Automatically create tools from OpenAPI 3.x specs (feature-gated: `openapi`):
 
 ```toml
-brainwires-tool-system = { version = "0.2", features = ["native", "openapi"] }
+brainwires-tool-system = { version = "0.3", features = ["native", "openapi"] }
 ```
 
 ```rust
@@ -251,7 +250,7 @@ Each endpoint becomes a `Tool` with:
 - **brainwires-agents** — Task agents use `ToolExecutor` for all tool dispatch and `ToolRegistry` for tool discovery
 - **brainwires-agents** (reasoning feature) — Reasoning router uses tool categories for smart delegation
 - **brainwires-wasm** — WASM orchestrator uses the `wasm` feature subset
-- **brainwires-seal** — Learning module integrates tool execution for experience capture
+- **brainwires-agents** (seal feature) — SEAL learning module integrates tool execution for experience capture
 - **brainwires (facade)** — Re-exports tooling types for unified API access
 
 ## License
