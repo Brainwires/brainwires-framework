@@ -25,27 +25,65 @@ Reusable checklist for releasing new versions of the Brainwires Framework to cra
 
 ## 2. Version Bump
 
+The bump tool has two modes, selected automatically based on whether the version change is a **patch** (same major.minor) or **minor/major** bump.
+
+### Minor / Major bump (all crates)
+
 ```bash
-cargo xtask bump-version X.Y.Z
+cargo xtask bump-version 0.5.0
 ```
 
-This updates:
-- `[workspace.package].version` in root `Cargo.toml`
-- All `version = "..."` on internal crate deps in `[workspace.dependencies]`
-- Member `Cargo.toml` files with direct path deps (e.g. brainwires-wasm)
-- Hardcoded version strings in `*.rs` source files (`"version": "X.Y.Z"`, `version: "X.Y.Z".into()`)
-- `*.md` files: both `brainwires-* = { version = "X.Y" }` (inline table) and `brainwires-* = "X.Y"` (simple form). Skips CHANGELOG.
-- `CHANGELOG.md`: renames `## [Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD` and inserts a fresh empty `## [Unreleased]` section above it
+Bumps **every** crate to the new version. This:
+- Resets any per-crate version overrides back to `version.workspace = true` (cleans up after previous patch releases)
+- Updates `[workspace.package].version` in root `Cargo.toml`
+- Updates all `version = "..."` on internal crate deps in `[workspace.dependencies]`
+- Updates member `Cargo.toml` files with direct path deps (e.g. brainwires-wasm)
+- Updates hardcoded version strings in `*.rs` source files
+- Updates `*.md` files (skips CHANGELOG)
+- Stamps `CHANGELOG.md`: `## [Unreleased]` → `## [X.Y.Z] - YYYY-MM-DD`
 
-**Note:** The bumper handles version numbers automatically, but you must still manually verify README *content* (descriptions, API tables, architecture diagrams) matches the release changes.
+### Patch bump (selective)
 
-After bumping:
+```bash
+# Auto-detect changed crates from git (uses git diff against last version tag)
+cargo xtask bump-version 0.4.1
+
+# Or specify crates manually
+cargo xtask bump-version 0.4.1 --crates brainwires-core,brainwires-storage
+```
+
+Only bumps **affected crates** + their transitive dependents. This:
+- Detects which crates changed since the last version tag (`v0.4.0`), or uses `--crates` if specified
+- **Cascades** to all crates that depend (directly or transitively) on any affected crate
+- Prints the full list before making changes
+- Sets affected crates to explicit `version = "0.4.1"` (overriding `version.workspace = true`)
+- Updates `[workspace.dependencies]` version fields for affected crates only
+- Updates `.rs` and `.md` files only within affected crate directories
+- Stamps `CHANGELOG.md`
+- Leaves the workspace root version unchanged (e.g., stays at `0.4.0`)
+
+**Cascade example:**
+
+```
+$ cargo xtask bump-version 0.4.1 --crates brainwires-core
+
+Patch bump to 0.4.1:
+  Direct:  brainwires-core
+  Cascade: brainwires-agents, brainwires-autonomy, brainwires-mcp, ...
+  Total:   14 crate(s)
+```
+
+On the next minor release (`0.5.0`), all crates reset to `version.workspace = true` automatically.
+
+### After bumping
 
 ```bash
 git diff                    # Review changes
 cargo check --workspace     # Verify it compiles
 git add -A && git commit -m "chore: bump version to X.Y.Z"
 ```
+
+**Note:** The bumper handles version numbers automatically, but you must still manually verify README *content* (descriptions, API tables, architecture diagrams) matches the release changes.
 
 ## 3. Publish to crates.io
 
