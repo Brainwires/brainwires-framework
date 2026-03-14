@@ -773,6 +773,320 @@ fn build_dep_graph(root: &Path) -> HashMap<String, Vec<String>> {
     graph
 }
 
+/// Read the current version from [workspace.package].version
+fn read_workspace_version(root: &Path) -> String {
+    let cargo_path = root.join("Cargo.toml");
+    let content = std::fs::read_to_string(&cargo_path).expect("Failed to read root Cargo.toml");
+    let doc = content
+        .parse::<toml_edit::DocumentMut>()
+        .expect("Failed to parse root Cargo.toml");
+    doc.get("workspace")
+        .and_then(|w| w.get("package"))
+        .and_then(|p| p.get("version"))
+        .and_then(|v| v.as_str())
+        .expect("No [workspace.package].version found")
+        .to_string()
+}
+
+/// Check if a workspace-relative path belongs to any of the affected crates.
+fn is_in_affected_crate(rel_path: &str, affected: &HashSet<String>) -> bool {
+    let parts: Vec<&str> = rel_path.split('/').collect();
+    if parts.len() >= 2 {
+        let dir = parts[1];
+        if dir.starts_with("brainwires") {
+            return affected.contains(dir);
+        }
+    }
+    false
+}
+
+fn update_workspace_deps_selective(
+    root: &Path,
+    new_version: &str,
+    affected: &HashSet<String>,
+) -> u32 {
+    let cargo_path = root.join("Cargo.toml");
+    let content = std::fs::read_to_string(&cargo_path).expect("read root Cargo.toml");
+    let mut doc = content
+        .parse::<toml_edit::DocumentMut>()
+        .expect("parse root Cargo.toml");
+    let mut changed = false;
+
+    if let Some(deps) = doc
+        .get_mut("workspace")
+        .and_then(|w| w.get_mut("dependencies"))
+        && let Some(table) = deps.as_table_like_mut()
+    {
+        for (key, value) in table.iter_mut() {
+            if !affected.contains(key.get()) {
+                continue;
+            }
+            if let Some(tbl) = value.as_inline_table_mut()
+                && tbl.contains_key("path")
+                && let Some(v) = tbl.get_mut("version")
+            {
+                let old = v.as_str().unwrap_or("").to_string();
+                if old != new_version {
+                    *v = toml_edit::value(new_version)
+                        .into_value()
+                        .expect("string is a value");
+                    println!("  [workspace.dependencies].{key}: {old} -> {new_version}");
+                    changed = true;
+                }
+            }
+        }
+    }
+
+    if changed {
+        std::fs::write(&cargo_path, doc.to_string()).expect("write root Cargo.toml");
+        println!("  Updated: {}", cargo_path.display());
+        1
+    } else {
+        0
+    }
+}
+
+fn set_explicit_versions(root: &Path, new_version: &str, affected: &HashSet<String>) -> u32 {
+    let mut count = 0u32;
+
+    for entry in WalkDir::new(root)
+        .into_iter()
+        .filter_entry(|e| {
+            let name = e.file_name().to_str().unwrap_or("");
+            name != "target" && name != ".git" && name != "node_modules"
+        })
+        .filter_map(|e| e.ok())
+    {
+        let path = entry.path();
+        if path.file_name().and_then(|n| n.to_str()) != Some("Cargo.toml") {
+            continue;
+        }
+        if path == root.join("Cargo.toml") {
+            continue;
+        }
+
+        let content = match std::fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        let mut doc = match content.parse::<toml_edit::DocumentMut>() {
+            Ok(d) => d,
+            Err(_) => continue,
+        };
+
+        let crate_name = doc
+            .get("package")
+            .and_then(|p| p.get("name"))
+            .and_then(|n| n.as_str())
+            .unwrap_or("")
+            .to_string();
+
+        if !affected.contains(&crate_name) {
+            continue;
+        }
+
+        let Some(pkg) = doc.get_mut("package") else {
+            continue;
+        };
+
+        // Check if version is inherited from workspace.
+        // Dotted keys like `version.workspace = true` parse as a Table, not InlineTable,
+        // so we use as_table_like() which handles both forms.
+        let is_workspace = pkg
+            .get("version")
+            .and_then(|v| v.as_table_like())
+            .map(|t| t.contains_key("workspace"))
+            .unwrap_or(false);
+
+        if is_workspace {
+            // Replace `version.workspace = true` with `version = "X.Y.Z"`
+            pkg.as_table_like_mut()
+                .unwrap()
+                .insert("version", toml_edit::value(new_version));
+            println!("  {crate_name}: version.workspace = true -> version = \"{new_version}\"");
+        } else {
+            // Already has explicit version — update it
+            if let Some(v) = pkg.get_mut("version") {
+                let old = v.as_str().unwrap_or("").to_string();
+                if old != new_version {
+                    *v = toml_edit::value(new_version);
+                    println!("  {crate_name}: version {old} -> {new_version}");
+                }
+            }
+        }
+
+        std::fs::write(path, doc.to_string()).expect("write member Cargo.toml");
+        count += 1;
+    }
+
+    count
+}
+
+fn update_rs_files_selective(root: &Path, new_version: &str, affected: &HashSet<String>) -> u32 {
+    let mut count = 0u32;
+
+    for entry in WalkDir::new(root)
+        .into_iter()
+        .filter_entry(|e| {
+            let name = e.file_name().to_str().unwrap_or("");
+            name != "target" && name != ".git" && name != "node_modules"
+        })
+        .filter_map(|e| e.ok())
+    {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("rs") {
+            continue;
+        }
+
+        let rel = path.strip_prefix(root).unwrap_or(path);
+        let rel_str = rel.to_string_lossy();
+        if !is_in_affected_crate(&rel_str, affected) {
+            continue;
+        }
+
+        let content = match std::fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+
+        let new_content = replace_version_in_rs(&content, new_version);
+        if new_content != content {
+            std::fs::write(path, &new_content).expect("write .rs file");
+            println!("  Updated: {}", path.display());
+            count += 1;
+        }
+    }
+
+    count
+}
+
+fn update_md_files_selective(
+    root: &Path,
+    new_major_minor: &str,
+    affected: &HashSet<String>,
+) -> u32 {
+    let mut count = 0u32;
+
+    for entry in WalkDir::new(root)
+        .into_iter()
+        .filter_entry(|e| {
+            let name = e.file_name().to_str().unwrap_or("");
+            name != "target" && name != ".git" && name != "node_modules"
+        })
+        .filter_map(|e| e.ok())
+    {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("md") {
+            continue;
+        }
+        let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if filename.to_ascii_uppercase().contains("CHANGELOG") {
+            continue;
+        }
+
+        let rel = path.strip_prefix(root).unwrap_or(path);
+        let rel_str = rel.to_string_lossy();
+        if !is_in_affected_crate(&rel_str, affected) {
+            continue;
+        }
+
+        let content = match std::fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+
+        let new_content = replace_version_in_md(&content, new_major_minor);
+        if new_content != content {
+            std::fs::write(path, &new_content).expect("write .md file");
+            println!("  Updated: {}", path.display());
+            count += 1;
+        }
+    }
+
+    count
+}
+
+/// Selective patch bump: only bump affected crates and their transitive dependents.
+/// Workspace root version is intentionally NOT bumped — it stays at the current minor.
+fn bump_patch(
+    root: &Path,
+    new_version: &str,
+    major_minor: &str,
+    explicit_crates: Option<Vec<String>>,
+) -> ExitCode {
+    let current_version = read_workspace_version(root);
+
+    let direct = match explicit_crates {
+        Some(crates) => crates,
+        None => match detect_changed_crates(root, &current_version) {
+            Some(crates) if !crates.is_empty() => crates,
+            Some(_) => {
+                println!("No crate changes detected since v{current_version}.");
+                println!("Use --crates to specify crates manually.");
+                return ExitCode::FAILURE;
+            }
+            None => {
+                eprintln!("Could not detect changes (no git tag v{current_version}?).");
+                eprintln!("Use --crates to specify crates manually.");
+                return ExitCode::FAILURE;
+            }
+        },
+    };
+
+    let graph = build_dep_graph(root);
+    let affected = cascade(&direct, &graph);
+
+    let direct_set: HashSet<String> = direct.iter().cloned().collect();
+    let mut cascaded: Vec<&String> = affected.iter().filter(|c| !direct_set.contains(*c)).collect();
+    cascaded.sort();
+    let mut direct_sorted: Vec<&String> = direct.iter().collect();
+    direct_sorted.sort();
+
+    println!("Patch bump to {new_version}:");
+    println!(
+        "  Direct:  {}",
+        direct_sorted
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+    if !cascaded.is_empty() {
+        println!(
+            "  Cascade: {}",
+            cascaded
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+    }
+    println!("  Total:   {} crate(s)", affected.len());
+    println!();
+
+    let mut changes = 0u32;
+
+    changes += update_workspace_deps_selective(root, new_version, &affected);
+    changes += set_explicit_versions(root, new_version, &affected);
+    changes += update_rs_files_selective(root, new_version, &affected);
+    changes += update_md_files_selective(root, major_minor, &affected);
+    changes += update_changelog(root, new_version);
+
+    println!();
+    if changes > 0 {
+        println!("Done! Updated {changes} file(s).");
+        println!();
+        println!("Next steps:");
+        println!("  1. Review changes: git diff");
+        println!("  2. Run: cargo check --workspace");
+        println!("  3. Commit the version bump");
+    } else {
+        println!("No files needed updating.");
+    }
+
+    ExitCode::SUCCESS
+}
+
 /// Given a set of directly-affected crates, compute the full set including
 /// all transitive dependents (crates that depend on any affected crate).
 fn cascade(direct: &[String], graph: &HashMap<String, Vec<String>>) -> HashSet<String> {
@@ -1038,6 +1352,26 @@ mod tests {
         );
 
         let _ = std::fs::remove_dir_all(&tmpdir);
+    }
+
+    #[test]
+    fn test_is_in_affected_crate() {
+        let affected: HashSet<String> =
+            ["brainwires-core".into(), "brainwires-agents".into()].into();
+        assert!(is_in_affected_crate(
+            "crates/brainwires-core/src/lib.rs",
+            &affected
+        ));
+        assert!(is_in_affected_crate(
+            "crates/brainwires-agents/src/mod.rs",
+            &affected
+        ));
+        assert!(!is_in_affected_crate(
+            "crates/brainwires-storage/src/lib.rs",
+            &affected
+        ));
+        assert!(!is_in_affected_crate("xtask/src/main.rs", &affected));
+        assert!(!is_in_affected_crate("README.md", &affected));
     }
 
     #[test]
