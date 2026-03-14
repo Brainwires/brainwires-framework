@@ -76,6 +76,12 @@ tokio-postgres = { version = "0.7", optional = true }
 deadpool-postgres = { version = "0.14", optional = true }
 pgvector = { version = "0.4.1", features = ["postgres"], optional = true }
 
+# MySQL (async client with built-in pool)
+mysql_async = { version = "0.34", optional = true }
+
+# SurrealDB (official SDK)
+surrealdb = { version = "2", optional = true, features = ["protocol-ws", "kv-mem"] }
+
 # Logging
 tracing.workspace = true
 
@@ -97,8 +103,8 @@ lance-backend = [
     "dep:tantivy", "dep:globset",
 ]
 postgres-backend = ["lance-backend", "dep:tokio-postgres", "dep:deadpool-postgres", "dep:pgvector"]
-mysql-backend = []        # stub — full deps TBD (Phase 6)
-surrealdb-backend = []    # stub — full deps TBD (Phase 6)
+mysql-backend = ["lance-backend", "dep:mysql_async"]
+surrealdb-backend = ["lance-backend", "dep:surrealdb"]
 qdrant-backend = ["lance-backend", "dep:qdrant-client"]
 pinecone-backend = ["lance-backend", "dep:reqwest"]
 weaviate-backend = ["lance-backend", "dep:reqwest"]

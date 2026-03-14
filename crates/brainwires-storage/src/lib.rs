@@ -23,7 +23,7 @@
 //! | LanceDB | `LanceDatabase` | YES | YES | `lance-backend` (default) |
 //! | PostgreSQL | `PostgresDatabase` | YES | YES | `postgres-backend` |
 //! | MySQL | `MySqlDatabase` | YES | NO | `mysql-backend` |
-//! | SurrealDB | `SurrealDatabase` | YES | TBD | `surrealdb-backend` |
+//! | SurrealDB | `SurrealDatabase` | YES | YES | `surrealdb-backend` |
 //! | Qdrant | `QdrantDatabase` | NO | YES | `qdrant-backend` |
 //! | Pinecone | `PineconeDatabase` | NO | YES | `pinecone-backend` |
 //! | Milvus | `MilvusDatabase` | NO | YES | `milvus-backend` |
@@ -74,7 +74,7 @@
 //! | `lance-backend` | Yes (via `native`) | LanceDB embedded vector database |
 //! | `postgres-backend` | No | PostgreSQL + pgvector |
 //! | `mysql-backend` | No | MySQL / MariaDB |
-//! | `surrealdb-backend` | No | SurrealDB |
+//! | `surrealdb-backend` | No | SurrealDB with native MTREE vector search |
 //! | `qdrant-backend` | No | Qdrant vector search |
 //! | `pinecone-backend` | No | Pinecone cloud vectors |
 //! | `milvus-backend` | No | Milvus vectors |

@@ -35,7 +35,7 @@ Backend-agnostic storage, tiered memory, and document management for the Brainwi
   |  |    LanceDatabase ---- StorageBackend + VectorDatabase (default)  |  |
   |  |    PostgresDatabase - StorageBackend + VectorDatabase            |  |
   |  |    MySqlDatabase ---- StorageBackend only                        |  |
-  |  |    SurrealDatabase -- StorageBackend only (vector TBD)           |  |
+  |  |    SurrealDatabase -- StorageBackend + VectorDatabase            |  |
   |  |    QdrantDatabase --- VectorDatabase only                        |  |
   |  |    PineconeDatabase - VectorDatabase only                        |  |
   |  |    MilvusDatabase --- VectorDatabase only                        |  |
@@ -45,7 +45,7 @@ Backend-agnostic storage, tiered memory, and document management for the Brainwi
   |  |  Supporting modules:                                             |  |
   |  |    types.rs --- Record, FieldDef, Filter, ScoredRecord           |  |
   |  |    capabilities.rs --- BackendCapabilities discovery              |  |
-  |  |    sql/ --- shared SQL dialect layer (Postgres, MySQL, SurrealDB)|  |
+  |  |    sql/ --- shared SQL dialect layer|  |
   |  |    bm25_helpers.rs --- BM25 scoring for client-side keyword search|  |
   |  +------------------------------------------------------------------+  |
   |                                                                        |
@@ -148,7 +148,7 @@ The `databases/` module provides a unified abstraction layer. Each database is a
 | LanceDB | `LanceDatabase` | YES | YES | `lance-backend` (default via `native`) |
 | PostgreSQL + pgvector | `PostgresDatabase` | YES | YES | `postgres-backend` |
 | MySQL / MariaDB | `MySqlDatabase` | YES | NO | `mysql-backend` |
-| SurrealDB | `SurrealDatabase` | YES | TBD | `surrealdb-backend` |
+| SurrealDB | `SurrealDatabase` | YES | YES | `surrealdb-backend` |
 | Qdrant | `QdrantDatabase` | NO | YES | `qdrant-backend` |
 | Pinecone | `PineconeDatabase` | NO | YES | `pinecone-backend` |
 | Milvus | `MilvusDatabase` | NO | YES | `milvus-backend` |
@@ -192,8 +192,8 @@ databases/
     mod.rs            -- LanceDatabase struct
     arrow_convert.rs  -- Arrow <-> Record conversion
   postgres/           -- PostgreSQL + pgvector backend
-  mysql/              -- MySQL backend
-  surrealdb/          -- SurrealDB backend
+  mysql/              -- MySQL / MariaDB backend
+  surrealdb/          -- SurrealDB backend (MTREE vector search)
   qdrant/             -- Qdrant backend
   pinecone/           -- Pinecone backend
   milvus/             -- Milvus backend
@@ -211,7 +211,7 @@ databases/
 | `lance-backend` | Yes (via `native`) | LanceDB embedded vector database |
 | `postgres-backend` | No | PostgreSQL + pgvector (both traits) |
 | `mysql-backend` | No | MySQL / MariaDB (StorageBackend only) |
-| `surrealdb-backend` | No | SurrealDB multi-model database |
+| `surrealdb-backend` | No | SurrealDB with native MTREE vector search (both traits) |
 | `qdrant-backend` | No | Qdrant vector search server |
 | `pinecone-backend` | No | Pinecone managed cloud vectors |
 | `milvus-backend` | No | Milvus open-source vectors |
@@ -235,6 +235,12 @@ brainwires-storage = { version = "0.4", features = ["qdrant-backend"] }
 
 # PostgreSQL as primary backend
 brainwires-storage = { version = "0.4", features = ["postgres-backend"] }
+
+# MySQL / MariaDB backend
+brainwires-storage = { version = "0.4", features = ["mysql-backend"] }
+
+# SurrealDB backend (native vector search)
+brainwires-storage = { version = "0.4", features = ["surrealdb-backend"] }
 
 # NornicDB with all transports
 brainwires-storage = { version = "0.4", features = ["nornicdb-full"] }
