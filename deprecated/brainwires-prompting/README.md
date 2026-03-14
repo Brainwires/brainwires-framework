@@ -6,8 +6,8 @@ Replace in your `Cargo.toml`:
 
 ```toml
 # Before
-brainwires-prompting = "0.2"
+brainwires-prompting = "0.4"
 
 # After
-brainwires-cognition = { version = "0.3", features = ["prompting"] }
+brainwires-cognition = { version = "0.4", features = ["prompting"] }
 ```

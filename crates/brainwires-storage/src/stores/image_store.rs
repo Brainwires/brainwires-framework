@@ -7,12 +7,12 @@ use anyhow::{Context, Result};
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 
+use crate::databases::{
+    FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
+};
 use crate::embeddings::EmbeddingProvider;
 use crate::image_types::{
     ImageFormat, ImageMetadata, ImageSearchRequest, ImageSearchResult, ImageStorage,
-};
-use crate::stores::backend::{
-    FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
 
 const TABLE_NAME: &str = "images";
@@ -204,7 +204,7 @@ fn storage_from_record(r: &Record) -> Option<ImageStorage> {
 // ── ImageStore ──────────────────────────────────────────────────────────
 
 /// Store for analyzed images with semantic search
-pub struct ImageStore<B: StorageBackend = crate::stores::backends::LanceBackend> {
+pub struct ImageStore<B: StorageBackend = crate::databases::lance::LanceDatabase> {
     backend: Arc<B>,
     embeddings: Arc<EmbeddingProvider>,
 }
@@ -484,26 +484,5 @@ impl<B: StorageBackend> ImageStore<B> {
     pub async fn count_by_conversation(&self, conversation_id: &str) -> Result<usize> {
         let images = self.list_by_conversation(conversation_id).await?;
         Ok(images.len())
-    }
-}
-
-// ── Legacy constructor for backward compatibility ───────────────────────
-
-#[cfg(feature = "native")]
-impl ImageStore<crate::stores::backends::LanceBackend> {
-    /// Create from a legacy [`LanceClient`](crate::stores::lance_client::LanceClient).
-    ///
-    /// This wraps the LanceClient's connection in a [`LanceBackend`](crate::stores::backends::LanceBackend).
-    pub async fn from_lance_client(
-        client: &crate::stores::lance_client::LanceClient,
-        embeddings: Arc<EmbeddingProvider>,
-    ) -> Result<Self> {
-        let backend = Arc::new(crate::stores::backends::LanceBackend::new(client.db_path()).await?);
-        let store = Self {
-            backend,
-            embeddings,
-        };
-        store.ensure_table().await?;
-        Ok(store)
     }
 }

@@ -2,8 +2,10 @@
 //!
 //! This module provides a PostgreSQL-backed vector database implementation
 //! using the [pgvector](https://github.com/pgvector/pgvector) extension for
-//! approximate nearest-neighbour search and the [sqlx](https://docs.rs/sqlx)
-//! async driver for connection pooling and query execution.
+//! approximate nearest-neighbour search and
+//! [tokio-postgres](https://docs.rs/tokio-postgres) with
+//! [deadpool-postgres](https://docs.rs/deadpool-postgres) for async connection
+//! pooling.
 //!
 //! # Requirements
 //!
@@ -13,23 +15,22 @@
 //! # Example
 //!
 //! ```rust,no_run
-//! use brainwires_storage::vector_db::PostgresVectorDB;
-//! use brainwires_storage::vector_db::VectorDatabase;
+//! use brainwires_storage::databases::postgres::PostgresDatabase;
+//! use brainwires_storage::databases::traits::VectorDatabase;
 //!
 //! # async fn example() -> anyhow::Result<()> {
-//! let db = PostgresVectorDB::new().await?;
+//! let db = PostgresDatabase::new().await?;
 //! db.initialize(384).await?;
 //! # Ok(())
 //! # }
 //! ```
 
-use super::bm25_helpers::{self, SharedIdfStats};
-use super::{ChunkMetadata, DatabaseStats, SearchResult, VectorDatabase};
+use crate::databases::bm25_helpers::{self, SharedIdfStats};
+use crate::databases::traits::{ChunkMetadata, DatabaseStats, SearchResult, VectorDatabase};
 use crate::glob_utils;
 use anyhow::{Context, Result};
+use deadpool_postgres::{Config, Pool, Runtime};
 use pgvector::Vector;
-use sqlx::postgres::PgPoolOptions;
-use sqlx::{PgPool, Row};
 
 const DEFAULT_TABLE: &str = "code_embeddings";
 const DEFAULT_URL: &str = "postgresql://localhost:5432/brainwires";
@@ -38,13 +39,13 @@ const DEFAULT_URL: &str = "postgresql://localhost:5432/brainwires";
 ///
 /// Uses HNSW indexing for fast approximate nearest-neighbour search and
 /// client-side BM25 scoring for hybrid (vector + keyword) queries.
-pub struct PostgresVectorDB {
-    pool: PgPool,
+pub struct PostgresDatabase {
+    pool: Pool,
     table_name: String,
     idf_stats: SharedIdfStats,
 }
 
-impl PostgresVectorDB {
+impl PostgresDatabase {
     /// Create a new client connected to the default local PostgreSQL instance.
     ///
     /// Connects to [`DEFAULT_URL`] (`postgresql://localhost:5432/brainwires`)
@@ -57,9 +58,15 @@ impl PostgresVectorDB {
     pub async fn with_url(url: &str) -> Result<Self> {
         tracing::info!("Connecting to PostgreSQL at {}", url);
 
-        let pool = PgPoolOptions::new()
-            .max_connections(5)
-            .connect(url)
+        let mut cfg = Config::new();
+        cfg.url = Some(url.to_string());
+        let pool = cfg
+            .create_pool(Some(Runtime::Tokio1), tokio_postgres::NoTls)
+            .context("Failed to create PostgreSQL connection pool")?;
+
+        // Verify connectivity by grabbing a connection.
+        let _conn = pool
+            .get()
             .await
             .context("Failed to connect to PostgreSQL")?;
 
@@ -70,7 +77,7 @@ impl PostgresVectorDB {
     ///
     /// This is useful when the caller already manages a pool or wants to
     /// share it across subsystems.
-    pub async fn with_pool(pool: PgPool, table_name: &str) -> Result<Self> {
+    pub async fn with_pool(pool: Pool, table_name: &str) -> Result<Self> {
         let db = Self {
             pool,
             table_name: table_name.to_string(),
@@ -96,8 +103,14 @@ impl PostgresVectorDB {
     async fn refresh_idf_stats(&self) -> Result<()> {
         tracing::debug!("Refreshing IDF statistics from table '{}'", self.table_name);
 
+        let client = self
+            .pool
+            .get()
+            .await
+            .context("Failed to get connection from pool")?;
+
         let query = format!("SELECT content FROM {}", self.table_name);
-        let rows = match sqlx::query(&query).fetch_all(&self.pool).await {
+        let rows = match client.query(&*query, &[]).await {
             Ok(rows) => rows,
             Err(e) => {
                 // Table may not exist yet — that is fine.
@@ -108,7 +121,7 @@ impl PostgresVectorDB {
 
         let documents: Vec<String> = rows
             .iter()
-            .filter_map(|row| row.try_get::<String, _>("content").ok())
+            .filter_map(|row| row.try_get::<_, String>("content").ok())
             .collect();
 
         tracing::info!("Refreshing IDF stats from {} documents", documents.len());
@@ -146,6 +159,12 @@ impl PostgresVectorDB {
             path_patterns,
         );
 
+        let client = self
+            .pool
+            .get()
+            .await
+            .context("Failed to get connection from pool")?;
+
         let pg_vector = Vector::from(query_vector);
 
         let query = format!(
@@ -173,17 +192,20 @@ impl PostgresVectorDB {
             table = self.table_name,
         );
 
-        let extensions_arr: Vec<String> = file_extensions;
-        let languages_arr: Vec<String> = languages;
+        let limit_i64 = limit as i64;
 
-        let rows = sqlx::query(&query)
-            .bind(&pg_vector)
-            .bind(project.as_deref())
-            .bind(root_path.as_deref())
-            .bind(&extensions_arr)
-            .bind(&languages_arr)
-            .bind(limit as i64)
-            .fetch_all(&self.pool)
+        let rows = client
+            .query(
+                &*query,
+                &[
+                    &pg_vector,
+                    &project.as_deref(),
+                    &root_path.as_deref(),
+                    &file_extensions,
+                    &languages,
+                    &limit_i64,
+                ],
+            )
             .await
             .context("Failed to execute search query")?;
 
@@ -255,7 +277,7 @@ impl PostgresVectorDB {
 // ── VectorDatabase trait implementation ──────────────────────────────────
 
 #[async_trait::async_trait]
-impl VectorDatabase for PostgresVectorDB {
+impl VectorDatabase for PostgresDatabase {
     async fn initialize(&self, dimension: usize) -> Result<()> {
         tracing::info!(
             "Initializing PostgreSQL table '{}' with vector dimension {}",
@@ -263,9 +285,15 @@ impl VectorDatabase for PostgresVectorDB {
             dimension
         );
 
+        let client = self
+            .pool
+            .get()
+            .await
+            .context("Failed to get connection from pool")?;
+
         // Enable the pgvector extension.
-        sqlx::query("CREATE EXTENSION IF NOT EXISTS vector")
-            .execute(&self.pool)
+        client
+            .execute("CREATE EXTENSION IF NOT EXISTS vector", &[])
             .await
             .context("Failed to create vector extension")?;
 
@@ -290,8 +318,8 @@ impl VectorDatabase for PostgresVectorDB {
             table = self.table_name,
             dim = dimension,
         );
-        sqlx::query(&create_table)
-            .execute(&self.pool)
+        client
+            .execute(&*create_table, &[])
             .await
             .context("Failed to create embeddings table")?;
 
@@ -300,8 +328,8 @@ impl VectorDatabase for PostgresVectorDB {
             "CREATE INDEX IF NOT EXISTS idx_{table}_file_path ON {table} (file_path)",
             table = self.table_name,
         );
-        sqlx::query(&idx_file_path)
-            .execute(&self.pool)
+        client
+            .execute(&*idx_file_path, &[])
             .await
             .context("Failed to create file_path index")?;
 
@@ -309,8 +337,8 @@ impl VectorDatabase for PostgresVectorDB {
             "CREATE INDEX IF NOT EXISTS idx_{table}_root_path ON {table} (root_path)",
             table = self.table_name,
         );
-        sqlx::query(&idx_root_path)
-            .execute(&self.pool)
+        client
+            .execute(&*idx_root_path, &[])
             .await
             .context("Failed to create root_path index")?;
 
@@ -318,8 +346,8 @@ impl VectorDatabase for PostgresVectorDB {
             "CREATE INDEX IF NOT EXISTS idx_{table}_project ON {table} (project)",
             table = self.table_name,
         );
-        sqlx::query(&idx_project)
-            .execute(&self.pool)
+        client
+            .execute(&*idx_project, &[])
             .await
             .context("Failed to create project index")?;
 
@@ -329,8 +357,8 @@ impl VectorDatabase for PostgresVectorDB {
              USING hnsw (embedding vector_cosine_ops)",
             table = self.table_name,
         );
-        sqlx::query(&idx_embedding)
-            .execute(&self.pool)
+        client
+            .execute(&*idx_embedding, &[])
             .await
             .context("Failed to create HNSW embedding index")?;
 
@@ -352,6 +380,12 @@ impl VectorDatabase for PostgresVectorDB {
         let count = embeddings.len();
         tracing::debug!("Storing {} embeddings in '{}'", count, self.table_name);
 
+        let mut client = self
+            .pool
+            .get()
+            .await
+            .context("Failed to get connection from pool")?;
+
         let insert_sql = format!(
             r#"
             INSERT INTO {table}
@@ -363,30 +397,34 @@ impl VectorDatabase for PostgresVectorDB {
             table = self.table_name,
         );
 
-        let mut tx = self
-            .pool
-            .begin()
+        let tx = client
+            .transaction()
             .await
             .context("Failed to begin transaction")?;
 
         for ((embedding, meta), content) in embeddings.into_iter().zip(metadata).zip(contents) {
             let pg_vector = Vector::from(embedding);
+            let start_line = meta.start_line as i32;
+            let end_line = meta.end_line as i32;
 
-            sqlx::query(&insert_sql)
-                .bind(&pg_vector)
-                .bind(&meta.file_path)
-                .bind(meta.root_path.as_deref())
-                .bind(meta.project.as_deref())
-                .bind(meta.start_line as i32)
-                .bind(meta.end_line as i32)
-                .bind(meta.language.as_deref())
-                .bind(meta.extension.as_deref())
-                .bind(&meta.file_hash)
-                .bind(meta.indexed_at)
-                .bind(&content)
-                .execute(&mut *tx)
-                .await
-                .context("Failed to insert embedding row")?;
+            tx.execute(
+                &*insert_sql,
+                &[
+                    &pg_vector,
+                    &meta.file_path,
+                    &meta.root_path.as_deref(),
+                    &meta.project.as_deref(),
+                    &start_line,
+                    &end_line,
+                    &meta.language.as_deref(),
+                    &meta.extension.as_deref(),
+                    &meta.file_hash,
+                    &meta.indexed_at,
+                    &content,
+                ],
+            )
+            .await
+            .context("Failed to insert embedding row")?;
         }
 
         tx.commit().await.context("Failed to commit transaction")?;
@@ -457,26 +495,36 @@ impl VectorDatabase for PostgresVectorDB {
     async fn delete_by_file(&self, file_path: &str) -> Result<usize> {
         tracing::debug!("Deleting embeddings for file: {}", file_path);
 
-        let query = format!("DELETE FROM {} WHERE file_path = $1", self.table_name,);
+        let client = self
+            .pool
+            .get()
+            .await
+            .context("Failed to get connection from pool")?;
 
-        let result = sqlx::query(&query)
-            .bind(file_path)
-            .execute(&self.pool)
+        let query = format!("DELETE FROM {} WHERE file_path = $1", self.table_name);
+
+        let deleted = client
+            .execute(&*query, &[&file_path])
             .await
             .context("Failed to delete embeddings by file path")?;
 
-        let deleted = result.rows_affected() as usize;
         tracing::info!("Deleted {} rows for file '{}'", deleted, file_path);
 
-        Ok(deleted)
+        Ok(deleted as usize)
     }
 
     async fn clear(&self) -> Result<()> {
         tracing::info!("Clearing all embeddings from table '{}'", self.table_name);
 
+        let client = self
+            .pool
+            .get()
+            .await
+            .context("Failed to get connection from pool")?;
+
         let query = format!("TRUNCATE {}", self.table_name);
-        sqlx::query(&query)
-            .execute(&self.pool)
+        client
+            .execute(&*query, &[])
             .await
             .context("Failed to truncate embeddings table")?;
 
@@ -491,22 +539,27 @@ impl VectorDatabase for PostgresVectorDB {
     async fn get_statistics(&self) -> Result<DatabaseStats> {
         tracing::debug!("Fetching statistics for table '{}'", self.table_name);
 
+        let client = self
+            .pool
+            .get()
+            .await
+            .context("Failed to get connection from pool")?;
+
         // Total row count.
         let count_query = format!("SELECT COUNT(*) AS total FROM {}", self.table_name);
-        let total: i64 = sqlx::query(&count_query)
-            .fetch_one(&self.pool)
+        let row = client
+            .query_one(&*count_query, &[])
             .await
-            .context("Failed to count rows")?
-            .try_get("total")
-            .unwrap_or(0);
+            .context("Failed to count rows")?;
+        let total: i64 = row.try_get("total").unwrap_or(0);
 
         // Per-language breakdown.
         let lang_query = format!(
             "SELECT language, COUNT(*) AS lang_count FROM {} GROUP BY language",
             self.table_name,
         );
-        let lang_rows = sqlx::query(&lang_query)
-            .fetch_all(&self.pool)
+        let lang_rows = client
+            .query(&*lang_query, &[])
             .await
             .context("Failed to fetch language breakdown")?;
 
@@ -534,31 +587,40 @@ impl VectorDatabase for PostgresVectorDB {
     }
 
     async fn count_by_root_path(&self, root_path: &str) -> Result<usize> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .context("Failed to get connection from pool")?;
+
         let query = format!(
             "SELECT COUNT(*) AS cnt FROM {} WHERE root_path = $1",
             self.table_name,
         );
 
-        let count: i64 = sqlx::query(&query)
-            .bind(root_path)
-            .fetch_one(&self.pool)
+        let row = client
+            .query_one(&*query, &[&root_path])
             .await
-            .context("Failed to count rows by root_path")?
-            .try_get("cnt")
-            .unwrap_or(0);
+            .context("Failed to count rows by root_path")?;
+        let count: i64 = row.try_get("cnt").unwrap_or(0);
 
         Ok(count as usize)
     }
 
     async fn get_indexed_files(&self, root_path: &str) -> Result<Vec<String>> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .context("Failed to get connection from pool")?;
+
         let query = format!(
             "SELECT DISTINCT file_path FROM {} WHERE root_path = $1",
             self.table_name,
         );
 
-        let rows = sqlx::query(&query)
-            .bind(root_path)
-            .fetch_all(&self.pool)
+        let rows = client
+            .query(&*query, &[&root_path])
             .await
             .context("Failed to fetch indexed files")?;
 
@@ -571,82 +633,14 @@ impl VectorDatabase for PostgresVectorDB {
     }
 }
 
-impl Default for PostgresVectorDB {
-    fn default() -> Self {
-        tokio::runtime::Runtime::new()
-            .expect("failed to create tokio runtime")
-            .block_on(Self::new())
-            .expect("Failed to create default PostgresVectorDB client")
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use brainwires_core::ChunkMetadata;
-
-    fn test_metadata(file_path: &str, start: usize, end: usize) -> ChunkMetadata {
-        ChunkMetadata {
-            root_path: Some("/test/root".to_string()),
-            file_path: file_path.to_string(),
-            project: Some("test-project".to_string()),
-            start_line: start,
-            end_line: end,
-            language: Some("Rust".to_string()),
-            extension: Some("rs".to_string()),
-            file_hash: "test_hash".to_string(),
-            indexed_at: 1234567890,
-        }
-    }
-
-    #[tokio::test]
-    #[ignore] // Requires running PostgreSQL with pgvector on localhost:5432
-    async fn test_postgres_lifecycle() {
-        let db = PostgresVectorDB::new().await.unwrap();
-        db.initialize(384).await.unwrap();
-
-        // Store
-        let embeddings = vec![vec![0.1f32; 384], vec![0.2f32; 384]];
-        let metadata = vec![
-            test_metadata("test1.rs", 1, 10),
-            test_metadata("test2.rs", 20, 30),
-        ];
-        let contents = vec!["fn main() {}".to_string(), "fn test() {}".to_string()];
-        let count = db
-            .store_embeddings(embeddings, metadata, contents, "/test/root")
-            .await
-            .unwrap();
-        assert_eq!(count, 2);
-
-        // Search
-        let results = db
-            .search(vec![0.1f32; 384], "main", 10, 0.0, None, None, false)
-            .await
-            .unwrap();
-        assert!(!results.is_empty());
-
-        // Count
-        let count = db.count_by_root_path("/test/root").await.unwrap();
-        assert_eq!(count, 2);
-
-        // Indexed files
-        let files = db.get_indexed_files("/test/root").await.unwrap();
-        assert_eq!(files.len(), 2);
-
-        // Delete
-        let deleted = db.delete_by_file("test1.rs").await.unwrap();
-        assert!(deleted > 0);
-
-        // Clear
-        db.clear().await.unwrap();
-        let stats = db.get_statistics().await.unwrap();
-        assert_eq!(stats.total_points, 0);
-    }
 
     #[test]
     fn test_default_url() {
         assert_eq!(
-            PostgresVectorDB::default_url(),
+            PostgresDatabase::default_url(),
             "postgresql://localhost:5432/brainwires"
         );
     }

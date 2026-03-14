@@ -7,10 +7,10 @@ use anyhow::{Context, Result};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::embeddings::EmbeddingProvider;
-use crate::stores::backend::{
+use crate::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
+use crate::embeddings::EmbeddingProvider;
 use brainwires_core::{PlanMetadata, PlanStatus};
 
 const TABLE_NAME: &str = "plans";
@@ -44,7 +44,7 @@ pub fn plans_field_defs(embedding_dim: usize) -> Vec<FieldDef> {
 }
 
 /// Return an Arrow `Schema` for backward compatibility with
-/// [`LanceClient::ensure_plans_table`](crate::stores::lance_client::LanceClient).
+/// [`LanceDatabase`](crate::databases::lance::LanceDatabase).
 #[cfg(feature = "native")]
 pub fn plans_schema() -> std::sync::Arc<arrow_schema::Schema> {
     use arrow_schema::{DataType, Field};
@@ -207,7 +207,7 @@ fn from_record(r: &Record) -> Result<PlanMetadata> {
 // ── PlanStore ───────────────────────────────────────────────────────────
 
 /// Store for managing execution plans
-pub struct PlanStore<B: StorageBackend = crate::stores::backends::LanceBackend> {
+pub struct PlanStore<B: StorageBackend = crate::databases::lance::LanceDatabase> {
     backend: Arc<B>,
     embeddings: Arc<EmbeddingProvider>,
     /// Directory for plan markdown exports
@@ -468,34 +468,5 @@ impl<B: StorageBackend> PlanStore<B> {
             }
         }
         Ok(())
-    }
-}
-
-// ── Legacy constructor for backward compatibility ───────────────────────
-
-#[cfg(feature = "native")]
-impl PlanStore<crate::stores::backends::LanceBackend> {
-    /// Create from a legacy [`LanceClient`](crate::stores::lance_client::LanceClient).
-    ///
-    /// This wraps the LanceClient's connection in a [`LanceBackend`](crate::stores::backends::LanceBackend).
-    pub async fn from_lance_client(
-        client: &crate::stores::lance_client::LanceClient,
-        embeddings: Arc<EmbeddingProvider>,
-    ) -> Result<Self> {
-        let backend = Arc::new(crate::stores::backends::LanceBackend::new(client.db_path()).await?);
-        let store = Self {
-            backend,
-            embeddings,
-            plans_dir: None,
-        };
-        store.ensure_table().await?;
-        Ok(store)
-    }
-
-    /// Backward-compatible Arrow schema for `lance_client.rs`.
-    ///
-    /// Delegates to the free function [`plans_schema`].
-    pub fn plans_schema() -> std::sync::Arc<arrow_schema::Schema> {
-        plans_schema()
     }
 }

@@ -5,7 +5,70 @@ All notable changes to the Brainwires Framework will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.0] - 2026-03-14
+
+### Breaking Changes
+
+#### Storage (`brainwires-storage`)
+- **Unified database layer**: Merged `clients/` (7 VectorDatabase impls) and `stores/backends/` (StorageBackend impl) into a single `databases/` module. One struct per database, one shared connection, implementing `StorageBackend` and/or `VectorDatabase`.
+- Removed `clients/` module entirely — all database implementations now live in `databases/<name>/`.
+- Removed `stores/backend.rs`, `stores/backends/`, `stores/lance_client.rs` — merged into `databases/lance/`.
+- Renamed all database structs: `LanceVectorDB` → `LanceDatabase`, `QdrantVectorDB` → `QdrantDatabase`, `PostgresVectorDB` → `PostgresDatabase`, `PineconeVectorDB` → `PineconeDatabase`, `MilvusVectorDB` → `MilvusDatabase`, `WeaviateVectorDB` → `WeaviateDatabase`, `NornicVectorDB` → `NornicDatabase`.
+- `LanceBackend` merged into `LanceDatabase` — implements both `StorageBackend` and `VectorDatabase` on a single `lancedb::Connection`.
+- PostgreSQL backend switched from `sqlx` to `tokio-postgres` + `deadpool-postgres` to avoid `libsqlite3-sys` version conflict with `rusqlite`.
+
+#### Cognition (`brainwires-cognition`)
+- `RagClient` now stores `Arc<dyn VectorDatabase>` instead of concrete database types. Added `with_vector_db()` constructor for external injection.
+- `BrainClient` rewritten to use `Arc<dyn StorageBackend>` instead of raw LanceDB/arrow APIs. Added `with_backend()` constructor.
+- `u64` fields in PKS/BKS cache now cast through `i64` for `rusqlite` 0.38 compatibility.
+
+### Added
+
+#### Storage (`brainwires-storage`)
+- **`databases/` module** — unified database layer with:
+  - `traits.rs`: `StorageBackend` + `VectorDatabase` traits (always available, no feature gate)
+  - `types.rs`: `FieldDef`, `FieldType`, `FieldValue`, `Record`, `ScoredRecord`, `Filter` types
+  - `capabilities.rs`: `BackendCapabilities` struct for runtime feature detection
+  - `sql/`: Shared SQL generation layer with `SqlDialect` trait + `PostgresDialect`, `MySqlDialect`, `SurrealDialect` implementations
+  - `lance/`: `LanceDatabase` (both traits, embedded LanceDB)
+  - `postgres/`: `PostgresDatabase` (VectorDatabase, via tokio-postgres + pgvector)
+  - `qdrant/`: `QdrantDatabase` (VectorDatabase)
+  - `pinecone/`: `PineconeDatabase` (VectorDatabase, REST API)
+  - `milvus/`: `MilvusDatabase` (VectorDatabase, REST API)
+  - `weaviate/`: `WeaviateDatabase` (VectorDatabase, REST API)
+  - `nornicdb/`: `NornicDatabase` (VectorDatabase, multi-transport: REST/Bolt/gRPC)
+  - `mysql/`: `MySqlDatabase` stub (StorageBackend only)
+  - `surrealdb/`: `SurrealDatabase` stub (StorageBackend only)
+- New feature flags: `postgres-backend`, `mysql-backend`, `surrealdb-backend` (alongside existing `lance-backend`, `qdrant-backend`, `pinecone-backend`, `weaviate-backend`, `milvus-backend`, `nornicdb-*`).
+- `async-trait` is now a required (non-optional) dependency — core traits are always available regardless of feature flags.
+- 112 tests: 18 SQL dialect tests, Lance CRUD/vector-search/capabilities/shared-connection tests, 2 integration tests (trait object CRUD, backend capabilities).
+
+#### Cognition (`brainwires-cognition`)
+- `RagClient::with_vector_db()` — construct with any `Arc<dyn VectorDatabase>` for backend-agnostic RAG.
+- `BrainClient::with_backend()` — construct with any `Arc<dyn StorageBackend>` for backend-agnostic knowledge storage.
+
+### Changed
+
+#### Storage (`brainwires-storage`)
+- Domain stores (`MessageStore`, `ConversationStore`, `TaskStore`, `PlanStore`, `SummaryStore`, `FactStore`, `ImageStore`, `TierMetadataStore`, `AgentStateStore`) now default to `LanceDatabase` instead of the removed `LanceBackend`.
+- `PersistentTaskManager` and `TieredMemory` updated to use `LanceDatabase`.
+- README rewritten with unified database backends section, trait implementation matrix, connection sharing examples, and feature flag reference.
+- Module-level and crate-level documentation updated to reflect new architecture.
+
+#### Dependencies
+- Replaced `sqlx` with `tokio-postgres` 0.7 + `deadpool-postgres` 0.14 for PostgreSQL backend (eliminates `libsqlite3-sys` conflict).
+- `pgvector` features changed from `["sqlx"]` to `["postgres"]`.
+- Removed unused `sqlx-sqlite` patch from workspace `[patch.crates-io]`.
+
+### Removed
+
+#### Storage (`brainwires-storage`)
+- `clients/` module (7 files + tests) — replaced by `databases/`.
+- `stores/backend.rs` — split into `databases/traits.rs` + `databases/types.rs`.
+- `stores/backends/` — merged into `databases/lance/`.
+- `stores/lance_client.rs` — legacy `LanceClient` replaced by `LanceDatabase`.
+
+---
 
 ### Added
 
@@ -364,6 +427,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Git search results now return the actual commit date instead of hardcoded `0`.
 - Dirty flag is now cleared immediately after embeddings + cache are flushed to disk in both full and incremental indexing paths.
 
+[0.4.0]: https://github.com/Brainwires/brainwires-framework/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Brainwires/brainwires-framework/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Brainwires/brainwires-framework/releases/tag/v0.2.0
 [0.1.0]: Untagged initial release

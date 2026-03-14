@@ -6,8 +6,8 @@ Replace in your `Cargo.toml`:
 
 ```toml
 # Before
-brainwires-seal = "0.2"
+brainwires-seal = "0.4"
 
 # After
-brainwires-agents = { version = "0.3", features = ["seal"] }
+brainwires-agents = { version = "0.4", features = ["seal"] }
 ```

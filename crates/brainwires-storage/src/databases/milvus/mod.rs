@@ -4,11 +4,16 @@
 //! [`VectorDatabase`] trait for code-embedding storage and hybrid search.
 //! All communication uses the Milvus RESTful API v2 endpoints through
 //! `reqwest`.
+//!
+//! # Feature flag
+//!
+//! Requires `milvus-backend`.
 
-use super::bm25_helpers::{self, SharedIdfStats};
-use super::{ChunkMetadata, DatabaseStats, SearchResult, VectorDatabase};
+use crate::databases::bm25_helpers::{self, SharedIdfStats};
+use crate::databases::traits::VectorDatabase;
 use crate::glob_utils;
 use anyhow::{Context, Result};
+use brainwires_core::{ChunkMetadata, DatabaseStats, SearchResult};
 use serde_json::{Value, json};
 
 const DEFAULT_URL: &str = "http://localhost:19530";
@@ -24,14 +29,14 @@ const QUERY_LIMIT: usize = 16384;
 ///
 /// Uses the Milvus REST API v2 for all operations. Requires a running Milvus
 /// instance (standalone or cluster) reachable at the configured URL.
-pub struct MilvusVectorDB {
+pub struct MilvusDatabase {
     client: reqwest::Client,
     base_url: String,
     collection_name: String,
     idf_stats: SharedIdfStats,
 }
 
-impl MilvusVectorDB {
+impl MilvusDatabase {
     /// Create a new Milvus client with default local configuration.
     ///
     /// Connects to `http://localhost:19530` with collection `code_embeddings`.
@@ -224,7 +229,7 @@ impl MilvusVectorDB {
 // ── VectorDatabase implementation ───────────────────────────────────────
 
 #[async_trait::async_trait]
-impl VectorDatabase for MilvusVectorDB {
+impl VectorDatabase for MilvusDatabase {
     async fn initialize(&self, dimension: usize) -> Result<()> {
         if self.collection_exists().await? {
             tracing::info!(
@@ -718,7 +723,7 @@ impl VectorDatabase for MilvusVectorDB {
     }
 }
 
-impl Default for MilvusVectorDB {
+impl Default for MilvusDatabase {
     fn default() -> Self {
         Self::new()
     }
@@ -727,7 +732,6 @@ impl Default for MilvusVectorDB {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use brainwires_core::ChunkMetadata;
 
     fn test_metadata(file_path: &str, start: usize, end: usize) -> ChunkMetadata {
         ChunkMetadata {
@@ -745,13 +749,13 @@ mod tests {
 
     #[test]
     fn test_escape_filter_value() {
-        assert_eq!(MilvusVectorDB::escape_filter_value("hello"), "hello");
+        assert_eq!(MilvusDatabase::escape_filter_value("hello"), "hello");
         assert_eq!(
-            MilvusVectorDB::escape_filter_value(r#"say "hi""#),
+            MilvusDatabase::escape_filter_value(r#"say "hi""#),
             r#"say \"hi\""#
         );
         assert_eq!(
-            MilvusVectorDB::escape_filter_value(r"back\slash"),
+            MilvusDatabase::escape_filter_value(r"back\slash"),
             r"back\\slash"
         );
     }
@@ -759,7 +763,7 @@ mod tests {
     #[tokio::test]
     #[ignore] // Requires running Milvus server on localhost:19530
     async fn test_milvus_lifecycle() {
-        let db = MilvusVectorDB::new();
+        let db = MilvusDatabase::new();
         db.initialize(384).await.unwrap();
 
         // Store

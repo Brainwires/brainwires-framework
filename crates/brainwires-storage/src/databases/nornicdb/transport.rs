@@ -8,8 +8,8 @@
 //! | `BoltTransport` | `nornicdb-bolt`     | Neo4j Bolt binary |
 //! | `GrpcTransport` | `nornicdb-grpc`     | gRPC (Qdrant)     |
 //!
-//! `nornicdb_client.rs` holds an `Arc<dyn NornicTransport>` and delegates all
-//! wire-level communication through this trait.
+//! `NornicDatabase` (in `mod.rs`) holds an `Arc<dyn NornicTransport>` and
+//! delegates all wire-level communication through this trait.
 
 use anyhow::{Context, Result};
 use serde_json::{Value, json};

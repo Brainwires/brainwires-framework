@@ -7,7 +7,7 @@ use crate::rag::git::{CommitChunker, GitWalker};
 use crate::rag::git_cache::GitCache;
 use crate::rag::types::{GitSearchResult, SearchGitHistoryRequest, SearchGitHistoryResponse};
 use anyhow::{Context, Result};
-use brainwires_storage::vector_db::VectorDatabase;
+use brainwires_storage::databases::VectorDatabase;
 use chrono::DateTime;
 use regex::Regex;
 use std::collections::HashSet;
@@ -26,7 +26,7 @@ pub async fn do_search_git_history<E, V>(
 ) -> Result<SearchGitHistoryResponse>
 where
     E: EmbeddingProvider + Send + Sync,
-    V: VectorDatabase + Send + Sync,
+    V: VectorDatabase + Send + Sync + ?Sized,
 {
     let start_time = Instant::now();
 

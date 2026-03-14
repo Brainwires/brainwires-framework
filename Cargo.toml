@@ -38,7 +38,7 @@ exclude = [
 resolver = "2"
 
 [workspace.package]
-version = "0.3.0"
+version = "0.4.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 rust-version = "1.91"
@@ -52,25 +52,25 @@ documentation = "https://docs.rs/brainwires"
 
 [workspace.dependencies]
 # Internal crates
-brainwires-core = { path = "crates/brainwires-core", version = "0.3.0" }
-brainwires-tool-system = { path = "crates/brainwires-tool-system", version = "0.3.0" }
-brainwires-agents = { path = "crates/brainwires-agents", version = "0.3.0" }
-brainwires-storage = { path = "crates/brainwires-storage", version = "0.3.0", default-features = false }
-brainwires-mcp = { path = "crates/brainwires-mcp", version = "0.3.0" }
-brainwires-mdap = { path = "crates/brainwires-mdap", version = "0.3.0" }
-brainwires-permissions = { path = "crates/brainwires-permissions", version = "0.3.0" }
-brainwires-code-interpreters = { path = "crates/brainwires-code-interpreters", version = "0.3.0" }
-brainwires-wasm = { path = "crates/brainwires-wasm", version = "0.3.0" }
-brainwires-agent-network = { path = "crates/brainwires-agent-network", version = "0.3.0" }
-brainwires-a2a = { path = "crates/brainwires-a2a", version = "0.3.0", default-features = false }
-brainwires-providers = { path = "crates/brainwires-providers", version = "0.3.0" }
-brainwires-skills = { path = "crates/brainwires-skills", version = "0.3.0" }
-brainwires-audio = { path = "crates/brainwires-audio", version = "0.3.0" }
-brainwires-datasets = { path = "crates/brainwires-datasets", version = "0.3.0" }
-brainwires-training = { path = "crates/brainwires-training", version = "0.3.0" }
-brainwires-autonomy = { path = "crates/brainwires-autonomy", version = "0.3.0", default-features = false }
-brainwires-cognition = { path = "crates/brainwires-cognition", version = "0.3.0", default-features = false }
-brainwires-proxy = { path = "extras/brainwires-proxy", version = "0.3.0" }
+brainwires-core = { path = "crates/brainwires-core", version = "0.4.0" }
+brainwires-tool-system = { path = "crates/brainwires-tool-system", version = "0.4.0" }
+brainwires-agents = { path = "crates/brainwires-agents", version = "0.4.0" }
+brainwires-storage = { path = "crates/brainwires-storage", version = "0.4.0", default-features = false }
+brainwires-mcp = { path = "crates/brainwires-mcp", version = "0.4.0" }
+brainwires-mdap = { path = "crates/brainwires-mdap", version = "0.4.0" }
+brainwires-permissions = { path = "crates/brainwires-permissions", version = "0.4.0" }
+brainwires-code-interpreters = { path = "crates/brainwires-code-interpreters", version = "0.4.0" }
+brainwires-wasm = { path = "crates/brainwires-wasm", version = "0.4.0" }
+brainwires-agent-network = { path = "crates/brainwires-agent-network", version = "0.4.0" }
+brainwires-a2a = { path = "crates/brainwires-a2a", version = "0.4.0", default-features = false }
+brainwires-providers = { path = "crates/brainwires-providers", version = "0.4.0" }
+brainwires-skills = { path = "crates/brainwires-skills", version = "0.4.0" }
+brainwires-audio = { path = "crates/brainwires-audio", version = "0.4.0" }
+brainwires-datasets = { path = "crates/brainwires-datasets", version = "0.4.0" }
+brainwires-training = { path = "crates/brainwires-training", version = "0.4.0" }
+brainwires-autonomy = { path = "crates/brainwires-autonomy", version = "0.4.0", default-features = false }
+brainwires-cognition = { path = "crates/brainwires-cognition", version = "0.4.0", default-features = false }
+brainwires-proxy = { path = "extras/brainwires-proxy", version = "0.4.0" }
 
 # Tokenizer dependencies
 tokenizers = "0.22"
@@ -134,7 +134,7 @@ lru = "0.16"
 sha2 = "0.10"
 
 # SQLite
-rusqlite = { version = "0.31", features = ["bundled"] }
+rusqlite = { version = "0.38", features = ["bundled"] }
 
 # File operations
 walkdir = "2.5"
@@ -227,9 +227,17 @@ tokio-stream = "0.1"
 # SafeTensors model weight loading
 safetensors = "0.7"
 
-# Postgres + pgvector
-sqlx = { version = "0.8.0", features = ["runtime-tokio", "postgres", "json", "chrono"] }
-pgvector = { version = "0.4", features = ["sqlx"] }
+# Postgres + pgvector (using tokio-postgres to avoid sqlx's libsqlite3-sys conflict)
+tokio-postgres = "0.7"
+deadpool-postgres = "0.14"
+pgvector = { version = "0.4.1", features = ["postgres"] }
 
 # Testing
 tempfile = "3"
+
+# Patch crates whose crates.io releases pin incompatible libsqlite3-sys versions.
+# Upstream git repos already have the fix (libsqlite3-sys >=0.30, <0.37) but
+# haven't published new releases yet.
+[patch.crates-io]
+rustpython-vm = { git = "https://github.com/RustPython/RustPython", branch = "main", package = "rustpython-vm" }
+rustpython-stdlib = { git = "https://github.com/RustPython/RustPython", branch = "main", package = "rustpython-stdlib" }

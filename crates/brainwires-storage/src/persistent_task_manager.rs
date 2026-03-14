@@ -1,6 +1,6 @@
-//! Persistent Task Manager - TaskManager with automatic LanceDB persistence
+//! Persistent Task Manager - TaskManager with automatic persistence
 //!
-//! Wraps TaskManager to automatically save/load tasks from storage,
+//! Wraps TaskManager to automatically save/load tasks from the storage backend,
 //! enabling task lists to survive app restarts and be linked to plans.
 
 use anyhow::Result;
@@ -10,10 +10,10 @@ use tokio::sync::RwLock;
 use brainwires_agents::task_manager::TaskManager;
 use brainwires_core::{Task, TaskPriority, TaskStatus};
 
-use crate::stores::lance_client::LanceClient;
+use crate::LanceDatabase;
 use crate::stores::task_store::TaskStore;
 
-/// A TaskManager that automatically persists to LanceDB
+/// A TaskManager that automatically persists to the storage backend
 pub struct PersistentTaskManager {
     /// In-memory task manager
     manager: TaskManager,
@@ -27,8 +27,8 @@ pub struct PersistentTaskManager {
 
 impl PersistentTaskManager {
     /// Create a new persistent task manager
-    pub async fn new(client: Arc<LanceClient>, conversation_id: String) -> Result<Self> {
-        let store = TaskStore::new(client);
+    pub async fn new(db: Arc<LanceDatabase>, conversation_id: String) -> Result<Self> {
+        let store = TaskStore::new(db);
         let manager = TaskManager::new();
 
         // Load existing tasks for this conversation
@@ -50,11 +50,11 @@ impl PersistentTaskManager {
 
     /// Create for a specific plan (loads tasks for that plan)
     pub async fn new_for_plan(
-        client: Arc<LanceClient>,
+        db: Arc<LanceDatabase>,
         conversation_id: String,
         plan_id: String,
     ) -> Result<Self> {
-        let store = TaskStore::new(client);
+        let store = TaskStore::new(db);
         let manager = TaskManager::new();
 
         // Load existing tasks for this plan

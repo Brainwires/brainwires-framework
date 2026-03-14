@@ -146,7 +146,7 @@ fn main() {
     //   let strategy = ChunkStrategy::Custom(Arc::new(SentenceChunker { max_sentences: 5 }));
     //   let chunker = CodeChunker::new(strategy);
     //
-    //   // Custom scorer on LanceVectorDB
-    //   let db = LanceVectorDB::with_path("/path/to/db").await?
+    //   // Custom scorer on LanceDatabase
+    //   let db = LanceDatabase::with_path("/path/to/db").await?
     //       .with_scorer(Arc::new(WeightedScorer { vector_weight: 0.7, keyword_weight: 0.3 }));
 }

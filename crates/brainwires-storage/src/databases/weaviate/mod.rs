@@ -5,8 +5,8 @@
 //! Weaviate's native `hybrid` operator (vector + BM25 fusion server-side),
 //! with a client-side [`SharedIdfStats`] kept as a fallback only.
 
-use super::bm25_helpers::{self, SharedIdfStats};
-use super::{ChunkMetadata, DatabaseStats, SearchResult, VectorDatabase};
+use crate::databases::bm25_helpers::{self, SharedIdfStats};
+use crate::databases::traits::{ChunkMetadata, DatabaseStats, SearchResult, VectorDatabase};
 use crate::glob_utils;
 use anyhow::{Context, Result};
 use serde_json::{Value, json};
@@ -18,7 +18,7 @@ const DEFAULT_CLASS_NAME: &str = "CodeEmbedding";
 /// Communicates with Weaviate over HTTP using the REST v1 API and GraphQL.
 /// Hybrid search leverages Weaviate's native `hybrid` operator which fuses
 /// vector similarity with BM25 keyword scoring on the server side.
-pub struct WeaviateVectorDB {
+pub struct WeaviateDatabase {
     client: reqwest::Client,
     base_url: String,
     /// Weaviate class name (PascalCase).
@@ -28,7 +28,7 @@ pub struct WeaviateVectorDB {
     idf_stats: SharedIdfStats,
 }
 
-impl WeaviateVectorDB {
+impl WeaviateDatabase {
     /// Create a new Weaviate client pointing at `localhost:8080` with the
     /// default class name `CodeEmbedding`.
     pub fn new() -> Self {
@@ -249,7 +249,7 @@ impl WeaviateVectorDB {
 // ── VectorDatabase trait ─────────────────────────────────────────────────
 
 #[async_trait::async_trait]
-impl VectorDatabase for WeaviateVectorDB {
+impl VectorDatabase for WeaviateDatabase {
     async fn initialize(&self, dimension: usize) -> Result<()> {
         if self.class_exists().await? {
             tracing::info!(
@@ -688,7 +688,7 @@ impl VectorDatabase for WeaviateVectorDB {
     }
 }
 
-impl Default for WeaviateVectorDB {
+impl Default for WeaviateDatabase {
     fn default() -> Self {
         Self::new()
     }
@@ -716,7 +716,7 @@ mod tests {
     #[tokio::test]
     #[ignore] // Requires running Weaviate server on localhost:8080
     async fn test_weaviate_lifecycle() {
-        let db = WeaviateVectorDB::new();
+        let db = WeaviateDatabase::new();
         db.initialize(384).await.unwrap();
 
         // Store
@@ -752,9 +752,9 @@ mod tests {
 
     #[test]
     fn test_deterministic_uuid() {
-        let uuid1 = WeaviateVectorDB::deterministic_uuid("file.rs", 1, 10);
-        let uuid2 = WeaviateVectorDB::deterministic_uuid("file.rs", 1, 10);
-        let uuid3 = WeaviateVectorDB::deterministic_uuid("other.rs", 1, 10);
+        let uuid1 = WeaviateDatabase::deterministic_uuid("file.rs", 1, 10);
+        let uuid2 = WeaviateDatabase::deterministic_uuid("file.rs", 1, 10);
+        let uuid3 = WeaviateDatabase::deterministic_uuid("other.rs", 1, 10);
         assert_eq!(uuid1, uuid2); // Same inputs = same UUID
         assert_ne!(uuid1, uuid3); // Different inputs = different UUID
         // Check UUID format (8-4-4-4-12)

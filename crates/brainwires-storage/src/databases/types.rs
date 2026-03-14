@@ -1,18 +1,8 @@
-//! Backend-agnostic storage abstraction.
+//! Schema, record, and filter types for the unified database layer.
 //!
-//! The [`StorageBackend`](crate::StorageBackend) trait defines generic table operations (CRUD +
-//! vector search) that domain stores use instead of binding directly to a specific
-//! database.  Concrete implementations live in the
-//! [`backends`](crate::stores::backends) module.
-//!
-//! # Types
-//!
-//! * [`FieldDef`](crate::FieldDef) / [`FieldType`](crate::FieldType) — schema definition without Arrow dependency.
-//! * [`FieldValue`](crate::FieldValue) / [`Record`](crate::Record) — generic row representation.
-//! * [`Filter`](crate::Filter) — structured query filter that backends translate to native syntax.
-//! * [`ScoredRecord`](crate::ScoredRecord) — a record returned from vector similarity search.
-
-use anyhow::Result;
+//! These types define a backend-agnostic data model that both
+//! [`StorageBackend`](super::traits::StorageBackend) and
+//! [`VectorDatabase`](super::traits::VectorDatabase) implementations use.
 
 // ── Schema types ────────────────────────────────────────────────────────
 
@@ -201,54 +191,4 @@ pub enum Filter {
     Or(Vec<Filter>),
     /// Raw backend-specific filter string (escape hatch).
     Raw(String),
-}
-
-// ── Trait ────────────────────────────────────────────────────────────────
-
-/// Backend-agnostic storage operations.
-///
-/// Domain stores ([`MessageStore`](super::message_store::MessageStore), etc.)
-/// are generic over this trait so they can work with any supported database.
-#[async_trait::async_trait]
-pub trait StorageBackend: Send + Sync {
-    /// Ensure a table exists with the given schema.
-    ///
-    /// Implementations should be idempotent — calling this on an existing table
-    /// is a no-op (or verifies compatibility).
-    async fn ensure_table(&self, table_name: &str, schema: &[FieldDef]) -> Result<()>;
-
-    /// Insert one or more records into a table.
-    async fn insert(&self, table_name: &str, records: Vec<Record>) -> Result<()>;
-
-    /// Query records matching an optional filter.
-    ///
-    /// Pass `None` for `filter` to return all rows (up to `limit`).
-    async fn query(
-        &self,
-        table_name: &str,
-        filter: Option<&Filter>,
-        limit: Option<usize>,
-    ) -> Result<Vec<Record>>;
-
-    /// Delete records matching a filter.
-    async fn delete(&self, table_name: &str, filter: &Filter) -> Result<()>;
-
-    /// Count records matching an optional filter.
-    async fn count(&self, table_name: &str, filter: Option<&Filter>) -> Result<usize> {
-        // Default implementation: count via query.
-        Ok(self.query(table_name, filter, None).await?.len())
-    }
-
-    /// Vector similarity search.
-    ///
-    /// Returns up to `limit` records ordered by descending similarity to `vector`.
-    /// An optional `filter` narrows the candidates before ranking.
-    async fn vector_search(
-        &self,
-        table_name: &str,
-        vector_column: &str,
-        vector: Vec<f32>,
-        limit: usize,
-        filter: Option<&Filter>,
-    ) -> Result<Vec<ScoredRecord>>;
 }

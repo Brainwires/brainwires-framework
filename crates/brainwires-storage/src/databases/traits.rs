@@ -1,63 +1,73 @@
-//! Vector database abstraction layer.
+//! Unified database traits for the Brainwires storage layer.
 //!
-//! Provides the [`VectorDatabase`] trait for RAG-style embedding storage and
-//! hybrid (vector + keyword) search, along with concrete LanceDB and Qdrant
-//! backend implementations.
+//! Two traits define the database capabilities:
 //!
-//! The shared data types ([`SearchResult`], [`ChunkMetadata`], [`DatabaseStats`])
-//! are re-exported from `brainwires-core`.
+//! - [`StorageBackend`] — generic CRUD + vector search for domain stores
+//!   (conversations, messages, tasks, plans, etc.)
+//! - [`VectorDatabase`] — RAG-style embedding storage with hybrid search
+//!   for the codebase indexing subsystem
+//!
+//! A single database struct (e.g. `LanceDatabase`, `PostgresDatabase`) can
+//! implement **both** traits, sharing one connection pool.
 
 use anyhow::Result;
 
-// Re-export core types so consumers can use `brainwires_storage::vector_db::*`.
+use super::types::{FieldDef, Filter, Record, ScoredRecord};
+
+// Re-export core types so consumers can use `databases::traits::*`.
 pub use brainwires_core::{ChunkMetadata, DatabaseStats, SearchResult};
 
-// ── Backend implementations ─────────────────────────────────────────────
+// ── StorageBackend ──────────────────────────────────────────────────────
 
-/// LanceDB vector database backend (embedded, no server required).
-pub mod lance_client;
-pub use lance_client::LanceVectorDB;
+/// Backend-agnostic storage operations.
+///
+/// Domain stores ([`MessageStore`](crate::stores::message_store::MessageStore), etc.)
+/// are generic over this trait so they can work with any supported database.
+#[async_trait::async_trait]
+pub trait StorageBackend: Send + Sync {
+    /// Ensure a table exists with the given schema.
+    ///
+    /// Implementations should be idempotent — calling this on an existing table
+    /// is a no-op (or verifies compatibility).
+    async fn ensure_table(&self, table_name: &str, schema: &[FieldDef]) -> Result<()>;
 
-/// Qdrant vector database backend (requires running Qdrant server).
-#[cfg(feature = "qdrant-backend")]
-pub mod qdrant_client;
-#[cfg(feature = "qdrant-backend")]
-pub use qdrant_client::QdrantVectorDB;
+    /// Insert one or more records into a table.
+    async fn insert(&self, table_name: &str, records: Vec<Record>) -> Result<()>;
 
-#[cfg(feature = "nornicdb-backend")]
-pub mod nornicdb_client;
-/// NornicDB vector database backend (requires running NornicDB server).
-#[cfg(feature = "nornicdb-backend")]
-pub mod nornicdb_transport;
-#[cfg(feature = "nornicdb-backend")]
-pub use nornicdb_client::{CognitiveMemoryTier, NornicConfig, NornicVectorDB, TransportKind};
+    /// Query records matching an optional filter.
+    ///
+    /// Pass `None` for `filter` to return all rows (up to `limit`).
+    async fn query(
+        &self,
+        table_name: &str,
+        filter: Option<&Filter>,
+        limit: Option<usize>,
+    ) -> Result<Vec<Record>>;
 
-/// Shared BM25 helpers for backends that use client-side keyword scoring.
-pub mod bm25_helpers;
+    /// Delete records matching a filter.
+    async fn delete(&self, table_name: &str, filter: &Filter) -> Result<()>;
 
-/// PostgreSQL + pgvector backend (requires running PostgreSQL with pgvector extension).
-#[cfg(feature = "postgres-backend")]
-pub mod postgres_client;
-#[cfg(feature = "postgres-backend")]
-pub use postgres_client::PostgresVectorDB;
+    /// Count records matching an optional filter.
+    async fn count(&self, table_name: &str, filter: Option<&Filter>) -> Result<usize> {
+        // Default implementation: count via query.
+        Ok(self.query(table_name, filter, None).await?.len())
+    }
 
-/// Pinecone cloud vector database backend (requires API key and pre-created index).
-#[cfg(feature = "pinecone-backend")]
-pub mod pinecone_client;
-#[cfg(feature = "pinecone-backend")]
-pub use pinecone_client::PineconeVectorDB;
+    /// Vector similarity search.
+    ///
+    /// Returns up to `limit` records ordered by descending similarity to `vector`.
+    /// An optional `filter` narrows the candidates before ranking.
+    async fn vector_search(
+        &self,
+        table_name: &str,
+        vector_column: &str,
+        vector: Vec<f32>,
+        limit: usize,
+        filter: Option<&Filter>,
+    ) -> Result<Vec<ScoredRecord>>;
+}
 
-/// Milvus vector database backend (requires running Milvus server).
-#[cfg(feature = "milvus-backend")]
-pub mod milvus_client;
-#[cfg(feature = "milvus-backend")]
-pub use milvus_client::MilvusVectorDB;
-
-/// Weaviate vector database backend (requires running Weaviate server).
-#[cfg(feature = "weaviate-backend")]
-pub mod weaviate_client;
-#[cfg(feature = "weaviate-backend")]
-pub use weaviate_client::WeaviateVectorDB;
+// ── VectorDatabase ──────────────────────────────────────────────────────
 
 /// Trait for vector database operations used by the RAG subsystem.
 ///

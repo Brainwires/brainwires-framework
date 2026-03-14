@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use anyhow::{Context, Result};
 use std::sync::Arc;
 
-use crate::stores::backend::{
+use crate::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
 use crate::tiered_memory::{MemoryAuthority, MemoryTier, TierMetadata};
@@ -102,7 +102,7 @@ fn string_to_tier(s: &str) -> MemoryTier {
 }
 
 /// Store for tier metadata
-pub struct TierMetadataStore<B: StorageBackend = crate::stores::backends::LanceBackend> {
+pub struct TierMetadataStore<B: StorageBackend = crate::databases::lance::LanceDatabase> {
     backend: Arc<B>,
 }
 
@@ -117,7 +117,7 @@ impl<B: StorageBackend> TierMetadataStore<B> {
         self.backend.ensure_table(TABLE_NAME, &table_schema()).await
     }
 
-    /// Get the Arrow schema for backward-compatible table creation via LanceClient.
+    /// Get the Arrow schema for backward-compatible table creation via LanceDatabase.
     #[cfg(feature = "native")]
     pub fn tier_metadata_schema() -> Arc<arrow_schema::Schema> {
         Arc::new(arrow_schema::Schema::new(vec![

@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use chrono::Utc;
 use std::sync::Arc;
 
-use crate::stores::backend::{
+use crate::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
 
@@ -78,7 +78,7 @@ fn from_record(r: &Record) -> Result<ConversationMetadata> {
 }
 
 /// Store for managing conversations
-pub struct ConversationStore<B: StorageBackend = crate::stores::backends::LanceBackend> {
+pub struct ConversationStore<B: StorageBackend = crate::databases::lance::LanceDatabase> {
     backend: Arc<B>,
 }
 
@@ -214,23 +214,6 @@ impl<B: StorageBackend> ConversationStore<B> {
     }
 }
 
-// ── Legacy constructor for backward compatibility ───────────────────────
-
-#[cfg(feature = "native")]
-impl ConversationStore<crate::stores::backends::LanceBackend> {
-    /// Create from a legacy [`LanceClient`](crate::stores::lance_client::LanceClient).
-    ///
-    /// This wraps the LanceClient's connection in a [`LanceBackend`](crate::stores::backends::LanceBackend).
-    pub async fn from_lance_client(
-        client: &crate::stores::lance_client::LanceClient,
-    ) -> Result<Self> {
-        let backend = Arc::new(crate::stores::backends::LanceBackend::new(client.db_path()).await?);
-        let store = Self { backend };
-        store.ensure_table().await?;
-        Ok(store)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -238,13 +221,13 @@ mod tests {
 
     async fn setup() -> (
         TempDir,
-        ConversationStore<crate::stores::backends::LanceBackend>,
+        ConversationStore<crate::databases::lance::LanceDatabase>,
     ) {
         let temp = TempDir::new().unwrap();
         let db_path = temp.path().join("test.lance");
 
         let backend = Arc::new(
-            crate::stores::backends::LanceBackend::new(db_path.to_str().unwrap())
+            crate::databases::lance::LanceDatabase::new(db_path.to_str().unwrap())
                 .await
                 .unwrap(),
         );

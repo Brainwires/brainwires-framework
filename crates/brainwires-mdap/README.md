@@ -73,7 +73,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires-mdap = "0.1"
+brainwires-mdap = "0.4"
 ```
 
 Run a simple voting consensus:
@@ -722,11 +722,11 @@ Use via the `brainwires` facade crate with the `mdap` feature, or depend on `bra
 ```toml
 # Via facade
 [dependencies]
-brainwires = { version = "0.3", features = ["mdap"] }
+brainwires = { version = "0.4", features = ["mdap"] }
 
 # Direct
 [dependencies]
-brainwires-mdap = "0.1"
+brainwires-mdap = "0.4"
 ```
 
 The `prelude` module re-exports the most commonly used types:

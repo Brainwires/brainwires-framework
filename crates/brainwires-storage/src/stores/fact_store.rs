@@ -5,10 +5,10 @@
 use anyhow::{Context, Result};
 use std::sync::Arc;
 
-use crate::embeddings::EmbeddingProvider;
-use crate::stores::backend::{
+use crate::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, ScoredRecord, StorageBackend, record_get,
 };
+use crate::embeddings::EmbeddingProvider;
 use crate::tiered_memory::{FactType, KeyFact};
 
 const TABLE_NAME: &str = "facts";
@@ -29,7 +29,7 @@ pub fn facts_field_defs(embedding_dim: usize) -> Vec<FieldDef> {
 }
 
 /// Return an Arrow `Schema` for backward compatibility with
-/// [`LanceClient`](crate::stores::lance_client::LanceClient).
+/// [`LanceDatabase`](crate::databases::lance::LanceDatabase).
 #[cfg(feature = "native")]
 pub fn facts_schema(embedding_dim: usize) -> std::sync::Arc<arrow_schema::Schema> {
     use arrow_schema::{DataType, Field};
@@ -143,7 +143,7 @@ fn string_to_fact_type(s: &str) -> FactType {
 // ── FactStore ───────────────────────────────────────────────────────────
 
 /// Store for cold tier key facts with semantic search
-pub struct FactStore<B: StorageBackend = crate::stores::backends::LanceBackend> {
+pub struct FactStore<B: StorageBackend = crate::databases::lance::LanceDatabase> {
     backend: Arc<B>,
     embeddings: Arc<EmbeddingProvider>,
 }
@@ -290,27 +290,6 @@ impl<B: StorageBackend> FactStore<B> {
     /// Get count of facts
     pub async fn count(&self) -> Result<usize> {
         self.backend.count(TABLE_NAME, None).await
-    }
-}
-
-// ── Legacy constructor for backward compatibility ───────────────────────
-
-#[cfg(feature = "native")]
-impl FactStore<crate::stores::backends::LanceBackend> {
-    /// Create from a legacy [`LanceClient`](crate::stores::lance_client::LanceClient).
-    ///
-    /// This wraps the LanceClient's connection in a [`LanceBackend`](crate::stores::backends::LanceBackend).
-    pub async fn from_lance_client(
-        client: &crate::stores::lance_client::LanceClient,
-        embeddings: Arc<EmbeddingProvider>,
-    ) -> Result<Self> {
-        let backend = Arc::new(crate::stores::backends::LanceBackend::new(client.db_path()).await?);
-        let store = Self {
-            backend,
-            embeddings,
-        };
-        store.ensure_table().await?;
-        Ok(store)
     }
 }
 

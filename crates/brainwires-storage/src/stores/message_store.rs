@@ -1,10 +1,10 @@
 use anyhow::{Context, Result};
 use std::sync::Arc;
 
-use crate::embeddings::EmbeddingProvider;
-use crate::stores::backend::{
+use crate::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
+use crate::embeddings::EmbeddingProvider;
 
 const TABLE_NAME: &str = "messages";
 
@@ -51,7 +51,7 @@ fn table_schema(embedding_dim: usize) -> Vec<FieldDef> {
     ]
 }
 
-/// Arrow `Schema` for the messages table (lance_client.rs compatibility).
+/// Arrow `Schema` for the messages table (LanceDatabase compatibility).
 #[cfg(feature = "native")]
 pub fn messages_schema(embedding_dim: usize) -> Arc<arrow_schema::Schema> {
     use arrow_schema::{DataType, Field, Schema};
@@ -131,7 +131,7 @@ fn from_record(r: &Record) -> Result<MessageMetadata> {
 }
 
 /// Store for managing messages with semantic search
-pub struct MessageStore<B: StorageBackend = crate::stores::backends::LanceBackend> {
+pub struct MessageStore<B: StorageBackend = crate::databases::lance::LanceDatabase> {
     backend: Arc<B>,
     embeddings: Arc<EmbeddingProvider>,
 }
@@ -319,26 +319,5 @@ impl<B: StorageBackend> MessageStore<B> {
             self.backend.delete(TABLE_NAME, &filter).await?;
         }
         Ok(count)
-    }
-}
-
-// ── Legacy constructor for backward compatibility ───────────────────────
-
-#[cfg(feature = "native")]
-impl MessageStore<crate::stores::backends::LanceBackend> {
-    /// Create from a legacy [`LanceClient`](crate::stores::lance_client::LanceClient).
-    ///
-    /// This wraps the LanceClient's connection in a [`LanceBackend`](crate::stores::backends::LanceBackend).
-    pub async fn from_lance_client(
-        client: &crate::stores::lance_client::LanceClient,
-        embeddings: Arc<EmbeddingProvider>,
-    ) -> Result<Self> {
-        let backend = Arc::new(crate::stores::backends::LanceBackend::new(client.db_path()).await?);
-        let store = Self {
-            backend,
-            embeddings,
-        };
-        store.ensure_table().await?;
-        Ok(store)
     }
 }

@@ -52,10 +52,10 @@ Add to `~/.claude/mcp_servers.json`:
 
 ## Library vs Server
 
-- **Library**: Use `brainwires-brain` crate in your Rust code for programmatic access
+- **Library**: Use `brainwires-cognition` crate (feature `knowledge`) in your Rust code for programmatic access
 - **Server**: Use this binary to expose Open Brain as an MCP server for any AI assistant
 
-See [brainwires-brain README](../../crates/brainwires-brain/README.md) for full API documentation.
+See [brainwires-cognition README](../../crates/brainwires-cognition/README.md) for full API documentation.
 
 ## License
 

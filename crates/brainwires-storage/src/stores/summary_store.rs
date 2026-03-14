@@ -5,10 +5,10 @@
 use anyhow::{Context, Result};
 use std::sync::Arc;
 
-use crate::embeddings::EmbeddingProvider;
-use crate::stores::backend::{
+use crate::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, ScoredRecord, StorageBackend, record_get,
 };
+use crate::embeddings::EmbeddingProvider;
 use crate::tiered_memory::MessageSummary;
 
 const TABLE_NAME: &str = "summaries";
@@ -30,7 +30,7 @@ pub fn summaries_field_defs(embedding_dim: usize) -> Vec<FieldDef> {
 }
 
 /// Return an Arrow `Schema` for backward compatibility with
-/// [`LanceClient`](crate::stores::lance_client::LanceClient).
+/// [`LanceDatabase`](crate::databases::lance::LanceDatabase).
 #[cfg(feature = "native")]
 pub fn summaries_schema(embedding_dim: usize) -> std::sync::Arc<arrow_schema::Schema> {
     use arrow_schema::{DataType, Field};
@@ -127,7 +127,7 @@ fn from_record(r: &Record) -> Result<MessageSummary> {
 // ── SummaryStore ────────────────────────────────────────────────────────
 
 /// Store for warm tier message summaries with semantic search
-pub struct SummaryStore<B: StorageBackend = crate::stores::backends::LanceBackend> {
+pub struct SummaryStore<B: StorageBackend = crate::databases::lance::LanceDatabase> {
     backend: Arc<B>,
     embeddings: Arc<EmbeddingProvider>,
 }
@@ -288,27 +288,6 @@ impl<B: StorageBackend> SummaryStore<B> {
         summaries.truncate(limit);
 
         Ok(summaries)
-    }
-}
-
-// ── Legacy constructor for backward compatibility ───────────────────────
-
-#[cfg(feature = "native")]
-impl SummaryStore<crate::stores::backends::LanceBackend> {
-    /// Create from a legacy [`LanceClient`](crate::stores::lance_client::LanceClient).
-    ///
-    /// This wraps the LanceClient's connection in a [`LanceBackend`](crate::stores::backends::LanceBackend).
-    pub async fn from_lance_client(
-        client: &crate::stores::lance_client::LanceClient,
-        embeddings: Arc<EmbeddingProvider>,
-    ) -> Result<Self> {
-        let backend = Arc::new(crate::stores::backends::LanceBackend::new(client.db_path()).await?);
-        let store = Self {
-            backend,
-            embeddings,
-        };
-        store.ensure_table().await?;
-        Ok(store)
     }
 }
 

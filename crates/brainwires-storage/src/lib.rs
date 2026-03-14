@@ -1,38 +1,86 @@
 #![deny(missing_docs)]
-//! Brainwires Storage - Persistent storage for the Brainwires Agent Framework
+//! Brainwires Storage — backend-agnostic persistent storage for the Brainwires
+//! Agent Framework.
 //!
-//! This crate provides persistent storage with semantic search capabilities:
+//! This crate provides conversation storage with semantic search, document
+//! ingestion with hybrid retrieval, three-tier memory hierarchy, image
+//! analysis storage, cross-process lock coordination, and reusable plan
+//! templates.
 //!
-//! ## Core Infrastructure
-//! - **LanceClient** - LanceDB connection and table management
-//! - **FastEmbedManager** - Text embeddings via FastEmbed ONNX model
-//! - **CachedEmbeddingProvider** - LRU-cached embedding provider (wraps FastEmbedManager)
+//! # Unified Database Layer ([`databases`] module)
 //!
-//! ## Stores (in [`stores`] module)
-//! - **MessageStore** - Conversation messages with vector search
-//! - **ConversationStore** - Conversation metadata
-//! - **TaskStore** - Task persistence with agent state tracking
-//! - **PlanStore** - Execution plan storage with markdown export
-//! - **TemplateStore** - Reusable plan template storage
-//! - **LockStore** - Cross-process lock coordination
+//! One struct per database, one shared connection, implementing one or both
+//! of the core traits:
 //!
-//! ## Image Storage
-//! - **ImageStore** - Image analysis storage with semantic search
+//! - [`StorageBackend`] — generic CRUD + vector search for domain stores
+//! - [`VectorDatabase`](databases::VectorDatabase) — RAG embedding storage
+//!   with hybrid search
 //!
-//! ## Tiered Memory
-//! - **TieredMemory** - Three-tier memory hierarchy (hot/warm/cold)
-//! - **SummaryStore** - Compressed message summaries (warm tier)
-//! - **FactStore** - Key facts extraction (cold tier)
-//! - **TierMetadataStore** - Tier tracking metadata
+//! ### Database backends
 //!
-//! ## Vector Database Clients (in `clients` module)
-//! - **LanceVectorDB** - Embedded LanceDB backend
-//! - **QdrantVectorDB** - Qdrant backend
-//! - **PostgresVectorDB** - PostgreSQL + pgvector backend
-//! - **PineconeVectorDB** - Pinecone cloud backend
-//! - **MilvusVectorDB** - Milvus backend
-//! - **WeaviateVectorDB** - Weaviate backend
-//! - **NornicVectorDB** - NornicDB backend
+//! | Backend | Struct | `StorageBackend` | `VectorDatabase` | Feature |
+//! |---------|--------|:---:|:---:|---------|
+//! | LanceDB | `LanceDatabase` | YES | YES | `lance-backend` (default) |
+//! | PostgreSQL | `PostgresDatabase` | YES | YES | `postgres-backend` |
+//! | MySQL | `MySqlDatabase` | YES | NO | `mysql-backend` |
+//! | SurrealDB | `SurrealDatabase` | YES | TBD | `surrealdb-backend` |
+//! | Qdrant | `QdrantDatabase` | NO | YES | `qdrant-backend` |
+//! | Pinecone | `PineconeDatabase` | NO | YES | `pinecone-backend` |
+//! | Milvus | `MilvusDatabase` | NO | YES | `milvus-backend` |
+//! | Weaviate | `WeaviateDatabase` | NO | YES | `weaviate-backend` |
+//! | NornicDB | `NornicDatabase` | NO | YES | `nornicdb-backend` |
+//!
+//! Backends that implement both traits share a single connection — construct
+//! once, wrap in `Arc`, and pass to both domain stores and RAG subsystem.
+//!
+//! # Core Infrastructure
+//!
+//! - **`FastEmbedManager`** — text embeddings via FastEmbed ONNX model
+//!   (all-MiniLM-L6-v2, 384 dimensions)
+//! - **`CachedEmbeddingProvider`** — LRU-cached embedding provider (1000 entries)
+//!
+//! # Domain Stores ([`stores`] module)
+//!
+//! - **`MessageStore`** — conversation messages with vector search and TTL expiry
+//! - **`ConversationStore`** — conversation metadata with create-or-update semantics
+//! - **`TaskStore`** / **`AgentStateStore`** — task and agent state persistence
+//! - **`PlanStore`** — execution plan storage with markdown export
+//! - **`TemplateStore`** — reusable plan templates with `{{variable}}` substitution
+//! - **`LockStore`** — SQLite-backed cross-process lock coordination
+//!
+//! # Document Management
+//!
+//! - **`DocumentStore`** — hybrid search (vector + BM25 via RRF)
+//! - **`DocumentProcessor`** — PDF, DOCX, Markdown, plain text ingestion
+//! - **`DocumentChunker`** — paragraph/sentence-aware segmentation
+//! - **`DocumentMetadataStore`** — hash-based deduplication
+//!
+//! # Image Storage
+//!
+//! - **`ImageStore`** — analyzed images with semantic search over descriptions
+//!
+//! # Tiered Memory
+//!
+//! - **`TieredMemory`** — three-tier memory hierarchy (hot/warm/cold)
+//! - **`SummaryStore`** — compressed message summaries (warm tier)
+//! - **`FactStore`** — key facts extraction (cold tier)
+//! - **`TierMetadataStore`** — access tracking and importance scoring
+//!
+//! # Feature Flags
+//!
+//! | Feature | Default | Description |
+//! |---------|---------|-------------|
+//! | `native` | Yes | LanceDB backend + FastEmbed + SQLite locks + all native stores |
+//! | `lance-backend` | Yes (via `native`) | LanceDB embedded vector database |
+//! | `postgres-backend` | No | PostgreSQL + pgvector |
+//! | `mysql-backend` | No | MySQL / MariaDB |
+//! | `surrealdb-backend` | No | SurrealDB |
+//! | `qdrant-backend` | No | Qdrant vector search |
+//! | `pinecone-backend` | No | Pinecone cloud vectors |
+//! | `milvus-backend` | No | Milvus vectors |
+//! | `weaviate-backend` | No | Weaviate search engine |
+//! | `nornicdb-backend` | No | NornicDB graph + vector |
+//! | `wasm` | No | WASM-compatible (pure types only) |
 
 // Re-export core types
 pub use brainwires_core;
@@ -41,29 +89,20 @@ pub use brainwires_core;
 
 pub mod image_types;
 
-/// Vector database clients (LanceDB, Qdrant, Postgres, etc.) and the
-/// [`VectorDatabase`](clients::VectorDatabase) trait.
-#[cfg(feature = "vector-db")]
-pub mod clients;
-
-/// Backward-compatible alias for the [`clients`] module (formerly `vector_db`).
-#[cfg(feature = "vector-db")]
-#[deprecated(since = "0.3.0", note = "renamed to `clients`")]
-pub mod vector_db {
-    pub use crate::clients::*;
-}
+/// Unified database layer — one struct per database, shared connection,
+/// implementing [`StorageBackend`] and/or [`VectorDatabase`](databases::VectorDatabase).
+pub mod databases;
 
 /// BM25 keyword search using Tantivy.
-#[cfg(feature = "vector-db")]
+#[cfg(feature = "lance-backend")]
 pub mod bm25_search;
 /// Glob pattern matching utilities.
-#[cfg(feature = "vector-db")]
+#[cfg(feature = "lance-backend")]
 pub mod glob_utils;
 /// Platform-specific path utilities.
-#[cfg(feature = "vector-db")]
+#[cfg(feature = "lance-backend")]
 pub mod paths;
 
-// These have native deps (sha2, LanceDB types)
 #[cfg(feature = "native")]
 pub mod file_context;
 #[cfg(feature = "native")]
@@ -76,28 +115,28 @@ pub mod embeddings;
 /// Domain stores for conversation, message, task, plan, and other data.
 pub mod stores;
 
+// Note: persistent_task_manager lives in this crate but requires brainwires-agents
+// which creates a cyclic dependency. It's compiled only when brought in by a
+// higher-level crate (e.g. brainwires facade) that can resolve the cycle.
+// TODO: Move to brainwires-agents or a bridge crate.
+
 // ── Re-exports (always available) ────────────────────────────────────────
 
-// Storage backend abstraction
-pub use stores::backend::record_get;
-pub use stores::backend::{
-    FieldDef, FieldType, FieldValue, Filter, Record, ScoredRecord, StorageBackend,
-};
+pub use databases::BackendCapabilities;
+pub use databases::traits::StorageBackend;
+pub use databases::types::record_get;
+pub use databases::types::{FieldDef, FieldType, FieldValue, Filter, Record, ScoredRecord};
 
-// LanceBackend re-export
-#[cfg(feature = "native")]
-pub use stores::backends::LanceBackend;
+#[cfg(feature = "lance-backend")]
+pub use databases::LanceDatabase;
 
-// Image types
 pub use image_types::{
     ImageFormat, ImageMetadata, ImageSearchRequest, ImageSearchResult, ImageStorage,
 };
 
-// Template store (always available, lives in stores/)
 pub use stores::template_store::{PlanTemplate, TemplateStore};
 
 // ── Re-exports (native only) ─────────────────────────────────────────────
-// These maintain backward compatibility: `use brainwires_storage::MessageStore` still works.
 
 #[cfg(feature = "native")]
 pub use embeddings::{
@@ -111,8 +150,6 @@ pub use stores::conversation_store::{ConversationMetadata, ConversationStore};
 pub use stores::fact_store::FactStore;
 #[cfg(feature = "native")]
 pub use stores::image_store::ImageStore;
-#[cfg(feature = "native")]
-pub use stores::lance_client::LanceClient;
 #[cfg(feature = "native")]
 pub use stores::lock_store::{LockRecord, LockStats, LockStore};
 #[cfg(feature = "native")]
@@ -130,13 +167,12 @@ pub use tiered_memory::{
     CanonicalWriteToken, MemoryAuthority, MemoryTier, MultiFactorScore, TieredMemory,
     TieredMemoryConfig, TieredSearchResult,
 };
+// persistent_task_manager re-exports moved to brainwires facade crate
 
 /// Prelude module for convenient imports
 pub mod prelude {
-    // Always available
     pub use super::stores::template_store::{PlanTemplate, TemplateStore};
 
-    // Native only
     #[cfg(feature = "native")]
     pub use super::embeddings::{
         CachedEmbeddingProvider, EmbeddingProvider, EmbeddingProviderTrait, FastEmbedManager,
@@ -147,8 +183,6 @@ pub mod prelude {
     pub use super::stores::conversation_store::{ConversationMetadata, ConversationStore};
     #[cfg(feature = "native")]
     pub use super::stores::image_store::ImageStore;
-    #[cfg(feature = "native")]
-    pub use super::stores::lance_client::LanceClient;
     #[cfg(feature = "native")]
     pub use super::stores::lock_store::{LockRecord, LockStore};
     #[cfg(feature = "native")]

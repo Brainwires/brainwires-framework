@@ -57,7 +57,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires-cognition = "0.2"
+brainwires-cognition = "0.4"
 ```
 
 Capture a thought and search memory:
@@ -113,16 +113,16 @@ async fn main() -> anyhow::Result<()> {
 
 ```toml
 # Default (knowledge + prompting)
-brainwires-cognition = "0.2"
+brainwires-cognition = "0.4"
 
 # Full native build
-brainwires-cognition = { version = "0.3", features = ["native"] }
+brainwires-cognition = { version = "0.4", features = ["native"] }
 
 # RAG only
-brainwires-cognition = { version = "0.3", default-features = false, features = ["rag"] }
+brainwires-cognition = { version = "0.4", default-features = false, features = ["rag"] }
 
 # WASM target
-brainwires-cognition = { version = "0.3", default-features = false, features = ["wasm"] }
+brainwires-cognition = { version = "0.4", default-features = false, features = ["wasm"] }
 ```
 
 ## Knowledge Subsystem
@@ -133,12 +133,13 @@ Persistent thought storage, entity graphs, and knowledge systems. Formerly the s
 
 ### BrainClient
 
-Central API for thought capture and retrieval, backed by LanceDB for vector search.
+Central API for thought capture and retrieval. Backend-agnostic via `StorageBackend` trait (defaults to LanceDB).
 
 | Method | Description |
 |--------|-------------|
 | `new()` | Create client with default paths (`~/.brainwires/`) |
 | `with_paths(lance, pks, bks)` | Create with custom storage paths |
+| `with_backend(backend)` | Create with any `Arc<dyn StorageBackend>` for backend-agnostic storage |
 | `capture_thought(req)` | Store a thought with optional category, source, and tags |
 | `search_memory(req)` | Semantic vector search across all thoughts |
 | `search_knowledge(req)` | Search PKS/BKS knowledge stores |
@@ -300,6 +301,7 @@ Core library API for indexing and searching codebases:
 |--------|-------------|
 | `new()` | Create with default configuration |
 | `with_config(config)` | Create with custom configuration |
+| `with_vector_db(db)` | Create with any `Arc<dyn VectorDatabase>` for backend-agnostic RAG |
 | `index_codebase(req)` | Index a directory (full, incremental, or smart mode) |
 | `query_codebase(req)` | Semantic code search with hybrid scoring |
 | `search_with_filters(req)` | Advanced search with file type, language, and path filters |
@@ -439,14 +441,14 @@ Use via the `brainwires` facade crate:
 
 ```toml
 [dependencies]
-brainwires = { version = "0.3", features = ["cognition"] }
+brainwires = { version = "0.4", features = ["cognition"] }
 ```
 
 Or depend on `brainwires-cognition` directly:
 
 ```toml
 [dependencies]
-brainwires-cognition = { version = "0.3", features = ["native"] }
+brainwires-cognition = { version = "0.4", features = ["native"] }
 ```
 
 **Import path migration:**

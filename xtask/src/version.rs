@@ -262,8 +262,10 @@ fn replace_version_in_rs(content: &str, new_version: &str) -> String {
     let patterns = [
         // JSON-style: "version": "X.Y.Z"
         (r#""version": ""#, '"'),
-        // Rust string: version: "X.Y.Z".into()
+        // Rust struct field: version: "X.Y.Z".into()
         (r#"version: ""#, '"'),
+        // Rust assert/comparison: config.version, "X.Y.Z")
+        (r#"version, ""#, '"'),
     ];
 
     for (prefix, terminator) in &patterns {
@@ -365,18 +367,15 @@ fn replace_brainwires_version_in_line(line: &str, new_mm: &str) -> String {
 
     let mut result = line.to_string();
 
-    // Handle: version = "X.Y" (inside inline table or toml)
-    // Find all occurrences of `version = "..."` after a brainwires reference
+    // Pattern 1: version = "X.Y" (inside inline table or toml)
     let version_eq = "version = \"";
     let mut search_from = 0;
     loop {
-        // Make sure there's a brainwires reference before this version
         let Some(ver_pos) = result[search_from..].find(version_eq) else {
             break;
         };
         let abs_pos = search_from + ver_pos;
 
-        // Check that "brainwires" appears somewhere before this on the same line
         if !result[..abs_pos].contains("brainwires") {
             search_from = abs_pos + version_eq.len();
             continue;
@@ -388,7 +387,6 @@ fn replace_brainwires_version_in_line(line: &str, new_mm: &str) -> String {
         };
         let old_ver = &result[value_start..value_start + end];
 
-        // Only replace 0.x style versions
         if old_ver.starts_with("0.") && old_ver != new_mm {
             let before = &result[..value_start].to_string();
             let after = &result[value_start + end..].to_string();
@@ -396,6 +394,53 @@ fn replace_brainwires_version_in_line(line: &str, new_mm: &str) -> String {
             search_from = value_start + new_mm.len();
         } else {
             search_from = value_start + end;
+        }
+    }
+
+    // Pattern 2: brainwires[-*] = "X.Y" (simple form, no inline table)
+    // Match: `brainwires` optionally followed by `-word` segments, then ` = "X.Y"`
+    // Skip lines already handled by Pattern 1 (contain `version = "`)
+    if !result.contains("version = \"") {
+        let eq_quote = "= \"";
+        search_from = 0;
+        loop {
+            let Some(eq_pos) = result[search_from..].find(eq_quote) else {
+                break;
+            };
+            let abs_eq = search_from + eq_pos;
+
+            // Check that a brainwires identifier immediately precedes ` = "`
+            let before_eq = result[..abs_eq].trim_end();
+            if !before_eq.ends_with(|c: char| c.is_ascii_alphanumeric() || c == '-') {
+                search_from = abs_eq + eq_quote.len();
+                continue;
+            }
+            // Walk backwards to find the start of the identifier
+            let ident_end = before_eq.len();
+            let ident_start = before_eq
+                .rfind(|c: char| !(c.is_ascii_alphanumeric() || c == '-' || c == '_'))
+                .map(|i| i + 1)
+                .unwrap_or(0);
+            let ident = &before_eq[ident_start..ident_end];
+            if !ident.starts_with("brainwires") {
+                search_from = abs_eq + eq_quote.len();
+                continue;
+            }
+
+            let value_start = abs_eq + eq_quote.len();
+            let Some(end) = result[value_start..].find('"') else {
+                break;
+            };
+            let old_ver = &result[value_start..value_start + end];
+
+            if old_ver.starts_with("0.") && old_ver != new_mm {
+                let before = result[..value_start].to_string();
+                let after = result[value_start + end..].to_string();
+                result = format!("{before}{new_mm}{after}");
+                search_from = value_start + new_mm.len();
+            } else {
+                search_from = value_start + end;
+            }
         }
     }
 
@@ -448,5 +493,36 @@ mod tests {
             result,
             r#"brainwires-agent-network = { version = "0.5", features = ["mesh"] }"#
         );
+    }
+
+    #[test]
+    fn test_md_simple_form() {
+        let input = r#"brainwires-storage = "0.3""#;
+        let result = replace_brainwires_version_in_line(input, "0.5");
+        assert_eq!(result, r#"brainwires-storage = "0.5""#);
+    }
+
+    #[test]
+    fn test_md_simple_form_with_comment() {
+        let input = r#"brainwires = "0.2"  # default features: tools + agents"#;
+        let result = replace_brainwires_version_in_line(input, "0.5");
+        assert_eq!(
+            result,
+            r#"brainwires = "0.5"  # default features: tools + agents"#
+        );
+    }
+
+    #[test]
+    fn test_md_simple_form_leaves_non_brainwires() {
+        let input = r#"tokio = "1.43""#;
+        let result = replace_brainwires_version_in_line(input, "0.5");
+        assert_eq!(result, input);
+    }
+
+    #[test]
+    fn test_md_simple_form_no_change_when_current() {
+        let input = r#"brainwires = "0.5""#;
+        let result = replace_brainwires_version_in_line(input, "0.5");
+        assert_eq!(result, input);
     }
 }

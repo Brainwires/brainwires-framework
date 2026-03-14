@@ -13,14 +13,14 @@ use crate::rag::embedding::{EmbeddingProvider, FastEmbedManager};
 use crate::rag::git_cache::GitCache;
 use crate::rag::indexer::{CodeChunker, FileInfo, detect_language};
 use crate::rag::types::*;
-use brainwires_storage::vector_db::VectorDatabase;
+use brainwires_storage::databases::VectorDatabase;
 
-// Conditionally import the appropriate vector database backend
+// Conditionally import the appropriate vector database backend (used only in factory constructors)
 #[cfg(feature = "qdrant-backend")]
-use brainwires_storage::vector_db::QdrantVectorDB;
+use brainwires_storage::databases::QdrantDatabase;
 
 #[cfg(not(feature = "qdrant-backend"))]
-use brainwires_storage::vector_db::LanceVectorDB;
+use brainwires_storage::databases::LanceDatabase;
 
 use anyhow::{Context, Result};
 use std::collections::HashMap;
@@ -71,10 +71,7 @@ pub(crate) use index_lock::{IndexLockGuard, IndexLockResult, IndexingOperation};
 #[derive(Clone)]
 pub struct RagClient {
     pub(crate) embedding_provider: Arc<FastEmbedManager>,
-    #[cfg(feature = "qdrant-backend")]
-    pub(crate) vector_db: Arc<QdrantVectorDB>,
-    #[cfg(not(feature = "qdrant-backend"))]
-    pub(crate) vector_db: Arc<LanceVectorDB>,
+    pub(crate) vector_db: Arc<dyn VectorDatabase>,
     pub(crate) chunker: Arc<CodeChunker>,
     // Persistent hash cache for incremental updates
     pub(crate) hash_cache: Arc<RwLock<HashCache>>,
@@ -138,29 +135,29 @@ impl RagClient {
 
         // Initialize the appropriate vector database backend
         #[cfg(feature = "qdrant-backend")]
-        let vector_db = {
+        let vector_db: Arc<dyn VectorDatabase> = {
             tracing::info!(
                 "Using Qdrant vector database backend at {}",
                 config.vector_db.qdrant_url
             );
             Arc::new(
-                QdrantVectorDB::with_url(&config.vector_db.qdrant_url)
+                QdrantDatabase::with_url(&config.vector_db.qdrant_url)
                     .await
                     .context("Failed to initialize Qdrant vector database")?,
-            )
+            ) as Arc<dyn VectorDatabase>
         };
 
         #[cfg(not(feature = "qdrant-backend"))]
-        let vector_db = {
+        let vector_db: Arc<dyn VectorDatabase> = {
             tracing::info!(
                 "Using LanceDB vector database backend at {}",
                 config.vector_db.lancedb_path.display()
             );
             Arc::new(
-                LanceVectorDB::with_path(&config.vector_db.lancedb_path.to_string_lossy())
+                LanceDatabase::new(config.vector_db.lancedb_path.to_string_lossy().into_owned())
                     .await
                     .context("Failed to initialize LanceDB vector database")?,
-            )
+            ) as Arc<dyn VectorDatabase>
         };
 
         // Initialize the database with the embedding dimension
@@ -194,6 +191,67 @@ impl RagClient {
         #[cfg(feature = "code-analysis")]
         let relations_provider = Arc::new(
             HybridRelationsProvider::new(false) // stack-graphs disabled by default
+                .context("Failed to initialize relations provider")?,
+        );
+
+        Ok(Self {
+            embedding_provider,
+            vector_db,
+            chunker,
+            hash_cache: Arc::new(RwLock::new(hash_cache)),
+            cache_path,
+            git_cache: Arc::new(RwLock::new(git_cache)),
+            git_cache_path,
+            config: Arc::new(config),
+            indexing_ops: Arc::new(RwLock::new(HashMap::new())),
+            #[cfg(feature = "code-analysis")]
+            relations_provider,
+        })
+    }
+
+    /// Create a RAG client with an externally-provided vector database.
+    ///
+    /// This enables callers to share a database connection across subsystems
+    /// instead of creating a new one internally.
+    pub async fn with_vector_db(
+        vector_db: Arc<dyn VectorDatabase>,
+        config: Config,
+    ) -> Result<Self> {
+        tracing::info!("Initializing RAG client with externally-provided vector database");
+
+        // Initialize embedding provider with configured model
+        let embedding_provider = Arc::new(
+            FastEmbedManager::from_model_name(&config.embedding.model_name)
+                .context("Failed to initialize embedding provider")?,
+        );
+
+        // Initialize the database with the embedding dimension
+        vector_db
+            .initialize(embedding_provider.dimension())
+            .await
+            .context("Failed to initialize vector database collections")?;
+
+        // Create chunker with configured chunk size
+        let chunker = Arc::new(CodeChunker::default_strategy());
+
+        // Load persistent hash cache
+        let cache_path = config.cache.hash_cache_path.clone();
+        let hash_cache = HashCache::load(&cache_path).unwrap_or_else(|e| {
+            tracing::warn!("Failed to load hash cache: {}, starting fresh", e);
+            HashCache::default()
+        });
+
+        // Load persistent git cache
+        let git_cache_path = config.cache.git_cache_path.clone();
+        let git_cache = GitCache::load(&git_cache_path).unwrap_or_else(|e| {
+            tracing::warn!("Failed to load git cache: {}, starting fresh", e);
+            GitCache::default()
+        });
+
+        // Initialize relations provider for code navigation
+        #[cfg(feature = "code-analysis")]
+        let relations_provider = Arc::new(
+            HybridRelationsProvider::new(false)
                 .context("Failed to initialize relations provider")?,
         );
 

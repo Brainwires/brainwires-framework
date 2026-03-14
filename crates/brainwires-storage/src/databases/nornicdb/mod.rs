@@ -3,21 +3,23 @@
 //! Implements [`VectorDatabase`] by delegating to a [`NornicTransport`]
 //! (REST, Bolt, or gRPC).  NornicDB-specific extensions such as cognitive
 //! memory tiers, graph relationships, and raw Cypher access are exposed as
-//! inherent methods on [`NornicVectorDB`].
+//! inherent methods on [`NornicDatabase`].
 
+pub mod transport;
 use std::sync::Arc;
 
 use anyhow::Result;
 use serde_json::{Value, json};
 
-use super::nornicdb_transport::{NornicTransport, RestTransport};
-use super::{ChunkMetadata, DatabaseStats, SearchResult, VectorDatabase};
+use crate::databases::traits::VectorDatabase;
 use crate::glob_utils;
+use brainwires_core::{ChunkMetadata, DatabaseStats, SearchResult};
+use transport::{NornicTransport, RestTransport};
 
 #[cfg(feature = "nornicdb-bolt")]
-use super::nornicdb_transport::BoltTransport;
+use transport::BoltTransport;
 #[cfg(feature = "nornicdb-grpc")]
-use super::nornicdb_transport::GrpcTransport;
+use transport::GrpcTransport;
 
 // ── Public configuration types ──────────────────────────────────────────
 
@@ -117,7 +119,7 @@ impl std::fmt::Display for CognitiveMemoryTier {
 /// [`VectorDatabase`] trait.  NornicDB-specific extensions (graph
 /// relationships, cognitive tiers, raw Cypher) are available as inherent
 /// methods.
-pub struct NornicVectorDB {
+pub struct NornicDatabase {
     transport: Arc<dyn NornicTransport>,
     node_label: String,
     index_name: String,
@@ -127,7 +129,7 @@ pub struct NornicVectorDB {
 
 // ── Constructors ────────────────────────────────────────────────────────
 
-impl NornicVectorDB {
+impl NornicDatabase {
     /// Default NornicDB REST URL.
     pub fn default_url() -> String {
         "http://localhost:7474".to_string()
@@ -243,7 +245,7 @@ impl NornicVectorDB {
 // ── VectorDatabase trait ────────────────────────────────────────────────
 
 #[async_trait::async_trait]
-impl VectorDatabase for NornicVectorDB {
+impl VectorDatabase for NornicDatabase {
     async fn initialize(&self, dimension: usize) -> Result<()> {
         // Create vector index.
         let create_index = format!(
@@ -467,7 +469,7 @@ impl VectorDatabase for NornicVectorDB {
 
 // ── NornicDB-specific extensions ────────────────────────────────────────
 
-impl NornicVectorDB {
+impl NornicDatabase {
     /// Execute an arbitrary Cypher query and return the raw result rows.
     pub async fn cypher_query(&self, query: &str, params: Value) -> Result<Value> {
         let rows = self.transport.execute_cypher(query, params).await?;
@@ -617,7 +619,7 @@ impl NornicVectorDB {
 
 // ── Default impl ────────────────────────────────────────────────────────
 
-impl Default for NornicVectorDB {
+impl Default for NornicDatabase {
     fn default() -> Self {
         tokio::runtime::Runtime::new()
             .expect("failed to create tokio runtime")
@@ -722,7 +724,7 @@ mod tests {
     // ── Mock transport ──────────────────────────────────────────────────
 
     /// A mock transport that returns pre-configured responses for testing
-    /// the `NornicVectorDB` logic without a real server.
+    /// the `NornicDatabase` logic without a real server.
     struct MockTransport {
         /// Queued responses returned in FIFO order.  Each call to an
         /// `impl NornicTransport` method pops the first entry.
@@ -848,9 +850,9 @@ mod tests {
         }
     }
 
-    /// Create a `NornicVectorDB` backed by a mock transport.
-    fn mock_db(transport: MockTransport) -> NornicVectorDB {
-        NornicVectorDB {
+    /// Create a `NornicDatabase` backed by a mock transport.
+    fn mock_db(transport: MockTransport) -> NornicDatabase {
+        NornicDatabase {
             transport: Arc::new(transport),
             node_label: "CodeChunk".to_string(),
             index_name: "code_embedding_index".to_string(),
@@ -929,7 +931,7 @@ mod tests {
 
     #[test]
     fn test_default_url() {
-        assert_eq!(NornicVectorDB::default_url(), "http://localhost:7474");
+        assert_eq!(NornicDatabase::default_url(), "http://localhost:7474");
     }
 
     #[test]
@@ -2000,7 +2002,7 @@ mod tests {
     #[tokio::test]
     async fn test_connection_refused() {
         // Try to connect to a port that (almost certainly) has nothing running.
-        let result = NornicVectorDB::with_url("http://127.0.0.1:19999").await;
+        let result = NornicDatabase::with_url("http://127.0.0.1:19999").await;
         // RestTransport::new itself does not connect, so this should succeed.
         // The actual error only happens on first Cypher call.
         assert!(result.is_ok());
@@ -2073,15 +2075,15 @@ mod tests {
 
     /// Check if a NornicDB server is available on localhost.
     async fn skip_if_no_server() -> bool {
-        match NornicVectorDB::with_url("http://localhost:7474").await {
+        match NornicDatabase::with_url("http://localhost:7474").await {
             Ok(db) => !db.health_check().await.unwrap_or(false),
             Err(_) => true,
         }
     }
 
     /// Helper to create a fresh test database, clearing any existing data.
-    async fn setup_test_db() -> NornicVectorDB {
-        let db = NornicVectorDB::with_url("http://localhost:7474")
+    async fn setup_test_db() -> NornicDatabase {
+        let db = NornicDatabase::with_url("http://localhost:7474")
             .await
             .expect("Failed to connect to NornicDB");
         db.clear().await.ok();
@@ -2099,7 +2101,7 @@ mod tests {
         if skip_if_no_server().await {
             return;
         }
-        let db = NornicVectorDB::with_url("http://localhost:7474")
+        let db = NornicDatabase::with_url("http://localhost:7474")
             .await
             .unwrap();
         db.clear().await.ok();
@@ -2633,7 +2635,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_bolt_store_and_search() {
-        let db = match NornicVectorDB::with_bolt("http://localhost:7474", "neo4j", "password").await
+        let db = match NornicDatabase::with_bolt("http://localhost:7474", "neo4j", "password").await
         {
             Ok(db) => db,
             Err(_) => return, // Skip if Bolt not available.
@@ -2661,7 +2663,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_bolt_delete_by_file() {
-        let db = match NornicVectorDB::with_bolt("http://localhost:7474", "neo4j", "password").await
+        let db = match NornicDatabase::with_bolt("http://localhost:7474", "neo4j", "password").await
         {
             Ok(db) => db,
             Err(_) => return,
@@ -2686,7 +2688,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_bolt_statistics() {
-        let db = match NornicVectorDB::with_bolt("http://localhost:7474", "neo4j", "password").await
+        let db = match NornicDatabase::with_bolt("http://localhost:7474", "neo4j", "password").await
         {
             Ok(db) => db,
             Err(_) => return,
@@ -2704,7 +2706,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_grpc_store_and_search() {
-        let db = match NornicVectorDB::with_grpc("http://localhost:6334").await {
+        let db = match NornicDatabase::with_grpc("http://localhost:6334").await {
             Ok(db) => db,
             Err(_) => return,
         };
@@ -2731,7 +2733,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_grpc_cypher_returns_error() {
-        let db = match NornicVectorDB::with_grpc("http://localhost:6334").await {
+        let db = match NornicDatabase::with_grpc("http://localhost:6334").await {
             Ok(db) => db,
             Err(_) => return,
         };

@@ -59,7 +59,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires-permissions = "0.1"
+brainwires-permissions = "0.4"
 ```
 
 Create a capability set and evaluate a policy:
@@ -100,10 +100,10 @@ let decision = engine.evaluate(&request);
 
 ```toml
 # Default (native)
-brainwires-permissions = "0.2"
+brainwires-permissions = "0.4"
 
 # WASM target
-brainwires-permissions = { version = "0.3", default-features = false, features = ["wasm"] }
+brainwires-permissions = { version = "0.4", default-features = false, features = ["wasm"] }
 ```
 
 ## Architecture
@@ -696,7 +696,7 @@ Use via the `brainwires` facade crate:
 
 ```toml
 [dependencies]
-brainwires = "0.1"
+brainwires = "0.4"
 ```
 
 Or use standalone — `brainwires-permissions` depends only on `brainwires-core`.

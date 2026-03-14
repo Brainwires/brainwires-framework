@@ -185,20 +185,15 @@ mod tests {
 
         let s = stats.read().await;
         assert_eq!(s.total_docs, 3);
-        // "hello" appears in 2 documents
         assert_eq!(s.doc_frequencies.get("hello"), Some(&2));
-        // "world" appears in 2 documents
         assert_eq!(s.doc_frequencies.get("world"), Some(&2));
-        // "rust" appears in 1 document
         assert_eq!(s.doc_frequencies.get("rust"), Some(&1));
-        // "goodbye" appears in 1 document
         assert_eq!(s.doc_frequencies.get("goodbye"), Some(&1));
     }
 
     #[test]
     fn test_new_shared_idf_stats() {
         let stats = new_shared_idf_stats();
-        // Should start empty — use try_read since we are in sync context
         let s = stats.try_read().unwrap();
         assert_eq!(s.total_docs, 0);
         assert!(s.doc_frequencies.is_empty());

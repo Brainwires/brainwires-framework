@@ -5,7 +5,7 @@
 use anyhow::{Context, Result};
 use std::sync::Arc;
 
-use crate::stores::backend::{
+use crate::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
 use brainwires_core::{Task, TaskPriority, TaskStatus};
@@ -310,7 +310,7 @@ impl TaskMetadata {
 
 /// Store for managing tasks
 #[derive(Clone)]
-pub struct TaskStore<B: StorageBackend + 'static = crate::stores::backends::LanceBackend> {
+pub struct TaskStore<B: StorageBackend + 'static = crate::databases::lance::LanceDatabase> {
     backend: Arc<B>,
 }
 
@@ -431,7 +431,7 @@ impl<B: StorageBackend + 'static> TaskStore<B> {
         tasks_field_defs()
     }
 
-    /// Schema for the tasks table as an Arrow schema (for backward compat with lance_client).
+    /// Schema for the tasks table as an Arrow schema (for backward compat with LanceDatabase).
     #[cfg(feature = "native")]
     pub fn tasks_arrow_schema() -> Arc<arrow_schema::Schema> {
         use arrow_schema::{DataType, Field, Schema};
@@ -453,23 +453,6 @@ impl<B: StorageBackend + 'static> TaskStore<B> {
             Field::new("started_at", DataType::Int64, true),
             Field::new("completed_at", DataType::Int64, true),
         ]))
-    }
-}
-
-// ── Legacy constructor for backward compatibility ───────────────────────
-
-#[cfg(feature = "native")]
-impl TaskStore<crate::stores::backends::LanceBackend> {
-    /// Create from a legacy [`LanceClient`](crate::stores::lance_client::LanceClient).
-    ///
-    /// This wraps the LanceClient's connection in a [`LanceBackend`](crate::stores::backends::LanceBackend).
-    pub async fn from_lance_client(
-        client: &crate::stores::lance_client::LanceClient,
-    ) -> Result<Self> {
-        let backend = Arc::new(crate::stores::backends::LanceBackend::new(client.db_path()).await?);
-        let store = Self { backend };
-        store.ensure_table().await?;
-        Ok(store)
     }
 }
 
@@ -499,7 +482,7 @@ pub struct AgentStateMetadata {
 // ── AgentStateStore ─────────────────────────────────────────────────────
 
 /// Store for managing agent state persistence
-pub struct AgentStateStore<B: StorageBackend + 'static = crate::stores::backends::LanceBackend> {
+pub struct AgentStateStore<B: StorageBackend + 'static = crate::databases::lance::LanceDatabase> {
     backend: Arc<B>,
 }
 
@@ -625,22 +608,5 @@ impl<B: StorageBackend + 'static> AgentStateStore<B> {
             Field::new("created_at", DataType::Int64, false),
             Field::new("updated_at", DataType::Int64, false),
         ]))
-    }
-}
-
-// ── Legacy constructor for backward compatibility ───────────────────────
-
-#[cfg(feature = "native")]
-impl AgentStateStore<crate::stores::backends::LanceBackend> {
-    /// Create from a legacy [`LanceClient`](crate::stores::lance_client::LanceClient).
-    ///
-    /// This wraps the LanceClient's connection in a [`LanceBackend`](crate::stores::backends::LanceBackend).
-    pub async fn from_lance_client(
-        client: &crate::stores::lance_client::LanceClient,
-    ) -> Result<Self> {
-        let backend = Arc::new(crate::stores::backends::LanceBackend::new(client.db_path()).await?);
-        let store = Self { backend };
-        store.ensure_table().await?;
-        Ok(store)
     }
 }
