@@ -5,6 +5,15 @@ All notable changes to the Brainwires Framework will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Removed
+
+#### Storage (`brainwires-storage`)
+- Removed `MySqlDatabase` and `SurrealDatabase` stub backends (contained `todo!()` placeholders).
+- Removed `mysql-backend` and `surrealdb-backend` feature flags.
+- SQL dialect files (`sql/mysql.rs`, `sql/surrealdb.rs`) retained for future use.
+
 ## [0.4.0] - 2026-03-14
 
 ### Breaking Changes
@@ -37,9 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `milvus/`: `MilvusDatabase` (VectorDatabase, REST API)
   - `weaviate/`: `WeaviateDatabase` (VectorDatabase, REST API)
   - `nornicdb/`: `NornicDatabase` (VectorDatabase, multi-transport: REST/Bolt/gRPC)
-  - `mysql/`: `MySqlDatabase` stub (StorageBackend only)
-  - `surrealdb/`: `SurrealDatabase` stub (StorageBackend only)
-- New feature flags: `postgres-backend`, `mysql-backend`, `surrealdb-backend` (alongside existing `lance-backend`, `qdrant-backend`, `pinecone-backend`, `weaviate-backend`, `milvus-backend`, `nornicdb-*`).
+- New feature flags: `postgres-backend` (alongside existing `lance-backend`, `qdrant-backend`, `pinecone-backend`, `weaviate-backend`, `milvus-backend`, `nornicdb-*`).
 - `async-trait` is now a required (non-optional) dependency — core traits are always available regardless of feature flags.
 - 112 tests: 18 SQL dialect tests, Lance CRUD/vector-search/capabilities/shared-connection tests, 2 integration tests (trait object CRUD, backend capabilities).
 
