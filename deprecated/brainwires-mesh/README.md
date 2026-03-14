@@ -6,8 +6,8 @@ Replace in your `Cargo.toml`:
 
 ```toml
 # Before
-brainwires-mesh = "0.2"
+brainwires-mesh = "0.4"
 
 # After
-brainwires-agent-network = { version = "0.3", features = ["mesh"] }
+brainwires-agent-network = { version = "0.4", features = ["mesh"] }
 ```

@@ -34,7 +34,7 @@ brainwires  (facade — re-exports all crates via feature flags)
 │        └─> core
 │
 ├─── Storage & Intelligence
-│    ├── brainwires-storage         LanceDB vector storage, tiered memory, embeddings
+│    ├── brainwires-storage         Unified database layer (9 backends), tiered memory, embeddings
 │    │   └─> core
 │    └── brainwires-cognition       Unified intelligence — knowledge graphs, adaptive prompting, RAG
 │        └─> core

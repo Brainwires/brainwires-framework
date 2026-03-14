@@ -54,7 +54,7 @@ The Brainwires Framework is a workspace of 19 framework crates plus 7 extras tha
 | [**brainwires-agents**](crates/brainwires-agents/README.md) | Multi-agent orchestration, task decomposition, file lock coordination |
 | [**brainwires-mdap**](crates/brainwires-mdap/README.md) | Multi-Dimensional Adaptive Planning — k-agent voting for reliable execution |
 | [**brainwires-cognition**](crates/brainwires-cognition/README.md) | Knowledge (BKS/PKS, entity graphs), prompting (technique library, clustering), and RAG (code search, hybrid retrieval) |
-| [**brainwires-storage**](crates/brainwires-storage/README.md) | LanceDB vector storage, semantic search, tiered memory |
+| [**brainwires-storage**](crates/brainwires-storage/README.md) | Unified database layer (9 backends), tiered memory, semantic search |
 | [**brainwires-permissions**](crates/brainwires-permissions/README.md) | Permission policies (auto, ask, reject) for tool execution |
 | [**brainwires-mcp**](crates/brainwires-mcp/README.md) | MCP client — connect to external MCP servers and use their tools |
 | [**brainwires-agent-network**](crates/brainwires-agent-network/README.md) | Agent networking — MCP server, IPC, remote bridge, 5-layer protocol stack (transport, routing, discovery) |
@@ -94,14 +94,14 @@ The simplest way to use the framework is through the `brainwires` facade crate, 
 
 ```toml
 [dependencies]
-brainwires = "0.1"  # defaults: tools + agents
+brainwires = "0.4"  # defaults: tools + agents
 ```
 
 Enable only what you need:
 
 ```toml
 [dependencies]
-brainwires = { version = "0.3", features = ["providers", "rag"] }
+brainwires = { version = "0.4", features = ["providers", "rag"] }
 ```
 
 ### Using Individual Crates
@@ -110,9 +110,9 @@ Each crate is independently publishable and usable:
 
 ```toml
 [dependencies]
-brainwires-core = "0.1"
-brainwires-providers = "0.1"
-brainwires-agents = "0.1"
+brainwires-core = "0.4"
+brainwires-providers = "0.4"
+brainwires-agents = "0.4"
 ```
 
 ### Minimal Example

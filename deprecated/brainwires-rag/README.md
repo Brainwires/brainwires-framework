@@ -6,10 +6,10 @@ Replace in your `Cargo.toml`:
 
 ```toml
 # Before
-brainwires-rag = "0.2"
+brainwires-rag = "0.4"
 
 # After
-brainwires-cognition = { version = "0.3", features = ["rag", "spectral", "code-analysis"] }
+brainwires-cognition = { version = "0.4", features = ["rag", "spectral", "code-analysis"] }
 # Vector DB layer moved to:
-brainwires-storage = { version = "0.3", features = ["vector-db"] }
+brainwires-storage = { version = "0.4", features = ["vector-db"] }
 ```

@@ -50,7 +50,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires-code-interpreters = "0.1"
+brainwires-code-interpreters = "0.4"
 ```
 
 Execute code:
@@ -93,13 +93,13 @@ Enable features in `Cargo.toml`:
 
 ```toml
 # Default (Rhai + Lua)
-brainwires-code-interpreters = "0.1"
+brainwires-code-interpreters = "0.4"
 
 # All languages
-brainwires-code-interpreters = { version = "0.3", features = ["all-languages"] }
+brainwires-code-interpreters = { version = "0.4", features = ["all-languages"] }
 
 # WASM target
-brainwires-code-interpreters = { version = "0.3", default-features = false, features = ["wasm", "rhai", "lua"] }
+brainwires-code-interpreters = { version = "0.4", default-features = false, features = ["wasm", "rhai", "lua"] }
 ```
 
 ## Architecture
@@ -440,7 +440,7 @@ Use via the `brainwires` facade crate:
 
 ```toml
 [dependencies]
-brainwires = { version = "0.3", features = ["interpreter-all"] }
+brainwires = { version = "0.4", features = ["interpreter-all"] }
 ```
 
 Or use standalone — `brainwires-code-interpreters` has no dependency on any other Brainwires crate.

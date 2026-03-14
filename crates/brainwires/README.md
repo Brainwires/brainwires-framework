@@ -8,7 +8,7 @@ Unified facade crate for the Brainwires Agent Framework — build any AI applica
 
 ## Overview
 
-`brainwires` is the single entry point for the entire framework. It re-exports 17 sub-crates as feature-gated modules and provides a `prelude` that pulls in the most commonly needed types. Add one dependency, enable the features you need, and you're ready to go.
+`brainwires` is the single entry point for the entire framework. It re-exports 19 sub-crates as feature-gated modules and provides a `prelude` that pulls in the most commonly needed types. Add one dependency, enable the features you need, and you're ready to go.
 
 `brainwires-core` (messages, tools, providers, tasks, errors) is **always available** — no feature flag required. Everything else is opt-in.
 
@@ -41,7 +41,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires = "0.2"  # default features: tools + agents
+brainwires = "0.4"  # default features: tools + agents
 ```
 
 Then import via the prelude:
@@ -64,7 +64,7 @@ let response = provider.chat(&messages, None, &options).await?;
 |---------|---------|-----------|-------------|
 | `tools` | **yes** | `brainwires-tool-system` | File, bash, git, search, web, and validation tools |
 | `agents` | **yes** | `brainwires-agents` | Agent runtime, communication hub, task manager, validation loop |
-| `storage` | no | `brainwires-storage` | LanceDB-backed tiered memory (hot/warm/cold) |
+| `storage` | no | `brainwires-storage` | Unified database layer (9 backends), tiered memory (hot/warm/cold) |
 | `mcp` | no | `brainwires-mcp` | MCP client for connecting to external MCP servers |
 | `mdap` | no | `brainwires-mdap` | Multi-Dimensional Adaptive Planning with k-agent voting |
 | `prompting` | no | `brainwires-cognition/prompting` | Prompt generation, technique library, temperature optimizer |
@@ -138,7 +138,7 @@ let response = provider.chat(&messages, None, &options).await?;
 
 ```toml
 [dependencies]
-brainwires = { version = "0.3", features = ["agent-full"] }
+brainwires = { version = "0.4", features = ["agent-full"] }
 ```
 
 ```rust
@@ -163,7 +163,7 @@ let validation = ValidationConfig {
 
 ```toml
 [dependencies]
-brainwires = { version = "0.3", features = ["rag", "mcp-server"] }
+brainwires = { version = "0.4", features = ["rag", "mcp-server"] }
 ```
 
 ```rust
@@ -181,7 +181,7 @@ async fn main() -> anyhow::Result<()> {
 
 ```toml
 [dependencies]
-brainwires = { version = "0.3", features = ["rag"] }
+brainwires = { version = "0.4", features = ["rag"] }
 ```
 
 ```rust
@@ -200,7 +200,7 @@ for result in results {
 
 ```toml
 [dependencies]
-brainwires = { version = "0.3", features = ["learning"] }
+brainwires = { version = "0.4", features = ["learning"] }
 ```
 
 ```rust

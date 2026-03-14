@@ -51,7 +51,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires-audio = "0.1"
+brainwires-audio = "0.4"
 ```
 
 Capture audio, save as WAV, and transcribe:
@@ -95,15 +95,15 @@ async fn main() -> anyhow::Result<()> {
 ```toml
 # Lightweight — no hardware or network deps (WAV encode/decode + traits only)
 [dependencies]
-brainwires-audio = { version = "0.3", default-features = false }
+brainwires-audio = { version = "0.4", default-features = false }
 
 # Default + local Whisper STT
 [dependencies]
-brainwires-audio = { version = "0.3", features = ["local-stt"] }
+brainwires-audio = { version = "0.4", features = ["local-stt"] }
 
 # FLAC only, no hardware
 [dependencies]
-brainwires-audio = { version = "0.3", default-features = false, features = ["flac"] }
+brainwires-audio = { version = "0.4", default-features = false, features = ["flac"] }
 ```
 
 ## Architecture
@@ -326,7 +326,7 @@ Use via the `brainwires` facade crate:
 
 ```toml
 [dependencies]
-brainwires = { version = "0.3", features = ["audio"] }
+brainwires = { version = "0.4", features = ["audio"] }
 ```
 
 Or depend on `brainwires-audio` directly for standalone audio support without the rest of the framework.

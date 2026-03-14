@@ -6,8 +6,8 @@ Replace in your `Cargo.toml`:
 
 ```toml
 # Before
-brainwires-relay = "0.2"
+brainwires-relay = "0.4"
 
 # After
-brainwires-agent-network = "0.3"
+brainwires-agent-network = "0.4"
 ```
