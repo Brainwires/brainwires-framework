@@ -875,9 +875,7 @@ impl StorageBackend for PostgresDatabase {
         let rows = client
             .query(&*sql, &refs)
             .await
-            .with_context(|| {
-                format!("Failed vector search on '{table_name}'.'{vector_column}'")
-            })?;
+            .with_context(|| format!("Failed vector search on '{table_name}'.'{vector_column}'"))?;
 
         let mut results = Vec::with_capacity(rows.len());
         for row in &rows {

@@ -30,8 +30,8 @@ use crate::databases::types::{FieldDef, FieldType, FieldValue, Filter, Record, S
 use crate::glob_utils;
 use anyhow::{Context, Result};
 use serde_json::json;
-use surrealdb::engine::any::Any;
 use surrealdb::Surreal;
+use surrealdb::engine::any::Any;
 
 const DEFAULT_TABLE: &str = "code_embeddings";
 const DEFAULT_URL: &str = "ws://localhost:8000";
@@ -124,7 +124,11 @@ impl SurrealDatabase {
 
         let documents: Vec<String> = rows
             .iter()
-            .filter_map(|row| row.get("content").and_then(|v| v.as_str()).map(String::from))
+            .filter_map(|row| {
+                row.get("content")
+                    .and_then(|v| v.as_str())
+                    .map(String::from)
+            })
             .collect();
 
         tracing::info!("Refreshing IDF stats from {} documents", documents.len());
@@ -211,9 +215,8 @@ impl SurrealDatabase {
 
         let mut result = stmt.await.context("Failed to execute search query")?;
 
-        let rows: Vec<serde_json::Value> = result
-            .take(0)
-            .context("Failed to take search results")?;
+        let rows: Vec<serde_json::Value> =
+            result.take(0).context("Failed to take search results")?;
 
         let mut results: Vec<SearchResult> = Vec::with_capacity(rows.len());
 
@@ -240,23 +243,14 @@ impl SurrealDatabase {
                 .get("project")
                 .and_then(|v| v.as_str())
                 .map(String::from);
-            let start_line = row
-                .get("start_line")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0) as usize;
-            let end_line = row
-                .get("end_line")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0) as usize;
+            let start_line = row.get("start_line").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+            let end_line = row.get("end_line").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
             let language = row
                 .get("language")
                 .and_then(|v| v.as_str())
                 .unwrap_or("Unknown")
                 .to_string();
-            let indexed_at = row
-                .get("indexed_at")
-                .and_then(|v| v.as_i64())
-                .unwrap_or(0);
+            let indexed_at = row.get("indexed_at").and_then(|v| v.as_i64()).unwrap_or(0);
             let content = row
                 .get("content")
                 .and_then(|v| v.as_str())
@@ -363,9 +357,7 @@ impl VectorDatabase for SurrealDatabase {
         // Build a batch query with BEGIN TRANSACTION / COMMIT.
         let mut batch = String::from("BEGIN TRANSACTION;\n");
 
-        for ((embedding, meta), content) in
-            embeddings.into_iter().zip(metadata).zip(contents)
-        {
+        for ((embedding, meta), content) in embeddings.into_iter().zip(metadata).zip(contents) {
             let record = json!({
                 "embedding": embedding,
                 "file_path": meta.file_path,
@@ -381,8 +373,8 @@ impl VectorDatabase for SurrealDatabase {
             });
 
             // Escape the JSON for embedding in SurrealQL.
-            let record_str = serde_json::to_string(&record)
-                .context("Failed to serialize embedding record")?;
+            let record_str =
+                serde_json::to_string(&record).context("Failed to serialize embedding record")?;
             batch.push_str(&format!(
                 "CREATE {table} CONTENT {record};\n",
                 table = DEFAULT_TABLE,
@@ -536,10 +528,7 @@ impl VectorDatabase for SurrealDatabase {
                     .and_then(|v| v.as_str())
                     .unwrap_or("Unknown")
                     .to_string();
-                let cnt = row
-                    .get("lang_count")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0) as usize;
+                let cnt = row.get("lang_count").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
                 Some((lang, cnt))
             })
             .collect();
@@ -706,8 +695,7 @@ fn filter_to_surrealql(
             }
             let name = format!("p{}", *param_offset);
             *param_offset += 1;
-            let json_arr: Vec<serde_json::Value> =
-                values.iter().map(field_value_to_json).collect();
+            let json_arr: Vec<serde_json::Value> = values.iter().map(field_value_to_json).collect();
             (
                 format!("{col} IN ${name}"),
                 vec![(name, serde_json::Value::Array(json_arr))],
@@ -796,9 +784,7 @@ fn json_row_to_record(row: &serde_json::Value) -> Record {
                     FieldValue::Utf8(serde_json::to_string(val).ok())
                 }
             }
-            serde_json::Value::Object(_) => {
-                FieldValue::Utf8(serde_json::to_string(val).ok())
-            }
+            serde_json::Value::Object(_) => FieldValue::Utf8(serde_json::to_string(val).ok()),
         };
         record.push((key.clone(), field_value));
     }
@@ -993,10 +979,7 @@ impl StorageBackend for SurrealDatabase {
 
         let mut results = Vec::with_capacity(rows.len());
         for row in &rows {
-            let score = row
-                .get("__score")
-                .and_then(|v| v.as_f64())
-                .unwrap_or(0.0) as f32;
+            let score = row.get("__score").and_then(|v| v.as_f64()).unwrap_or(0.0) as f32;
 
             // Build record, skipping the synthetic __score column.
             let mut record_row = json_row_to_record(row);
@@ -1103,8 +1086,7 @@ mod tests {
         assert_eq!(sql, "email IS NULL");
         assert!(bindings.is_empty());
 
-        let (sql, bindings) =
-            filter_to_surrealql(&Filter::NotNull("email".into()), &mut offset);
+        let (sql, bindings) = filter_to_surrealql(&Filter::NotNull("email".into()), &mut offset);
         assert_eq!(sql, "email IS NOT NULL");
         assert!(bindings.is_empty());
     }

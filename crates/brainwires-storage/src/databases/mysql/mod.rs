@@ -137,7 +137,10 @@ fn row_to_record(row: &mysql_async::Row) -> Record {
             | mysql_async::consts::ColumnType::MYSQL_TYPE_SHORT
             | mysql_async::consts::ColumnType::MYSQL_TYPE_INT24
             | mysql_async::consts::ColumnType::MYSQL_TYPE_LONG => {
-                if col.flags().contains(mysql_async::consts::ColumnFlags::UNSIGNED_FLAG) {
+                if col
+                    .flags()
+                    .contains(mysql_async::consts::ColumnFlags::UNSIGNED_FLAG)
+                {
                     let v: Option<u32> = row.get(i);
                     FieldValue::UInt32(v)
                 } else {
@@ -146,7 +149,10 @@ fn row_to_record(row: &mysql_async::Row) -> Record {
                 }
             }
             mysql_async::consts::ColumnType::MYSQL_TYPE_LONGLONG => {
-                if col.flags().contains(mysql_async::consts::ColumnFlags::UNSIGNED_FLAG) {
+                if col
+                    .flags()
+                    .contains(mysql_async::consts::ColumnFlags::UNSIGNED_FLAG)
+                {
                     let v: Option<u64> = row.get(i);
                     FieldValue::UInt64(v)
                 } else {
