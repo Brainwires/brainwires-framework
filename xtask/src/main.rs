@@ -1,6 +1,7 @@
 use std::env;
 use std::process::{Command, ExitCode};
 
+mod stubs;
 mod version;
 
 struct Step {
@@ -43,6 +44,7 @@ fn main() -> ExitCode {
     // Dispatch subcommands
     match args.first().map(|s| s.as_str()) {
         Some("bump-version") => return version::bump_version(&args[1..]),
+        Some("check-stubs") => return stubs::check_stubs(&args[1..]),
         Some("--help" | "-h") => {
             print_help();
             return ExitCode::SUCCESS;
@@ -59,6 +61,7 @@ fn print_help() {
     println!();
     println!("Commands:");
     println!("  bump-version <VERSION>  Bump all crate versions (e.g. 0.3.0)");
+    println!("  check-stubs             Scan for unfinished code (todo!(), FIXME, etc.)");
     println!("  [step ...]              Run CI steps: fmt, check, clippy, test, doc");
     println!();
     println!("Run with no arguments to execute all CI steps.");

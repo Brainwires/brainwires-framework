@@ -5,14 +5,21 @@ Reusable checklist for releasing new versions of the Brainwires Framework to cra
 ## 1. Pre-release Checks
 
 - [ ] All changes committed, clean working tree (`git status`)
-- [ ] `CHANGELOG.md` updated with new version section
+- [ ] `CHANGELOG.md` has release notes under `## [Unreleased]` (version stamp is automatic — see step 2)
 - [ ] **README.md files updated** — verify all crate READMEs reflect the release changes:
   - Root `README.md` — crate descriptions, feature tables, architecture diagrams
   - Each changed crate's `README.md` — API tables, code examples, feature flags
   - `crates/README.md` — dependency tree and crate descriptions
   - `crates/brainwires/README.md` (facade) — feature table, crate count, prelude types
   - `extras/` server READMEs — cross-references to library crates
-- [ ] `cargo ci` passes (fmt, check, clippy, test, doc)
+- [ ] `cargo xtask` passes (fmt, check, clippy, test, doc)
+- [ ] **No unfinished code** — run `cargo xtask check-stubs` to scan for runtime-panic stubs and unfinished markers:
+  ```bash
+  cargo xtask check-stubs            # Should use "--strict"! Only fails on todo!(), unimplemented!(); warn on FIXME, HACK, etc.
+  cargo xtask check-stubs --strict   # also fail on comment markers (FIXME, HACK, XXX, STUB, STOPSHIP)
+  cargo xtask check-stubs --verbose  # list every file scanned
+  ```
+  Hard blockers (`todo!()`, `unimplemented!()`) in trait impls or public API must be replaced with `Err(...)` or the module removed before release. Comment markers (FIXME, HACK, etc.) are warnings by default — use `--strict` to enforce zero markers.
 - [ ] `cargo build --workspace` succeeds
 - [ ] `cargo test --workspace` passes
 
@@ -28,6 +35,7 @@ This updates:
 - Member `Cargo.toml` files with direct path deps (e.g. brainwires-wasm)
 - Hardcoded version strings in `*.rs` source files (`"version": "X.Y.Z"`, `version: "X.Y.Z".into()`)
 - `*.md` files: both `brainwires-* = { version = "X.Y" }` (inline table) and `brainwires-* = "X.Y"` (simple form). Skips CHANGELOG.
+- `CHANGELOG.md`: renames `## [Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD` and inserts a fresh empty `## [Unreleased]` section above it
 
 **Note:** The bumper handles version numbers automatically, but you must still manually verify README *content* (descriptions, API tables, architecture diagrams) matches the release changes.
 
