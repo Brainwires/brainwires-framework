@@ -1225,15 +1225,24 @@ mod tests {
         let records = vec![
             vec![
                 ("id".to_string(), FieldValue::Utf8(Some("a".to_string()))),
-                ("embedding".to_string(), FieldValue::Vector(vec![1.0, 0.0, 0.0, 0.0])),
+                (
+                    "embedding".to_string(),
+                    FieldValue::Vector(vec![1.0, 0.0, 0.0, 0.0]),
+                ),
             ],
             vec![
                 ("id".to_string(), FieldValue::Utf8(Some("b".to_string()))),
-                ("embedding".to_string(), FieldValue::Vector(vec![0.0, 1.0, 0.0, 0.0])),
+                (
+                    "embedding".to_string(),
+                    FieldValue::Vector(vec![0.0, 1.0, 0.0, 0.0]),
+                ),
             ],
             vec![
                 ("id".to_string(), FieldValue::Utf8(Some("c".to_string()))),
-                ("embedding".to_string(), FieldValue::Vector(vec![0.9, 0.1, 0.0, 0.0])),
+                (
+                    "embedding".to_string(),
+                    FieldValue::Vector(vec![0.9, 0.1, 0.0, 0.0]),
+                ),
             ],
         ];
         db.insert("vectors", records).await.unwrap();
@@ -1272,7 +1281,10 @@ mod tests {
         let db = LanceDatabase::new(db_path.to_str().unwrap()).await.unwrap();
 
         let caps = db.capabilities();
-        assert!(caps.vector_search, "LanceDatabase should support vector search");
+        assert!(
+            caps.vector_search,
+            "LanceDatabase should support vector search"
+        );
     }
 
     #[tokio::test]

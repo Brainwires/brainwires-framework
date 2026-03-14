@@ -9,12 +9,12 @@ pub mod transport;
 use std::sync::Arc;
 
 use anyhow::Result;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
-use transport::{NornicTransport, RestTransport};
 use crate::databases::traits::VectorDatabase;
-use brainwires_core::{ChunkMetadata, DatabaseStats, SearchResult};
 use crate::glob_utils;
+use brainwires_core::{ChunkMetadata, DatabaseStats, SearchResult};
+use transport::{NornicTransport, RestTransport};
 
 #[cfg(feature = "nornicdb-bolt")]
 use transport::BoltTransport;
@@ -73,7 +73,6 @@ pub enum TransportKind {
         port: u16,
     },
 }
-
 
 /// Cognitive memory tier for NornicDB's decay system.
 ///
@@ -234,10 +233,7 @@ impl NornicDatabase {
     pub async fn authenticate(&self, username: &str, password: &str) -> Result<()> {
         // Run a trivial query to verify the connection is alive.  If the
         // transport is REST, the token was already set in `with_config`.
-        let _ = self
-            .transport
-            .execute_cypher("RETURN 1", json!({}))
-            .await;
+        let _ = self.transport.execute_cypher("RETURN 1", json!({})).await;
         // Best-effort: if execute_cypher is unsupported (gRPC) we just
         // swallow the error — health_check is a better alternative there.
         let _ = username;
@@ -256,7 +252,11 @@ impl VectorDatabase for NornicDatabase {
             "CALL db.index.vector.createNodeIndex('{}', '{}', 'embedding', {}, 'cosine')",
             self.index_name, self.node_label, dimension
         );
-        match self.transport.execute_cypher(&create_index, json!({})).await {
+        match self
+            .transport
+            .execute_cypher(&create_index, json!({}))
+            .await
+        {
             Ok(_) => tracing::info!(
                 "Created vector index '{}' with dimension {}",
                 self.index_name,
@@ -315,9 +315,7 @@ impl VectorDatabase for NornicDatabase {
             })
             .collect();
 
-        self.transport
-            .store_nodes(nodes, &self.node_label)
-            .await?;
+        self.transport.store_nodes(nodes, &self.node_label).await?;
         Ok(count)
     }
 
@@ -410,19 +408,13 @@ impl VectorDatabase for NornicDatabase {
 
         let drop_index = format!("DROP INDEX {} IF EXISTS", self.index_name);
         // Ignore error if index doesn't exist.
-        let _ = self
-            .transport
-            .execute_cypher(&drop_index, json!({}))
-            .await;
+        let _ = self.transport.execute_cypher(&drop_index, json!({})).await;
 
         Ok(())
     }
 
     async fn get_statistics(&self) -> Result<DatabaseStats> {
-        let count_query = format!(
-            "MATCH (n:{}) RETURN count(n) AS total",
-            self.node_label
-        );
+        let count_query = format!("MATCH (n:{}) RETURN count(n) AS total", self.node_label);
         let count_rows = self
             .transport
             .execute_cypher(&count_query, json!({}))
@@ -620,10 +612,7 @@ impl NornicDatabase {
              avg(size(n.embedding)) AS avg_dimension",
             self.node_label
         );
-        let rows = self
-            .transport
-            .execute_cypher(&query, json!({}))
-            .await?;
+        let rows = self.transport.execute_cypher(&query, json!({})).await?;
         Ok(rows.first().cloned().unwrap_or(json!({})))
     }
 }
@@ -653,7 +642,11 @@ fn extract_host(url: &str) -> String {
         .split('/')
         .next()
         .unwrap_or("localhost");
-    if host.is_empty() { "localhost".to_string() } else { host.to_string() }
+    if host.is_empty() {
+        "localhost".to_string()
+    } else {
+        host.to_string()
+    }
 }
 
 /// Build a JSON filter object for search endpoints.
@@ -697,27 +690,15 @@ fn map_to_search_result(v: &Value) -> Option<SearchResult> {
             .get("keyword_score")
             .and_then(|v| v.as_f64())
             .map(|s| s as f32),
-        start_line: v
-            .get("start_line")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0) as usize,
-        end_line: v
-            .get("end_line")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0) as usize,
+        start_line: v.get("start_line").and_then(|v| v.as_u64()).unwrap_or(0) as usize,
+        end_line: v.get("end_line").and_then(|v| v.as_u64()).unwrap_or(0) as usize,
         language: v
             .get("language")
             .and_then(|v| v.as_str())
             .unwrap_or("Unknown")
             .to_string(),
-        project: v
-            .get("project")
-            .and_then(|v| v.as_str())
-            .map(String::from),
-        indexed_at: v
-            .get("indexed_at")
-            .and_then(|v| v.as_i64())
-            .unwrap_or(0),
+        project: v.get("project").and_then(|v| v.as_str()).map(String::from),
+        indexed_at: v.get("indexed_at").and_then(|v| v.as_i64()).unwrap_or(0),
     })
 }
 
@@ -835,10 +816,7 @@ mod tests {
             _value: &str,
         ) -> Result<usize> {
             let resp = self.next_response()?;
-            let count = resp
-                .first()
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0) as usize;
+            let count = resp.first().and_then(|v| v.as_u64()).unwrap_or(0) as usize;
             Ok(count)
         }
 
@@ -849,10 +827,7 @@ mod tests {
             _value: &str,
         ) -> Result<usize> {
             let resp = self.next_response()?;
-            let count = resp
-                .first()
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0) as usize;
+            let count = resp.first().and_then(|v| v.as_u64()).unwrap_or(0) as usize;
             Ok(count)
         }
 
@@ -899,11 +874,7 @@ mod tests {
         }
     }
 
-    fn sample_search_result_value(
-        file: &str,
-        score: f64,
-        vector_score: f64,
-    ) -> Value {
+    fn sample_search_result_value(file: &str, score: f64, vector_score: f64) -> Value {
         json!({
             "file_path": file,
             "root_path": "/project",
@@ -952,7 +923,10 @@ mod tests {
         assert_eq!(config.password.as_deref(), Some("secret"));
         assert_eq!(config.node_label, "MyChunk");
         assert_eq!(config.index_name, "my_index");
-        assert!(matches!(config.transport, TransportKind::Bolt { port: 7688 }));
+        assert!(matches!(
+            config.transport,
+            TransportKind::Bolt { port: 7688 }
+        ));
     }
 
     #[test]
@@ -992,8 +966,7 @@ mod tests {
             CognitiveMemoryTier::Procedural,
         ] {
             let serialized = serde_json::to_string(&tier).unwrap();
-            let deserialized: CognitiveMemoryTier =
-                serde_json::from_str(&serialized).unwrap();
+            let deserialized: CognitiveMemoryTier = serde_json::from_str(&serialized).unwrap();
             assert_eq!(tier, deserialized);
         }
     }
@@ -1015,10 +988,7 @@ mod tests {
         let db = mock_db(transport);
         db.initialize(384).await.unwrap();
 
-        let queries = db.transport
-            .execute_cypher("", json!({}))
-            .await
-            .ok(); // dummy — we check via the mock's recorded queries
+        let queries = db.transport.execute_cypher("", json!({})).await.ok(); // dummy — we check via the mock's recorded queries
         // Actually, re-derive the queries from the MockTransport directly:
         let mock = db.transport.as_ref() as *const dyn NornicTransport;
         // We can't downcast easily; instead verify through the initialize call above.
@@ -1265,12 +1235,14 @@ mod tests {
             .cloned()
             .unwrap_or_default();
         assert!(!errors.is_empty());
-        assert!(errors[0]
-            .get("message")
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .contains("bad query"));
+        assert!(
+            errors[0]
+                .get("message")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .contains("bad query")
+        );
     }
 
     #[test]
@@ -1449,11 +1421,7 @@ mod tests {
         let transport = MockTransport::empty();
         let db = mock_db(transport);
 
-        let embeddings = vec![
-            vec![0.1, 0.2],
-            vec![0.3, 0.4],
-            vec![0.5, 0.6],
-        ];
+        let embeddings = vec![vec![0.1, 0.2], vec![0.3, 0.4], vec![0.5, 0.6]];
         let metadata = vec![
             sample_metadata("a.rs", 1, 5),
             sample_metadata("b.rs", 1, 5),
@@ -1590,12 +1558,7 @@ mod tests {
     fn test_build_filters_combined() {
         let exts = vec!["py".to_string()];
         let langs = vec!["Python".to_string()];
-        let filters = build_filters(
-            Some("proj"),
-            Some("/root"),
-            &exts,
-            &langs,
-        );
+        let filters = build_filters(Some("proj"), Some("/root"), &exts, &langs);
         let obj = filters.as_object().unwrap();
         assert_eq!(obj.len(), 4);
         assert_eq!(obj["project"].as_str(), Some("proj"));
@@ -1756,21 +1719,15 @@ mod tests {
 
     #[tokio::test]
     async fn test_search_delegates_to_search_filtered() {
-        let transport = MockTransport::with_ok(vec![vec![
-            sample_search_result_value("src/main.rs", 0.9, 0.9),
-        ]]);
+        let transport = MockTransport::with_ok(vec![vec![sample_search_result_value(
+            "src/main.rs",
+            0.9,
+            0.9,
+        )]]);
         let db = mock_db(transport);
 
         let results = db
-            .search(
-                vec![0.1, 0.2, 0.3],
-                "query",
-                10,
-                0.5,
-                None,
-                None,
-                false,
-            )
+            .search(vec![0.1, 0.2, 0.3], "query", 10, 0.5, None, None, false)
             .await
             .unwrap();
         assert_eq!(results.len(), 1);
@@ -1807,9 +1764,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_search_filtered_hybrid() {
-        let transport = MockTransport::with_ok(vec![vec![
-            sample_search_result_value("a.rs", 0.85, 0.9),
-        ]]);
+        let transport =
+            MockTransport::with_ok(vec![vec![sample_search_result_value("a.rs", 0.85, 0.9)]]);
         let db = mock_db(transport);
 
         let results = db
@@ -1850,10 +1806,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_statistics_empty() {
-        let transport = MockTransport::with_ok(vec![
-            vec![json!({"total": 0})],
-            vec![],
-        ]);
+        let transport = MockTransport::with_ok(vec![vec![json!({"total": 0})], vec![]]);
         let db = mock_db(transport);
         let stats = db.get_statistics().await.unwrap();
         assert_eq!(stats.total_points, 0);
@@ -1896,10 +1849,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_indexed_files_delegates() {
-        let transport = MockTransport::with_ok(vec![vec![
-            json!("src/a.rs"),
-            json!("src/b.rs"),
-        ]]);
+        let transport = MockTransport::with_ok(vec![vec![json!("src/a.rs"), json!("src/b.rs")]]);
         let db = mock_db(transport);
         let files = db.get_indexed_files("/project").await.unwrap();
         assert_eq!(files.len(), 2);
@@ -1913,10 +1863,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_cypher_query_returns_array() {
-        let transport = MockTransport::with_ok(vec![vec![
-            json!({"name": "Alice"}),
-            json!({"name": "Bob"}),
-        ]]);
+        let transport =
+            MockTransport::with_ok(vec![vec![json!({"name": "Alice"}), json!({"name": "Bob"})]]);
         let db = mock_db(transport);
         let result = db
             .cypher_query("MATCH (n) RETURN n.name AS name", json!({}))
@@ -1944,20 +1892,15 @@ mod tests {
 
     #[tokio::test]
     async fn test_find_related_no_type_filter() {
-        let transport = MockTransport::with_ok(vec![vec![
-            json!({"related": {
-                "file_path": "src/dep.rs",
-                "content": "use crate::foo;",
-                "score": 1.0,
-                "start_line": 1,
-                "end_line": 1,
-            }}),
-        ]]);
+        let transport = MockTransport::with_ok(vec![vec![json!({"related": {
+            "file_path": "src/dep.rs",
+            "content": "use crate::foo;",
+            "score": 1.0,
+            "start_line": 1,
+            "end_line": 1,
+        }})]]);
         let db = mock_db(transport);
-        let results = db
-            .find_related("src/main.rs", 1, 3, None)
-            .await
-            .unwrap();
+        let results = db.find_related("src/main.rs", 1, 3, None).await.unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].file_path, "src/dep.rs");
     }
@@ -2008,25 +1951,19 @@ mod tests {
 
     #[tokio::test]
     async fn test_search_by_memory_tier() {
-        let transport = MockTransport::with_ok(vec![vec![
-            json!({
-                "node": {
-                    "file_path": "src/pattern.rs",
-                    "content": "procedural pattern",
-                    "score": 0.95,
-                    "start_line": 1,
-                    "end_line": 10,
-                },
+        let transport = MockTransport::with_ok(vec![vec![json!({
+            "node": {
+                "file_path": "src/pattern.rs",
+                "content": "procedural pattern",
                 "score": 0.95,
-            }),
-        ]]);
+                "start_line": 1,
+                "end_line": 10,
+            },
+            "score": 0.95,
+        })]]);
         let db = mock_db(transport);
         let results = db
-            .search_by_memory_tier(
-                vec![0.1, 0.2],
-                CognitiveMemoryTier::Procedural,
-                10,
-            )
+            .search_by_memory_tier(vec![0.1, 0.2], CognitiveMemoryTier::Procedural, 10)
             .await
             .unwrap();
         assert_eq!(results.len(), 1);
@@ -2098,10 +2035,7 @@ mod tests {
     #[tokio::test]
     async fn test_clear_drop_index_error_ignored() {
         // First call (delete all nodes) succeeds, second (drop index) fails.
-        let transport = MockTransport::new(vec![
-            Ok(vec![]),
-            Err(anyhow::anyhow!("No such index")),
-        ]);
+        let transport = MockTransport::new(vec![Ok(vec![]), Err(anyhow::anyhow!("No such index"))]);
         let db = mock_db(transport);
         // Should succeed — the drop-index error is ignored.
         db.clear().await.unwrap();
@@ -2223,7 +2157,11 @@ mod tests {
         let db = setup_test_db().await;
         let count = db
             .store_embeddings(
-                vec![test_embedding(0.1), test_embedding(0.4), test_embedding(0.7)],
+                vec![
+                    test_embedding(0.1),
+                    test_embedding(0.4),
+                    test_embedding(0.7),
+                ],
                 vec![
                     sample_metadata("a.rs", 1, 5),
                     sample_metadata("b.rs", 1, 5),
@@ -2262,14 +2200,9 @@ mod tests {
         .unwrap();
 
         // Store again with same key (file_path, start_line) — should upsert.
-        db.store_embeddings(
-            vec![emb],
-            vec![meta],
-            vec!["v2".to_string()],
-            "/project",
-        )
-        .await
-        .unwrap();
+        db.store_embeddings(vec![emb], vec![meta], vec!["v2".to_string()], "/project")
+            .await
+            .unwrap();
 
         // Should still be only 1 node for that file/line combination.
         let stats = db.get_statistics().await.unwrap();
@@ -2284,9 +2217,7 @@ mod tests {
         }
         let db = setup_test_db().await;
         let n = 100;
-        let embeddings: Vec<Vec<f32>> = (0..n)
-            .map(|i| test_embedding(i as f32 * 0.01))
-            .collect();
+        let embeddings: Vec<Vec<f32>> = (0..n).map(|i| test_embedding(i as f32 * 0.01)).collect();
         let metadata: Vec<ChunkMetadata> = (0..n)
             .map(|i| sample_metadata(&format!("file_{}.rs", i), i, i + 5))
             .collect();
@@ -2614,10 +2545,7 @@ mod tests {
             return;
         }
         let db = setup_test_db().await;
-        let count = db
-            .delete_by_file("nonexistent/file.rs")
-            .await
-            .unwrap();
+        let count = db.delete_by_file("nonexistent/file.rs").await.unwrap();
         assert_eq!(count, 0);
     }
 
@@ -2641,10 +2569,7 @@ mod tests {
         let db = setup_test_db().await;
         db.store_embeddings(
             vec![test_embedding(0.1), test_embedding(0.5)],
-            vec![
-                sample_metadata("a.rs", 1, 5),
-                sample_metadata("b.rs", 1, 5),
-            ],
+            vec![sample_metadata("a.rs", 1, 5), sample_metadata("b.rs", 1, 5)],
             vec!["code a".to_string(), "code b".to_string()],
             "/project",
         )

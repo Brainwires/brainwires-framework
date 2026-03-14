@@ -140,14 +140,9 @@ impl PineconeDatabase {
                     .get("root_path")
                     .and_then(|v| v.as_str())
                     .map(String::from);
-                let start_line = meta
-                    .get("start_line")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0) as usize;
-                let end_line = meta
-                    .get("end_line")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0) as usize;
+                let start_line =
+                    meta.get("start_line").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+                let end_line = meta.get("end_line").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
                 let language = meta
                     .get("language")
                     .and_then(|v| v.as_str())
@@ -157,10 +152,7 @@ impl PineconeDatabase {
                     .get("project")
                     .and_then(|v| v.as_str())
                     .map(String::from);
-                let indexed_at = meta
-                    .get("indexed_at")
-                    .and_then(|v| v.as_i64())
-                    .unwrap_or(0);
+                let indexed_at = meta.get("indexed_at").and_then(|v| v.as_i64()).unwrap_or(0);
 
                 Some(SearchResult {
                     file_path,
@@ -331,12 +323,7 @@ impl VectorDatabase for PineconeDatabase {
 
             for i in batch_start..batch_end {
                 let meta = &metadata[i];
-                let id = format!(
-                    "{}:{}:{}",
-                    root_path,
-                    meta.file_path,
-                    meta.start_line
-                );
+                let id = format!("{}:{}:{}", root_path, meta.file_path, meta.start_line);
 
                 let metadata_json = serde_json::json!({
                     "file_path": meta.file_path,
@@ -376,9 +363,7 @@ impl VectorDatabase for PineconeDatabase {
             if !resp.status().is_success() {
                 let status = resp.status();
                 let body = resp.text().await.unwrap_or_default();
-                bail!(
-                    "Pinecone upsert failed (HTTP {status}): {body}"
-                );
+                bail!("Pinecone upsert failed (HTTP {status}): {body}");
             }
 
             stored += batch_end - batch_start;
@@ -399,13 +384,8 @@ impl VectorDatabase for PineconeDatabase {
         root_path: Option<String>,
         _hybrid: bool,
     ) -> Result<Vec<SearchResult>> {
-        let filter = self.build_metadata_filter(
-            project.as_deref(),
-            root_path.as_deref(),
-            &[],
-            &[],
-            &[],
-        );
+        let filter =
+            self.build_metadata_filter(project.as_deref(), root_path.as_deref(), &[], &[], &[]);
 
         let request = QueryRequest {
             vector: query_vector,
@@ -431,7 +411,10 @@ impl VectorDatabase for PineconeDatabase {
             bail!("Pinecone query failed (HTTP {status}): {body}");
         }
 
-        let query_resp: QueryResponse = resp.json().await.context("Failed to parse Pinecone query response")?;
+        let query_resp: QueryResponse = resp
+            .json()
+            .await
+            .context("Failed to parse Pinecone query response")?;
         Ok(self.matches_to_results(query_resp.matches, min_score, &[]))
     }
 
@@ -483,7 +466,10 @@ impl VectorDatabase for PineconeDatabase {
             bail!("Pinecone filtered query failed (HTTP {status}): {body}");
         }
 
-        let query_resp: QueryResponse = resp.json().await.context("Failed to parse Pinecone query response")?;
+        let query_resp: QueryResponse = resp
+            .json()
+            .await
+            .context("Failed to parse Pinecone query response")?;
         let mut results = self.matches_to_results(query_resp.matches, min_score, &path_patterns);
         results.truncate(limit);
         Ok(results)
@@ -561,13 +547,13 @@ impl VectorDatabase for PineconeDatabase {
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
-            bail!(
-                "Pinecone describe_index_stats failed (HTTP {status}): {body}"
-            );
+            bail!("Pinecone describe_index_stats failed (HTTP {status}): {body}");
         }
 
-        let stats: DescribeIndexStatsResponse =
-            resp.json().await.context("Failed to parse Pinecone stats")?;
+        let stats: DescribeIndexStatsResponse = resp
+            .json()
+            .await
+            .context("Failed to parse Pinecone stats")?;
 
         let total_vectors = stats
             .namespaces
@@ -610,8 +596,10 @@ impl VectorDatabase for PineconeDatabase {
             bail!("Pinecone count_by_root_path failed (HTTP {status}): {body}");
         }
 
-        let stats: DescribeIndexStatsResponse =
-            resp.json().await.context("Failed to parse Pinecone stats")?;
+        let stats: DescribeIndexStatsResponse = resp
+            .json()
+            .await
+            .context("Failed to parse Pinecone stats")?;
 
         let count = stats
             .namespaces

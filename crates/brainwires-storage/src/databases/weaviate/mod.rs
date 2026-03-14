@@ -78,7 +78,11 @@ impl WeaviateDatabase {
 
     /// Generate a deterministic UUID (v5-style) from file path and line range
     /// so that repeated indexing of the same chunk produces the same ID.
-    pub(crate) fn deterministic_uuid(file_path: &str, start_line: usize, end_line: usize) -> String {
+    pub(crate) fn deterministic_uuid(
+        file_path: &str,
+        start_line: usize,
+        end_line: usize,
+    ) -> String {
         use sha2::{Digest, Sha256};
         let mut hasher = Sha256::new();
         hasher.update(format!("{}:{}:{}", file_path, start_line, end_line).as_bytes());

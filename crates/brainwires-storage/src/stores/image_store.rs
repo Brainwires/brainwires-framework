@@ -7,12 +7,12 @@ use anyhow::{Context, Result};
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 
+use crate::databases::{
+    FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
+};
 use crate::embeddings::EmbeddingProvider;
 use crate::image_types::{
     ImageFormat, ImageMetadata, ImageSearchRequest, ImageSearchResult, ImageStorage,
-};
-use crate::databases::{
-    FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
 
 const TABLE_NAME: &str = "images";
@@ -486,4 +486,3 @@ impl<B: StorageBackend> ImageStore<B> {
         Ok(images.len())
     }
 }
-

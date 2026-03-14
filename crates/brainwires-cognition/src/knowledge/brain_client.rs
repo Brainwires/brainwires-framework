@@ -62,8 +62,7 @@ impl BrainClient {
     /// Creates a LanceDatabase internally as the default backend.
     pub async fn with_paths(lance_path: &str, pks_path: &str, bks_path: &str) -> Result<Self> {
         let embeddings = Arc::new(EmbeddingProvider::new()?);
-        let backend: Arc<dyn StorageBackend> =
-            Arc::new(LanceDatabase::new(lance_path).await?);
+        let backend: Arc<dyn StorageBackend> = Arc::new(LanceDatabase::new(lance_path).await?);
 
         Self::with_backend(backend, embeddings, pks_path, bks_path).await
     }
@@ -525,9 +524,7 @@ impl BrainClient {
 
         // Delete the row via backend
         let delete_filter = Filter::Eq("id".into(), FieldValue::Utf8(Some(id.to_string())));
-        self.backend
-            .delete(THOUGHTS_TABLE, &delete_filter)
-            .await?;
+        self.backend.delete(THOUGHTS_TABLE, &delete_filter).await?;
 
         tracing::info!(id = id, "Deleted thought");
         Ok(DeleteThoughtResponse {
@@ -543,10 +540,7 @@ impl BrainClient {
 
         vec![
             ("vector".into(), FieldValue::Vector(embedding.to_vec())),
-            (
-                "id".into(),
-                FieldValue::Utf8(Some(thought.id.clone())),
-            ),
+            ("id".into(), FieldValue::Utf8(Some(thought.id.clone()))),
             (
                 "content".into(),
                 FieldValue::Utf8(Some(thought.content.clone())),
@@ -572,10 +566,7 @@ impl BrainClient {
                 "updated_at".into(),
                 FieldValue::Int64(Some(thought.updated_at)),
             ),
-            (
-                "deleted".into(),
-                FieldValue::Boolean(Some(thought.deleted)),
-            ),
+            ("deleted".into(), FieldValue::Boolean(Some(thought.deleted))),
         ]
     }
 

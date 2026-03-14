@@ -187,11 +187,7 @@ pub fn filter_to_sql(
 /// Build a `CREATE TABLE IF NOT EXISTS` statement.
 ///
 /// The first field in `schema` is used as the primary key.
-pub fn build_create_table(
-    table: &str,
-    schema: &[FieldDef],
-    dialect: &dyn SqlDialect,
-) -> String {
+pub fn build_create_table(table: &str, schema: &[FieldDef], dialect: &dyn SqlDialect) -> String {
     let columns: Vec<String> = schema
         .iter()
         .enumerate()
@@ -199,7 +195,13 @@ pub fn build_create_table(
             let col_type = dialect.map_type(&f.field_type);
             let nullable = if f.nullable { "" } else { " NOT NULL" };
             let pk = if i == 0 { " PRIMARY KEY" } else { "" };
-            format!("{} {}{}{}", dialect.quote_ident(&f.name), col_type, nullable, pk)
+            format!(
+                "{} {}{}{}",
+                dialect.quote_ident(&f.name),
+                col_type,
+                nullable,
+                pk
+            )
         })
         .collect();
 
@@ -318,9 +320,9 @@ pub fn build_count(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use super::postgres::PostgresDialect;
     use super::mysql::MySqlDialect;
+    use super::postgres::PostgresDialect;
+    use super::*;
 
     // ── filter_to_sql tests ───────────────────────────────────────────
 
@@ -381,10 +383,7 @@ mod tests {
     fn test_filter_in_mysql() {
         let filter = Filter::In(
             "id".into(),
-            vec![
-                FieldValue::Int64(Some(1)),
-                FieldValue::Int64(Some(2)),
-            ],
+            vec![FieldValue::Int64(Some(1)), FieldValue::Int64(Some(2))],
         );
         let (sql, vals) = filter_to_sql(&filter, &MySqlDialect, 1);
         assert_eq!(sql, "`id` IN (?, ?)");

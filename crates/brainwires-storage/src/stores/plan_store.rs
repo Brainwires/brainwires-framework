@@ -7,10 +7,10 @@ use anyhow::{Context, Result};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::embeddings::EmbeddingProvider;
 use crate::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
+use crate::embeddings::EmbeddingProvider;
 use brainwires_core::{PlanMetadata, PlanStatus};
 
 const TABLE_NAME: &str = "plans";
@@ -470,4 +470,3 @@ impl<B: StorageBackend> PlanStore<B> {
         Ok(())
     }
 }
-

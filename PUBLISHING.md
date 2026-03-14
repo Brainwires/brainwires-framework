@@ -12,7 +12,7 @@ Reusable checklist for releasing new versions of the Brainwires Framework to cra
   - `crates/README.md` — dependency tree and crate descriptions
   - `crates/brainwires/README.md` (facade) — feature table, crate count, prelude types
   - `extras/` server READMEs — cross-references to library crates
-- [ ] `cargo xtask ci` passes (fmt, check, clippy, test, doc)
+- [ ] `cargo ci` passes (fmt, check, clippy, test, doc)
 - [ ] `cargo build --workspace` succeeds
 - [ ] `cargo test --workspace` passes
 

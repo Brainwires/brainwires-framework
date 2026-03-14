@@ -1,10 +1,10 @@
 use anyhow::{Context, Result};
 use std::sync::Arc;
 
-use crate::embeddings::EmbeddingProvider;
 use crate::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
+use crate::embeddings::EmbeddingProvider;
 
 const TABLE_NAME: &str = "messages";
 
@@ -321,4 +321,3 @@ impl<B: StorageBackend> MessageStore<B> {
         Ok(count)
     }
 }
-

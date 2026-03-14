@@ -5,10 +5,10 @@
 use anyhow::{Context, Result};
 use std::sync::Arc;
 
-use crate::embeddings::EmbeddingProvider;
 use crate::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, ScoredRecord, StorageBackend, record_get,
 };
+use crate::embeddings::EmbeddingProvider;
 use crate::tiered_memory::{FactType, KeyFact};
 
 const TABLE_NAME: &str = "facts";

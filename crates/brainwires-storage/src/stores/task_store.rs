@@ -610,4 +610,3 @@ impl<B: StorageBackend + 'static> AgentStateStore<B> {
         ]))
     }
 }
-

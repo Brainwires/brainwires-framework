@@ -122,10 +122,10 @@ pub mod stores;
 
 // ── Re-exports (always available) ────────────────────────────────────────
 
+pub use databases::BackendCapabilities;
+pub use databases::traits::StorageBackend;
 pub use databases::types::record_get;
 pub use databases::types::{FieldDef, FieldType, FieldValue, Filter, Record, ScoredRecord};
-pub use databases::traits::StorageBackend;
-pub use databases::BackendCapabilities;
 
 #[cfg(feature = "lance-backend")]
 pub use databases::LanceDatabase;

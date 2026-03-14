@@ -213,7 +213,10 @@ impl RagClient {
     ///
     /// This enables callers to share a database connection across subsystems
     /// instead of creating a new one internally.
-    pub async fn with_vector_db(vector_db: Arc<dyn VectorDatabase>, config: Config) -> Result<Self> {
+    pub async fn with_vector_db(
+        vector_db: Arc<dyn VectorDatabase>,
+        config: Config,
+    ) -> Result<Self> {
         tracing::info!("Initializing RAG client with externally-provided vector database");
 
         // Initialize embedding provider with configured model
