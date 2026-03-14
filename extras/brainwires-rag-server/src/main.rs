@@ -72,16 +72,16 @@ fn show_version_info() {
 
     #[cfg(not(feature = "qdrant-backend"))]
     {
-        use brainwires_storage::vector_db::LanceVectorDB;
-        let default_path = LanceVectorDB::default_lancedb_path();
+        use brainwires_storage::databases::LanceDatabase;
+        let default_path = LanceDatabase::default_lancedb_path();
         println!("  Default Path:    {}", default_path);
         println!("  Type:            Embedded (no external server required)");
     }
 
     #[cfg(feature = "qdrant-backend")]
     {
-        use brainwires_storage::vector_db::QdrantVectorDB;
-        let default_url = QdrantVectorDB::default_url();
+        use brainwires_storage::databases::QdrantDatabase;
+        let default_url = QdrantDatabase::default_url();
         println!("  Default URL:     {}", default_url);
         println!("  Type:            External server (requires Qdrant running)");
     }

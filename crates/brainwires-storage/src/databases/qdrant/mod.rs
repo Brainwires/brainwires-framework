@@ -1,8 +1,14 @@
-use super::bm25_helpers::{self, SharedIdfStats};
-use super::{ChunkMetadata, SearchResult};
-use super::{DatabaseStats, VectorDatabase};
+//! Qdrant vector database backend.
+//!
+//! Implements [`VectorDatabase`] for the Qdrant dedicated vector search server.
+//! This backend does **not** implement [`StorageBackend`] — it is used for
+//! RAG-style embedding storage only.
+
+use crate::databases::bm25_helpers::{self, SharedIdfStats};
+use crate::databases::traits::VectorDatabase;
 use crate::glob_utils;
 use anyhow::{Context, Result};
+use brainwires_core::{ChunkMetadata, DatabaseStats, SearchResult};
 use qdrant_client::qdrant::vectors_config::Config;
 use qdrant_client::qdrant::{
     Condition, CreateCollectionBuilder, DeletePointsBuilder, Distance, Filter, PointStruct,
@@ -14,13 +20,13 @@ use serde_json::json;
 const COLLECTION_NAME: &str = "code_embeddings";
 
 /// Qdrant-backed vector database for code embeddings.
-pub struct QdrantVectorDB {
+pub struct QdrantDatabase {
     client: Qdrant,
     /// IDF statistics for BM25 calculation
     idf_stats: SharedIdfStats,
 }
 
-impl QdrantVectorDB {
+impl QdrantDatabase {
     /// Create a new Qdrant client with default local configuration
     pub async fn new() -> Result<Self> {
         Self::with_url(&Self::default_url()).await
@@ -113,7 +119,7 @@ impl QdrantVectorDB {
 }
 
 #[async_trait::async_trait]
-impl VectorDatabase for QdrantVectorDB {
+impl VectorDatabase for QdrantDatabase {
     async fn initialize(&self, dimension: usize) -> Result<()> {
         if self.collection_exists().await? {
             tracing::info!("Collection '{}' already exists", COLLECTION_NAME);
@@ -495,7 +501,7 @@ impl VectorDatabase for QdrantVectorDB {
     }
 }
 
-impl Default for QdrantVectorDB {
+impl Default for QdrantDatabase {
     fn default() -> Self {
         tokio::runtime::Runtime::new()
             .expect("failed to create tokio runtime")

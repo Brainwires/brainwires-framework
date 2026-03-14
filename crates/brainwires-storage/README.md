@@ -4,7 +4,7 @@
 [![Documentation](https://img.shields.io/docsrs/brainwires-storage)](https://docs.rs/brainwires-storage)
 [![License](https://img.shields.io/crates/l/brainwires-storage.svg)](LICENSE)
 
-LanceDB-backed storage, tiered memory, and document management for the Brainwires Agent Framework.
+Backend-agnostic storage, tiered memory, and document management for the Brainwires Agent Framework.
 
 ## Overview
 
@@ -12,6 +12,8 @@ LanceDB-backed storage, tiered memory, and document management for the Brainwire
 
 **Design principles:**
 
+- **Backend-agnostic** — domain stores are generic over `StorageBackend`; swap databases by changing a feature flag, not your application code
+- **One struct, one connection** — each database backend is a single struct (e.g. `LanceDatabase`, `PostgresDatabase`) that implements one or both core traits and shares a single connection for all operations
 - **Semantic-first retrieval** — all stores embed content via all-MiniLM-L6-v2 (384 dimensions) and search by vector similarity, so queries match meaning rather than keywords
 - **Hybrid search** — document retrieval combines vector similarity with BM25 keyword scoring via Reciprocal Rank Fusion (RRF) for best-of-both-worlds accuracy
 - **Three-tier memory** — hot (full messages with TTL), warm (compressed summaries), cold (extracted facts) with automatic demotion/promotion based on importance and access patterns
@@ -20,46 +22,69 @@ LanceDB-backed storage, tiered memory, and document management for the Brainwire
 - **Feature-gated portability** — pure types and logic compile everywhere; native-only modules (LanceDB, Arrow, SQLite) are behind the `native` feature for WASM compatibility
 
 ```text
-  ┌───────────────────────────────────────────────────────────────────────┐
-  │                        brainwires-storage                            │
-  │                                                                      │
-  │  ┌─── Core Infrastructure ─────────────────────────────────────────┐ │
-  │  │  LanceClient ──► LanceDB connection & table management          │ │
-  │  │  EmbeddingProvider ──► all-MiniLM-L6-v2 with LRU cache (1000)  │ │
-  │  └─────────────────────────────────────────────────────────────────┘ │
-  │                                                                      │
-  │  ┌─── Message & Conversation Storage ──────────────────────────────┐ │
-  │  │  MessageStore ──► vector search, TTL expiry, batch ops          │ │
-  │  │  ConversationStore ──► metadata, listing by recency             │ │
-  │  │  TaskStore / AgentStateStore ──► task & agent persistence       │ │
-  │  │  PlanStore ──► execution plans with markdown export             │ │
-  │  └─────────────────────────────────────────────────────────────────┘ │
-  │                                                                      │
-  │  ┌─── Tiered Memory System ────────────────────────────────────────┐ │
-  │  │  Hot ──► full messages (MessageStore, session TTL)              │ │
-  │  │  Warm ──► compressed summaries (SummaryStore)                   │ │
-  │  │  Cold ──► extracted facts (FactStore)                           │ │
-  │  │  TierMetadataStore ──► access tracking, importance scoring      │ │
-  │  │  TieredMemory ──► adaptive search, demotion/promotion           │ │
-  │  └─────────────────────────────────────────────────────────────────┘ │
-  │                                                                      │
-  │  ┌─── Document Management ─────────────────────────────────────────┐ │
-  │  │  DocumentProcessor ──► PDF, DOCX, Markdown, plain text          │ │
-  │  │  DocumentChunker ──► paragraph/sentence-aware segmentation      │ │
-  │  │  DocumentStore ──► hybrid search (vector + BM25 via RRF)       │ │
-  │  │  DocumentMetadataStore ──► hash-based deduplication             │ │
-  │  └─────────────────────────────────────────────────────────────────┘ │
-  │                                                                      │
-  │  ┌─── Images ────────────────────────────────────────────────────────┐ │
-  │  │  ImageStore ──► analyzed images with semantic search             │ │
-  │  └─────────────────────────────────────────────────────────────────┘ │
-  │  Note: EntityStore and RelationshipGraph moved to brainwires-cognition │
-  │                                                                      │
-  │  ┌─── Coordination & Templates ────────────────────────────────────┐ │
-  │  │  LockStore ──► SQLite WAL locks, stale detection, cleanup       │ │
-  │  │  TemplateStore ──► reusable plans with {{variable}} substitution│ │
-  │  └─────────────────────────────────────────────────────────────────┘ │
-  └───────────────────────────────────────────────────────────────────────┘
+  +-----------------------------------------------------------------------+
+  |                        brainwires-storage                              |
+  |                                                                        |
+  |  +--- Unified Database Layer (databases/) -------------------------+  |
+  |  |                                                                  |  |
+  |  |  Core Traits:                                                    |  |
+  |  |    StorageBackend --- generic CRUD + vector search               |  |
+  |  |    VectorDatabase --- RAG embedding storage + hybrid search      |  |
+  |  |                                                                  |  |
+  |  |  Backends:                                                       |  |
+  |  |    LanceDatabase ---- StorageBackend + VectorDatabase (default)  |  |
+  |  |    PostgresDatabase - StorageBackend + VectorDatabase            |  |
+  |  |    MySqlDatabase ---- StorageBackend only                        |  |
+  |  |    SurrealDatabase -- StorageBackend only (vector TBD)           |  |
+  |  |    QdrantDatabase --- VectorDatabase only                        |  |
+  |  |    PineconeDatabase - VectorDatabase only                        |  |
+  |  |    MilvusDatabase --- VectorDatabase only                        |  |
+  |  |    WeaviateDatabase - VectorDatabase only                        |  |
+  |  |    NornicDatabase --- VectorDatabase only                        |  |
+  |  |                                                                  |  |
+  |  |  Supporting modules:                                             |  |
+  |  |    types.rs --- Record, FieldDef, Filter, ScoredRecord           |  |
+  |  |    capabilities.rs --- BackendCapabilities discovery              |  |
+  |  |    sql/ --- shared SQL dialect layer (Postgres, MySQL, SurrealDB)|  |
+  |  |    bm25_helpers.rs --- BM25 scoring for client-side keyword search|  |
+  |  +------------------------------------------------------------------+  |
+  |                                                                        |
+  |  +--- Core Infrastructure -------------------------------------------+  |
+  |  |  EmbeddingProvider --- all-MiniLM-L6-v2 with LRU cache (1000)    |  |
+  |  +------------------------------------------------------------------+  |
+  |                                                                        |
+  |  +--- Domain Stores (stores/) --------------------------------------+  |
+  |  |  MessageStore --- vector search, TTL expiry, batch ops            |  |
+  |  |  ConversationStore --- metadata, listing by recency               |  |
+  |  |  TaskStore / AgentStateStore --- task & agent persistence          |  |
+  |  |  PlanStore --- execution plans with markdown export               |  |
+  |  +------------------------------------------------------------------+  |
+  |                                                                        |
+  |  +--- Tiered Memory System -----------------------------------------+  |
+  |  |  Hot --- full messages (MessageStore, session TTL)                |  |
+  |  |  Warm --- compressed summaries (SummaryStore)                     |  |
+  |  |  Cold --- extracted facts (FactStore)                             |  |
+  |  |  TierMetadataStore --- access tracking, importance scoring        |  |
+  |  |  TieredMemory --- adaptive search, demotion/promotion             |  |
+  |  +------------------------------------------------------------------+  |
+  |                                                                        |
+  |  +--- Document Management ------------------------------------------+  |
+  |  |  DocumentProcessor --- PDF, DOCX, Markdown, plain text            |  |
+  |  |  DocumentChunker --- paragraph/sentence-aware segmentation        |  |
+  |  |  DocumentStore --- hybrid search (vector + BM25 via RRF)         |  |
+  |  |  DocumentMetadataStore --- hash-based deduplication               |  |
+  |  +------------------------------------------------------------------+  |
+  |                                                                        |
+  |  +--- Images -------------------------------------------------------+  |
+  |  |  ImageStore --- analyzed images with semantic search              |  |
+  |  +------------------------------------------------------------------+  |
+  |  Note: EntityStore and RelationshipGraph moved to brainwires-cognition |
+  |                                                                        |
+  |  +--- Coordination & Templates -------------------------------------+  |
+  |  |  LockStore --- SQLite WAL locks, stale detection, cleanup         |  |
+  |  |  TemplateStore --- reusable plans with {{variable}} substitution  |  |
+  |  +------------------------------------------------------------------+  |
+  +------------------------------------------------------------------------+
 ```
 
 ## Quick Start
@@ -68,23 +93,23 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires-storage = "0.1"
+brainwires-storage = "0.3"
 ```
 
 Store and search conversation messages:
 
 ```rust
-use brainwires_storage::{LanceClient, EmbeddingProvider, MessageStore, MessageMetadata};
+use brainwires_storage::{LanceDatabase, EmbeddingProvider, MessageStore, MessageMetadata};
 use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // Initialize storage
-    let client = Arc::new(LanceClient::new("~/.brainwires/db").await?);
+    // Initialize storage — one struct, one connection
+    let db = Arc::new(LanceDatabase::new("~/.brainwires/db").await?);
     let embeddings = Arc::new(EmbeddingProvider::new()?);
-    client.initialize(embeddings.dimension()).await?;
+    db.initialize(embeddings.dimension()).await?;
 
-    let store = MessageStore::new(client.clone(), embeddings.clone());
+    let store = MessageStore::new(db.clone(), embeddings.clone());
 
     // Store a message
     store.add(MessageMetadata {
@@ -109,56 +134,170 @@ async fn main() -> anyhow::Result<()> {
 }
 ```
 
+## Database Backends
+
+The `databases/` module provides a unified abstraction layer. Each database is a single struct implementing one or both core traits:
+
+- **`StorageBackend`** — generic CRUD + vector search for domain stores (messages, conversations, tasks, etc.)
+- **`VectorDatabase`** — RAG-style embedding storage with hybrid search for codebase indexing
+
+### Trait implementation matrix
+
+| Database | Struct | `StorageBackend` | `VectorDatabase` | Feature flag |
+|----------|--------|:---:|:---:|--------------|
+| LanceDB | `LanceDatabase` | YES | YES | `lance-backend` (default via `native`) |
+| PostgreSQL + pgvector | `PostgresDatabase` | YES | YES | `postgres-backend` |
+| MySQL / MariaDB | `MySqlDatabase` | YES | NO | `mysql-backend` |
+| SurrealDB | `SurrealDatabase` | YES | TBD | `surrealdb-backend` |
+| Qdrant | `QdrantDatabase` | NO | YES | `qdrant-backend` |
+| Pinecone | `PineconeDatabase` | NO | YES | `pinecone-backend` |
+| Milvus | `MilvusDatabase` | NO | YES | `milvus-backend` |
+| Weaviate | `WeaviateDatabase` | NO | YES | `weaviate-backend` |
+| NornicDB | `NornicDatabase` | NO | YES | `nornicdb-backend` |
+
+### Connection sharing
+
+Backends that implement both traits share a single connection. This means domain stores and the RAG subsystem can use the same database instance without opening separate connections:
+
+```rust
+use brainwires_storage::{LanceDatabase, StorageBackend};
+use brainwires_storage::databases::VectorDatabase;
+use std::sync::Arc;
+
+let db = Arc::new(LanceDatabase::new("/path/to/db").await?);
+
+// Domain stores use the StorageBackend trait
+let messages = MessageStore::new(db.clone(), embeddings.clone());
+let conversations = ConversationStore::new(db.clone());
+
+// RAG system uses the VectorDatabase trait on the same connection
+let rag = RagClient::with_vector_db(db.clone());
+```
+
+### Module structure
+
+```text
+databases/
+  mod.rs              -- top-level module, re-exports
+  traits.rs           -- StorageBackend + VectorDatabase trait definitions
+  types.rs            -- Record, FieldDef, FieldValue, Filter, ScoredRecord
+  capabilities.rs     -- BackendCapabilities runtime discovery
+  bm25_helpers.rs     -- shared BM25 scoring for client-side keyword search
+  sql/                -- shared SQL dialect layer
+    mod.rs            -- SqlDialect trait
+    postgres.rs       -- PostgreSQL dialect
+    mysql.rs          -- MySQL dialect
+    surrealdb.rs      -- SurrealDB dialect
+  lance/              -- LanceDB backend (default)
+    mod.rs            -- LanceDatabase struct
+    arrow_convert.rs  -- Arrow <-> Record conversion
+  postgres/           -- PostgreSQL + pgvector backend
+  mysql/              -- MySQL backend
+  surrealdb/          -- SurrealDB backend
+  qdrant/             -- Qdrant backend
+  pinecone/           -- Pinecone backend
+  milvus/             -- Milvus backend
+  weaviate/           -- Weaviate backend
+  nornicdb/           -- NornicDB backend
+    mod.rs            -- NornicDatabase struct
+    transport.rs      -- REST/Bolt/gRPC transport layer
+```
+
 ## Features
 
 | Feature | Default | Description |
 |---------|---------|-------------|
-| `native` | Yes | Enables LanceDB, Arrow, SQLite, FastEmbed, file processing, and all native-only stores |
-| `vector-db` | No | Vector database trait + backends (LanceDB, Qdrant), BM25 search, glob/path utilities |
-| `wasm` | No | Enables WASM-compatible compilation via `brainwires-core/wasm` |
+| `native` | Yes | Enables LanceDB backend, FastEmbed, SQLite locks, and all native-only stores |
+| `lance-backend` | Yes (via `native`) | LanceDB embedded vector database |
+| `postgres-backend` | No | PostgreSQL + pgvector (both traits) |
+| `mysql-backend` | No | MySQL / MariaDB (StorageBackend only) |
+| `surrealdb-backend` | No | SurrealDB multi-model database |
+| `qdrant-backend` | No | Qdrant vector search server |
+| `pinecone-backend` | No | Pinecone managed cloud vectors |
+| `milvus-backend` | No | Milvus open-source vectors |
+| `weaviate-backend` | No | Weaviate vector search engine |
+| `nornicdb-backend` | No | NornicDB graph + vector database |
+| `nornicdb-bolt` | No | NornicDB with Neo4j Bolt transport |
+| `nornicdb-grpc` | No | NornicDB with Qdrant-compatible gRPC |
+| `nornicdb-full` | No | NornicDB with all transports |
+| `vector-db` | No | Backward-compat alias for `lance-backend` |
+| `wasm` | No | WASM-compatible compilation (pure types only) |
 
 ```toml
-# Default (full native functionality)
-brainwires-storage = "0.2"
+# Default (LanceDB + full native functionality)
+brainwires-storage = "0.3"
 
 # WASM-compatible (pure types and logic only)
 brainwires-storage = { version = "0.3", default-features = false, features = ["wasm"] }
 
-# With vector database support (used by brainwires-cognition RAG)
-brainwires-storage = { version = "0.3", features = ["vector-db"] }
+# With Qdrant backend (in addition to LanceDB)
+brainwires-storage = { version = "0.3", features = ["qdrant-backend"] }
+
+# PostgreSQL as primary backend
+brainwires-storage = { version = "0.3", features = ["postgres-backend"] }
+
+# NornicDB with all transports
+brainwires-storage = { version = "0.3", features = ["nornicdb-full"] }
 ```
 
 **Module availability by feature:**
 
-| Module | Always | `native` | `agents` |
-|--------|--------|----------|----------|
-| `document_types`, `document_chunker` | Yes | — | — |
-| `image_types` | Yes | — | — |
-| `template_store` | Yes | — | — |
-| `lance_client`, `embeddings` | — | Yes | — |
-| `message_store`, `conversation_store` | — | Yes | — |
-| `task_store`, `plan_store`, `lock_store` | — | Yes | — |
-| `document_store`, `document_processor` | — | Yes | — |
-| `document_metadata_store`, `document_bm25` | — | Yes | — |
-| `image_store` | — | Yes | — |
-| `tiered_memory`, `summary_store`, `fact_store` | — | Yes | — |
-| `tier_metadata_store`, `file_context` | — | Yes | — |
-| `vector_db`, `bm25_search`, `glob_utils`, `paths` | — | — (requires `vector-db`) | — |
+| Module | Always | `native` | Backend-specific |
+|--------|--------|----------|------------------|
+| `databases` (traits, types, capabilities) | Yes | -- | -- |
+| `image_types` | Yes | -- | -- |
+| `template_store` | Yes | -- | -- |
+| `databases::lance` | -- | Yes | `lance-backend` |
+| `databases::qdrant` | -- | -- | `qdrant-backend` |
+| `databases::postgres` | -- | -- | `postgres-backend` |
+| `databases::mysql` | -- | -- | `mysql-backend` |
+| `databases::surrealdb` | -- | -- | `surrealdb-backend` |
+| `databases::pinecone` | -- | -- | `pinecone-backend` |
+| `databases::milvus` | -- | -- | `milvus-backend` |
+| `databases::weaviate` | -- | -- | `weaviate-backend` |
+| `databases::nornicdb` | -- | -- | `nornicdb-backend` |
+| `databases::sql` | -- | -- | any SQL backend |
+| `embeddings` | -- | Yes | -- |
+| `message_store`, `conversation_store` | -- | Yes | -- |
+| `task_store`, `plan_store`, `lock_store` | -- | Yes | -- |
+| `document_store`, `document_processor` | -- | Yes | -- |
+| `image_store` | -- | Yes | -- |
+| `tiered_memory`, `summary_store`, `fact_store` | -- | Yes | -- |
+| `tier_metadata_store`, `file_context` | -- | Yes | -- |
+| `bm25_search`, `glob_utils`, `paths` | -- | -- | `lance-backend` |
 
 ## Architecture
 
-### LanceClient
+### StorageBackend trait
 
-LanceDB connection manager that initializes and provides access to all storage tables.
+Backend-agnostic storage operations. Domain stores are generic over this trait.
 
 | Method | Description |
 |--------|-------------|
-| `new(db_path)` | Create connection to LanceDB at path |
-| `initialize(embedding_dim)` | Initialize all tables with given embedding dimension |
-| `connection()` | Get raw LanceDB connection reference |
-| `db_path()` | Get database path |
+| `ensure_table(name, schema)` | Ensure table exists (idempotent) |
+| `insert(table, records)` | Insert one or more records |
+| `query(table, filter, limit)` | Query with optional filter |
+| `delete(table, filter)` | Delete matching records |
+| `count(table, filter)` | Count matching records |
+| `vector_search(table, column, vector, limit, filter)` | Vector similarity search |
 
-**Table initializers:** `ensure_conversations_table()`, `ensure_messages_table(dim)`, `ensure_tasks_table()`, `ensure_plans_table()`, `ensure_documents_table(dim)`, `ensure_document_metadata_table()`, `ensure_images_table(dim)`, `ensure_summaries_table(dim)`, `ensure_facts_table(dim)`, `ensure_tier_metadata_table()`.
+### VectorDatabase trait
+
+RAG-style embedding storage used by the codebase indexing subsystem.
+
+| Method | Description |
+|--------|-------------|
+| `initialize(dimension)` | Initialize collections |
+| `store_embeddings(embeddings, metadata, contents, root_path)` | Store embeddings with metadata |
+| `search(vector, text, limit, min_score, project, root, hybrid)` | Vector/hybrid search |
+| `search_filtered(...)` | Search with extension/language/path filters |
+| `search_with_embeddings(...)` | Search returning raw embedding vectors |
+| `delete_by_file(path)` | Delete embeddings for a file |
+| `clear()` | Clear all embeddings |
+| `get_statistics()` | Get storage statistics |
+| `flush()` | Flush changes to disk |
+| `count_by_root_path(root)` | Count embeddings per project |
+| `get_indexed_files(root)` | List indexed file paths |
 
 ### EmbeddingProvider
 
@@ -218,17 +357,6 @@ Conversation metadata with create-or-update semantics.
 | `update(conversation_id, title, message_count)` | Update metadata |
 | `delete(conversation_id)` | Delete conversation |
 
-**`ConversationMetadata`:**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `conversation_id` | `String` | Unique identifier |
-| `title` | `Option<String>` | Conversation title |
-| `model_id` | `Option<String>` | Model used |
-| `created_at` | `i64` | Creation timestamp |
-| `updated_at` | `i64` | Last update timestamp |
-| `message_count` | `i32` | Number of messages |
-
 ### TieredMemory
 
 Three-tier memory hierarchy with adaptive search and automatic demotion/promotion.
@@ -248,46 +376,10 @@ Three-tier memory hierarchy with adaptive search and automatic demotion/promotio
 | `promote_to_hot(message_id)` | Restore full message from warm tier |
 | `get_demotion_candidates(tier, count)` | Get candidates for demotion |
 | `get_stats()` | Get tier counts |
-| `fallback_summarize(content)` | No-LLM summary (truncate at 75 words) |
-| `fallback_fact(summary)` | No-LLM fact extraction |
 
-**`MemoryTier` enum:**
+**`MemoryTier` enum:** `Hot`, `Warm`, `Cold`.
 
-| Variant | Description |
-|---------|-------------|
-| `Hot` | Full messages, fastest access, session TTL |
-| `Warm` | Compressed summaries, reduced storage |
-| `Cold` | Extracted facts, minimal footprint |
-
-**`MemoryAuthority` enum:**
-
-| Variant | Description |
-|---------|-------------|
-| `Ephemeral` | Temporary, auto-expires quickly |
-| `Session` | Default, expires with session TTL |
-| `Canonical` | Long-lived, requires `CanonicalWriteToken` |
-
-**`TieredMemoryConfig`:**
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `hot_retention_hours` | `u64` | `24` | Hours before hot tier demotion |
-| `warm_retention_hours` | `u64` | `168` | Hours before warm tier demotion |
-| `importance_threshold_warm` | `f32` | `0.3` | Minimum importance to stay in hot |
-| `importance_threshold_cold` | `f32` | `0.1` | Minimum importance to stay in warm |
-| `max_hot_messages` | `usize` | `1000` | Hot tier capacity |
-| `max_warm_summaries` | `usize` | `5000` | Warm tier capacity |
-| `session_ttl_hours` | `u64` | `48` | Session-authority message TTL |
-
-**`TieredSearchResult`:**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `message_id` | `String` | Source message identifier |
-| `content` | `String` | Full text or summary or fact |
-| `tier` | `MemoryTier` | Which tier the result came from |
-| `score` | `f32` | Relevance score |
-| `metadata` | `Option<TierMetadata>` | Access and importance tracking |
+**`MemoryAuthority` enum:** `Ephemeral`, `Session`, `Canonical`.
 
 ### DocumentStore
 
@@ -296,102 +388,16 @@ Document ingestion with hybrid search (vector + BM25 via Reciprocal Rank Fusion)
 | Method | Description |
 |--------|-------------|
 | `new(client, embeddings, bm25_base_path)` | Create with default chunking |
-| `with_chunker_config(client, embeddings, bm25_base_path, config)` | Create with custom chunking |
 | `index_file(file_path, scope)` | Index document from file |
 | `index_bytes(bytes, file_name, file_type, scope)` | Index document from bytes |
 | `search(request)` | Hybrid or vector-only search |
 | `delete_document(document_id)` | Delete document and chunks |
 | `list_by_conversation(conversation_id)` | List documents in conversation |
 | `list_by_project(project_id)` | List documents in project |
-| `get_metadata(document_id)` | Get document metadata |
-| `get_document_chunks(document_id)` | Get all chunks for a document |
-| `count()` | Total document count |
 
-**`DocumentScope` enum:**
-
-| Variant | Description |
-|---------|-------------|
-| `Conversation(String)` | Scoped to a conversation |
-| `Project(String)` | Scoped to a project |
-| `Global` | Available everywhere |
+**`DocumentScope` enum:** `Conversation(String)`, `Project(String)`, `Global`.
 
 **`DocumentType` enum:** `Pdf`, `Markdown`, `PlainText`, `Docx`, `Unknown`.
-
-### DocumentChunker
-
-Paragraph and sentence-aware document segmentation with configurable overlap.
-
-| Method | Description |
-|--------|-------------|
-| `new()` | Create with default config (1500 target, 2500 max) |
-| `with_config(config)` | Create with custom config |
-| `chunk(document_id, content)` | Segment content into chunks |
-
-**`ChunkerConfig`:**
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `target_chunk_size` | `usize` | `1500` | Target characters per chunk |
-| `max_chunk_size` | `usize` | `2500` | Maximum characters per chunk |
-| `min_chunk_size` | `usize` | `100` | Minimum characters per chunk |
-| `overlap_size` | `usize` | `200` | Overlap between chunks |
-| `respect_headers` | `bool` | `true` | Split at markdown headers |
-| `respect_paragraphs` | `bool` | `true` | Split at paragraph boundaries |
-
-**Presets:** `ChunkerConfig::small()` (800 target), `ChunkerConfig::large()` (3000 target).
-
-### EntityStore
-
-Entity tracking with relationship storage and contradiction detection for memory poisoning protection.
-
-| Method | Description |
-|--------|-------------|
-| `new()` | Create empty store |
-| `add_extraction(result, message_id, timestamp)` | Add entities and detect contradictions |
-| `pending_contradictions()` | View unresolved contradictions |
-| `drain_contradictions()` | Take and clear contradictions |
-| `get(name, entity_type)` | Get entity by name and type |
-| `get_by_type(entity_type)` | Get all entities of a type |
-| `get_top_entities(limit)` | Get most-mentioned entities |
-| `get_related(entity_name)` | Get related entity names |
-| `get_message_ids(entity_name)` | Get messages mentioning entity |
-| `all_entities()` | Iterate all entities |
-| `all_relationships()` | Get all relationships |
-| `stats()` | Get entity and relationship counts |
-
-**`Entity`:**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | `String` | Entity name |
-| `entity_type` | `EntityType` | Classification |
-| `message_ids` | `Vec<String>` | Messages mentioning this entity |
-| `first_seen` | `i64` | First mention timestamp |
-| `last_seen` | `i64` | Most recent mention |
-| `mention_count` | `usize` | Total mentions |
-
-**`EntityType` enum:** `File`, `Function`, `Type`, `Error`, `Concept`, `Variable`, `Command`.
-
-**`Relationship` enum:** `Defines`, `References`, `Modifies`, `DependsOn`, `Contains`, `CoOccurs`.
-
-**`ContradictionKind` enum:** `ConflictingDefinition`, `ConflictingModification`.
-
-### RelationshipGraph
-
-In-memory entity relationship graph with traversal and importance scoring.
-
-| Method | Description |
-|--------|-------------|
-| `new()` | Create empty graph |
-| `add_node(name, entity_type)` | Add entity node |
-| `add_edge(from, to, edge_type)` | Add relationship edge |
-| `get_node(name)` | Get node by name |
-| `get_neighbors(name)` | Get adjacent entities |
-| `get_edges(name)` | Get edges from a node |
-| `shortest_path(from, to)` | Find shortest path between entities |
-| `importance_score(name)` | Calculate node importance (degree centrality) |
-
-**`EdgeType` enum:** `Contains`, `References`, `DependsOn`, `Modifies`, `Defines`, `CoOccurs`.
 
 ### ImageStore
 
@@ -400,18 +406,11 @@ Analyzed image storage with semantic search over LLM-generated descriptions.
 | Method | Description |
 |--------|-------------|
 | `new(client, embeddings)` | Create store |
-| `compute_hash(bytes)` | SHA256 hash for deduplication |
 | `store(metadata, storage)` | Store image with metadata |
 | `store_from_bytes(bytes, analysis, conversation_id, format)` | Store from raw bytes |
 | `get(image_id)` | Get image metadata |
-| `get_by_hash(file_hash)` | Deduplicate by content hash |
 | `search(request)` | Semantic search on analysis text |
-| `list_by_conversation(conversation_id)` | List images in conversation |
-| `list_by_message(message_id)` | List images in message |
 | `delete(image_id)` | Delete image |
-| `delete_by_conversation(conversation_id)` | Delete all in conversation |
-| `get_image_data(image_id)` | Retrieve stored image data |
-| `count_by_conversation(conversation_id)` | Count images |
 
 **`ImageFormat` enum:** `Png`, `Jpeg`, `Gif`, `Webp`, `Svg`.
 
@@ -430,52 +429,8 @@ SQLite-backed cross-process lock coordination with stale lock detection.
 | `release_all_for_agent(agent_id)` | Release all locks held by agent |
 | `is_locked(lock_type, resource_path)` | Check lock status |
 | `cleanup_stale()` | Remove expired and dead-process locks |
-| `list_locks()` | List all active locks |
-| `force_release(lock_id)` | Admin: force release any lock |
-| `stats()` | Lock statistics |
 
 **Lock types:** `file_read`, `file_write`, `build`, `test`, `build_test`.
-
-**`LockRecord`:**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `lock_id` | `String` | Unique lock identifier |
-| `lock_type` | `String` | Lock type (file_read, file_write, etc.) |
-| `resource_path` | `String` | Resource being locked |
-| `agent_id` | `String` | Agent holding the lock |
-| `process_id` | `i32` | OS process ID |
-| `hostname` | `String` | Machine hostname |
-| `acquired_at` | `i64` | Acquisition timestamp |
-| `expires_at` | `Option<i64>` | Expiry timestamp |
-
-**`LockStats`:**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `total_locks` | `usize` | Total active locks |
-| `file_read_locks` | `usize` | Active read locks |
-| `file_write_locks` | `usize` | Active write locks |
-| `build_locks` | `usize` | Active build locks |
-| `test_locks` | `usize` | Active test locks |
-| `stale_locks` | `usize` | Detected stale locks |
-
-### TaskStore
-
-Task persistence with bidirectional conversion to `brainwires_core::Task`.
-
-| Method | Description |
-|--------|-------------|
-| `new(client)` | Create store |
-| `save(task, conversation_id)` | Persist a task |
-| `get(task_id)` | Get task by ID |
-| `get_by_conversation(conversation_id)` | Get all tasks in conversation |
-| `get_by_plan(plan_id)` | Get all tasks in plan |
-| `delete(task_id)` | Delete a task |
-| `delete_by_conversation(conversation_id)` | Delete all in conversation |
-| `delete_by_plan(plan_id)` | Delete all in plan |
-
-**`AgentStateStore`** — tracks background agent execution state with the same CRUD pattern: `save(state)`, `get(agent_id)`, `get_by_conversation(id)`, `get_by_task(id)`, `delete(agent_id)`, `delete_by_conversation(id)`.
 
 ### TemplateStore
 
@@ -486,60 +441,43 @@ JSON file-based reusable plan template storage with `{{variable}}` substitution.
 | `new(data_dir)` | Create store (creates `templates.json`) |
 | `save(template)` | Save a template |
 | `get(template_id)` | Get by ID |
-| `get_by_name(name)` | Case-insensitive partial match |
-| `list()` | List all sorted by usage count |
-| `list_by_category(category)` | Filter by category |
 | `search(query)` | Search name, description, tags |
 | `delete(template_id)` | Delete template |
-| `update(template)` | Update template |
-| `mark_used(template_id)` | Increment usage counter |
-
-**`PlanTemplate`:**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `template_id` | `String` | Unique identifier |
-| `name` | `String` | Template name |
-| `description` | `String` | What this template is for |
-| `content` | `String` | Template content with `{{variables}}` |
-| `category` | `Option<String>` | Template category |
-| `tags` | `Vec<String>` | Searchable tags |
-| `variables` | `Vec<String>` | Auto-extracted `{{variable}}` names |
-| `usage_count` | `u32` | Times used |
-
-| Method (on `PlanTemplate`) | Description |
-|-----------------------------|-------------|
-| `new(name, description, content)` | Create template (auto-extracts variables) |
-| `from_plan(name, description, content, plan_id)` | Create from existing plan |
-| `with_category(category)` | Builder: set category |
-| `with_tags(tags)` | Builder: set tags |
-| `instantiate(substitutions)` | Replace `{{var}}` placeholders |
-| `mark_used()` | Increment counter and update timestamp |
-
-### Vector Database (requires `vector-db` feature)
-
-Vector database trait and backends used by `brainwires-cognition` for RAG indexing.
-
-| Module | Description |
-|--------|-------------|
-| `vector_db` | `VectorDatabase` trait + LanceDB and Qdrant implementations |
-| `bm25_search` | BM25 keyword search using Tantivy |
-| `glob_utils` | Glob pattern matching utilities |
-| `paths` | Platform-specific path utilities |
 
 ## Usage Examples
+
+### Connection sharing across domain stores and RAG
+
+```rust
+use brainwires_storage::{
+    LanceDatabase, EmbeddingProvider, MessageStore, ConversationStore,
+};
+use brainwires_storage::databases::VectorDatabase;
+use std::sync::Arc;
+
+let db = Arc::new(LanceDatabase::new("~/.brainwires/db").await?);
+let embeddings = Arc::new(EmbeddingProvider::new()?);
+db.initialize(embeddings.dimension()).await?;
+
+// All stores share the same LanceDatabase connection
+let messages = MessageStore::new(db.clone(), embeddings.clone());
+let conversations = ConversationStore::new(db.clone());
+
+// The same `db` can also be passed to the RAG subsystem as a VectorDatabase
+// let rag = RagClient::with_vector_db(db.clone());
+```
 
 ### Store and search conversation messages
 
 ```rust
-use brainwires_storage::{LanceClient, EmbeddingProvider, MessageStore, MessageMetadata};
+use brainwires_storage::{LanceDatabase, EmbeddingProvider, MessageStore, MessageMetadata};
 use std::sync::Arc;
 
-let client = Arc::new(LanceClient::new("~/.brainwires/db").await?);
+let db = Arc::new(LanceDatabase::new("~/.brainwires/db").await?);
 let embeddings = Arc::new(EmbeddingProvider::new()?);
-client.initialize(embeddings.dimension()).await?;
+db.initialize(embeddings.dimension()).await?;
 
-let store = MessageStore::new(client.clone(), embeddings.clone());
+let store = MessageStore::new(db.clone(), embeddings.clone());
 
 // Add messages
 store.add(MessageMetadata {
@@ -569,15 +507,15 @@ let results = store.search_conversation("conv-001", "indexing", 3, 0.6).await?;
 ```rust
 use brainwires_storage::{
     TieredMemory, TieredMemoryConfig, MessageStore, MessageMetadata,
-    MemoryTier, LanceClient, EmbeddingProvider,
+    MemoryTier, LanceDatabase, EmbeddingProvider,
 };
 use std::sync::Arc;
 
-let client = Arc::new(LanceClient::new("~/.brainwires/db").await?);
+let db = Arc::new(LanceDatabase::new("~/.brainwires/db").await?);
 let embeddings = Arc::new(EmbeddingProvider::new()?);
-client.initialize(embeddings.dimension()).await?;
+db.initialize(embeddings.dimension()).await?;
 
-let hot_store = Arc::new(MessageStore::new(client.clone(), embeddings.clone()));
+let hot_store = Arc::new(MessageStore::new(db.clone(), embeddings.clone()));
 
 let config = TieredMemoryConfig {
     hot_retention_hours: 12,
@@ -587,7 +525,7 @@ let config = TieredMemoryConfig {
     ..TieredMemoryConfig::default()
 };
 
-let mut memory = TieredMemory::new(hot_store, client.clone(), embeddings.clone(), config);
+let mut memory = TieredMemory::new(hot_store, db.clone(), embeddings.clone(), config);
 
 // Add message to hot tier
 memory.add_message(MessageMetadata {
@@ -607,20 +545,6 @@ let results = memory.search_adaptive_multi_factor("token expiration", Some("conv
 for result in &results {
     println!("[{:?} {:.2}] {}", result.tier, result.score, result.content);
 }
-
-// Demote old messages to warm tier
-let candidates = memory.get_demotion_candidates(MemoryTier::Hot, 10).await?;
-for msg_id in candidates {
-    let summary = memory.fallback_summarize("original content here");
-    memory.demote_to_warm(&msg_id, brainwires_storage::tiered_memory::MessageSummary {
-        summary_id: uuid::Uuid::new_v4().to_string(),
-        original_message_id: msg_id.clone(),
-        conversation_id: "conv-001".into(),
-        summary,
-        key_entities: vec!["JWT".into(), "token".into()],
-        created_at: chrono::Utc::now().timestamp(),
-    }).await?;
-}
 ```
 
 ### Index and search documents with hybrid retrieval
@@ -628,16 +552,16 @@ for msg_id in candidates {
 ```rust
 use brainwires_storage::{
     DocumentStore, DocumentScope, DocumentSearchRequest, DocumentType,
-    LanceClient, EmbeddingProvider,
+    LanceDatabase, EmbeddingProvider,
 };
 use std::sync::Arc;
 use std::path::Path;
 
-let client = Arc::new(LanceClient::new("~/.brainwires/db").await?);
+let db = Arc::new(LanceDatabase::new("~/.brainwires/db").await?);
 let embeddings = Arc::new(EmbeddingProvider::new()?);
-client.initialize(embeddings.dimension()).await?;
+db.initialize(embeddings.dimension()).await?;
 
-let store = DocumentStore::new(client.clone(), embeddings.clone(), "~/.brainwires/bm25");
+let store = DocumentStore::new(db.clone(), embeddings.clone(), "~/.brainwires/bm25");
 
 // Index a file
 let metadata = store.index_file(
@@ -659,51 +583,6 @@ let results = store.search(DocumentSearchRequest {
 
 for result in &results {
     println!("[{:.2}] {} (chunk {})", result.score, result.document_id, result.chunk_index);
-    println!("  {}", result.content);
-}
-```
-
-### Track entities and detect contradictions
-
-> **Note:** `EntityStore` and `RelationshipGraph` have moved to `brainwires-cognition` (knowledge feature).
-
-```rust
-use brainwires_cognition::knowledge::{EntityStore, Entity, EntityType, Relationship, ExtractionResult};
-
-let mut store = EntityStore::new();
-
-// Add extracted entities from messages
-store.add_extraction(ExtractionResult {
-    entities: vec![
-        Entity {
-            name: "auth.rs".into(),
-            entity_type: EntityType::File,
-            message_ids: vec![],
-            first_seen: 0,
-            last_seen: 0,
-            mention_count: 0,
-        },
-    ],
-    relationships: vec![
-        Relationship::Defines {
-            source: "auth.rs".into(),
-            target: "validate_token".into(),
-        },
-    ],
-}, "msg-001", chrono::Utc::now().timestamp());
-
-// Check for contradictions (memory poisoning protection)
-let contradictions = store.drain_contradictions();
-for c in &contradictions {
-    println!("Contradiction: {:?} on {}", c.kind, c.subject);
-    println!("  Existing: {}", c.existing_context);
-    println!("  New: {}", c.new_context);
-}
-
-// Query entities
-let top = store.get_top_entities(5);
-for entity in top {
-    println!("{} ({:?}): {} mentions", entity.name, entity.entity_type, entity.mention_count);
 }
 ```
 
@@ -725,58 +604,12 @@ let acquired = locks.try_acquire(
 
 if acquired {
     // Do exclusive work on file...
-    println!("Lock acquired, writing file");
-
-    // Release when done
     locks.release("file_write", "src/main.rs", "agent-001").await?;
 }
 
 // Cleanup stale locks from dead processes
 let cleaned = locks.cleanup_stale().await?;
 println!("Cleaned {} stale locks", cleaned);
-
-// Check lock statistics
-let stats = locks.stats().await?;
-println!("Active: {} total, {} writes, {} stale", stats.total_locks, stats.file_write_locks, stats.stale_locks);
-```
-
-### Create and use plan templates
-
-```rust
-use brainwires_storage::{TemplateStore, PlanTemplate};
-use std::collections::HashMap;
-
-let store = TemplateStore::new("~/.brainwires/templates")?;
-
-// Create a template from a successful plan
-let template = PlanTemplate::new(
-    "API Endpoint".into(),
-    "Template for adding a new REST API endpoint".into(),
-    "1. Create handler in src/handlers/{{handler_name}}.rs\n\
-     2. Add route in src/routes.rs for {{method}} {{path}}\n\
-     3. Add tests in tests/{{handler_name}}_test.rs".into(),
-)
-.with_category("backend".into())
-.with_tags(vec!["api".into(), "rest".into(), "endpoint".into()]);
-
-store.save(&template)?;
-println!("Variables: {:?}", template.variables);
-// → ["handler_name", "method", "path"]
-
-// Instantiate with values
-let mut vars = HashMap::new();
-vars.insert("handler_name".into(), "create_user".into());
-vars.insert("method".into(), "POST".into());
-vars.insert("path".into(), "/api/users".into());
-
-let plan = template.instantiate(&vars);
-println!("{}", plan);
-
-// Search templates
-let results = store.search("api endpoint")?;
-for t in &results {
-    println!("{}: {} (used {} times)", t.name, t.description, t.usage_count);
-}
 ```
 
 ## Integration
@@ -790,7 +623,7 @@ brainwires = { version = "0.3", features = ["storage"] }
 
 # Direct
 [dependencies]
-brainwires-storage = "0.1"
+brainwires-storage = "0.3"
 ```
 
 The crate re-exports all components at the top level:
@@ -798,38 +631,34 @@ The crate re-exports all components at the top level:
 ```rust
 use brainwires_storage::{
     // Always available
-    DocumentType, DocumentMetadata, DocumentChunk, DocumentSearchRequest, DocumentSearchResult,
-    ExtractedDocument, ChunkerConfig, DocumentChunker,
+    StorageBackend, BackendCapabilities,
+    FieldDef, FieldType, FieldValue, Filter, Record, ScoredRecord, record_get,
     ImageFormat, ImageMetadata, ImageSearchRequest, ImageSearchResult, ImageStorage,
-    Entity, EntityType, Relationship, ExtractionResult,
-    ContradictionEvent, ContradictionKind, EntityStoreStats,
-    RelationshipGraph, GraphNode, GraphEdge, EdgeType, EntityContext,
     PlanTemplate, TemplateStore,
 };
 
-// Native-only
+// Database backends (feature-gated)
+#[cfg(feature = "lance-backend")]
+use brainwires_storage::LanceDatabase;
+
+// Native-only stores
 #[cfg(feature = "native")]
 use brainwires_storage::{
-    LanceClient, EmbeddingProvider,
+    EmbeddingProvider, CachedEmbeddingProvider, FastEmbedManager,
     ConversationMetadata, ConversationStore,
     MessageMetadata, MessageStore,
     TaskMetadata, TaskStore, AgentStateMetadata, AgentStateStore,
     PlanStore,
     LockStore, LockRecord, LockStats,
-    DocumentProcessor, DocumentMetadataStore,
-    DocumentBM25Manager, DocumentBM25Result, DocumentBM25Stats,
-    DocumentStore, DocumentScope,
     ImageStore,
     SummaryStore, FactStore, TierMetadataStore,
     CanonicalWriteToken, MemoryAuthority, MemoryTier,
-    MultiFactorScore, TieredMemory, TieredMemoryConfig, TieredSearchResult,
+    TieredMemory, TieredMemoryConfig, TieredSearchResult,
     FileChunk, FileContent, FileContextManager,
-    EntityStore,
 };
 
-// Vector database (requires vector-db feature)
-#[cfg(feature = "vector-db")]
-use brainwires_storage::vector_db::{VectorDatabase, LanceVectorDB};
+// VectorDatabase trait (from databases module)
+use brainwires_storage::databases::VectorDatabase;
 ```
 
 A `prelude` module is also available for convenient imports:

@@ -8,11 +8,11 @@
 //! | `BoltTransport` | `nornicdb-bolt`     | Neo4j Bolt binary |
 //! | `GrpcTransport` | `nornicdb-grpc`     | gRPC (Qdrant)     |
 //!
-//! `nornicdb_client.rs` holds an `Arc<dyn NornicTransport>` and delegates all
-//! wire-level communication through this trait.
+//! `NornicDatabase` (in `mod.rs`) holds an `Arc<dyn NornicTransport>` and
+//! delegates all wire-level communication through this trait.
 
 use anyhow::{Context, Result};
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
 // ── Trait ───────────────────────────────────────────────────────────────
 
@@ -367,8 +367,9 @@ impl NornicTransport for RestTransport {
     }
 
     async fn count_nodes(&self, node_label: &str, property: &str, value: &str) -> Result<usize> {
-        let cypher =
-            format!("MATCH (n:{node_label}) WHERE n.{property} = $value RETURN count(n) AS cnt");
+        let cypher = format!(
+            "MATCH (n:{node_label}) WHERE n.{property} = $value RETURN count(n) AS cnt"
+        );
         let params = json!({ "value": value });
         let rows = self
             .execute_cypher(&cypher, params)
@@ -857,9 +858,10 @@ mod grpc {
             _node_label: &str,
             filters: Value,
         ) -> Result<Vec<Value>> {
-            let mut builder = SearchPointsBuilder::new(COLLECTION_NAME, query_vector, limit as u64)
-                .score_threshold(min_score)
-                .with_payload(true);
+            let mut builder =
+                SearchPointsBuilder::new(COLLECTION_NAME, query_vector, limit as u64)
+                    .score_threshold(min_score)
+                    .with_payload(true);
 
             if let Some(filter) = Self::build_filter(&filters) {
                 builder = builder.filter(filter);
@@ -891,8 +893,10 @@ mod grpc {
                 .enumerate()
                 .filter_map(|(idx, node)| {
                     // Extract the embedding vector; skip nodes without one.
-                    let embedding: Vec<f32> =
-                        node.get("embedding").and_then(Value::as_array).map(|arr| {
+                    let embedding: Vec<f32> = node
+                        .get("embedding")
+                        .and_then(Value::as_array)
+                        .map(|arr| {
                             arr.iter()
                                 .filter_map(|v| v.as_f64().map(|f| f as f32))
                                 .collect()

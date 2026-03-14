@@ -2,26 +2,9 @@
 //!
 //! ## Architecture
 //!
-//! Stores are designed to be backend-agnostic via the
-//! [`StorageBackend`](crate::stores::backend::StorageBackend) trait. The default backend is
-//! [`LanceBackend`](crate::stores::backends::LanceBackend) (embedded LanceDB).
-//!
-//! The legacy [`LanceClient`](crate::stores::lance_client::LanceClient) wrapper is still
-//! available for code that hasn't migrated to the trait yet.
-
-// ── Storage backend abstraction ─────────────────────────────────────────
-
-/// Backend-agnostic storage trait and generic types.
-pub mod backend;
-
-/// Concrete backend implementations.
-pub mod backends;
-
-// ── LanceDB connection wrapper (legacy) ─────────────────────────────────
-
-/// LanceDB connection and table management.
-#[cfg(feature = "native")]
-pub mod lance_client;
+//! Stores are backend-agnostic via the
+//! [`StorageBackend`](crate::databases::traits::StorageBackend) trait.
+//! The default backend is [`LanceDatabase`](crate::databases::lance::LanceDatabase).
 
 // ── Domain stores ───────────────────────────────────────────────────────
 

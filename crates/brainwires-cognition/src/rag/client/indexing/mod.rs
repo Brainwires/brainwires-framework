@@ -3,7 +3,6 @@ use crate::rag::embedding::EmbeddingProvider;
 use crate::rag::indexer::{CodeChunk, FileWalker};
 use crate::rag::types::{ChunkMetadata, IndexResponse};
 use anyhow::{Context, Result};
-use brainwires_storage::vector_db::VectorDatabase;
 use rayon::prelude::*;
 use rmcp::{Peer, RoleServer, model::ProgressNotificationParam, model::ProgressToken};
 use std::collections::HashMap;

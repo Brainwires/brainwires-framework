@@ -100,8 +100,7 @@ default = ["knowledge", "prompting"]
 # Knowledge graph, entities, thoughts, brain client (from brainwires-brain)
 knowledge = [
     "dep:brainwires-storage", "brainwires-storage/native",
-    "dep:lancedb", "dep:arrow-array", "dep:arrow-schema",
-    "dep:futures", "dep:rusqlite", "dep:reqwest", "dep:urlencoding",
+    "dep:rusqlite", "dep:reqwest", "dep:urlencoding",
     "dep:schemars", "dep:dirs",
     "brainwires-core/native",
 ]
@@ -125,6 +124,7 @@ rag = [
     "dep:tree-sitter", "dep:toml", "dep:rayon", "dep:tokio-util", "dep:fs2",
     "dep:rmcp", "dep:schemars", "dep:clap",
     "dep:dirs", "dep:futures", "dep:tracing-subscriber",
+    "dep:lancedb", "dep:arrow-array", "dep:arrow-schema",
     "brainwires-storage/vector-db",
     "brainwires-core/native",
     "brainwires-core/schemars",
@@ -141,7 +141,11 @@ tree-sitter-languages = [
 ]
 
 # Code analysis: find definitions, references, call graphs
-code-analysis = ["dep:tree-sitter", "tree-sitter-languages", "dep:async-trait"]
+code-analysis = [
+    "dep:tree-sitter", "tree-sitter-languages", "dep:async-trait",
+    "dep:lancedb", "dep:arrow-array", "dep:arrow-schema",
+    "dep:futures",
+]
 
 # PDF document extraction
 pdf-extract-feature = ["dep:pdf-extract"]

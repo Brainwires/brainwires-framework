@@ -168,7 +168,7 @@ impl PersonalKnowledgeCache {
                 updated_at: row.get(10)?,
                 source: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(11)?))
                     .unwrap_or(super::fact::PersonalFactSource::ExplicitStatement),
-                version: row.get(12)?,
+                version: row.get::<_, i64>(12)? as u64,
                 deleted: row.get::<_, i32>(13)? != 0,
                 local_only: row.get::<_, i32>(14)? != 0,
             })
@@ -259,7 +259,7 @@ impl PersonalKnowledgeCache {
                 fact.created_at,
                 fact.updated_at,
                 source,
-                fact.version,
+                fact.version as i64,
                 fact.deleted as i32,
                 fact.local_only as i32,
             ],

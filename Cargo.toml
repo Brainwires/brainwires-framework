@@ -134,7 +134,7 @@ lru = "0.16"
 sha2 = "0.10"
 
 # SQLite
-rusqlite = { version = "0.31", features = ["bundled"] }
+rusqlite = { version = "0.38", features = ["bundled"] }
 
 # File operations
 walkdir = "2.5"
@@ -227,9 +227,17 @@ tokio-stream = "0.1"
 # SafeTensors model weight loading
 safetensors = "0.7"
 
-# Postgres + pgvector
-sqlx = { version = "0.8.0", features = ["runtime-tokio", "postgres", "json", "chrono"] }
-pgvector = { version = "0.4", features = ["sqlx"] }
+# Postgres + pgvector (using tokio-postgres to avoid sqlx's libsqlite3-sys conflict)
+tokio-postgres = "0.7"
+deadpool-postgres = "0.14"
+pgvector = { version = "0.4.1", features = ["postgres"] }
 
 # Testing
 tempfile = "3"
+
+# Patch crates whose crates.io releases pin incompatible libsqlite3-sys versions.
+# Upstream git repos already have the fix (libsqlite3-sys >=0.30, <0.37) but
+# haven't published new releases yet.
+[patch.crates-io]
+rustpython-vm = { git = "https://github.com/RustPython/RustPython", branch = "main", package = "rustpython-vm" }
+rustpython-stdlib = { git = "https://github.com/RustPython/RustPython", branch = "main", package = "rustpython-stdlib" }

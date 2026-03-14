@@ -160,7 +160,7 @@ impl BehavioralKnowledgeCache {
                 created_by: row.get(10)?,
                 source: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(11)?))
                     .unwrap_or(super::truth::TruthSource::ExplicitCommand),
-                version: row.get(12)?,
+                version: row.get::<_, i64>(12)? as u64,
                 deleted: row.get::<_, i32>(13)? != 0,
             })
         })?;
@@ -249,7 +249,7 @@ impl BehavioralKnowledgeCache {
                 truth.created_at,
                 truth.created_by,
                 source,
-                truth.version,
+                truth.version as i64,
                 truth.deleted as i32,
             ],
         )?;

@@ -2,20 +2,18 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use arrow_array::{
-    Array, BooleanArray, FixedSizeListArray, Float32Array, Int64Array, RecordBatch,
-    RecordBatchIterator, StringArray,
-};
-use arrow_schema::{DataType, Field, Schema};
 use chrono::Utc;
-use futures::TryStreamExt;
-use lancedb::query::{ExecutableQuery, QueryBase};
 use tracing;
 
 use crate::knowledge::bks_pks::{
     BehavioralKnowledgeCache, PersonalFactCollector, PersonalKnowledgeCache,
 };
-use brainwires_storage::{EmbeddingProvider, LanceClient};
+use brainwires_storage::{
+    EmbeddingProvider, FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
+};
+
+#[cfg(feature = "knowledge")]
+use brainwires_storage::LanceDatabase;
 
 use crate::knowledge::fact_extractor;
 use crate::knowledge::thought::{Thought, ThoughtCategory, ThoughtSource};
@@ -23,7 +21,7 @@ use crate::knowledge::types::*;
 
 /// Central orchestrator for all Open Brain storage operations.
 pub struct BrainClient {
-    lance: Arc<LanceClient>,
+    backend: Arc<dyn StorageBackend>,
     embeddings: Arc<EmbeddingProvider>,
     pks_cache: PersonalKnowledgeCache,
     bks_cache: BehavioralKnowledgeCache,
@@ -60,19 +58,35 @@ impl BrainClient {
     }
 
     /// Create with explicit paths (useful for testing).
+    ///
+    /// Creates a LanceDatabase internally as the default backend.
     pub async fn with_paths(lance_path: &str, pks_path: &str, bks_path: &str) -> Result<Self> {
         let embeddings = Arc::new(EmbeddingProvider::new()?);
-        let lance = Arc::new(LanceClient::new(lance_path).await?);
+        let backend: Arc<dyn StorageBackend> =
+            Arc::new(LanceDatabase::new(lance_path).await?);
 
+        Self::with_backend(backend, embeddings, pks_path, bks_path).await
+    }
+
+    /// Create with an externally-provided storage backend.
+    ///
+    /// This is the primary constructor for dependency injection — any
+    /// [`StorageBackend`] implementation can be used (LanceDB, Postgres, etc.).
+    pub async fn with_backend(
+        backend: Arc<dyn StorageBackend>,
+        embeddings: Arc<EmbeddingProvider>,
+        pks_path: &str,
+        bks_path: &str,
+    ) -> Result<Self> {
         // Ensure the thoughts table exists
-        Self::ensure_thoughts_table(&lance, embeddings.dimension()).await?;
+        Self::ensure_thoughts_table(&*backend, embeddings.dimension()).await?;
 
         let pks_cache = PersonalKnowledgeCache::new(pks_path, 1000)?;
         let bks_cache = BehavioralKnowledgeCache::new(bks_path, 1000)?;
         let fact_collector = PersonalFactCollector::default();
 
         Ok(Self {
-            lance,
+            backend,
             embeddings,
             pks_cache,
             bks_cache,
@@ -82,58 +96,28 @@ impl BrainClient {
 
     // ── Table management ─────────────────────────────────────────────────
 
-    async fn ensure_thoughts_table(lance: &LanceClient, dim: usize) -> Result<()> {
-        let conn = lance.connection();
-        let tables = conn.table_names().execute().await?;
-        if tables.contains(&THOUGHTS_TABLE.to_string()) {
-            return Ok(());
-        }
-
-        let schema = Self::thoughts_schema(dim);
-        let empty = RecordBatch::new_empty(schema.clone());
-        let batches = RecordBatchIterator::new(vec![Ok(empty)], schema);
-
-        conn.create_table(THOUGHTS_TABLE, Box::new(batches))
-            .execute()
+    async fn ensure_thoughts_table(backend: &dyn StorageBackend, dim: usize) -> Result<()> {
+        backend
+            .ensure_table(
+                THOUGHTS_TABLE,
+                &[
+                    FieldDef::required("vector", FieldType::Vector(dim)),
+                    FieldDef::required("id", FieldType::Utf8),
+                    FieldDef::required("content", FieldType::Utf8),
+                    FieldDef::required("category", FieldType::Utf8),
+                    FieldDef::required("tags", FieldType::Utf8),
+                    FieldDef::required("source", FieldType::Utf8),
+                    FieldDef::required("importance", FieldType::Float32),
+                    FieldDef::required("created_at", FieldType::Int64),
+                    FieldDef::required("updated_at", FieldType::Int64),
+                    FieldDef::required("deleted", FieldType::Boolean),
+                ],
+            )
             .await
             .context("Failed to create thoughts table")?;
 
-        tracing::info!("Created thoughts LanceDB table");
+        tracing::info!("Ensured thoughts table exists");
         Ok(())
-    }
-
-    fn thoughts_schema(dim: usize) -> Arc<Schema> {
-        Arc::new(Schema::new(vec![
-            Field::new(
-                "vector",
-                DataType::FixedSizeList(
-                    Arc::new(Field::new("item", DataType::Float32, true)),
-                    dim as i32,
-                ),
-                false,
-            ),
-            Field::new("id", DataType::Utf8, false),
-            Field::new("content", DataType::Utf8, false),
-            Field::new("category", DataType::Utf8, false),
-            Field::new("tags", DataType::Utf8, false), // JSON array
-            Field::new("source", DataType::Utf8, false),
-            Field::new("importance", DataType::Float32, false),
-            Field::new("created_at", DataType::Int64, false),
-            Field::new("updated_at", DataType::Int64, false),
-            Field::new("deleted", DataType::Boolean, false),
-        ]))
-    }
-
-    fn thoughts_table(
-        &self,
-    ) -> impl std::future::Future<Output = Result<lancedb::Table>> + Send + '_ {
-        let conn = self.lance.connection().clone();
-        async move {
-            conn.open_table(THOUGHTS_TABLE)
-                .execute()
-                .await
-                .context("Failed to open thoughts table")
-        }
     }
 
     // ── Capture ──────────────────────────────────────────────────────────
@@ -174,14 +158,10 @@ impl BrainClient {
         // Embed
         let embedding = self.embeddings.embed(&thought.content)?;
 
-        // Store in LanceDB
-        let batch = self.thought_to_batch(&thought, &embedding)?;
-        let table = self.thoughts_table().await?;
-        let schema = batch.schema();
-        let batches = RecordBatchIterator::new(vec![Ok(batch)], schema);
-        table
-            .add(Box::new(batches))
-            .execute()
+        // Store via backend
+        let record = Self::thought_to_record(&thought, &embedding);
+        self.backend
+            .insert(THOUGHTS_TABLE, vec![record])
             .await
             .context("Failed to store thought")?;
 
@@ -228,48 +208,47 @@ impl BrainClient {
         // 1. Thought vector search
         if search_thoughts {
             let query_embedding = self.embeddings.embed_cached(&req.query)?;
-            let table = self.thoughts_table().await?;
 
-            let mut search = table
-                .vector_search(query_embedding)
-                .context("Failed to create vector search")?;
+            // Build filter: deleted = false, optional category
+            let mut filters = vec![Filter::Eq(
+                "deleted".into(),
+                FieldValue::Boolean(Some(false)),
+            )];
 
-            // Filter out deleted
-            search = search.only_if("deleted = false");
-
-            // Optional category filter
             if let Some(ref cat) = req.category {
                 let cat_str = ThoughtCategory::parse(cat).as_str().to_string();
-                search = search.only_if(format!("category = '{}'", cat_str));
+                filters.push(Filter::Eq(
+                    "category".into(),
+                    FieldValue::Utf8(Some(cat_str)),
+                ));
             }
 
-            let stream = search.limit(req.limit).execute().await?;
-            let batches: Vec<RecordBatch> = stream.try_collect().await?;
+            let filter = Filter::And(filters);
 
-            for batch in &batches {
-                let distances = batch
-                    .column_by_name("_distance")
-                    .context("Missing _distance column")?
-                    .as_any()
-                    .downcast_ref::<Float32Array>()
-                    .context("Invalid _distance type")?;
+            let scored_records = self
+                .backend
+                .vector_search(
+                    THOUGHTS_TABLE,
+                    "vector",
+                    query_embedding,
+                    req.limit,
+                    Some(&filter),
+                )
+                .await?;
 
-                let thoughts = self.batch_to_thoughts(std::slice::from_ref(batch))?;
-
-                for (i, thought) in thoughts.into_iter().enumerate() {
-                    let distance = distances.value(i);
-                    let score = 1.0 / (1.0 + distance);
-                    if score >= req.min_score {
-                        results.push(MemorySearchResult {
-                            content: thought.content,
-                            score,
-                            source: "thoughts".into(),
-                            thought_id: Some(thought.id),
-                            category: Some(thought.category.to_string()),
-                            tags: Some(thought.tags),
-                            created_at: Some(thought.created_at),
-                        });
-                    }
+            for sr in scored_records {
+                let score = sr.score;
+                if score >= req.min_score {
+                    let thought = Self::record_to_thought(&sr.record)?;
+                    results.push(MemorySearchResult {
+                        content: thought.content,
+                        score,
+                        source: "thoughts".into(),
+                        thought_id: Some(thought.id),
+                        category: Some(thought.category.to_string()),
+                        tags: Some(thought.tags),
+                        created_at: Some(thought.created_at),
+                    });
                 }
             }
         }
@@ -316,23 +295,27 @@ impl BrainClient {
             None => Utc::now().timestamp() - 7 * 86400,
         };
 
-        let table = self.thoughts_table().await?;
+        let mut filters = vec![
+            Filter::Eq("deleted".into(), FieldValue::Boolean(Some(false))),
+            Filter::Gte("created_at".into(), FieldValue::Int64(Some(since_ts))),
+        ];
 
-        let mut filter = format!("deleted = false AND created_at >= {}", since_ts);
         if let Some(ref cat) = req.category {
             let cat_str = ThoughtCategory::parse(cat).as_str().to_string();
-            filter.push_str(&format!(" AND category = '{}'", cat_str));
+            filters.push(Filter::Eq(
+                "category".into(),
+                FieldValue::Utf8(Some(cat_str)),
+            ));
         }
 
-        let stream = table
-            .query()
-            .only_if(filter)
-            .limit(req.limit)
-            .execute()
+        let filter = Filter::And(filters);
+
+        let records = self
+            .backend
+            .query(THOUGHTS_TABLE, Some(&filter), Some(req.limit))
             .await?;
 
-        let batches: Vec<RecordBatch> = stream.try_collect().await?;
-        let mut thoughts = self.batch_to_thoughts(&batches)?;
+        let mut thoughts = Self::records_to_thoughts(&records)?;
         thoughts.sort_by(|a, b| b.created_at.cmp(&a.created_at));
         thoughts.truncate(req.limit);
 
@@ -359,11 +342,17 @@ impl BrainClient {
 
     /// Get a single thought by ID.
     pub async fn get_thought(&self, id: &str) -> Result<Option<GetThoughtResponse>> {
-        let table = self.thoughts_table().await?;
-        let filter = format!("id = '{}' AND deleted = false", id);
-        let stream = table.query().only_if(filter).limit(1).execute().await?;
-        let batches: Vec<RecordBatch> = stream.try_collect().await?;
-        let thoughts = self.batch_to_thoughts(&batches)?;
+        let filter = Filter::And(vec![
+            Filter::Eq("id".into(), FieldValue::Utf8(Some(id.to_string()))),
+            Filter::Eq("deleted".into(), FieldValue::Boolean(Some(false))),
+        ]);
+
+        let records = self
+            .backend
+            .query(THOUGHTS_TABLE, Some(&filter), Some(1))
+            .await?;
+
+        let thoughts = Self::records_to_thoughts(&records)?;
 
         Ok(thoughts.into_iter().next().map(|t| GetThoughtResponse {
             id: t.id,
@@ -444,10 +433,12 @@ impl BrainClient {
         let one_day = 86_400i64;
 
         // Thought stats: query all non-deleted
-        let table = self.thoughts_table().await?;
-        let stream = table.query().only_if("deleted = false").execute().await?;
-        let batches: Vec<RecordBatch> = stream.try_collect().await?;
-        let all_thoughts = self.batch_to_thoughts(&batches)?;
+        let filter = Filter::Eq("deleted".into(), FieldValue::Boolean(Some(false)));
+        let records = self
+            .backend
+            .query(THOUGHTS_TABLE, Some(&filter), None)
+            .await?;
+        let all_thoughts = Self::records_to_thoughts(&records)?;
 
         let total = all_thoughts.len();
         let mut by_category: HashMap<String, usize> = HashMap::new();
@@ -518,11 +509,13 @@ impl BrainClient {
 
     /// Soft-delete a thought by ID.
     pub async fn delete_thought(&self, id: &str) -> Result<DeleteThoughtResponse> {
-        let table = self.thoughts_table().await?;
-
         // Check existence
-        let filter = format!("id = '{}' AND deleted = false", id);
-        let count = table.count_rows(Some(filter.clone())).await?;
+        let filter = Filter::And(vec![
+            Filter::Eq("id".into(), FieldValue::Utf8(Some(id.to_string()))),
+            Filter::Eq("deleted".into(), FieldValue::Boolean(Some(false))),
+        ]);
+
+        let count = self.backend.count(THOUGHTS_TABLE, Some(&filter)).await?;
         if count == 0 {
             return Ok(DeleteThoughtResponse {
                 deleted: false,
@@ -530,10 +523,11 @@ impl BrainClient {
             });
         }
 
-        // LanceDB doesn't support UPDATE, so we delete and re-add with deleted=true.
-        // For simplicity, just hard-delete the row.
-        let delete_filter = format!("id = '{}'", id);
-        table.delete(&delete_filter).await?;
+        // Delete the row via backend
+        let delete_filter = Filter::Eq("id".into(), FieldValue::Utf8(Some(id.to_string())));
+        self.backend
+            .delete(THOUGHTS_TABLE, &delete_filter)
+            .await?;
 
         tracing::info!(id = id, "Deleted thought");
         Ok(DeleteThoughtResponse {
@@ -542,124 +536,98 @@ impl BrainClient {
         })
     }
 
-    // ── RecordBatch conversion ───────────────────────────────────────────
+    // ── Record conversion ────────────────────────────────────────────────
 
-    fn thought_to_batch(&self, thought: &Thought, embedding: &[f32]) -> Result<RecordBatch> {
-        let dim = self.embeddings.dimension();
-        let schema = Self::thoughts_schema(dim);
-
-        let embedding_array = Float32Array::from(embedding.to_vec());
-        let vector_field = Arc::new(Field::new("item", DataType::Float32, true));
-        let vectors =
-            FixedSizeListArray::new(vector_field, dim as i32, Arc::new(embedding_array), None);
-
-        let ids = StringArray::from(vec![thought.id.as_str()]);
-        let contents = StringArray::from(vec![thought.content.as_str()]);
-        let categories = StringArray::from(vec![thought.category.as_str()]);
+    fn thought_to_record(thought: &Thought, embedding: &[f32]) -> Record {
         let tags_json = serde_json::to_string(&thought.tags).unwrap_or_else(|_| "[]".into());
-        let tags = StringArray::from(vec![tags_json.as_str()]);
-        let sources = StringArray::from(vec![thought.source.as_str()]);
-        let importances = Float32Array::from(vec![thought.importance]);
-        let created_ats = Int64Array::from(vec![thought.created_at]);
-        let updated_ats = Int64Array::from(vec![thought.updated_at]);
-        let deleteds = BooleanArray::from(vec![thought.deleted]);
 
-        RecordBatch::try_new(
-            schema,
-            vec![
-                Arc::new(vectors),
-                Arc::new(ids),
-                Arc::new(contents),
-                Arc::new(categories),
-                Arc::new(tags),
-                Arc::new(sources),
-                Arc::new(importances),
-                Arc::new(created_ats),
-                Arc::new(updated_ats),
-                Arc::new(deleteds),
-            ],
-        )
-        .context("Failed to create thought record batch")
+        vec![
+            ("vector".into(), FieldValue::Vector(embedding.to_vec())),
+            (
+                "id".into(),
+                FieldValue::Utf8(Some(thought.id.clone())),
+            ),
+            (
+                "content".into(),
+                FieldValue::Utf8(Some(thought.content.clone())),
+            ),
+            (
+                "category".into(),
+                FieldValue::Utf8(Some(thought.category.as_str().to_string())),
+            ),
+            ("tags".into(), FieldValue::Utf8(Some(tags_json))),
+            (
+                "source".into(),
+                FieldValue::Utf8(Some(thought.source.as_str().to_string())),
+            ),
+            (
+                "importance".into(),
+                FieldValue::Float32(Some(thought.importance)),
+            ),
+            (
+                "created_at".into(),
+                FieldValue::Int64(Some(thought.created_at)),
+            ),
+            (
+                "updated_at".into(),
+                FieldValue::Int64(Some(thought.updated_at)),
+            ),
+            (
+                "deleted".into(),
+                FieldValue::Boolean(Some(thought.deleted)),
+            ),
+        ]
     }
 
-    fn batch_to_thoughts(&self, batches: &[RecordBatch]) -> Result<Vec<Thought>> {
-        let mut result = Vec::new();
+    fn record_to_thought(record: &Record) -> Result<Thought> {
+        let id = record_get(record, "id")
+            .and_then(|v| v.as_str())
+            .context("Missing id field")?
+            .to_string();
+        let content = record_get(record, "content")
+            .and_then(|v| v.as_str())
+            .context("Missing content field")?
+            .to_string();
+        let category = record_get(record, "category")
+            .and_then(|v| v.as_str())
+            .map(ThoughtCategory::parse)
+            .context("Missing category field")?;
+        let tags_str = record_get(record, "tags")
+            .and_then(|v| v.as_str())
+            .unwrap_or("[]");
+        let tags: Vec<String> = serde_json::from_str(tags_str).unwrap_or_default();
+        let source = record_get(record, "source")
+            .and_then(|v| v.as_str())
+            .map(ThoughtSource::parse)
+            .context("Missing source field")?;
+        let importance = record_get(record, "importance")
+            .and_then(|v| v.as_f32())
+            .context("Missing importance field")?;
+        let created_at = record_get(record, "created_at")
+            .and_then(|v| v.as_i64())
+            .context("Missing created_at field")?;
+        let updated_at = record_get(record, "updated_at")
+            .and_then(|v| v.as_i64())
+            .context("Missing updated_at field")?;
+        let deleted = record_get(record, "deleted")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
 
-        for batch in batches {
-            let ids = batch
-                .column_by_name("id")
-                .context("Missing id column")?
-                .as_any()
-                .downcast_ref::<StringArray>()
-                .context("Invalid id type")?;
-            let contents = batch
-                .column_by_name("content")
-                .context("Missing content column")?
-                .as_any()
-                .downcast_ref::<StringArray>()
-                .context("Invalid content type")?;
-            let categories = batch
-                .column_by_name("category")
-                .context("Missing category column")?
-                .as_any()
-                .downcast_ref::<StringArray>()
-                .context("Invalid category type")?;
-            let tags_col = batch
-                .column_by_name("tags")
-                .context("Missing tags column")?
-                .as_any()
-                .downcast_ref::<StringArray>()
-                .context("Invalid tags type")?;
-            let sources = batch
-                .column_by_name("source")
-                .context("Missing source column")?
-                .as_any()
-                .downcast_ref::<StringArray>()
-                .context("Invalid source type")?;
-            let importances = batch
-                .column_by_name("importance")
-                .context("Missing importance column")?
-                .as_any()
-                .downcast_ref::<Float32Array>()
-                .context("Invalid importance type")?;
-            let created_ats = batch
-                .column_by_name("created_at")
-                .context("Missing created_at column")?
-                .as_any()
-                .downcast_ref::<Int64Array>()
-                .context("Invalid created_at type")?;
-            let updated_ats = batch
-                .column_by_name("updated_at")
-                .context("Missing updated_at column")?
-                .as_any()
-                .downcast_ref::<Int64Array>()
-                .context("Invalid updated_at type")?;
-            let deleteds = batch
-                .column_by_name("deleted")
-                .context("Missing deleted column")?
-                .as_any()
-                .downcast_ref::<BooleanArray>()
-                .context("Invalid deleted type")?;
+        Ok(Thought {
+            id,
+            content,
+            category,
+            tags,
+            source,
+            importance,
+            created_at,
+            updated_at,
+            deleted,
+        })
+    }
 
-            for i in 0..batch.num_rows() {
-                let tags_str = tags_col.value(i);
-                let tags: Vec<String> = serde_json::from_str(tags_str).unwrap_or_default();
-
-                result.push(Thought {
-                    id: ids.value(i).to_string(),
-                    content: contents.value(i).to_string(),
-                    category: ThoughtCategory::parse(categories.value(i)),
-                    tags,
-                    source: ThoughtSource::parse(sources.value(i)),
-                    importance: importances.value(i),
-                    created_at: created_ats.value(i),
-                    updated_at: updated_ats.value(i),
-                    deleted: deleteds.value(i),
-                });
-            }
-        }
-
-        Ok(result)
+    fn records_to_thoughts(records: &[Record]) -> Result<Vec<Thought>> {
+        records.iter().map(Self::record_to_thought).collect()
     }
 }
 
