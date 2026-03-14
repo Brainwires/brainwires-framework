@@ -15,15 +15,15 @@
 //!
 //! | Database   | Struct              | `StorageBackend` | `VectorDatabase` | Feature flag         |
 //! |------------|---------------------|:---:|:---:|----------------------|
-//! | LanceDB    | [`LanceDatabase`]   | YES | YES | `lance-backend` (default) |
-//! | PostgreSQL | [`PostgresDatabase`]| YES | YES | `postgres-backend`   |
-//! | MySQL      | [`MySqlDatabase`]   | YES | NO  | `mysql-backend`      |
-//! | SurrealDB  | [`SurrealDatabase`] | YES | TBD | `surrealdb-backend`  |
-//! | Qdrant     | [`QdrantDatabase`]  | NO  | YES | `qdrant-backend`     |
-//! | Pinecone   | [`PineconeDatabase`]| NO  | YES | `pinecone-backend`   |
-//! | Milvus     | [`MilvusDatabase`]  | NO  | YES | `milvus-backend`     |
-//! | Weaviate   | [`WeaviateDatabase`]| NO  | YES | `weaviate-backend`   |
-//! | NornicDB   | [`NornicDatabase`]  | NO  | YES | `nornicdb-backend`   |
+//! | LanceDB    | `LanceDatabase`     | YES | YES | `lance-backend` (default) |
+//! | PostgreSQL | `PostgresDatabase`  | YES | YES | `postgres-backend`   |
+//! | MySQL      | `MySqlDatabase`     | YES | NO  | `mysql-backend`      |
+//! | SurrealDB  | `SurrealDatabase`   | YES | TBD | `surrealdb-backend`  |
+//! | Qdrant     | `QdrantDatabase`    | NO  | YES | `qdrant-backend`     |
+//! | Pinecone   | `PineconeDatabase`  | NO  | YES | `pinecone-backend`   |
+//! | Milvus     | `MilvusDatabase`    | NO  | YES | `milvus-backend`     |
+//! | Weaviate   | `WeaviateDatabase`  | NO  | YES | `weaviate-backend`   |
+//! | NornicDB   | `NornicDatabase`    | NO  | YES | `nornicdb-backend`   |
 //!
 //! ## Connection sharing
 //!
@@ -65,10 +65,10 @@
 //!
 //! ## Supporting modules
 //!
-//! - [`types`] — `Record`, `FieldDef`, `FieldValue`, `Filter`, `ScoredRecord`
-//! - [`capabilities`] — runtime capability discovery via [`BackendCapabilities`]
-//! - [`sql`] — shared SQL dialect layer for SQL-based backends (Postgres, MySQL, SurrealDB)
-//! - [`bm25_helpers`] — shared BM25 scoring for backends with client-side keyword search
+//! - `types` — `Record`, `FieldDef`, `FieldValue`, `Filter`, `ScoredRecord`
+//! - `capabilities` — runtime capability discovery via [`BackendCapabilities`]
+//! - `sql` — shared SQL dialect layer for SQL-based backends (Postgres, MySQL, SurrealDB)
+//! - `bm25_helpers` — shared BM25 scoring for backends with client-side keyword search
 
 // ── Core abstractions ───────────────────────────────────────────────────
 

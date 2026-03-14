@@ -262,8 +262,10 @@ fn replace_version_in_rs(content: &str, new_version: &str) -> String {
     let patterns = [
         // JSON-style: "version": "X.Y.Z"
         (r#""version": ""#, '"'),
-        // Rust string: version: "X.Y.Z".into()
+        // Rust struct field: version: "X.Y.Z".into()
         (r#"version: ""#, '"'),
+        // Rust assert/comparison: config.version, "X.Y.Z")
+        (r#"version, ""#, '"'),
     ];
 
     for (prefix, terminator) in &patterns {
