@@ -12,7 +12,11 @@ use walkdir::WalkDir;
 const PATTERNS: &[(&str, &str, bool)] = &[
     // ── Rust panic macros (hard blockers) ────────────────────────────
     ("todo!(", "todo!() macro — panics at runtime", true),
-    ("unimplemented!(", "unimplemented!() macro — panics at runtime", true),
+    (
+        "unimplemented!(",
+        "unimplemented!() macro — panics at runtime",
+        true,
+    ),
     // ── Comment markers (soft warnings) ──────────────────────────────
     ("FIXME", "FIXME marker", false),
     ("HACK", "HACK marker", false),
@@ -20,7 +24,11 @@ const PATTERNS: &[(&str, &str, bool)] = &[
     ("STUB", "STUB marker", false),
     ("STOPSHIP", "STOPSHIP marker", false),
     // ── Strings that suggest incomplete code ─────────────────────────
-    ("not yet implemented", "\"not yet implemented\" string", false),
+    (
+        "not yet implemented",
+        "\"not yet implemented\" string",
+        false,
+    ),
     ("not implemented", "\"not implemented\" string", false),
 ];
 
@@ -47,7 +55,7 @@ struct Finding {
     path: PathBuf,
     line_no: usize,
     line: String,
-    pattern: &'static str,
+    _pattern: &'static str,
     description: &'static str,
     is_hard: bool,
 }
@@ -89,7 +97,10 @@ pub fn check_stubs(args: &[String]) -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
-    println!("Scanning for unfinished code in: {}", workspace_root.display());
+    println!(
+        "Scanning for unfinished code in: {}",
+        workspace_root.display()
+    );
     println!();
 
     let mut findings: Vec<Finding> = Vec::new();
@@ -123,7 +134,10 @@ pub fn check_stubs(args: &[String]) -> ExitCode {
 
         files_scanned += 1;
         if verbose {
-            println!("  scanning: {}", path.strip_prefix(&workspace_root).unwrap_or(path).display());
+            println!(
+                "  scanning: {}",
+                path.strip_prefix(&workspace_root).unwrap_or(path).display()
+            );
         }
 
         let mut in_test_block = false;
@@ -150,7 +164,8 @@ pub fn check_stubs(args: &[String]) -> ExitCode {
                 let matched = if is_macro {
                     line.contains(pattern)
                 } else {
-                    line.to_ascii_uppercase().contains(&pattern.to_ascii_uppercase())
+                    line.to_ascii_uppercase()
+                        .contains(&pattern.to_ascii_uppercase())
                 };
 
                 if !matched {
@@ -167,7 +182,7 @@ pub fn check_stubs(args: &[String]) -> ExitCode {
                     path: path.to_path_buf(),
                     line_no: line_no_0 + 1,
                     line: trimmed.to_string(),
-                    pattern,
+                    _pattern: pattern,
                     description,
                     is_hard: is_macro,
                 });
@@ -224,11 +239,7 @@ pub fn check_stubs(args: &[String]) -> ExitCode {
     }
 
     // Summary
-    let total_errors = if strict {
-        findings.len()
-    } else {
-        hard.len()
-    };
+    let total_errors = if strict { findings.len() } else { hard.len() };
 
     if total_errors > 0 {
         println!(
@@ -258,17 +269,17 @@ fn is_marker_in_comment_or_string(line: &str, marker: &str) -> bool {
     };
 
     // Check if a line comment (`//`) precedes the marker.
-    if let Some(comment_start) = line.find("//") {
-        if comment_start < pos {
-            return true;
-        }
+    if let Some(comment_start) = line.find("//")
+        && comment_start < pos
+    {
+        return true;
     }
 
     // Check if inside a block comment.
-    if let Some(block_start) = line.find("/*") {
-        if block_start < pos {
-            return true;
-        }
+    if let Some(block_start) = line.find("/*")
+        && block_start < pos
+    {
+        return true;
     }
 
     // Check if inside a string literal (very rough heuristic: odd number of
@@ -283,7 +294,9 @@ fn is_marker_in_comment_or_string(line: &str, marker: &str) -> bool {
     // e.g. `MyHackProcessor` should NOT match, but `// HACK:` should.
     let before_char = line[..pos].chars().last();
     let after_pos = pos + marker.len();
-    let after_char = line.get(after_pos..after_pos + 1).and_then(|s| s.chars().next());
+    let after_char = line
+        .get(after_pos..after_pos + 1)
+        .and_then(|s| s.chars().next());
 
     let before_is_boundary = match before_char {
         None => true,
@@ -313,7 +326,10 @@ mod tests {
     fn test_marker_in_comment() {
         assert!(is_marker_in_comment_or_string("// TODO: fix this", "TODO"));
         assert!(is_marker_in_comment_or_string("/// FIXME: broken", "FIXME"));
-        assert!(is_marker_in_comment_or_string("//! HACK: workaround", "HACK"));
+        assert!(is_marker_in_comment_or_string(
+            "//! HACK: workaround",
+            "HACK"
+        ));
         assert!(is_marker_in_comment_or_string("/* XXX */", "XXX"));
     }
 
@@ -337,7 +353,10 @@ mod tests {
     #[test]
     fn test_marker_standalone() {
         // HACK followed by colon — should match
-        assert!(is_marker_in_comment_or_string("// HACK: workaround", "HACK"));
+        assert!(is_marker_in_comment_or_string(
+            "// HACK: workaround",
+            "HACK"
+        ));
         // FIXME at end of comment
         assert!(is_marker_in_comment_or_string("// FIXME", "FIXME"));
     }
@@ -352,6 +371,9 @@ mod tests {
     fn test_todo_macro_not_confused_with_comment() {
         // The macro pattern matching is separate, but the marker check
         // should still work for `// TODO` comments
-        assert!(is_marker_in_comment_or_string("// TODO: finish this", "TODO"));
+        assert!(is_marker_in_comment_or_string(
+            "// TODO: finish this",
+            "TODO"
+        ));
     }
 }

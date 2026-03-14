@@ -363,9 +363,7 @@ fn update_changelog(root: &Path, new_version: &str) -> u32 {
     let mut lines: Vec<&str> = content.lines().collect();
     let unreleased_idx = lines.iter().position(|line| {
         let trimmed = line.trim();
-        trimmed
-            .to_ascii_lowercase()
-            .starts_with("## [unreleased]")
+        trimmed.to_ascii_lowercase().starts_with("## [unreleased]")
     });
 
     let Some(idx) = unreleased_idx else {
