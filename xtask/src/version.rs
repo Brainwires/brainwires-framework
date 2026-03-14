@@ -1,3 +1,4 @@
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use walkdir::WalkDir;
@@ -583,6 +584,84 @@ fn replace_brainwires_version_in_line(line: &str, new_mm: &str) -> String {
     result
 }
 
+/// Build a map of crate_name -> [dependency crate names] for internal brainwires crates.
+/// Parses each member Cargo.toml for brainwires-* dependencies.
+fn build_dep_graph(root: &Path) -> HashMap<String, Vec<String>> {
+    let mut graph: HashMap<String, Vec<String>> = HashMap::new();
+
+    for entry in WalkDir::new(root)
+        .into_iter()
+        .filter_entry(|e| {
+            let name = e.file_name().to_str().unwrap_or("");
+            name != "target" && name != ".git" && name != "node_modules"
+        })
+        .filter_map(|e| e.ok())
+    {
+        let path = entry.path();
+        if path.file_name().and_then(|n| n.to_str()) != Some("Cargo.toml") {
+            continue;
+        }
+        if path == root.join("Cargo.toml") {
+            continue;
+        }
+
+        let content = match std::fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        let doc = match content.parse::<toml_edit::DocumentMut>() {
+            Ok(d) => d,
+            Err(_) => continue,
+        };
+
+        let Some(name) = doc
+            .get("package")
+            .and_then(|p| p.get("name"))
+            .and_then(|n| n.as_str())
+        else {
+            continue;
+        };
+
+        if !name.starts_with("brainwires") {
+            continue;
+        }
+
+        let mut deps = Vec::new();
+        for section in &["dependencies", "dev-dependencies", "build-dependencies"] {
+            let Some(dep_table) = doc.get(section).and_then(|d| d.as_table_like()) else {
+                continue;
+            };
+            for (key, _) in dep_table.iter() {
+                if key.starts_with("brainwires") && key != name {
+                    deps.push(key.to_string());
+                }
+            }
+        }
+
+        graph.insert(name.to_string(), deps);
+    }
+
+    graph
+}
+
+/// Given a set of directly-affected crates, compute the full set including
+/// all transitive dependents (crates that depend on any affected crate).
+fn cascade(direct: &[String], graph: &HashMap<String, Vec<String>>) -> HashSet<String> {
+    let mut affected: HashSet<String> = direct.iter().cloned().collect();
+    let mut queue: VecDeque<String> = direct.iter().cloned().collect();
+
+    while let Some(crate_name) = queue.pop_front() {
+        for (dependent, deps) in graph {
+            if deps.contains(&crate_name) && !affected.contains(dependent) {
+                affected.insert(dependent.clone());
+                queue.push_back(dependent.clone());
+            }
+        }
+    }
+
+    affected
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -757,5 +836,40 @@ mod tests {
         assert_eq!(count, 0, "should not modify if no [Unreleased] section");
 
         let _ = std::fs::remove_dir_all(&tmpdir);
+    }
+
+    #[test]
+    fn test_cascade_single_dep() {
+        let mut graph: HashMap<String, Vec<String>> = HashMap::new();
+        graph.insert("brainwires-agents".into(), vec!["brainwires-core".into()]);
+        graph.insert("brainwires-core".into(), vec![]);
+
+        let affected = cascade(&["brainwires-core".to_string()], &graph);
+        assert!(affected.contains("brainwires-core"));
+        assert!(affected.contains("brainwires-agents"));
+    }
+
+    #[test]
+    fn test_cascade_transitive() {
+        let mut graph: HashMap<String, Vec<String>> = HashMap::new();
+        graph.insert("brainwires".into(), vec!["brainwires-agents".into()]);
+        graph.insert("brainwires-agents".into(), vec!["brainwires-core".into()]);
+        graph.insert("brainwires-core".into(), vec![]);
+
+        let affected = cascade(&["brainwires-core".to_string()], &graph);
+        assert!(affected.contains("brainwires-core"));
+        assert!(affected.contains("brainwires-agents"));
+        assert!(affected.contains("brainwires"));
+    }
+
+    #[test]
+    fn test_cascade_no_deps() {
+        let mut graph: HashMap<String, Vec<String>> = HashMap::new();
+        graph.insert("brainwires-core".into(), vec![]);
+        graph.insert("brainwires-skills".into(), vec![]);
+
+        let affected = cascade(&["brainwires-skills".to_string()], &graph);
+        assert!(affected.contains("brainwires-skills"));
+        assert!(!affected.contains("brainwires-core"));
     }
 }
