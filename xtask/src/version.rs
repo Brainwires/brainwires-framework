@@ -49,52 +49,81 @@ fn parse_bump_args(args: &[String]) -> Result<BumpArgs, String> {
 
 /// Bump all version references across the workspace.
 ///
-/// Updates:
-/// 1. `[workspace.package].version` in root Cargo.toml
-/// 2. `version = "X.Y.Z"` on internal crate deps in `[workspace.dependencies]`
-/// 3. Hardcoded version strings in `*.rs` source files
-/// 4. `version = "X.Y"` dependency examples in `*.md` files
-/// 5. `## [Unreleased]` → `## [X.Y.Z]` in CHANGELOG.md (adds fresh Unreleased above)
+/// Dispatches to `bump_full()` or `bump_patch()` depending on whether the
+/// major.minor changed.
 pub fn bump_version(args: &[String]) -> ExitCode {
-    let new_version = match args.first() {
-        Some(v) => v.as_str(),
-        None => {
-            eprintln!("Usage: cargo xtask bump-version <VERSION>");
-            eprintln!("Example: cargo xtask bump-version 0.3.0");
+    let parsed = match parse_bump_args(args) {
+        Ok(p) => p,
+        Err(msg) => {
+            eprintln!("Error: {msg}");
+            eprintln!("Usage: cargo xtask bump-version <VERSION> [--crates crate1,crate2]");
             return ExitCode::FAILURE;
         }
     };
 
+    let new_version = &parsed.version;
+
     // Validate semver format
     let parts: Vec<&str> = new_version.split('.').collect();
     if parts.len() != 3 || parts.iter().any(|p| p.parse::<u32>().is_err()) {
-        eprintln!("Error: version must be semver (e.g. 0.3.0), got: {new_version}");
+        eprintln!("Error: version must be semver (e.g. 0.4.1), got: {new_version}");
         return ExitCode::FAILURE;
     }
 
     let major_minor = format!("{}.{}", parts[0], parts[1]);
-
     let workspace_root = workspace_root();
-    println!("Workspace root: {}", workspace_root.display());
-    println!("Bumping to version {new_version} (short: {major_minor})");
-    println!();
 
+    println!("Workspace root: {}", workspace_root.display());
+
+    let current_version = read_workspace_version(&workspace_root);
+    let mode = bump_mode(&current_version, new_version);
+
+    if parsed.crates.is_some() && mode == BumpMode::Full {
+        eprintln!("Error: --crates is only valid for patch bumps (same major.minor)");
+        return ExitCode::FAILURE;
+    }
+
+    match mode {
+        BumpMode::Patch => {
+            bump_patch(&workspace_root, new_version, &major_minor, parsed.crates)
+        }
+        BumpMode::Full => {
+            println!("Full version bump: {current_version} -> {new_version}");
+            println!();
+            bump_full(&workspace_root, new_version, &major_minor)
+        }
+    }
+}
+
+/// Perform a full version bump: update every version reference in the workspace.
+///
+/// Steps:
+/// 0. Reset any per-crate version overrides from previous patch releases
+/// 1. Update root Cargo.toml (workspace.package + workspace.dependencies)
+/// 2. Update member Cargo.toml files with direct path deps
+/// 3. Update hardcoded versions in *.rs files
+/// 4. Update version examples in *.md files
+/// 5. Stamp CHANGELOG.md
+fn bump_full(root: &Path, new_version: &str, major_minor: &str) -> ExitCode {
     let mut changes = 0u32;
 
-    // 1. Update root Cargo.toml (workspace.package + workspace.dependencies)
-    changes += update_workspace_cargo_toml(&workspace_root, new_version);
+    // Reset any per-crate version overrides from previous patch releases
+    changes += reset_explicit_versions(root);
 
-    // 2. Update member Cargo.toml files with direct path deps (e.g. brainwires-wasm)
-    changes += update_member_cargo_tomls(&workspace_root, new_version);
+    // 1. Update root Cargo.toml (workspace.package + workspace.dependencies)
+    changes += update_workspace_cargo_toml(root, new_version);
+
+    // 2. Update member Cargo.toml files with direct path deps
+    changes += update_member_cargo_tomls(root, new_version);
 
     // 3. Update hardcoded versions in *.rs files
-    changes += update_rs_files(&workspace_root, new_version);
+    changes += update_rs_files(root, new_version);
 
     // 4. Update version examples in *.md files
-    changes += update_md_files(&workspace_root, &major_minor);
+    changes += update_md_files(root, major_minor);
 
-    // 5. Stamp CHANGELOG.md: [Unreleased] → [X.Y.Z] with fresh Unreleased above
-    changes += update_changelog(&workspace_root, new_version);
+    // 5. Stamp CHANGELOG.md
+    changes += update_changelog(root, new_version);
 
     println!();
     if changes > 0 {
