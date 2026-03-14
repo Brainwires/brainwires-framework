@@ -9,6 +9,7 @@ use walkdir::WalkDir;
 /// 2. `version = "X.Y.Z"` on internal crate deps in `[workspace.dependencies]`
 /// 3. Hardcoded version strings in `*.rs` source files
 /// 4. `version = "X.Y"` dependency examples in `*.md` files
+/// 5. `## [Unreleased]` → `## [X.Y.Z]` in CHANGELOG.md (adds fresh Unreleased above)
 pub fn bump_version(args: &[String]) -> ExitCode {
     let new_version = match args.first() {
         Some(v) => v.as_str(),
@@ -46,6 +47,9 @@ pub fn bump_version(args: &[String]) -> ExitCode {
 
     // 4. Update version examples in *.md files
     changes += update_md_files(&workspace_root, &major_minor);
+
+    // 5. Stamp CHANGELOG.md: [Unreleased] → [X.Y.Z] with fresh Unreleased above
+    changes += update_changelog(&workspace_root, new_version);
 
     println!();
     if changes > 0 {
@@ -339,6 +343,96 @@ fn update_md_files(root: &Path, new_major_minor: &str) -> u32 {
     count
 }
 
+/// Update CHANGELOG.md: rename `## [Unreleased]` to `## [X.Y.Z]` and insert
+/// a fresh empty `## [Unreleased]` section above it.
+///
+/// Looks for the first line matching `## [Unreleased]` (case-insensitive on the
+/// word "Unreleased"). If the section has content, it becomes the new release
+/// section. A blank `## [Unreleased]` header is inserted above it.
+fn update_changelog(root: &Path, new_version: &str) -> u32 {
+    let changelog_path = root.join("CHANGELOG.md");
+    let content = match std::fs::read_to_string(&changelog_path) {
+        Ok(c) => c,
+        Err(_) => {
+            println!("  CHANGELOG.md: not found, skipping");
+            return 0;
+        }
+    };
+
+    // Find the `## [Unreleased]` line (case-insensitive match on "unreleased").
+    let mut lines: Vec<&str> = content.lines().collect();
+    let unreleased_idx = lines.iter().position(|line| {
+        let trimmed = line.trim();
+        trimmed
+            .to_ascii_lowercase()
+            .starts_with("## [unreleased]")
+    });
+
+    let Some(idx) = unreleased_idx else {
+        println!("  CHANGELOG.md: no ## [Unreleased] section found, skipping");
+        return 0;
+    };
+
+    // Build the today's date string for the release heading.
+    let today = {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        // Convert to YYYY-MM-DD without pulling in chrono.
+        let days_since_epoch = now / 86400;
+        let (y, m, d) = days_to_ymd(days_since_epoch);
+        format!("{y:04}-{m:02}-{d:02}")
+    };
+
+    // Replace the existing Unreleased line with the versioned heading.
+    let versioned_heading = format!("## [{new_version}] - {today}");
+
+    // Insert a fresh Unreleased section above the old one.
+    // Result: ## [Unreleased] / blank / ## [X.Y.Z] - YYYY-MM-DD / (original content)
+    lines[idx] = &versioned_heading;
+    let fresh_section = ["## [Unreleased]", ""];
+    let mut new_lines: Vec<&str> = Vec::with_capacity(lines.len() + fresh_section.len());
+    new_lines.extend_from_slice(&lines[..idx]);
+    new_lines.extend_from_slice(&fresh_section);
+    new_lines.extend_from_slice(&lines[idx..]);
+
+    // Rebuild with trailing newline.
+    let mut new_content = new_lines.join("\n");
+    if content.ends_with('\n') {
+        new_content.push('\n');
+    }
+
+    if new_content == content {
+        println!("  CHANGELOG.md: already stamped for {new_version}");
+        return 0;
+    }
+
+    std::fs::write(&changelog_path, &new_content).expect("Failed to write CHANGELOG.md");
+    println!("  CHANGELOG.md: [Unreleased] -> [{new_version}] - {today}");
+    println!("  Updated: {}", changelog_path.display());
+    1
+}
+
+/// Convert days since Unix epoch to (year, month, day).
+///
+/// Simple civil date calculation — no leap-second precision needed for
+/// changelog timestamps.
+fn days_to_ymd(days: u64) -> (u64, u64, u64) {
+    // Algorithm from Howard Hinnant's `chrono`-compatible date conversion.
+    let z = days + 719468;
+    let era = z / 146097;
+    let doe = z - era * 146097;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+    (y, m, d)
+}
+
 /// Replace `brainwires* = { version = "X.Y"` and `brainwires* = "X.Y"` in markdown.
 fn replace_version_in_md(content: &str, new_major_minor: &str) -> String {
     let mut result = String::with_capacity(content.len());
@@ -524,5 +618,59 @@ mod tests {
         let input = r#"brainwires = "0.5""#;
         let result = replace_brainwires_version_in_line(input, "0.5");
         assert_eq!(result, input);
+    }
+
+    #[test]
+    fn test_days_to_ymd_epoch() {
+        // 1970-01-01
+        let (y, m, d) = days_to_ymd(0);
+        assert_eq!((y, m, d), (1970, 1, 1));
+    }
+
+    #[test]
+    fn test_days_to_ymd_known_date() {
+        // 2026-03-14 is day 20526 since epoch
+        let (y, m, d) = days_to_ymd(20526);
+        assert_eq!((y, m, d), (2026, 3, 14));
+    }
+
+    #[test]
+    fn test_changelog_update() {
+        let tmpdir = std::env::temp_dir().join("xtask_changelog_test");
+        let _ = std::fs::create_dir_all(&tmpdir);
+        let changelog = tmpdir.join("CHANGELOG.md");
+        std::fs::write(
+            &changelog,
+            "# Changelog\n\n## [Unreleased]\n\n### Added\n- Cool feature\n\n## [0.3.0] - 2025-12-01\n",
+        )
+        .unwrap();
+
+        let count = update_changelog(&tmpdir, "0.4.0");
+        assert_eq!(count, 1);
+
+        let result = std::fs::read_to_string(&changelog).unwrap();
+        // Should have a fresh Unreleased section
+        assert!(result.contains("## [Unreleased]\n\n## [0.4.0]"));
+        // The release date should be today
+        assert!(result.contains("## [0.4.0] - "));
+        // Original content should be preserved under the new version heading
+        assert!(result.contains("### Added\n- Cool feature"));
+        // Old release should still be there
+        assert!(result.contains("## [0.3.0] - 2025-12-01"));
+
+        let _ = std::fs::remove_dir_all(&tmpdir);
+    }
+
+    #[test]
+    fn test_changelog_no_unreleased() {
+        let tmpdir = std::env::temp_dir().join("xtask_changelog_test_none");
+        let _ = std::fs::create_dir_all(&tmpdir);
+        let changelog = tmpdir.join("CHANGELOG.md");
+        std::fs::write(&changelog, "# Changelog\n\n## [0.3.0]\n").unwrap();
+
+        let count = update_changelog(&tmpdir, "0.4.0");
+        assert_eq!(count, 0, "should not modify if no [Unreleased] section");
+
+        let _ = std::fs::remove_dir_all(&tmpdir);
     }
 }
