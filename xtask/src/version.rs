@@ -584,6 +584,82 @@ fn replace_brainwires_version_in_line(line: &str, new_mm: &str) -> String {
     result
 }
 
+/// Reset any crate with an explicit version back to `version.workspace = true`.
+/// Called during full (minor/major) bumps to clean up after patch releases.
+fn reset_explicit_versions(root: &Path) -> u32 {
+    let mut count = 0u32;
+
+    for entry in WalkDir::new(root)
+        .into_iter()
+        .filter_entry(|e| {
+            let name = e.file_name().to_str().unwrap_or("");
+            name != "target" && name != ".git" && name != "node_modules"
+        })
+        .filter_map(|e| e.ok())
+    {
+        let path = entry.path();
+        if path.file_name().and_then(|n| n.to_str()) != Some("Cargo.toml") {
+            continue;
+        }
+        if path == root.join("Cargo.toml") {
+            continue;
+        }
+
+        let content = match std::fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        let mut doc = match content.parse::<toml_edit::DocumentMut>() {
+            Ok(d) => d,
+            Err(_) => continue,
+        };
+
+        let crate_name = doc
+            .get("package")
+            .and_then(|p| p.get("name"))
+            .and_then(|n| n.as_str())
+            .unwrap_or("")
+            .to_string();
+
+        if !crate_name.starts_with("brainwires") {
+            continue;
+        }
+
+        let Some(pkg) = doc.get_mut("package") else {
+            continue;
+        };
+
+        // Check if version is an explicit string (not workspace inherited)
+        let is_explicit = pkg
+            .get("version")
+            .map(|v| v.is_str())
+            .unwrap_or(false);
+
+        if !is_explicit {
+            continue;
+        }
+
+        let old = pkg.get("version").and_then(|v| v.as_str()).unwrap_or("").to_string();
+
+        // Replace with version.workspace = true using dotted-key table form
+        // (matches the style used by all other workspace-inherited fields like
+        // edition.workspace = true, license.workspace = true, etc.)
+        let mut tbl = toml_edit::Table::new();
+        tbl.set_dotted(true);
+        tbl.insert("workspace", toml_edit::value(true));
+        pkg.as_table_like_mut().unwrap().insert(
+            "version",
+            toml_edit::Item::Table(tbl),
+        );
+
+        println!("  {crate_name}: version = \"{old}\" -> version.workspace = true");
+        std::fs::write(path, doc.to_string()).expect("write member Cargo.toml");
+        count += 1;
+    }
+
+    count
+}
+
 /// Build a map of crate_name -> [dependency crate names] for internal brainwires crates.
 /// Parses each member Cargo.toml for brainwires-* dependencies.
 fn build_dep_graph(root: &Path) -> HashMap<String, Vec<String>> {
@@ -871,5 +947,43 @@ mod tests {
         let affected = cascade(&["brainwires-skills".to_string()], &graph);
         assert!(affected.contains("brainwires-skills"));
         assert!(!affected.contains("brainwires-core"));
+    }
+
+    #[test]
+    fn test_reset_explicit_version() {
+        let tmpdir = std::env::temp_dir().join("xtask_reset_test");
+        let _ = std::fs::remove_dir_all(&tmpdir);
+        std::fs::create_dir_all(tmpdir.join("crates/brainwires-test")).unwrap();
+
+        // Create a root Cargo.toml (needed so reset skips it)
+        std::fs::write(
+            tmpdir.join("Cargo.toml"),
+            "[workspace]\nmembers = [\"crates/brainwires-test\"]\n",
+        )
+        .unwrap();
+
+        // Create a member with explicit version
+        std::fs::write(
+            tmpdir.join("crates/brainwires-test/Cargo.toml"),
+            "[package]\nname = \"brainwires-test\"\nversion = \"0.4.1\"\nedition = \"2024\"\n",
+        )
+        .unwrap();
+
+        let count = reset_explicit_versions(&tmpdir);
+        assert_eq!(count, 1);
+
+        let result =
+            std::fs::read_to_string(tmpdir.join("crates/brainwires-test/Cargo.toml")).unwrap();
+        assert!(
+            result.contains("version.workspace = true")
+                || result.contains("version = { workspace = true }"),
+            "should have workspace-inherited version, got:\n{result}"
+        );
+        assert!(
+            !result.contains("\"0.4.1\""),
+            "should not contain old explicit version"
+        );
+
+        let _ = std::fs::remove_dir_all(&tmpdir);
     }
 }
