@@ -2,6 +2,50 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use walkdir::WalkDir;
 
+#[derive(Debug, PartialEq, Eq)]
+enum BumpMode {
+    Full,
+    Patch,
+}
+
+struct BumpArgs {
+    version: String,
+    crates: Option<Vec<String>>,
+}
+
+/// Determine if this is a patch bump (same major.minor) or full bump.
+fn bump_mode(current: &str, new: &str) -> BumpMode {
+    let cur_parts: Vec<&str> = current.split('.').collect();
+    let new_parts: Vec<&str> = new.split('.').collect();
+    if cur_parts.len() >= 2
+        && new_parts.len() >= 2
+        && cur_parts[0] == new_parts[0]
+        && cur_parts[1] == new_parts[1]
+    {
+        BumpMode::Patch
+    } else {
+        BumpMode::Full
+    }
+}
+
+/// Parse bump-version arguments: `<VERSION> [--crates crate1,crate2,...]`
+fn parse_bump_args(args: &[String]) -> Result<BumpArgs, String> {
+    let version = args.first().ok_or("missing VERSION argument")?.clone();
+    let mut crates = None;
+
+    let mut i = 1;
+    while i < args.len() {
+        if args[i] == "--crates" {
+            i += 1;
+            let list = args.get(i).ok_or("--crates requires a value")?;
+            crates = Some(list.split(',').map(|s| s.trim().to_string()).collect());
+        }
+        i += 1;
+    }
+
+    Ok(BumpArgs { version, crates })
+}
+
 /// Bump all version references across the workspace.
 ///
 /// Updates:
@@ -657,6 +701,49 @@ mod tests {
         assert!(result.contains("## [0.3.0] - 2025-12-01"));
 
         let _ = std::fs::remove_dir_all(&tmpdir);
+    }
+
+    #[test]
+    fn test_detect_patch_bump() {
+        assert_eq!(bump_mode("0.4.0", "0.4.1"), BumpMode::Patch);
+        assert_eq!(bump_mode("0.4.0", "0.4.2"), BumpMode::Patch);
+    }
+
+    #[test]
+    fn test_detect_minor_bump() {
+        assert_eq!(bump_mode("0.4.0", "0.5.0"), BumpMode::Full);
+        assert_eq!(bump_mode("0.4.1", "0.5.0"), BumpMode::Full);
+    }
+
+    #[test]
+    fn test_detect_major_bump() {
+        assert_eq!(bump_mode("0.4.0", "1.0.0"), BumpMode::Full);
+    }
+
+    #[test]
+    fn test_parse_crates_flag() {
+        let args = vec![
+            "0.4.1".into(),
+            "--crates".into(),
+            "brainwires-core,brainwires-agents".into(),
+        ];
+        let parsed = parse_bump_args(&args).unwrap();
+        assert_eq!(parsed.version, "0.4.1");
+        assert_eq!(
+            parsed.crates,
+            Some(vec![
+                "brainwires-core".into(),
+                "brainwires-agents".into()
+            ])
+        );
+    }
+
+    #[test]
+    fn test_parse_no_crates_flag() {
+        let args = vec!["0.5.0".into()];
+        let parsed = parse_bump_args(&args).unwrap();
+        assert_eq!(parsed.version, "0.5.0");
+        assert_eq!(parsed.crates, None);
     }
 
     #[test]

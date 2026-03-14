@@ -60,7 +60,7 @@ fn print_help() {
     println!("Usage: cargo xtask <command>");
     println!();
     println!("Commands:");
-    println!("  bump-version <VERSION>  Bump all crate versions (e.g. 0.3.0)");
+    println!("  bump-version <VERSION> [--crates a,b]  Bump versions (patch=selective, minor/major=all)");
     println!("  check-stubs             Scan for unfinished code (todo!(), FIXME, etc.)");
     println!("  [step ...]              Run CI steps: fmt, check, clippy, test, doc");
     println!();
