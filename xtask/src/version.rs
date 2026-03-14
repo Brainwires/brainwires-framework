@@ -476,6 +476,59 @@ fn days_to_ymd(days: u64) -> (u64, u64, u64) {
     (y, m, d)
 }
 
+/// Map a workspace-relative file path to its brainwires crate name.
+/// Assumes paths like "crates/brainwires-core/..." or "extras/brainwires-proxy/..."
+fn file_to_crate(path: &str) -> Option<String> {
+    let parts: Vec<&str> = path.split('/').collect();
+    if parts.len() >= 2 {
+        let dir = parts[1];
+        if dir.starts_with("brainwires") {
+            return Some(dir.to_string());
+        }
+    }
+    None
+}
+
+/// Auto-detect which crates have changed since the last version tag.
+/// Returns None if detection fails (no tags, not a git repo, etc.)
+fn detect_changed_crates(root: &Path, current_version: &str) -> Option<Vec<String>> {
+    let tag = format!("v{current_version}");
+    let output = std::process::Command::new("git")
+        .args(["diff", "--name-only", &format!("{tag}..HEAD")])
+        .current_dir(root)
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        let output = std::process::Command::new("git")
+            .args(["diff", "--name-only", &format!("{current_version}..HEAD")])
+            .current_dir(root)
+            .output()
+            .ok()?;
+
+        if !output.status.success() {
+            return None;
+        }
+
+        return Some(parse_git_diff_to_crates(&output.stdout));
+    }
+
+    Some(parse_git_diff_to_crates(&output.stdout))
+}
+
+fn parse_git_diff_to_crates(stdout: &[u8]) -> Vec<String> {
+    let text = String::from_utf8_lossy(stdout);
+    let mut crates: HashSet<String> = HashSet::new();
+    for line in text.lines() {
+        if let Some(name) = file_to_crate(line.trim()) {
+            crates.insert(name);
+        }
+    }
+    let mut sorted: Vec<String> = crates.into_iter().collect();
+    sorted.sort();
+    sorted
+}
+
 /// Replace `brainwires* = { version = "X.Y"` and `brainwires* = "X.Y"` in markdown.
 fn replace_version_in_md(content: &str, new_major_minor: &str) -> String {
     let mut result = String::with_capacity(content.len());
@@ -986,4 +1039,24 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(&tmpdir);
     }
+
+    #[test]
+    fn test_file_to_crate_name() {
+        assert_eq!(
+            file_to_crate("crates/brainwires-core/src/lib.rs"),
+            Some("brainwires-core".to_string())
+        );
+        assert_eq!(
+            file_to_crate("crates/brainwires-agents/src/mod.rs"),
+            Some("brainwires-agents".to_string())
+        );
+        assert_eq!(
+            file_to_crate("extras/brainwires-proxy/src/main.rs"),
+            Some("brainwires-proxy".to_string())
+        );
+        assert_eq!(file_to_crate("README.md"), None);
+        assert_eq!(file_to_crate("xtask/src/main.rs"), None);
+    }
+
 }
+
