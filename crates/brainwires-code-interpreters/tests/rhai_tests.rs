@@ -242,7 +242,9 @@ fn rhai_division_by_zero() {
 
 #[test]
 fn rhai_type_mismatch() {
-    let r = exec(r#"let x = "hello" + 5;"#);
+    // Rhai allows "hello" + 5 (string concat), so use an actual type error:
+    // boolean negation on a string
+    let r = exec(r#"let x = -"hello";"#);
     assert!(!r.success);
     assert!(r.error.is_some());
 }
