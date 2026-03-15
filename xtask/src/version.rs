@@ -223,7 +223,7 @@ fn update_member_cargo_tomls(root: &Path, new_version: &str) -> u32 {
         .into_iter()
         .filter_entry(|e| {
             let name = e.file_name().to_str().unwrap_or("");
-            name != "target" && name != ".git" && name != "node_modules"
+            name != "target" && name != ".git" && name != "node_modules" && name != "deprecated"
         })
         .filter_map(|e| e.ok())
     {
@@ -300,7 +300,7 @@ fn update_rs_files(root: &Path, new_version: &str) -> u32 {
         .into_iter()
         .filter_entry(|e| {
             let name = e.file_name().to_str().unwrap_or("");
-            name != "target" && name != ".git" && name != "node_modules"
+            name != "target" && name != ".git" && name != "node_modules" && name != "deprecated"
         })
         .filter_map(|e| e.ok())
     {
@@ -382,7 +382,7 @@ fn update_md_files(root: &Path, new_major_minor: &str) -> u32 {
         .into_iter()
         .filter_entry(|e| {
             let name = e.file_name().to_str().unwrap_or("");
-            name != "target" && name != ".git" && name != "node_modules"
+            name != "target" && name != ".git" && name != "node_modules" && name != "deprecated"
         })
         .filter_map(|e| e.ok())
     {
@@ -675,7 +675,7 @@ fn reset_explicit_versions(root: &Path) -> u32 {
         .into_iter()
         .filter_entry(|e| {
             let name = e.file_name().to_str().unwrap_or("");
-            name != "target" && name != ".git" && name != "node_modules"
+            name != "target" && name != ".git" && name != "node_modules" && name != "deprecated"
         })
         .filter_map(|e| e.ok())
     {
@@ -751,7 +751,7 @@ fn build_dep_graph(root: &Path) -> HashMap<String, Vec<String>> {
         .into_iter()
         .filter_entry(|e| {
             let name = e.file_name().to_str().unwrap_or("");
-            name != "target" && name != ".git" && name != "node_modules"
+            name != "target" && name != ".git" && name != "node_modules" && name != "deprecated"
         })
         .filter_map(|e| e.ok())
     {
@@ -882,7 +882,7 @@ fn set_explicit_versions(root: &Path, new_version: &str, affected: &HashSet<Stri
         .into_iter()
         .filter_entry(|e| {
             let name = e.file_name().to_str().unwrap_or("");
-            name != "target" && name != ".git" && name != "node_modules"
+            name != "target" && name != ".git" && name != "node_modules" && name != "deprecated"
         })
         .filter_map(|e| e.ok())
     {
@@ -958,7 +958,7 @@ fn update_rs_files_selective(root: &Path, new_version: &str, affected: &HashSet<
         .into_iter()
         .filter_entry(|e| {
             let name = e.file_name().to_str().unwrap_or("");
-            name != "target" && name != ".git" && name != "node_modules"
+            name != "target" && name != ".git" && name != "node_modules" && name != "deprecated"
         })
         .filter_map(|e| e.ok())
     {
@@ -1000,7 +1000,7 @@ fn update_md_files_selective(
         .into_iter()
         .filter_entry(|e| {
             let name = e.file_name().to_str().unwrap_or("");
-            name != "target" && name != ".git" && name != "node_modules"
+            name != "target" && name != ".git" && name != "node_modules" && name != "deprecated"
         })
         .filter_map(|e| e.ok())
     {
