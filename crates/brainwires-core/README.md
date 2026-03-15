@@ -48,7 +48,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires-core = "0.4"
+brainwires-core = "0.5"
 ```
 
 Build a message, define a tool, and call a provider:
@@ -86,10 +86,10 @@ let response = provider.chat(&messages, Some(&[tool]), &options).await?;
 
 ```toml
 # Default (native + planning)
-brainwires-core = "0.4"
+brainwires-core = "0.5"
 
 # WASM target
-brainwires-core = { version = "0.4", default-features = false, features = ["wasm"] }
+brainwires-core = { version = "0.5", default-features = false, features = ["wasm"] }
 ```
 
 ## Architecture
@@ -525,7 +525,7 @@ Use via the `brainwires` facade crate:
 
 ```toml
 [dependencies]
-brainwires = "0.4"
+brainwires = "0.5"
 ```
 
 Or use standalone — `brainwires-core` has no dependency on any other Brainwires crate.

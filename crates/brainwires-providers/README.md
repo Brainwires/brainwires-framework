@@ -65,7 +65,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires-providers = "0.4"
+brainwires-providers = "0.5"
 ```
 
 Send a chat request with the Anthropic provider:
@@ -98,13 +98,13 @@ async fn main() -> anyhow::Result<()> {
 
 ```toml
 # Default (cloud providers only)
-brainwires-providers = "0.4"
+brainwires-providers = "0.5"
 
 # With local LLM support
-brainwires-providers = { version = "0.4", features = ["llama-cpp-2"] }
+brainwires-providers = { version = "0.5", features = ["llama-cpp-2"] }
 
 # Local LLM only (no cloud providers)
-brainwires-providers = { version = "0.4", default-features = false, features = ["llama-cpp-2"] }
+brainwires-providers = { version = "0.5", default-features = false, features = ["llama-cpp-2"] }
 ```
 
 ## Architecture
@@ -611,11 +611,11 @@ Use via the `brainwires` facade crate with the `providers` feature, or depend on
 ```toml
 # Via facade
 [dependencies]
-brainwires = { version = "0.4", features = ["providers"] }
+brainwires = { version = "0.5", features = ["providers"] }
 
 # Direct
 [dependencies]
-brainwires-providers = "0.4"
+brainwires-providers = "0.5"
 ```
 
 Re-exports at crate root for convenience:

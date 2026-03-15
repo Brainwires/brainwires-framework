@@ -1,6 +1,6 @@
 [package]
 name = "brainwires-mdap"
-version = "0.4.1"
+version = "0.5.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 rust-version = "1.91"
@@ -10,6 +10,6 @@ readme = "README.md"
 keywords = ["deprecated"]
 
 [dependencies]
-brainwires-agents = { version = "0.4", features = ["mdap"] }
+brainwires-agents = { version = "0.5", features = ["mdap"] }
 
 [workspace]

@@ -227,7 +227,7 @@ The facade crate (`brainwires`) gates each subsystem behind a feature flag.
 
 ```toml
 [dependencies]
-brainwires = { version = "0.4", features = ["researcher"] }
+brainwires = { version = "0.5", features = ["researcher"] }
 ```
 
 This enables: `providers`, `agents`, `storage`, `rag`, `training`, `datasets`.

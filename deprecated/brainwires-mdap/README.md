@@ -6,8 +6,8 @@ Replace in your `Cargo.toml`:
 
 ```toml
 # Before
-brainwires-mdap = "0.4"
+brainwires-mdap = "0.5"
 
 # After
-brainwires-agents = { version = "0.4", features = ["mdap"] }
+brainwires-agents = { version = "0.5", features = ["mdap"] }
 ```

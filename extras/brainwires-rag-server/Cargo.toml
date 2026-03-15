@@ -2,7 +2,7 @@
 name = "brainwires-rag-server"
 publish = false
 description = "Project-RAG MCP server binary — RAG-based codebase indexing and semantic search"
-version = "0.4.1"
+version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true

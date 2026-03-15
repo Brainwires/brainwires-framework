@@ -36,7 +36,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires-proxy = "0.4"
+brainwires-proxy = "0.5"
 ```
 
 Minimal HTTP reverse proxy:
@@ -73,10 +73,10 @@ Enable features in `Cargo.toml`:
 
 ```toml
 # Pick what you need
-brainwires-proxy = { version = "0.4", features = ["websocket", "inspector-api"] }
+brainwires-proxy = { version = "0.5", features = ["websocket", "inspector-api"] }
 
 # Or enable everything
-brainwires-proxy = { version = "0.4", features = ["full"] }
+brainwires-proxy = { version = "0.5", features = ["full"] }
 ```
 
 ## Architecture
@@ -503,7 +503,7 @@ Use via the `brainwires` facade crate:
 
 ```toml
 [dependencies]
-brainwires = { version = "0.4", features = ["proxy"] }
+brainwires = { version = "0.5", features = ["proxy"] }
 ```
 
 Or use standalone — `brainwires-proxy` has no dependency on any other Brainwires crate.

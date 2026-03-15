@@ -57,7 +57,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires-cognition = "0.4"
+brainwires-cognition = "0.5"
 ```
 
 Capture a thought and search memory:
@@ -113,16 +113,16 @@ async fn main() -> anyhow::Result<()> {
 
 ```toml
 # Default (knowledge + prompting)
-brainwires-cognition = "0.4"
+brainwires-cognition = "0.5"
 
 # Full native build
-brainwires-cognition = { version = "0.4", features = ["native"] }
+brainwires-cognition = { version = "0.5", features = ["native"] }
 
 # RAG only
-brainwires-cognition = { version = "0.4", default-features = false, features = ["rag"] }
+brainwires-cognition = { version = "0.5", default-features = false, features = ["rag"] }
 
 # WASM target
-brainwires-cognition = { version = "0.4", default-features = false, features = ["wasm"] }
+brainwires-cognition = { version = "0.5", default-features = false, features = ["wasm"] }
 ```
 
 ## Knowledge Subsystem
@@ -441,14 +441,14 @@ Use via the `brainwires` facade crate:
 
 ```toml
 [dependencies]
-brainwires = { version = "0.4", features = ["cognition"] }
+brainwires = { version = "0.5", features = ["cognition"] }
 ```
 
 Or depend on `brainwires-cognition` directly:
 
 ```toml
 [dependencies]
-brainwires-cognition = { version = "0.4", features = ["native"] }
+brainwires-cognition = { version = "0.5", features = ["native"] }
 ```
 
 **Import path migration:**

@@ -1,7 +1,7 @@
 [package]
 name = "brainwires-wasm"
 description = "WASM bindings for the Brainwires Agent Framework"
-version = "0.4.1"
+version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
@@ -18,8 +18,8 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 # WASM-safe framework crates (direct deps: need default-features = false, can't inherit from workspace)
-brainwires-core = { path = "../brainwires-core", version = "0.4.0", default-features = false, features = ["wasm"] }
-brainwires-agents = { path = "../brainwires-agents", version = "0.4.1", default-features = false, features = ["wasm", "mdap"] }
+brainwires-core = { path = "../brainwires-core", version = "0.5.0", default-features = false, features = ["wasm"] }
+brainwires-agents = { path = "../brainwires-agents", version = "0.5.0", default-features = false, features = ["wasm", "mdap"] }
 
 # Serialization
 serde = { workspace = true }
@@ -30,10 +30,10 @@ wasm-bindgen = "0.2"
 serde-wasm-bindgen = "0.6"
 
 # Optional: code interpreters for WASM (direct dep: needs default-features = false override)
-brainwires-code-interpreters = { path = "../brainwires-code-interpreters", version = "0.4.0", default-features = false, features = ["wasm"], optional = true }
+brainwires-code-interpreters = { path = "../brainwires-code-interpreters", version = "0.5.0", default-features = false, features = ["wasm"], optional = true }
 
 # Orchestrator deps (behind orchestrator feature; direct dep: needs default-features = false override)
-brainwires-tool-system = { path = "../brainwires-tool-system", version = "0.4.0", default-features = false, features = ["wasm", "orchestrator-wasm"], optional = true }
+brainwires-tool-system = { path = "../brainwires-tool-system", version = "0.5.0", default-features = false, features = ["wasm", "orchestrator-wasm"], optional = true }
 rhai = { version = "1.23", default-features = false, features = ["serde", "std"], optional = true }
 js-sys = { version = "0.3", optional = true }
 web-sys = { version = "0.3", features = ["console"], optional = true }

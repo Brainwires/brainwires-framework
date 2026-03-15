@@ -14,7 +14,7 @@ pub fn build_initialize_request(id: u64) -> JsonRpcRequest {
             "capabilities": {},
             "clientInfo": {
                 "name": "brainwires-relay-client",
-                "version": "0.4.0"
+                "version": "0.5.0"
             }
         })),
     }
