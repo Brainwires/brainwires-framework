@@ -1,5 +1,4 @@
-#![deny(missing_docs)]
-//! Brainwires MDAP - MAKER voting framework
+//! MDAP - MAKER voting framework (merged from `brainwires-mdap`)
 //!
 //! Multi-Dimensional Adaptive Planning system implementing the MAKER paper's
 //! approach to reliable agent execution through:
@@ -12,9 +11,6 @@
 //! - **Metrics**: Execution metrics collection and reporting
 //! - **Composer**: Result composition from subtask outputs
 //! - **Tool Intent**: Structured tool calling intent for stateless execution
-
-// Re-export core types
-pub use brainwires_core;
 
 pub mod composer;
 pub mod decomposition;

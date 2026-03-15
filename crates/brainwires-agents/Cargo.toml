@@ -57,7 +57,6 @@ futures = { workspace = true, optional = true }
 
 # ── SEAL deps ──────────────────────────────────────────────────────────
 brainwires-cognition = { workspace = true, optional = true }
-brainwires-mdap = { workspace = true, optional = true }
 brainwires-permissions = { workspace = true, optional = true }
 
 # OpenTelemetry (optional, for otel feature)
@@ -84,9 +83,11 @@ reasoning = ["dep:regex"]
 eval = ["dep:thiserror", "dep:futures"]
 # OpenTelemetry span export for agent execution traces
 otel = ["dep:opentelemetry"]
+# MDAP: Multi-Dimensional Adaptive Planning (merged from brainwires-mdap)
+mdap = ["dep:regex", "dep:thiserror"]
 # SEAL (Self-Evolving Agentic Learning)
 seal = ["dep:regex"]
-seal-mdap = ["seal", "dep:brainwires-mdap"]
+seal-mdap = ["seal", "mdap"]
 seal-feedback = ["seal", "dep:brainwires-permissions"]
 seal-knowledge = ["seal", "dep:brainwires-cognition", "brainwires-cognition/knowledge"]
 
@@ -110,3 +111,11 @@ name = "saga_compensation"
 
 [[example]]
 name = "task_queue_scheduling"
+
+[[example]]
+name = "voting_consensus"
+required-features = ["mdap"]
+
+[[example]]
+name = "task_decomposition"
+required-features = ["mdap"]

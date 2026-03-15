@@ -4,10 +4,10 @@
 //! creating sampled responses with metadata, configuring red-flag
 //! validation, and validating responses against reliability criteria.
 //!
-//! Run with: `cargo run -p brainwires-mdap --example voting_consensus`
+//! Run with: `cargo run -p brainwires-agents --features mdap --example voting_consensus`
 
-use brainwires_mdap::red_flags::{OutputFormat, RedFlagConfig, RedFlagValidator, StandardRedFlagValidator};
-use brainwires_mdap::voting::{ResponseMetadata, SampledResponse, VoteResult, VotingMethod};
+use brainwires_agents::mdap::red_flags::{OutputFormat, RedFlagConfig, RedFlagValidator, StandardRedFlagValidator};
+use brainwires_agents::mdap::voting::{ResponseMetadata, SampledResponse, VoteResult, VotingMethod};
 use std::collections::HashMap;
 
 fn main() {
@@ -108,7 +108,7 @@ fn main() {
             "VALID".to_string()
         } else {
             format!("FLAGGED: {}", match &result {
-                brainwires_mdap::red_flags::RedFlagResult::Flagged { reason, severity } => {
+                brainwires_agents::mdap::red_flags::RedFlagResult::Flagged { reason, severity } => {
                     format!("{} (severity: {:.2})", reason, severity)
                 }
                 _ => unreachable!(),

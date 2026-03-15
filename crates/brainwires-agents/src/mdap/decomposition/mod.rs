@@ -11,8 +11,8 @@ pub mod recursive;
 // Re-export commonly used types from recursive
 pub use recursive::{BinaryRecursiveDecomposer, SimpleRecursiveDecomposer};
 
-use crate::error::{DecompositionError, MdapResult};
-use crate::microagent::Subtask;
+use super::error::{DecompositionError, MdapResult};
+use super::microagent::Subtask;
 
 /// Context for task decomposition
 #[derive(Clone, Debug)]

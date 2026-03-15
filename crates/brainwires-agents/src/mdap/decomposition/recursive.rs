@@ -15,10 +15,10 @@ use super::{
     CompositionFunction, DecomposeContext, DecompositionResult, DecompositionStrategy,
     TaskDecomposer,
 };
-use crate::error::{DecompositionError, MdapResult};
-use crate::microagent::{MicroagentProvider, Subtask};
-use crate::red_flags::{RedFlagConfig, StandardRedFlagValidator};
-use crate::voting::{FirstToAheadByKVoter, ResponseMetadata, SampledResponse};
+use super::super::error::{DecompositionError, MdapResult};
+use super::super::microagent::{MicroagentProvider, Subtask};
+use super::super::red_flags::{RedFlagConfig, StandardRedFlagValidator};
+use super::super::voting::{FirstToAheadByKVoter, ResponseMetadata, SampledResponse};
 
 /// Binary recursive decomposer implementing the paper's approach
 ///
@@ -401,7 +401,7 @@ impl TaskDecomposer for SimpleRecursiveDecomposer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::microagent::MicroagentResponse;
+    use super::super::super::microagent::MicroagentResponse;
 
     struct MockProvider;
 

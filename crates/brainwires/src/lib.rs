@@ -48,7 +48,7 @@ pub mod mcp {
 /// MDAP — Multi-Dimensional Adaptive Planning with MAKER voting.
 #[cfg(feature = "mdap")]
 pub mod mdap {
-    pub use brainwires_mdap::*;
+    pub use brainwires_agents::mdap::*;
 }
 
 /// Adaptive prompting — technique library, clustering, temperature optimization.
@@ -279,7 +279,7 @@ pub mod prelude {
 
     // MDAP — available with "mdap" feature
     #[cfg(feature = "mdap")]
-    pub use brainwires_mdap::{
+    pub use brainwires_agents::mdap::{
         Composer, FirstToAheadByKVoter, MdapError, MdapEstimate, MdapResult, MicroagentConfig,
         StandardRedFlagValidator,
     };

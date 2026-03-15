@@ -6,7 +6,6 @@ members = [
     "crates/brainwires-agents",
     "crates/brainwires-storage",
     "crates/brainwires-mcp",
-    "crates/brainwires-mdap",
     "crates/brainwires-permissions",
     "crates/brainwires-code-interpreters",
     "crates/brainwires-wasm",
@@ -34,6 +33,7 @@ exclude = [
     "deprecated/brainwires-rag",
     "deprecated/brainwires-relay",
     "deprecated/brainwires-seal",
+    "deprecated/brainwires-mdap",
 ]
 resolver = "2"
 
@@ -57,7 +57,6 @@ brainwires-tool-system = { path = "crates/brainwires-tool-system", version = "0.
 brainwires-agents = { path = "crates/brainwires-agents", version = "0.4.1" }
 brainwires-storage = { path = "crates/brainwires-storage", version = "0.4.1", default-features = false }
 brainwires-mcp = { path = "crates/brainwires-mcp", version = "0.4.0" }
-brainwires-mdap = { path = "crates/brainwires-mdap", version = "0.4.0" }
 brainwires-permissions = { path = "crates/brainwires-permissions", version = "0.4.0" }
 brainwires-code-interpreters = { path = "crates/brainwires-code-interpreters", version = "0.4.0" }
 brainwires-wasm = { path = "crates/brainwires-wasm", version = "0.4.1" }

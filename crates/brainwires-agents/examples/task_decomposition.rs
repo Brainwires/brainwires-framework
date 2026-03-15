@@ -3,10 +3,10 @@
 //! Demonstrates task decomposition strategies and MDAP cost estimation
 //! using the scaling laws from the MAKER paper.
 //!
-//! Run with: `cargo run -p brainwires-mdap --example task_decomposition`
+//! Run with: `cargo run -p brainwires-agents --features mdap --example task_decomposition`
 
-use brainwires_mdap::decomposition::{DecomposeContext, SequentialDecomposer, TaskDecomposer};
-use brainwires_mdap::scaling::{estimate_mdap, ModelCosts};
+use brainwires_agents::mdap::decomposition::{DecomposeContext, SequentialDecomposer, TaskDecomposer};
+use brainwires_agents::mdap::scaling::{estimate_mdap, ModelCosts};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

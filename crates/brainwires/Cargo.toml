@@ -22,7 +22,6 @@ brainwires-tool-system = { workspace = true, optional = true }
 brainwires-agents = { workspace = true, optional = true }
 brainwires-storage = { workspace = true, optional = true }
 brainwires-mcp = { workspace = true, optional = true }
-brainwires-mdap = { workspace = true, optional = true }
 brainwires-cognition = { workspace = true, optional = true }
 brainwires-permissions = { workspace = true, optional = true }
 
@@ -91,7 +90,7 @@ tools = ["dep:brainwires-tool-system"]
 agents = ["dep:brainwires-agents"]
 storage = ["dep:brainwires-storage", "brainwires-storage/native"]
 mcp = ["dep:brainwires-mcp"]
-mdap = ["dep:brainwires-mdap"]
+mdap = ["agents", "brainwires-agents/mdap"]
 knowledge = ["brain"]
 prompting = ["dep:brainwires-cognition", "brainwires-cognition/prompting"]
 permissions = ["dep:brainwires-permissions"]

@@ -17,7 +17,7 @@ SEAL was previously a standalone crate (`brainwires-seal`). It was moved here be
 | Feature | Description |
 |---------|-------------|
 | `seal` | Core SEAL pipeline (coreference, query extraction, learning, reflection) |
-| `seal-mdap` | MDAP metric recording via `brainwires-mdap` |
+| `seal-mdap` | MDAP metric recording via `mdap` feature |
 | `seal-knowledge` | BKS/PKS knowledge system integration via `brainwires-cognition` |
 | `seal-feedback` | Audit feedback bridge via `brainwires-permissions` |
 

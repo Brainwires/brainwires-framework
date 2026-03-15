@@ -25,6 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Documentation
 - **BYO database guide** (`databases/README.md`): Step-by-step guide for implementing custom `StorageBackend` and `VectorDatabase` backends, with trait method documentation and integration patterns.
 
+#### Crate Merges (19 → 18 crates)
+- **`brainwires-mdap`** merged into `brainwires-agents` behind the `mdap` feature flag. The standalone `brainwires-mdap` crate is now deprecated; use `brainwires-agents = { version = "0.4", features = ["mdap"] }` instead.
+
 ### Changed
 
 #### Providers (`brainwires-providers`)

@@ -1,6 +1,6 @@
 # Brainwires Framework — Complete Feature List
 
-A comprehensive catalog of every feature provided by the framework's 19 crates and 7 extras.
+A comprehensive catalog of every feature provided by the framework's 18 crates and 6 extras.
 
 ---
 
