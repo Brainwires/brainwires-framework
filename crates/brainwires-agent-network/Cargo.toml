@@ -84,3 +84,7 @@ auth-keyring = ["keyring"]
 
 [dev-dependencies]
 tempfile = { workspace = true }
+
+[[example]]
+name = "middleware_chain"
+required-features = ["server"]

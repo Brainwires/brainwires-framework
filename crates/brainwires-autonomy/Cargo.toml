@@ -67,3 +67,6 @@ git-workflow = ["dep:brainwires-agents", "dep:brainwires-tool-system", "dep:reqw
 webhook = ["git-workflow", "dep:axum", "dep:hmac", "dep:sha1", "dep:subtle"]
 
 full = ["self-improve", "eval-driven", "supervisor", "attention", "parallel", "training", "git-workflow", "webhook"]
+
+[[example]]
+name = "safety_guard"

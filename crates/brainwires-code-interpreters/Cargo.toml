@@ -58,6 +58,10 @@ serde-wasm-bindgen = { version = "0.6", optional = true }
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }
 
+[[example]]
+name = "multi_language"
+required-features = ["rhai", "lua"]
+
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2", features = ["js"] }
 

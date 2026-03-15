@@ -89,3 +89,24 @@ seal = ["dep:regex"]
 seal-mdap = ["seal", "dep:brainwires-mdap"]
 seal-feedback = ["seal", "dep:brainwires-permissions"]
 seal-knowledge = ["seal", "dep:brainwires-cognition", "brainwires-cognition/knowledge"]
+
+[[example]]
+name = "agent_pool"
+
+[[example]]
+name = "optimistic_concurrency"
+
+[[example]]
+name = "three_state_model"
+
+[[example]]
+name = "validation_loop"
+
+[[example]]
+name = "contract_net"
+
+[[example]]
+name = "saga_compensation"
+
+[[example]]
+name = "task_queue_scheduling"

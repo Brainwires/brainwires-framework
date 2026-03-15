@@ -182,3 +182,7 @@ tempfile = { workspace = true }
 tracing-subscriber = { workspace = true }
 criterion = { version = "0.5", features = ["async_tokio"] }
 filetime = "0.2"
+
+[[example]]
+name = "prompting_techniques"
+required-features = ["prompting"]
