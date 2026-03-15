@@ -144,17 +144,35 @@ echo "============================================"
 
 # Tag the release after successful publish
 if ! $DRY_RUN && [ "$FAILED" -eq 0 ]; then
-    # Extract version from workspace Cargo.toml
+    # Determine the release version: use the highest version found across all
+    # member crates (handles patch bumps where some crates have explicit versions
+    # higher than the workspace base version).
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    WORKSPACE_TOML="$SCRIPT_DIR/../Cargo.toml"
-    VERSION=$(grep -m1 '^version' "$WORKSPACE_TOML" | sed 's/.*"\(.*\)"/\1/')
+    WORKSPACE_ROOT="$SCRIPT_DIR/.."
+    WORKSPACE_TOML="$WORKSPACE_ROOT/Cargo.toml"
+    BASE_VERSION=$(grep -m1 '^version' "$WORKSPACE_TOML" | sed 's/.*"\(.*\)"/\1/')
+    VERSION="$BASE_VERSION"
+    for crate_dir in "$WORKSPACE_ROOT"/crates/*/; do
+        crate_toml="$crate_dir/Cargo.toml"
+        [ -f "$crate_toml" ] || continue
+        v=$(grep -m1 '^version\s*=' "$crate_toml" 2>/dev/null | sed 's/.*"\(.*\)"/\1/' || true)
+        if [ -n "$v" ] && [ "$v" != "$BASE_VERSION" ]; then
+            # Simple semver comparison: pick the higher version
+            if printf '%s\n%s\n' "$VERSION" "$v" | sort -V | tail -1 | grep -qx "$v"; then
+                VERSION="$v"
+            fi
+        fi
+    done
 
     TAG="v${VERSION}"
     echo ""
-    echo "Tagging release as $TAG..."
-    git tag -a "$TAG" -m "Release $TAG"
-    echo "Created tag $TAG"
-    # echo "Run 'git push origin $TAG' to push the tag to remote."
-    echo "Pushing tag to remote..."
-    git push origin "$TAG"
+    if git rev-parse "$TAG" >/dev/null 2>&1; then
+        echo "Tag $TAG already exists — skipping."
+    else
+        echo "Tagging release as $TAG..."
+        git tag -a "$TAG" -m "Release $TAG"
+        echo "Created tag $TAG"
+        echo "Pushing tag to remote..."
+        git push origin "$TAG"
+    fi
 fi
