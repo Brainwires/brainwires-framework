@@ -76,9 +76,7 @@ Priority definitions:
 > **Priority: LOW**
 
 - [ ] **Verify `brainwires-wasm`** — Audit WASM bindings for all core types; ensure browser target builds succeed with `wasm-pack`; run basic WASM smoke tests.
-- [x] **Complete `brainwires-seal`** — Wire SEAL (Self-Evolving Agentic Learning) integration through `brainwires-prompting` (knowledge feature); implement the learning loop that reads `AuditLogger` feedback to improve prompting strategies over time.
 - [x] **`brainwires-eval` as standalone crate** — *Superseded: merged into `brainwires-agents` as `eval` feature. Available via the facade.*
-- [ ] **CLI thin-wrapper audit** — Review every module in `src/` against its framework counterpart; confirm each is a genuine thin wrapper with no duplicated logic; document any intentional divergences.
 
 ---
 
