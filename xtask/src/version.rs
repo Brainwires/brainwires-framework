@@ -84,9 +84,7 @@ pub fn bump_version(args: &[String]) -> ExitCode {
     }
 
     match mode {
-        BumpMode::Patch => {
-            bump_patch(&workspace_root, new_version, &major_minor, parsed.crates)
-        }
+        BumpMode::Patch => bump_patch(&workspace_root, new_version, &major_minor, parsed.crates),
         BumpMode::Full => {
             println!("Full version bump: {current_version} -> {new_version}");
             println!();
@@ -712,16 +710,17 @@ fn reset_explicit_versions(root: &Path) -> u32 {
         };
 
         // Check if version is an explicit string (not workspace inherited)
-        let is_explicit = pkg
-            .get("version")
-            .map(|v| v.is_str())
-            .unwrap_or(false);
+        let is_explicit = pkg.get("version").map(|v| v.is_str()).unwrap_or(false);
 
         if !is_explicit {
             continue;
         }
 
-        let old = pkg.get("version").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let old = pkg
+            .get("version")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
 
         // Replace with version.workspace = true using dotted-key table form
         // (matches the style used by all other workspace-inherited fields like
@@ -729,10 +728,9 @@ fn reset_explicit_versions(root: &Path) -> u32 {
         let mut tbl = toml_edit::Table::new();
         tbl.set_dotted(true);
         tbl.insert("workspace", toml_edit::value(true));
-        pkg.as_table_like_mut().unwrap().insert(
-            "version",
-            toml_edit::Item::Table(tbl),
-        );
+        pkg.as_table_like_mut()
+            .unwrap()
+            .insert("version", toml_edit::Item::Table(tbl));
 
         println!("  {crate_name}: version = \"{old}\" -> version.workspace = true");
         std::fs::write(path, doc.to_string()).expect("write member Cargo.toml");
@@ -1066,7 +1064,10 @@ fn bump_patch(
     let affected = cascade(&direct, &graph);
 
     let direct_set: HashSet<String> = direct.iter().cloned().collect();
-    let mut cascaded: Vec<&String> = affected.iter().filter(|c| !direct_set.contains(*c)).collect();
+    let mut cascaded: Vec<&String> = affected
+        .iter()
+        .filter(|c| !direct_set.contains(*c))
+        .collect();
     cascaded.sort();
     let mut direct_sorted: Vec<&String> = direct.iter().collect();
     direct_sorted.sort();
@@ -1282,10 +1283,7 @@ mod tests {
         assert_eq!(parsed.version, "0.4.1");
         assert_eq!(
             parsed.crates,
-            Some(vec![
-                "brainwires-core".into(),
-                "brainwires-agents".into()
-            ])
+            Some(vec!["brainwires-core".into(), "brainwires-agents".into()])
         );
     }
 
@@ -1420,6 +1418,4 @@ mod tests {
         assert_eq!(file_to_crate("README.md"), None);
         assert_eq!(file_to_crate("xtask/src/main.rs"), None);
     }
-
 }
-
