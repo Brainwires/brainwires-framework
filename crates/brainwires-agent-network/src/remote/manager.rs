@@ -361,6 +361,6 @@ mod tests {
         let config = config.unwrap();
         assert_eq!(config.backend_url, "https://test.example.com");
         assert_eq!(config.api_key, "test-key");
-        assert_eq!(config.version, "0.5.0");
+        assert_eq!(config.version, "0.1.0-test");
     }
 }
