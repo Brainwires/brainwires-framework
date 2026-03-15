@@ -4,7 +4,7 @@ A modular Rust framework for building AI agents with multi-provider support, too
 
 ## Overview
 
-The Brainwires Framework is a workspace of 19 framework crates plus 7 extras that provide everything needed to build, train, deploy, and coordinate AI agents. Each framework crate is independently publishable to crates.io and usable standalone, but they compose together through the `brainwires` facade crate for a batteries-included experience.
+The Brainwires Framework is a workspace of 19 framework crates plus 6 extras that provide everything needed to build, train, deploy, and coordinate AI agents. Each framework crate is independently publishable to crates.io and usable standalone, but they compose together through the `brainwires` facade crate for a batteries-included experience.
 
 **[Full feature list](FEATURES.md)** | **Key capabilities:**
 

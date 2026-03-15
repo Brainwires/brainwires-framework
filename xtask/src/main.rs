@@ -1,6 +1,7 @@
 use std::env;
 use std::process::{Command, ExitCode};
 
+mod package_count;
 mod stubs;
 mod version;
 
@@ -45,6 +46,7 @@ fn main() -> ExitCode {
     match args.first().map(|s| s.as_str()) {
         Some("bump-version") => return version::bump_version(&args[1..]),
         Some("check-stubs") => return stubs::check_stubs(&args[1..]),
+        Some("package-count") => return package_count::update_package_count(&args[1..]),
         Some("--help" | "-h") => {
             print_help();
             return ExitCode::SUCCESS;
@@ -64,6 +66,7 @@ fn print_help() {
         "  bump-version <VERSION> [--crates a,b]  Bump versions (patch=selective, minor/major=all)"
     );
     println!("  check-stubs             Scan for unfinished code (todo!(), FIXME, etc.)");
+    println!("  package-count [--dry-run]  Update crate/extras count references in .md files");
     println!("  [step ...]              Run CI steps: fmt, check, clippy, test, doc");
     println!();
     println!("Run with no arguments to execute all CI steps.");
