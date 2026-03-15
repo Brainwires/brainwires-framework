@@ -27,7 +27,7 @@ Priority definitions:
 ---
 
 ## Crate Consolidation
-> **Priority: MEDIUM** — Reduces maintenance surface. All 4 candidates evaluated (22 → 20 crates; 2 merged, 2 kept separate).
+> **Priority: MEDIUM** — Reduces maintenance surface. All 4 candidates evaluated (22 → 19 crates; 3 merged, 2 kept separate).
 
 - [x] **Evaluate collapsing `brainwires-mdap` into `brainwires-agents`** — *Evaluated: skip — too large (6,268 LOC), 3-4 consumers. Keep as separate crate.*
 - [x] **Evaluate collapsing `brainwires-permissions` into `brainwires-core`** — *Evaluated: skip — would bloat core, adds tokio/glob deps. Keep as separate crate.*
@@ -97,7 +97,7 @@ Priority definitions:
 | Section | Items | Priority | Notes |
 |---------|-------|----------|-------|
 | Pre-Release Hygiene | 10 | **High** | Blockers for crates.io publish |
-| Crate Consolidation | 4 | Medium | Complete — 22 → 20 crates (2 merged, 2 kept separate) |
+| Crate Consolidation | 4 | Medium | Complete — 22 → 19 crates (3 merged, 2 kept separate) |
 | Multi-Agent Coordination | 2 | Medium | Retained from previous checklist |
 | Security Hardening | 1 | Medium | Retained from previous checklist |
 | Training Completion | 4 | Medium | New training crate scaffolds |
