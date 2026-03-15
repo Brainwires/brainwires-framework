@@ -49,3 +49,12 @@ wasm = ["brainwires-core/wasm"]
 
 [dev-dependencies]
 tempfile.workspace = true
+tokio = { workspace = true }
+
+[[example]]
+name = "policy_engine"
+required-features = ["native"]
+
+[[example]]
+name = "trust_audit"
+required-features = ["native"]

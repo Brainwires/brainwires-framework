@@ -63,7 +63,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires-training = "0.4"
+brainwires-training = "0.5"
 ```
 
 Submit a cloud fine-tuning job:
@@ -114,11 +114,11 @@ loop {
 ```toml
 # Local training only (no cloud deps)
 [dependencies]
-brainwires-training = { version = "0.4", default-features = false, features = ["local"] }
+brainwires-training = { version = "0.5", default-features = false, features = ["local"] }
 
 # Full — cloud + local
 [dependencies]
-brainwires-training = { version = "0.4", features = ["full"] }
+brainwires-training = { version = "0.5", features = ["full"] }
 ```
 
 ## Architecture
@@ -357,7 +357,7 @@ Use via the `brainwires` facade crate:
 
 ```toml
 [dependencies]
-brainwires = { version = "0.4", features = ["training"] }
+brainwires = { version = "0.5", features = ["training"] }
 ```
 
 Or depend on `brainwires-training` directly for standalone training capabilities. The crate depends on `brainwires-datasets` for data types, so both are pulled in together.

@@ -368,7 +368,41 @@ fn replace_version_in_rs(content: &str, new_version: &str) -> String {
         }
     }
 
-    result
+    // Also handle doc-comment lines that contain markdown-style brainwires version
+    // references (e.g. `//! brainwires = { version = "0.4", ... }`).
+    // These use the same patterns as .md files but live inside .rs files.
+    let new_mm = {
+        let parts: Vec<&str> = new_version.split('.').collect();
+        if parts.len() >= 2 {
+            format!("{}.{}", parts[0], parts[1])
+        } else {
+            new_version.to_string()
+        }
+    };
+    let mut doc_result = String::with_capacity(result.len());
+    for line in result.lines() {
+        let trimmed = line.trim_start();
+        if (trimmed.starts_with("///") || trimmed.starts_with("//!"))
+            && trimmed.contains("brainwires")
+        {
+            let leading_ws = &line[..line.len() - trimmed.len()];
+            let marker = &trimmed[..3];
+            let rest = &trimmed[3..];
+            let updated_rest = replace_brainwires_version_in_line(rest, &new_mm);
+            doc_result.push_str(leading_ws);
+            doc_result.push_str(marker);
+            doc_result.push_str(&updated_rest);
+        } else {
+            doc_result.push_str(line);
+        }
+        doc_result.push('\n');
+    }
+    // Preserve original trailing newline behavior
+    if !result.ends_with('\n') && doc_result.ends_with('\n') {
+        doc_result.pop();
+    }
+
+    doc_result
 }
 
 /// Update version references in Markdown files.
@@ -1417,5 +1451,33 @@ mod tests {
         );
         assert_eq!(file_to_crate("README.md"), None);
         assert_eq!(file_to_crate("xtask/src/main.rs"), None);
+    }
+
+    #[test]
+    fn test_rs_doc_comment_version() {
+        let input = concat!(
+            "//! ```toml\n",
+            "//! brainwires = { version = \"0.2\", features = [\"full\"] }\n",
+            "//! ```\n",
+        );
+        let result = replace_version_in_rs(input, "0.5.0");
+        assert!(
+            result.contains("version = \"0.5\""),
+            "should update doc comment version, got:\n{result}"
+        );
+        assert!(
+            !result.contains("version = \"0.2\""),
+            "should not contain old version"
+        );
+    }
+
+    #[test]
+    fn test_rs_doc_comment_leaves_non_brainwires() {
+        let input = "/// tokio = { version = \"1.43\", features = [\"full\"] }\n";
+        let result = replace_version_in_rs(input, "0.5.0");
+        assert_eq!(
+            result, input,
+            "should not modify non-brainwires doc comments"
+        );
     }
 }

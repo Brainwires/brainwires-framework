@@ -85,19 +85,18 @@ impl RhaiExecutor {
         let output = Arc::new(Mutex::new(Vec::<String>::new()));
         let output_clone = output.clone();
 
-        // Register print function
+        // Capture print and debug output via engine callbacks
         let mut engine = engine;
-        engine.register_fn("print", move |s: &str| {
+        engine.on_print(move |s| {
             if let Ok(mut out) = output_clone.lock() {
                 out.push(s.to_string());
             }
         });
 
-        // Also capture debug output
         let output_clone2 = output.clone();
-        engine.register_fn("debug", move |s: Dynamic| {
+        engine.on_debug(move |s, _src, _pos| {
             if let Ok(mut out) = output_clone2.lock() {
-                out.push(format!("[DEBUG] {:?}", s));
+                out.push(format!("[DEBUG] {}", s));
             }
         });
 

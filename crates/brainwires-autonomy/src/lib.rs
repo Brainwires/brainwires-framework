@@ -31,6 +31,18 @@ pub mod agent_ops;
 #[cfg(feature = "git-workflow")]
 pub mod git_workflow;
 
+#[cfg(feature = "gpio")]
+pub mod gpio;
+
+#[cfg(feature = "scheduler")]
+pub mod scheduler;
+
+#[cfg(feature = "reactor")]
+pub mod reactor;
+
+#[cfg(feature = "services")]
+pub mod services;
+
 pub use config::AutonomyConfig;
 pub use error::AutonomyError;
 pub use metrics::{SessionMetrics, SessionReport};

@@ -7,7 +7,10 @@ use walkdir::WalkDir;
 use super::{ImprovementCategory, ImprovementStrategy, ImprovementTask};
 use crate::config::StrategyConfig;
 
-/// Strategy that identifies files with missing or insufficient test coverage.
+/// Strategy that identifies source files without any test coverage.
+///
+/// Scans for Rust files in `src/` that lack `#[cfg(test)]` or `#[test]` blocks
+/// and have public functions, then generates tasks to add unit tests.
 pub struct TestCoverageStrategy;
 
 #[async_trait]

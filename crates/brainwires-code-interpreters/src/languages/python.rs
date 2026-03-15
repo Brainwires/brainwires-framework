@@ -10,7 +10,7 @@
 //!
 //! ## Limitations
 //! - Slower than CPython (no JIT)
-//! - Some stdlib modules not yet implemented
+//! - Some stdlib modules unavailable
 //! - C extension modules not supported
 
 use rustpython_vm::{

@@ -55,7 +55,7 @@ impl LocalLlmProvider {
         })
     }
 
-    /// Create a new local LLM provider (stub when `llama-cpp-2` feature is disabled).
+    /// Create a new local LLM provider (fallback when `llama-cpp-2` feature is disabled).
     #[cfg(not(feature = "llama-cpp-2"))]
     pub fn new(config: LocalLlmConfig) -> Result<Self> {
         config.validate().map_err(|e| anyhow!(e))?;

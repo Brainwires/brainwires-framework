@@ -1,4 +1,8 @@
 //! Improvement strategies for automated code quality.
+//!
+//! Each strategy scans a repository for a specific class of issue (linting,
+//! dead code, missing docs, test gaps, etc.) and produces [`ImprovementTask`]s
+//! that the controller can execute autonomously.
 
 pub mod clippy;
 pub mod dead_code;
@@ -45,7 +49,7 @@ impl std::fmt::Display for ImprovementCategory {
     }
 }
 
-/// A generated improvement task.
+/// A generated improvement task describing a concrete code quality fix.
 #[derive(Debug, Clone)]
 pub struct ImprovementTask {
     /// Unique task identifier.
@@ -66,7 +70,10 @@ pub struct ImprovementTask {
     pub context: String,
 }
 
-/// Trait for improvement strategies that scan code and generate tasks.
+/// Trait for improvement strategies that scan a repository and generate fix tasks.
+///
+/// Each strategy focuses on a single category (linting, testing, docs, etc.)
+/// and is run by the [`TaskGenerator`](super::TaskGenerator) during a session.
 #[async_trait]
 pub trait ImprovementStrategy: Send + Sync {
     /// Return the strategy name.
@@ -81,7 +88,8 @@ pub trait ImprovementStrategy: Send + Sync {
     ) -> Result<Vec<ImprovementTask>>;
 }
 
-/// Create the default set of all built-in strategies.
+/// Create the default set of all built-in strategies (clippy, todo scanner,
+/// doc gaps, test coverage, refactoring, dead code).
 pub fn all_strategies() -> Vec<Box<dyn ImprovementStrategy>> {
     vec![
         Box::new(clippy::ClippyStrategy),

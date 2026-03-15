@@ -41,7 +41,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires = "0.4"  # default features: tools + agents
+brainwires = "0.5"  # default features: tools + agents
 ```
 
 Then import via the prelude:
@@ -66,7 +66,7 @@ let response = provider.chat(&messages, None, &options).await?;
 | `agents` | **yes** | `brainwires-agents` | Agent runtime, communication hub, task manager, validation loop |
 | `storage` | no | `brainwires-storage` | Unified database layer (9 backends), tiered memory (hot/warm/cold) |
 | `mcp` | no | `brainwires-mcp` | MCP client for connecting to external MCP servers |
-| `mdap` | no | `brainwires-mdap` | Multi-Dimensional Adaptive Planning with k-agent voting |
+| `mdap` | no | `brainwires-agents/mdap` | Multi-Dimensional Adaptive Planning with k-agent voting |
 | `prompting` | no | `brainwires-cognition/prompting` | Prompt generation, technique library, temperature optimizer |
 | `knowledge` | no | `brainwires-cognition/knowledge` | Behavioral + personal knowledge caches (implies `brain`) |
 | `permissions` | no | `brainwires-permissions` | Capability profiles, trust levels, policy engine, audit logging |
@@ -138,7 +138,7 @@ let response = provider.chat(&messages, None, &options).await?;
 
 ```toml
 [dependencies]
-brainwires = { version = "0.4", features = ["agent-full"] }
+brainwires = { version = "0.5", features = ["agent-full"] }
 ```
 
 ```rust
@@ -163,7 +163,7 @@ let validation = ValidationConfig {
 
 ```toml
 [dependencies]
-brainwires = { version = "0.4", features = ["rag", "mcp-server"] }
+brainwires = { version = "0.5", features = ["rag", "mcp-server"] }
 ```
 
 ```rust
@@ -181,7 +181,7 @@ async fn main() -> anyhow::Result<()> {
 
 ```toml
 [dependencies]
-brainwires = { version = "0.4", features = ["rag"] }
+brainwires = { version = "0.5", features = ["rag"] }
 ```
 
 ```rust
@@ -200,7 +200,7 @@ for result in results {
 
 ```toml
 [dependencies]
-brainwires = { version = "0.4", features = ["learning"] }
+brainwires = { version = "0.5", features = ["learning"] }
 ```
 
 ```rust

@@ -37,7 +37,10 @@ impl Default for EvalStrategyConfig {
     }
 }
 
-/// Strategy that runs an eval suite and converts faults into improvement tasks.
+/// Strategy that runs an eval suite and converts detected faults into improvement tasks.
+///
+/// Uses `brainwires-eval` to run evaluation cases, compare against baselines,
+/// and produce tasks targeting consistently failing or regressing cases.
 pub struct EvalStrategy {
     cases: Vec<Arc<dyn EvaluationCase>>,
     eval_config: EvalStrategyConfig,

@@ -112,6 +112,9 @@ impl PerformanceMetrics {
 }
 
 /// Monitors agent health by tracking performance metrics and detecting degradation.
+///
+/// Checks for missed heartbeats, high error rates, and stalled agents,
+/// producing [`DegradationSignal`]s that the supervisor can act on.
 pub struct HealthMonitor {
     agents: HashMap<String, AgentHealth>,
     config: HealthMonitorConfig,

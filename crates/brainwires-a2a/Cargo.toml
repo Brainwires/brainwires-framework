@@ -61,3 +61,7 @@ full = ["native", "grpc-client", "grpc-server"]
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }
 tempfile = { workspace = true }
+serde_json = { workspace = true }
+
+[[example]]
+name = "agent_card"

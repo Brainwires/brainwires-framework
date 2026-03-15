@@ -1,4 +1,8 @@
 //! End-to-end Git workflow pipeline orchestrator.
+//!
+//! Coordinates the full autonomous issue-to-merge lifecycle: receiving workflow
+//! events, investigating issues with AI, creating fix branches, applying changes,
+//! opening PRs, and evaluating merge policies.
 
 use std::sync::Arc;
 
@@ -16,6 +20,9 @@ use crate::config::GitWorkflowConfig;
 use crate::safety::{ApprovalPolicy, AutonomousOperation};
 
 /// The end-to-end pipeline: trigger -> investigate -> branch -> fix -> PR -> merge.
+///
+/// Combines an AI provider, Git forge, merge policy, and approval policy to
+/// autonomously process issues and produce pull requests.
 pub struct GitWorkflowPipeline {
     config: GitWorkflowConfig,
     forge: Arc<dyn GitForge>,

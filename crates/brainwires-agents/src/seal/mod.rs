@@ -356,7 +356,7 @@ impl SealProcessor {
     /// This method records MDAP execution patterns to help improve
     /// future task decomposition and voting strategies.
     #[cfg(feature = "seal-mdap")]
-    pub fn record_mdap_metrics(&mut self, metrics: &brainwires_mdap::MdapMetrics) {
+    pub fn record_mdap_metrics(&mut self, metrics: &crate::mdap::MdapMetrics) {
         if !self.config.enable_learning {
             return;
         }

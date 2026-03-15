@@ -515,7 +515,7 @@ mod tests {
             api_key: "bw_prod_test123".to_string(),
             hostname: "my-laptop".to_string(),
             os: "linux".to_string(),
-            version: "0.4.0".to_string(),
+            version: "0.5.0".to_string(),
             protocol: None,
         };
 
@@ -530,7 +530,7 @@ mod tests {
             api_key: "bw_prod_test123".to_string(),
             hostname: "my-laptop".to_string(),
             os: "linux".to_string(),
-            version: "0.4.0".to_string(),
+            version: "0.5.0".to_string(),
             protocol: Some(ProtocolHello::default()),
         };
 

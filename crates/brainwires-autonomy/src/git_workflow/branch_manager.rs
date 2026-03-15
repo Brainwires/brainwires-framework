@@ -13,7 +13,9 @@ pub struct BranchInfo {
     pub worktree_path: Option<String>,
 }
 
-/// Manages branch creation for autonomous fix workflows.
+/// Manages branch creation, pushing, and cleanup for autonomous fix workflows.
+///
+/// Branches are named using a configurable prefix, issue number, and sanitized slug.
 pub struct BranchManager {
     branch_prefix: String,
 }
@@ -25,6 +27,9 @@ impl BranchManager {
     }
 
     /// Create a branch name from an issue number and slug.
+    ///
+    /// The slug is lowercased, non-alphanumeric characters replaced with hyphens,
+    /// and truncated to 40 characters.
     pub fn branch_name(&self, issue_number: u64, slug: &str) -> String {
         let clean_slug: String = slug
             .to_lowercase()
@@ -39,7 +44,7 @@ impl BranchManager {
         )
     }
 
-    /// Create a new branch from the current HEAD.
+    /// Create a new branch from a base branch, fetching latest from origin first.
     pub async fn create_branch(
         &self,
         repo_path: &str,
@@ -93,7 +98,7 @@ impl BranchManager {
         Ok(())
     }
 
-    /// Clean up a branch after merge.
+    /// Delete a branch both locally and on the remote (best-effort cleanup).
     pub async fn delete_branch(&self, repo_path: &str, branch_name: &str) -> anyhow::Result<()> {
         let _ = tokio::process::Command::new("git")
             .args(["branch", "-D", branch_name])

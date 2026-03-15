@@ -743,7 +743,7 @@ fn json_row_to_record(row: &serde_json::Value) -> Record {
 
     let mut record = Vec::with_capacity(obj.len());
     for (key, val) in obj {
-        // Skip SurrealDB internal `id` field (record link like `table:xxx`).
+        // Skip SurrealDB internal `id` field (record link like `table:ID`).
         if key == "id" {
             // Still include it but as a string.
             let id_str = match val {

@@ -6,6 +6,9 @@
 
 pub mod comparator;
 pub mod controller;
+pub mod crash_diagnostics;
+pub mod crash_handler;
+pub mod recovery_state;
 pub mod strategies;
 pub mod task_generator;
 
@@ -14,6 +17,8 @@ pub mod feedback_loop;
 
 pub use comparator::{Comparator, ComparisonResult, PathResult};
 pub use controller::{CycleResult, SelfImprovementController};
+pub use crash_handler::{CrashHandler, FixStrategy, RecoveryPlan};
+pub use recovery_state::{CrashContext, CycleCheckpoint, GitState, RecoveryState};
 pub use strategies::{ImprovementCategory, ImprovementStrategy, ImprovementTask};
 pub use task_generator::TaskGenerator;
 

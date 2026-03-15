@@ -102,8 +102,8 @@ Only leaf crates fully verify in dry-run mode (later layers can't resolve deps n
 ```
 
 The script handles:
-- **Dependency ordering** — 7 layers, 19 crates, leaves first, facade last
-- **Rate limiting** — burst 30 at once, then 1/min (19 crates fits in burst)
+- **Dependency ordering** — 7 layers, 18 crates, leaves first, facade last
+- **Rate limiting** — burst 30 at once, then 1/min (18 crates fits in burst)
 - **Idempotency** — already-published versions are skipped automatically
 - **Tagging** — creates and pushes `vX.Y.Z` git tag on success
 
@@ -112,7 +112,7 @@ The script handles:
 | Layer | Crates |
 |-------|--------|
 | 1 | brainwires-core, brainwires-a2a, brainwires-code-interpreters, brainwires-skills |
-| 2 | brainwires-mcp, brainwires-mdap, brainwires-permissions, brainwires-datasets, brainwires-providers, brainwires-storage |
+| 2 | brainwires-mcp, brainwires-permissions, brainwires-datasets, brainwires-providers, brainwires-storage |
 | 3 | brainwires-cognition |
 | 4 | brainwires-tool-system, brainwires-agent-network, brainwires-audio, brainwires-training |
 | 5 | brainwires-agents, brainwires-wasm |

@@ -53,8 +53,8 @@ pub enum TrainingError {
     #[cfg(feature = "cloud")]
     Http(#[from] reqwest::Error),
 
-    /// Feature not yet implemented for a provider.
-    #[error("{provider}: {feature} is not yet implemented")]
+    /// Feature unsupported by a provider.
+    #[error("{provider}: {feature} is unsupported")]
     NotImplemented {
         /// Provider name.
         provider: String,

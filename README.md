@@ -4,7 +4,7 @@ A modular Rust framework for building AI agents with multi-provider support, too
 
 ## Overview
 
-The Brainwires Framework is a workspace of 19 framework crates plus 7 extras that provide everything needed to build, train, deploy, and coordinate AI agents. Each framework crate is independently publishable to crates.io and usable standalone, but they compose together through the `brainwires` facade crate for a batteries-included experience.
+The Brainwires Framework is a workspace of 19 framework crates plus 6 extras that provide everything needed to build, train, deploy, and coordinate AI agents. Each framework crate is independently publishable to crates.io and usable standalone, but they compose together through the `brainwires` facade crate for a batteries-included experience.
 
 **[Full feature list](FEATURES.md)** | **Key capabilities:**
 
@@ -52,7 +52,6 @@ The Brainwires Framework is a workspace of 19 framework crates plus 7 extras tha
 | [**brainwires-providers**](crates/brainwires-providers/README.md) | Multi-provider AI interface (Anthropic, OpenAI, Google, Ollama, local LLMs) |
 | [**brainwires-tool-system**](crates/brainwires-tool-system/README.md) | Tool definitions and execution for AI model interactions |
 | [**brainwires-agents**](crates/brainwires-agents/README.md) | Multi-agent orchestration, task decomposition, file lock coordination |
-| [**brainwires-mdap**](crates/brainwires-mdap/README.md) | Multi-Dimensional Adaptive Planning — k-agent voting for reliable execution |
 | [**brainwires-cognition**](crates/brainwires-cognition/README.md) | Knowledge (BKS/PKS, entity graphs), prompting (technique library, clustering), and RAG (code search, hybrid retrieval) |
 | [**brainwires-storage**](crates/brainwires-storage/README.md) | Unified database layer (9 backends), tiered memory, semantic search |
 | [**brainwires-permissions**](crates/brainwires-permissions/README.md) | Permission policies (auto, ask, reject) for tool execution |
@@ -94,14 +93,14 @@ The simplest way to use the framework is through the `brainwires` facade crate, 
 
 ```toml
 [dependencies]
-brainwires = "0.4"  # defaults: tools + agents
+brainwires = "0.5"  # defaults: tools + agents
 ```
 
 Enable only what you need:
 
 ```toml
 [dependencies]
-brainwires = { version = "0.4", features = ["providers", "rag"] }
+brainwires = { version = "0.5", features = ["providers", "rag"] }
 ```
 
 ### Using Individual Crates
@@ -110,9 +109,9 @@ Each crate is independently publishable and usable:
 
 ```toml
 [dependencies]
-brainwires-core = "0.4"
-brainwires-providers = "0.4"
-brainwires-agents = "0.4"
+brainwires-core = "0.5"
+brainwires-providers = "0.5"
+brainwires-agents = "0.5"
 ```
 
 ### Minimal Example
@@ -191,8 +190,6 @@ cargo test -p brainwires-core
   │   ├── brainwires-core
   │   ├── brainwires-tool-system
   │   └── brainwires-cognition (seal-knowledge feature)
-  ├── brainwires-mdap
-  │   └── brainwires-core
   ├── brainwires-cognition
   │   ├── brainwires-core
   │   └── brainwires-storage (knowledge feature)

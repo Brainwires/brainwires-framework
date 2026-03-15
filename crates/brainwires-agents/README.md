@@ -48,7 +48,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires-agents = "0.4"
+brainwires-agents = "0.5"
 ```
 
 Spawn a task agent via the pool:
@@ -86,7 +86,8 @@ println!("{} iterations, success={}", result.iterations, result.success);
 | `native` | Yes | Git worktree management (`git2`) and process liveness checking (`libc`) |
 | `wasm` | No | WebAssembly-compatible build (disables native-only functionality) |
 | `seal` | No | SEAL pipeline: coreference resolution, query extraction, learning, reflection |
-| `seal-mdap` | No | MDAP metric recording for SEAL via `brainwires-mdap` |
+| `mdap` | No | MDAP: Multi-Dimensional Adaptive Planning — k-agent voting, microagent decomposition, red flags |
+| `seal-mdap` | No | MDAP metric recording for SEAL (enables `seal` + `mdap`) |
 | `seal-knowledge` | No | BKS/PKS knowledge system integration for SEAL via `brainwires-cognition` |
 | `seal-feedback` | No | Audit feedback bridge for SEAL via `brainwires-permissions` |
 | `reasoning` | No | Named reasoning strategies (ReAct, Reflexion, CoT, ToT) and local inference |
@@ -97,10 +98,10 @@ Enable features in `Cargo.toml`:
 
 ```toml
 # Default (native)
-brainwires-agents = "0.4"
+brainwires-agents = "0.5"
 
 # WebAssembly target
-brainwires-agents = { version = "0.4", default-features = false, features = ["wasm"] }
+brainwires-agents = { version = "0.5", default-features = false, features = ["wasm"] }
 ```
 
 ## Architecture
@@ -461,7 +462,7 @@ assert!(result.success);
 Named reasoning patterns behind the `reasoning` feature flag:
 
 ```toml
-brainwires-agents = { version = "0.4", features = ["reasoning"] }
+brainwires-agents = { version = "0.5", features = ["reasoning"] }
 ```
 
 ```rust
@@ -498,7 +499,7 @@ assert!(strategy.is_complete(&steps));
 Export agent execution traces to Jaeger, Datadog, Grafana, or any OpenTelemetry-compatible backend. Requires the `otel` feature:
 
 ```toml
-brainwires-agents = { version = "0.4", features = ["otel"] }
+brainwires-agents = { version = "0.5", features = ["otel"] }
 ```
 
 ```rust
@@ -534,10 +535,10 @@ SEAL implements a research-backed framework for enhancing conversational questio
 
 ```toml
 # Core SEAL pipeline
-brainwires-agents = { version = "0.4", features = ["seal"] }
+brainwires-agents = { version = "0.5", features = ["seal"] }
 
 # With knowledge system integration
-brainwires-agents = { version = "0.4", features = ["seal-knowledge"] }
+brainwires-agents = { version = "0.5", features = ["seal-knowledge"] }
 ```
 
 ### Pipeline
@@ -661,10 +662,10 @@ Use via the `brainwires` facade crate:
 
 ```toml
 [dependencies]
-brainwires = { version = "0.4", features = ["agents"] }
+brainwires = { version = "0.5", features = ["agents"] }
 
 # With SEAL
-brainwires = { version = "0.4", features = ["agents", "seal"] }
+brainwires = { version = "0.5", features = ["agents", "seal"] }
 ```
 
 Or use standalone — `brainwires-agents` depends only on `brainwires-core` and `brainwires-tool-system`.

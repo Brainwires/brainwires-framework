@@ -107,6 +107,10 @@ pub mod otel;
 #[cfg(feature = "eval")]
 pub mod eval;
 
+// ── MDAP: Multi-Dimensional Adaptive Planning (merged from brainwires-mdap) ──
+#[cfg(feature = "mdap")]
+pub mod mdap;
+
 // ── SEAL: Self-Evolving Agentic Learning ─────────────────────────────────
 #[cfg(feature = "seal")]
 pub mod seal;

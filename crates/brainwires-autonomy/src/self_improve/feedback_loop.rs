@@ -133,6 +133,10 @@ impl FeedbackLoopReport {
 }
 
 /// Orchestrates the eval -> fix -> verify cycle autonomously.
+///
+/// Each round: runs the eval suite to find faults, uses the self-improvement
+/// controller to fix them, re-runs the suite to verify improvement, and
+/// optionally updates baselines when scores improve above threshold.
 pub struct AutonomousFeedbackLoop {
     config: FeedbackLoopConfig,
     cases: Vec<Arc<dyn EvaluationCase>>,

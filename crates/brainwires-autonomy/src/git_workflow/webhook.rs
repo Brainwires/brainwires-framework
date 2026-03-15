@@ -25,6 +25,9 @@ struct WebhookState {
 }
 
 /// Axum-based webhook server for receiving Git forge events.
+///
+/// Verifies HMAC signatures (SHA-256 or SHA-1), parses GitHub event payloads,
+/// deduplicates active investigations, and forwards events to the pipeline.
 pub struct WebhookServer {
     listen_addr: String,
     port: u16,

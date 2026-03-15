@@ -1,6 +1,6 @@
 # Brainwires Framework — Complete Feature List
 
-A comprehensive catalog of every feature provided by the framework's 19 crates and 7 extras.
+A comprehensive catalog of every feature provided by the framework's 18 crates and 6 extras.
 
 ---
 
@@ -285,7 +285,7 @@ MCP server framework, IPC, remote relay, and agent management.
 
 ## MDAP Voting
 
-**Crate:** `brainwires-mdap`
+**Crate:** `brainwires-agents` (feature `mdap`)
 
 Multi-Dimensional Adaptive Planning implementing the MAKER paper.
 

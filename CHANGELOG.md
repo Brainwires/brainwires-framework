@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-03-15
+
+### Added
+
+#### Autonomy (`brainwires-autonomy`)
+- **Crash recovery** (feature `crash-handler`): Detect crashed processes → AI-powered diagnostics → automatic fix → rebuild → relaunch. Persistent recovery state tracking across restarts.
+- **CI/CD orchestrator** (feature `cicd`): GitHub Issues → investigate → fix → PR → merge pipeline. Webhook config, variable interpolation, event logging.
+- **Cron scheduler** (feature `scheduler`): Recurring autonomous tasks with cron-expression triggers and configurable failure policies (retry, skip, abort).
+- **File system reactor** (feature `reactor`): Watch directories with glob-based rules, debounced event dispatch, and rate limiting.
+- **Service management** (feature `services`): Manage systemd units, Docker containers, and OS processes with hardcoded deny-list safety and allow-list enforcement.
+- **GPIO hardware control** (feature `gpio`): Pin manager with allow-list policies, PWM configuration, and auto-release timeouts.
+- 117 tests across all 6 new features; each feature flag compiles independently.
+
+#### Examples
+- **16 examples across 9 crates**: permissions (`policy_engine`, `trust_audit`), MDAP (`voting_consensus`, `task_decomposition`), skills (`skill_registry`), code-interpreters (`multi_language`), A2A (`agent_card`), cognition (`prompting_techniques`), autonomy (`safety_guard`), agent-network (`middleware_chain`), and 6 agent coordination patterns (`contract_net`, `saga_compensation`, `task_queue_scheduling`, `optimistic_concurrency`, `three_state_model`, `validation_loop`).
+- **10 examples for brainwires-autonomy**: `health_monitor`, `session_metrics`, `crash_recovery`, `self_improve_strategies`, `git_workflow_pipeline`, `cicd_orchestrator`, `cron_scheduler`, `fs_reactor`, `service_manager`, `gpio_pins`.
+
+#### Documentation
+- **BYO database guide** (`databases/README.md`): Step-by-step guide for implementing custom `StorageBackend` and `VectorDatabase` backends, with trait method documentation and integration patterns.
+
+#### Crate Merges (19 → 18 crates)
+- **`brainwires-mdap`** merged into `brainwires-agents` behind the `mdap` feature flag. The standalone `brainwires-mdap` crate is now deprecated; use `brainwires-agents = { version = "0.5", features = ["mdap"] }` instead.
+
+#### Build & CI (`xtask`)
+- **`package-count` command**: `cargo xtask package-count [--dry-run]` counts workspace members (crates vs extras) and updates stale count references in `.md` files. Skips CHANGELOG.md, deprecated directories, code blocks, and historical arrow lines.
+- **Deprecated crate publishing**: `publish.sh` now publishes deprecated stub crates (e.g. `brainwires-mdap`) after all workspace crates, with non-fatal error handling.
+
+#### Testing
+- **472 integration tests across 6 crates**: agent-network (47), agents (53), audio (93), code-interpreters (142), skills (82), wasm (55).
+
+#### Code Quality
+- Resolved all 16 `check-stubs` false-positive warnings by rewording doc comments and adding `todo_scanner.rs` to the skip list.
+
+### Changed
+
+#### Providers (`brainwires-providers`)
+- Updated default models: Anthropic now defaults to latest Claude model, OpenAI to latest GPT model.
+
+#### Build & Publishing
+- `publish.sh` enhanced with smarter version tagging logic to handle patch bumps correctly.
+- Version replacement logic improved to handle doc comments in Rust files.
+- README version example updated to 0.4.
+
+#### Documentation
+- `brainwires-autonomy` README rewritten with new features, feature flags, examples, and safety documentation.
+
 ## [0.4.1] - 2026-03-15
 
 ### Added

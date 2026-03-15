@@ -1,4 +1,7 @@
 //! Git forge abstraction — GitHub, GitLab, Gitea, etc.
+//!
+//! Defines the [`GitForge`] trait for interacting with Git hosting platforms and
+//! provides a [`GitHubForge`] implementation using the GitHub REST API.
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -107,7 +110,7 @@ pub struct CreatePrParams {
     pub draft: bool,
 }
 
-/// Merge method.
+/// Merge method for pull requests.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MergeMethod {
     /// Standard merge commit.
@@ -152,6 +155,9 @@ pub struct CheckRun {
 }
 
 /// Abstract interface over Git forges (GitHub, GitLab, Gitea, etc.).
+///
+/// Implementations handle issue retrieval, PR creation/merging, CI status checks,
+/// and review requests for a specific forge platform.
 #[async_trait]
 pub trait GitForge: Send + Sync {
     /// Forge name (e.g. "github", "gitlab").

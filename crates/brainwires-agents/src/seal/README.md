@@ -17,19 +17,19 @@ SEAL was previously a standalone crate (`brainwires-seal`). It was moved here be
 | Feature | Description |
 |---------|-------------|
 | `seal` | Core SEAL pipeline (coreference, query extraction, learning, reflection) |
-| `seal-mdap` | MDAP metric recording via `brainwires-mdap` |
+| `seal-mdap` | MDAP metric recording via `mdap` feature |
 | `seal-knowledge` | BKS/PKS knowledge system integration via `brainwires-cognition` |
 | `seal-feedback` | Audit feedback bridge via `brainwires-permissions` |
 
 ```toml
 # Core SEAL
-brainwires-agents = { version = "0.4", features = ["seal"] }
+brainwires-agents = { version = "0.5", features = ["seal"] }
 
 # With knowledge integration
-brainwires-agents = { version = "0.4", features = ["seal-knowledge"] }
+brainwires-agents = { version = "0.5", features = ["seal-knowledge"] }
 
 # Via the brainwires facade
-brainwires = { version = "0.4", features = ["seal"] }
+brainwires = { version = "0.5", features = ["seal"] }
 ```
 
 ## Architecture

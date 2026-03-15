@@ -42,7 +42,7 @@ The framework is trait-based: implement a trait, pass it to the component, done.
 | `ToolExecutor` | `execute`, `available_tools` | Custom tool execution backend |
 | `ToolPreHook` | `before_execute` | Pre-execution tool gate |
 
-### MDAP Traits (brainwires-mdap)
+### MDAP Traits (brainwires-agents, feature `mdap`)
 
 | Trait | Required Methods | Purpose |
 |-------|-----------------|---------|
@@ -227,7 +227,7 @@ The facade crate (`brainwires`) gates each subsystem behind a feature flag.
 
 ```toml
 [dependencies]
-brainwires = { version = "0.4", features = ["researcher"] }
+brainwires = { version = "0.5", features = ["researcher"] }
 ```
 
 This enables: `providers`, `agents`, `storage`, `rag`, `training`, `datasets`.
@@ -240,7 +240,7 @@ This enables: `providers`, `agents`, `storage`, `rag`, `training`, `datasets`.
 | `agents` | `brainwires-agents` | brainwires-tool-system |
 | `storage` | `brainwires-storage` (with native) | lancedb, arrow, fastembed |
 | `mcp` | `brainwires-mcp` | rmcp |
-| `mdap` | `brainwires-mdap` | — |
+| `mdap` | `brainwires-agents/mdap` | — |
 | `prompting` | `brainwires-prompting` | linfa-clustering, ndarray |
 | `permissions` | `brainwires-permissions` | — |
 | `rag` | `brainwires-rag` (with native, lancedb) | lancedb, tantivy, tree-sitter |
@@ -283,7 +283,6 @@ brainwires (facade)
   ├── brainwires-providers           ← Anthropic, OpenAI, Google, Ollama
   ├── brainwires-rag                 ← Chunker, SearchScorer, VectorDatabase
   ├── brainwires-storage             ← TieredMemory, LanceDB stores
-  ├── brainwires-mdap                ← Multi-agent voting/decomposition
   ├── brainwires-training            ← Fine-tuning backends
   └── brainwires-datasets            ← Dataset containers, format converters
 ```

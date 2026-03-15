@@ -53,6 +53,26 @@ pub enum AutonomyError {
     #[error("Merge policy error: {0}")]
     MergePolicyError(String),
 
+    /// Crash recovery error.
+    #[error("Crash recovery error: {0}")]
+    CrashRecoveryError(String),
+
+    /// GPIO hardware access error.
+    #[error("GPIO error: {0}")]
+    GpioError(String),
+
+    /// Scheduler error.
+    #[error("Scheduler error: {0}")]
+    SchedulerError(String),
+
+    /// File system reactor error.
+    #[error("Reactor error: {0}")]
+    ReactorError(String),
+
+    /// System service management error.
+    #[error("Service error: {0}")]
+    ServiceError(String),
+
     /// Other unclassified error.
     #[error("{0}")]
     Other(#[from] anyhow::Error),
@@ -125,6 +145,30 @@ mod tests {
         assert_eq!(
             AutonomyError::MergePolicyError("blocked".to_string()).to_string(),
             "Merge policy error: blocked"
+        );
+    }
+
+    #[test]
+    fn display_new_error_variants() {
+        assert_eq!(
+            AutonomyError::CrashRecoveryError("meta-crash".to_string()).to_string(),
+            "Crash recovery error: meta-crash"
+        );
+        assert_eq!(
+            AutonomyError::GpioError("pin busy".to_string()).to_string(),
+            "GPIO error: pin busy"
+        );
+        assert_eq!(
+            AutonomyError::SchedulerError("bad cron".to_string()).to_string(),
+            "Scheduler error: bad cron"
+        );
+        assert_eq!(
+            AutonomyError::ReactorError("watch failed".to_string()).to_string(),
+            "Reactor error: watch failed"
+        );
+        assert_eq!(
+            AutonomyError::ServiceError("denied".to_string()).to_string(),
+            "Service error: denied"
         );
     }
 }
