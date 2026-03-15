@@ -76,7 +76,7 @@ use brainwires_core::message::Message;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let provider = AnthropicProvider::new("sk-ant-...".into(), "claude-3-5-sonnet-20241022".into());
+    let provider = AnthropicProvider::new("sk-ant-...".into(), "claude-sonnet-4-20250514".into());
 
     let messages = vec![Message::user("Explain the borrow checker in one sentence.")];
     let options = ChatOptions::default();
@@ -143,11 +143,11 @@ Enum identifying the AI provider backend.
 
 | Variant | `as_str()` | `default_model()` |
 |---------|-----------|-------------------|
-| `Anthropic` | `"anthropic"` | `claude-3-5-sonnet-20241022` |
-| `OpenAI` | `"openai"` | `gpt-4o` |
-| `Google` | `"google"` | `gemini-2.0-flash-exp` |
-| `Ollama` | `"ollama"` | `llama3.1` |
-| `Custom` | `"custom"` | `claude-3-5-sonnet-20241022` |
+| `Anthropic` | `"anthropic"` | `claude-sonnet-4-20250514` |
+| `OpenAI` | `"openai"` | `gpt-5-mini` |
+| `Google` | `"google"` | `gemini-2.5-flash` |
+| `Ollama` | `"ollama"` | `llama3.3` |
+| `Custom` | `"custom"` | `claude-sonnet-4-20250514` |
 
 `FromStr` also accepts aliases: `"gemini"` maps to `Google`, `"brainwires"` maps to `Custom`.
 
@@ -426,7 +426,7 @@ use brainwires_providers::{OpenAIProvider, Provider, ChatOptions};
 use brainwires_core::message::{Message, StreamChunk};
 use futures::StreamExt;
 
-let provider = OpenAIProvider::new("sk-...".into(), "gpt-4o".into());
+let provider = OpenAIProvider::new("sk-...".into(), "gpt-5-mini".into());
 
 let messages = vec![Message::user("Write a haiku about Rust.")];
 let options = ChatOptions::default();
@@ -450,7 +450,7 @@ use brainwires_providers::{AnthropicProvider, Provider, ChatOptions};
 use brainwires_core::message::Message;
 use brainwires_core::tool::Tool;
 
-let provider = AnthropicProvider::new("sk-ant-...".into(), "claude-3-5-sonnet-20241022".into());
+let provider = AnthropicProvider::new("sk-ant-...".into(), "claude-sonnet-4-20250514".into());
 
 let tools = vec![Tool {
     name: "get_weather".into(),
@@ -501,7 +501,7 @@ use brainwires_core::message::Message;
 // Create provider with 60 requests-per-minute limit
 let provider = AnthropicProvider::with_rate_limit(
     "sk-ant-...".into(),
-    "claude-3-5-sonnet-20241022".into(),
+    "claude-sonnet-4-20250514".into(),
     60,
 );
 
@@ -514,11 +514,11 @@ let response = provider.chat(&messages, None, &ChatOptions::default()).await?;
 ```rust
 use brainwires_providers::{ProviderType, ProviderConfig};
 
-let config = ProviderConfig::new(ProviderType::OpenAI, "gpt-4o".into())
+let config = ProviderConfig::new(ProviderType::OpenAI, "gpt-5-mini".into())
     .with_api_key("sk-...")
     .with_base_url("https://custom-openai-proxy.example.com/v1");
 
-assert_eq!(config.provider.default_model(), "gpt-4o");
+assert_eq!(config.provider.default_model(), "gpt-5-mini");
 assert_eq!(config.provider.as_str(), "openai");
 
 // Parse provider from string
