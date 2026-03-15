@@ -7,19 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+#### Autonomy (`brainwires-autonomy`)
+- **Crash recovery** (feature `crash-handler`): Detect crashed processes → AI-powered diagnostics → automatic fix → rebuild → relaunch. Persistent recovery state tracking across restarts.
+- **CI/CD orchestrator** (feature `cicd`): GitHub Issues → investigate → fix → PR → merge pipeline. Webhook config, variable interpolation, event logging.
+- **Cron scheduler** (feature `scheduler`): Recurring autonomous tasks with cron-expression triggers and configurable failure policies (retry, skip, abort).
+- **File system reactor** (feature `reactor`): Watch directories with glob-based rules, debounced event dispatch, and rate limiting.
+- **Service management** (feature `services`): Manage systemd units, Docker containers, and OS processes with hardcoded deny-list safety and allow-list enforcement.
+- **GPIO hardware control** (feature `gpio`): Pin manager with allow-list policies, PWM configuration, and auto-release timeouts.
+- 117 tests across all 6 new features; each feature flag compiles independently.
+
+#### Examples
+- **16 examples across 9 crates**: permissions (`policy_engine`, `trust_audit`), MDAP (`voting_consensus`, `task_decomposition`), skills (`skill_registry`), code-interpreters (`multi_language`), A2A (`agent_card`), cognition (`prompting_techniques`), autonomy (`safety_guard`), agent-network (`middleware_chain`), and 6 agent coordination patterns (`contract_net`, `saga_compensation`, `task_queue_scheduling`, `optimistic_concurrency`, `three_state_model`, `validation_loop`).
+- **10 examples for brainwires-autonomy**: `health_monitor`, `session_metrics`, `crash_recovery`, `self_improve_strategies`, `git_workflow_pipeline`, `cicd_orchestrator`, `cron_scheduler`, `fs_reactor`, `service_manager`, `gpio_pins`.
+
+#### Documentation
+- **BYO database guide** (`databases/README.md`): Step-by-step guide for implementing custom `StorageBackend` and `VectorDatabase` backends, with trait method documentation and integration patterns.
+
 ### Changed
+
+#### Providers (`brainwires-providers`)
+- Updated default models: Anthropic now defaults to latest Claude model, OpenAI to latest GPT model.
 
 #### Build & Publishing
 - `publish.sh` enhanced with smarter version tagging logic to handle patch bumps correctly.
+- Version replacement logic improved to handle doc comments in Rust files.
+- README version example updated to 0.4.
+
+#### Documentation
+- `brainwires-autonomy` README rewritten with new features, feature flags, examples, and safety documentation.
 
 ## [0.4.1] - 2026-03-15
 
 ### Added
 
 #### Storage (`brainwires-storage`)
-- **`PostgresDatabase` StorageBackend impl**: `FieldValue`→`ToSql` conversion, `vector_search` via pgvector `<=>` operator, row parsing via column type metadata.
-- **`MySqlDatabase` backend** via `mysql_async`: Full `StorageBackend` implementation with client-side cosine similarity for `vector_search` (MySQL lacks native vector type). New `mysql-backend` feature flag.
-- **`SurrealDatabase` backend** via `surrealdb` 2.x SDK: Both `StorageBackend` and `VectorDatabase` with native MTREE KNN vector search. New `surrealdb-backend` feature flag.
+- **`PostgresDatabase` StorageBackend impl** (1900+ lines across all 3 backends):
+  - `FieldValue`→`ToSql` type conversion for all 9 field types (including `pgvector::Vector` for embedding columns).
+  - `vector_search` via pgvector `<=>` (cosine distance) operator with parameterized SQL.
+  - `row_to_record` parser using `tokio_postgres` column type metadata (`Type::TEXT`, `Type::INT4`, `Type::FLOAT8`, `Type::BOOL`, etc.) with automatic pgvector detection for unknown types.
+  - Helper functions `field_values_to_params` and `params_as_refs` for ergonomic boxed `ToSql` parameter handling.
+  - Full `create_table`, `insert`, `query`, `update`, `delete`, `vector_search` implementations via the shared `PostgresDialect` SQL generator.
+- **`MySqlDatabase` backend** via `mysql_async` (~490 lines):
+  - Full `StorageBackend` implementation with connection pooling (`mysql_async::Pool`).
+  - Connectivity verification on construction (ping + disconnect handshake).
+  - Vector columns stored as JSON arrays; `vector_search` performs client-side cosine similarity since MySQL lacks native vector types.
+  - SQL generation via the shared `MySqlDialect`.
+  - New `mysql-backend` feature flag with `mysql_async` dependency.
+- **`SurrealDatabase` backend** via `surrealdb` 2.x SDK (~1160 lines):
+  - Both `StorageBackend` and `VectorDatabase` trait implementations.
+  - Native MTREE KNN vector search with cosine distance using SurrealDB's vector indexing.
+  - `with_config()` constructor for explicit credentials; default `new()` uses `root`/`root`.
+  - Client-side BM25 scoring for hybrid (vector + keyword) queries via shared `bm25_helpers`.
+  - Glob-based file path filtering via shared `glob_utils`.
+  - `DatabaseStats`, `ChunkMetadata`, and `SearchResult` type support for full RAG compatibility.
+  - New `surrealdb-backend` feature flag with `surrealdb` dependency.
 
 #### Build & CI (`xtask`)
 - **Smart version bumping**: Full workspace-aware version bump system with:
@@ -39,6 +82,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SQL dialect files (`sql/mysql.rs`, `sql/surrealdb.rs`) retained for future use.
 
 ### Changed
+
+#### Storage (`brainwires-storage`)
+- `databases/mod.rs` updated with conditional module exports for `mysql` and `surrealdb` behind their respective feature flags.
+- `lib.rs` updated to re-export new database modules.
+- `sql/mod.rs` documentation updated to reference all three SQL dialect implementations.
+- README updated with MySQL and SurrealDB backend entries in the database matrix.
+
+#### Dependencies
+- Added `mysql_async` (feature `mysql-backend`) for MySQL/MariaDB connection pooling.
+- Added `surrealdb` (feature `surrealdb-backend`) for SurrealDB 2.x SDK integration.
 
 #### Documentation
 - Updated `PUBLISHING.md` with smart version bump instructions and `check-stubs` checklist wording.
