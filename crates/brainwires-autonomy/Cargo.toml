@@ -87,3 +87,41 @@ full = ["self-improve", "eval-driven", "supervisor", "attention", "parallel", "t
 
 [[example]]
 name = "safety_guard"
+
+[[example]]
+name = "health_monitor"
+
+[[example]]
+name = "session_metrics"
+
+[[example]]
+name = "crash_recovery"
+required-features = ["self-improve"]
+
+[[example]]
+name = "self_improve_strategies"
+required-features = ["self-improve"]
+
+[[example]]
+name = "git_workflow_pipeline"
+required-features = ["git-workflow"]
+
+[[example]]
+name = "cicd_orchestrator"
+required-features = ["webhook"]
+
+[[example]]
+name = "cron_scheduler"
+required-features = ["scheduler"]
+
+[[example]]
+name = "fs_reactor"
+required-features = ["reactor"]
+
+[[example]]
+name = "service_manager"
+required-features = ["services"]
+
+[[example]]
+name = "gpio_pins"
+required-features = ["gpio"]
