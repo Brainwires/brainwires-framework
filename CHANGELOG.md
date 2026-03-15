@@ -32,6 +32,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Build & CI (`xtask`)
 - **`package-count` command**: `cargo xtask package-count [--dry-run]` counts workspace members (crates vs extras) and updates stale count references in `.md` files. Skips CHANGELOG.md, deprecated directories, code blocks, and historical arrow lines.
+- **Deprecated crate publishing**: `publish.sh` now publishes deprecated stub crates (e.g. `brainwires-mdap`) after all workspace crates, with non-fatal error handling.
+
+#### Testing
+- **472 integration tests across 6 crates**: agent-network (47), agents (53), audio (93), code-interpreters (142), skills (82), wasm (55).
+
+#### Code Quality
+- Resolved all 16 `check-stubs` false-positive warnings by rewording doc comments and adding `todo_scanner.rs` to the skip list.
 
 ### Changed
 
