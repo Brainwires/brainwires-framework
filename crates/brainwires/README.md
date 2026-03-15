@@ -66,7 +66,7 @@ let response = provider.chat(&messages, None, &options).await?;
 | `agents` | **yes** | `brainwires-agents` | Agent runtime, communication hub, task manager, validation loop |
 | `storage` | no | `brainwires-storage` | Unified database layer (9 backends), tiered memory (hot/warm/cold) |
 | `mcp` | no | `brainwires-mcp` | MCP client for connecting to external MCP servers |
-| `mdap` | no | `brainwires-mdap` | Multi-Dimensional Adaptive Planning with k-agent voting |
+| `mdap` | no | `brainwires-agents/mdap` | Multi-Dimensional Adaptive Planning with k-agent voting |
 | `prompting` | no | `brainwires-cognition/prompting` | Prompt generation, technique library, temperature optimizer |
 | `knowledge` | no | `brainwires-cognition/knowledge` | Behavioral + personal knowledge caches (implies `brain`) |
 | `permissions` | no | `brainwires-permissions` | Capability profiles, trust levels, policy engine, audit logging |

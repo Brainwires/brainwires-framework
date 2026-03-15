@@ -285,7 +285,7 @@ MCP server framework, IPC, remote relay, and agent management.
 
 ## MDAP Voting
 
-**Crate:** `brainwires-mdap`
+**Crate:** `brainwires-agents` (feature `mdap`)
 
 Multi-Dimensional Adaptive Planning implementing the MAKER paper.
 

@@ -1,8 +1,6 @@
-# brainwires-mdap
+# MDAP — Multi-Dimensional Adaptive Planning
 
-[![Crates.io](https://img.shields.io/crates/v/brainwires-mdap.svg)](https://crates.io/crates/brainwires-mdap)
-[![Documentation](https://img.shields.io/docsrs/brainwires-mdap)](https://docs.rs/brainwires-mdap)
-[![License](https://img.shields.io/crates/l/brainwires-mdap.svg)](LICENSE)
+> This module was previously the standalone `brainwires-mdap` crate. It now lives in `brainwires-agents` behind the `mdap` feature flag.
 
 MAKER voting framework — microagents, decomposition, red flags, and scaling for the Brainwires Agent Framework.
 
@@ -25,7 +23,7 @@ This implementation also integrates techniques from three supplementary papers:
 
 ## Overview
 
-`brainwires-mdap` provides a complete implementation of the MAKER framework organized around five core components that map directly to the paper's algorithms and equations:
+This module provides a complete implementation of the MAKER framework organized around five core components that map directly to the paper's algorithms and equations:
 
 - **Voting** (Algorithm 2) — first-to-ahead-by-k consensus with three voting methods, early stopping, and confidence weighting
 - **Microagents** (MAD) — focused single-step agents (m=1) that execute one subtask with minimal context
@@ -43,7 +41,7 @@ This implementation also integrates techniques from three supplementary papers:
 
 ```text
   ┌──────────────────────────────────────────────────────────────────────┐
-  │                         brainwires-mdap                              │
+  │                    brainwires-agents::mdap                            │
   │                                                                      │
   │  Task ──► Decomposition (Alg.4) ──► Subtask DAG                      │
   │                                         │                            │
@@ -73,7 +71,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires-mdap = "0.4"
+brainwires-agents = { version = "0.5", features = ["mdap"] }
 ```
 
 Run a simple voting consensus:
@@ -717,16 +715,16 @@ println!("{}", metrics.red_flag_analysis());
 
 ## Integration
 
-Use via the `brainwires` facade crate with the `mdap` feature, or depend on `brainwires-mdap` directly:
+Use via the `brainwires` facade crate with the `mdap` feature, or depend on `brainwires-agents` directly:
 
 ```toml
 # Via facade
 [dependencies]
-brainwires = { version = "0.4", features = ["mdap"] }
+brainwires = { version = "0.5", features = ["mdap"] }
 
 # Direct
 [dependencies]
-brainwires-mdap = "0.4"
+brainwires-agents = { version = "0.5", features = ["mdap"] }
 ```
 
 The `prelude` module re-exports the most commonly used types:

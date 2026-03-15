@@ -86,7 +86,8 @@ println!("{} iterations, success={}", result.iterations, result.success);
 | `native` | Yes | Git worktree management (`git2`) and process liveness checking (`libc`) |
 | `wasm` | No | WebAssembly-compatible build (disables native-only functionality) |
 | `seal` | No | SEAL pipeline: coreference resolution, query extraction, learning, reflection |
-| `seal-mdap` | No | MDAP metric recording for SEAL via `brainwires-mdap` |
+| `mdap` | No | MDAP: Multi-Dimensional Adaptive Planning — k-agent voting, microagent decomposition, red flags |
+| `seal-mdap` | No | MDAP metric recording for SEAL (enables `seal` + `mdap`) |
 | `seal-knowledge` | No | BKS/PKS knowledge system integration for SEAL via `brainwires-cognition` |
 | `seal-feedback` | No | Audit feedback bridge for SEAL via `brainwires-permissions` |
 | `reasoning` | No | Named reasoning strategies (ReAct, Reflexion, CoT, ToT) and local inference |

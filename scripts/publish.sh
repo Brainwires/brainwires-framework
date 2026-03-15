@@ -8,9 +8,10 @@ set -euo pipefail
 #   - After burst: 1 crate per minute
 #   - 20 workspace crates total = all within burst → ~5 minutes
 #
-# Strategy: publish all 21 within the burst window with short index-propagation
+# Strategy: publish all 19 within the burst window with short index-propagation
 # delays between each. If we ever exceed 30, fall back to 1/min after burst.
 # Crates are ordered by dependency DAG (leaves first, facade last).
+# Deprecated stubs are published separately after all workspace crates.
 #
 # Usage:
 #   ./scripts/publish.sh          # Dry run (default)
@@ -20,13 +21,13 @@ DRY_RUN=true
 if [[ "${1:-}" == "--live" ]]; then
     DRY_RUN=false
     echo "=== LIVE PUBLISH MODE ==="
-    echo "This will publish all 20 workspace crates to crates.io."
+    echo "This will publish all 19 workspace crates + deprecated stubs to crates.io."
     echo "Estimated time: ~5 minutes (burst 30, then 1/min)"
     echo "Press Ctrl+C within 5 seconds to abort..."
     sleep 5
 fi
 
-# All 20 workspace crates in strict dependency order (leaves → facade).
+# All 19 workspace crates in strict dependency order (leaves → facade).
 # Within each layer, crates have no mutual dependencies.
 CRATES=(
     # Layer 1: Leaf crates (no internal deps)
@@ -37,7 +38,6 @@ CRATES=(
 
     # Layer 2: Depend only on core
     brainwires-mcp
-    brainwires-mdap
     brainwires-permissions
     brainwires-datasets
     brainwires-providers
@@ -52,7 +52,7 @@ CRATES=(
     brainwires-audio
     brainwires-training
 
-    # Layer 5: Agents (depends on tool-system, cognition, mdap)
+    # Layer 5: Agents (depends on tool-system, cognition)
     brainwires-agents
     brainwires-wasm
 
@@ -141,6 +141,42 @@ if [ "$FAILED" -gt 0 ]; then
     echo "$FAILED crate(s) failed."
 fi
 echo "============================================"
+
+# Publish deprecated stub crates (not workspace members — publish manually)
+# These depend on workspace crates, so they must go last.
+DEPRECATED_CRATES=(
+    brainwires-mdap
+)
+
+for dep_crate in "${DEPRECATED_CRATES[@]}"; do
+    echo ""
+    echo "[deprecated] Publishing $dep_crate (deprecation stub)..."
+
+    dep_dir="deprecated/$dep_crate"
+    if [ ! -d "$dep_dir" ]; then
+        echo "SKIP: $dep_crate (no deprecated/ directory found)"
+        continue
+    fi
+
+    if $DRY_RUN; then
+        if (cd "$dep_dir" && cargo publish --dry-run 2>&1 | tail -3); then
+            echo "OK: $dep_crate (dry run)"
+        else
+            echo "SKIP: $dep_crate (expected — deps may not be on crates.io yet)"
+        fi
+        continue
+    fi
+
+    dep_output=$(cd "$dep_dir" && cargo publish 2>&1) && dep_rc=0 || dep_rc=$?
+    if [ "$dep_rc" -eq 0 ]; then
+        echo "OK: $dep_crate (deprecated stub published)"
+    elif echo "$dep_output" | grep -q "already exists"; then
+        echo "SKIP: $dep_crate (already published)"
+    else
+        echo "$dep_output"
+        echo "WARNING: Failed to publish deprecated $dep_crate — non-fatal, continuing."
+    fi
+done
 
 # Tag the release after successful publish
 if ! $DRY_RUN && [ "$FAILED" -eq 0 ]; then

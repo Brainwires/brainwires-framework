@@ -52,7 +52,6 @@ The Brainwires Framework is a workspace of 19 framework crates plus 6 extras tha
 | [**brainwires-providers**](crates/brainwires-providers/README.md) | Multi-provider AI interface (Anthropic, OpenAI, Google, Ollama, local LLMs) |
 | [**brainwires-tool-system**](crates/brainwires-tool-system/README.md) | Tool definitions and execution for AI model interactions |
 | [**brainwires-agents**](crates/brainwires-agents/README.md) | Multi-agent orchestration, task decomposition, file lock coordination |
-| [**brainwires-mdap**](crates/brainwires-mdap/README.md) | Multi-Dimensional Adaptive Planning — k-agent voting for reliable execution |
 | [**brainwires-cognition**](crates/brainwires-cognition/README.md) | Knowledge (BKS/PKS, entity graphs), prompting (technique library, clustering), and RAG (code search, hybrid retrieval) |
 | [**brainwires-storage**](crates/brainwires-storage/README.md) | Unified database layer (9 backends), tiered memory, semantic search |
 | [**brainwires-permissions**](crates/brainwires-permissions/README.md) | Permission policies (auto, ask, reject) for tool execution |
@@ -191,8 +190,6 @@ cargo test -p brainwires-core
   │   ├── brainwires-core
   │   ├── brainwires-tool-system
   │   └── brainwires-cognition (seal-knowledge feature)
-  ├── brainwires-mdap
-  │   └── brainwires-core
   ├── brainwires-cognition
   │   ├── brainwires-core
   │   └── brainwires-storage (knowledge feature)

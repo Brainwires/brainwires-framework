@@ -26,10 +26,7 @@ brainwires  (facade — re-exports all crates via feature flags)
 │    │   └─> core
 │    │   └─> tool-system
 │    │   └─> cognition (opt, "seal-knowledge" feature)
-│    │   └─> mdap (opt, "seal-mdap" feature)
 │    │   └─> permissions (opt, "seal-feedback" feature)
-│    ├── brainwires-mdap            MAKER voting — microagent decomposition & reliability
-│    │   └─> core
 │    └── brainwires-permissions     Permission policies, audit logging, trust profiles
 │        └─> core
 │
