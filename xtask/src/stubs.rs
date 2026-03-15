@@ -48,7 +48,11 @@ const ALLOW_LIST: &[&str] = &[
 const SKIP_DIRS: &[&str] = &["target", ".git", "node_modules", "test-results"];
 
 /// Files to skip entirely (relative to workspace root).
-const SKIP_FILES: &[&str] = &["xtask/src/stubs.rs"];
+const SKIP_FILES: &[&str] = &[
+    "xtask/src/stubs.rs",
+    // todo_scanner's purpose is scanning for TODO/FIXME markers — its code necessarily contains them
+    "crates/brainwires-autonomy/src/self_improve/strategies/todo_scanner.rs",
+];
 
 /// A single finding in the scan.
 struct Finding {

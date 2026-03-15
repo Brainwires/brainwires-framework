@@ -189,7 +189,7 @@ fn get_language_for_extension(extension: &str) -> Option<(Language, String)> {
     }
 }
 
-/// Stub when tree-sitter language parsers are not compiled in
+/// Fallback when tree-sitter language parsers are not compiled in
 #[cfg(not(feature = "tree-sitter-languages"))]
 fn get_language_for_extension(_extension: &str) -> Option<(Language, String)> {
     None

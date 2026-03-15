@@ -229,10 +229,10 @@ fn build_connector(config: &ProxyConfig) -> ProxyResult<Box<dyn TransportConnect
             "HTTP transport requires the 'http' feature".into(),
         )),
         UpstreamConfig::Tcp { .. } => Err(ProxyError::Config(
-            "TCP upstream connector not yet implemented; use a custom connector".into(),
+            "TCP upstream connector unsupported; use a custom connector".into(),
         )),
         UpstreamConfig::Unix { .. } => Err(ProxyError::Config(
-            "Unix upstream connector not yet implemented; use a custom connector".into(),
+            "Unix upstream connector unsupported; use a custom connector".into(),
         )),
     }
 }

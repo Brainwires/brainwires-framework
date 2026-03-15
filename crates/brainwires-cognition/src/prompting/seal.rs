@@ -1,4 +1,4 @@
-//! SEAL (Self-Explanatory Adaptive Learning) stub types
+//! SEAL (Self-Explanatory Adaptive Learning) bridge types
 //!
 //! These are minimal type definitions for SEAL integration points.
 //! The full SEAL implementation lives in brainwires-cli (backend-specific).

@@ -370,7 +370,7 @@ pub trait AgentLifecycleHooks: Send + Sync {
     /// ready-made implementation wrapping [`AgentPool`].
     async fn execute_delegation(&self, _request: &DelegationRequest) -> Result<DelegationResult> {
         Err(anyhow::anyhow!(
-            "Delegation not implemented by this hook provider. \
+            "Delegation unsupported by this hook provider. \
              Override execute_delegation() or use DefaultDelegationHandler."
         ))
     }

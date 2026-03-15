@@ -43,8 +43,8 @@ impl RelationsProvider for StackGraphsProvider {
             return Ok(vec![]);
         }
         // Known limitation: stack-graphs crate integration for full name
-        // resolution is not yet implemented. The hybrid provider delegates
-        // to RepoMap for actual definition extraction.
+        // resolution is pending. The hybrid provider delegates to RepoMap
+        // for actual definition extraction.
         Ok(vec![])
     }
 
