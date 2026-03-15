@@ -7,14 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+#### Build & Publishing
+- `publish.sh` enhanced with smarter version tagging logic to handle patch bumps correctly.
+
 ## [0.4.1] - 2026-03-15
+
+### Added
+
+#### Storage (`brainwires-storage`)
+- **`PostgresDatabase` StorageBackend impl**: `FieldValue`→`ToSql` conversion, `vector_search` via pgvector `<=>` operator, row parsing via column type metadata.
+- **`MySqlDatabase` backend** via `mysql_async`: Full `StorageBackend` implementation with client-side cosine similarity for `vector_search` (MySQL lacks native vector type). New `mysql-backend` feature flag.
+- **`SurrealDatabase` backend** via `surrealdb` 2.x SDK: Both `StorageBackend` and `VectorDatabase` with native MTREE KNN vector search. New `surrealdb-backend` feature flag.
+
+#### Build & CI (`xtask`)
+- **Smart version bumping**: Full workspace-aware version bump system with:
+  - `--crates` flag parsing and bump mode detection (full vs patch).
+  - Workspace dependency graph construction and cascade logic (bumping a crate also bumps its dependents).
+  - Auto-detection of changed crates from `git diff` for selective patch-mode bumping.
+  - Reset of explicit version overrides on minor/major bumps.
+  - Selective patch-mode version bumping for targeted releases.
+  - Wired up full + patch mode execution paths.
+- **`check-stubs` command**: Scans all `.rs` files for hard blockers (`todo!()`, `unimplemented!()`) and soft markers (`FIXME`, `HACK`, `XXX`, `STUB`, `STOPSHIP`, `"not implemented"`). Skips test code, uses word-boundary detection to avoid false positives. Supports `--strict` (markers = errors) and `--verbose` flags.
+- **CHANGELOG stamping**: `bump-version` now renames `## [Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD` and inserts a fresh empty `## [Unreleased]` section above it.
 
 ### Removed
 
 #### Storage (`brainwires-storage`)
-- Removed `MySqlDatabase` and `SurrealDatabase` stub backends (contained `todo!()` placeholders).
-- Removed `mysql-backend` and `surrealdb-backend` feature flags.
+- Removed `MySqlDatabase` and `SurrealDatabase` stub backends (contained `todo!()` placeholders), replaced by real implementations (see Added above).
 - SQL dialect files (`sql/mysql.rs`, `sql/surrealdb.rs`) retained for future use.
+
+### Changed
+
+#### Documentation
+- Updated `PUBLISHING.md` with smart version bump instructions and `check-stubs` checklist wording.
+
+#### Code Quality
+- Applied formatting improvements across the workspace for consistency and readability.
 
 ## [0.4.0] - 2026-03-14
 
@@ -436,6 +466,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Git search results now return the actual commit date instead of hardcoded `0`.
 - Dirty flag is now cleared immediately after embeddings + cache are flushed to disk in both full and incremental indexing paths.
 
+[0.4.1]: https://github.com/Brainwires/brainwires-framework/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/Brainwires/brainwires-framework/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Brainwires/brainwires-framework/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Brainwires/brainwires-framework/releases/tag/v0.2.0
