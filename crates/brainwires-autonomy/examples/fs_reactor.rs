@@ -5,9 +5,7 @@
 //! ```
 
 use brainwires_autonomy::config::ReactorConfig;
-use brainwires_autonomy::reactor::{
-    EventDebouncer, FsEventType, ReactorAction, ReactorRule,
-};
+use brainwires_autonomy::reactor::{EventDebouncer, FsEventType, ReactorAction, ReactorRule};
 
 fn main() {
     println!("=== File System Reactor Example ===\n");
@@ -55,7 +53,7 @@ fn main() {
             id: "notify-delete".to_string(),
             name: "Notify on File Deletion".to_string(),
             watch_paths: vec!["config/".to_string()],
-            patterns: vec![],  // match everything
+            patterns: vec![], // match everything
             exclude_patterns: vec![],
             event_types: vec![FsEventType::Deleted],
             debounce_ms: 1000,
@@ -69,7 +67,10 @@ fn main() {
     for rule in &rules {
         println!("  Rule: {} ({})", rule.name, rule.id);
         println!("    watch: {:?}", rule.watch_paths);
-        println!("    patterns: {:?} (exclude: {:?})", rule.patterns, rule.exclude_patterns);
+        println!(
+            "    patterns: {:?} (exclude: {:?})",
+            rule.patterns, rule.exclude_patterns
+        );
         println!("    events: {:?}", rule.event_types);
         println!("    debounce: {}ms", rule.debounce_ms);
     }
@@ -86,7 +87,11 @@ fn main() {
     ];
     for (path, expected) in &test_paths {
         let matches = log_rule.matches_path(path);
-        let status = if matches == *expected { "OK" } else { "MISMATCH" };
+        let status = if matches == *expected {
+            "OK"
+        } else {
+            "MISMATCH"
+        };
         println!("  log_rule.matches_path(\"{path}\"): {matches} [{status}]");
     }
 
@@ -99,7 +104,11 @@ fn main() {
     ];
     for (path, expected) in &test_paths {
         let matches = src_rule.matches_path(path);
-        let status = if matches == *expected { "OK" } else { "MISMATCH" };
+        let status = if matches == *expected {
+            "OK"
+        } else {
+            "MISMATCH"
+        };
         println!("  src_rule.matches_path(\"{path}\"): {matches} [{status}]");
     }
     println!();
@@ -113,7 +122,10 @@ fn main() {
         FsEventType::Renamed,
     ];
     for event in &events {
-        println!("  log_rule ({event}): {}", log_rule.matches_event_type(event));
+        println!(
+            "  log_rule ({event}): {}",
+            log_rule.matches_event_type(event)
+        );
     }
     println!();
 
@@ -121,7 +133,13 @@ fn main() {
     println!("--- Event Debouncer ---");
     let mut debouncer = EventDebouncer::new(1000, 5); // 1s debounce, 5/min max
 
-    let keys = ["file_a.rs", "file_b.rs", "file_a.rs", "file_c.rs", "file_d.rs"];
+    let keys = [
+        "file_a.rs",
+        "file_b.rs",
+        "file_a.rs",
+        "file_c.rs",
+        "file_d.rs",
+    ];
     for key in &keys {
         let processed = debouncer.should_process(key, 1000);
         println!("  should_process(\"{key}\"): {processed}");

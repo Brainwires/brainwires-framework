@@ -199,17 +199,11 @@ async fn peer_table_from_discovery_results() {
     // Register agents with different transport endpoints
     let mut tcp_agent = AgentIdentity::new("tcp-agent");
     tcp_agent.agent_card.endpoint = Some("tcp://192.168.1.100:9000".into());
-    tcp_agent
-        .agent_card
-        .capabilities
-        .push("compute".into());
+    tcp_agent.agent_card.capabilities.push("compute".into());
 
     let mut ipc_agent = AgentIdentity::new("ipc-agent");
     ipc_agent.agent_card.endpoint = Some("unix:///tmp/ipc-agent.sock".into());
-    ipc_agent
-        .agent_card
-        .capabilities
-        .push("file-ops".into());
+    ipc_agent.agent_card.capabilities.push("file-ops".into());
 
     discovery.register(&tcp_agent).await.unwrap();
     discovery.register(&ipc_agent).await.unwrap();

@@ -186,10 +186,7 @@ pub async fn capture_git_state(repo_path: &str) -> anyhow::Result<GitState> {
 
 /// Derive a checkpoint file path from the recovery state file path.
 pub fn checkpoint_path(state_file: &Path) -> PathBuf {
-    let stem = state_file
-        .file_stem()
-        .unwrap_or_default()
-        .to_string_lossy();
+    let stem = state_file.file_stem().unwrap_or_default().to_string_lossy();
     state_file.with_file_name(format!("{stem}-checkpoint.json"))
 }
 

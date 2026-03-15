@@ -4,7 +4,7 @@
 
 #![cfg(feature = "flac")]
 
-use brainwires_audio::{decode_flac, encode_flac, AudioBuffer, AudioConfig, SampleFormat};
+use brainwires_audio::{AudioBuffer, AudioConfig, SampleFormat, decode_flac, encode_flac};
 
 // ── I16 encoding ─────────────────────────────────────────────────────
 
@@ -26,7 +26,10 @@ fn flac_encode_i16_compresses() {
     let buffer = AudioBuffer::from_pcm(data, AudioConfig::speech());
 
     let flac = encode_flac(&buffer).unwrap();
-    assert!(flac.len() < raw_size, "FLAC should compress repetitive data");
+    assert!(
+        flac.len() < raw_size,
+        "FLAC should compress repetitive data"
+    );
 }
 
 // ── F32 encoding ─────────────────────────────────────────────────────

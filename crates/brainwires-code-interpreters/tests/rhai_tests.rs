@@ -194,10 +194,7 @@ fn rhai_print_captured() {
 
 #[test]
 fn rhai_context_simple_values() {
-    let r = exec_with_context(
-        "x + y",
-        serde_json::json!({ "x": 100, "y": 200 }),
-    );
+    let r = exec_with_context("x + y", serde_json::json!({ "x": 100, "y": 200 }));
     assert!(r.success, "Error: {:?}", r.error);
     assert!(r.stdout.contains("300"));
 }

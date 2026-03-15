@@ -148,11 +148,7 @@ impl CrashHandler {
     }
 
     /// Apply the fix strategy from a recovery plan.
-    pub async fn apply_fix(
-        &self,
-        plan: &RecoveryPlan,
-        working_dir: &str,
-    ) -> Result<()> {
+    pub async fn apply_fix(&self, plan: &RecoveryPlan, working_dir: &str) -> Result<()> {
         // Rollback if needed
         if plan.rollback_needed {
             self.rollback(working_dir).await?;
@@ -190,7 +186,10 @@ impl CrashHandler {
             Ok(true)
         } else {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            tracing::error!("Rebuild failed: {}", stderr.chars().take(500).collect::<String>());
+            tracing::error!(
+                "Rebuild failed: {}",
+                stderr.chars().take(500).collect::<String>()
+            );
             Ok(false)
         }
     }
@@ -278,10 +277,7 @@ mod tests {
             FixStrategy::from_label("revert_last_commit"),
             FixStrategy::RevertLastCommit
         );
-        assert_eq!(
-            FixStrategy::from_label("skip_task"),
-            FixStrategy::SkipTask
-        );
+        assert_eq!(FixStrategy::from_label("skip_task"), FixStrategy::SkipTask);
         assert_eq!(
             FixStrategy::from_label("rollback_to_checkpoint"),
             FixStrategy::RollbackToCheckpoint

@@ -185,9 +185,15 @@ impl fmt::Display for AutonomousOperation {
             Self::RestartAgent { agent_id, .. } => write!(f, "restart agent: {agent_id}"),
             Self::StartTrainingJob { provider, .. } => write!(f, "training job: {provider}"),
             Self::GpioAccess {
-                chip, line, direction, ..
+                chip,
+                line,
+                direction,
+                ..
             } => write!(f, "GPIO access: chip{chip}/line{line} ({direction})"),
-            Self::CrashRecovery { crash_id, fix_strategy } => {
+            Self::CrashRecovery {
+                crash_id,
+                fix_strategy,
+            } => {
                 write!(f, "crash recovery {crash_id}: {fix_strategy}")
             }
             Self::ScheduledTask { name, task_type } => {
@@ -197,7 +203,9 @@ impl fmt::Display for AutonomousOperation {
                 write!(f, "react to {event_type}: {path}")
             }
             Self::ManageService {
-                name, operation, service_type,
+                name,
+                operation,
+                service_type,
             } => write!(f, "{operation} {service_type} service: {name}"),
         }
     }

@@ -15,8 +15,7 @@ mod mysql_integration {
     /// Helper: try to connect to MySQL, returning None if the server is
     /// not reachable.
     async fn try_connect() -> Option<MySqlDatabase> {
-        let url = std::env::var("MYSQL_URL")
-            .unwrap_or_else(|_| MySqlDatabase::default_url());
+        let url = std::env::var("MYSQL_URL").unwrap_or_else(|_| MySqlDatabase::default_url());
         MySqlDatabase::new(&url).await.ok()
     }
 
@@ -35,9 +34,7 @@ mod mysql_integration {
         let table = "test_mysql_crud";
 
         // Clean up from prior runs.
-        let _ = backend
-            .delete(table, &Filter::Raw("1=1".to_string()))
-            .await;
+        let _ = backend.delete(table, &Filter::Raw("1=1".to_string())).await;
 
         // ensure_table
         let schema = vec![
@@ -107,9 +104,7 @@ mod mysql_integration {
         let backend: Arc<dyn StorageBackend> = Arc::new(db);
         let table = "test_mysql_vec";
 
-        let _ = backend
-            .delete(table, &Filter::Raw("1=1".to_string()))
-            .await;
+        let _ = backend.delete(table, &Filter::Raw("1=1".to_string())).await;
 
         // MySQL stores vectors as JSON, so use Utf8 type for the vector column
         // (the backend converts Vector values to JSON strings on insert).
@@ -128,7 +123,10 @@ mod mysql_integration {
                 ),
             ],
             vec![
-                ("label".to_string(), FieldValue::Utf8(Some("distant".into()))),
+                (
+                    "label".to_string(),
+                    FieldValue::Utf8(Some("distant".into())),
+                ),
                 (
                     "embedding".to_string(),
                     FieldValue::Vector(vec![0.0, 0.0, 1.0]),
@@ -160,13 +158,9 @@ mod mysql_integration {
         let backend: Arc<dyn StorageBackend> = Arc::new(db);
         let table = "test_mysql_limit";
 
-        let _ = backend
-            .delete(table, &Filter::Raw("1=1".to_string()))
-            .await;
+        let _ = backend.delete(table, &Filter::Raw("1=1".to_string())).await;
 
-        let schema = vec![
-            FieldDef::required("idx", FieldType::Int64),
-        ];
+        let schema = vec![FieldDef::required("idx", FieldType::Int64)];
         backend.ensure_table(table, &schema).await.unwrap();
 
         let records: Vec<_> = (0..10)

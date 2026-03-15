@@ -9,8 +9,7 @@ use brainwires_autonomy::git_workflow::{
     WorkflowEvent,
     forge::{Comment, CommitRef, Issue, MergeMethod, PrState, PullRequest, RepoRef},
     merge_policy::{
-        ConfidenceBasedPolicy, MergeContext, MergeDecision, MergePolicy,
-        RequireApprovalPolicy,
+        ConfidenceBasedPolicy, MergeContext, MergeDecision, MergePolicy, RequireApprovalPolicy,
     },
     trigger::ProgrammaticTrigger,
 };
@@ -45,7 +44,10 @@ async fn main() -> anyhow::Result<()> {
         author: "community-user".to_string(),
         url: "https://github.com/Brainwires/brainwires-cli/issues/42".to_string(),
     };
-    println!("  Issue #{}: {} (by {})", issue.number, issue.title, issue.author);
+    println!(
+        "  Issue #{}: {} (by {})",
+        issue.number, issue.title, issue.author
+    );
     println!("  Labels: {:?}", issue.labels);
     println!();
 
@@ -85,9 +87,14 @@ async fn main() -> anyhow::Result<()> {
                 println!("  IssueOpened: #{} - {}", issue.number, issue.title);
             }
             WorkflowEvent::IssueCommented { comment, .. } => {
-                println!("  IssueCommented: {} says \"{}\"", comment.author, comment.body);
+                println!(
+                    "  IssueCommented: {} says \"{}\"",
+                    comment.author, comment.body
+                );
             }
-            WorkflowEvent::PushReceived { branch, commits, .. } => {
+            WorkflowEvent::PushReceived {
+                branch, commits, ..
+            } => {
                 println!("  PushReceived: {} ({} commits)", branch, commits.len());
             }
             WorkflowEvent::Manual { description, .. } => {
@@ -128,12 +135,18 @@ async fn main() -> anyhow::Result<()> {
     // ConfidenceBasedPolicy at 80% threshold
     let confidence_policy = ConfidenceBasedPolicy::new(0.80, MergeMethod::Squash);
     let decision = confidence_policy.evaluate(&pr, &ctx).await;
-    println!("  ConfidenceBasedPolicy(80%): {}", format_decision(&decision));
+    println!(
+        "  ConfidenceBasedPolicy(80%): {}",
+        format_decision(&decision)
+    );
 
     // ConfidenceBasedPolicy at 90% threshold — should wait
     let strict_policy = ConfidenceBasedPolicy::new(0.90, MergeMethod::Squash);
     let decision = strict_policy.evaluate(&pr, &ctx).await;
-    println!("  ConfidenceBasedPolicy(90%): {}", format_decision(&decision));
+    println!(
+        "  ConfidenceBasedPolicy(90%): {}",
+        format_decision(&decision)
+    );
 
     println!();
 

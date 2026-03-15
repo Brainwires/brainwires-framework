@@ -26,11 +26,9 @@ impl GpioSafetyPolicy {
         _agent_id: &str,
     ) -> Result<(), String> {
         if self.allowed_pins.is_empty() {
-            return Err(
-                "No GPIO pins are configured in the allow-list. \
+            return Err("No GPIO pins are configured in the allow-list. \
                  Add pins to GpioConfig.allowed_pins to enable access."
-                    .to_string(),
-            );
+                .to_string());
         }
 
         if !self.allowed_pins.contains(&(chip, line)) {

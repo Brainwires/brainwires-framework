@@ -14,13 +14,13 @@ pub mod pr_manager;
 pub mod trigger;
 
 #[cfg(feature = "webhook")]
+pub mod cicd_orchestrator;
+#[cfg(feature = "webhook")]
 pub mod webhook;
 #[cfg(feature = "webhook")]
 pub mod webhook_config;
 #[cfg(feature = "webhook")]
 pub mod webhook_log;
-#[cfg(feature = "webhook")]
-pub mod cicd_orchestrator;
 
 pub use branch_manager::BranchManager;
 pub use change_maker::ChangeMaker;
@@ -32,10 +32,10 @@ pub use pr_manager::PullRequestManager;
 pub use trigger::{ProgrammaticTrigger, WorkflowEvent, WorkflowTrigger};
 
 #[cfg(feature = "webhook")]
+pub use cicd_orchestrator::CiCdOrchestrator;
+#[cfg(feature = "webhook")]
 pub use webhook::WebhookServer;
 #[cfg(feature = "webhook")]
 pub use webhook_config::InterpolationContext;
 #[cfg(feature = "webhook")]
 pub use webhook_log::{WebhookAction, WebhookLogger};
-#[cfg(feature = "webhook")]
-pub use cicd_orchestrator::CiCdOrchestrator;

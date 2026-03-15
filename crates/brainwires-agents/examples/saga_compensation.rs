@@ -24,8 +24,10 @@ struct MockFileWrite;
 impl CompensableOperation for MockFileWrite {
     async fn execute(&self) -> Result<OperationResult> {
         println!("    [execute] Writing config.toml ...");
-        Ok(OperationResult::success("mock-file-write")
-            .with_output("wrote 42 bytes to config.toml"))
+        Ok(
+            OperationResult::success("mock-file-write")
+                .with_output("wrote 42 bytes to config.toml"),
+        )
     }
 
     async fn compensate(&self, _result: &OperationResult) -> Result<()> {
@@ -49,8 +51,7 @@ struct MockGitStage;
 impl CompensableOperation for MockGitStage {
     async fn execute(&self) -> Result<OperationResult> {
         println!("    [execute] Staging config.toml ...");
-        Ok(OperationResult::success("mock-git-stage")
-            .with_output("staged 1 file"))
+        Ok(OperationResult::success("mock-git-stage").with_output("staged 1 file"))
     }
 
     async fn compensate(&self, _result: &OperationResult) -> Result<()> {

@@ -245,9 +245,7 @@ Disk-based instructions with {{arg}}.
 #[tokio::test]
 async fn execute_by_name_nonexistent_skill_errors() {
     let executor = SkillExecutor::new(empty_registry());
-    let result = executor
-        .execute_by_name("ghost", HashMap::new())
-        .await;
+    let result = executor.execute_by_name("ghost", HashMap::new()).await;
     assert!(result.is_err());
 }
 
@@ -289,10 +287,7 @@ async fn prepare_subagent_filters_tools() {
     assert!(!prepared.allowed_tool_names.contains(&"Write".to_string()));
     assert!(prepared.task_description.contains("analysis"));
     assert!(prepared.system_prompt.contains("restricted-agent"));
-    assert_eq!(
-        prepared.model_override,
-        Some("claude-sonnet-4".to_string())
-    );
+    assert_eq!(prepared.model_override, Some("claude-sonnet-4".to_string()));
 }
 
 #[tokio::test]
@@ -307,11 +302,7 @@ async fn prepare_subagent_no_restrictions_passes_all_tools() {
         None,
     );
 
-    let available = vec![
-        "Read".to_string(),
-        "Write".to_string(),
-        "Bash".to_string(),
-    ];
+    let available = vec!["Read".to_string(), "Write".to_string(), "Bash".to_string()];
 
     let prepared = executor
         .prepare_subagent(&skill, &available, HashMap::new())
@@ -333,11 +324,7 @@ async fn prepare_script_filters_tools_and_renders() {
         None,
     );
 
-    let available = vec![
-        "Read".to_string(),
-        "Bash".to_string(),
-        "Write".to_string(),
-    ];
+    let available = vec!["Read".to_string(), "Bash".to_string(), "Write".to_string()];
 
     let mut args = HashMap::new();
     args.insert("value".to_string(), "10".to_string());

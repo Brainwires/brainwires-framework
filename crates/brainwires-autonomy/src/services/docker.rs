@@ -2,8 +2,8 @@
 
 use anyhow::Result;
 
-use super::{ServiceInfo, ServiceOperation, ServiceStatus, ServiceType};
 use super::safety::ServiceSafety;
+use super::{ServiceInfo, ServiceOperation, ServiceStatus, ServiceType};
 
 /// Manager for Docker containers and compose stacks via the `docker` CLI.
 ///
@@ -38,7 +38,11 @@ impl DockerManager {
 
     async fn list_containers(&self) -> Result<String> {
         let output = tokio::process::Command::new("docker")
-            .args(["ps", "--format", "table {{.Names}}\t{{.Status}}\t{{.Image}}"])
+            .args([
+                "ps",
+                "--format",
+                "table {{.Names}}\t{{.Status}}\t{{.Image}}",
+            ])
             .output()
             .await?;
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
@@ -131,7 +135,12 @@ impl DockerManager {
     /// Parse container status and PID from `docker inspect` output.
     pub async fn parse_container_info(&self, name: &str) -> Result<ServiceInfo> {
         let output = tokio::process::Command::new("docker")
-            .args(["inspect", "--format", "{{.State.Status}} {{.State.Pid}}", name])
+            .args([
+                "inspect",
+                "--format",
+                "{{.State.Status}} {{.State.Pid}}",
+                name,
+            ])
             .output()
             .await?;
 
@@ -145,7 +154,10 @@ impl DockerManager {
             _ => ServiceStatus::Unknown,
         };
 
-        let pid = parts.get(1).and_then(|s| s.parse().ok()).filter(|&p: &u32| p > 0);
+        let pid = parts
+            .get(1)
+            .and_then(|s| s.parse().ok())
+            .filter(|&p: &u32| p > 0);
 
         Ok(ServiceInfo {
             name: name.to_string(),

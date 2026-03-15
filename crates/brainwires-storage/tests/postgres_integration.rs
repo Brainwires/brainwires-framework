@@ -17,8 +17,7 @@ mod postgres_integration {
     /// not reachable.
     async fn try_connect() -> Option<PostgresDatabase> {
         // Use the POSTGRES_URL env var if set, otherwise fall back to default.
-        let url = std::env::var("POSTGRES_URL")
-            .unwrap_or_else(|_| PostgresDatabase::default_url());
+        let url = std::env::var("POSTGRES_URL").unwrap_or_else(|_| PostgresDatabase::default_url());
         PostgresDatabase::with_url(&url).await.ok()
     }
 
@@ -39,9 +38,7 @@ mod postgres_integration {
         let table = "test_pg_crud";
 
         // Clean up from prior runs.
-        let _ = backend
-            .delete(table, &Filter::Raw("1=1".to_string()))
-            .await;
+        let _ = backend.delete(table, &Filter::Raw("1=1".to_string())).await;
 
         // ensure_table
         let schema = vec![
@@ -82,10 +79,13 @@ mod postgres_integration {
         // delete
         backend.delete(table, &filter).await.unwrap();
         let after_delete = backend
-            .count(table, Some(&Filter::Eq(
-                "key".into(),
-                FieldValue::Utf8(Some("alpha".into())),
-            )))
+            .count(
+                table,
+                Some(&Filter::Eq(
+                    "key".into(),
+                    FieldValue::Utf8(Some("alpha".into())),
+                )),
+            )
             .await
             .unwrap();
         assert_eq!(after_delete, 0);
@@ -105,9 +105,7 @@ mod postgres_integration {
         let backend: Arc<dyn StorageBackend> = Arc::new(db);
         let table = "test_pg_vec";
 
-        let _ = backend
-            .delete(table, &Filter::Raw("1=1".to_string()))
-            .await;
+        let _ = backend.delete(table, &Filter::Raw("1=1".to_string())).await;
 
         let dim = 4;
         let schema = vec![

@@ -78,7 +78,10 @@ fn main() {
     for task in &tasks {
         println!("  {} ({})", task.name, task.id);
         println!("    cron: \"{}\"", task.cron_expression);
-        println!("    enabled: {}, max_runtime: {}s", task.enabled, task.max_runtime_secs);
+        println!(
+            "    enabled: {}, max_runtime: {}s",
+            task.enabled, task.max_runtime_secs
+        );
     }
     println!();
 
@@ -92,7 +95,11 @@ fn main() {
         match CronTrigger::new(task.clone()) {
             Ok(trigger) => {
                 if let Some(next) = trigger.next_fire() {
-                    println!("  {}: next fire at {}", trigger.task_id(), next.format("%H:%M:%S"));
+                    println!(
+                        "  {}: next fire at {}",
+                        trigger.task_id(),
+                        next.format("%H:%M:%S")
+                    );
                 }
                 if let Some(dur) = trigger.duration_until_next() {
                     println!("    ({:.0}s from now)", dur.as_secs_f64());
@@ -122,10 +129,13 @@ fn main() {
     println!("--- Failure Policies ---");
     let policies: Vec<(&str, FailurePolicy)> = vec![
         ("Ignore", FailurePolicy::Ignore),
-        ("Retry(3x, 60s)", FailurePolicy::Retry {
-            max_retries: 3,
-            backoff_secs: 60,
-        }),
+        (
+            "Retry(3x, 60s)",
+            FailurePolicy::Retry {
+                max_retries: 3,
+                backoff_secs: 60,
+            },
+        ),
         ("Disable", FailurePolicy::Disable),
         ("Escalate", FailurePolicy::Escalate),
     ];

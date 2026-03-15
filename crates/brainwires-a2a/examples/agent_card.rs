@@ -3,9 +3,7 @@
 //! Demonstrates building A2A AgentCards with capabilities, skills,
 //! security schemes, and round-trip JSON serialization.
 
-use brainwires_a2a::{
-    AgentCapabilities, AgentCard, AgentProvider, AgentSkill, SecurityScheme,
-};
+use brainwires_a2a::{AgentCapabilities, AgentCard, AgentProvider, AgentSkill, SecurityScheme};
 use std::collections::HashMap;
 
 fn main() {
@@ -68,14 +66,8 @@ fn main() {
                 security_requirements: None,
             },
         ],
-        default_input_modes: vec![
-            "text/plain".to_string(),
-            "application/json".to_string(),
-        ],
-        default_output_modes: vec![
-            "text/plain".to_string(),
-            "application/json".to_string(),
-        ],
+        default_input_modes: vec!["text/plain".to_string(), "application/json".to_string()],
+        default_output_modes: vec!["text/plain".to_string(), "application/json".to_string()],
         provider: Some(AgentProvider {
             url: "https://brainwires.dev".to_string(),
             organization: "Brainwires".to_string(),
@@ -94,8 +86,7 @@ fn main() {
     // 3. Round-trip: deserialize and verify
     println!("=== Round-Trip Verification ===\n");
 
-    let deserialized: AgentCard =
-        serde_json::from_str(&json).expect("deserialize full card");
+    let deserialized: AgentCard = serde_json::from_str(&json).expect("deserialize full card");
     assert_eq!(
         deserialized.name, full_card.name,
         "round-trip name mismatch"
@@ -105,7 +96,11 @@ fn main() {
         full_card.skills.len(),
         "round-trip skills count mismatch"
     );
-    println!("Round-trip OK: name = {:?}, skills = {}\n", deserialized.name, deserialized.skills.len());
+    println!(
+        "Round-trip OK: name = {:?}, skills = {}\n",
+        deserialized.name,
+        deserialized.skills.len()
+    );
 
     // 4. Build a minimal AgentCard (bare essentials only)
     println!("=== Minimal AgentCard ===\n");
@@ -127,16 +122,12 @@ fn main() {
         signatures: None,
     };
 
-    let minimal_json =
-        serde_json::to_string_pretty(&minimal_card).expect("serialize minimal card");
+    let minimal_json = serde_json::to_string_pretty(&minimal_card).expect("serialize minimal card");
     println!("{minimal_json}\n");
 
     // 5. Side-by-side summary
     println!("=== Comparison ===\n");
-    println!(
-        "{:<20} {:<25} {:<25}",
-        "Field", "Full Card", "Minimal Card"
-    );
+    println!("{:<20} {:<25} {:<25}", "Field", "Full Card", "Minimal Card");
     println!("{:-<70}", "");
     println!(
         "{:<20} {:<25} {:<25}",

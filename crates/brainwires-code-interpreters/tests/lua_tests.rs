@@ -257,10 +257,7 @@ fn lua_string_format() {
 
 #[test]
 fn lua_context_numeric_values() {
-    let r = exec_with_context(
-        "return x + y",
-        serde_json::json!({ "x": 100, "y": 200 }),
-    );
+    let r = exec_with_context("return x + y", serde_json::json!({ "x": 100, "y": 200 }));
     assert!(r.success, "Error: {:?}", r.error);
     assert!(r.stdout.contains("300"));
 }

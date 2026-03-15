@@ -60,7 +60,8 @@ impl GpioPinManager {
         agent_id: &str,
     ) -> Result<GpioPin, String> {
         // Check safety policy
-        self.safety.check(chip, line, &direction.to_string(), agent_id)?;
+        self.safety
+            .check(chip, line, &direction.to_string(), agent_id)?;
 
         // Check concurrent limit
         if self.active_pins.len() >= self.max_concurrent {
@@ -105,8 +106,7 @@ impl GpioPinManager {
 
     /// Release all pins held by a specific agent.
     pub fn release_agent(&mut self, agent_id: &str) {
-        self.active_pins
-            .retain(|_, pin| pin.agent_id != agent_id);
+        self.active_pins.retain(|_, pin| pin.agent_id != agent_id);
     }
 
     /// Release pins that have exceeded the auto-release timeout.
@@ -180,8 +180,10 @@ mod tests {
     #[test]
     fn reject_concurrent_limit() {
         let mut mgr = GpioPinManager::from_config(&test_config());
-        mgr.acquire(0, 17, GpioDirection::Output, "agent-1").unwrap();
-        mgr.acquire(0, 27, GpioDirection::Output, "agent-1").unwrap();
+        mgr.acquire(0, 17, GpioDirection::Output, "agent-1")
+            .unwrap();
+        mgr.acquire(0, 27, GpioDirection::Output, "agent-1")
+            .unwrap();
         let third = mgr.acquire(0, 22, GpioDirection::Output, "agent-1");
         assert!(third.is_err());
     }
@@ -189,7 +191,8 @@ mod tests {
     #[test]
     fn reject_double_acquire() {
         let mut mgr = GpioPinManager::from_config(&test_config());
-        mgr.acquire(0, 17, GpioDirection::Output, "agent-1").unwrap();
+        mgr.acquire(0, 17, GpioDirection::Output, "agent-1")
+            .unwrap();
         let second = mgr.acquire(0, 17, GpioDirection::Input, "agent-2");
         assert!(second.is_err());
     }
@@ -197,7 +200,8 @@ mod tests {
     #[test]
     fn release_frees_pin() {
         let mut mgr = GpioPinManager::from_config(&test_config());
-        mgr.acquire(0, 17, GpioDirection::Output, "agent-1").unwrap();
+        mgr.acquire(0, 17, GpioDirection::Output, "agent-1")
+            .unwrap();
         mgr.release(0, 17);
         assert_eq!(mgr.active_count(), 0);
     }
@@ -205,8 +209,10 @@ mod tests {
     #[test]
     fn release_agent_frees_all() {
         let mut mgr = GpioPinManager::from_config(&test_config());
-        mgr.acquire(0, 17, GpioDirection::Output, "agent-1").unwrap();
-        mgr.acquire(0, 27, GpioDirection::Output, "agent-1").unwrap();
+        mgr.acquire(0, 17, GpioDirection::Output, "agent-1")
+            .unwrap();
+        mgr.acquire(0, 27, GpioDirection::Output, "agent-1")
+            .unwrap();
         mgr.release_agent("agent-1");
         assert_eq!(mgr.active_count(), 0);
     }

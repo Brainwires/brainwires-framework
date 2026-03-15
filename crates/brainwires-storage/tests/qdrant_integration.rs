@@ -12,8 +12,7 @@ mod qdrant_integration {
     /// Helper: try to connect to Qdrant, returning None if the server is
     /// not reachable.
     async fn try_connect() -> Option<QdrantDatabase> {
-        let url = std::env::var("QDRANT_URL")
-            .unwrap_or_else(|_| QdrantDatabase::default_url());
+        let url = std::env::var("QDRANT_URL").unwrap_or_else(|_| QdrantDatabase::default_url());
         QdrantDatabase::with_url(&url).await.ok()
     }
 
@@ -91,9 +90,7 @@ mod qdrant_integration {
                 indexed_at: ts,
             })
             .collect();
-        let contents: Vec<_> = (0..3)
-            .map(|i| format!("fn func{}() {{}}", i))
-            .collect();
+        let contents: Vec<_> = (0..3).map(|i| format!("fn func{}() {{}}", i)).collect();
 
         db.store_embeddings(embeddings, metadata, contents, "/project")
             .await
@@ -101,15 +98,7 @@ mod qdrant_integration {
 
         // Search for the first vector.
         let results = db
-            .search(
-                vec![1.0, 0.0, 0.0, 0.0],
-                "func0",
-                3,
-                0.0,
-                None,
-                None,
-                false,
-            )
+            .search(vec![1.0, 0.0, 0.0, 0.0], "func0", 3, 0.0, None, None, false)
             .await
             .unwrap();
         assert!(!results.is_empty(), "expected search results from Qdrant");
@@ -216,10 +205,7 @@ mod qdrant_integration {
         db.initialize(4).await.unwrap();
 
         let ts = chrono::Utc::now().timestamp();
-        let embeddings = vec![
-            vec![1.0, 0.0, 0.0, 0.0],
-            vec![0.0, 1.0, 0.0, 0.0],
-        ];
+        let embeddings = vec![vec![1.0, 0.0, 0.0, 0.0], vec![0.0, 1.0, 0.0, 0.0]];
         let metadata = vec![
             brainwires_storage::brainwires_core::ChunkMetadata {
                 file_path: "main.rs".to_string(),

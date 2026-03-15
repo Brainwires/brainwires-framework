@@ -6,8 +6,7 @@
 
 use brainwires_autonomy::config::ServiceConfig;
 use brainwires_autonomy::services::{
-    ServiceOperation, ServiceSafety, ServiceType, ServiceStatus, ServiceInfo,
-    CRITICAL_SERVICES,
+    CRITICAL_SERVICES, ServiceInfo, ServiceOperation, ServiceSafety, ServiceStatus, ServiceType,
 };
 
 fn main() {
@@ -17,8 +16,14 @@ fn main() {
     let default_config = ServiceConfig::default();
     println!("--- Default ServiceConfig ---");
     println!("  read_only          = {}", default_config.read_only);
-    println!("  allowed_services   = {:?}", default_config.allowed_services);
-    println!("  forbidden_services = {:?}", default_config.forbidden_services);
+    println!(
+        "  allowed_services   = {:?}",
+        default_config.allowed_services
+    );
+    println!(
+        "  forbidden_services = {:?}",
+        default_config.forbidden_services
+    );
     println!();
 
     // 2. Critical services deny-list
@@ -40,17 +45,33 @@ fn main() {
 
     let ops = vec![
         ("List", ServiceOperation::List),
-        ("Status(myapp)", ServiceOperation::Status("myapp".to_string())),
-        ("Logs(myapp)", ServiceOperation::Logs { name: "myapp".to_string(), lines: 50 }),
+        (
+            "Status(myapp)",
+            ServiceOperation::Status("myapp".to_string()),
+        ),
+        (
+            "Logs(myapp)",
+            ServiceOperation::Logs {
+                name: "myapp".to_string(),
+                lines: 50,
+            },
+        ),
         ("Start(myapp)", ServiceOperation::Start("myapp".to_string())),
         ("Stop(myapp)", ServiceOperation::Stop("myapp".to_string())),
-        ("Restart(myapp)", ServiceOperation::Restart("myapp".to_string())),
+        (
+            "Restart(myapp)",
+            ServiceOperation::Restart("myapp".to_string()),
+        ),
     ];
 
     for (label, op) in &ops {
         let result = read_only_safety.check(op);
         let status = if result.is_ok() { "ALLOWED" } else { "BLOCKED" };
-        let read_only = if op.is_read_only() { " (read-only)" } else { "" };
+        let read_only = if op.is_read_only() {
+            " (read-only)"
+        } else {
+            ""
+        };
         println!("  {label}{read_only}: {status}");
     }
     println!();
@@ -70,10 +91,22 @@ fn main() {
 
     let test_ops = vec![
         ("Start(myapp)", ServiceOperation::Start("myapp".to_string())),
-        ("Restart(nginx)", ServiceOperation::Restart("nginx".to_string())),
-        ("Stop(postgres)", ServiceOperation::Stop("postgres".to_string())),
-        ("Restart(sshd)", ServiceOperation::Restart("sshd".to_string())),
-        ("Restart(dbus)", ServiceOperation::Restart("dbus".to_string())),
+        (
+            "Restart(nginx)",
+            ServiceOperation::Restart("nginx".to_string()),
+        ),
+        (
+            "Stop(postgres)",
+            ServiceOperation::Stop("postgres".to_string()),
+        ),
+        (
+            "Restart(sshd)",
+            ServiceOperation::Restart("sshd".to_string()),
+        ),
+        (
+            "Restart(dbus)",
+            ServiceOperation::Restart("dbus".to_string()),
+        ),
     ];
 
     for (label, op) in &test_ops {
@@ -95,7 +128,10 @@ fn main() {
 
     let test_ops = vec![
         ("Start(redis)", ServiceOperation::Start("redis".to_string())),
-        ("Restart(myapp)", ServiceOperation::Restart("myapp".to_string())),
+        (
+            "Restart(myapp)",
+            ServiceOperation::Restart("myapp".to_string()),
+        ),
         ("Stop(sshd)", ServiceOperation::Stop("sshd".to_string())),
     ];
 
@@ -131,8 +167,10 @@ fn main() {
     ];
 
     for svc in &services {
-        println!("  {} ({}) — {:?} (pid: {:?})",
-            svc.name, svc.service_type, svc.status, svc.pid);
+        println!(
+            "  {} ({}) — {:?} (pid: {:?})",
+            svc.name, svc.service_type, svc.status, svc.pid
+        );
     }
 
     println!("\nDone.");

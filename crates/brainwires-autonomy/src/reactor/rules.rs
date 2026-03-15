@@ -88,18 +88,19 @@ impl ReactorRule {
             return !self.is_excluded(path);
         }
 
-        let matches = self.patterns.iter().any(|pattern| {
-            glob_match(pattern, path)
-        });
+        let matches = self
+            .patterns
+            .iter()
+            .any(|pattern| glob_match(pattern, path));
 
         matches && !self.is_excluded(path)
     }
 
     /// Check if a file path matches any exclude pattern.
     fn is_excluded(&self, path: &str) -> bool {
-        self.exclude_patterns.iter().any(|pattern| {
-            glob_match(pattern, path)
-        })
+        self.exclude_patterns
+            .iter()
+            .any(|pattern| glob_match(pattern, path))
     }
 
     /// Check if an event type matches this rule.

@@ -18,8 +18,14 @@ fn main() {
     let default_config = GpioConfig::default();
     println!("--- Default GpioConfig ---");
     println!("  allowed_pins         = {:?}", default_config.allowed_pins);
-    println!("  max_concurrent_pins  = {}", default_config.max_concurrent_pins);
-    println!("  auto_release_timeout = {}s", default_config.auto_release_timeout_secs);
+    println!(
+        "  max_concurrent_pins  = {}",
+        default_config.max_concurrent_pins
+    );
+    println!(
+        "  auto_release_timeout = {}s",
+        default_config.auto_release_timeout_secs
+    );
     println!();
 
     // 2. Safety policy with empty allow-list
@@ -50,20 +56,26 @@ fn main() {
 
     // Acquire allowed pins
     match manager.acquire(0, 17, GpioDirection::Output, "agent-led") {
-        Ok(pin) => println!("  Acquired: chip{}/line{} ({}) by {}",
-            pin.chip, pin.line, pin.direction, pin.agent_id),
+        Ok(pin) => println!(
+            "  Acquired: chip{}/line{} ({}) by {}",
+            pin.chip, pin.line, pin.direction, pin.agent_id
+        ),
         Err(e) => println!("  Failed: {e}"),
     }
 
     match manager.acquire(0, 27, GpioDirection::Input, "agent-sensor") {
-        Ok(pin) => println!("  Acquired: chip{}/line{} ({}) by {}",
-            pin.chip, pin.line, pin.direction, pin.agent_id),
+        Ok(pin) => println!(
+            "  Acquired: chip{}/line{} ({}) by {}",
+            pin.chip, pin.line, pin.direction, pin.agent_id
+        ),
         Err(e) => println!("  Failed: {e}"),
     }
 
     match manager.acquire(0, 22, GpioDirection::Output, "agent-relay") {
-        Ok(pin) => println!("  Acquired: chip{}/line{} ({}) by {}",
-            pin.chip, pin.line, pin.direction, pin.agent_id),
+        Ok(pin) => println!(
+            "  Acquired: chip{}/line{} ({}) by {}",
+            pin.chip, pin.line, pin.direction, pin.agent_id
+        ),
         Err(e) => println!("  Failed: {e}"),
     }
 
@@ -91,21 +103,32 @@ fn main() {
     // 5. List active pins
     println!("--- Active Pins ---");
     for pin in manager.active_pins() {
-        println!("  chip{}/line{}: {} (agent: {})",
-            pin.chip, pin.line, pin.direction, pin.agent_id);
+        println!(
+            "  chip{}/line{}: {} (agent: {})",
+            pin.chip, pin.line, pin.direction, pin.agent_id
+        );
     }
     println!();
 
     // 6. Release pins
     println!("--- Release Operations ---");
     manager.release(0, 17);
-    println!("  Released chip0/line17, active: {}", manager.active_count());
+    println!(
+        "  Released chip0/line17, active: {}",
+        manager.active_count()
+    );
 
     manager.release_agent("agent-relay");
-    println!("  Released all pins for agent-relay, active: {}", manager.active_count());
+    println!(
+        "  Released all pins for agent-relay, active: {}",
+        manager.active_count()
+    );
 
     let timed_out = manager.release_timed_out();
-    println!("  Timed-out releases: {} (none expected — timeout is 120s)", timed_out.len());
+    println!(
+        "  Timed-out releases: {} (none expected — timeout is 120s)",
+        timed_out.len()
+    );
     println!();
 
     // 7. PWM configuration
@@ -114,9 +137,18 @@ fn main() {
     match PwmConfig::new(1000.0, 0.5) {
         Ok(pwm) => {
             println!("  1kHz @ 50% duty cycle:");
-            println!("    period:    {:.3}ms", pwm.period().as_secs_f64() * 1000.0);
-            println!("    high_time: {:.3}ms", pwm.high_time().as_secs_f64() * 1000.0);
-            println!("    low_time:  {:.3}ms", pwm.low_time().as_secs_f64() * 1000.0);
+            println!(
+                "    period:    {:.3}ms",
+                pwm.period().as_secs_f64() * 1000.0
+            );
+            println!(
+                "    high_time: {:.3}ms",
+                pwm.high_time().as_secs_f64() * 1000.0
+            );
+            println!(
+                "    low_time:  {:.3}ms",
+                pwm.low_time().as_secs_f64() * 1000.0
+            );
         }
         Err(e) => println!("  Error: {e}"),
     }
@@ -124,8 +156,14 @@ fn main() {
     match PwmConfig::new(50.0, 0.75) {
         Ok(pwm) => {
             println!("  50Hz @ 75% duty cycle (servo):");
-            println!("    period:    {:.1}ms", pwm.period().as_secs_f64() * 1000.0);
-            println!("    high_time: {:.1}ms", pwm.high_time().as_secs_f64() * 1000.0);
+            println!(
+                "    period:    {:.1}ms",
+                pwm.period().as_secs_f64() * 1000.0
+            );
+            println!(
+                "    high_time: {:.1}ms",
+                pwm.high_time().as_secs_f64() * 1000.0
+            );
         }
         Err(e) => println!("  Error: {e}"),
     }
@@ -148,7 +186,12 @@ fn main() {
         println!("  No GPIO chips found (expected on non-embedded systems)");
     } else {
         for chip in &chips {
-            println!("  {} — {} ({} lines)", chip.path.display(), chip.label, chip.num_lines);
+            println!(
+                "  {} — {} ({} lines)",
+                chip.path.display(),
+                chip.label,
+                chip.num_lines
+            );
         }
     }
 

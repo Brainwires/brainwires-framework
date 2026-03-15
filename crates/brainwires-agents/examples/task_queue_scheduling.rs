@@ -8,8 +8,8 @@
 
 use anyhow::Result;
 
-use brainwires_agents::brainwires_core::{Task, TaskPriority};
 use brainwires_agents::TaskQueue;
+use brainwires_agents::brainwires_core::{Task, TaskPriority};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -23,10 +23,22 @@ async fn main() -> Result<()> {
     // 2. Enqueue tasks at different priorities (inserted out of priority order)
     let tasks: Vec<(&str, &str, TaskPriority)> = vec![
         ("task-low", "Update README", TaskPriority::Low),
-        ("task-normal-1", "Add unit tests for parser", TaskPriority::Normal),
+        (
+            "task-normal-1",
+            "Add unit tests for parser",
+            TaskPriority::Normal,
+        ),
         ("task-high", "Fix authentication bug", TaskPriority::High),
-        ("task-urgent", "Patch critical security vuln", TaskPriority::Urgent),
-        ("task-normal-2", "Refactor error types", TaskPriority::Normal),
+        (
+            "task-urgent",
+            "Patch critical security vuln",
+            TaskPriority::Urgent,
+        ),
+        (
+            "task-normal-2",
+            "Refactor error types",
+            TaskPriority::Normal,
+        ),
     ];
 
     println!("Enqueuing {} tasks ...", tasks.len());

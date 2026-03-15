@@ -25,8 +25,9 @@ impl CronTrigger {
             task.cron_expression.clone()
         };
 
-        let schedule = Schedule::from_str(&expr)
-            .map_err(|e| anyhow::anyhow!("Invalid cron expression '{}': {}", task.cron_expression, e))?;
+        let schedule = Schedule::from_str(&expr).map_err(|e| {
+            anyhow::anyhow!("Invalid cron expression '{}': {}", task.cron_expression, e)
+        })?;
 
         Ok(Self { schedule, task })
     }
@@ -41,7 +42,9 @@ impl CronTrigger {
         self.next_fire().map(|next| {
             let now = chrono::Utc::now();
             if next > now {
-                (next - now).to_std().unwrap_or(std::time::Duration::from_secs(1))
+                (next - now)
+                    .to_std()
+                    .unwrap_or(std::time::Duration::from_secs(1))
             } else {
                 std::time::Duration::from_secs(0)
             }
@@ -61,8 +64,8 @@ impl CronTrigger {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::task_schedule::ScheduledTaskType;
+    use super::*;
 
     #[test]
     fn cron_trigger_parses_five_field_expression() {

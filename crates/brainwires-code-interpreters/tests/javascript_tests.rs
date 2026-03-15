@@ -59,10 +59,12 @@ fn js_string_literal() {
 
 #[test]
 fn js_template_literal() {
-    let r = exec(r#"
+    let r = exec(
+        r#"
         let name = "world";
         `hello ${name}`
-    "#);
+    "#,
+    );
     assert!(r.success, "Error: {:?}", r.error);
     assert!(r.stdout.contains("hello world"));
 }
@@ -351,10 +353,7 @@ fn js_json_parse() {
 
 #[test]
 fn js_context_numeric_values() {
-    let r = exec_with_context(
-        "x + y",
-        serde_json::json!({ "x": 100, "y": 200 }),
-    );
+    let r = exec_with_context("x + y", serde_json::json!({ "x": 100, "y": 200 }));
     assert!(r.success, "Error: {:?}", r.error);
     assert!(r.stdout.contains("300"));
 }
@@ -371,10 +370,7 @@ fn js_context_string_value() {
 
 #[test]
 fn js_context_array_value() {
-    let r = exec_with_context(
-        "items.length",
-        serde_json::json!({ "items": [1, 2, 3] }),
-    );
+    let r = exec_with_context("items.length", serde_json::json!({ "items": [1, 2, 3] }));
     assert!(r.success, "Error: {:?}", r.error);
     assert!(r.stdout.contains("3"));
 }
@@ -414,11 +410,7 @@ fn js_throw_error() {
     let r = exec(r#"throw new Error("custom error")"#);
     assert!(!r.success);
     let err = r.error.unwrap();
-    assert!(
-        err.contains("custom error"),
-        "Unexpected error: {}",
-        err,
-    );
+    assert!(err.contains("custom error"), "Unexpected error: {}", err,);
 }
 
 // ---------------------------------------------------------------------------

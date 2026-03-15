@@ -40,7 +40,10 @@ async fn full_pipeline_allows_valid_authenticated_request() {
     let mut chain = MiddlewareChain::new();
     chain.add(LoggingMiddleware::new());
     chain.add(AuthMiddleware::new("secret-token-42"));
-    chain.add(ToolFilterMiddleware::allow_only(["agent_spawn", "agent_list"]));
+    chain.add(ToolFilterMiddleware::allow_only([
+        "agent_spawn",
+        "agent_list",
+    ]));
     chain.add(RateLimitMiddleware::new(100.0));
 
     let request = JsonRpcRequest {
@@ -180,10 +183,7 @@ async fn process_response_runs_all_layers() {
             // Add marker to the response result
             if let Some(result) = &mut response.result {
                 if let Some(obj) = result.as_object_mut() {
-                    obj.insert(
-                        self.marker.clone(),
-                        serde_json::Value::Bool(true),
-                    );
+                    obj.insert(self.marker.clone(), serde_json::Value::Bool(true));
                 }
             }
         }
@@ -237,6 +237,9 @@ async fn rate_limiter_per_tool_limits() {
     let second = tool_call_request("slow_tool");
     let mut ctx = RequestContext::new(json!(2));
     let result = chain.process_request(&second, &mut ctx).await;
-    assert!(result.is_err(), "slow_tool should be rate limited after first request");
+    assert!(
+        result.is_err(),
+        "slow_tool should be rate limited after first request"
+    );
     assert_eq!(result.unwrap_err().code, -32002);
 }

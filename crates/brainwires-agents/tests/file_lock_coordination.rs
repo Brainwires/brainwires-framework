@@ -70,8 +70,14 @@ async fn agents_lock_different_files_independently() {
     assert!(mgr.is_locked_by("/src/utils.rs", "agent-2").await);
 
     // Agent 1 cannot access agent 2's file
-    assert!(!mgr.can_acquire("/src/utils.rs", "agent-1", LockType::Write).await);
-    assert!(!mgr.can_acquire("/src/main.rs", "agent-2", LockType::Write).await);
+    assert!(
+        !mgr.can_acquire("/src/utils.rs", "agent-1", LockType::Write)
+            .await
+    );
+    assert!(
+        !mgr.can_acquire("/src/main.rs", "agent-2", LockType::Write)
+            .await
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -110,7 +116,10 @@ async fn acquire_with_wait_succeeds_after_lock_released() {
         .await;
 
     releaser.await.unwrap();
-    assert!(result.is_ok(), "Agent-2 should acquire after agent-1 releases");
+    assert!(
+        result.is_ok(),
+        "Agent-2 should acquire after agent-1 releases"
+    );
 }
 
 #[tokio::test]
@@ -135,7 +144,11 @@ async fn acquire_with_wait_times_out() {
 
     assert!(result.is_err());
     let err_msg = result.unwrap_err().to_string();
-    assert!(err_msg.contains("timeout"), "Error should mention timeout: {}", err_msg);
+    assert!(
+        err_msg.contains("timeout"),
+        "Error should mention timeout: {}",
+        err_msg
+    );
 }
 
 // ---------------------------------------------------------------------------

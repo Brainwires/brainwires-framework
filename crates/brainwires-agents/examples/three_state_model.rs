@@ -11,8 +11,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 
 use brainwires_agents::state_model::{
-    ApplicationChange, OperationLog, StateChange, StateModelProposedOperation,
-    ThreeStateModel,
+    ApplicationChange, OperationLog, StateChange, StateModelProposedOperation, ThreeStateModel,
 };
 
 #[tokio::main]
@@ -29,17 +28,11 @@ async fn main() -> Result<()> {
 
     model
         .application_state
-        .update_file(
-            PathBuf::from("src/main.rs"),
-            "abc123".to_string(),
-        )
+        .update_file(PathBuf::from("src/main.rs"), "abc123".to_string())
         .await;
     model
         .application_state
-        .update_file(
-            PathBuf::from("src/lib.rs"),
-            "def456".to_string(),
-        )
+        .update_file(PathBuf::from("src/lib.rs"), "def456".to_string())
         .await;
     model
         .application_state
@@ -85,10 +78,7 @@ async fn main() -> Result<()> {
         .await;
 
     let completed = model.operation_state.get_operation(&op_id).await.unwrap();
-    println!(
-        "Operation {} status: {:?}",
-        op_id, completed.status
-    );
+    println!("Operation {} status: {:?}", op_id, completed.status);
 
     // ── 4. Validate a proposed operation — should pass ──────────────────────
 
@@ -121,10 +111,7 @@ async fn main() -> Result<()> {
         "refactor".to_string(),
         serde_json::json!({}),
     )
-    .with_resources(
-        vec!["src/main.rs".to_string()],
-        vec![],
-    );
+    .with_resources(vec!["src/main.rs".to_string()], vec![]);
     model.operation_state.start_operation(conflict_log).await;
 
     // Another agent tries to use the same resource

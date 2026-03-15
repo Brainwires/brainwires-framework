@@ -11,14 +11,14 @@
 
 use std::sync::Arc;
 
-use super::{
-    CompositionFunction, DecomposeContext, DecompositionResult, DecompositionStrategy,
-    TaskDecomposer,
-};
 use super::super::error::{DecompositionError, MdapResult};
 use super::super::microagent::{MicroagentProvider, Subtask};
 use super::super::red_flags::{RedFlagConfig, StandardRedFlagValidator};
 use super::super::voting::{FirstToAheadByKVoter, ResponseMetadata, SampledResponse};
+use super::{
+    CompositionFunction, DecomposeContext, DecompositionResult, DecompositionStrategy,
+    TaskDecomposer,
+};
 
 /// Binary recursive decomposer implementing the paper's approach
 ///
@@ -400,8 +400,8 @@ impl TaskDecomposer for SimpleRecursiveDecomposer {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::super::microagent::MicroagentResponse;
+    use super::*;
 
     struct MockProvider;
 

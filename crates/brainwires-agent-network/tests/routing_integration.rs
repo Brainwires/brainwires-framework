@@ -20,7 +20,10 @@ fn agent_with_tcp(name: &str, port: u16) -> (AgentIdentity, Vec<TransportAddress
 #[test]
 fn router_strategies() {
     assert_eq!(DirectRouter::new().strategy(), RoutingStrategy::Direct);
-    assert_eq!(BroadcastRouter::new().strategy(), RoutingStrategy::Broadcast);
+    assert_eq!(
+        BroadcastRouter::new().strategy(),
+        RoutingStrategy::Broadcast
+    );
     assert_eq!(
         ContentRouter::new().strategy(),
         RoutingStrategy::ContentBased
@@ -172,31 +175,34 @@ async fn routers_reject_unsupported_message_types() {
 
     // DirectRouter rejects Broadcast
     let broadcast_env = MessageEnvelope::broadcast(Uuid::new_v4(), "test");
-    assert!(DirectRouter::new()
-        .route(&broadcast_env, &peers)
-        .await
-        .is_err());
+    assert!(
+        DirectRouter::new()
+            .route(&broadcast_env, &peers)
+            .await
+            .is_err()
+    );
 
     // DirectRouter rejects Topic
     let topic_env = MessageEnvelope::topic(Uuid::new_v4(), "topic", "test");
-    assert!(DirectRouter::new()
-        .route(&topic_env, &peers)
-        .await
-        .is_err());
+    assert!(DirectRouter::new().route(&topic_env, &peers).await.is_err());
 
     // ContentRouter rejects Direct
     let direct_env =
         MessageEnvelope::direct(Uuid::new_v4(), Uuid::new_v4(), Payload::Text("test".into()));
-    assert!(ContentRouter::new()
-        .route(&direct_env, &peers)
-        .await
-        .is_err());
+    assert!(
+        ContentRouter::new()
+            .route(&direct_env, &peers)
+            .await
+            .is_err()
+    );
 
     // ContentRouter rejects Broadcast
-    assert!(ContentRouter::new()
-        .route(&broadcast_env, &peers)
-        .await
-        .is_err());
+    assert!(
+        ContentRouter::new()
+            .route(&broadcast_env, &peers)
+            .await
+            .is_err()
+    );
 }
 
 /// Test peer table with multiple transport addresses per peer.
@@ -246,6 +252,9 @@ fn peer_table_upsert_updates_existing() {
     peers.upsert(identity, addr_v2);
 
     assert_eq!(peers.addresses(&id).unwrap().len(), 2);
-    assert_eq!(peers.get(&id).unwrap().agent_card.capabilities, vec!["updated"]);
+    assert_eq!(
+        peers.get(&id).unwrap().agent_card.capabilities,
+        vec!["updated"]
+    );
     assert_eq!(peers.len(), 1, "upsert should not duplicate entries");
 }

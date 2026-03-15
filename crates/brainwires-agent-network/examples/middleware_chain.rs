@@ -82,7 +82,9 @@ async fn main() -> anyhow::Result<()> {
     let mut ctx3 = RequestContext::new(json!(3));
 
     match chain.process_request(&init_request, &mut ctx3).await {
-        Ok(()) => println!("  'initialize' -> Continue (tool filter + rate limit skip non-tool methods)"),
+        Ok(()) => {
+            println!("  'initialize' -> Continue (tool filter + rate limit skip non-tool methods)")
+        }
         Err(e) => println!("  'initialize' -> Rejected: {}", e.message),
     }
     println!();
@@ -91,7 +93,10 @@ async fn main() -> anyhow::Result<()> {
     println!("--- Allow-List Filter ---");
 
     let mut strict_chain = MiddlewareChain::new();
-    strict_chain.add(ToolFilterMiddleware::allow_only(["read_file", "list_directory"]));
+    strict_chain.add(ToolFilterMiddleware::allow_only([
+        "read_file",
+        "list_directory",
+    ]));
 
     let read_request = JsonRpcRequest {
         jsonrpc: "2.0".to_string(),
@@ -114,7 +119,10 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let mut ctx5 = RequestContext::new(json!(5));
-    match strict_chain.process_request(&write_request, &mut ctx5).await {
+    match strict_chain
+        .process_request(&write_request, &mut ctx5)
+        .await
+    {
         Ok(()) => println!("  tools/call 'write_file'    -> Continue (unexpected)"),
         Err(e) => println!("  tools/call 'write_file'    -> Rejected: {}", e.message),
     }

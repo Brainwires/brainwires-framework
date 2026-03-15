@@ -303,7 +303,12 @@ mod local_training {
             LrScheduler::CosineWarmRestarts,
         ] {
             let sched = LrSchedule::new(1e-3, 10, 100, scheduler);
-            assert_eq!(sched.get_lr(0), 0.0, "LR at step 0 should be 0 for {:?}", scheduler);
+            assert_eq!(
+                sched.get_lr(0),
+                0.0,
+                "LR at step 0 should be 0 for {:?}",
+                scheduler
+            );
         }
     }
 

@@ -8,9 +8,7 @@ use brainwires_agents::contract_net::{
     TaskRequirements, TaskStatus,
 };
 use brainwires_agents::optimistic::{CommitResult, OptimisticController, ResolutionStrategy};
-use brainwires_agents::saga::{
-    NoOpCompensation, SagaExecutor, SagaOperationType, SagaStatus,
-};
+use brainwires_agents::saga::{NoOpCompensation, SagaExecutor, SagaOperationType, SagaStatus};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -23,11 +21,9 @@ async fn contract_net_full_auction_lifecycle() {
     let manager = ContractNetManager::new();
 
     // Create participants with different capabilities
-    let mut participant_rust = ContractParticipant::new(
-        "rust-agent",
-        vec!["rust".to_string(), "cargo".to_string()],
-    )
-    .with_max_concurrent(3);
+    let mut participant_rust =
+        ContractParticipant::new("rust-agent", vec!["rust".to_string(), "cargo".to_string()])
+            .with_max_concurrent(3);
     let mut participant_ts = ContractParticipant::new(
         "ts-agent",
         vec!["typescript".to_string(), "npm".to_string()],
@@ -167,9 +163,7 @@ async fn contract_net_decline_and_reannounce() {
     manager.announce_task(announcement).await;
 
     manager
-        .receive_bid(
-            TaskBid::new("agent-1", "flakey-task").with_capability_score(0.9),
-        )
+        .receive_bid(TaskBid::new("agent-1", "flakey-task").with_capability_score(0.9))
         .await
         .unwrap();
 
@@ -181,8 +175,10 @@ async fn contract_net_decline_and_reannounce() {
 
     // Task should no longer have an award
     // Re-announce would be a new announcement
-    assert!(manager.get_task_status("flakey-task").await.is_none()
-        || manager.get_task_status("flakey-task").await == Some(TaskStatus::OpenForBids));
+    assert!(
+        manager.get_task_status("flakey-task").await.is_none()
+            || manager.get_task_status("flakey-task").await == Some(TaskStatus::OpenForBids)
+    );
 }
 
 // ===========================================================================
@@ -411,17 +407,10 @@ async fn optimistic_per_resource_strategy_override() {
         .register_strategy("mutable.json", ResolutionStrategy::LastWriterWins)
         .await;
 
-    let token_a = controller
-        .begin_optimistic("agent-a", "mutable.json")
-        .await;
-    let token_b = controller
-        .begin_optimistic("agent-b", "mutable.json")
-        .await;
+    let token_a = controller.begin_optimistic("agent-a", "mutable.json").await;
+    let token_b = controller.begin_optimistic("agent-b", "mutable.json").await;
 
-    controller
-        .commit_optimistic(token_a, "ha")
-        .await
-        .unwrap();
+    controller.commit_optimistic(token_a, "ha").await.unwrap();
 
     // Should use LastWriterWins for this resource
     let result = controller

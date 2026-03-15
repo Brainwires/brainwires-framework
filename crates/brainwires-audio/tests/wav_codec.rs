@@ -1,6 +1,6 @@
 //! Integration tests for WAV encoding and decoding.
 
-use brainwires_audio::{decode_wav, encode_wav, AudioBuffer, AudioConfig, SampleFormat};
+use brainwires_audio::{AudioBuffer, AudioConfig, SampleFormat, decode_wav, encode_wav};
 
 // ── I16 round-trips ──────────────────────────────────────────────────
 

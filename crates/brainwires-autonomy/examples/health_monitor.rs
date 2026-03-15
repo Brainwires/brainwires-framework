@@ -7,8 +7,7 @@
 use std::time::Instant;
 
 use brainwires_autonomy::agent_ops::{
-    HealthMonitor, PerformanceMetrics,
-    health::HealthMonitorConfig,
+    HealthMonitor, PerformanceMetrics, health::HealthMonitorConfig,
 };
 
 fn main() {
@@ -54,7 +53,8 @@ fn main() {
     };
     monitor.update_metrics("agent-alpha", alpha_metrics.clone());
     monitor.heartbeat("agent-alpha");
-    println!("  agent-alpha: {} iterations, error_rate={:.1}%, tokens/iter={}",
+    println!(
+        "  agent-alpha: {} iterations, error_rate={:.1}%, tokens/iter={}",
         alpha_metrics.iterations,
         alpha_metrics.error_rate() * 100.0,
         alpha_metrics.avg_tokens_per_iteration(),
@@ -72,7 +72,8 @@ fn main() {
     };
     monitor.update_metrics("agent-beta", beta_metrics.clone());
     monitor.heartbeat("agent-beta");
-    println!("  agent-beta:  {} iterations, error_rate={:.1}%, tokens/iter={}",
+    println!(
+        "  agent-beta:  {} iterations, error_rate={:.1}%, tokens/iter={}",
         beta_metrics.iterations,
         beta_metrics.error_rate() * 100.0,
         beta_metrics.avg_tokens_per_iteration(),

@@ -2,8 +2,8 @@
 
 use anyhow::Result;
 
-use super::{ServiceInfo, ServiceOperation, ServiceStatus, ServiceType};
 use super::safety::ServiceSafety;
+use super::{ServiceInfo, ServiceOperation, ServiceStatus, ServiceType};
 
 /// Manager for systemd services via the `systemctl` and `journalctl` CLIs.
 ///

@@ -76,7 +76,10 @@ impl CiCdOrchestrator {
     /// Handle a single workflow event.
     pub async fn handle_event(&self, event: WorkflowEvent) -> anyhow::Result<()> {
         match event {
-            WorkflowEvent::IssueOpened { ref issue, ref repo } => {
+            WorkflowEvent::IssueOpened {
+                ref issue,
+                ref repo,
+            } => {
                 self.handle_issue_opened(issue, repo).await?;
             }
             WorkflowEvent::IssueCommented {
@@ -98,7 +101,10 @@ impl CiCdOrchestrator {
                         &repo.full_name(),
                         "",
                         WebhookAction::Ignored,
-                        &format!("Comment on #{} doesn't contain trigger keyword", issue.number),
+                        &format!(
+                            "Comment on #{} doesn't contain trigger keyword",
+                            issue.number
+                        ),
                     )
                     .await;
                 }
@@ -185,10 +191,7 @@ impl CiCdOrchestrator {
             let mut active = self.active.write().await;
             if let Some(existing) = active.remove(&investigation_key) {
                 let _ = existing.cancel_tx.send(true);
-                tracing::info!(
-                    "Cancelled existing investigation for {}",
-                    investigation_key
-                );
+                tracing::info!("Cancelled existing investigation for {}", investigation_key);
             }
         }
 

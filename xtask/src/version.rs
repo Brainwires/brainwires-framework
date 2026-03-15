@@ -1475,6 +1475,9 @@ mod tests {
     fn test_rs_doc_comment_leaves_non_brainwires() {
         let input = "/// tokio = { version = \"1.43\", features = [\"full\"] }\n";
         let result = replace_version_in_rs(input, "0.5.0");
-        assert_eq!(result, input, "should not modify non-brainwires doc comments");
+        assert_eq!(
+            result, input,
+            "should not modify non-brainwires doc comments"
+        );
     }
 }

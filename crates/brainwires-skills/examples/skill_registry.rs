@@ -7,9 +7,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use brainwires_skills::{
-    SkillRegistry, SkillRouter, SkillSource,
-};
+use brainwires_skills::{SkillRegistry, SkillRouter, SkillSource};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -50,9 +48,8 @@ async fn main() -> anyhow::Result<()> {
     ];
 
     for (name, description, instructions) in &skills {
-        let content = format!(
-            "---\nname: {name}\ndescription: {description}\n---\n\n{instructions}\n"
-        );
+        let content =
+            format!("---\nname: {name}\ndescription: {description}\n---\n\n{instructions}\n");
         let path = temp_dir.join(format!("{name}.md"));
         std::fs::write(&path, &content)?;
         println!("  Created: {}", path.display());

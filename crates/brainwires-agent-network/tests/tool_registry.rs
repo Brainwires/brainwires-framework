@@ -3,10 +3,10 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
+use brainwires_agent_network::ToolFilterMiddleware;
 use brainwires_agent_network::connection::RequestContext;
 use brainwires_agent_network::middleware::MiddlewareChain;
 use brainwires_agent_network::registry::{McpToolRegistry, ToolHandler};
-use brainwires_agent_network::ToolFilterMiddleware;
 use brainwires_mcp::{CallToolResult, JsonRpcRequest};
 use serde_json::{Value, json};
 
@@ -134,10 +134,12 @@ async fn tool_filter_gates_registry_dispatch() {
         params: Some(json!({"name": "agent_spawn", "arguments": {}})),
     };
     let mut spawn_ctx = ctx.clone();
-    assert!(chain
-        .process_request(&spawn_request, &mut spawn_ctx)
-        .await
-        .is_ok());
+    assert!(
+        chain
+            .process_request(&spawn_request, &mut spawn_ctx)
+            .await
+            .is_ok()
+    );
 
     // bash should be rejected by middleware
     let bash_request = JsonRpcRequest {

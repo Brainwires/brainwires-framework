@@ -16,14 +16,8 @@ use brainwires_code_interpreters::{
 fn executor_default_and_new_are_equivalent() {
     let a = Executor::new();
     let b = Executor::default();
-    assert_eq!(
-        a.limits().max_timeout_ms,
-        b.limits().max_timeout_ms,
-    );
-    assert_eq!(
-        a.limits().max_memory_mb,
-        b.limits().max_memory_mb,
-    );
+    assert_eq!(a.limits().max_timeout_ms, b.limits().max_timeout_ms,);
+    assert_eq!(a.limits().max_memory_mb, b.limits().max_memory_mb,);
 }
 
 #[test]
@@ -214,7 +208,13 @@ fn execution_error_to_result() {
 
     let err2 = ExecutionError::SyntaxError("unexpected token".into());
     let result2 = err2.to_result(10);
-    assert!(result2.error.as_deref().unwrap().contains("unexpected token"));
+    assert!(
+        result2
+            .error
+            .as_deref()
+            .unwrap()
+            .contains("unexpected token")
+    );
 }
 
 // ---------------------------------------------------------------------------

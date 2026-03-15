@@ -4,7 +4,7 @@
 //! using skill content written to temporary files.
 
 use brainwires_skills::{
-    parse_skill_file, parse_skill_metadata, render_template, SkillExecutionMode,
+    SkillExecutionMode, parse_skill_file, parse_skill_metadata, render_template,
 };
 use std::collections::HashMap;
 use tempfile::TempDir;
@@ -63,14 +63,8 @@ Run the deploy pipeline.
         Some("Requires docker and kubectl".to_string())
     );
     assert_eq!(meta.model, Some("claude-sonnet-4".to_string()));
-    assert_eq!(
-        meta.get_metadata("category"),
-        Some(&"devops".to_string())
-    );
-    assert_eq!(
-        meta.get_metadata("author"),
-        Some(&"test-user".to_string())
-    );
+    assert_eq!(meta.get_metadata("category"), Some(&"devops".to_string()));
+    assert_eq!(meta.get_metadata("author"), Some(&"test-user".to_string()));
     assert_eq!(meta.execution_mode(), SkillExecutionMode::Subagent);
     assert_eq!(
         meta.hooks,

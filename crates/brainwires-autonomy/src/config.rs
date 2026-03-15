@@ -205,7 +205,12 @@ pub struct WebhookConfig {
 
 fn default_webhook_log_dir() -> String {
     dirs::home_dir()
-        .map(|h| h.join(".brainwires").join("webhook-logs").to_string_lossy().to_string())
+        .map(|h| {
+            h.join(".brainwires")
+                .join("webhook-logs")
+                .to_string_lossy()
+                .to_string()
+        })
         .unwrap_or_else(|| "/tmp/brainwires/webhook-logs".to_string())
 }
 
@@ -291,7 +296,12 @@ impl Default for CrashRecoveryConfig {
         Self {
             max_fix_attempts: 3,
             state_file: dirs::home_dir()
-                .map(|h| h.join(".brainwires").join("crash-recovery.json").to_string_lossy().to_string())
+                .map(|h| {
+                    h.join(".brainwires")
+                        .join("crash-recovery.json")
+                        .to_string_lossy()
+                        .to_string()
+                })
                 .unwrap_or_else(|| "/tmp/brainwires/crash-recovery.json".to_string()),
             enabled: true,
         }

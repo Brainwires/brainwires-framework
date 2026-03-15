@@ -35,15 +35,15 @@ export function greet(name: string): string {
 }
 "#;
     fs::write(&bad_file, bad_content)?;
-    println!("Created file with duplicate function: {}", bad_file.display());
+    println!(
+        "Created file with duplicate function: {}",
+        bad_file.display()
+    );
 
     // ── 2. Configure validation ────────────────────────────────────────────
 
     let config = ValidationConfig {
-        checks: vec![
-            ValidationCheck::NoDuplicates,
-            ValidationCheck::SyntaxValid,
-        ],
+        checks: vec![ValidationCheck::NoDuplicates, ValidationCheck::SyntaxValid],
         working_directory: tmp_path.clone(),
         max_retries: 3,
         enabled: true,
@@ -70,12 +70,7 @@ export function greet(name: string): string {
             ValidationSeverity::Warning => "WARN",
             ValidationSeverity::Info => "INFO",
         };
-        println!(
-            "  [{}] {}: {}",
-            severity,
-            issue.check,
-            issue.message
-        );
+        println!("  [{}] {}: {}", severity, issue.check, issue.message);
         if let Some(file) = &issue.file {
             print!("         File: {file}");
             if let Some(line) = issue.line {

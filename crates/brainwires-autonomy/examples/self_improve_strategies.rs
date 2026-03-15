@@ -5,8 +5,8 @@
 //! ```
 
 use brainwires_autonomy::config::SelfImprovementConfig;
-use brainwires_autonomy::self_improve::strategies::all_strategies;
 use brainwires_autonomy::self_improve::TaskGenerator;
+use brainwires_autonomy::self_improve::strategies::all_strategies;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -26,9 +26,15 @@ async fn main() -> anyhow::Result<()> {
     println!("  max_cycles           = {}", config.max_cycles);
     println!("  max_budget           = ${:.2}", config.max_budget);
     println!("  agent_iterations     = {}", config.agent_iterations);
-    println!("  max_diff_per_task    = {} lines", config.max_diff_per_task);
+    println!(
+        "  max_diff_per_task    = {} lines",
+        config.max_diff_per_task
+    );
     println!("  max_total_diff       = {} lines", config.max_total_diff);
-    println!("  circuit_breaker      = {} failures", config.circuit_breaker_threshold);
+    println!(
+        "  circuit_breaker      = {} failures",
+        config.circuit_breaker_threshold
+    );
     println!("  branch_prefix        = \"{}\"", config.branch_prefix);
     println!("  dry_run              = {}", config.dry_run);
     println!("  create_prs           = {}", config.create_prs);
@@ -41,8 +47,10 @@ async fn main() -> anyhow::Result<()> {
         ..Default::default()
     };
     for name in &["clippy", "dead_code", "todo_scanner", "doc_gaps"] {
-        println!("  is_strategy_enabled(\"{name}\"): {}",
-            enabled_only.is_strategy_enabled(name));
+        println!(
+            "  is_strategy_enabled(\"{name}\"): {}",
+            enabled_only.is_strategy_enabled(name)
+        );
     }
     println!();
 

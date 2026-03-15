@@ -66,10 +66,7 @@ async fn main() -> Result<()> {
     )?;
 
     let factor = trust.get("agent-A").unwrap();
-    println!(
-        "  Score before violation: {:.2}",
-        score_before,
-    );
+    println!("  Score before violation: {:.2}", score_before,);
     println!(
         "  Score after violation:  {:.2}  (level: {})",
         factor.score, factor.level,
@@ -83,14 +80,10 @@ async fn main() -> Result<()> {
     let all_events = logger.query(&AuditQuery::new())?;
     println!("  Total events logged: {}", all_events.len());
 
-    let violations = logger.query(
-        &AuditQuery::new().of_type(AuditEventType::PolicyViolation),
-    )?;
+    let violations = logger.query(&AuditQuery::new().of_type(AuditEventType::PolicyViolation))?;
     println!("  Policy violations:   {}", violations.len());
 
-    let agent_a_events = logger.query(
-        &AuditQuery::new().for_agent("agent-A"),
-    )?;
+    let agent_a_events = logger.query(&AuditQuery::new().for_agent("agent-A"))?;
     println!("  Events for agent-A:  {}", agent_a_events.len());
 
     // 5. Audit statistics

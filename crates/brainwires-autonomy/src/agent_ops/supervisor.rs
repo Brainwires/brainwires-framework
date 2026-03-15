@@ -161,9 +161,7 @@ impl AgentSupervisor {
                     }
                 }
                 SupervisorAction::CrashRecover => {
-                    tracing::info!(
-                        "Supervisor: initiating crash recovery for agent {agent_id}"
-                    );
+                    tracing::info!("Supervisor: initiating crash recovery for agent {agent_id}");
                     events.push(SupervisorEvent::CrashRecoveryStarted {
                         agent_id: agent_id.clone(),
                         crash_id: uuid::Uuid::new_v4().to_string(),

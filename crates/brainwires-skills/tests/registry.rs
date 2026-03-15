@@ -70,7 +70,10 @@ fn register_multiple_skills_listed_sorted() {
 #[test]
 fn remove_skill() {
     let mut registry = SkillRegistry::new();
-    registry.register(SkillMetadata::new("removable".to_string(), "Will be removed".to_string()));
+    registry.register(SkillMetadata::new(
+        "removable".to_string(),
+        "Will be removed".to_string(),
+    ));
     assert!(registry.contains("removable"));
 
     let removed = registry.remove("removable");

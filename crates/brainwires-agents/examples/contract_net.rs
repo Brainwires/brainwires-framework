@@ -74,7 +74,10 @@ async fn main() -> Result<()> {
     // 4. Evaluate winners under different strategies
     let strategies: Vec<(&str, BidEvaluationStrategy)> = vec![
         ("HighestScore", BidEvaluationStrategy::HighestScore),
-        ("FastestCompletion", BidEvaluationStrategy::FastestCompletion),
+        (
+            "FastestCompletion",
+            BidEvaluationStrategy::FastestCompletion,
+        ),
         ("LoadBalancing", BidEvaluationStrategy::LoadBalancing),
         ("BestCapability", BidEvaluationStrategy::BestCapability),
     ];
@@ -99,12 +102,19 @@ async fn main() -> Result<()> {
                 .with_capability_score(bid.capability_score)
                 .with_load(bid.current_load)
                 .with_duration(bid.estimated_duration);
-            manager.receive_bid(new_bid).await.map_err(|e| anyhow::anyhow!(e))?;
+            manager
+                .receive_bid(new_bid)
+                .await
+                .map_err(|e| anyhow::anyhow!(e))?;
         }
 
         // Award the task
         let winner = manager.award_task(&task_id).await;
-        println!("  {:<20} => winner: {}", label, winner.unwrap_or_else(|| "none".into()));
+        println!(
+            "  {:<20} => winner: {}",
+            label,
+            winner.unwrap_or_else(|| "none".into())
+        );
     }
     println!();
 
@@ -133,7 +143,10 @@ async fn main() -> Result<()> {
     let winner = manager.award_task(&task_id).await.unwrap();
     println!("  Awarded to: {winner}");
 
-    manager.accept_award(&task_id, &winner).await.map_err(|e| anyhow::anyhow!(e))?;
+    manager
+        .accept_award(&task_id, &winner)
+        .await
+        .map_err(|e| anyhow::anyhow!(e))?;
     let status = manager.get_task_status(&task_id).await;
     println!("  Status after accept: {:?}", status);
 

@@ -174,11 +174,8 @@ async fn discovered_endpoints_resolve_to_transport_addresses() {
     let mut http_peer = AgentIdentity::new("http-peer");
     http_peer.agent_card.endpoint = Some("https://agent.cloud.example.com/mcp".into());
 
-    let discovery = ManualDiscovery::with_peers(vec![
-        tcp_peer.clone(),
-        unix_peer.clone(),
-        http_peer.clone(),
-    ]);
+    let discovery =
+        ManualDiscovery::with_peers(vec![tcp_peer.clone(), unix_peer.clone(), http_peer.clone()]);
 
     let manager = NetworkManagerBuilder::new(my_identity)
         .add_discovery(Box::new(discovery))
@@ -194,11 +191,15 @@ async fn discovered_endpoints_resolve_to_transport_addresses() {
 
     // Unix peer should have a Unix address
     let unix_addrs = table.addresses(&unix_peer.id).unwrap();
-    assert!(matches!(&unix_addrs[0], TransportAddress::Unix(path) if path.to_str().unwrap().contains("agent.sock")));
+    assert!(
+        matches!(&unix_addrs[0], TransportAddress::Unix(path) if path.to_str().unwrap().contains("agent.sock"))
+    );
 
     // HTTP peer should have a Url address
     let http_addrs = table.addresses(&http_peer.id).unwrap();
-    assert!(matches!(&http_addrs[0], TransportAddress::Url(url) if url.contains("agent.cloud.example.com")));
+    assert!(
+        matches!(&http_addrs[0], TransportAddress::Url(url) if url.contains("agent.cloud.example.com"))
+    );
 }
 
 /// Test that peers without endpoints get empty address lists.

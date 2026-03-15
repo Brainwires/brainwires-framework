@@ -8,9 +8,7 @@
 
 use anyhow::Result;
 
-use brainwires_agents::optimistic::{
-    CommitResult, OptimisticController, ResolutionStrategy,
-};
+use brainwires_agents::optimistic::{CommitResult, OptimisticController, ResolutionStrategy};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -42,7 +40,10 @@ async fn main() -> Result<()> {
         .commit_optimistic(token_a, "hash-after-a")
         .await
         .expect("Agent-A should commit without conflict");
-    println!("\nAgent-A committed successfully (new version={})", version_a);
+    println!(
+        "\nAgent-A committed successfully (new version={})",
+        version_a
+    );
 
     // ── 5. Agent-B tries to commit — conflict detected ─────────────────────
 
@@ -102,9 +103,8 @@ async fn main() -> Result<()> {
 
     println!("\n--- Retry strategy ---");
 
-    let retry_controller = OptimisticController::with_default_strategy(
-        ResolutionStrategy::Retry { max_attempts: 3 },
-    );
+    let retry_controller =
+        OptimisticController::with_default_strategy(ResolutionStrategy::Retry { max_attempts: 3 });
 
     let tok_r1 = retry_controller
         .begin_optimistic("agent-r1", "data.db")

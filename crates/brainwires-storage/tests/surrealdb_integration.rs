@@ -16,11 +16,9 @@ mod surrealdb_integration {
     /// Helper: try to connect to SurrealDB, returning None if the server is
     /// not reachable.
     async fn try_connect() -> Option<SurrealDatabase> {
-        let url = std::env::var("SURREALDB_URL")
-            .unwrap_or_else(|_| SurrealDatabase::default_url());
+        let url = std::env::var("SURREALDB_URL").unwrap_or_else(|_| SurrealDatabase::default_url());
         let ns = std::env::var("SURREALDB_NS").unwrap_or_else(|_| "test".to_string());
-        let db = std::env::var("SURREALDB_DB")
-            .unwrap_or_else(|_| "integration_test".to_string());
+        let db = std::env::var("SURREALDB_DB").unwrap_or_else(|_| "integration_test".to_string());
         SurrealDatabase::new(&url, &ns, &db).await.ok()
     }
 
@@ -251,10 +249,7 @@ mod surrealdb_integration {
 
         let ts = chrono::Utc::now().timestamp();
 
-        let embeddings = vec![
-            vec![1.0, 0.0, 0.0, 0.0],
-            vec![0.0, 1.0, 0.0, 0.0],
-        ];
+        let embeddings = vec![vec![1.0, 0.0, 0.0, 0.0], vec![0.0, 1.0, 0.0, 0.0]];
         let metadata = vec![
             brainwires_storage::brainwires_core::ChunkMetadata {
                 file_path: "src/main.rs".to_string(),

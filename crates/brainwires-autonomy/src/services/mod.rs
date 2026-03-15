@@ -11,7 +11,7 @@ pub mod systemd;
 
 pub use docker::DockerManager;
 pub use process::ProcessManager;
-pub use safety::{ServiceSafety, CRITICAL_SERVICES};
+pub use safety::{CRITICAL_SERVICES, ServiceSafety};
 pub use systemd::SystemdManager;
 
 use serde::{Deserialize, Serialize};
@@ -103,10 +103,7 @@ pub enum ServiceOperation {
 impl ServiceOperation {
     /// Returns true if this operation only reads state (no mutations).
     pub fn is_read_only(&self) -> bool {
-        matches!(
-            self,
-            Self::List | Self::Status(_) | Self::Logs { .. }
-        )
+        matches!(self, Self::List | Self::Status(_) | Self::Logs { .. })
     }
 
     /// Get the service name for this operation, if applicable.

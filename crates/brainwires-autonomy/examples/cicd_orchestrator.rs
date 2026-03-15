@@ -16,7 +16,10 @@ fn main() {
     // 1. Webhook configuration
     println!("--- Webhook Configuration ---");
     let webhook_config = WebhookConfig::default();
-    println!("  listen_addr = {}:{}", webhook_config.listen_addr, webhook_config.port);
+    println!(
+        "  listen_addr = {}:{}",
+        webhook_config.listen_addr, webhook_config.port
+    );
     println!("  log_dir     = {}", webhook_config.log_dir);
     println!("  keep_days   = {}", webhook_config.keep_days);
     println!();
@@ -29,13 +32,11 @@ fn main() {
         auto_fix: true,
         auto_merge: false,
         labels_filter: vec!["auto-fix".to_string(), "bug".to_string()],
-        post_commands: vec![
-            CommandConfig {
-                cmd: "echo".to_string(),
-                args: vec!["Processed ${REPO_NAME} issue #${ISSUE_NUMBER}".to_string()],
-                working_dir: Some("/tmp/${REPO_NAME}".to_string()),
-            },
-        ],
+        post_commands: vec![CommandConfig {
+            cmd: "echo".to_string(),
+            args: vec!["Processed ${REPO_NAME} issue #${ISSUE_NUMBER}".to_string()],
+            working_dir: Some("/tmp/${REPO_NAME}".to_string()),
+        }],
     };
 
     println!("  events         = {:?}", repo_config.events);
@@ -43,7 +44,10 @@ fn main() {
     println!("  auto_fix       = {}", repo_config.auto_fix);
     println!("  auto_merge     = {}", repo_config.auto_merge);
     println!("  labels_filter  = {:?}", repo_config.labels_filter);
-    println!("  post_commands  = {} command(s)", repo_config.post_commands.len());
+    println!(
+        "  post_commands  = {} command(s)",
+        repo_config.post_commands.len()
+    );
     println!();
 
     // 3. Variable interpolation
@@ -52,20 +56,26 @@ fn main() {
     let issue_ctx = InterpolationContext::for_issue("brainwires-cli", 42, "Fix auth bug");
     println!("  Issue context:");
     println!("    Template: \"Fixing ${{REPO_NAME}} issue #${{ISSUE_NUMBER}}\"");
-    println!("    Result:   \"{}\"",
-        issue_ctx.interpolate("Fixing ${REPO_NAME} issue #${ISSUE_NUMBER}"));
+    println!(
+        "    Result:   \"{}\"",
+        issue_ctx.interpolate("Fixing ${REPO_NAME} issue #${ISSUE_NUMBER}")
+    );
 
     let push_ctx = InterpolationContext::for_push("brainwires-cli", "refs/tags/v1.2.3", "abc123");
     println!("  Push context (tag):");
     println!("    Template: \"Deploy ${{REPO_NAME}} version ${{VERSION}}\"");
-    println!("    Result:   \"{}\"",
-        push_ctx.interpolate("Deploy ${REPO_NAME} version ${VERSION}"));
+    println!(
+        "    Result:   \"{}\"",
+        push_ctx.interpolate("Deploy ${REPO_NAME} version ${VERSION}")
+    );
 
     let branch_ctx = InterpolationContext::for_push("brainwires-cli", "main", "def456");
     println!("  Push context (branch):");
     println!("    Template: \"Build ${{BRANCH_NAME}} @ ${{COMMIT_SHA}}\"");
-    println!("    Result:   \"{}\"",
-        branch_ctx.interpolate("Build ${BRANCH_NAME} @ ${COMMIT_SHA}"));
+    println!(
+        "    Result:   \"{}\"",
+        branch_ctx.interpolate("Build ${BRANCH_NAME} @ ${COMMIT_SHA}")
+    );
 
     // Interpolate a command config
     let interpolated = issue_ctx.interpolate_command(&repo_config.post_commands[0]);
@@ -122,7 +132,10 @@ fn main() {
 
     for event in &events {
         logger.log_event(event).unwrap();
-        println!("  Logged: {} {} — {}", event.action, event.event_type, event.message);
+        println!(
+            "  Logged: {} {} — {}",
+            event.action, event.event_type, event.message
+        );
     }
 
     println!("\n  Log files written to: {}", tempdir.display());

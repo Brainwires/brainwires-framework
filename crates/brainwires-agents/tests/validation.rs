@@ -41,8 +41,8 @@ fn config_disabled_creates_disabled_config() {
 
 #[test]
 fn config_with_working_set_files() {
-    let config =
-        ValidationConfig::default().with_working_set_files(vec!["src/main.rs".into(), "lib.rs".into()]);
+    let config = ValidationConfig::default()
+        .with_working_set_files(vec!["src/main.rs".into(), "lib.rs".into()]);
     assert_eq!(config.working_set_files.len(), 2);
 }
 

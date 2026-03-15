@@ -5,8 +5,10 @@
 //!
 //! Run with: `cargo run -p brainwires-agents --features mdap --example task_decomposition`
 
-use brainwires_agents::mdap::decomposition::{DecomposeContext, SequentialDecomposer, TaskDecomposer};
-use brainwires_agents::mdap::scaling::{estimate_mdap, ModelCosts};
+use brainwires_agents::mdap::decomposition::{
+    DecomposeContext, SequentialDecomposer, TaskDecomposer,
+};
+use brainwires_agents::mdap::scaling::{ModelCosts, estimate_mdap};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -36,7 +38,10 @@ async fn main() -> anyhow::Result<()> {
     println!("  Task decomposed into {} subtasks:", result.subtasks.len());
     println!("  Is minimal: {}", result.is_minimal);
     println!("  Total complexity: {:.2}", result.total_complexity);
-    println!("  Composition: {}", result.composition_function.description());
+    println!(
+        "  Composition: {}",
+        result.composition_function.description()
+    );
     println!();
 
     for subtask in &result.subtasks {
@@ -57,7 +62,11 @@ async fn main() -> anyhow::Result<()> {
     let simple_task = "Return the sum of two numbers";
     let complex_task = "1. Parse the input\n2. Validate\n3. Compute\n4. Format output";
 
-    println!("  '{}' is minimal: {}", simple_task, decomposer.is_minimal(simple_task));
+    println!(
+        "  '{}' is minimal: {}",
+        simple_task,
+        decomposer.is_minimal(simple_task)
+    );
     println!(
         "  Multi-line task is minimal: {}",
         decomposer.is_minimal(complex_task),
@@ -70,7 +79,14 @@ async fn main() -> anyhow::Result<()> {
         ("Simple (5 steps, p=0.95)", 5, 0.95, 0.90, 0.003, 0.95),
         ("Moderate (10 steps, p=0.85)", 10, 0.85, 0.85, 0.003, 0.95),
         ("Complex (20 steps, p=0.75)", 20, 0.75, 0.80, 0.003, 0.95),
-        ("High-reliability (10 steps, p=0.90, t=0.99)", 10, 0.90, 0.90, 0.003, 0.99),
+        (
+            "High-reliability (10 steps, p=0.90, t=0.99)",
+            10,
+            0.90,
+            0.90,
+            0.003,
+            0.99,
+        ),
     ];
 
     println!(

@@ -70,10 +70,10 @@ impl CrashDiagnostics {
     }
 
     fn parse_diagnosis(text: &str, fallback_cycle: u32) -> Result<RecoveryPlanState> {
-        let root_cause = extract_field(text, "ROOT_CAUSE")
-            .unwrap_or_else(|| "Unknown crash cause".to_string());
-        let fix_strategy = extract_field(text, "FIX_STRATEGY")
-            .unwrap_or_else(|| "skip_task".to_string());
+        let root_cause =
+            extract_field(text, "ROOT_CAUSE").unwrap_or_else(|| "Unknown crash cause".to_string());
+        let fix_strategy =
+            extract_field(text, "FIX_STRATEGY").unwrap_or_else(|| "skip_task".to_string());
         let rollback_needed = extract_field(text, "ROLLBACK_NEEDED")
             .map(|v| v.to_lowercase() == "true")
             .unwrap_or(false);
@@ -114,7 +114,13 @@ fn extract_field(text: &str, field: &str) -> Option<String> {
     let prefix = format!("{field}:");
     text.lines()
         .find(|l| l.trim().starts_with(&prefix))
-        .map(|l| l.trim().strip_prefix(&prefix).unwrap_or("").trim().to_string())
+        .map(|l| {
+            l.trim()
+                .strip_prefix(&prefix)
+                .unwrap_or("")
+                .trim()
+                .to_string()
+        })
 }
 
 #[cfg(test)]

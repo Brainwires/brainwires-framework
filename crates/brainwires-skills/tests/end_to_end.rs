@@ -195,10 +195,7 @@ async fn full_lifecycle_discover_route_execute_script() {
     let mut args = HashMap::new();
     args.insert("environment".to_string(), "staging".to_string());
 
-    let result = executor
-        .execute_by_name("deploy-app", args)
-        .await
-        .unwrap();
+    let result = executor.execute_by_name("deploy-app", args).await.unwrap();
 
     match result {
         SkillResult::Script { output, is_error } => {
@@ -306,15 +303,10 @@ async fn prepare_subagent_end_to_end() {
     assert_eq!(prepared.allowed_tool_names.len(), 2);
     assert!(prepared.allowed_tool_names.contains(&"Read".to_string()));
     assert!(prepared.allowed_tool_names.contains(&"Grep".to_string()));
-    assert!(!prepared
-        .allowed_tool_names
-        .contains(&"Write".to_string()));
+    assert!(!prepared.allowed_tool_names.contains(&"Write".to_string()));
 
     assert!(prepared.system_prompt.contains("review-pr"));
-    assert_eq!(
-        prepared.model_override,
-        Some("claude-sonnet-4".to_string())
-    );
+    assert_eq!(prepared.model_override, Some("claude-sonnet-4".to_string()));
 }
 
 // ---------------------------------------------------------------------------
@@ -497,9 +489,6 @@ async fn mixed_execution_modes_coexist() {
     // Script skill
     let mut args = HashMap::new();
     args.insert("environment".to_string(), "prod".to_string());
-    let script_result = executor
-        .execute_by_name("deploy-app", args)
-        .await
-        .unwrap();
+    let script_result = executor.execute_by_name("deploy-app", args).await.unwrap();
     assert!(matches!(script_result, SkillResult::Script { .. }));
 }

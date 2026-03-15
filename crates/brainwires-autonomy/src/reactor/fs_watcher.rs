@@ -3,10 +3,8 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use notify::{
-    Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher,
-};
-use tokio::sync::{mpsc, watch, RwLock};
+use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use tokio::sync::{RwLock, mpsc, watch};
 
 use super::debounce::EventDebouncer;
 use super::rules::{FsEventType, ReactorRule};
@@ -132,12 +130,7 @@ impl FsReactor {
                     continue;
                 }
 
-                tracing::debug!(
-                    "Rule '{}' matched: {} {}",
-                    rule.name,
-                    event_type,
-                    path_str
-                );
+                tracing::debug!("Rule '{}' matched: {} {}", rule.name, event_type, path_str);
 
                 if let Err(e) = action_tx
                     .send((rule.clone(), path_str.clone(), event_type.clone()))

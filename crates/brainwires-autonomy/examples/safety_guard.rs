@@ -7,11 +7,9 @@
 use std::sync::Arc;
 
 use brainwires_autonomy::{
-    safety::{
-        AlwaysApprove, ApprovalPolicy, AutonomousOperation, SafetyGuard, SafetyStop,
-    },
-    config::SafetyConfig,
     SessionMetrics,
+    config::SafetyConfig,
+    safety::{AlwaysApprove, ApprovalPolicy, AutonomousOperation, SafetyGuard, SafetyStop},
 };
 
 // ── Custom approval policy ──────────────────────────────────────────────────
@@ -57,7 +55,10 @@ async fn main() -> anyhow::Result<()> {
 
     println!("SafetyConfig created:");
     println!("  max_total_cost     = ${:.2}", config.max_total_cost);
-    println!("  circuit_breaker    = {} failures", config.circuit_breaker_threshold);
+    println!(
+        "  circuit_breaker    = {} failures",
+        config.circuit_breaker_threshold
+    );
     println!("  max_daily_ops      = {}", config.max_daily_operations);
     println!();
 
@@ -117,10 +118,7 @@ async fn main() -> anyhow::Result<()> {
         Err(stop) => println!("  Extra cycle: stopped — {stop}"),
     }
 
-    println!(
-        "\n  Cycles completed : {}",
-        guard.cycles_completed()
-    );
+    println!("\n  Cycles completed : {}", guard.cycles_completed());
     println!("  Total cost       : ${:.2}", guard.total_cost());
     println!("  Total diff lines : {}", guard.total_diff_lines());
     println!();
@@ -128,17 +126,14 @@ async fn main() -> anyhow::Result<()> {
     // 5. Circuit breaker demo (fresh guard)
     println!("--- Circuit Breaker ---");
 
-    let mut guard2 = SafetyGuard::from_config(&config, 20)
-        .with_approval_policy(Arc::new(AlwaysApprove));
+    let mut guard2 =
+        SafetyGuard::from_config(&config, 20).with_approval_policy(Arc::new(AlwaysApprove));
 
     println!("  State: {:?}", guard2.circuit_breaker_state());
 
     for i in 1..=4 {
         guard2.record_failure();
-        println!(
-            "  After failure {i}: {:?}",
-            guard2.circuit_breaker_state()
-        );
+        println!("  After failure {i}: {:?}", guard2.circuit_breaker_state());
     }
 
     match guard2.check_can_continue() {
@@ -172,7 +167,10 @@ async fn main() -> anyhow::Result<()> {
     println!("  Tasks succeeded  : {}", metrics.tasks_succeeded);
     println!("  Tasks failed     : {}", metrics.tasks_failed);
     println!("  Total iterations : {}", metrics.total_iterations);
-    println!("  Success rate     : {:.0}%", metrics.success_rate() * 100.0);
+    println!(
+        "  Success rate     : {:.0}%",
+        metrics.success_rate() * 100.0
+    );
     println!("  Commits          : {:?}", metrics.commits);
 
     println!("\n  Per-strategy breakdown:");

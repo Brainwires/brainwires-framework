@@ -86,7 +86,12 @@ pub struct ScheduledTask {
 
 impl ScheduledTask {
     /// Create a new scheduled task with default settings.
-    pub fn new(id: String, name: String, cron_expression: String, task_type: ScheduledTaskType) -> Self {
+    pub fn new(
+        id: String,
+        name: String,
+        cron_expression: String,
+        task_type: ScheduledTaskType,
+    ) -> Self {
         Self {
             id,
             name,

@@ -77,7 +77,12 @@ impl AutonomyScheduler {
             // Find the next task to fire
             let mut earliest: Option<(usize, std::time::Duration)> = None;
             for (i, trigger) in self.triggers.iter().enumerate() {
-                if self.disabled_tasks.get(trigger.task_id()).copied().unwrap_or(false) {
+                if self
+                    .disabled_tasks
+                    .get(trigger.task_id())
+                    .copied()
+                    .unwrap_or(false)
+                {
                     continue;
                 }
                 if let Some(dur) = trigger.duration_until_next() {
@@ -315,7 +320,10 @@ impl AutonomyScheduler {
                     summary: if stdout.trim().is_empty() {
                         "All dependencies up to date".to_string()
                     } else {
-                        format!("Outdated dependencies found:\n{}", stdout.chars().take(500).collect::<String>())
+                        format!(
+                            "Outdated dependencies found:\n{}",
+                            stdout.chars().take(500).collect::<String>()
+                        )
                     },
                     duration_secs: start.elapsed().as_secs_f64(),
                     error: None,
@@ -352,10 +360,7 @@ impl AutonomyScheduler {
                 self.disabled_tasks.insert(task.id.clone(), true);
             }
             FailurePolicy::Escalate => {
-                tracing::error!(
-                    "Task {} failed, escalating for human attention",
-                    task.id
-                );
+                tracing::error!("Task {} failed, escalating for human attention", task.id);
                 self.disabled_tasks.insert(task.id.clone(), true);
             }
         }
@@ -365,15 +370,21 @@ impl AutonomyScheduler {
     pub fn active_task_count(&self) -> usize {
         self.triggers
             .iter()
-            .filter(|t| !self.disabled_tasks.get(t.task_id()).copied().unwrap_or(false))
+            .filter(|t| {
+                !self
+                    .disabled_tasks
+                    .get(t.task_id())
+                    .copied()
+                    .unwrap_or(false)
+            })
             .count()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::task_schedule::ScheduledTaskType;
+    use super::*;
 
     #[test]
     fn scheduler_new_with_default_config() {

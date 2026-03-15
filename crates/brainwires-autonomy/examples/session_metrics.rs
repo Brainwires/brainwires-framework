@@ -35,8 +35,10 @@ fn main() {
         for _ in 0..failed {
             metrics.record_failure(name);
         }
-        println!("  {name}: generated={generated}, succeeded={succeeded}, failed={}",
-            generated - succeeded);
+        println!(
+            "  {name}: generated={generated}, succeeded={succeeded}, failed={}",
+            generated - succeeded
+        );
     }
 
     // Record commits
@@ -68,7 +70,10 @@ fn main() {
     println!("  Tasks succeeded  : {}", metrics.tasks_succeeded);
     println!("  Tasks failed     : {}", metrics.tasks_failed);
     println!("  Total iterations : {}", metrics.total_iterations);
-    println!("  Success rate     : {:.1}%", metrics.success_rate() * 100.0);
+    println!(
+        "  Success rate     : {:.1}%",
+        metrics.success_rate() * 100.0
+    );
     println!("  Commits          : {}", metrics.commits.len());
     println!("  Comparisons      : {}", metrics.comparisons.len());
     println!();

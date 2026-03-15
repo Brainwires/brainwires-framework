@@ -184,7 +184,9 @@ impl WebhookLogger {
 fn extract_date_from_filename(name: &str) -> Option<String> {
     // Pattern: webhooks_YYYY-MM-DD.log or .jsonl
     let name = name.strip_prefix("webhooks_")?;
-    let date = name.strip_suffix(".log").or_else(|| name.strip_suffix(".jsonl"))?;
+    let date = name
+        .strip_suffix(".log")
+        .or_else(|| name.strip_suffix(".jsonl"))?;
     if date.len() == 10 {
         Some(date.to_string())
     } else {

@@ -38,11 +38,7 @@ pub struct ServiceSafety {
 impl ServiceSafety {
     /// Create from configuration.
     pub fn from_config(config: &ServiceConfig) -> Self {
-        let mut forbidden: HashSet<String> = config
-            .forbidden_services
-            .iter()
-            .cloned()
-            .collect();
+        let mut forbidden: HashSet<String> = config.forbidden_services.iter().cloned().collect();
 
         // Always include critical services in the deny-list
         for &svc in CRITICAL_SERVICES {
@@ -89,9 +85,7 @@ impl ServiceSafety {
             }
 
             if !self.allowed.is_empty() && !self.allowed.contains(name) {
-                return Err(format!(
-                    "Service '{name}' is not in the allow-list"
-                ));
+                return Err(format!("Service '{name}' is not in the allow-list"));
             }
         }
 
@@ -100,9 +94,9 @@ impl ServiceSafety {
 
     fn is_forbidden(&self, name: &str) -> bool {
         self.forbidden.contains(name)
-            || CRITICAL_SERVICES.iter().any(|&critical| {
-                name == critical || name.starts_with(&format!("{critical}@"))
-            })
+            || CRITICAL_SERVICES
+                .iter()
+                .any(|&critical| name == critical || name.starts_with(&format!("{critical}@")))
     }
 }
 
@@ -118,20 +112,26 @@ mod tests {
     fn read_only_operations_allowed_by_default() {
         let safety = default_safety();
         assert!(safety.check(&ServiceOperation::List).is_ok());
-        assert!(safety
-            .check(&ServiceOperation::Status("myapp".to_string()))
-            .is_ok());
+        assert!(
+            safety
+                .check(&ServiceOperation::Status("myapp".to_string()))
+                .is_ok()
+        );
     }
 
     #[test]
     fn write_operations_blocked_by_default() {
         let safety = default_safety();
-        assert!(safety
-            .check(&ServiceOperation::Start("myapp".to_string()))
-            .is_err());
-        assert!(safety
-            .check(&ServiceOperation::Stop("myapp".to_string()))
-            .is_err());
+        assert!(
+            safety
+                .check(&ServiceOperation::Start("myapp".to_string()))
+                .is_err()
+        );
+        assert!(
+            safety
+                .check(&ServiceOperation::Stop("myapp".to_string()))
+                .is_err()
+        );
     }
 
     #[test]
@@ -142,9 +142,11 @@ mod tests {
             ..Default::default()
         };
         let safety = ServiceSafety::from_config(&config);
-        assert!(safety
-            .check(&ServiceOperation::Restart("sshd".to_string()))
-            .is_err());
+        assert!(
+            safety
+                .check(&ServiceOperation::Restart("sshd".to_string()))
+                .is_err()
+        );
     }
 
     #[test]
@@ -155,12 +157,16 @@ mod tests {
             ..Default::default()
         };
         let safety = ServiceSafety::from_config(&config);
-        assert!(safety
-            .check(&ServiceOperation::Restart("myapp".to_string()))
-            .is_ok());
-        assert!(safety
-            .check(&ServiceOperation::Restart("other".to_string()))
-            .is_err());
+        assert!(
+            safety
+                .check(&ServiceOperation::Restart("myapp".to_string()))
+                .is_ok()
+        );
+        assert!(
+            safety
+                .check(&ServiceOperation::Restart("other".to_string()))
+                .is_err()
+        );
     }
 
     #[test]
@@ -171,8 +177,10 @@ mod tests {
             ..Default::default()
         };
         let safety = ServiceSafety::from_config(&config);
-        assert!(safety
-            .check(&ServiceOperation::Restart("myapp".to_string()))
-            .is_ok());
+        assert!(
+            safety
+                .check(&ServiceOperation::Restart("myapp".to_string()))
+                .is_ok()
+        );
     }
 }

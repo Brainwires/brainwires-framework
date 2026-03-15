@@ -81,7 +81,11 @@ pub fn update_package_count(args: &[String]) -> ExitCode {
             let rel = path.strip_prefix(&workspace_root).unwrap_or(path);
             let changes = count_line_diffs(&content, &updated);
             if dry_run {
-                println!("  [dry-run] would update {} ({} lines)", rel.display(), changes);
+                println!(
+                    "  [dry-run] would update {} ({} lines)",
+                    rel.display(),
+                    changes
+                );
             } else {
                 std::fs::write(path, &updated).expect("failed to write file");
                 println!("  updated {} ({} lines)", rel.display(), changes);
@@ -223,10 +227,7 @@ fn replace_count(line: &str, word: &str, count: usize) -> String {
 
 /// Count lines that differ between two strings.
 fn count_line_diffs(a: &str, b: &str) -> u32 {
-    a.lines()
-        .zip(b.lines())
-        .filter(|(la, lb)| la != lb)
-        .count() as u32
+    a.lines().zip(b.lines()).filter(|(la, lb)| la != lb).count() as u32
 }
 
 fn workspace_root() -> PathBuf {
@@ -271,8 +272,10 @@ mod tests {
 
     #[test]
     fn replace_count_basic() {
-        assert_eq!(replace_count("7 layers, 19 crates, leaves first", "crates", 18),
-                   "7 layers, 18 crates, leaves first");
+        assert_eq!(
+            replace_count("7 layers, 19 crates, leaves first", "crates", 18),
+            "7 layers, 18 crates, leaves first"
+        );
     }
 
     #[test]

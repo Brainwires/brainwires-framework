@@ -3,7 +3,7 @@
 //! Demonstrates running code in multiple languages through the unified
 //! Executor interface, with both default and custom execution limits.
 
-use brainwires_code_interpreters::{Executor, ExecutionLimits, ExecutionRequest, Language};
+use brainwires_code_interpreters::{ExecutionLimits, ExecutionRequest, Executor, Language};
 
 fn main() {
     // 1. Setup — create executor, list supported languages

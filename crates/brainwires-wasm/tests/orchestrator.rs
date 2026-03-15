@@ -178,7 +178,11 @@ fn execution_limits_clone_is_independent() {
     let mut original = ExecutionLimits::new();
     let cloned = original.clone();
     original.set_max_operations(999);
-    assert_eq!(cloned.max_operations(), 100_000, "clone should not be affected");
+    assert_eq!(
+        cloned.max_operations(),
+        100_000,
+        "clone should not be affected"
+    );
     assert_eq!(original.max_operations(), 999);
 }
 

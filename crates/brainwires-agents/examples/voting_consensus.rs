@@ -6,8 +6,12 @@
 //!
 //! Run with: `cargo run -p brainwires-agents --features mdap --example voting_consensus`
 
-use brainwires_agents::mdap::red_flags::{OutputFormat, RedFlagConfig, RedFlagValidator, StandardRedFlagValidator};
-use brainwires_agents::mdap::voting::{ResponseMetadata, SampledResponse, VoteResult, VotingMethod};
+use brainwires_agents::mdap::red_flags::{
+    OutputFormat, RedFlagConfig, RedFlagValidator, StandardRedFlagValidator,
+};
+use brainwires_agents::mdap::voting::{
+    ResponseMetadata, SampledResponse, VoteResult, VotingMethod,
+};
 use std::collections::HashMap;
 
 fn main() {
@@ -85,17 +89,29 @@ fn main() {
     println!("    max_response_tokens: {}", strict.max_response_tokens);
     println!("    require_exact_format: {}", strict.require_exact_format);
     println!("    flag_self_correction: {}", strict.flag_self_correction);
-    println!("    confusion_patterns: {} patterns", strict.confusion_patterns.len());
+    println!(
+        "    confusion_patterns: {} patterns",
+        strict.confusion_patterns.len()
+    );
     println!("    min_response_length: {}", strict.min_response_length);
-    println!("    max_empty_line_ratio: {:.1}", strict.max_empty_line_ratio);
+    println!(
+        "    max_empty_line_ratio: {:.1}",
+        strict.max_empty_line_ratio
+    );
 
     println!("  Relaxed config:");
     println!("    max_response_tokens: {}", relaxed.max_response_tokens);
     println!("    require_exact_format: {}", relaxed.require_exact_format);
     println!("    flag_self_correction: {}", relaxed.flag_self_correction);
-    println!("    confusion_patterns: {} patterns", relaxed.confusion_patterns.len());
+    println!(
+        "    confusion_patterns: {} patterns",
+        relaxed.confusion_patterns.len()
+    );
     println!("    min_response_length: {}", relaxed.min_response_length);
-    println!("    max_empty_line_ratio: {:.1}", relaxed.max_empty_line_ratio);
+    println!(
+        "    max_empty_line_ratio: {:.1}",
+        relaxed.max_empty_line_ratio
+    );
 
     // 3. Validate responses with the strict validator
     println!("\n--- 3. Red-Flag Validation (Strict) ---\n");
@@ -107,12 +123,18 @@ fn main() {
         let status = if result.is_valid() {
             "VALID".to_string()
         } else {
-            format!("FLAGGED: {}", match &result {
-                brainwires_agents::mdap::red_flags::RedFlagResult::Flagged { reason, severity } => {
-                    format!("{} (severity: {:.2})", reason, severity)
+            format!(
+                "FLAGGED: {}",
+                match &result {
+                    brainwires_agents::mdap::red_flags::RedFlagResult::Flagged {
+                        reason,
+                        severity,
+                    } => {
+                        format!("{} (severity: {:.2})", reason, severity)
+                    }
+                    _ => unreachable!(),
                 }
-                _ => unreachable!(),
-            })
+            )
         };
         println!("  Response {}: {}", i + 1, status);
     }
@@ -124,7 +146,11 @@ fn main() {
 
     for (i, resp) in responses.iter().enumerate() {
         let result = relaxed_validator.validate(&resp.raw_response, &resp.metadata);
-        let status = if result.is_valid() { "VALID" } else { "FLAGGED" };
+        let status = if result.is_valid() {
+            "VALID"
+        } else {
+            "FLAGGED"
+        };
         println!("  Response {}: {}", i + 1, status);
     }
 
@@ -152,21 +178,46 @@ fn main() {
     println!(
         "  JSON validator on '{}': {}",
         json_response,
-        if json_validator.validate(json_response, &json_meta).is_valid() { "VALID" } else { "FLAGGED" },
+        if json_validator
+            .validate(json_response, &json_meta)
+            .is_valid()
+        {
+            "VALID"
+        } else {
+            "FLAGGED"
+        },
     );
     println!(
         "  JSON validator on '{}': {}",
         plain_response,
-        if json_validator.validate(plain_response, &json_meta).is_valid() { "VALID" } else { "FLAGGED" },
+        if json_validator
+            .validate(plain_response, &json_meta)
+            .is_valid()
+        {
+            "VALID"
+        } else {
+            "FLAGGED"
+        },
     );
     println!(
         "  OneOf validator on '{}': {}",
         plain_response,
-        if one_of_validator.validate(plain_response, &json_meta).is_valid() { "VALID" } else { "FLAGGED" },
+        if one_of_validator
+            .validate(plain_response, &json_meta)
+            .is_valid()
+        {
+            "VALID"
+        } else {
+            "FLAGGED"
+        },
     );
     println!(
         "  OneOf validator on 'Tokyo': {}",
-        if one_of_validator.validate("Tokyo", &json_meta).is_valid() { "VALID" } else { "FLAGGED" },
+        if one_of_validator.validate("Tokyo", &json_meta).is_valid() {
+            "VALID"
+        } else {
+            "FLAGGED"
+        },
     );
 
     // 6. Show VoteResult structure
@@ -194,11 +245,20 @@ fn main() {
     };
 
     println!("  Winner: {:?}", vote_result.winner);
-    println!("  Winner votes: {}/{}", vote_result.winner_votes, vote_result.total_votes);
-    println!("  Total samples (incl. red-flagged): {}", vote_result.total_samples);
+    println!(
+        "  Winner votes: {}/{}",
+        vote_result.winner_votes, vote_result.total_votes
+    );
+    println!(
+        "  Total samples (incl. red-flagged): {}",
+        vote_result.total_samples
+    );
     println!("  Red-flagged: {}", vote_result.red_flagged_count);
     println!("  Confidence: {:.0}%", vote_result.confidence * 100.0);
-    println!("  Weighted confidence: {:.0}%", vote_result.weighted_confidence.unwrap_or(0.0) * 100.0);
+    println!(
+        "  Weighted confidence: {:.0}%",
+        vote_result.weighted_confidence.unwrap_or(0.0) * 100.0
+    );
     println!("  Early stopped: {}", vote_result.early_stopped);
     println!("  Vote distribution:");
     for (candidate, votes) in &vote_result.vote_distribution {

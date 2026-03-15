@@ -344,10 +344,7 @@ fn python_print_with_sep() {
 
 #[test]
 fn python_context_numeric_values() {
-    let r = exec_with_context(
-        "print(x + y)",
-        serde_json::json!({ "x": 100, "y": 200 }),
-    );
+    let r = exec_with_context("print(x + y)", serde_json::json!({ "x": 100, "y": 200 }));
     assert!(r.success, "Error: {:?}", r.error);
     assert!(r.stdout.contains("300"));
 }
@@ -450,11 +447,7 @@ print(d["missing"])
     );
     assert!(!r.success);
     let err = r.error.unwrap();
-    assert!(
-        err.contains("KeyError"),
-        "Expected KeyError, got: {}",
-        err,
-    );
+    assert!(err.contains("KeyError"), "Expected KeyError, got: {}", err,);
 }
 
 #[test]

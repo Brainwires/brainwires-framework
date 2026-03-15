@@ -6,11 +6,11 @@
 
 use chrono::Utc;
 
+use brainwires_autonomy::config::CrashRecoveryConfig;
 use brainwires_autonomy::self_improve::{
     CrashContext, CycleCheckpoint, FixStrategy, GitState, RecoveryState,
     recovery_state::RecoveryPlanState,
 };
-use brainwires_autonomy::config::CrashRecoveryConfig;
 
 fn main() {
     println!("=== Crash Recovery Example ===\n");
@@ -38,8 +38,10 @@ fn main() {
         },
         timestamp: Utc::now(),
     };
-    println!("  Cycle {}/{} — strategy: {:?}",
-        checkpoint.cycle_index, checkpoint.total_cycles, checkpoint.strategy);
+    println!(
+        "  Cycle {}/{} — strategy: {:?}",
+        checkpoint.cycle_index, checkpoint.total_cycles, checkpoint.strategy
+    );
     println!("  Branch: {}", checkpoint.git_state.branch);
     println!("  Dirty files: {:?}", checkpoint.git_state.dirty_files);
     println!();
@@ -60,7 +62,10 @@ fn main() {
     println!("  Exit code: {:?}", crash.exit_code);
     println!("  Cycle: {}", crash.last_cycle_index);
     println!("  Strategy: {:?}", crash.last_strategy);
-    println!("  Stderr: {}", crash.stderr_tail.lines().next().unwrap_or(""));
+    println!(
+        "  Stderr: {}",
+        crash.stderr_tail.lines().next().unwrap_or("")
+    );
     println!();
 
     // 4. Create a RecoveryState (persisted to disk)
@@ -81,7 +86,10 @@ fn main() {
     };
 
     println!("  Crash ID: {}", state.crash_id);
-    println!("  Fix attempts: {}/{}", state.fix_attempts, state.max_fix_attempts);
+    println!(
+        "  Fix attempts: {}/{}",
+        state.fix_attempts, state.max_fix_attempts
+    );
     println!("  Is meta-crash: {}", state.is_meta_crash());
 
     if let Some(plan) = &state.recovery_plan {
@@ -103,7 +111,11 @@ fn main() {
     ];
     for label in &strategies {
         let strategy = FixStrategy::from_label(label);
-        println!("  \"{label}\" -> {:?} (label: \"{}\")", strategy, strategy.label());
+        println!(
+            "  \"{label}\" -> {:?} (label: \"{}\")",
+            strategy,
+            strategy.label()
+        );
     }
     println!();
 
