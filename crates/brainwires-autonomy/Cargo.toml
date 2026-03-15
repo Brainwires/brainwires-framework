@@ -33,6 +33,7 @@ uuid = { workspace = true }
 tracing = { workspace = true }
 sha2 = { workspace = true }
 hex = { workspace = true }
+dirs = { workspace = true }
 
 # Native-only
 git2 = { workspace = true, optional = true }
@@ -46,6 +47,16 @@ axum = { version = "0.8", optional = true }
 hmac = { version = "0.12", optional = true }
 sha1 = { version = "0.10", optional = true }
 subtle = { workspace = true, optional = true }
+
+# GPIO (Linux-only)
+gpio-cdev = { version = "0.6", optional = true }
+sysfs_gpio = { version = "0.6", optional = true }
+
+# Scheduler
+cron = { version = "0.15", optional = true }
+
+# File system reactor
+notify = { version = "7", optional = true }
 
 [features]
 default = ["native"]
@@ -66,7 +77,13 @@ training = ["dep:brainwires-training", "dep:brainwires-datasets"]
 git-workflow = ["dep:brainwires-agents", "dep:brainwires-tool-system", "dep:reqwest", "dep:toml"]
 webhook = ["git-workflow", "dep:axum", "dep:hmac", "dep:sha1", "dep:subtle"]
 
-full = ["self-improve", "eval-driven", "supervisor", "attention", "parallel", "training", "git-workflow", "webhook"]
+# Environment interaction
+gpio = ["dep:gpio-cdev", "dep:sysfs_gpio"]
+scheduler = ["dep:cron"]
+reactor = ["dep:notify"]
+services = []
+
+full = ["self-improve", "eval-driven", "supervisor", "attention", "parallel", "training", "git-workflow", "webhook", "gpio", "scheduler", "reactor", "services"]
 
 [[example]]
 name = "safety_guard"

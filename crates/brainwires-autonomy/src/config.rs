@@ -17,6 +17,21 @@ pub struct AutonomyConfig {
     /// Git workflow configuration.
     #[serde(default)]
     pub git_workflow: GitWorkflowConfig,
+    /// Crash recovery configuration.
+    #[serde(default)]
+    pub crash_recovery: CrashRecoveryConfig,
+    /// GPIO hardware access configuration.
+    #[serde(default)]
+    pub gpio: GpioConfig,
+    /// Scheduled task configuration.
+    #[serde(default)]
+    pub scheduler: SchedulerConfig,
+    /// File system reactor configuration.
+    #[serde(default)]
+    pub reactor: ReactorConfig,
+    /// System service management configuration.
+    #[serde(default)]
+    pub services: ServiceConfig,
 }
 
 /// Configuration for self-improvement sessions.
@@ -174,6 +189,25 @@ pub struct WebhookConfig {
     pub port: u16,
     /// Webhook secret for HMAC verification.
     pub secret: Option<String>,
+    /// Directory for webhook event logs.
+    #[serde(default = "default_webhook_log_dir")]
+    pub log_dir: String,
+    /// Number of days to keep webhook logs.
+    #[serde(default = "default_webhook_keep_days")]
+    pub keep_days: u32,
+    /// Per-repository webhook configuration.
+    #[serde(default)]
+    pub repos: std::collections::HashMap<String, WebhookRepoConfig>,
+}
+
+fn default_webhook_log_dir() -> String {
+    dirs::home_dir()
+        .map(|h| h.join(".brainwires").join("webhook-logs").to_string_lossy().to_string())
+        .unwrap_or_else(|| "/tmp/brainwires/webhook-logs".to_string())
+}
+
+fn default_webhook_keep_days() -> u32 {
+    30
 }
 
 impl Default for WebhookConfig {
@@ -182,6 +216,232 @@ impl Default for WebhookConfig {
             listen_addr: "0.0.0.0".to_string(),
             port: 3000,
             secret: None,
+            log_dir: default_webhook_log_dir(),
+            keep_days: default_webhook_keep_days(),
+            repos: std::collections::HashMap::new(),
+        }
+    }
+}
+
+/// Per-repository webhook configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WebhookRepoConfig {
+    /// Which events to handle (e.g., "issues", "push", "pull_request").
+    #[serde(default)]
+    pub events: Vec<String>,
+    /// Whether to automatically investigate issues.
+    #[serde(default)]
+    pub auto_investigate: bool,
+    /// Whether to automatically apply fixes.
+    #[serde(default)]
+    pub auto_fix: bool,
+    /// Whether to automatically merge PRs when policy allows.
+    #[serde(default)]
+    pub auto_merge: bool,
+    /// Only handle issues with these labels (empty = all).
+    #[serde(default)]
+    pub labels_filter: Vec<String>,
+    /// Commands to run after processing an event.
+    #[serde(default)]
+    pub post_commands: Vec<CommandConfig>,
+}
+
+impl Default for WebhookRepoConfig {
+    fn default() -> Self {
+        Self {
+            events: vec!["issues".to_string()],
+            auto_investigate: true,
+            auto_fix: false,
+            auto_merge: false,
+            labels_filter: Vec::new(),
+            post_commands: Vec::new(),
+        }
+    }
+}
+
+/// Command to execute with variable interpolation support.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CommandConfig {
+    /// Command to run.
+    pub cmd: String,
+    /// Arguments for the command.
+    #[serde(default)]
+    pub args: Vec<String>,
+    /// Working directory (supports variables like `${REPO_NAME}`).
+    #[serde(default)]
+    pub working_dir: Option<String>,
+}
+
+/// Crash recovery configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CrashRecoveryConfig {
+    /// Maximum fix attempts before giving up.
+    pub max_fix_attempts: u32,
+    /// Path to crash recovery state file.
+    pub state_file: String,
+    /// Whether crash recovery is enabled.
+    pub enabled: bool,
+}
+
+impl Default for CrashRecoveryConfig {
+    fn default() -> Self {
+        Self {
+            max_fix_attempts: 3,
+            state_file: dirs::home_dir()
+                .map(|h| h.join(".brainwires").join("crash-recovery.json").to_string_lossy().to_string())
+                .unwrap_or_else(|| "/tmp/brainwires/crash-recovery.json".to_string()),
+            enabled: true,
+        }
+    }
+}
+
+/// GPIO hardware access configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GpioConfig {
+    /// Allowed (chip, line) pairs — empty means no access.
+    #[serde(default)]
+    pub allowed_pins: Vec<(u32, u32)>,
+    /// Maximum concurrent pins an agent may hold.
+    pub max_concurrent_pins: usize,
+    /// Timeout in seconds before auto-releasing a pin from an unhealthy agent.
+    pub auto_release_timeout_secs: u64,
+}
+
+impl Default for GpioConfig {
+    fn default() -> Self {
+        Self {
+            allowed_pins: Vec::new(),
+            max_concurrent_pins: 4,
+            auto_release_timeout_secs: 300,
+        }
+    }
+}
+
+/// Scheduled task configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SchedulerConfig {
+    /// Maximum concurrent scheduled tasks.
+    pub max_concurrent_tasks: u32,
+    /// Scheduled task definitions.
+    #[serde(default)]
+    pub tasks: Vec<ScheduledTaskDef>,
+}
+
+impl Default for SchedulerConfig {
+    fn default() -> Self {
+        Self {
+            max_concurrent_tasks: 3,
+            tasks: Vec::new(),
+        }
+    }
+}
+
+/// Definition of a scheduled task in configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScheduledTaskDef {
+    /// Unique task identifier.
+    pub id: String,
+    /// Human-readable name.
+    pub name: String,
+    /// Cron expression (e.g., "0 */6 * * *" for every 6 hours).
+    pub cron_expression: String,
+    /// Type of task to run.
+    pub task_type: String,
+    /// Whether this task is enabled.
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    /// Maximum runtime in seconds before the task is killed.
+    #[serde(default = "default_max_runtime")]
+    pub max_runtime_secs: u64,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_max_runtime() -> u64 {
+    3600
+}
+
+/// File system reactor configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReactorConfig {
+    /// Maximum events per minute before rate limiting kicks in.
+    pub max_events_per_minute: u32,
+    /// Global debounce window in milliseconds.
+    pub global_debounce_ms: u64,
+    /// Maximum recursive watch depth.
+    pub max_watch_depth: u32,
+    /// Reactor rules.
+    #[serde(default)]
+    pub rules: Vec<ReactorRuleDef>,
+}
+
+impl Default for ReactorConfig {
+    fn default() -> Self {
+        Self {
+            max_events_per_minute: 60,
+            global_debounce_ms: 500,
+            max_watch_depth: 10,
+            rules: Vec::new(),
+        }
+    }
+}
+
+/// Definition of a reactor rule in configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReactorRuleDef {
+    /// Unique rule identifier.
+    pub id: String,
+    /// Human-readable name.
+    pub name: String,
+    /// Paths to watch.
+    pub watch_paths: Vec<String>,
+    /// Glob patterns for file matching.
+    #[serde(default)]
+    pub patterns: Vec<String>,
+    /// Patterns to exclude.
+    #[serde(default)]
+    pub exclude_patterns: Vec<String>,
+    /// File system event types to react to.
+    #[serde(default)]
+    pub event_types: Vec<String>,
+    /// Per-rule debounce in milliseconds.
+    #[serde(default = "default_debounce")]
+    pub debounce_ms: u64,
+    /// Whether this rule is enabled.
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+}
+
+fn default_debounce() -> u64 {
+    1000
+}
+
+/// System service management configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServiceConfig {
+    /// Explicit allow-list of service names (no wildcards).
+    #[serde(default)]
+    pub allowed_services: Vec<String>,
+    /// Additional forbidden services (supplements hardcoded deny-list).
+    #[serde(default)]
+    pub forbidden_services: Vec<String>,
+    /// If true, only status/list/logs are permitted (no start/stop/restart).
+    #[serde(default = "default_true")]
+    pub read_only: bool,
+    /// Docker socket path override.
+    #[serde(default)]
+    pub docker_socket_path: Option<String>,
+}
+
+impl Default for ServiceConfig {
+    fn default() -> Self {
+        Self {
+            allowed_services: Vec::new(),
+            forbidden_services: Vec::new(),
+            read_only: true,
+            docker_socket_path: None,
         }
     }
 }

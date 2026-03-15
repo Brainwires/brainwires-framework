@@ -20,6 +20,8 @@ pub enum SupervisorAction {
     Shutdown,
     /// Escalate to human (log warning + stop autonomous operations).
     Escalate,
+    /// Invoke crash recovery: diagnose the failure, apply a fix, rebuild, and resume.
+    CrashRecover,
 }
 
 /// Configuration for the supervisor.
@@ -154,6 +156,18 @@ impl AgentSupervisor {
                         });
                     }
                 }
+                SupervisorAction::CrashRecover => {
+                    tracing::info!(
+                        "Supervisor: initiating crash recovery for agent {agent_id}"
+                    );
+                    events.push(SupervisorEvent::CrashRecoveryStarted {
+                        agent_id: agent_id.clone(),
+                        crash_id: uuid::Uuid::new_v4().to_string(),
+                    });
+                    // Actual crash recovery is handled by the CrashHandler
+                    // which must be wired in by the host application. The supervisor
+                    // emits the event so the orchestrator can invoke CrashHandler.
+                }
                 SupervisorAction::Escalate => {
                     events.push(SupervisorEvent::Escalated {
                         agent_id: agent_id.clone(),
@@ -210,5 +224,26 @@ pub enum SupervisorEvent {
         agent_id: String,
         /// Reason for escalation.
         reason: String,
+    },
+    /// Crash recovery was initiated for an agent.
+    CrashRecoveryStarted {
+        /// Identifier of the agent.
+        agent_id: String,
+        /// Crash identifier.
+        crash_id: String,
+    },
+    /// Crash recovery completed successfully.
+    CrashRecovered {
+        /// Identifier of the agent.
+        agent_id: String,
+        /// Summary of the fix applied.
+        fix_summary: String,
+    },
+    /// Crash recovery failed.
+    CrashRecoveryFailed {
+        /// Identifier of the agent.
+        agent_id: String,
+        /// Error message.
+        error: String,
     },
 }

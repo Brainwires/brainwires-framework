@@ -129,6 +129,47 @@ pub enum AutonomousOperation {
         /// Number of training examples.
         dataset_size: usize,
     },
+    /// Access a GPIO pin on the host system.
+    GpioAccess {
+        /// GPIO chip number.
+        chip: u32,
+        /// GPIO line number.
+        line: u32,
+        /// Direction (input/output).
+        direction: String,
+        /// Agent requesting access.
+        agent_id: String,
+    },
+    /// Attempt crash recovery for a self-improvement session.
+    CrashRecovery {
+        /// Unique crash identifier.
+        crash_id: String,
+        /// Strategy to apply for recovery.
+        fix_strategy: String,
+    },
+    /// Execute a scheduled autonomous task.
+    ScheduledTask {
+        /// Name of the scheduled task.
+        name: String,
+        /// Type of task being scheduled.
+        task_type: String,
+    },
+    /// React to a file system change.
+    ReactToFileChange {
+        /// Path of the changed file.
+        path: String,
+        /// Type of change detected.
+        event_type: String,
+    },
+    /// Manage a system service (systemd, docker, process).
+    ManageService {
+        /// Name of the service.
+        name: String,
+        /// Operation to perform (start, stop, restart, etc.).
+        operation: String,
+        /// Type of service (systemd, docker, process).
+        service_type: String,
+    },
 }
 
 impl fmt::Display for AutonomousOperation {
@@ -143,6 +184,21 @@ impl fmt::Display for AutonomousOperation {
             Self::SpawnAgent { description } => write!(f, "spawn agent: {description}"),
             Self::RestartAgent { agent_id, .. } => write!(f, "restart agent: {agent_id}"),
             Self::StartTrainingJob { provider, .. } => write!(f, "training job: {provider}"),
+            Self::GpioAccess {
+                chip, line, direction, ..
+            } => write!(f, "GPIO access: chip{chip}/line{line} ({direction})"),
+            Self::CrashRecovery { crash_id, fix_strategy } => {
+                write!(f, "crash recovery {crash_id}: {fix_strategy}")
+            }
+            Self::ScheduledTask { name, task_type } => {
+                write!(f, "scheduled task: {name} ({task_type})")
+            }
+            Self::ReactToFileChange { path, event_type } => {
+                write!(f, "react to {event_type}: {path}")
+            }
+            Self::ManageService {
+                name, operation, service_type,
+            } => write!(f, "{operation} {service_type} service: {name}"),
         }
     }
 }
