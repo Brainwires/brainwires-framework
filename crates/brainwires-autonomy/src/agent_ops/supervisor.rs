@@ -48,7 +48,11 @@ impl Default for SupervisorConfig {
     }
 }
 
-/// Supervisor that monitors agents and takes corrective action.
+/// Supervisor that monitors agent health and takes corrective action.
+///
+/// Periodically evaluates all registered agents, applying the configured
+/// policy (ignore, restart, shutdown, escalate, or crash-recover) based
+/// on each agent's health status.
 pub struct AgentSupervisor {
     config: SupervisorConfig,
     health: Arc<RwLock<HealthMonitor>>,

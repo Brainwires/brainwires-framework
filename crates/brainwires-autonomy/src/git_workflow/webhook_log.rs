@@ -74,7 +74,10 @@ pub struct WebhookEvent {
     pub client_ip: Option<String>,
 }
 
-/// Logger that writes webhook events to daily-rotated files.
+/// Logger that writes webhook events to daily-rotated plain-text and JSONL files.
+///
+/// Automatically creates new log files when the date changes and cleans up
+/// files older than the configured retention period.
 pub struct WebhookLogger {
     log_dir: PathBuf,
     keep_days: u32,

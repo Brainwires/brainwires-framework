@@ -5,6 +5,9 @@ use std::collections::HashMap;
 use crate::config::{CommandConfig, WebhookRepoConfig};
 
 /// Interpolation context for webhook command templates.
+///
+/// Supports `${VARIABLE}` syntax in command args and working directories.
+/// Pre-built constructors provide standard variables for issue and push events.
 pub struct InterpolationContext {
     /// Variables available for interpolation.
     pub vars: HashMap<String, String>,
@@ -63,7 +66,10 @@ impl InterpolationContext {
     }
 }
 
-/// Check whether a repo config should handle a given event type and labels.
+/// Check whether a repo config should handle an event based on its type and labels.
+///
+/// Returns `false` if the event type is not in the config's event list or if
+/// none of the event's labels match the config's label filter.
 pub fn should_handle_event(
     config: &WebhookRepoConfig,
     event_type: &str,

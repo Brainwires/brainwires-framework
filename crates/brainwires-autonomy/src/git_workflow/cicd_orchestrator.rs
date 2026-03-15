@@ -25,6 +25,10 @@ struct ActiveInvestigation {
 }
 
 /// CI/CD orchestrator that manages the full autonomous pipeline.
+///
+/// Receives workflow events, checks per-repository configuration and safety
+/// limits, dispatches issue investigations, executes post-event commands,
+/// and logs all activity via the webhook logger.
 pub struct CiCdOrchestrator {
     #[allow(dead_code)]
     config: GitWorkflowConfig,

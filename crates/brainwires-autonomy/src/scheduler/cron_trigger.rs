@@ -6,6 +6,9 @@ use std::str::FromStr;
 use super::task_schedule::ScheduledTask;
 
 /// Cron trigger that computes the next fire time for a scheduled task.
+///
+/// Accepts both standard 5-field and extended 7-field cron expressions,
+/// automatically prepending "0" for seconds if needed.
 pub struct CronTrigger {
     schedule: Schedule,
     task: ScheduledTask,

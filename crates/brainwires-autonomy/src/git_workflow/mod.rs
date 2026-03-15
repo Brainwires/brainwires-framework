@@ -1,6 +1,8 @@
 //! Automated Git workflow pipeline — issue to PR to merge.
 //!
-//! Provides the full pipeline: trigger → investigate → branch → fix → PR → merge.
+//! Provides the full autonomous pipeline: trigger → investigate → branch → fix → PR → merge.
+//! Supports GitHub via the [`GitForge`] trait, webhook-driven triggers, configurable
+//! merge policies, and CI/CD orchestration.
 
 pub mod branch_manager;
 pub mod change_maker;

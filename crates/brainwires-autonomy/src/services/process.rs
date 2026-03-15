@@ -4,7 +4,7 @@ use anyhow::Result;
 
 use super::{ServiceInfo, ServiceStatus, ServiceType};
 
-/// Manager for system processes.
+/// Manager for system processes using `ps`, `pgrep`, and `kill -0`.
 pub struct ProcessManager;
 
 impl ProcessManager {

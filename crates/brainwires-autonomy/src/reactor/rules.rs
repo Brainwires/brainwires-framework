@@ -53,6 +53,9 @@ pub enum ReactorAction {
 }
 
 /// A rule that matches file system events and triggers an action.
+///
+/// Rules combine path patterns, event type filters, and per-rule debouncing
+/// to determine which file changes should trigger autonomous actions.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReactorRule {
     /// Unique rule identifier.

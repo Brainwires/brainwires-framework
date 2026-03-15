@@ -62,7 +62,10 @@ impl AttentionWindow {
     }
 }
 
-/// Attention mechanism that focuses agent context on relevant code.
+/// Attention mechanism that focuses agent context on the most relevant code.
+///
+/// Caches attention windows per task and integrates with RAG search results
+/// to rank files by relevance score.
 pub struct AttentionMechanism {
     /// Cache of previous attention computations.
     cache: HashMap<String, AttentionWindow>,

@@ -89,7 +89,7 @@ impl SelfImprovementConfig {
     }
 }
 
-/// Per-strategy configuration passed to strategy task generators.
+/// Per-strategy configuration passed to strategy task generators during scanning.
 #[derive(Debug, Clone)]
 pub struct StrategyConfig {
     /// Path to the repository root.
@@ -107,7 +107,10 @@ impl Default for StrategyConfig {
     }
 }
 
-/// Safety and budget configuration.
+/// Safety and budget configuration for autonomous operations.
+///
+/// Controls cost limits, operation quotas, circuit breaker behavior, and
+/// file path restrictions that apply across all autonomous features.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SafetyConfig {
     /// Maximum total cost in USD across all operations.

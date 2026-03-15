@@ -13,6 +13,10 @@ use super::rules::{FsEventType, ReactorRule};
 use crate::config::ReactorConfig;
 
 /// File system reactor that watches directories and dispatches actions.
+///
+/// Registers file system watchers for all enabled rules, processes events
+/// through the debouncer, and sends matching (rule, path, event) tuples
+/// to an action channel.
 pub struct FsReactor {
     config: ReactorConfig,
     rules: Vec<ReactorRule>,

@@ -75,7 +75,10 @@ impl From<RecoveryPlanState> for RecoveryPlan {
     }
 }
 
-/// Crash handler that integrates with supervisor and self-improvement controller.
+/// Crash handler that integrates with the supervisor and self-improvement controller.
+///
+/// Detects meta-crashes (the handler itself failing repeatedly), persists recovery
+/// state across process restarts, and orchestrates the diagnose-fix-rebuild cycle.
 pub struct CrashHandler {
     provider: Arc<dyn Provider>,
     config: CrashRecoveryConfig,

@@ -1,4 +1,7 @@
 //! Agent-based code change maker.
+//!
+//! Uses an AI provider to interpret investigation results and apply code fixes,
+//! then stages and commits the changes.
 
 use std::sync::Arc;
 
@@ -22,7 +25,10 @@ pub struct ChangeResult {
     pub iterations: u32,
 }
 
-/// Makes code changes based on investigation results.
+/// Makes code changes based on investigation results using an AI provider.
+///
+/// Sends the investigation summary to the AI model, then inspects the git diff
+/// to determine what was changed.
 pub struct ChangeMaker {
     provider: Arc<dyn Provider>,
     _max_iterations: u32,

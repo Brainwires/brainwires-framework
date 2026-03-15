@@ -9,6 +9,9 @@ use super::{ImprovementCategory, ImprovementStrategy, ImprovementTask};
 use crate::config::StrategyConfig;
 
 /// Strategy that runs `cargo clippy` and generates fix tasks from warnings.
+///
+/// Parses clippy JSON output to group warnings by file and produce tasks
+/// that instruct the AI to fix the actual code rather than suppress lints.
 pub struct ClippyStrategy;
 
 #[derive(Deserialize)]

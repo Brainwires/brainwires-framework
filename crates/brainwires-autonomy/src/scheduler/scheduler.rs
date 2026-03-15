@@ -10,6 +10,9 @@ use super::task_schedule::{FailurePolicy, ScheduledTask, ScheduledTaskResult, Sc
 use crate::config::SchedulerConfig;
 
 /// Scheduler that manages multiple cron-based autonomous tasks.
+///
+/// Computes the next fire time across all active triggers, sleeps until then,
+/// executes the task, and handles failures according to each task's [`FailurePolicy`].
 pub struct AutonomyScheduler {
     config: SchedulerConfig,
     triggers: Vec<CronTrigger>,

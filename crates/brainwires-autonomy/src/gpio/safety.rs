@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 use crate::config::GpioConfig;
 
-/// Safety policy for GPIO access.
+/// Safety policy for GPIO access that enforces an explicit allow-list of (chip, line) pairs.
 pub struct GpioSafetyPolicy {
     allowed_pins: HashSet<(u32, u32)>,
 }

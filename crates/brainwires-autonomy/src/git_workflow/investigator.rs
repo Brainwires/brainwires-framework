@@ -1,4 +1,8 @@
 //! AI-powered issue investigation.
+//!
+//! Sends issue details to an AI provider and parses the response to produce
+//! a structured [`InvestigationResult`] with affected files, approach, and
+//! confidence score.
 
 use std::sync::Arc;
 
@@ -25,7 +29,8 @@ pub struct InvestigationResult {
     pub complexity: String,
 }
 
-/// Investigates issues using AI analysis.
+/// Investigates issues by prompting an AI provider to analyze the problem,
+/// identify affected files, and propose a fix approach.
 pub struct IssueInvestigator {
     provider: Arc<dyn Provider>,
 }

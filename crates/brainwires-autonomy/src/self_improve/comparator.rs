@@ -1,4 +1,7 @@
 //! Dual-path execution comparator.
+//!
+//! Compares results from direct and bridge (MCP proxy) execution paths to
+//! detect bridge-specific failures and measure iteration efficiency.
 
 use std::time::Duration;
 
@@ -38,7 +41,7 @@ impl PathResult {
 /// Comparison between direct and bridge execution paths.
 pub use crate::metrics::ComparisonResult;
 
-/// Compares two path results to produce a comparison report.
+/// Compares two execution path results (direct vs bridge) to detect divergences.
 pub struct Comparator;
 
 impl Comparator {

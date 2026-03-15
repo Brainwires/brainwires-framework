@@ -4,6 +4,9 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 /// Tracks event times per key and coalesces rapid-fire events.
+///
+/// Applies both per-key debouncing (suppresses repeated events for the same
+/// file/rule combo) and global rate limiting (max events per minute).
 pub struct EventDebouncer {
     /// Per-key last event time.
     last_events: HashMap<String, Instant>,
@@ -18,7 +21,7 @@ pub struct EventDebouncer {
 }
 
 impl EventDebouncer {
-    /// Create a new debouncer.
+    /// Create a new debouncer with a global debounce window and rate limit.
     pub fn new(global_debounce_ms: u64, max_events_per_minute: u32) -> Self {
         Self {
             last_events: HashMap::new(),

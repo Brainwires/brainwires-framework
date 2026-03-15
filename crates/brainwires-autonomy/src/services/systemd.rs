@@ -5,7 +5,9 @@ use anyhow::Result;
 use super::{ServiceInfo, ServiceOperation, ServiceStatus, ServiceType};
 use super::safety::ServiceSafety;
 
-/// Manager for systemd services.
+/// Manager for systemd services via the `systemctl` and `journalctl` CLIs.
+///
+/// All operations are gated by a [`ServiceSafety`] policy before execution.
 pub struct SystemdManager {
     safety: ServiceSafety,
 }
@@ -96,7 +98,7 @@ impl SystemdManager {
         }
     }
 
-    /// Parse service status from systemctl output.
+    /// Parse service status and PID from `systemctl show` output.
     pub async fn parse_status(&self, name: &str) -> Result<ServiceInfo> {
         let output = tokio::process::Command::new("systemctl")
             .args(["show", name, "--property=ActiveState,MainPID", "--no-pager"])

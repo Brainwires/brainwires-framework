@@ -1,7 +1,31 @@
-//! WASM bindings for the tool orchestrator
+//! WASM bindings for the tool orchestrator.
 //!
-//! This module provides JavaScript-compatible bindings for the tool orchestrator,
-//! allowing AI models to execute Rhai scripts that call registered tools from the browser.
+//! This module provides JavaScript-compatible bindings for the Brainwires tool orchestrator,
+//! allowing AI models to execute [Rhai](https://rhai.rs/) scripts that call registered
+//! JavaScript tool functions from the browser.
+//!
+//! ## Overview
+//!
+//! The orchestrator lets you:
+//! 1. Register JavaScript callback functions as named tools.
+//! 2. Execute Rhai scripts that can call those tools by name.
+//! 3. Enforce resource limits (operations, time, memory) for safe sandboxed execution.
+//!
+//! ## JS Usage
+//!
+//! ```js
+//! import { WasmOrchestrator, ExecutionLimits } from 'brainwires-wasm';
+//!
+//! const orchestrator = new WasmOrchestrator();
+//! orchestrator.register_tool("greet", (inputJson) => {
+//!     const input = JSON.parse(inputJson);
+//!     return `Hello, ${input}!`;
+//! });
+//!
+//! const limits = new ExecutionLimits();
+//! const result = orchestrator.execute('greet("World")', limits);
+//! console.log(result); // { success: true, output: "Hello, World!", ... }
+//! ```
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -19,26 +43,66 @@ use brainwires_tool_system::orchestrator::{
 // Engine Configuration Constants
 // ============================================================================
 
-/// Maximum expression nesting depth (prevents stack overflow from deeply nested expressions)
+/// Maximum expression nesting depth enforced by the Rhai engine.
+///
+/// Prevents stack overflow from deeply nested expressions (e.g., `((((a + b) + c) + d) ...)`).
+/// Set to 64 levels, which is generous for typical orchestration scripts.
 const MAX_EXPR_DEPTH: usize = 64;
 
-/// Maximum function call nesting depth (prevents stack overflow from deep recursion)
+/// Maximum function call nesting depth enforced by the Rhai engine.
+///
+/// Prevents stack overflow from deep recursion (e.g., `fn f() { f() }`).
+/// Set to 64 levels to allow reasonable recursion while preventing runaway stacks.
 const MAX_CALL_DEPTH: usize = 64;
 
 // ============================================================================
 // WASM-compatible ExecutionLimits wrapper
 // ============================================================================
 
-/// Execution limits for safe script execution (WASM-compatible)
+/// Resource limits for safe, sandboxed Rhai script execution in WASM.
+///
+/// This is a WASM-compatible wrapper around the core `ExecutionLimits` type, exposing
+/// getters and setters as `wasm_bindgen` properties so they can be read and written
+/// naturally from JavaScript.
+///
+/// All limits have sensible defaults. Use the [`quick()`](ExecutionLimits::quick) or
+/// [`extended()`](ExecutionLimits::extended) constructors for common presets, or create
+/// with [`new()`](ExecutionLimits::new) and customize individual properties.
+///
+/// ## Default values
+///
+/// | Property          | Default   | Quick    | Extended  |
+/// |-------------------|-----------|----------|-----------|
+/// | `max_operations`  | 100,000   | 10,000   | 500,000   |
+/// | `max_tool_calls`  | 50        | 10       | 100       |
+/// | `timeout_ms`      | 30,000    | 5,000    | 120,000   |
+/// | `max_string_size` | 10,000,000| 10,000,000| 10,000,000|
+/// | `max_array_size`  | 10,000    | 10,000   | 10,000    |
+///
+/// ## JS Example
+///
+/// ```js
+/// const limits = new ExecutionLimits();
+/// limits.max_operations = 50_000;
+/// limits.timeout_ms = 10_000;
+/// ```
 #[wasm_bindgen]
 #[derive(Debug, Clone)]
 pub struct ExecutionLimits {
+    /// The wrapped core execution limits (not exposed to JS).
     inner: CoreExecutionLimits,
 }
 
 #[wasm_bindgen]
 impl ExecutionLimits {
-    /// Create new execution limits with defaults.
+    /// Creates a new `ExecutionLimits` with default values.
+    ///
+    /// Defaults: 100,000 max operations, 50 max tool calls, 30s timeout,
+    /// 10MB max string size, 10,000 max array size.
+    ///
+    /// ```js
+    /// const limits = new ExecutionLimits();
+    /// ```
     #[wasm_bindgen(constructor)]
     #[must_use]
     pub fn new() -> Self {
@@ -47,7 +111,14 @@ impl ExecutionLimits {
         }
     }
 
-    /// Create quick execution limits for simple scripts.
+    /// Creates execution limits tuned for simple, short-running scripts.
+    ///
+    /// Uses 10,000 max operations, 10 max tool calls, and a 5-second timeout.
+    /// Ideal for lightweight validation or single-tool invocations.
+    ///
+    /// ```js
+    /// const limits = ExecutionLimits.quick();
+    /// ```
     #[wasm_bindgen]
     #[must_use]
     pub fn quick() -> Self {
@@ -56,7 +127,14 @@ impl ExecutionLimits {
         }
     }
 
-    /// Create extended limits for complex orchestration.
+    /// Creates execution limits tuned for complex, long-running orchestration scripts.
+    ///
+    /// Uses 500,000 max operations, 100 max tool calls, and a 120-second timeout.
+    /// Suitable for multi-step agent workflows that invoke many tools.
+    ///
+    /// ```js
+    /// const limits = ExecutionLimits.extended();
+    /// ```
     #[wasm_bindgen]
     #[must_use]
     pub fn extended() -> Self {
@@ -65,7 +143,10 @@ impl ExecutionLimits {
         }
     }
 
-    /// Get max operations.
+    /// The maximum number of Rhai operations (statements, expressions) allowed before
+    /// the script is terminated. Prevents infinite loops and runaway computation.
+    ///
+    /// Default: 100,000. Set to 0 for unlimited (not recommended).
     #[wasm_bindgen(getter)]
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
@@ -73,14 +154,17 @@ impl ExecutionLimits {
         self.inner.max_operations
     }
 
-    /// Set max operations.
+    /// Sets the maximum number of Rhai operations allowed.
     #[wasm_bindgen(setter)]
     #[allow(clippy::missing_const_for_fn)]
     pub fn set_max_operations(&mut self, value: u64) {
         self.inner.max_operations = value;
     }
 
-    /// Get max tool calls.
+    /// The maximum number of tool calls a script may make. Once exceeded, further
+    /// tool calls return an error string instead of invoking the callback.
+    ///
+    /// Default: 50.
     #[wasm_bindgen(getter)]
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
@@ -88,14 +172,17 @@ impl ExecutionLimits {
         self.inner.max_tool_calls
     }
 
-    /// Set max tool calls.
+    /// Sets the maximum number of tool calls allowed per script execution.
     #[wasm_bindgen(setter)]
     #[allow(clippy::missing_const_for_fn)]
     pub fn set_max_tool_calls(&mut self, value: usize) {
         self.inner.max_tool_calls = value;
     }
 
-    /// Get timeout in milliseconds.
+    /// The wall-clock timeout in milliseconds. If the script runs longer than this,
+    /// it is terminated with a timeout error.
+    ///
+    /// Default: 30,000 (30 seconds).
     #[wasm_bindgen(getter)]
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
@@ -103,14 +190,17 @@ impl ExecutionLimits {
         self.inner.timeout_ms
     }
 
-    /// Set timeout in milliseconds.
+    /// Sets the wall-clock timeout in milliseconds.
     #[wasm_bindgen(setter)]
     #[allow(clippy::missing_const_for_fn)]
     pub fn set_timeout_ms(&mut self, value: u64) {
         self.inner.timeout_ms = value;
     }
 
-    /// Get max string size.
+    /// The maximum size (in bytes) of any single string value within the Rhai engine.
+    /// Prevents memory exhaustion from unbounded string concatenation.
+    ///
+    /// Default: 10,000,000 (10 MB).
     #[wasm_bindgen(getter)]
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
@@ -118,14 +208,17 @@ impl ExecutionLimits {
         self.inner.max_string_size
     }
 
-    /// Set max string size.
+    /// Sets the maximum string size in bytes.
     #[wasm_bindgen(setter)]
     #[allow(clippy::missing_const_for_fn)]
     pub fn set_max_string_size(&mut self, value: usize) {
         self.inner.max_string_size = value;
     }
 
-    /// Get max array size.
+    /// The maximum number of elements in any single array within the Rhai engine.
+    /// Prevents memory exhaustion from unbounded array growth.
+    ///
+    /// Default: 10,000.
     #[wasm_bindgen(getter)]
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
@@ -133,7 +226,7 @@ impl ExecutionLimits {
         self.inner.max_array_size
     }
 
-    /// Set max array size.
+    /// Sets the maximum array size (number of elements).
     #[wasm_bindgen(setter)]
     #[allow(clippy::missing_const_for_fn)]
     pub fn set_max_array_size(&mut self, value: usize) {
@@ -151,22 +244,58 @@ impl Default for ExecutionLimits {
 // WASM Orchestrator
 // ============================================================================
 
-/// Tool executor function type (JavaScript callback)
+/// Internal type alias for a reference-counted, interior-mutable JavaScript callback function.
+///
+/// Each registered tool maps to one of these so it can be shared with the Rhai engine
+/// closures during script execution.
 type JsToolExecutor = Rc<RefCell<js_sys::Function>>;
 
-/// WASM-compatible tool orchestrator.
+/// A WASM-compatible tool orchestrator that executes Rhai scripts with registered
+/// JavaScript tool callbacks.
 ///
-/// This wraps the core `ToolOrchestrator` and provides JavaScript-friendly bindings
-/// for registering tools and executing scripts.
+/// `WasmOrchestrator` is the main entry point for browser-based tool orchestration.
+/// You register JavaScript functions as named tools, then execute Rhai scripts that
+/// can call those tools by name. The orchestrator enforces resource limits via
+/// [`ExecutionLimits`] to prevent runaway scripts.
+///
+/// ## Lifecycle
+///
+/// 1. Create an orchestrator with [`WasmOrchestrator::new()`].
+/// 2. Register one or more tools with [`register_tool()`](WasmOrchestrator::register_tool).
+/// 3. Execute scripts with [`execute()`](WasmOrchestrator::execute).
+///
+/// ## JS Example
+///
+/// ```js
+/// const orchestrator = new WasmOrchestrator();
+///
+/// // Register a tool that reads a file (synchronous callback)
+/// orchestrator.register_tool("read_file", (inputJson) => {
+///     const path = JSON.parse(inputJson);
+///     return localStorage.getItem(path) || "File not found";
+/// });
+///
+/// const limits = ExecutionLimits.quick();
+/// const result = orchestrator.execute('read_file("config.json")', limits);
+/// console.log(result.output);
+/// ```
 #[wasm_bindgen]
 pub struct WasmOrchestrator {
-    /// JavaScript tool executors (separate from core orchestrator)
+    /// Map of tool name to JavaScript callback function.
+    /// Populated by [`register_tool()`](WasmOrchestrator::register_tool).
     js_executors: HashMap<String, JsToolExecutor>,
 }
 
 #[wasm_bindgen]
 impl WasmOrchestrator {
-    /// Create a new WASM orchestrator.
+    /// Creates a new `WasmOrchestrator` with no registered tools.
+    ///
+    /// Also installs `console_error_panic_hook` for better panic messages in
+    /// the browser console.
+    ///
+    /// ```js
+    /// const orchestrator = new WasmOrchestrator();
+    /// ```
     #[wasm_bindgen(constructor)]
     #[must_use]
     pub fn new() -> Self {
@@ -178,29 +307,93 @@ impl WasmOrchestrator {
         }
     }
 
-    /// Register a tool executor function
+    /// Registers a JavaScript function as a named tool.
     ///
-    /// The function should accept a JSON string and return a string result.
+    /// The callback will be invoked when a Rhai script calls a function with the
+    /// matching `name`. It receives a single argument: a JSON string containing the
+    /// serialized input value from the Rhai call. It must return a string result.
+    ///
+    /// If a tool with the same name is already registered, it is replaced.
+    ///
+    /// # Parameters
+    ///
+    /// - `name` — The tool name, which becomes a callable function in Rhai scripts.
+    /// - `callback` — A JavaScript function with signature `(inputJson: string) => string`.
+    ///
+    /// # JS Example
+    ///
+    /// ```js
+    /// orchestrator.register_tool("add", (inputJson) => {
+    ///     const nums = JSON.parse(inputJson);
+    ///     return String(nums[0] + nums[1]);
+    /// });
+    /// ```
     #[wasm_bindgen]
     pub fn register_tool(&mut self, name: &str, callback: js_sys::Function) {
         self.js_executors
             .insert(name.to_string(), Rc::new(RefCell::new(callback)));
     }
 
-    /// Get list of registered tool names.
+    /// Returns the names of all currently registered tools as an array of strings.
+    ///
+    /// Useful for introspection or displaying available tools to users.
+    ///
+    /// ```js
+    /// const names = orchestrator.registered_tools();
+    /// console.log("Available tools:", names); // e.g. ["read_file", "write_file"]
+    /// ```
     #[wasm_bindgen]
     #[must_use]
     pub fn registered_tools(&self) -> Vec<String> {
         self.js_executors.keys().cloned().collect()
     }
 
-    /// Execute a Rhai script with the registered tools.
+    /// Executes a Rhai script with the registered tools and returns the result.
     ///
-    /// Returns a `JsValue` containing the `OrchestratorResult`.
+    /// The script can call any registered tool by name as if it were a built-in
+    /// Rhai function. Resource limits are enforced throughout execution: if the
+    /// script exceeds operations, tool calls, or timeout, it is terminated and
+    /// an error result is returned (not thrown).
+    ///
+    /// # Parameters
+    ///
+    /// - `script` — A Rhai script string to execute. Tool names registered via
+    ///   [`register_tool()`](WasmOrchestrator::register_tool) are available as
+    ///   callable functions.
+    /// - `limits` — An [`ExecutionLimits`] instance controlling resource bounds.
+    ///
+    /// # Returns
+    ///
+    /// A `JsValue` containing an `OrchestratorResult` object with these fields:
+    /// - `success` (`boolean`) — Whether the script completed without error.
+    /// - `output` (`string`) — The script's return value (or error message).
+    /// - `tool_calls` (`Array`) — Log of all tool invocations with inputs, outputs,
+    ///   success status, and duration.
+    /// - `execution_time_ms` (`number`) — Total wall-clock execution time.
     ///
     /// # Errors
     ///
-    /// Returns `JsValue` error if serialization fails.
+    /// Returns a `JsValue` error only if the result cannot be serialized to JS.
+    /// Script compilation errors and runtime errors are returned as non-success
+    /// `OrchestratorResult` values, not thrown exceptions.
+    ///
+    /// # JS Example
+    ///
+    /// ```js
+    /// const result = orchestrator.execute(`
+    ///     let data = read_file("input.json");
+    ///     let processed = transform(data);
+    ///     write_file("output.json", processed);
+    ///     "done"
+    /// `, limits);
+    ///
+    /// if (result.success) {
+    ///     console.log("Output:", result.output);
+    /// } else {
+    ///     console.error("Script failed:", result.output);
+    /// }
+    /// console.log(`Took ${result.execution_time_ms}ms, ${result.tool_calls.length} tool calls`);
+    /// ```
     #[wasm_bindgen]
     #[allow(clippy::too_many_lines)]
     pub fn execute(&self, script: &str, limits: &ExecutionLimits) -> Result<JsValue, JsValue> {

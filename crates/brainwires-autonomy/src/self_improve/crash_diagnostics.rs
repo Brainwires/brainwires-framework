@@ -7,7 +7,8 @@ use brainwires_core::Provider;
 
 use super::recovery_state::{CrashContext, RecoveryPlanState};
 
-/// Diagnoses crashes using an AI provider and produces recovery plans.
+/// Diagnoses crashes using an AI provider to analyze stderr output, git diffs,
+/// and crash context, producing a structured [`RecoveryPlanState`].
 pub struct CrashDiagnostics {
     provider: Arc<dyn Provider>,
 }

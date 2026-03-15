@@ -1,4 +1,8 @@
 //! Merge policies — decide when and how PRs should be merged.
+//!
+//! Policies evaluate a PR's context (CI status, confidence, diff size) and return
+//! an [`Approve`](MergeDecision::Approve), [`Wait`](MergeDecision::Wait), or
+//! [`Reject`](MergeDecision::Reject) decision.
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -36,7 +40,7 @@ pub struct MergeContext {
     pub files_modified: usize,
 }
 
-/// Trait for merge policies.
+/// Trait for merge policies that evaluate whether a PR should be auto-merged.
 #[async_trait]
 pub trait MergePolicy: Send + Sync {
     /// Evaluate whether a PR should be merged.
@@ -55,7 +59,7 @@ impl MergePolicy for RequireApprovalPolicy {
     }
 }
 
-/// Requires CI checks to pass before merging.
+/// Requires all CI checks to pass before approving a merge.
 pub struct CiPassPolicy {
     forge: std::sync::Arc<dyn GitForge>,
     merge_method: MergeMethod,
@@ -101,7 +105,7 @@ impl MergePolicy for CiPassPolicy {
     }
 }
 
-/// Auto-merge when investigation confidence exceeds threshold AND CI passes.
+/// Auto-merge when the investigation confidence score exceeds a configurable threshold.
 pub struct ConfidenceBasedPolicy {
     min_confidence: f64,
     merge_method: MergeMethod,

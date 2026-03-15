@@ -27,7 +27,8 @@ pub const CRITICAL_SERVICES: &[&str] = &[
     "kernel",
 ];
 
-/// Service safety enforcer.
+/// Service safety enforcer that gates operations against allow-lists, deny-lists,
+/// and read-only mode.
 pub struct ServiceSafety {
     allowed: HashSet<String>,
     forbidden: HashSet<String>,
@@ -55,7 +56,10 @@ impl ServiceSafety {
         }
     }
 
-    /// Check if an operation is allowed.
+    /// Check if an operation is allowed by the safety policy.
+    ///
+    /// Read-only operations are always permitted (unless the service is forbidden).
+    /// Write operations require `read_only=false` and the service to be in the allow-list.
     pub fn check(&self, operation: &ServiceOperation) -> Result<(), String> {
         // Read-only operations are always allowed (unless service is forbidden)
         if operation.is_read_only() {

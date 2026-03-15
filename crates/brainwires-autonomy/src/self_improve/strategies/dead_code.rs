@@ -8,7 +8,10 @@ use std::collections::HashMap;
 use super::{ImprovementCategory, ImprovementStrategy, ImprovementTask};
 use crate::config::StrategyConfig;
 
-/// Strategy that detects dead and unreachable code.
+/// Strategy that detects dead and unreachable code by parsing `cargo build` warnings.
+///
+/// Identifies unused imports, variables, functions, and other items, then generates
+/// tasks to remove or properly annotate the dead code.
 pub struct DeadCodeStrategy;
 
 #[async_trait]

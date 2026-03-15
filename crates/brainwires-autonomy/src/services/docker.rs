@@ -5,7 +5,9 @@ use anyhow::Result;
 use super::{ServiceInfo, ServiceOperation, ServiceStatus, ServiceType};
 use super::safety::ServiceSafety;
 
-/// Manager for Docker containers and compose stacks.
+/// Manager for Docker containers and compose stacks via the `docker` CLI.
+///
+/// All operations are gated by a [`ServiceSafety`] policy before execution.
 pub struct DockerManager {
     safety: ServiceSafety,
 }
@@ -126,7 +128,7 @@ impl DockerManager {
         }
     }
 
-    /// Parse container info.
+    /// Parse container status and PID from `docker inspect` output.
     pub async fn parse_container_info(&self, name: &str) -> Result<ServiceInfo> {
         let output = tokio::process::Command::new("docker")
             .args(["inspect", "--format", "{{.State.Status}} {{.State.Pid}}", name])

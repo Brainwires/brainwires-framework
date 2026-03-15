@@ -205,8 +205,11 @@ impl fmt::Display for AutonomousOperation {
 
 // ── Approval policy ─────────────────────────────────────────────────────────
 
-/// Gate for autonomous operations — implementations decide whether to allow,
-/// wait for human approval, or reject.
+/// Gate for autonomous operations — implementations decide whether to allow
+/// or reject an operation before it executes.
+///
+/// Used by the safety guard, pipeline, and supervisor to enforce approval
+/// requirements on sensitive operations (PR creation, merging, agent restarts).
 #[async_trait]
 pub trait ApprovalPolicy: Send + Sync {
     /// Check whether the given operation is allowed.
@@ -248,7 +251,10 @@ pub enum CircuitBreakerState {
     HalfOpen,
 }
 
-/// Circuit breaker that trips after consecutive failures and resets after cooldown.
+/// Circuit breaker that trips after consecutive failures and resets after a cooldown period.
+///
+/// Follows the closed -> open -> half-open pattern: closed allows operations,
+/// open rejects them, and half-open permits a single probe after cooldown.
 #[derive(Debug)]
 pub struct CircuitBreaker {
     state: CircuitBreakerState,
@@ -326,6 +332,9 @@ impl CircuitBreaker {
 // ── Budget tracker ──────────────────────────────────────────────────────────
 
 /// Tracks spending and enforces budget limits.
+///
+/// Enforces three constraints: total cumulative cost, per-operation cost ceiling,
+/// and a daily operation count limit that resets at midnight UTC.
 #[derive(Debug)]
 pub struct BudgetTracker {
     total_cost: f64,

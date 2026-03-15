@@ -30,6 +30,9 @@ struct ActivePin {
 }
 
 /// Manages GPIO pin allocation with safety enforcement.
+///
+/// Enforces the allow-list, concurrent pin limits, and automatic release
+/// of pins held past the configured timeout.
 pub struct GpioPinManager {
     safety: GpioSafetyPolicy,
     active_pins: HashMap<(u32, u32), ActivePin>,
