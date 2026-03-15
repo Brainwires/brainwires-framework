@@ -4,9 +4,12 @@
 //! that generate parameterized SQL statements from the backend-agnostic
 //! [`Filter`], [`FieldDef`], and [`FieldValue`] types.
 //!
-//! Each SQL backend (PostgreSQL, MySQL, SurrealDB) provides its own dialect
-//! implementation that handles differences in placeholder syntax, identifier
-//! quoting, and type mapping.
+//! Each SQL backend provides its own dialect implementation that handles
+//! differences in placeholder syntax, identifier quoting, and type mapping:
+//!
+//! - **PostgreSQL** (`PostgresDialect`) — `$N` placeholders, `"double-quote"` identifiers, pgvector types
+//! - **MySQL** (`MySqlDialect`) — `?` placeholders, `` `backtick` `` identifiers, JSON for vectors
+//! - **SurrealDB** (`SurrealDialect`) — `$N` placeholders, `"double-quote"` identifiers, native array types
 //!
 //! ## Design goals
 //!

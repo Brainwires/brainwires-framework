@@ -2,7 +2,7 @@
 name = "brainwires-brain-server"
 publish = false
 description = "Open Brain MCP server binary — exposes persistent knowledge (thoughts, PKS, BKS) to any AI tool via MCP protocol"
-version.workspace = true
+version = "0.4.1"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true

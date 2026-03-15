@@ -18,7 +18,7 @@
 //! | LanceDB    | `LanceDatabase`     | YES | YES | `lance-backend` (default) |
 //! | PostgreSQL | `PostgresDatabase`  | YES | YES | `postgres-backend`   |
 //! | MySQL      | `MySqlDatabase`     | YES | NO  | `mysql-backend`      |
-//! | SurrealDB  | `SurrealDatabase`   | YES | TBD | `surrealdb-backend`  |
+//! | SurrealDB  | `SurrealDatabase`   | YES | YES | `surrealdb-backend`  |
 //! | Qdrant     | `QdrantDatabase`    | NO  | YES | `qdrant-backend`     |
 //! | Pinecone   | `PineconeDatabase`  | NO  | YES | `pinecone-backend`   |
 //! | Milvus     | `MilvusDatabase`    | NO  | YES | `milvus-backend`     |
@@ -53,7 +53,7 @@
 //! - `lance-backend` — LanceDB (embedded, default via `native`)
 //! - `postgres-backend` — PostgreSQL + pgvector
 //! - `mysql-backend` — MySQL / MariaDB
-//! - `surrealdb-backend` — SurrealDB
+//! - `surrealdb-backend` — SurrealDB (native MTREE vector search)
 //! - `qdrant-backend` — Qdrant
 //! - `pinecone-backend` — Pinecone cloud
 //! - `milvus-backend` — Milvus
@@ -67,7 +67,7 @@
 //!
 //! - `types` — `Record`, `FieldDef`, `FieldValue`, `Filter`, `ScoredRecord`
 //! - `capabilities` — runtime capability discovery via [`BackendCapabilities`]
-//! - `sql` — shared SQL dialect layer for SQL-based backends (Postgres, MySQL, SurrealDB)
+//! - `sql` — shared SQL dialect layer for SQL-based backends
 //! - `bm25_helpers` — shared BM25 scoring for backends with client-side keyword search
 
 // ── Core abstractions ───────────────────────────────────────────────────
@@ -108,9 +108,25 @@ pub mod qdrant;
 /// PostgreSQL + pgvector — relational database with vector search.
 ///
 /// Implements both [`StorageBackend`](traits::StorageBackend) and
-/// [`VectorDatabase`](traits::VectorDatabase) with a shared `sqlx::PgPool`.
+/// [`VectorDatabase`](traits::VectorDatabase) with a shared
+/// `deadpool_postgres::Pool`.
 #[cfg(feature = "postgres-backend")]
 pub mod postgres;
+
+/// MySQL / MariaDB — relational database with client-side vector search.
+///
+/// Implements [`StorageBackend`](traits::StorageBackend) only. Vector search
+/// is performed client-side via cosine similarity (MySQL has no native vector
+/// type).
+#[cfg(feature = "mysql-backend")]
+pub mod mysql;
+
+/// SurrealDB — multi-model database with native MTREE vector indexing.
+///
+/// Implements both [`StorageBackend`](traits::StorageBackend) and
+/// [`VectorDatabase`](traits::VectorDatabase) with native KNN search.
+#[cfg(feature = "surrealdb-backend")]
+pub mod surrealdb;
 
 /// Pinecone — managed cloud vector database.
 ///
@@ -136,18 +152,6 @@ pub mod weaviate;
 #[cfg(feature = "nornicdb-backend")]
 pub mod nornicdb;
 
-/// MySQL / MariaDB — relational database (no vector search).
-///
-/// Implements [`StorageBackend`](traits::StorageBackend) only.
-#[cfg(feature = "mysql-backend")]
-pub mod mysql;
-
-/// SurrealDB — multi-model database with future vector support.
-///
-/// Implements [`StorageBackend`](traits::StorageBackend) only (vector TBD).
-#[cfg(feature = "surrealdb-backend")]
-pub mod surrealdb;
-
 /// Shared BM25 scoring helpers for backends with client-side keyword search.
 #[cfg(feature = "lance-backend")]
 pub mod bm25_helpers;
@@ -168,6 +172,12 @@ pub use qdrant::QdrantDatabase;
 #[cfg(feature = "postgres-backend")]
 pub use postgres::PostgresDatabase;
 
+#[cfg(feature = "mysql-backend")]
+pub use mysql::MySqlDatabase;
+
+#[cfg(feature = "surrealdb-backend")]
+pub use self::surrealdb::SurrealDatabase;
+
 #[cfg(feature = "pinecone-backend")]
 pub use pinecone::PineconeDatabase;
 
@@ -179,12 +189,6 @@ pub use weaviate::WeaviateDatabase;
 
 #[cfg(feature = "nornicdb-backend")]
 pub use nornicdb::NornicDatabase;
-
-#[cfg(feature = "mysql-backend")]
-pub use mysql::MySqlDatabase;
-
-#[cfg(feature = "surrealdb-backend")]
-pub use self::surrealdb::SurrealDatabase;
 
 // Re-export core types for convenience
 pub use brainwires_core::{ChunkMetadata, DatabaseStats, SearchResult};

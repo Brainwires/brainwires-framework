@@ -26,11 +26,16 @@
 //! ```
 
 use crate::databases::bm25_helpers::{self, SharedIdfStats};
-use crate::databases::traits::{ChunkMetadata, DatabaseStats, SearchResult, VectorDatabase};
+use crate::databases::sql::{self, postgres::PostgresDialect};
+use crate::databases::traits::{
+    ChunkMetadata, DatabaseStats, SearchResult, StorageBackend, VectorDatabase,
+};
+use crate::databases::types::{FieldDef, FieldValue, Filter, Record, ScoredRecord};
 use crate::glob_utils;
 use anyhow::{Context, Result};
 use deadpool_postgres::{Config, Pool, Runtime};
 use pgvector::Vector;
+use tokio_postgres::types::ToSql;
 
 const DEFAULT_TABLE: &str = "code_embeddings";
 const DEFAULT_URL: &str = "postgresql://localhost:5432/brainwires";
@@ -630,6 +635,292 @@ impl VectorDatabase for PostgresDatabase {
             .collect();
 
         Ok(files)
+    }
+}
+
+// ── StorageBackend trait implementation ───────────────────────────────
+
+/// Convert a [`FieldValue`] slice into boxed `ToSql` parameters for `tokio_postgres`.
+fn field_values_to_params(values: &[FieldValue]) -> Vec<Box<dyn ToSql + Sync + Send>> {
+    values
+        .iter()
+        .map(|v| -> Box<dyn ToSql + Sync + Send> {
+            match v {
+                FieldValue::Utf8(opt) => Box::new(opt.clone()),
+                FieldValue::Int32(opt) => Box::new(*opt),
+                FieldValue::Int64(opt) => Box::new(*opt),
+                FieldValue::UInt32(opt) => Box::new(opt.map(|u| u as i32)),
+                FieldValue::UInt64(opt) => Box::new(opt.map(|u| u as i64)),
+                FieldValue::Float32(opt) => Box::new(*opt),
+                FieldValue::Float64(opt) => Box::new(*opt),
+                FieldValue::Boolean(opt) => Box::new(*opt),
+                FieldValue::Vector(v) => Box::new(Vector::from(v.clone())),
+            }
+        })
+        .collect()
+}
+
+/// Build `&[&dyn ToSql]` references from the boxed parameter list.
+fn params_as_refs(params: &[Box<dyn ToSql + Sync + Send>]) -> Vec<&(dyn ToSql + Sync)> {
+    params
+        .iter()
+        .map(|p| -> &(dyn ToSql + Sync) { p.as_ref() })
+        .collect()
+}
+
+/// Parse a single `tokio_postgres::Row` into a [`Record`] using column type metadata.
+fn row_to_record(row: &tokio_postgres::Row) -> Record {
+    use tokio_postgres::types::Type;
+
+    let mut record = Vec::with_capacity(row.columns().len());
+    for (i, col) in row.columns().iter().enumerate() {
+        let name = col.name().to_string();
+        let val = match *col.type_() {
+            Type::TEXT | Type::VARCHAR | Type::BPCHAR | Type::NAME => {
+                FieldValue::Utf8(row.try_get::<_, String>(i).ok())
+            }
+            Type::INT4 => FieldValue::Int32(row.try_get::<_, i32>(i).ok()),
+            Type::INT8 => FieldValue::Int64(row.try_get::<_, i64>(i).ok()),
+            Type::INT2 => FieldValue::Int32(row.try_get::<_, i16>(i).ok().map(|v| v as i32)),
+            Type::FLOAT4 => FieldValue::Float32(row.try_get::<_, f32>(i).ok()),
+            Type::FLOAT8 => FieldValue::Float64(row.try_get::<_, f64>(i).ok()),
+            Type::BOOL => FieldValue::Boolean(row.try_get::<_, bool>(i).ok()),
+            _ => {
+                // For pgvector columns and any other unknown type, try to
+                // read as a pgvector Vector first, then fall back to string.
+                if let Ok(v) = row.try_get::<_, Vector>(i) {
+                    FieldValue::Vector(v.to_vec())
+                } else {
+                    FieldValue::Utf8(row.try_get::<_, String>(i).ok())
+                }
+            }
+        };
+        record.push((name, val));
+    }
+    record
+}
+
+#[async_trait::async_trait]
+impl StorageBackend for PostgresDatabase {
+    async fn ensure_table(&self, table_name: &str, schema: &[FieldDef]) -> Result<()> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .context("Failed to get connection from pool")?;
+
+        // Enable pgvector extension if schema contains a vector column.
+        let has_vector = schema
+            .iter()
+            .any(|f| matches!(f.field_type, crate::databases::types::FieldType::Vector(_)));
+        if has_vector {
+            client
+                .execute("CREATE EXTENSION IF NOT EXISTS vector", &[])
+                .await
+                .context("Failed to create vector extension")?;
+        }
+
+        let ddl = sql::build_create_table(table_name, schema, &PostgresDialect);
+        client
+            .execute(&*ddl, &[])
+            .await
+            .with_context(|| format!("Failed to create table '{table_name}'"))?;
+
+        Ok(())
+    }
+
+    async fn insert(&self, table_name: &str, records: Vec<Record>) -> Result<()> {
+        if records.is_empty() {
+            return Ok(());
+        }
+
+        let client = self
+            .pool
+            .get()
+            .await
+            .context("Failed to get connection from pool")?;
+
+        // Extract column names from the first record.
+        let col_names: Vec<&str> = records[0].iter().map(|(name, _)| name.as_str()).collect();
+
+        // Build rows of FieldValues aligned with col_names.
+        let rows: Vec<Vec<FieldValue>> = records
+            .iter()
+            .map(|rec| rec.iter().map(|(_, v)| v.clone()).collect())
+            .collect();
+
+        let (sql, values) = sql::build_insert(table_name, &col_names, &rows, &PostgresDialect);
+        let boxed = field_values_to_params(&values);
+        let refs = params_as_refs(&boxed);
+
+        client
+            .execute(&*sql, &refs)
+            .await
+            .with_context(|| format!("Failed to insert into '{table_name}'"))?;
+
+        Ok(())
+    }
+
+    async fn query(
+        &self,
+        table_name: &str,
+        filter: Option<&Filter>,
+        limit: Option<usize>,
+    ) -> Result<Vec<Record>> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .context("Failed to get connection from pool")?;
+
+        let (sql, values) = sql::build_select(table_name, filter, limit, &PostgresDialect);
+        let boxed = field_values_to_params(&values);
+        let refs = params_as_refs(&boxed);
+
+        let rows = client
+            .query(&*sql, &refs)
+            .await
+            .with_context(|| format!("Failed to query '{table_name}'"))?;
+
+        Ok(rows.iter().map(row_to_record).collect())
+    }
+
+    async fn delete(&self, table_name: &str, filter: &Filter) -> Result<()> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .context("Failed to get connection from pool")?;
+
+        let (sql, values) = sql::build_delete(table_name, filter, &PostgresDialect);
+        let boxed = field_values_to_params(&values);
+        let refs = params_as_refs(&boxed);
+
+        client
+            .execute(&*sql, &refs)
+            .await
+            .with_context(|| format!("Failed to delete from '{table_name}'"))?;
+
+        Ok(())
+    }
+
+    async fn count(&self, table_name: &str, filter: Option<&Filter>) -> Result<usize> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .context("Failed to get connection from pool")?;
+
+        let (sql, values) = sql::build_count(table_name, filter, &PostgresDialect);
+        let boxed = field_values_to_params(&values);
+        let refs = params_as_refs(&boxed);
+
+        let row = client
+            .query_one(&*sql, &refs)
+            .await
+            .with_context(|| format!("Failed to count rows in '{table_name}'"))?;
+
+        let count: i64 = row.try_get(0).unwrap_or(0);
+        Ok(count as usize)
+    }
+
+    async fn vector_search(
+        &self,
+        table_name: &str,
+        vector_column: &str,
+        vector: Vec<f32>,
+        limit: usize,
+        filter: Option<&Filter>,
+    ) -> Result<Vec<ScoredRecord>> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .context("Failed to get connection from pool")?;
+
+        let pg_vector = Vector::from(vector);
+        let limit_i64 = limit as i64;
+
+        // Build the query with optional filter.
+        // Parameter layout: $1 = vector, then filter params, then limit.
+        let (where_clause, filter_values) = if let Some(f) = filter {
+            let (sql, vals) = sql::filter_to_sql(f, &PostgresDialect, 2);
+            (format!("WHERE {}", sql), vals)
+        } else {
+            (String::new(), vec![])
+        };
+
+        let limit_param_idx = 2 + filter_values.len();
+        let quoted_col = format!("\"{}\"", vector_column);
+
+        let sql = format!(
+            "SELECT *, 1.0 - ({col} <=> $1::vector) AS __score \
+             FROM \"{table}\" {where} \
+             ORDER BY {col} <=> $1::vector \
+             LIMIT ${limit_idx}",
+            col = quoted_col,
+            table = table_name,
+            where = where_clause,
+            limit_idx = limit_param_idx,
+        );
+
+        // Build params: vector, filter values, limit.
+        let mut all_values: Vec<Box<dyn ToSql + Sync + Send>> = Vec::new();
+        all_values.push(Box::new(pg_vector));
+        all_values.extend(field_values_to_params(&filter_values));
+        all_values.push(Box::new(limit_i64));
+
+        let refs = params_as_refs(&all_values);
+
+        let rows = client
+            .query(&*sql, &refs)
+            .await
+            .with_context(|| format!("Failed vector search on '{table_name}'.'{vector_column}'"))?;
+
+        let mut results = Vec::with_capacity(rows.len());
+        for row in &rows {
+            let score: f64 = row.try_get("__score").unwrap_or(0.0);
+
+            // Build the record, skipping the synthetic __score column.
+            let mut record = Vec::new();
+            for (i, col) in row.columns().iter().enumerate() {
+                if col.name() == "__score" {
+                    continue;
+                }
+                let name = col.name().to_string();
+                let val = {
+                    use tokio_postgres::types::Type;
+                    match *col.type_() {
+                        Type::TEXT | Type::VARCHAR | Type::BPCHAR | Type::NAME => {
+                            FieldValue::Utf8(row.try_get::<_, String>(i).ok())
+                        }
+                        Type::INT4 => FieldValue::Int32(row.try_get::<_, i32>(i).ok()),
+                        Type::INT8 => FieldValue::Int64(row.try_get::<_, i64>(i).ok()),
+                        Type::INT2 => {
+                            FieldValue::Int32(row.try_get::<_, i16>(i).ok().map(|v| v as i32))
+                        }
+                        Type::FLOAT4 => FieldValue::Float32(row.try_get::<_, f32>(i).ok()),
+                        Type::FLOAT8 => FieldValue::Float64(row.try_get::<_, f64>(i).ok()),
+                        Type::BOOL => FieldValue::Boolean(row.try_get::<_, bool>(i).ok()),
+                        _ => {
+                            if let Ok(v) = row.try_get::<_, Vector>(i) {
+                                FieldValue::Vector(v.to_vec())
+                            } else {
+                                FieldValue::Utf8(row.try_get::<_, String>(i).ok())
+                            }
+                        }
+                    }
+                };
+                record.push((name, val));
+            }
+
+            results.push(ScoredRecord {
+                record,
+                score: score as f32,
+            });
+        }
+
+        Ok(results)
     }
 }
 
