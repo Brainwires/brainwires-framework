@@ -7,7 +7,7 @@ use url::Url;
 
 use crate::error::A2aError;
 use crate::jsonrpc::{JsonRpcRequest, JsonRpcResponse, RequestId};
-use crate::streaming::StreamEvent;
+use crate::streaming::StreamResponse;
 
 /// JSON-RPC transport client.
 pub struct JsonRpcTransport {
@@ -93,7 +93,7 @@ impl JsonRpcTransport {
         &self,
         method: &str,
         params: serde_json::Value,
-    ) -> Pin<Box<dyn Stream<Item = Result<StreamEvent, A2aError>> + Send>> {
+    ) -> Pin<Box<dyn Stream<Item = Result<StreamResponse, A2aError>> + Send>> {
         let id = self.next_id();
         let request = JsonRpcRequest {
             jsonrpc: "2.0".to_string(),

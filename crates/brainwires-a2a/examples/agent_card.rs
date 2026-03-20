@@ -3,7 +3,10 @@
 //! Demonstrates building A2A AgentCards with capabilities, skills,
 //! security schemes, and round-trip JSON serialization.
 
-use brainwires_a2a::{AgentCapabilities, AgentCard, AgentProvider, AgentSkill, SecurityScheme};
+use brainwires_a2a::{
+    AgentCapabilities, AgentCard, AgentProvider, AgentSkill, HttpAuthSecurityScheme,
+    SecurityScheme,
+};
 use std::collections::HashMap;
 
 fn main() {
@@ -13,10 +16,16 @@ fn main() {
     let mut security_schemes = HashMap::new();
     security_schemes.insert(
         "bearer_auth".to_string(),
-        SecurityScheme::Http {
-            scheme: "Bearer".to_string(),
-            bearer_format: Some("JWT".to_string()),
-            description: Some("JWT Bearer token authentication".to_string()),
+        SecurityScheme {
+            api_key: None,
+            http_auth: Some(HttpAuthSecurityScheme {
+                scheme: "Bearer".to_string(),
+                bearer_format: Some("JWT".to_string()),
+                description: Some("JWT Bearer token authentication".to_string()),
+            }),
+            oauth2: None,
+            open_id_connect: None,
+            mtls: None,
         },
     );
 
@@ -26,7 +35,7 @@ fn main() {
                       and provides actionable feedback."
             .to_string(),
         version: "1.2.0".to_string(),
-        supported_interfaces: None,
+        supported_interfaces: vec![],
         capabilities: AgentCapabilities {
             streaming: Some(true),
             push_notifications: Some(true),
@@ -109,7 +118,7 @@ fn main() {
         name: "echo-agent".to_string(),
         description: "A minimal agent that echoes messages back.".to_string(),
         version: "0.5.0".to_string(),
-        supported_interfaces: None,
+        supported_interfaces: vec![],
         capabilities: AgentCapabilities::default(),
         skills: vec![],
         default_input_modes: vec!["text/plain".to_string()],

@@ -1,10 +1,9 @@
 /**
- * Client construction, discovery URL building, and transport tests.
+ * Client construction, discovery URL building, and transport tests (v1.0).
  */
 
 import {
   assertEquals,
-  assertThrows,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { A2aClient } from "./client.ts";
 import type { JsonRpcRequest, JsonRpcResponse } from "./jsonrpc.ts";
@@ -78,41 +77,38 @@ Deno.test("discovery URL construction", () => {
   }
 });
 
-Deno.test("Task JSON structure matches A2A spec", () => {
+Deno.test("Task JSON structure matches A2A v1.0 spec", () => {
   const task: Task = {
     id: "task-1",
     contextId: "ctx-1",
     status: {
-      state: "working",
+      state: "TASK_STATE_WORKING",
       timestamp: "2024-01-01T00:00:00Z",
     },
-    kind: "task",
   };
   const json = JSON.stringify(task);
   const parsed = JSON.parse(json);
   assertEquals(parsed.id, "task-1");
   assertEquals(parsed.contextId, "ctx-1");
-  assertEquals(parsed.status.state, "working");
-  assertEquals(parsed.kind, "task");
+  assertEquals(parsed.status.state, "TASK_STATE_WORKING");
 });
 
-Deno.test("TaskState uses kebab-case", () => {
+Deno.test("TaskState uses SCREAMING_SNAKE_CASE", () => {
   const states = [
-    "unknown",
-    "submitted",
-    "working",
-    "completed",
-    "failed",
-    "canceled",
-    "rejected",
-    "input-required",
-    "auth-required",
+    "TASK_STATE_UNSPECIFIED",
+    "TASK_STATE_SUBMITTED",
+    "TASK_STATE_WORKING",
+    "TASK_STATE_COMPLETED",
+    "TASK_STATE_FAILED",
+    "TASK_STATE_CANCELED",
+    "TASK_STATE_REJECTED",
+    "TASK_STATE_INPUT_REQUIRED",
+    "TASK_STATE_AUTH_REQUIRED",
   ];
   for (const state of states) {
     const task: Task = {
       id: "t",
       status: { state: state as Task["status"]["state"] },
-      kind: "task",
     };
     const parsed = JSON.parse(JSON.stringify(task));
     assertEquals(parsed.status.state, state);
@@ -125,28 +121,28 @@ Deno.test("SendMessageRequest JSON structure", () => {
     configuration: {
       acceptedOutputModes: ["text/plain"],
       historyLength: 10,
-      blocking: true,
+      returnImmediately: true,
     },
     metadata: { source: "test" },
   };
   const json = JSON.stringify(req);
   const parsed = JSON.parse(json);
-  assertEquals(parsed.message.role, "user");
+  assertEquals(parsed.message.role, "ROLE_USER");
   assertEquals(parsed.configuration.acceptedOutputModes, ["text/plain"]);
   assertEquals(parsed.configuration.historyLength, 10);
-  assertEquals(parsed.configuration.blocking, true);
+  assertEquals(parsed.configuration.returnImmediately, true);
 });
 
 Deno.test("JsonRpcRequest structure matches spec", () => {
   const req: JsonRpcRequest = {
     jsonrpc: "2.0",
     method: METHOD_MESSAGE_SEND,
-    params: { message: { role: "user" } },
+    params: { message: { role: "ROLE_USER" } },
     id: 42,
   };
   const parsed = JSON.parse(JSON.stringify(req));
   assertEquals(parsed.jsonrpc, "2.0");
-  assertEquals(parsed.method, "message/send");
+  assertEquals(parsed.method, "SendMessage");
   assertEquals(parsed.id, 42);
 });
 

@@ -4,8 +4,8 @@
  * SecurityRequirement, OAuthFlows, AgentCardSignature.
  *
  * Serialization rules:
- * - `SecurityScheme` is a discriminated union on `type`
- * - `OAuthFlows` is a discriminated union on `type`
+ * - `SecurityScheme` is a wrapper OneOf (exactly one field set)
+ * - `OAuthFlows` is a wrapper OneOf (exactly one field set)
  */
 
 /** Self-describing manifest for an agent. */
@@ -16,8 +16,8 @@ export interface AgentCard {
   description: string;
   /** Agent version string. */
   version: string;
-  /** Ordered list of supported interfaces (first is preferred). */
-  supportedInterfaces?: AgentInterface[];
+  /** Ordered list of supported interfaces (first is preferred). Required. */
+  supportedInterfaces: AgentInterface[];
   /** Agent capabilities. */
   capabilities: AgentCapabilities;
   /** Agent skills. */
@@ -121,23 +121,23 @@ export interface SecurityRequirement {
 }
 
 /**
- * Security scheme (discriminated union on `type`).
- *
- * - `{ type: "apiKey", name, in, description? }`
- * - `{ type: "http", scheme, bearerFormat?, description? }`
- * - `{ type: "oauth2", flows, description?, oauth2MetadataUrl? }`
- * - `{ type: "openIdConnect", openIdConnectUrl, description? }`
- * - `{ type: "mutualTls", description? }`
+ * Security scheme (wrapper OneOf).
+ * Exactly one field should be set.
  */
-export type SecurityScheme =
-  | ApiKeySecurityScheme
-  | HttpSecurityScheme
-  | OAuth2SecurityScheme
-  | OpenIdConnectSecurityScheme
-  | MutualTlsSecurityScheme;
+export interface SecurityScheme {
+  /** API key security scheme. */
+  apiKeySecurityScheme?: ApiKeySecurityScheme;
+  /** HTTP auth security scheme. */
+  httpAuthSecurityScheme?: HttpAuthSecurityScheme;
+  /** OAuth2 security scheme. */
+  oauth2SecurityScheme?: OAuth2SecurityScheme;
+  /** OpenID Connect security scheme. */
+  openIdConnectSecurityScheme?: OpenIdConnectSecurityScheme;
+  /** Mutual TLS security scheme. */
+  mtlsSecurityScheme?: MutualTlsSecurityScheme;
+}
 
 export interface ApiKeySecurityScheme {
-  type: "apiKey";
   /** Parameter name. */
   name: string;
   /** Location: `query`, `header`, or `cookie`. */
@@ -146,8 +146,7 @@ export interface ApiKeySecurityScheme {
   description?: string;
 }
 
-export interface HttpSecurityScheme {
-  type: "http";
+export interface HttpAuthSecurityScheme {
   /** Auth scheme name (e.g. `Bearer`). */
   scheme: string;
   /** Format hint (e.g. `JWT`). */
@@ -157,7 +156,6 @@ export interface HttpSecurityScheme {
 }
 
 export interface OAuth2SecurityScheme {
-  type: "oauth2";
   /** OAuth2 flow configuration. */
   flows: OAuthFlows;
   /** Description. */
@@ -167,7 +165,6 @@ export interface OAuth2SecurityScheme {
 }
 
 export interface OpenIdConnectSecurityScheme {
-  type: "openIdConnect";
   /** OIDC discovery URL. */
   openIdConnectUrl: string;
   /** Description. */
@@ -175,23 +172,28 @@ export interface OpenIdConnectSecurityScheme {
 }
 
 export interface MutualTlsSecurityScheme {
-  type: "mutualTls";
   /** Description. */
   description?: string;
 }
 
 /**
- * OAuth 2.0 flow configuration (discriminated union on `type`).
+ * OAuth 2.0 flow configuration (wrapper OneOf).
+ * Exactly one field should be set.
  */
-export type OAuthFlows =
-  | AuthorizationCodeFlow
-  | ClientCredentialsFlow
-  | ImplicitFlow
-  | PasswordFlow
-  | DeviceCodeFlow;
+export interface OAuthFlows {
+  /** Authorization code flow. */
+  authorizationCode?: AuthorizationCodeOAuthFlow;
+  /** Client credentials flow. */
+  clientCredentials?: ClientCredentialsOAuthFlow;
+  /** Implicit flow (deprecated). */
+  implicit?: ImplicitOAuthFlow;
+  /** Password flow (deprecated). */
+  password?: PasswordOAuthFlow;
+  /** Device code flow. */
+  deviceCode?: DeviceCodeOAuthFlow;
+}
 
-export interface AuthorizationCodeFlow {
-  type: "authorizationCode";
+export interface AuthorizationCodeOAuthFlow {
   /** Authorization URL. */
   authorizationUrl: string;
   /** Token URL. */
@@ -204,8 +206,7 @@ export interface AuthorizationCodeFlow {
   pkceRequired?: boolean;
 }
 
-export interface ClientCredentialsFlow {
-  type: "clientCredentials";
+export interface ClientCredentialsOAuthFlow {
   /** Token URL. */
   tokenUrl: string;
   /** Refresh URL. */
@@ -214,8 +215,7 @@ export interface ClientCredentialsFlow {
   scopes: Record<string, string>;
 }
 
-export interface ImplicitFlow {
-  type: "implicit";
+export interface ImplicitOAuthFlow {
   /** Authorization URL. */
   authorizationUrl?: string;
   /** Refresh URL. */
@@ -224,8 +224,7 @@ export interface ImplicitFlow {
   scopes: Record<string, string>;
 }
 
-export interface PasswordFlow {
-  type: "password";
+export interface PasswordOAuthFlow {
   /** Token URL. */
   tokenUrl?: string;
   /** Refresh URL. */
@@ -234,8 +233,7 @@ export interface PasswordFlow {
   scopes: Record<string, string>;
 }
 
-export interface DeviceCodeFlow {
-  type: "deviceCode";
+export interface DeviceCodeOAuthFlow {
   /** Device authorization URL. */
   deviceAuthorizationUrl: string;
   /** Token URL. */

@@ -15,7 +15,7 @@ export interface TaskPushNotificationConfig {
   /** Optional tenant identifier. */
   tenant?: string;
   /** Configuration identifier. */
-  id?: string;
+  configId?: string;
   /** Associated task identifier. */
   taskId: string;
   /** URL where the notification should be sent. */
@@ -24,4 +24,6 @@ export interface TaskPushNotificationConfig {
   token?: string;
   /** Authentication information for sending the notification. */
   authentication?: AuthenticationInfo;
+  /** ISO 8601 timestamp when the config was created. */
+  createdAt?: string;
 }

@@ -13,11 +13,8 @@ pub struct AgentCard {
     /// Agent version string.
     pub version: String,
     /// Ordered list of supported interfaces (first is preferred).
-    #[serde(
-        rename = "supportedInterfaces",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub supported_interfaces: Option<Vec<AgentInterface>>,
+    #[serde(rename = "supportedInterfaces")]
+    pub supported_interfaces: Vec<AgentInterface>,
     /// Agent capabilities.
     pub capabilities: AgentCapabilities,
     /// Agent skills.
@@ -149,145 +146,183 @@ pub struct AgentCardSignature {
     pub header: Option<HashMap<String, serde_json::Value>>,
 }
 
-/// Security requirements map: scheme name → required scopes.
+/// Security requirements map: scheme name -> required scopes.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SecurityRequirement {
     /// Map of security scheme names to their required scopes.
     pub schemes: HashMap<String, Vec<String>>,
 }
 
-/// Security scheme (discriminated union).
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type")]
-pub enum SecurityScheme {
+/// Security scheme (wrapper-based oneOf).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SecurityScheme {
     /// API key authentication.
-    #[serde(rename = "apiKey")]
-    ApiKey {
-        /// Parameter name.
-        name: String,
-        /// Location: `query`, `header`, or `cookie`.
-        #[serde(rename = "in")]
-        location: String,
-        /// Description.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        description: Option<String>,
-    },
+    #[serde(skip_serializing_if = "Option::is_none", rename = "apiKeySecurityScheme")]
+    pub api_key: Option<ApiKeySecurityScheme>,
     /// HTTP authentication (Bearer, Basic, etc).
-    #[serde(rename = "http")]
-    Http {
-        /// Auth scheme name (e.g. `Bearer`).
-        scheme: String,
-        /// Format hint (e.g. `JWT`).
-        #[serde(rename = "bearerFormat", skip_serializing_if = "Option::is_none")]
-        bearer_format: Option<String>,
-        /// Description.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        description: Option<String>,
-    },
+    #[serde(skip_serializing_if = "Option::is_none", rename = "httpAuthSecurityScheme")]
+    pub http_auth: Option<HttpAuthSecurityScheme>,
     /// OAuth 2.0 authentication.
-    #[serde(rename = "oauth2")]
-    OAuth2 {
-        /// OAuth2 flow configuration.
-        flows: OAuthFlows,
-        /// Description.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        description: Option<String>,
-        /// OAuth2 metadata URL (RFC 8414).
-        #[serde(rename = "oauth2MetadataUrl", skip_serializing_if = "Option::is_none")]
-        oauth2_metadata_url: Option<String>,
-    },
+    #[serde(skip_serializing_if = "Option::is_none", rename = "oauth2SecurityScheme")]
+    pub oauth2: Option<OAuth2SecurityScheme>,
     /// OpenID Connect authentication.
-    #[serde(rename = "openIdConnect")]
-    OpenIdConnect {
-        /// OIDC discovery URL.
-        #[serde(rename = "openIdConnectUrl")]
-        open_id_connect_url: String,
-        /// Description.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        description: Option<String>,
-    },
+    #[serde(skip_serializing_if = "Option::is_none", rename = "openIdConnectSecurityScheme")]
+    pub open_id_connect: Option<OpenIdConnectSecurityScheme>,
     /// Mutual TLS authentication.
-    #[serde(rename = "mutualTls")]
-    MutualTls {
-        /// Description.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        description: Option<String>,
-    },
+    #[serde(skip_serializing_if = "Option::is_none", rename = "mtlsSecurityScheme")]
+    pub mtls: Option<MutualTlsSecurityScheme>,
 }
 
-/// OAuth 2.0 flow configuration (discriminated union).
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type")]
-pub enum OAuthFlows {
+/// API key security scheme details.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ApiKeySecurityScheme {
+    /// Parameter name.
+    pub name: String,
+    /// Location: `query`, `header`, or `cookie`.
+    #[serde(rename = "in")]
+    pub location: String,
+    /// Description.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+/// HTTP authentication security scheme details.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct HttpAuthSecurityScheme {
+    /// Auth scheme name (e.g. `Bearer`).
+    pub scheme: String,
+    /// Format hint (e.g. `JWT`).
+    #[serde(rename = "bearerFormat", skip_serializing_if = "Option::is_none")]
+    pub bearer_format: Option<String>,
+    /// Description.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+/// OAuth 2.0 security scheme details.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct OAuth2SecurityScheme {
+    /// OAuth2 flow configuration.
+    pub flows: OAuthFlows,
+    /// Description.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// OAuth2 metadata URL (RFC 8414).
+    #[serde(rename = "oauth2MetadataUrl", skip_serializing_if = "Option::is_none")]
+    pub oauth2_metadata_url: Option<String>,
+}
+
+/// OpenID Connect security scheme details.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct OpenIdConnectSecurityScheme {
+    /// OIDC discovery URL.
+    #[serde(rename = "openIdConnectUrl")]
+    pub open_id_connect_url: String,
+    /// Description.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+/// Mutual TLS security scheme details.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct MutualTlsSecurityScheme {
+    /// Description.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+/// OAuth 2.0 flow configuration (wrapper-based oneOf).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct OAuthFlows {
     /// Authorization Code flow.
-    #[serde(rename = "authorizationCode")]
-    AuthorizationCode {
-        /// Authorization URL.
-        #[serde(rename = "authorizationUrl")]
-        authorization_url: String,
-        /// Token URL.
-        #[serde(rename = "tokenUrl")]
-        token_url: String,
-        /// Refresh URL.
-        #[serde(rename = "refreshUrl", skip_serializing_if = "Option::is_none")]
-        refresh_url: Option<String>,
-        /// Available scopes.
-        scopes: HashMap<String, String>,
-        /// Whether PKCE is required.
-        #[serde(rename = "pkceRequired", skip_serializing_if = "Option::is_none")]
-        pkce_required: Option<bool>,
-    },
+    #[serde(skip_serializing_if = "Option::is_none", rename = "authorizationCode")]
+    pub authorization_code: Option<AuthorizationCodeOAuthFlow>,
     /// Client Credentials flow.
-    #[serde(rename = "clientCredentials")]
-    ClientCredentials {
-        /// Token URL.
-        #[serde(rename = "tokenUrl")]
-        token_url: String,
-        /// Refresh URL.
-        #[serde(rename = "refreshUrl", skip_serializing_if = "Option::is_none")]
-        refresh_url: Option<String>,
-        /// Available scopes.
-        scopes: HashMap<String, String>,
-    },
+    #[serde(skip_serializing_if = "Option::is_none", rename = "clientCredentials")]
+    pub client_credentials: Option<ClientCredentialsOAuthFlow>,
     /// Implicit flow (deprecated).
-    #[serde(rename = "implicit")]
-    Implicit {
-        /// Authorization URL.
-        #[serde(rename = "authorizationUrl", skip_serializing_if = "Option::is_none")]
-        authorization_url: Option<String>,
-        /// Refresh URL.
-        #[serde(rename = "refreshUrl", skip_serializing_if = "Option::is_none")]
-        refresh_url: Option<String>,
-        /// Available scopes.
-        #[serde(default)]
-        scopes: HashMap<String, String>,
-    },
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub implicit: Option<ImplicitOAuthFlow>,
     /// Password flow (deprecated).
-    #[serde(rename = "password")]
-    Password {
-        /// Token URL.
-        #[serde(rename = "tokenUrl", skip_serializing_if = "Option::is_none")]
-        token_url: Option<String>,
-        /// Refresh URL.
-        #[serde(rename = "refreshUrl", skip_serializing_if = "Option::is_none")]
-        refresh_url: Option<String>,
-        /// Available scopes.
-        #[serde(default)]
-        scopes: HashMap<String, String>,
-    },
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub password: Option<PasswordOAuthFlow>,
     /// Device Code flow (RFC 8628).
-    #[serde(rename = "deviceCode")]
-    DeviceCode {
-        /// Device authorization URL.
-        #[serde(rename = "deviceAuthorizationUrl")]
-        device_authorization_url: String,
-        /// Token URL.
-        #[serde(rename = "tokenUrl")]
-        token_url: String,
-        /// Refresh URL.
-        #[serde(rename = "refreshUrl", skip_serializing_if = "Option::is_none")]
-        refresh_url: Option<String>,
-        /// Available scopes.
-        scopes: HashMap<String, String>,
-    },
+    #[serde(skip_serializing_if = "Option::is_none", rename = "deviceCode")]
+    pub device_code: Option<DeviceCodeOAuthFlow>,
+}
+
+/// Authorization Code OAuth flow.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AuthorizationCodeOAuthFlow {
+    /// Authorization URL.
+    #[serde(rename = "authorizationUrl")]
+    pub authorization_url: String,
+    /// Token URL.
+    #[serde(rename = "tokenUrl")]
+    pub token_url: String,
+    /// Refresh URL.
+    #[serde(rename = "refreshUrl", skip_serializing_if = "Option::is_none")]
+    pub refresh_url: Option<String>,
+    /// Available scopes.
+    pub scopes: HashMap<String, String>,
+    /// Whether PKCE is required.
+    #[serde(rename = "pkceRequired", skip_serializing_if = "Option::is_none")]
+    pub pkce_required: Option<bool>,
+}
+
+/// Client Credentials OAuth flow.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ClientCredentialsOAuthFlow {
+    /// Token URL.
+    #[serde(rename = "tokenUrl")]
+    pub token_url: String,
+    /// Refresh URL.
+    #[serde(rename = "refreshUrl", skip_serializing_if = "Option::is_none")]
+    pub refresh_url: Option<String>,
+    /// Available scopes.
+    pub scopes: HashMap<String, String>,
+}
+
+/// Implicit OAuth flow (deprecated).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ImplicitOAuthFlow {
+    /// Authorization URL.
+    #[serde(rename = "authorizationUrl", skip_serializing_if = "Option::is_none")]
+    pub authorization_url: Option<String>,
+    /// Refresh URL.
+    #[serde(rename = "refreshUrl", skip_serializing_if = "Option::is_none")]
+    pub refresh_url: Option<String>,
+    /// Available scopes.
+    #[serde(default)]
+    pub scopes: HashMap<String, String>,
+}
+
+/// Password OAuth flow (deprecated).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PasswordOAuthFlow {
+    /// Token URL.
+    #[serde(rename = "tokenUrl", skip_serializing_if = "Option::is_none")]
+    pub token_url: Option<String>,
+    /// Refresh URL.
+    #[serde(rename = "refreshUrl", skip_serializing_if = "Option::is_none")]
+    pub refresh_url: Option<String>,
+    /// Available scopes.
+    #[serde(default)]
+    pub scopes: HashMap<String, String>,
+}
+
+/// Device Code OAuth flow (RFC 8628).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DeviceCodeOAuthFlow {
+    /// Device authorization URL.
+    #[serde(rename = "deviceAuthorizationUrl")]
+    pub device_authorization_url: String,
+    /// Token URL.
+    #[serde(rename = "tokenUrl")]
+    pub token_url: String,
+    /// Refresh URL.
+    #[serde(rename = "refreshUrl", skip_serializing_if = "Option::is_none")]
+    pub refresh_url: Option<String>,
+    /// Available scopes.
+    pub scopes: HashMap<String, String>,
 }

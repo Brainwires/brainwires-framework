@@ -8,14 +8,14 @@ use tokio_stream::StreamExt;
 
 use crate::error::A2aError;
 use crate::jsonrpc::{JsonRpcResponse, RequestId};
-use crate::streaming::StreamEvent;
+use crate::streaming::StreamResponse;
 
-/// Convert a stream of `StreamEvent` items into an SSE byte stream (JSON-RPC envelope).
+/// Convert a stream of `StreamResponse` items into an SSE byte stream (JSON-RPC envelope).
 ///
 /// Each event is serialized as a JSON-RPC response wrapped in an SSE `data:` line.
 pub fn stream_to_sse(
     id: RequestId,
-    stream: Pin<Box<dyn Stream<Item = Result<StreamEvent, A2aError>> + Send>>,
+    stream: Pin<Box<dyn Stream<Item = Result<StreamResponse, A2aError>> + Send>>,
 ) -> Pin<Box<dyn Stream<Item = Result<http_body::Frame<Bytes>, std::io::Error>> + Send>> {
     let mapped = stream.map(move |item| {
         let response = match item {
@@ -45,11 +45,11 @@ pub fn stream_to_sse(
     Box::pin(mapped)
 }
 
-/// Convert a stream of `StreamEvent` items into an SSE byte stream (REST — no JSON-RPC envelope).
+/// Convert a stream of `StreamResponse` items into an SSE byte stream (REST — no JSON-RPC envelope).
 ///
 /// Each event is serialized directly as JSON in an SSE `data:` line.
 pub fn stream_to_sse_rest(
-    stream: Pin<Box<dyn Stream<Item = Result<StreamEvent, A2aError>> + Send>>,
+    stream: Pin<Box<dyn Stream<Item = Result<StreamResponse, A2aError>> + Send>>,
 ) -> Pin<Box<dyn Stream<Item = Result<http_body::Frame<Bytes>, std::io::Error>> + Send>> {
     let mapped = stream.map(|item| {
         let json = match item {

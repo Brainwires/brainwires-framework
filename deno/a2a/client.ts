@@ -36,7 +36,7 @@ import type {
 } from "./params.ts";
 import type { TaskPushNotificationConfig } from "./push_notification.ts";
 import { parseSseStream } from "./sse.ts";
-import type { SendMessageResponse, StreamEvent } from "./streaming.ts";
+import type { SendMessageResponse, StreamResponse } from "./streaming.ts";
 import type { Task } from "./task.ts";
 
 /** Transport selection. */
@@ -103,7 +103,7 @@ export class A2aClient {
   // Public API
   // -------------------------------------------------------------------------
 
-  /** Send a message (message/send). */
+  /** Send a message (SendMessage). */
   async sendMessage(req: SendMessageRequest): Promise<SendMessageResponse> {
     if (this.transport === "jsonrpc") {
       return await this.jsonRpcCall(METHOD_MESSAGE_SEND, req);
@@ -112,12 +112,12 @@ export class A2aClient {
   }
 
   /**
-   * Stream a message (message/stream).
-   * Returns an async iterable of StreamEvent values.
+   * Stream a message (SendStreamingMessage).
+   * Returns an async iterable of StreamResponse values.
    */
   async *streamMessage(
     req: SendMessageRequest,
-  ): AsyncIterable<StreamEvent> {
+  ): AsyncIterable<StreamResponse> {
     if (this.transport === "jsonrpc") {
       yield* this.jsonRpcStream(METHOD_MESSAGE_STREAM, req);
     } else {
@@ -125,7 +125,7 @@ export class A2aClient {
     }
   }
 
-  /** Get a task by ID (tasks/get). */
+  /** Get a task by ID (GetTask). */
   async getTask(req: GetTaskRequest): Promise<Task> {
     if (this.transport === "jsonrpc") {
       return await this.jsonRpcCall(METHOD_TASKS_GET, req);
@@ -133,7 +133,7 @@ export class A2aClient {
     return await this.restGet(`/tasks/${req.id}`);
   }
 
-  /** List tasks (tasks/list). */
+  /** List tasks (ListTasks). */
   async listTasks(req: ListTasksRequest): Promise<ListTasksResponse> {
     if (this.transport === "jsonrpc") {
       return await this.jsonRpcCall(METHOD_TASKS_LIST, req);
@@ -141,7 +141,7 @@ export class A2aClient {
     return await this.restGet("/tasks");
   }
 
-  /** Cancel a task (tasks/cancel). */
+  /** Cancel a task (CancelTask). */
   async cancelTask(req: CancelTaskRequest): Promise<Task> {
     if (this.transport === "jsonrpc") {
       return await this.jsonRpcCall(METHOD_TASKS_CANCEL, req);
@@ -150,16 +150,17 @@ export class A2aClient {
   }
 
   /**
-   * Subscribe to task updates (tasks/resubscribe).
-   * Returns an async iterable of StreamEvent values.
+   * Subscribe to task updates (SubscribeToTask).
+   * Returns an async iterable of StreamResponse values.
+   * Uses POST per A2A v1.0.
    */
   async *subscribeToTask(
     req: SubscribeToTaskRequest,
-  ): AsyncIterable<StreamEvent> {
+  ): AsyncIterable<StreamResponse> {
     if (this.transport === "jsonrpc") {
       yield* this.jsonRpcStream(METHOD_TASKS_RESUBSCRIBE, req);
     } else {
-      yield* this.restGetStream(`/tasks/${req.id}:subscribe`);
+      yield* this.restPostStream(`/tasks/${req.id}:subscribe`, req);
     }
   }
 
@@ -184,7 +185,7 @@ export class A2aClient {
       return await this.jsonRpcCall(METHOD_PUSH_CONFIG_GET, req);
     }
     return await this.restGet(
-      `/tasks/${req.taskId}/pushNotificationConfigs/${req.id}`,
+      `/tasks/${req.taskId}/pushNotificationConfigs/${req.configId}`,
     );
   }
 
@@ -197,7 +198,7 @@ export class A2aClient {
       return;
     }
     await this.restDelete(
-      `/tasks/${req.taskId}/pushNotificationConfigs/${req.id}`,
+      `/tasks/${req.taskId}/pushNotificationConfigs/${req.configId}`,
     );
   }
 
@@ -276,7 +277,7 @@ export class A2aClient {
   private async *jsonRpcStream(
     method: string,
     params: unknown,
-  ): AsyncIterable<StreamEvent> {
+  ): AsyncIterable<StreamResponse> {
     const id = this.nextId();
     const request: JsonRpcRequest = {
       jsonrpc: "2.0",
@@ -355,28 +356,13 @@ export class A2aClient {
   private async *restPostStream(
     path: string,
     body: unknown,
-  ): AsyncIterable<StreamEvent> {
+  ): AsyncIterable<StreamResponse> {
     const resp = await fetch(this.restUrl(path), {
       method: "POST",
       headers: this.authHeaders(),
       body: JSON.stringify(body),
     }).catch((e) => {
       throw A2aError.internal(`REST stream request failed: ${e}`);
-    });
-
-    if (!resp.body) {
-      throw A2aError.internal("Response has no body");
-    }
-
-    yield* parseSseStream(resp.body, "rest");
-  }
-
-  private async *restGetStream(path: string): AsyncIterable<StreamEvent> {
-    const resp = await fetch(this.restUrl(path), {
-      method: "GET",
-      headers: this.authHeaders(),
-    }).catch((e) => {
-      throw A2aError.internal(`REST stream GET failed: ${e}`);
     });
 
     if (!resp.body) {

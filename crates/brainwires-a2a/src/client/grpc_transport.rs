@@ -10,7 +10,7 @@ mod grpc_impl {
     use crate::error::A2aError;
     use crate::params;
     use crate::proto::lf_a2a_v1;
-    use crate::streaming::StreamEvent;
+    use crate::streaming::StreamResponse;
     use crate::task::Task;
 
     /// gRPC transport client.
@@ -47,10 +47,16 @@ mod grpc_impl {
             let inner = resp.into_inner();
             match inner.payload {
                 Some(lf_a2a_v1::send_message_response::Payload::Task(t)) => {
-                    Ok(crate::streaming::SendMessageResponse::Task(t.into()))
+                    Ok(crate::streaming::SendMessageResponse {
+                        task: Some(t.into()),
+                        message: None,
+                    })
                 }
                 Some(lf_a2a_v1::send_message_response::Payload::Message(m)) => {
-                    Ok(crate::streaming::SendMessageResponse::Message(m.into()))
+                    Ok(crate::streaming::SendMessageResponse {
+                        task: None,
+                        message: Some(m.into()),
+                    })
                 }
                 None => Err(A2aError::internal("Empty gRPC response")),
             }
@@ -60,7 +66,7 @@ mod grpc_impl {
         pub async fn send_streaming_message(
             &mut self,
             req: params::SendMessageRequest,
-        ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamEvent, A2aError>> + Send>>, A2aError>
+        ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamResponse, A2aError>> + Send>>, A2aError>
         {
             let proto_req = lf_a2a_v1::SendMessageRequest {
                 tenant: req.tenant.unwrap_or_default(),
@@ -76,7 +82,7 @@ mod grpc_impl {
 
             let stream = resp.into_inner().map(|item| {
                 item.map_err(|e| A2aError::internal(format!("gRPC stream error: {e}")))
-                    .and_then(proto_stream_response_to_event)
+                    .and_then(proto_stream_response_to_stream_response)
             });
 
             Ok(Box::pin(stream))
@@ -182,7 +188,7 @@ mod grpc_impl {
             let proto_req = lf_a2a_v1::GetTaskPushNotificationConfigRequest {
                 tenant: req.tenant.unwrap_or_default(),
                 task_id: req.task_id,
-                id: req.id,
+                id: req.config_id,
             };
             let resp = self
                 .client
@@ -227,7 +233,7 @@ mod grpc_impl {
             let proto_req = lf_a2a_v1::DeleteTaskPushNotificationConfigRequest {
                 tenant: req.tenant.unwrap_or_default(),
                 task_id: req.task_id,
-                id: req.id,
+                id: req.config_id,
             };
             self.client
                 .delete_task_push_notification_config(proto_req)
@@ -240,7 +246,7 @@ mod grpc_impl {
         pub async fn subscribe_to_task(
             &mut self,
             req: params::SubscribeToTaskRequest,
-        ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamEvent, A2aError>> + Send>>, A2aError>
+        ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamResponse, A2aError>> + Send>>, A2aError>
         {
             let proto_req = lf_a2a_v1::SubscribeToTaskRequest {
                 tenant: req.tenant.unwrap_or_default(),
@@ -254,38 +260,52 @@ mod grpc_impl {
 
             let stream = resp.into_inner().map(|item| {
                 item.map_err(|e| A2aError::internal(format!("gRPC stream error: {e}")))
-                    .and_then(proto_stream_response_to_event)
+                    .and_then(proto_stream_response_to_stream_response)
             });
 
             Ok(Box::pin(stream))
         }
     }
 
-    fn proto_stream_response_to_event(
+    fn proto_stream_response_to_stream_response(
         sr: lf_a2a_v1::StreamResponse,
-    ) -> Result<StreamEvent, A2aError> {
+    ) -> Result<StreamResponse, A2aError> {
         match sr.payload {
-            Some(lf_a2a_v1::stream_response::Payload::Task(t)) => Ok(StreamEvent::Task(t.into())),
-            Some(lf_a2a_v1::stream_response::Payload::Message(m)) => {
-                Ok(StreamEvent::Message(m.into()))
-            }
-            Some(lf_a2a_v1::stream_response::Payload::StatusUpdate(su)) => Ok(
-                StreamEvent::StatusUpdate(crate::streaming::TaskStatusUpdateEvent {
+            Some(lf_a2a_v1::stream_response::Payload::Task(t)) => Ok(StreamResponse {
+                task: Some(t.into()),
+                message: None,
+                status_update: None,
+                artifact_update: None,
+            }),
+            Some(lf_a2a_v1::stream_response::Payload::Message(m)) => Ok(StreamResponse {
+                task: None,
+                message: Some(m.into()),
+                status_update: None,
+                artifact_update: None,
+            }),
+            Some(lf_a2a_v1::stream_response::Payload::StatusUpdate(su)) => Ok(StreamResponse {
+                task: None,
+                message: None,
+                status_update: Some(crate::streaming::TaskStatusUpdateEvent {
                     task_id: su.task_id,
                     context_id: su.context_id,
                     status: su
                         .status
                         .map(Into::into)
                         .unwrap_or(crate::task::TaskStatus {
-                            state: crate::task::TaskState::Unknown,
+                            state: crate::task::TaskState::Unspecified,
                             message: None,
                             timestamp: None,
                         }),
                     metadata: None,
                 }),
-            ),
-            Some(lf_a2a_v1::stream_response::Payload::ArtifactUpdate(au)) => Ok(
-                StreamEvent::ArtifactUpdate(crate::streaming::TaskArtifactUpdateEvent {
+                artifact_update: None,
+            }),
+            Some(lf_a2a_v1::stream_response::Payload::ArtifactUpdate(au)) => Ok(StreamResponse {
+                task: None,
+                message: None,
+                status_update: None,
+                artifact_update: Some(crate::streaming::TaskArtifactUpdateEvent {
                     task_id: au.task_id,
                     context_id: au.context_id,
                     artifact: au
@@ -299,11 +319,12 @@ mod grpc_impl {
                             metadata: None,
                             extensions: None,
                         }),
+                    index: None,
                     append: Some(au.append),
                     last_chunk: Some(au.last_chunk),
                     metadata: None,
                 }),
-            ),
+            }),
             None => Err(A2aError::internal("Empty stream response")),
         }
     }

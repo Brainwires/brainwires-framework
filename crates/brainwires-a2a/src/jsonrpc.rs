@@ -9,27 +9,27 @@ use crate::error::A2aError;
 // ---------------------------------------------------------------------------
 
 /// Send a message to an agent.
-pub const METHOD_MESSAGE_SEND: &str = "message/send";
+pub const METHOD_MESSAGE_SEND: &str = "SendMessage";
 /// Stream a message to an agent.
-pub const METHOD_MESSAGE_STREAM: &str = "message/stream";
+pub const METHOD_MESSAGE_STREAM: &str = "SendStreamingMessage";
 /// Get a task by ID.
-pub const METHOD_TASKS_GET: &str = "tasks/get";
+pub const METHOD_TASKS_GET: &str = "GetTask";
 /// Cancel a task.
-pub const METHOD_TASKS_CANCEL: &str = "tasks/cancel";
+pub const METHOD_TASKS_CANCEL: &str = "CancelTask";
 /// Resubscribe to task updates.
-pub const METHOD_TASKS_RESUBSCRIBE: &str = "tasks/resubscribe";
+pub const METHOD_TASKS_RESUBSCRIBE: &str = "SubscribeToTask";
 /// List tasks.
-pub const METHOD_TASKS_LIST: &str = "tasks/list";
+pub const METHOD_TASKS_LIST: &str = "ListTasks";
 /// Set push notification configuration.
-pub const METHOD_PUSH_CONFIG_SET: &str = "tasks/pushNotificationConfig/set";
+pub const METHOD_PUSH_CONFIG_SET: &str = "CreateTaskPushNotificationConfig";
 /// Get push notification configuration.
-pub const METHOD_PUSH_CONFIG_GET: &str = "tasks/pushNotificationConfig/get";
+pub const METHOD_PUSH_CONFIG_GET: &str = "GetTaskPushNotificationConfig";
 /// List push notification configurations.
-pub const METHOD_PUSH_CONFIG_LIST: &str = "tasks/pushNotificationConfig/list";
+pub const METHOD_PUSH_CONFIG_LIST: &str = "ListTaskPushNotificationConfigs";
 /// Delete push notification configuration.
-pub const METHOD_PUSH_CONFIG_DELETE: &str = "tasks/pushNotificationConfig/delete";
+pub const METHOD_PUSH_CONFIG_DELETE: &str = "DeleteTaskPushNotificationConfig";
 /// Get authenticated extended agent card.
-pub const METHOD_EXTENDED_CARD: &str = "agent/authenticatedExtendedCard";
+pub const METHOD_EXTENDED_CARD: &str = "GetExtendedAgentCard";
 
 // ---------------------------------------------------------------------------
 // Request ID

@@ -28,7 +28,7 @@ use crate::error::A2aError;
 use crate::jsonrpc;
 use crate::params::*;
 use crate::push_notification::TaskPushNotificationConfig;
-use crate::streaming::{SendMessageResponse, StreamEvent};
+use crate::streaming::{SendMessageResponse, StreamResponse};
 use crate::task::Task;
 
 /// Transport selection.
@@ -180,7 +180,7 @@ impl A2aClient {
     pub fn stream_message(
         &self,
         req: SendMessageRequest,
-    ) -> Pin<Box<dyn Stream<Item = Result<StreamEvent, A2aError>> + Send>> {
+    ) -> Pin<Box<dyn Stream<Item = Result<StreamResponse, A2aError>> + Send>> {
         match self.transport {
             Transport::JsonRpc => {
                 if let Some(t) = &self.jsonrpc {
@@ -340,7 +340,7 @@ impl A2aClient {
     pub fn subscribe_to_task(
         &self,
         req: SubscribeToTaskRequest,
-    ) -> Pin<Box<dyn Stream<Item = Result<StreamEvent, A2aError>> + Send>> {
+    ) -> Pin<Box<dyn Stream<Item = Result<StreamResponse, A2aError>> + Send>> {
         match self.transport {
             Transport::JsonRpc => {
                 if let Some(t) = &self.jsonrpc {
@@ -354,7 +354,8 @@ impl A2aClient {
             }
             Transport::Rest => {
                 if let Some(t) = &self.rest {
-                    t.get_stream(&format!("/tasks/{}:subscribe", req.id))
+                    let body = serde_json::to_value(&req).unwrap_or_default();
+                    t.post_stream(&format!("/tasks/{}:subscribe", req.id), body)
                 } else {
                     Box::pin(futures::stream::once(async {
                         Err(A2aError::internal("No REST transport"))
@@ -451,7 +452,7 @@ impl A2aClient {
                     .rest
                     .as_ref()
                     .ok_or_else(|| A2aError::internal("No REST transport"))?;
-                let path = format!("/tasks/{}/pushNotificationConfigs/{}", req.task_id, req.id);
+                let path = format!("/tasks/{}/pushNotificationConfigs/{}", req.task_id, req.config_id);
                 let result = t.get(&path).await?;
                 serde_json::from_value(result).map_err(Into::into)
             }
@@ -489,7 +490,7 @@ impl A2aClient {
                     .rest
                     .as_ref()
                     .ok_or_else(|| A2aError::internal("No REST transport"))?;
-                let path = format!("/tasks/{}/pushNotificationConfigs/{}", req.task_id, req.id);
+                let path = format!("/tasks/{}/pushNotificationConfigs/{}", req.task_id, req.config_id);
                 t.delete(&path).await
             }
             #[cfg(feature = "grpc-client")]

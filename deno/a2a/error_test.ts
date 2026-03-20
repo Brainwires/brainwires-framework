@@ -1,5 +1,5 @@
 /**
- * Error factory methods and codes tests.
+ * Error factory methods and codes tests (v1.0).
  */
 
 import {
@@ -10,6 +10,7 @@ import {
   A2aError,
   CONTENT_TYPE_NOT_SUPPORTED,
   EXTENDED_CARD_NOT_CONFIGURED,
+  EXTENSION_SUPPORT_REQUIRED,
   INTERNAL_ERROR,
   INVALID_PARAMS,
   INVALID_REQUEST,
@@ -19,6 +20,7 @@ import {
   TASK_NOT_CANCELABLE,
   TASK_NOT_FOUND,
   UNSUPPORTED_OPERATION,
+  VERSION_NOT_SUPPORTED,
 } from "./error.ts";
 
 Deno.test("A2aError constructor", () => {
@@ -144,6 +146,18 @@ Deno.test("extendedCardNotConfigured", () => {
   assertEquals(err.code, EXTENDED_CARD_NOT_CONFIGURED);
 });
 
+Deno.test("extensionSupportRequired", () => {
+  const err = A2aError.extensionSupportRequired();
+  assertEquals(err.code, EXTENSION_SUPPORT_REQUIRED);
+  assertEquals(err.message, "Extension support is required but not provided");
+});
+
+Deno.test("versionNotSupported", () => {
+  const err = A2aError.versionNotSupported();
+  assertEquals(err.code, VERSION_NOT_SUPPORTED);
+  assertEquals(err.message, "Protocol version is not supported");
+});
+
 // Error codes are correct values
 
 Deno.test("error code constants", () => {
@@ -158,4 +172,6 @@ Deno.test("error code constants", () => {
   assertEquals(UNSUPPORTED_OPERATION, -32004);
   assertEquals(CONTENT_TYPE_NOT_SUPPORTED, -32005);
   assertEquals(EXTENDED_CARD_NOT_CONFIGURED, -32007);
+  assertEquals(EXTENSION_SUPPORT_REQUIRED, -32008);
+  assertEquals(VERSION_NOT_SUPPORTED, -32009);
 });

@@ -43,6 +43,39 @@ mod grpc_impl {
         Status::new(code, e.message)
     }
 
+    fn stream_response_to_proto(
+        sr: crate::streaming::StreamResponse,
+    ) -> lf_a2a_v1::StreamResponse {
+        let payload = if let Some(t) = sr.task {
+            Some(lf_a2a_v1::stream_response::Payload::Task(t.into()))
+        } else if let Some(m) = sr.message {
+            Some(lf_a2a_v1::stream_response::Payload::Message(m.into()))
+        } else if let Some(su) = sr.status_update {
+            Some(lf_a2a_v1::stream_response::Payload::StatusUpdate(
+                lf_a2a_v1::TaskStatusUpdateEvent {
+                    task_id: su.task_id,
+                    context_id: su.context_id,
+                    status: Some(su.status.into()),
+                    metadata: None,
+                },
+            ))
+        } else if let Some(au) = sr.artifact_update {
+            Some(lf_a2a_v1::stream_response::Payload::ArtifactUpdate(
+                lf_a2a_v1::TaskArtifactUpdateEvent {
+                    task_id: au.task_id,
+                    context_id: au.context_id,
+                    artifact: Some(au.artifact.into()),
+                    append: au.append.unwrap_or(false),
+                    last_chunk: au.last_chunk.unwrap_or(false),
+                    metadata: None,
+                },
+            ))
+        } else {
+            None
+        };
+        lf_a2a_v1::StreamResponse { payload }
+    }
+
     #[tonic::async_trait]
     impl<H: A2aHandler> A2aService for GrpcBridge<H> {
         async fn send_message(
@@ -70,13 +103,12 @@ mod grpc_impl {
                 .await
                 .map_err(a2a_err_to_status)?;
 
-            let payload = match result {
-                crate::streaming::SendMessageResponse::Task(t) => {
-                    Some(lf_a2a_v1::send_message_response::Payload::Task(t.into()))
-                }
-                crate::streaming::SendMessageResponse::Message(m) => {
-                    Some(lf_a2a_v1::send_message_response::Payload::Message(m.into()))
-                }
+            let payload = if let Some(t) = result.task {
+                Some(lf_a2a_v1::send_message_response::Payload::Task(t.into()))
+            } else if let Some(m) = result.message {
+                Some(lf_a2a_v1::send_message_response::Payload::Message(m.into()))
+            } else {
+                None
             };
 
             Ok(Response::new(lf_a2a_v1::SendMessageResponse { payload }))
@@ -111,39 +143,7 @@ mod grpc_impl {
                 .map_err(a2a_err_to_status)?;
 
             let mapped = stream.map(|item| match item {
-                Ok(event) => {
-                    let payload = match event {
-                        crate::streaming::StreamEvent::Task(t) => {
-                            Some(lf_a2a_v1::stream_response::Payload::Task(t.into()))
-                        }
-                        crate::streaming::StreamEvent::Message(m) => {
-                            Some(lf_a2a_v1::stream_response::Payload::Message(m.into()))
-                        }
-                        crate::streaming::StreamEvent::StatusUpdate(su) => {
-                            Some(lf_a2a_v1::stream_response::Payload::StatusUpdate(
-                                lf_a2a_v1::TaskStatusUpdateEvent {
-                                    task_id: su.task_id,
-                                    context_id: su.context_id,
-                                    status: Some(su.status.into()),
-                                    metadata: None,
-                                },
-                            ))
-                        }
-                        crate::streaming::StreamEvent::ArtifactUpdate(au) => {
-                            Some(lf_a2a_v1::stream_response::Payload::ArtifactUpdate(
-                                lf_a2a_v1::TaskArtifactUpdateEvent {
-                                    task_id: au.task_id,
-                                    context_id: au.context_id,
-                                    artifact: Some(au.artifact.into()),
-                                    append: au.append.unwrap_or(false),
-                                    last_chunk: au.last_chunk.unwrap_or(false),
-                                    metadata: None,
-                                },
-                            ))
-                        }
-                    };
-                    Ok(lf_a2a_v1::StreamResponse { payload })
-                }
+                Ok(event) => Ok(stream_response_to_proto(event)),
                 Err(e) => Err(a2a_err_to_status(e)),
             });
 
@@ -261,39 +261,7 @@ mod grpc_impl {
                 .map_err(a2a_err_to_status)?;
 
             let mapped = stream.map(|item| match item {
-                Ok(event) => {
-                    let payload = match event {
-                        crate::streaming::StreamEvent::Task(t) => {
-                            Some(lf_a2a_v1::stream_response::Payload::Task(t.into()))
-                        }
-                        crate::streaming::StreamEvent::Message(m) => {
-                            Some(lf_a2a_v1::stream_response::Payload::Message(m.into()))
-                        }
-                        crate::streaming::StreamEvent::StatusUpdate(su) => {
-                            Some(lf_a2a_v1::stream_response::Payload::StatusUpdate(
-                                lf_a2a_v1::TaskStatusUpdateEvent {
-                                    task_id: su.task_id,
-                                    context_id: su.context_id,
-                                    status: Some(su.status.into()),
-                                    metadata: None,
-                                },
-                            ))
-                        }
-                        crate::streaming::StreamEvent::ArtifactUpdate(au) => {
-                            Some(lf_a2a_v1::stream_response::Payload::ArtifactUpdate(
-                                lf_a2a_v1::TaskArtifactUpdateEvent {
-                                    task_id: au.task_id,
-                                    context_id: au.context_id,
-                                    artifact: Some(au.artifact.into()),
-                                    append: au.append.unwrap_or(false),
-                                    last_chunk: au.last_chunk.unwrap_or(false),
-                                    metadata: None,
-                                },
-                            ))
-                        }
-                    };
-                    Ok(lf_a2a_v1::StreamResponse { payload })
-                }
+                Ok(event) => Ok(stream_response_to_proto(event)),
                 Err(e) => Err(a2a_err_to_status(e)),
             });
 
@@ -326,7 +294,7 @@ mod grpc_impl {
                     Some(proto_req.tenant)
                 },
                 task_id: proto_req.task_id,
-                id: proto_req.id,
+                config_id: proto_req.id,
             };
             let result = self
                 .handler
@@ -404,7 +372,7 @@ mod grpc_impl {
                     Some(proto_req.tenant)
                 },
                 task_id: proto_req.task_id,
-                id: proto_req.id,
+                config_id: proto_req.id,
             };
             self.handler
                 .on_delete_push_config(req)

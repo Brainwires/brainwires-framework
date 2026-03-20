@@ -32,7 +32,7 @@ pub mod push_notification;
 pub mod streaming;
 /// Task lifecycle types: Task, TaskStatus, TaskState.
 pub mod task;
-/// Core message types: Message, Part, Artifact, FileContent, Role.
+/// Core message types: Message, Part, Artifact, Role.
 pub mod types;
 
 // Client (feature-gated)
@@ -48,17 +48,20 @@ pub mod server;
 // Re-exports for convenience
 pub use agent_card::{
     AgentCapabilities, AgentCard, AgentCardSignature, AgentExtension, AgentInterface,
-    AgentProvider, AgentSkill, OAuthFlows, SecurityRequirement, SecurityScheme,
+    AgentProvider, AgentSkill, ApiKeySecurityScheme, AuthorizationCodeOAuthFlow,
+    ClientCredentialsOAuthFlow, DeviceCodeOAuthFlow, HttpAuthSecurityScheme, ImplicitOAuthFlow,
+    MutualTlsSecurityScheme, OAuth2SecurityScheme, OAuthFlows, OpenIdConnectSecurityScheme,
+    PasswordOAuthFlow, SecurityRequirement, SecurityScheme,
 };
 pub use error::A2aError;
 pub use jsonrpc::{JsonRpcRequest, JsonRpcResponse, RequestId};
 pub use params::*;
 pub use push_notification::{AuthenticationInfo, TaskPushNotificationConfig};
 pub use streaming::{
-    SendMessageResponse, StreamEvent, TaskArtifactUpdateEvent, TaskStatusUpdateEvent,
+    SendMessageResponse, StreamResponse, TaskArtifactUpdateEvent, TaskStatusUpdateEvent,
 };
 pub use task::{Task, TaskState, TaskStatus};
-pub use types::{Artifact, FileContent, Message, Part, Role};
+pub use types::{Artifact, Message, Part, Role};
 
 #[cfg(feature = "client")]
 pub use client::{A2aClient, Transport};

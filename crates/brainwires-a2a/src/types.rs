@@ -1,81 +1,52 @@
-//! Core A2A message types: Message, Part, Artifact, FileContent, Role.
+//! Core A2A message types: Message, Part, Artifact, Role.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Sender role in A2A communication.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
 pub enum Role {
     /// Client-to-server message.
+    #[serde(rename = "ROLE_USER")]
     User,
     /// Server-to-client message.
+    #[serde(rename = "ROLE_AGENT")]
     Agent,
+    /// Unspecified role.
+    #[serde(rename = "ROLE_UNSPECIFIED")]
+    Unspecified,
 }
 
 /// A single unit of communication content.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "kind")]
-pub enum Part {
+///
+/// Exactly one of `text`, `raw`, `url`, or `data` must be set.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Part {
     /// Text content.
-    #[serde(rename = "text")]
-    Text {
-        /// The text value.
-        text: String,
-        /// Optional metadata.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        metadata: Option<HashMap<String, serde_json::Value>>,
-    },
-    /// File content (inline bytes or URI reference).
-    #[serde(rename = "file")]
-    File {
-        /// The file content.
-        file: FileContent,
-        /// Optional metadata.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        metadata: Option<HashMap<String, serde_json::Value>>,
-    },
-    /// Structured data content.
-    #[serde(rename = "data")]
-    Data {
-        /// Arbitrary JSON data.
-        data: serde_json::Value,
-        /// Optional metadata.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        metadata: Option<HashMap<String, serde_json::Value>>,
-    },
-}
-
-/// File content — either inline bytes or a URI.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum FileContent {
-    /// Inline base64-encoded bytes.
-    Bytes {
-        /// Base64-encoded file bytes.
-        bytes: String,
-        /// MIME type of the file.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        mime_type: Option<String>,
-        /// File name.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        name: Option<String>,
-    },
-    /// URI-referenced file.
-    Uri {
-        /// URI pointing to the file.
-        uri: String,
-        /// MIME type of the file.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        mime_type: Option<String>,
-        /// File name.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        name: Option<String>,
-    },
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    /// Base64-encoded raw bytes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub raw: Option<String>,
+    /// URL reference.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+    /// Structured JSON data.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data: Option<serde_json::Value>,
+    /// MIME type of the content.
+    #[serde(skip_serializing_if = "Option::is_none", rename = "mediaType")]
+    pub media_type: Option<String>,
+    /// File name.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub filename: Option<String>,
+    /// Custom metadata.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<HashMap<String, serde_json::Value>>,
 }
 
 /// A single communication message between client and server.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Message {
     /// Unique message identifier.
     #[serde(rename = "messageId")]
@@ -99,13 +70,6 @@ pub struct Message {
     /// Extension URIs present in this message.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extensions: Option<Vec<String>>,
-    /// Discriminator field.
-    #[serde(default = "kind_message")]
-    pub kind: String,
-}
-
-fn kind_message() -> String {
-    "message".to_string()
 }
 
 impl Message {
@@ -114,8 +78,13 @@ impl Message {
         Self {
             message_id: uuid::Uuid::new_v4().to_string(),
             role: Role::User,
-            parts: vec![Part::Text {
-                text: text.into(),
+            parts: vec![Part {
+                text: Some(text.into()),
+                raw: None,
+                url: None,
+                data: None,
+                media_type: None,
+                filename: None,
                 metadata: None,
             }],
             context_id: None,
@@ -123,7 +92,6 @@ impl Message {
             reference_task_ids: None,
             metadata: None,
             extensions: None,
-            kind: "message".to_string(),
         }
     }
 
@@ -136,7 +104,7 @@ impl Message {
 }
 
 /// Task output artifact.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Artifact {
     /// Unique artifact identifier (unique within a task).
     #[serde(rename = "artifactId")]

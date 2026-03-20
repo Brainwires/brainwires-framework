@@ -15,8 +15,8 @@ export interface SendMessageConfiguration {
   taskPushNotificationConfig?: TaskPushNotificationConfig;
   /** Max number of history messages to return. */
   historyLength?: number;
-  /** If true, wait for terminal/interrupted state before returning. */
-  blocking?: boolean;
+  /** If true, return immediately without waiting for terminal state. */
+  returnImmediately?: boolean;
 }
 
 /** Request parameters for `message/send` and `message/stream`. */
@@ -98,7 +98,7 @@ export interface GetTaskPushNotificationConfigRequest {
   /** Parent task identifier. */
   taskId: string;
   /** Configuration identifier. */
-  id: string;
+  configId: string;
 }
 
 /** Request for `tasks/pushNotificationConfig/delete`. */
@@ -108,7 +108,7 @@ export interface DeleteTaskPushNotificationConfigRequest {
   /** Parent task identifier. */
   taskId: string;
   /** Configuration identifier. */
-  id: string;
+  configId: string;
 }
 
 /** Request for `tasks/pushNotificationConfig/list`. */

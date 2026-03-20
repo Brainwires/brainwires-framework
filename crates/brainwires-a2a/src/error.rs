@@ -30,6 +30,10 @@ pub const CONTENT_TYPE_NOT_SUPPORTED: i32 = -32005;
 pub const INVALID_AGENT_RESPONSE: i32 = -32006;
 /// Authenticated Extended Card is not configured.
 pub const EXTENDED_CARD_NOT_CONFIGURED: i32 = -32007;
+/// Extension support is required but not available.
+pub const EXTENSION_SUPPORT_REQUIRED: i32 = -32008;
+/// Protocol version is not supported.
+pub const VERSION_NOT_SUPPORTED: i32 = -32009;
 
 // ---------------------------------------------------------------------------
 // Error type
@@ -127,6 +131,22 @@ impl A2aError {
         Self::new(
             EXTENDED_CARD_NOT_CONFIGURED,
             "Authenticated Extended Card is not configured",
+        )
+    }
+
+    /// Extension support is required but not available.
+    pub fn extension_support_required() -> Self {
+        Self::new(
+            EXTENSION_SUPPORT_REQUIRED,
+            "Extension support is required but not available",
+        )
+    }
+
+    /// Protocol version is not supported.
+    pub fn version_not_supported() -> Self {
+        Self::new(
+            VERSION_NOT_SUPPORTED,
+            "Protocol version is not supported",
         )
     }
 }

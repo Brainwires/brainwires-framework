@@ -23,9 +23,9 @@ native = []
 rhai = ["dep:rhai"]
 lua = ["dep:mlua"]
 javascript = ["dep:boa_engine"]
-python = ["dep:rustpython-vm", "dep:rustpython-stdlib"]
+# python = ["dep:rustpython-vm", "dep:rustpython-stdlib"]  # Temporarily disabled
 # All languages
-all-languages = ["rhai", "lua", "javascript", "python"]
+all-languages = ["rhai", "lua", "javascript"]
 # WASM target support
 wasm = ["wasm-bindgen", "js-sys", "web-sys", "getrandom/js", "serde-wasm-bindgen"]
 
@@ -45,8 +45,9 @@ mlua = { version = "0.10.3", features = ["lua54", "vendored"], optional = true }
 boa_engine = { version = "0.21", optional = true }
 
 # Python - RustPython (CPython 3.12 compatible)
-rustpython-vm = { version = "0.4", optional = true, default-features = false, features = ["freeze-stdlib"] }
-rustpython-stdlib = { version = "0.4", optional = true }
+# Temporarily disabled: libsqlite3-sys version conflict with brainwires-cognition
+# rustpython-vm = { version = "0.4", optional = true, default-features = false, features = ["freeze-stdlib"] }
+# rustpython-stdlib = { version = "0.4", optional = true }
 
 # WASM bindings (for browser target)
 wasm-bindgen = { version = "0.2", optional = true }

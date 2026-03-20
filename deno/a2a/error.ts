@@ -30,6 +30,10 @@ export const CONTENT_TYPE_NOT_SUPPORTED = -32005;
 export const INVALID_AGENT_RESPONSE = -32006;
 /** Authenticated Extended Card is not configured. */
 export const EXTENDED_CARD_NOT_CONFIGURED = -32007;
+/** Extension support is required but not provided. */
+export const EXTENSION_SUPPORT_REQUIRED = -32008;
+/** Protocol version is not supported. */
+export const VERSION_NOT_SUPPORTED = -32009;
 
 // ---------------------------------------------------------------------------
 // Error class
@@ -147,6 +151,22 @@ export class A2aError extends Error {
     return new A2aError(
       EXTENDED_CARD_NOT_CONFIGURED,
       "Authenticated Extended Card is not configured",
+    );
+  }
+
+  /** Extension support required but not provided. */
+  static extensionSupportRequired(): A2aError {
+    return new A2aError(
+      EXTENSION_SUPPORT_REQUIRED,
+      "Extension support is required but not provided",
+    );
+  }
+
+  /** Protocol version not supported. */
+  static versionNotSupported(): A2aError {
+    return new A2aError(
+      VERSION_NOT_SUPPORTED,
+      "Protocol version is not supported",
     );
   }
 }

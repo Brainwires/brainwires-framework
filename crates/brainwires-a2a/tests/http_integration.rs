@@ -22,7 +22,7 @@ impl HttpTestHandler {
                 name: "HTTP Test".into(),
                 description: "HTTP integration tests".into(),
                 version: "1.0.0".into(),
-                supported_interfaces: None,
+                supported_interfaces: vec![],
                 capabilities: AgentCapabilities::default(),
                 skills: vec![],
                 default_input_modes: vec!["text/plain".into()],
@@ -59,36 +59,49 @@ impl A2aHandler for HttpTestHandler {
             artifacts: None,
             history: None,
             metadata: None,
-            kind: "task".into(),
         };
-        Ok(SendMessageResponse::Task(task))
+        Ok(SendMessageResponse {
+            task: Some(task),
+            message: None,
+        })
     }
 
     async fn on_send_streaming_message(
         &self,
         _req: SendMessageRequest,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamEvent, A2aError>> + Send>>, A2aError> {
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamResponse, A2aError>> + Send>>, A2aError>
+    {
         let stream = async_stream::stream! {
-            yield Ok(StreamEvent::StatusUpdate(TaskStatusUpdateEvent {
-                task_id: "http-stream-1".into(),
-                context_id: "ctx".into(),
-                status: TaskStatus {
-                    state: TaskState::Working,
-                    message: None,
-                    timestamp: None,
-                },
-                metadata: None,
-            }));
-            yield Ok(StreamEvent::StatusUpdate(TaskStatusUpdateEvent {
-                task_id: "http-stream-1".into(),
-                context_id: "ctx".into(),
-                status: TaskStatus {
-                    state: TaskState::Completed,
-                    message: Some(Message::agent_text("Done streaming")),
-                    timestamp: None,
-                },
-                metadata: None,
-            }));
+            yield Ok(StreamResponse {
+                task: None,
+                message: None,
+                status_update: Some(TaskStatusUpdateEvent {
+                    task_id: "http-stream-1".into(),
+                    context_id: "ctx".into(),
+                    status: TaskStatus {
+                        state: TaskState::Working,
+                        message: None,
+                        timestamp: None,
+                    },
+                    metadata: None,
+                }),
+                artifact_update: None,
+            });
+            yield Ok(StreamResponse {
+                task: None,
+                message: None,
+                status_update: Some(TaskStatusUpdateEvent {
+                    task_id: "http-stream-1".into(),
+                    context_id: "ctx".into(),
+                    status: TaskStatus {
+                        state: TaskState::Completed,
+                        message: Some(Message::agent_text("Done streaming")),
+                        timestamp: None,
+                    },
+                    metadata: None,
+                }),
+                artifact_update: None,
+            });
         };
         Ok(Box::pin(stream))
     }
@@ -113,7 +126,8 @@ impl A2aHandler for HttpTestHandler {
     async fn on_subscribe_to_task(
         &self,
         req: SubscribeToTaskRequest,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamEvent, A2aError>> + Send>>, A2aError> {
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamResponse, A2aError>> + Send>>, A2aError>
+    {
         Err(A2aError::task_not_found(&req.id))
     }
 }
@@ -230,7 +244,7 @@ async fn test_http_jsonrpc_send_message() {
 
     let rpc_req = JsonRpcRequest {
         jsonrpc: "2.0".into(),
-        method: "message/send".into(),
+        method: "SendMessage".into(),
         params: Some(
             serde_json::to_value(&SendMessageRequest {
                 tenant: None,
@@ -265,7 +279,7 @@ async fn test_http_jsonrpc_streaming_returns_sse() {
 
     let rpc_req = JsonRpcRequest {
         jsonrpc: "2.0".into(),
-        method: "message/stream".into(),
+        method: "SendStreamingMessage".into(),
         params: Some(
             serde_json::to_value(&SendMessageRequest {
                 tenant: None,
@@ -331,7 +345,8 @@ async fn test_http_rest_send_message() {
 
     assert_eq!(resp.status(), 200);
     let body: serde_json::Value = resp.json().await.unwrap();
-    assert!(body.get("id").is_some());
+    // SendMessageResponse with task field
+    assert!(body.get("task").is_some());
 
     drop(shutdown_tx);
 }
@@ -369,10 +384,10 @@ async fn test_http_rest_streaming_returns_sse() {
     let data_lines: Vec<&str> = body.lines().filter(|l| l.starts_with("data: ")).collect();
     assert_eq!(data_lines.len(), 2);
 
-    // REST SSE: raw StreamEvent (no JSON-RPC wrapper)
+    // REST SSE: raw StreamResponse (no JSON-RPC wrapper)
     for line in &data_lines {
         let json = line.strip_prefix("data: ").unwrap();
-        let _event: StreamEvent = serde_json::from_str(json).unwrap();
+        let _event: StreamResponse = serde_json::from_str(json).unwrap();
     }
 
     drop(shutdown_tx);

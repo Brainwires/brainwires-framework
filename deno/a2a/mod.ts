@@ -4,7 +4,7 @@
  * Brainwires A2A - Agent-to-Agent protocol client and types.
  * TypeScript port of the Rust `brainwires-a2a` crate.
  *
- * Implements Google's A2A protocol for inter-agent communication
+ * Implements Google's A2A protocol (v1.0) for inter-agent communication
  * with JSON-RPC and REST transports.
  *
  * - **A2aClient**: Connect to A2A agents, send messages, stream responses
@@ -16,15 +16,9 @@
 // Core types
 export type {
   Artifact,
-  DataPart,
-  FileContent,
-  FileContentBytes,
-  FileContentUri,
-  FilePart,
   Message,
   Part,
   Role,
-  TextPart,
 } from "./types.ts";
 
 export { createAgentMessage, createUserMessage } from "./types.ts";
@@ -42,16 +36,16 @@ export type {
   AgentProvider,
   AgentSkill,
   ApiKeySecurityScheme,
-  AuthorizationCodeFlow,
-  ClientCredentialsFlow,
-  DeviceCodeFlow,
-  HttpSecurityScheme,
-  ImplicitFlow,
+  AuthorizationCodeOAuthFlow,
+  ClientCredentialsOAuthFlow,
+  DeviceCodeOAuthFlow,
+  HttpAuthSecurityScheme,
+  ImplicitOAuthFlow,
   MutualTlsSecurityScheme,
   OAuth2SecurityScheme,
   OAuthFlows,
   OpenIdConnectSecurityScheme,
-  PasswordFlow,
+  PasswordOAuthFlow,
   SecurityRequirement,
   SecurityScheme,
 } from "./agent_card.ts";
@@ -80,6 +74,7 @@ export {
   A2aError,
   CONTENT_TYPE_NOT_SUPPORTED,
   EXTENDED_CARD_NOT_CONFIGURED,
+  EXTENSION_SUPPORT_REQUIRED,
   INTERNAL_ERROR,
   INVALID_AGENT_RESPONSE,
   INVALID_PARAMS,
@@ -90,6 +85,7 @@ export {
   TASK_NOT_CANCELABLE,
   TASK_NOT_FOUND,
   UNSUPPORTED_OPERATION,
+  VERSION_NOT_SUPPORTED,
 } from "./error.ts";
 
 // Parameter types
@@ -112,16 +108,16 @@ export type {
 // Streaming types
 export type {
   SendMessageResponse,
-  StreamEvent,
+  StreamResponse,
   TaskArtifactUpdateEvent,
   TaskStatusUpdateEvent,
 } from "./streaming.ts";
 
 export {
-  isMessage,
-  isTask,
-  isTaskArtifactUpdate,
-  isTaskStatusUpdate,
+  isArtifactUpdate,
+  isMessageResponse,
+  isStatusUpdate,
+  isTaskResponse,
 } from "./streaming.ts";
 
 // Push notification types

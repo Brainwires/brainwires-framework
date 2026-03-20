@@ -196,10 +196,7 @@ pub fn a2a_message_to_envelope(
     let text = msg
         .parts
         .iter()
-        .filter_map(|part| match part {
-            brainwires_a2a::Part::Text { text, .. } => Some(text.as_str()),
-            _ => None,
-        })
+        .filter_map(|part| part.text.as_deref())
         .collect::<Vec<_>>()
         .join("\n");
 

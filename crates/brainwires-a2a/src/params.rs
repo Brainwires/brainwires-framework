@@ -26,9 +26,9 @@ pub struct SendMessageConfiguration {
     /// Max number of history messages to return.
     #[serde(rename = "historyLength", skip_serializing_if = "Option::is_none")]
     pub history_length: Option<i32>,
-    /// If true, wait for terminal/interrupted state before returning.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub blocking: Option<bool>,
+    /// If true, return immediately without waiting for terminal/interrupted state.
+    #[serde(rename = "returnImmediately", skip_serializing_if = "Option::is_none")]
+    pub return_immediately: Option<bool>,
 }
 
 /// Request parameters for `message/send` and `message/stream`.
@@ -141,7 +141,8 @@ pub struct GetTaskPushNotificationConfigRequest {
     #[serde(rename = "taskId")]
     pub task_id: String,
     /// Configuration identifier.
-    pub id: String,
+    #[serde(rename = "configId")]
+    pub config_id: String,
 }
 
 /// Request for `tasks/pushNotificationConfig/delete`.
@@ -154,7 +155,8 @@ pub struct DeleteTaskPushNotificationConfigRequest {
     #[serde(rename = "taskId")]
     pub task_id: String,
     /// Configuration identifier.
-    pub id: String,
+    #[serde(rename = "configId")]
+    pub config_id: String,
 }
 
 /// Request for `tasks/pushNotificationConfig/list`.

@@ -11,10 +11,10 @@ mod grpc_convert {
     use crate::proto::lf_a2a_v1 as pb;
     use crate::push_notification::{AuthenticationInfo, TaskPushNotificationConfig};
     use crate::task::{Task, TaskState, TaskStatus};
-    use crate::types::{Artifact, FileContent, Message, Part, Role};
+    use crate::types::{Artifact, Message, Part, Role};
 
     // ===================================================================
-    // Helpers: HashMap<String, serde_json::Value> ↔ prost_types::Struct
+    // Helpers: HashMap<String, serde_json::Value> <-> prost_types::Struct
     // ===================================================================
 
     pub(crate) fn hashmap_to_struct(m: HashMap<String, serde_json::Value>) -> prost_types::Struct {
@@ -105,6 +105,7 @@ mod grpc_convert {
             match r {
                 Role::User => pb::Role::User as i32,
                 Role::Agent => pb::Role::Agent as i32,
+                Role::Unspecified => pb::Role::Unspecified as i32,
             }
         }
     }
@@ -114,7 +115,7 @@ mod grpc_convert {
             match v {
                 1 => Role::User,
                 2 => Role::Agent,
-                _ => Role::User,
+                _ => Role::Unspecified,
             }
         }
     }
@@ -126,7 +127,7 @@ mod grpc_convert {
     impl From<TaskState> for i32 {
         fn from(s: TaskState) -> i32 {
             match s {
-                TaskState::Unknown => 0,
+                TaskState::Unspecified => 0,
                 TaskState::Submitted => 1,
                 TaskState::Working => 2,
                 TaskState::Completed => 3,
@@ -150,60 +151,35 @@ mod grpc_convert {
                 6 => TaskState::InputRequired,
                 7 => TaskState::Rejected,
                 8 => TaskState::AuthRequired,
-                _ => TaskState::Unknown,
+                _ => TaskState::Unspecified,
             }
         }
     }
 
     // ===================================================================
-    // Part
+    // Part (flat struct with optional fields)
     // ===================================================================
 
     impl From<Part> for pb::Part {
         fn from(p: Part) -> pb::Part {
-            let (content, metadata_map, filename, media_type) = match p {
-                Part::Text { text, metadata } => (
-                    Some(pb::part::Content::Text(text)),
-                    metadata,
-                    String::new(),
-                    String::new(),
-                ),
-                Part::File { file, metadata } => {
-                    let (content, fname, mtype) = match file {
-                        FileContent::Bytes {
-                            bytes,
-                            mime_type,
-                            name,
-                        } => (
-                            pb::part::Content::Raw(bytes.into_bytes()),
-                            name.unwrap_or_default(),
-                            mime_type.unwrap_or_default(),
-                        ),
-                        FileContent::Uri {
-                            uri,
-                            mime_type,
-                            name,
-                        } => (
-                            pb::part::Content::Url(uri),
-                            name.unwrap_or_default(),
-                            mime_type.unwrap_or_default(),
-                        ),
-                    };
-                    (Some(content), metadata, fname, mtype)
-                }
-                Part::Data { data, metadata } => (
-                    Some(pb::part::Content::Data(json_to_prost_value(data))),
-                    metadata,
-                    String::new(),
-                    String::new(),
-                ),
+            // Map the flat Part struct to the proto Part with oneof content.
+            let content = if let Some(text) = p.text {
+                Some(pb::part::Content::Text(text))
+            } else if let Some(url) = p.url {
+                Some(pb::part::Content::Url(url))
+            } else if let Some(raw) = p.raw {
+                Some(pb::part::Content::Raw(raw.into_bytes()))
+            } else if let Some(data) = p.data {
+                Some(pb::part::Content::Data(json_to_prost_value(data)))
+            } else {
+                None
             };
 
             pb::Part {
                 content,
-                metadata: opt_hashmap_to_struct(metadata_map),
-                filename,
-                media_type,
+                metadata: opt_hashmap_to_struct(p.metadata),
+                filename: p.filename.unwrap_or_default(),
+                media_type: p.media_type.unwrap_or_default(),
             }
         }
     }
@@ -211,30 +187,53 @@ mod grpc_convert {
     impl From<pb::Part> for Part {
         fn from(p: pb::Part) -> Part {
             let metadata = opt_struct_to_hashmap(p.metadata);
+            let media_type = opt_empty(&p.media_type);
+            let filename = opt_empty(&p.filename);
+
             match p.content {
-                Some(pb::part::Content::Text(t)) => Part::Text { text: t, metadata },
-                Some(pb::part::Content::Url(u)) => Part::File {
-                    file: FileContent::Uri {
-                        uri: u,
-                        mime_type: opt_empty(&p.media_type),
-                        name: opt_empty(&p.filename),
-                    },
+                Some(pb::part::Content::Text(t)) => Part {
+                    text: Some(t),
+                    raw: None,
+                    url: None,
+                    data: None,
+                    media_type,
+                    filename,
                     metadata,
                 },
-                Some(pb::part::Content::Raw(b)) => Part::File {
-                    file: FileContent::Bytes {
-                        bytes: String::from_utf8_lossy(&b).to_string(),
-                        mime_type: opt_empty(&p.media_type),
-                        name: opt_empty(&p.filename),
-                    },
+                Some(pb::part::Content::Url(u)) => Part {
+                    text: None,
+                    raw: None,
+                    url: Some(u),
+                    data: None,
+                    media_type,
+                    filename,
                     metadata,
                 },
-                Some(pb::part::Content::Data(v)) => Part::Data {
-                    data: prost_value_to_json(v),
+                Some(pb::part::Content::Raw(b)) => Part {
+                    text: None,
+                    raw: Some(String::from_utf8_lossy(&b).to_string()),
+                    url: None,
+                    data: None,
+                    media_type,
+                    filename,
                     metadata,
                 },
-                None => Part::Text {
-                    text: String::new(),
+                Some(pb::part::Content::Data(v)) => Part {
+                    text: None,
+                    raw: None,
+                    url: None,
+                    data: Some(prost_value_to_json(v)),
+                    media_type,
+                    filename,
+                    metadata,
+                },
+                None => Part {
+                    text: Some(String::new()),
+                    raw: None,
+                    url: None,
+                    data: None,
+                    media_type,
+                    filename,
                     metadata,
                 },
             }
@@ -242,7 +241,7 @@ mod grpc_convert {
     }
 
     // ===================================================================
-    // Message
+    // Message (no more `kind` field)
     // ===================================================================
 
     impl From<Message> for pb::Message {
@@ -279,7 +278,6 @@ mod grpc_convert {
                 } else {
                     Some(m.extensions)
                 },
-                kind: "message".to_string(),
             }
         }
     }
@@ -353,7 +351,7 @@ mod grpc_convert {
     }
 
     // ===================================================================
-    // Task
+    // Task (no more `kind` field)
     // ===================================================================
 
     impl From<Task> for pb::Task {
@@ -385,7 +383,7 @@ mod grpc_convert {
                 id: t.id,
                 context_id: opt_empty(&t.context_id),
                 status: t.status.map(Into::into).unwrap_or(TaskStatus {
-                    state: TaskState::Unknown,
+                    state: TaskState::Unspecified,
                     message: None,
                     timestamp: None,
                 }),
@@ -400,7 +398,6 @@ mod grpc_convert {
                     Some(t.history.into_iter().map(Into::into).collect())
                 },
                 metadata: opt_struct_to_hashmap(t.metadata),
-                kind: "task".to_string(),
             }
         }
     }
@@ -428,14 +425,14 @@ mod grpc_convert {
     }
 
     // ===================================================================
-    // TaskPushNotificationConfig
+    // TaskPushNotificationConfig (id -> config_id)
     // ===================================================================
 
     impl From<TaskPushNotificationConfig> for pb::TaskPushNotificationConfig {
         fn from(c: TaskPushNotificationConfig) -> pb::TaskPushNotificationConfig {
             pb::TaskPushNotificationConfig {
                 tenant: c.tenant.unwrap_or_default(),
-                id: c.id.unwrap_or_default(),
+                id: c.config_id.unwrap_or_default(),
                 task_id: c.task_id,
                 url: c.url,
                 token: c.token.unwrap_or_default(),
@@ -448,11 +445,12 @@ mod grpc_convert {
         fn from(c: pb::TaskPushNotificationConfig) -> TaskPushNotificationConfig {
             TaskPushNotificationConfig {
                 tenant: opt_empty(&c.tenant),
-                id: opt_empty(&c.id),
+                config_id: opt_empty(&c.id),
                 task_id: c.task_id,
                 url: c.url,
                 token: opt_empty(&c.token),
                 authentication: c.authentication.map(Into::into),
+                created_at: None,
             }
         }
     }
@@ -675,59 +673,50 @@ mod grpc_convert {
     }
 
     // ===================================================================
-    // SecurityScheme
+    // SecurityScheme (now a struct with optional wrapper fields)
     // ===================================================================
 
     impl From<SecurityScheme> for pb::SecurityScheme {
         fn from(s: SecurityScheme) -> pb::SecurityScheme {
-            let scheme = match s {
-                SecurityScheme::ApiKey {
-                    name,
-                    location,
-                    description,
-                } => Some(pb::security_scheme::Scheme::ApiKeySecurityScheme(
+            let scheme = if let Some(api_key) = s.api_key {
+                Some(pb::security_scheme::Scheme::ApiKeySecurityScheme(
                     pb::ApiKeySecurityScheme {
-                        description: description.unwrap_or_default(),
-                        location,
-                        name,
+                        description: api_key.description.unwrap_or_default(),
+                        location: api_key.location,
+                        name: api_key.name,
                     },
-                )),
-                SecurityScheme::Http {
-                    scheme,
-                    bearer_format,
-                    description,
-                } => Some(pb::security_scheme::Scheme::HttpAuthSecurityScheme(
+                ))
+            } else if let Some(http_auth) = s.http_auth {
+                Some(pb::security_scheme::Scheme::HttpAuthSecurityScheme(
                     pb::HttpAuthSecurityScheme {
-                        description: description.unwrap_or_default(),
-                        scheme,
-                        bearer_format: bearer_format.unwrap_or_default(),
+                        description: http_auth.description.unwrap_or_default(),
+                        scheme: http_auth.scheme,
+                        bearer_format: http_auth.bearer_format.unwrap_or_default(),
                     },
-                )),
-                SecurityScheme::OAuth2 {
-                    flows,
-                    description,
-                    oauth2_metadata_url,
-                } => Some(pb::security_scheme::Scheme::Oauth2SecurityScheme(
+                ))
+            } else if let Some(oauth2) = s.oauth2 {
+                Some(pb::security_scheme::Scheme::Oauth2SecurityScheme(
                     pb::OAuth2SecurityScheme {
-                        description: description.unwrap_or_default(),
-                        flows: Some(flows.into()),
-                        oauth2_metadata_url: oauth2_metadata_url.unwrap_or_default(),
+                        description: oauth2.description.unwrap_or_default(),
+                        flows: Some(oauth2.flows.into()),
+                        oauth2_metadata_url: oauth2.oauth2_metadata_url.unwrap_or_default(),
                     },
-                )),
-                SecurityScheme::OpenIdConnect {
-                    open_id_connect_url,
-                    description,
-                } => Some(pb::security_scheme::Scheme::OpenIdConnectSecurityScheme(
+                ))
+            } else if let Some(oidc) = s.open_id_connect {
+                Some(pb::security_scheme::Scheme::OpenIdConnectSecurityScheme(
                     pb::OpenIdConnectSecurityScheme {
-                        description: description.unwrap_or_default(),
-                        open_id_connect_url,
+                        description: oidc.description.unwrap_or_default(),
+                        open_id_connect_url: oidc.open_id_connect_url,
                     },
-                )),
-                SecurityScheme::MutualTls { description } => Some(
-                    pb::security_scheme::Scheme::MtlsSecurityScheme(pb::MutualTlsSecurityScheme {
-                        description: description.unwrap_or_default(),
-                    }),
-                ),
+                ))
+            } else if let Some(mtls) = s.mtls {
+                Some(pb::security_scheme::Scheme::MtlsSecurityScheme(
+                    pb::MutualTlsSecurityScheme {
+                        description: mtls.description.unwrap_or_default(),
+                    },
+                ))
+            } else {
+                None
             };
             pb::SecurityScheme { scheme }
         }
@@ -736,116 +725,128 @@ mod grpc_convert {
     impl From<pb::SecurityScheme> for SecurityScheme {
         fn from(s: pb::SecurityScheme) -> SecurityScheme {
             match s.scheme {
-                Some(pb::security_scheme::Scheme::ApiKeySecurityScheme(a)) => {
-                    SecurityScheme::ApiKey {
+                Some(pb::security_scheme::Scheme::ApiKeySecurityScheme(a)) => SecurityScheme {
+                    api_key: Some(ApiKeySecurityScheme {
                         name: a.name,
                         location: a.location,
                         description: opt_empty(&a.description),
-                    }
-                }
-                Some(pb::security_scheme::Scheme::HttpAuthSecurityScheme(h)) => {
-                    SecurityScheme::Http {
+                    }),
+                    http_auth: None,
+                    oauth2: None,
+                    open_id_connect: None,
+                    mtls: None,
+                },
+                Some(pb::security_scheme::Scheme::HttpAuthSecurityScheme(h)) => SecurityScheme {
+                    api_key: None,
+                    http_auth: Some(HttpAuthSecurityScheme {
                         scheme: h.scheme,
                         bearer_format: opt_empty(&h.bearer_format),
                         description: opt_empty(&h.description),
-                    }
-                }
-                Some(pb::security_scheme::Scheme::Oauth2SecurityScheme(o)) => {
-                    SecurityScheme::OAuth2 {
-                        flows: o
-                            .flows
-                            .map(Into::into)
-                            .unwrap_or(OAuthFlows::ClientCredentials {
+                    }),
+                    oauth2: None,
+                    open_id_connect: None,
+                    mtls: None,
+                },
+                Some(pb::security_scheme::Scheme::Oauth2SecurityScheme(o)) => SecurityScheme {
+                    api_key: None,
+                    http_auth: None,
+                    oauth2: Some(OAuth2SecurityScheme {
+                        flows: o.flows.map(Into::into).unwrap_or(OAuthFlows {
+                            authorization_code: None,
+                            client_credentials: Some(ClientCredentialsOAuthFlow {
                                 token_url: String::new(),
                                 refresh_url: None,
                                 scopes: HashMap::new(),
                             }),
+                            implicit: None,
+                            password: None,
+                            device_code: None,
+                        }),
                         description: opt_empty(&o.description),
                         oauth2_metadata_url: opt_empty(&o.oauth2_metadata_url),
-                    }
-                }
+                    }),
+                    open_id_connect: None,
+                    mtls: None,
+                },
                 Some(pb::security_scheme::Scheme::OpenIdConnectSecurityScheme(o)) => {
-                    SecurityScheme::OpenIdConnect {
-                        open_id_connect_url: o.open_id_connect_url,
-                        description: opt_empty(&o.description),
+                    SecurityScheme {
+                        api_key: None,
+                        http_auth: None,
+                        oauth2: None,
+                        open_id_connect: Some(OpenIdConnectSecurityScheme {
+                            open_id_connect_url: o.open_id_connect_url,
+                            description: opt_empty(&o.description),
+                        }),
+                        mtls: None,
                     }
                 }
-                Some(pb::security_scheme::Scheme::MtlsSecurityScheme(m)) => {
-                    SecurityScheme::MutualTls {
+                Some(pb::security_scheme::Scheme::MtlsSecurityScheme(m)) => SecurityScheme {
+                    api_key: None,
+                    http_auth: None,
+                    oauth2: None,
+                    open_id_connect: None,
+                    mtls: Some(MutualTlsSecurityScheme {
                         description: opt_empty(&m.description),
-                    }
-                }
-                None => SecurityScheme::MutualTls { description: None },
+                    }),
+                },
+                None => SecurityScheme {
+                    api_key: None,
+                    http_auth: None,
+                    oauth2: None,
+                    open_id_connect: None,
+                    mtls: None,
+                },
             }
         }
     }
 
     // ===================================================================
-    // OAuthFlows
+    // OAuthFlows (now a struct with optional wrapper fields)
     // ===================================================================
 
     impl From<OAuthFlows> for pb::OAuthFlows {
         fn from(f: OAuthFlows) -> pb::OAuthFlows {
-            let flow = match f {
-                OAuthFlows::AuthorizationCode {
-                    authorization_url,
-                    token_url,
-                    refresh_url,
-                    scopes,
-                    pkce_required,
-                } => Some(pb::o_auth_flows::Flow::AuthorizationCode(
+            let flow = if let Some(ac) = f.authorization_code {
+                Some(pb::o_auth_flows::Flow::AuthorizationCode(
                     pb::AuthorizationCodeOAuthFlow {
-                        authorization_url,
-                        token_url,
-                        refresh_url: refresh_url.unwrap_or_default(),
-                        scopes,
-                        pkce_required: pkce_required.unwrap_or(false),
+                        authorization_url: ac.authorization_url,
+                        token_url: ac.token_url,
+                        refresh_url: ac.refresh_url.unwrap_or_default(),
+                        scopes: ac.scopes,
+                        pkce_required: ac.pkce_required.unwrap_or(false),
                     },
-                )),
-                OAuthFlows::ClientCredentials {
-                    token_url,
-                    refresh_url,
-                    scopes,
-                } => Some(pb::o_auth_flows::Flow::ClientCredentials(
+                ))
+            } else if let Some(cc) = f.client_credentials {
+                Some(pb::o_auth_flows::Flow::ClientCredentials(
                     pb::ClientCredentialsOAuthFlow {
-                        token_url,
-                        refresh_url: refresh_url.unwrap_or_default(),
-                        scopes,
+                        token_url: cc.token_url,
+                        refresh_url: cc.refresh_url.unwrap_or_default(),
+                        scopes: cc.scopes,
                     },
-                )),
-                #[allow(deprecated)]
-                OAuthFlows::Implicit {
-                    authorization_url,
-                    refresh_url,
-                    scopes,
-                } => Some(pb::o_auth_flows::Flow::Implicit(pb::ImplicitOAuthFlow {
-                    authorization_url: authorization_url.unwrap_or_default(),
-                    refresh_url: refresh_url.unwrap_or_default(),
-                    scopes,
-                })),
-                #[allow(deprecated)]
-                OAuthFlows::Password {
-                    token_url,
-                    refresh_url,
-                    scopes,
-                } => Some(pb::o_auth_flows::Flow::Password(pb::PasswordOAuthFlow {
-                    token_url: token_url.unwrap_or_default(),
-                    refresh_url: refresh_url.unwrap_or_default(),
-                    scopes,
-                })),
-                OAuthFlows::DeviceCode {
-                    device_authorization_url,
-                    token_url,
-                    refresh_url,
-                    scopes,
-                } => Some(pb::o_auth_flows::Flow::DeviceCode(
+                ))
+            } else if let Some(imp) = f.implicit {
+                Some(pb::o_auth_flows::Flow::Implicit(pb::ImplicitOAuthFlow {
+                    authorization_url: imp.authorization_url.unwrap_or_default(),
+                    refresh_url: imp.refresh_url.unwrap_or_default(),
+                    scopes: imp.scopes,
+                }))
+            } else if let Some(pw) = f.password {
+                Some(pb::o_auth_flows::Flow::Password(pb::PasswordOAuthFlow {
+                    token_url: pw.token_url.unwrap_or_default(),
+                    refresh_url: pw.refresh_url.unwrap_or_default(),
+                    scopes: pw.scopes,
+                }))
+            } else if let Some(dc) = f.device_code {
+                Some(pb::o_auth_flows::Flow::DeviceCode(
                     pb::DeviceCodeOAuthFlow {
-                        device_authorization_url,
-                        token_url,
-                        refresh_url: refresh_url.unwrap_or_default(),
-                        scopes,
+                        device_authorization_url: dc.device_authorization_url,
+                        token_url: dc.token_url,
+                        refresh_url: dc.refresh_url.unwrap_or_default(),
+                        scopes: dc.scopes,
                     },
-                )),
+                ))
+            } else {
+                None
             };
             pb::OAuthFlows { flow }
         }
@@ -854,51 +855,79 @@ mod grpc_convert {
     impl From<pb::OAuthFlows> for OAuthFlows {
         fn from(f: pb::OAuthFlows) -> OAuthFlows {
             match f.flow {
-                Some(pb::o_auth_flows::Flow::AuthorizationCode(a)) => {
-                    OAuthFlows::AuthorizationCode {
+                Some(pb::o_auth_flows::Flow::AuthorizationCode(a)) => OAuthFlows {
+                    authorization_code: Some(AuthorizationCodeOAuthFlow {
                         authorization_url: a.authorization_url,
                         token_url: a.token_url,
                         refresh_url: opt_empty(&a.refresh_url),
                         scopes: a.scopes,
                         pkce_required: Some(a.pkce_required),
-                    }
-                }
-                Some(pb::o_auth_flows::Flow::ClientCredentials(c)) => {
-                    OAuthFlows::ClientCredentials {
+                    }),
+                    client_credentials: None,
+                    implicit: None,
+                    password: None,
+                    device_code: None,
+                },
+                Some(pb::o_auth_flows::Flow::ClientCredentials(c)) => OAuthFlows {
+                    authorization_code: None,
+                    client_credentials: Some(ClientCredentialsOAuthFlow {
                         token_url: c.token_url,
                         refresh_url: opt_empty(&c.refresh_url),
                         scopes: c.scopes,
-                    }
-                }
-                #[allow(deprecated)]
-                Some(pb::o_auth_flows::Flow::Implicit(i)) => OAuthFlows::Implicit {
-                    authorization_url: opt_empty(&i.authorization_url),
-                    refresh_url: opt_empty(&i.refresh_url),
-                    scopes: i.scopes,
+                    }),
+                    implicit: None,
+                    password: None,
+                    device_code: None,
                 },
                 #[allow(deprecated)]
-                Some(pb::o_auth_flows::Flow::Password(p)) => OAuthFlows::Password {
-                    token_url: opt_empty(&p.token_url),
-                    refresh_url: opt_empty(&p.refresh_url),
-                    scopes: p.scopes,
+                Some(pb::o_auth_flows::Flow::Implicit(i)) => OAuthFlows {
+                    authorization_code: None,
+                    client_credentials: None,
+                    implicit: Some(ImplicitOAuthFlow {
+                        authorization_url: opt_empty(&i.authorization_url),
+                        refresh_url: opt_empty(&i.refresh_url),
+                        scopes: i.scopes,
+                    }),
+                    password: None,
+                    device_code: None,
                 },
-                Some(pb::o_auth_flows::Flow::DeviceCode(d)) => OAuthFlows::DeviceCode {
-                    device_authorization_url: d.device_authorization_url,
-                    token_url: d.token_url,
-                    refresh_url: opt_empty(&d.refresh_url),
-                    scopes: d.scopes,
+                #[allow(deprecated)]
+                Some(pb::o_auth_flows::Flow::Password(p)) => OAuthFlows {
+                    authorization_code: None,
+                    client_credentials: None,
+                    implicit: None,
+                    password: Some(PasswordOAuthFlow {
+                        token_url: opt_empty(&p.token_url),
+                        refresh_url: opt_empty(&p.refresh_url),
+                        scopes: p.scopes,
+                    }),
+                    device_code: None,
                 },
-                None => OAuthFlows::ClientCredentials {
-                    token_url: String::new(),
-                    refresh_url: None,
-                    scopes: HashMap::new(),
+                Some(pb::o_auth_flows::Flow::DeviceCode(d)) => OAuthFlows {
+                    authorization_code: None,
+                    client_credentials: None,
+                    implicit: None,
+                    password: None,
+                    device_code: Some(DeviceCodeOAuthFlow {
+                        device_authorization_url: d.device_authorization_url,
+                        token_url: d.token_url,
+                        refresh_url: opt_empty(&d.refresh_url),
+                        scopes: d.scopes,
+                    }),
+                },
+                None => OAuthFlows {
+                    authorization_code: None,
+                    client_credentials: None,
+                    implicit: None,
+                    password: None,
+                    device_code: None,
                 },
             }
         }
     }
 
     // ===================================================================
-    // AgentCard
+    // AgentCard (supported_interfaces is now Vec, not Option<Vec>)
     // ===================================================================
 
     impl From<AgentCard> for pb::AgentCard {
@@ -909,7 +938,6 @@ mod grpc_convert {
                 version: c.version,
                 supported_interfaces: c
                     .supported_interfaces
-                    .unwrap_or_default()
                     .into_iter()
                     .map(Into::into)
                     .collect(),
@@ -948,11 +976,11 @@ mod grpc_convert {
                 name: c.name,
                 description: c.description,
                 version: c.version,
-                supported_interfaces: if c.supported_interfaces.is_empty() {
-                    None
-                } else {
-                    Some(c.supported_interfaces.into_iter().map(Into::into).collect())
-                },
+                supported_interfaces: c
+                    .supported_interfaces
+                    .into_iter()
+                    .map(Into::into)
+                    .collect(),
                 provider: c.provider.map(Into::into),
                 capabilities: c.capabilities.map(Into::into).unwrap_or_default(),
                 security_schemes: {

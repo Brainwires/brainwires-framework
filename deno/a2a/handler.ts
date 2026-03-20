@@ -6,7 +6,6 @@
  */
 
 import type { AgentCard } from "./agent_card.ts";
-import type { A2aError } from "./error.ts";
 import type {
   CancelTaskRequest,
   DeleteTaskPushNotificationConfigRequest,
@@ -21,7 +20,7 @@ import type {
   SubscribeToTaskRequest,
 } from "./params.ts";
 import type { TaskPushNotificationConfig } from "./push_notification.ts";
-import type { SendMessageResponse, StreamEvent } from "./streaming.ts";
+import type { SendMessageResponse, StreamResponse } from "./streaming.ts";
 import type { Task } from "./task.ts";
 
 /**
@@ -35,27 +34,27 @@ export interface A2aHandler {
   /** Return the agent card for discovery. */
   agentCard(): AgentCard;
 
-  /** Handle a `message/send` request. */
+  /** Handle a `SendMessage` request. */
   onSendMessage(req: SendMessageRequest): Promise<SendMessageResponse>;
 
-  /** Handle a `message/stream` request (server-streaming). */
+  /** Handle a `SendStreamingMessage` request (server-streaming). */
   onSendStreamingMessage(
     req: SendMessageRequest,
-  ): Promise<AsyncIterable<StreamEvent>>;
+  ): Promise<AsyncIterable<StreamResponse>>;
 
-  /** Handle a `tasks/get` request. */
+  /** Handle a `GetTask` request. */
   onGetTask(req: GetTaskRequest): Promise<Task>;
 
-  /** Handle a `tasks/list` request. */
+  /** Handle a `ListTasks` request. */
   onListTasks(req: ListTasksRequest): Promise<ListTasksResponse>;
 
-  /** Handle a `tasks/cancel` request. */
+  /** Handle a `CancelTask` request. */
   onCancelTask(req: CancelTaskRequest): Promise<Task>;
 
-  /** Handle a `tasks/resubscribe` request (server-streaming). */
+  /** Handle a `SubscribeToTask` request (server-streaming). */
   onSubscribeToTask(
     req: SubscribeToTaskRequest,
-  ): Promise<AsyncIterable<StreamEvent>>;
+  ): Promise<AsyncIterable<StreamResponse>>;
 
   /** Create a push notification config. Optional -- default returns unsupported. */
   onCreatePushConfig?(

@@ -6,7 +6,7 @@ use crate::error::A2aError;
 use crate::params::*;
 use crate::push_notification::TaskPushNotificationConfig;
 use crate::server::handler::A2aHandler;
-use crate::streaming::SendMessageResponse;
+use crate::streaming::{SendMessageResponse, StreamResponse};
 use crate::task::Task;
 
 /// Result of routing a REST request.
@@ -16,7 +16,7 @@ pub enum RestResult {
     /// Streaming SSE response — returns a stream of events.
     Stream(
         std::pin::Pin<
-            Box<dyn futures::Stream<Item = Result<crate::streaming::StreamEvent, A2aError>> + Send>,
+            Box<dyn futures::Stream<Item = Result<StreamResponse, A2aError>> + Send>,
         >,
     ),
 }
@@ -71,8 +71,8 @@ pub async fn dispatch_rest<H: A2aHandler>(
             let result = handler.on_create_push_config(config).await?;
             Ok(RestResult::Json(serde_json::to_value(result)?))
         }
-        ("GET", p) if p.ends_with(":subscribe") => {
-            // GET /tasks/{id}:subscribe
+        ("POST", p) if p.ends_with(":subscribe") => {
+            // POST /tasks/{id}:subscribe
             let id = p
                 .strip_prefix("/tasks/")
                 .and_then(|s| s.strip_suffix(":subscribe"))
@@ -103,7 +103,7 @@ pub async fn dispatch_rest<H: A2aHandler>(
                     let req = GetTaskPushNotificationConfigRequest {
                         tenant: None,
                         task_id: parts[0].to_string(),
-                        id: parts[1].to_string(),
+                        config_id: parts[1].to_string(),
                     };
                     let result = handler.on_get_push_config(req).await?;
                     return Ok(RestResult::Json(serde_json::to_value(result)?));
@@ -139,7 +139,7 @@ pub async fn dispatch_rest<H: A2aHandler>(
                 let req = DeleteTaskPushNotificationConfigRequest {
                     tenant: None,
                     task_id: parts[0].to_string(),
-                    id: parts[1].to_string(),
+                    config_id: parts[1].to_string(),
                 };
                 handler.on_delete_push_config(req).await?;
                 return Ok(RestResult::Json(serde_json::Value::Null));

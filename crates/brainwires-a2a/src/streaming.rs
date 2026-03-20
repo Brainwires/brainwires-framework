@@ -7,7 +7,7 @@ use crate::task::{Task, TaskStatus};
 use crate::types::{Artifact, Message};
 
 /// Event notifying a change in task status.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TaskStatusUpdateEvent {
     /// Task identifier.
     #[serde(rename = "taskId")]
@@ -23,7 +23,7 @@ pub struct TaskStatusUpdateEvent {
 }
 
 /// Event notifying an artifact update.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TaskArtifactUpdateEvent {
     /// Task identifier.
     #[serde(rename = "taskId")]
@@ -33,6 +33,9 @@ pub struct TaskArtifactUpdateEvent {
     pub context_id: String,
     /// The artifact.
     pub artifact: Artifact,
+    /// Index of this artifact within the task's artifact list.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub index: Option<u32>,
     /// If true, append to previously sent artifact with same ID.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub append: Option<bool>,
@@ -44,26 +47,30 @@ pub struct TaskArtifactUpdateEvent {
     pub metadata: Option<HashMap<String, serde_json::Value>>,
 }
 
-/// Union of all possible stream events.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum StreamEvent {
+/// Wrapper-based stream response (exactly one field should be set).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StreamResponse {
     /// Full task snapshot.
-    Task(Task),
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub task: Option<Task>,
     /// Agent message.
-    Message(Message),
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<Message>,
     /// Task status change.
-    StatusUpdate(TaskStatusUpdateEvent),
+    #[serde(skip_serializing_if = "Option::is_none", rename = "statusUpdate")]
+    pub status_update: Option<TaskStatusUpdateEvent>,
     /// Artifact update.
-    ArtifactUpdate(TaskArtifactUpdateEvent),
+    #[serde(skip_serializing_if = "Option::is_none", rename = "artifactUpdate")]
+    pub artifact_update: Option<TaskArtifactUpdateEvent>,
 }
 
-/// Response for `message/send` — either a Task or a Message.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum SendMessageResponse {
+/// Response for `message/send` — wrapper-based (exactly one field should be set).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SendMessageResponse {
     /// A task was created or updated.
-    Task(Task),
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub task: Option<Task>,
     /// A direct message response.
-    Message(Message),
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<Message>,
 }

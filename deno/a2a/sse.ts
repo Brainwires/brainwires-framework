@@ -3,11 +3,12 @@
  *
  * Handles both JSON-RPC envelope and raw REST modes.
  * Buffer is capped at 16 MiB to prevent unbounded memory growth.
+ * Parses StreamResponse wrapper format per A2A v1.0.
  */
 
 import { A2aError } from "./error.ts";
 import type { JsonRpcResponse } from "./jsonrpc.ts";
-import type { StreamEvent } from "./streaming.ts";
+import type { StreamResponse } from "./streaming.ts";
 
 /** Maximum SSE buffer size (16 MB). */
 const MAX_SSE_BUFFER_SIZE = 16 * 1024 * 1024;
@@ -34,9 +35,9 @@ function extractSseData(frame: string): string | null {
 
 /**
  * Parse an SSE frame expecting a JSON-RPC envelope.
- * Extracts the `result` field as a StreamEvent.
+ * Extracts the `result` field as a StreamResponse.
  */
-function parseSseFrameJsonRpc(frame: string): StreamEvent | A2aError {
+function parseSseFrameJsonRpc(frame: string): StreamResponse | A2aError {
   const data = extractSseData(frame);
   if (data === null) {
     return A2aError.parseError("SSE frame contains no data field");
@@ -56,7 +57,7 @@ function parseSseFrameJsonRpc(frame: string): StreamEvent | A2aError {
   }
 
   if (resp.result !== undefined) {
-    return resp.result as StreamEvent;
+    return resp.result as StreamResponse;
   }
 
   return A2aError.parseError(
@@ -65,23 +66,23 @@ function parseSseFrameJsonRpc(frame: string): StreamEvent | A2aError {
 }
 
 /**
- * Parse an SSE frame expecting raw StreamEvent JSON (REST mode).
+ * Parse an SSE frame expecting raw StreamResponse JSON (REST mode).
  */
-function parseSseFrameRest(frame: string): StreamEvent | A2aError {
+function parseSseFrameRest(frame: string): StreamResponse | A2aError {
   const data = extractSseData(frame);
   if (data === null) {
     return A2aError.parseError("SSE frame contains no data field");
   }
 
   try {
-    return JSON.parse(data) as StreamEvent;
+    return JSON.parse(data) as StreamResponse;
   } catch (e) {
     return A2aError.parseError(String(e));
   }
 }
 
 /**
- * Parse an SSE byte stream incrementally, yielding StreamEvent values.
+ * Parse an SSE byte stream incrementally, yielding StreamResponse values.
  *
  * @param body - ReadableStream from a fetch() response
  * @param mode - "jsonrpc" expects JSON-RPC envelope; "rest" expects raw events
@@ -89,7 +90,7 @@ function parseSseFrameRest(frame: string): StreamEvent | A2aError {
 export async function* parseSseStream(
   body: ReadableStream<Uint8Array>,
   mode: "jsonrpc" | "rest" = "jsonrpc",
-): AsyncIterable<StreamEvent> {
+): AsyncIterable<StreamResponse> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";

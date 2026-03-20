@@ -1,5 +1,5 @@
 /**
- * AgentCard construction and serialization tests.
+ * AgentCard construction and serialization tests (v1.0).
  */
 
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
@@ -11,10 +11,10 @@ import type {
   AgentProvider,
   AgentSkill,
   ApiKeySecurityScheme,
-  AuthorizationCodeFlow,
-  ClientCredentialsFlow,
-  DeviceCodeFlow,
-  HttpSecurityScheme,
+  AuthorizationCodeOAuthFlow,
+  ClientCredentialsOAuthFlow,
+  DeviceCodeOAuthFlow,
+  HttpAuthSecurityScheme,
   MutualTlsSecurityScheme,
   OAuth2SecurityScheme,
   OAuthFlows,
@@ -28,6 +28,7 @@ function minimalAgentCard(): AgentCard {
     name: "Test Agent",
     description: "A test agent",
     version: "1.0.0",
+    supportedInterfaces: [],
     capabilities: {},
     skills: [],
     defaultInputModes: ["text/plain"],
@@ -42,6 +43,7 @@ Deno.test("AgentCard minimal round-trip", () => {
   assertEquals(parsed.version, "1.0.0");
   assertEquals(parsed.defaultInputModes, ["text/plain"]);
   assertEquals(parsed.skills.length, 0);
+  assertEquals(parsed.supportedInterfaces.length, 0);
 });
 
 Deno.test("AgentCard with full fields", () => {
@@ -51,7 +53,7 @@ Deno.test("AgentCard with full fields", () => {
       {
         url: "https://agent.example.com/a2a",
         protocolBinding: "JSONRPC",
-        protocolVersion: "0.2.1",
+        protocolVersion: "1.0",
       },
     ],
     capabilities: {
@@ -93,8 +95,8 @@ Deno.test("AgentCard with full fields", () => {
   };
 
   const parsed = JSON.parse(JSON.stringify(card)) as AgentCard;
-  assertEquals(parsed.supportedInterfaces?.length, 1);
-  assertEquals(parsed.supportedInterfaces![0].protocolBinding, "JSONRPC");
+  assertEquals(parsed.supportedInterfaces.length, 1);
+  assertEquals(parsed.supportedInterfaces[0].protocolBinding, "JSONRPC");
   assertEquals(parsed.capabilities.streaming, true);
   assertEquals(parsed.capabilities.extensions?.length, 1);
   assertEquals(parsed.skills.length, 1);
@@ -108,102 +110,108 @@ Deno.test("AgentInterface serializes with camelCase", () => {
     url: "https://agent.example.com",
     protocolBinding: "HTTP+JSON",
     tenant: "tenant-1",
-    protocolVersion: "0.2.1",
+    protocolVersion: "1.0",
   };
   const json = JSON.stringify(iface);
   const obj = JSON.parse(json);
   assertEquals(obj.protocolBinding, "HTTP+JSON");
-  assertEquals(obj.protocolVersion, "0.2.1");
+  assertEquals(obj.protocolVersion, "1.0");
   assertEquals(obj.tenant, "tenant-1");
 });
 
-Deno.test("SecurityScheme apiKey variant", () => {
-  const scheme: ApiKeySecurityScheme = {
-    type: "apiKey",
-    name: "X-API-Key",
-    in: "header",
-    description: "API key auth",
+Deno.test("SecurityScheme apiKey wrapper variant", () => {
+  const scheme: SecurityScheme = {
+    apiKeySecurityScheme: {
+      name: "X-API-Key",
+      in: "header",
+      description: "API key auth",
+    },
   };
   const parsed = JSON.parse(JSON.stringify(scheme)) as SecurityScheme;
-  assertEquals(parsed.type, "apiKey");
-  assertEquals((parsed as ApiKeySecurityScheme).name, "X-API-Key");
-  assertEquals((parsed as ApiKeySecurityScheme).in, "header");
+  assertEquals(parsed.apiKeySecurityScheme?.name, "X-API-Key");
+  assertEquals(parsed.apiKeySecurityScheme?.in, "header");
 });
 
-Deno.test("SecurityScheme http variant", () => {
-  const scheme: HttpSecurityScheme = {
-    type: "http",
-    scheme: "Bearer",
-    bearerFormat: "JWT",
+Deno.test("SecurityScheme httpAuth wrapper variant", () => {
+  const scheme: SecurityScheme = {
+    httpAuthSecurityScheme: {
+      scheme: "Bearer",
+      bearerFormat: "JWT",
+    },
   };
   const parsed = JSON.parse(JSON.stringify(scheme)) as SecurityScheme;
-  assertEquals(parsed.type, "http");
-  assertEquals((parsed as HttpSecurityScheme).scheme, "Bearer");
-  assertEquals((parsed as HttpSecurityScheme).bearerFormat, "JWT");
+  assertEquals(parsed.httpAuthSecurityScheme?.scheme, "Bearer");
+  assertEquals(parsed.httpAuthSecurityScheme?.bearerFormat, "JWT");
 });
 
 Deno.test("SecurityScheme oauth2 with authorizationCode flow", () => {
-  const flow: AuthorizationCodeFlow = {
-    type: "authorizationCode",
+  const flow: AuthorizationCodeOAuthFlow = {
     authorizationUrl: "https://auth.example.com/authorize",
     tokenUrl: "https://auth.example.com/token",
     refreshUrl: "https://auth.example.com/refresh",
     scopes: { read: "Read access", write: "Write access" },
     pkceRequired: true,
   };
-  const scheme: OAuth2SecurityScheme = {
-    type: "oauth2",
-    flows: flow,
-    oauth2MetadataUrl: "https://auth.example.com/.well-known/openid-configuration",
+  const scheme: SecurityScheme = {
+    oauth2SecurityScheme: {
+      flows: { authorizationCode: flow },
+      oauth2MetadataUrl: "https://auth.example.com/.well-known/openid-configuration",
+    },
   };
-  const parsed = JSON.parse(JSON.stringify(scheme)) as OAuth2SecurityScheme;
-  assertEquals(parsed.type, "oauth2");
-  assertEquals(parsed.flows.type, "authorizationCode");
-  const parsedFlow = parsed.flows as AuthorizationCodeFlow;
-  assertEquals(parsedFlow.authorizationUrl, "https://auth.example.com/authorize");
-  assertEquals(parsedFlow.pkceRequired, true);
-  assertEquals(parsedFlow.scopes.read, "Read access");
+  const parsed = JSON.parse(JSON.stringify(scheme)) as SecurityScheme;
+  const oauth2 = parsed.oauth2SecurityScheme!;
+  assertEquals(oauth2.flows.authorizationCode?.authorizationUrl, "https://auth.example.com/authorize");
+  assertEquals(oauth2.flows.authorizationCode?.pkceRequired, true);
+  assertEquals(oauth2.flows.authorizationCode?.scopes.read, "Read access");
 });
 
 Deno.test("SecurityScheme oauth2 with clientCredentials flow", () => {
-  const flow: ClientCredentialsFlow = {
-    type: "clientCredentials",
+  const flow: ClientCredentialsOAuthFlow = {
     tokenUrl: "https://auth.example.com/token",
     scopes: { api: "API access" },
   };
-  const scheme: OAuth2SecurityScheme = { type: "oauth2", flows: flow };
-  const parsed = JSON.parse(JSON.stringify(scheme)) as OAuth2SecurityScheme;
-  assertEquals(parsed.flows.type, "clientCredentials");
+  const scheme: SecurityScheme = {
+    oauth2SecurityScheme: {
+      flows: { clientCredentials: flow },
+    },
+  };
+  const parsed = JSON.parse(JSON.stringify(scheme)) as SecurityScheme;
+  assertEquals(parsed.oauth2SecurityScheme?.flows.clientCredentials?.tokenUrl, "https://auth.example.com/token");
 });
 
 Deno.test("SecurityScheme oauth2 with deviceCode flow", () => {
-  const flow: DeviceCodeFlow = {
-    type: "deviceCode",
+  const flow: DeviceCodeOAuthFlow = {
     deviceAuthorizationUrl: "https://auth.example.com/device",
     tokenUrl: "https://auth.example.com/token",
     scopes: {},
   };
-  const scheme: OAuth2SecurityScheme = { type: "oauth2", flows: flow };
-  const parsed = JSON.parse(JSON.stringify(scheme)) as OAuth2SecurityScheme;
-  assertEquals((parsed.flows as DeviceCodeFlow).deviceAuthorizationUrl, "https://auth.example.com/device");
-});
-
-Deno.test("SecurityScheme openIdConnect variant", () => {
-  const scheme: OpenIdConnectSecurityScheme = {
-    type: "openIdConnect",
-    openIdConnectUrl: "https://auth.example.com/.well-known/openid-configuration",
+  const scheme: SecurityScheme = {
+    oauth2SecurityScheme: {
+      flows: { deviceCode: flow },
+    },
   };
   const parsed = JSON.parse(JSON.stringify(scheme)) as SecurityScheme;
-  assertEquals(parsed.type, "openIdConnect");
+  assertEquals(parsed.oauth2SecurityScheme?.flows.deviceCode?.deviceAuthorizationUrl, "https://auth.example.com/device");
 });
 
-Deno.test("SecurityScheme mutualTls variant", () => {
-  const scheme: MutualTlsSecurityScheme = {
-    type: "mutualTls",
-    description: "mTLS auth",
+Deno.test("SecurityScheme openIdConnect wrapper variant", () => {
+  const scheme: SecurityScheme = {
+    openIdConnectSecurityScheme: {
+      openIdConnectUrl: "https://auth.example.com/.well-known/openid-configuration",
+    },
   };
   const parsed = JSON.parse(JSON.stringify(scheme)) as SecurityScheme;
-  assertEquals(parsed.type, "mutualTls");
+  assertEquals(parsed.openIdConnectSecurityScheme?.openIdConnectUrl, "https://auth.example.com/.well-known/openid-configuration");
+});
+
+Deno.test("SecurityScheme mutualTls wrapper variant", () => {
+  const scheme: SecurityScheme = {
+    mtlsSecurityScheme: {
+      description: "mTLS auth",
+    },
+  };
+  const parsed = JSON.parse(JSON.stringify(scheme)) as SecurityScheme;
+  assertEquals(parsed.mtlsSecurityScheme?.description, "mTLS auth");
 });
 
 Deno.test("SecurityRequirement round-trips", () => {
@@ -219,8 +227,8 @@ Deno.test("AgentCard with security schemes", () => {
   const card: AgentCard = {
     ...minimalAgentCard(),
     securitySchemes: {
-      bearer: { type: "http", scheme: "Bearer" },
-      apiKey: { type: "apiKey", name: "key", in: "header" },
+      bearer: { httpAuthSecurityScheme: { scheme: "Bearer" } },
+      apiKey: { apiKeySecurityScheme: { name: "key", in: "header" } },
     },
     securityRequirements: [
       { schemes: { bearer: [] } },
@@ -228,7 +236,7 @@ Deno.test("AgentCard with security schemes", () => {
   };
   const parsed = JSON.parse(JSON.stringify(card)) as AgentCard;
   assertEquals(Object.keys(parsed.securitySchemes!).length, 2);
-  assertEquals(parsed.securitySchemes!.bearer.type, "http");
+  assertEquals(parsed.securitySchemes!.bearer.httpAuthSecurityScheme?.scheme, "Bearer");
   assertEquals(parsed.securityRequirements!.length, 1);
 });
 

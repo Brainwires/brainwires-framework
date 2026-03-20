@@ -1,25 +1,25 @@
 /**
  * Task lifecycle types: TaskState, TaskStatus, Task.
  *
- * `TaskState` uses kebab-case in JSON.
+ * `TaskState` uses SCREAMING_SNAKE_CASE per A2A v1.0.
  */
 
 import type { Artifact, Message } from "./types.ts";
 
 /**
  * Possible lifecycle states of a Task.
- * Serialized as kebab-case strings.
+ * Serialized as SCREAMING_SNAKE_CASE strings.
  */
 export type TaskState =
-  | "unknown"
-  | "submitted"
-  | "working"
-  | "completed"
-  | "failed"
-  | "canceled"
-  | "rejected"
-  | "input-required"
-  | "auth-required";
+  | "TASK_STATE_UNSPECIFIED"
+  | "TASK_STATE_SUBMITTED"
+  | "TASK_STATE_WORKING"
+  | "TASK_STATE_COMPLETED"
+  | "TASK_STATE_FAILED"
+  | "TASK_STATE_CANCELED"
+  | "TASK_STATE_REJECTED"
+  | "TASK_STATE_INPUT_REQUIRED"
+  | "TASK_STATE_AUTH_REQUIRED";
 
 /** Current status of a task. */
 export interface TaskStatus {
@@ -45,6 +45,4 @@ export interface Task {
   history?: Message[];
   /** Custom metadata. */
   metadata?: Record<string, unknown>;
-  /** Discriminator field (always "task"). */
-  kind: string;
 }

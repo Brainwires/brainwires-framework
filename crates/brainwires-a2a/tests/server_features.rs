@@ -22,7 +22,7 @@ impl FullTestHandler {
                 name: "Full Test Agent".into(),
                 description: "Tests all dispatch paths".into(),
                 version: "1.0.0".into(),
-                supported_interfaces: None,
+                supported_interfaces: vec![],
                 capabilities: AgentCapabilities {
                     streaming: Some(true),
                     push_notifications: Some(false),
@@ -65,37 +65,50 @@ impl A2aHandler for FullTestHandler {
             artifacts: None,
             history: Some(vec![req.message]),
             metadata: None,
-            kind: "task".into(),
         };
         self.tasks.lock().await.push(task.clone());
-        Ok(SendMessageResponse::Task(task))
+        Ok(SendMessageResponse {
+            task: Some(task),
+            message: None,
+        })
     }
 
     async fn on_send_streaming_message(
         &self,
         _req: SendMessageRequest,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamEvent, A2aError>> + Send>>, A2aError> {
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamResponse, A2aError>> + Send>>, A2aError>
+    {
         let stream = async_stream::stream! {
-            yield Ok(StreamEvent::StatusUpdate(TaskStatusUpdateEvent {
-                task_id: "stream-t".into(),
-                context_id: "ctx".into(),
-                status: TaskStatus {
-                    state: TaskState::Working,
-                    message: None,
-                    timestamp: None,
-                },
-                metadata: None,
-            }));
-            yield Ok(StreamEvent::StatusUpdate(TaskStatusUpdateEvent {
-                task_id: "stream-t".into(),
-                context_id: "ctx".into(),
-                status: TaskStatus {
-                    state: TaskState::Completed,
-                    message: Some(Message::agent_text("Streamed")),
-                    timestamp: None,
-                },
-                metadata: None,
-            }));
+            yield Ok(StreamResponse {
+                task: None,
+                message: None,
+                status_update: Some(TaskStatusUpdateEvent {
+                    task_id: "stream-t".into(),
+                    context_id: "ctx".into(),
+                    status: TaskStatus {
+                        state: TaskState::Working,
+                        message: None,
+                        timestamp: None,
+                    },
+                    metadata: None,
+                }),
+                artifact_update: None,
+            });
+            yield Ok(StreamResponse {
+                task: None,
+                message: None,
+                status_update: Some(TaskStatusUpdateEvent {
+                    task_id: "stream-t".into(),
+                    context_id: "ctx".into(),
+                    status: TaskStatus {
+                        state: TaskState::Completed,
+                        message: Some(Message::agent_text("Streamed")),
+                        timestamp: None,
+                    },
+                    metadata: None,
+                }),
+                artifact_update: None,
+            });
         };
         Ok(Box::pin(stream))
     }
@@ -132,7 +145,8 @@ impl A2aHandler for FullTestHandler {
     async fn on_subscribe_to_task(
         &self,
         req: SubscribeToTaskRequest,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamEvent, A2aError>> + Send>>, A2aError> {
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamResponse, A2aError>> + Send>>, A2aError>
+    {
         let task = self
             .on_get_task(GetTaskRequest {
                 tenant: None,
@@ -142,7 +156,12 @@ impl A2aHandler for FullTestHandler {
             .await?;
 
         let stream = async_stream::stream! {
-            yield Ok(StreamEvent::Task(task));
+            yield Ok(StreamResponse {
+                task: Some(task),
+                message: None,
+                status_update: None,
+                artifact_update: None,
+            });
         };
         Ok(Box::pin(stream))
     }
@@ -154,12 +173,12 @@ impl A2aHandler for FullTestHandler {
 async fn test_jsonrpc_streaming_dispatch_returns_none() {
     let handler = Arc::new(FullTestHandler::new());
 
-    // message/stream should return Ok(None) from dispatch (handled by SSE layer)
+    // SendStreamingMessage should return Ok(None) from dispatch (handled by SSE layer)
     let req = JsonRpcRequest {
         jsonrpc: "2.0".into(),
-        method: "message/stream".into(),
+        method: "SendStreamingMessage".into(),
         params: Some(serde_json::json!({
-            "message": {"messageId": "1", "role": "user", "parts": [{"type": "text", "text": "hi"}], "kind": "message"}
+            "message": {"messageId": "1", "role": "ROLE_USER", "parts": [{"text": "hi"}]}
         })),
         id: RequestId::Number(1),
     };
@@ -177,7 +196,7 @@ async fn test_jsonrpc_resubscribe_returns_none() {
 
     let req = JsonRpcRequest {
         jsonrpc: "2.0".into(),
-        method: "tasks/resubscribe".into(),
+        method: "SubscribeToTask".into(),
         params: Some(serde_json::json!({"id": "t-1"})),
         id: RequestId::Number(1),
     };
@@ -198,7 +217,7 @@ async fn test_jsonrpc_cancel_task() {
     // Create a task first
     let send_req = JsonRpcRequest {
         jsonrpc: "2.0".into(),
-        method: "message/send".into(),
+        method: "SendMessage".into(),
         params: Some(
             serde_json::to_value(&SendMessageRequest {
                 tenant: None,
@@ -214,12 +233,13 @@ async fn test_jsonrpc_cancel_task() {
         .await
         .unwrap()
         .unwrap();
-    let task: Task = serde_json::from_value(result.result.unwrap()).unwrap();
+    let smr: SendMessageResponse = serde_json::from_value(result.result.unwrap()).unwrap();
+    let task = smr.task.unwrap();
 
     // Cancel it
     let cancel_req = JsonRpcRequest {
         jsonrpc: "2.0".into(),
-        method: "tasks/cancel".into(),
+        method: "CancelTask".into(),
         params: Some(serde_json::json!({"id": task.id})),
         id: RequestId::Number(2),
     };
@@ -241,7 +261,7 @@ async fn test_jsonrpc_list_tasks() {
     for msg in ["First", "Second"] {
         let req = JsonRpcRequest {
             jsonrpc: "2.0".into(),
-            method: "message/send".into(),
+            method: "SendMessage".into(),
             params: Some(
                 serde_json::to_value(&SendMessageRequest {
                     tenant: None,
@@ -260,7 +280,7 @@ async fn test_jsonrpc_list_tasks() {
 
     let list_req = JsonRpcRequest {
         jsonrpc: "2.0".into(),
-        method: "tasks/list".into(),
+        method: "ListTasks".into(),
         params: Some(serde_json::json!({})),
         id: RequestId::Number(3),
     };
@@ -280,7 +300,7 @@ async fn test_jsonrpc_invalid_params() {
 
     let req = JsonRpcRequest {
         jsonrpc: "2.0".into(),
-        method: "message/send".into(),
+        method: "SendMessage".into(),
         params: Some(serde_json::json!({"wrong": "params"})),
         id: RequestId::Number(1),
     };
@@ -320,19 +340,19 @@ async fn test_rest_streaming_message() {
             let items: Vec<_> = stream.collect().await;
             assert_eq!(items.len(), 2);
             // First event: Working
-            match items[0].as_ref().unwrap() {
-                StreamEvent::StatusUpdate(su) => {
-                    assert_eq!(su.status.state, TaskState::Working);
-                }
-                other => panic!("Expected StatusUpdate, got {other:?}"),
-            }
+            let first = items[0].as_ref().unwrap();
+            assert!(first.status_update.is_some());
+            assert_eq!(
+                first.status_update.as_ref().unwrap().status.state,
+                TaskState::Working
+            );
             // Second event: Completed
-            match items[1].as_ref().unwrap() {
-                StreamEvent::StatusUpdate(su) => {
-                    assert_eq!(su.status.state, TaskState::Completed);
-                }
-                other => panic!("Expected StatusUpdate, got {other:?}"),
-            }
+            let second = items[1].as_ref().unwrap();
+            assert!(second.status_update.is_some());
+            assert_eq!(
+                second.status_update.as_ref().unwrap().status.state,
+                TaskState::Completed
+            );
         }
         _ => panic!("Expected Stream result"),
     }
@@ -360,12 +380,13 @@ async fn test_rest_cancel_task() {
     )
     .await
     .unwrap();
-    let task: Task = match result {
+    let smr: SendMessageResponse = match result {
         brainwires_a2a::server::rest_router::RestResult::Json(v) => {
             serde_json::from_value(v).unwrap()
         }
         _ => panic!("Expected JSON"),
     };
+    let task = smr.task.unwrap();
 
     // Cancel it
     let result = brainwires_a2a::server::rest_router::dispatch_rest(
@@ -407,12 +428,13 @@ async fn test_rest_get_single_task() {
     )
     .await
     .unwrap();
-    let task: Task = match result {
+    let smr: SendMessageResponse = match result {
         brainwires_a2a::server::rest_router::RestResult::Json(v) => {
             serde_json::from_value(v).unwrap()
         }
         _ => panic!("Expected JSON"),
     };
+    let task = smr.task.unwrap();
 
     // Get it
     let result = brainwires_a2a::server::rest_router::dispatch_rest(
@@ -454,17 +476,18 @@ async fn test_rest_subscribe_to_task() {
     )
     .await
     .unwrap();
-    let task: Task = match result {
+    let smr: SendMessageResponse = match result {
         brainwires_a2a::server::rest_router::RestResult::Json(v) => {
             serde_json::from_value(v).unwrap()
         }
         _ => panic!("Expected JSON"),
     };
+    let task = smr.task.unwrap();
 
-    // Subscribe
+    // Subscribe (now POST instead of GET)
     let result = brainwires_a2a::server::rest_router::dispatch_rest(
         &handler,
-        "GET",
+        "POST",
         &format!("/tasks/{}:subscribe", task.id),
         &[],
     )
@@ -474,10 +497,9 @@ async fn test_rest_subscribe_to_task() {
         brainwires_a2a::server::rest_router::RestResult::Stream(stream) => {
             let items: Vec<_> = stream.collect().await;
             assert_eq!(items.len(), 1);
-            match items[0].as_ref().unwrap() {
-                StreamEvent::Task(t) => assert_eq!(t.id, task.id),
-                other => panic!("Expected Task event, got {other:?}"),
-            }
+            let item = items[0].as_ref().unwrap();
+            assert!(item.task.is_some());
+            assert_eq!(item.task.as_ref().unwrap().id, task.id);
         }
         _ => panic!("Expected Stream"),
     }
@@ -544,18 +566,23 @@ async fn test_rest_extended_card_not_configured() {
 async fn test_sse_response_jsonrpc_format() {
     use brainwires_a2a::server::sse_response;
 
-    let event = StreamEvent::StatusUpdate(TaskStatusUpdateEvent {
-        task_id: "t-1".into(),
-        context_id: "ctx".into(),
-        status: TaskStatus {
-            state: TaskState::Working,
-            message: None,
-            timestamp: None,
-        },
-        metadata: None,
-    });
+    let event = StreamResponse {
+        task: None,
+        message: None,
+        status_update: Some(TaskStatusUpdateEvent {
+            task_id: "t-1".into(),
+            context_id: "ctx".into(),
+            status: TaskStatus {
+                state: TaskState::Working,
+                message: None,
+                timestamp: None,
+            },
+            metadata: None,
+        }),
+        artifact_update: None,
+    };
 
-    let stream: Pin<Box<dyn Stream<Item = Result<StreamEvent, A2aError>> + Send>> =
+    let stream: Pin<Box<dyn Stream<Item = Result<StreamResponse, A2aError>> + Send>> =
         Box::pin(futures::stream::once(async { Ok(event) }));
 
     let sse_stream = sse_response::stream_to_sse(RequestId::Number(42), stream);
@@ -580,18 +607,23 @@ async fn test_sse_response_jsonrpc_format() {
 async fn test_sse_response_rest_format() {
     use brainwires_a2a::server::sse_response;
 
-    let event = StreamEvent::StatusUpdate(TaskStatusUpdateEvent {
-        task_id: "t-1".into(),
-        context_id: "ctx".into(),
-        status: TaskStatus {
-            state: TaskState::Completed,
-            message: None,
-            timestamp: None,
-        },
-        metadata: None,
-    });
+    let event = StreamResponse {
+        task: None,
+        message: None,
+        status_update: Some(TaskStatusUpdateEvent {
+            task_id: "t-1".into(),
+            context_id: "ctx".into(),
+            status: TaskStatus {
+                state: TaskState::Completed,
+                message: None,
+                timestamp: None,
+            },
+            metadata: None,
+        }),
+        artifact_update: None,
+    };
 
-    let stream: Pin<Box<dyn Stream<Item = Result<StreamEvent, A2aError>> + Send>> =
+    let stream: Pin<Box<dyn Stream<Item = Result<StreamResponse, A2aError>> + Send>> =
         Box::pin(futures::stream::once(async { Ok(event) }));
 
     let sse_stream = sse_response::stream_to_sse_rest(stream);
@@ -603,13 +635,11 @@ async fn test_sse_response_rest_format() {
     let text = String::from_utf8_lossy(data);
     assert!(text.starts_with("data: "));
 
-    // Should be raw StreamEvent JSON, NOT wrapped in JSON-RPC
+    // Should be raw StreamResponse JSON, NOT wrapped in JSON-RPC
     let inner = text.trim_start_matches("data: ").trim();
-    let event: StreamEvent = serde_json::from_str(inner).unwrap();
-    match event {
-        StreamEvent::StatusUpdate(su) => assert_eq!(su.task_id, "t-1"),
-        other => panic!("Expected StatusUpdate, got {other:?}"),
-    }
+    let event: StreamResponse = serde_json::from_str(inner).unwrap();
+    assert!(event.status_update.is_some());
+    assert_eq!(event.status_update.unwrap().task_id, "t-1");
 }
 
 #[tokio::test]
@@ -617,7 +647,7 @@ async fn test_sse_response_error_event() {
     use brainwires_a2a::server::sse_response;
 
     let err = A2aError::task_not_found("t-99");
-    let stream: Pin<Box<dyn Stream<Item = Result<StreamEvent, A2aError>> + Send>> =
+    let stream: Pin<Box<dyn Stream<Item = Result<StreamResponse, A2aError>> + Send>> =
         Box::pin(futures::stream::once(async { Err(err) }));
 
     let sse_stream = sse_response::stream_to_sse(RequestId::Number(1), stream);
@@ -644,15 +674,16 @@ async fn test_jsonrpc_push_config_set_unsupported() {
 
     let config = TaskPushNotificationConfig {
         tenant: None,
-        id: None,
+        config_id: None,
         task_id: "t-1".into(),
         url: "https://example.com/hook".into(),
         token: None,
         authentication: None,
+        created_at: None,
     };
     let req = JsonRpcRequest {
         jsonrpc: "2.0".into(),
-        method: "tasks/pushNotificationConfig/set".into(),
+        method: "CreateTaskPushNotificationConfig".into(),
         params: Some(serde_json::to_value(&config).unwrap()),
         id: RequestId::Number(1),
     };
@@ -673,8 +704,8 @@ async fn test_jsonrpc_push_config_get_unsupported() {
 
     let req = JsonRpcRequest {
         jsonrpc: "2.0".into(),
-        method: "tasks/pushNotificationConfig/get".into(),
-        params: Some(serde_json::json!({"task_id": "t-1", "id": "cfg-1"})),
+        method: "GetTaskPushNotificationConfig".into(),
+        params: Some(serde_json::json!({"taskId": "t-1", "configId": "cfg-1"})),
         id: RequestId::Number(1),
     };
 
@@ -688,8 +719,8 @@ async fn test_jsonrpc_push_config_list_unsupported() {
 
     let req = JsonRpcRequest {
         jsonrpc: "2.0".into(),
-        method: "tasks/pushNotificationConfig/list".into(),
-        params: Some(serde_json::json!({"task_id": "t-1"})),
+        method: "ListTaskPushNotificationConfigs".into(),
+        params: Some(serde_json::json!({"taskId": "t-1"})),
         id: RequestId::Number(1),
     };
 
@@ -703,8 +734,8 @@ async fn test_jsonrpc_push_config_delete_unsupported() {
 
     let req = JsonRpcRequest {
         jsonrpc: "2.0".into(),
-        method: "tasks/pushNotificationConfig/delete".into(),
-        params: Some(serde_json::json!({"task_id": "t-1", "id": "cfg-1"})),
+        method: "DeleteTaskPushNotificationConfig".into(),
+        params: Some(serde_json::json!({"taskId": "t-1", "configId": "cfg-1"})),
         id: RequestId::Number(1),
     };
 
@@ -719,11 +750,12 @@ async fn test_rest_push_config_create_unsupported() {
     let handler = Arc::new(FullTestHandler::new());
     let config = TaskPushNotificationConfig {
         tenant: None,
-        id: None,
+        config_id: None,
         task_id: "t-1".into(),
         url: "https://example.com/hook".into(),
         token: None,
         authentication: None,
+        created_at: None,
     };
     let body = serde_json::to_vec(&config).unwrap();
 

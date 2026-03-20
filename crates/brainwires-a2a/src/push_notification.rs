@@ -19,8 +19,8 @@ pub struct TaskPushNotificationConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tenant: Option<String>,
     /// Configuration identifier.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub id: Option<String>,
+    #[serde(rename = "configId", skip_serializing_if = "Option::is_none")]
+    pub config_id: Option<String>,
     /// Associated task identifier.
     #[serde(rename = "taskId")]
     pub task_id: String,
@@ -32,4 +32,7 @@ pub struct TaskPushNotificationConfig {
     /// Authentication information for sending the notification.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub authentication: Option<AuthenticationInfo>,
+    /// ISO 8601 timestamp when this configuration was created.
+    #[serde(rename = "createdAt", skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<String>,
 }

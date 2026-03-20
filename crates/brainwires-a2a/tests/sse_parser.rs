@@ -5,23 +5,28 @@ use futures::StreamExt;
 
 use brainwires_a2a::error::A2aError;
 use brainwires_a2a::jsonrpc::{JsonRpcResponse, RequestId};
-use brainwires_a2a::streaming::{StreamEvent, TaskStatusUpdateEvent};
+use brainwires_a2a::streaming::{StreamResponse, TaskStatusUpdateEvent};
 use brainwires_a2a::task::{TaskState, TaskStatus};
 
-fn make_status_event(task_id: &str, state: TaskState) -> StreamEvent {
-    StreamEvent::StatusUpdate(TaskStatusUpdateEvent {
-        task_id: task_id.into(),
-        context_id: "ctx".into(),
-        status: TaskStatus {
-            state,
-            message: None,
-            timestamp: None,
-        },
-        metadata: None,
-    })
+fn make_status_response(task_id: &str, state: TaskState) -> StreamResponse {
+    StreamResponse {
+        task: None,
+        message: None,
+        status_update: Some(TaskStatusUpdateEvent {
+            task_id: task_id.into(),
+            context_id: "ctx".into(),
+            status: TaskStatus {
+                state,
+                message: None,
+                timestamp: None,
+            },
+            metadata: None,
+        }),
+        artifact_update: None,
+    }
 }
 
-fn wrap_jsonrpc(id: i64, event: &StreamEvent) -> String {
+fn wrap_jsonrpc(id: i64, event: &StreamResponse) -> String {
     let resp =
         JsonRpcResponse::success(RequestId::Number(id), serde_json::to_value(event).unwrap());
     serde_json::to_string(&resp).unwrap()
@@ -31,27 +36,24 @@ fn wrap_jsonrpc(id: i64, event: &StreamEvent) -> String {
 
 #[tokio::test]
 async fn test_parse_sse_stream_single_event() {
-    let event = make_status_event("t-1", TaskState::Working);
+    let event = make_status_response("t-1", TaskState::Working);
     let body = format!("data: {}\n\n", wrap_jsonrpc(1, &event));
 
     let mut stream = std::pin::pin!(brainwires_a2a::client::sse::parse_sse_stream(body));
     let item = stream.next().await.unwrap().unwrap();
 
-    match item {
-        StreamEvent::StatusUpdate(su) => {
-            assert_eq!(su.task_id, "t-1");
-            assert_eq!(su.status.state, TaskState::Working);
-        }
-        other => panic!("Expected StatusUpdate, got {other:?}"),
-    }
+    assert!(item.status_update.is_some());
+    let su = item.status_update.unwrap();
+    assert_eq!(su.task_id, "t-1");
+    assert_eq!(su.status.state, TaskState::Working);
 
     assert!(stream.next().await.is_none());
 }
 
 #[tokio::test]
 async fn test_parse_sse_stream_multiple_events() {
-    let e1 = make_status_event("t-1", TaskState::Working);
-    let e2 = make_status_event("t-1", TaskState::Completed);
+    let e1 = make_status_response("t-1", TaskState::Working);
+    let e2 = make_status_response("t-1", TaskState::Completed);
     let body = format!(
         "data: {}\n\ndata: {}\n\n",
         wrap_jsonrpc(1, &e1),
@@ -82,7 +84,7 @@ async fn test_parse_sse_stream_with_error_response() {
 
 #[tokio::test]
 async fn test_parse_sse_stream_ignores_non_data_lines() {
-    let event = make_status_event("t-1", TaskState::Working);
+    let event = make_status_response("t-1", TaskState::Working);
     let body = format!(
         ": this is a comment\nevent: update\ndata: {}\n\n",
         wrap_jsonrpc(1, &event)
@@ -126,7 +128,7 @@ fn bytes_stream(
 
 #[tokio::test]
 async fn test_incremental_sse_single_chunk() {
-    let event = make_status_event("t-1", TaskState::Completed);
+    let event = make_status_response("t-1", TaskState::Completed);
     let data = format!("data: {}\n\n", wrap_jsonrpc(1, &event));
 
     let stream = brainwires_a2a::client::sse::parse_sse_byte_stream(bytes_stream(vec![&data]));
@@ -137,7 +139,7 @@ async fn test_incremental_sse_single_chunk() {
 
 #[tokio::test]
 async fn test_incremental_sse_split_across_chunks() {
-    let event = make_status_event("t-1", TaskState::Working);
+    let event = make_status_response("t-1", TaskState::Working);
     let full = format!("data: {}\n\n", wrap_jsonrpc(1, &event));
 
     // Split the SSE frame in the middle
@@ -154,8 +156,8 @@ async fn test_incremental_sse_split_across_chunks() {
 
 #[tokio::test]
 async fn test_incremental_sse_multiple_events_one_chunk() {
-    let e1 = make_status_event("t-1", TaskState::Working);
-    let e2 = make_status_event("t-1", TaskState::Completed);
+    let e1 = make_status_response("t-1", TaskState::Working);
+    let e2 = make_status_response("t-1", TaskState::Completed);
     let data = format!(
         "data: {}\n\ndata: {}\n\n",
         wrap_jsonrpc(1, &e1),
@@ -170,9 +172,7 @@ async fn test_incremental_sse_multiple_events_one_chunk() {
 #[tokio::test]
 async fn test_incremental_sse_multiline_data() {
     // SSE spec: multiple data: lines concatenated with \n
-    // We'll construct a JSON-RPC response that spans two data: lines.
-    // In practice JSON is single-line, but we need to test the parser handles it.
-    let event = make_status_event("t-1", TaskState::Working);
+    let event = make_status_response("t-1", TaskState::Working);
     let json = wrap_jsonrpc(1, &event);
 
     // Split JSON across two data: lines (simulate a server that wraps lines)
@@ -185,15 +185,13 @@ async fn test_incremental_sse_multiline_data() {
     let items: Vec<_> = std::pin::pin!(stream).collect().await;
     assert_eq!(items.len(), 1);
     // Multi-line data: gets concatenated with \n, which makes it invalid JSON
-    // unless the JSON itself was split exactly at a valid boundary. In general
-    // this will produce a parse error since JSON + \n + JSON isn't valid JSON.
+    // unless the JSON itself was split exactly at a valid boundary.
     // The key test is that the parser doesn't crash or hang.
-    // (In practice, SSE servers send JSON on a single data: line.)
 }
 
 #[tokio::test]
 async fn test_incremental_sse_ignores_comments_and_event_fields() {
-    let event = make_status_event("t-1", TaskState::Working);
+    let event = make_status_response("t-1", TaskState::Working);
     let frame = format!(
         ": keep-alive\nevent: status\nid: 42\nretry: 5000\ndata: {}\n\n",
         wrap_jsonrpc(1, &event)
@@ -216,25 +214,23 @@ async fn test_incremental_sse_empty_stream() {
 
 #[tokio::test]
 async fn test_incremental_rest_sse_single_event() {
-    let event = make_status_event("t-1", TaskState::Completed);
+    let event = make_status_response("t-1", TaskState::Completed);
     let json = serde_json::to_string(&event).unwrap();
     let data = format!("data: {json}\n\n");
 
     let stream = brainwires_a2a::client::sse::parse_sse_rest_byte_stream(bytes_stream(vec![&data]));
     let items: Vec<_> = std::pin::pin!(stream).collect().await;
     assert_eq!(items.len(), 1);
-    match items[0].as_ref().unwrap() {
-        StreamEvent::StatusUpdate(su) => {
-            assert_eq!(su.task_id, "t-1");
-            assert_eq!(su.status.state, TaskState::Completed);
-        }
-        other => panic!("Expected StatusUpdate, got {other:?}"),
-    }
+    let item = items[0].as_ref().unwrap();
+    assert!(item.status_update.is_some());
+    let su = item.status_update.as_ref().unwrap();
+    assert_eq!(su.task_id, "t-1");
+    assert_eq!(su.status.state, TaskState::Completed);
 }
 
 #[tokio::test]
 async fn test_incremental_rest_sse_split_chunks() {
-    let event = make_status_event("t-1", TaskState::Working);
+    let event = make_status_response("t-1", TaskState::Working);
     let json = serde_json::to_string(&event).unwrap();
     let full = format!("data: {json}\n\n");
 
@@ -262,7 +258,7 @@ async fn test_incremental_rest_sse_invalid_json() {
 
 #[tokio::test]
 async fn test_parse_sse_bytes() {
-    let event = make_status_event("t-1", TaskState::Working);
+    let event = make_status_response("t-1", TaskState::Working);
     let body = format!("data: {}\n\n", wrap_jsonrpc(1, &event));
     let bytes = Bytes::from(body);
 

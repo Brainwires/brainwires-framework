@@ -9,7 +9,7 @@ use crate::agent_card::AgentCard;
 use crate::error::A2aError;
 use crate::params::*;
 use crate::push_notification::TaskPushNotificationConfig;
-use crate::streaming::{SendMessageResponse, StreamEvent};
+use crate::streaming::{SendMessageResponse, StreamResponse};
 use crate::task::Task;
 
 /// Core handler trait for A2A agents.
@@ -31,7 +31,7 @@ pub trait A2aHandler: Send + Sync + 'static {
     async fn on_send_streaming_message(
         &self,
         req: SendMessageRequest,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamEvent, A2aError>> + Send>>, A2aError>;
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamResponse, A2aError>> + Send>>, A2aError>;
 
     /// Handle a `tasks/get` request.
     async fn on_get_task(&self, req: GetTaskRequest) -> Result<Task, A2aError>;
@@ -46,7 +46,7 @@ pub trait A2aHandler: Send + Sync + 'static {
     async fn on_subscribe_to_task(
         &self,
         req: SubscribeToTaskRequest,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamEvent, A2aError>> + Send>>, A2aError>;
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamResponse, A2aError>> + Send>>, A2aError>;
 
     /// Create a push notification config. Default returns unsupported.
     async fn on_create_push_config(

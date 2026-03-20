@@ -1,68 +1,44 @@
 /**
- * Core A2A message types: Role, Part, FileContent, Message, Artifact.
+ * Core A2A message types: Role, Part, Message, Artifact.
  *
  * Serialization rules:
  * - Fields are camelCase in JSON
- * - `Part` is a discriminated union on the `kind` field
- * - `FileContent` is an untagged union (has `bytes` or `uri`)
+ * - `Part` must have exactly one of: text, raw, url, data
  * - Optional fields are omitted when undefined
  */
 
-// deno-lint-ignore-file no-explicit-any
-
-/** Sender role in A2A communication. */
-export type Role = "user" | "agent";
+/**
+ * Sender role in A2A communication.
+ * Uses SCREAMING_SNAKE_CASE per A2A v1.0.
+ */
+export type Role = "ROLE_UNSPECIFIED" | "ROLE_USER" | "ROLE_AGENT";
 
 /**
- * A single unit of communication content (discriminated union on `kind`).
+ * A single unit of communication content.
  *
- * JSON shape:
- * - `{ kind: "text", text: "...", metadata?: {...} }`
- * - `{ kind: "file", file: FileContent, metadata?: {...} }`
- * - `{ kind: "data", data: any, metadata?: {...} }`
+ * Exactly one of `text`, `raw`, `url`, or `data` must be set.
+ *
+ * JSON shape examples:
+ * - `{ text: "hello", metadata: {...} }`
+ * - `{ raw: "base64...", mediaType: "image/png", filename: "pic.png" }`
+ * - `{ url: "https://...", mediaType: "application/pdf" }`
+ * - `{ data: { key: "value" }, metadata: {...} }`
  */
-export type Part = TextPart | FilePart | DataPart;
-
-export interface TextPart {
-  kind: "text";
-  text: string;
+export interface Part {
+  /** Plain text content. */
+  text?: string;
+  /** Base64-encoded raw bytes. */
+  raw?: string;
+  /** URL reference to content. */
+  url?: string;
+  /** Structured data content. */
+  data?: unknown;
+  /** MIME type of the content. */
+  mediaType?: string;
+  /** Filename hint. */
+  filename?: string;
+  /** Custom metadata. */
   metadata?: Record<string, unknown>;
-}
-
-export interface FilePart {
-  kind: "file";
-  file: FileContent;
-  metadata?: Record<string, unknown>;
-}
-
-export interface DataPart {
-  kind: "data";
-  data: unknown;
-  metadata?: Record<string, unknown>;
-}
-
-/**
- * File content -- either inline bytes or a URI reference.
- * Untagged union: distinguished by presence of `bytes` vs `uri`.
- */
-export type FileContent = FileContentBytes | FileContentUri;
-
-export interface FileContentBytes {
-  /** Base64-encoded file bytes. */
-  bytes: string;
-  /** MIME type of the file. */
-  mimeType?: string;
-  /** File name. */
-  name?: string;
-}
-
-export interface FileContentUri {
-  /** URI pointing to the file. */
-  uri: string;
-  /** MIME type of the file. */
-  mimeType?: string;
-  /** File name. */
-  name?: string;
 }
 
 /** A single communication message between client and server. */
@@ -83,17 +59,14 @@ export interface Message {
   metadata?: Record<string, unknown>;
   /** Extension URIs present in this message. */
   extensions?: string[];
-  /** Discriminator field (always "message"). */
-  kind: string;
 }
 
 /** Create a new user message with text content. */
 export function createUserMessage(text: string): Message {
   return {
     messageId: crypto.randomUUID(),
-    role: "user",
-    parts: [{ kind: "text", text }],
-    kind: "message",
+    role: "ROLE_USER",
+    parts: [{ text }],
   };
 }
 
@@ -101,9 +74,8 @@ export function createUserMessage(text: string): Message {
 export function createAgentMessage(text: string): Message {
   return {
     messageId: crypto.randomUUID(),
-    role: "agent",
-    parts: [{ kind: "text", text }],
-    kind: "message",
+    role: "ROLE_AGENT",
+    parts: [{ text }],
   };
 }
 

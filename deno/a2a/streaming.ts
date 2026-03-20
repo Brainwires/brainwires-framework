@@ -1,9 +1,8 @@
 /**
- * Streaming event types for A2A.
+ * Streaming event types for A2A v1.0.
  *
- * `StreamEvent` and `SendMessageResponse` are untagged unions.
- * Discrimination is done via the `kind` field on Task/Message,
- * or the presence of `taskId`+`status` vs `taskId`+`artifact`.
+ * `StreamResponse` is a wrapper with optional fields.
+ * Exactly one field should be set per response.
  */
 
 import type { Task, TaskStatus } from "./task.ts";
@@ -29,6 +28,8 @@ export interface TaskArtifactUpdateEvent {
   contextId: string;
   /** The artifact. */
   artifact: Artifact;
+  /** Index of the artifact within the task. */
+  index?: number;
   /** If true, append to previously sent artifact with same ID. */
   append?: boolean;
   /** If true, this is the final chunk. */
@@ -38,46 +39,47 @@ export interface TaskArtifactUpdateEvent {
 }
 
 /**
- * Union of all possible stream events (untagged).
- *
- * Discrimination strategy:
- * - Has `kind === "task"` -> Task
- * - Has `kind === "message"` -> Message
- * - Has `status` + `taskId` but no `kind` -> TaskStatusUpdateEvent
- * - Has `artifact` + `taskId` but no `kind` -> TaskArtifactUpdateEvent
+ * Wrapper response for streaming events.
+ * Exactly one field should be set per response.
  */
-export type StreamEvent =
-  | Task
-  | Message
-  | TaskStatusUpdateEvent
-  | TaskArtifactUpdateEvent;
+export interface StreamResponse {
+  /** A complete task snapshot. */
+  task?: Task;
+  /** A message from the agent. */
+  message?: Message;
+  /** A status update event. */
+  statusUpdate?: TaskStatusUpdateEvent;
+  /** An artifact update event. */
+  artifactUpdate?: TaskArtifactUpdateEvent;
+}
 
 /**
- * Response for `message/send` -- either a Task or a Message (untagged).
- * Use the `kind` field to discriminate.
+ * Response for `message/send` -- wrapper with either a Task or a Message.
+ * Exactly one field should be set.
  */
-export type SendMessageResponse = Task | Message;
-
-/** Type guard: is the stream event a Task? */
-export function isTask(event: StreamEvent): event is Task {
-  return "kind" in event && (event as Task).kind === "task";
+export interface SendMessageResponse {
+  /** A complete task snapshot. */
+  task?: Task;
+  /** A message from the agent. */
+  message?: Message;
 }
 
-/** Type guard: is the stream event a Message? */
-export function isMessage(event: StreamEvent): event is Message {
-  return "kind" in event && (event as Message).kind === "message";
+/** Type guard: does the stream response contain a Task? */
+export function isTaskResponse(r: StreamResponse): boolean {
+  return r.task !== undefined;
 }
 
-/** Type guard: is the stream event a TaskStatusUpdateEvent? */
-export function isTaskStatusUpdate(
-  event: StreamEvent,
-): event is TaskStatusUpdateEvent {
-  return "status" in event && "taskId" in event && !("kind" in event);
+/** Type guard: does the stream response contain a Message? */
+export function isMessageResponse(r: StreamResponse): boolean {
+  return r.message !== undefined;
 }
 
-/** Type guard: is the stream event a TaskArtifactUpdateEvent? */
-export function isTaskArtifactUpdate(
-  event: StreamEvent,
-): event is TaskArtifactUpdateEvent {
-  return "artifact" in event && "taskId" in event && !("kind" in event);
+/** Type guard: does the stream response contain a status update? */
+export function isStatusUpdate(r: StreamResponse): boolean {
+  return r.statusUpdate !== undefined;
+}
+
+/** Type guard: does the stream response contain an artifact update? */
+export function isArtifactUpdate(r: StreamResponse): boolean {
+  return r.artifactUpdate !== undefined;
 }

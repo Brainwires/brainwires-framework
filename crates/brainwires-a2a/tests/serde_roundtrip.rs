@@ -14,8 +14,13 @@ fn test_message_roundtrip() {
     let msg = Message {
         message_id: "msg-1".into(),
         role: Role::User,
-        parts: vec![Part::Text {
-            text: "Hello agent".into(),
+        parts: vec![Part {
+            text: Some("Hello agent".into()),
+            raw: None,
+            url: None,
+            data: None,
+            media_type: None,
+            filename: None,
             metadata: None,
         }],
         context_id: Some("ctx-1".into()),
@@ -23,7 +28,6 @@ fn test_message_roundtrip() {
         reference_task_ids: None,
         metadata: None,
         extensions: None,
-        kind: "message".into(),
     };
     roundtrip(&msg);
 }
@@ -33,12 +37,13 @@ fn test_message_with_file_part() {
     let msg = Message {
         message_id: "msg-2".into(),
         role: Role::Agent,
-        parts: vec![Part::File {
-            file: FileContent::Uri {
-                uri: "https://example.com/file.pdf".into(),
-                mime_type: Some("application/pdf".into()),
-                name: Some("file.pdf".into()),
-            },
+        parts: vec![Part {
+            text: None,
+            raw: None,
+            url: Some("https://example.com/file.pdf".into()),
+            data: None,
+            media_type: Some("application/pdf".into()),
+            filename: Some("file.pdf".into()),
             metadata: None,
         }],
         context_id: None,
@@ -46,7 +51,6 @@ fn test_message_with_file_part() {
         reference_task_ids: Some(vec!["ref-1".into()]),
         metadata: None,
         extensions: None,
-        kind: "message".into(),
     };
     roundtrip(&msg);
 }
@@ -65,8 +69,13 @@ fn test_task_roundtrip() {
             artifact_id: "art-1".into(),
             name: Some("output".into()),
             description: None,
-            parts: vec![Part::Text {
-                text: "result".into(),
+            parts: vec![Part {
+                text: Some("result".into()),
+                raw: None,
+                url: None,
+                data: None,
+                media_type: None,
+                filename: None,
                 metadata: None,
             }],
             metadata: None,
@@ -74,24 +83,23 @@ fn test_task_roundtrip() {
         }]),
         history: None,
         metadata: None,
-        kind: "task".into(),
     };
     roundtrip(&task);
 }
 
 #[test]
 fn test_task_state_serde() {
-    // All states should serialize to kebab-case
+    // All states should serialize to SCREAMING_SNAKE_CASE
     let states = vec![
-        (TaskState::Unknown, "\"unknown\""),
-        (TaskState::Submitted, "\"submitted\""),
-        (TaskState::Working, "\"working\""),
-        (TaskState::Completed, "\"completed\""),
-        (TaskState::Failed, "\"failed\""),
-        (TaskState::Canceled, "\"canceled\""),
-        (TaskState::Rejected, "\"rejected\""),
-        (TaskState::InputRequired, "\"input-required\""),
-        (TaskState::AuthRequired, "\"auth-required\""),
+        (TaskState::Unspecified, "\"TASK_STATE_UNSPECIFIED\""),
+        (TaskState::Submitted, "\"TASK_STATE_SUBMITTED\""),
+        (TaskState::Working, "\"TASK_STATE_WORKING\""),
+        (TaskState::Completed, "\"TASK_STATE_COMPLETED\""),
+        (TaskState::Failed, "\"TASK_STATE_FAILED\""),
+        (TaskState::Canceled, "\"TASK_STATE_CANCELED\""),
+        (TaskState::Rejected, "\"TASK_STATE_REJECTED\""),
+        (TaskState::InputRequired, "\"TASK_STATE_INPUT_REQUIRED\""),
+        (TaskState::AuthRequired, "\"TASK_STATE_AUTH_REQUIRED\""),
     ];
     for (state, expected) in states {
         let json = serde_json::to_string(&state).unwrap();
@@ -110,12 +118,12 @@ fn test_agent_card_roundtrip() {
         name: "Test Agent".into(),
         description: "A test agent".into(),
         version: "1.0.0".into(),
-        supported_interfaces: Some(vec![AgentInterface {
+        supported_interfaces: vec![AgentInterface {
             url: "https://agent.example.com".into(),
             protocol_binding: "JSONRPC".into(),
             tenant: None,
-            protocol_version: "0.3".into(),
-        }]),
+            protocol_version: "1.0".into(),
+        }],
         capabilities: AgentCapabilities {
             streaming: Some(true),
             push_notifications: Some(false),
@@ -151,9 +159,9 @@ fn test_agent_card_roundtrip() {
 fn test_jsonrpc_roundtrip() {
     let req = JsonRpcRequest {
         jsonrpc: "2.0".into(),
-        method: "message/send".into(),
+        method: "SendMessage".into(),
         params: Some(
-            serde_json::json!({"message": {"messageId": "1", "role": "user", "parts": []}}),
+            serde_json::json!({"message": {"messageId": "1", "role": "ROLE_USER", "parts": []}}),
         ),
         id: RequestId::String("req-1".into()),
     };
@@ -161,7 +169,7 @@ fn test_jsonrpc_roundtrip() {
 
     let resp = JsonRpcResponse::success(
         RequestId::Number(42),
-        serde_json::json!({"id": "task-1", "status": {"state": "working"}}),
+        serde_json::json!({"id": "task-1", "status": {"state": "TASK_STATE_WORKING"}}),
     );
     roundtrip(&resp);
 }
@@ -176,7 +184,7 @@ fn test_error_roundtrip() {
 }
 
 #[test]
-fn test_stream_event_roundtrip() {
+fn test_stream_response_roundtrip() {
     let event = TaskStatusUpdateEvent {
         task_id: "t-1".into(),
         context_id: "c-1".into(),
@@ -196,13 +204,19 @@ fn test_stream_event_roundtrip() {
             artifact_id: "a-1".into(),
             name: None,
             description: None,
-            parts: vec![Part::Data {
-                data: serde_json::json!({"key": "value"}),
+            parts: vec![Part {
+                text: None,
+                raw: None,
+                url: None,
+                data: Some(serde_json::json!({"key": "value"})),
+                media_type: None,
+                filename: None,
                 metadata: None,
             }],
             metadata: None,
             extensions: None,
         },
+        index: None,
         append: Some(true),
         last_chunk: Some(false),
         metadata: None,
@@ -214,7 +228,7 @@ fn test_stream_event_roundtrip() {
 fn test_push_notification_roundtrip() {
     let config = TaskPushNotificationConfig {
         tenant: None,
-        id: Some("cfg-1".into()),
+        config_id: Some("cfg-1".into()),
         task_id: "task-1".into(),
         url: "https://webhook.example.com/notify".into(),
         token: Some("secret-token".into()),
@@ -222,6 +236,7 @@ fn test_push_notification_roundtrip() {
             scheme: "Bearer".into(),
             credentials: Some("abc123".into()),
         }),
+        created_at: None,
     };
     roundtrip(&config);
 }
@@ -235,7 +250,7 @@ fn test_send_message_request_roundtrip() {
             accepted_output_modes: Some(vec!["text/plain".into()]),
             task_push_notification_config: None,
             history_length: Some(10),
-            blocking: Some(true),
+            return_immediately: Some(true),
         }),
         metadata: None,
     };
@@ -244,17 +259,29 @@ fn test_send_message_request_roundtrip() {
 
 #[test]
 fn test_security_scheme_roundtrip() {
-    let scheme = SecurityScheme::Http {
-        scheme: "Bearer".into(),
-        bearer_format: Some("JWT".into()),
-        description: None,
+    let scheme = SecurityScheme {
+        api_key: None,
+        http_auth: Some(HttpAuthSecurityScheme {
+            scheme: "Bearer".into(),
+            bearer_format: Some("JWT".into()),
+            description: None,
+        }),
+        oauth2: None,
+        open_id_connect: None,
+        mtls: None,
     };
     roundtrip(&scheme);
 
-    let scheme = SecurityScheme::ApiKey {
-        name: "X-API-Key".into(),
-        location: "header".into(),
-        description: Some("API key header".into()),
+    let scheme = SecurityScheme {
+        api_key: Some(ApiKeySecurityScheme {
+            name: "X-API-Key".into(),
+            location: "header".into(),
+            description: Some("API key header".into()),
+        }),
+        http_auth: None,
+        oauth2: None,
+        open_id_connect: None,
+        mtls: None,
     };
     roundtrip(&scheme);
 }
@@ -263,7 +290,6 @@ fn test_security_scheme_roundtrip() {
 fn test_message_helpers() {
     let user_msg = Message::user_text("test");
     assert_eq!(user_msg.role, Role::User);
-    assert_eq!(user_msg.kind, "message");
     assert!(!user_msg.message_id.is_empty());
 
     let agent_msg = Message::agent_text("response");
