@@ -1,0 +1,11 @@
+{
+  "id": "task-001",
+  "description": "Implement user authentication module",
+  "status": "pending",
+  "children": [],
+  "depends_on": [],
+  "priority": "normal",
+  "iterations": 0,
+  "created_at": 1700000000,
+  "updated_at": 1700000000
+}

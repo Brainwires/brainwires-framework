@@ -1,0 +1,8 @@
+{
+  "type": "tool_use",
+  "id": "tool-call-001",
+  "name": "read_file",
+  "input": {
+    "path": "/src/main.rs"
+  }
+}

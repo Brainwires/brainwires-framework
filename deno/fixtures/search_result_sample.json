@@ -1,0 +1,13 @@
+{
+  "file_path": "src/main.rs",
+  "root_path": "/home/user/project",
+  "content": "fn main() {\n    println!(\"Hello, world!\");\n}",
+  "score": 0.95,
+  "vector_score": 0.92,
+  "keyword_score": 0.88,
+  "start_line": 1,
+  "end_line": 3,
+  "language": "rust",
+  "project": "my-project",
+  "indexed_at": 1700000000
+}

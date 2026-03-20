@@ -1,0 +1,10 @@
+{
+  "role": "tool",
+  "content": [
+    {
+      "type": "tool_result",
+      "tool_use_id": "tool-call-001",
+      "content": "File contents: fn main() {}"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "temperature": 0.0,
+  "max_tokens": 100,
+  "top_p": 0.9,
+  "stop": [
+    "\n",
+    "END"
+  ],
+  "system": "You are a helpful assistant."
+}

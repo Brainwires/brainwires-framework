@@ -1,0 +1,5 @@
+{
+  "tool_use_id": "tool-call-002",
+  "content": "File not found: /nonexistent.txt",
+  "is_error": true
+}
