@@ -1,0 +1,14 @@
+{
+  "workspace": [
+    "./core",
+    "./permissions",
+    "./mcp",
+    "./providers",
+    "./storage",
+    "./tool-system",
+    "./cognition",
+    "./agent-network",
+    "./agents",
+    "./a2a"
+  ]
+}
