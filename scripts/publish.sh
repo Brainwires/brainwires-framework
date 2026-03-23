@@ -142,41 +142,42 @@ if [ "$FAILED" -gt 0 ]; then
 fi
 echo "============================================"
 
+# DISABLED: Only needs to be done once; only use as needed for crate deprecations.
 # Publish deprecated stub crates (not workspace members — publish manually)
 # These depend on workspace crates, so they must go last.
-DEPRECATED_CRATES=(
-    brainwires-mdap
-)
+# DEPRECATED_CRATES=(
+#     brainwires-mdap
+# )
 
-for dep_crate in "${DEPRECATED_CRATES[@]}"; do
-    echo ""
-    echo "[deprecated] Publishing $dep_crate (deprecation stub)..."
+# for dep_crate in "${DEPRECATED_CRATES[@]}"; do
+#     echo ""
+#     echo "[deprecated] Publishing $dep_crate (deprecation stub)..."
 
-    dep_dir="deprecated/$dep_crate"
-    if [ ! -d "$dep_dir" ]; then
-        echo "SKIP: $dep_crate (no deprecated/ directory found)"
-        continue
-    fi
+#     dep_dir="deprecated/$dep_crate"
+#     if [ ! -d "$dep_dir" ]; then
+#         echo "SKIP: $dep_crate (no deprecated/ directory found)"
+#         continue
+#     fi
 
-    if $DRY_RUN; then
-        if (cd "$dep_dir" && cargo publish --dry-run 2>&1 | tail -3); then
-            echo "OK: $dep_crate (dry run)"
-        else
-            echo "SKIP: $dep_crate (expected — deps may not be on crates.io yet)"
-        fi
-        continue
-    fi
+#     if $DRY_RUN; then
+#         if (cd "$dep_dir" && cargo publish --dry-run 2>&1 | tail -3); then
+#             echo "OK: $dep_crate (dry run)"
+#         else
+#             echo "SKIP: $dep_crate (expected — deps may not be on crates.io yet)"
+#         fi
+#         continue
+#     fi
 
-    dep_output=$(cd "$dep_dir" && cargo publish 2>&1) && dep_rc=0 || dep_rc=$?
-    if [ "$dep_rc" -eq 0 ]; then
-        echo "OK: $dep_crate (deprecated stub published)"
-    elif echo "$dep_output" | grep -q "already exists"; then
-        echo "SKIP: $dep_crate (already published)"
-    else
-        echo "$dep_output"
-        echo "WARNING: Failed to publish deprecated $dep_crate — non-fatal, continuing."
-    fi
-done
+#     dep_output=$(cd "$dep_dir" && cargo publish 2>&1) && dep_rc=0 || dep_rc=$?
+#     if [ "$dep_rc" -eq 0 ]; then
+#         echo "OK: $dep_crate (deprecated stub published)"
+#     elif echo "$dep_output" | grep -q "already exists"; then
+#         echo "SKIP: $dep_crate (already published)"
+#     else
+#         echo "$dep_output"
+#         echo "WARNING: Failed to publish deprecated $dep_crate — non-fatal, continuing."
+#     fi
+# done
 
 # Tag the release after successful publish
 if ! $DRY_RUN && [ "$FAILED" -eq 0 ]; then
