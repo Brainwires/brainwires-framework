@@ -23,7 +23,7 @@ native = []
 rhai = ["dep:rhai"]
 lua = ["dep:mlua"]
 javascript = ["dep:boa_engine"]
-# python = ["dep:rustpython-vm", "dep:rustpython-stdlib"]  # Temporarily disabled
+python = []  # Deps temporarily removed due to libsqlite3-sys conflict; feature kept for cfg gates
 # All languages
 all-languages = ["rhai", "lua", "javascript"]
 # WASM target support
