@@ -76,12 +76,17 @@ export {
   getToolsForCategories,
 } from "./smart_router.ts";
 
+// Transaction manager
+export { TransactionManager } from "./transaction.ts";
+
 // Built-in tools
 export {
   BashTool,
   FileOpsTool,
   GitTool,
   SearchTool,
+  ValidationTool,
   WebTool,
 } from "./tools/mod.ts";
+export { extractExportName, isExportLine } from "./tools/mod.ts";
 export type { OutputMode, StderrMode } from "./tools/mod.ts";

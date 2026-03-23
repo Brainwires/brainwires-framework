@@ -19,6 +19,19 @@
  * - **ContractNet** - Bidding protocol for agent negotiation
  * - **Saga** - Compensating transactions for distributed operations
  * - **OptimisticConcurrency** - Optimistic locking with conflict detection
+ * - **MarketAllocator** - Market-based task allocation with bidding/auction
+ * - **ThreeStateModel** - State snapshots and rollback
+ * - **WaitQueue** - Queue-based synchronization primitives
+ *
+ * ## Specialized Agents
+ * - **JudgeAgent** - LLM-powered cycle evaluator
+ * - **PlannerAgent** - LLM-powered dynamic task planner
+ * - **ValidatorAgent** - Standalone read-only validation agent
+ * - **CycleOrchestrator** - Plan->Work->Judge loop
+ *
+ * ## Execution Tracking
+ * - **ExecutionGraph** - DAG-based execution tracking
+ * - **AgentPool** - Agent instance pooling and reuse
  *
  * ## Lifecycle Hooks
  * - **AgentLifecycleHooks** - Granular control over the agent execution loop
@@ -168,4 +181,116 @@ export {
   type Resolution,
   type ResolutionStrategy,
   type ResourceVersion,
+  // Market-based allocation
+  calculateUrgency,
+  createBid,
+  createBudget,
+  defaultPricingStrategy,
+  defaultUrgencyContext,
+  effectivePriority,
+  isAllocated,
+  MarketAllocator,
+  marketBidScore,
+  replenishBudget,
+  type AgentBudget,
+  type AllocationRecord,
+  type AllocationResult,
+  type CurrentHolder,
+  type MarketStats,
+  type MarketStatus,
+  type PricingStrategy,
+  type ResourceBid,
+  type UrgencyContext,
+
+  // Three-State Model
+  ApplicationState,
+  createOperationLog,
+  defaultGitState,
+  DependencyState,
+  OperationState,
+  ThreeStateModel,
+  type ApplicationChange,
+  type DependencyEdge,
+  type DependencyStrength,
+  type DependencyType,
+  type FileStatus as ThreeStateFileStatus,
+  type GitState,
+  type OperationLog,
+  type OperationLogStatus,
+  type ProposedOperation,
+  type ResourceNodeType,
+  type StateChange,
+  type StateSnapshot,
+  type StateValidationResult,
+
+  // Wait Queue
+  fileResourceKey,
+  resourceKey,
+  WaitQueue,
+  type QueueStatus as WaitQueueStatus,
+  type RemovalReason,
+  type WaiterInfo,
+  type WaitQueueEvent,
+  type WaitQueueHandle,
 } from "./coordination/mod.ts";
+
+// Agent Pool
+export {
+  AgentPool,
+  type AgentPoolStats,
+} from "./agent_pool.ts";
+
+// Execution Graph
+export {
+  ExecutionGraph,
+  telemetryFromGraph,
+  type RunTelemetry,
+  type StepNode,
+  type ToolCallRecord,
+} from "./execution_graph.ts";
+
+// Specialized Agents
+export {
+  buildJudgeTaskDescription,
+  extractJsonBlock,
+  judgeAgentPrompt,
+  parseVerdict,
+  verdictHints,
+  verdictType,
+  formatMergeStatus,
+  type JudgeAgentConfig,
+  type JudgeContext,
+  type JudgeVerdict,
+  type MergeStatus as JudgeMergeStatus,
+  type WorkerResult,
+} from "./judge_agent.ts";
+
+export {
+  defaultPlannerAgentConfig,
+  parsePlannerOutput,
+  plannerAgentPrompt,
+  validateTaskGraph,
+  type DynamicTaskPriority,
+  type DynamicTaskSpec,
+  type PlannerAgentConfig,
+  type PlannerOutput,
+  type SubPlannerRequest,
+} from "./planner_agent.ts";
+
+export {
+  defaultValidatorAgentConfig,
+  formatValidatorStatus,
+  ValidatorAgent,
+  type ValidatorAgentConfig,
+  type ValidatorAgentResult,
+  type ValidatorAgentStatus,
+} from "./validator_agent.ts";
+
+export {
+  defaultCycleOrchestratorConfig,
+  type CycleOrchestratorConfig,
+  type CycleOrchestratorResult,
+  type CycleRecord,
+  type FailurePolicy,
+  type MergeStrategy as CycleMergeStrategy,
+} from "./cycle_orchestrator.ts";

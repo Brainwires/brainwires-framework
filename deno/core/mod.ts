@@ -117,6 +117,15 @@ export {
   type ToolUse,
 } from "./tool.ts";
 
+// Output parsers
+export {
+  extractJson,
+  JsonListParser,
+  JsonOutputParser,
+  RegexOutputParser,
+  type OutputParser,
+} from "./output_parser.ts";
+
 // Vector store types
 export {
   type VectorSearchResult,

@@ -9,6 +9,7 @@
     "./cognition",
     "./agent-network",
     "./agents",
-    "./a2a"
+    "./a2a",
+    "./skills"
   ]
 }

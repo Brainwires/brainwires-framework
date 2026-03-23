@@ -38,3 +38,16 @@ export { OllamaChatProvider } from "./ollama.ts";
 
 // Factory
 export { ChatProviderFactory } from "./factory.ts";
+
+// Rate limiter
+export { RateLimitedClient, RateLimiter, type RateLimitedClientOptions } from "./rate_limiter.ts";
+
+// Model listing
+export {
+  createModelLister,
+  inferOpenaiCapabilities,
+  isChatCapable,
+  type AvailableModel,
+  type ModelCapability,
+  type ModelLister,
+} from "./model_lister.ts";
