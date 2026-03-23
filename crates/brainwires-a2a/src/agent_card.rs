@@ -157,16 +157,28 @@ pub struct SecurityRequirement {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SecurityScheme {
     /// API key authentication.
-    #[serde(skip_serializing_if = "Option::is_none", rename = "apiKeySecurityScheme")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "apiKeySecurityScheme"
+    )]
     pub api_key: Option<ApiKeySecurityScheme>,
     /// HTTP authentication (Bearer, Basic, etc).
-    #[serde(skip_serializing_if = "Option::is_none", rename = "httpAuthSecurityScheme")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "httpAuthSecurityScheme"
+    )]
     pub http_auth: Option<HttpAuthSecurityScheme>,
     /// OAuth 2.0 authentication.
-    #[serde(skip_serializing_if = "Option::is_none", rename = "oauth2SecurityScheme")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "oauth2SecurityScheme"
+    )]
     pub oauth2: Option<OAuth2SecurityScheme>,
     /// OpenID Connect authentication.
-    #[serde(skip_serializing_if = "Option::is_none", rename = "openIdConnectSecurityScheme")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "openIdConnectSecurityScheme"
+    )]
     pub open_id_connect: Option<OpenIdConnectSecurityScheme>,
     /// Mutual TLS authentication.
     #[serde(skip_serializing_if = "Option::is_none", rename = "mtlsSecurityScheme")]

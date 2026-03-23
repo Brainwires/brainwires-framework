@@ -452,7 +452,10 @@ impl A2aClient {
                     .rest
                     .as_ref()
                     .ok_or_else(|| A2aError::internal("No REST transport"))?;
-                let path = format!("/tasks/{}/pushNotificationConfigs/{}", req.task_id, req.config_id);
+                let path = format!(
+                    "/tasks/{}/pushNotificationConfigs/{}",
+                    req.task_id, req.config_id
+                );
                 let result = t.get(&path).await?;
                 serde_json::from_value(result).map_err(Into::into)
             }
@@ -490,7 +493,10 @@ impl A2aClient {
                     .rest
                     .as_ref()
                     .ok_or_else(|| A2aError::internal("No REST transport"))?;
-                let path = format!("/tasks/{}/pushNotificationConfigs/{}", req.task_id, req.config_id);
+                let path = format!(
+                    "/tasks/{}/pushNotificationConfigs/{}",
+                    req.task_id, req.config_id
+                );
                 t.delete(&path).await
             }
             #[cfg(feature = "grpc-client")]

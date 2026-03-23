@@ -208,8 +208,7 @@ async fn test_jsonrpc_send_message() {
             );
             assert!(resp.result.is_some());
             // Verify the result is a SendMessageResponse with a task
-            let smr: SendMessageResponse =
-                serde_json::from_value(resp.result.unwrap()).unwrap();
+            let smr: SendMessageResponse = serde_json::from_value(resp.result.unwrap()).unwrap();
             assert!(smr.task.is_some());
             assert_eq!(smr.task.unwrap().status.state, TaskState::Completed);
         }

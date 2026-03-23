@@ -43,9 +43,7 @@ mod grpc_impl {
         Status::new(code, e.message)
     }
 
-    fn stream_response_to_proto(
-        sr: crate::streaming::StreamResponse,
-    ) -> lf_a2a_v1::StreamResponse {
+    fn stream_response_to_proto(sr: crate::streaming::StreamResponse) -> lf_a2a_v1::StreamResponse {
         let payload = if let Some(t) = sr.task {
             Some(lf_a2a_v1::stream_response::Payload::Task(t.into()))
         } else if let Some(m) = sr.message {

@@ -28,8 +28,7 @@ fn write_fixture<T: Serialize>(dir: &Path, name: &str, value: &T) {
 #[test]
 #[ignore]
 fn generate_json_fixtures() {
-    let fixtures_dir =
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../deno/fixtures");
+    let fixtures_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../deno/fixtures");
     fs::create_dir_all(&fixtures_dir).expect("failed to create fixtures directory");
 
     eprintln!("Generating fixtures in {}", fixtures_dir.display());
@@ -41,7 +40,11 @@ fn generate_json_fixtures() {
     write_fixture(&fixtures_dir, "role_tool", &Role::Tool);
 
     // ── 2. Message ─────────────────────────────────────────────────────
-    write_fixture(&fixtures_dir, "message_user", &Message::user("Hello, how are you?"));
+    write_fixture(
+        &fixtures_dir,
+        "message_user",
+        &Message::user("Hello, how are you?"),
+    );
     write_fixture(
         &fixtures_dir,
         "message_assistant",
@@ -110,7 +113,11 @@ fn generate_json_fixtures() {
     );
 
     // ── 6. ChatOptions ─────────────────────────────────────────────────
-    write_fixture(&fixtures_dir, "chat_options_default", &ChatOptions::default());
+    write_fixture(
+        &fixtures_dir,
+        "chat_options_default",
+        &ChatOptions::default(),
+    );
     let custom_opts = ChatOptions {
         temperature: Some(0.0),
         max_tokens: Some(100),
@@ -122,8 +129,16 @@ fn generate_json_fixtures() {
 
     // ── 7. TaskStatus ──────────────────────────────────────────────────
     write_fixture(&fixtures_dir, "task_status_pending", &TaskStatus::Pending);
-    write_fixture(&fixtures_dir, "task_status_inprogress", &TaskStatus::InProgress);
-    write_fixture(&fixtures_dir, "task_status_completed", &TaskStatus::Completed);
+    write_fixture(
+        &fixtures_dir,
+        "task_status_inprogress",
+        &TaskStatus::InProgress,
+    );
+    write_fixture(
+        &fixtures_dir,
+        "task_status_completed",
+        &TaskStatus::Completed,
+    );
     write_fixture(&fixtures_dir, "task_status_failed", &TaskStatus::Failed);
     write_fixture(&fixtures_dir, "task_status_blocked", &TaskStatus::Blocked);
     write_fixture(&fixtures_dir, "task_status_skipped", &TaskStatus::Skipped);
@@ -158,8 +173,16 @@ fn generate_json_fixtures() {
     write_fixture(&fixtures_dir, "plan_status_draft", &PlanStatus::Draft);
     write_fixture(&fixtures_dir, "plan_status_active", &PlanStatus::Active);
     write_fixture(&fixtures_dir, "plan_status_paused", &PlanStatus::Paused);
-    write_fixture(&fixtures_dir, "plan_status_completed", &PlanStatus::Completed);
-    write_fixture(&fixtures_dir, "plan_status_abandoned", &PlanStatus::Abandoned);
+    write_fixture(
+        &fixtures_dir,
+        "plan_status_completed",
+        &PlanStatus::Completed,
+    );
+    write_fixture(
+        &fixtures_dir,
+        "plan_status_abandoned",
+        &PlanStatus::Abandoned,
+    );
 
     // ── 11. Usage ──────────────────────────────────────────────────────
     write_fixture(&fixtures_dir, "usage_sample", &Usage::new(150, 50));
@@ -181,7 +204,11 @@ fn generate_json_fixtures() {
     write_fixture(&fixtures_dir, "search_result_sample", &search_result);
 
     // ── 13. PermissionMode ─────────────────────────────────────────────
-    write_fixture(&fixtures_dir, "permission_mode_read_only", &PermissionMode::ReadOnly);
+    write_fixture(
+        &fixtures_dir,
+        "permission_mode_read_only",
+        &PermissionMode::ReadOnly,
+    );
     write_fixture(&fixtures_dir, "permission_mode_auto", &PermissionMode::Auto);
     write_fixture(&fixtures_dir, "permission_mode_full", &PermissionMode::Full);
 

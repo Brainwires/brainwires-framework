@@ -936,11 +936,7 @@ mod grpc_convert {
                 name: c.name,
                 description: c.description,
                 version: c.version,
-                supported_interfaces: c
-                    .supported_interfaces
-                    .into_iter()
-                    .map(Into::into)
-                    .collect(),
+                supported_interfaces: c.supported_interfaces.into_iter().map(Into::into).collect(),
                 provider: c.provider.map(Into::into),
                 capabilities: Some(c.capabilities.into()),
                 security_schemes: c
@@ -976,11 +972,7 @@ mod grpc_convert {
                 name: c.name,
                 description: c.description,
                 version: c.version,
-                supported_interfaces: c
-                    .supported_interfaces
-                    .into_iter()
-                    .map(Into::into)
-                    .collect(),
+                supported_interfaces: c.supported_interfaces.into_iter().map(Into::into).collect(),
                 provider: c.provider.map(Into::into),
                 capabilities: c.capabilities.map(Into::into).unwrap_or_default(),
                 security_schemes: {

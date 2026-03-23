@@ -144,10 +144,7 @@ impl A2aError {
 
     /// Protocol version is not supported.
     pub fn version_not_supported() -> Self {
-        Self::new(
-            VERSION_NOT_SUPPORTED,
-            "Protocol version is not supported",
-        )
+        Self::new(VERSION_NOT_SUPPORTED, "Protocol version is not supported")
     }
 }
 

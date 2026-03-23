@@ -4,8 +4,7 @@
 //! security schemes, and round-trip JSON serialization.
 
 use brainwires_a2a::{
-    AgentCapabilities, AgentCard, AgentProvider, AgentSkill, HttpAuthSecurityScheme,
-    SecurityScheme,
+    AgentCapabilities, AgentCard, AgentProvider, AgentSkill, HttpAuthSecurityScheme, SecurityScheme,
 };
 use std::collections::HashMap;
 

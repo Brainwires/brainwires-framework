@@ -14,11 +14,7 @@ pub enum RestResult {
     /// Non-streaming JSON response.
     Json(serde_json::Value),
     /// Streaming SSE response — returns a stream of events.
-    Stream(
-        std::pin::Pin<
-            Box<dyn futures::Stream<Item = Result<StreamResponse, A2aError>> + Send>,
-        >,
-    ),
+    Stream(std::pin::Pin<Box<dyn futures::Stream<Item = Result<StreamResponse, A2aError>> + Send>>),
 }
 
 /// Dispatch a REST request based on method and path.
