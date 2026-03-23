@@ -62,7 +62,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires-wasm = "0.5"
+brainwires-wasm = "0.6"
 ```
 
 Build with `wasm-pack`:
@@ -121,16 +121,16 @@ console.log(stateless); // → stateless protocol format
 
 ```toml
 # Default (validation + serialization only)
-brainwires-wasm = "0.5"
+brainwires-wasm = "0.6"
 
 # With code interpreters
-brainwires-wasm = { version = "0.5", features = ["interpreters"] }
+brainwires-wasm = { version = "0.6", features = ["interpreters"] }
 
 # With tool orchestration
-brainwires-wasm = { version = "0.5", features = ["orchestrator"] }
+brainwires-wasm = { version = "0.6", features = ["orchestrator"] }
 
 # Everything enabled
-brainwires-wasm = { version = "0.5", features = ["interpreters", "orchestrator"] }
+brainwires-wasm = { version = "0.6", features = ["interpreters", "orchestrator"] }
 ```
 
 ## Architecture
@@ -411,11 +411,11 @@ Use via the `brainwires` facade crate with the `wasm` feature, or depend on `bra
 ```toml
 # Via facade
 [dependencies]
-brainwires = { version = "0.5", features = ["wasm"] }
+brainwires = { version = "0.6", features = ["wasm"] }
 
 # Direct
 [dependencies]
-brainwires-wasm = "0.5"
+brainwires-wasm = "0.6"
 ```
 
 The crate re-exports all components at the top level:

@@ -50,7 +50,7 @@ Agent networking layer for the Brainwires Agent Framework.
 
 ```toml
 [dependencies]
-brainwires-agent-network = "0.5"
+brainwires-agent-network = "0.6"
 ```
 
 Minimal MCP server:
@@ -113,10 +113,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```toml
 # With all transports and discovery
-brainwires-agent-network = { version = "0.5", features = ["full"] }
+brainwires-agent-network = { version = "0.6", features = ["full"] }
 
 # Just TCP and pub/sub
-brainwires-agent-network = { version = "0.5", features = ["tcp-transport", "pubsub-transport"] }
+brainwires-agent-network = { version = "0.6", features = ["tcp-transport", "pubsub-transport"] }
 ```
 
 ## Architecture
@@ -452,7 +452,7 @@ Use via the `brainwires` facade crate:
 
 ```toml
 [dependencies]
-brainwires = { version = "0.5", features = ["agent-network"] }
+brainwires = { version = "0.6", features = ["agent-network"] }
 ```
 
 Or use standalone — `brainwires-agent-network` depends only on `brainwires-core` and `brainwires-mcp`.

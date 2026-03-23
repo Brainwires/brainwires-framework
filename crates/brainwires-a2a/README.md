@@ -249,19 +249,19 @@ Spec-defined JSON-RPC error codes are available as constants:
 
 ```toml
 # Types only (no networking)
-brainwires-a2a = { version = "0.5", default-features = false }
+brainwires-a2a = { version = "0.6", default-features = false }
 
 # Client + server (JSON-RPC + REST)
-brainwires-a2a = "0.5"
+brainwires-a2a = "0.6"
 
 # Everything including gRPC
-brainwires-a2a = { version = "0.5", features = ["full"] }
+brainwires-a2a = { version = "0.6", features = ["full"] }
 ```
 
 Or via the `brainwires` facade crate:
 
 ```toml
-brainwires = { version = "0.5", features = ["a2a"] }
+brainwires = { version = "0.6", features = ["a2a"] }
 ```
 
 ## License

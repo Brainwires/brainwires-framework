@@ -443,7 +443,7 @@ mod tests {
         let client = McpClient::new("test", "0.1.0");
         assert_eq!(client.request_id.load(Ordering::SeqCst), 1);
         assert_eq!(client.client_name, "test");
-        assert_eq!(client.client_version, "0.1.0");
+        assert_eq!(client.client_version, "0.6.0");
     }
 
     #[test]

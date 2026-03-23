@@ -117,7 +117,7 @@ fn main() {
     let minimal_card = AgentCard {
         name: "echo-agent".to_string(),
         description: "A minimal agent that echoes messages back.".to_string(),
-        version: "0.5.0".to_string(),
+        version: "0.6.0".to_string(),
         supported_interfaces: vec![],
         capabilities: AgentCapabilities::default(),
         skills: vec![],

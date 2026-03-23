@@ -988,11 +988,11 @@ mod tests {
             supabase_anon_key: "test_anon_key".to_string(),
             heartbeat_interval_secs: 30,
             sessions_dir: PathBuf::from("/tmp/test-sessions"),
-            version: "0.5.0".to_string(),
+            version: "0.6.0".to_string(),
         };
 
         assert_eq!(config.channel_name, "cli:user123");
-        assert_eq!(config.version, "0.5.0");
+        assert_eq!(config.version, "0.6.0");
     }
 
     #[test]
