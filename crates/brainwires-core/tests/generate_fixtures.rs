@@ -4,7 +4,7 @@
 //! Run explicitly with:
 //!   cargo test -p brainwires-core -- --ignored generate_json_fixtures
 
-use brainwires_core::message::{ContentBlock, Message, MessageContent, Role, Usage};
+use brainwires_core::message::{ContentBlock, Message, Role, Usage};
 use brainwires_core::permission::PermissionMode;
 use brainwires_core::plan::PlanStatus;
 use brainwires_core::provider::ChatOptions;
