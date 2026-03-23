@@ -33,6 +33,9 @@ export { parseNDJSONStream, parseSSEStream } from "./sse.ts";
 // Providers
 export { AnthropicChatProvider } from "./anthropic.ts";
 export { OpenAiChatProvider } from "./openai.ts";
+export { OpenAiResponsesProvider } from "./openai_responses.ts";
+export { BedrockProvider } from "./bedrock.ts";
+export { VertexAiProvider } from "./vertex.ts";
 export { GoogleChatProvider } from "./gemini.ts";
 export { OllamaChatProvider } from "./ollama.ts";
 

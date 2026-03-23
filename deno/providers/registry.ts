@@ -112,6 +112,22 @@ export const PROVIDER_REGISTRY: readonly ProviderEntry[] = [
     models_url: "https://api.openai.com/v1/models",
   },
   {
+    provider_type: "bedrock",
+    chat_protocol: "anthropic_messages",
+    default_base_url: "https://bedrock-runtime.us-east-1.amazonaws.com",
+    default_model: "anthropic.claude-3-5-sonnet-20241022-v2:0",
+    auth: { type: "none" },
+    supports_model_listing: false,
+  },
+  {
+    provider_type: "vertex-ai",
+    chat_protocol: "gemini_generate_content",
+    default_base_url: "https://us-central1-aiplatform.googleapis.com",
+    default_model: "gemini-2.0-flash",
+    auth: { type: "bearer_token" },
+    supports_model_listing: false,
+  },
+  {
     provider_type: "brainwires",
     chat_protocol: "brainwires_relay",
     default_base_url: "https://brainwires.studio",

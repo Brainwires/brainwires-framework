@@ -14,6 +14,12 @@
  * ## RAG
  * - RagClient interface for semantic code search
  * - Index, Query, and AdvancedSearch request/response types
+ *
+ * ## Code Analysis
+ * - Regex-based symbol extraction (functions, classes, types, variables)
+ * - Call graph generation and reference tracking
+ * - Repository map formatting
+ * - Supports TypeScript, JavaScript, Python, and Rust
  */
 
 // ── Prompting ─────────────────────────────────────────────────────────────
@@ -105,3 +111,33 @@ export type {
   SearchResult,
   StatisticsResponse,
 } from "./rag/mod.ts";
+
+// ── Code Analysis ────────────────────────────────────────────────────────────
+export {
+  buildCallGraph,
+  CallGraph,
+  createSymbolId,
+  definitionToStorageId,
+  determineReferenceKind,
+  findReferences,
+  referenceToStorageId,
+  RepoMap,
+  symbolIdToStorageId,
+  symbolKindDisplayName,
+  visibilityFromKeywords,
+} from "./code_analysis/mod.ts";
+
+export type {
+  CallEdge,
+  CallGraphNode,
+  ExtractOptions,
+  LanguageStats as CodeAnalysisLanguageStats,
+  Reference as CodeAnalysisReference,
+  ReferenceKind,
+  SymbolId,
+  SymbolKind,
+  Visibility,
+} from "./code_analysis/mod.ts";
+
+// Re-export Definition with a qualified name to avoid ambiguity
+export type { Definition as CodeAnalysisDefinition } from "./code_analysis/mod.ts";

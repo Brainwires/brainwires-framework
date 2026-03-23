@@ -10,6 +10,9 @@ import type { ProviderConfig } from "./types.ts";
 import { lookup } from "./registry.ts";
 import { AnthropicChatProvider } from "./anthropic.ts";
 import { OpenAiChatProvider } from "./openai.ts";
+import { OpenAiResponsesProvider } from "./openai_responses.ts";
+import { BedrockProvider } from "./bedrock.ts";
+import { VertexAiProvider } from "./vertex.ts";
 import { GoogleChatProvider } from "./gemini.ts";
 import { OllamaChatProvider } from "./ollama.ts";
 
@@ -44,11 +47,7 @@ export class ChatProviderFactory {
       case "ollama_chat":
         return ChatProviderFactory.createOllama(config);
       case "openai_responses":
-        // OpenAI Responses API not yet implemented in Deno port;
-        // fall through to error for now.
-        throw new Error(
-          "OpenAI Responses API provider is not yet implemented in the Deno port",
-        );
+        return ChatProviderFactory.createOpenAiResponses(config);
       case "brainwires_relay":
         throw new Error(
           "Brainwires relay provider is not yet implemented in the Deno port",
@@ -103,5 +102,59 @@ export class ChatProviderFactory {
 
   private static createOllama(config: ProviderConfig): Provider {
     return new OllamaChatProvider(config.model, config.base_url);
+  }
+
+  private static createOpenAiResponses(config: ProviderConfig): Provider {
+    const apiKey = config.api_key;
+    if (!apiKey) {
+      throw new Error(
+        `${config.provider} provider requires an API key`,
+      );
+    }
+    return new OpenAiResponsesProvider(
+      apiKey,
+      config.model,
+      config.base_url,
+      config.provider,
+    );
+  }
+
+  /** Create a Bedrock provider. Requires AWS credentials in config.options or environment.
+   * config.options.region, config.options.access_key_id, config.options.secret_access_key */
+  static createBedrock(config: ProviderConfig): Provider {
+    const opts = config.options ?? {};
+    const region = (opts.region as string) ?? "us-east-1";
+
+    if (opts.access_key_id && opts.secret_access_key) {
+      return new BedrockProvider(region, config.model, {
+        accessKeyId: opts.access_key_id as string,
+        secretAccessKey: opts.secret_access_key as string,
+        sessionToken: opts.session_token as string | undefined,
+      });
+    }
+
+    // Fall back to environment variables
+    return BedrockProvider.fromEnvironment(config.model, region);
+  }
+
+  /** Create a Vertex AI provider. Requires service account credentials in config.options.
+   * config.options.region, config.options.project_id, config.options.credentials (ServiceAccountCredentials) */
+  static createVertexAi(config: ProviderConfig): Provider {
+    const opts = config.options ?? {};
+    const region = (opts.region as string) ?? "us-central1";
+    const projectId = opts.project_id as string;
+    const credentials = opts.credentials as {
+      client_email: string;
+      private_key: string;
+      token_uri: string;
+    };
+
+    if (!projectId || !credentials) {
+      throw new Error(
+        "Vertex AI provider requires options.project_id and options.credentials",
+      );
+    }
+
+    return new VertexAiProvider(region, projectId, config.model, credentials);
   }
 }

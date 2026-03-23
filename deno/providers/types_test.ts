@@ -24,7 +24,7 @@ Deno.test("parseProviderType - known providers", () => {
 
 Deno.test("parseProviderType - unknown returns undefined", () => {
   assertEquals(parseProviderType("unknown"), undefined);
-  assertEquals(parseProviderType("bedrock"), undefined);
+  assertEquals(parseProviderType("nonexistent"), undefined);
 });
 
 Deno.test("parseProviderType - case insensitive", () => {

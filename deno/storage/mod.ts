@@ -76,6 +76,15 @@ export {
   TieredMemory,
 } from "./tiered_memory.ts";
 
+// -- Database backends ------------------------------------------------------
+export {
+  PostgresDatabase,
+  type PostgresConfig,
+  QdrantDatabase,
+  SurrealDatabase,
+  type SurrealConfig,
+} from "./backends/mod.ts";
+
 // -- Domain stores ----------------------------------------------------------
 export {
   // Message store

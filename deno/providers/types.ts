@@ -21,6 +21,8 @@ export type ProviderType =
   | "fireworks"
   | "anyscale"
   | "openai-responses"
+  | "bedrock"
+  | "vertex-ai"
   | "custom";
 
 /** Parse a string into a ProviderType, or return undefined if unknown. */
@@ -48,6 +50,13 @@ export function parseProviderType(s: string): ProviderType | undefined {
     case "openai-responses":
     case "openai_responses":
       return "openai-responses";
+    case "bedrock":
+    case "aws-bedrock":
+      return "bedrock";
+    case "vertex-ai":
+    case "vertex_ai":
+    case "vertexai":
+      return "vertex-ai";
     case "custom":
       return "custom";
     default:
@@ -78,6 +87,10 @@ export function defaultModel(provider: ProviderType): string {
       return "meta-llama/Meta-Llama-3.1-8B-Instruct";
     case "openai-responses":
       return "gpt-5-mini";
+    case "bedrock":
+      return "anthropic.claude-3-5-sonnet-20241022-v2:0";
+    case "vertex-ai":
+      return "gemini-2.0-flash";
     case "custom":
       return "claude-sonnet-4-20250514";
   }
@@ -85,7 +98,7 @@ export function defaultModel(provider: ProviderType): string {
 
 /** Whether a provider type requires an API key. */
 export function requiresApiKey(provider: ProviderType): boolean {
-  return provider !== "ollama";
+  return provider !== "ollama" && provider !== "bedrock" && provider !== "vertex-ai";
 }
 
 // ---------------------------------------------------------------------------

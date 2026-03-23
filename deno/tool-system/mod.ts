@@ -90,3 +90,17 @@ export {
 } from "./tools/mod.ts";
 export { extractExportName, isExportLine } from "./tools/mod.ts";
 export type { OutputMode, StderrMode } from "./tools/mod.ts";
+
+// OpenAPI tool generation
+export {
+  executeOpenApiTool,
+  executeOpenApiToolWithEndpoint,
+  openApiToToolDefs,
+  openApiToTools,
+} from "./tools/mod.ts";
+export type {
+  HttpMethod,
+  OpenApiEndpoint,
+  OpenApiParam,
+  OpenApiToolDef,
+} from "./tools/mod.ts";
