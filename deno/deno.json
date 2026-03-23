@@ -10,7 +10,6 @@
     "./agent-network",
     "./agents",
     "./a2a",
-    "./skills",
-    "./datasets"
+    "./skills"
   ]
 }
