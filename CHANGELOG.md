@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-03-23
+
+### Changed
+
+#### A2A Protocol (`brainwires-a2a`, `deno/a2a`)
+- **BREAKING:** Updated A2A protocol implementation from v0.3 to v1.0.
+- **Part type redesigned:** Replaced discriminated union (`kind: text/file/data`) with unified flat struct (`text`/`raw`/`url`/`data` as optional oneof fields + `mediaType`, `filename`).
+- **Enum values → SCREAMING_SNAKE_CASE:** Role (`ROLE_USER`, `ROLE_AGENT`), TaskState (`TASK_STATE_SUBMITTED`, `TASK_STATE_WORKING`, etc.) per ProtoJSON specification.
+- **Removed `kind` field** from `Message`, `Task`, and streaming event objects.
+- **Stream events use wrapper pattern:** `StreamResponse` with `task`/`message`/`statusUpdate`/`artifactUpdate` wrapper fields instead of `kind`-based discrimination.
+- **SecurityScheme and OAuthFlows** changed from `type`-discriminated to wrapper-based oneOf pattern.
+- **JSON-RPC method names** updated to PascalCase (`message/send` → `SendMessage`, etc.).
+- **REST:** `GET /tasks/{id}:subscribe` changed to `POST`.
+- **`SendMessageConfiguration.blocking`** renamed to `returnImmediately`.
+- **`PushNotificationConfig.id`** renamed to `configId`, added `createdAt`.
+- **`AgentCard.supportedInterfaces`** is now required.
+- **New error codes:** `ExtensionSupportRequired` (-32008), `VersionNotSupported` (-32009).
+
+#### Code Interpreters (`brainwires-code-interpreters`)
+- Disabled Python/RustPython feature to resolve `libsqlite3-sys` version conflict with `brainwires-cognition`.
+
 ## [0.5.0] - 2026-03-15
 
 ### Added

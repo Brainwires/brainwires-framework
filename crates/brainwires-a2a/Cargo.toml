@@ -1,7 +1,7 @@
 [package]
 name = "brainwires-a2a"
 description = "Agent-to-Agent (A2A) protocol — JSON-RPC, REST, and gRPC bindings"
-version.workspace = true
+version = "0.5.1"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
