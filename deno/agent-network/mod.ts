@@ -120,3 +120,67 @@ export {
   AgentNetworkClientError,
   type AgentConfig,
 } from "./client.ts";
+
+// =============================================================================
+// Remote Bridge
+// =============================================================================
+
+export {
+  // Protocol
+  PROTOCOL_VERSION,
+  MIN_PROTOCOL_VERSION,
+  SUPPORTED_VERSIONS,
+  NegotiatedProtocol,
+  allSupportedCapabilities,
+  defaultProtocolHello,
+  defaultProtocolAccept,
+  PRIORITY_ORDER,
+  defaultRetryPolicy,
+  // Command queue
+  CommandQueue,
+  QueueEntry,
+  QueueError,
+  // Heartbeat & telemetry
+  HeartbeatCollector,
+  ProtocolMetrics,
+  assessConnectionQuality,
+  // Bridge
+  RemoteBridge,
+  defaultBridgeConfig,
+  // Manager
+  RemoteBridgeManager,
+  displayBridgeStatus,
+} from "./remote/mod.ts";
+
+export type {
+  // Protocol types
+  ProtocolCapability,
+  CommandPriority,
+  RetryPolicy,
+  PrioritizedCommand,
+  ProtocolHello,
+  ProtocolAccept,
+  RemoteMessage,
+  BackendCommand,
+  CompressionAlgorithm,
+  RemoteAgentInfo,
+  AgentEventType,
+  StreamChunkType,
+  QueueStats,
+  // Heartbeat types
+  HeartbeatData,
+  AgentEvent,
+  AgentInfoProvider,
+  MetricsSnapshot,
+  ConnectionQuality,
+  // Bridge types
+  BridgeConfig,
+  BridgeState,
+  ConnectionMode,
+  CommandHandler,
+  StateChangeHandler,
+  // Manager types
+  RemoteBridgeConfig,
+  BridgeConfigProvider,
+  RemoteBridgeStatus,
+} from "./remote/mod.ts";

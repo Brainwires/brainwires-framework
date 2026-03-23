@@ -35,6 +35,14 @@
  *
  * ## Lifecycle Hooks
  * - **AgentLifecycleHooks** - Granular control over the agent execution loop
+ *
+ * ## MDAP (MAKER voting framework)
+ * - **FirstToAheadByKVoter** - Consensus voting with early stopping and confidence weighting
+ * - **StandardRedFlagValidator** - Output validation and format checking
+ * - **Composer** - Result composition from subtask outputs
+ * - **MdapMetrics** - Execution metrics collection and reporting
+ * - **Scaling laws** - Cost/probability estimation (MAKER paper equations 13-18)
+ * - **Tool Intent** - Structured tool calling intent for stateless execution
  */
 
 // Runtime
@@ -294,3 +302,126 @@ export {
   type FailurePolicy,
   type MergeStrategy as CycleMergeStrategy,
 } from "./cycle_orchestrator.ts";
+
+// MDAP - MAKER voting framework
+export {
+  // Error
+  MdapError,
+  type MdapErrorKind,
+  type MdapResult,
+
+  // Voting types
+  type VotingMethod,
+  type SampledResponse,
+  type ResponseMetadata,
+  type VoteResult,
+  type EarlyStoppingConfig,
+  type VotingErrorDetails,
+
+  // Red-flag types
+  type RedFlagConfig,
+  type RedFlagReason,
+  type RedFlagResult as MdapRedFlagResult,
+  type OutputFormat,
+  type RedFlagErrorDetails,
+
+  // Subtask / Microagent types
+  type Subtask as MdapSubtask,
+  type SubtaskOutput as MdapSubtaskOutput,
+  type MicroagentConfig,
+  type MicroagentProvider,
+  type MicroagentResponse,
+  type SubtaskMetric,
+
+  // Decomposition types
+  type DecomposeContext,
+  type CompositionFunction,
+  type DecompositionResult,
+  type DecompositionStrategy,
+  type DecompositionErrorDetails,
+
+  // Scaling types
+  type MdapEstimate,
+  type ModelCosts,
+  type ConfigSummary,
+
+  // Tool intent types
+  type ToolSchema,
+  type ToolIntent,
+  type SubtaskOutputWithIntent,
+  type ToolCategory,
+  type VotingRoundMetric,
+
+  // Composer types
+  type CompositionHandler,
+
+  // Early stopping presets
+  defaultEarlyStopping,
+  disabledEarlyStopping,
+  aggressiveEarlyStopping,
+  conservativeEarlyStopping,
+
+  // Red-flag config presets
+  strictRedFlagConfig,
+  relaxedRedFlagConfig,
+
+  // Red-flag validators
+  StandardRedFlagValidator,
+  AcceptAllValidator,
+
+  // Output format helpers
+  outputFormatMatches,
+  outputFormatDescription,
+
+  // Confidence extraction
+  extractResponseConfidence,
+
+  // Subtask helpers
+  createAtomicSubtask,
+  createSubtask,
+  createSubtaskOutput,
+
+  // Microagent config
+  defaultMicroagentConfig,
+
+  // Decomposition helpers
+  defaultDecomposeContext,
+  childContext,
+  atomicDecomposition,
+  compositeDecomposition,
+  validateDecomposition,
+  topologicalSort,
+
+  // Composer
+  Composer,
+
+  // Scaling laws
+  calculateKMin,
+  calculatePFull,
+  calculateExpectedVotes,
+  estimateMdap,
+  estimatePerStepSuccess,
+  estimateValidResponseRate,
+  calculateExpectedCost,
+  suggestKForBudget,
+  MODEL_COSTS,
+  estimateCallCost,
+
+  // Metrics
+  MdapMetrics,
+
+  // Tool intent helpers
+  toolCategoryContains,
+  readOnlyCategories,
+  sideEffectCategories,
+  toolSchemaToPrompt,
+  parseToolIntent,
+
+  // Borda count
+  bordaCountWinner,
+
+  // Voter
+  FirstToAheadByKVoter,
+  VoterBuilder,
+  type RedFlagValidator,
+} from "./mdap/mod.ts";

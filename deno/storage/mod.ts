@@ -83,6 +83,11 @@ export {
   QdrantDatabase,
   SurrealDatabase,
   type SurrealConfig,
+  PineconeDatabase,
+  WeaviateDatabase,
+  MilvusDatabase,
+  MySqlDatabase,
+  type MySqlConfig,
 } from "./backends/mod.ts";
 
 // -- Domain stores ----------------------------------------------------------
