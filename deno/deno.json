@@ -1,15 +1,16 @@
 {
   "workspace": [
-    "./core",
-    "./permissions",
-    "./mcp",
-    "./providers",
-    "./storage",
-    "./tool-system",
-    "./cognition",
-    "./agent-network",
-    "./agents",
-    "./a2a",
-    "./skills"
+    "./packages/core",
+    "./packages/permissions",
+    "./packages/mcp",
+    "./packages/providers",
+    "./packages/storage",
+    "./packages/tool-system",
+    "./packages/cognition",
+    "./packages/agent-network",
+    "./packages/agents",
+    "./packages/a2a",
+    "./packages/skills",
+    "./examples"
   ]
 }
