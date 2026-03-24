@@ -67,3 +67,11 @@ full = ["cloud", "local", "bedrock", "vertex"]
 serde_json.workspace = true
 tempfile.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[[example]]
+name = "cloud_finetune"
+required-features = ["cloud"]
+
+[[example]]
+name = "local_training"
+required-features = ["local"]

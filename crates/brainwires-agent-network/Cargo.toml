@@ -88,3 +88,11 @@ tempfile = { workspace = true }
 [[example]]
 name = "middleware_chain"
 required-features = ["server"]
+
+[[example]]
+name = "mcp_server"
+required-features = ["server"]
+
+[[example]]
+name = "network_manager"
+required-features = ["server", "client", "ipc-transport"]

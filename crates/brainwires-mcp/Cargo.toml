@@ -40,3 +40,8 @@ wasm = ["brainwires-core/wasm"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }
+serde_json = { workspace = true }
+
+[[example]]
+name = "mcp_client"
+required-features = ["native"]

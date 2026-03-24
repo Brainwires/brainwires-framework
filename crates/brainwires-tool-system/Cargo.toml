@@ -106,3 +106,9 @@ required-features = ["orchestrator"]
 [[example]]
 name = "multi_api"
 required-features = ["orchestrator"]
+
+[[example]]
+name = "tool_registry"
+
+[[example]]
+name = "tool_prehook"

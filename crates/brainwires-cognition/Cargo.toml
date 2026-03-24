@@ -186,3 +186,15 @@ filetime = "0.2"
 [[example]]
 name = "prompting_techniques"
 required-features = ["prompting"]
+
+[[example]]
+name = "knowledge_graph"
+required-features = ["knowledge"]
+
+[[example]]
+name = "rag_search"
+required-features = ["rag"]
+
+[[example]]
+name = "code_analysis"
+required-features = ["code-analysis", "rag"]
