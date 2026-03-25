@@ -3,10 +3,10 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
-use brainwires_agent_network::ToolFilterMiddleware;
-use brainwires_agent_network::connection::RequestContext;
-use brainwires_agent_network::middleware::MiddlewareChain;
-use brainwires_agent_network::registry::{McpToolRegistry, ToolHandler};
+use brainwires_mcp_server::ToolFilterMiddleware;
+use brainwires_mcp_server::connection::RequestContext;
+use brainwires_mcp_server::middleware::MiddlewareChain;
+use brainwires_mcp_server::registry::{McpToolRegistry, ToolHandler};
 use brainwires_mcp::{CallToolResult, JsonRpcRequest};
 use serde_json::{Value, json};
 

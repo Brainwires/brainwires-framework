@@ -2,9 +2,9 @@
 //! middleware layers interact correctly when chained together.
 
 use async_trait::async_trait;
-use brainwires_agent_network::connection::RequestContext;
-use brainwires_agent_network::middleware::{Middleware, MiddlewareChain, MiddlewareResult};
-use brainwires_agent_network::{
+use brainwires_mcp_server::connection::RequestContext;
+use brainwires_mcp_server::middleware::{Middleware, MiddlewareChain, MiddlewareResult};
+use brainwires_mcp_server::{
     AuthMiddleware, LoggingMiddleware, RateLimitMiddleware, ToolFilterMiddleware,
 };
 use brainwires_mcp::{JsonRpcRequest, JsonRpcResponse};

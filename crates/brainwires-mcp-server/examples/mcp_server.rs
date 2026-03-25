@@ -15,7 +15,7 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
-use brainwires_agent_network::{
+use brainwires_mcp_server::{
     AuthMiddleware, LoggingMiddleware, McpServer, McpToolDef, McpToolRegistry, MiddlewareChain,
     RateLimitMiddleware, RequestContext, ToolFilterMiddleware, ToolHandler,
 };
@@ -58,7 +58,7 @@ struct DemoHandler {
 }
 
 #[async_trait]
-impl brainwires_agent_network::McpHandler for DemoHandler {
+impl brainwires_mcp_server::McpHandler for DemoHandler {
     fn server_info(&self) -> ServerInfo {
         ServerInfo {
             name: "demo-mcp-server".to_string(),

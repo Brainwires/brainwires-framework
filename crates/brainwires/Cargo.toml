@@ -31,8 +31,11 @@ brainwires-code-interpreters = { workspace = true, optional = true }
 # Providers
 brainwires-providers = { workspace = true, optional = true }
 
-# Agent network (MCP server, IPC, remote bridge, mesh)
+# Agent network (IPC, remote bridge, mesh)
 brainwires-agent-network = { workspace = true, optional = true }
+
+# MCP server framework
+brainwires-mcp-server = { workspace = true, optional = true }
 
 # A2A protocol
 brainwires-a2a = { workspace = true, optional = true }
@@ -112,6 +115,7 @@ chat = ["providers"]
 reasoning = ["agents", "brainwires-agents/reasoning"]
 seal = ["agents", "brainwires-agents/seal"]
 agent-network = ["dep:brainwires-agent-network"]
+mcp-server-framework = ["dep:brainwires-mcp-server"]
 skills = ["dep:brainwires-skills"]
 eval = ["agents", "brainwires-agents/eval"]
 otel = ["agents", "brainwires-agents/otel"]
@@ -142,7 +146,7 @@ full = [
     "providers", "chat", "reasoning", "seal", "agent-network",
     "brainwires-agents/seal-knowledge", "brainwires-agents/seal-mdap", "brainwires-agents/seal-feedback",
     "llama-cpp-2", "mcp-server", "skills", "eval", "proxy",
-    "a2a", "mesh", "audio",
+    "a2a", "mesh", "audio", "mcp-server-framework",
     "training-cloud", "datasets",
     "autonomy",
 ]

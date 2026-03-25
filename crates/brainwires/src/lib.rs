@@ -101,10 +101,16 @@ pub mod interpreters {
     pub use brainwires_code_interpreters::*;
 }
 
-/// Agent network — MCP server framework, IPC, remote bridge, mesh networking.
+/// Agent network — IPC, remote bridge, mesh networking, routing, discovery.
 #[cfg(feature = "agent-network")]
 pub mod agent_network {
     pub use brainwires_agent_network::*;
+}
+
+/// MCP server framework — build MCP-compliant tool servers with middleware.
+#[cfg(feature = "mcp-server-framework")]
+pub mod mcp_server_framework {
+    pub use brainwires_mcp_server::*;
 }
 
 /// Skills — SKILL.md parsing, skill registry, and execution.

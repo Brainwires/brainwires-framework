@@ -17,8 +17,8 @@ categories = ["network-programming"]
 name = "brainwires_channels"
 
 [dependencies]
-# Core framework
-brainwires-agent-network = { workspace = true }
+# Agent network (optional — only needed for MessageEnvelope conversion)
+brainwires-agent-network = { workspace = true, optional = true }
 
 # Async runtime
 async-trait = { workspace = true }
@@ -39,6 +39,10 @@ schemars = { workspace = true, features = ["uuid1", "chrono04"] }
 
 # Capability flags
 bitflags = { workspace = true }
+
+[features]
+default = []
+agent-network = ["dep:brainwires-agent-network"]
 
 [dev-dependencies]
 serde_json = { workspace = true }

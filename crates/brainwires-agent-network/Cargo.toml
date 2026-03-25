@@ -7,7 +7,7 @@ rust-version.workspace = true
 repository.workspace = true
 homepage.workspace = true
 authors.workspace = true
-description = "Agent networking layer — MCP server framework, IPC, remote bridge, and mesh networking for Brainwires"
+description = "Agent-to-agent networking — IPC, remote bridge, mesh networking, routing, and discovery for Brainwires"
 readme = "README.md"
 documentation = "https://docs.rs/brainwires-agent-network"
 keywords = ["mcp", "ipc", "mesh-networking", "agent-communication", "topology"]
@@ -16,7 +16,7 @@ categories = ["network-programming"]
 [dependencies]
 # Core framework
 brainwires-core = { workspace = true }
-brainwires-mcp = { workspace = true }
+brainwires-mcp = { workspace = true, optional = true }
 
 # Async runtime
 tokio = { workspace = true, features = ["io-std", "io-util", "sync", "time", "macros", "net", "process", "fs"] }
@@ -69,9 +69,8 @@ brainwires-a2a = { workspace = true, optional = true, features = ["client"] }
 keyring = { workspace = true, optional = true }
 
 [features]
-default = ["server", "client", "ipc-transport", "remote-transport"]
-server = []
-client = []
+default = ["client", "ipc-transport", "remote-transport"]
+client = ["dep:brainwires-mcp"]
 ipc-transport = []
 remote-transport = []
 tcp-transport = []
@@ -86,13 +85,5 @@ auth-keyring = ["keyring"]
 tempfile = { workspace = true }
 
 [[example]]
-name = "middleware_chain"
-required-features = ["server"]
-
-[[example]]
-name = "mcp_server"
-required-features = ["server"]
-
-[[example]]
 name = "network_manager"
-required-features = ["server", "client", "ipc-transport"]
+required-features = ["client", "ipc-transport"]

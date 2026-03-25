@@ -10,6 +10,7 @@
 /// Channel capability flags.
 pub mod capabilities;
 /// Conversion between `ChannelMessage` and agent-network `MessageEnvelope`.
+#[cfg(feature = "agent-network")]
 pub mod conversion;
 /// Channel events (message received, edited, deleted, reactions, etc.).
 pub mod events;

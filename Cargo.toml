@@ -10,6 +10,7 @@ members = [
     "crates/brainwires-code-interpreters",
     "crates/brainwires-wasm",
     "crates/brainwires-agent-network",
+    "crates/brainwires-mcp-server",
     "crates/brainwires-a2a",
     "crates/brainwires-providers",
     "crates/brainwires-skills",
@@ -68,6 +69,7 @@ brainwires-permissions = { path = "crates/brainwires-permissions", version = "0.
 brainwires-code-interpreters = { path = "crates/brainwires-code-interpreters", version = "0.6.0" }
 brainwires-wasm = { path = "crates/brainwires-wasm", version = "0.6.0" }
 brainwires-agent-network = { path = "crates/brainwires-agent-network", version = "0.6.0" }
+brainwires-mcp-server = { path = "crates/brainwires-mcp-server", version = "0.6.0" }
 brainwires-a2a = { path = "crates/brainwires-a2a", version = "0.6.0", default-features = false }
 brainwires-providers = { path = "crates/brainwires-providers", version = "0.6.0" }
 brainwires-skills = { path = "crates/brainwires-skills", version = "0.6.0" }
