@@ -1,6 +1,5 @@
 [package]
 name = "brainwires-gateway"
-publish = false
 description = "Gateway daemon — always-on WebSocket server that routes messages between channel MCP servers and agent sessions"
 version.workspace = true
 edition.workspace = true
@@ -8,7 +7,7 @@ license.workspace = true
 rust-version.workspace = true
 repository.workspace = true
 authors.workspace = true
-documentation = "https://docs.rs/brainwires-gateway"
+publish.workspace = true
 
 [lib]
 name = "brainwires_gateway"
@@ -32,7 +31,7 @@ uuid.workspace = true
 chrono.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-clap = { version = "4", features = ["derive"] }
+clap.workspace = true
 dashmap.workspace = true
 anyhow.workspace = true
 async-trait.workspace = true

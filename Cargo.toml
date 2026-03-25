@@ -26,12 +26,6 @@ members = [
     "extras/reload-daemon",
     "extras/agent-chat",
     "extras/audio-demo-ffi",
-    "extras/brainwires-skill-registry",
-    "extras/brainwires-gateway",
-    "extras/brainwires-discord-channel",
-    "extras/brainwires-slack-channel",
-    "extras/brainwires-telegram-channel",
-    "extras/brainclaw",
     "xtask",
 ]
 exclude = [
@@ -42,6 +36,7 @@ exclude = [
     "deprecated/brainwires-relay",
     "deprecated/brainwires-seal",
     "deprecated/brainwires-mdap",
+    "extras/brainclaw",
 ]
 resolver = "2"
 
