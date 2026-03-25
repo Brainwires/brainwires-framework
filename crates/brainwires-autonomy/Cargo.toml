@@ -17,6 +17,7 @@ categories = ["development-tools"]
 brainwires-core.workspace = true
 brainwires-agents = { workspace = true, optional = true }
 brainwires-tool-system = { workspace = true, optional = true }
+brainwires-providers = { workspace = true, optional = true }
 brainwires-training = { workspace = true, optional = true }
 brainwires-cognition = { workspace = true, optional = true }
 brainwires-datasets = { workspace = true, optional = true }
@@ -30,6 +31,7 @@ tokio = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }
 tracing = { workspace = true }
+futures = { workspace = true, optional = true }
 sha2 = { workspace = true }
 hex = { workspace = true }
 dirs = { workspace = true }
@@ -76,13 +78,16 @@ training = ["dep:brainwires-training", "dep:brainwires-datasets"]
 git-workflow = ["dep:brainwires-agents", "dep:brainwires-tool-system", "dep:reqwest", "dep:toml"]
 webhook = ["git-workflow", "dep:axum", "dep:hmac", "dep:sha1", "dep:subtle"]
 
+# Dream memory consolidation
+dream = ["dep:brainwires-providers", "dep:futures"]
+
 # Environment interaction
 gpio = ["dep:gpio-cdev", "dep:sysfs_gpio"]
 scheduler = ["dep:cron"]
 reactor = ["dep:notify"]
 services = []
 
-full = ["self-improve", "eval-driven", "supervisor", "attention", "parallel", "training", "git-workflow", "webhook", "gpio", "scheduler", "reactor", "services"]
+full = ["self-improve", "eval-driven", "supervisor", "attention", "parallel", "training", "git-workflow", "webhook", "gpio", "scheduler", "reactor", "services", "dream"]
 
 [[example]]
 name = "safety_guard"

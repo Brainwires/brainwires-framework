@@ -23,12 +23,18 @@ pub mod router;
 // Re-export key types for external consumers.
 pub use agent_handler::AgentInboundHandler;
 pub use router::InboundHandler;
+/// Media processing pipeline for attachments.
+pub mod media;
 /// Axum server setup and route definitions.
 pub mod server;
 /// Session management (user-to-agent session mapping).
 pub mod session;
+/// Session persistence — save/restore conversation history across restarts.
+pub mod session_persistence;
 /// Shared application state.
 pub mod state;
+/// Built-in WebChat channel (browser-based chat UI).
+pub mod webchat;
 /// Webhook handler for HTTP-based channel integrations.
 pub mod webhook;
 /// WebSocket connection handler for channel adapters.

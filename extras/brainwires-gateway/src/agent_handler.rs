@@ -22,8 +22,10 @@ use brainwires_core::{ChatOptions, Provider};
 use brainwires_tool_system::BuiltinToolExecutor;
 
 use crate::channel_registry::ChannelRegistry;
+use crate::media::MediaProcessor;
 use crate::router::InboundHandler;
 use crate::session::SessionManager;
+use crate::session_persistence::{SessionStore, session_key};
 
 /// An [`InboundHandler`] that dispatches incoming messages to per-user
 /// [`ChatAgent`] instances and sends responses back through the channel.
@@ -42,6 +44,10 @@ pub struct AgentInboundHandler {
     default_options: ChatOptions,
     /// Max tool rounds per message.
     max_tool_rounds: usize,
+    /// Optional session persistence backend.
+    persistence: Option<Arc<dyn SessionStore>>,
+    /// Optional media processor for handling attachments.
+    media: Option<Arc<MediaProcessor>>,
 }
 
 impl AgentInboundHandler {
@@ -63,7 +69,28 @@ impl AgentInboundHandler {
             executor,
             default_options,
             max_tool_rounds: 10,
+            persistence: None,
+            media: None,
         }
+    }
+
+    /// Attach a media processor for handling message attachments.
+    ///
+    /// When set, attachments on inbound messages are downloaded, validated,
+    /// and converted to text descriptions that are appended to the user's
+    /// message before it is sent to the agent.
+    pub fn with_media(mut self, processor: Arc<MediaProcessor>) -> Self {
+        self.media = Some(processor);
+        self
+    }
+
+    /// Attach a session persistence backend.
+    ///
+    /// When set, conversation history is loaded from the store when a new agent
+    /// session is created and saved after each message is processed.
+    pub fn with_persistence(mut self, store: Arc<dyn SessionStore>) -> Self {
+        self.persistence = Some(store);
+        self
     }
 
     /// Set the maximum number of tool-call rounds per message.
@@ -106,7 +133,23 @@ impl AgentInboundHandler {
     /// Handle an inbound message by routing it through the appropriate agent.
     async fn handle_message(&self, channel_id: Uuid, msg: &ChannelMessage) -> Result<()> {
         // 1. Extract text from the message content
-        let text = Self::extract_text(&msg.content);
+        let mut text = Self::extract_text(&msg.content);
+
+        // 1b. Process attachments if a media processor is configured
+        if let Some(ref media) = self.media {
+            if !msg.attachments.is_empty() {
+                let descriptions = media.process_attachments(&msg.attachments).await;
+                if !descriptions.is_empty() {
+                    let attachment_text = descriptions.join("\n");
+                    if text.is_empty() {
+                        text = attachment_text;
+                    } else {
+                        text = format!("{}\n\n{}", text, attachment_text);
+                    }
+                }
+            }
+        }
+
         if text.is_empty() {
             return Ok(());
         }
@@ -133,33 +176,67 @@ impl AgentInboundHandler {
         );
 
         // 3. Get or create the ChatAgent for this user
-        let agent = self.get_or_create_agent(&platform, &user_id);
+        let agent = self.get_or_create_agent(&platform, &user_id).await;
 
         // 4. Lock agent and process the message
         let mut agent = agent.lock().await;
         let response = agent.process_message(&text).await?;
 
-        // 5. Send the response back to the channel
+        // 5. Persist updated conversation history
+        if let Some(ref store) = self.persistence {
+            let key = session_key(&platform, &user_id);
+            if let Err(e) = store.save(&key, agent.messages()).await {
+                tracing::warn!(error = %e, "Failed to persist session");
+            }
+        }
+
+        // 6. Send the response back to the channel
         self.send_response(channel_id, msg, &response).await?;
 
         Ok(())
     }
 
     /// Get (or lazily create) a [`ChatAgent`] for the given platform user.
-    fn get_or_create_agent(&self, platform: &str, user_id: &str) -> Arc<Mutex<ChatAgent>> {
+    ///
+    /// When a persistence backend is configured, newly created agents will have
+    /// their conversation history restored from the store.
+    async fn get_or_create_agent(&self, platform: &str, user_id: &str) -> Arc<Mutex<ChatAgent>> {
         let key = (platform.to_string(), user_id.to_string());
-        self.agent_sessions
-            .entry(key)
-            .or_insert_with(|| {
-                let agent = ChatAgent::new(
-                    self.provider.clone(),
-                    self.executor.clone(),
-                    self.default_options.clone(),
-                )
-                .with_max_tool_rounds(self.max_tool_rounds);
-                Arc::new(Mutex::new(agent))
-            })
-            .clone()
+
+        // Fast path: agent already exists.
+        if let Some(existing) = self.agent_sessions.get(&key) {
+            return existing.clone();
+        }
+
+        // Slow path: create a new agent, optionally restoring persisted history.
+        let mut agent = ChatAgent::new(
+            self.provider.clone(),
+            self.executor.clone(),
+            self.default_options.clone(),
+        )
+        .with_max_tool_rounds(self.max_tool_rounds);
+
+        if let Some(ref store) = self.persistence {
+            let skey = session_key(platform, user_id);
+            match store.load(&skey).await {
+                Ok(Some(messages)) => {
+                    tracing::info!(
+                        session_key = %skey,
+                        message_count = messages.len(),
+                        "Restored persisted conversation history",
+                    );
+                    agent.restore_messages(messages);
+                }
+                Ok(None) => {}
+                Err(e) => {
+                    tracing::warn!(error = %e, "Failed to load persisted session");
+                }
+            }
+        }
+
+        let arc = Arc::new(Mutex::new(agent));
+        self.agent_sessions.entry(key).or_insert(arc.clone());
+        arc
     }
 
     /// Extract a text string from [`MessageContent`], returning an empty string
@@ -412,54 +489,54 @@ mod tests {
         assert_eq!(AgentInboundHandler::extract_text(&content), "");
     }
 
-    #[test]
-    fn test_get_or_create_agent_returns_same_for_same_user() {
+    #[tokio::test]
+    async fn test_get_or_create_agent_returns_same_for_same_user() {
         let handler = make_handler();
-        let agent1 = handler.get_or_create_agent("discord", "user-1");
-        let agent2 = handler.get_or_create_agent("discord", "user-1");
+        let agent1 = handler.get_or_create_agent("discord", "user-1").await;
+        let agent2 = handler.get_or_create_agent("discord", "user-1").await;
         assert!(Arc::ptr_eq(&agent1, &agent2));
         assert_eq!(handler.session_count(), 1);
     }
 
-    #[test]
-    fn test_get_or_create_agent_returns_different_for_different_users() {
+    #[tokio::test]
+    async fn test_get_or_create_agent_returns_different_for_different_users() {
         let handler = make_handler();
-        let agent1 = handler.get_or_create_agent("discord", "user-1");
-        let agent2 = handler.get_or_create_agent("discord", "user-2");
+        let agent1 = handler.get_or_create_agent("discord", "user-1").await;
+        let agent2 = handler.get_or_create_agent("discord", "user-2").await;
         assert!(!Arc::ptr_eq(&agent1, &agent2));
         assert_eq!(handler.session_count(), 2);
     }
 
-    #[test]
-    fn test_get_or_create_agent_different_platforms() {
+    #[tokio::test]
+    async fn test_get_or_create_agent_different_platforms() {
         let handler = make_handler();
-        let agent1 = handler.get_or_create_agent("discord", "user-1");
-        let agent2 = handler.get_or_create_agent("telegram", "user-1");
+        let agent1 = handler.get_or_create_agent("discord", "user-1").await;
+        let agent2 = handler.get_or_create_agent("telegram", "user-1").await;
         assert!(!Arc::ptr_eq(&agent1, &agent2));
         assert_eq!(handler.session_count(), 2);
     }
 
-    #[test]
-    fn test_session_count_tracks_correctly() {
+    #[tokio::test]
+    async fn test_session_count_tracks_correctly() {
         let handler = make_handler();
         assert_eq!(handler.session_count(), 0);
 
-        handler.get_or_create_agent("discord", "user-1");
+        handler.get_or_create_agent("discord", "user-1").await;
         assert_eq!(handler.session_count(), 1);
 
-        handler.get_or_create_agent("telegram", "user-2");
+        handler.get_or_create_agent("telegram", "user-2").await;
         assert_eq!(handler.session_count(), 2);
 
         // Same user again — no new session
-        handler.get_or_create_agent("discord", "user-1");
+        handler.get_or_create_agent("discord", "user-1").await;
         assert_eq!(handler.session_count(), 2);
     }
 
-    #[test]
-    fn test_remove_session_works() {
+    #[tokio::test]
+    async fn test_remove_session_works() {
         let handler = make_handler();
-        handler.get_or_create_agent("discord", "user-1");
-        handler.get_or_create_agent("telegram", "user-2");
+        handler.get_or_create_agent("discord", "user-1").await;
+        handler.get_or_create_agent("telegram", "user-2").await;
         assert_eq!(handler.session_count(), 2);
 
         handler.remove_session("discord", "user-1");

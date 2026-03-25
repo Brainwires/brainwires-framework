@@ -38,6 +38,9 @@ anyhow.workspace = true
 async-trait.workspace = true
 futures.workspace = true
 regex.workspace = true
+reqwest.workspace = true
+dirs.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
+tempfile.workspace = true

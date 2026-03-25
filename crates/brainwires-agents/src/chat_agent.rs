@@ -120,6 +120,14 @@ impl ChatAgent {
         &self.messages
     }
 
+    /// Replace the entire message history with the provided messages.
+    ///
+    /// This is used by session persistence to restore a previously saved
+    /// conversation when an agent session is recreated.
+    pub fn restore_messages(&mut self, messages: Vec<Message>) {
+        self.messages = messages;
+    }
+
     /// Clear all messages (including any system prompt).
     pub fn clear_history(&mut self) {
         self.messages.clear();
@@ -154,6 +162,17 @@ impl ChatAgent {
     /// Return the number of messages in the conversation.
     pub fn message_count(&self) -> usize {
         self.messages.len()
+    }
+
+    /// Compact conversation history by trimming older messages.
+    ///
+    /// This is a simple, LLM-free compaction that keeps the system prompt
+    /// (if any) and the most recent `keep` messages. For LLM-powered
+    /// summarisation, use the `DreamSummarizer` from `brainwires-autonomy`.
+    pub async fn compact_history(&mut self) -> Result<()> {
+        // Default: keep system prompt + last 20 messages
+        self.trim_history(20);
+        Ok(())
     }
 
     // ── Internal completion loop ─────────────────────────────────────────

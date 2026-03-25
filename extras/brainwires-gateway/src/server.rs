@@ -18,6 +18,7 @@ use crate::config::GatewayConfig;
 use crate::router::{InboundHandler, MessageRouter};
 use crate::session::SessionManager;
 use crate::state::AppState;
+use crate::webchat;
 use crate::webhook;
 use crate::ws_handler;
 
@@ -97,6 +98,13 @@ fn build_router(state: AppState) -> Router {
     if state.config.webhook_enabled {
         let webhook_path = state.config.webhook_path.clone();
         app = app.route(&webhook_path, post(webhook::handle_webhook));
+    }
+
+    // WebChat endpoints (conditionally enabled)
+    if state.config.webchat_enabled {
+        app = app
+            .route("/chat", get(webchat::serve_webchat_page))
+            .route("/chat/ws", get(webchat::webchat_ws_handler));
     }
 
     // Admin endpoints (conditionally enabled)

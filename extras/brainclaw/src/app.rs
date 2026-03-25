@@ -9,6 +9,7 @@ use brainwires_gateway::agent_handler::AgentInboundHandler;
 use brainwires_gateway::channel_registry::ChannelRegistry;
 use brainwires_gateway::server::Gateway;
 use brainwires_gateway::session::SessionManager;
+use brainwires_gateway::session_persistence::{JsonFileStore, expand_tilde};
 use brainwires_providers::{ChatProviderFactory, ProviderConfig, ProviderType};
 use brainwires_tool_system::BuiltinToolExecutor;
 
@@ -98,7 +99,7 @@ impl BrainClaw {
         let channels = Arc::new(ChannelRegistry::new());
 
         // 7. Create AgentInboundHandler
-        let handler = AgentInboundHandler::new(
+        let mut handler = AgentInboundHandler::new(
             sessions,
             channels,
             provider,
@@ -106,6 +107,27 @@ impl BrainClaw {
             options,
         )
         .with_max_tool_rounds(self.config.agent.max_tool_rounds);
+
+        // 7b. Attach session persistence if configured
+        if self.config.memory.persist_conversations {
+            let storage_path = expand_tilde(&self.config.memory.storage_dir);
+            match JsonFileStore::new(&storage_path) {
+                Ok(store) => {
+                    tracing::info!(
+                        path = %storage_path.display(),
+                        "Session persistence enabled (JsonFileStore)"
+                    );
+                    handler = handler.with_persistence(Arc::new(store));
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        error = %e,
+                        path = %storage_path.display(),
+                        "Failed to initialize session persistence; continuing without it"
+                    );
+                }
+            }
+        }
 
         // 8. Create Gateway with handler
         let gateway = Gateway::with_handler(gateway_config.clone(), Arc::new(handler));

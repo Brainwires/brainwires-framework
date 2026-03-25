@@ -111,6 +111,8 @@ pub struct MemorySection {
     pub storage_dir: String,
     /// Maximum history messages to keep per session.
     pub max_history_messages: usize,
+    /// Whether to persist conversations across restarts (JSON file store).
+    pub persist_conversations: bool,
 }
 
 /// Skill system configuration.
@@ -226,6 +228,7 @@ impl Default for MemorySection {
             enabled: true,
             storage_dir: "~/.brainclaw/memory".to_string(),
             max_history_messages: 100,
+            persist_conversations: true,
         }
     }
 }
@@ -352,6 +355,8 @@ impl BrainClawConfig {
             redact_secrets_in_output: self.security.redact_secrets_in_output,
             max_messages_per_minute: self.security.max_messages_per_minute,
             max_tool_calls_per_minute: self.security.max_tool_calls_per_minute,
+            webchat_enabled: true,
+            max_attachment_size_mb: 10,
         }
     }
 }

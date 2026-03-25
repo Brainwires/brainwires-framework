@@ -28,6 +28,12 @@ pub struct GatewayConfig {
     /// Allowed WebSocket origins. Empty list = allow all (dev mode).
     #[serde(default)]
     pub allowed_origins: Vec<String>,
+    /// Whether the built-in WebChat UI is enabled.
+    #[serde(default = "default_true")]
+    pub webchat_enabled: bool,
+    /// Maximum attachment size in megabytes for the media pipeline.
+    #[serde(default = "default_max_attachment_size")]
+    pub max_attachment_size_mb: u64,
     /// Whether to detect and strip system-message spoofing in inbound messages.
     #[serde(default = "default_true")]
     pub strip_system_spoofing: bool,
@@ -44,6 +50,10 @@ pub struct GatewayConfig {
 
 fn default_true() -> bool {
     true
+}
+
+fn default_max_attachment_size() -> u64 {
+    10
 }
 
 fn default_max_messages() -> u32 {
@@ -67,6 +77,8 @@ impl Default for GatewayConfig {
             admin_enabled: true,
             admin_path: "/admin".to_string(),
             allowed_origins: Vec::new(),
+            webchat_enabled: true,
+            max_attachment_size_mb: 10,
             strip_system_spoofing: true,
             redact_secrets_in_output: true,
             max_messages_per_minute: 20,

@@ -37,6 +37,9 @@ pub mod gpio;
 #[cfg(feature = "scheduler")]
 pub mod scheduler;
 
+#[cfg(feature = "dream")]
+pub mod dream;
+
 #[cfg(feature = "reactor")]
 pub mod reactor;
 
