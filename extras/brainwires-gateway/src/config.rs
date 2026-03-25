@@ -25,6 +25,33 @@ pub struct GatewayConfig {
     pub admin_enabled: bool,
     /// URL path prefix for admin endpoints.
     pub admin_path: String,
+    /// Allowed WebSocket origins. Empty list = allow all (dev mode).
+    #[serde(default)]
+    pub allowed_origins: Vec<String>,
+    /// Whether to detect and strip system-message spoofing in inbound messages.
+    #[serde(default = "default_true")]
+    pub strip_system_spoofing: bool,
+    /// Whether to redact secret patterns (API keys, SSNs, etc.) in outbound messages.
+    #[serde(default = "default_true")]
+    pub redact_secrets_in_output: bool,
+    /// Maximum messages per minute per user (rate limiting).
+    #[serde(default = "default_max_messages")]
+    pub max_messages_per_minute: u32,
+    /// Maximum tool calls per minute per user (rate limiting).
+    #[serde(default = "default_max_tool_calls")]
+    pub max_tool_calls_per_minute: u32,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_max_messages() -> u32 {
+    20
+}
+
+fn default_max_tool_calls() -> u32 {
+    30
 }
 
 impl Default for GatewayConfig {
@@ -39,6 +66,11 @@ impl Default for GatewayConfig {
             webhook_path: "/webhook".to_string(),
             admin_enabled: true,
             admin_path: "/admin".to_string(),
+            allowed_origins: Vec::new(),
+            strip_system_spoofing: true,
+            redact_secrets_in_output: true,
+            max_messages_per_minute: 20,
+            max_tool_calls_per_minute: 30,
         }
     }
 }

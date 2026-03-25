@@ -35,6 +35,9 @@ pub struct SkillManifest {
     /// Source repository URL
     #[serde(default)]
     pub repository: Option<String>,
+    /// Hex-encoded public key of the skill author for signature verification.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signing_key: Option<String>,
     /// When this version was first published
     pub created_at: DateTime<Utc>,
     /// When the manifest was last modified
@@ -69,6 +72,7 @@ mod tests {
             }],
             min_framework_version: Some(semver::VersionReq::parse(">=0.6.0").unwrap()),
             repository: Some("https://github.com/example/review-pr".to_string()),
+            signing_key: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
         };

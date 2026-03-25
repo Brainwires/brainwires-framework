@@ -43,7 +43,7 @@ pub async fn handle_webhook(
     // Use a synthetic channel ID of all-zeros for webhook-sourced events
     let webhook_channel_id = uuid::Uuid::nil();
 
-    if let Err(e) = state.router.route_inbound(webhook_channel_id, &event) {
+    if let Err(e) = state.router.handle_inbound(webhook_channel_id, &event).await {
         tracing::error!(error = %e, "Failed to route webhook event");
         return (
             StatusCode::INTERNAL_SERVER_ERROR,

@@ -16,6 +16,7 @@ categories = ["development-tools"]
 [features]
 default = []
 registry = ["dep:reqwest"]
+signing = ["dep:ed25519-dalek", "dep:rand_core", "dep:hex"]
 
 [dependencies]
 serde = { workspace = true }
@@ -30,6 +31,9 @@ chrono = { workspace = true }
 semver = { workspace = true }
 sha2 = { workspace = true }
 reqwest = { workspace = true, optional = true }
+ed25519-dalek = { version = "2", features = ["rand_core"], optional = true }
+rand_core = { version = "0.6", features = ["getrandom"], optional = true }
+hex = { version = "0.4", optional = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }

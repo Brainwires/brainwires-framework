@@ -5,6 +5,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use axum::extract::ws::WebSocketUpgrade;
 use axum::extract::State;
+use axum::http::HeaderMap;
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::Router;
@@ -14,7 +15,7 @@ use tokio::net::TcpListener;
 use crate::admin;
 use crate::channel_registry::ChannelRegistry;
 use crate::config::GatewayConfig;
-use crate::router::MessageRouter;
+use crate::router::{InboundHandler, MessageRouter};
 use crate::session::SessionManager;
 use crate::state::AppState;
 use crate::webhook;
@@ -23,12 +24,30 @@ use crate::ws_handler;
 /// The gateway server.
 pub struct Gateway {
     config: GatewayConfig,
+    /// Optional custom inbound handler. When `None`, a default [`MessageRouter`] is used.
+    custom_handler: Option<Arc<dyn InboundHandler>>,
 }
 
 impl Gateway {
     /// Create a new gateway with the given configuration.
+    ///
+    /// Uses the default [`MessageRouter`] for inbound event handling.
     pub fn new(config: GatewayConfig) -> Self {
-        Self { config }
+        Self {
+            config,
+            custom_handler: None,
+        }
+    }
+
+    /// Create a new gateway with a custom inbound handler.
+    ///
+    /// The provided handler will be used instead of the default [`MessageRouter`]
+    /// for processing inbound channel events.
+    pub fn with_handler(config: GatewayConfig, handler: Arc<dyn InboundHandler>) -> Self {
+        Self {
+            config,
+            custom_handler: Some(handler),
+        }
     }
 
     /// Build and run the gateway server.
@@ -37,10 +56,14 @@ impl Gateway {
     pub async fn run(&self) -> Result<()> {
         let sessions = Arc::new(SessionManager::new());
         let channels = Arc::new(ChannelRegistry::new());
-        let router = Arc::new(MessageRouter::new(
-            Arc::clone(&sessions),
-            Arc::clone(&channels),
-        ));
+
+        let router: Arc<dyn InboundHandler> = match &self.custom_handler {
+            Some(handler) => Arc::clone(handler),
+            None => Arc::new(MessageRouter::new(
+                Arc::clone(&sessions),
+                Arc::clone(&channels),
+            )),
+        };
 
         let state = AppState {
             config: Arc::new(self.config.clone()),
@@ -102,9 +125,29 @@ fn build_router(state: AppState) -> Router {
 }
 
 /// Handler for WebSocket upgrade requests at `/ws`.
+///
+/// Validates the `Origin` header against the configured allow-list before
+/// upgrading the connection.
 async fn ws_upgrade(
+    headers: HeaderMap,
     ws: WebSocketUpgrade,
     State(state): State<AppState>,
 ) -> impl IntoResponse {
+    use crate::middleware::OriginValidator;
+
+    let origin = headers
+        .get("origin")
+        .and_then(|v| v.to_str().ok());
+
+    let validator = OriginValidator::new(state.config.allowed_origins.clone());
+    if !validator.validate(origin) {
+        tracing::warn!(
+            origin = ?origin,
+            "WebSocket upgrade rejected: origin not allowed"
+        );
+        return axum::http::StatusCode::FORBIDDEN.into_response();
+    }
+
     ws.on_upgrade(move |socket| ws_handler::handle_ws_connection(socket, state))
+        .into_response()
 }

@@ -1,0 +1,526 @@
+//! Agent-backed inbound handler that bridges gateway events to [`ChatAgent`].
+//!
+//! [`AgentInboundHandler`] is the ready-to-use [`InboundHandler`] implementation
+//! that actually invokes agents when messages arrive from channel adapters. It
+//! manages per-user agent sessions and routes responses back to the originating
+//! channel.
+
+use std::sync::Arc;
+use std::time::Duration;
+
+use anyhow::Result;
+use async_trait::async_trait;
+use dashmap::DashMap;
+use tokio::sync::Mutex;
+use uuid::Uuid;
+
+use brainwires_agents::ChatAgent;
+use brainwires_channels::events::ChannelEvent;
+use brainwires_channels::identity::ConversationId;
+use brainwires_channels::message::{ChannelMessage, MessageContent, MessageId};
+use brainwires_core::{ChatOptions, Provider};
+use brainwires_tool_system::BuiltinToolExecutor;
+
+use crate::channel_registry::ChannelRegistry;
+use crate::router::InboundHandler;
+use crate::session::SessionManager;
+
+/// An [`InboundHandler`] that dispatches incoming messages to per-user
+/// [`ChatAgent`] instances and sends responses back through the channel.
+pub struct AgentInboundHandler {
+    /// Session manager for user-to-agent mapping.
+    sessions: Arc<SessionManager>,
+    /// Channel registry for sending responses back.
+    channels: Arc<ChannelRegistry>,
+    /// Per-user agent sessions: (platform, platform_user_id) -> ChatAgent.
+    agent_sessions: DashMap<(String, String), Arc<Mutex<ChatAgent>>>,
+    /// Shared provider instance.
+    provider: Arc<dyn Provider>,
+    /// Shared tool executor.
+    executor: Arc<BuiltinToolExecutor>,
+    /// Default chat options (system prompt, temperature, etc.).
+    default_options: ChatOptions,
+    /// Max tool rounds per message.
+    max_tool_rounds: usize,
+}
+
+impl AgentInboundHandler {
+    /// Create a new `AgentInboundHandler`.
+    ///
+    /// Defaults `max_tool_rounds` to 10.
+    pub fn new(
+        sessions: Arc<SessionManager>,
+        channels: Arc<ChannelRegistry>,
+        provider: Arc<dyn Provider>,
+        executor: Arc<BuiltinToolExecutor>,
+        default_options: ChatOptions,
+    ) -> Self {
+        Self {
+            sessions,
+            channels,
+            agent_sessions: DashMap::new(),
+            provider,
+            executor,
+            default_options,
+            max_tool_rounds: 10,
+        }
+    }
+
+    /// Set the maximum number of tool-call rounds per message.
+    pub fn with_max_tool_rounds(mut self, rounds: usize) -> Self {
+        self.max_tool_rounds = rounds;
+        self
+    }
+
+    /// Return the number of active agent sessions.
+    pub fn session_count(&self) -> usize {
+        self.agent_sessions.len()
+    }
+
+    /// Remove the agent session for a specific platform user.
+    pub fn remove_session(&self, platform: &str, user_id: &str) {
+        let key = (platform.to_string(), user_id.to_string());
+        self.agent_sessions.remove(&key);
+    }
+
+    /// Remove idle agent sessions whose last message is older than `timeout`.
+    ///
+    /// This inspects each agent's message history and removes sessions that
+    /// have no messages or whose conversation has been idle.
+    pub fn cleanup_idle(&self, _timeout: Duration) {
+        // Currently ChatAgent does not expose timestamps on individual messages,
+        // so we rely on the gateway SessionManager's `cleanup_expired` for
+        // time-based cleanup. Here we remove agent sessions that have an empty
+        // history (i.e., have been cleared or never used).
+        self.agent_sessions
+            .retain(|_key, agent| {
+                // Try-lock to avoid blocking; keep the session if we can't
+                // inspect it right now.
+                match agent.try_lock() {
+                    Ok(guard) => !guard.messages().is_empty(),
+                    Err(_) => true, // busy — keep it
+                }
+            });
+    }
+
+    /// Handle an inbound message by routing it through the appropriate agent.
+    async fn handle_message(&self, channel_id: Uuid, msg: &ChannelMessage) -> Result<()> {
+        // 1. Extract text from the message content
+        let text = Self::extract_text(&msg.content);
+        if text.is_empty() {
+            return Ok(());
+        }
+
+        // 2. Build a ChannelUser from the message and touch the gateway session
+        let platform = msg.conversation.platform.clone();
+        let user_id = msg.author.clone();
+
+        let user = brainwires_channels::ChannelUser {
+            platform: platform.clone(),
+            platform_user_id: user_id.clone(),
+            display_name: user_id.clone(),
+            username: None,
+            avatar_url: None,
+        };
+        let session = self.sessions.get_or_create_session(&user);
+
+        tracing::info!(
+            channel_id = %channel_id,
+            session_id = %session.id,
+            platform = %platform,
+            author = %user_id,
+            "Processing inbound message via agent",
+        );
+
+        // 3. Get or create the ChatAgent for this user
+        let agent = self.get_or_create_agent(&platform, &user_id);
+
+        // 4. Lock agent and process the message
+        let mut agent = agent.lock().await;
+        let response = agent.process_message(&text).await?;
+
+        // 5. Send the response back to the channel
+        self.send_response(channel_id, msg, &response).await?;
+
+        Ok(())
+    }
+
+    /// Get (or lazily create) a [`ChatAgent`] for the given platform user.
+    fn get_or_create_agent(&self, platform: &str, user_id: &str) -> Arc<Mutex<ChatAgent>> {
+        let key = (platform.to_string(), user_id.to_string());
+        self.agent_sessions
+            .entry(key)
+            .or_insert_with(|| {
+                let agent = ChatAgent::new(
+                    self.provider.clone(),
+                    self.executor.clone(),
+                    self.default_options.clone(),
+                )
+                .with_max_tool_rounds(self.max_tool_rounds);
+                Arc::new(Mutex::new(agent))
+            })
+            .clone()
+    }
+
+    /// Extract a text string from [`MessageContent`], returning an empty string
+    /// for non-text variants (media, embeds).
+    fn extract_text(content: &MessageContent) -> String {
+        match content {
+            MessageContent::Text(t) => t.clone(),
+            MessageContent::RichText { markdown, .. } => markdown.clone(),
+            MessageContent::Mixed(parts) => parts
+                .iter()
+                .filter_map(|p| match p {
+                    MessageContent::Text(t) => Some(t.as_str()),
+                    MessageContent::RichText { markdown, .. } => Some(markdown.as_str()),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+                .join("\n"),
+            _ => String::new(),
+        }
+    }
+
+    /// Send a response back to the channel that originated the message.
+    ///
+    /// Builds a `ChannelEvent::MessageReceived` with the assistant's reply,
+    /// serializes it to JSON, and pushes it through the channel's sender.
+    async fn send_response(
+        &self,
+        channel_id: Uuid,
+        original_msg: &ChannelMessage,
+        response_text: &str,
+    ) -> Result<()> {
+        let response_event = ChannelEvent::MessageReceived(ChannelMessage {
+            id: MessageId::new(Uuid::new_v4().to_string()),
+            conversation: ConversationId {
+                platform: original_msg.conversation.platform.clone(),
+                channel_id: original_msg.conversation.channel_id.clone(),
+                server_id: original_msg.conversation.server_id.clone(),
+            },
+            author: "assistant".to_string(),
+            content: MessageContent::Text(response_text.to_string()),
+            thread_id: original_msg.thread_id.clone(),
+            reply_to: Some(original_msg.id.clone()),
+            timestamp: chrono::Utc::now(),
+            attachments: vec![],
+            metadata: std::collections::HashMap::new(),
+        });
+
+        let json = serde_json::to_string(&response_event)?;
+
+        if let Some(tx) = self.channels.get_sender(&channel_id) {
+            tx.send(json).await.map_err(|e| {
+                anyhow::anyhow!("Failed to send response to channel {channel_id}: {e}")
+            })?;
+            tracing::info!(
+                channel_id = %channel_id,
+                "Agent response sent to channel",
+            );
+        } else {
+            tracing::warn!(
+                channel_id = %channel_id,
+                "No sender found for channel; response dropped",
+            );
+        }
+
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl InboundHandler for AgentInboundHandler {
+    async fn handle_inbound(&self, channel_id: Uuid, event: &ChannelEvent) -> Result<()> {
+        // Update heartbeat for the channel
+        self.channels.touch_heartbeat(&channel_id);
+
+        match event {
+            ChannelEvent::MessageReceived(msg) => self.handle_message(channel_id, msg).await,
+            _ => {
+                tracing::debug!("Received non-message event: {:?}", event);
+                Ok(())
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use brainwires_channels::message::{ChannelMessage, MessageContent, MessageId};
+    use brainwires_core::{
+        ChatOptions, ChatResponse, Message, StreamChunk, Tool, ToolContext, Usage,
+    };
+    use brainwires_tool_system::{BuiltinToolExecutor, ToolRegistry};
+    use futures::stream;
+    use std::collections::HashMap;
+
+    /// A mock provider that returns a fixed text response.
+    struct MockProvider {
+        response_text: String,
+    }
+
+    impl MockProvider {
+        fn new(text: &str) -> Self {
+            Self {
+                response_text: text.to_string(),
+            }
+        }
+    }
+
+    #[async_trait]
+    impl Provider for MockProvider {
+        fn name(&self) -> &str {
+            "mock"
+        }
+
+        async fn chat(
+            &self,
+            _messages: &[Message],
+            _tools: Option<&[Tool]>,
+            _options: &ChatOptions,
+        ) -> Result<ChatResponse> {
+            Ok(ChatResponse {
+                message: Message::assistant(&self.response_text),
+                usage: Usage::new(10, 20),
+                finish_reason: Some("stop".to_string()),
+            })
+        }
+
+        fn stream_chat<'a>(
+            &'a self,
+            _messages: &'a [Message],
+            _tools: Option<&'a [Tool]>,
+            _options: &'a ChatOptions,
+        ) -> futures::stream::BoxStream<'a, Result<StreamChunk>> {
+            let text = self.response_text.clone();
+            Box::pin(stream::iter(vec![
+                Ok(StreamChunk::Text(text)),
+                Ok(StreamChunk::Done),
+            ]))
+        }
+    }
+
+    fn make_executor() -> Arc<BuiltinToolExecutor> {
+        let registry = ToolRegistry::new();
+        let context = ToolContext::default();
+        Arc::new(BuiltinToolExecutor::new(registry, context))
+    }
+
+    fn make_handler() -> AgentInboundHandler {
+        let sessions = Arc::new(SessionManager::new());
+        let channels = Arc::new(ChannelRegistry::new());
+        let provider: Arc<dyn Provider> = Arc::new(MockProvider::new("Hello from agent!"));
+        let executor = make_executor();
+        let options = ChatOptions::default();
+
+        AgentInboundHandler::new(sessions, channels, provider, executor, options)
+    }
+
+    fn make_message(platform: &str, author: &str, text: &str) -> ChannelMessage {
+        ChannelMessage {
+            id: MessageId::new(Uuid::new_v4().to_string()),
+            conversation: ConversationId {
+                platform: platform.to_string(),
+                channel_id: "general".to_string(),
+                server_id: None,
+            },
+            author: author.to_string(),
+            content: MessageContent::Text(text.to_string()),
+            thread_id: None,
+            reply_to: None,
+            timestamp: chrono::Utc::now(),
+            attachments: vec![],
+            metadata: HashMap::new(),
+        }
+    }
+
+    #[test]
+    fn test_new_creates_successfully() {
+        let handler = make_handler();
+        assert_eq!(handler.session_count(), 0);
+        assert_eq!(handler.max_tool_rounds, 10);
+    }
+
+    #[test]
+    fn test_with_max_tool_rounds() {
+        let handler = make_handler().with_max_tool_rounds(5);
+        assert_eq!(handler.max_tool_rounds, 5);
+    }
+
+    #[test]
+    fn test_extract_text_plain() {
+        let content = MessageContent::Text("hello world".to_string());
+        assert_eq!(AgentInboundHandler::extract_text(&content), "hello world");
+    }
+
+    #[test]
+    fn test_extract_text_rich() {
+        let content = MessageContent::RichText {
+            markdown: "**bold text**".to_string(),
+            fallback_plain: "bold text".to_string(),
+        };
+        assert_eq!(
+            AgentInboundHandler::extract_text(&content),
+            "**bold text**"
+        );
+    }
+
+    #[test]
+    fn test_extract_text_mixed() {
+        let content = MessageContent::Mixed(vec![
+            MessageContent::Text("first line".to_string()),
+            MessageContent::RichText {
+                markdown: "second line".to_string(),
+                fallback_plain: "second".to_string(),
+            },
+            MessageContent::Media(brainwires_channels::message::MediaPayload {
+                media_type: brainwires_channels::message::MediaType::Image,
+                url: "https://example.com/img.png".to_string(),
+                caption: None,
+                thumbnail_url: None,
+            }),
+        ]);
+        assert_eq!(
+            AgentInboundHandler::extract_text(&content),
+            "first line\nsecond line"
+        );
+    }
+
+    #[test]
+    fn test_extract_text_media_returns_empty() {
+        let content = MessageContent::Media(brainwires_channels::message::MediaPayload {
+            media_type: brainwires_channels::message::MediaType::Image,
+            url: "https://example.com/img.png".to_string(),
+            caption: None,
+            thumbnail_url: None,
+        });
+        assert_eq!(AgentInboundHandler::extract_text(&content), "");
+    }
+
+    #[test]
+    fn test_extract_text_embed_returns_empty() {
+        let content = MessageContent::Embed(brainwires_channels::message::EmbedPayload {
+            title: Some("Title".to_string()),
+            description: Some("Desc".to_string()),
+            url: None,
+            color: None,
+            fields: vec![],
+            thumbnail: None,
+            footer: None,
+        });
+        assert_eq!(AgentInboundHandler::extract_text(&content), "");
+    }
+
+    #[test]
+    fn test_get_or_create_agent_returns_same_for_same_user() {
+        let handler = make_handler();
+        let agent1 = handler.get_or_create_agent("discord", "user-1");
+        let agent2 = handler.get_or_create_agent("discord", "user-1");
+        assert!(Arc::ptr_eq(&agent1, &agent2));
+        assert_eq!(handler.session_count(), 1);
+    }
+
+    #[test]
+    fn test_get_or_create_agent_returns_different_for_different_users() {
+        let handler = make_handler();
+        let agent1 = handler.get_or_create_agent("discord", "user-1");
+        let agent2 = handler.get_or_create_agent("discord", "user-2");
+        assert!(!Arc::ptr_eq(&agent1, &agent2));
+        assert_eq!(handler.session_count(), 2);
+    }
+
+    #[test]
+    fn test_get_or_create_agent_different_platforms() {
+        let handler = make_handler();
+        let agent1 = handler.get_or_create_agent("discord", "user-1");
+        let agent2 = handler.get_or_create_agent("telegram", "user-1");
+        assert!(!Arc::ptr_eq(&agent1, &agent2));
+        assert_eq!(handler.session_count(), 2);
+    }
+
+    #[test]
+    fn test_session_count_tracks_correctly() {
+        let handler = make_handler();
+        assert_eq!(handler.session_count(), 0);
+
+        handler.get_or_create_agent("discord", "user-1");
+        assert_eq!(handler.session_count(), 1);
+
+        handler.get_or_create_agent("telegram", "user-2");
+        assert_eq!(handler.session_count(), 2);
+
+        // Same user again — no new session
+        handler.get_or_create_agent("discord", "user-1");
+        assert_eq!(handler.session_count(), 2);
+    }
+
+    #[test]
+    fn test_remove_session_works() {
+        let handler = make_handler();
+        handler.get_or_create_agent("discord", "user-1");
+        handler.get_or_create_agent("telegram", "user-2");
+        assert_eq!(handler.session_count(), 2);
+
+        handler.remove_session("discord", "user-1");
+        assert_eq!(handler.session_count(), 1);
+
+        // Removing non-existent session is a no-op
+        handler.remove_session("slack", "user-99");
+        assert_eq!(handler.session_count(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_handle_inbound_non_message_event() {
+        let handler = make_handler();
+        let event = ChannelEvent::TypingStarted {
+            conversation: ConversationId {
+                platform: "discord".to_string(),
+                channel_id: "general".to_string(),
+                server_id: None,
+            },
+            user: brainwires_channels::ChannelUser {
+                platform: "discord".to_string(),
+                platform_user_id: "user-1".to_string(),
+                display_name: "User 1".to_string(),
+                username: None,
+                avatar_url: None,
+            },
+        };
+
+        let result = handler.handle_inbound(Uuid::new_v4(), &event).await;
+        assert!(result.is_ok());
+        // No agent session should have been created
+        assert_eq!(handler.session_count(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_handle_message_creates_agent_session() {
+        let handler = make_handler();
+        let msg = make_message("discord", "user-1", "Hello agent!");
+        let channel_id = Uuid::new_v4();
+
+        // We don't register a channel so the response will be dropped (no sender),
+        // but the agent session should still be created and the message processed.
+        let result = handler.handle_message(channel_id, &msg).await;
+        assert!(result.is_ok());
+        assert_eq!(handler.session_count(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_handle_message_empty_text_is_noop() {
+        let handler = make_handler();
+        let mut msg = make_message("discord", "user-1", "");
+        msg.content = MessageContent::Media(brainwires_channels::message::MediaPayload {
+            media_type: brainwires_channels::message::MediaType::Image,
+            url: "https://example.com/img.png".to_string(),
+            caption: None,
+            thumbnail_url: None,
+        });
+
+        let result = handler.handle_message(Uuid::new_v4(), &msg).await;
+        assert!(result.is_ok());
+        // No agent session should have been created for a media-only message
+        assert_eq!(handler.session_count(), 0);
+    }
+}

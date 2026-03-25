@@ -51,9 +51,11 @@ async-trait.workspace = true
 # Code search (optional, for reasoning module)
 regex = { workspace = true, optional = true }
 
+# Async streams (needed by ChatAgent for StreamExt)
+futures.workspace = true
+
 # Eval framework (optional)
 thiserror = { workspace = true, optional = true }
-futures = { workspace = true, optional = true }
 
 # ── SEAL deps ──────────────────────────────────────────────────────────
 brainwires-cognition = { workspace = true, optional = true }
@@ -80,7 +82,7 @@ wasm = ["brainwires-core/wasm", "brainwires-tool-system/wasm"]
 # Reasoning module (merged from brainwires-reasoning)
 reasoning = ["dep:regex"]
 # Evaluation framework (merged from brainwires-eval)
-eval = ["dep:thiserror", "dep:futures"]
+eval = ["dep:thiserror"]
 # OpenTelemetry span export for agent execution traces
 otel = ["dep:opentelemetry"]
 # MDAP: Multi-Dimensional Adaptive Planning (merged from brainwires-mdap)

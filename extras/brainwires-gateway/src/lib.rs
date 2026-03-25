@@ -9,12 +9,20 @@
 
 /// Admin API handlers (health check, channel listing, session listing, broadcast).
 pub mod admin;
+/// Agent-backed inbound handler that bridges gateway events to ChatAgent.
+pub mod agent_handler;
 /// Channel registry for tracking connected channel adapters.
 pub mod channel_registry;
 /// Gateway configuration.
 pub mod config;
+/// Security middleware (sanitizer, origin validation, rate limiting).
+pub mod middleware;
 /// Message routing logic.
 pub mod router;
+
+// Re-export key types for external consumers.
+pub use agent_handler::AgentInboundHandler;
+pub use router::InboundHandler;
 /// Axum server setup and route definitions.
 pub mod server;
 /// Session management (user-to-agent session mapping).

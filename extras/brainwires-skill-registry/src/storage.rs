@@ -166,6 +166,7 @@ impl SkillStore {
                     manifest,
                     skill_content: content,
                     checksum,
+                    signature: None,
                 }))
             }
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
@@ -213,6 +214,7 @@ mod tests {
             dependencies: vec![],
             min_framework_version: None,
             repository: None,
+            signing_key: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
         };
@@ -227,6 +229,7 @@ mod tests {
             manifest,
             skill_content: content,
             checksum,
+            signature: None,
         }
     }
 

@@ -21,6 +21,9 @@ pub struct SkillPackage {
     pub skill_content: String,
     /// Hex-encoded SHA-256 checksum of `skill_content`
     pub checksum: String,
+    /// Optional hex-encoded Ed25519 signature of the package content.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signature: Option<String>,
 }
 
 impl SkillPackage {
@@ -39,6 +42,7 @@ impl SkillPackage {
             manifest,
             skill_content,
             checksum,
+            signature: None,
         })
     }
 
@@ -83,6 +87,7 @@ mod tests {
             dependencies: vec![],
             min_framework_version: None,
             repository: None,
+            signing_key: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
         }

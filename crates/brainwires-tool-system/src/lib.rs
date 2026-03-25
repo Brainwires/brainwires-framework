@@ -40,6 +40,7 @@ pub use brainwires_core::{
 
 // ── Always-available modules (pure logic, WASM-safe) ────────────────────────
 
+mod default_executor;
 mod error;
 pub mod executor;
 mod registry;
@@ -91,6 +92,7 @@ mod calendar;
 // ── Public re-exports ────────────────────────────────────────────────────────
 
 // Always-available tools
+pub use default_executor::BuiltinToolExecutor;
 pub use error::{ResourceType, RetryStrategy, ToolErrorCategory, ToolOutcome, classify_error};
 pub use executor::{PreHookDecision, ToolExecutor, ToolPreHook};
 pub use registry::{ToolCategory, ToolRegistry};

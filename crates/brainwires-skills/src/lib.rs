@@ -36,6 +36,8 @@ pub mod registry;
 #[cfg(feature = "registry")]
 pub mod registry_client;
 pub mod router;
+#[cfg(feature = "signing")]
+pub mod verification;
 
 pub use executor::{ScriptPrepared, SkillExecutor, SubagentPrepared};
 pub use manifest::{SkillDependency, SkillManifest};
@@ -48,3 +50,5 @@ pub use registry::SkillRegistry;
 #[cfg(feature = "registry")]
 pub use registry_client::RegistryClient;
 pub use router::SkillRouter;
+#[cfg(feature = "signing")]
+pub use verification::SkillVerifier;

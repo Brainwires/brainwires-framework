@@ -28,6 +28,7 @@ members = [
     "extras/brainwires-skill-registry",
     "extras/brainwires-gateway",
     "extras/brainwires-discord-channel",
+    "extras/brainclaw",
     "xtask",
 ]
 exclude = [

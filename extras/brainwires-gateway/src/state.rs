@@ -6,7 +6,7 @@ use chrono::{DateTime, Utc};
 
 use crate::channel_registry::ChannelRegistry;
 use crate::config::GatewayConfig;
-use crate::router::MessageRouter;
+use crate::router::InboundHandler;
 use crate::session::SessionManager;
 
 /// Shared application state, passed to all axum handlers via Extension.
@@ -18,8 +18,8 @@ pub struct AppState {
     pub sessions: Arc<SessionManager>,
     /// Registry of connected channel adapters.
     pub channels: Arc<ChannelRegistry>,
-    /// Message router for inbound/outbound message routing.
-    pub router: Arc<MessageRouter>,
+    /// Inbound event handler (trait object for extensibility).
+    pub router: Arc<dyn InboundHandler>,
     /// When the gateway was started.
     pub start_time: DateTime<Utc>,
 }

@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use anyhow::{Result, bail};
+use async_trait::async_trait;
 use uuid::Uuid;
 
 use brainwires_channels::events::ChannelEvent;
@@ -10,6 +11,18 @@ use brainwires_channels::message::MessageContent;
 
 use crate::channel_registry::ChannelRegistry;
 use crate::session::SessionManager;
+
+/// Trait for handling inbound channel events.
+///
+/// Implement this trait to provide custom inbound message handling (e.g.,
+/// forwarding messages to an agent framework). The default implementation
+/// ([`MessageRouter`]) logs events and manages sessions but does not
+/// invoke any agent.
+#[async_trait]
+pub trait InboundHandler: Send + Sync {
+    /// Handle an inbound event from the given channel.
+    async fn handle_inbound(&self, channel_id: Uuid, event: &ChannelEvent) -> Result<()>;
+}
 
 /// Routes messages between channel adapters and agent sessions.
 pub struct MessageRouter {
@@ -34,7 +47,7 @@ impl MessageRouter {
     /// 2. Gets or creates a session
     /// 3. Converts the message to agent-compatible format
     /// 4. Logs the message (agent forwarding is a future phase)
-    pub fn route_inbound(&self, channel_id: Uuid, event: &ChannelEvent) -> Result<()> {
+    pub async fn route_inbound(&self, channel_id: Uuid, event: &ChannelEvent) -> Result<()> {
         // Update heartbeat for the channel that sent this event
         self.channels.touch_heartbeat(&channel_id);
 
@@ -184,5 +197,12 @@ impl MessageRouter {
             "All channels for platform '{}' have disconnected",
             platform
         );
+    }
+}
+
+#[async_trait]
+impl InboundHandler for MessageRouter {
+    async fn handle_inbound(&self, channel_id: Uuid, event: &ChannelEvent) -> Result<()> {
+        self.route_inbound(channel_id, event).await
     }
 }

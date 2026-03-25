@@ -115,13 +115,17 @@ pub async fn handle_ws_connection(mut ws: WebSocket, state: AppState) {
             Ok(Message::Text(text)) => {
                 match serde_json::from_str::<ChannelEvent>(&text) {
                     Ok(event) => {
-                        if let Err(e) = state.router.route_inbound(channel_id, &event) {
-                            tracing::error!(
-                                channel_id = %channel_id,
-                                error = %e,
-                                "Failed to route inbound event"
-                            );
-                        }
+                        let router = state.router.clone();
+                        let cid = channel_id;
+                        tokio::spawn(async move {
+                            if let Err(e) = router.handle_inbound(cid, &event).await {
+                                tracing::error!(
+                                    channel_id = %cid,
+                                    error = %e,
+                                    "Failed to handle inbound event"
+                                );
+                            }
+                        });
                     }
                     Err(e) => {
                         tracing::warn!(
