@@ -16,8 +16,14 @@ A modular, Deno-native TypeScript port of the [Brainwires Agent Framework](https
 | `@brainwires/tool-system` | `deno add @brainwires/tool-system` | Tool registry, built-in tools (bash, files, git, web, search) |
 | `@brainwires/cognition` | `deno add @brainwires/cognition` | Prompting techniques, knowledge graph, RAG interfaces |
 | `@brainwires/agent-network` | `deno add @brainwires/agent-network` | MCP server framework, middleware, routing, discovery |
+| `@brainwires/skills` | `deno add @brainwires/skills` | Skill parsing, registry, routing, and execution |
 
 All packages are versioned at **0.5.0** and published to JSR under the `@brainwires` scope.
+
+## Documentation & Examples
+
+- **[Documentation](./docs/)** — Guides covering architecture, each subsystem, and extensibility
+- **[Examples](./examples/)** — 43 runnable TypeScript examples ported from the Rust crates
 
 ## Package Dependency Diagram
 
@@ -125,7 +131,7 @@ console.log("Available tools:", tools.map((t) => t.name));
 | `brainwires-autonomy` | -- | Not ported |
 | `brainwires-code-interpreters` | -- | Not ported |
 | `brainwires-datasets` | -- | Not ported |
-| `brainwires-skills` | -- | Not ported |
+| `brainwires-skills` | `@brainwires/skills` | Fully ported (parsing, registry, routing, execution) |
 | `brainwires-training` | -- | Not ported |
 | `brainwires-wasm` | -- | Not ported |
 

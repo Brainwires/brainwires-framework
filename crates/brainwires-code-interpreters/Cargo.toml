@@ -63,6 +63,14 @@ tokio = { version = "1", features = ["rt", "macros"] }
 name = "multi_language"
 required-features = ["rhai", "lua"]
 
+[[example]]
+name = "rhai_scripting"
+required-features = ["rhai"]
+
+[[example]]
+name = "sandboxed_python"
+required-features = ["python"]
+
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2", features = ["js"] }
 

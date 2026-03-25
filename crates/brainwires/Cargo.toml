@@ -83,6 +83,14 @@ required-features = ["agents"]
 name = "rag_custom_pipeline"
 required-features = ["rag"]
 
+[[example]]
+name = "multi_provider_chat"
+required-features = ["providers", "chat"]
+
+[[example]]
+name = "storage_with_rag"
+required-features = ["storage", "rag"]
+
 [features]
 default = ["tools", "agents"]
 wasm = ["brainwires-core/wasm"]

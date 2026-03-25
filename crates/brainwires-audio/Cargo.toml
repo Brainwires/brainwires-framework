@@ -55,3 +55,11 @@ local-stt = ["dep:whisper-rs"]
 
 [dev-dependencies]
 tokio = { workspace = true }
+
+[[example]]
+name = "speech_to_text"
+required-features = ["native"]
+
+[[example]]
+name = "text_to_speech"
+required-features = ["native"]

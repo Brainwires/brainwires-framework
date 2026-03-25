@@ -65,3 +65,11 @@ serde_json = { workspace = true }
 
 [[example]]
 name = "agent_card"
+
+[[example]]
+name = "a2a_client_server"
+required-features = ["full"]
+
+[[example]]
+name = "a2a_streaming"
+required-features = ["client", "server"]

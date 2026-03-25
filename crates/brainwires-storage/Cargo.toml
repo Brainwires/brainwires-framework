@@ -127,3 +127,19 @@ wasm = ["brainwires-core/wasm"]
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }
 tempfile.workspace = true
+
+[[example]]
+name = "message_store"
+required-features = ["native"]
+
+[[example]]
+name = "tiered_memory"
+required-features = ["native"]
+
+[[example]]
+name = "plan_templates"
+required-features = ["native"]
+
+[[example]]
+name = "lock_coordination"
+required-features = ["native"]

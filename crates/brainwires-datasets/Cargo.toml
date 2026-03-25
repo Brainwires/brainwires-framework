@@ -39,3 +39,10 @@ full = ["hf-tokenizer", "tiktoken", "dedup"]
 serde_json.workspace = true
 tempfile.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[[example]]
+name = "jsonl_pipeline"
+
+[[example]]
+name = "tokenization"
+required-features = ["hf-tokenizer", "tiktoken"]

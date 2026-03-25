@@ -62,3 +62,13 @@ vertex-ai = ["native", "dep:gcp_auth"]
 
 [dev-dependencies]
 serde_json = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+reqwest = { workspace = true }
+
+[[example]]
+name = "provider_factory"
+required-features = ["native"]
+
+[[example]]
+name = "rate_limited_client"
+required-features = ["native"]
