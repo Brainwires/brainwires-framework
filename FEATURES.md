@@ -1,6 +1,6 @@
 # Brainwires Framework — Complete Feature List
 
-A comprehensive catalog of every feature provided by the framework's 18 crates and 6 extras.
+A comprehensive catalog of every feature provided by the framework's 19 crates and 9 extras.
 
 ---
 
@@ -11,7 +11,7 @@ A comprehensive catalog of every feature provided by the framework's 18 crates a
 - [Agent Orchestration](#agent-orchestration)
 - [Tool System](#tool-system)
 - [MCP Protocol](#mcp-protocol)
-- [MCP Server & Relay](#mcp-server--relay)
+- [Agent Networking](#agent-networking)
 - [MDAP Voting](#mdap-voting)
 - [Storage & Memory](#storage--memory)
 - [RAG & Code Search](#rag--code-search)
@@ -22,6 +22,7 @@ A comprehensive catalog of every feature provided by the framework's 18 crates a
 - [Audio](#audio)
 - [Code Interpreters](#code-interpreters)
 - [Skills System](#skills-system)
+- [Channels](#channels)
 - [Datasets & Training Data](#datasets--training-data)
 - [Model Training & Fine-Tuning](#model-training--fine-tuning)
 - [Distributed Mesh Networking](#distributed-mesh-networking)
@@ -248,11 +249,11 @@ MCP client for connecting to external MCP servers.
 
 ---
 
-## MCP Server & Relay
+## Agent Networking
 
-**Crate:** `brainwires-relay`
+**Crate:** `brainwires-agent-network`
 
-MCP server framework, IPC, remote relay, and agent management.
+MCP server framework, middleware pipeline, agent IPC, remote bridge, and optional mesh networking.
 
 ### MCP Server Framework
 
@@ -279,7 +280,7 @@ MCP server framework, IPC, remote relay, and agent management.
 
 ### Relay Client
 
-- **RelayClient** — Connect to remote relay servers (feature: `client`)
+- **AgentNetworkClient** — Connect to remote agent network servers (feature: `client`)
 
 ---
 
@@ -348,7 +349,7 @@ LanceDB-backed persistent storage with semantic search.
 
 ## RAG & Code Search
 
-**Crate:** `brainwires-rag`
+**Crate:** `brainwires-cognition` (feature: `rag`)
 
 RAG-based codebase indexing and semantic search.
 
@@ -367,7 +368,7 @@ RAG-based codebase indexing and semantic search.
 
 ## Knowledge & Brain
 
-**Crate:** `brainwires-brain`
+**Crate:** `brainwires-cognition` (feature: `knowledge`)
 
 Central knowledge crate for persistent thought storage and entity graphs.
 
@@ -386,7 +387,7 @@ Central knowledge crate for persistent thought storage and entity graphs.
 
 ## Adaptive Prompting
 
-**Crate:** `brainwires-prompting`
+**Crate:** `brainwires-cognition` (feature: `prompting`)
 
 Implements "Adaptive Selection of Prompting Techniques" (arXiv:2510.18162).
 
@@ -403,7 +404,7 @@ Implements "Adaptive Selection of Prompting Techniques" (arXiv:2510.18162).
 
 ## SEAL (Self-Evolving Agentic Learning)
 
-**Crate:** `brainwires-seal`
+**Crate:** `brainwires-agents` (feature: `seal`)
 
 Self-evolving agent capabilities without retraining.
 
@@ -536,6 +537,22 @@ Markdown-based agent skill packages.
 
 ---
 
+## Channels
+
+**Crate:** `brainwires-channels`
+
+Universal messaging channel contract for adapter implementations (Discord, Telegram, Slack, etc.).
+
+- **Channel** trait — Core interface that all messaging adapters must implement
+- **ChannelMessage** — Core message types with attachments, embeds, and media
+- **ChannelEvent** — Events: message received, edited, deleted, reactions, presence changes
+- **ChannelCapabilities** — Capability flags for adapter feature negotiation
+- **ChannelUser** / **ChannelSession** — User and session identity types
+- **ChannelHandshake** — Gateway handshake protocol for adapter registration
+- **Conversion** — Bidirectional conversion between `ChannelMessage` and agent-network `MessageEnvelope`
+
+---
+
 ## Datasets & Training Data
 
 **Crate:** `brainwires-datasets`
@@ -619,7 +636,7 @@ Cloud and local model fine-tuning.
 
 ## Distributed Mesh Networking
 
-**Crate:** `brainwires-mesh`
+**Crate:** `brainwires-agent-network` (feature: `mesh`)
 
 Connect agents across processes and machines.
 
@@ -634,7 +651,7 @@ Connect agents across processes and machines.
 
 ## Agent-to-Agent (A2A) Protocol
 
-**Module:** `brainwires-relay::a2a` (feature: `a2a`)
+**Crate:** `brainwires-a2a`
 
 Implementation of Google's A2A protocol for interoperable agent communication.
 
@@ -643,6 +660,12 @@ Implementation of Google's A2A protocol for interoperable agent communication.
 - **Message types** — Text, file, and structured data parts (`Part`, `Artifact`)
 - **Authentication** — Pluggable auth schemes: API key, OAuth2, JWT, Bearer
 - **AgentProvider** / **AgentSkill** — Provider and skill metadata
+- **JSON-RPC 2.0** — Full request/response envelopes with typed method constants
+- **Push notifications** — `TaskPushNotificationConfig`, `AuthenticationInfo`
+- **Streaming** — Server-Sent Events for real-time task updates
+- **Client** — HTTP client with JSON-RPC and REST transports (feature: `client`)
+- **Server** — HTTP server with JSON-RPC and REST routers (feature: `server`)
+- **gRPC** — Protocol Buffers types, client transport, and server service (feature: `grpc`)
 
 ---
 
@@ -799,6 +822,18 @@ Simplified open-source AI chat client built on the framework. Includes CLI comma
 
 File-watching daemon for automatic server reloading during development.
 
+### brainwires-gateway *(extras/)*
+
+WebSocket/HTTP gateway daemon connecting messaging channels to agents. Manages channel adapters, agent routing, and webhook ingestion.
+
+### brainwires-discord-channel *(extras/)*
+
+Discord channel adapter implementing the `Channel` trait from `brainwires-channels`.
+
+### brainwires-skill-registry *(extras/)*
+
+Skill registry service for discovering and distributing agent skills.
+
 ---
 
 ## Facade Crate & Feature Flags
@@ -823,7 +858,7 @@ Re-exports all framework crates behind feature flags.
 | `brain` | No | Central knowledge crate |
 | `permissions` | No | Capability-based permissions |
 | `seal` | No | Self-Evolving Agentic Learning |
-| `relay` | No | MCP server mode and IPC |
+| `agent-network` | No | MCP server, IPC, remote bridge |
 | `rag` | No | RAG engine with code search |
 | `rag-full-languages` | No | RAG + all Tree-sitter language parsers |
 | `interpreters` | No | Sandboxed code interpreters |
