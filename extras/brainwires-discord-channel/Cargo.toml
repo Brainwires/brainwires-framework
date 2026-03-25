@@ -1,0 +1,40 @@
+[package]
+name = "brainwires-discord-channel"
+publish = false
+description = "Discord channel adapter for Brainwires — connects Discord to the brainwires-gateway as an MCP-capable channel server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+authors.workspace = true
+documentation = "https://docs.rs/brainwires-discord-channel"
+
+[lib]
+name = "brainwires_discord_channel"
+path = "src/lib.rs"
+
+[[bin]]
+name = "brainwires-discord"
+path = "src/main.rs"
+doc = false
+
+[dependencies]
+brainwires-channels = { workspace = true }
+brainwires-core = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+clap = { version = "4", features = ["derive", "env"] }
+anyhow = { workspace = true }
+serenity = { workspace = true }
+tokio-tungstenite = { workspace = true }
+futures = { workspace = true }
+rmcp = { workspace = true, features = ["server", "transport-io", "macros"] }
+async-trait = { workspace = true }
+schemars = { workspace = true }
+tokio-util = { workspace = true }

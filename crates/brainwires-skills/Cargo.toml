@@ -13,6 +13,10 @@ documentation = "https://docs.rs/brainwires-skills"
 keywords = ["skills", "plugins", "extensibility", "slash-commands", "ai-agents"]
 categories = ["development-tools"]
 
+[features]
+default = []
+registry = ["dep:reqwest"]
+
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -22,6 +26,10 @@ anyhow = { workspace = true }
 tokio = { workspace = true }
 uuid = { workspace = true }
 tracing = { workspace = true }
+chrono = { workspace = true }
+semver = { workspace = true }
+sha2 = { workspace = true }
+reqwest = { workspace = true, optional = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }

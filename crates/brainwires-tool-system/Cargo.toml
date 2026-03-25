@@ -65,6 +65,19 @@ web-time = { version = "1.1", optional = true }
 openapiv3 = { version = "2", optional = true }
 serde_yml = { version = "0.0.12", optional = true }
 
+# Email tools (behind email feature)
+lettre = { version = "0.11", default-features = false, features = ["tokio1-native-tls", "smtp-transport", "builder"], optional = true }
+async-imap = { version = "0.11", default-features = false, features = ["runtime-tokio"], optional = true }
+imap-proto = { version = "0.16", optional = true }
+tokio-native-tls = { version = "0.3", optional = true }
+native-tls = { version = "0.2", optional = true }
+futures = { workspace = true, optional = true }
+mailparse = { version = "0.15", optional = true }
+base64 = { version = "0.22", optional = true }
+
+# Calendar tools (behind calendar feature)
+icalendar = { version = "0.16", optional = true }
+
 # Feature-gated dependencies
 brainwires-cognition = { workspace = true, optional = true }
 brainwires-code-interpreters = { workspace = true, optional = true }
@@ -88,7 +101,9 @@ orchestrator-wasm = ["dep:rhai", "dep:web-time"]
 rag = ["dep:brainwires-cognition", "brainwires-cognition/rag", "brainwires-cognition/lancedb-backend", "brainwires-cognition/tree-sitter-languages"]
 interpreters = ["dep:brainwires-code-interpreters"]
 openapi = ["dep:openapiv3", "dep:serde_yml", "dep:reqwest"]
-full = ["orchestrator", "rag", "interpreters", "openapi"]
+email = ["dep:lettre", "dep:async-imap", "dep:imap-proto", "dep:tokio-native-tls", "dep:native-tls", "dep:futures", "dep:mailparse", "dep:base64"]
+calendar = ["dep:icalendar", "dep:reqwest"]
+full = ["orchestrator", "rag", "interpreters", "openapi", "email", "calendar"]
 
 [[bench]]
 name = "token_comparison"

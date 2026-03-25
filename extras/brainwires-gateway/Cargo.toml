@@ -1,0 +1,39 @@
+[package]
+name = "brainwires-gateway"
+publish = false
+description = "Gateway daemon — always-on WebSocket server that routes messages between channel MCP servers and agent sessions"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+authors.workspace = true
+documentation = "https://docs.rs/brainwires-gateway"
+
+[lib]
+name = "brainwires_gateway"
+path = "src/lib.rs"
+
+[[bin]]
+name = "brainwires-gateway"
+path = "src/main.rs"
+doc = false
+
+[dependencies]
+brainwires-channels.workspace = true
+brainwires-core.workspace = true
+tokio.workspace = true
+axum = { workspace = true, features = ["ws"] }
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+clap = { version = "4", features = ["derive"] }
+dashmap.workspace = true
+anyhow.workspace = true
+futures.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }

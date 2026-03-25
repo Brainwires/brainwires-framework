@@ -33,6 +33,9 @@ mod executor;
 mod languages;
 mod types;
 
+#[cfg(feature = "docker")]
+pub mod docker;
+
 #[cfg(feature = "wasm")]
 mod wasm_bindings;
 

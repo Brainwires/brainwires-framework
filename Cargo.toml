@@ -18,12 +18,16 @@ members = [
     "crates/brainwires-training",
     "crates/brainwires-autonomy",
     "crates/brainwires-cognition",
+    "crates/brainwires-channels",
     "extras/brainwires-proxy",
     "extras/brainwires-brain-server",
     "extras/brainwires-rag-server",
     "extras/reload-daemon",
     "extras/agent-chat",
     "extras/audio-demo-ffi",
+    "extras/brainwires-skill-registry",
+    "extras/brainwires-gateway",
+    "extras/brainwires-discord-channel",
     "xtask",
 ]
 exclude = [
@@ -69,6 +73,7 @@ brainwires-datasets = { path = "crates/brainwires-datasets", version = "0.6.0" }
 brainwires-training = { path = "crates/brainwires-training", version = "0.6.0" }
 brainwires-autonomy = { path = "crates/brainwires-autonomy", version = "0.6.0", default-features = false }
 brainwires-cognition = { path = "crates/brainwires-cognition", version = "0.6.0", default-features = false }
+brainwires-channels = { path = "crates/brainwires-channels", version = "0.6.0" }
 brainwires-proxy = { path = "extras/brainwires-proxy", version = "0.6.0" }
 
 # Tokenizer dependencies
@@ -105,6 +110,7 @@ chrono = { version = "0.4", features = ["serde"] }
 
 # HTTP
 reqwest = { version = "0.12", features = ["json", "stream"] }
+axum = "0.8"
 
 # MCP protocol
 rmcp = { version = "1.1", features = ["client", "server", "client-side-sse", "transport-child-process", "transport-io", "macros"] }
@@ -128,6 +134,9 @@ fastembed = "5.1"
 
 # Caching
 lru = "0.16"
+
+# Semantic versioning
+semver = { version = "1", features = ["serde"] }
 
 # Hashing
 sha2 = "0.10"
@@ -164,6 +173,9 @@ linfa = "0.7"
 linfa-clustering = "0.7"
 ndarray = "0.15"
 
+# Bitflags
+bitflags = "2"
+
 # Binary encoding
 bincode = { version = "2", features = ["serde"] }
 
@@ -177,8 +189,14 @@ subtle = "2.6"
 # Keyring (secure key storage)
 keyring = "3"
 
+# Concurrent maps
+dashmap = "6"
+
 # WebSocket
 tokio-tungstenite = { version = "0.26", features = ["native-tls"] }
+
+# Discord API
+serenity = { version = "0.12", default-features = false, features = ["client", "gateway", "model", "cache", "rustls_backend", "chrono"] }
 
 # URL parsing
 url = "2.5"

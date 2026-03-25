@@ -213,6 +213,72 @@ impl SkillRegistry {
         self.loaded_cache.clear();
     }
 
+    /// Download a skill from a remote registry and register it locally.
+    ///
+    /// The downloaded SKILL.md content is written into `install_dir` and then
+    /// loaded into the in-memory registry.
+    #[cfg(feature = "registry")]
+    pub async fn install_from_registry(
+        &mut self,
+        client: &super::registry_client::RegistryClient,
+        name: &str,
+        version_req: &semver::VersionReq,
+        install_dir: &Path,
+    ) -> Result<()> {
+        let package = client
+            .download(name, version_req)
+            .await
+            .with_context(|| format!("Failed to download skill '{}'", name))?;
+
+        if !package.verify_checksum() {
+            anyhow::bail!("Checksum verification failed for skill '{}'", name);
+        }
+
+        // Write SKILL.md into install_dir/<name>/SKILL.md
+        let skill_dir = install_dir.join(name);
+        std::fs::create_dir_all(&skill_dir)
+            .with_context(|| format!("Failed to create directory {}", skill_dir.display()))?;
+        let skill_path = skill_dir.join("SKILL.md");
+        std::fs::write(&skill_path, &package.skill_content)
+            .with_context(|| format!("Failed to write {}", skill_path.display()))?;
+
+        // Load into registry
+        self.load_skill_file(&skill_path, SkillSource::Personal)?;
+
+        tracing::info!(
+            "Installed skill '{}' v{} from registry",
+            name,
+            package.manifest.version
+        );
+        Ok(())
+    }
+
+    /// Package a local skill and publish it to a remote registry.
+    #[cfg(feature = "registry")]
+    pub async fn publish_to_registry(
+        &mut self,
+        client: &super::registry_client::RegistryClient,
+        skill_name: &str,
+        manifest: super::manifest::SkillManifest,
+    ) -> Result<()> {
+        let metadata = self
+            .skills
+            .get(skill_name)
+            .ok_or_else(|| anyhow::anyhow!("Skill not found: {}", skill_name))?;
+
+        let package =
+            super::package::SkillPackage::from_skill_file(&metadata.source_path, manifest)
+                .with_context(|| format!("Failed to package skill '{}'", skill_name))?;
+
+        client
+            .publish(&package)
+            .await
+            .with_context(|| format!("Failed to publish skill '{}'", skill_name))?;
+
+        tracing::info!("Published skill '{}' to registry", skill_name);
+        Ok(())
+    }
+
     /// Remove a skill from the registry
     pub fn remove(&mut self, name: &str) -> Option<SkillMetadata> {
         self.loaded_cache.remove(name);
