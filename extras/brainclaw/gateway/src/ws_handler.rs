@@ -35,7 +35,43 @@ pub async fn handle_ws_connection(mut ws: WebSocket, state: AppState) {
         "Channel handshake received"
     );
 
-    // Step 2: Validate auth token
+    // Step 2a: Check master channel switch
+    if !state.config.channels_enabled {
+        let response = ChannelHandshakeResponse {
+            accepted: false,
+            channel_id: None,
+            error: Some("Channel connections are disabled".to_string()),
+        };
+        let _ = send_json(&mut ws, &response).await;
+        tracing::warn!("Handshake rejected: channels_enabled=false");
+        return;
+    }
+
+    // Step 2b: Check channel type allowlist
+    if !state.config.allowed_channel_types.is_empty()
+        && !state
+            .config
+            .allowed_channel_types
+            .iter()
+            .any(|t| t.eq_ignore_ascii_case(&handshake.channel_type))
+    {
+        let response = ChannelHandshakeResponse {
+            accepted: false,
+            channel_id: None,
+            error: Some(format!(
+                "Channel type '{}' is not in the allowed list",
+                handshake.channel_type
+            )),
+        };
+        let _ = send_json(&mut ws, &response).await;
+        tracing::warn!(
+            channel_type = %handshake.channel_type,
+            "Handshake rejected: channel type not allowed"
+        );
+        return;
+    }
+
+    // Step 2c: Validate auth token
     if !state.config.validate_token(&handshake.auth_token) {
         let response = ChannelHandshakeResponse {
             accepted: false,

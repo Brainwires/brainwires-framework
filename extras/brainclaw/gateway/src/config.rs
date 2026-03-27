@@ -54,6 +54,17 @@ pub struct GatewayConfig {
     /// When `None`, webhook payloads are accepted without signature checks.
     #[serde(default)]
     pub webhook_secret: Option<String>,
+    /// Master switch — when `false`, all channel connections are refused.
+    #[serde(default = "default_true")]
+    pub channels_enabled: bool,
+    /// Allowed channel adapter types (e.g. `["discord", "telegram"]`).
+    /// Empty = allow all types.
+    #[serde(default)]
+    pub allowed_channel_types: Vec<String>,
+    /// Allowed channel adapter IDs. Empty = allow all IDs.
+    /// These are checked during the WebSocket handshake after token auth.
+    #[serde(default)]
+    pub allowed_channel_ids: Vec<String>,
 }
 
 fn default_true() -> bool {
@@ -93,6 +104,9 @@ impl Default for GatewayConfig {
             max_tool_calls_per_minute: 30,
             admin_token: None,
             webhook_secret: None,
+            channels_enabled: true,
+            allowed_channel_types: Vec::new(),
+            allowed_channel_ids: Vec::new(),
         }
     }
 }

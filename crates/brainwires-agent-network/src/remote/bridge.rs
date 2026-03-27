@@ -142,6 +142,10 @@ pub struct RemoteBridge {
     attachment_receiver: AttachmentReceiver,
     /// Agent spawner for creating new agent processes (injected trait)
     agent_spawner: Option<Arc<dyn AgentSpawner>>,
+    /// Device allowlist status from last authentication.
+    pub device_status: Arc<RwLock<Option<super::protocol::DeviceStatus>>>,
+    /// Organization policies from last authentication.
+    pub org_policies: Arc<RwLock<Option<super::protocol::OrgPolicies>>>,
 }
 
 impl RemoteBridge {
@@ -179,6 +183,8 @@ impl RemoteBridge {
             negotiated_protocol: Arc::new(RwLock::new(NegotiatedProtocol::default())),
             attachment_receiver,
             agent_spawner,
+            device_status: Arc::new(RwLock::new(None)),
+            org_policies: Arc::new(RwLock::new(None)),
         }
     }
 
@@ -324,11 +330,13 @@ impl RemoteBridge {
         tracing::info!("Registering with backend: {}", url);
 
         let protocol_hello = ProtocolHello::default();
+        let device_fingerprint = super::protocol::compute_device_fingerprint();
         let register_body = serde_json::json!({
             "hostname": gethostname::gethostname().to_string_lossy().to_string(),
             "os": std::env::consts::OS.to_string(),
             "version": self.config.version.clone(),
             "protocol": protocol_hello,
+            "device_fingerprint": device_fingerprint,
         });
 
         let response = self
@@ -391,6 +399,35 @@ impl RemoteBridge {
         } else {
             tracing::debug!("Backend did not return protocol, using defaults");
             *self.negotiated_protocol.write().await = NegotiatedProtocol::default();
+        }
+
+        // Handle device allowlist status
+        if let Some(ds) = auth_response.get("device_status") {
+            match serde_json::from_value::<super::protocol::DeviceStatus>(ds.clone()) {
+                Ok(status) => {
+                    tracing::info!("Device status: {:?}", status);
+                    if matches!(status, super::protocol::DeviceStatus::Blocked) {
+                        bail!("Device is blocked by the user's device allowlist");
+                    }
+                    *self.device_status.write().await = Some(status);
+                }
+                Err(e) => tracing::warn!("Failed to parse device_status: {}", e),
+            }
+        }
+
+        // Handle organization policies
+        if let Some(op) = auth_response.get("org_policies") {
+            match serde_json::from_value::<super::protocol::OrgPolicies>(op.clone()) {
+                Ok(policies) => {
+                    tracing::info!(
+                        "Org policies: blocked_tools={:?}, permission_relay_required={}",
+                        policies.blocked_tools,
+                        policies.permission_relay_required
+                    );
+                    *self.org_policies.write().await = Some(policies);
+                }
+                Err(e) => tracing::warn!("Failed to parse org_policies: {}", e),
+            }
         }
 
         // Check for Realtime credentials

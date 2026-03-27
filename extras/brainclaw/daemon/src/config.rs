@@ -145,6 +145,12 @@ pub struct SecuritySection {
     pub admin_token: Option<String>,
     /// HMAC secret for webhook signature verification (None = no verification).
     pub webhook_secret: Option<String>,
+    /// Master switch — when `false`, all channel connections are refused.
+    pub channels_enabled: bool,
+    /// Allowed channel adapter types (e.g. `["discord", "telegram"]`). Empty = allow all.
+    pub allowed_channel_types: Vec<String>,
+    /// Allowed channel adapter IDs. Empty = allow all.
+    pub allowed_channel_ids: Vec<String>,
 }
 
 // ── Defaults ────────────────────────────────────────────────────────────
@@ -257,6 +263,9 @@ impl Default for SecuritySection {
             require_signed_skills: false,
             admin_token: None,
             webhook_secret: None,
+            channels_enabled: true,
+            allowed_channel_types: Vec::new(),
+            allowed_channel_ids: Vec::new(),
         }
     }
 }
@@ -365,6 +374,9 @@ impl BrainClawConfig {
             max_attachment_size_mb: 10,
             admin_token: self.security.admin_token.clone(),
             webhook_secret: self.security.webhook_secret.clone(),
+            channels_enabled: self.security.channels_enabled,
+            allowed_channel_types: self.security.allowed_channel_types.clone(),
+            allowed_channel_ids: self.security.allowed_channel_ids.clone(),
         }
     }
 }
