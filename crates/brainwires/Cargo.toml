@@ -43,9 +43,6 @@ brainwires-a2a = { workspace = true, optional = true }
 # Skills system
 brainwires-skills = { workspace = true, optional = true }
 
-# Proxy framework
-brainwires-proxy = { workspace = true, optional = true }
-
 
 # Audio I/O, STT, TTS
 brainwires-audio = { workspace = true, optional = true }
@@ -119,7 +116,7 @@ mcp-server-framework = ["dep:brainwires-mcp-server"]
 skills = ["dep:brainwires-skills"]
 eval = ["agents", "brainwires-agents/eval"]
 otel = ["agents", "brainwires-agents/otel"]
-proxy = ["dep:brainwires-proxy"]
+# proxy feature removed — brainwires-proxy is an extras app, not a framework crate
 a2a = ["dep:brainwires-a2a", "brainwires-a2a/native"]
 mesh = ["agent-network", "brainwires-agent-network/mesh"]
 audio = ["dep:brainwires-audio"]
@@ -145,7 +142,7 @@ full = [
     "prompting", "permissions", "orchestrator", "rag-full-languages", "interpreters",
     "providers", "chat", "reasoning", "seal", "agent-network",
     "brainwires-agents/seal-knowledge", "brainwires-agents/seal-mdap", "brainwires-agents/seal-feedback",
-    "llama-cpp-2", "mcp-server", "skills", "eval", "proxy",
+    "llama-cpp-2", "mcp-server", "skills", "eval",
     "a2a", "mesh", "audio", "mcp-server-framework",
     "training-cloud", "datasets",
     "autonomy",

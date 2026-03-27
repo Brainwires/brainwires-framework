@@ -125,11 +125,7 @@ pub mod eval {
     pub use brainwires_agents::eval::*;
 }
 
-/// Protocol proxy framework for debugging and inspecting AI traffic.
-#[cfg(feature = "proxy")]
-pub mod proxy {
-    pub use brainwires_proxy::*;
-}
+// proxy module removed — brainwires-proxy is an extras app, use it directly
 
 /// A2A (Agent-to-Agent) protocol support.
 #[cfg(feature = "a2a")]
