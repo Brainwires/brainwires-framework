@@ -1,6 +1,6 @@
 # Brainwires Framework — Complete Feature List
 
-A comprehensive catalog of every feature provided by the framework's 19 crates and 9 extras.
+A comprehensive catalog of every feature provided by the framework's 20 crates and 13 extras.
 
 ---
 
@@ -11,6 +11,7 @@ A comprehensive catalog of every feature provided by the framework's 19 crates a
 - [Agent Orchestration](#agent-orchestration)
 - [Tool System](#tool-system)
 - [MCP Protocol](#mcp-protocol)
+- [MCP Server Framework](#mcp-server-framework)
 - [Agent Networking](#agent-networking)
 - [MDAP Voting](#mdap-voting)
 - [Storage & Memory](#storage--memory)
@@ -118,6 +119,11 @@ Unified multi-provider AI interface with 18 provider types.
 
 Multi-agent infrastructure for autonomous task execution.
 
+### Chat
+
+- **ChatAgent** — Reusable streaming completion loop for interactive sessions. `restore_messages()` reloads history from a `SessionStore`; `compact_history()` trims old messages.
+- **SessionStore** trait / **JsonFileStore** — Persist and reload conversation history across restarts; wired into agents via config.
+
 ### Agent Types
 
 - **TaskAgent** — Autonomous agent executing tasks with tool access, configurable iteration limits, validation loops
@@ -209,6 +215,7 @@ Composable tool implementations for agent use.
 ### Tool Infrastructure
 
 - **ToolRegistry** — Composable container with `with_builtins()` for all tools, category-based organization
+- **BuiltinToolExecutor** — Centralized dispatcher for all built-in tools; eliminates ad-hoc dispatch duplication
 - **ToolExecutor** — Permission checking, lock acquisition, working set tracking, error handling
 - **ToolPreHook** — Pre-execution hooks with `PreHookDecision` (allow/deny/modify)
 - **TransactionManager** — Transactional file operations with commit/rollback (feature: `native`)
@@ -249,23 +256,32 @@ MCP client for connecting to external MCP servers.
 
 ---
 
+## MCP Server Framework
+
+**Crate:** `brainwires-mcp-server`
+
+Build MCP-compliant tool servers with a composable middleware pipeline.
+
+- **McpServer** — Async event loop: reads JSON-RPC requests, runs middleware chain, dispatches to handler
+- **McpHandler** — Trait defining server identity, capabilities, and tool dispatch (`server_info()`, `list_tools()`, `call_tool()`)
+- **McpToolRegistry** — Declarative tool registration with `McpToolDef` and `ToolHandler`; automatic dispatch by tool name
+- **ServerTransport** / **StdioServerTransport** — Pluggable request/response I/O; stdio included
+- **MiddlewareChain** — Ordered onion-model pipeline; middlewares wrap each request and response
+- **Middleware implementations:**
+  - `AuthMiddleware` — Bearer token validation
+  - `LoggingMiddleware` — Structured request/response logging via `tracing`
+  - `RateLimitMiddleware` — Token-bucket rate limiting with per-tool limits
+  - `ToolFilterMiddleware` — Allow-list or deny-list for tool access
+- **`RequestContext`** — Per-request client info passed through the middleware chain
+- **`AgentNetworkError`** — Unified error type
+
+---
+
 ## Agent Networking
 
 **Crate:** `brainwires-agent-network`
 
-MCP server framework, middleware pipeline, agent IPC, remote bridge, and optional mesh networking.
-
-### MCP Server Framework
-
-- **McpServer** — Full MCP server lifecycle management
-- **McpHandler** — Request handler trait
-- **McpToolRegistry** — Tool registration with `McpToolDef` and `ToolHandler`
-- **ServerTransport** — Stdio server transport
-- **Middleware pipeline:**
-  - `AuthMiddleware` — Authentication
-  - `LoggingMiddleware` — Request/response logging
-  - `RateLimitMiddleware` — Rate limiting
-  - `ToolFilterMiddleware` — Tool access filtering
+Agent IPC, remote bridge, 5-layer protocol stack, device allowlists, permission relay, and optional mesh networking. MCP server framework has been extracted to `brainwires-mcp-server`.
 
 ### Agent Communication
 
@@ -281,6 +297,13 @@ MCP server framework, middleware pipeline, agent IPC, remote bridge, and optiona
 ### Relay Client
 
 - **AgentNetworkClient** — Connect to remote agent network servers (feature: `client`)
+
+### Security & Device Management
+
+- **DeviceAllowlist** — `DeviceStatus` (Allowed/Blocked/Pending), `OrgPolicies` for organization-level enforcement
+- **Device fingerprinting** — Bridge computes SHA-256 of machine-id + hostname + OS and sends it in every `Register` message; connection is refused if server responds `Blocked`
+- **Sender verification** — Channel-type and channel-ID allowlists; master `channels_enabled` switch evaluated at handshake time
+- **PermissionRelay** — `PermissionRequest`/`PermissionResponse` protocol messages for remote human-in-the-loop approval. `PermissionRelay` module: pending request map (oneshot channels per request ID), session-allowed list for pre-approved tools, configurable timeout. `RemoteBridge::send_permission_request()` sends request and awaits response; auto-denies on timeout.
 
 ---
 
@@ -534,6 +557,9 @@ Markdown-based agent skill packages.
 - **SkillExecutor** — Execution modes: `SubagentPrepared` (delegate to subagent) or `ScriptPrepared`
 - **Progressive disclosure** — Metadata loaded at startup, full content loaded on-demand
 - **SkillSource** — Multiple sources (built-in, user, project)
+- **SkillPackage** — Distributable package format: manifest (name, semver, author, license, tags, deps), skill_content, SHA-256 checksum, optional ed25519 signature
+- **RegistryClient** — HTTP client for publishing to and downloading from a skill registry server
+- **ed25519 signing** (feature `signing`) — Sign and verify skill packages for supply-chain safety
 
 ---
 
@@ -718,6 +744,15 @@ Self-improvement, Git workflows, and human-out-of-loop execution.
 - **SessionMetrics** — Per-session performance tracking
 - **SessionReport** — Summary reports
 
+### Dream — Memory Consolidation (feature: `dream`)
+
+- **DreamConsolidator** — 4-phase consolidation cycle: orient (scope selection) → gather (conversation sampling) → consolidate (LLM compression) → prune (demotion by policy)
+- **DemotionPolicy** — Configurable thresholds for age, importance score, and memory budget
+- **DreamSummarizer** — LLM-powered conversation compression; reduces working memory while preserving intent
+- **FactExtractor** — Extracts durable knowledge into 5 categories: entities, relationships, events, preferences, habits
+- **DreamMetrics** / **DreamReport** — Consolidation health tracking with per-phase timing and retention rates
+- **DreamTask** — Wraps a consolidation run as a scheduled task via `AutonomyScheduler`
+
 ---
 
 ## Reasoning & Inference
@@ -822,17 +857,29 @@ Simplified open-source AI chat client built on the framework. Includes CLI comma
 
 File-watching daemon for automatic server reloading during development.
 
-### brainwires-gateway *(extras/)*
+### brainclaw *(extras/brainclaw/)*
 
-WebSocket/HTTP gateway daemon connecting messaging channels to agents. Manages channel adapters, agent routing, and webhook ingestion.
+Self-hosted personal AI assistant daemon. Multi-provider (Anthropic, OpenAI, Google, Ollama, etc.), per-user agent sessions, TOML config. Bundles the gateway, security middleware, and all channel adapters into a single service. Feature flags: `native-tools` (default), `email` (IMAP/SMTP/Gmail), `calendar` (Google Calendar/CalDAV).
 
-### brainwires-discord-channel *(extras/)*
+### brainwires-gateway *(extras/brainclaw/)*
 
-Discord channel adapter implementing the `Channel` trait from `brainwires-channels`.
+WebSocket/HTTP hub for routing channel adapters to AI agent sessions. `InboundHandler` trait for custom message processing; built-in `AgentInboundHandler` wires `ChatAgent` sessions per user. WebChat browser UI served at `/chat`. Media pipeline for attachment download, image description, and audio transcription. Admin API (`/admin/*`) with Bearer token auth. Webhook endpoint with HMAC-SHA256 verification. Audit logger (structured JSON, ring buffer). In-memory metrics counters.
 
-### brainwires-skill-registry *(extras/)*
+### brainwires-discord-channel *(extras/brainclaw/)*
 
-Skill registry service for discovering and distributing agent skills.
+Discord channel adapter (serenity) implementing the `Channel` trait. Reference implementation for building additional platform adapters. Optional MCP tool server mode (`--mcp`) for programmatic Discord access.
+
+### brainwires-telegram-channel *(extras/brainclaw/)*
+
+Telegram channel adapter (teloxide) implementing the `Channel` trait. Bidirectional gateway relay. Optional MCP tool server mode (`--mcp`).
+
+### brainwires-slack-channel *(extras/brainclaw/)*
+
+Slack channel adapter using Socket Mode (reqwest) — no public URL required. Implements the `Channel` trait. Optional MCP tool server mode (`--mcp`).
+
+### brainwires-skill-registry *(extras/brainclaw/)*
+
+HTTP skill registry server. SQLite with FTS5 full-text search. Endpoints: publish (`POST /api/skills`), search by query + tags, get manifest (latest or versioned), download package. Schema auto-created on first run.
 
 ---
 
@@ -874,7 +921,10 @@ Re-exports all framework crates behind feature flags.
 | `training-cloud` | No | Cloud fine-tuning providers |
 | `training-local` | No | Local LoRA/QLoRA/DoRA training |
 | `training-full` | No | All training + all datasets |
+| `channels` | No | Universal messaging channel contract (Channel trait, message/event types) |
+| `mcp-server-framework` | No | MCP server building blocks (McpServer, McpHandler, middleware pipeline) |
 | `autonomy` | No | Autonomous operations |
+| `dream` | No | Autodream memory consolidation (requires `autonomy`) |
 | `mesh` | No | Distributed agent mesh |
 | `a2a` | No | Agent-to-Agent protocol |
 | `proxy` | No | Protocol proxy framework |

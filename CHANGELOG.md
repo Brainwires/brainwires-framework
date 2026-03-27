@@ -7,6 +7,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+#### New Crates
+
+- **`brainwires-channels`** — Universal messaging channel contract for adapter implementations. Provides `Channel` trait (7 async methods), `ChannelMessage`, `ChannelEvent` (8 variants), `ChannelCapabilities` (12 bitflags), `ChannelUser`, `ChannelSession`, `ConversationId`, and `ChannelHandshake` protocol. Bidirectional conversion between `ChannelMessage` and agent-network `MessageEnvelope`.
+- **`brainwires-mcp-server`** — MCP server framework extracted from `brainwires-agent-network`. Provides `McpServer`, `McpHandler` trait, `McpToolRegistry` (declarative tool registration + dispatch), `ServerTransport`/`StdioServerTransport`, and a composable middleware pipeline: `AuthMiddleware`, `LoggingMiddleware`, `RateLimitMiddleware`, `ToolFilterMiddleware`.
+
+#### Agents (`brainwires-agents`)
+
+- **`ChatAgent`** — Reusable streaming completion loop with per-user session management. Methods: `restore_messages()`, `compact_history()`.
+- **Session persistence** — `SessionStore` trait + `JsonFileStore` implementation for persisting conversation history across restarts. Wired into BrainClaw via `memory.persist_conversations` config.
+
+#### Tool System (`brainwires-tool-system`)
+
+- **`BuiltinToolExecutor`** — Centralized dispatch executor for all built-in tools, eliminating duplication across agent implementations.
+- **Email tools** (feature `email`) — IMAP/SMTP/Gmail read, send, search, and manage operations.
+- **Calendar tools** (feature `calendar`) — Google Calendar/CalDAV event creation, listing, and update operations.
+
+#### Code Interpreters (`brainwires-code-interpreters`)
+
+- **Docker sandbox** — Container-isolated code execution via Docker; `Dockerfile.sandbox` at `crates/brainwires-code-interpreters/docker/`.
+
+#### Skills (`brainwires-skills`)
+
+- **`SkillPackage`** — Distributable skill package format with manifest, skill_content, SHA-256 checksum, and optional ed25519 signature.
+- **`RegistryClient`** — HTTP client for publishing to and downloading from a skill registry server.
+- **ed25519 signing** (feature `signing`) — Sign and verify skill packages for supply-chain safety.
+
+#### Agent Networking (`brainwires-agent-network`)
+
+- **Device allowlists** — `DeviceAllowlist`, `DeviceStatus` (Allowed/Blocked/Pending), `OrgPolicies`. Bridge computes a SHA-256 device fingerprint from machine-id + hostname + OS on every `Register` message; bails on `Blocked` status from server.
+- **Sender verification** — Channel-type and channel-ID allowlists enforced at WebSocket handshake time; master `channels_enabled` switch.
+- **Permission relay** — `PermissionRequest`/`PermissionResponse` message types. `PermissionRelay` module with pending request map (oneshot channels), session-allowed list, and configurable timeout. `RemoteBridge::send_permission_request()` sends a request and awaits approval; auto-denies on timeout.
+
+#### Autonomy (`brainwires-autonomy`)
+
+- **Autodream memory consolidation** (feature `dream`) — 4-phase consolidation cycle: orient → gather → consolidate → prune. Types: `DreamConsolidator`, `DemotionPolicy` (age/importance/budget thresholds), `DreamSummarizer` (LLM-powered compression), `FactExtractor` (5 categories: entities, relationships, events, preferences, habits), `DreamMetrics`, `DreamReport`, `DreamTask` (scheduled via `AutonomyScheduler`).
+
+#### Extras — BrainClaw Suite (`extras/brainclaw/`)
+
+- **`brainclaw`** (daemon) — Self-hosted personal AI assistant. Multi-provider support (Anthropic, OpenAI, Google, Ollama, Groq, Together, Fireworks, Bedrock, Vertex AI), per-user agent sessions, TOML config (`~/.brainclaw/brainclaw.toml`), native/email/calendar feature flags.
+- **`brainwires-gateway`** — WebSocket/HTTP channel hub. `InboundHandler` trait for custom message processing; built-in `AgentInboundHandler` bridging channel events to `ChatAgent` sessions. WebChat browser UI at `/chat` with WebSocket at `/chat/ws`. Admin API (`/admin/*`) with Bearer token auth. Webhook endpoint (`POST /webhook`) with HMAC-SHA256 verification. Media pipeline: attachment download, image description, audio transcription, size validation. Audit logger: structured JSON ring buffer via `tracing`. Metrics: atomic counters for messages, tool calls, errors, rate limits, spoofing blocks, and per-channel breakdowns.
+- **`brainwires-discord-channel`** — Discord bot adapter (serenity). Reference `Channel` trait implementation. Optional MCP tool server mode (`--mcp`).
+- **`brainwires-telegram-channel`** — Telegram bot adapter (teloxide). `Channel` trait implementation, bidirectional gateway relay, optional MCP tool server (`--mcp`).
+- **`brainwires-slack-channel`** — Slack adapter using Socket Mode (reqwest, no public URL required). `Channel` trait implementation, optional MCP tool server (`--mcp`).
+- **`brainwires-skill-registry`** — HTTP skill registry server. SQLite with FTS5 full-text search. Endpoints: publish, search (query + tag filter), get manifest (latest or by version), download package. Auto-creates schema on first run.
+
+### Fixed
+
+#### Facade (`brainwires`)
+
+- Removed `brainwires-proxy` from the `full` feature flag. Extras are consumers of the framework, not framework dependencies; external consumers (such as `brainwires-cli`) do not have extras in their workspace. The `proxy` feature remains available as an explicit opt-in.
+
+### Refactored
+
+- **BrainClaw workspace** — BrainClaw is now a self-contained Cargo workspace at `extras/brainclaw/`, excluded from the root workspace via `[workspace].exclude`. Members use path dependencies back to `crates/` for framework libraries.
+- **Docker Dockerfile** — Moved `extras/docker/Dockerfile.sandbox` to `crates/brainwires-code-interpreters/docker/` where it belongs alongside the crate it supports.
+- **`brainwires-mcp-server` extracted** — MCP server framework code was split out of `brainwires-agent-network` into its own publishable crate. `brainwires-agent-network` now depends on `brainwires-mcp-server`; consumers that only need to build MCP servers no longer need to pull in the full networking stack.
+- **`brainwires-channels` optional dep** — `brainwires-channels`' dependency on `brainwires-agent-network` is now optional, gated behind the `agent-network` feature flag (conversion module).
+
 ## [0.6.0] - 2026-03-23
 
 ### Changed

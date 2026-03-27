@@ -8,11 +8,13 @@ Agent networking layer for the Brainwires Agent Framework.
 
 ## Overview
 
-`brainwires-agent-network` provides the full networking stack for AI agents: an MCP server framework with composable middleware, a 5-layer protocol stack for pluggable agent communication, encrypted IPC, a remote bridge for backend connectivity, agent lifecycle management, and optional distributed mesh networking.
+`brainwires-agent-network` provides the full networking stack for AI agents: a 5-layer protocol stack for pluggable agent communication, encrypted IPC, a remote bridge for backend connectivity, agent lifecycle management, device allowlists, permission relay, and optional distributed mesh networking.
+
+> **Note:** The MCP server framework (McpServer, McpHandler, McpToolRegistry, middleware pipeline) has been extracted into [`brainwires-mcp-server`](../brainwires-mcp-server/README.md). Use that crate if you only need to build MCP tool servers without the full networking stack.
 
 **Design principles:**
 
-- **Trait-driven** — `McpHandler`, `Transport`, `Router`, `Discovery`, and friends decouple the framework from any concrete implementation
+- **Trait-driven** — `Transport`, `Router`, `Discovery`, and friends decouple the framework from any concrete implementation
 - **Protocol-agnostic** — agents communicate over IPC, TCP, HTTP, WebSocket, A2A, or Pub/Sub through a uniform `Transport` trait
 - **Middleware-composable** — auth, rate limiting, logging, and tool filtering stack via an onion model
 - **Encryption-first** — IPC sockets use ChaCha20-Poly1305 authenticated encryption by default
@@ -32,17 +34,16 @@ Agent networking layer for the Brainwires Agent Framework.
               │  │  Layer 1: Identity   (AgentIdentity, AgentCard)     │  │
               │  └─────────────────────────────────────────────────────┘  │
               │                                                           │
-              │  ┌─────────────────────────────────────────────────────┐  │
-              │  │             MCP Server Framework                    │  │
-              │  │  McpHandler ──► MiddlewareChain ──► Transport       │  │
-              │  │                   (onion model)                     │  │
-              │  └─────────────────────────────────────────────────────┘  │
+              │  ┌──────────────────┐  ┌───────────────────────────┐      │
+              │  │  Agent Manager   │  │  Remote Bridge            │      │
+              │  │  Spawn / List /  │  │  Supabase Realtime /      │      │
+              │  │  Stop / Await    │  │  HTTP Polling Fallback    │      │
+              │  └──────────────────┘  └───────────────────────────┘      │
               │                                                           │
-              │  ┌──────────────────┐  ┌───────────────────────────┐     │
-              │  │  Agent Manager   │  │  Remote Bridge            │     │
-              │  │  Spawn / List /  │  │  Supabase Realtime /      │     │
-              │  │  Stop / Await    │  │  HTTP Polling Fallback    │     │
-              │  └──────────────────┘  └───────────────────────────┘     │
+              │  ┌──────────────────────────────────────────────────┐     │
+              │  │  Security                                        │     │
+              │  │  DeviceAllowlist · PermissionRelay               │     │
+              │  └──────────────────────────────────────────────────┘     │
               └───────────────────────────────────────────────────────────┘
 ```
 
@@ -53,46 +54,27 @@ Agent networking layer for the Brainwires Agent Framework.
 brainwires-agent-network = "0.6"
 ```
 
-Minimal MCP server:
+> **Building an MCP server?** Use [`brainwires-mcp-server`](../brainwires-mcp-server/README.md) directly — it provides McpServer, McpHandler, McpToolRegistry and the middleware pipeline without the full networking stack.
+
+Sending messages between agents:
 
 ```rust
-use brainwires_agent_network::prelude::*;
+use brainwires_agent_network::{
+    NetworkManagerBuilder, AgentIdentity, Payload, NetworkEvent,
+};
+use brainwires_agent_network::transport::TcpTransport;
+use brainwires_agent_network::routing::DirectRouter;
+use brainwires_agent_network::discovery::ManualDiscovery;
 
-struct MyHandler;
+let identity = AgentIdentity::new("my-agent");
+let manager = NetworkManagerBuilder::new(identity)
+    .add_transport(Box::new(TcpTransport::new()))
+    .with_router(Box::new(DirectRouter))
+    .add_discovery(Box::new(ManualDiscovery::new()))
+    .build()
+    .await?;
 
-#[async_trait]
-impl McpHandler for MyHandler {
-    fn server_info(&self) -> ServerInfo {
-        ServerInfo { name: "my-server".into(), version: "0.4.0".into() }
-    }
-
-    fn capabilities(&self) -> ServerCapabilities {
-        ServerCapabilities::default()
-    }
-
-    fn list_tools(&self) -> Vec<McpToolDef> {
-        vec![]
-    }
-
-    async fn call_tool(
-        &self,
-        name: &str,
-        args: Value,
-        ctx: &RequestContext,
-    ) -> Result<CallToolResult> {
-        todo!()
-    }
-}
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let server = McpServer::new(MyHandler)
-        .with_transport(StdioServerTransport::new())
-        .with_middleware(LoggingMiddleware::new());
-
-    server.run().await?;
-    Ok(())
-}
+manager.send(peer_id, Payload::Text("hello".into())).await?;
 ```
 
 ## Features
@@ -270,25 +252,7 @@ while let Ok(event) = events.recv().await {
 
 ### MCP Server Framework
 
-The framework follows the Model Context Protocol specification for tool-based AI server integration.
-
-**Key types:**
-
-- `McpHandler` — defines server identity, capabilities, and tool dispatch
-- `McpServer<H>` — wires handler, middleware chain, and transport together
-- `McpToolRegistry` — declarative tool registration with automatic dispatch
-- `ServerTransport` / `StdioServerTransport` — request/response I/O
-
-### Middleware
-
-Middleware follows an **onion model**: requests flow forward through layers, responses flow back.
-
-| Layer | Description |
-|-------|-------------|
-| `AuthMiddleware` | Bearer token validation |
-| `RateLimitMiddleware` | Token-bucket rate limiter with per-tool limits |
-| `LoggingMiddleware` | Structured request/response logging via `tracing` |
-| `ToolFilterMiddleware` | Allow-list or deny-list for tool access |
+The MCP server framework has been extracted into [`brainwires-mcp-server`](../brainwires-mcp-server/README.md). See that crate for McpServer, McpHandler, McpToolRegistry, and the middleware pipeline. `brainwires-agent-network` re-exports the mcp-server crate for consumers who need both.
 
 ### IPC (Inter-Process Communication)
 
@@ -354,13 +318,56 @@ Distributed agent mesh networking for multi-node coordination. Includes topology
 | `correlation_id` | `Option<Uuid>` | Links replies to requests |
 | `transport_type` | `TransportType` | Which transport originated this message |
 
+### Device Allowlists & Sender Verification
+
+The remote bridge supports organization-managed device policies for zero-trust deployments.
+
+**On connection (`Register` message):**
+
+1. Bridge computes a **device fingerprint**: SHA-256 of machine-id + hostname + OS name.
+2. Fingerprint is sent in the `device_fingerprint` field of `RemoteMessage::Register`.
+3. Server responds with `device_status` (`Allowed`, `Blocked`, or `Pending`) and optional `org_policies`.
+4. Bridge rejects the connection if `DeviceStatus::Blocked`.
+
+**Channel allowlists (gateway side):**
+
+- `channels_enabled` master switch — disables all channel adapters when `false`
+- `allowed_channel_types` — restrict to a set of platform names (e.g., `["discord", "slack"]`)
+- `allowed_channel_ids` — restrict to specific channel UUIDs
+
+**Key types:**
+
+| Type | Description |
+|------|-------------|
+| `DeviceStatus` | `Allowed` / `Blocked` / `Pending` |
+| `OrgPolicies` | Organization-level enforcement rules |
+| `DeviceAllowlist` | Server-side registry for allowed device fingerprints |
+
+### Permission Relay
+
+Human-in-the-loop tool approval for remote agents. The orchestrating agent can require explicit approval before executing tools.
+
+**Protocol messages:**
+
+- `PermissionRequest` — sent from the bridge to a remote supervisor; includes `request_id`, `tool_name`, and parameters
+- `PermissionResponse` — sent back by the supervisor with `allow: bool`
+
+**`PermissionRelay` module:**
+
+- Maintains a `HashMap<request_id, oneshot::Sender>` of pending approvals
+- Session-allowed list: once approved, a tool can be pre-approved for the session
+- Configurable timeout: auto-denies if no response arrives within the deadline
+- `RemoteBridge::send_permission_request()` — sends the request and awaits the response
+
 ## Usage Examples
 
 ### MCP Server with Auth and Rate Limiting
 
+For MCP server functionality, use `brainwires-mcp-server` directly or via the re-export:
+
 ```rust
-use brainwires_agent_network::prelude::*;
-use brainwires_agent_network::middleware::{
+use brainwires_mcp_server::{
+    McpServer, StdioServerTransport,
     AuthMiddleware, RateLimitMiddleware, ToolFilterMiddleware,
 };
 
@@ -455,7 +462,7 @@ Use via the `brainwires` facade crate:
 brainwires = { version = "0.6", features = ["agent-network"] }
 ```
 
-Or use standalone — `brainwires-agent-network` depends only on `brainwires-core` and `brainwires-mcp`.
+Or use standalone — `brainwires-agent-network` depends on `brainwires-core`, `brainwires-mcp`, and `brainwires-mcp-server`.
 
 ## License
 
