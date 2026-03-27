@@ -38,6 +38,9 @@ async-trait.workspace = true
 futures.workspace = true
 regex.workspace = true
 reqwest.workspace = true
+sha2.workspace = true
+hmac.workspace = true
+hex.workspace = true
 dirs.workspace = true
 
 [dev-dependencies]

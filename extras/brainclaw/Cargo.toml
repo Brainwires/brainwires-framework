@@ -91,8 +91,10 @@ rusqlite = { version = "0.38", features = ["bundled"] }
 # Semantic versioning
 semver = { version = "1", features = ["serde"] }
 
-# Hashing
+# Hashing & HMAC
 sha2 = "0.10"
+hmac = "0.12"
+hex = "0.4"
 
 # Testing
 tempfile = "3"

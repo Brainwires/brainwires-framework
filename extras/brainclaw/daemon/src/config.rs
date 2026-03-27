@@ -141,6 +141,10 @@ pub struct SecuritySection {
     pub max_tool_calls_per_minute: u32,
     /// Require cryptographic signatures on skill packages.
     pub require_signed_skills: bool,
+    /// Bearer token for admin API authentication (None = no auth).
+    pub admin_token: Option<String>,
+    /// HMAC secret for webhook signature verification (None = no verification).
+    pub webhook_secret: Option<String>,
 }
 
 // ── Defaults ────────────────────────────────────────────────────────────
@@ -251,6 +255,8 @@ impl Default for SecuritySection {
             max_messages_per_minute: 20,
             max_tool_calls_per_minute: 30,
             require_signed_skills: false,
+            admin_token: None,
+            webhook_secret: None,
         }
     }
 }
@@ -357,6 +363,8 @@ impl BrainClawConfig {
             max_tool_calls_per_minute: self.security.max_tool_calls_per_minute,
             webchat_enabled: true,
             max_attachment_size_mb: 10,
+            admin_token: self.security.admin_token.clone(),
+            webhook_secret: self.security.webhook_secret.clone(),
         }
     }
 }

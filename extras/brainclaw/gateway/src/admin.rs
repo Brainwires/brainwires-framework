@@ -1,7 +1,7 @@
 //! Admin API handlers for gateway monitoring and control.
 
 use axum::extract::State;
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use axum::Json;
 use chrono::Utc;
@@ -9,7 +9,33 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::channel_registry::ChannelInfo;
+use crate::config::GatewayConfig;
 use crate::state::AppState;
+
+/// Verify the admin bearer token from the `Authorization` header.
+///
+/// If `admin_token` is `None` in the config, all requests are allowed (backward
+/// compatible). Otherwise the request must carry `Authorization: Bearer <token>`
+/// matching the configured value.
+pub fn check_admin_auth(headers: &HeaderMap, config: &GatewayConfig) -> Result<(), StatusCode> {
+    let expected = match &config.admin_token {
+        Some(token) => token,
+        None => return Ok(()), // no token configured — open access
+    };
+
+    let auth_header = headers
+        .get("authorization")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+
+    let provided = auth_header.strip_prefix("Bearer ").unwrap_or("");
+
+    if provided == expected.as_str() {
+        Ok(())
+    } else {
+        Err(StatusCode::UNAUTHORIZED)
+    }
+}
 
 /// Health check response.
 #[derive(Debug, Serialize)]
@@ -54,23 +80,35 @@ pub struct BroadcastRequest {
 }
 
 /// GET /admin/health — health check endpoint.
-pub async fn health_check(State(state): State<AppState>) -> Json<HealthResponse> {
+pub async fn health_check(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<Json<HealthResponse>, StatusCode> {
+    check_admin_auth(&headers, &state.config)?;
     let uptime = Utc::now() - state.start_time;
-    Json(HealthResponse {
+    Ok(Json(HealthResponse {
         status: "ok".to_string(),
         uptime_secs: uptime.num_seconds(),
         channels_connected: state.channels.count(),
         active_sessions: state.sessions.count(),
-    })
+    }))
 }
 
 /// GET /admin/channels — list all connected channels.
-pub async fn list_channels(State(state): State<AppState>) -> Json<Vec<ChannelInfo>> {
-    Json(state.channels.list())
+pub async fn list_channels(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<Json<Vec<ChannelInfo>>, StatusCode> {
+    check_admin_auth(&headers, &state.config)?;
+    Ok(Json(state.channels.list()))
 }
 
 /// GET /admin/sessions — list all active sessions.
-pub async fn list_sessions(State(state): State<AppState>) -> Json<Vec<SessionInfo>> {
+pub async fn list_sessions(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<Json<Vec<SessionInfo>>, StatusCode> {
+    check_admin_auth(&headers, &state.config)?;
     let sessions = state
         .sessions
         .list_sessions()
@@ -86,7 +124,7 @@ pub async fn list_sessions(State(state): State<AppState>) -> Json<Vec<SessionInf
         })
         .collect();
 
-    Json(sessions)
+    Ok(Json(sessions))
 }
 
 /// POST /admin/broadcast — send a message to all (or filtered) channels.

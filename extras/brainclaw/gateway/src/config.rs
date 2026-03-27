@@ -46,6 +46,14 @@ pub struct GatewayConfig {
     /// Maximum tool calls per minute per user (rate limiting).
     #[serde(default = "default_max_tool_calls")]
     pub max_tool_calls_per_minute: u32,
+    /// Optional bearer token required for admin API access.
+    /// When `None`, admin endpoints are open (backward compatible).
+    #[serde(default)]
+    pub admin_token: Option<String>,
+    /// Optional shared secret for webhook HMAC-SHA256 signature verification.
+    /// When `None`, webhook payloads are accepted without signature checks.
+    #[serde(default)]
+    pub webhook_secret: Option<String>,
 }
 
 fn default_true() -> bool {
@@ -83,6 +91,8 @@ impl Default for GatewayConfig {
             redact_secrets_in_output: true,
             max_messages_per_minute: 20,
             max_tool_calls_per_minute: 30,
+            admin_token: None,
+            webhook_secret: None,
         }
     }
 }

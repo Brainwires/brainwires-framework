@@ -53,6 +53,8 @@ enabled = ["bash", "files", "git", "search", "web", "validation"]
 strip_system_spoofing = true
 redact_secrets_in_output = true
 max_messages_per_minute = 20
+admin_token = "your-secret-admin-token"   # protects /admin/* endpoints
+webhook_secret = "your-hmac-secret"       # HMAC-SHA256 webhook verification
 ```
 
 ## CLI
@@ -78,13 +80,17 @@ BrainClaw addresses known AI agent security issues (informed by OpenClaw CVEs):
 
 | Protection | What it does |
 |-----------|-------------|
-| **Message sanitization** | Strips spoofed system messages from channel input |
+| **Message sanitization** | Detects and rejects spoofed system messages from channel input |
 | **Secret redaction** | Scans outbound messages for leaked API keys, SSNs, CC numbers |
 | **Origin validation** | Configurable allowed WebSocket origins |
-| **Rate limiting** | Per-user message and tool call budgets |
+| **Rate limiting** | Per-user message and tool call budgets (enforced per request) |
 | **Token auth** | Channel adapters must authenticate to connect |
+| **Admin API auth** | Bearer token authentication on all admin endpoints |
+| **Webhook HMAC** | HMAC-SHA256 signature verification on webhook payloads |
 | **Session isolation** | Each user gets a separate agent session |
 | **Skill signing** | Optional ed25519 verification for skill packages |
+| **Audit logging** | Structured JSON audit trail for security events (auth failures, rate limits, spoofing, tool calls) |
+| **Metrics** | In-memory counters for messages, tool calls, errors, rate limits, spoofing attempts |
 
 ## Features
 

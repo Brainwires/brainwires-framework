@@ -23,6 +23,8 @@ use brainwires_tool_system::BuiltinToolExecutor;
 
 use crate::channel_registry::ChannelRegistry;
 use crate::media::MediaProcessor;
+use crate::middleware::rate_limit::RateLimiter;
+use crate::middleware::sanitizer::MessageSanitizer;
 use crate::router::InboundHandler;
 use crate::session::SessionManager;
 use crate::session_persistence::{SessionStore, session_key};
@@ -48,6 +50,10 @@ pub struct AgentInboundHandler {
     persistence: Option<Arc<dyn SessionStore>>,
     /// Optional media processor for handling attachments.
     media: Option<Arc<MediaProcessor>>,
+    /// Optional message sanitizer for inbound spoofing detection and outbound redaction.
+    sanitizer: Option<Arc<MessageSanitizer>>,
+    /// Optional per-user rate limiter.
+    rate_limiter: Option<Arc<RateLimiter>>,
 }
 
 impl AgentInboundHandler {
@@ -71,6 +77,8 @@ impl AgentInboundHandler {
             max_tool_rounds: 10,
             persistence: None,
             media: None,
+            sanitizer: None,
+            rate_limiter: None,
         }
     }
 
@@ -90,6 +98,18 @@ impl AgentInboundHandler {
     /// session is created and saved after each message is processed.
     pub fn with_persistence(mut self, store: Arc<dyn SessionStore>) -> Self {
         self.persistence = Some(store);
+        self
+    }
+
+    /// Attach a message sanitizer for inbound spoofing detection and outbound redaction.
+    pub fn with_sanitizer(mut self, sanitizer: Arc<MessageSanitizer>) -> Self {
+        self.sanitizer = Some(sanitizer);
+        self
+    }
+
+    /// Attach a per-user rate limiter.
+    pub fn with_rate_limiter(mut self, rate_limiter: Arc<RateLimiter>) -> Self {
+        self.rate_limiter = Some(rate_limiter);
         self
     }
 
@@ -154,9 +174,34 @@ impl AgentInboundHandler {
             return Ok(());
         }
 
+        // 1c. Sanitize inbound: detect and strip system-message spoofing
+        if let Some(ref sanitizer) = self.sanitizer {
+            if sanitizer.strip_system_spoofing && MessageSanitizer::is_system_spoofing(&text) {
+                tracing::warn!(
+                    author = %msg.author,
+                    conversation = %msg.conversation.channel_id,
+                    "System-message spoofing detected; rejecting message"
+                );
+                return Ok(());
+            }
+        }
+
         // 2. Build a ChannelUser from the message and touch the gateway session
         let platform = msg.conversation.platform.clone();
         let user_id = msg.author.clone();
+
+        // 2a. Rate-limit check
+        if let Some(ref rate_limiter) = self.rate_limiter {
+            if !rate_limiter.check_message_rate(&platform, &user_id) {
+                tracing::warn!(
+                    platform = %platform,
+                    user_id = %user_id,
+                    "Rate limit exceeded; dropping message"
+                );
+                return Ok(());
+            }
+            rate_limiter.record_message(&platform, &user_id);
+        }
 
         let user = brainwires_channels::ChannelUser {
             platform: platform.clone(),
@@ -180,7 +225,13 @@ impl AgentInboundHandler {
 
         // 4. Lock agent and process the message
         let mut agent = agent.lock().await;
-        let response = agent.process_message(&text).await?;
+        let raw_response = agent.process_message(&text).await?;
+
+        // 4b. Sanitize outbound response (redact secrets)
+        let response = match &self.sanitizer {
+            Some(sanitizer) => sanitizer.sanitize_outbound(&raw_response),
+            None => raw_response,
+        };
 
         // 5. Persist updated conversation history
         if let Some(ref store) = self.persistence {

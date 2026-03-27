@@ -13,8 +13,12 @@ use chrono::Utc;
 use tokio::net::TcpListener;
 
 use crate::admin;
+use crate::audit::AuditLogger;
 use crate::channel_registry::ChannelRegistry;
 use crate::config::GatewayConfig;
+use crate::metrics::MetricsCollector;
+use crate::middleware::rate_limit::RateLimiter;
+use crate::middleware::sanitizer::MessageSanitizer;
 use crate::router::{InboundHandler, MessageRouter};
 use crate::session::SessionManager;
 use crate::state::AppState;
@@ -66,11 +70,24 @@ impl Gateway {
             )),
         };
 
+        let sanitizer = Arc::new(MessageSanitizer::new(
+            self.config.strip_system_spoofing,
+            self.config.redact_secrets_in_output,
+        ));
+        let rate_limiter = Arc::new(RateLimiter::new(
+            self.config.max_messages_per_minute,
+            self.config.max_tool_calls_per_minute,
+        ));
+
         let state = AppState {
             config: Arc::new(self.config.clone()),
             sessions,
             channels,
             router,
+            sanitizer,
+            rate_limiter,
+            audit: Arc::new(AuditLogger::new()),
+            metrics: Arc::new(MetricsCollector::new()),
             start_time: Utc::now(),
         };
 

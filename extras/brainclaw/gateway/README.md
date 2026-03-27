@@ -47,6 +47,8 @@ Slack Adapter ────┘              │             ├─► ChatAgent (
 
 ## Admin API
 
+All admin endpoints require a `Authorization: Bearer <token>` header when `admin_token` is configured.
+
 | Endpoint | Description |
 |----------|-------------|
 | `GET /admin/health` | Health check with uptime and connection counts |
@@ -58,14 +60,20 @@ Slack Adapter ────┘              │             ├─► ChatAgent (
 
 `POST /webhook` accepts JSON `ChannelEvent` payloads for external event injection (CI/CD, payment alerts, etc.).
 
-## Security Middleware
+When `webhook_secret` is configured, requests must include an `X-Webhook-Signature` header containing the hex-encoded HMAC-SHA256 of the request body.
 
-| Middleware | Purpose |
-|-----------|---------|
-| **Origin Validator** | WebSocket origin checks (configurable allowed origins) |
-| **Message Sanitizer** | Strips spoofed system messages, redacts leaked secrets in outbound |
-| **Rate Limiter** | Per-user message and tool call budgets |
-| **Auth** | Token-based channel adapter authentication |
+## Security
+
+| Layer | What it does |
+|-------|-------------|
+| **Message Sanitizer** | Detects spoofed system messages on inbound, redacts secrets (API keys, SSNs, CC numbers) on outbound |
+| **Rate Limiter** | Per-user message and tool call budgets, enforced per request |
+| **Origin Validator** | WebSocket origin whitelist (configurable, wildcard subdomain support) |
+| **Channel Auth** | Token-based channel adapter authentication at handshake |
+| **Admin Auth** | Bearer token authentication on all /admin/* endpoints |
+| **Webhook HMAC** | HMAC-SHA256 signature verification on webhook payloads |
+| **Audit Logger** | Structured JSON audit trail — auth failures, rate limits, spoofing attempts, tool calls, session lifecycle |
+| **Metrics** | Atomic counters for messages, tool calls, errors, rate limits, spoofing blocks, per-channel breakdowns |
 
 ## Extensibility
 
