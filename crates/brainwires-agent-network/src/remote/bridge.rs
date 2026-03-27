@@ -146,6 +146,8 @@ pub struct RemoteBridge {
     pub device_status: Arc<RwLock<Option<super::protocol::DeviceStatus>>>,
     /// Organization policies from last authentication.
     pub org_policies: Arc<RwLock<Option<super::protocol::OrgPolicies>>>,
+    /// Permission relay for remote tool-approval prompts.
+    pub permission_relay: super::permission_relay::PermissionRelay,
 }
 
 impl RemoteBridge {
@@ -185,6 +187,7 @@ impl RemoteBridge {
             agent_spawner,
             device_status: Arc::new(RwLock::new(None)),
             org_policies: Arc::new(RwLock::new(None)),
+            permission_relay: super::permission_relay::PermissionRelay::new(),
         }
     }
 
@@ -221,6 +224,73 @@ impl RemoteBridge {
     /// Get all enabled capabilities
     pub async fn enabled_capabilities(&self) -> Vec<ProtocolCapability> {
         self.negotiated_protocol.read().await.capabilities.clone()
+    }
+
+    /// Send a permission request to the remote user and wait for their decision.
+    ///
+    /// Returns `Ok(decision)` if the user responds within the timeout,
+    /// or `Ok(PermissionDecision { approved: false, .. })` on timeout.
+    pub async fn send_permission_request(
+        &self,
+        agent_id: &str,
+        tool_name: &str,
+        action: &str,
+        details: serde_json::Value,
+    ) -> Result<super::permission_relay::PermissionDecision> {
+        use super::permission_relay::PermissionDecision;
+
+        // Check session-allowed list first
+        if self.permission_relay.is_session_allowed(tool_name).await {
+            return Ok(PermissionDecision {
+                approved: true,
+                remember_for_session: true,
+                always_allow: true,
+            });
+        }
+
+        let request_id = uuid::Uuid::new_v4().to_string();
+        let timeout = self.permission_relay.default_timeout().await;
+
+        // Register the pending request
+        let rx = self
+            .permission_relay
+            .register_request(request_id.clone())
+            .await;
+
+        // Send the request message to the backend
+        let msg = RemoteMessage::PermissionRequest {
+            request_id: request_id.clone(),
+            agent_id: agent_id.to_string(),
+            tool_name: tool_name.to_string(),
+            action: action.to_string(),
+            details,
+            timeout_secs: timeout.as_secs() as u32,
+        };
+
+        // Queue the message for sending
+        self.command_result_queue.write().await.push(msg);
+
+        // Wait for response with timeout
+        match tokio::time::timeout(timeout, rx).await {
+            Ok(Ok(decision)) => Ok(decision),
+            Ok(Err(_)) => {
+                // Sender was dropped (request cancelled)
+                Ok(PermissionDecision {
+                    approved: false,
+                    remember_for_session: false,
+                    always_allow: false,
+                })
+            }
+            Err(_) => {
+                // Timeout — auto-deny
+                self.permission_relay.cancel(&request_id).await;
+                Ok(PermissionDecision {
+                    approved: false,
+                    remember_for_session: false,
+                    always_allow: false,
+                })
+            }
+        }
     }
 
     /// Set the shutdown signal sender (for external shutdown control)
@@ -875,6 +945,31 @@ impl RemoteBridge {
                         .await?;
                     }
                 }
+            }
+
+            BackendCommand::PermissionResponse {
+                request_id,
+                approved,
+                remember_for_session,
+                always_allow,
+            } => {
+                tracing::info!(
+                    "Permission response for {}: approved={}",
+                    request_id,
+                    approved
+                );
+                // We don't have the tool_name here, but the CLI side tracks that.
+                // Use resolve() without tool name; the CLI caller handles session memory.
+                self.permission_relay
+                    .resolve(
+                        &request_id,
+                        super::permission_relay::PermissionDecision {
+                            approved,
+                            remember_for_session,
+                            always_allow,
+                        },
+                    )
+                    .await;
             }
 
             BackendCommand::Authenticated { .. } | BackendCommand::AuthenticationFailed { .. } => {

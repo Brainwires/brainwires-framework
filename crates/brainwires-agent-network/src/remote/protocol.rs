@@ -95,6 +95,10 @@ fn default_initial_delay() -> u64 {
     100
 }
 
+fn default_permission_timeout() -> u32 {
+    60
+}
+
 impl Default for RetryPolicy {
     fn default() -> Self {
         Self {
@@ -275,6 +279,27 @@ pub enum RemoteMessage {
     },
 
     // ========================================================================
+    // Permission Relay (Phase 6)
+    // ========================================================================
+    /// Request permission from the remote user for a dangerous tool call
+    PermissionRequest {
+        /// Unique request identifier.
+        request_id: String,
+        /// Agent session ID that wants to execute the tool.
+        agent_id: String,
+        /// Tool name (e.g., "bash", "delete_file", "git_push").
+        tool_name: String,
+        /// Human-readable description of what the tool will do.
+        action: String,
+        /// Detailed context (command, file paths, etc.) as JSON.
+        #[serde(default)]
+        details: serde_json::Value,
+        /// Timeout in seconds (after which the request is auto-denied).
+        #[serde(default = "default_permission_timeout")]
+        timeout_secs: u32,
+    },
+
+    // ========================================================================
     // Attachment Responses (Phase 3)
     // ========================================================================
     /// Acknowledgment that attachment was received
@@ -430,6 +455,23 @@ pub enum BackendCommand {
         data: String,
         /// Whether this is the final chunk
         is_final: bool,
+    },
+
+    // ========================================================================
+    // Permission Relay (Phase 6)
+    // ========================================================================
+    /// Response to a permission request from the remote user
+    PermissionResponse {
+        /// The request_id from the original PermissionRequest.
+        request_id: String,
+        /// Whether the tool execution was approved.
+        approved: bool,
+        /// Remember this decision for the rest of the session.
+        #[serde(default)]
+        remember_for_session: bool,
+        /// If true, always allow this tool (no future prompts).
+        #[serde(default)]
+        always_allow: bool,
     },
 
     /// Attachment upload complete - verify checksum

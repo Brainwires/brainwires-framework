@@ -147,7 +147,8 @@ impl BuiltinToolExecutor {
         #[cfg(any(feature = "orchestrator", feature = "orchestrator-wasm"))]
         {
             if tool_name == "execute_script" {
-                return crate::OrchestratorTool::execute(tool_use_id, tool_name, input, context)
+                let orchestrator = crate::OrchestratorTool::new();
+                return orchestrator.execute(tool_use_id, tool_name, input, context)
                     .await;
             }
         }
