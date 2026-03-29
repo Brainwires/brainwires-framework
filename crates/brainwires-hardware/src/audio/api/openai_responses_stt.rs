@@ -9,10 +9,10 @@ use brainwires_providers::openai_responses::{
     ResponseInputItem, ResponseOutputItem, ResponsesClient,
 };
 
-use crate::error::{AudioError, AudioResult};
-use crate::stt::SpeechToText;
-use crate::types::{AudioBuffer, SttOptions, Transcript};
-use crate::wav::encode_wav;
+use crate::audio::error::{AudioError, AudioResult};
+use crate::audio::stt::SpeechToText;
+use crate::audio::types::{AudioBuffer, SttOptions, Transcript};
+use crate::audio::wav::encode_wav;
 
 /// OpenAI Responses API speech-to-text implementation.
 ///

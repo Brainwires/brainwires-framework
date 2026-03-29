@@ -5,10 +5,10 @@ use futures::stream::BoxStream;
 
 use brainwires_providers::openai_chat::{CreateSpeechRequest, OpenAiClient};
 
-use crate::error::{AudioError, AudioResult};
-use crate::tts::TextToSpeech;
-use crate::types::{AudioBuffer, OutputFormat, TtsOptions, Voice};
-use crate::wav::decode_wav;
+use crate::audio::error::{AudioError, AudioResult};
+use crate::audio::tts::TextToSpeech;
+use crate::audio::types::{AudioBuffer, OutputFormat, TtsOptions, Voice};
+use crate::audio::wav::decode_wav;
 
 /// OpenAI TTS API text-to-speech implementation.
 ///
@@ -129,10 +129,10 @@ impl TextToSpeech for OpenAiTts {
         match options.output_format {
             OutputFormat::Wav => decode_wav(&bytes),
             OutputFormat::Pcm => {
-                let config = crate::types::AudioConfig {
+                let config = crate::audio::types::AudioConfig {
                     sample_rate: 24000,
                     channels: 1,
-                    sample_format: crate::types::SampleFormat::I16,
+                    sample_format: crate::audio::types::SampleFormat::I16,
                 };
                 Ok(AudioBuffer::from_pcm(bytes, config))
             }

@@ -1,4 +1,4 @@
-use crate::types::AudioConfig;
+use crate::audio::types::AudioConfig;
 
 /// A ring buffer for accumulating audio samples with a fixed capacity.
 ///
@@ -117,7 +117,7 @@ mod tests {
         let config = AudioConfig {
             sample_rate: 4,
             channels: 1,
-            sample_format: crate::types::SampleFormat::I16,
+            sample_format: crate::audio::types::SampleFormat::I16,
         };
         // 4 Hz * 1 sec * 2 bytes/frame = 8 bytes capacity
         let mut buf = AudioRingBuffer::new(config, 1.0);

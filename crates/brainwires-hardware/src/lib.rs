@@ -10,6 +10,8 @@
 //! | [`gpio`] | `gpio` | GPIO pin management with safety allow-lists and PWM (Linux) |
 //! | [`bluetooth`] | `bluetooth` | BLE advertisement scanning and adapter enumeration |
 //! | [`network`] | `network` | NIC enumeration, IP config, ARP discovery, port scanning |
+//! | [`camera`] | `camera` | Webcam/camera frame capture (V4L2/AVFoundation/MSMF) |
+//! | [`usb`] | `usb` | Raw USB device enumeration and bulk/control/interrupt transfers |
 //!
 //! ## Feature flags
 //!
@@ -36,6 +38,15 @@
 //! ### Network
 //! The `network` feature provides interface enumeration, IP configuration
 //! parsing, ARP-based host discovery, and async TCP port scanning.
+//!
+//! ### Camera
+//! The `camera` feature enables video frame capture using [`nokhwa`](https://crates.io/crates/nokhwa):
+//! V4L2 on Linux, AVFoundation on macOS, Media Foundation on Windows.
+//!
+//! ### USB
+//! The `usb` feature provides raw USB device enumeration and transfers via
+//! [`nusb`](https://crates.io/crates/nusb) — a pure-Rust async USB library
+//! with no `libusb` system dependency.
 
 /// Audio capture, playback, STT, and TTS.
 #[cfg(feature = "audio")]
@@ -52,6 +63,14 @@ pub mod bluetooth;
 /// Network interface enumeration, discovery, and port scanning.
 #[cfg(feature = "network")]
 pub mod network;
+
+/// Camera and webcam frame capture.
+#[cfg(feature = "camera")]
+pub mod camera;
+
+/// Raw USB device access and transfers.
+#[cfg(feature = "usb")]
+pub mod usb;
 
 // ── Convenience re-exports: mirrors the old brainwires-audio public API ──────
 
@@ -85,3 +104,16 @@ pub use audio::WhisperStt;
 
 #[cfg(feature = "gpio")]
 pub use gpio::{GpioChipInfo, GpioLineInfo, GpioPin, GpioPinManager, GpioSafetyPolicy};
+
+// ── Camera re-exports ─────────────────────────────────────────────────────────
+
+#[cfg(feature = "camera")]
+pub use camera::{
+    CameraCapture, CameraDevice, CameraError, CameraFormat, CameraFrame, FrameRate, NokhwaCapture,
+    PixelFormat, Resolution,
+};
+
+// ── USB re-exports ────────────────────────────────────────────────────────────
+
+#[cfg(feature = "usb")]
+pub use usb::{UsbClass, UsbDevice, UsbError, UsbHandle, UsbSpeed};

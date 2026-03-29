@@ -5,10 +5,10 @@ use futures::stream::BoxStream;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
-use crate::capture::AudioCapture;
-use crate::device::AudioDevice;
-use crate::error::{AudioError, AudioResult};
-use crate::types::{AudioBuffer, AudioConfig, SampleFormat};
+use crate::audio::capture::AudioCapture;
+use crate::audio::device::AudioDevice;
+use crate::audio::error::{AudioError, AudioResult};
+use crate::audio::types::{AudioBuffer, AudioConfig, SampleFormat};
 
 use super::cpal_common;
 

@@ -559,6 +559,36 @@ Network interface enumeration, IP configuration, ARP discovery, and port scannin
 - **PortScanResult** / **PortState** — Per-port result (`Open`, `Closed`, `Filtered`)
 - **DiscoveredHost** — IP, MAC, hostname from ARP replies
 
+### Camera (feature: `camera`)
+
+Cross-platform webcam and camera frame capture via `nokhwa` (V4L2 on Linux, AVFoundation on macOS, Media Foundation on Windows).
+
+- **`list_cameras()`** — Enumerate connected cameras with index, name, and description
+- **`open_camera(index, format)`** — Open a camera with an optional format request; falls back to highest frame rate if `None`
+- **`CameraCapture` trait** — `format()`, `capture_frame()` (async), `stop()`
+- **`NokhwaCapture`** — `CameraCapture` implementation; internally uses `spawn_blocking` for sync nokhwa API
+- **CameraDevice** — Index, name, description
+- **CameraFrame** — Width, height, pixel format, raw data bytes, timestamp (ms since first frame)
+- **CameraFormat** — Resolution, frame rate (numerator/denominator), pixel format
+- **PixelFormat** — `Rgb`, `Bgr`, `Rgba`, `Yuv422`, `Mjpeg`, `Unknown`; MJPEG frames are automatically decoded to RGB
+- **Resolution** — Width × height; `Display` as `1920x1080`
+- **FrameRate** — Rational (numerator/denominator); `Display` as `30fps`
+
+### USB (feature: `usb`)
+
+Raw USB device enumeration and async bulk/control/interrupt transfers via `nusb` (pure Rust, no libusb system dependency).
+
+- **`list_usb_devices()`** — Enumerate all USB devices; reads string descriptors (manufacturer, product, serial) on a best-effort basis
+- **`find_device(vendor_id, product_id)`** — Find the first matching device or return `UsbError::DeviceNotFound`
+- **`UsbHandle::open(vendor_id, product_id, interface)`** — Open a device and claim an interface; auto-discovers bulk IN/OUT endpoints
+- **`UsbHandle::control_in()`** / **`control_out()`** — USB control transfers (standard/class/vendor)
+- **`UsbHandle::bulk_read(endpoint, len, timeout)`** / **`bulk_write()`** — Bulk endpoint transfers with auto-endpoint fallback
+- **`UsbHandle::interrupt_read()`** / **`interrupt_write()`** — Interrupt endpoint transfers
+- **UsbDevice** — Bus, device address, vendor/product ID, class, speed, and optional string descriptors
+- **UsbClass** — Full USB-IF class code mapping (HID, MassStorage, Audio, Video, Hub, …, `Unknown(u8)`)
+- **UsbSpeed** — `Low`, `Full`, `High`, `Super`, `SuperPlus`, `Unknown`
+- **Linux udev** — No root required; add a udev rule for your vendor/product ID to grant user access
+
 ---
 
 ## Code Interpreters
@@ -951,6 +981,11 @@ Re-exports all framework crates behind feature flags.
 | `eval` | No | Evaluation framework |
 | `skills` | No | SKILL.md skill system |
 | `audio` | No | Audio capture, STT, TTS |
+| `gpio` | No | GPIO pin control with safety allow-lists (Linux) |
+| `bluetooth` | No | BLE advertisement scanning and adapter enumeration |
+| `network-hardware` | No | NIC enumeration, IP config, ARP discovery, port scanning |
+| `camera` | No | Webcam/camera frame capture (V4L2/AVFoundation/MSMF) |
+| `usb` | No | Raw USB device enumeration and transfers (no libusb) |
 | `datasets` | No | Training data pipelines |
 | `training` | No | Model training (base types) |
 | `training-cloud` | No | Cloud fine-tuning providers |

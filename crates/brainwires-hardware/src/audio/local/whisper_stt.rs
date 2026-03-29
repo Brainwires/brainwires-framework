@@ -2,9 +2,9 @@ use async_trait::async_trait;
 use futures::stream::BoxStream;
 use std::path::PathBuf;
 
-use crate::error::{AudioError, AudioResult};
-use crate::stt::SpeechToText;
-use crate::types::{
+use crate::audio::error::{AudioError, AudioResult};
+use crate::audio::stt::SpeechToText;
+use crate::audio::types::{
     AudioBuffer, AudioConfig, SAMPLE_RATE_SPEECH, SampleFormat, SttOptions, Transcript,
     TranscriptSegment,
 };

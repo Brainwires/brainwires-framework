@@ -4,10 +4,10 @@ use futures::StreamExt;
 use futures::stream::BoxStream;
 use std::sync::{Arc, Mutex};
 
-use crate::device::AudioDevice;
-use crate::error::AudioResult;
-use crate::playback::AudioPlayback;
-use crate::types::{AudioBuffer, AudioConfig, SampleFormat};
+use crate::audio::device::AudioDevice;
+use crate::audio::error::AudioResult;
+use crate::audio::playback::AudioPlayback;
+use crate::audio::types::{AudioBuffer, AudioConfig, SampleFormat};
 
 use super::cpal_common;
 

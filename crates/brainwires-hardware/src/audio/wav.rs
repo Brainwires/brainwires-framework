@@ -1,5 +1,5 @@
-use crate::error::{AudioError, AudioResult};
-use crate::types::{AudioBuffer, AudioConfig, SampleFormat};
+use crate::audio::error::{AudioError, AudioResult};
+use crate::audio::types::{AudioBuffer, AudioConfig, SampleFormat};
 
 /// Encode an [`AudioBuffer`] to WAV format bytes.
 pub fn encode_wav(buffer: &AudioBuffer) -> AudioResult<Vec<u8>> {

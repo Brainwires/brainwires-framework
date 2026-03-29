@@ -139,8 +139,8 @@ pub mod mesh {
     pub use brainwires_agent_network::mesh::*;
 }
 
-/// Hardware I/O — audio, GPIO, Bluetooth, network.
-#[cfg(any(feature = "audio", feature = "gpio", feature = "bluetooth", feature = "network-hardware"))]
+/// Hardware I/O — audio, GPIO, Bluetooth, network, camera, USB.
+#[cfg(any(feature = "audio", feature = "gpio", feature = "bluetooth", feature = "network-hardware", feature = "camera", feature = "usb"))]
 pub mod hardware {
     pub use brainwires_hardware::*;
 }
@@ -149,6 +149,18 @@ pub mod hardware {
 #[cfg(feature = "audio")]
 pub mod audio {
     pub use brainwires_hardware::audio::*;
+}
+
+/// Camera and webcam frame capture.
+#[cfg(feature = "camera")]
+pub mod camera {
+    pub use brainwires_hardware::camera::*;
+}
+
+/// Raw USB device access and transfers.
+#[cfg(feature = "usb")]
+pub mod usb {
+    pub use brainwires_hardware::usb::*;
 }
 
 /// Training data pipelines — JSONL, format conversion, tokenization, dedup.

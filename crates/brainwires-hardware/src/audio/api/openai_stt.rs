@@ -5,10 +5,10 @@ use futures::stream::BoxStream;
 
 use brainwires_providers::openai_chat::{OpenAiClient, TranscriptionRequest};
 
-use crate::error::{AudioError, AudioResult};
-use crate::stt::SpeechToText;
-use crate::types::{AudioBuffer, SttOptions, Transcript, TranscriptSegment};
-use crate::wav::encode_wav;
+use crate::audio::error::{AudioError, AudioResult};
+use crate::audio::stt::SpeechToText;
+use crate::audio::types::{AudioBuffer, SttOptions, Transcript, TranscriptSegment};
+use crate::audio::wav::encode_wav;
 
 /// OpenAI Whisper API speech-to-text implementation.
 ///

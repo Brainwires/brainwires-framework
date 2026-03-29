@@ -57,9 +57,17 @@ uuid = { workspace = true, optional = true }
 
 # Network hardware
 network-interface = { version = "2", optional = true }
-ipnetwork = { version = "0.21", optional = true }
+ipnetwork = { version = "0.21", optional = true, features = ["serde"] }
 pnet = { version = "0.35", optional = true }
 pnet_datalink = { version = "0.35", optional = true }
+
+# Camera capture (cross-platform: V4L2 / AVFoundation / Media Foundation)
+nokhwa = { version = "0.10", optional = true, features = ["input-native"] }
+# Frame encode/decode: MJPEG → RGB, save PNG/JPEG (gated on camera feature)
+image = { version = "0.25", optional = true, default-features = false, features = ["png", "jpeg"] }
+
+# Raw USB device access (pure Rust, no libusb system dependency)
+nusb = { version = "0.1", optional = true }
 
 [features]
 default = []
@@ -87,8 +95,14 @@ bluetooth = ["dep:btleplug", "dep:uuid"]
 # Network interface enumeration, discovery, port scanning
 network = ["dep:network-interface", "dep:ipnetwork", "dep:pnet", "dep:pnet_datalink"]
 
+# Camera / webcam capture via nokhwa (cross-platform)
+camera = ["dep:nokhwa", "dep:image"]
+
+# Raw USB device access and transfers via nusb
+usb = ["dep:nusb"]
+
 # Convenience: everything
-full = ["audio", "gpio", "bluetooth", "network"]
+full = ["audio", "gpio", "bluetooth", "network", "camera", "usb"]
 
 [dev-dependencies]
 tokio = { workspace = true }
@@ -101,9 +115,6 @@ required-features = ["audio"]
 name = "text_to_speech"
 required-features = ["audio"]
 
-[[example]]
-name = "gpio_pins"
-required-features = ["gpio"]
 
 [[example]]
 name = "bluetooth_scan"
@@ -120,3 +131,4 @@ required-features = ["network"]
 [[example]]
 name = "host_discovery"
 required-features = ["network"]
+

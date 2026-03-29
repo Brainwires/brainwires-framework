@@ -61,10 +61,7 @@ fn arp_scan_blocking(subnet: IpNetwork, timeout: Duration) -> Vec<DiscoveredHost
             } else {
                 false
             }
-        }) || iface
-            .ips
-            .iter()
-            .any(|ip| matches!(ip, pnet_datalink::NetworkInterface { .. } if true))
+        })
     });
 
     // Fall back to first non-loopback interface with an IPv4 address

@@ -9,9 +9,9 @@ use brainwires_providers::google_tts::{
     GoogleTtsVoiceSelection,
 };
 
-use crate::error::{AudioError, AudioResult};
-use crate::tts::TextToSpeech;
-use crate::types::{AudioBuffer, AudioConfig, OutputFormat, SampleFormat, TtsOptions, Voice};
+use crate::audio::error::{AudioError, AudioResult};
+use crate::audio::tts::TextToSpeech;
+use crate::audio::types::{AudioBuffer, AudioConfig, OutputFormat, SampleFormat, TtsOptions, Voice};
 
 /// Google Cloud TTS text-to-speech implementation.
 ///
@@ -106,7 +106,7 @@ impl TextToSpeech for GoogleTts {
             .map_err(|e| AudioError::Format(format!("base64 decode error: {e}")))?;
 
         match options.output_format {
-            OutputFormat::Wav => crate::wav::decode_wav(&decoded),
+            OutputFormat::Wav => crate::audio::wav::decode_wav(&decoded),
             OutputFormat::Pcm => {
                 // LINEAR16 returns raw 16-bit signed little-endian PCM.
                 let config = AudioConfig {

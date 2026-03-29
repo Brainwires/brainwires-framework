@@ -9,10 +9,10 @@ use brainwires_providers::openai_responses::{
     ResponseOutputItem, ResponsesClient,
 };
 
-use crate::error::{AudioError, AudioResult};
-use crate::tts::TextToSpeech;
-use crate::types::{AudioBuffer, AudioConfig, OutputFormat, SampleFormat, TtsOptions, Voice};
-use crate::wav::decode_wav;
+use crate::audio::error::{AudioError, AudioResult};
+use crate::audio::tts::TextToSpeech;
+use crate::audio::types::{AudioBuffer, AudioConfig, OutputFormat, SampleFormat, TtsOptions, Voice};
+use crate::audio::wav::decode_wav;
 
 /// OpenAI Responses API text-to-speech implementation.
 ///

@@ -1,8 +1,8 @@
 use cpal::traits::{DeviceTrait, HostTrait};
 
-use crate::device::{AudioDevice, DeviceDirection};
-use crate::error::{AudioError, AudioResult};
-use crate::types::{AudioConfig, SampleFormat};
+use crate::audio::device::{AudioDevice, DeviceDirection};
+use crate::audio::error::{AudioError, AudioResult};
+use crate::audio::types::{AudioConfig, SampleFormat};
 
 /// Get the default cpal host.
 pub fn default_host() -> cpal::Host {

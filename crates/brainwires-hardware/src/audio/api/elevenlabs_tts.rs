@@ -5,9 +5,9 @@ use futures::stream::BoxStream;
 
 use brainwires_providers::elevenlabs::{ElevenLabsClient, ElevenLabsTtsRequest};
 
-use crate::error::{AudioError, AudioResult};
-use crate::tts::TextToSpeech;
-use crate::types::{
+use crate::audio::error::{AudioError, AudioResult};
+use crate::audio::tts::TextToSpeech;
+use crate::audio::types::{
     AudioBuffer, AudioConfig, OutputFormat, SAMPLE_RATE_CD, SAMPLE_RATE_SPEECH, SampleFormat,
     TtsOptions, Voice,
 };

@@ -1,8 +1,8 @@
 use flacenc::component::BitRepr;
 use flacenc::error::Verify;
 
-use crate::error::{AudioError, AudioResult};
-use crate::types::{AudioBuffer, AudioConfig, SampleFormat};
+use crate::audio::error::{AudioError, AudioResult};
+use crate::audio::types::{AudioBuffer, AudioConfig, SampleFormat};
 
 /// Encode an [`AudioBuffer`] to FLAC format bytes.
 ///
@@ -104,7 +104,7 @@ pub fn decode_flac(flac_bytes: &[u8]) -> AudioResult<AudioBuffer> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{AudioBuffer, AudioConfig};
+    use crate::audio::types::{AudioBuffer, AudioConfig};
 
     #[test]
     fn test_encode_flac_i16() {

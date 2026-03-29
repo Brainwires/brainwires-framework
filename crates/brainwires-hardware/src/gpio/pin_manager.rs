@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 
 use super::device::GpioDirection;
 use super::safety::GpioSafetyPolicy;
-use crate::config::GpioConfig;
+use super::config::GpioConfig;
 
 /// A handle to a GPIO pin with auto-release on drop.
 #[derive(Debug)]

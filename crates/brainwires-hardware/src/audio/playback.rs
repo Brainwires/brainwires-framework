@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 use futures::stream::BoxStream;
 
-use crate::device::AudioDevice;
-use crate::error::AudioResult;
-use crate::types::{AudioBuffer, AudioConfig};
+use crate::audio::device::AudioDevice;
+use crate::audio::error::AudioResult;
+use crate::audio::types::{AudioBuffer, AudioConfig};
 
 /// Plays audio through a hardware output device (speakers).
 #[async_trait]

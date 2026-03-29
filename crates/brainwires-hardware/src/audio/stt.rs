@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use futures::stream::BoxStream;
 
-use crate::error::AudioResult;
-use crate::types::{AudioBuffer, SttOptions, Transcript};
+use crate::audio::error::AudioResult;
+use crate::audio::types::{AudioBuffer, SttOptions, Transcript};
 
 /// Converts audio to text (speech-to-text / transcription).
 #[async_trait]

@@ -5,10 +5,10 @@ use futures::stream::BoxStream;
 
 use brainwires_providers::murf::{MurfClient, MurfGenerateRequest};
 
-use crate::error::{AudioError, AudioResult};
-use crate::tts::TextToSpeech;
-use crate::types::{AudioBuffer, OutputFormat, TtsOptions, Voice};
-use crate::wav::decode_wav;
+use crate::audio::error::{AudioError, AudioResult};
+use crate::audio::tts::TextToSpeech;
+use crate::audio::types::{AudioBuffer, OutputFormat, TtsOptions, Voice};
+use crate::audio::wav::decode_wav;
 
 /// Murf AI text-to-speech implementation.
 ///

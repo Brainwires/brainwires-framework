@@ -14,7 +14,7 @@ brainwires  (facade — re-exports all crates via feature flags)
 ├─── Providers
 │    ├── brainwires-providers       AI providers (Anthropic, OpenAI, Google, Ollama, Bedrock, Vertex AI)
 │    │   └─> core
-│    └── brainwires-hardware         Audio, GPIO, Bluetooth, network hardware I/O
+│    └── brainwires-hardware         Audio, GPIO, Bluetooth, network, camera, USB hardware I/O
 │        └─> providers (opt, "audio" feature)
 │
 ├─── Tools & Agents

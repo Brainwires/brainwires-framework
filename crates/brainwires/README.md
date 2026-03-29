@@ -88,6 +88,8 @@ let response = provider.chat(&messages, None, &options).await?;
 | `gpio` | no | `brainwires-hardware/gpio` | GPIO pin control with safety allow-lists (Linux) |
 | `bluetooth` | no | `brainwires-hardware/bluetooth` | BLE advertisement scanning and adapter enumeration |
 | `network-hardware` | no | `brainwires-hardware/network` | NIC enumeration, IP config, ARP discovery, port scanning |
+| `camera` | no | `brainwires-hardware/camera` | Webcam/camera frame capture (V4L2/AVFoundation/MSMF) |
+| `usb` | no | `brainwires-hardware/usb` | Raw USB device enumeration and transfers (no libusb) |
 | `datasets` | no | `brainwires-datasets` | Training data pipelines (JSONL, tokenization, dedup) |
 | `training` | no | `brainwires-training` | Model fine-tuning (cloud + local) |
 | `autonomy` | no | `brainwires-autonomy` | Self-improvement and evaluation-driven optimization |

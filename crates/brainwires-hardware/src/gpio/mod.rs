@@ -5,6 +5,7 @@
 //! Uses `gpio-cdev` (modern character device API) as primary,
 //! with `sysfs_gpio` as fallback for older kernels.
 
+pub mod config;
 pub mod device;
 pub mod pin_manager;
 pub mod pwm;

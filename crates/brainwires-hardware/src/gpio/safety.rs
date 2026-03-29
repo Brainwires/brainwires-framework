@@ -2,7 +2,7 @@
 
 use std::collections::HashSet;
 
-use crate::config::GpioConfig;
+use super::config::GpioConfig;
 
 /// Safety policy for GPIO access that enforces an explicit allow-list of (chip, line) pairs.
 pub struct GpioSafetyPolicy {
