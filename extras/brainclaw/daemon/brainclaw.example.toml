@@ -75,10 +75,21 @@ max_history_messages = 100
 # ── Skills ───────────────────────────────────────────────────────────────────
 
 [skills]
-# Enable the SKILL.md-based skill system
+# Enable the SKILL.md-based skill system (/command dispatch)
+enabled = true
+# Directories to scan for SKILL.md files.
+# The bundled skills in the repo provide: /daily-standup, /summarize,
+# /code-review, /translate, /weather
+# Add ~/.brainclaw/skills for your own custom skills.
+directories = ["./skills", "~/.brainclaw/skills"]
+
+# ── Cron / Scheduled Tasks ───────────────────────────────────────────────────
+
+[cron]
+# Enable cron-based scheduled tasks
 enabled = false
-# Directories to scan for skills
-# directories = ["~/.brainclaw/skills", "./skills"]
+# Directory where cron job definitions are stored (JSON files)
+storage_dir = "~/.brainclaw/cron"
 
 # ── Security ─────────────────────────────────────────────────────────────────
 
@@ -94,3 +105,8 @@ max_messages_per_minute = 20
 max_tool_calls_per_minute = 30
 # Require cryptographic signatures on skill packages
 require_signed_skills = false
+# Require interactive approval before tool execution (sends yes/no prompt to user)
+require_tool_approval = false
+# Specific tools that require approval (empty = all tools).
+# Example: ["bash", "file_write", "http_request"]
+approval_tools = []
