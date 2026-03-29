@@ -4,9 +4,9 @@
 //! results, and construct different cloud STT providers.
 //!
 //! Run:
-//!   cargo run -p brainwires-audio --features native --example speech_to_text
+//!   cargo run -p brainwires-hardware --features native --example speech_to_text
 
-use brainwires_audio::{
+use brainwires_hardware::{
     AudioBuffer, AudioConfig, DeepgramStt, ElevenLabsStt, OpenAiStt, SpeechToText, SttOptions,
     Transcript,
 };
@@ -102,12 +102,12 @@ async fn main() -> anyhow::Result<()> {
         language: Some("en".to_string()),
         duration_secs: Some(2.0),
         segments: vec![
-            brainwires_audio::TranscriptSegment {
+            brainwires_hardware::TranscriptSegment {
                 text: "Hello world,".to_string(),
                 start: 0.0,
                 end: 0.8,
             },
-            brainwires_audio::TranscriptSegment {
+            brainwires_hardware::TranscriptSegment {
                 text: "this is a test transcript.".to_string(),
                 start: 0.8,
                 end: 2.0,

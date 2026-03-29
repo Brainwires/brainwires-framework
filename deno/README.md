@@ -127,7 +127,7 @@ console.log("Available tools:", tools.map((t) => t.name));
 | `brainwires-tool-system` | `@brainwires/tool-system` | Fully ported (bash, file ops, git, web, search) |
 | `brainwires-cognition` | `@brainwires/cognition` | Fully ported (prompting, knowledge, RAG interfaces) |
 | `brainwires-agent-network` | `@brainwires/agent-network` | Fully ported (MCP server, middleware, routing, discovery) |
-| `brainwires-audio` | -- | Not ported |
+| `brainwires-hardware` | -- | Not ported |
 | `brainwires-autonomy` | -- | Not ported |
 | `brainwires-code-interpreters` | -- | Not ported |
 | `brainwires-datasets` | -- | Not ported |

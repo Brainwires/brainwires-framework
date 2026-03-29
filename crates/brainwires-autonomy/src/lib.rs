@@ -31,8 +31,9 @@ pub mod agent_ops;
 #[cfg(feature = "git-workflow")]
 pub mod git_workflow;
 
+/// GPIO hardware control — re-exported from `brainwires-hardware`.
 #[cfg(feature = "gpio")]
-pub mod gpio;
+pub use brainwires_hardware::gpio;
 
 #[cfg(feature = "scheduler")]
 pub mod scheduler;

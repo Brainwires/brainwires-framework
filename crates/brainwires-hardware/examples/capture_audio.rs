@@ -5,7 +5,7 @@
 //!   cargo run --example capture_to_wav -- --duration 10 --output recording.wav
 //!   cargo run --example capture_to_wav -- --format flac
 
-use brainwires_audio::{AudioCapture, AudioConfig, CpalCapture, encode_wav};
+use brainwires_hardware::{AudioCapture, AudioConfig, CpalCapture, encode_wav};
 use std::path::PathBuf;
 
 #[tokio::main]
@@ -52,7 +52,7 @@ async fn main() -> anyhow::Result<()> {
         #[cfg(feature = "flac")]
         "flac" => {
             println!("Encoding as FLAC...");
-            brainwires_audio::encode_flac(&buffer)?
+            brainwires_hardware::encode_flac(&buffer)?
         }
         #[cfg(not(feature = "flac"))]
         "flac" => anyhow::bail!("FLAC support requires the `flac` feature"),

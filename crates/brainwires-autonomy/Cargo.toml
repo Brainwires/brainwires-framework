@@ -49,9 +49,8 @@ hmac = { version = "0.12", optional = true }
 sha1 = { version = "0.10", optional = true }
 subtle = { workspace = true, optional = true }
 
-# GPIO (Linux-only)
-gpio-cdev = { version = "0.6", optional = true }
-sysfs_gpio = { version = "0.6", optional = true }
+# GPIO via brainwires-hardware
+brainwires-hardware = { workspace = true, optional = true, features = ["gpio"] }
 
 # Scheduler
 cron = { version = "0.15", optional = true }
@@ -82,7 +81,7 @@ webhook = ["git-workflow", "dep:axum", "dep:hmac", "dep:sha1", "dep:subtle"]
 dream = ["dep:brainwires-providers", "dep:futures"]
 
 # Environment interaction
-gpio = ["dep:gpio-cdev", "dep:sysfs_gpio"]
+gpio = ["dep:brainwires-hardware"]
 scheduler = ["dep:cron"]
 reactor = ["dep:notify"]
 services = []

@@ -16,7 +16,7 @@ use tokio::io::AsyncWriteExt;
 use brainwires_channels::message::Attachment;
 
 #[cfg(feature = "voice")]
-use brainwires_audio::{AudioBuffer, AudioConfig, SpeechToText, SttOptions};
+use brainwires_hardware::{AudioBuffer, AudioConfig, SpeechToText, SttOptions};
 
 /// Processes media attachments from channel messages.
 ///

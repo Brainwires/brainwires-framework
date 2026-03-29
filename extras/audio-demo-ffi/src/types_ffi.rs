@@ -1,10 +1,10 @@
-//! FFI-safe mirror types for brainwires-audio.
+//! FFI-safe mirror types for brainwires-hardware.
 //!
 //! These types are annotated with UniFFI derives so they can cross the Rust ↔ C#
 //! (or Kotlin/Swift/Python) boundary. Each has `From` conversions to/from the
-//! native brainwires-audio equivalents.
+//! native brainwires-hardware equivalents.
 
-use brainwires_audio::{
+use brainwires_hardware::{
     AudioBuffer, AudioConfig, AudioDevice, DeviceDirection, OutputFormat, SampleFormat, SttOptions,
     Transcript, TranscriptSegment, TtsOptions, Voice,
 };

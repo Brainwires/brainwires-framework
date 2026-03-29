@@ -530,7 +530,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Peer discovery protocols
 - Federation gateways for cross-mesh communication
 
-#### Audio (`brainwires-audio`)
+#### Hardware (`brainwires-hardware`)
 - Hardware audio capture and playback (CPAL)
 - Speech-to-text and text-to-speech traits
 - FLAC encoding/decoding support
@@ -607,7 +607,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added CORS headers, resilient accept loop, and graceful shutdown.
 - Incremental SSE parser with multi-line data support.
 
-#### Audio (`brainwires-audio`)
+#### Hardware (`brainwires-hardware`)
 - Proper error handling for non-UTF-8 model paths in `WhisperStt`.
 
 #### RAG (`brainwires-rag`)

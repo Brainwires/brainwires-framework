@@ -1,5 +1,5 @@
 #![deny(missing_docs)]
-//! # brainwires-audio
+//! # brainwires-hardware — audio module
 //!
 //! Audio capture, playback, speech-to-text, and text-to-speech for the
 //! Brainwires Agent Framework.
@@ -24,11 +24,11 @@ pub mod types;
 pub mod wav;
 
 /// Native hardware audio backends using cpal.
-#[cfg(feature = "native")]
+#[cfg(feature = "audio")]
 pub mod hardware;
 
-/// Cloud API integrations (OpenAI STT/TTS).
-#[cfg(feature = "native")]
+/// Cloud API integrations (STT/TTS providers).
+#[cfg(feature = "audio")]
 pub mod api;
 
 /// FLAC encoding utilities.
@@ -53,7 +53,7 @@ pub use types::{
 };
 pub use wav::{decode_wav, encode_wav};
 
-#[cfg(feature = "native")]
+#[cfg(feature = "audio")]
 pub use api::{
     AzureStt, AzureTts, CartesiaTts, DeepgramStt, DeepgramTts, ElevenLabsStt, ElevenLabsTts,
     FishStt, FishTts, GoogleTts, MurfTts, OpenAiResponsesStt, OpenAiResponsesTts, OpenAiStt,
@@ -61,7 +61,7 @@ pub use api::{
 };
 #[cfg(feature = "flac")]
 pub use flac::{decode_flac, encode_flac};
-#[cfg(feature = "native")]
+#[cfg(feature = "audio")]
 pub use hardware::{CpalCapture, CpalPlayback};
 #[cfg(feature = "local-stt")]
 pub use local::WhisperStt;

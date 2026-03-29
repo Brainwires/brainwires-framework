@@ -480,13 +480,17 @@ Capability-based permission system.
 
 ---
 
-## Audio
+## Hardware I/O
 
-**Crate:** `brainwires-audio`
+**Crate:** `brainwires-hardware`
+
+Unified hardware abstraction — audio, GPIO, Bluetooth, and network hardware.
+
+### Audio (feature: `audio`)
 
 Audio capture, playback, speech-to-text, and text-to-speech.
 
-### Core
+#### Core
 
 - **AudioCapture** trait — Audio input abstraction
 - **AudioPlayback** trait — Audio output abstraction
@@ -495,13 +499,10 @@ Audio capture, playback, speech-to-text, and text-to-speech.
 - **AudioRingBuffer** — Ring buffer for streaming audio data
 - **WAV utilities** — `encode_wav()`, `decode_wav()`
 - **Device enumeration** — `AudioDevice`, `DeviceDirection`
-
-### Hardware Backends (feature: `native`)
-
 - **CpalCapture** — Hardware audio capture via cpal
 - **CpalPlayback** — Hardware audio playback via cpal
 
-### Cloud API Integrations (feature: `native`)
+#### Cloud API Integrations
 
 | Implementation | Type | Provider |
 |---------------|------|----------|
@@ -519,10 +520,44 @@ Audio capture, playback, speech-to-text, and text-to-speech.
 | `CartesiaTts` | TTS | Cartesia |
 | `MurfTts` | TTS | Murf AI |
 
-### Local Inference
+#### Local Inference
 
 - **WhisperStt** — Local STT via whisper.cpp (feature: `local-stt`)
 - **FLAC support** — `encode_flac()`, `decode_flac()` (feature: `flac`)
+
+### GPIO (feature: `gpio`, Linux)
+
+Safe GPIO pin access using the Linux character device API (`gpio-cdev`).
+
+- **GpioPinManager** — Pin allocation, direction, auto-release on agent timeout
+- **GpioSafetyPolicy** — Explicit allow-list: no pin is accessible unless listed
+- **GpioChipInfo** / **GpioLineInfo** — Chip and line discovery
+- **PwmConfig** — Software PWM (frequency, duty cycle validation)
+
+### Bluetooth (feature: `bluetooth`)
+
+Cross-platform BLE scanning via `btleplug` (Linux/BlueZ, macOS, Windows).
+
+- **`list_adapters()`** — Enumerate local Bluetooth radios
+- **`scan_ble(duration)`** — Scan for BLE advertisement packets
+- **BluetoothDevice** — Address, name, RSSI, services
+- **BluetoothAdapter** — Adapter ID and name
+
+### Network Hardware (feature: `network`)
+
+Network interface enumeration, IP configuration, ARP discovery, and port scanning.
+
+- **`list_interfaces()`** — Enumerate NICs (wired, wireless, loopback, virtual)
+- **`get_ip_configs()`** — IP addresses and default gateways per interface
+- **`arp_scan(subnet)`** — ARP host discovery on local subnet (requires `CAP_NET_RAW`)
+- **`arp_probe(hosts)`** — ARP probe a list of specific hosts
+- **`scan_ports(host, ports, timeout, concurrency)`** — Async TCP connect port scan
+- **`scan_range(host, start, end, ...)`** — Scan a contiguous port range
+- **`scan_common_ports(host, timeout)`** — Scan 21 well-known service ports
+- **NetworkInterface** — Name, kind, MAC, addresses, up/down status
+- **InterfaceKind** — `Wired`, `Wireless`, `Loopback`, `Virtual`, `Unknown`
+- **PortScanResult** / **PortState** — Per-port result (`Open`, `Closed`, `Filtered`)
+- **DiscoveredHost** — IP, MAC, hostname from ARP replies
 
 ---
 

@@ -29,7 +29,7 @@ brainwires-providers = { path = "../../crates/brainwires-providers" }
 brainwires-tool-system = { path = "../../crates/brainwires-tool-system" }
 brainwires-channels = { path = "../../crates/brainwires-channels" }
 brainwires-skills = { path = "../../crates/brainwires-skills" }
-brainwires-audio = { path = "../../crates/brainwires-audio" }
+brainwires-hardware = { path = "../../crates/brainwires-hardware" }
 brainwires-gateway = { path = "gateway" }
 
 # Async runtime & utilities

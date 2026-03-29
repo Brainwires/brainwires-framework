@@ -44,8 +44,8 @@ brainwires-a2a = { workspace = true, optional = true }
 brainwires-skills = { workspace = true, optional = true }
 
 
-# Audio I/O, STT, TTS
-brainwires-audio = { workspace = true, optional = true }
+# Hardware I/O (audio, GPIO, Bluetooth, network)
+brainwires-hardware = { workspace = true, optional = true }
 
 # Datasets & Training
 brainwires-datasets = { workspace = true, optional = true }
@@ -119,7 +119,10 @@ otel = ["agents", "brainwires-agents/otel"]
 # proxy feature removed — brainwires-proxy is an extras app, not a framework crate
 a2a = ["dep:brainwires-a2a", "brainwires-a2a/native"]
 mesh = ["agent-network", "brainwires-agent-network/mesh"]
-audio = ["dep:brainwires-audio"]
+audio = ["dep:brainwires-hardware", "brainwires-hardware/audio"]
+gpio = ["dep:brainwires-hardware", "brainwires-hardware/gpio"]
+bluetooth = ["dep:brainwires-hardware", "brainwires-hardware/bluetooth"]
+network-hardware = ["dep:brainwires-hardware", "brainwires-hardware/network"]
 datasets = ["dep:brainwires-datasets"]
 training = ["dep:brainwires-training"]
 training-cloud = ["training", "brainwires-training/cloud"]
@@ -143,7 +146,7 @@ full = [
     "providers", "chat", "reasoning", "seal", "agent-network",
     "brainwires-agents/seal-knowledge", "brainwires-agents/seal-mdap", "brainwires-agents/seal-feedback",
     "llama-cpp-2", "mcp-server", "skills", "eval",
-    "a2a", "mesh", "audio", "mcp-server-framework",
+    "a2a", "mesh", "audio", "gpio", "bluetooth", "network-hardware", "mcp-server-framework",
     "training-cloud", "datasets",
     "autonomy",
 ]

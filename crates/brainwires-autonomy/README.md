@@ -11,7 +11,7 @@ Autonomous agent operations for the Brainwires Framework — self-improvement, G
 - **Cron Scheduler** — recurring autonomous tasks with failure policies and rate limiting
 - **File System Reactor** — watch directories for changes, debounce events, trigger autonomous actions
 - **System Service Management** — controlled systemd, Docker, and process management with safety guardrails
-- **GPIO Hardware Access** — safe GPIO pin management with allow-lists and auto-release for embedded/IoT
+- **GPIO Hardware Access** — re-exported from [`brainwires-hardware`](../brainwires-hardware) — safe GPIO pin management with allow-lists and auto-release for embedded/IoT
 
 ## Feature Flags
 
@@ -28,7 +28,7 @@ Autonomous agent operations for the Brainwires Framework — self-improvement, G
 | `scheduler` | Cron-based scheduled autonomous tasks |
 | `reactor` | File system event reactor with debouncing |
 | `services` | System service management (systemd, Docker, processes) |
-| `gpio` | GPIO hardware access (Linux, requires `gpio-cdev`) |
+| `gpio` | GPIO hardware access via `brainwires-hardware` (Linux) |
 | `full` | All features enabled |
 
 ## Examples
@@ -51,7 +51,6 @@ cargo run -p brainwires-autonomy --example cicd_orchestrator --features webhook
 cargo run -p brainwires-autonomy --example cron_scheduler --features scheduler
 cargo run -p brainwires-autonomy --example fs_reactor --features reactor
 cargo run -p brainwires-autonomy --example service_manager --features services
-cargo run -p brainwires-autonomy --example gpio_pins --features gpio
 ```
 
 ## Safety
@@ -59,7 +58,7 @@ cargo run -p brainwires-autonomy --example gpio_pins --features gpio
 All environment-interaction features are designed with strict safety defaults:
 
 - **Services**: read-only by default, hardcoded deny-list for critical system services (`sshd`, `dbus`, `systemd-*`, etc.)
-- **GPIO**: empty allow-list by default (no pins accessible), auto-release on agent timeout
+- **GPIO**: empty allow-list by default (no pins accessible), auto-release on agent timeout — see [`brainwires-hardware`](../brainwires-hardware) for GPIO examples
 - **Scheduler**: budget tracking, circuit breakers, per-task failure policies
 - **Reactor**: rate limiting, debouncing, path allow/deny lists
 - **Crash Recovery**: meta-crash detection (aborts if the crash handler itself keeps crashing), max fix attempts

@@ -84,7 +84,10 @@ let response = provider.chat(&messages, None, &options).await?;
 | `proxy` | no | `brainwires-proxy` | AI proxy framework |
 | `a2a` | no | `brainwires-a2a` | Agent-to-Agent protocol |
 | `mesh` | no | `brainwires-agent-network/mesh` | Mesh networking for distributed agents |
-| `audio` | no | `brainwires-audio` | Audio capture, STT, TTS |
+| `audio` | no | `brainwires-hardware/audio` | Audio capture, STT, TTS (16 cloud providers + local Whisper) |
+| `gpio` | no | `brainwires-hardware/gpio` | GPIO pin control with safety allow-lists (Linux) |
+| `bluetooth` | no | `brainwires-hardware/bluetooth` | BLE advertisement scanning and adapter enumeration |
+| `network-hardware` | no | `brainwires-hardware/network` | NIC enumeration, IP config, ARP discovery, port scanning |
 | `datasets` | no | `brainwires-datasets` | Training data pipelines (JSONL, tokenization, dedup) |
 | `training` | no | `brainwires-training` | Model fine-tuning (cloud + local) |
 | `autonomy` | no | `brainwires-autonomy` | Self-improvement and evaluation-driven optimization |

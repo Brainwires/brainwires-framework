@@ -27,7 +27,7 @@ brainwires-tool-system.workspace = true
 brainwires-channels.workspace = true
 brainwires-skills.workspace = true
 brainwires-core.workspace = true
-brainwires-audio = { workspace = true, optional = true }
+brainwires-hardware = { workspace = true, optional = true, features = ["audio"] }
 
 tokio.workspace = true
 serde.workspace = true
@@ -52,4 +52,4 @@ email = ["brainwires-tool-system/email"]
 calendar = ["brainwires-tool-system/calendar"]
 rag = ["brainwires-tool-system/rag"]
 browser = ["brainwires-tool-system/browser"]
-voice = ["dep:brainwires-audio", "brainwires-gateway/voice"]
+voice = ["dep:brainwires-hardware", "brainwires-gateway/voice"]

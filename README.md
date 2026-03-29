@@ -64,7 +64,7 @@ The Brainwires Framework is a workspace of 20 framework crates plus 13 extras th
 | [**brainwires-skills**](crates/brainwires-skills/README.md) | Skill definitions and slash command registry |
 | [**brainwires-code-interpreters**](crates/brainwires-code-interpreters/README.md) | Sandboxed JavaScript and Python code execution |
 | [**brainwires-wasm**](crates/brainwires-wasm/README.md) | WASM bindings for browser-based agent deployment |
-| [**brainwires-audio**](crates/brainwires-audio/README.md) | Audio I/O, speech-to-text, text-to-speech |
+| [**brainwires-hardware**](crates/brainwires-hardware/README.md) | Hardware I/O — audio (STT/TTS), GPIO, Bluetooth, network discovery and port scanning |
 | [**brainwires-datasets**](crates/brainwires-datasets/README.md) | Training data pipelines — JSONL I/O, tokenization, dedup, format conversion |
 | [**brainwires-training**](crates/brainwires-training/README.md) | Cloud fine-tuning (6 providers) and local LoRA/QLoRA/DoRA via Burn |
 | [**brainwires-autonomy**](crates/brainwires-autonomy/README.md) | Self-improvement strategies, evaluation-driven optimization, supervisor agents |
@@ -81,7 +81,7 @@ The Brainwires Framework is a workspace of 20 framework crates plus 13 extras th
 | [**brainwires-rag-server**](extras/brainwires-rag-server/README.md) | MCP server binary for brainwires-rag |
 | [**agent-chat**](extras/agent-chat/README.md) | Simplified AI chat client with TUI and plain modes |
 | [**reload-daemon**](extras/reload-daemon/README.md) | MCP server for killing and restarting AI coding clients |
-| [**audio-demo-ffi**](extras/audio-demo-ffi/README.md) | UniFFI bindings (cdylib) exposing brainwires-audio to C#, Kotlin, Swift, Python |
+| [**audio-demo-ffi**](extras/audio-demo-ffi/README.md) | UniFFI bindings (cdylib) exposing brainwires-hardware (audio) to C#, Kotlin, Swift, Python |
 | [**audio-demo**](extras/audio-demo/README.md) | Cross-platform Avalonia GUI for TTS/STT demo across all audio providers |
 | [**brainclaw**](extras/brainclaw/daemon/README.md) | Self-hosted personal AI assistant daemon — multi-provider, per-user sessions, secure gateway |
 | [**brainwires-gateway**](extras/brainclaw/gateway/README.md) | WebSocket/HTTP channel hub — routes channel adapters to AI agent sessions |
@@ -225,8 +225,9 @@ cargo test -p brainwires-core
   │   ├── brainwires-core
   │   ├── brainwires-datasets
   │   └── brainwires-providers (cloud feature)
-  └── brainwires-audio
-      (standalone — no internal deps beyond core traits)
+  └── brainwires-hardware
+      ├── brainwires-providers (audio feature, optional)
+      └── (standalone for gpio, bluetooth, network modules)
 ```
 
 ## License

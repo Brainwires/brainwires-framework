@@ -62,8 +62,8 @@ The framework is trait-based: implement a trait, pass it to the component, done.
 
 | Trait | Crate | Purpose |
 |-------|-------|---------|
-| `TextToSpeech` | brainwires-audio | TTS synthesis backend |
-| `SpeechToText` | brainwires-audio | STT transcription backend |
+| `TextToSpeech` | brainwires-hardware | TTS synthesis backend |
+| `SpeechToText` | brainwires-hardware | STT transcription backend |
 | `LanguageExecutor` | brainwires-code-interpreters | Sandboxed code execution |
 | `Dataset` | brainwires-datasets | Training data container |
 | `FormatConverter` | brainwires-datasets | Training data format conversion |
@@ -248,7 +248,10 @@ This enables: `providers`, `agents`, `storage`, `rag`, `training`, `datasets`.
 | `seal` | `brainwires-agents/seal` | — |
 | `agent-network` | `brainwires-agent-network` | — |
 | `skills` | `brainwires-skills` | — |
-| `audio` | `brainwires-audio` | — |
+| `audio` | `brainwires-hardware/audio` | — |
+| `gpio` | `brainwires-hardware/gpio` | — |
+| `bluetooth` | `brainwires-hardware/bluetooth` | — |
+| `network-hardware` | `brainwires-hardware/network` | — |
 | `datasets` | `brainwires-datasets` | — |
 | `training` | `brainwires-training` | — |
 | `autonomy` | `brainwires-autonomy` | — |

@@ -1,6 +1,6 @@
 [package]
 name = "audio-demo-ffi"
-description = "UniFFI bindings for brainwires-audio — exposes TTS/STT to C#, Kotlin, Swift, Python"
+description = "UniFFI bindings for brainwires-hardware — exposes TTS/STT to C#, Kotlin, Swift, Python"
 publish = false
 version.workspace = true
 edition.workspace = true
@@ -11,7 +11,7 @@ crate-type = ["cdylib", "rlib"]
 name = "audio_demo_ffi"
 
 [dependencies]
-brainwires-audio = { workspace = true, features = ["native"] }
+brainwires-hardware = { workspace = true, features = ["audio"] }
 brainwires-providers = { workspace = true }
 uniffi = { version = "0.29", features = ["cli"] }
 tokio = { workspace = true }

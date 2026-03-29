@@ -343,8 +343,8 @@ impl BrainClaw {
 #[cfg(feature = "voice")]
 fn build_stt_provider(
     cfg: &crate::config::VoiceSection,
-) -> Option<std::sync::Arc<dyn brainwires_audio::SpeechToText>> {
-    use brainwires_audio::{
+) -> Option<std::sync::Arc<dyn brainwires_hardware::SpeechToText>> {
+    use brainwires_hardware::{
         AzureStt, DeepgramStt, ElevenLabsStt, FishStt, OpenAiStt, SpeechToText,
     };
 
@@ -382,7 +382,7 @@ fn build_stt_provider(
         }
         #[cfg(feature = "local-stt")]
         "whisper-local" | "whisper" => {
-            Some(std::sync::Arc::new(brainwires_audio::WhisperStt::new()) as Arc<dyn SpeechToText>)
+            Some(std::sync::Arc::new(brainwires_hardware::WhisperStt::new()) as Arc<dyn SpeechToText>)
         }
         other => {
             tracing::warn!(provider = %other, "Unknown STT provider; voice transcription disabled");

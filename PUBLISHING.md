@@ -114,7 +114,7 @@ The script handles:
 | 1 | brainwires-core, brainwires-a2a, brainwires-code-interpreters, brainwires-skills |
 | 2 | brainwires-mcp, brainwires-permissions, brainwires-datasets, brainwires-providers, brainwires-storage |
 | 3 | brainwires-cognition |
-| 4 | brainwires-tool-system, brainwires-agent-network, brainwires-audio, brainwires-training |
+| 4 | brainwires-tool-system, brainwires-agent-network, brainwires-hardware, brainwires-training |
 | 5 | brainwires-agents, brainwires-wasm |
 | 6 | brainwires-autonomy, brainwires-proxy |
 | 7 | brainwires (facade) |

@@ -139,10 +139,16 @@ pub mod mesh {
     pub use brainwires_agent_network::mesh::*;
 }
 
+/// Hardware I/O — audio, GPIO, Bluetooth, network.
+#[cfg(any(feature = "audio", feature = "gpio", feature = "bluetooth", feature = "network-hardware"))]
+pub mod hardware {
+    pub use brainwires_hardware::*;
+}
+
 /// Audio — capture, playback, speech-to-text, text-to-speech.
 #[cfg(feature = "audio")]
 pub mod audio {
-    pub use brainwires_audio::*;
+    pub use brainwires_hardware::audio::*;
 }
 
 /// Training data pipelines — JSONL, format conversion, tokenization, dedup.
@@ -308,7 +314,7 @@ pub mod prelude {
 
     // Audio — available with "audio" feature
     #[cfg(feature = "audio")]
-    pub use brainwires_audio::{
+    pub use brainwires_hardware::{
         AudioBuffer, AudioCapture, AudioConfig, AudioDevice, AudioError, AudioPlayback,
         AudioResult, SpeechToText, SttOptions, TextToSpeech, Transcript, TtsOptions, Voice,
     };

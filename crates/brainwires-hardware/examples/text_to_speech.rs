@@ -4,9 +4,9 @@
 //! and how to create different cloud TTS providers.
 //!
 //! Run:
-//!   cargo run -p brainwires-audio --features native --example text_to_speech
+//!   cargo run -p brainwires-hardware --features native --example text_to_speech
 
-use brainwires_audio::{
+use brainwires_hardware::{
     CartesiaTts, DeepgramTts, ElevenLabsTts, GoogleTts, OpenAiTts, OutputFormat, TextToSpeech,
     TtsOptions, Voice,
 };
