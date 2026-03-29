@@ -23,6 +23,10 @@ pub struct MetricsCollector {
     pub channel_message_counts: DashMap<String, u64>,
     /// Peak concurrent sessions observed.
     pub peak_sessions: AtomicU64,
+    /// Cumulative prompt tokens across all agent completions.
+    pub total_prompt_tokens: AtomicU64,
+    /// Cumulative completion tokens across all agent completions.
+    pub total_completion_tokens: AtomicU64,
 }
 
 /// Serializable metrics snapshot.
@@ -35,6 +39,12 @@ pub struct MetricsSnapshot {
     pub total_spoofing_blocked: u64,
     pub peak_sessions: u64,
     pub channel_message_counts: std::collections::HashMap<String, u64>,
+    /// Total prompt tokens consumed across all agent sessions.
+    pub total_prompt_tokens: u64,
+    /// Total completion tokens generated across all agent sessions.
+    pub total_completion_tokens: u64,
+    /// Total tokens (prompt + completion).
+    pub total_tokens: u64,
 }
 
 impl MetricsCollector {
@@ -48,6 +58,8 @@ impl MetricsCollector {
             total_spoofing_blocked: AtomicU64::new(0),
             channel_message_counts: DashMap::new(),
             peak_sessions: AtomicU64::new(0),
+            total_prompt_tokens: AtomicU64::new(0),
+            total_completion_tokens: AtomicU64::new(0),
         }
     }
 
@@ -85,6 +97,12 @@ impl MetricsCollector {
         self.peak_sessions.fetch_max(current, Ordering::Relaxed);
     }
 
+    /// Record token usage from a completed agent turn.
+    pub fn record_token_usage(&self, prompt_tokens: u64, completion_tokens: u64) {
+        self.total_prompt_tokens.fetch_add(prompt_tokens, Ordering::Relaxed);
+        self.total_completion_tokens.fetch_add(completion_tokens, Ordering::Relaxed);
+    }
+
     /// Take a snapshot of current metrics.
     pub fn snapshot(&self) -> MetricsSnapshot {
         let channel_counts: std::collections::HashMap<String, u64> = self
@@ -92,6 +110,9 @@ impl MetricsCollector {
             .iter()
             .map(|entry| (entry.key().clone(), *entry.value()))
             .collect();
+
+        let prompt = self.total_prompt_tokens.load(Ordering::Relaxed);
+        let completion = self.total_completion_tokens.load(Ordering::Relaxed);
 
         MetricsSnapshot {
             total_messages: self.total_messages.load(Ordering::Relaxed),
@@ -101,6 +122,9 @@ impl MetricsCollector {
             total_spoofing_blocked: self.total_spoofing_blocked.load(Ordering::Relaxed),
             peak_sessions: self.peak_sessions.load(Ordering::Relaxed),
             channel_message_counts: channel_counts,
+            total_prompt_tokens: prompt,
+            total_completion_tokens: completion,
+            total_tokens: prompt + completion,
         }
     }
 }

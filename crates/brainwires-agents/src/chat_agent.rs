@@ -10,7 +10,7 @@ use futures::StreamExt;
 
 use brainwires_core::{
     ChatOptions, ContentBlock, Message, MessageContent, Provider, Role, StreamChunk, Tool, ToolUse,
-    ToolContext,
+    ToolContext, Usage,
 };
 use brainwires_tool_system::{BuiltinToolExecutor, PreHookDecision, ToolPreHook};
 
@@ -48,6 +48,8 @@ pub struct ChatAgent {
     options: ChatOptions,
     max_tool_rounds: usize,
     pre_execute_hook: Option<Arc<dyn ToolPreHook>>,
+    /// Accumulated token usage across all completions in this session.
+    cumulative_usage: Usage,
 }
 
 impl ChatAgent {
@@ -66,6 +68,7 @@ impl ChatAgent {
             options,
             max_tool_rounds: 10,
             pre_execute_hook: None,
+            cumulative_usage: Usage::default(),
         }
     }
 
@@ -171,6 +174,19 @@ impl ChatAgent {
     /// Return the number of messages in the conversation.
     pub fn message_count(&self) -> usize {
         self.messages.len()
+    }
+
+    /// Return the accumulated token usage for this agent session.
+    ///
+    /// Counts prompt + completion tokens across all completions. Updated
+    /// whenever the provider emits a `StreamChunk::Usage` event.
+    pub fn cumulative_usage(&self) -> &Usage {
+        &self.cumulative_usage
+    }
+
+    /// Reset the cumulative token usage counter.
+    pub fn reset_usage(&mut self) {
+        self.cumulative_usage = Usage::default();
     }
 
     /// Compact conversation history by trimming older messages.
@@ -281,7 +297,7 @@ impl ChatAgent {
 
     /// Collect the stream into accumulated text + tool uses.
     async fn collect_stream<F>(
-        &self,
+        &mut self,
         tools_opt: Option<&[Tool]>,
         on_chunk: &Option<F>,
     ) -> Result<(String, Vec<ToolUse>, Option<String>)>
@@ -340,7 +356,11 @@ impl ChatAgent {
                         input: parameters,
                     });
                 }
-                StreamChunk::Usage(_) => {}
+                StreamChunk::Usage(u) => {
+                    self.cumulative_usage.prompt_tokens += u.prompt_tokens;
+                    self.cumulative_usage.completion_tokens += u.completion_tokens;
+                    self.cumulative_usage.total_tokens += u.total_tokens;
+                }
                 StreamChunk::Done => {}
             }
         }

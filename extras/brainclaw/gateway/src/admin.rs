@@ -166,6 +166,15 @@ pub async fn broadcast(
     )
 }
 
+/// GET /admin/metrics — in-memory gateway and token usage metrics.
+pub async fn get_metrics(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_admin_auth(&headers, &state.config)?;
+    Ok(Json(state.metrics.snapshot()))
+}
+
 // ---------------------------------------------------------------------------
 // Cron admin API
 // ---------------------------------------------------------------------------

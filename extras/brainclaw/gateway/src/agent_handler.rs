@@ -26,6 +26,7 @@ use brainwires_tool_system::{BuiltinToolExecutor, PreHookDecision, ToolPreHook};
 use crate::approval::{ApprovalRegistry, ChatApprovalHook};
 use crate::channel_registry::ChannelRegistry;
 use crate::media::MediaProcessor;
+use crate::metrics::MetricsCollector;
 use crate::middleware::rate_limit::RateLimiter;
 use crate::middleware::sanitizer::MessageSanitizer;
 use crate::router::InboundHandler;
@@ -110,6 +111,8 @@ pub struct AgentInboundHandler {
     /// Optional TTS processor for synthesizing agent responses to audio.
     #[cfg(feature = "voice")]
     tts: Option<Arc<crate::tts::TtsProcessor>>,
+    /// Optional shared metrics collector for token usage tracking.
+    metrics: Option<Arc<MetricsCollector>>,
 }
 
 impl AgentInboundHandler {
@@ -143,6 +146,7 @@ impl AgentInboundHandler {
             session_hook: None,
             #[cfg(feature = "voice")]
             tts: None,
+            metrics: None,
         }
     }
 
@@ -233,6 +237,15 @@ impl AgentInboundHandler {
     /// Set the maximum number of tool-call rounds per message.
     pub fn with_max_tool_rounds(mut self, rounds: usize) -> Self {
         self.max_tool_rounds = rounds;
+        self
+    }
+
+    /// Attach a shared metrics collector for token usage tracking.
+    ///
+    /// When set, `record_token_usage()` is called after every agent turn so
+    /// token counts accumulate in the shared `AppState` metrics.
+    pub fn with_metrics(mut self, metrics: Arc<MetricsCollector>) -> Self {
+        self.metrics = Some(metrics);
         self
     }
 
@@ -416,7 +429,18 @@ impl AgentInboundHandler {
         }
 
         let mut agent = agent.lock().await;
+        let usage_before = agent.cumulative_usage().clone();
         let process_result = agent.process_message(&text).await;
+
+        // Record per-message token delta to the shared metrics collector.
+        if let Some(ref metrics) = self.metrics {
+            let usage_after = agent.cumulative_usage();
+            let prompt_delta = usage_after.prompt_tokens.saturating_sub(usage_before.prompt_tokens);
+            let completion_delta = usage_after.completion_tokens.saturating_sub(usage_before.completion_tokens);
+            if prompt_delta > 0 || completion_delta > 0 {
+                metrics.record_token_usage(prompt_delta as u64, completion_delta as u64);
+            }
+        }
 
         // Fire session end event regardless of success/failure
         if let Some(ref hook) = self.session_hook {

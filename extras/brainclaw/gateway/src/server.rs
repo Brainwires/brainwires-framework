@@ -43,6 +43,8 @@ pub struct Gateway {
     audio_dir: Option<std::path::PathBuf>,
     /// Optional cron store to expose the admin cron API.
     cron_store: Option<Arc<CronStore>>,
+    /// Optional pre-created metrics instance to share with the handler.
+    shared_metrics: Option<Arc<MetricsCollector>>,
 }
 
 impl Gateway {
@@ -58,6 +60,7 @@ impl Gateway {
             openai_provider: None,
             audio_dir: None,
             cron_store: None,
+            shared_metrics: None,
         }
     }
 
@@ -74,7 +77,17 @@ impl Gateway {
             openai_provider: None,
             audio_dir: None,
             cron_store: None,
+            shared_metrics: None,
         }
+    }
+
+    /// Share a pre-created metrics collector so the handler and the admin API
+    /// reference the same counters.
+    ///
+    /// When not set, the gateway creates its own `MetricsCollector` internally.
+    pub fn with_metrics(mut self, metrics: Arc<MetricsCollector>) -> Self {
+        self.shared_metrics = Some(metrics);
+        self
     }
 
     /// Attach a cron store to expose admin cron API endpoints.
@@ -154,6 +167,11 @@ impl Gateway {
             self.config.max_tool_calls_per_minute,
         ));
 
+        let metrics = self
+            .shared_metrics
+            .clone()
+            .unwrap_or_else(|| Arc::new(MetricsCollector::new()));
+
         let state = AppState {
             config: Arc::new(self.config.clone()),
             sessions,
@@ -162,7 +180,7 @@ impl Gateway {
             sanitizer,
             rate_limiter,
             audit: Arc::new(AuditLogger::new()),
-            metrics: Arc::new(MetricsCollector::new()),
+            metrics,
             start_time: Utc::now(),
             openai_provider: self.openai_provider.clone(),
             audio_dir: self.audio_dir.clone(),
@@ -221,6 +239,10 @@ fn build_router(state: AppState) -> Router {
             .route(
                 &format!("{}/broadcast", admin_prefix),
                 post(admin::broadcast),
+            )
+            .route(
+                &format!("{}/metrics", admin_prefix),
+                get(admin::get_metrics),
             );
 
         // Cron admin API (only when a cron store is wired in)

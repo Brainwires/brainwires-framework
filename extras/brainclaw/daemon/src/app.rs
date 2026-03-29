@@ -9,6 +9,7 @@ use brainwires_core::{ChatOptions, ToolContext};
 use brainwires_gateway::agent_handler::AgentInboundHandler;
 use brainwires_gateway::channel_registry::ChannelRegistry;
 use brainwires_gateway::media::MediaProcessor;
+use brainwires_gateway::metrics::MetricsCollector;
 use brainwires_gateway::server::Gateway;
 use brainwires_gateway::session::SessionManager;
 use brainwires_gateway::session_persistence::{JsonFileStore, expand_tilde};
@@ -114,14 +115,17 @@ impl BrainClaw {
         // 5. Build GatewayConfig
         let gateway_config = self.config.to_gateway_config();
 
-        // 6. Create session manager and channel registry.
+        // 6. Create session manager, channel registry, and shared metrics.
         //    These must be shared between the AgentInboundHandler (which uses
         //    them to send responses) and the Gateway AppState (which uses them
         //    to register WebSocket connections).  Without sharing, channel
         //    adapters register into a different ChannelRegistry than the one
         //    the handler queries, so responses would silently drop.
+        //    Metrics are shared so that token usage recorded by the handler
+        //    appears in the admin /metrics endpoint served by the gateway.
         let sessions = Arc::new(SessionManager::new());
         let channels = Arc::new(ChannelRegistry::new());
+        let metrics = Arc::new(MetricsCollector::new());
 
         // 7. Create AgentInboundHandler
         let openai_provider = Arc::clone(&provider);
@@ -268,7 +272,10 @@ impl BrainClaw {
             tracing::info!("Shell session hooks enabled");
         }
 
-        // 7i. Wire TTS if configured (voice feature only).
+        // 7i. Attach shared metrics for token usage tracking.
+        handler = handler.with_metrics(Arc::clone(&metrics));
+
+        // 7j. Wire TTS if configured (voice feature only).
         let mut tts_audio_dir: Option<std::path::PathBuf> = None;
         #[cfg(feature = "voice")]
         if let Some(ref voice_cfg) = self.config.voice {
@@ -317,11 +324,12 @@ impl BrainClaw {
             }
         }
 
-        // 8. Create Gateway with handler, sharing the same sessions/channels.
+        // 8. Create Gateway with handler, sharing the same sessions/channels/metrics.
         let handler = Arc::new(handler);
         let mut gateway =
             Gateway::with_handler(gateway_config.clone(), Arc::clone(&handler) as _)
-                .with_shared_state(Arc::clone(&sessions), Arc::clone(&channels));
+                .with_shared_state(Arc::clone(&sessions), Arc::clone(&channels))
+                .with_metrics(Arc::clone(&metrics));
 
         if let Some(audio_dir) = tts_audio_dir {
             gateway = gateway.with_audio_dir(audio_dir);
