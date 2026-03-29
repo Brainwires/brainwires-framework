@@ -177,7 +177,15 @@ impl BrainClaw {
                 .map(|d| PathBuf::from(expand_tilde_str(d)))
                 .collect();
 
-            match SkillHandler::new(&skill_dirs) {
+            let skill_handler_result = SkillHandler::new(&skill_dirs).map(|h| {
+                if let Some(ref url) = self.config.skills.registry_url {
+                    tracing::info!(url = %url, "Skill registry fallback enabled");
+                    h.with_registry_url(url.clone())
+                } else {
+                    h
+                }
+            });
+            match skill_handler_result {
                 Ok(skill_handler) => {
                     let count = skill_handler.skill_count();
                     tracing::info!(skills = count, "Skill system enabled");

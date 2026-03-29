@@ -89,9 +89,12 @@ pub struct GetHistoryRequest {
     pub server_id: Option<String>,
 }
 
-/// Request to list accessible channels (placeholder).
+/// Request to list channels in a Discord guild.
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-pub struct ListChannelsRequest {}
+pub struct ListChannelsRequest {
+    /// The Discord guild (server) ID to list channels for.
+    pub guild_id: String,
+}
 
 /// Request to send a typing indicator.
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
@@ -218,13 +221,42 @@ impl DiscordMcpServer {
     }
 
     #[tool(
-        description = "List accessible Discord channels. Note: requires the bot to be in guilds; returns cached channel information."
+        description = "List text channels in a Discord guild (server). Requires the bot to be a member of the guild. Returns channel IDs, names, and types."
     )]
     async fn list_channels(
         &self,
-        Parameters(_req): Parameters<ListChannelsRequest>,
+        Parameters(req): Parameters<ListChannelsRequest>,
     ) -> Result<String, String> {
-        Ok("{\"channels\": [], \"note\": \"Channel listing requires guild cache; use Discord developer portal to see accessible channels.\"}".to_string())
+        use serenity::model::id::GuildId;
+
+        let guild_id: u64 = req
+            .guild_id
+            .parse()
+            .map_err(|_| format!("Invalid guild ID: {}", req.guild_id))?;
+        let guild_id = GuildId::new(guild_id);
+
+        let channels = self
+            .channel
+            .http()
+            .get_channels(guild_id)
+            .await
+            .map_err(|e| format!("Discord API error: {e}"))?;
+
+        let items: Vec<serde_json::Value> = channels
+            .iter()
+            .map(|ch| {
+                serde_json::json!({
+                    "id": ch.id.to_string(),
+                    "name": ch.name,
+                    "kind": format!("{:?}", ch.kind),
+                    "position": ch.position,
+                    "parent_id": ch.parent_id.map(|p| p.to_string()),
+                })
+            })
+            .collect();
+
+        serde_json::to_string(&serde_json::json!({ "channels": items }))
+            .map_err(|e| format!("Serialization error: {e}"))
     }
 
     #[tool(description = "Send a typing indicator to a Discord channel. The indicator lasts ~10 seconds or until a message is sent.")]

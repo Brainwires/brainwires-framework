@@ -79,9 +79,13 @@ max_history_messages = 100
 enabled = true
 # Directories to scan for SKILL.md files.
 # The bundled skills in the repo provide: /daily-standup, /summarize,
-# /code-review, /translate, /weather
+# /code-review, /translate, /weather, /export
 # Add ~/.brainclaw/skills for your own custom skills.
 directories = ["./skills", "~/.brainclaw/skills"]
+# Optional: URL of a running skill registry server (brainclaw-mcp-skill-registry).
+# When set, /commands not found locally are looked up in the registry and
+# downloaded on demand.
+# registry_url = "http://localhost:8765"
 
 # ── Cron / Scheduled Tasks ───────────────────────────────────────────────────
 

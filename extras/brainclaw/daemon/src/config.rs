@@ -140,6 +140,11 @@ pub struct SkillsSection {
     pub enabled: bool,
     /// Directories to scan for SKILL.md files.
     pub directories: Vec<String>,
+    /// URL of a remote skill registry server (e.g. `http://localhost:8765`).
+    ///
+    /// When set, skills not found locally are looked up in the registry and
+    /// downloaded on demand.  Leave unset to use filesystem-only dispatch.
+    pub registry_url: Option<String>,
 }
 
 /// Cron / scheduled task configuration.
@@ -413,6 +418,7 @@ impl Default for SkillsSection {
         Self {
             enabled: false,
             directories: Vec::new(),
+            registry_url: None,
         }
     }
 }

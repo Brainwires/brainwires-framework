@@ -4,11 +4,14 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use anyhow::Result;
-use brainwires_skills::{SkillRegistry, SkillSource};
+use brainwires_skills::{RegistryClient, SkillRegistry, SkillSource};
+use semver::VersionReq;
 
 /// Handles skill-based /commands from user messages.
 pub struct SkillHandler {
     registry: Mutex<SkillRegistry>,
+    /// Optional remote registry URL for skill fallback lookup.
+    registry_url: Option<String>,
 }
 
 impl SkillHandler {
@@ -26,13 +29,21 @@ impl SkillHandler {
 
         Ok(Self {
             registry: Mutex::new(registry),
+            registry_url: None,
         })
+    }
+
+    /// Attach a remote registry URL for skill fallback lookups.
+    pub fn with_registry_url(mut self, url: String) -> Self {
+        self.registry_url = Some(url);
+        self
     }
 
     /// Create an empty skill handler with no skills loaded.
     pub fn empty() -> Self {
         Self {
             registry: Mutex::new(SkillRegistry::new()),
+            registry_url: None,
         }
     }
 
@@ -67,18 +78,65 @@ impl SkillHandler {
     /// Returns `Some(instructions)` if the skill exists and its content can be
     /// loaded, `None` if no skill matches the command name.
     ///
+    /// Resolution order:
+    /// 1. Local filesystem registry (always checked first, synchronously).
+    /// 2. Remote registry server (if `registry_url` is configured and no local
+    ///    skill was found).  Uses `block_in_place` to call the async client.
+    ///
     /// The returned `instructions` string is intended to be prepended to the
     /// user's message so that the agent executes the skill inline.
     pub fn resolve_command(&self, command: &str, _args: &str) -> Result<Option<String>> {
-        let mut registry = self
-            .registry
-            .lock()
-            .map_err(|_| anyhow::anyhow!("SkillRegistry lock poisoned"))?;
+        // 1. Local registry check (fast, no network)
+        {
+            let mut registry = self
+                .registry
+                .lock()
+                .map_err(|_| anyhow::anyhow!("SkillRegistry lock poisoned"))?;
 
-        match registry.get_skill(command) {
-            Ok(skill) => Ok(Some(skill.instructions.clone())),
-            Err(_) => Ok(None),
+            if let Ok(skill) = registry.get_skill(command) {
+                return Ok(Some(skill.instructions.clone()));
+            }
         }
+
+        // 2. Remote registry fallback
+        if let Some(ref url) = self.registry_url {
+            let url = url.clone();
+            let cmd = command.to_string();
+            let result = tokio::task::block_in_place(|| {
+                tokio::runtime::Handle::current().block_on(async move {
+                    let client = RegistryClient::new(&url, None);
+                    // Search for an exact match on the skill name
+                    let matches = client.search(&cmd, None, Some(5)).await?;
+                    let matched = matches
+                        .into_iter()
+                        .find(|m| m.name.eq_ignore_ascii_case(&cmd));
+
+                    if let Some(manifest) = matched {
+                        // Download latest version and extract instructions from skill_content
+                        let req = VersionReq::STAR; // any version
+                        let pkg = client.download(&manifest.name, &req).await?;
+                        // Strip YAML frontmatter to extract the Markdown instructions
+                        let instructions = strip_frontmatter(&pkg.skill_content);
+                        return Ok::<Option<String>, anyhow::Error>(Some(instructions));
+                    }
+                    Ok(None)
+                })
+            });
+
+            match result {
+                Ok(Some(instructions)) => return Ok(Some(instructions)),
+                Ok(None) => {}
+                Err(e) => {
+                    tracing::warn!(
+                        command = %command,
+                        error = %e,
+                        "Registry fallback failed; skill not available"
+                    );
+                }
+            }
+        }
+
+        Ok(None)
     }
 
     /// Return the number of loaded skills.
@@ -87,6 +145,24 @@ impl SkillHandler {
             .lock()
             .map(|r| r.len())
             .unwrap_or(0)
+    }
+}
+
+/// Remove YAML frontmatter (everything between the first two `---` delimiters)
+/// from a SKILL.md string and return the Markdown body.
+fn strip_frontmatter(content: &str) -> String {
+    let content = content.trim_start();
+    if !content.starts_with("---") {
+        return content.to_string();
+    }
+    // Skip the opening `---`
+    let after_open = &content[3..];
+    // Find the closing `---`
+    if let Some(close_pos) = after_open.find("\n---") {
+        let body = &after_open[close_pos + 4..]; // skip `\n---`
+        body.trim_start_matches('\n').to_string()
+    } else {
+        content.to_string()
     }
 }
 
