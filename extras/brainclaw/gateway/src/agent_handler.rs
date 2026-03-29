@@ -11,7 +11,7 @@ use std::time::Duration;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use dashmap::DashMap;
+use dashmap::{DashMap, DashSet};
 use tokio::sync::{Mutex, RwLock};
 use uuid::Uuid;
 
@@ -113,6 +113,12 @@ pub struct AgentInboundHandler {
     tts: Option<Arc<crate::tts::TtsProcessor>>,
     /// Optional shared metrics collector for token usage tracking.
     metrics: Option<Arc<MetricsCollector>>,
+    /// Sessions with Talk Mode enabled: (platform, user_id) set.
+    ///
+    /// When a session is in Talk Mode, all agent responses are synthesised
+    /// to audio via TTS (if configured) regardless of whether the input was
+    /// voice or text. Toggle via `/talk on` / `/talk off` commands.
+    talk_mode_sessions: DashSet<(String, String)>,
 }
 
 impl AgentInboundHandler {
@@ -147,6 +153,7 @@ impl AgentInboundHandler {
             #[cfg(feature = "voice")]
             tts: None,
             metrics: None,
+            talk_mode_sessions: DashSet::new(),
         }
     }
 
@@ -342,7 +349,28 @@ impl AgentInboundHandler {
             return Ok(());
         }
 
-        // 1c. Apply text preprocessor (e.g. skill dispatch)
+        // 1c. Handle /talk on|off commands before the text preprocessor.
+        //     These toggle "Talk Mode" for the session: when active all agent
+        //     responses are synthesised to audio via TTS (voice feature).
+        let talk_cmd = Self::parse_talk_command(&text);
+        if let Some(enable) = talk_cmd {
+            let msg_platform = msg.conversation.platform.clone();
+            let msg_author = msg.author.clone();
+            let key = (msg_platform.clone(), msg_author.clone());
+            let reply = if enable {
+                self.talk_mode_sessions.insert(key);
+                tracing::info!(platform = %msg_platform, user_id = %msg_author, "Talk Mode enabled");
+                "Talk Mode enabled — I'll reply with voice from now on. Say `/talk off` to stop."
+            } else {
+                self.talk_mode_sessions.remove(&key);
+                tracing::info!(platform = %msg_platform, user_id = %msg_author, "Talk Mode disabled");
+                "Talk Mode disabled — switching back to text replies."
+            };
+            self.send_response(channel_id, msg, reply).await?;
+            return Ok(());
+        }
+
+        // 1e. Apply text preprocessor (e.g. skill dispatch)
         if let Some(ref pp) = self.text_preprocessor {
             if let Some(transformed) = pp(&text) {
                 text = transformed;
@@ -571,6 +599,21 @@ impl AgentInboundHandler {
         arc
     }
 
+    /// Parse `/talk [on|off|start|stop]` commands.
+    ///
+    /// Returns `Some(true)` to enable Talk Mode, `Some(false)` to disable,
+    /// or `None` if the text is not a talk command.
+    fn parse_talk_command(text: &str) -> Option<bool> {
+        let t = text.trim().to_lowercase();
+        if t == "/talk" || t == "/talk on" || t == "/talk start" {
+            return Some(true);
+        }
+        if t == "/talk off" || t == "/talk stop" || t == "/talk end" {
+            return Some(false);
+        }
+        None
+    }
+
     /// Extract a text string from [`MessageContent`], returning an empty string
     /// for non-text variants (media, embeds).
     fn extract_text(content: &MessageContent) -> String {
@@ -600,17 +643,34 @@ impl AgentInboundHandler {
         original_msg: &ChannelMessage,
         response_text: &str,
     ) -> Result<()> {
-        // Optionally synthesize audio and attach a URL to the message.
+        // Synthesize audio when:
+        //   (a) TTS is configured AND (b) the original input was a voice/audio
+        //       message OR the session has Talk Mode enabled.
         #[cfg(feature = "voice")]
         let attachments: Vec<brainwires_channels::message::Attachment> = {
+            let is_audio_input = matches!(
+                &original_msg.content,
+                MessageContent::Media(p) if matches!(p.media_type, brainwires_channels::message::MediaType::Audio)
+            );
+            let talk_mode_active = self
+                .talk_mode_sessions
+                .contains(&(
+                    original_msg.conversation.platform.clone(),
+                    original_msg.author.clone(),
+                ));
+
             if let Some(ref tts) = self.tts {
-                if let Some(audio_url) = tts.synthesize_to_url(response_text).await {
-                    vec![brainwires_channels::message::Attachment {
-                        url: audio_url,
-                        media_type: Some("audio/mpeg".to_string()),
-                        filename: None,
-                        size: None,
-                    }]
+                if is_audio_input || talk_mode_active {
+                    if let Some(audio_url) = tts.synthesize_to_url(response_text).await {
+                        vec![brainwires_channels::message::Attachment {
+                            url: audio_url,
+                            media_type: Some("audio/mpeg".to_string()),
+                            filename: None,
+                            size: None,
+                        }]
+                    } else {
+                        vec![]
+                    }
                 } else {
                     vec![]
                 }
