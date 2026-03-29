@@ -17,8 +17,10 @@ use brainwires_gateway::middleware::sanitizer::MessageSanitizer;
 use brainwires_providers::{ChatProviderFactory, ProviderConfig, ProviderType};
 use brainwires_tool_system::BuiltinToolExecutor;
 
+use brainwires_gateway::cron::CronStore;
+
 use crate::config::BrainClawConfig;
-use crate::cron::{CronRunner, CronStore};
+use crate::cron::CronRunner;
 use crate::persona::Persona;
 use crate::shell_hooks::{ShellHookRunner, ShellPreToolHook};
 use crate::skill_handler::SkillHandler;
@@ -329,17 +331,20 @@ impl BrainClaw {
         gateway = gateway.with_openai_provider(openai_provider);
         tracing::info!("OpenAI-compatible API enabled at /v1/chat/completions");
 
-        // 8b. Start cron runner if enabled.
+        // 8b. Start cron runner if enabled. Share the store with the gateway
+        //     so the admin cron API endpoints can manage jobs at runtime.
         if self.config.cron.enabled {
             let cron_dir = expand_tilde(&self.config.cron.storage_dir);
             match CronStore::new(&cron_dir) {
                 Ok(store) => {
+                    let store = Arc::new(store);
                     let runner = Arc::new(CronRunner::new(
-                        Arc::new(store),
+                        Arc::clone(&store),
                         Arc::clone(&handler),
                         Arc::clone(&channels),
                     ));
                     runner.spawn();
+                    gateway = gateway.with_cron_store(store);
                     tracing::info!(dir = %cron_dir.display(), "Cron runner started");
                 }
                 Err(e) => {

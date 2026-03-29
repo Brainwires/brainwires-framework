@@ -17,6 +17,7 @@ use crate::audit::AuditLogger;
 use crate::openai_compat;
 use crate::channel_registry::ChannelRegistry;
 use crate::config::GatewayConfig;
+use crate::cron::CronStore;
 use crate::metrics::MetricsCollector;
 use crate::middleware::rate_limit::RateLimiter;
 use crate::middleware::sanitizer::MessageSanitizer;
@@ -40,6 +41,8 @@ pub struct Gateway {
     openai_provider: Option<Arc<dyn brainwires_core::Provider>>,
     /// Optional directory for serving TTS audio files at `/audio/<filename>`.
     audio_dir: Option<std::path::PathBuf>,
+    /// Optional cron store to expose the admin cron API.
+    cron_store: Option<Arc<CronStore>>,
 }
 
 impl Gateway {
@@ -54,6 +57,7 @@ impl Gateway {
             shared_channels: None,
             openai_provider: None,
             audio_dir: None,
+            cron_store: None,
         }
     }
 
@@ -69,7 +73,17 @@ impl Gateway {
             shared_channels: None,
             openai_provider: None,
             audio_dir: None,
+            cron_store: None,
         }
+    }
+
+    /// Attach a cron store to expose admin cron API endpoints.
+    ///
+    /// When set and `admin_enabled` is true, the gateway exposes
+    /// `GET/POST/DELETE /admin/cron` and `GET/DELETE /admin/cron/:id`.
+    pub fn with_cron_store(mut self, store: Arc<CronStore>) -> Self {
+        self.cron_store = Some(store);
+        self
     }
 
     /// Serve TTS audio files at `/audio/<filename>`.
@@ -152,6 +166,7 @@ impl Gateway {
             start_time: Utc::now(),
             openai_provider: self.openai_provider.clone(),
             audio_dir: self.audio_dir.clone(),
+            cron_store: self.cron_store.clone(),
         };
 
         let app = build_router(state.clone());
@@ -207,6 +222,21 @@ fn build_router(state: AppState) -> Router {
                 &format!("{}/broadcast", admin_prefix),
                 post(admin::broadcast),
             );
+
+        // Cron admin API (only when a cron store is wired in)
+        if state.cron_store.is_some() {
+            app = app
+                .route(
+                    &format!("{}/cron", admin_prefix),
+                    get(admin::list_cron_jobs).post(admin::create_cron_job),
+                )
+                .route(
+                    &format!("{}/cron/:id", admin_prefix),
+                    get(admin::get_cron_job)
+                        .put(admin::update_cron_job)
+                        .delete(admin::delete_cron_job),
+                );
+        }
     }
 
     // OpenAI-compatible API endpoint (always enabled when provider is configured)

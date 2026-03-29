@@ -9,6 +9,7 @@ use brainwires_core::Provider;
 use crate::audit::AuditLogger;
 use crate::channel_registry::ChannelRegistry;
 use crate::config::GatewayConfig;
+use crate::cron::CronStore;
 use crate::metrics::MetricsCollector;
 use crate::middleware::rate_limit::RateLimiter;
 use crate::middleware::sanitizer::MessageSanitizer;
@@ -40,4 +41,6 @@ pub struct AppState {
     pub openai_provider: Option<Arc<dyn Provider>>,
     /// Optional directory for serving TTS audio files at `/audio/<filename>`.
     pub audio_dir: Option<std::path::PathBuf>,
+    /// Optional cron job store for the admin cron API.
+    pub cron_store: Option<Arc<CronStore>>,
 }

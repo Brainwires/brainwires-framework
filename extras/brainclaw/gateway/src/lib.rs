@@ -9,6 +9,8 @@
 
 /// Admin API handlers (health check, channel listing, session listing, broadcast).
 pub mod admin;
+/// Cron job data types and persistent store.
+pub mod cron;
 /// Interactive tool approval via chat (ask user yes/no before executing tools).
 pub mod approval;
 /// OpenAI-compatible API endpoint (/v1/chat/completions, /v1/models, /v1/embeddings).

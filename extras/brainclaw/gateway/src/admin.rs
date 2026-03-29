@@ -1,15 +1,17 @@
 //! Admin API handlers for gateway monitoring and control.
 
-use axum::extract::State;
+use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use axum::Json;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use uuid::Uuid;
 
 use crate::channel_registry::ChannelInfo;
 use crate::config::GatewayConfig;
+use crate::cron::CronJob;
 use crate::state::AppState;
 
 /// Verify the admin bearer token from the `Authorization` header.
@@ -162,4 +164,130 @@ pub async fn broadcast(
             "total_channels": channels.len()
         })),
     )
+}
+
+// ---------------------------------------------------------------------------
+// Cron admin API
+// ---------------------------------------------------------------------------
+
+/// Request body for creating or updating a cron job.
+#[derive(Debug, Deserialize)]
+pub struct CronJobRequest {
+    pub name: String,
+    pub schedule: String,
+    pub prompt: String,
+    pub target_platform: String,
+    pub target_channel_id: String,
+    pub target_user_id: String,
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+/// GET /admin/cron — list all cron jobs.
+pub async fn list_cron_jobs(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_admin_auth(&headers, &state.config)?;
+    let store = state.cron_store.as_ref().ok_or(StatusCode::NOT_FOUND)?;
+    Ok(Json(store.list().await))
+}
+
+/// POST /admin/cron — create a new cron job.
+pub async fn create_cron_job(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(payload): Json<CronJobRequest>,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_admin_auth(&headers, &state.config)?;
+    let store = state.cron_store.as_ref().ok_or(StatusCode::NOT_FOUND)?;
+
+    CronJob::validate_schedule(&payload.schedule)
+        .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+
+    let job = CronJob {
+        id: Uuid::new_v4(),
+        name: payload.name,
+        schedule: payload.schedule,
+        prompt: payload.prompt,
+        target_platform: payload.target_platform,
+        target_channel_id: payload.target_channel_id,
+        target_user_id: payload.target_user_id,
+        enabled: payload.enabled,
+        last_run: None,
+    };
+
+    store.upsert(job.clone()).await.map_err(|e| {
+        tracing::error!(error = %e, "Failed to create cron job");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    Ok((StatusCode::CREATED, Json(job)))
+}
+
+/// GET /admin/cron/:id — get a single cron job.
+pub async fn get_cron_job(
+    headers: HeaderMap,
+    Path(id): Path<Uuid>,
+    State(state): State<AppState>,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_admin_auth(&headers, &state.config)?;
+    let store = state.cron_store.as_ref().ok_or(StatusCode::NOT_FOUND)?;
+    let job = store.get(id).await.ok_or(StatusCode::NOT_FOUND)?;
+    Ok(Json(job))
+}
+
+/// PUT /admin/cron/:id — update an existing cron job.
+pub async fn update_cron_job(
+    headers: HeaderMap,
+    Path(id): Path<Uuid>,
+    State(state): State<AppState>,
+    Json(payload): Json<CronJobRequest>,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_admin_auth(&headers, &state.config)?;
+    let store = state.cron_store.as_ref().ok_or(StatusCode::NOT_FOUND)?;
+
+    let mut job = store.get(id).await.ok_or(StatusCode::NOT_FOUND)?;
+
+    CronJob::validate_schedule(&payload.schedule)
+        .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+
+    job.name = payload.name;
+    job.schedule = payload.schedule;
+    job.prompt = payload.prompt;
+    job.target_platform = payload.target_platform;
+    job.target_channel_id = payload.target_channel_id;
+    job.target_user_id = payload.target_user_id;
+    job.enabled = payload.enabled;
+
+    store.upsert(job.clone()).await.map_err(|e| {
+        tracing::error!(error = %e, "Failed to update cron job");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    Ok(Json(job))
+}
+
+/// DELETE /admin/cron/:id — delete a cron job.
+pub async fn delete_cron_job(
+    headers: HeaderMap,
+    Path(id): Path<Uuid>,
+    State(state): State<AppState>,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_admin_auth(&headers, &state.config)?;
+    let store = state.cron_store.as_ref().ok_or(StatusCode::NOT_FOUND)?;
+    let removed = store.delete(id).await.map_err(|e| {
+        tracing::error!(error = %e, "Failed to delete cron job");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    if removed {
+        Ok(StatusCode::NO_CONTENT.into_response())
+    } else {
+        Ok(StatusCode::NOT_FOUND.into_response())
+    }
 }

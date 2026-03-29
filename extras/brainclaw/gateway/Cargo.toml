@@ -43,6 +43,7 @@ hmac.workspace = true
 hex.workspace = true
 dirs.workspace = true
 tokio-stream.workspace = true
+cron.workspace = true
 brainwires-hardware = { workspace = true, optional = true, features = ["audio"] }
 
 [features]
