@@ -71,8 +71,14 @@ impl brainwires_channels::Channel for DiscordChannel {
         target: &ConversationId,
         message: &ChannelMessage,
     ) -> Result<MessageId> {
-        let channel_id = target
-            .channel_id
+        // In Discord, threads are just channels — if a thread_id is set on the
+        // outgoing message, send directly to the thread channel instead of the
+        // parent channel.
+        let raw_channel_id = match &message.thread_id {
+            Some(tid) => tid.0.clone(),
+            None => target.channel_id.clone(),
+        };
+        let channel_id = raw_channel_id
             .parse::<u64>()
             .context("Invalid Discord channel ID")?;
         let channel = ChannelId::new(channel_id);

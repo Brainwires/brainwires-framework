@@ -12,8 +12,8 @@ use matrix_sdk::ruma::{
     events::{
         AnySyncMessageLikeEvent, AnySyncTimelineEvent,
         reaction::ReactionEventContent,
-        relation::Annotation,
-        room::message::{ReplacementMetadata, RoomMessageEventContent},
+        relation::{Annotation, Thread},
+        room::message::{Relation, ReplacementMetadata, RoomMessageEventContent},
     },
 };
 
@@ -77,7 +77,6 @@ impl Channel for MatrixChannel {
             | ChannelCapabilities::EDIT_MESSAGES
             | ChannelCapabilities::DELETE_MESSAGES
             | ChannelCapabilities::THREADS
-            | ChannelCapabilities::READ_RECEIPTS
     }
 
     async fn send_message(
@@ -91,7 +90,18 @@ impl Channel for MatrixChannel {
         }
 
         let room = self.get_room(&target.channel_id)?;
-        let content = RoomMessageEventContent::text_markdown(text);
+
+        // If a thread_id is set, attach a Thread relation so the message is part of that thread.
+        let mut content = RoomMessageEventContent::text_markdown(text);
+        if let Some(ref tid) = message.thread_id {
+            let thread_event_id = EventId::parse(tid.0.as_str())
+                .context("Invalid Matrix thread event ID")?
+                .to_owned();
+            content.relates_to = Some(Relation::Thread(Thread::without_fallback(
+                thread_event_id,
+            )));
+        }
+
         let response = room
             .send(content)
             .await

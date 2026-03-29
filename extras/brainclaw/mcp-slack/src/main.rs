@@ -42,6 +42,20 @@ enum Commands {
         #[arg(long, env = "GATEWAY_TOKEN")]
         gateway_token: Option<String>,
 
+        /// In public/private channels, only respond when @mentioned.
+        /// DMs always respond regardless.
+        #[arg(long, default_value_t = false, env = "GROUP_MENTION_REQUIRED")]
+        group_mention_required: bool,
+
+        /// The bot's Slack user ID (e.g. "U0123456789") for @mention detection.
+        #[arg(long, env = "BOT_USER_ID")]
+        bot_user_id: Option<String>,
+
+        /// Keyword patterns (comma-separated) that trigger a response in channels.
+        /// Only active when `--group-mention-required` is set.
+        #[arg(long, env = "MENTION_PATTERNS", value_delimiter = ',')]
+        mention_patterns: Vec<String>,
+
         /// Also start the MCP server on stdio (for direct tool access).
         #[arg(long, default_value_t = false)]
         mcp: bool,
@@ -65,6 +79,9 @@ async fn main() -> Result<()> {
             slack_app_token,
             gateway_url,
             gateway_token,
+            group_mention_required,
+            bot_user_id,
+            mention_patterns,
             mcp,
         }) => {
             let config = SlackConfig {
@@ -72,6 +89,9 @@ async fn main() -> Result<()> {
                 slack_app_token,
                 gateway_url,
                 gateway_token,
+                group_mention_required,
+                bot_user_id,
+                mention_patterns,
             };
             run_adapter(config, mcp).await?;
         }
@@ -87,6 +107,11 @@ async fn main() -> Result<()> {
 
 async fn run_adapter(config: SlackConfig, enable_mcp: bool) -> Result<()> {
     tracing::info!("Starting Brainwires Slack adapter");
+
+    // Extract mention filter settings before config fields are consumed.
+    let group_mention_required = config.group_mention_required;
+    let bot_user_id = config.bot_user_id.clone();
+    let mention_patterns = config.mention_patterns.clone();
 
     // Create event channel
     let (event_tx, event_rx) = mpsc::channel(512);
@@ -135,6 +160,9 @@ async fn run_adapter(config: SlackConfig, enable_mcp: bool) -> Result<()> {
         config.slack_app_token,
         event_tx,
         Arc::clone(&slack_channel),
+        group_mention_required,
+        bot_user_id,
+        mention_patterns,
     );
     event_handler.run(config.slack_bot_token).await?;
 

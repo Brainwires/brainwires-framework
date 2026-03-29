@@ -13,6 +13,21 @@ pub struct SlackConfig {
     pub gateway_url: String,
     /// Optional authentication token for the gateway handshake.
     pub gateway_token: Option<String>,
+    /// In public/private channels, only respond when the bot is @mentioned.
+    /// DMs (channel IDs starting with "D") always respond.
+    /// Default: false (backward compatible).
+    #[serde(default)]
+    pub group_mention_required: bool,
+    /// The bot's Slack user ID (e.g. "U0123456789") used to detect @mentions
+    /// in channel messages.  When set, `<@BOT_USER_ID>` must appear in the
+    /// message text for a response to be sent.
+    #[serde(default)]
+    pub bot_user_id: Option<String>,
+    /// Additional keyword patterns (case-insensitive substring match) that
+    /// trigger a response in channel messages even without an @mention.
+    /// Only used when `group_mention_required = true`.
+    #[serde(default)]
+    pub mention_patterns: Vec<String>,
 }
 
 impl Default for SlackConfig {
@@ -22,6 +37,9 @@ impl Default for SlackConfig {
             slack_app_token: String::new(),
             gateway_url: "ws://127.0.0.1:18789/ws".to_string(),
             gateway_token: None,
+            group_mention_required: false,
+            bot_user_id: None,
+            mention_patterns: Vec::new(),
         }
     }
 }

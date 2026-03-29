@@ -27,6 +27,8 @@ pub struct BrainClawConfig {
     pub skills: SkillsSection,
     /// Security settings.
     pub security: SecuritySection,
+    /// Cron / scheduled task settings.
+    pub cron: CronSection,
     /// Email tool settings (requires `email` feature; tool group `"email"` must be in `tools.enabled`).
     pub email: Option<EmailSection>,
     /// Calendar tool settings (requires `calendar` feature; tool group `"calendar"` must be in `tools.enabled`).
@@ -138,6 +140,16 @@ pub struct SkillsSection {
     pub directories: Vec<String>,
 }
 
+/// Cron / scheduled task configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct CronSection {
+    /// Whether the cron runner is enabled.
+    pub enabled: bool,
+    /// Directory where cron job JSON files are persisted.
+    pub storage_dir: String,
+}
+
 /// Security configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -164,6 +176,12 @@ pub struct SecuritySection {
     pub allowed_channel_types: Vec<String>,
     /// Allowed channel adapter IDs. Empty = allow all.
     pub allowed_channel_ids: Vec<String>,
+    /// Require interactive user approval before executing tool calls via chat.
+    /// When enabled, the agent sends "⚠️ Run `tool`? Reply yes/no" to the user.
+    pub require_tool_approval: bool,
+    /// Tools that require approval.  Empty = all tools require approval.
+    /// Example: ["bash", "file_write", "http_request"]
+    pub approval_tools: Vec<String>,
 }
 
 /// Email tool configuration (IMAP + SMTP).
@@ -276,6 +294,7 @@ impl Default for BrainClawConfig {
             memory: MemorySection::default(),
             skills: SkillsSection::default(),
             security: SecuritySection::default(),
+            cron: CronSection::default(),
             email: None,
             calendar: None,
             browser: None,
@@ -376,6 +395,15 @@ impl Default for SkillsSection {
     }
 }
 
+impl Default for CronSection {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            storage_dir: "~/.brainclaw/cron".to_string(),
+        }
+    }
+}
+
 impl Default for SecuritySection {
     fn default() -> Self {
         Self {
@@ -390,6 +418,8 @@ impl Default for SecuritySection {
             channels_enabled: true,
             allowed_channel_types: Vec::new(),
             allowed_channel_ids: Vec::new(),
+            require_tool_approval: false,
+            approval_tools: Vec::new(),
         }
     }
 }

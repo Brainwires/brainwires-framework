@@ -9,6 +9,7 @@
 
 pub mod app;
 pub mod config;
+pub mod cron;
 pub mod persona;
 pub mod skill_handler;
 pub mod tools;

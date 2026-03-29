@@ -11,6 +11,20 @@ pub struct TelegramConfig {
     pub gateway_url: String,
     /// Optional authentication token for the gateway handshake.
     pub gateway_token: Option<String>,
+    /// In group/supergroup chats, only respond when the bot is @mentioned.
+    /// Private chats always respond regardless of this setting.
+    /// Default: false (backward compatible).
+    #[serde(default)]
+    pub group_mention_required: bool,
+    /// The bot's @username (without @) used for mention detection in groups.
+    /// If unset, mention detection relies on Telegram's `mention` entity type.
+    #[serde(default)]
+    pub bot_username: Option<String>,
+    /// Additional keyword patterns that trigger a response in group chats
+    /// (case-insensitive substring match). Only used when
+    /// `group_mention_required = true`.
+    #[serde(default)]
+    pub mention_patterns: Vec<String>,
 }
 
 impl Default for TelegramConfig {
@@ -19,6 +33,9 @@ impl Default for TelegramConfig {
             telegram_token: String::new(),
             gateway_url: "ws://127.0.0.1:18789/ws".to_string(),
             gateway_token: None,
+            group_mention_required: false,
+            bot_username: None,
+            mention_patterns: Vec::new(),
         }
     }
 }

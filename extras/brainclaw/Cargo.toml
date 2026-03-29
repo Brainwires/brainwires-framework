@@ -97,6 +97,12 @@ rusqlite = { version = "0.38", features = ["bundled"] }
 # Semantic versioning
 semver = { version = "1", features = ["serde"] }
 
+# Cron expression parsing
+cron = "0.12"
+
+# Stream adapters
+tokio-stream = "0.1"
+
 # Hashing & HMAC
 sha2 = "0.10"
 hmac = "0.12"

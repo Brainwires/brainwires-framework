@@ -39,6 +39,21 @@ enum Commands {
         #[arg(long, env = "GATEWAY_TOKEN")]
         gateway_token: Option<String>,
 
+        /// In group/supergroup chats, only respond when @mentioned.
+        /// Private chats always respond.
+        #[arg(long, default_value_t = false, env = "GROUP_MENTION_REQUIRED")]
+        group_mention_required: bool,
+
+        /// The bot's @username (without @) for mention detection in groups.
+        #[arg(long, env = "BOT_USERNAME")]
+        bot_username: Option<String>,
+
+        /// Keyword patterns (comma-separated) that trigger a response in groups
+        /// even without an explicit @mention. Only active when
+        /// `--group-mention-required` is set.
+        #[arg(long, env = "MENTION_PATTERNS", value_delimiter = ',')]
+        mention_patterns: Vec<String>,
+
         /// Also start the MCP server on stdio (for direct tool access).
         #[arg(long, default_value_t = false)]
         mcp: bool,
@@ -61,12 +76,18 @@ async fn main() -> Result<()> {
             telegram_token,
             gateway_url,
             gateway_token,
+            group_mention_required,
+            bot_username,
+            mention_patterns,
             mcp,
         }) => {
             let config = TelegramConfig {
                 telegram_token,
                 gateway_url,
                 gateway_token,
+                group_mention_required,
+                bot_username,
+                mention_patterns,
             };
             run_adapter(config, mcp).await?;
         }
@@ -130,7 +151,16 @@ async fn run_adapter(config: TelegramConfig, enable_mcp: bool) -> Result<()> {
 
     // Start Telegram bot dispatcher (blocking)
     tracing::info!("Telegram bot starting...");
-    event_handler::run_dispatcher(bot, event_tx).await;
+    // config.gateway_token has already been partially moved; reconstruct with remaining fields.
+    let filter_config = TelegramConfig {
+        telegram_token: config.telegram_token,
+        gateway_url: config.gateway_url,
+        gateway_token: None,  // already moved above; not used by dispatcher
+        group_mention_required: config.group_mention_required,
+        bot_username: config.bot_username,
+        mention_patterns: config.mention_patterns,
+    };
+    event_handler::run_dispatcher(bot, event_tx, filter_config).await;
 
     Ok(())
 }

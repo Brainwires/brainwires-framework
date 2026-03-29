@@ -29,6 +29,12 @@ pub struct SlackEventHandler {
     http: Client,
     /// Cache of user display names, keyed by user ID.
     user_cache: std::sync::Arc<tokio::sync::RwLock<std::collections::HashMap<String, String>>>,
+    /// Whether to require @mention in non-DM channels.
+    group_mention_required: bool,
+    /// Bot user ID for @mention detection (e.g. "U0123456789").
+    bot_user_id: Option<String>,
+    /// Additional keyword patterns for mention detection.
+    mention_patterns: Vec<String>,
 }
 
 impl SlackEventHandler {
@@ -37,6 +43,9 @@ impl SlackEventHandler {
         app_token: String,
         event_tx: mpsc::Sender<ChannelEvent>,
         slack_channel: Arc<SlackChannel>,
+        group_mention_required: bool,
+        bot_user_id: Option<String>,
+        mention_patterns: Vec<String>,
     ) -> Self {
         Self {
             app_token,
@@ -44,7 +53,40 @@ impl SlackEventHandler {
             slack_channel,
             http: Client::new(),
             user_cache: Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+            group_mention_required,
+            bot_user_id,
+            mention_patterns,
         }
+    }
+
+    /// Returns true if this message should be forwarded.
+    ///
+    /// DMs (channel IDs starting with "D") always forward.
+    /// In channels, forward when `group_mention_required` is false or the message
+    /// contains `<@BOT_USER_ID>` or matches a keyword pattern.
+    fn should_forward(&self, channel_id: &str, text: &str) -> bool {
+        // DMs always forward (Slack DM channel IDs start with 'D')
+        if channel_id.starts_with('D') {
+            return true;
+        }
+        if !self.group_mention_required {
+            return true;
+        }
+        // Check @mention syntax
+        if let Some(ref bot_id) = self.bot_user_id {
+            let mention = format!("<@{}>", bot_id);
+            if text.contains(mention.as_str()) {
+                return true;
+            }
+        }
+        // Check keyword patterns
+        let lower = text.to_lowercase();
+        for pattern in &self.mention_patterns {
+            if lower.contains(pattern.to_lowercase().as_str()) {
+                return true;
+            }
+        }
+        false
     }
 
     /// Open a Socket Mode WebSocket connection by calling `apps.connections.open`.
@@ -283,6 +325,16 @@ impl SlackEventHandler {
 
         // Cache team mapping
         self.slack_channel.register_team(channel_id, team_id).await;
+
+        // Group mention filter — check before processing any subtype
+        let text = event.get("text").and_then(|v| v.as_str()).unwrap_or("");
+        if !self.should_forward(channel_id, text) {
+            tracing::debug!(
+                channel_id = %channel_id,
+                "Skipping Slack channel message — bot not mentioned"
+            );
+            return Ok(());
+        }
 
         match subtype {
             None => {

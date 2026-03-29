@@ -10,6 +10,7 @@ use tokio::sync::mpsc;
 
 use brainwires_channels::{ChannelEvent, ChannelUser, ConversationId, MessageId};
 
+use crate::config::DiscordConfig;
 use crate::discord::discord_message_to_channel_message;
 
 /// Serenity event handler that forwards Discord events as `ChannelEvent` values
@@ -17,12 +18,48 @@ use crate::discord::discord_message_to_channel_message;
 pub struct DiscordEventHandler {
     /// Sender for forwarding events to the gateway client loop.
     pub event_tx: mpsc::Sender<ChannelEvent>,
+    /// Adapter configuration (for mention filtering).
+    pub config: DiscordConfig,
 }
 
 impl DiscordEventHandler {
     /// Create a new event handler with the given event sender.
-    pub fn new(event_tx: mpsc::Sender<ChannelEvent>) -> Self {
-        Self { event_tx }
+    pub fn new(event_tx: mpsc::Sender<ChannelEvent>, config: DiscordConfig) -> Self {
+        Self { event_tx, config }
+    }
+
+    /// Returns true if this message should be forwarded to the gateway.
+    ///
+    /// In DMs (no guild_id), always forward.  In guild channels, forward only
+    /// when `group_mention_required` is false OR the message @mentions the bot
+    /// OR the message matches one of the configured `mention_patterns`.
+    async fn should_forward(&self, ctx: &Context, msg: &Message) -> bool {
+        // DMs always forward
+        if msg.guild_id.is_none() {
+            return true;
+        }
+        // Group channel with no filtering — always forward
+        if !self.config.group_mention_required {
+            return true;
+        }
+        // Check @mention
+        if msg.mentions_me(ctx).await.unwrap_or(false) {
+            return true;
+        }
+        // Check optional prefix
+        if let Some(ref prefix) = self.config.bot_prefix {
+            if msg.content.starts_with(prefix.as_str()) {
+                return true;
+            }
+        }
+        // Check configured keyword patterns (case-insensitive)
+        let lower = msg.content.to_lowercase();
+        for pattern in &self.config.mention_patterns {
+            if lower.contains(pattern.to_lowercase().as_str()) {
+                return true;
+            }
+        }
+        false
     }
 }
 
@@ -36,9 +73,19 @@ impl EventHandler for DiscordEventHandler {
         );
     }
 
-    async fn message(&self, _ctx: Context, msg: Message) {
+    async fn message(&self, ctx: Context, msg: Message) {
         // Skip bot messages to avoid loops
         if msg.author.bot {
+            return;
+        }
+
+        // Group mention filter
+        if !self.should_forward(&ctx, &msg).await {
+            tracing::debug!(
+                channel = %msg.channel_id,
+                author = %msg.author.name,
+                "Skipping group message — bot not mentioned"
+            );
             return;
         }
 

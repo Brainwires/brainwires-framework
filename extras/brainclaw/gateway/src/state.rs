@@ -4,6 +4,8 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 
+use brainwires_core::Provider;
+
 use crate::audit::AuditLogger;
 use crate::channel_registry::ChannelRegistry;
 use crate::config::GatewayConfig;
@@ -34,4 +36,6 @@ pub struct AppState {
     pub metrics: Arc<MetricsCollector>,
     /// When the gateway was started.
     pub start_time: DateTime<Utc>,
+    /// Optional LLM provider for the OpenAI-compatible API endpoint.
+    pub openai_provider: Option<Arc<dyn Provider>>,
 }

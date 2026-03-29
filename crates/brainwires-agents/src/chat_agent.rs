@@ -10,8 +10,9 @@ use futures::StreamExt;
 
 use brainwires_core::{
     ChatOptions, ContentBlock, Message, MessageContent, Provider, Role, StreamChunk, Tool, ToolUse,
+    ToolContext,
 };
-use brainwires_tool_system::BuiltinToolExecutor;
+use brainwires_tool_system::{BuiltinToolExecutor, PreHookDecision, ToolPreHook};
 
 /// A simple chat agent that processes messages through an LLM provider with tool support.
 ///
@@ -46,6 +47,7 @@ pub struct ChatAgent {
     messages: Vec<Message>,
     options: ChatOptions,
     max_tool_rounds: usize,
+    pre_execute_hook: Option<Arc<dyn ToolPreHook>>,
 }
 
 impl ChatAgent {
@@ -63,12 +65,19 @@ impl ChatAgent {
             messages: Vec::new(),
             options,
             max_tool_rounds: 10,
+            pre_execute_hook: None,
         }
     }
 
     /// Set the maximum number of tool-call rounds before the agent stops.
     pub fn with_max_tool_rounds(mut self, rounds: usize) -> Self {
         self.max_tool_rounds = rounds;
+        self
+    }
+
+    /// Attach a pre-execution hook that can allow or reject tool calls before they run.
+    pub fn with_pre_execute_hook(mut self, hook: Arc<dyn ToolPreHook>) -> Self {
+        self.pre_execute_hook = Some(hook);
         self
     }
 
@@ -226,6 +235,25 @@ impl ChatAgent {
             // Execute each tool call and add results as a user message
             let mut result_blocks = Vec::new();
             for tu in &tool_uses {
+                // Run pre-execute hook if configured
+                if let Some(ref hook) = self.pre_execute_hook {
+                    let ctx = ToolContext::default();
+                    match hook.before_execute(tu, &ctx).await {
+                        Ok(PreHookDecision::Allow) => {}
+                        Ok(PreHookDecision::Reject(reason)) => {
+                            result_blocks.push(ContentBlock::ToolResult {
+                                tool_use_id: tu.id.clone(),
+                                content: reason,
+                                is_error: Some(true),
+                            });
+                            continue;
+                        }
+                        Err(e) => {
+                            tracing::warn!(tool = %tu.name, error = %e, "Pre-execute hook error");
+                        }
+                    }
+                }
+
                 let result = self
                     .executor
                     .execute_tool(&tu.name, &tu.id, &tu.input)

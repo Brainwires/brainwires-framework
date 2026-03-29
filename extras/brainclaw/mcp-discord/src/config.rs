@@ -13,6 +13,16 @@ pub struct DiscordConfig {
     pub gateway_token: Option<String>,
     /// Optional command prefix for the bot (e.g., "!").
     pub bot_prefix: Option<String>,
+    /// In guild (group) channels, only respond when the bot is @mentioned or
+    /// the message matches one of `mention_patterns`. DMs always respond.
+    /// Default: false (respond to all messages — backward compatible).
+    #[serde(default)]
+    pub group_mention_required: bool,
+    /// Additional keyword patterns that trigger a response in group channels
+    /// even without an @mention (case-insensitive substring match).
+    /// Only used when `group_mention_required = true`.
+    #[serde(default)]
+    pub mention_patterns: Vec<String>,
 }
 
 impl Default for DiscordConfig {
@@ -22,6 +32,8 @@ impl Default for DiscordConfig {
             gateway_url: "ws://127.0.0.1:18789/ws".to_string(),
             gateway_token: None,
             bot_prefix: None,
+            group_mention_required: false,
+            mention_patterns: Vec::new(),
         }
     }
 }

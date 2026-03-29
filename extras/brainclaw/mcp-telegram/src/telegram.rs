@@ -9,6 +9,7 @@ use teloxide::prelude::*;
 use teloxide::types::{
     ChatAction, ChatId, MessageId as TeloxideMessageId,
     ReactionType as TeloxideReactionType,
+    ThreadId as TeloxideThreadId,
 };
 
 use brainwires_channels::{
@@ -49,6 +50,7 @@ impl brainwires_channels::Channel for TelegramChannel {
             | ChannelCapabilities::TYPING_INDICATOR
             | ChannelCapabilities::EDIT_MESSAGES
             | ChannelCapabilities::DELETE_MESSAGES
+            | ChannelCapabilities::THREADS
             | ChannelCapabilities::MENTIONS
     }
 
@@ -64,9 +66,16 @@ impl brainwires_channels::Channel for TelegramChannel {
 
         let content = channel_message_to_telegram_text(message);
 
-        let sent = self
-            .bot
-            .send_message(ChatId(chat_id), &content)
+        let mut req = self.bot.send_message(ChatId(chat_id), &content);
+
+        // Route to a forum topic / thread if thread_id is set.
+        if let Some(ref tid) = message.thread_id {
+            if let Ok(thread_msg_id) = tid.0.parse::<i32>() {
+                req = req.message_thread_id(TeloxideThreadId(TeloxideMessageId(thread_msg_id)));
+            }
+        }
+
+        let sent = req
             .await
             .map_err(|e| anyhow::anyhow!("Failed to send Telegram message: {}", e))?;
 

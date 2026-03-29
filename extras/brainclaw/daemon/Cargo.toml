@@ -40,6 +40,7 @@ anyhow.workspace = true
 uuid.workspace = true
 chrono.workspace = true
 dirs.workspace = true
+cron.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

@@ -44,6 +44,17 @@ enum Commands {
         #[arg(long, env = "BOT_PREFIX")]
         bot_prefix: Option<String>,
 
+        /// In guild channels, only respond when @mentioned (or prefix matches).
+        /// DMs always get a response regardless of this setting.
+        #[arg(long, default_value_t = false, env = "GROUP_MENTION_REQUIRED")]
+        group_mention_required: bool,
+
+        /// Additional keyword patterns that trigger a response in group channels.
+        /// Comma-separated (e.g. "brainclaw,hey bot"). Only used when
+        /// `--group-mention-required` is set.
+        #[arg(long, env = "MENTION_PATTERNS", value_delimiter = ',')]
+        mention_patterns: Vec<String>,
+
         /// Also start the MCP server on stdio (for direct tool access).
         #[arg(long, default_value_t = false)]
         mcp: bool,
@@ -67,6 +78,8 @@ async fn main() -> Result<()> {
             gateway_url,
             gateway_token,
             bot_prefix,
+            group_mention_required,
+            mention_patterns,
             mcp,
         }) => {
             let config = DiscordConfig {
@@ -74,6 +87,8 @@ async fn main() -> Result<()> {
                 gateway_url,
                 gateway_token,
                 bot_prefix,
+                group_mention_required,
+                mention_patterns,
             };
             run_adapter(config, mcp).await?;
         }
@@ -101,7 +116,7 @@ async fn run_adapter(config: DiscordConfig, enable_mcp: bool) -> Result<()> {
         | GatewayIntents::GUILD_MESSAGE_REACTIONS
         | GatewayIntents::GUILD_MESSAGE_TYPING;
 
-    let event_handler = DiscordEventHandler::new(event_tx);
+    let event_handler = DiscordEventHandler::new(event_tx, config.clone());
 
     let mut client = Client::builder(&config.discord_token, intents)
         .event_handler(event_handler)

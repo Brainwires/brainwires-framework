@@ -9,6 +9,10 @@
 
 /// Admin API handlers (health check, channel listing, session listing, broadcast).
 pub mod admin;
+/// Interactive tool approval via chat (ask user yes/no before executing tools).
+pub mod approval;
+/// OpenAI-compatible API endpoint (/v1/chat/completions, /v1/models, /v1/embeddings).
+pub mod openai_compat;
 /// Audit logging for security-relevant events.
 pub mod audit;
 /// Agent-backed inbound handler that bridges gateway events to ChatAgent.

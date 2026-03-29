@@ -18,6 +18,7 @@ use brainwires_providers::{ChatProviderFactory, ProviderConfig, ProviderType};
 use brainwires_tool_system::BuiltinToolExecutor;
 
 use crate::config::BrainClawConfig;
+use crate::cron::{CronRunner, CronStore};
 use crate::persona::Persona;
 use crate::skill_handler::SkillHandler;
 use crate::tools::build_tool_registry;
@@ -110,14 +111,20 @@ impl BrainClaw {
         // 5. Build GatewayConfig
         let gateway_config = self.config.to_gateway_config();
 
-        // 6. Create session manager and channel registry
+        // 6. Create session manager and channel registry.
+        //    These must be shared between the AgentInboundHandler (which uses
+        //    them to send responses) and the Gateway AppState (which uses them
+        //    to register WebSocket connections).  Without sharing, channel
+        //    adapters register into a different ChannelRegistry than the one
+        //    the handler queries, so responses would silently drop.
         let sessions = Arc::new(SessionManager::new());
         let channels = Arc::new(ChannelRegistry::new());
 
         // 7. Create AgentInboundHandler
+        let openai_provider = Arc::clone(&provider);
         let mut handler = AgentInboundHandler::new(
-            sessions,
-            channels,
+            Arc::clone(&sessions),
+            Arc::clone(&channels),
             provider,
             executor,
             options,
@@ -225,8 +232,47 @@ impl BrainClaw {
 
         handler = handler.with_media(Arc::new(media));
 
-        // 8. Create Gateway with handler
-        let gateway = Gateway::with_handler(gateway_config.clone(), Arc::new(handler));
+        // 7g. Enable interactive tool approval if configured.
+        if self.config.security.require_tool_approval {
+            let approval_tools: std::collections::HashSet<String> = self
+                .config
+                .security
+                .approval_tools
+                .iter()
+                .cloned()
+                .collect();
+            handler = handler.with_tool_approval(approval_tools);
+            tracing::info!("Interactive tool approval enabled");
+        }
+
+        // 8. Create Gateway with handler, sharing the same sessions/channels.
+        let handler = Arc::new(handler);
+        let mut gateway =
+            Gateway::with_handler(gateway_config.clone(), Arc::clone(&handler) as _)
+                .with_shared_state(Arc::clone(&sessions), Arc::clone(&channels));
+
+        // 8a. Attach provider for OpenAI-compatible endpoint.
+        gateway = gateway.with_openai_provider(openai_provider);
+        tracing::info!("OpenAI-compatible API enabled at /v1/chat/completions");
+
+        // 8b. Start cron runner if enabled.
+        if self.config.cron.enabled {
+            let cron_dir = expand_tilde(&self.config.cron.storage_dir);
+            match CronStore::new(&cron_dir) {
+                Ok(store) => {
+                    let runner = Arc::new(CronRunner::new(
+                        Arc::new(store),
+                        Arc::clone(&handler),
+                        Arc::clone(&channels),
+                    ));
+                    runner.spawn();
+                    tracing::info!(dir = %cron_dir.display(), "Cron runner started");
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e, "Failed to initialize cron store; cron disabled");
+                }
+            }
+        }
 
         tracing::info!(
             address = %gateway_config.bind_address(),

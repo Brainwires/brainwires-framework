@@ -5,13 +5,14 @@
 //! manages per-user agent sessions and routes responses back to the originating
 //! channel.
 
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
 use async_trait::async_trait;
 use dashmap::DashMap;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 use uuid::Uuid;
 
 use brainwires_agents::ChatAgent;
@@ -21,6 +22,7 @@ use brainwires_channels::message::{ChannelMessage, MessageContent, MessageId};
 use brainwires_core::{ChatOptions, Provider};
 use brainwires_tool_system::BuiltinToolExecutor;
 
+use crate::approval::{ApprovalRegistry, ChatApprovalHook};
 use crate::channel_registry::ChannelRegistry;
 use crate::media::MediaProcessor;
 use crate::middleware::rate_limit::RateLimiter;
@@ -64,6 +66,20 @@ pub struct AgentInboundHandler {
     rate_limiter: Option<Arc<RateLimiter>>,
     /// Optional text preprocessor (e.g. skill dispatch).
     text_preprocessor: Option<Arc<TextPreprocessor>>,
+    /// When `Some`, tool calls matching `approval_tools` require user approval.
+    approval_registry: Option<Arc<ApprovalRegistry>>,
+    /// Set of tool names that require approval.  Empty = all tools.
+    approval_tools: HashSet<String>,
+    /// Per-user state cells shared with `ChatApprovalHook`:
+    /// (platform, user_id) -> (current_conversation, current_sender, current_channel_id)
+    approval_contexts: DashMap<
+        (String, String),
+        (
+            Arc<RwLock<Option<ConversationId>>>,
+            Arc<RwLock<Option<tokio::sync::mpsc::Sender<String>>>>,
+            Arc<RwLock<Option<Uuid>>>,
+        ),
+    >,
 }
 
 impl AgentInboundHandler {
@@ -90,7 +106,21 @@ impl AgentInboundHandler {
             sanitizer: None,
             rate_limiter: None,
             text_preprocessor: None,
+            approval_registry: None,
+            approval_tools: HashSet::new(),
+            approval_contexts: DashMap::new(),
         }
+    }
+
+    /// Enable interactive tool approval via chat.
+    ///
+    /// When enabled, tool calls whose names are in `tool_names` (or all tools
+    /// if `tool_names` is empty) are intercepted: the user receives an approval
+    /// prompt in their channel and must reply **yes** or **no** within 60 s.
+    pub fn with_tool_approval(mut self, tool_names: HashSet<String>) -> Self {
+        self.approval_registry = Some(Arc::new(ApprovalRegistry::new()));
+        self.approval_tools = tool_names;
+        self
     }
 
     /// Attach a media processor for handling message attachments.
@@ -141,6 +171,18 @@ impl AgentInboundHandler {
         self
     }
 
+    /// Dispatch a synthetic message directly to the agent handler.
+    ///
+    /// Used by the cron runner to inject scheduled prompts without going through
+    /// a real WebSocket channel. Bypasses rate limiting and sanitization.
+    ///
+    /// `channel_id` should be the UUID of a connected channel adapter that the
+    /// response will be sent back through. Pass `Uuid::nil()` if there is no
+    /// active channel (the response will be silently dropped with a warning).
+    pub async fn dispatch_message(&self, channel_id: Uuid, msg: ChannelMessage) -> Result<()> {
+        self.handle_message(channel_id, &msg).await
+    }
+
     /// Return the number of active agent sessions.
     pub fn session_count(&self) -> usize {
         self.agent_sessions.len()
@@ -174,6 +216,32 @@ impl AgentInboundHandler {
 
     /// Handle an inbound message by routing it through the appropriate agent.
     async fn handle_message(&self, channel_id: Uuid, msg: &ChannelMessage) -> Result<()> {
+        // 0. If tool approval is enabled, check whether this message is a
+        //    yes/no response to a pending approval request.
+        if let Some(ref registry) = self.approval_registry {
+            let platform = &msg.conversation.platform;
+            let user_id = &msg.author;
+            if registry.is_pending(platform, user_id) {
+                let text_lower = Self::extract_text(&msg.content).to_lowercase();
+                let approved = text_lower.starts_with("yes")
+                    || text_lower == "y"
+                    || text_lower == "ok"
+                    || text_lower == "allow";
+                let rejected = text_lower.starts_with("no")
+                    || text_lower == "n"
+                    || text_lower == "cancel"
+                    || text_lower == "deny";
+                if approved || rejected {
+                    registry.resolve(platform, user_id, approved);
+                    return Ok(());
+                }
+                // Unrecognised text while approval is pending — send a reminder.
+                let reminder = "Please reply **yes** or **no** to the pending tool approval.";
+                self.send_response(channel_id, msg, reminder).await?;
+                return Ok(());
+            }
+        }
+
         // 1. Extract text from the message content
         let mut text = Self::extract_text(&msg.content);
 
@@ -252,6 +320,27 @@ impl AgentInboundHandler {
         // 3. Get or create the ChatAgent for this user
         let agent = self.get_or_create_agent(&platform, &user_id).await;
 
+        // 3b. Update the approval context so the hook knows the current
+        //     channel and conversation for this turn.
+        if self.approval_registry.is_some() {
+            let key = (platform.clone(), user_id.clone());
+            let ctx = self
+                .approval_contexts
+                .entry(key)
+                .or_insert_with(|| {
+                    (
+                        Arc::new(RwLock::new(None)),
+                        Arc::new(RwLock::new(None)),
+                        Arc::new(RwLock::new(None)),
+                    )
+                });
+            *ctx.0.write().await = Some(msg.conversation.clone());
+            *ctx.2.write().await = Some(channel_id);
+            if let Some(tx) = self.channels.get_sender(&channel_id) {
+                *ctx.1.write().await = Some(tx);
+            }
+        }
+
         // 4. Lock agent and process the message
         let mut agent = agent.lock().await;
         let raw_response = agent.process_message(&text).await?;
@@ -295,6 +384,33 @@ impl AgentInboundHandler {
             self.default_options.clone(),
         )
         .with_max_tool_rounds(self.max_tool_rounds);
+
+        // Attach approval hook if enabled
+        if let Some(ref registry) = self.approval_registry {
+            let ctx_key = (platform.to_string(), user_id.to_string());
+            let (conv, sender, chan_id) = self
+                .approval_contexts
+                .entry(ctx_key)
+                .or_insert_with(|| {
+                    (
+                        Arc::new(RwLock::new(None)),
+                        Arc::new(RwLock::new(None)),
+                        Arc::new(RwLock::new(None)),
+                    )
+                })
+                .clone();
+
+            let hook = ChatApprovalHook::new(
+                platform.to_string(),
+                user_id.to_string(),
+                self.approval_tools.clone(),
+                conv,
+                sender,
+                chan_id,
+                Arc::clone(registry),
+            );
+            agent = agent.with_pre_execute_hook(Arc::new(hook));
+        }
 
         if let Some(ref store) = self.persistence {
             let skey = session_key(platform, user_id);

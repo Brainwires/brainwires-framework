@@ -14,6 +14,7 @@ use tokio::net::TcpListener;
 
 use crate::admin;
 use crate::audit::AuditLogger;
+use crate::openai_compat;
 use crate::channel_registry::ChannelRegistry;
 use crate::config::GatewayConfig;
 use crate::metrics::MetricsCollector;
@@ -31,6 +32,12 @@ pub struct Gateway {
     config: GatewayConfig,
     /// Optional custom inbound handler. When `None`, a default [`MessageRouter`] is used.
     custom_handler: Option<Arc<dyn InboundHandler>>,
+    /// Optional pre-built session manager to share with the handler.
+    shared_sessions: Option<Arc<SessionManager>>,
+    /// Optional pre-built channel registry to share with the handler.
+    shared_channels: Option<Arc<ChannelRegistry>>,
+    /// Optional LLM provider for the OpenAI-compatible API endpoint.
+    openai_provider: Option<Arc<dyn brainwires_core::Provider>>,
 }
 
 impl Gateway {
@@ -41,6 +48,9 @@ impl Gateway {
         Self {
             config,
             custom_handler: None,
+            shared_sessions: None,
+            shared_channels: None,
+            openai_provider: None,
         }
     }
 
@@ -52,15 +62,53 @@ impl Gateway {
         Self {
             config,
             custom_handler: Some(handler),
+            shared_sessions: None,
+            shared_channels: None,
+            openai_provider: None,
         }
+    }
+
+    /// Attach an LLM provider to expose the OpenAI-compatible API endpoint.
+    ///
+    /// When set, the gateway exposes `/v1/chat/completions`, `/v1/models`,
+    /// and `/v1/embeddings` endpoints that proxy requests to this provider.
+    pub fn with_openai_provider(
+        mut self,
+        provider: Arc<dyn brainwires_core::Provider>,
+    ) -> Self {
+        self.openai_provider = Some(provider);
+        self
+    }
+
+    /// Share pre-built session manager and channel registry with the gateway.
+    ///
+    /// When set, the gateway uses these instances in `AppState` so that the
+    /// custom handler and the WS/admin routes all reference the same objects.
+    /// This is required when using `with_handler` with an `AgentInboundHandler`
+    /// that was constructed with specific `Arc<SessionManager>` /
+    /// `Arc<ChannelRegistry>` instances.
+    pub fn with_shared_state(
+        mut self,
+        sessions: Arc<SessionManager>,
+        channels: Arc<ChannelRegistry>,
+    ) -> Self {
+        self.shared_sessions = Some(sessions);
+        self.shared_channels = Some(channels);
+        self
     }
 
     /// Build and run the gateway server.
     ///
     /// This method blocks until the server is shut down.
     pub async fn run(&self) -> Result<()> {
-        let sessions = Arc::new(SessionManager::new());
-        let channels = Arc::new(ChannelRegistry::new());
+        let sessions = self
+            .shared_sessions
+            .clone()
+            .unwrap_or_else(|| Arc::new(SessionManager::new()));
+        let channels = self
+            .shared_channels
+            .clone()
+            .unwrap_or_else(|| Arc::new(ChannelRegistry::new()));
 
         let router: Arc<dyn InboundHandler> = match &self.custom_handler {
             Some(handler) => Arc::clone(handler),
@@ -89,6 +137,7 @@ impl Gateway {
             audit: Arc::new(AuditLogger::new()),
             metrics: Arc::new(MetricsCollector::new()),
             start_time: Utc::now(),
+            openai_provider: self.openai_provider.clone(),
         };
 
         let app = build_router(state.clone());
@@ -144,6 +193,15 @@ fn build_router(state: AppState) -> Router {
                 &format!("{}/broadcast", admin_prefix),
                 post(admin::broadcast),
             );
+    }
+
+    // OpenAI-compatible API endpoint (always enabled when provider is configured)
+    if state.openai_provider.is_some() {
+        app = app
+            .route("/v1/models", get(openai_compat::list_models))
+            .route("/v1/chat/completions", post(openai_compat::chat_completions))
+            .route("/v1/embeddings", post(openai_compat::embeddings));
+        tracing::debug!("OpenAI-compatible API endpoint enabled at /v1/");
     }
 
     app.with_state(state)
