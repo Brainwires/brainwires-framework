@@ -91,6 +91,20 @@ enabled = false
 # Directory where cron job definitions are stored (JSON files)
 storage_dir = "~/.brainclaw/cron"
 
+# ── Hooks ────────────────────────────────────────────────────────────────────
+#
+# Shell hooks let you intercept and react to framework events via scripts.
+# Each script receives the event as JSON on stdin.
+# pre_tool_use: exit non-zero to block the tool call; first line of stdout
+#               is used as the rejection reason shown to the agent.
+# Other hooks are informational; their exit code is ignored.
+
+[hooks]
+# pre_tool_use  = "~/.brainclaw/hooks/pre-tool.sh"
+# post_tool_use = "~/.brainclaw/hooks/post-tool.sh"
+# session_start = "~/.brainclaw/hooks/session-start.sh"
+# session_end   = "~/.brainclaw/hooks/session-end.sh"
+
 # ── Security ─────────────────────────────────────────────────────────────────
 
 [security]

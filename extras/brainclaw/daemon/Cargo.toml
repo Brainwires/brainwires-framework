@@ -30,6 +30,7 @@ brainwires-core.workspace = true
 brainwires-hardware = { workspace = true, optional = true, features = ["audio"] }
 
 tokio.workspace = true
+async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 toml.workspace = true

@@ -7,6 +7,7 @@
 //! audio attachments are transcribed to text instead of returning a placeholder.
 
 use std::path::{Path, PathBuf};
+#[cfg(feature = "voice")]
 use std::sync::Arc;
 
 use anyhow::{Context, Result, bail};

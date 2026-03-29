@@ -20,6 +20,7 @@ use brainwires_tool_system::BuiltinToolExecutor;
 use crate::config::BrainClawConfig;
 use crate::cron::{CronRunner, CronStore};
 use crate::persona::Persona;
+use crate::shell_hooks::{ShellHookRunner, ShellPreToolHook};
 use crate::skill_handler::SkillHandler;
 use crate::tools::build_tool_registry;
 
@@ -243,6 +244,18 @@ impl BrainClaw {
                 .collect();
             handler = handler.with_tool_approval(approval_tools);
             tracing::info!("Interactive tool approval enabled");
+        }
+
+        // 7h. Wire shell hooks if any are configured.
+        let shell_runner = ShellHookRunner::from_config(&self.config.hooks);
+        if shell_runner.has_any() {
+            if let Some(pre_script) = shell_runner.pre_tool_use_path() {
+                let pre_hook = ShellPreToolHook::new(pre_script.to_string());
+                handler = handler.with_shell_pre_tool_hook(std::sync::Arc::new(pre_hook));
+                tracing::info!("Shell pre-tool hook enabled");
+            }
+            handler = handler.with_session_hook(std::sync::Arc::new(shell_runner));
+            tracing::info!("Shell session hooks enabled");
         }
 
         // 8. Create Gateway with handler, sharing the same sessions/channels.

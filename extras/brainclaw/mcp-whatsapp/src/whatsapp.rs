@@ -8,7 +8,8 @@ use reqwest::Client;
 use serde_json::json;
 
 use brainwires_channels::{
-    Channel, ChannelCapabilities, ChannelMessage, ConversationId, MessageContent, MessageId,
+    Channel, ChannelCapabilities, ChannelMessage, ConversationId, MediaType, MessageContent,
+    MessageId,
 };
 
 const GRAPH_API_BASE: &str = "https://graph.facebook.com/v18.0";
@@ -72,21 +73,49 @@ impl Channel for WhatsAppChannel {
         target: &ConversationId,
         message: &ChannelMessage,
     ) -> Result<MessageId> {
-        let text = Self::message_text(message);
-        if text.is_empty() {
-            bail!("WhatsApp: cannot send empty text message");
-        }
-
         let url = format!("{}/{}/messages", GRAPH_API_BASE, self.phone_number_id);
-        let body = json!({
-            "messaging_product": "whatsapp",
-            "to": target.channel_id,
-            "type": "text",
-            "text": {
-                "preview_url": false,
-                "body": text
+
+        // Route to the correct WhatsApp message type based on content
+        let body = match &message.content {
+            MessageContent::Media(media) => {
+                // Map MediaType to WhatsApp API message type
+                let (wa_type, media_key) = match media.media_type {
+                    MediaType::Image => ("image", "image"),
+                    MediaType::Video | MediaType::GIF => ("video", "video"),
+                    MediaType::Audio => ("audio", "audio"),
+                    MediaType::Document => ("document", "document"),
+                    MediaType::Sticker => ("sticker", "sticker"),
+                };
+
+                let mut media_obj = json!({ "link": media.url });
+                if let Some(caption) = &media.caption {
+                    media_obj["caption"] = json!(caption);
+                }
+
+                json!({
+                    "messaging_product": "whatsapp",
+                    "to": target.channel_id,
+                    "type": wa_type,
+                    media_key: media_obj
+                })
             }
-        });
+            _ => {
+                // Text / RichText / Embed / Mixed — convert to text
+                let text = Self::message_text(message);
+                if text.is_empty() {
+                    bail!("WhatsApp: cannot send empty text message");
+                }
+                json!({
+                    "messaging_product": "whatsapp",
+                    "to": target.channel_id,
+                    "type": "text",
+                    "text": {
+                        "preview_url": false,
+                        "body": text
+                    }
+                })
+            }
+        };
 
         let resp = self
             .http

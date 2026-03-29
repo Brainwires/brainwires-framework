@@ -19,8 +19,9 @@ use brainwires_agents::ChatAgent;
 use brainwires_channels::events::ChannelEvent;
 use brainwires_channels::identity::ConversationId;
 use brainwires_channels::message::{ChannelMessage, MessageContent, MessageId};
-use brainwires_core::{ChatOptions, Provider};
-use brainwires_tool_system::BuiltinToolExecutor;
+use brainwires_core::{ChatOptions, Provider, ToolContext, ToolUse};
+use brainwires_core::lifecycle::{LifecycleEvent, LifecycleHook};
+use brainwires_tool_system::{BuiltinToolExecutor, PreHookDecision, ToolPreHook};
 
 use crate::approval::{ApprovalRegistry, ChatApprovalHook};
 use crate::channel_registry::ChannelRegistry;
@@ -30,6 +31,28 @@ use crate::middleware::sanitizer::MessageSanitizer;
 use crate::router::InboundHandler;
 use crate::session::SessionManager;
 use crate::session_persistence::{SessionStore, session_key};
+
+/// Runs a sequence of [`ToolPreHook`]s in order; the first rejection wins.
+struct CompositePreToolHook {
+    hooks: Vec<Arc<dyn ToolPreHook>>,
+}
+
+#[async_trait]
+impl ToolPreHook for CompositePreToolHook {
+    async fn before_execute(
+        &self,
+        tool_use: &ToolUse,
+        context: &ToolContext,
+    ) -> anyhow::Result<PreHookDecision> {
+        for hook in &self.hooks {
+            match hook.before_execute(tool_use, context).await? {
+                PreHookDecision::Allow => {}
+                reject => return Ok(reject),
+            }
+        }
+        Ok(PreHookDecision::Allow)
+    }
+}
 
 /// A synchronous function that can transform an inbound message text before it
 /// is sent to the agent.
@@ -80,6 +103,10 @@ pub struct AgentInboundHandler {
             Arc<RwLock<Option<Uuid>>>,
         ),
     >,
+    /// Optional shell-script pre-tool hook (blocks tool calls on non-zero exit).
+    shell_pre_tool_hook: Option<Arc<dyn ToolPreHook>>,
+    /// Optional lifecycle hook for session start/end and post-tool events.
+    session_hook: Option<Arc<dyn LifecycleHook>>,
 }
 
 impl AgentInboundHandler {
@@ -109,6 +136,8 @@ impl AgentInboundHandler {
             approval_registry: None,
             approval_tools: HashSet::new(),
             approval_contexts: DashMap::new(),
+            shell_pre_tool_hook: None,
+            session_hook: None,
         }
     }
 
@@ -120,6 +149,27 @@ impl AgentInboundHandler {
     pub fn with_tool_approval(mut self, tool_names: HashSet<String>) -> Self {
         self.approval_registry = Some(Arc::new(ApprovalRegistry::new()));
         self.approval_tools = tool_names;
+        self
+    }
+
+    /// Attach a shell-script pre-tool hook.
+    ///
+    /// The hook script receives tool call details as JSON on stdin.
+    /// A non-zero exit code blocks the tool call; the first line of stdout
+    /// is used as the rejection reason.
+    ///
+    /// If `with_tool_approval` is also active, the shell hook runs first.
+    pub fn with_shell_pre_tool_hook(mut self, hook: Arc<dyn ToolPreHook>) -> Self {
+        self.shell_pre_tool_hook = Some(hook);
+        self
+    }
+
+    /// Attach a lifecycle hook for session and post-tool events.
+    ///
+    /// Events fired: `AgentStarted` (before processing), `AgentCompleted`/
+    /// `AgentFailed` (after processing), `ToolAfterExecute` (after each tool).
+    pub fn with_session_hook(mut self, hook: Arc<dyn LifecycleHook>) -> Self {
+        self.session_hook = Some(hook);
         self
     }
 
@@ -342,8 +392,40 @@ impl AgentInboundHandler {
         }
 
         // 4. Lock agent and process the message
+        if let Some(ref hook) = self.session_hook {
+            hook.on_event(&LifecycleEvent::AgentStarted {
+                agent_id: format!("{}:{}", platform, user_id),
+                task_description: text.chars().take(120).collect(),
+            })
+            .await;
+        }
+
         let mut agent = agent.lock().await;
-        let raw_response = agent.process_message(&text).await?;
+        let process_result = agent.process_message(&text).await;
+
+        // Fire session end event regardless of success/failure
+        if let Some(ref hook) = self.session_hook {
+            match &process_result {
+                Ok(resp) => {
+                    hook.on_event(&LifecycleEvent::AgentCompleted {
+                        agent_id: format!("{}:{}", platform, user_id),
+                        iterations: 1,
+                        summary: resp.chars().take(120).collect(),
+                    })
+                    .await;
+                }
+                Err(e) => {
+                    hook.on_event(&LifecycleEvent::AgentFailed {
+                        agent_id: format!("{}:{}", platform, user_id),
+                        error: e.to_string(),
+                        iterations: 1,
+                    })
+                    .await;
+                }
+            }
+        }
+
+        let raw_response = process_result?;
 
         // 4b. Sanitize outbound response (redact secrets)
         let response = match &self.sanitizer {
@@ -385,7 +467,13 @@ impl AgentInboundHandler {
         )
         .with_max_tool_rounds(self.max_tool_rounds);
 
-        // Attach approval hook if enabled
+        // Build pre-tool hook(s). Shell hook runs first; approval hook second.
+        let mut pre_hooks: Vec<Arc<dyn ToolPreHook>> = Vec::new();
+
+        if let Some(ref shell_hook) = self.shell_pre_tool_hook {
+            pre_hooks.push(Arc::clone(shell_hook));
+        }
+
         if let Some(ref registry) = self.approval_registry {
             let ctx_key = (platform.to_string(), user_id.to_string());
             let (conv, sender, chan_id) = self
@@ -409,7 +497,16 @@ impl AgentInboundHandler {
                 chan_id,
                 Arc::clone(registry),
             );
-            agent = agent.with_pre_execute_hook(Arc::new(hook));
+            pre_hooks.push(Arc::new(hook));
+        }
+
+        if !pre_hooks.is_empty() {
+            let composite = if pre_hooks.len() == 1 {
+                pre_hooks.into_iter().next().unwrap()
+            } else {
+                Arc::new(CompositePreToolHook { hooks: pre_hooks })
+            };
+            agent = agent.with_pre_execute_hook(composite);
         }
 
         if let Some(ref store) = self.persistence {

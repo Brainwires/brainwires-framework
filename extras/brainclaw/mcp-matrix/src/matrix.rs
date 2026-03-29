@@ -8,17 +8,23 @@ use async_trait::async_trait;
 use matrix_sdk::Client;
 use matrix_sdk::room::MessagesOptions;
 use matrix_sdk::ruma::{
-    EventId, OwnedRoomId, RoomId, UInt,
+    EventId, OwnedMxcUri, OwnedRoomId, RoomId, UInt,
     events::{
         AnySyncMessageLikeEvent, AnySyncTimelineEvent,
         reaction::ReactionEventContent,
         relation::{Annotation, Thread},
-        room::message::{Relation, ReplacementMetadata, RoomMessageEventContent},
+        room::message::{
+            AudioMessageEventContent, FileMessageEventContent, ImageMessageEventContent,
+            MessageType, Relation, ReplacementMetadata, RoomMessageEventContent,
+            VideoMessageEventContent,
+        },
     },
 };
+use reqwest::Client as HttpClient;
 
 use brainwires_channels::{
-    Channel, ChannelCapabilities, ChannelMessage, ConversationId, MessageContent, MessageId,
+    Channel, ChannelCapabilities, ChannelMessage, ConversationId, MediaType, MessageContent,
+    MessageId,
 };
 
 /// Matrix channel backed by the `matrix-sdk` `Client`.
@@ -27,11 +33,15 @@ use brainwires_channels::{
 /// (e.g. `"!roomId:server.org"`).
 pub struct MatrixChannel {
     client: Arc<Client>,
+    http: HttpClient,
 }
 
 impl MatrixChannel {
     pub fn new(client: Arc<Client>) -> Self {
-        Self { client }
+        Self {
+            client,
+            http: HttpClient::new(),
+        }
     }
 
     /// Look up a `matrix_sdk::Room` by room ID string.
@@ -84,15 +94,86 @@ impl Channel for MatrixChannel {
         target: &ConversationId,
         message: &ChannelMessage,
     ) -> Result<MessageId> {
-        let text = Self::message_text(message);
-        if text.is_empty() {
-            bail!("Matrix: cannot send an empty text message");
-        }
-
         let room = self.get_room(&target.channel_id)?;
 
+        // Build the message content, routing media types to proper Matrix events.
+        let mut content = match &message.content {
+            MessageContent::Media(media) => {
+                // Download the remote media and upload it to the Matrix homeserver.
+                let bytes = self
+                    .http
+                    .get(&media.url)
+                    .send()
+                    .await
+                    .context("Failed to download media for Matrix upload")?
+                    .bytes()
+                    .await
+                    .context("Failed to read media bytes")?;
+
+                // Guess content-type from URL extension or fall back to octet-stream
+                let mime_type: mime::Mime = media
+                    .url
+                    .rsplit('.')
+                    .next()
+                    .and_then(|ext| match ext.to_lowercase().as_str() {
+                        "jpg" | "jpeg" => Some(mime::IMAGE_JPEG),
+                        "png" => Some(mime::IMAGE_PNG),
+                        "gif" => Some(mime::IMAGE_GIF),
+                        "webp" => "image/webp".parse::<mime::Mime>().ok(),
+                        "mp4" | "mov" => "video/mp4".parse::<mime::Mime>().ok(),
+                        "webm" => "video/webm".parse::<mime::Mime>().ok(),
+                        "mp3" => "audio/mpeg".parse::<mime::Mime>().ok(),
+                        "ogg" => "audio/ogg".parse::<mime::Mime>().ok(),
+                        "pdf" => "application/pdf".parse::<mime::Mime>().ok(),
+                        _ => None,
+                    })
+                    .unwrap_or(mime::APPLICATION_OCTET_STREAM);
+
+                let upload_resp = self
+                    .client
+                    .media()
+                    .upload(&mime_type, bytes.to_vec(), None)
+                    .await
+                    .context("Failed to upload media to Matrix homeserver")?;
+                let mxc_uri: OwnedMxcUri = upload_resp.content_uri;
+
+                let filename = media
+                    .url
+                    .rsplit('/')
+                    .next()
+                    .unwrap_or("media")
+                    .to_string();
+                let caption = media
+                    .caption
+                    .clone()
+                    .unwrap_or_else(|| filename.clone());
+
+                let msgtype = match media.media_type {
+                    MediaType::Image | MediaType::GIF => {
+                        MessageType::Image(ImageMessageEventContent::plain(caption, mxc_uri))
+                    }
+                    MediaType::Video => {
+                        MessageType::Video(VideoMessageEventContent::plain(caption, mxc_uri))
+                    }
+                    MediaType::Audio => {
+                        MessageType::Audio(AudioMessageEventContent::plain(caption, mxc_uri))
+                    }
+                    MediaType::Document | MediaType::Sticker => {
+                        MessageType::File(FileMessageEventContent::plain(caption, mxc_uri))
+                    }
+                };
+                RoomMessageEventContent::new(msgtype)
+            }
+            _ => {
+                let text = Self::message_text(message);
+                if text.is_empty() {
+                    bail!("Matrix: cannot send an empty text message");
+                }
+                RoomMessageEventContent::text_markdown(text)
+            }
+        };
+
         // If a thread_id is set, attach a Thread relation so the message is part of that thread.
-        let mut content = RoomMessageEventContent::text_markdown(text);
         if let Some(ref tid) = message.thread_id {
             let thread_event_id = EventId::parse(tid.0.as_str())
                 .context("Invalid Matrix thread event ID")?

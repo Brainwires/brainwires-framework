@@ -29,6 +29,8 @@ pub struct BrainClawConfig {
     pub security: SecuritySection,
     /// Cron / scheduled task settings.
     pub cron: CronSection,
+    /// User-configurable shell hooks.
+    pub hooks: HooksSection,
     /// Email tool settings (requires `email` feature; tool group `"email"` must be in `tools.enabled`).
     pub email: Option<EmailSection>,
     /// Calendar tool settings (requires `calendar` feature; tool group `"calendar"` must be in `tools.enabled`).
@@ -148,6 +150,25 @@ pub struct CronSection {
     pub enabled: bool,
     /// Directory where cron job JSON files are persisted.
     pub storage_dir: String,
+}
+
+/// User-configurable shell hooks configuration.
+///
+/// Each field is an optional path to a shell script.  BrainClaw invokes the
+/// script with the event payload as JSON on stdin.  For `pre_tool_use`,
+/// a non-zero exit code blocks the tool call; the first line of stdout is
+/// used as the rejection reason sent back to the agent.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(default)]
+pub struct HooksSection {
+    /// Script to run before each tool execution.  Exit non-zero to block.
+    pub pre_tool_use: Option<String>,
+    /// Script to run after each tool execution (informational).
+    pub post_tool_use: Option<String>,
+    /// Script to run when an agent session starts.
+    pub session_start: Option<String>,
+    /// Script to run when an agent session ends (completed or failed).
+    pub session_end: Option<String>,
 }
 
 /// Security configuration.
@@ -295,6 +316,7 @@ impl Default for BrainClawConfig {
             skills: SkillsSection::default(),
             security: SecuritySection::default(),
             cron: CronSection::default(),
+            hooks: HooksSection::default(),
             email: None,
             calendar: None,
             browser: None,

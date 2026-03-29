@@ -37,4 +37,6 @@ async-trait.workspace = true
 schemars.workspace = true
 tokio-util.workspace = true
 matrix-sdk.workspace = true
+reqwest.workspace = true
+mime = "0.3"
 # Note: sqlite store feature excluded to avoid rusqlite version conflict with workspace

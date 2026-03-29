@@ -11,13 +11,12 @@
 
 use std::sync::Arc;
 
-use axum::body::Body;
 use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode};
-use axum::response::{IntoResponse, Response, Sse};
+use axum::response::{IntoResponse, Sse};
 use axum::response::sse::Event;
 use axum::Json;
-use brainwires_core::{ChatOptions, Message, Provider, StreamChunk};
+use brainwires_core::{ChatOptions, Message, StreamChunk};
 use chrono::Utc;
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
