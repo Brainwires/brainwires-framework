@@ -43,6 +43,47 @@ fn register_tool_group(registry: &mut ToolRegistry, group: &str) {
         "search" => registry.register_tools(SearchTool::get_tools()),
         "web" => registry.register_tools(WebTool::get_tools()),
         "validation" => registry.register_tools(ValidationTool::get_tools()),
+
+        #[cfg(feature = "email")]
+        "email" => {
+            use brainwires_tool_system::EmailTool;
+            registry.register_tools(EmailTool::get_tools());
+        }
+        #[cfg(not(feature = "email"))]
+        "email" => {
+            tracing::warn!("Tool group 'email' requested but BrainClaw was not compiled with the 'email' feature");
+        }
+
+        #[cfg(feature = "calendar")]
+        "calendar" => {
+            use brainwires_tool_system::CalendarTool;
+            registry.register_tools(CalendarTool::get_tools());
+        }
+        #[cfg(not(feature = "calendar"))]
+        "calendar" => {
+            tracing::warn!("Tool group 'calendar' requested but BrainClaw was not compiled with the 'calendar' feature");
+        }
+
+        #[cfg(feature = "rag")]
+        "semantic-search" => {
+            use brainwires_tool_system::SemanticSearchTool;
+            registry.register_tools(SemanticSearchTool::get_tools());
+        }
+        #[cfg(not(feature = "rag"))]
+        "semantic-search" => {
+            tracing::warn!("Tool group 'semantic-search' requested but BrainClaw was not compiled with the 'rag' feature");
+        }
+
+        #[cfg(feature = "browser")]
+        "browser" => {
+            use brainwires_tool_system::BrowserTool;
+            registry.register_tools(BrowserTool::get_tools());
+        }
+        #[cfg(not(feature = "browser"))]
+        "browser" => {
+            tracing::warn!("Tool group 'browser' requested but BrainClaw was not compiled with the 'browser' feature");
+        }
+
         other => {
             tracing::warn!(group = %other, "Unknown tool group, skipping");
         }

@@ -89,6 +89,9 @@ mod email;
 #[cfg(feature = "calendar")]
 mod calendar;
 
+#[cfg(feature = "browser")]
+mod browser;
+
 // ── Public re-exports ────────────────────────────────────────────────────────
 
 // Always-available tools
@@ -147,3 +150,6 @@ pub use email::EmailTool;
 
 #[cfg(feature = "calendar")]
 pub use calendar::CalendarTool;
+
+#[cfg(feature = "browser")]
+pub use browser::BrowserTool;

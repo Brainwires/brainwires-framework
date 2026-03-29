@@ -2,8 +2,12 @@
 //!
 //! Provides [`MediaProcessor`] which can download, validate, and produce text
 //! descriptions for attachments received from channel messages.
+//!
+//! When compiled with the `voice` feature and configured with an STT provider,
+//! audio attachments are transcribed to text instead of returning a placeholder.
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use anyhow::{Context, Result, bail};
 use reqwest::Client;
@@ -11,11 +15,14 @@ use tokio::io::AsyncWriteExt;
 
 use brainwires_channels::message::Attachment;
 
+#[cfg(feature = "voice")]
+use brainwires_audio::{AudioBuffer, AudioConfig, SpeechToText, SttOptions};
+
 /// Processes media attachments from channel messages.
 ///
 /// Downloads files to a temporary directory, validates sizes, and produces
-/// text descriptions (placeholders for now — future versions will call
-/// vision and speech-to-text providers).
+/// text descriptions. When compiled with the `voice` feature and given an
+/// STT provider, audio attachments are transcribed in real-time.
 pub struct MediaProcessor {
     /// Maximum allowed file size in bytes.
     max_size_bytes: u64,
@@ -23,6 +30,9 @@ pub struct MediaProcessor {
     temp_dir: PathBuf,
     /// HTTP client for downloading attachments.
     http_client: Client,
+    /// Optional speech-to-text provider for audio transcription.
+    #[cfg(feature = "voice")]
+    stt: Option<Arc<dyn SpeechToText>>,
 }
 
 impl MediaProcessor {
@@ -36,7 +46,18 @@ impl MediaProcessor {
             max_size_bytes: max_size_mb * 1024 * 1024,
             temp_dir,
             http_client: Client::new(),
+            #[cfg(feature = "voice")]
+            stt: None,
         }
+    }
+
+    /// Attach a speech-to-text provider for real audio transcription.
+    ///
+    /// Without this, audio attachments return a `[Audio: ...]` placeholder.
+    #[cfg(feature = "voice")]
+    pub fn with_stt(mut self, provider: Arc<dyn SpeechToText>) -> Self {
+        self.stt = Some(provider);
+        self
     }
 
     /// Download an attachment from a URL to a temporary file.
@@ -105,19 +126,49 @@ impl MediaProcessor {
 
     /// Produce a transcription for an audio file.
     ///
-    /// Currently returns a placeholder string. A future implementation will
-    /// use brainwires-audio STT for real transcription.
+    /// When compiled with the `voice` feature and an STT provider is configured,
+    /// reads the audio file and calls the provider for a real transcript.
+    /// Falls back to a `[Audio: ...]` placeholder when STT is unavailable.
     pub async fn transcribe_audio(&self, path: &Path) -> Result<String> {
         let filename = path
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("unknown");
+
+        #[cfg(feature = "voice")]
+        if let Some(ref stt) = self.stt {
+            let data = tokio::fs::read(path)
+                .await
+                .context("Failed to read audio file for transcription")?;
+
+            let buffer = AudioBuffer {
+                data,
+                config: AudioConfig::speech(),
+            };
+
+            let options = SttOptions::default();
+
+            match stt.transcribe(&buffer, &options).await {
+                Ok(transcript) => {
+                    tracing::debug!(
+                        filename = %filename,
+                        text_len = transcript.text.len(),
+                        "Audio transcribed successfully"
+                    );
+                    return Ok(transcript.text);
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        filename = %filename,
+                        error = %e,
+                        "STT transcription failed; falling back to placeholder"
+                    );
+                }
+            }
+        }
+
         let metadata = std::fs::metadata(path).context("Failed to read audio metadata")?;
-        Ok(format!(
-            "[Audio: {}, {} bytes]",
-            filename,
-            metadata.len()
-        ))
+        Ok(format!("[Audio: {}, {} bytes]", filename, metadata.len()))
     }
 
     /// Validate that a file does not exceed the configured size limit.

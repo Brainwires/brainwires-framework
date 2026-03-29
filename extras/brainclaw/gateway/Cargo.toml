@@ -42,6 +42,10 @@ sha2.workspace = true
 hmac.workspace = true
 hex.workspace = true
 dirs.workspace = true
+brainwires-audio = { workspace = true, optional = true }
+
+[features]
+voice = ["dep:brainwires-audio"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }

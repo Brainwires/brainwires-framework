@@ -29,6 +29,14 @@ use crate::router::InboundHandler;
 use crate::session::SessionManager;
 use crate::session_persistence::{SessionStore, session_key};
 
+/// A synchronous function that can transform an inbound message text before it
+/// is sent to the agent.
+///
+/// Return `Some(new_text)` to replace the original text, or `None` to leave it
+/// unchanged.  Used by the BrainClaw daemon to wire in skill dispatch without
+/// creating a circular crate dependency.
+pub type TextPreprocessor = dyn Fn(&str) -> Option<String> + Send + Sync;
+
 /// An [`InboundHandler`] that dispatches incoming messages to per-user
 /// [`ChatAgent`] instances and sends responses back through the channel.
 pub struct AgentInboundHandler {
@@ -54,6 +62,8 @@ pub struct AgentInboundHandler {
     sanitizer: Option<Arc<MessageSanitizer>>,
     /// Optional per-user rate limiter.
     rate_limiter: Option<Arc<RateLimiter>>,
+    /// Optional text preprocessor (e.g. skill dispatch).
+    text_preprocessor: Option<Arc<TextPreprocessor>>,
 }
 
 impl AgentInboundHandler {
@@ -79,6 +89,7 @@ impl AgentInboundHandler {
             media: None,
             sanitizer: None,
             rate_limiter: None,
+            text_preprocessor: None,
         }
     }
 
@@ -110,6 +121,17 @@ impl AgentInboundHandler {
     /// Attach a per-user rate limiter.
     pub fn with_rate_limiter(mut self, rate_limiter: Arc<RateLimiter>) -> Self {
         self.rate_limiter = Some(rate_limiter);
+        self
+    }
+
+    /// Attach a text preprocessor that runs before every message is sent to the agent.
+    ///
+    /// The preprocessor receives the inbound text and may return a replacement string.
+    /// If it returns `None` the original text is used unchanged.  This is the
+    /// extension point for skill dispatch: the BrainClaw daemon installs a closure
+    /// here that detects `/command` syntax and injects skill instructions.
+    pub fn with_text_preprocessor(mut self, pp: Arc<TextPreprocessor>) -> Self {
+        self.text_preprocessor = Some(pp);
         self
     }
 
@@ -174,7 +196,14 @@ impl AgentInboundHandler {
             return Ok(());
         }
 
-        // 1c. Sanitize inbound: detect and strip system-message spoofing
+        // 1c. Apply text preprocessor (e.g. skill dispatch)
+        if let Some(ref pp) = self.text_preprocessor {
+            if let Some(transformed) = pp(&text) {
+                text = transformed;
+            }
+        }
+
+        // 1e. Sanitize inbound: detect and strip system-message spoofing
         if let Some(ref sanitizer) = self.sanitizer {
             if sanitizer.strip_system_spoofing && MessageSanitizer::is_system_spoofing(&text) {
                 tracing::warn!(

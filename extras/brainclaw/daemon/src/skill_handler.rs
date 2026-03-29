@@ -1,13 +1,14 @@
 //! Skill handler — detects /commands and dispatches to skill system.
 
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 use anyhow::Result;
 use brainwires_skills::{SkillRegistry, SkillSource};
 
 /// Handles skill-based /commands from user messages.
 pub struct SkillHandler {
-    registry: SkillRegistry,
+    registry: Mutex<SkillRegistry>,
 }
 
 impl SkillHandler {
@@ -23,13 +24,15 @@ impl SkillHandler {
             registry.discover_from(&paths)?;
         }
 
-        Ok(Self { registry })
+        Ok(Self {
+            registry: Mutex::new(registry),
+        })
     }
 
     /// Create an empty skill handler with no skills loaded.
     pub fn empty() -> Self {
         Self {
-            registry: SkillRegistry::new(),
+            registry: Mutex::new(SkillRegistry::new()),
         }
     }
 
@@ -59,23 +62,31 @@ impl SkillHandler {
         }
     }
 
-    /// Handle a /command by looking up the skill and returning its content.
-    pub fn handle_command(&self, command: &str, _args: &str) -> Result<String> {
-        match self.registry.get_metadata(command) {
-            Some(metadata) => {
-                // Return the skill description as a basic response
-                Ok(format!(
-                    "Skill '{}': {}",
-                    metadata.name, metadata.description
-                ))
-            }
-            None => Ok(format!("Unknown command: /{command}. No matching skill found.")),
+    /// Resolve a /command to its skill instructions string.
+    ///
+    /// Returns `Some(instructions)` if the skill exists and its content can be
+    /// loaded, `None` if no skill matches the command name.
+    ///
+    /// The returned `instructions` string is intended to be prepended to the
+    /// user's message so that the agent executes the skill inline.
+    pub fn resolve_command(&self, command: &str, _args: &str) -> Result<Option<String>> {
+        let mut registry = self
+            .registry
+            .lock()
+            .map_err(|_| anyhow::anyhow!("SkillRegistry lock poisoned"))?;
+
+        match registry.get_skill(command) {
+            Ok(skill) => Ok(Some(skill.instructions.clone())),
+            Err(_) => Ok(None),
         }
     }
 
     /// Return the number of loaded skills.
     pub fn skill_count(&self) -> usize {
-        self.registry.len()
+        self.registry
+            .lock()
+            .map(|r| r.len())
+            .unwrap_or(0)
     }
 }
 
@@ -126,11 +137,10 @@ mod tests {
     }
 
     #[test]
-    fn test_handle_unknown_command() {
+    fn test_resolve_unknown_command() {
         let handler = SkillHandler::empty();
-        let result = handler.handle_command("nonexistent", "").unwrap();
-        assert!(result.contains("Unknown command"));
-        assert!(result.contains("/nonexistent"));
+        let result = handler.resolve_command("nonexistent", "").unwrap();
+        assert!(result.is_none());
     }
 
     #[test]

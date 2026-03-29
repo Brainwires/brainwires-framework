@@ -1,0 +1,256 @@
+//! WhatsApp channel implementation — wraps the Meta Graph API.
+
+use std::collections::HashMap;
+
+use anyhow::{Context, Result, bail};
+use async_trait::async_trait;
+use reqwest::Client;
+use serde_json::json;
+
+use brainwires_channels::{
+    Channel, ChannelCapabilities, ChannelMessage, ConversationId, MessageContent, MessageId,
+};
+
+const GRAPH_API_BASE: &str = "https://graph.facebook.com/v18.0";
+
+/// WhatsApp channel backed by the Meta Graph API.
+///
+/// The `channel_id` in `ConversationId` is the recipient's phone number in
+/// E.164 format without the `+` (e.g. `"15551234567"`).
+pub struct WhatsAppChannel {
+    /// Meta Graph API bearer token.
+    token: String,
+    /// WhatsApp phone number ID (sender's phone number ID from Meta dashboard).
+    phone_number_id: String,
+    http: Client,
+}
+
+impl WhatsAppChannel {
+    pub fn new(token: String, phone_number_id: String) -> Self {
+        Self {
+            token,
+            phone_number_id,
+            http: Client::new(),
+        }
+    }
+
+    /// Extract plain text from a `ChannelMessage`.
+    fn message_text(msg: &ChannelMessage) -> String {
+        match &msg.content {
+            MessageContent::Text(t) => t.clone(),
+            MessageContent::RichText { markdown, .. } => markdown.clone(),
+            MessageContent::Mixed(items) => items
+                .iter()
+                .filter_map(|c| match c {
+                    MessageContent::Text(t) => Some(t.as_str()),
+                    MessageContent::RichText { markdown, .. } => Some(markdown.as_str()),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+                .join("\n"),
+            _ => String::new(),
+        }
+    }
+}
+
+#[async_trait]
+impl Channel for WhatsAppChannel {
+    fn channel_type(&self) -> &str {
+        "whatsapp"
+    }
+
+    fn capabilities(&self) -> ChannelCapabilities {
+        ChannelCapabilities::RICH_TEXT
+            | ChannelCapabilities::MEDIA_UPLOAD
+            | ChannelCapabilities::REACTIONS
+            | ChannelCapabilities::READ_RECEIPTS
+            | ChannelCapabilities::MENTIONS
+    }
+
+    async fn send_message(
+        &self,
+        target: &ConversationId,
+        message: &ChannelMessage,
+    ) -> Result<MessageId> {
+        let text = Self::message_text(message);
+        if text.is_empty() {
+            bail!("WhatsApp: cannot send empty text message");
+        }
+
+        let url = format!("{}/{}/messages", GRAPH_API_BASE, self.phone_number_id);
+        let body = json!({
+            "messaging_product": "whatsapp",
+            "to": target.channel_id,
+            "type": "text",
+            "text": {
+                "preview_url": false,
+                "body": text
+            }
+        });
+
+        let resp = self
+            .http
+            .post(&url)
+            .bearer_auth(&self.token)
+            .json(&body)
+            .send()
+            .await
+            .context("Failed to send WhatsApp message")?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            bail!("WhatsApp API error {}: {}", status, body);
+        }
+
+        let json: serde_json::Value = resp.json().await.context("Failed to parse send response")?;
+        let msg_id = json["messages"][0]["id"]
+            .as_str()
+            .unwrap_or("unknown")
+            .to_string();
+
+        Ok(MessageId::new(msg_id))
+    }
+
+    async fn edit_message(&self, _id: &MessageId, _message: &ChannelMessage) -> Result<()> {
+        bail!("WhatsApp does not support editing messages")
+    }
+
+    async fn delete_message(&self, _id: &MessageId) -> Result<()> {
+        bail!("WhatsApp does not support deleting messages via the API")
+    }
+
+    async fn send_typing(&self, _target: &ConversationId) -> Result<()> {
+        // WhatsApp Cloud API does not expose a typing indicator endpoint.
+        Ok(())
+    }
+
+    async fn add_reaction(&self, id: &MessageId, emoji: &str) -> Result<()> {
+        // Reactions API: POST /{phone-number-id}/messages with type=reaction
+        // id format: "recipient_phone:message_id"
+        let parts: Vec<&str> = id.0.as_str().splitn(2, ':').collect();
+        if parts.len() != 2 {
+            bail!("WhatsApp add_reaction: id must be 'recipient_phone:message_id'");
+        }
+        let (recipient, message_id) = (parts[0], parts[1]);
+
+        let url = format!("{}/{}/messages", GRAPH_API_BASE, self.phone_number_id);
+        let body = json!({
+            "messaging_product": "whatsapp",
+            "to": recipient,
+            "type": "reaction",
+            "reaction": {
+                "message_id": message_id,
+                "emoji": emoji
+            }
+        });
+
+        let resp = self
+            .http
+            .post(&url)
+            .bearer_auth(&self.token)
+            .json(&body)
+            .send()
+            .await
+            .context("Failed to send WhatsApp reaction")?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            bail!("WhatsApp reaction API error {}: {}", status, body);
+        }
+
+        Ok(())
+    }
+
+    async fn get_history(
+        &self,
+        _target: &ConversationId,
+        _limit: usize,
+    ) -> Result<Vec<ChannelMessage>> {
+        // WhatsApp Cloud API does not provide message history retrieval.
+        Ok(vec![])
+    }
+}
+
+/// Parse inbound webhook message objects into `ChannelMessage` instances.
+pub fn parse_webhook_messages(
+    value: &serde_json::Value,
+    phone_number_id: &str,
+) -> Vec<ChannelMessage> {
+    let mut out = Vec::new();
+
+    let entries = match value.get("entry").and_then(|e| e.as_array()) {
+        Some(e) => e,
+        None => return out,
+    };
+
+    for entry in entries {
+        let changes = match entry.get("changes").and_then(|c| c.as_array()) {
+            Some(c) => c,
+            None => continue,
+        };
+        for change in changes {
+            let v = match change.get("value") {
+                Some(v) => v,
+                None => continue,
+            };
+            let messages = match v.get("messages").and_then(|m| m.as_array()) {
+                Some(m) => m,
+                None => continue,
+            };
+            for msg in messages {
+                if let Some(channel_msg) = parse_single_message(msg, phone_number_id) {
+                    out.push(channel_msg);
+                }
+            }
+        }
+    }
+
+    out
+}
+
+fn parse_single_message(msg: &serde_json::Value, phone_number_id: &str) -> Option<ChannelMessage> {
+    let from = msg.get("from")?.as_str()?.to_string();
+    let id = msg.get("id")?.as_str()?.to_string();
+    let msg_type = msg.get("type")?.as_str()?;
+
+    let content = match msg_type {
+        "text" => {
+            let body = msg.get("text")?.get("body")?.as_str()?;
+            MessageContent::Text(body.to_string())
+        }
+        "image" | "audio" | "video" | "document" => {
+            // Media messages — return type + caption as text
+            let caption = msg
+                .get(msg_type)
+                .and_then(|m| m.get("caption"))
+                .and_then(|c| c.as_str())
+                .unwrap_or("")
+                .to_string();
+            let text = if caption.is_empty() {
+                format!("[{} attachment]", msg_type)
+            } else {
+                format!("[{}: {}]", msg_type, caption)
+            };
+            MessageContent::Text(text)
+        }
+        _ => return None,
+    };
+
+    Some(ChannelMessage {
+        id: MessageId::new(id),
+        conversation: ConversationId {
+            platform: "whatsapp".to_string(),
+            channel_id: from.clone(),
+            server_id: Some(phone_number_id.to_string()),
+        },
+        author: from,
+        content,
+        thread_id: None,
+        reply_to: None,
+        timestamp: chrono::Utc::now(),
+        attachments: vec![],
+        metadata: HashMap::new(),
+    })
+}

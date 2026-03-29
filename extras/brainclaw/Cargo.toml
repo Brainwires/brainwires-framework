@@ -6,6 +6,8 @@ members = [
     "mcp-telegram",
     "mcp-slack",
     "mcp-skill-registry",
+    "mcp-whatsapp",
+    "mcp-matrix",
 ]
 resolver = "2"
 
@@ -27,6 +29,7 @@ brainwires-providers = { path = "../../crates/brainwires-providers" }
 brainwires-tool-system = { path = "../../crates/brainwires-tool-system" }
 brainwires-channels = { path = "../../crates/brainwires-channels" }
 brainwires-skills = { path = "../../crates/brainwires-skills" }
+brainwires-audio = { path = "../../crates/brainwires-audio" }
 brainwires-gateway = { path = "gateway" }
 
 # Async runtime & utilities
@@ -58,6 +61,9 @@ tokio-tungstenite = { version = "0.26", features = ["native-tls"] }
 
 # Discord API
 serenity = { version = "0.12", default-features = false, features = ["client", "gateway", "model", "cache", "rustls_backend", "chrono"] }
+
+# Matrix SDK
+matrix-sdk = { version = "0.10", default-features = false, features = ["native-tls", "markdown"] }
 
 # Telegram Bot API
 teloxide = { version = "0.13", features = ["macros"] }

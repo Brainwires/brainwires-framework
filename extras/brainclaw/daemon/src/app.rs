@@ -1,20 +1,25 @@
 //! BrainClaw application — wires everything together and runs the daemon.
 
-use std::sync::Arc;
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 use anyhow::{Result, bail};
 
 use brainwires_core::{ChatOptions, ToolContext};
 use brainwires_gateway::agent_handler::AgentInboundHandler;
 use brainwires_gateway::channel_registry::ChannelRegistry;
+use brainwires_gateway::media::MediaProcessor;
 use brainwires_gateway::server::Gateway;
 use brainwires_gateway::session::SessionManager;
 use brainwires_gateway::session_persistence::{JsonFileStore, expand_tilde};
+use brainwires_gateway::middleware::rate_limit::RateLimiter;
+use brainwires_gateway::middleware::sanitizer::MessageSanitizer;
 use brainwires_providers::{ChatProviderFactory, ProviderConfig, ProviderType};
 use brainwires_tool_system::BuiltinToolExecutor;
 
 use crate::config::BrainClawConfig;
 use crate::persona::Persona;
+use crate::skill_handler::SkillHandler;
 use crate::tools::build_tool_registry;
 
 /// The BrainClaw daemon.
@@ -75,17 +80,28 @@ impl BrainClaw {
         // 3. Build tool registry
         let registry = build_tool_registry(&self.config.tools);
         let tool_count = registry.len();
-        let context = ToolContext::default();
+
+        // 3b. Build ToolContext with provider configs embedded as metadata
+        let mut context = ToolContext::default();
+        self.inject_tool_configs(&mut context);
+
         let executor = Arc::new(BuiltinToolExecutor::new(registry, context));
 
         tracing::info!(tools = tool_count, "Tool registry built");
 
-        // 4. Build ChatOptions with system prompt from persona
+        // 4. Build ChatOptions with system prompt from persona + context files
         let persona = Persona::from_config(&self.config.persona)?;
+        let context_text = load_context_files(&self.config.persona.context_files);
+        let system_prompt = if context_text.is_empty() {
+            persona.system_prompt.clone()
+        } else {
+            format!("{}\n\n---\n\n{}", persona.system_prompt, context_text)
+        };
+
         let options = ChatOptions {
             temperature: Some(self.config.provider.temperature),
             max_tokens: Some(self.config.provider.max_tokens),
-            system: Some(persona.system_prompt.clone()),
+            system: Some(system_prompt),
             ..Default::default()
         };
 
@@ -129,6 +145,86 @@ impl BrainClaw {
             }
         }
 
+        // 7c. Attach message sanitizer from security config
+        let sanitizer = Arc::new(MessageSanitizer::new(
+            self.config.security.strip_system_spoofing,
+            self.config.security.redact_secrets_in_output,
+        ));
+        handler = handler.with_sanitizer(sanitizer);
+
+        // 7d. Attach rate limiter from security config
+        let rate_limiter = Arc::new(RateLimiter::new(
+            self.config.security.max_messages_per_minute,
+            self.config.security.max_tool_calls_per_minute,
+        ));
+        handler = handler.with_rate_limiter(rate_limiter);
+
+        // 7e. Attach skill handler if enabled
+        if self.config.skills.enabled {
+            let skill_dirs: Vec<PathBuf> = self
+                .config
+                .skills
+                .directories
+                .iter()
+                .map(|d| PathBuf::from(expand_tilde_str(d)))
+                .collect();
+
+            match SkillHandler::new(&skill_dirs) {
+                Ok(skill_handler) => {
+                    let count = skill_handler.skill_count();
+                    tracing::info!(skills = count, "Skill system enabled");
+                    let sh = Arc::new(Mutex::new(skill_handler));
+                    handler = handler.with_text_preprocessor(Arc::new(move |text: &str| {
+                        if let Some((cmd, args)) = SkillHandler::parse_command(text) {
+                            let guard = match sh.lock() {
+                                Ok(g) => g,
+                                Err(_) => return None,
+                            };
+                            match guard.resolve_command(cmd, args) {
+                                Ok(Some(instructions)) => {
+                                    // Prepend skill instructions; agent sees the full context
+                                    Some(format!(
+                                        "Execute the following skill instructions:\n\n\
+                                         {instructions}\n\n\
+                                         User input: {text}"
+                                    ))
+                                }
+                                Ok(None) => {
+                                    tracing::debug!(command = cmd, "No skill found for command");
+                                    None
+                                }
+                                Err(e) => {
+                                    tracing::warn!(error = %e, command = cmd, "Skill resolution error");
+                                    None
+                                }
+                            }
+                        } else {
+                            None
+                        }
+                    }));
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e, "Failed to initialize skill system; continuing without it");
+                }
+            }
+        }
+
+        // 7f. Attach media processor (+ optional STT for voice)
+        let mut media = MediaProcessor::new(10); // 10 MB attachment limit
+
+        #[cfg(feature = "voice")]
+        if let Some(ref voice_cfg) = self.config.voice {
+            if let Some(stt) = build_stt_provider(voice_cfg) {
+                tracing::info!(
+                    provider = %voice_cfg.stt_provider,
+                    "Speech-to-text enabled"
+                );
+                media = media.with_stt(stt);
+            }
+        }
+
+        handler = handler.with_media(Arc::new(media));
+
         // 8. Create Gateway with handler
         let gateway = Gateway::with_handler(gateway_config.clone(), Arc::new(handler));
 
@@ -139,6 +235,60 @@ impl BrainClaw {
 
         // 9. Run gateway (blocks until shutdown)
         gateway.run().await
+    }
+
+    /// Inject tool-specific configs into `ToolContext.metadata` as JSON strings.
+    ///
+    /// Tools read their config from metadata at call time; this avoids passing
+    /// typed configs through the generic tool registry.
+    fn inject_tool_configs(&self, #[cfg_attr(not(any(feature = "email", feature = "calendar")), allow(unused_variables))] context: &mut ToolContext) {
+        #[cfg(feature = "email")]
+        if let Some(result) = self.config.to_email_config() {
+            match result {
+                Ok(cfg) => match serde_json::to_string(&cfg) {
+                    Ok(json) => {
+                        context.metadata.insert("email_config".to_string(), json);
+                        tracing::debug!("Email tool config injected into ToolContext");
+                    }
+                    Err(e) => tracing::warn!(error = %e, "Failed to serialize email config"),
+                },
+                Err(e) => tracing::warn!(
+                    error = %e,
+                    "Email config error; email tools will fail at call time"
+                ),
+            }
+        }
+
+        #[cfg(feature = "calendar")]
+        if let Some(result) = self.config.to_calendar_config() {
+            match result {
+                Ok(cfg) => match serde_json::to_string(&cfg) {
+                    Ok(json) => {
+                        context.metadata.insert("calendar_config".to_string(), json);
+                        tracing::debug!("Calendar tool config injected into ToolContext");
+                    }
+                    Err(e) => tracing::warn!(error = %e, "Failed to serialize calendar config"),
+                },
+                Err(e) => tracing::warn!(
+                    error = %e,
+                    "Calendar config error; calendar tools will fail at call time"
+                ),
+            }
+        }
+
+        // Inject browser config so BrowserTool can read thalora_binary / session_timeout_secs
+        #[cfg(feature = "browser")]
+        if let Some(ref browser_cfg) = self.config.browser {
+            match serde_json::to_string(browser_cfg) {
+                Ok(json) => {
+                    context.metadata.insert("browser_config".to_string(), json);
+                    tracing::debug!("Browser tool config injected into ToolContext");
+                }
+                Err(e) => tracing::warn!(error = %e, "Failed to serialize browser config"),
+            }
+        }
+        #[cfg(not(feature = "browser"))]
+        let _ = &self.config.browser;
     }
 
     /// Resolve the API key from config, environment variable, or standard env vars.
@@ -184,4 +334,111 @@ impl BrainClaw {
 
         Ok(None)
     }
+}
+
+/// Build an STT provider from the voice configuration.
+///
+/// Returns `None` with a warning if the provider is unknown or the API key is missing
+/// for a provider that requires one.
+#[cfg(feature = "voice")]
+fn build_stt_provider(
+    cfg: &crate::config::VoiceSection,
+) -> Option<std::sync::Arc<dyn brainwires_audio::SpeechToText>> {
+    use brainwires_audio::{
+        AzureStt, DeepgramStt, ElevenLabsStt, FishStt, OpenAiStt, SpeechToText,
+    };
+
+    /// Resolve an API key: first from `api_key_env`, then from a named env var.
+    fn resolve_key(cfg: &crate::config::VoiceSection, default_var: &str) -> Option<String> {
+        let var_name = cfg
+            .api_key_env
+            .as_deref()
+            .unwrap_or(default_var);
+        std::env::var(var_name).ok().filter(|k| !k.is_empty())
+    }
+
+    match cfg.stt_provider.as_str() {
+        "openai" | "openai-responses" => {
+            let key = resolve_key(cfg, "OPENAI_API_KEY")?;
+            Some(std::sync::Arc::new(OpenAiStt::new(key)) as Arc<dyn SpeechToText>)
+        }
+        "deepgram" => {
+            let key = resolve_key(cfg, "DEEPGRAM_API_KEY")?;
+            Some(std::sync::Arc::new(DeepgramStt::new(key)) as Arc<dyn SpeechToText>)
+        }
+        "elevenlabs" => {
+            let key = resolve_key(cfg, "ELEVENLABS_API_KEY")?;
+            Some(std::sync::Arc::new(ElevenLabsStt::new(key)) as Arc<dyn SpeechToText>)
+        }
+        "fish" => {
+            let key = resolve_key(cfg, "FISH_API_KEY")?;
+            Some(std::sync::Arc::new(FishStt::new(key)) as Arc<dyn SpeechToText>)
+        }
+        "azure" => {
+            // Azure requires both subscription key and region.
+            let key = resolve_key(cfg, "AZURE_SPEECH_KEY")?;
+            let region = std::env::var("AZURE_SPEECH_REGION").ok().filter(|r| !r.is_empty())?;
+            Some(std::sync::Arc::new(AzureStt::new(key, region)) as Arc<dyn SpeechToText>)
+        }
+        #[cfg(feature = "local-stt")]
+        "whisper-local" | "whisper" => {
+            Some(std::sync::Arc::new(brainwires_audio::WhisperStt::new()) as Arc<dyn SpeechToText>)
+        }
+        other => {
+            tracing::warn!(provider = %other, "Unknown STT provider; voice transcription disabled");
+            None
+        }
+    }
+}
+
+/// Load context from the standard CONTEXT.md locations and any extra paths.
+///
+/// Checks in order:
+/// 1. `~/.brainclaw/CONTEXT.md` (global user context)
+/// 2. `.brainclaw/CONTEXT.md` (project-level context in the daemon's cwd)
+/// 3. Any extra paths specified in `persona.context_files`
+///
+/// Returns all content concatenated with blank-line separators.
+fn load_context_files(extra_paths: &[String]) -> String {
+    let mut parts: Vec<String> = Vec::new();
+
+    let mut candidates: Vec<PathBuf> = Vec::new();
+
+    // Standard locations
+    if let Some(home) = dirs::home_dir() {
+        candidates.push(home.join(".brainclaw").join("CONTEXT.md"));
+    }
+    candidates.push(PathBuf::from(".brainclaw/CONTEXT.md"));
+
+    // User-configured extra files
+    for p in extra_paths {
+        candidates.push(PathBuf::from(expand_tilde_str(p)));
+    }
+
+    for path in candidates {
+        if path.exists() {
+            match std::fs::read_to_string(&path) {
+                Ok(content) if !content.trim().is_empty() => {
+                    tracing::info!(path = %path.display(), "Loaded context file");
+                    parts.push(content);
+                }
+                Ok(_) => {}
+                Err(e) => {
+                    tracing::warn!(path = %path.display(), error = %e, "Failed to read context file");
+                }
+            }
+        }
+    }
+
+    parts.join("\n\n")
+}
+
+/// Expand a leading `~` to the home directory.
+fn expand_tilde_str(path: &str) -> String {
+    if let Some(rest) = path.strip_prefix("~/") {
+        if let Some(home) = dirs::home_dir() {
+            return home.join(rest).to_string_lossy().into_owned();
+        }
+    }
+    path.to_string()
 }

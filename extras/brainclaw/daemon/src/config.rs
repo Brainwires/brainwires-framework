@@ -27,6 +27,14 @@ pub struct BrainClawConfig {
     pub skills: SkillsSection,
     /// Security settings.
     pub security: SecuritySection,
+    /// Email tool settings (requires `email` feature; tool group `"email"` must be in `tools.enabled`).
+    pub email: Option<EmailSection>,
+    /// Calendar tool settings (requires `calendar` feature; tool group `"calendar"` must be in `tools.enabled`).
+    pub calendar: Option<CalendarSection>,
+    /// Browser automation settings (requires `browser` feature; tool group `"browser"` must be in `tools.enabled`).
+    pub browser: Option<BrowserSection>,
+    /// Voice / speech-to-text settings (requires `voice` feature).
+    pub voice: Option<VoiceSection>,
 }
 
 // ── Section structs ─────────────────────────────────────────────────────
@@ -99,6 +107,11 @@ pub struct PersonaSection {
     pub system_prompt: Option<String>,
     /// Path to a file containing the system prompt.
     pub system_prompt_file: Option<String>,
+    /// Additional context files to load and prepend to the system prompt.
+    ///
+    /// BrainClaw also checks `~/.brainclaw/CONTEXT.md` and `.brainclaw/CONTEXT.md`
+    /// automatically without listing them here.
+    pub context_files: Vec<String>,
 }
 
 /// Conversation memory configuration.
@@ -153,6 +166,103 @@ pub struct SecuritySection {
     pub allowed_channel_ids: Vec<String>,
 }
 
+/// Email tool configuration (IMAP + SMTP).
+///
+/// Stored in the `[email]` section. The password is read from an environment
+/// variable at runtime so it is never written to disk in plaintext.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmailSection {
+    /// IMAP server hostname (e.g. `imap.gmail.com`).
+    pub imap_host: String,
+    /// IMAP port (default 993 for TLS).
+    #[serde(default = "default_imap_port")]
+    pub imap_port: u16,
+    /// SMTP server hostname (e.g. `smtp.gmail.com`).
+    pub smtp_host: String,
+    /// SMTP port (default 587 for STARTTLS).
+    #[serde(default = "default_smtp_port")]
+    pub smtp_port: u16,
+    /// Email account username / address.
+    pub username: String,
+    /// Name of the environment variable holding the email password.
+    pub password_env: String,
+    /// Whether to use TLS (default true).
+    #[serde(default = "default_true")]
+    pub tls: bool,
+    /// Default "From" address used when sending email.
+    pub from_address: String,
+}
+
+fn default_imap_port() -> u16 { 993 }
+fn default_smtp_port() -> u16 { 587 }
+fn default_true() -> bool { true }
+
+/// Calendar tool configuration.
+///
+/// Stored in the `[calendar]` section.  Supports Google Calendar (OAuth2) and
+/// any CalDAV-compatible server.  Credentials are resolved from environment
+/// variables at runtime.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "provider", rename_all = "snake_case")]
+pub enum CalendarSection {
+    /// Google Calendar via OAuth2.
+    Google {
+        /// OAuth2 client ID.
+        client_id: String,
+        /// OAuth2 client secret.
+        client_secret: String,
+        /// Name of the environment variable holding the OAuth2 refresh token.
+        refresh_token_env: String,
+        /// Calendar ID to operate on (default `"primary"`).
+        #[serde(default = "default_calendar_id")]
+        default_calendar_id: String,
+    },
+    /// CalDAV-compatible server (Nextcloud, Fastmail, etc.).
+    Caldav {
+        /// CalDAV server URL.
+        url: String,
+        /// Authentication username.
+        username: String,
+        /// Name of the environment variable holding the password.
+        password_env: String,
+        /// Calendar ID to operate on (default `"primary"`).
+        #[serde(default = "default_calendar_id")]
+        default_calendar_id: String,
+    },
+}
+
+fn default_calendar_id() -> String { "primary".to_string() }
+
+/// Browser automation configuration (Thalora).
+///
+/// Stored in the `[browser]` section.  Thalora must be in `$PATH` (or the path
+/// set via `thalora_binary`); tool group `"browser"` must be in `tools.enabled`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct BrowserSection {
+    /// Path to the `thalora` binary (default `"thalora"`, resolved via `$PATH`).
+    pub thalora_binary: String,
+    /// Browser session timeout in seconds (default 300).
+    pub session_timeout_secs: u64,
+}
+
+/// Voice / speech-to-text configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VoiceSection {
+    /// STT provider name.
+    ///
+    /// Supported values: `"openai"`, `"deepgram"`, `"azure"`, `"elevenlabs"`,
+    /// `"fish"`, `"whisper-local"` (on-device, no API key required).
+    pub stt_provider: String,
+    /// Name of the environment variable holding the STT API key.
+    ///
+    /// If `None`, the provider's default environment variable is checked
+    /// (e.g. `OPENAI_API_KEY` for `"openai"`).
+    pub api_key_env: Option<String>,
+    /// Default language hint passed to the STT provider (ISO-639-1, e.g. `"en"`).
+    pub language: Option<String>,
+}
+
 // ── Defaults ────────────────────────────────────────────────────────────
 
 impl Default for BrainClawConfig {
@@ -166,6 +276,10 @@ impl Default for BrainClawConfig {
             memory: MemorySection::default(),
             skills: SkillsSection::default(),
             security: SecuritySection::default(),
+            email: None,
+            calendar: None,
+            browser: None,
+            voice: None,
         }
     }
 }
@@ -228,6 +342,16 @@ impl Default for PersonaSection {
             name: "BrainClaw".to_string(),
             system_prompt: None,
             system_prompt_file: None,
+            context_files: Vec::new(),
+        }
+    }
+}
+
+impl Default for BrowserSection {
+    fn default() -> Self {
+        Self {
+            thalora_binary: "thalora".to_string(),
+            session_timeout_secs: 300,
         }
     }
 }
@@ -351,6 +475,91 @@ impl BrainClawConfig {
         }
 
         Ok(())
+    }
+
+    /// Build an [`EmailConfig`] from the `[email]` section.
+    ///
+    /// Resolves the password from the environment variable named in `password_env`.
+    /// Returns `None` if no `[email]` section is present; returns `Err` if the
+    /// env var is missing.
+    #[cfg(feature = "email")]
+    pub fn to_email_config(&self) -> Option<anyhow::Result<brainwires_tool_system::EmailConfig>> {
+        use brainwires_tool_system::{EmailConfig, EmailProvider};
+        self.email.as_ref().map(|e| {
+            let password = std::env::var(&e.password_env).map_err(|_| {
+                anyhow::anyhow!(
+                    "Email password env var '{}' is not set",
+                    e.password_env
+                )
+            })?;
+            Ok(EmailConfig {
+                provider: EmailProvider::ImapSmtp {
+                    imap_host: e.imap_host.clone(),
+                    imap_port: e.imap_port,
+                    smtp_host: e.smtp_host.clone(),
+                    smtp_port: e.smtp_port,
+                    username: e.username.clone(),
+                    password,
+                    tls: e.tls,
+                },
+                from_address: e.from_address.clone(),
+            })
+        })
+    }
+
+    /// Build a [`CalendarConfig`] from the `[calendar]` section.
+    ///
+    /// Credentials are resolved from environment variables at runtime.
+    /// Returns `None` if no `[calendar]` section is present.
+    #[cfg(feature = "calendar")]
+    pub fn to_calendar_config(
+        &self,
+    ) -> Option<anyhow::Result<brainwires_tool_system::CalendarConfig>> {
+        use brainwires_tool_system::{CalendarConfig, CalendarProvider};
+        self.calendar.as_ref().map(|c| match c {
+            CalendarSection::Google {
+                client_id,
+                client_secret,
+                refresh_token_env,
+                default_calendar_id,
+            } => {
+                let refresh_token = std::env::var(refresh_token_env).map_err(|_| {
+                    anyhow::anyhow!(
+                        "Google Calendar refresh token env var '{}' is not set",
+                        refresh_token_env
+                    )
+                })?;
+                Ok(CalendarConfig {
+                    provider: CalendarProvider::GoogleCalendar {
+                        client_id: client_id.clone(),
+                        client_secret: client_secret.clone(),
+                        refresh_token,
+                    },
+                    default_calendar_id: default_calendar_id.clone(),
+                })
+            }
+            CalendarSection::Caldav {
+                url,
+                username,
+                password_env,
+                default_calendar_id,
+            } => {
+                let password = std::env::var(password_env).map_err(|_| {
+                    anyhow::anyhow!(
+                        "CalDAV password env var '{}' is not set",
+                        password_env
+                    )
+                })?;
+                Ok(CalendarConfig {
+                    provider: CalendarProvider::CalDav {
+                        url: url.clone(),
+                        username: username.clone(),
+                        password,
+                    },
+                    default_calendar_id: default_calendar_id.clone(),
+                })
+            }
+        })
     }
 
     /// Convert to a [`GatewayConfig`] for the gateway server.

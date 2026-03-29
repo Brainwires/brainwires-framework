@@ -81,6 +81,7 @@ icalendar = { version = "0.16", optional = true }
 # Feature-gated dependencies
 brainwires-cognition = { workspace = true, optional = true }
 brainwires-code-interpreters = { workspace = true, optional = true }
+brainwires-mcp = { workspace = true, optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }
@@ -103,7 +104,8 @@ interpreters = ["dep:brainwires-code-interpreters"]
 openapi = ["dep:openapiv3", "dep:serde_yml", "dep:reqwest"]
 email = ["dep:lettre", "dep:async-imap", "dep:imap-proto", "dep:tokio-native-tls", "dep:native-tls", "dep:futures", "dep:mailparse", "dep:base64"]
 calendar = ["dep:icalendar", "dep:reqwest"]
-full = ["orchestrator", "rag", "interpreters", "openapi", "email", "calendar"]
+browser = ["dep:brainwires-mcp", "native"]
+full = ["orchestrator", "rag", "interpreters", "openapi", "email", "calendar", "browser"]
 
 [[bench]]
 name = "token_comparison"

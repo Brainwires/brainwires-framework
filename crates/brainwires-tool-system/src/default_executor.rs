@@ -176,6 +176,19 @@ impl BuiltinToolExecutor {
             }
         }
 
+        // Feature-gated: browser automation via Thalora subprocess
+        #[cfg(feature = "browser")]
+        {
+            match tool_name {
+                "browser_read_url" | "browser_navigate" | "browser_click" | "browser_fill"
+                | "browser_eval" | "browser_screenshot" | "browser_search" => {
+                    return crate::BrowserTool::execute(tool_use_id, tool_name, input, context)
+                        .await;
+                }
+                _ => {}
+            }
+        }
+
         // Unknown tool — return an error result
         ToolResult::error(
             tool_use_id.to_string(),
