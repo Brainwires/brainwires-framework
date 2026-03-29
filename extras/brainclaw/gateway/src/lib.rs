@@ -11,6 +11,8 @@
 pub mod admin;
 /// Cron job data types and persistent store.
 pub mod cron;
+/// Cross-channel user identity mapping.
+pub mod identity;
 /// Interactive tool approval via chat (ask user yes/no before executing tools).
 pub mod approval;
 /// OpenAI-compatible API endpoint (/v1/chat/completions, /v1/models, /v1/embeddings).

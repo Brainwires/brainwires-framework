@@ -10,6 +10,7 @@ use crate::audit::AuditLogger;
 use crate::channel_registry::ChannelRegistry;
 use crate::config::GatewayConfig;
 use crate::cron::CronStore;
+use crate::identity::UserIdentityStore;
 use crate::metrics::MetricsCollector;
 use crate::middleware::rate_limit::RateLimiter;
 use crate::middleware::sanitizer::MessageSanitizer;
@@ -43,4 +44,6 @@ pub struct AppState {
     pub audio_dir: Option<std::path::PathBuf>,
     /// Optional cron job store for the admin cron API.
     pub cron_store: Option<Arc<CronStore>>,
+    /// Optional cross-channel user identity store.
+    pub identity_store: Option<Arc<UserIdentityStore>>,
 }

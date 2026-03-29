@@ -25,6 +25,7 @@ use brainwires_tool_system::{BuiltinToolExecutor, PreHookDecision, ToolPreHook};
 
 use crate::approval::{ApprovalRegistry, ChatApprovalHook};
 use crate::channel_registry::ChannelRegistry;
+use crate::identity::UserIdentityStore;
 use crate::media::MediaProcessor;
 use crate::metrics::MetricsCollector;
 use crate::middleware::rate_limit::RateLimiter;
@@ -119,6 +120,12 @@ pub struct AgentInboundHandler {
     /// to audio via TTS (if configured) regardless of whether the input was
     /// voice or text. Toggle via `/talk on` / `/talk off` commands.
     talk_mode_sessions: DashSet<(String, String)>,
+    /// Optional cross-channel user identity store.
+    ///
+    /// When set, `(platform, user_id)` pairs are resolved to a canonical
+    /// UUID before looking up agent sessions, so the same person on Discord
+    /// and Telegram shares one agent session and conversation history.
+    identity_store: Option<Arc<UserIdentityStore>>,
 }
 
 impl AgentInboundHandler {
@@ -154,6 +161,7 @@ impl AgentInboundHandler {
             tts: None,
             metrics: None,
             talk_mode_sessions: DashSet::new(),
+            identity_store: None,
         }
     }
 
@@ -247,6 +255,16 @@ impl AgentInboundHandler {
         self
     }
 
+    /// Attach a cross-channel identity store.
+    ///
+    /// When set, `(platform, user_id)` pairs are resolved to a canonical
+    /// UUID before looking up agent sessions.  Identities linked via the
+    /// admin API or `/link` skill share one `ChatAgent` and full history.
+    pub fn with_identity_store(mut self, store: Arc<UserIdentityStore>) -> Self {
+        self.identity_store = Some(store);
+        self
+    }
+
     /// Attach a shared metrics collector for token usage tracking.
     ///
     /// When set, `record_token_usage()` is called after every agent turn so
@@ -274,9 +292,14 @@ impl AgentInboundHandler {
     }
 
     /// Remove the agent session for a specific platform user.
+    ///
+    /// Note: if identity linking is active this removes by the raw platform
+    /// key, which may not find the session if it's stored under a canonical
+    /// UUID. Use `remove_session_by_identity()` in that case.
     pub fn remove_session(&self, platform: &str, user_id: &str) {
-        let key = (platform.to_string(), user_id.to_string());
-        self.agent_sessions.remove(&key);
+        // Try both the raw key and the canonical-identity key format.
+        let raw_key = (platform.to_string(), user_id.to_string());
+        self.agent_sessions.remove(&raw_key);
     }
 
     /// Remove idle agent sessions whose last message is older than `timeout`.
@@ -423,7 +446,7 @@ impl AgentInboundHandler {
             "Processing inbound message via agent",
         );
 
-        // 3. Get or create the ChatAgent for this user
+        // 3. Resolve canonical identity (cross-channel linking) and get agent.
         let agent = self.get_or_create_agent(&platform, &user_id).await;
 
         // 3b. Update the approval context so the hook knows the current
@@ -500,9 +523,18 @@ impl AgentInboundHandler {
             None => raw_response,
         };
 
-        // 5. Persist updated conversation history
+        // 5. Persist updated conversation history (use canonical identity key if available).
         if let Some(ref store) = self.persistence {
-            let key = session_key(&platform, &user_id);
+            let (sess_platform, sess_user) = if self.identity_store.is_some() {
+                let id = {
+                    let store = self.identity_store.as_ref().unwrap();
+                    store.get_identity_id(&platform, &user_id).await
+                };
+                ("__identity__".to_string(), id.to_string())
+            } else {
+                (platform.clone(), user_id.clone())
+            };
+            let key = session_key(&sess_platform, &sess_user);
             if let Err(e) = store.save(&key, agent.messages()).await {
                 tracing::warn!(error = %e, "Failed to persist session");
             }
@@ -514,12 +546,26 @@ impl AgentInboundHandler {
         Ok(())
     }
 
+    /// Resolve the canonical session key for a platform user.
+    ///
+    /// If an identity store is configured and the user is linked to a
+    /// canonical UUID, returns `("__identity__", uuid_string)`.
+    /// Otherwise returns `(platform, user_id)`.
+    async fn resolve_session_key(&self, platform: &str, user_id: &str) -> (String, String) {
+        if let Some(ref store) = self.identity_store {
+            let id = store.get_identity_id(platform, user_id).await;
+            ("__identity__".to_string(), id.to_string())
+        } else {
+            (platform.to_string(), user_id.to_string())
+        }
+    }
+
     /// Get (or lazily create) a [`ChatAgent`] for the given platform user.
     ///
     /// When a persistence backend is configured, newly created agents will have
     /// their conversation history restored from the store.
     async fn get_or_create_agent(&self, platform: &str, user_id: &str) -> Arc<Mutex<ChatAgent>> {
-        let key = (platform.to_string(), user_id.to_string());
+        let key = self.resolve_session_key(platform, user_id).await;
 
         // Fast path: agent already exists.
         if let Some(existing) = self.agent_sessions.get(&key) {

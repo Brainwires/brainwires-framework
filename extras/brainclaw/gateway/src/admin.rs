@@ -12,6 +12,7 @@ use uuid::Uuid;
 use crate::channel_registry::ChannelInfo;
 use crate::config::GatewayConfig;
 use crate::cron::CronJob;
+use crate::identity::PlatformIdentity;
 use crate::state::AppState;
 
 /// Verify the admin bearer token from the `Authorization` header.
@@ -298,5 +299,81 @@ pub async fn delete_cron_job(
         Ok(StatusCode::NO_CONTENT.into_response())
     } else {
         Ok(StatusCode::NOT_FOUND.into_response())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Identity admin API
+// ---------------------------------------------------------------------------
+
+/// Request body for linking two platform identities.
+#[derive(Debug, Deserialize)]
+pub struct LinkIdentityRequest {
+    /// The primary platform identity (keeps its canonical UUID).
+    pub primary: PlatformIdentity,
+    /// The secondary platform identity (merged under primary's UUID).
+    pub secondary: PlatformIdentity,
+}
+
+/// GET /admin/identity — list all canonical identities and their linked platforms.
+pub async fn list_identities(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_admin_auth(&headers, &state.config)?;
+    let store = state.identity_store.as_ref().ok_or(StatusCode::NOT_FOUND)?;
+    let all = store.list_all().await;
+    let serializable: Vec<serde_json::Value> = all
+        .into_iter()
+        .map(|(id, identities)| {
+            json!({
+                "canonical_id": id,
+                "identities": identities
+            })
+        })
+        .collect();
+    Ok(Json(serializable))
+}
+
+/// POST /admin/identity/link — link two platform identities.
+pub async fn link_identities(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(payload): Json<LinkIdentityRequest>,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_admin_auth(&headers, &state.config)?;
+    let store = state.identity_store.as_ref().ok_or(StatusCode::NOT_FOUND)?;
+    let canonical_id = store
+        .link(&payload.primary, &payload.secondary)
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "Failed to link identities");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+    Ok(Json(json!({
+        "canonical_id": canonical_id,
+        "primary": payload.primary,
+        "secondary": payload.secondary
+    })))
+}
+
+/// DELETE /admin/identity/unlink — unlink a platform identity from its group.
+pub async fn unlink_identity(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(payload): Json<PlatformIdentity>,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_admin_auth(&headers, &state.config)?;
+    let store = state.identity_store.as_ref().ok_or(StatusCode::NOT_FOUND)?;
+    let old_id = store
+        .unlink(&payload)
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "Failed to unlink identity");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+    match old_id {
+        Some(id) => Ok(Json(json!({ "unlinked_from": id, "identity": payload })).into_response()),
+        None => Ok(StatusCode::NOT_FOUND.into_response()),
     }
 }

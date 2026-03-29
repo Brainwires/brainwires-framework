@@ -8,6 +8,7 @@ use anyhow::{Result, bail};
 use brainwires_core::{ChatOptions, ToolContext};
 use brainwires_gateway::agent_handler::AgentInboundHandler;
 use brainwires_gateway::channel_registry::ChannelRegistry;
+use brainwires_gateway::identity::UserIdentityStore;
 use brainwires_gateway::media::MediaProcessor;
 use brainwires_gateway::metrics::MetricsCollector;
 use brainwires_gateway::server::Gateway;
@@ -275,6 +276,23 @@ impl BrainClaw {
         // 7i. Attach shared metrics for token usage tracking.
         handler = handler.with_metrics(Arc::clone(&metrics));
 
+        // 7k. Wire cross-channel identity store if enabled.
+        let mut identity_store: Option<Arc<UserIdentityStore>> = None;
+        if self.config.identity.enabled {
+            let store_path = expand_tilde_str(&self.config.identity.store_path);
+            match UserIdentityStore::new(&store_path) {
+                Ok(store) => {
+                    let store = Arc::new(store);
+                    handler = handler.with_identity_store(Arc::clone(&store));
+                    identity_store = Some(store);
+                    tracing::info!(path = %store_path, "Cross-channel identity store enabled");
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e, "Failed to open identity store; cross-channel identity disabled");
+                }
+            }
+        }
+
         // 7j. Wire TTS if configured (voice feature only).
         let mut tts_audio_dir: Option<std::path::PathBuf> = None;
         #[cfg(feature = "voice")]
@@ -337,6 +355,11 @@ impl BrainClaw {
 
         // 8a. Attach provider for OpenAI-compatible endpoint.
         gateway = gateway.with_openai_provider(openai_provider);
+
+        // 8c. Attach identity store to gateway if enabled.
+        if let Some(ref store) = identity_store {
+            gateway = gateway.with_identity_store(Arc::clone(store));
+        }
         tracing::info!("OpenAI-compatible API enabled at /v1/chat/completions");
 
         // 8b. Start cron runner if enabled. Share the store with the gateway

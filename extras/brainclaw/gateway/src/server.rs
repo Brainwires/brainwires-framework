@@ -18,6 +18,7 @@ use crate::openai_compat;
 use crate::channel_registry::ChannelRegistry;
 use crate::config::GatewayConfig;
 use crate::cron::CronStore;
+use crate::identity::UserIdentityStore;
 use crate::metrics::MetricsCollector;
 use crate::middleware::rate_limit::RateLimiter;
 use crate::middleware::sanitizer::MessageSanitizer;
@@ -45,6 +46,8 @@ pub struct Gateway {
     cron_store: Option<Arc<CronStore>>,
     /// Optional pre-created metrics instance to share with the handler.
     shared_metrics: Option<Arc<MetricsCollector>>,
+    /// Optional cross-channel identity store.
+    identity_store: Option<Arc<UserIdentityStore>>,
 }
 
 impl Gateway {
@@ -61,6 +64,7 @@ impl Gateway {
             audio_dir: None,
             cron_store: None,
             shared_metrics: None,
+            identity_store: None,
         }
     }
 
@@ -78,7 +82,18 @@ impl Gateway {
             audio_dir: None,
             cron_store: None,
             shared_metrics: None,
+            identity_store: None,
         }
+    }
+
+    /// Attach a cross-channel user identity store.
+    ///
+    /// When set, the admin API exposes `/admin/identity` endpoints for
+    /// linking and unlinking platform user identities, and the `AppState`
+    /// carries the store so downstream consumers can access it.
+    pub fn with_identity_store(mut self, store: Arc<UserIdentityStore>) -> Self {
+        self.identity_store = Some(store);
+        self
     }
 
     /// Share a pre-created metrics collector so the handler and the admin API
@@ -185,6 +200,7 @@ impl Gateway {
             openai_provider: self.openai_provider.clone(),
             audio_dir: self.audio_dir.clone(),
             cron_store: self.cron_store.clone(),
+            identity_store: self.identity_store.clone(),
         };
 
         let app = build_router(state.clone());
@@ -257,6 +273,23 @@ fn build_router(state: AppState) -> Router {
                     get(admin::get_cron_job)
                         .put(admin::update_cron_job)
                         .delete(admin::delete_cron_job),
+                );
+        }
+
+        // Identity admin API (only when an identity store is wired in)
+        if state.identity_store.is_some() {
+            app = app
+                .route(
+                    &format!("{}/identity", admin_prefix),
+                    get(admin::list_identities),
+                )
+                .route(
+                    &format!("{}/identity/link", admin_prefix),
+                    post(admin::link_identities),
+                )
+                .route(
+                    &format!("{}/identity/unlink", admin_prefix),
+                    axum::routing::delete(admin::unlink_identity),
                 );
         }
     }

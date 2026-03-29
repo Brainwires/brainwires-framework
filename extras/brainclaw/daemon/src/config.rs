@@ -39,6 +39,8 @@ pub struct BrainClawConfig {
     pub browser: Option<BrowserSection>,
     /// Voice / speech-to-text settings (requires `voice` feature).
     pub voice: Option<VoiceSection>,
+    /// Cross-channel user identity settings.
+    pub identity: IdentitySection,
 }
 
 // ── Section structs ─────────────────────────────────────────────────────
@@ -332,6 +334,28 @@ pub struct VoiceSection {
     pub tts_base_url: Option<String>,
 }
 
+/// Cross-channel user identity settings.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct IdentitySection {
+    /// Enable cross-channel identity mapping.
+    ///
+    /// When enabled, platform identities can be linked so the same person
+    /// on different platforms shares one agent session and conversation history.
+    pub enabled: bool,
+    /// Path to the identity store JSON file.
+    pub store_path: String,
+}
+
+impl Default for IdentitySection {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            store_path: "~/.brainclaw/identity.json".to_string(),
+        }
+    }
+}
+
 // ── Defaults ────────────────────────────────────────────────────────────
 
 impl Default for BrainClawConfig {
@@ -351,6 +375,7 @@ impl Default for BrainClawConfig {
             calendar: None,
             browser: None,
             voice: None,
+            identity: IdentitySection::default(),
         }
     }
 }
