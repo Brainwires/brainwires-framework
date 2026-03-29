@@ -107,6 +107,9 @@ pub struct AgentInboundHandler {
     shell_pre_tool_hook: Option<Arc<dyn ToolPreHook>>,
     /// Optional lifecycle hook for session start/end and post-tool events.
     session_hook: Option<Arc<dyn LifecycleHook>>,
+    /// Optional TTS processor for synthesizing agent responses to audio.
+    #[cfg(feature = "voice")]
+    tts: Option<Arc<crate::tts::TtsProcessor>>,
 }
 
 impl AgentInboundHandler {
@@ -138,6 +141,8 @@ impl AgentInboundHandler {
             approval_contexts: DashMap::new(),
             shell_pre_tool_hook: None,
             session_hook: None,
+            #[cfg(feature = "voice")]
+            tts: None,
         }
     }
 
@@ -170,6 +175,16 @@ impl AgentInboundHandler {
     /// `AgentFailed` (after processing), `ToolAfterExecute` (after each tool).
     pub fn with_session_hook(mut self, hook: Arc<dyn LifecycleHook>) -> Self {
         self.session_hook = Some(hook);
+        self
+    }
+
+    /// Attach a TTS processor for synthesizing agent responses to audio.
+    ///
+    /// When set, the agent's text response is also synthesised to an audio file.
+    /// Channels that support `MEDIA_UPLOAD` will receive an audio attachment URL.
+    #[cfg(feature = "voice")]
+    pub fn with_tts(mut self, tts: Arc<crate::tts::TtsProcessor>) -> Self {
+        self.tts = Some(tts);
         self
     }
 
@@ -561,6 +576,28 @@ impl AgentInboundHandler {
         original_msg: &ChannelMessage,
         response_text: &str,
     ) -> Result<()> {
+        // Optionally synthesize audio and attach a URL to the message.
+        #[cfg(feature = "voice")]
+        let attachments: Vec<brainwires_channels::message::Attachment> = {
+            if let Some(ref tts) = self.tts {
+                if let Some(audio_url) = tts.synthesize_to_url(response_text).await {
+                    vec![brainwires_channels::message::Attachment {
+                        url: audio_url,
+                        media_type: Some("audio/mpeg".to_string()),
+                        filename: None,
+                        size: None,
+                    }]
+                } else {
+                    vec![]
+                }
+            } else {
+                vec![]
+            }
+        };
+
+        #[cfg(not(feature = "voice"))]
+        let attachments: Vec<brainwires_channels::message::Attachment> = vec![];
+
         let response_event = ChannelEvent::MessageReceived(ChannelMessage {
             id: MessageId::new(Uuid::new_v4().to_string()),
             conversation: ConversationId {
@@ -573,7 +610,7 @@ impl AgentInboundHandler {
             thread_id: original_msg.thread_id.clone(),
             reply_to: Some(original_msg.id.clone()),
             timestamp: chrono::Utc::now(),
-            attachments: vec![],
+            attachments,
             metadata: std::collections::HashMap::new(),
         });
 

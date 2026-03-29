@@ -43,6 +43,8 @@ pub mod session_persistence;
 pub mod state;
 /// Built-in WebChat channel (browser-based chat UI).
 pub mod webchat;
+/// TTS response processor (requires `voice` feature).
+pub mod tts;
 /// Webhook handler for HTTP-based channel integrations.
 pub mod webhook;
 /// WebSocket connection handler for channel adapters.

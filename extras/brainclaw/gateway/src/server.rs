@@ -38,6 +38,8 @@ pub struct Gateway {
     shared_channels: Option<Arc<ChannelRegistry>>,
     /// Optional LLM provider for the OpenAI-compatible API endpoint.
     openai_provider: Option<Arc<dyn brainwires_core::Provider>>,
+    /// Optional directory for serving TTS audio files at `/audio/<filename>`.
+    audio_dir: Option<std::path::PathBuf>,
 }
 
 impl Gateway {
@@ -51,6 +53,7 @@ impl Gateway {
             shared_sessions: None,
             shared_channels: None,
             openai_provider: None,
+            audio_dir: None,
         }
     }
 
@@ -65,7 +68,17 @@ impl Gateway {
             shared_sessions: None,
             shared_channels: None,
             openai_provider: None,
+            audio_dir: None,
         }
+    }
+
+    /// Serve TTS audio files at `/audio/<filename>`.
+    ///
+    /// When set, files in `dir` are served at `/audio/<filename>`.
+    /// The TTS processor writes audio files here; channel adapters send the URL.
+    pub fn with_audio_dir(mut self, dir: std::path::PathBuf) -> Self {
+        self.audio_dir = Some(dir);
+        self
     }
 
     /// Attach an LLM provider to expose the OpenAI-compatible API endpoint.
@@ -138,6 +151,7 @@ impl Gateway {
             metrics: Arc::new(MetricsCollector::new()),
             start_time: Utc::now(),
             openai_provider: self.openai_provider.clone(),
+            audio_dir: self.audio_dir.clone(),
         };
 
         let app = build_router(state.clone());
@@ -204,6 +218,12 @@ fn build_router(state: AppState) -> Router {
         tracing::debug!("OpenAI-compatible API endpoint enabled at /v1/");
     }
 
+    // Audio file serving endpoint (TTS output)
+    if state.audio_dir.is_some() {
+        app = app.route("/audio/{filename}", get(serve_audio_file));
+        tracing::debug!("Audio file serving enabled at /audio/");
+    }
+
     app.with_state(state)
 }
 
@@ -233,4 +253,48 @@ async fn ws_upgrade(
 
     ws.on_upgrade(move |socket| ws_handler::handle_ws_connection(socket, state))
         .into_response()
+}
+
+/// Serve TTS-generated audio files at `/audio/<filename>`.
+///
+/// Reads the file from `state.audio_dir/<filename>`, guesses the MIME type
+/// from the extension, and returns the raw bytes with an appropriate
+/// `Content-Type` header.  Returns 404 if not found or 403 if the path
+/// contains directory traversal.
+async fn serve_audio_file(
+    axum::extract::Path(filename): axum::extract::Path<String>,
+    State(state): State<AppState>,
+) -> impl IntoResponse {
+    use axum::http::{header, StatusCode};
+
+    // Reject any path that tries to escape the audio directory
+    if filename.contains('/') || filename.contains("..") {
+        return (StatusCode::FORBIDDEN, "Forbidden").into_response();
+    }
+
+    let audio_dir = match &state.audio_dir {
+        Some(d) => d,
+        None => return (StatusCode::NOT_FOUND, "Not found").into_response(),
+    };
+
+    let path = audio_dir.join(&filename);
+    match tokio::fs::read(&path).await {
+        Ok(bytes) => {
+            let mime = if filename.ends_with(".mp3") {
+                "audio/mpeg"
+            } else if filename.ends_with(".opus") {
+                "audio/opus"
+            } else if filename.ends_with(".flac") {
+                "audio/flac"
+            } else {
+                "audio/wav"
+            };
+            (
+                [(header::CONTENT_TYPE, mime)],
+                bytes,
+            )
+                .into_response()
+        }
+        Err(_) => (StatusCode::NOT_FOUND, "Not found").into_response(),
+    }
 }

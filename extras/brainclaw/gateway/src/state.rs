@@ -38,4 +38,6 @@ pub struct AppState {
     pub start_time: DateTime<Utc>,
     /// Optional LLM provider for the OpenAI-compatible API endpoint.
     pub openai_provider: Option<Arc<dyn Provider>>,
+    /// Optional directory for serving TTS audio files at `/audio/<filename>`.
+    pub audio_dir: Option<std::path::PathBuf>,
 }

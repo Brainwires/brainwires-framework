@@ -290,7 +290,7 @@ pub struct BrowserSection {
     pub session_timeout_secs: u64,
 }
 
-/// Voice / speech-to-text configuration.
+/// Voice / speech-to-text and text-to-speech configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VoiceSection {
     /// STT provider name.
@@ -305,6 +305,31 @@ pub struct VoiceSection {
     pub api_key_env: Option<String>,
     /// Default language hint passed to the STT provider (ISO-639-1, e.g. `"en"`).
     pub language: Option<String>,
+
+    // ── TTS settings ──────────────────────────────────────────────────────
+
+    /// TTS provider name (optional).
+    ///
+    /// When set, agent text responses are also synthesised to audio and
+    /// attached to outbound messages.
+    ///
+    /// Supported: `"openai"`, `"elevenlabs"`, `"deepgram"`, `"google"`, `"cartesia"`.
+    pub tts_provider: Option<String>,
+    /// Voice ID to use for TTS synthesis (provider-specific).
+    ///
+    /// OpenAI: `"alloy"`, `"echo"`, `"fable"`, `"onyx"`, `"nova"`, `"shimmer"`.
+    /// ElevenLabs: voice ID from your account.
+    pub tts_voice: Option<String>,
+    /// Audio output format for TTS files.
+    ///
+    /// Supported: `"mp3"` (default), `"opus"`, `"flac"`, `"wav"`.
+    pub tts_format: Option<String>,
+    /// Directory where TTS audio files are written (default: `/tmp/brainclaw-audio`).
+    pub tts_audio_dir: Option<String>,
+    /// Public base URL for TTS audio files.
+    ///
+    /// Defaults to `http://{gateway.host}:{gateway.port}/audio`.
+    pub tts_base_url: Option<String>,
 }
 
 // ── Defaults ────────────────────────────────────────────────────────────

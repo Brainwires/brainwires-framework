@@ -266,11 +266,64 @@ impl BrainClaw {
             tracing::info!("Shell session hooks enabled");
         }
 
+        // 7i. Wire TTS if configured (voice feature only).
+        let mut tts_audio_dir: Option<std::path::PathBuf> = None;
+        #[cfg(feature = "voice")]
+        if let Some(ref voice_cfg) = self.config.voice {
+            if let Some(ref tts_provider_name) = voice_cfg.tts_provider {
+                if let Some(tts_provider) = build_tts_provider(voice_cfg) {
+                    use brainwires_hardware::{OutputFormat, TtsOptions, Voice};
+                    use brainwires_gateway::tts::TtsProcessor;
+
+                    let format = match voice_cfg.tts_format.as_deref().unwrap_or("mp3") {
+                        "opus" => OutputFormat::Opus,
+                        "flac" => OutputFormat::Flac,
+                        "wav" => OutputFormat::Wav,
+                        _ => OutputFormat::Mp3,
+                    };
+                    let voice_id = voice_cfg.tts_voice.clone().unwrap_or_else(|| "alloy".to_string());
+                    let options = TtsOptions {
+                        voice: Voice { id: voice_id, name: None, language: None },
+                        output_format: format,
+                        speed: None,
+                        language: voice_cfg.language.clone(),
+                    };
+                    let audio_dir = voice_cfg
+                        .tts_audio_dir
+                        .as_deref()
+                        .map(|p| std::path::PathBuf::from(expand_tilde_str(p)))
+                        .unwrap_or_else(|| std::env::temp_dir().join("brainclaw-audio"));
+                    let base_url = voice_cfg
+                        .tts_base_url
+                        .clone()
+                        .unwrap_or_else(|| format!(
+                            "http://{}:{}/audio",
+                            self.config.gateway.host,
+                            self.config.gateway.port
+                        ));
+
+                    let processor = Arc::new(TtsProcessor::new(
+                        tts_provider,
+                        options,
+                        audio_dir.clone(),
+                        base_url,
+                    ));
+                    handler = handler.with_tts(processor);
+                    tts_audio_dir = Some(audio_dir);
+                    tracing::info!(provider = %tts_provider_name, "TTS output enabled");
+                }
+            }
+        }
+
         // 8. Create Gateway with handler, sharing the same sessions/channels.
         let handler = Arc::new(handler);
         let mut gateway =
             Gateway::with_handler(gateway_config.clone(), Arc::clone(&handler) as _)
                 .with_shared_state(Arc::clone(&sessions), Arc::clone(&channels));
+
+        if let Some(audio_dir) = tts_audio_dir {
+            gateway = gateway.with_audio_dir(audio_dir);
+        }
 
         // 8a. Attach provider for OpenAI-compatible endpoint.
         gateway = gateway.with_openai_provider(openai_provider);
@@ -453,6 +506,51 @@ fn build_stt_provider(
         }
         other => {
             tracing::warn!(provider = %other, "Unknown STT provider; voice transcription disabled");
+            None
+        }
+    }
+}
+
+/// Build a TTS provider from the voice configuration.
+///
+/// Uses `tts_provider` to select the implementation.  Returns `None` if the
+/// provider is unknown or the required API key is missing.
+#[cfg(feature = "voice")]
+fn build_tts_provider(
+    cfg: &crate::config::VoiceSection,
+) -> Option<std::sync::Arc<dyn brainwires_hardware::TextToSpeech>> {
+    use brainwires_hardware::{
+        CartesiaTts, DeepgramTts, ElevenLabsTts, GoogleTts, OpenAiTts, TextToSpeech,
+    };
+
+    fn resolve_key(cfg: &crate::config::VoiceSection, default_var: &str) -> Option<String> {
+        let var_name = cfg.api_key_env.as_deref().unwrap_or(default_var);
+        std::env::var(var_name).ok().filter(|k| !k.is_empty())
+    }
+
+    match cfg.tts_provider.as_deref().unwrap_or("") {
+        "openai" | "openai-responses" => {
+            let key = resolve_key(cfg, "OPENAI_API_KEY")?;
+            Some(std::sync::Arc::new(OpenAiTts::new(key)) as Arc<dyn TextToSpeech>)
+        }
+        "elevenlabs" => {
+            let key = resolve_key(cfg, "ELEVENLABS_API_KEY")?;
+            Some(std::sync::Arc::new(ElevenLabsTts::new(key)) as Arc<dyn TextToSpeech>)
+        }
+        "deepgram" => {
+            let key = resolve_key(cfg, "DEEPGRAM_API_KEY")?;
+            Some(std::sync::Arc::new(DeepgramTts::new(key)) as Arc<dyn TextToSpeech>)
+        }
+        "google" => {
+            let key = resolve_key(cfg, "GOOGLE_API_KEY")?;
+            Some(std::sync::Arc::new(GoogleTts::new(key)) as Arc<dyn TextToSpeech>)
+        }
+        "cartesia" => {
+            let key = resolve_key(cfg, "CARTESIA_API_KEY")?;
+            Some(std::sync::Arc::new(CartesiaTts::new(key)) as Arc<dyn TextToSpeech>)
+        }
+        other => {
+            tracing::warn!(provider = %other, "Unknown TTS provider; voice output disabled");
             None
         }
     }
