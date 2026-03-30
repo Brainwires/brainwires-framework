@@ -2,7 +2,7 @@
 //!
 //! Event handling for task viewer, nano editor, git SCM, and question modes.
 
-use crate::tui::app::state::{App, AppMode};
+use crate::tui::app::state::{App, AppMode, SubAgentPanelFocus};
 use crate::tui::Event;
 use anyhow::Result;
 use crossterm::event::KeyCode;
@@ -586,5 +586,152 @@ impl App {
         }
 
         Ok(())
+    }
+
+    // ── Sub-Agent Viewer ──────────────────────────────────────────────────────
+
+    /// Handle events in Sub-Agent Viewer mode
+    pub(in crate::tui::app) async fn handle_sub_agent_viewer_event(&mut self, event: Event) -> Result<()> {
+        if event.is_escape() || event.is_sub_agent_viewer() {
+            self.mode = AppMode::Normal;
+            self.sub_agent_viewer_state = None;
+            return Ok(());
+        }
+
+        if event.is_tab() {
+            if let Some(state) = &mut self.sub_agent_viewer_state {
+                state.panel_focus = match state.panel_focus {
+                    SubAgentPanelFocus::Left => SubAgentPanelFocus::Right,
+                    SubAgentPanelFocus::Right => SubAgentPanelFocus::Left,
+                };
+            }
+            return Ok(());
+        }
+
+        let panel_focus = self.sub_agent_viewer_state.as_ref()
+            .map(|s| s.panel_focus.clone())
+            .unwrap_or(SubAgentPanelFocus::Left);
+
+        match panel_focus {
+            SubAgentPanelFocus::Left => {
+                if let Event::Key(key) = event {
+                    match key.code {
+                        KeyCode::Up => {
+                            if let Some(state) = &mut self.sub_agent_viewer_state {
+                                if state.selected_index > 0 {
+                                    state.selected_index -= 1;
+                                    if (state.selected_index as u16) < state.list_scroll {
+                                        state.list_scroll = state.selected_index as u16;
+                                    }
+                                }
+                            }
+                        }
+                        KeyCode::Down => {
+                            if let Some(state) = &mut self.sub_agent_viewer_state {
+                                let max = state.agent_list.len().saturating_sub(1);
+                                if state.selected_index < max {
+                                    state.selected_index += 1;
+                                }
+                            }
+                        }
+                        KeyCode::Enter => {
+                            // Switch focus to right panel to view agent detail
+                            if let Some(state) = &mut self.sub_agent_viewer_state {
+                                state.panel_focus = SubAgentPanelFocus::Right;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            SubAgentPanelFocus::Right => {
+                if let Event::Key(key) = event {
+                    match key.code {
+                        KeyCode::Up => {
+                            if let Some(state) = &mut self.sub_agent_viewer_state {
+                                state.detail_scroll = state.detail_scroll.saturating_sub(1);
+                            }
+                        }
+                        KeyCode::Down => {
+                            if let Some(state) = &mut self.sub_agent_viewer_state {
+                                state.detail_scroll = state.detail_scroll.saturating_add(1);
+                            }
+                        }
+                        KeyCode::Backspace => {
+                            if let Some(state) = &mut self.sub_agent_viewer_state {
+                                state.message_input.pop();
+                            }
+                        }
+                        KeyCode::Enter => {
+                            // Send message to agent's IPC socket if available
+                            let (agent_id, msg) = if let Some(state) = &self.sub_agent_viewer_state {
+                                let agent = state.agent_list.get(state.selected_index);
+                                match agent {
+                                    Some(a) if a.has_ipc_socket && !state.message_input.is_empty() => {
+                                        (Some(a.agent_id.clone()), state.message_input.clone())
+                                    }
+                                    _ => (None, String::new()),
+                                }
+                            } else {
+                                (None, String::new())
+                            };
+
+                            if let (Some(agent_id), content) = (agent_id, msg) {
+                                self.send_to_sub_agent(&agent_id, content).await;
+                                if let Some(state) = &mut self.sub_agent_viewer_state {
+                                    state.message_input.clear();
+                                }
+                            }
+                        }
+                        KeyCode::Char(c) => {
+                            if let Some(state) = &mut self.sub_agent_viewer_state {
+                                state.message_input.push(c);
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Send a message to a sub-agent via its IPC socket (fire-and-forget)
+    async fn send_to_sub_agent(&mut self, agent_id: &str, content: String) {
+        let sock_path = match crate::utils::paths::PlatformPaths::sessions_dir() {
+            Ok(dir) => dir.join(format!("{}.sock", agent_id)),
+            Err(_) => {
+                self.show_toast("Could not locate sessions directory".to_string(), 2000);
+                return;
+            }
+        };
+
+        if !sock_path.exists() {
+            self.show_toast(format!("Agent socket unavailable: {}", agent_id), 2000);
+            return;
+        }
+
+        use brainwires::agent_network::ipc::{IpcConnection, ViewerMessage};
+        match IpcConnection::connect(&sock_path).await {
+            Ok(conn) => {
+                let (_, mut writer) = conn.split();
+                let msg = ViewerMessage::UserInput {
+                    content,
+                    context_files: vec![],
+                };
+                match writer.write(&msg).await {
+                    Ok(_) => {
+                        self.show_toast(format!("Message sent to {}", agent_id), 1500);
+                    }
+                    Err(e) => {
+                        self.show_toast(format!("Send failed: {}", e), 2000);
+                    }
+                }
+            }
+            Err(e) => {
+                self.show_toast(format!("Could not connect to agent: {}", e), 2000);
+            }
+        }
     }
 }

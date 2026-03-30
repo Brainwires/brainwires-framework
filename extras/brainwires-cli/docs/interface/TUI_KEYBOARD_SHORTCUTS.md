@@ -76,6 +76,7 @@ The brainwires-cli TUI supports a comprehensive set of keyboard shortcuts for ef
 | **Ctrl+F** | Open file explorer (from fullscreen mode) |
 | **Ctrl+G** | Open Git SCM (from fullscreen mode) |
 | **Ctrl+T** | Open task viewer |
+| **Ctrl+B** | Open sub-agent viewer |
 
 ### Autocomplete
 | Shortcut | Action |
@@ -166,6 +167,29 @@ When the background dialog appears:
 | **r** | Refresh status |
 | **Esc** | Close Git SCM |
 
+### Journal Tree Navigation (conversation focused, Journal view)
+| Shortcut | Action |
+|----------|--------|
+| **j** / **Down** | Move cursor to next node |
+| **k** / **Up** | Move cursor to previous node |
+| **l** / **Right** | Expand selected node |
+| **h** / **Left** | Collapse selected node (or move cursor to parent) |
+| **Enter** / **Space** | Toggle collapse/expand on selected node |
+| **g** | Jump to first node |
+| **G** | Jump to last node |
+
+### Sub-Agent Viewer (Ctrl+B)
+| Shortcut | Action |
+|----------|--------|
+| **Tab** | Switch between agent list (left) and detail (right) panels |
+| **j** / **Up** | Navigate up in focused panel |
+| **k** / **Down** | Navigate down in focused panel |
+| **Enter** (left panel) | Select agent and focus detail panel |
+| **Type** (right panel, IPC available) | Compose message to send to agent |
+| **Backspace** (right panel) | Delete last character of composed message |
+| **Enter** (right panel, message non-empty) | Send message to agent via IPC |
+| **Ctrl+B** / **Esc** | Close sub-agent viewer |
+
 ## Platform Compatibility
 
 ### Why Multiple Key Bindings?
@@ -214,4 +238,5 @@ Both user and assistant messages render with colored markdown formatting for bet
 
 - [File Explorer & Git SCM](./TUI_FILE_EXPLORER_GIT_SCM.md) - Detailed documentation for file and git tools
 - [TUI Multi-line and Markdown Fixes](./TUI_MULTILINE_MARKDOWN_FIXES.md) - Implementation details
+- [Sessions](../SESSIONS.md) - Session lifecycle, socket architecture, and sub-agent sessions
 - [Slash Commands](../README.md#slash-commands) - Available commands

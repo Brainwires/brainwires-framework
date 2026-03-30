@@ -21,6 +21,7 @@ pub mod sudo_dialog;
 pub mod exit_dialog;
 mod plan_mode;
 mod prompt_mode;
+pub mod journal_tree;
 
 // Re-export public types and the App struct
 pub use state::{
@@ -31,12 +32,16 @@ pub use state::{
     FocusedPanel,
     PromptMode,
     ShellExecution,
+    SubAgentPanelFocus,
+    SubAgentSummary,
+    SubAgentViewerState,
     ToolExecution,
     ToolExecutionEntry,
     ToolPickerState,
     ToolStatus,
     TuiMessage,
 };
+pub use journal_tree::{JournalTreeState, JournalNodeId};
 pub use file_explorer::{FileExplorerState, FileEntry, EntryType, FileExplorerMode};
 pub use nano_editor::{NanoEditorState, CursorDirection};
 pub use git_scm::{GitScmState, GitFileStatus, GitFileEntry, ScmPanel, GitOperationMode, GitAction};

@@ -945,6 +945,82 @@ impl Event {
             })
         )
     }
+
+    // === Journal Tree Navigation ===
+
+    /// Check if event expands a journal tree node ('l' or Right arrow, no mods)
+    pub fn is_journal_expand(&self) -> bool {
+        matches!(
+            self,
+            Event::Key(KeyEvent {
+                code: KeyCode::Char('l'),
+                modifiers: KeyModifiers::NONE,
+                ..
+            })
+        ) || matches!(
+            self,
+            Event::Key(KeyEvent {
+                code: KeyCode::Right,
+                modifiers: KeyModifiers::NONE,
+                ..
+            })
+        )
+    }
+
+    /// Check if event collapses a journal tree node ('h' or Left arrow, no mods)
+    pub fn is_journal_collapse(&self) -> bool {
+        matches!(
+            self,
+            Event::Key(KeyEvent {
+                code: KeyCode::Char('h'),
+                modifiers: KeyModifiers::NONE,
+                ..
+            })
+        ) || matches!(
+            self,
+            Event::Key(KeyEvent {
+                code: KeyCode::Left,
+                modifiers: KeyModifiers::NONE,
+                ..
+            })
+        )
+    }
+
+    /// Check if event moves journal cursor down ('j' key, no mods)
+    pub fn is_journal_cursor_down(&self) -> bool {
+        matches!(
+            self,
+            Event::Key(KeyEvent {
+                code: KeyCode::Char('j'),
+                modifiers: KeyModifiers::NONE,
+                ..
+            })
+        )
+    }
+
+    /// Check if event moves journal cursor up ('k' key, no mods)
+    pub fn is_journal_cursor_up(&self) -> bool {
+        matches!(
+            self,
+            Event::Key(KeyEvent {
+                code: KeyCode::Char('k'),
+                modifiers: KeyModifiers::NONE,
+                ..
+            })
+        )
+    }
+
+    /// Check if event is Ctrl+B (Sub-Agent Viewer)
+    pub fn is_sub_agent_viewer(&self) -> bool {
+        matches!(
+            self,
+            Event::Key(KeyEvent {
+                code: KeyCode::Char('b'),
+                modifiers: KeyModifiers::CONTROL,
+                ..
+            })
+        )
+    }
 }
 
 #[cfg(test)]

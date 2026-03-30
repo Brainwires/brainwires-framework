@@ -98,6 +98,7 @@ impl App {
             AppMode::ApprovalDialog => self.handle_approval_dialog_event(event).await?,
             AppMode::SudoPasswordDialog => self.handle_sudo_dialog_event(event).await?,
             AppMode::PlanMode => self.handle_plan_mode_event(event).await?,
+            AppMode::SubAgentViewer => self.handle_sub_agent_viewer_event(event).await?,
         }
 
         Ok(!self.should_quit)
@@ -148,6 +149,13 @@ impl App {
                     self.mode = AppMode::InputFullscreen;
                 }
             }
+            return Ok(());
+        }
+
+        // Ctrl+B: open Sub-Agent Viewer (guard: not during waiting/streaming)
+        if event.is_sub_agent_viewer() && self.mode != AppMode::Waiting {
+            self.refresh_sub_agent_list().await;
+            self.mode = AppMode::SubAgentViewer;
             return Ok(());
         }
 
@@ -285,6 +293,58 @@ impl App {
             // Shift+Enter: Insert newline for multi-line input
             self.input_state.insert_newline();
             return Ok(());
+        }
+
+        // Journal tree navigation — active when Conversation is focused in Journal mode
+        // Must be checked BEFORE the message-submission Enter handler
+        use super::super::ConversationViewStyle;
+        let in_journal_tree = self.focused_panel == FocusedPanel::Conversation
+            && self.conversation_view_style == ConversationViewStyle::Journal;
+
+        if in_journal_tree {
+            if event.is_journal_cursor_down() {
+                self.journal_tree.cursor_next();
+                // Auto-scroll to keep cursor visible
+                if let Some(idx) = self.journal_tree.cursor_render_index() {
+                    let idx = idx as u16;
+                    if idx < self.scroll {
+                        self.scroll = idx;
+                    } else if idx >= self.scroll + self.conversation_visible_height() {
+                        self.scroll = idx.saturating_sub(self.conversation_visible_height().saturating_sub(1));
+                    }
+                }
+                return Ok(());
+            }
+            if event.is_journal_cursor_up() {
+                self.journal_tree.cursor_prev();
+                if let Some(idx) = self.journal_tree.cursor_render_index() {
+                    let idx = idx as u16;
+                    if idx < self.scroll {
+                        self.scroll = idx;
+                    }
+                }
+                return Ok(());
+            }
+            if event.is_journal_expand() {
+                if let Some(cursor) = self.journal_tree.cursor {
+                    self.journal_tree.expand(cursor);
+                }
+                return Ok(());
+            }
+            if event.is_journal_collapse() {
+                // cursor_collapse_or_parent() does the right thing regardless of cursor state
+                self.journal_tree.cursor_collapse_or_parent();
+                return Ok(());
+            }
+            if event.is_enter() {
+                if let Some(cursor) = self.journal_tree.cursor {
+                    self.journal_tree.toggle_collapse(cursor);
+                } else {
+                    // No cursor yet — init at first item
+                    self.journal_tree.cursor_first();
+                }
+                return Ok(());
+            }
         }
 
         if event.is_enter() {

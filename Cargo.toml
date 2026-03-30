@@ -261,12 +261,6 @@ pgvector = { version = "0.4.1", features = ["postgres"] }
 # Testing
 tempfile = "3"
 
-# Patch crates whose crates.io releases pin incompatible libsqlite3-sys versions.
-# Upstream git repos already have the fix (libsqlite3-sys >=0.30, <0.37) but
-# haven't published new releases yet.
 [patch.crates-io]
-rustpython-vm = { git = "https://github.com/RustPython/RustPython", branch = "main", package = "rustpython-vm" }
-rustpython-stdlib = { git = "https://github.com/RustPython/RustPython", branch = "main", package = "rustpython-stdlib" }
-sqlx-sqlite = { git = "https://github.com/launchbadge/sqlx", branch = "main" }
 # brainwires-cli depends on unreleased ratatui-interact features; patch to local dev version
 ratatui-interact = { path = "/home/nightness/dev/ratatui-interact" }

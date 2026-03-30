@@ -3,6 +3,7 @@
 //! Contains the core App struct and related types for state management.
 
 use crate::agents::TaskManager;
+use crate::agents::TaskAgentStatus;
 use crate::commands::CommandExecutor;
 use crate::mdap::MdapConfig;
 use crate::providers::{Provider, ProviderFactory};
@@ -61,6 +62,50 @@ pub struct ToolExecutionEntry {
     pub executed_at: i64,
     /// Duration in milliseconds (if available)
     pub duration_ms: Option<u64>,
+}
+
+// ── Sub-Agent Viewer State ────────────────────────────────────────────────────
+
+/// Which panel is focused in the Sub-Agent Viewer
+#[derive(Debug, Clone, PartialEq, Default)]
+pub enum SubAgentPanelFocus {
+    #[default]
+    Left,
+    Right,
+}
+
+/// Display-ready summary of one sub-agent
+#[derive(Debug, Clone)]
+pub struct SubAgentSummary {
+    /// Agent identifier
+    pub agent_id: String,
+    /// Task description (truncated to 60 chars for display)
+    pub task_desc: String,
+    /// Current status
+    pub status: TaskAgentStatus,
+    /// Number of AI iterations executed
+    pub iterations: u32,
+    /// Session ID if this agent is session-backed
+    pub session_id: Option<String>,
+    /// Whether the agent's IPC socket is accessible
+    pub has_ipc_socket: bool,
+}
+
+/// State for the Sub-Agent Viewer mode
+#[derive(Debug, Clone, Default)]
+pub struct SubAgentViewerState {
+    /// Agents list (refreshed on entry and periodically)
+    pub agent_list: Vec<SubAgentSummary>,
+    /// Selected index in the left panel list
+    pub selected_index: usize,
+    /// Scroll offset for the left panel
+    pub list_scroll: u16,
+    /// Scroll offset for the right panel (agent detail)
+    pub detail_scroll: u16,
+    /// Input content for sending a message to an interactive agent
+    pub message_input: String,
+    /// Which panel has focus
+    pub panel_focus: SubAgentPanelFocus,
 }
 
 /// Application state
@@ -304,6 +349,12 @@ pub struct App {
     /// Skill registry for agent skills
     pub skill_registry: Option<brainwires_skills::SkillRegistry>,
 
+    // Journal Tree Fields
+    /// Collapsible tree for the Journal view
+    pub journal_tree: super::journal_tree::JournalTreeState,
+    /// Sub-Agent Viewer state (Some when mode == AppMode::SubAgentViewer)
+    pub sub_agent_viewer_state: Option<SubAgentViewerState>,
+
     // Plan Mode Fields
     /// Plan mode state (when active)
     pub plan_mode_state: Option<PlanModeState>,
@@ -438,6 +489,8 @@ pub enum AppMode {
     SudoPasswordDialog,
     /// Plan mode - isolated planning context with separate conversation
     PlanMode,
+    /// Sub-Agent Viewer (Ctrl+B) - view and interact with sub-agents
+    SubAgentViewer,
 }
 
 /// State for the tool picker UI (explicit mode)
@@ -716,6 +769,9 @@ impl App {
                 }
                 Some(registry)
             },
+            // Journal tree and sub-agent viewer
+            journal_tree: super::journal_tree::JournalTreeState::new(),
+            sub_agent_viewer_state: None,
             // Plan mode fields
             plan_mode_state: None,
             plan_mode_saved_main: None,
@@ -1009,6 +1065,9 @@ impl App {
                 }
                 Some(registry)
             },
+            // Journal tree and sub-agent viewer
+            journal_tree: super::journal_tree::JournalTreeState::new(),
+            sub_agent_viewer_state: None,
             // Plan mode fields
             plan_mode_state: None,
             plan_mode_saved_main: None,
@@ -1266,6 +1325,7 @@ impl App {
                 let msg_count = self.plan_mode_state.as_ref().map(|s| s.message_count()).unwrap_or(0);
                 format!("Plan Mode - {} messages (Ctrl+P to exit)", msg_count)
             }
+            AppMode::SubAgentViewer => "Sub-Agent Viewer (Tab: switch panel, Esc: close)".to_string(),
         }
     }
 
@@ -1528,6 +1588,77 @@ impl App {
     pub fn scroll_down(&mut self, amount: u16) {
         let max = self.max_scroll();
         self.scroll = self.scroll.saturating_add(amount).min(max);
+    }
+
+    /// Estimated visible height of the conversation panel (lines).
+    /// Used for scroll-to-cursor calculations. Falls back to a sensible default
+    /// when we don't yet have a measured area.
+    pub fn conversation_visible_height(&self) -> u16 {
+        self.conversation_area
+            .map(|a| a.height.saturating_sub(2)) // subtract borders
+            .unwrap_or(20)
+    }
+
+    /// Refresh the sub-agent list from TaskManager for the Sub-Agent Viewer.
+    pub async fn refresh_sub_agent_list(&mut self) {
+        // get_all_tasks() is an async method on TaskManager itself (not on the guard)
+        let tasks = self.task_manager.read().await.get_all_tasks().await;
+
+        let sessions_dir = crate::utils::paths::PlatformPaths::sessions_dir()
+            .unwrap_or_else(|_| std::path::PathBuf::from("/tmp"));
+
+        let mut agent_list: Vec<SubAgentSummary> = Vec::new();
+        for task in tasks {
+            // Only show tasks that are assigned to an agent
+            let agent_id = match task.assigned_to.clone() {
+                Some(id) => id,
+                None => continue,
+            };
+
+            let task_desc = {
+                let s = task.description.as_str();
+                if s.len() > 60 { format!("{}…", &s[..57]) } else { s.to_string() }
+            };
+
+            // Check for IPC socket
+            let sock_path = sessions_dir.join(format!("{}.sock", agent_id));
+            let has_ipc_socket = sock_path.exists();
+
+            // Derive a simplified status from task status
+            use crate::types::agent::TaskStatus;
+            let status = match task.status {
+                TaskStatus::InProgress => TaskAgentStatus::Working(task_desc.clone()),
+                TaskStatus::Completed => TaskAgentStatus::Completed(
+                    task.summary.clone().unwrap_or_else(|| "Done".to_string()),
+                ),
+                TaskStatus::Failed => TaskAgentStatus::Failed("Task failed".to_string()),
+                TaskStatus::Blocked => TaskAgentStatus::Paused("Blocked on dependency".to_string()),
+                TaskStatus::Skipped => TaskAgentStatus::Completed("Skipped".to_string()),
+                TaskStatus::Pending => TaskAgentStatus::Idle,
+            };
+
+            agent_list.push(SubAgentSummary {
+                agent_id,
+                task_desc,
+                status,
+                iterations: task.iterations,
+                session_id: None,
+                has_ipc_socket,
+            });
+        }
+
+        if let Some(state) = &mut self.sub_agent_viewer_state {
+            state.agent_list = agent_list;
+        } else {
+            self.sub_agent_viewer_state = Some(SubAgentViewerState {
+                agent_list,
+                selected_index: 0,
+                list_scroll: 0,
+                detail_scroll: 0,
+                message_input: String::new(),
+                panel_focus: SubAgentPanelFocus::Left,
+            });
+        }
     }
 
     // === Input convenience accessors (delegates to TextAreaState) ===

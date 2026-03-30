@@ -36,6 +36,7 @@ mod exit_dialog;
 mod task_panel;
 mod task_viewer;
 mod tool_picker;
+mod sub_agent_viewer;
 
 use ratatui::{
     layout::{Constraint, Direction, Layout},
@@ -86,6 +87,12 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     // Task viewer mode is an overlay on top of normal content
     if app.mode == AppMode::TaskViewer {
         task_viewer::draw_task_viewer(f, app);
+        return;
+    }
+
+    // Sub-Agent Viewer takes over the entire screen
+    if app.mode == AppMode::SubAgentViewer {
+        sub_agent_viewer::draw_sub_agent_viewer(f, app);
         return;
     }
 
