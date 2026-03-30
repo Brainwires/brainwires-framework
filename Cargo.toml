@@ -130,7 +130,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Vector database & columnar storage
-lancedb = "0.26"
+lancedb = "0.27"
 arrow = "57"
 arrow-array = "57"
 arrow-schema = "57"

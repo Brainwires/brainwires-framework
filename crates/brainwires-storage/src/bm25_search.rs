@@ -33,18 +33,39 @@ impl BM25Search {
     pub fn new<P: AsRef<Path>>(index_path: P) -> Result<Self> {
         let index_path = index_path.as_ref().to_path_buf();
 
-        // Create schema with ID, content, and file_path fields
+        // Create schema with ID, content, and file_path fields.
+        // content is TEXT | STORED so documents can be retrieved after indexing.
         let mut schema_builder = Schema::builder();
         let id_field = schema_builder.add_u64_field("id", STORED | INDEXED);
-        let content_field = schema_builder.add_text_field("content", TEXT);
+        let content_field = schema_builder.add_text_field("content", TEXT | STORED);
         let file_path_field = schema_builder.add_text_field("file_path", STRING | STORED);
         let schema = schema_builder.build();
 
-        // Create or open index
+        // Create or open index, validating schema on reopen to detect drift.
         std::fs::create_dir_all(&index_path).context("Failed to create BM25 index directory")?;
 
         let index = if index_path.join("meta.json").exists() {
-            Index::open_in_dir(&index_path).context("Failed to open existing BM25 index")?
+            let existing = Index::open_in_dir(&index_path)
+                .context("Failed to open existing BM25 index")?;
+            // Validate that the on-disk schema matches the expected fields.
+            // If it doesn't (e.g. after a schema change), recreate the index.
+            let schema_ok = existing.schema().get_field("id").is_ok()
+                && existing.schema().get_field("content").is_ok()
+                && existing.schema().get_field("file_path").is_ok();
+            if schema_ok {
+                existing
+            } else {
+                tracing::warn!(
+                    "BM25 index schema mismatch at {:?} — recreating index",
+                    index_path
+                );
+                std::fs::remove_dir_all(&index_path)
+                    .context("Failed to remove stale BM25 index")?;
+                std::fs::create_dir_all(&index_path)
+                    .context("Failed to recreate BM25 index directory")?;
+                Index::create_in_dir(&index_path, schema.clone())
+                    .context("Failed to recreate BM25 index")?
+            }
         } else {
             Index::create_in_dir(&index_path, schema.clone())
                 .context("Failed to create BM25 index")?
@@ -195,7 +216,14 @@ impl BM25Search {
         // Parse query using lenient mode to handle special characters like :: in code
         // (e.g., "Tool::new" would fail strict parsing since : is a field separator)
         let query_parser = QueryParser::for_index(&self.index, vec![self.content_field]);
-        let (query, _errors) = query_parser.parse_query_lenient(query_text);
+        let (query, errors) = query_parser.parse_query_lenient(query_text);
+        if !errors.is_empty() {
+            tracing::warn!(
+                "BM25 query parse issues for {:?} (terms may have been dropped): {:?}",
+                query_text,
+                errors
+            );
+        }
 
         // Search with BM25
         let top_docs = searcher
@@ -208,10 +236,15 @@ impl BM25Search {
                 .doc(doc_address)
                 .context("Failed to retrieve document")?;
 
-            if let Some(id_value) = retrieved_doc.get_first(self.id_field)
-                && let Some(id) = id_value.as_u64()
+            match retrieved_doc
+                .get_first(self.id_field)
+                .and_then(|v| v.as_u64())
             {
-                results.push(BM25Result { id, score });
+                Some(id) => results.push(BM25Result { id, score }),
+                None => tracing::warn!(
+                    "BM25: document at {:?} is missing or has corrupt 'id' field — skipping",
+                    doc_address
+                ),
             }
         }
 

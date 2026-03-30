@@ -12,8 +12,8 @@ pub mod arrow_convert;
 
 use anyhow::{Context, Result};
 use arrow_array::{
-    Array, FixedSizeListArray, Float32Array, RecordBatch, RecordBatchIterator, StringArray,
-    UInt32Array, types::Float32Type,
+    Array, FixedSizeListArray, Float32Array, RecordBatch, RecordBatchIterator, RecordBatchReader,
+    StringArray, UInt32Array, types::Float32Type,
 };
 use arrow_schema::{DataType, Field, Schema};
 use futures::stream::TryStreamExt;
@@ -28,7 +28,7 @@ use crate::bm25_search::{BM25Search, RrfScorer, SearchScorer};
 use crate::databases::traits::{
     ChunkMetadata, DatabaseStats, SearchResult, StorageBackend, VectorDatabase,
 };
-use crate::databases::types::{FieldDef, Filter, Record, ScoredRecord};
+use crate::databases::types::{FieldDef, FieldValue, Filter, Record, ScoredRecord};
 use crate::glob_utils;
 
 use arrow_convert::{
@@ -319,9 +319,10 @@ impl StorageBackend for LanceDatabase {
         }
 
         let arrow_schema = Arc::new(field_defs_to_schema(schema));
-        let batches = RecordBatchIterator::new(vec![], arrow_schema);
+        let batches: Box<dyn RecordBatchReader + Send> =
+            Box::new(RecordBatchIterator::new(vec![], arrow_schema));
         self.connection
-            .create_table(table_name, Box::new(batches))
+            .create_table(table_name, batches)
             .execute()
             .await
             .with_context(|| format!("Failed to create table '{table_name}'"))?;
@@ -342,9 +343,10 @@ impl StorageBackend for LanceDatabase {
 
         let batch = records_to_batch(&records)?;
         let schema = batch.schema();
-        let batches = RecordBatchIterator::new(vec![Ok(batch)], schema);
+        let batches: Box<dyn RecordBatchReader + Send> =
+            Box::new(RecordBatchIterator::new(vec![Ok(batch)], schema));
         table
-            .add(Box::new(batches))
+            .add(batches)
             .execute()
             .await
             .with_context(|| format!("Failed to insert into '{table_name}'"))?;
@@ -491,11 +493,11 @@ impl VectorDatabase for LanceDatabase {
 
         let schema = Self::create_rag_schema(dimension);
         let empty_batch = RecordBatch::new_empty(schema.clone());
-        let batches =
-            RecordBatchIterator::new(vec![empty_batch].into_iter().map(Ok), schema.clone());
+        let batches: Box<dyn RecordBatchReader + Send> =
+            Box::new(RecordBatchIterator::new(vec![empty_batch].into_iter().map(Ok), schema.clone()));
 
         self.connection
-            .create_table(&self.rag_table_name, Box::new(batches))
+            .create_table(&self.rag_table_name, batches)
             .execute()
             .await
             .context("Failed to create table")?;
@@ -529,10 +531,11 @@ impl VectorDatabase for LanceDatabase {
         )?;
         let count = batch.num_rows();
 
-        let batches = RecordBatchIterator::new(vec![batch].into_iter().map(Ok), schema);
+        let batches: Box<dyn RecordBatchReader + Send> =
+            Box::new(RecordBatchIterator::new(vec![batch].into_iter().map(Ok), schema));
 
         table
-            .add(Box::new(batches))
+            .add(batches)
             .execute()
             .await
             .context("Failed to add records to table")?;
@@ -588,7 +591,10 @@ impl VectorDatabase for LanceDatabase {
 
             let stream = if let Some(ref project_name) = project {
                 query
-                    .only_if(format!("project = '{}'", project_name))
+                    .only_if(filter_to_sql(&Filter::Eq(
+                        "project".into(),
+                        FieldValue::Utf8(Some(project_name.clone())),
+                    )))
                     .execute()
                     .await
                     .context("Failed to execute search")?
@@ -762,7 +768,10 @@ impl VectorDatabase for LanceDatabase {
 
             let stream = if let Some(ref project_name) = project {
                 query
-                    .only_if(format!("project = '{}'", project_name))
+                    .only_if(filter_to_sql(&Filter::Eq(
+                        "project".into(),
+                        FieldValue::Utf8(Some(project_name.clone())),
+                    )))
                     .execute()
                     .await
                     .context("Failed to execute search")?
@@ -1040,7 +1049,10 @@ impl VectorDatabase for LanceDatabase {
 
     async fn count_by_root_path(&self, root_path: &str) -> Result<usize> {
         let table = self.get_rag_table().await?;
-        let filter = format!("root_path = '{}'", root_path);
+        let filter = filter_to_sql(&Filter::Eq(
+            "root_path".into(),
+            FieldValue::Utf8(Some(root_path.to_string())),
+        ));
         let count = table
             .count_rows(Some(filter))
             .await
@@ -1050,7 +1062,10 @@ impl VectorDatabase for LanceDatabase {
 
     async fn get_indexed_files(&self, root_path: &str) -> Result<Vec<String>> {
         let table = self.get_rag_table().await?;
-        let filter = format!("root_path = '{}'", root_path);
+        let filter = filter_to_sql(&Filter::Eq(
+            "root_path".into(),
+            FieldValue::Utf8(Some(root_path.to_string())),
+        ));
         let stream = table
             .query()
             .only_if(filter)

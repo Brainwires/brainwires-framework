@@ -2,7 +2,8 @@
 
 use anyhow::{Context, Result};
 use brainwires_storage::{
-    FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
+    FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, bm25_search::BM25Search,
+    record_get,
 };
 use chrono::Utc;
 use std::sync::Arc;
@@ -45,8 +46,10 @@ fn comments_field_defs() -> Vec<FieldDef> {
 
 // ── Record conversions ───────────────────────────────────────────────────
 
-fn issue_to_record(issue: &Issue) -> Record {
-    vec![
+fn issue_to_record(issue: &Issue) -> Result<Record> {
+    let labels_json =
+        serde_json::to_string(&issue.labels).context("Failed to serialize labels")?;
+    Ok(vec![
         ("issue_id".into(), FieldValue::Utf8(Some(issue.id.clone()))),
         ("number".into(), FieldValue::UInt64(Some(issue.number))),
         ("title".into(), FieldValue::Utf8(Some(issue.title.clone()))),
@@ -62,19 +65,14 @@ fn issue_to_record(issue: &Issue) -> Record {
             "priority".into(),
             FieldValue::Utf8(Some(issue.priority.as_str().to_string())),
         ),
-        (
-            "labels".into(),
-            FieldValue::Utf8(Some(
-                serde_json::to_string(&issue.labels).unwrap_or_default(),
-            )),
-        ),
+        ("labels".into(), FieldValue::Utf8(Some(labels_json))),
         ("assignee".into(), FieldValue::Utf8(issue.assignee.clone())),
         ("project".into(), FieldValue::Utf8(issue.project.clone())),
         ("parent_id".into(), FieldValue::Utf8(issue.parent_id.clone())),
         ("created_at".into(), FieldValue::Int64(Some(issue.created_at))),
         ("updated_at".into(), FieldValue::Int64(Some(issue.updated_at))),
         ("closed_at".into(), FieldValue::Int64(issue.closed_at)),
-    ]
+    ])
 }
 
 fn issue_from_record(r: &Record) -> Result<Issue> {
@@ -168,19 +166,28 @@ fn comment_from_record(r: &Record) -> Result<Comment> {
 /// Persists issues to a backend-agnostic storage layer.
 pub struct IssueStore<B: StorageBackend + 'static = brainwires_storage::LanceDatabase> {
     backend: Arc<B>,
+    /// Optional BM25 full-text search index for keyword search.
+    bm25: Option<BM25Search>,
 }
 
 impl<B: StorageBackend + 'static> Clone for IssueStore<B> {
     fn clone(&self) -> Self {
+        // BM25Search is not Clone — the BM25 index is only used for search,
+        // so cloned instances fall back to in-memory search.
         Self {
             backend: Arc::clone(&self.backend),
+            bm25: None,
         }
     }
 }
 
 impl<B: StorageBackend + 'static> IssueStore<B> {
     pub fn new(backend: Arc<B>) -> Self {
-        Self { backend }
+        Self { backend, bm25: None }
+    }
+
+    pub fn new_with_bm25(backend: Arc<B>, bm25: BM25Search) -> Self {
+        Self { backend, bm25: Some(bm25) }
     }
 
     /// Ensure the issues table exists.
@@ -204,12 +211,22 @@ impl<B: StorageBackend + 'static> IssueStore<B> {
         Ok(max + 1)
     }
 
-    /// Insert a new issue.
+    /// Insert a new issue and add it to the BM25 index.
     pub async fn create(&self, issue: &Issue) -> Result<()> {
+        let record = issue_to_record(issue)?;
         self.backend
-            .insert(ISSUES_TABLE, vec![issue_to_record(issue)])
+            .insert(ISSUES_TABLE, vec![record])
             .await
-            .context("Failed to create issue")
+            .context("Failed to create issue")?;
+
+        if let Some(bm25) = &self.bm25 {
+            let content = format!("{} {}", issue.title, issue.description);
+            if let Err(e) = bm25.add_documents(vec![(issue.number, content, issue.id.clone())]) {
+                tracing::warn!("BM25 index failed on create for issue {}: {}", issue.number, e);
+            }
+        }
+
+        Ok(())
     }
 
     /// Get a single issue by UUID.
@@ -232,22 +249,24 @@ impl<B: StorageBackend + 'static> IssueStore<B> {
         }
     }
 
-    /// List issues with optional filters and cursor-based pagination.
+    /// List issues with optional filters and offset-based pagination.
     ///
-    /// `cursor` is the last seen `updated_at` timestamp; pass `None` for the first page.
-    /// Returns `(issues, next_cursor)`.
+    /// `offset` is the number of records to skip; pass `None` or `Some(0)` for the first page.
+    /// Returns `(issues, next_offset)` where `next_offset` is `Some(offset + limit)` if more
+    /// records exist.
     pub async fn list(
         &self,
         project: Option<&str>,
         status: Option<&IssueStatus>,
         assignee: Option<&str>,
         label: Option<&str>,
-        cursor: Option<i64>,
+        offset: Option<usize>,
         limit: usize,
-    ) -> Result<(Vec<Issue>, Option<i64>)> {
-        // Build filter
-        let mut filters = Vec::new();
+    ) -> Result<(Vec<Issue>, Option<usize>)> {
+        let offset = offset.unwrap_or(0);
 
+        // Build filter from typed predicates (no label — handled in-memory after fetch)
+        let mut filters = Vec::new();
         if let Some(p) = project {
             filters.push(Filter::Eq(
                 "project".into(),
@@ -266,9 +285,6 @@ impl<B: StorageBackend + 'static> IssueStore<B> {
                 FieldValue::Utf8(Some(a.to_string())),
             ));
         }
-        if let Some(c) = cursor {
-            filters.push(Filter::Lt("updated_at".into(), FieldValue::Int64(Some(c))));
-        }
 
         let filter = match filters.len() {
             0 => None,
@@ -276,11 +292,17 @@ impl<B: StorageBackend + 'static> IssueStore<B> {
             _ => Some(Filter::And(filters)),
         };
 
-        // Fetch with a slightly larger limit to detect the next page
-        let fetch_limit = limit + 1;
+        // When a label filter is active, fetch without a backend limit so the in-memory
+        // label filter sees all matching records before we apply offset + limit.
+        let fetch_limit = if label.is_some() {
+            None
+        } else {
+            Some(offset + limit + 1)
+        };
+
         let records = self
             .backend
-            .query(ISSUES_TABLE, filter.as_ref(), Some(fetch_limit))
+            .query(ISSUES_TABLE, filter.as_ref(), fetch_limit)
             .await?;
 
         let mut issues: Vec<Issue> = records
@@ -296,17 +318,59 @@ impl<B: StorageBackend + 'static> IssueStore<B> {
             issues.retain(|i| i.labels.iter().any(|l| l == lbl));
         }
 
-        let next_cursor = if issues.len() > limit {
+        // Apply offset
+        if offset > 0 {
+            issues = issues.into_iter().skip(offset).collect();
+        }
+
+        // Determine next offset
+        let next_offset = if issues.len() > limit {
             issues.truncate(limit);
-            issues.last().map(|i| i.updated_at)
+            Some(offset + limit)
         } else {
             None
         };
 
-        Ok((issues, next_cursor))
+        Ok((issues, next_offset))
     }
 
-    /// Apply a patch to an existing issue and persist it.
+    /// Search issues using BM25 keyword search, falling back to in-memory substring match.
+    pub async fn search(&self, query: &str, limit: usize) -> Result<Vec<Issue>> {
+        if let Some(bm25) = &self.bm25 {
+            let results = bm25.search(query, limit).context("BM25 search failed")?;
+            let mut issues = Vec::with_capacity(results.len());
+            for hit in results {
+                match self.get_by_number(hit.id).await {
+                    Ok(Some(issue)) => issues.push(issue),
+                    Ok(None) => tracing::warn!(
+                        "BM25 returned issue number {} but it was not found in the store",
+                        hit.id
+                    ),
+                    Err(e) => tracing::warn!("Failed to fetch issue {}: {}", hit.id, e),
+                }
+            }
+            Ok(issues)
+        } else {
+            // Fallback: in-memory case-insensitive substring search
+            let query_lower = query.to_lowercase();
+            let (all_issues, _) = self.list(None, None, None, None, None, usize::MAX).await?;
+            let mut matches: Vec<Issue> = all_issues
+                .into_iter()
+                .filter(|i| {
+                    i.title.to_lowercase().contains(&query_lower)
+                        || i.description.to_lowercase().contains(&query_lower)
+                })
+                .take(limit)
+                .collect();
+            // Rank: title matches first
+            matches.sort_by_key(|i| {
+                if i.title.to_lowercase().contains(&query_lower) { 0u8 } else { 1u8 }
+            });
+            Ok(matches)
+        }
+    }
+
+    /// Apply a patch to an existing issue, persist it, and update the BM25 index.
     pub async fn update(&self, id: &str, patch: IssuePatch) -> Result<Issue> {
         let mut issue = self
             .get(id)
@@ -351,19 +415,58 @@ impl<B: StorageBackend + 'static> IssueStore<B> {
         issue.updated_at = Utc::now().timestamp();
 
         // Delete + re-insert (LanceDB upsert pattern)
-        self.delete(id).await?;
-        self.create(&issue).await?;
+        self.backend
+            .delete(
+                ISSUES_TABLE,
+                &Filter::Eq("issue_id".into(), FieldValue::Utf8(Some(id.to_string()))),
+            )
+            .await
+            .context("Failed to delete old issue record during update")?;
+        let record = issue_to_record(&issue)?;
+        self.backend
+            .insert(ISSUES_TABLE, vec![record])
+            .await
+            .context("Failed to re-insert issue record during update")?;
+
+        // Update BM25 index: remove old entry, add new one
+        if let Some(bm25) = &self.bm25 {
+            if let Err(e) = bm25.delete_by_id(issue.number) {
+                tracing::warn!("BM25 delete failed for issue {} during update: {}", issue.number, e);
+            }
+            let content = format!("{} {}", issue.title, issue.description);
+            if let Err(e) = bm25.add_documents(vec![(issue.number, content, issue.id.clone())]) {
+                tracing::warn!("BM25 index failed on update for issue {}: {}", issue.number, e);
+            }
+        }
 
         Ok(issue)
     }
 
-    /// Delete an issue by UUID.
+    /// Delete an issue by UUID and remove it from the BM25 index.
     pub async fn delete(&self, id: &str) -> Result<()> {
+        // Fetch the issue first so we can get the number for BM25 removal
+        let number = if let Some(_bm25) = &self.bm25 {
+            match self.get(id).await {
+                Ok(Some(issue)) => Some(issue.number),
+                _ => None,
+            }
+        } else {
+            None
+        };
+
         let filter = Filter::Eq("issue_id".into(), FieldValue::Utf8(Some(id.to_string())));
         self.backend
             .delete(ISSUES_TABLE, &filter)
             .await
-            .context("Failed to delete issue")
+            .context("Failed to delete issue")?;
+
+        if let (Some(bm25), Some(num)) = (&self.bm25, number) {
+            if let Err(e) = bm25.delete_by_id(num) {
+                tracing::warn!("BM25 delete failed for issue {} during delete: {}", num, e);
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -402,29 +505,39 @@ impl<B: StorageBackend + 'static> CommentStore<B> {
             .context("Failed to add comment")
     }
 
-    /// List comments for an issue with cursor pagination.
+    /// Get a single comment by UUID.
+    pub async fn get(&self, id: &str) -> Result<Option<Comment>> {
+        let filter =
+            Filter::Eq("comment_id".into(), FieldValue::Utf8(Some(id.to_string())));
+        let records = self
+            .backend
+            .query(COMMENTS_TABLE, Some(&filter), Some(1))
+            .await?;
+        match records.first() {
+            Some(r) => Ok(Some(comment_from_record(r)?)),
+            None => Ok(None),
+        }
+    }
+
+    /// List comments for an issue with offset-based pagination.
     ///
-    /// `cursor` is the last seen `created_at`; pass `None` for the first page.
+    /// Returns `(comments, next_offset)` where `next_offset` is `Some(offset + limit)` if more
+    /// records exist.
     pub async fn list_for_issue(
         &self,
         issue_id: &str,
-        cursor: Option<i64>,
+        offset: Option<usize>,
         limit: usize,
-    ) -> Result<(Vec<Comment>, Option<i64>)> {
-        let mut filters = vec![Filter::Eq(
+    ) -> Result<(Vec<Comment>, Option<usize>)> {
+        let offset = offset.unwrap_or(0);
+
+        let filter = Filter::Eq(
             "issue_id".into(),
             FieldValue::Utf8(Some(issue_id.to_string())),
-        )];
-
-        if let Some(c) = cursor {
-            filters.push(Filter::Gt("created_at".into(), FieldValue::Int64(Some(c))));
-        }
-
-        let filter = Filter::And(filters);
-        let fetch_limit = limit + 1;
+        );
         let records = self
             .backend
-            .query(COMMENTS_TABLE, Some(&filter), Some(fetch_limit))
+            .query(COMMENTS_TABLE, Some(&filter), Some(offset + limit + 1))
             .await?;
 
         let mut comments: Vec<Comment> = records
@@ -435,14 +548,19 @@ impl<B: StorageBackend + 'static> CommentStore<B> {
         // Sort oldest first
         comments.sort_by_key(|c| c.created_at);
 
-        let next_cursor = if comments.len() > limit {
+        // Apply offset
+        if offset > 0 {
+            comments = comments.into_iter().skip(offset).collect();
+        }
+
+        let next_offset = if comments.len() > limit {
             comments.truncate(limit);
-            comments.last().map(|c| c.created_at)
+            Some(offset + limit)
         } else {
             None
         };
 
-        Ok((comments, next_cursor))
+        Ok((comments, next_offset))
     }
 
     /// Delete a comment by UUID.

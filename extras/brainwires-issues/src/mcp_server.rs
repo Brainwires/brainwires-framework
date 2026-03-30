@@ -1,7 +1,7 @@
 //! MCP server implementation for the issue tracker.
 
 use anyhow::{Context, Result};
-use brainwires_storage::LanceDatabase;
+use brainwires_storage::{LanceDatabase, bm25_search::BM25Search, paths::PlatformPaths};
 use rmcp::{
     RoleServer, ServerHandler, ServiceExt,
     handler::server::{router::prompt::PromptRouter, tool::ToolRouter, wrapper::Parameters},
@@ -55,9 +55,9 @@ pub struct ListIssuesRequest {
     pub assignee: Option<String>,
     /// Filter by label.
     pub label: Option<String>,
-    /// Cursor for pagination (last seen `updated_at` from previous response).
-    pub cursor: Option<i64>,
-    /// Maximum number of issues to return (default 25, max 100).
+    /// Number of records to skip for pagination (0-based). Use `next_offset` from previous response.
+    pub offset: Option<usize>,
+    /// Maximum number of issues to return (1–100, default 25).
     pub limit: Option<usize>,
 }
 
@@ -101,7 +101,7 @@ pub struct CloseIssueRequest {
 pub struct DeleteIssueRequest {
     /// Issue UUID to delete.
     pub id: String,
-    /// If true, also delete all comments on the issue.
+    /// If true, also delete all comments on the issue. Defaults to false (comments are kept).
     pub delete_comments: Option<bool>,
 }
 
@@ -127,9 +127,9 @@ pub struct AddCommentRequest {
 pub struct ListCommentsRequest {
     /// Issue UUID.
     pub issue_id: String,
-    /// Cursor for pagination (last seen `created_at` from previous response).
-    pub cursor: Option<i64>,
-    /// Maximum number of comments to return (default 50).
+    /// Number of records to skip for pagination (0-based). Use `next_offset` from previous response.
+    pub offset: Option<usize>,
+    /// Maximum number of comments to return (1–200, default 50).
     pub limit: Option<usize>,
 }
 
@@ -145,14 +145,14 @@ pub struct DeleteCommentRequest {
 struct PagedIssues {
     issues: Vec<Issue>,
     count: usize,
-    next_cursor: Option<i64>,
+    next_offset: Option<usize>,
 }
 
 #[derive(Debug, Serialize)]
 struct PagedComments {
     comments: Vec<Comment>,
     count: usize,
-    next_cursor: Option<i64>,
+    next_offset: Option<usize>,
 }
 
 // ── IssuesMcpServer ──────────────────────────────────────────────────────
@@ -168,13 +168,23 @@ pub struct IssuesMcpServer {
 impl IssuesMcpServer {
     /// Create a new server with the default LanceDB backend.
     pub async fn new() -> Result<Self> {
+        let data_dir = PlatformPaths::data_dir().join("brainwires-issues");
+
+        let db_path = data_dir.join("lancedb");
         let backend = Arc::new(
-            LanceDatabase::with_default_path()
+            LanceDatabase::new(db_path.to_string_lossy())
                 .await
                 .context("Failed to connect to LanceDB")?,
         );
 
-        let issues = Arc::new(IssueStore::new(Arc::clone(&backend)));
+        let bm25_path = data_dir.join("bm25");
+        let issues = Arc::new(match BM25Search::new(&bm25_path) {
+            Ok(bm25) => IssueStore::new_with_bm25(Arc::clone(&backend), bm25),
+            Err(e) => {
+                tracing::warn!("BM25 index unavailable (falling back to in-memory search): {}", e);
+                IssueStore::new(Arc::clone(&backend))
+            }
+        });
         let comments = Arc::new(CommentStore::new(Arc::clone(&backend)));
 
         issues.ensure_table().await.context("Failed to ensure issues table")?;
@@ -232,6 +242,11 @@ impl IssuesMcpServer {
         &self,
         Parameters(req): Parameters<CreateIssueRequest>,
     ) -> Result<String, String> {
+        // C9: validate title
+        if req.title.trim().is_empty() {
+            return Err("title must not be empty".to_string());
+        }
+
         let number = self.issues.next_number().await.map_err(|e| e.to_string())?;
         let mut issue = Issue::new(number, req.title);
 
@@ -269,34 +284,31 @@ impl IssuesMcpServer {
     }
 
     #[tool(
-        description = "List issues with optional filters for project, status, assignee, and label. Supports cursor-based pagination."
+        description = "List issues with optional filters for project, status, assignee, and label. Supports offset-based pagination."
     )]
     async fn list_issues(
         &self,
         Parameters(req): Parameters<ListIssuesRequest>,
     ) -> Result<String, String> {
-        let limit = req.limit.unwrap_or(25).min(100);
+        // C9: clamp limit
+        let limit = req.limit.unwrap_or(25).clamp(1, 100);
         let status = req.status.as_deref().map(IssueStatus::from_str);
 
-        let (issues, next_cursor) = self
+        let (issues, next_offset) = self
             .issues
             .list(
                 req.project.as_deref(),
                 status.as_ref(),
                 req.assignee.as_deref(),
                 req.label.as_deref(),
-                req.cursor,
+                req.offset,
                 limit,
             )
             .await
             .map_err(|e| e.to_string())?;
 
         let count = issues.len();
-        let result = PagedIssues {
-            issues,
-            count,
-            next_cursor,
-        };
+        let result = PagedIssues { issues, count, next_offset };
 
         serde_json::to_string_pretty(&result).map_err(|e| e.to_string())
     }
@@ -361,7 +373,7 @@ impl IssuesMcpServer {
         // Verify it exists first
         self.resolve_issue(&req.id).await?;
 
-        if req.delete_comments.unwrap_or(true) {
+        if req.delete_comments.unwrap_or(false) {
             self.comments
                 .delete_by_issue(&req.id)
                 .await
@@ -370,51 +382,29 @@ impl IssuesMcpServer {
 
         self.issues.delete(&req.id).await.map_err(|e| e.to_string())?;
 
-        Ok(format!("{{\"deleted\": \"{}\"}}", req.id))
+        // C8: safe JSON delete response
+        serde_json::to_string(&serde_json::json!({"deleted": req.id}))
+            .map_err(|e| e.to_string())
     }
 
     #[tool(
-        description = "Search issues by keyword. Matches against title and description."
+        description = "Search issues by keyword using BM25 full-text search. Matches against title and description."
     )]
     async fn search_issues(
         &self,
         Parameters(req): Parameters<SearchIssuesRequest>,
     ) -> Result<String, String> {
-        let limit = req.limit.unwrap_or(10).min(50);
-        let query_lower = req.query.to_lowercase();
+        // C9: clamp limit
+        let limit = req.limit.unwrap_or(10).clamp(1, 50);
 
-        // Fetch all issues and do case-insensitive substring matching.
-        // For large datasets, replace with vector/BM25 search.
-        let (all_issues, _) = self
+        let matches = self
             .issues
-            .list(None, None, None, None, None, 1000)
+            .search(&req.query, limit)
             .await
             .map_err(|e| e.to_string())?;
 
-        let mut matches: Vec<Issue> = all_issues
-            .into_iter()
-            .filter(|i| {
-                i.title.to_lowercase().contains(&query_lower)
-                    || i.description.to_lowercase().contains(&query_lower)
-            })
-            .take(limit)
-            .collect();
-
-        // Rank: title matches first
-        matches.sort_by_key(|i| {
-            if i.title.to_lowercase().contains(&query_lower) {
-                0u8
-            } else {
-                1u8
-            }
-        });
-
         let count = matches.len();
-        let result = PagedIssues {
-            count,
-            issues: matches,
-            next_cursor: None,
-        };
+        let result = PagedIssues { count, issues: matches, next_offset: None };
 
         serde_json::to_string_pretty(&result).map_err(|e| e.to_string())
     }
@@ -437,25 +427,22 @@ impl IssuesMcpServer {
         serde_json::to_string_pretty(&comment).map_err(|e| e.to_string())
     }
 
-    #[tool(description = "List comments on an issue with cursor-based pagination")]
+    #[tool(description = "List comments on an issue with offset-based pagination")]
     async fn list_comments(
         &self,
         Parameters(req): Parameters<ListCommentsRequest>,
     ) -> Result<String, String> {
-        let limit = req.limit.unwrap_or(50).min(200);
+        // C9: clamp limit
+        let limit = req.limit.unwrap_or(50).clamp(1, 200);
 
-        let (comments, next_cursor) = self
+        let (comments, next_offset) = self
             .comments
-            .list_for_issue(&req.issue_id, req.cursor, limit)
+            .list_for_issue(&req.issue_id, req.offset, limit)
             .await
             .map_err(|e| e.to_string())?;
 
         let count = comments.len();
-        let result = PagedComments {
-            comments,
-            count,
-            next_cursor,
-        };
+        let result = PagedComments { comments, count, next_offset };
 
         serde_json::to_string_pretty(&result).map_err(|e| e.to_string())
     }
@@ -465,12 +452,21 @@ impl IssuesMcpServer {
         &self,
         Parameters(req): Parameters<DeleteCommentRequest>,
     ) -> Result<String, String> {
+        // C7: verify comment exists before deleting
+        self.comments
+            .get(&req.id)
+            .await
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| format!("Comment {} not found", req.id))?;
+
         self.comments
             .delete(&req.id)
             .await
             .map_err(|e| e.to_string())?;
 
-        Ok(format!("{{\"deleted\": \"{}\"}}", req.id))
+        // C8: safe JSON delete response
+        serde_json::to_string(&serde_json::json!({"deleted": req.id}))
+            .map_err(|e| e.to_string())
     }
 }
 
