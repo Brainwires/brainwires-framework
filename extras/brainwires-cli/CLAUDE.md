@@ -861,8 +861,8 @@ Locks are acquired on-demand and released immediately:
 
 1. **Always read validation_loop.rs before modifying agents** - Validation is critical for reliability
 2. **Test with MCP server mode** - Easiest way to test agent spawning and tool execution
-3. **Check test-results/ for known issues** - Comprehensive bug reports with fixes
+3. **Run tests with --nocapture to diagnose failures** - See Critical Bug Fixes section for documented issues
 4. **Use RUST_LOG=debug** - Detailed logging helps debug agent coordination issues
 5. **Be aware of MDAP system** - Available for complex tasks, configurable via TaskAgentConfig
 6. **File locks are automatic** - Don't manually manage locks unless adding new file operations
-7. **All bugs are documented** - See bug-report-*.md files for context on past fixes
+7. **All known bugs are documented** - See the Critical Bug Fixes section above for context

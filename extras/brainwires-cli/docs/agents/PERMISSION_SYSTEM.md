@@ -1,4 +1,9 @@
-===
+# Agent Permission System
+
+> **Status:** This document describes the **planned** permission system architecture.
+> `PermissionMode` (`src/types/agent.rs`) is currently implemented. The `PolicyEngine`,
+> `AgentCapabilities`, `TrustFactor`, and audit infrastructure described below represent
+> the target design for future implementation phases.
 
 ## Comprehensive Agent Permission System
 

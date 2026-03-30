@@ -1,8 +1,5 @@
 # SEAL + Knowledge System Integration
 
-**Status:** Phase 1 Complete (Foundation)
-**Date:** 2026-01-27
-
 ## Overview
 
 This document describes the integration between SEAL (Self-Evolving Agentic Learning) and the Knowledge System (BKS/PKS), enabling bidirectional learning and context-aware entity resolution in brainwires-cli.
@@ -62,7 +59,7 @@ Injected into system prompt as PERSONAL CONTEXT
 ```
 
 **Implementation:** `SealKnowledgeCoordinator::get_pks_context()`
-**Location:** `src/seal/knowledge_integration.rs:240`
+**Location:** `brainwires::seal::knowledge_integration` (framework crate)
 
 ### 2. Query Context → BKS Truth Lookup
 
@@ -82,7 +79,7 @@ Injected into system prompt as BEHAVIORAL KNOWLEDGE
 ```
 
 **Implementation:** `SealKnowledgeCoordinator::get_bks_context()`
-**Location:** `src/seal/knowledge_integration.rs:275`
+**Location:** `brainwires::seal::knowledge_integration` (framework crate)
 
 ### 3. Confidence Harmonization
 
@@ -102,7 +99,7 @@ Combined = 0.6*0.5 + 0.9*0.3 + 0.8*0.2
 ```
 
 **Implementation:** `SealKnowledgeCoordinator::harmonize_confidence()`
-**Location:** `src/seal/knowledge_integration.rs:310`
+**Location:** `brainwires::seal::knowledge_integration` (framework crate)
 
 ### 4. Quality-Aware Retrieval Threshold Adjustment
 
@@ -121,7 +118,7 @@ More historical messages included to compensate for low quality
 ```
 
 **Implementation:** `SealKnowledgeCoordinator::adjust_retrieval_threshold()`
-**Location:** `src/seal/knowledge_integration.rs:326`
+**Location:** `brainwires::seal::knowledge_integration` (framework crate)
 
 ### 5. Pattern Promotion to BKS
 
@@ -147,7 +144,7 @@ Reliability: 8/9 = 0.889
 ```
 
 **Implementation:** `SealKnowledgeCoordinator::check_and_promote_pattern()`
-**Location:** `src/seal/knowledge_integration.rs:340`
+**Location:** `brainwires::seal::knowledge_integration` (framework crate)
 
 ### 6. PKS Entity Observation
 
@@ -166,7 +163,7 @@ PKS records: {
 ```
 
 **Implementation:** `SealKnowledgeCoordinator::observe_seal_resolutions()`
-**Location:** `src/seal/knowledge_integration.rs:420`
+**Location:** `brainwires::seal::knowledge_integration` (framework crate)
 
 ### 7. Tool Failure Recording
 
@@ -185,7 +182,7 @@ Context: "editing Rust file with whitespace mismatch"
 ```
 
 **Implementation:** `SealKnowledgeCoordinator::record_tool_failure()`
-**Location:** `src/seal/knowledge_integration.rs:443`
+**Location:** `brainwires::seal::knowledge_integration` (framework crate)
 
 ## OrchestratorAgent Integration
 
@@ -194,10 +191,10 @@ Context: "editing Rust file with whitespace mismatch"
 The coordinator is integrated into `OrchestratorAgent::call_provider()`:
 
 ```rust
-// Before (line 340)
+// Before
 async fn call_provider(&self, context: &AgentContext) -> Result<ChatResponse>
 
-// After (line 340-380)
+// After
 async fn call_provider(
     &mut self,
     context: &AgentContext,
@@ -211,7 +208,7 @@ async fn call_provider(
 2. **PKS Context Injection:** Queries PKS for entity-specific facts
 3. **Enhanced System Prompt:** Adds knowledge sections to prompt
 
-**Location:** `src/agents/orchestrator.rs:340-430`
+**Location:** `src/agents/orchestrator.rs` (`call_provider` method)
 
 ### Outcome Recording
 
@@ -220,7 +217,7 @@ The `record_seal_outcome()` method now:
 2. Observes entity resolutions in PKS (new)
 3. Checks for pattern promotion to BKS (deferred)
 
-**Location:** `src/agents/orchestrator.rs:780-810`
+**Location:** `src/agents/orchestrator.rs` (`record_seal_outcome` method)
 
 ## Configuration
 
@@ -262,7 +259,7 @@ pub struct IntegrationConfig {
 }
 ```
 
-**Location:** `src/seal/knowledge_integration.rs:77-148`
+**Location:** `brainwires::seal::knowledge_integration` (framework crate)
 
 ### Usage
 
@@ -308,23 +305,23 @@ Returns truths with relevance scores based on word overlap:
 1. `get_all_facts() -> Vec<&PersonalFact>`
    - Returns all non-deleted facts
    - Used for entity-based filtering
-   - **Location:** `crates/brainwires-cognition/src/knowledge/personal/cache.rs:305-310`
+   - **Location:** `crates/brainwires-cognition/src/knowledge/bks_pks/personal/cache.rs:305-310`
 
 2. `upsert_fact_simple(key, value, confidence, local_only)`
    - Simplified interface for quick fact insertion
    - Used by entity observation
-   - **Location:** `crates/brainwires-cognition/src/knowledge/personal/cache.rs:296-303`
+   - **Location:** `crates/brainwires-cognition/src/knowledge/bks_pks/personal/cache.rs:296-303`
 
 3. `get_facts_by_key_prefix(prefix)`
    - Gets facts matching a key prefix
    - E.g., "recent_entity:" gets all tracked entities
-   - **Location:** `crates/brainwires-cognition/src/knowledge/personal/cache.rs:312-318`
+   - **Location:** `crates/brainwires-cognition/src/knowledge/bks_pks/personal/cache.rs:312-318`
 
 ## Testing
 
 ### Unit Tests
 
-Located in `src/seal/knowledge_integration.rs`:
+Located in `brainwires::seal::knowledge_integration` (framework crate):
 
 ```rust
 #[test]
@@ -492,8 +489,8 @@ Category: Preference
 - [ ] Wire into validation_loop.rs for automatic learning
 
 **Files:**
-- `src/seal/learning.rs` (extend GlobalMemory)
-- `src/agents/validation_loop.rs`
+- `brainwires::seal::learning` (framework crate — extend GlobalMemory)
+- `brainwires::agents::validation_loop` (framework crate, re-exported via `src/agents/mod.rs`)
 
 ### Phase 4: Enhanced PKS Integration (HIGH PRIORITY)
 
@@ -536,11 +533,11 @@ Category: Preference
 ## References
 
 - **Main Plan:** `/SEAL_KNOWLEDGE_INTEGRATION_PLAN.md`
-- **SEAL Module:** `src/seal/mod.rs`
+- **SEAL Module:** `brainwires::seal` (framework crate)
 - **Knowledge System:** `crates/brainwires-cognition/src/knowledge/mod.rs`
 - **Orchestrator:** `src/agents/orchestrator.rs`
 - **BKS:** `crates/brainwires-cognition/src/knowledge/cache.rs`
-- **PKS:** `crates/brainwires-cognition/src/knowledge/personal/cache.rs`
+- **PKS:** `crates/brainwires-cognition/src/knowledge/bks_pks/personal/cache.rs`
 
 ## Contributing
 

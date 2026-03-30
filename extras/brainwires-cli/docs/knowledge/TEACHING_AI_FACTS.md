@@ -438,7 +438,7 @@ Coming in future releases:
 
 ## Support
 
-- **GitHub Issues:** https://github.com/anthropics/brainwires-cli/issues
+- **GitHub Issues:** https://github.com/brainwires/brainwires-framework/issues
 - **Documentation:** `docs/` directory
 - **Source Code:** `crates/brainwires-cognition/src/knowledge/personal/`
 

@@ -30,6 +30,11 @@ Get your test key from: https://brainwires.studio
 
 ### Optional Runtime Configuration
 
+> **Note:** The variables in this section (`BRAINWIRES_API_KEY`, `BRAINWIRES_BACKEND_URL`,
+> `BRAINWIRES_MODEL`) are **not read by the CLI at runtime**. Runtime configuration is managed
+> via `brainwires config --set key=value` (stored in `~/.brainwires/config.json`) and
+> `brainwires auth login`. These variables are listed here for reference only.
+
 **`BRAINWIRES_API_KEY`** - Default API key
 ```bash
 BRAINWIRES_API_KEY=bw_your_api_key_here

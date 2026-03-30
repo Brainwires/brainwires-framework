@@ -352,7 +352,7 @@ Create, manage, and execute structured execution plans:
 
 ```bash
 # List all plans
-/plan:list
+/plans
 
 # Show plan details
 /plan:show <plan_id>
@@ -368,9 +368,6 @@ Create, manage, and execute structured execution plans:
 
 # Resume a paused plan
 /plan:resume
-
-# Export plan to markdown file
-/plan:export [path]
 ```
 
 ### Plan Branching
@@ -409,7 +406,7 @@ Save and reuse plan templates with variable substitution:
 
 ```bash
 # List all templates
-/template:list
+/templates
 
 # Save current plan as template
 /template:save <name> [description]
@@ -529,7 +526,7 @@ cargo run -- chat
 
 ## Architecture
 
-Brainwires CLI is built on the **Brainwires Framework**, a submodule of 18 crates exposed through a feature-gated facade.
+Brainwires CLI is built on the **Brainwires Framework**, a submodule of 22 crates exposed through a feature-gated facade.
 
 ### Brainwires Framework (`crates/brainwires-framework/`)
 

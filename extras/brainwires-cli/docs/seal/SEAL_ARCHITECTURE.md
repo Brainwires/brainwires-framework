@@ -327,5 +327,5 @@ Test coverage includes:
 ## References
 
 - SEAL Paper: Self-Evolving Agentic Learning for Knowledge-Based Conversational QA
-- [Relationship Graph](./INFINITE_CONTEXT.md) - Knowledge graph implementation
-- [Entity Extraction](../src/utils/entity_extraction.rs) - Entity detection
+- [Relationship Graph](../infinite-context/INFINITE_CONTEXT.md) - Knowledge graph implementation
+- [Entity Extraction](../../src/utils/entity_extraction.rs) - Entity detection

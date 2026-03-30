@@ -14,12 +14,16 @@ The agent system enables autonomous, concurrent execution of coding tasks. An ex
 |-----------|------|---------|
 | TaskAgent | `src/agents/task_agent.rs` | Executes individual tasks autonomously |
 | AgentPool | `src/agents/pool.rs` | Manages concurrent agent lifecycles |
-| CommunicationHub | `src/agents/communication.rs` | Inter-agent messaging bus |
-| FileLockManager | `src/agents/file_locks.rs` | File access coordination |
-| Validation Loop | `src/agents/validation_loop.rs` | Quality checks before task completion |
+| CommunicationHub | `src/agents/communication.rs` ¹ | Inter-agent messaging bus |
+| FileLockManager | `src/agents/file_locks.rs` ¹ | File access coordination |
+| Validation Loop | `src/agents/validation_loop.rs` ¹ | Quality checks before task completion |
 | MCP Handler | `src/mcp_server/handler.rs` | JSON-RPC interface for agent management |
 | Agent Tools | `src/mcp_server/agent_tools.rs` | MCP tool definitions for spawning/querying |
 | Task Type | `src/types/agent.rs` | Task struct and lifecycle methods |
+
+> ¹ Implemented in the `brainwires-agents` framework crate; re-exported into the CLI via
+> `pub use brainwires::agents::*` in `src/agents/mod.rs`. Fully accessible from CLI code
+> but not present as local files under `src/agents/`.
 
 ---
 

@@ -19,7 +19,7 @@ MCP server mode transforms the CLI into a background service that:
 brainwires chat --mcp-server
 
 # With specific model
-brainwires chat --mcp-server --model claude-3-5-sonnet-20241022
+brainwires chat --mcp-server --model gpt-5-mini
 
 # With custom system prompt
 brainwires chat --mcp-server --system "You are a specialized code reviewer"
@@ -241,7 +241,7 @@ Connect your IDE to brainwires agents:
 
 ```bash
 # Use specific Claude model
-brainwires chat --mcp-server --model claude-3-5-sonnet-20241022
+brainwires chat --mcp-server --model gpt-5-mini
 
 # Uses default model from config if not specified
 brainwires chat --mcp-server
