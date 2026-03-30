@@ -91,7 +91,7 @@ println!("{} iterations, success={}", result.iterations, result.success);
 | `seal-knowledge` | No | BKS/PKS knowledge system integration for SEAL via `brainwires-cognition` |
 | `seal-feedback` | No | Audit feedback bridge for SEAL via `brainwires-permissions` |
 | `reasoning` | No | Named reasoning strategies (ReAct, Reflexion, CoT, ToT) and local inference |
-| `eval` | No | Evaluation framework (trials, adversarial, regression, stability) |
+| `eval` | No | Evaluation framework (trials, adversarial, regression, stability, ranking metrics — NDCG, MRR, Precision@K) |
 | `otel` | No | OpenTelemetry span export for agent execution traces |
 
 Enable features in `Cargo.toml`:

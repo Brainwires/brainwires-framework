@@ -18,7 +18,7 @@ Autonomous agent operations for the Brainwires Framework — self-improvement, G
 | Feature | Description |
 |---------|-------------|
 | `self-improve` | Self-improvement controller, strategies, and crash recovery |
-| `eval-driven` | Eval-driven feedback loop (requires `brainwires-eval`) |
+| `eval-driven` | Eval-driven feedback loop + empirical scoring eval cases for entity importance and tiered memory |
 | `supervisor` | Agent supervisor with health monitoring and restart |
 | `attention` | Attention mechanism with RAG integration |
 | `parallel` | Parallel coordinator with optional MDAP |
@@ -30,6 +30,27 @@ Autonomous agent operations for the Brainwires Framework — self-improvement, G
 | `services` | System service management (systemd, Docker, processes) |
 | `gpio` | GPIO hardware access via `brainwires-hardware` (Linux) |
 | `full` | All features enabled |
+
+## Empirical Eval Cases (`eval-driven`)
+
+The `eval-driven` feature includes eval cases that validate scoring heuristics produce correct relative orderings, measured via NDCG. These plug directly into `AutonomousFeedbackLoop`:
+
+```rust
+use brainwires_autonomy::eval::{entity_importance_suite, multi_factor_suite};
+
+let cases = [entity_importance_suite(), multi_factor_suite()].concat();
+let loop_ = AutonomousFeedbackLoop::new(config, cases, provider);
+```
+
+| Case | Category | What it validates |
+|------|----------|------------------|
+| `EntityImportanceRankingCase` | `entity_resolution` | Hub entities rank above peripheral (NDCG ≥ 0.8) |
+| `EntitySingleMentionCase` | `entity_resolution` | Single-mention entities have non-zero importance despite ln(1)=0 |
+| `EntityTypeBonusCase` | `entity_resolution` | File > Type > Function > Error > Concept > Command > Variable (NDCG ≥ 0.95) |
+| `MultiFactorRankingCase` | `memory` | 4 scenarios: similarity, recency, fast-decay, and importance ordering (NDCG ≥ 0.99 each) |
+| `TierDemotionCase` | `memory` | Lowest-retention entries are ranked first for demotion (NDCG ≥ 0.99) |
+
+All cases are deterministic (no LLM calls) and complete in under 1 ms.
 
 ## Examples
 

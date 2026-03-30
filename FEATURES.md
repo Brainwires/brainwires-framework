@@ -822,6 +822,13 @@ Self-improvement, Git workflows, and human-out-of-loop execution.
 
 - **AutonomousFeedbackLoop** — Continuous evaluation and improvement
 - **FeedbackLoopConfig** / **FeedbackLoopReport**
+- **Empirical scoring eval cases** (`brainwires_autonomy::eval`) — validates scoring heuristics produce correct relative orderings via NDCG:
+  - `EntityImportanceRankingCase` — hub vs. peripheral entity ranking
+  - `EntitySingleMentionCase` — ln(1)=0 zero-contribution is compensated by type bonus
+  - `EntityTypeBonusCase` — type-bonus ordering matches hardcoded priority table
+  - `MultiFactorRankingCase` — 4 scenarios (similarity dominance, recency decay, fast decay, importance tiebreaker)
+  - `TierDemotionCase` — `TierMetadata::retention_score` orders demotion candidates correctly
+  - `entity_importance_suite()` / `multi_factor_suite()` — convenience constructors for `AutonomousFeedbackLoop`
 
 ### Git Workflow Pipeline (feature: `git-workflow`)
 

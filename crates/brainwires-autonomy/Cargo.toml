@@ -21,6 +21,7 @@ brainwires-providers = { workspace = true, optional = true }
 brainwires-training = { workspace = true, optional = true }
 brainwires-cognition = { workspace = true, optional = true }
 brainwires-datasets = { workspace = true, optional = true }
+brainwires-storage = { workspace = true, optional = true }
 
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -68,7 +69,12 @@ wasm = ["brainwires-core/wasm"]
 
 # Self-improvement (extracted from CLI)
 self-improve = ["dep:brainwires-agents", "dep:brainwires-tool-system", "dep:regex", "dep:walkdir"]
-eval-driven = ["self-improve", "dep:brainwires-agents", "brainwires-agents/eval"]
+eval-driven = [
+    "self-improve",
+    "dep:brainwires-agents", "brainwires-agents/eval",
+    "dep:brainwires-cognition", "brainwires-cognition/knowledge", "brainwires-cognition/prompting",
+    "dep:brainwires-storage",
+]
 
 # Agent operations
 supervisor = ["dep:brainwires-agents"]

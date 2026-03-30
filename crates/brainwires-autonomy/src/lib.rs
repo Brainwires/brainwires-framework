@@ -28,6 +28,9 @@ pub mod self_improve;
 
 pub mod agent_ops;
 
+#[cfg(feature = "eval-driven")]
+pub mod eval;
+
 #[cfg(feature = "git-workflow")]
 pub mod git_workflow;
 

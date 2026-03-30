@@ -204,6 +204,17 @@ Central API for thought capture and retrieval. Backend-agnostic via `StorageBack
 | `get_neighbors(name)` | Adjacent entities |
 | `shortest_path(from, to)` | BFS shortest path |
 | `importance_score(name)` | Degree centrality score |
+| `calculate_importance(entity)` | Compute importance score for an entity (public) |
+
+**`RelationshipGraph::calculate_importance` formula**:
+
+```
+score = ln(mention_count).max(0) * 0.3   // mention-count component
+      + type_bonus                         // File=0.4, Type=0.35, Function=0.3, Error=0.25, Concept=0.2, Command=0.15, Variable=0.1
+      + min(message_spread * 0.05, 0.2)   // recency proxy (capped at 0.2)
+```
+
+**Known limitation**: `ln(1) = 0`, so the mention-count component contributes nothing for entities seen exactly once. The type bonus and recency proxy still apply, so the score is always non-zero — but a single-mention entity's score depends solely on its type and message spread. Empirical validation via `brainwires_autonomy::eval::EntitySingleMentionCase` confirms non-zero scoring is maintained.
 
 ### Knowledge Systems
 
