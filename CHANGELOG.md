@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### New Crates
 
+- **`brainwires-analytics`** — Unified analytics collection, persistence, and querying for the framework. `AnalyticsCollector` multi-sink dispatcher with 10 typed event variants: `ProviderCall` (tokens, cost, latency), `AgentRun` (iterations, tool calls, total cost), `ToolCall`, `McpRequest`, `ChannelMessage`, `StorageOp`, `NetworkMessage`, `DreamCycle`, `AutonomySession`, and `Custom` (escape hatch). `AnalyticsLayer` — drop-in `tracing-subscriber` layer that automatically intercepts known span names (`provider.chat`, etc.) without modifying instrumented code. `MemoryAnalyticsSink` — in-process ring buffer. `SqliteAnalyticsSink` + `AnalyticsQuery` (feature `sqlite`) — local SQLite persistence and aggregated reporting: `cost_by_model()`, `tool_frequency()`, `daily_summary()`, `rebuild_summaries()`. All event types are fully serializable.
+
 - **`brainwires-channels`** — Universal messaging channel contract for adapter implementations. Provides `Channel` trait (7 async methods), `ChannelMessage`, `ChannelEvent` (8 variants), `ChannelCapabilities` (12 bitflags), `ChannelUser`, `ChannelSession`, `ConversationId`, and `ChannelHandshake` protocol. Bidirectional conversion between `ChannelMessage` and agent-network `MessageEnvelope`.
 - **`brainwires-mcp-server`** — MCP server framework extracted from `brainwires-agent-network`. Provides `McpServer`, `McpHandler` trait, `McpToolRegistry` (declarative tool registration + dispatch), `ServerTransport`/`StdioServerTransport`, and a composable middleware pipeline: `AuthMiddleware`, `LoggingMiddleware`, `RateLimitMiddleware`, `ToolFilterMiddleware`.
 
@@ -70,6 +72,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`brainwires-signal-channel`** — Signal messenger adapter via `signal-cli-rest-api`. WebSocket push mode with polling fallback. `Channel` trait implementation. Filtering: self-messages, sender/group allowlists, @mention/keyword trigger for groups. Optional MCP tool server (`--mcp`): `send_message`, `add_reaction`. Capabilities: `REACTIONS`.
 - **`brainwires-skill-registry`** — HTTP skill registry server. SQLite with FTS5 full-text search. Endpoints: publish, search (query + tag filter), get manifest (latest or by version), download package. Auto-creates schema on first run.
 
+#### Extras — Issue Tracker (`extras/brainwires-issues/`)
+
+- **`brainwires-issues`** — Lightweight MCP-native issue tracking server inspired by Linear's agent interface. Serves 10 tools: `create_issue`, `get_issue` (accepts UUID or `#number`), `list_issues` (filters: project, status, assignee, label; offset-based pagination), `update_issue`, `close_issue`, `delete_issue` (optional cascade), `search_issues` (BM25 full-text with in-memory fallback), `add_comment`, `list_comments` (offset pagination), `delete_comment`. Four prompts: `/create`, `/list`, `/search`, `/triage`. Data model: `Issue` with UUID, auto-incrementing display number, title, description, status (Backlog/Todo/InProgress/InReview/Done/Cancelled), priority (NoPriority/Low/Medium/High/Urgent), labels (Vec<String>), assignee, project, parent_id for sub-issues, created/updated/closed timestamps. Comments with author and body. LanceDB backend at `<data_dir>/brainwires-issues/lancedb/`; BM25 full-text index at `<data_dir>/brainwires-issues/bm25/`.
+
 #### Extras — brainwires-cli (`extras/brainwires-cli/`)
 
 - **`brainwires-cli`** migrated into monorepo — The flagship AI-powered agentic CLI (76k lines) moved from a standalone repository with a framework git submodule into `extras/brainwires-cli/` as a root workspace member. Eliminates the two-repo submodule workflow; CI now covers CLI and framework changes together. `agent-chat` remains as the minimal reference implementation.
@@ -79,6 +85,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`ChatOptions::model`** — New `model: Option<String>` field. When `Some`, all providers (Anthropic, OpenAI, OpenAI Responses, Gemini, Ollama, and OpenAI-compatible) substitute this model for their configured default on that request. Enables per-request and per-session model switching without recreating the provider. `ChatOptions` gains a `.model()` builder method.
 
 ### Fixed
+
+#### Storage (`brainwires-storage`)
+
+- **LanceDB 0.27 upgrade** — Bumped `lancedb` from 0.26 to 0.27. Fixed `Scannable` API breaking change: `create_table()` and `add()` now require `T: Scannable`; cast `RecordBatchIterator` to `Box<dyn RecordBatchReader + Send>` at all callsites.
+- **SQL injection prevention** — `filter_to_sql()` now backtick-quotes all column names, preventing column identifiers from being misinterpreted as SQL keywords or operators. Three `LanceDatabase` callsites that interpolated user-controlled `project_name` and `root_path` values directly into SQL filter strings have been replaced with typed `Filter::Eq` expressions.
+- **BM25 parse errors logged** — `parse_query_lenient()` errors were silently discarded; now logged via `tracing::warn!` so dropped search terms are visible.
+- **BM25 schema drift recovery** — Opening an existing BM25 index now validates that all required fields (`id`, `content`, `file_path`) exist. On mismatch (e.g. after a schema change between versions) the stale index is deleted and rebuilt automatically.
+- **BM25 silent document loss fixed** — Documents with a missing or corrupt `id` field are now logged (`tracing::warn!`) instead of silently skipped, making index corruption visible.
+- **BM25 `STORED` flag added to `content` field** — The `content` field was indexed as `TEXT` only; adding `STORED` allows document content to be retrieved after indexing. Existing indexes are rebuilt automatically via the schema drift check above.
 
 #### Facade (`brainwires`)
 

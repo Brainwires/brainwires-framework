@@ -1,6 +1,6 @@
 # Brainwires Framework — Complete Feature List
 
-A comprehensive catalog of every feature provided by the framework's 20 crates and 13 extras.
+A comprehensive catalog of every feature provided by the framework's 21 crates and 14 extras.
 
 ---
 
@@ -40,6 +40,7 @@ A comprehensive catalog of every feature provided by the framework's 20 crates a
 - [Autonomous Operations](#autonomous-operations)
 - [Reasoning & Inference](#reasoning--inference)
 - [Evaluation Framework](#evaluation-framework)
+- [Analytics](#analytics)
 - [Proxy Framework](#proxy-framework)
 - [WASM Bindings](#wasm-bindings)
 - [Extras & Standalone Binaries](#extras--standalone-binaries)
@@ -914,6 +915,49 @@ Monte Carlo evaluation framework for agent quality assurance.
 
 ---
 
+## Analytics
+
+**Crate:** `brainwires-analytics`
+
+Unified analytics collection, persistence, and querying — zero-friction observability for all framework components.
+
+### Event Types (`AnalyticsEvent`)
+
+10 fully serializable typed event variants:
+
+| Variant | Key fields |
+|---------|-----------|
+| `ProviderCall` | provider, model, prompt/completion tokens, cost, latency, success |
+| `AgentRun` | agent_id, task_id, iterations, tool calls, token totals, cost, duration |
+| `ToolCall` | agent_id, tool_name, tool_use_id, is_error, duration |
+| `McpRequest` | server_name, tool_name, success, duration |
+| `ChannelMessage` | channel_type, direction, message length |
+| `StorageOp` | store_type, operation, success, duration |
+| `NetworkMessage` | protocol, direction, bytes, success |
+| `DreamCycle` | sessions processed, messages summarized, facts extracted, token reduction |
+| `AutonomySession` | tasks attempted/succeeded/failed, total cost, duration |
+| `Custom` | name, arbitrary JSON payload |
+
+### Collection
+
+- **`AnalyticsCollector`** — Multi-sink dispatcher; call `record(event)` from any instrumented site. Clone-safe (`Arc`-backed).
+- **`AnalyticsLayer`** — `tracing-subscriber` layer that automatically intercepts known span names (`provider.chat`, etc.) without modifying instrumented code. Register alongside your existing tracing setup.
+
+### Sinks
+
+- **`MemoryAnalyticsSink`** — In-process ring buffer; useful for testing and dashboards.
+- **`SqliteAnalyticsSink`** (feature `sqlite`) — Persists events to a local SQLite database at `<data_dir>/brainwires-analytics/analytics.db`.
+
+### Querying (feature `sqlite`)
+
+- **`AnalyticsQuery`** — Aggregated reporting from the SQLite sink.
+  - `cost_by_model(start, end)` → `Vec<CostByModelRow>` (model, total cost, call count)
+  - `tool_frequency(start, end)` → `Vec<ToolFrequencyRow>` (tool name, call count, error count)
+  - `daily_summary(start, end)` → `Vec<DailySummaryRow>` (date, calls, tokens, cost)
+  - `rebuild_summaries()` — Refresh materialized summary tables
+
+---
+
 ## Proxy Framework
 
 **Crate:** `brainwires-proxy` *(extras/)*
@@ -953,6 +997,10 @@ Browser-compatible WASM bindings via `wasm-bindgen`.
 ### voice-assistant *(extras/)*
 
 Personal voice assistant binary built on `brainwires-hardware`. Mic capture → optional energy wake trigger → VAD-gated speech accumulation → OpenAI Whisper STT → LLM response (OpenAI chat completions) → OpenAI TTS playback. CLI: `--config <path.toml>`, `--list-devices`, `--wake-word <model>`, `--verbose`. TOML config covers STT model, TTS voice/model, silence tuning, wake word path, LLM model, system prompt, device names, and API key (or `OPENAI_API_KEY` env var). Graceful Ctrl-C shutdown.
+
+### brainwires-issues *(extras/)*
+
+Lightweight MCP-native issue tracking server inspired by Linear's agent interface. 10 tools: `create_issue` (title, description, priority, assignee, project, parent_id, labels), `get_issue` (UUID or `#number` display shorthand), `list_issues` (filter by project/status/assignee/label; offset-based pagination with `next_offset`), `update_issue`, `close_issue` (done or cancelled), `delete_issue` (optional comment cascade), `search_issues` (BM25 full-text; in-memory fallback), `add_comment`, `list_comments` (offset pagination), `delete_comment` (existence-checked). 4 prompts: `/create`, `/list`, `/search`, `/triage`. Data model: `Issue` (UUID + auto-incrementing display number, 6 status states, 5 priority levels, labels, assignee, project, parent_id for sub-issues, timestamps), `Comment`. Storage: LanceDB at `<data_dir>/brainwires-issues/lancedb/`; BM25 index at `<data_dir>/brainwires-issues/bm25/`.
 
 ### brainwires-brain-server *(extras/)*
 

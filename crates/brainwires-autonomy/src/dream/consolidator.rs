@@ -35,6 +35,8 @@ pub struct DreamConsolidator {
     provider: Arc<dyn Provider>,
     policy: DemotionPolicy,
     metrics: DreamMetrics,
+    #[cfg(feature = "analytics")]
+    analytics_collector: Option<std::sync::Arc<brainwires_analytics::AnalyticsCollector>>,
 }
 
 impl DreamConsolidator {
@@ -44,7 +46,16 @@ impl DreamConsolidator {
             provider,
             policy,
             metrics: DreamMetrics::default(),
+            #[cfg(feature = "analytics")]
+            analytics_collector: None,
         }
+    }
+
+    /// Attach an analytics collector to record DreamCycle events.
+    #[cfg(feature = "analytics")]
+    pub fn with_analytics(mut self, collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>) -> Self {
+        self.analytics_collector = Some(collector);
+        self
     }
 
     /// Run a full 4-phase consolidation cycle across all sessions in the store.
@@ -79,6 +90,22 @@ impl DreamConsolidator {
 
         report.metrics.duration = start.elapsed();
         self.metrics = report.metrics.clone();
+
+        #[cfg(feature = "analytics")]
+        if let Some(ref collector) = self.analytics_collector {
+            use brainwires_analytics::AnalyticsEvent;
+            let m = &report.metrics;
+            collector.record(AnalyticsEvent::DreamCycle {
+                session_id: None,
+                sessions_processed: m.sessions_processed,
+                messages_summarized: m.messages_summarized,
+                facts_extracted: m.facts_extracted,
+                tokens_before: m.tokens_before,
+                tokens_after: m.tokens_after,
+                duration_ms: m.duration.as_millis() as u64,
+                timestamp: chrono::Utc::now(),
+            });
+        }
 
         Ok(report)
     }

@@ -14,6 +14,8 @@ pub struct McpServer<H: McpHandler> {
     handler: H,
     middleware: MiddlewareChain,
     transport: Box<dyn ServerTransport>,
+    #[cfg(feature = "analytics")]
+    analytics_collector: Option<std::sync::Arc<brainwires_analytics::AnalyticsCollector>>,
 }
 
 impl<H: McpHandler> McpServer<H> {
@@ -23,6 +25,8 @@ impl<H: McpHandler> McpServer<H> {
             handler,
             middleware: MiddlewareChain::new(),
             transport: Box::new(StdioServerTransport::new()),
+            #[cfg(feature = "analytics")]
+            analytics_collector: None,
         }
     }
 
@@ -35,6 +39,13 @@ impl<H: McpHandler> McpServer<H> {
     /// Add a middleware to the processing pipeline.
     pub fn with_middleware(mut self, mw: impl Middleware) -> Self {
         self.middleware.add(mw);
+        self
+    }
+
+    /// Attach an analytics collector to record McpRequest events.
+    #[cfg(feature = "analytics")]
+    pub fn with_analytics(mut self, collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>) -> Self {
+        self.analytics_collector = Some(collector);
         self
     }
 
@@ -238,26 +249,44 @@ impl<H: McpHandler> McpServer<H> {
 
         let args = params.get("arguments").cloned().unwrap_or(json!({}));
 
-        match self.handler.call_tool(tool_name, args, ctx).await {
+        #[cfg(feature = "analytics")]
+        let _started = std::time::Instant::now();
+
+        let (response, success) = match self.handler.call_tool(tool_name, args, ctx).await {
             Ok(result) => {
                 let result_value = serde_json::to_value(result).unwrap_or(json!({}));
-                JsonRpcResponse {
+                (JsonRpcResponse {
                     jsonrpc: "2.0".to_string(),
                     id: request.id.clone(),
                     result: Some(result_value),
                     error: None,
-                }
+                }, true)
             }
             Err(e) => {
                 let error = AgentNetworkError::Internal(e);
-                JsonRpcResponse {
+                (JsonRpcResponse {
                     jsonrpc: "2.0".to_string(),
                     id: request.id.clone(),
                     result: None,
                     error: Some(error.to_json_rpc_error()),
-                }
+                }, false)
             }
+        };
+
+        #[cfg(feature = "analytics")]
+        if let Some(ref collector) = self.analytics_collector {
+            use brainwires_analytics::AnalyticsEvent;
+            collector.record(AnalyticsEvent::McpRequest {
+                session_id: None,
+                server_name: self.handler.server_info().name.clone(),
+                tool_name: tool_name.to_string(),
+                success,
+                duration_ms: _started.elapsed().as_millis() as u64,
+                timestamp: chrono::Utc::now(),
+            });
         }
+
+        response
     }
 
     async fn write_response(&mut self, response: &JsonRpcResponse) -> Result<()> {

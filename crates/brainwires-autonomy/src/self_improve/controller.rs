@@ -37,6 +37,8 @@ pub struct SelfImprovementController {
     metrics: SessionMetrics,
     safety: SafetyGuard,
     provider: Arc<dyn Provider>,
+    #[cfg(feature = "analytics")]
+    analytics_collector: Option<std::sync::Arc<brainwires_analytics::AnalyticsCollector>>,
 }
 
 impl SelfImprovementController {
@@ -50,6 +52,8 @@ impl SelfImprovementController {
             metrics: SessionMetrics::new(),
             safety,
             provider,
+            #[cfg(feature = "analytics")]
+            analytics_collector: None,
         }
     }
 
@@ -67,7 +71,16 @@ impl SelfImprovementController {
             metrics: SessionMetrics::new(),
             safety,
             provider,
+            #[cfg(feature = "analytics")]
+            analytics_collector: None,
         }
+    }
+
+    /// Attach an analytics collector to record AutonomySession events.
+    #[cfg(feature = "analytics")]
+    pub fn with_analytics(mut self, collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>) -> Self {
+        self.analytics_collector = Some(collector);
+        self
     }
 
     /// Run the complete self-improvement session.
@@ -141,6 +154,22 @@ impl SelfImprovementController {
         }
 
         let report = SessionReport::new(self.metrics.clone(), start.elapsed(), stop_reason);
+
+        #[cfg(feature = "analytics")]
+        if let Some(ref collector) = self.analytics_collector {
+            use brainwires_analytics::AnalyticsEvent;
+            let m = &report.metrics;
+            collector.record(AnalyticsEvent::AutonomySession {
+                session_id: None,
+                tasks_attempted: m.tasks_attempted,
+                tasks_succeeded: m.tasks_succeeded,
+                tasks_failed: m.tasks_failed,
+                total_cost_usd: m.total_cost,
+                duration_ms: report.duration.as_millis() as u64,
+                timestamp: chrono::Utc::now(),
+            });
+        }
+
         Ok(report)
     }
 

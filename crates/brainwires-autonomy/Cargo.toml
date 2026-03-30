@@ -52,6 +52,9 @@ subtle = { workspace = true, optional = true }
 # GPIO via brainwires-hardware
 brainwires-hardware = { workspace = true, optional = true, features = ["gpio"] }
 
+# Analytics
+brainwires-analytics = { workspace = true, optional = true }
+
 # Scheduler
 cron = { version = "0.15", optional = true }
 
@@ -85,6 +88,8 @@ gpio = ["dep:brainwires-hardware"]
 scheduler = ["dep:cron"]
 reactor = ["dep:notify"]
 services = []
+
+analytics = ["dep:brainwires-analytics", "brainwires-analytics/native"]
 
 full = ["self-improve", "eval-driven", "supervisor", "attention", "parallel", "training", "git-workflow", "webhook", "gpio", "scheduler", "reactor", "services", "dream"]
 

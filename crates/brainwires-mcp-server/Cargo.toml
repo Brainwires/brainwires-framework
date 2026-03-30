@@ -21,7 +21,12 @@ serde_json = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+brainwires-analytics = { workspace = true, optional = true }
+chrono = { workspace = true, optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
 chrono = { workspace = true }
+
+[features]
+analytics = ["dep:brainwires-analytics", "brainwires-analytics/native", "dep:chrono"]

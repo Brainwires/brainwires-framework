@@ -68,6 +68,9 @@ brainwires-a2a = { workspace = true, optional = true, features = ["client"] }
 # Keyring (optional, for secure API key storage)
 keyring = { workspace = true, optional = true }
 
+# Analytics
+brainwires-analytics = { workspace = true, optional = true }
+
 [features]
 default = ["client", "ipc-transport", "remote-transport"]
 client = ["dep:brainwires-mcp"]
@@ -80,6 +83,7 @@ mesh = ["tcp-transport"]
 registry-discovery = []
 full = ["mesh", "a2a-transport", "pubsub-transport", "registry-discovery"]
 auth-keyring = ["keyring"]
+analytics = ["dep:brainwires-analytics", "brainwires-analytics/native"]
 
 [dev-dependencies]
 tempfile = { workspace = true }

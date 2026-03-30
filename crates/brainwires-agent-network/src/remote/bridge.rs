@@ -148,6 +148,9 @@ pub struct RemoteBridge {
     pub org_policies: Arc<RwLock<Option<super::protocol::OrgPolicies>>>,
     /// Permission relay for remote tool-approval prompts.
     pub permission_relay: super::permission_relay::PermissionRelay,
+    /// Analytics collector for NetworkMessage events.
+    #[cfg(feature = "analytics")]
+    analytics_collector: Option<std::sync::Arc<brainwires_analytics::AnalyticsCollector>>,
 }
 
 impl RemoteBridge {
@@ -188,7 +191,16 @@ impl RemoteBridge {
             device_status: Arc::new(RwLock::new(None)),
             org_policies: Arc::new(RwLock::new(None)),
             permission_relay: super::permission_relay::PermissionRelay::new(),
+            #[cfg(feature = "analytics")]
+            analytics_collector: None,
         }
+    }
+
+    /// Attach an analytics collector to record NetworkMessage events.
+    #[cfg(feature = "analytics")]
+    pub fn with_analytics(mut self, collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>) -> Self {
+        self.analytics_collector = Some(collector);
+        self
     }
 
     /// Get current connection mode
@@ -720,6 +732,20 @@ impl RemoteBridge {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
             bail!("Heartbeat failed: {} - {}", status, body);
+        }
+
+        #[cfg(feature = "analytics")]
+        if let Some(ref collector) = self.analytics_collector {
+            use brainwires_analytics::AnalyticsEvent;
+            let body_bytes = serde_json::to_vec(&heartbeat_body).unwrap_or_default();
+            collector.record(AnalyticsEvent::NetworkMessage {
+                session_id: None,
+                protocol: "remote-bridge".to_string(),
+                direction: "outbound".to_string(),
+                bytes: body_bytes.len() as u64,
+                success: true,
+                timestamp: chrono::Utc::now(),
+            });
         }
 
         let response_body: serde_json::Value = response
