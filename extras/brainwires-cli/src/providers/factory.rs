@@ -48,8 +48,9 @@ impl ProviderFactory {
             ProviderType::Ollama => {
                 let base_url = backend_url_override
                     .or_else(|| config.provider_base_url.clone());
-                let provider_config = ProviderConfig::new(ProviderType::Ollama, model)
+                let mut provider_config = ProviderConfig::new(ProviderType::Ollama, model)
                     .with_base_url(base_url.unwrap_or_else(|| "http://localhost:11434".to_string()));
+                Self::attach_analytics(&mut provider_config);
                 ChatProviderFactory::create(&provider_config)
             }
             ProviderType::Bedrock => {
@@ -62,6 +63,7 @@ impl ProviderFactory {
                     }
                 }
 
+                Self::attach_analytics(&mut provider_config);
                 ChatProviderFactory::create(&provider_config)
             }
             ProviderType::VertexAI => {
@@ -77,6 +79,7 @@ impl ProviderFactory {
                     }
                 }
 
+                Self::attach_analytics(&mut provider_config);
                 ChatProviderFactory::create(&provider_config)
             }
             provider_type => {
@@ -95,8 +98,19 @@ impl ProviderFactory {
                     provider_config = provider_config.with_base_url(url);
                 }
 
+                Self::attach_analytics(&mut provider_config);
                 ChatProviderFactory::create(&provider_config)
             }
+        }
+    }
+
+    /// Attach the global analytics collector to a ProviderConfig.
+    ///
+    /// brainwires-analytics is a direct dep of brainwires-cli and brainwires-providers
+    /// is built with the `analytics` feature via brainwires/full, so this is always available.
+    fn attach_analytics(config: &mut ProviderConfig) {
+        if let Some(collector) = crate::utils::logger::analytics_collector() {
+            config.analytics_collector = Some(std::sync::Arc::new(collector));
         }
     }
 

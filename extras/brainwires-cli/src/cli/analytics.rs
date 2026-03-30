@@ -281,10 +281,10 @@ fn handle_events(limit: usize, event_type: Option<String>, json: bool) -> Result
     let q = open_query()?;
     let rows = q.recent_events(limit, event_type.as_deref())?;
 
-    if json || !json {
-        // events are always best shown as JSON — pretty-print regardless
-        println!("{}", serde_json::to_string_pretty(&rows)?);
-    }
+    // Raw events are always output as JSON — human-readable formatting
+    // would require decomposing every event variant and adds little value.
+    let _ = json; // flag accepted for CLI consistency but JSON is always used
+    println!("{}", serde_json::to_string_pretty(&rows)?);
 
     Ok(())
 }

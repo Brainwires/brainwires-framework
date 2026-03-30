@@ -89,6 +89,18 @@ impl AnalyticsSink for SqliteAnalyticsSink {
             Self::insert_event(&conn, &event).map_err(AnalyticsError::Other)
         })
     }
+
+    /// Checkpoint the WAL file so all written events are durable in the main DB file.
+    ///
+    /// Without this, recent events are only in the `-wal` sidecar and may be lost
+    /// if the process is killed before SQLite performs an automatic checkpoint.
+    async fn flush(&self) -> Result<(), AnalyticsError> {
+        tokio::task::block_in_place(|| {
+            let conn = self.conn.lock().expect("analytics DB lock poisoned");
+            conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")
+                .map_err(|e| AnalyticsError::Other(anyhow::anyhow!(e)))
+        })
+    }
 }
 
 #[cfg(test)]

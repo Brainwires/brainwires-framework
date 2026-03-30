@@ -538,6 +538,7 @@ impl McpServerHandler {
             max_tokens: 4096,
             validation_config,
             mdap_config,
+            analytics_collector: crate::utils::logger::analytics_collector().map(std::sync::Arc::new),
         };
 
         let agent = Arc::new(TaskAgent::new(

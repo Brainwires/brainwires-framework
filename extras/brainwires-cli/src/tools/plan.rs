@@ -178,6 +178,7 @@ impl PlanTool {
             max_tokens: 4096,
             validation_config: None,  // No validation for read-only planning agents
             mdap_config: None,  // MDAP not used for planning agents
+            analytics_collector: crate::utils::logger::analytics_collector().map(std::sync::Arc::new),
         };
 
         // Create task

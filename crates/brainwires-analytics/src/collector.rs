@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use tokio::sync::{mpsc, watch};
+use tokio::sync::{mpsc, oneshot, watch};
 
 use crate::{AnalyticsError, AnalyticsEvent, BoxedSink};
 
@@ -22,7 +22,6 @@ const CHANNEL_CAPACITY: usize = 4096;
 /// tokio::spawn(async move { c2.record(event); });
 ///
 /// // Graceful shutdown
-/// collector.flush().await?;
 /// collector.shutdown().await;
 /// ```
 pub struct AnalyticsCollector {
@@ -43,6 +42,9 @@ impl std::fmt::Debug for AnalyticsCollector {
 
 struct CollectorInner {
     tx:          mpsc::Sender<AnalyticsEvent>,
+    /// Send a oneshot reply-channel to request a flush; drain loop responds after
+    /// all pending events are processed and sinks are flushed.
+    flush_tx:    mpsc::Sender<oneshot::Sender<()>>,
     shutdown_tx: watch::Sender<bool>,
 }
 
@@ -52,12 +54,13 @@ impl AnalyticsCollector {
     /// Must be called after the tokio runtime is running.
     pub fn new(sinks: Vec<BoxedSink>) -> Self {
         let (tx, rx)                   = mpsc::channel(CHANNEL_CAPACITY);
+        let (flush_tx, flush_rx)       = mpsc::channel::<oneshot::Sender<()>>(8);
         let (shutdown_tx, shutdown_rx) = watch::channel(false);
 
-        tokio::spawn(drain_loop(rx, sinks, shutdown_rx));
+        tokio::spawn(drain_loop(rx, flush_rx, sinks, shutdown_rx));
 
         Self {
-            inner: Arc::new(CollectorInner { tx, shutdown_tx }),
+            inner: Arc::new(CollectorInner { tx, flush_tx, shutdown_tx }),
         }
     }
 
@@ -69,27 +72,34 @@ impl AnalyticsCollector {
         let _ = self.inner.tx.try_send(event);
     }
 
-    /// Wait for the event queue to drain, then flush all sinks.
+    /// Wait for all queued events to be delivered to sinks, then flush every sink.
+    ///
+    /// Uses a sentinel pattern: sends a oneshot reply-channel into the drain task's
+    /// flush queue. The drain task drains all pending events first, calls
+    /// `sink.flush()` on each sink, then replies. This guarantees durability
+    /// (e.g. WAL checkpoint) before returning.
     pub async fn flush(&self) -> Result<(), AnalyticsError> {
-        // Send a sentinel and wait until the channel drains below that point.
-        // Simplest approach: wait until the channel's length approaches zero.
-        // We poll with a short sleep rather than adding sentinel complexity.
-        while self.inner.tx.max_capacity() - self.inner.tx.capacity() > 0 {
-            tokio::time::sleep(tokio::time::Duration::from_millis(5)).await;
+        let (reply_tx, reply_rx) = oneshot::channel();
+        // If the flush channel is full or closed, fail-open.
+        if self.inner.flush_tx.send(reply_tx).await.is_ok() {
+            let _ = reply_rx.await;
         }
         Ok(())
     }
 
     /// Signal the background drain task to stop after emptying the queue.
+    ///
+    /// Drains pending events, flushes all sinks, then terminates the task.
     pub async fn shutdown(&self) {
         let _ = self.inner.shutdown_tx.send(true);
-        // Give the drain task a moment to finish.
-        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+        // Give the drain task a moment to finish draining and flushing.
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
     }
 }
 
 async fn drain_loop(
     mut rx:          mpsc::Receiver<AnalyticsEvent>,
+    mut flush_rx:    mpsc::Receiver<oneshot::Sender<()>>,
     sinks:           Vec<BoxedSink>,
     mut shutdown_rx: watch::Receiver<bool>,
 ) {
@@ -107,6 +117,21 @@ async fn drain_loop(
                         );
                     }
                 }
+            }
+
+            Some(reply_tx) = flush_rx.recv() => {
+                // Drain all currently queued events before flushing sinks.
+                while let Ok(event) = rx.try_recv() {
+                    for sink in &sinks {
+                        let _ = sink.record(event.clone()).await;
+                    }
+                }
+                // Flush each sink to durable storage (e.g. WAL checkpoint).
+                for sink in &sinks {
+                    let _ = sink.flush().await;
+                }
+                // Signal caller that flush is complete.
+                let _ = reply_tx.send(());
             }
 
             _ = shutdown_rx.changed() => {
@@ -166,8 +191,8 @@ mod tests {
             collector.record(make_event());
         }
 
+        // flush() now guarantees all events are delivered before returning.
         collector.flush().await.unwrap();
-        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
 
         assert_eq!(mem.len(), 10);
     }
@@ -179,5 +204,27 @@ mod tests {
         for _ in 0..(CHANNEL_CAPACITY + 100) {
             collector.record(make_event());
         }
+    }
+
+    #[tokio::test]
+    async fn test_flush_ensures_delivery() {
+        let mem  = Arc::new(MemoryAnalyticsSink::new(1000));
+        let mem2 = Arc::clone(&mem);
+
+        struct SharedMemSink(Arc<MemoryAnalyticsSink>);
+        #[async_trait::async_trait]
+        impl crate::AnalyticsSink for SharedMemSink {
+            async fn record(&self, event: AnalyticsEvent) -> Result<(), AnalyticsError> {
+                self.0.record(event).await
+            }
+        }
+
+        let collector = AnalyticsCollector::new(vec![Box::new(SharedMemSink(Arc::clone(&mem2)))]);
+        for _ in 0..50 {
+            collector.record(make_event());
+        }
+        collector.flush().await.unwrap();
+        // After flush() returns, all 50 events must be in the sink.
+        assert_eq!(mem.len(), 50);
     }
 }

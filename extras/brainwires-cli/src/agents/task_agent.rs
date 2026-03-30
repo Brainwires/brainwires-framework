@@ -79,6 +79,8 @@ pub struct TaskAgentConfig {
     pub validation_config: Option<super::validation_loop::ValidationConfig>,
     /// MDAP configuration (Massively Decomposed Agentic Processes)
     pub mdap_config: Option<crate::mdap::MdapConfig>,
+    /// Analytics collector — emit AgentRun and ToolCall events
+    pub analytics_collector: Option<std::sync::Arc<brainwires_analytics::AnalyticsCollector>>,
 }
 
 impl Default for TaskAgentConfig {
@@ -91,6 +93,7 @@ impl Default for TaskAgentConfig {
             max_tokens: 4096,  // Conservative limit to prevent corruption
             validation_config: Some(super::validation_loop::ValidationConfig::default()),  // Enable validation by default
             mdap_config: None,  // Disabled by default
+            analytics_collector: crate::utils::logger::analytics_collector().map(std::sync::Arc::new),
         }
     }
 }
@@ -410,7 +413,19 @@ impl TaskAgent {
 
                             // Execute the tool
                             tracing::debug!("[Agent {}] Calling tool_executor.execute for {}", self.id, tool_use.name);
+                            let _tool_start = std::time::Instant::now();
                             let result = self.tool_executor.execute(&tool_use, &tool_context).await?;
+                            if let Some(ref collector) = self.config.analytics_collector {
+                                collector.record(brainwires_analytics::AnalyticsEvent::ToolCall {
+                                    session_id: None,
+                                    agent_id: Some(self.id.clone()),
+                                    tool_name: tool_use.name.clone(),
+                                    tool_use_id: tool_use.id.clone(),
+                                    is_error: result.is_error,
+                                    duration_ms: Some(_tool_start.elapsed().as_millis() as u64),
+                                    timestamp: chrono::Utc::now(),
+                                });
+                            }
                             tracing::debug!("[Agent {}] Tool {} returned: is_error={}", self.id, tool_use.name, result.is_error);
 
                             // Add tool result to context
@@ -467,7 +482,19 @@ impl TaskAgent {
                     )))
                     .await;
 
+                    let _tool_start = std::time::Instant::now();
                     let result = self.tool_executor.execute(&tool_use, &tool_context).await?;
+                    if let Some(ref collector) = self.config.analytics_collector {
+                        collector.record(brainwires_analytics::AnalyticsEvent::ToolCall {
+                            session_id: None,
+                            agent_id: Some(self.id.clone()),
+                            tool_name: tool_use.name.clone(),
+                            tool_use_id: tool_use.id.clone(),
+                            is_error: result.is_error,
+                            duration_ms: Some(_tool_start.elapsed().as_millis() as u64),
+                            timestamp: chrono::Utc::now(),
+                        });
+                    }
                     let mut context = self.context.write().await;
                     context.conversation_history.push(Message {
                         role: Role::User,

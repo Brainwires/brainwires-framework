@@ -1501,6 +1501,7 @@ impl TaskAgent {
                     }
                 }
 
+                let _tool_exec_start = std::time::Instant::now();
                 let tool_result =
                     if let Some((path, lock_type)) = Self::get_lock_requirement(tool_use) {
                         // ── File scope whitelist check (Item 3) ──────────────
@@ -1598,6 +1599,20 @@ impl TaskAgent {
                         executed_at: Utc::now(),
                     },
                 );
+
+                // ── Emit analytics ToolCall event ────────────────────────────
+                #[cfg(feature = "analytics")]
+                if let Some(ref collector) = self.config.analytics_collector {
+                    collector.record(brainwires_analytics::AnalyticsEvent::ToolCall {
+                        session_id: None,
+                        agent_id: Some(self.id.clone()),
+                        tool_name: tool_use.name.clone(),
+                        tool_use_id: tool_use.id.clone(),
+                        is_error: tool_result.is_error,
+                        duration_ms: Some(_tool_exec_start.elapsed().as_millis() as u64),
+                        timestamp: Utc::now(),
+                    });
+                }
 
                 // Track file in working set for file-write operations.
                 if !tool_result.is_error

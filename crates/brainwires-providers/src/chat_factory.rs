@@ -57,10 +57,13 @@ impl ChatProviderFactory {
         let base_url = config.base_url.as_deref().unwrap_or(default_base_url);
         client = client.with_base_url(base_url.to_string());
         let client = Arc::new(client);
-        Ok(Arc::new(
-            super::openai_chat::chat::OpenAiChatProvider::new(client, config.model.clone())
-                .with_provider_name(config.provider.as_str()),
-        ))
+        let mut provider = super::openai_chat::chat::OpenAiChatProvider::new(client, config.model.clone())
+            .with_provider_name(config.provider.as_str());
+        #[cfg(feature = "analytics")]
+        if let Some(ref c) = config.analytics_collector {
+            provider = provider.with_analytics(Arc::clone(c));
+        }
+        Ok(Arc::new(provider))
     }
 
     fn create_openai_responses(config: &ProviderConfig) -> Result<Arc<dyn Provider>> {
@@ -73,10 +76,13 @@ impl ChatProviderFactory {
             client = client.with_base_url(base_url.clone());
         }
         let client = Arc::new(client);
-        Ok(Arc::new(
-            super::openai_responses::OpenAiResponsesProvider::new(client, config.model.clone())
-                .with_provider_name(config.provider.as_str()),
-        ))
+        let mut provider = super::openai_responses::OpenAiResponsesProvider::new(client, config.model.clone())
+            .with_provider_name(config.provider.as_str());
+        #[cfg(feature = "analytics")]
+        if let Some(ref c) = config.analytics_collector {
+            provider = provider.with_analytics(Arc::clone(c));
+        }
+        Ok(Arc::new(provider))
     }
 
     fn create_anthropic(config: &ProviderConfig) -> Result<Arc<dyn Provider>> {
@@ -100,10 +106,13 @@ impl ChatProviderFactory {
             api_key,
             config.model.clone(),
         ));
-        Ok(Arc::new(
-            super::anthropic::chat::AnthropicChatProvider::new(client, config.model.clone())
-                .with_provider_name(config.provider.as_str()),
-        ))
+        let mut provider = super::anthropic::chat::AnthropicChatProvider::new(client, config.model.clone())
+            .with_provider_name(config.provider.as_str());
+        #[cfg(feature = "analytics")]
+        if let Some(ref c) = config.analytics_collector {
+            provider = provider.with_analytics(Arc::clone(c));
+        }
+        Ok(Arc::new(provider))
     }
 
     #[cfg(feature = "bedrock")]
@@ -143,10 +152,13 @@ impl ChatProviderFactory {
             auth,
             config.model.clone(),
         ));
-        Ok(Arc::new(
-            super::anthropic::chat::AnthropicChatProvider::new(client, config.model.clone())
-                .with_provider_name("bedrock"),
-        ))
+        let mut provider = super::anthropic::chat::AnthropicChatProvider::new(client, config.model.clone())
+            .with_provider_name("bedrock");
+        #[cfg(feature = "analytics")]
+        if let Some(ref c) = config.analytics_collector {
+            provider = provider.with_analytics(Arc::clone(c));
+        }
+        Ok(Arc::new(provider))
     }
 
     #[cfg(feature = "vertex-ai")]
@@ -174,10 +186,13 @@ impl ChatProviderFactory {
             auth,
             config.model.clone(),
         ));
-        Ok(Arc::new(
-            super::anthropic::chat::AnthropicChatProvider::new(client, config.model.clone())
-                .with_provider_name("vertex-ai"),
-        ))
+        let mut provider = super::anthropic::chat::AnthropicChatProvider::new(client, config.model.clone())
+            .with_provider_name("vertex-ai");
+        #[cfg(feature = "analytics")]
+        if let Some(ref c) = config.analytics_collector {
+            provider = provider.with_analytics(Arc::clone(c));
+        }
+        Ok(Arc::new(provider))
     }
 
     fn create_gemini(config: &ProviderConfig) -> Result<Arc<dyn Provider>> {
@@ -189,17 +204,24 @@ impl ChatProviderFactory {
             api_key,
             config.model.clone(),
         ));
-        Ok(Arc::new(super::gemini::chat::GoogleChatProvider::new(
-            client,
-            config.model.clone(),
-        )))
+        let mut provider = super::gemini::chat::GoogleChatProvider::new(client, config.model.clone());
+        #[cfg(feature = "analytics")]
+        if let Some(ref c) = config.analytics_collector {
+            provider = provider.with_analytics(Arc::clone(c));
+        }
+        Ok(Arc::new(provider))
     }
 
     fn create_ollama(config: &ProviderConfig) -> Result<Arc<dyn Provider>> {
-        Ok(Arc::new(super::ollama::chat::OllamaChatProvider::new(
+        let mut provider = super::ollama::chat::OllamaChatProvider::new(
             config.model.clone(),
             config.base_url.clone(),
-        )))
+        );
+        #[cfg(feature = "analytics")]
+        if let Some(ref c) = config.analytics_collector {
+            provider = provider.with_analytics(Arc::clone(c));
+        }
+        Ok(Arc::new(provider))
     }
 
     fn create_brainwires(config: &ProviderConfig) -> Result<Arc<dyn Provider>> {

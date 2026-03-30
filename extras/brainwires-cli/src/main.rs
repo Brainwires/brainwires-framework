@@ -15,7 +15,15 @@ fn main() -> Result<()> {
 
         // Run CLI app
         let app = App::new();
-        app.run().await
+        let outcome = app.run().await;
+
+        // Flush and shut down analytics before the runtime exits so queued
+        // events are not lost. Fail-open: analytics errors never surface to users.
+        if let Some(collector) = brainwires_cli::utils::logger::analytics_collector() {
+            collector.shutdown().await;
+        }
+
+        outcome
     });
 
     // Shutdown runtime with a timeout to avoid hanging on lingering tasks
