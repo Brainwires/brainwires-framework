@@ -334,6 +334,9 @@ impl App {
     pub async fn run(self) -> Result<()> {
         // Initialize logging for CLI commands
         // Note: TUI mode handles its own logging initialization
+        // Initialize analytics before logging so the AnalyticsLayer is available.
+        crate::utils::logger::init_analytics();
+
         if let Some(Commands::Chat { tui: true, .. }) = &self.cli.command {
             // Skip logging init for TUI mode
         } else {

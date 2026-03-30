@@ -24,12 +24,26 @@ use brainwires_core::{
 pub struct GoogleChatProvider {
     client: Arc<GoogleClient>,
     model: String,
+    #[cfg(feature = "analytics")]
+    analytics_collector: Option<std::sync::Arc<brainwires_analytics::AnalyticsCollector>>,
 }
 
 impl GoogleChatProvider {
     /// Create a new chat provider from an existing client and model name.
     pub fn new(client: Arc<GoogleClient>, model: String) -> Self {
-        Self { client, model }
+        Self {
+            client,
+            model,
+            #[cfg(feature = "analytics")]
+            analytics_collector: None,
+        }
+    }
+
+    /// Attach an analytics collector to this provider.
+    #[cfg(feature = "analytics")]
+    pub fn with_analytics(mut self, collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>) -> Self {
+        self.analytics_collector = Some(collector);
+        self
     }
 
     fn convert_messages(messages: &[Message]) -> Vec<GeminiMessage> {
@@ -195,6 +209,8 @@ impl Provider for GoogleChatProvider {
         options: &ChatOptions,
     ) -> Result<ChatResponse> {
         let request = Self::build_request(messages, tools, options);
+        #[cfg(feature = "analytics")]
+        let _started = std::time::Instant::now();
         let gemini_response = if let Some(ref override_model) = options.model {
             self.client.generate_content_for_model(override_model, &request).await?
         } else {
@@ -218,7 +234,7 @@ impl Provider for GoogleChatProvider {
             })
             .unwrap_or_default();
 
-        Ok(ChatResponse {
+        let chat_response = ChatResponse {
             message: Message {
                 role: Role::Assistant,
                 content,
@@ -227,7 +243,23 @@ impl Provider for GoogleChatProvider {
             },
             usage,
             finish_reason: Some(candidate.finish_reason),
-        })
+        };
+        #[cfg(feature = "analytics")]
+        if let Some(ref collector) = self.analytics_collector {
+            use brainwires_analytics::AnalyticsEvent;
+            collector.record(AnalyticsEvent::ProviderCall {
+                session_id: None,
+                provider: "google".to_string(),
+                model: self.model.clone(),
+                prompt_tokens: chat_response.usage.prompt_tokens,
+                completion_tokens: chat_response.usage.completion_tokens,
+                duration_ms: _started.elapsed().as_millis() as u64,
+                cost_usd: 0.0,
+                success: true,
+                timestamp: chrono::Utc::now(),
+            });
+        }
+        Ok(chat_response)
     }
 
     fn stream_chat<'a>(

@@ -203,6 +203,12 @@ pub mod autonomy {
     pub use brainwires_autonomy::*;
 }
 
+/// Analytics — typed event collection, SQLite persistence, and cost/usage queries.
+#[cfg(feature = "analytics")]
+pub mod analytics {
+    pub use brainwires_analytics::*;
+}
+
 /// Central knowledge — BKS, PKS, entity graphs, thought processing.
 #[cfg(feature = "brain")]
 pub mod brain {

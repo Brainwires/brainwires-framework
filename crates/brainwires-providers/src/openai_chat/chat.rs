@@ -26,6 +26,8 @@ pub struct OpenAiChatProvider {
     client: Arc<OpenAiClient>,
     model: String,
     provider_name: String,
+    #[cfg(feature = "analytics")]
+    analytics_collector: Option<std::sync::Arc<brainwires_analytics::AnalyticsCollector>>,
 }
 
 impl OpenAiChatProvider {
@@ -35,12 +37,21 @@ impl OpenAiChatProvider {
             client,
             model,
             provider_name: "openai".to_string(),
+            #[cfg(feature = "analytics")]
+            analytics_collector: None,
         }
     }
 
     /// Override the provider name reported by [`Provider::name`].
     pub fn with_provider_name(mut self, name: impl Into<String>) -> Self {
         self.provider_name = name.into();
+        self
+    }
+
+    /// Attach an analytics collector to this provider.
+    #[cfg(feature = "analytics")]
+    pub fn with_analytics(mut self, collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>) -> Self {
+        self.analytics_collector = Some(collector);
         self
     }
 }
@@ -71,12 +82,30 @@ impl Provider for OpenAiChatProvider {
         // O1 models don't support streaming, temperature, max_tokens, or
         // system messages - the client handles the option filtering.
         let effective_model = options.model.as_deref().unwrap_or(&self.model);
+        #[cfg(feature = "analytics")]
+        let _started = std::time::Instant::now();
         let openai_response = self
             .client
             .chat_completions(&openai_messages, effective_model, tools_ref, &opts)
             .await?;
 
-        parse_response(openai_response)
+        let chat_response = parse_response(openai_response)?;
+        #[cfg(feature = "analytics")]
+        if let Some(ref collector) = self.analytics_collector {
+            use brainwires_analytics::AnalyticsEvent;
+            collector.record(AnalyticsEvent::ProviderCall {
+                session_id: None,
+                provider: self.provider_name.clone(),
+                model: self.model.clone(),
+                prompt_tokens: chat_response.usage.prompt_tokens,
+                completion_tokens: chat_response.usage.completion_tokens,
+                duration_ms: _started.elapsed().as_millis() as u64,
+                cost_usd: 0.0,
+                success: true,
+                timestamp: chrono::Utc::now(),
+            });
+        }
+        Ok(chat_response)
     }
 
     fn stream_chat<'a>(

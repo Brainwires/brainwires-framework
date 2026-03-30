@@ -64,6 +64,9 @@ brainwires-permissions = { workspace = true, optional = true }
 # OpenTelemetry (optional, for otel feature)
 opentelemetry = { version = "0.28", optional = true }
 
+# Analytics (optional)
+brainwires-analytics = { workspace = true, optional = true }
+
 # Logging
 tracing.workspace = true
 
@@ -85,6 +88,8 @@ reasoning = ["dep:regex"]
 eval = ["dep:thiserror"]
 # OpenTelemetry span export for agent execution traces
 otel = ["dep:opentelemetry"]
+# Emit AnalyticsEvent::AgentRun after each TaskAgent run
+analytics = ["dep:brainwires-analytics", "brainwires-analytics/native"]
 # MDAP: Multi-Dimensional Adaptive Planning (merged from brainwires-mdap)
 mdap = ["dep:regex", "dep:thiserror"]
 # SEAL (Self-Evolving Agentic Learning)

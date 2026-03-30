@@ -1,0 +1,36 @@
+[package]
+name = "brainwires-analytics"
+description = "Unified analytics collection, persistence, and query for the Brainwires Agent Framework"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+readme = "README.md"
+keywords = ["ai-agents", "analytics", "telemetry", "observability", "llm"]
+categories = ["development-tools"]
+
+[dependencies]
+serde         = { workspace = true }
+serde_json    = { workspace = true }
+anyhow        = { workspace = true }
+thiserror     = { workspace = true }
+chrono        = { workspace = true }
+uuid          = { workspace = true }
+tokio         = { workspace = true, features = ["sync", "rt", "macros"] }
+async-trait   = { workspace = true }
+tracing       = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["registry"] }
+rusqlite      = { workspace = true, optional = true }
+dirs          = { workspace = true, optional = true }
+
+[dev-dependencies]
+tokio    = { workspace = true, features = ["full", "test-util"] }
+tempfile = { workspace = true }
+
+[features]
+default = ["native"]
+native  = ["sqlite", "dep:dirs"]
+sqlite  = ["dep:rusqlite"]

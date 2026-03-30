@@ -1,11 +1,43 @@
 use console::style;
 use std::io::Write;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 /// Track if logger has been initialized
 static LOGGER_INITIALIZED: AtomicBool = AtomicBool::new(false);
+
+/// Global analytics collector — set once during startup, reused everywhere.
+static ANALYTICS: OnceLock<brainwires_analytics::AnalyticsCollector> = OnceLock::new();
+
+/// Initialize the analytics subsystem.
+///
+/// Creates a `SqliteAnalyticsSink` writing to `~/.brainwires/analytics/analytics.db`
+/// and stores the resulting [`AnalyticsCollector`] in a process-wide static so that
+/// `init_with_output` can attach the tracing layer without extra arguments.
+///
+/// Safe to call multiple times — only the first call has any effect.
+pub fn init_analytics() {
+    use brainwires_analytics::{AnalyticsCollector, SqliteAnalyticsSink};
+    if ANALYTICS.get().is_none() {
+        match SqliteAnalyticsSink::new_default() {
+            Ok(sink) => {
+                let collector = AnalyticsCollector::new(vec![Box::new(sink)]);
+                let _ = ANALYTICS.set(collector);
+            }
+            Err(e) => {
+                // Analytics failure must never prevent startup — log and continue.
+                eprintln!("[analytics] Failed to open analytics database: {e}");
+            }
+        }
+    }
+}
+
+/// Return a clone of the global analytics collector, if initialized.
+pub fn analytics_collector() -> Option<brainwires_analytics::AnalyticsCollector> {
+    ANALYTICS.get().cloned()
+}
 
 /// Initialize the logger
 pub fn init() {
@@ -33,6 +65,9 @@ pub fn init_with_output(enable_output: bool) {
     let filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| EnvFilter::new("brainwires_cli=debug,info"));
 
+    // Analytics layer — None is a no-op, so this compiles the same regardless.
+    let analytics_layer = ANALYTICS.get().cloned().map(brainwires_analytics::AnalyticsLayer::new);
+
     if !enable_output {
         // TUI mode: Only log to file, disable console
         tracing_subscriber::registry()
@@ -46,6 +81,7 @@ pub fn init_with_output(enable_output: bool) {
                     .with_line_number(true)
                     .with_file(true),
             )
+            .with(analytics_layer)
             .init();
     } else {
         // CLI mode: Log to both file and STDERR (never stdout - MCP uses stdout for protocol)
@@ -70,6 +106,7 @@ pub fn init_with_output(enable_output: bool) {
                     .with_line_number(false)
                     .with_file(false),
             )
+            .with(analytics_layer)
             .init();
 
         std::mem::forget(_stderr_guard);
@@ -154,9 +191,6 @@ impl Logger {
         let _ = std::io::stdout().flush();
     }
 }
-
-// Re-export for convenience
-pub use Logger as logger;
 
 /// Get the log directory path: ~/.brainwires/logs/
 fn get_log_directory() -> Result<PathBuf, std::env::VarError> {
