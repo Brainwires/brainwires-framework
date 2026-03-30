@@ -25,7 +25,9 @@ members = [
     "extras/brainwires-rag-server",
     "extras/reload-daemon",
     "extras/agent-chat",
+    "extras/brainwires-cli",
     "extras/audio-demo-ffi",
+    "extras/voice-assistant",
     "xtask",
 ]
 exclude = [
@@ -122,7 +124,7 @@ tokio-util = "0.7"
 
 # Logging
 tracing = "0.1"
-tracing-subscriber = "0.3"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Vector database & columnar storage
 lancedb = "0.26"
@@ -262,3 +264,4 @@ tempfile = "3"
 [patch.crates-io]
 rustpython-vm = { git = "https://github.com/RustPython/RustPython", branch = "main", package = "rustpython-vm" }
 rustpython-stdlib = { git = "https://github.com/RustPython/RustPython", branch = "main", package = "rustpython-stdlib" }
+sqlx-sqlite = { git = "https://github.com/launchbadge/sqlx", branch = "main" }

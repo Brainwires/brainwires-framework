@@ -117,3 +117,27 @@ pub use camera::{
 
 #[cfg(feature = "usb")]
 pub use usb::{UsbClass, UsbDevice, UsbError, UsbHandle, UsbSpeed};
+
+// ── VAD re-exports ────────────────────────────────────────────────────────────
+
+#[cfg(feature = "audio")]
+pub use audio::{EnergyVad, SpeechSegment, VoiceActivityDetector};
+#[cfg(feature = "vad")]
+pub use audio::{VadMode, WebRtcVad};
+
+// ── Wake word re-exports ──────────────────────────────────────────────────────
+
+#[cfg(any(feature = "wake-word", feature = "wake-word-rustpotter", feature = "wake-word-porcupine"))]
+pub use audio::{EnergyTriggerDetector, WakeWordDetection, WakeWordDetector};
+#[cfg(feature = "wake-word-rustpotter")]
+pub use audio::RustpotterDetector;
+#[cfg(feature = "wake-word-porcupine")]
+pub use audio::PorcupineDetector;
+
+// ── Voice assistant re-exports ────────────────────────────────────────────────
+
+#[cfg(feature = "voice-assistant")]
+pub use audio::{
+    AssistantState, VoiceAssistant, VoiceAssistantBuilder, VoiceAssistantConfig,
+    VoiceAssistantHandler,
+};

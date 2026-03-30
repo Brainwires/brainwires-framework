@@ -39,6 +39,17 @@ pub mod flac;
 #[cfg(feature = "local-stt")]
 pub mod local;
 
+/// Voice Activity Detection — EnergyVad (always available) + WebRtcVad (`vad` feature).
+pub mod vad;
+
+/// Wake word detection — EnergyTriggerDetector (`wake-word`), RustpotterDetector (`wake-word-rustpotter`), PorcupineDetector (`wake-word-porcupine`).
+#[cfg(any(feature = "wake-word", feature = "wake-word-rustpotter", feature = "wake-word-porcupine"))]
+pub mod wake_word;
+
+/// Voice Assistant pipeline — orchestrates capture → wake word → VAD → STT → handler → TTS.
+#[cfg(feature = "voice-assistant")]
+pub mod assistant;
+
 // Re-exports
 pub use buffer::AudioRingBuffer;
 pub use capture::AudioCapture;
@@ -65,3 +76,23 @@ pub use flac::{decode_flac, encode_flac};
 pub use hardware::{CpalCapture, CpalPlayback};
 #[cfg(feature = "local-stt")]
 pub use local::WhisperStt;
+
+// ── VAD re-exports ────────────────────────────────────────────────────────────
+pub use vad::{EnergyVad, SpeechSegment, VoiceActivityDetector};
+#[cfg(feature = "vad")]
+pub use vad::{VadMode, WebRtcVad};
+
+// ── Wake word re-exports ──────────────────────────────────────────────────────
+#[cfg(any(feature = "wake-word", feature = "wake-word-rustpotter", feature = "wake-word-porcupine"))]
+pub use wake_word::{EnergyTriggerDetector, WakeWordDetection, WakeWordDetector};
+#[cfg(feature = "wake-word-rustpotter")]
+pub use wake_word::RustpotterDetector;
+#[cfg(feature = "wake-word-porcupine")]
+pub use wake_word::PorcupineDetector;
+
+// ── Voice assistant re-exports ────────────────────────────────────────────────
+#[cfg(feature = "voice-assistant")]
+pub use assistant::{
+    AssistantState, VoiceAssistant, VoiceAssistantBuilder, VoiceAssistantConfig,
+    VoiceAssistantHandler,
+};

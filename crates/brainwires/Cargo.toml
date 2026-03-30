@@ -125,6 +125,10 @@ bluetooth = ["dep:brainwires-hardware", "brainwires-hardware/bluetooth"]
 network-hardware = ["dep:brainwires-hardware", "brainwires-hardware/network"]
 camera = ["dep:brainwires-hardware", "brainwires-hardware/camera"]
 usb = ["dep:brainwires-hardware", "brainwires-hardware/usb"]
+vad = ["dep:brainwires-hardware", "brainwires-hardware/vad"]
+wake-word = ["dep:brainwires-hardware", "brainwires-hardware/wake-word"]
+wake-word-porcupine = ["dep:brainwires-hardware", "brainwires-hardware/wake-word-porcupine"]
+voice-assistant = ["dep:brainwires-hardware", "brainwires-hardware/voice-assistant"]
 datasets = ["dep:brainwires-datasets"]
 training = ["dep:brainwires-training"]
 training-cloud = ["training", "brainwires-training/cloud"]
@@ -148,7 +152,8 @@ full = [
     "providers", "chat", "reasoning", "seal", "agent-network",
     "brainwires-agents/seal-knowledge", "brainwires-agents/seal-mdap", "brainwires-agents/seal-feedback",
     "llama-cpp-2", "mcp-server", "skills", "eval",
-    "a2a", "mesh", "audio", "gpio", "bluetooth", "network-hardware", "camera", "usb", "mcp-server-framework",
+    "a2a", "mesh", "audio", "gpio", "bluetooth", "network-hardware", "camera", "usb",
+    "vad", "wake-word", "voice-assistant", "mcp-server-framework",
     "training-cloud", "datasets",
     "autonomy",
 ]

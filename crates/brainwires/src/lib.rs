@@ -139,8 +139,12 @@ pub mod mesh {
     pub use brainwires_agent_network::mesh::*;
 }
 
-/// Hardware I/O — audio, GPIO, Bluetooth, network, camera, USB.
-#[cfg(any(feature = "audio", feature = "gpio", feature = "bluetooth", feature = "network-hardware", feature = "camera", feature = "usb"))]
+/// Hardware I/O — audio, GPIO, Bluetooth, network, camera, USB, voice assistant.
+#[cfg(any(
+    feature = "audio", feature = "gpio", feature = "bluetooth", feature = "network-hardware",
+    feature = "camera", feature = "usb", feature = "vad", feature = "wake-word",
+    feature = "voice-assistant"
+))]
 pub mod hardware {
     pub use brainwires_hardware::*;
 }
@@ -161,6 +165,24 @@ pub mod camera {
 #[cfg(feature = "usb")]
 pub mod usb {
     pub use brainwires_hardware::usb::*;
+}
+
+/// Voice Activity Detection.
+#[cfg(feature = "vad")]
+pub mod vad {
+    pub use brainwires_hardware::audio::vad::*;
+}
+
+/// Wake word detection.
+#[cfg(any(feature = "wake-word", feature = "wake-word-porcupine"))]
+pub mod wake_word {
+    pub use brainwires_hardware::audio::wake_word::*;
+}
+
+/// Voice assistant pipeline.
+#[cfg(feature = "voice-assistant")]
+pub mod voice_assistant {
+    pub use brainwires_hardware::audio::assistant::*;
 }
 
 /// Training data pipelines — JSONL, format conversion, tokenization, dedup.
