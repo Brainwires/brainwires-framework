@@ -144,7 +144,7 @@ impl PatternStore {
         let batches = RecordBatchIterator::new(vec![Ok(batch)], schema);
 
         table
-            .add(Box::new(batches))
+            .add(Box::new(batches) as Box<dyn arrow_array::RecordBatchReader + Send>)
             .execute()
             .await
             .context("Failed to insert pattern")?;

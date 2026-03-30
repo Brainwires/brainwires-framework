@@ -59,7 +59,7 @@ impl LanceDatabaseExt for LanceDatabase {
         );
 
         self.connection()
-            .create_table(table_name, Box::new(batches))
+            .create_table(table_name, Box::new(batches) as Box<dyn arrow_array::RecordBatchReader + Send>)
             .execute()
             .await
             .context("Failed to create seal_patterns table")?;

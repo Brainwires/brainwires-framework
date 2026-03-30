@@ -182,6 +182,10 @@ enum Commands {
     /// Initialize project configuration
     Init,
 
+    /// View analytics — cost, tool usage, agent summaries, raw events
+    #[command(subcommand)]
+    Analytics(super::analytics::AnalyticsCommands),
+
     /// Manage remote bridge connection to brainwires-studio
     #[command(subcommand)]
     Remote(super::remote::RemoteCommands),
@@ -411,6 +415,9 @@ impl App {
             Some(Commands::Init) => {
                 crate::utils::logger::Logger::warn("Init not yet implemented");
                 Ok(())
+            }
+            Some(Commands::Analytics(cmd)) => {
+                super::analytics::handle_analytics(cmd).await
             }
             Some(Commands::EvalImprove {
                 baselines_path, max_rounds, n_trials, improvement_threshold,
