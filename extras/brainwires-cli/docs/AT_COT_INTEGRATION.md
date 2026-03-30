@@ -1,7 +1,5 @@
 # AT-CoT Integration Documentation
 
-**Status:** ✅ Implemented (Phase 1-3 Complete)
-**Date:** 2026-01-28
 **Paper:** [arXiv:2504.12113 - Improved LLM Prompting via Improved Elicitation](https://arxiv.org/pdf/2504.12113)
 
 ## Overview
@@ -16,9 +14,9 @@ AT-CoT teaches the AI to:
 
 This two-step process improves question quality and disambiguation success rate (paper reports 82.0 BERTScore vs 78.8-80.0 baseline).
 
-## Implementation Status
+## Implementation
 
-### ✅ Phase 1: Enhanced AI Instructions (COMPLETE)
+### Phase 1: Enhanced AI Instructions
 
 **File:** `src/utils/question_instructions.rs` (60 → 218 lines, +158 lines)
 
@@ -35,7 +33,7 @@ This two-step process improves question quality and disambiguation success rate 
 - `test_instructions_contain_at_cot_keywords` - Verifies AT-CoT keywords present
 - `test_instructions_include_two_step_process` - Verifies STEP 1/STEP 2 structure
 
-### ✅ Phase 2: Extended Data Models (COMPLETE)
+### Phase 2: Extended Data Models
 
 **File:** `src/types/question.rs` (366 → 427 lines, +61 lines)
 
@@ -53,7 +51,7 @@ This two-step process improves question quality and disambiguation success rate 
 
 **Key Design Decision:** All new fields are `Option<T>` - **100% backward compatible**
 
-### ✅ Phase 3: Enhanced Question Parser (COMPLETE)
+### Phase 3: Enhanced Question Parser
 
 **File:** `src/tui/question_parser.rs` (363 → 483 lines, +120 lines)
 
@@ -75,7 +73,7 @@ debug!("AT-CoT reasoning: {}", analysis.reasoning);
 debug!("Question '{}' is type: {:?}", question.id, amb_type);
 ```
 
-### ✅ Integration Tests (COMPLETE)
+### Integration Tests
 
 **File:** `tests/at_cot_integration_test.rs` (NEW, 412 lines)
 
@@ -91,7 +89,7 @@ debug!("Question '{}' is type: {:?}", question.id, amb_type);
 9. `test_ambiguity_type_emoji` - Emoji representation correct
 10. `test_ambiguity_type_display_name` - Display names correct
 
-**Test Results:** ✅ **All 10 tests passing**
+**Test Results:** All 10 tests passing
 
 ```
 running 10 tests
@@ -398,17 +396,11 @@ Enable collective learning and user personalization.
 ## References
 
 - **Paper:** [arXiv:2504.12113 - Improved LLM Prompting via Improved Elicitation](https://arxiv.org/pdf/2504.12113)
-- **Plan:** `/home/nightness/.claude/projects/-home-nightness-dev-brainwires-studio-rust-brainwires-cli/ad873df8-d052-45cf-b37c-e294aa563d23.jsonl`
 - **Integration Tests:** `tests/at_cot_integration_test.rs`
 - **Question Instructions:** `src/utils/question_instructions.rs`
 
 ## Summary
 
-AT-CoT integration is **complete for Phases 1-3** with:
-- ✅ Enhanced AI instructions teaching AT-CoT methodology
-- ✅ Extended data models with `AmbiguityType`, `AmbiguityAnalysis`
-- ✅ Parser extracting and validating AT-CoT metadata
-- ✅ 100% backward compatibility
-- ✅ Comprehensive test coverage (10 passing tests)
+AT-CoT integration covers enhanced AI instructions, extended data models (`AmbiguityType`, `AmbiguityAnalysis`), and a parser that extracts and validates AT-CoT metadata from model responses. All new fields are `Option<T>` for full backward compatibility. 10 integration tests cover the full flow.
 
-The system is **production-ready** and will improve clarifying question quality once AI models start using the enhanced instructions.
+The system improves clarifying question quality by guiding the model to predict ambiguity types before generating questions.
