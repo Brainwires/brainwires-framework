@@ -71,9 +71,10 @@ wasm = ["brainwires-core/wasm"]
 self-improve = ["dep:brainwires-agents", "dep:brainwires-tool-system", "dep:regex", "dep:walkdir"]
 eval-driven = [
     "self-improve",
-    "dep:brainwires-agents", "brainwires-agents/eval",
-    "dep:brainwires-cognition", "brainwires-cognition/knowledge", "brainwires-cognition/prompting",
+    "dep:brainwires-agents", "brainwires-agents/eval", "brainwires-agents/reasoning",
+    "dep:brainwires-cognition", "brainwires-cognition/knowledge",
     "dep:brainwires-storage",
+    "dep:futures",
 ]
 
 # Agent operations

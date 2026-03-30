@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use brainwires_agents::eval::{EvaluationCase, TrialResult, ndcg_at_k};
-use brainwires_cognition::knowledge::entity::{Entity, EntityStore, EntityType, Relationship};
+use brainwires_cognition::knowledge::entity::{Entity, EntityType};
 use brainwires_cognition::knowledge::relationship_graph::RelationshipGraph;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -33,20 +33,6 @@ fn make_entity(name: &str, entity_type: EntityType, mention_count: u32, n_messag
     // Ensure exactly n_messages unique message IDs (may differ from mention_count).
     e.message_ids = (0..n_messages).map(|i| format!("msg-{i}")).collect();
     e
-}
-
-/// Populate an `EntityStore` with a list of entities.
-fn store_with(entities: Vec<Entity>) -> EntityStore {
-    let mut store = EntityStore::new();
-    for e in entities {
-        // Use add_extraction with an empty relationship list to insert each entity.
-        let result = brainwires_cognition::knowledge::entity::ExtractionResult {
-            entities: vec![e],
-            relationships: vec![],
-        };
-        store.add_extraction(result);
-    }
-    store
 }
 
 // ── Case 1: Hub vs. peripheral ────────────────────────────────────────────────
@@ -76,21 +62,12 @@ impl EvaluationCase for EntityImportanceRankingCase {
             make_entity("mid_b",      EntityType::Concept,  3,  2),
             make_entity("peripheral", EntityType::Concept,  1,  1),
         ];
-        let names = ["hub", "mid_a", "mid_b", "peripheral"];
         // Ground truth: hub=3, mid_a=2, mid_b=1, peripheral=0
         let ground_truth: Vec<usize> = vec![3, 2, 1, 0];
 
-        let store = store_with(entities);
-        let graph = RelationshipGraph::from_entity_store(&store);
-
-        let scores: Vec<f64> = names
+        let scores: Vec<f64> = entities
             .iter()
-            .map(|name| {
-                graph
-                    .get_node(name)
-                    .map(|n| n.importance as f64)
-                    .unwrap_or(0.0)
-            })
+            .map(|e| RelationshipGraph::calculate_importance(e) as f64)
             .collect();
 
         let ndcg = ndcg_at_k(&scores, &ground_truth, 4);

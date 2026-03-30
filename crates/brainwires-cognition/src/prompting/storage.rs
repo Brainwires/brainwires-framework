@@ -4,6 +4,7 @@
 
 use super::clustering::TaskCluster;
 use super::techniques::PromptingTechnique;
+#[cfg(feature = "knowledge")]
 use super::temperature::TemperaturePerformance;
 use anyhow::{Context, Result};
 use rusqlite::{Connection, params};
@@ -223,6 +224,7 @@ impl ClusterStorage {
     }
 
     /// Save temperature performance for a cluster
+    #[cfg(feature = "knowledge")]
     pub fn save_temperature_performance(
         &mut self,
         cluster_id: &str,
@@ -246,6 +248,7 @@ impl ClusterStorage {
     }
 
     /// Load temperature performance for a cluster
+    #[cfg(feature = "knowledge")]
     pub fn load_temperature_performance(
         &self,
         cluster_id: &str,
@@ -410,6 +413,7 @@ mod tests {
         assert!(storage.load_cluster("test").unwrap().is_none());
     }
 
+    #[cfg(feature = "knowledge")]
     #[test]
     fn test_temperature_performance_storage() {
         let temp_dir = tempfile::tempdir().unwrap();

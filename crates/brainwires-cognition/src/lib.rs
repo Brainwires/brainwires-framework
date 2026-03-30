@@ -97,7 +97,7 @@ pub use knowledge::types::{
 
 #[cfg(feature = "prompting")]
 pub use prompting::clustering::{TaskCluster, TaskClusterManager, cosine_similarity};
-#[cfg(feature = "knowledge")]
+#[cfg(all(feature = "knowledge", feature = "prompting"))]
 pub use prompting::generator::{GeneratedPrompt, PromptGenerator};
 #[cfg(feature = "knowledge")]
 pub use prompting::learning::{ClusterSummary, PromptingLearningCoordinator, TechniqueStats};
@@ -109,7 +109,7 @@ pub use prompting::storage::{ClusterStorage, StorageStats};
 pub use prompting::techniques::{
     ComplexityLevel, PromptingTechnique, TaskCharacteristic, TechniqueCategory, TechniqueMetadata,
 };
-#[cfg(feature = "knowledge")]
+#[cfg(all(feature = "knowledge", feature = "prompting"))]
 pub use prompting::temperature::{TemperatureOptimizer, TemperaturePerformance};
 
 // ── Re-exports (RAG) ──────────────────────────────────────────────────────
@@ -155,7 +155,7 @@ pub mod prelude {
     #[cfg(feature = "knowledge")]
     pub use super::knowledge::thought::{Thought, ThoughtCategory};
 
-    #[cfg(feature = "knowledge")]
+    #[cfg(all(feature = "knowledge", feature = "prompting"))]
     pub use super::prompting::generator::PromptGenerator;
     pub use super::prompting::techniques::{PromptingTechnique, TechniqueCategory};
 

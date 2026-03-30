@@ -563,3 +563,72 @@ cargo test -p brainwires-eval fault_report
 # Run stability suite tests
 cargo test -p brainwires-eval stability_tests
 ```
+
+---
+
+## 8. Empirical Scoring Eval Cases
+
+The `brainwires-autonomy` crate contains deterministic eval cases that validate
+the relative ranking quality of every hand-tuned scoring heuristic in the
+framework. Unlike unit tests that only verify structural correctness, these cases
+use NDCG@K to assert that the scoring formulas produce *correct orderings* under
+controlled scenarios.
+
+### What's covered
+
+| Suite | Cases | Formulas validated |
+|-------|-------|-------------------|
+| `entity_importance_suite()` | 3 | `RelationshipGraph::calculate_importance` — entity hub vs. peripheral ordering |
+| `multi_factor_suite()` | 2 | `MultiFactorScore::compute`, `TierMetadata::retention_score` |
+| `agent_scoring_suite()` | 2 | `TaskBid::score`, `ResourceBid::score` |
+| `reasoning_eval_suite()` | 1 | `ComplexityScorer::score_heuristic` — keyword-based complexity ordering |
+
+All 8 cases are deterministic (no LLM calls, no I/O) and complete in < 1 ms each.
+
+### Running the suite
+
+```bash
+# Build with the eval-driven feature
+cargo build -p brainwires-autonomy --features eval-driven
+
+# Run all 8 empirical scoring cases
+cargo test -p brainwires-autonomy --features eval-driven eval::
+```
+
+### Plugging into AutonomousFeedbackLoop
+
+```rust
+use brainwires_autonomy::eval::{
+    entity_importance_suite, multi_factor_suite,
+    agent_scoring_suite, reasoning_eval_suite,
+};
+
+let cases = [
+    entity_importance_suite(),
+    multi_factor_suite(),
+    agent_scoring_suite(),
+    reasoning_eval_suite(),
+].concat();
+
+let loop_ = AutonomousFeedbackLoop::new(config, cases, provider);
+```
+
+### Ranking metrics
+
+All cases use the pure functions from `brainwires_agents::eval`:
+
+| Function | Measures |
+|----------|---------|
+| `ndcg_at_k(scores, relevance, k)` | Ranking quality with graded relevance (higher = better) |
+| `mrr(scores, relevance)` | Reciprocal rank of first relevant result |
+| `precision_at_k(scores, relevance, k)` | Fraction of top-K results that are relevant |
+
+### What each formula is testing
+
+**Entity importance** (`calculate_importance`): log-scaled mention count + type bonus + message-spread proxy. Cases validate hub entities outrank peripheral ones, and that single-mention entities still have non-zero scores via type bonus.
+
+**Memory scoring** (`MultiFactorScore::compute`): `similarity×0.50 + recency×0.30 + importance×0.20`. Cases validate that each factor dominates when the other two are held constant, and that fast-decay correctly collapses old items.
+
+**Agent allocation** (`TaskBid::score`, `ResourceBid::score`): linear combinations of capability/availability/speed and priority/urgency. Cases validate that each weight correctly drives the ranking when isolated.
+
+**Complexity heuristic** (`score_heuristic`): base 0.3 + keyword adjustments. Case validates that architectural/distributed tasks score higher than simple bug fixes.
