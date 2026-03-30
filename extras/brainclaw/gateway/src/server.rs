@@ -182,10 +182,24 @@ impl Gateway {
             self.config.max_tool_calls_per_minute,
         ));
 
-        let metrics = self
-            .shared_metrics
-            .clone()
-            .unwrap_or_else(|| Arc::new(MetricsCollector::new()));
+        let metrics = self.shared_metrics.clone().unwrap_or_else(|| {
+            let m = MetricsCollector::new();
+            #[cfg(feature = "analytics")]
+            let m = {
+                use brainwires_analytics::{AnalyticsCollector, SqliteAnalyticsSink};
+                match SqliteAnalyticsSink::new_default() {
+                    Ok(sink) => {
+                        let collector = std::sync::Arc::new(AnalyticsCollector::new(vec![Box::new(sink)]));
+                        m.with_analytics(collector)
+                    }
+                    Err(e) => {
+                        tracing::warn!("[analytics] Failed to open analytics database: {e}");
+                        m
+                    }
+                }
+            };
+            Arc::new(m)
+        });
 
         let state = AppState {
             config: Arc::new(self.config.clone()),

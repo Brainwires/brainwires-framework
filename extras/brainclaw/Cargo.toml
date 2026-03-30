@@ -33,6 +33,7 @@ brainwires-channels = { path = "../../crates/brainwires-channels" }
 brainwires-skills = { path = "../../crates/brainwires-skills", features = ["registry"] }
 brainwires-hardware = { path = "../../crates/brainwires-hardware" }
 brainwires-gateway = { path = "gateway" }
+brainwires-analytics = { path = "../../crates/brainwires-analytics", default-features = false }
 
 # Async runtime & utilities
 tokio = { version = "1.43", features = ["full"] }

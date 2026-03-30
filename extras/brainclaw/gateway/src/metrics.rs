@@ -27,6 +27,9 @@ pub struct MetricsCollector {
     pub total_prompt_tokens: AtomicU64,
     /// Cumulative completion tokens across all agent completions.
     pub total_completion_tokens: AtomicU64,
+    /// Analytics collector for ChannelMessage events.
+    #[cfg(feature = "analytics")]
+    analytics_collector: Option<std::sync::Arc<brainwires_analytics::AnalyticsCollector>>,
 }
 
 /// Serializable metrics snapshot.
@@ -60,7 +63,16 @@ impl MetricsCollector {
             peak_sessions: AtomicU64::new(0),
             total_prompt_tokens: AtomicU64::new(0),
             total_completion_tokens: AtomicU64::new(0),
+            #[cfg(feature = "analytics")]
+            analytics_collector: None,
         }
+    }
+
+    /// Attach an analytics collector to record ChannelMessage events.
+    #[cfg(feature = "analytics")]
+    pub fn with_analytics(mut self, collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>) -> Self {
+        self.analytics_collector = Some(collector);
+        self
     }
 
     /// Record an inbound message from a channel type.
@@ -70,6 +82,18 @@ impl MetricsCollector {
             .entry(channel_type.to_string())
             .and_modify(|c| *c += 1)
             .or_insert(1);
+
+        #[cfg(feature = "analytics")]
+        if let Some(ref collector) = self.analytics_collector {
+            use brainwires_analytics::AnalyticsEvent;
+            collector.record(AnalyticsEvent::ChannelMessage {
+                session_id: None,
+                channel_type: channel_type.to_string(),
+                direction: "inbound".to_string(),
+                message_len: 0,
+                timestamp: chrono::Utc::now(),
+            });
+        }
     }
 
     /// Record a tool call execution.
