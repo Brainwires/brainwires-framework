@@ -47,14 +47,28 @@ Slack Adapter ────┘              │             ├─► ChatAgent (
 
 ## Admin API
 
-All admin endpoints require a `Authorization: Bearer <token>` header when `admin_token` is configured.
+All admin endpoints require an `Authorization: Bearer <token>` header when `admin_token` is configured.
 
 | Endpoint | Description |
 |----------|-------------|
+| `GET /admin/ui` | **Browser dashboard** — single-page admin UI (dark theme) |
 | `GET /admin/health` | Health check with uptime and connection counts |
+| `GET /admin/metrics` | Token usage, tool calls, errors, rate limits, per-channel message counts |
 | `GET /admin/channels` | List connected channel adapters |
 | `GET /admin/sessions` | List active user sessions |
-| `POST /admin/broadcast` | Send message to all channels |
+| `POST /admin/broadcast` | Send message to all (or filtered) channels |
+| `GET /admin/cron` | List cron jobs *(requires cron store)* |
+| `POST /admin/cron` | Create a cron job |
+| `GET /admin/cron/:id` | Get a single cron job |
+| `PUT /admin/cron/:id` | Update a cron job |
+| `DELETE /admin/cron/:id` | Delete a cron job |
+| `GET /admin/identity` | List canonical identity groups *(requires identity store)* |
+| `POST /admin/identity/link` | Link two platform identities |
+| `DELETE /admin/identity/unlink` | Unlink a platform identity |
+
+### Admin UI
+
+Open `http://your-gateway:18789/admin/ui` in a browser for a graphical dashboard covering all of the above endpoints. Sections: **Dashboard** (live stats + auto-refresh), **Channels**, **Sessions**, **Cron Jobs** (full CRUD with modal), **Identity** (link/unlink), **Broadcast**. Bearer token auth is handled in-browser via `sessionStorage`.
 
 ## Webhook Endpoint
 

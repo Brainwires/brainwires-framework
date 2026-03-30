@@ -52,7 +52,7 @@ Foundation types shared by all framework crates.
 - **Task system** — `Task`, `TaskStatus`, `TaskPriority`, `AgentResponse`
 - **Plan system** — `PlanMetadata`, `PlanStatus`, step budgets, serializable plans
 - **Plan parsing** — `parse_plan_steps()`, `steps_to_tasks()`, structured output parsers (`JsonOutputParser`, `RegexOutputParser`) (feature: `planning`)
-- **Provider trait** — `Provider` async trait, `ChatOptions` (temperature, max tokens, top-p, stop sequences)
+- **Provider trait** — `Provider` async trait, `ChatOptions` (temperature, max tokens, top-p, stop sequences, **per-request model override**)
 - **Permission modes** — `PermissionMode` (auto, ask, reject)
 - **Knowledge graph types** — `EntityType`, `EdgeType`, `GraphNode`, `GraphEdge`, `EntityStoreT`, `RelationshipGraphT` traits
 - **Embedding trait** — `EmbeddingProvider` for pluggable embedding backends
@@ -100,6 +100,10 @@ Unified multi-provider AI interface with 18 provider types.
 | **Fish Audio** | TTS + ASR |
 | **Cartesia** | TTS |
 | **Murf AI** | TTS |
+
+### Per-Request Model Override
+
+All chat providers honour `ChatOptions::model: Option<String>`. When `Some`, providers substitute the override for their configured default on that request only. Enables per-session model switching (e.g. the `/model` slash command in BrainClaw) without recreating the provider instance.
 
 ### Infrastructure
 
@@ -928,7 +932,7 @@ Self-hosted personal AI assistant daemon. Multi-provider (Anthropic, OpenAI, Goo
 
 ### brainwires-gateway *(extras/brainclaw/)*
 
-WebSocket/HTTP hub for routing channel adapters to AI agent sessions. `InboundHandler` trait for custom message processing; built-in `AgentInboundHandler` wires `ChatAgent` sessions per user. WebChat browser UI served at `/chat`. Media pipeline for attachment download, image description, and audio transcription. Admin API (`/admin/*`) with Bearer token auth. Webhook endpoint with HMAC-SHA256 verification. Audit logger (structured JSON, ring buffer). In-memory metrics counters.
+WebSocket/HTTP hub for routing channel adapters to AI agent sessions. `InboundHandler` trait for custom message processing; built-in `AgentInboundHandler` wires `ChatAgent` sessions per user. WebChat browser UI served at `/chat`. Media pipeline for attachment download, image description, and audio transcription. Admin API (`/admin/*`) with Bearer token auth. Admin browser UI at `/admin/ui` (dark-themed single-file dashboard; Dashboard, Channels, Sessions, Cron Jobs, Identity, Broadcast sections). Webhook endpoint with HMAC-SHA256 verification. Audit logger (structured JSON, ring buffer). In-memory metrics counters. **`/model` slash command** for per-session model switching stored in a `DashMap`; fires `/model list`, `/model <name>`, `/model default`.
 
 ### brainwires-discord-channel *(extras/brainclaw/)*
 
@@ -941,6 +945,14 @@ Telegram channel adapter (teloxide) implementing the `Channel` trait. Bidirectio
 ### brainwires-slack-channel *(extras/brainclaw/)*
 
 Slack channel adapter using Socket Mode (reqwest) — no public URL required. Implements the `Channel` trait. Optional MCP tool server mode (`--mcp`).
+
+### brainwires-mattermost-channel *(extras/brainclaw/)*
+
+Mattermost channel adapter. Connects via Mattermost WebSocket API (`/api/v4/websocket`) for real-time events. Implements the `Channel` trait. Filtering: self-messages, channel allowlist, @mention requirement, team scoping. Optional MCP tool server mode (`--mcp`): `send_message`, `edit_message`, `delete_message`, `get_history`, `add_reaction`. Capabilities: `RICH_TEXT | THREADS | REACTIONS | TYPING_INDICATOR | EDIT_MESSAGES | DELETE_MESSAGES | MENTIONS`.
+
+### brainwires-signal-channel *(extras/brainclaw/)*
+
+Signal messenger channel adapter via `signal-cli-rest-api`. WebSocket push mode (`/v1/events`) with polling fallback (`GET /v1/receive/{number}`). Filtering: self-messages, sender allowlist (E.164 numbers), group allowlist (base64 IDs), @mention/keyword trigger for groups. Optional MCP tool server mode (`--mcp`): `send_message` (phone or `group.<id>`), `add_reaction` (composite `recipient:author:timestamp` ID). Capabilities: `REACTIONS`.
 
 ### brainwires-skill-registry *(extras/brainclaw/)*
 
