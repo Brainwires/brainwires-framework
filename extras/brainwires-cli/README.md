@@ -539,16 +539,16 @@ The framework provides all core capabilities. The CLI depends on a single facade
 brainwires = { path = "crates/brainwires-framework/crates/brainwires", features = ["full"] }
 ```
 
-The 18 framework crates, grouped by function:
+The framework crates, grouped by function:
 
 | Group | Crates |
 |-------|--------|
 | **Core** | `brainwires-core`, `brainwires-tool-system`, `brainwires-agents` |
-| **Intelligence** | `brainwires-providers`, `brainwires-reasoning`, `brainwires-prompting`, `brainwires-mdap`, `brainwires-seal` |
-| **Storage & Knowledge** | `brainwires-storage`, `brainwires-knowledge`, `brainwires-rag` |
-| **Integration** | `brainwires-mcp`, `brainwires-bridge`, `brainwires-bridge-client` |
-| **Security** | `brainwires-permissions` |
-| **Execution** | `brainwires-code-interpreters`, `brainwires-wasm` |
+| **Intelligence** | `brainwires-providers`, `brainwires-cognition` (knowledge, prompting, RAG), `brainwires-storage` |
+| **Integration** | `brainwires-mcp`, `brainwires-mcp-server`, `brainwires-agent-network` |
+| **Security & Skills** | `brainwires-permissions`, `brainwires-skills` |
+| **Execution** | `brainwires-code-interpreters`, `brainwires-wasm`, `brainwires-autonomy` |
+| **Hardware & Training** | `brainwires-hardware`, `brainwires-datasets`, `brainwires-training`, `brainwires-a2a`, `brainwires-channels` |
 
 ### CLI Layer
 

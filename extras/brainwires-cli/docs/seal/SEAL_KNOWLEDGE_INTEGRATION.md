@@ -299,7 +299,7 @@ Returns truths with relevance scores based on word overlap:
 - Sorts by relevance
 - Returns top N
 
-**Location:** `crates/brainwires-framework/crates/brainwires-prompting/src/knowledge/cache.rs:326-373`
+**Location:** `crates/brainwires-cognition/src/knowledge/cache.rs:326-373`
 
 ### PersonalKnowledgeCache
 
@@ -308,17 +308,17 @@ Returns truths with relevance scores based on word overlap:
 1. `get_all_facts() -> Vec<&PersonalFact>`
    - Returns all non-deleted facts
    - Used for entity-based filtering
-   - **Location:** `crates/brainwires-framework/crates/brainwires-prompting/src/knowledge/personal/cache.rs:305-310`
+   - **Location:** `crates/brainwires-cognition/src/knowledge/personal/cache.rs:305-310`
 
 2. `upsert_fact_simple(key, value, confidence, local_only)`
    - Simplified interface for quick fact insertion
    - Used by entity observation
-   - **Location:** `crates/brainwires-framework/crates/brainwires-prompting/src/knowledge/personal/cache.rs:296-303`
+   - **Location:** `crates/brainwires-cognition/src/knowledge/personal/cache.rs:296-303`
 
 3. `get_facts_by_key_prefix(prefix)`
    - Gets facts matching a key prefix
    - E.g., "recent_entity:" gets all tracked entities
-   - **Location:** `crates/brainwires-framework/crates/brainwires-prompting/src/knowledge/personal/cache.rs:312-318`
+   - **Location:** `crates/brainwires-cognition/src/knowledge/personal/cache.rs:312-318`
 
 ## Testing
 
@@ -505,7 +505,7 @@ Category: Preference
 - [ ] Entity relationship integration
 
 **Files:**
-- `crates/brainwires-framework/crates/brainwires-prompting/src/knowledge/personal/integration.rs`
+- `crates/brainwires-cognition/src/knowledge/personal/integration.rs`
 - `src/commands/executor/personal_commands.rs`
 
 ### Phase 5: Configuration & Testing (MEDIUM PRIORITY)
@@ -537,10 +537,10 @@ Category: Preference
 
 - **Main Plan:** `/SEAL_KNOWLEDGE_INTEGRATION_PLAN.md`
 - **SEAL Module:** `src/seal/mod.rs`
-- **Knowledge System:** `crates/brainwires-framework/crates/brainwires-prompting/src/knowledge/mod.rs`
+- **Knowledge System:** `crates/brainwires-cognition/src/knowledge/mod.rs`
 - **Orchestrator:** `src/agents/orchestrator.rs`
-- **BKS:** `crates/brainwires-framework/crates/brainwires-prompting/src/knowledge/cache.rs`
-- **PKS:** `crates/brainwires-framework/crates/brainwires-prompting/src/knowledge/personal/cache.rs`
+- **BKS:** `crates/brainwires-cognition/src/knowledge/cache.rs`
+- **PKS:** `crates/brainwires-cognition/src/knowledge/personal/cache.rs`
 
 ## Contributing
 

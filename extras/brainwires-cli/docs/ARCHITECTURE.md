@@ -193,7 +193,7 @@ Persistent storage for conversations and embeddings:
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### 7. Knowledge Layer (framework: `brainwires-prompting` crate, `knowledge` feature)
+### 7. Knowledge Layer (framework: `brainwires-cognition` crate, `knowledge` feature)
 
 Entity extraction and context management:
 
@@ -211,9 +211,9 @@ Authentication and session management:
 - Direct provider API key support
 - Secure keyring storage via `keyring` crate
 
-### 9. Prompting & SEAL (framework: `brainwires-prompting` crate)
+### 9. Prompting & SEAL (framework: `brainwires-cognition` crate)
 
-Adaptive prompting and self-evolving learning are implemented in the `brainwires-prompting`
+Adaptive prompting and self-evolving learning are implemented in the `brainwires-cognition`
 framework crate, which the CLI integrates as a dependency. These systems are not local `src/`
 modules.
 
@@ -496,7 +496,7 @@ MCP Client Request
                               │    ipc     │
                               └────────────┘
 ```
-> `knowledge` is implemented in the `brainwires-prompting` framework crate (not a local `src/` module).
+> `knowledge` is implemented in the `brainwires-cognition` framework crate (not a local `src/` module).
 
 ### Module Descriptions
 
@@ -518,9 +518,9 @@ MCP Client Request
 | `session` | `src/session/` | PTY session persistence |
 | `ipc` | `src/ipc.rs` | Inter-process communication |
 | `auth` | `src/auth.rs` | Authentication and session tokens |
-| `knowledge` | framework crate | Entity extraction, context graphs (`brainwires-prompting`) |
-| `seal` | framework crate | Self-evolving adaptive learning (`brainwires-prompting`) |
-| `prompting` | framework crate | Adaptive prompting techniques (`brainwires-prompting`) |
+| `knowledge` | framework crate | Entity extraction, context graphs (`brainwires-cognition`) |
+| `seal` | framework crate | Self-evolving adaptive learning (`brainwires-cognition`) |
+| `prompting` | framework crate | Adaptive prompting techniques (`brainwires-cognition`) |
 
 ## Error Handling
 

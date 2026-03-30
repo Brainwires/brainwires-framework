@@ -177,7 +177,7 @@ Most of these are essential for core functionality. Only `llama-cpp-2` is truly 
    - **Semantic Search**: Query past conversations by content similarity
    - Tiered memory: hot (recent), warm (session), cold (archived)
 
-8. **Context Layer** (framework: `brainwires-prompting` crate, `knowledge` feature)
+8. **Context Layer** (framework: `brainwires-cognition` crate, `knowledge` feature)
    - **Entity Extraction**: Automatically extracts files, functions, types, variables from messages
    - **Relationship Graph**: Tracks co-occurrence, containment, dependencies between entities
    - **Smart Context Injection**: Retrieves relevant past messages when needed

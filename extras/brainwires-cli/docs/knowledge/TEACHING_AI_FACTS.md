@@ -433,14 +433,14 @@ Coming in future releases:
 ## Related Documentation
 
 - **SEAL Integration:** `docs/SEAL_KNOWLEDGE_INTEGRATION.md`
-- **Knowledge System:** `crates/brainwires-framework/crates/brainwires-prompting/src/knowledge/mod.rs`
+- **Knowledge System:** `crates/brainwires-cognition/src/knowledge/mod.rs`
 - **Personal Commands:** `src/commands/executor/personal_commands.rs`
 
 ## Support
 
 - **GitHub Issues:** https://github.com/anthropics/brainwires-cli/issues
 - **Documentation:** `docs/` directory
-- **Source Code:** `crates/brainwires-framework/crates/brainwires-prompting/src/knowledge/personal/`
+- **Source Code:** `crates/brainwires-cognition/src/knowledge/personal/`
 
 ---
 
