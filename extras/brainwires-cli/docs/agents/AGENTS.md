@@ -31,14 +31,14 @@ The agent system enables autonomous, concurrent execution of coding tasks. An ex
 
 ```
 MCP Client sends agent_spawn
-  └─> McpServerHandler::handle_agent_tool_call()     [handler.rs:383]
-      └─> spawn_agent(args)                           [handler.rs:440]
+  └─> McpServerHandler::handle_agent_tool_call()     [handler.rs:385]
+      └─> spawn_agent_impl(args)                      [handler.rs:432]
           ├─> Create Task from description
           ├─> Build AgentContext (working dir, tools, capabilities)
           ├─> Configure TaskAgentConfig (iterations, validation, MDAP)
           ├─> Instantiate TaskAgent
-          ├─> tokio::spawn() → TaskAgent::execute()   [handler.rs:564]
-          ├─> Store as AgentEntry in HashMap           [handler.rs:585]
+          ├─> tokio::spawn() → TaskAgent::execute()   [handler.rs:556]
+          ├─> Store as AgentEntry in HashMap           [handler.rs:579]
           └─> Return agent_id immediately (non-blocking)
 
 TaskAgent::execute() runs on background Tokio task    [task_agent.rs:198]

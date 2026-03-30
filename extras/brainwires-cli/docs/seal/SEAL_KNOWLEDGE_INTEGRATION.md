@@ -532,7 +532,6 @@ Category: Preference
 
 ## References
 
-- **Main Plan:** `/SEAL_KNOWLEDGE_INTEGRATION_PLAN.md`
 - **SEAL Module:** `brainwires::seal` (framework crate)
 - **Knowledge System:** `crates/brainwires-cognition/src/knowledge/mod.rs`
 - **Orchestrator:** `src/agents/orchestrator.rs`

@@ -337,6 +337,6 @@ match tracker.check_budget() {
 
 ## Related Documentation
 
-- [ARCHITECTURE.md](./ARCHITECTURE.md) - System architecture overview
-- [PERMISSION_SYSTEM.md](./PERMISSION_SYSTEM.md) - Resource quotas configuration
+- [ARCHITECTURE.md](../ARCHITECTURE.md) - System architecture overview
+- [PERMISSION_SYSTEM.md](../agents/PERMISSION_SYSTEM.md) - Resource quotas configuration
 - [CLI_CHAT_MODES.md](./CLI_CHAT_MODES.md) - Chat mode token usage patterns
