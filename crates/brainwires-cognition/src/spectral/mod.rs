@@ -201,6 +201,116 @@ fn greedy_log_det_select(kernel: &Array2<f32>, k: usize) -> Vec<usize> {
     selected
 }
 
+// ── Cross-encoder reranker ────────────────────────────────────────────────
+
+/// Configuration for the query-aware cross-encoder reranker.
+#[derive(Debug, Clone)]
+pub struct CrossEncoderConfig {
+    /// Blend weight between the original retrieval score and the query-document
+    /// cosine similarity.
+    ///
+    /// - `1.0` → use original retrieval score only (no re-ranking)
+    /// - `0.0` → use query-document cosine similarity only
+    /// - `0.5` → equal blend (default)
+    pub alpha: f32,
+    /// Pre-computed query embedding used as the "query" side of the joint score.
+    ///
+    /// If empty, the reranker falls back to the original score order (alpha = 1.0).
+    pub query_embedding: Vec<f32>,
+}
+
+impl Default for CrossEncoderConfig {
+    fn default() -> Self {
+        Self {
+            alpha: 0.5,
+            query_embedding: Vec::new(),
+        }
+    }
+}
+
+/// Query-aware reranker that blends the original retrieval score with a
+/// query-document cosine similarity for a joint re-scoring pass.
+///
+/// This is a lightweight, embedding-based approximation of a true cross-encoder
+/// that requires no additional model — it reuses the same embeddings already
+/// computed during retrieval.
+pub struct CrossEncoderReranker {
+    config: CrossEncoderConfig,
+}
+
+impl CrossEncoderReranker {
+    /// Create a new cross-encoder reranker with the given configuration.
+    pub fn new(config: CrossEncoderConfig) -> Self {
+        Self { config }
+    }
+
+    /// Convenience constructor — specify alpha and query embedding directly.
+    pub fn with_alpha(alpha: f32, query_embedding: Vec<f32>) -> Self {
+        Self::new(CrossEncoderConfig {
+            alpha,
+            query_embedding,
+        })
+    }
+}
+
+impl DiversityReranker for CrossEncoderReranker {
+    fn rerank(&self, results: &[SearchResult], embeddings: &[Vec<f32>], k: usize) -> Vec<usize> {
+        let n = results.len();
+        if n == 0 || k == 0 {
+            return Vec::new();
+        }
+        if k >= n {
+            return (0..n).collect();
+        }
+
+        // If no query embedding, fall back to score-descending order.
+        if self.config.query_embedding.is_empty() {
+            let mut indices: Vec<usize> = (0..n).collect();
+            indices.sort_by(|&a, &b| {
+                results[b]
+                    .score
+                    .partial_cmp(&results[a].score)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+            return indices.into_iter().take(k).collect();
+        }
+
+        let query_emb = &self.config.query_embedding;
+        let alpha = self.config.alpha.clamp(0.0, 1.0);
+
+        let mut scored: Vec<(usize, f32)> = (0..n)
+            .map(|i| {
+                let cos = if i < embeddings.len() {
+                    kernel::cosine_similarity(query_emb, &embeddings[i])
+                } else {
+                    0.0
+                };
+                let joint = alpha * results[i].score + (1.0 - alpha) * cos;
+                (i, joint)
+            })
+            .collect();
+
+        scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        scored.into_iter().take(k).map(|(i, _)| i).collect()
+    }
+}
+
+/// Select which reranker(s) to apply in [`crate::rag::client::RagClient::query_diverse`].
+pub enum RerankerKind {
+    /// Greedy log-determinant spectral reranker (diversity-focused).
+    Spectral(SpectralSelectConfig),
+    /// Query-aware cross-encoder reranker (relevance-focused).
+    CrossEncoder(CrossEncoderConfig),
+    /// Apply spectral reranking first (for diversity), then cross-encoder on
+    /// the selected subset (for final relevance ordering).
+    Both {
+        /// Config for the spectral (first) pass.
+        spectral: SpectralSelectConfig,
+        /// Config for the cross-encoder (second) pass.
+        cross_encoder: CrossEncoderConfig,
+    },
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -422,5 +532,80 @@ mod tests {
             "Performance test: took {}ms, expected <500ms",
             elapsed.as_millis()
         );
+    }
+
+    // ── CrossEncoderReranker tests ────────────────────────────────────────
+
+    #[test]
+    fn test_cross_encoder_empty_input() {
+        let r = CrossEncoderReranker::with_alpha(0.5, vec![1.0, 0.0]);
+        assert!(r.rerank(&[], &[], 5).is_empty());
+    }
+
+    #[test]
+    fn test_cross_encoder_k_zero() {
+        let r = CrossEncoderReranker::with_alpha(0.5, vec![1.0, 0.0]);
+        let results = vec![make_result(0.9)];
+        let embeddings = vec![vec![1.0, 0.0]];
+        assert!(r.rerank(&results, &embeddings, 0).is_empty());
+    }
+
+    #[test]
+    fn test_cross_encoder_pure_cosine_alpha_zero() {
+        // alpha=0.0 → pure cosine similarity.
+        // query = [1, 0]; doc0 = [1, 0] (cos=1.0); doc1 = [0, 1] (cos=0.0)
+        let query_emb = vec![1.0_f32, 0.0];
+        let r = CrossEncoderReranker::with_alpha(0.0, query_emb);
+
+        let results = vec![make_result(0.5), make_result(0.9)]; // doc1 has higher original score
+        let embeddings = vec![vec![1.0_f32, 0.0], vec![0.0_f32, 1.0]]; // doc0 aligned, doc1 orthogonal
+
+        let selected = r.rerank(&results, &embeddings, 2);
+        // doc0 should rank first (cos=1.0 > cos=0.0)
+        assert_eq!(selected[0], 0);
+    }
+
+    #[test]
+    fn test_cross_encoder_pure_original_alpha_one() {
+        // alpha=1.0 → use original scores unchanged.
+        let r = CrossEncoderReranker::with_alpha(1.0, vec![1.0, 0.0]);
+        let results = vec![make_result(0.3), make_result(0.9), make_result(0.6)];
+        let embeddings = vec![vec![0.0_f32, 1.0]; 3];
+        let selected = r.rerank(&results, &embeddings, 2);
+        // Should be score-descending: indices 1, 2
+        assert_eq!(selected[0], 1); // score 0.9
+        assert_eq!(selected[1], 2); // score 0.6
+    }
+
+    #[test]
+    fn test_cross_encoder_blend_changes_ranking() {
+        // With alpha=0.5 and a query aligned to doc0, doc0 should beat doc1
+        // even though doc1 has a higher original score.
+        let query_emb = vec![1.0_f32, 0.0];
+        let r = CrossEncoderReranker::with_alpha(0.5, query_emb);
+        // doc0: score=0.3, cos=1.0  → joint = 0.5*0.3 + 0.5*1.0 = 0.65
+        // doc1: score=0.9, cos=0.0  → joint = 0.5*0.9 + 0.5*0.0 = 0.45
+        let results = vec![make_result(0.3), make_result(0.9)];
+        let embeddings = vec![vec![1.0_f32, 0.0], vec![0.0_f32, 1.0]];
+        let selected = r.rerank(&results, &embeddings, 2);
+        assert_eq!(selected[0], 0); // doc0 wins with blend
+    }
+
+    #[test]
+    fn test_cross_encoder_empty_query_embedding_falls_back_to_score_order() {
+        let r = CrossEncoderReranker::with_alpha(0.5, Vec::new());
+        let results = vec![make_result(0.3), make_result(0.9), make_result(0.6)];
+        let embeddings = vec![vec![1.0_f32, 0.0]; 3];
+        let selected = r.rerank(&results, &embeddings, 2);
+        assert_eq!(selected[0], 1); // highest original score
+    }
+
+    #[test]
+    fn test_cross_encoder_k_gte_n_returns_all() {
+        let r = CrossEncoderReranker::with_alpha(0.5, vec![1.0, 0.0]);
+        let results = vec![make_result(0.8), make_result(0.5)];
+        let embeddings = vec![vec![1.0_f32, 0.0]; 2];
+        let selected = r.rerank(&results, &embeddings, 10);
+        assert_eq!(selected.len(), 2);
     }
 }

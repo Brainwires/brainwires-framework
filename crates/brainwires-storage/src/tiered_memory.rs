@@ -37,6 +37,27 @@ const DEFAULT_HOT_IMPORTANCE_THRESHOLD: f32 = 0.3;
 const DEFAULT_WARM_IMPORTANCE_THRESHOLD: f32 = 0.1;
 const DEFAULT_MAX_HOT_MESSAGES: usize = 1000;
 const DEFAULT_MAX_WARM_SUMMARIES: usize = 5000;
+const FAST_DECAY_RATE: f32 = 0.05;
+
+/// Temporal keywords that imply a recency-sensitive query.
+const TEMPORAL_KEYWORDS: &[&str] = &[
+    "recent", "recently", "latest", "last", "current", "currently",
+    "today", "yesterday", "this week", "now", "just", "new", "newest",
+];
+
+/// Detect whether a query is temporally sensitive.
+///
+/// Returns a score in `[0.0, 1.0]` based on keyword density: each matching
+/// keyword from [`TEMPORAL_KEYWORDS`] contributes 1 hit; score is clamped at
+/// `hits / 3.0` to avoid saturating on very long queries.
+fn detect_temporal_query(query: &str) -> f32 {
+    let lower = query.to_lowercase();
+    let hits = TEMPORAL_KEYWORDS
+        .iter()
+        .filter(|kw| lower.contains(*kw))
+        .count();
+    (hits as f32 / 3.0).min(1.0)
+}
 
 // ── Memory authority hierarchy ────────────────────────────────────────────────
 
@@ -272,11 +293,32 @@ pub struct MultiFactorScore {
 }
 
 impl MultiFactorScore {
-    /// Compute the combined score from its components.
+    /// Compute the combined score from its components using default weights.
     pub fn compute(similarity: f32, recency: f32, importance: f32) -> Self {
-        let combined = similarity * SIMILARITY_WEIGHT
-            + recency * RECENCY_WEIGHT
-            + importance * IMPORTANCE_WEIGHT;
+        Self::compute_with_weights(
+            similarity,
+            recency,
+            importance,
+            SIMILARITY_WEIGHT,
+            RECENCY_WEIGHT,
+            IMPORTANCE_WEIGHT,
+        )
+    }
+
+    /// Compute the combined score using caller-supplied weights.
+    ///
+    /// Weights need not sum to 1.0 — `combined` is the raw dot product and is
+    /// clamped to `[0.0, 1.0]` for consistency.
+    pub fn compute_with_weights(
+        similarity: f32,
+        recency: f32,
+        importance: f32,
+        sim_w: f32,
+        rec_w: f32,
+        imp_w: f32,
+    ) -> Self {
+        let combined =
+            (similarity * sim_w + recency * rec_w + importance * imp_w).clamp(0.0, 1.0);
         Self {
             similarity,
             recency,
@@ -291,6 +333,11 @@ impl MultiFactorScore {
     /// Compute the recency factor from `hours_since_last_access`.
     pub fn recency_from_hours(hours_since_access: f32) -> f32 {
         (-Self::DECAY_RATE * hours_since_access).exp()
+    }
+
+    /// Compute the recency factor using the fast decay rate (`exp(-0.05 × h)`).
+    pub fn recency_from_hours_fast(hours_since_access: f32) -> f32 {
+        (-FAST_DECAY_RATE * hours_since_access).exp()
     }
 }
 
@@ -338,6 +385,18 @@ pub struct TieredMemoryConfig {
     /// `None` (the default) means no TTL — messages persist until explicitly
     /// deleted or demoted.
     pub session_ttl_secs: Option<u64>,
+    /// Extra recency weight added when a query is detected as temporally
+    /// sensitive (e.g. contains "recent", "latest", "today").
+    ///
+    /// The additional weight is proportional to the query's temporal score
+    /// (`0.0–1.0`).  The three weights are renormalised so they always sum to
+    /// `1.0`.  Default: `0.3`.
+    pub temporal_boost: f32,
+    /// Use a faster recency decay rate (`exp(-0.05 × h)` instead of
+    /// `exp(-0.01 × h)`) when the query is temporally sensitive.
+    ///
+    /// Default: `false`.
+    pub fast_decay: bool,
 }
 
 impl Default for TieredMemoryConfig {
@@ -350,6 +409,8 @@ impl Default for TieredMemoryConfig {
             max_hot_messages: DEFAULT_MAX_HOT_MESSAGES,
             max_warm_summaries: DEFAULT_MAX_WARM_SUMMARIES,
             session_ttl_secs: None,
+            temporal_boost: 0.3,
+            fast_decay: false,
         }
     }
 }
@@ -590,16 +651,30 @@ impl TieredMemory {
 
         let now_secs = chrono::Utc::now().timestamp();
 
+        // Compute temporal sensitivity once for the whole query.
+        let temporal_factor = detect_temporal_query(query);
+        let use_fast_decay = self.config.fast_decay && temporal_factor > 0.0;
+
+        // Derive per-query weights, renormalised so they sum to 1.0.
+        let extra_recency = self.config.temporal_boost * temporal_factor;
+        let rec_w = (RECENCY_WEIGHT + extra_recency).min(1.0);
+        let remaining = 1.0 - rec_w;
+        let sim_share = SIMILARITY_WEIGHT / (SIMILARITY_WEIGHT + IMPORTANCE_WEIGHT);
+        let sim_w = sim_share * remaining;
+        let imp_w = remaining - sim_w;
+
         for result in &mut results {
             let similarity = result.score;
 
             let (recency, importance) = if let Some(id) = &result.original_message_id {
                 if let Some(meta) = meta_map.get(id.as_str()) {
                     let hours_since = (now_secs - meta.last_accessed).max(0) as f32 / 3600.0;
-                    (
-                        MultiFactorScore::recency_from_hours(hours_since),
-                        meta.importance,
-                    )
+                    let rec = if use_fast_decay {
+                        MultiFactorScore::recency_from_hours_fast(hours_since)
+                    } else {
+                        MultiFactorScore::recency_from_hours(hours_since)
+                    };
+                    (rec, meta.importance)
                 } else {
                     (1.0_f32, 0.5_f32) // Fallback: assume fresh + average importance
                 }
@@ -607,8 +682,9 @@ impl TieredMemory {
                 (1.0_f32, 0.5_f32)
             };
 
-            result.multi_factor_score =
-                Some(MultiFactorScore::compute(similarity, recency, importance));
+            result.multi_factor_score = Some(MultiFactorScore::compute_with_weights(
+                similarity, recency, importance, sim_w, rec_w, imp_w,
+            ));
         }
 
         // Re-sort by combined score (highest first).
@@ -890,5 +966,78 @@ mod tests {
         // CanonicalWriteToken::new() is pub(crate) — this test being inside
         // the same crate confirms we can construct it; external crates cannot.
         let _token = CanonicalWriteToken::new();
+    }
+
+    // ── Feature 2: Temporal scoring ─────────────────────────────────────
+
+    #[test]
+    fn test_detect_temporal_query_empty() {
+        assert_eq!(detect_temporal_query(""), 0.0);
+    }
+
+    #[test]
+    fn test_detect_temporal_query_no_keywords() {
+        assert_eq!(detect_temporal_query("how does authentication work?"), 0.0);
+    }
+
+    #[test]
+    fn test_detect_temporal_query_single_keyword() {
+        let score = detect_temporal_query("what is the latest approach?");
+        assert!(score > 0.0, "expected score > 0 for 'latest'");
+    }
+
+    #[test]
+    fn test_detect_temporal_query_dense() {
+        let score = detect_temporal_query("what was the latest change today?");
+        assert!(score > 0.0);
+    }
+
+    #[test]
+    fn test_detect_temporal_query_max_clamp() {
+        // Five keywords — result must be <= 1.0
+        let score = detect_temporal_query("recent latest current today now new");
+        assert!(score <= 1.0, "score must not exceed 1.0");
+        assert!(score > 0.0);
+    }
+
+    #[test]
+    fn test_compute_with_weights_sum_normalised() {
+        // Weights sum to 1.0 — combined should equal the weighted sum, clamped.
+        let sim_w = 0.4_f32;
+        let rec_w = 0.4_f32;
+        let imp_w = 0.2_f32;
+        let score = MultiFactorScore::compute_with_weights(0.8, 0.9, 0.6, sim_w, rec_w, imp_w);
+        let expected = (0.8 * sim_w + 0.9 * rec_w + 0.6 * imp_w).clamp(0.0, 1.0);
+        assert!((score.combined - expected).abs() < 1e-5);
+    }
+
+    #[test]
+    fn test_compute_with_weights_matches_compute_for_default_weights() {
+        let a = MultiFactorScore::compute(0.7, 0.8, 0.5);
+        let b = MultiFactorScore::compute_with_weights(
+            0.7,
+            0.8,
+            0.5,
+            SIMILARITY_WEIGHT,
+            RECENCY_WEIGHT,
+            IMPORTANCE_WEIGHT,
+        );
+        assert!((a.combined - b.combined).abs() < 1e-5);
+    }
+
+    #[test]
+    fn test_temporal_config_defaults() {
+        let cfg = TieredMemoryConfig::default();
+        assert_eq!(cfg.temporal_boost, 0.3);
+        assert!(!cfg.fast_decay);
+    }
+
+    #[test]
+    fn test_fast_decay_rate_higher_than_normal() {
+        // Fast decay should make old items score lower than normal decay.
+        let hours = 48.0_f32;
+        let normal = MultiFactorScore::recency_from_hours(hours);
+        let fast = MultiFactorScore::recency_from_hours_fast(hours);
+        assert!(fast < normal, "fast decay should produce lower recency for old items");
     }
 }

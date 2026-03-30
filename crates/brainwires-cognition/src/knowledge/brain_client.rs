@@ -15,6 +15,7 @@ use brainwires_storage::{
 #[cfg(feature = "knowledge")]
 use brainwires_storage::LanceDatabase;
 
+use crate::knowledge::config::MemoryBankConfig;
 use crate::knowledge::fact_extractor;
 use crate::knowledge::thought::{Thought, ThoughtCategory, ThoughtSource};
 use crate::knowledge::types::*;
@@ -26,6 +27,8 @@ pub struct BrainClient {
     pks_cache: PersonalKnowledgeCache,
     bks_cache: BehavioralKnowledgeCache,
     fact_collector: PersonalFactCollector,
+    /// Optional memory bank configuration (mission, directives, disposition).
+    config: MemoryBankConfig,
 }
 
 const THOUGHTS_TABLE: &str = "thoughts";
@@ -90,7 +93,25 @@ impl BrainClient {
             pks_cache,
             bks_cache,
             fact_collector,
+            config: MemoryBankConfig::default(),
         })
+    }
+
+    /// Create with default paths and a custom [`MemoryBankConfig`].
+    pub async fn with_bank_config(config: MemoryBankConfig) -> Result<Self> {
+        let mut client = Self::new().await?;
+        client.config = config;
+        Ok(client)
+    }
+
+    /// Set or replace the [`MemoryBankConfig`] on an existing client.
+    pub fn set_config(&mut self, config: MemoryBankConfig) {
+        self.config = config;
+    }
+
+    /// Return a reference to the active [`MemoryBankConfig`].
+    pub fn config(&self) -> &MemoryBankConfig {
+        &self.config
     }
 
     // ── Table management ─────────────────────────────────────────────────
@@ -139,6 +160,13 @@ impl BrainClient {
                 if !auto_tags.contains(&lower) {
                     auto_tags.push(lower);
                 }
+            }
+        }
+
+        // Auto-tag with the mission slug when a mission is configured.
+        if let Some(mission_tag) = self.config.mission_tag() {
+            if !auto_tags.contains(&mission_tag) {
+                auto_tags.push(mission_tag);
             }
         }
 
@@ -268,6 +296,15 @@ impl BrainClient {
                         created_at: Some(fact.created_at),
                     });
                 }
+            }
+        }
+
+        // Apply memory bank config: directive filtering + disposition scoring.
+        if !self.config.is_noop() {
+            results.retain(|r| !self.config.blocks_content(&r.content));
+            for r in &mut results {
+                let delta = self.config.disposition_score_delta(&r.content);
+                r.score = (r.score + delta).clamp(0.0, 1.0);
             }
         }
 

@@ -73,6 +73,8 @@ pub mod code_analysis;
 #[cfg(feature = "knowledge")]
 pub use knowledge::brain_client::BrainClient;
 #[cfg(feature = "knowledge")]
+pub use knowledge::config::{DispositionTrait, MemoryBankConfig};
+#[cfg(feature = "knowledge")]
 pub use knowledge::entity::{
     ContradictionEvent, ContradictionKind, Entity, EntityStore, EntityStoreStats, EntityType,
     ExtractionResult, Relationship,
@@ -120,10 +122,11 @@ pub use rag::config::Config;
 pub use rag::error::RagError;
 #[cfg(feature = "rag")]
 pub use rag::types::{
-    AdvancedSearchRequest, ClearRequest, ClearResponse, FindDefinitionRequest,
-    FindReferencesRequest, GetCallGraphRequest, GitSearchResult, IndexRequest, IndexResponse,
-    IndexingMode, LanguageStats, QueryRequest, QueryResponse, SearchGitHistoryRequest,
-    SearchGitHistoryResponse, StatisticsRequest, StatisticsResponse,
+    AdvancedSearchRequest, ClearRequest, ClearResponse, EnsembleRequest, EnsembleResponse,
+    FindDefinitionRequest, FindReferencesRequest, GetCallGraphRequest, GitSearchResult,
+    IndexRequest, IndexResponse, IndexingMode, LanguageStats, QueryRequest, QueryResponse,
+    SearchGitHistoryRequest, SearchGitHistoryResponse, SearchStrategy, StatisticsRequest,
+    StatisticsResponse,
 };
 #[cfg(all(feature = "rag", feature = "code-analysis"))]
 pub use rag::types::{FindDefinitionResponse, FindReferencesResponse, GetCallGraphResponse};
@@ -131,7 +134,10 @@ pub use rag::types::{FindDefinitionResponse, FindReferencesResponse, GetCallGrap
 // ── Re-exports (spectral) ─────────────────────────────────────────────────
 
 #[cfg(feature = "spectral")]
-pub use spectral::SpectralReranker;
+pub use spectral::{
+    CrossEncoderConfig, CrossEncoderReranker, DiversityReranker, RerankerKind, SpectralReranker,
+    SpectralSelectConfig,
+};
 
 // ── Re-exports (code analysis) ────────────────────────────────────────────
 

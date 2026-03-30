@@ -37,6 +37,7 @@ async fn main() -> Result<()> {
         max_hot_messages: 500,
         max_warm_summaries: 2000,
         session_ttl_secs: None,        // no automatic expiry
+        ..TieredMemoryConfig::default()
     };
 
     println!("TieredMemory config:");
