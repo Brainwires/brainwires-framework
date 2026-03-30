@@ -9,9 +9,14 @@ Provides a unified hardware abstraction layer covering audio, GPIO, Bluetooth, a
 | Module | Feature | Description |
 |--------|---------|-------------|
 | `audio` | `audio` | Audio capture/playback, STT, TTS (16 cloud providers + local Whisper) |
+| `audio/vad` | *(always)* / `vad` | Voice activity detection — `EnergyVad` (always) + `WebRtcVad` (`vad`) |
+| `audio/wake_word` | `wake-word` | Wake word detection — `EnergyTriggerDetector` + optional ML backends |
+| `audio/assistant` | `voice-assistant` | End-to-end voice assistant pipeline |
 | `gpio` | `gpio` | GPIO pin management with safety allow-lists and PWM (Linux) |
 | `bluetooth` | `bluetooth` | BLE advertisement scanning and adapter enumeration |
 | `network` | `network` | NIC enumeration, IP config, ARP host discovery, port scanning |
+| `camera` | `camera` | Webcam/camera frame capture (V4L2/AVFoundation/MSMF) |
+| `usb` | `usb` | Raw USB device enumeration and transfers (no libusb) |
 
 ## Getting started
 
@@ -32,12 +37,19 @@ brainwires-hardware = { version = "0.6", features = ["full"] }
 | Feature | Description |
 |---------|-------------|
 | `audio` | Hardware audio I/O via CPAL + 16 cloud STT/TTS providers |
-| `flac` | FLAC encode/decode (also enabled by `audio`) |
+| `flac` | FLAC encode/decode |
 | `local-stt` | Local Whisper STT inference via whisper-rs (heavy dep, opt-in) |
+| `vad` | WebRTC VAD algorithm (`EnergyVad` is always available with `audio`) |
+| `wake-word` | Wake word detection — `EnergyTriggerDetector` (zero deps) |
+| `wake-word-rustpotter` | `RustpotterDetector` — pure-Rust ML wake word (opt-in, see notes) |
+| `wake-word-porcupine` | `PorcupineDetector` — Picovoice Porcupine (requires AccessKey + git dep) |
+| `voice-assistant` | Full pipeline: capture → wake word → VAD → STT → handler → TTS |
 | `gpio` | GPIO pin control via Linux character device API (`gpio-cdev`) |
 | `bluetooth` | BLE scanning and adapter enumeration via `btleplug` |
 | `network` | NIC enumeration, IP config, ARP discovery, port scanning |
-| `full` | All of the above (except `local-stt`) |
+| `camera` | Webcam/camera capture via nokhwa (V4L2/AVFoundation/MSMF) |
+| `usb` | Raw USB device access and transfers via nusb (no libusb) |
+| `full` | All features (except `local-stt`, `wake-word-rustpotter`, `wake-word-porcupine`) |
 
 ## Audio
 
@@ -105,6 +117,58 @@ let results = network::scan_common_ports(
 let hosts = network::arp_scan("192.168.1.0/24".parse().unwrap()).await;
 ```
 
+## Voice Activity Detection
+
+`EnergyVad` is always available (no extra feature needed beyond `audio`). `WebRtcVad` requires the `vad` feature.
+
+```rust
+use brainwires_hardware::{EnergyVad, VoiceActivityDetector};
+
+let vad = EnergyVad::default(); // -40 dBFS threshold
+if vad.is_speech(&audio_buffer) {
+    println!("Speech detected!");
+}
+```
+
+## Wake Word Detection
+
+```rust
+use brainwires_hardware::{EnergyTriggerDetector, WakeWordDetector};
+
+let mut detector = EnergyTriggerDetector::new(-20.0, 3, 16_000);
+// Feed 30 ms i16 frames from the mic:
+if let Some(detection) = detector.process_frame(&frame) {
+    println!("Wake trigger! score={:.2}", detection.score);
+}
+```
+
+## Voice Assistant Pipeline
+
+```rust
+use brainwires_hardware::{VoiceAssistant, VoiceAssistantHandler, VoiceAssistantConfig};
+use brainwires_hardware::audio::types::Transcript;
+use async_trait::async_trait;
+
+struct MyHandler;
+
+#[async_trait]
+impl VoiceAssistantHandler for MyHandler {
+    async fn on_speech(&self, transcript: &Transcript) -> Option<String> {
+        println!("You said: {}", transcript.text);
+        Some("I heard you!".to_string())
+    }
+}
+
+// Build and run
+let mut assistant = VoiceAssistant::builder(capture, stt)
+    .with_playback(playback)
+    .with_tts(tts)
+    .with_wake_word(Box::new(EnergyTriggerDetector::default()))
+    .build();
+
+assistant.run(&MyHandler).await?;
+```
+
 ## Migration from brainwires-audio
 
 ```toml
@@ -126,4 +190,14 @@ cargo run -p brainwires-hardware --example bluetooth_scan --features bluetooth
 cargo run -p brainwires-hardware --example network_interfaces --features network
 cargo run -p brainwires-hardware --example port_scan --features network -- 192.168.1.1
 sudo cargo run -p brainwires-hardware --example host_discovery --features network -- 192.168.1.0/24
+
+# Wake word demo (prints detections from mic)
+cargo run -p brainwires-hardware --example wake_word_demo --features wake-word
+
+# Full voice assistant demo (requires OPENAI_API_KEY)
+cargo run -p brainwires-hardware --example voice_assistant --features voice-assistant
+
+# Standalone voice assistant binary
+cargo run -p voice-assistant -- --list-devices
+cargo run -p voice-assistant -- --verbose
 ```

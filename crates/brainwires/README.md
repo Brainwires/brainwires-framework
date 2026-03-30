@@ -85,6 +85,10 @@ let response = provider.chat(&messages, None, &options).await?;
 | `a2a` | no | `brainwires-a2a` | Agent-to-Agent protocol |
 | `mesh` | no | `brainwires-agent-network/mesh` | Mesh networking for distributed agents |
 | `audio` | no | `brainwires-hardware/audio` | Audio capture, STT, TTS (16 cloud providers + local Whisper) |
+| `vad` | no | `brainwires-hardware/vad` | WebRTC voice activity detection (`EnergyVad` always available with `audio`) |
+| `wake-word` | no | `brainwires-hardware/wake-word` | Wake word detection — `EnergyTriggerDetector` (zero deps) |
+| `wake-word-porcupine` | no | `brainwires-hardware/wake-word-porcupine` | Picovoice Porcupine wake word (requires AccessKey) |
+| `voice-assistant` | no | `brainwires-hardware/voice-assistant` | Full voice assistant pipeline (implies `audio` + `vad` + `wake-word`) |
 | `gpio` | no | `brainwires-hardware/gpio` | GPIO pin control with safety allow-lists (Linux) |
 | `bluetooth` | no | `brainwires-hardware/bluetooth` | BLE advertisement scanning and adapter enumeration |
 | `network-hardware` | no | `brainwires-hardware/network` | NIC enumeration, IP config, ARP discovery, port scanning |

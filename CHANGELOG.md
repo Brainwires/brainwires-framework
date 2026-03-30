@@ -43,6 +43,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Hardware (`brainwires-hardware`)
 
+- **Voice Activity Detection** (always available with `audio`) — `VoiceActivityDetector` trait + `EnergyVad` (pure-Rust RMS energy threshold, no extra deps). Feature `vad` adds `WebRtcVad` (three aggressiveness modes: Quality, LowBitrate, Aggressive, VeryAggressive) via `webrtc-vad 0.4`. Helpers: `SpeechSegment`, `rms_db()`, `pcm_to_i16_mono()`, `pcm_to_f32()`.
+- **Wake word detection** (feature `wake-word`) — `WakeWordDetector` trait + `WakeWordDetection` event. `EnergyTriggerDetector` — zero-dependency energy-burst trigger (fires when audio energy exceeds a dB threshold for N consecutive 30 ms frames). Optional `wake-word-rustpotter` feature adds `RustpotterDetector` (pure-Rust DTW/ONNX, `.rpw` model files). Optional `wake-word-porcupine` feature adds `PorcupineDetector` (Picovoice, builtin keywords + custom `.ppn` files).
+- **Voice assistant pipeline** (feature `voice-assistant`) — `VoiceAssistant` orchestrates the full listen → wake word → VAD-gated capture → STT → handler → TTS → playback loop. `VoiceAssistantBuilder` for composing components. `VoiceAssistantHandler` async trait (`on_wake_word`, `on_speech`, `on_error`). `VoiceAssistantConfig` (silence threshold/duration, max record duration, listen timeout, STT/TTS options, device selection). `AssistantState` enum (Idle/Listening/Processing/Speaking). `listen_once()` for single-shot capture + transcription without handler callbacks.
 - **Camera capture** (feature `camera`) — Cross-platform webcam/camera frame capture via `nokhwa` (V4L2 on Linux, AVFoundation on macOS, Media Foundation on Windows). `CameraCapture` async trait, `NokhwaCapture` impl with `spawn_blocking` bridge, `list_cameras()`, `open_camera(index, format)`, automatic MJPEG→RGB decoding. Types: `CameraDevice`, `CameraFrame`, `CameraFormat`, `Resolution`, `FrameRate`, `PixelFormat`, `CameraError`.
 - **Raw USB access** (feature `usb`) — Device enumeration and async bulk/control/interrupt transfers via `nusb` (pure Rust, no libusb system dependency). `UsbHandle::open()` auto-discovers bulk endpoints from the interface descriptor. Types: `UsbDevice`, `UsbClass` (full USB-IF class code map), `UsbSpeed`, `UsbError`. `list_usb_devices()` reads string descriptors (manufacturer, product, serial) with graceful permission-error fallback.
 - **`brainwires-hardware` renamed from `brainwires-audio`** — Unified hardware abstraction crate. GPIO moved from `brainwires-autonomy`; Bluetooth and Network hardware added. `brainwires-autonomy` re-exports GPIO via `pub use brainwires_hardware::gpio` for backward compatibility.
@@ -51,6 +54,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Autonomy (`brainwires-autonomy`)
 
 - **Autodream memory consolidation** (feature `dream`) — 4-phase consolidation cycle: orient → gather → consolidate → prune. Types: `DreamConsolidator`, `DemotionPolicy` (age/importance/budget thresholds), `DreamSummarizer` (LLM-powered compression), `FactExtractor` (5 categories: entities, relationships, events, preferences, habits), `DreamMetrics`, `DreamReport`, `DreamTask` (scheduled via `AutonomyScheduler`).
+
+#### Extras — Voice Assistant (`extras/voice-assistant/`)
+
+- **`voice-assistant`** binary — Personal voice assistant built on the framework. Mic capture → optional energy wake trigger → VAD-gated speech accumulation → OpenAI Whisper STT → LLM response (OpenAI chat completions) → OpenAI TTS playback. CLI flags: `--config <path.toml>`, `--list-devices`, `--wake-word <model>`, `--verbose`. TOML config covers STT model, TTS voice, silence tuning, wake word model, LLM model/system prompt, and device names. Clean Ctrl-C shutdown via `tokio::signal`.
 
 #### Extras — BrainClaw Suite (`extras/brainclaw/`)
 

@@ -20,7 +20,16 @@ A comprehensive catalog of every feature provided by the framework's 20 crates a
 - [Adaptive Prompting](#adaptive-prompting)
 - [SEAL (Self-Evolving Agentic Learning)](#seal-self-evolving-agentic-learning)
 - [Permissions & Security](#permissions--security)
-- [Audio](#audio)
+- [Hardware I/O](#hardware-io)
+  - [Audio](#audio-feature-audio)
+  - [Voice Activity Detection](#voice-activity-detection-always-available-with-audio-webrtcvad-requires-feature-vad)
+  - [Wake Word Detection](#wake-word-detection-feature-wake-word)
+  - [Voice Assistant Pipeline](#voice-assistant-pipeline-feature-voice-assistant)
+  - [GPIO](#gpio-feature-gpio-linux)
+  - [Bluetooth](#bluetooth-feature-bluetooth)
+  - [Network Hardware](#network-hardware-feature-network)
+  - [Camera](#camera-feature-camera)
+  - [USB](#usb-feature-usb)
 - [Code Interpreters](#code-interpreters)
 - [Skills System](#skills-system)
 - [Channels](#channels)
@@ -593,6 +602,37 @@ Raw USB device enumeration and async bulk/control/interrupt transfers via `nusb`
 - **UsbSpeed** — `Low`, `Full`, `High`, `Super`, `SuperPlus`, `Unknown`
 - **Linux udev** — No root required; add a udev rule for your vendor/product ID to grant user access
 
+### Voice Activity Detection (always available with `audio`; `WebRtcVad` requires feature `vad`)
+
+Classify audio frames as speech or silence.
+
+- **`VoiceActivityDetector` trait** — `is_speech(audio)`, `detect_segments(audio, frame_ms)` → `Vec<SpeechSegment>`
+- **`EnergyVad`** — Pure-Rust RMS energy threshold (default: -40 dBFS). Zero extra dependencies.
+- **`WebRtcVad`** — WebRTC VAD algorithm (feature: `vad`). Four aggressiveness modes via `VadMode`: `Quality`, `LowBitrate`, `Aggressive`, `VeryAggressive`. Supports 8 / 16 / 32 / 48 kHz with 10, 20, or 30 ms frames.
+- **`SpeechSegment`** — `is_speech`, `start_sample`, `end_sample`, `len()`, `is_empty()`
+- **Helpers** — `rms_db(audio)` (dBFS), `pcm_to_i16_mono(audio)`, `pcm_to_f32(audio)`
+
+### Wake Word Detection (feature: `wake-word`)
+
+Keyword-triggered activation for the voice assistant pipeline.
+
+- **`WakeWordDetector` trait** — `sample_rate()`, `frame_size()`, `process_frame(samples) -> Option<WakeWordDetection>`
+- **`WakeWordDetection`** — `keyword: String`, `score: f32` (0–1), `timestamp_ms: u64`
+- **`EnergyTriggerDetector`** — Zero-dependency energy-burst trigger. Fires when audio exceeds a configurable dB threshold for N consecutive 30 ms frames. Useful as a zero-cost "tap-to-wake" or "clap-to-wake" fallback.
+- **`RustpotterDetector`** (feature: `wake-word-rustpotter`) — Pure-Rust wake word detection using DTW or ONNX neural models (`.rpw` files). `from_model_file(path, threshold)`, `from_model_files(paths, threshold)`.
+- **`PorcupineDetector`** (feature: `wake-word-porcupine`) — Picovoice Porcupine; maximum accuracy. `from_builtin(access_key, keyword)`, `from_keyword_files(access_key, paths, sensitivities)`. Requires a free Picovoice AccessKey.
+
+### Voice Assistant Pipeline (feature: `voice-assistant`)
+
+End-to-end orchestration: mic capture → wake word → VAD-gated accumulation → STT → handler → TTS → playback.
+
+- **`VoiceAssistant`** — Main pipeline struct. `builder(capture, stt)` → `VoiceAssistantBuilder`. Methods: `run(&handler)` (async event loop), `listen_once()` (single-shot transcript), `stop()`, `state()`.
+- **`VoiceAssistantBuilder`** — Fluent builder: `with_playback()`, `with_tts()`, `with_wake_word()`, `with_vad()`, `with_config()`, `build()`.
+- **`VoiceAssistantConfig`** — `capture_config`, `silence_threshold_db` (-40 dB default), `silence_duration_ms` (800 ms default), `max_record_secs` (30 s), `listen_timeout_secs` (10 s), `stt_options`, `tts_options`, `microphone`, `speaker`.
+- **`VoiceAssistantHandler` trait** — `on_wake_word(&detection)`, `on_speech(&transcript) -> Option<String>`, `on_error(&error)`.
+- **`AssistantState`** — `Idle`, `Listening`, `Processing`, `Speaking`.
+- **Pipeline loop** — Stream mic chunks at 16 kHz → accumulate frame buffer → wake word detection (if configured) → VAD-gated ring buffer accumulation → STT transcription → handler callback → optional TTS synthesis + playback → loop.
+
 ---
 
 ## Code Interpreters
@@ -909,6 +949,10 @@ Browser-compatible WASM bindings via `wasm-bindgen`.
 ---
 
 ## Extras & Standalone Binaries
+
+### voice-assistant *(extras/)*
+
+Personal voice assistant binary built on `brainwires-hardware`. Mic capture → optional energy wake trigger → VAD-gated speech accumulation → OpenAI Whisper STT → LLM response (OpenAI chat completions) → OpenAI TTS playback. CLI: `--config <path.toml>`, `--list-devices`, `--wake-word <model>`, `--verbose`. TOML config covers STT model, TTS voice/model, silence tuning, wake word path, LLM model, system prompt, device names, and API key (or `OPENAI_API_KEY` env var). Graceful Ctrl-C shutdown.
 
 ### brainwires-brain-server *(extras/)*
 
