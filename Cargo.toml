@@ -24,6 +24,7 @@ members = [
     "extras/brainwires-proxy",
     "extras/brainwires-brain-server",
     "extras/brainwires-rag-server",
+    "extras/brainwires-issues",
     "extras/reload-daemon",
     "extras/agent-chat",
     "extras/brainwires-cli",
