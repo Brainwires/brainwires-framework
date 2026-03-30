@@ -73,8 +73,9 @@ impl Provider for OpenAiResponsesProvider {
 
         let prev_id = self.last_response_id.lock().await.clone();
 
+        let effective_model = options.model.as_deref().unwrap_or(&self.model);
         let mut req = convert::build_request(
-            &self.model,
+            effective_model,
             input,
             instructions,
             if response_tools.is_empty() {
@@ -116,8 +117,9 @@ impl Provider for OpenAiResponsesProvider {
             let instructions = system.as_deref().or(options.system.as_deref());
             let prev_id = self.last_response_id.lock().await.clone();
 
+            let effective_model = options.model.as_deref().unwrap_or(&self.model);
             let mut req = convert::build_request(
-                &self.model,
+                effective_model,
                 input,
                 instructions,
                 if response_tools.is_empty() { None } else { Some(&response_tools) },

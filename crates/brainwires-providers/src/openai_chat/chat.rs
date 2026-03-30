@@ -70,9 +70,10 @@ impl Provider for OpenAiChatProvider {
 
         // O1 models don't support streaming, temperature, max_tokens, or
         // system messages - the client handles the option filtering.
+        let effective_model = options.model.as_deref().unwrap_or(&self.model);
         let openai_response = self
             .client
-            .chat_completions(&openai_messages, &self.model, tools_ref, &opts)
+            .chat_completions(&openai_messages, effective_model, tools_ref, &opts)
             .await?;
 
         parse_response(openai_response)
@@ -87,7 +88,8 @@ impl Provider for OpenAiChatProvider {
         tracing::info!(provider = %self.provider_name, model = %self.model, "provider.stream started");
 
         // O1 models don't support streaming - fall back to non-streaming.
-        if OpenAiClient::is_o1_model(&self.model) {
+        let effective_model: &str = options.model.as_deref().unwrap_or(&self.model);
+        if OpenAiClient::is_o1_model(effective_model) {
             return Box::pin(async_stream::stream! {
                 match self.chat(messages, tools, options).await {
                     Ok(response) => {
@@ -104,6 +106,7 @@ impl Provider for OpenAiChatProvider {
             });
         }
 
+        let effective_model_owned = effective_model.to_string();
         let openai_messages = convert_messages(messages);
         let openai_tools: Vec<OpenAITool> = tools.map(convert_tools).unwrap_or_default();
 
@@ -118,7 +121,7 @@ impl Provider for OpenAiChatProvider {
 
             let mut raw_stream = self
                 .client
-                .stream_chat_completions(&openai_messages, &self.model, tools_ref, &opts);
+                .stream_chat_completions(&openai_messages, &effective_model_owned, tools_ref, &opts);
 
             while let Some(chunk_result) = raw_stream.next().await {
                 match chunk_result {

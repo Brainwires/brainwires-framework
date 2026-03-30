@@ -8,6 +8,8 @@ members = [
     "mcp-skill-registry",
     "mcp-whatsapp",
     "mcp-matrix",
+    "mcp-mattermost",
+    "mcp-signal",
 ]
 resolver = "2"
 
@@ -102,6 +104,9 @@ cron = "0.12"
 
 # Stream adapters
 tokio-stream = "0.1"
+
+# Base64 encoding/decoding
+base64 = "0.22"
 
 # Hashing & HMAC
 sha2 = "0.10"

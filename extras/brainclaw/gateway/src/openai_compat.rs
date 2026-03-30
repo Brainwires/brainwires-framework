@@ -115,6 +115,7 @@ fn build_options(req: &ChatCompletionRequest) -> ChatOptions {
                 _ => None,
             }),
         system: None,
+        model: Some(req.model.clone()),
     }
 }
 

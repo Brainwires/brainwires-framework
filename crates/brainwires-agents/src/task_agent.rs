@@ -468,6 +468,7 @@ impl TaskAgent {
             top_p: None,
             stop: None,
             system: Some(system_prompt),
+            model: None,
         };
 
         self.provider.chat(&history, Some(&tools), &options).await
@@ -666,6 +667,7 @@ impl TaskAgent {
                     "You are a planning assistant. Respond only with a valid JSON execution plan."
                         .to_string(),
                 ),
+                model: None,
             };
             match self
                 .provider

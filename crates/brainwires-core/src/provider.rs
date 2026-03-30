@@ -53,6 +53,12 @@ pub struct ChatOptions {
     /// System prompt
     #[serde(skip_serializing_if = "Option::is_none")]
     pub system: Option<String>,
+    /// Per-request model override.
+    ///
+    /// When `Some`, providers MUST use this model name instead of their default.
+    /// This enables per-session model switching without replacing the provider.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
 }
 
 impl Default for ChatOptions {
@@ -63,6 +69,7 @@ impl Default for ChatOptions {
             top_p: None,
             stop: None,
             system: None,
+            model: None,
         }
     }
 }
@@ -94,6 +101,12 @@ impl ChatOptions {
     /// Set top-p sampling
     pub fn top_p(mut self, top_p: f32) -> Self {
         self.top_p = Some(top_p);
+        self
+    }
+
+    /// Override the model for this request.
+    pub fn model<S: Into<String>>(mut self, model: S) -> Self {
+        self.model = Some(model.into());
         self
     }
 

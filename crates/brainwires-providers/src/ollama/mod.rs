@@ -137,8 +137,9 @@ impl Provider for OllamaProvider {
     ) -> Result<ChatResponse> {
         let ollama_messages = self.convert_messages(messages);
 
+        let effective_model = options.model.as_deref().unwrap_or(&self.model);
         let mut request_body = json!({
-            "model": self.model,
+            "model": effective_model,
             "messages": ollama_messages,
             "stream": false,
         });
@@ -225,9 +226,10 @@ impl Provider for OllamaProvider {
         tracing::info!(provider = "ollama", model = %self.model, "provider.stream started");
         Box::pin(async_stream::stream! {
             let ollama_messages = self.convert_messages(messages);
+            let effective_model = options.model.as_deref().unwrap_or(&self.model);
 
             let mut request_body = json!({
-                "model": self.model,
+                "model": effective_model,
                 "messages": ollama_messages,
                 "stream": true,
             });

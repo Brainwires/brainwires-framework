@@ -20,6 +20,11 @@ pub async fn serve_webchat_page() -> impl IntoResponse {
     Html(include_str!("../static/webchat.html"))
 }
 
+/// Serve the admin UI HTML page at `GET /admin/ui` (or configured admin path + `/ui`).
+pub async fn serve_admin_ui_page() -> impl IntoResponse {
+    Html(include_str!("../static/admin_ui.html"))
+}
+
 /// Handle a WebSocket upgrade for the WebChat channel at `GET /chat/ws`.
 pub async fn webchat_ws_handler(
     ws: axum::extract::ws::WebSocketUpgrade,
@@ -142,6 +147,15 @@ mod tests {
         assert!(!html.is_empty());
         assert!(html.contains("BrainClaw Chat"));
         assert!(html.contains("/chat/ws"));
+    }
+
+    /// Verify the admin UI HTML is non-empty and contains expected content.
+    #[test]
+    fn admin_ui_html_is_embedded() {
+        let html = include_str!("../static/admin_ui.html");
+        assert!(!html.is_empty());
+        assert!(html.contains("BrainClaw Admin"));
+        assert!(html.contains("adminBase"));
     }
 
     /// Verify the config flag defaults to true.

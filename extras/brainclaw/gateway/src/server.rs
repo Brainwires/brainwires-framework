@@ -241,6 +241,10 @@ fn build_router(state: AppState) -> Router {
         let admin_prefix = state.config.admin_path.clone();
         app = app
             .route(
+                &format!("{}/ui", admin_prefix),
+                get(webchat::serve_admin_ui_page),
+            )
+            .route(
                 &format!("{}/health", admin_prefix),
                 get(admin::health_check),
             )

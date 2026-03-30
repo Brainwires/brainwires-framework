@@ -64,6 +64,16 @@ impl ToolPreHook for CompositePreToolHook {
 /// creating a circular crate dependency.
 pub type TextPreprocessor = dyn Fn(&str) -> Option<String> + Send + Sync;
 
+/// Parsed result of a `/model` command.
+enum ModelCommand {
+    /// Show the current model.
+    Show,
+    /// Set a new model for this session.
+    Set(String),
+    /// Reset to the provider's default model.
+    Reset,
+}
+
 /// An [`InboundHandler`] that dispatches incoming messages to per-user
 /// [`ChatAgent`] instances and sends responses back through the channel.
 pub struct AgentInboundHandler {
@@ -126,6 +136,12 @@ pub struct AgentInboundHandler {
     /// UUID before looking up agent sessions, so the same person on Discord
     /// and Telegram shares one agent session and conversation history.
     identity_store: Option<Arc<UserIdentityStore>>,
+    /// Per-session model overrides: session key -> model name.
+    ///
+    /// Set via `/model <name>` command. When present, the agent for that
+    /// session uses `ChatOptions::model` override instead of the provider's
+    /// default configured model.
+    model_overrides: DashMap<(String, String), String>,
 }
 
 impl AgentInboundHandler {
@@ -162,6 +178,7 @@ impl AgentInboundHandler {
             metrics: None,
             talk_mode_sessions: DashSet::new(),
             identity_store: None,
+            model_overrides: DashMap::new(),
         }
     }
 
@@ -393,6 +410,54 @@ impl AgentInboundHandler {
             return Ok(());
         }
 
+        // 1d. Handle `/model [name]` command — per-session model override.
+        if let Some(model_cmd) = Self::parse_model_command(&text) {
+            let msg_platform = msg.conversation.platform.clone();
+            let msg_author = msg.author.clone();
+            let key = (msg_platform.clone(), msg_author.clone());
+            let reply = match model_cmd {
+                ModelCommand::Show => {
+                    let current = self
+                        .model_overrides
+                        .get(&key)
+                        .map(|m| m.clone())
+                        .unwrap_or_else(|| "(provider default)".to_string());
+                    format!(
+                        "Current model: **{}**\n\nTo switch: `/model claude-opus-4-6`\n\
+                         To reset to default: `/model default`",
+                        current
+                    )
+                }
+                ModelCommand::Reset => {
+                    self.model_overrides.remove(&key);
+                    // Drop the existing agent so it is recreated with no override.
+                    let session_key = self.resolve_session_key(&msg_platform, &msg_author).await;
+                    self.agent_sessions.remove(&session_key);
+                    "Model reset to provider default. Starting a new session.".to_string()
+                }
+                ModelCommand::Set(model_name) => {
+                    self.model_overrides.insert(key.clone(), model_name.clone());
+                    // Drop the existing agent so it is recreated with the override.
+                    let session_key = self.resolve_session_key(&msg_platform, &msg_author).await;
+                    self.agent_sessions.remove(&session_key);
+                    tracing::info!(
+                        platform = %msg_platform,
+                        user_id = %msg_author,
+                        model = %model_name,
+                        "Per-session model override set"
+                    );
+                    format!(
+                        "Switched to **{}** for this session. \
+                         Previous conversation history has been cleared. \
+                         Use `/model default` to revert.",
+                        model_name
+                    )
+                }
+            };
+            self.send_response(channel_id, msg, &reply).await?;
+            return Ok(());
+        }
+
         // 1e. Apply text preprocessor (e.g. skill dispatch)
         if let Some(ref pp) = self.text_preprocessor {
             if let Some(transformed) = pp(&text) {
@@ -573,10 +638,16 @@ impl AgentInboundHandler {
         }
 
         // Slow path: create a new agent, optionally restoring persisted history.
+        // Apply any per-session model override stored via `/model <name>`.
+        let mut session_options = self.default_options.clone();
+        let raw_key = (platform.to_string(), user_id.to_string());
+        if let Some(model_override) = self.model_overrides.get(&raw_key) {
+            session_options.model = Some(model_override.clone());
+        }
         let mut agent = ChatAgent::new(
             self.provider.clone(),
             self.executor.clone(),
-            self.default_options.clone(),
+            session_options,
         )
         .with_max_tool_rounds(self.max_tool_rounds);
 
@@ -643,6 +714,24 @@ impl AgentInboundHandler {
         let arc = Arc::new(Mutex::new(agent));
         self.agent_sessions.entry(key).or_insert(arc.clone());
         arc
+    }
+
+    /// Parse `/model [name|default]` commands.
+    ///
+    /// Returns `None` if the text is not a model command.
+    fn parse_model_command(text: &str) -> Option<ModelCommand> {
+        let t = text.trim();
+        if !t.starts_with("/model") {
+            return None;
+        }
+        let rest = t["/model".len()..].trim();
+        if rest.is_empty() || rest == "list" {
+            Some(ModelCommand::Show)
+        } else if rest == "default" || rest == "reset" {
+            Some(ModelCommand::Reset)
+        } else {
+            Some(ModelCommand::Set(rest.to_string()))
+        }
     }
 
     /// Parse `/talk [on|off|start|stop]` commands.

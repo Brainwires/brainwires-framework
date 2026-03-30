@@ -186,7 +186,7 @@ impl Provider for AnthropicChatProvider {
             .or_else(|| Self::get_system_message(messages));
 
         let req = AnthropicRequest {
-            model: self.model.clone(),
+            model: options.model.clone().unwrap_or_else(|| self.model.clone()),
             messages: anthropic_messages,
             system,
             max_tokens: options.max_tokens.unwrap_or(4096),
@@ -216,7 +216,7 @@ impl Provider for AnthropicChatProvider {
                 .or_else(|| Self::get_system_message(messages));
 
             let req = AnthropicRequest {
-                model: self.model.clone(),
+                model: options.model.clone().unwrap_or_else(|| self.model.clone()),
                 messages: anthropic_messages,
                 system,
                 max_tokens: options.max_tokens.unwrap_or(4096),

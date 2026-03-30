@@ -195,7 +195,11 @@ impl Provider for GoogleChatProvider {
         options: &ChatOptions,
     ) -> Result<ChatResponse> {
         let request = Self::build_request(messages, tools, options);
-        let gemini_response = self.client.generate_content(&request).await?;
+        let gemini_response = if let Some(ref override_model) = options.model {
+            self.client.generate_content_for_model(override_model, &request).await?
+        } else {
+            self.client.generate_content(&request).await?
+        };
 
         let candidate = gemini_response
             .candidates
@@ -235,7 +239,11 @@ impl Provider for GoogleChatProvider {
         tracing::info!(provider = "google", model = %self.model, "provider.stream started");
         Box::pin(async_stream::stream! {
             let request = Self::build_request(messages, tools, options);
-            let mut stream = self.client.stream_generate_content(&request);
+            let mut stream = if let Some(ref override_model) = options.model {
+                self.client.stream_generate_content_for_model(override_model.clone(), &request)
+            } else {
+                self.client.stream_generate_content(&request)
+            };
 
             while let Some(chunk_result) = stream.next().await {
                 match chunk_result {
