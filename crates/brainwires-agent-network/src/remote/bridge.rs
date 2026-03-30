@@ -1008,26 +1008,44 @@ impl RemoteBridge {
     async fn start_agent_reader(&self, agent_id: &str) {
         tracing::info!("start_agent_reader called for agent: {}", agent_id);
 
-        // Check if already reading
-        if self.subscription_tasks.read().await.contains_key(agent_id) {
-            tracing::debug!("Agent reader already running for {}", agent_id);
-            return;
+        // Acquire write lock for the check to avoid a race where two concurrent
+        // calls both see no entry and both proceed to start a reader.
+        {
+            let tasks = self.subscription_tasks.write().await;
+            if tasks.contains_key(agent_id) {
+                tracing::debug!("Agent reader already running for {}", agent_id);
+                return;
+            }
+            // Drop the write lock before the async IPC work below.
         }
 
         let sessions_dir = &self.config.sessions_dir;
 
-        // Connect using bridge-internal IPC with injected sessions_dir
+        // Connect using bridge-internal IPC with injected sessions_dir.
+        // Apply a timeout so a wedged agent socket doesn't block the bridge indefinitely.
         tracing::info!("Connecting to agent {} via IPC...", agent_id);
-        let mut conn = match IpcConnection::connect_to_agent(sessions_dir, agent_id).await {
-            Ok(c) => {
+        let mut conn = match tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            IpcConnection::connect_to_agent(sessions_dir, agent_id),
+        )
+        .await
+        {
+            Ok(Ok(c)) => {
                 tracing::info!("Successfully connected to agent {}", agent_id);
                 c
             }
-            Err(e) => {
+            Ok(Err(e)) => {
                 tracing::error!(
                     "Failed to connect to agent {} for streaming: {}",
                     agent_id,
                     e
+                );
+                return;
+            }
+            Err(_) => {
+                tracing::warn!(
+                    "Timed out connecting to agent {} IPC socket after 5s, skipping",
+                    agent_id
                 );
                 return;
             }
