@@ -26,6 +26,8 @@ use crate::{
     EmbeddingProvider, FactStore, LanceDatabase, MessageMetadata, MessageStore, SummaryStore,
     TierMetadataStore,
 };
+use crate::databases::StorageBackend;
+use crate::stores::mental_model_store::{MentalModel, MentalModelStore, ModelType};
 
 const SECS_PER_HOUR: f32 = 3600.0;
 const SIMILARITY_WEIGHT: f32 = 0.50;
@@ -137,6 +139,12 @@ pub enum MemoryTier {
     Warm,
     /// Key facts only - lowest fidelity but most compressed
     Cold,
+    /// Synthesised agent beliefs about patterns — the deepest tier.
+    ///
+    /// Entries are written explicitly via
+    /// [`TieredMemory::synthesize_mental_model`]; they are never populated
+    /// automatically.
+    MentalModel,
 }
 
 impl MemoryTier {
@@ -145,7 +153,8 @@ impl MemoryTier {
         match self {
             MemoryTier::Hot => Some(MemoryTier::Warm),
             MemoryTier::Warm => Some(MemoryTier::Cold),
-            MemoryTier::Cold => None,
+            MemoryTier::Cold => Some(MemoryTier::MentalModel),
+            MemoryTier::MentalModel => None,
         }
     }
 
@@ -155,6 +164,7 @@ impl MemoryTier {
             MemoryTier::Hot => None,
             MemoryTier::Warm => Some(MemoryTier::Hot),
             MemoryTier::Cold => Some(MemoryTier::Warm),
+            MemoryTier::MentalModel => Some(MemoryTier::Cold),
         }
     }
 }
@@ -397,6 +407,10 @@ pub struct TieredMemoryConfig {
     ///
     /// Default: `false`.
     pub fast_decay: bool,
+    /// Maximum number of synthesised mental models to retain.
+    ///
+    /// Default: `500`.
+    pub max_mental_models: usize,
 }
 
 impl Default for TieredMemoryConfig {
@@ -411,6 +425,7 @@ impl Default for TieredMemoryConfig {
             session_ttl_secs: None,
             temporal_boost: 0.3,
             fast_decay: false,
+            max_mental_models: 500,
         }
     }
 }
@@ -429,6 +444,9 @@ pub struct TieredMemory {
     /// Metadata tracking for all messages (LanceDB-backed)
     tier_metadata: TierMetadataStore,
 
+    /// Mental model tier: synthesised beliefs (LanceDB-backed)
+    mental_model: MentalModelStore,
+
     /// Configuration
     config: TieredMemoryConfig,
 
@@ -445,11 +463,13 @@ impl TieredMemory {
         embeddings: Arc<EmbeddingProvider>,
         config: TieredMemoryConfig,
     ) -> Self {
+        let mental_model = MentalModelStore::new(Arc::clone(&db) as Arc<dyn StorageBackend>, Arc::clone(&embeddings));
         Self {
             hot: hot_store,
             warm: SummaryStore::new(Arc::clone(&db), Arc::clone(&embeddings)),
             cold: FactStore::new(Arc::clone(&db), Arc::clone(&embeddings)),
             tier_metadata: TierMetadataStore::new(db),
+            mental_model,
             config,
             embeddings,
         }
@@ -687,6 +707,21 @@ impl TieredMemory {
             ));
         }
 
+        // Append mental model tier results (up to 5).
+        if let Ok(mm_results) = self.search_mental_models(query, 5).await {
+            for mut mm in mm_results {
+                mm.multi_factor_score = Some(MultiFactorScore::compute_with_weights(
+                    mm.score,
+                    1.0, // mental models have no recency — treat as always fresh
+                    0.5, // default importance
+                    sim_w,
+                    rec_w,
+                    imp_w,
+                ));
+                results.push(mm);
+            }
+        }
+
         // Re-sort by combined score (highest first).
         results.sort_by(|a, b| {
             let sa = a
@@ -770,12 +805,14 @@ impl TieredMemory {
         let hot_count = self.tier_metadata.count_by_tier(MemoryTier::Hot).await?;
         let warm_count = self.warm.count().await?;
         let cold_count = self.cold.count().await?;
+        let mental_model_count = self.mental_model.count().await.unwrap_or(0);
         let total_tracked = self.tier_metadata.count().await?;
 
         Ok(TieredMemoryStats {
             hot_count,
             warm_count,
             cold_count,
+            mental_model_count,
             total_tracked,
         })
     }
@@ -801,6 +838,50 @@ impl TieredMemory {
             created_at: Utc::now().timestamp(),
         }
     }
+
+    // ── Mental model tier ────────────────────────────────────────────────────
+
+    /// Synthesise and store a new mental model from a set of source fact IDs.
+    ///
+    /// Returns the new model's ID.
+    ///
+    /// The table is created on first call; subsequent calls reuse it.
+    pub async fn synthesize_mental_model(
+        &mut self,
+        fact_ids: &[String],
+        model_text: String,
+        model_type: ModelType,
+        conversation_id: String,
+    ) -> Result<String> {
+        self.mental_model.ensure_table().await?;
+
+        let mut model =
+            MentalModel::new(model_text, model_type, conversation_id, fact_ids.to_vec());
+        model.evidence_count = fact_ids.len() as u32;
+        let id = model.model_id.clone();
+        self.mental_model.add(model).await?;
+        Ok(id)
+    }
+
+    /// Semantic search over the mental model tier.
+    pub async fn search_mental_models(
+        &self,
+        query: &str,
+        limit: usize,
+    ) -> Result<Vec<TieredSearchResult>> {
+        let raw = self.mental_model.search(query, limit).await?;
+        Ok(raw
+            .into_iter()
+            .map(|(model, score)| TieredSearchResult {
+                content: model.model_text.clone(),
+                score,
+                tier: MemoryTier::MentalModel,
+                original_message_id: model.source_fact_ids.first().cloned(),
+                metadata: None,
+                multi_factor_score: None,
+            })
+            .collect())
+    }
 }
 
 /// Statistics about tiered memory usage
@@ -812,6 +893,8 @@ pub struct TieredMemoryStats {
     pub warm_count: usize,
     /// Number of entries in the cold tier.
     pub cold_count: usize,
+    /// Number of synthesised mental models.
+    pub mental_model_count: usize,
     /// Total tracked entries across all tiers.
     pub total_tracked: usize,
 }
@@ -883,7 +966,8 @@ mod tests {
     fn test_tier_demotion() {
         assert_eq!(MemoryTier::Hot.demote(), Some(MemoryTier::Warm));
         assert_eq!(MemoryTier::Warm.demote(), Some(MemoryTier::Cold));
-        assert_eq!(MemoryTier::Cold.demote(), None);
+        assert_eq!(MemoryTier::Cold.demote(), Some(MemoryTier::MentalModel));
+        assert_eq!(MemoryTier::MentalModel.demote(), None);
     }
 
     #[test]
@@ -891,6 +975,7 @@ mod tests {
         assert_eq!(MemoryTier::Hot.promote(), None);
         assert_eq!(MemoryTier::Warm.promote(), Some(MemoryTier::Hot));
         assert_eq!(MemoryTier::Cold.promote(), Some(MemoryTier::Warm));
+        assert_eq!(MemoryTier::MentalModel.promote(), Some(MemoryTier::Cold));
     }
 
     #[test]

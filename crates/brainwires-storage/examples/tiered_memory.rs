@@ -108,10 +108,11 @@ async fn main() -> Result<()> {
     // 8. Check tier statistics
     let stats = tiered.get_stats().await?;
     println!("Tier statistics:");
-    println!("  Hot:   {} entries", stats.hot_count);
-    println!("  Warm:  {} entries", stats.warm_count);
-    println!("  Cold:  {} entries", stats.cold_count);
-    println!("  Total: {} tracked", stats.total_tracked);
+    println!("  Hot:          {} entries", stats.hot_count);
+    println!("  Warm:         {} entries", stats.warm_count);
+    println!("  Cold:         {} entries", stats.cold_count);
+    println!("  Mental Model: {} entries", stats.mental_model_count);
+    println!("  Total:        {} tracked", stats.total_tracked);
 
     // 9. Identify demotion candidates (lowest retention score)
     let candidates = tiered

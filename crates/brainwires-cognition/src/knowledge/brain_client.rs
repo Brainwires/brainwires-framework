@@ -33,6 +33,13 @@ pub struct BrainClient {
 
 const THOUGHTS_TABLE: &str = "thoughts";
 
+/// EMA alpha for confidence updates on corroboration/contradiction.
+const EVIDENCE_EMA_ALPHA: f32 = 0.3;
+/// Score threshold above which a similar thought is a corroboration.
+const CORROBORATION_THRESHOLD: f32 = 0.85;
+/// Score threshold above which a similar thought may be a contradiction.
+const CONTRADICTION_THRESHOLD: f32 = 0.70;
+
 impl BrainClient {
     /// Create a new BrainClient with default paths.
     ///
@@ -131,6 +138,10 @@ impl BrainClient {
                     FieldDef::required("created_at", FieldType::Int64),
                     FieldDef::required("updated_at", FieldType::Int64),
                     FieldDef::required("deleted", FieldType::Boolean),
+                    FieldDef::optional("confidence", FieldType::Float32),
+                    FieldDef::optional("evidence_chain", FieldType::Utf8),
+                    FieldDef::optional("reinforcement_count", FieldType::Int64),
+                    FieldDef::optional("contradiction_count", FieldType::Int64),
                 ],
             )
             .await
@@ -201,10 +212,44 @@ impl BrainClient {
             }
         }
 
+        // Run evidence check: find corroborations / contradictions among existing thoughts.
+        let evidence = self
+            .apply_evidence_check(&thought.id, &req.content)
+            .await
+            .unwrap_or_default();
+
+        // Compute initial confidence for the new thought based on corroboration count.
+        let initial_confidence = (0.5
+            + 0.05 * evidence.corroborations.len() as f32
+            - 0.05 * evidence.contradictions.len() as f32)
+            .clamp(0.0, 1.0);
+
+        // Persist updated confidence + evidence_chain for the new thought itself.
+        if !evidence.corroborations.is_empty() || !evidence.contradictions.is_empty() {
+            let mut all_evidence = evidence.corroborations.clone();
+            all_evidence.extend(evidence.contradictions.iter().cloned());
+
+            // Update the newly inserted thought record with its evidence data.
+            let delete_filter =
+                Filter::Eq("id".into(), FieldValue::Utf8(Some(thought.id.clone())));
+            let _ = self.backend.delete(THOUGHTS_TABLE, &delete_filter).await;
+            let mut updated_thought = thought.clone();
+            updated_thought.confidence = initial_confidence;
+            updated_thought.evidence_chain = all_evidence;
+            let embedding = self.embeddings.embed_cached(&updated_thought.content)?;
+            let record = Self::thought_to_record(&updated_thought, &embedding);
+            let _ = self
+                .backend
+                .insert(THOUGHTS_TABLE, vec![record])
+                .await;
+        }
+
         tracing::info!(
             id = %thought.id,
             category = %category,
             facts = facts_count,
+            corroborations = evidence.corroborations.len(),
+            contradictions = evidence.contradictions.len(),
             "Captured thought"
         );
 
@@ -214,6 +259,9 @@ impl BrainClient {
             tags: auto_tags,
             importance: thought.importance,
             facts_extracted: facts_count,
+            corroborations: evidence.corroborations,
+            contradictions: evidence.contradictions,
+            confidence: initial_confidence,
         })
     }
 
@@ -574,6 +622,8 @@ impl BrainClient {
 
     fn thought_to_record(thought: &Thought, embedding: &[f32]) -> Record {
         let tags_json = serde_json::to_string(&thought.tags).unwrap_or_else(|_| "[]".into());
+        let evidence_json =
+            serde_json::to_string(&thought.evidence_chain).unwrap_or_else(|_| "[]".into());
 
         vec![
             ("vector".into(), FieldValue::Vector(embedding.to_vec())),
@@ -604,6 +654,22 @@ impl BrainClient {
                 FieldValue::Int64(Some(thought.updated_at)),
             ),
             ("deleted".into(), FieldValue::Boolean(Some(thought.deleted))),
+            (
+                "confidence".into(),
+                FieldValue::Float32(Some(thought.confidence)),
+            ),
+            (
+                "evidence_chain".into(),
+                FieldValue::Utf8(Some(evidence_json)),
+            ),
+            (
+                "reinforcement_count".into(),
+                FieldValue::Int64(Some(thought.reinforcement_count as i64)),
+            ),
+            (
+                "contradiction_count".into(),
+                FieldValue::Int64(Some(thought.contradiction_count as i64)),
+            ),
         ]
     }
 
@@ -640,6 +706,19 @@ impl BrainClient {
         let deleted = record_get(record, "deleted")
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
+        let confidence = record_get(record, "confidence")
+            .and_then(|v| v.as_f32())
+            .unwrap_or(0.5);
+        let evidence_str = record_get(record, "evidence_chain")
+            .and_then(|v| v.as_str())
+            .unwrap_or("[]");
+        let evidence_chain: Vec<String> = serde_json::from_str(evidence_str).unwrap_or_default();
+        let reinforcement_count = record_get(record, "reinforcement_count")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0) as u32;
+        let contradiction_count = record_get(record, "contradiction_count")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0) as u32;
 
         Ok(Thought {
             id,
@@ -651,11 +730,130 @@ impl BrainClient {
             created_at,
             updated_at,
             deleted,
+            confidence,
+            evidence_chain,
+            reinforcement_count,
+            contradiction_count,
         })
     }
 
     fn records_to_thoughts(records: &[Record]) -> Result<Vec<Thought>> {
         records.iter().map(Self::record_to_thought).collect()
+    }
+
+    /// Persist an updated `Thought` by deleting the old record and reinserting.
+    ///
+    /// Required because `StorageBackend` has no `update` method.
+    async fn replace_thought(&self, thought: &Thought) -> Result<()> {
+        let delete_filter =
+            Filter::Eq("id".into(), FieldValue::Utf8(Some(thought.id.clone())));
+        self.backend.delete(THOUGHTS_TABLE, &delete_filter).await?;
+        let embedding = self.embeddings.embed_cached(&thought.content)?;
+        let record = Self::thought_to_record(thought, &embedding);
+        self.backend
+            .insert(THOUGHTS_TABLE, vec![record])
+            .await
+            .context("Failed to reinsert updated thought")?;
+        Ok(())
+    }
+
+    /// Search for existing thoughts similar to `content`, classify them as
+    /// corroborations or contradictions, update their confidence via EMA, and
+    /// add bidirectional `evidence_chain` links.
+    ///
+    /// Returns an [`EvidenceCheckResult`] describing what was found.
+    async fn apply_evidence_check(
+        &self,
+        new_thought_id: &str,
+        content: &str,
+    ) -> Result<crate::knowledge::types::EvidenceCheckResult> {
+        use crate::knowledge::types::SearchMemoryRequest;
+
+        // Search for semantically similar existing thoughts.
+        let similar = self
+            .search_memory(SearchMemoryRequest {
+                query: content.to_string(),
+                limit: 10,
+                min_score: CONTRADICTION_THRESHOLD,
+                category: None,
+                sources: Some(vec!["thoughts".into()]),
+            })
+            .await?;
+
+        // Exclude the newly inserted thought itself.
+        let similar_results: Vec<_> = similar
+            .results
+            .into_iter()
+            .filter(|r| r.thought_id.as_deref() != Some(new_thought_id))
+            .collect();
+
+        let corroboration_result =
+            fact_extractor::check_corroboration(&similar_results, CORROBORATION_THRESHOLD);
+        let contradictions =
+            fact_extractor::check_contradiction(content, &similar_results, CONTRADICTION_THRESHOLD);
+
+        // Remove IDs that appear in both (corroboration wins).
+        let contradiction_ids: Vec<String> = contradictions
+            .into_iter()
+            .filter(|id| !corroboration_result.corroborations.contains(id))
+            .collect();
+
+        let now = Utc::now().timestamp();
+
+        // Update corroborated thoughts.
+        for corr_id in &corroboration_result.corroborations {
+            if let Some(mut t) = self.get_thought_internal(corr_id).await? {
+                let old_conf = t.confidence;
+                t.confidence = (EVIDENCE_EMA_ALPHA * (old_conf + 0.1)
+                    + (1.0 - EVIDENCE_EMA_ALPHA) * old_conf)
+                    .clamp(0.0, 1.0);
+                t.reinforcement_count += 1;
+                if !t.evidence_chain.contains(&new_thought_id.to_string()) {
+                    t.evidence_chain.push(new_thought_id.to_string());
+                }
+                t.updated_at = now;
+                if let Err(e) = self.replace_thought(&t).await {
+                    tracing::warn!(id = %corr_id, "Failed to update corroborated thought: {}", e);
+                }
+            }
+        }
+
+        // Update contradicted thoughts.
+        for contra_id in &contradiction_ids {
+            if let Some(mut t) = self.get_thought_internal(contra_id).await? {
+                let old_conf = t.confidence;
+                t.confidence = (EVIDENCE_EMA_ALPHA * (old_conf - 0.1)
+                    + (1.0 - EVIDENCE_EMA_ALPHA) * old_conf)
+                    .clamp(0.0, 1.0);
+                t.contradiction_count += 1;
+                if !t.evidence_chain.contains(&new_thought_id.to_string()) {
+                    t.evidence_chain.push(new_thought_id.to_string());
+                }
+                t.updated_at = now;
+                if let Err(e) = self.replace_thought(&t).await {
+                    tracing::warn!(id = %contra_id, "Failed to update contradicted thought: {}", e);
+                }
+            }
+        }
+
+        Ok(crate::knowledge::types::EvidenceCheckResult {
+            corroborations: corroboration_result.corroborations,
+            contradictions: contradiction_ids,
+        })
+    }
+
+    /// Fetch a full `Thought` by ID (including soft-deleted records are excluded).
+    async fn get_thought_internal(&self, id: &str) -> Result<Option<Thought>> {
+        let filter = Filter::And(vec![
+            Filter::Eq("id".into(), FieldValue::Utf8(Some(id.to_string()))),
+            Filter::Eq("deleted".into(), FieldValue::Boolean(Some(false))),
+        ]);
+        let records = self
+            .backend
+            .query(THOUGHTS_TABLE, Some(&filter), Some(1))
+            .await?;
+        let mut thoughts = Self::records_to_thoughts(&records)?;
+        Ok(thoughts.pop())
     }
 }
 

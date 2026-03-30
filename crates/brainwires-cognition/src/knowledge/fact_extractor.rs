@@ -1,4 +1,5 @@
 use crate::knowledge::thought::ThoughtCategory;
+use crate::knowledge::types::{EvidenceCheckResult, MemorySearchResult};
 use regex::Regex;
 
 /// Auto-detect the category of a thought from its text content.
@@ -106,6 +107,60 @@ pub fn detect_category(text: &str) -> ThoughtCategory {
 
 fn contains_any(haystack: &str, needles: &[&str]) -> bool {
     needles.iter().any(|n| haystack.contains(n))
+}
+
+// Negation words used to detect contradictions.
+const NEGATION_WORDS: &[&str] = &[
+    "not ", "never", "no ", "don't", "doesn't", "isn't", "aren't", "won't",
+    "can't", "cannot", "didn't", "wasn't", "weren't", "shouldn't", "wouldn't",
+];
+
+/// Classify a set of search results as corroborations for a new thought.
+///
+/// A result is a corroboration when its score is ≥ `threshold`.
+/// The returned `EvidenceCheckResult` populates only `corroborations`; call
+/// [`check_contradiction`] separately to fill `contradictions`.
+pub fn check_corroboration(
+    results: &[MemorySearchResult],
+    threshold: f32,
+) -> EvidenceCheckResult {
+    let corroborations = results
+        .iter()
+        .filter(|r| r.score >= threshold)
+        .filter_map(|r| r.thought_id.clone())
+        .collect();
+
+    EvidenceCheckResult {
+        corroborations,
+        contradictions: Vec::new(),
+    }
+}
+
+/// Identify which search results contradict a new thought.
+///
+/// A result is a contradiction candidate when its score is ≥ `threshold`
+/// (i.e. it is semantically similar) **and** one of the two pieces of content
+/// contains negation language that is absent in the other.  This is a
+/// lightweight heuristic — no NLP required.
+pub fn check_contradiction(
+    new_content: &str,
+    results: &[MemorySearchResult],
+    threshold: f32,
+) -> Vec<String> {
+    let new_lower = new_content.to_lowercase();
+    let new_has_negation = contains_any(&new_lower, NEGATION_WORDS);
+
+    results
+        .iter()
+        .filter(|r| r.score >= threshold)
+        .filter(|r| {
+            let existing_lower = r.content.to_lowercase();
+            let existing_has_negation = contains_any(&existing_lower, NEGATION_WORDS);
+            // Contradiction: one side negates while the other does not.
+            new_has_negation != existing_has_negation
+        })
+        .filter_map(|r| r.thought_id.clone())
+        .collect()
 }
 
 /// Extract auto-tags from thought text.

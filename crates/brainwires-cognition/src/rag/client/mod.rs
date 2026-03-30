@@ -883,6 +883,7 @@ impl RagClient {
 
         // Determine active strategies.
         let active: Vec<SearchStrategy> = if request.strategies.is_empty() {
+            #[allow(unused_mut)]
             let mut s = vec![SearchStrategy::Semantic, SearchStrategy::Keyword, SearchStrategy::GitHistory];
             #[cfg(feature = "code-analysis")]
             s.push(SearchStrategy::CodeNavigation);

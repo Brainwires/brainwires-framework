@@ -163,9 +163,11 @@ pub use stores::task_store::{AgentStateMetadata, AgentStateStore, TaskMetadata, 
 #[cfg(feature = "native")]
 pub use stores::tier_metadata_store::TierMetadataStore;
 #[cfg(feature = "native")]
+pub use stores::mental_model_store::{MentalModel, MentalModelStore, ModelType};
+#[cfg(feature = "native")]
 pub use tiered_memory::{
     CanonicalWriteToken, MemoryAuthority, MemoryTier, MultiFactorScore, TieredMemory,
-    TieredMemoryConfig, TieredSearchResult,
+    TieredMemoryConfig, TieredMemoryStats, TieredSearchResult,
 };
 // persistent_task_manager re-exports moved to brainwires facade crate
 
