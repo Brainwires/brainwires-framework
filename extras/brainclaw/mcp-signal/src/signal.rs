@@ -301,3 +301,112 @@ pub fn parse_envelope(
         metadata: HashMap::new(),
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn dm_envelope(source: &str, text: &str, ts: i64) -> Value {
+        json!({
+            "source": source,
+            "dataMessage": {
+                "message": text,
+                "timestamp": ts
+            }
+        })
+    }
+
+    fn group_envelope(source: &str, text: &str, ts: i64, group_id: &str) -> Value {
+        json!({
+            "source": source,
+            "dataMessage": {
+                "message": text,
+                "timestamp": ts,
+                "groupInfo": {
+                    "groupId": group_id
+                }
+            }
+        })
+    }
+
+    // --- envelope_text ---
+
+    #[test]
+    fn envelope_text_returns_message_text() {
+        let env = dm_envelope("+1234567890", "hello world", 1000);
+        assert_eq!(envelope_text(&env), Some("hello world".to_string()));
+    }
+
+    #[test]
+    fn envelope_text_returns_none_for_empty_string() {
+        let env = dm_envelope("+1234567890", "", 1000);
+        assert_eq!(envelope_text(&env), None);
+    }
+
+    #[test]
+    fn envelope_text_returns_none_when_no_data_message() {
+        let env = json!({ "source": "+1", "receiptMessage": {} });
+        assert_eq!(envelope_text(&env), None);
+    }
+
+    // --- envelope_recipient ---
+
+    #[test]
+    fn envelope_recipient_for_dm_returns_sender() {
+        let env = dm_envelope("+14155551234", "hi", 1000);
+        assert_eq!(envelope_recipient(&env, "+19995559999"), "+14155551234");
+    }
+
+    #[test]
+    fn envelope_recipient_for_group_returns_group_prefix() {
+        let env = group_envelope("+14155551234", "hi", 1000, "abc123==");
+        let recipient = envelope_recipient(&env, "+19995559999");
+        assert_eq!(recipient, "group.abc123==");
+    }
+
+    #[test]
+    fn envelope_recipient_falls_back_to_own_number_when_no_source() {
+        let env = json!({ "dataMessage": { "message": "x", "timestamp": 0 } });
+        assert_eq!(envelope_recipient(&env, "+10000000000"), "+10000000000");
+    }
+
+    // --- parse_envelope ---
+
+    #[test]
+    fn parse_envelope_returns_channel_message_for_dm() {
+        let env = dm_envelope("+14155551234", "Test message", 1_700_000_000_000);
+        let own = "+19995559999";
+        let msg = parse_envelope(&env, own).expect("should parse DM");
+
+        assert_eq!(msg.author, "+14155551234");
+        assert_eq!(msg.conversation.platform, "signal");
+        assert_eq!(msg.conversation.channel_id, "+14155551234");
+        match &msg.content {
+            MessageContent::Text(t) => assert_eq!(t, "Test message"),
+            _ => panic!("expected Text content"),
+        }
+        // Message ID embeds recipient:sender:timestamp
+        assert!(msg.id.0.contains("+14155551234"));
+        assert!(msg.id.0.contains("1700000000000"));
+    }
+
+    #[test]
+    fn parse_envelope_returns_none_when_no_data_message() {
+        let env = json!({ "source": "+1", "receiptMessage": {} });
+        assert!(parse_envelope(&env, "+1").is_none());
+    }
+
+    #[test]
+    fn parse_envelope_returns_none_for_empty_text() {
+        let env = dm_envelope("+1234567890", "", 1000);
+        assert!(parse_envelope(&env, "+9999999999").is_none());
+    }
+
+    #[test]
+    fn parse_envelope_group_message_has_group_channel_id() {
+        let env = group_envelope("+14155551234", "group msg", 1_000_000_000, "grpXYZ==");
+        let msg = parse_envelope(&env, "+19999999999").expect("should parse group message");
+        assert_eq!(msg.conversation.channel_id, "group.grpXYZ==");
+    }
+}

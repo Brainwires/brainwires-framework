@@ -76,3 +76,125 @@ impl VoiceActivityDetector for EnergyVad {
         segments
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::audio::types::{AudioBuffer, AudioConfig, SampleFormat};
+
+    /// Build a mono I16 buffer from a slice of i16 samples.
+    fn i16_buffer(samples: &[i16]) -> AudioBuffer {
+        let data = samples
+            .iter()
+            .flat_map(|s| s.to_le_bytes())
+            .collect::<Vec<u8>>();
+        AudioBuffer {
+            data,
+            config: AudioConfig {
+                sample_rate: 16_000,
+                channels: 1,
+                sample_format: SampleFormat::I16,
+            },
+        }
+    }
+
+    /// Build a mono F32 buffer from a slice of f32 samples.
+    fn f32_buffer(samples: &[f32]) -> AudioBuffer {
+        let data = samples
+            .iter()
+            .flat_map(|s| s.to_le_bytes())
+            .collect::<Vec<u8>>();
+        AudioBuffer {
+            data,
+            config: AudioConfig {
+                sample_rate: 16_000,
+                channels: 1,
+                sample_format: SampleFormat::F32,
+            },
+        }
+    }
+
+    // --- EnergyVad::default ---
+
+    #[test]
+    fn default_threshold_is_minus_40() {
+        let vad = EnergyVad::default();
+        assert_eq!(vad.threshold_db, -40.0);
+    }
+
+    #[test]
+    fn custom_threshold_stored() {
+        let vad = EnergyVad::new(-20.0);
+        assert_eq!(vad.threshold_db, -20.0);
+    }
+
+    // --- is_speech ---
+
+    #[test]
+    fn silent_buffer_not_speech() {
+        let vad = EnergyVad::default();
+        // All zeros = silence
+        let buf = i16_buffer(&vec![0i16; 160]);
+        assert!(!vad.is_speech(&buf));
+    }
+
+    #[test]
+    fn loud_tone_is_speech() {
+        let vad = EnergyVad::new(-40.0);
+        // Full-scale sine wave — very loud
+        let samples: Vec<i16> = (0..160)
+            .map(|i| (i16::MAX as f32 * (i as f32 * 0.1).sin()) as i16)
+            .collect();
+        let buf = i16_buffer(&samples);
+        assert!(vad.is_speech(&buf));
+    }
+
+    #[test]
+    fn very_quiet_signal_below_threshold() {
+        // Threshold of -10 dB — barely audible signal won't pass
+        let vad = EnergyVad::new(-10.0);
+        // Very small amplitude (1/32768 of full scale)
+        let samples = vec![1i16; 160];
+        let buf = i16_buffer(&samples);
+        assert!(!vad.is_speech(&buf));
+    }
+
+    #[test]
+    fn f32_buffer_loud_is_speech() {
+        let vad = EnergyVad::new(-40.0);
+        let samples: Vec<f32> = (0..160).map(|i| (i as f32 * 0.2).sin()).collect();
+        let buf = f32_buffer(&samples);
+        assert!(vad.is_speech(&buf));
+    }
+
+    // --- detect_segments ---
+
+    #[test]
+    fn empty_buffer_yields_no_segments() {
+        let vad = EnergyVad::default();
+        let buf = i16_buffer(&[]);
+        let segs = vad.detect_segments(&buf, 20);
+        assert!(segs.is_empty());
+    }
+
+    #[test]
+    fn all_silence_gives_single_silence_segment() {
+        let vad = EnergyVad::default();
+        // 16000 Hz * 60ms = 960 samples, giving 3 frames of 20ms each
+        let buf = i16_buffer(&vec![0i16; 960]);
+        let segs = vad.detect_segments(&buf, 20);
+        assert!(!segs.is_empty());
+        assert!(segs.iter().all(|s| !s.is_speech));
+    }
+
+    #[test]
+    fn segments_cover_full_range() {
+        let vad = EnergyVad::default();
+        let n_samples = 960usize; // 3 * 20ms frames at 16kHz
+        let buf = i16_buffer(&vec![0i16; n_samples]);
+        let segs = vad.detect_segments(&buf, 20);
+        if !segs.is_empty() {
+            assert_eq!(segs[0].start_sample, 0);
+        }
+    }
+}

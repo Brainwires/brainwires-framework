@@ -130,3 +130,75 @@ fn verify_signature(secret: &[u8], body: &[u8], expected_hex: &str) -> bool {
             .zip(expected_hex.bytes())
             .all(|(a, b)| a == b)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hmac::Mac;
+
+    fn compute_signature(secret: &[u8], body: &[u8]) -> String {
+        let mut mac = Hmac::<Sha256>::new_from_slice(secret).unwrap();
+        mac.update(body);
+        hex::encode(mac.finalize().into_bytes())
+    }
+
+    #[test]
+    fn valid_signature_passes() {
+        let secret = b"my-secret";
+        let body = b"hello world";
+        let sig = compute_signature(secret, body);
+        assert!(verify_signature(secret, body, &sig));
+    }
+
+    #[test]
+    fn wrong_signature_fails() {
+        let secret = b"my-secret";
+        let body = b"hello world";
+        assert!(!verify_signature(secret, body, "deadbeef00112233"));
+    }
+
+    #[test]
+    fn empty_signature_fails() {
+        assert!(!verify_signature(b"secret", b"body", ""));
+    }
+
+    #[test]
+    fn different_body_fails() {
+        let secret = b"my-secret";
+        let sig = compute_signature(secret, b"body-a");
+        // Same sig but different body
+        assert!(!verify_signature(secret, b"body-b", &sig));
+    }
+
+    #[test]
+    fn different_secret_fails() {
+        let body = b"some payload";
+        let sig = compute_signature(b"secret-a", body);
+        assert!(!verify_signature(b"secret-b", body, &sig));
+    }
+
+    #[test]
+    fn hub_query_fields_are_all_optional() {
+        // All fields are Option — construct with all Some to verify types
+        let q = HubQuery {
+            mode: Some("subscribe".to_string()),
+            verify_token: Some("mytoken".to_string()),
+            challenge: Some("challenge123".to_string()),
+        };
+        assert_eq!(q.mode.as_deref(), Some("subscribe"));
+        assert_eq!(q.verify_token.as_deref(), Some("mytoken"));
+        assert_eq!(q.challenge.as_deref(), Some("challenge123"));
+    }
+
+    #[test]
+    fn hub_query_all_none_is_valid() {
+        let q = HubQuery {
+            mode: None,
+            verify_token: None,
+            challenge: None,
+        };
+        assert!(q.mode.is_none());
+        assert!(q.verify_token.is_none());
+        assert!(q.challenge.is_none());
+    }
+}

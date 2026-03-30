@@ -50,3 +50,66 @@ impl Default for MattermostConfig {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_config_has_expected_values() {
+        let cfg = MattermostConfig::default();
+        assert_eq!(cfg.server_url, "https://mattermost.example.com");
+        assert_eq!(cfg.gateway_url, "ws://127.0.0.1:18789/ws");
+        assert!(cfg.access_token.is_empty());
+        assert!(cfg.bot_user_id.is_empty());
+        assert!(cfg.gateway_token.is_none());
+        assert!(cfg.team_id.is_none());
+        assert!(!cfg.group_mention_required);
+        assert!(cfg.bot_username.is_none());
+        assert!(cfg.mention_patterns.is_empty());
+        assert!(cfg.channel_allowlist.is_empty());
+    }
+
+    #[test]
+    fn config_serde_roundtrip() {
+        let cfg = MattermostConfig {
+            server_url: "https://chat.example.com".to_string(),
+            access_token: "tok-abc".to_string(),
+            bot_user_id: "u123".to_string(),
+            gateway_url: "ws://gw:18789/ws".to_string(),
+            gateway_token: Some("gw-secret".to_string()),
+            team_id: Some("team-x".to_string()),
+            group_mention_required: true,
+            bot_username: Some("@mybot".to_string()),
+            mention_patterns: vec!["help".to_string(), "brainwires".to_string()],
+            channel_allowlist: vec!["ch1".to_string(), "ch2".to_string()],
+        };
+        let json = serde_json::to_string(&cfg).unwrap();
+        let back: MattermostConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.server_url, cfg.server_url);
+        assert_eq!(back.access_token, cfg.access_token);
+        assert_eq!(back.bot_user_id, cfg.bot_user_id);
+        assert_eq!(back.gateway_url, cfg.gateway_url);
+        assert_eq!(back.gateway_token, cfg.gateway_token);
+        assert_eq!(back.team_id, cfg.team_id);
+        assert_eq!(back.group_mention_required, cfg.group_mention_required);
+        assert_eq!(back.bot_username, cfg.bot_username);
+        assert_eq!(back.mention_patterns, cfg.mention_patterns);
+        assert_eq!(back.channel_allowlist, cfg.channel_allowlist);
+    }
+
+    #[test]
+    fn config_defaults_applied_for_missing_serde_fields() {
+        // Minimal JSON with only required fields
+        let json = r#"{
+            "server_url": "https://mm.example.com",
+            "access_token": "tok",
+            "bot_user_id": "uid",
+            "gateway_url": "ws://localhost/ws"
+        }"#;
+        let cfg: MattermostConfig = serde_json::from_str(json).unwrap();
+        assert!(!cfg.group_mention_required);
+        assert!(cfg.mention_patterns.is_empty());
+        assert!(cfg.channel_allowlist.is_empty());
+    }
+}

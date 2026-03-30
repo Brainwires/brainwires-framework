@@ -90,3 +90,79 @@ impl Middleware for RateLimitMiddleware {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::connection::RequestContext;
+    use serde_json::json;
+
+    fn tools_call_request(tool_name: &str) -> JsonRpcRequest {
+        JsonRpcRequest {
+            jsonrpc: "2.0".to_string(),
+            id: json!(1),
+            method: "tools/call".to_string(),
+            params: Some(json!({"name": tool_name})),
+        }
+    }
+
+    fn non_tool_request() -> JsonRpcRequest {
+        JsonRpcRequest {
+            jsonrpc: "2.0".to_string(),
+            id: json!(1),
+            method: "tools/list".to_string(),
+            params: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn non_tool_call_passes_rate_limiter() {
+        let middleware = RateLimitMiddleware::new(1.0);
+        let req = non_tool_request();
+        let mut ctx = RequestContext::new(json!(1));
+        let result = middleware.process_request(&req, &mut ctx).await;
+        assert!(matches!(result, MiddlewareResult::Continue));
+    }
+
+    #[tokio::test]
+    async fn first_tool_call_passes() {
+        let middleware = RateLimitMiddleware::new(10.0);
+        let req = tools_call_request("my_tool");
+        let mut ctx = RequestContext::new(json!(1));
+        let result = middleware.process_request(&req, &mut ctx).await;
+        assert!(matches!(result, MiddlewareResult::Continue));
+    }
+
+    #[tokio::test]
+    async fn zero_rate_limit_rejects_immediately() {
+        // A limit of 0 means no tokens are ever available after the first call
+        // Initial bucket starts with `limit` tokens, so first call with limit=0 has 0 tokens
+        let middleware = RateLimitMiddleware::new(0.0);
+        let req = tools_call_request("slow_tool");
+        let mut ctx = RequestContext::new(json!(1));
+        let result = middleware.process_request(&req, &mut ctx).await;
+        assert!(matches!(result, MiddlewareResult::Reject(ref e) if e.code == -32002));
+    }
+
+    #[tokio::test]
+    async fn per_tool_limit_override_applied() {
+        let middleware = RateLimitMiddleware::new(100.0).with_tool_limit("special_tool", 0.0);
+        let req = tools_call_request("special_tool");
+        let mut ctx = RequestContext::new(json!(1));
+        let result = middleware.process_request(&req, &mut ctx).await;
+        assert!(matches!(result, MiddlewareResult::Reject(_)));
+    }
+
+    #[test]
+    fn get_limit_uses_default_when_no_override() {
+        let middleware = RateLimitMiddleware::new(5.0);
+        assert_eq!(middleware.get_limit("any_tool"), 5.0);
+    }
+
+    #[test]
+    fn get_limit_uses_override_when_set() {
+        let middleware = RateLimitMiddleware::new(5.0).with_tool_limit("special", 2.0);
+        assert_eq!(middleware.get_limit("special"), 2.0);
+        assert_eq!(middleware.get_limit("other"), 5.0);
+    }
+}

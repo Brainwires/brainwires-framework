@@ -133,3 +133,18 @@ impl ImprovementStrategy for ClippyStrategy {
         Ok(tasks)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn strategy_name_is_clippy() {
+        assert_eq!(ClippyStrategy.name(), "clippy");
+    }
+
+    #[test]
+    fn strategy_category_is_linting() {
+        assert_eq!(ClippyStrategy.category(), ImprovementCategory::Linting);
+    }
+}

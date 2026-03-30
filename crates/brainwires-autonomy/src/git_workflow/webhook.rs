@@ -264,3 +264,196 @@ fn event_key(event: &WorkflowEvent) -> Option<String> {
         _ => None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── verify_signature ────────────────────────────────────────────────────
+
+    #[cfg(feature = "webhook")]
+    fn make_signature(secret: &str, body: &[u8]) -> String {
+        use hmac::{Hmac, Mac};
+        use sha2::Sha256;
+        let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
+        mac.update(body);
+        let expected = mac.finalize().into_bytes();
+        format!("sha256={}", hex::encode(expected))
+    }
+
+    #[cfg(feature = "webhook")]
+    #[test]
+    fn valid_sha256_signature_passes() {
+        let body = b"hello world";
+        let secret = "mysecret";
+        let sig = make_signature(secret, body);
+        assert!(verify_signature(secret, body, &sig));
+    }
+
+    #[cfg(feature = "webhook")]
+    #[test]
+    fn wrong_signature_fails() {
+        let body = b"hello world";
+        assert!(!verify_signature("secret", body, "sha256=badhex"));
+    }
+
+    #[cfg(feature = "webhook")]
+    #[test]
+    fn wrong_body_fails() {
+        let body = b"hello world";
+        let secret = "mysecret";
+        let sig = make_signature(secret, b"other body");
+        assert!(!verify_signature(secret, body, &sig));
+    }
+
+    #[cfg(feature = "webhook")]
+    #[test]
+    fn wrong_secret_fails() {
+        let body = b"hello world";
+        let sig = make_signature("correct-secret", body);
+        assert!(!verify_signature("wrong-secret", body, &sig));
+    }
+
+    #[cfg(feature = "webhook")]
+    #[test]
+    fn unknown_prefix_fails() {
+        assert!(!verify_signature("secret", b"body", "md5=abc123"));
+    }
+
+    // ── parse_github_event ─────────────────────────────────────────────────
+
+    // Note: parse_github_event for "issues" calls parse_issue(payload) directly,
+    // so issue fields must be at the top level of the payload (not nested under "issue").
+    fn issues_opened_payload(number: u64, title: &str, owner: &str, repo: &str) -> serde_json::Value {
+        serde_json::json!({
+            "action": "opened",
+            "id": number,
+            "number": number,
+            "title": title,
+            "body": "body text",
+            "labels": [],
+            "user": {"login": "alice"},
+            "html_url": "https://github.com/org/repo/issues/1",
+            "repository": {
+                "name": repo,
+                "owner": {"login": owner},
+            }
+        })
+    }
+
+    #[test]
+    fn parse_issues_opened_event() {
+        let payload = issues_opened_payload(42, "Fix login bug", "myorg", "myrepo");
+        let event = parse_github_event("issues", &payload).unwrap();
+        match event {
+            WorkflowEvent::IssueOpened { issue, repo } => {
+                assert_eq!(issue.number, 42);
+                assert_eq!(issue.title, "Fix login bug");
+                assert_eq!(repo.owner, "myorg");
+                assert_eq!(repo.name, "myrepo");
+            }
+            _ => panic!("wrong event type"),
+        }
+    }
+
+    #[test]
+    fn parse_issues_non_opened_action_returns_none() {
+        let mut payload = issues_opened_payload(1, "title", "owner", "repo");
+        payload["action"] = serde_json::json!("closed");
+        assert!(parse_github_event("issues", &payload).is_none());
+    }
+
+    #[test]
+    fn parse_push_event() {
+        let payload = serde_json::json!({
+            "ref": "refs/heads/main",
+            "commits": [
+                {"id": "abc123", "message": "first commit"},
+                {"id": "def456", "message": "second commit"},
+            ],
+            "repository": {
+                "name": "myrepo",
+                "owner": {"login": "myorg"},
+            }
+        });
+        let event = parse_github_event("push", &payload).unwrap();
+        match event {
+            WorkflowEvent::PushReceived { branch, commits, repo } => {
+                assert_eq!(branch, "main");
+                assert_eq!(commits.len(), 2);
+                assert_eq!(commits[0].sha, "abc123");
+                assert_eq!(repo.name, "myrepo");
+            }
+            _ => panic!("wrong event type"),
+        }
+    }
+
+    #[test]
+    fn parse_unknown_event_returns_none() {
+        let payload = serde_json::json!({
+            "repository": {"name": "r", "owner": {"login": "o"}}
+        });
+        assert!(parse_github_event("pull_request", &payload).is_none());
+    }
+
+    #[test]
+    fn parse_issue_comment_event() {
+        let payload = serde_json::json!({
+            "action": "created",
+            "issue": {
+                "id": 1,
+                "number": 5,
+                "title": "Bug",
+                "body": "desc",
+                "labels": [],
+                "user": {"login": "bob"},
+                "html_url": "https://github.com/org/repo/issues/5",
+            },
+            "comment": {
+                "id": 100,
+                "user": {"login": "carol"},
+                "body": "This is a comment",
+            },
+            "repository": {
+                "name": "repo",
+                "owner": {"login": "org"},
+            }
+        });
+        let event = parse_github_event("issue_comment", &payload).unwrap();
+        assert!(matches!(event, WorkflowEvent::IssueCommented { .. }));
+    }
+
+    // ── event_key ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn event_key_for_issue_opened() {
+        let event = WorkflowEvent::IssueOpened {
+            issue: super::super::forge::Issue {
+                id: "1".to_string(),
+                number: 7,
+                title: "title".to_string(),
+                body: String::new(),
+                labels: vec![],
+                author: "alice".to_string(),
+                url: String::new(),
+            },
+            repo: super::super::forge::RepoRef {
+                owner: "org".to_string(),
+                name: "repo".to_string(),
+            },
+        };
+        assert_eq!(event_key(&event), Some("org/repo#7".to_string()));
+    }
+
+    #[test]
+    fn event_key_for_non_issue_returns_none() {
+        let event = WorkflowEvent::Manual {
+            description: "test".to_string(),
+            repo: super::super::forge::RepoRef {
+                owner: "o".to_string(),
+                name: "r".to_string(),
+            },
+        };
+        assert_eq!(event_key(&event), None);
+    }
+}

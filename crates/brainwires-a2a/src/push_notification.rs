@@ -36,3 +36,72 @@ pub struct TaskPushNotificationConfig {
     #[serde(rename = "createdAt", skip_serializing_if = "Option::is_none")]
     pub created_at: Option<String>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn minimal_config() -> TaskPushNotificationConfig {
+        TaskPushNotificationConfig {
+            tenant: None,
+            config_id: None,
+            task_id: "task-1".to_string(),
+            url: "https://example.com/notify".to_string(),
+            token: None,
+            authentication: None,
+            created_at: None,
+        }
+    }
+
+    #[test]
+    fn minimal_config_roundtrip() {
+        let cfg = minimal_config();
+        let json = serde_json::to_string(&cfg).unwrap();
+        let back: TaskPushNotificationConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.task_id, cfg.task_id);
+        assert_eq!(back.url, cfg.url);
+    }
+
+    #[test]
+    fn optional_fields_omitted_when_none() {
+        let cfg = minimal_config();
+        let json = serde_json::to_string(&cfg).unwrap();
+        assert!(!json.contains("tenant"));
+        assert!(!json.contains("configId"));
+        assert!(!json.contains("token"));
+        assert!(!json.contains("authentication"));
+        assert!(!json.contains("createdAt"));
+    }
+
+    #[test]
+    fn json_uses_camel_case_task_id() {
+        let cfg = minimal_config();
+        let json = serde_json::to_string(&cfg).unwrap();
+        assert!(json.contains("taskId"));
+        assert!(!json.contains("task_id"));
+    }
+
+    #[test]
+    fn with_authentication_roundtrip() {
+        let mut cfg = minimal_config();
+        cfg.authentication = Some(AuthenticationInfo {
+            scheme: "Bearer".to_string(),
+            credentials: Some("token-abc".to_string()),
+        });
+        let json = serde_json::to_string(&cfg).unwrap();
+        let back: TaskPushNotificationConfig = serde_json::from_str(&json).unwrap();
+        let auth = back.authentication.unwrap();
+        assert_eq!(auth.scheme, "Bearer");
+        assert_eq!(auth.credentials.as_deref(), Some("token-abc"));
+    }
+
+    #[test]
+    fn authentication_info_credentials_omitted_when_none() {
+        let auth = AuthenticationInfo {
+            scheme: "Basic".to_string(),
+            credentials: None,
+        };
+        let json = serde_json::to_string(&auth).unwrap();
+        assert!(!json.contains("credentials"));
+    }
+}

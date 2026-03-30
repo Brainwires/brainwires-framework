@@ -76,3 +76,87 @@ pub struct DiscoveredHost {
     /// Reverse-DNS hostname, if resolved.
     pub hostname: Option<String>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::{IpAddr, Ipv4Addr};
+
+    fn ipv4(a: u8, b: u8, c: u8, d: u8) -> IpAddr {
+        IpAddr::V4(Ipv4Addr::new(a, b, c, d))
+    }
+
+    // --- InterfaceKind ---
+
+    #[test]
+    fn interface_kind_serde_roundtrip() {
+        let kinds = [
+            InterfaceKind::Wired,
+            InterfaceKind::Wireless,
+            InterfaceKind::Loopback,
+            InterfaceKind::Virtual,
+            InterfaceKind::Unknown,
+        ];
+        for kind in kinds {
+            let json = serde_json::to_string(&kind).unwrap();
+            let back: InterfaceKind = serde_json::from_str(&json).unwrap();
+            assert_eq!(back, kind);
+        }
+    }
+
+    // --- PortState ---
+
+    #[test]
+    fn port_state_serde_roundtrip() {
+        for state in [PortState::Open, PortState::Closed, PortState::Filtered] {
+            let json = serde_json::to_string(&state).unwrap();
+            let back: PortState = serde_json::from_str(&json).unwrap();
+            assert_eq!(back, state);
+        }
+    }
+
+    // --- PortScanResult ---
+
+    #[test]
+    fn port_scan_result_serde_roundtrip() {
+        let result = PortScanResult {
+            host: ipv4(192, 168, 1, 1),
+            port: 80,
+            state: PortState::Open,
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        let back: PortScanResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.port, 80);
+        assert_eq!(back.state, PortState::Open);
+    }
+
+    // --- DiscoveredHost ---
+
+    #[test]
+    fn discovered_host_serde_roundtrip() {
+        let host = DiscoveredHost {
+            ip: ipv4(10, 0, 0, 1),
+            mac: Some("aa:bb:cc:dd:ee:ff".to_string()),
+            hostname: Some("router.local".to_string()),
+        };
+        let json = serde_json::to_string(&host).unwrap();
+        let back: DiscoveredHost = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.ip, host.ip);
+        assert_eq!(back.mac.as_deref(), Some("aa:bb:cc:dd:ee:ff"));
+        assert_eq!(back.hostname.as_deref(), Some("router.local"));
+    }
+
+    #[test]
+    fn discovered_host_optional_fields_omit_when_none() {
+        let host = DiscoveredHost {
+            ip: ipv4(172, 16, 0, 1),
+            mac: None,
+            hostname: None,
+        };
+        let json = serde_json::to_string(&host).unwrap();
+        // Optional fields may serialize as null depending on derive - just verify round-trip
+        let back: DiscoveredHost = serde_json::from_str(&json).unwrap();
+        assert!(back.mac.is_none());
+        assert!(back.hostname.is_none());
+    }
+}

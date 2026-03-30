@@ -338,3 +338,189 @@ pub struct DeviceCodeOAuthFlow {
     /// Available scopes.
     pub scopes: HashMap<String, String>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn minimal_card() -> AgentCard {
+        AgentCard {
+            name: "Test Agent".to_string(),
+            description: "A test agent".to_string(),
+            version: "1.0.0".to_string(),
+            supported_interfaces: vec![AgentInterface {
+                url: "https://example.com/a2a".to_string(),
+                protocol_binding: "JSONRPC".to_string(),
+                tenant: None,
+                protocol_version: "0.3".to_string(),
+            }],
+            capabilities: AgentCapabilities::default(),
+            skills: vec![],
+            default_input_modes: vec!["text/plain".to_string()],
+            default_output_modes: vec!["text/plain".to_string()],
+            provider: None,
+            security_schemes: None,
+            security_requirements: None,
+            documentation_url: None,
+            icon_url: None,
+            signatures: None,
+        }
+    }
+
+    // --- AgentCard ---
+
+    #[test]
+    fn agent_card_roundtrip() {
+        let card = minimal_card();
+        let json = serde_json::to_string(&card).unwrap();
+        let back: AgentCard = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.name, card.name);
+        assert_eq!(back.version, card.version);
+    }
+
+    #[test]
+    fn agent_card_json_uses_camel_case() {
+        let card = minimal_card();
+        let json = serde_json::to_string(&card).unwrap();
+        assert!(json.contains("supportedInterfaces"));
+        assert!(json.contains("defaultInputModes"));
+        assert!(json.contains("defaultOutputModes"));
+    }
+
+    #[test]
+    fn optional_fields_omitted_when_none() {
+        let card = minimal_card();
+        let json = serde_json::to_string(&card).unwrap();
+        assert!(!json.contains("provider"));
+        assert!(!json.contains("securitySchemes"));
+        assert!(!json.contains("documentationUrl"));
+        assert!(!json.contains("iconUrl"));
+        assert!(!json.contains("signatures"));
+    }
+
+    #[test]
+    fn agent_card_with_skill_roundtrip() {
+        let mut card = minimal_card();
+        card.skills = vec![AgentSkill {
+            id: "skill-1".to_string(),
+            name: "My Skill".to_string(),
+            description: "Does something".to_string(),
+            tags: vec!["tag1".to_string()],
+            examples: Some(vec!["example prompt".to_string()]),
+            input_modes: None,
+            output_modes: None,
+            security_requirements: None,
+        }];
+        let json = serde_json::to_string(&card).unwrap();
+        let back: AgentCard = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.skills.len(), 1);
+        assert_eq!(back.skills[0].id, "skill-1");
+    }
+
+    // --- AgentCapabilities ---
+
+    #[test]
+    fn capabilities_default_all_none() {
+        let cap = AgentCapabilities::default();
+        let json = serde_json::to_string(&cap).unwrap();
+        assert!(!json.contains("streaming"));
+        assert!(!json.contains("pushNotifications"));
+        assert!(!json.contains("extendedAgentCard"));
+    }
+
+    #[test]
+    fn capabilities_with_streaming_roundtrip() {
+        let cap = AgentCapabilities {
+            streaming: Some(true),
+            push_notifications: Some(false),
+            extended_agent_card: None,
+            extensions: None,
+        };
+        let json = serde_json::to_string(&cap).unwrap();
+        let back: AgentCapabilities = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.streaming, Some(true));
+        assert_eq!(back.push_notifications, Some(false));
+    }
+
+    // --- SecurityScheme ---
+
+    #[test]
+    fn api_key_security_scheme_roundtrip() {
+        let scheme = SecurityScheme {
+            api_key: Some(ApiKeySecurityScheme {
+                name: "X-Api-Key".to_string(),
+                location: "header".to_string(),
+                description: None,
+            }),
+            http_auth: None,
+            oauth2: None,
+            open_id_connect: None,
+            mtls: None,
+        };
+        let json = serde_json::to_string(&scheme).unwrap();
+        let back: SecurityScheme = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, scheme);
+        assert!(json.contains("apiKeySecurityScheme"));
+    }
+
+    #[test]
+    fn oauth2_authorization_code_flow_roundtrip() {
+        let scheme = SecurityScheme {
+            api_key: None,
+            http_auth: None,
+            oauth2: Some(OAuth2SecurityScheme {
+                flows: OAuthFlows {
+                    authorization_code: Some(AuthorizationCodeOAuthFlow {
+                        authorization_url: "https://auth.example.com/authorize".to_string(),
+                        token_url: "https://auth.example.com/token".to_string(),
+                        refresh_url: None,
+                        scopes: [("read".to_string(), "Read access".to_string())]
+                            .into_iter()
+                            .collect(),
+                        pkce_required: Some(true),
+                    }),
+                    client_credentials: None,
+                    implicit: None,
+                    password: None,
+                    device_code: None,
+                },
+                description: None,
+                oauth2_metadata_url: None,
+            }),
+            open_id_connect: None,
+            mtls: None,
+        };
+        let json = serde_json::to_string(&scheme).unwrap();
+        let back: SecurityScheme = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, scheme);
+    }
+
+    // --- AgentInterface ---
+
+    #[test]
+    fn agent_interface_json_uses_camel_case() {
+        let iface = AgentInterface {
+            url: "https://example.com".to_string(),
+            protocol_binding: "JSONRPC".to_string(),
+            tenant: None,
+            protocol_version: "0.3".to_string(),
+        };
+        let json = serde_json::to_string(&iface).unwrap();
+        assert!(json.contains("protocolBinding"));
+        assert!(json.contains("protocolVersion"));
+        assert!(!json.contains("protocol_binding"));
+    }
+
+    // --- AgentProvider ---
+
+    #[test]
+    fn agent_provider_roundtrip() {
+        let p = AgentProvider {
+            url: "https://acme.io".to_string(),
+            organization: "ACME Corp".to_string(),
+        };
+        let json = serde_json::to_string(&p).unwrap();
+        let back: AgentProvider = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.organization, "ACME Corp");
+    }
+}

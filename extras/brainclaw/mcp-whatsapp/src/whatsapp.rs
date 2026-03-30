@@ -283,3 +283,213 @@ fn parse_single_message(msg: &serde_json::Value, phone_number_id: &str) -> Optio
         metadata: HashMap::new(),
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_text_payload(from: &str, id: &str, body: &str) -> serde_json::Value {
+        serde_json::json!({
+            "entry": [{
+                "changes": [{
+                    "value": {
+                        "messages": [{
+                            "from": from,
+                            "id": id,
+                            "type": "text",
+                            "text": { "body": body }
+                        }]
+                    }
+                }]
+            }]
+        })
+    }
+
+    fn make_image_payload(from: &str, id: &str, caption: Option<&str>) -> serde_json::Value {
+        let mut image_obj = serde_json::json!({ "mime_type": "image/jpeg" });
+        if let Some(cap) = caption {
+            image_obj["caption"] = serde_json::json!(cap);
+        }
+        serde_json::json!({
+            "entry": [{
+                "changes": [{
+                    "value": {
+                        "messages": [{
+                            "from": from,
+                            "id": id,
+                            "type": "image",
+                            "image": image_obj
+                        }]
+                    }
+                }]
+            }]
+        })
+    }
+
+    // --- parse_webhook_messages ---
+
+    #[test]
+    fn text_message_parsed_correctly() {
+        let payload = make_text_payload("15551234567", "msg-001", "Hello, world!");
+        let msgs = parse_webhook_messages(&payload, "phone-id-123");
+
+        assert_eq!(msgs.len(), 1);
+        let msg = &msgs[0];
+        assert_eq!(msg.author, "15551234567");
+        assert_eq!(msg.id.0, "msg-001");
+        assert_eq!(msg.conversation.platform, "whatsapp");
+        assert_eq!(msg.conversation.channel_id, "15551234567");
+        assert_eq!(msg.conversation.server_id.as_deref(), Some("phone-id-123"));
+        assert!(matches!(&msg.content, MessageContent::Text(t) if t == "Hello, world!"));
+    }
+
+    #[test]
+    fn image_message_without_caption() {
+        let payload = make_image_payload("15551111111", "img-001", None);
+        let msgs = parse_webhook_messages(&payload, "pid");
+
+        assert_eq!(msgs.len(), 1);
+        assert!(matches!(&msgs[0].content, MessageContent::Text(t) if t == "[image attachment]"));
+    }
+
+    #[test]
+    fn image_message_with_caption() {
+        let payload = make_image_payload("15551111111", "img-002", Some("My photo"));
+        let msgs = parse_webhook_messages(&payload, "pid");
+
+        assert_eq!(msgs.len(), 1);
+        assert!(matches!(&msgs[0].content, MessageContent::Text(t) if t == "[image: My photo]"));
+    }
+
+    #[test]
+    fn video_message_parsed() {
+        let payload = serde_json::json!({
+            "entry": [{
+                "changes": [{
+                    "value": {
+                        "messages": [{
+                            "from": "15559999999",
+                            "id": "vid-001",
+                            "type": "video",
+                            "video": { "mime_type": "video/mp4" }
+                        }]
+                    }
+                }]
+            }]
+        });
+        let msgs = parse_webhook_messages(&payload, "pid");
+        assert_eq!(msgs.len(), 1);
+        assert!(matches!(&msgs[0].content, MessageContent::Text(t) if t == "[video attachment]"));
+    }
+
+    #[test]
+    fn multiple_messages_in_one_payload() {
+        let payload = serde_json::json!({
+            "entry": [{
+                "changes": [{
+                    "value": {
+                        "messages": [
+                            { "from": "111", "id": "a", "type": "text", "text": { "body": "msg1" } },
+                            { "from": "222", "id": "b", "type": "text", "text": { "body": "msg2" } }
+                        ]
+                    }
+                }]
+            }]
+        });
+        let msgs = parse_webhook_messages(&payload, "pid");
+        assert_eq!(msgs.len(), 2);
+    }
+
+    #[test]
+    fn unknown_message_type_skipped() {
+        let payload = serde_json::json!({
+            "entry": [{
+                "changes": [{
+                    "value": {
+                        "messages": [{
+                            "from": "111",
+                            "id": "x",
+                            "type": "location",
+                            "location": { "latitude": 1.0, "longitude": 2.0 }
+                        }]
+                    }
+                }]
+            }]
+        });
+        let msgs = parse_webhook_messages(&payload, "pid");
+        assert!(msgs.is_empty(), "unknown types should be skipped");
+    }
+
+    #[test]
+    fn empty_payload_returns_no_messages() {
+        let payload = serde_json::json!({});
+        let msgs = parse_webhook_messages(&payload, "pid");
+        assert!(msgs.is_empty());
+    }
+
+    #[test]
+    fn missing_entry_returns_no_messages() {
+        let payload = serde_json::json!({ "object": "whatsapp_business_account" });
+        let msgs = parse_webhook_messages(&payload, "pid");
+        assert!(msgs.is_empty());
+    }
+
+    #[test]
+    fn multiple_entries_and_changes_handled() {
+        let payload = serde_json::json!({
+            "entry": [
+                {
+                    "changes": [
+                        {
+                            "value": {
+                                "messages": [
+                                    { "from": "111", "id": "a1", "type": "text", "text": { "body": "hi" } }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "changes": [
+                        {
+                            "value": {
+                                "messages": [
+                                    { "from": "222", "id": "b1", "type": "text", "text": { "body": "hello" } }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        });
+        let msgs = parse_webhook_messages(&payload, "pid");
+        assert_eq!(msgs.len(), 2);
+    }
+
+    #[test]
+    fn text_message_missing_body_skipped() {
+        // text type but no "text" field
+        let payload = serde_json::json!({
+            "entry": [{
+                "changes": [{
+                    "value": {
+                        "messages": [{
+                            "from": "111",
+                            "id": "x",
+                            "type": "text"
+                        }]
+                    }
+                }]
+            }]
+        });
+        let msgs = parse_webhook_messages(&payload, "pid");
+        assert!(msgs.is_empty(), "message with missing text body should be skipped");
+    }
+
+    // --- GRAPH_API_BASE ---
+
+    #[test]
+    fn graph_api_base_is_meta_url() {
+        assert!(GRAPH_API_BASE.starts_with("https://graph.facebook.com"));
+    }
+}

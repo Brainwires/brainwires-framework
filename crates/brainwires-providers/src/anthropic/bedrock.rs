@@ -144,3 +144,44 @@ impl BedrockAuth {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bedrock_invoke_url_includes_region_and_model() {
+        let url = bedrock_invoke_url("us-east-1", "anthropic.claude-3-sonnet-20240229-v1:0");
+        assert!(url.contains("us-east-1"));
+        assert!(url.contains("anthropic.claude-3-sonnet-20240229-v1:0"));
+        assert!(url.starts_with("https://bedrock-runtime."));
+        assert!(url.ends_with("/invoke"));
+    }
+
+    #[test]
+    fn bedrock_stream_url_includes_invoke_with_response_stream() {
+        let url = bedrock_stream_url("eu-west-1", "anthropic.claude-instant-v1");
+        assert!(url.contains("eu-west-1"));
+        assert!(url.contains("invoke-with-response-stream"));
+    }
+
+    #[test]
+    fn bedrock_auth_new_stores_credentials() {
+        let auth = BedrockAuth::new(
+            "us-west-2".to_string(),
+            "AKID".to_string(),
+            "SECRET".to_string(),
+            None,
+        );
+        assert_eq!(auth.region(), "us-west-2");
+    }
+
+    #[test]
+    fn bedrock_auth_from_env_fails_without_credentials() {
+        // Make sure no AWS env vars are set (or they are set to garbage)
+        // This should fail because AWS_ACCESS_KEY_ID won't be set in CI
+        std::env::remove_var("AWS_ACCESS_KEY_ID");
+        let result = BedrockAuth::from_environment(None);
+        assert!(result.is_err());
+    }
+}

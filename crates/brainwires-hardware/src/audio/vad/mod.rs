@@ -95,6 +95,7 @@ pub(crate) fn pcm_to_f32(audio: &AudioBuffer) -> Vec<f32> {
 }
 
 /// Convert a raw PCM `AudioBuffer` to mono `Vec<i16>` (mix down if stereo).
+#[allow(dead_code)]
 pub(crate) fn pcm_to_i16_mono(audio: &AudioBuffer) -> Vec<i16> {
     let channels = audio.config.channels as usize;
     match audio.config.sample_format {
@@ -132,5 +133,145 @@ pub(crate) fn pcm_to_i16_mono(audio: &AudioBuffer) -> Vec<i16> {
                 .map(|&s| (s.clamp(-1.0, 1.0) * 32767.0) as i16)
                 .collect()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::audio::types::{AudioBuffer, AudioConfig, SampleFormat};
+
+    fn i16_mono_buffer(samples: &[i16]) -> AudioBuffer {
+        AudioBuffer {
+            data: samples.iter().flat_map(|s| s.to_le_bytes()).collect(),
+            config: AudioConfig {
+                sample_rate: 16_000,
+                channels: 1,
+                sample_format: SampleFormat::I16,
+            },
+        }
+    }
+
+    fn f32_mono_buffer(samples: &[f32]) -> AudioBuffer {
+        AudioBuffer {
+            data: samples.iter().flat_map(|s| s.to_le_bytes()).collect(),
+            config: AudioConfig {
+                sample_rate: 16_000,
+                channels: 1,
+                sample_format: SampleFormat::F32,
+            },
+        }
+    }
+
+    fn stereo_i16_buffer(samples: &[i16]) -> AudioBuffer {
+        AudioBuffer {
+            data: samples.iter().flat_map(|s| s.to_le_bytes()).collect(),
+            config: AudioConfig {
+                sample_rate: 16_000,
+                channels: 2,
+                sample_format: SampleFormat::I16,
+            },
+        }
+    }
+
+    // --- rms_db ---
+
+    #[test]
+    fn rms_db_silence_is_neg_infinity() {
+        let buf = i16_mono_buffer(&vec![0i16; 160]);
+        let db = rms_db(&buf);
+        assert_eq!(db, f32::NEG_INFINITY);
+    }
+
+    #[test]
+    fn rms_db_empty_is_neg_infinity() {
+        let buf = i16_mono_buffer(&[]);
+        assert_eq!(rms_db(&buf), f32::NEG_INFINITY);
+    }
+
+    #[test]
+    fn rms_db_full_scale_i16_is_near_0() {
+        // Full-scale i16 = 32767/32768 ≈ 1.0 → RMS of DC = ~0 dB
+        let samples = vec![i16::MAX; 160];
+        let buf = i16_mono_buffer(&samples);
+        let db = rms_db(&buf);
+        assert!(db > -1.0, "Full-scale DC should be near 0 dBFS, got {db}");
+    }
+
+    #[test]
+    fn rms_db_f32_full_scale_near_0() {
+        let samples = vec![1.0f32; 160];
+        let buf = f32_mono_buffer(&samples);
+        let db = rms_db(&buf);
+        assert!(db > -1.0, "F32 full-scale should be near 0 dBFS, got {db}");
+    }
+
+    // --- pcm_to_f32 ---
+
+    #[test]
+    fn pcm_to_f32_i16_zero_gives_zero() {
+        let buf = i16_mono_buffer(&[0i16; 4]);
+        let samples = pcm_to_f32(&buf);
+        assert!(samples.iter().all(|&s| s == 0.0));
+    }
+
+    #[test]
+    fn pcm_to_f32_i16_max_near_one() {
+        let buf = i16_mono_buffer(&[i16::MAX]);
+        let samples = pcm_to_f32(&buf);
+        assert!((samples[0] - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn pcm_to_f32_passthrough_for_f32() {
+        let buf = f32_mono_buffer(&[0.5f32, -0.5, 1.0]);
+        let samples = pcm_to_f32(&buf);
+        assert_eq!(samples.len(), 3);
+        assert!((samples[0] - 0.5).abs() < 1e-6);
+        assert!((samples[1] + 0.5).abs() < 1e-6);
+    }
+
+    // --- pcm_to_i16_mono ---
+
+    #[test]
+    fn pcm_to_i16_mono_preserves_mono() {
+        let input = vec![100i16, -200, 300];
+        let buf = i16_mono_buffer(&input);
+        let out = pcm_to_i16_mono(&buf);
+        assert_eq!(out, input);
+    }
+
+    #[test]
+    fn pcm_to_i16_mono_mixes_stereo_i16() {
+        // Two channels: L=1000, R=1000 → mono = 1000
+        let stereo = vec![1000i16, 1000i16];
+        let buf = stereo_i16_buffer(&stereo);
+        let mono = pcm_to_i16_mono(&buf);
+        assert_eq!(mono.len(), 1);
+        assert_eq!(mono[0], 1000);
+    }
+
+    // --- SpeechSegment ---
+
+    #[test]
+    fn speech_segment_len() {
+        let seg = SpeechSegment {
+            is_speech: true,
+            start_sample: 0,
+            end_sample: 320,
+        };
+        assert_eq!(seg.len(), 320);
+        assert!(!seg.is_empty());
+    }
+
+    #[test]
+    fn speech_segment_empty_when_equal() {
+        let seg = SpeechSegment {
+            is_speech: false,
+            start_sample: 10,
+            end_sample: 10,
+        };
+        assert_eq!(seg.len(), 0);
+        assert!(seg.is_empty());
     }
 }

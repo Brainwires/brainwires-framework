@@ -123,3 +123,18 @@ impl ImprovementStrategy for DocGapsStrategy {
         Ok(tasks)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn strategy_name_is_doc_gaps() {
+        assert_eq!(DocGapsStrategy.name(), "doc_gaps");
+    }
+
+    #[test]
+    fn strategy_category_is_documentation() {
+        assert_eq!(DocGapsStrategy.category(), ImprovementCategory::Documentation);
+    }
+}

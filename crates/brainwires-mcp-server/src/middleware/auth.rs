@@ -56,3 +56,71 @@ impl Middleware for AuthMiddleware {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::connection::RequestContext;
+    use serde_json::json;
+
+    fn make_request(method: &str, params: Option<serde_json::Value>) -> JsonRpcRequest {
+        JsonRpcRequest {
+            jsonrpc: "2.0".to_string(),
+            id: json!(1),
+            method: method.to_string(),
+            params,
+        }
+    }
+
+    #[tokio::test]
+    async fn initialize_method_skips_auth() {
+        let middleware = AuthMiddleware::new("secret");
+        let req = make_request("initialize", None);
+        let mut ctx = RequestContext::new(json!(1));
+        let result = middleware.process_request(&req, &mut ctx).await;
+        assert!(matches!(result, MiddlewareResult::Continue));
+    }
+
+    #[tokio::test]
+    async fn valid_token_in_params_passes() {
+        let middleware = AuthMiddleware::new("my-token");
+        let req = make_request(
+            "tools/list",
+            Some(json!({"_auth_token": "my-token"})),
+        );
+        let mut ctx = RequestContext::new(json!(1));
+        let result = middleware.process_request(&req, &mut ctx).await;
+        assert!(matches!(result, MiddlewareResult::Continue));
+    }
+
+    #[tokio::test]
+    async fn invalid_token_in_params_rejects() {
+        let middleware = AuthMiddleware::new("correct-token");
+        let req = make_request(
+            "tools/list",
+            Some(json!({"_auth_token": "wrong-token"})),
+        );
+        let mut ctx = RequestContext::new(json!(1));
+        let result = middleware.process_request(&req, &mut ctx).await;
+        assert!(matches!(result, MiddlewareResult::Reject(_)));
+    }
+
+    #[tokio::test]
+    async fn no_token_rejects() {
+        let middleware = AuthMiddleware::new("secret");
+        let req = make_request("tools/list", None);
+        let mut ctx = RequestContext::new(json!(1));
+        let result = middleware.process_request(&req, &mut ctx).await;
+        assert!(matches!(result, MiddlewareResult::Reject(ref e) if e.code == -32003));
+    }
+
+    #[tokio::test]
+    async fn token_cached_in_metadata_allows_subsequent_requests() {
+        let middleware = AuthMiddleware::new("secret");
+        let mut ctx = RequestContext::new(json!(1));
+        ctx.set_metadata("auth_token".to_string(), json!("secret"));
+        let req = make_request("tools/list", None);
+        let result = middleware.process_request(&req, &mut ctx).await;
+        assert!(matches!(result, MiddlewareResult::Continue));
+    }
+}

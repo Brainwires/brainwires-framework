@@ -454,3 +454,187 @@ where
 
     combined
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    // ── reciprocal_rank_fusion ────────────────────────────────────────────
+
+    #[test]
+    fn rrf_empty_inputs_returns_empty() {
+        let result = reciprocal_rank_fusion(vec![], vec![], 10);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn rrf_vector_only_result_ranked_first_gets_highest_score() {
+        let vector_results = vec![(1u64, 0.9), (2u64, 0.8), (3u64, 0.7)];
+        let result = reciprocal_rank_fusion(vector_results, vec![], 3);
+        // Item 1 should score higher than item 2 (rank 0 vs rank 1)
+        let scores: Vec<u64> = result.iter().map(|(id, _)| *id).collect();
+        assert!(scores.contains(&1));
+        assert!(scores.contains(&2));
+        assert!(scores.contains(&3));
+        // Id 1 was rank 0 -> highest RRF score
+        let id1_score = result.iter().find(|(id, _)| *id == 1).unwrap().1;
+        let id2_score = result.iter().find(|(id, _)| *id == 2).unwrap().1;
+        assert!(id1_score > id2_score);
+    }
+
+    #[test]
+    fn rrf_limit_caps_result_count() {
+        let vector_results = vec![(1u64, 1.0), (2u64, 0.9), (3u64, 0.8), (4u64, 0.7)];
+        let result = reciprocal_rank_fusion(vector_results, vec![], 2);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn rrf_item_in_both_lists_ranks_higher() {
+        // Item 10 appears in both vector and bm25 results
+        let vector_results = vec![(10u64, 0.9), (20u64, 0.8)];
+        let bm25_results = vec![
+            BM25Result { id: 10, score: 0.9 },
+            BM25Result { id: 30, score: 0.7 },
+        ];
+        let result = reciprocal_rank_fusion(vector_results, bm25_results, 10);
+        // Item 10 should have higher combined score than items in only one list
+        let score_10 = result.iter().find(|(id, _)| *id == 10).unwrap().1;
+        let score_20 = result.iter().find(|(id, _)| *id == 20).unwrap().1;
+        let score_30 = result.iter().find(|(id, _)| *id == 30).unwrap().1;
+        assert!(score_10 > score_20, "item in both lists should beat vector-only");
+        assert!(score_10 > score_30, "item in both lists should beat bm25-only");
+    }
+
+    #[test]
+    fn rrf_generic_string_ids_work() {
+        let list1 = vec![("a".to_string(), 1.0f32), ("b".to_string(), 0.5)];
+        let list2 = vec![("b".to_string(), 1.0f32), ("c".to_string(), 0.5)];
+        let result = reciprocal_rank_fusion_generic([list1, list2], 10);
+        // "b" appears in both, should have higher score
+        let score_b = result.iter().find(|(id, _)| id == "b").unwrap().1;
+        let score_a = result.iter().find(|(id, _)| id == "a").unwrap().1;
+        let score_c = result.iter().find(|(id, _)| id == "c").unwrap().1;
+        assert!(score_b > score_a);
+        assert!(score_b > score_c);
+    }
+
+    #[test]
+    fn rrf_k_constant_is_60() {
+        assert_eq!(RRF_K_CONSTANT, 60.0);
+    }
+
+    #[test]
+    fn rrf_score_for_rank_zero_is_one_over_61() {
+        // At rank 0 (first item): 1 / (60 + 1) = 1/61
+        let vector_results = vec![(42u64, 1.0)];
+        let result = reciprocal_rank_fusion(vector_results, vec![], 1);
+        let score = result[0].1;
+        let expected = 1.0 / 61.0f32;
+        assert!((score - expected).abs() < 1e-6, "score={score}, expected={expected}");
+    }
+
+    // ── BM25Search ────────────────────────────────────────────────────────
+
+    #[test]
+    fn bm25search_creates_index_in_temp_dir() {
+        let dir = TempDir::new().unwrap();
+        let search = BM25Search::new(dir.path()).unwrap();
+        let stats = search.get_stats().unwrap();
+        assert_eq!(stats.total_documents, 0);
+    }
+
+    #[test]
+    fn bm25search_add_and_count_documents() {
+        let dir = TempDir::new().unwrap();
+        let search = BM25Search::new(dir.path()).unwrap();
+        search
+            .add_documents(vec![
+                (1, "the quick brown fox".to_string(), "file1.rs".to_string()),
+                (2, "jumps over the lazy dog".to_string(), "file2.rs".to_string()),
+            ])
+            .unwrap();
+        let stats = search.get_stats().unwrap();
+        assert_eq!(stats.total_documents, 2);
+    }
+
+    #[test]
+    fn bm25search_returns_relevant_results() {
+        let dir = TempDir::new().unwrap();
+        let search = BM25Search::new(dir.path()).unwrap();
+        search
+            .add_documents(vec![
+                (1, "authentication login user password".to_string(), "auth.rs".to_string()),
+                (2, "database storage connection pool".to_string(), "db.rs".to_string()),
+                (3, "authentication oauth token".to_string(), "oauth.rs".to_string()),
+            ])
+            .unwrap();
+
+        let results = search.search("authentication", 10).unwrap();
+        assert!(!results.is_empty(), "should find results for 'authentication'");
+        // All results should have positive score
+        for r in &results {
+            assert!(r.score > 0.0);
+        }
+        // Should find docs 1 and 3 but not 2
+        let ids: Vec<u64> = results.iter().map(|r| r.id).collect();
+        assert!(ids.contains(&1) || ids.contains(&3));
+    }
+
+    #[test]
+    fn bm25search_search_returns_empty_for_unknown_term() {
+        let dir = TempDir::new().unwrap();
+        let search = BM25Search::new(dir.path()).unwrap();
+        search
+            .add_documents(vec![(1, "some content".to_string(), "f.rs".to_string())])
+            .unwrap();
+        let results = search.search("xyzabsolutelynotinindex", 10).unwrap();
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn bm25search_clear_removes_all_documents() {
+        let dir = TempDir::new().unwrap();
+        let search = BM25Search::new(dir.path()).unwrap();
+        search
+            .add_documents(vec![(1, "content".to_string(), "f.rs".to_string())])
+            .unwrap();
+        search.clear().unwrap();
+        let stats = search.get_stats().unwrap();
+        assert_eq!(stats.total_documents, 0);
+    }
+
+    #[test]
+    fn bm25search_delete_by_id() {
+        let dir = TempDir::new().unwrap();
+        let search = BM25Search::new(dir.path()).unwrap();
+        search
+            .add_documents(vec![
+                (1, "hello world".to_string(), "a.rs".to_string()),
+                (2, "goodbye world".to_string(), "b.rs".to_string()),
+            ])
+            .unwrap();
+        search.delete_by_id(1).unwrap();
+        // After deletion, searching for doc 1's unique term should not return id 1
+        let results = search.search("hello", 10).unwrap();
+        let ids: Vec<u64> = results.iter().map(|r| r.id).collect();
+        assert!(!ids.contains(&1), "id 1 should be deleted");
+    }
+
+    #[test]
+    fn bm25search_reopen_existing_index() {
+        let dir = TempDir::new().unwrap();
+        // Create and index
+        {
+            let search = BM25Search::new(dir.path()).unwrap();
+            search
+                .add_documents(vec![(1, "persistent content".to_string(), "p.rs".to_string())])
+                .unwrap();
+        }
+        // Reopen and verify docs persist
+        let search2 = BM25Search::new(dir.path()).unwrap();
+        let stats = search2.get_stats().unwrap();
+        assert_eq!(stats.total_documents, 1);
+    }
+}

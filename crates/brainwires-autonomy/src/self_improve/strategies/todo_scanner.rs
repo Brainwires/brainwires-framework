@@ -102,3 +102,18 @@ impl ImprovementStrategy for TodoScannerStrategy {
         Ok(tasks)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn strategy_name_is_todo_scanner() {
+        assert_eq!(TodoScannerStrategy.name(), "todo_scanner");
+    }
+
+    #[test]
+    fn strategy_category_is_refactoring() {
+        assert_eq!(TodoScannerStrategy.category(), ImprovementCategory::Refactoring);
+    }
+}

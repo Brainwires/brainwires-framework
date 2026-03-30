@@ -206,3 +206,164 @@ impl Comment {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // --- IssueStatus ---
+
+    #[test]
+    fn issue_status_as_str_roundtrip() {
+        let cases = [
+            (IssueStatus::Backlog, "backlog"),
+            (IssueStatus::Todo, "todo"),
+            (IssueStatus::InProgress, "in_progress"),
+            (IssueStatus::InReview, "in_review"),
+            (IssueStatus::Done, "done"),
+            (IssueStatus::Cancelled, "cancelled"),
+        ];
+        for (status, expected) in &cases {
+            assert_eq!(status.as_str(), *expected);
+            assert_eq!(IssueStatus::from_str(expected), *status);
+        }
+    }
+
+    #[test]
+    fn issue_status_unknown_falls_back_to_backlog() {
+        assert_eq!(IssueStatus::from_str("unknown_status"), IssueStatus::Backlog);
+    }
+
+    #[test]
+    fn issue_status_is_closed() {
+        assert!(IssueStatus::Done.is_closed());
+        assert!(IssueStatus::Cancelled.is_closed());
+        assert!(!IssueStatus::Backlog.is_closed());
+        assert!(!IssueStatus::Todo.is_closed());
+        assert!(!IssueStatus::InProgress.is_closed());
+        assert!(!IssueStatus::InReview.is_closed());
+    }
+
+    #[test]
+    fn issue_status_serde_roundtrip() {
+        let statuses = [
+            IssueStatus::Backlog,
+            IssueStatus::Todo,
+            IssueStatus::InProgress,
+            IssueStatus::Done,
+        ];
+        for s in statuses {
+            let json = serde_json::to_string(&s).unwrap();
+            let back: IssueStatus = serde_json::from_str(&json).unwrap();
+            assert_eq!(back, s);
+        }
+    }
+
+    #[test]
+    fn issue_status_default_is_backlog() {
+        assert_eq!(IssueStatus::default(), IssueStatus::Backlog);
+    }
+
+    // --- IssuePriority ---
+
+    #[test]
+    fn issue_priority_as_str_roundtrip() {
+        let cases = [
+            (IssuePriority::NoPriority, "no_priority"),
+            (IssuePriority::Low, "low"),
+            (IssuePriority::Medium, "medium"),
+            (IssuePriority::High, "high"),
+            (IssuePriority::Urgent, "urgent"),
+        ];
+        for (priority, expected) in &cases {
+            assert_eq!(priority.as_str(), *expected);
+            assert_eq!(IssuePriority::from_str(expected), *priority);
+        }
+    }
+
+    #[test]
+    fn issue_priority_unknown_falls_back_to_no_priority() {
+        assert_eq!(IssuePriority::from_str("unknown"), IssuePriority::NoPriority);
+    }
+
+    #[test]
+    fn issue_priority_default_is_no_priority() {
+        assert_eq!(IssuePriority::default(), IssuePriority::NoPriority);
+    }
+
+    // --- Issue::new ---
+
+    #[test]
+    fn issue_new_sets_defaults() {
+        let issue = Issue::new(1, "My Issue");
+        assert_eq!(issue.number, 1);
+        assert_eq!(issue.title, "My Issue");
+        assert_eq!(issue.description, "");
+        assert_eq!(issue.status, IssueStatus::Backlog);
+        assert_eq!(issue.priority, IssuePriority::NoPriority);
+        assert!(issue.labels.is_empty());
+        assert!(issue.assignee.is_none());
+        assert!(issue.project.is_none());
+        assert!(issue.parent_id.is_none());
+        assert!(issue.closed_at.is_none());
+        assert!(!issue.id.is_empty());
+        assert!(issue.created_at > 0);
+        assert_eq!(issue.created_at, issue.updated_at);
+    }
+
+    #[test]
+    fn issue_ids_are_unique() {
+        let a = Issue::new(1, "A");
+        let b = Issue::new(2, "B");
+        assert_ne!(a.id, b.id);
+    }
+
+    #[test]
+    fn issue_serde_roundtrip() {
+        let issue = Issue::new(42, "Test Issue");
+        let json = serde_json::to_string(&issue).unwrap();
+        let back: Issue = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.id, issue.id);
+        assert_eq!(back.number, 42);
+        assert_eq!(back.title, "Test Issue");
+    }
+
+    // --- IssuePatch ---
+
+    #[test]
+    fn issue_patch_default_all_none() {
+        let patch = IssuePatch::default();
+        assert!(patch.title.is_none());
+        assert!(patch.status.is_none());
+        assert!(patch.assignee.is_none());
+        assert!(patch.clear_assignee.is_none());
+    }
+
+    // --- Comment::new ---
+
+    #[test]
+    fn comment_new_sets_fields() {
+        let c = Comment::new("issue-1", "This is a comment");
+        assert_eq!(c.issue_id, "issue-1");
+        assert_eq!(c.body, "This is a comment");
+        assert!(c.author.is_none());
+        assert!(!c.id.is_empty());
+        assert!(c.created_at > 0);
+    }
+
+    #[test]
+    fn comment_ids_are_unique() {
+        let a = Comment::new("i1", "a");
+        let b = Comment::new("i1", "b");
+        assert_ne!(a.id, b.id);
+    }
+
+    #[test]
+    fn comment_serde_roundtrip() {
+        let c = Comment::new("issue-42", "body text");
+        let json = serde_json::to_string(&c).unwrap();
+        let back: Comment = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.id, c.id);
+        assert_eq!(back.body, "body text");
+    }
+}

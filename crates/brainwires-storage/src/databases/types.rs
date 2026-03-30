@@ -192,3 +192,116 @@ pub enum Filter {
     /// Raw backend-specific filter string (escape hatch).
     Raw(String),
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // --- FieldDef ---
+
+    #[test]
+    fn field_def_required_is_not_nullable() {
+        let f = FieldDef::required("name", FieldType::Utf8);
+        assert_eq!(f.name, "name");
+        assert!(!f.nullable);
+        assert_eq!(f.field_type, FieldType::Utf8);
+    }
+
+    #[test]
+    fn field_def_optional_is_nullable() {
+        let f = FieldDef::optional("score", FieldType::Float32);
+        assert_eq!(f.name, "score");
+        assert!(f.nullable);
+        assert_eq!(f.field_type, FieldType::Float32);
+    }
+
+    // --- FieldValue accessors ---
+
+    #[test]
+    fn field_value_as_str_returns_some_when_present() {
+        let v = FieldValue::Utf8(Some("hello".to_string()));
+        assert_eq!(v.as_str(), Some("hello"));
+    }
+
+    #[test]
+    fn field_value_as_str_returns_none_when_null() {
+        assert_eq!(FieldValue::Utf8(None).as_str(), None);
+    }
+
+    #[test]
+    fn field_value_as_str_returns_none_for_wrong_type() {
+        assert_eq!(FieldValue::Int32(Some(1)).as_str(), None);
+    }
+
+    #[test]
+    fn field_value_as_i64_returns_some_when_present() {
+        let v = FieldValue::Int64(Some(42));
+        assert_eq!(v.as_i64(), Some(42));
+    }
+
+    #[test]
+    fn field_value_as_i64_returns_none_when_null() {
+        assert_eq!(FieldValue::Int64(None).as_i64(), None);
+    }
+
+    #[test]
+    fn field_value_as_i32_works() {
+        assert_eq!(FieldValue::Int32(Some(-5)).as_i32(), Some(-5));
+        assert_eq!(FieldValue::Int32(None).as_i32(), None);
+    }
+
+    #[test]
+    fn field_value_as_f32_works() {
+        let v = FieldValue::Float32(Some(3.14));
+        assert!((v.as_f32().unwrap() - 3.14f32).abs() < 1e-5);
+        assert_eq!(FieldValue::Float32(None).as_f32(), None);
+    }
+
+    #[test]
+    fn field_value_as_bool_works() {
+        assert_eq!(FieldValue::Boolean(Some(true)).as_bool(), Some(true));
+        assert_eq!(FieldValue::Boolean(None).as_bool(), None);
+    }
+
+    #[test]
+    fn field_value_as_vector_returns_slice_when_non_empty() {
+        let v = FieldValue::Vector(vec![1.0, 2.0, 3.0]);
+        assert_eq!(v.as_vector(), Some([1.0f32, 2.0, 3.0].as_slice()));
+    }
+
+    #[test]
+    fn field_value_as_vector_returns_none_for_empty() {
+        let v = FieldValue::Vector(vec![]);
+        assert_eq!(v.as_vector(), None);
+    }
+
+    // --- record_get ---
+
+    #[test]
+    fn record_get_finds_field_by_name() {
+        let record: Record = vec![
+            ("id".to_string(), FieldValue::Int64(Some(1))),
+            ("name".to_string(), FieldValue::Utf8(Some("Alice".to_string()))),
+        ];
+        let v = record_get(&record, "name").unwrap();
+        assert_eq!(v.as_str(), Some("Alice"));
+    }
+
+    #[test]
+    fn record_get_returns_none_for_missing_field() {
+        let record: Record = vec![("id".to_string(), FieldValue::Int64(Some(1)))];
+        assert!(record_get(&record, "missing").is_none());
+    }
+
+    // --- ScoredRecord ---
+
+    #[test]
+    fn scored_record_holds_score_and_record() {
+        let scored = ScoredRecord {
+            record: vec![("id".to_string(), FieldValue::Int64(Some(5)))],
+            score: 0.95,
+        };
+        assert_eq!(scored.score, 0.95);
+        assert_eq!(record_get(&scored.record, "id").unwrap().as_i64(), Some(5));
+    }
+}

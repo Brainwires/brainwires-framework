@@ -196,3 +196,201 @@ pub struct GetExtendedAgentCardRequest {
 
 /// Response for the extended agent card.
 pub type GetExtendedAgentCardResponse = AgentCard;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::task::TaskState;
+    use crate::types::Message;
+
+    // --- SendMessageRequest ---
+
+    #[test]
+    fn send_message_request_roundtrip() {
+        let req = SendMessageRequest {
+            tenant: None,
+            message: Message::user_text("hello"),
+            configuration: None,
+            metadata: None,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        let back: SendMessageRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.message.parts[0].text.as_deref(), Some("hello"));
+    }
+
+    #[test]
+    fn send_message_request_optional_fields_omitted() {
+        let req = SendMessageRequest {
+            tenant: None,
+            message: Message::user_text("test"),
+            configuration: None,
+            metadata: None,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(!json.contains("tenant"));
+        assert!(!json.contains("configuration"));
+        assert!(!json.contains("metadata"));
+    }
+
+    #[test]
+    fn send_message_configuration_defaults_empty() {
+        let cfg = SendMessageConfiguration::default();
+        let json = serde_json::to_string(&cfg).unwrap();
+        assert!(!json.contains("acceptedOutputModes"));
+        assert!(!json.contains("historyLength"));
+        assert!(!json.contains("returnImmediately"));
+    }
+
+    // --- GetTaskRequest ---
+
+    #[test]
+    fn get_task_request_roundtrip() {
+        let req = GetTaskRequest {
+            tenant: None,
+            id: "task-xyz".to_string(),
+            history_length: Some(10),
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        let back: GetTaskRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.id, "task-xyz");
+        assert_eq!(back.history_length, Some(10));
+    }
+
+    #[test]
+    fn get_task_request_json_uses_camel_case() {
+        let req = GetTaskRequest {
+            tenant: None,
+            id: "t1".to_string(),
+            history_length: Some(5),
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(json.contains("historyLength"));
+        assert!(!json.contains("history_length"));
+    }
+
+    // --- ListTasksRequest ---
+
+    #[test]
+    fn list_tasks_request_defaults_all_none() {
+        let req = ListTasksRequest::default();
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(!json.contains("contextId"));
+        assert!(!json.contains("status"));
+        assert!(!json.contains("pageSize"));
+    }
+
+    #[test]
+    fn list_tasks_request_with_filter_roundtrip() {
+        let req = ListTasksRequest {
+            tenant: None,
+            context_id: Some("ctx-1".to_string()),
+            status: Some(TaskState::Completed),
+            page_size: Some(20),
+            page_token: None,
+            history_length: None,
+            status_timestamp_after: None,
+            include_artifacts: Some(true),
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        let back: ListTasksRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.context_id.as_deref(), Some("ctx-1"));
+        assert_eq!(back.status, Some(TaskState::Completed));
+        assert_eq!(back.page_size, Some(20));
+    }
+
+    // --- CancelTaskRequest ---
+
+    #[test]
+    fn cancel_task_request_roundtrip() {
+        let req = CancelTaskRequest {
+            tenant: None,
+            id: "task-cancel-me".to_string(),
+            metadata: None,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        let back: CancelTaskRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.id, "task-cancel-me");
+    }
+
+    // --- SubscribeToTaskRequest ---
+
+    #[test]
+    fn subscribe_to_task_request_roundtrip() {
+        let req = SubscribeToTaskRequest {
+            tenant: None,
+            id: "task-sub".to_string(),
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        let back: SubscribeToTaskRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.id, "task-sub");
+    }
+
+    // --- Push notification config requests ---
+
+    #[test]
+    fn get_push_config_request_roundtrip() {
+        let req = GetTaskPushNotificationConfigRequest {
+            tenant: None,
+            task_id: "t1".to_string(),
+            config_id: "cfg-1".to_string(),
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        let back: GetTaskPushNotificationConfigRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.task_id, "t1");
+        assert_eq!(back.config_id, "cfg-1");
+    }
+
+    #[test]
+    fn delete_push_config_request_json_camel_case() {
+        let req = DeleteTaskPushNotificationConfigRequest {
+            tenant: None,
+            task_id: "t1".to_string(),
+            config_id: "cfg-1".to_string(),
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(json.contains("taskId"));
+        assert!(json.contains("configId"));
+    }
+
+    #[test]
+    fn list_push_configs_request_roundtrip() {
+        let req = ListTaskPushNotificationConfigsRequest {
+            tenant: None,
+            task_id: "t1".to_string(),
+            page_size: Some(5),
+            page_token: None,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        let back: ListTaskPushNotificationConfigsRequest = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.task_id, "t1");
+        assert_eq!(back.page_size, Some(5));
+    }
+
+    // --- ListTasksResponse ---
+
+    #[test]
+    fn list_tasks_response_roundtrip() {
+        use crate::task::{Task, TaskStatus};
+        let resp = ListTasksResponse {
+            tasks: vec![Task {
+                id: "t1".to_string(),
+                context_id: None,
+                status: TaskStatus {
+                    state: TaskState::Completed,
+                    message: None,
+                    timestamp: None,
+                },
+                artifacts: None,
+                history: None,
+                metadata: None,
+            }],
+            next_page_token: "tok".to_string(),
+            page_size: 10,
+            total_size: 1,
+        };
+        let json = serde_json::to_string(&resp).unwrap();
+        let back: ListTasksResponse = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.tasks.len(), 1);
+        assert_eq!(back.total_size, 1);
+    }
+}
