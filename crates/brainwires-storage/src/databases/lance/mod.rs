@@ -582,12 +582,20 @@ impl VectorDatabase for LanceDatabase {
         let table = self.get_rag_table().await?;
 
         if hybrid {
-            let search_limit = limit * 3;
+            // Vector and BM25 use separate limits.  Vector uses a 3× multiplier
+            // (semantic proximity decays quickly with rank so fewer are needed).
+            // BM25 uses a 10× multiplier with a 50-result floor so that rare
+            // exact-match terms (e.g. proper names) are not prematurely cut off
+            // before RRF fusion — BM25-only hits already score ~half of
+            // vector+BM25 hits in RRF, so we need more of them in the candidate
+            // pool to keep all occurrences above the final limit cutoff.
+            let vector_search_limit = limit * 3;
+            let bm25_search_limit = (limit * 10).max(50);
 
             let query = table
                 .vector_search(query_vector)
                 .context("Failed to create vector search")?
-                .limit(search_limit);
+                .limit(vector_search_limit);
 
             let stream = if let Some(ref project_name) = project {
                 query
@@ -638,7 +646,7 @@ impl VectorDatabase for LanceDatabase {
             for (root_hash, bm25) in bm25_indexes.iter() {
                 tracing::debug!("Searching BM25 index for root hash: {}", root_hash);
                 let bm25_results = bm25
-                    .search(query_text, search_limit)
+                    .search(query_text, bm25_search_limit)
                     .context("Failed to search BM25 index")?;
 
                 for result in &bm25_results {
@@ -652,7 +660,11 @@ impl VectorDatabase for LanceDatabase {
             }
             drop(bm25_indexes);
 
-            let combined = self.scorer.fuse(vector_results, all_bm25_results, limit);
+            // Use a wider internal RRF limit so BM25-only hits are not squeezed
+            // out by vector+BM25 hits that score ~2× higher in RRF.
+            // The caller's limit is enforced at the end of the result-building loop.
+            let rrf_limit = (limit * 2).max(20);
+            let combined = self.scorer.fuse(vector_results, all_bm25_results, rrf_limit);
 
             let mut search_results = Vec::new();
 
@@ -757,6 +769,9 @@ impl VectorDatabase for LanceDatabase {
                     tracing::warn!("Could not find result for RRF ID {}", id);
                 }
             }
+
+            // Enforce caller's limit after the wider RRF pass
+            search_results.truncate(limit);
 
             Ok(search_results)
         } else {
