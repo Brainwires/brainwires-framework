@@ -19,6 +19,8 @@ An AI-powered agentic CLI tool for autonomous coding assistance, built in Rust.
 - 📄 **Plan Templates**: Save and reuse plan templates with variable substitution
 - 🔍 **Plan Search**: Semantic search across all stored plans
 - 🌐 **Remote Control**: Control CLI agents from the web interface via secure bridge
+- 🌳 **Collapsible Journal Tree**: TUI Journal view renders conversation as a navigable, collapsible tree (Turn → Message → ToolCall → SubAgentSpawn) with vim-style `j/k/h/l` navigation
+- 🔭 **Sub-Agent Viewer** (`Ctrl+B`): Live split-pane view of running sub-agents with status icons, activity detail, and direct IPC messaging
 - 🧪 **Local LLM Inference** *(optional)*: Run models locally via the framework's `brainwires-providers` crate (`--features llama-cpp-2`)
 
 ## Installation

@@ -719,6 +719,47 @@ The TUI uses a split architecture:
                                  └──────────────────────┘
 ```
 
+### Collapsible Journal Tree
+
+The Journal view renders conversation history as a collapsible tree instead of a flat list:
+
+```
+▼ Turn 1
+  > What does this function do?
+  ▼ Assistant
+    ├── ✓ read_file  (0.1s)
+    │     src/main.rs
+    └── The function initialises the event loop...
+▼ Turn 2
+  > Spawn an agent to refactor it
+  ▼ Assistant
+    └── ⚡ SubAgent: refactor-agent
+          ✓ edit_file  (0.3s)
+          Done — extracted EventLoop to separate module
+```
+
+Keyboard navigation (when conversation panel is focused, Journal mode):
+
+| Key | Action |
+|-----|--------|
+| `j` / `↓` | Next node |
+| `k` / `↑` | Previous node |
+| `l` / `→` | Expand node |
+| `h` / `←` | Collapse node (or move to parent) |
+| `Enter` / `Space` | Toggle collapse |
+| `g` / `G` | First / Last node |
+
+### Sub-Agent Viewer (`Ctrl+B`)
+
+Dedicated split-pane view for monitoring and messaging running sub-agents:
+
+- **Left panel (30%)**: Scrollable list of all TaskAgents with status icons
+  - `⟳` Working, `✓` Completed, `✗` Failed, `·` Idle, `⏸` Paused
+  - `[S]` badge: session-backed agent
+  - `●` badge: IPC socket available (messaging enabled)
+- **Right panel (70%)**: Selected agent's conversation/tool activity (rendered from journal tree)
+  - When `●` badge present and right panel focused: compose and send a message directly to the agent via IPC
+
 ### Session Management Commands
 
 | Command | Description |
@@ -730,6 +771,7 @@ The TUI uses a split architecture:
 
 **TUI Shortcuts**:
 - `Ctrl+Z`: Open background/suspend dialog
+- `Ctrl+B`: Open Sub-Agent Viewer
 - `Ctrl+C`: Quit and shut down Agent
 
 ### Event-Driven IPC

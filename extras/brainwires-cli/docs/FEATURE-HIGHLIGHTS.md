@@ -20,6 +20,8 @@
 - **20+ Tools**: File ops, bash, git, code exec (Python/JS/Rhai/Lua), web search, semantic search
 - **Modes**: Interactive, TUI, single-shot, batch, MCP server
 - **Permissions**: Auto, interactive, deny
+- **Collapsible Journal Tree**: TUI Journal view renders conversation as a navigable tree (Turn → Message → ToolCall → SubAgentSpawn) with `j/k/h/l` navigation and `Enter` to toggle collapse
+- **Sub-Agent Viewer** (`Ctrl+B`): Live split-pane view of running TaskAgents — status icons, per-agent activity detail, and direct IPC messaging when agent socket is available
 
 ## Platforms
 

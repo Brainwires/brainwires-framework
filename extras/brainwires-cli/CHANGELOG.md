@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (tui)
+- **Collapsible Journal Tree** — the Journal view now renders conversation history as an expandable/collapsible tree instead of a flat list. Hierarchy: Turn → UserMessage / AssistantMessage (with ToolCall and SubAgentSpawn children). Navigate with `j`/`k`, expand/collapse with `l`/`h` or `Enter`/`Space`. Classic view is unchanged.
+- **Sub-Agent Viewer** (`Ctrl+B`) — new `AppMode::SubAgentViewer` with a 30/70 split layout: left panel shows all running sub-agents with live status icons (⟳ Working, ✓ Completed, ✗ Failed, · Idle); right panel shows the selected agent's journal subtree. When the agent has an IPC socket (`●` badge), you can type and send messages to it directly from the right panel.
+- `journal_tree.rs` — new `JournalTreeState` data model: DFS render list, lazy rebuild (`rebuild_if_stale`), cursor tracking, collapse state, `inject_subagent_activity` for live sub-agent data, and full unit tests.
+- `sub_agent_viewer.rs` — new UI module for the Sub-Agent Viewer, rendering agent list and detail panels.
+- `docs/SESSIONS.md` — new documentation covering session lifecycle, dual-socket architecture (`.pty.sock` vs `.sock`), `ViewerMessage`/`AgentMessage` types, CLI commands, sub-agent sessions, and LanceDB persistence.
+- Updated `TUI_KEYBOARD_SHORTCUTS.md` with `Ctrl+B`, Journal tree navigation (`j/k/h/l/Enter/Space/g/G`), and Sub-Agent Viewer keybindings.
+
+### Changed (build)
+- Removed stale `[patch.crates-io]` entries for `rustpython-vm`, `rustpython-stdlib`, and `sqlx-sqlite` (dependencies were commented out; patches caused spurious cargo warnings).
+
 ### Added (storage)
 - `MySqlDatabase` — real MySQL/MariaDB backend via `mysql_async` (implements `StorageBackend`)
 - `SurrealDatabase` — real SurrealDB backend via official `surrealdb` SDK (implements both `StorageBackend` + `VectorDatabase` with native MTREE vector search)
