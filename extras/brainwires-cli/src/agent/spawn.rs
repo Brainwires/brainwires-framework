@@ -6,7 +6,6 @@ use std::path::PathBuf;
 use std::process::Stdio;
 
 use anyhow::{bail, Context, Result};
-use tokio::process::Command;
 
 use brainwires::agent_network::ipc::AgentMetadata;
 use crate::ipc::{get_agent_socket_path, write_agent_metadata};

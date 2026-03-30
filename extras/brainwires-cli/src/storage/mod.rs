@@ -39,7 +39,7 @@ pub trait LanceDatabaseExt {
 impl LanceDatabaseExt for LanceDatabase {
     async fn ensure_seal_patterns_table(&self, embedding_dim: usize) -> Result<()> {
         use arrow_array::RecordBatch;
-        use lancedb::query::QueryBase;
+        
 
         let table_name = "seal_patterns";
         let table_names = self.connection()

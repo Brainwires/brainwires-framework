@@ -2,6 +2,7 @@
 //!
 //! Captures stderr/stdout output and makes it available to the TUI
 
+#[cfg(test)]
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 
@@ -39,12 +40,14 @@ impl ConsoleBuffer {
     }
 }
 
-/// Custom writer that captures output to console buffer
+/// Custom writer that captures output to console buffer (only used in tests)
+#[cfg(test)]
 pub struct ConsoleWriter {
     buffer: ConsoleBuffer,
     line_buffer: Arc<Mutex<String>>,
 }
 
+#[cfg(test)]
 impl ConsoleWriter {
     pub fn new(buffer: ConsoleBuffer) -> Self {
         Self {
@@ -54,6 +57,7 @@ impl ConsoleWriter {
     }
 }
 
+#[cfg(test)]
 impl Write for ConsoleWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         let s = String::from_utf8_lossy(buf);

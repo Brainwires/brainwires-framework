@@ -297,7 +297,7 @@ pub fn render_journal_tree_mut(tree: &mut JournalTreeState, cursor: Option<Journ
         match &node.kind {
             JournalNodeKind::Turn => {
                 let turn_label = JournalTreeState::summary_text(&node);
-                let mut spans = vec![
+                let spans = vec![
                     Span::styled(prefix, prefix_style),
                     Span::styled(
                         expand_icon,
@@ -401,7 +401,7 @@ pub fn render_journal_tree_mut(tree: &mut JournalTreeState, cursor: Option<Journ
                 let icon_color = if success { Color::Cyan } else { Color::Red };
                 let duration_str = duration_ms.map(|d| format!(" ({:.1}s)", d as f64 / 1000.0)).unwrap_or_default();
 
-                let mut spans = vec![
+                let spans = vec![
                     Span::styled(prefix.clone(), prefix_style),
                     Span::styled(expand_icon, prefix_style),
                     Span::styled(
@@ -546,14 +546,6 @@ fn apply_cursor(style: Style, cursor_bg: Option<Color>) -> Style {
     }
 }
 
-/// Render messages in journal style (assistant is default speaker, no timestamps)
-/// (Legacy function - wraps new implementation for backwards compatibility)
-pub fn render_journal_style(messages: &[TuiMessage]) -> Vec<Line<'static>> {
-    let entries: Vec<JournalEntry> = messages.iter()
-        .map(|m| JournalEntry::Message(m.clone()))
-        .collect();
-    render_journal_style_entries(&entries)
-}
 
 /// Render journal entries in classic style (with role badges)
 pub fn render_classic_style_entries(entries: &[JournalEntry]) -> Vec<Line<'static>> {
@@ -673,11 +665,3 @@ fn render_classic_tool_execution(items: &mut Vec<Line<'static>>, tool: &ToolExec
     }
 }
 
-/// Render messages in classic style (with role badges)
-/// (Legacy function - wraps new implementation for backwards compatibility)
-pub fn render_classic_style(messages: &[TuiMessage]) -> Vec<Line<'static>> {
-    let entries: Vec<JournalEntry> = messages.iter()
-        .map(|m| JournalEntry::Message(m.clone()))
-        .collect();
-    render_classic_style_entries(&entries)
-}

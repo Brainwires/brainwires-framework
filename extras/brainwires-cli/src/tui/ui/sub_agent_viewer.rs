@@ -14,10 +14,8 @@ use ratatui::{
 
 use crate::agents::TaskAgentStatus;
 use crate::tui::app::{App, SubAgentPanelFocus};
-use crate::tui::app::journal_tree::JournalNodeKind;
 
 use super::render_markdown_to_lines;
-use super::conversation_view::render_journal_tree_mut;
 
 /// Draw the Sub-Agent Viewer over the full terminal area.
 pub fn draw_sub_agent_viewer(f: &mut Frame, app: &mut App) {
@@ -121,7 +119,7 @@ fn render_agent_list(f: &mut Frame, app: &App, area: Rect, focused: &SubAgentPan
 
 /// Render the right panel: selected agent's activity + optional input bar
 fn render_agent_detail(f: &mut Frame, app: &mut App, area: Rect, focused: &SubAgentPanelFocus) {
-    let (selected_index, panel_focus, detail_scroll, message_input) = match app.sub_agent_viewer_state.as_ref() {
+    let (selected_index, _panel_focus, detail_scroll, message_input) = match app.sub_agent_viewer_state.as_ref() {
         Some(s) => (
             s.selected_index,
             s.panel_focus.clone(),
@@ -243,7 +241,7 @@ fn render_agent_detail(f: &mut Frame, app: &mut App, area: Rect, focused: &SubAg
                             }
                         }
                         crate::tui::app::journal_tree::JournalNodePayload::Tool {
-                            tool_name, params_summary, result_summary, success, duration_ms,
+                            tool_name, params_summary, result_summary: _, success, duration_ms,
                         } => {
                             let icon = if *success { "✓" } else { "✗" };
                             let icon_color = if *success { Color::Cyan } else { Color::Red };

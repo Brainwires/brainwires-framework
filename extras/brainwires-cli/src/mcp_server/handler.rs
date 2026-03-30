@@ -36,12 +36,8 @@ struct AgentEntry {
 
 /// MCP Server Handler - processes JSON-RPC over stdin/stdout
 pub struct McpServerHandler {
-    /// AI model to use for task agents
-    model: String,
     /// System prompt override
     system_prompt: Option<String>,
-    /// Backend URL override for dev mode
-    backend_url_override: Option<String>,
     /// Tool registry (local tools)
     tool_registry: ToolRegistry,
     /// Agent tool registry (task agent management)
@@ -91,9 +87,7 @@ impl McpServerHandler {
         let tool_executor = Arc::new(RwLock::new(tool_executor));
 
         Ok(Self {
-            model,
             system_prompt,
-            backend_url_override,
             tool_registry,
             agent_tool_registry,
             communication_hub,

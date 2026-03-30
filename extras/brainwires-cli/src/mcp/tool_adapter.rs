@@ -77,7 +77,7 @@ impl McpToolAdapter {
                 RawContent::Image(_) => {
                     output.push_str("[Image content]\n");
                 }
-                RawContent::Resource(resource) => {
+                RawContent::Resource(_resource) => {
                     output.push_str(&format!("[Embedded Resource]\n"));
                 }
                 RawContent::Audio(_) => {

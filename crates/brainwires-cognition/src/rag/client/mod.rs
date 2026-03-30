@@ -11,7 +11,9 @@ use crate::rag::cache::HashCache;
 use crate::rag::config::Config;
 use crate::rag::embedding::{EmbeddingProvider, FastEmbedManager};
 use crate::rag::git_cache::GitCache;
-use crate::rag::indexer::{CodeChunker, FileInfo, detect_language};
+use crate::rag::indexer::CodeChunker;
+#[cfg(feature = "code-analysis")]
+use crate::rag::indexer::{FileInfo, detect_language};
 use crate::rag::types::*;
 use brainwires_storage::databases::VectorDatabase;
 
@@ -283,6 +285,7 @@ impl RagClient {
     }
 
     /// Create FileInfo from a file path for relations analysis
+    #[cfg(feature = "code-analysis")]
     fn create_file_info(&self, file_path: &str, project: Option<String>) -> Result<FileInfo> {
         use std::path::Path;
 

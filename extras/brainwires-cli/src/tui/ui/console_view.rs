@@ -3,10 +3,10 @@
 //! Renders the full-screen debug console.
 
 use ratatui::{
-    layout::{Alignment, Rect},
+    layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{Block, Borders, Clear, Paragraph, Widget, Wrap},
+    widgets::{Block, Borders, Paragraph, Wrap},
     Frame,
 };
 use ratatui_interact::components::ParagraphExt;

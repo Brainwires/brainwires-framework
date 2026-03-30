@@ -252,7 +252,7 @@ impl<H: McpHandler> McpServer<H> {
         #[cfg(feature = "analytics")]
         let _started = std::time::Instant::now();
 
-        let (response, success) = match self.handler.call_tool(tool_name, args, ctx).await {
+        let (response, _success) = match self.handler.call_tool(tool_name, args, ctx).await {
             Ok(result) => {
                 let result_value = serde_json::to_value(result).unwrap_or(json!({}));
                 (JsonRpcResponse {
@@ -280,7 +280,7 @@ impl<H: McpHandler> McpServer<H> {
                 session_id: None,
                 server_name: self.handler.server_info().name.clone(),
                 tool_name: tool_name.to_string(),
-                success,
+                success: _success,
                 duration_ms: _started.elapsed().as_millis() as u64,
                 timestamp: chrono::Utc::now(),
             });

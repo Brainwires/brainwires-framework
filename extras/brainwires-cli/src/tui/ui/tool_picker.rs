@@ -55,8 +55,6 @@ pub fn draw_tool_picker(f: &mut Frame, app: &App, area: Rect) {
     ]));
     items.push(Line::from(""));
 
-    // Track which item we're on for cursor positioning
-    let mut item_index = 0;
     let cursor_row = calculate_cursor_row(picker_state);
 
     // Render categories and tools
@@ -86,7 +84,6 @@ pub fn draw_tool_picker(f: &mut Frame, app: &App, area: Rect) {
                 Style::default().fg(Color::Gray),
             ),
         ]));
-        item_index += 1;
 
         // Render tools if not collapsed
         if !is_collapsed {
@@ -128,8 +125,7 @@ pub fn draw_tool_picker(f: &mut Frame, app: &App, area: Rect) {
                     ]));
                 }
 
-                item_index += 1;
-            }
+                    }
         }
 
         // Add spacing between categories

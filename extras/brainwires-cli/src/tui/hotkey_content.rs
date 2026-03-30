@@ -483,18 +483,8 @@ pub fn search_hotkeys(query: &str) -> Vec<(HotkeyCategory, HotkeyEntry)> {
     results
 }
 
-/// Get all hotkeys as a flat list.
-pub fn get_all_hotkeys() -> Vec<(HotkeyCategory, HotkeyEntry)> {
-    let mut all = Vec::new();
-    for category in HotkeyCategory::all() {
-        for entry in category.entries() {
-            all.push((*category, entry));
-        }
-    }
-    all
-}
-
 /// Get total count of hotkeys.
+#[cfg(test)]
 pub fn hotkey_count() -> usize {
     HotkeyCategory::all()
         .iter()

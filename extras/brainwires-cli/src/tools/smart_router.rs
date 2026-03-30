@@ -5,13 +5,13 @@
 //! are defined here (inference dep lives in CLI, not in brainwires-tool-system).
 
 // Re-export all framework smart_router functions
+#[allow(hidden_glob_reexports)]
 pub use brainwires_tool_system::smart_router::*;
 
 // ── CLI-specific: inference-integrated variants ───────────────────────────
 
 use brainwires::agents::reasoning::LocalRouter;
 use crate::types::message::Message;
-use brainwires_tool_system::smart_router::{analyze_query, get_context_for_analysis, get_tools_for_categories};
 use brainwires_tool_system::{Tool, ToolCategory, ToolRegistry};
 
 /// Analyze a query using local inference with keyword fallback

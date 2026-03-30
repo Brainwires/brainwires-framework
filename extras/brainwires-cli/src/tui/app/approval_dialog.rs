@@ -3,7 +3,7 @@
 //! This module contains the state and logic for the tool approval dialog.
 
 use std::collections::HashMap;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::oneshot;
 
 use crate::approval::{ApprovalAction, ApprovalDetails, ApprovalRequest, ApprovalResponse};
 

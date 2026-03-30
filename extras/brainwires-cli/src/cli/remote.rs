@@ -8,7 +8,6 @@ use anyhow::{Context, Result};
 use clap::Subcommand;
 
 use crate::config::ConfigManager;
-use crate::config::constants;
 use crate::remote::{create_bridge_manager, try_auto_start};
 use crate::utils::logger::Logger;
 

@@ -171,7 +171,6 @@ impl RecoveryManager {
     {
         let mut delay_ms = self.config.initial_delay_ms;
         let mut attempts = 0;
-        let mut last_error: Option<String> = None;
 
         loop {
             match operation().await {
@@ -198,7 +197,6 @@ impl RecoveryManager {
                         tokio::time::sleep(delay).await;
 
                         delay_ms = ((delay_ms as f64) * self.config.backoff_multiplier) as u64;
-                        last_error = Some(error_msg);
                     } else {
                         // Non-retryable error or max retries reached
                         if attempts > 0 {

@@ -12,7 +12,6 @@ pub(super) trait HistoryOps {
     fn navigate_history_down(&mut self);
     fn update_search_results(&mut self);
     fn get_current_search_result(&self) -> Option<String>;
-    fn clear_input_draft(&mut self);
 }
 
 impl HistoryOps for App {
@@ -82,8 +81,4 @@ impl HistoryOps for App {
         self.search_results.get(self.search_result_index).cloned()
     }
 
-    /// Clear the input draft (called when submitting a message)
-    fn clear_input_draft(&mut self) {
-        self.input_draft = None;
-    }
 }

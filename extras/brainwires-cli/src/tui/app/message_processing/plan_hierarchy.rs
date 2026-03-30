@@ -21,7 +21,7 @@ impl App {
                             let client = Arc::new(client);
                             let embeddings = match EmbeddingProvider::new() {
                                 Ok(e) => Arc::new(e),
-                                Err(e) => { return; }
+                                Err(_e) => { return; }
                             };
                             let _ = client.initialize(embeddings.dimension()).await;
                             let plan_store = PlanStore::new(client, embeddings);
@@ -241,7 +241,7 @@ impl App {
                             let client = Arc::new(client);
                             let embeddings = match EmbeddingProvider::new() {
                                 Ok(e) => Arc::new(e),
-                                Err(e) => { return; }
+                                Err(_e) => { return; }
                             };
                             let _ = client.initialize(embeddings.dimension()).await;
                             let plan_store = PlanStore::new(client, embeddings);

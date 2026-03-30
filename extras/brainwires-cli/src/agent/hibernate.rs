@@ -7,7 +7,6 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-use brainwires::agent_network::ipc::AgentMetadata;
 use crate::ipc::{list_agent_sessions_with_metadata, is_agent_alive};
 use crate::utils::paths::PlatformPaths;
 

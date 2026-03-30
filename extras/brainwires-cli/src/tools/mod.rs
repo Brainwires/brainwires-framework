@@ -1,6 +1,7 @@
 // Tools module - built-in tool implementations
 //
 // Re-exports from the brainwires-tool-system framework crate, plus CLI-specific tools.
+#![allow(hidden_glob_reexports)]
 
 pub use brainwires::tools::*;
 
@@ -20,7 +21,6 @@ pub mod validation_tools;
 
 pub use agent_pool::*;
 pub use context_recall::*;
-pub use executor::*;
 pub use mcp_tool::*;
 pub use plan::*;
 pub use session_task::*;

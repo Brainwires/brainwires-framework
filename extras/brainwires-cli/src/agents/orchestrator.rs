@@ -22,7 +22,6 @@ use super::TaskManager;
 pub struct OrchestratorAgent {
     provider: Arc<dyn Provider>,
     tool_executor: ToolExecutor,
-    task_manager: Arc<RwLock<TaskManager>>,
     task_manager_tool: TaskManagerTool,
     max_iterations: u32,
     // SEAL components for enhanced context understanding
@@ -50,7 +49,6 @@ impl OrchestratorAgent {
         Self {
             provider,
             tool_executor: ToolExecutor::new(permission_mode),
-            task_manager,
             task_manager_tool,
             max_iterations: 25,
             seal_processor: None,
@@ -77,7 +75,6 @@ impl OrchestratorAgent {
         Self {
             provider,
             tool_executor: ToolExecutor::new(permission_mode),
-            task_manager,
             task_manager_tool,
             max_iterations: 25,
             seal_processor: Some(SealProcessor::new(seal_config)),
@@ -130,7 +127,6 @@ impl OrchestratorAgent {
         Self {
             provider,
             tool_executor: ToolExecutor::new(permission_mode),
-            task_manager,
             task_manager_tool,
             max_iterations: 25,
             seal_processor: Some(SealProcessor::new(seal_config)),
@@ -1026,7 +1022,6 @@ impl OrchestratorAgent {
 /// 3. Allows the response to contain tool intents which are parsed later
 pub struct ProviderMicroagentAdapter {
     provider: Arc<dyn Provider>,
-    tools: Option<Vec<crate::types::tool::Tool>>,
     /// Cached tool schemas for the MicroagentProvider trait
     tool_schemas: Vec<crate::mdap::tool_intent::ToolSchema>,
 }
@@ -1036,7 +1031,6 @@ impl ProviderMicroagentAdapter {
     pub fn new(provider: Arc<dyn Provider>) -> Self {
         Self {
             provider,
-            tools: None,
             tool_schemas: Vec::new(),
         }
     }
@@ -1055,7 +1049,6 @@ impl ProviderMicroagentAdapter {
 
         Self {
             provider,
-            tools: Some(tools),
             tool_schemas,
         }
     }

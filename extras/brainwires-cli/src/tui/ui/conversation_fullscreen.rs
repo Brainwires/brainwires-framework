@@ -3,10 +3,10 @@
 //! Renders the conversation panel in full-screen mode with mouse toggle support.
 
 use ratatui::{
-    layout::{Alignment, Rect},
-    style::{Color, Modifier, Style},
+    layout::Rect,
+    style::{Color, Style},
     text::{Line, Span, Text},
-    widgets::{Block, Borders, Clear, Paragraph, Widget, Wrap},
+    widgets::{Block, Borders, Paragraph, Wrap},
     Frame,
 };
 use ratatui_interact::components::ParagraphExt;

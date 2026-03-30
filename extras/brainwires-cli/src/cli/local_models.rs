@@ -134,7 +134,7 @@ pub async fn handle_local_models(command: Option<LocalModelCommands>) -> Result<
 
 fn list_installed_models(verbose: bool) -> Result<()> {
     let registry = LocalModelRegistry::load()?;
-    let term = Term::stdout();
+    let _term = Term::stdout();
 
     if registry.models.is_empty() {
         println!(

@@ -3,9 +3,8 @@
 //! Connects to a session server and provides terminal I/O.
 
 use std::io::{Read, Write};
-use std::os::fd::{AsRawFd, BorrowedFd, RawFd};
+use std::os::fd::{AsRawFd, BorrowedFd};
 use std::os::unix::net::UnixStream;
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::{bail, Context, Result};
@@ -43,7 +42,6 @@ use chrono;
 /// Session client that connects to a server
 pub struct SessionClient {
     session_id: String,
-    socket_path: PathBuf,
     stream: Option<UnixStream>,
     original_termios: Option<Termios>,
 }
@@ -62,7 +60,6 @@ impl SessionClient {
 
         Ok(Self {
             session_id: session_id.to_string(),
-            socket_path,
             stream: Some(stream),
             original_termios: None,
         })
@@ -106,7 +103,7 @@ impl SessionClient {
         }
         client_log("Installed SIGWINCH handler");
 
-        let session_id = self.session_id.clone();
+        let _session_id = self.session_id.clone();
         let mut loop_count = 0u64;
         let mut last_log = std::time::Instant::now();
 

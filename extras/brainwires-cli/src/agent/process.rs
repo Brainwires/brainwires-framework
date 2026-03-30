@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use anyhow::{bail, Context, Result};
 use tokio::net::UnixListener;
-use tokio::sync::{broadcast, mpsc, RwLock};
+use tokio::sync::{broadcast, RwLock};
 
 use crate::auth::SessionManager;
 use crate::commands::executor::{CommandAction, CommandResult};
@@ -21,7 +21,6 @@ use brainwires::agent_network::ipc::{
 };
 use crate::ipc::get_agent_socket_path;
 use crate::mdap::MdapConfig;
-use crate::types::agent::AgentContext;
 use crate::types::tool::{ToolContext, ToolUse};
 
 use super::AgentState;
@@ -226,7 +225,7 @@ async fn check_exit_condition(state: Arc<RwLock<AgentState>>) {
 
 /// Handle a viewer connection
 async fn handle_viewer_connection(
-    mut conn: IpcConnection,
+    conn: IpcConnection,
     state: Arc<RwLock<AgentState>>,
     update_tx: broadcast::Sender<AgentMessage>,
 ) -> Result<()> {
@@ -389,7 +388,7 @@ async fn handle_viewer_message(
     match msg {
         ViewerMessage::UserInput { content, context_files } => {
             // Preprocess through SEAL and add user message
-            let (resolved_content, user_message, provider, conversation_history, tools, model, tool_executor, working_directory) = {
+            let (_resolved_content, user_message, provider, conversation_history, tools, model, tool_executor, working_directory) = {
                 let mut state = state.write().await;
 
                 // Process context files if provided
@@ -1505,7 +1504,7 @@ async fn process_queued_messages(
         );
 
         // Get required state for processing
-        let (resolved_content, provider, conversation_history, tools, model, tool_executor, working_directory) = {
+        let (_resolved_content, provider, conversation_history, tools, model, tool_executor, working_directory) = {
             let mut state = state.write().await;
             let resolved_content = state.seal_preprocess(&msg.content);
             state.add_user_message(resolved_content.clone());
@@ -1645,7 +1644,7 @@ async fn stream_with_tool_execution(
             }
             Ok(StreamChunk::ToolCall {
                 call_id,
-                response_id,
+                response_id: _,
                 chat_id,
                 tool_name,
                 server,

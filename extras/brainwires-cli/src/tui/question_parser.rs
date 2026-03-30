@@ -3,7 +3,7 @@
 //! Parses AI responses to extract clarifying questions and formats user answers.
 //! Includes AT-CoT (Ambiguity Type-Chain of Thought) metadata extraction.
 
-use crate::types::question::{AmbiguityAnalysis, ClarifyingQuestion, QuestionAnswerState, QuestionBlock};
+use crate::types::question::{AmbiguityAnalysis, QuestionAnswerState, QuestionBlock};
 use regex::Regex;
 use tracing::{debug, warn};
 

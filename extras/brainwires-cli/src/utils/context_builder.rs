@@ -12,7 +12,7 @@
 
 use anyhow::Result;
 
-use brainwires::seal::{ResolvedReference, SealProcessingResult, SealKnowledgeCoordinator};
+use brainwires::seal::{ResolvedReference, SealProcessingResult};
 use crate::storage::{MessageMetadata, MessageStore, TieredMemory, TieredSearchResult};
 use crate::types::message::{Message, MessageContent, Role};
 use crate::utils::retrieval_gate::{classify_retrieval_need, needs_retrieval, RetrievalNeed};
@@ -128,7 +128,7 @@ impl ContextBuilder {
         }
 
         // Use detailed classification for edge cases
-        let (need, confidence) = classify_retrieval_need(user_query, recent_count, has_compaction);
+        let (need, _confidence) = classify_retrieval_need(user_query, recent_count, has_compaction);
 
         match need {
             RetrievalNeed::High => true,
@@ -439,6 +439,7 @@ impl ContextBuilder {
                 crate::storage::MemoryTier::Hot => "recent",
                 crate::storage::MemoryTier::Warm => "summarized",
                 crate::storage::MemoryTier::Cold => "archived",
+                crate::storage::MemoryTier::MentalModel => "mental-model",
             };
             parts.push(format!(
                 "- [{}] (relevance: {:.0}%): {}",
@@ -552,6 +553,7 @@ impl ContextBuilder {
                     crate::storage::MemoryTier::Hot => "recent",
                     crate::storage::MemoryTier::Warm => "summarized",
                     crate::storage::MemoryTier::Cold => "archived",
+                    crate::storage::MemoryTier::MentalModel => "mental-model",
                 };
                 parts.push(format!(
                     "- [{}] (relevance: {:.0}%): {}",

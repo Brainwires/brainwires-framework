@@ -111,13 +111,7 @@ pub async fn run_tui(
     // Set up panic hook to write to file for debugging
     std::panic::set_hook(Box::new(|panic_info| {
         let _ = std::fs::write("/tmp/brainwires_panic.log", format!("{:?}", panic_info));
-        // Also try to restore terminal
-        let _ = crossterm::terminal::disable_raw_mode();
-        let _ = crossterm::execute!(
-            std::io::stdout(),
-            crossterm::terminal::LeaveAlternateScreen,
-            crossterm::cursor::Show
-        );
+        emergency_restore_terminal();
     }));
 
     // Disable tracing for TUI mode

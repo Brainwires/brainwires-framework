@@ -4,7 +4,7 @@
 //! Provides visibility into API spend with budget enforcement.
 
 use anyhow::Result;
-use chrono::{DateTime, Datelike, Duration, Local, NaiveDate, Utc, Weekday};
+use chrono::{DateTime, Datelike, Duration, Local, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;

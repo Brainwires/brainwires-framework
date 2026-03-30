@@ -246,7 +246,7 @@ impl AgentPool {
         let agents = self.agents.read().await;
         let mut running = 0;
         let mut completed = 0;
-        let mut failed = 0;
+        let failed = 0;
 
         for (_, handle) in agents.iter() {
             if handle.join_handle.is_finished() {

@@ -2,6 +2,7 @@
 //!
 //! Re-exports core agent infrastructure from brainwires-agents framework crate,
 //! plus CLI-specific orchestration, management, and execution modules.
+#![allow(hidden_glob_reexports)]
 
 // Re-export framework agent types (communication, confidence, file_locks,
 // operation_tracker, resource_checker, resource_locks, state_model,
@@ -21,7 +22,6 @@ pub use manager::AgentManager;
 pub use orchestrator::OrchestratorAgent;
 pub use pool::AgentPool;
 
-pub use system_prompts::*;
 pub use task_agent::{TaskAgent, TaskAgentConfig, TaskAgentResult, TaskAgentStatus};
 pub use worker::*;
 

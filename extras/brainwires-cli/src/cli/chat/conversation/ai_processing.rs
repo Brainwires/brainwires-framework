@@ -144,7 +144,7 @@ pub async fn process_ai_response_mdap(
     provider_instance: &Arc<dyn crate::providers::Provider>,
     context: &mut AgentContext,
     conversation_manager: &mut ConversationManager,
-    model_id: &str,
+    _model_id: &str,
     input: &str,
     quiet: bool,
     format: &str,

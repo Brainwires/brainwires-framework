@@ -61,7 +61,7 @@ impl SessionManagement for App {
         let task_count = match self.task_store.get_by_conversation(conversation_id).await {
             Ok(tasks) if !tasks.is_empty() => {
                 let count = tasks.len();
-                let mut task_manager = self.task_manager.write().await;
+                let task_manager = self.task_manager.write().await;
                 task_manager.load_tasks(tasks).await;
                 drop(task_manager);
 
@@ -73,7 +73,7 @@ impl SessionManagement for App {
             }
             _ => {
                 // Clear tasks if none found or error
-                let mut task_manager = self.task_manager.write().await;
+                let task_manager = self.task_manager.write().await;
                 task_manager.clear().await;
                 self.task_tree_cache = "No tasks".to_string();
                 self.task_count_cache = 0;

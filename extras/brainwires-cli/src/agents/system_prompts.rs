@@ -110,14 +110,3 @@ Now execute your task using this reasoning framework. Show your thinking at each
     )
 }
 
-/// Fallback prompt for simple tasks
-pub fn simple_agent_prompt(agent_id: &str, working_directory: &str) -> String {
-    format!(
-        "You are a background task agent (ID: {}).\n\n\
-        Working Directory: {}\n\n\
-        Execute the assigned task efficiently using available tools. \
-        Think carefully before acting. Verify your changes. \
-        Report completion clearly.",
-        agent_id, working_directory
-    )
-}

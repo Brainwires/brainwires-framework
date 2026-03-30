@@ -77,7 +77,7 @@ fn draw_file_list(f: &mut Frame, app: &App, area: Rect) {
     };
 
     let mut lines = Vec::new();
-    for (display_idx, (entry_idx, entry)) in entries_to_show.iter().enumerate().skip(scroll).take(visible_height) {
+    for (display_idx, (_entry_idx, entry)) in entries_to_show.iter().enumerate().skip(scroll).take(visible_height) {
         let is_cursor = display_idx == state.cursor_index;
         let is_checked = state.selected_files.contains(&entry.path);
 

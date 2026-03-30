@@ -17,7 +17,7 @@ pub fn draw_nano_editor(f: &mut Frame, app: &mut App, area: Rect) {
     // Clear the background
     f.render_widget(Clear, area);
 
-    let Some(state) = &mut app.nano_editor_state else {
+    let Some(_state) = &mut app.nano_editor_state else {
         return;
     };
 

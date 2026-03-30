@@ -100,7 +100,7 @@ impl App {
         };
 
         if let Some(task_id) = task_id {
-            let mut manager = self.task_manager.write().await;
+            let manager = self.task_manager.write().await;
             if let Some(task) = manager.get_task(&task_id).await {
                 let new_status = match task.status {
                     TaskStatus::Pending => TaskStatus::InProgress,

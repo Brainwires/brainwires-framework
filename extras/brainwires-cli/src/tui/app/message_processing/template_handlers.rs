@@ -236,7 +236,7 @@ impl App {
                             let tasks = steps_to_tasks(&steps, &plan.plan_id);
 
                             {
-                                let mut task_mgr = self.task_manager.write().await;
+                                let task_mgr = self.task_manager.write().await;
                                 task_mgr.clear().await;
                                 task_mgr.load_tasks(tasks.clone()).await;
                             }

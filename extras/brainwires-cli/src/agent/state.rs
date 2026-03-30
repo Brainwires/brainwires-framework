@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 
 use crate::agent::message_queue::MessageQueue;

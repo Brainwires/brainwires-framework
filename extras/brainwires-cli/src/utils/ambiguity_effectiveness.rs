@@ -46,7 +46,7 @@ struct TypeCombination {
 
 /// Statistics for a type combination
 #[derive(Debug, Clone)]
-struct TypeStats {
+pub(crate) struct TypeStats {
     /// Number of successful task completions
     success_count: u32,
 
@@ -258,13 +258,15 @@ impl AmbiguityEffectivenessTracker {
     }
 
     /// Get statistics for a specific type combination
-    pub fn get_stats(&self, types: &[AmbiguityType]) -> Option<&TypeStats> {
+    #[cfg(test)]
+    pub(crate) fn get_stats(&self, types: &[AmbiguityType]) -> Option<&TypeStats> {
         let combo = TypeCombination::from_types(types);
         self.local_stats.get(&combo)
     }
 
     /// Get all tracked type combinations
-    pub fn get_all_combinations(&self) -> Vec<(Vec<AmbiguityType>, TypeStats)> {
+    #[cfg(test)]
+    pub(crate) fn get_all_combinations(&self) -> Vec<(Vec<AmbiguityType>, TypeStats)> {
         self.local_stats
             .iter()
             .map(|(combo, stats)| (combo.types.clone(), stats.clone()))
@@ -290,22 +292,6 @@ impl TypeCombination {
     }
 }
 
-impl TypeStats {
-    /// Get success rate (0.0-1.0)
-    pub fn success_rate(&self) -> f32 {
-        let total = self.success_count + self.failure_count;
-        if total == 0 {
-            0.0
-        } else {
-            self.success_count as f32 / total as f32
-        }
-    }
-
-    /// Get total uses
-    pub fn total_uses(&self) -> u32 {
-        self.success_count + self.failure_count
-    }
-}
 
 /// Extract a context pattern from task description for BKS
 fn extract_context_pattern(task_description: &str) -> &str {

@@ -3,7 +3,7 @@
 //! Manages a TUI session running in a PTY.
 //! Accepts client connections via Unix socket and proxies I/O.
 
-use std::os::fd::{AsRawFd, BorrowedFd, FromRawFd, OwnedFd, RawFd};
+use std::os::fd::{AsRawFd, FromRawFd, OwnedFd, RawFd};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::PathBuf;
 use std::io::{Read, Write};

@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use tokio::sync::{broadcast, RwLock};
+use tokio::sync::broadcast;
 
 use super::AgentState;
 use brainwires::agent_network::ipc::{AgentMessage, DisplayMessage};
@@ -186,7 +186,7 @@ impl AgentState {
         let tools = self.get_plan_mode_tools();
         let provider = self.provider.clone();
         let conversation_history = self.conversation_history.clone();
-        let model = self.model.clone();
+        let _model = self.model.clone();
 
         // Build ChatOptions with plan mode system prompt
         let system_prompt = self.build_plan_mode_system_prompt();

@@ -10,7 +10,6 @@ mod plan_hierarchy;
 mod plan_lifecycle;
 mod task_handlers;
 mod template_handlers;
-mod tool_handler;
 
 use super::state::{App, AppMode, TuiMessage};
 use crate::agents::OrchestratorAgent;
@@ -245,7 +244,6 @@ impl App {
                 &options,
             );
 
-            let mut chunk_count = 0;
             loop {
                 // Check for cancellation between chunks
                 tokio::select! {
@@ -265,7 +263,6 @@ impl App {
                             }
                         };
 
-                        chunk_count += 1;
                         let is_terminal = matches!(chunk, Ok(StreamChunk::Done) | Err(_));
 
                         let event = match chunk {
@@ -546,124 +543,8 @@ impl App {
         Ok(reader)
     }
 
-    /// Handle an IPC message from Session
-    async fn handle_ipc_message(&mut self, msg: brainwires::agent_network::ipc::AgentMessage) {
-        use brainwires::agent_network::ipc::AgentMessage;
 
-        match msg {
-            AgentMessage::StreamChunk { text } => {
-                // Append to streaming content
-                self.streaming_content.push_str(&text);
-                if let Some(idx) = self.streaming_msg_idx {
-                    if let Some(msg) = self.messages.get_mut(idx) {
-                        msg.content = self.streaming_content.clone();
-                    }
-                }
-            }
-            AgentMessage::StreamEnd { .. } => {
-                // Streaming done
-                self.status = "Ready".to_string();
-                self.transition_to_normal_after_streaming();
-                self.streaming_msg_idx = None;
-                self.add_console_message("✅ Response complete".to_string());
-            }
-            AgentMessage::ToolCallStart { name, .. } => {
-                self.status = format!("Tool: {} (executing...)", name);
-                self.add_console_message(format!("🔧 Tool: {}", name));
-            }
-            AgentMessage::ToolResult { name, output, error, .. } => {
-                let success = error.is_none();
-                let icon = if success { "✅" } else { "❌" };
-                self.add_console_message(format!("{} Tool result: {}", icon, name));
-
-                // Record tool execution for Journal display (IPC mode)
-                self.record_tool_execution(
-                    &name,
-                    &serde_json::Value::Null, // Parameters not available in IPC mode
-                    output.as_deref().or(error.as_deref()),
-                    success,
-                    None,
-                );
-            }
-            AgentMessage::StatusUpdate { status } => {
-                self.status = status;
-            }
-            AgentMessage::Error { message, fatal: _ } => {
-                self.status = format!("Error: {}", message);
-                self.transition_to_normal_after_streaming();
-                self.add_console_message(format!("❌ Error: {}", message));
-            }
-            AgentMessage::ConversationSync { messages, status, tool_mode, mcp_servers, .. } => {
-                // Full state sync
-                self.messages = messages.iter().map(|m| {
-                    TuiMessage {
-                        role: m.role.clone(),
-                        content: m.content.clone(),
-                        created_at: m.created_at,
-                    }
-                }).collect();
-                self.status = status;
-                self.tool_mode = tool_mode;
-                self.mcp_connected_servers = mcp_servers;
-                self.add_console_message("🔄 State synced from session".to_string());
-            }
-            AgentMessage::MessageAdded { message } => {
-                // Check for duplicates to avoid echo:
-                // - TUI types locally → adds message → agent broadcasts it back → skip
-                // - Agent finishes streaming → broadcasts assistant message → TUI already has it → skip
-                //
-                // For user messages, we check recent messages (not just last) because there
-                // might be an assistant placeholder after the user message.
-                if message.role == "user" {
-                    // Check last 3 messages for duplicate user content
-                    let already_exists = self.messages.iter().rev().take(3).any(|m| {
-                        m.role == "user" && m.content == message.content
-                    });
-                    if already_exists {
-                        return;
-                    }
-                } else if message.role == "assistant" {
-                    // For assistant messages, check if the last message is an assistant
-                    // (streaming already populated it)
-                    if let Some(last) = self.messages.last() {
-                        if last.role == "assistant" {
-                            return;
-                        }
-                    }
-                }
-
-                // Add new message (e.g., user input from GUI or assistant response)
-                self.messages.push(TuiMessage {
-                    role: message.role.clone(),
-                    content: message.content.clone(),
-                    created_at: message.created_at,
-                });
-
-                // If it's a user message, we might be about to receive a stream
-                if message.role == "user" {
-                    self.status = "Working...".to_string();
-                    self.mode = AppMode::Waiting;
-                    // Prepare for assistant response
-                    self.streaming_content.clear();
-                    self.messages.push(TuiMessage {
-                        role: "assistant".to_string(),
-                        content: String::new(),
-                        created_at: chrono::Utc::now().timestamp(),
-                    });
-                    self.streaming_msg_idx = Some(self.messages.len() - 1);
-                    self.add_console_message("📥 User input received".to_string());
-                }
-            }
-            AgentMessage::Exiting { reason } => {
-                self.add_console_message(format!("⚠️ Session exiting: {}", reason));
-                self.status = "Session ended".to_string();
-            }
-            // Other messages we might not handle in viewer mode
-            _ => {}
-        }
-    }
-
-    /// Poll for stream events and process them (non-blocking)
+/// Poll for stream events and process them (non-blocking)
     /// Returns true if streaming is still active, false if done
     /// This should be called from the main event loop after each render
     pub async fn poll_stream_events(&mut self) -> bool {

@@ -330,7 +330,7 @@ impl ToolExecutor {
                     .has_capability(brainwires::agent_network::remote::ProtocolCapability::PermissionRelay)
                     .await
             {
-                let action = self.create_approval_action(tool_name, input);
+                let _action = self.create_approval_action(tool_name, input);
                 let action_desc = format!("{}: {}", tool_name, tool_description);
 
                 match bridge

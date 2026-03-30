@@ -6,7 +6,7 @@ use crate::build_info;
 #[derive(Parser)]
 #[command(name = "brainwires")]
 #[command(about = "AI-powered agentic CLI for autonomous coding assistance")]
-#[command(version = build_info::VERSION)]
+#[command(version = build_info::FULL_VERSION)]
 pub struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,

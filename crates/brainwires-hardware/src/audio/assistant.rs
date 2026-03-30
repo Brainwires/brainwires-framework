@@ -395,10 +395,9 @@ impl VoiceAssistant {
 
         let mut ring = AudioRingBuffer::new(config.clone(), self.config.max_record_secs);
         let mut silence_ms: u32 = 0;
-        let mut total_ms: u64 = 0;
+        let mut total_ms: u64;
         let mut started_speaking = false;
         let silence_limit_ms = self.config.silence_duration_ms;
-        let max_ms = (self.config.max_record_secs * 1000.0) as u64;
         let listen_timeout_ms = (self.config.listen_timeout_secs * 1000.0) as u64;
 
         let mut pending: Vec<u8> = Vec::new();

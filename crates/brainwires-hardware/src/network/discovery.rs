@@ -4,7 +4,7 @@ use std::time::Duration;
 use ipnetwork::IpNetwork;
 use pnet::packet::arp::{ArpHardwareTypes, ArpOperations, ArpPacket, MutableArpPacket};
 use pnet::packet::ethernet::{EtherTypes, EthernetPacket, MutableEthernetPacket};
-use pnet::packet::{MutablePacket, Packet};
+use pnet::packet::Packet;
 use pnet::util::MacAddr;
 use pnet_datalink::{self as datalink, Channel};
 use tokio::task;

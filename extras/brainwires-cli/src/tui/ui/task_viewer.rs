@@ -12,7 +12,6 @@ use ratatui::{
 };
 
 use crate::tui::app::App;
-use crate::types::agent::{TaskPriority, TaskStatus};
 
 /// Draw the task viewer as a full-screen view
 pub fn draw_task_viewer(f: &mut Frame, app: &App) {
@@ -168,38 +167,4 @@ fn render_footer(f: &mut Frame, area: Rect) {
         .alignment(Alignment::Center);
 
     f.render_widget(footer_paragraph, area);
-}
-
-/// Helper function to get status icon
-fn status_icon(status: &TaskStatus) -> &'static str {
-    match status {
-        TaskStatus::Pending => "○",
-        TaskStatus::InProgress => "◐",
-        TaskStatus::Completed => "●",
-        TaskStatus::Failed => "✗",
-        TaskStatus::Blocked => "◌",
-        TaskStatus::Skipped => "⊘",
-    }
-}
-
-/// Helper function to get status color
-fn status_color(status: &TaskStatus) -> Color {
-    match status {
-        TaskStatus::Pending => Color::White,
-        TaskStatus::InProgress => Color::Yellow,
-        TaskStatus::Completed => Color::Green,
-        TaskStatus::Failed => Color::Red,
-        TaskStatus::Blocked => Color::Magenta,
-        TaskStatus::Skipped => Color::DarkGray,
-    }
-}
-
-/// Helper function to get priority indicator
-fn priority_indicator(priority: &TaskPriority) -> &'static str {
-    match priority {
-        TaskPriority::Urgent => "🔴 ",
-        TaskPriority::High => "🟠 ",
-        TaskPriority::Normal => "",
-        TaskPriority::Low => "🔵 ",
-    }
 }

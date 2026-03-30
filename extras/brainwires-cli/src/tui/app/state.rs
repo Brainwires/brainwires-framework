@@ -1083,23 +1083,7 @@ impl App {
         result
     }
 
-    /// Calculate total lines in conversation content
-    pub(super) fn calculate_content_lines(&self) -> usize {
-        let mut total_lines = 0;
-        for (idx, msg) in self.messages.iter().enumerate() {
-            // Header line (role + timestamp)
-            total_lines += 1;
-            // Content lines
-            total_lines += msg.content.lines().count().max(1);
-            // Spacing between messages
-            if idx < self.messages.len() - 1 {
-                total_lines += 1;
-            }
-        }
-        total_lines
-    }
-
-    /// Get task tree as formatted string for display
+/// Get task tree as formatted string for display
     pub async fn get_task_tree_display(&self) -> String {
         let manager = self.task_manager.read().await;
         manager.format_tree().await

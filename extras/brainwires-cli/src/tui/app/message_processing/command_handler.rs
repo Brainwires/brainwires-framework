@@ -1011,10 +1011,7 @@ impl App {
 
     /// Handle /learn command - teach a behavioral truth
     async fn handle_learn_truth(&mut self, rule: &str, rationale: Option<&str>) {
-        use brainwires::brain::bks_pks::{
-            collector::LearningCollector,
-            truth::{TruthCategory, TruthSource, BehavioralTruth},
-        };
+        use brainwires::brain::bks_pks::truth::{TruthCategory, TruthSource, BehavioralTruth};
         use crate::utils::paths::PlatformPaths;
         use brainwires::brain::bks_pks::cache::BehavioralKnowledgeCache;
 
@@ -1254,7 +1251,7 @@ impl App {
     async fn handle_knowledge_contradict(&mut self, id: &str, reason: Option<&str>) {
         use crate::utils::paths::PlatformPaths;
         use brainwires::brain::bks_pks::cache::BehavioralKnowledgeCache;
-        use brainwires::brain::bks_pks::truth::TruthFeedback;
+        
 
         let result = match PlatformPaths::knowledge_db() {
             Ok(db_path) => {

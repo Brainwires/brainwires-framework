@@ -259,6 +259,7 @@ impl ConversationManager {
     /// **DEPRECATED**: Manual compaction is no longer needed. The system
     /// automatically manages context via TieredMemory and ContextBuilder.
     #[deprecated(note = "Manual compaction is deprecated. Use automatic context management instead.")]
+    #[allow(deprecated)]
     pub fn needs_compaction(&self) -> bool {
         self.estimate_total_tokens() > COMPACTION_THRESHOLD_TOKENS
     }

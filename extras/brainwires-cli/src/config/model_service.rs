@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
-use crate::providers::{create_model_lister, AvailableModel, ModelCapability, ProviderType};
+use crate::providers::{create_model_lister, AvailableModel, ProviderType};
 use crate::utils::paths::PlatformPaths;
 
 /// Cached model list with timestamp.
