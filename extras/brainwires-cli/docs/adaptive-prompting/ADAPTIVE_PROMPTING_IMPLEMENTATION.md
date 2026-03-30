@@ -21,8 +21,11 @@ Rather than applying the same system prompt template to every task, the adaptive
 
 ## Module Layout
 
+> **Note:** The prompting module lives in the `brainwires-prompting` framework crate (a
+> dependency of the CLI), not in the CLI's own `src/` directory.
+
 ```
-src/prompting/
+brainwires-prompting crate / src/prompting/
 ├── techniques.rs    # 15 prompting technique definitions and metadata
 ├── library.rs       # TechniqueLibrary — BKS-backed technique catalog
 ├── clustering.rs    # TaskClusterManager — k-means cluster matching

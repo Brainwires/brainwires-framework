@@ -356,7 +356,7 @@ These are used by the validation loop but can also be called directly as tools.
 ## Critical Bug Fixes Applied
 
 ### Bug #1: Off-by-One Iteration Count (FIXED)
-**Location**: `src/agents/task_agent.rs:258`
+**Location**: `src/agents/task_agent.rs:261`
 ```rust
 // Before: if iterations > self.config.max_iterations
 // After:
@@ -387,7 +387,7 @@ if iterations >= self.config.max_iterations {
 ```
 
 ### Bug #5: Agent Reports Success Without Creating File (FIXED)
-**Location**: `src/agents/validation_loop.rs:120`
+**Location**: `brainwires::agents::validation_loop` (framework crate, re-exported via `src/agents/mod.rs`)
 ```rust
 // CRITICAL: Verify all files in working set exist on disk
 for file in &changed_files {
@@ -435,10 +435,10 @@ cargo run -- chat --mcp-server
 
 ### Integration Testing
 
-The project includes comprehensive integration tests in `test-results/`:
-- `test-log.md`: Complete test history with ratings
-- `bug-report-*.md`: Detailed bug documentation
-- `SESSION-SUMMARY-MDAP.md`: MDAP verification results
+The project has been stress-tested using the methodology described below. Test artifacts
+(logs, bug reports, session summaries) were not committed to the repository, but the bugs
+discovered and fixes applied during those sessions are documented in the Critical Bug Fixes
+section above.
 
 ### Test Commands
 
@@ -455,7 +455,12 @@ cargo test test_file_locks -- --nocapture
 
 ### Comprehensive Stress Testing Methodology
 
-This project underwent rigorous recursive stress testing to discover and fix critical bugs. The methodology is documented in `test-results/` and can be replicated for future testing.
+This project underwent rigorous recursive stress testing to discover and fix critical bugs.
+The methodology below can be replicated for future testing.
+
+> **Note:** Test artifacts (test logs, bug reports, session summaries) from the original
+> stress-testing sessions were not committed to the repository. The bugs found and their
+> fixes are documented in the Critical Bug Fixes section above.
 
 #### Testing Philosophy: "Ralph Loop"
 
@@ -543,7 +548,7 @@ This ensures authentic performance measurement.
 #### Bug Discovery and Immediate Fix Workflow
 
 **When a bug is found:**
-1. **Document**: Create detailed bug report in `test-results/bug-report-NNN.md`
+1. **Document**: Record the issue with reproduction steps and root cause
 2. **Fix**: Immediately fix the bug in source code
 3. **Build**: Rebuild CLI with `cargo build`
 4. **Restart**: Restart MCP server to load new code
@@ -555,41 +560,12 @@ This ensures authentic performance measurement.
 - Cumulative improvements during testing session
 - Higher bug discovery rate (no test invalidation)
 
-#### Test Results Documentation
-
-All test results stored in `test-results/` with:
-
-**test-log.md**
-- Complete test history
-- Star ratings (⭐⭐⭐⭐⭐) for each test
-- Iterations used vs max allowed
-- Code quality assessments
-- Build status verification
-
-**bug-report-NNN.md**
-- Detailed bug description
-- Reproduction steps
-- Root cause analysis
-- Fix implementation
-- Verification results
-
-**SESSION-SUMMARY-MDAP.md**
-- MDAP verification results
-- Performance comparisons (MDAP vs standard)
-- Efficiency metrics
-- Cost-benefit analysis
-
-**test-progress.json**
-- Machine-readable test data
-- Cumulative statistics
-- Agent performance metrics
-
 #### Bugs Discovered and Fixed
 
 **Bug #1: Off-by-One Iteration Count** (⭐⭐⭐ Severity)
 - **Issue**: Agents exceeded `max_iterations` by 1
 - **Fix**: Changed `if iterations > max` to `if iterations >= max`
-- **Location**: `src/agents/task_agent.rs:258`
+- **Location**: `src/agents/task_agent.rs:261`
 - **Status**: ✅ FIXED
 
 **Bug #2: TypeScript File-Level Syntax Check** (⭐⭐ Severity)
@@ -612,7 +588,7 @@ All test results stored in `test-results/` with:
 **Bug #5: Agent Reports Success Without Creating File** (⭐⭐⭐⭐⭐ CRITICAL)
 - **Issue**: Agent reported completion but file didn't exist on disk
 - **Fix**: Added file existence check to validation loop
-- **Location**: `src/agents/validation_loop.rs:120`
+- **Location**: `brainwires::agents::validation_loop` (framework crate, re-exported via `src/agents/mod.rs`)
 - **Status**: ✅ FIXED
 - **Impact**: Critical reliability issue that broke completion signal trust
 
@@ -667,7 +643,7 @@ To run similar comprehensive stress testing:
 2. **Create test environment**: Set up a TypeScript project with `src/` directory
 3. **Spawn test agents**: Use `agent_spawn` with progressive difficulty tasks
 4. **Monitor results**: Watch for validation failures, iteration counts
-5. **Document findings**: Record in `test-results/` directory
+5. **Document findings**: Record bugs with reproduction steps and fixes
 6. **Fix bugs immediately**: Don't wait for full test suite completion
 7. **Verify fixes**: Re-run failed tests after fixes applied
 
@@ -854,12 +830,12 @@ Locks are acquired on-demand and released immediately:
 
 ## Documentation References
 
-- **CLI Chat Modes**: `docs/CLI_CHAT_MODES.md` - Comprehensive guide to all chat modes
-- **MCP Server**: `docs/MCP_SERVER.md` - Running as MCP server, agent management
-- **Infinite Context**: `docs/INFINITE_CONTEXT.md` - Entity extraction, relationship graphs
-- **IPC & Remote Control**: `docs/IPC_AND_REMOTE_CONTROL.md` - Remote relay architecture
-- **Slash Commands**: `docs/SLASH_COMMANDS_RAG.md` - Project RAG commands
-- **Permission System**: `docs/PERMISSION_SYSTEM.md` - Auto/ask/reject modes
+- **CLI Chat Modes**: `docs/interface/CLI_CHAT_MODES.md` - Comprehensive guide to all chat modes
+- **MCP Server**: `docs/interface/mcp/MCP_SERVER.md` - Running as MCP server, agent management
+- **Infinite Context**: `docs/infinite-context/INFINITE_CONTEXT.md` - Entity extraction, relationship graphs
+- **IPC & Remote Control**: `docs/distributed-swarms/IPC_AND_REMOTE_CONTROL.md` - Remote relay architecture
+- **Slash Commands**: `docs/interface/SLASH_COMMANDS_RAG.md` - Project RAG commands
+- **Permission System**: `docs/agents/PERMISSION_SYSTEM.md` - Auto/ask/reject modes
 
 ---
 

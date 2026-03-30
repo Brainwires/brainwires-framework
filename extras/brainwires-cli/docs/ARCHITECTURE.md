@@ -76,13 +76,18 @@ Multi-agent orchestration system for complex task decomposition:
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Components:**
+**CLI-local files:**
 - `task_agent.rs` - Autonomous task execution agents
 - `orchestrator.rs` - Parent agent that spawns and coordinates workers
-- `communication.rs` - Message hub for agent coordination
-- `file_locks.rs` - Read/write file locking
-- `validation_loop.rs` - Pre-completion validation checks
+- `worker.rs` - Worker agent implementation
 - `pool.rs` - Agent lifecycle management
+
+**From `brainwires` framework crate** (re-exported via `pub use brainwires::agents::*`):
+- `communication` - Message hub for agent coordination
+- `file_locks` - Read/write file locking
+- `validation_loop` - Pre-completion validation checks
+- `access_control` - Capability-based access control
+- `saga`, `contract_net`, `optimistic` - Multi-agent coordination protocols
 
 **MDAP System (`src/mdap/`):**
 Multi-Dimensional Adaptive Planning for complex tasks:
@@ -206,45 +211,21 @@ Authentication and session management:
 - Direct provider API key support
 - Secure keyring storage via `keyring` crate
 
-### 9. Prompting Layer (`src/prompting/`)
+### 9. Prompting & SEAL (framework: `brainwires-prompting` crate)
 
-Adaptive prompting system with 15+ techniques for optimizing LLM interactions:
+Adaptive prompting and self-evolving learning are implemented in the `brainwires-prompting`
+framework crate, which the CLI integrates as a dependency. These systems are not local `src/`
+modules.
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                  Adaptive Prompting System                    │
-│  ┌────────────────────────────────────────────────────────┐  │
-│  │  Techniques:                                            │  │
-│  │  - Chain of Thought (CoT)                               │  │
-│  │  - Tree of Thoughts (ToT)                               │  │
-│  │  - Self-Consistency                                     │  │
-│  │  - ReAct (Reasoning + Acting)                           │  │
-│  │  - Meta-Prompting                                       │  │
-│  │  - Contrastive Prompting                                │  │
-│  │  - Analogical Reasoning                                 │  │
-│  │  - Structured Output                                    │  │
-│  │  - Zero/Few-Shot Learning                               │  │
-│  └────────────────────────────────────────────────────────┘  │
-│                            │                                  │
-│  ┌────────────────────────v────────────────────────────────┐│
-│  │  Best Knowledge Synthesis (BKS):                         ││
-│  │  - Clusters techniques by task type                      ││
-│  │  - Promotes successful patterns                          ││
-│  │  - Adapts based on performance metrics                   ││
-│  └────────────────────────────────────────────────────────┘ │
-└──────────────────────────────────────────────────────────────┘
-```
+**Adaptive Prompting** — selects the most effective prompting technique per task using
+k-means task clustering, SEAL quality signals, and BKS/PKS preference learning. Integrates
+via `OrchestratorAgent`. See `docs/adaptive-prompting/ADAPTIVE_PROMPTING_IMPLEMENTATION.md`.
 
-### 10. SEAL Layer (`src/seal/`)
+**SEAL (Self-Evolving Agentic Learning)** — coreference resolution, query core extraction,
+entity observation, and pattern promotion into BKS. Integrated through
+`SealKnowledgeCoordinator`. See `docs/seal/SEAL_ARCHITECTURE.md`.
 
-Self-Evolving Adaptive Learning system for continuous improvement:
-
-- **Pattern Recognition**: Learns from successful task completions
-- **Strategy Evolution**: Adapts approaches based on outcomes
-- **Knowledge Integration**: Incorporates domain-specific learnings
-- **Performance Tracking**: Monitors and optimizes execution patterns
-
-### 11. Session Layer (`src/session/`)
+### 10. Session Layer (`src/session/`)
 
 PTY-based session persistence for long-running tasks:
 
@@ -266,7 +247,7 @@ PTY-based session persistence for long-running tasks:
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### 12. IPC Layer (`src/ipc/`)
+### 11. IPC Layer (`src/ipc.rs`)
 
 Inter-process communication for agent coordination:
 
@@ -275,7 +256,7 @@ Inter-process communication for agent coordination:
 - Agent metadata exchange
 - Session discovery and management
 
-### 13. Approval Layer (`src/approval/`)
+### 12. Approval Layer (`src/approval/`)
 
 Tool approval modal for human-in-the-loop workflows:
 
@@ -284,81 +265,38 @@ Tool approval modal for human-in-the-loop workflows:
 - **Bulk Approval**: Handle multiple similar requests
 - **Timeout Handling**: Default actions for unattended operation
 
-### 14. Local Inference Layer (`src/local_inference/`)
+### 13. Self-Improvement Layer (`src/self_improve/`)
 
-3-tier local ML inference strategy:
+Autonomous code quality improvement system. The controller evaluates the codebase on a
+schedule and applies improvement strategies:
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                  Local Inference Strategy                     │
-│  ┌────────────────────────────────────────────────────────┐  │
-│  │  Tier 1: In-Process (FastEmbed)                        │  │
-│  │  - Embeddings for semantic search                      │  │
-│  │  - Fast, no network dependency                         │  │
-│  └────────────────────────────────────────────────────────┘  │
-│  ┌────────────────────────────────────────────────────────┐  │
-│  │  Tier 2: Local Server (Ollama)                         │  │
-│  │  - Full model inference                                │  │
-│  │  - Offline-capable                                     │  │
-│  └────────────────────────────────────────────────────────┘  │
-│  ┌────────────────────────────────────────────────────────┐  │
-│  │  Tier 3: API Fallback (Cloud Providers)                │  │
-│  │  - High-capability models                              │  │
-│  │  - Automatic failover                                  │  │
-│  └────────────────────────────────────────────────────────┘  │
-└──────────────────────────────────────────────────────────────┘
-```
+**Strategies** (`src/self_improve/strategies/`):
+- `clippy.rs` — Runs `cargo clippy` and applies lint fixes
+- `dead_code.rs` — Detects and removes unused code
+- `doc_gaps.rs` — Identifies public APIs missing rustdoc
+- `refactoring.rs` — Suggests structural improvements
+- `test_coverage.rs` — Detects untested code paths
+- `todo_scanner.rs` — Tracks TODO/FIXME comments
 
-### 15. Skills Layer (`src/skills/`)
+**Core** (`src/self_improve/`):
+- `controller.rs` — Schedules and runs strategies
+- `feedback_loop.rs` — Learns from outcomes to prioritize strategies
+- `metrics.rs` — Tracks improvement statistics
+- `safety.rs` — Validates that changes don't break the build
+- `task_generator.rs` — Converts strategy findings into agent tasks
 
-Agent skills system for reusable capabilities:
+### 14. Agent Lifecycle Layer (`src/agent/`)
 
-- **Skill Registry**: Catalog of available skills
-- **Skill Composition**: Combine skills for complex tasks
-- **Dynamic Loading**: Load skills on demand
-- **Skill Versioning**: Track and manage skill updates
+Background agent process management (distinct from `src/agents/` orchestration):
 
-### 16. Permissions Layer (`src/permissions/`)
+- `process.rs` — Agent process spawning and monitoring
+- `spawn.rs` — Spawn configuration and startup
+- `state.rs` — Agent state machine (idle, running, hibernating)
+- `hibernate.rs` — Suspending and restoring agent state
+- `plan_mode.rs` — Plan-mode integration for agents
+- `message_queue.rs` — Persistent message queue for background agents
 
-Capability-based access control system:
-
-```
-┌──────────────────────────────────────────────────────────────┐
-│                     Permission System                         │
-│  ┌────────────────────────────────────────────────────────┐  │
-│  │  AgentCapabilities:                                     │  │
-│  │  - Filesystem (read/write paths, denied paths)          │  │
-│  │  - Tools (allowed categories, denied tools)             │  │
-│  │  - Network (domains, rate limits)                       │  │
-│  │  - Git (operations, protected branches)                 │  │
-│  │  - Spawning (max children, max depth)                   │  │
-│  │  - Quotas (time, tokens, tool calls)                    │  │
-│  └────────────────────────────────────────────────────────┘  │
-│                            │                                  │
-│  ┌────────────────────────v────────────────────────────────┐│
-│  │  Profiles:                                               ││
-│  │  - read_only: Read operations only                       ││
-│  │  - standard_dev: Normal development workflow             ││
-│  │  - full_access: All capabilities enabled                 ││
-│  └────────────────────────────────────────────────────────┘ │
-│                            │                                  │
-│  ┌────────────────────────v────────────────────────────────┐│
-│  │  Policy Engine:                                          ││
-│  │  - Rule-based access control                             ││
-│  │  - Priority-ordered evaluation                           ││
-│  │  - Audit logging                                         ││
-│  └────────────────────────────────────────────────────────┘ │
-│                            │                                  │
-│  ┌────────────────────────v────────────────────────────────┐│
-│  │  Trust System:                                           ││
-│  │  - Dynamic trust scoring (0.0-1.0)                       ││
-│  │  - Violation penalties                                   ││
-│  │  - Trust level derivation (Untrusted → System)           ││
-│  └────────────────────────────────────────────────────────┘ │
-└──────────────────────────────────────────────────────────────┘
-```
-
-### 17. Remote Layer (`src/remote.rs`, framework: `brainwires-relay` crate)
+### 15. Remote Layer (`src/remote.rs`, framework: `brainwires-relay` crate)
 
 Remote relay connector for external orchestration:
 
@@ -386,7 +324,7 @@ Remote relay connector for external orchestration:
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### 18. Commands Layer (`src/commands/`)
+### 16. Commands Layer (`src/commands/`)
 
 Slash command system for quick actions:
 
@@ -402,7 +340,7 @@ Slash command system for quick actions:
 
 **Custom Commands**: Users can define custom commands in configuration.
 
-### 19. TUI Layer (`src/tui/`)
+### 17. TUI Layer (`src/tui/`)
 
 Terminal user interface using `ratatui`:
 
@@ -537,10 +475,10 @@ MCP Client Request
        │            │               │
        v            v               v
 ┌────────────┐ ┌────────────┐ ┌────────────┐
-│    mdap    │ │ permissions│ │  approval  │
+│    mdap    │ │self_improve│ │  approval  │
 └────────────┘ └────────────┘ └────────────┘
-       │            │               │
-       └────────────┴───────────────┘
+       │                            │
+       └────────────┬───────────────┘
                     │
                     v
             ┌────────────┐
@@ -552,37 +490,37 @@ MCP Client Request
 ┌────────┐   ┌────────────┐  ┌────────────┐
 │knowledge│  │   config   │  │   session  │
 └────────┘   └────────────┘  └────────────┘
-    │                             │
-    v                             v
-┌────────────┐               ┌────────────┐
-│    seal    │               │    ipc     │
-└────────────┘               └────────────┘
+                                   │
+                                   v
+                              ┌────────────┐
+                              │    ipc     │
+                              └────────────┘
 ```
+> `knowledge` is implemented in the `brainwires-prompting` framework crate (not a local `src/` module).
 
 ### Module Descriptions
 
-| Module | Purpose |
-|--------|---------|
-| `cli` | Entry point, command parsing |
-| `commands` | Slash command system |
-| `providers` | AI model provider abstraction |
-| `tui` | Terminal user interface |
-| `remote` | Remote relay connector |
-| `agent` | Background agent process |
-| `agents` | Multi-agent orchestration |
-| `tools` | Tool execution system |
-| `mdap` | Multi-dimensional adaptive planning |
-| `permissions` | Capability-based access control |
-| `approval` | Human-in-the-loop approval |
-| `storage` | Persistent storage (LanceDB) |
-| `knowledge` | Entity extraction, context graphs (now in `brainwires-prompting` crate) |
-| `config` | Configuration management |
-| `session` | PTY session persistence |
-| `seal` | Self-evolving adaptive learning |
-| `ipc` | Inter-process communication |
-| `prompting` | Adaptive prompting techniques |
-| `skills` | Reusable agent capabilities |
-| `local_inference` | Local ML inference |
+| Module | Location | Purpose |
+|--------|----------|---------|
+| `cli` | `src/cli/` | Entry point, command parsing |
+| `commands` | `src/commands/` | Slash command system |
+| `providers` | `src/providers/` | AI model provider abstraction |
+| `tui` | `src/tui/` | Terminal user interface |
+| `remote` | `src/remote.rs` | Remote relay connector |
+| `agent` | `src/agent/` | Background agent lifecycle (spawn, hibernate, state) |
+| `agents` | `src/agents/` | Multi-agent orchestration |
+| `tools` | `src/tools/` | Tool execution system |
+| `mdap` | `src/mdap/` | Multi-dimensional adaptive planning |
+| `self_improve` | `src/self_improve/` | Autonomous code quality improvement |
+| `approval` | `src/approval/` | Human-in-the-loop approval modal |
+| `storage` | `src/storage/` | Persistent storage (LanceDB) |
+| `config` | `src/config/` | Configuration management |
+| `session` | `src/session/` | PTY session persistence |
+| `ipc` | `src/ipc.rs` | Inter-process communication |
+| `auth` | `src/auth.rs` | Authentication and session tokens |
+| `knowledge` | framework crate | Entity extraction, context graphs (`brainwires-prompting`) |
+| `seal` | framework crate | Self-evolving adaptive learning (`brainwires-prompting`) |
+| `prompting` | framework crate | Adaptive prompting techniques (`brainwires-prompting`) |
 
 ## Error Handling
 

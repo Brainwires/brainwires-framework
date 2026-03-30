@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Brainwires CLI is a research-driven AI agent CLI tool implementing cutting-edge papers like SEAL (Self-Evolving Agentic Learning) and MDAP (Massively Decomposed Agentic Processes). Built in Rust with 55,700+ LOC across 237 files.
+Brainwires CLI is a research-driven AI agent CLI tool implementing cutting-edge papers like SEAL (Self-Evolving Agentic Learning) and MDAP (Massively Decomposed Agentic Processes). Built in Rust with ~42,000+ LOC across 220+ files.
 
 ## Architecture & Core Patterns
 
@@ -186,7 +186,7 @@ use tokio::task::spawn;
 ### Tool Execution
 ```rust
 // Always check permission mode before tool execution
-// Files: src/agents/access_control.rs patterns
+// AccessControlManager is from brainwires::agents (framework crate, re-exported via src/agents/mod.rs)
 ```
 
 ### Cross-Platform Builds

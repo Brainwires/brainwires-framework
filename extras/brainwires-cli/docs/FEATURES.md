@@ -85,14 +85,17 @@
 The brain of Brainwires - coordinates all agent activities with a maximum of 25 iterations per task.
 
 ```
-src/agents/
-├── orchestrator.rs      # Main orchestration (42KB)
-├── task_agent.rs        # Individual task execution (24KB)
-├── confidence.rs        # Response confidence scoring
-├── plan_executor.rs     # Plan execution engine
-├── file_locks.rs        # Cross-process synchronization
-├── resource_locks.rs    # Resource access control
-└── access_control.rs    # Permission management
+src/agents/                          # CLI-local files
+├── orchestrator.rs      # Main orchestration
+├── task_agent.rs        # Individual task execution
+├── worker.rs            # Worker agent implementation
+└── pool.rs              # Agent lifecycle management
+
+brainwires::agents (framework crate) # Re-exported via src/agents/mod.rs
+├── file_locks           # Cross-process synchronization
+├── access_control       # Permission management
+├── validation_loop      # Pre-completion validation
+└── confidence           # Response confidence scoring
 ```
 
 **Capabilities**:
