@@ -964,7 +964,11 @@ MCP server binary wrapping `brainwires-rag` for semantic code search via MCP pro
 
 ### agent-chat *(extras/)*
 
-Simplified open-source AI chat client built on the framework. Includes CLI commands for config, models, and auth.
+Minimal reference implementation of a chat client — small, readable, and purpose-built for learning the framework. Includes CLI commands for config, models, and auth. For a full-featured CLI, see `brainwires-cli` below.
+
+### brainwires-cli *(extras/)*
+
+Full-featured AI-powered agentic CLI with multi-agent orchestration (`TaskAgent`, `WorkerAgent`, `OrchestratorAgent`), MCP server mode (expose the CLI as an MCP tool server for hierarchical AI workflows), TUI (fullscreen ratatui interface), infinite context (LanceDB-backed semantic memory), extensive tool integration (file ops, bash, git, web, code search, validation), per-session model switching (`/model`), and support for all cloud providers (Anthropic, OpenAI, Google, Ollama, Groq, Together, Fireworks, Bedrock, Vertex AI). Migrated from a standalone repository; now a root workspace member at `extras/brainwires-cli/`.
 
 ### reload-daemon *(extras/)*
 

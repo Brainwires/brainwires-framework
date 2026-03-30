@@ -1,0 +1,214 @@
+{
+  "name": "brainwires-vscode",
+  "displayName": "Brainwires AI Assistant",
+  "description": "AI-powered coding assistant integrated with Brainwires CLI",
+  "version": "0.5.0",
+  "publisher": "brainwires",
+  "icon": "icon.png",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Machine Learning",
+    "Other"
+  ],
+  "keywords": [
+    "ai",
+    "assistant",
+    "copilot",
+    "coding",
+    "llm",
+    "claude",
+    "gpt"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "brainwires.chat",
+        "title": "Brainwires: Open Chat",
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "brainwires.explainCode",
+        "title": "Brainwires: Explain Selection",
+        "icon": "$(question)"
+      },
+      {
+        "command": "brainwires.refactorCode",
+        "title": "Brainwires: Refactor Selection"
+      },
+      {
+        "command": "brainwires.fixErrors",
+        "title": "Brainwires: Fix Errors in File"
+      },
+      {
+        "command": "brainwires.generateTests",
+        "title": "Brainwires: Generate Tests"
+      },
+      {
+        "command": "brainwires.showDiff",
+        "title": "Brainwires: Show Diff",
+        "icon": "$(diff)"
+      },
+      {
+        "command": "brainwires.acceptChanges",
+        "title": "Brainwires: Accept Changes",
+        "icon": "$(check)"
+      },
+      {
+        "command": "brainwires.rejectChanges",
+        "title": "Brainwires: Reject Changes",
+        "icon": "$(close)"
+      },
+      {
+        "command": "brainwires.openSettings",
+        "title": "Brainwires: Open Settings",
+        "icon": "$(settings-gear)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "brainwires-sidebar",
+          "title": "Brainwires",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "brainwires-sidebar": [
+        {
+          "id": "brainwires.chatView",
+          "name": "Chat",
+          "type": "webview"
+        },
+        {
+          "id": "brainwires.historyView",
+          "name": "History"
+        },
+        {
+          "id": "brainwires.contextView",
+          "name": "Context Files"
+        }
+      ]
+    },
+    "menus": {
+      "editor/context": [
+        {
+          "command": "brainwires.explainCode",
+          "when": "editorHasSelection",
+          "group": "brainwires@1"
+        },
+        {
+          "command": "brainwires.refactorCode",
+          "when": "editorHasSelection",
+          "group": "brainwires@2"
+        },
+        {
+          "command": "brainwires.generateTests",
+          "when": "editorHasSelection",
+          "group": "brainwires@3"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "brainwires.openSettings",
+          "when": "view == brainwires.chatView",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Brainwires",
+      "properties": {
+        "brainwires.provider": {
+          "type": "string",
+          "enum": ["anthropic", "openai", "google", "ollama"],
+          "default": "anthropic",
+          "description": "AI provider to use"
+        },
+        "brainwires.model": {
+          "type": "string",
+          "default": "claude-3-5-sonnet-20241022",
+          "description": "Model to use for the selected provider"
+        },
+        "brainwires.permissionMode": {
+          "type": "string",
+          "enum": ["read-only", "auto", "full"],
+          "default": "auto",
+          "description": "Permission mode for file operations"
+        },
+        "brainwires.cliPath": {
+          "type": "string",
+          "default": "brainwires",
+          "description": "Path to Brainwires CLI executable"
+        },
+        "brainwires.autoSuggest": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable automatic inline suggestions"
+        },
+        "brainwires.showDiffBeforeApply": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show diff preview before applying changes"
+        },
+        "brainwires.contextFiles": {
+          "type": "array",
+          "default": [],
+          "description": "Files to include in context automatically"
+        }
+      }
+    },
+    "keybindings": [
+      {
+        "command": "brainwires.chat",
+        "key": "ctrl+shift+b",
+        "mac": "cmd+shift+b"
+      },
+      {
+        "command": "brainwires.explainCode",
+        "key": "ctrl+shift+e",
+        "mac": "cmd+shift+e",
+        "when": "editorHasSelection"
+      },
+      {
+        "command": "brainwires.acceptChanges",
+        "key": "ctrl+shift+y",
+        "mac": "cmd+shift+y"
+      },
+      {
+        "command": "brainwires.rejectChanges",
+        "key": "ctrl+shift+n",
+        "mac": "cmd+shift+n"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.80.0",
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "typescript": "^5.0.0",
+    "@vscode/test-electron": "^2.3.0",
+    "@vscode/vsce": "^2.19.0"
+  },
+  "dependencies": {
+    "@vscode/webview-ui-toolkit": "^1.2.2"
+  }
+}

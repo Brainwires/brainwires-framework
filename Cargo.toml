@@ -265,3 +265,5 @@ tempfile = "3"
 rustpython-vm = { git = "https://github.com/RustPython/RustPython", branch = "main", package = "rustpython-vm" }
 rustpython-stdlib = { git = "https://github.com/RustPython/RustPython", branch = "main", package = "rustpython-stdlib" }
 sqlx-sqlite = { git = "https://github.com/launchbadge/sqlx", branch = "main" }
+# brainwires-cli depends on unreleased ratatui-interact features; patch to local dev version
+ratatui-interact = { path = "/home/nightness/dev/ratatui-interact" }

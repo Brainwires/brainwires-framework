@@ -70,6 +70,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`brainwires-signal-channel`** — Signal messenger adapter via `signal-cli-rest-api`. WebSocket push mode with polling fallback. `Channel` trait implementation. Filtering: self-messages, sender/group allowlists, @mention/keyword trigger for groups. Optional MCP tool server (`--mcp`): `send_message`, `add_reaction`. Capabilities: `REACTIONS`.
 - **`brainwires-skill-registry`** — HTTP skill registry server. SQLite with FTS5 full-text search. Endpoints: publish, search (query + tag filter), get manifest (latest or by version), download package. Auto-creates schema on first run.
 
+#### Extras — brainwires-cli (`extras/brainwires-cli/`)
+
+- **`brainwires-cli`** migrated into monorepo — The flagship AI-powered agentic CLI (76k lines) moved from a standalone repository with a framework git submodule into `extras/brainwires-cli/` as a root workspace member. Eliminates the two-repo submodule workflow; CI now covers CLI and framework changes together. `agent-chat` remains as the minimal reference implementation.
+
 #### Core Types (`brainwires-core`)
 
 - **`ChatOptions::model`** — New `model: Option<String>` field. When `Some`, all providers (Anthropic, OpenAI, OpenAI Responses, Gemini, Ollama, and OpenAI-compatible) substitute this model for their configured default on that request. Enables per-request and per-session model switching without recreating the provider. `ChatOptions` gains a `.model()` builder method.
