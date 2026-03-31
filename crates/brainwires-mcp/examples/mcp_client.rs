@@ -29,7 +29,11 @@ async fn main() {
         env: None,
     };
     println!("  Server: {}", filesystem_server.name);
-    println!("  Command: {} {}", filesystem_server.command, filesystem_server.args.join(" "));
+    println!(
+        "  Command: {} {}",
+        filesystem_server.command,
+        filesystem_server.args.join(" ")
+    );
     println!();
 
     // Server with environment variables
@@ -46,8 +50,18 @@ async fn main() {
         env: Some(env_vars),
     };
     println!("  Server: {}", github_server.name);
-    println!("  Command: {} {}", github_server.command, github_server.args.join(" "));
-    println!("  Env vars: {:?}", github_server.env.as_ref().map(|e| e.keys().collect::<Vec<_>>()));
+    println!(
+        "  Command: {} {}",
+        github_server.command,
+        github_server.args.join(" ")
+    );
+    println!(
+        "  Env vars: {:?}",
+        github_server
+            .env
+            .as_ref()
+            .map(|e| e.keys().collect::<Vec<_>>())
+    );
     println!();
 
     // Configs serialize to JSON for persistence
@@ -106,7 +120,9 @@ async fn main() {
     println!("  let resources = client.list_resources(\"filesystem\").await?;\n");
 
     println!("  // Read a specific resource by URI");
-    println!("  let content = client.read_resource(\"filesystem\", \"file:///tmp/data.json\").await?;\n");
+    println!(
+        "  let content = client.read_resource(\"filesystem\", \"file:///tmp/data.json\").await?;\n"
+    );
 
     println!("  // List prompt templates");
     println!("  let prompts = client.list_prompts(\"github\").await?;\n");
@@ -145,6 +161,8 @@ async fn main() {
     );
 
     println!("\nDone! To connect to real MCP servers, ensure the server");
-    println!("command is installed (e.g., `npm install -g @modelcontextprotocol/server-filesystem`)");
+    println!(
+        "command is installed (e.g., `npm install -g @modelcontextprotocol/server-filesystem`)"
+    );
     println!("and call client.connect(&config).await to establish a connection.");
 }

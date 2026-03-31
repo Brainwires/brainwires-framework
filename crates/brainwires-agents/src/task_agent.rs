@@ -258,6 +258,13 @@ pub struct TaskAgentConfig {
     /// Only effective when lifecycle hooks are set on the [`AgentContext`].
     /// Default: `None` (no context pressure callbacks).
     pub context_budget_tokens: Option<u64>,
+
+    /// Optional analytics collector.
+    ///
+    /// When `Some`, emits [`brainwires_analytics::AnalyticsEvent::AgentRun`] after
+    /// each run completes (success or failure). Feature-gated by `analytics`.
+    #[cfg(feature = "analytics")]
+    pub analytics_collector: Option<std::sync::Arc<brainwires_analytics::AnalyticsCollector>>,
 }
 
 impl Default for TaskAgentConfig {
@@ -277,6 +284,8 @@ impl Default for TaskAgentConfig {
             allowed_files: None,
             plan_budget: None,
             context_budget_tokens: None,
+            #[cfg(feature = "analytics")]
+            analytics_collector: None,
         }
     }
 }
@@ -468,6 +477,7 @@ impl TaskAgent {
             top_p: None,
             stop: None,
             system: Some(system_prompt),
+            model: None,
         };
 
         self.provider.chat(&history, Some(&tools), &options).await
@@ -591,6 +601,12 @@ impl TaskAgent {
     /// Blocks the calling async task until the agent finishes. Use
     /// [`spawn_task_agent`] to run the agent on a Tokio background task.
     pub async fn execute(&self) -> Result<TaskAgentResult> {
+        let result = self.execute_impl().await?;
+        self.maybe_emit_run_analytics(&result);
+        Ok(result)
+    }
+
+    async fn execute_impl(&self) -> Result<TaskAgentResult> {
         let task_id = self.task.read().await.id.clone();
         let task_description = self.task.read().await.description.clone();
 
@@ -666,6 +682,7 @@ impl TaskAgent {
                     "You are a planning assistant. Respond only with a valid JSON execution plan."
                         .to_string(),
                 ),
+                model: None,
             };
             match self
                 .provider
@@ -1484,6 +1501,7 @@ impl TaskAgent {
                     }
                 }
 
+                let _tool_exec_start = std::time::Instant::now();
                 let tool_result =
                     if let Some((path, lock_type)) = Self::get_lock_requirement(tool_use) {
                         // ── File scope whitelist check (Item 3) ──────────────
@@ -1581,6 +1599,20 @@ impl TaskAgent {
                         executed_at: Utc::now(),
                     },
                 );
+
+                // ── Emit analytics ToolCall event ────────────────────────────
+                #[cfg(feature = "analytics")]
+                if let Some(ref collector) = self.config.analytics_collector {
+                    collector.record(brainwires_analytics::AnalyticsEvent::ToolCall {
+                        session_id: None,
+                        agent_id: Some(self.id.clone()),
+                        tool_name: tool_use.name.clone(),
+                        tool_use_id: tool_use.id.clone(),
+                        is_error: tool_result.is_error,
+                        duration_ms: Some(_tool_exec_start.elapsed().as_millis() as u64),
+                        timestamp: Utc::now(),
+                    });
+                }
 
                 // Track file in working set for file-write operations.
                 if !tool_result.is_error
@@ -1771,6 +1803,38 @@ impl TaskAgent {
             .and_then(|m| m.text())
             .map(|t| t.to_string())
     }
+
+    /// Emit an [`AnalyticsEvent::AgentRun`] event if an analytics collector is configured.
+    ///
+    /// This is a no-op when compiled without the `analytics` feature.
+    #[cfg(feature = "analytics")]
+    fn maybe_emit_run_analytics(&self, result: &TaskAgentResult) {
+        use brainwires_analytics::AnalyticsEvent;
+        if let Some(ref collector) = self.config.analytics_collector {
+            let t = &result.telemetry;
+            collector.record(AnalyticsEvent::AgentRun {
+                session_id: None,
+                agent_id: result.agent_id.clone(),
+                task_id: result.task_id.clone(),
+                prompt_hash: t.prompt_hash.clone(),
+                success: t.success,
+                total_iterations: t.total_iterations,
+                total_tool_calls: t.total_tool_calls,
+                tool_error_count: t.tool_error_count,
+                tools_used: t.tools_used.clone(),
+                total_prompt_tokens: t.total_prompt_tokens,
+                total_completion_tokens: t.total_completion_tokens,
+                total_cost_usd: t.total_cost_usd,
+                duration_ms: t.duration_ms,
+                failure_category: result.failure_category.as_ref().map(|fc| format!("{fc:?}")),
+                timestamp: chrono::Utc::now(),
+            });
+        }
+    }
+
+    #[cfg(not(feature = "analytics"))]
+    #[inline(always)]
+    fn maybe_emit_run_analytics(&self, _result: &TaskAgentResult) {}
 }
 
 /// Spawn a task agent on a Tokio background task.

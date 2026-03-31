@@ -35,6 +35,10 @@ pub use brainwires_core;
 // Re-export brainwires-tool-system for ToolExecutor trait
 pub use brainwires_tool_system;
 
+// ── Chat agent (ready-to-use completion loop) ────────────────────────────────
+
+pub mod chat_agent;
+
 // ── Agent loop hooks ─────────────────────────────────────────────────────────
 
 pub mod agent_hooks;
@@ -123,6 +127,9 @@ pub mod validation_agent;
 pub mod worktree;
 
 // ── Re-exports ───────────────────────────────────────────────────────────────
+
+// Chat agent
+pub use chat_agent::ChatAgent;
 
 // Agent loop hooks
 pub use agent_hooks::{
@@ -220,6 +227,9 @@ pub use validator_agent::{
 
 /// Prelude module for convenient imports
 pub mod prelude {
+    // Chat agent
+    pub use super::chat_agent::ChatAgent;
+
     // Agent loop hooks
     pub use super::agent_hooks::{
         AgentLifecycleHooks, ConversationView, DefaultDelegationHandler, DelegationRequest,

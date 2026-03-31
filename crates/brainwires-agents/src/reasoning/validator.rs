@@ -278,7 +278,7 @@ mod tests {
 
     #[test]
     fn test_heuristic_validation_refusal() {
-        let validator = LocalValidatorBuilder::default();
+        let _validator = LocalValidatorBuilder::default();
 
         // Test refusal detection
         let result = validate_heuristic_direct(
@@ -296,7 +296,7 @@ mod tests {
         assert!(matches!(result, ValidationResult::Valid { .. }));
     }
 
-    fn validate_heuristic_direct(task: &str, response: &str) -> ValidationResult {
+    fn validate_heuristic_direct(_task: &str, response: &str) -> ValidationResult {
         let response_lower = response.to_lowercase();
 
         let refusal_patterns = ["i cannot", "i can't", "i'm unable", "sorry, i", "as an ai"];

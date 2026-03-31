@@ -11,11 +11,11 @@
 
 use std::collections::HashMap;
 
-use brainwires_cognition::code_analysis::{
-    Definition, HybridRelationsProvider, RelationsProvider, SymbolKind,
-};
 use brainwires_cognition::code_analysis::types::{
     CallEdge, CallGraphNode, DefinitionResult, PrecisionLevel, SymbolId,
+};
+use brainwires_cognition::code_analysis::{
+    Definition, HybridRelationsProvider, RelationsProvider, SymbolKind,
 };
 use brainwires_cognition::rag::indexer::FileInfo;
 
@@ -104,10 +104,7 @@ fn main() {
 
     let definitions = provider.extract_definitions(&file_info)?;
 
-    println!(
-        "Found {} definitions in src/main.rs:\n",
-        definitions.len()
-    );
+    println!("Found {} definitions in src/main.rs:\n", definitions.len());
     println!(
         "{:<6} {:<22} {:<12} {:<10} {:<10} Signature",
         "Line", "Name", "Kind", "Visibility", "Has Docs"
@@ -152,10 +149,7 @@ fn main() {
     let references = provider.extract_references(&file_info, &symbol_index)?;
 
     println!("Found {} references:\n", references.len());
-    println!(
-        "{:<6} {:<10} {:<16} Target",
-        "Line", "Col", "Kind"
-    );
+    println!("{:<6} {:<10} {:<16} Target", "Line", "Col", "Kind");
     println!("{:-<60}", "");
 
     for reference in &references {
@@ -175,7 +169,13 @@ fn main() {
     // Create symbol IDs for cross-referencing
     let sym_config = SymbolId::new("src/main.rs", "Config", SymbolKind::Struct, 5, 0);
     let sym_new = SymbolId::new("src/main.rs", "new", SymbolKind::Method, 13, 4);
-    let sym_process = SymbolId::new("src/main.rs", "process_request", SymbolKind::Function, 33, 0);
+    let sym_process = SymbolId::new(
+        "src/main.rs",
+        "process_request",
+        SymbolKind::Function,
+        33,
+        0,
+    );
 
     println!("Symbol IDs (for storage/lookup):");
     println!("  Config:          {}", sym_config.to_storage_id());
@@ -283,7 +283,11 @@ fn main() {
     println!();
 
     println!("Precision levels:");
-    for level in [PrecisionLevel::High, PrecisionLevel::Medium, PrecisionLevel::Low] {
+    for level in [
+        PrecisionLevel::High,
+        PrecisionLevel::Medium,
+        PrecisionLevel::Low,
+    ] {
         println!("  {:?} — {}", level, level.description());
     }
 

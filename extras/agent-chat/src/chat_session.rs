@@ -6,9 +6,7 @@ use brainwires_core::{
     ChatOptions, ContentBlock, Message, MessageContent, Provider, StreamChunk, Tool, ToolContext,
     ToolResult, ToolUse,
 };
-use brainwires_tool_system::{
-    BashTool, FileOpsTool, GitTool, SearchTool, ToolRegistry, ValidationTool, WebTool,
-};
+use brainwires_tool_system::{BuiltinToolExecutor, ToolRegistry};
 
 use crate::cli::Cli;
 use crate::config::ChatConfig;
@@ -24,10 +22,9 @@ pub type ApprovalCallback = Box<dyn Fn(&str, &serde_json::Value) -> ApprovalResp
 
 pub struct ChatSession {
     provider: Arc<dyn Provider>,
-    tools: ToolRegistry,
+    executor: Arc<BuiltinToolExecutor>,
     messages: Vec<Message>,
     options: ChatOptions,
-    working_directory: String,
     permission_mode: String,
     auto_approved_tools: std::collections::HashSet<String>,
     approval_callback: Option<ApprovalCallback>,
@@ -59,12 +56,21 @@ impl ChatSession {
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or_else(|_| ".".to_string());
 
+        let context = ToolContext {
+            working_directory,
+            user_id: None,
+            metadata: std::collections::HashMap::new(),
+            capabilities: None,
+            idempotency_registry: None,
+            staging_backend: None,
+        };
+        let executor = Arc::new(BuiltinToolExecutor::new(tools, context));
+
         Self {
             provider,
-            tools,
+            executor,
             messages: Vec::new(),
             options,
-            working_directory,
             permission_mode: config.permission_mode.clone(),
             auto_approved_tools: std::collections::HashSet::new(),
             approval_callback: None,
@@ -97,7 +103,7 @@ impl ChatSession {
         let max_tool_rounds = 10;
 
         for _ in 0..max_tool_rounds {
-            let tool_defs: Vec<Tool> = self.tools.get_all().to_vec();
+            let tool_defs: Vec<Tool> = self.executor.tools();
             let tools_opt = if tool_defs.is_empty() {
                 None
             } else {
@@ -105,8 +111,7 @@ impl ChatSession {
             };
 
             // Collect stream completely, then drop it before mutating self
-            let (text_buf, tool_uses, events, response_id) =
-                self.collect_stream(tools_opt, &tool_defs).await?;
+            let (text_buf, tool_uses, events, response_id) = self.collect_stream(tools_opt).await?;
             all_events.extend(events);
 
             if tool_uses.is_empty() {
@@ -134,7 +139,7 @@ impl ChatSession {
                 metadata,
             });
 
-            // Execute tools
+            // Execute tools via BuiltinToolExecutor (with TUI approval logic)
             let mut result_blocks = Vec::new();
             for tu in &tool_uses {
                 all_events.push(StreamEvent::ToolCall {
@@ -172,7 +177,6 @@ impl ChatSession {
     async fn collect_stream(
         &self,
         tools_opt: Option<&[Tool]>,
-        _tool_defs: &[Tool],
     ) -> Result<(String, Vec<ToolUse>, Vec<StreamEvent>, Option<String>)> {
         let mut stream = self
             .provider
@@ -248,6 +252,8 @@ impl ChatSession {
         Ok((text_buf, tool_uses, events, last_response_id))
     }
 
+    /// Execute a tool call with TUI-specific approval logic, delegating actual
+    /// execution to the framework's BuiltinToolExecutor.
     async fn execute_tool(&mut self, tool_use: &ToolUse) -> ToolResult {
         if self.permission_mode == "ask" && !self.auto_approved_tools.contains(&tool_use.name) {
             if let Some(ref cb) = self.approval_callback {
@@ -284,45 +290,10 @@ impl ChatSession {
             }
         }
 
-        let context = ToolContext {
-            working_directory: self.working_directory.clone(),
-            user_id: None,
-            metadata: std::collections::HashMap::new(),
-            capabilities: None,
-            idempotency_registry: None,
-            staging_backend: None,
-        };
-
-        dispatch_tool(&tool_use.id, &tool_use.name, &tool_use.input, &context).await
-    }
-}
-
-async fn dispatch_tool(
-    tool_use_id: &str,
-    tool_name: &str,
-    input: &serde_json::Value,
-    context: &ToolContext,
-) -> ToolResult {
-    match tool_name {
-        "bash" | "execute_command" => BashTool::execute(tool_use_id, tool_name, input, context),
-        "read_file" | "write_file" | "edit_file" | "patch_file" | "list_directory"
-        | "delete_file" | "create_directory" | "file_search" => {
-            FileOpsTool::execute(tool_use_id, tool_name, input, context)
-        }
-        "git_status" | "git_diff" | "git_log" | "git_stage" | "git_commit" | "git_push"
-        | "git_pull" | "git_branch" | "git_checkout" | "git_stash" | "git_reset" | "git_show"
-        | "git_blame" => GitTool::execute(tool_use_id, tool_name, input, context),
-        "search_code" | "search_files" => {
-            SearchTool::execute(tool_use_id, tool_name, input, context)
-        }
-        "check_duplicates" | "verify_build" | "check_syntax" => {
-            ValidationTool::execute(tool_use_id, tool_name, input, context).await
-        }
-        "fetch_url" => WebTool::execute(tool_use_id, tool_name, input, context).await,
-        _ => ToolResult::error(
-            tool_use_id.to_string(),
-            format!("Unknown tool: {tool_name}"),
-        ),
+        // Delegate to the framework's BuiltinToolExecutor
+        self.executor
+            .execute_tool(&tool_use.name, &tool_use.id, &tool_use.input)
+            .await
     }
 }
 

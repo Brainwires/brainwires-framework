@@ -34,8 +34,7 @@ async fn main() -> anyhow::Result<()> {
     println!("--- Step 2: Index a Codebase ---\n");
 
     // Index this crate's own source code as a demonstration
-    let crate_dir = std::env::var("CARGO_MANIFEST_DIR")
-        .unwrap_or_else(|_| ".".to_string());
+    let crate_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".to_string());
     let src_dir = std::path::Path::new(&crate_dir).join("src");
     let index_path = if src_dir.exists() {
         src_dir.display().to_string()
@@ -50,10 +49,7 @@ async fn main() -> anyhow::Result<()> {
         path: index_path.clone(),
         project: Some("rag-example".to_string()),
         include_patterns: vec!["**/*.rs".to_string()],
-        exclude_patterns: vec![
-            "**/target/**".to_string(),
-            "**/node_modules/**".to_string(),
-        ],
+        exclude_patterns: vec!["**/target/**".to_string(), "**/node_modules/**".to_string()],
         max_file_size: 1_048_576, // 1 MB
     };
 
@@ -120,12 +116,7 @@ async fn main() -> anyhow::Result<()> {
         );
 
         for (i, result) in response.results.iter().enumerate() {
-            let preview = result
-                .content
-                .lines()
-                .take(2)
-                .collect::<Vec<_>>()
-                .join(" ");
+            let preview = result.content.lines().take(2).collect::<Vec<_>>().join(" ");
             let preview = if preview.len() > 100 {
                 format!("{}...", &preview[..100])
             } else {

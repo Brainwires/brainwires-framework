@@ -92,3 +92,139 @@ impl WorkflowTrigger for ProgrammaticTrigger {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::super::forge::{CommitRef, Issue, PrState, PullRequest, RepoRef};
+    use super::*;
+
+    fn sample_repo() -> RepoRef {
+        RepoRef {
+            owner: "org".to_string(),
+            name: "repo".to_string(),
+        }
+    }
+
+    fn sample_issue() -> Issue {
+        Issue {
+            id: "1".to_string(),
+            number: 42,
+            title: "Fix login bug".to_string(),
+            body: "Users can't log in".to_string(),
+            labels: vec!["bug".to_string()],
+            author: "alice".to_string(),
+            url: "https://github.com/org/repo/issues/42".to_string(),
+        }
+    }
+
+    // --- WorkflowEvent serde roundtrips ---
+
+    #[test]
+    fn issue_opened_serde_roundtrip() {
+        let event = WorkflowEvent::IssueOpened {
+            issue: sample_issue(),
+            repo: sample_repo(),
+        };
+        let json = serde_json::to_string(&event).unwrap();
+        let back: WorkflowEvent = serde_json::from_str(&json).unwrap();
+        match back {
+            WorkflowEvent::IssueOpened { issue, repo } => {
+                assert_eq!(issue.number, 42);
+                assert_eq!(repo.name, "repo");
+            }
+            _ => panic!("wrong variant"),
+        }
+    }
+
+    #[test]
+    fn push_received_serde_roundtrip() {
+        let event = WorkflowEvent::PushReceived {
+            branch: "main".to_string(),
+            commits: vec![CommitRef {
+                sha: "abc123".to_string(),
+                message: "fix: login".to_string(),
+            }],
+            repo: sample_repo(),
+        };
+        let json = serde_json::to_string(&event).unwrap();
+        let back: WorkflowEvent = serde_json::from_str(&json).unwrap();
+        match back {
+            WorkflowEvent::PushReceived {
+                branch, commits, ..
+            } => {
+                assert_eq!(branch, "main");
+                assert_eq!(commits.len(), 1);
+                assert_eq!(commits[0].sha, "abc123");
+            }
+            _ => panic!("wrong variant"),
+        }
+    }
+
+    #[test]
+    fn manual_event_serde_roundtrip() {
+        let event = WorkflowEvent::Manual {
+            description: "Run analysis".to_string(),
+            repo: sample_repo(),
+        };
+        let json = serde_json::to_string(&event).unwrap();
+        let back: WorkflowEvent = serde_json::from_str(&json).unwrap();
+        match back {
+            WorkflowEvent::Manual { description, .. } => {
+                assert_eq!(description, "Run analysis");
+            }
+            _ => panic!("wrong variant"),
+        }
+    }
+
+    #[test]
+    fn pr_review_approved_serde_roundtrip() {
+        let event = WorkflowEvent::PrReviewApproved {
+            pr: PullRequest {
+                id: "pr-1".to_string(),
+                number: 5,
+                title: "Fix bug".to_string(),
+                body: "body".to_string(),
+                head_branch: "fix/bug".to_string(),
+                base_branch: "main".to_string(),
+                url: "https://github.com/org/repo/pull/5".to_string(),
+                state: PrState::Open,
+            },
+            repo: sample_repo(),
+        };
+        let json = serde_json::to_string(&event).unwrap();
+        let back: WorkflowEvent = serde_json::from_str(&json).unwrap();
+        match back {
+            WorkflowEvent::PrReviewApproved { pr, .. } => {
+                assert_eq!(pr.number, 5);
+                assert_eq!(pr.state, PrState::Open);
+            }
+            _ => panic!("wrong variant"),
+        }
+    }
+
+    // --- ProgrammaticTrigger ---
+
+    #[tokio::test]
+    async fn programmatic_trigger_start_is_noop() {
+        let trigger = ProgrammaticTrigger::new();
+        let (tx, _rx) = mpsc::channel(1);
+        trigger.start(tx).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn programmatic_trigger_emit_without_channel_succeeds() {
+        let trigger = ProgrammaticTrigger::new();
+        let event = WorkflowEvent::Manual {
+            description: "test".to_string(),
+            repo: sample_repo(),
+        };
+        // Without a connected channel, emit is a no-op
+        trigger.emit(event).await.unwrap();
+    }
+
+    #[test]
+    fn programmatic_trigger_default_is_new() {
+        let trigger = ProgrammaticTrigger::default();
+        assert!(trigger.tx.is_none());
+    }
+}

@@ -7,6 +7,131 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-03-31
+
+### Added
+
+#### New Crates
+
+- **`brainwires-analytics`** — Unified analytics collection, persistence, and querying for the framework. `AnalyticsCollector` multi-sink dispatcher with 10 typed event variants: `ProviderCall` (tokens, cost, latency), `AgentRun` (iterations, tool calls, total cost), `ToolCall`, `McpRequest`, `ChannelMessage`, `StorageOp`, `NetworkMessage`, `DreamCycle`, `AutonomySession`, and `Custom` (escape hatch). `AnalyticsLayer` — drop-in `tracing-subscriber` layer that automatically intercepts known span names (`provider.chat`, etc.) without modifying instrumented code. `MemoryAnalyticsSink` — in-process ring buffer. `SqliteAnalyticsSink` + `AnalyticsQuery` (feature `sqlite`) — local SQLite persistence and aggregated reporting: `cost_by_model()`, `tool_frequency()`, `daily_summary()`, `rebuild_summaries()`. All event types are fully serializable.
+
+- **`brainwires-channels`** — Universal messaging channel contract for adapter implementations. Provides `Channel` trait (7 async methods), `ChannelMessage`, `ChannelEvent` (8 variants), `ChannelCapabilities` (12 bitflags), `ChannelUser`, `ChannelSession`, `ConversationId`, and `ChannelHandshake` protocol. Bidirectional conversion between `ChannelMessage` and agent-network `MessageEnvelope`.
+- **`brainwires-mcp-server`** — MCP server framework extracted from `brainwires-agent-network`. Provides `McpServer`, `McpHandler` trait, `McpToolRegistry` (declarative tool registration + dispatch), `ServerTransport`/`StdioServerTransport`, and a composable middleware pipeline: `AuthMiddleware`, `LoggingMiddleware`, `RateLimitMiddleware`, `ToolFilterMiddleware`.
+
+#### Agents (`brainwires-agents`)
+
+- **`ChatAgent`** — Reusable streaming completion loop with per-user session management. Methods: `restore_messages()`, `compact_history()`.
+- **Session persistence** — `SessionStore` trait + `JsonFileStore` implementation for persisting conversation history across restarts. Wired into BrainClaw via `memory.persist_conversations` config.
+
+#### Tool System (`brainwires-tool-system`)
+
+- **`BuiltinToolExecutor`** — Centralized dispatch executor for all built-in tools, eliminating duplication across agent implementations.
+- **Email tools** (feature `email`) — IMAP/SMTP/Gmail read, send, search, and manage operations.
+- **Calendar tools** (feature `calendar`) — Google Calendar/CalDAV event creation, listing, and update operations.
+
+#### Code Interpreters (`brainwires-code-interpreters`)
+
+- **Docker sandbox** — Container-isolated code execution via Docker; `Dockerfile.sandbox` at `crates/brainwires-code-interpreters/docker/`.
+
+#### Skills (`brainwires-skills`)
+
+- **`SkillPackage`** — Distributable skill package format with manifest, skill_content, SHA-256 checksum, and optional ed25519 signature.
+- **`RegistryClient`** — HTTP client for publishing to and downloading from a skill registry server.
+- **ed25519 signing** (feature `signing`) — Sign and verify skill packages for supply-chain safety.
+
+#### Agent Networking (`brainwires-agent-network`)
+
+- **Device allowlists** — `DeviceAllowlist`, `DeviceStatus` (Allowed/Blocked/Pending), `OrgPolicies`. Bridge computes a SHA-256 device fingerprint from machine-id + hostname + OS on every `Register` message; bails on `Blocked` status from server.
+- **Sender verification** — Channel-type and channel-ID allowlists enforced at WebSocket handshake time; master `channels_enabled` switch.
+- **Permission relay** — `PermissionRequest`/`PermissionResponse` message types. `PermissionRelay` module with pending request map (oneshot channels), session-allowed list, and configurable timeout. `RemoteBridge::send_permission_request()` sends a request and awaits approval; auto-denies on timeout.
+
+#### Hardware (`brainwires-hardware`)
+
+- **Voice Activity Detection** (always available with `audio`) — `VoiceActivityDetector` trait + `EnergyVad` (pure-Rust RMS energy threshold, no extra deps). Feature `vad` adds `WebRtcVad` (three aggressiveness modes: Quality, LowBitrate, Aggressive, VeryAggressive) via `webrtc-vad 0.4`. Helpers: `SpeechSegment`, `rms_db()`, `pcm_to_i16_mono()`, `pcm_to_f32()`.
+- **Wake word detection** (feature `wake-word`) — `WakeWordDetector` trait + `WakeWordDetection` event. `EnergyTriggerDetector` — zero-dependency energy-burst trigger (fires when audio energy exceeds a dB threshold for N consecutive 30 ms frames). Optional `wake-word-rustpotter` feature adds `RustpotterDetector` (pure-Rust DTW/ONNX, `.rpw` model files). Optional `wake-word-porcupine` feature adds `PorcupineDetector` (Picovoice, builtin keywords + custom `.ppn` files).
+- **Voice assistant pipeline** (feature `voice-assistant`) — `VoiceAssistant` orchestrates the full listen → wake word → VAD-gated capture → STT → handler → TTS → playback loop. `VoiceAssistantBuilder` for composing components. `VoiceAssistantHandler` async trait (`on_wake_word`, `on_speech`, `on_error`). `VoiceAssistantConfig` (silence threshold/duration, max record duration, listen timeout, STT/TTS options, device selection). `AssistantState` enum (Idle/Listening/Processing/Speaking). `listen_once()` for single-shot capture + transcription without handler callbacks.
+- **Camera capture** (feature `camera`) — Cross-platform webcam/camera frame capture via `nokhwa` (V4L2 on Linux, AVFoundation on macOS, Media Foundation on Windows). `CameraCapture` async trait, `NokhwaCapture` impl with `spawn_blocking` bridge, `list_cameras()`, `open_camera(index, format)`, automatic MJPEG→RGB decoding. Types: `CameraDevice`, `CameraFrame`, `CameraFormat`, `Resolution`, `FrameRate`, `PixelFormat`, `CameraError`.
+- **Raw USB access** (feature `usb`) — Device enumeration and async bulk/control/interrupt transfers via `nusb` (pure Rust, no libusb system dependency). `UsbHandle::open()` auto-discovers bulk endpoints from the interface descriptor. Types: `UsbDevice`, `UsbClass` (full USB-IF class code map), `UsbSpeed`, `UsbError`. `list_usb_devices()` reads string descriptors (manufacturer, product, serial) with graceful permission-error fallback.
+- **`brainwires-hardware` renamed from `brainwires-audio`** — Unified hardware abstraction crate. GPIO moved from `brainwires-autonomy`; Bluetooth and Network hardware added. `brainwires-autonomy` re-exports GPIO via `pub use brainwires_hardware::gpio` for backward compatibility.
+- **Deprecated `brainwires-audio`** — Stub crate at `deprecated/brainwires-audio`; re-exports `brainwires-hardware` with `audio` feature. Final release for ecosystem continuity.
+
+#### Autonomy (`brainwires-autonomy`)
+
+- **Autodream memory consolidation** (feature `dream`) — 4-phase consolidation cycle: orient → gather → consolidate → prune. Types: `DreamConsolidator`, `DemotionPolicy` (age/importance/budget thresholds), `DreamSummarizer` (LLM-powered compression), `FactExtractor` (5 categories: entities, relationships, events, preferences, habits), `DreamMetrics`, `DreamReport`, `DreamTask` (scheduled via `AutonomyScheduler`).
+
+#### Cognition (`brainwires-cognition`)
+
+- **Hindsight-inspired memory retrieval** — `detect_temporal_query()` scores temporal-intent keywords and dynamically boosts recency weighting in `search_adaptive_multi_factor()`. `CrossEncoderReranker` (implements `DiversityReranker`) blends retrieval scores with query-document cosine similarity via configurable `alpha`; `RerankerKind` supports `Spectral`, `CrossEncoder`, or `Both` (two-pass: diversity then relevance). `RagClient::query_ensemble()` fans out concurrently across `SearchStrategy` variants (`Semantic`, `Keyword`, `GitHistory`, `CodeNavigation`) and fuses results via RRF. `MemoryBankConfig` — mission, content-blocking directives, and five disposition traits (`Analytical`/`Concise`/`Cautious`/`Creative`/`Systematic`, each ±0.1 retrieval score bias) integrated into `BrainClient`. `MultiFactorScore` gains `compute_with_weights()` and `recency_from_hours_fast()`; `TieredMemoryConfig` gains `temporal_boost` and `fast_decay` fields.
+- **Evidence tracking** — `Thought` gains `confidence`, `evidence_chain`, `reinforcement_count`, and `contradiction_count` fields. New `check_corroboration()` and `check_contradiction()` functions (negation-heuristic). `BrainClient` gains `apply_evidence_check()` and `replace_thought()`.
+- **Mental models tier** — New `MentalModelStore`, `MentalModel`, and `ModelType` enum (`Behavioral`/`Structural`/`Causal`/`Procedural`). `MemoryTier::MentalModel` added at the lowest hierarchy level. `TieredMemory` gains `synthesize_mental_model()` (explicit only — never auto-populated) and `search_mental_models()`; results appended to `search_adaptive_multi_factor()`.
+
+#### Autonomy / Agents — Empirical Evaluation (`brainwires-autonomy`, `brainwires-agents`, `brainwires-cognition`)
+
+- **Empirical eval harness** (feature `eval-driven`) — Zero-network, <1 ms deterministic evaluation cases. Eight cases: `EntityImportanceRankingCase`, `EntitySingleMentionCase`, `EntityTypeBonusCase`, `MultiFactorRankingCase`, `TierDemotionCase`, `TaskBidScoringCase` (0.4×capability + 0.3×availability + 0.3×speed), `ResourceBidScoringCase` (0.7×priority + 0.3×bid), `ComplexityHeuristicCase` (keyword-based task complexity scoring). Suites: `entity_importance_suite()`, `multi_factor_suite()`. New `ranking_metrics` module: `ndcg_at_k()`, `mrr()`, `precision_at_k()` with graded relevance support.
+
+#### Extras — Voice Assistant (`extras/voice-assistant/`)
+
+- **`voice-assistant`** binary — Personal voice assistant built on the framework. Mic capture → optional energy wake trigger → VAD-gated speech accumulation → OpenAI Whisper STT → LLM response (OpenAI chat completions) → OpenAI TTS playback. CLI flags: `--config <path.toml>`, `--list-devices`, `--wake-word <model>`, `--verbose`. TOML config covers STT model, TTS voice, silence tuning, wake word model, LLM model/system prompt, and device names. Clean Ctrl-C shutdown via `tokio::signal`.
+
+#### Extras — BrainClaw Suite (`extras/brainclaw/`)
+
+- **`brainclaw`** (daemon) — Self-hosted personal AI assistant. Multi-provider support (Anthropic, OpenAI, Google, Ollama, Groq, Together, Fireworks, Bedrock, Vertex AI), per-user agent sessions, TOML config (`~/.brainclaw/brainclaw.toml`), native/email/calendar feature flags.
+- **`brainwires-gateway`** — WebSocket/HTTP channel hub. `InboundHandler` trait for custom message processing; built-in `AgentInboundHandler` bridging channel events to `ChatAgent` sessions. WebChat browser UI at `/chat` with WebSocket at `/chat/ws`. Admin API (`/admin/*`) with Bearer token auth. Admin browser dashboard at `GET /admin/ui` (single-file dark-themed SPA; sections: Dashboard, Channels, Sessions, Cron Jobs, Identity, Broadcast). Webhook endpoint (`POST /webhook`) with HMAC-SHA256 verification. Media pipeline: attachment download, image description, audio transcription, size validation. Audit logger: structured JSON ring buffer via `tracing`. Metrics: atomic counters for messages, tool calls, errors, rate limits, spoofing blocks, and per-channel breakdowns. `/model` slash command for per-session model switching (`/model list`, `/model <name>`, `/model default`).
+- **`brainwires-discord-channel`** — Discord bot adapter (serenity). Reference `Channel` trait implementation. Optional MCP tool server mode (`--mcp`).
+- **`brainwires-telegram-channel`** — Telegram bot adapter (teloxide). `Channel` trait implementation, bidirectional gateway relay, optional MCP tool server (`--mcp`).
+- **`brainwires-slack-channel`** — Slack adapter using Socket Mode (reqwest, no public URL required). `Channel` trait implementation, optional MCP tool server (`--mcp`).
+- **`brainwires-mattermost-channel`** — Mattermost adapter using Mattermost WebSocket API. `Channel` trait implementation with send/edit/delete/history/react. Filtering: self-messages, channel allowlist, @mention requirement, team scoping. Optional MCP tool server (`--mcp`). Capabilities: `RICH_TEXT | THREADS | REACTIONS | TYPING_INDICATOR | EDIT_MESSAGES | DELETE_MESSAGES | MENTIONS`.
+- **`brainwires-signal-channel`** — Signal messenger adapter via `signal-cli-rest-api`. WebSocket push mode with polling fallback. `Channel` trait implementation. Filtering: self-messages, sender/group allowlists, @mention/keyword trigger for groups. Optional MCP tool server (`--mcp`): `send_message`, `add_reaction`. Capabilities: `REACTIONS`.
+- **`brainwires-skill-registry`** — HTTP skill registry server. SQLite with FTS5 full-text search. Endpoints: publish, search (query + tag filter), get manifest (latest or by version), download package. Auto-creates schema on first run.
+
+#### Extras — Issue Tracker (`extras/brainwires-issues/`)
+
+- **`brainwires-issues`** — Lightweight MCP-native issue tracking server inspired by Linear's agent interface. Serves 10 tools: `create_issue`, `get_issue` (accepts UUID or `#number`), `list_issues` (filters: project, status, assignee, label; offset-based pagination), `update_issue`, `close_issue`, `delete_issue` (optional cascade), `search_issues` (BM25 full-text with in-memory fallback), `add_comment`, `list_comments` (offset pagination), `delete_comment`. Four prompts: `/create`, `/list`, `/search`, `/triage`. Data model: `Issue` with UUID, auto-incrementing display number, title, description, status (Backlog/Todo/InProgress/InReview/Done/Cancelled), priority (NoPriority/Low/Medium/High/Urgent), labels (Vec<String>), assignee, project, parent_id for sub-issues, created/updated/closed timestamps. Comments with author and body. LanceDB backend at `<data_dir>/brainwires-issues/lancedb/`; BM25 full-text index at `<data_dir>/brainwires-issues/bm25/`.
+
+#### Extras — brainwires-cli (`extras/brainwires-cli/`)
+
+- **`brainwires-cli`** migrated into monorepo — The flagship AI-powered agentic CLI (76k lines) moved from a standalone repository with a framework git submodule into `extras/brainwires-cli/` as a root workspace member. Eliminates the two-repo submodule workflow; CI now covers CLI and framework changes together. `agent-chat` remains as the minimal reference implementation.
+
+#### Core Types (`brainwires-core`)
+
+- **`ChatOptions::model`** — New `model: Option<String>` field. When `Some`, all providers (Anthropic, OpenAI, OpenAI Responses, Gemini, Ollama, and OpenAI-compatible) substitute this model for their configured default on that request. Enables per-request and per-session model switching without recreating the provider. `ChatOptions` gains a `.model()` builder method.
+
+### Fixed
+
+#### Storage (`brainwires-storage`)
+
+- **LanceDB 0.27 upgrade** — Bumped `lancedb` from 0.26 to 0.27. Fixed `Scannable` API breaking change: `create_table()` and `add()` now require `T: Scannable`; cast `RecordBatchIterator` to `Box<dyn RecordBatchReader + Send>` at all callsites.
+- **SQL injection prevention** — `filter_to_sql()` now backtick-quotes all column names, preventing column identifiers from being misinterpreted as SQL keywords or operators. Three `LanceDatabase` callsites that interpolated user-controlled `project_name` and `root_path` values directly into SQL filter strings have been replaced with typed `Filter::Eq` expressions.
+- **BM25 parse errors logged** — `parse_query_lenient()` errors were silently discarded; now logged via `tracing::warn!` so dropped search terms are visible.
+- **BM25 schema drift recovery** — Opening an existing BM25 index now validates that all required fields (`id`, `content`, `file_path`) exist. On mismatch (e.g. after a schema change between versions) the stale index is deleted and rebuilt automatically.
+- **BM25 silent document loss fixed** — Documents with a missing or corrupt `id` field are now logged (`tracing::warn!`) instead of silently skipped, making index corruption visible.
+- **BM25 `STORED` flag added to `content` field** — The `content` field was indexed as `TEXT` only; adding `STORED` allows document content to be retrieved after indexing. Existing indexes are rebuilt automatically via the schema drift check above.
+
+#### Facade (`brainwires`)
+
+- Removed `brainwires-proxy` from the `full` feature flag. Extras are consumers of the framework, not framework dependencies; external consumers (such as `brainwires-cli`) do not have extras in their workspace. The `proxy` feature remains available as an explicit opt-in.
+
+#### Providers (`brainwires-providers`)
+
+- **llama-cpp-2 token API** — Replaced deprecated `token_to_str` with `token_to_piece` to restore compatibility with llama-cpp-2 ≥ 0.9.
+
+#### Analytics (`brainwires-analytics`)
+
+- **Runtime path coverage** — Analytics events wired into all remaining framework paths (Phases 7–9): per-iteration agent events, tool call tracking, MCP request events, and storage operation events.
+
+### Quality
+
+- **Test coverage expansion** — Added ~440 tests across 14 previously untested or undertested crates and extras. Coverage: A2A protocol serialization roundtrips; analytics event construction; brainwires-issues CRUD + BM25 search + pagination; mcp-matrix, mcp-whatsapp, mcp-mattermost, and mcp-signal config serde + protocol parsing + envelope helpers; hardware VAD, Bluetooth, GPIO, and network types via a mock backend; autonomy git workflows, merge policies, and webhook HMAC signatures; mcp-server middleware (auth, rate limiting, logging, connection context); storage BM25/RRF ranking correctness with tempdir-isolated indexes; provider trait contract via a zero-network `MockProvider` integration suite; audio-demo-ffi FFI type conversion roundtrips.
+
+### Refactored
+
+- **Deprecated mesh submodules removed** (`brainwires-agent-network`) — `mesh::discovery`, `mesh::error`, `mesh::node`, and `mesh::routing` deleted. `mesh::federation` and `mesh::topology` updated to use the canonical replacements: `AgentIdentity` (was `MeshNode`) and `NetworkError` (was `MeshError`). Only `FederationGateway`, `FederationPolicy`, `MeshTopology`, and `TopologyType` are now exported from `mesh::*`.
+
+- **BrainClaw workspace** — BrainClaw is now a self-contained Cargo workspace at `extras/brainclaw/`, excluded from the root workspace via `[workspace].exclude`. Members use path dependencies back to `crates/` for framework libraries.
+- **Docker Dockerfile** — Moved `extras/docker/Dockerfile.sandbox` to `crates/brainwires-code-interpreters/docker/` where it belongs alongside the crate it supports.
+- **`brainwires-mcp-server` extracted** — MCP server framework code was split out of `brainwires-agent-network` into its own publishable crate. `brainwires-agent-network` now depends on `brainwires-mcp-server`; consumers that only need to build MCP servers no longer need to pull in the full networking stack.
+- **`brainwires-channels` optional dep** — `brainwires-channels`' dependency on `brainwires-agent-network` is now optional, gated behind the `agent-network` feature flag (conversion module).
+
 ## [0.6.0] - 2026-03-23
 
 ### Changed
@@ -470,7 +595,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Peer discovery protocols
 - Federation gateways for cross-mesh communication
 
-#### Audio (`brainwires-audio`)
+#### Hardware (`brainwires-hardware`)
 - Hardware audio capture and playback (CPAL)
 - Speech-to-text and text-to-speech traits
 - FLAC encoding/decoding support
@@ -547,7 +672,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added CORS headers, resilient accept loop, and graceful shutdown.
 - Incremental SSE parser with multi-line data support.
 
-#### Audio (`brainwires-audio`)
+#### Hardware (`brainwires-hardware`)
 - Proper error handling for non-UTF-8 model paths in `WhisperStt`.
 
 #### RAG (`brainwires-rag`)

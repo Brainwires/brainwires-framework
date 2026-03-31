@@ -28,6 +28,14 @@ pub struct Thought {
     pub updated_at: i64,
     /// Soft-delete flag.
     pub deleted: bool,
+    /// Confidence in this thought, updated via EMA as corroborations/contradictions arrive.
+    pub confidence: f32,
+    /// IDs of other thoughts that form an evidence chain with this one.
+    pub evidence_chain: Vec<String>,
+    /// How many times this thought has been corroborated by new evidence.
+    pub reinforcement_count: u32,
+    /// How many times this thought has been contradicted by new evidence.
+    pub contradiction_count: u32,
 }
 
 impl Thought {
@@ -44,6 +52,10 @@ impl Thought {
             created_at: now,
             updated_at: now,
             deleted: false,
+            confidence: 0.5,
+            evidence_chain: Vec::new(),
+            reinforcement_count: 0,
+            contradiction_count: 0,
         }
     }
 

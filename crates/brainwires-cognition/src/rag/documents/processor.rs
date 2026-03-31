@@ -49,7 +49,7 @@ impl DocumentProcessor {
     }
 
     /// Extract text from PDF bytes
-    #[cfg(feature = "pdf-extract")]
+    #[cfg(feature = "pdf-extract-feature")]
     fn extract_pdf(bytes: &[u8]) -> Result<ExtractedDocument> {
         use pdf_extract::extract_text_from_mem;
 
@@ -79,7 +79,7 @@ impl DocumentProcessor {
     }
 
     /// Fallback PDF extraction when pdf-extract feature is disabled
-    #[cfg(not(feature = "pdf-extract"))]
+    #[cfg(not(feature = "pdf-extract-feature"))]
     fn extract_pdf(bytes: &[u8]) -> Result<ExtractedDocument> {
         // Basic fallback: try to extract visible text patterns
         let content = Self::extract_pdf_text_fallback(bytes);
@@ -89,7 +89,7 @@ impl DocumentProcessor {
     }
 
     /// Basic PDF text extraction fallback (extracts visible ASCII strings)
-    #[cfg(not(feature = "pdf-extract"))]
+    #[cfg(not(feature = "pdf-extract-feature"))]
     fn extract_pdf_text_fallback(bytes: &[u8]) -> String {
         // Look for text between parentheses (PDF string literals)
         // and between BT/ET text blocks

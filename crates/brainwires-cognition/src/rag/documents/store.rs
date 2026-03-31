@@ -274,7 +274,7 @@ impl DocumentStore {
         let batches = RecordBatchIterator::new(vec![Ok(batch)], schema);
 
         table
-            .add(Box::new(batches))
+            .add(Box::new(batches) as Box<dyn arrow_array::RecordBatchReader + Send>)
             .execute()
             .await
             .context("Failed to add document chunks to LanceDB")?;
@@ -358,11 +358,17 @@ impl DocumentStore {
         request: &DocumentSearchRequest,
         scope_id: &str,
     ) -> Result<Vec<DocumentSearchResult>> {
+        // BM25 pre-fetch uses a large multiplier so that rare terms (e.g.
+        // proper names) return all matching chunks before RRF fusion.  A 10×
+        // multiplier with a 50-result floor means a default limit=10 request
+        // still retrieves up to 100 BM25 candidates before ranking.
+        let bm25_prefetch = (request.limit * 10).max(50);
+
         // Run vector and BM25 searches in parallel
         let vector_future = self.vector_search(request);
         let bm25_results = self
             .bm25_manager
-            .search(scope_id, &request.query, request.limit * 2)?;
+            .search(scope_id, &request.query, bm25_prefetch)?;
 
         let vector_results = vector_future.await?;
 
@@ -372,8 +378,12 @@ impl DocumentStore {
             .map(|r| (r.chunk_id.clone(), r.vector_score))
             .collect();
 
-        // Perform RRF fusion
-        let fused = document_rrf_fusion(vector_for_rrf, bm25_results, request.limit);
+        // Fuse with a wider internal limit so that BM25-only hits (which score
+        // ~half of vector+BM25 hits in RRF due to missing the vector contribution)
+        // are not squeezed below the cutoff.  The final sort + truncate enforces
+        // the caller's requested limit.
+        let rrf_internal_limit = (request.limit * 2).max(20);
+        let fused = document_rrf_fusion(vector_for_rrf, bm25_results, rrf_internal_limit);
 
         // Build final results with combined scores
         let mut results = Vec::new();
@@ -413,12 +423,13 @@ impl DocumentStore {
             }
         }
 
-        // Sort by combined score
+        // Sort by combined score and enforce the caller's limit
         results.sort_by(|a, b| {
             b.score
                 .partial_cmp(&a.score)
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
+        results.truncate(request.limit);
 
         Ok(results)
     }

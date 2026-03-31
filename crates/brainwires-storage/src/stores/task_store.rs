@@ -309,9 +309,17 @@ impl TaskMetadata {
 // ── TaskStore ───────────────────────────────────────────────────────────
 
 /// Store for managing tasks
-#[derive(Clone)]
 pub struct TaskStore<B: StorageBackend + 'static = crate::databases::lance::LanceDatabase> {
     backend: Arc<B>,
+}
+
+// Manual Clone impl: Arc<B> is always Clone regardless of B
+impl<B: StorageBackend + 'static> Clone for TaskStore<B> {
+    fn clone(&self) -> Self {
+        Self {
+            backend: Arc::clone(&self.backend),
+        }
+    }
 }
 
 impl<B: StorageBackend + 'static> TaskStore<B> {

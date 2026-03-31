@@ -17,7 +17,7 @@ The framework is trait-based: implement a trait, pass it to the component, done.
 | `LifecycleHook` | `name`, `on_event` (+`priority`, `filter` defaults) | Framework event interception |
 | `StagingBackend` | `stage`, `commit`, `rollback`, `pending_count` | Two-phase file write commits |
 
-### RAG Traits (brainwires-rag)
+### RAG Traits (brainwires-cognition, feature `rag`)
 
 | Trait | Required Methods | Purpose |
 |-------|-----------------|---------|
@@ -62,8 +62,8 @@ The framework is trait-based: implement a trait, pass it to the component, done.
 
 | Trait | Crate | Purpose |
 |-------|-------|---------|
-| `TextToSpeech` | brainwires-audio | TTS synthesis backend |
-| `SpeechToText` | brainwires-audio | STT transcription backend |
+| `TextToSpeech` | brainwires-hardware | TTS synthesis backend |
+| `SpeechToText` | brainwires-hardware | STT transcription backend |
 | `LanguageExecutor` | brainwires-code-interpreters | Sandboxed code execution |
 | `Dataset` | brainwires-datasets | Training data container |
 | `FormatConverter` | brainwires-datasets | Training data format conversion |
@@ -149,10 +149,10 @@ See `crates/brainwires/examples/custom_embedding.rs` for a complete example.
 
 ### "I want custom RAG chunking"
 
-Implement `Chunker` from `brainwires::rag::indexer`:
+Implement `Chunker` from `brainwires::cognition::rag::indexer`:
 
 ```rust
-use brainwires::rag::indexer::{Chunker, CodeChunk, FileInfo, ChunkStrategy, CodeChunker};
+use brainwires::cognition::rag::indexer::{Chunker, CodeChunk, FileInfo, ChunkStrategy, CodeChunker};
 use std::sync::Arc;
 
 struct SemanticChunker;
@@ -171,10 +171,10 @@ let chunker = CodeChunker::new(strategy);
 
 ### "I want custom search scoring"
 
-Implement `SearchScorer` from `brainwires::rag::bm25_search`:
+Implement `SearchScorer` from `brainwires::cognition::rag::bm25_search`:
 
 ```rust
-use brainwires::rag::bm25_search::{SearchScorer, BM25Result};
+use brainwires::cognition::rag::bm25_search::{SearchScorer, BM25Result};
 use std::sync::Arc;
 
 struct CrossEncoderReranker;
@@ -227,7 +227,7 @@ The facade crate (`brainwires`) gates each subsystem behind a feature flag.
 
 ```toml
 [dependencies]
-brainwires = { version = "0.6", features = ["researcher"] }
+brainwires = { version = "0.7", features = ["researcher"] }
 ```
 
 This enables: `providers`, `agents`, `storage`, `rag`, `training`, `datasets`.
@@ -241,18 +241,21 @@ This enables: `providers`, `agents`, `storage`, `rag`, `training`, `datasets`.
 | `storage` | `brainwires-storage` (with native) | lancedb, arrow, fastembed |
 | `mcp` | `brainwires-mcp` | rmcp |
 | `mdap` | `brainwires-agents/mdap` | — |
-| `prompting` | `brainwires-prompting` | linfa-clustering, ndarray |
+| `prompting` | `brainwires-cognition/prompting` | linfa-clustering, ndarray |
 | `permissions` | `brainwires-permissions` | — |
-| `rag` | `brainwires-rag` (with native, lancedb) | lancedb, tantivy, tree-sitter |
+| `rag` | `brainwires-cognition/rag` + `brainwires-storage` | lancedb, tantivy, tree-sitter |
 | `providers` | `brainwires-providers` | reqwest |
-| `seal` | `brainwires-seal` | — |
-| `relay` | `brainwires-relay` | — |
+| `seal` | `brainwires-agents/seal` | — |
+| `agent-network` | `brainwires-agent-network` | — |
 | `skills` | `brainwires-skills` | — |
-| `audio` | `brainwires-audio` | — |
+| `audio` | `brainwires-hardware/audio` | — |
+| `gpio` | `brainwires-hardware/gpio` | — |
+| `bluetooth` | `brainwires-hardware/bluetooth` | — |
+| `network-hardware` | `brainwires-hardware/network` | — |
 | `datasets` | `brainwires-datasets` | — |
 | `training` | `brainwires-training` | — |
 | `autonomy` | `brainwires-autonomy` | — |
-| `brain` | `brainwires-brain` | — |
+| `brain` | `brainwires-cognition/knowledge` | — |
 
 ### Compound features
 
@@ -279,9 +282,10 @@ This enables: `providers`, `agents`, `storage`, `rag`, `training`, `datasets`.
 brainwires (facade)
   ├── brainwires-core (always)       ← core traits, types, errors
   ├── brainwires-tool-system         ← ToolExecutor, built-in tools
-  ├── brainwires-agents              ← AgentRuntime, CommunicationHub
+  ├── brainwires-agents              ← AgentRuntime, CommunicationHub, SEAL
   ├── brainwires-providers           ← Anthropic, OpenAI, Google, Ollama
-  ├── brainwires-rag                 ← Chunker, SearchScorer, VectorDatabase
+  ├── brainwires-cognition           ← RAG, Knowledge/Brain, Prompting, Spectral
+  ├── brainwires-agent-network       ← MCP server, IPC, remote, mesh
   ├── brainwires-storage             ← TieredMemory, LanceDB stores
   ├── brainwires-training            ← Fine-tuning backends
   └── brainwires-datasets            ← Dataset containers, format converters
@@ -292,7 +296,7 @@ brainwires (facade)
 - **Pure types/traits with no heavy deps** → `brainwires-core`
 - **Tool implementations** → `brainwires-tool-system`
 - **Agent coordination** → `brainwires-agents`
-- **RAG pipeline components** → `brainwires-rag`
+- **RAG pipeline components** → `brainwires-cognition`
 
 ### Error handling
 

@@ -17,9 +17,11 @@ categories = ["development-tools"]
 brainwires-core.workspace = true
 brainwires-agents = { workspace = true, optional = true }
 brainwires-tool-system = { workspace = true, optional = true }
+brainwires-providers = { workspace = true, optional = true }
 brainwires-training = { workspace = true, optional = true }
 brainwires-cognition = { workspace = true, optional = true }
 brainwires-datasets = { workspace = true, optional = true }
+brainwires-storage = { workspace = true, optional = true }
 
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -30,6 +32,7 @@ tokio = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }
 tracing = { workspace = true }
+futures = { workspace = true, optional = true }
 sha2 = { workspace = true }
 hex = { workspace = true }
 dirs = { workspace = true }
@@ -47,9 +50,11 @@ hmac = { version = "0.12", optional = true }
 sha1 = { version = "0.10", optional = true }
 subtle = { workspace = true, optional = true }
 
-# GPIO (Linux-only)
-gpio-cdev = { version = "0.6", optional = true }
-sysfs_gpio = { version = "0.6", optional = true }
+# GPIO via brainwires-hardware
+brainwires-hardware = { workspace = true, optional = true, features = ["gpio"] }
+
+# Analytics
+brainwires-analytics = { workspace = true, optional = true }
 
 # Scheduler
 cron = { version = "0.15", optional = true }
@@ -64,7 +69,13 @@ wasm = ["brainwires-core/wasm"]
 
 # Self-improvement (extracted from CLI)
 self-improve = ["dep:brainwires-agents", "dep:brainwires-tool-system", "dep:regex", "dep:walkdir"]
-eval-driven = ["self-improve", "dep:brainwires-agents", "brainwires-agents/eval"]
+eval-driven = [
+    "self-improve",
+    "dep:brainwires-agents", "brainwires-agents/eval", "brainwires-agents/reasoning",
+    "dep:brainwires-cognition", "brainwires-cognition/knowledge",
+    "dep:brainwires-storage",
+    "dep:futures",
+]
 
 # Agent operations
 supervisor = ["dep:brainwires-agents"]
@@ -76,13 +87,18 @@ training = ["dep:brainwires-training", "dep:brainwires-datasets"]
 git-workflow = ["dep:brainwires-agents", "dep:brainwires-tool-system", "dep:reqwest", "dep:toml"]
 webhook = ["git-workflow", "dep:axum", "dep:hmac", "dep:sha1", "dep:subtle"]
 
+# Dream memory consolidation
+dream = ["dep:brainwires-providers", "dep:futures"]
+
 # Environment interaction
-gpio = ["dep:gpio-cdev", "dep:sysfs_gpio"]
+gpio = ["dep:brainwires-hardware"]
 scheduler = ["dep:cron"]
 reactor = ["dep:notify"]
 services = []
 
-full = ["self-improve", "eval-driven", "supervisor", "attention", "parallel", "training", "git-workflow", "webhook", "gpio", "scheduler", "reactor", "services"]
+analytics = ["dep:brainwires-analytics", "brainwires-analytics/native"]
+
+full = ["self-improve", "eval-driven", "supervisor", "attention", "parallel", "training", "git-workflow", "webhook", "gpio", "scheduler", "reactor", "services", "dream"]
 
 [[example]]
 name = "safety_guard"

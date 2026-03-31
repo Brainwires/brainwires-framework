@@ -393,7 +393,7 @@ mod tests {
 
     #[test]
     fn test_heuristic_selection_code() {
-        let selector = StrategySelectorBuilder::default();
+        let _selector = StrategySelectorBuilder::default();
         let result = select_heuristic_direct("Implement a new authentication system with OAuth2");
         assert_eq!(result.task_type, TaskType::Code);
     }

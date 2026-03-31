@@ -93,7 +93,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires-storage = "0.6"
+brainwires-storage = "0.7"
 ```
 
 Store and search conversation messages:
@@ -225,25 +225,25 @@ databases/
 
 ```toml
 # Default (LanceDB + full native functionality)
-brainwires-storage = "0.6"
+brainwires-storage = "0.7"
 
 # WASM-compatible (pure types and logic only)
-brainwires-storage = { version = "0.6", default-features = false, features = ["wasm"] }
+brainwires-storage = { version = "0.7", default-features = false, features = ["wasm"] }
 
 # With Qdrant backend (in addition to LanceDB)
-brainwires-storage = { version = "0.6", features = ["qdrant-backend"] }
+brainwires-storage = { version = "0.7", features = ["qdrant-backend"] }
 
 # PostgreSQL as primary backend
-brainwires-storage = { version = "0.6", features = ["postgres-backend"] }
+brainwires-storage = { version = "0.7", features = ["postgres-backend"] }
 
 # MySQL / MariaDB backend
-brainwires-storage = { version = "0.6", features = ["mysql-backend"] }
+brainwires-storage = { version = "0.7", features = ["mysql-backend"] }
 
 # SurrealDB backend (native vector search)
-brainwires-storage = { version = "0.6", features = ["surrealdb-backend"] }
+brainwires-storage = { version = "0.7", features = ["surrealdb-backend"] }
 
 # NornicDB with all transports
-brainwires-storage = { version = "0.6", features = ["nornicdb-full"] }
+brainwires-storage = { version = "0.7", features = ["nornicdb-full"] }
 ```
 
 **Module availability by feature:**
@@ -625,11 +625,11 @@ Use via the `brainwires` facade crate with the `storage` feature, or depend on `
 ```toml
 # Via facade
 [dependencies]
-brainwires = { version = "0.6", features = ["storage"] }
+brainwires = { version = "0.7", features = ["storage"] }
 
 # Direct
 [dependencies]
-brainwires-storage = "0.6"
+brainwires-storage = "0.7"
 ```
 
 The crate re-exports all components at the top level:

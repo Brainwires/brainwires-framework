@@ -42,7 +42,7 @@ impl DemoHandler {
         let card = AgentCard {
             name: "demo-agent".to_string(),
             description: "A demo A2A agent for the client/server example.".to_string(),
-            version: "0.1.0".to_string(),
+            version: "0.7.0".to_string(),
             supported_interfaces: vec![],
             capabilities: AgentCapabilities {
                 streaming: Some(false),
@@ -154,10 +154,7 @@ impl A2aHandler for DemoHandler {
         };
 
         // Store the task
-        self.tasks
-            .lock()
-            .unwrap()
-            .insert(task_id, task.clone());
+        self.tasks.lock().unwrap().insert(task_id, task.clone());
 
         Ok(SendMessageResponse {
             task: Some(task),
@@ -168,14 +165,12 @@ impl A2aHandler for DemoHandler {
     async fn on_send_streaming_message(
         &self,
         _req: SendMessageRequest,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamResponse, A2aError>> + Send>>, A2aError> {
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamResponse, A2aError>> + Send>>, A2aError>
+    {
         Err(A2aError::unsupported_operation("streaming not enabled"))
     }
 
-    async fn on_get_task(
-        &self,
-        req: GetTaskRequest,
-    ) -> Result<Task, A2aError> {
+    async fn on_get_task(&self, req: GetTaskRequest) -> Result<Task, A2aError> {
         self.tasks
             .lock()
             .unwrap()
@@ -184,10 +179,7 @@ impl A2aHandler for DemoHandler {
             .ok_or_else(|| A2aError::task_not_found(&req.id))
     }
 
-    async fn on_list_tasks(
-        &self,
-        _req: ListTasksRequest,
-    ) -> Result<ListTasksResponse, A2aError> {
+    async fn on_list_tasks(&self, _req: ListTasksRequest) -> Result<ListTasksResponse, A2aError> {
         let tasks: Vec<Task> = self.tasks.lock().unwrap().values().cloned().collect();
         let count = tasks.len() as i32;
         Ok(ListTasksResponse {
@@ -198,10 +190,7 @@ impl A2aHandler for DemoHandler {
         })
     }
 
-    async fn on_cancel_task(
-        &self,
-        req: CancelTaskRequest,
-    ) -> Result<Task, A2aError> {
+    async fn on_cancel_task(&self, req: CancelTaskRequest) -> Result<Task, A2aError> {
         let mut tasks = self.tasks.lock().unwrap();
         let task = tasks
             .get_mut(&req.id)
@@ -214,7 +203,8 @@ impl A2aHandler for DemoHandler {
     async fn on_subscribe_to_task(
         &self,
         _req: SubscribeToTaskRequest,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamResponse, A2aError>> + Send>>, A2aError> {
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamResponse, A2aError>> + Send>>, A2aError>
+    {
         Err(A2aError::unsupported_operation("streaming not enabled"))
     }
 }
@@ -277,7 +267,11 @@ async fn main() -> anyhow::Result<()> {
         println!("  Response task ID: {}", task.id);
         println!("  Task state:       {:?}", task.status.state);
         if let Some(msg) = &task.status.message {
-            let text = msg.parts.first().and_then(|p| p.text.as_deref()).unwrap_or("(none)");
+            let text = msg
+                .parts
+                .first()
+                .and_then(|p| p.text.as_deref())
+                .unwrap_or("(none)");
             println!("  Agent reply:      {text}");
         }
         if let Some(artifacts) = &task.artifacts {
@@ -297,16 +291,17 @@ async fn main() -> anyhow::Result<()> {
                 history_length: None,
             })
             .await?;
-        println!("  Fetched task: {} (state={:?})", fetched.id, fetched.status.state);
+        println!(
+            "  Fetched task: {} (state={:?})",
+            fetched.id, fetched.status.state
+        );
     }
     println!();
 
     // Step 5: List all tasks
     println!("--- List Tasks ---");
 
-    let list = client
-        .list_tasks(ListTasksRequest::default())
-        .await?;
+    let list = client.list_tasks(ListTasksRequest::default()).await?;
     println!("  Total tasks: {}", list.total_size);
     for t in &list.tasks {
         println!("    {} — {:?}", t.id, t.status.state);

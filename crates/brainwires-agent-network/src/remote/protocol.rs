@@ -39,6 +39,10 @@ pub enum ProtocolCapability {
     Priority,
     /// Telemetry and metrics
     Telemetry,
+    /// Device allowlist / permission relay
+    DeviceAllowlist,
+    /// Remote tool approval prompts
+    PermissionRelay,
 }
 
 impl ProtocolCapability {
@@ -49,7 +53,8 @@ impl ProtocolCapability {
             Self::Tools,
             Self::Attachments,
             Self::Priority,
-            // Future capabilities will be added here as implemented
+            Self::DeviceAllowlist,
+            Self::PermissionRelay,
         ]
     }
 }
@@ -88,6 +93,10 @@ pub struct RetryPolicy {
 
 fn default_initial_delay() -> u64 {
     100
+}
+
+fn default_permission_timeout() -> u32 {
+    60
 }
 
 impl Default for RetryPolicy {
@@ -213,6 +222,10 @@ pub enum RemoteMessage {
         /// Protocol negotiation (optional for backward compatibility)
         #[serde(skip_serializing_if = "Option::is_none")]
         protocol: Option<ProtocolHello>,
+        /// Stable device fingerprint — SHA-256(machine_id || hostname || os).
+        /// Used for device allowlist verification by the backend.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        device_fingerprint: Option<String>,
     },
 
     /// Regular heartbeat with agent status
@@ -266,6 +279,27 @@ pub enum RemoteMessage {
     },
 
     // ========================================================================
+    // Permission Relay (Phase 6)
+    // ========================================================================
+    /// Request permission from the remote user for a dangerous tool call
+    PermissionRequest {
+        /// Unique request identifier.
+        request_id: String,
+        /// Agent session ID that wants to execute the tool.
+        agent_id: String,
+        /// Tool name (e.g., "bash", "delete_file", "git_push").
+        tool_name: String,
+        /// Human-readable description of what the tool will do.
+        action: String,
+        /// Detailed context (command, file paths, etc.) as JSON.
+        #[serde(default)]
+        details: serde_json::Value,
+        /// Timeout in seconds (after which the request is auto-denied).
+        #[serde(default = "default_permission_timeout")]
+        timeout_secs: u32,
+    },
+
+    // ========================================================================
     // Attachment Responses (Phase 3)
     // ========================================================================
     /// Acknowledgment that attachment was received
@@ -302,6 +336,12 @@ pub enum BackendCommand {
         /// Negotiated protocol (optional for backward compatibility)
         #[serde(skip_serializing_if = "Option::is_none")]
         protocol: Option<ProtocolAccept>,
+        /// Device allowlist status returned by backend.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        device_status: Option<DeviceStatus>,
+        /// Organization-level policies (enforced client-side, verified server-side).
+        #[serde(skip_serializing_if = "Option::is_none")]
+        org_policies: Option<OrgPolicies>,
     },
 
     /// Send input to an agent
@@ -417,6 +457,23 @@ pub enum BackendCommand {
         is_final: bool,
     },
 
+    // ========================================================================
+    // Permission Relay (Phase 6)
+    // ========================================================================
+    /// Response to a permission request from the remote user
+    PermissionResponse {
+        /// The request_id from the original PermissionRequest.
+        request_id: String,
+        /// Whether the tool execution was approved.
+        approved: bool,
+        /// Remember this decision for the rest of the session.
+        #[serde(default)]
+        remember_for_session: bool,
+        /// If true, always allow this tool (no future prompts).
+        #[serde(default)]
+        always_allow: bool,
+    },
+
     /// Attachment upload complete - verify checksum
     AttachmentComplete {
         /// ID of the completed attachment.
@@ -424,6 +481,42 @@ pub enum BackendCommand {
         /// SHA-256 checksum of the complete (uncompressed) file
         checksum: String,
     },
+}
+
+// ============================================================================
+// Device Allowlist & Organization Policies
+// ============================================================================
+
+/// Device allowlist status returned by backend during authentication.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DeviceStatus {
+    /// Device is recognized and allowed.
+    Allowed,
+    /// Device is new and pending user approval (approve_new mode).
+    PendingApproval,
+    /// Device is explicitly blocked.
+    Blocked,
+}
+
+/// Organization-level policies that override user settings.
+///
+/// Sent by the backend during authentication. The CLI must enforce these
+/// locally for fast UX, but the server also validates server-side.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct OrgPolicies {
+    /// Tools that are always blocked by org policy.
+    #[serde(default)]
+    pub blocked_tools: Vec<String>,
+    /// Whether dangerous tool calls must go through permission relay.
+    #[serde(default)]
+    pub permission_relay_required: bool,
+    /// Device allowlist mode enforced by org (overrides user preference).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_allowlist_mode: Option<String>,
+    /// Whether all commands must be audit-logged.
+    #[serde(default)]
+    pub audit_all_commands: bool,
 }
 
 /// Compression algorithms supported for attachments
@@ -505,6 +598,86 @@ pub enum StreamChunkType {
     UserInput,
 }
 
+// ============================================================================
+// Device Fingerprint
+// ============================================================================
+
+/// Compute a stable device fingerprint: SHA-256(machine_id || hostname || os).
+///
+/// The fingerprint is stable across reboots but unique per machine.
+/// - Linux: reads `/etc/machine-id`
+/// - macOS: reads `IOPlatformUUID` via `ioreg`
+/// - Windows: reads `MachineGuid` from registry via `reg query`
+/// - Fallback: uses hostname + OS (less stable but always available)
+pub fn compute_device_fingerprint() -> String {
+    use sha2::{Digest, Sha256};
+
+    let machine_id = get_machine_id().unwrap_or_default();
+    let hostname = gethostname::gethostname().to_string_lossy().to_string();
+    let os = std::env::consts::OS;
+
+    let mut hasher = Sha256::new();
+    hasher.update(machine_id.as_bytes());
+    hasher.update(hostname.as_bytes());
+    hasher.update(os.as_bytes());
+    hex::encode(hasher.finalize())
+}
+
+/// Read the platform-specific machine identifier.
+fn get_machine_id() -> Option<String> {
+    #[cfg(target_os = "linux")]
+    {
+        std::fs::read_to_string("/etc/machine-id")
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("ioreg")
+            .args(["-rd1", "-c", "IOPlatformExpertDevice"])
+            .output()
+            .ok()
+            .and_then(|output| {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                for line in stdout.lines() {
+                    if line.contains("IOPlatformUUID") {
+                        return line
+                            .split('=')
+                            .nth(1)
+                            .map(|s| s.trim().trim_matches('"').to_string());
+                    }
+                }
+                None
+            })
+    }
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("reg")
+            .args([
+                "query",
+                r"HKLM\SOFTWARE\Microsoft\Cryptography",
+                "/v",
+                "MachineGuid",
+            ])
+            .output()
+            .ok()
+            .and_then(|output| {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                for line in stdout.lines() {
+                    if line.contains("MachineGuid") {
+                        return line.split_whitespace().last().map(|s| s.to_string());
+                    }
+                }
+                None
+            })
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    {
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -515,8 +688,9 @@ mod tests {
             api_key: "bw_prod_test123".to_string(),
             hostname: "my-laptop".to_string(),
             os: "linux".to_string(),
-            version: "0.6.0".to_string(),
+            version: "0.7.0".to_string(),
             protocol: None,
+            device_fingerprint: None,
         };
 
         let json = serde_json::to_string(&msg).unwrap();
@@ -530,8 +704,9 @@ mod tests {
             api_key: "bw_prod_test123".to_string(),
             hostname: "my-laptop".to_string(),
             os: "linux".to_string(),
-            version: "0.6.0".to_string(),
+            version: "0.7.0".to_string(),
             protocol: Some(ProtocolHello::default()),
+            device_fingerprint: Some("abc123def456".to_string()),
         };
 
         let json = serde_json::to_string(&msg).unwrap();
@@ -552,11 +727,15 @@ mod tests {
                 user_id,
                 refresh_interval_secs,
                 protocol,
+                device_status,
+                org_policies,
             } => {
                 assert_eq!(session_token, "abc123");
                 assert_eq!(user_id, "user-456");
                 assert_eq!(refresh_interval_secs, 30);
                 assert!(protocol.is_none());
+                assert!(device_status.is_none());
+                assert!(org_policies.is_none());
             }
             _ => panic!("Expected Authenticated command"),
         }

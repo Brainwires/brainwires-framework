@@ -17,6 +17,8 @@
 //! - **orchestrator** (`orchestrator` feature) - Rhai script orchestration
 //! - **code_exec** (`interpreters` feature) - Sandboxed multi-language code execution
 //! - **semantic_search** (`rag` feature) - RAG-powered semantic codebase search
+//! - **email** (`email` feature) - Email send/search/read/list via IMAP/SMTP
+//! - **calendar** (`calendar` feature) - Calendar CRUD and free/busy via Google Calendar/CalDAV
 //!
 //! ## Registry
 //! The `ToolRegistry` is a composable container. Create one and register
@@ -38,6 +40,7 @@ pub use brainwires_core::{
 
 // ── Always-available modules (pure logic, WASM-safe) ────────────────────────
 
+mod default_executor;
 mod error;
 pub mod executor;
 mod registry;
@@ -80,9 +83,19 @@ pub mod smart_router;
 #[cfg(feature = "openapi")]
 pub mod openapi;
 
+#[cfg(feature = "email")]
+mod email;
+
+#[cfg(feature = "calendar")]
+mod calendar;
+
+#[cfg(feature = "browser")]
+mod browser;
+
 // ── Public re-exports ────────────────────────────────────────────────────────
 
 // Always-available tools
+pub use default_executor::BuiltinToolExecutor;
 pub use error::{ResourceType, RetryStrategy, ToolErrorCategory, ToolOutcome, classify_error};
 pub use executor::{PreHookDecision, ToolExecutor, ToolPreHook};
 pub use registry::{ToolCategory, ToolRegistry};
@@ -131,3 +144,12 @@ pub use openapi::{
     HttpMethod, OpenApiAuth, OpenApiEndpoint, OpenApiParam, OpenApiTool, execute_openapi_tool,
     openapi_to_tools,
 };
+
+#[cfg(feature = "email")]
+pub use email::EmailTool;
+
+#[cfg(feature = "calendar")]
+pub use calendar::CalendarTool;
+
+#[cfg(feature = "browser")]
+pub use browser::BrowserTool;

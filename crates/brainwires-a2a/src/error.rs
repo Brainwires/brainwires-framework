@@ -167,3 +167,112 @@ impl From<anyhow::Error> for A2aError {
         Self::internal(err.to_string())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_sets_code_and_message() {
+        let e = A2aError::new(TASK_NOT_FOUND, "missing");
+        assert_eq!(e.code, TASK_NOT_FOUND);
+        assert_eq!(e.message, "missing");
+        assert!(e.data.is_none());
+    }
+
+    #[test]
+    fn with_data_attaches_payload() {
+        let e = A2aError::new(INTERNAL_ERROR, "boom").with_data(serde_json::json!({"detail": "x"}));
+        assert!(e.data.is_some());
+    }
+
+    #[test]
+    fn constructors_use_correct_codes() {
+        assert_eq!(A2aError::task_not_found("t1").code, TASK_NOT_FOUND);
+        assert_eq!(
+            A2aError::task_not_cancelable("t1").code,
+            TASK_NOT_CANCELABLE
+        );
+        assert_eq!(A2aError::push_not_supported().code, PUSH_NOT_SUPPORTED);
+        assert_eq!(
+            A2aError::unsupported_operation("x").code,
+            UNSUPPORTED_OPERATION
+        );
+        assert_eq!(
+            A2aError::content_type_not_supported("x").code,
+            CONTENT_TYPE_NOT_SUPPORTED
+        );
+        assert_eq!(A2aError::invalid_request("x").code, INVALID_REQUEST);
+        assert_eq!(A2aError::internal("x").code, INTERNAL_ERROR);
+        assert_eq!(A2aError::method_not_found("m").code, METHOD_NOT_FOUND);
+        assert_eq!(A2aError::invalid_params("x").code, INVALID_PARAMS);
+        assert_eq!(A2aError::parse_error("x").code, JSON_PARSE_ERROR);
+        assert_eq!(
+            A2aError::extended_card_not_configured().code,
+            EXTENDED_CARD_NOT_CONFIGURED
+        );
+        assert_eq!(
+            A2aError::extension_support_required().code,
+            EXTENSION_SUPPORT_REQUIRED
+        );
+        assert_eq!(
+            A2aError::version_not_supported().code,
+            VERSION_NOT_SUPPORTED
+        );
+    }
+
+    #[test]
+    fn task_not_found_includes_id_in_message() {
+        let e = A2aError::task_not_found("abc-123");
+        assert!(e.message.contains("abc-123"));
+    }
+
+    #[test]
+    fn display_includes_code_and_message() {
+        let e = A2aError::new(INTERNAL_ERROR, "oops");
+        let s = e.to_string();
+        assert!(s.contains(&INTERNAL_ERROR.to_string()));
+        assert!(s.contains("oops"));
+    }
+
+    #[test]
+    fn serde_roundtrip_without_data() {
+        let original = A2aError::task_not_found("t42");
+        let json = serde_json::to_string(&original).unwrap();
+        let decoded: A2aError = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.code, original.code);
+        assert_eq!(decoded.message, original.message);
+        assert!(decoded.data.is_none());
+    }
+
+    #[test]
+    fn serde_roundtrip_with_data() {
+        let original = A2aError::internal("err").with_data(serde_json::json!({"k": 1}));
+        let json = serde_json::to_string(&original).unwrap();
+        let decoded: A2aError = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.code, original.code);
+        assert!(decoded.data.is_some());
+    }
+
+    #[test]
+    fn from_serde_json_error() {
+        let bad: Result<serde_json::Value, _> = serde_json::from_str("{bad json}");
+        let a2a_err: A2aError = bad.unwrap_err().into();
+        assert_eq!(a2a_err.code, JSON_PARSE_ERROR);
+    }
+
+    #[test]
+    fn from_anyhow_error() {
+        let anyhow_err = anyhow::anyhow!("something went wrong");
+        let a2a_err: A2aError = anyhow_err.into();
+        assert_eq!(a2a_err.code, INTERNAL_ERROR);
+        assert!(a2a_err.message.contains("something went wrong"));
+    }
+
+    #[test]
+    fn data_field_omitted_when_none_in_json() {
+        let e = A2aError::new(TASK_NOT_FOUND, "x");
+        let json = serde_json::to_string(&e).unwrap();
+        assert!(!json.contains("data"));
+    }
+}

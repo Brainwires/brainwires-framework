@@ -286,24 +286,36 @@ pub fn extract_field_value(
     })
 }
 
+/// Escape a column name for use in a LanceDB SQL-like filter.
+///
+/// Wraps the name in backticks and escapes any backticks within the name,
+/// preventing column names from being misinterpreted as SQL keywords.
+fn quote_col(name: &str) -> String {
+    format!("`{}`", name.replace('`', "``"))
+}
+
 /// Convert a [`Filter`] to a LanceDB SQL-like filter string.
 ///
-/// Note: LanceDB filter syntax is SQL-like but not real SQL (no parameterized
-/// queries). This is intentionally separate from the `sql/` module which
-/// generates parameterized SQL for real databases.
+/// Column names are backtick-quoted to prevent injection when they coincide
+/// with SQL reserved words. String values are single-quote–escaped.
+///
+/// # Security note
+/// [`Filter::Raw`] is inherently unsafe — it accepts arbitrary SQL and cannot
+/// be escaped. It is deprecated and emits a warning at runtime. Callers should
+/// migrate to the typed `Filter` variants.
 pub fn filter_to_sql(filter: &Filter) -> String {
     match filter {
-        Filter::Eq(col, val) => format!("{col} = {}", value_to_sql(val)),
-        Filter::Ne(col, val) => format!("{col} != {}", value_to_sql(val)),
-        Filter::Lt(col, val) => format!("{col} < {}", value_to_sql(val)),
-        Filter::Lte(col, val) => format!("{col} <= {}", value_to_sql(val)),
-        Filter::Gt(col, val) => format!("{col} > {}", value_to_sql(val)),
-        Filter::Gte(col, val) => format!("{col} >= {}", value_to_sql(val)),
-        Filter::NotNull(col) => format!("{col} IS NOT NULL"),
-        Filter::IsNull(col) => format!("{col} IS NULL"),
+        Filter::Eq(col, val) => format!("{} = {}", quote_col(col), value_to_sql(val)),
+        Filter::Ne(col, val) => format!("{} != {}", quote_col(col), value_to_sql(val)),
+        Filter::Lt(col, val) => format!("{} < {}", quote_col(col), value_to_sql(val)),
+        Filter::Lte(col, val) => format!("{} <= {}", quote_col(col), value_to_sql(val)),
+        Filter::Gt(col, val) => format!("{} > {}", quote_col(col), value_to_sql(val)),
+        Filter::Gte(col, val) => format!("{} >= {}", quote_col(col), value_to_sql(val)),
+        Filter::NotNull(col) => format!("{} IS NOT NULL", quote_col(col)),
+        Filter::IsNull(col) => format!("{} IS NULL", quote_col(col)),
         Filter::In(col, vals) => {
             let items: Vec<String> = vals.iter().map(value_to_sql).collect();
-            format!("{col} IN ({})", items.join(", "))
+            format!("{} IN ({})", quote_col(col), items.join(", "))
         }
         Filter::And(parts) => {
             let clauses: Vec<String> = parts.iter().map(filter_to_sql).collect();
@@ -313,7 +325,17 @@ pub fn filter_to_sql(filter: &Filter) -> String {
             let clauses: Vec<String> = parts.iter().map(filter_to_sql).collect();
             format!("({})", clauses.join(" OR "))
         }
-        Filter::Raw(s) => s.clone(),
+        Filter::Raw(s) => {
+            // DEPRECATED: Filter::Raw passes through unescaped SQL and is
+            // inherently unsafe. Migrate callers to typed Filter variants.
+            // Emitting as-is for backward compatibility but logging a warning.
+            tracing::warn!(
+                "Filter::Raw is deprecated and unsafe — migrate to typed Filter variants. \
+                 Raw SQL: {:?}",
+                s
+            );
+            s.clone()
+        }
     }
 }
 

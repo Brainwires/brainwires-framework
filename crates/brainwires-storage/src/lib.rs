@@ -153,6 +153,8 @@ pub use stores::image_store::ImageStore;
 #[cfg(feature = "native")]
 pub use stores::lock_store::{LockRecord, LockStats, LockStore};
 #[cfg(feature = "native")]
+pub use stores::mental_model_store::{MentalModel, MentalModelStore, ModelType};
+#[cfg(feature = "native")]
 pub use stores::message_store::{MessageMetadata, MessageStore};
 #[cfg(feature = "native")]
 pub use stores::plan_store::PlanStore;
@@ -165,7 +167,7 @@ pub use stores::tier_metadata_store::TierMetadataStore;
 #[cfg(feature = "native")]
 pub use tiered_memory::{
     CanonicalWriteToken, MemoryAuthority, MemoryTier, MultiFactorScore, TieredMemory,
-    TieredMemoryConfig, TieredSearchResult,
+    TieredMemoryConfig, TieredMemoryStats, TieredSearchResult,
 };
 // persistent_task_manager re-exports moved to brainwires facade crate
 

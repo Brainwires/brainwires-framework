@@ -94,3 +94,48 @@ impl VertexAuth {
         vertex_raw_predict_url(&self.region, &self.project_id, model)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn vertex_stream_url_includes_region_project_model() {
+        let url = vertex_stream_url("us-central1", "my-project", "claude-3-5-sonnet-v2");
+        assert!(url.contains("us-central1"));
+        assert!(url.contains("my-project"));
+        assert!(url.contains("claude-3-5-sonnet-v2"));
+        assert!(url.contains("aiplatform.googleapis.com"));
+        assert!(url.ends_with("streamRawPredict"));
+    }
+
+    #[test]
+    fn vertex_raw_predict_url_ends_with_raw_predict() {
+        let url = vertex_raw_predict_url("europe-west4", "proj", "model");
+        assert!(url.ends_with("rawPredict"));
+        assert!(url.contains("europe-west4"));
+    }
+
+    #[test]
+    fn vertex_auth_stores_project_and_region() {
+        let auth = VertexAuth::new("my-project".to_string(), "us-central1".to_string());
+        assert_eq!(auth.project_id(), "my-project");
+        assert_eq!(auth.region(), "us-central1");
+    }
+
+    #[test]
+    fn vertex_auth_stream_url_matches_standalone() {
+        let auth = VertexAuth::new("my-project".to_string(), "us-central1".to_string());
+        let url = auth.stream_url("claude-v1");
+        let expected = vertex_stream_url("us-central1", "my-project", "claude-v1");
+        assert_eq!(url, expected);
+    }
+
+    #[test]
+    fn vertex_auth_raw_predict_url_matches_standalone() {
+        let auth = VertexAuth::new("proj".to_string(), "us-east4".to_string());
+        let url = auth.raw_predict_url("model-x");
+        let expected = vertex_raw_predict_url("us-east4", "proj", "model-x");
+        assert_eq!(url, expected);
+    }
+}

@@ -22,6 +22,8 @@ use anyhow::Result;
 use chrono::Utc;
 use uuid::Uuid;
 
+use crate::databases::StorageBackend;
+use crate::stores::mental_model_store::{MentalModel, MentalModelStore, ModelType};
 use crate::{
     EmbeddingProvider, FactStore, LanceDatabase, MessageMetadata, MessageStore, SummaryStore,
     TierMetadataStore,
@@ -37,6 +39,38 @@ const DEFAULT_HOT_IMPORTANCE_THRESHOLD: f32 = 0.3;
 const DEFAULT_WARM_IMPORTANCE_THRESHOLD: f32 = 0.1;
 const DEFAULT_MAX_HOT_MESSAGES: usize = 1000;
 const DEFAULT_MAX_WARM_SUMMARIES: usize = 5000;
+const FAST_DECAY_RATE: f32 = 0.05;
+
+/// Temporal keywords that imply a recency-sensitive query.
+const TEMPORAL_KEYWORDS: &[&str] = &[
+    "recent",
+    "recently",
+    "latest",
+    "last",
+    "current",
+    "currently",
+    "today",
+    "yesterday",
+    "this week",
+    "now",
+    "just",
+    "new",
+    "newest",
+];
+
+/// Detect whether a query is temporally sensitive.
+///
+/// Returns a score in `[0.0, 1.0]` based on keyword density: each matching
+/// keyword from [`TEMPORAL_KEYWORDS`] contributes 1 hit; score is clamped at
+/// `hits / 3.0` to avoid saturating on very long queries.
+fn detect_temporal_query(query: &str) -> f32 {
+    let lower = query.to_lowercase();
+    let hits = TEMPORAL_KEYWORDS
+        .iter()
+        .filter(|kw| lower.contains(*kw))
+        .count();
+    (hits as f32 / 3.0).min(1.0)
+}
 
 // ── Memory authority hierarchy ────────────────────────────────────────────────
 
@@ -116,6 +150,12 @@ pub enum MemoryTier {
     Warm,
     /// Key facts only - lowest fidelity but most compressed
     Cold,
+    /// Synthesised agent beliefs about patterns — the deepest tier.
+    ///
+    /// Entries are written explicitly via
+    /// [`TieredMemory::synthesize_mental_model`]; they are never populated
+    /// automatically.
+    MentalModel,
 }
 
 impl MemoryTier {
@@ -124,7 +164,8 @@ impl MemoryTier {
         match self {
             MemoryTier::Hot => Some(MemoryTier::Warm),
             MemoryTier::Warm => Some(MemoryTier::Cold),
-            MemoryTier::Cold => None,
+            MemoryTier::Cold => Some(MemoryTier::MentalModel),
+            MemoryTier::MentalModel => None,
         }
     }
 
@@ -134,6 +175,7 @@ impl MemoryTier {
             MemoryTier::Hot => None,
             MemoryTier::Warm => Some(MemoryTier::Hot),
             MemoryTier::Cold => Some(MemoryTier::Warm),
+            MemoryTier::MentalModel => Some(MemoryTier::Cold),
         }
     }
 }
@@ -272,11 +314,31 @@ pub struct MultiFactorScore {
 }
 
 impl MultiFactorScore {
-    /// Compute the combined score from its components.
+    /// Compute the combined score from its components using default weights.
     pub fn compute(similarity: f32, recency: f32, importance: f32) -> Self {
-        let combined = similarity * SIMILARITY_WEIGHT
-            + recency * RECENCY_WEIGHT
-            + importance * IMPORTANCE_WEIGHT;
+        Self::compute_with_weights(
+            similarity,
+            recency,
+            importance,
+            SIMILARITY_WEIGHT,
+            RECENCY_WEIGHT,
+            IMPORTANCE_WEIGHT,
+        )
+    }
+
+    /// Compute the combined score using caller-supplied weights.
+    ///
+    /// Weights need not sum to 1.0 — `combined` is the raw dot product and is
+    /// clamped to `[0.0, 1.0]` for consistency.
+    pub fn compute_with_weights(
+        similarity: f32,
+        recency: f32,
+        importance: f32,
+        sim_w: f32,
+        rec_w: f32,
+        imp_w: f32,
+    ) -> Self {
+        let combined = (similarity * sim_w + recency * rec_w + importance * imp_w).clamp(0.0, 1.0);
         Self {
             similarity,
             recency,
@@ -291,6 +353,11 @@ impl MultiFactorScore {
     /// Compute the recency factor from `hours_since_last_access`.
     pub fn recency_from_hours(hours_since_access: f32) -> f32 {
         (-Self::DECAY_RATE * hours_since_access).exp()
+    }
+
+    /// Compute the recency factor using the fast decay rate (`exp(-0.05 × h)`).
+    pub fn recency_from_hours_fast(hours_since_access: f32) -> f32 {
+        (-FAST_DECAY_RATE * hours_since_access).exp()
     }
 }
 
@@ -338,6 +405,22 @@ pub struct TieredMemoryConfig {
     /// `None` (the default) means no TTL — messages persist until explicitly
     /// deleted or demoted.
     pub session_ttl_secs: Option<u64>,
+    /// Extra recency weight added when a query is detected as temporally
+    /// sensitive (e.g. contains "recent", "latest", "today").
+    ///
+    /// The additional weight is proportional to the query's temporal score
+    /// (`0.0–1.0`).  The three weights are renormalised so they always sum to
+    /// `1.0`.  Default: `0.3`.
+    pub temporal_boost: f32,
+    /// Use a faster recency decay rate (`exp(-0.05 × h)` instead of
+    /// `exp(-0.01 × h)`) when the query is temporally sensitive.
+    ///
+    /// Default: `false`.
+    pub fast_decay: bool,
+    /// Maximum number of synthesised mental models to retain.
+    ///
+    /// Default: `500`.
+    pub max_mental_models: usize,
 }
 
 impl Default for TieredMemoryConfig {
@@ -350,6 +433,9 @@ impl Default for TieredMemoryConfig {
             max_hot_messages: DEFAULT_MAX_HOT_MESSAGES,
             max_warm_summaries: DEFAULT_MAX_WARM_SUMMARIES,
             session_ttl_secs: None,
+            temporal_boost: 0.3,
+            fast_decay: false,
+            max_mental_models: 500,
         }
     }
 }
@@ -368,6 +454,9 @@ pub struct TieredMemory {
     /// Metadata tracking for all messages (LanceDB-backed)
     tier_metadata: TierMetadataStore,
 
+    /// Mental model tier: synthesised beliefs (LanceDB-backed)
+    mental_model: MentalModelStore,
+
     /// Configuration
     config: TieredMemoryConfig,
 
@@ -384,11 +473,16 @@ impl TieredMemory {
         embeddings: Arc<EmbeddingProvider>,
         config: TieredMemoryConfig,
     ) -> Self {
+        let mental_model = MentalModelStore::new(
+            Arc::clone(&db) as Arc<dyn StorageBackend>,
+            Arc::clone(&embeddings),
+        );
         Self {
             hot: hot_store,
             warm: SummaryStore::new(Arc::clone(&db), Arc::clone(&embeddings)),
             cold: FactStore::new(Arc::clone(&db), Arc::clone(&embeddings)),
             tier_metadata: TierMetadataStore::new(db),
+            mental_model,
             config,
             embeddings,
         }
@@ -590,16 +684,30 @@ impl TieredMemory {
 
         let now_secs = chrono::Utc::now().timestamp();
 
+        // Compute temporal sensitivity once for the whole query.
+        let temporal_factor = detect_temporal_query(query);
+        let use_fast_decay = self.config.fast_decay && temporal_factor > 0.0;
+
+        // Derive per-query weights, renormalised so they sum to 1.0.
+        let extra_recency = self.config.temporal_boost * temporal_factor;
+        let rec_w = (RECENCY_WEIGHT + extra_recency).min(1.0);
+        let remaining = 1.0 - rec_w;
+        let sim_share = SIMILARITY_WEIGHT / (SIMILARITY_WEIGHT + IMPORTANCE_WEIGHT);
+        let sim_w = sim_share * remaining;
+        let imp_w = remaining - sim_w;
+
         for result in &mut results {
             let similarity = result.score;
 
             let (recency, importance) = if let Some(id) = &result.original_message_id {
                 if let Some(meta) = meta_map.get(id.as_str()) {
                     let hours_since = (now_secs - meta.last_accessed).max(0) as f32 / 3600.0;
-                    (
-                        MultiFactorScore::recency_from_hours(hours_since),
-                        meta.importance,
-                    )
+                    let rec = if use_fast_decay {
+                        MultiFactorScore::recency_from_hours_fast(hours_since)
+                    } else {
+                        MultiFactorScore::recency_from_hours(hours_since)
+                    };
+                    (rec, meta.importance)
                 } else {
                     (1.0_f32, 0.5_f32) // Fallback: assume fresh + average importance
                 }
@@ -607,8 +715,21 @@ impl TieredMemory {
                 (1.0_f32, 0.5_f32)
             };
 
-            result.multi_factor_score =
-                Some(MultiFactorScore::compute(similarity, recency, importance));
+            result.multi_factor_score = Some(MultiFactorScore::compute_with_weights(
+                similarity, recency, importance, sim_w, rec_w, imp_w,
+            ));
+        }
+
+        // Append mental model tier results (up to 5).
+        if let Ok(mm_results) = self.search_mental_models(query, 5).await {
+            for mut mm in mm_results {
+                mm.multi_factor_score = Some(MultiFactorScore::compute_with_weights(
+                    mm.score, 1.0, // mental models have no recency — treat as always fresh
+                    0.5, // default importance
+                    sim_w, rec_w, imp_w,
+                ));
+                results.push(mm);
+            }
         }
 
         // Re-sort by combined score (highest first).
@@ -694,12 +815,14 @@ impl TieredMemory {
         let hot_count = self.tier_metadata.count_by_tier(MemoryTier::Hot).await?;
         let warm_count = self.warm.count().await?;
         let cold_count = self.cold.count().await?;
+        let mental_model_count = self.mental_model.count().await.unwrap_or(0);
         let total_tracked = self.tier_metadata.count().await?;
 
         Ok(TieredMemoryStats {
             hot_count,
             warm_count,
             cold_count,
+            mental_model_count,
             total_tracked,
         })
     }
@@ -725,6 +848,50 @@ impl TieredMemory {
             created_at: Utc::now().timestamp(),
         }
     }
+
+    // ── Mental model tier ────────────────────────────────────────────────────
+
+    /// Synthesise and store a new mental model from a set of source fact IDs.
+    ///
+    /// Returns the new model's ID.
+    ///
+    /// The table is created on first call; subsequent calls reuse it.
+    pub async fn synthesize_mental_model(
+        &mut self,
+        fact_ids: &[String],
+        model_text: String,
+        model_type: ModelType,
+        conversation_id: String,
+    ) -> Result<String> {
+        self.mental_model.ensure_table().await?;
+
+        let mut model =
+            MentalModel::new(model_text, model_type, conversation_id, fact_ids.to_vec());
+        model.evidence_count = fact_ids.len() as u32;
+        let id = model.model_id.clone();
+        self.mental_model.add(model).await?;
+        Ok(id)
+    }
+
+    /// Semantic search over the mental model tier.
+    pub async fn search_mental_models(
+        &self,
+        query: &str,
+        limit: usize,
+    ) -> Result<Vec<TieredSearchResult>> {
+        let raw = self.mental_model.search(query, limit).await?;
+        Ok(raw
+            .into_iter()
+            .map(|(model, score)| TieredSearchResult {
+                content: model.model_text.clone(),
+                score,
+                tier: MemoryTier::MentalModel,
+                original_message_id: model.source_fact_ids.first().cloned(),
+                metadata: None,
+                multi_factor_score: None,
+            })
+            .collect())
+    }
 }
 
 /// Statistics about tiered memory usage
@@ -736,6 +903,8 @@ pub struct TieredMemoryStats {
     pub warm_count: usize,
     /// Number of entries in the cold tier.
     pub cold_count: usize,
+    /// Number of synthesised mental models.
+    pub mental_model_count: usize,
     /// Total tracked entries across all tiers.
     pub total_tracked: usize,
 }
@@ -807,7 +976,8 @@ mod tests {
     fn test_tier_demotion() {
         assert_eq!(MemoryTier::Hot.demote(), Some(MemoryTier::Warm));
         assert_eq!(MemoryTier::Warm.demote(), Some(MemoryTier::Cold));
-        assert_eq!(MemoryTier::Cold.demote(), None);
+        assert_eq!(MemoryTier::Cold.demote(), Some(MemoryTier::MentalModel));
+        assert_eq!(MemoryTier::MentalModel.demote(), None);
     }
 
     #[test]
@@ -815,6 +985,7 @@ mod tests {
         assert_eq!(MemoryTier::Hot.promote(), None);
         assert_eq!(MemoryTier::Warm.promote(), Some(MemoryTier::Hot));
         assert_eq!(MemoryTier::Cold.promote(), Some(MemoryTier::Warm));
+        assert_eq!(MemoryTier::MentalModel.promote(), Some(MemoryTier::Cold));
     }
 
     #[test]
@@ -890,5 +1061,81 @@ mod tests {
         // CanonicalWriteToken::new() is pub(crate) — this test being inside
         // the same crate confirms we can construct it; external crates cannot.
         let _token = CanonicalWriteToken::new();
+    }
+
+    // ── Feature 2: Temporal scoring ─────────────────────────────────────
+
+    #[test]
+    fn test_detect_temporal_query_empty() {
+        assert_eq!(detect_temporal_query(""), 0.0);
+    }
+
+    #[test]
+    fn test_detect_temporal_query_no_keywords() {
+        assert_eq!(detect_temporal_query("how does authentication work?"), 0.0);
+    }
+
+    #[test]
+    fn test_detect_temporal_query_single_keyword() {
+        let score = detect_temporal_query("what is the latest approach?");
+        assert!(score > 0.0, "expected score > 0 for 'latest'");
+    }
+
+    #[test]
+    fn test_detect_temporal_query_dense() {
+        let score = detect_temporal_query("what was the latest change today?");
+        assert!(score > 0.0);
+    }
+
+    #[test]
+    fn test_detect_temporal_query_max_clamp() {
+        // Five keywords — result must be <= 1.0
+        let score = detect_temporal_query("recent latest current today now new");
+        assert!(score <= 1.0, "score must not exceed 1.0");
+        assert!(score > 0.0);
+    }
+
+    #[test]
+    fn test_compute_with_weights_sum_normalised() {
+        // Weights sum to 1.0 — combined should equal the weighted sum, clamped.
+        let sim_w = 0.4_f32;
+        let rec_w = 0.4_f32;
+        let imp_w = 0.2_f32;
+        let score = MultiFactorScore::compute_with_weights(0.8, 0.9, 0.6, sim_w, rec_w, imp_w);
+        let expected = (0.8 * sim_w + 0.9 * rec_w + 0.6 * imp_w).clamp(0.0, 1.0);
+        assert!((score.combined - expected).abs() < 1e-5);
+    }
+
+    #[test]
+    fn test_compute_with_weights_matches_compute_for_default_weights() {
+        let a = MultiFactorScore::compute(0.7, 0.8, 0.5);
+        let b = MultiFactorScore::compute_with_weights(
+            0.7,
+            0.8,
+            0.5,
+            SIMILARITY_WEIGHT,
+            RECENCY_WEIGHT,
+            IMPORTANCE_WEIGHT,
+        );
+        assert!((a.combined - b.combined).abs() < 1e-5);
+    }
+
+    #[test]
+    fn test_temporal_config_defaults() {
+        let cfg = TieredMemoryConfig::default();
+        assert_eq!(cfg.temporal_boost, 0.3);
+        assert!(!cfg.fast_decay);
+    }
+
+    #[test]
+    fn test_fast_decay_rate_higher_than_normal() {
+        // Fast decay should make old items score lower than normal decay.
+        let hours = 48.0_f32;
+        let normal = MultiFactorScore::recency_from_hours(hours);
+        let fast = MultiFactorScore::recency_from_hours_fast(hours);
+        assert!(
+            fast < normal,
+            "fast decay should produce lower recency for old items"
+        );
     }
 }

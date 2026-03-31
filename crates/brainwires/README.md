@@ -41,7 +41,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires = "0.6"  # default features: tools + agents
+brainwires = "0.7"  # default features: tools + agents
 ```
 
 Then import via the prelude:
@@ -84,7 +84,16 @@ let response = provider.chat(&messages, None, &options).await?;
 | `proxy` | no | `brainwires-proxy` | AI proxy framework |
 | `a2a` | no | `brainwires-a2a` | Agent-to-Agent protocol |
 | `mesh` | no | `brainwires-agent-network/mesh` | Mesh networking for distributed agents |
-| `audio` | no | `brainwires-audio` | Audio capture, STT, TTS |
+| `audio` | no | `brainwires-hardware/audio` | Audio capture, STT, TTS (16 cloud providers + local Whisper) |
+| `vad` | no | `brainwires-hardware/vad` | WebRTC voice activity detection (`EnergyVad` always available with `audio`) |
+| `wake-word` | no | `brainwires-hardware/wake-word` | Wake word detection — `EnergyTriggerDetector` (zero deps) |
+| `wake-word-porcupine` | no | `brainwires-hardware/wake-word-porcupine` | Picovoice Porcupine wake word (requires AccessKey) |
+| `voice-assistant` | no | `brainwires-hardware/voice-assistant` | Full voice assistant pipeline (implies `audio` + `vad` + `wake-word`) |
+| `gpio` | no | `brainwires-hardware/gpio` | GPIO pin control with safety allow-lists (Linux) |
+| `bluetooth` | no | `brainwires-hardware/bluetooth` | BLE advertisement scanning and adapter enumeration |
+| `network-hardware` | no | `brainwires-hardware/network` | NIC enumeration, IP config, ARP discovery, port scanning |
+| `camera` | no | `brainwires-hardware/camera` | Webcam/camera frame capture (V4L2/AVFoundation/MSMF) |
+| `usb` | no | `brainwires-hardware/usb` | Raw USB device enumeration and transfers (no libusb) |
 | `datasets` | no | `brainwires-datasets` | Training data pipelines (JSONL, tokenization, dedup) |
 | `training` | no | `brainwires-training` | Model fine-tuning (cloud + local) |
 | `autonomy` | no | `brainwires-autonomy` | Self-improvement and evaluation-driven optimization |
@@ -138,7 +147,7 @@ let response = provider.chat(&messages, None, &options).await?;
 
 ```toml
 [dependencies]
-brainwires = { version = "0.6", features = ["agent-full"] }
+brainwires = { version = "0.7", features = ["agent-full"] }
 ```
 
 ```rust
@@ -163,7 +172,7 @@ let validation = ValidationConfig {
 
 ```toml
 [dependencies]
-brainwires = { version = "0.6", features = ["rag", "mcp-server"] }
+brainwires = { version = "0.7", features = ["rag", "mcp-server"] }
 ```
 
 ```rust
@@ -181,7 +190,7 @@ async fn main() -> anyhow::Result<()> {
 
 ```toml
 [dependencies]
-brainwires = { version = "0.6", features = ["rag"] }
+brainwires = { version = "0.7", features = ["rag"] }
 ```
 
 ```rust
@@ -200,7 +209,7 @@ for result in results {
 
 ```toml
 [dependencies]
-brainwires = { version = "0.6", features = ["learning"] }
+brainwires = { version = "0.7", features = ["learning"] }
 ```
 
 ```rust

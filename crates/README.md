@@ -14,8 +14,8 @@ brainwires  (facade — re-exports all crates via feature flags)
 ├─── Providers
 │    ├── brainwires-providers       AI providers (Anthropic, OpenAI, Google, Ollama, Bedrock, Vertex AI)
 │    │   └─> core
-│    └── brainwires-audio           Speech-to-text & text-to-speech
-│        └─> providers (opt)
+│    └── brainwires-hardware         Audio, GPIO, Bluetooth, network, camera, USB hardware I/O
+│        └─> providers (opt, "audio" feature)
 │
 ├─── Tools & Agents
 │    ├── brainwires-tool-system     Built-in tools (file ops, git, bash, web, search, validation)
@@ -62,6 +62,7 @@ brainwires  (facade — re-exports all crates via feature flags)
 │        └─> mdap (opt)
 │        └─> cognition (opt, "attention" feature)
 │        └─> datasets (opt)
+│        └─> hardware (opt, "gpio" feature — re-exports GPIO)
 │
 └─── WASM
      └── brainwires-wasm            Browser deployment bindings

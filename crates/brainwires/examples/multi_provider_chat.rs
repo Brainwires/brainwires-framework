@@ -16,10 +16,7 @@ use brainwires::chat::ChatProviderFactory;
 use brainwires::providers::{ProviderConfig, ProviderType};
 
 /// Send a single user message through a provider and print the response.
-async fn chat_with_provider(
-    provider: &dyn Provider,
-    prompt: &str,
-) -> Result<()> {
+async fn chat_with_provider(provider: &dyn Provider, prompt: &str) -> Result<()> {
     let messages = vec![Message::user(prompt)];
     let options = ChatOptions::default();
 
@@ -41,10 +38,7 @@ async fn main() -> Result<()> {
     // Ollama runs locally so it never needs a key. This makes it ideal for
     // development and CI.
     println!("=== Ollama (local) ===");
-    let ollama_config = ProviderConfig::new(
-        ProviderType::Ollama,
-        "llama3.1".to_string(),
-    );
+    let ollama_config = ProviderConfig::new(ProviderType::Ollama, "llama3.1".to_string());
     let ollama = ChatProviderFactory::create(&ollama_config)?;
     println!("  Provider name: {}", ollama.name());
 
@@ -53,11 +47,8 @@ async fn main() -> Result<()> {
     // The builder pattern lets you chain `.with_api_key()` for providers
     // that require authentication.
     println!("\n=== OpenAI ===");
-    let openai_config = ProviderConfig::new(
-        ProviderType::OpenAI,
-        "gpt-4o-mini".to_string(),
-    )
-    .with_api_key("sk-demo-key");
+    let openai_config = ProviderConfig::new(ProviderType::OpenAI, "gpt-4o-mini".to_string())
+        .with_api_key("sk-demo-key");
     let openai = ChatProviderFactory::create(&openai_config)?;
     println!("  Provider name: {}", openai.name());
 
@@ -77,11 +68,9 @@ async fn main() -> Result<()> {
     // Completions protocol — the factory dispatches to the correct base URL
     // automatically based on `ProviderType`.
     println!("\n=== Groq ===");
-    let groq_config = ProviderConfig::new(
-        ProviderType::Groq,
-        "llama-3.3-70b-versatile".to_string(),
-    )
-    .with_api_key("gsk_demo");
+    let groq_config =
+        ProviderConfig::new(ProviderType::Groq, "llama-3.3-70b-versatile".to_string())
+            .with_api_key("gsk_demo");
     let groq = ChatProviderFactory::create(&groq_config)?;
     println!("  Provider name: {}", groq.name());
 

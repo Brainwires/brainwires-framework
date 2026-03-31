@@ -1,0 +1,48 @@
+[package]
+name = "brainwires-channels"
+description = "Universal messaging channel contract for the Brainwires Agent Framework"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+readme = "README.md"
+documentation = "https://docs.rs/brainwires-channels"
+keywords = ["messaging", "channels", "discord", "telegram", "slack"]
+categories = ["network-programming"]
+
+[lib]
+name = "brainwires_channels"
+
+[dependencies]
+# Agent network (optional — only needed for MessageEnvelope conversion)
+brainwires-agent-network = { workspace = true, optional = true }
+
+# Async runtime
+async-trait = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+
+# Identifiers & time
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+# Schema generation
+schemars = { workspace = true, features = ["uuid1", "chrono04"] }
+
+# Capability flags
+bitflags = { workspace = true }
+
+[features]
+default = []
+agent-network = ["dep:brainwires-agent-network"]
+
+[dev-dependencies]
+serde_json = { workspace = true }

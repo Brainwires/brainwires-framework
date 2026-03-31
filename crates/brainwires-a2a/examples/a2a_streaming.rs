@@ -245,12 +245,8 @@ fn main() {
     // -----------------------------------------------------------------------
     println!("--- Round-Trip Verification ---");
 
-    let events: Vec<StreamResponse> = vec![
-        status_stream,
-        artifact_stream,
-        message_stream,
-        task_stream,
-    ];
+    let events: Vec<StreamResponse> =
+        vec![status_stream, artifact_stream, message_stream, task_stream];
 
     for (i, event) in events.iter().enumerate() {
         let serialized = serde_json::to_string(event).unwrap();

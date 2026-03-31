@@ -31,8 +31,11 @@ brainwires-code-interpreters = { workspace = true, optional = true }
 # Providers
 brainwires-providers = { workspace = true, optional = true }
 
-# Agent network (MCP server, IPC, remote bridge, mesh)
+# Agent network (IPC, remote bridge, mesh)
 brainwires-agent-network = { workspace = true, optional = true }
+
+# MCP server framework
+brainwires-mcp-server = { workspace = true, optional = true }
 
 # A2A protocol
 brainwires-a2a = { workspace = true, optional = true }
@@ -40,12 +43,9 @@ brainwires-a2a = { workspace = true, optional = true }
 # Skills system
 brainwires-skills = { workspace = true, optional = true }
 
-# Proxy framework
-brainwires-proxy = { workspace = true, optional = true }
 
-
-# Audio I/O, STT, TTS
-brainwires-audio = { workspace = true, optional = true }
+# Hardware I/O (audio, GPIO, Bluetooth, network)
+brainwires-hardware = { workspace = true, optional = true }
 
 # Datasets & Training
 brainwires-datasets = { workspace = true, optional = true }
@@ -53,6 +53,9 @@ brainwires-training = { workspace = true, optional = true }
 
 # Autonomy
 brainwires-autonomy = { workspace = true, optional = true }
+
+# Analytics
+brainwires-analytics = { workspace = true, optional = true }
 
 # MCP server re-exports (optional)
 rmcp = { workspace = true, optional = true }
@@ -112,19 +115,30 @@ chat = ["providers"]
 reasoning = ["agents", "brainwires-agents/reasoning"]
 seal = ["agents", "brainwires-agents/seal"]
 agent-network = ["dep:brainwires-agent-network"]
+mcp-server-framework = ["dep:brainwires-mcp-server"]
 skills = ["dep:brainwires-skills"]
 eval = ["agents", "brainwires-agents/eval"]
 otel = ["agents", "brainwires-agents/otel"]
-proxy = ["dep:brainwires-proxy"]
+# proxy feature removed — brainwires-proxy is an extras app, not a framework crate
 a2a = ["dep:brainwires-a2a", "brainwires-a2a/native"]
 mesh = ["agent-network", "brainwires-agent-network/mesh"]
-audio = ["dep:brainwires-audio"]
+audio = ["dep:brainwires-hardware", "brainwires-hardware/audio"]
+gpio = ["dep:brainwires-hardware", "brainwires-hardware/gpio"]
+bluetooth = ["dep:brainwires-hardware", "brainwires-hardware/bluetooth"]
+network-hardware = ["dep:brainwires-hardware", "brainwires-hardware/network"]
+camera = ["dep:brainwires-hardware", "brainwires-hardware/camera"]
+usb = ["dep:brainwires-hardware", "brainwires-hardware/usb"]
+vad = ["dep:brainwires-hardware", "brainwires-hardware/vad"]
+wake-word = ["dep:brainwires-hardware", "brainwires-hardware/wake-word"]
+wake-word-porcupine = ["dep:brainwires-hardware", "brainwires-hardware/wake-word-porcupine"]
+voice-assistant = ["dep:brainwires-hardware", "brainwires-hardware/voice-assistant"]
 datasets = ["dep:brainwires-datasets"]
 training = ["dep:brainwires-training"]
 training-cloud = ["training", "brainwires-training/cloud"]
 training-local = ["training", "brainwires-training/local"]
 training-full = ["training", "brainwires-training/full", "datasets", "brainwires-datasets/full"]
 autonomy = ["dep:brainwires-autonomy"]
+analytics = ["dep:brainwires-analytics", "brainwires-analytics/native", "brainwires-providers?/analytics"]
 brain = ["dep:brainwires-cognition", "brainwires-cognition/knowledge"]
 bedrock = ["providers", "brainwires-providers/bedrock"]
 vertex-ai = ["providers", "brainwires-providers/vertex-ai"]
@@ -141,9 +155,11 @@ full = [
     "prompting", "permissions", "orchestrator", "rag-full-languages", "interpreters",
     "providers", "chat", "reasoning", "seal", "agent-network",
     "brainwires-agents/seal-knowledge", "brainwires-agents/seal-mdap", "brainwires-agents/seal-feedback",
-    "llama-cpp-2", "mcp-server", "skills", "eval", "proxy",
-    "a2a", "mesh", "audio",
+    "llama-cpp-2", "mcp-server", "skills", "eval",
+    "a2a", "mesh", "audio", "gpio", "bluetooth", "network-hardware", "camera", "usb",
+    "vad", "wake-word", "voice-assistant", "mcp-server-framework",
     "training-cloud", "datasets",
     "autonomy",
+    "analytics",
 ]
 

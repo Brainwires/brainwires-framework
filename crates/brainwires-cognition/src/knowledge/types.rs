@@ -36,6 +36,21 @@ pub struct CaptureThoughtResponse {
     pub importance: f32,
     /// Number of facts extracted from the thought.
     pub facts_extracted: usize,
+    /// IDs of existing thoughts that corroborate this one.
+    pub corroborations: Vec<String>,
+    /// IDs of existing thoughts that contradict this one.
+    pub contradictions: Vec<String>,
+    /// Confidence assigned to this thought after evidence check (0.0–1.0).
+    pub confidence: f32,
+}
+
+/// Result of checking a thought against existing evidence.
+#[derive(Debug, Clone, Default)]
+pub struct EvidenceCheckResult {
+    /// IDs of thoughts that corroborate the new thought (score ≥ corroboration threshold).
+    pub corroborations: Vec<String>,
+    /// IDs of thoughts that contradict the new thought (similar but negation-divergent).
+    pub contradictions: Vec<String>,
 }
 
 // ── search_memory ────────────────────────────────────────────────────────

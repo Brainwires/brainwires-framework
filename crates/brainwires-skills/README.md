@@ -79,7 +79,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires-skills = "0.6"
+brainwires-skills = "0.7"
 ```
 
 Register and execute a skill:
@@ -519,11 +519,11 @@ Use via the `brainwires` facade crate with the `skills` feature, or depend on `b
 ```toml
 # Via facade
 [dependencies]
-brainwires = { version = "0.6", features = ["skills"] }
+brainwires = { version = "0.7", features = ["skills"] }
 
 # Direct
 [dependencies]
-brainwires-skills = "0.6"
+brainwires-skills = "0.7"
 ```
 
 The crate re-exports all components at the top level:

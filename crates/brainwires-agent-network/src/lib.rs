@@ -1,10 +1,10 @@
 #![deny(missing_docs)]
 //! # Brainwires Agent Network
 //!
-//! Agent networking layer for the Brainwires Agent Framework.
+//! Agent-to-agent networking layer for the Brainwires Agent Framework.
 //!
-//! Provides an MCP server framework, middleware pipeline, agent IPC,
-//! remote bridge, and optional mesh networking support.
+//! Provides IPC, remote bridge, mesh networking, routing, discovery,
+//! and pluggable transports for agent communication.
 //!
 //! ## Protocol-Layer Stack
 //!
@@ -16,39 +16,8 @@
 //! 4. **Discovery** — how agents find each other (mDNS, registry, manual)
 //! 5. **Application** — user-facing API (NetworkManager, events)
 
-// ============================================================================
-// MCP Server Framework
-// ============================================================================
-/// WebSocket/HTTP connection types.
-pub mod connection;
-/// Error types for the agent network crate.
-pub mod error;
-/// MCP request handler trait.
-pub mod handler;
-/// MCP server transport (stdio).
-pub mod mcp_transport;
-/// Middleware pipeline (auth, logging, rate-limiting, tool filtering).
-pub mod middleware;
-/// MCP tool registry.
-pub mod registry;
-/// MCP server lifecycle.
-pub mod server;
 /// Networking transport layer — pluggable transports for agent communication.
 pub mod transport;
-
-pub use connection::{ClientInfo, RequestContext};
-pub use error::AgentNetworkError;
-pub use handler::McpHandler;
-pub use mcp_transport::{ServerTransport, StdioServerTransport};
-pub use middleware::{Middleware, MiddlewareChain, MiddlewareResult};
-pub use registry::{McpToolDef, McpToolRegistry, ToolHandler};
-pub use server::McpServer;
-
-// Re-export middleware implementations
-pub use middleware::auth::AuthMiddleware;
-pub use middleware::logging::LoggingMiddleware;
-pub use middleware::rate_limit::RateLimitMiddleware;
-pub use middleware::tool_filter::ToolFilterMiddleware;
 
 // ============================================================================
 // Agent Communication Backbone (IPC, Auth, Remote)

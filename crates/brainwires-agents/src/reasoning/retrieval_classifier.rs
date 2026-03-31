@@ -355,7 +355,7 @@ mod tests {
 
     #[test]
     fn test_heuristic_classification_reference() {
-        let classifier = RetrievalClassifierBuilder::default();
+        let _classifier = RetrievalClassifierBuilder::default();
 
         // Test reference patterns
         let result = classify_heuristic_direct("What did we discuss earlier?", 10);

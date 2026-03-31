@@ -124,3 +124,18 @@ impl ImprovementStrategy for DeadCodeStrategy {
         Ok(tasks)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn strategy_name_is_dead_code() {
+        assert_eq!(DeadCodeStrategy.name(), "dead_code");
+    }
+
+    #[test]
+    fn strategy_category_is_dead_code() {
+        assert_eq!(DeadCodeStrategy.category(), ImprovementCategory::DeadCode);
+    }
+}

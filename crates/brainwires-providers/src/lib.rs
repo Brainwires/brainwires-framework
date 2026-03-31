@@ -305,6 +305,10 @@ pub struct ProviderConfig {
     /// Additional provider-specific options
     #[serde(flatten)]
     pub options: std::collections::HashMap<String, serde_json::Value>,
+    /// Analytics collector — not serialized, threaded through at runtime.
+    #[cfg(feature = "analytics")]
+    #[serde(skip)]
+    pub analytics_collector: Option<std::sync::Arc<brainwires_analytics::AnalyticsCollector>>,
 }
 
 impl ProviderConfig {
@@ -316,6 +320,8 @@ impl ProviderConfig {
             api_key: None,
             base_url: None,
             options: std::collections::HashMap::new(),
+            #[cfg(feature = "analytics")]
+            analytics_collector: None,
         }
     }
 
@@ -345,6 +351,16 @@ impl ProviderConfig {
     /// Set the GCP project ID (for Vertex AI).
     pub fn with_project_id(self, project_id: impl Into<String>) -> Self {
         self.with_option("project_id", serde_json::Value::String(project_id.into()))
+    }
+
+    /// Attach an analytics collector — called by the factory layer before provider construction.
+    #[cfg(feature = "analytics")]
+    pub fn with_analytics(
+        mut self,
+        collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>,
+    ) -> Self {
+        self.analytics_collector = Some(collector);
+        self
     }
 }
 

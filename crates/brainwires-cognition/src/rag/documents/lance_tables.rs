@@ -82,7 +82,10 @@ pub async fn ensure_documents_table(connection: &Connection, embedding_dim: usiz
     let batches = RecordBatchIterator::new(vec![Ok(empty_batch)], schema);
 
     connection
-        .create_table(DOCUMENTS_TABLE, Box::new(batches))
+        .create_table(
+            DOCUMENTS_TABLE,
+            Box::new(batches) as Box<dyn arrow_array::RecordBatchReader + Send>,
+        )
         .execute()
         .await
         .context("Failed to create documents table")?;
@@ -103,7 +106,10 @@ pub async fn ensure_document_metadata_table(connection: &Connection) -> Result<(
     let batches = RecordBatchIterator::new(vec![Ok(empty_batch)], schema);
 
     connection
-        .create_table(DOCUMENT_METADATA_TABLE, Box::new(batches))
+        .create_table(
+            DOCUMENT_METADATA_TABLE,
+            Box::new(batches) as Box<dyn arrow_array::RecordBatchReader + Send>,
+        )
         .execute()
         .await
         .context("Failed to create document_metadata table")?;

@@ -28,15 +28,27 @@
 //! ```
 
 pub mod executor;
+pub mod manifest;
 pub mod metadata;
+pub mod package;
 pub mod parser;
 pub mod registry;
+#[cfg(feature = "registry")]
+pub mod registry_client;
 pub mod router;
+#[cfg(feature = "signing")]
+pub mod verification;
 
 pub use executor::{ScriptPrepared, SkillExecutor, SubagentPrepared};
+pub use manifest::{SkillDependency, SkillManifest};
 pub use metadata::{
     MatchSource, Skill, SkillExecutionMode, SkillMatch, SkillMetadata, SkillResult, SkillSource,
 };
+pub use package::SkillPackage;
 pub use parser::{parse_skill_file, parse_skill_metadata, render_template};
 pub use registry::SkillRegistry;
+#[cfg(feature = "registry")]
+pub use registry_client::RegistryClient;
 pub use router::SkillRouter;
+#[cfg(feature = "signing")]
+pub use verification::SkillVerifier;

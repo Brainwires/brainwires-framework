@@ -89,6 +89,7 @@ fn tier_to_string(tier: MemoryTier) -> &'static str {
         MemoryTier::Hot => "hot",
         MemoryTier::Warm => "warm",
         MemoryTier::Cold => "cold",
+        MemoryTier::MentalModel => "mental_model",
     }
 }
 

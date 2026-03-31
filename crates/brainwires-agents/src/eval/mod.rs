@@ -15,6 +15,7 @@
 pub mod adversarial;
 pub mod case;
 pub mod fault_report;
+pub mod ranking_metrics;
 pub mod recorder;
 pub mod regression;
 pub mod stability_tests;
@@ -50,3 +51,6 @@ pub use stability_tests::{
 
 // Fault report
 pub use fault_report::{FaultKind, FaultReport, analyze_suite_for_faults};
+
+// Ranking metrics
+pub use ranking_metrics::{mrr, ndcg_at_k, precision_at_k};

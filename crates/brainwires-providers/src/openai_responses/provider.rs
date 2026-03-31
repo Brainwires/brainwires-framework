@@ -22,6 +22,8 @@ pub struct OpenAiResponsesProvider {
     model: String,
     provider_name: String,
     last_response_id: Arc<Mutex<Option<String>>>,
+    #[cfg(feature = "analytics")]
+    analytics_collector: Option<std::sync::Arc<brainwires_analytics::AnalyticsCollector>>,
 }
 
 impl OpenAiResponsesProvider {
@@ -32,12 +34,24 @@ impl OpenAiResponsesProvider {
             model,
             provider_name: "openai-responses".to_string(),
             last_response_id: Arc::new(Mutex::new(None)),
+            #[cfg(feature = "analytics")]
+            analytics_collector: None,
         }
     }
 
     /// Set a custom provider name.
     pub fn with_provider_name(mut self, name: impl Into<String>) -> Self {
         self.provider_name = name.into();
+        self
+    }
+
+    /// Attach an analytics collector to this provider.
+    #[cfg(feature = "analytics")]
+    pub fn with_analytics(
+        mut self,
+        collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>,
+    ) -> Self {
+        self.analytics_collector = Some(collector);
         self
     }
 
@@ -73,8 +87,9 @@ impl Provider for OpenAiResponsesProvider {
 
         let prev_id = self.last_response_id.lock().await.clone();
 
+        let effective_model = options.model.as_deref().unwrap_or(&self.model);
         let mut req = convert::build_request(
-            &self.model,
+            effective_model,
             input,
             instructions,
             if response_tools.is_empty() {
@@ -91,12 +106,30 @@ impl Provider for OpenAiResponsesProvider {
             req.tool_choice = Some(ToolChoice::Mode("auto".to_string()));
         }
 
+        #[cfg(feature = "analytics")]
+        let _started = std::time::Instant::now();
         let resp = self.client.create(&req).await?;
 
         // Store response ID for chaining
         *self.last_response_id.lock().await = Some(resp.id.clone());
 
-        convert::response_to_chat_response(&resp)
+        let chat_response = convert::response_to_chat_response(&resp)?;
+        #[cfg(feature = "analytics")]
+        if let Some(ref collector) = self.analytics_collector {
+            use brainwires_analytics::AnalyticsEvent;
+            collector.record(AnalyticsEvent::ProviderCall {
+                session_id: None,
+                provider: self.provider_name.clone(),
+                model: self.model.clone(),
+                prompt_tokens: chat_response.usage.prompt_tokens,
+                completion_tokens: chat_response.usage.completion_tokens,
+                duration_ms: _started.elapsed().as_millis() as u64,
+                cost_usd: 0.0,
+                success: true,
+                timestamp: chrono::Utc::now(),
+            });
+        }
+        Ok(chat_response)
     }
 
     fn stream_chat<'a>(
@@ -116,8 +149,9 @@ impl Provider for OpenAiResponsesProvider {
             let instructions = system.as_deref().or(options.system.as_deref());
             let prev_id = self.last_response_id.lock().await.clone();
 
+            let effective_model = options.model.as_deref().unwrap_or(&self.model);
             let mut req = convert::build_request(
-                &self.model,
+                effective_model,
                 input,
                 instructions,
                 if response_tools.is_empty() { None } else { Some(&response_tools) },

@@ -142,6 +142,15 @@ pub struct RemoteBridge {
     attachment_receiver: AttachmentReceiver,
     /// Agent spawner for creating new agent processes (injected trait)
     agent_spawner: Option<Arc<dyn AgentSpawner>>,
+    /// Device allowlist status from last authentication.
+    pub device_status: Arc<RwLock<Option<super::protocol::DeviceStatus>>>,
+    /// Organization policies from last authentication.
+    pub org_policies: Arc<RwLock<Option<super::protocol::OrgPolicies>>>,
+    /// Permission relay for remote tool-approval prompts.
+    pub permission_relay: super::permission_relay::PermissionRelay,
+    /// Analytics collector for NetworkMessage events.
+    #[cfg(feature = "analytics")]
+    analytics_collector: Option<std::sync::Arc<brainwires_analytics::AnalyticsCollector>>,
 }
 
 impl RemoteBridge {
@@ -179,7 +188,22 @@ impl RemoteBridge {
             negotiated_protocol: Arc::new(RwLock::new(NegotiatedProtocol::default())),
             attachment_receiver,
             agent_spawner,
+            device_status: Arc::new(RwLock::new(None)),
+            org_policies: Arc::new(RwLock::new(None)),
+            permission_relay: super::permission_relay::PermissionRelay::new(),
+            #[cfg(feature = "analytics")]
+            analytics_collector: None,
         }
+    }
+
+    /// Attach an analytics collector to record NetworkMessage events.
+    #[cfg(feature = "analytics")]
+    pub fn with_analytics(
+        mut self,
+        collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>,
+    ) -> Self {
+        self.analytics_collector = Some(collector);
+        self
     }
 
     /// Get current connection mode
@@ -215,6 +239,73 @@ impl RemoteBridge {
     /// Get all enabled capabilities
     pub async fn enabled_capabilities(&self) -> Vec<ProtocolCapability> {
         self.negotiated_protocol.read().await.capabilities.clone()
+    }
+
+    /// Send a permission request to the remote user and wait for their decision.
+    ///
+    /// Returns `Ok(decision)` if the user responds within the timeout,
+    /// or `Ok(PermissionDecision { approved: false, .. })` on timeout.
+    pub async fn send_permission_request(
+        &self,
+        agent_id: &str,
+        tool_name: &str,
+        action: &str,
+        details: serde_json::Value,
+    ) -> Result<super::permission_relay::PermissionDecision> {
+        use super::permission_relay::PermissionDecision;
+
+        // Check session-allowed list first
+        if self.permission_relay.is_session_allowed(tool_name).await {
+            return Ok(PermissionDecision {
+                approved: true,
+                remember_for_session: true,
+                always_allow: true,
+            });
+        }
+
+        let request_id = uuid::Uuid::new_v4().to_string();
+        let timeout = self.permission_relay.default_timeout().await;
+
+        // Register the pending request
+        let rx = self
+            .permission_relay
+            .register_request(request_id.clone())
+            .await;
+
+        // Send the request message to the backend
+        let msg = RemoteMessage::PermissionRequest {
+            request_id: request_id.clone(),
+            agent_id: agent_id.to_string(),
+            tool_name: tool_name.to_string(),
+            action: action.to_string(),
+            details,
+            timeout_secs: timeout.as_secs() as u32,
+        };
+
+        // Queue the message for sending
+        self.command_result_queue.write().await.push(msg);
+
+        // Wait for response with timeout
+        match tokio::time::timeout(timeout, rx).await {
+            Ok(Ok(decision)) => Ok(decision),
+            Ok(Err(_)) => {
+                // Sender was dropped (request cancelled)
+                Ok(PermissionDecision {
+                    approved: false,
+                    remember_for_session: false,
+                    always_allow: false,
+                })
+            }
+            Err(_) => {
+                // Timeout — auto-deny
+                self.permission_relay.cancel(&request_id).await;
+                Ok(PermissionDecision {
+                    approved: false,
+                    remember_for_session: false,
+                    always_allow: false,
+                })
+            }
+        }
     }
 
     /// Set the shutdown signal sender (for external shutdown control)
@@ -324,11 +415,13 @@ impl RemoteBridge {
         tracing::info!("Registering with backend: {}", url);
 
         let protocol_hello = ProtocolHello::default();
+        let device_fingerprint = super::protocol::compute_device_fingerprint();
         let register_body = serde_json::json!({
             "hostname": gethostname::gethostname().to_string_lossy().to_string(),
             "os": std::env::consts::OS.to_string(),
             "version": self.config.version.clone(),
             "protocol": protocol_hello,
+            "device_fingerprint": device_fingerprint,
         });
 
         let response = self
@@ -391,6 +484,35 @@ impl RemoteBridge {
         } else {
             tracing::debug!("Backend did not return protocol, using defaults");
             *self.negotiated_protocol.write().await = NegotiatedProtocol::default();
+        }
+
+        // Handle device allowlist status
+        if let Some(ds) = auth_response.get("device_status") {
+            match serde_json::from_value::<super::protocol::DeviceStatus>(ds.clone()) {
+                Ok(status) => {
+                    tracing::info!("Device status: {:?}", status);
+                    if matches!(status, super::protocol::DeviceStatus::Blocked) {
+                        bail!("Device is blocked by the user's device allowlist");
+                    }
+                    *self.device_status.write().await = Some(status);
+                }
+                Err(e) => tracing::warn!("Failed to parse device_status: {}", e),
+            }
+        }
+
+        // Handle organization policies
+        if let Some(op) = auth_response.get("org_policies") {
+            match serde_json::from_value::<super::protocol::OrgPolicies>(op.clone()) {
+                Ok(policies) => {
+                    tracing::info!(
+                        "Org policies: blocked_tools={:?}, permission_relay_required={}",
+                        policies.blocked_tools,
+                        policies.permission_relay_required
+                    );
+                    *self.org_policies.write().await = Some(policies);
+                }
+                Err(e) => tracing::warn!("Failed to parse org_policies: {}", e),
+            }
         }
 
         // Check for Realtime credentials
@@ -613,6 +735,20 @@ impl RemoteBridge {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
             bail!("Heartbeat failed: {} - {}", status, body);
+        }
+
+        #[cfg(feature = "analytics")]
+        if let Some(ref collector) = self.analytics_collector {
+            use brainwires_analytics::AnalyticsEvent;
+            let body_bytes = serde_json::to_vec(&heartbeat_body).unwrap_or_default();
+            collector.record(AnalyticsEvent::NetworkMessage {
+                session_id: None,
+                protocol: "remote-bridge".to_string(),
+                direction: "outbound".to_string(),
+                bytes: body_bytes.len() as u64,
+                success: true,
+                timestamp: chrono::Utc::now(),
+            });
         }
 
         let response_body: serde_json::Value = response
@@ -840,6 +976,31 @@ impl RemoteBridge {
                 }
             }
 
+            BackendCommand::PermissionResponse {
+                request_id,
+                approved,
+                remember_for_session,
+                always_allow,
+            } => {
+                tracing::info!(
+                    "Permission response for {}: approved={}",
+                    request_id,
+                    approved
+                );
+                // We don't have the tool_name here, but the CLI side tracks that.
+                // Use resolve() without tool name; the CLI caller handles session memory.
+                self.permission_relay
+                    .resolve(
+                        &request_id,
+                        super::permission_relay::PermissionDecision {
+                            approved,
+                            remember_for_session,
+                            always_allow,
+                        },
+                    )
+                    .await;
+            }
+
             BackendCommand::Authenticated { .. } | BackendCommand::AuthenticationFailed { .. } => {
                 tracing::warn!("Unexpected auth message after authentication");
             }
@@ -876,26 +1037,44 @@ impl RemoteBridge {
     async fn start_agent_reader(&self, agent_id: &str) {
         tracing::info!("start_agent_reader called for agent: {}", agent_id);
 
-        // Check if already reading
-        if self.subscription_tasks.read().await.contains_key(agent_id) {
-            tracing::debug!("Agent reader already running for {}", agent_id);
-            return;
+        // Acquire write lock for the check to avoid a race where two concurrent
+        // calls both see no entry and both proceed to start a reader.
+        {
+            let tasks = self.subscription_tasks.write().await;
+            if tasks.contains_key(agent_id) {
+                tracing::debug!("Agent reader already running for {}", agent_id);
+                return;
+            }
+            // Drop the write lock before the async IPC work below.
         }
 
         let sessions_dir = &self.config.sessions_dir;
 
-        // Connect using bridge-internal IPC with injected sessions_dir
+        // Connect using bridge-internal IPC with injected sessions_dir.
+        // Apply a timeout so a wedged agent socket doesn't block the bridge indefinitely.
         tracing::info!("Connecting to agent {} via IPC...", agent_id);
-        let mut conn = match IpcConnection::connect_to_agent(sessions_dir, agent_id).await {
-            Ok(c) => {
+        let mut conn = match tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            IpcConnection::connect_to_agent(sessions_dir, agent_id),
+        )
+        .await
+        {
+            Ok(Ok(c)) => {
                 tracing::info!("Successfully connected to agent {}", agent_id);
                 c
             }
-            Err(e) => {
+            Ok(Err(e)) => {
                 tracing::error!(
                     "Failed to connect to agent {} for streaming: {}",
                     agent_id,
                     e
+                );
+                return;
+            }
+            Err(_) => {
+                tracing::warn!(
+                    "Timed out connecting to agent {} IPC socket after 5s, skipping",
+                    agent_id
                 );
                 return;
             }

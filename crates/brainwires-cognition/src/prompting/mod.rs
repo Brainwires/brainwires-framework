@@ -25,14 +25,16 @@ pub mod techniques;
 #[cfg(feature = "prompting")]
 pub mod clustering;
 
-/// These modules depend on knowledge types (BKS/PKS caches)
-#[cfg(feature = "knowledge")]
+/// generator depends on both knowledge (BKS/PKS) and prompting (clustering)
+#[cfg(all(feature = "knowledge", feature = "prompting"))]
 pub mod generator;
+/// These modules depend on knowledge types (BKS/PKS caches)
 #[cfg(feature = "knowledge")]
 pub mod learning;
 #[cfg(feature = "knowledge")]
 pub mod library;
-#[cfg(feature = "knowledge")]
+/// temperature depends on both knowledge (BKS types) and prompting (clustering)
+#[cfg(all(feature = "knowledge", feature = "prompting"))]
 pub mod temperature;
 
 /// SQLite persistence
@@ -47,7 +49,7 @@ pub use techniques::{
 
 #[cfg(feature = "prompting")]
 pub use clustering::{TaskCluster, TaskClusterManager, cosine_similarity};
-#[cfg(feature = "knowledge")]
+#[cfg(all(feature = "knowledge", feature = "prompting"))]
 pub use generator::{GeneratedPrompt, PromptGenerator};
 #[cfg(feature = "knowledge")]
 pub use learning::{ClusterSummary, PromptingLearningCoordinator, TechniqueStats};
@@ -55,5 +57,5 @@ pub use learning::{ClusterSummary, PromptingLearningCoordinator, TechniqueStats}
 pub use library::TechniqueLibrary;
 #[cfg(feature = "prompting-storage")]
 pub use storage::{ClusterStorage, StorageStats};
-#[cfg(feature = "knowledge")]
+#[cfg(all(feature = "knowledge", feature = "prompting"))]
 pub use temperature::{TemperatureOptimizer, TemperaturePerformance};

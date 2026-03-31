@@ -28,14 +28,21 @@ pub mod self_improve;
 
 pub mod agent_ops;
 
+#[cfg(feature = "eval-driven")]
+pub mod eval;
+
 #[cfg(feature = "git-workflow")]
 pub mod git_workflow;
 
+/// GPIO hardware control — re-exported from `brainwires-hardware`.
 #[cfg(feature = "gpio")]
-pub mod gpio;
+pub use brainwires_hardware::gpio;
 
 #[cfg(feature = "scheduler")]
 pub mod scheduler;
+
+#[cfg(feature = "dream")]
+pub mod dream;
 
 #[cfg(feature = "reactor")]
 pub mod reactor;

@@ -36,10 +36,7 @@ fn main() {
 
     // ── 1. Create a registry pre-populated with all built-in tools ──────────
     let mut registry = ToolRegistry::with_builtins();
-    println!(
-        "Registry created with {} built-in tool(s).",
-        registry.len()
-    );
+    println!("Registry created with {} built-in tool(s).", registry.len());
 
     // ── 2. Register custom tools ────────────────────────────────────────────
     let custom_tools = vec![
@@ -99,10 +96,7 @@ fn main() {
     // ── 5. Search tools by keyword ──────────────────────────────────────────
     let query = "file";
     let results = registry.search_tools(query);
-    println!(
-        "\nSearch for \"{query}\": {} result(s)",
-        results.len()
-    );
+    println!("\nSearch for \"{query}\": {} result(s)", results.len());
     for tool in &results {
         println!("  - {} : {}", tool.name, tool.description);
     }

@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::error::MeshError;
-use super::node::MeshNode;
+use crate::identity::AgentIdentity;
+use crate::network::NetworkError;
 
 /// Supported mesh topology shapes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -24,13 +24,13 @@ pub enum TopologyType {
 #[async_trait]
 pub trait MeshTopology: Send + Sync {
     /// Add a node to the topology.
-    async fn add_node(&mut self, node: MeshNode) -> Result<(), MeshError>;
+    async fn add_node(&mut self, node: AgentIdentity) -> Result<(), NetworkError>;
 
     /// Remove a node from the topology by its identifier.
-    async fn remove_node(&mut self, node_id: &Uuid) -> Result<(), MeshError>;
+    async fn remove_node(&mut self, node_id: &Uuid) -> Result<(), NetworkError>;
 
     /// Return the identifiers of nodes adjacent to the given node.
-    async fn get_neighbors(&self, node_id: &Uuid) -> Result<Vec<Uuid>, MeshError>;
+    async fn get_neighbors(&self, node_id: &Uuid) -> Result<Vec<Uuid>, NetworkError>;
 
     /// Return the type of this topology.
     fn topology_type(&self) -> TopologyType;

@@ -124,6 +124,7 @@ fn generate_json_fixtures() {
         top_p: Some(0.9),
         stop: Some(vec!["\n".to_string(), "END".to_string()]),
         system: Some("You are a helpful assistant.".to_string()),
+        model: None,
     };
     write_fixture(&fixtures_dir, "chat_options_custom", &custom_opts);
 

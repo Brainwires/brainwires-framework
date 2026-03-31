@@ -555,7 +555,7 @@ mod tests {
 
     #[test]
     fn test_entity_extraction() {
-        let summarizer = LocalSummarizerBuilder::default();
+        let _summarizer = LocalSummarizerBuilder::default();
 
         // Test entity extraction logic
         let content = "Modified src/main.rs and added LocalSummarizer to handle_request function";

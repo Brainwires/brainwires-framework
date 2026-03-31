@@ -10,23 +10,30 @@ members = [
     "crates/brainwires-code-interpreters",
     "crates/brainwires-wasm",
     "crates/brainwires-agent-network",
+    "crates/brainwires-mcp-server",
     "crates/brainwires-a2a",
     "crates/brainwires-providers",
     "crates/brainwires-skills",
-    "crates/brainwires-audio",
+    "crates/brainwires-hardware",
     "crates/brainwires-datasets",
     "crates/brainwires-training",
     "crates/brainwires-autonomy",
     "crates/brainwires-cognition",
+    "crates/brainwires-channels",
+    "crates/brainwires-analytics",
     "extras/brainwires-proxy",
     "extras/brainwires-brain-server",
     "extras/brainwires-rag-server",
+    "extras/brainwires-issues",
     "extras/reload-daemon",
     "extras/agent-chat",
+    "extras/brainwires-cli",
     "extras/audio-demo-ffi",
+    "extras/voice-assistant",
     "xtask",
 ]
 exclude = [
+    "deprecated/brainwires-audio",
     "deprecated/brainwires-brain",
     "deprecated/brainwires-mesh",
     "deprecated/brainwires-prompting",
@@ -34,11 +41,12 @@ exclude = [
     "deprecated/brainwires-relay",
     "deprecated/brainwires-seal",
     "deprecated/brainwires-mdap",
+    "extras/brainclaw",
 ]
 resolver = "2"
 
 [workspace.package]
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 rust-version = "1.91"
@@ -52,24 +60,27 @@ documentation = "https://docs.rs/brainwires"
 
 [workspace.dependencies]
 # Internal crates
-brainwires-core = { path = "crates/brainwires-core", version = "0.6.0" }
-brainwires-tool-system = { path = "crates/brainwires-tool-system", version = "0.6.0" }
-brainwires-agents = { path = "crates/brainwires-agents", version = "0.6.0" }
-brainwires-storage = { path = "crates/brainwires-storage", version = "0.6.0", default-features = false }
-brainwires-mcp = { path = "crates/brainwires-mcp", version = "0.6.0" }
-brainwires-permissions = { path = "crates/brainwires-permissions", version = "0.6.0" }
-brainwires-code-interpreters = { path = "crates/brainwires-code-interpreters", version = "0.6.0" }
-brainwires-wasm = { path = "crates/brainwires-wasm", version = "0.6.0" }
-brainwires-agent-network = { path = "crates/brainwires-agent-network", version = "0.6.0" }
-brainwires-a2a = { path = "crates/brainwires-a2a", version = "0.6.0", default-features = false }
-brainwires-providers = { path = "crates/brainwires-providers", version = "0.6.0" }
-brainwires-skills = { path = "crates/brainwires-skills", version = "0.6.0" }
-brainwires-audio = { path = "crates/brainwires-audio", version = "0.6.0" }
-brainwires-datasets = { path = "crates/brainwires-datasets", version = "0.6.0" }
-brainwires-training = { path = "crates/brainwires-training", version = "0.6.0" }
-brainwires-autonomy = { path = "crates/brainwires-autonomy", version = "0.6.0", default-features = false }
-brainwires-cognition = { path = "crates/brainwires-cognition", version = "0.6.0", default-features = false }
-brainwires-proxy = { path = "extras/brainwires-proxy", version = "0.6.0" }
+brainwires-core = { path = "crates/brainwires-core", version = "0.7.0" }
+brainwires-tool-system = { path = "crates/brainwires-tool-system", version = "0.7.0" }
+brainwires-agents = { path = "crates/brainwires-agents", version = "0.7.0" }
+brainwires-storage = { path = "crates/brainwires-storage", version = "0.7.0", default-features = false }
+brainwires-mcp = { path = "crates/brainwires-mcp", version = "0.7.0" }
+brainwires-permissions = { path = "crates/brainwires-permissions", version = "0.7.0" }
+brainwires-code-interpreters = { path = "crates/brainwires-code-interpreters", version = "0.7.0" }
+brainwires-wasm = { path = "crates/brainwires-wasm", version = "0.7.0" }
+brainwires-agent-network = { path = "crates/brainwires-agent-network", version = "0.7.0" }
+brainwires-mcp-server = { path = "crates/brainwires-mcp-server", version = "0.7.0" }
+brainwires-a2a = { path = "crates/brainwires-a2a", version = "0.7.0", default-features = false }
+brainwires-providers = { path = "crates/brainwires-providers", version = "0.7.0" }
+brainwires-skills = { path = "crates/brainwires-skills", version = "0.7.0" }
+brainwires-hardware = { path = "crates/brainwires-hardware", version = "0.7.0" }
+brainwires-datasets = { path = "crates/brainwires-datasets", version = "0.7.0" }
+brainwires-training = { path = "crates/brainwires-training", version = "0.7.0" }
+brainwires-autonomy = { path = "crates/brainwires-autonomy", version = "0.7.0", default-features = false }
+brainwires-cognition = { path = "crates/brainwires-cognition", version = "0.7.0", default-features = false }
+brainwires-channels   = { path = "crates/brainwires-channels",   version = "0.7.0" }
+brainwires-analytics  = { path = "crates/brainwires-analytics",  version = "0.7.0", default-features = false }
+brainwires-proxy = { path = "extras/brainwires-proxy", version = "0.7.0" }
 
 # Tokenizer dependencies
 tokenizers = "0.22"
@@ -105,6 +116,7 @@ chrono = { version = "0.4", features = ["serde"] }
 
 # HTTP
 reqwest = { version = "0.12", features = ["json", "stream"] }
+axum = "0.8"
 
 # MCP protocol
 rmcp = { version = "1.1", features = ["client", "server", "client-side-sse", "transport-child-process", "transport-io", "macros"] }
@@ -115,10 +127,10 @@ tokio-util = "0.7"
 
 # Logging
 tracing = "0.1"
-tracing-subscriber = "0.3"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Vector database & columnar storage
-lancedb = "0.26"
+lancedb = "0.27"
 arrow = "57"
 arrow-array = "57"
 arrow-schema = "57"
@@ -128,6 +140,9 @@ fastembed = "5.1"
 
 # Caching
 lru = "0.16"
+
+# Semantic versioning
+semver = { version = "1", features = ["serde"] }
 
 # Hashing
 sha2 = "0.10"
@@ -164,6 +179,9 @@ linfa = "0.7"
 linfa-clustering = "0.7"
 ndarray = "0.15"
 
+# Bitflags
+bitflags = "2"
+
 # Binary encoding
 bincode = { version = "2", features = ["serde"] }
 
@@ -177,8 +195,17 @@ subtle = "2.6"
 # Keyring (secure key storage)
 keyring = "3"
 
+# Concurrent maps
+dashmap = "6"
+
 # WebSocket
 tokio-tungstenite = { version = "0.26", features = ["native-tls"] }
+
+# Discord API
+serenity = { version = "0.12", default-features = false, features = ["client", "gateway", "model", "cache", "rustls_backend", "chrono"] }
+
+# Telegram Bot API
+teloxide = { version = "0.13", features = ["macros"] }
 
 # URL parsing
 url = "2.5"
@@ -234,9 +261,3 @@ pgvector = { version = "0.4.1", features = ["postgres"] }
 # Testing
 tempfile = "3"
 
-# Patch crates whose crates.io releases pin incompatible libsqlite3-sys versions.
-# Upstream git repos already have the fix (libsqlite3-sys >=0.30, <0.37) but
-# haven't published new releases yet.
-[patch.crates-io]
-rustpython-vm = { git = "https://github.com/RustPython/RustPython", branch = "main", package = "rustpython-vm" }
-rustpython-stdlib = { git = "https://github.com/RustPython/RustPython", branch = "main", package = "rustpython-stdlib" }

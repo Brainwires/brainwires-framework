@@ -23,6 +23,8 @@ pub struct AnthropicChatProvider {
     client: Arc<AnthropicClient>,
     model: String,
     provider_name: String,
+    #[cfg(feature = "analytics")]
+    analytics_collector: Option<std::sync::Arc<brainwires_analytics::AnalyticsCollector>>,
 }
 
 impl AnthropicChatProvider {
@@ -32,6 +34,8 @@ impl AnthropicChatProvider {
             client,
             model,
             provider_name: "anthropic".to_string(),
+            #[cfg(feature = "analytics")]
+            analytics_collector: None,
         }
     }
 
@@ -41,6 +45,16 @@ impl AnthropicChatProvider {
     /// chat logic but should identify themselves differently.
     pub fn with_provider_name(mut self, name: impl Into<String>) -> Self {
         self.provider_name = name.into();
+        self
+    }
+
+    /// Attach an analytics collector to this provider.
+    #[cfg(feature = "analytics")]
+    pub fn with_analytics(
+        mut self,
+        collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>,
+    ) -> Self {
+        self.analytics_collector = Some(collector);
         self
     }
 
@@ -186,7 +200,7 @@ impl Provider for AnthropicChatProvider {
             .or_else(|| Self::get_system_message(messages));
 
         let req = AnthropicRequest {
-            model: self.model.clone(),
+            model: options.model.clone().unwrap_or_else(|| self.model.clone()),
             messages: anthropic_messages,
             system,
             max_tokens: options.max_tokens.unwrap_or(4096),
@@ -197,8 +211,26 @@ impl Provider for AnthropicChatProvider {
             stream: false,
         };
 
+        #[cfg(feature = "analytics")]
+        let _started = std::time::Instant::now();
         let anthropic_response = self.client.messages(&req).await?;
-        Ok(Self::parse_response(anthropic_response))
+        let chat_response = Self::parse_response(anthropic_response);
+        #[cfg(feature = "analytics")]
+        if let Some(ref collector) = self.analytics_collector {
+            use brainwires_analytics::AnalyticsEvent;
+            collector.record(AnalyticsEvent::ProviderCall {
+                session_id: None,
+                provider: self.provider_name.clone(),
+                model: self.model.clone(),
+                prompt_tokens: chat_response.usage.prompt_tokens,
+                completion_tokens: chat_response.usage.completion_tokens,
+                duration_ms: _started.elapsed().as_millis() as u64,
+                cost_usd: 0.0,
+                success: true,
+                timestamp: chrono::Utc::now(),
+            });
+        }
+        Ok(chat_response)
     }
 
     fn stream_chat<'a>(
@@ -216,7 +248,7 @@ impl Provider for AnthropicChatProvider {
                 .or_else(|| Self::get_system_message(messages));
 
             let req = AnthropicRequest {
-                model: self.model.clone(),
+                model: options.model.clone().unwrap_or_else(|| self.model.clone()),
                 messages: anthropic_messages,
                 system,
                 max_tokens: options.max_tokens.unwrap_or(4096),

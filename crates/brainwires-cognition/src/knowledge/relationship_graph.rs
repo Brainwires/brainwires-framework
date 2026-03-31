@@ -41,8 +41,18 @@ impl RelationshipGraph {
         graph
     }
 
-    /// Calculate importance score for an entity
-    fn calculate_importance(entity: &Entity) -> f32 {
+    /// Calculate importance score for an entity.
+    ///
+    /// Combines log-scaled mention count, entity-type bonus, and message-spread
+    /// proxy into a score in `[0.0, 1.0]`.
+    ///
+    /// **Known limitation**: `ln(1) = 0`, so the mention-count component
+    /// contributes nothing for entities seen exactly once. The type bonus and
+    /// message-spread proxy still apply, so the score is non-zero, but a
+    /// single-mention entity is scored identically regardless of how many
+    /// times it was seen (just once vs. genuinely once). Use
+    /// `ln(mention_count + 1)` to remove this discontinuity if needed.
+    pub fn calculate_importance(entity: &Entity) -> f32 {
         let mut score = 0.0;
 
         // Base score from mentions

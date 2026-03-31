@@ -25,10 +25,7 @@ async fn main() {
     // ── 2. Create a client with rate limiting ───────────────────────────
     println!("--- Client With Rate Limiting (30 req/min) ---");
     let limited = RateLimitedClient::with_rate_limit(30);
-    println!(
-        "  Initial tokens: {:?}",
-        limited.available_tokens()
-    );
+    println!("  Initial tokens: {:?}", limited.available_tokens());
 
     // Each request consumes one token from the bucket
     println!("\n  Simulating requests (each .post()/.get() consumes a token):");
@@ -81,10 +78,7 @@ async fn main() {
 
     // Wrap with rate limiting
     let wrapped = RateLimitedClient::from_client(custom_client.clone(), Some(120));
-    println!(
-        "  Wrapped client tokens: {:?}",
-        wrapped.available_tokens()
-    );
+    println!("  Wrapped client tokens: {:?}", wrapped.available_tokens());
 
     // Wrap without rate limiting
     let unwrapped = RateLimitedClient::from_client(custom_client, None);

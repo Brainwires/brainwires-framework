@@ -48,9 +48,17 @@ impl FastEmbedManager {
             _ => 384, // Default to 384 for unknown models
         };
 
+        // Use a single shared cache directory rather than the default
+        // `.fastembed_cache` relative to the process working directory, which
+        // causes a separate 87–759 MB copy to accumulate in every project.
+        let cache_dir = dirs::cache_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default()))
+            .join("fastembed");
+
         let mut options = InitOptions::default();
         options.model_name = model;
         options.show_download_progress = true;
+        options.cache_dir = cache_dir;
 
         let embedding_model =
             TextEmbedding::try_new(options).context("Failed to initialize FastEmbed model")?;

@@ -116,10 +116,13 @@ impl LanceRelationsStore {
         let empty_batch = RecordBatch::new_empty(schema.clone());
         let batches = RecordBatchIterator::new(vec![Ok(empty_batch)], schema);
 
-        db.create_table(DEFINITIONS_TABLE, Box::new(batches))
-            .execute()
-            .await
-            .context("Failed to create definitions table")?;
+        db.create_table(
+            DEFINITIONS_TABLE,
+            Box::new(batches) as Box<dyn arrow_array::RecordBatchReader + Send>,
+        )
+        .execute()
+        .await
+        .context("Failed to create definitions table")?;
 
         Ok(())
     }
@@ -137,10 +140,13 @@ impl LanceRelationsStore {
         let empty_batch = RecordBatch::new_empty(schema.clone());
         let batches = RecordBatchIterator::new(vec![Ok(empty_batch)], schema);
 
-        db.create_table(REFERENCES_TABLE, Box::new(batches))
-            .execute()
-            .await
-            .context("Failed to create references table")?;
+        db.create_table(
+            REFERENCES_TABLE,
+            Box::new(batches) as Box<dyn arrow_array::RecordBatchReader + Send>,
+        )
+        .execute()
+        .await
+        .context("Failed to create references table")?;
 
         Ok(())
     }
@@ -435,7 +441,7 @@ impl RelationsStore for LanceRelationsStore {
             .context("Failed to open definitions table")?;
 
         table
-            .add(Box::new(batches))
+            .add(Box::new(batches) as Box<dyn arrow_array::RecordBatchReader + Send>)
             .execute()
             .await
             .context("Failed to add definitions to LanceDB")?;
@@ -510,7 +516,7 @@ impl RelationsStore for LanceRelationsStore {
             .context("Failed to open references table")?;
 
         table
-            .add(Box::new(batches))
+            .add(Box::new(batches) as Box<dyn arrow_array::RecordBatchReader + Send>)
             .execute()
             .await
             .context("Failed to add references to LanceDB")?;

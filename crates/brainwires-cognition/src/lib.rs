@@ -73,6 +73,8 @@ pub mod code_analysis;
 #[cfg(feature = "knowledge")]
 pub use knowledge::brain_client::BrainClient;
 #[cfg(feature = "knowledge")]
+pub use knowledge::config::{DispositionTrait, MemoryBankConfig};
+#[cfg(feature = "knowledge")]
 pub use knowledge::entity::{
     ContradictionEvent, ContradictionKind, Entity, EntityStore, EntityStoreStats, EntityType,
     ExtractionResult, Relationship,
@@ -95,7 +97,7 @@ pub use knowledge::types::{
 
 #[cfg(feature = "prompting")]
 pub use prompting::clustering::{TaskCluster, TaskClusterManager, cosine_similarity};
-#[cfg(feature = "knowledge")]
+#[cfg(all(feature = "knowledge", feature = "prompting"))]
 pub use prompting::generator::{GeneratedPrompt, PromptGenerator};
 #[cfg(feature = "knowledge")]
 pub use prompting::learning::{ClusterSummary, PromptingLearningCoordinator, TechniqueStats};
@@ -107,7 +109,7 @@ pub use prompting::storage::{ClusterStorage, StorageStats};
 pub use prompting::techniques::{
     ComplexityLevel, PromptingTechnique, TaskCharacteristic, TechniqueCategory, TechniqueMetadata,
 };
-#[cfg(feature = "knowledge")]
+#[cfg(all(feature = "knowledge", feature = "prompting"))]
 pub use prompting::temperature::{TemperatureOptimizer, TemperaturePerformance};
 
 // ── Re-exports (RAG) ──────────────────────────────────────────────────────
@@ -120,10 +122,11 @@ pub use rag::config::Config;
 pub use rag::error::RagError;
 #[cfg(feature = "rag")]
 pub use rag::types::{
-    AdvancedSearchRequest, ClearRequest, ClearResponse, FindDefinitionRequest,
-    FindReferencesRequest, GetCallGraphRequest, GitSearchResult, IndexRequest, IndexResponse,
-    IndexingMode, LanguageStats, QueryRequest, QueryResponse, SearchGitHistoryRequest,
-    SearchGitHistoryResponse, StatisticsRequest, StatisticsResponse,
+    AdvancedSearchRequest, ClearRequest, ClearResponse, EnsembleRequest, EnsembleResponse,
+    FindDefinitionRequest, FindReferencesRequest, GetCallGraphRequest, GitSearchResult,
+    IndexRequest, IndexResponse, IndexingMode, LanguageStats, QueryRequest, QueryResponse,
+    SearchGitHistoryRequest, SearchGitHistoryResponse, SearchStrategy, StatisticsRequest,
+    StatisticsResponse,
 };
 #[cfg(all(feature = "rag", feature = "code-analysis"))]
 pub use rag::types::{FindDefinitionResponse, FindReferencesResponse, GetCallGraphResponse};
@@ -131,7 +134,10 @@ pub use rag::types::{FindDefinitionResponse, FindReferencesResponse, GetCallGrap
 // ── Re-exports (spectral) ─────────────────────────────────────────────────
 
 #[cfg(feature = "spectral")]
-pub use spectral::SpectralReranker;
+pub use spectral::{
+    CrossEncoderConfig, CrossEncoderReranker, DiversityReranker, RerankerKind, SpectralReranker,
+    SpectralSelectConfig,
+};
 
 // ── Re-exports (code analysis) ────────────────────────────────────────────
 
@@ -149,7 +155,7 @@ pub mod prelude {
     #[cfg(feature = "knowledge")]
     pub use super::knowledge::thought::{Thought, ThoughtCategory};
 
-    #[cfg(feature = "knowledge")]
+    #[cfg(all(feature = "knowledge", feature = "prompting"))]
     pub use super::prompting::generator::PromptGenerator;
     pub use super::prompting::techniques::{PromptingTechnique, TechniqueCategory};
 

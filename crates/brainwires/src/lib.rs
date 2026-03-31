@@ -9,7 +9,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! brainwires = { version = "0.6", features = ["full"] }
+//! brainwires = { version = "0.7", features = ["full"] }
 //! ```
 //!
 //! ```rust
@@ -101,10 +101,16 @@ pub mod interpreters {
     pub use brainwires_code_interpreters::*;
 }
 
-/// Agent network — MCP server framework, IPC, remote bridge, mesh networking.
+/// Agent network — IPC, remote bridge, mesh networking, routing, discovery.
 #[cfg(feature = "agent-network")]
 pub mod agent_network {
     pub use brainwires_agent_network::*;
+}
+
+/// MCP server framework — build MCP-compliant tool servers with middleware.
+#[cfg(feature = "mcp-server-framework")]
+pub mod mcp_server_framework {
+    pub use brainwires_mcp_server::*;
 }
 
 /// Skills — SKILL.md parsing, skill registry, and execution.
@@ -119,11 +125,7 @@ pub mod eval {
     pub use brainwires_agents::eval::*;
 }
 
-/// Protocol proxy framework for debugging and inspecting AI traffic.
-#[cfg(feature = "proxy")]
-pub mod proxy {
-    pub use brainwires_proxy::*;
-}
+// proxy module removed — brainwires-proxy is an extras app, use it directly
 
 /// A2A (Agent-to-Agent) protocol support.
 #[cfg(feature = "a2a")]
@@ -137,10 +139,56 @@ pub mod mesh {
     pub use brainwires_agent_network::mesh::*;
 }
 
+/// Hardware I/O — audio, GPIO, Bluetooth, network, camera, USB, voice assistant.
+#[cfg(any(
+    feature = "audio",
+    feature = "gpio",
+    feature = "bluetooth",
+    feature = "network-hardware",
+    feature = "camera",
+    feature = "usb",
+    feature = "vad",
+    feature = "wake-word",
+    feature = "voice-assistant"
+))]
+pub mod hardware {
+    pub use brainwires_hardware::*;
+}
+
 /// Audio — capture, playback, speech-to-text, text-to-speech.
 #[cfg(feature = "audio")]
 pub mod audio {
-    pub use brainwires_audio::*;
+    pub use brainwires_hardware::audio::*;
+}
+
+/// Camera and webcam frame capture.
+#[cfg(feature = "camera")]
+pub mod camera {
+    pub use brainwires_hardware::camera::*;
+}
+
+/// Raw USB device access and transfers.
+#[cfg(feature = "usb")]
+pub mod usb {
+    pub use brainwires_hardware::usb::*;
+}
+
+/// Voice Activity Detection.
+#[cfg(feature = "vad")]
+pub mod vad {
+    pub use brainwires_hardware::audio::vad::*;
+}
+
+/// Wake word detection.
+#[cfg(any(feature = "wake-word", feature = "wake-word-porcupine"))]
+pub mod wake_word {
+    pub use brainwires_hardware::audio::wake_word::*;
+}
+
+/// Voice assistant pipeline.
+#[cfg(feature = "voice-assistant")]
+pub mod voice_assistant {
+    pub use brainwires_hardware::audio::assistant::*;
 }
 
 /// Training data pipelines — JSONL, format conversion, tokenization, dedup.
@@ -159,6 +207,12 @@ pub mod training {
 #[cfg(feature = "autonomy")]
 pub mod autonomy {
     pub use brainwires_autonomy::*;
+}
+
+/// Analytics — typed event collection, SQLite persistence, and cost/usage queries.
+#[cfg(feature = "analytics")]
+pub mod analytics {
+    pub use brainwires_analytics::*;
 }
 
 /// Central knowledge — BKS, PKS, entity graphs, thought processing.
@@ -306,7 +360,7 @@ pub mod prelude {
 
     // Audio — available with "audio" feature
     #[cfg(feature = "audio")]
-    pub use brainwires_audio::{
+    pub use brainwires_hardware::{
         AudioBuffer, AudioCapture, AudioConfig, AudioDevice, AudioError, AudioPlayback,
         AudioResult, SpeechToText, SttOptions, TextToSpeech, Transcript, TtsOptions, Voice,
     };

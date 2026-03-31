@@ -1,6 +1,6 @@
 # Brainwires Framework — Complete Feature List
 
-A comprehensive catalog of every feature provided by the framework's 18 crates and 6 extras.
+A comprehensive catalog of every feature provided by the framework's 21 crates and 14 extras.
 
 ---
 
@@ -11,7 +11,8 @@ A comprehensive catalog of every feature provided by the framework's 18 crates a
 - [Agent Orchestration](#agent-orchestration)
 - [Tool System](#tool-system)
 - [MCP Protocol](#mcp-protocol)
-- [MCP Server & Relay](#mcp-server--relay)
+- [MCP Server Framework](#mcp-server-framework)
+- [Agent Networking](#agent-networking)
 - [MDAP Voting](#mdap-voting)
 - [Storage & Memory](#storage--memory)
 - [RAG & Code Search](#rag--code-search)
@@ -19,9 +20,19 @@ A comprehensive catalog of every feature provided by the framework's 18 crates a
 - [Adaptive Prompting](#adaptive-prompting)
 - [SEAL (Self-Evolving Agentic Learning)](#seal-self-evolving-agentic-learning)
 - [Permissions & Security](#permissions--security)
-- [Audio](#audio)
+- [Hardware I/O](#hardware-io)
+  - [Audio](#audio-feature-audio)
+  - [Voice Activity Detection](#voice-activity-detection-always-available-with-audio-webrtcvad-requires-feature-vad)
+  - [Wake Word Detection](#wake-word-detection-feature-wake-word)
+  - [Voice Assistant Pipeline](#voice-assistant-pipeline-feature-voice-assistant)
+  - [GPIO](#gpio-feature-gpio-linux)
+  - [Bluetooth](#bluetooth-feature-bluetooth)
+  - [Network Hardware](#network-hardware-feature-network)
+  - [Camera](#camera-feature-camera)
+  - [USB](#usb-feature-usb)
 - [Code Interpreters](#code-interpreters)
 - [Skills System](#skills-system)
+- [Channels](#channels)
 - [Datasets & Training Data](#datasets--training-data)
 - [Model Training & Fine-Tuning](#model-training--fine-tuning)
 - [Distributed Mesh Networking](#distributed-mesh-networking)
@@ -29,6 +40,7 @@ A comprehensive catalog of every feature provided by the framework's 18 crates a
 - [Autonomous Operations](#autonomous-operations)
 - [Reasoning & Inference](#reasoning--inference)
 - [Evaluation Framework](#evaluation-framework)
+- [Analytics](#analytics)
 - [Proxy Framework](#proxy-framework)
 - [WASM Bindings](#wasm-bindings)
 - [Extras & Standalone Binaries](#extras--standalone-binaries)
@@ -50,7 +62,7 @@ Foundation types shared by all framework crates.
 - **Task system** — `Task`, `TaskStatus`, `TaskPriority`, `AgentResponse`
 - **Plan system** — `PlanMetadata`, `PlanStatus`, step budgets, serializable plans
 - **Plan parsing** — `parse_plan_steps()`, `steps_to_tasks()`, structured output parsers (`JsonOutputParser`, `RegexOutputParser`) (feature: `planning`)
-- **Provider trait** — `Provider` async trait, `ChatOptions` (temperature, max tokens, top-p, stop sequences)
+- **Provider trait** — `Provider` async trait, `ChatOptions` (temperature, max tokens, top-p, stop sequences, **per-request model override**)
 - **Permission modes** — `PermissionMode` (auto, ask, reject)
 - **Knowledge graph types** — `EntityType`, `EdgeType`, `GraphNode`, `GraphEdge`, `EntityStoreT`, `RelationshipGraphT` traits
 - **Embedding trait** — `EmbeddingProvider` for pluggable embedding backends
@@ -99,6 +111,10 @@ Unified multi-provider AI interface with 18 provider types.
 | **Cartesia** | TTS |
 | **Murf AI** | TTS |
 
+### Per-Request Model Override
+
+All chat providers honour `ChatOptions::model: Option<String>`. When `Some`, providers substitute the override for their configured default on that request only. Enables per-session model switching (e.g. the `/model` slash command in BrainClaw) without recreating the provider instance.
+
 ### Infrastructure
 
 - **ChatProviderFactory** — Registry-driven protocol dispatch, creates providers from `ProviderConfig`
@@ -116,6 +132,11 @@ Unified multi-provider AI interface with 18 provider types.
 **Crate:** `brainwires-agents`
 
 Multi-agent infrastructure for autonomous task execution.
+
+### Chat
+
+- **ChatAgent** — Reusable streaming completion loop for interactive sessions. `restore_messages()` reloads history from a `SessionStore`; `compact_history()` trims old messages.
+- **SessionStore** trait / **JsonFileStore** — Persist and reload conversation history across restarts; wired into agents via config.
 
 ### Agent Types
 
@@ -208,6 +229,7 @@ Composable tool implementations for agent use.
 ### Tool Infrastructure
 
 - **ToolRegistry** — Composable container with `with_builtins()` for all tools, category-based organization
+- **BuiltinToolExecutor** — Centralized dispatcher for all built-in tools; eliminates ad-hoc dispatch duplication
 - **ToolExecutor** — Permission checking, lock acquisition, working set tracking, error handling
 - **ToolPreHook** — Pre-execution hooks with `PreHookDecision` (allow/deny/modify)
 - **TransactionManager** — Transactional file operations with commit/rollback (feature: `native`)
@@ -248,23 +270,32 @@ MCP client for connecting to external MCP servers.
 
 ---
 
-## MCP Server & Relay
+## MCP Server Framework
 
-**Crate:** `brainwires-relay`
+**Crate:** `brainwires-mcp-server`
 
-MCP server framework, IPC, remote relay, and agent management.
+Build MCP-compliant tool servers with a composable middleware pipeline.
 
-### MCP Server Framework
+- **McpServer** — Async event loop: reads JSON-RPC requests, runs middleware chain, dispatches to handler
+- **McpHandler** — Trait defining server identity, capabilities, and tool dispatch (`server_info()`, `list_tools()`, `call_tool()`)
+- **McpToolRegistry** — Declarative tool registration with `McpToolDef` and `ToolHandler`; automatic dispatch by tool name
+- **ServerTransport** / **StdioServerTransport** — Pluggable request/response I/O; stdio included
+- **MiddlewareChain** — Ordered onion-model pipeline; middlewares wrap each request and response
+- **Middleware implementations:**
+  - `AuthMiddleware` — Bearer token validation
+  - `LoggingMiddleware` — Structured request/response logging via `tracing`
+  - `RateLimitMiddleware` — Token-bucket rate limiting with per-tool limits
+  - `ToolFilterMiddleware` — Allow-list or deny-list for tool access
+- **`RequestContext`** — Per-request client info passed through the middleware chain
+- **`AgentNetworkError`** — Unified error type
 
-- **McpServer** — Full MCP server lifecycle management
-- **McpHandler** — Request handler trait
-- **McpToolRegistry** — Tool registration with `McpToolDef` and `ToolHandler`
-- **ServerTransport** — Stdio server transport
-- **Middleware pipeline:**
-  - `AuthMiddleware` — Authentication
-  - `LoggingMiddleware` — Request/response logging
-  - `RateLimitMiddleware` — Rate limiting
-  - `ToolFilterMiddleware` — Tool access filtering
+---
+
+## Agent Networking
+
+**Crate:** `brainwires-agent-network`
+
+Agent IPC, remote bridge, 5-layer protocol stack, device allowlists, permission relay, and optional mesh networking. MCP server framework has been extracted to `brainwires-mcp-server`.
 
 ### Agent Communication
 
@@ -279,7 +310,14 @@ MCP server framework, IPC, remote relay, and agent management.
 
 ### Relay Client
 
-- **RelayClient** — Connect to remote relay servers (feature: `client`)
+- **AgentNetworkClient** — Connect to remote agent network servers (feature: `client`)
+
+### Security & Device Management
+
+- **DeviceAllowlist** — `DeviceStatus` (Allowed/Blocked/Pending), `OrgPolicies` for organization-level enforcement
+- **Device fingerprinting** — Bridge computes SHA-256 of machine-id + hostname + OS and sends it in every `Register` message; connection is refused if server responds `Blocked`
+- **Sender verification** — Channel-type and channel-ID allowlists; master `channels_enabled` switch evaluated at handshake time
+- **PermissionRelay** — `PermissionRequest`/`PermissionResponse` protocol messages for remote human-in-the-loop approval. `PermissionRelay` module: pending request map (oneshot channels per request ID), session-allowed list for pre-approved tools, configurable timeout. `RemoteBridge::send_permission_request()` sends request and awaits response; auto-denies on timeout.
 
 ---
 
@@ -348,7 +386,7 @@ LanceDB-backed persistent storage with semantic search.
 
 ## RAG & Code Search
 
-**Crate:** `brainwires-rag`
+**Crate:** `brainwires-cognition` (feature: `rag`)
 
 RAG-based codebase indexing and semantic search.
 
@@ -367,7 +405,7 @@ RAG-based codebase indexing and semantic search.
 
 ## Knowledge & Brain
 
-**Crate:** `brainwires-brain`
+**Crate:** `brainwires-cognition` (feature: `knowledge`)
 
 Central knowledge crate for persistent thought storage and entity graphs.
 
@@ -386,7 +424,7 @@ Central knowledge crate for persistent thought storage and entity graphs.
 
 ## Adaptive Prompting
 
-**Crate:** `brainwires-prompting`
+**Crate:** `brainwires-cognition` (feature: `prompting`)
 
 Implements "Adaptive Selection of Prompting Techniques" (arXiv:2510.18162).
 
@@ -403,7 +441,7 @@ Implements "Adaptive Selection of Prompting Techniques" (arXiv:2510.18162).
 
 ## SEAL (Self-Evolving Agentic Learning)
 
-**Crate:** `brainwires-seal`
+**Crate:** `brainwires-agents` (feature: `seal`)
 
 Self-evolving agent capabilities without retraining.
 
@@ -456,13 +494,17 @@ Capability-based permission system.
 
 ---
 
-## Audio
+## Hardware I/O
 
-**Crate:** `brainwires-audio`
+**Crate:** `brainwires-hardware`
+
+Unified hardware abstraction — audio, GPIO, Bluetooth, and network hardware.
+
+### Audio (feature: `audio`)
 
 Audio capture, playback, speech-to-text, and text-to-speech.
 
-### Core
+#### Core
 
 - **AudioCapture** trait — Audio input abstraction
 - **AudioPlayback** trait — Audio output abstraction
@@ -471,13 +513,10 @@ Audio capture, playback, speech-to-text, and text-to-speech.
 - **AudioRingBuffer** — Ring buffer for streaming audio data
 - **WAV utilities** — `encode_wav()`, `decode_wav()`
 - **Device enumeration** — `AudioDevice`, `DeviceDirection`
-
-### Hardware Backends (feature: `native`)
-
 - **CpalCapture** — Hardware audio capture via cpal
 - **CpalPlayback** — Hardware audio playback via cpal
 
-### Cloud API Integrations (feature: `native`)
+#### Cloud API Integrations
 
 | Implementation | Type | Provider |
 |---------------|------|----------|
@@ -495,10 +534,105 @@ Audio capture, playback, speech-to-text, and text-to-speech.
 | `CartesiaTts` | TTS | Cartesia |
 | `MurfTts` | TTS | Murf AI |
 
-### Local Inference
+#### Local Inference
 
 - **WhisperStt** — Local STT via whisper.cpp (feature: `local-stt`)
 - **FLAC support** — `encode_flac()`, `decode_flac()` (feature: `flac`)
+
+### GPIO (feature: `gpio`, Linux)
+
+Safe GPIO pin access using the Linux character device API (`gpio-cdev`).
+
+- **GpioPinManager** — Pin allocation, direction, auto-release on agent timeout
+- **GpioSafetyPolicy** — Explicit allow-list: no pin is accessible unless listed
+- **GpioChipInfo** / **GpioLineInfo** — Chip and line discovery
+- **PwmConfig** — Software PWM (frequency, duty cycle validation)
+
+### Bluetooth (feature: `bluetooth`)
+
+Cross-platform BLE scanning via `btleplug` (Linux/BlueZ, macOS, Windows).
+
+- **`list_adapters()`** — Enumerate local Bluetooth radios
+- **`scan_ble(duration)`** — Scan for BLE advertisement packets
+- **BluetoothDevice** — Address, name, RSSI, services
+- **BluetoothAdapter** — Adapter ID and name
+
+### Network Hardware (feature: `network`)
+
+Network interface enumeration, IP configuration, ARP discovery, and port scanning.
+
+- **`list_interfaces()`** — Enumerate NICs (wired, wireless, loopback, virtual)
+- **`get_ip_configs()`** — IP addresses and default gateways per interface
+- **`arp_scan(subnet)`** — ARP host discovery on local subnet (requires `CAP_NET_RAW`)
+- **`arp_probe(hosts)`** — ARP probe a list of specific hosts
+- **`scan_ports(host, ports, timeout, concurrency)`** — Async TCP connect port scan
+- **`scan_range(host, start, end, ...)`** — Scan a contiguous port range
+- **`scan_common_ports(host, timeout)`** — Scan 21 well-known service ports
+- **NetworkInterface** — Name, kind, MAC, addresses, up/down status
+- **InterfaceKind** — `Wired`, `Wireless`, `Loopback`, `Virtual`, `Unknown`
+- **PortScanResult** / **PortState** — Per-port result (`Open`, `Closed`, `Filtered`)
+- **DiscoveredHost** — IP, MAC, hostname from ARP replies
+
+### Camera (feature: `camera`)
+
+Cross-platform webcam and camera frame capture via `nokhwa` (V4L2 on Linux, AVFoundation on macOS, Media Foundation on Windows).
+
+- **`list_cameras()`** — Enumerate connected cameras with index, name, and description
+- **`open_camera(index, format)`** — Open a camera with an optional format request; falls back to highest frame rate if `None`
+- **`CameraCapture` trait** — `format()`, `capture_frame()` (async), `stop()`
+- **`NokhwaCapture`** — `CameraCapture` implementation; internally uses `spawn_blocking` for sync nokhwa API
+- **CameraDevice** — Index, name, description
+- **CameraFrame** — Width, height, pixel format, raw data bytes, timestamp (ms since first frame)
+- **CameraFormat** — Resolution, frame rate (numerator/denominator), pixel format
+- **PixelFormat** — `Rgb`, `Bgr`, `Rgba`, `Yuv422`, `Mjpeg`, `Unknown`; MJPEG frames are automatically decoded to RGB
+- **Resolution** — Width × height; `Display` as `1920x1080`
+- **FrameRate** — Rational (numerator/denominator); `Display` as `30fps`
+
+### USB (feature: `usb`)
+
+Raw USB device enumeration and async bulk/control/interrupt transfers via `nusb` (pure Rust, no libusb system dependency).
+
+- **`list_usb_devices()`** — Enumerate all USB devices; reads string descriptors (manufacturer, product, serial) on a best-effort basis
+- **`find_device(vendor_id, product_id)`** — Find the first matching device or return `UsbError::DeviceNotFound`
+- **`UsbHandle::open(vendor_id, product_id, interface)`** — Open a device and claim an interface; auto-discovers bulk IN/OUT endpoints
+- **`UsbHandle::control_in()`** / **`control_out()`** — USB control transfers (standard/class/vendor)
+- **`UsbHandle::bulk_read(endpoint, len, timeout)`** / **`bulk_write()`** — Bulk endpoint transfers with auto-endpoint fallback
+- **`UsbHandle::interrupt_read()`** / **`interrupt_write()`** — Interrupt endpoint transfers
+- **UsbDevice** — Bus, device address, vendor/product ID, class, speed, and optional string descriptors
+- **UsbClass** — Full USB-IF class code mapping (HID, MassStorage, Audio, Video, Hub, …, `Unknown(u8)`)
+- **UsbSpeed** — `Low`, `Full`, `High`, `Super`, `SuperPlus`, `Unknown`
+- **Linux udev** — No root required; add a udev rule for your vendor/product ID to grant user access
+
+### Voice Activity Detection (always available with `audio`; `WebRtcVad` requires feature `vad`)
+
+Classify audio frames as speech or silence.
+
+- **`VoiceActivityDetector` trait** — `is_speech(audio)`, `detect_segments(audio, frame_ms)` → `Vec<SpeechSegment>`
+- **`EnergyVad`** — Pure-Rust RMS energy threshold (default: -40 dBFS). Zero extra dependencies.
+- **`WebRtcVad`** — WebRTC VAD algorithm (feature: `vad`). Four aggressiveness modes via `VadMode`: `Quality`, `LowBitrate`, `Aggressive`, `VeryAggressive`. Supports 8 / 16 / 32 / 48 kHz with 10, 20, or 30 ms frames.
+- **`SpeechSegment`** — `is_speech`, `start_sample`, `end_sample`, `len()`, `is_empty()`
+- **Helpers** — `rms_db(audio)` (dBFS), `pcm_to_i16_mono(audio)`, `pcm_to_f32(audio)`
+
+### Wake Word Detection (feature: `wake-word`)
+
+Keyword-triggered activation for the voice assistant pipeline.
+
+- **`WakeWordDetector` trait** — `sample_rate()`, `frame_size()`, `process_frame(samples) -> Option<WakeWordDetection>`
+- **`WakeWordDetection`** — `keyword: String`, `score: f32` (0–1), `timestamp_ms: u64`
+- **`EnergyTriggerDetector`** — Zero-dependency energy-burst trigger. Fires when audio exceeds a configurable dB threshold for N consecutive 30 ms frames. Useful as a zero-cost "tap-to-wake" or "clap-to-wake" fallback.
+- **`RustpotterDetector`** (feature: `wake-word-rustpotter`) — Pure-Rust wake word detection using DTW or ONNX neural models (`.rpw` files). `from_model_file(path, threshold)`, `from_model_files(paths, threshold)`.
+- **`PorcupineDetector`** (feature: `wake-word-porcupine`) — Picovoice Porcupine; maximum accuracy. `from_builtin(access_key, keyword)`, `from_keyword_files(access_key, paths, sensitivities)`. Requires a free Picovoice AccessKey.
+
+### Voice Assistant Pipeline (feature: `voice-assistant`)
+
+End-to-end orchestration: mic capture → wake word → VAD-gated accumulation → STT → handler → TTS → playback.
+
+- **`VoiceAssistant`** — Main pipeline struct. `builder(capture, stt)` → `VoiceAssistantBuilder`. Methods: `run(&handler)` (async event loop), `listen_once()` (single-shot transcript), `stop()`, `state()`.
+- **`VoiceAssistantBuilder`** — Fluent builder: `with_playback()`, `with_tts()`, `with_wake_word()`, `with_vad()`, `with_config()`, `build()`.
+- **`VoiceAssistantConfig`** — `capture_config`, `silence_threshold_db` (-40 dB default), `silence_duration_ms` (800 ms default), `max_record_secs` (30 s), `listen_timeout_secs` (10 s), `stt_options`, `tts_options`, `microphone`, `speaker`.
+- **`VoiceAssistantHandler` trait** — `on_wake_word(&detection)`, `on_speech(&transcript) -> Option<String>`, `on_error(&error)`.
+- **`AssistantState`** — `Idle`, `Listening`, `Processing`, `Speaking`.
+- **Pipeline loop** — Stream mic chunks at 16 kHz → accumulate frame buffer → wake word detection (if configured) → VAD-gated ring buffer accumulation → STT transcription → handler callback → optional TTS synthesis + playback → loop.
 
 ---
 
@@ -533,6 +667,25 @@ Markdown-based agent skill packages.
 - **SkillExecutor** — Execution modes: `SubagentPrepared` (delegate to subagent) or `ScriptPrepared`
 - **Progressive disclosure** — Metadata loaded at startup, full content loaded on-demand
 - **SkillSource** — Multiple sources (built-in, user, project)
+- **SkillPackage** — Distributable package format: manifest (name, semver, author, license, tags, deps), skill_content, SHA-256 checksum, optional ed25519 signature
+- **RegistryClient** — HTTP client for publishing to and downloading from a skill registry server
+- **ed25519 signing** (feature `signing`) — Sign and verify skill packages for supply-chain safety
+
+---
+
+## Channels
+
+**Crate:** `brainwires-channels`
+
+Universal messaging channel contract for adapter implementations (Discord, Telegram, Slack, etc.).
+
+- **Channel** trait — Core interface that all messaging adapters must implement
+- **ChannelMessage** — Core message types with attachments, embeds, and media
+- **ChannelEvent** — Events: message received, edited, deleted, reactions, presence changes
+- **ChannelCapabilities** — Capability flags for adapter feature negotiation
+- **ChannelUser** / **ChannelSession** — User and session identity types
+- **ChannelHandshake** — Gateway handshake protocol for adapter registration
+- **Conversion** — Bidirectional conversion between `ChannelMessage` and agent-network `MessageEnvelope`
 
 ---
 
@@ -619,7 +772,7 @@ Cloud and local model fine-tuning.
 
 ## Distributed Mesh Networking
 
-**Crate:** `brainwires-mesh`
+**Crate:** `brainwires-agent-network` (feature: `mesh`)
 
 Connect agents across processes and machines.
 
@@ -634,7 +787,7 @@ Connect agents across processes and machines.
 
 ## Agent-to-Agent (A2A) Protocol
 
-**Module:** `brainwires-relay::a2a` (feature: `a2a`)
+**Crate:** `brainwires-a2a`
 
 Implementation of Google's A2A protocol for interoperable agent communication.
 
@@ -643,6 +796,12 @@ Implementation of Google's A2A protocol for interoperable agent communication.
 - **Message types** — Text, file, and structured data parts (`Part`, `Artifact`)
 - **Authentication** — Pluggable auth schemes: API key, OAuth2, JWT, Bearer
 - **AgentProvider** / **AgentSkill** — Provider and skill metadata
+- **JSON-RPC 2.0** — Full request/response envelopes with typed method constants
+- **Push notifications** — `TaskPushNotificationConfig`, `AuthenticationInfo`
+- **Streaming** — Server-Sent Events for real-time task updates
+- **Client** — HTTP client with JSON-RPC and REST transports (feature: `client`)
+- **Server** — HTTP server with JSON-RPC and REST routers (feature: `server`)
+- **gRPC** — Protocol Buffers types, client transport, and server service (feature: `grpc`)
 
 ---
 
@@ -663,6 +822,13 @@ Self-improvement, Git workflows, and human-out-of-loop execution.
 
 - **AutonomousFeedbackLoop** — Continuous evaluation and improvement
 - **FeedbackLoopConfig** / **FeedbackLoopReport**
+- **Empirical scoring eval cases** (`brainwires_autonomy::eval`) — validates scoring heuristics produce correct relative orderings via NDCG:
+  - `EntityImportanceRankingCase` — hub vs. peripheral entity ranking
+  - `EntitySingleMentionCase` — ln(1)=0 zero-contribution is compensated by type bonus
+  - `EntityTypeBonusCase` — type-bonus ordering matches hardcoded priority table
+  - `MultiFactorRankingCase` — 4 scenarios (similarity dominance, recency decay, fast decay, importance tiebreaker)
+  - `TierDemotionCase` — `TierMetadata::retention_score` orders demotion candidates correctly
+  - `entity_importance_suite()` / `multi_factor_suite()` — convenience constructors for `AutonomousFeedbackLoop`
 
 ### Git Workflow Pipeline (feature: `git-workflow`)
 
@@ -694,6 +860,15 @@ Self-improvement, Git workflows, and human-out-of-loop execution.
 
 - **SessionMetrics** — Per-session performance tracking
 - **SessionReport** — Summary reports
+
+### Dream — Memory Consolidation (feature: `dream`)
+
+- **DreamConsolidator** — 4-phase consolidation cycle: orient (scope selection) → gather (conversation sampling) → consolidate (LLM compression) → prune (demotion by policy)
+- **DemotionPolicy** — Configurable thresholds for age, importance score, and memory budget
+- **DreamSummarizer** — LLM-powered conversation compression; reduces working memory while preserving intent
+- **FactExtractor** — Extracts durable knowledge into 5 categories: entities, relationships, events, preferences, habits
+- **DreamMetrics** / **DreamReport** — Consolidation health tracking with per-phase timing and retention rates
+- **DreamTask** — Wraps a consolidation run as a scheduled task via `AutonomyScheduler`
 
 ---
 
@@ -747,6 +922,49 @@ Monte Carlo evaluation framework for agent quality assurance.
 
 ---
 
+## Analytics
+
+**Crate:** `brainwires-analytics`
+
+Unified analytics collection, persistence, and querying — zero-friction observability for all framework components.
+
+### Event Types (`AnalyticsEvent`)
+
+10 fully serializable typed event variants:
+
+| Variant | Key fields |
+|---------|-----------|
+| `ProviderCall` | provider, model, prompt/completion tokens, cost, latency, success |
+| `AgentRun` | agent_id, task_id, iterations, tool calls, token totals, cost, duration |
+| `ToolCall` | agent_id, tool_name, tool_use_id, is_error, duration |
+| `McpRequest` | server_name, tool_name, success, duration |
+| `ChannelMessage` | channel_type, direction, message length |
+| `StorageOp` | store_type, operation, success, duration |
+| `NetworkMessage` | protocol, direction, bytes, success |
+| `DreamCycle` | sessions processed, messages summarized, facts extracted, token reduction |
+| `AutonomySession` | tasks attempted/succeeded/failed, total cost, duration |
+| `Custom` | name, arbitrary JSON payload |
+
+### Collection
+
+- **`AnalyticsCollector`** — Multi-sink dispatcher; call `record(event)` from any instrumented site. Clone-safe (`Arc`-backed).
+- **`AnalyticsLayer`** — `tracing-subscriber` layer that automatically intercepts known span names (`provider.chat`, etc.) without modifying instrumented code. Register alongside your existing tracing setup.
+
+### Sinks
+
+- **`MemoryAnalyticsSink`** — In-process ring buffer; useful for testing and dashboards.
+- **`SqliteAnalyticsSink`** (feature `sqlite`) — Persists events to a local SQLite database at `<data_dir>/brainwires-analytics/analytics.db`.
+
+### Querying (feature `sqlite`)
+
+- **`AnalyticsQuery`** — Aggregated reporting from the SQLite sink.
+  - `cost_by_model(start, end)` → `Vec<CostByModelRow>` (model, total cost, call count)
+  - `tool_frequency(start, end)` → `Vec<ToolFrequencyRow>` (tool name, call count, error count)
+  - `daily_summary(start, end)` → `Vec<DailySummaryRow>` (date, calls, tokens, cost)
+  - `rebuild_summaries()` — Refresh materialized summary tables
+
+---
+
 ## Proxy Framework
 
 **Crate:** `brainwires-proxy` *(extras/)*
@@ -783,6 +1001,14 @@ Browser-compatible WASM bindings via `wasm-bindgen`.
 
 ## Extras & Standalone Binaries
 
+### voice-assistant *(extras/)*
+
+Personal voice assistant binary built on `brainwires-hardware`. Mic capture → optional energy wake trigger → VAD-gated speech accumulation → OpenAI Whisper STT → LLM response (OpenAI chat completions) → OpenAI TTS playback. CLI: `--config <path.toml>`, `--list-devices`, `--wake-word <model>`, `--verbose`. TOML config covers STT model, TTS voice/model, silence tuning, wake word path, LLM model, system prompt, device names, and API key (or `OPENAI_API_KEY` env var). Graceful Ctrl-C shutdown.
+
+### brainwires-issues *(extras/)*
+
+Lightweight MCP-native issue tracking server inspired by Linear's agent interface. 10 tools: `create_issue` (title, description, priority, assignee, project, parent_id, labels), `get_issue` (UUID or `#number` display shorthand), `list_issues` (filter by project/status/assignee/label; offset-based pagination with `next_offset`), `update_issue`, `close_issue` (done or cancelled), `delete_issue` (optional comment cascade), `search_issues` (BM25 full-text; in-memory fallback), `add_comment`, `list_comments` (offset pagination), `delete_comment` (existence-checked). 4 prompts: `/create`, `/list`, `/search`, `/triage`. Data model: `Issue` (UUID + auto-incrementing display number, 6 status states, 5 priority levels, labels, assignee, project, parent_id for sub-issues, timestamps), `Comment`. Storage: LanceDB at `<data_dir>/brainwires-issues/lancedb/`; BM25 index at `<data_dir>/brainwires-issues/bm25/`.
+
 ### brainwires-brain-server *(extras/)*
 
 MCP server binary wrapping `brainwires-brain` for use with AI assistants (Claude Desktop, etc.).
@@ -793,11 +1019,47 @@ MCP server binary wrapping `brainwires-rag` for semantic code search via MCP pro
 
 ### agent-chat *(extras/)*
 
-Simplified open-source AI chat client built on the framework. Includes CLI commands for config, models, and auth.
+Minimal reference implementation of a chat client — small, readable, and purpose-built for learning the framework. Includes CLI commands for config, models, and auth. For a full-featured CLI, see `brainwires-cli` below.
+
+### brainwires-cli *(extras/)*
+
+Full-featured AI-powered agentic CLI with multi-agent orchestration (`TaskAgent`, `WorkerAgent`, `OrchestratorAgent`), MCP server mode (expose the CLI as an MCP tool server for hierarchical AI workflows), TUI (fullscreen ratatui interface), infinite context (LanceDB-backed semantic memory), extensive tool integration (file ops, bash, git, web, code search, validation), per-session model switching (`/model`), and support for all cloud providers (Anthropic, OpenAI, Google, Ollama, Groq, Together, Fireworks, Bedrock, Vertex AI). Migrated from a standalone repository; now a root workspace member at `extras/brainwires-cli/`.
 
 ### reload-daemon *(extras/)*
 
 File-watching daemon for automatic server reloading during development.
+
+### brainclaw *(extras/brainclaw/)*
+
+Self-hosted personal AI assistant daemon. Multi-provider (Anthropic, OpenAI, Google, Ollama, etc.), per-user agent sessions, TOML config. Bundles the gateway, security middleware, and all channel adapters into a single service. Feature flags: `native-tools` (default), `email` (IMAP/SMTP/Gmail), `calendar` (Google Calendar/CalDAV).
+
+### brainwires-gateway *(extras/brainclaw/)*
+
+WebSocket/HTTP hub for routing channel adapters to AI agent sessions. `InboundHandler` trait for custom message processing; built-in `AgentInboundHandler` wires `ChatAgent` sessions per user. WebChat browser UI served at `/chat`. Media pipeline for attachment download, image description, and audio transcription. Admin API (`/admin/*`) with Bearer token auth. Admin browser UI at `/admin/ui` (dark-themed single-file dashboard; Dashboard, Channels, Sessions, Cron Jobs, Identity, Broadcast sections). Webhook endpoint with HMAC-SHA256 verification. Audit logger (structured JSON, ring buffer). In-memory metrics counters. **`/model` slash command** for per-session model switching stored in a `DashMap`; fires `/model list`, `/model <name>`, `/model default`.
+
+### brainwires-discord-channel *(extras/brainclaw/)*
+
+Discord channel adapter (serenity) implementing the `Channel` trait. Reference implementation for building additional platform adapters. Optional MCP tool server mode (`--mcp`) for programmatic Discord access.
+
+### brainwires-telegram-channel *(extras/brainclaw/)*
+
+Telegram channel adapter (teloxide) implementing the `Channel` trait. Bidirectional gateway relay. Optional MCP tool server mode (`--mcp`).
+
+### brainwires-slack-channel *(extras/brainclaw/)*
+
+Slack channel adapter using Socket Mode (reqwest) — no public URL required. Implements the `Channel` trait. Optional MCP tool server mode (`--mcp`).
+
+### brainwires-mattermost-channel *(extras/brainclaw/)*
+
+Mattermost channel adapter. Connects via Mattermost WebSocket API (`/api/v4/websocket`) for real-time events. Implements the `Channel` trait. Filtering: self-messages, channel allowlist, @mention requirement, team scoping. Optional MCP tool server mode (`--mcp`): `send_message`, `edit_message`, `delete_message`, `get_history`, `add_reaction`. Capabilities: `RICH_TEXT | THREADS | REACTIONS | TYPING_INDICATOR | EDIT_MESSAGES | DELETE_MESSAGES | MENTIONS`.
+
+### brainwires-signal-channel *(extras/brainclaw/)*
+
+Signal messenger channel adapter via `signal-cli-rest-api`. WebSocket push mode (`/v1/events`) with polling fallback (`GET /v1/receive/{number}`). Filtering: self-messages, sender allowlist (E.164 numbers), group allowlist (base64 IDs), @mention/keyword trigger for groups. Optional MCP tool server mode (`--mcp`): `send_message` (phone or `group.<id>`), `add_reaction` (composite `recipient:author:timestamp` ID). Capabilities: `REACTIONS`.
+
+### brainwires-skill-registry *(extras/brainclaw/)*
+
+HTTP skill registry server. SQLite with FTS5 full-text search. Endpoints: publish (`POST /api/skills`), search by query + tags, get manifest (latest or versioned), download package. Schema auto-created on first run.
 
 ---
 
@@ -823,7 +1085,7 @@ Re-exports all framework crates behind feature flags.
 | `brain` | No | Central knowledge crate |
 | `permissions` | No | Capability-based permissions |
 | `seal` | No | Self-Evolving Agentic Learning |
-| `relay` | No | MCP server mode and IPC |
+| `agent-network` | No | MCP server, IPC, remote bridge |
 | `rag` | No | RAG engine with code search |
 | `rag-full-languages` | No | RAG + all Tree-sitter language parsers |
 | `interpreters` | No | Sandboxed code interpreters |
@@ -834,12 +1096,20 @@ Re-exports all framework crates behind feature flags.
 | `eval` | No | Evaluation framework |
 | `skills` | No | SKILL.md skill system |
 | `audio` | No | Audio capture, STT, TTS |
+| `gpio` | No | GPIO pin control with safety allow-lists (Linux) |
+| `bluetooth` | No | BLE advertisement scanning and adapter enumeration |
+| `network-hardware` | No | NIC enumeration, IP config, ARP discovery, port scanning |
+| `camera` | No | Webcam/camera frame capture (V4L2/AVFoundation/MSMF) |
+| `usb` | No | Raw USB device enumeration and transfers (no libusb) |
 | `datasets` | No | Training data pipelines |
 | `training` | No | Model training (base types) |
 | `training-cloud` | No | Cloud fine-tuning providers |
 | `training-local` | No | Local LoRA/QLoRA/DoRA training |
 | `training-full` | No | All training + all datasets |
+| `channels` | No | Universal messaging channel contract (Channel trait, message/event types) |
+| `mcp-server-framework` | No | MCP server building blocks (McpServer, McpHandler, middleware pipeline) |
 | `autonomy` | No | Autonomous operations |
+| `dream` | No | Autodream memory consolidation (requires `autonomy`) |
 | `mesh` | No | Distributed agent mesh |
 | `a2a` | No | Agent-to-Agent protocol |
 | `proxy` | No | Protocol proxy framework |

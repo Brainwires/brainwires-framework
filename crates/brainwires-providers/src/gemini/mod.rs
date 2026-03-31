@@ -99,6 +99,98 @@ impl GoogleClient {
         Ok(gemini_response)
     }
 
+    /// Non-streaming `generateContent` call using an explicit model name.
+    ///
+    /// Used when `ChatOptions::model` overrides the provider's default model.
+    pub async fn generate_content_for_model(
+        &self,
+        model: &str,
+        req: &GeminiRequest,
+    ) -> Result<GeminiResponse> {
+        let url = format!(
+            "{}/models/{}:generateContent?key={}",
+            GEMINI_API_BASE, model, self.api_key
+        );
+        self.acquire_rate_limit().await;
+        let response = self
+            .http_client
+            .post(&url)
+            .header("Content-Type", "application/json")
+            .json(req)
+            .send()
+            .await
+            .context("Failed to send request to Google Gemini")?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
+            anyhow::bail!("Google Gemini API error ({}): {}", status, error_text);
+        }
+
+        let gemini_response: GeminiResponse = response
+            .json()
+            .await
+            .context("Failed to parse Google Gemini response")?;
+        Ok(gemini_response)
+    }
+
+    /// Streaming `streamGenerateContent` call using an explicit model name.
+    pub fn stream_generate_content_for_model<'a>(
+        &'a self,
+        model: String,
+        req: &'a GeminiRequest,
+    ) -> BoxStream<'a, Result<GeminiStreamChunk>> {
+        use futures::stream::StreamExt;
+        let url = format!(
+            "{}/models/{}:streamGenerateContent?key={}",
+            GEMINI_API_BASE, model, self.api_key
+        );
+        Box::pin(async_stream::stream! {
+            let url = url;
+            self.acquire_rate_limit().await;
+            let response = match self
+                .http_client
+                .post(&url)
+                .header("Content-Type", "application/json")
+                .json(req)
+                .send()
+                .await
+            {
+                Ok(r) => r,
+                Err(e) => { yield Err(e.into()); return; }
+            };
+
+            if !response.status().is_success() {
+                let status = response.status();
+                let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+                yield Err(anyhow::anyhow!("Google Gemini API error ({}): {}", status, error_text));
+                return;
+            }
+
+            let mut stream = response.bytes_stream();
+            let mut buffer = String::new();
+            while let Some(chunk_result) = stream.next().await {
+                let chunk = match chunk_result {
+                    Ok(c) => c,
+                    Err(e) => { yield Err(e.into()); continue; }
+                };
+                buffer.push_str(&String::from_utf8_lossy(&chunk));
+                while let Some(pos) = buffer.find('\n') {
+                    let line = buffer[..pos].trim().to_string();
+                    buffer = buffer[pos + 1..].to_string();
+                    if line.is_empty() { continue; }
+                    match serde_json::from_str::<GeminiStreamChunk>(&line) {
+                        Ok(chunk) => { yield Ok(chunk); }
+                        Err(e) => { tracing::warn!("Failed to parse Gemini stream chunk: {}", e); }
+                    }
+                }
+            }
+        })
+    }
+
     /// Streaming `streamGenerateContent` call.
     ///
     /// Returns a stream of [`GeminiStreamChunk`]s parsed from the

@@ -10,9 +10,7 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 // Storage types come from `brainwires::storage::*`
-use brainwires::storage::{
-    EmbeddingProvider, LanceDatabase, MessageMetadata, MessageStore,
-};
+use brainwires::storage::{EmbeddingProvider, LanceDatabase, MessageMetadata, MessageStore};
 
 // RAG types come from `brainwires::rag::*`
 use brainwires::rag::{IndexRequest, QueryRequest, RagClient};
@@ -35,10 +33,7 @@ async fn main() -> Result<()> {
     // EmbeddingProvider (type alias for CachedEmbeddingProvider) wraps
     // FastEmbedManager with an LRU cache for repeated queries.
     let embeddings: Arc<EmbeddingProvider> = Arc::new(EmbeddingProvider::new()?);
-    println!(
-        "Embedding provider ready (dim={})",
-        embeddings.dimension()
-    );
+    println!("Embedding provider ready (dim={})", embeddings.dimension());
 
     // ── 3. Store conversation messages ──────────────────────────────────
     //
@@ -48,9 +43,7 @@ async fn main() -> Result<()> {
     let message_store = MessageStore::new(db.clone(), embeddings.clone());
     message_store.ensure_table().await?;
 
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)?
-        .as_secs() as i64;
+    let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() as i64;
 
     let messages = vec![
         MessageMetadata {
@@ -68,9 +61,10 @@ async fn main() -> Result<()> {
             message_id: "msg-002".into(),
             conversation_id: "conv-1".into(),
             role: "assistant".into(),
-            content: "Run `cargo init` in a new directory. This creates Cargo.toml and src/main.rs. \
+            content:
+                "Run `cargo init` in a new directory. This creates Cargo.toml and src/main.rs. \
                       Then use `cargo build` to compile and `cargo run` to execute."
-                .into(),
+                    .into(),
             token_count: Some(35),
             model_id: Some("demo-model".into()),
             images: None,
@@ -97,9 +91,7 @@ async fn main() -> Result<()> {
     //
     // search() returns Vec<(MessageMetadata, f32)> — each result is a
     // message paired with its similarity score.
-    let results = message_store
-        .search("cargo project setup", 2, 0.0)
-        .await?;
+    let results = message_store.search("cargo project setup", 2, 0.0).await?;
     println!("\nSemantic search for \"cargo project setup\":");
     for (i, (msg, score)) in results.iter().enumerate() {
         let preview = &msg.content[..msg.content.len().min(80)];

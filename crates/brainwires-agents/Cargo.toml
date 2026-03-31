@@ -51,9 +51,11 @@ async-trait.workspace = true
 # Code search (optional, for reasoning module)
 regex = { workspace = true, optional = true }
 
+# Async streams (needed by ChatAgent for StreamExt)
+futures.workspace = true
+
 # Eval framework (optional)
 thiserror = { workspace = true, optional = true }
-futures = { workspace = true, optional = true }
 
 # ── SEAL deps ──────────────────────────────────────────────────────────
 brainwires-cognition = { workspace = true, optional = true }
@@ -61,6 +63,9 @@ brainwires-permissions = { workspace = true, optional = true }
 
 # OpenTelemetry (optional, for otel feature)
 opentelemetry = { version = "0.28", optional = true }
+
+# Analytics (optional)
+brainwires-analytics = { workspace = true, optional = true }
 
 # Logging
 tracing.workspace = true
@@ -80,9 +85,11 @@ wasm = ["brainwires-core/wasm", "brainwires-tool-system/wasm"]
 # Reasoning module (merged from brainwires-reasoning)
 reasoning = ["dep:regex"]
 # Evaluation framework (merged from brainwires-eval)
-eval = ["dep:thiserror", "dep:futures"]
+eval = ["dep:thiserror"]
 # OpenTelemetry span export for agent execution traces
 otel = ["dep:opentelemetry"]
+# Emit AnalyticsEvent::AgentRun after each TaskAgent run
+analytics = ["dep:brainwires-analytics", "brainwires-analytics/native"]
 # MDAP: Multi-Dimensional Adaptive Planning (merged from brainwires-mdap)
 mdap = ["dep:regex", "dep:thiserror"]
 # SEAL (Self-Evolving Agentic Learning)

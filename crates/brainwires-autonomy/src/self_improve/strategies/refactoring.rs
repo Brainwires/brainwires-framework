@@ -147,3 +147,21 @@ impl ImprovementStrategy for RefactoringStrategy {
         Ok(tasks)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn strategy_name_is_refactoring() {
+        assert_eq!(RefactoringStrategy.name(), "refactoring");
+    }
+
+    #[test]
+    fn strategy_category_is_refactoring() {
+        assert_eq!(
+            RefactoringStrategy.category(),
+            ImprovementCategory::Refactoring
+        );
+    }
+}

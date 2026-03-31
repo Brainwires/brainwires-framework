@@ -1,5 +1,7 @@
 # agent-chat
 
+> **This is the minimal reference implementation** — a small, readable example of building a chat client on the Brainwires Framework. For a full-featured CLI tool with multi-agent orchestration, MCP server mode, infinite context, and more, see [`extras/brainwires-cli/`](../brainwires-cli/).
+
 A simplified, open-source AI chat client built on the [Brainwires Framework](../../). Supports all cloud providers, built-in tool execution, and both plain (readline) and fullscreen TUI modes.
 
 ## Quick Start

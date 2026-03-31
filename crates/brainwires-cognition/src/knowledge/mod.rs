@@ -24,6 +24,8 @@
 pub mod bks_pks;
 /// Persistent thought storage with semantic search.
 pub mod brain_client;
+/// Memory bank configuration: mission, directives, disposition traits.
+pub mod config;
 /// Entity types and store for the knowledge graph.
 pub mod entity;
 /// Automatic fact extraction from text.
@@ -37,6 +39,7 @@ pub mod types;
 
 // Re-export main types
 pub use brain_client::BrainClient;
+pub use config::{DispositionTrait, MemoryBankConfig};
 pub use entity::{
     ContradictionEvent, ContradictionKind, Entity, EntityStore, EntityStoreStats, EntityType,
     ExtractionResult, Relationship,
