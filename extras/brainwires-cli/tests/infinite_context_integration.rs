@@ -19,6 +19,7 @@ async fn test_message_storage_and_search() -> Result<()> {
     client.initialize(embeddings.dimension()).await?;
 
     let store = MessageStore::new(client.clone(), embeddings.clone());
+    store.ensure_table().await?;
 
     // Create test messages with known content
     let messages = vec![
@@ -181,6 +182,7 @@ async fn test_conversation_isolation() -> Result<()> {
     client.initialize(embeddings.dimension()).await?;
 
     let store = MessageStore::new(client, embeddings);
+    store.ensure_table().await?;
 
     // Create messages in different conversations
     let conv1_messages = vec![MessageMetadata {
@@ -258,6 +260,7 @@ async fn test_relevance_thresholds() -> Result<()> {
     client.initialize(embeddings.dimension()).await?;
 
     let store = MessageStore::new(client, embeddings);
+    store.ensure_table().await?;
 
     // Create messages with varying relevance to query
     let messages = vec![
@@ -354,6 +357,7 @@ async fn bench_search_latency() -> Result<()> {
     client.initialize(embeddings.dimension()).await?;
 
     let store = MessageStore::new(client, embeddings);
+    store.ensure_table().await?;
 
     // Add 100 messages to make search more realistic
     let mut messages = Vec::new();

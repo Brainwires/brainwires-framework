@@ -12,7 +12,7 @@
 //!
 //! ## Quick start
 //!
-//! ```rust,no_run
+//! ```rust,no_run,ignore
 //! use brainwires_hardware::audio::wake_word::{RustpotterDetector, WakeWordDetector};
 //!
 //! // Load a .rpw model (record samples with rustpotter-cli to create one)

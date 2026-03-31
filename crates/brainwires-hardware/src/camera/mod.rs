@@ -39,7 +39,9 @@
 //! ```rust,no_run
 //! use brainwires_hardware::camera::{self, CameraFormat};
 //!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let mut cap = camera::open_camera(0, Some(CameraFormat::hd_720p()))?;
+//! # Ok(()) }
 //! ```
 
 pub mod capture;
