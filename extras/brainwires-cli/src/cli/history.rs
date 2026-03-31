@@ -326,6 +326,15 @@ async fn initialize_storage() -> Result<(
     let conversation_store = Arc::new(ConversationStore::new(Arc::clone(&client)));
     let message_store = Arc::new(MessageStore::new(Arc::clone(&client), embeddings));
 
+    conversation_store
+        .ensure_table()
+        .await
+        .context("Failed to ensure conversations table")?;
+    message_store
+        .ensure_table()
+        .await
+        .context("Failed to ensure messages table")?;
+
     Ok((client, conversation_store, message_store))
 }
 
