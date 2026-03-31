@@ -35,7 +35,7 @@ termimad = "0.34"
 
 # TUI extension components (checkbox, button, input, dialogs)
 # Uses local dev version — published 0.4.2 lacks CursorMode, ScrollMode, delete_word_forward, title()
-ratatui-interact = { path = "/home/nightness/dev/ratatui-interact", features = ["clipboard"] }
+ratatui-interact = { version = "0.5.1", features = ["clipboard"] }
 
 # HTTP client
 reqwest.workspace = true
