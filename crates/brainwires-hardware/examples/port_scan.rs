@@ -18,11 +18,8 @@ async fn main() {
 
     println!("Scanning common ports on {target}...");
 
-    let results = brainwires_hardware::network::scan_common_ports(
-        target,
-        Duration::from_millis(500),
-    )
-    .await;
+    let results =
+        brainwires_hardware::network::scan_common_ports(target, Duration::from_millis(500)).await;
 
     let open: Vec<_> = results
         .iter()

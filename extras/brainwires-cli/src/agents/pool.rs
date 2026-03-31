@@ -3,7 +3,7 @@
 //! Provides lifecycle management for task agents including spawning,
 //! monitoring, and cleanup.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -14,7 +14,9 @@ use crate::types::agent::{AgentContext, Task};
 
 use super::communication::CommunicationHub;
 use super::file_locks::FileLockManager;
-use super::task_agent::{spawn_task_agent, TaskAgent, TaskAgentConfig, TaskAgentResult, TaskAgentStatus};
+use super::task_agent::{
+    TaskAgent, TaskAgentConfig, TaskAgentResult, TaskAgentStatus, spawn_task_agent,
+};
 
 /// Handle for a running agent
 struct AgentHandle {

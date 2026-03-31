@@ -2,8 +2,8 @@
 //!
 //! Contains the core App struct and related types for state management.
 
-use crate::agents::TaskManager;
 use crate::agents::TaskAgentStatus;
+use crate::agents::TaskManager;
 use crate::commands::CommandExecutor;
 use crate::mdap::MdapConfig;
 use crate::providers::{Provider, ProviderFactory};
@@ -19,10 +19,10 @@ use crate::utils::checkpoint::CheckpointManager;
 use crate::utils::prompt_history::PromptHistory;
 use crate::utils::system_prompt::build_system_prompt;
 use anyhow::{Context, Result};
-use ratatui_interact::components::hotkey_dialog::HotkeyDialogState;
 use ratatui_interact::components::ScrollableContentState;
+use ratatui_interact::components::hotkey_dialog::HotkeyDialogState;
 use std::sync::Arc;
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::{RwLock, mpsc};
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
@@ -203,7 +203,11 @@ pub struct App {
     /// Cached summary for status bar display
     pub session_task_summary: String,
     /// Cached panel content for sidebar display: (icon, text, status)
-    pub session_task_panel_cache: Vec<(String, String, crate::types::session_task::SessionTaskStatus)>,
+    pub session_task_panel_cache: Vec<(
+        String,
+        String,
+        crate::types::session_task::SessionTaskStatus,
+    )>,
     /// Queued user messages (for injecting during agent processing)
     pub(super) queued_messages: Vec<String>,
     /// Plan progress (completed, total)
@@ -493,11 +497,16 @@ pub enum AppMode {
     SubAgentViewer,
 }
 
+/// A single tool entry: (tool_name, description, selected)
+pub type ToolEntry = (String, String, bool);
+/// A category with its tools: (category_name, tools)
+pub type ToolCategory = (String, Vec<ToolEntry>);
+
 /// State for the tool picker UI (explicit mode)
 #[derive(Debug, Clone, Default)]
 pub struct ToolPickerState {
     /// Categories with their tools: (category_name, [(tool_name, description, selected)])
-    pub categories: Vec<(String, Vec<(String, String, bool)>)>,
+    pub categories: Vec<ToolCategory>,
     /// Current selection index (category_index, tool_index within category, or None if on category header)
     pub selected_category: usize,
     /// Selected tool index within category (None means category header is selected)
@@ -562,7 +571,7 @@ pub enum StreamEvent {
     Progress {
         tool_name: String,
         message: String,
-        progress: Option<f64>,  // 0.0 to 1.0, if known
+        progress: Option<f64>, // 0.0 to 1.0, if known
     },
     /// Stream completed
     Done,
@@ -581,10 +590,7 @@ impl App {
     /// - No tool executor (tools are executed by Session)
     /// - No MCP connections (managed by Session)
     /// - Communicates with Session via IPC
-    pub async fn new_viewer(
-        session_id: String,
-        model: Option<String>,
-    ) -> Result<Self> {
+    pub async fn new_viewer(session_id: String, model: Option<String>) -> Result<Self> {
         // Load config for defaults
         let config_manager = crate::config::ConfigManager::new()?;
         let config = config_manager.get();
@@ -603,12 +609,15 @@ impl App {
         let client = std::sync::Arc::new(
             crate::storage::LanceDatabase::new(db_path.to_str().context("Invalid DB path")?)
                 .await
-                .context("Failed to create LanceDB client")?
+                .context("Failed to create LanceDB client")?,
         );
-        client.initialize(384).await.context("Failed to initialize LanceDB")?;
+        client
+            .initialize(384)
+            .await
+            .context("Failed to initialize LanceDB")?;
         let embeddings = std::sync::Arc::new(
             crate::storage::embeddings::EmbeddingProvider::new()
-                .context("Failed to create embedding provider")?
+                .context("Failed to create embedding provider")?,
         );
 
         let conversation_store = crate::storage::ConversationStore::new(client.clone());
@@ -626,7 +635,9 @@ impl App {
         let working_directory = std::env::current_dir()?.to_string_lossy().to_string();
 
         // Session task list (not wired to executor in viewer mode)
-        let session_tasks = Arc::new(RwLock::new(crate::types::session_task::SessionTaskList::new()));
+        let session_tasks = Arc::new(RwLock::new(
+            crate::types::session_task::SessionTaskList::new(),
+        ));
 
         // Command executor for local commands
         let command_executor = CommandExecutor::new()?;
@@ -711,7 +722,7 @@ impl App {
             pre_plan_prompt_mode: None,
             tool_mode: ToolMode::Smart,
             tool_picker_state: None,
-            mcp_tools: Vec::new(), // Managed by Session
+            mcp_tools: Vec::new(),             // Managed by Session
             mcp_connected_servers: Vec::new(), // Managed by Session
             tool_rx: None,
             tool_tx: None,
@@ -758,7 +769,7 @@ impl App {
             // Multi-Agent System
             pending_agent_switch: None,
             pending_agent_spawn: None,
-            ipc_writer: None, // Will be set by caller
+            ipc_writer: None,  // Will be set by caller
             is_ipc_mode: true, // Always in IPC mode for viewer
             ipc_needs_respawn: false,
             // Skills system
@@ -781,7 +792,8 @@ impl App {
 
         // Record working directory for PKS after creation (avoids move issue)
         if let Ok(ref mut app) = result {
-            app.pks_integration.record_working_directory(&app.working_directory);
+            app.pks_integration
+                .record_working_directory(&app.working_directory);
         }
 
         result
@@ -814,9 +826,8 @@ impl App {
         let provider = provider_factory.create(model.clone()).await?;
 
         // Use simple session ID
-        let session_id = session_id.unwrap_or_else(|| {
-            format!("tui-{}", chrono::Utc::now().format("%Y%m%d-%H%M%S"))
-        });
+        let session_id = session_id
+            .unwrap_or_else(|| format!("tui-{}", chrono::Utc::now().format("%Y%m%d-%H%M%S")));
 
         // Initialize command executor
         let command_executor = CommandExecutor::new()?;
@@ -832,12 +843,15 @@ impl App {
         let client = std::sync::Arc::new(
             crate::storage::LanceDatabase::new(db_path.to_str().context("Invalid DB path")?)
                 .await
-                .context("Failed to create LanceDB client")?
+                .context("Failed to create LanceDB client")?,
         );
-        client.initialize(384).await.context("Failed to initialize LanceDB")?;
+        client
+            .initialize(384)
+            .await
+            .context("Failed to initialize LanceDB")?;
         let embeddings = std::sync::Arc::new(
             crate::storage::embeddings::EmbeddingProvider::new()
-                .context("Failed to create embedding provider")?
+                .context("Failed to create embedding provider")?,
         );
 
         let conversation_store = crate::storage::ConversationStore::new(client.clone());
@@ -846,7 +860,9 @@ impl App {
         let task_manager = Arc::new(RwLock::new(TaskManager::new()));
 
         // Initialize session task list (in-memory only, session-specific)
-        let session_tasks = Arc::new(RwLock::new(crate::types::session_task::SessionTaskList::new()));
+        let session_tasks = Arc::new(RwLock::new(
+            crate::types::session_task::SessionTaskList::new(),
+        ));
 
         // Initialize tools and tool executor with core tools only to reduce token cost
         let registry = ToolRegistry::with_builtins();
@@ -886,7 +902,8 @@ impl App {
                     let reliable = cache.get_reliable_truths(0.5, 30);
                     if !reliable.is_empty() {
                         // Convert to MatchedTruth format (within scope where cache is alive)
-                        let matched: Vec<MatchedTruth> = reliable.iter()
+                        let matched: Vec<MatchedTruth> = reliable
+                            .iter()
                             .map(|t| MatchedTruth {
                                 truth: t,
                                 match_score: 1.0,
@@ -933,9 +950,15 @@ impl App {
             search_results: Vec::new(),
             search_result_index: 0,
             status: if mdap_config.is_some() {
-                format!("Ready - Model: {} [MDAP] (Ctrl+C to quit, Ctrl+R to search history)", model)
+                format!(
+                    "Ready - Model: {} [MDAP] (Ctrl+C to quit, Ctrl+R to search history)",
+                    model
+                )
             } else {
-                format!("Ready - Model: {} (Ctrl+C to quit, Ctrl+R to search history)", model)
+                format!(
+                    "Ready - Model: {} (Ctrl+C to quit, Ctrl+R to search history)",
+                    model
+                )
             },
             provider,
             model,
@@ -1077,13 +1100,14 @@ impl App {
 
         // Record working directory for PKS after creation (avoids move issue)
         if let Ok(ref mut app) = result {
-            app.pks_integration.record_working_directory(&app.working_directory);
+            app.pks_integration
+                .record_working_directory(&app.working_directory);
         }
 
         result
     }
 
-/// Get task tree as formatted string for display
+    /// Get task tree as formatted string for display
     pub async fn get_task_tree_display(&self) -> String {
         let manager = self.task_manager.read().await;
         manager.format_tree().await
@@ -1126,8 +1150,7 @@ impl App {
         if let Some(resolution) = result.resolutions.first() {
             self.seal_status.last_resolution = Some(format!(
                 "\"{}\" → {}",
-                resolution.reference.text,
-                resolution.antecedent
+                resolution.reference.text, resolution.antecedent
             ));
         }
 
@@ -1156,7 +1179,8 @@ impl App {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs() as i64)
             .unwrap_or(0);
-        self.seal_entity_store.add_extraction(extraction, "", timestamp);
+        self.seal_entity_store
+            .add_extraction(extraction, "", timestamp);
         self.seal_status.entity_count = self.seal_entity_store.stats().total_entities;
 
         // Advance dialog turn
@@ -1224,11 +1248,21 @@ impl App {
         match self.mode {
             AppMode::Normal => {
                 // Add plan progress to normal status if available
-                let base_status = if let (Some(plan), Some((completed, total))) = (&self.active_plan, &self.plan_progress) {
-                    let progress_pct = if *total > 0 { (*completed * 100) / *total } else { 0 };
-                    format!("Plan: {} ({}/{} tasks, {}%)",
+                let base_status = if let (Some(plan), Some((completed, total))) =
+                    (&self.active_plan, &self.plan_progress)
+                {
+                    let progress_pct = if *total > 0 {
+                        (*completed * 100) / *total
+                    } else {
+                        0
+                    };
+                    format!(
+                        "Plan: {} ({}/{} tasks, {}%)",
                         plan.title.chars().take(30).collect::<String>(),
-                        completed, total, progress_pct)
+                        completed,
+                        total,
+                        progress_pct
+                    )
                 } else if let Some(plan) = &self.active_plan {
                     format!("Plan: {}", plan.title.chars().take(40).collect::<String>())
                 } else {
@@ -1246,17 +1280,32 @@ impl App {
             AppMode::ReverseSearch => {
                 let current_result = self.get_current_search_result().unwrap_or_default();
                 let match_info = if !self.search_results.is_empty() {
-                    format!(" [{}/{}]", self.search_result_index + 1, self.search_results.len())
+                    format!(
+                        " [{}/{}]",
+                        self.search_result_index + 1,
+                        self.search_results.len()
+                    )
                 } else {
                     String::new()
                 };
-                format!("(reverse-i-search)`{}'{}:  {}",
-                    self.search_query, match_info, current_result)
+                format!(
+                    "(reverse-i-search)`{}'{}:  {}",
+                    self.search_query, match_info, current_result
+                )
             }
             AppMode::SessionPicker => "Select session...".to_string(),
-            AppMode::ConsoleView => format!("Console - {} messages (Esc to exit)", self.console_state.line_count()),
-            AppMode::ShellViewer => format!("Shell History - {} commands (Esc to exit)", self.shell_history.len()),
-            AppMode::ConversationFullscreen => format!("Conversation - {} messages (Esc to exit)", self.messages.len()),
+            AppMode::ConsoleView => format!(
+                "Console - {} messages (Esc to exit)",
+                self.console_state.line_count()
+            ),
+            AppMode::ShellViewer => format!(
+                "Shell History - {} commands (Esc to exit)",
+                self.shell_history.len()
+            ),
+            AppMode::ConversationFullscreen => format!(
+                "Conversation - {} messages (Esc to exit)",
+                self.messages.len()
+            ),
             AppMode::InputFullscreen => "Input (Fullscreen) - Esc to exit".to_string(),
             AppMode::Waiting => {
                 // Show plan progress while waiting
@@ -1268,17 +1317,28 @@ impl App {
                     "Waiting for response...".to_string()
                 }
             }
-            AppMode::ToolPicker => "Select tools... (Space: toggle, Enter: confirm, Esc: cancel)".to_string(),
-            AppMode::TaskViewer => format!("Task Tree - {} tasks (Esc to close)", self.task_count_cache),
-            AppMode::FileExplorer => "File Explorer (Esc to close, Enter to open, Space to select)".to_string(),
+            AppMode::ToolPicker => {
+                "Select tools... (Space: toggle, Enter: confirm, Esc: cancel)".to_string()
+            }
+            AppMode::TaskViewer => {
+                format!("Task Tree - {} tasks (Esc to close)", self.task_count_cache)
+            }
+            AppMode::FileExplorer => {
+                "File Explorer (Esc to close, Enter to open, Space to select)".to_string()
+            }
             AppMode::NanoEditor => "Nano Editor (Ctrl+S to save, Ctrl+X to exit)".to_string(),
-            AppMode::GitScm => "Git SCM (Tab: panels, s: stage, u: unstage, c: commit, Esc: close)".to_string(),
+            AppMode::GitScm => {
+                "Git SCM (Tab: panels, s: stage, u: unstage, c: commit, Esc: close)".to_string()
+            }
             AppMode::CancelConfirm => "Cancel operation? (y/n)".to_string(),
             AppMode::QuestionAnswer => {
                 if let Some(ref questions) = self.pending_questions {
                     let current = self.question_state.current_question_idx + 1;
                     let total = questions.questions.len();
-                    format!("Clarifying Questions ({}/{}) - ↑↓: Navigate, Space: Select, Tab: Next, Esc: Skip", current, total)
+                    format!(
+                        "Clarifying Questions ({}/{}) - ↑↓: Navigate, Space: Select, Tab: Next, Esc: Skip",
+                        current, total
+                    )
                 } else {
                     "Clarifying Questions".to_string()
                 }
@@ -1294,22 +1354,42 @@ impl App {
             AppMode::FindReplaceDialog => {
                 if let Some(ref state) = self.find_replace_state {
                     let status = state.status_message.as_deref().unwrap_or("");
-                    format!("Find & Replace: {} (Tab: switch, Enter: replace, Esc: close)", status)
+                    format!(
+                        "Find & Replace: {} (Tab: switch, Enter: replace, Esc: close)",
+                        status
+                    )
                 } else {
                     "Find & Replace".to_string()
                 }
             }
-            AppMode::HelpDialog => "Help (F1/Esc to close, Tab: switch panel, ↑/↓: navigate)".to_string(),
-            AppMode::SuspendDialog => "Ctrl+Z: Background or Suspend? (Tab: switch, Enter: select, Esc: cancel)".to_string(),
-            AppMode::ExitDialog => "Ctrl+C: Exit or Background? (Tab: switch, Enter: select, Esc: cancel)".to_string(),
-            AppMode::HotkeyDialog => "Hotkey Configuration (Tab: switch panel, ↑/↓: navigate, Esc: close)".to_string(),
-            AppMode::ApprovalDialog => "Tool Approval ([Y]es / [N]o / [A]lways / [D]eny always)".to_string(),
+            AppMode::HelpDialog => {
+                "Help (F1/Esc to close, Tab: switch panel, ↑/↓: navigate)".to_string()
+            }
+            AppMode::SuspendDialog => {
+                "Ctrl+Z: Background or Suspend? (Tab: switch, Enter: select, Esc: cancel)"
+                    .to_string()
+            }
+            AppMode::ExitDialog => {
+                "Ctrl+C: Exit or Background? (Tab: switch, Enter: select, Esc: cancel)".to_string()
+            }
+            AppMode::HotkeyDialog => {
+                "Hotkey Configuration (Tab: switch panel, ↑/↓: navigate, Esc: close)".to_string()
+            }
+            AppMode::ApprovalDialog => {
+                "Tool Approval ([Y]es / [N]o / [A]lways / [D]eny always)".to_string()
+            }
             AppMode::SudoPasswordDialog => "Sudo Password (Enter: submit, Esc: cancel)".to_string(),
             AppMode::PlanMode => {
-                let msg_count = self.plan_mode_state.as_ref().map(|s| s.message_count()).unwrap_or(0);
+                let msg_count = self
+                    .plan_mode_state
+                    .as_ref()
+                    .map(|s| s.message_count())
+                    .unwrap_or(0);
                 format!("Plan Mode - {} messages (Ctrl+P to exit)", msg_count)
             }
-            AppMode::SubAgentViewer => "Sub-Agent Viewer (Tab: switch panel, Esc: close)".to_string(),
+            AppMode::SubAgentViewer => {
+                "Sub-Agent Viewer (Tab: switch panel, Esc: close)".to_string()
+            }
         }
     }
 
@@ -1354,33 +1434,29 @@ impl App {
     fn summarize_tool_params(tool_name: &str, params: &serde_json::Value) -> String {
         match tool_name {
             // File operations: show the path
-            "read_file" | "write_file" | "edit_file" | "delete_file" => {
-                params.get("path")
-                    .and_then(|v| v.as_str())
-                    .map(|s| Self::truncate_for_display(s, 60))
-                    .unwrap_or_else(|| "(unknown path)".to_string())
-            }
+            "read_file" | "write_file" | "edit_file" | "delete_file" => params
+                .get("path")
+                .and_then(|v| v.as_str())
+                .map(|s| Self::truncate_for_display(s, 60))
+                .unwrap_or_else(|| "(unknown path)".to_string()),
             // Bash: show the command
-            "bash" | "execute_command" => {
-                params.get("command")
-                    .and_then(|v| v.as_str())
-                    .map(|s| Self::truncate_for_display(s, 80))
-                    .unwrap_or_else(|| "(command)".to_string())
-            }
+            "bash" | "execute_command" => params
+                .get("command")
+                .and_then(|v| v.as_str())
+                .map(|s| Self::truncate_for_display(s, 80))
+                .unwrap_or_else(|| "(command)".to_string()),
             // Search/glob: show the pattern
-            "glob" | "search" | "grep" => {
-                params.get("pattern")
-                    .and_then(|v| v.as_str())
-                    .map(|s| format!("pattern: {}", Self::truncate_for_display(s, 50)))
-                    .unwrap_or_else(|| "(search)".to_string())
-            }
+            "glob" | "search" | "grep" => params
+                .get("pattern")
+                .and_then(|v| v.as_str())
+                .map(|s| format!("pattern: {}", Self::truncate_for_display(s, 50)))
+                .unwrap_or_else(|| "(search)".to_string()),
             // Web fetch: show the URL
-            "web_fetch" | "fetch_url" => {
-                params.get("url")
-                    .and_then(|v| v.as_str())
-                    .map(|s| Self::truncate_for_display(s, 60))
-                    .unwrap_or_else(|| "(url)".to_string())
-            }
+            "web_fetch" | "fetch_url" => params
+                .get("url")
+                .and_then(|v| v.as_str())
+                .map(|s| Self::truncate_for_display(s, 60))
+                .unwrap_or_else(|| "(url)".to_string()),
             // Default: show compact JSON or first key=value
             _ => {
                 if let Some(obj) = params.as_object() {
@@ -1410,7 +1486,8 @@ impl App {
     /// Truncate a string for display, adding ellipsis if needed
     fn truncate_for_display(s: &str, max_len: usize) -> String {
         // Remove newlines for single-line display
-        let single_line: String = s.chars()
+        let single_line: String = s
+            .chars()
             .map(|c| if c == '\n' || c == '\r' { ' ' } else { c })
             .collect();
 
@@ -1545,17 +1622,21 @@ impl App {
 
     /// Calculate maximum scroll value using the cached line count from render
     pub fn max_scroll(&self) -> u16 {
-        let visible_height = self.conversation_area
+        let visible_height = self
+            .conversation_area
             .map(|a| a.height.saturating_sub(2) as usize) // -2 for borders
             .unwrap_or(20);
 
         // Only scroll if content exceeds viewport
         if self.conversation_line_count <= visible_height {
-            return 0;  // Content fits, no scrolling needed
+            return 0; // Content fits, no scrolling needed
         }
 
         // max_scroll = how many lines are hidden above when scrolled to bottom
-        (self.conversation_line_count.saturating_sub(visible_height).saturating_sub(1)) as u16
+        (self
+            .conversation_line_count
+            .saturating_sub(visible_height)
+            .saturating_sub(1)) as u16
     }
 
     /// Scroll the conversation view to the bottom
@@ -1601,7 +1682,11 @@ impl App {
 
             let task_desc = {
                 let s = task.description.as_str();
-                if s.len() > 60 { format!("{}…", &s[..57]) } else { s.to_string() }
+                if s.len() > 60 {
+                    format!("{}…", &s[..57])
+                } else {
+                    s.to_string()
+                }
             };
 
             // Check for IPC socket
@@ -1721,10 +1806,16 @@ impl App {
             return;
         }
 
-        self.add_console_message(format!("🔌 Connecting to {} MCP server(s)...", servers.len()));
+        self.add_console_message(format!(
+            "🔌 Connecting to {} MCP server(s)...",
+            servers.len()
+        ));
 
         // Create a shared MCP client
-        let client = Arc::new(RwLock::new(McpClient::new("brainwires", env!("CARGO_PKG_VERSION"))));
+        let client = Arc::new(RwLock::new(McpClient::new(
+            "brainwires",
+            env!("CARGO_PKG_VERSION"),
+        )));
 
         // Auto-connect to all configured servers
         for server_config in servers {
@@ -1740,41 +1831,39 @@ impl App {
                                 let tool_count = mcp_tools.len();
 
                                 // Convert MCP tools to our Tool format
-                                let adapter = McpToolAdapter::new(
-                                    client.clone(),
-                                    server_name.clone(),
-                                );
+                                let adapter =
+                                    McpToolAdapter::new(client.clone(), server_name.clone());
 
                                 match adapter.get_tools().await {
                                     Ok(tools) => {
                                         self.mcp_tools.extend(tools);
                                         self.mcp_connected_servers.push(server_name.clone());
-                                        self.add_console_message(
-                                            format!("✅ MCP server '{}' connected ({} tools)",
-                                                server_name, tool_count)
-                                        );
+                                        self.add_console_message(format!(
+                                            "✅ MCP server '{}' connected ({} tools)",
+                                            server_name, tool_count
+                                        ));
                                     }
                                     Err(e) => {
-                                        self.add_console_message(
-                                            format!("⚠️ Failed to convert tools from '{}': {}",
-                                                server_name, e)
-                                        );
+                                        self.add_console_message(format!(
+                                            "⚠️ Failed to convert tools from '{}': {}",
+                                            server_name, e
+                                        ));
                                     }
                                 }
                             }
                             Err(e) => {
-                                self.add_console_message(
-                                    format!("⚠️ Failed to list tools from '{}': {}",
-                                        server_name, e)
-                                );
+                                self.add_console_message(format!(
+                                    "⚠️ Failed to list tools from '{}': {}",
+                                    server_name, e
+                                ));
                             }
                         }
                     }
                     Err(e) => {
-                        self.add_console_message(
-                            format!("⚠️ Failed to connect to MCP server '{}': {}",
-                                server_name, e)
-                        );
+                        self.add_console_message(format!(
+                            "⚠️ Failed to connect to MCP server '{}': {}",
+                            server_name, e
+                        ));
                     }
                 }
             }
@@ -1783,10 +1872,10 @@ impl App {
         let total_tools = self.mcp_tools.len();
         let connected = self.mcp_connected_servers.len();
         if connected > 0 {
-            self.add_console_message(
-                format!("📦 MCP initialized: {} server(s), {} tool(s) available",
-                    connected, total_tools)
-            );
+            self.add_console_message(format!(
+                "📦 MCP initialized: {} server(s), {} tool(s) available",
+                connected, total_tools
+            ));
         }
     }
 }

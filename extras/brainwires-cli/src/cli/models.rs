@@ -40,9 +40,11 @@ pub enum ModelsCommands {
 pub async fn handle_models(cmd: Option<ModelsCommands>) -> Result<()> {
     match cmd {
         None => handle_models_list(None, false, false).await,
-        Some(ModelsCommands::List { provider, all, refresh }) => {
-            handle_models_list(provider, all, refresh).await
-        }
+        Some(ModelsCommands::List {
+            provider,
+            all,
+            refresh,
+        }) => handle_models_list(provider, all, refresh).await,
         Some(ModelsCommands::Stats { provider, refresh }) => {
             handle_models_stats(provider, refresh).await
         }
@@ -65,9 +67,13 @@ fn resolve_provider(
         let config = config_manager.get();
 
         let api_key = if pt == config.provider_type {
-            config_manager.get_provider_api_key()?.map(|z| z.to_string())
+            config_manager
+                .get_provider_api_key()?
+                .map(|z| z.to_string())
         } else {
-            config_manager.get_provider_api_key_for(pt)?.map(|z| z.to_string())
+            config_manager
+                .get_provider_api_key_for(pt)?
+                .map(|z| z.to_string())
         };
         let base_url = if pt == config.provider_type {
             config.provider_base_url.clone()
@@ -79,16 +85,18 @@ fn resolve_provider(
         // Use active provider
         let config_manager = ConfigManager::new()?;
         let config = config_manager.get();
-        let api_key = config_manager.get_provider_api_key()?.map(|z| z.to_string());
-        Ok((config.provider_type, api_key, config.provider_base_url.clone()))
+        let api_key = config_manager
+            .get_provider_api_key()?
+            .map(|z| z.to_string());
+        Ok((
+            config.provider_type,
+            api_key,
+            config.provider_base_url.clone(),
+        ))
     }
 }
 
-async fn handle_models_list(
-    provider: Option<String>,
-    show_all: bool,
-    refresh: bool,
-) -> Result<()> {
+async fn handle_models_list(provider: Option<String>, show_all: bool, refresh: bool) -> Result<()> {
     let (provider_type, api_key, base_url) = resolve_provider(provider.as_deref())?;
 
     // Brainwires SaaS → existing ModelRegistry flow

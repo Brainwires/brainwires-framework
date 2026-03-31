@@ -114,6 +114,9 @@ mod tests {
 
     #[test]
     fn strategy_category_is_refactoring() {
-        assert_eq!(TodoScannerStrategy.category(), ImprovementCategory::Refactoring);
+        assert_eq!(
+            TodoScannerStrategy.category(),
+            ImprovementCategory::Refactoring
+        );
     }
 }

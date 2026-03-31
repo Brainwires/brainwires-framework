@@ -35,14 +35,13 @@ fn main() -> Result<()> {
     // hang in its pause() loop waiting for SIGHUP that will never come.
     // The attacher PID was passed via environment variable from reattach_terminal().
     #[cfg(unix)]
-    if let Ok(attacher_pid_str) = std::env::var("BRAINWIRES_ATTACHER_PID") {
-        if let Ok(attacher_pid) = attacher_pid_str.parse::<i32>() {
-            if attacher_pid > 0 {
-                unsafe {
-                    // Send SIGHUP to attacher to wake it from pause() and exit
-                    libc::kill(attacher_pid, libc::SIGHUP);
-                }
-            }
+    if let Ok(attacher_pid_str) = std::env::var("BRAINWIRES_ATTACHER_PID")
+        && let Ok(attacher_pid) = attacher_pid_str.parse::<i32>()
+        && attacher_pid > 0
+    {
+        unsafe {
+            // Send SIGHUP to attacher to wake it from pause() and exit
+            libc::kill(attacher_pid, libc::SIGHUP);
         }
     }
 

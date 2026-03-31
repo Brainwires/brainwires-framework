@@ -11,9 +11,9 @@ use async_trait::async_trait;
 
 use brainwires_core::{Tool, ToolContext, ToolResult, ToolUse};
 
+use crate::ToolSearchTool;
 use crate::executor::ToolExecutor;
 use crate::registry::ToolRegistry;
-use crate::ToolSearchTool;
 
 /// Concrete executor that dispatches tool calls to the built-in tool modules
 /// registered in a [`ToolRegistry`].
@@ -88,17 +88,8 @@ impl BuiltinToolExecutor {
         context: &ToolContext,
     ) -> ToolResult {
         // Always-available tools
-        match tool_name {
-            "search_tools" => {
-                return ToolSearchTool::execute(
-                    tool_use_id,
-                    tool_name,
-                    input,
-                    context,
-                    &self.registry,
-                );
-            }
-            _ => {}
+        if tool_name == "search_tools" {
+            return ToolSearchTool::execute(tool_use_id, tool_name, input, context, &self.registry);
         }
 
         // Native-only tools
@@ -117,9 +108,9 @@ impl BuiltinToolExecutor {
                 }
 
                 // Git operations
-                "git_status" | "git_diff" | "git_log" | "git_stage" | "git_commit"
-                | "git_push" | "git_pull" | "git_branch" | "git_checkout" | "git_stash"
-                | "git_reset" | "git_show" | "git_blame" => {
+                "git_status" | "git_diff" | "git_log" | "git_stage" | "git_commit" | "git_push"
+                | "git_pull" | "git_branch" | "git_checkout" | "git_stash" | "git_reset"
+                | "git_show" | "git_blame" => {
                     return crate::GitTool::execute(tool_use_id, tool_name, input, context);
                 }
 
@@ -148,7 +139,8 @@ impl BuiltinToolExecutor {
         {
             if tool_name == "execute_script" {
                 let orchestrator = crate::OrchestratorTool::new();
-                return orchestrator.execute(tool_use_id, tool_name, input, context)
+                return orchestrator
+                    .execute(tool_use_id, tool_name, input, context)
                     .await;
             }
         }
@@ -165,10 +157,17 @@ impl BuiltinToolExecutor {
         #[cfg(feature = "rag")]
         {
             match tool_name {
-                "index_codebase" | "query_codebase" | "search_with_filters"
-                | "get_rag_statistics" | "clear_rag_index" | "search_git_history" => {
+                "index_codebase"
+                | "query_codebase"
+                | "search_with_filters"
+                | "get_rag_statistics"
+                | "clear_rag_index"
+                | "search_git_history" => {
                     return crate::SemanticSearchTool::execute(
-                        tool_use_id, tool_name, input, context,
+                        tool_use_id,
+                        tool_name,
+                        input,
+                        context,
                     )
                     .await;
                 }
@@ -292,7 +291,10 @@ mod tests {
             name: "nonexistent".to_string(),
             input: serde_json::json!({}),
         };
-        let result = executor.execute(&tool_use, &executor.context).await.unwrap();
+        let result = executor
+            .execute(&tool_use, &executor.context)
+            .await
+            .unwrap();
         assert!(result.is_error);
         assert!(result.content.contains("Unknown tool"));
     }

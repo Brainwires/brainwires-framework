@@ -11,7 +11,9 @@ use brainwires_providers::google_tts::{
 
 use crate::audio::error::{AudioError, AudioResult};
 use crate::audio::tts::TextToSpeech;
-use crate::audio::types::{AudioBuffer, AudioConfig, OutputFormat, SampleFormat, TtsOptions, Voice};
+use crate::audio::types::{
+    AudioBuffer, AudioConfig, OutputFormat, SampleFormat, TtsOptions, Voice,
+};
 
 /// Google Cloud TTS text-to-speech implementation.
 ///

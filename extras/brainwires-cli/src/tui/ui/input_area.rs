@@ -3,11 +3,11 @@
 //! Renders the input text area and autocomplete popup.
 
 use ratatui::{
+    Frame,
     layout::{Alignment, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph},
-    Frame,
 };
 use ratatui_interact::components::{CursorMode, ScrollMode, TextArea, TextAreaStyle, WrapMode};
 
@@ -37,12 +37,10 @@ pub fn draw_input(f: &mut Frame, app: &mut App, area: Rect) {
         AppMode::SessionPicker => Color::Cyan,
         AppMode::ConsoleView => Color::Magenta,
         AppMode::ShellViewer => Color::Yellow,
-        AppMode::Waiting => {
-            match app.prompt_mode {
-                PromptMode::Ask => Color::Blue,
-                _ => Color::Gray,
-            }
-        }
+        AppMode::Waiting => match app.prompt_mode {
+            PromptMode::Ask => Color::Blue,
+            _ => Color::Gray,
+        },
         AppMode::CancelConfirm => Color::Yellow,
         AppMode::ApprovalDialog => Color::Yellow,
         AppMode::SudoPasswordDialog => Color::Yellow,
@@ -55,8 +53,13 @@ pub fn draw_input(f: &mut Frame, app: &mut App, area: Rect) {
             if app.focused_panel == FocusedPanel::Input {
                 match app.prompt_mode {
                     PromptMode::Ask => " Ask [focused] (Enter: send, /edit to switch) ".to_string(),
-                    PromptMode::Edit => " Edit [focused] (Enter: send, Alt+Enter: new line, F10: fullscreen) ".to_string(),
-                    PromptMode::Plan => " Plan [focused] (Enter: send, /edit to switch) ".to_string(),
+                    PromptMode::Edit => {
+                        " Edit [focused] (Enter: send, Alt+Enter: new line, F10: fullscreen) "
+                            .to_string()
+                    }
+                    PromptMode::Plan => {
+                        " Plan [focused] (Enter: send, /edit to switch) ".to_string()
+                    }
                 }
             } else {
                 match app.prompt_mode {
@@ -78,7 +81,10 @@ pub fn draw_input(f: &mut Frame, app: &mut App, area: Rect) {
                 PromptMode::Plan => "Plan - ",
             };
             if queued > 0 {
-                format!(" {}Processing... ({} queued) - type to queue more ", mode_prefix, queued)
+                format!(
+                    " {}Processing... ({} queued) - type to queue more ",
+                    mode_prefix, queued
+                )
             } else {
                 format!(" {}Processing... (type to queue messages) ", mode_prefix)
             }
@@ -124,12 +130,13 @@ pub fn draw_input(f: &mut Frame, app: &mut App, area: Rect) {
     let render_result = textarea.render_stateful(f, area, &mut app.input_state);
 
     // Set terminal cursor if in appropriate mode
-    if let Some((cx, cy)) = render_result.cursor_position {
-        if app.mode == AppMode::Normal || app.mode == AppMode::Waiting
-            || app.mode == AppMode::CancelConfirm || app.mode == AppMode::PlanMode
-        {
-            f.set_cursor_position((cx, cy));
-        }
+    if let Some((cx, cy)) = render_result.cursor_position
+        && (app.mode == AppMode::Normal
+            || app.mode == AppMode::Waiting
+            || app.mode == AppMode::CancelConfirm
+            || app.mode == AppMode::PlanMode)
+    {
+        f.set_cursor_position((cx, cy));
     }
 }
 
@@ -175,7 +182,8 @@ fn draw_autocomplete_popup(f: &mut Frame, app: &App, input_area: Rect) {
 
     // Render suggestions with scrolling
     let mut lines = Vec::new();
-    for (i, item) in app.autocomplete_suggestions
+    for (i, item) in app
+        .autocomplete_suggestions
         .iter()
         .skip(scroll_offset)
         .take(max_suggestions)
@@ -205,8 +213,7 @@ fn draw_autocomplete_popup(f: &mut Frame, app: &App, input_area: Rect) {
         ]));
     }
 
-    let suggestions_paragraph = Paragraph::new(lines)
-        .alignment(Alignment::Left);
+    let suggestions_paragraph = Paragraph::new(lines).alignment(Alignment::Left);
 
     f.render_widget(suggestions_paragraph, inner_area);
 }
@@ -288,18 +295,16 @@ pub fn draw_input_fullscreen(f: &mut Frame, app: &mut App, area: Rect) {
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::Blue));
 
-    let help_text = vec![
-        Line::from(vec![
-            Span::styled("Enter", Style::default().fg(Color::Green)),
-            Span::raw(": send | "),
-            Span::styled("Alt+Enter", Style::default().fg(Color::Green)),
-            Span::raw(": new line | "),
-            Span::styled("Esc", Style::default().fg(Color::Green)),
-            Span::raw(" or "),
-            Span::styled("F10", Style::default().fg(Color::Green)),
-            Span::raw(": exit fullscreen"),
-        ]),
-    ];
+    let help_text = vec![Line::from(vec![
+        Span::styled("Enter", Style::default().fg(Color::Green)),
+        Span::raw(": send | "),
+        Span::styled("Alt+Enter", Style::default().fg(Color::Green)),
+        Span::raw(": new line | "),
+        Span::styled("Esc", Style::default().fg(Color::Green)),
+        Span::raw(" or "),
+        Span::styled("F10", Style::default().fg(Color::Green)),
+        Span::raw(": exit fullscreen"),
+    ])];
 
     let help_paragraph = Paragraph::new(help_text)
         .block(help_block)

@@ -63,7 +63,11 @@ pub async fn handle_analytics(cmd: AnalyticsCommands) -> Result<()> {
         AnalyticsCommands::Cost { days, json } => handle_cost(days, json),
         AnalyticsCommands::Tools { days, json } => handle_tools(days, json),
         AnalyticsCommands::Summary { days, json } => handle_summary(days, json),
-        AnalyticsCommands::Events { limit, r#type, json } => handle_events(limit, r#type, json),
+        AnalyticsCommands::Events {
+            limit,
+            r#type,
+            json,
+        } => handle_events(limit, r#type, json),
         AnalyticsCommands::Rebuild => handle_rebuild(),
     }
 }
@@ -112,7 +116,11 @@ fn handle_cost(days: Option<u32>, json: bool) -> Result<()> {
         Some(1) => "last 1 day".to_string(),
         Some(n) => format!("last {n} days"),
     };
-    println!("\n{} ({})\n", style("Cost by Provider / Model").cyan().bold(), period);
+    println!(
+        "\n{} ({})\n",
+        style("Cost by Provider / Model").cyan().bold(),
+        period
+    );
 
     if rows.is_empty() {
         println!("  {}", style("No data yet.").dim());
@@ -172,7 +180,11 @@ fn handle_tools(days: Option<u32>, json: bool) -> Result<()> {
         Some(1) => "last 1 day".to_string(),
         Some(n) => format!("last {n} days"),
     };
-    println!("\n{} ({})\n", style("Tool Usage Frequency").cyan().bold(), period);
+    println!(
+        "\n{} ({})\n",
+        style("Tool Usage Frequency").cyan().bold(),
+        period
+    );
 
     if rows.is_empty() {
         println!("  {}", style("No data yet.").dim());
@@ -203,11 +215,7 @@ fn handle_tools(days: Option<u32>, json: bool) -> Result<()> {
         };
         println!(
             "  {:<12} {:<35} {:>10} {:>10} {:>10}",
-            r.date,
-            r.tool_name,
-            r.call_count,
-            errors_styled,
-            err_pct,
+            r.date, r.tool_name, r.call_count, errors_styled, err_pct,
         );
     }
 
@@ -255,7 +263,10 @@ fn handle_summary(days: u32, json: bool) -> Result<()> {
 
     for r in &rows {
         let suc_pct = if r.total_runs > 0 {
-            format!("{:.0}%", r.success_count as f64 / r.total_runs as f64 * 100.0)
+            format!(
+                "{:.0}%",
+                r.success_count as f64 / r.total_runs as f64 * 100.0
+            )
         } else {
             "—".to_string()
         };
@@ -264,7 +275,11 @@ fn handle_summary(days: u32, json: bool) -> Result<()> {
             r.date,
             r.total_runs,
             style(r.success_count.to_string()).green(),
-            if r.failure_count > 0 { style(r.failure_count.to_string()).red() } else { style("0".to_string()).dim() },
+            if r.failure_count > 0 {
+                style(r.failure_count.to_string()).red()
+            } else {
+                style("0".to_string()).dim()
+            },
             suc_pct,
             format!("${:.4}", r.total_cost_usd),
             format!("{:.1}", r.avg_iterations),
@@ -294,6 +309,9 @@ fn handle_events(limit: usize, event_type: Option<String>, json: bool) -> Result
 fn handle_rebuild() -> Result<()> {
     let q = open_query()?;
     q.rebuild_summaries()?;
-    println!("{} Materialized summary tables rebuilt.", style("✓").green());
+    println!(
+        "{} Materialized summary tables rebuilt.",
+        style("✓").green()
+    );
     Ok(())
 }

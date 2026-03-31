@@ -7,7 +7,7 @@ use std::os::fd::{AsRawFd, BorrowedFd};
 use std::os::unix::net::UnixStream;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use nix::sys::termios::{self, SetArg, Termios};
 
 /// Global flag to signal window resize event from SIGWINCH handler
@@ -32,7 +32,12 @@ fn client_log(msg: &str) {
             .append(true)
             .open("/tmp/brainwires_client.log")
         {
-            let _ = writeln!(f, "[{}] {}", chrono::Local::now().format("%H:%M:%S%.3f"), msg);
+            let _ = writeln!(
+                f,
+                "[{}] {}",
+                chrono::Local::now().format("%H:%M:%S%.3f"),
+                msg
+            );
         }
     }
 }
@@ -126,18 +131,22 @@ impl SessionClient {
 
             // Read from stdin, send to socket
             let n = unsafe {
-                libc::read(stdin_fd, stdin_buf.as_mut_ptr() as *mut libc::c_void, stdin_buf.len())
+                libc::read(
+                    stdin_fd,
+                    stdin_buf.as_mut_ptr() as *mut libc::c_void,
+                    stdin_buf.len(),
+                )
             };
 
             if n > 0 {
                 let n = n as usize;
                 client_log(&format!("stdin -> socket: {} bytes", n));
 
-                if let Err(e) = stream.write_all(&stdin_buf[..n]) {
-                    if e.kind() != std::io::ErrorKind::WouldBlock {
-                        client_log(&format!("Socket write error: {}", e));
-                        bail!("Write to server failed: {}", e);
-                    }
+                if let Err(e) = stream.write_all(&stdin_buf[..n])
+                    && e.kind() != std::io::ErrorKind::WouldBlock
+                {
+                    client_log(&format!("Socket write error: {}", e));
+                    bail!("Write to server failed: {}", e);
                 }
             }
 
@@ -176,13 +185,13 @@ impl SessionClient {
         let stdin_fd = unsafe { BorrowedFd::borrow_raw(stdin.as_raw_fd()) };
 
         // Save original termios
-        let original = termios::tcgetattr(&stdin_fd)?;
+        let original = termios::tcgetattr(stdin_fd)?;
         self.original_termios = Some(original.clone());
 
         // Set raw mode
         let mut raw = original;
         termios::cfmakeraw(&mut raw);
-        termios::tcsetattr(&stdin_fd, SetArg::TCSANOW, &raw)?;
+        termios::tcsetattr(stdin_fd, SetArg::TCSANOW, &raw)?;
 
         Ok(())
     }
@@ -192,7 +201,7 @@ impl SessionClient {
         if let Some(ref original) = self.original_termios {
             let stdin = std::io::stdin();
             let stdin_fd = unsafe { BorrowedFd::borrow_raw(stdin.as_raw_fd()) };
-            let _ = termios::tcsetattr(&stdin_fd, SetArg::TCSANOW, original);
+            let _ = termios::tcsetattr(stdin_fd, SetArg::TCSANOW, original);
         }
     }
 
@@ -212,7 +221,9 @@ impl SessionClient {
         let magic = [0x1b, 0x5d, 0x57, 0x53]; // ESC ] W S - custom escape sequence
         let cols = ws.ws_col.to_be_bytes();
         let rows = ws.ws_row.to_be_bytes();
-        let msg = [magic[0], magic[1], magic[2], magic[3], cols[0], cols[1], rows[0], rows[1]];
+        let msg = [
+            magic[0], magic[1], magic[2], magic[3], cols[0], cols[1], rows[0], rows[1],
+        ];
 
         stream.write_all(&msg)?;
         client_log("Sent window size to server");
@@ -264,7 +275,10 @@ pub fn attach(session_id: Option<&str>) -> Result<()> {
                 if let Ok(stream) = UnixStream::connect(&ipc_socket) {
                     let _ = stream.set_read_timeout(Some(Duration::from_millis(100)));
                     // Agent is alive but PTY isn't responding
-                    println!("Session {} has a running agent but no PTY server.", session_id);
+                    println!(
+                        "Session {} has a running agent but no PTY server.",
+                        session_id
+                    );
                     println!();
                     println!("This can happen when:");
                     println!("  - The TUI was suspended with Ctrl+Z and resumed with 'bg'");

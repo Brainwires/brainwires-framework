@@ -56,11 +56,7 @@ impl SmtpClient {
         attachments: &[EmailAttachment],
     ) -> Result<String> {
         let mut builder = Message::builder()
-            .from(
-                self.from
-                    .parse()
-                    .context("Invalid 'from' address")?,
-            )
+            .from(self.from.parse().context("Invalid 'from' address")?)
             .subject(subject);
 
         for addr in to {
@@ -85,8 +81,8 @@ impl SmtpClient {
             let mut multipart = MultiPart::mixed().singlepart(text_part);
 
             for att in attachments {
-                let content_type: ContentType = ContentType::parse(&att.content_type)
-                    .unwrap_or(ContentType::TEXT_PLAIN);
+                let content_type: ContentType =
+                    ContentType::parse(&att.content_type).unwrap_or(ContentType::TEXT_PLAIN);
                 let attachment =
                     Attachment::new(att.filename.clone()).body(att.data.clone(), content_type);
                 multipart = multipart.singlepart(attachment);

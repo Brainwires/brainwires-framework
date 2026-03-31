@@ -4,11 +4,11 @@
 //! Tools are organized by category with collapsible sections.
 
 use ratatui::{
+    Frame,
     layout::{Alignment, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Wrap},
-    Frame,
 };
 
 use crate::tui::app::App;
@@ -39,20 +39,24 @@ pub fn draw_tool_picker(f: &mut Frame, app: &App, area: Rect) {
     let mut items = Vec::new();
 
     // Header showing selected count
-    let total_tools: usize = picker_state.categories.iter()
+    let total_tools: usize = picker_state
+        .categories
+        .iter()
         .map(|(_, tools)| tools.len())
         .sum();
-    let selected_count: usize = picker_state.categories.iter()
+    let selected_count: usize = picker_state
+        .categories
+        .iter()
         .flat_map(|(_, tools)| tools.iter())
         .filter(|(_, _, selected)| *selected)
         .count();
 
-    items.push(Line::from(vec![
-        Span::styled(
-            format!("Selected: {}/{} tools", selected_count, total_tools),
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
-        ),
-    ]));
+    items.push(Line::from(vec![Span::styled(
+        format!("Selected: {}/{} tools", selected_count, total_tools),
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD),
+    )]));
     items.push(Line::from(""));
 
     let cursor_row = calculate_cursor_row(picker_state);
@@ -60,16 +64,21 @@ pub fn draw_tool_picker(f: &mut Frame, app: &App, area: Rect) {
     // Render categories and tools
     for (cat_idx, (category_name, tools)) in picker_state.categories.iter().enumerate() {
         let is_collapsed = picker_state.collapsed.contains(&cat_idx);
-        let is_cat_selected = picker_state.selected_category == cat_idx && picker_state.selected_tool.is_none();
+        let is_cat_selected =
+            picker_state.selected_category == cat_idx && picker_state.selected_tool.is_none();
 
         // Count selected in this category
         let cat_selected = tools.iter().filter(|(_, _, s)| *s).count();
         let collapse_icon = if is_collapsed { "▶" } else { "▼" };
 
         let cat_style = if is_cat_selected {
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD)
         } else {
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD)
         };
 
         let prefix = if is_cat_selected { "> " } else { "  " };
@@ -95,7 +104,9 @@ pub fn draw_tool_picker(f: &mut Frame, app: &App, area: Rect) {
                 let prefix = if is_tool_selected { " > " } else { "   " };
 
                 let style = if is_tool_selected {
-                    Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD)
                 } else if *selected {
                     Style::default().fg(Color::Green)
                 } else {
@@ -124,8 +135,7 @@ pub fn draw_tool_picker(f: &mut Frame, app: &App, area: Rect) {
                         ),
                     ]));
                 }
-
-                    }
+            }
         }
 
         // Add spacing between categories
@@ -176,8 +186,7 @@ pub fn draw_tool_picker(f: &mut Frame, app: &App, area: Rect) {
     ];
 
     let footer_text = ratatui::text::Text::from(footer_lines);
-    let footer_paragraph = Paragraph::new(footer_text)
-        .alignment(Alignment::Center);
+    let footer_paragraph = Paragraph::new(footer_text).alignment(Alignment::Center);
 
     f.render_widget(footer_paragraph, footer_area);
 }
@@ -193,11 +202,11 @@ fn calculate_cursor_row(state: &crate::tui::app::ToolPickerState) -> usize {
             }
             row += 1; // Category header
 
-            if !state.collapsed.contains(&cat_idx) {
-                if let Some(tool_idx) = state.selected_tool {
-                    row += tool_idx;
-                    return row;
-                }
+            if !state.collapsed.contains(&cat_idx)
+                && let Some(tool_idx) = state.selected_tool
+            {
+                row += tool_idx;
+                return row;
             }
         } else {
             row += 1; // Category header

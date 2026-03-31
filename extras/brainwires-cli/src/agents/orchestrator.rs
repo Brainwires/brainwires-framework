@@ -8,13 +8,13 @@ use crate::mdap::{
     error::MdapResult,
 };
 use crate::providers::Provider;
-use brainwires::seal::{DialogState, SealConfig, SealProcessor, SealProcessingResult};
 use crate::tools::{TaskManagerTool, ToolExecutor};
 use crate::types::agent::{AgentContext, AgentResponse, PermissionMode, Task};
 use crate::types::message::{ChatResponse, ContentBlock, Message, MessageContent, Role};
 use crate::types::provider::ChatOptions;
 use crate::types::tool::{ToolContext, ToolContextExt, ToolUse};
 use crate::utils::entity_extraction::{EntityExtractor, EntityStore};
+use brainwires::seal::{DialogState, SealConfig, SealProcessingResult, SealProcessor};
 
 use super::TaskManager;
 
@@ -142,7 +142,10 @@ impl OrchestratorAgent {
     }
 
     /// Enable knowledge integration
-    pub fn enable_knowledge_integration(&mut self, coordinator: brainwires::seal::SealKnowledgeCoordinator) {
+    pub fn enable_knowledge_integration(
+        &mut self,
+        coordinator: brainwires::seal::SealKnowledgeCoordinator,
+    ) {
         self.knowledge_coordinator = Some(coordinator);
     }
 
@@ -174,21 +177,32 @@ impl OrchestratorAgent {
 
     /// Check if adaptive prompting is enabled
     pub fn is_adaptive_prompting_enabled(&self) -> bool {
-        self.use_adaptive_prompts && self.prompt_generator.is_some() && self.embedding_provider.is_some()
+        self.use_adaptive_prompts
+            && self.prompt_generator.is_some()
+            && self.embedding_provider.is_some()
     }
 
     /// Set the embedding provider for adaptive prompting
-    pub fn set_embedding_provider(&mut self, provider: Arc<crate::storage::embeddings::EmbeddingProvider>) {
+    pub fn set_embedding_provider(
+        &mut self,
+        provider: Arc<crate::storage::embeddings::EmbeddingProvider>,
+    ) {
         self.embedding_provider = Some(provider);
     }
 
     /// Get reference to the last generated prompt (for learning/debugging)
-    pub fn last_generated_prompt(&self) -> Option<&brainwires::prompting::generator::GeneratedPrompt> {
+    pub fn last_generated_prompt(
+        &self,
+    ) -> Option<&brainwires::prompting::generator::GeneratedPrompt> {
         self.last_generated_prompt.as_ref()
     }
 
     /// Execute a task with the orchestrator
-    pub async fn execute(&mut self, task_description: &str, context: &mut AgentContext) -> Result<AgentResponse> {
+    pub async fn execute(
+        &mut self,
+        task_description: &str,
+        context: &mut AgentContext,
+    ) -> Result<AgentResponse> {
         self.execute_internal(task_description, context, None).await
     }
 
@@ -198,14 +212,22 @@ impl OrchestratorAgent {
     /// - Coreference resolution ("fix it" -> "fix [main.rs]")
     /// - Query core extraction (structured query understanding)
     /// - Pattern matching from learned interactions
-    pub async fn execute_with_seal(&mut self, task_description: &str, context: &mut AgentContext) -> Result<AgentResponse> {
+    pub async fn execute_with_seal(
+        &mut self,
+        task_description: &str,
+        context: &mut AgentContext,
+    ) -> Result<AgentResponse> {
         // Preprocess through SEAL
         let (resolved_query, seal_result) = self.preprocess_input(task_description);
 
         // Log SEAL processing results
         if let Some(ref result) = seal_result {
             if result.resolved_query != result.original_query {
-                debug_log!("🔮 SEAL: Resolved '{}' → '{}'", result.original_query, result.resolved_query);
+                debug_log!(
+                    "🔮 SEAL: Resolved '{}' → '{}'",
+                    result.original_query,
+                    result.resolved_query
+                );
             }
             if let Some(ref pattern) = result.matched_pattern {
                 debug_log!("🔮 SEAL: Matched pattern: {}", pattern);
@@ -216,7 +238,9 @@ impl OrchestratorAgent {
         }
 
         // Execute with resolved query
-        let response = self.execute_internal(&resolved_query, context, seal_result.as_ref()).await?;
+        let response = self
+            .execute_internal(&resolved_query, context, seal_result.as_ref())
+            .await?;
 
         // Record outcome for learning
         self.record_seal_outcome(seal_result.as_ref(), response.is_complete, 1);
@@ -232,7 +256,10 @@ impl OrchestratorAgent {
         seal_result: Option<&SealProcessingResult>,
     ) -> Result<AgentResponse> {
         let mut iterations = 0;
-        let mut task = Task::new(uuid::Uuid::new_v4().to_string(), task_description.to_string());
+        let mut task = Task::new(
+            uuid::Uuid::new_v4().to_string(),
+            task_description.to_string(),
+        );
         task.start();
 
         // Add initial user message
@@ -251,7 +278,7 @@ impl OrchestratorAgent {
             if iterations > self.max_iterations {
                 task.fail(format!("Max iterations ({}) reached", self.max_iterations));
                 return Ok(AgentResponse {
-                    message: format!("Task failed: exceeded maximum iterations"),
+                    message: "Task failed: exceeded maximum iterations".to_string(),
                     is_complete: true,
                     tasks: vec![task],
                     iterations,
@@ -259,51 +286,78 @@ impl OrchestratorAgent {
             }
 
             // Call the AI provider with optional SEAL result
-            let response = self.call_provider(context, seal_result, task_description).await?;
+            let response = self
+                .call_provider(context, seal_result, task_description)
+                .await?;
 
-            debug_log!("🔍 DEBUG - Response message content type: {:?}", match &response.message.content {
-                MessageContent::Text(_) => "Text",
-                MessageContent::Blocks(blocks) => {
-                    debug_log!("🔍 DEBUG - Message has {} blocks", blocks.len());
-                    for (i, block) in blocks.iter().enumerate() {
-                        match block {
-                            ContentBlock::Text { .. } => debug_log!("🔍 DEBUG - Block {}: Text", i),
-                            ContentBlock::ToolUse { name, .. } => debug_log!("🔍 DEBUG - Block {}: ToolUse({})", i, name),
-                            ContentBlock::ToolResult { .. } => debug_log!("🔍 DEBUG - Block {}: ToolResult", i),
-                            ContentBlock::Image { .. } => debug_log!("🔍 DEBUG - Block {}: Image", i),
+            debug_log!(
+                "🔍 DEBUG - Response message content type: {:?}",
+                match &response.message.content {
+                    MessageContent::Text(_) => "Text",
+                    MessageContent::Blocks(blocks) => {
+                        debug_log!("🔍 DEBUG - Message has {} blocks", blocks.len());
+                        for (i, block) in blocks.iter().enumerate() {
+                            match block {
+                                ContentBlock::Text { .. } => {
+                                    debug_log!("🔍 DEBUG - Block {}: Text", i)
+                                }
+                                ContentBlock::ToolUse { name, .. } => {
+                                    debug_log!("🔍 DEBUG - Block {}: ToolUse({})", i, name)
+                                }
+                                ContentBlock::ToolResult { .. } => {
+                                    debug_log!("🔍 DEBUG - Block {}: ToolResult", i)
+                                }
+                                ContentBlock::Image { .. } => {
+                                    debug_log!("🔍 DEBUG - Block {}: Image", i)
+                                }
+                            }
                         }
+                        "Blocks"
                     }
-                    "Blocks"
                 }
-            });
+            );
 
             // Check if task is complete
-            if let Some(finish_reason) = &response.finish_reason {
-                if finish_reason == "end_turn" || finish_reason == "stop" {
-                    // Extract final message
-                    let message_text = response.message.text().unwrap_or("Task completed").to_string();
-                    task.complete(message_text.clone());
+            if let Some(finish_reason) = &response.finish_reason
+                && (finish_reason == "end_turn" || finish_reason == "stop")
+            {
+                // Extract final message
+                let message_text = response
+                    .message
+                    .text()
+                    .unwrap_or("Task completed")
+                    .to_string();
+                task.complete(message_text.clone());
 
-                    return Ok(AgentResponse {
-                        message: message_text,
-                        is_complete: true,
-                        tasks: vec![task],
-                        iterations,
-                    });
-                }
+                return Ok(AgentResponse {
+                    message: message_text,
+                    is_complete: true,
+                    tasks: vec![task],
+                    iterations,
+                });
             }
 
             // Process tool uses in the response
             let tool_uses = self.extract_tool_uses(&response.message);
 
-            debug_log!("🔍 DEBUG - Extracted {} tool uses from response", tool_uses.len());
+            debug_log!(
+                "🔍 DEBUG - Extracted {} tool uses from response",
+                tool_uses.len()
+            );
             if !tool_uses.is_empty() {
-                debug_log!("🔍 DEBUG - Tool uses: {:?}", tool_uses.iter().map(|t| &t.name).collect::<Vec<_>>());
+                debug_log!(
+                    "🔍 DEBUG - Tool uses: {:?}",
+                    tool_uses.iter().map(|t| &t.name).collect::<Vec<_>>()
+                );
             }
 
             if tool_uses.is_empty() {
                 // No tool uses, treat as completion
-                let message_text = response.message.text().unwrap_or("Task completed").to_string();
+                let message_text = response
+                    .message
+                    .text()
+                    .unwrap_or("Task completed")
+                    .to_string();
                 task.complete(message_text.clone());
 
                 debug_log!("🔍 DEBUG - No tool uses, completing task");
@@ -319,20 +373,29 @@ impl OrchestratorAgent {
             context.conversation_history.push(response.message.clone());
 
             // Execute tools and add results to history
-            let tool_context = ToolContext::from_agent_context(&context);
+            let tool_context = ToolContext::from_agent_context(context);
 
             for tool_use in tool_uses {
                 // Check if this is a task manager tool
                 let result = if tool_use.name.starts_with("task_") {
-                    self.task_manager_tool.execute(&tool_use.id, &tool_use.name, &tool_use.input).await
+                    self.task_manager_tool
+                        .execute(&tool_use.id, &tool_use.name, &tool_use.input)
+                        .await
                 } else {
                     // Use execute_with_retry for automatic retry on transient errors
                     // (AgentDebug paper: arxiv:2509.25370)
-                    let (tool_result, outcome) = self.tool_executor.execute_with_retry(&tool_use, &tool_context).await?;
+                    let (tool_result, outcome) = self
+                        .tool_executor
+                        .execute_with_retry(&tool_use, &tool_context)
+                        .await?;
 
                     // Log retry attempts for debugging
                     if outcome.retries > 0 {
-                        debug_log!("🔄 Tool '{}' succeeded after {} retries", tool_use.name, outcome.retries);
+                        debug_log!(
+                            "🔄 Tool '{}' succeeded after {} retries",
+                            tool_use.name,
+                            outcome.retries
+                        );
                     }
 
                     // Log outcome for SEAL pattern learning
@@ -411,10 +474,10 @@ impl OrchestratorAgent {
             }
 
             // Get PKS context for SEAL entity resolutions
-            if let Some(seal_res) = seal_result {
-                if let Ok(Some(pks_context)) = coordinator.get_pks_context(seal_res).await {
-                    knowledge_sections.push(pks_context);
-                }
+            if let Some(seal_res) = seal_result
+                && let Ok(Some(pks_context)) = coordinator.get_pks_context(seal_res).await
+            {
+                knowledge_sections.push(pks_context);
             }
         }
 
@@ -425,17 +488,19 @@ impl OrchestratorAgent {
         };
 
         // Build system prompt (adaptive or static based on configuration)
-        let system_prompt = self.build_system_prompt(
-            &context.working_directory,
-            user_query,
-            seal_result,
-            &learning_section,
-            &knowledge_section,
-        ).await?;
+        let system_prompt = self
+            .build_system_prompt(
+                &context.working_directory,
+                user_query,
+                seal_result,
+                &learning_section,
+                &knowledge_section,
+            )
+            .await?;
 
         // Use conservative token limits to prevent runaway generation
         // For file operations, rely on edit_file instead of write_file for large files
-        let max_tokens = 4096;  // Conservative limit to prevent corruption
+        let max_tokens = 4096; // Conservative limit to prevent corruption
 
         let options = ChatOptions {
             temperature: Some(0.7),
@@ -447,7 +512,11 @@ impl OrchestratorAgent {
         };
 
         self.provider
-            .chat(&context.conversation_history, Some(&context.tools), &options)
+            .chat(
+                &context.conversation_history,
+                Some(&context.tools),
+                &options,
+            )
             .await
     }
 
@@ -541,20 +610,26 @@ impl OrchestratorAgent {
         mdap_config: MdapConfig,
     ) -> Result<(AgentResponse, MdapMetrics)> {
         use crate::mdap::{
-            decomposition::{TaskDecomposer, BinaryRecursiveDecomposer, SimpleRecursiveDecomposer, topological_sort},
-            microagent::Microagent,
-            voting::FirstToAheadByKVoter,
-            red_flags::StandardRedFlagValidator,
             composer::{ResultComposer, StandardComposer},
+            decomposition::{
+                BinaryRecursiveDecomposer, SimpleRecursiveDecomposer, TaskDecomposer,
+                topological_sort,
+            },
+            microagent::Microagent,
+            red_flags::StandardRedFlagValidator,
             scaling::estimate_mdap,
+            voting::FirstToAheadByKVoter,
         };
 
         let execution_id = uuid::Uuid::new_v4().to_string();
         let mut metrics = MdapMetrics::new(execution_id.clone());
         metrics.start();
 
-        debug_log!("🔄 MDAP: Starting execution with k={}, target={}%",
-            mdap_config.k, mdap_config.target_success_rate * 100.0);
+        debug_log!(
+            "🔄 MDAP: Starting execution with k={}, target={}%",
+            mdap_config.k,
+            mdap_config.target_success_rate * 100.0
+        );
 
         // Create provider adapter for microagents with tools from context
         // Tools are described in the system prompt for intent expression,
@@ -562,7 +637,10 @@ impl OrchestratorAgent {
         let provider_adapter = if context.tools.is_empty() {
             Arc::new(ProviderMicroagentAdapter::new(self.provider.clone()))
         } else {
-            debug_log!("🔄 MDAP: Microagents have access to {} tools", context.tools.len());
+            debug_log!(
+                "🔄 MDAP: Microagents have access to {} tools",
+                context.tools.len()
+            );
             Arc::new(ProviderMicroagentAdapter::new_with_tools(
                 self.provider.clone(),
                 context.tools.clone(),
@@ -571,13 +649,9 @@ impl OrchestratorAgent {
 
         // Create decomposer based on config
         let decomposer: Box<dyn TaskDecomposer + Send + Sync> = match mdap_config.decomposition {
-            crate::mdap::DecompositionStrategy::BinaryRecursive { max_depth } => {
-                Box::new(BinaryRecursiveDecomposer::new(
-                    provider_adapter.clone(),
-                    max_depth,
-                    mdap_config.k,
-                ))
-            }
+            crate::mdap::DecompositionStrategy::BinaryRecursive { max_depth } => Box::new(
+                BinaryRecursiveDecomposer::new(provider_adapter.clone(), max_depth, mdap_config.k),
+            ),
             crate::mdap::DecompositionStrategy::Simple { max_depth } => {
                 Box::new(SimpleRecursiveDecomposer::new(max_depth))
             }
@@ -594,7 +668,10 @@ impl OrchestratorAgent {
 
         // Decompose the task
         debug_log!("🔄 MDAP: Decomposing task: {}", task_description);
-        let decomposition = match decomposer.decompose(task_description, &decompose_context).await {
+        let decomposition = match decomposer
+            .decompose(task_description, &decompose_context)
+            .await
+        {
             Ok(d) => d,
             Err(e) => {
                 metrics.finalize(false);
@@ -603,13 +680,16 @@ impl OrchestratorAgent {
         };
 
         metrics.total_steps = decomposition.subtasks.len() as u64;
-        debug_log!("🔄 MDAP: Decomposed into {} subtasks", decomposition.subtasks.len());
+        debug_log!(
+            "🔄 MDAP: Decomposed into {} subtasks",
+            decomposition.subtasks.len()
+        );
 
         // Estimate cost
         let estimate = estimate_mdap(
             decomposition.subtasks.len() as u64,
-            0.99,  // Assume 99% per-step success rate
-            0.95,  // Assume 95% valid response rate
+            0.99, // Assume 99% per-step success rate
+            0.95, // Assume 95% valid response rate
             mdap_config.cost_per_sample_usd.unwrap_or(0.0001),
             mdap_config.target_success_rate,
         );
@@ -618,16 +698,22 @@ impl OrchestratorAgent {
             metrics.estimated_success_probability = est.success_probability;
         }
 
-        debug_log!("🔄 MDAP: Estimated cost: ${:.4}, success probability: {:.2}%",
-            metrics.estimated_cost_usd, metrics.estimated_success_probability * 100.0);
+        debug_log!(
+            "🔄 MDAP: Estimated cost: ${:.4}, success probability: {:.2}%",
+            metrics.estimated_cost_usd,
+            metrics.estimated_success_probability * 100.0
+        );
 
         // Create voter and validator
         let voter = FirstToAheadByKVoter::new(mdap_config.k, mdap_config.max_samples_per_subtask);
 
         // Use completely permissive validator when tools are available to allow any response format
-        use crate::mdap::red_flags::{RedFlagValidator, AcceptAllValidator};
+        use crate::mdap::red_flags::{AcceptAllValidator, RedFlagValidator};
         let validator: Box<dyn RedFlagValidator> = if context.tools.is_empty() {
-            Box::new(StandardRedFlagValidator::new(mdap_config.red_flags.clone(), None))
+            Box::new(StandardRedFlagValidator::new(
+                mdap_config.red_flags.clone(),
+                None,
+            ))
         } else {
             // Accept all responses when tools are available - let voting handle quality
             Box::new(AcceptAllValidator)
@@ -643,7 +729,8 @@ impl OrchestratorAgent {
         };
 
         // Execute subtasks in order
-        let mut results: std::collections::HashMap<String, crate::mdap::microagent::SubtaskOutput> = std::collections::HashMap::new();
+        let mut results: std::collections::HashMap<String, crate::mdap::microagent::SubtaskOutput> =
+            std::collections::HashMap::new();
 
         for subtask in ordered_subtasks {
             debug_log!("🔄 MDAP: Executing subtask: {}", subtask.description);
@@ -669,19 +756,21 @@ impl OrchestratorAgent {
             let vote_result = {
                 let validator_ref = validator.as_ref();
 
-                voter.vote(
-                    move || {
-                        let provider = provider_for_closure.clone();
-                        let st = subtask_for_closure.clone();
-                        let inp = input_for_closure.clone();
-                        async move {
-                            let ma = Microagent::with_defaults(provider, st);
-                            ma.execute_once(&inp).await
-                        }
-                    },
-                    validator_ref,
-                    |output| output.subtask_id.clone(),
-                ).await
+                voter
+                    .vote(
+                        move || {
+                            let provider = provider_for_closure.clone();
+                            let st = subtask_for_closure.clone();
+                            let inp = input_for_closure.clone();
+                            async move {
+                                let ma = Microagent::with_defaults(provider, st);
+                                ma.execute_once(&inp).await
+                            }
+                        },
+                        validator_ref,
+                        |output| output.subtask_id.clone(),
+                    )
+                    .await
             };
 
             let elapsed = start.elapsed();
@@ -708,8 +797,11 @@ impl OrchestratorAgent {
                     // Store result
                     results.insert(subtask_id, result.winner);
 
-                    debug_log!("🔄 MDAP: Subtask completed with {} votes, confidence: {:.2}%",
-                        result.winner_votes, result.confidence * 100.0);
+                    debug_log!(
+                        "🔄 MDAP: Subtask completed with {} votes, confidence: {:.2}%",
+                        result.winner_votes,
+                        result.confidence * 100.0
+                    );
                 }
                 Err(e) => {
                     debug_log!("🔄 MDAP: Subtask failed: {}", e);
@@ -739,10 +831,10 @@ impl OrchestratorAgent {
         debug_log!("🔄 MDAP: Execution complete\n{}", metrics.summary());
 
         // Feed metrics to SEAL if enabled
-        if mdap_config.seal_integration {
-            if let Some(ref mut seal) = self.seal_processor {
-                seal.record_mdap_metrics(&metrics);
-            }
+        if mdap_config.seal_integration
+            && let Some(ref mut seal) = self.seal_processor
+        {
+            seal.record_mdap_metrics(&metrics);
         }
 
         // Extract the decision/plan from MDAP output
@@ -750,7 +842,8 @@ impl OrchestratorAgent {
             serde_json::Value::String(s) => s,
             serde_json::Value::Object(map) => {
                 if let Some(serde_json::Value::Array(outputs)) = map.get("outputs") {
-                    outputs.iter()
+                    outputs
+                        .iter()
                         .filter_map(|v| v.as_str())
                         .collect::<Vec<_>>()
                         .join("\n\n")
@@ -761,20 +854,20 @@ impl OrchestratorAgent {
             other => serde_json::to_string_pretty(&other).unwrap_or_default(),
         };
 
-        // If we have tools available and the plan looks like it needs execution, 
+        // If we have tools available and the plan looks like it needs execution,
         // execute it using the orchestrator with tools
-        if !context.tools.is_empty() && (
-            plan.contains("edit_file") || 
-            plan.contains("write_file") || 
-            plan.contains("read_file") ||
-            task_description.to_lowercase().contains("add") ||
-            task_description.to_lowercase().contains("modify") ||
-            task_description.to_lowercase().contains("change") ||
-            task_description.to_lowercase().contains("create") ||
-            task_description.to_lowercase().contains("file")
-        ) {
+        if !context.tools.is_empty()
+            && (plan.contains("edit_file")
+                || plan.contains("write_file")
+                || plan.contains("read_file")
+                || task_description.to_lowercase().contains("add")
+                || task_description.to_lowercase().contains("modify")
+                || task_description.to_lowercase().contains("change")
+                || task_description.to_lowercase().contains("create")
+                || task_description.to_lowercase().contains("file"))
+        {
             debug_log!("🔄 MDAP: Plan requires tool execution, delegating to orchestrator");
-            
+
             // Execute the plan using the orchestrator (without MDAP recursion)
             match self.execute_internal(&plan, context, None).await {
                 Ok(exec_response) => {
@@ -827,46 +920,47 @@ impl OrchestratorAgent {
         }
 
         // Observe SEAL resolutions in PKS and check for pattern promotion
-        if let Some(seal_res) = seal_result {
-            if let Some(ref mut coordinator) = self.knowledge_coordinator {
-                // Observe entity resolutions for PKS learning
-                let _ = tokio::task::block_in_place(|| {
-                    tokio::runtime::Handle::current().block_on(async {
-                        coordinator.observe_seal_resolutions(&seal_res.resolutions).await
-                    })
-                });
+        if let Some(seal_res) = seal_result
+            && let Some(ref mut coordinator) = self.knowledge_coordinator
+        {
+            // Observe entity resolutions for PKS learning
+            let _ = tokio::task::block_in_place(|| {
+                tokio::runtime::Handle::current().block_on(async {
+                    coordinator
+                        .observe_seal_resolutions(&seal_res.resolutions)
+                        .await
+                })
+            });
 
-                // Check if we should promote high-reliability patterns to BKS
-                self.check_pattern_promotion();
-            }
+            // Check if we should promote high-reliability patterns to BKS
+            self.check_pattern_promotion();
         }
     }
 
     /// Check and promote high-reliability SEAL patterns to BKS
     fn check_pattern_promotion(&mut self) {
-        if let Some(ref mut seal) = self.seal_processor {
-            if let Some(ref mut coordinator) = self.knowledge_coordinator {
-                let config = coordinator.config();
+        if let Some(ref mut seal) = self.seal_processor
+            && let Some(ref mut coordinator) = self.knowledge_coordinator
+        {
+            let config = coordinator.config();
 
-                // Get promotable patterns from SEAL
-                let promotable = seal.learning_mut().get_promotable_patterns(
-                    config.pattern_promotion_threshold,
-                    config.min_pattern_uses,
-                );
+            // Get promotable patterns from SEAL
+            let promotable = seal.learning_mut().get_promotable_patterns(
+                config.pattern_promotion_threshold,
+                config.min_pattern_uses,
+            );
 
-                // Promote each pattern to BKS
-                for pattern in promotable {
-                    let execution_context = format!(
-                        "{:?} queries",
-                        pattern.question_type
-                    );
+            // Promote each pattern to BKS
+            for pattern in promotable {
+                let execution_context = format!("{:?} queries", pattern.question_type);
 
-                    let _ = tokio::task::block_in_place(|| {
-                        tokio::runtime::Handle::current().block_on(async {
-                            coordinator.check_and_promote_pattern(pattern, &execution_context).await
-                        })
-                    });
-                }
+                let _ = tokio::task::block_in_place(|| {
+                    tokio::runtime::Handle::current().block_on(async {
+                        coordinator
+                            .check_and_promote_pattern(pattern, &execution_context)
+                            .await
+                    })
+                });
             }
         }
     }
@@ -910,43 +1004,43 @@ impl OrchestratorAgent {
                 self.embedding_provider.as_ref(),
             ) {
                 // Use SEAL's resolved query if available for better classification
-            let task_desc = seal_result
-                .map(|r| r.resolved_query.as_str())
-                .unwrap_or(user_query);
+                let task_desc = seal_result
+                    .map(|r| r.resolved_query.as_str())
+                    .unwrap_or(user_query);
 
-            // Generate embedding for task description
-            match embedding_provider.embed_cached(task_desc) {
-                Ok(task_embedding) => {
-                    // Generate adaptive prompt
-                    // Convert CLI SealProcessingResult to framework's stub type
-                    let framework_seal = seal_result.map(|r| {
-                        brainwires::prompting::SealProcessingResult::new(
-                            r.quality_score,
-                            &r.resolved_query,
-                        )
-                    });
-                    match generator
-                        .generate_prompt(task_desc, &task_embedding, framework_seal.as_ref())
-                        .await
-                    {
-                        Ok(generated_prompt) => {
-                            debug_log!(
-                                "🎯 Adaptive prompting: Generated prompt using cluster '{}' with techniques {:?}",
-                                generated_prompt.cluster_id,
-                                generated_prompt.techniques
-                            );
-                            debug_log!(
-                                "🎯 SEAL quality: {:.2}, Cluster similarity: {:.2}",
-                                generated_prompt.seal_quality,
-                                generated_prompt.similarity_score
-                            );
+                // Generate embedding for task description
+                match embedding_provider.embed_cached(task_desc) {
+                    Ok(task_embedding) => {
+                        // Generate adaptive prompt
+                        // Convert CLI SealProcessingResult to framework's stub type
+                        let framework_seal = seal_result.map(|r| {
+                            brainwires::prompting::SealProcessingResult::new(
+                                r.quality_score,
+                                &r.resolved_query,
+                            )
+                        });
+                        match generator
+                            .generate_prompt(task_desc, &task_embedding, framework_seal.as_ref())
+                            .await
+                        {
+                            Ok(generated_prompt) => {
+                                debug_log!(
+                                    "🎯 Adaptive prompting: Generated prompt using cluster '{}' with techniques {:?}",
+                                    generated_prompt.cluster_id,
+                                    generated_prompt.techniques
+                                );
+                                debug_log!(
+                                    "🎯 SEAL quality: {:.2}, Cluster similarity: {:.2}",
+                                    generated_prompt.seal_quality,
+                                    generated_prompt.similarity_score
+                                );
 
-                            // Store for learning
-                            self.last_generated_prompt = Some(generated_prompt.clone());
+                                // Store for learning
+                                self.last_generated_prompt = Some(generated_prompt.clone());
 
-                            // Build full system prompt with adaptive techniques
-                            let full_prompt = format!(
-                                "{}\n\n\
+                                // Build full system prompt with adaptive techniques
+                                let full_prompt = format!(
+                                    "{}\n\n\
                                 Current working directory: {}\n\n\
                                 CRITICAL FILE OPERATION RULES:\n\
                                 1. For small edits to existing files: ALWAYS use edit_file with specific old_text/new_text\n\
@@ -961,23 +1055,29 @@ impl OrchestratorAgent {
                                 - bash: {{\"command\": \"git status\"}} - Run commands\n\n\
                                 Remember: edit_file requires EXACT text matching. Include enough surrounding lines to make the match unique.\
                                 {}{}",
-                                generated_prompt.system_prompt,
-                                working_directory,
-                                learning_section,
-                                knowledge_section
-                            );
+                                    generated_prompt.system_prompt,
+                                    working_directory,
+                                    learning_section,
+                                    knowledge_section
+                                );
 
-                            return Ok(full_prompt);
-                        }
-                        Err(e) => {
-                            debug_log!("⚠️ Adaptive prompting failed: {}. Falling back to static prompt.", e);
+                                return Ok(full_prompt);
+                            }
+                            Err(e) => {
+                                debug_log!(
+                                    "⚠️ Adaptive prompting failed: {}. Falling back to static prompt.",
+                                    e
+                                );
+                            }
                         }
                     }
+                    Err(e) => {
+                        debug_log!(
+                            "⚠️ Failed to generate embedding: {}. Falling back to static prompt.",
+                            e
+                        );
+                    }
                 }
-                Err(e) => {
-                    debug_log!("⚠️ Failed to generate embedding: {}. Falling back to static prompt.", e);
-                }
-            }
             } // Close if-let for providers
         }
 
@@ -1002,9 +1102,7 @@ impl OrchestratorAgent {
             - Be concise and accurate in your tool usage\n\
             - When editing files, include sufficient context in old_text to ensure unique matching\n\n\
             Remember: edit_file requires EXACT text matching. Include enough surrounding lines to make the match unique.",
-            working_directory,
-            learning_section,
-            knowledge_section
+            working_directory, learning_section, knowledge_section
         ))
     }
 }
@@ -1039,13 +1137,13 @@ impl ProviderMicroagentAdapter {
     ///
     /// Tools are described in the system prompt for intent expression,
     /// but NOT executed during microagent chat calls.
-    pub fn new_with_tools(provider: Arc<dyn Provider>, tools: Vec<crate::types::tool::Tool>) -> Self {
+    pub fn new_with_tools(
+        provider: Arc<dyn Provider>,
+        tools: Vec<crate::types::tool::Tool>,
+    ) -> Self {
         // Convert tools to schemas
-        let tool_schemas: Vec<crate::mdap::tool_intent::ToolSchema> = tools
-            .iter()
-            .cloned()
-            .map(|t| t.into())
-            .collect();
+        let tool_schemas: Vec<crate::mdap::tool_intent::ToolSchema> =
+            tools.iter().cloned().map(|t| t.into()).collect();
 
         Self {
             provider,
@@ -1126,7 +1224,7 @@ impl MicroagentProvider for ProviderMicroagentAdapter {
 
         let options = ChatOptions {
             temperature: Some(temperature),
-            max_tokens: Some(max_tokens as u32),
+            max_tokens: Some(max_tokens),
             top_p: None,
             stop: None,
             system: Some(enhanced_system),
@@ -1137,14 +1235,21 @@ impl MicroagentProvider for ProviderMicroagentAdapter {
 
         // Tools are NOT passed to the provider - we only express intent, not execute
         // Tool intents in the response are parsed and executed AFTER voting consensus
-        debug_log!("🔍 MDAP Microagent: Making provider call (tools described in prompt, not executed)");
-        let response = self.provider.chat(&messages, None, &options).await
-            .map_err(|e| crate::mdap::error::MdapError::Microagent(
-                crate::mdap::error::MicroagentError::ExecutionFailed {
-                    subtask_id: "unknown".to_string(),
-                    reason: e.to_string(),
-                }
-            ))?;
+        debug_log!(
+            "🔍 MDAP Microagent: Making provider call (tools described in prompt, not executed)"
+        );
+        let response = self
+            .provider
+            .chat(&messages, None, &options)
+            .await
+            .map_err(|e| {
+                crate::mdap::error::MdapError::Microagent(
+                    crate::mdap::error::MicroagentError::ExecutionFailed {
+                        subtask_id: "unknown".to_string(),
+                        reason: e.to_string(),
+                    },
+                )
+            })?;
 
         let elapsed = start.elapsed();
         let text = response.message.text().unwrap_or("").to_string();
@@ -1167,7 +1272,9 @@ impl MicroagentProvider for ProviderMicroagentAdapter {
 mod tests {
     use super::*;
     use crate::types::agent::TaskStatus;
-    use crate::types::message::{ChatResponse, ContentBlock, Message, MessageContent, Role, StreamChunk, Usage};
+    use crate::types::message::{
+        ChatResponse, ContentBlock, Message, MessageContent, Role, StreamChunk, Usage,
+    };
     use crate::types::provider::ChatOptions;
     use crate::types::tool::Tool;
     use async_trait::async_trait;
@@ -1216,7 +1323,10 @@ mod tests {
             _options: &ChatOptions,
         ) -> Result<ChatResponse> {
             let mut index = self.current_index.lock().unwrap();
-            let response = self.responses.get(*index).cloned()
+            let response = self
+                .responses
+                .get(*index)
+                .cloned()
                 .ok_or_else(|| anyhow::anyhow!("No more mock responses"))?;
             *index += 1;
             Ok(response)
@@ -1249,11 +1359,17 @@ mod tests {
 
     #[tokio::test]
     async fn test_task_completion_with_stop_reason() {
-        let provider = Arc::new(MockProvider::single_response("stop", "Task completed successfully"));
+        let provider = Arc::new(MockProvider::single_response(
+            "stop",
+            "Task completed successfully",
+        ));
         let mut orchestrator = OrchestratorAgent::new(provider, PermissionMode::ReadOnly);
         let mut context = AgentContext::default();
 
-        let result = orchestrator.execute("test task", &mut context).await.unwrap();
+        let result = orchestrator
+            .execute("test task", &mut context)
+            .await
+            .unwrap();
 
         assert!(result.is_complete);
         assert_eq!(result.message, "Task completed successfully");
@@ -1268,7 +1384,10 @@ mod tests {
         let mut orchestrator = OrchestratorAgent::new(provider, PermissionMode::ReadOnly);
         let mut context = AgentContext::default();
 
-        let result = orchestrator.execute("test task", &mut context).await.unwrap();
+        let result = orchestrator
+            .execute("test task", &mut context)
+            .await
+            .unwrap();
 
         assert!(result.is_complete);
         assert_eq!(result.message, "All done");
@@ -1281,7 +1400,10 @@ mod tests {
         let mut orchestrator = OrchestratorAgent::new(provider, PermissionMode::ReadOnly);
         let mut context = AgentContext::default();
 
-        let result = orchestrator.execute("test task", &mut context).await.unwrap();
+        let result = orchestrator
+            .execute("test task", &mut context)
+            .await
+            .unwrap();
 
         assert!(result.is_complete);
         assert_eq!(result.message, "Finished");
@@ -1350,11 +1472,9 @@ mod tests {
 
         let message = Message {
             role: Role::Assistant,
-            content: MessageContent::Blocks(vec![
-                ContentBlock::Text {
-                    text: "Only text".to_string(),
-                },
-            ]),
+            content: MessageContent::Blocks(vec![ContentBlock::Text {
+                text: "Only text".to_string(),
+            }]),
             name: None,
             metadata: None,
         };
@@ -1372,7 +1492,10 @@ mod tests {
 
         assert_eq!(context.conversation_history.len(), 0);
 
-        orchestrator.execute("test task", &mut context).await.unwrap();
+        orchestrator
+            .execute("test task", &mut context)
+            .await
+            .unwrap();
 
         // With stop reason, only user message is added (assistant response is in result but not history)
         assert_eq!(context.conversation_history.len(), 1);
@@ -1387,7 +1510,8 @@ mod tests {
     async fn test_orchestrator_with_seal_creation() {
         let provider = Arc::new(MockProvider::single_response("stop", "Done"));
         let config = SealConfig::default();
-        let orchestrator = OrchestratorAgent::new_with_seal(provider, PermissionMode::ReadOnly, config);
+        let orchestrator =
+            OrchestratorAgent::new_with_seal(provider, PermissionMode::ReadOnly, config);
 
         assert!(orchestrator.is_seal_enabled());
         assert_eq!(orchestrator.max_iterations, 25);
@@ -1439,7 +1563,10 @@ mod tests {
 
         // Entity store should have the file
         let stats = orchestrator.entity_store().stats();
-        assert!(stats.total_entities > 0, "Should extract at least one entity");
+        assert!(
+            stats.total_entities > 0,
+            "Should extract at least one entity"
+        );
     }
 
     #[tokio::test]

@@ -3,11 +3,11 @@
 //! Renders the Git Source Control Management view in full-screen mode.
 
 use ratatui::{
+    Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph, Wrap},
-    Frame,
 };
 
 use crate::tui::app::{App, GitFileStatus, GitOperationMode, ScmPanel};
@@ -101,18 +101,13 @@ fn draw_header(f: &mut Frame, app: &App, area: Rect) {
         ])
     } else {
         let total = state.total_changes();
-        Line::from(vec![
-            Span::styled(
-                format!(" {} file(s) changed", total),
-                Style::default().fg(Color::Yellow),
-            ),
-        ])
+        Line::from(vec![Span::styled(
+            format!(" {} file(s) changed", total),
+            Style::default().fg(Color::Yellow),
+        )])
     };
 
-    let header_lines = vec![
-        Line::from(spans),
-        second_line,
-    ];
+    let header_lines = vec![Line::from(spans), second_line];
 
     let block = Block::default()
         .borders(Borders::ALL)
@@ -187,6 +182,7 @@ fn draw_file_panels(f: &mut Frame, app: &App, area: Rect) {
 }
 
 /// Draw a single file panel
+#[allow(clippy::too_many_arguments)]
 fn draw_panel(
     f: &mut Frame,
     files: &[crate::tui::app::GitFileEntry],
@@ -198,7 +194,9 @@ fn draw_panel(
     accent_color: Color,
 ) {
     let border_style = if is_focused {
-        Style::default().fg(accent_color).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(accent_color)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(Color::DarkGray)
     };
@@ -224,7 +222,12 @@ fn draw_panel(
     let scroll_offset = scroll as usize;
 
     let mut lines = Vec::new();
-    for (idx, entry) in files.iter().enumerate().skip(scroll_offset).take(visible_height) {
+    for (idx, entry) in files
+        .iter()
+        .enumerate()
+        .skip(scroll_offset)
+        .take(visible_height)
+    {
         let is_cursor = cursor_index == Some(idx);
 
         let base_style = if is_cursor {
@@ -236,11 +239,7 @@ fn draw_panel(
             Style::default()
         };
 
-        let checkbox = if entry.selected {
-            "[x]"
-        } else {
-            "[ ]"
-        };
+        let checkbox = if entry.selected { "[x]" } else { "[ ]" };
 
         let status_indicator = entry.status.indicator();
         let status_color = match entry.status {
@@ -323,9 +322,10 @@ fn draw_footer(f: &mut Frame, app: &App, area: Rect) {
             ]),
         ],
         GitOperationMode::CommitMessage => vec![
-            Line::from(vec![
-                Span::styled("Enter commit message...", Style::default().fg(Color::Yellow)),
-            ]),
+            Line::from(vec![Span::styled(
+                "Enter commit message...",
+                Style::default().fg(Color::Yellow),
+            )]),
             Line::from(vec![
                 Span::styled("Enter", Style::default().fg(Color::Green)),
                 Span::raw(":Commit "),
@@ -334,9 +334,10 @@ fn draw_footer(f: &mut Frame, app: &App, area: Rect) {
             ]),
         ],
         GitOperationMode::Confirm { ref message, .. } => vec![
-            Line::from(vec![
-                Span::styled(message, Style::default().fg(Color::Yellow)),
-            ]),
+            Line::from(vec![Span::styled(
+                message,
+                Style::default().fg(Color::Yellow),
+            )]),
             Line::from(vec![
                 Span::styled("y", Style::default().fg(Color::Green)),
                 Span::raw(":Confirm "),
@@ -389,27 +390,30 @@ fn draw_commit_overlay(f: &mut Frame, app: &App, area: Rect) {
 
     // Show staged file count
     let staged_count = state.staged_files.len();
-    let info_line = Line::from(vec![
-        Span::styled(
-            format!("{} file(s) to commit", staged_count),
-            Style::default().fg(Color::DarkGray),
-        ),
-    ]);
+    let info_line = Line::from(vec![Span::styled(
+        format!("{} file(s) to commit", staged_count),
+        Style::default().fg(Color::DarkGray),
+    )]);
 
     // Show commit message with cursor
     let message_with_cursor = format!("{}_", state.commit_message);
-    let message_line = Line::from(vec![
-        Span::styled(&message_with_cursor, Style::default().fg(Color::White)),
-    ]);
+    let message_line = Line::from(vec![Span::styled(
+        &message_with_cursor,
+        Style::default().fg(Color::White),
+    )]);
 
-    let help_line = Line::from(vec![
-        Span::styled(
-            "Enter to commit, Esc to cancel",
-            Style::default().fg(Color::DarkGray),
-        ),
-    ]);
+    let help_line = Line::from(vec![Span::styled(
+        "Enter to commit, Esc to cancel",
+        Style::default().fg(Color::DarkGray),
+    )]);
 
-    let content = vec![info_line, Line::from(""), message_line, Line::from(""), help_line];
+    let content = vec![
+        info_line,
+        Line::from(""),
+        message_line,
+        Line::from(""),
+        help_line,
+    ];
 
     let paragraph = Paragraph::new(content).wrap(Wrap { trim: false });
     f.render_widget(paragraph, inner);

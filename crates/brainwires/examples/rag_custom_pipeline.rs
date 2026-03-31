@@ -4,9 +4,9 @@
 //!
 //! Run: cargo run -p brainwires --example rag_custom_pipeline --features rag
 
-use brainwires::rag::bm25_search::{BM25Result, SearchScorer};
 use brainwires::rag::indexer::{Chunker, CodeChunk, FileInfo};
 use brainwires::rag::types::ChunkMetadata;
+use brainwires::storage::bm25_search::{BM25Result, SearchScorer};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 // --- Custom Chunker ---

@@ -2,9 +2,9 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::time::Duration;
 
 use ipnetwork::IpNetwork;
+use pnet::packet::Packet;
 use pnet::packet::arp::{ArpHardwareTypes, ArpOperations, ArpPacket, MutableArpPacket};
 use pnet::packet::ethernet::{EtherTypes, EthernetPacket, MutableEthernetPacket};
-use pnet::packet::Packet;
 use pnet::util::MacAddr;
 use pnet_datalink::{self as datalink, Channel};
 use tokio::task;
@@ -65,12 +65,11 @@ fn arp_scan_blocking(subnet: IpNetwork, timeout: Duration) -> Vec<DiscoveredHost
     });
 
     // Fall back to first non-loopback interface with an IPv4 address
-    let interface = interface
-        .or_else(|| {
-            interfaces.iter().find(|i| {
-                !i.is_loopback() && i.ips.iter().any(|ip| ip.is_ipv4())
-            })
-        });
+    let interface = interface.or_else(|| {
+        interfaces
+            .iter()
+            .find(|i| !i.is_loopback() && i.ips.iter().any(|ip| ip.is_ipv4()))
+    });
 
     let interface = match interface {
         Some(i) => i.clone(),
@@ -143,17 +142,15 @@ fn arp_scan_blocking(subnet: IpNetwork, timeout: Duration) -> Vec<DiscoveredHost
     while std::time::Instant::now() < deadline {
         match rx.next() {
             Ok(frame) => {
-                if let Some(eth) = EthernetPacket::new(frame) {
-                    if eth.get_ethertype() == EtherTypes::Arp {
-                        if let Some(arp) = ArpPacket::new(eth.payload()) {
-                            if arp.get_operation() == ArpOperations::Reply {
-                                let ip = arp.get_sender_proto_addr();
-                                let mac = arp.get_sender_hw_addr().to_string();
-                                debug!("ARP reply: {ip} is at {mac}");
-                                discovered.insert(ip, mac);
-                            }
-                        }
-                    }
+                if let Some(eth) = EthernetPacket::new(frame)
+                    && eth.get_ethertype() == EtherTypes::Arp
+                    && let Some(arp) = ArpPacket::new(eth.payload())
+                    && arp.get_operation() == ArpOperations::Reply
+                {
+                    let ip = arp.get_sender_proto_addr();
+                    let mac = arp.get_sender_hw_addr().to_string();
+                    debug!("ARP reply: {ip} is at {mac}");
+                    discovered.insert(ip, mac);
                 }
             }
             Err(_) => break,
@@ -174,13 +171,8 @@ fn arp_scan_blocking(subnet: IpNetwork, timeout: Duration) -> Vec<DiscoveredHost
 fn reverse_lookup(addr: IpAddr) -> Option<String> {
     use std::net::ToSocketAddrs;
     let sa = std::net::SocketAddr::new(addr, 0);
-    format!("{sa}")
-        .to_socket_addrs()
-        .ok()?
-        .next()
-        .and_then(|_| {
-            // stdlib does not expose reverse DNS directly; use dns_lookup on a
-            // best-effort basis — return None for now to avoid heavy deps.
-            None
-        })
+    // stdlib does not expose reverse DNS directly; use dns_lookup on a
+    // best-effort basis — return None for now to avoid heavy deps.
+    let _ = format!("{sa}").to_socket_addrs().ok()?.next();
+    None
 }

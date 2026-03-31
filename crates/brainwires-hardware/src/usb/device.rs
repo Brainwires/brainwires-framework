@@ -17,14 +17,17 @@ pub fn list_usb_devices() -> Vec<UsbDevice> {
         }
     };
 
-    devices.filter_map(|info| device_from_info(info)).collect()
+    devices.filter_map(device_from_info).collect()
 }
 
 /// Find the first device matching `vendor_id:product_id`.
 pub fn find_device(vendor_id: u16, product_id: u16) -> Result<DeviceInfo, UsbError> {
     let mut iter = nusb::list_devices().map_err(|e| UsbError::OpenFailed(e.to_string()))?;
     iter.find(|d| d.vendor_id() == vendor_id && d.product_id() == product_id)
-        .ok_or(UsbError::DeviceNotFound { vendor_id, product_id })
+        .ok_or(UsbError::DeviceNotFound {
+            vendor_id,
+            product_id,
+        })
 }
 
 fn device_from_info(info: DeviceInfo) -> Option<UsbDevice> {
@@ -33,7 +36,10 @@ fn device_from_info(info: DeviceInfo) -> Option<UsbDevice> {
     let class = UsbClass::from_code(info.class());
     let speed = info.speed().map_or(UsbSpeed::Unknown, speed_from_nusb);
 
-    debug!("{:04x}:{:04x} class={class} speed={speed}", vendor_id, product_id);
+    debug!(
+        "{:04x}:{:04x} class={class} speed={speed}",
+        vendor_id, product_id
+    );
 
     // Attempt to read string descriptors — requires device open permission.
     // Failures are non-fatal; we just leave the fields as None.
@@ -60,17 +66,11 @@ fn read_strings(info: &DeviceInfo) -> (Option<String>, Option<String>, Option<St
         Err(_) => return (None, None, None),
     };
 
-    let manufacturer = info
-        .manufacturer_string()
-        .map(|s| s.to_string());
+    let manufacturer = info.manufacturer_string().map(|s| s.to_string());
 
-    let product = info
-        .product_string()
-        .map(|s| s.to_string());
+    let product = info.product_string().map(|s| s.to_string());
 
-    let serial = info
-        .serial_number()
-        .map(|s| s.to_string());
+    let serial = info.serial_number().map(|s| s.to_string());
 
     drop(device);
     (manufacturer, product, serial)

@@ -79,7 +79,10 @@ impl NanoEditorState {
         let status_message = if is_binary {
             Some("Binary file - Read only".to_string())
         } else if metadata.len() > MAX_EDIT_SIZE {
-            Some(format!("Large file ({:.1}MB) - Read only", metadata.len() as f64 / 1024.0 / 1024.0))
+            Some(format!(
+                "Large file ({:.1}MB) - Read only",
+                metadata.len() as f64 / 1024.0 / 1024.0
+            ))
         } else {
             None
         };
@@ -385,7 +388,10 @@ impl NanoEditorState {
 
     /// Get the current line content
     pub fn current_line(&self) -> &str {
-        self.lines.get(self.cursor_row).map(|s| s.as_str()).unwrap_or("")
+        self.lines
+            .get(self.cursor_row)
+            .map(|s| s.as_str())
+            .unwrap_or("")
     }
 
     /// Get total line count

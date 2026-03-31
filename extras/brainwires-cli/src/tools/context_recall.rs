@@ -1,4 +1,4 @@
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -84,10 +84,7 @@ impl ContextRecallTool {
             }
         };
 
-        let limit = input
-            .get("limit")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(5) as usize;
+        let limit = input.get("limit").and_then(|v| v.as_u64()).unwrap_or(5) as usize;
 
         let min_score = input
             .get("min_score")
@@ -100,17 +97,19 @@ impl ContextRecallTool {
             .unwrap_or(false);
 
         // Get conversation_id from context metadata
-        let conversation_id = context
-            .metadata
-            .get("conversation_id")
-            .map(|s| s.as_str());
+        let conversation_id = context.metadata.get("conversation_id").map(|s| s.as_str());
 
-        match Self::search_history(query, limit, min_score, cross_conversation, conversation_id).await {
+        match Self::search_history(query, limit, min_score, cross_conversation, conversation_id)
+            .await
+        {
             Ok(results) => {
                 if results.is_empty() {
                     ToolResult::success(
                         tool_use_id.to_string(),
-                        format!("No relevant context found for query: '{}'\n\nTry:\n- Using different keywords\n- Lowering the min_score threshold\n- Setting cross_conversation: true to search all conversations", query),
+                        format!(
+                            "No relevant context found for query: '{}'\n\nTry:\n- Using different keywords\n- Lowering the min_score threshold\n- Setting cross_conversation: true to search all conversations",
+                            query
+                        ),
                     )
                 } else {
                     let mut output = format!("Found {} relevant messages:\n\n", results.len());
@@ -159,7 +158,8 @@ impl ContextRecallTool {
         // Ensure the data directory exists
         PlatformPaths::ensure_data_dir()?;
 
-        let client: Arc<LanceDatabase> = Arc::new(LanceDatabase::new(db_path.to_str().unwrap()).await?);
+        let client: Arc<LanceDatabase> =
+            Arc::new(LanceDatabase::new(db_path.to_str().unwrap()).await?);
         let embeddings: Arc<EmbeddingProvider> = Arc::new(EmbeddingProvider::new()?);
 
         // Initialize tables if needed
@@ -171,11 +171,13 @@ impl ContextRecallTool {
         if cross_conversation || conversation_id.is_none() {
             // Search across all conversations
             message_store.search(query, limit, min_score).await
-        } else {
+        } else if let Some(conv_id) = conversation_id {
             // Search within current conversation only
             message_store
-                .search_conversation(conversation_id.unwrap(), query, limit, min_score)
+                .search_conversation(conv_id, query, limit, min_score)
                 .await
+        } else {
+            message_store.search(query, limit, min_score).await
         }
     }
 

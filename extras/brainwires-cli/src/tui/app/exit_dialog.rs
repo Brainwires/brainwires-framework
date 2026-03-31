@@ -127,8 +127,10 @@ impl ExitDialogState {
 
     /// Update the checkbox's focused state based on current focus.
     pub fn update_checkbox_focus(&mut self) {
-        self.preserve_chat.set_focused(self.focus == ExitFocus::PreserveChatCheckbox);
-        self.exit_when_done.set_focused(self.focus == ExitFocus::ExitWhenDoneCheckbox);
+        self.preserve_chat
+            .set_focused(self.focus == ExitFocus::PreserveChatCheckbox);
+        self.exit_when_done
+            .set_focused(self.focus == ExitFocus::ExitWhenDoneCheckbox);
     }
 
     /// Toggle the preserve_chat checkbox.
@@ -255,10 +257,10 @@ mod tests {
         assert!(region.contains(15, 6));
 
         // Outside region
-        assert!(!region.contains(9, 5));   // left of region
-        assert!(!region.contains(30, 5));  // right of region
-        assert!(!region.contains(10, 4));  // above region
-        assert!(!region.contains(10, 8));  // below region
+        assert!(!region.contains(9, 5)); // left of region
+        assert!(!region.contains(30, 5)); // right of region
+        assert!(!region.contains(10, 4)); // above region
+        assert!(!region.contains(10, 8)); // below region
     }
 
     #[test]

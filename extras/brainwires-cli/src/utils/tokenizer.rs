@@ -156,8 +156,10 @@ fn estimate_block_tokens_with_config(block: &ContentBlock, config: &TokenizerCon
         ContentBlock::Image { .. } => config.image_base_tokens,
         ContentBlock::ToolUse { name, input, .. } => {
             let name_tokens = estimate_tokens_with_config(name, config);
-            let input_tokens =
-                estimate_tokens_with_config(&serde_json::to_string(input).unwrap_or_default(), config);
+            let input_tokens = estimate_tokens_with_config(
+                &serde_json::to_string(input).unwrap_or_default(),
+                config,
+            );
             name_tokens + input_tokens + 10 // Overhead for tool structure
         }
         ContentBlock::ToolResult { content, .. } => {
@@ -170,10 +172,29 @@ fn estimate_block_tokens_with_config(block: &ContentBlock, config: &TokenizerCon
 fn is_likely_code(text: &str) -> bool {
     // Code indicators
     let code_patterns = [
-        "fn ", "def ", "function ", "class ", "impl ", "pub ", "async ",
-        "const ", "let ", "var ", "import ", "export ", "return ",
-        "if (", "if(", "for (", "for(", "while ", "match ",
-        "=>", "->", "::", "{}",
+        "fn ",
+        "def ",
+        "function ",
+        "class ",
+        "impl ",
+        "pub ",
+        "async ",
+        "const ",
+        "let ",
+        "var ",
+        "import ",
+        "export ",
+        "return ",
+        "if (",
+        "if(",
+        "for (",
+        "for(",
+        "while ",
+        "match ",
+        "=>",
+        "->",
+        "::",
+        "{}",
     ];
 
     let code_chars = ['{', '}', '(', ')', '[', ']', ';', ':'];
@@ -182,8 +203,8 @@ fn is_likely_code(text: &str) -> bool {
     let has_pattern = code_patterns.iter().any(|p| text.contains(p));
 
     // Count special characters
-    let special_char_ratio = text.chars().filter(|c| code_chars.contains(c)).count() as f32
-        / text.len().max(1) as f32;
+    let special_char_ratio =
+        text.chars().filter(|c| code_chars.contains(c)).count() as f32 / text.len().max(1) as f32;
 
     has_pattern || special_char_ratio > 0.05
 }
@@ -198,7 +219,7 @@ fn count_cjk_chars(text: &str) -> usize {
                 || ('\u{3040}'..='\u{309F}').contains(&c)  // Hiragana
                 || ('\u{30A0}'..='\u{30FF}').contains(&c)  // Katakana
                 || ('\u{AC00}'..='\u{D7A3}').contains(&c)  // Hangul Syllables
-                || ('\u{3400}'..='\u{4DBF}').contains(&c)  // CJK Extension A
+                || ('\u{3400}'..='\u{4DBF}').contains(&c) // CJK Extension A
         })
         .count()
 }
@@ -212,7 +233,8 @@ pub fn estimate_conversation_tokens(messages: &[Message]) -> usize {
 pub fn model_family_from_id(model_id: &str) -> ModelFamily {
     let model_lower = model_id.to_lowercase();
 
-    if model_lower.contains("gpt") || model_lower.contains("o1") || model_lower.contains("davinci") {
+    if model_lower.contains("gpt") || model_lower.contains("o1") || model_lower.contains("davinci")
+    {
         ModelFamily::OpenAI
     } else if model_lower.contains("claude") || model_lower.contains("anthropic") {
         ModelFamily::Anthropic
@@ -247,7 +269,8 @@ mod tests {
     #[test]
     fn test_estimate_tokens_prose() {
         // ~100 characters of prose
-        let text = "The quick brown fox jumps over the lazy dog. This is a sample sentence for testing.";
+        let text =
+            "The quick brown fox jumps over the lazy dog. This is a sample sentence for testing.";
         let tokens = estimate_tokens(text);
         // Should be roughly 20-25 tokens
         assert!(tokens >= 15 && tokens <= 30);
@@ -285,7 +308,10 @@ mod tests {
     #[test]
     fn test_model_family_detection() {
         assert_eq!(model_family_from_id("gpt-4-turbo"), ModelFamily::OpenAI);
-        assert_eq!(model_family_from_id("claude-3-opus"), ModelFamily::Anthropic);
+        assert_eq!(
+            model_family_from_id("claude-3-opus"),
+            ModelFamily::Anthropic
+        );
         assert_eq!(model_family_from_id("gemini-pro"), ModelFamily::Google);
         assert_eq!(model_family_from_id("llama-3-70b"), ModelFamily::Local);
         assert_eq!(model_family_from_id("unknown-model"), ModelFamily::OpenAI);

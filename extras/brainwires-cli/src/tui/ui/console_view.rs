@@ -3,11 +3,11 @@
 //! Renders the full-screen debug console.
 
 use ratatui::{
+    Frame,
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
     widgets::{Block, Borders, Paragraph, Wrap},
-    Frame,
 };
 use ratatui_interact::components::ParagraphExt;
 
@@ -18,19 +18,20 @@ pub fn draw_console_view(f: &mut Frame, app: &App, area: Rect) {
     let mut items = Vec::new();
 
     // Header
-    items.push(Line::from(vec![
-        Span::styled(
-            format!("Console - {} messages", app.console_state.line_count()),
-            Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)
-        ),
-    ]));
+    items.push(Line::from(vec![Span::styled(
+        format!("Console - {} messages", app.console_state.line_count()),
+        Style::default()
+            .fg(Color::Magenta)
+            .add_modifier(Modifier::BOLD),
+    )]));
     items.push(Line::from("")); // Empty line
 
     // Console messages
     if app.console_state.lines().is_empty() {
-        items.push(Line::from(vec![
-            Span::styled("No console messages yet", Style::default().fg(Color::Gray)),
-        ]));
+        items.push(Line::from(vec![Span::styled(
+            "No console messages yet",
+            Style::default().fg(Color::Gray),
+        )]));
         items.push(Line::from(""));
         items.push(Line::from(vec![
             Span::raw("Debug messages from "),
@@ -81,7 +82,9 @@ pub fn draw_console_view(f: &mut Frame, app: &App, area: Rect) {
 
     // When mouse capture is disabled, use clean widget for copy/paste
     if app.mouse_capture_disabled {
-        let widget = ParagraphExt::new(items).scroll(scroll_offset).width(area.width);
+        let widget = ParagraphExt::new(items)
+            .scroll(scroll_offset)
+            .width(area.width);
         f.render_widget(widget, area);
     } else {
         let console_block = Block::default()

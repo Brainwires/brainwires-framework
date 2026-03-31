@@ -5,10 +5,12 @@
 //! Supports integrated IPC message handling for event-driven Session communication.
 
 use anyhow::Result;
-use crossterm::event::{self, Event as CrosstermEvent, EventStream, KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{
+    self, Event as CrosstermEvent, EventStream, KeyCode, KeyEvent, KeyModifiers,
+};
 use futures::StreamExt;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
@@ -94,7 +96,9 @@ impl EventHandler {
 
                 // Calculate flush timeout for paste buffer
                 let flush_timeout = if !paste_buffer.is_empty() {
-                    Some(tokio::time::sleep(Duration::from_millis(PASTE_FLUSH_TIMEOUT_MS)))
+                    Some(tokio::time::sleep(Duration::from_millis(
+                        PASTE_FLUSH_TIMEOUT_MS,
+                    )))
                 } else {
                     None
                 };
@@ -196,11 +200,10 @@ impl EventHandler {
                     // Tick event for periodic redraws
                     _ = tick_interval.tick() => {
                         // Only send tick if paste buffer is empty (otherwise we're waiting for more input)
-                        if paste_buffer.is_empty() {
-                            if event_tx.send(Event::Tick).is_err() {
+                        if paste_buffer.is_empty()
+                            && event_tx.send(Event::Tick).is_err() {
                                 break;
                             }
-                        }
                     }
 
                     // Flush timeout for paste buffer
@@ -222,7 +225,14 @@ impl EventHandler {
             }
         });
 
-        Self { rx, tx, paused, stopped, task_handle, ipc_task_handle: None }
+        Self {
+            rx,
+            tx,
+            paused,
+            stopped,
+            task_handle,
+            ipc_task_handle: None,
+        }
     }
 
     /// Start IPC reader task that integrates Session messages into the event stream
@@ -1107,9 +1117,18 @@ mod tests {
 
     #[test]
     fn test_char() {
-        assert_eq!(key_event(KeyCode::Char('a'), KeyModifiers::NONE).char(), Some('a'));
-        assert_eq!(key_event(KeyCode::Char('Z'), KeyModifiers::SHIFT).char(), Some('Z'));
-        assert_eq!(key_event(KeyCode::Char('c'), KeyModifiers::CONTROL).char(), None);
+        assert_eq!(
+            key_event(KeyCode::Char('a'), KeyModifiers::NONE).char(),
+            Some('a')
+        );
+        assert_eq!(
+            key_event(KeyCode::Char('Z'), KeyModifiers::SHIFT).char(),
+            Some('Z')
+        );
+        assert_eq!(
+            key_event(KeyCode::Char('c'), KeyModifiers::CONTROL).char(),
+            None
+        );
         assert_eq!(key_event(KeyCode::Enter, KeyModifiers::NONE).char(), None);
     }
 
@@ -1229,7 +1248,13 @@ mod tests {
     #[test]
     fn test_is_file_explorer() {
         // File explorer requires Ctrl+Alt+F
-        assert!(key_event(KeyCode::Char('f'), KeyModifiers::CONTROL | KeyModifiers::ALT).is_file_explorer());
+        assert!(
+            key_event(
+                KeyCode::Char('f'),
+                KeyModifiers::CONTROL | KeyModifiers::ALT
+            )
+            .is_file_explorer()
+        );
         assert!(!key_event(KeyCode::Char('f'), KeyModifiers::CONTROL).is_file_explorer()); // Ctrl+F alone is find
         assert!(!key_event(KeyCode::Char('f'), KeyModifiers::ALT).is_file_explorer()); // Alt+F alone is not file explorer
         assert!(!key_event(KeyCode::Char('f'), KeyModifiers::NONE).is_file_explorer());

@@ -95,8 +95,11 @@ impl SudoDialogState {
             return false;
         }
         if let Some(pending) = self.current_request.take() {
-            let password = std::mem::replace(&mut self.password_buffer, Zeroizing::new(String::new()));
-            let _ = pending.response_tx.send(SudoPasswordResponse::Password(password));
+            let password =
+                std::mem::replace(&mut self.password_buffer, Zeroizing::new(String::new()));
+            let _ = pending
+                .response_tx
+                .send(SudoPasswordResponse::Password(password));
             self.cursor_pos = 0;
             true
         } else {

@@ -2,15 +2,18 @@
 //!
 //! Event handling for help, suspend, exit, hotkey, approval, and find/replace dialogs.
 
-use crate::tui::app::state::{App, AppMode};
 use crate::tui::Event;
+use crate::tui::app::state::{App, AppMode};
 use anyhow::Result;
 use crossterm::event::KeyCode;
 
 impl App {
     /// Handle events in find/replace dialog mode
-    pub(in crate::tui::app) async fn handle_find_replace_event(&mut self, event: Event) -> Result<()> {
-        use super::super::find_replace::{FindReplaceContext, DialogFocus};
+    pub(in crate::tui::app) async fn handle_find_replace_event(
+        &mut self,
+        event: Event,
+    ) -> Result<()> {
+        use super::super::find_replace::{DialogFocus, FindReplaceContext};
         use crossterm::event::KeyModifiers;
 
         let state = match &mut self.find_replace_state {
@@ -27,61 +30,63 @@ impl App {
 
         // Handle mouse clicks
         if let Event::Mouse(mouse) = &event {
-            use crossterm::event::{MouseEventKind, MouseButton};
-            if mouse.kind == MouseEventKind::Down(MouseButton::Left) {
-                if let Some(clicked) = state.handle_click(mouse.column, mouse.row) {
-                    // Handle the click based on what was clicked
-                    match clicked {
-                        DialogFocus::FindInput | DialogFocus::ReplaceInput => {
-                            state.set_focus(clicked);
-                        }
-                        DialogFocus::CaseCheckbox => {
-                            state.set_focus(clicked);
-                            state.toggle_case_sensitive();
-                            // Update matches
-                            let text = if context == FindReplaceContext::InputView {
-                                self.input_text()
-                            } else {
-                                self.messages.iter()
-                                    .map(|m| m.content.as_str())
-                                    .collect::<Vec<_>>()
-                                    .join("\n\n")
-                            };
-                            if let Some(ref mut state) = self.find_replace_state {
-                                state.update_matches(&text);
-                            }
-                        }
-                        DialogFocus::RegexCheckbox => {
-                            state.set_focus(clicked);
-                            state.toggle_regex();
-                            // Update matches
-                            let text = if context == FindReplaceContext::InputView {
-                                self.input_text()
-                            } else {
-                                self.messages.iter()
-                                    .map(|m| m.content.as_str())
-                                    .collect::<Vec<_>>()
-                                    .join("\n\n")
-                            };
-                            if let Some(ref mut state) = self.find_replace_state {
-                                state.update_matches(&text);
-                            }
-                        }
-                        DialogFocus::NextButton => {
-                            state.set_focus(clicked);
-                            self.find_replace_next_match();
-                        }
-                        DialogFocus::ReplaceButton => {
-                            state.set_focus(clicked);
-                            self.find_replace_do_replace();
-                        }
-                        DialogFocus::ReplaceAllButton => {
-                            state.set_focus(clicked);
-                            self.find_replace_do_replace_all();
+            use crossterm::event::{MouseButton, MouseEventKind};
+            if mouse.kind == MouseEventKind::Down(MouseButton::Left)
+                && let Some(clicked) = state.handle_click(mouse.column, mouse.row)
+            {
+                // Handle the click based on what was clicked
+                match clicked {
+                    DialogFocus::FindInput | DialogFocus::ReplaceInput => {
+                        state.set_focus(clicked);
+                    }
+                    DialogFocus::CaseCheckbox => {
+                        state.set_focus(clicked);
+                        state.toggle_case_sensitive();
+                        // Update matches
+                        let text = if context == FindReplaceContext::InputView {
+                            self.input_text()
+                        } else {
+                            self.messages
+                                .iter()
+                                .map(|m| m.content.as_str())
+                                .collect::<Vec<_>>()
+                                .join("\n\n")
+                        };
+                        if let Some(ref mut state) = self.find_replace_state {
+                            state.update_matches(&text);
                         }
                     }
-                    return Ok(());
+                    DialogFocus::RegexCheckbox => {
+                        state.set_focus(clicked);
+                        state.toggle_regex();
+                        // Update matches
+                        let text = if context == FindReplaceContext::InputView {
+                            self.input_text()
+                        } else {
+                            self.messages
+                                .iter()
+                                .map(|m| m.content.as_str())
+                                .collect::<Vec<_>>()
+                                .join("\n\n")
+                        };
+                        if let Some(ref mut state) = self.find_replace_state {
+                            state.update_matches(&text);
+                        }
+                    }
+                    DialogFocus::NextButton => {
+                        state.set_focus(clicked);
+                        self.find_replace_next_match();
+                    }
+                    DialogFocus::ReplaceButton => {
+                        state.set_focus(clicked);
+                        self.find_replace_do_replace();
+                    }
+                    DialogFocus::ReplaceAllButton => {
+                        state.set_focus(clicked);
+                        self.find_replace_do_replace_all();
+                    }
                 }
+                return Ok(());
             }
         }
 
@@ -128,7 +133,8 @@ impl App {
                         let text = if state.context == FindReplaceContext::InputView {
                             self.input_state.text()
                         } else {
-                            self.messages.iter()
+                            self.messages
+                                .iter()
                                 .map(|m| m.content.as_str())
                                 .collect::<Vec<_>>()
                                 .join("\n\n")
@@ -142,7 +148,8 @@ impl App {
                         let text = if state.context == FindReplaceContext::InputView {
                             self.input_state.text()
                         } else {
-                            self.messages.iter()
+                            self.messages
+                                .iter()
                                 .map(|m| m.content.as_str())
                                 .collect::<Vec<_>>()
                                 .join("\n\n")
@@ -164,54 +171,60 @@ impl App {
         }
 
         // Space toggles checkboxes when focused
-        if let Event::Key(key) = &event {
-            if key.code == KeyCode::Char(' ') && !key.modifiers.contains(KeyModifiers::CONTROL) {
-                match focus {
-                    DialogFocus::CaseCheckbox => {
-                        if let Some(ref mut state) = self.find_replace_state {
-                            state.toggle_case_sensitive();
-                            let text = if state.context == FindReplaceContext::InputView {
-                                self.input_state.text()
-                            } else {
-                                self.messages.iter()
-                                    .map(|m| m.content.as_str())
-                                    .collect::<Vec<_>>()
-                                    .join("\n\n")
-                            };
-                            state.update_matches(&text);
-                        }
-                        return Ok(());
+        if let Event::Key(key) = &event
+            && key.code == KeyCode::Char(' ')
+            && !key.modifiers.contains(KeyModifiers::CONTROL)
+        {
+            match focus {
+                DialogFocus::CaseCheckbox => {
+                    if let Some(ref mut state) = self.find_replace_state {
+                        state.toggle_case_sensitive();
+                        let text = if state.context == FindReplaceContext::InputView {
+                            self.input_state.text()
+                        } else {
+                            self.messages
+                                .iter()
+                                .map(|m| m.content.as_str())
+                                .collect::<Vec<_>>()
+                                .join("\n\n")
+                        };
+                        state.update_matches(&text);
                     }
-                    DialogFocus::RegexCheckbox => {
-                        if let Some(ref mut state) = self.find_replace_state {
-                            state.toggle_regex();
-                            let text = if state.context == FindReplaceContext::InputView {
-                                self.input_state.text()
-                            } else {
-                                self.messages.iter()
-                                    .map(|m| m.content.as_str())
-                                    .collect::<Vec<_>>()
-                                    .join("\n\n")
-                            };
-                            state.update_matches(&text);
-                        }
-                        return Ok(());
-                    }
-                    _ => {}
+                    return Ok(());
                 }
+                DialogFocus::RegexCheckbox => {
+                    if let Some(ref mut state) = self.find_replace_state {
+                        state.toggle_regex();
+                        let text = if state.context == FindReplaceContext::InputView {
+                            self.input_state.text()
+                        } else {
+                            self.messages
+                                .iter()
+                                .map(|m| m.content.as_str())
+                                .collect::<Vec<_>>()
+                                .join("\n\n")
+                        };
+                        state.update_matches(&text);
+                    }
+                    return Ok(());
+                }
+                _ => {}
             }
         }
 
         // Handle key events for input fields
         if let Event::Key(key) = event {
             // Only handle character input when an input field is focused
-            let is_input_focused = matches!(focus, DialogFocus::FindInput | DialogFocus::ReplaceInput);
+            let is_input_focused =
+                matches!(focus, DialogFocus::FindInput | DialogFocus::ReplaceInput);
 
             match key.code {
                 // Character input (only for input fields)
-                KeyCode::Char(c) if is_input_focused
-                    && !key.modifiers.contains(KeyModifiers::CONTROL)
-                    && !key.modifiers.contains(KeyModifiers::ALT) => {
+                KeyCode::Char(c)
+                    if is_input_focused
+                        && !key.modifiers.contains(KeyModifiers::CONTROL)
+                        && !key.modifiers.contains(KeyModifiers::ALT) =>
+                {
                     if let Some(ref mut state) = self.find_replace_state {
                         state.insert_char(c);
                         // Update matches live as user types in find field
@@ -219,7 +232,8 @@ impl App {
                             let text = if state.context == FindReplaceContext::InputView {
                                 self.input_state.text()
                             } else {
-                                self.messages.iter()
+                                self.messages
+                                    .iter()
                                     .map(|m| m.content.as_str())
                                     .collect::<Vec<_>>()
                                     .join("\n\n")
@@ -237,7 +251,8 @@ impl App {
                             let text = if state.context == FindReplaceContext::InputView {
                                 self.input_state.text()
                             } else {
-                                self.messages.iter()
+                                self.messages
+                                    .iter()
                                     .map(|m| m.content.as_str())
                                     .collect::<Vec<_>>()
                                     .join("\n\n")
@@ -270,21 +285,21 @@ impl App {
         use super::super::find_replace::{FindReplaceContext, byte_to_char_index};
         if let Some(ref mut state) = self.find_replace_state {
             state.next_match();
-            if state.context == FindReplaceContext::InputView {
-                if let Some((start, _end)) = state.current_match_position() {
-                    let text = self.input_text();
-                    let char_pos = byte_to_char_index(&text, start);
-                    // Convert flat char position to line/col
-                    let mut remaining = char_pos;
-                    for (i, line) in self.input_state.lines.iter().enumerate() {
-                        let line_chars = line.chars().count();
-                        if remaining <= line_chars {
-                            self.input_state.cursor_line = i;
-                            self.input_state.cursor_col = remaining;
-                            break;
-                        }
-                        remaining -= line_chars + 1; // +1 for newline
+            if state.context == FindReplaceContext::InputView
+                && let Some((start, _end)) = state.current_match_position()
+            {
+                let text = self.input_text();
+                let char_pos = byte_to_char_index(&text, start);
+                // Convert flat char position to line/col
+                let mut remaining = char_pos;
+                for (i, line) in self.input_state.lines.iter().enumerate() {
+                    let line_chars = line.chars().count();
+                    if remaining <= line_chars {
+                        self.input_state.cursor_line = i;
+                        self.input_state.cursor_col = remaining;
+                        break;
                     }
+                    remaining -= line_chars + 1; // +1 for newline
                 }
             }
         }
@@ -292,17 +307,18 @@ impl App {
 
     /// Helper: Replace current match
     fn find_replace_do_replace(&mut self) {
-        use super::super::find_replace::{FindReplaceMode, FindReplaceContext};
-        if let Some(ref mut state) = self.find_replace_state {
-            if state.mode == FindReplaceMode::Replace && state.context == FindReplaceContext::InputView {
-                let mut text = self.input_state.text();
-                match state.replace_current(&mut text) {
-                    Ok(()) => {
-                        self.input_state.set_text(text);
-                    }
-                    Err(e) => {
-                        state.status_message = Some(e);
-                    }
+        use super::super::find_replace::{FindReplaceContext, FindReplaceMode};
+        if let Some(ref mut state) = self.find_replace_state
+            && state.mode == FindReplaceMode::Replace
+            && state.context == FindReplaceContext::InputView
+        {
+            let mut text = self.input_state.text();
+            match state.replace_current(&mut text) {
+                Ok(()) => {
+                    self.input_state.set_text(text);
+                }
+                Err(e) => {
+                    state.status_message = Some(e);
                 }
             }
         }
@@ -310,24 +326,28 @@ impl App {
 
     /// Helper: Replace all matches
     fn find_replace_do_replace_all(&mut self) {
-        use super::super::find_replace::{FindReplaceMode, FindReplaceContext};
-        if let Some(ref mut state) = self.find_replace_state {
-            if state.mode == FindReplaceMode::Replace && state.context == FindReplaceContext::InputView {
-                let mut text = self.input_state.text();
-                match state.replace_all(&mut text) {
-                    Ok(_count) => {
-                        self.input_state.set_text(text);
-                    }
-                    Err(e) => {
-                        state.status_message = Some(e);
-                    }
+        use super::super::find_replace::{FindReplaceContext, FindReplaceMode};
+        if let Some(ref mut state) = self.find_replace_state
+            && state.mode == FindReplaceMode::Replace
+            && state.context == FindReplaceContext::InputView
+        {
+            let mut text = self.input_state.text();
+            match state.replace_all(&mut text) {
+                Ok(_count) => {
+                    self.input_state.set_text(text);
+                }
+                Err(e) => {
+                    state.status_message = Some(e);
                 }
             }
         }
     }
 
     /// Handle events in help dialog mode
-    pub(in crate::tui::app) async fn handle_help_dialog_event(&mut self, event: Event) -> Result<()> {
+    pub(in crate::tui::app) async fn handle_help_dialog_event(
+        &mut self,
+        event: Event,
+    ) -> Result<()> {
         use super::super::help_dialog::HelpFocus;
 
         let Some(state) = &mut self.help_dialog_state else {
@@ -349,11 +369,11 @@ impl App {
 
         // Handle mouse click events
         if let Event::Mouse(mouse) = &event {
-            use crossterm::event::{MouseEventKind, MouseButton};
-            if mouse.kind == MouseEventKind::Down(MouseButton::Left) {
-                if state.handle_click(mouse.column, mouse.row) {
-                    return Ok(());
-                }
+            use crossterm::event::{MouseButton, MouseEventKind};
+            if mouse.kind == MouseEventKind::Down(MouseButton::Left)
+                && state.handle_click(mouse.column, mouse.row)
+            {
+                return Ok(());
             }
         }
 
@@ -462,7 +482,10 @@ impl App {
     }
 
     /// Handle events in suspend dialog mode
-    pub(in crate::tui::app) async fn handle_suspend_dialog_event(&mut self, event: Event) -> Result<()> {
+    pub(in crate::tui::app) async fn handle_suspend_dialog_event(
+        &mut self,
+        event: Event,
+    ) -> Result<()> {
         use super::super::suspend_dialog::{SuspendAction, SuspendFocus};
 
         // Allow switching to exit dialog with Ctrl+C
@@ -470,7 +493,9 @@ impl App {
             self.suspend_dialog_state = None;
             use super::super::exit_dialog::ExitDialogState;
             // Use last known preserve_chat setting
-            self.exit_dialog_state = Some(ExitDialogState::with_preserve_chat(self.last_preserve_chat_setting));
+            self.exit_dialog_state = Some(ExitDialogState::with_preserve_chat(
+                self.last_preserve_chat_setting,
+            ));
             self.mode = AppMode::ExitDialog;
             return Ok(());
         }
@@ -483,16 +508,16 @@ impl App {
 
         // Handle mouse click events
         if let Event::Mouse(mouse) = &event {
-            use crossterm::event::{MouseEventKind, MouseButton};
-            if mouse.kind == MouseEventKind::Down(MouseButton::Left) {
-                if let Some(clicked) = state.handle_click(mouse.column, mouse.row) {
-                    state.set_focus(clicked);
-                    // If checkbox clicked, toggle it; otherwise activate the button
-                    if clicked == SuspendFocus::ExitWhenDoneCheckbox {
-                        state.toggle_exit_when_done();
-                    } else if let Some(action) = state.selected_action() {
-                        return self.execute_suspend_action(action);
-                    }
+            use crossterm::event::{MouseButton, MouseEventKind};
+            if mouse.kind == MouseEventKind::Down(MouseButton::Left)
+                && let Some(clicked) = state.handle_click(mouse.column, mouse.row)
+            {
+                state.set_focus(clicked);
+                // If checkbox clicked, toggle it; otherwise activate the button
+                if clicked == SuspendFocus::ExitWhenDoneCheckbox {
+                    state.toggle_exit_when_done();
+                } else if let Some(action) = state.selected_action() {
+                    return self.execute_suspend_action(action);
                 }
             }
         }
@@ -546,22 +571,26 @@ impl App {
         }
 
         // Enter activates selected button (not checkbox - checkbox uses Space)
-        if event.is_enter() {
-            if let Some(action) = state.selected_action() {
-                return self.execute_suspend_action(action);
-            }
-            // If checkbox is focused, Enter does nothing (use Space to toggle)
+        if event.is_enter()
+            && let Some(action) = state.selected_action()
+        {
+            return self.execute_suspend_action(action);
         }
+        // If checkbox is focused, Enter does nothing (use Space to toggle)
 
         Ok(())
     }
 
     /// Execute the selected suspend/background action
-    fn execute_suspend_action(&mut self, action: super::super::suspend_dialog::SuspendAction) -> Result<()> {
+    fn execute_suspend_action(
+        &mut self,
+        action: super::super::suspend_dialog::SuspendAction,
+    ) -> Result<()> {
         use super::super::suspend_dialog::SuspendAction;
 
         // Save exit_when_done setting before cleaning up dialog
-        let exit_when_done = self.suspend_dialog_state
+        let exit_when_done = self
+            .suspend_dialog_state
             .as_ref()
             .map(|s| s.exit_when_done())
             .unwrap_or(false);
@@ -588,13 +617,17 @@ impl App {
     }
 
     /// Handle events in exit dialog mode
-    pub(in crate::tui::app) async fn handle_exit_dialog_event(&mut self, event: Event) -> Result<()> {
+    pub(in crate::tui::app) async fn handle_exit_dialog_event(
+        &mut self,
+        event: Event,
+    ) -> Result<()> {
         use super::super::exit_dialog::{ExitAction, ExitFocus};
 
         // Allow switching to suspend dialog with Ctrl+Z
         if event.is_suspend() {
             // Save preserve_chat setting before switching
-            let preserve_chat = self.exit_dialog_state
+            let preserve_chat = self
+                .exit_dialog_state
                 .as_ref()
                 .map(|s| s.preserve_chat())
                 .unwrap_or(true);
@@ -615,22 +648,22 @@ impl App {
 
         // Handle mouse click events
         if let Event::Mouse(mouse) = &event {
-            use crossterm::event::{MouseEventKind, MouseButton};
-            if mouse.kind == MouseEventKind::Down(MouseButton::Left) {
-                if let Some(clicked) = state.handle_click(mouse.column, mouse.row) {
-                    state.set_focus(clicked);
-                    // If checkbox clicked, toggle it; otherwise activate the button
-                    match clicked {
-                        ExitFocus::PreserveChatCheckbox => {
-                            state.toggle_preserve_chat();
-                        }
-                        ExitFocus::ExitWhenDoneCheckbox => {
-                            state.toggle_exit_when_done();
-                        }
-                        _ => {
-                            if let Some(action) = state.selected_action() {
-                                return self.execute_exit_action(action);
-                            }
+            use crossterm::event::{MouseButton, MouseEventKind};
+            if mouse.kind == MouseEventKind::Down(MouseButton::Left)
+                && let Some(clicked) = state.handle_click(mouse.column, mouse.row)
+            {
+                state.set_focus(clicked);
+                // If checkbox clicked, toggle it; otherwise activate the button
+                match clicked {
+                    ExitFocus::PreserveChatCheckbox => {
+                        state.toggle_preserve_chat();
+                    }
+                    ExitFocus::ExitWhenDoneCheckbox => {
+                        state.toggle_exit_when_done();
+                    }
+                    _ => {
+                        if let Some(action) = state.selected_action() {
+                            return self.execute_exit_action(action);
                         }
                     }
                 }
@@ -675,30 +708,28 @@ impl App {
                     return self.execute_exit_action(ExitAction::Background);
                 }
                 // Space toggles checkbox if focused on it
-                KeyCode::Char(' ') => {
-                    match state.focus {
-                        ExitFocus::PreserveChatCheckbox => {
-                            state.toggle_preserve_chat();
-                            return Ok(());
-                        }
-                        ExitFocus::ExitWhenDoneCheckbox => {
-                            state.toggle_exit_when_done();
-                            return Ok(());
-                        }
-                        _ => {}
+                KeyCode::Char(' ') => match state.focus {
+                    ExitFocus::PreserveChatCheckbox => {
+                        state.toggle_preserve_chat();
+                        return Ok(());
                     }
-                }
+                    ExitFocus::ExitWhenDoneCheckbox => {
+                        state.toggle_exit_when_done();
+                        return Ok(());
+                    }
+                    _ => {}
+                },
                 _ => {}
             }
         }
 
         // Enter activates selected button (not checkbox - checkbox uses Space)
-        if event.is_enter() {
-            if let Some(action) = state.selected_action() {
-                return self.execute_exit_action(action);
-            }
-            // If checkbox is focused, Enter does nothing (use Space to toggle)
+        if event.is_enter()
+            && let Some(action) = state.selected_action()
+        {
+            return self.execute_exit_action(action);
         }
+        // If checkbox is focused, Enter does nothing (use Space to toggle)
 
         Ok(())
     }
@@ -708,11 +739,13 @@ impl App {
         use super::super::exit_dialog::ExitAction;
 
         // Save settings before cleaning up dialog
-        let exit_when_done = self.exit_dialog_state
+        let exit_when_done = self
+            .exit_dialog_state
             .as_ref()
             .map(|s| s.exit_when_done())
             .unwrap_or(false);
-        let preserve_chat = self.exit_dialog_state
+        let preserve_chat = self
+            .exit_dialog_state
             .as_ref()
             .map(|s| s.preserve_chat())
             .unwrap_or(true);
@@ -744,11 +777,14 @@ impl App {
     }
 
     /// Handle events in hotkey configuration dialog mode
-    pub(in crate::tui::app) async fn handle_hotkey_dialog_event(&mut self, event: Event) -> Result<()> {
-        use ratatui_interact::components::hotkey_dialog::{
-            handle_hotkey_dialog_key, handle_hotkey_dialog_mouse, HotkeyDialogAction,
-        };
+    pub(in crate::tui::app) async fn handle_hotkey_dialog_event(
+        &mut self,
+        event: Event,
+    ) -> Result<()> {
         use crate::tui::hotkey_content::BrainwiresHotkeyProvider;
+        use ratatui_interact::components::hotkey_dialog::{
+            HotkeyDialogAction, handle_hotkey_dialog_key, handle_hotkey_dialog_mouse,
+        };
 
         let Some(state) = &mut self.hotkey_dialog_state else {
             // No state, return to normal mode
@@ -797,7 +833,10 @@ impl App {
     }
 
     /// Handle events in sudo password dialog mode
-    pub(in crate::tui::app) async fn handle_sudo_dialog_event(&mut self, event: Event) -> Result<()> {
+    pub(in crate::tui::app) async fn handle_sudo_dialog_event(
+        &mut self,
+        event: Event,
+    ) -> Result<()> {
         let Some(ref mut state) = self.sudo_dialog_state else {
             // No state, return to previous mode
             self.mode = AppMode::Normal;
@@ -838,7 +877,10 @@ impl App {
     }
 
     /// Handle events in approval dialog mode
-    pub(in crate::tui::app) async fn handle_approval_dialog_event(&mut self, event: Event) -> Result<()> {
+    pub(in crate::tui::app) async fn handle_approval_dialog_event(
+        &mut self,
+        event: Event,
+    ) -> Result<()> {
         use crate::approval::ApprovalResponse;
 
         let Some(ref mut state) = self.approval_dialog_state else {
@@ -861,7 +903,9 @@ impl App {
             match key.code {
                 // 'y' or 'Y' - Approve once
                 KeyCode::Char('y') | KeyCode::Char('Y') => {
-                    let tool_name = state.current_request.as_ref()
+                    let tool_name = state
+                        .current_request
+                        .as_ref()
                         .map(|r| r.tool_name.clone())
                         .unwrap_or_default();
                     state.respond(ApprovalResponse::Approve);
@@ -871,7 +915,9 @@ impl App {
                 }
                 // 'n' or 'N' - Deny once
                 KeyCode::Char('n') | KeyCode::Char('N') => {
-                    let tool_name = state.current_request.as_ref()
+                    let tool_name = state
+                        .current_request
+                        .as_ref()
                         .map(|r| r.tool_name.clone())
                         .unwrap_or_default();
                     state.respond(ApprovalResponse::Deny);
@@ -881,17 +927,24 @@ impl App {
                 }
                 // 'a' or 'A' - Always approve (for session)
                 KeyCode::Char('a') | KeyCode::Char('A') => {
-                    let tool_name = state.current_request.as_ref()
+                    let tool_name = state
+                        .current_request
+                        .as_ref()
                         .map(|r| r.tool_name.clone())
                         .unwrap_or_default();
                     state.respond(ApprovalResponse::ApproveForSession);
                     self.approval_dialog_state = None;
                     self.mode = AppMode::Normal;
-                    self.add_console_message(format!("✅ Tool '{}' approved for session", tool_name));
+                    self.add_console_message(format!(
+                        "✅ Tool '{}' approved for session",
+                        tool_name
+                    ));
                 }
                 // 'd' or 'D' - Always deny (for session)
                 KeyCode::Char('d') | KeyCode::Char('D') => {
-                    let tool_name = state.current_request.as_ref()
+                    let tool_name = state
+                        .current_request
+                        .as_ref()
                         .map(|r| r.tool_name.clone())
                         .unwrap_or_default();
                     state.respond(ApprovalResponse::DenyForSession);

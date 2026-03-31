@@ -70,7 +70,10 @@ async fn test_write_lock_blocks_others() {
         .await;
 
     // Read lock should fail (write lock held by different agent)
-    assert!(read_result.is_err(), "Read lock should fail when write held");
+    assert!(
+        read_result.is_err(),
+        "Read lock should fail when write held"
+    );
 
     // Release write lock
     drop(write_guard);
@@ -154,7 +157,12 @@ async fn test_lock_fairness() {
             let agent_id = format!("agent-{}", i);
             // Wait for lock with timeout
             let guard = lock_manager
-                .acquire_with_wait(&agent_id, "fairness_file.txt", LockType::Write, Duration::from_secs(10))
+                .acquire_with_wait(
+                    &agent_id,
+                    "fairness_file.txt",
+                    LockType::Write,
+                    Duration::from_secs(10),
+                )
                 .await
                 .expect("Should get lock");
 
@@ -199,7 +207,12 @@ async fn test_deadlock_prevention() {
     let task1 = tokio::spawn(async move {
         // Try to lock A then B
         let guard_a = lock_manager_1
-            .acquire_with_wait("agent-1", "file_a.txt", LockType::Write, Duration::from_millis(500))
+            .acquire_with_wait(
+                "agent-1",
+                "file_a.txt",
+                LockType::Write,
+                Duration::from_millis(500),
+            )
             .await;
 
         if guard_a.is_err() {
@@ -209,7 +222,12 @@ async fn test_deadlock_prevention() {
         tokio::time::sleep(Duration::from_millis(10)).await;
 
         let guard_b = lock_manager_1
-            .acquire_with_wait("agent-1", "file_b.txt", LockType::Write, Duration::from_millis(500))
+            .acquire_with_wait(
+                "agent-1",
+                "file_b.txt",
+                LockType::Write,
+                Duration::from_millis(500),
+            )
             .await;
 
         if guard_b.is_ok() {
@@ -222,7 +240,12 @@ async fn test_deadlock_prevention() {
     let task2 = tokio::spawn(async move {
         // Try to lock B then A (opposite order)
         let guard_b = lock_manager_2
-            .acquire_with_wait("agent-2", "file_b.txt", LockType::Write, Duration::from_millis(500))
+            .acquire_with_wait(
+                "agent-2",
+                "file_b.txt",
+                LockType::Write,
+                Duration::from_millis(500),
+            )
             .await;
 
         if guard_b.is_err() {
@@ -232,7 +255,12 @@ async fn test_deadlock_prevention() {
         tokio::time::sleep(Duration::from_millis(10)).await;
 
         let guard_a = lock_manager_2
-            .acquire_with_wait("agent-2", "file_a.txt", LockType::Write, Duration::from_millis(500))
+            .acquire_with_wait(
+                "agent-2",
+                "file_a.txt",
+                LockType::Write,
+                Duration::from_millis(500),
+            )
             .await;
 
         if guard_a.is_ok() {
@@ -278,29 +306,15 @@ async fn test_communication_hub_routing() {
         .expect("Should broadcast message");
 
     // Both agents should receive the message
-    let recv1 = timeout(
-        Duration::from_secs(1),
-        hub.try_receive_message("agent-1"),
-    )
-    .await;
-    let recv2 = timeout(
-        Duration::from_secs(1),
-        hub.try_receive_message("agent-2"),
-    )
-    .await;
+    let recv1 = timeout(Duration::from_secs(1), hub.try_receive_message("agent-1")).await;
+    let recv2 = timeout(Duration::from_secs(1), hub.try_receive_message("agent-2")).await;
 
     assert!(recv1.is_ok(), "Agent 1 receive should not timeout");
     assert!(recv2.is_ok(), "Agent 2 receive should not timeout");
 
     // Messages should be present
-    assert!(
-        recv1.unwrap().is_some(),
-        "Agent 1 should receive message"
-    );
-    assert!(
-        recv2.unwrap().is_some(),
-        "Agent 2 should receive message"
-    );
+    assert!(recv1.unwrap().is_some(), "Agent 1 should receive message");
+    assert!(recv2.unwrap().is_some(), "Agent 2 should receive message");
 }
 
 /// Test high contention scenario
@@ -321,7 +335,12 @@ async fn test_high_contention() {
         handles.push(tokio::spawn(async move {
             let agent_id = format!("agent-{}", i);
             let result = lock_manager
-                .acquire_with_wait(&agent_id, "contended_file.txt", LockType::Write, Duration::from_millis(200))
+                .acquire_with_wait(
+                    &agent_id,
+                    "contended_file.txt",
+                    LockType::Write,
+                    Duration::from_millis(200),
+                )
                 .await;
 
             if result.is_ok() {

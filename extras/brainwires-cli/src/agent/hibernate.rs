@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-use crate::ipc::{list_agent_sessions_with_metadata, is_agent_alive};
+use crate::ipc::{is_agent_alive, list_agent_sessions_with_metadata};
 use crate::utils::paths::PlatformPaths;
 
 /// Hibernate manifest - list of sessions to restore
@@ -67,8 +67,8 @@ impl HibernateManifest {
         let content = std::fs::read_to_string(&path)
             .with_context(|| format!("Failed to read manifest from {}", path.display()))?;
 
-        let manifest: Self = serde_json::from_str(&content)
-            .with_context(|| "Failed to parse hibernate manifest")?;
+        let manifest: Self =
+            serde_json::from_str(&content).with_context(|| "Failed to parse hibernate manifest")?;
 
         Ok(Some(manifest))
     }
@@ -82,8 +82,7 @@ impl HibernateManifest {
             std::fs::create_dir_all(parent)?;
         }
 
-        let content = serde_json::to_string_pretty(self)
-            .context("Failed to serialize manifest")?;
+        let content = serde_json::to_string_pretty(self).context("Failed to serialize manifest")?;
 
         std::fs::write(&path, content)
             .with_context(|| format!("Failed to write manifest to {}", path.display()))?;
@@ -133,8 +132,8 @@ pub async fn hibernate_agents() -> Result<Vec<String>> {
         sessions.push(session);
 
         // Send shutdown signal via IPC with authentication
-        use brainwires::agent_network::ipc::{ViewerMessage, Handshake, HandshakeResponse};
         use crate::ipc::read_session_token;
+        use brainwires::agent_network::ipc::{Handshake, HandshakeResponse, ViewerMessage};
 
         // Read session token for authenticated connection
         let session_token = match read_session_token(&agent.session_id) {
@@ -144,7 +143,11 @@ pub async fn hibernate_agents() -> Result<Vec<String>> {
                 continue;
             }
             Err(e) => {
-                tracing::warn!("Failed to read session token for {}: {:?}", agent.session_id, e);
+                tracing::warn!(
+                    "Failed to read session token for {}: {:?}",
+                    agent.session_id,
+                    e
+                );
                 continue;
             }
         };
@@ -161,7 +164,9 @@ pub async fn hibernate_agents() -> Result<Vec<String>> {
             match conn.reader.read::<HandshakeResponse>().await {
                 Ok(Some(response)) if response.accepted => {
                     // Send detach command
-                    let detach = ViewerMessage::Detach { exit_when_done: true };
+                    let detach = ViewerMessage::Detach {
+                        exit_when_done: true,
+                    };
                     if let Err(e) = conn.writer.write(&detach).await {
                         tracing::warn!("Failed to send detach to {}: {:?}", agent.session_id, e);
                     } else {
@@ -170,17 +175,31 @@ pub async fn hibernate_agents() -> Result<Vec<String>> {
                     }
                 }
                 Ok(Some(response)) => {
-                    tracing::warn!("Agent {} rejected connection: {:?}", agent.session_id, response.error);
+                    tracing::warn!(
+                        "Agent {} rejected connection: {:?}",
+                        agent.session_id,
+                        response.error
+                    );
                 }
                 Ok(None) => {
-                    tracing::warn!("Agent {} closed connection during handshake", agent.session_id);
+                    tracing::warn!(
+                        "Agent {} closed connection during handshake",
+                        agent.session_id
+                    );
                 }
                 Err(e) => {
-                    tracing::warn!("Failed to read handshake response from {}: {:?}", agent.session_id, e);
+                    tracing::warn!(
+                        "Failed to read handshake response from {}: {:?}",
+                        agent.session_id,
+                        e
+                    );
                 }
             }
         } else {
-            tracing::warn!("Could not connect to agent {} for hibernate", agent.session_id);
+            tracing::warn!(
+                "Could not connect to agent {} for hibernate",
+                agent.session_id
+            );
         }
     }
 
@@ -204,7 +223,10 @@ pub async fn resume_agents() -> Result<Vec<String>> {
         }
     };
 
-    tracing::info!("Resuming {} hibernated agent(s)...", manifest.sessions.len());
+    tracing::info!(
+        "Resuming {} hibernated agent(s)...",
+        manifest.sessions.len()
+    );
 
     let mut resumed = Vec::new();
 
@@ -230,10 +252,12 @@ pub async fn resume_agents() -> Result<Vec<String>> {
         // Spawn the agent
         use crate::agent::SpawnOptions;
 
-        let mut options = SpawnOptions::default();
-        options.model = Some(session.model.clone());
-        options.parent_agent_id = session.parent_agent_id.clone();
-        options.spawn_reason = session.spawn_reason.clone();
+        let mut options = SpawnOptions {
+            model: Some(session.model.clone()),
+            parent_agent_id: session.parent_agent_id.clone(),
+            spawn_reason: session.spawn_reason.clone(),
+            ..Default::default()
+        };
 
         if !session.working_directory.is_empty() {
             options.working_directory = Some(PathBuf::from(&session.working_directory));

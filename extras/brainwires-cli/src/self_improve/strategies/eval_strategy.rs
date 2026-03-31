@@ -12,8 +12,8 @@ use std::sync::Arc;
 use brainwires::eval::fault_report::analyze_suite_for_faults;
 use brainwires::eval::{EvaluationCase, EvaluationSuite, RegressionSuite, SuiteConfig};
 
-use crate::self_improve::config::StrategyConfig;
 use super::{ImprovementCategory, ImprovementStrategy, ImprovementTask};
+use crate::self_improve::config::StrategyConfig;
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -136,9 +136,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_generates_tasks_for_consistently_failing_cases() {
-        let cases: Vec<Arc<dyn EvaluationCase>> = vec![
-            Arc::new(AlwaysFailCase::new("always_broken", "intentional failure")),
-        ];
+        let cases: Vec<Arc<dyn EvaluationCase>> = vec![Arc::new(AlwaysFailCase::new(
+            "always_broken",
+            "intentional failure",
+        ))];
         let config = EvalStrategyConfig {
             n_trials: 5,
             max_tasks: 10,
@@ -162,9 +163,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_no_tasks_for_all_passing_cases_without_regression_suite() {
-        let cases: Vec<Arc<dyn EvaluationCase>> = vec![
-            Arc::new(AlwaysPassCase::new("always_ok")),
-        ];
+        let cases: Vec<Arc<dyn EvaluationCase>> = vec![Arc::new(AlwaysPassCase::new("always_ok"))];
         let config = EvalStrategyConfig {
             n_trials: 5,
             baselines_path: None, // no regression suite → no NewCapability fault
@@ -186,10 +185,8 @@ mod tests {
     async fn test_max_tasks_respected() {
         let cases: Vec<Arc<dyn EvaluationCase>> = (0..10)
             .map(|i| {
-                Arc::new(AlwaysFailCase::new(
-                    format!("case_{i}"),
-                    "fail",
-                )) as Arc<dyn EvaluationCase>
+                Arc::new(AlwaysFailCase::new(format!("case_{i}"), "fail"))
+                    as Arc<dyn EvaluationCase>
             })
             .collect();
 

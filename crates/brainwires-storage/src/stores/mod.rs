@@ -20,6 +20,9 @@ pub mod image_store;
 /// Cross-process lock coordination (SQLite-backed).
 #[cfg(feature = "native")]
 pub mod lock_store;
+/// Mental-model tier — synthesised agent beliefs about patterns.
+#[cfg(feature = "native")]
+pub mod mental_model_store;
 /// Message storage with vector search (hot tier).
 #[cfg(feature = "native")]
 pub mod message_store;
@@ -35,9 +38,6 @@ pub mod task_store;
 /// Tier assignment metadata tracking.
 #[cfg(feature = "native")]
 pub mod tier_metadata_store;
-/// Mental-model tier — synthesised agent beliefs about patterns.
-#[cfg(feature = "native")]
-pub mod mental_model_store;
 
 // ── Always available ────────────────────────────────────────────────────
 

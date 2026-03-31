@@ -43,7 +43,11 @@ fn main() {
             d.class.to_string(),
             d.speed.to_string(),
             product,
-            if serial.is_empty() { String::new() } else { format!(" [{serial}]") },
+            if serial.is_empty() {
+                String::new()
+            } else {
+                format!(" [{serial}]")
+            },
         );
     }
 }

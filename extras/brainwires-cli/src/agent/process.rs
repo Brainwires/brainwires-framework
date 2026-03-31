@@ -6,22 +6,22 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use tokio::net::UnixListener;
-use tokio::sync::{broadcast, RwLock};
+use tokio::sync::{RwLock, broadcast};
 
 use crate::auth::SessionManager;
 use crate::commands::executor::{CommandAction, CommandResult};
 use crate::config::ConfigManager;
-use futures::StreamExt as FuturesStreamExt;
-use serde_json::json;
+use crate::ipc::get_agent_socket_path;
+use crate::mdap::MdapConfig;
+use crate::types::tool::{ToolContext, ToolUse};
 use brainwires::agent_network::ipc::{
     AgentMessage, Handshake, HandshakeResponse, IpcConnection, LockChangeType, LockInfo,
     ResourceLockType, ViewerMessage,
 };
-use crate::ipc::get_agent_socket_path;
-use crate::mdap::MdapConfig;
-use crate::types::tool::{ToolContext, ToolUse};
+use futures::StreamExt as FuturesStreamExt;
+use serde_json::json;
 
 use super::AgentState;
 
@@ -180,7 +180,9 @@ impl AgentProcess {
                     };
 
                     if let Ok(mut conn) = crate::ipc::connect_to_agent(&child.session_id).await {
-                        use brainwires::agent_network::ipc::{ViewerMessage, ParentSignalType, Handshake, HandshakeResponse};
+                        use brainwires::agent_network::ipc::{
+                            Handshake, HandshakeResponse, ParentSignalType, ViewerMessage,
+                        };
 
                         // Perform authenticated handshake
                         let handshake = Handshake::reattach(child.session_id.clone(), child_token);
@@ -189,15 +191,18 @@ impl AgentProcess {
                         }
 
                         // Wait for response
-                        if let Ok(Some(response)) = conn.reader.read::<HandshakeResponse>().await {
-                            if response.accepted {
-                                let signal_msg = ViewerMessage::ParentSignal {
-                                    signal: ParentSignalType::ParentExiting,
-                                    parent_session_id: session_id.clone(),
-                                };
-                                let _ = conn.writer.write(&signal_msg).await;
-                                tracing::info!("Sent ParentExiting signal to child {}", child.session_id);
-                            }
+                        if let Ok(Some(response)) = conn.reader.read::<HandshakeResponse>().await
+                            && response.accepted
+                        {
+                            let signal_msg = ViewerMessage::ParentSignal {
+                                signal: ParentSignalType::ParentExiting,
+                                parent_session_id: session_id.clone(),
+                            };
+                            let _ = conn.writer.write(&signal_msg).await;
+                            tracing::info!(
+                                "Sent ParentExiting signal to child {}",
+                                child.session_id
+                            );
                         }
                     }
                 }
@@ -232,7 +237,9 @@ async fn handle_viewer_connection(
     let (mut reader, mut writer) = conn.split();
 
     // Perform handshake
-    let handshake: Handshake = reader.read().await?
+    let handshake: Handshake = reader
+        .read()
+        .await?
         .ok_or_else(|| anyhow::anyhow!("Connection closed during handshake"))?;
 
     let session_id = state.read().await.session_id.clone();
@@ -258,8 +265,10 @@ async fn handle_viewer_connection(
         let provided_token = handshake.session_token.as_deref().unwrap_or("");
 
         if provided_token.is_empty() {
-            tracing::warn!("Reattach attempt without session token from {}",
-                handshake.session_id.as_deref().unwrap_or("unknown"));
+            tracing::warn!(
+                "Reattach attempt without session token from {}",
+                handshake.session_id.as_deref().unwrap_or("unknown")
+            );
             let response = HandshakeResponse {
                 accepted: false,
                 session_id: String::new(),
@@ -271,7 +280,10 @@ async fn handle_viewer_connection(
         }
 
         if !crate::ipc::validate_session_token(&session_id, provided_token) {
-            tracing::warn!("Invalid session token for reattach to session {}", session_id);
+            tracing::warn!(
+                "Invalid session token for reattach to session {}",
+                session_id
+            );
             let response = HandshakeResponse {
                 accepted: false,
                 session_id: String::new(),
@@ -282,7 +294,10 @@ async fn handle_viewer_connection(
             return Ok(());
         }
 
-        tracing::info!("Reattach authentication successful for session {}", session_id);
+        tracing::info!(
+            "Reattach authentication successful for session {}",
+            session_id
+        );
     }
 
     // Read the stored token to return to new sessions
@@ -293,7 +308,11 @@ async fn handle_viewer_connection(
         accepted: true,
         session_id: session_id.clone(),
         // Only return the token for new sessions (not reattach)
-        session_token: if !handshake.is_reattach { stored_token } else { None },
+        session_token: if !handshake.is_reattach {
+            stored_token
+        } else {
+            None
+        },
         error: None,
     };
     writer.write(&response).await?;
@@ -386,9 +405,21 @@ async fn handle_viewer_message(
     update_tx: &broadcast::Sender<AgentMessage>,
 ) -> Result<bool> {
     match msg {
-        ViewerMessage::UserInput { content, context_files } => {
+        ViewerMessage::UserInput {
+            content,
+            context_files,
+        } => {
             // Preprocess through SEAL and add user message
-            let (_resolved_content, user_message, provider, conversation_history, tools, model, tool_executor, working_directory) = {
+            let (
+                _resolved_content,
+                user_message,
+                provider,
+                conversation_history,
+                tools,
+                model,
+                tool_executor,
+                working_directory,
+            ) = {
                 let mut state = state.write().await;
 
                 // Process context files if provided
@@ -398,9 +429,7 @@ async fn handle_viewer_message(
                         Ok(file_content) => {
                             context_content.push_str(&format!(
                                 "\n--- Context File: {} ---\n{}\n--- End of {} ---\n",
-                                file_path,
-                                file_content,
-                                file_path
+                                file_path, file_content, file_path
                             ));
                             tracing::info!("Loaded context file: {}", file_path);
                         }
@@ -469,7 +498,8 @@ async fn handle_viewer_message(
                     working_directory,
                     update_tx_clone.clone(),
                     state_clone.clone(),
-                ).await;
+                )
+                .await;
 
                 match result {
                     Ok(full_response) => {
@@ -497,10 +527,8 @@ async fn handle_viewer_message(
                             drop(state); // Release lock before spawning
 
                             // Process queued messages sequentially
-                            process_queued_messages(
-                                state_clone.clone(),
-                                update_tx_clone.clone(),
-                            ).await;
+                            process_queued_messages(state_clone.clone(), update_tx_clone.clone())
+                                .await;
                         }
                     }
                     Err(e) => {
@@ -598,7 +626,10 @@ async fn handle_viewer_message(
                     success: false,
                     output: None,
                     action_taken: None,
-                    error: Some(format!("Command '{}' is blocked for remote execution", command)),
+                    error: Some(format!(
+                        "Command '{}' is blocked for remote execution",
+                        command
+                    )),
                     blocked: true,
                 };
                 let _ = update_tx.send(result_msg);
@@ -618,7 +649,10 @@ async fn handle_viewer_message(
 
             let result_msg = match result {
                 Ok(CommandResult::Message(msg)) => {
-                    tracing::info!("Slash command produced message: {}", &msg[..msg.len().min(100)]);
+                    tracing::info!(
+                        "Slash command produced message: {}",
+                        &msg[..msg.len().min(100)]
+                    );
                     // Add message to conversation as user input (will trigger AI response)
                     {
                         let mut state_guard = state.write().await;
@@ -696,7 +730,9 @@ async fn handle_viewer_message(
                                 state_guard.messages.len(),
                                 state_guard.status
                             );
-                            let _ = update_tx.send(AgentMessage::StatusUpdate { status: status.clone() });
+                            let _ = update_tx.send(AgentMessage::StatusUpdate {
+                                status: status.clone(),
+                            });
                             (true, Some(format!("status_shown: {}", status)), None)
                         }
                         CommandAction::Exit => {
@@ -713,14 +749,15 @@ async fn handle_viewer_message(
                             (true, Some(format!("model_switched: {}", model_name)), None)
                         }
                         // Agent commands
-                        CommandAction::ListAgents |
-                        CommandAction::AgentTree => {
+                        CommandAction::ListAgents | CommandAction::AgentTree => {
                             (true, Some(action_name.clone()), None)
                         }
                         // Blocked actions for remote
-                        CommandAction::ExecCommand(_) => {
-                            (false, None, Some("ExecCommand is blocked for remote execution".to_string()))
-                        }
+                        CommandAction::ExecCommand(_) => (
+                            false,
+                            None,
+                            Some("ExecCommand is blocked for remote execution".to_string()),
+                        ),
                         // All other actions - attempt but may not have full effect
                         _ => {
                             tracing::info!("Unhandled action for remote: {:?}", action);
@@ -782,9 +819,11 @@ async fn handle_viewer_message(
                 match state.message_queue.push_content(content.clone()) {
                     Ok(_) => {
                         let queue_len = state.message_queue.len();
-                        tracing::info!("Queued message (queue size: {}): {}",
+                        tracing::info!(
+                            "Queued message (queue size: {}): {}",
                             queue_len,
-                            &content[..content.len().min(50)]);
+                            &content[..content.len().min(50)]
+                        );
                     }
                     Err(e) => {
                         tracing::error!("Failed to queue message: {}", e);
@@ -806,8 +845,17 @@ async fn handle_viewer_message(
             Ok(false)
         }
 
-        ViewerMessage::AcquireLock { resource_type, scope, description } => {
-            tracing::info!("Lock request: {:?} scope={} desc={}", resource_type, scope, description);
+        ViewerMessage::AcquireLock {
+            resource_type,
+            scope,
+            description,
+        } => {
+            tracing::info!(
+                "Lock request: {:?} scope={} desc={}",
+                resource_type,
+                scope,
+                description
+            );
 
             // Get lock store and session_id from state
             let (lock_store, session_id) = {
@@ -817,7 +865,10 @@ async fn handle_viewer_message(
 
             // Try to acquire the lock via LockStore
             let lock_type_str = resource_type.as_lock_type_str();
-            match lock_store.try_acquire(lock_type_str, &scope, &session_id, None).await {
+            match lock_store
+                .try_acquire(lock_type_str, &scope, &session_id, None)
+                .await
+            {
                 Ok(acquired) => {
                     if acquired {
                         tracing::info!("Lock acquired: {:?} scope={}", resource_type, scope);
@@ -847,7 +898,11 @@ async fn handle_viewer_message(
                         let _ = update_tx.send(result);
                     } else {
                         // Lock is held by another agent
-                        tracing::info!("Lock denied: {:?} scope={} (held by another)", resource_type, scope);
+                        tracing::info!(
+                            "Lock denied: {:?} scope={} (held by another)",
+                            resource_type,
+                            scope
+                        );
 
                         // Get info about who holds the lock
                         let blocking_agent = if let Ok(Some(lock_record)) =
@@ -884,7 +939,10 @@ async fn handle_viewer_message(
             Ok(false)
         }
 
-        ViewerMessage::ReleaseLock { resource_type, scope } => {
+        ViewerMessage::ReleaseLock {
+            resource_type,
+            scope,
+        } => {
             tracing::info!("Lock release: {:?} scope={}", resource_type, scope);
 
             // Get lock store and session_id from state
@@ -917,7 +975,8 @@ async fn handle_viewer_message(
                     } else {
                         tracing::warn!(
                             "Lock release failed (not owned): {:?} scope={}",
-                            resource_type, scope
+                            resource_type,
+                            scope
                         );
                     }
                 }
@@ -952,7 +1011,9 @@ async fn handle_viewer_message(
                         .into_iter()
                         .filter(|r| {
                             // Filter by scope if specified
-                            scope.as_ref().map_or(true, |s| r.resource_path.starts_with(s))
+                            scope
+                                .as_ref()
+                                .is_none_or(|s| r.resource_path.starts_with(s))
                         })
                         .filter_map(|r| {
                             // Convert lock record to LockInfo
@@ -981,9 +1042,18 @@ async fn handle_viewer_message(
             Ok(false)
         }
 
-        ViewerMessage::UpdateLockStatus { resource_type, scope, status } => {
+        ViewerMessage::UpdateLockStatus {
+            resource_type,
+            scope,
+            status,
+        } => {
             // TODO: Update lock status
-            tracing::info!("Lock status update: {:?} scope={} status={}", resource_type, scope, status);
+            tracing::info!(
+                "Lock status update: {:?} scope={} status={}",
+                resource_type,
+                scope,
+                status
+            );
 
             let ack = AgentMessage::Ack {
                 command: "update_lock_status".to_string(),
@@ -996,7 +1066,6 @@ async fn handle_viewer_message(
         // ====================================================================
         // Multi-Agent Messages (Phase 3+ implementation)
         // ====================================================================
-
         ViewerMessage::ListAgents => {
             tracing::info!("ListAgents request received");
 
@@ -1015,10 +1084,16 @@ async fn handle_viewer_message(
             Ok(false)
         }
 
-        ViewerMessage::SpawnAgent { model, reason, working_directory } => {
+        ViewerMessage::SpawnAgent {
+            model,
+            reason,
+            working_directory,
+        } => {
             tracing::info!(
                 "SpawnAgent request: model={:?} reason={:?} wd={:?}",
-                model, reason, working_directory
+                model,
+                reason,
+                working_directory
             );
 
             // Get parent session ID
@@ -1036,7 +1111,9 @@ async fn handle_viewer_message(
                 &spawn_reason,
                 model.clone(),
                 working_dir,
-            ).await {
+            )
+            .await
+            {
                 Ok((child_session_id, _socket_path)) => {
                     tracing::info!("Spawned child agent: {}", child_session_id);
 
@@ -1103,12 +1180,8 @@ async fn handle_viewer_message(
                         // Smart cascade: if idle, shutdown; if busy, let them finish
                         ParentSignalType::ParentExiting
                     }
-                    ChildNotifyAction::ForceShutdown => {
-                        ParentSignalType::Shutdown
-                    }
-                    ChildNotifyAction::Detach => {
-                        ParentSignalType::Detached
-                    }
+                    ChildNotifyAction::ForceShutdown => ParentSignalType::Shutdown,
+                    ChildNotifyAction::Detach => ParentSignalType::Detached,
                 };
 
                 // Read child's session token for authenticated connection
@@ -1135,18 +1208,20 @@ async fn handle_viewer_message(
                     match conn.reader.read::<HandshakeResponse>().await {
                         Ok(Some(response)) if response.accepted => {
                             let signal_msg = ViewerMessage::ParentSignal {
-                                signal: signal.clone(),
+                                signal,
                                 parent_session_id: session_id.clone(),
                             };
                             if let Err(e) = conn.writer.write(&signal_msg).await {
                                 tracing::error!(
                                     "Failed to send signal to child {}: {:?}",
-                                    child.session_id, e
+                                    child.session_id,
+                                    e
                                 );
                             } else {
                                 tracing::info!(
                                     "Sent {:?} signal to child {}",
-                                    signal, child.session_id
+                                    signal,
+                                    child.session_id
                                 );
                                 notified_children.push(child.session_id.clone());
                             }
@@ -1182,11 +1257,15 @@ async fn handle_viewer_message(
             Ok(false)
         }
 
-        ViewerMessage::ParentSignal { signal, parent_session_id } => {
+        ViewerMessage::ParentSignal {
+            signal,
+            parent_session_id,
+        } => {
             // Handle signal from parent agent
             tracing::info!(
                 "ParentSignal received: signal={:?} from parent={}",
-                signal, parent_session_id
+                signal,
+                parent_session_id
             );
 
             use brainwires::agent_network::ipc::ParentSignalType;
@@ -1249,7 +1328,6 @@ async fn handle_viewer_message(
         // ====================================================================
         // Plan Mode Messages
         // ====================================================================
-
         ViewerMessage::EnterPlanMode { focus } => {
             tracing::info!("EnterPlanMode request: focus={:?}", focus);
 
@@ -1298,7 +1376,10 @@ async fn handle_viewer_message(
             Ok(false)
         }
 
-        ViewerMessage::PlanModeUserInput { content, context_files } => {
+        ViewerMessage::PlanModeUserInput {
+            content,
+            context_files,
+        } => {
             tracing::info!("PlanModeUserInput: {} chars", content.len());
 
             // Process context files if provided
@@ -1310,9 +1391,7 @@ async fn handle_viewer_message(
                         Ok(file_content) => {
                             context_content.push_str(&format!(
                                 "\n--- Context File: {} ---\n{}\n--- End of {} ---\n",
-                                file_path,
-                                file_content,
-                                file_path
+                                file_path, file_content, file_path
                             ));
                             tracing::info!("Loaded context file for plan mode: {}", file_path);
                         }
@@ -1322,7 +1401,10 @@ async fn handle_viewer_message(
                     }
                 }
                 if !context_content.is_empty() {
-                    full_content = format!("{}\n\n# Referenced Files\n{}", full_content, context_content);
+                    full_content = format!(
+                        "{}\n\n# Referenced Files\n{}",
+                        full_content, context_content
+                    );
                 }
             }
 
@@ -1333,7 +1415,9 @@ async fn handle_viewer_message(
             tokio::spawn(async move {
                 let result = {
                     let mut state = state_clone.write().await;
-                    state.process_plan_mode_input(full_content, &update_tx_clone).await
+                    state
+                        .process_plan_mode_input(full_content, &update_tx_clone)
+                        .await
                 };
 
                 if let Err(e) = result {
@@ -1373,7 +1457,15 @@ async fn process_pending_request(
     update_tx: broadcast::Sender<AgentMessage>,
 ) -> Result<()> {
     // Get the necessary data from state
-    let (provider, conversation_history, tools, model, tool_executor, working_directory, session_id) = {
+    let (
+        provider,
+        conversation_history,
+        tools,
+        model,
+        tool_executor,
+        working_directory,
+        session_id,
+    ) = {
         let mut state = state.write().await;
         state.has_pending_request = false; // Clear the flag
         state.is_busy = true;
@@ -1409,7 +1501,8 @@ async fn process_pending_request(
         working_directory,
         update_tx.clone(),
         state.clone(),
-    ).await?;
+    )
+    .await?;
 
     // Finalize: add assistant message and update state
     {
@@ -1504,7 +1597,15 @@ async fn process_queued_messages(
         );
 
         // Get required state for processing
-        let (_resolved_content, provider, conversation_history, tools, model, tool_executor, working_directory) = {
+        let (
+            _resolved_content,
+            provider,
+            conversation_history,
+            tools,
+            model,
+            tool_executor,
+            working_directory,
+        ) = {
             let mut state = state.write().await;
             let resolved_content = state.seal_preprocess(&msg.content);
             state.add_user_message(resolved_content.clone());
@@ -1540,7 +1641,8 @@ async fn process_queued_messages(
             working_directory,
             update_tx.clone(),
             state.clone(),
-        ).await;
+        )
+        .await;
 
         match result {
             Ok(full_response) => {
@@ -1595,6 +1697,7 @@ async fn process_queued_messages(
 /// 2. If tool call received, execute tool locally
 /// 3. Send continuation request with tool result
 /// 4. Repeat until AI finishes (no more tool calls)
+#[allow(clippy::too_many_arguments)]
 async fn stream_with_tool_execution(
     provider: Arc<dyn crate::providers::Provider>,
     conversation_history: Vec<crate::types::message::Message>,
@@ -1612,12 +1715,17 @@ async fn stream_with_tool_execution(
     // Debug: Log tools being sent
     tracing::info!("🔧 Agent streaming with {} tools:", tools.len());
     for tool in &tools {
-        tracing::info!("  - {}: {}", tool.name, tool.description.chars().take(50).collect::<String>());
+        tracing::info!(
+            "  - {}: {}",
+            tool.name,
+            tool.description.chars().take(50).collect::<String>()
+        );
     }
     tracing::info!("🔧 Working directory: {}", working_directory);
 
     // Extract system prompt from conversation history (first message if it's a System message)
-    let system_prompt = conversation_history.iter()
+    let system_prompt = conversation_history
+        .iter()
         .find(|m| m.role == crate::types::message::Role::System)
         .and_then(|m| m.text().map(|s| s.to_string()));
 
@@ -1628,8 +1736,10 @@ async fn stream_with_tool_execution(
     }
 
     // Build ChatOptions with system prompt
-    let mut options = ChatOptions::default();
-    options.system = system_prompt;
+    let options = ChatOptions {
+        system: system_prompt,
+        ..Default::default()
+    };
 
     let mut stream = provider.stream_chat(&conversation_history, Some(&tools), &options);
     let mut full_response = String::new();
@@ -1648,9 +1758,13 @@ async fn stream_with_tool_execution(
                 chat_id,
                 tool_name,
                 server,
-                parameters
+                parameters,
             }) => {
-                tracing::info!("🔧 TOOL CALL RECEIVED: {} from server: {}", tool_name, server);
+                tracing::info!(
+                    "🔧 TOOL CALL RECEIVED: {} from server: {}",
+                    tool_name,
+                    server
+                );
 
                 // Only execute cli-local tools
                 if server != "cli-local" {
@@ -1681,7 +1795,10 @@ async fn stream_with_tool_execution(
                 let tool_context = ToolContext {
                     working_directory: working_directory.clone(),
                     // Use full_access for agent mode - agents need unrestricted file access
-                    capabilities: serde_json::to_value(&brainwires::permissions::AgentCapabilities::full_access()).ok(),
+                    capabilities: serde_json::to_value(
+                        brainwires::permissions::AgentCapabilities::full_access(),
+                    )
+                    .ok(),
                     ..Default::default()
                 };
 
@@ -1758,7 +1875,11 @@ async fn stream_with_tool_execution(
                         &tool_name,
                         &parameters.to_string(),
                         !tool_result.is_error,
-                        if tool_result.is_error { Some(&truncated_output) } else { None },
+                        if tool_result.is_error {
+                            Some(&truncated_output)
+                        } else {
+                            None
+                        },
                         0, // TODO: Track actual execution time
                     );
                 }
@@ -1782,13 +1903,20 @@ async fn stream_with_tool_execution(
                     &working_directory,
                     &update_tx,
                     &state,
-                ).await;
+                )
+                .await;
 
                 match continuation_result {
                     Ok(continuation_text) => {
-                        tracing::info!("🔧 Continuation returned {} chars of text", continuation_text.len());
+                        tracing::info!(
+                            "🔧 Continuation returned {} chars of text",
+                            continuation_text.len()
+                        );
                         if continuation_text.len() > 100 {
-                            tracing::info!("🔧 Continuation preview: {}...", &continuation_text[..100]);
+                            tracing::info!(
+                                "🔧 Continuation preview: {}...",
+                                &continuation_text[..100]
+                            );
                         } else {
                             tracing::info!("🔧 Continuation text: {}", continuation_text);
                         }
@@ -1807,7 +1935,11 @@ async fn stream_with_tool_execution(
                 break;
             }
             Ok(StreamChunk::Done) => {
-                tracing::info!("🔧 Stream completed after {} chunks, response length: {} chars", chunk_count, full_response.len());
+                tracing::info!(
+                    "🔧 Stream completed after {} chunks, response length: {} chars",
+                    chunk_count,
+                    full_response.len()
+                );
                 let _ = update_tx.send(AgentMessage::StreamEnd {
                     finish_reason: Some("stop".to_string()),
                 });
@@ -1828,7 +1960,10 @@ async fn stream_with_tool_execution(
         }
     }
 
-    tracing::info!("🔧 Stream finished, total response: {} chars", full_response.len());
+    tracing::info!(
+        "🔧 Stream finished, total response: {} chars",
+        full_response.len()
+    );
 
     // Send stream end if we haven't already (tool execution path)
     let _ = update_tx.send(AgentMessage::StreamEnd {
@@ -1844,6 +1979,7 @@ async fn stream_with_tool_execution(
 /// 1. Sends a continuation request to the backend with the tool result
 /// 2. Streams the response text in real-time to the TUI
 /// 3. Handles chained tool calls recursively
+#[allow(clippy::too_many_arguments)]
 async fn stream_continuation_with_tool_result(
     conversation_history: &[crate::types::message::Message],
     tools: &[crate::types::tool::Tool],
@@ -1861,8 +1997,7 @@ async fn stream_continuation_with_tool_result(
     use crate::types::message::Role;
 
     // Get session for backend URL
-    let session = SessionManager::load()?
-        .context("No active session found")?;
+    let session = SessionManager::load()?.context("No active session found")?;
 
     // Get API key from secure storage (keyring or fallback)
     let api_key = SessionManager::get_api_key()?
@@ -1873,7 +2008,8 @@ async fn stream_continuation_with_tool_result(
 
     // Build conversation history using shared helper that properly serializes
     // tool calls and tool results (not just text content)
-    let mut conv_history = crate::types::message::serialize_messages_to_stateless_history(conversation_history);
+    let mut conv_history =
+        crate::types::message::serialize_messages_to_stateless_history(conversation_history);
 
     // Add the function_call (AI's request to call the tool)
     conv_history.push(json!({
@@ -1905,7 +2041,8 @@ async fn stream_continuation_with_tool_result(
         .collect();
 
     // Extract system prompt from conversation history
-    let system_prompt = conversation_history.iter()
+    let system_prompt = conversation_history
+        .iter()
         .find(|m| m.role == Role::System)
         .and_then(|m| m.text().map(|s| s.to_string()));
 
@@ -1927,7 +2064,8 @@ async fn stream_continuation_with_tool_result(
         request_body["selectedMCPTools"] = json!(mcp_tools);
     }
 
-    tracing::info!("🔧 Continuation request: {} tools, {} history msgs, system_prompt: {}",
+    tracing::info!(
+        "🔧 Continuation request: {} tools, {} history msgs, system_prompt: {}",
         mcp_tools.len(),
         conv_history.len(),
         system_prompt.as_ref().map(|s| s.len()).unwrap_or(0)
@@ -1983,49 +2121,65 @@ async fn stream_continuation_with_tool_result(
             }
 
             if let (Some(evt_type), Some(data)) = (event_type, event_data) {
-                tracing::debug!("🔧 Continuation SSE event: type={}, data_len={}", evt_type, data.len());
+                tracing::debug!(
+                    "🔧 Continuation SSE event: type={}, data_len={}",
+                    evt_type,
+                    data.len()
+                );
                 match evt_type.as_str() {
                     "delta" => {
-                        if let Ok(delta_data) = serde_json::from_str::<serde_json::Value>(&data) {
-                            if let Some(text) = delta_data.get("delta").and_then(|t| t.as_str()) {
-                                // Stream each chunk in real-time!
-                                full_text.push_str(text);
-                                let _ = update_tx.send(AgentMessage::StreamChunk {
-                                    text: text.to_string()
-                                });
-                            }
+                        if let Ok(delta_data) = serde_json::from_str::<serde_json::Value>(&data)
+                            && let Some(text) = delta_data.get("delta").and_then(|t| t.as_str())
+                        {
+                            // Stream each chunk in real-time!
+                            full_text.push_str(text);
+                            let _ = update_tx.send(AgentMessage::StreamChunk {
+                                text: text.to_string(),
+                            });
                         }
                     }
                     "toolCall" => {
                         tracing::info!("🔧 Continuation received chained toolCall event: {}", data);
                         // Handle chained tool calls
                         if let Ok(tool_data) = serde_json::from_str::<serde_json::Value>(&data) {
-                            let next_call_id = tool_data.get("callId")
+                            let next_call_id = tool_data
+                                .get("callId")
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("")
                                 .to_string();
-                            let next_tool_name = tool_data.get("toolName")
+                            let next_tool_name = tool_data
+                                .get("toolName")
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("")
                                 .to_string();
-                            let next_server = tool_data.get("server")
+                            let next_server = tool_data
+                                .get("server")
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("cli-local")
                                 .to_string();
-                            let next_parameters = tool_data.get("parameters")
+                            let next_parameters = tool_data
+                                .get("parameters")
                                 .cloned()
                                 .unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
-                            let next_chat_id = tool_data.get("chatId")
+                            let next_chat_id = tool_data
+                                .get("chatId")
                                 .and_then(|v| v.as_str())
                                 .map(|s| s.to_string());
 
                             // Only execute cli-local tools
                             if next_server != "cli-local" {
-                                tracing::warn!("Ignoring chained tool from non-local server: {}", next_server);
+                                tracing::warn!(
+                                    "Ignoring chained tool from non-local server: {}",
+                                    next_server
+                                );
                                 continue;
                             }
 
-                            tracing::info!("Chained tool call: {} (call_id: {})", next_tool_name, next_call_id);
+                            tracing::info!(
+                                "Chained tool call: {} (call_id: {})",
+                                next_tool_name,
+                                next_call_id
+                            );
 
                             // Notify TUI about tool call start
                             let _ = update_tx.send(AgentMessage::ToolCallStart {
@@ -2047,54 +2201,67 @@ async fn stream_continuation_with_tool_result(
 
                             let tool_context = ToolContext {
                                 working_directory: working_directory.to_string(),
-                                capabilities: serde_json::to_value(&brainwires::permissions::AgentCapabilities::full_access()).ok(),
+                                capabilities: serde_json::to_value(
+                                    brainwires::permissions::AgentCapabilities::full_access(),
+                                )
+                                .ok(),
                                 ..Default::default()
                             };
 
-                            let chained_result = match tool_executor.execute(&tool_use, &tool_context).await {
-                                Ok(result) => result,
-                                Err(e) => {
-                                    tracing::error!("Chained tool execution failed: {}", e);
-                                    // Record failed tool outcome for implicit learning
-                                    {
-                                        let mut state_guard = state.write().await;
-                                        state_guard.record_tool_outcome(
-                                            &next_tool_name,
-                                            &next_parameters.to_string(),
-                                            false,
-                                            Some(&format!("{}", e)),
-                                            0,
-                                        );
+                            let chained_result =
+                                match tool_executor.execute(&tool_use, &tool_context).await {
+                                    Ok(result) => result,
+                                    Err(e) => {
+                                        tracing::error!("Chained tool execution failed: {}", e);
+                                        // Record failed tool outcome for implicit learning
+                                        {
+                                            let mut state_guard = state.write().await;
+                                            state_guard.record_tool_outcome(
+                                                &next_tool_name,
+                                                &next_parameters.to_string(),
+                                                false,
+                                                Some(&format!("{}", e)),
+                                                0,
+                                            );
+                                        }
+                                        let _ = update_tx.send(AgentMessage::ToolResult {
+                                            id: next_call_id.clone(),
+                                            name: next_tool_name.clone(),
+                                            output: None,
+                                            error: Some(format!("Error: {}", e)),
+                                        });
+                                        continue;
                                     }
-                                    let _ = update_tx.send(AgentMessage::ToolResult {
-                                        id: next_call_id.clone(),
-                                        name: next_tool_name.clone(),
-                                        output: None,
-                                        error: Some(format!("Error: {}", e)),
-                                    });
-                                    continue;
-                                }
-                            };
+                                };
 
                             // Truncate output
                             const MAX_TOOL_OUTPUT_CHARS: usize = 10_000;
-                            let chained_output = if chained_result.content.len() > MAX_TOOL_OUTPUT_CHARS {
-                                format!(
-                                    "{}\n\n[Output truncated: {} of {} characters]",
-                                    &chained_result.content[..MAX_TOOL_OUTPUT_CHARS],
-                                    MAX_TOOL_OUTPUT_CHARS,
-                                    chained_result.content.len()
-                                )
-                            } else {
-                                chained_result.content.clone()
-                            };
+                            let chained_output =
+                                if chained_result.content.len() > MAX_TOOL_OUTPUT_CHARS {
+                                    format!(
+                                        "{}\n\n[Output truncated: {} of {} characters]",
+                                        &chained_result.content[..MAX_TOOL_OUTPUT_CHARS],
+                                        MAX_TOOL_OUTPUT_CHARS,
+                                        chained_result.content.len()
+                                    )
+                                } else {
+                                    chained_result.content.clone()
+                                };
 
                             // Notify TUI
                             let _ = update_tx.send(AgentMessage::ToolResult {
                                 id: next_call_id.clone(),
                                 name: next_tool_name.clone(),
-                                output: if chained_result.is_error { None } else { Some(chained_output.clone()) },
-                                error: if chained_result.is_error { Some(chained_output.clone()) } else { None },
+                                output: if chained_result.is_error {
+                                    None
+                                } else {
+                                    Some(chained_output.clone())
+                                },
+                                error: if chained_result.is_error {
+                                    Some(chained_output.clone())
+                                } else {
+                                    None
+                                },
                             });
 
                             // Record tool outcome for implicit learning
@@ -2104,7 +2271,11 @@ async fn stream_continuation_with_tool_result(
                                     &next_tool_name,
                                     &next_parameters.to_string(),
                                     !chained_result.is_error,
-                                    if chained_result.is_error { Some(&chained_output) } else { None },
+                                    if chained_result.is_error {
+                                        Some(&chained_output)
+                                    } else {
+                                        None
+                                    },
                                     0,
                                 );
                             }
@@ -2114,7 +2285,8 @@ async fn stream_continuation_with_tool_result(
                             let mut updated_history = conversation_history.to_vec();
                             // Add the assistant text so far (before the tool call)
                             if !full_text.is_empty() {
-                                updated_history.push(crate::types::message::Message::assistant(&full_text));
+                                updated_history
+                                    .push(crate::types::message::Message::assistant(&full_text));
                             }
                             // Add the previous tool call (the one that triggered this continuation) as a ToolUse block
                             updated_history.push(crate::types::message::Message {
@@ -2148,14 +2320,18 @@ async fn stream_continuation_with_tool_result(
                                 working_directory,
                                 update_tx,
                                 state,
-                            )).await?;
+                            ))
+                            .await?;
 
                             full_text.push_str(&chained_text);
                             return Ok(full_text);
                         }
                     }
                     "complete" => {
-                        tracing::info!("🔧 Continuation stream completed with {} chars of text (no more tool calls)", full_text.len());
+                        tracing::info!(
+                            "🔧 Continuation stream completed with {} chars of text (no more tool calls)",
+                            full_text.len()
+                        );
                         return Ok(full_text);
                     }
                     "error" => {

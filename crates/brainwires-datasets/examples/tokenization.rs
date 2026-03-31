@@ -91,7 +91,9 @@ fn main() {
     // ── 5. Batch encoding ──────────────────────────────────────────────
     println!("--- Batch Encoding ---");
     let batch: Vec<&str> = sample_texts.to_vec();
-    let batch_results = tiktoken.encode_batch(&batch).expect("batch encoding failed");
+    let batch_results = tiktoken
+        .encode_batch(&batch)
+        .expect("batch encoding failed");
     for (text, tokens) in batch.iter().zip(batch_results.iter()) {
         println!("  \"{}\" -> {} tokens", text, tokens.len());
     }

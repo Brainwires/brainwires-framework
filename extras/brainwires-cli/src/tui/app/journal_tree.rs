@@ -15,7 +15,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::tui::app::state::{TuiMessage, ToolExecutionEntry};
+use crate::tui::app::state::{ToolExecutionEntry, TuiMessage};
 
 // ── IDs ──────────────────────────────────────────────────────────────────────
 
@@ -163,11 +163,7 @@ impl JournalTreeState {
 
     /// Rebuild the tree only if the source lists have grown since the last rebuild.
     /// Call this once per render frame before accessing the render list.
-    pub fn rebuild_if_stale(
-        &mut self,
-        messages: &[TuiMessage],
-        tools: &[ToolExecutionEntry],
-    ) {
+    pub fn rebuild_if_stale(&mut self, messages: &[TuiMessage], tools: &[ToolExecutionEntry]) {
         if messages.len() != self.last_msg_count || tools.len() != self.last_tool_count {
             self.rebuild_from_flat(messages, tools);
             self.last_msg_count = messages.len();
@@ -181,11 +177,7 @@ impl JournalTreeState {
     ///
     /// Called whenever a message or tool execution is appended. This is an
     /// O(n) operation and is fast for typical conversation lengths.
-    pub fn rebuild_from_flat(
-        &mut self,
-        messages: &[TuiMessage],
-        tools: &[ToolExecutionEntry],
-    ) {
+    pub fn rebuild_from_flat(&mut self, messages: &[TuiMessage], tools: &[ToolExecutionEntry]) {
         // Preserve collapsed state and cursor so UX isn't disrupted
         let old_collapsed = self.collapsed.clone();
         let old_cursor = self.cursor;
@@ -198,7 +190,7 @@ impl JournalTreeState {
         for tool in tools {
             events.push(FlatEvent::Tool(tool.clone()));
         }
-        events.sort_by_key(|e| e_timestamp(e));
+        events.sort_by_key(e_timestamp);
 
         // Clear existing tree
         self.nodes.clear();
@@ -393,12 +385,16 @@ impl JournalTreeState {
         tools: &[ToolExecutionEntry],
     ) {
         // Find the SubAgentSpawn node for this agent_id
-        let spawn_id = self.nodes.values().find(|n| {
-            matches!(
-                &n.payload,
-                JournalNodePayload::SubAgentSpawn { agent_id: aid, .. } if aid == agent_id
-            )
-        }).map(|n| n.id);
+        let spawn_id = self
+            .nodes
+            .values()
+            .find(|n| {
+                matches!(
+                    &n.payload,
+                    JournalNodePayload::SubAgentSpawn { agent_id: aid, .. } if aid == agent_id
+                )
+            })
+            .map(|n| n.id);
 
         let spawn_id = match spawn_id {
             Some(id) => id,
@@ -413,7 +409,7 @@ impl JournalTreeState {
         for tool in tools {
             events.push(FlatEvent::Tool(tool.clone()));
         }
-        events.sort_by_key(|e| e_timestamp(e));
+        events.sort_by_key(e_timestamp);
 
         for event in &events {
             let (kind, payload, ts) = match event {
@@ -424,25 +420,28 @@ impl JournalTreeState {
                         _ => JournalNodeKind::SystemEvent,
                     };
                     let payload = if kind == JournalNodeKind::SystemEvent {
-                        JournalNodePayload::SystemEvent { description: msg.content.clone() }
+                        JournalNodePayload::SystemEvent {
+                            description: msg.content.clone(),
+                        }
                     } else {
-                        JournalNodePayload::Message { role: msg.role.clone(), content: msg.content.clone() }
+                        JournalNodePayload::Message {
+                            role: msg.role.clone(),
+                            content: msg.content.clone(),
+                        }
                     };
                     (kind, payload, msg.created_at)
                 }
-                FlatEvent::Tool(tool) => {
-                    (
-                        JournalNodeKind::ToolCall,
-                        JournalNodePayload::Tool {
-                            tool_name: tool.tool_name.clone(),
-                            params_summary: tool.parameters_summary.clone(),
-                            result_summary: tool.result_summary.clone(),
-                            success: tool.success,
-                            duration_ms: tool.duration_ms,
-                        },
-                        tool.executed_at,
-                    )
-                }
+                FlatEvent::Tool(tool) => (
+                    JournalNodeKind::ToolCall,
+                    JournalNodePayload::Tool {
+                        tool_name: tool.tool_name.clone(),
+                        params_summary: tool.parameters_summary.clone(),
+                        result_summary: tool.result_summary.clone(),
+                        success: tool.success,
+                        duration_ms: tool.duration_ms,
+                    },
+                    tool.executed_at,
+                ),
             };
 
             let child_id = self.alloc_id();
@@ -481,14 +480,12 @@ impl JournalTreeState {
         self.render_list_dirty = false;
     }
 
-    fn dfs(
-        &mut self,
-        id: JournalNodeId,
-        depth: usize,
-        is_last: bool,
-        ancestor_has_more: &[bool],
-    ) {
-        let has_children = self.nodes.get(&id).map(|n| !n.children.is_empty()).unwrap_or(false);
+    fn dfs(&mut self, id: JournalNodeId, depth: usize, is_last: bool, ancestor_has_more: &[bool]) {
+        let has_children = self
+            .nodes
+            .get(&id)
+            .map(|n| !n.children.is_empty())
+            .unwrap_or(false);
         let is_collapsed = self.collapsed.contains(&id);
         let mut anc = ancestor_has_more.to_vec();
         self.render_list.push(RenderItem {
@@ -501,7 +498,11 @@ impl JournalTreeState {
         });
 
         if has_children && !is_collapsed {
-            let children = self.nodes.get(&id).map(|n| n.children.clone()).unwrap_or_default();
+            let children = self
+                .nodes
+                .get(&id)
+                .map(|n| n.children.clone())
+                .unwrap_or_default();
             let last_idx = children.len().saturating_sub(1);
             // Push whether THIS level has more siblings (for children to use)
             anc.push(!is_last);
@@ -593,11 +594,11 @@ impl JournalTreeState {
     }
 
     pub fn collapse(&mut self, id: JournalNodeId) {
-        if let Some(node) = self.nodes.get(&id) {
-            if !node.children.is_empty() {
-                self.collapsed.insert(id);
-                self.render_list_dirty = true;
-            }
+        if let Some(node) = self.nodes.get(&id)
+            && !node.children.is_empty()
+        {
+            self.collapsed.insert(id);
+            self.render_list_dirty = true;
         }
     }
 
@@ -607,7 +608,11 @@ impl JournalTreeState {
             Some(c) => c,
             None => return,
         };
-        let has_children = self.nodes.get(&cursor).map(|n| !n.children.is_empty()).unwrap_or(false);
+        let has_children = self
+            .nodes
+            .get(&cursor)
+            .map(|n| !n.children.is_empty())
+            .unwrap_or(false);
         if has_children && !self.collapsed.contains(&cursor) {
             self.collapse(cursor);
         } else if let Some(parent_id) = self.nodes.get(&cursor).and_then(|n| n.parent) {
@@ -629,7 +634,11 @@ impl JournalTreeState {
                     first_line
                 }
             }
-            JournalNodePayload::Tool { tool_name, params_summary, .. } => {
+            JournalNodePayload::Tool {
+                tool_name,
+                params_summary,
+                ..
+            } => {
                 format!("{} {}", tool_name, params_summary)
             }
             JournalNodePayload::SubAgentSpawn { task_desc, .. } => {
@@ -665,9 +674,16 @@ fn e_timestamp(e: &FlatEvent) -> i64 {
 fn extract_agent_id(result_summary: &str) -> String {
     // Try to find a pattern like "agent_id: <id>" or just return the first word
     if let Some(rest) = result_summary.strip_prefix("agent_id: ") {
-        rest.split_whitespace().next().unwrap_or("unknown").to_string()
+        rest.split_whitespace()
+            .next()
+            .unwrap_or("unknown")
+            .to_string()
     } else {
-        result_summary.split_whitespace().next().unwrap_or("unknown").to_string()
+        result_summary
+            .split_whitespace()
+            .next()
+            .unwrap_or("unknown")
+            .to_string()
     }
 }
 

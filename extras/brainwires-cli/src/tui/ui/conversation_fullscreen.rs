@@ -3,15 +3,17 @@
 //! Renders the conversation panel in full-screen mode with mouse toggle support.
 
 use ratatui::{
+    Frame,
     layout::Rect,
     style::{Color, Style},
     text::{Line, Span, Text},
     widgets::{Block, Borders, Paragraph, Wrap},
-    Frame,
 };
 use ratatui_interact::components::ParagraphExt;
 
-use super::conversation_view::{render_classic_style_entries, render_journal_style_entries, merge_journal_entries};
+use super::conversation_view::{
+    merge_journal_entries, render_classic_style_entries, render_journal_style_entries,
+};
 use super::highlight::apply_highlights_to_lines;
 use crate::tui::app::{App, AppMode, ConversationViewStyle};
 
@@ -25,9 +27,9 @@ pub fn draw_conversation_fullscreen(f: &mut Frame, app: &mut App, area: Rect) {
                 Style::default().fg(Color::Gray),
             )]),
             Line::from(""),
-            Line::from(vec![
-                Span::raw("Start a conversation by typing in the input field."),
-            ]),
+            Line::from(vec![Span::raw(
+                "Start a conversation by typing in the input field.",
+            )]),
         ]
     } else {
         // Merge messages and tool executions chronologically
@@ -60,7 +62,9 @@ pub fn draw_conversation_fullscreen(f: &mut Frame, app: &mut App, area: Rect) {
 
     // When mouse capture is disabled, use clean widget for copy/paste
     if app.mouse_capture_disabled {
-        let widget = ParagraphExt::new(items).scroll(app.scroll).width(area.width);
+        let widget = ParagraphExt::new(items)
+            .scroll(app.scroll)
+            .width(area.width);
         app.conversation_line_count = widget.line_count(area.width);
         f.render_widget(widget, area);
     } else {

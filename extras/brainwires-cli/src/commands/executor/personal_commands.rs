@@ -47,11 +47,12 @@ impl CommandExecutor {
         }
 
         // Check for --local flag
-        let (local_only, remaining_args): (bool, Vec<String>) = if args.first() == Some(&"--local".to_string()) {
-            (true, args[1..].to_vec())
-        } else {
-            (false, args.to_vec())
-        };
+        let (local_only, remaining_args): (bool, Vec<String>) =
+            if args.first() == Some(&"--local".to_string()) {
+                (true, args[1..].to_vec())
+            } else {
+                (false, args.to_vec())
+            };
 
         if remaining_args.len() < 2 {
             anyhow::bail!(
@@ -63,7 +64,9 @@ impl CommandExecutor {
         let key = remaining_args[0].clone();
         let value = remaining_args[1..].join(" ");
 
-        Ok(CommandResult::Action(CommandAction::ProfileSet(key, value, local_only)))
+        Ok(CommandResult::Action(CommandAction::ProfileSet(
+            key, value, local_only,
+        )))
     }
 
     fn cmd_profile_name(&self, args: &[String]) -> Result<CommandResult> {
@@ -90,7 +93,14 @@ impl CommandExecutor {
 
         // Validate category if provided
         if let Some(ref cat) = category {
-            let valid_categories = ["identity", "preference", "capability", "context", "constraint", "relationship"];
+            let valid_categories = [
+                "identity",
+                "preference",
+                "capability",
+                "context",
+                "constraint",
+                "relationship",
+            ];
             if !valid_categories.contains(&cat.to_lowercase().as_str()) {
                 anyhow::bail!(
                     "Invalid category: {}\n\nValid categories:\n\
@@ -176,12 +186,11 @@ impl CommandExecutor {
         let fact_text = args.join(" ");
 
         // Generate a key from the fact text (use first few words, sanitized)
-        let key_words: Vec<&str> = fact_text
-            .split_whitespace()
-            .take(3)
-            .collect();
-        let key = format!("context_{}",
-            key_words.join("_")
+        let key_words: Vec<&str> = fact_text.split_whitespace().take(3).collect();
+        let key = format!(
+            "context_{}",
+            key_words
+                .join("_")
                 .to_lowercase()
                 .chars()
                 .filter(|c| c.is_alphanumeric() || *c == '_')
@@ -190,9 +199,7 @@ impl CommandExecutor {
 
         // Return ProfileSet action with generated key
         Ok(CommandResult::Action(CommandAction::ProfileSet(
-            key,
-            fact_text,
-            false, // Sync to server
+            key, fact_text, false, // Sync to server
         )))
     }
 }
@@ -222,7 +229,7 @@ mod tests {
         let executor = create_executor();
         let result = executor.execute_personal_command(
             "profile:set",
-            &["preferred_language".to_string(), "Rust".to_string()]
+            &["preferred_language".to_string(), "Rust".to_string()],
         );
         assert!(result.is_some());
         let result = result.unwrap().unwrap();
@@ -241,7 +248,11 @@ mod tests {
         let executor = create_executor();
         let result = executor.execute_personal_command(
             "profile:set",
-            &["--local".to_string(), "secret".to_string(), "value".to_string()]
+            &[
+                "--local".to_string(),
+                "secret".to_string(),
+                "value".to_string(),
+            ],
         );
         assert!(result.is_some());
         let result = result.unwrap().unwrap();
@@ -266,10 +277,8 @@ mod tests {
     #[test]
     fn test_profile_name() {
         let executor = create_executor();
-        let result = executor.execute_personal_command(
-            "profile:name",
-            &["John".to_string(), "Smith".to_string()]
-        );
+        let result = executor
+            .execute_personal_command("profile:name", &["John".to_string(), "Smith".to_string()]);
         assert!(result.is_some());
         let result = result.unwrap().unwrap();
         match result {
@@ -369,7 +378,8 @@ mod tests {
         }
 
         // With path
-        let result = executor.execute_personal_command("profile:export", &["/tmp/profile.json".to_string()]);
+        let result =
+            executor.execute_personal_command("profile:export", &["/tmp/profile.json".to_string()]);
         assert!(result.is_some());
         let result = result.unwrap().unwrap();
         match result {
@@ -383,7 +393,8 @@ mod tests {
     #[test]
     fn test_profile_import() {
         let executor = create_executor();
-        let result = executor.execute_personal_command("profile:import", &["/tmp/profile.json".to_string()]);
+        let result =
+            executor.execute_personal_command("profile:import", &["/tmp/profile.json".to_string()]);
         assert!(result.is_some());
         let result = result.unwrap().unwrap();
         match result {
@@ -425,7 +436,7 @@ mod tests {
                 "edition".to_string(),
                 "is".to_string(),
                 "stable".to_string(),
-            ]
+            ],
         );
         assert!(result.is_some());
         let result = result.unwrap().unwrap();

@@ -24,10 +24,9 @@ impl ImprovementStrategy for DocGapsStrategy {
         repo_path: &str,
         config: &StrategyConfig,
     ) -> Result<Vec<ImprovementTask>> {
-        let pub_item_pattern = Regex::new(
-            r"^\s*pub\s+(fn|struct|enum|trait|type|const|static|mod)\s+(\w+)",
-        )
-        .expect("Invalid regex");
+        let pub_item_pattern =
+            Regex::new(r"^\s*pub\s+(fn|struct|enum|trait|type|const|static|mod)\s+(\w+)")
+                .expect("Invalid regex");
 
         let mut gaps_by_file: HashMap<String, Vec<(u32, String, String)>> = HashMap::new();
 
@@ -35,11 +34,7 @@ impl ImprovementStrategy for DocGapsStrategy {
         for entry in WalkDir::new(&src_path)
             .into_iter()
             .filter_map(|e| e.ok())
-            .filter(|e| {
-                e.path()
-                    .extension()
-                    .is_some_and(|ext| ext == "rs")
-            })
+            .filter(|e| e.path().extension().is_some_and(|ext| ext == "rs"))
         {
             let path = entry.path();
             let content = match std::fs::read_to_string(path) {
@@ -98,7 +93,9 @@ impl ImprovementStrategy for DocGapsStrategy {
                 let gap_count = gaps.len();
                 let context = gaps
                     .iter()
-                    .map(|(line, kind, name)| format!("Line {line}: pub {kind} {name} - missing doc comment"))
+                    .map(|(line, kind, name)| {
+                        format!("Line {line}: pub {kind} {name} - missing doc comment")
+                    })
                     .collect::<Vec<_>>()
                     .join("\n");
 

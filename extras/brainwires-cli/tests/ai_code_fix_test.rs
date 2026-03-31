@@ -37,7 +37,11 @@ fn create_test_session(temp_dir: &Path, api_key: &str) -> std::io::Result<()> {
         "https://brainwires.studio"
     };
 
-    println!("🔑 Using backend: {} (key prefix: {})", backend, &api_key[..10]);
+    println!(
+        "🔑 Using backend: {} (key prefix: {})",
+        backend,
+        &api_key[..10]
+    );
 
     // Create a test session JSON
     let session = serde_json::json!({
@@ -140,14 +144,12 @@ fn test_fix_calculator_bug() {
     let api_key = env::var("TEST_API_KEY").expect("TEST_API_KEY must be set");
 
     // Create test session for authentication
-    create_test_session(temp_dir.path(), &api_key)
-        .expect("Failed to create test session");
+    create_test_session(temp_dir.path(), &api_key).expect("Failed to create test session");
 
     // Copy buggy calculator project to temp directory
     let fixture_path = get_fixture_path("buggy_calculator");
     let project_path = temp_dir.path().join("calculator_project");
-    copy_dir_all(&fixture_path, &project_path)
-        .expect("Failed to copy fixture");
+    copy_dir_all(&fixture_path, &project_path).expect("Failed to copy fixture");
 
     println!("📁 Test project copied to: {}", project_path.display());
 
@@ -167,9 +169,9 @@ fn test_fix_calculator_bug() {
     // Use a model available on the current backend
     // Dev keys (bw_dev_*) use dev.brainwires.net which has different models
     let model = if api_key.starts_with("bw_dev_") {
-        "llama-3.3-70b-versatile"  // Available on dev server (Groq)
+        "llama-3.3-70b-versatile" // Available on dev server (Groq)
     } else {
-        "claude-3-5-sonnet-20241022"  // Available on production (Claude)
+        "claude-3-5-sonnet-20241022" // Available on production (Claude)
     };
 
     println!("📦 Using model: {}", model);
@@ -179,7 +181,8 @@ fn test_fix_calculator_bug() {
         .arg("task")
         .arg("--model")
         .arg(model)
-        .arg("IMPORTANT: You must USE YOUR FILE EDITING TOOLS to modify the actual src/lib.rs file. \
+        .arg(
+            "IMPORTANT: You must USE YOUR FILE EDITING TOOLS to modify the actual src/lib.rs file. \
               \
               Task: There is a bug in the calculator's divide function in src/lib.rs. \
               The divide() method uses multiplication (*) instead of division (/). \
@@ -189,7 +192,8 @@ fn test_fix_calculator_bug() {
               2. Edit src/lib.rs to change 'Ok(a * b)' to 'Ok(a / b)' in the divide function\
               3. Run 'cargo test' to verify all tests pass\
               \
-              You MUST actually modify the file using your tools, not just explain the fix.");
+              You MUST actually modify the file using your tools, not just explain the fix.",
+        );
 
     let output = cmd.output().expect("Failed to run brainwires");
 
@@ -209,10 +213,7 @@ fn test_fix_calculator_bug() {
     let fixed_code = read_file(&lib_path);
 
     // Check if code was actually modified
-    assert_ne!(
-        original_code, fixed_code,
-        "Code should have been modified"
-    );
+    assert_ne!(original_code, fixed_code, "Code should have been modified");
     println!("✓ Code was modified");
 
     // Verify tests now pass
@@ -275,9 +276,9 @@ Respond with ONLY a JSON object in this exact format:
         .unwrap_or_default()
         .starts_with("bw_dev_")
     {
-        "llama-3.1-8b-instant"  // Fast, cheap model on dev server
+        "llama-3.1-8b-instant" // Fast, cheap model on dev server
     } else {
-        "claude-3-haiku-20240307"  // Fast, cheap model on production
+        "claude-3-haiku-20240307" // Fast, cheap model on production
     };
 
     let mut cmd = brainwires_cmd(temp_dir);
@@ -301,11 +302,14 @@ Respond with ONLY a JSON object in this exact format:
                 Ok(evaluation) => {
                     println!("✓ Evaluation parsed successfully");
 
-                    if let Some(overall_pass) = evaluation.get("overall_pass").and_then(|v| v.as_bool()) {
+                    if let Some(overall_pass) =
+                        evaluation.get("overall_pass").and_then(|v| v.as_bool())
+                    {
                         assert!(
                             overall_pass,
                             "AI evaluation failed: {}",
-                            evaluation.get("reasoning")
+                            evaluation
+                                .get("reasoning")
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("No reasoning provided")
                         );
@@ -320,7 +324,8 @@ Respond with ONLY a JSON object in this exact format:
                             println!("  {}: {}/10", metric, score);
                         }
                     }
-                } Err(e) => {
+                }
+                Err(e) => {
                     eprintln!("⚠️  Warning: Failed to parse evaluation JSON: {}", e);
                     eprintln!("   Response: {}", json_str);
                 }

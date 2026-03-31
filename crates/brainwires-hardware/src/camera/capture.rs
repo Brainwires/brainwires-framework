@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use async_trait::async_trait;
-use nokhwa::{pixel_format::RgbFormat, Camera};
+use nokhwa::{Camera, pixel_format::RgbFormat};
 use tracing::debug;
 
 use super::types::{CameraError, CameraFormat, CameraFrame, PixelFormat};
@@ -49,9 +49,10 @@ impl CameraCapture for NokhwaCapture {
     }
 
     async fn capture_frame(&mut self) -> Result<CameraFrame, CameraError> {
-        let camera = self.camera.as_mut().ok_or_else(|| {
-            CameraError::CaptureFailed("camera stream has been stopped".into())
-        })?;
+        let camera = self
+            .camera
+            .as_mut()
+            .ok_or_else(|| CameraError::CaptureFailed("camera stream has been stopped".into()))?;
 
         let elapsed_ms = self.start.elapsed().as_millis() as u64;
         let fmt = self.format;
@@ -72,7 +73,10 @@ impl CameraCapture for NokhwaCapture {
             let (width, height) = decoded.dimensions();
             let data = decoded.into_raw();
 
-            debug!("Captured frame {width}x{height} ({} bytes) fmt={fmt:?}", data.len());
+            debug!(
+                "Captured frame {width}x{height} ({} bytes) fmt={fmt:?}",
+                data.len()
+            );
 
             Ok(CameraFrame {
                 width,

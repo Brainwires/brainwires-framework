@@ -16,7 +16,10 @@ impl SessionManagement for App {
     /// Load a session from storage
     async fn load_session(&mut self, conversation_id: &str) -> Result<()> {
         // Load messages from storage
-        let message_metadata = self.message_store.get_by_conversation(conversation_id).await?;
+        let message_metadata = self
+            .message_store
+            .get_by_conversation(conversation_id)
+            .await?;
 
         // Clear current state
         self.messages.clear();
@@ -87,17 +90,19 @@ impl SessionManagement for App {
         } else {
             String::new()
         };
-        self.status = format!("Loaded session: {} ({} messages{})",
-                            &conversation_id[..8.min(conversation_id.len())],
-                            self.messages.len(),
-                            task_info);
+        self.status = format!(
+            "Loaded session: {} ({} messages{})",
+            &conversation_id[..8.min(conversation_id.len())],
+            self.messages.len(),
+            task_info
+        );
 
         // Check if the last message is from the user - if so, we need to resume AI response
         // This happens when backgrounding during AI streaming (partial response was not saved)
-        if let Some(last_msg) = self.messages.last() {
-            if last_msg.role == "user" {
-                self.pending_resume_ai = true;
-            }
+        if let Some(last_msg) = self.messages.last()
+            && last_msg.role == "user"
+        {
+            self.pending_resume_ai = true;
         }
 
         // Scroll to bottom after loading (will be processed after first render when line count is available)
@@ -133,18 +138,26 @@ impl SessionManagement for App {
 
         // Create/update conversation record with current message count
         let message_count = self.messages.len() as i32;
-        if let Err(e) = self.conversation_store.create(
-            self.session_id.clone(),
-            Some(title),
-            Some(self.model.clone()),
-            Some(message_count),
-        ).await {
+        if let Err(e) = self
+            .conversation_store
+            .create(
+                self.session_id.clone(),
+                Some(title),
+                Some(self.model.clone()),
+                Some(message_count),
+            )
+            .await
+        {
             // May already exist, which is fine
             tracing::debug!("Conversation create result: {}", e);
         }
 
         // Check how many messages are already saved
-        let existing_count = match self.message_store.get_by_conversation(&self.session_id).await {
+        let existing_count = match self
+            .message_store
+            .get_by_conversation(&self.session_id)
+            .await
+        {
             Ok(msgs) => msgs.len(),
             Err(_) => 0,
         };
@@ -156,15 +169,15 @@ impl SessionManagement for App {
         // streaming an AI response. Don't save that partial message - the Agent will
         // detect that the last saved message is from the user and re-request the AI response.
         let skip_streaming_msg = self.streaming_msg_idx.is_some();
-        let messages_to_save: Vec<(usize, &TuiMessage)> = self.messages.iter()
+        let messages_to_save: Vec<(usize, &TuiMessage)> = self
+            .messages
+            .iter()
             .enumerate()
             .skip(existing_count)
             .filter(|(idx, _)| {
                 // Skip the streaming message if we're mid-stream
-                if skip_streaming_msg {
-                    if let Some(streaming_idx) = self.streaming_msg_idx {
-                        return *idx != streaming_idx;
-                    }
+                if skip_streaming_msg && let Some(streaming_idx) = self.streaming_msg_idx {
+                    return *idx != streaming_idx;
                 }
                 true
             })
@@ -197,18 +210,28 @@ impl SessionManagement for App {
         }
 
         if skip_streaming_msg {
-            tracing::info!("Saved {} messages before backgrounding (skipped partial streaming message)", saved_count);
+            tracing::info!(
+                "Saved {} messages before backgrounding (skipped partial streaming message)",
+                saved_count
+            );
         } else {
-            tracing::info!("Saved {} new messages before backgrounding (total: {})", saved_count, self.messages.len());
+            tracing::info!(
+                "Saved {} new messages before backgrounding (total: {})",
+                saved_count,
+                self.messages.len()
+            );
         }
 
         // Update conversation's updated_at timestamp and message count
         if saved_count > 0 {
-            let _ = self.conversation_store.update(
-                &self.session_id,
-                None,  // keep title
-                Some(self.messages.len() as i32),  // update message count
-            ).await;
+            let _ = self
+                .conversation_store
+                .update(
+                    &self.session_id,
+                    None,                             // keep title
+                    Some(self.messages.len() as i32), // update message count
+                )
+                .await;
         }
     }
 }

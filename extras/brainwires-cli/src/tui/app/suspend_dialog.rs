@@ -116,7 +116,8 @@ impl SuspendDialogState {
 
     /// Update the checkbox's focused state based on current focus.
     pub fn update_checkbox_focus(&mut self) {
-        self.exit_when_done.set_focused(self.focus == SuspendFocus::ExitWhenDoneCheckbox);
+        self.exit_when_done
+            .set_focused(self.focus == SuspendFocus::ExitWhenDoneCheckbox);
     }
 
     /// Toggle the exit_when_done checkbox.
@@ -219,10 +220,10 @@ mod tests {
         assert!(region.contains(15, 6));
 
         // Outside region
-        assert!(!region.contains(9, 5));   // left of region
-        assert!(!region.contains(30, 5));  // right of region
-        assert!(!region.contains(10, 4));  // above region
-        assert!(!region.contains(10, 8));  // below region
+        assert!(!region.contains(9, 5)); // left of region
+        assert!(!region.contains(30, 5)); // right of region
+        assert!(!region.contains(10, 4)); // above region
+        assert!(!region.contains(10, 8)); // below region
     }
 
     #[test]
@@ -231,7 +232,10 @@ mod tests {
         state.add_click_region(Rect::new(10, 5, 10, 1), SuspendFocus::BackgroundButton);
         state.add_click_region(Rect::new(25, 5, 10, 1), SuspendFocus::SuspendButton);
 
-        assert_eq!(state.handle_click(15, 5), Some(SuspendFocus::BackgroundButton));
+        assert_eq!(
+            state.handle_click(15, 5),
+            Some(SuspendFocus::BackgroundButton)
+        );
         assert_eq!(state.handle_click(30, 5), Some(SuspendFocus::SuspendButton));
         assert_eq!(state.handle_click(22, 5), None); // Between buttons
     }

@@ -24,7 +24,12 @@ use brainwires_cognition::knowledge::relationship_graph::RelationshipGraph;
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /// Build a minimal `Entity` for eval purposes (no real timestamps needed).
-fn make_entity(name: &str, entity_type: EntityType, mention_count: u32, n_messages: usize) -> Entity {
+fn make_entity(
+    name: &str,
+    entity_type: EntityType,
+    mention_count: u32,
+    n_messages: usize,
+) -> Entity {
     let mut e = Entity::new(name.to_string(), entity_type, "msg-0".to_string(), 0);
     // Add extra mentions to reach the desired count.
     for i in 1..mention_count {
@@ -57,10 +62,10 @@ impl EvaluationCase for EntityImportanceRankingCase {
         let start = std::time::Instant::now();
 
         let entities = vec![
-            make_entity("hub",        EntityType::Concept, 20, 10),
-            make_entity("mid_a",      EntityType::Concept,  5,  3),
-            make_entity("mid_b",      EntityType::Concept,  3,  2),
-            make_entity("peripheral", EntityType::Concept,  1,  1),
+            make_entity("hub", EntityType::Concept, 20, 10),
+            make_entity("mid_a", EntityType::Concept, 5, 3),
+            make_entity("mid_b", EntityType::Concept, 3, 2),
+            make_entity("peripheral", EntityType::Concept, 1, 1),
         ];
         // Ground truth: hub=3, mid_a=2, mid_b=1, peripheral=0
         let ground_truth: Vec<usize> = vec![3, 2, 1, 0];

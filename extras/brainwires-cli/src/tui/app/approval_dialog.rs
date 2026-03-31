@@ -74,7 +74,8 @@ impl ApprovalDialogState {
     /// Record a session decision
     pub fn record_session_decision(&mut self, tool_name: &str, response: ApprovalResponse) {
         if response.is_session_persistent() {
-            self.session_decisions.insert(tool_name.to_string(), response);
+            self.session_decisions
+                .insert(tool_name.to_string(), response);
         }
     }
 
@@ -94,14 +95,16 @@ impl ApprovalDialogState {
 
     /// Get info about current request for display
     pub fn get_display_info(&self) -> Option<ApprovalDisplayInfo> {
-        self.current_request.as_ref().map(|req| ApprovalDisplayInfo {
-            tool_name: req.tool_name.clone(),
-            action_description: req.action.description(),
-            action_category: req.action.category(),
-            severity: req.action.severity(),
-            tool_description: req.details.tool_description.clone(),
-            parameters: req.details.parameters.clone(),
-        })
+        self.current_request
+            .as_ref()
+            .map(|req| ApprovalDisplayInfo {
+                tool_name: req.tool_name.clone(),
+                action_description: req.action.description(),
+                action_category: req.action.category(),
+                severity: req.action.severity(),
+                tool_description: req.details.tool_description.clone(),
+                parameters: req.details.parameters.clone(),
+            })
     }
 
     /// Clear session decisions

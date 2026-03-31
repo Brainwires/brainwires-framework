@@ -31,10 +31,9 @@ use crate::utils::paths::PlatformPaths;
 // ── Private imports from bridge ──────────────────────────────────────────
 
 use brainwires::agent_network::ipc::{
+    IpcConnection, discovery as bridge_discovery,
     protocol::AgentMetadata,
     socket::{self as bridge_socket},
-    discovery as bridge_discovery,
-    IpcConnection,
 };
 
 // ============================================================================
@@ -52,13 +51,19 @@ pub async fn connect_to_agent(session_id: &str) -> Result<IpcConnection> {
 /// Get the socket path for an agent session
 pub fn get_agent_socket_path(session_id: &str) -> Result<PathBuf> {
     let sessions_dir = PlatformPaths::sessions_dir()?;
-    Ok(bridge_socket::get_agent_socket_path(&sessions_dir, session_id))
+    Ok(bridge_socket::get_agent_socket_path(
+        &sessions_dir,
+        session_id,
+    ))
 }
 
 /// Get the token file path for an agent session
 pub fn get_session_token_path(session_id: &str) -> Result<PathBuf> {
     let sessions_dir = PlatformPaths::sessions_dir()?;
-    Ok(bridge_socket::get_session_token_path(&sessions_dir, session_id))
+    Ok(bridge_socket::get_session_token_path(
+        &sessions_dir,
+        session_id,
+    ))
 }
 
 /// Write session token to disk with secure permissions (0600)
@@ -121,7 +126,10 @@ pub fn cleanup_session(session_id: &str) -> Result<()> {
 /// Get the metadata file path for an agent session
 pub fn get_agent_metadata_path(session_id: &str) -> Result<PathBuf> {
     let sessions_dir = PlatformPaths::sessions_dir()?;
-    Ok(bridge_discovery::get_agent_metadata_path(&sessions_dir, session_id))
+    Ok(bridge_discovery::get_agent_metadata_path(
+        &sessions_dir,
+        session_id,
+    ))
 }
 
 /// Write agent metadata to disk

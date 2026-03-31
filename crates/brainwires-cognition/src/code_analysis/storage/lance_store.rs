@@ -116,10 +116,13 @@ impl LanceRelationsStore {
         let empty_batch = RecordBatch::new_empty(schema.clone());
         let batches = RecordBatchIterator::new(vec![Ok(empty_batch)], schema);
 
-        db.create_table(DEFINITIONS_TABLE, Box::new(batches) as Box<dyn arrow_array::RecordBatchReader + Send>)
-            .execute()
-            .await
-            .context("Failed to create definitions table")?;
+        db.create_table(
+            DEFINITIONS_TABLE,
+            Box::new(batches) as Box<dyn arrow_array::RecordBatchReader + Send>,
+        )
+        .execute()
+        .await
+        .context("Failed to create definitions table")?;
 
         Ok(())
     }
@@ -137,10 +140,13 @@ impl LanceRelationsStore {
         let empty_batch = RecordBatch::new_empty(schema.clone());
         let batches = RecordBatchIterator::new(vec![Ok(empty_batch)], schema);
 
-        db.create_table(REFERENCES_TABLE, Box::new(batches) as Box<dyn arrow_array::RecordBatchReader + Send>)
-            .execute()
-            .await
-            .context("Failed to create references table")?;
+        db.create_table(
+            REFERENCES_TABLE,
+            Box::new(batches) as Box<dyn arrow_array::RecordBatchReader + Send>,
+        )
+        .execute()
+        .await
+        .context("Failed to create references table")?;
 
         Ok(())
     }

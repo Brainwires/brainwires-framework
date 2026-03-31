@@ -1,7 +1,7 @@
 use webrtc_vad::{Vad, VadMode as WrtcMode};
 
 use crate::audio::types::AudioBuffer;
-use crate::audio::vad::{pcm_to_i16_mono, SpeechSegment, VoiceActivityDetector};
+use crate::audio::vad::{SpeechSegment, VoiceActivityDetector, pcm_to_i16_mono};
 
 /// WebRTC VAD aggressiveness mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -41,7 +41,9 @@ pub struct WebRtcVad {
 
 impl Default for WebRtcVad {
     fn default() -> Self {
-        Self { mode: VadMode::Aggressive }
+        Self {
+            mode: VadMode::Aggressive,
+        }
     }
 }
 
@@ -61,10 +63,7 @@ impl VoiceActivityDetector for WebRtcVad {
             return energy_vad.is_speech(audio);
         }
 
-        let mut vad = Vad::new_with_rate_and_mode(
-            sr_to_wrtc(sr),
-            WrtcMode::from(self.mode),
-        );
+        let mut vad = Vad::new_with_rate_and_mode(sr_to_wrtc(sr), WrtcMode::from(self.mode));
 
         let samples = pcm_to_i16_mono(audio);
         // WebRTC requires exactly 10, 20, or 30 ms frames
@@ -90,10 +89,7 @@ impl VoiceActivityDetector for WebRtcVad {
                 .detect_segments(audio, frame_ms);
         }
 
-        let mut vad = Vad::new_with_rate_and_mode(
-            sr_to_wrtc(sr),
-            WrtcMode::from(self.mode),
-        );
+        let mut vad = Vad::new_with_rate_and_mode(sr_to_wrtc(sr), WrtcMode::from(self.mode));
 
         let samples = pcm_to_i16_mono(audio);
         let frame_size = (sr * frame_ms / 1000) as usize;

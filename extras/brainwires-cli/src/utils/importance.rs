@@ -35,7 +35,11 @@ pub fn calculate_importance(content: &str, context: &ImportanceContext) -> Impor
     let code_score = if contains_code(content) { 0.25 } else { 0.0 };
     score += code_score;
 
-    let decision_score = if contains_decision_language(content) { 0.2 } else { 0.0 };
+    let decision_score = if contains_decision_language(content) {
+        0.2
+    } else {
+        0.0
+    };
     score += decision_score;
 
     let reference_score = (context.forward_references as f32 * 0.1).min(0.25);
@@ -45,7 +49,10 @@ pub fn calculate_importance(content: &str, context: &ImportanceContext) -> Impor
         score += 0.3;
     }
 
-    let future_overlap = entities.iter().filter(|e| context.future_entities.contains(*e)).count();
+    let future_overlap = entities
+        .iter()
+        .filter(|e| context.future_entities.contains(*e))
+        .count();
     score += (future_overlap as f32 * 0.05).min(0.15);
 
     let age_hours = context.age_seconds / 3600.0;
@@ -66,8 +73,12 @@ pub fn calculate_importance(content: &str, context: &ImportanceContext) -> Impor
 /// Quick importance check without full analysis
 pub fn quick_importance(content: &str) -> f32 {
     let mut score = 0.0f32;
-    if contains_code(content) { score += 0.3; }
-    if contains_decision_language(content) { score += 0.2; }
+    if contains_code(content) {
+        score += 0.3;
+    }
+    if contains_decision_language(content) {
+        score += 0.2;
+    }
     let entity_count = count_entities_fast(content);
     score += (entity_count as f32 * 0.05).min(0.2);
     score.clamp(0.0, 1.0)
@@ -117,9 +128,20 @@ fn count_entities_fast(content: &str) -> usize {
 /// Check if content contains code
 pub fn contains_code(content: &str) -> bool {
     let code_patterns = [
-        "fn ", "pub fn", "async fn", "impl ", "struct ", "enum ",
-        "function ", "const ", "let ", "var ",
-        "def ", "class ", "import ", "from ",
+        "fn ",
+        "pub fn",
+        "async fn",
+        "impl ",
+        "struct ",
+        "enum ",
+        "function ",
+        "const ",
+        "let ",
+        "var ",
+        "def ",
+        "class ",
+        "import ",
+        "from ",
     ];
     code_patterns.iter().any(|p| content.contains(p))
 }
@@ -128,8 +150,14 @@ pub fn contains_code(content: &str) -> bool {
 pub fn contains_decision_language(content: &str) -> bool {
     let lower = content.to_lowercase();
     let patterns = [
-        "we decided", "the solution", "the approach", "i recommend",
-        "we should", "we need to", "conclusion", "in summary",
+        "we decided",
+        "the solution",
+        "the approach",
+        "i recommend",
+        "we should",
+        "we need to",
+        "conclusion",
+        "in summary",
     ];
     patterns.iter().any(|p| lower.contains(p))
 }

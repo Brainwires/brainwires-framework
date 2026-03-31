@@ -9,7 +9,7 @@
 //! - Reduced API costs (cached tokens are cheaper)
 //! - More consistent response times
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// Marker for cacheable content in Anthropic API
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -64,10 +64,7 @@ pub fn build_cached_system_prompt(system_prompt: &str) -> Value {
 /// Build system prompt with multiple cached sections
 ///
 /// Useful when you have static content (always cached) and dynamic content
-pub fn build_multi_section_system(
-    static_content: &str,
-    dynamic_content: Option<&str>,
-) -> Value {
+pub fn build_multi_section_system(static_content: &str, dynamic_content: Option<&str>) -> Value {
     let mut sections = vec![json!({
         "type": "text",
         "text": static_content,
@@ -132,14 +129,13 @@ impl CacheAnalyzer {
 
             // System messages are generally stable
             if role == "system" {
-                if content.len() >= self.config.min_cache_length {
-                    if self.config.cache_system_prompt {
-                        cache_points.push(CachePoint {
-                            index: i,
-                            reason: CacheReason::SystemPrompt,
-                            estimated_savings_ms: 100,
-                        });
-                    }
+                if content.len() >= self.config.min_cache_length && self.config.cache_system_prompt
+                {
+                    cache_points.push(CachePoint {
+                        index: i,
+                        reason: CacheReason::SystemPrompt,
+                        estimated_savings_ms: 100,
+                    });
                 }
                 stable_prefix_end = i + 1;
             }
@@ -188,7 +184,10 @@ pub struct CacheAnalysis {
 impl CacheAnalysis {
     /// Estimated total latency savings in milliseconds
     pub fn estimated_savings_ms(&self) -> u32 {
-        self.cache_points.iter().map(|p| p.estimated_savings_ms).sum()
+        self.cache_points
+            .iter()
+            .map(|p| p.estimated_savings_ms)
+            .sum()
     }
 
     /// Whether any caching is recommended
@@ -284,7 +283,12 @@ mod tests {
         let analyzer = CacheAnalyzer::new(CacheConfig::default());
         let analysis = analyzer.analyze(&messages);
 
-        assert!(analysis.cache_points.iter().any(|p| p.reason == CacheReason::CompactionSummary));
+        assert!(
+            analysis
+                .cache_points
+                .iter()
+                .any(|p| p.reason == CacheReason::CompactionSummary)
+        );
     }
 
     #[test]

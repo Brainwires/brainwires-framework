@@ -9,7 +9,9 @@
 //! cargo run -p brainwires-cognition --example knowledge_graph --features knowledge
 //! ```
 
-use brainwires_cognition::knowledge::entity::{EntityStore, EntityType, ExtractionResult, Relationship};
+use brainwires_cognition::knowledge::entity::{
+    EntityStore, EntityType, ExtractionResult, Relationship,
+};
 use brainwires_cognition::knowledge::relationship_graph::RelationshipGraph;
 use brainwires_cognition::knowledge::thought::{Thought, ThoughtCategory};
 
@@ -105,7 +107,10 @@ fn main() {
 
     // Find all functions
     let functions = store.get_by_type(&EntityType::Function);
-    println!("Functions: {:?}", functions.iter().map(|e| &e.name).collect::<Vec<_>>());
+    println!(
+        "Functions: {:?}",
+        functions.iter().map(|e| &e.name).collect::<Vec<_>>()
+    );
 
     // Find entities related to "process_request"
     let related = store.get_related("process_request");
@@ -210,7 +215,11 @@ fn main() {
 
     let thought = Thought::new("Decided to use PostgreSQL for the auth service".into())
         .with_category(ThoughtCategory::Decision)
-        .with_tags(vec!["database".into(), "auth".into(), "architecture".into()])
+        .with_tags(vec![
+            "database".into(),
+            "auth".into(),
+            "architecture".into(),
+        ])
         .with_importance(0.9);
 
     println!("Thought: {}", thought.content);

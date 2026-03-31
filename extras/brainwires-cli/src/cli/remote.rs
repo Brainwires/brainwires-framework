@@ -83,10 +83,18 @@ pub async fn handle_remote(cmd: RemoteCommands) -> Result<()> {
         RemoteCommands::Pair => handle_pair().await,
         RemoteCommands::Stop => handle_stop().await,
         RemoteCommands::Status => handle_status().await,
-        RemoteCommands::Log { follow, lines, clear } => handle_log(follow, lines, clear).await,
-        RemoteCommands::Config { show, enabled, url, api_key, heartbeat } => {
-            handle_config(show, enabled, url, api_key, heartbeat).await
-        }
+        RemoteCommands::Log {
+            follow,
+            lines,
+            clear,
+        } => handle_log(follow, lines, clear).await,
+        RemoteCommands::Config {
+            show,
+            enabled,
+            url,
+            api_key,
+            heartbeat,
+        } => handle_config(show, enabled, url, api_key, heartbeat).await,
     }
 }
 
@@ -129,7 +137,7 @@ async fn handle_start(force: bool, foreground: bool) -> Result<()> {
 
     if is_bridge_running() {
         Logger::success("Remote bridge daemon started");
-        Logger::info(&format!("Backend URL: {}", settings.backend_url));
+        Logger::info(format!("Backend URL: {}", settings.backend_url));
     } else {
         Logger::error("Failed to start remote bridge daemon");
         Logger::info("Check logs at ~/.brainwires/remote-bridge.log");
@@ -140,16 +148,14 @@ async fn handle_start(force: bool, foreground: bool) -> Result<()> {
 
 /// Spawn the bridge as a detached daemon process
 async fn spawn_bridge_daemon() -> Result<()> {
-    let exe_path = std::env::current_exe()
-        .context("Failed to get current executable path")?;
+    let exe_path = std::env::current_exe().context("Failed to get current executable path")?;
 
     // Log file for daemon output
     let log_dir = crate::utils::paths::PlatformPaths::data_dir()?;
     std::fs::create_dir_all(&log_dir)?;
 
     let log_path = log_dir.join("remote-bridge.log");
-    let log_file = std::fs::File::create(&log_path)
-        .context("Failed to create bridge log file")?;
+    let log_file = std::fs::File::create(&log_path).context("Failed to create bridge log file")?;
 
     #[cfg(unix)]
     {
@@ -315,7 +321,7 @@ async fn handle_stop() -> Result<()> {
             // Send SIGTERM to gracefully stop
             unsafe {
                 if libc::kill(pid as i32, libc::SIGTERM) == 0 {
-                    Logger::success(&format!("Sent stop signal to bridge (PID {})", pid));
+                    Logger::success(format!("Sent stop signal to bridge (PID {})", pid));
 
                     // Wait for process to exit
                     for _ in 0..20 {
@@ -368,16 +374,26 @@ async fn handle_status() -> Result<()> {
     Logger::info("---------------------");
 
     // Config status
-    Logger::info(&format!("  Enabled: {}", settings.enabled));
-    Logger::info(&format!("  Backend URL: {}", settings.backend_url));
-    Logger::info(&format!("  API Key: {}", if settings.api_key.is_some() { "configured" } else { "not set" }));
-    Logger::info(&format!("  Heartbeat: {}s", settings.heartbeat_interval_secs));
-    Logger::info(&format!("  Auto-start: {}", settings.auto_start));
+    Logger::info(format!("  Enabled: {}", settings.enabled));
+    Logger::info(format!("  Backend URL: {}", settings.backend_url));
+    Logger::info(format!(
+        "  API Key: {}",
+        if settings.api_key.is_some() {
+            "configured"
+        } else {
+            "not set"
+        }
+    ));
+    Logger::info(format!(
+        "  Heartbeat: {}s",
+        settings.heartbeat_interval_secs
+    ));
+    Logger::info(format!("  Auto-start: {}", settings.auto_start));
 
     // Daemon status
     if let Some(pid) = get_bridge_pid() {
         if is_bridge_running() {
-            Logger::success(&format!("  Status: Running (PID {})", pid));
+            Logger::success(format!("  Status: Running (PID {})", pid));
         } else {
             Logger::warn("  Status: Stale PID file (not running)");
         }
@@ -409,13 +425,16 @@ async fn handle_log(follow: bool, lines: usize, clear: bool) -> Result<()> {
 
     if !log_path.exists() {
         Logger::info("No log file found. The bridge may not have been started yet.");
-        Logger::info(&format!("Log path: {}", log_path.display()));
+        Logger::info(format!("Log path: {}", log_path.display()));
         return Ok(());
     }
 
     if follow {
         // Follow mode - like tail -f
-        Logger::info(&format!("Following log: {} (Ctrl+C to stop)", log_path.display()));
+        Logger::info(format!(
+            "Following log: {} (Ctrl+C to stop)",
+            log_path.display()
+        ));
         Logger::info("---");
 
         // First, show the last N lines
@@ -425,8 +444,8 @@ async fn handle_log(follow: bool, lines: usize, clear: bool) -> Result<()> {
         follow_log_file(&log_path).await?;
     } else {
         // Just show the last N lines
-        Logger::info(&format!("Remote Bridge Log (last {} lines):", lines));
-        Logger::info(&format!("Log path: {}", log_path.display()));
+        Logger::info(format!("Remote Bridge Log (last {} lines):", lines));
+        Logger::info(format!("Log path: {}", log_path.display()));
         Logger::info("---");
         show_last_lines(&log_path, lines)?;
     }
@@ -442,7 +461,7 @@ fn show_last_lines(path: &std::path::Path, n: usize) -> Result<()> {
     let reader = BufReader::new(file);
 
     // Collect all lines and take the last N
-    let all_lines: Vec<String> = reader.lines().filter_map(|l| l.ok()).collect();
+    let all_lines: Vec<String> = reader.lines().map_while(Result::ok).collect();
     let start = if all_lines.len() > n {
         all_lines.len() - n
     } else {
@@ -492,7 +511,7 @@ async fn follow_log_file(path: &std::path::Path) -> Result<()> {
                         }
                     }
                     Err(e) => {
-                        Logger::error(&format!("Error reading log: {}", e));
+                        Logger::error(format!("Error reading log: {}", e));
                         break;
                     }
                 }
@@ -517,13 +536,29 @@ async fn handle_config(
         let config = config_manager.get();
         Logger::info("Remote Bridge Configuration:");
         Logger::info("----------------------------");
-        Logger::info(&format!("  enabled: {}", config.remote.enabled));
-        Logger::info(&format!("  backend_url: {}", config.remote.backend_url));
-        Logger::info(&format!("  api_key: {}", if config.remote.api_key.is_some() { "<configured>" } else { "<not set>" }));
-        Logger::info(&format!("  heartbeat_interval_secs: {}", config.remote.heartbeat_interval_secs));
-        Logger::info(&format!("  reconnect_delay_secs: {}", config.remote.reconnect_delay_secs));
-        Logger::info(&format!("  max_reconnect_attempts: {}", config.remote.max_reconnect_attempts));
-        Logger::info(&format!("  auto_start: {}", config.remote.auto_start));
+        Logger::info(format!("  enabled: {}", config.remote.enabled));
+        Logger::info(format!("  backend_url: {}", config.remote.backend_url));
+        Logger::info(format!(
+            "  api_key: {}",
+            if config.remote.api_key.is_some() {
+                "<configured>"
+            } else {
+                "<not set>"
+            }
+        ));
+        Logger::info(format!(
+            "  heartbeat_interval_secs: {}",
+            config.remote.heartbeat_interval_secs
+        ));
+        Logger::info(format!(
+            "  reconnect_delay_secs: {}",
+            config.remote.reconnect_delay_secs
+        ));
+        Logger::info(format!(
+            "  max_reconnect_attempts: {}",
+            config.remote.max_reconnect_attempts
+        ));
+        Logger::info(format!("  auto_start: {}", config.remote.auto_start));
         return Ok(());
     }
 
@@ -533,13 +568,13 @@ async fn handle_config(
 
     if let Some(val) = enabled {
         remote.enabled = val;
-        Logger::info(&format!("Set remote.enabled = {}", val));
+        Logger::info(format!("Set remote.enabled = {}", val));
         changed = true;
     }
 
     if let Some(val) = url {
         remote.backend_url = val.clone();
-        Logger::info(&format!("Set remote.backend_url = {}", val));
+        Logger::info(format!("Set remote.backend_url = {}", val));
         changed = true;
     }
 
@@ -551,7 +586,7 @@ async fn handle_config(
 
     if let Some(val) = heartbeat {
         remote.heartbeat_interval_secs = val;
-        Logger::info(&format!("Set remote.heartbeat_interval_secs = {}", val));
+        Logger::info(format!("Set remote.heartbeat_interval_secs = {}", val));
         changed = true;
     }
 
@@ -623,21 +658,18 @@ async fn handle_pair() -> Result<()> {
 
     // Step 2: Show code to user
     println!();
-    Logger::success(&format!("Pairing code: {}", pairing_code));
+    Logger::success(format!("Pairing code: {}", pairing_code));
     println!();
-    Logger::info(&format!(
+    Logger::info(format!(
         "Go to {}/pair and enter this code to pair your device.",
         backend_url
     ));
-    Logger::info(&format!("Code expires at: {}", expires_at));
+    Logger::info(format!("Code expires at: {}", expires_at));
     println!();
     Logger::info("Waiting for confirmation...");
 
     // Step 3: Poll for confirmation
-    let status_url = format!(
-        "{}/api/remote/pair/status/{}",
-        backend_url, request_id
-    );
+    let status_url = format!("{}/api/remote/pair/status/{}", backend_url, request_id);
     let poll_interval = std::time::Duration::from_secs(2);
     let max_polls = 150; // 5 minutes at 2-second intervals
 
@@ -681,13 +713,13 @@ async fn handle_pair() -> Result<()> {
                     let auth_client = crate::auth::AuthClient::new(backend_url.clone());
                     match auth_client.authenticate(api_key).await {
                         Ok(session) => {
-                            Logger::success(&format!(
+                            Logger::success(format!(
                                 "Authenticated as {}",
                                 session.user.display_name
                             ));
                         }
                         Err(e) => {
-                            Logger::warn(&format!(
+                            Logger::warn(format!(
                                 "API key saved but authentication failed: {}. You can still use 'brainwires remote start'.",
                                 e
                             ));
@@ -715,7 +747,7 @@ async fn handle_pair() -> Result<()> {
                 // Still waiting
             }
             other => {
-                Logger::warn(&format!("Unexpected status: {}", other));
+                Logger::warn(format!("Unexpected status: {}", other));
             }
         }
     }
@@ -735,7 +767,7 @@ pub async fn maybe_auto_start() {
             // Not enabled or not configured, that's fine
         }
         Err(e) => {
-            Logger::warn(&format!("Failed to auto-start remote bridge: {}", e));
+            Logger::warn(format!("Failed to auto-start remote bridge: {}", e));
         }
     }
 }

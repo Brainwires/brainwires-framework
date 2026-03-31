@@ -83,7 +83,10 @@ fn main() {
     println!("  Epochs:         {}", config.hyperparams.epochs);
     println!("  Batch size:     {}", config.hyperparams.batch_size);
     println!("  Learning rate:  {}", config.hyperparams.learning_rate);
-    println!("  Grad accum:     {}", config.hyperparams.gradient_accumulation_steps);
+    println!(
+        "  Grad accum:     {}",
+        config.hyperparams.gradient_accumulation_steps
+    );
     println!("  Mixed precision: {}", config.mixed_precision);
     println!("  Grad checkpointing: {}", config.gradient_checkpointing);
 

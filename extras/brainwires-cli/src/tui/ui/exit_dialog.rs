@@ -3,11 +3,11 @@
 //! Renders a centered modal dialog for exit/background options.
 
 use ratatui::{
+    Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph, Widget},
-    Frame,
 };
 use ratatui_interact::components::{CheckBox, CheckBoxStyle};
 
@@ -172,8 +172,8 @@ fn draw_preserve_chat_checkbox(f: &mut Frame, app: &mut App, area: Rect) {
     let checkbox_area = Rect::new(centered_x, area.y, checkbox_width, 1);
 
     // Create checkbox and render it
-    let checkbox = CheckBox::new(checkbox_label, &state.preserve_chat)
-        .style(CheckBoxStyle::default());
+    let checkbox =
+        CheckBox::new(checkbox_label, &state.preserve_chat).style(CheckBoxStyle::default());
     checkbox.render(checkbox_area, f.buffer_mut());
 
     // Register click region (need to re-borrow state as mutable)
@@ -200,8 +200,8 @@ fn draw_exit_when_done_checkbox(f: &mut Frame, app: &mut App, area: Rect) {
     let checkbox_area = Rect::new(centered_x, area.y, checkbox_width, 1);
 
     // Create checkbox and render it
-    let checkbox = CheckBox::new(checkbox_label, &state.exit_when_done)
-        .style(CheckBoxStyle::default());
+    let checkbox =
+        CheckBox::new(checkbox_label, &state.exit_when_done).style(CheckBoxStyle::default());
     checkbox.render(checkbox_area, f.buffer_mut());
 
     // Register click region (need to re-borrow state as mutable)

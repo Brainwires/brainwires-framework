@@ -111,8 +111,21 @@ fn contains_any(haystack: &str, needles: &[&str]) -> bool {
 
 // Negation words used to detect contradictions.
 const NEGATION_WORDS: &[&str] = &[
-    "not ", "never", "no ", "don't", "doesn't", "isn't", "aren't", "won't",
-    "can't", "cannot", "didn't", "wasn't", "weren't", "shouldn't", "wouldn't",
+    "not ",
+    "never",
+    "no ",
+    "don't",
+    "doesn't",
+    "isn't",
+    "aren't",
+    "won't",
+    "can't",
+    "cannot",
+    "didn't",
+    "wasn't",
+    "weren't",
+    "shouldn't",
+    "wouldn't",
 ];
 
 /// Classify a set of search results as corroborations for a new thought.
@@ -120,10 +133,7 @@ const NEGATION_WORDS: &[&str] = &[
 /// A result is a corroboration when its score is ≥ `threshold`.
 /// The returned `EvidenceCheckResult` populates only `corroborations`; call
 /// [`check_contradiction`] separately to fill `contradictions`.
-pub fn check_corroboration(
-    results: &[MemorySearchResult],
-    threshold: f32,
-) -> EvidenceCheckResult {
+pub fn check_corroboration(results: &[MemorySearchResult], threshold: f32) -> EvidenceCheckResult {
     let corroborations = results
         .iter()
         .filter(|r| r.score >= threshold)

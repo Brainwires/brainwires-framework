@@ -9,8 +9,8 @@ use super::context_commands::handle_context_action;
 use super::history_commands::handle_history_action;
 use super::misc_commands::handle_misc_action;
 use super::plan_commands::handle_plan_action;
-use crate::commands::executor::{CommandAction, CommandResult};
 use crate::commands::CommandExecutor;
+use crate::commands::executor::{CommandAction, CommandResult};
 use crate::types::agent::AgentContext;
 use crate::types::message::{Message, MessageContent, Role};
 use crate::utils::checkpoint::CheckpointManager;
@@ -18,6 +18,7 @@ use crate::utils::conversation::ConversationManager;
 use crate::utils::logger::Logger;
 
 /// Handle slash command execution
+#[allow(clippy::too_many_arguments)]
 pub async fn handle_command(
     command_executor: &CommandExecutor,
     cmd_name: &str,
@@ -46,7 +47,8 @@ pub async fn handle_command(
                 cleared_conversation_manager,
                 checkpoint_manager,
                 message_store,
-            ).await
+            )
+            .await
         }
         Ok(CommandResult::ActionWithMessage(action, msg)) => {
             // Execute action first (e.g., mode switch), then add message
@@ -58,7 +60,8 @@ pub async fn handle_command(
                 cleared_conversation_manager,
                 checkpoint_manager,
                 message_store,
-            ).await?;
+            )
+            .await?;
 
             // Then add the message to conversation for AI processing
             let expanded_message = Message {
@@ -94,7 +97,7 @@ pub async fn handle_command(
             Ok(true)
         }
         Err(e) => {
-            Logger::error(&format!("Command error: {}", e));
+            Logger::error(format!("Command error: {}", e));
             println!("{}: {}\n", console::style("Error").red().bold(), e);
             Ok(true)
         }
@@ -113,10 +116,10 @@ async fn handle_command_action(
 ) -> Result<bool> {
     match &action {
         // History commands
-        CommandAction::ClearHistory |
-        CommandAction::ResumeHistory(_) |
-        CommandAction::Rewind(_) |
-        CommandAction::ShowStatus => {
+        CommandAction::ClearHistory
+        | CommandAction::ResumeHistory(_)
+        | CommandAction::Rewind(_)
+        | CommandAction::ShowStatus => {
             handle_history_action(
                 action,
                 model_id,
@@ -124,55 +127,47 @@ async fn handle_command_action(
                 conversation_manager,
                 cleared_conversation_manager,
                 message_store,
-            ).await
+            )
+            .await
         }
 
         // Checkpoint commands
-        CommandAction::CreateCheckpoint(_) |
-        CommandAction::RestoreCheckpoint(_) |
-        CommandAction::ListCheckpoints => {
+        CommandAction::CreateCheckpoint(_)
+        | CommandAction::RestoreCheckpoint(_)
+        | CommandAction::ListCheckpoints => {
             handle_checkpoint_action(
                 action,
                 model_id,
                 context,
                 conversation_manager,
                 checkpoint_manager,
-            ).await
+            )
+            .await
         }
 
         // Plan commands
-        CommandAction::ListPlans(_) |
-        CommandAction::ShowPlan(_) |
-        CommandAction::DeletePlan(_) |
-        CommandAction::ActivatePlan(_) |
-        CommandAction::DeactivatePlan |
-        CommandAction::PlanStatus |
-        CommandAction::PausePlan |
-        CommandAction::ResumePlan(_) |
-        CommandAction::SearchPlans(_) |
-        CommandAction::BranchPlan(_, _) |
-        CommandAction::MergePlan(_) |
-        CommandAction::PlanTree(_) => {
-            handle_plan_action(action).await
-        }
+        CommandAction::ListPlans(_)
+        | CommandAction::ShowPlan(_)
+        | CommandAction::DeletePlan(_)
+        | CommandAction::ActivatePlan(_)
+        | CommandAction::DeactivatePlan
+        | CommandAction::PlanStatus
+        | CommandAction::PausePlan
+        | CommandAction::ResumePlan(_)
+        | CommandAction::SearchPlans(_)
+        | CommandAction::BranchPlan(_, _)
+        | CommandAction::MergePlan(_)
+        | CommandAction::PlanTree(_) => handle_plan_action(action).await,
 
         // Context/Working Set commands
-        CommandAction::ContextShow |
-        CommandAction::ContextAdd(_, _) |
-        CommandAction::ContextRemove(_) |
-        CommandAction::ContextPin(_) |
-        CommandAction::ContextUnpin(_) |
-        CommandAction::ContextClear(_) => {
-            handle_context_action(action, context).await
-        }
+        CommandAction::ContextShow
+        | CommandAction::ContextAdd(_, _)
+        | CommandAction::ContextRemove(_)
+        | CommandAction::ContextPin(_)
+        | CommandAction::ContextUnpin(_)
+        | CommandAction::ContextClear(_) => handle_context_action(action, context).await,
 
         // All other commands
-        _ => {
-            handle_misc_action(
-                action,
-                context,
-                conversation_manager,
-            ).await
-        }
+        _ => handle_misc_action(action, context, conversation_manager).await,
     }
 }

@@ -12,8 +12,8 @@ use serde_json::{Value, json};
 
 use brainwires_core::{Tool, ToolContext, ToolInputSchema, ToolResult};
 
-use self::google::GoogleCalendarClient;
 use self::caldav::CalDavClient;
+use self::google::GoogleCalendarClient;
 use self::types::CalendarEvent;
 
 /// Calendar provider configuration variants.
@@ -135,11 +135,7 @@ impl CalendarTool {
             description: "Create a new calendar event.".to_string(),
             input_schema: ToolInputSchema::object(
                 properties,
-                vec![
-                    "title".to_string(),
-                    "start".to_string(),
-                    "end".to_string(),
-                ],
+                vec!["title".to_string(), "start".to_string(), "end".to_string()],
             ),
             requires_approval: true,
             ..Default::default()
@@ -289,9 +285,7 @@ impl CalendarTool {
                 password,
             } => {
                 let client = CalDavClient::new(url, username, password);
-                let events = client
-                    .list_events(calendar_id, time_min, time_max)
-                    .await?;
+                let events = client.list_events(calendar_id, time_min, time_max).await?;
                 Ok(serde_json::to_string_pretty(&events)?)
             }
         }
@@ -351,9 +345,7 @@ impl CalendarTool {
             } => {
                 let client =
                     GoogleCalendarClient::new(client_id, client_secret, refresh_token).await?;
-                let updated = client
-                    .update_event(calendar_id, event_id, &event)
-                    .await?;
+                let updated = client.update_event(calendar_id, event_id, &event).await?;
                 Ok(serde_json::to_string_pretty(&updated)?)
             }
             CalendarProvider::CalDav {
@@ -431,9 +423,7 @@ impl CalendarTool {
             } => {
                 let client =
                     GoogleCalendarClient::new(client_id, client_secret, refresh_token).await?;
-                let slots = client
-                    .free_busy(&calendar_ids, time_min, time_max)
-                    .await?;
+                let slots = client.free_busy(&calendar_ids, time_min, time_max).await?;
                 Ok(serde_json::to_string_pretty(&slots)?)
             }
             CalendarProvider::CalDav { .. } => {
@@ -445,14 +435,11 @@ impl CalendarTool {
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     fn get_config(context: &ToolContext) -> Result<CalendarConfig> {
-        let config_json = context
-            .metadata
-            .get("calendar_config")
-            .ok_or_else(|| {
-                anyhow::anyhow!(
-                    "Calendar configuration not found. Set 'calendar_config' in ToolContext.metadata."
-                )
-            })?;
+        let config_json = context.metadata.get("calendar_config").ok_or_else(|| {
+            anyhow::anyhow!(
+                "Calendar configuration not found. Set 'calendar_config' in ToolContext.metadata."
+            )
+        })?;
         let config: CalendarConfig = serde_json::from_str(config_json)?;
         Ok(config)
     }
@@ -603,8 +590,7 @@ mod tests {
             ..Default::default()
         };
         let input = json!({});
-        let result =
-            CalendarTool::execute("1", "unknown_calendar_tool", &input, &context).await;
+        let result = CalendarTool::execute("1", "unknown_calendar_tool", &input, &context).await;
         assert!(result.is_error);
     }
 }

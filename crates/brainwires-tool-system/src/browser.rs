@@ -171,9 +171,15 @@ impl BrowserTool {
 
     fn browser_read_url_tool() -> Tool {
         let mut props = HashMap::new();
-        props.insert("url".into(), json!({"type":"string","description":"URL to navigate to and extract as markdown"}));
+        props.insert(
+            "url".into(),
+            json!({"type":"string","description":"URL to navigate to and extract as markdown"}),
+        );
         props.insert("wait_for_js".into(), json!({"type":"boolean","description":"Wait for JavaScript before extracting (default: false)"}));
-        props.insert("include_images".into(), json!({"type":"boolean","description":"Include image alt text (default: true)"}));
+        props.insert(
+            "include_images".into(),
+            json!({"type":"boolean","description":"Include image alt text (default: true)"}),
+        );
         props.insert("max_output_size".into(), json!({"type":"number","description":"Max output characters; 0 = unlimited (default: 50000)"}));
         Tool {
             name: "browser_read_url".into(),
@@ -186,9 +192,18 @@ impl BrowserTool {
 
     fn browser_navigate_tool() -> Tool {
         let mut props = HashMap::new();
-        props.insert("url".into(), json!({"type":"string","description":"URL to navigate to"}));
-        props.insert("session_id".into(), json!({"type":"string","description":"Browser session ID"}));
-        props.insert("wait_for_js".into(), json!({"type":"boolean","description":"Wait for JS to settle after navigation"}));
+        props.insert(
+            "url".into(),
+            json!({"type":"string","description":"URL to navigate to"}),
+        );
+        props.insert(
+            "session_id".into(),
+            json!({"type":"string","description":"Browser session ID"}),
+        );
+        props.insert(
+            "wait_for_js".into(),
+            json!({"type":"boolean","description":"Wait for JS to settle after navigation"}),
+        );
         Tool {
             name: "browser_navigate".into(),
             description: "Navigate a browser session to a URL.".into(),
@@ -200,8 +215,14 @@ impl BrowserTool {
 
     fn browser_click_tool() -> Tool {
         let mut props = HashMap::new();
-        props.insert("selector".into(), json!({"type":"string","description":"CSS selector for the element to click"}));
-        props.insert("session_id".into(), json!({"type":"string","description":"Browser session ID"}));
+        props.insert(
+            "selector".into(),
+            json!({"type":"string","description":"CSS selector for the element to click"}),
+        );
+        props.insert(
+            "session_id".into(),
+            json!({"type":"string","description":"Browser session ID"}),
+        );
         Tool {
             name: "browser_click".into(),
             description: "Click an element in a browser session by CSS selector.".into(),
@@ -216,9 +237,18 @@ impl BrowserTool {
 
     fn browser_fill_tool() -> Tool {
         let mut props = HashMap::new();
-        props.insert("selector".into(), json!({"type":"string","description":"CSS selector for the input field"}));
-        props.insert("value".into(), json!({"type":"string","description":"Value to fill into the field"}));
-        props.insert("session_id".into(), json!({"type":"string","description":"Browser session ID"}));
+        props.insert(
+            "selector".into(),
+            json!({"type":"string","description":"CSS selector for the input field"}),
+        );
+        props.insert(
+            "value".into(),
+            json!({"type":"string","description":"Value to fill into the field"}),
+        );
+        props.insert(
+            "session_id".into(),
+            json!({"type":"string","description":"Browser session ID"}),
+        );
         Tool {
             name: "browser_fill".into(),
             description: "Fill an input field in a browser session.".into(),
@@ -233,9 +263,18 @@ impl BrowserTool {
 
     fn browser_eval_tool() -> Tool {
         let mut props = HashMap::new();
-        props.insert("expression".into(), json!({"type":"string","description":"JavaScript expression to evaluate"}));
-        props.insert("session_id".into(), json!({"type":"string","description":"Browser session ID (optional)"}));
-        props.insert("return_by_value".into(), json!({"type":"boolean","description":"Return result as JSON value (default: true)"}));
+        props.insert(
+            "expression".into(),
+            json!({"type":"string","description":"JavaScript expression to evaluate"}),
+        );
+        props.insert(
+            "session_id".into(),
+            json!({"type":"string","description":"Browser session ID (optional)"}),
+        );
+        props.insert(
+            "return_by_value".into(),
+            json!({"type":"boolean","description":"Return result as JSON value (default: true)"}),
+        );
         Tool {
             name: "browser_eval".into(),
             description: "Execute JavaScript in the browser and return the result.".into(),
@@ -247,12 +286,16 @@ impl BrowserTool {
 
     fn browser_screenshot_tool() -> Tool {
         let mut props = HashMap::new();
-        props.insert("session_id".into(), json!({"type":"string","description":"Browser session ID (optional)"}));
+        props.insert(
+            "session_id".into(),
+            json!({"type":"string","description":"Browser session ID (optional)"}),
+        );
         props.insert("format".into(), json!({"type":"string","enum":["png","jpeg"],"description":"Image format (default: png)"}));
         props.insert("quality".into(), json!({"type":"number","description":"JPEG quality 0–100 (only for format=jpeg, default: 80)"}));
         Tool {
             name: "browser_screenshot".into(),
-            description: "Capture a screenshot of the current browser page as base64-encoded PNG.".into(),
+            description: "Capture a screenshot of the current browser page as base64-encoded PNG."
+                .into(),
             input_schema: ToolInputSchema::object(props, vec![]),
             requires_approval: false,
             ..Default::default()
@@ -261,13 +304,20 @@ impl BrowserTool {
 
     fn browser_search_tool() -> Tool {
         let mut props = HashMap::new();
-        props.insert("query".into(), json!({"type":"string","description":"Search query"}));
-        props.insert("num_results".into(), json!({"type":"number","description":"Number of results (default: 10, max: 20)"}));
+        props.insert(
+            "query".into(),
+            json!({"type":"string","description":"Search query"}),
+        );
+        props.insert(
+            "num_results".into(),
+            json!({"type":"number","description":"Number of results (default: 10, max: 20)"}),
+        );
         props.insert("search_engine".into(), json!({"type":"string","enum":["duckduckgo","bing","google","startpage"],"description":"Search engine (default: duckduckgo)"}));
         props.insert("time_range".into(), json!({"type":"string","enum":["day","week","month","year"],"description":"Limit results by recency"}));
         Tool {
             name: "browser_search".into(),
-            description: "Search the web and return top results as titles, URLs, and snippets.".into(),
+            description: "Search the web and return top results as titles, URLs, and snippets."
+                .into(),
             input_schema: ToolInputSchema::object(props, vec!["query".into()]),
             requires_approval: false,
             ..Default::default()

@@ -29,7 +29,10 @@ impl AgentManager {
         permission_mode: PermissionMode,
         max_workers: usize,
     ) -> Result<Self> {
-        let orchestrator = Arc::new(RwLock::new(OrchestratorAgent::new(provider.clone(), permission_mode)));
+        let orchestrator = Arc::new(RwLock::new(OrchestratorAgent::new(
+            provider.clone(),
+            permission_mode,
+        )));
         let task_queue = Arc::new(TaskQueue::new(1000)); // Max 1000 queued tasks
         let communication_hub = Arc::new(CommunicationHub::new());
 
@@ -48,8 +51,16 @@ impl AgentManager {
     }
 
     /// Execute a task using the orchestrator
-    pub async fn execute_task(&self, description: &str, context: &mut AgentContext) -> Result<AgentResponse> {
-        self.orchestrator.write().await.execute(description, context).await
+    pub async fn execute_task(
+        &self,
+        description: &str,
+        context: &mut AgentContext,
+    ) -> Result<AgentResponse> {
+        self.orchestrator
+            .write()
+            .await
+            .execute(description, context)
+            .await
     }
 
     /// Queue a task for later execution
@@ -66,10 +77,7 @@ impl AgentManager {
     ) -> Result<String> {
         let workers_count = self.workers.read().await.len();
         if workers_count >= self.max_workers {
-            anyhow::bail!(
-                "Maximum number of workers ({}) reached",
-                self.max_workers
-            );
+            anyhow::bail!("Maximum number of workers ({}) reached", self.max_workers);
         }
 
         let worker = Arc::new(WorkerAgent::new(provider, permission_mode));
@@ -199,8 +207,8 @@ impl AgentManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::providers::BrainwiresHttpProvider;
     use crate::config::constants::DEFAULT_BACKEND_URL;
+    use crate::providers::BrainwiresHttpProvider;
 
     async fn create_test_manager() -> AgentManager {
         let provider = Arc::new(BrainwiresHttpProvider::new(
@@ -235,7 +243,12 @@ mod tests {
 
         assert_eq!(worker_id, "worker-1");
         assert_eq!(manager.worker_count().await, 1);
-        assert!(manager.list_workers().await.contains(&"worker-1".to_string()));
+        assert!(
+            manager
+                .list_workers()
+                .await
+                .contains(&"worker-1".to_string())
+        );
     }
 
     #[tokio::test]
@@ -306,9 +319,27 @@ mod tests {
     async fn test_queue_stats() {
         let manager = create_test_manager().await;
 
-        manager.queue_task(Task::new("1".to_string(), "Urgent task".to_string()), TaskPriority::Urgent).await.unwrap();
-        manager.queue_task(Task::new("2".to_string(), "High task".to_string()), TaskPriority::High).await.unwrap();
-        manager.queue_task(Task::new("3".to_string(), "Normal task".to_string()), TaskPriority::Normal).await.unwrap();
+        manager
+            .queue_task(
+                Task::new("1".to_string(), "Urgent task".to_string()),
+                TaskPriority::Urgent,
+            )
+            .await
+            .unwrap();
+        manager
+            .queue_task(
+                Task::new("2".to_string(), "High task".to_string()),
+                TaskPriority::High,
+            )
+            .await
+            .unwrap();
+        manager
+            .queue_task(
+                Task::new("3".to_string(), "Normal task".to_string()),
+                TaskPriority::Normal,
+            )
+            .await
+            .unwrap();
 
         let (total, (urgent, high, normal, low)) = manager.queue_stats().await;
         assert_eq!(total, 3);
@@ -334,8 +365,18 @@ mod tests {
             "claude-3-5-sonnet-20241022".to_string(),
         ));
 
-        manager.spawn_worker("worker-1".to_string(), provider.clone(), PermissionMode::Auto).await.unwrap();
-        manager.spawn_worker("worker-2".to_string(), provider, PermissionMode::Auto).await.unwrap();
+        manager
+            .spawn_worker(
+                "worker-1".to_string(),
+                provider.clone(),
+                PermissionMode::Auto,
+            )
+            .await
+            .unwrap();
+        manager
+            .spawn_worker("worker-2".to_string(), provider, PermissionMode::Auto)
+            .await
+            .unwrap();
 
         let workers = manager.list_workers().await;
         assert_eq!(workers.len(), 2);
@@ -380,6 +421,11 @@ mod tests {
             .await;
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("No workers available"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("No workers available")
+        );
     }
 }

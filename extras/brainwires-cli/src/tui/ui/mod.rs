@@ -16,10 +16,10 @@ const TASK_PANEL_WIDTH: u16 = 30;
 
 mod ansi_parser;
 mod approval_dialog;
-mod sudo_dialog;
 mod console_view;
 mod conversation_fullscreen;
 mod conversation_view;
+mod exit_dialog;
 mod file_explorer;
 mod find_replace;
 mod git_scm;
@@ -31,16 +31,16 @@ mod nano_editor;
 mod question_panel;
 mod session_picker;
 mod shell_viewer;
+mod sub_agent_viewer;
+mod sudo_dialog;
 mod suspend_dialog;
-mod exit_dialog;
 mod task_panel;
 mod task_viewer;
 mod tool_picker;
-mod sub_agent_viewer;
 
 use ratatui::{
-    layout::{Constraint, Direction, Layout},
     Frame,
+    layout::{Constraint, Direction, Layout},
 };
 
 use super::app::{App, AppMode};
@@ -226,8 +226,8 @@ fn draw_normal_layout(f: &mut Frame, app: &mut App) {
     let show_status = terminal_height >= HIDE_STATUS_HEIGHT;
 
     // Show task panel sidebar on wide screens when there are tasks
-    let show_task_panel = terminal_width >= TASK_PANEL_MIN_WIDTH
-        && !app.session_task_panel_cache.is_empty();
+    let show_task_panel =
+        terminal_width >= TASK_PANEL_MIN_WIDTH && !app.session_task_panel_cache.is_empty();
 
     // Update app state so event handlers know if status bar is visible
     app.status_bar_visible = show_status;
@@ -237,8 +237,8 @@ fn draw_normal_layout(f: &mut Frame, app: &mut App) {
         let h_chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
-                Constraint::Min(80),                      // Main content
-                Constraint::Length(TASK_PANEL_WIDTH),     // Task panel
+                Constraint::Min(80),                  // Main content
+                Constraint::Length(TASK_PANEL_WIDTH), // Task panel
             ])
             .split(f.area());
 
@@ -265,8 +265,8 @@ fn draw_normal_layout(f: &mut Frame, app: &mut App) {
             Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([
-                    Constraint::Min(10),    // Conversation (session picker)
-                    Constraint::Length(3),  // Status bar
+                    Constraint::Min(10),   // Conversation (session picker)
+                    Constraint::Length(3), // Status bar
                 ])
                 .split(main_area)
         }
@@ -333,14 +333,19 @@ fn draw_normal_layout(f: &mut Frame, app: &mut App) {
 ///
 /// `task_panel_visible` indicates whether the task panel sidebar is shown,
 /// so we know whether to show task summary in the status bar.
-fn draw_status_bar(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect, task_panel_visible: bool) {
+fn draw_status_bar(
+    f: &mut Frame,
+    app: &mut App,
+    area: ratatui::layout::Rect,
+    task_panel_visible: bool,
+) {
+    use super::app::FocusedPanel;
     use ratatui::{
         layout::{Alignment, Constraint, Direction, Layout, Rect},
         style::{Color, Modifier, Style},
         text::{Line, Span},
         widgets::{Block, Borders, Clear, Paragraph},
     };
-    use super::app::FocusedPanel;
 
     // Store the status bar area for mouse hit testing
     app.status_bar_area = Some(area);
@@ -371,16 +376,21 @@ fn draw_status_bar(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect, ta
 
     // Draw the status text on the left
     let queued_count = app.queued_message_count();
-    let mut status_spans = vec![
-        Span::styled("brainwires-cli", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-    ];
+    let mut status_spans = vec![Span::styled(
+        "brainwires-cli",
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD),
+    )];
 
     // Add [PLAN] indicator when in plan mode
     if app.mode == AppMode::PlanMode {
         status_spans.push(Span::raw(" "));
         status_spans.push(Span::styled(
             "[PLAN]",
-            Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)
+            Style::default()
+                .fg(Color::Magenta)
+                .add_modifier(Modifier::BOLD),
         ));
     }
 
@@ -396,7 +406,9 @@ fn draw_status_bar(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect, ta
         status_spans.push(Span::raw(" | "));
         status_spans.push(Span::styled(
             format!("📬 {} queued", queued_count),
-            Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD),
         ));
     }
 
@@ -405,7 +417,7 @@ fn draw_status_bar(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect, ta
         status_spans.push(Span::raw(" | "));
         status_spans.push(Span::styled(
             &app.session_task_summary,
-            Style::default().fg(Color::Cyan)
+            Style::default().fg(Color::Cyan),
         ));
     }
 
@@ -429,8 +441,7 @@ fn draw_status_bar(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect, ta
         ]),
     ];
 
-    let status_paragraph = Paragraph::new(status_text)
-        .alignment(Alignment::Left);
+    let status_paragraph = Paragraph::new(status_text).alignment(Alignment::Left);
 
     f.render_widget(status_paragraph, chunks[0]);
 
@@ -452,14 +463,11 @@ fn draw_status_bar(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect, ta
             .bg(Color::Red)
             .add_modifier(Modifier::BOLD)
     } else {
-        Style::default()
-            .fg(Color::White)
-            .bg(Color::DarkGray)
+        Style::default().fg(Color::White).bg(Color::DarkGray)
     };
 
     let button_text = Line::from(Span::styled(exit_button_label, button_style));
-    let button_paragraph = Paragraph::new(button_text)
-        .alignment(Alignment::Center);
+    let button_paragraph = Paragraph::new(button_text).alignment(Alignment::Center);
 
     f.render_widget(button_paragraph, button_rect);
 }

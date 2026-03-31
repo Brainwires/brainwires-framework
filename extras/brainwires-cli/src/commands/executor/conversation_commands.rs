@@ -39,7 +39,9 @@ impl CommandExecutor {
         }
 
         // Add custom commands section if any exist
-        let custom_commands: Vec<_> = self.registry.commands()
+        let custom_commands: Vec<_> = self
+            .registry
+            .commands()
             .iter()
             .filter(|(_, cmd)| !cmd.builtin)
             .collect();
@@ -60,7 +62,9 @@ impl CommandExecutor {
             anyhow::bail!("Usage: /model <model_name>");
         }
         let model_name = args[0].clone();
-        Ok(CommandResult::Action(CommandAction::SwitchModel(model_name)))
+        Ok(CommandResult::Action(CommandAction::SwitchModel(
+            model_name,
+        )))
     }
 
     fn cmd_rewind(&self, args: &[String]) -> Result<CommandResult> {
@@ -69,14 +73,17 @@ impl CommandExecutor {
         let steps = if args.is_empty() {
             1
         } else {
-            args[0].parse::<usize>()
+            args[0]
+                .parse::<usize>()
                 .context("Invalid rewind steps, must be a number")?
         };
         Ok(CommandResult::Action(CommandAction::Rewind(steps)))
     }
 
     fn cmd_resume(&self, args: &[String]) -> Result<CommandResult> {
-        let conversation_id = args.first().map(|s| s.clone());
-        Ok(CommandResult::Action(CommandAction::ResumeHistory(conversation_id)))
+        let conversation_id = args.first().cloned();
+        Ok(CommandResult::Action(CommandAction::ResumeHistory(
+            conversation_id,
+        )))
     }
 }

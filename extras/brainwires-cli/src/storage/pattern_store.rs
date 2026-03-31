@@ -69,7 +69,8 @@ impl PatternStore {
             self.update_pattern(pattern, now).await
         } else {
             // Insert new pattern
-            self.insert_pattern(pattern, template, &embedding, now).await
+            self.insert_pattern(pattern, template, &embedding, now)
+                .await
         }
     }
 
@@ -116,7 +117,8 @@ impl PatternStore {
         );
 
         let pattern_id = StringArray::from(vec![pattern.id.as_str()]);
-        let question_type = StringArray::from(vec![format!("{:?}", pattern.question_type).as_str()]);
+        let question_type =
+            StringArray::from(vec![format!("{:?}", pattern.question_type).as_str()]);
         let template_arr = StringArray::from(vec![template]);
         let entity_types = StringArray::from(vec![serde_json::to_string(&pattern.required_types)?]);
         let success_count = Int32Array::from(vec![pattern.success_count as i32]);
@@ -273,7 +275,10 @@ impl PatternStore {
     }
 
     /// Get high-reliability patterns (for learning context)
-    pub async fn get_reliable_patterns(&self, min_reliability: f32) -> Result<Vec<PatternMetadata>> {
+    pub async fn get_reliable_patterns(
+        &self,
+        min_reliability: f32,
+    ) -> Result<Vec<PatternMetadata>> {
         let table = self.client.seal_patterns_table().await?;
 
         let stream = table
@@ -305,7 +310,11 @@ impl PatternStore {
     }
 
     /// Delete patterns with low reliability (cleanup)
-    pub async fn prune_low_reliability(&self, min_reliability: f32, min_uses: u32) -> Result<usize> {
+    pub async fn prune_low_reliability(
+        &self,
+        min_reliability: f32,
+        min_uses: u32,
+    ) -> Result<usize> {
         let table = self.client.seal_patterns_table().await?;
 
         // Get all patterns
@@ -385,8 +394,7 @@ impl PatternStore {
             .context("Invalid entity_types type")?
             .value(row);
 
-        let entity_types: Vec<String> =
-            serde_json::from_str(entity_types_json).unwrap_or_default();
+        let entity_types: Vec<String> = serde_json::from_str(entity_types_json).unwrap_or_default();
 
         let success_count = batch
             .column_by_name("success_count")
@@ -445,8 +453,9 @@ impl PatternStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use brainwires::seal::QuestionType;
+    use crate::storage::VectorDatabase;
     use crate::utils::entity_extraction::EntityType;
+    use brainwires::seal::QuestionType;
     use tempfile::TempDir;
 
     async fn create_test_store() -> (PatternStore, TempDir) {
@@ -483,7 +492,10 @@ mod tests {
         let pattern = create_test_pattern();
 
         // Save pattern
-        store.save_pattern(&pattern, "What uses {entity}?").await.unwrap();
+        store
+            .save_pattern(&pattern, "What uses {entity}?")
+            .await
+            .unwrap();
 
         // Retrieve pattern
         let retrieved = store.get_pattern(&pattern.id).await.unwrap();
@@ -521,7 +533,10 @@ mod tests {
 
         // Add a pattern
         let pattern = create_test_pattern();
-        store.save_pattern(&pattern, "What uses {entity}?").await.unwrap();
+        store
+            .save_pattern(&pattern, "What uses {entity}?")
+            .await
+            .unwrap();
 
         // Should have one pattern
         assert_eq!(store.count().await.unwrap(), 1);

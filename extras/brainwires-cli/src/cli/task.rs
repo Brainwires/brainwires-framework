@@ -6,8 +6,8 @@ use crate::agents::AgentManager;
 use crate::auth::SessionManager;
 use crate::config::{ConfigManager, ModelRegistry};
 use crate::providers::ProviderFactory;
-use crate::types::agent::{AgentContext, PermissionMode};
 use crate::tools::ToolRegistry;
+use crate::types::agent::{AgentContext, PermissionMode};
 use crate::utils::logger::Logger;
 use crate::utils::rich_output::RichOutput;
 
@@ -26,10 +26,7 @@ pub async fn handle_task(
         None => ModelRegistry::default_model().await,
     };
 
-    Logger::info(&format!(
-        "Executing task with {} (brainwires)",
-        model_id
-    ));
+    Logger::info(format!("Executing task with {} (brainwires)", model_id));
 
     // Create provider using factory (requires active session)
     let factory = ProviderFactory;
@@ -47,14 +44,10 @@ pub async fn handle_task(
     .await?;
 
     // Initialize agent context
-    let user_id = session
-        .as_ref()
-        .map(|s| s.user.user_id.clone());
+    let user_id = session.as_ref().map(|s| s.user.user_id.clone());
 
     let mut context = AgentContext {
-        working_directory: std::env::current_dir()?
-            .to_string_lossy()
-            .to_string(),
+        working_directory: std::env::current_dir()?.to_string_lossy().to_string(),
         user_id,
         conversation_history: Vec::new(),
         tools: ToolRegistry::with_builtins().get_all().to_vec(),
@@ -79,9 +72,7 @@ pub async fn handle_task(
     spinner.enable_steady_tick(std::time::Duration::from_millis(100));
 
     // Execute task
-    let response = agent_manager
-        .execute_task(&prompt, &mut context)
-        .await;
+    let response = agent_manager.execute_task(&prompt, &mut context).await;
 
     spinner.finish_and_clear();
 
@@ -119,12 +110,8 @@ pub async fn handle_task(
             Logger::info("Task completed successfully");
         }
         Err(e) => {
-            Logger::error(&format!("Task error: {}", e));
-            println!(
-                "\n{}: {}",
-                console::style("Error").red().bold(),
-                e
-            );
+            Logger::error(format!("Task error: {}", e));
+            println!("\n{}: {}", console::style("Error").red().bold(), e);
         }
     }
 

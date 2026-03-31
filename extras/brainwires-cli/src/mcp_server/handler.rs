@@ -13,12 +13,14 @@ use std::io::{BufRead, BufReader, Write};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::agents::{CommunicationHub, FileLockManager, TaskAgent, TaskAgentConfig, TaskAgentResult};
+use crate::agents::{
+    CommunicationHub, FileLockManager, TaskAgent, TaskAgentConfig, TaskAgentResult,
+};
 use crate::config::ConfigManager;
 use crate::mcp::{
     CallToolParams, CallToolResult, Content, InitializeParams, InitializeResult, JsonRpcError,
-    JsonRpcRequest, JsonRpcResponse, ListToolsResult, McpTool, ToolsCapability,
-    ServerCapabilities, ServerInfo,
+    JsonRpcRequest, JsonRpcResponse, ListToolsResult, McpTool, ServerCapabilities, ServerInfo,
+    ToolsCapability,
 };
 use crate::providers::{Provider, ProviderFactory};
 use crate::tools::{ToolCategory, ToolRegistry};
@@ -135,7 +137,7 @@ impl McpServerHandler {
                     self.send_response(response).await?;
                 }
                 Err(e) => {
-                    Logger::error(&format!("Request handling error: {}", e));
+                    Logger::error(format!("Request handling error: {}", e));
                 }
             }
         }
@@ -165,10 +167,9 @@ impl McpServerHandler {
 
     /// Handle initialize request
     async fn handle_initialize(&self, request: JsonRpcRequest) -> Result<JsonRpcResponse> {
-        let _params: InitializeParams = serde_json::from_value(
-            request.params.unwrap_or(serde_json::json!({})),
-        )
-        .context("Invalid initialize params")?;
+        let _params: InitializeParams =
+            serde_json::from_value(request.params.unwrap_or(serde_json::json!({})))
+                .context("Invalid initialize params")?;
 
         let mut capabilities = ServerCapabilities::default();
         capabilities.tools = Some(ToolsCapability {
@@ -290,8 +291,15 @@ impl McpServerHandler {
         // Task management, session, planning, and context tools
         const ALLOWED_TOOLS: &[&str] = &[
             // Task management
-            "task_create", "task_add_subtask", "task_start", "task_complete",
-            "task_fail", "task_add_dependency", "task_get_tree", "task_get_ready", "task_get_stats",
+            "task_create",
+            "task_add_subtask",
+            "task_start",
+            "task_complete",
+            "task_fail",
+            "task_add_dependency",
+            "task_get_tree",
+            "task_get_ready",
+            "task_get_stats",
             // Session task
             "task_list_write",
             // Planning
@@ -305,10 +313,9 @@ impl McpServerHandler {
 
     /// Handle tools/call request
     async fn handle_call_tool(&self, request: JsonRpcRequest) -> Result<JsonRpcResponse> {
-        let params: CallToolParams = serde_json::from_value(
-            request.params.clone().unwrap_or(serde_json::json!({})),
-        )
-        .context("Invalid call tool params")?;
+        let params: CallToolParams =
+            serde_json::from_value(request.params.clone().unwrap_or(serde_json::json!({})))
+                .context("Invalid call tool params")?;
 
         // Check if this is an agent management tool
         if params.name.starts_with("agent_") {
@@ -350,11 +357,12 @@ impl McpServerHandler {
         };
 
         let tool_context = ToolContext {
-            working_directory: std::env::current_dir()?
-                .to_string_lossy()
-                .to_string(),
+            working_directory: std::env::current_dir()?.to_string_lossy().to_string(),
             // Use full_access for MCP server mode - tools should have write access
-            capabilities: serde_json::to_value(&brainwires::permissions::AgentCapabilities::full_access()).ok(),
+            capabilities: serde_json::to_value(
+                brainwires::permissions::AgentCapabilities::full_access(),
+            )
+            .ok(),
             ..Default::default()
         };
 
@@ -410,7 +418,8 @@ impl McpServerHandler {
                 })
             }
             Err(e) => {
-                let tool_result = CallToolResult::error(vec![Content::text(format!("Error: {}", e))]);
+                let tool_result =
+                    CallToolResult::error(vec![Content::text(format!("Error: {}", e))]);
 
                 Ok(JsonRpcResponse {
                     jsonrpc: "2.0".to_string(),
@@ -484,8 +493,10 @@ impl McpServerHandler {
             .map(|s| s.to_string());
 
         let validation_config = if enable_validation {
-            let mut config = crate::agents::ValidationConfig::default();
-            config.working_directory = wd_for_response.clone();
+            let mut config = crate::agents::ValidationConfig {
+                working_directory: wd_for_response.clone(),
+                ..Default::default()
+            };
 
             // Add build validation if build_type specified
             if let Some(bt) = build_type {
@@ -498,7 +509,11 @@ impl McpServerHandler {
         };
 
         // Parse MDAP configuration
-        let mdap_config = if args.get("enable_mdap").and_then(|v| v.as_bool()).unwrap_or(false) {
+        let mdap_config = if args
+            .get("enable_mdap")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+        {
             use crate::mdap::MdapConfig;
 
             let preset = args.get("mdap_preset").and_then(|v| v.as_str());
@@ -518,7 +533,11 @@ impl McpServerHandler {
                 config.target_success_rate = target;
             }
 
-            tracing::info!("MDAP enabled with k={}, target_success={}", config.k, config.target_success_rate);
+            tracing::info!(
+                "MDAP enabled with k={}, target_success={}",
+                config.k,
+                config.target_success_rate
+            );
             Some(config)
         } else {
             None
@@ -532,7 +551,8 @@ impl McpServerHandler {
             max_tokens: 4096,
             validation_config,
             mdap_config,
-            analytics_collector: crate::utils::logger::analytics_collector().map(std::sync::Arc::new),
+            analytics_collector: crate::utils::logger::analytics_collector()
+                .map(std::sync::Arc::new),
         };
 
         let agent = Arc::new(TaskAgent::new(
@@ -569,10 +589,10 @@ impl McpServerHandler {
         });
 
         // Store agent entry with handle
-        self.agents.write().await.insert(
-            agent_id.clone(),
-            AgentEntry { agent, handle },
-        );
+        self.agents
+            .write()
+            .await
+            .insert(agent_id.clone(), AgentEntry { agent, handle });
 
         Ok(format!(
             "Spawned task agent '{}' for task '{}'\nWorking directory: {}",
@@ -649,9 +669,7 @@ impl McpServerHandler {
             .and_then(|v| v.as_str())
             .context("Missing 'agent_id' parameter")?;
 
-        let timeout_secs = args
-            .get("timeout_secs")
-            .and_then(|v| v.as_u64());
+        let timeout_secs = args.get("timeout_secs").and_then(|v| v.as_u64());
 
         // Remove the agent entry to get ownership of the handle
         let entry = {
@@ -663,12 +681,7 @@ impl McpServerHandler {
 
         // Wait for the agent to complete, with optional timeout
         let result = if let Some(secs) = timeout_secs {
-            match tokio::time::timeout(
-                std::time::Duration::from_secs(secs),
-                entry.handle,
-            )
-            .await
-            {
+            match tokio::time::timeout(std::time::Duration::from_secs(secs), entry.handle).await {
                 Ok(join_result) => join_result,
                 Err(_) => {
                     return Err(anyhow::anyhow!(
@@ -684,31 +697,24 @@ impl McpServerHandler {
 
         // Handle join result
         match result {
-            Ok(Ok(agent_result)) => {
-                Ok(format!(
-                    "Agent '{}' completed\n\
+            Ok(Ok(agent_result)) => Ok(format!(
+                "Agent '{}' completed\n\
                      Success: {}\n\
                      Iterations: {}\n\
                      Summary: {}",
-                    agent_result.agent_id,
-                    agent_result.success,
-                    agent_result.iterations,
-                    agent_result.summary
-                ))
-            }
-            Ok(Err(e)) => {
-                Err(anyhow::anyhow!(
-                    "Agent '{}' execution failed: {}",
-                    agent_id,
-                    e
-                ))
-            }
+                agent_result.agent_id,
+                agent_result.success,
+                agent_result.iterations,
+                agent_result.summary
+            )),
+            Ok(Err(e)) => Err(anyhow::anyhow!(
+                "Agent '{}' execution failed: {}",
+                agent_id,
+                e
+            )),
             Err(join_error) => {
                 if join_error.is_cancelled() {
-                    Err(anyhow::anyhow!(
-                        "Agent '{}' was cancelled",
-                        agent_id
-                    ))
+                    Err(anyhow::anyhow!("Agent '{}' was cancelled", agent_id))
                 } else {
                     Err(anyhow::anyhow!(
                         "Agent '{}' panicked: {}",
@@ -746,7 +752,12 @@ impl McpServerHandler {
 
         let mut output = String::from("Current file locks:\n");
         for (path, lock_info) in locks {
-            output.push_str(&format!("  {} - held by {} ({:?})\n", path.display(), lock_info.agent_id, lock_info.lock_type));
+            output.push_str(&format!(
+                "  {} - held by {} ({:?})\n",
+                path.display(),
+                lock_info.agent_id,
+                lock_info.lock_type
+            ));
         }
 
         Ok(output)
@@ -907,12 +918,15 @@ impl AgentManager for McpServerHandler {
 
         // Wait for completion with optional timeout
         let join_result = if let Some(secs) = timeout_secs {
-            tokio::time::timeout(
-                std::time::Duration::from_secs(secs),
-                entry.handle,
-            )
-            .await
-            .map_err(|_| anyhow::anyhow!("Timeout waiting for agent '{}' after {} seconds", agent_id, secs))?
+            tokio::time::timeout(std::time::Duration::from_secs(secs), entry.handle)
+                .await
+                .map_err(|_| {
+                    anyhow::anyhow!(
+                        "Timeout waiting for agent '{}' after {} seconds",
+                        agent_id,
+                        secs
+                    )
+                })?
         } else {
             entry.handle.await
         };
@@ -924,13 +938,19 @@ impl AgentManager for McpServerHandler {
                 summary: r.summary.clone(),
                 iterations: r.iterations,
             }),
-            Ok(Err(e)) => Err(anyhow::anyhow!("Agent '{}' execution failed: {}", agent_id, e)),
+            Ok(Err(e)) => Err(anyhow::anyhow!(
+                "Agent '{}' execution failed: {}",
+                agent_id,
+                e
+            )),
             Err(join_error) if join_error.is_cancelled() => {
                 Err(anyhow::anyhow!("Agent '{}' was cancelled", agent_id))
             }
-            Err(join_error) => {
-                Err(anyhow::anyhow!("Agent '{}' panicked: {}", agent_id, join_error))
-            }
+            Err(join_error) => Err(anyhow::anyhow!(
+                "Agent '{}' panicked: {}",
+                agent_id,
+                join_error
+            )),
         }
     }
 
@@ -952,11 +972,13 @@ impl AgentManager for McpServerHandler {
         let locks = self.file_lock_manager.list_locks().await;
         let entries: Vec<Value> = locks
             .into_iter()
-            .map(|(path, info)| serde_json::json!({
-                "path": path.display().to_string(),
-                "agent_id": info.agent_id,
-                "lock_type": format!("{:?}", info.lock_type),
-            }))
+            .map(|(path, info)| {
+                serde_json::json!({
+                    "path": path.display().to_string(),
+                    "agent_id": info.agent_id,
+                    "lock_type": format!("{:?}", info.lock_type),
+                })
+            })
             .collect();
         Ok(Value::Array(entries))
     }
@@ -1100,18 +1122,13 @@ mod tests {
     /// Test InitializeResult structure
     #[test]
     fn test_initialize_result_structure() {
+        let mut capabilities = ServerCapabilities::default();
+        capabilities.tools = Some(ToolsCapability {
+            list_changed: Some(false),
+        });
         let result = InitializeResult {
             protocol_version: "2024-11-05".to_string(),
-            capabilities: ServerCapabilities {
-                tools: Some(ToolsCapability {
-                    list_changed: Some(false),
-                }),
-                resources: None,
-                prompts: None,
-                logging: None,
-                experimental: None,
-                completions: None,
-            },
+            capabilities,
             server_info: ServerInfo {
                 name: "brainwires-cli".to_string(),
                 version: "0.6.0".to_string(),
@@ -1139,7 +1156,10 @@ mod tests {
         assert_eq!(params.name.as_ref(), "agent_spawn");
         assert!(params.arguments.is_some());
         let args = params.arguments.unwrap();
-        assert_eq!(args.get("description").unwrap().as_str().unwrap(), "Create a test file");
+        assert_eq!(
+            args.get("description").unwrap().as_str().unwrap(),
+            "Create a test file"
+        );
     }
 
     #[test]
@@ -1157,17 +1177,11 @@ mod tests {
     #[test]
     fn test_list_tools_result_structure() {
         let result = ListToolsResult {
-            tools: vec![
-                McpTool {
-                    name: std::borrow::Cow::Borrowed("agent_spawn"),
-                    title: None,
-                    description: Some(std::borrow::Cow::Borrowed("Spawn a task agent")),
-                    input_schema: std::sync::Arc::new(serde_json::Map::new()),
-                    annotations: None,
-                    icons: None,
-                    output_schema: None,
-                },
-            ],
+            tools: vec![McpTool::new(
+                "agent_spawn",
+                "Spawn a task agent",
+                std::sync::Arc::new(serde_json::Map::new()),
+            )],
         };
 
         let serialized = serde_json::to_value(&result).unwrap();
@@ -1178,12 +1192,8 @@ mod tests {
     /// Test CallToolResult structure
     #[test]
     fn test_call_tool_result_success() {
-        let result = CallToolResult {
-            content: vec![Content::text("Operation completed successfully")],
-            is_error: Some(false),
-            meta: None,
-            structured_content: None,
-        };
+        let result =
+            CallToolResult::success(vec![Content::text("Operation completed successfully")]);
 
         let serialized = serde_json::to_value(&result).unwrap();
         assert!(serialized["content"].is_array());
@@ -1192,12 +1202,7 @@ mod tests {
 
     #[test]
     fn test_call_tool_result_error() {
-        let result = CallToolResult {
-            content: vec![Content::text("Error: Invalid parameter")],
-            is_error: Some(true),
-            meta: None,
-            structured_content: None,
-        };
+        let result = CallToolResult::error(vec![Content::text("Error: Invalid parameter")]);
 
         let serialized = serde_json::to_value(&result).unwrap();
         assert_eq!(serialized["isError"], true);
@@ -1320,8 +1325,15 @@ mod tests {
             }
 
             const ALLOWED_TOOLS: &[&str] = &[
-                "task_create", "task_add_subtask", "task_start", "task_complete",
-                "task_fail", "task_add_dependency", "task_get_tree", "task_get_ready", "task_get_stats",
+                "task_create",
+                "task_add_subtask",
+                "task_start",
+                "task_complete",
+                "task_fail",
+                "task_add_dependency",
+                "task_get_tree",
+                "task_get_ready",
+                "task_get_stats",
                 "task_list_write",
                 "plan_task",
                 "recall_context",
@@ -1336,8 +1348,8 @@ mod tests {
     #[tokio::test]
     #[ignore = "Requires active Brainwires session/authentication"]
     async fn test_handler_creation() {
-        let handler = McpServerHandler::new(Some("claude-3-5-sonnet-20241022".to_string()), None, None)
-            .await;
+        let handler =
+            McpServerHandler::new(Some("claude-3-5-sonnet-20241022".to_string()), None, None).await;
         assert!(handler.is_ok(), "Should create handler successfully");
     }
 
@@ -1416,11 +1428,26 @@ mod tests {
         assert!(tool_names.contains(&"recall_context".to_string()));
 
         // Low-level tools should NOT be exposed via MCP
-        assert!(!tool_names.contains(&"read_file".to_string()), "read_file should not be exposed via MCP");
-        assert!(!tool_names.contains(&"write_file".to_string()), "write_file should not be exposed via MCP");
-        assert!(!tool_names.contains(&"execute_command".to_string()), "execute_command should not be exposed via MCP");
-        assert!(!tool_names.contains(&"search_code".to_string()), "search_code should not be exposed via MCP");
-        assert!(!tool_names.contains(&"git_status".to_string()), "git_status should not be exposed via MCP");
+        assert!(
+            !tool_names.contains(&"read_file".to_string()),
+            "read_file should not be exposed via MCP"
+        );
+        assert!(
+            !tool_names.contains(&"write_file".to_string()),
+            "write_file should not be exposed via MCP"
+        );
+        assert!(
+            !tool_names.contains(&"execute_command".to_string()),
+            "execute_command should not be exposed via MCP"
+        );
+        assert!(
+            !tool_names.contains(&"search_code".to_string()),
+            "search_code should not be exposed via MCP"
+        );
+        assert!(
+            !tool_names.contains(&"git_status".to_string()),
+            "git_status should not be exposed via MCP"
+        );
     }
 
     #[tokio::test]
@@ -1459,10 +1486,12 @@ mod tests {
         let args = json!({});
         let result = handler.spawn_agent_impl(args).await;
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Missing 'description' parameter"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Missing 'description' parameter")
+        );
     }
 
     #[tokio::test]

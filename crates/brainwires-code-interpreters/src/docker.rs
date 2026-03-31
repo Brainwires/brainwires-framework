@@ -113,10 +113,7 @@ impl DockerExecutor {
         let start = Instant::now();
 
         let result = tokio::time::timeout(self.config.timeout, async {
-            Command::new("docker")
-                .args(&args)
-                .output()
-                .await
+            Command::new("docker").args(&args).output().await
         })
         .await;
 
@@ -387,10 +384,7 @@ mod tests {
 
         // Must contain memory limit
         let mem_idx = args.iter().position(|a| a == "--memory").unwrap();
-        assert_eq!(
-            args[mem_idx + 1],
-            (256u64 * 1024 * 1024).to_string()
-        );
+        assert_eq!(args[mem_idx + 1], (256u64 * 1024 * 1024).to_string());
 
         // Must contain cpu limit
         let cpu_idx = args.iter().position(|a| a == "--cpus").unwrap();

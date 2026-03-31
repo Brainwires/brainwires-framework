@@ -60,12 +60,13 @@ pub fn default_logger() -> LogCallback {
 ///
 /// The `logger` callback is used to output tool execution status messages.
 /// Use `default_logger()` for CLI mode, or provide a custom callback for TUI mode.
+#[allow(clippy::too_many_arguments)]
 pub fn send_continuation_request<'a>(
     _provider: &'a Arc<dyn Provider>,
     context: &'a AgentContext,
     model: &'a str,
     chat_id: Option<String>,
-    _previous_response_id: &'a str,  // UNUSED - kept for API compatibility, may be removed
+    _previous_response_id: &'a str, // UNUSED - kept for API compatibility, may be removed
     call_id: &'a str,
     tool_name: &'a str,
     tool_parameters: &'a serde_json::Value,
@@ -75,8 +76,7 @@ pub fn send_continuation_request<'a>(
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<String>> + Send + 'a>> {
     Box::pin(async move {
         // Get session for backend URL
-        let session = SessionManager::load()?
-            .context("No active session found")?;
+        let session = SessionManager::load()?.context("No active session found")?;
 
         // Get API key from secure storage (keyring or fallback)
         let api_key = SessionManager::get_api_key()?
@@ -87,7 +87,10 @@ pub fn send_continuation_request<'a>(
 
         // Build conversation history using shared helper that properly serializes
         // tool calls and tool results (not just text content)
-        let mut conversation_history = crate::types::message::serialize_messages_to_stateless_history(&context.conversation_history);
+        let mut conversation_history =
+            crate::types::message::serialize_messages_to_stateless_history(
+                &context.conversation_history,
+            );
 
         // Add accumulated tool call history (for chained calls)
         conversation_history.extend_from_slice(accumulated_history);
@@ -128,7 +131,9 @@ pub fn send_continuation_request<'a>(
             .collect();
 
         // Extract system prompt from conversation history
-        let system_prompt = context.conversation_history.iter()
+        let system_prompt = context
+            .conversation_history
+            .iter()
             .find(|m| m.role == Role::System)
             .and_then(|m| m.text().map(|s| s.to_string()));
 
@@ -179,7 +184,11 @@ pub fn send_continuation_request<'a>(
         // Parse SSE stream from continuation
         debug_log!("🔄 DEBUG: Parsing continuation SSE stream...");
         let (full_text, pending_tool_calls) = parse_sse_stream(response, logger.clone()).await?;
-        debug_log!("🔄 DEBUG: Continuation returned {} chars, {} pending tool calls", full_text.len(), pending_tool_calls.len());
+        debug_log!(
+            "🔄 DEBUG: Continuation returned {} chars, {} pending tool calls",
+            full_text.len(),
+            pending_tool_calls.len()
+        );
 
         // Execute any pending tool calls
         let final_text = execute_chained_tools(
@@ -195,7 +204,8 @@ pub fn send_continuation_request<'a>(
             &full_text,
             pending_tool_calls,
             logger,
-        ).await?;
+        )
+        .await?;
 
         Ok(final_text)
     })
@@ -205,12 +215,29 @@ pub fn send_continuation_request<'a>(
 async fn parse_sse_stream(
     response: reqwest::Response,
     logger: LogCallback,
-) -> Result<(String, Vec<(String, String, Option<String>, String, String, serde_json::Value)>)> {
+) -> Result<(
+    String,
+    Vec<(
+        String,
+        String,
+        Option<String>,
+        String,
+        String,
+        serde_json::Value,
+    )>,
+)> {
     let mut full_text = String::new();
     let mut stream = response.bytes_stream();
     let mut buffer = String::new();
     let mut stream_done = false;
-    let mut pending_tool_calls: Vec<(String, String, Option<String>, String, String, serde_json::Value)> = Vec::new();
+    let mut pending_tool_calls: Vec<(
+        String,
+        String,
+        Option<String>,
+        String,
+        String,
+        serde_json::Value,
+    )> = Vec::new();
 
     loop {
         if stream_done {
@@ -249,35 +276,41 @@ async fn parse_sse_stream(
             if let (Some(evt_type), Some(data)) = (event_type, event_data) {
                 match evt_type.as_str() {
                     "delta" => {
-                        if let Ok(delta_data) = serde_json::from_str::<serde_json::Value>(&data) {
-                            if let Some(text) = delta_data.get("delta").and_then(|t| t.as_str()) {
-                                full_text.push_str(text);
-                            }
+                        if let Ok(delta_data) = serde_json::from_str::<serde_json::Value>(&data)
+                            && let Some(text) = delta_data.get("delta").and_then(|t| t.as_str())
+                        {
+                            full_text.push_str(text);
                         }
                     }
                     "toolCall" => {
                         debug_log!("🔄 DEBUG: Continuation received toolCall event!");
                         if let Ok(tool_data) = serde_json::from_str::<serde_json::Value>(&data) {
-                            let next_call_id = tool_data.get("callId")
+                            let next_call_id = tool_data
+                                .get("callId")
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("")
                                 .to_string();
-                            let next_response_id = tool_data.get("responseId")
+                            let next_response_id = tool_data
+                                .get("responseId")
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("")
                                 .to_string();
-                            let next_chat_id = tool_data.get("chatId")
+                            let next_chat_id = tool_data
+                                .get("chatId")
                                 .and_then(|v| v.as_str())
                                 .map(|s| s.to_string());
-                            let next_tool_name = tool_data.get("toolName")
+                            let next_tool_name = tool_data
+                                .get("toolName")
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("")
                                 .to_string();
-                            let next_server = tool_data.get("server")
+                            let next_server = tool_data
+                                .get("server")
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("")
                                 .to_string();
-                            let next_parameters = tool_data.get("parameters")
+                            let next_parameters = tool_data
+                                .get("parameters")
                                 .cloned()
                                 .unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
 
@@ -297,7 +330,11 @@ async fn parse_sse_stream(
                         }
                     }
                     "complete" => {
-                        debug_log!("🔄 DEBUG: Continuation stream complete - {} chars text, {} pending tools", full_text.len(), pending_tool_calls.len());
+                        debug_log!(
+                            "🔄 DEBUG: Continuation stream complete - {} chars text, {} pending tools",
+                            full_text.len(),
+                            pending_tool_calls.len()
+                        );
                         logger("✅ Stream completed successfully");
                         stream_done = true;
                         break;
@@ -328,6 +365,7 @@ async fn parse_sse_stream(
 }
 
 /// Execute chained tool calls
+#[allow(clippy::too_many_arguments)]
 async fn execute_chained_tools<'a>(
     _provider: &'a Arc<dyn Provider>,
     context: &'a AgentContext,
@@ -339,7 +377,14 @@ async fn execute_chained_tools<'a>(
     tool_output: &'a str,
     accumulated_history: &'a [serde_json::Value],
     full_text: &str,
-    pending_tool_calls: Vec<(String, String, Option<String>, String, String, serde_json::Value)>,
+    pending_tool_calls: Vec<(
+        String,
+        String,
+        Option<String>,
+        String,
+        String,
+        serde_json::Value,
+    )>,
     logger: LogCallback,
 ) -> Result<String> {
     let mut result_text = full_text.to_string();
@@ -349,8 +394,14 @@ async fn execute_chained_tools<'a>(
         return Ok(result_text);
     }
 
-    debug_log!("🔄 DEBUG: Executing {} chained tool(s)", pending_tool_calls.len());
-    logger(&format!("⚙️  Executing {} chained tool(s)...", pending_tool_calls.len()));
+    debug_log!(
+        "🔄 DEBUG: Executing {} chained tool(s)",
+        pending_tool_calls.len()
+    );
+    logger(&format!(
+        "⚙️  Executing {} chained tool(s)...",
+        pending_tool_calls.len()
+    ));
 
     // Build accumulated history for chained calls
     // STATELESS MODE: Use function_call and tool roles (not assistant with tool_calls)
@@ -380,9 +431,20 @@ async fn execute_chained_tools<'a>(
         "content": tool_output
     }));
 
-    for (next_call_id, next_response_id, next_chat_id, next_tool_name, next_server, next_parameters) in pending_tool_calls {
+    for (
+        next_call_id,
+        next_response_id,
+        next_chat_id,
+        next_tool_name,
+        next_server,
+        next_parameters,
+    ) in pending_tool_calls
+    {
         if next_server != "cli-local" {
-            logger(&format!("⚠️  Skipping tool from non-local server: {}", next_server));
+            logger(&format!(
+                "⚠️  Skipping tool from non-local server: {}",
+                next_server
+            ));
             continue;
         }
 
@@ -396,7 +458,7 @@ async fn execute_chained_tools<'a>(
             input: next_parameters.clone(),
         };
 
-        let tool_context = ToolContext::from_agent_context(&context);
+        let tool_context = ToolContext::from_agent_context(context);
 
         let result = tool_executor.execute(&tool_use, &tool_context).await?;
 
@@ -413,7 +475,10 @@ async fn execute_chained_tools<'a>(
             result.content.clone()
         };
 
-        logger(&format!("✅ Chained tool {} executed successfully", next_tool_name));
+        logger(&format!(
+            "✅ Chained tool {} executed successfully",
+            next_tool_name
+        ));
 
         // Recursively call continuation with accumulated history
         let nested_text = send_continuation_request(
@@ -428,7 +493,8 @@ async fn execute_chained_tools<'a>(
             &truncated_output,
             &accumulated_history,
             logger.clone(),
-        ).await?;
+        )
+        .await?;
 
         result_text.push_str(&nested_text);
     }

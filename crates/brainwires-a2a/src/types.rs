@@ -111,9 +111,18 @@ mod tests {
 
     #[test]
     fn role_serializes_to_expected_strings() {
-        assert_eq!(serde_json::to_string(&Role::User).unwrap(), r#""ROLE_USER""#);
-        assert_eq!(serde_json::to_string(&Role::Agent).unwrap(), r#""ROLE_AGENT""#);
-        assert_eq!(serde_json::to_string(&Role::Unspecified).unwrap(), r#""ROLE_UNSPECIFIED""#);
+        assert_eq!(
+            serde_json::to_string(&Role::User).unwrap(),
+            r#""ROLE_USER""#
+        );
+        assert_eq!(
+            serde_json::to_string(&Role::Agent).unwrap(),
+            r#""ROLE_AGENT""#
+        );
+        assert_eq!(
+            serde_json::to_string(&Role::Unspecified).unwrap(),
+            r#""ROLE_UNSPECIFIED""#
+        );
     }
 
     #[test]

@@ -64,7 +64,9 @@ impl Default for VaConfig {
             max_record_secs: 30.0,
             microphone: None,
             speaker: None,
-            system_prompt: "You are a helpful voice assistant. Keep responses concise and conversational.".into(),
+            system_prompt:
+                "You are a helpful voice assistant. Keep responses concise and conversational."
+                    .into(),
             llm_model: "gpt-4o-mini".into(),
             tts_enabled: true,
         }
@@ -84,9 +86,11 @@ impl VaConfig {
         self.openai_api_key
             .clone()
             .or_else(|| std::env::var("OPENAI_API_KEY").ok())
-            .ok_or_else(|| anyhow::anyhow!(
-                "No OpenAI API key found. Set `openai_api_key` in config or \
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "No OpenAI API key found. Set `openai_api_key` in config or \
                  the `OPENAI_API_KEY` environment variable."
-            ))
+                )
+            })
     }
 }

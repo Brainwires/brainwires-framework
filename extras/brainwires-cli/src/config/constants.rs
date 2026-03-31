@@ -82,9 +82,21 @@ mod tests {
     #[test]
     fn test_api_key_pattern_valid() {
         // Valid API keys
-        assert!(regex::Regex::new(API_KEY_PATTERN).unwrap().is_match("bw_prod_12345678901234567890123456789012"));
-        assert!(regex::Regex::new(API_KEY_PATTERN).unwrap().is_match("bw_dev_abcdefghijklmnopqrstuvwxyz123456"));
-        assert!(regex::Regex::new(API_KEY_PATTERN).unwrap().is_match("bw_test_00000000000000000000000000000000"));
+        assert!(
+            regex::Regex::new(API_KEY_PATTERN)
+                .unwrap()
+                .is_match("bw_prod_12345678901234567890123456789012")
+        );
+        assert!(
+            regex::Regex::new(API_KEY_PATTERN)
+                .unwrap()
+                .is_match("bw_dev_abcdefghijklmnopqrstuvwxyz123456")
+        );
+        assert!(
+            regex::Regex::new(API_KEY_PATTERN)
+                .unwrap()
+                .is_match("bw_test_00000000000000000000000000000000")
+        );
     }
 
     #[test]

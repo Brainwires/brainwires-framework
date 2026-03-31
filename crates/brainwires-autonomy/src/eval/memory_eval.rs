@@ -17,7 +17,9 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use brainwires_agents::eval::{EvaluationCase, TrialResult, ndcg_at_k};
-use brainwires_storage::tiered_memory::{MemoryAuthority, MemoryTier, MultiFactorScore, TierMetadata};
+use brainwires_storage::tiered_memory::{
+    MemoryAuthority, MemoryTier, MultiFactorScore, TierMetadata,
+};
 use chrono::Utc;
 
 // ── Scenario helpers ──────────────────────────────────────────────────────────
@@ -96,8 +98,8 @@ impl EvaluationCase for MultiFactorRankingCase {
             Scenario {
                 name: "B_recency_decay",
                 entries: vec![
-                    (0.70, 1.0,   0.60, false), // B1 ≈ 0.767
-                    (0.70, 24.0,  0.60, false), // B2 ≈ 0.706
+                    (0.70, 1.0, 0.60, false),   // B1 ≈ 0.767
+                    (0.70, 24.0, 0.60, false),  // B2 ≈ 0.706
                     (0.70, 168.0, 0.60, false), // B3 ≈ 0.526
                     (0.70, 720.0, 0.60, false), // B4 ≈ 0.470
                 ],
@@ -108,9 +110,9 @@ impl EvaluationCase for MultiFactorRankingCase {
             Scenario {
                 name: "C_fast_decay_temporal",
                 entries: vec![
-                    (0.50, 1.0,   0.80, true), // C1 ≈ 0.695  → rank 1
-                    (0.85, 24.0,  0.80, true), // C2 ≈ 0.675  → rank 2
-                    (0.90, 72.0,  0.90, true), // C3 ≈ 0.638  → rank 4
+                    (0.50, 1.0, 0.80, true),   // C1 ≈ 0.695  → rank 1
+                    (0.85, 24.0, 0.80, true),  // C2 ≈ 0.675  → rank 2
+                    (0.90, 72.0, 0.90, true),  // C3 ≈ 0.638  → rank 4
                     (0.95, 168.0, 0.95, true), // C4 ≈ 0.665  → rank 3
                 ],
                 ground_truth: vec![3, 2, 0, 1], // C1=3, C2=2, C3=0, C4=1
@@ -218,10 +220,10 @@ impl EvaluationCase for TierDemotionCase {
 
         // Build entries with age expressed in seconds for precision.
         let entries = vec![
-            ("R1_keep",         make_tier_metadata(0.90, 3_600,       10)), // ~1h
-            ("R2_medium",       make_tier_metadata(0.50, 86_400,       3)), // ~24h
-            ("R3_demote",       make_tier_metadata(0.20, 604_800,      1)), // ~168h
-            ("R4_demote_first", make_tier_metadata(0.05, 2_592_000,    0)), // ~720h
+            ("R1_keep", make_tier_metadata(0.90, 3_600, 10)), // ~1h
+            ("R2_medium", make_tier_metadata(0.50, 86_400, 3)), // ~24h
+            ("R3_demote", make_tier_metadata(0.20, 604_800, 1)), // ~168h
+            ("R4_demote_first", make_tier_metadata(0.05, 2_592_000, 0)), // ~720h
         ];
 
         // Ground truth: R1 should be kept (highest relevance=3), R4 demoted first (relevance=0).
@@ -272,10 +274,7 @@ impl EvaluationCase for TierDemotionCase {
 /// [`brainwires_agents::eval::EvaluationSuite`] or
 /// [`brainwires_autonomy::self_improve::AutonomousFeedbackLoop`].
 pub fn multi_factor_suite() -> Vec<Arc<dyn EvaluationCase>> {
-    vec![
-        Arc::new(MultiFactorRankingCase),
-        Arc::new(TierDemotionCase),
-    ]
+    vec![Arc::new(MultiFactorRankingCase), Arc::new(TierDemotionCase)]
 }
 
 #[cfg(test)]

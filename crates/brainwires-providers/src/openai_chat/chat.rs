@@ -50,7 +50,10 @@ impl OpenAiChatProvider {
 
     /// Attach an analytics collector to this provider.
     #[cfg(feature = "analytics")]
-    pub fn with_analytics(mut self, collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>) -> Self {
+    pub fn with_analytics(
+        mut self,
+        collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>,
+    ) -> Self {
         self.analytics_collector = Some(collector);
         self
     }

@@ -1,6 +1,5 @@
 /// Integration test for CLI-local tool execution flow
 /// Tests the complete cycle: toolCall event → execute tool → send continuation → receive response
-
 use brainwires_cli::types::message::StreamChunk;
 use serde_json::json;
 
@@ -18,7 +17,12 @@ fn test_stream_chunk_tool_call_parsing() {
 
     // Verify the variant matches
     match tool_call {
-        StreamChunk::ToolCall { call_id, tool_name, server, .. } => {
+        StreamChunk::ToolCall {
+            call_id,
+            tool_name,
+            server,
+            ..
+        } => {
             assert_eq!(call_id, "test-call-123");
             assert_eq!(tool_name, "read_file");
             assert_eq!(server, "cli-local");

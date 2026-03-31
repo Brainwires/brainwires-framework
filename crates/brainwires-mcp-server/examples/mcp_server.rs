@@ -15,11 +15,11 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
+use brainwires_mcp::{CallToolResult, ServerCapabilities, ServerInfo};
 use brainwires_mcp_server::{
     AuthMiddleware, LoggingMiddleware, McpServer, McpToolDef, McpToolRegistry, MiddlewareChain,
     RateLimitMiddleware, RequestContext, ToolFilterMiddleware, ToolHandler,
 };
-use brainwires_mcp::{CallToolResult, ServerCapabilities, ServerInfo};
 use serde_json::{Value, json};
 
 // ---------------------------------------------------------------------------
@@ -166,9 +166,7 @@ async fn main() -> Result<()> {
     }
 
     println!("  Dispatching 'nonexistent_tool':");
-    let result = registry
-        .dispatch("nonexistent_tool", json!({}), &ctx)
-        .await;
+    let result = registry.dispatch("nonexistent_tool", json!({}), &ctx).await;
     match &result {
         Ok(_) => println!("    Result: OK (unexpected)"),
         Err(e) => println!("    Result: Error — {e}"),

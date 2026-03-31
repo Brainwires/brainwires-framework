@@ -6,12 +6,12 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use brainwires_providers::Provider;
 use brainwires_core::{
     message::{ChatResponse, Message, StreamChunk, Usage},
     provider::ChatOptions,
     tool::Tool,
 };
+use brainwires_providers::Provider;
 use futures::stream::{self, BoxStream};
 
 // ── MockProvider ──────────────────────────────────────────────────────────────

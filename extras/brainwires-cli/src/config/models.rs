@@ -154,8 +154,13 @@ impl ModelClient {
             .await
             .context("Failed to read response body")?;
 
-        let models: Vec<BackendModel> = serde_json::from_str(&response_text)
-            .with_context(|| format!("Failed to parse models response. Response was: {}", &response_text[..response_text.len().min(200)]))?;
+        let models: Vec<BackendModel> =
+            serde_json::from_str(&response_text).with_context(|| {
+                format!(
+                    "Failed to parse models response. Response was: {}",
+                    &response_text[..response_text.len().min(200)]
+                )
+            })?;
 
         // Save to cache
         Self::save_cache(&models)?;
@@ -166,12 +171,11 @@ impl ModelClient {
     /// Get models with caching
     pub async fn get_models(&self, use_cache: bool, api_key: &str) -> Result<Vec<BackendModel>> {
         // Try cache first if allowed
-        if use_cache {
-            if let Some(cache) = Self::load_cache() {
-                if cache.is_valid() {
-                    return Ok(cache.models);
-                }
-            }
+        if use_cache
+            && let Some(cache) = Self::load_cache()
+            && cache.is_valid()
+        {
+            return Ok(cache.models);
         }
 
         // Fetch from backend
@@ -181,10 +185,10 @@ impl ModelClient {
     /// Get models or fall back to hardcoded defaults
     pub async fn get_models_with_fallback(&self, api_key: &str) -> Vec<BackendModel> {
         // Try cached models first
-        if let Some(cache) = Self::load_cache() {
-            if cache.is_valid() {
-                return cache.models;
-            }
+        if let Some(cache) = Self::load_cache()
+            && cache.is_valid()
+        {
+            return cache.models;
         }
 
         // Try fetching from backend
@@ -253,21 +257,20 @@ impl ModelRegistry {
     /// Fetch models from backend API
     pub async fn fetch_models() -> Result<Vec<ModelInfo>> {
         // Get session to determine backend URL
-        let session = SessionManager::get_session()?
-            .ok_or_else(|| anyhow::anyhow!("Not authenticated. Please run 'brainwires auth' first."))?;
+        let session = SessionManager::get_session()?.ok_or_else(|| {
+            anyhow::anyhow!("Not authenticated. Please run 'brainwires auth' first.")
+        })?;
 
         // Get API key from secure storage
-        let api_key = SessionManager::get_api_key()?
-            .ok_or_else(|| anyhow::anyhow!("No API key found. Please re-authenticate with: brainwires auth"))?;
+        let api_key = SessionManager::get_api_key()?.ok_or_else(|| {
+            anyhow::anyhow!("No API key found. Please re-authenticate with: brainwires auth")
+        })?;
 
         let client = ModelClient::new(session.backend.clone());
         let backend_models = client.get_models(true, api_key.as_str()).await?;
 
         // Convert to ModelInfo
-        let models: Vec<ModelInfo> = backend_models
-            .iter()
-            .map(|m| m.to_model_info())
-            .collect();
+        let models: Vec<ModelInfo> = backend_models.iter().map(|m| m.to_model_info()).collect();
 
         Ok(models)
     }
@@ -293,7 +296,6 @@ impl ModelRegistry {
         }
         Ok(None)
     }
-    
 }
 
 #[cfg(test)]

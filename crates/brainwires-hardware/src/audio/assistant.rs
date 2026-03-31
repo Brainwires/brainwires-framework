@@ -1,6 +1,6 @@
 use std::sync::{
-    atomic::{AtomicBool, AtomicU8, Ordering},
     Arc,
+    atomic::{AtomicBool, AtomicU8, Ordering},
 };
 use std::time::Instant;
 
@@ -9,6 +9,7 @@ use futures::StreamExt;
 use tokio::sync::oneshot;
 use tracing::{debug, info, warn};
 
+use crate::audio::vad::{VoiceActivityDetector, energy::EnergyVad};
 use crate::audio::{
     buffer::AudioRingBuffer,
     capture::AudioCapture,
@@ -19,9 +20,12 @@ use crate::audio::{
     tts::TextToSpeech,
     types::{AudioBuffer, AudioConfig, SampleFormat, SttOptions, TtsOptions},
 };
-use crate::audio::vad::{energy::EnergyVad, VoiceActivityDetector};
 
-#[cfg(any(feature = "wake-word", feature = "wake-word-rustpotter", feature = "wake-word-porcupine"))]
+#[cfg(any(
+    feature = "wake-word",
+    feature = "wake-word-rustpotter",
+    feature = "wake-word-porcupine"
+))]
 use crate::audio::wake_word::{WakeWordDetection, WakeWordDetector};
 
 // ── State enum ────────────────────────────────────────────────────────────────
@@ -94,15 +98,18 @@ impl Default for VoiceAssistantConfig {
 pub trait VoiceAssistantHandler: Send + Sync {
     /// Called when a wake word fires (before listening begins).
     /// Override to provide feedback (e.g. a chime sound or LED flash).
-    #[cfg(any(feature = "wake-word", feature = "wake-word-rustpotter", feature = "wake-word-porcupine"))]
+    #[cfg(any(
+        feature = "wake-word",
+        feature = "wake-word-rustpotter",
+        feature = "wake-word-porcupine"
+    ))]
     async fn on_wake_word(&self, _detection: &WakeWordDetection) {}
 
     /// Called with the completed transcript.
     ///
     /// Return `Some(text)` to have the assistant speak a response via TTS.
     /// Return `None` for a silent acknowledgement (e.g. action-only commands).
-    async fn on_speech(&self, transcript: &crate::audio::types::Transcript)
-        -> Option<String>;
+    async fn on_speech(&self, transcript: &crate::audio::types::Transcript) -> Option<String>;
 
     /// Called on non-fatal errors (capture glitches, STT failures, etc.).
     async fn on_error(&self, _error: &AudioError) {}
@@ -116,7 +123,11 @@ pub struct VoiceAssistantBuilder {
     stt: Arc<dyn SpeechToText>,
     playback: Option<Arc<dyn AudioPlayback>>,
     tts: Option<Arc<dyn TextToSpeech>>,
-    #[cfg(any(feature = "wake-word", feature = "wake-word-rustpotter", feature = "wake-word-porcupine"))]
+    #[cfg(any(
+        feature = "wake-word",
+        feature = "wake-word-rustpotter",
+        feature = "wake-word-porcupine"
+    ))]
     wake_word: Option<Box<dyn WakeWordDetector>>,
     vad: Option<Box<dyn VoiceActivityDetector>>,
     config: VoiceAssistantConfig,
@@ -130,7 +141,11 @@ impl VoiceAssistantBuilder {
             stt,
             playback: None,
             tts: None,
-            #[cfg(any(feature = "wake-word", feature = "wake-word-rustpotter", feature = "wake-word-porcupine"))]
+            #[cfg(any(
+                feature = "wake-word",
+                feature = "wake-word-rustpotter",
+                feature = "wake-word-porcupine"
+            ))]
             wake_word: None,
             vad: None,
             config: VoiceAssistantConfig::default(),
@@ -150,7 +165,11 @@ impl VoiceAssistantBuilder {
     }
 
     /// Set the wake word detector used to activate the listening phase.
-    #[cfg(any(feature = "wake-word", feature = "wake-word-rustpotter", feature = "wake-word-porcupine"))]
+    #[cfg(any(
+        feature = "wake-word",
+        feature = "wake-word-rustpotter",
+        feature = "wake-word-porcupine"
+    ))]
     pub fn with_wake_word(mut self, detector: Box<dyn WakeWordDetector>) -> Self {
         self.wake_word = Some(detector);
         self
@@ -172,9 +191,7 @@ impl VoiceAssistantBuilder {
     pub fn build(self) -> VoiceAssistant {
         let vad: Box<dyn VoiceActivityDetector> = self
             .vad
-            .unwrap_or_else(|| {
-                Box::new(EnergyVad::new(self.config.silence_threshold_db))
-            });
+            .unwrap_or_else(|| Box::new(EnergyVad::new(self.config.silence_threshold_db)));
 
         VoiceAssistant {
             config: self.config,
@@ -182,7 +199,11 @@ impl VoiceAssistantBuilder {
             playback: self.playback,
             stt: self.stt,
             tts: self.tts,
-            #[cfg(any(feature = "wake-word", feature = "wake-word-rustpotter", feature = "wake-word-porcupine"))]
+            #[cfg(any(
+                feature = "wake-word",
+                feature = "wake-word-rustpotter",
+                feature = "wake-word-porcupine"
+            ))]
             wake_word: self.wake_word,
             vad,
             state: Arc::new(AtomicU8::new(STATE_IDLE)),
@@ -204,7 +225,11 @@ pub struct VoiceAssistant {
     playback: Option<Arc<dyn AudioPlayback>>,
     stt: Arc<dyn SpeechToText>,
     tts: Option<Arc<dyn TextToSpeech>>,
-    #[cfg(any(feature = "wake-word", feature = "wake-word-rustpotter", feature = "wake-word-porcupine"))]
+    #[cfg(any(
+        feature = "wake-word",
+        feature = "wake-word-rustpotter",
+        feature = "wake-word-porcupine"
+    ))]
     wake_word: Option<Box<dyn WakeWordDetector>>,
     vad: Box<dyn VoiceActivityDetector>,
     state: Arc<AtomicU8>,
@@ -244,7 +269,10 @@ impl VoiceAssistant {
     pub async fn listen_once(&mut self) -> AudioResult<crate::audio::types::Transcript> {
         let captured = self.capture_utterance().await?;
         self.state.store(STATE_PROCESSING, Ordering::Relaxed);
-        let transcript = self.stt.transcribe(&captured, &self.config.stt_options).await?;
+        let transcript = self
+            .stt
+            .transcribe(&captured, &self.config.stt_options)
+            .await?;
         self.state.store(STATE_IDLE, Ordering::Relaxed);
         Ok(transcript)
     }
@@ -261,10 +289,7 @@ impl VoiceAssistant {
     /// 5. Loops back to step 1.
     ///
     /// Call [`stop`][Self::stop] to terminate cleanly after the current cycle.
-    pub async fn run<H: VoiceAssistantHandler>(
-        &mut self,
-        handler: &H,
-    ) -> AudioResult<()> {
+    pub async fn run<H: VoiceAssistantHandler>(&mut self, handler: &H) -> AudioResult<()> {
         self.stop_flag.store(false, Ordering::Relaxed);
         info!("VoiceAssistant started");
 
@@ -275,17 +300,24 @@ impl VoiceAssistant {
             }
 
             // ── Wake word phase ───────────────────────────────────────────────
-            #[cfg(any(feature = "wake-word", feature = "wake-word-rustpotter", feature = "wake-word-porcupine"))]
+            #[cfg(any(
+                feature = "wake-word",
+                feature = "wake-word-rustpotter",
+                feature = "wake-word-porcupine"
+            ))]
             {
                 // Take detector out to avoid simultaneous &self borrow conflict.
                 let mut detector = self.wake_word.take();
                 let wake_result = if let Some(ref mut det) = detector {
-                    Some(Self::wait_for_wake_word_inner(
-                        &self.capture,
-                        &self.config,
-                        &self.stop_flag,
-                        det,
-                    ).await)
+                    Some(
+                        Self::wait_for_wake_word_inner(
+                            &self.capture,
+                            &self.config,
+                            &self.stop_flag,
+                            det,
+                        )
+                        .await,
+                    )
                 } else {
                     None
                 };
@@ -328,7 +360,11 @@ impl VoiceAssistant {
 
             // ── STT ───────────────────────────────────────────────────────────
             self.state.store(STATE_PROCESSING, Ordering::Relaxed);
-            let transcript = match self.stt.transcribe(&captured, &self.config.stt_options).await {
+            let transcript = match self
+                .stt
+                .transcribe(&captured, &self.config.stt_options)
+                .await
+            {
                 Ok(t) => t,
                 Err(e) => {
                     handler.on_error(&e).await;
@@ -349,19 +385,14 @@ impl VoiceAssistant {
             let reply = handler.on_speech(&transcript).await;
 
             // ── TTS + Playback ────────────────────────────────────────────────
-            if let (Some(text), Some(tts), Some(playback)) = (
-                reply,
-                self.tts.as_ref(),
-                self.playback.as_ref(),
-            ) {
+            if let (Some(text), Some(tts), Some(playback)) =
+                (reply, self.tts.as_ref(), self.playback.as_ref())
+            {
                 self.state.store(STATE_SPEAKING, Ordering::Relaxed);
                 let opts = self.config.tts_options.clone().unwrap_or_default();
                 match tts.synthesize(&text, &opts).await {
                     Ok(audio) => {
-                        if let Err(e) = playback
-                            .play(self.config.speaker.as_ref(), &audio)
-                            .await
-                        {
+                        if let Err(e) = playback.play(self.config.speaker.as_ref(), &audio).await {
                             handler.on_error(&e).await;
                         }
                     }
@@ -423,21 +454,22 @@ impl VoiceAssistant {
             // Process complete 20 ms chunks
             while pending.len() >= chunk_bytes {
                 let chunk_data: Vec<u8> = pending.drain(..chunk_bytes).collect();
-                let chunk_buf = AudioBuffer { data: chunk_data, config: config.clone() };
+                let chunk_buf = AudioBuffer {
+                    data: chunk_data,
+                    config: config.clone(),
+                };
                 let is_speech = self.vad.is_speech(&chunk_buf);
 
                 if is_speech {
                     started_speaking = true;
                     silence_ms = 0;
                     ring.push(&chunk_buf.data);
-                } else {
-                    if started_speaking {
-                        silence_ms += 20;
-                        ring.push(&chunk_buf.data); // include trailing silence
-                        if silence_ms >= silence_limit_ms {
-                            debug!("End of utterance (silence={silence_ms}ms)");
-                            break;
-                        }
+                } else if started_speaking {
+                    silence_ms += 20;
+                    ring.push(&chunk_buf.data); // include trailing silence
+                    if silence_ms >= silence_limit_ms {
+                        debug!("End of utterance (silence={silence_ms}ms)");
+                        break;
                     }
                 }
             }
@@ -463,7 +495,11 @@ impl VoiceAssistant {
 
     /// Block until the wake word fires, returning the detection.
     /// Static to avoid borrow conflicts when `wake_word` is taken out of self.
-    #[cfg(any(feature = "wake-word", feature = "wake-word-rustpotter", feature = "wake-word-porcupine"))]
+    #[cfg(any(
+        feature = "wake-word",
+        feature = "wake-word-rustpotter",
+        feature = "wake-word-porcupine"
+    ))]
     async fn wait_for_wake_word_inner(
         capture: &Arc<dyn AudioCapture>,
         cfg: &VoiceAssistantConfig,

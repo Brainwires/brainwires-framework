@@ -87,9 +87,10 @@ pub fn needs_retrieval(
     // Only trigger if the context is relatively short
     if recent_context_len < 10 {
         let pronoun_patterns = ["it", "they", "that", "those", "the one"];
-        if pronoun_patterns.iter().any(|p| {
-            lower.split_whitespace().any(|w| w == *p)
-        }) {
+        if pronoun_patterns
+            .iter()
+            .any(|p| lower.split_whitespace().any(|w| w == *p))
+        {
             // Only trigger for short messages that are likely follow-up questions
             if user_message.len() < 100 && lower.contains('?') {
                 return true;
@@ -164,7 +165,11 @@ pub fn classify_retrieval_need(
     };
 
     // Confidence is higher when we have clear signals
-    let confidence = if matches > 0 { 0.8 + (matches as f32 * 0.05).min(0.2) } else { 0.6 };
+    let confidence = if matches > 0 {
+        0.8 + (matches as f32 * 0.05).min(0.2)
+    } else {
+        0.6
+    };
 
     (need, confidence)
 }
@@ -205,11 +210,8 @@ pub async fn needs_retrieval_enhanced(
     recent_context_len: usize,
     classifier: Option<&RetrievalClassifier>,
 ) -> bool {
-    let (need, _) = classify_retrieval_need_enhanced(
-        user_message,
-        recent_context_len,
-        classifier,
-    ).await;
+    let (need, _) =
+        classify_retrieval_need_enhanced(user_message, recent_context_len, classifier).await;
 
     matches!(need, RetrievalNeed::Medium | RetrievalNeed::High)
 }
@@ -223,7 +225,11 @@ mod tests {
         // Now triggers regardless of compaction status (deprecated parameter ignored)
         assert!(needs_retrieval("What did we discuss earlier?", 10, false));
         assert!(needs_retrieval("As I said before...", 10, false));
-        assert!(needs_retrieval("Remember when we talked about X?", 10, true));
+        assert!(needs_retrieval(
+            "Remember when we talked about X?",
+            10,
+            true
+        ));
     }
 
     #[test]
@@ -235,14 +241,30 @@ mod tests {
     #[test]
     fn test_normal_message_no_retrieval() {
         // Normal messages without context references don't trigger retrieval
-        assert!(!needs_retrieval("Can you write a function to sort a list?", 15, true));
-        assert!(!needs_retrieval("Can you write a function to sort a list?", 15, false));
+        assert!(!needs_retrieval(
+            "Can you write a function to sort a list?",
+            15,
+            true
+        ));
+        assert!(!needs_retrieval(
+            "Can you write a function to sort a list?",
+            15,
+            false
+        ));
     }
 
     #[test]
     fn test_question_patterns() {
-        assert!(needs_retrieval("What did you say about authentication?", 10, false));
-        assert!(needs_retrieval("When did we implement that feature?", 10, false));
+        assert!(needs_retrieval(
+            "What did you say about authentication?",
+            10,
+            false
+        ));
+        assert!(needs_retrieval(
+            "When did we implement that feature?",
+            10,
+            false
+        ));
     }
 
     #[test]
@@ -259,11 +281,7 @@ mod tests {
 
     #[test]
     fn test_classify_no_need() {
-        let (need, _) = classify_retrieval_need(
-            "Write a hello world function",
-            15,
-            false,
-        );
+        let (need, _) = classify_retrieval_need("Write a hello world function", 15, false);
         assert_eq!(need, RetrievalNeed::None);
     }
 }

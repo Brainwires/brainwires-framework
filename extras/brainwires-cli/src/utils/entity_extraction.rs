@@ -154,7 +154,10 @@ impl EntityExtractor {
 
         let relationships = self.extract_relationships(&entities, message_id, content);
 
-        ExtractionResult { entities, relationships }
+        ExtractionResult {
+            entities,
+            relationships,
+        }
     }
 
     fn extract_relationships(
@@ -177,8 +180,12 @@ impl EntityExtractor {
         }
 
         // File contains function/type relationships
-        let files: Vec<_> = entities.iter().filter(|(_, t)| *t == EntityType::File).collect();
-        let code_entities: Vec<_> = entities.iter()
+        let files: Vec<_> = entities
+            .iter()
+            .filter(|(_, t)| *t == EntityType::File)
+            .collect();
+        let code_entities: Vec<_> = entities
+            .iter()
             .filter(|(_, t)| matches!(t, EntityType::Function | EntityType::Type))
             .collect();
 
@@ -192,7 +199,9 @@ impl EntityExtractor {
         }
 
         // Look for modification patterns
-        let modify_patterns = ["changed", "updated", "modified", "fixed", "added", "removed"];
+        let modify_patterns = [
+            "changed", "updated", "modified", "fixed", "added", "removed",
+        ];
         let lower = content.to_lowercase();
         for pattern in modify_patterns {
             if lower.contains(pattern) {
@@ -259,7 +268,9 @@ impl EntityExtractor {
                 if !seen.contains(&name_lower) {
                     seen.insert(name_lower);
                     // Convert SemanticEntityType to EntityType
-                    if let Some(entity_type) = convert_semantic_to_entity_type(&enhanced_entity.entity_type) {
+                    if let Some(entity_type) =
+                        convert_semantic_to_entity_type(&enhanced_entity.entity_type)
+                    {
                         merged_entities.push((enhanced_entity.name, entity_type));
                     }
                 }
@@ -316,7 +327,9 @@ impl EntityExtractor {
             let name_lower = enhanced_entity.name.to_lowercase();
             if !seen.contains(&name_lower) {
                 seen.insert(name_lower);
-                if let Some(entity_type) = convert_semantic_to_entity_type(&enhanced_entity.entity_type) {
+                if let Some(entity_type) =
+                    convert_semantic_to_entity_type(&enhanced_entity.entity_type)
+                {
                     merged_entities.push((enhanced_entity.name, entity_type));
                 }
             }
@@ -407,7 +420,11 @@ mod tests {
         let extractor = EntityExtractor::new();
         let content = "Check the file src/main.rs";
         let result = extractor.extract(content, "msg1");
-        let files: Vec<_> = result.entities.iter().filter(|(_, t)| *t == EntityType::File).collect();
+        let files: Vec<_> = result
+            .entities
+            .iter()
+            .filter(|(_, t)| *t == EntityType::File)
+            .collect();
         assert!(files.iter().any(|(n, _)| n == "src/main.rs"));
     }
 
@@ -416,7 +433,11 @@ mod tests {
         let extractor = EntityExtractor::new();
         let content = "fn main() { } pub async fn process_data() { }";
         let result = extractor.extract(content, "msg1");
-        let funcs: Vec<_> = result.entities.iter().filter(|(_, t)| *t == EntityType::Function).collect();
+        let funcs: Vec<_> = result
+            .entities
+            .iter()
+            .filter(|(_, t)| *t == EntityType::Function)
+            .collect();
         assert!(funcs.iter().any(|(n, _)| n == "main"));
         assert!(funcs.iter().any(|(n, _)| n == "process_data"));
     }
@@ -426,7 +447,11 @@ mod tests {
         let extractor = EntityExtractor::new();
         let content = "struct Message { } enum Role { User }";
         let result = extractor.extract(content, "msg1");
-        let types: Vec<_> = result.entities.iter().filter(|(_, t)| *t == EntityType::Type).collect();
+        let types: Vec<_> = result
+            .entities
+            .iter()
+            .filter(|(_, t)| *t == EntityType::Type)
+            .collect();
         assert!(types.iter().any(|(n, _)| n == "Message"));
         assert!(types.iter().any(|(n, _)| n == "Role"));
     }
@@ -436,7 +461,11 @@ mod tests {
         let extractor = EntityExtractor::new();
         let content = "We need to implement authentication with jwt tokens";
         let result = extractor.extract(content, "msg1");
-        let concepts: Vec<_> = result.entities.iter().filter(|(_, t)| *t == EntityType::Concept).collect();
+        let concepts: Vec<_> = result
+            .entities
+            .iter()
+            .filter(|(_, t)| *t == EntityType::Concept)
+            .collect();
         assert!(concepts.iter().any(|(n, _)| n == "authentication"));
         assert!(concepts.iter().any(|(n, _)| n == "jwt"));
     }

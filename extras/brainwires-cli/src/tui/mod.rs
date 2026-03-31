@@ -21,12 +21,9 @@ use anyhow::{Context, Result};
 use crossterm::{
     event::{DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
-use ratatui::{
-    backend::CrosstermBackend,
-    Terminal,
-};
+use ratatui::{Terminal, backend::CrosstermBackend};
 use std::io;
 
 use crate::mdap::MdapConfig;
@@ -39,7 +36,7 @@ pub fn init_terminal() -> Result<Terminal<CrosstermBackend<io::Stdout>>> {
         stdout,
         EnterAlternateScreen,
         EnableMouseCapture,
-        EnableBracketedPaste  // Enable bracketed paste to detect paste vs typing
+        EnableBracketedPaste // Enable bracketed paste to detect paste vs typing
     )?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
@@ -118,23 +115,24 @@ pub async fn run_tui(
     crate::utils::logger::init_with_output(false);
 
     // Generate or use provided session ID
-    let session_id = session_id.unwrap_or_else(|| {
-        format!("session-{}", chrono::Utc::now().format("%Y%m%d-%H%M%S"))
-    });
+    let session_id = session_id
+        .unwrap_or_else(|| format!("session-{}", chrono::Utc::now().format("%Y%m%d-%H%M%S")));
 
     // Always spawn or connect to a Session (Agent) process
     // The Session is the "brain" that handles AI/tools/MCP
     use crate::agent::spawn::spawn_agent_process;
-    use brainwires::agent_network::ipc::{Handshake, AgentMessage};
+    use brainwires::agent_network::ipc::{AgentMessage, Handshake};
 
     eprintln!("Connecting to session: {}", session_id);
 
     // Spawn agent if not already running
-    let socket_path = spawn_agent_process(&session_id, model.as_deref(), mdap_config.as_ref()).await?;
+    let socket_path =
+        spawn_agent_process(&session_id, model.as_deref(), mdap_config.as_ref()).await?;
     eprintln!("Session ready at: {}", socket_path.display());
 
     // Connect to the Session via IPC
-    let mut conn = crate::ipc::connect_to_agent(&session_id).await
+    let mut conn = crate::ipc::connect_to_agent(&session_id)
+        .await
         .context("Failed to connect to session")?;
 
     // Send handshake (new session - agent will return the token)
@@ -143,11 +141,17 @@ pub async fn run_tui(
 
     // Wait for handshake response
     use brainwires::agent_network::ipc::HandshakeResponse;
-    let response: HandshakeResponse = conn.reader.read().await?
+    let response: HandshakeResponse = conn
+        .reader
+        .read()
+        .await?
         .ok_or_else(|| anyhow::anyhow!("Session closed during handshake"))?;
 
     if !response.accepted {
-        anyhow::bail!("Session rejected connection: {}", response.error.unwrap_or_default());
+        anyhow::bail!(
+            "Session rejected connection: {}",
+            response.error.unwrap_or_default()
+        );
     }
 
     // The session token is returned in the response and also saved to disk
@@ -157,7 +161,10 @@ pub async fn run_tui(
     }
 
     // Wait for ConversationSync to get initial state
-    let initial_sync: AgentMessage = conn.reader.read().await?
+    let initial_sync: AgentMessage = conn
+        .reader
+        .read()
+        .await?
         .ok_or_else(|| anyhow::anyhow!("Session closed before sending state"))?;
 
     // Create TUI App in viewer mode (no AI provider)
@@ -178,15 +185,22 @@ pub async fn run_tui(
 
     // Populate state from Session's initial sync
     if let AgentMessage::ConversationSync {
-        messages, status, model: session_model, tool_mode, mcp_servers, ..
-    } = initial_sync {
-        app.messages = messages.iter().map(|m| {
-            crate::tui::app::TuiMessage {
+        messages,
+        status,
+        model: session_model,
+        tool_mode,
+        mcp_servers,
+        ..
+    } = initial_sync
+    {
+        app.messages = messages
+            .iter()
+            .map(|m| crate::tui::app::TuiMessage {
                 role: m.role.clone(),
                 content: m.content.clone(),
                 created_at: m.created_at,
-            }
-        }).collect();
+            })
+            .collect();
         app.status = status;
         app.model = session_model;
         app.tool_mode = tool_mode;
@@ -270,8 +284,8 @@ async fn run_app(
     mut events: EventHandler,
     debug_rx: std::sync::mpsc::Receiver<String>,
 ) -> Result<TuiLoopResult> {
-    use tokio::time::{timeout, Duration};
     use crate::tui::app::session_management::SessionManagement;
+    use tokio::time::{Duration, timeout};
 
     // Track mouse capture state to detect changes
     let mut mouse_capture_enabled = true;
@@ -351,41 +365,42 @@ async fn run_app(
 
         // Poll approval requests from tool executor (non-blocking)
         // This shows the approval dialog when a tool needs user approval
-        if let Some(ref mut approval_rx) = app.approval_rx {
-            if let Ok(request) = approval_rx.try_recv() {
-                // Create approval dialog state and set the pending request
-                let mut dialog_state = crate::tui::app::approval_dialog::ApprovalDialogState::new();
-                dialog_state.set_request(request);
-                app.approval_dialog_state = Some(dialog_state);
-                app.mode = AppMode::ApprovalDialog;
-                app.add_console_message(format!(
-                    "⚠️ Tool approval requested: {}",
-                    app.approval_dialog_state.as_ref()
-                        .and_then(|s| s.current_request.as_ref())
-                        .map(|r| r.tool_name.as_str())
-                        .unwrap_or("unknown")
-                ));
-            }
+        if let Some(ref mut approval_rx) = app.approval_rx
+            && let Ok(request) = approval_rx.try_recv()
+        {
+            // Create approval dialog state and set the pending request
+            let mut dialog_state = crate::tui::app::approval_dialog::ApprovalDialogState::new();
+            dialog_state.set_request(request);
+            app.approval_dialog_state = Some(dialog_state);
+            app.mode = AppMode::ApprovalDialog;
+            app.add_console_message(format!(
+                "⚠️ Tool approval requested: {}",
+                app.approval_dialog_state
+                    .as_ref()
+                    .and_then(|s| s.current_request.as_ref())
+                    .map(|r| r.tool_name.as_str())
+                    .unwrap_or("unknown")
+            ));
         }
 
         // Poll sudo password requests from tool executor (non-blocking)
         // This shows the sudo password dialog when a bash command needs sudo
-        if let Some(ref mut sudo_rx) = app.sudo_password_rx {
-            if let Ok(request) = sudo_rx.try_recv() {
-                let command_display = request.command.clone();
-                let mut dialog_state = crate::tui::app::sudo_dialog::SudoDialogState::new();
-                dialog_state.set_request(request);
-                app.sudo_dialog_state = Some(dialog_state);
-                app.mode = AppMode::SudoPasswordDialog;
-                app.add_console_message(format!(
-                    "🔒 Sudo password requested for: {}",
-                    if command_display.len() > 40 {
-                        format!("{}...", &command_display[..40])
-                    } else {
-                        command_display
-                    }
-                ));
-            }
+        if let Some(ref mut sudo_rx) = app.sudo_password_rx
+            && let Ok(request) = sudo_rx.try_recv()
+        {
+            let command_display = request.command.clone();
+            let mut dialog_state = crate::tui::app::sudo_dialog::SudoDialogState::new();
+            dialog_state.set_request(request);
+            app.sudo_dialog_state = Some(dialog_state);
+            app.mode = AppMode::SudoPasswordDialog;
+            app.add_console_message(format!(
+                "🔒 Sudo password requested for: {}",
+                if command_display.len() > 40 {
+                    format!("{}...", &command_display[..40])
+                } else {
+                    command_display
+                }
+            ));
         }
 
         // Handle mouse capture toggle
@@ -453,8 +468,8 @@ async fn run_app(
 
         // Check for pending agent switch
         if let Some(target_session_id) = app.pending_agent_switch.take() {
-            use brainwires::agent_network::ipc::{Handshake, AgentMessage, ViewerMessage};
             use crate::ipc::{is_agent_alive, read_session_token};
+            use brainwires::agent_network::ipc::{AgentMessage, Handshake, ViewerMessage};
 
             // 1. Disconnect from current agent (if connected via IPC)
             if let Some(mut writer) = app.ipc_writer.take() {
@@ -480,10 +495,7 @@ async fn run_app(
                         continue;
                     }
                     Err(e) => {
-                        app.add_console_message(format!(
-                            "❌ Failed to read session token: {}",
-                            e
-                        ));
+                        app.add_console_message(format!("❌ Failed to read session token: {}", e));
                         continue;
                     }
                 };
@@ -491,7 +503,8 @@ async fn run_app(
                 match crate::ipc::connect_to_agent(&target_session_id).await {
                     Ok(mut conn) => {
                         // 3. Send handshake with session token
-                        let handshake = Handshake::reattach(target_session_id.clone(), session_token);
+                        let handshake =
+                            Handshake::reattach(target_session_id.clone(), session_token);
                         if let Ok(()) = conn.writer.write(&handshake).await {
                             // 4. Receive HandshakeResponse first
                             use brainwires::agent_network::ipc::HandshakeResponse;
@@ -499,13 +512,15 @@ async fn run_app(
                                 Ok(Some(response)) if !response.accepted => {
                                     app.add_console_message(format!(
                                         "❌ Agent rejected reattach: {}",
-                                        response.error.unwrap_or_else(|| "Unknown error".to_string())
+                                        response
+                                            .error
+                                            .unwrap_or_else(|| "Unknown error".to_string())
                                     ));
                                     continue;
                                 }
                                 Ok(None) => {
                                     app.add_console_message(
-                                        "❌ Agent connection closed during handshake".to_string()
+                                        "❌ Agent connection closed during handshake".to_string(),
                                     );
                                     continue;
                                 }
@@ -524,16 +539,22 @@ async fn run_app(
                             // 5. Receive ConversationSync
                             match conn.reader.read::<AgentMessage>().await {
                                 Ok(Some(AgentMessage::ConversationSync {
-                                    messages, status, model, tool_mode, mcp_servers, ..
+                                    messages,
+                                    status,
+                                    model,
+                                    tool_mode,
+                                    mcp_servers,
+                                    ..
                                 })) => {
                                     // 6. Update App state from agent
-                                    app.messages = messages.iter().map(|m| {
-                                        crate::tui::app::TuiMessage {
+                                    app.messages = messages
+                                        .iter()
+                                        .map(|m| crate::tui::app::TuiMessage {
                                             role: m.role.clone(),
                                             content: m.content.clone(),
                                             created_at: m.created_at,
-                                        }
-                                    }).collect();
+                                        })
+                                        .collect();
                                     app.status = status;
                                     app.model = model;
                                     app.tool_mode = tool_mode;
@@ -563,7 +584,7 @@ async fn run_app(
                                 }
                                 Ok(None) => {
                                     app.add_console_message(
-                                        "❌ Agent connection closed after handshake".to_string()
+                                        "❌ Agent connection closed after handshake".to_string(),
                                     );
                                 }
                                 Err(e) => {
@@ -575,7 +596,7 @@ async fn run_app(
                             }
                         } else {
                             app.add_console_message(
-                                "❌ Failed to send handshake to agent".to_string()
+                                "❌ Failed to send handshake to agent".to_string(),
                             );
                         }
                     }
@@ -596,12 +617,7 @@ async fn run_app(
             let reason_str = reason.as_deref().unwrap_or("user-requested child agent");
             let working_dir = Some(std::path::PathBuf::from(&app.working_directory));
 
-            match spawn_child_agent(
-                &app.session_id,
-                reason_str,
-                model.clone(),
-                working_dir,
-            ).await {
+            match spawn_child_agent(&app.session_id, reason_str, model.clone(), working_dir).await {
                 Ok((child_session_id, socket_path)) => {
                     app.add_console_message(format!(
                         "✅ Spawned new agent: {}\n   Socket: {}\n   Use /switch {} to connect.",
@@ -611,10 +627,7 @@ async fn run_app(
                     ));
                 }
                 Err(e) => {
-                    app.add_console_message(format!(
-                        "❌ Failed to spawn agent: {}",
-                        e
-                    ));
+                    app.add_console_message(format!("❌ Failed to spawn agent: {}", e));
                 }
             }
         }
@@ -637,8 +650,9 @@ async fn run_app(
             // For PTY attach, deduct visible_height to avoid over-scroll
             // For normal session loading, just scroll to bottom normally
             if app.is_pty_session {
-                let visible_height = app.conversation_area
-                    .map(|a| a.height.saturating_sub(1) as u16) // KEEP AT 1 NOT 2
+                let visible_height = app
+                    .conversation_area
+                    .map(|a| a.height.saturating_sub(1)) // KEEP AT 1 NOT 2
                     .unwrap_or(20);
                 app.scroll = app.max_scroll().saturating_sub(visible_height);
             } else {
@@ -732,7 +746,7 @@ async fn run_app(
 
 /// Print the conversation to the terminal on exit (when preserve_chat_on_exit is enabled)
 fn print_conversation_on_exit(app: &App) {
-    use crossterm::style::{Color, SetForegroundColor, ResetColor};
+    use crossterm::style::{Color, ResetColor, SetForegroundColor};
 
     // Add a blank line before the conversation output
     println!();
@@ -773,13 +787,17 @@ fn print_conversation_on_exit(app: &App) {
 /// The current TUI process then exits, returning control to the shell.
 /// Users can reconnect using 'brainwires attach'.
 #[cfg(unix)]
-fn background_process(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, session_id: &str, model: &str) -> Result<()> {
+fn background_process(
+    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    session_id: &str,
+    model: &str,
+) -> Result<()> {
+    use crate::session;
     use crossterm::{
         cursor::Show,
+        event::{DisableBracketedPaste, DisableMouseCapture},
         terminal::disable_raw_mode,
-        event::{DisableMouseCapture, DisableBracketedPaste},
     };
-    use crate::session;
 
     // Restore terminal to normal state BEFORE spawning session server
     disable_raw_mode()?;
@@ -835,8 +853,8 @@ fn background_process(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, ses
 fn suspend_process(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> {
     use crossterm::{
         cursor::Show,
+        event::{DisableBracketedPaste, DisableMouseCapture},
         terminal::disable_raw_mode,
-        event::{DisableMouseCapture, DisableBracketedPaste},
     };
 
     // Restore terminal to normal state
@@ -871,7 +889,11 @@ fn suspend_process(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Res
 
 /// Stub for non-Unix platforms
 #[cfg(not(unix))]
-fn background_process(_terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, _session_id: &str, _model: &str) -> Result<()> {
+fn background_process(
+    _terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    _session_id: &str,
+    _model: &str,
+) -> Result<()> {
     anyhow::bail!("Background/suspend not supported on this platform")
 }
 

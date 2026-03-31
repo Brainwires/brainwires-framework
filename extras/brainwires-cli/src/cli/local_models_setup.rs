@@ -5,11 +5,13 @@
 
 use anyhow::Result;
 use console::style;
-use dialoguer::{theme::ColorfulTheme, Confirm, MultiSelect};
+use dialoguer::{Confirm, MultiSelect, theme::ColorfulTheme};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::io::IsTerminal;
 
-use crate::providers::local_llm::{get_known_model, known_models, LocalLlmConfig, LocalModelRegistry};
+use crate::providers::local_llm::{
+    LocalLlmConfig, LocalModelRegistry, get_known_model, known_models,
+};
 
 /// Models recommended for download
 const RECOMMENDED_MODELS: &[&str] = &["lfm2-350m", "lfm2-1.2b"];
@@ -46,7 +48,10 @@ pub async fn show_setup_dialog() -> Result<bool> {
     println!();
 
     // Explain the benefits
-    println!("{}", style("  Brainwires can use local AI models to improve your experience:").white());
+    println!(
+        "{}",
+        style("  Brainwires can use local AI models to improve your experience:").white()
+    );
     println!();
     println!(
         "  {} {} - Route queries to the right tools faster",
@@ -121,14 +126,10 @@ pub async fn show_setup_dialog() -> Result<bool> {
             style(model.name).bold(),
             size_indicator
         );
-        println!(
-            "      {}",
-            style(model.description).dim()
-        );
+        println!("      {}", style(model.description).dim());
         println!(
             "      RAM: ~{}MB | Context: {} tokens",
-            model.estimated_ram_mb,
-            model.context_size
+            model.estimated_ram_mb, model.context_size
         );
         println!();
     }
@@ -164,10 +165,7 @@ pub async fn show_setup_dialog() -> Result<bool> {
             style("brainwires local-models download lfm2-1.2b").cyan()
         );
         println!();
-        println!(
-            "  {} Or see all available models with:",
-            style("ℹ").blue()
-        );
+        println!("  {} Or see all available models with:", style("ℹ").blue());
         println!(
             "      {}",
             style("brainwires local-models list --available").cyan()
@@ -185,8 +183,15 @@ pub async fn show_setup_dialog() -> Result<bool> {
     let model_options: Vec<String> = recommended
         .iter()
         .map(|m| {
-            let size_indicator = if m.id == "lfm2-350m" { "Fast" } else { "Quality" };
-            format!("{} ({}) - ~{}MB RAM", m.name, size_indicator, m.estimated_ram_mb)
+            let size_indicator = if m.id == "lfm2-350m" {
+                "Fast"
+            } else {
+                "Quality"
+            };
+            format!(
+                "{} ({}) - ~{}MB RAM",
+                m.name, size_indicator, m.estimated_ram_mb
+            )
         })
         .collect();
 
@@ -216,10 +221,7 @@ pub async fn show_setup_dialog() -> Result<bool> {
     println!("{}", style("  Downloading models...").white().bold());
     println!();
 
-    let selected_models: Vec<_> = selections
-        .iter()
-        .map(|&i| recommended[i])
-        .collect();
+    let selected_models: Vec<_> = selections.iter().map(|&i| recommended[i]).collect();
 
     // Download models sequentially with progress bars
     let mut all_success = true;
@@ -238,11 +240,7 @@ pub async fn show_setup_dialog() -> Result<bool> {
         match download_model_with_progress(model_id, pb).await {
             Ok(()) => {}
             Err(e) => {
-                eprintln!(
-                    "  {} Download error: {}",
-                    style("✗").red(),
-                    e
-                );
+                eprintln!("  {} Download error: {}", style("✗").red(), e);
                 all_success = false;
             }
         }
@@ -286,8 +284,8 @@ pub async fn show_setup_dialog() -> Result<bool> {
 
 /// Download a model with progress bar
 async fn download_model_with_progress(model_id: String, pb: ProgressBar) -> Result<()> {
-    let known = get_known_model(&model_id)
-        .ok_or_else(|| anyhow::anyhow!("Unknown model: {}", model_id))?;
+    let known =
+        get_known_model(&model_id).ok_or_else(|| anyhow::anyhow!("Unknown model: {}", model_id))?;
 
     let registry = LocalModelRegistry::load()?;
     let model_path = registry.models_dir.join(known.filename);

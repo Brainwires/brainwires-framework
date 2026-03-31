@@ -11,16 +11,12 @@ use serde::{Deserialize, Serialize};
 /// Status for session task items
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum SessionTaskStatus {
+    #[default]
     Pending,
     InProgress,
     Completed,
-}
-
-impl Default for SessionTaskStatus {
-    fn default() -> Self {
-        Self::Pending
-    }
 }
 
 /// A single session task item

@@ -328,11 +328,15 @@ pub struct App {
     cli: Cli,
 }
 
+impl Default for App {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl App {
     pub fn new() -> Self {
-        Self {
-            cli: Cli::parse(),
-        }
+        Self { cli: Cli::parse() }
     }
 
     pub async fn run(self) -> Result<()> {
@@ -351,98 +355,163 @@ impl App {
         // Only show for Chat and Task commands (main user-facing commands)
         if matches!(
             &self.cli.command,
-            Some(Commands::Chat { mcp_server: false, prompt: None, batch: false, .. })
-                | Some(Commands::Task { .. })
-        ) {
-            if super::local_models_setup::should_prompt_for_setup() {
-                // Show setup dialog - don't fail if it errors
-                if let Err(e) = super::local_models_setup::show_setup_dialog().await {
-                    tracing::warn!("Local models setup dialog error: {}", e);
-                }
+            Some(Commands::Chat {
+                mcp_server: false,
+                prompt: None,
+                batch: false,
+                ..
+            }) | Some(Commands::Task { .. })
+        ) && super::local_models_setup::should_prompt_for_setup()
+        {
+            // Show setup dialog - don't fail if it errors
+            if let Err(e) = super::local_models_setup::show_setup_dialog().await {
+                tracing::warn!("Local models setup dialog error: {}", e);
             }
         }
 
         match self.cli.command {
             Some(Commands::Auth(cmd)) => super::auth::handle_auth(cmd).await,
             Some(Commands::Chat {
-                model, provider, system, dev, dev_port, tui, background, session, pty_session, json, mcp_server, prompt, quiet, batch, format,
-                mdap, mdap_k, mdap_target, mdap_parallel, mdap_estimate, mdap_max_samples, mdap_fail_fast,
+                model,
+                provider,
+                system,
+                dev,
+                dev_port,
+                tui,
+                background,
+                session,
+                pty_session,
+                json,
+                mcp_server,
+                prompt,
+                quiet,
+                batch,
+                format,
+                mdap,
+                mdap_k,
+                mdap_target,
+                mdap_parallel,
+                mdap_estimate,
+                mdap_max_samples,
+                mdap_fail_fast,
             }) => {
                 let mdap_config = if mdap {
-                    Some(crate::mdap::MdapConfig::builder()
-                        .k(mdap_k)
-                        .target_success_rate(mdap_target)
-                        .parallel_samples(mdap_parallel)
-                        .max_samples_per_subtask(mdap_max_samples)
-                        .fail_fast(mdap_fail_fast)
-                        .build()
-                        .expect("Invalid MDAP configuration"))
+                    Some(
+                        crate::mdap::MdapConfig::builder()
+                            .k(mdap_k)
+                            .target_success_rate(mdap_target)
+                            .parallel_samples(mdap_parallel)
+                            .max_samples_per_subtask(mdap_max_samples)
+                            .fail_fast(mdap_fail_fast)
+                            .build()
+                            .expect("Invalid MDAP configuration"),
+                    )
                 } else {
                     None
                 };
                 super::chat::handle_chat(
-                    model, provider, system, dev, dev_port, tui, background, session, pty_session, json, mcp_server, prompt, quiet, batch, format,
-                    mdap_config, mdap_estimate,
-                ).await
+                    model,
+                    provider,
+                    system,
+                    dev,
+                    dev_port,
+                    tui,
+                    background,
+                    session,
+                    pty_session,
+                    json,
+                    mcp_server,
+                    prompt,
+                    quiet,
+                    batch,
+                    format,
+                    mdap_config,
+                    mdap_estimate,
+                )
+                .await
             }
             Some(Commands::Config { list, get, set }) => {
                 super::config::handle_config(list, get, set).await
             }
             Some(Commands::Plan(cmd)) => super::plan::handle_plan_command(cmd).await,
-            Some(Commands::Task { prompt, model, provider }) => {
-                super::task::handle_task(prompt, model, provider).await
-            }
-            Some(Commands::Cost { period, reset }) => {
-                super::cost::handle_cost(period, reset).await
-            }
+            Some(Commands::Task {
+                prompt,
+                model,
+                provider,
+            }) => super::task::handle_task(prompt, model, provider).await,
+            Some(Commands::Cost { period, reset }) => super::cost::handle_cost(period, reset).await,
             Some(Commands::Mcp(cmd)) => super::mcp::handle_mcp(cmd).await,
-            Some(Commands::Models { command }) => {
-                super::models::handle_models(command).await
-            }
+            Some(Commands::Models { command }) => super::models::handle_models(command).await,
             Some(Commands::History(cmd)) => super::history::handle_history(cmd).await,
-            Some(Commands::Attach { session }) => {
-                super::attach::attach(session).await
-            }
-            Some(Commands::Sessions) => {
-                super::attach::list_sessions().await
-            }
-            Some(Commands::Exit { session }) => {
-                super::attach::exit_session(session).await
-            }
-            Some(Commands::Kill { session }) => {
-                super::attach::kill_session(session).await
-            }
+            Some(Commands::Attach { session }) => super::attach::attach(session).await,
+            Some(Commands::Sessions) => super::attach::list_sessions().await,
+            Some(Commands::Exit { session }) => super::attach::exit_session(session).await,
+            Some(Commands::Kill { session }) => super::attach::kill_session(session).await,
             Some(Commands::Init) => {
                 crate::utils::logger::Logger::warn("Init not yet implemented");
                 Ok(())
             }
-            Some(Commands::Analytics(cmd)) => {
-                super::analytics::handle_analytics(cmd).await
-            }
+            Some(Commands::Analytics(cmd)) => super::analytics::handle_analytics(cmd).await,
             Some(Commands::EvalImprove {
-                baselines_path, max_rounds, n_trials, improvement_threshold,
-                auto_update_baselines, commit_baselines, dry_run, max_budget,
-                no_bridge, no_direct,
+                baselines_path,
+                max_rounds,
+                n_trials,
+                improvement_threshold,
+                auto_update_baselines,
+                commit_baselines,
+                dry_run,
+                max_budget,
+                no_bridge,
+                no_direct,
             }) => {
                 super::self_improve_cmd::handle_eval_improve(
-                    baselines_path, max_rounds, n_trials, improvement_threshold,
-                    auto_update_baselines, commit_baselines, dry_run, max_budget,
-                    no_bridge, no_direct,
-                ).await
+                    baselines_path,
+                    max_rounds,
+                    n_trials,
+                    improvement_threshold,
+                    auto_update_baselines,
+                    commit_baselines,
+                    dry_run,
+                    max_budget,
+                    no_bridge,
+                    no_direct,
+                )
+                .await
             }
             Some(Commands::SelfImprove {
-                max_cycles, max_budget, dry_run, strategies, agent_iterations,
-                max_diff, create_prs, branch_prefix, no_bridge, no_direct,
-                model, provider,
+                max_cycles,
+                max_budget,
+                dry_run,
+                strategies,
+                agent_iterations,
+                max_diff,
+                create_prs,
+                branch_prefix,
+                no_bridge,
+                no_direct,
+                model,
+                provider,
             }) => {
                 super::self_improve_cmd::handle_self_improve(
-                    max_cycles, max_budget, dry_run, strategies, agent_iterations,
-                    max_diff, create_prs, branch_prefix, no_bridge, no_direct,
-                    model, provider,
-                ).await
+                    max_cycles,
+                    max_budget,
+                    dry_run,
+                    strategies,
+                    agent_iterations,
+                    max_diff,
+                    create_prs,
+                    branch_prefix,
+                    no_bridge,
+                    no_direct,
+                    model,
+                    provider,
+                )
+                .await
             }
             Some(Commands::Remote(cmd)) => super::remote::handle_remote(cmd).await,
-            Some(Commands::LocalModels(cmd)) => super::local_models::handle_local_models(Some(cmd)).await,
+            Some(Commands::LocalModels(cmd)) => {
+                super::local_models::handle_local_models(Some(cmd)).await
+            }
             Some(Commands::Agent {
                 session_id,
                 model,
@@ -454,28 +523,27 @@ impl App {
                 mdap_fail_fast,
             }) => {
                 let mdap_config = if mdap {
-                    Some(crate::mdap::MdapConfig::builder()
-                        .k(mdap_k)
-                        .target_success_rate(mdap_target)
-                        .parallel_samples(mdap_parallel)
-                        .max_samples_per_subtask(mdap_max_samples)
-                        .fail_fast(mdap_fail_fast)
-                        .build()
-                        .expect("Invalid MDAP configuration"))
+                    Some(
+                        crate::mdap::MdapConfig::builder()
+                            .k(mdap_k)
+                            .target_success_rate(mdap_target)
+                            .parallel_samples(mdap_parallel)
+                            .max_samples_per_subtask(mdap_max_samples)
+                            .fail_fast(mdap_fail_fast)
+                            .build()
+                            .expect("Invalid MDAP configuration"),
+                    )
                 } else {
                     None
                 };
                 // Run as Agent process - this blocks until agent exits
-                let agent = crate::agent::AgentProcess::new(
-                    Some(session_id),
-                    model,
-                    mdap_config,
-                ).await?;
+                let agent =
+                    crate::agent::AgentProcess::new(Some(session_id), model, mdap_config).await?;
                 agent.run().await
             }
             None => {
                 // No command provided, show help
-                Cli::parse_from(&["brainwires", "--help"]);
+                Cli::parse_from(["brainwires", "--help"]);
                 Ok(())
             }
         }

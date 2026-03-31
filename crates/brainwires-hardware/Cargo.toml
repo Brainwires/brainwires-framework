@@ -167,7 +167,7 @@ required-features = ["network"]
 
 [[example]]
 name = "wake_word_demo"
-required-features = ["wake-word"]
+required-features = ["wake-word-rustpotter"]
 
 [[example]]
 name = "voice_assistant"

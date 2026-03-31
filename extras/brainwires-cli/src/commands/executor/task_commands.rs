@@ -29,18 +29,20 @@ impl CommandExecutor {
     }
 
     fn cmd_task_complete(&self, args: &[String]) -> Result<CommandResult> {
-        let task_id = args.first().map(|s| s.clone());
+        let task_id = args.first().cloned();
         Ok(CommandResult::Action(CommandAction::TaskComplete(task_id)))
     }
 
     fn cmd_task_skip(&self, args: &[String]) -> Result<CommandResult> {
-        let task_id = args.first().map(|s| s.clone());
+        let task_id = args.first().cloned();
         let reason = if args.len() > 1 {
             Some(args[1..].join(" "))
         } else {
             None
         };
-        Ok(CommandResult::Action(CommandAction::TaskSkip(task_id, reason)))
+        Ok(CommandResult::Action(CommandAction::TaskSkip(
+            task_id, reason,
+        )))
     }
 
     fn cmd_task_add(&self, args: &[String]) -> Result<CommandResult> {
@@ -69,7 +71,9 @@ impl CommandExecutor {
         } else {
             None
         };
-        Ok(CommandResult::Action(CommandAction::TaskBlock(task_id, reason)))
+        Ok(CommandResult::Action(CommandAction::TaskBlock(
+            task_id, reason,
+        )))
     }
 
     fn cmd_task_depends(&self, args: &[String]) -> Result<CommandResult> {
@@ -82,11 +86,13 @@ impl CommandExecutor {
         }
         let task_id = args[0].clone();
         let depends_on = args[1].clone();
-        Ok(CommandResult::Action(CommandAction::TaskDepends(task_id, depends_on)))
+        Ok(CommandResult::Action(CommandAction::TaskDepends(
+            task_id, depends_on,
+        )))
     }
 
     fn cmd_task_time(&self, args: &[String]) -> Result<CommandResult> {
-        let task_id = args.first().map(|s| s.clone());
+        let task_id = args.first().cloned();
         Ok(CommandResult::Action(CommandAction::TaskTime(task_id)))
     }
 }

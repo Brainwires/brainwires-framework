@@ -4,11 +4,11 @@
 //! clickable buttons and checkboxes.
 
 use ratatui::{
+    Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph},
-    Frame,
 };
 
 use crate::tui::app::{App, DialogFocus, FindReplaceMode};
@@ -30,7 +30,7 @@ pub fn draw_find_replace_dialog(f: &mut Frame, app: &mut App, _area: Rect) {
         FindReplaceMode::Find => 8,
         FindReplaceMode::Replace => 10,
     };
-    let modal_width = (screen.width * 70 / 100).min(65).max(50);
+    let modal_width = (screen.width * 70 / 100).clamp(50, 65);
 
     // Center the modal
     let x = (screen.width.saturating_sub(modal_width)) / 2;
@@ -148,7 +148,10 @@ fn draw_input_field(
             Style::default().fg(Color::Yellow),
         )
     } else {
-        (Style::default().fg(Color::Gray), Style::default().fg(Color::DarkGray))
+        (
+            Style::default().fg(Color::Gray),
+            Style::default().fg(Color::DarkGray),
+        )
     };
 
     // Split text at cursor position for visual cursor rendering
@@ -202,11 +205,19 @@ fn draw_options_row(f: &mut Frame, app: &mut App, area: Rect) {
 
     // Calculate positions for checkboxes
     let case_start = area.x + 2;
-    let case_text = if state.case_sensitive { "[x] Case sensitive" } else { "[ ] Case sensitive" };
+    let case_text = if state.case_sensitive {
+        "[x] Case sensitive"
+    } else {
+        "[ ] Case sensitive"
+    };
     let case_width = case_text.len() as u16;
 
     let regex_start = case_start + case_width + 4;
-    let regex_text = if state.use_regex { "[x] Regex" } else { "[ ] Regex" };
+    let regex_text = if state.use_regex {
+        "[x] Regex"
+    } else {
+        "[ ] Regex"
+    };
     let regex_width = regex_text.len() as u16;
 
     // Register click regions
@@ -217,13 +228,17 @@ fn draw_options_row(f: &mut Frame, app: &mut App, area: Rect) {
 
     // Style based on focus
     let case_style = if focus == DialogFocus::CaseCheckbox {
-        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(Color::White)
     };
 
     let regex_style = if focus == DialogFocus::RegexCheckbox {
-        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(Color::White)
     };
@@ -281,12 +296,25 @@ fn draw_buttons_row(f: &mut Frame, app: &mut App, area: Rect) {
 
     // Replace buttons (only in Replace mode)
     if mode == FindReplaceMode::Replace {
-        add_button("Replace", DialogFocus::ReplaceButton, &mut spans, &mut x_offset);
-        add_button("Replace All", DialogFocus::ReplaceAllButton, &mut spans, &mut x_offset);
+        add_button(
+            "Replace",
+            DialogFocus::ReplaceButton,
+            &mut spans,
+            &mut x_offset,
+        );
+        add_button(
+            "Replace All",
+            DialogFocus::ReplaceAllButton,
+            &mut spans,
+            &mut x_offset,
+        );
     }
 
     // Close hint
-    spans.push(Span::styled("  Esc: close", Style::default().fg(Color::DarkGray)));
+    spans.push(Span::styled(
+        "  Esc: close",
+        Style::default().fg(Color::DarkGray),
+    ));
 
     let line = Line::from(spans);
     let paragraph = Paragraph::new(line);

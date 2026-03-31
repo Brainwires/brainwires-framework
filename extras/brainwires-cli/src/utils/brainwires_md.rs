@@ -30,11 +30,15 @@ fn parse_file_with_imports(
 ) -> Result<String> {
     // Check recursion depth
     if depth > MAX_IMPORT_DEPTH {
-        anyhow::bail!("Maximum import depth exceeded ({}). Possible circular dependency.", MAX_IMPORT_DEPTH);
+        anyhow::bail!(
+            "Maximum import depth exceeded ({}). Possible circular dependency.",
+            MAX_IMPORT_DEPTH
+        );
     }
 
     // Check for circular imports
-    let canonical_path = file_path.canonicalize()
+    let canonical_path = file_path
+        .canonicalize()
         .with_context(|| format!("Failed to resolve path: {}", file_path.display()))?;
 
     if visited.contains(&canonical_path) {
@@ -49,8 +53,12 @@ fn parse_file_with_imports(
 
     // Process imports
     let mut result = String::new();
-    let base_dir = file_path.parent()
-        .with_context(|| format!("Failed to get parent directory for: {}", file_path.display()))?;
+    let base_dir = file_path.parent().with_context(|| {
+        format!(
+            "Failed to get parent directory for: {}",
+            file_path.display()
+        )
+    })?;
 
     for line in content.lines() {
         if let Some(import_path) = parse_import_line(line) {
@@ -58,8 +66,11 @@ fn parse_file_with_imports(
             let imported_file = base_dir.join(import_path);
 
             if !imported_file.exists() {
-                anyhow::bail!("Import file not found: {} (referenced in {})",
-                    imported_file.display(), file_path.display());
+                anyhow::bail!(
+                    "Import file not found: {} (referenced in {})",
+                    imported_file.display(),
+                    file_path.display()
+                );
             }
 
             // Recursively parse imported file
@@ -109,8 +120,14 @@ mod tests {
     #[test]
     fn test_parse_import_line() {
         assert_eq!(parse_import_line("@file.md"), Some("file.md"));
-        assert_eq!(parse_import_line("@path/to/file.md"), Some("path/to/file.md"));
-        assert_eq!(parse_import_line("  @../relative.md  "), Some("../relative.md"));
+        assert_eq!(
+            parse_import_line("@path/to/file.md"),
+            Some("path/to/file.md")
+        );
+        assert_eq!(
+            parse_import_line("  @../relative.md  "),
+            Some("../relative.md")
+        );
         assert_eq!(parse_import_line("@@not-an-import"), None);
         assert_eq!(parse_import_line("@mention with spaces"), None);
         assert_eq!(parse_import_line("regular text"), None);

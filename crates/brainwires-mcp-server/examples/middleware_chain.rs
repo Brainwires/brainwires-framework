@@ -4,10 +4,10 @@
 //! cargo run --example middleware_chain --features server
 //! ```
 
+use brainwires_mcp::JsonRpcRequest;
 use brainwires_mcp_server::{
     LoggingMiddleware, MiddlewareChain, RateLimitMiddleware, RequestContext, ToolFilterMiddleware,
 };
-use brainwires_mcp::JsonRpcRequest;
 use serde_json::json;
 
 #[tokio::main]

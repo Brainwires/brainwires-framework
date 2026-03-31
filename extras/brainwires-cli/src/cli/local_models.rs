@@ -3,14 +3,14 @@
 //! Provides commands to list, download, register, and configure local models
 //! for CPU-based inference.
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use clap::Subcommand;
-use console::{style, Term};
+use console::{Term, style};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::path::PathBuf;
 
 use crate::providers::local_llm::{
-    get_known_model, known_models, LocalLlmConfig, LocalModelRegistry,
+    LocalLlmConfig, LocalModelRegistry, get_known_model, known_models,
 };
 
 #[derive(Subcommand)]
@@ -137,13 +137,16 @@ fn list_installed_models(verbose: bool) -> Result<()> {
     let _term = Term::stdout();
 
     if registry.models.is_empty() {
-        println!(
-            "{}",
-            style("No local models installed.").yellow()
-        );
+        println!("{}", style("No local models installed.").yellow());
         println!();
-        println!("Use {} to see downloadable models", style("brainwires local-models list --available").cyan());
-        println!("Use {} to download a model", style("brainwires local-models download <model_id>").cyan());
+        println!(
+            "Use {} to see downloadable models",
+            style("brainwires local-models list --available").cyan()
+        );
+        println!(
+            "Use {} to download a model",
+            style("brainwires local-models download <model_id>").cyan()
+        );
         return Ok(());
     }
 
@@ -187,10 +190,7 @@ fn list_installed_models(verbose: bool) -> Result<()> {
 
     if !verbose {
         println!();
-        println!(
-            "{}",
-            style("Use --verbose for more details").dim()
-        );
+        println!("{}", style("Use --verbose for more details").dim());
     }
 
     Ok(())
@@ -209,10 +209,7 @@ fn list_available_models(verbose: bool) -> Result<()> {
             style(model.id).cyan().bold(),
             style(model.name).white()
         );
-        println!(
-            "    {}",
-            style(model.description).dim()
-        );
+        println!("    {}", style(model.description).dim());
 
         if verbose {
             println!("    Repo: {}", style(model.huggingface_repo).dim());
@@ -236,16 +233,23 @@ fn list_available_models(verbose: bool) -> Result<()> {
     Ok(())
 }
 
-async fn download_model(model_id: &str, custom_path: Option<PathBuf>, _quantization: &str) -> Result<()> {
-    let known = get_known_model(model_id)
-        .ok_or_else(|| anyhow!("Unknown model: {}. Use 'list --available' to see options.", model_id))?;
+async fn download_model(
+    model_id: &str,
+    custom_path: Option<PathBuf>,
+    _quantization: &str,
+) -> Result<()> {
+    let known = get_known_model(model_id).ok_or_else(|| {
+        anyhow!(
+            "Unknown model: {}. Use 'list --available' to see options.",
+            model_id
+        )
+    })?;
 
     let registry = LocalModelRegistry::load()?;
     let models_dir = custom_path.unwrap_or_else(|| registry.models_dir.clone());
 
     // Ensure models directory exists
-    std::fs::create_dir_all(&models_dir)
-        .context("Failed to create models directory")?;
+    std::fs::create_dir_all(&models_dir).context("Failed to create models directory")?;
 
     let model_path = models_dir.join(known.filename);
 
@@ -297,8 +301,7 @@ async fn download_model(model_id: &str, custom_path: Option<PathBuf>, _quantizat
     pb.set_length(total_size);
 
     // Stream to file
-    let mut file = std::fs::File::create(&model_path)
-        .context("Failed to create model file")?;
+    let mut file = std::fs::File::create(&model_path).context("Failed to create model file")?;
 
     let mut stream = response.bytes_stream();
     use futures::StreamExt;
@@ -340,11 +343,7 @@ async fn download_model(model_id: &str, custom_path: Option<PathBuf>, _quantizat
 
     registry.save()?;
 
-    println!(
-        "{} Registered as '{}'",
-        style("✓").green(),
-        known.id
-    );
+    println!("{} Registered as '{}'", style("✓").green(), known.id);
 
     Ok(())
 }
@@ -385,11 +384,7 @@ fn register_model(
 
     registry.save()?;
 
-    println!(
-        "{} Registered model '{}'",
-        style("✓").green(),
-        model_id
-    );
+    println!("{} Registered model '{}'", style("✓").green(), model_id);
 
     Ok(())
 }
@@ -402,8 +397,7 @@ fn remove_model(model_id: &str, delete_file: bool) -> Result<()> {
         .ok_or_else(|| anyhow!("Model '{}' not found", model_id))?;
 
     if delete_file && config.model_path.exists() {
-        std::fs::remove_file(&config.model_path)
-            .context("Failed to delete model file")?;
+        std::fs::remove_file(&config.model_path).context("Failed to delete model file")?;
         println!(
             "{} Deleted model file: {}",
             style("✓").green(),
@@ -413,11 +407,7 @@ fn remove_model(model_id: &str, delete_file: bool) -> Result<()> {
 
     registry.save()?;
 
-    println!(
-        "{} Removed model '{}'",
-        style("✓").green(),
-        model_id
-    );
+    println!("{} Removed model '{}'", style("✓").green(), model_id);
 
     Ok(())
 }
@@ -457,9 +447,18 @@ fn show_info(model_id: &str) -> Result<()> {
     println!("Batch Size:   {}", config.batch_size);
     println!("Max Tokens:   {}", config.max_tokens);
     println!("GPU Layers:   {}", config.gpu_layers);
-    println!("Memory Map:   {}", if config.use_mmap { "yes" } else { "no" });
-    println!("Memory Lock:  {}", if config.use_mlock { "yes" } else { "no" });
-    println!("Tools:        {}", if config.supports_tools { "yes" } else { "no" });
+    println!(
+        "Memory Map:   {}",
+        if config.use_mmap { "yes" } else { "no" }
+    );
+    println!(
+        "Memory Lock:  {}",
+        if config.use_mlock { "yes" } else { "no" }
+    );
+    println!(
+        "Tools:        {}",
+        if config.supports_tools { "yes" } else { "no" }
+    );
 
     if let Some(ram) = config.estimated_ram_mb {
         println!("Est. RAM:     ~{}MB", ram);
@@ -483,17 +482,10 @@ fn scan_models() -> Result<()> {
     let discovered = registry.scan_models_dir()?;
 
     if discovered.is_empty() {
-        println!(
-            "{} No new models found",
-            style("!").yellow()
-        );
+        println!("{} No new models found", style("!").yellow());
     } else {
         for id in &discovered {
-            println!(
-                "{} Found: {}",
-                style("✓").green(),
-                id
-            );
+            println!("{} Found: {}", style("✓").green(), id);
         }
         registry.save()?;
         println!(
@@ -510,13 +502,11 @@ async fn test_model(model_id: &str, custom_prompt: Option<String>) -> Result<()>
     use crate::providers::ProviderFactory;
     use crate::types::provider::ChatOptions;
 
-    let prompt = custom_prompt.unwrap_or_else(|| "Hello! Please respond with just 'ok' to confirm you're working.".to_string());
+    let prompt = custom_prompt.unwrap_or_else(|| {
+        "Hello! Please respond with just 'ok' to confirm you're working.".to_string()
+    });
 
-    println!(
-        "{} Testing model '{}'...",
-        style("→").cyan(),
-        model_id
-    );
+    println!("{} Testing model '{}'...", style("→").cyan(), model_id);
 
     let factory = ProviderFactory::new();
     let provider = factory.create_local(model_id)?;
@@ -542,9 +532,7 @@ async fn test_model(model_id: &str, custom_prompt: Option<String>) -> Result<()>
     println!();
     println!(
         "  Time: {:?}, Tokens: {} in / {} out",
-        elapsed,
-        response.usage.prompt_tokens,
-        response.usage.completion_tokens
+        elapsed, response.usage.prompt_tokens, response.usage.completion_tokens
     );
 
     println!(

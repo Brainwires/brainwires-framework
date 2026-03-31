@@ -5,11 +5,11 @@
 use std::path::PathBuf;
 use std::process::Stdio;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 
-use brainwires::agent_network::ipc::AgentMetadata;
 use crate::ipc::{get_agent_socket_path, write_agent_metadata};
 use crate::mdap::MdapConfig;
+use brainwires::agent_network::ipc::AgentMetadata;
 
 /// Options for spawning an agent process
 #[derive(Debug, Clone, Default)]
@@ -113,12 +113,17 @@ pub async fn spawn_agent_process_with_options(
     }
 
     // Determine working directory
-    let working_dir = options.working_directory.clone()
+    let working_dir = options
+        .working_directory
+        .clone()
         .or_else(|| std::env::current_dir().ok())
         .unwrap_or_else(|| PathBuf::from("."));
 
     // Determine model name for metadata
-    let model_name = options.model.clone().unwrap_or_else(|| "default".to_string());
+    let model_name = options
+        .model
+        .clone()
+        .unwrap_or_else(|| "default".to_string());
 
     // Create and write metadata BEFORE spawning the process
     // This ensures metadata exists when the agent starts
@@ -137,14 +142,10 @@ pub async fn spawn_agent_process_with_options(
     write_agent_metadata(&metadata)?;
 
     // Get the current executable path
-    let exe_path = std::env::current_exe()
-        .context("Failed to get current executable path")?;
+    let exe_path = std::env::current_exe().context("Failed to get current executable path")?;
 
     // Build command arguments
-    let mut args = vec![
-        "agent".to_string(),
-        session_id.to_string(),
-    ];
+    let mut args = vec!["agent".to_string(), session_id.to_string()];
 
     if let Some(m) = &options.model {
         args.push("--model".to_string());
@@ -186,10 +187,10 @@ pub async fn spawn_agent_process_with_options(
     let stdout_path = log_dir.join(format!("{}.stdout.log", session_id));
     let stderr_path = log_dir.join(format!("{}.stderr.log", session_id));
 
-    let stdout_file = std::fs::File::create(&stdout_path)
-        .context("Failed to create agent stdout log")?;
-    let stderr_file = std::fs::File::create(&stderr_path)
-        .context("Failed to create agent stderr log")?;
+    let stdout_file =
+        std::fs::File::create(&stdout_path).context("Failed to create agent stdout log")?;
+    let stderr_file =
+        std::fs::File::create(&stderr_path).context("Failed to create agent stderr log")?;
 
     // Spawn as a detached process
     #[cfg(unix)]
@@ -214,8 +215,7 @@ pub async fn spawn_agent_process_with_options(
             });
         }
 
-        let child = cmd.spawn()
-            .context("Failed to spawn agent process")?;
+        let child = cmd.spawn().context("Failed to spawn agent process")?;
         child.id()
     };
 
@@ -235,7 +235,8 @@ pub async fn spawn_agent_process_with_options(
     // Update metadata with PID
     crate::ipc::update_agent_metadata(session_id, |m| {
         m.pid = Some(child_pid);
-    }).ok(); // Ignore errors updating metadata
+    })
+    .ok(); // Ignore errors updating metadata
 
     // Wait for socket to be created (up to 10 seconds)
     for _ in 0..100 {
@@ -320,7 +321,9 @@ pub async fn cleanup_agent(session_id: &str, notify_children: bool) -> Result<()
 
                 // Connect and send ParentSignal with authentication
                 if let Ok(mut conn) = crate::ipc::connect_to_agent(&child.session_id).await {
-                    use brainwires::agent_network::ipc::{ViewerMessage, ParentSignalType, Handshake, HandshakeResponse};
+                    use brainwires::agent_network::ipc::{
+                        Handshake, HandshakeResponse, ParentSignalType, ViewerMessage,
+                    };
 
                     // Perform authenticated handshake
                     let handshake = Handshake::reattach(child.session_id.clone(), child_token);
@@ -329,14 +332,14 @@ pub async fn cleanup_agent(session_id: &str, notify_children: bool) -> Result<()
                     }
 
                     // Wait for response
-                    if let Ok(Some(response)) = conn.reader.read::<HandshakeResponse>().await {
-                        if response.accepted {
-                            let signal = ViewerMessage::ParentSignal {
-                                signal: ParentSignalType::ParentExiting,
-                                parent_session_id: session_id.to_string(),
-                            };
-                            let _ = conn.writer.write(&signal).await;
-                        }
+                    if let Ok(Some(response)) = conn.reader.read::<HandshakeResponse>().await
+                        && response.accepted
+                    {
+                        let signal = ViewerMessage::ParentSignal {
+                            signal: ParentSignalType::ParentExiting,
+                            parent_session_id: session_id.to_string(),
+                        };
+                        let _ = conn.writer.write(&signal).await;
                     }
                 }
             }

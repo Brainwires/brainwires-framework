@@ -324,7 +324,12 @@ mod tests {
 
     // Note: parse_github_event for "issues" calls parse_issue(payload) directly,
     // so issue fields must be at the top level of the payload (not nested under "issue").
-    fn issues_opened_payload(number: u64, title: &str, owner: &str, repo: &str) -> serde_json::Value {
+    fn issues_opened_payload(
+        number: u64,
+        title: &str,
+        owner: &str,
+        repo: &str,
+    ) -> serde_json::Value {
         serde_json::json!({
             "action": "opened",
             "id": number,
@@ -378,7 +383,11 @@ mod tests {
         });
         let event = parse_github_event("push", &payload).unwrap();
         match event {
-            WorkflowEvent::PushReceived { branch, commits, repo } => {
+            WorkflowEvent::PushReceived {
+                branch,
+                commits,
+                repo,
+            } => {
                 assert_eq!(branch, "main");
                 assert_eq!(commits.len(), 2);
                 assert_eq!(commits[0].sha, "abc123");

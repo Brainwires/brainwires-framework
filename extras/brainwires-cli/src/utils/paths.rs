@@ -117,8 +117,7 @@ impl PlatformPaths {
     pub fn ensure_dot_brainwires_dir() -> Result<PathBuf> {
         let dir = Self::dot_brainwires_dir()?;
         if !dir.exists() {
-            std::fs::create_dir_all(&dir)
-                .context("Failed to create ~/.brainwires directory")?;
+            std::fs::create_dir_all(&dir).context("Failed to create ~/.brainwires directory")?;
         }
         Ok(dir)
     }
@@ -148,8 +147,7 @@ impl PlatformPaths {
     pub fn ensure_audit_dir() -> Result<PathBuf> {
         let dir = Self::audit_log_dir()?;
         if !dir.exists() {
-            std::fs::create_dir_all(&dir)
-                .context("Failed to create audit log directory")?;
+            std::fs::create_dir_all(&dir).context("Failed to create audit log directory")?;
         }
         Ok(dir)
     }
@@ -243,8 +241,7 @@ impl PlatformPaths {
     pub fn ensure_sessions_dir() -> Result<PathBuf> {
         let dir = Self::sessions_dir()?;
         if !dir.exists() {
-            std::fs::create_dir_all(&dir)
-                .context("Failed to create sessions directory")?;
+            std::fs::create_dir_all(&dir).context("Failed to create sessions directory")?;
         }
         Ok(dir)
     }
@@ -267,8 +264,7 @@ impl PlatformPaths {
     pub fn ensure_plans_dir() -> Result<PathBuf> {
         let dir = Self::plans_dir()?;
         if !dir.exists() {
-            std::fs::create_dir_all(&dir)
-                .context("Failed to create plans directory")?;
+            std::fs::create_dir_all(&dir).context("Failed to create plans directory")?;
         }
         Ok(dir)
     }
@@ -277,8 +273,7 @@ impl PlatformPaths {
     pub fn ensure_data_dir() -> Result<PathBuf> {
         let dir = Self::brainwires_data_dir()?;
         if !dir.exists() {
-            std::fs::create_dir_all(&dir)
-                .context("Failed to create Brainwires data directory")?;
+            std::fs::create_dir_all(&dir).context("Failed to create Brainwires data directory")?;
         }
 
         // Set secure permissions on Unix (owner read/write/execute only)
@@ -315,8 +310,7 @@ impl PlatformPaths {
     pub fn ensure_cache_dir() -> Result<PathBuf> {
         let dir = Self::brainwires_cache_dir()?;
         if !dir.exists() {
-            std::fs::create_dir_all(&dir)
-                .context("Failed to create Brainwires cache directory")?;
+            std::fs::create_dir_all(&dir).context("Failed to create Brainwires cache directory")?;
         }
 
         // Set secure permissions on Unix (owner read/write/execute only)
@@ -345,8 +339,9 @@ impl PlatformPaths {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700))
-                .with_context(|| format!("Failed to set directory permissions: {}", path.display()))?;
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700)).with_context(
+                || format!("Failed to set directory permissions: {}", path.display()),
+            )?;
         }
 
         Ok(path.to_path_buf())
@@ -381,7 +376,10 @@ impl PlatformPaths {
             return Ok(());
         }
 
-        tracing::info!("Migrating data from {} to XDG directories", old_home.display());
+        tracing::info!(
+            "Migrating data from {} to XDG directories",
+            old_home.display()
+        );
 
         // Ensure new directories exist
         Self::ensure_data_dir()?;
@@ -393,7 +391,8 @@ impl PlatformPaths {
 
         // Migrate config files
         migrated |= Self::migrate_file(&old_home.join("config.json"), &Self::config_file()?)?;
-        migrated |= Self::migrate_file(&old_home.join("mcp-config.json"), &Self::mcp_config_file()?)?;
+        migrated |=
+            Self::migrate_file(&old_home.join("mcp-config.json"), &Self::mcp_config_file()?)?;
 
         // Migrate data files
         migrated |= Self::migrate_file(&old_home.join("session.json"), &Self::session_file()?)?;
@@ -408,12 +407,18 @@ impl PlatformPaths {
         }
 
         // Rename old directory to prevent repeated migration attempts
-        let old_backup = old_home.parent()
+        let old_backup = old_home
+            .parent()
             .ok_or_else(|| anyhow::anyhow!("Failed to get parent directory"))?
             .join(".brainwires.old");
 
-        std::fs::rename(&old_home, &old_backup)
-            .with_context(|| format!("Failed to rename {} to {}", old_home.display(), old_backup.display()))?;
+        std::fs::rename(&old_home, &old_backup).with_context(|| {
+            format!(
+                "Failed to rename {} to {}",
+                old_home.display(),
+                old_backup.display()
+            )
+        })?;
 
         tracing::info!("Old directory renamed to: {}", old_backup.display());
 
@@ -427,8 +432,9 @@ impl PlatformPaths {
             if let Some(parent) = to.parent() {
                 std::fs::create_dir_all(parent)?;
             }
-            std::fs::copy(from, to)
-                .with_context(|| format!("Failed to migrate {} to {}", from.display(), to.display()))?;
+            std::fs::copy(from, to).with_context(|| {
+                format!("Failed to migrate {} to {}", from.display(), to.display())
+            })?;
             tracing::info!("Migrated: {} -> {}", from.display(), to.display());
             Ok(true)
         } else {
@@ -571,8 +577,7 @@ impl PlatformPaths {
     pub fn ensure_fastembed_cache_dir() -> Result<PathBuf> {
         let dir = Self::brainwires_data_dir()?.join("fastembed");
         if !dir.exists() {
-            std::fs::create_dir_all(&dir)
-                .context("Failed to create fastembed cache directory")?;
+            std::fs::create_dir_all(&dir).context("Failed to create fastembed cache directory")?;
         }
         Ok(dir)
     }
@@ -586,7 +591,10 @@ impl PlatformPaths {
 
         if old_cache.exists() && old_cache.is_dir() {
             // Only migrate if new cache doesn't have the models yet
-            if !new_cache.join("models--Qdrant--all-MiniLM-L6-v2-onnx").exists() {
+            if !new_cache
+                .join("models--Qdrant--all-MiniLM-L6-v2-onnx")
+                .exists()
+            {
                 tracing::info!(
                     "Migrating fastembed cache from {} to {}",
                     old_cache.display(),
@@ -823,7 +831,11 @@ mod tests {
     #[test]
     fn test_conversations_db_path() {
         let conversations = PlatformPaths::conversations_db_path().unwrap();
-        assert!(conversations.to_string_lossy().contains("conversations.lance"));
+        assert!(
+            conversations
+                .to_string_lossy()
+                .contains("conversations.lance")
+        );
         assert!(conversations.to_string_lossy().contains("brainwires"));
     }
 

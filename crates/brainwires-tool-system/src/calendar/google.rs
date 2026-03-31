@@ -5,7 +5,9 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::types::{Attendee, AttendeeStatus, CalendarEvent, CalendarInfo, FreeBusySlot, BusyStatus};
+use super::types::{
+    Attendee, AttendeeStatus, BusyStatus, CalendarEvent, CalendarInfo, FreeBusySlot,
+};
 
 const CALENDAR_API_BASE: &str = "https://www.googleapis.com/calendar/v3";
 const TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
@@ -28,11 +30,7 @@ struct TokenResponse {
 
 impl GoogleCalendarClient {
     /// Create a new client and obtain an access token via refresh.
-    pub async fn new(
-        client_id: &str,
-        client_secret: &str,
-        refresh_token: &str,
-    ) -> Result<Self> {
+    pub async fn new(client_id: &str, client_secret: &str, refresh_token: &str) -> Result<Self> {
         let client = Client::new();
         let access_token =
             Self::refresh_access_token(&client, client_id, client_secret, refresh_token).await?;
@@ -122,7 +120,10 @@ impl GoogleCalendarClient {
             .cloned()
             .unwrap_or_default();
 
-        let events = items.iter().filter_map(|item| Self::parse_event(item)).collect();
+        let events = items
+            .iter()
+            .filter_map(|item| Self::parse_event(item))
+            .collect();
         Ok(events)
     }
 
@@ -247,7 +248,10 @@ impl GoogleCalendarClient {
             for (_cal_id, cal_data) in calendars {
                 if let Some(busy_arr) = cal_data.get("busy").and_then(|b| b.as_array()) {
                     for slot in busy_arr {
-                        let start = slot.get("start").and_then(|s| s.as_str()).unwrap_or_default();
+                        let start = slot
+                            .get("start")
+                            .and_then(|s| s.as_str())
+                            .unwrap_or_default();
                         let end = slot.get("end").and_then(|e| e.as_str()).unwrap_or_default();
                         slots.push(FreeBusySlot {
                             start: start.to_string(),

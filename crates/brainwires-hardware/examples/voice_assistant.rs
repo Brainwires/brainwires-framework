@@ -18,13 +18,13 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use brainwires_hardware::audio::{
+    api::OpenAiStt,
     assistant::{VoiceAssistant, VoiceAssistantConfig, VoiceAssistantHandler},
+    capture::AudioCapture as _,
     error::AudioError,
     hardware::{CpalCapture, CpalPlayback},
-    api::OpenAiStt,
-    types::Transcript,
-    capture::AudioCapture as _,
     playback::AudioPlayback as _,
+    types::Transcript,
 };
 
 struct PrintHandler;
@@ -48,12 +48,10 @@ impl VoiceAssistantHandler for PrintHandler {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter("info")
-        .init();
+    tracing_subscriber::fmt().with_env_filter("info").init();
 
-    let api_key = std::env::var("OPENAI_API_KEY")
-        .expect("OPENAI_API_KEY environment variable required");
+    let api_key =
+        std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY environment variable required");
 
     let capture = Arc::new(CpalCapture);
     let playback = Arc::new(CpalPlayback);
@@ -83,7 +81,7 @@ async fn main() -> anyhow::Result<()> {
         .with_config(config);
 
     // Wake word support
-    #[cfg(feature = "wake-word")]
+    #[cfg(feature = "wake-word-rustpotter")]
     if let Some(model_path) = find_arg_str(&args, "--wake-word") {
         use brainwires_hardware::audio::wake_word::RustpotterDetector;
         println!("Loading wake word model: {model_path}");

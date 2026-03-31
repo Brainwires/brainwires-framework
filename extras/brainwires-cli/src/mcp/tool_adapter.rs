@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use std::sync::Arc;
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::{RwLock, mpsc};
 
 use crate::mcp::{JsonRpcNotification, McpClient, McpNotification, McpTool, ProgressParams};
 use crate::types::tool::{Tool, ToolInputSchema};
@@ -78,7 +78,7 @@ impl McpToolAdapter {
                     output.push_str("[Image content]\n");
                 }
                 RawContent::Resource(_resource) => {
-                    output.push_str(&format!("[Embedded Resource]\n"));
+                    output.push_str("[Embedded Resource]\n");
                 }
                 RawContent::Audio(_) => {
                     output.push_str("[Audio content]\n");
@@ -178,15 +178,17 @@ impl McpToolAdapter {
         let schema_value = serde_json::Value::Object((*mcp_tool.input_schema).clone());
 
         // Parse the input schema from MCP (it's already a JSON Schema)
-        let input_schema = if let Ok(schema_obj) = serde_json::from_value::<ToolInputSchema>(schema_value) {
-            schema_obj
-        } else {
-            // Fallback: create a simple object schema
-            ToolInputSchema::object(std::collections::HashMap::new(), vec![])
-        };
+        let input_schema =
+            if let Ok(schema_obj) = serde_json::from_value::<ToolInputSchema>(schema_value) {
+                schema_obj
+            } else {
+                // Fallback: create a simple object schema
+                ToolInputSchema::object(std::collections::HashMap::new(), vec![])
+            };
 
         // Convert Option<Cow<'_, str>> to String
-        let description = mcp_tool.description
+        let description = mcp_tool
+            .description
             .map(|d| d.to_string())
             .unwrap_or_else(|| format!("MCP tool from {}", self.server_name));
 
@@ -300,7 +302,9 @@ impl McpToolRegistry {
         let parts: Vec<&str> = tool_name.split('_').collect();
         let actual_tool_name = parts[2..].join("_");
 
-        adapter.execute_tool_with_progress(&actual_tool_name, arguments, progress_callback).await
+        adapter
+            .execute_tool_with_progress(&actual_tool_name, arguments, progress_callback)
+            .await
     }
 }
 

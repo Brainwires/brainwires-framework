@@ -59,19 +59,15 @@ fn parse_command(content: &str, path: &Path) -> Result<Command> {
     }
 
     // Parse YAML frontmatter
-    let frontmatter: CommandFrontmatter = serde_yml::from_str(parts[1].trim())
-        .context("Failed to parse command frontmatter")?;
+    let frontmatter: CommandFrontmatter =
+        serde_yml::from_str(parts[1].trim()).context("Failed to parse command frontmatter")?;
 
     // Extract body (after second ---)
     let body = parts[2].trim();
 
     // Create command
-    let mut command = Command::new(
-        frontmatter.name,
-        frontmatter.description,
-        body.to_string(),
-    )
-    .with_source_path(path.to_path_buf());
+    let mut command = Command::new(frontmatter.name, frontmatter.description, body.to_string())
+        .with_source_path(path.to_path_buf());
 
     // Add arguments
     for arg in frontmatter.args {

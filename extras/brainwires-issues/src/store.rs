@@ -47,8 +47,7 @@ fn comments_field_defs() -> Vec<FieldDef> {
 // ── Record conversions ───────────────────────────────────────────────────
 
 fn issue_to_record(issue: &Issue) -> Result<Record> {
-    let labels_json =
-        serde_json::to_string(&issue.labels).context("Failed to serialize labels")?;
+    let labels_json = serde_json::to_string(&issue.labels).context("Failed to serialize labels")?;
     Ok(vec![
         ("issue_id".into(), FieldValue::Utf8(Some(issue.id.clone()))),
         ("number".into(), FieldValue::UInt64(Some(issue.number))),
@@ -68,9 +67,18 @@ fn issue_to_record(issue: &Issue) -> Result<Record> {
         ("labels".into(), FieldValue::Utf8(Some(labels_json))),
         ("assignee".into(), FieldValue::Utf8(issue.assignee.clone())),
         ("project".into(), FieldValue::Utf8(issue.project.clone())),
-        ("parent_id".into(), FieldValue::Utf8(issue.parent_id.clone())),
-        ("created_at".into(), FieldValue::Int64(Some(issue.created_at))),
-        ("updated_at".into(), FieldValue::Int64(Some(issue.updated_at))),
+        (
+            "parent_id".into(),
+            FieldValue::Utf8(issue.parent_id.clone()),
+        ),
+        (
+            "created_at".into(),
+            FieldValue::Int64(Some(issue.created_at)),
+        ),
+        (
+            "updated_at".into(),
+            FieldValue::Int64(Some(issue.updated_at)),
+        ),
         ("closed_at".into(), FieldValue::Int64(issue.closed_at)),
     ])
 }
@@ -102,20 +110,26 @@ fn issue_from_record(r: &Record) -> Result<Issue> {
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string(),
-        status: IssueStatus::from_str(
+        status: IssueStatus::parse(
             record_get(r, "status")
                 .and_then(|v| v.as_str())
                 .unwrap_or("backlog"),
         ),
-        priority: IssuePriority::from_str(
+        priority: IssuePriority::parse(
             record_get(r, "priority")
                 .and_then(|v| v.as_str())
                 .unwrap_or("no_priority"),
         ),
         labels,
-        assignee: record_get(r, "assignee").and_then(|v| v.as_str()).map(String::from),
-        project: record_get(r, "project").and_then(|v| v.as_str()).map(String::from),
-        parent_id: record_get(r, "parent_id").and_then(|v| v.as_str()).map(String::from),
+        assignee: record_get(r, "assignee")
+            .and_then(|v| v.as_str())
+            .map(String::from),
+        project: record_get(r, "project")
+            .and_then(|v| v.as_str())
+            .map(String::from),
+        parent_id: record_get(r, "parent_id")
+            .and_then(|v| v.as_str())
+            .map(String::from),
         created_at: record_get(r, "created_at")
             .and_then(|v| v.as_i64())
             .context("missing created_at")?,
@@ -129,7 +143,10 @@ fn issue_from_record(r: &Record) -> Result<Issue> {
 fn comment_to_record(c: &Comment) -> Record {
     vec![
         ("comment_id".into(), FieldValue::Utf8(Some(c.id.clone()))),
-        ("issue_id".into(), FieldValue::Utf8(Some(c.issue_id.clone()))),
+        (
+            "issue_id".into(),
+            FieldValue::Utf8(Some(c.issue_id.clone())),
+        ),
         ("author".into(), FieldValue::Utf8(c.author.clone())),
         ("body".into(), FieldValue::Utf8(Some(c.body.clone()))),
         ("created_at".into(), FieldValue::Int64(Some(c.created_at))),
@@ -147,7 +164,9 @@ fn comment_from_record(r: &Record) -> Result<Comment> {
             .and_then(|v| v.as_str())
             .context("missing issue_id")?
             .to_string(),
-        author: record_get(r, "author").and_then(|v| v.as_str()).map(String::from),
+        author: record_get(r, "author")
+            .and_then(|v| v.as_str())
+            .map(String::from),
         body: record_get(r, "body")
             .and_then(|v| v.as_str())
             .context("missing body")?
@@ -183,11 +202,17 @@ impl<B: StorageBackend + 'static> Clone for IssueStore<B> {
 
 impl<B: StorageBackend + 'static> IssueStore<B> {
     pub fn new(backend: Arc<B>) -> Self {
-        Self { backend, bm25: None }
+        Self {
+            backend,
+            bm25: None,
+        }
     }
 
     pub fn new_with_bm25(backend: Arc<B>, bm25: BM25Search) -> Self {
-        Self { backend, bm25: Some(bm25) }
+        Self {
+            backend,
+            bm25: Some(bm25),
+        }
     }
 
     /// Ensure the issues table exists.
@@ -222,7 +247,11 @@ impl<B: StorageBackend + 'static> IssueStore<B> {
         if let Some(bm25) = &self.bm25 {
             let content = format!("{} {}", issue.title, issue.description);
             if let Err(e) = bm25.add_documents(vec![(issue.number, content, issue.id.clone())]) {
-                tracing::warn!("BM25 index failed on create for issue {}: {}", issue.number, e);
+                tracing::warn!(
+                    "BM25 index failed on create for issue {}: {}",
+                    issue.number,
+                    e
+                );
             }
         }
 
@@ -232,7 +261,10 @@ impl<B: StorageBackend + 'static> IssueStore<B> {
     /// Get a single issue by UUID.
     pub async fn get(&self, id: &str) -> Result<Option<Issue>> {
         let filter = Filter::Eq("issue_id".into(), FieldValue::Utf8(Some(id.to_string())));
-        let records = self.backend.query(ISSUES_TABLE, Some(&filter), Some(1)).await?;
+        let records = self
+            .backend
+            .query(ISSUES_TABLE, Some(&filter), Some(1))
+            .await?;
         match records.first() {
             Some(r) => Ok(Some(issue_from_record(r)?)),
             None => Ok(None),
@@ -242,7 +274,10 @@ impl<B: StorageBackend + 'static> IssueStore<B> {
     /// Get an issue by its display number.
     pub async fn get_by_number(&self, number: u64) -> Result<Option<Issue>> {
         let filter = Filter::Eq("number".into(), FieldValue::UInt64(Some(number)));
-        let records = self.backend.query(ISSUES_TABLE, Some(&filter), Some(1)).await?;
+        let records = self
+            .backend
+            .query(ISSUES_TABLE, Some(&filter), Some(1))
+            .await?;
         match records.first() {
             Some(r) => Ok(Some(issue_from_record(r)?)),
             None => Ok(None),
@@ -364,7 +399,11 @@ impl<B: StorageBackend + 'static> IssueStore<B> {
                 .collect();
             // Rank: title matches first
             matches.sort_by_key(|i| {
-                if i.title.to_lowercase().contains(&query_lower) { 0u8 } else { 1u8 }
+                if i.title.to_lowercase().contains(&query_lower) {
+                    0u8
+                } else {
+                    1u8
+                }
             });
             Ok(matches)
         }
@@ -431,11 +470,19 @@ impl<B: StorageBackend + 'static> IssueStore<B> {
         // Update BM25 index: remove old entry, add new one
         if let Some(bm25) = &self.bm25 {
             if let Err(e) = bm25.delete_by_id(issue.number) {
-                tracing::warn!("BM25 delete failed for issue {} during update: {}", issue.number, e);
+                tracing::warn!(
+                    "BM25 delete failed for issue {} during update: {}",
+                    issue.number,
+                    e
+                );
             }
             let content = format!("{} {}", issue.title, issue.description);
             if let Err(e) = bm25.add_documents(vec![(issue.number, content, issue.id.clone())]) {
-                tracing::warn!("BM25 index failed on update for issue {}: {}", issue.number, e);
+                tracing::warn!(
+                    "BM25 index failed on update for issue {}: {}",
+                    issue.number,
+                    e
+                );
             }
         }
 
@@ -460,10 +507,10 @@ impl<B: StorageBackend + 'static> IssueStore<B> {
             .await
             .context("Failed to delete issue")?;
 
-        if let (Some(bm25), Some(num)) = (&self.bm25, number) {
-            if let Err(e) = bm25.delete_by_id(num) {
-                tracing::warn!("BM25 delete failed for issue {} during delete: {}", num, e);
-            }
+        if let (Some(bm25), Some(num)) = (&self.bm25, number)
+            && let Err(e) = bm25.delete_by_id(num)
+        {
+            tracing::warn!("BM25 delete failed for issue {} during delete: {}", num, e);
         }
 
         Ok(())
@@ -507,8 +554,7 @@ impl<B: StorageBackend + 'static> CommentStore<B> {
 
     /// Get a single comment by UUID.
     pub async fn get(&self, id: &str) -> Result<Option<Comment>> {
-        let filter =
-            Filter::Eq("comment_id".into(), FieldValue::Utf8(Some(id.to_string())));
+        let filter = Filter::Eq("comment_id".into(), FieldValue::Utf8(Some(id.to_string())));
         let records = self
             .backend
             .query(COMMENTS_TABLE, Some(&filter), Some(1))
@@ -601,13 +647,17 @@ mod tests {
 
     impl InMemoryBackend {
         fn new() -> Self {
-            Self { tables: Mutex::new(HashMap::new()) }
+            Self {
+                tables: Mutex::new(HashMap::new()),
+            }
         }
     }
 
     fn field_eq(record: &Record, col: &str, value: &FieldValue) -> bool {
         record.iter().any(|(name, val)| {
-            if name != col { return false; }
+            if name != col {
+                return false;
+            }
             match (val, value) {
                 (FieldValue::Utf8(a), FieldValue::Utf8(b)) => a == b,
                 (FieldValue::UInt64(a), FieldValue::UInt64(b)) => a == b,
@@ -629,13 +679,20 @@ mod tests {
     #[async_trait::async_trait]
     impl StorageBackend for InMemoryBackend {
         async fn ensure_table(&self, table_name: &str, _schema: &[FieldDef]) -> Result<()> {
-            self.tables.lock().unwrap().entry(table_name.to_string()).or_default();
+            self.tables
+                .lock()
+                .unwrap()
+                .entry(table_name.to_string())
+                .or_default();
             Ok(())
         }
 
         async fn insert(&self, table_name: &str, records: Vec<Record>) -> Result<()> {
             let mut tables = self.tables.lock().unwrap();
-            tables.entry(table_name.to_string()).or_default().extend(records);
+            tables
+                .entry(table_name.to_string())
+                .or_default()
+                .extend(records);
             Ok(())
         }
 
@@ -747,7 +804,10 @@ mod tests {
         let store = make_store();
         store.ensure_table().await.unwrap();
         for i in 1..=5u64 {
-            store.create(&Issue::new(i, format!("Issue {i}"))).await.unwrap();
+            store
+                .create(&Issue::new(i, format!("Issue {i}")))
+                .await
+                .unwrap();
         }
         let (issues, next) = store.list(None, None, None, None, None, 10).await.unwrap();
         assert_eq!(issues.len(), 5);
@@ -759,7 +819,10 @@ mod tests {
         let store = make_store();
         store.ensure_table().await.unwrap();
         for i in 1..=5u64 {
-            store.create(&Issue::new(i, format!("Issue {i}"))).await.unwrap();
+            store
+                .create(&Issue::new(i, format!("Issue {i}")))
+                .await
+                .unwrap();
         }
         let (page1, next1) = store.list(None, None, None, None, None, 3).await.unwrap();
         assert_eq!(page1.len(), 3);
@@ -986,7 +1049,10 @@ mod tests {
         store.ensure_table().await.unwrap();
 
         for i in 0..5 {
-            store.add(&Comment::new("i1", format!("comment {i}"))).await.unwrap();
+            store
+                .add(&Comment::new("i1", format!("comment {i}")))
+                .await
+                .unwrap();
         }
         let (page1, next) = store.list_for_issue("i1", None, 3).await.unwrap();
         assert_eq!(page1.len(), 3);

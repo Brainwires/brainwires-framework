@@ -56,9 +56,7 @@ impl RegistryClient {
             anyhow::bail!("Registry search failed ({}): {}", status, body);
         }
 
-        resp.json()
-            .await
-            .context("Failed to parse search response")
+        resp.json().await.context("Failed to parse search response")
     }
 
     /// Publish a skill package to the registry.
@@ -103,10 +101,7 @@ impl RegistryClient {
                 )
             })?;
 
-        let url = format!(
-            "{}/api/skills/{}/{}/download",
-            self.base_url, name, matched
-        );
+        let url = format!("{}/api/skills/{}/{}/download", self.base_url, name, matched);
 
         let resp = self
             .http
@@ -143,9 +138,7 @@ impl RegistryClient {
             anyhow::bail!("Registry list_versions failed ({}): {}", status, body);
         }
 
-        resp.json()
-            .await
-            .context("Failed to parse version list")
+        resp.json().await.context("Failed to parse version list")
     }
 
     /// Get the manifest for a specific skill version.

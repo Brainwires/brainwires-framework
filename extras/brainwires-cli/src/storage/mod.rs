@@ -2,15 +2,14 @@
 //
 // Re-exports from the brainwires-storage framework crate, plus CLI-specific stores.
 
-pub use brainwires::storage::*;
 pub use brainwires::storage::databases::VectorDatabase;
+pub use brainwires::storage::*;
 
 // Document types (live in brainwires-cognition::rag::documents)
 pub use brainwires_cognition::rag::documents::{
-    DocumentChunker, DocumentStore, DocumentScope, DocumentProcessor,
-    DocumentMetadataStore, DocumentBM25Manager,
-    DocumentType, DocumentChunk, DocumentMetadata, DocumentSearchRequest,
-    DocumentSearchResult, ExtractedDocument, ChunkerConfig,
+    ChunkerConfig, DocumentBM25Manager, DocumentChunk, DocumentChunker, DocumentMetadata,
+    DocumentMetadataStore, DocumentProcessor, DocumentScope, DocumentSearchRequest,
+    DocumentSearchResult, DocumentStore, DocumentType, ExtractedDocument,
     lance_tables as document_lance_tables,
 };
 
@@ -18,7 +17,7 @@ pub use brainwires_cognition::rag::documents::{
 pub mod pattern_store;
 pub mod plan_mode_store;
 
-pub use pattern_store::{PatternStore, PatternMetadata};
+pub use pattern_store::{PatternMetadata, PatternStore};
 pub use plan_mode_store::PlanModeStore;
 
 // CLI-specific extensions for framework types
@@ -29,9 +28,14 @@ use std::sync::Arc;
 /// Extension trait for LanceDatabase with CLI-specific table methods
 pub trait LanceDatabaseExt {
     /// Ensure the SEAL patterns table exists
-    fn ensure_seal_patterns_table(&self, embedding_dim: usize) -> impl std::future::Future<Output = Result<()>> + Send;
+    fn ensure_seal_patterns_table(
+        &self,
+        embedding_dim: usize,
+    ) -> impl std::future::Future<Output = Result<()>> + Send;
     /// Get the SEAL patterns table
-    fn seal_patterns_table(&self) -> impl std::future::Future<Output = Result<lancedb::Table>> + Send;
+    fn seal_patterns_table(
+        &self,
+    ) -> impl std::future::Future<Output = Result<lancedb::Table>> + Send;
     /// Schema for SEAL patterns table
     fn seal_patterns_schema(dimension: usize) -> Arc<Schema>;
 }
@@ -39,13 +43,9 @@ pub trait LanceDatabaseExt {
 impl LanceDatabaseExt for LanceDatabase {
     async fn ensure_seal_patterns_table(&self, embedding_dim: usize) -> Result<()> {
         use arrow_array::RecordBatch;
-        
 
         let table_name = "seal_patterns";
-        let table_names = self.connection()
-            .table_names()
-            .execute()
-            .await?;
+        let table_names = self.connection().table_names().execute().await?;
 
         if table_names.contains(&table_name.to_string()) {
             return Ok(());
@@ -53,13 +53,13 @@ impl LanceDatabaseExt for LanceDatabase {
 
         let schema = Self::seal_patterns_schema(embedding_dim);
         let empty_batch = RecordBatch::new_empty(schema.clone());
-        let batches = arrow_array::RecordBatchIterator::new(
-            vec![Ok(empty_batch)],
-            schema.clone()
-        );
+        let batches = arrow_array::RecordBatchIterator::new(vec![Ok(empty_batch)], schema.clone());
 
         self.connection()
-            .create_table(table_name, Box::new(batches) as Box<dyn arrow_array::RecordBatchReader + Send>)
+            .create_table(
+                table_name,
+                Box::new(batches) as Box<dyn arrow_array::RecordBatchReader + Send>,
+            )
             .execute()
             .await
             .context("Failed to create seal_patterns table")?;
@@ -97,4 +97,3 @@ impl LanceDatabaseExt for LanceDatabase {
         ]))
     }
 }
-

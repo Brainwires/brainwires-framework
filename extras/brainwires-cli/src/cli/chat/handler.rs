@@ -36,10 +36,8 @@ pub async fn handle_chat(
     };
 
     // Show MDAP estimate if requested
-    if mdap_estimate {
-        if let Some(config) = mdap_config.as_ref() {
-            show_mdap_estimate(config);
-        }
+    if mdap_estimate && let Some(config) = mdap_config.as_ref() {
+        show_mdap_estimate(config);
     }
 
     if mcp_server {
@@ -61,18 +59,39 @@ pub async fn handle_chat(
         // Single-shot mode with optional MDAP
         if mdap_config.is_some() {
             super::conversation::handle_prompt_mode_mdap(
-                model, _provider, system, prompt_text, quiet, &format, mdap_config,
+                model,
+                _provider,
+                system,
+                prompt_text,
+                quiet,
+                &format,
+                mdap_config,
                 backend_url_override,
-            ).await
+            )
+            .await
         } else {
             super::conversation::handle_prompt_mode(
-                model, _provider, system, prompt_text, quiet, &format,
+                model,
+                _provider,
+                system,
+                prompt_text,
+                quiet,
+                &format,
                 backend_url_override,
-            ).await
+            )
+            .await
         }
     } else if batch {
         // Batch processing mode (MDAP not yet supported in batch)
-        super::conversation::handle_batch_mode(model, _provider, system, quiet, &format, backend_url_override).await
+        super::conversation::handle_batch_mode(
+            model,
+            _provider,
+            system,
+            quiet,
+            &format,
+            backend_url_override,
+        )
+        .await
     } else {
         // Use traditional line-based chat with optional MDAP
         let json_output = json || format == "json";
@@ -86,7 +105,8 @@ pub async fn handle_chat(
             &format,
             mdap_config,
             backend_url_override,
-        ).await
+        )
+        .await
     }
 }
 
@@ -95,10 +115,16 @@ fn show_mdap_estimate(config: &MdapConfig) {
     use crate::mdap::scaling::estimate_mdap;
 
     Logger::info("MDAP Configuration:");
-    Logger::info(&format!("  Vote margin (k): {}", config.k));
-    Logger::info(&format!("  Target success rate: {:.1}%", config.target_success_rate * 100.0));
-    Logger::info(&format!("  Parallel samples: {}", config.parallel_samples));
-    Logger::info(&format!("  Max samples/subtask: {}", config.max_samples_per_subtask));
+    Logger::info(format!("  Vote margin (k): {}", config.k));
+    Logger::info(format!(
+        "  Target success rate: {:.1}%",
+        config.target_success_rate * 100.0
+    ));
+    Logger::info(format!("  Parallel samples: {}", config.parallel_samples));
+    Logger::info(format!(
+        "  Max samples/subtask: {}",
+        config.max_samples_per_subtask
+    ));
 
     // Rough estimate for a typical 10-step task
     if let Ok(estimate) = estimate_mdap(
@@ -109,10 +135,13 @@ fn show_mdap_estimate(config: &MdapConfig) {
         config.target_success_rate,
     ) {
         Logger::info("Estimated cost (for 10-step task):");
-        Logger::info(&format!("  API calls: ~{}", estimate.expected_api_calls));
-        Logger::info(&format!("  Cost: ~${:.4}", estimate.expected_cost_usd));
-        Logger::info(&format!("  Success probability: {:.2}%", estimate.success_probability * 100.0));
-        Logger::info(&format!("  Recommended k: {}", estimate.recommended_k));
+        Logger::info(format!("  API calls: ~{}", estimate.expected_api_calls));
+        Logger::info(format!("  Cost: ~${:.4}", estimate.expected_cost_usd));
+        Logger::info(format!(
+            "  Success probability: {:.2}%",
+            estimate.success_probability * 100.0
+        ));
+        Logger::info(format!("  Recommended k: {}", estimate.recommended_k));
     }
 }
 
@@ -125,7 +154,10 @@ async fn handle_mcp_server(
     use crate::mcp_server::McpServerHandler;
 
     if let Some(ref url) = backend_url_override {
-        Logger::info(&format!("Starting MCP server mode (stdio) - using dev backend: {}", url));
+        Logger::info(format!(
+            "Starting MCP server mode (stdio) - using dev backend: {}",
+            url
+        ));
     } else {
         Logger::info("Starting MCP server mode (stdio)");
     }
@@ -139,14 +171,11 @@ async fn handle_background_session(
     model: Option<String>,
     _mdap_config: Option<MdapConfig>,
 ) -> Result<()> {
-    use crate::session;
     use crate::config::ConfigManager;
+    use crate::session;
 
     // Generate a session ID
-    let session_id = format!(
-        "session-{}",
-        chrono::Local::now().format("%Y%m%d-%H%M%S")
-    );
+    let session_id = format!("session-{}", chrono::Local::now().format("%Y%m%d-%H%M%S"));
 
     // Get model from config if not provided
     let model = match model {
@@ -157,19 +186,19 @@ async fn handle_background_session(
         }
     };
 
-    Logger::info(&format!("Starting background session: {}", session_id));
-    Logger::info(&format!("Model: {}", model));
+    Logger::info(format!("Starting background session: {}", session_id));
+    Logger::info(format!("Model: {}", model));
 
     // Spawn the PTY session in background mode
     match session::spawn_background_session(&session_id, &model).await {
         Ok(_) => {
-            Logger::info(&format!("✓ Session started in background: {}", session_id));
+            Logger::info(format!("✓ Session started in background: {}", session_id));
             Logger::info("Use 'brainwires attach' to connect to the session");
             Logger::info("Use 'brainwires sessions' to list all sessions");
             Ok(())
         }
         Err(e) => {
-            Logger::error(&format!("Failed to start background session: {}", e));
+            Logger::error(format!("Failed to start background session: {}", e));
             Err(e)
         }
     }

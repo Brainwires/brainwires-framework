@@ -192,7 +192,12 @@ mod tests {
     async fn confidence_policy_approves_above_threshold() {
         let policy = ConfidenceBasedPolicy::new(0.8, MergeMethod::Squash);
         let decision = policy.evaluate(&dummy_pr(), &ctx(0.9)).await;
-        assert!(matches!(decision, MergeDecision::Approve { method: MergeMethod::Squash }));
+        assert!(matches!(
+            decision,
+            MergeDecision::Approve {
+                method: MergeMethod::Squash
+            }
+        ));
     }
 
     #[tokio::test]
@@ -231,7 +236,12 @@ mod tests {
         };
         let json = serde_json::to_string(&d).unwrap();
         let back: MergeDecision = serde_json::from_str(&json).unwrap();
-        assert!(matches!(back, MergeDecision::Approve { method: MergeMethod::Squash }));
+        assert!(matches!(
+            back,
+            MergeDecision::Approve {
+                method: MergeMethod::Squash
+            }
+        ));
     }
 
     #[test]

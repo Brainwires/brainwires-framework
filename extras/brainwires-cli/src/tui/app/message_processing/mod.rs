@@ -2,8 +2,8 @@
 //!
 //! Handles message submission, AI streaming, and command execution.
 
-mod command_handler;
 mod checkpoint_handlers;
+mod command_handler;
 mod plan_crud;
 mod plan_execution;
 mod plan_hierarchy;
@@ -21,24 +21,26 @@ use futures::StreamExt;
 use tokio::sync::mpsc;
 
 pub(super) trait MessageProcessing {
-    fn submit_message(&mut self) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + '_>>;
+    fn submit_message(
+        &mut self,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + '_>>;
 }
 
 impl MessageProcessing for App {
     /// Submit the current input as a message
-    fn submit_message(&mut self) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + '_>> {
-        Box::pin(async move {
-            self.submit_message_impl().await
-        })
+    fn submit_message(
+        &mut self,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + '_>> {
+        Box::pin(async move { self.submit_message_impl().await })
     }
 }
 
 impl App {
     /// Implementation of submit_message
-    fn submit_message_impl(&mut self) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + '_>> {
-        Box::pin(async move {
-            self.process_message().await
-        })
+    fn submit_message_impl(
+        &mut self,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + '_>> {
+        Box::pin(async move { self.process_message().await })
     }
 
     /// Process a single message (internal, non-recursive)
@@ -54,7 +56,9 @@ impl App {
         // Check if input is a slash command
         if let Some((cmd_name, cmd_args)) = self.command_executor.parse_input(&user_content) {
             // handle_command returns true if we should skip AI (command was an action)
-            should_call_ai = !self.handle_command(cmd_name, &cmd_args, user_content).await?;
+            should_call_ai = !self
+                .handle_command(cmd_name, &cmd_args, user_content)
+                .await?;
         } else {
             // Not a command, add user message to display
             let user_message = TuiMessage {
@@ -75,7 +79,10 @@ impl App {
             // PKS: Process user message for implicit fact detection
             let detected_count = self.pks_integration.process_user_message(&user_content);
             if detected_count > 0 {
-                tracing::debug!("PKS: Detected {} implicit facts from user message", detected_count);
+                tracing::debug!(
+                    "PKS: Detected {} implicit facts from user message",
+                    detected_count
+                );
             }
         }
 
@@ -118,7 +125,8 @@ impl App {
         };
 
         // Clone user_content before calling AI (for saving to storage later)
-        let user_content = self.conversation_history
+        let user_content = self
+            .conversation_history
             .last()
             .and_then(|m| match &m.content {
                 MessageContent::Text(t) => Some(t.clone()),
@@ -133,8 +141,16 @@ impl App {
         if resolved_query != user_content && self.seal_status.show_status {
             self.add_console_message(format!(
                 "SEAL: \"{}\" → \"{}\"",
-                if user_content.len() > 50 { format!("{}...", &user_content[..50]) } else { user_content.clone() },
-                if resolved_query.len() > 50 { format!("{}...", &resolved_query[..50]) } else { resolved_query.clone() }
+                if user_content.len() > 50 {
+                    format!("{}...", &user_content[..50])
+                } else {
+                    user_content.clone()
+                },
+                if resolved_query.len() > 50 {
+                    format!("{}...", &resolved_query[..50])
+                } else {
+                    resolved_query.clone()
+                }
             ));
         }
 
@@ -152,20 +168,23 @@ impl App {
                 metadata: None,
             };
             // Insert at position 0 or after existing system messages
-            let insert_pos = conversation_clone.iter()
+            let insert_pos = conversation_clone
+                .iter()
                 .take_while(|m| m.role == Role::System)
                 .count();
             conversation_clone.insert(insert_pos, plan_system_msg);
 
             // Also inject question instructions during planning
-            let question_instructions = crate::utils::question_instructions::get_question_instructions();
+            let question_instructions =
+                crate::utils::question_instructions::get_question_instructions();
             let question_system_msg = Message {
                 role: Role::System,
                 content: MessageContent::Text(question_instructions.to_string()),
                 name: None,
                 metadata: None,
             };
-            let insert_pos = conversation_clone.iter()
+            let insert_pos = conversation_clone
+                .iter()
                 .take_while(|m| m.role == Role::System)
                 .count();
             conversation_clone.insert(insert_pos, question_system_msg);
@@ -180,7 +199,8 @@ impl App {
                 metadata: None,
             };
             // Insert after system messages but before conversation
-            let insert_pos = conversation_clone.iter()
+            let insert_pos = conversation_clone
+                .iter()
                 .take_while(|m| m.role == Role::System)
                 .count();
             conversation_clone.insert(insert_pos, ws_system_msg);
@@ -190,7 +210,8 @@ impl App {
         }
 
         // Extract system prompt from conversation history and pass it in ChatOptions
-        let system_prompt = conversation_clone.iter()
+        let system_prompt = conversation_clone
+            .iter()
             .find(|m| m.role == Role::System)
             .and_then(|m| m.text().map(|s| s.to_string()));
 
@@ -238,11 +259,7 @@ impl App {
 
         // Spawn background task to process stream with cancellation support
         let stream_handle = tokio::spawn(async move {
-            let mut stream = provider.stream_chat(
-                &conversation_clone,
-                Some(&tools),
-                &options,
-            );
+            let mut stream = provider.stream_chat(&conversation_clone, Some(&tools), &options);
 
             loop {
                 // Check for cancellation between chunks
@@ -315,11 +332,14 @@ impl App {
         use brainwires::agent_network::ipc::ViewerMessage;
 
         // Get the IPC writer
-        let writer = self.ipc_writer.as_mut()
+        let writer = self
+            .ipc_writer
+            .as_mut()
             .ok_or_else(|| anyhow::anyhow!("No IPC connection in IPC mode"))?;
 
         // Get the last user message content
-        let user_content = self.conversation_history
+        let user_content = self
+            .conversation_history
             .last()
             .and_then(|m| match &m.content {
                 MessageContent::Text(t) => Some(t.clone()),
@@ -328,7 +348,9 @@ impl App {
             .unwrap_or_default();
 
         // Get working set files for context
-        let context_files: Vec<String> = self.working_set.file_paths()
+        let context_files: Vec<String> = self
+            .working_set
+            .file_paths()
             .into_iter()
             .map(|p| p.to_string_lossy().to_string())
             .collect();
@@ -371,10 +393,10 @@ impl App {
         match msg {
             AgentMessage::StreamChunk { text } => {
                 self.streaming_content.push_str(&text);
-                if let Some(idx) = self.streaming_msg_idx {
-                    if let Some(msg) = self.messages.get_mut(idx) {
-                        msg.content = self.streaming_content.clone();
-                    }
+                if let Some(idx) = self.streaming_msg_idx
+                    && let Some(msg) = self.messages.get_mut(idx)
+                {
+                    msg.content = self.streaming_content.clone();
                 }
             }
             AgentMessage::StreamEnd { .. } => {
@@ -385,7 +407,12 @@ impl App {
             AgentMessage::ToolCallStart { name, .. } => {
                 self.status = format!("Tool: {} (executing...)", name);
             }
-            AgentMessage::ToolResult { name, output, error, .. } => {
+            AgentMessage::ToolResult {
+                name,
+                output,
+                error,
+                ..
+            } => {
                 let success = error.is_none();
                 let icon = if success { "✅" } else { "❌" };
                 self.add_console_message(format!("{} Tool: {}", icon, name));
@@ -406,14 +433,21 @@ impl App {
                 self.status = format!("Error: {}", message);
                 self.transition_to_normal_after_streaming();
             }
-            AgentMessage::ConversationSync { messages, status, tool_mode, mcp_servers, .. } => {
-                self.messages = messages.iter().map(|m| {
-                    TuiMessage {
+            AgentMessage::ConversationSync {
+                messages,
+                status,
+                tool_mode,
+                mcp_servers,
+                ..
+            } => {
+                self.messages = messages
+                    .iter()
+                    .map(|m| TuiMessage {
                         role: m.role.clone(),
                         content: m.content.clone(),
                         created_at: m.created_at,
-                    }
-                }).collect();
+                    })
+                    .collect();
                 self.status = status;
                 self.tool_mode = tool_mode;
                 self.mcp_connected_servers = mcp_servers;
@@ -427,19 +461,22 @@ impl App {
                 // might be an assistant placeholder after the user message.
                 if message.role == "user" {
                     // Check last 3 messages for duplicate user content
-                    let already_exists = self.messages.iter().rev().take(3).any(|m| {
-                        m.role == "user" && m.content == message.content
-                    });
+                    let already_exists = self
+                        .messages
+                        .iter()
+                        .rev()
+                        .take(3)
+                        .any(|m| m.role == "user" && m.content == message.content);
                     if already_exists {
                         return;
                     }
                 } else if message.role == "assistant" {
                     // For assistant messages, check if the last message is an assistant
                     // (streaming already populated it)
-                    if let Some(last) = self.messages.last() {
-                        if last.role == "assistant" {
-                            return;
-                        }
+                    if let Some(last) = self.messages.last()
+                        && last.role == "assistant"
+                    {
+                        return;
                     }
                 }
 
@@ -481,7 +518,7 @@ impl App {
     /// Returns the new IpcReader so the caller can restart the IPC reader task.
     pub async fn respawn_session(&mut self) -> Result<brainwires::agent_network::ipc::IpcReader> {
         use crate::agent::spawn::spawn_agent_process;
-        use brainwires::agent_network::ipc::{Handshake, AgentMessage};
+        use brainwires::agent_network::ipc::{AgentMessage, Handshake};
 
         self.add_console_message("🔄 Respawning session...".to_string());
         self.status = "Respawning session...".to_string();
@@ -491,9 +528,13 @@ impl App {
             &self.session_id,
             Some(&self.model),
             None, // No MDAP config for respawn
-        ).await?;
+        )
+        .await?;
 
-        self.add_console_message(format!("✅ Session respawned at: {}", socket_path.display()));
+        self.add_console_message(format!(
+            "✅ Session respawned at: {}",
+            socket_path.display()
+        ));
 
         // Connect to the new Session
         let mut conn = crate::ipc::connect_to_agent(&self.session_id).await?;
@@ -504,28 +545,44 @@ impl App {
 
         // Wait for handshake response
         use brainwires::agent_network::ipc::HandshakeResponse;
-        let response: HandshakeResponse = conn.reader.read().await?
+        let response: HandshakeResponse = conn
+            .reader
+            .read()
+            .await?
             .ok_or_else(|| anyhow::anyhow!("Session closed during handshake"))?;
 
         if !response.accepted {
-            anyhow::bail!("Session rejected reconnection: {}", response.error.unwrap_or_default());
+            anyhow::bail!(
+                "Session rejected reconnection: {}",
+                response.error.unwrap_or_default()
+            );
         }
 
         // Wait for ConversationSync to restore state
-        let sync: AgentMessage = conn.reader.read().await?
+        let sync: AgentMessage = conn
+            .reader
+            .read()
+            .await?
             .ok_or_else(|| anyhow::anyhow!("Session closed before sync"))?;
 
         if let AgentMessage::ConversationSync {
-            messages, status, model, tool_mode, mcp_servers, ..
-        } = sync {
+            messages,
+            status,
+            model,
+            tool_mode,
+            mcp_servers,
+            ..
+        } = sync
+        {
             // Restore state from Session
-            self.messages = messages.iter().map(|m| {
-                TuiMessage {
+            self.messages = messages
+                .iter()
+                .map(|m| TuiMessage {
                     role: m.role.clone(),
                     content: m.content.clone(),
                     created_at: m.created_at,
-                }
-            }).collect();
+                })
+                .collect();
             self.status = status;
             self.model = model;
             self.tool_mode = tool_mode;
@@ -543,12 +600,11 @@ impl App {
         Ok(reader)
     }
 
-
-/// Poll for stream events and process them (non-blocking)
+    /// Poll for stream events and process them (non-blocking)
     /// Returns true if streaming is still active, false if done
     /// This should be called from the main event loop after each render
     pub async fn poll_stream_events(&mut self) -> bool {
-        use super::state::{StreamEvent, PendingToolData};
+        use super::state::{PendingToolData, StreamEvent};
 
         // Take the receiver temporarily to avoid borrow issues
         let mut rx = match self.stream_rx.take() {
@@ -570,7 +626,14 @@ impl App {
         }
 
         // Process collected events
-        let mut pending_tool_call: Option<(String, String, Option<String>, String, String, serde_json::Value)> = None;
+        let mut pending_tool_call: Option<(
+            String,
+            String,
+            Option<String>,
+            String,
+            String,
+            serde_json::Value,
+        )> = None;
         let mut stream_done = false;
         let mut console_messages: Vec<String> = Vec::new();
 
@@ -581,10 +644,10 @@ impl App {
                     // console_messages.push(format!("📝 Text chunk: {} bytes", text.len()));
                     self.streaming_content.push_str(&text);
                     // Update the assistant message
-                    if let Some(idx) = self.streaming_msg_idx {
-                        if let Some(msg) = self.messages.get_mut(idx) {
-                            msg.content = self.streaming_content.clone();
-                        }
+                    if let Some(idx) = self.streaming_msg_idx
+                        && let Some(msg) = self.messages.get_mut(idx)
+                    {
+                        msg.content = self.streaming_content.clone();
                     }
                     // Note: scroll_to_bottom() is called in main loop AFTER draw()
                     // so that conversation_area is correctly set
@@ -600,14 +663,22 @@ impl App {
                     if server == "cli-local" {
                         self.status = format!("Tool: {} (executing...)", tool_name);
                         console_messages.push(format!("🔧 Tool requested: {}", tool_name));
-                        pending_tool_call = Some((call_id, response_id, chat_id, tool_name, server, parameters));
+                        pending_tool_call =
+                            Some((call_id, response_id, chat_id, tool_name, server, parameters));
                     } else {
-                        console_messages.push(format!("⚠️ Ignoring tool from unknown server: {}", server));
+                        console_messages
+                            .push(format!("⚠️ Ignoring tool from unknown server: {}", server));
                     }
                 }
-                StreamEvent::Progress { tool_name, message, progress } => {
+                StreamEvent::Progress {
+                    tool_name,
+                    message,
+                    progress,
+                } => {
                     // Show progress update in status bar only (avoid spamming console)
-                    let progress_str = progress.map(|p| format!(" ({:.0}%)", p * 100.0)).unwrap_or_default();
+                    let progress_str = progress
+                        .map(|p| format!(" ({:.0}%)", p * 100.0))
+                        .unwrap_or_default();
                     self.status = format!("⏳ {} - {}{}", tool_name, message, progress_str);
                 }
                 StreamEvent::Done => {
@@ -634,8 +705,14 @@ impl App {
         }
 
         // Spawn tool execution in background if one was requested
-        if let Some((call_id, response_id, chat_id, tool_name, _server, parameters)) = pending_tool_call {
-            self.add_console_message(format!("🔧 Spawning background tool: {} (call_id: {})", tool_name, &call_id[..8.min(call_id.len())]));
+        if let Some((call_id, response_id, chat_id, tool_name, _server, parameters)) =
+            pending_tool_call
+        {
+            self.add_console_message(format!(
+                "🔧 Spawning background tool: {} (call_id: {})",
+                tool_name,
+                &call_id[..8.min(call_id.len())]
+            ));
 
             // Get conversation clone for tool handler
             let conversation_clone = self.streaming_conversation.clone().unwrap_or_default();
@@ -664,7 +741,10 @@ impl App {
             let tool_context = crate::types::tool::ToolContext {
                 working_directory: self.working_directory.clone(),
                 // Use full_access for TUI mode - users expect agents to have write access
-                capabilities: serde_json::to_value(&brainwires::permissions::AgentCapabilities::full_access()).ok(),
+                capabilities: serde_json::to_value(
+                    brainwires::permissions::AgentCapabilities::full_access(),
+                )
+                .ok(),
                 ..Default::default()
             };
             let tool_executor = self.tool_executor.clone();
@@ -877,12 +957,22 @@ impl App {
 
         for event in events {
             match event {
-                StreamEvent::Progress { tool_name, message, progress } => {
+                StreamEvent::Progress {
+                    tool_name,
+                    message,
+                    progress,
+                } => {
                     // Show progress update in status bar only (avoid spamming console)
-                    let progress_str = progress.map(|p| format!(" ({:.0}%)", p * 100.0)).unwrap_or_default();
+                    let progress_str = progress
+                        .map(|p| format!(" ({:.0}%)", p * 100.0))
+                        .unwrap_or_default();
                     self.status = format!("⏳ {} - {}{}", tool_name, message, progress_str);
                 }
-                StreamEvent::ToolResult { tool_name, result, error } => {
+                StreamEvent::ToolResult {
+                    tool_name,
+                    result,
+                    error,
+                } => {
                     tool_done = true;
                     tool_name_result = Some(tool_name);
                     tool_result = result;
@@ -979,7 +1069,7 @@ impl App {
         tool_output: String,
     ) {
         use super::state::StreamEvent;
-        use crate::cli::chat::continuation::{send_continuation_request, LogCallback};
+        use crate::cli::chat::continuation::{LogCallback, send_continuation_request};
         use std::sync::Arc;
 
         // Create channel for streaming the continuation response
@@ -1023,7 +1113,8 @@ impl App {
                 &tool_output,
                 &[],
                 tui_logger,
-            ).await;
+            )
+            .await;
 
             // Send result back via channel
             match result {
@@ -1060,10 +1151,10 @@ impl App {
         let questions = parsed.questions;
 
         // Update the displayed message with clean content (question block removed)
-        if let Some(idx) = self.streaming_msg_idx {
-            if let Some(msg) = self.messages.get_mut(idx) {
-                msg.content = clean_content.clone();
-            }
+        if let Some(idx) = self.streaming_msg_idx
+            && let Some(msg) = self.messages.get_mut(idx)
+        {
+            msg.content = clean_content.clone();
         }
 
         // Add to conversation history (using clean content without question block)
@@ -1081,7 +1172,8 @@ impl App {
 
         // Save to storage
         let user_content = self.streaming_user_content.take().unwrap_or_default();
-        self.save_conversation_to_storage(&user_content, &clean_content).await;
+        self.save_conversation_to_storage(&user_content, &clean_content)
+            .await;
 
         // Clean up streaming state
         self.stream_rx = None;
@@ -1109,8 +1201,15 @@ impl App {
         if !self.queued_messages.is_empty() {
             self.status = format!("Ready - {} queued messages", self.queued_messages.len());
         } else {
-            let mdap_indicator = if self.mdap_config.is_some() { " [MDAP]" } else { "" };
-            self.status = format!("Ready - Model: {}{} (Ctrl+C to quit)", self.model, mdap_indicator);
+            let mdap_indicator = if self.mdap_config.is_some() {
+                " [MDAP]"
+            } else {
+                ""
+            };
+            self.status = format!(
+                "Ready - Model: {}{} (Ctrl+C to quit)",
+                self.model, mdap_indicator
+            );
         }
     }
 
@@ -1127,7 +1226,8 @@ impl App {
         self.status = format!("MDAP Processing (k={})...", mdap_config.k);
 
         // Clone user_content before calling AI (for saving to storage later)
-        let user_content = self.conversation_history
+        let user_content = self
+            .conversation_history
             .last()
             .and_then(|m| match &m.content {
                 MessageContent::Text(t) => Some(t.clone()),
@@ -1147,20 +1247,23 @@ impl App {
                 name: None,
                 metadata: None,
             };
-            let insert_pos = conversation_clone.iter()
+            let insert_pos = conversation_clone
+                .iter()
                 .take_while(|m| m.role == Role::System)
                 .count();
             conversation_clone.insert(insert_pos, plan_system_msg);
 
             // Also inject question instructions during planning
-            let question_instructions = crate::utils::question_instructions::get_question_instructions();
+            let question_instructions =
+                crate::utils::question_instructions::get_question_instructions();
             let question_system_msg = Message {
                 role: Role::System,
                 content: MessageContent::Text(question_instructions.to_string()),
                 name: None,
                 metadata: None,
             };
-            let insert_pos = conversation_clone.iter()
+            let insert_pos = conversation_clone
+                .iter()
                 .take_while(|m| m.role == Role::System)
                 .count();
             conversation_clone.insert(insert_pos, question_system_msg);
@@ -1174,7 +1277,8 @@ impl App {
                 name: None,
                 metadata: None,
             };
-            let insert_pos = conversation_clone.iter()
+            let insert_pos = conversation_clone
+                .iter()
                 .take_while(|m| m.role == Role::System)
                 .count();
             conversation_clone.insert(insert_pos, ws_system_msg);
@@ -1204,7 +1308,10 @@ impl App {
         // Create orchestrator and execute with MDAP
         let mut orchestrator = OrchestratorAgent::new(self.provider.clone(), PermissionMode::Auto);
 
-        match orchestrator.execute_mdap(&user_content, &mut agent_context, mdap_config.clone()).await {
+        match orchestrator
+            .execute_mdap(&user_content, &mut agent_context, mdap_config.clone())
+            .await
+        {
             Ok((response, metrics)) => {
                 // Update the assistant message with the response
                 if let Some(msg) = self.messages.get_mut(assistant_msg_idx) {
@@ -1225,19 +1332,28 @@ impl App {
                 }
 
                 // Save to storage
-                self.save_conversation_to_storage(&user_content, &response.message).await;
+                self.save_conversation_to_storage(&user_content, &response.message)
+                    .await;
 
                 // Log MDAP metrics to console
                 self.add_console_message(format!(
                     "✅ MDAP completed: {} steps, {} samples, {:.1}% red-flagged",
                     metrics.completed_steps,
                     metrics.total_samples,
-                    (metrics.red_flagged_samples as f64 / metrics.total_samples.max(1) as f64) * 100.0
+                    (metrics.red_flagged_samples as f64 / metrics.total_samples.max(1) as f64)
+                        * 100.0
                 ));
 
                 // Update status with success
-                let mdap_indicator = if self.mdap_config.is_some() { " [MDAP]" } else { "" };
-                self.status = format!("Ready - Model: {}{} (Ctrl+C to quit)", self.model, mdap_indicator);
+                let mdap_indicator = if self.mdap_config.is_some() {
+                    " [MDAP]"
+                } else {
+                    ""
+                };
+                self.status = format!(
+                    "Ready - Model: {}{} (Ctrl+C to quit)",
+                    self.model, mdap_indicator
+                );
             }
             Err(e) => {
                 // Update the assistant message with error
@@ -1318,23 +1434,31 @@ impl App {
 
             // Pass message count to create so it's correct from the start
             let message_count = self.messages.len() as i32;
-            if let Err(e) = self.conversation_store.create(
-                self.session_id.clone(),
-                Some(title),
-                Some(self.model.clone()),
-                Some(message_count),
-            ).await {
+            if let Err(e) = self
+                .conversation_store
+                .create(
+                    self.session_id.clone(),
+                    Some(title),
+                    Some(self.model.clone()),
+                    Some(message_count),
+                )
+                .await
+            {
                 // Log error but don't fail the request
                 self.add_console_message(format!("Failed to save conversation: {}", e));
             }
         } else {
             // Update existing conversation metadata (message count and updated_at timestamp)
             let message_count = self.messages.len() as i32;
-            if let Err(e) = self.conversation_store.update(
-                &self.session_id,
-                None,  // keep existing title
-                Some(message_count),
-            ).await {
+            if let Err(e) = self
+                .conversation_store
+                .update(
+                    &self.session_id,
+                    None, // keep existing title
+                    Some(message_count),
+                )
+                .await
+            {
                 // Only log if it's not a "not found" error
                 if !e.to_string().contains("not found") {
                     self.add_console_message(format!("Failed to update conversation: {}", e));
@@ -1418,7 +1542,8 @@ impl App {
                     if let Some(task) = active_tasks.iter().find(|t| t.id == m.task_id) {
                         console_msgs.push(format!(
                             "✓ Auto-completed: {} (confidence: {:.0}%)",
-                            task.description, m.confidence * 100.0
+                            task.description,
+                            m.confidence * 100.0
                         ));
                     }
                 }
@@ -1440,8 +1565,7 @@ impl App {
                  **Task:** {}\n\n\
                  **Plan:**\n{}\n\n\
                  Follow this plan step by step. When you complete a step, summarize what was done.",
-                plan.task_description,
-                plan.plan_content
+                plan.task_description, plan.plan_content
             )
         })
     }
@@ -1462,11 +1586,7 @@ impl App {
              **Current Tasks:**\n{}\n\n\
              **Plan:**\n{}\n\n\
              Continue working through the plan. Mark tasks complete as you finish them.",
-            plan.task_description,
-            stats.completed,
-            stats.total,
-            task_tree,
-            plan.plan_content
+            plan.task_description, stats.completed, stats.total, task_tree, plan.plan_content
         ))
     }
 }
@@ -1482,12 +1602,19 @@ mod tests {
 
         // This will create/update the config file
         let result = App::update_config_model(test_model);
-        assert!(result.is_ok(), "Failed to update config model: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to update config model: {:?}",
+            result.err()
+        );
 
         // Verify the model was persisted by reading it back
         use crate::config::ConfigManager;
         let config_manager = ConfigManager::new().expect("Failed to create config manager");
         let config = config_manager.get();
-        assert_eq!(config.model, test_model, "Model was not persisted correctly");
+        assert_eq!(
+            config.model, test_model,
+            "Model was not persisted correctly"
+        );
     }
 }

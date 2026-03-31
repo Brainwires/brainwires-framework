@@ -199,7 +199,11 @@ fn test_generalize_ambiguity_example() {
     let analysis = block.ambiguity_analysis.unwrap();
 
     assert_eq!(analysis.predicted_types.len(), 1);
-    assert!(analysis.predicted_types.contains(&AmbiguityType::Generalize));
+    assert!(
+        analysis
+            .predicted_types
+            .contains(&AmbiguityType::Generalize)
+    );
     assert_eq!(
         block.questions[0].ambiguity_type,
         Some(AmbiguityType::Generalize)
@@ -316,7 +320,11 @@ fn test_multiple_ambiguity_types() {
     // All three ambiguity types present
     assert_eq!(analysis.predicted_types.len(), 3);
     assert!(analysis.predicted_types.contains(&AmbiguityType::Semantic));
-    assert!(analysis.predicted_types.contains(&AmbiguityType::Generalize));
+    assert!(
+        analysis
+            .predicted_types
+            .contains(&AmbiguityType::Generalize)
+    );
     assert!(analysis.predicted_types.contains(&AmbiguityType::Specify));
 
     // Each question has correct type
@@ -380,18 +388,12 @@ fn test_ambiguity_type_serialization() {
     let generalize = AmbiguityType::Generalize;
     let specify = AmbiguityType::Specify;
 
-    assert_eq!(
-        serde_json::to_string(&semantic).unwrap(),
-        "\"semantic\""
-    );
+    assert_eq!(serde_json::to_string(&semantic).unwrap(), "\"semantic\"");
     assert_eq!(
         serde_json::to_string(&generalize).unwrap(),
         "\"generalize\""
     );
-    assert_eq!(
-        serde_json::to_string(&specify).unwrap(),
-        "\"specify\""
-    );
+    assert_eq!(serde_json::to_string(&specify).unwrap(), "\"specify\"");
 }
 
 #[test]

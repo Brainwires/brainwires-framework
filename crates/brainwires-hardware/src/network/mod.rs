@@ -49,5 +49,5 @@ pub use interfaces::list_interfaces;
 pub use ipconfig::{get_interface_addrs, get_ip_configs};
 pub use portscan::{scan_common_ports, scan_ports, scan_range};
 pub use types::{
-    DiscoveredHost, IpConfig, InterfaceKind, NetworkInterface, PortScanResult, PortState,
+    DiscoveredHost, InterfaceKind, IpConfig, NetworkInterface, PortScanResult, PortState,
 };

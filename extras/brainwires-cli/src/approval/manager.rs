@@ -51,7 +51,8 @@ impl ApprovalManager {
     /// Record a session-level decision
     pub fn record_session_decision(&mut self, tool_name: &str, response: ApprovalResponse) {
         if response.is_session_persistent() {
-            self.session_approvals.insert(tool_name.to_string(), response);
+            self.session_approvals
+                .insert(tool_name.to_string(), response);
         }
     }
 

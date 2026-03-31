@@ -41,7 +41,10 @@ impl GoogleChatProvider {
 
     /// Attach an analytics collector to this provider.
     #[cfg(feature = "analytics")]
-    pub fn with_analytics(mut self, collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>) -> Self {
+    pub fn with_analytics(
+        mut self,
+        collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>,
+    ) -> Self {
         self.analytics_collector = Some(collector);
         self
     }
@@ -212,7 +215,9 @@ impl Provider for GoogleChatProvider {
         #[cfg(feature = "analytics")]
         let _started = std::time::Instant::now();
         let gemini_response = if let Some(ref override_model) = options.model {
-            self.client.generate_content_for_model(override_model, &request).await?
+            self.client
+                .generate_content_for_model(override_model, &request)
+                .await?
         } else {
             self.client.generate_content(&request).await?
         };
@@ -543,6 +548,7 @@ mod tests {
             top_p: None,
             stop: None,
             system: None,
+            model: None,
         };
 
         let req = GoogleChatProvider::build_request(&messages, None, &options);
@@ -566,6 +572,7 @@ mod tests {
             top_p: None,
             stop: None,
             system: Some("Be helpful".to_string()),
+            model: None,
         };
 
         let req = GoogleChatProvider::build_request(&messages, None, &options);
@@ -586,6 +593,7 @@ mod tests {
             top_p: None,
             stop: None,
             system: None,
+            model: None,
         };
 
         let req = GoogleChatProvider::build_request(&messages, None, &options);

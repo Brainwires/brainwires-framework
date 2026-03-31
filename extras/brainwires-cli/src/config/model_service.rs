@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
-use crate::providers::{create_model_lister, AvailableModel, ProviderType};
+use crate::providers::{AvailableModel, ProviderType, create_model_lister};
 use crate::utils::paths::PlatformPaths;
 
 /// Cached model list with timestamp.
@@ -103,10 +103,8 @@ impl ModelService {
         use_cache: bool,
     ) -> Result<Vec<AvailableModel>> {
         // Try cache first
-        if use_cache {
-            if let Some(cached) = load_cache(provider_type) {
-                return Ok(cached);
-            }
+        if use_cache && let Some(cached) = load_cache(provider_type) {
+            return Ok(cached);
         }
 
         // Fetch from provider API
@@ -147,7 +145,9 @@ impl ModelService {
             ));
         }
 
-        let api_key = config_manager.get_provider_api_key()?.map(|z| z.to_string());
+        let api_key = config_manager
+            .get_provider_api_key()?
+            .map(|z| z.to_string());
         let base_url = config.provider_base_url.clone();
 
         Self::list_models_for_provider(
@@ -162,10 +162,7 @@ impl ModelService {
     /// List only chat-capable models for the active provider.
     pub async fn list_chat_models(use_cache: bool) -> Result<Vec<AvailableModel>> {
         let models = Self::list_models(use_cache).await?;
-        Ok(models
-            .into_iter()
-            .filter(|m| m.is_chat_capable())
-            .collect())
+        Ok(models.into_iter().filter(|m| m.is_chat_capable()).collect())
     }
 
     /// List chat-capable models for a specific provider.
@@ -177,10 +174,7 @@ impl ModelService {
     ) -> Result<Vec<AvailableModel>> {
         let models =
             Self::list_models_for_provider(provider_type, api_key, base_url, use_cache).await?;
-        Ok(models
-            .into_iter()
-            .filter(|m| m.is_chat_capable())
-            .collect())
+        Ok(models.into_iter().filter(|m| m.is_chat_capable()).collect())
     }
 
     /// Validate that a model ID exists at the given provider.
@@ -192,8 +186,7 @@ impl ModelService {
         api_key: Option<&str>,
         base_url: Option<&str>,
     ) -> Result<AvailableModel> {
-        let models =
-            Self::list_models_for_provider(provider_type, api_key, base_url, true).await?;
+        let models = Self::list_models_for_provider(provider_type, api_key, base_url, true).await?;
 
         // Exact match
         if let Some(model) = models.iter().find(|m| m.id == model_id) {
@@ -217,7 +210,7 @@ impl ModelService {
             model_id, provider_type
         );
         if !suggestions.is_empty() {
-            msg.push_str(&format!("\n\nDid you mean one of these?\n"));
+            msg.push_str("\n\nDid you mean one of these?\n");
             for s in &suggestions {
                 msg.push_str(&format!("  - {}\n", s));
             }
@@ -246,9 +239,7 @@ fn levenshtein_close(a: &str, b: &str) -> bool {
         curr[0] = i;
         for j in 1..=short.len() {
             let cost = if long[i - 1] == short[j - 1] { 0 } else { 1 };
-            curr[j] = (prev[j] + 1)
-                .min(curr[j - 1] + 1)
-                .min(prev[j - 1] + cost);
+            curr[j] = (prev[j] + 1).min(curr[j - 1] + 1).min(prev[j - 1] + cost);
         }
         std::mem::swap(&mut prev, &mut curr);
     }
@@ -259,6 +250,7 @@ fn levenshtein_close(a: &str, b: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::providers::ModelCapability;
 
     #[test]
     fn test_cache_ttl() {

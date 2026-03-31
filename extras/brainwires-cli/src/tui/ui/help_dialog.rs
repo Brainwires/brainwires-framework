@@ -3,15 +3,15 @@
 //! This module renders the interactive help dialog overlay.
 
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
-    Frame,
 };
 
 use crate::tui::{
-    app::{help_dialog::HelpFocus, App},
+    app::{App, help_dialog::HelpFocus},
     help_content::HelpCategory,
 };
 
@@ -24,8 +24,12 @@ pub fn draw_help_dialog(f: &mut Frame, app: &mut App, _area: Rect) {
     let screen = f.area();
 
     // Calculate modal size (80% of screen, max 100x40, min 60x20)
-    let modal_width = (screen.width * 80 / 100).min(100).max(60).min(screen.width.saturating_sub(4));
-    let modal_height = (screen.height * 80 / 100).min(40).max(20).min(screen.height.saturating_sub(4));
+    let modal_width = (screen.width * 80 / 100)
+        .clamp(60, 100)
+        .min(screen.width.saturating_sub(4));
+    let modal_height = (screen.height * 80 / 100)
+        .clamp(20, 40)
+        .min(screen.height.saturating_sub(4));
 
     // Center the modal
     let x = (screen.width.saturating_sub(modal_width)) / 2;
@@ -41,7 +45,11 @@ pub fn draw_help_dialog(f: &mut Frame, app: &mut App, _area: Rect) {
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color))
         .title(" Help (F1) ")
-        .title_style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
+        .title_style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        );
 
     let inner = block.inner(modal_area);
     f.render_widget(block, modal_area);
@@ -53,9 +61,9 @@ pub fn draw_help_dialog(f: &mut Frame, app: &mut App, _area: Rect) {
     let main_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3),  // Search bar
-            Constraint::Min(1),     // Main content
-            Constraint::Length(2),  // Footer
+            Constraint::Length(3), // Search bar
+            Constraint::Min(1),    // Main content
+            Constraint::Length(2), // Footer
         ])
         .split(inner);
 
@@ -65,10 +73,7 @@ pub fn draw_help_dialog(f: &mut Frame, app: &mut App, _area: Rect) {
     // Split main content: Categories (25%) | Content (75%)
     let content_chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage(25),
-            Constraint::Percentage(75),
-        ])
+        .constraints([Constraint::Percentage(25), Constraint::Percentage(75)])
         .split(main_chunks[1]);
 
     // Render category list
@@ -88,7 +93,11 @@ fn render_search_bar(f: &mut Frame, app: &mut App, area: Rect) {
     };
 
     let is_focused = state.focus == HelpFocus::SearchInput;
-    let border_color = if is_focused { Color::Yellow } else { Color::DarkGray };
+    let border_color = if is_focused {
+        Color::Yellow
+    } else {
+        Color::DarkGray
+    };
 
     let block = Block::default()
         .borders(Borders::ALL)
@@ -136,7 +145,11 @@ fn render_category_list(f: &mut Frame, app: &mut App, area: Rect) {
     };
 
     let is_focused = state.focus == HelpFocus::CategoryList;
-    let border_color = if is_focused { Color::Yellow } else { Color::DarkGray };
+    let border_color = if is_focused {
+        Color::Yellow
+    } else {
+        Color::DarkGray
+    };
 
     let block = Block::default()
         .borders(Borders::ALL)
@@ -175,10 +188,7 @@ fn render_category_list(f: &mut Frame, app: &mut App, area: Rect) {
         // Register click region
         let row_y = inner.y + idx as u16;
         if row_y < inner.y + inner.height {
-            state.add_click_region(
-                Rect::new(inner.x, row_y, inner.width, 1),
-                *category,
-            );
+            state.add_click_region(Rect::new(inner.x, row_y, inner.width, 1), *category);
         }
     }
 
@@ -193,14 +203,22 @@ fn render_content_area(f: &mut Frame, app: &mut App, area: Rect) {
     };
 
     let is_focused = state.focus == HelpFocus::ContentArea;
-    let border_color = if is_focused { Color::Yellow } else { Color::DarkGray };
+    let border_color = if is_focused {
+        Color::Yellow
+    } else {
+        Color::DarkGray
+    };
 
     // Title shows category name or "Search Results"
     let title = if state.is_searching() {
         let count = state.get_search_results().len();
         format!(" Search Results ({}) ", count)
     } else {
-        format!(" {} {} ", state.selected_category.icon(), state.selected_category.display_name())
+        format!(
+            " {} {} ",
+            state.selected_category.icon(),
+            state.selected_category.display_name()
+        )
     };
 
     let block = Block::default()
@@ -242,7 +260,12 @@ fn render_content_area(f: &mut Frame, app: &mut App, area: Rect) {
         let shortcut_padded = format!("{:width$}", entry.shortcut, width = max_shortcut_len);
 
         let line = Line::from(vec![
-            Span::styled(shortcut_padded, Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                shortcut_padded,
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw("  "),
             Span::styled(&entry.description, Style::default().fg(Color::White)),
         ]);
@@ -314,8 +337,11 @@ fn render_footer(f: &mut Frame, app: &App, area: Rect) {
     }
 
     let line = Line::from(spans);
-    let paragraph = Paragraph::new(line)
-        .block(Block::default().borders(Borders::TOP).border_style(Style::default().fg(Color::DarkGray)));
+    let paragraph = Paragraph::new(line).block(
+        Block::default()
+            .borders(Borders::TOP)
+            .border_style(Style::default().fg(Color::DarkGray)),
+    );
 
     f.render_widget(paragraph, area);
 }

@@ -3,11 +3,11 @@
 //! This module renders the tool approval dialog overlay.
 
 use ratatui::{
+    Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph, Wrap},
-    Frame,
 };
 
 use crate::approval::types::ApprovalSeverity;
@@ -50,7 +50,11 @@ pub fn draw_approval_dialog(f: &mut Frame, app: &mut App, _area: Rect) {
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color))
         .title(title)
-        .title_style(Style::default().fg(border_color).add_modifier(Modifier::BOLD));
+        .title_style(
+            Style::default()
+                .fg(border_color)
+                .add_modifier(Modifier::BOLD),
+        );
 
     let inner = block.inner(modal_area);
     f.render_widget(block, modal_area);
@@ -59,8 +63,8 @@ pub fn draw_approval_dialog(f: &mut Frame, app: &mut App, _area: Rect) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Min(1),     // Content
-            Constraint::Length(3),  // Footer with buttons
+            Constraint::Min(1),    // Content
+            Constraint::Length(3), // Footer with buttons
         ])
         .split(inner);
 
@@ -72,25 +76,12 @@ pub fn draw_approval_dialog(f: &mut Frame, app: &mut App, _area: Rect) {
 }
 
 /// Render the dialog content
-fn render_content(f: &mut Frame, info: &crate::tui::app::approval_dialog::ApprovalDisplayInfo, area: Rect, accent_color: Color) {
-    let mut lines = Vec::new();
-
-    // Tool name
-    lines.push(Line::from(vec![
-        Span::styled("Tool: ", Style::default().fg(Color::DarkGray)),
-        Span::styled(&info.tool_name, Style::default().fg(Color::White).add_modifier(Modifier::BOLD)),
-    ]));
-
-    lines.push(Line::from(""));
-
-    // Action
-    lines.push(Line::from(vec![
-        Span::styled("Action: ", Style::default().fg(Color::DarkGray)),
-        Span::styled(&info.action_description, Style::default().fg(accent_color)),
-    ]));
-
-    lines.push(Line::from(""));
-
+fn render_content(
+    f: &mut Frame,
+    info: &crate::tui::app::approval_dialog::ApprovalDisplayInfo,
+    area: Rect,
+    accent_color: Color,
+) {
     // Tool description (truncated if too long)
     let desc = if info.tool_description.len() > 100 {
         format!("{}...", &info.tool_description[..100])
@@ -98,14 +89,32 @@ fn render_content(f: &mut Frame, info: &crate::tui::app::approval_dialog::Approv
         info.tool_description.clone()
     };
 
-    lines.push(Line::from(vec![
-        Span::styled("Description: ", Style::default().fg(Color::DarkGray)),
-    ]));
-    lines.push(Line::from(vec![
-        Span::styled(desc, Style::default().fg(Color::Gray)),
-    ]));
-
-    lines.push(Line::from(""));
+    let mut lines = vec![
+        // Tool name
+        Line::from(vec![
+            Span::styled("Tool: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                &info.tool_name,
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
+        ]),
+        Line::from(""),
+        // Action
+        Line::from(vec![
+            Span::styled("Action: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(&info.action_description, Style::default().fg(accent_color)),
+        ]),
+        Line::from(""),
+        // Description label
+        Line::from(vec![Span::styled(
+            "Description: ",
+            Style::default().fg(Color::DarkGray),
+        )]),
+        Line::from(vec![Span::styled(desc, Style::default().fg(Color::Gray))]),
+        Line::from(""),
+    ];
 
     // Show key parameters if present
     if let Some(obj) = info.parameters.as_object() {
@@ -134,8 +143,7 @@ fn render_content(f: &mut Frame, info: &crate::tui::app::approval_dialog::Approv
         }
     }
 
-    let paragraph = Paragraph::new(lines)
-        .wrap(Wrap { trim: true });
+    let paragraph = Paragraph::new(lines).wrap(Wrap { trim: true });
 
     f.render_widget(paragraph, area);
 }
@@ -143,21 +151,41 @@ fn render_content(f: &mut Frame, info: &crate::tui::app::approval_dialog::Approv
 /// Render the footer with keyboard shortcuts
 fn render_footer(f: &mut Frame, area: Rect) {
     let shortcuts = vec![
-        Span::styled("[Y]", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "[Y]",
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled("es  ", Style::default().fg(Color::DarkGray)),
-        Span::styled("[N]", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "[N]",
+            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+        ),
         Span::styled("o  ", Style::default().fg(Color::DarkGray)),
-        Span::styled("[A]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "[A]",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled("lways  ", Style::default().fg(Color::DarkGray)),
-        Span::styled("[D]", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "[D]",
+            Style::default()
+                .fg(Color::Magenta)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled("eny always", Style::default().fg(Color::DarkGray)),
     ];
 
     let footer = Paragraph::new(Line::from(shortcuts))
         .alignment(Alignment::Center)
-        .block(Block::default()
-            .borders(Borders::TOP)
-            .border_style(Style::default().fg(Color::DarkGray)));
+        .block(
+            Block::default()
+                .borders(Borders::TOP)
+                .border_style(Style::default().fg(Color::DarkGray)),
+        );
 
     f.render_widget(footer, area);
 }

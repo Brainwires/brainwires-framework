@@ -4,11 +4,11 @@
 //! that researches and analyzes in its own context, returning only the final plan.
 
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::HashMap;
+use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-use std::future::Future;
 
 use crate::agents::{CommunicationHub, FileLockManager, TaskAgent, TaskAgentConfig};
 use crate::config::PlatformPaths;
@@ -73,7 +73,7 @@ impl PlanTool {
                 .to_string(),
             input_schema: ToolInputSchema::object(properties, vec!["task".to_string()]),
             requires_approval: false, // Read-only planning is safe
-            defer_loading: true, // Plan tool is deferred
+            defer_loading: true,      // Plan tool is deferred
             ..Default::default()
         }
     }
@@ -130,9 +130,7 @@ impl PlanTool {
         };
 
         // Create isolated context for the planning agent
-        let working_dir = std::env::current_dir()?
-            .to_string_lossy()
-            .to_string();
+        let working_dir = std::env::current_dir()?.to_string_lossy().to_string();
 
         // Get read-only tools for the planning agent
         let all_tools = ToolRegistry::with_builtins().get_all().to_vec();
@@ -176,16 +174,14 @@ impl PlanTool {
             system_prompt: Some(Self::planning_system_prompt(&working_dir)),
             temperature: 0.7,
             max_tokens: 4096,
-            validation_config: None,  // No validation for read-only planning agents
-            mdap_config: None,  // MDAP not used for planning agents
-            analytics_collector: crate::utils::logger::analytics_collector().map(std::sync::Arc::new),
+            validation_config: None, // No validation for read-only planning agents
+            mdap_config: None,       // MDAP not used for planning agents
+            analytics_collector: crate::utils::logger::analytics_collector()
+                .map(std::sync::Arc::new),
         };
 
         // Create task
-        let task = Task::new(
-            format!("plan-{}", uuid::Uuid::new_v4()),
-            planning_prompt,
-        );
+        let task = Task::new(format!("plan-{}", uuid::Uuid::new_v4()), planning_prompt);
 
         // Create communication hub and file lock manager for this agent
         // (isolated - not shared with the main agent pool)
@@ -208,14 +204,13 @@ impl PlanTool {
 
         if result.success {
             // Save the plan to storage
-            let plan_id = self.save_plan_to_storage(
-                &params.task,
-                &result.summary,
-                result.iterations,
-            ).await.unwrap_or_else(|e| {
-                Logger::debug(&format!("Failed to save plan: {}", e));
-                "unsaved".to_string()
-            });
+            let plan_id = self
+                .save_plan_to_storage(&params.task, &result.summary, result.iterations)
+                .await
+                .unwrap_or_else(|e| {
+                    Logger::debug(format!("Failed to save plan: {}", e));
+                    "unsaved".to_string()
+                });
 
             // Format the plan output with plan ID
             Ok(format!(
@@ -237,8 +232,12 @@ impl PlanTool {
         // Initialize storage
         let db_path = PlatformPaths::conversations_db_path()?;
         let client = Arc::new(
-            LanceDatabase::new(db_path.to_str().ok_or_else(|| anyhow::anyhow!("Invalid DB path"))?)
-                .await?
+            LanceDatabase::new(
+                db_path
+                    .to_str()
+                    .ok_or_else(|| anyhow::anyhow!("Invalid DB path"))?,
+            )
+            .await?,
         );
 
         let embeddings = Arc::new(EmbeddingProvider::new()?);
@@ -248,11 +247,8 @@ impl PlanTool {
 
         // Create plan metadata (agent-generated plans don't have a conversation ID)
         let conversation_id = format!("agent-{}", uuid::Uuid::new_v4());
-        let mut plan = PlanMetadata::new(
-            conversation_id,
-            task.to_string(),
-            plan_content.to_string(),
-        );
+        let mut plan =
+            PlanMetadata::new(conversation_id, task.to_string(), plan_content.to_string());
         plan = plan.with_iterations(iterations);
         plan.set_status(PlanStatus::Active);
 
@@ -261,7 +257,7 @@ impl PlanTool {
         let extraction = entity_extractor.extract(plan_content, &plan.plan_id);
 
         if !extraction.entities.is_empty() {
-            Logger::debug(&format!(
+            Logger::debug(format!(
                 "Extracted {} entities from agent plan",
                 extraction.entities.len()
             ));

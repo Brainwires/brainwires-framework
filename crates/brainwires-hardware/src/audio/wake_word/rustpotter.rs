@@ -29,18 +29,12 @@ pub struct RustpotterDetector {
 
 impl RustpotterDetector {
     /// Load a single `.rpw` model file.
-    pub fn from_model_file(
-        path: impl AsRef<Path>,
-        threshold: f32,
-    ) -> AudioResult<Self> {
+    pub fn from_model_file(path: impl AsRef<Path>, threshold: f32) -> AudioResult<Self> {
         Self::from_model_files(&[path.as_ref()], threshold)
     }
 
     /// Load multiple `.rpw` model files.
-    pub fn from_model_files(
-        paths: &[impl AsRef<Path>],
-        threshold: f32,
-    ) -> AudioResult<Self> {
+    pub fn from_model_files(paths: &[impl AsRef<Path>], threshold: f32) -> AudioResult<Self> {
         let mut inner = RustpotterBuilder::new()
             .set_threshold(threshold)
             .build()
@@ -49,9 +43,7 @@ impl RustpotterDetector {
         for path in paths {
             let p = path.as_ref();
             inner
-                .add_wakeword_from_file(
-                    p.to_str().unwrap_or_default(),
-                )
+                .add_wakeword_from_file(p.to_str().unwrap_or_default())
                 .map_err(|e| {
                     AudioError::Device(format!(
                         "failed to load wake word model {}: {e}",

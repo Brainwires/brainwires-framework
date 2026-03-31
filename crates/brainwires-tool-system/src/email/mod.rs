@@ -98,11 +98,7 @@ impl EmailTool {
             description: "Send an email message via SMTP.".to_string(),
             input_schema: ToolInputSchema::object(
                 properties,
-                vec![
-                    "to".to_string(),
-                    "subject".to_string(),
-                    "body".to_string(),
-                ],
+                vec!["to".to_string(), "subject".to_string(), "body".to_string()],
             ),
             requires_approval: true,
             ..Default::default()
@@ -252,7 +248,14 @@ impl EmailTool {
 
                 let params: SendInput = serde_json::from_value(input.clone())?;
                 client
-                    .send_email(&params.to, &params.cc, &params.bcc, &params.subject, &params.body, &[])
+                    .send_email(
+                        &params.to,
+                        &params.cc,
+                        &params.bcc,
+                        &params.subject,
+                        &params.body,
+                        &[],
+                    )
                     .await
             }
             EmailProvider::Gmail { .. } => {
@@ -329,7 +332,8 @@ impl EmailTool {
                 let uid = input
                     .get("uid")
                     .and_then(|v| v.as_u64())
-                    .ok_or_else(|| anyhow::anyhow!("'uid' is required"))? as u32;
+                    .ok_or_else(|| anyhow::anyhow!("'uid' is required"))?
+                    as u32;
 
                 let folder = input
                     .get("folder")
@@ -369,14 +373,8 @@ impl EmailTool {
                     .get("folder")
                     .and_then(|v| v.as_str())
                     .unwrap_or("INBOX");
-                let limit = input
-                    .get("limit")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(20) as u32;
-                let offset = input
-                    .get("offset")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0) as u32;
+                let limit = input.get("limit").and_then(|v| v.as_u64()).unwrap_or(20) as u32;
+                let offset = input.get("offset").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
 
                 let messages = client.list_messages(folder, limit, offset).await?;
                 let _ = client.logout().await;
@@ -391,14 +389,11 @@ impl EmailTool {
 
     /// Extract email configuration from the tool context metadata.
     fn get_config(context: &ToolContext) -> Result<EmailConfig> {
-        let config_json = context
-            .metadata
-            .get("email_config")
-            .ok_or_else(|| {
-                anyhow::anyhow!(
-                    "Email configuration not found. Set 'email_config' in ToolContext.metadata."
-                )
-            })?;
+        let config_json = context.metadata.get("email_config").ok_or_else(|| {
+            anyhow::anyhow!(
+                "Email configuration not found. Set 'email_config' in ToolContext.metadata."
+            )
+        })?;
         let config: EmailConfig = serde_json::from_str(config_json)?;
         Ok(config)
     }

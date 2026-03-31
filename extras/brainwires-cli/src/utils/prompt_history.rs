@@ -44,8 +44,8 @@ impl PromptHistory {
             return Ok(());
         }
 
-        let content = fs::read_to_string(&self.history_file)
-            .context("Failed to read prompt history file")?;
+        let content =
+            fs::read_to_string(&self.history_file).context("Failed to read prompt history file")?;
 
         self.prompts = content
             .lines()
@@ -64,8 +64,7 @@ impl PromptHistory {
     /// Save history to disk
     fn save(&self) -> Result<()> {
         let content = self.prompts.join("\n");
-        fs::write(&self.history_file, content)
-            .context("Failed to write prompt history file")?;
+        fs::write(&self.history_file, content).context("Failed to write prompt history file")?;
         Ok(())
     }
 
@@ -109,7 +108,7 @@ impl PromptHistory {
     }
 
     /// Get the next prompt (down arrow)
-    pub fn next(&mut self) -> Option<String> {
+    pub fn next_prompt(&mut self) -> Option<String> {
         if self.prompts.is_empty() {
             return None;
         }
@@ -259,9 +258,9 @@ mod tests {
         assert_eq!(history.previous(), Some("prompt 1".to_string()));
 
         // Down should go forward
-        assert_eq!(history.next(), Some("prompt 2".to_string()));
-        assert_eq!(history.next(), Some("prompt 3".to_string()));
-        assert_eq!(history.next(), None);
+        assert_eq!(history.next_prompt(), Some("prompt 2".to_string()));
+        assert_eq!(history.next_prompt(), Some("prompt 3".to_string()));
+        assert_eq!(history.next_prompt(), None);
     }
 
     #[test]

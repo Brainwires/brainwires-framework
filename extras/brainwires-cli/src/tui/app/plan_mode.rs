@@ -7,9 +7,9 @@ use anyhow::Result;
 
 use super::autocomplete::AutocompleteOps;
 use super::state::{App, AppMode, TuiMessage};
-use brainwires::agent_network::ipc::{AgentMessage, DisplayMessage, ViewerMessage};
 use crate::tui::Event;
 use crate::types::plan_mode::{PlanModeState, SavedMainContext};
+use brainwires::agent_network::ipc::{AgentMessage, DisplayMessage, ViewerMessage};
 
 impl App {
     /// Enter plan mode with optional focus/goal
@@ -96,14 +96,14 @@ impl App {
         self.add_console_message(format!("Entered plan mode: {}", focus_str));
 
         // If in IPC mode, notify the agent
-        if self.is_ipc_mode {
-            if let Some(ref mut writer) = self.ipc_writer {
-                let _ = writer
-                    .write(&ViewerMessage::EnterPlanMode {
-                        focus: self.plan_mode_state.as_ref().and_then(|s| s.focus.clone()),
-                    })
-                    .await;
-            }
+        if self.is_ipc_mode
+            && let Some(ref mut writer) = self.ipc_writer
+        {
+            let _ = writer
+                .write(&ViewerMessage::EnterPlanMode {
+                    focus: self.plan_mode_state.as_ref().and_then(|s| s.focus.clone()),
+                })
+                .await;
         }
 
         Ok(())
@@ -162,16 +162,19 @@ impl App {
         self.mode = AppMode::Normal;
 
         // Restore prompt mode from before entering plan mode
-        self.prompt_mode = self.pre_plan_prompt_mode.take().unwrap_or(super::state::PromptMode::Edit);
+        self.prompt_mode = self
+            .pre_plan_prompt_mode
+            .take()
+            .unwrap_or(super::state::PromptMode::Edit);
 
         // Add console message
         self.add_console_message("Exited plan mode".to_string());
 
         // If in IPC mode, notify the agent
-        if self.is_ipc_mode {
-            if let Some(ref mut writer) = self.ipc_writer {
-                let _ = writer.write(&ViewerMessage::ExitPlanMode).await;
-            }
+        if self.is_ipc_mode
+            && let Some(ref mut writer) = self.ipc_writer
+        {
+            let _ = writer.write(&ViewerMessage::ExitPlanMode).await;
         }
 
         Ok(())
@@ -316,15 +319,15 @@ impl App {
         }
 
         // If in IPC mode, send to agent
-        if self.is_ipc_mode {
-            if let Some(ref mut writer) = self.ipc_writer {
-                let _ = writer
-                    .write(&ViewerMessage::PlanModeUserInput {
-                        content: input,
-                        context_files: Vec::new(),
-                    })
-                    .await;
-            }
+        if self.is_ipc_mode
+            && let Some(ref mut writer) = self.ipc_writer
+        {
+            let _ = writer
+                .write(&ViewerMessage::PlanModeUserInput {
+                    content: input,
+                    context_files: Vec::new(),
+                })
+                .await;
         }
 
         // Scroll to bottom

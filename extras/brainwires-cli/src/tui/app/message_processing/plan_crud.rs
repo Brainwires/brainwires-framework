@@ -8,15 +8,22 @@ use std::sync::Arc;
 
 impl App {
     /// Handle list plans command
-    pub(super) async fn handle_list_plans(&mut self, conversation_id: Option<String>) -> Result<()> {
+    pub(super) async fn handle_list_plans(
+        &mut self,
+        conversation_id: Option<String>,
+    ) -> Result<()> {
         use crate::config::PlatformPaths;
         use crate::storage::{EmbeddingProvider, LanceDatabase, PlanStore, VectorDatabase};
 
         // Initialize plan store
         let db_path = PlatformPaths::conversations_db_path()?;
         let client = Arc::new(
-            LanceDatabase::new(db_path.to_str().ok_or_else(|| anyhow::anyhow!("Invalid DB path"))?)
-                .await?
+            LanceDatabase::new(
+                db_path
+                    .to_str()
+                    .ok_or_else(|| anyhow::anyhow!("Invalid DB path"))?,
+            )
+            .await?,
         );
         let embeddings = Arc::new(EmbeddingProvider::new()?);
         client.initialize(embeddings.dimension()).await?;
@@ -43,8 +50,16 @@ impl App {
                 } else {
                     plan.title.clone()
                 };
-                lines.push(format!("  {} - {} [{}]", &plan.plan_id[..8], title_preview, plan.status));
-                lines.push(format!("    Created: {} | Iterations: {}", created, plan.iterations_used));
+                lines.push(format!(
+                    "  {} - {} [{}]",
+                    &plan.plan_id[..8],
+                    title_preview,
+                    plan.status
+                ));
+                lines.push(format!(
+                    "    Created: {} | Iterations: {}",
+                    created, plan.iterations_used
+                ));
             }
             lines.push("".to_string());
             lines.push("View a plan: /plan:show <plan_id>".to_string());
@@ -68,8 +83,12 @@ impl App {
         // Initialize plan store
         let db_path = PlatformPaths::conversations_db_path()?;
         let client = Arc::new(
-            LanceDatabase::new(db_path.to_str().ok_or_else(|| anyhow::anyhow!("Invalid DB path"))?)
-                .await?
+            LanceDatabase::new(
+                db_path
+                    .to_str()
+                    .ok_or_else(|| anyhow::anyhow!("Invalid DB path"))?,
+            )
+            .await?,
         );
         let embeddings = Arc::new(EmbeddingProvider::new()?);
         client.initialize(embeddings.dimension()).await?;
@@ -79,7 +98,9 @@ impl App {
         let plan = if plan_id.len() < 36 {
             // Search for partial match
             let all_plans = plan_store.list_recent(100).await?;
-            all_plans.into_iter().find(|p| p.plan_id.starts_with(&plan_id))
+            all_plans
+                .into_iter()
+                .find(|p| p.plan_id.starts_with(&plan_id))
         } else {
             plan_store.get(&plan_id).await?
         };
@@ -125,8 +146,12 @@ impl App {
         // Initialize plan store
         let db_path = PlatformPaths::conversations_db_path()?;
         let client = Arc::new(
-            LanceDatabase::new(db_path.to_str().ok_or_else(|| anyhow::anyhow!("Invalid DB path"))?)
-                .await?
+            LanceDatabase::new(
+                db_path
+                    .to_str()
+                    .ok_or_else(|| anyhow::anyhow!("Invalid DB path"))?,
+            )
+            .await?,
         );
         let embeddings = Arc::new(EmbeddingProvider::new()?);
         client.initialize(embeddings.dimension()).await?;
@@ -136,7 +161,8 @@ impl App {
         let full_plan_id = if plan_id.len() < 36 {
             // Search for partial match
             let all_plans = plan_store.list_recent(100).await?;
-            all_plans.into_iter()
+            all_plans
+                .into_iter()
                 .find(|p| p.plan_id.starts_with(&plan_id))
                 .map(|p| p.plan_id)
         } else {
@@ -145,12 +171,12 @@ impl App {
 
         let content = if let Some(id) = full_plan_id {
             // If deleting the active plan, deactivate it first
-            if let Some(ref active) = self.active_plan {
-                if active.plan_id == id {
-                    self.active_plan = None;
-                    self.completed_plan_steps.clear();
-                    self.plan_progress = None;
-                }
+            if let Some(ref active) = self.active_plan
+                && active.plan_id == id
+            {
+                self.active_plan = None;
+                self.completed_plan_steps.clear();
+                self.plan_progress = None;
             }
             match plan_store.delete(&id).await {
                 Ok(()) => format!("Plan deleted: {}", &id[..8]),

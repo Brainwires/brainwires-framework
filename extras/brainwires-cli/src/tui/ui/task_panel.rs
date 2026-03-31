@@ -4,11 +4,11 @@
 //! Displayed on wide screens (>= 120 columns).
 
 use ratatui::{
+    Frame,
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Wrap},
-    Frame,
 };
 
 use crate::tui::app::App;
@@ -40,8 +40,7 @@ pub fn draw_task_panel(f: &mut Frame, app: &App, area: Rect) {
     f.render_widget(block, area);
 
     if list.is_empty() {
-        let empty_msg = Paragraph::new("No tasks")
-            .style(Style::default().fg(Color::DarkGray));
+        let empty_msg = Paragraph::new("No tasks").style(Style::default().fg(Color::DarkGray));
         f.render_widget(empty_msg, inner_area);
         return;
     }

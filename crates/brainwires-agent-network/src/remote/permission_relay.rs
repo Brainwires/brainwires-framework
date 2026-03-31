@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use tokio::sync::{oneshot, Mutex};
+use tokio::sync::{Mutex, oneshot};
 
 /// Result of a permission request.
 #[derive(Debug, Clone)]
@@ -97,9 +97,7 @@ impl PermissionRelay {
     ) -> bool {
         let mut inner = self.inner.lock().await;
 
-        if decision.always_allow
-            && !inner.session_allowed.contains(&tool_name.to_string())
-        {
+        if decision.always_allow && !inner.session_allowed.contains(&tool_name.to_string()) {
             inner.session_allowed.push(tool_name.to_string());
         }
 

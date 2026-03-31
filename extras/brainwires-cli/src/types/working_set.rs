@@ -5,7 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Maximum number of files in the working set by default
 pub const DEFAULT_MAX_FILES: usize = 15;
@@ -161,8 +161,7 @@ impl WorkingSet {
 
         let eviction_reason = self.maybe_evict(tokens);
 
-        let entry = WorkingSetEntry::new(path, tokens, self.current_turn)
-            .with_label(label);
+        let entry = WorkingSetEntry::new(path, tokens, self.current_turn).with_label(label);
         self.entries.insert(key, entry);
 
         eviction_reason
@@ -190,7 +189,7 @@ impl WorkingSet {
     }
 
     /// Touch a file (update access time without adding)
-    pub fn touch(&mut self, path: &PathBuf) -> bool {
+    pub fn touch(&mut self, path: &Path) -> bool {
         let key = path.to_string_lossy().to_string();
         if let Some(entry) = self.entries.get_mut(&key) {
             entry.access_count += 1;
@@ -202,13 +201,13 @@ impl WorkingSet {
     }
 
     /// Remove a specific file
-    pub fn remove(&mut self, path: &PathBuf) -> bool {
+    pub fn remove(&mut self, path: &Path) -> bool {
         let key = path.to_string_lossy().to_string();
         self.entries.remove(&key).is_some()
     }
 
     /// Pin a file (prevent eviction)
-    pub fn pin(&mut self, path: &PathBuf) -> bool {
+    pub fn pin(&mut self, path: &Path) -> bool {
         let key = path.to_string_lossy().to_string();
         if let Some(entry) = self.entries.get_mut(&key) {
             entry.pinned = true;
@@ -219,7 +218,7 @@ impl WorkingSet {
     }
 
     /// Unpin a file
-    pub fn unpin(&mut self, path: &PathBuf) -> bool {
+    pub fn unpin(&mut self, path: &Path) -> bool {
         let key = path.to_string_lossy().to_string();
         if let Some(entry) = self.entries.get_mut(&key) {
             entry.pinned = false;
@@ -245,13 +244,13 @@ impl WorkingSet {
     }
 
     /// Get entry by path
-    pub fn get(&self, path: &PathBuf) -> Option<&WorkingSetEntry> {
+    pub fn get(&self, path: &Path) -> Option<&WorkingSetEntry> {
         let key = path.to_string_lossy().to_string();
         self.entries.get(&key)
     }
 
     /// Check if a file is in the working set
-    pub fn contains(&self, path: &PathBuf) -> bool {
+    pub fn contains(&self, path: &Path) -> bool {
         let key = path.to_string_lossy().to_string();
         self.entries.contains_key(&key)
     }
@@ -281,20 +280,22 @@ impl WorkingSet {
         self.entries
             .values()
             .filter(|e| {
-                !e.pinned &&
-                self.current_turn.saturating_sub(e.last_access_turn) >= self.config.stale_after_turns
+                !e.pinned
+                    && self.current_turn.saturating_sub(e.last_access_turn)
+                        >= self.config.stale_after_turns
             })
             .collect()
     }
 
     /// Evict stale files
     fn evict_stale(&mut self) {
-        let stale_threshold = self.current_turn.saturating_sub(self.config.stale_after_turns);
+        let stale_threshold = self
+            .current_turn
+            .saturating_sub(self.config.stale_after_turns);
         let before_count = self.entries.len();
 
-        self.entries.retain(|_, entry| {
-            entry.pinned || entry.last_access_turn > stale_threshold
-        });
+        self.entries
+            .retain(|_, entry| entry.pinned || entry.last_access_turn > stale_threshold);
 
         let evicted = before_count - self.entries.len();
         if evicted > 0 {
@@ -364,7 +365,9 @@ impl WorkingSet {
         sorted.sort_by_key(|e| std::cmp::Reverse(e.last_access_turn));
 
         for entry in sorted {
-            let file_name = entry.path.file_name()
+            let file_name = entry
+                .path
+                .file_name()
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_else(|| entry.path.to_string_lossy().to_string());
 
@@ -372,12 +375,15 @@ impl WorkingSet {
             if entry.pinned {
                 flags.push("📌");
             }
-            let stale = self.current_turn.saturating_sub(entry.last_access_turn) >= self.config.stale_after_turns;
+            let stale = self.current_turn.saturating_sub(entry.last_access_turn)
+                >= self.config.stale_after_turns;
             if stale && !entry.pinned {
                 flags.push("⏳");
             }
 
-            let label = entry.label.as_ref()
+            let label = entry
+                .label
+                .as_ref()
                 .map(|l| format!(" ({})", l))
                 .unwrap_or_default();
 
@@ -401,7 +407,7 @@ impl WorkingSet {
 
 /// Estimate tokens for a string (rough: ~4 chars per token)
 pub fn estimate_tokens(content: &str) -> usize {
-    (content.len() + 3) / 4
+    content.len().div_ceil(4)
 }
 
 impl WorkingSet {
@@ -419,12 +425,10 @@ impl WorkingSet {
 
         // Sort by: pinned first, then by last access (most recent first)
         let mut sorted: Vec<_> = self.entries.values().collect();
-        sorted.sort_by(|a, b| {
-            match (a.pinned, b.pinned) {
-                (true, false) => std::cmp::Ordering::Less,
-                (false, true) => std::cmp::Ordering::Greater,
-                _ => b.last_access_turn.cmp(&a.last_access_turn),
-            }
+        sorted.sort_by(|a, b| match (a.pinned, b.pinned) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => b.last_access_turn.cmp(&a.last_access_turn),
         });
 
         for entry in sorted {
@@ -453,7 +457,9 @@ impl WorkingSet {
                         (content, false)
                     };
 
-                    let label = entry.label.as_ref()
+                    let label = entry
+                        .label
+                        .as_ref()
                         .map(|l| format!(" ({})", l))
                         .unwrap_or_default();
                     let pin_marker = if entry.pinned { " [pinned]" } else { "" };
@@ -511,7 +517,21 @@ impl WorkingSet {
 
         // Split by whitespace and common delimiters
         let tokens: Vec<&str> = content
-            .split(|c: char| c.is_whitespace() || c == '\n' || c == '`' || c == '"' || c == '\'' || c == '(' || c == ')' || c == '[' || c == ']' || c == '{' || c == '}' || c == '<' || c == '>')
+            .split(|c: char| {
+                c.is_whitespace()
+                    || c == '\n'
+                    || c == '`'
+                    || c == '"'
+                    || c == '\''
+                    || c == '('
+                    || c == ')'
+                    || c == '['
+                    || c == ']'
+                    || c == '{'
+                    || c == '}'
+                    || c == '<'
+                    || c == '>'
+            })
             .filter(|s| !s.is_empty())
             .collect();
 
@@ -527,10 +547,10 @@ impl WorkingSet {
 
                 // Try as-is first
                 if path.exists() && path.is_file() {
-                    if let Ok(canonical) = path.canonicalize() {
-                        if !found_paths.contains(&canonical) {
-                            found_paths.push(canonical);
-                        }
+                    if let Ok(canonical) = path.canonicalize()
+                        && !found_paths.contains(&canonical)
+                    {
+                        found_paths.push(canonical);
                     }
                     continue;
                 }
@@ -538,12 +558,12 @@ impl WorkingSet {
                 // Try relative to CWD
                 if let Ok(cwd) = std::env::current_dir() {
                     let full_path = cwd.join(token);
-                    if full_path.exists() && full_path.is_file() {
-                        if let Ok(canonical) = full_path.canonicalize() {
-                            if !found_paths.contains(&canonical) {
-                                found_paths.push(canonical);
-                            }
-                        }
+                    if full_path.exists()
+                        && full_path.is_file()
+                        && let Ok(canonical) = full_path.canonicalize()
+                        && !found_paths.contains(&canonical)
+                    {
+                        found_paths.push(canonical);
                     }
                 }
             }
@@ -564,7 +584,7 @@ impl WorkingSet {
 
 /// Estimate tokens for a file by size
 pub fn estimate_tokens_from_size(bytes: u64) -> usize {
-    ((bytes as usize) + 3) / 4
+    (bytes as usize).div_ceil(4)
 }
 
 #[cfg(test)]

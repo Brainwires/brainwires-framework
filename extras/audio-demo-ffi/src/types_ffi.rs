@@ -470,8 +470,16 @@ mod tests {
             language: Some("en".to_string()),
             duration_secs: Some(3.0),
             segments: vec![
-                TranscriptSegment { text: "Hello".to_string(), start: 0.0, end: 0.5 },
-                TranscriptSegment { text: "world".to_string(), start: 0.5, end: 1.0 },
+                TranscriptSegment {
+                    text: "Hello".to_string(),
+                    start: 0.0,
+                    end: 0.5,
+                },
+                TranscriptSegment {
+                    text: "world".to_string(),
+                    start: 0.5,
+                    end: 1.0,
+                },
             ],
         };
         let ffi: FfiTranscript = native.into();

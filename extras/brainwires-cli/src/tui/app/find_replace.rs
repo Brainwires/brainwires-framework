@@ -2,8 +2,8 @@
 //!
 //! Manages the state for find and find/replace dialogs in fullscreen modes.
 
-use regex::RegexBuilder;
 use ratatui::layout::Rect;
+use regex::RegexBuilder;
 
 /// Mode for find/replace dialog
 #[derive(Debug, Clone, PartialEq)]
@@ -109,7 +109,10 @@ impl FindReplaceState {
 
     /// Check if current focus is on an input field
     pub fn is_input_focused(&self) -> bool {
-        matches!(self.focus, DialogFocus::FindInput | DialogFocus::ReplaceInput)
+        matches!(
+            self.focus,
+            DialogFocus::FindInput | DialogFocus::ReplaceInput
+        )
     }
 
     /// Get all focusable elements in order for tab navigation
@@ -148,7 +151,9 @@ impl FindReplaceState {
     pub fn set_focus(&mut self, element: DialogFocus) {
         // Validate the element is available in current mode
         match element {
-            DialogFocus::ReplaceInput | DialogFocus::ReplaceButton | DialogFocus::ReplaceAllButton => {
+            DialogFocus::ReplaceInput
+            | DialogFocus::ReplaceButton
+            | DialogFocus::ReplaceAllButton => {
                 if self.mode == FindReplaceMode::Replace {
                     self.focus = element;
                 }

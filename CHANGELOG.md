@@ -57,6 +57,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Autodream memory consolidation** (feature `dream`) — 4-phase consolidation cycle: orient → gather → consolidate → prune. Types: `DreamConsolidator`, `DemotionPolicy` (age/importance/budget thresholds), `DreamSummarizer` (LLM-powered compression), `FactExtractor` (5 categories: entities, relationships, events, preferences, habits), `DreamMetrics`, `DreamReport`, `DreamTask` (scheduled via `AutonomyScheduler`).
 
+#### Cognition (`brainwires-cognition`)
+
+- **Hindsight-inspired memory retrieval** — `detect_temporal_query()` scores temporal-intent keywords and dynamically boosts recency weighting in `search_adaptive_multi_factor()`. `CrossEncoderReranker` (implements `DiversityReranker`) blends retrieval scores with query-document cosine similarity via configurable `alpha`; `RerankerKind` supports `Spectral`, `CrossEncoder`, or `Both` (two-pass: diversity then relevance). `RagClient::query_ensemble()` fans out concurrently across `SearchStrategy` variants (`Semantic`, `Keyword`, `GitHistory`, `CodeNavigation`) and fuses results via RRF. `MemoryBankConfig` — mission, content-blocking directives, and five disposition traits (`Analytical`/`Concise`/`Cautious`/`Creative`/`Systematic`, each ±0.1 retrieval score bias) integrated into `BrainClient`. `MultiFactorScore` gains `compute_with_weights()` and `recency_from_hours_fast()`; `TieredMemoryConfig` gains `temporal_boost` and `fast_decay` fields.
+- **Evidence tracking** — `Thought` gains `confidence`, `evidence_chain`, `reinforcement_count`, and `contradiction_count` fields. New `check_corroboration()` and `check_contradiction()` functions (negation-heuristic). `BrainClient` gains `apply_evidence_check()` and `replace_thought()`.
+- **Mental models tier** — New `MentalModelStore`, `MentalModel`, and `ModelType` enum (`Behavioral`/`Structural`/`Causal`/`Procedural`). `MemoryTier::MentalModel` added at the lowest hierarchy level. `TieredMemory` gains `synthesize_mental_model()` (explicit only — never auto-populated) and `search_mental_models()`; results appended to `search_adaptive_multi_factor()`.
+
+#### Autonomy / Agents — Empirical Evaluation (`brainwires-autonomy`, `brainwires-agents`, `brainwires-cognition`)
+
+- **Empirical eval harness** (feature `eval-driven`) — Zero-network, <1 ms deterministic evaluation cases. Eight cases: `EntityImportanceRankingCase`, `EntitySingleMentionCase`, `EntityTypeBonusCase`, `MultiFactorRankingCase`, `TierDemotionCase`, `TaskBidScoringCase` (0.4×capability + 0.3×availability + 0.3×speed), `ResourceBidScoringCase` (0.7×priority + 0.3×bid), `ComplexityHeuristicCase` (keyword-based task complexity scoring). Suites: `entity_importance_suite()`, `multi_factor_suite()`. New `ranking_metrics` module: `ndcg_at_k()`, `mrr()`, `precision_at_k()` with graded relevance support.
+
 #### Extras — Voice Assistant (`extras/voice-assistant/`)
 
 - **`voice-assistant`** binary — Personal voice assistant built on the framework. Mic capture → optional energy wake trigger → VAD-gated speech accumulation → OpenAI Whisper STT → LLM response (OpenAI chat completions) → OpenAI TTS playback. CLI flags: `--config <path.toml>`, `--list-devices`, `--wake-word <model>`, `--verbose`. TOML config covers STT model, TTS voice, silence tuning, wake word model, LLM model/system prompt, and device names. Clean Ctrl-C shutdown via `tokio::signal`.
@@ -98,6 +108,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Facade (`brainwires`)
 
 - Removed `brainwires-proxy` from the `full` feature flag. Extras are consumers of the framework, not framework dependencies; external consumers (such as `brainwires-cli`) do not have extras in their workspace. The `proxy` feature remains available as an explicit opt-in.
+
+#### Providers (`brainwires-providers`)
+
+- **llama-cpp-2 token API** — Replaced deprecated `token_to_str` with `token_to_piece` to restore compatibility with llama-cpp-2 ≥ 0.9.
+
+#### Analytics (`brainwires-analytics`)
+
+- **Runtime path coverage** — Analytics events wired into all remaining framework paths (Phases 7–9): per-iteration agent events, tool call tracking, MCP request events, and storage operation events.
+
+### Quality
+
+- **Test coverage expansion** — Added ~440 tests across 14 previously untested or undertested crates and extras. Coverage: A2A protocol serialization roundtrips; analytics event construction; brainwires-issues CRUD + BM25 search + pagination; mcp-matrix, mcp-whatsapp, mcp-mattermost, and mcp-signal config serde + protocol parsing + envelope helpers; hardware VAD, Bluetooth, GPIO, and network types via a mock backend; autonomy git workflows, merge policies, and webhook HMAC signatures; mcp-server middleware (auth, rate limiting, logging, connection context); storage BM25/RRF ranking correctness with tempdir-isolated indexes; provider trait contract via a zero-network `MockProvider` integration suite; audio-demo-ffi FFI type conversion roundtrips.
 
 ### Refactored
 

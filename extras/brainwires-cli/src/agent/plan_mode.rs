@@ -9,10 +9,10 @@ use anyhow::{Context, Result};
 use tokio::sync::broadcast;
 
 use super::AgentState;
-use brainwires::agent_network::ipc::{AgentMessage, DisplayMessage};
 use crate::storage::PlanModeStore;
 use crate::types::message::{Message, MessageContent, Role};
 use crate::types::plan_mode::{PlanModeState, SavedMainContext};
+use brainwires::agent_network::ipc::{AgentMessage, DisplayMessage};
 
 /// Plan mode operations for AgentState
 impl AgentState {
@@ -48,16 +48,17 @@ impl AgentState {
             .context("Failed to connect to LanceDB")?,
         ));
 
-        let plan_state = if let Ok(Some(existing)) = plan_store.get_by_main_session(&self.session_id).await {
-            // Restore existing plan mode state
-            let mut state = existing;
-            state.activate();
-            state.focus = focus.clone().or(state.focus);
-            state
-        } else {
-            // Create new plan mode state
-            PlanModeState::new(self.session_id.clone(), focus.clone())
-        };
+        let plan_state =
+            if let Ok(Some(existing)) = plan_store.get_by_main_session(&self.session_id).await {
+                // Restore existing plan mode state
+                let mut state = existing;
+                state.activate();
+                state.focus = focus.clone().or(state.focus);
+                state
+            } else {
+                // Create new plan mode state
+                PlanModeState::new(self.session_id.clone(), focus.clone())
+            };
 
         // Set up plan mode context
         self.plan_mode_state = Some(plan_state.clone());
@@ -190,8 +191,10 @@ impl AgentState {
 
         // Build ChatOptions with plan mode system prompt
         let system_prompt = self.build_plan_mode_system_prompt();
-        let mut options = crate::types::provider::ChatOptions::default();
-        options.system = Some(system_prompt);
+        let options = crate::types::provider::ChatOptions {
+            system: Some(system_prompt),
+            ..Default::default()
+        };
 
         // Stream the response
         use crate::types::message::StreamChunk;

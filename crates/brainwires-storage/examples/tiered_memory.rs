@@ -36,7 +36,7 @@ async fn main() -> Result<()> {
         warm_importance_threshold: 0.2,
         max_hot_messages: 500,
         max_warm_summaries: 2000,
-        session_ttl_secs: None,        // no automatic expiry
+        session_ttl_secs: None, // no automatic expiry
         ..TieredMemoryConfig::default()
     };
 
@@ -57,11 +57,20 @@ async fn main() -> Result<()> {
     // 5. Add messages with varying importance scores
     let conversation_id = "conv-tiered-1";
     let entries = vec![
-        ("Architecture decision: we will use an event-driven design with CQRS.", 0.95),
+        (
+            "Architecture decision: we will use an event-driven design with CQRS.",
+            0.95,
+        ),
         ("Let me check the test output... all 42 tests pass.", 0.2),
-        ("The database schema has three main tables: users, projects, and events.", 0.85),
+        (
+            "The database schema has three main tables: users, projects, and events.",
+            0.85,
+        ),
         ("Can you add a newline at the end of that file?", 0.05),
-        ("We decided to use PostgreSQL with pgvector for production storage.", 0.9),
+        (
+            "We decided to use PostgreSQL with pgvector for production storage.",
+            0.9,
+        ),
     ];
 
     for (i, (content, importance)) in entries.iter().enumerate() {

@@ -39,10 +39,7 @@ fn default_model_pricing() -> HashMap<String, ModelPricing> {
     let mut pricing = HashMap::new();
 
     // Anthropic Claude models
-    pricing.insert(
-        "claude-3-opus".to_string(),
-        ModelPricing::new(0.015, 0.075),
-    );
+    pricing.insert("claude-3-opus".to_string(), ModelPricing::new(0.015, 0.075));
     pricing.insert(
         "claude-3-sonnet".to_string(),
         ModelPricing::new(0.003, 0.015),
@@ -55,16 +52,16 @@ fn default_model_pricing() -> HashMap<String, ModelPricing> {
         "claude-3.5-sonnet".to_string(),
         ModelPricing::new(0.003, 0.015),
     );
-    pricing.insert(
-        "claude-opus-4".to_string(),
-        ModelPricing::new(0.015, 0.075),
-    );
+    pricing.insert("claude-opus-4".to_string(), ModelPricing::new(0.015, 0.075));
 
     // OpenAI models
     pricing.insert("gpt-4".to_string(), ModelPricing::new(0.03, 0.06));
     pricing.insert("gpt-4-turbo".to_string(), ModelPricing::new(0.01, 0.03));
     pricing.insert("openai-gpt-5.2".to_string(), ModelPricing::new(0.002, 0.01));
-    pricing.insert("gpt-3.5-turbo".to_string(), ModelPricing::new(0.0005, 0.0015));
+    pricing.insert(
+        "gpt-3.5-turbo".to_string(),
+        ModelPricing::new(0.0005, 0.0015),
+    );
 
     pricing
 }
@@ -113,7 +110,10 @@ impl UsageStats {
         self.total_calls += 1;
 
         *self.by_model.entry(event.model.clone()).or_insert(0.0) += event.cost_usd;
-        *self.by_provider.entry(event.provider.clone()).or_insert(0.0) += event.cost_usd;
+        *self
+            .by_provider
+            .entry(event.provider.clone())
+            .or_insert(0.0) += event.cost_usd;
     }
 }
 
@@ -245,13 +245,19 @@ impl CostTracker {
 
     /// Default data path
     fn default_path() -> Result<PathBuf> {
-        let data_dir = dirs::data_dir()
-            .ok_or_else(|| anyhow::anyhow!("Could not find data directory"))?;
+        let data_dir =
+            dirs::data_dir().ok_or_else(|| anyhow::anyhow!("Could not find data directory"))?;
         Ok(data_dir.join("brainwires").join("cost_tracker.json"))
     }
 
     /// Track a usage event
-    pub fn track_usage(&mut self, provider: &str, model: &str, input_tokens: u32, output_tokens: u32) {
+    pub fn track_usage(
+        &mut self,
+        provider: &str,
+        model: &str,
+        input_tokens: u32,
+        output_tokens: u32,
+    ) {
         let cost = self.calculate_cost(model, input_tokens, output_tokens);
 
         let event = UsageEvent {

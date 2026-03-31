@@ -6,7 +6,7 @@
 
 use anyhow::Result;
 use std::path::PathBuf;
-use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
 /// Initialize logging system with file and stdout output
 pub fn init_logging() -> Result<()> {
@@ -30,7 +30,7 @@ pub fn init_logging() -> Result<()> {
         .with(
             fmt::layer()
                 .with_writer(non_blocking_file)
-                .with_ansi(false)  // No ANSI codes in files
+                .with_ansi(false) // No ANSI codes in files
                 .with_target(true)
                 .with_thread_ids(true)
                 .with_line_number(true),
@@ -38,7 +38,7 @@ pub fn init_logging() -> Result<()> {
         .with(
             fmt::layer()
                 .with_writer(non_blocking_stdout)
-                .with_target(false)  // Cleaner stdout output
+                .with_target(false) // Cleaner stdout output
                 .with_line_number(false),
         )
         .init();
@@ -49,9 +49,6 @@ pub fn init_logging() -> Result<()> {
     tracing::info!("Logging initialized to {}", log_dir.display());
     Ok(())
 }
-
-
-
 
 /// Get the log directory path: ~/.brainwires/logs/
 fn get_log_directory() -> Result<PathBuf> {

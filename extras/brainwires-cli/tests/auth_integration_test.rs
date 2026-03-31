@@ -88,14 +88,19 @@ async fn test_authentication_invalid_key() {
     let _env = TestEnv::new();
     let client = AuthClient::new(DEV_BACKEND.to_string());
 
-    let result = client.authenticate("bw_dev_00000000000000000000000000000000").await;
+    let result = client
+        .authenticate("bw_dev_00000000000000000000000000000000")
+        .await;
 
-    assert!(result.is_err(), "Authentication should fail with invalid key");
+    assert!(
+        result.is_err(),
+        "Authentication should fail with invalid key"
+    );
     let error = result.unwrap_err().to_string();
     assert!(
-        error.contains("Authentication failed") ||
-        error.contains("401") ||
-        error.contains("Unauthorized"),
+        error.contains("Authentication failed")
+            || error.contains("401")
+            || error.contains("Unauthorized"),
         "Error should indicate auth failure: {}",
         error
     );
@@ -109,8 +114,16 @@ async fn test_authentication_malformed_key() {
 
     let result = client.authenticate("not-a-valid-api-key").await;
 
-    assert!(result.is_err(), "Authentication should fail with malformed key");
-    assert!(result.unwrap_err().to_string().contains("Invalid API key format"));
+    assert!(
+        result.is_err(),
+        "Authentication should fail with malformed key"
+    );
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid API key format")
+    );
 }
 
 #[tokio::test]
@@ -120,7 +133,9 @@ async fn test_session_persistence() {
     let client = AuthClient::new(DEV_BACKEND.to_string());
 
     // Authenticate
-    let session = client.authenticate(TEST_API_KEY).await
+    let session = client
+        .authenticate(TEST_API_KEY)
+        .await
         .expect("Authentication should succeed");
 
     // Session should be saved
@@ -132,8 +147,7 @@ async fn test_session_persistence() {
     assert_eq!(loaded_session.backend, session.backend);
 
     // Check authentication status
-    let is_authed = SessionManager::is_authenticated()
-        .expect("Should check auth status");
+    let is_authed = SessionManager::is_authenticated().expect("Should check auth status");
     assert!(is_authed, "Should be authenticated after successful login");
 
     // Cleanup is automatic when TestEnv drops
@@ -145,7 +159,9 @@ async fn test_session_fields() {
     let _env = TestEnv::new();
     let client = AuthClient::new(DEV_BACKEND.to_string());
 
-    let session = client.authenticate(TEST_API_KEY).await
+    let session = client
+        .authenticate(TEST_API_KEY)
+        .await
         .expect("Authentication should succeed");
 
     // Check session fields
@@ -156,11 +172,20 @@ async fn test_session_fields() {
     println!("  Backend: {}", session.backend);
 
     // Verify all required fields are populated
-    assert!(!session.user.user_id.is_empty(), "User ID should not be empty");
-    assert!(!session.user.username.is_empty(), "Username should not be empty");
+    assert!(
+        !session.user.user_id.is_empty(),
+        "User ID should not be empty"
+    );
+    assert!(
+        !session.user.username.is_empty(),
+        "Username should not be empty"
+    );
     assert!(!session.key_name.is_empty(), "Key name should not be empty");
     assert!(!session.api_key.is_empty(), "API key should not be empty");
-    assert!(!session.backend.is_empty(), "Backend URL should not be empty");
+    assert!(
+        !session.backend.is_empty(),
+        "Backend URL should not be empty"
+    );
 
     // Cleanup is automatic when TestEnv drops
 }

@@ -24,19 +24,25 @@ pub async fn handle_checkpoint_action(
             let mut metadata = std::collections::HashMap::new();
             metadata.insert("model".to_string(), model_id.to_string());
 
-            match checkpoint_manager.create_checkpoint(
-                name.clone(),
-                conversation_manager.conversation_id().to_string(),
-                messages,
-                metadata,
-            ).await {
+            match checkpoint_manager
+                .create_checkpoint(
+                    name.clone(),
+                    conversation_manager.conversation_id().to_string(),
+                    messages,
+                    metadata,
+                )
+                .await
+            {
                 Ok(checkpoint_id) => {
                     let display_name = name.unwrap_or_else(|| checkpoint_id[..8].to_string());
-                    Logger::info(&format!("Created checkpoint: {}", display_name));
-                    println!("{}\n", console::style(format!("Checkpoint created: {}", display_name)).green());
+                    Logger::info(format!("Created checkpoint: {}", display_name));
+                    println!(
+                        "{}\n",
+                        console::style(format!("Checkpoint created: {}", display_name)).green()
+                    );
                 }
                 Err(e) => {
-                    Logger::error(&format!("Failed to create checkpoint: {}", e));
+                    Logger::error(format!("Failed to create checkpoint: {}", e));
                     println!("{}: {}\n", console::style("Error").red().bold(), e);
                 }
             }
@@ -54,32 +60,40 @@ pub async fn handle_checkpoint_action(
                     *conversation_manager = new_manager;
                     context.conversation_history = conversation_manager.get_messages().to_vec();
 
-                    let display_name = checkpoint.name.unwrap_or_else(|| checkpoint.id[..8].to_string());
-                    Logger::info(&format!("Restored checkpoint: {}", display_name));
-                    println!("{}\n", console::style(format!("Restored checkpoint: {}", display_name)).green());
+                    let display_name = checkpoint
+                        .name
+                        .unwrap_or_else(|| checkpoint.id[..8].to_string());
+                    Logger::info(format!("Restored checkpoint: {}", display_name));
+                    println!(
+                        "{}\n",
+                        console::style(format!("Restored checkpoint: {}", display_name)).green()
+                    );
                 }
                 Err(e) => {
-                    Logger::error(&format!("Failed to restore checkpoint: {}", e));
+                    Logger::error(format!("Failed to restore checkpoint: {}", e));
                     println!("{}: {}\n", console::style("Error").red().bold(), e);
                 }
             }
             Ok(true)
         }
         CommandAction::ListCheckpoints => {
-            match checkpoint_manager.list_checkpoints(conversation_manager.conversation_id()).await {
+            match checkpoint_manager
+                .list_checkpoints(conversation_manager.conversation_id())
+                .await
+            {
                 Ok(checkpoints) => {
                     if checkpoints.is_empty() {
                         println!("{}\n", console::style("No checkpoints found").yellow());
                     } else {
                         println!("{}\n", console::style("Checkpoints:").cyan().bold());
                         for (i, checkpoint) in checkpoints.iter().enumerate() {
-                            let name = checkpoint.name.as_ref()
-                                .map(|n| n.as_str())
-                                .unwrap_or("Unnamed");
-                            let created = chrono::DateTime::from_timestamp(checkpoint.created_at, 0)
-                                .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
-                                .unwrap_or_else(|| "Unknown".to_string());
-                            println!("  {}. {} - {} messages ({})",
+                            let name = checkpoint.name.as_deref().unwrap_or("Unnamed");
+                            let created =
+                                chrono::DateTime::from_timestamp(checkpoint.created_at, 0)
+                                    .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
+                                    .unwrap_or_else(|| "Unknown".to_string());
+                            println!(
+                                "  {}. {} - {} messages ({})",
                                 i + 1,
                                 console::style(name).green(),
                                 checkpoint.messages.len(),
@@ -91,7 +105,7 @@ pub async fn handle_checkpoint_action(
                     }
                 }
                 Err(e) => {
-                    Logger::error(&format!("Failed to list checkpoints: {}", e));
+                    Logger::error(format!("Failed to list checkpoints: {}", e));
                     println!("{}: {}\n", console::style("Error").red().bold(), e);
                 }
             }

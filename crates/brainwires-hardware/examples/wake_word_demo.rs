@@ -4,22 +4,22 @@
 //!
 //! Run with:
 //! ```bash
-//! cargo run -p brainwires-hardware --example wake_word_demo --features wake-word \
-//!     -- --model hey_assistant.rpw
+//! cargo run -p brainwires-hardware --example wake_word_demo \
+//!     --features wake-word-rustpotter -- --model hey_assistant.rpw
 //! ```
 //!
 //! Press Ctrl-C to stop.
 
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use brainwires_hardware::audio::{
-    hardware::cpal_capture::CpalCapture,
-    wake_word::{RustpotterDetector, WakeWordDetector},
-    vad::pcm_to_i16_mono,
-    types::AudioConfig,
     capture::AudioCapture,
+    hardware::cpal_capture::CpalCapture,
+    types::AudioConfig,
+    vad::pcm_to_i16_mono,
+    wake_word::{RustpotterDetector, WakeWordDetector},
 };
 use futures::StreamExt;
 
@@ -77,8 +77,7 @@ async fn main() -> anyhow::Result<()> {
 
     let running = Arc::new(AtomicBool::new(true));
     let r = Arc::clone(&running);
-    ctrlc::set_handler(move || r.store(false, Ordering::Relaxed))
-        .unwrap_or_default();
+    ctrlc::set_handler(move || r.store(false, Ordering::Relaxed)).unwrap_or_default();
 
     println!("Listening for wake word... (Ctrl-C to stop)");
 

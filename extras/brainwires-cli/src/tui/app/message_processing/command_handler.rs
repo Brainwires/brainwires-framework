@@ -11,7 +11,12 @@ impl App {
     /// Handle slash command execution
     /// Returns true if AI processing should be skipped (command was a pure action/help/error)
     /// Returns false if AI should be called (command produced a message to send)
-    pub(super) async fn handle_command(&mut self, cmd_name: String, cmd_args: &[String], _user_content: String) -> Result<bool> {
+    pub(super) async fn handle_command(
+        &mut self,
+        cmd_name: String,
+        cmd_args: &[String],
+        _user_content: String,
+    ) -> Result<bool> {
         use crate::commands::executor::CommandResult;
 
         // Execute slash command
@@ -25,11 +30,11 @@ impl App {
                     created_at: chrono::Utc::now().timestamp(),
                 });
                 self.clear_input();
-                return Ok(true); // Skip AI
+                Ok(true) // Skip AI
             }
             Ok(CommandResult::Action(action)) => {
                 self.handle_command_action(action).await?;
-                return Ok(true); // Skip AI - actions don't need AI response
+                Ok(true) // Skip AI - actions don't need AI response
             }
             Ok(CommandResult::ActionWithMessage(action, msg)) => {
                 // Execute the action (e.g., switch prompt mode), then send the message to AI
@@ -49,7 +54,7 @@ impl App {
                     name: None,
                     metadata: None,
                 });
-                return Ok(false); // Don't skip AI - need to process the message
+                Ok(false) // Don't skip AI - need to process the message
             }
             Ok(CommandResult::Message(msg)) => {
                 // Command produced a message to send to AI
@@ -68,7 +73,7 @@ impl App {
                     metadata: None,
                 });
                 // Continue to AI processing
-                return Ok(false); // Don't skip AI - need to process the message
+                Ok(false) // Don't skip AI - need to process the message
             }
             Err(e) => {
                 // Display error as system message
@@ -78,13 +83,16 @@ impl App {
                     created_at: chrono::Utc::now().timestamp(),
                 });
                 self.clear_input();
-                return Ok(true); // Skip AI
+                Ok(true) // Skip AI
             }
         }
     }
 
     /// Handle command action, returns true if processing should stop
-    pub(super) async fn handle_command_action(&mut self, action: crate::commands::executor::CommandAction) -> Result<bool> {
+    pub(super) async fn handle_command_action(
+        &mut self,
+        action: crate::commands::executor::CommandAction,
+    ) -> Result<bool> {
         use crate::commands::executor::CommandAction;
 
         match action {
@@ -101,7 +109,8 @@ impl App {
                 self.selected_shell_index = 0;
                 self.shell_viewer_scroll = 0;
 
-                self.status = "Conversation and shell history cleared (use /resume to restore)".to_string();
+                self.status =
+                    "Conversation and shell history cleared (use /resume to restore)".to_string();
                 self.clear_input();
                 Ok(true)
             }
@@ -433,7 +442,8 @@ impl App {
                 Ok(true)
             }
             CommandAction::KnowledgeContradict(id, reason) => {
-                self.handle_knowledge_contradict(&id, reason.as_deref()).await;
+                self.handle_knowledge_contradict(&id, reason.as_deref())
+                    .await;
                 Ok(true)
             }
             CommandAction::KnowledgeDelete(id) => {
@@ -562,12 +572,16 @@ impl App {
                     } else {
                         format!("plan-{}.md", state.plan_session_id)
                     };
-                    let content = state.messages.iter()
+                    let content = state
+                        .messages
+                        .iter()
                         .map(|m| format!("## {}\n\n{}\n", m.role, m.content))
                         .collect::<Vec<_>>()
                         .join("\n---\n\n");
                     match std::fs::write(&output, &content) {
-                        Ok(_) => self.add_console_message(format!("Exported plan mode to: {}", output)),
+                        Ok(_) => {
+                            self.add_console_message(format!("Exported plan mode to: {}", output))
+                        }
                         Err(e) => self.add_console_message(format!("Failed to export: {}", e)),
                     }
                 } else {
@@ -605,7 +619,8 @@ impl App {
             Commands:\n\
             - /mdap on       - Enable MDAP mode\n\
             - /mdap:k <n>    - Set vote margin (1-10, default: 3)\n\
-            - /mdap:target <rate> - Set target success rate (default: 0.95)".to_string()
+            - /mdap:target <rate> - Set target success rate (default: 0.95)"
+                .to_string()
         };
 
         self.messages.push(TuiMessage {
@@ -651,8 +666,10 @@ impl App {
             self.add_console_message(format!("✅ MDAP vote margin set to k={}", k));
         } else {
             // Enable MDAP with custom k
-            let mut config = MdapConfig::default();
-            config.k = k;
+            let config = MdapConfig {
+                k,
+                ..Default::default()
+            };
             self.mdap_config = Some(config);
             self.status = format!("Ready - Model: {} [MDAP] (Ctrl+C to quit)", self.model);
             self.add_console_message(format!("✅ MDAP mode enabled with k={}", k));
@@ -666,22 +683,30 @@ impl App {
 
         if let Some(ref mut config) = self.mdap_config {
             config.target_success_rate = target;
-            self.add_console_message(format!("✅ MDAP target success rate set to {:.1}%", target * 100.0));
+            self.add_console_message(format!(
+                "✅ MDAP target success rate set to {:.1}%",
+                target * 100.0
+            ));
         } else {
             // Enable MDAP with custom target
-            let mut config = MdapConfig::default();
-            config.target_success_rate = target;
+            let config = MdapConfig {
+                target_success_rate: target,
+                ..Default::default()
+            };
             self.mdap_config = Some(config);
             self.status = format!("Ready - Model: {} [MDAP] (Ctrl+C to quit)", self.model);
-            self.add_console_message(format!("✅ MDAP mode enabled with target={:.1}%", target * 100.0));
+            self.add_console_message(format!(
+                "✅ MDAP mode enabled with target={:.1}%",
+                target * 100.0
+            ));
         }
         self.clear_input();
     }
 
     /// Handle /context:add command
     fn handle_context_add(&mut self, path: &str, pinned: bool) {
-        use std::path::PathBuf;
         use crate::types::working_set::estimate_tokens;
+        use std::path::PathBuf;
 
         // Resolve path
         let file_path = if PathBuf::from(path).is_absolute() {
@@ -702,16 +727,26 @@ impl App {
         match std::fs::read_to_string(&file_path) {
             Ok(content) => {
                 let tokens = estimate_tokens(&content);
-                let file_name = file_path.file_name()
+                let file_name = file_path
+                    .file_name()
                     .map(|n| n.to_string_lossy().to_string())
                     .unwrap_or_else(|| path.to_string());
 
                 if pinned {
-                    self.working_set.add_pinned(file_path.clone(), tokens, Some(&file_name));
-                    self.add_console_message(format!("📌 Added and pinned: {} (~{} tokens)", file_path.display(), tokens));
+                    self.working_set
+                        .add_pinned(file_path.clone(), tokens, Some(&file_name));
+                    self.add_console_message(format!(
+                        "📌 Added and pinned: {} (~{} tokens)",
+                        file_path.display(),
+                        tokens
+                    ));
                 } else {
                     let eviction = self.working_set.add(file_path.clone(), tokens);
-                    self.add_console_message(format!("✅ Added: {} (~{} tokens)", file_path.display(), tokens));
+                    self.add_console_message(format!(
+                        "✅ Added: {} (~{} tokens)",
+                        file_path.display(),
+                        tokens
+                    ));
                     if let Some(reason) = eviction {
                         self.add_console_message(format!("⚠️  {}", reason));
                     }
@@ -755,7 +790,10 @@ impl App {
         if self.working_set.pin(&file_path) {
             self.add_console_message(format!("📌 Pinned: {}", file_path.display()));
         } else {
-            self.add_console_message(format!("⚠️  Not in working set: {}. Add it first with /context:add", file_path.display()));
+            self.add_console_message(format!(
+                "⚠️  Not in working set: {}. Add it first with /context:add",
+                file_path.display()
+            ));
         }
     }
 
@@ -785,7 +823,10 @@ impl App {
         let removed = count_before - count_after;
 
         if keep_pinned && count_after > 0 {
-            self.add_console_message(format!("✅ Cleared {} file(s), kept {} pinned", removed, count_after));
+            self.add_console_message(format!(
+                "✅ Cleared {} file(s), kept {} pinned",
+                removed, count_after
+            ));
         } else {
             self.add_console_message(format!("✅ Cleared {} file(s) from working set", removed));
         }
@@ -828,7 +869,10 @@ impl App {
             • /tools core     - Core {} tools only\n\
             • /tools none     - Disable all tools\n\n\
             Connected MCP servers: {}",
-            mode_str, total, builtin_count, mcp_count,
+            mode_str,
+            total,
+            builtin_count,
+            mcp_count,
             registry.get_core().len(),
             mcp_servers_str
         );
@@ -855,14 +899,16 @@ impl App {
             }
             ToolMode::Explicit(names) => {
                 // Include both built-in and MCP tools by name
-                let mut tools: Vec<_> = names.iter()
+                let mut tools: Vec<_> = names
+                    .iter()
                     .filter_map(|name| registry.get(name).cloned())
                     .collect();
                 // Add MCP tools that match
                 tools.extend(
-                    self.mcp_tools.iter()
+                    self.mcp_tools
+                        .iter()
                         .filter(|t| names.contains(&t.name))
-                        .cloned()
+                        .cloned(),
                 );
                 tools
             }
@@ -876,16 +922,19 @@ impl App {
         self.tool_mode = mode;
 
         self.status = format!("Tool mode: {} ({} tools)", mode_name, count);
-        self.add_console_message(format!("✅ Tool mode set to: {} ({} tools active)", mode_name, count));
+        self.add_console_message(format!(
+            "✅ Tool mode set to: {} ({} tools active)",
+            mode_name, count
+        ));
         self.clear_input();
     }
 
     /// Handle /tools explicit (open tool picker)
     fn handle_open_tool_picker(&mut self) {
-        use crate::tools::{ToolRegistry, ToolCategory};
+        use crate::tools::{ToolCategory, ToolRegistry};
         use crate::tui::app::state::ToolPickerState;
         use crate::types::tool::ToolMode;
-        use std::collections::{HashSet, HashMap};
+        use std::collections::{HashMap, HashSet};
 
         let registry = ToolRegistry::with_builtins();
 
@@ -937,10 +986,11 @@ impl App {
             if let Some(server_name) = extract_mcp_server_name(&tool.name) {
                 let is_selected = selected_names.contains(&tool.name);
 
-                mcp_by_server
-                    .entry(server_name.clone())
-                    .or_default()
-                    .push((tool.name.clone(), tool.description.clone(), is_selected));
+                mcp_by_server.entry(server_name.clone()).or_default().push((
+                    tool.name.clone(),
+                    tool.description.clone(),
+                    is_selected,
+                ));
             }
         }
 
@@ -948,10 +998,10 @@ impl App {
         let mut server_names: Vec<_> = mcp_by_server.keys().cloned().collect();
         server_names.sort();
         for server_name in server_names {
-            if let Some(tools) = mcp_by_server.remove(&server_name) {
-                if !tools.is_empty() {
-                    picker_categories.push((format!("MCP: {}", server_name), tools));
-                }
+            if let Some(tools) = mcp_by_server.remove(&server_name)
+                && !tools.is_empty()
+            {
+                picker_categories.push((format!("MCP: {}", server_name), tools));
             }
         }
 
@@ -965,7 +1015,8 @@ impl App {
         });
 
         self.mode = AppMode::ToolPicker;
-        self.status = "Select tools (Space: toggle, Enter: confirm, A: all, N: none, Esc: cancel)".to_string();
+        self.status = "Select tools (Space: toggle, Enter: confirm, A: all, N: none, Esc: cancel)"
+            .to_string();
         self.clear_input();
     }
 
@@ -975,7 +1026,9 @@ impl App {
         use crate::types::tool::ToolMode;
 
         if let Some(state) = &self.tool_picker_state {
-            let selected: Vec<String> = state.categories.iter()
+            let selected: Vec<String> = state
+                .categories
+                .iter()
                 .flat_map(|(_, tools)| tools.iter())
                 .filter(|(_, _, selected)| *selected)
                 .map(|(name, _, _)| name.clone())
@@ -984,15 +1037,17 @@ impl App {
             let registry = ToolRegistry::with_builtins();
 
             // Get built-in tools
-            let mut tools: Vec<_> = selected.iter()
+            let mut tools: Vec<_> = selected
+                .iter()
                 .filter_map(|name| registry.get(name).cloned())
                 .collect();
 
             // Add MCP tools that were selected
             tools.extend(
-                self.mcp_tools.iter()
+                self.mcp_tools
+                    .iter()
                     .filter(|t| selected.contains(&t.name))
-                    .cloned()
+                    .cloned(),
             );
 
             let count = tools.len();
@@ -1011,12 +1066,13 @@ impl App {
 
     /// Handle /learn command - teach a behavioral truth
     async fn handle_learn_truth(&mut self, rule: &str, rationale: Option<&str>) {
-        use brainwires::brain::bks_pks::truth::{TruthCategory, TruthSource, BehavioralTruth};
         use crate::utils::paths::PlatformPaths;
         use brainwires::brain::bks_pks::cache::BehavioralKnowledgeCache;
+        use brainwires::brain::bks_pks::truth::{BehavioralTruth, TruthCategory, TruthSource};
 
         // Infer category from the rule text
-        let category = if rule.to_lowercase().contains("--") || rule.to_lowercase().contains("flag") {
+        let category = if rule.to_lowercase().contains("--") || rule.to_lowercase().contains("flag")
+        {
             TruthCategory::CommandUsage
         } else if rule.to_lowercase().contains("instead") || rule.to_lowercase().contains("spawn") {
             TruthCategory::TaskStrategy
@@ -1027,7 +1083,11 @@ impl App {
         };
 
         // Extract context pattern (first few words)
-        let context = rule.split_whitespace().take(3).collect::<Vec<_>>().join(" ");
+        let context = rule
+            .split_whitespace()
+            .take(3)
+            .collect::<Vec<_>>()
+            .join(" ");
 
         // Create the truth
         let truth = BehavioralTruth::new(
@@ -1041,15 +1101,11 @@ impl App {
 
         // Try to save to cache
         let save_result = match PlatformPaths::knowledge_db() {
-            Ok(db_path) => {
-                match BehavioralKnowledgeCache::new(&db_path, 100) {
-                    Ok(mut cache) => {
-                        cache.add_truth(truth.clone()).map(|_| true)
-                    }
-                    Err(e) => Err(e)
-                }
-            }
-            Err(e) => Err(e)
+            Ok(db_path) => match BehavioralKnowledgeCache::new(&db_path, 100) {
+                Ok(mut cache) => cache.add_truth(truth.clone()).map(|_| true),
+                Err(e) => Err(e),
+            },
+            Err(e) => Err(e),
         };
 
         let msg = match save_result {
@@ -1065,7 +1121,7 @@ impl App {
                 truth.rationale,
                 truth.confidence * 100.0
             ),
-            Err(e) => format!("❌ Failed to save truth: {}", e)
+            Err(e) => format!("❌ Failed to save truth: {}", e),
         };
 
         self.messages.push(TuiMessage {
@@ -1084,12 +1140,11 @@ impl App {
 
         // Try to load cache to get stats
         let stats_msg = match PlatformPaths::knowledge_db() {
-            Ok(db_path) => {
-                match BehavioralKnowledgeCache::new(&db_path, 100) {
-                    Ok(cache) => {
-                        let stats = cache.stats();
-                        format!(
-                            "📊 Behavioral Knowledge System Status\n\n\
+            Ok(db_path) => match BehavioralKnowledgeCache::new(&db_path, 100) {
+                Ok(cache) => {
+                    let stats = cache.stats();
+                    format!(
+                        "📊 Behavioral Knowledge System Status\n\n\
                             Total truths: {}\n\
                             Average confidence: {:.0}%\n\
                             Pending submissions: {}\n\
@@ -1100,22 +1155,21 @@ impl App {
                             • /knowledge:search    - Search truths\n\
                             • /knowledge:sync      - Force sync with server\n\
                             • /knowledge:contradict <id> - Report incorrect truth",
-                            stats.total_truths,
-                            stats.avg_confidence * 100.0,
-                            stats.pending_submissions,
-                            if stats.last_sync > 0 {
-                                chrono::DateTime::from_timestamp(stats.last_sync, 0)
-                                    .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
-                                    .unwrap_or_else(|| "Unknown".to_string())
-                            } else {
-                                "Never".to_string()
-                            }
-                        )
-                    }
-                    Err(e) => format!("Failed to load knowledge cache: {}", e)
+                        stats.total_truths,
+                        stats.avg_confidence * 100.0,
+                        stats.pending_submissions,
+                        if stats.last_sync > 0 {
+                            chrono::DateTime::from_timestamp(stats.last_sync, 0)
+                                .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
+                                .unwrap_or_else(|| "Unknown".to_string())
+                        } else {
+                            "Never".to_string()
+                        }
+                    )
                 }
-            }
-            Err(e) => format!("Failed to get knowledge database path: {}", e)
+                Err(e) => format!("Failed to load knowledge cache: {}", e),
+            },
+            Err(e) => format!("Failed to get knowledge database path: {}", e),
         };
 
         self.messages.push(TuiMessage {
@@ -1133,52 +1187,53 @@ impl App {
         use brainwires::brain::bks_pks::truth::TruthCategory;
 
         let result = match PlatformPaths::knowledge_db() {
-            Ok(db_path) => {
-                match BehavioralKnowledgeCache::new(&db_path, 100) {
-                    Ok(cache) => {
-                        let truths: Vec<_> = if let Some(cat_str) = category {
-                            let cat = match cat_str.to_lowercase().as_str() {
-                                "command" => TruthCategory::CommandUsage,
-                                "strategy" => TruthCategory::TaskStrategy,
-                                "tool" => TruthCategory::ToolBehavior,
-                                "error" => TruthCategory::ErrorRecovery,
-                                "resource" => TruthCategory::ResourceManagement,
-                                "pattern" => TruthCategory::PatternAvoidance,
-                                _ => {
-                                    self.add_console_message(format!("❌ Invalid category: {}", cat_str));
-                                    return;
-                                }
-                            };
-                            cache.truths_by_category(cat).into_iter().cloned().collect()
-                        } else {
-                            cache.all_truths().cloned().collect()
-                        };
-
-                        if truths.is_empty() {
-                            "No learned truths found.".to_string()
-                        } else {
-                            let mut output = format!("📚 Learned Truths ({} total)\n\n", truths.len());
-                            for (i, truth) in truths.iter().take(20).enumerate() {
-                                output.push_str(&format!(
-                                    "{}. **{}** ({:?})\n   {}\n   Confidence: {:.0}% | Uses: {}\n\n",
-                                    i + 1,
-                                    &truth.id[..8.min(truth.id.len())],
-                                    truth.category,
-                                    truth.rule,
-                                    truth.confidence * 100.0,
-                                    truth.reinforcements
+            Ok(db_path) => match BehavioralKnowledgeCache::new(&db_path, 100) {
+                Ok(cache) => {
+                    let truths: Vec<_> = if let Some(cat_str) = category {
+                        let cat = match cat_str.to_lowercase().as_str() {
+                            "command" => TruthCategory::CommandUsage,
+                            "strategy" => TruthCategory::TaskStrategy,
+                            "tool" => TruthCategory::ToolBehavior,
+                            "error" => TruthCategory::ErrorRecovery,
+                            "resource" => TruthCategory::ResourceManagement,
+                            "pattern" => TruthCategory::PatternAvoidance,
+                            _ => {
+                                self.add_console_message(format!(
+                                    "❌ Invalid category: {}",
+                                    cat_str
                                 ));
+                                return;
                             }
-                            if truths.len() > 20 {
-                                output.push_str(&format!("...and {} more", truths.len() - 20));
-                            }
-                            output
+                        };
+                        cache.truths_by_category(cat).into_iter().cloned().collect()
+                    } else {
+                        cache.all_truths().cloned().collect()
+                    };
+
+                    if truths.is_empty() {
+                        "No learned truths found.".to_string()
+                    } else {
+                        let mut output = format!("📚 Learned Truths ({} total)\n\n", truths.len());
+                        for (i, truth) in truths.iter().take(20).enumerate() {
+                            output.push_str(&format!(
+                                "{}. **{}** ({:?})\n   {}\n   Confidence: {:.0}% | Uses: {}\n\n",
+                                i + 1,
+                                &truth.id[..8.min(truth.id.len())],
+                                truth.category,
+                                truth.rule,
+                                truth.confidence * 100.0,
+                                truth.reinforcements
+                            ));
                         }
+                        if truths.len() > 20 {
+                            output.push_str(&format!("...and {} more", truths.len() - 20));
+                        }
+                        output
                     }
-                    Err(e) => format!("Failed to load knowledge cache: {}", e)
                 }
-            }
-            Err(e) => format!("Failed to get knowledge database path: {}", e)
+                Err(e) => format!("Failed to load knowledge cache: {}", e),
+            },
+            Err(e) => format!("Failed to get knowledge database path: {}", e),
         };
 
         self.messages.push(TuiMessage {
@@ -1196,19 +1251,18 @@ impl App {
         use brainwires::brain::bks_pks::matcher::ContextMatcher;
 
         let result = match PlatformPaths::knowledge_db() {
-            Ok(db_path) => {
-                match BehavioralKnowledgeCache::new(&db_path, 100) {
-                    Ok(cache) => {
-                        let matcher = ContextMatcher::new(0.0, 30, 10);
-                        let truths: Vec<_> = cache.all_truths().cloned().collect();
-                        let matches = matcher.search(query, truths.iter());
+            Ok(db_path) => match BehavioralKnowledgeCache::new(&db_path, 100) {
+                Ok(cache) => {
+                    let matcher = ContextMatcher::new(0.0, 30, 10);
+                    let truths: Vec<_> = cache.all_truths().cloned().collect();
+                    let matches = matcher.search(query, truths.iter());
 
-                        if matches.is_empty() {
-                            format!("No truths found matching \"{}\"", query)
-                        } else {
-                            let mut output = format!("🔍 Search Results for \"{}\"\n\n", query);
-                            for (i, m) in matches.iter().enumerate() {
-                                output.push_str(&format!(
+                    if matches.is_empty() {
+                        format!("No truths found matching \"{}\"", query)
+                    } else {
+                        let mut output = format!("🔍 Search Results for \"{}\"\n\n", query);
+                        for (i, m) in matches.iter().enumerate() {
+                            output.push_str(&format!(
                                     "{}. **{}** ({:?})\n   {}\n   Confidence: {:.0}% | Score: {:.0}%\n\n",
                                     i + 1,
                                     &m.truth.id[..8.min(m.truth.id.len())],
@@ -1217,14 +1271,13 @@ impl App {
                                     m.effective_confidence * 100.0,
                                     m.match_score * 100.0
                                 ));
-                            }
-                            output
                         }
+                        output
                     }
-                    Err(e) => format!("Failed to load knowledge cache: {}", e)
                 }
-            }
-            Err(e) => format!("Failed to get knowledge database path: {}", e)
+                Err(e) => format!("Failed to load knowledge cache: {}", e),
+            },
+            Err(e) => format!("Failed to get knowledge database path: {}", e),
         };
 
         self.messages.push(TuiMessage {
@@ -1242,7 +1295,9 @@ impl App {
         self.add_console_message("🔄 Syncing with Brainwires server...".to_string());
 
         // TODO: Implement actual sync when backend endpoints are ready
-        self.add_console_message("ℹ️  Server sync not yet implemented - truths stored locally".to_string());
+        self.add_console_message(
+            "ℹ️  Server sync not yet implemented - truths stored locally".to_string(),
+        );
 
         self.clear_input();
     }
@@ -1251,7 +1306,6 @@ impl App {
     async fn handle_knowledge_contradict(&mut self, id: &str, reason: Option<&str>) {
         use crate::utils::paths::PlatformPaths;
         use brainwires::brain::bks_pks::cache::BehavioralKnowledgeCache;
-        
 
         let result = match PlatformPaths::knowledge_db() {
             Ok(db_path) => {
@@ -1260,16 +1314,23 @@ impl App {
                         // Get and update the truth
                         if let Some(truth) = cache.get_truth_mut(id) {
                             truth.contradict(0.1); // Default EMA alpha
-                            let reason_str = reason.map(|r| format!("\nReason: {}", r)).unwrap_or_default();
-                            format!("✅ Contradicted truth: {}{}\nNew confidence: {:.0}%", id, reason_str, truth.confidence * 100.0)
+                            let reason_str = reason
+                                .map(|r| format!("\nReason: {}", r))
+                                .unwrap_or_default();
+                            format!(
+                                "✅ Contradicted truth: {}{}\nNew confidence: {:.0}%",
+                                id,
+                                reason_str,
+                                truth.confidence * 100.0
+                            )
                         } else {
                             format!("❌ Truth not found: {}", id)
                         }
                     }
-                    Err(e) => format!("Failed to load knowledge cache: {}", e)
+                    Err(e) => format!("Failed to load knowledge cache: {}", e),
                 }
             }
-            Err(e) => format!("Failed to get knowledge database path: {}", e)
+            Err(e) => format!("Failed to get knowledge database path: {}", e),
         };
 
         self.add_console_message(result);
@@ -1282,19 +1343,15 @@ impl App {
         use brainwires::brain::bks_pks::cache::BehavioralKnowledgeCache;
 
         let result = match PlatformPaths::knowledge_db() {
-            Ok(db_path) => {
-                match BehavioralKnowledgeCache::new(&db_path, 100) {
-                    Ok(mut cache) => {
-                        match cache.remove_truth(id) {
-                            Ok(true) => format!("✅ Deleted truth: {}", id),
-                            Ok(false) => format!("❌ Truth not found: {}", id),
-                            Err(e) => format!("❌ Failed to delete truth: {}", e),
-                        }
-                    }
-                    Err(e) => format!("Failed to load knowledge cache: {}", e)
-                }
-            }
-            Err(e) => format!("Failed to get knowledge database path: {}", e)
+            Ok(db_path) => match BehavioralKnowledgeCache::new(&db_path, 100) {
+                Ok(mut cache) => match cache.remove_truth(id) {
+                    Ok(true) => format!("✅ Deleted truth: {}", id),
+                    Ok(false) => format!("❌ Truth not found: {}", id),
+                    Err(e) => format!("❌ Failed to delete truth: {}", e),
+                },
+                Err(e) => format!("Failed to load knowledge cache: {}", e),
+            },
+            Err(e) => format!("Failed to get knowledge database path: {}", e),
         };
 
         self.add_console_message(result);
@@ -1306,15 +1363,14 @@ impl App {
     /// Handle /profile command - show profile summary
     async fn handle_profile_show(&mut self) {
         use crate::utils::paths::PlatformPaths;
-        use brainwires::brain::bks_pks::personal::{PersonalKnowledgeCache, PersonalFactMatcher};
+        use brainwires::brain::bks_pks::personal::{PersonalFactMatcher, PersonalKnowledgeCache};
 
         let result = match PlatformPaths::personal_knowledge_db() {
-            Ok(db_path) => {
-                match PersonalKnowledgeCache::new(&db_path, 100) {
-                    Ok(cache) => {
-                        let facts: Vec<_> = cache.all_facts().cloned().collect();
-                        if facts.is_empty() {
-                            "👤 Your Profile\n\n\
+            Ok(db_path) => match PersonalKnowledgeCache::new(&db_path, 100) {
+                Ok(cache) => {
+                    let facts: Vec<_> = cache.all_facts().cloned().collect();
+                    if facts.is_empty() {
+                        "👤 Your Profile\n\n\
                             No personal facts learned yet.\n\n\
                             Use these commands to build your profile:\n\
                             • /profile:set <key> <value> - Set a fact\n\
@@ -1322,17 +1378,17 @@ impl App {
                             The system also learns from conversation patterns like:\n\
                             • \"My name is...\"\n\
                             • \"I prefer...\"\n\
-                            • \"I'm working on...\"".to_string()
-                        } else {
-                            let matcher = PersonalFactMatcher::new(0.0, 30, true);
-                            let fact_refs: Vec<_> = facts.iter().collect();
-                            matcher.format_profile_summary(&fact_refs)
-                        }
+                            • \"I'm working on...\""
+                            .to_string()
+                    } else {
+                        let matcher = PersonalFactMatcher::new(0.0, 30, true);
+                        let fact_refs: Vec<_> = facts.iter().collect();
+                        matcher.format_profile_summary(&fact_refs)
                     }
-                    Err(e) => format!("Failed to load profile: {}", e)
                 }
-            }
-            Err(e) => format!("Failed to get profile database path: {}", e)
+                Err(e) => format!("Failed to load profile: {}", e),
+            },
+            Err(e) => format!("Failed to get profile database path: {}", e),
         };
 
         self.messages.push(TuiMessage {
@@ -1347,7 +1403,7 @@ impl App {
     async fn handle_profile_set(&mut self, key: &str, value: &str, local_only: bool) {
         use crate::utils::paths::PlatformPaths;
         use brainwires::brain::bks_pks::personal::{
-            PersonalKnowledgeCache, PersonalFact, PersonalFactCategory, PersonalFactSource
+            PersonalFact, PersonalFactCategory, PersonalFactSource, PersonalKnowledgeCache,
         };
 
         // Infer category from key name
@@ -1369,26 +1425,22 @@ impl App {
         );
 
         let result = match PlatformPaths::personal_knowledge_db() {
-            Ok(db_path) => {
-                match PersonalKnowledgeCache::new(&db_path, 100) {
-                    Ok(mut cache) => {
-                        match cache.upsert_fact(fact.clone()) {
-                            Ok(_) => {
-                                let local_str = if local_only { " (local only)" } else { "" };
-                                format!(
-                                    "✅ Set profile fact{}\n\n\
+            Ok(db_path) => match PersonalKnowledgeCache::new(&db_path, 100) {
+                Ok(mut cache) => match cache.upsert_fact(fact.clone()) {
+                    Ok(_) => {
+                        let local_str = if local_only { " (local only)" } else { "" };
+                        format!(
+                            "✅ Set profile fact{}\n\n\
                                     **{}** = {}\n\
                                     Category: {:?}",
-                                    local_str, key, value, category
-                                )
-                            }
-                            Err(e) => format!("❌ Failed to save fact: {}", e)
-                        }
+                            local_str, key, value, category
+                        )
                     }
-                    Err(e) => format!("Failed to load profile: {}", e)
-                }
-            }
-            Err(e) => format!("Failed to get profile database path: {}", e)
+                    Err(e) => format!("❌ Failed to save fact: {}", e),
+                },
+                Err(e) => format!("Failed to load profile: {}", e),
+            },
+            Err(e) => format!("Failed to get profile database path: {}", e),
         };
 
         self.add_console_message(result);
@@ -1398,56 +1450,57 @@ impl App {
     /// Handle /profile:list command
     async fn handle_profile_list(&mut self, category: Option<&str>) {
         use crate::utils::paths::PlatformPaths;
-        use brainwires::brain::bks_pks::personal::{PersonalKnowledgeCache, PersonalFactCategory};
+        use brainwires::brain::bks_pks::personal::{PersonalFactCategory, PersonalKnowledgeCache};
 
         let result = match PlatformPaths::personal_knowledge_db() {
-            Ok(db_path) => {
-                match PersonalKnowledgeCache::new(&db_path, 100) {
-                    Ok(cache) => {
-                        let facts: Vec<_> = if let Some(cat_str) = category {
-                            let cat = match cat_str.to_lowercase().as_str() {
-                                "identity" => PersonalFactCategory::Identity,
-                                "preference" => PersonalFactCategory::Preference,
-                                "capability" => PersonalFactCategory::Capability,
-                                "context" => PersonalFactCategory::Context,
-                                "constraint" => PersonalFactCategory::Constraint,
-                                "relationship" => PersonalFactCategory::Relationship,
-                                _ => {
-                                    self.add_console_message(format!("❌ Invalid category: {}", cat_str));
-                                    return;
-                                }
-                            };
-                            cache.facts_by_category(cat).into_iter().cloned().collect()
-                        } else {
-                            cache.all_facts().cloned().collect()
-                        };
-
-                        if facts.is_empty() {
-                            "No personal facts found.".to_string()
-                        } else {
-                            let mut output = format!("👤 Personal Facts ({} total)\n\n", facts.len());
-                            for (i, fact) in facts.iter().take(30).enumerate() {
-                                let local_marker = if fact.local_only { " 🔒" } else { "" };
-                                output.push_str(&format!(
-                                    "{}. **{}**{} ({:?})\n   {}\n   Confidence: {:.0}%\n\n",
-                                    i + 1,
-                                    fact.key,
-                                    local_marker,
-                                    fact.category,
-                                    fact.value,
-                                    fact.confidence * 100.0
+            Ok(db_path) => match PersonalKnowledgeCache::new(&db_path, 100) {
+                Ok(cache) => {
+                    let facts: Vec<_> = if let Some(cat_str) = category {
+                        let cat = match cat_str.to_lowercase().as_str() {
+                            "identity" => PersonalFactCategory::Identity,
+                            "preference" => PersonalFactCategory::Preference,
+                            "capability" => PersonalFactCategory::Capability,
+                            "context" => PersonalFactCategory::Context,
+                            "constraint" => PersonalFactCategory::Constraint,
+                            "relationship" => PersonalFactCategory::Relationship,
+                            _ => {
+                                self.add_console_message(format!(
+                                    "❌ Invalid category: {}",
+                                    cat_str
                                 ));
+                                return;
                             }
-                            if facts.len() > 30 {
-                                output.push_str(&format!("...and {} more", facts.len() - 30));
-                            }
-                            output
+                        };
+                        cache.facts_by_category(cat).into_iter().cloned().collect()
+                    } else {
+                        cache.all_facts().cloned().collect()
+                    };
+
+                    if facts.is_empty() {
+                        "No personal facts found.".to_string()
+                    } else {
+                        let mut output = format!("👤 Personal Facts ({} total)\n\n", facts.len());
+                        for (i, fact) in facts.iter().take(30).enumerate() {
+                            let local_marker = if fact.local_only { " 🔒" } else { "" };
+                            output.push_str(&format!(
+                                "{}. **{}**{} ({:?})\n   {}\n   Confidence: {:.0}%\n\n",
+                                i + 1,
+                                fact.key,
+                                local_marker,
+                                fact.category,
+                                fact.value,
+                                fact.confidence * 100.0
+                            ));
                         }
+                        if facts.len() > 30 {
+                            output.push_str(&format!("...and {} more", facts.len() - 30));
+                        }
+                        output
                     }
-                    Err(e) => format!("Failed to load profile: {}", e)
                 }
-            }
-            Err(e) => format!("Failed to get profile database path: {}", e)
+                Err(e) => format!("Failed to load profile: {}", e),
+            },
+            Err(e) => format!("Failed to get profile database path: {}", e),
         };
 
         self.messages.push(TuiMessage {
@@ -1464,34 +1517,32 @@ impl App {
         use brainwires::brain::bks_pks::personal::PersonalKnowledgeCache;
 
         let result = match PlatformPaths::personal_knowledge_db() {
-            Ok(db_path) => {
-                match PersonalKnowledgeCache::new(&db_path, 100) {
-                    Ok(cache) => {
-                        let matches = cache.search_facts(query);
+            Ok(db_path) => match PersonalKnowledgeCache::new(&db_path, 100) {
+                Ok(cache) => {
+                    let matches = cache.search_facts(query);
 
-                        if matches.is_empty() {
-                            format!("No facts found matching \"{}\"", query)
-                        } else {
-                            let mut output = format!("🔍 Search Results for \"{}\"\n\n", query);
-                            for (i, fact) in matches.iter().enumerate() {
-                                let local_marker = if fact.local_only { " 🔒" } else { "" };
-                                output.push_str(&format!(
-                                    "{}. **{}**{} ({:?})\n   {}\n   Confidence: {:.0}%\n\n",
-                                    i + 1,
-                                    fact.key,
-                                    local_marker,
-                                    fact.category,
-                                    fact.value,
-                                    fact.confidence * 100.0
-                                ));
-                            }
-                            output
+                    if matches.is_empty() {
+                        format!("No facts found matching \"{}\"", query)
+                    } else {
+                        let mut output = format!("🔍 Search Results for \"{}\"\n\n", query);
+                        for (i, fact) in matches.iter().enumerate() {
+                            let local_marker = if fact.local_only { " 🔒" } else { "" };
+                            output.push_str(&format!(
+                                "{}. **{}**{} ({:?})\n   {}\n   Confidence: {:.0}%\n\n",
+                                i + 1,
+                                fact.key,
+                                local_marker,
+                                fact.category,
+                                fact.value,
+                                fact.confidence * 100.0
+                            ));
                         }
+                        output
                     }
-                    Err(e) => format!("Failed to load profile: {}", e)
                 }
-            }
-            Err(e) => format!("Failed to get profile database path: {}", e)
+                Err(e) => format!("Failed to load profile: {}", e),
+            },
+            Err(e) => format!("Failed to get profile database path: {}", e),
         };
 
         self.messages.push(TuiMessage {
@@ -1524,10 +1575,10 @@ impl App {
                             Err(e) => format!("❌ Failed to delete fact: {}", e),
                         }
                     }
-                    Err(e) => format!("Failed to load profile: {}", e)
+                    Err(e) => format!("Failed to load profile: {}", e),
                 }
             }
-            Err(e) => format!("Failed to get profile database path: {}", e)
+            Err(e) => format!("Failed to get profile database path: {}", e),
         };
 
         self.add_console_message(result);
@@ -1541,7 +1592,9 @@ impl App {
         self.add_console_message("🔄 Syncing personal profile with server...".to_string());
 
         // TODO: Implement actual sync with PersonalKnowledgeApiClient
-        self.add_console_message("ℹ️  Server sync not yet implemented - facts stored locally".to_string());
+        self.add_console_message(
+            "ℹ️  Server sync not yet implemented - facts stored locally".to_string(),
+        );
 
         self.clear_input();
     }
@@ -1551,12 +1604,11 @@ impl App {
         use crate::utils::paths::PlatformPaths;
         use brainwires::brain::bks_pks::personal::PersonalKnowledgeCache;
 
-        let export_path = path.map(|p| std::path::PathBuf::from(p))
-            .unwrap_or_else(|| {
-                dirs::home_dir()
-                    .unwrap_or_else(|| std::path::PathBuf::from("."))
-                    .join("brainwires-profile.json")
-            });
+        let export_path = path.map(std::path::PathBuf::from).unwrap_or_else(|| {
+            dirs::home_dir()
+                .unwrap_or_else(|| std::path::PathBuf::from("."))
+                .join("brainwires-profile.json")
+        });
 
         let result = match PlatformPaths::personal_knowledge_db() {
             Ok(db_path) => {
@@ -1580,10 +1632,10 @@ impl App {
                             Err(e) => format!("❌ Export failed: {}", e),
                         }
                     }
-                    Err(e) => format!("Failed to load profile: {}", e)
+                    Err(e) => format!("Failed to load profile: {}", e),
                 }
             }
-            Err(e) => format!("Failed to get profile database path: {}", e)
+            Err(e) => format!("Failed to get profile database path: {}", e),
         };
 
         self.add_console_message(result);
@@ -1603,24 +1655,22 @@ impl App {
                     Ok(mut cache) => {
                         // Read file first
                         match std::fs::read_to_string(&import_path) {
-                            Ok(json) => {
-                                match cache.import_json(&json) {
-                                    Ok(result) => format!(
-                                        "✅ Imported {} new facts, updated {} existing facts from:\n{}",
-                                        result.imported,
-                                        result.updated,
-                                        import_path.display()
-                                    ),
-                                    Err(e) => format!("❌ Import failed: {}", e),
-                                }
-                            }
+                            Ok(json) => match cache.import_json(&json) {
+                                Ok(result) => format!(
+                                    "✅ Imported {} new facts, updated {} existing facts from:\n{}",
+                                    result.imported,
+                                    result.updated,
+                                    import_path.display()
+                                ),
+                                Err(e) => format!("❌ Import failed: {}", e),
+                            },
                             Err(e) => format!("❌ Failed to read file: {}", e),
                         }
                     }
-                    Err(e) => format!("Failed to load profile: {}", e)
+                    Err(e) => format!("Failed to load profile: {}", e),
                 }
             }
-            Err(e) => format!("Failed to get profile database path: {}", e)
+            Err(e) => format!("Failed to get profile database path: {}", e),
         };
 
         self.add_console_message(result);
@@ -1630,15 +1680,14 @@ impl App {
     /// Handle /profile:stats command
     async fn handle_profile_stats(&mut self) {
         use crate::utils::paths::PlatformPaths;
-        use brainwires::brain::bks_pks::personal::{PersonalKnowledgeCache, PersonalFactCategory};
+        use brainwires::brain::bks_pks::personal::{PersonalFactCategory, PersonalKnowledgeCache};
 
         let result = match PlatformPaths::personal_knowledge_db() {
-            Ok(db_path) => {
-                match PersonalKnowledgeCache::new(&db_path, 100) {
-                    Ok(cache) => {
-                        let stats = cache.stats();
-                        format!(
-                            "📊 Personal Knowledge Statistics\n\n\
+            Ok(db_path) => match PersonalKnowledgeCache::new(&db_path, 100) {
+                Ok(cache) => {
+                    let stats = cache.stats();
+                    format!(
+                        "📊 Personal Knowledge Statistics\n\n\
                             Total facts: {}\n\
                             Local-only facts: {}\n\
                             Average confidence: {:.0}%\n\
@@ -1652,30 +1701,47 @@ impl App {
                             • Context: {}\n\
                             • Constraint: {}\n\
                             • Relationship: {}",
-                            stats.total_facts,
-                            stats.local_only_facts,
-                            stats.avg_confidence * 100.0,
-                            stats.pending_submissions,
-                            stats.pending_feedback,
-                            if stats.last_sync > 0 {
-                                chrono::DateTime::from_timestamp(stats.last_sync, 0)
-                                    .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
-                                    .unwrap_or_else(|| "Unknown".to_string())
-                            } else {
-                                "Never".to_string()
-                            },
-                            stats.by_category.get(&PersonalFactCategory::Identity).unwrap_or(&0),
-                            stats.by_category.get(&PersonalFactCategory::Preference).unwrap_or(&0),
-                            stats.by_category.get(&PersonalFactCategory::Capability).unwrap_or(&0),
-                            stats.by_category.get(&PersonalFactCategory::Context).unwrap_or(&0),
-                            stats.by_category.get(&PersonalFactCategory::Constraint).unwrap_or(&0),
-                            stats.by_category.get(&PersonalFactCategory::Relationship).unwrap_or(&0),
-                        )
-                    }
-                    Err(e) => format!("Failed to load profile: {}", e)
+                        stats.total_facts,
+                        stats.local_only_facts,
+                        stats.avg_confidence * 100.0,
+                        stats.pending_submissions,
+                        stats.pending_feedback,
+                        if stats.last_sync > 0 {
+                            chrono::DateTime::from_timestamp(stats.last_sync, 0)
+                                .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
+                                .unwrap_or_else(|| "Unknown".to_string())
+                        } else {
+                            "Never".to_string()
+                        },
+                        stats
+                            .by_category
+                            .get(&PersonalFactCategory::Identity)
+                            .unwrap_or(&0),
+                        stats
+                            .by_category
+                            .get(&PersonalFactCategory::Preference)
+                            .unwrap_or(&0),
+                        stats
+                            .by_category
+                            .get(&PersonalFactCategory::Capability)
+                            .unwrap_or(&0),
+                        stats
+                            .by_category
+                            .get(&PersonalFactCategory::Context)
+                            .unwrap_or(&0),
+                        stats
+                            .by_category
+                            .get(&PersonalFactCategory::Constraint)
+                            .unwrap_or(&0),
+                        stats
+                            .by_category
+                            .get(&PersonalFactCategory::Relationship)
+                            .unwrap_or(&0),
+                    )
                 }
-            }
-            Err(e) => format!("Failed to get profile database path: {}", e)
+                Err(e) => format!("Failed to load profile: {}", e),
+            },
+            Err(e) => format!("Failed to get profile database path: {}", e),
         };
 
         self.messages.push(TuiMessage {
@@ -1699,7 +1765,8 @@ impl App {
                     Commands:\n\
                     - /spawn        - Spawn a new child agent\n\
                     - /switch <id>  - Switch to a specific agent\n\
-                    - /agent:tree   - Show agent hierarchy".to_string()
+                    - /agent:tree   - Show agent hierarchy"
+                        .to_string()
                 } else {
                     let mut output = format!("Active Agents ({} total)\n\n", agents.len());
                     for agent in &agents {
@@ -1709,24 +1776,22 @@ impl App {
                             ""
                         };
                         let busy_str = if agent.is_busy { " (busy)" } else { "" };
-                        let parent_str = agent.parent_agent_id.as_ref()
+                        let parent_str = agent
+                            .parent_agent_id
+                            .as_ref()
                             .map(|p| format!(" [parent: {}]", &p[..8.min(p.len())]))
                             .unwrap_or_default();
 
                         output.push_str(&format!(
                             "- {} [{}]{}{}{}\n",
-                            agent.session_id,
-                            agent.model,
-                            busy_str,
-                            parent_str,
-                            marker
+                            agent.session_id, agent.model, busy_str, parent_str, marker
                         ));
                     }
                     output.push_str("\nUse /switch <session_id> to switch agents");
                     output
                 }
             }
-            Err(e) => format!("Failed to list agents: {}", e)
+            Err(e) => format!("Failed to list agents: {}", e),
         };
 
         self.messages.push(TuiMessage {
@@ -1777,7 +1842,7 @@ impl App {
 
         let result = match format_agent_tree(Some(&self.session_id)) {
             Ok(tree) => tree,
-            Err(e) => format!("Failed to build agent tree: {}", e)
+            Err(e) => format!("Failed to build agent tree: {}", e),
         };
 
         self.messages.push(TuiMessage {
@@ -1802,13 +1867,14 @@ impl App {
                     self.add_console_message(format!(
                         "Successfully hibernated {} agent(s):\n{}",
                         hibernated.len(),
-                        hibernated.iter()
+                        hibernated
+                            .iter()
                             .map(|s| format!("  - {}", s))
                             .collect::<Vec<_>>()
                             .join("\n")
                     ));
                     self.add_console_message(
-                        "Use /resume:agents to restore them later.".to_string()
+                        "Use /resume:agents to restore them later.".to_string(),
                     );
                 }
             }
@@ -1833,19 +1899,20 @@ impl App {
                     Ok(resumed) => {
                         if resumed.is_empty() {
                             self.add_console_message(
-                                "No agents were resumed (all may be already running).".to_string()
+                                "No agents were resumed (all may be already running).".to_string(),
                             );
                         } else {
                             self.add_console_message(format!(
                                 "Successfully resumed {} agent(s):\n{}",
                                 resumed.len(),
-                                resumed.iter()
+                                resumed
+                                    .iter()
                                     .map(|s| format!("  - {}", s))
                                     .collect::<Vec<_>>()
                                     .join("\n")
                             ));
                             self.add_console_message(
-                                "Use /agents to see all running agents.".to_string()
+                                "Use /agents to see all running agents.".to_string(),
                             );
                         }
                     }
@@ -1857,7 +1924,8 @@ impl App {
             Ok(false) => {
                 self.add_console_message(
                     "No hibernated agents found.\n\n\
-                    Use /hibernate to save current agents for later.".to_string()
+                    Use /hibernate to save current agents for later."
+                        .to_string(),
                 );
             }
             Err(e) => {
@@ -1908,10 +1976,7 @@ impl App {
                     // Add the skill instructions to the conversation
                     let skill_msg = format!(
                         "**Invoking skill: {}** ({}){}\n\n---\n\n{}",
-                        name,
-                        source_str,
-                        args_str,
-                        skill.instructions
+                        name, source_str, args_str, skill.instructions
                     );
 
                     // Add as user message so the AI can see and act on it
@@ -1954,7 +2019,8 @@ impl App {
                 Skills can be placed in:\n\
                 - Personal: ~/.brainwires/skills/\n\
                 - Project: .brainwires/skills/\n\n\
-                Each skill is a SKILL.md file with YAML frontmatter.".to_string()
+                Each skill is a SKILL.md file with YAML frontmatter."
+                    .to_string()
             } else {
                 let mut output = format!("Available Skills ({} total)\n\n", skills.len());
 
@@ -2009,7 +2075,8 @@ impl App {
                     output.push('\n');
                 }
 
-                output.push_str("\nUse /skill:show <name> for details, or /<skill-name> to invoke.");
+                output
+                    .push_str("\nUse /skill:show <name> for details, or /<skill-name> to invoke.");
                 output
             }
         } else {
@@ -2037,7 +2104,10 @@ impl App {
                         SkillSource::Builtin => "Builtin",
                     };
 
-                    let allowed_tools = skill.metadata.allowed_tools.as_ref()
+                    let allowed_tools = skill
+                        .metadata
+                        .allowed_tools
+                        .as_ref()
                         .map(|tools| tools.join(", "))
                         .unwrap_or_else(|| "all".to_string());
 
@@ -2046,7 +2116,8 @@ impl App {
 
                     // Truncate instructions for display
                     let instructions_preview = if skill.instructions.len() > 500 {
-                        format!("{}...\n\n(truncated, {} chars total)",
+                        format!(
+                            "{}...\n\n(truncated, {} chars total)",
                             &skill.instructions[..500],
                             skill.instructions.len()
                         )
@@ -2071,7 +2142,7 @@ impl App {
                         instructions_preview
                     )
                 }
-                Err(e) => format!("Failed to load skill '{}': {}", name, e)
+                Err(e) => format!("Failed to load skill '{}': {}", name, e),
             }
         } else {
             "Skill registry not initialized".to_string()
@@ -2111,7 +2182,8 @@ impl App {
         // Validate name
         if name.len() > 64 || !name.chars().all(|c| c.is_ascii_lowercase() || c == '-') {
             self.add_console_message(
-                "Invalid skill name. Use lowercase letters and hyphens only, max 64 chars.".to_string()
+                "Invalid skill name. Use lowercase letters and hyphens only, max 64 chars."
+                    .to_string(),
             );
             return;
         }
@@ -2124,18 +2196,17 @@ impl App {
                     .map(|cwd| cwd.join(".brainwires/skills"))
                     .unwrap_or_else(|_| std::path::PathBuf::from(".brainwires/skills"))
             }
-            Some("personal") => {
-                match PlatformPaths::personal_skills_dir() {
-                    Ok(dir) => dir,
-                    Err(e) => {
-                        self.add_console_message(format!("Failed to get personal skills dir: {}", e));
-                        return;
-                    }
+            Some("personal") => match PlatformPaths::personal_skills_dir() {
+                Ok(dir) => dir,
+                Err(e) => {
+                    self.add_console_message(format!("Failed to get personal skills dir: {}", e));
+                    return;
                 }
-            }
+            },
             Some(other) => {
                 self.add_console_message(format!(
-                    "Invalid location: {}. Use 'personal' or 'project'.", other
+                    "Invalid location: {}. Use 'personal' or 'project'.",
+                    other
                 ));
                 return;
             }
@@ -2151,11 +2222,16 @@ impl App {
         let skill_path = skills_dir.join(format!("{}.md", name));
 
         if skill_path.exists() {
-            self.add_console_message(format!("Skill '{}' already exists at: {}", name, skill_path.display()));
+            self.add_console_message(format!(
+                "Skill '{}' already exists at: {}",
+                name,
+                skill_path.display()
+            ));
             return;
         }
 
-        let template = format!(r#"---
+        let template = format!(
+            r#"---
 name: {name}
 description: |
   Brief description of what this skill does.
@@ -2179,7 +2255,9 @@ conversation when the skill is invoked.
 ## Example Usage
 
 Describe how to use this skill and what it does.
-"#, name = name);
+"#,
+            name = name
+        );
 
         match std::fs::write(&skill_path, template) {
             Ok(()) => {

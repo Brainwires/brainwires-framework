@@ -12,7 +12,7 @@ use proptest::prelude::*;
 mod token_counting {
     use super::*;
     use brainwires_cli::utils::tokenizer::{
-        estimate_tokens, estimate_tokens_with_config, TokenizerConfig,
+        TokenizerConfig, estimate_tokens, estimate_tokens_with_config,
     };
 
     proptest! {
@@ -191,7 +191,7 @@ mod tool_validation {
 
 mod error_classification {
     use super::*;
-    use brainwires_cli::tools::error::{classify_error, ToolErrorCategory};
+    use brainwires_cli::tools::error::{ToolErrorCategory, classify_error};
 
     /// Generate error messages
     fn arb_error_message() -> impl Strategy<Value = String> {

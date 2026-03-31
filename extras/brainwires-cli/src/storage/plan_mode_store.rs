@@ -4,18 +4,16 @@
 //! allowing isolated planning context that persists across TUI attach/detach cycles.
 
 use anyhow::{Context, Result};
-use arrow_array::{
-    Array, BooleanArray, Int64Array, RecordBatch, RecordBatchIterator, StringArray,
-};
+use arrow_array::{Array, BooleanArray, Int64Array, RecordBatch, RecordBatchIterator, StringArray};
 use arrow_schema::{DataType, Field, Schema};
 use futures::TryStreamExt;
 use lancedb::query::{ExecutableQuery, QueryBase};
 use std::sync::Arc;
 
 use super::LanceDatabase;
-use brainwires::agent_network::ipc::DisplayMessage;
 use crate::types::message::Message;
 use crate::types::plan_mode::PlanModeState;
+use brainwires::agent_network::ipc::DisplayMessage;
 
 /// Store for managing plan mode sessions
 pub struct PlanModeStore {
@@ -85,7 +83,10 @@ impl PlanModeStore {
     }
 
     /// Get plan mode state for a main session
-    pub async fn get_by_main_session(&self, main_session_id: &str) -> Result<Option<PlanModeState>> {
+    pub async fn get_by_main_session(
+        &self,
+        main_session_id: &str,
+    ) -> Result<Option<PlanModeState>> {
         let table = self
             .client
             .connection()
@@ -95,10 +96,7 @@ impl PlanModeStore {
             .context("Failed to open plan_mode_sessions table")?;
 
         // Get the most recent active plan mode for this main session
-        let filter = format!(
-            "main_session_id = '{}' AND active = true",
-            main_session_id
-        );
+        let filter = format!("main_session_id = '{}' AND active = true", main_session_id);
         let stream = table.query().only_if(filter).execute().await?;
         let results: Vec<RecordBatch> = stream.try_collect().await?;
 
@@ -179,8 +177,8 @@ impl PlanModeStore {
         let schema = Self::plan_mode_schema();
 
         // Serialize messages and conversation history to JSON
-        let messages_json = serde_json::to_string(&state.messages)
-            .context("Failed to serialize messages")?;
+        let messages_json =
+            serde_json::to_string(&state.messages).context("Failed to serialize messages")?;
         let history_json = serde_json::to_string(&state.conversation_history)
             .context("Failed to serialize conversation history")?;
 
@@ -292,7 +290,7 @@ impl PlanModeStore {
         Arc::new(Schema::new(vec![
             Field::new("plan_session_id", DataType::Utf8, false),
             Field::new("main_session_id", DataType::Utf8, false),
-            Field::new("messages", DataType::Utf8, false),            // JSON
+            Field::new("messages", DataType::Utf8, false), // JSON
             Field::new("conversation_history", DataType::Utf8, false), // JSON
             Field::new("started_at", DataType::Int64, false),
             Field::new("updated_at", DataType::Int64, false),

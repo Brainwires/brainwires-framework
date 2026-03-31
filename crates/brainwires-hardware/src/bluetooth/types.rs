@@ -70,7 +70,10 @@ mod tests {
 
     #[test]
     fn device_kind_serde_roundtrip() {
-        for kind in [BluetoothDeviceKind::BlePeripheral, BluetoothDeviceKind::Classic] {
+        for kind in [
+            BluetoothDeviceKind::BlePeripheral,
+            BluetoothDeviceKind::Classic,
+        ] {
             let json = serde_json::to_string(&kind).unwrap();
             let back: BluetoothDeviceKind = serde_json::from_str(&json).unwrap();
             assert_eq!(back, kind);

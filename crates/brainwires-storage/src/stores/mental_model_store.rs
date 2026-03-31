@@ -110,7 +110,10 @@ pub struct MentalModelStore {
 impl MentalModelStore {
     /// Create a new store backed by the given [`StorageBackend`].
     pub fn new(backend: Arc<dyn StorageBackend>, embeddings: Arc<EmbeddingProvider>) -> Self {
-        Self { backend, embeddings }
+        Self {
+            backend,
+            embeddings,
+        }
     }
 
     /// Ensure the `mental_models` table exists.
@@ -149,11 +152,7 @@ impl MentalModelStore {
     /// Semantic search over mental models.
     ///
     /// Returns `(model, score)` pairs sorted by descending similarity.
-    pub async fn search(
-        &self,
-        query: &str,
-        limit: usize,
-    ) -> Result<Vec<(MentalModel, f32)>> {
+    pub async fn search(&self, query: &str, limit: usize) -> Result<Vec<(MentalModel, f32)>> {
         let embedding = self.embeddings.embed_cached(query)?;
         let scored = self
             .backend
@@ -170,7 +169,10 @@ impl MentalModelStore {
 
     /// Delete a mental model by ID.
     pub async fn delete(&self, model_id: &str) -> Result<()> {
-        let filter = Filter::Eq("model_id".into(), FieldValue::Utf8(Some(model_id.to_string())));
+        let filter = Filter::Eq(
+            "model_id".into(),
+            FieldValue::Utf8(Some(model_id.to_string())),
+        );
         self.backend.delete(TABLE_NAME, &filter).await?;
         Ok(())
     }
@@ -232,8 +234,7 @@ fn from_record(record: &Record) -> Result<MentalModel> {
     let source_ids_str = record_get(record, "source_fact_ids")
         .and_then(|v| v.as_str())
         .unwrap_or("[]");
-    let source_fact_ids: Vec<String> =
-        serde_json::from_str(source_ids_str).unwrap_or_default();
+    let source_fact_ids: Vec<String> = serde_json::from_str(source_ids_str).unwrap_or_default();
     let conversation_id = record_get(record, "conversation_id")
         .and_then(|v| v.as_str())
         .context("Missing conversation_id")?

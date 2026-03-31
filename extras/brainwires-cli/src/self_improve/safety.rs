@@ -20,7 +20,10 @@ impl fmt::Display for SafetyStop {
                 write!(f, "Cycle limit reached: {cycles}")
             }
             SafetyStop::CircuitBreakerTripped(failures) => {
-                write!(f, "Circuit breaker tripped after {failures} consecutive failures")
+                write!(
+                    f,
+                    "Circuit breaker tripped after {failures} consecutive failures"
+                )
             }
             SafetyStop::DiffLimitExceeded(lines) => {
                 write!(f, "Total diff limit exceeded: {lines} lines")

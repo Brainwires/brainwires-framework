@@ -86,11 +86,11 @@ fn validate_question_block(block: &QuestionBlock) -> bool {
     }
 
     // Validate AT-CoT ambiguity analysis if present
-    if let Some(ref analysis) = block.ambiguity_analysis {
-        if !validate_ambiguity_analysis(analysis) {
-            warn!("Invalid ambiguity analysis in question block");
-            // Don't fail validation - AT-CoT is optional
-        }
+    if let Some(ref analysis) = block.ambiguity_analysis
+        && !validate_ambiguity_analysis(analysis)
+    {
+        warn!("Invalid ambiguity analysis in question block");
+        // Don't fail validation - AT-CoT is optional
     }
 
     for q in &block.questions {
@@ -143,21 +143,15 @@ pub fn format_answers_natural(questions: &QuestionBlock, state: &QuestionAnswerS
         // Collect selected options
         if let Some(selected) = state.selected_options.get(q_idx) {
             for (opt_idx, &is_selected) in selected.iter().enumerate() {
-                if is_selected {
-                    if let Some(opt) = question.options.get(opt_idx) {
-                        answer_parts.push(opt.label.clone());
-                    }
+                if is_selected && let Some(opt) = question.options.get(opt_idx) {
+                    answer_parts.push(opt.label.clone());
                 }
             }
         }
 
         // Check for "Other" selection
         let other_selected = state.other_selected.get(q_idx).copied().unwrap_or(false);
-        let other_text = state
-            .other_text
-            .get(q_idx)
-            .map(|s| s.trim())
-            .unwrap_or("");
+        let other_text = state.other_text.get(q_idx).map(|s| s.trim()).unwrap_or("");
 
         if other_selected && !other_text.is_empty() {
             answer_parts.push(other_text.to_string());
@@ -207,7 +201,7 @@ pub fn format_declined_message() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::question::QuestionOption;
+    use crate::types::question::{ClarifyingQuestion, QuestionOption};
 
     #[test]
     fn test_parse_response_with_questions() {
@@ -232,10 +226,7 @@ mod tests {
 
         let result = parse_response(response);
         assert!(result.questions.is_some());
-        assert_eq!(
-            result.content,
-            "Here's my analysis of the problem."
-        );
+        assert_eq!(result.content, "Here's my analysis of the problem.");
 
         let questions = result.questions.unwrap();
         assert_eq!(questions.questions.len(), 1);
@@ -339,13 +330,11 @@ mod tests {
                 header: "Auth".to_string(),
                 multi_select: false,
                 ambiguity_type: None,
-                options: vec![
-                    QuestionOption {
-                        id: "a".to_string(),
-                        label: "JWT".to_string(),
-                        description: None,
-                    },
-                ],
+                options: vec![QuestionOption {
+                    id: "a".to_string(),
+                    label: "JWT".to_string(),
+                    description: None,
+                }],
             }],
         };
 
@@ -464,7 +453,10 @@ mod tests {
         assert!(analysis.reasoning.contains("cache"));
 
         assert_eq!(block.questions.len(), 1);
-        assert_eq!(block.questions[0].ambiguity_type, Some(AmbiguityType::Semantic));
+        assert_eq!(
+            block.questions[0].ambiguity_type,
+            Some(AmbiguityType::Semantic)
+        );
     }
 
     #[test]

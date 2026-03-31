@@ -181,13 +181,19 @@ impl IssuesMcpServer {
         let issues = Arc::new(match BM25Search::new(&bm25_path) {
             Ok(bm25) => IssueStore::new_with_bm25(Arc::clone(&backend), bm25),
             Err(e) => {
-                tracing::warn!("BM25 index unavailable (falling back to in-memory search): {}", e);
+                tracing::warn!(
+                    "BM25 index unavailable (falling back to in-memory search): {}",
+                    e
+                );
                 IssueStore::new(Arc::clone(&backend))
             }
         });
         let comments = Arc::new(CommentStore::new(Arc::clone(&backend)));
 
-        issues.ensure_table().await.context("Failed to ensure issues table")?;
+        issues
+            .ensure_table()
+            .await
+            .context("Failed to ensure issues table")?;
         comments
             .ensure_table()
             .await
@@ -254,7 +260,7 @@ impl IssuesMcpServer {
             issue.description = d;
         }
         if let Some(p) = req.priority {
-            issue.priority = IssuePriority::from_str(&p);
+            issue.priority = IssuePriority::parse(&p);
         }
         if let Some(a) = req.assignee {
             issue.assignee = Some(a);
@@ -269,7 +275,10 @@ impl IssuesMcpServer {
             issue.labels = l;
         }
 
-        self.issues.create(&issue).await.map_err(|e| e.to_string())?;
+        self.issues
+            .create(&issue)
+            .await
+            .map_err(|e| e.to_string())?;
 
         serde_json::to_string_pretty(&issue).map_err(|e| e.to_string())
     }
@@ -292,7 +301,7 @@ impl IssuesMcpServer {
     ) -> Result<String, String> {
         // C9: clamp limit
         let limit = req.limit.unwrap_or(25).clamp(1, 100);
-        let status = req.status.as_deref().map(IssueStatus::from_str);
+        let status = req.status.as_deref().map(IssueStatus::parse);
 
         let (issues, next_offset) = self
             .issues
@@ -308,7 +317,11 @@ impl IssuesMcpServer {
             .map_err(|e| e.to_string())?;
 
         let count = issues.len();
-        let result = PagedIssues { issues, count, next_offset };
+        let result = PagedIssues {
+            issues,
+            count,
+            next_offset,
+        };
 
         serde_json::to_string_pretty(&result).map_err(|e| e.to_string())
     }
@@ -321,8 +334,8 @@ impl IssuesMcpServer {
         let patch = IssuePatch {
             title: req.title,
             description: req.description,
-            status: req.status.as_deref().map(IssueStatus::from_str),
-            priority: req.priority.as_deref().map(IssuePriority::from_str),
+            status: req.status.as_deref().map(IssueStatus::parse),
+            priority: req.priority.as_deref().map(IssuePriority::parse),
             labels: req.labels,
             assignee: req.assignee,
             clear_assignee: req.clear_assignee,
@@ -380,11 +393,13 @@ impl IssuesMcpServer {
                 .map_err(|e| e.to_string())?;
         }
 
-        self.issues.delete(&req.id).await.map_err(|e| e.to_string())?;
+        self.issues
+            .delete(&req.id)
+            .await
+            .map_err(|e| e.to_string())?;
 
         // C8: safe JSON delete response
-        serde_json::to_string(&serde_json::json!({"deleted": req.id}))
-            .map_err(|e| e.to_string())
+        serde_json::to_string(&serde_json::json!({"deleted": req.id})).map_err(|e| e.to_string())
     }
 
     #[tool(
@@ -404,7 +419,11 @@ impl IssuesMcpServer {
             .map_err(|e| e.to_string())?;
 
         let count = matches.len();
-        let result = PagedIssues { count, issues: matches, next_offset: None };
+        let result = PagedIssues {
+            count,
+            issues: matches,
+            next_offset: None,
+        };
 
         serde_json::to_string_pretty(&result).map_err(|e| e.to_string())
     }
@@ -422,7 +441,10 @@ impl IssuesMcpServer {
             comment.author = Some(a);
         }
 
-        self.comments.add(&comment).await.map_err(|e| e.to_string())?;
+        self.comments
+            .add(&comment)
+            .await
+            .map_err(|e| e.to_string())?;
 
         serde_json::to_string_pretty(&comment).map_err(|e| e.to_string())
     }
@@ -442,7 +464,11 @@ impl IssuesMcpServer {
             .map_err(|e| e.to_string())?;
 
         let count = comments.len();
-        let result = PagedComments { comments, count, next_offset };
+        let result = PagedComments {
+            comments,
+            count,
+            next_offset,
+        };
 
         serde_json::to_string_pretty(&result).map_err(|e| e.to_string())
     }
@@ -465,8 +491,7 @@ impl IssuesMcpServer {
             .map_err(|e| e.to_string())?;
 
         // C8: safe JSON delete response
-        serde_json::to_string(&serde_json::json!({"deleted": req.id}))
-            .map_err(|e| e.to_string())
+        serde_json::to_string(&serde_json::json!({"deleted": req.id})).map_err(|e| e.to_string())
     }
 }
 
@@ -481,7 +506,8 @@ impl IssuesMcpServer {
     ) -> Vec<PromptMessage> {
         let title = args.get("title").and_then(|v| v.as_str()).unwrap_or("");
         let body = if title.is_empty() {
-            "Please create a new issue. Ask me for the title, description, priority, and assignee.".to_string()
+            "Please create a new issue. Ask me for the title, description, priority, and assignee."
+                .to_string()
         } else {
             format!("Please create a new issue titled: \"{}\"", title)
         };
@@ -495,17 +521,18 @@ impl IssuesMcpServer {
     ) -> Vec<PromptMessage> {
         let project = args.get("project").and_then(|v| v.as_str()).unwrap_or("");
         let body = if project.is_empty() {
-            "Please list all open issues (status: backlog, todo, in_progress, in_review).".to_string()
+            "Please list all open issues (status: backlog, todo, in_progress, in_review)."
+                .to_string()
         } else {
-            format!(
-                "Please list all open issues for project \"{}\".",
-                project
-            )
+            format!("Please list all open issues for project \"{}\".", project)
         };
         vec![PromptMessage::new_text(PromptMessageRole::User, body)]
     }
 
-    #[prompt(name = "search", description = "Search issues by keyword or description")]
+    #[prompt(
+        name = "search",
+        description = "Search issues by keyword or description"
+    )]
     async fn search_prompt(
         &self,
         Parameters(args): Parameters<serde_json::Value>,
@@ -541,9 +568,8 @@ impl ServerHandler for IssuesMcpServer {
             .enable_tools()
             .enable_prompts()
             .build();
-        info.server_info =
-            Implementation::new("brainwires-issues", env!("CARGO_PKG_VERSION"))
-                .with_title("Issue Tracker — lightweight project issue tracking");
+        info.server_info = Implementation::new("brainwires-issues", env!("CARGO_PKG_VERSION"))
+            .with_title("Issue Tracker — lightweight project issue tracking");
         info.instructions = Some(
             "Issue tracking MCP server. \
              Use create_issue to file new issues, list_issues to browse with filters, \

@@ -24,7 +24,10 @@ async fn test_git_status_in_git_repo() {
 
     // Should succeed in a git repo
     assert!(!result.is_error, "Git status should succeed in git repo");
-    assert!(!result.content.is_empty(), "Git status should return output");
+    assert!(
+        !result.content.is_empty(),
+        "Git status should return output"
+    );
 }
 
 #[tokio::test]

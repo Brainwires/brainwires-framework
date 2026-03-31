@@ -8,9 +8,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use brainwires_storage::{
-    CachedEmbeddingProvider, LanceDatabase, MessageMetadata, MessageStore,
-};
+use brainwires_storage::{CachedEmbeddingProvider, LanceDatabase, MessageMetadata, MessageStore};
 
 #[tokio::main]
 async fn main() -> Result<()> {

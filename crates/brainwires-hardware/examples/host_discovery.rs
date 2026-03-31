@@ -25,10 +25,7 @@ async fn main() {
     } else {
         println!("Discovered {} host(s):", hosts.len());
         for h in &hosts {
-            println!(
-                "  {}  mac={:?}  hostname={:?}",
-                h.ip, h.mac, h.hostname
-            );
+            println!("  {}  mac={:?}  hostname={:?}", h.ip, h.mac, h.hostname);
         }
     }
 }

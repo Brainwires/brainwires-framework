@@ -2,14 +2,17 @@
 //!
 //! Event handling for task viewer, nano editor, git SCM, and question modes.
 
-use crate::tui::app::state::{App, AppMode, SubAgentPanelFocus};
 use crate::tui::Event;
+use crate::tui::app::state::{App, AppMode, SubAgentPanelFocus};
 use anyhow::Result;
 use crossterm::event::KeyCode;
 
 impl App {
     /// Handle events in task viewer mode
-    pub(in crate::tui::app) async fn handle_task_viewer_event(&mut self, event: Event) -> Result<()> {
+    pub(in crate::tui::app) async fn handle_task_viewer_event(
+        &mut self,
+        event: Event,
+    ) -> Result<()> {
         if event.is_escape() {
             // Close task viewer
             self.mode = AppMode::Normal;
@@ -34,11 +37,13 @@ impl App {
                 }
                 KeyCode::PageUp => {
                     // Scroll up
-                    self.task_viewer_state.scroll = self.task_viewer_state.scroll.saturating_sub(10);
+                    self.task_viewer_state.scroll =
+                        self.task_viewer_state.scroll.saturating_sub(10);
                 }
                 KeyCode::PageDown => {
                     // Scroll down
-                    self.task_viewer_state.scroll = self.task_viewer_state.scroll.saturating_add(10);
+                    self.task_viewer_state.scroll =
+                        self.task_viewer_state.scroll.saturating_add(10);
                 }
                 _ => {}
             }
@@ -74,7 +79,9 @@ impl App {
 
     /// Toggle expand/collapse for current task
     fn task_viewer_toggle_collapse(&mut self) {
-        if let Some((task_id, _, _)) = self.task_viewer_state.visible_tasks
+        if let Some((task_id, _, _)) = self
+            .task_viewer_state
+            .visible_tasks
             .get(self.task_viewer_state.selected_index)
             .cloned()
         {
@@ -91,7 +98,9 @@ impl App {
         use crate::types::agent::TaskStatus;
 
         // Get task ID from visible_tasks or cache
-        let task_id = if let Some((id, _, _)) = self.task_viewer_state.visible_tasks
+        let task_id = if let Some((id, _, _)) = self
+            .task_viewer_state
+            .visible_tasks
             .get(self.task_viewer_state.selected_index)
         {
             Some(id.clone())
@@ -117,7 +126,9 @@ impl App {
                         let _ = manager.start_task(&task_id).await;
                     }
                     TaskStatus::Completed => {
-                        let _ = manager.complete_task(&task_id, "Manually completed".to_string()).await;
+                        let _ = manager
+                            .complete_task(&task_id, "Manually completed".to_string())
+                            .await;
                     }
                     _ => {
                         // Reset to pending - would need a reset method
@@ -139,7 +150,10 @@ impl App {
     }
 
     /// Handle events in nano editor mode
-    pub(in crate::tui::app) async fn handle_nano_editor_event(&mut self, event: Event) -> Result<()> {
+    pub(in crate::tui::app) async fn handle_nano_editor_event(
+        &mut self,
+        event: Event,
+    ) -> Result<()> {
         use super::super::nano_editor::CursorDirection;
 
         let Some(state) = &mut self.nano_editor_state else {
@@ -198,14 +212,20 @@ impl App {
                 KeyCode::Enter => state.insert_newline(),
                 KeyCode::Tab => state.insert_char('\t'),
                 KeyCode::Char(c) => {
-                    if !key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) {
+                    if !key
+                        .modifiers
+                        .contains(crossterm::event::KeyModifiers::CONTROL)
+                    {
                         state.insert_char(c);
                     }
                 }
                 KeyCode::Esc => {
                     // Alternative exit without save
                     if state.is_modified() {
-                        self.show_toast("Unsaved changes (Ctrl+X to exit, Ctrl+S to save)".to_string(), 2000);
+                        self.show_toast(
+                            "Unsaved changes (Ctrl+X to exit, Ctrl+S to save)".to_string(),
+                            2000,
+                        );
                     } else {
                         self.nano_editor_state = None;
                         self.mode = AppMode::FileExplorer;
@@ -220,7 +240,7 @@ impl App {
 
     /// Handle events in Git SCM mode
     pub(in crate::tui::app) async fn handle_git_scm_event(&mut self, event: Event) -> Result<()> {
-        use super::super::git_scm::{GitOperationMode, ScmPanel, GitAction};
+        use super::super::git_scm::{GitAction, GitOperationMode, ScmPanel};
 
         let Some(state) = &mut self.git_scm_state else {
             return Ok(());
@@ -311,14 +331,32 @@ impl App {
                 KeyCode::Enter | KeyCode::Char('s') => {
                     // Stage selected/current file
                     let files_to_stage: Vec<_> = match state.current_panel {
-                        ScmPanel::Changes => state.changed_files
+                        ScmPanel::Changes => state
+                            .changed_files
                             .iter()
-                            .filter(|f| f.selected || state.cursor_index == state.changed_files.iter().position(|x| x.path == f.path).unwrap_or(usize::MAX))
+                            .filter(|f| {
+                                f.selected
+                                    || state.cursor_index
+                                        == state
+                                            .changed_files
+                                            .iter()
+                                            .position(|x| x.path == f.path)
+                                            .unwrap_or(usize::MAX)
+                            })
                             .map(|f| f.path.clone())
                             .collect(),
-                        ScmPanel::Untracked => state.untracked_files
+                        ScmPanel::Untracked => state
+                            .untracked_files
                             .iter()
-                            .filter(|f| f.selected || state.cursor_index == state.untracked_files.iter().position(|x| x.path == f.path).unwrap_or(usize::MAX))
+                            .filter(|f| {
+                                f.selected
+                                    || state.cursor_index
+                                        == state
+                                            .untracked_files
+                                            .iter()
+                                            .position(|x| x.path == f.path)
+                                            .unwrap_or(usize::MAX)
+                            })
                             .map(|f| f.path.clone())
                             .collect(),
                         _ => vec![],
@@ -327,7 +365,10 @@ impl App {
                     if !files_to_stage.is_empty() {
                         match state.stage_files(&files_to_stage).await {
                             Ok(()) => {
-                                self.show_toast(format!("Staged {} file(s)", files_to_stage.len()), 1500);
+                                self.show_toast(
+                                    format!("Staged {} file(s)", files_to_stage.len()),
+                                    1500,
+                                );
                             }
                             Err(e) => {
                                 self.show_toast(format!("Stage failed: {}", e), 3000);
@@ -338,16 +379,28 @@ impl App {
                 KeyCode::Char('u') => {
                     // Unstage selected/current file
                     if state.current_panel == ScmPanel::Staged {
-                        let files_to_unstage: Vec<_> = state.staged_files
+                        let files_to_unstage: Vec<_> = state
+                            .staged_files
                             .iter()
-                            .filter(|f| f.selected || state.cursor_index == state.staged_files.iter().position(|x| x.path == f.path).unwrap_or(usize::MAX))
+                            .filter(|f| {
+                                f.selected
+                                    || state.cursor_index
+                                        == state
+                                            .staged_files
+                                            .iter()
+                                            .position(|x| x.path == f.path)
+                                            .unwrap_or(usize::MAX)
+                            })
                             .map(|f| f.path.clone())
                             .collect();
 
                         if !files_to_unstage.is_empty() {
                             match state.unstage_files(&files_to_unstage).await {
                                 Ok(()) => {
-                                    self.show_toast(format!("Unstaged {} file(s)", files_to_unstage.len()), 1500);
+                                    self.show_toast(
+                                        format!("Unstaged {} file(s)", files_to_unstage.len()),
+                                        1500,
+                                    );
                                 }
                                 Err(e) => {
                                     self.show_toast(format!("Unstage failed: {}", e), 3000);
@@ -359,15 +412,27 @@ impl App {
                 KeyCode::Char('d') => {
                     // Discard changes (with confirmation)
                     if state.current_panel == ScmPanel::Changes {
-                        let files: Vec<_> = state.changed_files
+                        let files: Vec<_> = state
+                            .changed_files
                             .iter()
-                            .filter(|f| f.selected || state.cursor_index == state.changed_files.iter().position(|x| x.path == f.path).unwrap_or(usize::MAX))
+                            .filter(|f| {
+                                f.selected
+                                    || state.cursor_index
+                                        == state
+                                            .changed_files
+                                            .iter()
+                                            .position(|x| x.path == f.path)
+                                            .unwrap_or(usize::MAX)
+                            })
                             .map(|f| f.path.clone())
                             .collect();
 
                         if !files.is_empty() {
                             state.mode = GitOperationMode::Confirm {
-                                message: format!("Discard changes to {} file(s)? (y/n)", files.len()),
+                                message: format!(
+                                    "Discard changes to {} file(s)? (y/n)",
+                                    files.len()
+                                ),
                                 action: GitAction::Discard(files),
                             };
                         }
@@ -476,7 +541,8 @@ impl App {
         if event.is_enter() {
             if self.question_state.is_last_question(&questions) {
                 // Submit all answers
-                let answers_msg = question_parser::format_answers_natural(&questions, &self.question_state);
+                let answers_msg =
+                    question_parser::format_answers_natural(&questions, &self.question_state);
 
                 // Add user answer message to conversation
                 self.messages.push(super::super::state::TuiMessage {
@@ -565,7 +631,13 @@ impl App {
                     // If we selected "Other", enter editing mode
                     if self.question_state.is_cursor_on_other(&questions) {
                         let q_idx = self.question_state.current_question_idx;
-                        if self.question_state.other_selected.get(q_idx).copied().unwrap_or(false) {
+                        if self
+                            .question_state
+                            .other_selected
+                            .get(q_idx)
+                            .copied()
+                            .unwrap_or(false)
+                        {
                             self.question_state.editing_other = true;
                         }
                     }
@@ -591,7 +663,10 @@ impl App {
     // ── Sub-Agent Viewer ──────────────────────────────────────────────────────
 
     /// Handle events in Sub-Agent Viewer mode
-    pub(in crate::tui::app) async fn handle_sub_agent_viewer_event(&mut self, event: Event) -> Result<()> {
+    pub(in crate::tui::app) async fn handle_sub_agent_viewer_event(
+        &mut self,
+        event: Event,
+    ) -> Result<()> {
         if event.is_escape() || event.is_sub_agent_viewer() {
             self.mode = AppMode::Normal;
             self.sub_agent_viewer_state = None;
@@ -608,7 +683,9 @@ impl App {
             return Ok(());
         }
 
-        let panel_focus = self.sub_agent_viewer_state.as_ref()
+        let panel_focus = self
+            .sub_agent_viewer_state
+            .as_ref()
             .map(|s| s.panel_focus.clone())
             .unwrap_or(SubAgentPanelFocus::Left);
 
@@ -617,12 +694,12 @@ impl App {
                 if let Event::Key(key) = event {
                     match key.code {
                         KeyCode::Up => {
-                            if let Some(state) = &mut self.sub_agent_viewer_state {
-                                if state.selected_index > 0 {
-                                    state.selected_index -= 1;
-                                    if (state.selected_index as u16) < state.list_scroll {
-                                        state.list_scroll = state.selected_index as u16;
-                                    }
+                            if let Some(state) = &mut self.sub_agent_viewer_state
+                                && state.selected_index > 0
+                            {
+                                state.selected_index -= 1;
+                                if (state.selected_index as u16) < state.list_scroll {
+                                    state.list_scroll = state.selected_index as u16;
                                 }
                             }
                         }
@@ -664,10 +741,13 @@ impl App {
                         }
                         KeyCode::Enter => {
                             // Send message to agent's IPC socket if available
-                            let (agent_id, msg) = if let Some(state) = &self.sub_agent_viewer_state {
+                            let (agent_id, msg) = if let Some(state) = &self.sub_agent_viewer_state
+                            {
                                 let agent = state.agent_list.get(state.selected_index);
                                 match agent {
-                                    Some(a) if a.has_ipc_socket && !state.message_input.is_empty() => {
+                                    Some(a)
+                                        if a.has_ipc_socket && !state.message_input.is_empty() =>
+                                    {
                                         (Some(a.agent_id.clone()), state.message_input.clone())
                                     }
                                     _ => (None, String::new()),

@@ -3,10 +3,14 @@
 //! Tracks which ambiguity type combinations lead to successful task completion
 //! and promotes effective patterns to BKS for collective learning.
 
-use brainwires::brain::bks_pks::{BehavioralKnowledgeCache, BehavioralTruth, TruthCategory, TruthSource};
-use brainwires::brain::bks_pks::personal::{PersonalKnowledgeCache, PersonalFact, PersonalFactCategory, PersonalFactSource};
 use crate::types::question::AmbiguityType;
 use anyhow::Result;
+use brainwires::brain::bks_pks::personal::{
+    PersonalFact, PersonalFactCategory, PersonalFactSource, PersonalKnowledgeCache,
+};
+use brainwires::brain::bks_pks::{
+    BehavioralKnowledgeCache, BehavioralTruth, TruthCategory, TruthSource,
+};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -61,6 +65,23 @@ pub(crate) struct TypeStats {
 
     /// Whether this combination has been promoted to BKS
     promoted_to_bks: bool,
+}
+
+#[allow(dead_code)]
+impl TypeStats {
+    /// Calculate success rate as a fraction (0.0-1.0)
+    pub(crate) fn success_rate(&self) -> f32 {
+        let total = self.success_count + self.failure_count;
+        if total == 0 {
+            return 0.0;
+        }
+        self.success_count as f32 / total as f32
+    }
+
+    /// Total number of uses (successes + failures)
+    pub(crate) fn total_uses(&self) -> u32 {
+        self.success_count + self.failure_count
+    }
 }
 
 impl AmbiguityEffectivenessTracker {
@@ -160,11 +181,13 @@ impl AmbiguityEffectivenessTracker {
 
         // Check for BKS promotion (80% success, 5+ uses)
         if should_promote {
-            self.check_and_promote_cloned(&combo, task_description, stats_clone.clone()).await?;
+            self.check_and_promote_cloned(&combo, task_description, stats_clone.clone())
+                .await?;
         }
 
         // Update PKS user preferences
-        self.update_user_preferences_cloned(&combo, stats_clone).await?;
+        self.update_user_preferences_cloned(&combo, stats_clone)
+            .await?;
 
         Ok(())
     }
@@ -192,13 +215,16 @@ impl AmbiguityEffectivenessTracker {
                     ),
                     format!(
                         "Learned from {} task completions with avg {} iterations and {:.2} quality score",
-                        total_uses, stats.avg_iterations.round(), stats.avg_quality_score
+                        total_uses,
+                        stats.avg_iterations.round(),
+                        stats.avg_quality_score
                     ),
                     TruthSource::SuccessPattern,
                     None,
                 );
 
-                let mut bks: tokio::sync::MutexGuard<'_, BehavioralKnowledgeCache> = bks_cache.lock().await;
+                let mut bks: tokio::sync::MutexGuard<'_, BehavioralKnowledgeCache> =
+                    bks_cache.lock().await;
                 bks.queue_submission(truth)?;
 
                 // Mark as promoted in the actual stats
@@ -228,30 +254,31 @@ impl AmbiguityEffectivenessTracker {
         let reliability = stats.success_count as f32 / total_uses as f32;
 
         // Store in PKS if reliability is high (local only, not synced)
-        if reliability >= 0.7 && total_uses >= 3 {
-            if let Some(ref pks_cache) = self.pks_cache {
-                let fact = PersonalFact::new(
-                    PersonalFactCategory::AmbiguityTypePreference,
-                    format!("preferred_ambiguity_types:{}", combo.to_key()),
-                    format!("{:?}", combo.types),
-                    Some(format!(
-                        "{:.1}% success rate over {} uses",
-                        reliability * 100.0,
-                        total_uses
-                    )),
-                    PersonalFactSource::InferredFromBehavior,
-                    true, // local only
-                );
+        if reliability >= 0.7
+            && total_uses >= 3
+            && let Some(ref pks_cache) = self.pks_cache
+        {
+            let fact = PersonalFact::new(
+                PersonalFactCategory::AmbiguityTypePreference,
+                format!("preferred_ambiguity_types:{}", combo.to_key()),
+                format!("{:?}", combo.types),
+                Some(format!(
+                    "{:.1}% success rate over {} uses",
+                    reliability * 100.0,
+                    total_uses
+                )),
+                PersonalFactSource::InferredFromBehavior,
+                true, // local only
+            );
 
-                let mut pks = pks_cache.lock().await;
-                pks.queue_submission(fact)?;
+            let mut pks = pks_cache.lock().await;
+            pks.queue_submission(fact)?;
 
-                debug!(
-                    "Updated PKS with ambiguity type preference: {:?} ({:.1}% success)",
-                    combo.types,
-                    reliability * 100.0
-                );
-            }
+            debug!(
+                "Updated PKS with ambiguity type preference: {:?} ({:.1}% success)",
+                combo.types,
+                reliability * 100.0
+            );
         }
 
         Ok(())
@@ -279,7 +306,9 @@ impl TypeCombination {
     fn from_types(types: &[AmbiguityType]) -> Self {
         let mut sorted_types = types.to_vec();
         sorted_types.sort_by_key(|t| format!("{:?}", t));
-        Self { types: sorted_types }
+        Self {
+            types: sorted_types,
+        }
     }
 
     /// Get a stable string key for this combination
@@ -291,7 +320,6 @@ impl TypeCombination {
             .join("+")
     }
 }
-
 
 /// Extract a context pattern from task description for BKS
 fn extract_context_pattern(task_description: &str) -> &str {

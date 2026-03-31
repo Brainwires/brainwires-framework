@@ -2,8 +2,8 @@
 //!
 //! Event handling for console view, shell viewer, and fullscreen modes.
 
-use crate::tui::app::state::{App, AppMode};
 use crate::tui::Event;
+use crate::tui::app::state::{App, AppMode};
 use anyhow::Result;
 use crossterm::event::KeyCode;
 
@@ -39,7 +39,10 @@ impl App {
             // Toggle mouse capture for text selection
             self.mouse_capture_disabled = !self.mouse_capture_disabled;
             if self.mouse_capture_disabled {
-                self.show_toast("Mouse disabled - select text with terminal".to_string(), 2000);
+                self.show_toast(
+                    "Mouse disabled - select text with terminal".to_string(),
+                    2000,
+                );
             } else {
                 self.show_toast("Mouse enabled".to_string(), 1500);
             }
@@ -63,13 +66,16 @@ impl App {
 
     /// Copy console contents to clipboard
     fn copy_console_to_clipboard(&mut self) {
-        use ratatui_interact::utils::{copy_to_clipboard, ClipboardResult};
+        use ratatui_interact::utils::{ClipboardResult, copy_to_clipboard};
 
         let content = self.console_state.content_as_string();
         match copy_to_clipboard(&content) {
             ClipboardResult::Success => {
                 self.show_toast(
-                    format!("Copied {} lines to clipboard", self.console_state.line_count()),
+                    format!(
+                        "Copied {} lines to clipboard",
+                        self.console_state.line_count()
+                    ),
                     2000,
                 );
             }
@@ -83,7 +89,10 @@ impl App {
     }
 
     /// Handle events in shell viewer mode
-    pub(in crate::tui::app) async fn handle_shell_viewer_event(&mut self, event: Event) -> Result<()> {
+    pub(in crate::tui::app) async fn handle_shell_viewer_event(
+        &mut self,
+        event: Event,
+    ) -> Result<()> {
         // Handle mouse scroll events for shell output scrolling
         if let Some((_col, _row)) = event.mouse_scroll_up() {
             self.shell_viewer_scroll = self.shell_viewer_scroll.saturating_sub(3);
@@ -111,8 +120,8 @@ impl App {
         if event.is_down() {
             // Select next shell command
             if !self.shell_history.is_empty() {
-                self.selected_shell_index = (self.selected_shell_index + 1)
-                    .min(self.shell_history.len().saturating_sub(1));
+                self.selected_shell_index =
+                    (self.selected_shell_index + 1).min(self.shell_history.len().saturating_sub(1));
                 self.shell_viewer_scroll = 0; // Reset scroll when selecting new command
             }
             return Ok(());
@@ -134,7 +143,10 @@ impl App {
     }
 
     /// Handle events in full-screen conversation view mode
-    pub(in crate::tui::app) async fn handle_conversation_fullscreen_event(&mut self, event: Event) -> Result<()> {
+    pub(in crate::tui::app) async fn handle_conversation_fullscreen_event(
+        &mut self,
+        event: Event,
+    ) -> Result<()> {
         // Handle mouse scroll events for conversation scrolling
         // In fullscreen mode, scroll works anywhere since the whole screen is conversation
         if let Some((_col, _row)) = event.mouse_scroll_up() {
@@ -167,12 +179,14 @@ impl App {
 
         // Open Find dialog with Ctrl+F
         if event.is_find() {
-            use super::super::find_replace::{FindReplaceState, FindReplaceContext};
+            use super::super::find_replace::{FindReplaceContext, FindReplaceState};
             self.find_replace_state = Some(FindReplaceState::new_find(
-                FindReplaceContext::ConversationView
+                FindReplaceContext::ConversationView,
             ));
             // Build search text from all messages
-            let search_text: String = self.messages.iter()
+            let search_text: String = self
+                .messages
+                .iter()
                 .map(|m| m.content.as_str())
                 .collect::<Vec<_>>()
                 .join("\n\n");
@@ -230,7 +244,10 @@ impl App {
             // Toggle mouse capture for text selection
             self.mouse_capture_disabled = !self.mouse_capture_disabled;
             if self.mouse_capture_disabled {
-                self.show_toast("Mouse disabled - select text with terminal".to_string(), 2000);
+                self.show_toast(
+                    "Mouse disabled - select text with terminal".to_string(),
+                    2000,
+                );
             } else {
                 self.show_toast("Mouse enabled".to_string(), 1500);
             }
@@ -265,7 +282,10 @@ impl App {
     }
 
     /// Handle events in full-screen input view mode
-    pub(in crate::tui::app) async fn handle_input_fullscreen_event(&mut self, event: Event) -> Result<()> {
+    pub(in crate::tui::app) async fn handle_input_fullscreen_event(
+        &mut self,
+        event: Event,
+    ) -> Result<()> {
         // Handle paste events (bracketed paste mode)
         if let Event::Paste(text) = event {
             self.handle_paste(&text);
@@ -282,10 +302,9 @@ impl App {
 
         // Open Find dialog with Ctrl+F
         if event.is_find() {
-            use super::super::find_replace::{FindReplaceState, FindReplaceContext};
-            self.find_replace_state = Some(FindReplaceState::new_find(
-                FindReplaceContext::InputView
-            ));
+            use super::super::find_replace::{FindReplaceContext, FindReplaceState};
+            self.find_replace_state =
+                Some(FindReplaceState::new_find(FindReplaceContext::InputView));
             let input_text = self.input_text();
             if let Some(ref mut state) = self.find_replace_state {
                 state.update_matches(&input_text);
@@ -296,10 +315,9 @@ impl App {
 
         // Open Find and Replace dialog with Ctrl+H
         if event.is_replace() {
-            use super::super::find_replace::{FindReplaceState, FindReplaceContext};
-            self.find_replace_state = Some(FindReplaceState::new_replace(
-                FindReplaceContext::InputView
-            ));
+            use super::super::find_replace::{FindReplaceContext, FindReplaceState};
+            self.find_replace_state =
+                Some(FindReplaceState::new_replace(FindReplaceContext::InputView));
             let input_text = self.input_text();
             if let Some(ref mut state) = self.find_replace_state {
                 state.update_matches(&input_text);
@@ -442,9 +460,10 @@ impl App {
 
     /// Copy conversation contents to clipboard
     fn copy_conversation_to_clipboard(&mut self) {
-        use ratatui_interact::utils::{copy_to_clipboard, ClipboardResult};
+        use ratatui_interact::utils::{ClipboardResult, copy_to_clipboard};
 
-        let content: String = self.messages
+        let content: String = self
+            .messages
             .iter()
             .map(|msg| format!("[{}] {}", msg.role.to_uppercase(), msg.content))
             .collect::<Vec<_>>()

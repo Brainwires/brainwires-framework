@@ -7,7 +7,7 @@
 
 use anyhow::{Context, Result};
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Mode within the file explorer
 #[derive(Debug, Clone, PartialEq)]
@@ -93,11 +93,11 @@ impl FileExplorerState {
     /// This prevents access to sensitive system directories like /root, /var, /proc
     pub fn new(start_dir: PathBuf) -> Self {
         // Determine the primary root jail (user's home directory)
-        let root_jail = dirs::home_dir()
-            .unwrap_or_else(|| PathBuf::from("/"));
+        let root_jail = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/"));
 
         // Canonicalize the start directory, falling back to home if invalid
-        let canonical_start = start_dir.canonicalize()
+        let canonical_start = start_dir
+            .canonicalize()
             .unwrap_or_else(|_| root_jail.clone());
 
         // Ensure start_dir is within an allowed path
@@ -131,7 +131,7 @@ impl FileExplorerState {
     }
 
     /// Check if a path is within allowed locations (static version for use in new())
-    fn is_allowed_path_static(path: &PathBuf, home_dir: &PathBuf) -> bool {
+    fn is_allowed_path_static(path: &Path, home_dir: &Path) -> bool {
         // Home directory is always allowed
         if path.starts_with(home_dir) {
             return true;
@@ -148,7 +148,7 @@ impl FileExplorerState {
     }
 
     /// Check if a path is within the allowed locations
-    fn is_within_jail(&self, path: &PathBuf) -> bool {
+    fn is_within_jail(&self, path: &Path) -> bool {
         match path.canonicalize() {
             Ok(canonical) => Self::is_allowed_path_static(&canonical, &self.root_jail),
             Err(_) => false,
@@ -163,7 +163,7 @@ impl FileExplorerState {
         // Add parent directory entry only if we're not at the jail root
         if let Some(parent) = self.current_dir.parent() {
             // Only show parent if it's still within the jail
-            if self.is_within_jail(&parent.to_path_buf()) {
+            if self.is_within_jail(parent) {
                 self.entries.push(FileEntry {
                     name: "..".to_string(),
                     path: parent.to_path_buf(),
@@ -197,9 +197,7 @@ impl FileExplorerState {
                     let target = std::fs::read_link(&path).unwrap_or_default();
                     EntryType::Symlink { target }
                 } else {
-                    let extension = path
-                        .extension()
-                        .map(|e| e.to_string_lossy().to_string());
+                    let extension = path.extension().map(|e| e.to_string_lossy().to_string());
                     EntryType::File {
                         size: meta.len(),
                         extension,
@@ -247,9 +245,10 @@ impl FileExplorerState {
     /// Navigate into a directory
     ///
     /// Security: Validates the path is within allowed locations before navigating.
-    pub fn enter_directory(&mut self, path: &PathBuf) -> Result<()> {
+    pub fn enter_directory(&mut self, path: &Path) -> Result<()> {
         // Resolve symlinks and canonicalize
-        let canonical = path.canonicalize()
+        let canonical = path
+            .canonicalize()
             .with_context(|| format!("Cannot access directory: {}", path.display()))?;
 
         // Security: Validate path is within allowed locations

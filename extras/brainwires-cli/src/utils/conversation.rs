@@ -8,11 +8,11 @@ use crate::storage::{
     ImageFormat, ImageMetadata, ImageSearchRequest, ImageSearchResult, ImageStorage, ImageStore,
     LanceDatabase, MessageMetadata, MessageStore, VectorDatabase,
 };
-use brainwires::brain::RelationshipGraph;
 use crate::types::message::{Message, MessageContent, Role};
 use crate::utils::context_builder::{ContextBuilder, ContextBuilderConfig};
 use crate::utils::entity_extraction::{EntityExtractor, EntityStore};
 use anyhow::{Context, Result};
+use brainwires::brain::RelationshipGraph;
 use chrono::Utc;
 use std::path::Path;
 use std::sync::Arc;
@@ -21,7 +21,7 @@ use std::sync::Arc;
 pub fn estimate_tokens(text: &str) -> usize {
     // Simple heuristic: ~4 characters per token for English text
     // This is a rough approximation - actual tokenization varies by model
-    (text.len() + 3) / 4
+    text.len().div_ceil(4)
 }
 
 /// Estimate token count for a message
@@ -29,18 +29,21 @@ pub fn estimate_message_tokens(message: &Message) -> usize {
     let content_tokens = match &message.content {
         MessageContent::Text(text) => estimate_tokens(text),
         MessageContent::Blocks(blocks) => {
-            blocks.iter().map(|block| {
-                match block {
-                    crate::types::message::ContentBlock::Text { text } => estimate_tokens(text),
-                    crate::types::message::ContentBlock::Image { .. } => 85, // Base image tokens
-                    crate::types::message::ContentBlock::ToolUse { input, .. } => {
-                        estimate_tokens(&serde_json::to_string(input).unwrap_or_default())
+            blocks
+                .iter()
+                .map(|block| {
+                    match block {
+                        crate::types::message::ContentBlock::Text { text } => estimate_tokens(text),
+                        crate::types::message::ContentBlock::Image { .. } => 85, // Base image tokens
+                        crate::types::message::ContentBlock::ToolUse { input, .. } => {
+                            estimate_tokens(&serde_json::to_string(input).unwrap_or_default())
+                        }
+                        crate::types::message::ContentBlock::ToolResult { content, .. } => {
+                            estimate_tokens(content)
+                        }
                     }
-                    crate::types::message::ContentBlock::ToolResult { content, .. } => {
-                        estimate_tokens(content)
-                    }
-                }
-            }).sum()
+                })
+                .sum()
         }
     };
     // Add overhead for role and message structure
@@ -112,15 +115,17 @@ impl ConversationManager {
         // Extract entities from message content
         let content = match &message.content {
             MessageContent::Text(text) => text.clone(),
-            MessageContent::Blocks(blocks) => {
-                blocks.iter().filter_map(|b| {
-                    match b {
-                        crate::types::message::ContentBlock::Text { text } => Some(text.clone()),
-                        crate::types::message::ContentBlock::ToolResult { content, .. } => Some(content.clone()),
-                        _ => None,
+            MessageContent::Blocks(blocks) => blocks
+                .iter()
+                .filter_map(|b| match b {
+                    crate::types::message::ContentBlock::Text { text } => Some(text.clone()),
+                    crate::types::message::ContentBlock::ToolResult { content, .. } => {
+                        Some(content.clone())
                     }
-                }).collect::<Vec<_>>().join("\n")
-            }
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+                .join("\n"),
         };
 
         // Generate a message ID for tracking
@@ -148,7 +153,8 @@ impl ConversationManager {
         }
 
         // Store entities
-        self.entity_store.add_extraction(extraction, &message_id, timestamp);
+        self.entity_store
+            .add_extraction(extraction, &message_id, timestamp);
 
         self.messages.push(message);
     }
@@ -258,7 +264,9 @@ impl ConversationManager {
     ///
     /// **DEPRECATED**: Manual compaction is no longer needed. The system
     /// automatically manages context via TieredMemory and ContextBuilder.
-    #[deprecated(note = "Manual compaction is deprecated. Use automatic context management instead.")]
+    #[deprecated(
+        note = "Manual compaction is deprecated. Use automatic context management instead."
+    )]
     #[allow(deprecated)]
     pub fn needs_compaction(&self) -> bool {
         self.estimate_total_tokens() > COMPACTION_THRESHOLD_TOKENS
@@ -268,7 +276,9 @@ impl ConversationManager {
     ///
     /// **DEPRECATED**: Manual compaction is no longer needed. The system
     /// automatically manages context via TieredMemory and ContextBuilder.
-    #[deprecated(note = "Manual compaction is deprecated. Use automatic context management instead.")]
+    #[deprecated(
+        note = "Manual compaction is deprecated. Use automatic context management instead."
+    )]
     pub async fn compact_if_needed(&mut self) -> Result<bool> {
         // Save current state before potentially compacting
         self.save_to_db().await?;
@@ -282,8 +292,13 @@ impl ConversationManager {
     ///
     /// **DEPRECATED**: Manual compaction is no longer needed. The system
     /// automatically manages context via TieredMemory and ContextBuilder.
-    #[deprecated(note = "Manual compaction is deprecated. Use automatic context management instead.")]
-    pub fn generate_compaction_prompt(&self, instructions: Option<&str>) -> Option<(String, usize)> {
+    #[deprecated(
+        note = "Manual compaction is deprecated. Use automatic context management instead."
+    )]
+    pub fn generate_compaction_prompt(
+        &self,
+        instructions: Option<&str>,
+    ) -> Option<(String, usize)> {
         if self.messages.len() < 4 {
             return None; // Not enough messages to compact
         }
@@ -307,20 +322,23 @@ impl ConversationManager {
             };
             let content = match &msg.content {
                 MessageContent::Text(text) => text.clone(),
-                MessageContent::Blocks(blocks) => {
-                    blocks.iter().filter_map(|b| {
-                        match b {
-                            crate::types::message::ContentBlock::Text { text } => Some(text.clone()),
-                            crate::types::message::ContentBlock::ToolUse { name, .. } => {
-                                Some(format!("[Tool call: {}]", name))
-                            }
-                            crate::types::message::ContentBlock::ToolResult { content, .. } => {
-                                Some(format!("[Tool result: {}]", &content[..std::cmp::min(100, content.len())]))
-                            }
-                            _ => None,
+                MessageContent::Blocks(blocks) => blocks
+                    .iter()
+                    .filter_map(|b| match b {
+                        crate::types::message::ContentBlock::Text { text } => Some(text.clone()),
+                        crate::types::message::ContentBlock::ToolUse { name, .. } => {
+                            Some(format!("[Tool call: {}]", name))
                         }
-                    }).collect::<Vec<_>>().join("\n")
-                }
+                        crate::types::message::ContentBlock::ToolResult { content, .. } => {
+                            Some(format!(
+                                "[Tool result: {}]",
+                                &content[..std::cmp::min(100, content.len())]
+                            ))
+                        }
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n"),
             };
             conversation_text.push_str(&format!("[{}] {}: {}\n\n", i + 1, role, content));
         }
@@ -339,8 +357,7 @@ impl ConversationManager {
             - Any code or file changes mentioned\n\
             - Context needed to continue the conversation\n\n\
             Keep the summary focused and under 500 words.",
-            conversation_text,
-            base_instructions
+            conversation_text, base_instructions
         );
 
         Some((prompt, messages_to_summarize))
@@ -350,7 +367,9 @@ impl ConversationManager {
     ///
     /// **DEPRECATED**: Manual compaction is no longer needed. The system
     /// automatically manages context via TieredMemory and ContextBuilder.
-    #[deprecated(note = "Manual compaction is deprecated. Use automatic context management instead.")]
+    #[deprecated(
+        note = "Manual compaction is deprecated. Use automatic context management instead."
+    )]
     pub fn apply_compaction(&mut self, summary: &str, messages_compacted: usize) {
         if messages_compacted >= self.messages.len() {
             return; // Safety check
@@ -496,7 +515,9 @@ impl ConversationManager {
 
         // Extract images if any
         let images = if let MessageContent::Blocks(blocks) = &message.content {
-            let has_images = blocks.iter().any(|b| matches!(b, crate::types::message::ContentBlock::Image { .. }));
+            let has_images = blocks
+                .iter()
+                .any(|b| matches!(b, crate::types::message::ContentBlock::Image { .. }));
             if has_images {
                 Some(serde_json::to_string(blocks).context("Failed to serialize images")?)
             } else {
@@ -584,12 +605,12 @@ impl ConversationManager {
     /// automatically benefit from infinite context recall.
     pub async fn get_enhanced_context(&mut self, user_query: &str) -> Result<Vec<Message>> {
         // If no storage, return raw messages
-        if self.message_store.is_none() {
-            if let Err(e) = self.ensure_storage().await {
-                // If storage init fails, fall back to raw messages
-                tracing::debug!("Storage init failed, using raw context: {}", e);
-                return Ok(self.messages.clone());
-            }
+        if self.message_store.is_none()
+            && let Err(e) = self.ensure_storage().await
+        {
+            // If storage init fails, fall back to raw messages
+            tracing::debug!("Storage init failed, using raw context: {}", e);
+            return Ok(self.messages.clone());
         }
 
         let message_store = match self.message_store.as_ref() {
@@ -599,7 +620,12 @@ impl ConversationManager {
 
         // Use context builder to inject personal knowledge and relevant history
         self.context_builder
-            .build_full_context(&self.messages, user_query, message_store, &self.conversation_id)
+            .build_full_context(
+                &self.messages,
+                user_query,
+                message_store,
+                &self.conversation_id,
+            )
             .await
     }
 
@@ -625,7 +651,8 @@ impl ConversationManager {
 
     /// Get entities related to a query (searches entity names)
     pub fn find_related_entities(&self, query: &str, limit: usize) -> Vec<String> {
-        self.relationship_graph.search(query, limit)
+        self.relationship_graph
+            .search(query, limit)
             .into_iter()
             .map(|n| n.entity_name.clone())
             .collect()
@@ -1048,7 +1075,10 @@ impl ConversationManager {
             .as_ref()
             .context("Image store not initialized")?;
 
-        image_store.get(image_id).await.context("Failed to get image")
+        image_store
+            .get(image_id)
+            .await
+            .context("Failed to get image")
     }
 
     /// Get image data (base64 or file path)
@@ -1259,7 +1289,8 @@ mod tests {
     #[test]
     fn test_generate_title_long() {
         let mut manager = ConversationManager::new(4096);
-        let long_text = "This is a very long message that exceeds fifty characters and should be truncated";
+        let long_text =
+            "This is a very long message that exceeds fifty characters and should be truncated";
         manager.add_message(Message {
             role: Role::User,
             content: MessageContent::Text(long_text.to_string()),

@@ -29,9 +29,7 @@ impl TaskGenerator {
         config: &SelfImprovementConfig,
     ) -> Result<Vec<ImprovementTask>> {
         let strategy_config = StrategyConfig {
-            repo_path: std::env::current_dir()?
-                .to_string_lossy()
-                .to_string(),
+            repo_path: std::env::current_dir()?.to_string_lossy().to_string(),
             max_tasks_per_strategy: 5,
         };
 
@@ -44,7 +42,10 @@ impl TaskGenerator {
 
             tracing::info!("Running strategy: {}", strategy.name());
 
-            match strategy.generate_tasks(&strategy_config.repo_path, &strategy_config).await {
+            match strategy
+                .generate_tasks(&strategy_config.repo_path, &strategy_config)
+                .await
+            {
                 Ok(tasks) => {
                     tracing::info!(
                         "Strategy '{}' generated {} task(s)",
@@ -54,11 +55,7 @@ impl TaskGenerator {
                     all_tasks.extend(tasks);
                 }
                 Err(e) => {
-                    tracing::warn!(
-                        "Strategy '{}' failed: {}",
-                        strategy.name(),
-                        e
-                    );
+                    tracing::warn!("Strategy '{}' failed: {}", strategy.name(), e);
                 }
             }
         }

@@ -257,11 +257,7 @@ impl HotkeyProvider for BrainwiresHotkeyProvider {
     type Category = HotkeyCategory;
 
     fn entries_for_category(&self, category: Self::Category) -> Vec<HotkeyEntryData> {
-        category
-            .entries()
-            .into_iter()
-            .map(|e| e.into())
-            .collect()
+        category.entries().into_iter().map(|e| e.into()).collect()
     }
 
     fn search(&self, query: &str) -> Vec<(Self::Category, HotkeyEntryData)> {
@@ -290,12 +286,28 @@ impl From<HotkeyEntry> for HotkeyEntryData {
 fn get_global_actions() -> Vec<HotkeyEntry> {
     vec![
         HotkeyEntry::fixed("Ctrl+C", "Quit application", vec![HotkeyContext::Global]),
-        HotkeyEntry::new("Ctrl+Z", "Open suspend/background dialog", vec![HotkeyContext::Global]),
-        HotkeyEntry::new("Escape", "Exit current mode/dialog", vec![HotkeyContext::Global]),
+        HotkeyEntry::new(
+            "Ctrl+Z",
+            "Open suspend/background dialog",
+            vec![HotkeyContext::Global],
+        ),
+        HotkeyEntry::new(
+            "Escape",
+            "Exit current mode/dialog",
+            vec![HotkeyContext::Global],
+        ),
         HotkeyEntry::new("F1", "Open help dialog", vec![HotkeyContext::Global]),
         HotkeyEntry::new("Enter", "Submit message", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("Tab", "Toggle focus between panels", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("Shift+Tab", "Reverse focus navigation", vec![HotkeyContext::Normal]),
+        HotkeyEntry::new(
+            "Tab",
+            "Toggle focus between panels",
+            vec![HotkeyContext::Normal],
+        ),
+        HotkeyEntry::new(
+            "Shift+Tab",
+            "Reverse focus navigation",
+            vec![HotkeyContext::Normal],
+        ),
     ]
 }
 
@@ -305,38 +317,142 @@ fn get_navigation_hotkeys() -> Vec<HotkeyEntry> {
         HotkeyEntry::new("Ctrl+L", "Open session picker", vec![HotkeyContext::Normal]),
         HotkeyEntry::new("Ctrl+D", "Toggle console view", vec![HotkeyContext::Normal]),
         HotkeyEntry::new("Ctrl+T", "Open task viewer", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("Ctrl+R", "Reverse search history", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("Up / Down", "Scroll conversation / Navigate lists", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("PageUp / PageDown", "Page scroll", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("Ctrl+Home", "Scroll to document start", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("Ctrl+End", "Scroll to document end", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("Ctrl+Up", "Scroll to document start (alt)", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("Ctrl+Down", "Scroll to document end (alt)", vec![HotkeyContext::Normal]),
+        HotkeyEntry::new(
+            "Ctrl+R",
+            "Reverse search history",
+            vec![HotkeyContext::Normal],
+        ),
+        HotkeyEntry::new(
+            "Up / Down",
+            "Scroll conversation / Navigate lists",
+            vec![HotkeyContext::Normal],
+        ),
+        HotkeyEntry::new(
+            "PageUp / PageDown",
+            "Page scroll",
+            vec![HotkeyContext::Normal],
+        ),
+        HotkeyEntry::new(
+            "Ctrl+Home",
+            "Scroll to document start",
+            vec![HotkeyContext::Normal],
+        ),
+        HotkeyEntry::new(
+            "Ctrl+End",
+            "Scroll to document end",
+            vec![HotkeyContext::Normal],
+        ),
+        HotkeyEntry::new(
+            "Ctrl+Up",
+            "Scroll to document start (alt)",
+            vec![HotkeyContext::Normal],
+        ),
+        HotkeyEntry::new(
+            "Ctrl+Down",
+            "Scroll to document end (alt)",
+            vec![HotkeyContext::Normal],
+        ),
     ]
 }
 
 /// Get text editing hotkeys.
 fn get_text_editing_hotkeys() -> Vec<HotkeyEntry> {
     vec![
-        HotkeyEntry::new("Shift+Enter", "Insert newline (multiline)", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("Alt+Enter", "Insert newline (multiline)", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("Ctrl+J", "Insert newline (Unix standard)", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("Ctrl+A", "Move cursor to line start", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("Ctrl+E", "Move cursor to line end", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("Home", "Move cursor to line start", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("End", "Move cursor to line end", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("Ctrl+U", "Delete from cursor to line start", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("Ctrl+K", "Delete from cursor to line end", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("Ctrl+W", "Delete word backward", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("Alt+Backspace", "Delete word backward", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("Alt+Delete", "Delete word forward", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("Ctrl+Left", "Move word backward", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("Ctrl+Right", "Move word forward", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("Alt+Left", "Move word backward (alt)", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("Alt+Right", "Move word forward (alt)", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("Left / Right", "Move cursor by character", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("Backspace", "Delete character before cursor", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("Delete", "Delete character at cursor", vec![HotkeyContext::Normal]),
+        HotkeyEntry::new(
+            "Shift+Enter",
+            "Insert newline (multiline)",
+            vec![HotkeyContext::Normal],
+        ),
+        HotkeyEntry::new(
+            "Alt+Enter",
+            "Insert newline (multiline)",
+            vec![HotkeyContext::Normal],
+        ),
+        HotkeyEntry::new(
+            "Ctrl+J",
+            "Insert newline (Unix standard)",
+            vec![HotkeyContext::Normal],
+        ),
+        HotkeyEntry::new(
+            "Ctrl+A",
+            "Move cursor to line start",
+            vec![HotkeyContext::Normal],
+        ),
+        HotkeyEntry::new(
+            "Ctrl+E",
+            "Move cursor to line end",
+            vec![HotkeyContext::Normal],
+        ),
+        HotkeyEntry::new(
+            "Home",
+            "Move cursor to line start",
+            vec![HotkeyContext::Normal],
+        ),
+        HotkeyEntry::new(
+            "End",
+            "Move cursor to line end",
+            vec![HotkeyContext::Normal],
+        ),
+        HotkeyEntry::new(
+            "Ctrl+U",
+            "Delete from cursor to line start",
+            vec![HotkeyContext::Normal],
+        ),
+        HotkeyEntry::new(
+            "Ctrl+K",
+            "Delete from cursor to line end",
+            vec![HotkeyContext::Normal],
+        ),
+        HotkeyEntry::new(
+            "Ctrl+W",
+            "Delete word backward",
+            vec![HotkeyContext::Normal],
+        ),
+        HotkeyEntry::new(
+            "Alt+Backspace",
+            "Delete word backward",
+            vec![HotkeyContext::Normal],
+        ),
+        HotkeyEntry::new(
+            "Alt+Delete",
+            "Delete word forward",
+            vec![HotkeyContext::Normal],
+        ),
+        HotkeyEntry::new(
+            "Ctrl+Left",
+            "Move word backward",
+            vec![HotkeyContext::Normal],
+        ),
+        HotkeyEntry::new(
+            "Ctrl+Right",
+            "Move word forward",
+            vec![HotkeyContext::Normal],
+        ),
+        HotkeyEntry::new(
+            "Alt+Left",
+            "Move word backward (alt)",
+            vec![HotkeyContext::Normal],
+        ),
+        HotkeyEntry::new(
+            "Alt+Right",
+            "Move word forward (alt)",
+            vec![HotkeyContext::Normal],
+        ),
+        HotkeyEntry::new(
+            "Left / Right",
+            "Move cursor by character",
+            vec![HotkeyContext::Normal],
+        ),
+        HotkeyEntry::new(
+            "Backspace",
+            "Delete character before cursor",
+            vec![HotkeyContext::Normal],
+        ),
+        HotkeyEntry::new(
+            "Delete",
+            "Delete character at cursor",
+            vec![HotkeyContext::Normal],
+        ),
     ]
 }
 
@@ -344,10 +460,26 @@ fn get_text_editing_hotkeys() -> Vec<HotkeyEntry> {
 fn get_views_modes_hotkeys() -> Vec<HotkeyEntry> {
     vec![
         HotkeyEntry::new("F10", "Toggle fullscreen mode", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("Ctrl+Alt+F", "Toggle fullscreen mode (alt)", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("F9", "Toggle conversation view style", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("m", "Toggle mouse capture (for text selection)", vec![HotkeyContext::ConsoleView]),
-        HotkeyEntry::new("c", "Copy console content to clipboard", vec![HotkeyContext::ConsoleView]),
+        HotkeyEntry::new(
+            "Ctrl+Alt+F",
+            "Toggle fullscreen mode (alt)",
+            vec![HotkeyContext::Normal],
+        ),
+        HotkeyEntry::new(
+            "F9",
+            "Toggle conversation view style",
+            vec![HotkeyContext::Normal],
+        ),
+        HotkeyEntry::new(
+            "m",
+            "Toggle mouse capture (for text selection)",
+            vec![HotkeyContext::ConsoleView],
+        ),
+        HotkeyEntry::new(
+            "c",
+            "Copy console content to clipboard",
+            vec![HotkeyContext::ConsoleView],
+        ),
     ]
 }
 
@@ -355,13 +487,33 @@ fn get_views_modes_hotkeys() -> Vec<HotkeyEntry> {
 fn get_dialogs_hotkeys() -> Vec<HotkeyEntry> {
     vec![
         HotkeyEntry::new("Ctrl+F", "Open find dialog", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("Ctrl+H", "Open find & replace dialog", vec![HotkeyContext::Normal]),
-        HotkeyEntry::new("Ctrl+Alt+F", "Open file explorer", vec![HotkeyContext::Normal]),
+        HotkeyEntry::new(
+            "Ctrl+H",
+            "Open find & replace dialog",
+            vec![HotkeyContext::Normal],
+        ),
+        HotkeyEntry::new(
+            "Ctrl+Alt+F",
+            "Open file explorer",
+            vec![HotkeyContext::Normal],
+        ),
         HotkeyEntry::new("Ctrl+G", "Open Git SCM panel", vec![HotkeyContext::Normal]),
         HotkeyEntry::new("F3", "Find next match", vec![HotkeyContext::FindDialog]),
-        HotkeyEntry::new("Shift+F3", "Find previous match", vec![HotkeyContext::FindDialog]),
-        HotkeyEntry::new("Tab", "Cycle through dialog elements", vec![HotkeyContext::FindDialog, HotkeyContext::HelpDialog]),
-        HotkeyEntry::new("Shift+Tab", "Cycle backward through elements", vec![HotkeyContext::FindDialog, HotkeyContext::HelpDialog]),
+        HotkeyEntry::new(
+            "Shift+F3",
+            "Find previous match",
+            vec![HotkeyContext::FindDialog],
+        ),
+        HotkeyEntry::new(
+            "Tab",
+            "Cycle through dialog elements",
+            vec![HotkeyContext::FindDialog, HotkeyContext::HelpDialog],
+        ),
+        HotkeyEntry::new(
+            "Shift+Tab",
+            "Cycle backward through elements",
+            vec![HotkeyContext::FindDialog, HotkeyContext::HelpDialog],
+        ),
         HotkeyEntry::new("Space", "Toggle checkbox", vec![HotkeyContext::FindDialog]),
     ]
 }
@@ -369,20 +521,60 @@ fn get_dialogs_hotkeys() -> Vec<HotkeyEntry> {
 /// Get file explorer hotkeys.
 fn get_file_explorer_hotkeys() -> Vec<HotkeyEntry> {
     vec![
-        HotkeyEntry::new("Up / Down", "Navigate file list", vec![HotkeyContext::FileExplorer]),
-        HotkeyEntry::new("Enter", "Open directory or file", vec![HotkeyContext::FileExplorer]),
-        HotkeyEntry::new("Space", "Toggle file selection", vec![HotkeyContext::FileExplorer]),
-        HotkeyEntry::new("Left / Backspace", "Go to parent directory", vec![HotkeyContext::FileExplorer]),
-        HotkeyEntry::new("Right", "Enter directory", vec![HotkeyContext::FileExplorer]),
-        HotkeyEntry::new("/", "Start search/filter", vec![HotkeyContext::FileExplorer]),
+        HotkeyEntry::new(
+            "Up / Down",
+            "Navigate file list",
+            vec![HotkeyContext::FileExplorer],
+        ),
+        HotkeyEntry::new(
+            "Enter",
+            "Open directory or file",
+            vec![HotkeyContext::FileExplorer],
+        ),
+        HotkeyEntry::new(
+            "Space",
+            "Toggle file selection",
+            vec![HotkeyContext::FileExplorer],
+        ),
+        HotkeyEntry::new(
+            "Left / Backspace",
+            "Go to parent directory",
+            vec![HotkeyContext::FileExplorer],
+        ),
+        HotkeyEntry::new(
+            "Right",
+            "Enter directory",
+            vec![HotkeyContext::FileExplorer],
+        ),
+        HotkeyEntry::new(
+            "/",
+            "Start search/filter",
+            vec![HotkeyContext::FileExplorer],
+        ),
         HotkeyEntry::new("e", "Edit current file", vec![HotkeyContext::FileExplorer]),
         HotkeyEntry::new("a", "Select all files", vec![HotkeyContext::FileExplorer]),
         HotkeyEntry::new("n", "Clear selection", vec![HotkeyContext::FileExplorer]),
-        HotkeyEntry::new(".", "Toggle hidden files", vec![HotkeyContext::FileExplorer]),
+        HotkeyEntry::new(
+            ".",
+            "Toggle hidden files",
+            vec![HotkeyContext::FileExplorer],
+        ),
         HotkeyEntry::new("r", "Refresh directory", vec![HotkeyContext::FileExplorer]),
-        HotkeyEntry::new("i", "Insert selected to working set", vec![HotkeyContext::FileExplorer]),
-        HotkeyEntry::new("PageUp / PageDown", "Page navigation", vec![HotkeyContext::FileExplorer]),
-        HotkeyEntry::new("Escape", "Exit file explorer", vec![HotkeyContext::FileExplorer]),
+        HotkeyEntry::new(
+            "i",
+            "Insert selected to working set",
+            vec![HotkeyContext::FileExplorer],
+        ),
+        HotkeyEntry::new(
+            "PageUp / PageDown",
+            "Page navigation",
+            vec![HotkeyContext::FileExplorer],
+        ),
+        HotkeyEntry::new(
+            "Escape",
+            "Exit file explorer",
+            vec![HotkeyContext::FileExplorer],
+        ),
     ]
 }
 
@@ -390,12 +582,32 @@ fn get_file_explorer_hotkeys() -> Vec<HotkeyEntry> {
 fn get_git_scm_hotkeys() -> Vec<HotkeyEntry> {
     vec![
         HotkeyEntry::new("Tab", "Switch between panels", vec![HotkeyContext::GitScm]),
-        HotkeyEntry::new("Up / Down", "Navigate file list", vec![HotkeyContext::GitScm]),
-        HotkeyEntry::new("Space", "Toggle file selection", vec![HotkeyContext::GitScm]),
-        HotkeyEntry::new("s / Enter", "Stage selected file(s)", vec![HotkeyContext::GitScm]),
+        HotkeyEntry::new(
+            "Up / Down",
+            "Navigate file list",
+            vec![HotkeyContext::GitScm],
+        ),
+        HotkeyEntry::new(
+            "Space",
+            "Toggle file selection",
+            vec![HotkeyContext::GitScm],
+        ),
+        HotkeyEntry::new(
+            "s / Enter",
+            "Stage selected file(s)",
+            vec![HotkeyContext::GitScm],
+        ),
         HotkeyEntry::new("u", "Unstage selected file(s)", vec![HotkeyContext::GitScm]),
-        HotkeyEntry::new("d", "Discard changes (with confirm)", vec![HotkeyContext::GitScm]),
-        HotkeyEntry::new("c", "Start commit (enter message)", vec![HotkeyContext::GitScm]),
+        HotkeyEntry::new(
+            "d",
+            "Discard changes (with confirm)",
+            vec![HotkeyContext::GitScm],
+        ),
+        HotkeyEntry::new(
+            "c",
+            "Start commit (enter message)",
+            vec![HotkeyContext::GitScm],
+        ),
         HotkeyEntry::new("P", "Push to remote", vec![HotkeyContext::GitScm]),
         HotkeyEntry::new("p", "Pull from remote", vec![HotkeyContext::GitScm]),
         HotkeyEntry::new("f", "Fetch from remote", vec![HotkeyContext::GitScm]),
@@ -409,41 +621,97 @@ fn get_git_scm_hotkeys() -> Vec<HotkeyEntry> {
 fn get_nano_editor_hotkeys() -> Vec<HotkeyEntry> {
     vec![
         HotkeyEntry::new("Arrow Keys", "Move cursor", vec![HotkeyContext::NanoEditor]),
-        HotkeyEntry::new("Ctrl+S / Ctrl+O", "Save file", vec![HotkeyContext::NanoEditor]),
+        HotkeyEntry::new(
+            "Ctrl+S / Ctrl+O",
+            "Save file",
+            vec![HotkeyContext::NanoEditor],
+        ),
         HotkeyEntry::new("Ctrl+X", "Exit editor", vec![HotkeyContext::NanoEditor]),
         HotkeyEntry::new("Ctrl+K", "Cut line", vec![HotkeyContext::NanoEditor]),
         HotkeyEntry::new("Ctrl+U", "Paste", vec![HotkeyContext::NanoEditor]),
-        HotkeyEntry::new("Home / End", "Line start/end", vec![HotkeyContext::NanoEditor]),
-        HotkeyEntry::new("PageUp / PageDown", "Page navigation", vec![HotkeyContext::NanoEditor]),
-        HotkeyEntry::new("Backspace", "Delete backward", vec![HotkeyContext::NanoEditor]),
+        HotkeyEntry::new(
+            "Home / End",
+            "Line start/end",
+            vec![HotkeyContext::NanoEditor],
+        ),
+        HotkeyEntry::new(
+            "PageUp / PageDown",
+            "Page navigation",
+            vec![HotkeyContext::NanoEditor],
+        ),
+        HotkeyEntry::new(
+            "Backspace",
+            "Delete backward",
+            vec![HotkeyContext::NanoEditor],
+        ),
         HotkeyEntry::new("Delete", "Delete forward", vec![HotkeyContext::NanoEditor]),
         HotkeyEntry::new("Enter", "Insert newline", vec![HotkeyContext::NanoEditor]),
-        HotkeyEntry::new("Tab", "Insert tab character", vec![HotkeyContext::NanoEditor]),
-        HotkeyEntry::new("Escape", "Exit (warns if unsaved)", vec![HotkeyContext::NanoEditor]),
+        HotkeyEntry::new(
+            "Tab",
+            "Insert tab character",
+            vec![HotkeyContext::NanoEditor],
+        ),
+        HotkeyEntry::new(
+            "Escape",
+            "Exit (warns if unsaved)",
+            vec![HotkeyContext::NanoEditor],
+        ),
     ]
 }
 
 /// Get task viewer hotkeys.
 fn get_task_viewer_hotkeys() -> Vec<HotkeyEntry> {
     vec![
-        HotkeyEntry::new("Up / Down", "Navigate tasks", vec![HotkeyContext::TaskViewer]),
-        HotkeyEntry::new("Enter / Left / Right", "Toggle expand/collapse", vec![HotkeyContext::TaskViewer]),
-        HotkeyEntry::new("Space", "Toggle task status", vec![HotkeyContext::TaskViewer]),
-        HotkeyEntry::new("PageUp / PageDown", "Scroll", vec![HotkeyContext::TaskViewer]),
-        HotkeyEntry::new("Escape", "Close task viewer", vec![HotkeyContext::TaskViewer]),
+        HotkeyEntry::new(
+            "Up / Down",
+            "Navigate tasks",
+            vec![HotkeyContext::TaskViewer],
+        ),
+        HotkeyEntry::new(
+            "Enter / Left / Right",
+            "Toggle expand/collapse",
+            vec![HotkeyContext::TaskViewer],
+        ),
+        HotkeyEntry::new(
+            "Space",
+            "Toggle task status",
+            vec![HotkeyContext::TaskViewer],
+        ),
+        HotkeyEntry::new(
+            "PageUp / PageDown",
+            "Scroll",
+            vec![HotkeyContext::TaskViewer],
+        ),
+        HotkeyEntry::new(
+            "Escape",
+            "Close task viewer",
+            vec![HotkeyContext::TaskViewer],
+        ),
     ]
 }
 
 /// Get tool picker hotkeys.
 fn get_tool_picker_hotkeys() -> Vec<HotkeyEntry> {
     vec![
-        HotkeyEntry::new("Up / Down", "Navigate tools", vec![HotkeyContext::ToolPicker]),
-        HotkeyEntry::new("Space", "Toggle tool selection", vec![HotkeyContext::ToolPicker]),
+        HotkeyEntry::new(
+            "Up / Down",
+            "Navigate tools",
+            vec![HotkeyContext::ToolPicker],
+        ),
+        HotkeyEntry::new(
+            "Space",
+            "Toggle tool selection",
+            vec![HotkeyContext::ToolPicker],
+        ),
         HotkeyEntry::new("a / A", "Select all tools", vec![HotkeyContext::ToolPicker]),
         HotkeyEntry::new("n / N", "Select no tools", vec![HotkeyContext::ToolPicker]),
         HotkeyEntry::new("Left", "Collapse category", vec![HotkeyContext::ToolPicker]),
         HotkeyEntry::new("Right", "Expand category", vec![HotkeyContext::ToolPicker]),
-        HotkeyEntry::new("Enter", "Confirm selection", vec![HotkeyContext::ToolPicker]),
+        HotkeyEntry::new(
+            "Enter",
+            "Confirm selection",
+            vec![HotkeyContext::ToolPicker],
+        ),
         HotkeyEntry::new("Escape", "Cancel picker", vec![HotkeyContext::ToolPicker]),
     ]
 }
@@ -452,11 +720,23 @@ fn get_tool_picker_hotkeys() -> Vec<HotkeyEntry> {
 fn get_plan_mode_hotkeys() -> Vec<HotkeyEntry> {
     vec![
         HotkeyEntry::new("Ctrl+P", "Toggle plan mode", vec![HotkeyContext::Global]),
-        HotkeyEntry::new("Enter", "Submit message in plan mode", vec![HotkeyContext::PlanMode]),
+        HotkeyEntry::new(
+            "Enter",
+            "Submit message in plan mode",
+            vec![HotkeyContext::PlanMode],
+        ),
         HotkeyEntry::new("Ctrl+P", "Exit plan mode", vec![HotkeyContext::PlanMode]),
         HotkeyEntry::new("Escape", "Exit plan mode", vec![HotkeyContext::PlanMode]),
-        HotkeyEntry::new("Ctrl+E", "Export plan mode session", vec![HotkeyContext::PlanMode]),
-        HotkeyEntry::new("Up / Down", "Scroll / Navigate history", vec![HotkeyContext::PlanMode]),
+        HotkeyEntry::new(
+            "Ctrl+E",
+            "Export plan mode session",
+            vec![HotkeyContext::PlanMode],
+        ),
+        HotkeyEntry::new(
+            "Up / Down",
+            "Scroll / Navigate history",
+            vec![HotkeyContext::PlanMode],
+        ),
     ]
 }
 
@@ -473,7 +753,10 @@ pub fn search_hotkeys(query: &str) -> Vec<(HotkeyCategory, HotkeyEntry)> {
         for entry in category.entries() {
             if entry.key_combination.to_lowercase().contains(&query_lower)
                 || entry.action.to_lowercase().contains(&query_lower)
-                || entry.contexts.iter().any(|c| c.to_string().to_lowercase().contains(&query_lower))
+                || entry
+                    .contexts
+                    .iter()
+                    .any(|c| c.to_string().to_lowercase().contains(&query_lower))
             {
                 results.push((*category, entry));
             }
@@ -531,7 +814,10 @@ mod tests {
 
     #[test]
     fn test_display_names() {
-        assert_eq!(HotkeyCategory::GlobalActions.display_name(), "Global Actions");
+        assert_eq!(
+            HotkeyCategory::GlobalActions.display_name(),
+            "Global Actions"
+        );
         assert_eq!(HotkeyCategory::GitScm.display_name(), "Git SCM");
     }
 
@@ -546,7 +832,11 @@ mod tests {
         let entry = HotkeyEntry::new("Ctrl+C", "Quit", vec![HotkeyContext::Global]);
         assert_eq!(entry.context_string(), "Global");
 
-        let entry = HotkeyEntry::new("Tab", "Navigate", vec![HotkeyContext::FindDialog, HotkeyContext::HelpDialog]);
+        let entry = HotkeyEntry::new(
+            "Tab",
+            "Navigate",
+            vec![HotkeyContext::FindDialog, HotkeyContext::HelpDialog],
+        );
         assert!(entry.context_string().contains("Find Dialog"));
         assert!(entry.context_string().contains("Help Dialog"));
     }

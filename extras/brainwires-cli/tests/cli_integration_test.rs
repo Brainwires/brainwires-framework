@@ -181,7 +181,10 @@ fn test_history_list_empty() {
         .arg("list")
         .assert()
         .success()
-        .stdout(predicate::str::contains("No conversations found").or(predicate::str::contains("Saved Conversations")));
+        .stdout(
+            predicate::str::contains("No conversations found")
+                .or(predicate::str::contains("Saved Conversations")),
+        );
 }
 
 #[test]
@@ -203,7 +206,9 @@ fn test_history_search_empty() {
         .arg("test query")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Searching for").or(predicate::str::contains("No matching")));
+        .stdout(
+            predicate::str::contains("Searching for").or(predicate::str::contains("No matching")),
+        );
 }
 
 #[test]
@@ -239,7 +244,9 @@ fn test_history_delete_without_confirm() {
         .arg("00000000-0000-0000-0000-000000000000")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Use --confirm").or(predicate::str::contains("not found")));
+        .stdout(
+            predicate::str::contains("Use --confirm").or(predicate::str::contains("not found")),
+        );
 }
 
 #[test]
@@ -328,10 +335,7 @@ fn test_cost_help() {
 
 #[test]
 fn test_cost_default() {
-    brainwires_cmd()
-        .arg("cost")
-        .assert()
-        .success();
+    brainwires_cmd().arg("cost").assert().success();
 }
 
 #[test]
@@ -360,11 +364,7 @@ fn test_mcp_help() {
 
 #[test]
 fn test_mcp_list_empty() {
-    brainwires_cmd()
-        .arg("mcp")
-        .arg("list")
-        .assert()
-        .success();
+    brainwires_cmd().arg("mcp").arg("list").assert().success();
 }
 
 // ============================================================================

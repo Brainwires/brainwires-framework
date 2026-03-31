@@ -32,15 +32,20 @@ impl CommandExecutor {
     /// /context:add <path> [pinned]
     fn cmd_context_add(&self, args: &[String]) -> Result<CommandResult> {
         if args.is_empty() {
-            anyhow::bail!("Usage: /context:add <path> [pinned]\n  path: Path to file\n  pinned: true/false (optional, default: false)");
+            anyhow::bail!(
+                "Usage: /context:add <path> [pinned]\n  path: Path to file\n  pinned: true/false (optional, default: false)"
+            );
         }
 
         let path = args[0].clone();
-        let pinned = args.get(1)
+        let pinned = args
+            .get(1)
             .map(|s| s.to_lowercase() == "true" || s == "1")
             .unwrap_or(false);
 
-        Ok(CommandResult::Action(CommandAction::ContextAdd(path, pinned)))
+        Ok(CommandResult::Action(CommandAction::ContextAdd(
+            path, pinned,
+        )))
     }
 
     /// /context:remove <path>
@@ -75,11 +80,14 @@ impl CommandExecutor {
 
     /// /context:clear [keep_pinned]
     fn cmd_context_clear(&self, args: &[String]) -> Result<CommandResult> {
-        let keep_pinned = args.first()
+        let keep_pinned = args
+            .first()
             .map(|s| s.to_lowercase() != "false" && s != "0")
             .unwrap_or(true); // Default to keeping pinned files
 
-        Ok(CommandResult::Action(CommandAction::ContextClear(keep_pinned)))
+        Ok(CommandResult::Action(CommandAction::ContextClear(
+            keep_pinned,
+        )))
     }
 }
 
@@ -118,7 +126,10 @@ mod tests {
         }
 
         // With pinned flag
-        let result = executor.execute_context_command("context:add", &["src/main.rs".to_string(), "true".to_string()]);
+        let result = executor.execute_context_command(
+            "context:add",
+            &["src/main.rs".to_string(), "true".to_string()],
+        );
         if let Some(Ok(CommandResult::Action(CommandAction::ContextAdd(path, pinned)))) = result {
             assert_eq!(path, "src/main.rs");
             assert!(pinned);
@@ -138,7 +149,8 @@ mod tests {
     #[test]
     fn test_context_remove() {
         let executor = make_executor();
-        let result = executor.execute_context_command("context:remove", &["src/main.rs".to_string()]);
+        let result =
+            executor.execute_context_command("context:remove", &["src/main.rs".to_string()]);
         if let Some(Ok(CommandResult::Action(CommandAction::ContextRemove(path)))) = result {
             assert_eq!(path, "src/main.rs");
         } else {

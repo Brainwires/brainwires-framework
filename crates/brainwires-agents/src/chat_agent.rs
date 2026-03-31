@@ -9,8 +9,8 @@ use anyhow::Result;
 use futures::StreamExt;
 
 use brainwires_core::{
-    ChatOptions, ContentBlock, Message, MessageContent, Provider, Role, StreamChunk, Tool, ToolUse,
-    ToolContext, Usage,
+    ChatOptions, ContentBlock, Message, MessageContent, Provider, Role, StreamChunk, Tool,
+    ToolContext, ToolUse, Usage,
 };
 use brainwires_tool_system::{BuiltinToolExecutor, PreHookDecision, ToolPreHook};
 
@@ -89,10 +89,10 @@ impl ChatAgent {
     /// If messages already exist, the system message is inserted at position 0.
     pub fn with_system_prompt(mut self, prompt: &str) -> Self {
         // Remove any existing system message at position 0
-        if let Some(first) = self.messages.first() {
-            if first.role == Role::System {
-                self.messages.remove(0);
-            }
+        if let Some(first) = self.messages.first()
+            && first.role == Role::System
+        {
+            self.messages.remove(0);
         }
         self.messages.insert(0, Message::system(prompt));
         self
@@ -115,11 +115,7 @@ impl ChatAgent {
     /// fragment as it arrives from the provider.
     ///
     /// Returns the full accumulated text once the completion loop finishes.
-    pub async fn process_message_streaming<F>(
-        &mut self,
-        input: &str,
-        on_chunk: F,
-    ) -> Result<String>
+    pub async fn process_message_streaming<F>(&mut self, input: &str, on_chunk: F) -> Result<String>
     where
         F: Fn(&str) + Send + Sync,
     {
@@ -326,9 +322,8 @@ impl ChatAgent {
                 StreamChunk::ToolUse { id, name } => {
                     // Flush previous tool if any
                     if !current_tool_id.is_empty() {
-                        let input: serde_json::Value =
-                            serde_json::from_str(&current_tool_input)
-                                .unwrap_or(serde_json::Value::Null);
+                        let input: serde_json::Value = serde_json::from_str(&current_tool_input)
+                            .unwrap_or(serde_json::Value::Null);
                         tool_uses.push(ToolUse {
                             id: std::mem::take(&mut current_tool_id),
                             name: std::mem::take(&mut current_tool_name),

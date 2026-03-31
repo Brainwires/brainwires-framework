@@ -11,7 +11,7 @@ use crate::{AnalyticsError, AnalyticsEvent, AnalyticsSink};
 /// Useful for testing and embedded scenarios where persistence is not needed.
 pub struct MemoryAnalyticsSink {
     capacity: usize,
-    events:   Mutex<VecDeque<AnalyticsEvent>>,
+    events: Mutex<VecDeque<AnalyticsEvent>>,
 }
 
 impl MemoryAnalyticsSink {
@@ -25,13 +25,19 @@ impl MemoryAnalyticsSink {
 
     /// Drain and return all buffered events, clearing the buffer.
     pub fn drain(&self) -> Vec<AnalyticsEvent> {
-        let mut events = self.events.lock().expect("MemoryAnalyticsSink lock poisoned");
+        let mut events = self
+            .events
+            .lock()
+            .expect("MemoryAnalyticsSink lock poisoned");
         events.drain(..).collect()
     }
 
     /// Number of events currently in the buffer.
     pub fn len(&self) -> usize {
-        self.events.lock().expect("MemoryAnalyticsSink lock poisoned").len()
+        self.events
+            .lock()
+            .expect("MemoryAnalyticsSink lock poisoned")
+            .len()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -40,7 +46,9 @@ impl MemoryAnalyticsSink {
 
     /// Peek at a snapshot of all buffered events (cloned).
     pub fn snapshot(&self) -> Vec<AnalyticsEvent> {
-        self.events.lock().expect("MemoryAnalyticsSink lock poisoned")
+        self.events
+            .lock()
+            .expect("MemoryAnalyticsSink lock poisoned")
             .iter()
             .cloned()
             .collect()
@@ -50,7 +58,10 @@ impl MemoryAnalyticsSink {
 #[async_trait]
 impl AnalyticsSink for MemoryAnalyticsSink {
     async fn record(&self, event: AnalyticsEvent) -> Result<(), AnalyticsError> {
-        let mut events = self.events.lock().expect("MemoryAnalyticsSink lock poisoned");
+        let mut events = self
+            .events
+            .lock()
+            .expect("MemoryAnalyticsSink lock poisoned");
         if events.len() >= self.capacity {
             events.pop_front();
         }

@@ -9,9 +9,7 @@ use ratatui::{
 
 /// Style for non-current search matches (yellow background)
 pub fn match_style() -> Style {
-    Style::default()
-        .bg(Color::Yellow)
-        .fg(Color::Black)
+    Style::default().bg(Color::Yellow).fg(Color::Black)
 }
 
 /// Style for the current/selected search match (green background)
@@ -153,12 +151,12 @@ fn highlight_line_with_positions(
             // Merge overlapping regions
             let mut merged: Vec<(usize, usize, bool)> = Vec::new();
             for (start, end, is_current) in overlapping {
-                if let Some(last) = merged.last_mut() {
-                    if start <= last.1 {
-                        last.1 = last.1.max(end);
-                        last.2 = last.2 || is_current;
-                        continue;
-                    }
+                if let Some(last) = merged.last_mut()
+                    && start <= last.1
+                {
+                    last.1 = last.1.max(end);
+                    last.2 = last.2 || is_current;
+                    continue;
                 }
                 merged.push((start, end, is_current));
             }
@@ -181,7 +179,8 @@ fn highlight_line_with_positions(
                 let hl_end_clamped = hl_end.min(span_char_len);
                 let hl_start_clamped = hl_start.min(span_char_len);
                 if hl_start_clamped < hl_end_clamped {
-                    let highlighted: String = chars[hl_start_clamped..hl_end_clamped].iter().collect();
+                    let highlighted: String =
+                        chars[hl_start_clamped..hl_end_clamped].iter().collect();
                     let hl_style = if is_current {
                         current_match_style()
                     } else {

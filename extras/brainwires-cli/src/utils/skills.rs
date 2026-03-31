@@ -1,5 +1,5 @@
-use brainwires_skills::{SkillRegistry, SkillSource};
 use crate::utils::paths::PlatformPaths;
+use brainwires_skills::{SkillRegistry, SkillSource};
 
 pub fn discover_skills(registry: &mut SkillRegistry) -> anyhow::Result<()> {
     let mut paths = Vec::new();

@@ -13,12 +13,11 @@ impl App {
         let mut metadata = std::collections::HashMap::new();
         metadata.insert("model".to_string(), self.model.clone());
 
-        match self.checkpoint_manager.create_checkpoint(
-            name.clone(),
-            self.session_id.clone(),
-            messages,
-            metadata,
-        ).await {
+        match self
+            .checkpoint_manager
+            .create_checkpoint(name.clone(), self.session_id.clone(), messages, metadata)
+            .await
+        {
             Ok(checkpoint_id) => {
                 let display_name = name.unwrap_or_else(|| checkpoint_id[..8].to_string());
                 self.messages.push(TuiMessage {
@@ -42,7 +41,11 @@ impl App {
 
     /// Handle restore checkpoint command
     pub(super) async fn handle_restore_checkpoint(&mut self, checkpoint_id: String) -> Result<()> {
-        match self.checkpoint_manager.restore_checkpoint(&checkpoint_id).await {
+        match self
+            .checkpoint_manager
+            .restore_checkpoint(&checkpoint_id)
+            .await
+        {
             Ok(checkpoint) => {
                 // Restore messages
                 self.messages.clear();
@@ -54,7 +57,8 @@ impl App {
                         Role::Assistant => "assistant",
                         Role::System => "system",
                         Role::Tool => "tool",
-                    }.to_string();
+                    }
+                    .to_string();
 
                     let content = match &msg.content {
                         MessageContent::Text(t) => t.clone(),
@@ -69,7 +73,9 @@ impl App {
                     self.conversation_history.push(msg.clone());
                 }
 
-                let display_name = checkpoint.name.unwrap_or_else(|| checkpoint.id[..8].to_string());
+                let display_name = checkpoint
+                    .name
+                    .unwrap_or_else(|| checkpoint.id[..8].to_string());
                 self.status = format!("Restored checkpoint: {}", display_name);
             }
             Err(e) => {
@@ -86,21 +92,27 @@ impl App {
 
     /// Handle list checkpoints command
     pub(super) async fn handle_list_checkpoints(&mut self) -> Result<()> {
-        match self.checkpoint_manager.list_checkpoints(&self.session_id).await {
+        match self
+            .checkpoint_manager
+            .list_checkpoints(&self.session_id)
+            .await
+        {
             Ok(checkpoints) => {
                 let content = if checkpoints.is_empty() {
                     "No checkpoints found".to_string()
                 } else {
                     let mut lines = vec!["Checkpoints:".to_string()];
                     for (i, checkpoint) in checkpoints.iter().enumerate() {
-                        let name = checkpoint.name.as_ref()
-                            .map(|n| n.as_str())
-                            .unwrap_or("Unnamed");
+                        let name = checkpoint.name.as_deref().unwrap_or("Unnamed");
                         let created = chrono::DateTime::from_timestamp(checkpoint.created_at, 0)
                             .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
                             .unwrap_or_else(|| "Unknown".to_string());
-                        lines.push(format!("{}. {} - {} messages ({})",
-                            i + 1, name, checkpoint.messages.len(), created
+                        lines.push(format!(
+                            "{}. {} - {} messages ({})",
+                            i + 1,
+                            name,
+                            checkpoint.messages.len(),
+                            created
                         ));
                         lines.push(format!("   ID: {}", &checkpoint.id[..8]));
                     }

@@ -1,5 +1,5 @@
-use async_trait::async_trait;
 use crate::{AnalyticsError, AnalyticsEvent};
+use async_trait::async_trait;
 
 /// Pluggable output for analytics events.
 ///

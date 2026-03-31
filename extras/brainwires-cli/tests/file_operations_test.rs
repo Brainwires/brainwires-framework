@@ -55,7 +55,10 @@ fn test_file_operations_integration() {
 
     // Verify edit worked
     let contents = fs::read_to_string(&file_path).unwrap();
-    assert!(contents.contains("Goodbye"), "File should contain edited content");
+    assert!(
+        contents.contains("Goodbye"),
+        "File should contain edited content"
+    );
 
     // Test 4: List directory
     let list_input = json!({

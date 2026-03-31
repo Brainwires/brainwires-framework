@@ -3,7 +3,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
-use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
 /// Track if logger has been initialized
 static LOGGER_INITIALIZED: AtomicBool = AtomicBool::new(false);
@@ -66,7 +66,10 @@ pub fn init_with_output(enable_output: bool) {
         .unwrap_or_else(|_| EnvFilter::new("brainwires_cli=debug,info"));
 
     // Analytics layer — None is a no-op, so this compiles the same regardless.
-    let analytics_layer = ANALYTICS.get().cloned().map(brainwires_analytics::AnalyticsLayer::new);
+    let analytics_layer = ANALYTICS
+        .get()
+        .cloned()
+        .map(brainwires_analytics::AnalyticsLayer::new);
 
     if !enable_output {
         // TUI mode: Only log to file, disable console
@@ -85,7 +88,8 @@ pub fn init_with_output(enable_output: bool) {
             .init();
     } else {
         // CLI mode: Log to both file and STDERR (never stdout - MCP uses stdout for protocol)
-        let (non_blocking_stderr, _stderr_guard) = tracing_appender::non_blocking(std::io::stderr());
+        let (non_blocking_stderr, _stderr_guard) =
+            tracing_appender::non_blocking(std::io::stderr());
 
         tracing_subscriber::registry()
             .with(filter)
@@ -100,7 +104,7 @@ pub fn init_with_output(enable_output: bool) {
             )
             .with(
                 fmt::layer()
-                    .with_writer(non_blocking_stderr)  // Use stderr, not stdout
+                    .with_writer(non_blocking_stderr) // Use stderr, not stdout
                     .with_target(false)
                     .with_thread_ids(false)
                     .with_line_number(false)

@@ -79,8 +79,8 @@ impl CheckpointManager {
     async fn save_checkpoint(&self, checkpoint: &Checkpoint) -> Result<()> {
         let checkpoint_path = self.checkpoints_dir.join(format!("{}.json", checkpoint.id));
 
-        let json = serde_json::to_string_pretty(checkpoint)
-            .context("Failed to serialize checkpoint")?;
+        let json =
+            serde_json::to_string_pretty(checkpoint).context("Failed to serialize checkpoint")?;
 
         fs::write(&checkpoint_path, json)
             .with_context(|| format!("Failed to write checkpoint to {:?}", checkpoint_path))?;
@@ -95,8 +95,8 @@ impl CheckpointManager {
         let json = fs::read_to_string(&checkpoint_path)
             .with_context(|| format!("Failed to read checkpoint from {:?}", checkpoint_path))?;
 
-        let checkpoint: Checkpoint = serde_json::from_str(&json)
-            .context("Failed to deserialize checkpoint")?;
+        let checkpoint: Checkpoint =
+            serde_json::from_str(&json).context("Failed to deserialize checkpoint")?;
 
         Ok(checkpoint)
     }
@@ -111,21 +111,19 @@ impl CheckpointManager {
         let mut checkpoints = Vec::new();
 
         // Read all checkpoint files
-        let entries = fs::read_dir(&self.checkpoints_dir)
-            .context("Failed to read checkpoints directory")?;
+        let entries =
+            fs::read_dir(&self.checkpoints_dir).context("Failed to read checkpoints directory")?;
 
         for entry in entries {
             let entry = entry.context("Failed to read directory entry")?;
             let path = entry.path();
 
-            if path.extension().and_then(|s| s.to_str()) == Some("json") {
-                if let Ok(json) = fs::read_to_string(&path) {
-                    if let Ok(checkpoint) = serde_json::from_str::<Checkpoint>(&json) {
-                        if checkpoint.conversation_id == conversation_id {
-                            checkpoints.push(checkpoint);
-                        }
-                    }
-                }
+            if path.extension().and_then(|s| s.to_str()) == Some("json")
+                && let Ok(json) = fs::read_to_string(&path)
+                && let Ok(checkpoint) = serde_json::from_str::<Checkpoint>(&json)
+                && checkpoint.conversation_id == conversation_id
+            {
+                checkpoints.push(checkpoint);
             }
         }
 
@@ -169,24 +167,25 @@ mod tests {
     async fn test_create_and_load_checkpoint() {
         let manager = CheckpointManager::new().unwrap();
 
-        let messages = vec![
-            Message {
-                role: Role::User,
-                content: MessageContent::Text("Test message".to_string()),
-                name: None,
-                metadata: None,
-            }
-        ];
+        let messages = vec![Message {
+            role: Role::User,
+            content: MessageContent::Text("Test message".to_string()),
+            name: None,
+            metadata: None,
+        }];
 
         let mut metadata = HashMap::new();
         metadata.insert("model".to_string(), "test-model".to_string());
 
-        let checkpoint_id = manager.create_checkpoint(
-            Some("Test Checkpoint".to_string()),
-            "conv-123".to_string(),
-            messages.clone(),
-            metadata.clone(),
-        ).await.unwrap();
+        let checkpoint_id = manager
+            .create_checkpoint(
+                Some("Test Checkpoint".to_string()),
+                "conv-123".to_string(),
+                messages.clone(),
+                metadata.clone(),
+            )
+            .await
+            .unwrap();
 
         // Load the checkpoint
         let loaded = manager.load_checkpoint(&checkpoint_id).await.unwrap();
@@ -204,19 +203,25 @@ mod tests {
         let metadata = HashMap::new();
 
         // Create multiple checkpoints for the same conversation
-        let _id1 = manager.create_checkpoint(
-            Some("Checkpoint 1".to_string()),
-            "conv-456".to_string(),
-            messages.clone(),
-            metadata.clone(),
-        ).await.unwrap();
+        let _id1 = manager
+            .create_checkpoint(
+                Some("Checkpoint 1".to_string()),
+                "conv-456".to_string(),
+                messages.clone(),
+                metadata.clone(),
+            )
+            .await
+            .unwrap();
 
-        let _id2 = manager.create_checkpoint(
-            Some("Checkpoint 2".to_string()),
-            "conv-456".to_string(),
-            messages.clone(),
-            metadata.clone(),
-        ).await.unwrap();
+        let _id2 = manager
+            .create_checkpoint(
+                Some("Checkpoint 2".to_string()),
+                "conv-456".to_string(),
+                messages.clone(),
+                metadata.clone(),
+            )
+            .await
+            .unwrap();
 
         // List checkpoints
         let checkpoints = manager.list_checkpoints("conv-456").await.unwrap();
@@ -230,12 +235,15 @@ mod tests {
         let messages = vec![];
         let metadata = HashMap::new();
 
-        let checkpoint_id = manager.create_checkpoint(
-            Some("To Delete".to_string()),
-            "conv-789".to_string(),
-            messages,
-            metadata,
-        ).await.unwrap();
+        let checkpoint_id = manager
+            .create_checkpoint(
+                Some("To Delete".to_string()),
+                "conv-789".to_string(),
+                messages,
+                metadata,
+            )
+            .await
+            .unwrap();
 
         // Delete the checkpoint
         let result = manager.delete_checkpoint(&checkpoint_id).await;

@@ -40,7 +40,8 @@ impl AutocompleteOps for App {
 
             // Filter models that contain the partial input (case-insensitive)
             let partial_lower = partial_model.to_lowercase();
-            let mut matching_models: Vec<String> = self.cached_model_ids
+            let mut matching_models: Vec<String> = self
+                .cached_model_ids
                 .iter()
                 .filter(|model| model.to_lowercase().contains(&partial_lower))
                 .cloned()
@@ -71,7 +72,8 @@ impl AutocompleteOps for App {
         let partial_cmd = &input[1..];
 
         // Get all available commands from the command executor
-        let all_commands: Vec<String> = self.command_executor
+        let all_commands: Vec<String> = self
+            .command_executor
             .registry()
             .commands()
             .keys()
@@ -107,7 +109,8 @@ impl AutocompleteOps for App {
     /// Select next autocomplete suggestion
     fn autocomplete_next(&mut self) {
         if !self.autocomplete_suggestions.is_empty() {
-            self.autocomplete_index = (self.autocomplete_index + 1) % self.autocomplete_suggestions.len();
+            self.autocomplete_index =
+                (self.autocomplete_index + 1) % self.autocomplete_suggestions.len();
         }
     }
 
@@ -190,7 +193,9 @@ impl App {
         use crate::utils::paths::PlatformPaths;
         use std::fs;
 
-        let cache_path = PlatformPaths::brainwires_data_dir().ok()?.join("models_cache.json");
+        let cache_path = PlatformPaths::brainwires_data_dir()
+            .ok()?
+            .join("models_cache.json");
         if !cache_path.exists() {
             return None;
         }
@@ -212,12 +217,14 @@ impl App {
         let cache: ModelCache = serde_json::from_str(&content).ok()?;
 
         // Filter models: must have "chat" ability AND ("tools" OR "tool use") ability
-        let filtered_models: Vec<String> = cache.models
+        let filtered_models: Vec<String> = cache
+            .models
             .into_iter()
             .filter(|m| {
                 let abilities_lower = m.abilities.to_lowercase();
                 let has_chat = abilities_lower.contains("chat");
-                let has_tools = abilities_lower.contains("tools") || abilities_lower.contains("tool use");
+                let has_tools =
+                    abilities_lower.contains("tools") || abilities_lower.contains("tool use");
                 has_chat && has_tools
             })
             .map(|m| m.model_id)

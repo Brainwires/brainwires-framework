@@ -182,26 +182,43 @@ mod tests {
 
     #[test]
     fn with_data_attaches_payload() {
-        let e = A2aError::new(INTERNAL_ERROR, "boom")
-            .with_data(serde_json::json!({"detail": "x"}));
+        let e = A2aError::new(INTERNAL_ERROR, "boom").with_data(serde_json::json!({"detail": "x"}));
         assert!(e.data.is_some());
     }
 
     #[test]
     fn constructors_use_correct_codes() {
         assert_eq!(A2aError::task_not_found("t1").code, TASK_NOT_FOUND);
-        assert_eq!(A2aError::task_not_cancelable("t1").code, TASK_NOT_CANCELABLE);
+        assert_eq!(
+            A2aError::task_not_cancelable("t1").code,
+            TASK_NOT_CANCELABLE
+        );
         assert_eq!(A2aError::push_not_supported().code, PUSH_NOT_SUPPORTED);
-        assert_eq!(A2aError::unsupported_operation("x").code, UNSUPPORTED_OPERATION);
-        assert_eq!(A2aError::content_type_not_supported("x").code, CONTENT_TYPE_NOT_SUPPORTED);
+        assert_eq!(
+            A2aError::unsupported_operation("x").code,
+            UNSUPPORTED_OPERATION
+        );
+        assert_eq!(
+            A2aError::content_type_not_supported("x").code,
+            CONTENT_TYPE_NOT_SUPPORTED
+        );
         assert_eq!(A2aError::invalid_request("x").code, INVALID_REQUEST);
         assert_eq!(A2aError::internal("x").code, INTERNAL_ERROR);
         assert_eq!(A2aError::method_not_found("m").code, METHOD_NOT_FOUND);
         assert_eq!(A2aError::invalid_params("x").code, INVALID_PARAMS);
         assert_eq!(A2aError::parse_error("x").code, JSON_PARSE_ERROR);
-        assert_eq!(A2aError::extended_card_not_configured().code, EXTENDED_CARD_NOT_CONFIGURED);
-        assert_eq!(A2aError::extension_support_required().code, EXTENSION_SUPPORT_REQUIRED);
-        assert_eq!(A2aError::version_not_supported().code, VERSION_NOT_SUPPORTED);
+        assert_eq!(
+            A2aError::extended_card_not_configured().code,
+            EXTENDED_CARD_NOT_CONFIGURED
+        );
+        assert_eq!(
+            A2aError::extension_support_required().code,
+            EXTENSION_SUPPORT_REQUIRED
+        );
+        assert_eq!(
+            A2aError::version_not_supported().code,
+            VERSION_NOT_SUPPORTED
+        );
     }
 
     #[test]

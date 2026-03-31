@@ -122,7 +122,10 @@ impl MemoryBankConfig {
             };
 
             let words: Vec<&str> = object.split_whitespace().collect();
-            if !words.is_empty() && words.iter().all(|w| lower_content.contains(&w.to_lowercase()))
+            if !words.is_empty()
+                && words
+                    .iter()
+                    .all(|w| lower_content.contains(&w.to_lowercase()))
             {
                 return true;
             }
@@ -155,11 +158,7 @@ impl MemoryBankConfig {
                 }
                 DispositionTrait::Concise => {
                     // Penalise very long content
-                    if content.len() > 500 {
-                        -0.05
-                    } else {
-                        0.0
-                    }
+                    if content.len() > 500 { -0.05 } else { 0.0 }
                 }
                 DispositionTrait::Cautious => {
                     // Boost hedging language
@@ -172,7 +171,14 @@ impl MemoryBankConfig {
                 }
                 DispositionTrait::Creative => {
                     // Boost generative / ideation phrasing
-                    let creative = ["idea", "what if", "novel", "alternative", "propose", "imagine"];
+                    let creative = [
+                        "idea",
+                        "what if",
+                        "novel",
+                        "alternative",
+                        "propose",
+                        "imagine",
+                    ];
                     if creative.iter().any(|c| lower.contains(c)) {
                         0.05
                     } else {

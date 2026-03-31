@@ -9,5 +9,5 @@ mod handler;
 mod streaming;
 
 // Re-export public API
+pub use conversation::{handle_batch_mode, handle_chat_with_conversation, handle_prompt_mode};
 pub use handler::handle_chat;
-pub use conversation::{handle_chat_with_conversation, handle_prompt_mode, handle_batch_mode};

@@ -36,8 +36,8 @@ pub use red_flags::{
     RedFlagResult, RedFlagValidator, StandardRedFlagValidator,
 };
 pub use scaling::{
-    calculate_expected_cost, calculate_k_min, calculate_p_full, estimate_mdap,
-    estimate_per_step_success, estimate_valid_response_rate, MdapEstimate, ModelCosts,
+    MdapEstimate, ModelCosts, calculate_expected_cost, calculate_k_min, calculate_p_full,
+    estimate_mdap, estimate_per_step_success, estimate_valid_response_rate,
 };
 pub use tool_intent::{
     IntentParseResult, SubtaskOutputWithIntent, ToolCategory, ToolIntent, ToolSchema,
@@ -149,8 +149,7 @@ impl MdapConfig {
         }
 
         let complexity_clamped = complexity.clamp(0.0, 1.0);
-        let base_k = self.k_min as f32
-            + complexity_clamped * (self.k_max - self.k_min) as f32;
+        let base_k = self.k_min as f32 + complexity_clamped * (self.k_max - self.k_min) as f32;
 
         let variance_adjustment = observed_variance
             .map(|v| (v * 2.0).min(1.0) as f32)
@@ -209,13 +208,19 @@ impl MdapConfig {
         self
     }
 
-    fn select_strategy_heuristic(&self, task: &str) -> brainwires::agents::reasoning::StrategyResult {
+    fn select_strategy_heuristic(
+        &self,
+        task: &str,
+    ) -> brainwires::agents::reasoning::StrategyResult {
         use brainwires::agents::reasoning::{RecommendedStrategy, StrategyResult, TaskType};
 
         let lower = task.to_lowercase();
         let word_count = task.split_whitespace().count();
 
-        let task_type = if lower.contains("implement") || lower.contains("code") || lower.contains("function") {
+        let task_type = if lower.contains("implement")
+            || lower.contains("code")
+            || lower.contains("function")
+        {
             TaskType::Code
         } else if lower.contains("plan") || lower.contains("design") {
             TaskType::Planning
@@ -406,16 +411,14 @@ impl<P: MicroagentProvider + 'static> MdapExecutor<P> {
     /// Create a new executor
     pub fn new(provider: Arc<P>, config: MdapConfig) -> Self {
         let decomposer: Box<dyn TaskDecomposer> = match &config.decomposition {
-            DecompositionStrategy::BinaryRecursive { max_depth } => Box::new(
-                decomposition::recursive::BinaryRecursiveDecomposer::new(
+            DecompositionStrategy::BinaryRecursive { max_depth } => {
+                Box::new(decomposition::recursive::BinaryRecursiveDecomposer::new(
                     provider.clone(),
                     *max_depth,
                     config.k,
-                ),
-            ),
-            DecompositionStrategy::Sequential => {
-                Box::new(SequentialDecomposer::default())
+                ))
             }
+            DecompositionStrategy::Sequential => Box::new(SequentialDecomposer::default()),
             DecompositionStrategy::None => Box::new(AtomicDecomposer),
             _ => Box::new(SequentialDecomposer::default()),
         };

@@ -67,13 +67,17 @@ impl RichOutput {
     /// Create a section header
     pub fn header<S: AsRef<str>>(text: S, color: &str) -> String {
         let text = text.as_ref();
-        format!("\n{}\n{}\n", Self::colorize(text, color), Self::separator(text.len()))
+        format!(
+            "\n{}\n{}\n",
+            Self::colorize(text, color),
+            Self::separator(text.len())
+        )
     }
 
     /// Create a table row
     pub fn table_row(columns: &[String], widths: &[usize]) -> String {
         let mut row = String::from("│");
-        for (_i, (col, width)) in columns.iter().zip(widths.iter()).enumerate() {
+        for (col, width) in columns.iter().zip(widths.iter()) {
             let padding = width.saturating_sub(col.len());
             row.push_str(&format!(" {}{} │", col, " ".repeat(padding)));
         }

@@ -9,7 +9,11 @@ use std::sync::Arc;
 
 impl App {
     /// Handle execute plan command - activate plan and start execution
-    pub(super) async fn handle_execute_plan(&mut self, plan_id: String, mode: Option<String>) -> Result<()> {
+    pub(super) async fn handle_execute_plan(
+        &mut self,
+        plan_id: String,
+        mode: Option<String>,
+    ) -> Result<()> {
         use crate::agents::{ExecutionApprovalMode, PlanExecutionConfig, PlanExecutorAgent};
         use crate::config::PlatformPaths;
         use crate::storage::{EmbeddingProvider, LanceDatabase, PlanStore, VectorDatabase};
@@ -26,8 +30,12 @@ impl App {
         // Initialize plan store
         let db_path = PlatformPaths::conversations_db_path()?;
         let client = Arc::new(
-            LanceDatabase::new(db_path.to_str().ok_or_else(|| anyhow::anyhow!("Invalid DB path"))?)
-                .await?
+            LanceDatabase::new(
+                db_path
+                    .to_str()
+                    .ok_or_else(|| anyhow::anyhow!("Invalid DB path"))?,
+            )
+            .await?,
         );
         let embeddings = Arc::new(EmbeddingProvider::new()?);
         client.initialize(embeddings.dimension()).await?;
@@ -36,7 +44,9 @@ impl App {
         // Try to find plan by full ID or partial ID
         let plan = if plan_id.len() < 36 {
             let all_plans = plan_store.list_recent(100).await?;
-            all_plans.into_iter().find(|p| p.plan_id.starts_with(&plan_id))
+            all_plans
+                .into_iter()
+                .find(|p| p.plan_id.starts_with(&plan_id))
         } else {
             plan_store.get(&plan_id).await?
         };
@@ -72,11 +82,7 @@ impl App {
                 stop_on_error: true,
                 ..Default::default()
             };
-            let _executor = PlanExecutorAgent::new(
-                plan.clone(),
-                self.task_manager.clone(),
-                config,
-            );
+            let _executor = PlanExecutorAgent::new(plan.clone(), self.task_manager.clone(), config);
 
             // Start first task
             let first_task = {
@@ -140,7 +146,9 @@ impl App {
         if self.active_plan.is_some() {
             let first_task = {
                 let task_mgr = self.task_manager.read().await;
-                task_mgr.get_tasks_by_status(crate::types::agent::TaskStatus::InProgress).await
+                task_mgr
+                    .get_tasks_by_status(crate::types::agent::TaskStatus::InProgress)
+                    .await
             };
 
             if let Some(task) = first_task.first() {

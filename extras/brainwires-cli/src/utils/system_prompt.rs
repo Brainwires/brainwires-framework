@@ -4,9 +4,9 @@
 //! Uses Universal Programmatic Tool Calling (Rhai scripts) as the primary interface.
 //! Supports injection of learned behavioral knowledge from the BKS.
 
-use anyhow::Result;
-use brainwires::brain::bks_pks::matcher::{format_truths_for_prompt, MatchedTruth};
 use crate::types::WorkingSet;
+use anyhow::Result;
+use brainwires::brain::bks_pks::matcher::{MatchedTruth, format_truths_for_prompt};
 
 /// Build the default system prompt with current working directory context.
 ///
@@ -80,10 +80,10 @@ let config = if has_cargo {{ read_file("Cargo.toml") }} else {{ "No config" }};
     );
 
     // Inject working set file contents if available
-    if let Some(ws) = working_set {
-        if let Some(context_injection) = ws.build_context_injection() {
-            return Ok(format!("{}\n\n{}", base_prompt, context_injection));
-        }
+    if let Some(ws) = working_set
+        && let Some(context_injection) = ws.build_context_injection()
+    {
+        return Ok(format!("{}\n\n{}", base_prompt, context_injection));
     }
 
     Ok(base_prompt)
@@ -135,10 +135,10 @@ You MUST NOT:
     );
 
     // Inject working set file contents if available
-    if let Some(ws) = working_set {
-        if let Some(context_injection) = ws.build_context_injection() {
-            return Ok(format!("{}\n\n{}", base_prompt, context_injection));
-        }
+    if let Some(ws) = working_set
+        && let Some(context_injection) = ws.build_context_injection()
+    {
+        return Ok(format!("{}\n\n{}", base_prompt, context_injection));
     }
 
     Ok(base_prompt)

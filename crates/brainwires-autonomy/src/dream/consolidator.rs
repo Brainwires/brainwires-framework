@@ -53,16 +53,16 @@ impl DreamConsolidator {
 
     /// Attach an analytics collector to record DreamCycle events.
     #[cfg(feature = "analytics")]
-    pub fn with_analytics(mut self, collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>) -> Self {
+    pub fn with_analytics(
+        mut self,
+        collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>,
+    ) -> Self {
         self.analytics_collector = Some(collector);
         self
     }
 
     /// Run a full 4-phase consolidation cycle across all sessions in the store.
-    pub async fn run_cycle(
-        &mut self,
-        sessions: &dyn DreamSessionStore,
-    ) -> Result<DreamReport> {
+    pub async fn run_cycle(&mut self, sessions: &dyn DreamSessionStore) -> Result<DreamReport> {
         let start = Instant::now();
         let mut report = DreamReport::default();
 
@@ -81,9 +81,7 @@ impl DreamConsolidator {
                     report.metrics.facts_extracted += session_report.fact_count;
                 }
                 Err(e) => {
-                    report
-                        .errors
-                        .push(format!("Session {key}: {e}"));
+                    report.errors.push(format!("Session {key}: {e}"));
                 }
             }
         }
@@ -124,10 +122,7 @@ impl DreamConsolidator {
         };
 
         // Estimate token count (rough: 4 chars ≈ 1 token)
-        let tokens_before: usize = messages
-            .iter()
-            .map(|m| m.text_or_summary().len() / 4)
-            .sum();
+        let tokens_before: usize = messages.iter().map(|m| m.text_or_summary().len() / 4).sum();
         result.tokens_before = tokens_before;
 
         // Phase 2: Gather — split into keep vs. consolidate
@@ -173,9 +168,7 @@ impl DreamConsolidator {
             new_messages.push(sys);
         }
         // Insert the summary as a system-level context message
-        new_messages.push(Message::system(format!(
-            "[Consolidated memory] {summary}"
-        )));
+        new_messages.push(Message::system(format!("[Consolidated memory] {summary}")));
         new_messages.extend_from_slice(to_keep);
 
         let tokens_after: usize = new_messages

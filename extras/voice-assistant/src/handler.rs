@@ -1,11 +1,9 @@
 use async_trait::async_trait;
 use brainwires_hardware::audio::{
-    assistant::VoiceAssistantHandler,
-    error::AudioError,
-    types::Transcript,
+    assistant::VoiceAssistantHandler, error::AudioError, types::Transcript,
 };
 use brainwires_providers::openai_chat::{
-    OpenAiClient, OpenAIMessage, OpenAIContent, OpenAiRequestOptions,
+    OpenAIContent, OpenAIMessage, OpenAiClient, OpenAiRequestOptions,
 };
 use std::sync::Arc;
 use tracing::{info, warn};
@@ -26,7 +24,11 @@ pub struct LlmHandler {
 
 impl LlmHandler {
     pub fn new(client: Arc<OpenAiClient>, model: String, system_prompt: String) -> Self {
-        Self { client, model, system_prompt }
+        Self {
+            client,
+            model,
+            system_prompt,
+        }
     }
 }
 
@@ -72,7 +74,11 @@ impl VoiceAssistantHandler for LlmHandler {
 
         let opts = OpenAiRequestOptions::default();
 
-        match self.client.chat_completions(&messages, &self.model, None, &opts).await {
+        match self
+            .client
+            .chat_completions(&messages, &self.model, None, &opts)
+            .await
+        {
             Ok(response) => {
                 let reply = response
                     .choices

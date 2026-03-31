@@ -22,16 +22,16 @@
 
 /// Energy-burst wake trigger — zero-dependency fallback.
 pub mod energy_trigger;
-#[cfg(feature = "wake-word-rustpotter")]
-pub mod rustpotter;
 #[cfg(feature = "wake-word-porcupine")]
 pub mod porcupine;
+#[cfg(feature = "wake-word-rustpotter")]
+pub mod rustpotter;
 
 pub use self::energy_trigger::EnergyTriggerDetector;
-#[cfg(feature = "wake-word-rustpotter")]
-pub use self::rustpotter::RustpotterDetector;
 #[cfg(feature = "wake-word-porcupine")]
 pub use self::porcupine::PorcupineDetector;
+#[cfg(feature = "wake-word-rustpotter")]
+pub use self::rustpotter::RustpotterDetector;
 
 /// A wake word detection event.
 #[derive(Debug, Clone)]

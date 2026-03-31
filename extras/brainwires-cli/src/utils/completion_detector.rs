@@ -144,18 +144,18 @@ impl CompletionDetector {
         // "completed step N", "completed task N"
         let step_re = Regex::new(r"(?i)completed\s+(step|task)\s*#?(\d+)").unwrap();
         for cap in step_re.captures_iter(response) {
-            if let Some(num_match) = cap.get(2) {
-                if let Ok(step_num) = num_match.as_str().parse::<usize>() {
-                    // Match by position in task list
-                    if step_num > 0 && step_num <= tasks.len() {
-                        let task = &tasks[step_num - 1];
-                        matches.push(CompletionMatch {
-                            task_id: task.id.clone(),
-                            confidence: 0.85,
-                            pattern: "step_number".to_string(),
-                            summary: Some(format!("Step {} completed", step_num)),
-                        });
-                    }
+            if let Some(num_match) = cap.get(2)
+                && let Ok(step_num) = num_match.as_str().parse::<usize>()
+            {
+                // Match by position in task list
+                if step_num > 0 && step_num <= tasks.len() {
+                    let task = &tasks[step_num - 1];
+                    matches.push(CompletionMatch {
+                        task_id: task.id.clone(),
+                        confidence: 0.85,
+                        pattern: "step_number".to_string(),
+                        summary: Some(format!("Step {} completed", step_num)),
+                    });
                 }
             }
         }
@@ -167,16 +167,16 @@ impl CompletionDetector {
                 let text_str = text.as_str().to_lowercase();
 
                 for task in tasks {
-                    if Self::text_matches_task(&text_str, task) {
-                        if !matches.iter().any(|m| m.task_id == task.id) {
-                            matches.push(CompletionMatch {
-                                task_id: task.id.clone(),
-                                confidence: 0.8,
-                                pattern: "explicit".to_string(),
-                                summary: Some(text.as_str().trim().to_string()),
-                            });
-                            break;
-                        }
+                    if Self::text_matches_task(&text_str, task)
+                        && !matches.iter().any(|m| m.task_id == task.id)
+                    {
+                        matches.push(CompletionMatch {
+                            task_id: task.id.clone(),
+                            confidence: 0.8,
+                            pattern: "explicit".to_string(),
+                            summary: Some(text.as_str().trim().to_string()),
+                        });
+                        break;
                     }
                 }
             }
@@ -204,16 +204,18 @@ impl CompletionDetector {
                     let text_str = text.as_str().to_lowercase();
 
                     for task in tasks {
-                        if Self::text_matches_task(&text_str, task) {
-                            if !matches.iter().any(|m: &CompletionMatch| m.task_id == task.id) {
-                                matches.push(CompletionMatch {
-                                    task_id: task.id.clone(),
-                                    confidence: 0.75,
-                                    pattern: "sentence".to_string(),
-                                    summary: Some(text.as_str().trim().to_string()),
-                                });
-                                break;
-                            }
+                        if Self::text_matches_task(&text_str, task)
+                            && !matches
+                                .iter()
+                                .any(|m: &CompletionMatch| m.task_id == task.id)
+                        {
+                            matches.push(CompletionMatch {
+                                task_id: task.id.clone(),
+                                confidence: 0.75,
+                                pattern: "sentence".to_string(),
+                                summary: Some(text.as_str().trim().to_string()),
+                            });
+                            break;
                         }
                     }
                 }
@@ -248,10 +250,7 @@ impl CompletionDetector {
             return false;
         }
 
-        let matching_words = task_words
-            .iter()
-            .filter(|w| text_words.contains(w))
-            .count();
+        let matching_words = task_words.iter().filter(|w| text_words.contains(w)).count();
 
         let match_ratio = matching_words as f32 / task_words.len() as f32;
 
@@ -325,9 +324,7 @@ mod tests {
 
     #[test]
     fn test_detect_done_marker() {
-        let tasks = vec![
-            create_test_task("task-1", "Create API endpoints"),
-        ];
+        let tasks = vec![create_test_task("task-1", "Create API endpoints")];
 
         let response = "[DONE] Create API endpoints for user management";
         let matches = CompletionDetector::detect_completed_tasks(response, &tasks);
@@ -354,9 +351,7 @@ mod tests {
 
     #[test]
     fn test_detect_explicit_completion() {
-        let tasks = vec![
-            create_test_task("task-1", "Write unit tests"),
-        ];
+        let tasks = vec![create_test_task("task-1", "Write unit tests")];
 
         let response = "I've completed the unit tests for the authentication module.";
         let matches = CompletionDetector::detect_completed_tasks(response, &tasks);
@@ -367,9 +362,7 @@ mod tests {
 
     #[test]
     fn test_detect_sentence_completion() {
-        let tasks = vec![
-            create_test_task("task-1", "Database migration"),
-        ];
+        let tasks = vec![create_test_task("task-1", "Database migration")];
 
         let response = "The database migration is now complete.";
         let matches = CompletionDetector::detect_completed_tasks(response, &tasks);
@@ -380,9 +373,7 @@ mod tests {
 
     #[test]
     fn test_no_false_positives() {
-        let tasks = vec![
-            create_test_task("task-1", "Implement feature X"),
-        ];
+        let tasks = vec![create_test_task("task-1", "Implement feature X")];
 
         // Should NOT match - talking about completion but not actually completing
         let response = "I will complete this feature once we have the requirements.";
@@ -403,9 +394,7 @@ mod tests {
 
     #[test]
     fn test_deduplicate_keeps_highest_confidence() {
-        let tasks = vec![
-            create_test_task("task-1", "Setup database"),
-        ];
+        let tasks = vec![create_test_task("task-1", "Setup database")];
 
         // Response with multiple patterns matching the same task
         let response = "✓ Setup database [DONE]";

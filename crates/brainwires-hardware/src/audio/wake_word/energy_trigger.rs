@@ -1,8 +1,8 @@
 use std::time::Instant;
 
-use crate::audio::vad::rms_db;
-use crate::audio::types::{AudioBuffer, AudioConfig, SampleFormat};
 use super::{WakeWordDetection, WakeWordDetector};
+use crate::audio::types::{AudioBuffer, AudioConfig, SampleFormat};
+use crate::audio::vad::rms_db;
 
 /// A simple energy-based wake trigger — fires when audio energy stays above a
 /// threshold for a minimum number of consecutive frames.
@@ -70,10 +70,7 @@ impl WakeWordDetector for EnergyTriggerDetector {
 
     fn process_frame(&mut self, samples: &[i16]) -> Option<WakeWordDetection> {
         // Convert samples to an AudioBuffer for rms_db
-        let data: Vec<u8> = samples
-            .iter()
-            .flat_map(|s| s.to_le_bytes())
-            .collect();
+        let data: Vec<u8> = samples.iter().flat_map(|s| s.to_le_bytes()).collect();
         let buf = AudioBuffer {
             data,
             config: AudioConfig {

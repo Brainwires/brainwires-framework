@@ -61,8 +61,10 @@ impl CommandExecutor {
     }
 
     fn cmd_plans(&self, args: &[String]) -> Result<CommandResult> {
-        let conversation_id = args.first().map(|s| s.clone());
-        Ok(CommandResult::Action(CommandAction::ListPlans(conversation_id)))
+        let conversation_id = args.first().cloned();
+        Ok(CommandResult::Action(CommandAction::ListPlans(
+            conversation_id,
+        )))
     }
 
     fn cmd_plan_show(&self, args: &[String]) -> Result<CommandResult> {
@@ -117,8 +119,10 @@ impl CommandExecutor {
             );
         }
         let plan_id = args[0].clone();
-        let mode = args.get(1).map(|s| s.clone());
-        Ok(CommandResult::Action(CommandAction::ExecutePlan(plan_id, mode)))
+        let mode = args.get(1).cloned();
+        Ok(CommandResult::Action(CommandAction::ExecutePlan(
+            plan_id, mode,
+        )))
     }
 
     fn cmd_plan_search(&self, args: &[String]) -> Result<CommandResult> {
@@ -143,16 +147,19 @@ impl CommandExecutor {
         }
         let branch_name = args[0].clone();
         let task_description = args[1..].join(" ");
-        Ok(CommandResult::Action(CommandAction::BranchPlan(branch_name, task_description)))
+        Ok(CommandResult::Action(CommandAction::BranchPlan(
+            branch_name,
+            task_description,
+        )))
     }
 
     fn cmd_plan_merge(&self, args: &[String]) -> Result<CommandResult> {
-        let plan_id = args.first().map(|s| s.clone());
+        let plan_id = args.first().cloned();
         Ok(CommandResult::Action(CommandAction::MergePlan(plan_id)))
     }
 
     fn cmd_plan_tree(&self, args: &[String]) -> Result<CommandResult> {
-        let plan_id = args.first().map(|s| s.clone());
+        let plan_id = args.first().cloned();
         Ok(CommandResult::Action(CommandAction::PlanTree(plan_id)))
     }
 
@@ -170,7 +177,7 @@ impl CommandExecutor {
     }
 
     fn cmd_plan_mode_export(&self, args: &[String]) -> Result<CommandResult> {
-        let path = args.first().map(|s| s.clone());
+        let path = args.first().cloned();
         Ok(CommandResult::Action(CommandAction::ExportPlanMode(path)))
     }
 }

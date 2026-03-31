@@ -51,7 +51,10 @@ fn test_bash_working_directory() {
 
     let result = BashTool::execute("test-id-2", "execute_command", &pwd_input, &context);
     assert!(!result.is_error, "PWD command should succeed");
-    assert!(result.content.contains(temp_path), "Should execute in working directory");
+    assert!(
+        result.content.contains(temp_path),
+        "Should execute in working directory"
+    );
 }
 
 #[test]
@@ -75,9 +78,11 @@ fn test_bash_dangerous_commands_blocked() {
 
     let result = BashTool::execute("test-id-3", "execute_command", &dangerous_input, &context);
     assert!(result.is_error, "Dangerous command should be blocked");
-    assert!(result.content.to_lowercase().contains("dangerous") ||
-            result.content.to_lowercase().contains("blocked") ||
-            result.content.to_lowercase().contains("not allowed"));
+    assert!(
+        result.content.to_lowercase().contains("dangerous")
+            || result.content.to_lowercase().contains("blocked")
+            || result.content.to_lowercase().contains("not allowed")
+    );
 }
 
 #[test]

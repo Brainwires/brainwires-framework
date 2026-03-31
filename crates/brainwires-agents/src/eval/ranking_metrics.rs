@@ -288,8 +288,6 @@ mod tests {
     fn test_precision_at_k_zero_k_means_all() {
         let scores = [0.9, 0.5];
         let rel = [1, 0];
-        assert!(
-            (precision_at_k(&scores, &rel, 0) - precision_at_k(&scores, &rel, 2)).abs() < 1e-9
-        );
+        assert!((precision_at_k(&scores, &rel, 0) - precision_at_k(&scores, &rel, 2)).abs() < 1e-9);
     }
 }

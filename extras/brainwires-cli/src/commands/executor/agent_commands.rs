@@ -31,7 +31,9 @@ impl CommandExecutor {
         }
 
         let session_id = args[0].clone();
-        Ok(CommandResult::Action(CommandAction::SwitchAgent(session_id)))
+        Ok(CommandResult::Action(CommandAction::SwitchAgent(
+            session_id,
+        )))
     }
 
     fn cmd_spawn(&self, args: &[String]) -> Result<CommandResult> {
@@ -68,6 +70,8 @@ impl CommandExecutor {
             }
         }
 
-        Ok(CommandResult::Action(CommandAction::SpawnChildAgent(model, reason)))
+        Ok(CommandResult::Action(CommandAction::SpawnChildAgent(
+            model, reason,
+        )))
     }
 }

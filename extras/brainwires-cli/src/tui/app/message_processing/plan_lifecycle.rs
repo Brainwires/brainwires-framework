@@ -17,8 +17,12 @@ impl App {
         // Initialize plan store
         let db_path = PlatformPaths::conversations_db_path()?;
         let client = Arc::new(
-            LanceDatabase::new(db_path.to_str().ok_or_else(|| anyhow::anyhow!("Invalid DB path"))?)
-                .await?
+            LanceDatabase::new(
+                db_path
+                    .to_str()
+                    .ok_or_else(|| anyhow::anyhow!("Invalid DB path"))?,
+            )
+            .await?,
         );
         let embeddings = Arc::new(EmbeddingProvider::new()?);
         client.initialize(embeddings.dimension()).await?;
@@ -27,7 +31,9 @@ impl App {
         // Try to find plan by full ID or partial ID
         let plan = if plan_id.len() < 36 {
             let all_plans = plan_store.list_recent(100).await?;
-            all_plans.into_iter().find(|p| p.plan_id.starts_with(&plan_id))
+            all_plans
+                .into_iter()
+                .find(|p| p.plan_id.starts_with(&plan_id))
         } else {
             plan_store.get(&plan_id).await?
         };
@@ -156,8 +162,12 @@ impl App {
             // Update plan status to Paused
             let db_path = PlatformPaths::conversations_db_path()?;
             let client = Arc::new(
-                LanceDatabase::new(db_path.to_str().ok_or_else(|| anyhow::anyhow!("Invalid DB path"))?)
-                    .await?
+                LanceDatabase::new(
+                    db_path
+                        .to_str()
+                        .ok_or_else(|| anyhow::anyhow!("Invalid DB path"))?,
+                )
+                .await?,
             );
             let embeddings = Arc::new(EmbeddingProvider::new()?);
             client.initialize(embeddings.dimension()).await?;
@@ -166,7 +176,8 @@ impl App {
             plan.set_status(PlanStatus::Paused);
             let _ = plan_store.update(plan).await;
 
-            let completed_count = tasks.iter()
+            let completed_count = tasks
+                .iter()
                 .filter(|t| t.status == crate::types::agent::TaskStatus::Completed)
                 .count();
             let total_count = tasks.len();
@@ -208,8 +219,12 @@ impl App {
         // Initialize stores
         let db_path = PlatformPaths::conversations_db_path()?;
         let client = Arc::new(
-            LanceDatabase::new(db_path.to_str().ok_or_else(|| anyhow::anyhow!("Invalid DB path"))?)
-                .await?
+            LanceDatabase::new(
+                db_path
+                    .to_str()
+                    .ok_or_else(|| anyhow::anyhow!("Invalid DB path"))?,
+            )
+            .await?,
         );
         let embeddings = Arc::new(EmbeddingProvider::new()?);
         client.initialize(embeddings.dimension()).await?;
@@ -218,14 +233,20 @@ impl App {
         // Try to find plan by full ID or partial ID
         let plan = if plan_id.len() < 36 {
             let all_plans = plan_store.list_recent(100).await?;
-            all_plans.into_iter().find(|p| p.plan_id.starts_with(&plan_id))
+            all_plans
+                .into_iter()
+                .find(|p| p.plan_id.starts_with(&plan_id))
         } else {
             plan_store.get(&plan_id).await?
         };
 
         let content = if let Some(mut plan) = plan {
             // Load saved tasks for this plan from storage
-            let saved_tasks = self.task_store.get_by_plan(&plan.plan_id).await.unwrap_or_default();
+            let saved_tasks = self
+                .task_store
+                .get_by_plan(&plan.plan_id)
+                .await
+                .unwrap_or_default();
 
             if saved_tasks.is_empty() {
                 // No saved tasks - parse from plan content

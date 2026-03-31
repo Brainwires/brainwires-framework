@@ -109,4 +109,3 @@ Now execute your task using this reasoning framework. Show your thinking at each
         working_directory = working_directory
     )
 }
-

@@ -1,6 +1,6 @@
-use anyhow::Result;
 use crate::config::{ConfigManager, ModelRegistry};
 use crate::utils::logger::Logger;
+use anyhow::Result;
 
 pub async fn handle_config(
     list: bool,
@@ -56,12 +56,12 @@ pub async fn handle_config(
                         println!("✓ Model set to: {} ({})", value, model_info.name);
                     }
                     Ok(None) => {
-                        Logger::warn(&format!("Model '{}' not found in available models", value));
+                        Logger::warn(format!("Model '{}' not found in available models", value));
                         println!("\nRun 'brainwires models' to see available models");
                         return Ok(());
                     }
                     Err(e) => {
-                        Logger::warn(&format!("Failed to validate model: {}", e));
+                        Logger::warn(format!("Failed to validate model: {}", e));
                         println!("\nNote: Saving anyway, but the model may not work");
                         updates.model = Some(value.to_string());
                         config_manager.update(updates);
@@ -94,7 +94,9 @@ pub async fn handle_config(
                                 || host.ends_with(".localhost");
 
                             if !is_localhost {
-                                Logger::warn("Warning: Using HTTP for non-localhost backend is insecure!");
+                                Logger::warn(
+                                    "Warning: Using HTTP for non-localhost backend is insecure!",
+                                );
                                 Logger::warn("Consider using HTTPS for production backends.");
                             }
                         }
@@ -106,7 +108,7 @@ pub async fn handle_config(
                             || (host.starts_with("172.") && {
                                 let parts: Vec<&str> = host.split('.').collect();
                                 if parts.len() >= 2 {
-                                    parts[1].parse::<u8>().map_or(false, |n| n >= 16 && n <= 31)
+                                    parts[1].parse::<u8>().is_ok_and(|n| (16..=31).contains(&n))
                                 } else {
                                     false
                                 }
@@ -123,44 +125,40 @@ pub async fn handle_config(
                         println!("✓ Backend URL set to: {}", value);
                     }
                     Err(e) => {
-                        Logger::warn(&format!("Invalid URL format: {}", e));
+                        Logger::warn(format!("Invalid URL format: {}", e));
                         Logger::warn("Example: https://brainwires.studio");
                         return Ok(());
                     }
                 }
             }
-            "temperature" => {
-                match value.parse::<f32>() {
-                    Ok(temp) => {
-                        if temp < 0.0 || temp > 1.0 {
-                            Logger::warn("Temperature should be between 0.0 and 1.0");
-                            return Ok(());
-                        }
-                        updates.temperature = Some(temp);
-                        config_manager.update(updates);
-                        config_manager.save()?;
-                        println!("✓ Temperature set to: {}", temp);
-                    }
-                    Err(_) => {
-                        Logger::warn("Invalid temperature value. Must be a number between 0.0 and 1.0");
+            "temperature" => match value.parse::<f32>() {
+                Ok(temp) => {
+                    if !(0.0..=1.0).contains(&temp) {
+                        Logger::warn("Temperature should be between 0.0 and 1.0");
                         return Ok(());
                     }
+                    updates.temperature = Some(temp);
+                    config_manager.update(updates);
+                    config_manager.save()?;
+                    println!("✓ Temperature set to: {}", temp);
                 }
-            }
-            "max_tokens" => {
-                match value.parse::<u32>() {
-                    Ok(tokens) => {
-                        updates.max_tokens = Some(tokens);
-                        config_manager.update(updates);
-                        config_manager.save()?;
-                        println!("✓ Max tokens set to: {}", tokens);
-                    }
-                    Err(_) => {
-                        Logger::warn("Invalid max_tokens value. Must be a positive integer");
-                        return Ok(());
-                    }
+                Err(_) => {
+                    Logger::warn("Invalid temperature value. Must be a number between 0.0 and 1.0");
+                    return Ok(());
                 }
-            }
+            },
+            "max_tokens" => match value.parse::<u32>() {
+                Ok(tokens) => {
+                    updates.max_tokens = Some(tokens);
+                    config_manager.update(updates);
+                    config_manager.save()?;
+                    println!("✓ Max tokens set to: {}", tokens);
+                }
+                Err(_) => {
+                    Logger::warn("Invalid max_tokens value. Must be a positive integer");
+                    return Ok(());
+                }
+            },
             "permission_mode" => {
                 let mode = match value {
                     "auto" => crate::types::agent::PermissionMode::Auto,
@@ -177,8 +175,10 @@ pub async fn handle_config(
                 println!("✓ Permission mode set to: {:?}", mode);
             }
             _ => {
-                Logger::warn(&format!("Unknown config key: {}", key));
-                Logger::warn("Valid keys: model, provider, backend_url, temperature, max_tokens, permission_mode");
+                Logger::warn(format!("Unknown config key: {}", key));
+                Logger::warn(
+                    "Valid keys: model, provider, backend_url, temperature, max_tokens, permission_mode",
+                );
                 return Ok(());
             }
         }

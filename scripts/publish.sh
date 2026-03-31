@@ -6,9 +6,9 @@ set -euo pipefail
 # Rate limits for NEW VERSIONS of existing crates (as of 2026):
 #   - Burst: 30 new versions at once
 #   - After burst: 1 crate per minute
-#   - 20 workspace crates total = all within burst → ~5 minutes
+#   - 22 workspace crates total = all within burst → ~5 minutes
 #
-# Strategy: publish all 20 within the burst window with short index-propagation
+# Strategy: publish all 22 within the burst window with short index-propagation
 # delays between each. If we ever exceed 30, fall back to 1/min after burst.
 # Crates are ordered by dependency DAG (leaves first, facade last).
 # Deprecated stubs are published separately after all workspace crates.
@@ -21,7 +21,7 @@ DRY_RUN=true
 if [[ "${1:-}" == "--live" ]]; then
     DRY_RUN=false
     echo "=== LIVE PUBLISH MODE ==="
-    echo "This will publish all 20 workspace crates + any unpublished deprecated crates to crates.io."
+    echo "This will publish all 22 workspace crates + any unpublished deprecated crates to crates.io."
     echo "Estimated time: ~5 minutes (burst 30, then 1/min)"
     echo "Press Ctrl+C within 5 seconds to abort..."
     sleep 5
@@ -35,6 +35,7 @@ CRATES=(
     brainwires-a2a
     brainwires-code-interpreters
     brainwires-skills
+    brainwires-analytics
 
     # Layer 2: Depend only on core (or leaf crates)
     brainwires-mcp
@@ -50,11 +51,12 @@ CRATES=(
     # Layer 4: Tool & network layer
     brainwires-tool-system
     brainwires-agent-network
-    brainwires-audio
+    brainwires-hardware
     brainwires-training
 
-    # Layer 5: Agents (depends on tool-system, cognition)
+    # Layer 5: Agents (depends on tool-system, cognition, agent-network)
     brainwires-agents
+    brainwires-channels
     brainwires-wasm
 
     # Layer 6: Top-level (depends on agents, cognition, training)

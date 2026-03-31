@@ -4,7 +4,7 @@
 
 use ratatui::layout::Rect;
 
-use crate::tui::help_content::{search_help, HelpCategory, HelpEntry};
+use crate::tui::help_content::{HelpCategory, HelpEntry, search_help};
 
 /// Focus states within the help dialog.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -184,13 +184,13 @@ impl HelpDialogState {
     /// Delete character at cursor.
     pub fn delete_char_forward(&mut self) -> bool {
         let byte_pos = self.char_to_byte_index(self.search_cursor_pos);
-        if byte_pos < self.search_query.len() {
-            if let Some(c) = self.search_query[byte_pos..].chars().next() {
-                self.search_query
-                    .replace_range(byte_pos..byte_pos + c.len_utf8(), "");
-                self.cached_search_results = None;
-                return true;
-            }
+        if byte_pos < self.search_query.len()
+            && let Some(c) = self.search_query[byte_pos..].chars().next()
+        {
+            self.search_query
+                .replace_range(byte_pos..byte_pos + c.len_utf8(), "");
+            self.cached_search_results = None;
+            return true;
         }
         false
     }
@@ -256,7 +256,8 @@ impl HelpDialogState {
 
     /// Add a click region for a category.
     pub fn add_click_region(&mut self, area: Rect, category: HelpCategory) {
-        self.click_regions.push(CategoryClickRegion { area, category });
+        self.click_regions
+            .push(CategoryClickRegion { area, category });
     }
 
     /// Handle a click at the given position.

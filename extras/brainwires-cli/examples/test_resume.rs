@@ -5,7 +5,6 @@
 /// 2. Execute /clear to save and clear the conversation
 /// 3. Execute /resume to restore the cleared conversation
 /// 4. Try /resume again to verify it shows "no cleared conversation"
-
 use brainwires_cli::commands::executor::{CommandAction, CommandExecutor, CommandResult};
 use brainwires_cli::types::message::{Message, MessageContent, Role};
 use brainwires_cli::utils::conversation::ConversationManager;
@@ -44,7 +43,10 @@ fn main() -> anyhow::Result<()> {
 
     println!("Initial conversation:");
     println!("  Messages: {}", conversation_manager.get_messages().len());
-    println!("  Conversation ID: {}\n", conversation_manager.conversation_id());
+    println!(
+        "  Conversation ID: {}\n",
+        conversation_manager.conversation_id()
+    );
 
     // Test 1: Execute /clear command
     println!("Test 1: Execute /clear");
@@ -63,9 +65,11 @@ fn main() -> anyhow::Result<()> {
             conversation_manager = ConversationManager::new(128000);
             conversation_manager.set_model("llama-3.3-70b-versatile".to_string());
 
-            println!("✓ Conversation cleared (was {} messages, now {})",
+            println!(
+                "✓ Conversation cleared (was {} messages, now {})",
                 message_count_before,
-                conversation_manager.get_messages().len());
+                conversation_manager.get_messages().len()
+            );
 
             // Test 2: Execute /resume command
             println!("\nTest 2: Execute /resume");
@@ -85,7 +89,9 @@ fn main() -> anyhow::Result<()> {
                     match result {
                         CommandResult::Action(CommandAction::ResumeHistory(None)) => {
                             println!("✓ /resume returned ResumeHistory action");
-                            println!("  (In real CLI, behavior depends on whether there's a saved conversation)\n");
+                            println!(
+                                "  (In real CLI, behavior depends on whether there's a saved conversation)\n"
+                            );
                         }
                         _ => println!("✗ Unexpected result type"),
                     }

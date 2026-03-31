@@ -46,7 +46,9 @@ fn test_execute_clear() {
 #[test]
 fn test_execute_model() {
     let executor = CommandExecutor::default();
-    let result = executor.execute("model", &["llama-3.3-70b".to_string()]).unwrap();
+    let result = executor
+        .execute("model", &["llama-3.3-70b".to_string()])
+        .unwrap();
 
     match result {
         CommandResult::Action(CommandAction::SwitchModel(name)) => {

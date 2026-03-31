@@ -3,11 +3,11 @@
 //! Renders the nano-style text editor in full-screen mode.
 
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph},
-    Frame,
 };
 
 use crate::tui::app::App;
@@ -126,12 +126,10 @@ fn draw_editor_content(f: &mut Frame, app: &mut App, area: Rect) {
                 Span::raw(""),
             ]));
         } else {
-            lines.push(Line::from(vec![
-                Span::styled(
-                    format!("{:>width$}   ", "~", width = line_num_width),
-                    Style::default().fg(Color::DarkGray),
-                ),
-            ]));
+            lines.push(Line::from(vec![Span::styled(
+                format!("{:>width$}   ", "~", width = line_num_width),
+                Style::default().fg(Color::DarkGray),
+            )]));
         }
     }
 
@@ -139,7 +137,10 @@ fn draw_editor_content(f: &mut Frame, app: &mut App, area: Rect) {
     f.render_widget(paragraph, inner);
 
     // Set cursor position
-    let cursor_x = inner.x + line_num_width as u16 + 3 + (state.cursor_col as u16).saturating_sub(state.scroll_col);
+    let cursor_x = inner.x
+        + line_num_width as u16
+        + 3
+        + (state.cursor_col as u16).saturating_sub(state.scroll_col);
     let cursor_y = inner.y + (state.cursor_row as u16).saturating_sub(state.scroll_row);
 
     if cursor_x < inner.x + inner.width && cursor_y < inner.y + inner.height {

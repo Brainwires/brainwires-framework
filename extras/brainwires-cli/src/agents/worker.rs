@@ -1,6 +1,6 @@
 use anyhow::Result;
-use std::sync::Arc;
 use console;
+use std::sync::Arc;
 
 use crate::providers::Provider;
 use crate::tools::ToolExecutor;
@@ -27,9 +27,16 @@ impl WorkerAgent {
     }
 
     /// Execute a specific task
-    pub async fn execute(&self, task_description: &str, context: &mut AgentContext) -> Result<AgentResponse> {
+    pub async fn execute(
+        &self,
+        task_description: &str,
+        context: &mut AgentContext,
+    ) -> Result<AgentResponse> {
         let mut iterations = 0;
-        let mut task = Task::new(uuid::Uuid::new_v4().to_string(), task_description.to_string());
+        let mut task = Task::new(
+            uuid::Uuid::new_v4().to_string(),
+            task_description.to_string(),
+        );
         task.start();
 
         // Add initial user message
@@ -62,23 +69,23 @@ impl WorkerAgent {
             let response = self.call_provider(context).await?;
 
             // Check if task is complete
-            if let Some(finish_reason) = &response.finish_reason {
-                if finish_reason == "end_turn" || finish_reason == "stop" {
-                    // Extract final message
-                    let message_text = response
-                        .message
-                        .text()
-                        .unwrap_or("Task completed")
-                        .to_string();
-                    task.complete(message_text.clone());
+            if let Some(finish_reason) = &response.finish_reason
+                && (finish_reason == "end_turn" || finish_reason == "stop")
+            {
+                // Extract final message
+                let message_text = response
+                    .message
+                    .text()
+                    .unwrap_or("Task completed")
+                    .to_string();
+                task.complete(message_text.clone());
 
-                    return Ok(AgentResponse {
-                        message: message_text,
-                        is_complete: true,
-                        tasks: vec![task],
-                        iterations,
-                    });
-                }
+                return Ok(AgentResponse {
+                    message: message_text,
+                    is_complete: true,
+                    tasks: vec![task],
+                    iterations,
+                });
             }
 
             // Process tool uses in the response
@@ -105,30 +112,39 @@ impl WorkerAgent {
             context.conversation_history.push(response.message.clone());
 
             // Execute tools and add results to history
-            let tool_context = ToolContext::from_agent_context(&context);
+            let tool_context = ToolContext::from_agent_context(context);
 
             for tool_use in tool_uses {
                 // Log tool call to user
-                eprintln!("\n🔧 Calling tool: {} with input: {}",
+                eprintln!(
+                    "\n🔧 Calling tool: {} with input: {}",
                     console::style(&tool_use.name).cyan().bold(),
-                    console::style(serde_json::to_string_pretty(&tool_use.input).unwrap_or_default()).dim());
+                    console::style(
+                        serde_json::to_string_pretty(&tool_use.input).unwrap_or_default()
+                    )
+                    .dim()
+                );
 
                 let result = self.tool_executor.execute(&tool_use, &tool_context).await?;
 
                 // Log tool result
                 if result.is_error {
-                    eprintln!("❌ Tool {} failed: {}\n",
+                    eprintln!(
+                        "❌ Tool {} failed: {}\n",
                         console::style(&tool_use.name).red(),
-                        console::style(&result.content).dim());
+                        console::style(&result.content).dim()
+                    );
                 } else {
                     let preview = if result.content.len() > 200 {
                         format!("{}...", &result.content[..200])
                     } else {
                         result.content.clone()
                     };
-                    eprintln!("✅ Tool {} completed: {}\n",
+                    eprintln!(
+                        "✅ Tool {} completed: {}\n",
                         console::style(&tool_use.name).green(),
-                        console::style(preview).dim());
+                        console::style(preview).dim()
+                    );
                 }
 
                 // Add tool result message
@@ -165,7 +181,11 @@ impl WorkerAgent {
         };
 
         self.provider
-            .chat(&context.conversation_history, Some(&context.tools), &options)
+            .chat(
+                &context.conversation_history,
+                Some(&context.tools),
+                &options,
+            )
             .await
     }
 
@@ -205,7 +225,9 @@ impl WorkerAgent {
 mod tests {
     use super::*;
     use crate::types::agent::TaskStatus;
-    use crate::types::message::{ChatResponse, ContentBlock, Message, MessageContent, Role, StreamChunk, Usage};
+    use crate::types::message::{
+        ChatResponse, ContentBlock, Message, MessageContent, Role, StreamChunk, Usage,
+    };
     use crate::types::provider::ChatOptions;
     use crate::types::tool::Tool;
     use async_trait::async_trait;
@@ -254,7 +276,10 @@ mod tests {
             _options: &ChatOptions,
         ) -> Result<ChatResponse> {
             let mut index = self.current_index.lock().unwrap();
-            let response = self.responses.get(*index).cloned()
+            let response = self
+                .responses
+                .get(*index)
+                .cloned()
                 .ok_or_else(|| anyhow::anyhow!("No more mock responses"))?;
             *index += 1;
             Ok(response)
@@ -289,7 +314,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_task_completion_with_stop_reason() {
-        let provider = Arc::new(MockProvider::single_response("stop", "Task completed successfully"));
+        let provider = Arc::new(MockProvider::single_response(
+            "stop",
+            "Task completed successfully",
+        ));
         let worker = WorkerAgent::new(provider, PermissionMode::ReadOnly);
         let mut context = AgentContext::default();
 
@@ -384,5 +412,4 @@ mod tests {
         let worker_full = WorkerAgent::new(provider, PermissionMode::Full);
         assert_eq!(worker_full.permission_mode(), PermissionMode::Full);
     }
-
 }

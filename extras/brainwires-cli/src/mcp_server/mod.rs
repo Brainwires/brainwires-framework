@@ -9,8 +9,8 @@
 //! - Can act as MCP client to other servers (bi-directional)
 //! - Hierarchical task breakdown support
 
-mod handler;
 mod agent_tools;
+mod handler;
 
-pub use handler::McpServerHandler;
 pub use agent_tools::AgentToolRegistry;
+pub use handler::McpServerHandler;

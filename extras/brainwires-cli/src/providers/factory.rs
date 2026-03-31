@@ -1,13 +1,13 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use super::{Provider, ProviderType};
 use super::local_llm::{LocalLlmConfig, LocalLlmProvider, LocalModelRegistry};
+use super::{Provider, ProviderType};
 use crate::auth::SessionManager;
 use crate::config::ConfigManager;
-use brainwires::providers::ProviderConfig;
 use brainwires::providers::ChatProviderFactory;
+use brainwires::providers::ProviderConfig;
 
 /// CLI-specific provider factory.
 ///
@@ -25,10 +25,7 @@ impl ProviderFactory {
     /// - `Brainwires` → uses SessionManager for API key
     /// - `Ollama` → no key needed, uses config base URL
     /// - Others → reads API key from system keyring
-    pub async fn create(
-        &self,
-        model: String,
-    ) -> Result<Arc<dyn Provider>> {
+    pub async fn create(&self, model: String) -> Result<Arc<dyn Provider>> {
         self.create_with_backend(model, None).await
     }
 
@@ -43,13 +40,15 @@ impl ProviderFactory {
 
         match config.provider_type {
             ProviderType::Brainwires => {
-                self.create_brainwires_provider(model, backend_url_override).await
+                self.create_brainwires_provider(model, backend_url_override)
+                    .await
             }
             ProviderType::Ollama => {
-                let base_url = backend_url_override
-                    .or_else(|| config.provider_base_url.clone());
+                let base_url = backend_url_override.or_else(|| config.provider_base_url.clone());
                 let mut provider_config = ProviderConfig::new(ProviderType::Ollama, model)
-                    .with_base_url(base_url.unwrap_or_else(|| "http://localhost:11434".to_string()));
+                    .with_base_url(
+                        base_url.unwrap_or_else(|| "http://localhost:11434".to_string()),
+                    );
                 Self::attach_analytics(&mut provider_config);
                 ChatProviderFactory::create(&provider_config)
             }
@@ -57,10 +56,10 @@ impl ProviderFactory {
                 let mut provider_config = ProviderConfig::new(ProviderType::Bedrock, model);
 
                 // Load provider options from config
-                if let Some(opts) = config.extra.get("provider_options") {
-                    if let Some(region) = opts.get("region").and_then(|v| v.as_str()) {
-                        provider_config = provider_config.with_region(region);
-                    }
+                if let Some(opts) = config.extra.get("provider_options")
+                    && let Some(region) = opts.get("region").and_then(|v| v.as_str())
+                {
+                    provider_config = provider_config.with_region(region);
                 }
 
                 Self::attach_analytics(&mut provider_config);
@@ -84,17 +83,19 @@ impl ProviderFactory {
             }
             provider_type => {
                 // Direct providers: Anthropic, OpenAI, Google, Groq
-                let api_key = config_manager.get_provider_api_key()?
-                    .ok_or_else(|| anyhow!(
+                let api_key = config_manager.get_provider_api_key()?.ok_or_else(|| {
+                    anyhow!(
                         "No API key configured for {}. Run: brainwires auth login --provider {}",
                         provider_type.as_str(),
                         provider_type.as_str()
-                    ))?;
+                    )
+                })?;
 
-                let mut provider_config = ProviderConfig::new(provider_type, model)
-                    .with_api_key(api_key.to_string());
+                let mut provider_config =
+                    ProviderConfig::new(provider_type, model).with_api_key(api_key.to_string());
 
-                if let Some(url) = backend_url_override.or_else(|| config.provider_base_url.clone()) {
+                if let Some(url) = backend_url_override.or_else(|| config.provider_base_url.clone())
+                {
                     provider_config = provider_config.with_base_url(url);
                 }
 
@@ -121,8 +122,9 @@ impl ProviderFactory {
         backend_url_override: Option<String>,
     ) -> Result<Arc<dyn Provider>> {
         if let Ok(Some(session)) = SessionManager::get_session() {
-            let api_key = SessionManager::get_api_key()?
-                .ok_or_else(|| anyhow!("No API key found. Please re-authenticate with: brainwires auth"))?;
+            let api_key = SessionManager::get_api_key()?.ok_or_else(|| {
+                anyhow!("No API key found. Please re-authenticate with: brainwires auth")
+            })?;
 
             let backend_url = backend_url_override.unwrap_or_else(|| session.backend.clone());
 
@@ -138,16 +140,11 @@ impl ProviderFactory {
             return ChatProviderFactory::create(&provider_config);
         }
 
-        Err(anyhow!(
-            "No active session. Run: brainwires auth login"
-        ))
+        Err(anyhow!("No active session. Run: brainwires auth login"))
     }
 
     /// Create a provider from session (alias for create)
-    pub async fn create_from_session(
-        &self,
-        model: String,
-    ) -> Result<Arc<dyn Provider>> {
+    pub async fn create_from_session(&self, model: String) -> Result<Arc<dyn Provider>> {
         self.create(model).await
     }
 
@@ -294,7 +291,9 @@ mod tests {
     async fn test_create_without_session() {
         let _env = TestEnv::new();
         let factory = ProviderFactory::new();
-        let result = factory.create("claude-3-5-sonnet-20241022".to_string()).await;
+        let result = factory
+            .create("claude-3-5-sonnet-20241022".to_string())
+            .await;
 
         // Should fail when no session exists (default provider is Brainwires)
         assert!(result.is_err());
@@ -304,7 +303,9 @@ mod tests {
     async fn test_create_from_session_without_session() {
         let _env = TestEnv::new();
         let factory = ProviderFactory::new();
-        let result = factory.create_from_session("claude-3-5-sonnet-20241022".to_string()).await;
+        let result = factory
+            .create_from_session("claude-3-5-sonnet-20241022".to_string())
+            .await;
 
         // Should fail when no session exists
         assert!(result.is_err());

@@ -887,7 +887,11 @@ impl RagClient {
         // Determine active strategies.
         let active: Vec<SearchStrategy> = if request.strategies.is_empty() {
             #[allow(unused_mut)]
-            let mut s = vec![SearchStrategy::Semantic, SearchStrategy::Keyword, SearchStrategy::GitHistory];
+            let mut s = vec![
+                SearchStrategy::Semantic,
+                SearchStrategy::Keyword,
+                SearchStrategy::GitHistory,
+            ];
             #[cfg(feature = "code-analysis")]
             s.push(SearchStrategy::CodeNavigation);
             s
@@ -1066,8 +1070,7 @@ impl RagClient {
         }
 
         // RRF fusion across all strategy ranked lists.
-        let fused: Vec<(String, f32)> =
-            reciprocal_rank_fusion_generic(strategy_lists, limit);
+        let fused: Vec<(String, f32)> = reciprocal_rank_fusion_generic(strategy_lists, limit);
 
         // Resolve fused keys back to SearchResult, overriding score with RRF score.
         let mut results: Vec<SearchResult> = fused
@@ -1249,7 +1252,10 @@ impl RagClient {
                     let indices = r.rerank(&candidates, &embeddings, final_k);
                     indices.into_iter().map(|i| candidates[i].clone()).collect()
                 }
-                Some(RerankerKind::Both { spectral, mut cross_encoder }) => {
+                Some(RerankerKind::Both {
+                    spectral,
+                    mut cross_encoder,
+                }) => {
                     // Pass 1: spectral diversity selection.
                     let spectral_k = spectral.k.unwrap_or(final_k * 2).max(final_k);
                     let indices1 = if candidates.len() >= spectral.min_candidates {
@@ -1271,7 +1277,10 @@ impl RagClient {
                     }
                     let r = CrossEncoderReranker::new(cross_encoder);
                     let indices2 = r.rerank(&mid_candidates, &mid_embeddings, final_k);
-                    indices2.into_iter().map(|i| mid_candidates[i].clone()).collect()
+                    indices2
+                        .into_iter()
+                        .map(|i| mid_candidates[i].clone())
+                        .collect()
                 }
             }
         } else {

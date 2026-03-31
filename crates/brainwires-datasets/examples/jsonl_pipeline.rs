@@ -66,10 +66,7 @@ fn main() {
             ],
         ),
         // Intentionally problematic example for validation demo
-        TrainingExample::with_id(
-            "ex-005",
-            vec![TrainingMessage::user("What is async?")],
-        ),
+        TrainingExample::with_id("ex-005", vec![TrainingMessage::user("What is async?")]),
     ];
     println!("  Created {} training examples\n", examples.len());
 
@@ -117,7 +114,10 @@ fn main() {
         })
         .cloned()
         .collect();
-    println!("  Proceeding with {} valid examples\n", valid_examples.len());
+    println!(
+        "  Proceeding with {} valid examples\n",
+        valid_examples.len()
+    );
 
     // ── 3. Convert between formats ──────────────────────────────────────
     println!("--- Step 3: Format Conversion ---");
@@ -127,13 +127,19 @@ fn main() {
     let openai = OpenAiFormat;
     let openai_json = openai.to_json(example).unwrap();
     println!("  OpenAI format:");
-    println!("    {}\n", serde_json::to_string_pretty(&openai_json).unwrap());
+    println!(
+        "    {}\n",
+        serde_json::to_string_pretty(&openai_json).unwrap()
+    );
 
     // Alpaca format
     let alpaca = AlpacaFormat;
     let alpaca_json = alpaca.to_json(example).unwrap();
     println!("  Alpaca format:");
-    println!("    {}\n", serde_json::to_string_pretty(&alpaca_json).unwrap());
+    println!(
+        "    {}\n",
+        serde_json::to_string_pretty(&alpaca_json).unwrap()
+    );
 
     // ShareGPT format
     let sharegpt = ShareGptFormat;
@@ -175,7 +181,10 @@ fn main() {
     let stats = compute_stats(&valid_examples);
     println!("  Total examples:           {}", stats.total_examples);
     println!("  Total messages:           {}", stats.total_messages);
-    println!("  Total estimated tokens:   {}", stats.total_estimated_tokens);
+    println!(
+        "  Total estimated tokens:   {}",
+        stats.total_estimated_tokens
+    );
     println!(
         "  Avg messages/example:     {:.1}",
         stats.avg_messages_per_example

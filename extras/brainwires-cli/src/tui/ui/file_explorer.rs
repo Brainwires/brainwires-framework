@@ -3,11 +3,11 @@
 //! Renders the file explorer popup in full-screen mode.
 
 use ratatui::{
+    Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph},
-    Frame,
 };
 
 use crate::tui::app::{App, EntryType, FileExplorerMode};
@@ -70,14 +70,20 @@ fn draw_file_list(f: &mut Frame, app: &App, area: Rect) {
     let scroll = state.scroll as usize;
 
     // Get entries to display (filtered or all)
-    let entries_to_show: Vec<(usize, &crate::tui::app::FileEntry)> = if let Some(ref indices) = state.filtered_indices {
-        indices.iter().map(|&i| (i, &state.entries[i])).collect()
-    } else {
-        state.entries.iter().enumerate().collect()
-    };
+    let entries_to_show: Vec<(usize, &crate::tui::app::FileEntry)> =
+        if let Some(ref indices) = state.filtered_indices {
+            indices.iter().map(|&i| (i, &state.entries[i])).collect()
+        } else {
+            state.entries.iter().enumerate().collect()
+        };
 
     let mut lines = Vec::new();
-    for (display_idx, (_entry_idx, entry)) in entries_to_show.iter().enumerate().skip(scroll).take(visible_height) {
+    for (display_idx, (_entry_idx, entry)) in entries_to_show
+        .iter()
+        .enumerate()
+        .skip(scroll)
+        .take(visible_height)
+    {
         let is_cursor = display_idx == state.cursor_index;
         let is_checked = state.selected_files.contains(&entry.path);
 
@@ -93,7 +99,11 @@ fn draw_file_list(f: &mut Frame, app: &App, area: Rect) {
         let cursor = if is_cursor { ">" } else { " " };
         let checkbox = match &entry.entry_type {
             EntryType::File { .. } => {
-                if is_checked { "[x]" } else { "[ ]" }
+                if is_checked {
+                    "[x]"
+                } else {
+                    "[ ]"
+                }
             }
             _ => "   ", // No checkbox for directories
         };
@@ -104,7 +114,9 @@ fn draw_file_list(f: &mut Frame, app: &App, area: Rect) {
                 if is_cursor {
                     style.fg(Color::Black).bg(Color::Cyan)
                 } else {
-                    Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD)
+                    Style::default()
+                        .fg(Color::Blue)
+                        .add_modifier(Modifier::BOLD)
                 },
             ),
             EntryType::ParentDir => (
@@ -112,7 +124,9 @@ fn draw_file_list(f: &mut Frame, app: &App, area: Rect) {
                 if is_cursor {
                     style.fg(Color::Black).bg(Color::Cyan)
                 } else {
-                    Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD)
+                    Style::default()
+                        .fg(Color::Blue)
+                        .add_modifier(Modifier::BOLD)
                 },
             ),
             EntryType::File { extension, .. } => {
@@ -164,7 +178,10 @@ fn draw_file_list(f: &mut Frame, app: &App, area: Rect) {
             Span::styled(" ", style),
             Span::styled(icon, style),
             Span::styled(" ", style),
-            Span::styled(format!("{:<width$}", display_name, width = name_width), name_style),
+            Span::styled(
+                format!("{:<width$}", display_name, width = name_width),
+                name_style,
+            ),
             Span::styled(
                 format!("{:>10}", size_str),
                 if is_cursor {
@@ -230,9 +247,19 @@ fn draw_file_explorer_footer(f: &mut Frame, _app: &App, area: Rect) {
 /// Draw the search bar (overlay on footer when in search mode)
 fn draw_search_bar(f: &mut Frame, query: &str, area: Rect) {
     let search_text = Line::from(vec![
-        Span::styled("Search: ", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "Search: ",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled(query, Style::default().fg(Color::White)),
-        Span::styled("_", Style::default().fg(Color::White).add_modifier(Modifier::SLOW_BLINK)),
+        Span::styled(
+            "_",
+            Style::default()
+                .fg(Color::White)
+                .add_modifier(Modifier::SLOW_BLINK),
+        ),
     ]);
 
     let block = Block::default()

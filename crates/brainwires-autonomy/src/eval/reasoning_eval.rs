@@ -93,7 +93,8 @@ impl EvaluationCase for ComplexityHeuristicCase {
         // T2: triggers refactor(+0.15), optimize(+0.15), performance(+0.1),
         //     multiple(+0.1), careful(+0.1) — 11 words, no length adjustment
         //     → 0.3 + 0.60 = 0.90
-        let t2 = "Refactor and optimize the performance of multiple components carefully and thoroughly";
+        let t2 =
+            "Refactor and optimize the performance of multiple components carefully and thoroughly";
 
         // T3: no complexity keywords — 11 words, no length adjustment → 0.30
         let t3 = "Fix the authentication bug found in the user login module";

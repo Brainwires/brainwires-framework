@@ -213,7 +213,8 @@ impl GitScmState {
                 .args(["rev-parse", "--short", "HEAD"])
                 .current_dir(&self.repo_root)
                 .output()?;
-            self.current_branch = format!("HEAD:{}", String::from_utf8_lossy(&output.stdout).trim());
+            self.current_branch =
+                format!("HEAD:{}", String::from_utf8_lossy(&output.stdout).trim());
         }
 
         // Get upstream branch and ahead/behind
@@ -233,7 +234,7 @@ impl GitScmState {
 
             if output.status.success() {
                 let counts = String::from_utf8_lossy(&output.stdout);
-                let parts: Vec<&str> = counts.trim().split_whitespace().collect();
+                let parts: Vec<&str> = counts.split_whitespace().collect();
                 if parts.len() == 2 {
                     self.behind = parts[0].parse().unwrap_or(0);
                     self.ahead = parts[1].parse().unwrap_or(0);
@@ -276,7 +277,7 @@ impl GitScmState {
                 let parts: Vec<&str> = path_part.split(" -> ").collect();
                 (
                     PathBuf::from(parts.get(1).unwrap_or(&"")),
-                    Some(PathBuf::from(parts.get(0).unwrap_or(&""))),
+                    Some(PathBuf::from(parts.first().unwrap_or(&""))),
                 )
             } else {
                 (PathBuf::from(path_part), None)
@@ -357,7 +358,13 @@ impl GitScmState {
                         selected: false,
                     });
                 }
-                ('U', 'U') | ('A', 'A') | ('D', 'D') | ('A', 'U') | ('U', 'A') | ('D', 'U') | ('U', 'D') => {
+                ('U', 'U')
+                | ('A', 'A')
+                | ('D', 'D')
+                | ('A', 'U')
+                | ('U', 'A')
+                | ('D', 'U')
+                | ('U', 'D') => {
                     self.changed_files.push(GitFileEntry {
                         path,
                         status: GitFileStatus::Conflict,
@@ -537,7 +544,11 @@ impl GitScmState {
         }
 
         let mut args = vec!["add".to_string(), "--".to_string()];
-        args.extend(files_to_stage.iter().map(|p| p.to_string_lossy().to_string()));
+        args.extend(
+            files_to_stage
+                .iter()
+                .map(|p| p.to_string_lossy().to_string()),
+        );
 
         let output = Command::new("git")
             .args(&args)
@@ -582,7 +593,11 @@ impl GitScmState {
         }
 
         let mut args = vec!["reset".to_string(), "HEAD".to_string(), "--".to_string()];
-        args.extend(files_to_unstage.iter().map(|p| p.to_string_lossy().to_string()));
+        args.extend(
+            files_to_unstage
+                .iter()
+                .map(|p| p.to_string_lossy().to_string()),
+        );
 
         let output = Command::new("git")
             .args(&args)
@@ -603,9 +618,7 @@ impl GitScmState {
     /// Discard changes to current file
     pub fn discard_current(&mut self) -> Result<()> {
         let file = match self.current_panel {
-            ScmPanel::Changes => {
-                self.current_entry().map(|e| e.path.clone())
-            }
+            ScmPanel::Changes => self.current_entry().map(|e| e.path.clone()),
             _ => None,
         };
 

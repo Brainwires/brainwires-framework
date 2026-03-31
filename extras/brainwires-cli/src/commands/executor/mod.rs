@@ -9,9 +9,9 @@ mod knowledge_commands;
 mod mdap_commands;
 mod misc_commands;
 mod personal_commands;
-mod prompt_mode_commands;
 mod plan_commands;
 mod project_commands;
+mod prompt_mode_commands;
 mod skill_commands;
 mod task_commands;
 mod template_commands;
@@ -277,7 +277,9 @@ impl CommandExecutor {
 
     /// Execute a slash command
     pub fn execute(&self, command_name: &str, args: &[String]) -> Result<CommandResult> {
-        let command = self.registry.get(command_name)
+        let command = self
+            .registry
+            .get(command_name)
             .with_context(|| format!("Unknown command: /{}", command_name))?;
 
         // Handle built-in commands with special logic

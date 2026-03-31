@@ -269,7 +269,10 @@ fn test_agent_tool_schemas() -> Result<()> {
         .expect("agent_spawn not found");
 
     assert!(
-        agent_spawn["description"].as_str().unwrap().contains("autonomous"),
+        agent_spawn["description"]
+            .as_str()
+            .unwrap()
+            .contains("autonomous"),
         "Should describe autonomous behavior"
     );
     assert!(agent_spawn["inputSchema"].is_object());
@@ -279,10 +282,12 @@ fn test_agent_tool_schemas() -> Result<()> {
         agent_spawn["inputSchema"]["properties"]["task"]["type"],
         "string"
     );
-    assert!(agent_spawn["inputSchema"]["required"]
-        .as_array()
-        .unwrap()
-        .contains(&json!("task")));
+    assert!(
+        agent_spawn["inputSchema"]["required"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("task"))
+    );
 
     // Find agent_status and verify its schema
     let agent_status = tools
@@ -291,10 +296,12 @@ fn test_agent_tool_schemas() -> Result<()> {
         .expect("agent_status not found");
 
     assert!(agent_status["inputSchema"]["properties"]["agent_id"].is_object());
-    assert!(agent_status["inputSchema"]["required"]
-        .as_array()
-        .unwrap()
-        .contains(&json!("agent_id")));
+    assert!(
+        agent_status["inputSchema"]["required"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("agent_id"))
+    );
 
     // Clean up
     drop(stdin);

@@ -52,7 +52,10 @@ fn show_working_set(context: &AgentContext) {
     // Show stale files warning
     let stale = context.working_set.stale_files();
     if !stale.is_empty() {
-        println!("{}", console::style("⏳ Stale files will be evicted on next turn unless accessed").dim());
+        println!(
+            "{}",
+            console::style("⏳ Stale files will be evicted on next turn unless accessed").dim()
+        );
     }
 }
 
@@ -63,9 +66,11 @@ fn add_to_working_set(context: &mut AgentContext, path: &str, pinned: bool) -> R
 
     // Check if file exists
     if !file_path.exists() {
-        println!("{}: File not found: {}\n",
+        println!(
+            "{}: File not found: {}\n",
             console::style("Error").red().bold(),
-            file_path.display());
+            file_path.display()
+        );
         return Ok(());
     }
 
@@ -73,29 +78,39 @@ fn add_to_working_set(context: &mut AgentContext, path: &str, pinned: bool) -> R
     let content = std::fs::read_to_string(&file_path)?;
     let tokens = estimate_tokens(&content);
 
-    let file_name = file_path.file_name()
+    let file_name = file_path
+        .file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| path.to_string());
 
     if pinned {
-        context.working_set.add_pinned(file_path.clone(), tokens, Some(&file_name));
-        println!("{} {} (~{} tokens, 📌 pinned)\n",
+        context
+            .working_set
+            .add_pinned(file_path.clone(), tokens, Some(&file_name));
+        println!(
+            "{} {} (~{} tokens, 📌 pinned)\n",
             console::style("Added and pinned:").green(),
             file_path.display(),
-            tokens);
+            tokens
+        );
     } else {
         let eviction = context.working_set.add(file_path.clone(), tokens);
-        println!("{} {} (~{} tokens)\n",
+        println!(
+            "{} {} (~{} tokens)\n",
             console::style("Added:").green(),
             file_path.display(),
-            tokens);
+            tokens
+        );
 
         if let Some(reason) = eviction {
             println!("{}: {}\n", console::style("Note").yellow(), reason);
         }
     }
 
-    Logger::info(&format!("Added to working set: {} ({} tokens)", path, tokens));
+    Logger::info(format!(
+        "Added to working set: {} ({} tokens)",
+        path, tokens
+    ));
     Ok(())
 }
 
@@ -107,14 +122,18 @@ fn remove_from_working_set(context: &mut AgentContext, path: &str) {
     };
 
     if context.working_set.remove(&file_path) {
-        println!("{} {}\n",
+        println!(
+            "{} {}\n",
             console::style("Removed:").green(),
-            file_path.display());
-        Logger::info(&format!("Removed from working set: {}", path));
+            file_path.display()
+        );
+        Logger::info(format!("Removed from working set: {}", path));
     } else {
-        println!("{}: {} is not in the working set\n",
+        println!(
+            "{}: {} is not in the working set\n",
             console::style("Not found").yellow(),
-            file_path.display());
+            file_path.display()
+        );
     }
 }
 
@@ -126,14 +145,18 @@ fn pin_in_working_set(context: &mut AgentContext, path: &str) {
     };
 
     if context.working_set.pin(&file_path) {
-        println!("{} {} 📌\n",
+        println!(
+            "{} {} 📌\n",
             console::style("Pinned:").green(),
-            file_path.display());
-        Logger::info(&format!("Pinned in working set: {}", path));
+            file_path.display()
+        );
+        Logger::info(format!("Pinned in working set: {}", path));
     } else {
-        println!("{}: {} is not in the working set. Add it first with /context:add\n",
+        println!(
+            "{}: {} is not in the working set. Add it first with /context:add\n",
             console::style("Not found").yellow(),
-            file_path.display());
+            file_path.display()
+        );
     }
 }
 
@@ -145,14 +168,18 @@ fn unpin_in_working_set(context: &mut AgentContext, path: &str) {
     };
 
     if context.working_set.unpin(&file_path) {
-        println!("{} {}\n",
+        println!(
+            "{} {}\n",
             console::style("Unpinned:").green(),
-            file_path.display());
-        Logger::info(&format!("Unpinned in working set: {}", path));
+            file_path.display()
+        );
+        Logger::info(format!("Unpinned in working set: {}", path));
     } else {
-        println!("{}: {} is not in the working set\n",
+        println!(
+            "{}: {} is not in the working set\n",
             console::style("Not found").yellow(),
-            file_path.display());
+            file_path.display()
+        );
     }
 }
 
@@ -164,17 +191,24 @@ fn clear_working_set(context: &mut AgentContext, keep_pinned: bool) {
     let removed = count_before - count_after;
 
     if keep_pinned && count_after > 0 {
-        println!("{} Cleared {} file(s), kept {} pinned file(s)\n",
+        println!(
+            "{} Cleared {} file(s), kept {} pinned file(s)\n",
             console::style("✓").green(),
             removed,
-            count_after);
+            count_after
+        );
     } else {
-        println!("{} Cleared {} file(s) from working set\n",
+        println!(
+            "{} Cleared {} file(s) from working set\n",
             console::style("✓").green(),
-            removed);
+            removed
+        );
     }
 
-    Logger::info(&format!("Cleared working set: {} files removed, {} kept", removed, count_after));
+    Logger::info(format!(
+        "Cleared working set: {} files removed, {} kept",
+        removed, count_after
+    ));
 }
 
 /// Resolve a path relative to the working directory

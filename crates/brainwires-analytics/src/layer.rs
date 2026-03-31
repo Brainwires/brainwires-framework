@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::time::Instant;
 
-use tracing::{field::Visit, Subscriber};
+use tracing::{Subscriber, field::Visit};
 use tracing_subscriber::{Layer, layer::Context, registry::LookupSpan};
 
 use crate::{AnalyticsCollector, AnalyticsEvent};
@@ -39,7 +39,8 @@ struct FieldCollector<'a>(&'a mut HashMap<String, String>);
 
 impl Visit for FieldCollector<'_> {
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
-        self.0.insert(field.name().to_string(), format!("{value:?}"));
+        self.0
+            .insert(field.name().to_string(), format!("{value:?}"));
     }
 
     fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
@@ -66,52 +67,64 @@ where
     fn on_new_span(
         &self,
         attrs: &tracing::span::Attributes<'_>,
-        id:    &tracing::span::Id,
-        ctx:   Context<'_, S>,
+        id: &tracing::span::Id,
+        ctx: Context<'_, S>,
     ) {
-        let span = match ctx.span(id) { Some(s) => s, None => return };
+        let span = match ctx.span(id) {
+            Some(s) => s,
+            None => return,
+        };
         let mut map = HashMap::new();
         attrs.record(&mut FieldCollector(&mut map));
         span.extensions_mut().insert(FieldMap(map));
     }
 
     fn on_enter(&self, id: &tracing::span::Id, ctx: Context<'_, S>) {
-        let span = match ctx.span(id) { Some(s) => s, None => return };
+        let span = match ctx.span(id) {
+            Some(s) => s,
+            None => return,
+        };
         span.extensions_mut().insert(EntryTime(Instant::now()));
     }
 
     fn on_close(&self, id: tracing::span::Id, ctx: Context<'_, S>) {
-        let span = match ctx.span(&id) { Some(s) => s, None => return };
+        let span = match ctx.span(&id) {
+            Some(s) => s,
+            None => return,
+        };
         let meta = span.metadata();
 
-        match meta.name() {
-            "provider.chat" => {
-                let exts        = span.extensions();
-                let fields      = exts.get::<FieldMap>().map(|m| &m.0);
-                let provider    = fields.and_then(|m| m.get("provider")).cloned().unwrap_or_default();
-                let model       = fields.and_then(|m| m.get("model")).cloned().unwrap_or_default();
-                let duration_ms = exts
-                    .get::<EntryTime>()
-                    .map(|t| t.0.elapsed().as_millis() as u64)
-                    .unwrap_or(0);
+        if meta.name() == "provider.chat" {
+            let exts = span.extensions();
+            let fields = exts.get::<FieldMap>().map(|m| &m.0);
+            let provider = fields
+                .and_then(|m| m.get("provider"))
+                .cloned()
+                .unwrap_or_default();
+            let model = fields
+                .and_then(|m| m.get("model"))
+                .cloned()
+                .unwrap_or_default();
+            let duration_ms = exts
+                .get::<EntryTime>()
+                .map(|t| t.0.elapsed().as_millis() as u64)
+                .unwrap_or(0);
 
-                // Note: prompt_tokens, completion_tokens, and cost_usd are 0 here.
-                // Complete ProviderCall events with token/cost data are emitted
-                // explicitly by brainwires-providers after each chat() call (Phase 2).
-                // This layer captures provider + model + duration from the span.
-                self.collector.record(AnalyticsEvent::ProviderCall {
-                    session_id:        None,
-                    provider,
-                    model,
-                    prompt_tokens:     0,
-                    completion_tokens: 0,
-                    duration_ms,
-                    cost_usd:          0.0,
-                    success:           true,
-                    timestamp:         chrono::Utc::now(),
-                });
-            }
-            _ => {}
+            // Note: prompt_tokens, completion_tokens, and cost_usd are 0 here.
+            // Complete ProviderCall events with token/cost data are emitted
+            // explicitly by brainwires-providers after each chat() call (Phase 2).
+            // This layer captures provider + model + duration from the span.
+            self.collector.record(AnalyticsEvent::ProviderCall {
+                session_id: None,
+                provider,
+                model,
+                prompt_tokens: 0,
+                completion_tokens: 0,
+                duration_ms,
+                cost_usd: 0.0,
+                success: true,
+                timestamp: chrono::Utc::now(),
+            });
         }
     }
 }
@@ -133,19 +146,19 @@ mod tests {
 
     #[tokio::test]
     async fn test_intercepts_provider_chat_span() {
-        let mem       = Arc::new(MemoryAnalyticsSink::new(10));
-        let mem2      = Arc::clone(&mem);
+        let mem = Arc::new(MemoryAnalyticsSink::new(10));
+        let mem2 = Arc::clone(&mem);
         let collector = AnalyticsCollector::new(vec![Box::new(SharedMemSink(mem2))]);
-        let layer     = AnalyticsLayer::new(collector.clone());
+        let layer = AnalyticsLayer::new(collector.clone());
 
         let subscriber = tracing_subscriber::registry().with(layer);
-        let _guard     = tracing::subscriber::set_default(subscriber);
+        let _guard = tracing::subscriber::set_default(subscriber);
 
         {
             let span = tracing::info_span!(
                 "provider.chat",
                 provider = "anthropic",
-                model    = "claude-opus-4-6"
+                model = "claude-opus-4-6"
             );
             let _enter = span.enter();
             // simulate some work
@@ -157,7 +170,9 @@ mod tests {
         let events = mem.drain();
         assert_eq!(events.len(), 1);
         match &events[0] {
-            AnalyticsEvent::ProviderCall { provider, model, .. } => {
+            AnalyticsEvent::ProviderCall {
+                provider, model, ..
+            } => {
                 assert_eq!(provider, "anthropic");
                 assert_eq!(model, "claude-opus-4-6");
             }

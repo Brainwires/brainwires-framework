@@ -38,7 +38,7 @@ impl IssueStatus {
         }
     }
 
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s {
             "backlog" => IssueStatus::Backlog,
             "todo" => IssueStatus::Todo,
@@ -86,7 +86,7 @@ impl IssuePriority {
         }
     }
 
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s {
             "no_priority" => IssuePriority::NoPriority,
             "low" => IssuePriority::Low,
@@ -225,13 +225,13 @@ mod tests {
         ];
         for (status, expected) in &cases {
             assert_eq!(status.as_str(), *expected);
-            assert_eq!(IssueStatus::from_str(expected), *status);
+            assert_eq!(IssueStatus::parse(expected), *status);
         }
     }
 
     #[test]
     fn issue_status_unknown_falls_back_to_backlog() {
-        assert_eq!(IssueStatus::from_str("unknown_status"), IssueStatus::Backlog);
+        assert_eq!(IssueStatus::parse("unknown_status"), IssueStatus::Backlog);
     }
 
     #[test]
@@ -277,13 +277,13 @@ mod tests {
         ];
         for (priority, expected) in &cases {
             assert_eq!(priority.as_str(), *expected);
-            assert_eq!(IssuePriority::from_str(expected), *priority);
+            assert_eq!(IssuePriority::parse(expected), *priority);
         }
     }
 
     #[test]
     fn issue_priority_unknown_falls_back_to_no_priority() {
-        assert_eq!(IssuePriority::from_str("unknown"), IssuePriority::NoPriority);
+        assert_eq!(IssuePriority::parse("unknown"), IssuePriority::NoPriority);
     }
 
     #[test]

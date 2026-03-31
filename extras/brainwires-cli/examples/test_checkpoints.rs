@@ -17,7 +17,10 @@ async fn main() -> Result<()> {
     for cp in existing {
         let _ = manager.delete_checkpoint(&cp.id).await;
     }
-    println!("✓ Cleaned up {} existing test checkpoint(s)\n", existing_count);
+    println!(
+        "✓ Cleaned up {} existing test checkpoint(s)\n",
+        existing_count
+    );
 
     // Create sample messages
     let messages = vec![

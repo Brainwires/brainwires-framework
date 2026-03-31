@@ -39,11 +39,7 @@ impl ImprovementStrategy for RefactoringStrategy {
         for entry in WalkDir::new(&src_path)
             .into_iter()
             .filter_map(|e| e.ok())
-            .filter(|e| {
-                e.path()
-                    .extension()
-                    .is_some_and(|ext| ext == "rs")
-            })
+            .filter(|e| e.path().extension().is_some_and(|ext| ext == "rs"))
         {
             let path = entry.path();
             let content = match std::fs::read_to_string(path) {
@@ -77,27 +73,26 @@ impl ImprovementStrategy for RefactoringStrategy {
             for (i, line) in content.lines().enumerate() {
                 let trimmed = line.trim();
 
-                if !in_function {
-                    if (trimmed.starts_with("pub fn ")
+                if !in_function
+                    && (trimmed.starts_with("pub fn ")
                         || trimmed.starts_with("pub async fn ")
                         || trimmed.starts_with("fn ")
                         || trimmed.starts_with("async fn "))
-                        && trimmed.contains('{')
-                    {
-                        fn_name = trimmed
-                            .replace("pub async fn ", "")
-                            .replace("pub fn ", "")
-                            .replace("async fn ", "")
-                            .replace("fn ", "")
-                            .split('(')
-                            .next()
-                            .unwrap_or("")
-                            .trim()
-                            .to_string();
-                        fn_start = Some(i);
-                        in_function = true;
-                        brace_depth = 0;
-                    }
+                    && trimmed.contains('{')
+                {
+                    fn_name = trimmed
+                        .replace("pub async fn ", "")
+                        .replace("pub fn ", "")
+                        .replace("async fn ", "")
+                        .replace("fn ", "")
+                        .split('(')
+                        .next()
+                        .unwrap_or("")
+                        .trim()
+                        .to_string();
+                    fn_start = Some(i);
+                    in_function = true;
+                    brace_depth = 0;
                 }
 
                 if in_function {

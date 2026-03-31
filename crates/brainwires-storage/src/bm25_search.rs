@@ -45,8 +45,8 @@ impl BM25Search {
         std::fs::create_dir_all(&index_path).context("Failed to create BM25 index directory")?;
 
         let index = if index_path.join("meta.json").exists() {
-            let existing = Index::open_in_dir(&index_path)
-                .context("Failed to open existing BM25 index")?;
+            let existing =
+                Index::open_in_dir(&index_path).context("Failed to open existing BM25 index")?;
             // Validate that the on-disk schema matches the expected fields.
             // If it doesn't (e.g. after a schema change), recreate the index.
             let schema_ok = existing.schema().get_field("id").is_ok()
@@ -503,8 +503,14 @@ mod tests {
         let score_10 = result.iter().find(|(id, _)| *id == 10).unwrap().1;
         let score_20 = result.iter().find(|(id, _)| *id == 20).unwrap().1;
         let score_30 = result.iter().find(|(id, _)| *id == 30).unwrap().1;
-        assert!(score_10 > score_20, "item in both lists should beat vector-only");
-        assert!(score_10 > score_30, "item in both lists should beat bm25-only");
+        assert!(
+            score_10 > score_20,
+            "item in both lists should beat vector-only"
+        );
+        assert!(
+            score_10 > score_30,
+            "item in both lists should beat bm25-only"
+        );
     }
 
     #[test]
@@ -532,7 +538,10 @@ mod tests {
         let result = reciprocal_rank_fusion(vector_results, vec![], 1);
         let score = result[0].1;
         let expected = 1.0 / 61.0f32;
-        assert!((score - expected).abs() < 1e-6, "score={score}, expected={expected}");
+        assert!(
+            (score - expected).abs() < 1e-6,
+            "score={score}, expected={expected}"
+        );
     }
 
     // ── BM25Search ────────────────────────────────────────────────────────
@@ -552,7 +561,11 @@ mod tests {
         search
             .add_documents(vec![
                 (1, "the quick brown fox".to_string(), "file1.rs".to_string()),
-                (2, "jumps over the lazy dog".to_string(), "file2.rs".to_string()),
+                (
+                    2,
+                    "jumps over the lazy dog".to_string(),
+                    "file2.rs".to_string(),
+                ),
             ])
             .unwrap();
         let stats = search.get_stats().unwrap();
@@ -565,14 +578,29 @@ mod tests {
         let search = BM25Search::new(dir.path()).unwrap();
         search
             .add_documents(vec![
-                (1, "authentication login user password".to_string(), "auth.rs".to_string()),
-                (2, "database storage connection pool".to_string(), "db.rs".to_string()),
-                (3, "authentication oauth token".to_string(), "oauth.rs".to_string()),
+                (
+                    1,
+                    "authentication login user password".to_string(),
+                    "auth.rs".to_string(),
+                ),
+                (
+                    2,
+                    "database storage connection pool".to_string(),
+                    "db.rs".to_string(),
+                ),
+                (
+                    3,
+                    "authentication oauth token".to_string(),
+                    "oauth.rs".to_string(),
+                ),
             ])
             .unwrap();
 
         let results = search.search("authentication", 10).unwrap();
-        assert!(!results.is_empty(), "should find results for 'authentication'");
+        assert!(
+            !results.is_empty(),
+            "should find results for 'authentication'"
+        );
         // All results should have positive score
         for r in &results {
             assert!(r.score > 0.0);
@@ -629,7 +657,11 @@ mod tests {
         {
             let search = BM25Search::new(dir.path()).unwrap();
             search
-                .add_documents(vec![(1, "persistent content".to_string(), "p.rs".to_string())])
+                .add_documents(vec![(
+                    1,
+                    "persistent content".to_string(),
+                    "p.rs".to_string(),
+                )])
                 .unwrap();
         }
         // Reopen and verify docs persist

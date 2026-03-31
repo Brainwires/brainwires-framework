@@ -4,7 +4,7 @@
 //! on each call (following the Claude Code pattern).
 
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -102,10 +102,7 @@ impl SessionTaskTool {
         let input: Input = match serde_json::from_value(input.clone()) {
             Ok(i) => i,
             Err(e) => {
-                return ToolResult::error(
-                    tool_use_id.to_string(),
-                    format!("Invalid input: {}", e),
-                )
+                return ToolResult::error(tool_use_id.to_string(), format!("Invalid input: {}", e));
             }
         };
 

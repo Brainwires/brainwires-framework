@@ -111,8 +111,7 @@ impl ChatSession {
             };
 
             // Collect stream completely, then drop it before mutating self
-            let (text_buf, tool_uses, events, response_id) =
-                self.collect_stream(tools_opt).await?;
+            let (text_buf, tool_uses, events, response_id) = self.collect_stream(tools_opt).await?;
             all_events.extend(events);
 
             if tool_uses.is_empty() {

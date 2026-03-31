@@ -26,17 +26,27 @@ pub async fn handle_misc_action(
                         ..Default::default()
                     });
                     if let Err(e) = config_manager.save() {
-                        Logger::warn(&format!("Failed to persist model to config: {}", e));
+                        Logger::warn(format!("Failed to persist model to config: {}", e));
                     }
                 }
                 Err(e) => {
-                    Logger::warn(&format!("Failed to load config for model update: {}", e));
+                    Logger::warn(format!("Failed to load config for model update: {}", e));
                 }
             }
 
-            Logger::info(&format!("Model switched to: {}", new_model));
-            println!("{}\n", console::style(format!("Model switched to: {} (saved to config)", new_model)).green());
-            println!("{}", console::style("Note: Restart the chat session to use the new model.").dim());
+            Logger::info(format!("Model switched to: {}", new_model));
+            println!(
+                "{}\n",
+                console::style(format!(
+                    "Model switched to: {} (saved to config)",
+                    new_model
+                ))
+                .green()
+            );
+            println!(
+                "{}",
+                console::style("Note: Restart the chat session to use the new model.").dim()
+            );
             Ok(true)
         }
         CommandAction::Exit => {
@@ -45,22 +55,33 @@ pub async fn handle_misc_action(
             Ok(false)
         }
         CommandAction::SetApprovalMode(mode) => {
-            Logger::info(&format!("Approval mode set to: {}", mode));
-            println!("{}\n", console::style(format!("Approval mode set to: {}", mode)).green());
-            println!("Note: Approval mode feature is currently a placeholder. Full implementation coming soon.");
+            Logger::info(format!("Approval mode set to: {}", mode));
+            println!(
+                "{}\n",
+                console::style(format!("Approval mode set to: {}", mode)).green()
+            );
+            println!(
+                "Note: Approval mode feature is currently a placeholder. Full implementation coming soon."
+            );
             Ok(true)
         }
         CommandAction::ExecCommand(command) => {
             use std::process::Command as StdCommand;
 
-            println!("{}", console::style(format!("Executing: {}", command)).cyan());
-            Logger::info(&format!("Executing command: {}", command));
+            println!(
+                "{}",
+                console::style(format!("Executing: {}", command)).cyan()
+            );
+            Logger::info(format!("Executing command: {}", command));
 
             match StdCommand::new("sh").arg("-c").arg(&command).status() {
                 Ok(status) => {
                     let exit_code = status.code().unwrap_or(-1);
-                    println!("{} (exit code: {})\n",
-                        console::style("Command completed").green(), exit_code);
+                    println!(
+                        "{} (exit code: {})\n",
+                        console::style("Command completed").green(),
+                        exit_code
+                    );
                 }
                 Err(e) => {
                     println!("{}: {}\n", console::style("Error").red().bold(), e);
@@ -69,27 +90,33 @@ pub async fn handle_misc_action(
             Ok(true)
         }
         CommandAction::ShowShellHistory => {
-            println!("{}\n",
-                console::style("Shell history viewer is only available in TUI mode").yellow());
+            println!(
+                "{}\n",
+                console::style("Shell history viewer is only available in TUI mode").yellow()
+            );
             Ok(true)
         }
         CommandAction::ShowTasks => {
-            println!("{}\n",
-                console::style("Task view is only available in TUI mode (--tui).").yellow());
+            println!(
+                "{}\n",
+                console::style("Task view is only available in TUI mode (--tui).").yellow()
+            );
             Ok(true)
         }
-        CommandAction::TaskComplete(_) |
-        CommandAction::TaskSkip(_, _) |
-        CommandAction::TaskAdd(_) |
-        CommandAction::TaskStart(_) |
-        CommandAction::TaskBlock(_, _) |
-        CommandAction::TaskDepends(_, _) |
-        CommandAction::TaskReady |
-        CommandAction::TaskTime(_) |
-        CommandAction::TaskList |
-        CommandAction::ExecutePlan(_, _) => {
-            println!("{}\n",
-                console::style("Task commands are only available in TUI mode (--tui).").yellow());
+        CommandAction::TaskComplete(_)
+        | CommandAction::TaskSkip(_, _)
+        | CommandAction::TaskAdd(_)
+        | CommandAction::TaskStart(_)
+        | CommandAction::TaskBlock(_, _)
+        | CommandAction::TaskDepends(_, _)
+        | CommandAction::TaskReady
+        | CommandAction::TaskTime(_)
+        | CommandAction::TaskList
+        | CommandAction::ExecutePlan(_, _) => {
+            println!(
+                "{}\n",
+                console::style("Task commands are only available in TUI mode (--tui).").yellow()
+            );
             Ok(true)
         }
         CommandAction::ListTemplates => {
@@ -110,12 +137,16 @@ pub async fn handle_misc_action(
                                     } else {
                                         format!(" [vars: {}]", template.variables.join(", "))
                                     };
-                                    println!("  {} - {}{}",
+                                    println!(
+                                        "  {} - {}{}",
                                         console::style(&template.name).green(),
                                         template.description,
                                         console::style(vars_info).dim()
                                     );
-                                    println!("    ID: {}", console::style(&template.template_id[..8]).dim());
+                                    println!(
+                                        "    ID: {}",
+                                        console::style(&template.template_id[..8]).dim()
+                                    );
                                 }
                                 println!();
                             }
@@ -136,64 +167,75 @@ pub async fn handle_misc_action(
             use crate::storage::TemplateStore;
 
             match TemplateStore::with_default_dir() {
-                Ok(store) => {
-                    match store.get_by_name(&name) {
-                        Ok(Some(template)) => {
-                            println!("{}\n", console::style("Template Details:").cyan().bold());
-                            println!("  Name: {}", console::style(&template.name).green());
-                            println!("  ID: {}", template.template_id);
-                            println!("  Description: {}", template.description);
-                            if !template.variables.is_empty() {
-                                println!("  Variables: {}", template.variables.join(", "));
-                            }
-                            println!("  Used: {} times\n", template.usage_count);
-                            println!("{}", console::style("---").dim());
-                            println!("\n{}\n", template.content);
+                Ok(store) => match store.get_by_name(&name) {
+                    Ok(Some(template)) => {
+                        println!("{}\n", console::style("Template Details:").cyan().bold());
+                        println!("  Name: {}", console::style(&template.name).green());
+                        println!("  ID: {}", template.template_id);
+                        println!("  Description: {}", template.description);
+                        if !template.variables.is_empty() {
+                            println!("  Variables: {}", template.variables.join(", "));
                         }
-                        Ok(None) => println!("{}\n",
-                            console::style(format!("Template not found: {}", name)).yellow()),
-                        Err(e) => println!("{}: {}\n", console::style("Error").red().bold(), e),
+                        println!("  Used: {} times\n", template.usage_count);
+                        println!("{}", console::style("---").dim());
+                        println!("\n{}\n", template.content);
                     }
-                }
+                    Ok(None) => println!(
+                        "{}\n",
+                        console::style(format!("Template not found: {}", name)).yellow()
+                    ),
+                    Err(e) => println!("{}: {}\n", console::style("Error").red().bold(), e),
+                },
                 Err(e) => println!("{}: {}\n", console::style("Error").red().bold(), e),
             }
             Ok(true)
         }
         CommandAction::UseTemplate(_, _) => {
-            println!("{}\n",
-                console::style("Template use is only available in TUI mode (--tui).").yellow());
+            println!(
+                "{}\n",
+                console::style("Template use is only available in TUI mode (--tui).").yellow()
+            );
             Ok(true)
         }
         CommandAction::DeleteTemplate(name) => {
             use crate::storage::TemplateStore;
 
             match TemplateStore::with_default_dir() {
-                Ok(store) => {
-                    match store.get_by_name(&name) {
-                        Ok(Some(template)) => {
-                            match store.delete(&template.template_id) {
-                                Ok(true) => println!("{}\n",
-                                    console::style(format!("Template '{}' deleted.", template.name)).green()),
-                                Ok(false) => println!("{}\n",
-                                    console::style(format!("Template '{}' not found.", name)).yellow()),
-                                Err(e) => println!("{}: {}\n", console::style("Error").red().bold(), e),
-                            }
-                        }
-                        Ok(None) => println!("{}\n",
-                            console::style(format!("Template not found: {}", name)).yellow()),
+                Ok(store) => match store.get_by_name(&name) {
+                    Ok(Some(template)) => match store.delete(&template.template_id) {
+                        Ok(true) => println!(
+                            "{}\n",
+                            console::style(format!("Template '{}' deleted.", template.name))
+                                .green()
+                        ),
+                        Ok(false) => println!(
+                            "{}\n",
+                            console::style(format!("Template '{}' not found.", name)).yellow()
+                        ),
                         Err(e) => println!("{}: {}\n", console::style("Error").red().bold(), e),
-                    }
-                }
+                    },
+                    Ok(None) => println!(
+                        "{}\n",
+                        console::style(format!("Template not found: {}", name)).yellow()
+                    ),
+                    Err(e) => println!("{}: {}\n", console::style("Error").red().bold(), e),
+                },
                 Err(e) => println!("{}: {}\n", console::style("Error").red().bold(), e),
             }
             Ok(true)
         }
         CommandAction::SetPromptModeAsk => {
-            println!("{}\n", console::style("Switched to Ask mode (read-only)").blue());
+            println!(
+                "{}\n",
+                console::style("Switched to Ask mode (read-only)").blue()
+            );
             Ok(true)
         }
         CommandAction::SetPromptModeEdit => {
-            println!("{}\n", console::style("Switched to Edit mode (full tools)").cyan());
+            println!(
+                "{}\n",
+                console::style("Switched to Edit mode (full tools)").cyan()
+            );
             Ok(true)
         }
         _ => Ok(true),

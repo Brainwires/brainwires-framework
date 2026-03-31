@@ -3,7 +3,7 @@
 //! Re-exports bridge types and provides CLI-specific wrappers that preserve
 //! the static API used by 20+ call sites throughout the codebase.
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use zeroize::Zeroizing;
 
 use crate::config::constants;
@@ -11,11 +11,11 @@ use crate::utils::paths::PlatformPaths;
 
 // ── Private imports from bridge ──────────────────────────────────────────
 
-use brainwires::agent_network::auth::types::*;
 use brainwires::agent_network::auth::AuthClient as BridgeAuthClient;
 use brainwires::agent_network::auth::SessionManager as BridgeSessionManager;
-use brainwires::agent_network::traits::KeyStore;
 use brainwires::agent_network::auth::keyring::KeyringKeyStore;
+use brainwires::agent_network::auth::types::*;
+use brainwires::agent_network::traits::KeyStore;
 
 // ── CLI AuthClient wrapper ──────────────────────────────────────────────
 
@@ -35,42 +35,36 @@ impl AuthClient {
             constants::API_CLI_AUTH_ENDPOINT.to_string(),
             constants::API_KEY_PATTERN,
         );
-        Self { bridge, backend_url }
+        Self {
+            bridge,
+            backend_url,
+        }
     }
 
     /// Validate API key format (static — creates temp bridge client).
     pub fn validate_api_key_format(api_key: &str) -> Result<()> {
-        let tmp = BridgeAuthClient::new(
-            String::new(),
-            String::new(),
-            constants::API_KEY_PATTERN,
-        );
+        let tmp = BridgeAuthClient::new(String::new(), String::new(), constants::API_KEY_PATTERN);
         tmp.validate_api_key_format(api_key)
     }
 
     /// Authenticate with API key — auto-saves session + keyring.
     pub async fn authenticate(&self, api_key: &str) -> Result<AuthSession> {
         let response = self.bridge.authenticate(api_key).await?;
-        let session = SessionManager::create_session(
-            response,
-            self.backend_url.clone(),
-            api_key.to_string(),
-        );
+        let session =
+            SessionManager::create_session(response, self.backend_url.clone(), api_key.to_string());
         SessionManager::save(&session, Some(api_key))?;
         Ok(session)
     }
 
     /// Validate current session (local expiration check).
     pub async fn validate_session(&self) -> Result<bool> {
-        let session = SessionManager::get_session()?
-            .ok_or_else(|| anyhow!("No active session"))?;
+        let session = SessionManager::get_session()?.ok_or_else(|| anyhow!("No active session"))?;
         Ok(!session.is_expired())
     }
 
     /// Refresh provider keys (re-saves session to update timestamp).
     pub async fn refresh_provider_keys(&self) -> Result<()> {
-        let session = SessionManager::get_session()?
-            .ok_or_else(|| anyhow!("No active session"))?;
+        let session = SessionManager::get_session()?.ok_or_else(|| anyhow!("No active session"))?;
         SessionManager::save(&session, None)?;
         Ok(())
     }
@@ -92,8 +86,7 @@ pub struct SessionManager;
 impl SessionManager {
     fn bridge_manager() -> Result<BridgeSessionManager> {
         let session_file = PlatformPaths::session_file()?;
-        let key_store: Option<Box<dyn KeyStore>> =
-            Some(Box::new(KeyringKeyStore::new()));
+        let key_store: Option<Box<dyn KeyStore>> = Some(Box::new(KeyringKeyStore::new()));
         Ok(BridgeSessionManager::new(session_file, key_store))
     }
 
@@ -160,21 +153,37 @@ mod tests {
 
     #[test]
     fn test_validate_api_key_format() {
-        assert!(AuthClient::validate_api_key_format("bw_dev_12345678901234567890123456789012").is_ok());
-        assert!(AuthClient::validate_api_key_format("bw_prod_abcdefghijklmnopqrstuvwxyz123456").is_ok());
-        assert!(AuthClient::validate_api_key_format("bw_test_00000000000000000000000000000000").is_ok());
+        assert!(
+            AuthClient::validate_api_key_format("bw_dev_12345678901234567890123456789012").is_ok()
+        );
+        assert!(
+            AuthClient::validate_api_key_format("bw_prod_abcdefghijklmnopqrstuvwxyz123456").is_ok()
+        );
+        assert!(
+            AuthClient::validate_api_key_format("bw_test_00000000000000000000000000000000").is_ok()
+        );
 
         assert!(AuthClient::validate_api_key_format("invalid").is_err());
-        assert!(AuthClient::validate_api_key_format("bw_invalid_12345678901234567890123456789012").is_err());
+        assert!(
+            AuthClient::validate_api_key_format("bw_invalid_12345678901234567890123456789012")
+                .is_err()
+        );
         assert!(AuthClient::validate_api_key_format("bw_dev_short").is_err());
-        assert!(AuthClient::validate_api_key_format("bw_dev_UPPERCASE0000000000000000000000").is_err());
+        assert!(
+            AuthClient::validate_api_key_format("bw_dev_UPPERCASE0000000000000000000000").is_err()
+        );
     }
 
     #[test]
     fn test_validate_api_key_error_message() {
         let result = AuthClient::validate_api_key_format("invalid_key");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Invalid API key format"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Invalid API key format")
+        );
     }
 
     #[test]
@@ -182,20 +191,43 @@ mod tests {
         assert!(AuthClient::validate_api_key_format("").is_err());
         assert!(AuthClient::validate_api_key_format("   ").is_err());
         assert!(AuthClient::validate_api_key_format("bw_dev_123").is_err());
-        assert!(AuthClient::validate_api_key_format("bw_dev_123456789012345678901234567890123").is_err());
-        assert!(AuthClient::validate_api_key_format("dev_12345678901234567890123456789012").is_err());
-        assert!(AuthClient::validate_api_key_format("bw__12345678901234567890123456789012").is_err());
-        assert!(AuthClient::validate_api_key_format("bw_dev_1234567890!@#$%^&*()1234567890").is_err());
-        assert!(AuthClient::validate_api_key_format("bw_dev_12345678901234567890 123456789012").is_err());
-        assert!(AuthClient::validate_api_key_format("bw_dev_12345678901234567890\n123456789012").is_err());
-        assert!(AuthClient::validate_api_key_format("bw_Dev_12345678901234567890123456789012").is_err());
+        assert!(
+            AuthClient::validate_api_key_format("bw_dev_123456789012345678901234567890123")
+                .is_err()
+        );
+        assert!(
+            AuthClient::validate_api_key_format("dev_12345678901234567890123456789012").is_err()
+        );
+        assert!(
+            AuthClient::validate_api_key_format("bw__12345678901234567890123456789012").is_err()
+        );
+        assert!(
+            AuthClient::validate_api_key_format("bw_dev_1234567890!@#$%^&*()1234567890").is_err()
+        );
+        assert!(
+            AuthClient::validate_api_key_format("bw_dev_12345678901234567890 123456789012")
+                .is_err()
+        );
+        assert!(
+            AuthClient::validate_api_key_format("bw_dev_12345678901234567890\n123456789012")
+                .is_err()
+        );
+        assert!(
+            AuthClient::validate_api_key_format("bw_Dev_12345678901234567890123456789012").is_err()
+        );
     }
 
     #[test]
     fn test_validate_api_key_valid_variants() {
-        assert!(AuthClient::validate_api_key_format("bw_dev_abcdef1234567890abcdef1234567890").is_ok());
-        assert!(AuthClient::validate_api_key_format("bw_prod_12345678901234567890123456789012").is_ok());
-        assert!(AuthClient::validate_api_key_format("bw_test_abcdefghijklmnopqrstuvwxyzabcdef").is_ok());
+        assert!(
+            AuthClient::validate_api_key_format("bw_dev_abcdef1234567890abcdef1234567890").is_ok()
+        );
+        assert!(
+            AuthClient::validate_api_key_format("bw_prod_12345678901234567890123456789012").is_ok()
+        );
+        assert!(
+            AuthClient::validate_api_key_format("bw_test_abcdefghijklmnopqrstuvwxyzabcdef").is_ok()
+        );
     }
 
     // ── AuthClient construction ─────────────────────────────────────

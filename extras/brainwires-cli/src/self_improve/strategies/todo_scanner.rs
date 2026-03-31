@@ -24,19 +24,14 @@ impl ImprovementStrategy for TodoScannerStrategy {
         repo_path: &str,
         config: &StrategyConfig,
     ) -> Result<Vec<ImprovementTask>> {
-        let pattern =
-            Regex::new(r"(?i)(TODO|FIXME|HACK|XXX)\s*:?\s*(.*)").expect("Invalid regex");
+        let pattern = Regex::new(r"(?i)(TODO|FIXME|HACK|XXX)\s*:?\s*(.*)").expect("Invalid regex");
         let mut todos_by_file: HashMap<String, Vec<(u32, String, String)>> = HashMap::new();
 
         let src_path = format!("{repo_path}/src");
         for entry in WalkDir::new(&src_path)
             .into_iter()
             .filter_map(|e| e.ok())
-            .filter(|e| {
-                e.path()
-                    .extension()
-                    .is_some_and(|ext| ext == "rs")
-            })
+            .filter(|e| e.path().extension().is_some_and(|ext| ext == "rs"))
         {
             let path = entry.path();
             let content = match std::fs::read_to_string(path) {
@@ -58,10 +53,11 @@ impl ImprovementStrategy for TodoScannerStrategy {
                         .map(|m| m.as_str().trim())
                         .unwrap_or("")
                         .to_string();
-                    todos_by_file
-                        .entry(rel_path.clone())
-                        .or_default()
-                        .push((line_num as u32 + 1, tag.to_uppercase(), text));
+                    todos_by_file.entry(rel_path.clone()).or_default().push((
+                        line_num as u32 + 1,
+                        tag.to_uppercase(),
+                        text,
+                    ));
                 }
             }
         }

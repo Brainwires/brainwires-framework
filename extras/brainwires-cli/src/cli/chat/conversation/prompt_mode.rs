@@ -39,9 +39,12 @@ pub async fn handle_prompt_mode(
 
     if !quiet {
         if let Some(ref url) = backend_url_override {
-            Logger::info(&format!("Processing prompt with {} (dev backend: {})", model_id, url));
+            Logger::info(format!(
+                "Processing prompt with {} (dev backend: {})",
+                model_id, url
+            ));
         } else {
-            Logger::info(&format!("Processing prompt with {} (brainwires)", model_id));
+            Logger::info(format!("Processing prompt with {} (brainwires)", model_id));
         }
     }
 
@@ -100,13 +103,8 @@ pub async fn handle_prompt_mode(
         None
     };
 
-    let response_text = process_chat_stream(
-        &provider_instance,
-        &context,
-        &spinner,
-        &model_id,
-        None,
-    ).await;
+    let response_text =
+        process_chat_stream(&provider_instance, &context, &spinner, &model_id, None).await;
 
     if let Some(s) = spinner {
         s.finish_and_clear();
@@ -129,7 +127,11 @@ pub async fn handle_prompt_mode(
                 _ => {
                     // Full format
                     if !quiet {
-                        println!("\n{}: {}\n", console::style("Assistant").green().bold(), text);
+                        println!(
+                            "\n{}: {}\n",
+                            console::style("Assistant").green().bold(),
+                            text
+                        );
                     } else {
                         println!("{}", text);
                     }
@@ -139,7 +141,7 @@ pub async fn handle_prompt_mode(
         }
         Err(e) => {
             if !quiet {
-                Logger::error(&format!("Error: {}", e));
+                Logger::error(format!("Error: {}", e));
             }
             eprintln!("{}: {}", console::style("Error").red().bold(), e);
             Err(e)
@@ -148,6 +150,7 @@ pub async fn handle_prompt_mode(
 }
 
 /// Handle single-shot prompt mode with MDAP
+#[allow(clippy::too_many_arguments)]
 pub async fn handle_prompt_mode_mdap(
     model: Option<String>,
     _provider: Option<String>,
@@ -177,17 +180,33 @@ pub async fn handle_prompt_mode_mdap(
         Some(c) => c,
         None => {
             // Fall back to regular prompt mode
-            return handle_prompt_mode(Some(model_id), _provider, system, prompt, quiet, format, backend_url_override).await;
+            return handle_prompt_mode(
+                Some(model_id),
+                _provider,
+                system,
+                prompt,
+                quiet,
+                format,
+                backend_url_override,
+            )
+            .await;
         }
     };
 
     if !quiet {
         if let Some(ref url) = backend_url_override {
-            Logger::info(&format!("Processing prompt with {} in MDAP mode (dev backend: {})", model_id, url));
+            Logger::info(format!(
+                "Processing prompt with {} in MDAP mode (dev backend: {})",
+                model_id, url
+            ));
         } else {
-            Logger::info(&format!("Processing prompt with {} in MDAP mode", model_id));
+            Logger::info(format!("Processing prompt with {} in MDAP mode", model_id));
         }
-        Logger::info(&format!("MDAP config: k={}, target={}%", mdap_config.k, mdap_config.target_success_rate * 100.0));
+        Logger::info(format!(
+            "MDAP config: k={}, target={}%",
+            mdap_config.k,
+            mdap_config.target_success_rate * 100.0
+        ));
     }
 
     // Create provider with optional backend URL override
@@ -238,7 +257,9 @@ pub async fn handle_prompt_mode_mdap(
         None
     };
 
-    let result = orchestrator.execute_mdap(&prompt, &mut context, mdap_config).await;
+    let result = orchestrator
+        .execute_mdap(&prompt, &mut context, mdap_config)
+        .await;
 
     if let Some(s) = spinner {
         s.finish_and_clear();
@@ -269,7 +290,11 @@ pub async fn handle_prompt_mode_mdap(
                 _ => {
                     // Full format
                     if !quiet {
-                        println!("\n{}: {}\n", console::style("Assistant").green().bold(), response.message);
+                        println!(
+                            "\n{}: {}\n",
+                            console::style("Assistant").green().bold(),
+                            response.message
+                        );
                         println!("{}", console::style("MDAP Metrics:").cyan().bold());
                         println!("{}", metrics.summary());
                     } else {
@@ -281,7 +306,7 @@ pub async fn handle_prompt_mode_mdap(
         }
         Err(e) => {
             if !quiet {
-                Logger::error(&format!("MDAP execution error: {}", e));
+                Logger::error(format!("MDAP execution error: {}", e));
             }
             eprintln!("{}: {}", console::style("Error").red().bold(), e);
             Err(e)

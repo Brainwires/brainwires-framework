@@ -8,7 +8,7 @@
 //! - Attaching connects as a PTY client, proxying terminal I/O to the server
 //! - The TUI runs inside the PTY and the Agent handles AI/tools via IPC
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 use crate::ipc;
 use crate::session;
@@ -46,7 +46,10 @@ pub async fn exit_session(session: Option<String>) -> Result<()> {
 
     if !pty_socket_path.exists() {
         // Session is stale - clean up the files
-        println!("Session {} is stale (socket not found), cleaning up...", session_id);
+        println!(
+            "Session {} is stale (socket not found), cleaning up...",
+            session_id
+        );
         ipc::cleanup_session(&session_id)?;
         println!("Session cleaned up.");
         return Ok(());
@@ -74,7 +77,7 @@ pub async fn exit_session(session: Option<String>) -> Result<()> {
     // Connect to the agent and send Exit message
     match ipc::connect_to_agent(&session_id).await {
         Ok(mut conn) => {
-            use brainwires::agent_network::ipc::{ViewerMessage, Handshake, HandshakeResponse};
+            use brainwires::agent_network::ipc::{Handshake, HandshakeResponse, ViewerMessage};
 
             // Perform authenticated handshake
             let handshake = Handshake::reattach(session_id.clone(), session_token);
@@ -83,12 +86,19 @@ pub async fn exit_session(session: Option<String>) -> Result<()> {
             }
 
             // Wait for handshake response
-            let response: HandshakeResponse = conn.reader.read().await?
+            let response: HandshakeResponse = conn
+                .reader
+                .read()
+                .await?
                 .ok_or_else(|| anyhow::anyhow!("Session closed during handshake"))?;
 
             if !response.accepted {
-                bail!("Session rejected connection: {}",
-                    response.error.unwrap_or_else(|| "Unknown error".to_string()));
+                bail!(
+                    "Session rejected connection: {}",
+                    response
+                        .error
+                        .unwrap_or_else(|| "Unknown error".to_string())
+                );
             }
 
             // Send exit command
@@ -124,7 +134,8 @@ pub async fn kill_session(session: Option<String>) -> Result<()> {
     // Get PID from metadata
     let meta = ipc::read_agent_metadata(&session_id)?
         .ok_or_else(|| anyhow::anyhow!("Session metadata not found: {}", session_id))?;
-    let pid = meta.pid
+    let pid = meta
+        .pid
         .ok_or_else(|| anyhow::anyhow!("Session {} has no PID in metadata", session_id))?;
 
     let pty_socket_path = session::get_session_socket_path(&session_id)?;

@@ -3,8 +3,8 @@ mod handler;
 
 use std::path::PathBuf;
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
     Arc,
+    atomic::{AtomicBool, Ordering},
 };
 
 use brainwires_hardware::audio::{
@@ -51,8 +51,11 @@ async fn main() -> anyhow::Result<()> {
 
     // Logging
     let level = if cli.verbose { "debug" } else { "info" };
-    let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new(format!("voice_assistant={level},brainwires_hardware={level}")));
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+        EnvFilter::new(format!(
+            "voice_assistant={level},brainwires_hardware={level}"
+        ))
+    });
     tracing_subscriber::fmt().with_env_filter(filter).init();
 
     // ── List devices mode ─────────────────────────────────────────────────────
@@ -128,9 +131,12 @@ async fn main() -> anyhow::Result<()> {
         ..Default::default()
     };
 
-    let mut builder = VoiceAssistant::builder(capture.clone() as Arc<dyn brainwires_hardware::audio::capture::AudioCapture>, stt)
-        .with_playback(playback.clone() as Arc<dyn AudioPlayback>)
-        .with_config(assistant_config);
+    let mut builder = VoiceAssistant::builder(
+        capture.clone() as Arc<dyn brainwires_hardware::audio::capture::AudioCapture>,
+        stt,
+    )
+    .with_playback(playback.clone() as Arc<dyn AudioPlayback>)
+    .with_config(assistant_config);
 
     if cfg.tts_enabled {
         let tts = Arc::new(OpenAiTts::new(&api_key).with_model(&cfg.tts_model));
@@ -138,7 +144,9 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // ── Wake word ─────────────────────────────────────────────────────────────
-    let wake_word_path = cli.wake_word.as_ref()
+    let wake_word_path = cli
+        .wake_word
+        .as_ref()
         .map(|p| p.to_string_lossy().to_string())
         .or_else(|| cfg.wake_word_model.clone());
 

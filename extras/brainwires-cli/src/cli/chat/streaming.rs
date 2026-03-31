@@ -7,7 +7,7 @@ use futures::StreamExt;
 use indicatif::ProgressBar;
 use std::sync::Arc;
 
-use super::continuation::{send_continuation_request, default_logger};
+use super::continuation::{default_logger, send_continuation_request};
 use crate::providers::Provider;
 use crate::tools::ToolExecutor;
 use crate::types::agent::{AgentContext, PermissionMode};
@@ -29,7 +29,9 @@ pub async fn process_chat_stream(
     let tool_executor = ToolExecutor::new(PermissionMode::Auto);
 
     // Extract system prompt from conversation history
-    let system_prompt = context.conversation_history.iter()
+    let system_prompt = context
+        .conversation_history
+        .iter()
         .find(|m| m.role == Role::System)
         .and_then(|m| m.text().map(|s| s.to_string()));
 
@@ -84,7 +86,7 @@ pub async fn process_chat_stream(
                     };
 
                     // Execute tool locally
-                    let tool_context = ToolContext::from_agent_context(&context);
+                    let tool_context = ToolContext::from_agent_context(context);
 
                     let result = tool_executor.execute(&tool_use, &tool_context).await?;
 
@@ -142,7 +144,8 @@ pub async fn process_chat_stream(
                         &truncated_output,
                         &[], // Empty accumulated history for first tool call
                         default_logger(),
-                    ).await?;
+                    )
+                    .await?;
 
                     full_text.push_str(&continuation_text);
 

@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Subcommand;
 use dialoguer::Password;
 
@@ -59,9 +59,25 @@ pub enum AuthCommands {
 
 pub async fn handle_auth(cmd: AuthCommands) -> Result<()> {
     match cmd {
-        AuthCommands::Login { key, backend, provider, base_url, model, region, project_id } => {
+        AuthCommands::Login {
+            key,
+            backend,
+            provider,
+            base_url,
+            model,
+            region,
+            project_id,
+        } => {
             if let Some(provider_name) = provider {
-                handle_direct_provider_login(provider_name, key, base_url, model, region, project_id).await
+                handle_direct_provider_login(
+                    provider_name,
+                    key,
+                    base_url,
+                    model,
+                    region,
+                    project_id,
+                )
+                .await
             } else {
                 handle_brainwires_login(key, backend).await
             }
@@ -101,11 +117,14 @@ pub async fn handle_auth(cmd: AuthCommands) -> Result<()> {
             config_manager.save()?;
 
             println!();
-            println!("{}", RichOutput::boxed(
-                "You have been logged out successfully.\nProvider reset to Brainwires (default).",
-                Some("Logout"),
-                "cyan",
-            ));
+            println!(
+                "{}",
+                RichOutput::boxed(
+                    "You have been logged out successfully.\nProvider reset to Brainwires (default).",
+                    Some("Logout"),
+                    "cyan",
+                )
+            );
             Ok(())
         }
 
@@ -118,18 +137,24 @@ pub async fn handle_auth(cmd: AuthCommands) -> Result<()> {
                     show_brainwires_status(verbose)?;
                 }
                 ProviderType::Ollama => {
-                    let base_url = config.provider_base_url.as_deref()
+                    let base_url = config
+                        .provider_base_url
+                        .as_deref()
                         .unwrap_or("http://localhost:11434");
                     let status_text = format!(
                         "Provider: Ollama (local)\nModel: {}\nBase URL: {}",
-                        config.model,
-                        base_url,
+                        config.model, base_url,
                     );
                     println!();
-                    println!("{}", RichOutput::boxed(&status_text, Some("Provider Status"), "green"));
+                    println!(
+                        "{}",
+                        RichOutput::boxed(&status_text, Some("Provider Status"), "green")
+                    );
                 }
                 ProviderType::Bedrock => {
-                    let region = config.extra.get("provider_options")
+                    let region = config
+                        .extra
+                        .get("provider_options")
                         .and_then(|o| o.get("region"))
                         .and_then(|v| v.as_str())
                         .unwrap_or("us-east-1");
@@ -138,14 +163,21 @@ pub async fn handle_auth(cmd: AuthCommands) -> Result<()> {
                         "Provider: Amazon Bedrock\nModel: {}\nRegion: {}\nAWS Credentials: {}",
                         config.model,
                         region,
-                        if has_creds { "available (env)" } else { "NOT found in env" },
+                        if has_creds {
+                            "available (env)"
+                        } else {
+                            "NOT found in env"
+                        },
                     );
                     println!();
-                    println!("{}", RichOutput::boxed(
-                        &status_text,
-                        Some("Provider Status"),
-                        if has_creds { "green" } else { "yellow" },
-                    ));
+                    println!(
+                        "{}",
+                        RichOutput::boxed(
+                            &status_text,
+                            Some("Provider Status"),
+                            if has_creds { "green" } else { "yellow" },
+                        )
+                    );
                 }
                 ProviderType::VertexAI => {
                     let opts = config.extra.get("provider_options");
@@ -163,10 +195,17 @@ pub async fn handle_auth(cmd: AuthCommands) -> Result<()> {
                         config.model,
                         project_id,
                         region,
-                        if has_creds { "available (env)" } else { "using gcloud auth (if available)" },
+                        if has_creds {
+                            "available (env)"
+                        } else {
+                            "using gcloud auth (if available)"
+                        },
                     );
                     println!();
-                    println!("{}", RichOutput::boxed(&status_text, Some("Provider Status"), "green"));
+                    println!(
+                        "{}",
+                        RichOutput::boxed(&status_text, Some("Provider Status"), "green")
+                    );
                 }
                 _ => {
                     let has_key = config_manager.get_provider_api_key()?.is_some();
@@ -174,17 +213,24 @@ pub async fn handle_auth(cmd: AuthCommands) -> Result<()> {
                         "Provider: {}\nModel: {}\nAPI Key: {}",
                         config.provider_type.as_str(),
                         config.model,
-                        if has_key { "configured" } else { "NOT configured" },
+                        if has_key {
+                            "configured"
+                        } else {
+                            "NOT configured"
+                        },
                     );
                     if let Some(ref url) = config.provider_base_url {
                         status_text.push_str(&format!("\nBase URL: {}", url));
                     }
                     println!();
-                    println!("{}", RichOutput::boxed(
-                        &status_text,
-                        Some("Provider Status"),
-                        if has_key { "green" } else { "yellow" },
-                    ));
+                    println!(
+                        "{}",
+                        RichOutput::boxed(
+                            &status_text,
+                            Some("Provider Status"),
+                            if has_key { "green" } else { "yellow" },
+                        )
+                    );
                 }
             }
 
@@ -200,18 +246,23 @@ pub async fn handle_auth(cmd: AuthCommands) -> Result<()> {
                     validate_brainwires_session().await?;
                 }
                 ProviderType::Ollama => {
-                    let base_url = config.provider_base_url.as_deref()
+                    let base_url = config
+                        .provider_base_url
+                        .as_deref()
                         .unwrap_or("http://localhost:11434");
-                    Logger::info(&format!("Checking Ollama at {}...", base_url));
+                    Logger::info(format!("Checking Ollama at {}...", base_url));
                     match reqwest::get(&format!("{}/api/tags", base_url)).await {
                         Ok(resp) if resp.status().is_success() => {
                             Logger::success("Ollama is reachable and responding");
                         }
                         Ok(resp) => {
-                            Logger::error(&format!("Ollama responded with status: {}", resp.status()));
+                            Logger::error(format!(
+                                "Ollama responded with status: {}",
+                                resp.status()
+                            ));
                         }
                         Err(e) => {
-                            Logger::error(&format!("Cannot reach Ollama: {}", e));
+                            Logger::error(format!("Cannot reach Ollama: {}", e));
                         }
                     }
                 }
@@ -219,12 +270,16 @@ pub async fn handle_auth(cmd: AuthCommands) -> Result<()> {
                     if std::env::var("AWS_ACCESS_KEY_ID").is_ok() {
                         Logger::success("Bedrock: AWS credentials found in environment");
                     } else {
-                        Logger::error("Bedrock: AWS_ACCESS_KEY_ID not set. Configure AWS credentials.");
+                        Logger::error(
+                            "Bedrock: AWS_ACCESS_KEY_ID not set. Configure AWS credentials.",
+                        );
                     }
                 }
                 ProviderType::VertexAI => {
                     let has_adc = std::env::var("GOOGLE_APPLICATION_CREDENTIALS").is_ok();
-                    let has_project = config.extra.get("provider_options")
+                    let has_project = config
+                        .extra
+                        .get("provider_options")
                         .and_then(|o| o.get("project_id"))
                         .and_then(|v| v.as_str())
                         .is_some()
@@ -237,18 +292,20 @@ pub async fn handle_auth(cmd: AuthCommands) -> Result<()> {
                     if has_adc {
                         Logger::success("Vertex AI: GOOGLE_APPLICATION_CREDENTIALS found");
                     } else {
-                        Logger::warn("Vertex AI: GOOGLE_APPLICATION_CREDENTIALS not set (will try gcloud auth)");
+                        Logger::warn(
+                            "Vertex AI: GOOGLE_APPLICATION_CREDENTIALS not set (will try gcloud auth)",
+                        );
                     }
                 }
                 _ => {
                     let has_key = config_manager.get_provider_api_key()?.is_some();
                     if has_key {
-                        Logger::success(&format!(
+                        Logger::success(format!(
                             "{} provider is configured with an API key",
                             config.provider_type.as_str()
                         ));
                     } else {
-                        Logger::error(&format!(
+                        Logger::error(format!(
                             "No API key configured for {}. Run: brainwires auth login --provider {}",
                             config.provider_type.as_str(),
                             config.provider_type.as_str()
@@ -289,11 +346,10 @@ async fn handle_brainwires_login(key: Option<String>, backend: Option<String>) -
             .interact()?
     };
 
-    let backend_url = backend.unwrap_or_else(|| {
-        constants::get_backend_from_api_key(&api_key).to_string()
-    });
+    let backend_url =
+        backend.unwrap_or_else(|| constants::get_backend_from_api_key(&api_key).to_string());
 
-    Logger::info(&format!("Authenticating with {}...", backend_url));
+    Logger::info(format!("Authenticating with {}...", backend_url));
 
     let client = AuthClient::new(backend_url.clone());
     match client.authenticate(&api_key).await {
@@ -311,7 +367,7 @@ async fn handle_brainwires_login(key: Option<String>, backend: Option<String>) -
             println!(
                 "{}",
                 RichOutput::boxed(
-                    &format!(
+                    format!(
                         "Welcome, {}!\n\nUsername: {}\nRole: {}\nAPI Key: {}\nBackend: {}",
                         session.user.display_name,
                         session.user.username,
@@ -326,7 +382,7 @@ async fn handle_brainwires_login(key: Option<String>, backend: Option<String>) -
             Ok(())
         }
         Err(e) => {
-            Logger::error(&format!("Login failed: {}", e));
+            Logger::error(format!("Login failed: {}", e));
             Err(e)
         }
     }
@@ -369,14 +425,17 @@ async fn handle_direct_provider_login(
         config_manager.save()?;
 
         println!();
-        println!("{}", RichOutput::boxed(
-            &format!(
-                "Ollama configured!\n\nModel: {}\nBase URL: {}\n\nNo API key required.",
-                model_name, ollama_url
-            ),
-            Some("Provider Configured"),
-            "green",
-        ));
+        println!(
+            "{}",
+            RichOutput::boxed(
+                format!(
+                    "Ollama configured!\n\nModel: {}\nBase URL: {}\n\nNo API key required.",
+                    model_name, ollama_url
+                ),
+                Some("Provider Configured"),
+                "green",
+            )
+        );
 
         validate_selected_model(ProviderType::Ollama, &model_name, None, Some(&ollama_url)).await;
         return Ok(());
@@ -384,14 +443,19 @@ async fn handle_direct_provider_login(
 
     // Bedrock: uses AWS credential chain, no API key prompt
     if provider_type == ProviderType::Bedrock {
-        let aws_region = region.clone()
+        let aws_region = region
+            .clone()
             .or_else(|| std::env::var("AWS_DEFAULT_REGION").ok())
             .unwrap_or_else(|| "us-east-1".to_string());
 
         // Validate AWS creds are available
         if std::env::var("AWS_ACCESS_KEY_ID").is_err() {
-            Logger::warn("AWS_ACCESS_KEY_ID not set. Bedrock will fail at runtime without AWS credentials.");
-            Logger::warn("Configure via: aws configure, or set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY env vars.");
+            Logger::warn(
+                "AWS_ACCESS_KEY_ID not set. Bedrock will fail at runtime without AWS credentials.",
+            );
+            Logger::warn(
+                "Configure via: aws configure, or set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY env vars.",
+            );
         }
 
         // Store provider options as JSON in the extra config
@@ -411,22 +475,24 @@ async fn handle_direct_provider_login(
         config_manager.save()?;
 
         println!();
-        println!("{}", RichOutput::boxed(
-            &format!(
-                "Bedrock configured!\n\nModel: {}\nRegion: {}\n\nUsing AWS credential chain (env vars / ~/.aws/credentials).\nNo API key required.",
-                model_name, aws_region
-            ),
-            Some("Provider Configured"),
-            "green",
-        ));
+        println!(
+            "{}",
+            RichOutput::boxed(
+                format!(
+                    "Bedrock configured!\n\nModel: {}\nRegion: {}\n\nUsing AWS credential chain (env vars / ~/.aws/credentials).\nNo API key required.",
+                    model_name, aws_region
+                ),
+                Some("Provider Configured"),
+                "green",
+            )
+        );
 
         return Ok(());
     }
 
     // Vertex AI: uses GCP Application Default Credentials, no API key prompt
     if provider_type == ProviderType::VertexAI {
-        let gcp_project = project_id
-            .or_else(|| std::env::var("GOOGLE_CLOUD_PROJECT").ok());
+        let gcp_project = project_id.or_else(|| std::env::var("GOOGLE_CLOUD_PROJECT").ok());
 
         let gcp_project = match gcp_project {
             Some(p) => p,
@@ -437,13 +503,14 @@ async fn handle_direct_provider_login(
             }
         };
 
-        let gcp_region = region.clone()
-            .unwrap_or_else(|| "us-central1".to_string());
+        let gcp_region = region.clone().unwrap_or_else(|| "us-central1".to_string());
 
         // Validate GCP creds are available
         if std::env::var("GOOGLE_APPLICATION_CREDENTIALS").is_err() {
             // Check if gcloud auth is available as fallback
-            Logger::warn("GOOGLE_APPLICATION_CREDENTIALS not set. Vertex AI will use gcloud auth application-default credentials if available.");
+            Logger::warn(
+                "GOOGLE_APPLICATION_CREDENTIALS not set. Vertex AI will use gcloud auth application-default credentials if available.",
+            );
         }
 
         let mut provider_options = serde_json::Map::new();
@@ -463,14 +530,17 @@ async fn handle_direct_provider_login(
         config_manager.save()?;
 
         println!();
-        println!("{}", RichOutput::boxed(
-            &format!(
-                "Vertex AI configured!\n\nModel: {}\nProject: {}\nRegion: {}\n\nUsing GCP Application Default Credentials.\nNo API key required.",
-                model_name, gcp_project, gcp_region
-            ),
-            Some("Provider Configured"),
-            "green",
-        ));
+        println!(
+            "{}",
+            RichOutput::boxed(
+                format!(
+                    "Vertex AI configured!\n\nModel: {}\nProject: {}\nRegion: {}\n\nUsing GCP Application Default Credentials.\nNo API key required.",
+                    model_name, gcp_project, gcp_region
+                ),
+                Some("Provider Configured"),
+                "green",
+            )
+        );
 
         return Ok(());
     }
@@ -480,7 +550,7 @@ async fn handle_direct_provider_login(
         k
     } else {
         Password::new()
-            .with_prompt(&format!("Enter your {} API key", provider_type.as_str()))
+            .with_prompt(format!("Enter your {} API key", provider_type.as_str()))
             .interact()?
     };
 
@@ -498,21 +568,27 @@ async fn handle_direct_provider_login(
 
     let mut status = format!(
         "{} configured!\n\nModel: {}\nAPI Key: stored in system keyring",
-        provider_type.as_str(), model_name
+        provider_type.as_str(),
+        model_name
     );
     if let Some(ref url) = base_url {
         status.push_str(&format!("\nBase URL: {}", url));
     }
 
     println!();
-    println!("{}", RichOutput::boxed(
-        &status,
-        Some("Provider Configured"),
-        "green",
-    ));
+    println!(
+        "{}",
+        RichOutput::boxed(&status, Some("Provider Configured"), "green",)
+    );
 
     // Validate the selected model (non-blocking — warn but don't fail)
-    validate_selected_model(provider_type, &model_name, Some(&api_key), base_url.as_deref()).await;
+    validate_selected_model(
+        provider_type,
+        &model_name,
+        Some(&api_key),
+        base_url.as_deref(),
+    )
+    .await;
 
     Ok(())
 }
@@ -538,11 +614,10 @@ async fn validate_selected_model(
             Logger::success(&info);
         }
         Err(e) => {
-            Logger::warn(&format!(
-                "Could not validate model '{}': {}",
-                model_id, e
-            ));
-            Logger::warn("The model may still work (preview/beta models may not appear in listings)");
+            Logger::warn(format!("Could not validate model '{}': {}", model_id, e));
+            Logger::warn(
+                "The model may still work (preview/beta models may not appear in listings)",
+            );
         }
     }
 }
@@ -572,7 +647,10 @@ fn show_brainwires_status(verbose: bool) -> Result<()> {
             }
 
             println!();
-            println!("{}", RichOutput::boxed(&status_text, Some("Authentication Status"), "green"));
+            println!(
+                "{}",
+                RichOutput::boxed(&status_text, Some("Authentication Status"), "green")
+            );
         }
         None => {
             println!();

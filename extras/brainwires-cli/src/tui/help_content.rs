@@ -291,6 +291,9 @@ mod tests {
     #[test]
     fn test_display_names() {
         assert_eq!(HelpCategory::Navigation.display_name(), "Navigation");
-        assert_eq!(HelpCategory::GitIntegration.display_name(), "Git Integration");
+        assert_eq!(
+            HelpCategory::GitIntegration.display_name(),
+            "Git Integration"
+        );
     }
 }

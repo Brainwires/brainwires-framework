@@ -59,7 +59,7 @@ pub async fn scan_ble(duration: Duration) -> Vec<BluetoothDevice> {
         let rssi = props.as_ref().and_then(|p| p.rssi);
         let services = props
             .as_ref()
-            .map(|p| p.services.iter().copied().collect())
+            .map(|p| p.services.to_vec())
             .unwrap_or_default();
 
         debug!("BLE device {addr} name={name:?} rssi={rssi:?}");

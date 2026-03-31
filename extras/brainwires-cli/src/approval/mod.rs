@@ -18,8 +18,8 @@
 //!      | (continue or deny)             |
 //! ```
 
-pub mod types;
 pub mod manager;
+pub mod types;
 
-pub use types::{ApprovalAction, ApprovalDetails, ApprovalRequest, ApprovalResponse};
 pub use manager::ApprovalManager;
+pub use types::{ApprovalAction, ApprovalDetails, ApprovalRequest, ApprovalResponse};

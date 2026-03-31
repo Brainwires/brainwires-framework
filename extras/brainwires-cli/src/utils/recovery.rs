@@ -3,7 +3,7 @@
 //! Provides exponential backoff retry logic for operations that may fail
 //! due to transient issues (network timeouts, rate limits, etc.)
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::future::Future;
 use std::time::Duration;
 use tracing::{debug, warn};
@@ -187,9 +187,7 @@ impl RecoveryManager {
                         attempts += 1;
                         warn!(
                             "Retryable error (attempt {}/{}): {}",
-                            attempts,
-                            self.config.max_retries,
-                            error_msg
+                            attempts, self.config.max_retries, error_msg
                         );
 
                         let delay = self.calculate_delay(delay_ms);
@@ -248,24 +246,20 @@ impl RecoveryManager {
                         attempts += 1;
                         warn!(
                             "Retryable error (attempt {}/{}): {}",
-                            attempts,
-                            self.config.max_retries,
-                            error_msg
+                            attempts, self.config.max_retries, error_msg
                         );
 
                         let delay = self.calculate_delay(delay_ms);
                         tokio::time::sleep(delay).await;
                         delay_ms = ((delay_ms as f64) * self.config.backoff_multiplier) as u64;
+                    } else if attempts > 0 {
+                        return Err(anyhow!(
+                            "Failed after {} retry attempt(s). Last error: {}",
+                            attempts,
+                            error_msg
+                        ));
                     } else {
-                        if attempts > 0 {
-                            return Err(anyhow!(
-                                "Failed after {} retry attempt(s). Last error: {}",
-                                attempts,
-                                error_msg
-                            ));
-                        } else {
-                            return Err(anyhow!("{}", error_msg));
-                        }
+                        return Err(anyhow!("{}", error_msg));
                     }
                 }
             }
@@ -296,14 +290,16 @@ where
     Fut: Future<Output = Result<T, E>>,
     E: std::fmt::Display,
 {
-    RecoveryManager::with_config(config).with_retry(operation).await
+    RecoveryManager::with_config(config)
+        .with_retry(operation)
+        .await
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::atomic::{AtomicU32, Ordering};
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicU32, Ordering};
 
     #[test]
     fn test_recovery_config_defaults() {
@@ -349,13 +345,15 @@ mod tests {
         let call_count = Arc::new(AtomicU32::new(0));
         let count = call_count.clone();
 
-        let result: Result<i32> = manager.with_retry(|| {
-            let c = count.clone();
-            async move {
-                c.fetch_add(1, Ordering::SeqCst);
-                Ok::<_, anyhow::Error>(42)
-            }
-        }).await;
+        let result: Result<i32> = manager
+            .with_retry(|| {
+                let c = count.clone();
+                async move {
+                    c.fetch_add(1, Ordering::SeqCst);
+                    Ok::<_, anyhow::Error>(42)
+                }
+            })
+            .await;
 
         assert_eq!(result.unwrap(), 42);
         assert_eq!(call_count.load(Ordering::SeqCst), 1);
@@ -375,17 +373,19 @@ mod tests {
         let call_count = Arc::new(AtomicU32::new(0));
         let count = call_count.clone();
 
-        let result: Result<i32> = manager.with_retry(|| {
-            let c = count.clone();
-            async move {
-                let attempt = c.fetch_add(1, Ordering::SeqCst);
-                if attempt < 2 {
-                    Err(anyhow!("timeout error"))
-                } else {
-                    Ok(42)
+        let result: Result<i32> = manager
+            .with_retry(|| {
+                let c = count.clone();
+                async move {
+                    let attempt = c.fetch_add(1, Ordering::SeqCst);
+                    if attempt < 2 {
+                        Err(anyhow!("timeout error"))
+                    } else {
+                        Ok(42)
+                    }
                 }
-            }
-        }).await;
+            })
+            .await;
 
         assert_eq!(result.unwrap(), 42);
         assert_eq!(call_count.load(Ordering::SeqCst), 3); // 2 failures + 1 success
@@ -405,13 +405,15 @@ mod tests {
         let call_count = Arc::new(AtomicU32::new(0));
         let count = call_count.clone();
 
-        let result: Result<i32> = manager.with_retry(|| {
-            let c = count.clone();
-            async move {
-                c.fetch_add(1, Ordering::SeqCst);
-                Err::<i32, _>(anyhow!("permission denied"))
-            }
-        }).await;
+        let result: Result<i32> = manager
+            .with_retry(|| {
+                let c = count.clone();
+                async move {
+                    c.fetch_add(1, Ordering::SeqCst);
+                    Err::<i32, _>(anyhow!("permission denied"))
+                }
+            })
+            .await;
 
         assert!(result.is_err());
         assert_eq!(call_count.load(Ordering::SeqCst), 1); // No retries
@@ -431,13 +433,15 @@ mod tests {
         let call_count = Arc::new(AtomicU32::new(0));
         let count = call_count.clone();
 
-        let result: Result<i32> = manager.with_retry(|| {
-            let c = count.clone();
-            async move {
-                c.fetch_add(1, Ordering::SeqCst);
-                Err::<i32, _>(anyhow!("timeout error"))
-            }
-        }).await;
+        let result: Result<i32> = manager
+            .with_retry(|| {
+                let c = count.clone();
+                async move {
+                    c.fetch_add(1, Ordering::SeqCst);
+                    Err::<i32, _>(anyhow!("timeout error"))
+                }
+            })
+            .await;
 
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
@@ -459,17 +463,19 @@ mod tests {
         let attempts_seen = Arc::new(std::sync::Mutex::new(Vec::new()));
         let attempts = attempts_seen.clone();
 
-        let result: Result<i32> = manager.with_retry_context(|attempt| {
-            let a = attempts.clone();
-            async move {
-                a.lock().unwrap().push(attempt);
-                if attempt < 2 {
-                    Err(anyhow!("timeout error"))
-                } else {
-                    Ok(42)
+        let result: Result<i32> = manager
+            .with_retry_context(|attempt| {
+                let a = attempts.clone();
+                async move {
+                    a.lock().unwrap().push(attempt);
+                    if attempt < 2 {
+                        Err(anyhow!("timeout error"))
+                    } else {
+                        Ok(42)
+                    }
                 }
-            }
-        }).await;
+            })
+            .await;
 
         assert_eq!(result.unwrap(), 42);
         assert_eq!(*attempts_seen.lock().unwrap(), vec![0, 1, 2]);
@@ -486,7 +492,8 @@ mod tests {
                 c.fetch_add(1, Ordering::SeqCst);
                 Ok::<_, anyhow::Error>(42)
             }
-        }).await;
+        })
+        .await;
 
         assert_eq!(result.unwrap(), 42);
         assert_eq!(call_count.load(Ordering::SeqCst), 1);

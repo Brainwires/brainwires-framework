@@ -3,11 +3,11 @@
 //! Renders the session picker for loading saved conversations.
 
 use ratatui::{
+    Frame,
     layout::{Alignment, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
     widgets::{Block, Borders, Paragraph, Wrap},
-    Frame,
 };
 
 use crate::tui::app::App;
@@ -43,16 +43,20 @@ pub fn draw_session_picker(f: &mut Frame, app: &App, area: Rect) {
     let mut items = Vec::new();
 
     // Header
-    items.push(Line::from(vec![
-        Span::styled("Select a session to load:", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-    ]));
+    items.push(Line::from(vec![Span::styled(
+        "Select a session to load:",
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD),
+    )]));
     items.push(Line::from("")); // Empty line
 
     // Session list
     if app.available_sessions.is_empty() {
-        items.push(Line::from(vec![
-            Span::styled("No saved sessions found", Style::default().fg(Color::Gray)),
-        ]));
+        items.push(Line::from(vec![Span::styled(
+            "No saved sessions found",
+            Style::default().fg(Color::Gray),
+        )]));
     } else {
         for (idx, session) in app.available_sessions.iter().enumerate() {
             let is_selected = idx == app.selected_session_index;
@@ -66,7 +70,9 @@ pub fn draw_session_picker(f: &mut Frame, app: &App, area: Rect) {
             let prefix = if is_selected { "▶ " } else { "  " };
 
             let style = if is_selected {
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(Color::White)
             };
@@ -81,7 +87,10 @@ pub fn draw_session_picker(f: &mut Frame, app: &App, area: Rect) {
                 Span::styled(format!("{} ", title), style),
                 Span::styled(format!("({})", model), Style::default().fg(Color::Cyan)),
                 Span::raw(" - "),
-                Span::styled(format!("{} messages", msg_count), Style::default().fg(Color::Gray)),
+                Span::styled(
+                    format!("{} messages", msg_count),
+                    Style::default().fg(Color::Gray),
+                ),
             ]));
 
             // Timestamp line
@@ -110,8 +119,7 @@ pub fn draw_session_picker(f: &mut Frame, app: &App, area: Rect) {
         Span::raw(": Cancel"),
     ]);
 
-    let footer_paragraph = Paragraph::new(footer_text)
-        .alignment(Alignment::Center);
+    let footer_paragraph = Paragraph::new(footer_text).alignment(Alignment::Center);
 
     f.render_widget(footer_paragraph, footer_area);
 }

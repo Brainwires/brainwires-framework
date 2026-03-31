@@ -127,12 +127,16 @@ pub use audio::{VadMode, WebRtcVad};
 
 // ── Wake word re-exports ──────────────────────────────────────────────────────
 
-#[cfg(any(feature = "wake-word", feature = "wake-word-rustpotter", feature = "wake-word-porcupine"))]
-pub use audio::{EnergyTriggerDetector, WakeWordDetection, WakeWordDetector};
-#[cfg(feature = "wake-word-rustpotter")]
-pub use audio::RustpotterDetector;
 #[cfg(feature = "wake-word-porcupine")]
 pub use audio::PorcupineDetector;
+#[cfg(feature = "wake-word-rustpotter")]
+pub use audio::RustpotterDetector;
+#[cfg(any(
+    feature = "wake-word",
+    feature = "wake-word-rustpotter",
+    feature = "wake-word-porcupine"
+))]
+pub use audio::{EnergyTriggerDetector, WakeWordDetection, WakeWordDetector};
 
 // ── Voice assistant re-exports ────────────────────────────────────────────────
 

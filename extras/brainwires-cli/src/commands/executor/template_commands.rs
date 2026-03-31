@@ -37,12 +37,17 @@ impl CommandExecutor {
         } else {
             None
         };
-        Ok(CommandResult::Action(CommandAction::SaveTemplate(name, description)))
+        Ok(CommandResult::Action(CommandAction::SaveTemplate(
+            name,
+            description,
+        )))
     }
 
     fn cmd_template_show(&self, args: &[String]) -> Result<CommandResult> {
         if args.is_empty() {
-            anyhow::bail!("Usage: /template:show <name_or_id>\n\nDisplay a template's content and variables.");
+            anyhow::bail!(
+                "Usage: /template:show <name_or_id>\n\nDisplay a template's content and variables."
+            );
         }
         let name = args[0].clone();
         Ok(CommandResult::Action(CommandAction::ShowTemplate(name)))
@@ -58,7 +63,9 @@ impl CommandExecutor {
         }
         let name = args[0].clone();
         let vars = args[1..].to_vec();
-        Ok(CommandResult::Action(CommandAction::UseTemplate(name, vars)))
+        Ok(CommandResult::Action(CommandAction::UseTemplate(
+            name, vars,
+        )))
     }
 
     fn cmd_template_delete(&self, args: &[String]) -> Result<CommandResult> {

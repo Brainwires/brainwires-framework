@@ -40,7 +40,10 @@ pub struct FrameRate {
 
 impl FrameRate {
     pub fn fps(fps: u32) -> Self {
-        Self { numerator: fps, denominator: 1 }
+        Self {
+            numerator: fps,
+            denominator: 1,
+        }
     }
 
     /// Approximate fps as a float.
@@ -82,22 +85,38 @@ pub struct CameraFormat {
 
 impl CameraFormat {
     pub fn new(resolution: Resolution, frame_rate: FrameRate, pixel_format: PixelFormat) -> Self {
-        Self { resolution, frame_rate, pixel_format }
+        Self {
+            resolution,
+            frame_rate,
+            pixel_format,
+        }
     }
 
     /// Common 1080p30 RGB format.
     pub fn hd_1080p() -> Self {
-        Self::new(Resolution::new(1920, 1080), FrameRate::fps(30), PixelFormat::Mjpeg)
+        Self::new(
+            Resolution::new(1920, 1080),
+            FrameRate::fps(30),
+            PixelFormat::Mjpeg,
+        )
     }
 
     /// Common 720p30 format.
     pub fn hd_720p() -> Self {
-        Self::new(Resolution::new(1280, 720), FrameRate::fps(30), PixelFormat::Mjpeg)
+        Self::new(
+            Resolution::new(1280, 720),
+            FrameRate::fps(30),
+            PixelFormat::Mjpeg,
+        )
     }
 
     /// Common VGA 640x480 @ 30 fps.
     pub fn vga() -> Self {
-        Self::new(Resolution::new(640, 480), FrameRate::fps(30), PixelFormat::Mjpeg)
+        Self::new(
+            Resolution::new(640, 480),
+            FrameRate::fps(30),
+            PixelFormat::Mjpeg,
+        )
     }
 }
 

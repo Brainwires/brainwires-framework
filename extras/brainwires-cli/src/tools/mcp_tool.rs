@@ -17,7 +17,12 @@ pub struct McpToolExecutor;
 
 impl McpToolExecutor {
     /// Execute an MCP tool
-    pub fn execute(tool_use_id: &str, tool_name: &str, input: &Value, _context: &ToolContext) -> ToolResult {
+    pub fn execute(
+        tool_use_id: &str,
+        tool_name: &str,
+        input: &Value,
+        _context: &ToolContext,
+    ) -> ToolResult {
         // Since execute is called from sync context, we need to use tokio runtime
         let runtime = match tokio::runtime::Handle::try_current() {
             Ok(handle) => handle,
@@ -30,9 +35,7 @@ impl McpToolExecutor {
         };
 
         // Execute async operation
-        let result = runtime.block_on(async {
-            Self::execute_async(tool_name, input).await
-        });
+        let result = runtime.block_on(async { Self::execute_async(tool_name, input).await });
 
         match result {
             Ok(content) => ToolResult::success(tool_use_id.to_string(), content),
@@ -75,7 +78,9 @@ impl McpToolExecutor {
         };
 
         // Execute tool via MCP with progress notifications
-        registry.execute_tool_with_progress(tool_name, arguments, progress_callback).await
+        registry
+            .execute_tool_with_progress(tool_name, arguments, progress_callback)
+            .await
     }
 
     /// Get all available MCP tools

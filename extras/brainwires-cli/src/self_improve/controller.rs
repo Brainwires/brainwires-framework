@@ -64,10 +64,7 @@ impl SelfImprovementController {
     pub async fn run(&mut self) -> Result<SessionReport> {
         let start = Instant::now();
         tracing::info!("Starting self-improvement loop");
-        tracing::info!(
-            "Strategies: {:?}",
-            self.task_generator.strategy_names()
-        );
+        tracing::info!("Strategies: {:?}", self.task_generator.strategy_names());
 
         // Generate tasks
         let tasks = self.task_generator.generate_all(&self.config).await?;
@@ -173,9 +170,7 @@ impl SelfImprovementController {
     }
 
     async fn run_cycle(&mut self, task: &ImprovementTask) -> Result<CycleResult> {
-        let repo_path = std::env::current_dir()?
-            .to_string_lossy()
-            .to_string();
+        let repo_path = std::env::current_dir()?.to_string_lossy().to_string();
 
         let mut direct_result = None;
         let mut bridge_result = None;
@@ -200,10 +195,8 @@ impl SelfImprovementController {
                     }
                 }
                 Err(e) => {
-                    direct_result = Some(PathResult::failure(
-                        e.to_string(),
-                        Duration::from_secs(0),
-                    ));
+                    direct_result =
+                        Some(PathResult::failure(e.to_string(), Duration::from_secs(0)));
                 }
             }
             self.cleanup_worktree(&worktree)?;
@@ -229,10 +222,8 @@ impl SelfImprovementController {
                     }
                 }
                 Err(e) => {
-                    bridge_result = Some(PathResult::failure(
-                        e.to_string(),
-                        Duration::from_secs(0),
-                    ));
+                    bridge_result =
+                        Some(PathResult::failure(e.to_string(), Duration::from_secs(0)));
                 }
             }
             self.cleanup_worktree(&worktree)?;
@@ -467,11 +458,7 @@ impl SelfImprovementController {
         Ok(())
     }
 
-    async fn commit_changes(
-        &self,
-        worktree_path: &str,
-        task: &ImprovementTask,
-    ) -> Result<String> {
+    async fn commit_changes(&self, worktree_path: &str, task: &ImprovementTask) -> Result<String> {
         let add = tokio::process::Command::new("git")
             .args(["add", "-A"])
             .current_dir(worktree_path)
@@ -526,18 +513,13 @@ impl SelfImprovementController {
     fn setup_worktree(&self, task: &ImprovementTask, suffix: &str) -> Result<WorktreeInfo> {
         let branch = format!(
             "{}{}_{}_{}",
-            self.config.branch_prefix,
-            task.strategy,
-            task.id,
-            suffix
+            self.config.branch_prefix, task.strategy, task.id, suffix
         );
 
         // For now, use the current directory
         // In production, this would use `git worktree add`
         Ok(WorktreeInfo {
-            path: std::env::current_dir()?
-                .to_string_lossy()
-                .to_string(),
+            path: std::env::current_dir()?.to_string_lossy().to_string(),
             _branch: branch,
         })
     }
@@ -558,24 +540,35 @@ impl SelfImprovementController {
                 task.description.chars().take(100).collect::<String>()
             );
             if !task.target_files.is_empty() {
-                println!(
-                    "     Files: {}",
-                    task.target_files.join(", ")
-                );
+                println!("     Files: {}", task.target_files.join(", "));
             }
-            println!(
-                "     Est. diff: ~{} lines",
-                task.estimated_diff_lines
-            );
+            println!("     Est. diff: ~{} lines", task.estimated_diff_lines);
             println!();
         }
         println!("Config:");
         println!("  Max cycles: {}", self.config.max_cycles);
         println!("  Max budget: ${:.2}", self.config.max_budget);
         println!("  Agent iterations: {}", self.config.agent_iterations);
-        println!("  Max diff per task: {} lines", self.config.max_diff_per_task);
-        println!("  Bridge path: {}", if self.config.no_bridge { "disabled" } else { "enabled" });
-        println!("  Direct path: {}", if self.config.no_direct { "disabled" } else { "enabled" });
+        println!(
+            "  Max diff per task: {} lines",
+            self.config.max_diff_per_task
+        );
+        println!(
+            "  Bridge path: {}",
+            if self.config.no_bridge {
+                "disabled"
+            } else {
+                "enabled"
+            }
+        );
+        println!(
+            "  Direct path: {}",
+            if self.config.no_direct {
+                "disabled"
+            } else {
+                "enabled"
+            }
+        );
     }
 }
 

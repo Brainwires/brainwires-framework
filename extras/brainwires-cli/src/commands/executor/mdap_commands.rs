@@ -67,7 +67,10 @@ impl CommandExecutor {
         }
 
         let k: u32 = args[0].parse().map_err(|_| {
-            anyhow::anyhow!("Invalid k value: '{}'. Must be a positive integer.", args[0])
+            anyhow::anyhow!(
+                "Invalid k value: '{}'. Must be a positive integer.",
+                args[0]
+            )
         })?;
 
         if k == 0 {
@@ -98,7 +101,10 @@ impl CommandExecutor {
         // Handle percentage format (e.g., "95%") or decimal (e.g., "0.95")
         let input = args[0].trim_end_matches('%');
         let target: f64 = input.parse().map_err(|_| {
-            anyhow::anyhow!("Invalid target rate: '{}'. Use decimal (0.95) or percentage (95%).", args[0])
+            anyhow::anyhow!(
+                "Invalid target rate: '{}'. Use decimal (0.95) or percentage (95%).",
+                args[0]
+            )
         })?;
 
         // Convert percentage to decimal if needed
@@ -109,7 +115,9 @@ impl CommandExecutor {
         }
 
         if target >= 1.0 {
-            anyhow::bail!("Target rate must be less than 1.0 (100%). Perfect reliability is not achievable.");
+            anyhow::bail!(
+                "Target rate must be less than 1.0 (100%). Perfect reliability is not achievable."
+            );
         }
 
         Ok(CommandResult::Action(CommandAction::MdapSetTarget(target)))

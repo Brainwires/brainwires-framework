@@ -38,9 +38,15 @@ pub async fn handle_batch_mode(
 
     if !quiet {
         if let Some(ref url) = backend_url_override {
-            Logger::info(&format!("Starting batch mode with {} (dev backend: {})", model_id, url));
+            Logger::info(format!(
+                "Starting batch mode with {} (dev backend: {})",
+                model_id, url
+            ));
         } else {
-            Logger::info(&format!("Starting batch mode with {} (brainwires)", model_id));
+            Logger::info(format!(
+                "Starting batch mode with {} (brainwires)",
+                model_id
+            ));
         }
     }
 
@@ -100,13 +106,8 @@ pub async fn handle_batch_mode(
                 context.conversation_history.push(user_message);
 
                 // Process without spinner in batch mode
-                let response_text = process_chat_stream(
-                    &provider_instance,
-                    &context,
-                    &None,
-                    &model_id,
-                    None,
-                ).await;
+                let response_text =
+                    process_chat_stream(&provider_instance, &context, &None, &model_id, None).await;
 
                 match response_text {
                     Ok(text) => {

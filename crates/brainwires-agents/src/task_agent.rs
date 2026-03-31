@@ -1813,21 +1813,21 @@ impl TaskAgent {
         if let Some(ref collector) = self.config.analytics_collector {
             let t = &result.telemetry;
             collector.record(AnalyticsEvent::AgentRun {
-                session_id:              None,
-                agent_id:                result.agent_id.clone(),
-                task_id:                 result.task_id.clone(),
-                prompt_hash:             t.prompt_hash.clone(),
-                success:                 t.success,
-                total_iterations:        t.total_iterations,
-                total_tool_calls:        t.total_tool_calls,
-                tool_error_count:        t.tool_error_count,
-                tools_used:              t.tools_used.clone(),
-                total_prompt_tokens:     t.total_prompt_tokens,
+                session_id: None,
+                agent_id: result.agent_id.clone(),
+                task_id: result.task_id.clone(),
+                prompt_hash: t.prompt_hash.clone(),
+                success: t.success,
+                total_iterations: t.total_iterations,
+                total_tool_calls: t.total_tool_calls,
+                tool_error_count: t.tool_error_count,
+                tools_used: t.tools_used.clone(),
+                total_prompt_tokens: t.total_prompt_tokens,
                 total_completion_tokens: t.total_completion_tokens,
-                total_cost_usd:          t.total_cost_usd,
-                duration_ms:             t.duration_ms,
-                failure_category:        result.failure_category.as_ref().map(|fc| format!("{fc:?}")),
-                timestamp:               chrono::Utc::now(),
+                total_cost_usd: t.total_cost_usd,
+                duration_ms: t.duration_ms,
+                failure_category: result.failure_category.as_ref().map(|fc| format!("{fc:?}")),
+                timestamp: chrono::Utc::now(),
             });
         }
     }

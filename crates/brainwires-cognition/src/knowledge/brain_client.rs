@@ -175,10 +175,10 @@ impl BrainClient {
         }
 
         // Auto-tag with the mission slug when a mission is configured.
-        if let Some(mission_tag) = self.config.mission_tag() {
-            if !auto_tags.contains(&mission_tag) {
-                auto_tags.push(mission_tag);
-            }
+        if let Some(mission_tag) = self.config.mission_tag()
+            && !auto_tags.contains(&mission_tag)
+        {
+            auto_tags.push(mission_tag);
         }
 
         let source = req
@@ -219,8 +219,7 @@ impl BrainClient {
             .unwrap_or_default();
 
         // Compute initial confidence for the new thought based on corroboration count.
-        let initial_confidence = (0.5
-            + 0.05 * evidence.corroborations.len() as f32
+        let initial_confidence = (0.5 + 0.05 * evidence.corroborations.len() as f32
             - 0.05 * evidence.contradictions.len() as f32)
             .clamp(0.0, 1.0);
 
@@ -230,18 +229,14 @@ impl BrainClient {
             all_evidence.extend(evidence.contradictions.iter().cloned());
 
             // Update the newly inserted thought record with its evidence data.
-            let delete_filter =
-                Filter::Eq("id".into(), FieldValue::Utf8(Some(thought.id.clone())));
+            let delete_filter = Filter::Eq("id".into(), FieldValue::Utf8(Some(thought.id.clone())));
             let _ = self.backend.delete(THOUGHTS_TABLE, &delete_filter).await;
             let mut updated_thought = thought.clone();
             updated_thought.confidence = initial_confidence;
             updated_thought.evidence_chain = all_evidence;
             let embedding = self.embeddings.embed_cached(&updated_thought.content)?;
             let record = Self::thought_to_record(&updated_thought, &embedding);
-            let _ = self
-                .backend
-                .insert(THOUGHTS_TABLE, vec![record])
-                .await;
+            let _ = self.backend.insert(THOUGHTS_TABLE, vec![record]).await;
         }
 
         tracing::info!(
@@ -745,8 +740,7 @@ impl BrainClient {
     ///
     /// Required because `StorageBackend` has no `update` method.
     async fn replace_thought(&self, thought: &Thought) -> Result<()> {
-        let delete_filter =
-            Filter::Eq("id".into(), FieldValue::Utf8(Some(thought.id.clone())));
+        let delete_filter = Filter::Eq("id".into(), FieldValue::Utf8(Some(thought.id.clone())));
         self.backend.delete(THOUGHTS_TABLE, &delete_filter).await?;
         let embedding = self.embeddings.embed_cached(&thought.content)?;
         let record = Self::thought_to_record(thought, &embedding);

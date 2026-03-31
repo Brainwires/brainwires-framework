@@ -5,11 +5,11 @@
 //! Right panel: selected agent's conversation/tool activity tree.
 
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
-    Frame,
 };
 
 use crate::agents::TaskAgentStatus;
@@ -93,7 +93,11 @@ fn render_agent_list(f: &mut Frame, app: &App, area: Rect, focused: &SubAgentPan
             let is_selected = idx == state.selected_index;
 
             let (icon, icon_color) = status_icon(&agent.status);
-            let session_badge = if agent.session_id.is_some() { " [S]" } else { "" };
+            let session_badge = if agent.session_id.is_some() {
+                " [S]"
+            } else {
+                ""
+            };
             let ipc_badge = if agent.has_ipc_socket { " ●" } else { "" };
 
             let label = format!("{} {}{}{}", icon, agent.task_desc, session_badge, ipc_badge);
@@ -119,21 +123,22 @@ fn render_agent_list(f: &mut Frame, app: &App, area: Rect, focused: &SubAgentPan
 
 /// Render the right panel: selected agent's activity + optional input bar
 fn render_agent_detail(f: &mut Frame, app: &mut App, area: Rect, focused: &SubAgentPanelFocus) {
-    let (selected_index, _panel_focus, detail_scroll, message_input) = match app.sub_agent_viewer_state.as_ref() {
-        Some(s) => (
-            s.selected_index,
-            s.panel_focus.clone(),
-            s.detail_scroll,
-            s.message_input.clone(),
-        ),
-        None => {
-            f.render_widget(
-                Paragraph::new("No state").block(Block::default().borders(Borders::NONE)),
-                area,
-            );
-            return;
-        }
-    };
+    let (selected_index, _panel_focus, detail_scroll, message_input) =
+        match app.sub_agent_viewer_state.as_ref() {
+            Some(s) => (
+                s.selected_index,
+                s.panel_focus.clone(),
+                s.detail_scroll,
+                s.message_input.clone(),
+            ),
+            None => {
+                f.render_widget(
+                    Paragraph::new("No state").block(Block::default().borders(Borders::NONE)),
+                    area,
+                );
+                return;
+            }
+        };
 
     let agent = app
         .sub_agent_viewer_state
@@ -194,7 +199,10 @@ fn render_agent_detail(f: &mut Frame, app: &mut App, area: Rect, focused: &SubAg
     let agent = agent.unwrap();
 
     // Find the SubAgentSpawn node for this agent in the journal tree
-    let spawn_node_id = app.journal_tree.nodes.values()
+    let spawn_node_id = app
+        .journal_tree
+        .nodes
+        .values()
         .find(|n| {
             matches!(
                 &n.payload,
@@ -213,7 +221,10 @@ fn render_agent_detail(f: &mut Frame, app: &mut App, area: Rect, focused: &SubAg
         }
         // Render the full tree but we only want the subtree under spawn_id
         // For simplicity, render only children of the spawn node
-        let children: Vec<_> = app.journal_tree.nodes.get(&spawn_id)
+        let children: Vec<_> = app
+            .journal_tree
+            .nodes
+            .get(&spawn_id)
             .map(|n| n.children.clone())
             .unwrap_or_default();
 
@@ -227,41 +238,82 @@ fn render_agent_detail(f: &mut Frame, app: &mut App, area: Rect, focused: &SubAg
             for child_id in &children {
                 if let Some(child_node) = app.journal_tree.nodes.get(child_id).cloned() {
                     match &child_node.payload {
-                        crate::tui::app::journal_tree::JournalNodePayload::Message { role, content } => {
+                        crate::tui::app::journal_tree::JournalNodePayload::Message {
+                            role,
+                            content,
+                        } => {
                             let prefix = match role.as_str() {
-                                "user" => Span::styled("> ", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+                                "user" => Span::styled(
+                                    "> ",
+                                    Style::default()
+                                        .fg(Color::Green)
+                                        .add_modifier(Modifier::BOLD),
+                                ),
                                 _ => Span::styled("  ", Style::default()),
                             };
                             let rendered = render_markdown_to_lines(content);
                             for (i, line) in rendered.into_iter().enumerate() {
-                                let p = if i == 0 { prefix.clone() } else { Span::raw("  ") };
+                                let p = if i == 0 {
+                                    prefix.clone()
+                                } else {
+                                    Span::raw("  ")
+                                };
                                 let mut spans = vec![p];
                                 spans.extend(line.spans);
                                 lines.push(Line::from(spans));
                             }
                         }
                         crate::tui::app::journal_tree::JournalNodePayload::Tool {
-                            tool_name, params_summary, result_summary: _, success, duration_ms,
+                            tool_name,
+                            params_summary,
+                            result_summary: _,
+                            success,
+                            duration_ms,
                         } => {
                             let icon = if *success { "✓" } else { "✗" };
                             let icon_color = if *success { Color::Cyan } else { Color::Red };
-                            let dur = duration_ms.map(|d| format!(" ({:.1}s)", d as f64 / 1000.0)).unwrap_or_default();
+                            let dur = duration_ms
+                                .map(|d| format!(" ({:.1}s)", d as f64 / 1000.0))
+                                .unwrap_or_default();
                             lines.push(Line::from(vec![
-                                Span::styled(format!("{} ", icon), Style::default().fg(icon_color).add_modifier(Modifier::BOLD)),
-                                Span::styled(tool_name.clone(), Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
+                                Span::styled(
+                                    format!("{} ", icon),
+                                    Style::default().fg(icon_color).add_modifier(Modifier::BOLD),
+                                ),
+                                Span::styled(
+                                    tool_name.clone(),
+                                    Style::default()
+                                        .fg(Color::Magenta)
+                                        .add_modifier(Modifier::BOLD),
+                                ),
                                 Span::styled(dur, Style::default().fg(Color::DarkGray)),
                             ]));
                             if !params_summary.is_empty() {
                                 lines.push(Line::from(vec![
                                     Span::raw("  "),
-                                    Span::styled(params_summary.clone(), Style::default().fg(Color::Gray)),
+                                    Span::styled(
+                                        params_summary.clone(),
+                                        Style::default().fg(Color::Gray),
+                                    ),
                                 ]));
                             }
                         }
-                        crate::tui::app::journal_tree::JournalNodePayload::SystemEvent { description } => {
+                        crate::tui::app::journal_tree::JournalNodePayload::SystemEvent {
+                            description,
+                        } => {
                             lines.push(Line::from(vec![
-                                Span::styled("[sys] ", Style::default().fg(Color::Yellow).add_modifier(Modifier::DIM)),
-                                Span::styled(description.clone(), Style::default().fg(Color::Yellow).add_modifier(Modifier::DIM)),
+                                Span::styled(
+                                    "[sys] ",
+                                    Style::default()
+                                        .fg(Color::Yellow)
+                                        .add_modifier(Modifier::DIM),
+                                ),
+                                Span::styled(
+                                    description.clone(),
+                                    Style::default()
+                                        .fg(Color::Yellow)
+                                        .add_modifier(Modifier::DIM),
+                                ),
                             ]));
                         }
                         _ => {}

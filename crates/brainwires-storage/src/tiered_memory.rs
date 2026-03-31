@@ -22,12 +22,12 @@ use anyhow::Result;
 use chrono::Utc;
 use uuid::Uuid;
 
+use crate::databases::StorageBackend;
+use crate::stores::mental_model_store::{MentalModel, MentalModelStore, ModelType};
 use crate::{
     EmbeddingProvider, FactStore, LanceDatabase, MessageMetadata, MessageStore, SummaryStore,
     TierMetadataStore,
 };
-use crate::databases::StorageBackend;
-use crate::stores::mental_model_store::{MentalModel, MentalModelStore, ModelType};
 
 const SECS_PER_HOUR: f32 = 3600.0;
 const SIMILARITY_WEIGHT: f32 = 0.50;
@@ -43,8 +43,19 @@ const FAST_DECAY_RATE: f32 = 0.05;
 
 /// Temporal keywords that imply a recency-sensitive query.
 const TEMPORAL_KEYWORDS: &[&str] = &[
-    "recent", "recently", "latest", "last", "current", "currently",
-    "today", "yesterday", "this week", "now", "just", "new", "newest",
+    "recent",
+    "recently",
+    "latest",
+    "last",
+    "current",
+    "currently",
+    "today",
+    "yesterday",
+    "this week",
+    "now",
+    "just",
+    "new",
+    "newest",
 ];
 
 /// Detect whether a query is temporally sensitive.
@@ -327,8 +338,7 @@ impl MultiFactorScore {
         rec_w: f32,
         imp_w: f32,
     ) -> Self {
-        let combined =
-            (similarity * sim_w + recency * rec_w + importance * imp_w).clamp(0.0, 1.0);
+        let combined = (similarity * sim_w + recency * rec_w + importance * imp_w).clamp(0.0, 1.0);
         Self {
             similarity,
             recency,
@@ -463,7 +473,10 @@ impl TieredMemory {
         embeddings: Arc<EmbeddingProvider>,
         config: TieredMemoryConfig,
     ) -> Self {
-        let mental_model = MentalModelStore::new(Arc::clone(&db) as Arc<dyn StorageBackend>, Arc::clone(&embeddings));
+        let mental_model = MentalModelStore::new(
+            Arc::clone(&db) as Arc<dyn StorageBackend>,
+            Arc::clone(&embeddings),
+        );
         Self {
             hot: hot_store,
             warm: SummaryStore::new(Arc::clone(&db), Arc::clone(&embeddings)),
@@ -711,12 +724,9 @@ impl TieredMemory {
         if let Ok(mm_results) = self.search_mental_models(query, 5).await {
             for mut mm in mm_results {
                 mm.multi_factor_score = Some(MultiFactorScore::compute_with_weights(
-                    mm.score,
-                    1.0, // mental models have no recency — treat as always fresh
+                    mm.score, 1.0, // mental models have no recency — treat as always fresh
                     0.5, // default importance
-                    sim_w,
-                    rec_w,
-                    imp_w,
+                    sim_w, rec_w, imp_w,
                 ));
                 results.push(mm);
             }
@@ -1123,6 +1133,9 @@ mod tests {
         let hours = 48.0_f32;
         let normal = MultiFactorScore::recency_from_hours(hours);
         let fast = MultiFactorScore::recency_from_hours_fast(hours);
-        assert!(fast < normal, "fast decay should produce lower recency for old items");
+        assert!(
+            fast < normal,
+            "fast decay should produce lower recency for old items"
+        );
     }
 }

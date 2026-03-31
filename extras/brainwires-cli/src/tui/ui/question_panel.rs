@@ -3,11 +3,11 @@
 //! Renders a modal overlay for answering clarifying questions from the AI.
 
 use ratatui::{
+    Frame,
     layout::{Alignment, Constraint, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph, Wrap},
-    Frame,
 };
 
 use crate::types::question::{QuestionAnswerState, QuestionBlock};
@@ -22,8 +22,8 @@ pub fn draw_question_panel(
     let screen = f.area();
 
     // Calculate modal size (60% width, 60% height, clamped)
-    let modal_width = (screen.width * 60 / 100).min(80).max(50);
-    let modal_height = (screen.height * 60 / 100).min(25).max(15);
+    let modal_width = (screen.width * 60 / 100).clamp(50, 80);
+    let modal_height = (screen.height * 60 / 100).clamp(15, 25);
 
     // Center the modal
     let x = (screen.width.saturating_sub(modal_width)) / 2;
@@ -69,9 +69,9 @@ pub fn draw_question_panel(
     let chunks = Layout::default()
         .direction(ratatui::layout::Direction::Vertical)
         .constraints([
-            Constraint::Length(3),  // Question header
-            Constraint::Min(5),     // Options
-            Constraint::Length(3),  // Footer
+            Constraint::Length(3), // Question header
+            Constraint::Min(5),    // Options
+            Constraint::Length(3), // Footer
         ])
         .split(inner);
 
@@ -139,7 +139,9 @@ fn draw_options(
         // Build the option line
         let cursor_indicator = if is_cursor { "▶ " } else { "  " };
         let option_style = if is_cursor {
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD)
         } else if is_selected {
             Style::default().fg(Color::Green)
         } else {
@@ -169,13 +171,17 @@ fn draw_options(
 
     let other_indicator = if question.multi_select {
         if is_other_selected { "☑" } else { "☐" }
+    } else if is_other_selected {
+        "◉"
     } else {
-        if is_other_selected { "◉" } else { "○" }
+        "○"
     };
 
     let cursor_indicator = if is_cursor_on_other { "▶ " } else { "  " };
     let other_style = if is_cursor_on_other {
-        Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD)
     } else if is_other_selected {
         Style::default().fg(Color::Green)
     } else {
@@ -184,7 +190,11 @@ fn draw_options(
 
     lines.push(Line::from("")); // Spacing
 
-    let other_text = state.other_text.get(q_idx).map(|s| s.as_str()).unwrap_or("");
+    let other_text = state
+        .other_text
+        .get(q_idx)
+        .map(|s| s.as_str())
+        .unwrap_or("");
     let other_display = if state.editing_other && is_cursor_on_other {
         format!("Other: [{}▎]", other_text)
     } else if !other_text.is_empty() {
@@ -217,7 +227,10 @@ fn draw_footer(f: &mut Frame, state: &QuestionAnswerState, questions: &QuestionB
     ];
 
     if !is_first {
-        hints.push(Span::styled("Shift+Tab", Style::default().fg(Color::Yellow)));
+        hints.push(Span::styled(
+            "Shift+Tab",
+            Style::default().fg(Color::Yellow),
+        ));
         hints.push(Span::raw(" Prev  "));
     }
 
@@ -230,7 +243,12 @@ fn draw_footer(f: &mut Frame, state: &QuestionAnswerState, questions: &QuestionB
     hints.push(Span::raw(" Skip  "));
 
     if is_last {
-        hints.push(Span::styled("Enter", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)));
+        hints.push(Span::styled(
+            "Enter",
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD),
+        ));
         hints.push(Span::raw(" Submit"));
     }
 
@@ -239,7 +257,9 @@ fn draw_footer(f: &mut Frame, state: &QuestionAnswerState, questions: &QuestionB
     // Build action buttons line
     let skip_style = Style::default().fg(Color::DarkGray);
     let submit_style = if state.all_answered(questions) {
-        Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Green)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(Color::DarkGray)
     };
@@ -249,7 +269,11 @@ fn draw_footer(f: &mut Frame, state: &QuestionAnswerState, questions: &QuestionB
         Span::styled("[Skip All]", skip_style),
         Span::raw("  "),
         Span::styled(
-            if is_last { "[Submit →]" } else { "[Continue →]" },
+            if is_last {
+                "[Submit →]"
+            } else {
+                "[Continue →]"
+            },
             submit_style,
         ),
     ]);

@@ -32,10 +32,7 @@ pub struct PorcupineDetector {
 
 impl PorcupineDetector {
     /// Create a detector using one of Porcupine's built-in keywords.
-    pub fn from_builtin(
-        access_key: &str,
-        keyword: BuiltinKeywords,
-    ) -> AudioResult<Self> {
+    pub fn from_builtin(access_key: &str, keyword: BuiltinKeywords) -> AudioResult<Self> {
         let inner = PorcupineBuilder::new_with_keyword_paths(access_key, &[])
             .keywords(&[keyword])
             .init()
@@ -44,7 +41,12 @@ impl PorcupineDetector {
         let frame_size = inner.frame_length() as usize;
         let keywords = vec![format!("{keyword:?}").to_lowercase()];
 
-        Ok(Self { inner, keywords, frame_size, start: Instant::now() })
+        Ok(Self {
+            inner,
+            keywords,
+            frame_size,
+            start: Instant::now(),
+        })
     }
 
     /// Create a detector from one or more custom `.ppn` keyword files.
@@ -77,7 +79,12 @@ impl PorcupineDetector {
             })
             .collect();
 
-        Ok(Self { inner, keywords, frame_size, start: Instant::now() })
+        Ok(Self {
+            inner,
+            keywords,
+            frame_size,
+            start: Instant::now(),
+        })
     }
 }
 

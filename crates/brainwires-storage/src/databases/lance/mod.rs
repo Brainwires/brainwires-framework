@@ -493,8 +493,10 @@ impl VectorDatabase for LanceDatabase {
 
         let schema = Self::create_rag_schema(dimension);
         let empty_batch = RecordBatch::new_empty(schema.clone());
-        let batches: Box<dyn RecordBatchReader + Send> =
-            Box::new(RecordBatchIterator::new(vec![empty_batch].into_iter().map(Ok), schema.clone()));
+        let batches: Box<dyn RecordBatchReader + Send> = Box::new(RecordBatchIterator::new(
+            vec![empty_batch].into_iter().map(Ok),
+            schema.clone(),
+        ));
 
         self.connection
             .create_table(&self.rag_table_name, batches)
@@ -531,8 +533,10 @@ impl VectorDatabase for LanceDatabase {
         )?;
         let count = batch.num_rows();
 
-        let batches: Box<dyn RecordBatchReader + Send> =
-            Box::new(RecordBatchIterator::new(vec![batch].into_iter().map(Ok), schema));
+        let batches: Box<dyn RecordBatchReader + Send> = Box::new(RecordBatchIterator::new(
+            vec![batch].into_iter().map(Ok),
+            schema,
+        ));
 
         table
             .add(batches)
@@ -664,7 +668,9 @@ impl VectorDatabase for LanceDatabase {
             // out by vector+BM25 hits that score ~2× higher in RRF.
             // The caller's limit is enforced at the end of the result-building loop.
             let rrf_limit = (limit * 2).max(20);
-            let combined = self.scorer.fuse(vector_results, all_bm25_results, rrf_limit);
+            let combined = self
+                .scorer
+                .fuse(vector_results, all_bm25_results, rrf_limit);
 
             let mut search_results = Vec::new();
 

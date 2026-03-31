@@ -3,7 +3,7 @@
 //! This module renders the hotkey configuration dialog overlay using the
 //! generic HotkeyDialog component from ratatui_interact.
 
-use ratatui::{layout::Rect, Frame};
+use ratatui::{Frame, layout::Rect};
 
 use ratatui_interact::components::hotkey_dialog::{HotkeyDialog, HotkeyDialogStyle};
 

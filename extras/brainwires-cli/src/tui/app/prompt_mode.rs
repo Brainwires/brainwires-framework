@@ -59,12 +59,10 @@ impl App {
     /// In Edit and Plan modes, passes through unchanged.
     pub fn filter_tools_for_prompt_mode(&self, tools: Vec<Tool>) -> Vec<Tool> {
         match self.prompt_mode {
-            PromptMode::Ask => {
-                tools
-                    .into_iter()
-                    .filter(|t| !ASK_MODE_EXCLUDED_TOOLS.contains(&t.name.as_str()))
-                    .collect()
-            }
+            PromptMode::Ask => tools
+                .into_iter()
+                .filter(|t| !ASK_MODE_EXCLUDED_TOOLS.contains(&t.name.as_str()))
+                .collect(),
             PromptMode::Edit | PromptMode::Plan => tools,
         }
     }
@@ -73,10 +71,8 @@ impl App {
     pub(super) fn rebuild_system_prompt(&mut self) {
         let new_prompt = match self.prompt_mode {
             PromptMode::Ask => {
-                crate::utils::system_prompt::build_ask_mode_system_prompt(
-                    Some(&self.working_set),
-                )
-                .unwrap_or_else(|_| "You are a helpful read-only coding assistant.".to_string())
+                crate::utils::system_prompt::build_ask_mode_system_prompt(Some(&self.working_set))
+                    .unwrap_or_else(|_| "You are a helpful read-only coding assistant.".to_string())
             }
             PromptMode::Edit | PromptMode::Plan => {
                 crate::utils::system_prompt::build_system_prompt_with_context(
@@ -88,7 +84,11 @@ impl App {
         };
 
         // Replace the first System message, or insert one if none exists
-        if let Some(sys_msg) = self.conversation_history.iter_mut().find(|m| m.role == Role::System) {
+        if let Some(sys_msg) = self
+            .conversation_history
+            .iter_mut()
+            .find(|m| m.role == Role::System)
+        {
             sys_msg.content = MessageContent::Text(new_prompt);
         } else {
             self.conversation_history.insert(
@@ -168,9 +168,18 @@ mod tests {
     fn test_excluded_tools_list_completeness() {
         // Verify all expected mutating tools are in the exclusion list
         let expected = vec![
-            "write_file", "edit_file", "delete_file", "patch_file",
-            "create_directory", "execute_command", "git_commit",
-            "git_push", "git_reset", "git_checkout", "git_stage", "git_discard",
+            "write_file",
+            "edit_file",
+            "delete_file",
+            "patch_file",
+            "create_directory",
+            "execute_command",
+            "git_commit",
+            "git_push",
+            "git_reset",
+            "git_checkout",
+            "git_stage",
+            "git_discard",
         ];
         for tool in expected {
             assert!(

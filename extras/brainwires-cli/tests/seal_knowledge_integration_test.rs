@@ -3,12 +3,12 @@
 //! Tests the bidirectional learning between SEAL (entity-centric learning)
 //! and the Knowledge System (BKS + PKS).
 
-use brainwires::brain::knowledge::{BehavioralKnowledgeCache, PersonalKnowledgeCache};
-use brainwires::seal::{
-    EntityResolutionStrategy, IntegrationConfig, SealKnowledgeCoordinator, SealProcessor,
-    SealProcessingResult, ReferenceType, UnresolvedReference, ResolvedReference, SalienceScore,
-};
 use brainwires::brain::EntityType;
+use brainwires::brain::bks_pks::{BehavioralKnowledgeCache, PersonalKnowledgeCache};
+use brainwires::seal::{
+    EntityResolutionStrategy, IntegrationConfig, ReferenceType, ResolvedReference, SalienceScore,
+    SealKnowledgeCoordinator, SealProcessingResult, SealProcessor, UnresolvedReference,
+};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -17,9 +17,7 @@ fn create_test_coordinator() -> SealKnowledgeCoordinator {
     let bks_cache = Arc::new(Mutex::new(
         BehavioralKnowledgeCache::in_memory(100).unwrap(),
     ));
-    let pks_cache = Arc::new(Mutex::new(
-        PersonalKnowledgeCache::in_memory(100).unwrap(),
-    ));
+    let pks_cache = Arc::new(Mutex::new(PersonalKnowledgeCache::in_memory(100).unwrap()));
 
     SealKnowledgeCoordinator::new(bks_cache, pks_cache, IntegrationConfig::default()).unwrap()
 }
@@ -67,7 +65,6 @@ async fn test_retrieval_threshold_adjustment() {
 
 #[tokio::test]
 async fn test_seal_to_pks_entity_observation() {
-
     let mut coordinator = create_test_coordinator();
 
     // Manually create SEAL resolution to test PKS observation
@@ -100,7 +97,10 @@ async fn test_seal_to_pks_entity_observation() {
         .iter()
         .any(|f| f.key.starts_with("recent_entity:") && f.local_only);
 
-    assert!(has_entity_fact, "PKS should track observed entity resolutions");
+    assert!(
+        has_entity_fact,
+        "PKS should track observed entity resolutions"
+    );
 }
 
 #[tokio::test]
@@ -212,10 +212,7 @@ async fn test_observe_seal_resolutions_empty() {
     let mut coordinator = create_test_coordinator();
 
     // Empty resolutions should not error
-    coordinator
-        .observe_seal_resolutions(&[])
-        .await
-        .unwrap();
+    coordinator.observe_seal_resolutions(&[]).await.unwrap();
 
     // Verify PKS is still empty
     let pks_cache = coordinator.get_pks_cache();
@@ -247,9 +244,7 @@ async fn test_coordinator_creation() {
     let bks_cache = Arc::new(Mutex::new(
         BehavioralKnowledgeCache::in_memory(100).unwrap(),
     ));
-    let pks_cache = Arc::new(Mutex::new(
-        PersonalKnowledgeCache::in_memory(100).unwrap(),
-    ));
+    let pks_cache = Arc::new(Mutex::new(PersonalKnowledgeCache::in_memory(100).unwrap()));
 
     // Should create successfully with valid config
     let coordinator = SealKnowledgeCoordinator::new(
@@ -271,9 +266,7 @@ async fn test_with_defaults_constructor() {
     let bks_cache = Arc::new(Mutex::new(
         BehavioralKnowledgeCache::in_memory(100).unwrap(),
     ));
-    let pks_cache = Arc::new(Mutex::new(
-        PersonalKnowledgeCache::in_memory(100).unwrap(),
-    ));
+    let pks_cache = Arc::new(Mutex::new(PersonalKnowledgeCache::in_memory(100).unwrap()));
 
     let coordinator = SealKnowledgeCoordinator::with_defaults(bks_cache, pks_cache);
     assert!(coordinator.is_ok());

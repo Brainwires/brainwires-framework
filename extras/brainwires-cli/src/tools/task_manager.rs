@@ -3,7 +3,7 @@
 //! Provides tools for creating, updating, and managing a hierarchical task tree.
 
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -49,10 +49,10 @@ impl TaskManagerTool {
     async fn persist_task(&self, task_id: &str) {
         if let (Some(store), Some(conv_id)) = (&self.task_store, &self.conversation_id) {
             let manager = self.manager.read().await;
-            if let Some(task) = manager.get_task(task_id).await {
-                if let Err(e) = store.save(&task, conv_id).await {
-                    eprintln!("Failed to persist task {}: {}", task_id, e);
-                }
+            if let Some(task) = manager.get_task(task_id).await
+                && let Err(e) = store.save(&task, conv_id).await
+            {
+                eprintln!("Failed to persist task {}: {}", task_id, e);
             }
         }
     }
@@ -101,7 +101,9 @@ impl TaskManagerTool {
 
         Tool {
             name: "task_create".to_string(),
-            description: "Create a new task. Returns the task ID. Use parent_id to create subtasks.".to_string(),
+            description:
+                "Create a new task. Returns the task ID. Use parent_id to create subtasks."
+                    .to_string(),
             input_schema: ToolInputSchema::object(properties, vec!["description".to_string()]),
             requires_approval: false,
             defer_loading: true, // Task manager tools are deferred
@@ -267,7 +269,9 @@ impl TaskManagerTool {
 
         Tool {
             name: "task_get_tree".to_string(),
-            description: "Get the task tree as formatted text. Shows hierarchy with status indicators.".to_string(),
+            description:
+                "Get the task tree as formatted text. Shows hierarchy with status indicators."
+                    .to_string(),
             input_schema: ToolInputSchema::object(properties, vec![]),
             requires_approval: false,
             defer_loading: true, // Task manager tools are deferred
@@ -279,7 +283,8 @@ impl TaskManagerTool {
     fn get_ready_tasks_tool() -> Tool {
         Tool {
             name: "task_get_ready".to_string(),
-            description: "Get all tasks that are ready to execute (no incomplete dependencies)".to_string(),
+            description: "Get all tasks that are ready to execute (no incomplete dependencies)"
+                .to_string(),
             input_schema: ToolInputSchema::object(HashMap::new(), vec![]),
             requires_approval: false,
             defer_loading: true, // Task manager tools are deferred
@@ -316,7 +321,10 @@ impl TaskManagerTool {
 
         match result {
             Ok(output) => ToolResult::success(tool_use_id.to_string(), output),
-            Err(e) => ToolResult::error(tool_use_id.to_string(), format!("Task operation failed: {}", e)),
+            Err(e) => ToolResult::error(
+                tool_use_id.to_string(),
+                format!("Task operation failed: {}", e),
+            ),
         }
     }
 
@@ -343,7 +351,13 @@ impl TaskManagerTool {
         };
 
         let manager = self.manager.read().await;
-        let task_id = manager.create_task(params.description.clone(), params.parent_id.clone(), priority).await?;
+        let task_id = manager
+            .create_task(
+                params.description.clone(),
+                params.parent_id.clone(),
+                priority,
+            )
+            .await?;
         drop(manager);
 
         // Persist the new task
@@ -354,7 +368,10 @@ impl TaskManagerTool {
             self.persist_task(parent_id).await;
         }
 
-        Ok(format!("Created task '{}' with ID: {}", params.description, task_id))
+        Ok(format!(
+            "Created task '{}' with ID: {}",
+            params.description, task_id
+        ))
     }
 
     async fn execute_add_subtask(&self, input: &Value) -> anyhow::Result<String> {
@@ -366,15 +383,19 @@ impl TaskManagerTool {
 
         let params: Input = serde_json::from_value(input.clone())?;
         let manager = self.manager.read().await;
-        let task_id = manager.add_subtask(params.parent_id.clone(), params.description.clone()).await?;
+        let task_id = manager
+            .add_subtask(params.parent_id.clone(), params.description.clone())
+            .await?;
         drop(manager);
 
         // Persist the new subtask and parent
         self.persist_task(&task_id).await;
         self.persist_task(&params.parent_id).await;
 
-        Ok(format!("Created subtask '{}' with ID: {} under parent {}",
-            params.description, task_id, params.parent_id))
+        Ok(format!(
+            "Created subtask '{}' with ID: {} under parent {}",
+            params.description, task_id, params.parent_id
+        ))
     }
 
     async fn execute_start_task(&self, input: &Value) -> anyhow::Result<String> {
@@ -403,13 +424,18 @@ impl TaskManagerTool {
 
         let params: Input = serde_json::from_value(input.clone())?;
         let manager = self.manager.read().await;
-        manager.complete_task(&params.task_id, params.summary.clone()).await?;
+        manager
+            .complete_task(&params.task_id, params.summary.clone())
+            .await?;
         drop(manager);
 
         // Persist status change
         self.persist_task(&params.task_id).await;
 
-        Ok(format!("Completed task {}: {}", params.task_id, params.summary))
+        Ok(format!(
+            "Completed task {}: {}",
+            params.task_id, params.summary
+        ))
     }
 
     async fn execute_fail_task(&self, input: &Value) -> anyhow::Result<String> {
@@ -421,7 +447,9 @@ impl TaskManagerTool {
 
         let params: Input = serde_json::from_value(input.clone())?;
         let manager = self.manager.read().await;
-        manager.fail_task(&params.task_id, params.error.clone()).await?;
+        manager
+            .fail_task(&params.task_id, params.error.clone())
+            .await?;
         drop(manager);
 
         // Persist status change
@@ -439,13 +467,18 @@ impl TaskManagerTool {
 
         let params: Input = serde_json::from_value(input.clone())?;
         let manager = self.manager.read().await;
-        manager.add_dependency(&params.task_id, &params.depends_on).await?;
+        manager
+            .add_dependency(&params.task_id, &params.depends_on)
+            .await?;
         drop(manager);
 
         // Persist dependency change
         self.persist_task(&params.task_id).await;
 
-        Ok(format!("Added dependency: {} depends on {}", params.task_id, params.depends_on))
+        Ok(format!(
+            "Added dependency: {} depends on {}",
+            params.task_id, params.depends_on
+        ))
     }
 
     async fn execute_get_tree(&self, input: &Value) -> anyhow::Result<String> {
@@ -478,8 +511,10 @@ impl TaskManagerTool {
         } else {
             let mut output = format!("{} tasks ready:\n", ready.len());
             for task in ready {
-                output.push_str(&format!("- [{}] {} (priority: {:?})\n",
-                    task.id, task.description, task.priority));
+                output.push_str(&format!(
+                    "- [{}] {} (priority: {:?})\n",
+                    task.id, task.description, task.priority
+                ));
             }
             Ok(output)
         }

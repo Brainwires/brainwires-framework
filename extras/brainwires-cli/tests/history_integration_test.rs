@@ -241,7 +241,9 @@ fn test_history_delete_without_confirm() {
         .assert()
         .success()
         // Either shows "Use --confirm" or "not found" depending on if conversation exists
-        .stdout(predicate::str::contains("Use --confirm").or(predicate::str::contains("not found")));
+        .stdout(
+            predicate::str::contains("Use --confirm").or(predicate::str::contains("not found")),
+        );
 }
 
 #[test]
@@ -331,10 +333,7 @@ fn test_history_list_handles_corrupted_db_gracefully() {
     }
 
     // Should handle error gracefully
-    env.cmd()
-        .arg("history")
-        .arg("list")
-        .assert(); // May fail or succeed depending on error handling
+    env.cmd().arg("history").arg("list").assert(); // May fail or succeed depending on error handling
 }
 
 // ============================================================================
@@ -406,7 +405,9 @@ fn test_history_search_help() {
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Search conversations by semantic similarity"))
+        .stdout(predicate::str::contains(
+            "Search conversations by semantic similarity",
+        ))
         .stdout(predicate::str::contains("--limit"))
         .stdout(predicate::str::contains("--min-score"));
 }

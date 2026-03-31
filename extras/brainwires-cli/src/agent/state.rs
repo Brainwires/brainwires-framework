@@ -12,8 +12,6 @@ use tokio_util::sync::CancellationToken;
 use crate::agent::message_queue::MessageQueue;
 use crate::agents::TaskManager;
 use crate::commands::CommandExecutor;
-use brainwires::agent_network::ipc::{AgentMessage, DisplayMessage};
-use brainwires::brain::bks_pks::{BehavioralKnowledgeCache, LearningCollector, detect_correction};
 use crate::mdap::MdapConfig;
 use crate::providers::{Provider, ProviderFactory};
 use crate::storage::{LockStore, TaskStore, VectorDatabase};
@@ -25,6 +23,8 @@ use crate::types::tool::{Tool, ToolMode};
 use crate::utils::checkpoint::CheckpointManager;
 use crate::utils::paths::PlatformPaths;
 use crate::utils::system_prompt::build_system_prompt;
+use brainwires::agent_network::ipc::{AgentMessage, DisplayMessage};
+use brainwires::brain::bks_pks::{BehavioralKnowledgeCache, LearningCollector, detect_correction};
 
 /// Core agent state that persists across viewer attach/detach cycles
 pub struct AgentState {
@@ -172,9 +172,8 @@ impl AgentState {
         let provider = provider_factory.create(model.clone()).await?;
 
         // Generate session ID
-        let session_id = session_id.unwrap_or_else(|| {
-            format!("agent-{}", chrono::Utc::now().format("%Y%m%d-%H%M%S"))
-        });
+        let session_id = session_id
+            .unwrap_or_else(|| format!("agent-{}", chrono::Utc::now().format("%Y%m%d-%H%M%S")));
 
         // Initialize command executor
         let command_executor = CommandExecutor::new()?;
@@ -187,12 +186,15 @@ impl AgentState {
         let client = std::sync::Arc::new(
             crate::storage::LanceDatabase::new(db_path.to_str().context("Invalid DB path")?)
                 .await
-                .context("Failed to create LanceDB client")?
+                .context("Failed to create LanceDB client")?,
         );
-        client.initialize(384).await.context("Failed to initialize LanceDB")?;
+        client
+            .initialize(384)
+            .await
+            .context("Failed to initialize LanceDB")?;
         let embeddings = std::sync::Arc::new(
             crate::storage::embeddings::EmbeddingProvider::new()
-                .context("Failed to create embedding provider")?
+                .context("Failed to create embedding provider")?,
         );
 
         let conversation_store = crate::storage::ConversationStore::new(client.clone());
@@ -204,7 +206,7 @@ impl AgentState {
         let lock_store = Arc::new(
             LockStore::new_default()
                 .await
-                .context("Failed to create lock store")?
+                .context("Failed to create lock store")?,
         );
 
         // Initialize tools with core tools only
@@ -232,7 +234,8 @@ impl AgentState {
                 if let Ok(cache) = BehavioralKnowledgeCache::new(&cache_path, 100) {
                     let reliable = cache.get_reliable_truths(0.5, 30);
                     if !reliable.is_empty() {
-                        let matched: Vec<MatchedTruth> = reliable.iter()
+                        let matched: Vec<MatchedTruth> = reliable
+                            .iter()
                             .map(|t| MatchedTruth {
                                 truth: t,
                                 match_score: 1.0,
@@ -270,35 +273,39 @@ impl AgentState {
         let mut has_pending_request = false;
 
         // Load messages from storage for existing session
-        if let Ok(stored_messages) = message_store.get_by_conversation(&session_id).await {
-            if !stored_messages.is_empty() {
-                tracing::info!("Loading {} messages from storage for session {}", stored_messages.len(), session_id);
-                for msg in stored_messages {
-                    // Add to display messages
-                    messages.push(DisplayMessage::new(&msg.role, &msg.content, msg.created_at));
+        if let Ok(stored_messages) = message_store.get_by_conversation(&session_id).await
+            && !stored_messages.is_empty()
+        {
+            tracing::info!(
+                "Loading {} messages from storage for session {}",
+                stored_messages.len(),
+                session_id
+            );
+            for msg in stored_messages {
+                // Add to display messages
+                messages.push(DisplayMessage::new(&msg.role, &msg.content, msg.created_at));
 
-                    // Add to conversation history
-                    let role = match msg.role.as_str() {
-                        "user" => Role::User,
-                        "assistant" => Role::Assistant,
-                        _ => continue, // Skip system messages from storage (we already have one)
-                    };
-                    conversation_history.push(Message {
-                        role,
-                        content: MessageContent::Text(msg.content),
-                        name: None,
-                        metadata: None,
-                    });
-                }
+                // Add to conversation history
+                let role = match msg.role.as_str() {
+                    "user" => Role::User,
+                    "assistant" => Role::Assistant,
+                    _ => continue, // Skip system messages from storage (we already have one)
+                };
+                conversation_history.push(Message {
+                    role,
+                    content: MessageContent::Text(msg.content),
+                    name: None,
+                    metadata: None,
+                });
+            }
 
-                // Check if last message is from user (pending request)
-                // This happens when user backgrounded before AI could respond
-                if let Some(last_msg) = messages.last() {
-                    if last_msg.role == "user" {
-                        has_pending_request = true;
-                        tracing::info!("Detected pending user request that needs AI response");
-                    }
-                }
+            // Check if last message is from user (pending request)
+            // This happens when user backgrounded before AI could respond
+            if let Some(last_msg) = messages.last()
+                && last_msg.role == "user"
+            {
+                has_pending_request = true;
+                tracing::info!("Detected pending user request that needs AI response");
             }
         }
 
@@ -360,7 +367,8 @@ impl AgentState {
         self.analyze_for_corrections(&content);
 
         // Add to display messages
-        self.messages.push(DisplayMessage::new("user", &content, timestamp));
+        self.messages
+            .push(DisplayMessage::new("user", &content, timestamp));
 
         // Add to conversation history
         self.conversation_history.push(Message::user(&content));
@@ -371,7 +379,8 @@ impl AgentState {
         let timestamp = chrono::Utc::now().timestamp_millis();
 
         // Add to display messages
-        self.messages.push(DisplayMessage::new("assistant", &content, timestamp));
+        self.messages
+            .push(DisplayMessage::new("assistant", &content, timestamp));
 
         // Add to conversation history
         self.conversation_history.push(Message::assistant(&content));
@@ -380,7 +389,9 @@ impl AgentState {
     /// Analyze user message for corrections (implicit learning)
     fn analyze_for_corrections(&mut self, user_message: &str) {
         // Get the last assistant message for context
-        let last_assistant_msg = self.messages.iter()
+        let last_assistant_msg = self
+            .messages
+            .iter()
             .rev()
             .find(|m| m.role == "assistant")
             .map(|m| m.content.clone())
@@ -395,11 +406,8 @@ impl AgentState {
             };
 
             // Record the correction
-            self.learning_collector.record_correction(
-                &context,
-                &wrong,
-                &right,
-            );
+            self.learning_collector
+                .record_correction(&context, &wrong, &right);
 
             tracing::info!(
                 "Detected implicit correction: wrong='{}' -> right='{}'",
@@ -476,7 +484,8 @@ impl AgentState {
 
     /// Create a TaskUpdate message for IPC
     pub fn create_task_update_message(&self) -> AgentMessage {
-        let completed_count = self.task_tree_cache
+        let completed_count = self
+            .task_tree_cache
             .lines()
             .filter(|l| l.contains("✓"))
             .count();
@@ -496,7 +505,8 @@ impl AgentState {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs() as i64)
             .unwrap_or(0);
-        self.seal_entity_store.add_extraction(extraction, "", timestamp);
+        self.seal_entity_store
+            .add_extraction(extraction, "", timestamp);
 
         // Advance dialog turn
         self.seal_dialog_state.next_turn();
@@ -550,53 +560,47 @@ impl AgentState {
 
         tracing::info!("Connecting to {} MCP server(s)...", servers.len());
 
-        let client = Arc::new(RwLock::new(McpClient::new("brainwires", env!("CARGO_PKG_VERSION"))));
+        let client = Arc::new(RwLock::new(McpClient::new(
+            "brainwires",
+            env!("CARGO_PKG_VERSION"),
+        )));
 
         for server_config in servers {
             let server_name = server_config.name.clone();
 
             let client_guard = client.write().await;
             match client_guard.connect(server_config).await {
-                Ok(_) => {
-                    match client_guard.list_tools(&server_name).await {
-                        Ok(mcp_tools) => {
-                            let tool_count = mcp_tools.len();
+                Ok(_) => match client_guard.list_tools(&server_name).await {
+                    Ok(mcp_tools) => {
+                        let tool_count = mcp_tools.len();
 
-                            let adapter = McpToolAdapter::new(
-                                client.clone(),
-                                server_name.clone(),
-                            );
+                        let adapter = McpToolAdapter::new(client.clone(), server_name.clone());
 
-                            match adapter.get_tools().await {
-                                Ok(tools) => {
-                                    self.mcp_tools.extend(tools);
-                                    self.mcp_connected_servers.push(server_name.clone());
-                                    tracing::info!(
-                                        "MCP server '{}' connected ({} tools)",
-                                        server_name, tool_count
-                                    );
-                                }
-                                Err(e) => {
-                                    tracing::warn!(
-                                        "Failed to convert tools from '{}': {}",
-                                        server_name, e
-                                    );
-                                }
+                        match adapter.get_tools().await {
+                            Ok(tools) => {
+                                self.mcp_tools.extend(tools);
+                                self.mcp_connected_servers.push(server_name.clone());
+                                tracing::info!(
+                                    "MCP server '{}' connected ({} tools)",
+                                    server_name,
+                                    tool_count
+                                );
+                            }
+                            Err(e) => {
+                                tracing::warn!(
+                                    "Failed to convert tools from '{}': {}",
+                                    server_name,
+                                    e
+                                );
                             }
                         }
-                        Err(e) => {
-                            tracing::warn!(
-                                "Failed to list tools from '{}': {}",
-                                server_name, e
-                            );
-                        }
                     }
-                }
+                    Err(e) => {
+                        tracing::warn!("Failed to list tools from '{}': {}", server_name, e);
+                    }
+                },
                 Err(e) => {
-                    tracing::warn!(
-                        "Failed to connect to MCP server '{}': {}",
-                        server_name, e
-                    );
+                    tracing::warn!("Failed to connect to MCP server '{}': {}", server_name, e);
                 }
             }
         }
@@ -606,7 +610,8 @@ impl AgentState {
         if connected > 0 {
             tracing::info!(
                 "MCP initialized: {} server(s), {} tool(s) available",
-                connected, total_tools
+                connected,
+                total_tools
             );
         }
     }

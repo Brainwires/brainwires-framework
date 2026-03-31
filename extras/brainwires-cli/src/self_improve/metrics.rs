@@ -125,7 +125,11 @@ mod duration_serde {
 }
 
 impl SessionReport {
-    pub fn new(metrics: SessionMetrics, duration: Duration, stop_reason: Option<SafetyStop>) -> Self {
+    pub fn new(
+        metrics: SessionMetrics,
+        duration: Duration,
+        stop_reason: Option<SafetyStop>,
+    ) -> Self {
         Self {
             metrics,
             duration,
@@ -144,16 +148,17 @@ impl SessionReport {
             "**Date**: {}\n",
             self.metrics.start_time.format("%Y-%m-%d %H:%M:%S UTC")
         ));
-        md.push_str(&format!("**Duration**: {:.1}s\n", self.duration.as_secs_f64()));
+        md.push_str(&format!(
+            "**Duration**: {:.1}s\n",
+            self.duration.as_secs_f64()
+        ));
         md.push_str(&format!(
             "**Success Rate**: {:.1}%\n\n",
             self.metrics.success_rate() * 100.0
         ));
 
         md.push_str("## Summary\n\n");
-        md.push_str(&format!(
-            "| Metric | Value |\n|--------|-------|\n"
-        ));
+        md.push_str("| Metric | Value |\n|--------|-------|\n");
         md.push_str(&format!(
             "| Tasks Attempted | {} |\n",
             self.metrics.tasks_attempted
@@ -174,10 +179,7 @@ impl SessionReport {
             "| Estimated Cost | ${:.4} |\n",
             self.metrics.total_cost
         ));
-        md.push_str(&format!(
-            "| Commits | {} |\n",
-            self.metrics.commits.len()
-        ));
+        md.push_str(&format!("| Commits | {} |\n", self.metrics.commits.len()));
 
         if !self.metrics.per_strategy.is_empty() {
             md.push_str("\n## Per-Strategy Breakdown\n\n");
@@ -210,10 +212,7 @@ impl SessionReport {
                 both_ok,
                 self.metrics.comparisons.len()
             ));
-            md.push_str(&format!(
-                "- Diffs matched: {}/{}\n",
-                diffs_match, both_ok
-            ));
+            md.push_str(&format!("- Diffs matched: {}/{}\n", diffs_match, both_ok));
         }
 
         if let Some(ref reason) = self.safety_stop_reason {
@@ -232,11 +231,7 @@ impl SessionReport {
 
     pub fn save(&self, output_dir: &str) -> anyhow::Result<()> {
         std::fs::create_dir_all(output_dir)?;
-        let timestamp = self
-            .metrics
-            .start_time
-            .format("%Y%m%d-%H%M%S")
-            .to_string();
+        let timestamp = self.metrics.start_time.format("%Y%m%d-%H%M%S").to_string();
 
         let json_path = format!("{output_dir}/session-{timestamp}.json");
         std::fs::write(&json_path, self.to_json()?)?;

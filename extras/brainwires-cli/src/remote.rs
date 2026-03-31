@@ -18,10 +18,10 @@ use anyhow::{Context, Result};
 use async_trait::async_trait;
 use zeroize::Zeroizing;
 
-use crate::agent::spawn::{spawn_agent_process_with_options, SpawnOptions};
+use crate::agent::spawn::{SpawnOptions, spawn_agent_process_with_options};
 use crate::auth::SessionManager;
-use crate::config::manager::RemoteSettings;
 use crate::config::ConfigManager;
+use crate::config::manager::RemoteSettings;
 use crate::utils::paths::PlatformPaths;
 
 // ── Private imports from bridge ──────────────────────────────────────────
@@ -56,9 +56,10 @@ impl AgentSpawner for CliAgentSpawner {
                 anyhow::bail!("Working directory is not a directory: {}", dir.display());
             }
 
-            let canonical = dir
-                .canonicalize()
-                .context(format!("Failed to canonicalize working directory: {}", dir.display()))?;
+            let canonical = dir.canonicalize().context(format!(
+                "Failed to canonicalize working directory: {}",
+                dir.display()
+            ))?;
 
             let home_dir = dirs::home_dir()
                 .ok_or_else(|| anyhow::anyhow!("Could not determine home directory"))?;

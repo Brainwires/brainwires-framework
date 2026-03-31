@@ -281,7 +281,10 @@ mod tests {
     fn record_get_finds_field_by_name() {
         let record: Record = vec![
             ("id".to_string(), FieldValue::Int64(Some(1))),
-            ("name".to_string(), FieldValue::Utf8(Some("Alice".to_string()))),
+            (
+                "name".to_string(),
+                FieldValue::Utf8(Some("Alice".to_string())),
+            ),
         ];
         let v = record_get(&record, "name").unwrap();
         assert_eq!(v.as_str(), Some("Alice"));

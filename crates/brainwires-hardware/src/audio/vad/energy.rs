@@ -1,5 +1,5 @@
 use crate::audio::types::{AudioBuffer, SampleFormat};
-use crate::audio::vad::{rms_db, SpeechSegment, VoiceActivityDetector};
+use crate::audio::vad::{SpeechSegment, VoiceActivityDetector, rms_db};
 
 /// A pure-Rust energy-based Voice Activity Detector.
 ///
@@ -20,7 +20,9 @@ pub struct EnergyVad {
 
 impl Default for EnergyVad {
     fn default() -> Self {
-        Self { threshold_db: -40.0 }
+        Self {
+            threshold_db: -40.0,
+        }
     }
 }
 

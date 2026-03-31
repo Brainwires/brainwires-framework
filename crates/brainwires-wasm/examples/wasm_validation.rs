@@ -23,8 +23,7 @@ fn validate_message(json: &str) -> Result<String, String> {
 
 /// Validate and normalize a JSON-encoded tool definition (mirrors `validate_tool`).
 fn validate_tool(json: &str) -> Result<String, String> {
-    let tool: Tool =
-        serde_json::from_str(json).map_err(|e| format!("Invalid tool JSON: {e}"))?;
+    let tool: Tool = serde_json::from_str(json).map_err(|e| format!("Invalid tool JSON: {e}"))?;
     serde_json::to_string_pretty(&tool).map_err(|e| format!("Serialization error: {e}"))
 }
 

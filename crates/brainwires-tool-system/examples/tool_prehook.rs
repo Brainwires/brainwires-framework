@@ -8,8 +8,8 @@
 //!   cargo run -p brainwires-tool-system --example tool_prehook
 
 use async_trait::async_trait;
-use brainwires_tool_system::{PreHookDecision, ToolContext, ToolPreHook};
 use brainwires_core::ToolUse;
+use brainwires_tool_system::{PreHookDecision, ToolContext, ToolPreHook};
 use serde_json::json;
 
 // ── 1. Define a safety-check hook ───────────────────────────────────────────
@@ -27,14 +27,8 @@ struct SafetyGuardHook {
 impl SafetyGuardHook {
     fn new() -> Self {
         Self {
-            blocked_tools: vec![
-                "delete_file".to_string(),
-                "deploy_production".to_string(),
-            ],
-            blocked_patterns: vec![
-                "rm -rf".to_string(),
-                "DROP TABLE".to_string(),
-            ],
+            blocked_tools: vec!["delete_file".to_string(), "deploy_production".to_string()],
+            blocked_patterns: vec!["rm -rf".to_string(), "DROP TABLE".to_string()],
         }
     }
 }
@@ -83,10 +77,7 @@ impl ToolPreHook for AuditLogHook {
     ) -> anyhow::Result<PreHookDecision> {
         println!(
             "[AUDIT] Tool='{}' id='{}' cwd='{}' input={}",
-            tool_use.name,
-            tool_use.id,
-            context.working_directory,
-            tool_use.input,
+            tool_use.name, tool_use.id, context.working_directory, tool_use.input,
         );
         Ok(PreHookDecision::Allow)
     }
@@ -137,10 +128,7 @@ async fn main() -> anyhow::Result<()> {
     let _ = audit.before_execute(&safe_call, &ctx).await?;
 
     // Scenario B: A blocked tool — should be rejected.
-    let blocked_call = mock_tool_use(
-        "delete_file",
-        json!({ "path": "/etc/important.conf" }),
-    );
+    let blocked_call = mock_tool_use("delete_file", json!({ "path": "/etc/important.conf" }));
     let decision = safety.before_execute(&blocked_call, &ctx).await?;
     println!("\nScenario B (delete_file):");
     println!("  Decision: {decision:?}");
@@ -163,10 +151,7 @@ async fn main() -> anyhow::Result<()> {
     );
 
     // Scenario D: A safe command — should be allowed.
-    let safe_cmd = mock_tool_use(
-        "execute_command",
-        json!({ "command": "ls -la" }),
-    );
+    let safe_cmd = mock_tool_use("execute_command", json!({ "command": "ls -la" }));
     let decision = safety.before_execute(&safe_cmd, &ctx).await?;
     println!("\nScenario D (execute_command with 'ls -la'):");
     println!("  Decision: {decision:?}");

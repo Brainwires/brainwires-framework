@@ -72,7 +72,10 @@ impl ImapClient {
         let mut result = Vec::new();
         let messages: Vec<_> = {
             use futures::TryStreamExt;
-            messages_stream.try_collect().await.context("Failed to collect messages")?
+            messages_stream
+                .try_collect()
+                .await
+                .context("Failed to collect messages")?
         };
 
         for msg in &messages {
@@ -142,7 +145,10 @@ impl ImapClient {
 
         let messages: Vec<_> = {
             use futures::TryStreamExt;
-            messages_stream.try_collect().await.context("Failed to collect message")?
+            messages_stream
+                .try_collect()
+                .await
+                .context("Failed to collect message")?
         };
 
         let msg = messages
@@ -150,8 +156,7 @@ impl ImapClient {
             .ok_or_else(|| anyhow::anyhow!("Message UID {} not found", uid))?;
 
         let body_bytes = msg.body().unwrap_or_default();
-        let parsed =
-            mailparse::parse_mail(body_bytes).context("Failed to parse message body")?;
+        let parsed = mailparse::parse_mail(body_bytes).context("Failed to parse message body")?;
 
         let mut body_text = None;
         let mut body_html = None;
@@ -259,7 +264,10 @@ impl ImapClient {
 
         let names: Vec<_> = {
             use futures::TryStreamExt;
-            names_stream.try_collect().await.context("Failed to collect folder list")?
+            names_stream
+                .try_collect()
+                .await
+                .context("Failed to collect folder list")?
         };
 
         let mut folders = Vec::new();
@@ -286,10 +294,7 @@ impl ImapClient {
 
     /// Gracefully close the IMAP session.
     pub async fn logout(mut self) -> Result<()> {
-        self.session
-            .logout()
-            .await
-            .context("IMAP logout failed")?;
+        self.session.logout().await.context("IMAP logout failed")?;
         Ok(())
     }
 

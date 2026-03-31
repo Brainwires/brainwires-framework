@@ -96,7 +96,7 @@ pub(crate) fn pcm_to_f32(audio: &AudioBuffer) -> Vec<f32> {
 
 /// Convert a raw PCM `AudioBuffer` to mono `Vec<i16>` (mix down if stereo).
 #[allow(dead_code)]
-pub(crate) fn pcm_to_i16_mono(audio: &AudioBuffer) -> Vec<i16> {
+pub fn pcm_to_i16_mono(audio: &AudioBuffer) -> Vec<i16> {
     let channels = audio.config.channels as usize;
     match audio.config.sample_format {
         SampleFormat::I16 => {

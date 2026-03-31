@@ -3,7 +3,7 @@
 //! Provides tools for spawning, monitoring, and managing background task agents.
 
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -132,7 +132,7 @@ impl AgentPoolTool {
             description: "Stop a running background agent".to_string(),
             input_schema: ToolInputSchema::object(properties, vec!["agent_id".to_string()]),
             requires_approval: true, // Stopping agents requires approval
-            defer_loading: true, // Agent pool tools are deferred
+            defer_loading: true,     // Agent pool tools are deferred
             ..Default::default()
         }
     }
@@ -197,7 +197,10 @@ impl AgentPoolTool {
 
         match result {
             Ok(output) => ToolResult::success(tool_use_id.to_string(), output),
-            Err(e) => ToolResult::error(tool_use_id.to_string(), format!("Agent operation failed: {}", e)),
+            Err(e) => ToolResult::error(
+                tool_use_id.to_string(),
+                format!("Agent operation failed: {}", e),
+            ),
         }
     }
 
@@ -324,7 +327,11 @@ impl AgentPoolTool {
         let pool = self.pool.read().await;
         let result = pool.await_completion(&params.agent_id).await?;
 
-        let status = if result.success { "succeeded" } else { "failed" };
+        let status = if result.success {
+            "succeeded"
+        } else {
+            "failed"
+        };
         Ok(format!(
             "Agent {} {} after {} iterations:\n{}",
             params.agent_id, status, result.iterations, result.summary
@@ -342,11 +349,7 @@ impl AgentPoolTool {
              Running: {}\n\
              Completed: {}\n\
              Failed: {}",
-            stats.max_agents,
-            stats.total_agents,
-            stats.running,
-            stats.completed,
-            stats.failed
+            stats.max_agents, stats.total_agents, stats.running, stats.completed, stats.failed
         ))
     }
 

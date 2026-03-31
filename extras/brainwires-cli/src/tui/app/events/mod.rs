@@ -10,10 +10,10 @@
 //! - `modals.rs` - Task viewer, nano editor, git SCM, and question handlers
 
 mod core;
-mod viewers;
-mod pickers;
 mod dialogs;
 mod modals;
+mod pickers;
+mod viewers;
 
 // All methods are implemented directly on App via the module files above.
 // No additional re-exports needed since they're all trait-free impl blocks.

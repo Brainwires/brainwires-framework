@@ -2,8 +2,8 @@
 //!
 //! Main event dispatch and core input handling for normal, waiting, and cancel modes.
 
-use crate::tui::app::state::{App, AppMode, FocusedPanel};
 use crate::tui::Event;
+use crate::tui::app::state::{App, AppMode, FocusedPanel};
 use anyhow::Result;
 use crossterm::event::KeyCode;
 
@@ -15,7 +15,9 @@ impl App {
         if event.is_quit() && self.mode != AppMode::ExitDialog {
             use super::super::exit_dialog::ExitDialogState;
             // Use last known preserve_chat setting (defaults to true)
-            self.exit_dialog_state = Some(ExitDialogState::with_preserve_chat(self.last_preserve_chat_setting));
+            self.exit_dialog_state = Some(ExitDialogState::with_preserve_chat(
+                self.last_preserve_chat_setting,
+            ));
             self.mode = AppMode::ExitDialog;
             return Ok(true);
         }
@@ -81,7 +83,9 @@ impl App {
             AppMode::ConsoleView => self.handle_console_event(event).await?,
             AppMode::ShellViewer => self.handle_shell_viewer_event(event).await?,
             AppMode::Waiting => self.handle_waiting_event(event).await?,
-            AppMode::ConversationFullscreen => self.handle_conversation_fullscreen_event(event).await?,
+            AppMode::ConversationFullscreen => {
+                self.handle_conversation_fullscreen_event(event).await?
+            }
             AppMode::InputFullscreen => self.handle_input_fullscreen_event(event).await?,
             AppMode::ToolPicker => self.handle_tool_picker_event(event).await?,
             AppMode::TaskViewer => self.handle_task_viewer_event(event).await?,
@@ -90,7 +94,9 @@ impl App {
             AppMode::GitScm => self.handle_git_scm_event(event).await?,
             AppMode::CancelConfirm => self.handle_cancel_confirm_event(event).await?,
             AppMode::QuestionAnswer => self.handle_question_event(event).await?,
-            AppMode::FindDialog | AppMode::FindReplaceDialog => self.handle_find_replace_event(event).await?,
+            AppMode::FindDialog | AppMode::FindReplaceDialog => {
+                self.handle_find_replace_event(event).await?
+            }
             AppMode::HelpDialog => self.handle_help_dialog_event(event).await?,
             AppMode::SuspendDialog => self.handle_suspend_dialog_event(event).await?,
             AppMode::ExitDialog => self.handle_exit_dialog_event(event).await?,
@@ -134,7 +140,9 @@ impl App {
             // Check for Exit button click first (single click)
             if self.is_point_in_exit_button(col, row) {
                 use super::super::exit_dialog::ExitDialogState;
-                self.exit_dialog_state = Some(ExitDialogState::with_preserve_chat(self.last_preserve_chat_setting));
+                self.exit_dialog_state = Some(ExitDialogState::with_preserve_chat(
+                    self.last_preserve_chat_setting,
+                ));
                 self.mode = AppMode::ExitDialog;
                 return Ok(());
             }
@@ -246,16 +254,17 @@ impl App {
         }
 
         // Handle Enter when StatusBar (Exit button) is focused
-        if self.focused_panel == FocusedPanel::StatusBar {
-            if let Event::Key(key) = &event {
-                if key.code == KeyCode::Enter || key.code == KeyCode::Char(' ') {
-                    // Open exit dialog
-                    use super::super::exit_dialog::ExitDialogState;
-                    self.exit_dialog_state = Some(ExitDialogState::with_preserve_chat(self.last_preserve_chat_setting));
-                    self.mode = AppMode::ExitDialog;
-                    return Ok(());
-                }
-            }
+        if self.focused_panel == FocusedPanel::StatusBar
+            && let Event::Key(key) = &event
+            && (key.code == KeyCode::Enter || key.code == KeyCode::Char(' '))
+        {
+            // Open exit dialog
+            use super::super::exit_dialog::ExitDialogState;
+            self.exit_dialog_state = Some(ExitDialogState::with_preserve_chat(
+                self.last_preserve_chat_setting,
+            ));
+            self.mode = AppMode::ExitDialog;
+            return Ok(());
         }
 
         if event.is_fullscreen_toggle() {
@@ -310,7 +319,8 @@ impl App {
                     if idx < self.scroll {
                         self.scroll = idx;
                     } else if idx >= self.scroll + self.conversation_visible_height() {
-                        self.scroll = idx.saturating_sub(self.conversation_visible_height().saturating_sub(1));
+                        self.scroll = idx
+                            .saturating_sub(self.conversation_visible_height().saturating_sub(1));
                     }
                 }
                 return Ok(());
@@ -557,7 +567,9 @@ impl App {
             // Check for Exit button click first (single click)
             if self.is_point_in_exit_button(col, row) {
                 use super::super::exit_dialog::ExitDialogState;
-                self.exit_dialog_state = Some(ExitDialogState::with_preserve_chat(self.last_preserve_chat_setting));
+                self.exit_dialog_state = Some(ExitDialogState::with_preserve_chat(
+                    self.last_preserve_chat_setting,
+                ));
                 self.mode = AppMode::ExitDialog;
                 return Ok(());
             }
@@ -635,7 +647,10 @@ impl App {
     }
 
     /// Handle events in cancel confirmation mode
-    pub(in crate::tui::app) async fn handle_cancel_confirm_event(&mut self, event: Event) -> Result<()> {
+    pub(in crate::tui::app) async fn handle_cancel_confirm_event(
+        &mut self,
+        event: Event,
+    ) -> Result<()> {
         if let Event::Key(key) = event {
             match key.code {
                 KeyCode::Char('y') | KeyCode::Char('Y') => {

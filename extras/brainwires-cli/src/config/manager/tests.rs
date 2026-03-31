@@ -202,7 +202,10 @@ fn test_config_provider_type_serialization() {
     let json = serde_json::to_string(&config).unwrap();
     let parsed: Config = serde_json::from_str(&json).unwrap();
     assert_eq!(parsed.provider_type, ProviderType::Anthropic);
-    assert_eq!(parsed.provider_base_url, Some("https://custom.api.com".to_string()));
+    assert_eq!(
+        parsed.provider_base_url,
+        Some("https://custom.api.com".to_string())
+    );
 }
 
 #[test]
@@ -263,7 +266,12 @@ fn test_config_load_from_file_missing() {
     // Should error when file doesn't exist
     let result = ConfigManager::load_from_file(&config_path);
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("Failed to read config file"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("Failed to read config file")
+    );
 }
 
 #[test]
@@ -278,7 +286,12 @@ fn test_config_load_from_file_empty() {
     // Should error
     let result = ConfigManager::load_from_file(&config_path);
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("Failed to parse config file"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("Failed to parse config file")
+    );
 }
 
 #[test]
@@ -339,8 +352,12 @@ fn test_config_save_success() {
 #[test]
 fn test_config_extra_fields() {
     let mut config = Config::default();
-    config.extra.insert("custom_key".to_string(), serde_json::json!("custom_value"));
-    config.extra.insert("api_version".to_string(), serde_json::json!(2));
+    config
+        .extra
+        .insert("custom_key".to_string(), serde_json::json!("custom_value"));
+    config
+        .extra
+        .insert("api_version".to_string(), serde_json::json!(2));
 
     // Serialize and deserialize
     let json = serde_json::to_string(&config).unwrap();
@@ -350,10 +367,7 @@ fn test_config_extra_fields() {
         parsed.extra.get("custom_key"),
         Some(&serde_json::json!("custom_value"))
     );
-    assert_eq!(
-        parsed.extra.get("api_version"),
-        Some(&serde_json::json!(2))
-    );
+    assert_eq!(parsed.extra.get("api_version"), Some(&serde_json::json!(2)));
 }
 
 #[test]
@@ -508,7 +522,7 @@ fn test_config_update_extreme_values() {
         model: Some("a".repeat(1000)), // Very long model name
         permission_mode: Some(PermissionMode::ReadOnly),
         backend_url: Some(format!("https://{}.com", "x".repeat(500))),
-        temperature: Some(999.9), // Extreme temperature
+        temperature: Some(999.9),   // Extreme temperature
         max_tokens: Some(u32::MAX), // Maximum possible tokens
         ..Default::default()
     };

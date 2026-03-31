@@ -12,9 +12,9 @@ use super::command_dispatch::handle_command;
 use crate::auth::SessionManager;
 use crate::commands::CommandExecutor;
 use crate::config::ConfigManager;
-use brainwires::brain::bks_pks::personal::PksIntegration;
 use crate::mdap::MdapConfig;
 use crate::providers::ProviderFactory;
+use crate::storage::VectorDatabase;
 use crate::tools::ToolRegistry;
 use crate::types::agent::AgentContext;
 use crate::types::message::{Message, MessageContent, Role};
@@ -22,10 +22,11 @@ use crate::utils::checkpoint::CheckpointManager;
 use crate::utils::conversation::ConversationManager;
 use crate::utils::logger::Logger;
 use crate::utils::rich_output::RichOutput;
-use crate::storage::VectorDatabase;
 use crate::utils::system_prompt::build_system_prompt;
+use brainwires::brain::bks_pks::personal::PksIntegration;
 
 /// Handle chat with conversation management
+#[allow(clippy::too_many_arguments)]
 pub async fn handle_chat_with_conversation(
     model: Option<String>,
     _provider: Option<String>,
@@ -49,12 +50,12 @@ pub async fn handle_chat_with_conversation(
     };
 
     if let Some(ref url) = backend_url_override {
-        Logger::info(&format!(
+        Logger::info(format!(
             "Starting chat session with {} (dev backend: {})",
             model_id, url
         ));
     } else {
-        Logger::info(&format!(
+        Logger::info(format!(
             "Starting chat session with {} (brainwires)",
             model_id
         ));
@@ -68,15 +69,11 @@ pub async fn handle_chat_with_conversation(
         .context("Failed to create provider. Run: brainwires auth status")?;
 
     // Initialize agent context with core tools only to reduce token cost
-    let user_id = session
-        .as_ref()
-        .map(|s| s.user.user_id.clone());
+    let user_id = session.as_ref().map(|s| s.user.user_id.clone());
 
     let registry = ToolRegistry::with_builtins();
     let mut context = AgentContext {
-        working_directory: std::env::current_dir()?
-            .to_string_lossy()
-            .to_string(),
+        working_directory: std::env::current_dir()?.to_string_lossy().to_string(),
         user_id,
         conversation_history: Vec::new(),
         tools: registry.get_core().into_iter().cloned().collect(),
@@ -94,10 +91,12 @@ pub async fn handle_chat_with_conversation(
     let mut cleared_conversation_manager: Option<ConversationManager> = None;
 
     // Initialize command executor
-    let command_executor = CommandExecutor::new().context("Failed to initialize command executor")?;
+    let command_executor =
+        CommandExecutor::new().context("Failed to initialize command executor")?;
 
     // Initialize checkpoint manager
-    let checkpoint_manager = CheckpointManager::new().context("Failed to initialize checkpoint manager")?;
+    let checkpoint_manager =
+        CheckpointManager::new().context("Failed to initialize checkpoint manager")?;
 
     // Initialize PKS integration for implicit fact detection
     let mut pks_integration = PksIntegration::default();
@@ -109,26 +108,32 @@ pub async fn handle_chat_with_conversation(
     let lance_client = Arc::new(
         crate::storage::LanceDatabase::new(db_path.to_str().context("Invalid DB path")?)
             .await
-            .context("Failed to create LanceDB client")?
+            .context("Failed to create LanceDB client")?,
     );
     let embeddings = Arc::new(
-        crate::storage::EmbeddingProvider::new()
-            .context("Failed to create embedding provider")?
+        crate::storage::EmbeddingProvider::new().context("Failed to create embedding provider")?,
     );
-    lance_client.initialize(embeddings.dimension()).await
+    lance_client
+        .initialize(embeddings.dimension())
+        .await
         .context("Failed to initialize LanceDB")?;
     let message_store = crate::storage::MessageStore::new(lance_client.clone(), embeddings);
 
     // Load existing conversation if conversation_id is provided
     let is_resuming = if let Some(conv_id) = conversation_id {
-        Logger::info(&format!("Loading conversation: {}", conv_id));
-        conversation_manager.load_from_db(&conv_id).await
+        Logger::info(format!("Loading conversation: {}", conv_id));
+        conversation_manager
+            .load_from_db(&conv_id)
+            .await
             .context("Failed to load conversation from database")?;
 
         // Update context with loaded messages
         context.conversation_history = conversation_manager.get_messages().to_vec();
 
-        Logger::info(&format!("Loaded {} messages from conversation", conversation_manager.get_messages().len()));
+        Logger::info(format!(
+            "Loaded {} messages from conversation",
+            conversation_manager.get_messages().len()
+        ));
         true
     } else {
         false
@@ -151,12 +156,21 @@ pub async fn handle_chat_with_conversation(
     if !quiet {
         println!("{}", RichOutput::header("Brainwires Chat", "cyan"));
         println!("Model: {} (brainwires)", model_id);
-        println!("Conversation ID: {}", console::style(conversation_manager.conversation_id()).dim());
+        println!(
+            "Conversation ID: {}",
+            console::style(conversation_manager.conversation_id()).dim()
+        );
         if is_resuming {
-            println!("{}", console::style("(Resuming previous conversation)").yellow());
+            println!(
+                "{}",
+                console::style("(Resuming previous conversation)").yellow()
+            );
         }
         if mdap_config.is_some() {
-            println!("{}", console::style("MDAP Mode: Enabled (high-reliability execution)").green());
+            println!(
+                "{}",
+                console::style("MDAP Mode: Enabled (high-reliability execution)").green()
+            );
         }
         println!("Type your message or 'exit' to quit\n");
     }
@@ -184,9 +198,7 @@ pub async fn handle_chat_with_conversation(
         };
 
         // Check for exit
-        if input.trim().eq_ignore_ascii_case("exit")
-            || input.trim().eq_ignore_ascii_case("quit")
-        {
+        if input.trim().eq_ignore_ascii_case("exit") || input.trim().eq_ignore_ascii_case("quit") {
             handle_exit(&mut conversation_manager, &model_id, json_output, quiet).await?;
             break;
         }
@@ -208,7 +220,8 @@ pub async fn handle_chat_with_conversation(
                 &mut cleared_conversation_manager,
                 &checkpoint_manager,
                 &message_store,
-            ).await?;
+            )
+            .await?;
 
             if !should_continue {
                 break;
@@ -218,7 +231,10 @@ pub async fn handle_chat_with_conversation(
             if !matches!(
                 command_executor.execute(&cmd_name, &cmd_args),
                 Ok(crate::commands::executor::CommandResult::Message(_))
-                    | Ok(crate::commands::executor::CommandResult::ActionWithMessage(_, _))
+                    | Ok(crate::commands::executor::CommandResult::ActionWithMessage(
+                        _,
+                        _
+                    ))
             ) {
                 continue;
             }
@@ -235,7 +251,10 @@ pub async fn handle_chat_with_conversation(
             // PKS: Process user message for implicit fact detection
             let detected_count = pks_integration.process_user_message(&input);
             if detected_count > 0 {
-                tracing::debug!("PKS: Detected {} implicit facts from user message", detected_count);
+                tracing::debug!(
+                    "PKS: Detected {} implicit facts from user message",
+                    detected_count
+                );
             }
         }
 
@@ -251,7 +270,8 @@ pub async fn handle_chat_with_conversation(
                 quiet,
                 format,
                 config,
-            ).await?;
+            )
+            .await?;
         } else {
             // Standard mode
             process_ai_response(
@@ -262,7 +282,8 @@ pub async fn handle_chat_with_conversation(
                 &input,
                 quiet,
                 format,
-            ).await?;
+            )
+            .await?;
         }
     }
 
@@ -283,7 +304,7 @@ async fn handle_exit(
     }
     if let Err(e) = conversation_manager.save_to_db().await {
         if !quiet {
-            Logger::warn(&format!("Failed to save conversation: {}", e));
+            Logger::warn(format!("Failed to save conversation: {}", e));
         }
     } else if !quiet {
         Logger::info("Conversation saved");

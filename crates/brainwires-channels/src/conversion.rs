@@ -17,9 +17,7 @@ impl From<&ChannelMessage> for MessageEnvelope {
     fn from(msg: &ChannelMessage) -> Self {
         let text_content = match &msg.content {
             MessageContent::Text(t) => t.clone(),
-            MessageContent::RichText {
-                fallback_plain, ..
-            } => fallback_plain.clone(),
+            MessageContent::RichText { fallback_plain, .. } => fallback_plain.clone(),
             _ => serde_json::to_string(&msg.content).unwrap_or_default(),
         };
 
@@ -76,9 +74,9 @@ impl TryFrom<MessageEnvelope> for ChannelMessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use brainwires_agent_network::network::MessageTarget;
     use crate::identity::ConversationId;
     use crate::message::{ChannelMessage, MessageContent, MessageId};
+    use brainwires_agent_network::network::MessageTarget;
     use chrono::Utc;
     use std::collections::HashMap;
 

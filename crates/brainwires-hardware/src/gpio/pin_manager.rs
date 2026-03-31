@@ -3,9 +3,9 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
+use super::config::GpioConfig;
 use super::device::GpioDirection;
 use super::safety::GpioSafetyPolicy;
-use super::config::GpioConfig;
 
 /// A handle to a GPIO pin with auto-release on drop.
 #[derive(Debug)]

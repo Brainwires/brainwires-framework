@@ -135,6 +135,9 @@ mod tests {
 
     #[test]
     fn strategy_category_is_documentation() {
-        assert_eq!(DocGapsStrategy.category(), ImprovementCategory::Documentation);
+        assert_eq!(
+            DocGapsStrategy.category(),
+            ImprovementCategory::Documentation
+        );
     }
 }

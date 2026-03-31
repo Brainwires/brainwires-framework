@@ -49,9 +49,11 @@ mod tests {
         let json = serde_json::to_string(&hs).unwrap();
         let deserialized: ChannelHandshake = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.channel_type, "discord");
-        assert!(deserialized
-            .capabilities
-            .contains(ChannelCapabilities::RICH_TEXT));
+        assert!(
+            deserialized
+                .capabilities
+                .contains(ChannelCapabilities::RICH_TEXT)
+        );
     }
 
     #[test]

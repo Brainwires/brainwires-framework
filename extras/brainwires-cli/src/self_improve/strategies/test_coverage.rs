@@ -28,11 +28,7 @@ impl ImprovementStrategy for TestCoverageStrategy {
         for entry in WalkDir::new(&src_path)
             .into_iter()
             .filter_map(|e| e.ok())
-            .filter(|e| {
-                e.path()
-                    .extension()
-                    .is_some_and(|ext| ext == "rs")
-            })
+            .filter(|e| e.path().extension().is_some_and(|ext| ext == "rs"))
         {
             let path = entry.path();
             let content = match std::fs::read_to_string(path) {
@@ -59,8 +55,7 @@ impl ImprovementStrategy for TestCoverageStrategy {
                     .lines()
                     .filter(|line| {
                         let trimmed = line.trim();
-                        trimmed.starts_with("pub fn ")
-                            || trimmed.starts_with("pub async fn ")
+                        trimmed.starts_with("pub fn ") || trimmed.starts_with("pub async fn ")
                     })
                     .map(|line| {
                         line.trim()

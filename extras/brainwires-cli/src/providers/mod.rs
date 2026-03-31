@@ -3,11 +3,17 @@ pub use brainwires::core::provider::Provider;
 
 // Re-export specific items from framework providers crate (not glob, to avoid ProviderFactory collision)
 pub use brainwires::providers::{
-    ProviderType, ProviderConfig,
-    OllamaProvider, BrainwiresHttpProvider,
-    RateLimiter, RateLimitedClient,
     // Model listing
-    AvailableModel, ModelCapability, ModelLister, create_model_lister,
+    AvailableModel,
+    BrainwiresHttpProvider,
+    ModelCapability,
+    ModelLister,
+    OllamaProvider,
+    ProviderConfig,
+    ProviderType,
+    RateLimitedClient,
+    RateLimiter,
+    create_model_lister,
 };
 
 // Re-export sub-modules for `use crate::providers::local_llm::Foo` patterns

@@ -7,6 +7,7 @@ use crate::self_improve::{
     AutonomousFeedbackLoop, FeedbackLoopConfig, SelfImprovementConfig, SelfImprovementController,
 };
 
+#[allow(clippy::too_many_arguments)]
 pub async fn handle_eval_improve(
     baselines_path: String,
     max_rounds: u32,
@@ -21,8 +22,7 @@ pub async fn handle_eval_improve(
 ) -> Result<()> {
     // Use the standard long-horizon stability suite as default eval cases.
     // Contributors can extend this by passing a custom case set programmatically.
-    let cases: Vec<Arc<dyn EvaluationCase>> =
-        brainwires::eval::long_horizon_stability_suite();
+    let cases: Vec<Arc<dyn EvaluationCase>> = brainwires::eval::long_horizon_stability_suite();
 
     let self_improve_config = SelfImprovementConfig {
         max_cycles: 10,
@@ -43,11 +43,15 @@ pub async fn handle_eval_improve(
 
     if dry_run {
         // Dry-run: just print the detected faults and exit.
-        use brainwires::eval::{EvaluationSuite, RegressionSuite, SuiteConfig};
         use brainwires::eval::fault_report::analyze_suite_for_faults;
+        use brainwires::eval::{EvaluationSuite, RegressionSuite, SuiteConfig};
 
         println!("\n=== Eval-Improve Dry Run ===\n");
-        println!("Running {} eval cases ({} trials each)…\n", cases.len(), n_trials);
+        println!(
+            "Running {} eval cases ({} trials each)…\n",
+            cases.len(),
+            n_trials
+        );
 
         let suite = EvaluationSuite::with_config(SuiteConfig {
             n_trials,
@@ -59,12 +63,7 @@ pub async fn handle_eval_improve(
             .ok()
             .and_then(|json| RegressionSuite::load_baselines_from_json(&json).ok());
 
-        let faults = analyze_suite_for_faults(
-            &result,
-            regression_suite.as_ref(),
-            0.2,
-            0.25,
-        );
+        let faults = analyze_suite_for_faults(&result, regression_suite.as_ref(), 0.2, 0.25);
 
         if faults.is_empty() {
             println!("✅ No faults detected — nothing to improve.");
@@ -76,7 +75,8 @@ pub async fn handle_eval_improve(
                     i + 1,
                     fault.priority(),
                     fault.fault_kind.label(),
-                    fault.suggested_task_description
+                    fault
+                        .suggested_task_description
                         .chars()
                         .take(100)
                         .collect::<String>()
@@ -107,6 +107,7 @@ pub async fn handle_eval_improve(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn handle_self_improve(
     max_cycles: u32,
     max_budget: f64,

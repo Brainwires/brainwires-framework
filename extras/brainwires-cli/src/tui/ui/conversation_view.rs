@@ -3,21 +3,23 @@
 //! Renders the main conversation panel.
 
 use ratatui::{
+    Frame,
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
     widgets::{Block, Borders, Clear, Paragraph, Wrap},
-    Frame,
 };
 
 use super::{
-    console_view::draw_console_view,
-    render_markdown_to_lines,
-    session_picker::draw_session_picker,
+    console_view::draw_console_view, render_markdown_to_lines, session_picker::draw_session_picker,
     shell_viewer::draw_shell_viewer,
 };
-use crate::tui::app::{App, AppMode, ConversationViewStyle, FocusedPanel, TuiMessage, ToolExecutionEntry};
-use crate::tui::app::journal_tree::{JournalNodeId, JournalNodeKind, JournalNodePayload, JournalTreeState, RenderItem};
+use crate::tui::app::journal_tree::{
+    JournalNodeId, JournalNodeKind, JournalNodePayload, JournalTreeState, RenderItem,
+};
+use crate::tui::app::{
+    App, AppMode, ConversationViewStyle, FocusedPanel, ToolExecutionEntry, TuiMessage,
+};
 
 /// A unified entry for the Journal view that can be either a message or a tool execution
 #[derive(Debug, Clone)]
@@ -39,7 +41,10 @@ impl JournalEntry {
 }
 
 /// Merge messages and tool executions into a chronologically sorted list
-pub fn merge_journal_entries(messages: &[TuiMessage], tools: &[ToolExecutionEntry]) -> Vec<JournalEntry> {
+pub fn merge_journal_entries(
+    messages: &[TuiMessage],
+    tools: &[ToolExecutionEntry],
+) -> Vec<JournalEntry> {
     let mut entries: Vec<JournalEntry> = Vec::with_capacity(messages.len() + tools.len());
 
     // Add all messages
@@ -81,7 +86,8 @@ pub fn draw_conversation(f: &mut Frame, app: &mut App, area: Rect) {
     let items = match app.conversation_view_style {
         ConversationViewStyle::Journal => {
             // Lazily rebuild tree if message/tool counts changed
-            app.journal_tree.rebuild_if_stale(&app.messages, &app.tool_execution_history);
+            app.journal_tree
+                .rebuild_if_stale(&app.messages, &app.tool_execution_history);
             let cursor = app.journal_tree.cursor;
             render_journal_tree_mut(&mut app.journal_tree, cursor)
         }
@@ -158,13 +164,16 @@ fn render_journal_message(items: &mut Vec<Line<'static>>, msg: &TuiMessage) {
             // User messages: green ">" prefix, content with green left margin
             let rendered_lines = render_markdown_to_lines(&msg.content);
             for (i, line) in rendered_lines.into_iter().enumerate() {
-                let mut spans = vec![
-                    if i == 0 {
-                        Span::styled("> ", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
-                    } else {
-                        Span::styled("│ ", Style::default().fg(Color::Green))
-                    },
-                ];
+                let mut spans = vec![if i == 0 {
+                    Span::styled(
+                        "> ",
+                        Style::default()
+                            .fg(Color::Green)
+                            .add_modifier(Modifier::BOLD),
+                    )
+                } else {
+                    Span::styled("│ ", Style::default().fg(Color::Green))
+                }];
                 spans.extend(line.spans);
                 items.push(Line::from(spans));
             }
@@ -173,13 +182,16 @@ fn render_journal_message(items: &mut Vec<Line<'static>>, msg: &TuiMessage) {
             // System messages: dim yellow with [sys] prefix on first line
             let rendered_lines = render_markdown_to_lines(&msg.content);
             for (i, line) in rendered_lines.into_iter().enumerate() {
-                let mut spans = vec![
-                    if i == 0 {
-                        Span::styled("[sys] ", Style::default().fg(Color::Yellow).add_modifier(Modifier::DIM))
-                    } else {
-                        Span::styled("      ", Style::default()) // Indent continuation
-                    },
-                ];
+                let mut spans = vec![if i == 0 {
+                    Span::styled(
+                        "[sys] ",
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::DIM),
+                    )
+                } else {
+                    Span::styled("      ", Style::default()) // Indent continuation
+                }];
                 // Apply dim yellow to system content
                 for span in line.spans {
                     spans.push(Span::styled(
@@ -203,10 +215,15 @@ fn render_journal_message(items: &mut Vec<Line<'static>>, msg: &TuiMessage) {
 /// Render a tool execution in journal style
 fn render_journal_tool_execution(items: &mut Vec<Line<'static>>, tool: &ToolExecutionEntry) {
     let icon = if tool.success { "✓" } else { "✗" };
-    let icon_color = if tool.success { Color::Cyan } else { Color::Red };
+    let icon_color = if tool.success {
+        Color::Cyan
+    } else {
+        Color::Red
+    };
 
     // Tool header line: icon + tool name + duration
-    let duration_str = tool.duration_ms
+    let duration_str = tool
+        .duration_ms
         .map(|d| format!(" ({:.1}s)", d as f64 / 1000.0))
         .unwrap_or_default();
 
@@ -217,12 +234,11 @@ fn render_journal_tool_execution(items: &mut Vec<Line<'static>>, tool: &ToolExec
         ),
         Span::styled(
             tool.tool_name.clone(),
-            Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Magenta)
+                .add_modifier(Modifier::BOLD),
         ),
-        Span::styled(
-            duration_str,
-            Style::default().fg(Color::DarkGray),
-        ),
+        Span::styled(duration_str, Style::default().fg(Color::DarkGray)),
     ]));
 
     // Parameters line (if not empty)
@@ -248,7 +264,9 @@ fn render_journal_tool_execution(items: &mut Vec<Line<'static>>, tool: &ToolExec
             Span::styled("  → ", Style::default().fg(Color::DarkGray)),
             Span::styled(
                 result_preview,
-                Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM),
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::DIM),
             ),
         ]));
     }
@@ -257,7 +275,10 @@ fn render_journal_tool_execution(items: &mut Vec<Line<'static>>, tool: &ToolExec
 // ── Tree Journal Renderer ─────────────────────────────────────────────────────
 
 /// Render the Journal tree (mutable to allow lazy recompute of render list).
-pub fn render_journal_tree_mut(tree: &mut JournalTreeState, cursor: Option<JournalNodeId>) -> Vec<Line<'static>> {
+pub fn render_journal_tree_mut(
+    tree: &mut JournalTreeState,
+    cursor: Option<JournalNodeId>,
+) -> Vec<Line<'static>> {
     // Ensure render list is up to date
     let render_items: Vec<RenderItem> = tree.render_list().to_vec();
 
@@ -285,14 +306,18 @@ pub fn render_journal_tree_mut(tree: &mut JournalTreeState, cursor: Option<Journ
         let expand_icon: &str = if item.has_children {
             if item.is_collapsed { "▶ " } else { "▼ " }
         } else {
-            "  "  // two spaces to align with icon width
+            "  " // two spaces to align with icon width
         };
 
         // Determine prefix style (tree lines are dark gray)
         let prefix_style = Style::default().fg(Color::DarkGray);
 
         // Cursor highlight for the whole line
-        let cursor_bg = if is_cursor { Some(Color::DarkGray) } else { None };
+        let cursor_bg = if is_cursor {
+            Some(Color::DarkGray)
+        } else {
+            None
+        };
 
         match &node.kind {
             JournalNodeKind::Turn => {
@@ -301,11 +326,18 @@ pub fn render_journal_tree_mut(tree: &mut JournalTreeState, cursor: Option<Journ
                     Span::styled(prefix, prefix_style),
                     Span::styled(
                         expand_icon,
-                        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::BOLD),
                     ),
                     Span::styled(
                         turn_label,
-                        apply_cursor(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD), cursor_bg),
+                        apply_cursor(
+                            Style::default()
+                                .fg(Color::Yellow)
+                                .add_modifier(Modifier::BOLD),
+                            cursor_bg,
+                        ),
                     ),
                 ];
                 if let JournalNodePayload::Turn { turn_number } = &node.payload {
@@ -330,7 +362,12 @@ pub fn render_journal_tree_mut(tree: &mut JournalTreeState, cursor: Option<Journ
                     };
                     let mut spans = vec![Span::styled(
                         connector,
-                        apply_cursor(Style::default().fg(Color::Green).add_modifier(Modifier::BOLD), cursor_bg),
+                        apply_cursor(
+                            Style::default()
+                                .fg(Color::Green)
+                                .add_modifier(Modifier::BOLD),
+                            cursor_bg,
+                        ),
                     )];
                     for span in rendered_line.spans {
                         spans.push(Span::styled(
@@ -344,7 +381,9 @@ pub fn render_journal_tree_mut(tree: &mut JournalTreeState, cursor: Option<Journ
 
             JournalNodeKind::AssistantMessage => {
                 let (content, collapsed) = match &node.payload {
-                    JournalNodePayload::Message { content, .. } => (content.clone(), item.is_collapsed),
+                    JournalNodePayload::Message { content, .. } => {
+                        (content.clone(), item.is_collapsed)
+                    }
                     _ => (String::new(), false),
                 };
 
@@ -381,7 +420,10 @@ pub fn render_journal_tree_mut(tree: &mut JournalTreeState, cursor: Option<Journ
                             let indent = format!("{}  ", prefix);
                             let mut spans = vec![Span::styled(indent, prefix_style)];
                             for span in rendered_line.spans {
-                                spans.push(Span::styled(span.content.to_string(), apply_cursor(span.style, cursor_bg)));
+                                spans.push(Span::styled(
+                                    span.content.to_string(),
+                                    apply_cursor(span.style, cursor_bg),
+                                ));
                             }
                             lines.push(Line::from(spans));
                         }
@@ -391,26 +433,46 @@ pub fn render_journal_tree_mut(tree: &mut JournalTreeState, cursor: Option<Journ
 
             JournalNodeKind::ToolCall => {
                 let (tool_name, params, result, success, duration_ms) = match &node.payload {
-                    JournalNodePayload::Tool { tool_name, params_summary, result_summary, success, duration_ms } => {
-                        (tool_name.clone(), params_summary.clone(), result_summary.clone(), *success, *duration_ms)
-                    }
+                    JournalNodePayload::Tool {
+                        tool_name,
+                        params_summary,
+                        result_summary,
+                        success,
+                        duration_ms,
+                    } => (
+                        tool_name.clone(),
+                        params_summary.clone(),
+                        result_summary.clone(),
+                        *success,
+                        *duration_ms,
+                    ),
                     _ => (String::new(), String::new(), String::new(), true, None),
                 };
 
                 let icon = if success { "✓" } else { "✗" };
                 let icon_color = if success { Color::Cyan } else { Color::Red };
-                let duration_str = duration_ms.map(|d| format!(" ({:.1}s)", d as f64 / 1000.0)).unwrap_or_default();
+                let duration_str = duration_ms
+                    .map(|d| format!(" ({:.1}s)", d as f64 / 1000.0))
+                    .unwrap_or_default();
 
                 let spans = vec![
                     Span::styled(prefix.clone(), prefix_style),
                     Span::styled(expand_icon, prefix_style),
                     Span::styled(
                         format!("{} ", icon),
-                        apply_cursor(Style::default().fg(icon_color).add_modifier(Modifier::BOLD), cursor_bg),
+                        apply_cursor(
+                            Style::default().fg(icon_color).add_modifier(Modifier::BOLD),
+                            cursor_bg,
+                        ),
                     ),
                     Span::styled(
                         tool_name,
-                        apply_cursor(Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD), cursor_bg),
+                        apply_cursor(
+                            Style::default()
+                                .fg(Color::Magenta)
+                                .add_modifier(Modifier::BOLD),
+                            cursor_bg,
+                        ),
                     ),
                     Span::styled(
                         duration_str,
@@ -440,7 +502,9 @@ pub fn render_journal_tree_mut(tree: &mut JournalTreeState, cursor: Option<Journ
                         Span::styled(result_indent, Style::default().fg(Color::DarkGray)),
                         Span::styled(
                             result_preview,
-                            Style::default().fg(Color::DarkGray).add_modifier(Modifier::DIM),
+                            Style::default()
+                                .fg(Color::DarkGray)
+                                .add_modifier(Modifier::DIM),
                         ),
                     ]));
                 }
@@ -448,9 +512,10 @@ pub fn render_journal_tree_mut(tree: &mut JournalTreeState, cursor: Option<Journ
 
             JournalNodeKind::SubAgentSpawn => {
                 let (agent_id, task_desc) = match &node.payload {
-                    JournalNodePayload::SubAgentSpawn { agent_id, task_desc } => {
-                        (agent_id.clone(), task_desc.clone())
-                    }
+                    JournalNodePayload::SubAgentSpawn {
+                        agent_id,
+                        task_desc,
+                    } => (agent_id.clone(), task_desc.clone()),
                     _ => (String::new(), String::new()),
                 };
 
@@ -464,11 +529,21 @@ pub fn render_journal_tree_mut(tree: &mut JournalTreeState, cursor: Option<Journ
                     Span::styled(prefix, prefix_style),
                     Span::styled(
                         expand_icon,
-                        apply_cursor(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD), cursor_bg),
+                        apply_cursor(
+                            Style::default()
+                                .fg(Color::Yellow)
+                                .add_modifier(Modifier::BOLD),
+                            cursor_bg,
+                        ),
                     ),
                     Span::styled(
                         summary,
-                        apply_cursor(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD), cursor_bg),
+                        apply_cursor(
+                            Style::default()
+                                .fg(Color::Yellow)
+                                .add_modifier(Modifier::BOLD),
+                            cursor_bg,
+                        ),
                     ),
                 ]));
             }
@@ -487,7 +562,9 @@ pub fn render_journal_tree_mut(tree: &mut JournalTreeState, cursor: Option<Journ
                     };
                     let mut spans = vec![Span::styled(
                         lead,
-                        Style::default().fg(Color::Yellow).add_modifier(Modifier::DIM),
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::DIM),
                     )];
                     for span in rendered_line.spans {
                         spans.push(Span::styled(
@@ -546,7 +623,6 @@ fn apply_cursor(style: Style, cursor_bg: Option<Color>) -> Style {
     }
 }
 
-
 /// Render journal entries in classic style (with role badges)
 pub fn render_classic_style_entries(entries: &[JournalEntry]) -> Vec<Line<'static>> {
     let mut items = Vec::new();
@@ -573,10 +649,18 @@ pub fn render_classic_style_entries(entries: &[JournalEntry]) -> Vec<Line<'stati
 /// Render a single message in classic style
 fn render_classic_message(items: &mut Vec<Line<'static>>, msg: &TuiMessage) {
     let role_style = match msg.role.as_str() {
-        "user" => Style::default().fg(Color::Green).add_modifier(Modifier::BOLD),
-        "assistant" => Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD),
-        "system" => Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
-        _ => Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
+        "user" => Style::default()
+            .fg(Color::Green)
+            .add_modifier(Modifier::BOLD),
+        "assistant" => Style::default()
+            .fg(Color::Blue)
+            .add_modifier(Modifier::BOLD),
+        "system" => Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD),
+        _ => Style::default()
+            .fg(Color::White)
+            .add_modifier(Modifier::BOLD),
     };
 
     let role_text = msg.role.to_uppercase();
@@ -605,7 +689,9 @@ fn render_classic_message(items: &mut Vec<Line<'static>>, msg: &TuiMessage) {
 fn render_classic_tool_execution(items: &mut Vec<Line<'static>>, tool: &ToolExecutionEntry) {
     let icon = if tool.success { "✓" } else { "✗" };
     let status_style = if tool.success {
-        Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)
     };
@@ -614,7 +700,8 @@ fn render_classic_tool_execution(items: &mut Vec<Line<'static>>, tool: &ToolExec
         .map(|dt| dt.format("%H:%M:%S").to_string())
         .unwrap_or_else(|| "??:??:??".to_string());
 
-    let duration_str = tool.duration_ms
+    let duration_str = tool
+        .duration_ms
         .map(|d| format!(" ({:.1}s)", d as f64 / 1000.0))
         .unwrap_or_default();
 
@@ -630,7 +717,9 @@ fn render_classic_tool_execution(items: &mut Vec<Line<'static>>, tool: &ToolExec
         Span::raw("  "),
         Span::styled(
             tool.tool_name.clone(),
-            Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Magenta)
+                .add_modifier(Modifier::BOLD),
         ),
     ]));
 
@@ -657,11 +746,7 @@ fn render_classic_tool_execution(items: &mut Vec<Line<'static>>, tool: &ToolExec
         items.push(Line::from(vec![
             Span::raw("  "),
             Span::styled("Out:  ", Style::default().fg(Color::Gray)),
-            Span::styled(
-                result_preview,
-                Style::default().fg(Color::DarkGray),
-            ),
+            Span::styled(result_preview, Style::default().fg(Color::DarkGray)),
         ]));
     }
 }
-

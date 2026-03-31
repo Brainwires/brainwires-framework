@@ -3,11 +3,11 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
+use brainwires_mcp::{CallToolResult, JsonRpcRequest};
 use brainwires_mcp_server::ToolFilterMiddleware;
 use brainwires_mcp_server::connection::RequestContext;
 use brainwires_mcp_server::middleware::MiddlewareChain;
 use brainwires_mcp_server::registry::{McpToolRegistry, ToolHandler};
-use brainwires_mcp::{CallToolResult, JsonRpcRequest};
 use serde_json::{Value, json};
 
 /// A test handler that returns a success result with no content.

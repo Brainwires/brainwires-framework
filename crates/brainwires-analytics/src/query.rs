@@ -1,5 +1,3 @@
-#![cfg(feature = "sqlite")]
-
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -11,33 +9,33 @@ use crate::schema;
 /// Cost breakdown by provider and model for a given date range.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CostByModelRow {
-    pub date:                    String,
-    pub provider:                String,
-    pub model:                   String,
-    pub call_count:              i64,
-    pub total_prompt_tokens:     i64,
+    pub date: String,
+    pub provider: String,
+    pub model: String,
+    pub call_count: i64,
+    pub total_prompt_tokens: i64,
     pub total_completion_tokens: i64,
-    pub total_cost_usd:          f64,
+    pub total_cost_usd: f64,
 }
 
 /// Tool call frequency for a given date range.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ToolFrequencyRow {
-    pub date:        String,
-    pub tool_name:   String,
-    pub call_count:  i64,
+    pub date: String,
+    pub tool_name: String,
+    pub call_count: i64,
     pub error_count: i64,
 }
 
 /// Per-day agent run summary.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DailySummaryRow {
-    pub date:           String,
-    pub total_runs:     i64,
-    pub success_count:  i64,
-    pub failure_count:  i64,
+    pub date: String,
+    pub total_runs: i64,
+    pub success_count: i64,
+    pub failure_count: i64,
     pub total_cost_usd: f64,
-    pub total_tokens:   i64,
+    pub total_tokens: i64,
     pub avg_iterations: f64,
 }
 
@@ -56,7 +54,10 @@ impl AnalyticsQuery {
     /// Open the query interface at the default analytics database path.
     pub fn new_default() -> anyhow::Result<Self> {
         let home = dirs::home_dir().context("Could not determine home directory")?;
-        let path = home.join(".brainwires").join("analytics").join("analytics.db");
+        let path = home
+            .join(".brainwires")
+            .join("analytics")
+            .join("analytics.db");
         Self::new_with_path(&path)
     }
 
@@ -74,7 +75,9 @@ impl AnalyticsQuery {
         // Ensure schema exists (handles case where query is called before any sink)
         schema::ensure_tables(&conn)?;
 
-        Ok(Self { conn: Mutex::new(conn) })
+        Ok(Self {
+            conn: Mutex::new(conn),
+        })
     }
 
     /// Rebuild all materialized summary tables from the raw event log.
@@ -192,28 +195,32 @@ impl AnalyticsQuery {
     pub fn cost_by_model(
         &self,
         from: Option<&str>,
-        to:   Option<&str>,
+        to: Option<&str>,
     ) -> anyhow::Result<Vec<CostByModelRow>> {
-        let conn  = self.conn.lock().expect("analytics query lock poisoned");
+        let conn = self.conn.lock().expect("analytics query lock poisoned");
         let where_ = build_date_filter("date", from, to);
-        let sql   = format!(
+        let sql = format!(
             "SELECT date, provider, model, call_count,
                     total_prompt_tokens, total_completion_tokens, total_cost_usd
              FROM cost_by_model
              {where_}
              ORDER BY total_cost_usd DESC"
         );
-        let mut stmt = conn.prepare(&sql).context("Failed to prepare cost_by_model query")?;
+        let mut stmt = conn
+            .prepare(&sql)
+            .context("Failed to prepare cost_by_model query")?;
         let rows = stmt
-            .query_map([], |row| Ok(CostByModelRow {
-                date:                    row.get(0)?,
-                provider:                row.get(1)?,
-                model:                   row.get(2)?,
-                call_count:              row.get(3)?,
-                total_prompt_tokens:     row.get(4)?,
-                total_completion_tokens: row.get(5)?,
-                total_cost_usd:          row.get(6)?,
-            }))?
+            .query_map([], |row| {
+                Ok(CostByModelRow {
+                    date: row.get(0)?,
+                    provider: row.get(1)?,
+                    model: row.get(2)?,
+                    call_count: row.get(3)?,
+                    total_prompt_tokens: row.get(4)?,
+                    total_completion_tokens: row.get(5)?,
+                    total_cost_usd: row.get(6)?,
+                })
+            })?
             .filter_map(|r| r.ok())
             .collect();
         Ok(rows)
@@ -223,24 +230,28 @@ impl AnalyticsQuery {
     pub fn tool_frequency(
         &self,
         from: Option<&str>,
-        to:   Option<&str>,
+        to: Option<&str>,
     ) -> anyhow::Result<Vec<ToolFrequencyRow>> {
-        let conn   = self.conn.lock().expect("analytics query lock poisoned");
+        let conn = self.conn.lock().expect("analytics query lock poisoned");
         let where_ = build_date_filter("date", from, to);
-        let sql    = format!(
+        let sql = format!(
             "SELECT date, tool_name, call_count, error_count
              FROM tool_usage
              {where_}
              ORDER BY call_count DESC"
         );
-        let mut stmt = conn.prepare(&sql).context("Failed to prepare tool_frequency query")?;
+        let mut stmt = conn
+            .prepare(&sql)
+            .context("Failed to prepare tool_frequency query")?;
         let rows = stmt
-            .query_map([], |row| Ok(ToolFrequencyRow {
-                date:        row.get(0)?,
-                tool_name:   row.get(1)?,
-                call_count:  row.get(2)?,
-                error_count: row.get(3)?,
-            }))?
+            .query_map([], |row| {
+                Ok(ToolFrequencyRow {
+                    date: row.get(0)?,
+                    tool_name: row.get(1)?,
+                    call_count: row.get(2)?,
+                    error_count: row.get(3)?,
+                })
+            })?
             .filter_map(|r| r.ok())
             .collect();
         Ok(rows)
@@ -250,28 +261,32 @@ impl AnalyticsQuery {
     pub fn daily_summaries(
         &self,
         from: Option<&str>,
-        to:   Option<&str>,
+        to: Option<&str>,
     ) -> anyhow::Result<Vec<DailySummaryRow>> {
-        let conn   = self.conn.lock().expect("analytics query lock poisoned");
+        let conn = self.conn.lock().expect("analytics query lock poisoned");
         let where_ = build_date_filter("date", from, to);
-        let sql    = format!(
+        let sql = format!(
             "SELECT date, total_runs, success_count, failure_count,
                     total_cost_usd, total_tokens, avg_iterations
              FROM agent_run_summaries
              {where_}
              ORDER BY date DESC"
         );
-        let mut stmt = conn.prepare(&sql).context("Failed to prepare daily_summaries query")?;
+        let mut stmt = conn
+            .prepare(&sql)
+            .context("Failed to prepare daily_summaries query")?;
         let rows = stmt
-            .query_map([], |row| Ok(DailySummaryRow {
-                date:           row.get(0)?,
-                total_runs:     row.get(1)?,
-                success_count:  row.get(2)?,
-                failure_count:  row.get(3)?,
-                total_cost_usd: row.get(4)?,
-                total_tokens:   row.get(5)?,
-                avg_iterations: row.get(6)?,
-            }))?
+            .query_map([], |row| {
+                Ok(DailySummaryRow {
+                    date: row.get(0)?,
+                    total_runs: row.get(1)?,
+                    success_count: row.get(2)?,
+                    failure_count: row.get(3)?,
+                    total_cost_usd: row.get(4)?,
+                    total_tokens: row.get(5)?,
+                    avg_iterations: row.get(6)?,
+                })
+            })?
             .filter_map(|r| r.ok())
             .collect();
         Ok(rows)
@@ -280,7 +295,7 @@ impl AnalyticsQuery {
     /// Most recent `limit` raw events, optionally filtered by event type.
     pub fn recent_events(
         &self,
-        limit:      usize,
+        limit: usize,
         event_type: Option<&str>,
     ) -> anyhow::Result<Vec<serde_json::Value>> {
         let conn = self.conn.lock().expect("analytics query lock poisoned");
@@ -301,7 +316,9 @@ impl AnalyticsQuery {
             ),
         };
 
-        let mut stmt = conn.prepare(&sql).context("Failed to prepare recent_events query")?;
+        let mut stmt = conn
+            .prepare(&sql)
+            .context("Failed to prepare recent_events query")?;
         let rows: Vec<serde_json::Value> = if let Some(val) = filter_val {
             stmt.query_map(params![val], |row| row.get::<_, String>(0))?
                 .filter_map(|r| r.ok())
@@ -317,11 +334,7 @@ impl AnalyticsQuery {
     }
 
     /// Total cost in USD over the given period.
-    pub fn total_cost_usd(
-        &self,
-        from: Option<&str>,
-        to:   Option<&str>,
-    ) -> anyhow::Result<f64> {
+    pub fn total_cost_usd(&self, from: Option<&str>, to: Option<&str>) -> anyhow::Result<f64> {
         let rows = self.cost_by_model(from, to)?;
         Ok(rows.iter().map(|r| r.total_cost_usd).sum())
     }
@@ -331,9 +344,9 @@ impl AnalyticsQuery {
 fn build_date_filter(col: &str, from: Option<&str>, to: Option<&str>) -> String {
     match (from, to) {
         (Some(f), Some(t)) => format!("WHERE {col} >= '{f}' AND {col} <= '{t}'"),
-        (Some(f), None)    => format!("WHERE {col} >= '{f}'"),
-        (None,    Some(t)) => format!("WHERE {col} <= '{t}'"),
-        (None,    None)    => String::new(),
+        (Some(f), None) => format!("WHERE {col} >= '{f}'"),
+        (None, Some(t)) => format!("WHERE {col} <= '{t}'"),
+        (None, None) => String::new(),
     }
 }
 
@@ -346,9 +359,9 @@ mod tests {
     use tempfile::TempDir;
 
     async fn setup() -> (AnalyticsQuery, TempDir) {
-        let tmp  = TempDir::new().unwrap();
+        let tmp = TempDir::new().unwrap();
         let path = tmp.path().join("analytics.db");
-        let q    = AnalyticsQuery::new_with_path(&path).unwrap();
+        let q = AnalyticsQuery::new_with_path(&path).unwrap();
         (q, tmp)
     }
 
@@ -362,17 +375,21 @@ mod tests {
     async fn test_rebuild_and_cost_by_model() {
         let (q, tmp) = setup().await;
 
-        insert_event(&tmp, AnalyticsEvent::ProviderCall {
-            session_id:        None,
-            provider:          "anthropic".into(),
-            model:             "claude-opus-4-6".into(),
-            prompt_tokens:     1000,
-            completion_tokens: 500,
-            duration_ms:       300,
-            cost_usd:          0.05,
-            success:           true,
-            timestamp:         Utc::now(),
-        }).await;
+        insert_event(
+            &tmp,
+            AnalyticsEvent::ProviderCall {
+                session_id: None,
+                provider: "anthropic".into(),
+                model: "claude-opus-4-6".into(),
+                prompt_tokens: 1000,
+                completion_tokens: 500,
+                duration_ms: 300,
+                cost_usd: 0.05,
+                success: true,
+                timestamp: Utc::now(),
+            },
+        )
+        .await;
 
         q.rebuild_summaries().unwrap();
 
@@ -387,15 +404,27 @@ mod tests {
     async fn test_rebuild_agent_run_summaries() {
         let (q, tmp) = setup().await;
 
-        insert_event(&tmp, AnalyticsEvent::AgentRun {
-            session_id: None, agent_id: "a1".into(), task_id: "t1".into(),
-            prompt_hash: "abc".into(), success: true, total_iterations: 5,
-            total_tool_calls: 3, tool_error_count: 0,
-            tools_used: vec!["bash".into()],
-            total_prompt_tokens: 800, total_completion_tokens: 200,
-            total_cost_usd: 0.02, duration_ms: 1200,
-            failure_category: None, timestamp: Utc::now(),
-        }).await;
+        insert_event(
+            &tmp,
+            AnalyticsEvent::AgentRun {
+                session_id: None,
+                agent_id: "a1".into(),
+                task_id: "t1".into(),
+                prompt_hash: "abc".into(),
+                success: true,
+                total_iterations: 5,
+                total_tool_calls: 3,
+                tool_error_count: 0,
+                tools_used: vec!["bash".into()],
+                total_prompt_tokens: 800,
+                total_completion_tokens: 200,
+                total_cost_usd: 0.02,
+                duration_ms: 1200,
+                failure_category: None,
+                timestamp: Utc::now(),
+            },
+        )
+        .await;
 
         q.rebuild_summaries().unwrap();
 

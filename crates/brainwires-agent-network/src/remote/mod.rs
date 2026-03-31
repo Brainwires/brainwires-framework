@@ -9,13 +9,13 @@ pub mod realtime;
 pub mod telemetry;
 
 pub use command_queue::{CommandQueue, QueueEntry, QueueError, QueueStats};
+pub use permission_relay::{PermissionDecision, PermissionRelay};
 pub use protocol::{
     AgentEventType, BackendCommand, CommandPriority, CompressionAlgorithm, DeviceStatus,
     NegotiatedProtocol, OrgPolicies, PrioritizedCommand, ProtocolAccept, ProtocolCapability,
     ProtocolHello, RemoteAgentInfo, RemoteMessage, RetryPolicy, StreamChunkType,
     compute_device_fingerprint,
 };
-pub use permission_relay::{PermissionDecision, PermissionRelay};
 pub use telemetry::{ConnectionQuality, MetricsSnapshot, ProtocolMetrics};
 
 pub use attachments::AttachmentReceiver;

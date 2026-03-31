@@ -78,7 +78,10 @@ impl SelfImprovementController {
 
     /// Attach an analytics collector to record AutonomySession events.
     #[cfg(feature = "analytics")]
-    pub fn with_analytics(mut self, collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>) -> Self {
+    pub fn with_analytics(
+        mut self,
+        collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>,
+    ) -> Self {
         self.analytics_collector = Some(collector);
         self
     }

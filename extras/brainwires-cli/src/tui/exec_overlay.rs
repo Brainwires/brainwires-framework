@@ -6,12 +6,12 @@
 use anyhow::{Context, Result};
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::{
+    Frame, Terminal,
     backend::CrosstermBackend,
     layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Wrap},
-    Frame, Terminal,
 };
 use std::io;
 use std::process::Stdio;
@@ -34,15 +34,14 @@ pub fn execute_command_overlay(
     let command_str = command.to_string();
     let (tx, rx) = mpsc::channel();
 
-    let handle = thread::spawn(move || {
-        execute_command_with_capture(&command_str, tx)
-    });
+    let handle = thread::spawn(move || execute_command_with_capture(&command_str, tx));
 
     // Display output in real-time
     let result = run_command_overlay(terminal, rx);
 
     // Get final result
-    let (output, status) = handle.join()
+    let (output, status) = handle
+        .join()
         .map_err(|_| anyhow::anyhow!("Command thread panicked"))??;
 
     result?;
@@ -54,10 +53,7 @@ pub fn execute_command_overlay(
 }
 
 /// Execute command and capture output, sending updates via channel
-fn execute_command_with_capture(
-    command: &str,
-    tx: mpsc::Sender<String>,
-) -> Result<(String, i32)> {
+fn execute_command_with_capture(command: &str, tx: mpsc::Sender<String>) -> Result<(String, i32)> {
     use std::io::{BufRead, BufReader};
     use std::process::Command as StdCommand;
     use std::sync::{Arc, Mutex};
@@ -81,7 +77,7 @@ fn execute_command_with_capture(
 
         thread::spawn(move || {
             let reader = BufReader::new(stdout);
-            for line in reader.lines().flatten() {
+            for line in reader.lines().map_while(Result::ok) {
                 let formatted = format!("{}\n", line);
                 let _ = tx_clone.send(formatted.clone());
                 if let Ok(mut out) = output_clone.lock() {
@@ -97,7 +93,7 @@ fn execute_command_with_capture(
 
         thread::spawn(move || {
             let reader = BufReader::new(stderr);
-            for line in reader.lines().flatten() {
+            for line in reader.lines().map_while(Result::ok) {
                 let formatted = format!("stderr: {}\n", line);
                 let _ = tx.send(formatted.clone());
                 if let Ok(mut out) = output_clone.lock() {
@@ -112,7 +108,8 @@ fn execute_command_with_capture(
     let exit_code = status.code().unwrap_or(-1);
 
     // Extract final output
-    let final_output = full_output.lock()
+    let final_output = full_output
+        .lock()
         .map(|out| out.clone())
         .unwrap_or_default();
 
@@ -139,30 +136,33 @@ fn run_command_overlay(
         }
 
         // Mark as finished if we haven't received output in 500ms
-        if !command_finished && !received_any && last_received_time.elapsed() > Duration::from_millis(500) {
+        if !command_finished
+            && !received_any
+            && last_received_time.elapsed() > Duration::from_millis(500)
+        {
             command_finished = true;
         }
 
         terminal.draw(|f| draw_output(f, &output_lines, scroll, command_finished))?;
 
-        if event::poll(Duration::from_millis(100))? {
-            if let Event::Key(key) = event::read()? {
-                match key.code {
-                    KeyCode::Esc | KeyCode::Char('q') if command_finished => break,
-                    KeyCode::Up => {
-                        scroll = scroll.saturating_sub(1);
-                    }
-                    KeyCode::Down => {
-                        scroll = scroll.saturating_add(1);
-                    }
-                    KeyCode::PageUp => {
-                        scroll = scroll.saturating_sub(10);
-                    }
-                    KeyCode::PageDown => {
-                        scroll = scroll.saturating_add(10);
-                    }
-                    _ => {}
+        if event::poll(Duration::from_millis(100))?
+            && let Event::Key(key) = event::read()?
+        {
+            match key.code {
+                KeyCode::Esc | KeyCode::Char('q') if command_finished => break,
+                KeyCode::Up => {
+                    scroll = scroll.saturating_sub(1);
                 }
+                KeyCode::Down => {
+                    scroll = scroll.saturating_add(1);
+                }
+                KeyCode::PageUp => {
+                    scroll = scroll.saturating_sub(10);
+                }
+                KeyCode::PageDown => {
+                    scroll = scroll.saturating_add(10);
+                }
+                _ => {}
             }
         }
 
@@ -180,10 +180,7 @@ fn draw_output(f: &mut Frame, lines: &[String], scroll: u16, command_finished: b
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Min(3),
-            Constraint::Length(3),
-        ])
+        .constraints([Constraint::Min(3), Constraint::Length(3)])
         .split(f.area());
 
     // Output area
@@ -204,7 +201,8 @@ fn draw_output(f: &mut Frame, lines: &[String], scroll: u16, command_finished: b
         .border_style(Style::default().fg(border_color))
         .title(title);
 
-    let output_text: Vec<Line> = lines.iter()
+    let output_text: Vec<Line> = lines
+        .iter()
         .skip(scroll as usize)
         .map(|l| Line::from(l.as_str()))
         .collect();
@@ -217,26 +215,32 @@ fn draw_output(f: &mut Frame, lines: &[String], scroll: u16, command_finished: b
 
     // Status bar
     let status_text = if command_finished {
-        vec![
-            Line::from(vec![
-                Span::styled("↑/↓", Style::default().fg(Color::Gray)),
-                Span::raw(": scroll | "),
-                Span::styled("PgUp/PgDn", Style::default().fg(Color::Gray)),
-                Span::raw(": page | "),
-                Span::styled("Esc/q", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
-                Span::raw(": exit"),
-            ]),
-        ]
+        vec![Line::from(vec![
+            Span::styled("↑/↓", Style::default().fg(Color::Gray)),
+            Span::raw(": scroll | "),
+            Span::styled("PgUp/PgDn", Style::default().fg(Color::Gray)),
+            Span::raw(": page | "),
+            Span::styled(
+                "Esc/q",
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(": exit"),
+        ])]
     } else {
-        vec![
-            Line::from(vec![
-                Span::styled("↑/↓", Style::default().fg(Color::Gray)),
-                Span::raw(": scroll | "),
-                Span::styled("PgUp/PgDn", Style::default().fg(Color::Gray)),
-                Span::raw(": page | "),
-                Span::styled("Running...", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-            ]),
-        ]
+        vec![Line::from(vec![
+            Span::styled("↑/↓", Style::default().fg(Color::Gray)),
+            Span::raw(": scroll | "),
+            Span::styled("PgUp/PgDn", Style::default().fg(Color::Gray)),
+            Span::raw(": page | "),
+            Span::styled(
+                "Running...",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
+        ])]
     };
 
     let status = Paragraph::new(status_text)

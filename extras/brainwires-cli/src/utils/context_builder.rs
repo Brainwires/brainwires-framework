@@ -12,10 +12,10 @@
 
 use anyhow::Result;
 
-use brainwires::seal::{ResolvedReference, SealProcessingResult};
 use crate::storage::{MessageMetadata, MessageStore, TieredMemory, TieredSearchResult};
 use crate::types::message::{Message, MessageContent, Role};
-use crate::utils::retrieval_gate::{classify_retrieval_need, needs_retrieval, RetrievalNeed};
+use crate::utils::retrieval_gate::{RetrievalNeed, classify_retrieval_need, needs_retrieval};
+use brainwires::seal::{ResolvedReference, SealProcessingResult};
 
 use brainwires::agents::reasoning::RelevanceScorer;
 
@@ -98,11 +98,11 @@ impl ContextBuilder {
     /// Check if context has been compacted (has a summary message)
     pub fn has_compaction_summary(messages: &[Message]) -> bool {
         messages.iter().any(|m| {
-            if m.role == Role::System {
-                if let MessageContent::Text(text) = &m.content {
-                    return text.contains("[Compacted Context]")
-                        || text.contains("Summary of earlier conversation");
-                }
+            if m.role == Role::System
+                && let MessageContent::Text(text) = &m.content
+            {
+                return text.contains("[Compacted Context]")
+                    || text.contains("Summary of earlier conversation");
             }
             false
         })
@@ -155,7 +155,12 @@ impl ContextBuilder {
 
         // Search for relevant historical content
         let results = message_store
-            .search_conversation(conversation_id, user_query, self.config.max_inject_items + 2, 0.5)
+            .search_conversation(
+                conversation_id,
+                user_query,
+                self.config.max_inject_items + 2,
+                0.5,
+            )
             .await?;
 
         // Filter by threshold
@@ -405,7 +410,8 @@ impl ContextBuilder {
     fn format_injection(&self, results: &[(MessageMetadata, f32)]) -> String {
         let mut parts = vec![
             "[Retrieved Context]".to_string(),
-            "The following information was retrieved from earlier in this conversation:".to_string(),
+            "The following information was retrieved from earlier in this conversation:"
+                .to_string(),
             String::new(),
         ];
 
@@ -574,12 +580,11 @@ impl ContextBuilder {
     fn find_injection_point(&self, messages: &[Message]) -> usize {
         // Look for compaction summary and insert after it
         for (i, msg) in messages.iter().enumerate() {
-            if msg.role == Role::System {
-                if let MessageContent::Text(text) = &msg.content {
-                    if text.contains("[Compacted Context]") || text.contains("Summary of earlier") {
-                        return i + 1;
-                    }
-                }
+            if msg.role == Role::System
+                && let MessageContent::Text(text) = &msg.content
+                && (text.contains("[Compacted Context]") || text.contains("Summary of earlier"))
+            {
+                return i + 1;
             }
         }
 
@@ -603,9 +608,7 @@ impl ContextBuilder {
         }
 
         // Find last space before max_chars
-        let truncate_at = content[..max_chars]
-            .rfind(' ')
-            .unwrap_or(max_chars);
+        let truncate_at = content[..max_chars].rfind(' ').unwrap_or(max_chars);
 
         format!("{}...", &content[..truncate_at])
     }
@@ -613,7 +616,7 @@ impl ContextBuilder {
     /// Estimate tokens in injection content
     pub fn estimate_injection_tokens(&self, content: &str) -> usize {
         // Rough estimate: 4 chars per token
-        (content.len() + 3) / 4
+        content.len().div_ceil(4)
     }
 
     /// Build context with local LLM re-ranking for improved relevance
@@ -639,7 +642,7 @@ impl ContextBuilder {
                 conversation_id,
                 user_query,
                 self.config.max_inject_items * 2, // Get more for re-ranking
-                0.4, // Lower initial threshold
+                0.4,                              // Lower initial threshold
             )
             .await?;
 
@@ -661,9 +664,9 @@ impl ContextBuilder {
                 .into_iter()
                 .take(self.config.max_inject_items)
                 .filter_map(|r| {
-                    results.get(r.original_index).map(|(msg, _)| {
-                        (msg.clone(), r.relevance_score)
-                    })
+                    results
+                        .get(r.original_index)
+                        .map(|(msg, _)| (msg.clone(), r.relevance_score))
                 })
                 .collect::<Vec<_>>()
         } else {
@@ -735,16 +738,16 @@ impl ContextBuilder {
                 .into_iter()
                 .take(self.config.max_inject_items)
                 .filter_map(|r| {
-                    results.get(r.original_index).map(|orig| {
-                        TieredSearchResult {
+                    results
+                        .get(r.original_index)
+                        .map(|orig| TieredSearchResult {
                             content: orig.content.clone(),
                             score: r.relevance_score,
                             tier: orig.tier,
                             original_message_id: orig.original_message_id.clone(),
                             metadata: orig.metadata.clone(),
                             multi_factor_score: None,
-                        }
-                    })
+                        })
                 })
                 .collect::<Vec<_>>()
         } else {
@@ -781,7 +784,10 @@ impl ContextBuilder {
 
     /// Extract file suggestions from retrieved messages.
     /// Returns paths mentioned in the content that exist on disk.
-    pub fn suggest_files_from_results(&self, results: &[(MessageMetadata, f32)]) -> Vec<std::path::PathBuf> {
+    pub fn suggest_files_from_results(
+        &self,
+        results: &[(MessageMetadata, f32)],
+    ) -> Vec<std::path::PathBuf> {
         use crate::types::WorkingSet;
 
         let mut suggestions = Vec::new();
@@ -797,7 +803,10 @@ impl ContextBuilder {
     }
 
     /// Extract file suggestions from tiered search results.
-    pub fn suggest_files_from_tiered(&self, results: &[TieredSearchResult]) -> Vec<std::path::PathBuf> {
+    pub fn suggest_files_from_tiered(
+        &self,
+        results: &[TieredSearchResult],
+    ) -> Vec<std::path::PathBuf> {
         use crate::types::WorkingSet;
 
         let mut suggestions = Vec::new();
@@ -823,8 +832,8 @@ impl ContextBuilder {
     /// # Returns
     /// Formatted string for injection, or empty string if PKS disabled or no facts
     pub fn build_personal_context(&self, user_query: Option<&str>) -> String {
-        use brainwires::brain::bks_pks::personal::{PersonalKnowledgeCache, PersonalFactMatcher};
         use crate::utils::paths::PlatformPaths;
+        use brainwires::brain::bks_pks::personal::{PersonalFactMatcher, PersonalKnowledgeCache};
 
         if !self.config.enable_personal_knowledge {
             return String::new();
@@ -832,17 +841,13 @@ impl ContextBuilder {
 
         // Load personal facts from cache
         let facts = match PlatformPaths::personal_knowledge_db() {
-            Ok(db_path) => {
-                match PersonalKnowledgeCache::new(&db_path, 100) {
-                    Ok(cache) => {
-                        cache.all_facts().cloned().collect::<Vec<_>>()
-                    }
-                    Err(e) => {
-                        tracing::warn!("Failed to load personal knowledge cache: {}", e);
-                        return String::new();
-                    }
+            Ok(db_path) => match PersonalKnowledgeCache::new(&db_path, 100) {
+                Ok(cache) => cache.all_facts().cloned().collect::<Vec<_>>(),
+                Err(e) => {
+                    tracing::warn!("Failed to load personal knowledge cache: {}", e);
+                    return String::new();
                 }
-            }
+            },
             Err(e) => {
                 tracing::warn!("Failed to get personal knowledge db path: {}", e);
                 return String::new();
@@ -987,71 +992,76 @@ impl ContextBuilder {
         let mut enhanced_messages = messages.to_vec();
 
         // Step 1: Inject Personal Knowledge (PKS) if enabled
-        if self.config.enable_personal_knowledge && coordinator.is_some() && seal_result.is_some() {
-            let coordinator = coordinator.unwrap();
-            let seal_res = seal_result.unwrap();
-            if let Ok(Some(pks_context)) = coordinator.get_pks_context(seal_res).await {
-                // Insert PKS as system message at start
-                let pks_message = Message {
-                    role: Role::System,
-                    content: MessageContent::Text(pks_context),
-                    name: None,
-                    metadata: None,
-                };
-                enhanced_messages.insert(0, pks_message);
-            }
+        if self.config.enable_personal_knowledge
+            && let (Some(coordinator), Some(seal_res)) = (coordinator, seal_result)
+            && let Ok(Some(pks_context)) = coordinator.get_pks_context(seal_res).await
+        {
+            // Insert PKS as system message at start
+            let pks_message = Message {
+                role: Role::System,
+                content: MessageContent::Text(pks_context),
+                name: None,
+                metadata: None,
+            };
+            enhanced_messages.insert(0, pks_message);
         }
 
         // Step 2: Inject Entity Context (SEAL resolutions) if enabled
-        if self.config.inject_entity_context && seal_result.is_some() {
-            let seal_res = seal_result.unwrap();
-            if !seal_res.resolutions.is_empty() {
-                let entity_context = self.format_entity_resolutions(&seal_res.resolutions);
-                let entity_message = Message {
+        if self.config.inject_entity_context
+            && let Some(seal_res) = seal_result
+            && !seal_res.resolutions.is_empty()
+        {
+            let entity_context = self.format_entity_resolutions(&seal_res.resolutions);
+            let entity_message = Message {
+                role: Role::System,
+                content: MessageContent::Text(entity_context),
+                name: None,
+                metadata: None,
+            };
+            // Insert after PKS (if present) or at start
+            let insert_pos = if self.config.enable_personal_knowledge && coordinator.is_some() {
+                1
+            } else {
+                0
+            };
+            enhanced_messages.insert(insert_pos, entity_message);
+        }
+
+        // Step 3: Inject Behavioral Knowledge (BKS) if enabled and quality is high
+        if let (Some(coordinator_ref), Some(seal_res)) = (coordinator, seal_result) {
+            // Use coordinator's config instead of ContextBuilder's config
+            if seal_res.quality_score >= coordinator_ref.config().min_seal_quality_for_bks_boost
+                && let Ok(Some(bks_context)) = coordinator_ref.get_bks_context(user_query).await
+            {
+                let bks_message = Message {
                     role: Role::System,
-                    content: MessageContent::Text(entity_context),
+                    content: MessageContent::Text(bks_context),
                     name: None,
                     metadata: None,
                 };
-                // Insert after PKS (if present) or at start
-                let insert_pos = if self.config.enable_personal_knowledge && coordinator.is_some() {
+                // Insert after PKS and entity context
+                let insert_pos = if self.config.enable_personal_knowledge {
+                    if self.config.inject_entity_context {
+                        2
+                    } else {
+                        1
+                    }
+                } else if self.config.inject_entity_context {
                     1
                 } else {
                     0
                 };
-                enhanced_messages.insert(insert_pos, entity_message);
-            }
-        }
-
-        // Step 3: Inject Behavioral Knowledge (BKS) if enabled and quality is high
-        if coordinator.is_some() && seal_result.is_some() {
-            let seal_res = seal_result.unwrap();
-            let coordinator_ref = coordinator.unwrap();
-            // Use coordinator's config instead of ContextBuilder's config
-            if seal_res.quality_score >= coordinator_ref.config().min_seal_quality_for_bks_boost {
-                if let Ok(Some(bks_context)) = coordinator_ref.get_bks_context(user_query).await {
-                    let bks_message = Message {
-                        role: Role::System,
-                        content: MessageContent::Text(bks_context),
-                        name: None,
-                        metadata: None,
-                    };
-                    // Insert after PKS and entity context
-                    let insert_pos = if self.config.enable_personal_knowledge {
-                        if self.config.inject_entity_context { 2 } else { 1 }
-                    } else if self.config.inject_entity_context {
-                        1
-                    } else {
-                        0
-                    };
-                    enhanced_messages.insert(insert_pos, bks_message);
-                }
+                enhanced_messages.insert(insert_pos, bks_message);
             }
         }
 
         // Step 4: Perform semantic search with SEAL-enhanced query
-        let search_query = if self.config.use_resolved_query && seal_result.is_some() {
-            &seal_result.unwrap().resolved_query
+        let search_query = if self.config.use_resolved_query {
+            if let Some(seal_res) = seal_result {
+                &seal_res.resolved_query
+            } else {
+                user_query
+            }
         } else {
             user_query
         };
@@ -1065,10 +1075,12 @@ impl ContextBuilder {
         let threshold = if let Some(seal_res) = seal_result {
             if self.config.quality_aware_threshold && seal_res.quality_score > 0.0 {
                 coordinator
-                    .map(|c| c.adjust_retrieval_threshold(
-                        self.config.injection_threshold,
-                        seal_res.quality_score,
-                    ))
+                    .map(|c| {
+                        c.adjust_retrieval_threshold(
+                            self.config.injection_threshold,
+                            seal_res.quality_score,
+                        )
+                    })
                     .unwrap_or(self.config.injection_threshold)
             } else {
                 self.config.injection_threshold
@@ -1163,7 +1175,10 @@ mod tests {
         assert!(!ContextBuilder::has_compaction_summary(&messages));
 
         let compacted = vec![
-            make_message(Role::System, "[Compacted Context] Summary of earlier conversation..."),
+            make_message(
+                Role::System,
+                "[Compacted Context] Summary of earlier conversation...",
+            ),
             make_message(Role::User, "Continue"),
         ];
         assert!(ContextBuilder::has_compaction_summary(&compacted));
@@ -1185,7 +1200,10 @@ mod tests {
     fn test_should_retrieve_with_compaction() {
         let builder = ContextBuilder::new();
         let messages = vec![
-            make_message(Role::System, "[Compacted Context] Earlier we discussed auth..."),
+            make_message(
+                Role::System,
+                "[Compacted Context] Earlier we discussed auth...",
+            ),
             make_message(Role::User, "Continue"),
         ];
 
@@ -1239,8 +1257,8 @@ mod tests {
 
     #[test]
     fn test_format_seal_injection_with_resolutions() {
-        use brainwires::seal::{ReferenceType, SalienceScore, UnresolvedReference};
         use crate::utils::entity_extraction::EntityType;
+        use brainwires::seal::{ReferenceType, SalienceScore, UnresolvedReference};
 
         let builder = ContextBuilder::new();
 
@@ -1315,8 +1333,8 @@ mod tests {
 
     #[test]
     fn test_format_seal_injection_low_confidence_filtered() {
-        use brainwires::seal::{ReferenceType, SalienceScore, UnresolvedReference};
         use crate::utils::entity_extraction::EntityType;
+        use brainwires::seal::{ReferenceType, SalienceScore, UnresolvedReference};
 
         let builder = ContextBuilder::new();
 
@@ -1360,8 +1378,8 @@ mod tests {
 
     #[test]
     fn test_format_seal_injection_disabled() {
-        use brainwires::seal::{ReferenceType, SalienceScore, UnresolvedReference};
         use crate::utils::entity_extraction::EntityType;
+        use brainwires::seal::{ReferenceType, SalienceScore, UnresolvedReference};
 
         let config = ContextBuilderConfig {
             inject_entity_context: false,

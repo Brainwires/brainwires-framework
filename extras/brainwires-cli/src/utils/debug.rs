@@ -4,9 +4,11 @@
 
 use std::sync::Mutex;
 
+/// Type alias for the debug message handler function
+type DebugHandlerFn = Box<dyn Fn(String) + Send + Sync>;
+
 /// Global debug message handler
-static DEBUG_HANDLER: Mutex<Option<Box<dyn Fn(String) + Send + Sync>>> =
-    Mutex::new(None);
+static DEBUG_HANDLER: Mutex<Option<DebugHandlerFn>> = Mutex::new(None);
 
 /// Set the debug message handler (called by TUI to capture messages)
 pub fn set_debug_handler<F>(handler: F)
@@ -28,11 +30,11 @@ pub fn debug<S: AsRef<str>>(msg: S) {
     let message = msg.as_ref().to_string();
 
     // Try to use the handler first (TUI mode)
-    if let Ok(handler) = DEBUG_HANDLER.lock() {
-        if let Some(ref h) = *handler {
-            h(message.clone());
-            return;
-        }
+    if let Ok(handler) = DEBUG_HANDLER.lock()
+        && let Some(ref h) = *handler
+    {
+        h(message.clone());
+        return;
     }
 
     // Fall back to eprintln for CLI mode

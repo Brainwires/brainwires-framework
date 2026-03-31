@@ -3,11 +3,11 @@
 //! Renders the shell history viewer.
 
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
     widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
-    Frame,
 };
 
 use crate::tui::app::App;
@@ -18,12 +18,12 @@ pub fn draw_shell_viewer(f: &mut Frame, app: &App, area: Rect) {
         // Show empty state
         let empty_text = vec![
             Line::from(""),
-            Line::from(vec![
-                Span::styled(
-                    "No shell commands executed yet",
-                    Style::default().fg(Color::Gray).add_modifier(Modifier::BOLD)
-                ),
-            ]),
+            Line::from(vec![Span::styled(
+                "No shell commands executed yet",
+                Style::default()
+                    .fg(Color::Gray)
+                    .add_modifier(Modifier::BOLD),
+            )]),
             Line::from(""),
             Line::from(vec![
                 Span::raw("Use "),
@@ -53,10 +53,7 @@ pub fn draw_shell_viewer(f: &mut Frame, app: &App, area: Rect) {
     // Split into list on left and output on right
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage(35),
-            Constraint::Percentage(65),
-        ])
+        .constraints([Constraint::Percentage(35), Constraint::Percentage(65)])
         .split(area);
 
     // Draw command list
@@ -80,11 +77,11 @@ pub fn draw_shell_viewer(f: &mut Frame, app: &App, area: Rect) {
             let content = Line::from(vec![
                 Span::styled(
                     format!("{} ", status_symbol),
-                    Style::default().fg(status_color)
+                    Style::default().fg(status_color),
                 ),
                 Span::styled(
                     format!("[{}] ", timestamp),
-                    Style::default().fg(Color::Gray)
+                    Style::default().fg(Color::Gray),
                 ),
                 Span::raw(exec.command.chars().take(30).collect::<String>()),
                 if exec.command.len() > 30 {
@@ -95,7 +92,9 @@ pub fn draw_shell_viewer(f: &mut Frame, app: &App, area: Rect) {
             ]);
 
             let style = if idx == app.selected_shell_index {
-                Style::default().bg(Color::DarkGray).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .bg(Color::DarkGray)
+                    .add_modifier(Modifier::BOLD)
             } else {
                 Style::default()
             };
@@ -121,7 +120,12 @@ pub fn draw_shell_viewer(f: &mut Frame, app: &App, area: Rect) {
 
         // Command header
         output_lines.push(Line::from(vec![
-            Span::styled("Command: ", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "Command: ",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw(&exec.command),
         ]));
 
@@ -133,14 +137,17 @@ pub fn draw_shell_viewer(f: &mut Frame, app: &App, area: Rect) {
                     Style::default().fg(Color::Green)
                 } else {
                     Style::default().fg(Color::Red)
-                }
+                },
             ),
         ]));
 
         output_lines.push(Line::from(""));
-        output_lines.push(Line::from(vec![
-            Span::styled("Output:", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        ]));
+        output_lines.push(Line::from(vec![Span::styled(
+            "Output:",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )]));
         output_lines.push(Line::from(""));
 
         // Output lines

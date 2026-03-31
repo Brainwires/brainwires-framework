@@ -22,11 +22,11 @@ impl HistoryOps for App {
     fn navigate_history_up(&mut self) {
         // If we have a draft and we're not navigating history, restore the draft
         // This handles: paste -> Down (saves draft, clears input) -> Up (restore draft)
-        if !self.prompt_history.is_navigating() {
-            if let Some(draft) = self.input_draft.take() {
-                self.input_state.set_text(draft);
-                return;
-            }
+        if !self.prompt_history.is_navigating()
+            && let Some(draft) = self.input_draft.take()
+        {
+            self.input_state.set_text(draft);
+            return;
         }
 
         // If we're not already navigating history, save current input as draft
@@ -55,7 +55,7 @@ impl HistoryOps for App {
             return;
         }
 
-        if let Some(next) = self.prompt_history.next() {
+        if let Some(next) = self.prompt_history.next_prompt() {
             self.input_state.set_text(next);
         } else {
             // Reached the end - restore draft if we have one, otherwise clear
@@ -80,5 +80,4 @@ impl HistoryOps for App {
     fn get_current_search_result(&self) -> Option<String> {
         self.search_results.get(self.search_result_index).cloned()
     }
-
 }

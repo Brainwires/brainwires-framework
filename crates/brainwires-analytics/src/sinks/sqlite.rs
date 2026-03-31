@@ -53,19 +53,23 @@ impl SqliteAnalyticsSink {
 
         schema::ensure_tables(&conn)?;
 
-        Ok(Self { conn: Mutex::new(conn) })
+        Ok(Self {
+            conn: Mutex::new(conn),
+        })
     }
 
     fn default_db_path() -> anyhow::Result<PathBuf> {
         let home = dirs::home_dir().context("Could not determine home directory")?;
-        Ok(home.join(".brainwires").join("analytics").join("analytics.db"))
+        Ok(home
+            .join(".brainwires")
+            .join("analytics")
+            .join("analytics.db"))
     }
 
     fn insert_event(conn: &Connection, event: &AnalyticsEvent) -> anyhow::Result<()> {
-        let event_type  = event.event_type();
-        let session_id  = event.session_id();
-        let payload     = serde_json::to_string(event)
-            .context("Failed to serialize AnalyticsEvent")?;
+        let event_type = event.event_type();
+        let session_id = event.session_id();
+        let payload = serde_json::to_string(event).context("Failed to serialize AnalyticsEvent")?;
         let recorded_at = event.timestamp().timestamp_millis();
 
         conn.execute(
@@ -110,7 +114,7 @@ mod tests {
     use tempfile::TempDir;
 
     fn make_sink() -> (SqliteAnalyticsSink, TempDir) {
-        let tmp  = TempDir::new().unwrap();
+        let tmp = TempDir::new().unwrap();
         let path = tmp.path().join("analytics.db");
         let sink = SqliteAnalyticsSink::new_with_path(&path).unwrap();
         (sink, tmp)
@@ -121,11 +125,13 @@ mod tests {
         let (_sink, tmp) = make_sink();
         let path = tmp.path().join("analytics.db");
         let conn = Connection::open(&path).unwrap();
-        let count: i64 = conn.query_row(
-            "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='analytics_events'",
-            [],
-            |r| r.get(0),
-        ).unwrap();
+        let count: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='analytics_events'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
         assert_eq!(count, 1);
     }
 
@@ -134,18 +140,22 @@ mod tests {
         let (sink, tmp) = make_sink();
         sink.record(AnalyticsEvent::Custom {
             session_id: Some("s1".into()),
-            name:       "test".into(),
-            payload:    serde_json::Value::Null,
-            timestamp:  Utc::now(),
-        }).await.unwrap();
+            name: "test".into(),
+            payload: serde_json::Value::Null,
+            timestamp: Utc::now(),
+        })
+        .await
+        .unwrap();
 
         let path = tmp.path().join("analytics.db");
         let conn = Connection::open(&path).unwrap();
-        let count: i64 = conn.query_row(
-            "SELECT count(*) FROM analytics_events WHERE event_type='custom'",
-            [],
-            |r| r.get(0),
-        ).unwrap();
+        let count: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM analytics_events WHERE event_type='custom'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
         assert_eq!(count, 1);
     }
 }

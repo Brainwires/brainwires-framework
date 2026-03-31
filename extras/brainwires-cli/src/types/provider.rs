@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 pub use brainwires::core::provider::ChatOptions;
 
 // Re-export from providers crate
-pub use brainwires::providers::ProviderType;
 pub use brainwires::providers::ProviderConfig;
+pub use brainwires::providers::ProviderType;
 
 /// Brainwires backend configuration (CLI-specific)
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -74,15 +74,30 @@ mod tests {
 
     #[test]
     fn test_provider_type_default_model() {
-        assert_eq!(ProviderType::Anthropic.default_model(), "claude-3-5-sonnet-20241022");
+        assert_eq!(
+            ProviderType::Anthropic.default_model(),
+            "claude-sonnet-4-20250514"
+        );
     }
 
     #[test]
     fn test_provider_type_from_str() {
-        assert_eq!(ProviderType::from_str_opt("anthropic"), Some(ProviderType::Anthropic));
-        assert_eq!(ProviderType::from_str_opt("openai"), Some(ProviderType::OpenAI));
-        assert_eq!(ProviderType::from_str_opt("google"), Some(ProviderType::Google));
-        assert_eq!(ProviderType::from_str_opt("ollama"), Some(ProviderType::Ollama));
+        assert_eq!(
+            ProviderType::from_str_opt("anthropic"),
+            Some(ProviderType::Anthropic)
+        );
+        assert_eq!(
+            ProviderType::from_str_opt("openai"),
+            Some(ProviderType::OpenAI)
+        );
+        assert_eq!(
+            ProviderType::from_str_opt("google"),
+            Some(ProviderType::Google)
+        );
+        assert_eq!(
+            ProviderType::from_str_opt("ollama"),
+            Some(ProviderType::Ollama)
+        );
     }
 
     #[test]

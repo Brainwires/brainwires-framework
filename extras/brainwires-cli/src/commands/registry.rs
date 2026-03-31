@@ -171,7 +171,11 @@ mod tests {
             "Review code".to_string(),
             "Review {{file}}".to_string(),
         )
-        .with_arg("file".to_string(), Some("File to review".to_string()), false);
+        .with_arg(
+            "file".to_string(),
+            Some("File to review".to_string()),
+            false,
+        );
 
         assert_eq!(cmd.args.len(), 1);
         assert_eq!(cmd.args[0].name, "file");

@@ -44,7 +44,10 @@ impl<H: McpHandler> McpServer<H> {
 
     /// Attach an analytics collector to record McpRequest events.
     #[cfg(feature = "analytics")]
-    pub fn with_analytics(mut self, collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>) -> Self {
+    pub fn with_analytics(
+        mut self,
+        collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>,
+    ) -> Self {
         self.analytics_collector = Some(collector);
         self
     }
@@ -255,21 +258,27 @@ impl<H: McpHandler> McpServer<H> {
         let (response, _success) = match self.handler.call_tool(tool_name, args, ctx).await {
             Ok(result) => {
                 let result_value = serde_json::to_value(result).unwrap_or(json!({}));
-                (JsonRpcResponse {
-                    jsonrpc: "2.0".to_string(),
-                    id: request.id.clone(),
-                    result: Some(result_value),
-                    error: None,
-                }, true)
+                (
+                    JsonRpcResponse {
+                        jsonrpc: "2.0".to_string(),
+                        id: request.id.clone(),
+                        result: Some(result_value),
+                        error: None,
+                    },
+                    true,
+                )
             }
             Err(e) => {
                 let error = AgentNetworkError::Internal(e);
-                (JsonRpcResponse {
-                    jsonrpc: "2.0".to_string(),
-                    id: request.id.clone(),
-                    result: None,
-                    error: Some(error.to_json_rpc_error()),
-                }, false)
+                (
+                    JsonRpcResponse {
+                        jsonrpc: "2.0".to_string(),
+                        id: request.id.clone(),
+                        result: None,
+                        error: Some(error.to_json_rpc_error()),
+                    },
+                    false,
+                )
             }
         };
 

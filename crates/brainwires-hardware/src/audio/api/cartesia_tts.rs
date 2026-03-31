@@ -9,7 +9,9 @@ use brainwires_providers::cartesia::{
 
 use crate::audio::error::{AudioError, AudioResult};
 use crate::audio::tts::TextToSpeech;
-use crate::audio::types::{AudioBuffer, AudioConfig, OutputFormat, SampleFormat, TtsOptions, Voice};
+use crate::audio::types::{
+    AudioBuffer, AudioConfig, OutputFormat, SampleFormat, TtsOptions, Voice,
+};
 use crate::audio::wav::decode_wav;
 
 /// Cartesia text-to-speech implementation.

@@ -10,8 +10,8 @@ pub use brainwires_tool_system::smart_router::*;
 
 // ── CLI-specific: inference-integrated variants ───────────────────────────
 
-use brainwires::agents::reasoning::LocalRouter;
 use crate::types::message::Message;
+use brainwires::agents::reasoning::LocalRouter;
 use brainwires_tool_system::{Tool, ToolCategory, ToolRegistry};
 
 /// Analyze a query using local inference with keyword fallback
@@ -22,14 +22,14 @@ pub async fn analyze_query_with_local(
     query: &str,
     local_router: Option<&LocalRouter>,
 ) -> Vec<ToolCategory> {
-    if let Some(router) = local_router {
-        if let Some(result) = router.classify(query).await {
-            let mut categories = result.categories;
-            if !categories.contains(&ToolCategory::FileOps) {
-                categories.push(ToolCategory::FileOps);
-            }
-            return categories;
+    if let Some(router) = local_router
+        && let Some(result) = router.classify(query).await
+    {
+        let mut categories = result.categories;
+        if !categories.contains(&ToolCategory::FileOps) {
+            categories.push(ToolCategory::FileOps);
         }
+        return categories;
     }
     analyze_query(query)
 }

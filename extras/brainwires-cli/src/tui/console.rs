@@ -29,7 +29,10 @@ impl ConsoleBuffer {
 
     /// Get all console messages
     pub fn get_messages(&self) -> Vec<String> {
-        self.messages.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.messages
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// Clear all messages

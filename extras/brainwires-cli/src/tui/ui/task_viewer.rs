@@ -4,11 +4,11 @@
 //! Supports tree navigation, expand/collapse, and status changes.
 
 use ratatui::{
+    Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph, Wrap},
-    Frame,
 };
 
 use crate::tui::app::App;
@@ -51,12 +51,10 @@ fn render_task_tree(f: &mut Frame, app: &App, area: Rect) {
     let mut lines = Vec::new();
 
     if state.visible_tasks.is_empty() {
-        lines.push(Line::from(vec![
-            Span::styled(
-                "No tasks yet. Tasks will appear here as they are created.",
-                Style::default().fg(Color::Gray),
-            ),
-        ]));
+        lines.push(Line::from(vec![Span::styled(
+            "No tasks yet. Tasks will appear here as they are created.",
+            Style::default().fg(Color::Gray),
+        )]));
     } else {
         // We need to get tasks from task_manager - but we can't await here
         // So we use the cached task_tree_cache for now and enhance later
@@ -64,12 +62,12 @@ fn render_task_tree(f: &mut Frame, app: &App, area: Rect) {
 
         // Header with stats
         let total = state.visible_tasks.len();
-        lines.push(Line::from(vec![
-            Span::styled(
-                format!("Tasks: {}", total),
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
-            ),
-        ]));
+        lines.push(Line::from(vec![Span::styled(
+            format!("Tasks: {}", total),
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )]));
         lines.push(Line::from(""));
 
         // Render each visible task
@@ -92,7 +90,9 @@ fn render_task_tree(f: &mut Frame, app: &App, area: Rect) {
             let status_icon = "○"; // Default pending icon
 
             let style = if is_selected {
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(Color::White)
             };
@@ -111,21 +111,26 @@ fn render_task_tree(f: &mut Frame, app: &App, area: Rect) {
     }
 
     // If no visible_tasks but we have cache, show the cache
-    if state.visible_tasks.is_empty() && !app.task_tree_cache.is_empty() && app.task_tree_cache != "No tasks" {
+    if state.visible_tasks.is_empty()
+        && !app.task_tree_cache.is_empty()
+        && app.task_tree_cache != "No tasks"
+    {
         lines.clear();
-        lines.push(Line::from(vec![
-            Span::styled(
-                format!("Tasks: {}", app.task_count_cache),
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
-            ),
-        ]));
+        lines.push(Line::from(vec![Span::styled(
+            format!("Tasks: {}", app.task_count_cache),
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )]));
         lines.push(Line::from(""));
 
         // Parse the cached tree (simple format for now)
         for (idx, line) in app.task_tree_cache.lines().enumerate() {
             let is_selected = idx == state.selected_index;
             let style = if is_selected {
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(Color::White)
             };
@@ -163,8 +168,7 @@ fn render_footer(f: &mut Frame, area: Rect) {
     ];
 
     let footer_text = ratatui::text::Text::from(footer_lines);
-    let footer_paragraph = Paragraph::new(footer_text)
-        .alignment(Alignment::Center);
+    let footer_paragraph = Paragraph::new(footer_text).alignment(Alignment::Center);
 
     f.render_widget(footer_paragraph, area);
 }

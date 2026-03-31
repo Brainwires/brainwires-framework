@@ -1,13 +1,13 @@
 use nokhwa::{
+    Camera,
     pixel_format::RgbFormat,
     query,
     utils::{ApiBackend, CameraIndex, RequestedFormat, RequestedFormatType},
-    Camera,
 };
 use tracing::{debug, warn};
 
 use super::capture::NokhwaCapture;
-use super::types::{CameraDevice, CameraError, CameraFormat, PixelFormat, Resolution, FrameRate};
+use super::types::{CameraDevice, CameraError, CameraFormat, FrameRate, PixelFormat, Resolution};
 
 /// Enumerate all available camera and video capture devices.
 ///
@@ -38,10 +38,7 @@ pub fn list_cameras() -> Vec<CameraDevice> {
 ///
 /// If `format` is `None`, the first format reported by the device is used.
 /// If the requested format is not supported the best available match is chosen.
-pub fn open_camera(
-    index: u32,
-    format: Option<CameraFormat>,
-) -> Result<NokhwaCapture, CameraError> {
+pub fn open_camera(index: u32, format: Option<CameraFormat>) -> Result<NokhwaCapture, CameraError> {
     let camera_index = CameraIndex::Index(index);
 
     let requested = match format {

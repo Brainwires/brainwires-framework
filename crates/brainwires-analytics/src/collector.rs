@@ -30,7 +30,9 @@ pub struct AnalyticsCollector {
 
 impl Clone for AnalyticsCollector {
     fn clone(&self) -> Self {
-        Self { inner: Arc::clone(&self.inner) }
+        Self {
+            inner: Arc::clone(&self.inner),
+        }
     }
 }
 
@@ -41,10 +43,10 @@ impl std::fmt::Debug for AnalyticsCollector {
 }
 
 struct CollectorInner {
-    tx:          mpsc::Sender<AnalyticsEvent>,
+    tx: mpsc::Sender<AnalyticsEvent>,
     /// Send a oneshot reply-channel to request a flush; drain loop responds after
     /// all pending events are processed and sinks are flushed.
-    flush_tx:    mpsc::Sender<oneshot::Sender<()>>,
+    flush_tx: mpsc::Sender<oneshot::Sender<()>>,
     shutdown_tx: watch::Sender<bool>,
 }
 
@@ -53,14 +55,18 @@ impl AnalyticsCollector {
     ///
     /// Must be called after the tokio runtime is running.
     pub fn new(sinks: Vec<BoxedSink>) -> Self {
-        let (tx, rx)                   = mpsc::channel(CHANNEL_CAPACITY);
-        let (flush_tx, flush_rx)       = mpsc::channel::<oneshot::Sender<()>>(8);
+        let (tx, rx) = mpsc::channel(CHANNEL_CAPACITY);
+        let (flush_tx, flush_rx) = mpsc::channel::<oneshot::Sender<()>>(8);
         let (shutdown_tx, shutdown_rx) = watch::channel(false);
 
         tokio::spawn(drain_loop(rx, flush_rx, sinks, shutdown_rx));
 
         Self {
-            inner: Arc::new(CollectorInner { tx, flush_tx, shutdown_tx }),
+            inner: Arc::new(CollectorInner {
+                tx,
+                flush_tx,
+                shutdown_tx,
+            }),
         }
     }
 
@@ -98,9 +104,9 @@ impl AnalyticsCollector {
 }
 
 async fn drain_loop(
-    mut rx:          mpsc::Receiver<AnalyticsEvent>,
-    mut flush_rx:    mpsc::Receiver<oneshot::Sender<()>>,
-    sinks:           Vec<BoxedSink>,
+    mut rx: mpsc::Receiver<AnalyticsEvent>,
+    mut flush_rx: mpsc::Receiver<oneshot::Sender<()>>,
+    sinks: Vec<BoxedSink>,
     mut shutdown_rx: watch::Receiver<bool>,
 ) {
     loop {
@@ -163,15 +169,15 @@ mod tests {
     fn make_event() -> AnalyticsEvent {
         AnalyticsEvent::Custom {
             session_id: None,
-            name:       "test".into(),
-            payload:    serde_json::Value::Null,
-            timestamp:  Utc::now(),
+            name: "test".into(),
+            payload: serde_json::Value::Null,
+            timestamp: Utc::now(),
         }
     }
 
     #[tokio::test]
     async fn test_fanout_to_sink() {
-        let mem  = Arc::new(MemoryAnalyticsSink::new(100));
+        let mem = Arc::new(MemoryAnalyticsSink::new(100));
         let mem2 = Arc::clone(&mem);
 
         // Wrap in a newtype so we can share the Arc with the sink trait
@@ -183,9 +189,7 @@ mod tests {
             }
         }
 
-        let collector = AnalyticsCollector::new(vec![
-            Box::new(SharedMemSink(Arc::clone(&mem2))),
-        ]);
+        let collector = AnalyticsCollector::new(vec![Box::new(SharedMemSink(Arc::clone(&mem2)))]);
 
         for _ in 0..10 {
             collector.record(make_event());
@@ -208,7 +212,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_flush_ensures_delivery() {
-        let mem  = Arc::new(MemoryAnalyticsSink::new(1000));
+        let mem = Arc::new(MemoryAnalyticsSink::new(1000));
         let mem2 = Arc::clone(&mem);
 
         struct SharedMemSink(Arc<MemoryAnalyticsSink>);

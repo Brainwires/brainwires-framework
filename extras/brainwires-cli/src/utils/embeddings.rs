@@ -100,10 +100,7 @@ mod tests {
     #[tokio::test]
     async fn test_generate_embeddings_batch() {
         let manager = EmbeddingsManager::new().unwrap();
-        let texts = vec![
-            "first message".to_string(),
-            "second message".to_string(),
-        ];
+        let texts = vec!["first message".to_string(), "second message".to_string()];
         let embeddings = manager.generate_embeddings(&texts).await.unwrap();
         assert_eq!(embeddings.len(), 2);
         assert_eq!(embeddings[0].len(), 384);

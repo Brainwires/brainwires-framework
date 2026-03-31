@@ -613,9 +613,7 @@ pub fn compute_device_fingerprint() -> String {
     use sha2::{Digest, Sha256};
 
     let machine_id = get_machine_id().unwrap_or_default();
-    let hostname = gethostname::gethostname()
-        .to_string_lossy()
-        .to_string();
+    let hostname = gethostname::gethostname().to_string_lossy().to_string();
     let os = std::env::consts::OS;
 
     let mut hasher = Sha256::new();

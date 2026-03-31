@@ -5,12 +5,12 @@ use std::path::PathBuf;
 use zeroize::Zeroizing;
 
 use super::paths::PlatformPaths;
-use brainwires::brain::bks_pks::KnowledgeSettings as KnowledgeSettingsCore;
-use brainwires::agent_network::auth::keyring::KeyringKeyStore;
-use brainwires::agent_network::traits::KeyStore;
-use brainwires::seal::SealConfig;
 use crate::types::agent::PermissionMode;
 use crate::types::provider::ProviderType;
+use brainwires::agent_network::auth::keyring::KeyringKeyStore;
+use brainwires::agent_network::traits::KeyStore;
+use brainwires::brain::bks_pks::KnowledgeSettings as KnowledgeSettingsCore;
+use brainwires::seal::SealConfig;
 
 /// Application configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -502,12 +502,16 @@ impl Default for RemoteSettings {
 impl RemoteSettings {
     /// Check if a command is blocked from remote execution
     pub fn is_command_blocked(&self, command: &str) -> bool {
-        self.blocked_remote_commands.iter().any(|c| c.eq_ignore_ascii_case(command))
+        self.blocked_remote_commands
+            .iter()
+            .any(|c| c.eq_ignore_ascii_case(command))
     }
 
     /// Check if a command triggers a warning for remote execution
     pub fn is_command_warned(&self, command: &str) -> bool {
-        self.warned_remote_commands.iter().any(|c| c.eq_ignore_ascii_case(command))
+        self.warned_remote_commands
+            .iter()
+            .any(|c| c.eq_ignore_ascii_case(command))
     }
 }
 
@@ -722,8 +726,8 @@ impl ConfigManager {
         let contents = fs::read_to_string(path)
             .with_context(|| format!("Failed to read config file: {}", path.display()))?;
 
-        let config: Config = serde_json::from_str(&contents)
-            .context("Failed to parse config file")?;
+        let config: Config =
+            serde_json::from_str(&contents).context("Failed to parse config file")?;
 
         Ok(config)
     }
@@ -779,11 +783,15 @@ impl ConfigManager {
     pub fn save(&self) -> Result<()> {
         PlatformPaths::ensure_config_dir()?;
 
-        let contents = serde_json::to_string_pretty(&self.config)
-            .context("Failed to serialize config")?;
+        let contents =
+            serde_json::to_string_pretty(&self.config).context("Failed to serialize config")?;
 
-        fs::write(&self.config_path, contents)
-            .with_context(|| format!("Failed to write config file: {}", self.config_path.display()))?;
+        fs::write(&self.config_path, contents).with_context(|| {
+            format!(
+                "Failed to write config file: {}",
+                self.config_path.display()
+            )
+        })?;
 
         Ok(())
     }
@@ -813,7 +821,10 @@ impl ConfigManager {
     ///
     /// Unlike `get_provider_api_key()`, this takes an explicit provider type
     /// rather than using the active provider from config.
-    pub fn get_provider_api_key_for(&self, provider: ProviderType) -> Result<Option<Zeroizing<String>>> {
+    pub fn get_provider_api_key_for(
+        &self,
+        provider: ProviderType,
+    ) -> Result<Option<Zeroizing<String>>> {
         match provider {
             ProviderType::Brainwires => crate::auth::SessionManager::get_api_key(),
             ProviderType::Ollama | ProviderType::Bedrock | ProviderType::VertexAI => Ok(None),

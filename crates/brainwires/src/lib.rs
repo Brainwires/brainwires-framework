@@ -141,8 +141,14 @@ pub mod mesh {
 
 /// Hardware I/O — audio, GPIO, Bluetooth, network, camera, USB, voice assistant.
 #[cfg(any(
-    feature = "audio", feature = "gpio", feature = "bluetooth", feature = "network-hardware",
-    feature = "camera", feature = "usb", feature = "vad", feature = "wake-word",
+    feature = "audio",
+    feature = "gpio",
+    feature = "bluetooth",
+    feature = "network-hardware",
+    feature = "camera",
+    feature = "usb",
+    feature = "vad",
+    feature = "wake-word",
     feature = "voice-assistant"
 ))]
 pub mod hardware {

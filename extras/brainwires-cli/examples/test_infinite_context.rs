@@ -4,10 +4,9 @@
 ///
 /// This creates a test conversation, stores messages with embeddings,
 /// and demonstrates semantic search retrieval.
-
 use anyhow::Result;
 use brainwires_cli::storage::{
-    EmbeddingProvider, LanceClient, MessageMetadata, MessageStore,
+    EmbeddingProvider, LanceDatabase, MessageMetadata, MessageStore, VectorDatabase,
 };
 use chrono::Utc;
 use std::sync::Arc;
@@ -27,7 +26,7 @@ async fn main() -> Result<()> {
     }
 
     println!("1️⃣  Initializing LanceDB and embedding model...");
-    let client = Arc::new(LanceClient::new(test_db_path).await?);
+    let client = Arc::new(LanceDatabase::new(test_db_path).await?);
     let embeddings = Arc::new(EmbeddingProvider::new()?);
 
     println!("   ✓ Embedding dimension: {}", embeddings.dimension());
@@ -153,12 +152,14 @@ async fn main() -> Result<()> {
     // Test Query 1: JWT authentication
     println!("   Query: 'JWT authentication RS256 algorithm'");
     let start = std::time::Instant::now();
-    let results = store.search_conversation(
-        "test_conversation",
-        "JWT authentication RS256 algorithm",
-        5,
-        0.6,
-    ).await?;
+    let results = store
+        .search_conversation(
+            "test_conversation",
+            "JWT authentication RS256 algorithm",
+            5,
+            0.6,
+        )
+        .await?;
     let search_time = start.elapsed();
 
     println!("   Search time: {:?}", search_time);
@@ -176,12 +177,14 @@ async fn main() -> Result<()> {
 
     // Test Query 2: Refresh tokens
     println!("   Query: 'refresh token rotation strategy'");
-    let results = store.search_conversation(
-        "test_conversation",
-        "refresh token rotation strategy",
-        5,
-        0.6,
-    ).await?;
+    let results = store
+        .search_conversation(
+            "test_conversation",
+            "refresh token rotation strategy",
+            5,
+            0.6,
+        )
+        .await?;
 
     println!("   Results: {} messages found\n", results.len());
     for (i, (msg, score)) in results.iter().enumerate() {
@@ -190,12 +193,9 @@ async fn main() -> Result<()> {
 
     // Test Query 3: Database schema
     println!("\n   Query: 'database schema users posts'");
-    let results = store.search_conversation(
-        "test_conversation",
-        "database schema users posts",
-        5,
-        0.6,
-    ).await?;
+    let results = store
+        .search_conversation("test_conversation", "database schema users posts", 5, 0.6)
+        .await?;
 
     println!("   Results: {} messages found\n", results.len());
     for (i, (msg, score)) in results.iter().enumerate() {
@@ -204,12 +204,9 @@ async fn main() -> Result<()> {
 
     // Test Query 4: Irrelevant query (should find weather message)
     println!("\n   Query: 'weather forecast'");
-    let results = store.search_conversation(
-        "test_conversation",
-        "weather forecast",
-        5,
-        0.5,
-    ).await?;
+    let results = store
+        .search_conversation("test_conversation", "weather forecast", 5, 0.5)
+        .await?;
 
     println!("   Results: {} messages found\n", results.len());
     for (i, (msg, score)) in results.iter().enumerate() {
@@ -232,44 +229,52 @@ async fn main() -> Result<()> {
 
     println!("   Cold (first call): {:?}", cold_time);
     println!("   Hot (cached):      {:?}", hot_time);
-    println!("   Speedup:           {:.1}x", cold_time.as_micros() as f64 / hot_time.as_micros().max(1) as f64);
+    println!(
+        "   Speedup:           {:.1}x",
+        cold_time.as_micros() as f64 / hot_time.as_micros().max(1) as f64
+    );
 
     println!("\n6️⃣  Testing cross-conversation search...\n");
 
     // Create a second conversation
-    let conv2_messages = vec![
-        MessageMetadata {
-            message_id: "conv2_msg1".to_string(),
-            conversation_id: "conversation_2".to_string(),
-            role: "user".to_string(),
-            content: "Should we use PostgreSQL or MongoDB for this project?".to_string(),
-            token_count: Some(12),
-            model_id: None,
-            images: None,
-            expires_at: None,
-            created_at: Utc::now().timestamp(),
-        },
-    ];
+    let conv2_messages = vec![MessageMetadata {
+        message_id: "conv2_msg1".to_string(),
+        conversation_id: "conversation_2".to_string(),
+        role: "user".to_string(),
+        content: "Should we use PostgreSQL or MongoDB for this project?".to_string(),
+        token_count: Some(12),
+        model_id: None,
+        images: None,
+        expires_at: None,
+        created_at: Utc::now().timestamp(),
+    }];
 
     store.add_batch(conv2_messages).await?;
     println!("   ✓ Created second conversation");
 
     // Search across all conversations
-    let all_results = store.search(
-        "database",
-        10,
-        0.5,
-    ).await?;
+    let all_results = store.search("database", 10, 0.5).await?;
 
-    println!("   Cross-conversation search for 'database': {} results", all_results.len());
+    println!(
+        "   Cross-conversation search for 'database': {} results",
+        all_results.len()
+    );
 
     let mut conversations = std::collections::HashSet::new();
     for (msg, score) in &all_results {
         conversations.insert(msg.conversation_id.clone());
-        println!("     - [{}] {:.3}: {}", msg.conversation_id, score, &msg.content[..60.min(msg.content.len())]);
+        println!(
+            "     - [{}] {:.3}: {}",
+            msg.conversation_id,
+            score,
+            &msg.content[..60.min(msg.content.len())]
+        );
     }
 
-    println!("   ✓ Found messages from {} different conversations", conversations.len());
+    println!(
+        "   ✓ Found messages from {} different conversations",
+        conversations.len()
+    );
 
     println!("\n{}", "=".repeat(60));
     println!("✅ All tests passed!\n");
@@ -277,7 +282,10 @@ async fn main() -> Result<()> {
     println!("Summary:");
     println!("  • Messages stored with 384-dim embeddings");
     println!("  • Semantic search finds relevant content");
-    println!("  • Embedding cache provides ~{:.0}x speedup", cold_time.as_micros() as f64 / hot_time.as_micros().max(1) as f64);
+    println!(
+        "  • Embedding cache provides ~{:.0}x speedup",
+        cold_time.as_micros() as f64 / hot_time.as_micros().max(1) as f64
+    );
     println!("  • Cross-conversation search works");
     println!("  • Average search latency: ~{:?}", search_time);
 

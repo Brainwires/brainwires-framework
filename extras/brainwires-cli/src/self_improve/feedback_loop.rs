@@ -112,10 +112,7 @@ impl FeedbackLoopReport {
             "**Total duration**: {:.1}s  \n",
             self.total_duration_secs
         ));
-        md.push_str(&format!(
-            "**Rounds completed**: {}  \n",
-            self.rounds.len()
-        ));
+        md.push_str(&format!("**Rounds completed**: {}  \n", self.rounds.len()));
         md.push_str(&format!(
             "**Converged**: {}  \n\n",
             if self.converged { "✅ yes" } else { "❌ no" }
@@ -183,10 +180,7 @@ impl AutonomousFeedbackLoop {
             rounds.push(round_result);
 
             if no_faults {
-                tracing::info!(
-                    "AutonomousFeedbackLoop: converged after {} round(s)",
-                    round
-                );
+                tracing::info!("AutonomousFeedbackLoop: converged after {} round(s)", round);
                 converged = true;
                 break;
             }
@@ -246,8 +240,7 @@ impl AutonomousFeedbackLoop {
 
         let mut improve_config = self.config.self_improve.clone();
         // Clamp max_cycles to the number of faults.
-        improve_config.max_cycles =
-            (faults_before.len() as u32).min(improve_config.max_cycles);
+        improve_config.max_cycles = (faults_before.len() as u32).min(improve_config.max_cycles);
 
         let eval_strategy = EvalStrategy::new(self.cases.clone(), eval_config);
         let mut controller = SelfImprovementController::new_with_strategies(
@@ -386,7 +379,7 @@ impl AutonomousFeedbackLoop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use brainwires::eval::{AlwaysPassCase, AlwaysFailCase};
+    use brainwires::eval::{AlwaysFailCase, AlwaysPassCase};
 
     fn make_config_dry_run() -> FeedbackLoopConfig {
         FeedbackLoopConfig {
@@ -407,9 +400,7 @@ mod tests {
     #[tokio::test]
     async fn test_converges_immediately_when_no_faults() {
         // All passing, no regression suite → no faults → should converge in round 1.
-        let cases: Vec<Arc<dyn EvaluationCase>> = vec![
-            Arc::new(AlwaysPassCase::new("smoke_ok")),
-        ];
+        let cases: Vec<Arc<dyn EvaluationCase>> = vec![Arc::new(AlwaysPassCase::new("smoke_ok"))];
         let lp = AutonomousFeedbackLoop::new(make_config_dry_run(), cases);
         let report = lp.run().await.unwrap();
 
@@ -421,9 +412,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_report_to_markdown_contains_round_info() {
-        let cases: Vec<Arc<dyn EvaluationCase>> = vec![
-            Arc::new(AlwaysPassCase::new("pass_case")),
-        ];
+        let cases: Vec<Arc<dyn EvaluationCase>> = vec![Arc::new(AlwaysPassCase::new("pass_case"))];
         let lp = AutonomousFeedbackLoop::new(make_config_dry_run(), cases);
         let report = lp.run().await.unwrap();
         let md = report.to_markdown();
@@ -435,9 +424,8 @@ mod tests {
     #[tokio::test]
     async fn test_runs_up_to_max_rounds_without_converging() {
         // Always-failing cases → faults in every round → max_rounds hit, no convergence.
-        let cases: Vec<Arc<dyn EvaluationCase>> = vec![
-            Arc::new(AlwaysFailCase::new("always_bad", "fail")),
-        ];
+        let cases: Vec<Arc<dyn EvaluationCase>> =
+            vec![Arc::new(AlwaysFailCase::new("always_bad", "fail"))];
         let mut config = make_config_dry_run();
         config.max_feedback_rounds = 2;
 

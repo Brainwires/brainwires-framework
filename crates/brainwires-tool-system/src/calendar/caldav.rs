@@ -61,14 +61,15 @@ impl CalDavClient {
         time_min: Option<&str>,
         time_max: Option<&str>,
     ) -> Result<Vec<CalendarEvent>> {
-        let url = format!("{}/{}", self.base_url, calendar_path.trim_start_matches('/'));
+        let url = format!(
+            "{}/{}",
+            self.base_url,
+            calendar_path.trim_start_matches('/')
+        );
 
         let time_range = match (time_min, time_max) {
             (Some(min), Some(max)) => {
-                format!(
-                    r#"<C:time-range start="{}" end="{}"/>"#,
-                    min, max
-                )
+                format!(r#"<C:time-range start="{}" end="{}"/>"#, min, max)
             }
             (Some(min), None) => format!(r#"<C:time-range start="{}"/>"#, min),
             (None, Some(max)) => format!(r#"<C:time-range end="{}"/>"#, max),
@@ -110,11 +111,7 @@ impl CalDavClient {
     }
 
     /// Create a new event via PUT with iCalendar format.
-    pub async fn create_event(
-        &self,
-        calendar_path: &str,
-        event: &CalendarEvent,
-    ) -> Result<()> {
+    pub async fn create_event(&self, calendar_path: &str, event: &CalendarEvent) -> Result<()> {
         let event_path = format!(
             "{}/{}/{}.ics",
             self.base_url,
@@ -144,21 +141,13 @@ impl CalDavClient {
     }
 
     /// Update an existing event via PUT.
-    pub async fn update_event(
-        &self,
-        calendar_path: &str,
-        event: &CalendarEvent,
-    ) -> Result<()> {
+    pub async fn update_event(&self, calendar_path: &str, event: &CalendarEvent) -> Result<()> {
         // CalDAV uses the same PUT method for create and update
         self.create_event(calendar_path, event).await
     }
 
     /// Delete an event via DELETE.
-    pub async fn delete_event(
-        &self,
-        calendar_path: &str,
-        event_id: &str,
-    ) -> Result<()> {
+    pub async fn delete_event(&self, calendar_path: &str, event_id: &str) -> Result<()> {
         let event_path = format!(
             "{}/{}/{}.ics",
             self.base_url,
@@ -200,17 +189,14 @@ impl CalDavClient {
             // All-day events use DATE values
             let start_date = event.start.split('T').next().unwrap_or(&event.start);
             let end_date = event.end.split('T').next().unwrap_or(&event.end);
-            lines.push(format!("DTSTART;VALUE=DATE:{}", start_date.replace('-', "")));
+            lines.push(format!(
+                "DTSTART;VALUE=DATE:{}",
+                start_date.replace('-', "")
+            ));
             lines.push(format!("DTEND;VALUE=DATE:{}", end_date.replace('-', "")));
         } else {
-            lines.push(format!(
-                "DTSTART:{}",
-                Self::rfc3339_to_ical(&event.start)
-            ));
-            lines.push(format!(
-                "DTEND:{}",
-                Self::rfc3339_to_ical(&event.end)
-            ));
+            lines.push(format!("DTSTART:{}", Self::rfc3339_to_ical(&event.start)));
+            lines.push(format!("DTEND:{}", Self::rfc3339_to_ical(&event.end)));
         }
 
         if let Some(ref desc) = event.description {
@@ -225,10 +211,7 @@ impl CalDavClient {
                 .as_ref()
                 .map(|n| format!(";CN={}", n))
                 .unwrap_or_default();
-            lines.push(format!(
-                "ATTENDEE{}:mailto:{}",
-                name_param, attendee.email
-            ));
+            lines.push(format!("ATTENDEE{}:mailto:{}", name_param, attendee.email));
         }
 
         lines.push("END:VEVENT".to_string());

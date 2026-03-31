@@ -15,14 +15,14 @@
 //! - Detach: Client disconnects, TUI keeps running in PTY
 //! - Attach: Client reconnects, resumes where it left off
 
-pub mod server;
 pub mod client;
+pub mod server;
 
-pub use server::SessionServer;
 pub use client::SessionClient;
+pub use server::SessionServer;
 
-use std::path::PathBuf;
 use anyhow::Result;
+use std::path::PathBuf;
 
 use crate::utils::paths::PlatformPaths;
 
@@ -50,15 +50,15 @@ pub fn list_sessions() -> Result<Vec<String>> {
         let entry = entry?;
         let path = entry.path();
         // Look for .pty.sock files (PTY session sockets)
-        if let Some(name) = path.file_name().and_then(|s| s.to_str()) {
-            if name.ends_with(".pty.sock") {
-                // Extract session ID by removing .pty.sock suffix
-                let session_id = name.trim_end_matches(".pty.sock");
-                // Check if the agent (IPC socket) is alive - not the PTY socket
-                // The PTY server may be suspended but agent still running
-                if is_agent_socket_alive(session_id, &sessions_dir) {
-                    sessions.push(session_id.to_string());
-                }
+        if let Some(name) = path.file_name().and_then(|s| s.to_str())
+            && name.ends_with(".pty.sock")
+        {
+            // Extract session ID by removing .pty.sock suffix
+            let session_id = name.trim_end_matches(".pty.sock");
+            // Check if the agent (IPC socket) is alive - not the PTY socket
+            // The PTY server may be suspended but agent still running
+            if is_agent_socket_alive(session_id, &sessions_dir) {
+                sessions.push(session_id.to_string());
             }
         }
     }

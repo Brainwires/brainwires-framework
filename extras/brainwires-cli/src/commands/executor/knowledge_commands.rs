@@ -42,7 +42,9 @@ impl CommandExecutor {
         let rule = args[0].clone();
         let rationale = args.get(1).cloned();
 
-        Ok(CommandResult::Action(CommandAction::LearnTruth(rule, rationale)))
+        Ok(CommandResult::Action(CommandAction::LearnTruth(
+            rule, rationale,
+        )))
     }
 
     fn cmd_knowledge_list(&self, args: &[String]) -> Result<CommandResult> {
@@ -50,7 +52,9 @@ impl CommandExecutor {
 
         // Validate category if provided
         if let Some(ref cat) = category {
-            let valid_categories = ["command", "strategy", "tool", "error", "resource", "pattern"];
+            let valid_categories = [
+                "command", "strategy", "tool", "error", "resource", "pattern",
+            ];
             if !valid_categories.contains(&cat.to_lowercase().as_str()) {
                 anyhow::bail!(
                     "Invalid category: {}\n\nValid categories:\n\
@@ -65,7 +69,9 @@ impl CommandExecutor {
             }
         }
 
-        Ok(CommandResult::Action(CommandAction::KnowledgeList(category)))
+        Ok(CommandResult::Action(CommandAction::KnowledgeList(
+            category,
+        )))
     }
 
     fn cmd_knowledge_search(&self, args: &[String]) -> Result<CommandResult> {
@@ -102,7 +108,9 @@ impl CommandExecutor {
             None
         };
 
-        Ok(CommandResult::Action(CommandAction::KnowledgeContradict(id, reason)))
+        Ok(CommandResult::Action(CommandAction::KnowledgeContradict(
+            id, reason,
+        )))
     }
 
     fn cmd_knowledge_delete(&self, args: &[String]) -> Result<CommandResult> {
@@ -146,7 +154,7 @@ mod tests {
         // Test with rule and rationale
         let result = executor.execute_knowledge_command(
             "learn",
-            &["test rule".to_string(), "because it's better".to_string()]
+            &["test rule".to_string(), "because it's better".to_string()],
         );
         assert!(result.is_some());
         let result = result.unwrap().unwrap();
@@ -231,7 +239,7 @@ mod tests {
         let executor = create_executor();
         let result = executor.execute_knowledge_command(
             "knowledge:contradict",
-            &["abc123".to_string(), "not".to_string(), "valid".to_string()]
+            &["abc123".to_string(), "not".to_string(), "valid".to_string()],
         );
         assert!(result.is_some());
         let result = result.unwrap().unwrap();

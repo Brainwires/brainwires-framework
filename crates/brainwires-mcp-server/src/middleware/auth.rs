@@ -84,10 +84,7 @@ mod tests {
     #[tokio::test]
     async fn valid_token_in_params_passes() {
         let middleware = AuthMiddleware::new("my-token");
-        let req = make_request(
-            "tools/list",
-            Some(json!({"_auth_token": "my-token"})),
-        );
+        let req = make_request("tools/list", Some(json!({"_auth_token": "my-token"})));
         let mut ctx = RequestContext::new(json!(1));
         let result = middleware.process_request(&req, &mut ctx).await;
         assert!(matches!(result, MiddlewareResult::Continue));
@@ -96,10 +93,7 @@ mod tests {
     #[tokio::test]
     async fn invalid_token_in_params_rejects() {
         let middleware = AuthMiddleware::new("correct-token");
-        let req = make_request(
-            "tools/list",
-            Some(json!({"_auth_token": "wrong-token"})),
-        );
+        let req = make_request("tools/list", Some(json!({"_auth_token": "wrong-token"})));
         let mut ctx = RequestContext::new(json!(1));
         let result = middleware.process_request(&req, &mut ctx).await;
         assert!(matches!(result, MiddlewareResult::Reject(_)));

@@ -34,9 +34,9 @@ impl AmbiguityType {
     /// Get emoji representation for UI display
     pub fn to_emoji(&self) -> &'static str {
         match self {
-            Self::Semantic => "🔍",    // Magnifying glass for meaning
-            Self::Generalize => "📐",  // Triangle for broadening
-            Self::Specify => "🎯",     // Target for narrowing
+            Self::Semantic => "🔍",   // Magnifying glass for meaning
+            Self::Generalize => "📐", // Triangle for broadening
+            Self::Specify => "🎯",    // Target for narrowing
         }
     }
 
@@ -107,7 +107,7 @@ pub struct QuestionBlock {
 }
 
 /// UI state for answering questions in the TUI
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct QuestionAnswerState {
     /// Index of the current question being answered
     pub current_question_idx: usize,
@@ -121,19 +121,6 @@ pub struct QuestionAnswerState {
     pub cursor_idx: usize,
     /// Whether user is typing in the "Other" text field
     pub editing_other: bool,
-}
-
-impl Default for QuestionAnswerState {
-    fn default() -> Self {
-        Self {
-            current_question_idx: 0,
-            selected_options: Vec::new(),
-            other_selected: Vec::new(),
-            other_text: Vec::new(),
-            cursor_idx: 0,
-            editing_other: false,
-        }
-    }
 }
 
 impl QuestionAnswerState {
@@ -199,10 +186,10 @@ impl QuestionAnswerState {
                     }
                 }
                 // Also clear "Other" selection in single-select mode
-                if !q.multi_select {
-                    if let Some(other) = self.other_selected.get_mut(q_idx) {
-                        *other = false;
-                    }
+                if !q.multi_select
+                    && let Some(other) = self.other_selected.get_mut(q_idx)
+                {
+                    *other = false;
                 }
             } else {
                 // Toggle "Other"
@@ -284,7 +271,7 @@ impl QuestionAnswerState {
                 .unwrap_or(false);
 
             // Valid if: any option selected, or "Other" selected with text
-            if !has_option_selected && !(has_other_selected && has_other_text) {
+            if !(has_option_selected || has_other_selected && has_other_text) {
                 return false;
             }
         }

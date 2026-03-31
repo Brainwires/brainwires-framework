@@ -275,8 +275,6 @@ impl From<reqwest::Error> for AppError {
             AppError::Timeout(err.to_string())
         } else if err.is_connect() {
             AppError::Connection(err.to_string())
-        } else if err.is_status() {
-            AppError::Http(err.to_string())
         } else {
             AppError::Http(err.to_string())
         }
@@ -327,7 +325,10 @@ impl AppError {
     /// Check if error is retryable
     pub fn is_retryable(&self) -> bool {
         match self {
-            AppError::Tool { category: Some(wrapper), .. } => wrapper.0.is_retryable(),
+            AppError::Tool {
+                category: Some(wrapper),
+                ..
+            } => wrapper.0.is_retryable(),
             AppError::Timeout(_) => true,
             AppError::Connection(_) => true,
             AppError::ProviderRateLimit { .. } => true,
@@ -359,9 +360,18 @@ impl AppError {
     /// Get suggested retry delay in seconds, if applicable
     pub fn retry_after_secs(&self) -> Option<u64> {
         match self {
-            AppError::ProviderRateLimit { retry_after_secs, .. } => Some(*retry_after_secs),
-            AppError::Tool { category: Some(wrapper), .. } => {
-                if let ToolErrorCategory::ExternalService { retry_after: Some(d), .. } = &wrapper.0 {
+            AppError::ProviderRateLimit {
+                retry_after_secs, ..
+            } => Some(*retry_after_secs),
+            AppError::Tool {
+                category: Some(wrapper),
+                ..
+            } => {
+                if let ToolErrorCategory::ExternalService {
+                    retry_after: Some(d),
+                    ..
+                } = &wrapper.0
+                {
                     Some(d.as_secs())
                 } else {
                     None

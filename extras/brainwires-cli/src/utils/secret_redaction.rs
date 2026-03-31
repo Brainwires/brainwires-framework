@@ -3,9 +3,9 @@
 //! Provides utilities to redact sensitive information from logs, error messages,
 //! and other output. This helps prevent accidental exposure of secrets.
 
-use std::borrow::Cow;
 use lazy_static::lazy_static;
 use regex::Regex;
+use std::borrow::Cow;
 
 /// A compiled pattern for matching and redacting secrets
 struct SecretPattern {
@@ -17,7 +17,12 @@ struct SecretPattern {
 }
 
 impl SecretPattern {
-    fn new(name: &'static str, pattern: &str, capture_group: usize, replacement: &'static str) -> Self {
+    fn new(
+        name: &'static str,
+        pattern: &str,
+        capture_group: usize,
+        replacement: &'static str,
+    ) -> Self {
         Self {
             name,
             regex: Regex::new(pattern).expect("Invalid regex pattern"),
@@ -62,46 +67,142 @@ impl SecretPattern {
 fn build_secret_patterns() -> Vec<SecretPattern> {
     vec![
         // API Keys with common prefixes
-        SecretPattern::new("api_key", r#"(?i)(api[_-]?key|apikey)[=:\s]+['"]?([a-zA-Z0-9_-]{20,})['"]?"#, 2, "***API_KEY***"),
-        SecretPattern::new("bearer_token", r"(?i)(bearer)\s+([a-zA-Z0-9_.-]{20,})", 2, "***TOKEN***"),
-        SecretPattern::new("authorization", r#"(?i)(authorization)[=:\s]+['"]?([a-zA-Z0-9_.-]{20,})['"]?"#, 2, "***AUTH***"),
-
+        SecretPattern::new(
+            "api_key",
+            r#"(?i)(api[_-]?key|apikey)[=:\s]+['"]?([a-zA-Z0-9_-]{20,})['"]?"#,
+            2,
+            "***API_KEY***",
+        ),
+        SecretPattern::new(
+            "bearer_token",
+            r"(?i)(bearer)\s+([a-zA-Z0-9_.-]{20,})",
+            2,
+            "***TOKEN***",
+        ),
+        SecretPattern::new(
+            "authorization",
+            r#"(?i)(authorization)[=:\s]+['"]?([a-zA-Z0-9_.-]{20,})['"]?"#,
+            2,
+            "***AUTH***",
+        ),
         // OpenAI/Anthropic/Other AI provider keys
-        SecretPattern::new("openai_key", r"(sk-[a-zA-Z0-9]{48,})", 1, "***OPENAI_KEY***"),
-        SecretPattern::new("anthropic_key", r"(sk-ant-[a-zA-Z0-9-]{40,})", 1, "***ANTHROPIC_KEY***"),
-        SecretPattern::new("google_ai_key", r"(AIza[a-zA-Z0-9_-]{35})", 1, "***GOOGLE_KEY***"),
-
+        SecretPattern::new(
+            "openai_key",
+            r"(sk-[a-zA-Z0-9]{48,})",
+            1,
+            "***OPENAI_KEY***",
+        ),
+        SecretPattern::new(
+            "anthropic_key",
+            r"(sk-ant-[a-zA-Z0-9-]{40,})",
+            1,
+            "***ANTHROPIC_KEY***",
+        ),
+        SecretPattern::new(
+            "google_ai_key",
+            r"(AIza[a-zA-Z0-9_-]{35})",
+            1,
+            "***GOOGLE_KEY***",
+        ),
         // Supabase keys
-        SecretPattern::new("supabase_anon", r"(eyJ[a-zA-Z0-9_-]{100,}\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+)", 1, "***SUPABASE_JWT***"),
-        SecretPattern::new("supabase_service", r"(sbp_[a-zA-Z0-9]{40,})", 1, "***SUPABASE_KEY***"),
-
+        SecretPattern::new(
+            "supabase_anon",
+            r"(eyJ[a-zA-Z0-9_-]{100,}\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+)",
+            1,
+            "***SUPABASE_JWT***",
+        ),
+        SecretPattern::new(
+            "supabase_service",
+            r"(sbp_[a-zA-Z0-9]{40,})",
+            1,
+            "***SUPABASE_KEY***",
+        ),
         // Session tokens (hex-encoded)
-        SecretPattern::new("session_token", r#"(?i)(session[_-]?token|token)[=:\s]+['"]?([a-f0-9]{64,})['"]?"#, 2, "***SESSION***"),
-
+        SecretPattern::new(
+            "session_token",
+            r#"(?i)(session[_-]?token|token)[=:\s]+['"]?([a-f0-9]{64,})['"]?"#,
+            2,
+            "***SESSION***",
+        ),
         // Password patterns - match "password": "value" or password="value" etc.
-        SecretPattern::new("password_json", r#"(?i)"(password|passwd|pwd)":\s*"([^"]+)""#, 2, "***PASSWORD***"),
-        SecretPattern::new("password_quoted", r#"(?i)(password|passwd|pwd)[=:\s]+["']([^"']+)["']"#, 2, "***PASSWORD***"),
-        SecretPattern::new("password_plain", r#"(?i)(password|passwd|pwd)[=:\s]+([^\s&,;"']+)"#, 2, "***PASSWORD***"),
-
+        SecretPattern::new(
+            "password_json",
+            r#"(?i)"(password|passwd|pwd)":\s*"([^"]+)""#,
+            2,
+            "***PASSWORD***",
+        ),
+        SecretPattern::new(
+            "password_quoted",
+            r#"(?i)(password|passwd|pwd)[=:\s]+["']([^"']+)["']"#,
+            2,
+            "***PASSWORD***",
+        ),
+        SecretPattern::new(
+            "password_plain",
+            r#"(?i)(password|passwd|pwd)[=:\s]+([^\s&,;"']+)"#,
+            2,
+            "***PASSWORD***",
+        ),
         // Connection strings with embedded credentials
-        SecretPattern::new("postgres_uri", r"(postgres(?:ql)?://[^:]+:)([^@]+)(@)", 2, "***PASSWORD***"),
-        SecretPattern::new("redis_uri", r"(redis://[^:]*:)([^@]+)(@)", 2, "***PASSWORD***"),
-        SecretPattern::new("mongodb_uri", r"(mongodb(?:\+srv)?://[^:]+:)([^@]+)(@)", 2, "***PASSWORD***"),
-
+        SecretPattern::new(
+            "postgres_uri",
+            r"(postgres(?:ql)?://[^:]+:)([^@]+)(@)",
+            2,
+            "***PASSWORD***",
+        ),
+        SecretPattern::new(
+            "redis_uri",
+            r"(redis://[^:]*:)([^@]+)(@)",
+            2,
+            "***PASSWORD***",
+        ),
+        SecretPattern::new(
+            "mongodb_uri",
+            r"(mongodb(?:\+srv)?://[^:]+:)([^@]+)(@)",
+            2,
+            "***PASSWORD***",
+        ),
         // AWS credentials
         SecretPattern::new("aws_access_key", r"(AKIA[A-Z0-9]{16})", 1, "***AWS_KEY***"),
-        SecretPattern::new("aws_secret_key", r#"(?i)(aws[_-]?secret[_-]?access[_-]?key)[=:\s]+['"]?([a-zA-Z0-9/+=]{40})['"]?"#, 2, "***AWS_SECRET***"),
-
+        SecretPattern::new(
+            "aws_secret_key",
+            r#"(?i)(aws[_-]?secret[_-]?access[_-]?key)[=:\s]+['"]?([a-zA-Z0-9/+=]{40})['"]?"#,
+            2,
+            "***AWS_SECRET***",
+        ),
         // GitHub tokens
-        SecretPattern::new("github_token", r"(ghp_[a-zA-Z0-9]{36})", 1, "***GITHUB_TOKEN***"),
-        SecretPattern::new("github_oauth", r"(gho_[a-zA-Z0-9]{36})", 1, "***GITHUB_OAUTH***"),
-        SecretPattern::new("github_pat", r"(github_pat_[a-zA-Z0-9]{22}_[a-zA-Z0-9]{59})", 1, "***GITHUB_PAT***"),
-
+        SecretPattern::new(
+            "github_token",
+            r"(ghp_[a-zA-Z0-9]{36})",
+            1,
+            "***GITHUB_TOKEN***",
+        ),
+        SecretPattern::new(
+            "github_oauth",
+            r"(gho_[a-zA-Z0-9]{36})",
+            1,
+            "***GITHUB_OAUTH***",
+        ),
+        SecretPattern::new(
+            "github_pat",
+            r"(github_pat_[a-zA-Z0-9]{22}_[a-zA-Z0-9]{59})",
+            1,
+            "***GITHUB_PAT***",
+        ),
         // Private keys (PEM format headers)
-        SecretPattern::new("private_key", r"(-----BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY-----)", 1, "***PRIVATE_KEY_REDACTED***"),
-
+        SecretPattern::new(
+            "private_key",
+            r"(-----BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY-----)",
+            1,
+            "***PRIVATE_KEY_REDACTED***",
+        ),
         // Generic secrets (environment variable format)
-        SecretPattern::new("env_secret", r#"(?i)(secret|private[_-]?key|access[_-]?token)[=:\s]+['"]?([a-zA-Z0-9_/+=.-]{20,})['"]?"#, 2, "***SECRET***"),
+        SecretPattern::new(
+            "env_secret",
+            r#"(?i)(secret|private[_-]?key|access[_-]?token)[=:\s]+['"]?([a-zA-Z0-9_/+=.-]{20,})['"]?"#,
+            2,
+            "***SECRET***",
+        ),
     ]
 }
 
@@ -231,7 +332,11 @@ mod tests {
         // Test with equals and no quotes (env var format)
         let input2 = "password=mysecretpass123";
         let result2 = redact_secrets(input2);
-        assert!(result2.contains("***PASSWORD***"), "Result was: {}", result2);
+        assert!(
+            result2.contains("***PASSWORD***"),
+            "Result was: {}",
+            result2
+        );
         assert!(!result2.contains("mysecretpass123"));
     }
 
@@ -248,7 +353,8 @@ mod tests {
 
     #[test]
     fn test_session_token_redaction() {
-        let input = "session_token=a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4";
+        let input =
+            "session_token=a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4";
         let result = redact_secrets(input);
         assert!(result.contains("***SESSION***"));
         assert!(!result.contains("a1b2c3d4e5f6"));
@@ -289,7 +395,11 @@ mod tests {
         // OpenAI key + password with double quotes
         let input = r#"api_key="sk-1234567890abcdef1234567890abcdef12345678901234567890" password="secret123""#;
         let result = redact_secrets(input);
-        assert!(result.contains("***OPENAI_KEY***") || result.contains("***API_KEY***"), "Result was: {}", result);
+        assert!(
+            result.contains("***OPENAI_KEY***") || result.contains("***API_KEY***"),
+            "Result was: {}",
+            result
+        );
         assert!(result.contains("***PASSWORD***"), "Result was: {}", result);
         assert!(!result.contains("sk-1234567890"));
         assert!(!result.contains("secret123"));

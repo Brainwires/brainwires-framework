@@ -159,6 +159,9 @@ mod tests {
 
     #[test]
     fn strategy_category_is_refactoring() {
-        assert_eq!(RefactoringStrategy.category(), ImprovementCategory::Refactoring);
+        assert_eq!(
+            RefactoringStrategy.category(),
+            ImprovementCategory::Refactoring
+        );
     }
 }

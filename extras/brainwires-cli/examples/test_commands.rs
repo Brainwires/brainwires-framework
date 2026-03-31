@@ -15,36 +15,35 @@ fn main() -> anyhow::Result<()> {
     // Create executor
     let executor = CommandExecutor::new()?;
 
-    println!("Loaded {} commands\n", executor.registry().list_commands().len());
+    println!(
+        "Loaded {} commands\n",
+        executor.registry().list_commands().len()
+    );
 
     // Test /help
     println!("Testing /help:");
     println!("----------------");
     match executor.parse_input("/help") {
-        Some((cmd, args)) => {
-            match executor.execute(&cmd, &args)? {
-                brainwires_cli::commands::executor::CommandResult::Help(lines) => {
-                    for line in lines {
-                        println!("{}", line);
-                    }
+        Some((cmd, args)) => match executor.execute(&cmd, &args)? {
+            brainwires_cli::commands::executor::CommandResult::Help(lines) => {
+                for line in lines {
+                    println!("{}", line);
                 }
-                _ => println!("Unexpected result"),
             }
-        }
+            _ => println!("Unexpected result"),
+        },
         None => println!("Failed to parse /help"),
     }
 
     println!("\n\nTesting /model:");
     println!("----------------");
     match executor.parse_input("/model llama-3.3-70b-versatile") {
-        Some((cmd, args)) => {
-            match executor.execute(&cmd, &args)? {
-                brainwires_cli::commands::executor::CommandResult::Action(action) => {
-                    println!("Action: {:?}", action);
-                }
-                _ => println!("Unexpected result"),
+        Some((cmd, args)) => match executor.execute(&cmd, &args)? {
+            brainwires_cli::commands::executor::CommandResult::Action(action) => {
+                println!("Action: {:?}", action);
             }
-        }
+            _ => println!("Unexpected result"),
+        },
         None => println!("Failed to parse /model"),
     }
 
@@ -53,14 +52,12 @@ fn main() -> anyhow::Result<()> {
     println!("----------------");
     if executor.registry().get("explain").is_some() {
         match executor.parse_input("/explain async/await in Rust") {
-            Some((cmd, args)) => {
-                match executor.execute(&cmd, &args)? {
-                    brainwires_cli::commands::executor::CommandResult::Message(msg) => {
-                        println!("{}", msg);
-                    }
-                    _ => println!("Unexpected result"),
+            Some((cmd, args)) => match executor.execute(&cmd, &args)? {
+                brainwires_cli::commands::executor::CommandResult::Message(msg) => {
+                    println!("{}", msg);
                 }
-            }
+                _ => println!("Unexpected result"),
+            },
             None => println!("Failed to parse /explain"),
         }
     } else {

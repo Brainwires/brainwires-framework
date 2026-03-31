@@ -11,22 +11,17 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 /// Priority level for queued messages
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum MessagePriority {
     /// Low priority - processed last
     Low,
     /// Normal priority - standard processing order
+    #[default]
     Normal,
     /// High priority - processed before normal messages
     High,
     /// System priority - processed immediately
     System,
-}
-
-impl Default for MessagePriority {
-    fn default() -> Self {
-        Self::Normal
-    }
 }
 
 /// A message queued for injection
@@ -216,7 +211,10 @@ impl MessageQueue {
 
     /// Get all messages by priority
     pub fn by_priority(&self, priority: MessagePriority) -> Vec<&QueuedMessage> {
-        self.queue.iter().filter(|m| m.priority == priority).collect()
+        self.queue
+            .iter()
+            .filter(|m| m.priority == priority)
+            .collect()
     }
 
     /// Find the correct position to insert a message based on priority
@@ -259,16 +257,15 @@ impl MessageQueue {
 
     /// Load queue from disk
     fn load(&mut self) -> Result<()> {
-        if let Some(ref path) = self.persist_path {
-            if path.exists() {
-                let data = std::fs::read_to_string(path)
-                    .context("Failed to read message queue")?;
+        if let Some(ref path) = self.persist_path
+            && path.exists()
+        {
+            let data = std::fs::read_to_string(path).context("Failed to read message queue")?;
 
-                self.queue = serde_json::from_str(&data)
-                    .context("Failed to deserialize message queue")?;
+            self.queue =
+                serde_json::from_str(&data).context("Failed to deserialize message queue")?;
 
-                tracing::info!("Loaded {} messages from queue", self.queue.len());
-            }
+            tracing::info!("Loaded {} messages from queue", self.queue.len());
         }
         Ok(())
     }
@@ -308,8 +305,12 @@ mod tests {
 
         // Add in reverse priority order
         queue.push_content("low priority".to_string()).unwrap();
-        queue.push(QueuedMessage::high_priority("high priority".to_string())).unwrap();
-        queue.push(QueuedMessage::system("system priority".to_string())).unwrap();
+        queue
+            .push(QueuedMessage::high_priority("high priority".to_string()))
+            .unwrap();
+        queue
+            .push(QueuedMessage::system("system priority".to_string()))
+            .unwrap();
 
         // Should come out in priority order
         assert_eq!(queue.pop().unwrap().content, "system priority");

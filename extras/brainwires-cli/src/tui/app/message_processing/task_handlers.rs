@@ -54,7 +54,10 @@ impl App {
 
             match target_id {
                 Some(id) => {
-                    match task_mgr.complete_task(&id, "Manually completed".to_string()).await {
+                    match task_mgr
+                        .complete_task(&id, "Manually completed".to_string())
+                        .await
+                    {
                         Ok(()) => format!("Task '{}' marked as complete.", id),
                         Err(e) => format!("Failed to complete task: {}", e),
                     }
@@ -72,7 +75,11 @@ impl App {
     }
 
     /// Handle task:skip command
-    pub(super) async fn handle_task_skip(&mut self, task_id: Option<String>, reason: Option<String>) {
+    pub(super) async fn handle_task_skip(
+        &mut self,
+        task_id: Option<String>,
+        reason: Option<String>,
+    ) {
         let content = if self.active_plan.is_none() {
             "No active plan. Use /plan:activate <id> to set a plan first.".to_string()
         } else {
@@ -87,15 +94,13 @@ impl App {
             };
 
             match target_id {
-                Some(id) => {
-                    match task_mgr.skip_task(&id, reason.clone()).await {
-                        Ok(()) => {
-                            let reason_text = reason.map(|r| format!(" ({})", r)).unwrap_or_default();
-                            format!("Task '{}' skipped{}.", id, reason_text)
-                        }
-                        Err(e) => format!("Failed to skip task: {}", e),
+                Some(id) => match task_mgr.skip_task(&id, reason.clone()).await {
+                    Ok(()) => {
+                        let reason_text = reason.map(|r| format!(" ({})", r)).unwrap_or_default();
+                        format!("Task '{}' skipped{}.", id, reason_text)
                     }
-                }
+                    Err(e) => format!("Failed to skip task: {}", e),
+                },
                 None => "No task ID provided and no in-progress task found.".to_string(),
             }
         };
@@ -114,7 +119,10 @@ impl App {
             "No active plan. Use /plan:activate <id> to set a plan first.".to_string()
         } else {
             let task_mgr = self.task_manager.write().await;
-            match task_mgr.create_task(description.clone(), None, TaskPriority::Normal).await {
+            match task_mgr
+                .create_task(description.clone(), None, TaskPriority::Normal)
+                .await
+            {
                 Ok(id) => format!("Task added: {} (ID: {})", description, &id[..8]),
                 Err(e) => format!("Failed to add task: {}", e),
             }
@@ -137,13 +145,14 @@ impl App {
 
             // Check if task can start (dependencies complete)
             match task_mgr.can_start(&task_id).await {
-                Ok(true) => {
-                    match task_mgr.start_task(&task_id).await {
-                        Ok(()) => format!("Started task '{}'.", task_id),
-                        Err(e) => format!("Failed to start task: {}", e),
-                    }
-                }
-                Ok(false) => format!("Task '{}' cannot be started (already completed or failed).", task_id),
+                Ok(true) => match task_mgr.start_task(&task_id).await {
+                    Ok(()) => format!("Started task '{}'.", task_id),
+                    Err(e) => format!("Failed to start task: {}", e),
+                },
+                Ok(false) => format!(
+                    "Task '{}' cannot be started (already completed or failed).",
+                    task_id
+                ),
                 Err(blocking) => format!(
                     "Cannot start task '{}' - blocked by: {}",
                     task_id,
@@ -214,10 +223,22 @@ impl App {
             if ready_tasks.is_empty() {
                 "No tasks ready to execute.".to_string()
             } else {
-                let task_list: Vec<String> = ready_tasks.iter()
-                    .map(|t| format!("  {} [{}] {}", &t.id[..8], format!("{:?}", t.priority).to_lowercase(), t.description))
+                let task_list: Vec<String> = ready_tasks
+                    .iter()
+                    .map(|t| {
+                        format!(
+                            "  {} [{}] {}",
+                            &t.id[..8],
+                            format!("{:?}", t.priority).to_lowercase(),
+                            t.description
+                        )
+                    })
                     .collect();
-                format!("Tasks ready to execute ({}):\n{}", ready_tasks.len(), task_list.join("\n"))
+                format!(
+                    "Tasks ready to execute ({}):\n{}",
+                    ready_tasks.len(),
+                    task_list.join("\n")
+                )
             }
         };
 
@@ -273,7 +294,10 @@ impl App {
                 }
 
                 if let Some(est) = estimate {
-                    output.push_str(&format!("\nEstimated remaining: {}", format_duration_secs(est)));
+                    output.push_str(&format!(
+                        "\nEstimated remaining: {}",
+                        format_duration_secs(est)
+                    ));
                 }
 
                 output
@@ -313,13 +337,16 @@ impl App {
                     let deps = if task.depends_on.is_empty() {
                         String::new()
                     } else {
-                        let short_deps: Vec<&str> = task.depends_on.iter()
+                        let short_deps: Vec<&str> = task
+                            .depends_on
+                            .iter()
                             .map(|d| &d[..8.min(d.len())])
                             .collect();
                         format!(" [deps: {}]", short_deps.join(", "))
                     };
 
-                    let time_info = if let Some(info) = task_mgr.get_task_time_info(&task.id).await {
+                    let time_info = if let Some(info) = task_mgr.get_task_time_info(&task.id).await
+                    {
                         let duration = info.format_duration();
                         if duration != "-" {
                             format!(" [{}]", duration)

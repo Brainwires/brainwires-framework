@@ -7,8 +7,7 @@
 //! Run: cargo run -p brainwires-providers --example provider_factory --features native
 
 use brainwires_providers::{
-    ChatProviderFactory, ProviderConfig, ProviderType, create_model_lister,
-    registry,
+    ChatProviderFactory, ProviderConfig, ProviderType, create_model_lister, registry,
 };
 
 fn main() {
@@ -38,9 +37,8 @@ fn main() {
     println!("OpenAI config: {:?}", openai_config);
 
     // Groq uses the OpenAI-compatible protocol with a different base URL
-    let groq_config =
-        ProviderConfig::new(ProviderType::Groq, "llama-3.3-70b-versatile".into())
-            .with_api_key("gsk-demo-key-not-real");
+    let groq_config = ProviderConfig::new(ProviderType::Groq, "llama-3.3-70b-versatile".into())
+        .with_api_key("gsk-demo-key-not-real");
     println!("Groq   config: {:?}", groq_config);
     println!();
 
@@ -94,11 +92,7 @@ fn main() {
     println!("--- Model Lister Availability ---");
     for pt in &provider_types {
         let requires_key = pt.requires_api_key();
-        let key = if requires_key {
-            Some("demo-key")
-        } else {
-            None
-        };
+        let key = if requires_key { Some("demo-key") } else { None };
         match create_model_lister(*pt, key, None) {
             Ok(_) => println!("  {:12} -> ModelLister created (would query API)", pt),
             Err(e) => println!("  {:12} -> {}", pt, e),

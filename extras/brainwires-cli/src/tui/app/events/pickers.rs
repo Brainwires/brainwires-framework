@@ -2,8 +2,8 @@
 //!
 //! Event handling for session picker, tool picker, and file explorer modes.
 
-use crate::tui::app::state::{App, AppMode};
 use crate::tui::Event;
+use crate::tui::app::state::{App, AppMode};
 use anyhow::Result;
 use crossterm::event::KeyCode;
 
@@ -33,7 +33,9 @@ impl App {
 
         if event.is_up() {
             // Navigate to next search result (older)
-            if !self.search_results.is_empty() && self.search_result_index < self.search_results.len() - 1 {
+            if !self.search_results.is_empty()
+                && self.search_result_index < self.search_results.len() - 1
+            {
                 self.search_result_index += 1;
             }
             return Ok(());
@@ -88,20 +90,23 @@ impl App {
                 }
                 KeyCode::Down => {
                     // Move selection down
-                    if self.selected_session_index < self.available_sessions.len().saturating_sub(1) {
+                    if self.selected_session_index < self.available_sessions.len().saturating_sub(1)
+                    {
                         self.selected_session_index += 1;
                         // Update scroll position to keep selection visible
                         // Each session takes 2 lines (title, timestamp)
                         let selected_line = (self.selected_session_index * 2) as u16 + 2; // +2 for header
                         let visible_lines = 20; // Conservative estimate
                         if selected_line + 1 >= self.session_picker_scroll + visible_lines {
-                            self.session_picker_scroll = selected_line.saturating_sub(visible_lines - 3);
+                            self.session_picker_scroll =
+                                selected_line.saturating_sub(visible_lines - 3);
                         }
                     }
                 }
                 KeyCode::Enter => {
                     // Load selected session
-                    let conversation_id = self.available_sessions
+                    let conversation_id = self
+                        .available_sessions
                         .get(self.selected_session_index)
                         .map(|s| s.conversation_id.clone());
 
@@ -117,7 +122,10 @@ impl App {
     }
 
     /// Handle events in tool picker mode
-    pub(in crate::tui::app) async fn handle_tool_picker_event(&mut self, event: Event) -> Result<()> {
+    pub(in crate::tui::app) async fn handle_tool_picker_event(
+        &mut self,
+        event: Event,
+    ) -> Result<()> {
         if event.is_escape() {
             // Cancel picker
             self.tool_picker_state = None;
@@ -171,7 +179,9 @@ impl App {
 
     /// Move up in tool picker
     fn tool_picker_move_up(&mut self) {
-        let Some(state) = &mut self.tool_picker_state else { return };
+        let Some(state) = &mut self.tool_picker_state else {
+            return;
+        };
 
         if let Some(tool_idx) = state.selected_tool {
             // Move up within tools
@@ -188,7 +198,9 @@ impl App {
                 if state.collapsed.contains(&state.selected_category) {
                     state.selected_tool = None;
                 } else {
-                    let tools_count = state.categories.get(state.selected_category)
+                    let tools_count = state
+                        .categories
+                        .get(state.selected_category)
                         .map(|(_, tools)| tools.len())
                         .unwrap_or(0);
                     if tools_count > 0 {
@@ -201,9 +213,13 @@ impl App {
 
     /// Move down in tool picker
     fn tool_picker_move_down(&mut self) {
-        let Some(state) = &mut self.tool_picker_state else { return };
+        let Some(state) = &mut self.tool_picker_state else {
+            return;
+        };
 
-        let current_cat_tools = state.categories.get(state.selected_category)
+        let current_cat_tools = state
+            .categories
+            .get(state.selected_category)
             .map(|(_, tools)| tools.len())
             .unwrap_or(0);
         let is_collapsed = state.collapsed.contains(&state.selected_category);
@@ -236,14 +252,16 @@ impl App {
 
     /// Toggle selection in tool picker
     fn tool_picker_toggle(&mut self) {
-        let Some(state) = &mut self.tool_picker_state else { return };
+        let Some(state) = &mut self.tool_picker_state else {
+            return;
+        };
 
         if let Some(tool_idx) = state.selected_tool {
             // Toggle specific tool
-            if let Some((_, tools)) = state.categories.get_mut(state.selected_category) {
-                if let Some((_, _, selected)) = tools.get_mut(tool_idx) {
-                    *selected = !*selected;
-                }
+            if let Some((_, tools)) = state.categories.get_mut(state.selected_category)
+                && let Some((_, _, selected)) = tools.get_mut(tool_idx)
+            {
+                *selected = !*selected;
             }
         } else {
             // Toggle entire category
@@ -258,7 +276,9 @@ impl App {
 
     /// Select all tools in picker
     fn tool_picker_select_all(&mut self) {
-        let Some(state) = &mut self.tool_picker_state else { return };
+        let Some(state) = &mut self.tool_picker_state else {
+            return;
+        };
 
         for (_, tools) in state.categories.iter_mut() {
             for (_, _, selected) in tools.iter_mut() {
@@ -269,7 +289,9 @@ impl App {
 
     /// Select no tools in picker
     fn tool_picker_select_none(&mut self) {
-        let Some(state) = &mut self.tool_picker_state else { return };
+        let Some(state) = &mut self.tool_picker_state else {
+            return;
+        };
 
         for (_, tools) in state.categories.iter_mut() {
             for (_, _, selected) in tools.iter_mut() {
@@ -279,7 +301,10 @@ impl App {
     }
 
     /// Handle events in file explorer mode
-    pub(in crate::tui::app) async fn handle_file_explorer_event(&mut self, event: Event) -> Result<()> {
+    pub(in crate::tui::app) async fn handle_file_explorer_event(
+        &mut self,
+        event: Event,
+    ) -> Result<()> {
         use super::super::file_explorer::{EntryType, FileExplorerMode};
         use super::super::nano_editor::NanoEditorState;
 
@@ -373,26 +398,29 @@ impl App {
                 }
                 KeyCode::Right => {
                     // Enter directory if on one
-                    if let Some(entry) = state.current_entry().cloned() {
-                        if matches!(entry.entry_type, EntryType::Directory | EntryType::ParentDir) {
-                            let _ = state.enter_directory(&entry.path);
-                        }
+                    if let Some(entry) = state.current_entry().cloned()
+                        && matches!(
+                            entry.entry_type,
+                            EntryType::Directory | EntryType::ParentDir
+                        )
+                    {
+                        let _ = state.enter_directory(&entry.path);
                     }
                 }
                 KeyCode::Char(' ') => state.toggle_selection(),
                 KeyCode::Char('/') => state.start_search(),
                 KeyCode::Char('e') => {
                     // Edit current file
-                    if let Some(entry) = state.current_entry().cloned() {
-                        if matches!(entry.entry_type, EntryType::File { .. }) {
-                            match NanoEditorState::open(entry.path) {
-                                Ok(editor) => {
-                                    self.nano_editor_state = Some(editor);
-                                    self.mode = AppMode::NanoEditor;
-                                }
-                                Err(e) => {
-                                    self.show_toast(format!("Failed to open: {}", e), 3000);
-                                }
+                    if let Some(entry) = state.current_entry().cloned()
+                        && matches!(entry.entry_type, EntryType::File { .. })
+                    {
+                        match NanoEditorState::open(entry.path) {
+                            Ok(editor) => {
+                                self.nano_editor_state = Some(editor);
+                                self.mode = AppMode::NanoEditor;
+                            }
+                            Err(e) => {
+                                self.show_toast(format!("Failed to open: {}", e), 3000);
                             }
                         }
                     }
@@ -421,7 +449,10 @@ impl App {
                             state.clear_selection();
                         }
                     } else {
-                        self.show_toast("No files selected (use Space to select)".to_string(), 2000);
+                        self.show_toast(
+                            "No files selected (use Space to select)".to_string(),
+                            2000,
+                        );
                     }
                 }
                 _ => {}

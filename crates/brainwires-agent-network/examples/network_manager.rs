@@ -12,11 +12,11 @@
 //!     --features "server,client,ipc-transport"
 //! ```
 
+use brainwires_agent_network::discovery::ManualDiscovery;
 use brainwires_agent_network::{
     AgentCard, AgentIdentity, ConnectionState, MessageEnvelope, NetworkEvent,
     NetworkManagerBuilder, Payload, TransportType,
 };
-use brainwires_agent_network::discovery::ManualDiscovery;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -135,9 +135,7 @@ async fn main() -> anyhow::Result<()> {
                 println!("  Event: MessageReceived — from {}", env.sender);
             }
             NetworkEvent::ConnectionStateChanged { transport, state } => {
-                println!(
-                    "  Event: ConnectionStateChanged — {transport:?} -> {state:?}"
-                );
+                println!("  Event: ConnectionStateChanged — {transport:?} -> {state:?}");
             }
             NetworkEvent::Error(e) => {
                 println!("  Event: Error — {e:?}");
@@ -163,8 +161,10 @@ async fn main() -> anyhow::Result<()> {
     );
 
     // Broadcast to all peers
-    let broadcast =
-        MessageEnvelope::broadcast(orchestrator.id, Payload::Text("System: reloading config".into()));
+    let broadcast = MessageEnvelope::broadcast(
+        orchestrator.id,
+        Payload::Text("System: reloading config".into()),
+    );
     println!(
         "  Broadcast: sender={}, recipient={:?}",
         broadcast.sender, broadcast.recipient,

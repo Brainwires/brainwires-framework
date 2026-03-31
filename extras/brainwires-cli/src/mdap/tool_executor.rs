@@ -15,8 +15,8 @@
 //! - Restricted trust level for microagent contexts
 
 use std::collections::HashSet;
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use tokio::sync::RwLock;
 
@@ -95,10 +95,7 @@ pub struct MicroagentToolExecutor {
 
 impl MicroagentToolExecutor {
     /// Create a new microagent tool executor
-    pub fn new(
-        tool_executor: Arc<RwLock<ToolExecutor>>,
-        config: MicroagentToolConfig,
-    ) -> Self {
+    pub fn new(tool_executor: Arc<RwLock<ToolExecutor>>, config: MicroagentToolConfig) -> Self {
         Self {
             tool_executor,
             config,
@@ -118,7 +115,10 @@ impl MicroagentToolExecutor {
 
     /// Check if a tool is allowed for microagent execution
     pub fn is_tool_allowed(&self, tool_name: &str) -> bool {
-        self.config.allowed_categories.iter().any(|cat| cat.contains_tool(tool_name))
+        self.config
+            .allowed_categories
+            .iter()
+            .any(|cat| cat.contains_tool(tool_name))
     }
 
     /// Get the category for a tool name
@@ -137,14 +137,17 @@ impl MicroagentToolExecutor {
             ToolCategory::Mcp,
         ];
 
-        all_categories.into_iter().find(|cat| cat.contains_tool(tool_name))
+        all_categories
+            .into_iter()
+            .find(|cat| cat.contains_tool(tool_name))
     }
 
     /// Validate that a tool can be executed
     fn validate_tool(&self, intent: &ToolIntent) -> MdapResult<()> {
         // Check if tool is allowed
         if !self.is_tool_allowed(&intent.tool_name) {
-            let category = self.get_tool_category(&intent.tool_name)
+            let category = self
+                .get_tool_category(&intent.tool_name)
                 .map(|c| format!("{:?}", c))
                 .unwrap_or_else(|| "Unknown".to_string());
 
@@ -274,18 +277,10 @@ impl MicroagentToolExecutor {
 }
 
 /// Builder for MicroagentToolExecutor
+#[derive(Default)]
 pub struct MicroagentToolExecutorBuilder {
     tool_executor: Option<Arc<RwLock<ToolExecutor>>>,
     config: MicroagentToolConfig,
-}
-
-impl Default for MicroagentToolExecutorBuilder {
-    fn default() -> Self {
-        Self {
-            tool_executor: None,
-            config: MicroagentToolConfig::default(),
-        }
-    }
 }
 
 impl MicroagentToolExecutorBuilder {
@@ -368,10 +363,19 @@ mod tests {
     fn test_category_detection() {
         let executor = MicroagentToolExecutor::read_only(create_test_executor());
 
-        assert_eq!(executor.get_tool_category("read_file"), Some(ToolCategory::FileRead));
-        assert_eq!(executor.get_tool_category("write_file"), Some(ToolCategory::FileWrite));
+        assert_eq!(
+            executor.get_tool_category("read_file"),
+            Some(ToolCategory::FileRead)
+        );
+        assert_eq!(
+            executor.get_tool_category("write_file"),
+            Some(ToolCategory::FileWrite)
+        );
         assert_eq!(executor.get_tool_category("bash"), Some(ToolCategory::Bash));
-        assert_eq!(executor.get_tool_category("mcp__test__tool"), Some(ToolCategory::Mcp));
+        assert_eq!(
+            executor.get_tool_category("mcp__test__tool"),
+            Some(ToolCategory::Mcp)
+        );
     }
 
     #[test]

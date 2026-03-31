@@ -4,7 +4,9 @@ use clap::Subcommand;
 use console::style;
 
 use crate::config::PlatformPaths;
-use crate::storage::{ConversationStore, EmbeddingProvider, LanceDatabase, MessageStore, VectorDatabase};
+use crate::storage::{
+    ConversationStore, EmbeddingProvider, LanceDatabase, MessageStore, VectorDatabase,
+};
 use std::sync::Arc;
 
 #[derive(Subcommand)]
@@ -43,17 +45,25 @@ pub enum HistoryCommands {
     },
 
     /// Open and resume a conversation
-    Open {
-        conversation_id: String,
-    },
+    Open { conversation_id: String },
 }
 
 pub async fn handle_history(cmd: HistoryCommands) -> Result<()> {
     match cmd {
         HistoryCommands::List { limit } => handle_list(limit).await,
-        HistoryCommands::Search { query, limit, min_score } => handle_search(&query, limit, min_score).await,
-        HistoryCommands::Show { conversation_id, messages } => handle_show(&conversation_id, messages).await,
-        HistoryCommands::Delete { conversation_id, confirm } => handle_delete(&conversation_id, confirm).await,
+        HistoryCommands::Search {
+            query,
+            limit,
+            min_score,
+        } => handle_search(&query, limit, min_score).await,
+        HistoryCommands::Show {
+            conversation_id,
+            messages,
+        } => handle_show(&conversation_id, messages).await,
+        HistoryCommands::Delete {
+            conversation_id,
+            confirm,
+        } => handle_delete(&conversation_id, confirm).await,
         HistoryCommands::Open { conversation_id } => handle_open(&conversation_id).await,
     }
 }
@@ -74,11 +84,19 @@ pub async fn handle_list(limit: Option<usize>) -> Result<()> {
 
     for conv in conversations {
         let created_at = DateTime::from_timestamp(conv.created_at, 0)
-            .map(|dt| dt.with_timezone(&Local).format("%Y-%m-%d %H:%M:%S").to_string())
+            .map(|dt| {
+                dt.with_timezone(&Local)
+                    .format("%Y-%m-%d %H:%M:%S")
+                    .to_string()
+            })
             .unwrap_or_else(|| "Unknown".to_string());
 
         let updated_at = DateTime::from_timestamp(conv.updated_at, 0)
-            .map(|dt| dt.with_timezone(&Local).format("%Y-%m-%d %H:%M:%S").to_string())
+            .map(|dt| {
+                dt.with_timezone(&Local)
+                    .format("%Y-%m-%d %H:%M:%S")
+                    .to_string()
+            })
             .unwrap_or_else(|| "Unknown".to_string());
 
         let title = conv.title.unwrap_or_else(|| "Untitled".to_string());
@@ -120,7 +138,11 @@ pub async fn handle_search(query: &str, limit: usize, min_score: f32) -> Result<
 
         let title = conv.title.unwrap_or_else(|| "Untitled".to_string());
 
-        println!("{} (score: {:.2})", style(&conv.conversation_id).cyan().bold(), score);
+        println!(
+            "{} (score: {:.2})",
+            style(&conv.conversation_id).cyan().bold(),
+            score
+        );
         println!("  Title:   {}", title);
         println!("  Role:    {}", message.role);
         println!("  Content: {}", truncate_text(&message.content, 100));
@@ -150,7 +172,10 @@ pub async fn handle_delete(conversation_id: &str, confirm: bool) -> Result<()> {
     let title = conv.title.unwrap_or_else(|| "Untitled".to_string());
 
     if !confirm {
-        println!("{}", style("Are you sure you want to delete this conversation?").yellow());
+        println!(
+            "{}",
+            style("Are you sure you want to delete this conversation?").yellow()
+        );
         println!("  ID:       {}", conversation_id);
         println!("  Title:    {}", title);
         println!("  Messages: {}", conv.message_count);
@@ -159,12 +184,17 @@ pub async fn handle_delete(conversation_id: &str, confirm: bool) -> Result<()> {
     }
 
     // Delete messages first
-    message_store.delete_by_conversation(conversation_id).await?;
+    message_store
+        .delete_by_conversation(conversation_id)
+        .await?;
 
     // Delete conversation
     conversation_store.delete(conversation_id).await?;
 
-    println!("{}", style(format!("Deleted conversation '{}'", title)).green());
+    println!(
+        "{}",
+        style(format!("Deleted conversation '{}'", title)).green()
+    );
 
     Ok(())
 }
@@ -184,7 +214,12 @@ pub async fn handle_open(conversation_id: &str) -> Result<()> {
     let title = conv.title.unwrap_or_else(|| "Untitled".to_string());
     let model = conv.model_id.unwrap_or_else(|| "default".to_string());
 
-    println!("{}", style(format!("Opening conversation: {}", title)).cyan().bold());
+    println!(
+        "{}",
+        style(format!("Opening conversation: {}", title))
+            .cyan()
+            .bold()
+    );
     println!("  ID:       {}", conversation_id);
     println!("  Model:    {}", style(&model).green());
     println!("  Messages: {}\n", conv.message_count);
@@ -195,12 +230,13 @@ pub async fn handle_open(conversation_id: &str) -> Result<()> {
         None,
         None,
         Some(conversation_id.to_string()),
-        false, // Don't output JSON when resuming from history
-        false, // Not quiet
+        false,  // Don't output JSON when resuming from history
+        false,  // Not quiet
         "full", // Full format
         None,   // No MDAP config when resuming from history
         None,   // No backend URL override - use default
-    ).await
+    )
+    .await
 }
 
 /// Show details of a specific conversation
@@ -216,11 +252,19 @@ pub async fn handle_show(conversation_id: &str, show_messages: bool) -> Result<(
         .context(format!("Conversation '{}' not found", conversation_id))?;
 
     let created_at = DateTime::from_timestamp(conv.created_at, 0)
-        .map(|dt| dt.with_timezone(&Local).format("%Y-%m-%d %H:%M:%S").to_string())
+        .map(|dt| {
+            dt.with_timezone(&Local)
+                .format("%Y-%m-%d %H:%M:%S")
+                .to_string()
+        })
         .unwrap_or_else(|| "Unknown".to_string());
 
     let updated_at = DateTime::from_timestamp(conv.updated_at, 0)
-        .map(|dt| dt.with_timezone(&Local).format("%Y-%m-%d %H:%M:%S").to_string())
+        .map(|dt| {
+            dt.with_timezone(&Local)
+                .format("%Y-%m-%d %H:%M:%S")
+                .to_string()
+        })
         .unwrap_or_else(|| "Unknown".to_string());
 
     let title = conv.title.unwrap_or_else(|| "Untitled".to_string());
@@ -244,7 +288,12 @@ pub async fn handle_show(conversation_id: &str, show_messages: bool) -> Result<(
                 .map(|dt| dt.with_timezone(&Local).format("%H:%M:%S").to_string())
                 .unwrap_or_else(|| "Unknown".to_string());
 
-            println!("{} [{}] {}", style(format!("#{}", i + 1)).dim(), msg_time, style(&msg.role).bold());
+            println!(
+                "{} [{}] {}",
+                style(format!("#{}", i + 1)).dim(),
+                msg_time,
+                style(&msg.role).bold()
+            );
             println!("{}", msg.content);
             println!();
         }
@@ -256,7 +305,11 @@ pub async fn handle_show(conversation_id: &str, show_messages: bool) -> Result<(
 }
 
 /// Initialize storage clients
-async fn initialize_storage() -> Result<(Arc<LanceDatabase>, Arc<ConversationStore>, Arc<MessageStore>)> {
+async fn initialize_storage() -> Result<(
+    Arc<LanceDatabase>,
+    Arc<ConversationStore>,
+    Arc<MessageStore>,
+)> {
     let db_path = PlatformPaths::conversations_db_path()?;
     let client = Arc::new(
         LanceDatabase::new(db_path.to_str().context("Invalid DB path")?)

@@ -95,8 +95,8 @@ impl WorkflowTrigger for ProgrammaticTrigger {
 
 #[cfg(test)]
 mod tests {
+    use super::super::forge::{CommitRef, Issue, PrState, PullRequest, RepoRef};
     use super::*;
-    use super::super::forge::{CommitRef, Issue, PullRequest, PrState, RepoRef};
 
     fn sample_repo() -> RepoRef {
         RepoRef {
@@ -149,7 +149,9 @@ mod tests {
         let json = serde_json::to_string(&event).unwrap();
         let back: WorkflowEvent = serde_json::from_str(&json).unwrap();
         match back {
-            WorkflowEvent::PushReceived { branch, commits, .. } => {
+            WorkflowEvent::PushReceived {
+                branch, commits, ..
+            } => {
                 assert_eq!(branch, "main");
                 assert_eq!(commits.len(), 1);
                 assert_eq!(commits[0].sha, "abc123");

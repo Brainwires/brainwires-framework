@@ -129,8 +129,10 @@ mod tests {
         let json = serde_json::to_string(&dep).unwrap();
         let deserialized: SkillDependency = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.name, "base-skill");
-        assert!(deserialized
-            .version_req
-            .matches(&semver::Version::new(1, 5, 0)));
+        assert!(
+            deserialized
+                .version_req
+                .matches(&semver::Version::new(1, 5, 0))
+        );
     }
 }

@@ -45,7 +45,7 @@ pub async fn process_ai_response(
         .get_enhanced_context(input)
         .await
         .unwrap_or_else(|e| {
-            Logger::debug(&format!("Enhanced context failed, using raw: {}", e));
+            Logger::debug(format!("Enhanced context failed, using raw: {}", e));
             conversation_manager.get_messages().to_vec()
         });
 
@@ -58,7 +58,8 @@ pub async fn process_ai_response(
             metadata: None,
         };
         // Insert after system messages but before conversation
-        let insert_pos = enhanced_messages.iter()
+        let insert_pos = enhanced_messages
+            .iter()
             .take_while(|m| m.role == Role::System)
             .count();
         enhanced_messages.insert(insert_pos, ws_system_msg);
@@ -77,7 +78,8 @@ pub async fn process_ai_response(
         &spinner,
         model_id,
         Some(conversation_manager.conversation_id().to_string()),
-    ).await;
+    )
+    .await;
 
     if let Some(s) = spinner {
         s.finish_and_clear();
@@ -123,16 +125,12 @@ pub async fn process_ai_response(
 
             // Auto-save after each exchange
             if let Err(e) = conversation_manager.save_to_db().await {
-                Logger::warn(&format!("Failed to auto-save conversation: {}", e));
+                Logger::warn(format!("Failed to auto-save conversation: {}", e));
             }
         }
         Err(e) => {
-            Logger::error(&format!("Error: {}", e));
-            println!(
-                "\n{}: {}\n",
-                console::style("Error").red().bold(),
-                e
-            );
+            Logger::error(format!("Error: {}", e));
+            println!("\n{}: {}\n", console::style("Error").red().bold(), e);
         }
     }
 
@@ -140,6 +138,7 @@ pub async fn process_ai_response(
 }
 
 /// Process AI response with MDAP mode for high reliability
+#[allow(clippy::too_many_arguments)]
 pub async fn process_ai_response_mdap(
     provider_instance: &Arc<dyn crate::providers::Provider>,
     context: &mut AgentContext,
@@ -170,7 +169,7 @@ pub async fn process_ai_response_mdap(
         .get_enhanced_context(input)
         .await
         .unwrap_or_else(|e| {
-            Logger::debug(&format!("Enhanced context failed, using raw: {}", e));
+            Logger::debug(format!("Enhanced context failed, using raw: {}", e));
             conversation_manager.get_messages().to_vec()
         });
 
@@ -180,7 +179,9 @@ pub async fn process_ai_response_mdap(
     // Create orchestrator and execute with MDAP
     let mut orchestrator = OrchestratorAgent::new(provider_instance.clone(), PermissionMode::Auto);
 
-    let result = orchestrator.execute_mdap(input, context, mdap_config.clone()).await;
+    let result = orchestrator
+        .execute_mdap(input, context, mdap_config.clone())
+        .await;
 
     if let Some(s) = &spinner {
         s.finish_and_clear();
@@ -241,16 +242,12 @@ pub async fn process_ai_response_mdap(
 
             // Auto-save after each exchange
             if let Err(e) = conversation_manager.save_to_db().await {
-                Logger::warn(&format!("Failed to auto-save conversation: {}", e));
+                Logger::warn(format!("Failed to auto-save conversation: {}", e));
             }
         }
         Err(e) => {
-            Logger::error(&format!("MDAP Error: {}", e));
-            println!(
-                "\n{}: {}\n",
-                console::style("MDAP Error").red().bold(),
-                e
-            );
+            Logger::error(format!("MDAP Error: {}", e));
+            println!("\n{}: {}\n", console::style("MDAP Error").red().bold(), e);
         }
     }
 

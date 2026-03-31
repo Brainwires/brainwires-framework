@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Local};
 use clap::Subcommand;
 use console::style;
-use dialoguer::{theme::ColorfulTheme, Confirm, Editor};
+use dialoguer::{Confirm, Editor, theme::ColorfulTheme};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::io::{self, Write};
 use std::sync::Arc;
@@ -12,9 +12,9 @@ use crate::auth::SessionManager;
 use crate::config::{ConfigManager, ModelRegistry, PlatformPaths};
 use crate::providers::ProviderFactory;
 use crate::storage::{EmbeddingProvider, LanceDatabase, PlanStore, VectorDatabase};
+use crate::tools::ToolRegistry;
 use crate::types::agent::{AgentContext, PermissionMode};
 use crate::types::plan::{PlanMetadata, PlanStatus};
-use crate::tools::ToolRegistry;
 use crate::utils::entity_extraction::EntityExtractor;
 use crate::utils::logger::Logger;
 use crate::utils::rich_output::RichOutput;
@@ -85,24 +85,20 @@ pub enum PlanCommands {
 /// Handle plan subcommands
 pub async fn handle_plan_command(cmd: PlanCommands) -> Result<()> {
     match cmd {
-        PlanCommands::Create { task, model, provider, execute } => {
-            handle_plan(task, model, provider, execute).await
-        }
-        PlanCommands::List { conversation, limit } => {
-            handle_list(conversation, limit).await
-        }
-        PlanCommands::Show { plan_id } => {
-            handle_show(&plan_id).await
-        }
-        PlanCommands::Export { plan_id, output } => {
-            handle_export(&plan_id, output).await
-        }
-        PlanCommands::Delete { plan_id, confirm } => {
-            handle_delete(&plan_id, confirm).await
-        }
-        PlanCommands::Edit { plan_id } => {
-            handle_edit(&plan_id).await
-        }
+        PlanCommands::Create {
+            task,
+            model,
+            provider,
+            execute,
+        } => handle_plan(task, model, provider, execute).await,
+        PlanCommands::List {
+            conversation,
+            limit,
+        } => handle_list(conversation, limit).await,
+        PlanCommands::Show { plan_id } => handle_show(&plan_id).await,
+        PlanCommands::Export { plan_id, output } => handle_export(&plan_id, output).await,
+        PlanCommands::Delete { plan_id, confirm } => handle_delete(&plan_id, confirm).await,
+        PlanCommands::Edit { plan_id } => handle_edit(&plan_id).await,
     }
 }
 
@@ -123,10 +119,7 @@ pub async fn handle_plan(
         None => ModelRegistry::default_model().await,
     };
 
-    Logger::info(&format!(
-        "Planning task with {} (brainwires)",
-        model_id
-    ));
+    Logger::info(format!("Planning task with {} (brainwires)", model_id));
 
     // Create provider using factory (requires active session)
     let factory = ProviderFactory;
@@ -136,17 +129,10 @@ pub async fn handle_plan(
         .context("Failed to create provider. Run: brainwires auth status")?;
 
     // Create agent manager
-    let agent_manager = AgentManager::new(
-        provider_instance,
-        PermissionMode::Auto,
-        5,
-    )
-    .await?;
+    let agent_manager = AgentManager::new(provider_instance, PermissionMode::Auto, 5).await?;
 
     // Initialize agent context with planning system prompt
-    let user_id = session
-        .as_ref()
-        .map(|s| s.user.user_id.clone());
+    let user_id = session.as_ref().map(|s| s.user.user_id.clone());
 
     let planning_prompt = format!(
         "You are an expert planning assistant. Create a detailed, step-by-step execution plan for the following task:\n\n{}\n\n\
@@ -161,9 +147,7 @@ pub async fn handle_plan(
     );
 
     let mut context = AgentContext {
-        working_directory: std::env::current_dir()?
-            .to_string_lossy()
-            .to_string(),
+        working_directory: std::env::current_dir()?.to_string_lossy().to_string(),
         user_id,
         conversation_history: Vec::new(),
         tools: ToolRegistry::with_builtins().get_all().to_vec(),
@@ -224,7 +208,8 @@ pub async fn handle_plan(
                 &agent_response.message,
                 &model_id,
                 agent_response.iterations,
-            ).await;
+            )
+            .await;
 
             if let Ok((plan_id, file_path)) = &saved_plan {
                 println!(
@@ -241,10 +226,11 @@ pub async fn handle_plan(
             }
 
             // Ask if user wants to execute the plan
-            if execute || Confirm::with_theme(&ColorfulTheme::default())
-                .with_prompt("Execute this plan now?")
-                .default(false)
-                .interact()?
+            if execute
+                || Confirm::with_theme(&ColorfulTheme::default())
+                    .with_prompt("Execute this plan now?")
+                    .default(false)
+                    .interact()?
             {
                 println!("\n{}\n", console::style("Executing Plan:").green().bold());
 
@@ -259,9 +245,7 @@ pub async fn handle_plan(
                 exec_spinner.enable_steady_tick(std::time::Duration::from_millis(100));
 
                 // Execute the original task
-                let exec_response = agent_manager
-                    .execute_task(&task, &mut context)
-                    .await;
+                let exec_response = agent_manager.execute_task(&task, &mut context).await;
 
                 exec_spinner.finish_and_clear();
 
@@ -296,7 +280,7 @@ pub async fn handle_plan(
                         }
                     }
                     Err(e) => {
-                        Logger::error(&format!("Execution error: {}", e));
+                        Logger::error(format!("Execution error: {}", e));
                         println!(
                             "\n{}: {}",
                             console::style("Execution Error").red().bold(),
@@ -304,22 +288,17 @@ pub async fn handle_plan(
                         );
                     }
                 }
-            } else {
-                if saved_plan.is_ok() {
-                    println!(
-                        "{}",
-                        console::style("Plan saved. Use 'brainwires plan list' to view saved plans.").dim()
-                    );
-                }
+            } else if saved_plan.is_ok() {
+                println!(
+                    "{}",
+                    console::style("Plan saved. Use 'brainwires plan list' to view saved plans.")
+                        .dim()
+                );
             }
         }
         Err(e) => {
-            Logger::error(&format!("Planning error: {}", e));
-            println!(
-                "\n{}: {}",
-                console::style("Error").red().bold(),
-                e
-            );
+            Logger::error(format!("Planning error: {}", e));
+            println!("\n{}: {}", console::style("Error").red().bold(), e);
         }
     }
 
@@ -338,7 +317,7 @@ async fn save_plan(
     let client = Arc::new(
         LanceDatabase::new(db_path.to_str().context("Invalid DB path")?)
             .await
-            .context("Failed to create LanceDatabase")?
+            .context("Failed to create LanceDatabase")?,
     );
 
     let embeddings = Arc::new(EmbeddingProvider::new()?);
@@ -349,11 +328,7 @@ async fn save_plan(
     // Create plan metadata
     // Generate a conversation ID for standalone plans
     let conversation_id = uuid::Uuid::new_v4().to_string();
-    let mut plan = PlanMetadata::new(
-        conversation_id,
-        task.to_string(),
-        plan_content.to_string(),
-    );
+    let mut plan = PlanMetadata::new(conversation_id, task.to_string(), plan_content.to_string());
     plan = plan
         .with_model(model_id.to_string())
         .with_iterations(iterations);
@@ -366,11 +341,13 @@ async fn save_plan(
 
     // Log extracted entities (for debugging/info)
     if !extraction.entities.is_empty() {
-        let entity_names: Vec<_> = extraction.entities.iter()
+        let entity_names: Vec<_> = extraction
+            .entities
+            .iter()
             .take(5)
             .map(|(name, _)| name.as_str())
             .collect();
-        Logger::debug(&format!(
+        Logger::debug(format!(
             "Extracted {} entities from plan: {:?}",
             extraction.entities.len(),
             entity_names
@@ -389,7 +366,7 @@ async fn initialize_plan_storage() -> Result<(Arc<LanceDatabase>, PlanStore)> {
     let client = Arc::new(
         LanceDatabase::new(db_path.to_str().context("Invalid DB path")?)
             .await
-            .context("Failed to create LanceDatabase")?
+            .context("Failed to create LanceDatabase")?,
     );
 
     let embeddings = Arc::new(EmbeddingProvider::new()?);
@@ -418,7 +395,11 @@ async fn handle_list(conversation: Option<String>, limit: usize) -> Result<()> {
 
     for plan in plans.iter().take(limit) {
         let created_at = DateTime::from_timestamp(plan.created_at, 0)
-            .map(|dt| dt.with_timezone(&Local).format("%Y-%m-%d %H:%M").to_string())
+            .map(|dt| {
+                dt.with_timezone(&Local)
+                    .format("%Y-%m-%d %H:%M")
+                    .to_string()
+            })
             .unwrap_or_else(|| "Unknown".to_string());
 
         let status_style = match plan.status {
@@ -439,7 +420,11 @@ async fn handle_list(conversation: Option<String>, limit: usize) -> Result<()> {
             "    {} | {} | {}",
             style(&created_at).dim(),
             plan.model_id.as_deref().unwrap_or("unknown"),
-            if plan.executed { style("executed").green() } else { style("not executed").dim() }
+            if plan.executed {
+                style("executed").green()
+            } else {
+                style("not executed").dim()
+            }
         );
         println!();
     }
@@ -465,14 +450,19 @@ async fn handle_show(plan_id: &str) -> Result<()> {
         None => {
             // Try searching by prefix
             let plans = plan_store.list_recent(100).await?;
-            plans.into_iter()
+            plans
+                .into_iter()
                 .find(|p| p.plan_id.starts_with(plan_id))
                 .ok_or_else(|| anyhow::anyhow!("Plan not found: {}", plan_id))?
         }
     };
 
     let created_at = DateTime::from_timestamp(plan.created_at, 0)
-        .map(|dt| dt.with_timezone(&Local).format("%Y-%m-%d %H:%M:%S").to_string())
+        .map(|dt| {
+            dt.with_timezone(&Local)
+                .format("%Y-%m-%d %H:%M:%S")
+                .to_string()
+        })
         .unwrap_or_else(|| "Unknown".to_string());
 
     println!("\n{}", style("═".repeat(60)).dim());
@@ -482,9 +472,17 @@ async fn handle_show(plan_id: &str) -> Result<()> {
     println!("\n{}: {}", style("ID").dim(), plan.plan_id);
     println!("{}: {}", style("Status").dim(), plan.status);
     println!("{}: {}", style("Created").dim(), created_at);
-    println!("{}: {}", style("Model").dim(), plan.model_id.as_deref().unwrap_or("unknown"));
+    println!(
+        "{}: {}",
+        style("Model").dim(),
+        plan.model_id.as_deref().unwrap_or("unknown")
+    );
     println!("{}: {}", style("Iterations").dim(), plan.iterations_used);
-    println!("{}: {}", style("Executed").dim(), if plan.executed { "yes" } else { "no" });
+    println!(
+        "{}: {}",
+        style("Executed").dim(),
+        if plan.executed { "yes" } else { "no" }
+    );
 
     if let Some(ref file_path) = plan.file_path {
         println!("{}: {}", style("File").dim(), file_path);
@@ -509,7 +507,9 @@ async fn handle_export(plan_id: &str, output: Option<String>) -> Result<()> {
 
     let file_path = if let Some(output_path) = output {
         // Custom output path
-        let plan = plan_store.get(plan_id).await?
+        let plan = plan_store
+            .get(plan_id)
+            .await?
             .ok_or_else(|| anyhow::anyhow!("Plan not found: {}", plan_id))?;
 
         let path = std::path::PathBuf::from(&output_path);
@@ -535,7 +535,9 @@ async fn handle_delete(plan_id: &str, confirm: bool) -> Result<()> {
     let (_client, plan_store) = initialize_plan_storage().await?;
 
     // Verify plan exists
-    let plan = plan_store.get(plan_id).await?
+    let plan = plan_store
+        .get(plan_id)
+        .await?
         .ok_or_else(|| anyhow::anyhow!("Plan not found: {}", plan_id))?;
 
     if !confirm {
@@ -577,13 +579,13 @@ async fn handle_delete(plan_id: &str, confirm: bool) -> Result<()> {
 async fn handle_edit(plan_id: &str) -> Result<()> {
     let (_client, plan_store) = initialize_plan_storage().await?;
 
-    let mut plan = plan_store.get(plan_id).await?
+    let mut plan = plan_store
+        .get(plan_id)
+        .await?
         .ok_or_else(|| anyhow::anyhow!("Plan not found: {}", plan_id))?;
 
     // Open editor with plan content
-    let edited = Editor::new()
-        .extension(".md")
-        .edit(&plan.plan_content)?;
+    let edited = Editor::new().extension(".md").edit(&plan.plan_content)?;
 
     match edited {
         Some(new_content) => {

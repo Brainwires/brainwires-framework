@@ -86,14 +86,15 @@ pub struct TaskAgentConfig {
 impl Default for TaskAgentConfig {
     fn default() -> Self {
         Self {
-            max_iterations: 100,  // High default to avoid artificial limits on complex tasks
+            max_iterations: 100, // High default to avoid artificial limits on complex tasks
             permission_mode: PermissionMode::Auto,
             system_prompt: None,
             temperature: 0.7,
-            max_tokens: 4096,  // Conservative limit to prevent corruption
-            validation_config: Some(super::validation_loop::ValidationConfig::default()),  // Enable validation by default
-            mdap_config: None,  // Disabled by default
-            analytics_collector: crate::utils::logger::analytics_collector().map(std::sync::Arc::new),
+            max_tokens: 4096, // Conservative limit to prevent corruption
+            validation_config: Some(super::validation_loop::ValidationConfig::default()), // Enable validation by default
+            mdap_config: None, // Disabled by default
+            analytics_collector: crate::utils::logger::analytics_collector()
+                .map(std::sync::Arc::new),
         }
     }
 }
@@ -190,7 +191,9 @@ impl TaskAgent {
         use std::path::PathBuf;
 
         // Check different parameter names tools use for file paths
-        let path_str = tool_use.input.get("file_path")
+        let path_str = tool_use
+            .input
+            .get("file_path")
             .or_else(|| tool_use.input.get("path"))
             .and_then(|v| v.as_str())?;
 
@@ -218,7 +221,9 @@ impl TaskAgent {
 
         // Register with communication hub
         if !self.communication_hub.is_registered(&self.id).await {
-            self.communication_hub.register_agent(self.id.clone()).await?;
+            self.communication_hub
+                .register_agent(self.id.clone())
+                .await?;
         }
 
         // Start the task
@@ -279,7 +284,8 @@ impl TaskAgent {
                     task.fail(&error);
                 }
 
-                self.set_status(TaskAgentStatus::Failed(error.clone())).await;
+                self.set_status(TaskAgentStatus::Failed(error.clone()))
+                    .await;
 
                 // Send task result
                 let _ = self
@@ -312,7 +318,10 @@ impl TaskAgent {
             // Check for incoming messages (non-blocking)
             if let Some(envelope) = self.communication_hub.try_receive_message(&self.id).await {
                 match envelope.message {
-                    AgentMessage::HelpResponse { request_id, response } => {
+                    AgentMessage::HelpResponse {
+                        request_id,
+                        response,
+                    } => {
                         // Add help response to context
                         let mut context = self.context.write().await;
                         context.conversation_history.push(Message {
@@ -335,22 +344,24 @@ impl TaskAgent {
             let response = self.call_provider().await?;
 
             // Check if task is complete
-            if let Some(finish_reason) = &response.finish_reason {
-                if finish_reason == "end_turn" || finish_reason == "stop" {
-                    let message_text = response
-                        .message
-                        .text()
-                        .unwrap_or("Task completed")
-                        .to_string();
+            if let Some(finish_reason) = &response.finish_reason
+                && (finish_reason == "end_turn" || finish_reason == "stop")
+            {
+                let message_text = response
+                    .message
+                    .text()
+                    .unwrap_or("Task completed")
+                    .to_string();
 
-                    // VALIDATION: Run checks before allowing completion
-                    if let Some(validation_attempt) = self.attempt_validated_completion(&message_text).await? {
-                        return Ok(validation_attempt);
-                    }
-
-                    // Validation failed, continue looping to let agent fix issues
-                    continue;
+                // VALIDATION: Run checks before allowing completion
+                if let Some(validation_attempt) =
+                    self.attempt_validated_completion(&message_text).await?
+                {
+                    return Ok(validation_attempt);
                 }
+
+                // Validation failed, continue looping to let agent fix issues
+                continue;
             }
 
             // Process tool uses
@@ -365,7 +376,9 @@ impl TaskAgent {
                     .to_string();
 
                 // VALIDATION: Run checks before allowing completion
-                if let Some(validation_attempt) = self.attempt_validated_completion(&message_text).await? {
+                if let Some(validation_attempt) =
+                    self.attempt_validated_completion(&message_text).await?
+                {
                     return Ok(validation_attempt);
                 }
 
@@ -404,7 +417,11 @@ impl TaskAgent {
                         .await
                     {
                         Ok(_guard) => {
-                            tracing::debug!("[Agent {}] Lock acquired, executing {}", self.id, tool_use.name);
+                            tracing::debug!(
+                                "[Agent {}] Lock acquired, executing {}",
+                                self.id,
+                                tool_use.name
+                            );
                             self.set_status(TaskAgentStatus::Working(format!(
                                 "Executing {}",
                                 tool_use.name
@@ -412,9 +429,14 @@ impl TaskAgent {
                             .await;
 
                             // Execute the tool
-                            tracing::debug!("[Agent {}] Calling tool_executor.execute for {}", self.id, tool_use.name);
+                            tracing::debug!(
+                                "[Agent {}] Calling tool_executor.execute for {}",
+                                self.id,
+                                tool_use.name
+                            );
                             let _tool_start = std::time::Instant::now();
-                            let result = self.tool_executor.execute(&tool_use, &tool_context).await?;
+                            let result =
+                                self.tool_executor.execute(&tool_use, &tool_context).await?;
                             if let Some(ref collector) = self.config.analytics_collector {
                                 collector.record(brainwires_analytics::AnalyticsEvent::ToolCall {
                                     session_id: None,
@@ -426,7 +448,12 @@ impl TaskAgent {
                                     timestamp: chrono::Utc::now(),
                                 });
                             }
-                            tracing::debug!("[Agent {}] Tool {} returned: is_error={}", self.id, tool_use.name, result.is_error);
+                            tracing::debug!(
+                                "[Agent {}] Tool {} returned: is_error={}",
+                                self.id,
+                                tool_use.name,
+                                result.is_error
+                            );
 
                             // Add tool result to context
                             tracing::debug!("[Agent {}] Acquiring context write lock", self.id);
@@ -445,15 +472,23 @@ impl TaskAgent {
                             tracing::debug!("[Agent {}] Tool result added to context", self.id);
 
                             // Add file to working set for file operations
-                            if !result.is_error && Self::is_file_operation(&tool_use.name) {
-                                if let Some(file_path) = Self::extract_file_path(&tool_use) {
-                                    let tokens = crate::types::working_set::estimate_tokens_from_size(
-                                        std::fs::metadata(&file_path).ok().map(|m| m.len()).unwrap_or(0)
-                                    );
-                                    let path_display = file_path.display().to_string();
-                                    context.working_set.add(file_path, tokens);
-                                    tracing::debug!("[Agent {}] Added {} to working set", self.id, path_display);
-                                }
+                            if !result.is_error
+                                && Self::is_file_operation(&tool_use.name)
+                                && let Some(file_path) = Self::extract_file_path(&tool_use)
+                            {
+                                let tokens = crate::types::working_set::estimate_tokens_from_size(
+                                    std::fs::metadata(&file_path)
+                                        .ok()
+                                        .map(|m| m.len())
+                                        .unwrap_or(0),
+                                );
+                                let path_display = file_path.display().to_string();
+                                context.working_set.add(file_path, tokens);
+                                tracing::debug!(
+                                    "[Agent {}] Added {} to working set",
+                                    self.id,
+                                    path_display
+                                );
                             }
 
                             // Lock is released when guard is dropped
@@ -508,14 +543,18 @@ impl TaskAgent {
                     });
 
                     // Add file to working set for file operations
-                    if !result.is_error && Self::is_file_operation(&tool_use.name) {
-                        if let Some(file_path) = Self::extract_file_path(&tool_use) {
-                            let tokens = crate::types::working_set::estimate_tokens_from_size(
-                                std::fs::metadata(&file_path).ok().map(|m| m.len()).unwrap_or(0)
-                            );
-                            context.working_set.add(file_path, tokens);
-                            tracing::debug!("[Agent {}] Added file to working set", self.id);
-                        }
+                    if !result.is_error
+                        && Self::is_file_operation(&tool_use.name)
+                        && let Some(file_path) = Self::extract_file_path(&tool_use)
+                    {
+                        let tokens = crate::types::working_set::estimate_tokens_from_size(
+                            std::fs::metadata(&file_path)
+                                .ok()
+                                .map(|m| m.len())
+                                .unwrap_or(0),
+                        );
+                        context.working_set.add(file_path, tokens);
+                        tracing::debug!("[Agent {}] Added file to working set", self.id);
                     }
                 }
             }
@@ -524,70 +563,79 @@ impl TaskAgent {
 
     /// Attempt to complete task with validation checks
     /// Returns Some(result) if validation passed, None if failed (should retry)
-    async fn attempt_validated_completion(&self, message_text: &str) -> Result<Option<TaskAgentResult>> {
+    async fn attempt_validated_completion(
+        &self,
+        message_text: &str,
+    ) -> Result<Option<TaskAgentResult>> {
         let task_id = {
             let task = self.task.read().await;
             task.id.clone()
         };
 
         // Check if validation is enabled
-        if let Some(ref validation_config) = self.config.validation_config {
-            if validation_config.enabled {
-                tracing::info!("[Agent {}] Running validation checks before completion...", self.id);
+        if let Some(ref validation_config) = self.config.validation_config
+            && validation_config.enabled
+        {
+            tracing::info!(
+                "[Agent {}] Running validation checks before completion...",
+                self.id
+            );
 
-                // Get working set files from context
-                let working_set_files = {
-                    let context = self.context.read().await;
-                    context.working_set.file_paths()
-                        .iter()
-                        .map(|p| p.to_string_lossy().to_string())
-                        .collect::<Vec<String>>()
-                };
+            // Get working set files from context
+            let working_set_files = {
+                let context = self.context.read().await;
+                context
+                    .working_set
+                    .file_paths()
+                    .iter()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .collect::<Vec<String>>()
+            };
 
-                // Update validation config with working set files
-                let mut config_with_ws = validation_config.clone();
-                config_with_ws.working_set_files = working_set_files;
+            // Update validation config with working set files
+            let mut config_with_ws = validation_config.clone();
+            config_with_ws.working_set_files = working_set_files;
 
-                tracing::debug!(
-                    "[Agent {}] Validating {} working set files",
-                    self.id,
-                    config_with_ws.working_set_files.len()
-                );
+            tracing::debug!(
+                "[Agent {}] Validating {} working set files",
+                self.id,
+                config_with_ws.working_set_files.len()
+            );
 
-                // Run validation
-                match super::validation_loop::run_validation(&config_with_ws).await {
-                    Ok(validation_result) => {
-                        if !validation_result.passed {
-                            // Validation failed - inject feedback and continue
-                            tracing::warn!(
-                                "[Agent {}] Validation failed with {} issues",
-                                self.id,
-                                validation_result.issues.len()
-                            );
+            // Run validation
+            match super::validation_loop::run_validation(&config_with_ws).await {
+                Ok(validation_result) => {
+                    if !validation_result.passed {
+                        // Validation failed - inject feedback and continue
+                        tracing::warn!(
+                            "[Agent {}] Validation failed with {} issues",
+                            self.id,
+                            validation_result.issues.len()
+                        );
 
-                            let feedback = super::validation_loop::format_validation_feedback(&validation_result);
+                        let feedback =
+                            super::validation_loop::format_validation_feedback(&validation_result);
 
-                            // Add validation feedback to conversation history
-                            {
-                                let mut context = self.context.write().await;
-                                context.conversation_history.push(Message {
-                                    role: Role::User,
-                                    content: MessageContent::Text(feedback),
-                                    name: None,
-                                    metadata: None,
-                                });
-                            }
-
-                            // Return None to continue the loop
-                            return Ok(None);
-                        } else {
-                            tracing::info!("[Agent {}] ✓ All validation checks passed!", self.id);
+                        // Add validation feedback to conversation history
+                        {
+                            let mut context = self.context.write().await;
+                            context.conversation_history.push(Message {
+                                role: Role::User,
+                                content: MessageContent::Text(feedback),
+                                name: None,
+                                metadata: None,
+                            });
                         }
+
+                        // Return None to continue the loop
+                        return Ok(None);
+                    } else {
+                        tracing::info!("[Agent {}] ✓ All validation checks passed!", self.id);
                     }
-                    Err(e) => {
-                        tracing::error!("[Agent {}] Validation error: {}", self.id, e);
-                        // Continue anyway if validation itself fails
-                    }
+                }
+                Err(e) => {
+                    tracing::error!("[Agent {}] Validation error: {}", self.id, e);
+                    // Continue anyway if validation itself fails
                 }
             }
         }
@@ -640,7 +688,10 @@ impl TaskAgent {
         let context = self.context.read().await;
 
         let system_prompt = self.config.system_prompt.clone().unwrap_or_else(|| {
-            crate::agents::system_prompts::reasoning_agent_prompt(&self.id, &context.working_directory)
+            crate::agents::system_prompts::reasoning_agent_prompt(
+                &self.id,
+                &context.working_directory,
+            )
         });
 
         let options = ChatOptions {
@@ -653,7 +704,11 @@ impl TaskAgent {
         };
 
         self.provider
-            .chat(&context.conversation_history, Some(&context.tools), &options)
+            .chat(
+                &context.conversation_history,
+                Some(&context.tools),
+                &options,
+            )
             .await
     }
 
@@ -680,7 +735,10 @@ impl TaskAgent {
         let name = tool_use.name.as_str();
 
         // Extract path from tool input
-        let path = tool_use.input.get("path").or_else(|| tool_use.input.get("file_path"));
+        let path = tool_use
+            .input
+            .get("path")
+            .or_else(|| tool_use.input.get("file_path"));
 
         if let Some(path_value) = path {
             if let Some(path_str) = path_value.as_str() {
@@ -690,9 +748,8 @@ impl TaskAgent {
                         Some((path_str.to_string(), LockType::Read))
                     }
                     // Write operations - exclusive lock
-                    "write_file" | "edit_file" | "patch_file" | "delete_file" | "create_directory" => {
-                        Some((path_str.to_string(), LockType::Write))
-                    }
+                    "write_file" | "edit_file" | "patch_file" | "delete_file"
+                    | "create_directory" => Some((path_str.to_string(), LockType::Write)),
                     _ => None,
                 }
             } else {

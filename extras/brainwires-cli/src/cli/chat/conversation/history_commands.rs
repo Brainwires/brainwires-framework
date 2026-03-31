@@ -26,12 +26,15 @@ pub async fn handle_history_action(
             *conversation_manager = ConversationManager::new(128000);
             conversation_manager.set_model(model_id.to_string());
             Logger::info("Conversation history cleared");
-            println!("{}\n", console::style("Conversation cleared (use /resume to restore)").green());
+            println!(
+                "{}\n",
+                console::style("Conversation cleared (use /resume to restore)").green()
+            );
             Ok(true)
         }
         CommandAction::ResumeHistory(conversation_id) => {
             if let Some(conv_id) = conversation_id {
-                Logger::info(&format!("Loading conversation: {}", conv_id));
+                Logger::info(format!("Loading conversation: {}", conv_id));
                 match message_store.get_by_conversation(&conv_id).await {
                     Ok(message_metadata) => {
                         conversation_manager.clear();
@@ -51,14 +54,26 @@ pub async fn handle_history_action(
                             };
                             conversation_manager.add_message(message);
                         }
-                        Logger::info(&format!("Loaded {} messages from conversation {}",
-                            conversation_manager.get_messages().len(), conv_id));
-                        println!("{}\n", console::style(format!("Loaded conversation: {} ({} messages)",
-                            &conv_id[..8.min(conv_id.len())],
-                            conversation_manager.get_messages().len())).green());
+                        Logger::info(format!(
+                            "Loaded {} messages from conversation {}",
+                            conversation_manager.get_messages().len(),
+                            conv_id
+                        ));
+                        println!(
+                            "{}\n",
+                            console::style(format!(
+                                "Loaded conversation: {} ({} messages)",
+                                &conv_id[..8.min(conv_id.len())],
+                                conversation_manager.get_messages().len()
+                            ))
+                            .green()
+                        );
                     }
                     Err(e) => {
-                        println!("{}\n", console::style(format!("Failed to load conversation: {}", e)).red());
+                        println!(
+                            "{}\n",
+                            console::style(format!("Failed to load conversation: {}", e)).red()
+                        );
                     }
                 }
             } else if let Some(cleared) = cleared_conversation_manager.take() {
@@ -66,7 +81,10 @@ pub async fn handle_history_action(
                 Logger::info("Conversation history resumed");
                 println!("{}\n", console::style("Conversation resumed").green());
             } else {
-                println!("{}\n", console::style("No cleared conversation to resume").yellow());
+                println!(
+                    "{}\n",
+                    console::style("No cleared conversation to resume").yellow()
+                );
             }
             Ok(true)
         }
@@ -82,8 +100,11 @@ pub async fn handle_history_action(
             }
             *conversation_manager = new_manager;
             context.conversation_history = conversation_manager.get_messages().to_vec();
-            Logger::info(&format!("Rewound {} steps", steps));
-            println!("{}\n", console::style(format!("Rewound {} steps", steps)).green());
+            Logger::info(format!("Rewound {} steps", steps));
+            println!(
+                "{}\n",
+                console::style(format!("Rewound {} steps", steps)).green()
+            );
             Ok(true)
         }
         CommandAction::ShowStatus => {

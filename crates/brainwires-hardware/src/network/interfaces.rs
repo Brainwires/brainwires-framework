@@ -25,11 +25,7 @@ pub fn list_interfaces() -> Vec<NetworkInterface> {
             let mac = iface.mac_addr.as_deref().map(str::to_string);
             let is_up = true; // network-interface only returns active interfaces
 
-            let addrs: Vec<IpNetwork> = iface
-                .addr
-                .iter()
-                .filter_map(|a| addr_to_network(a))
-                .collect();
+            let addrs: Vec<IpNetwork> = iface.addr.iter().filter_map(addr_to_network).collect();
 
             NetworkInterface {
                 name,
@@ -107,8 +103,5 @@ fn ipv4_netmask_to_prefix(octets: [u8; 4]) -> u8 {
 }
 
 fn ipv6_netmask_to_prefix(segments: [u16; 8]) -> u8 {
-    segments
-        .iter()
-        .map(|s| s.count_ones() as u8)
-        .sum()
+    segments.iter().map(|s| s.count_ones() as u8).sum()
 }

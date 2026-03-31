@@ -3,20 +3,20 @@
 //! Manages a TUI session running in a PTY.
 //! Accepts client connections via Unix socket and proxies I/O.
 
+use std::fs::OpenOptions;
+use std::io::{Read, Write};
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd, RawFd};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::PathBuf;
-use std::io::{Read, Write};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::fs::OpenOptions;
+use std::sync::atomic::{AtomicBool, Ordering};
 
-use anyhow::{bail, Context, Result};
-use nix::unistd::{fork, ForkResult, setsid};
-use nix::sys::wait::{waitpid, WaitStatus};
-use nix::sys::signal::{kill, Signal};
-use nix::unistd::Pid;
+use anyhow::{Context, Result, bail};
 use chrono::Local;
+use nix::sys::signal::{Signal, kill};
+use nix::sys::wait::{WaitStatus, waitpid};
+use nix::unistd::Pid;
+use nix::unistd::{ForkResult, fork, setsid};
 
 /// Log to a file (since daemon has no stdout)
 fn daemon_log(session_id: &str, msg: &str) {
@@ -30,7 +30,9 @@ fn daemon_log(session_id: &str, msg: &str) {
 
 /// Helper to close a raw fd using libc
 fn close_fd(fd: RawFd) {
-    unsafe { libc::close(fd); }
+    unsafe {
+        libc::close(fd);
+    }
 }
 
 /// Helper to dup2 using libc
@@ -102,7 +104,10 @@ impl SessionServer {
 
         // Open a PTY pair
         let (master_fd_raw, slave_fd) = openpty_libc()?;
-        daemon_log(&self.session_id, &format!("PTY opened: master={}, slave={}", master_fd_raw, slave_fd));
+        daemon_log(
+            &self.session_id,
+            &format!("PTY opened: master={}, slave={}", master_fd_raw, slave_fd),
+        );
         let master_fd = unsafe { OwnedFd::from_raw_fd(master_fd_raw) };
 
         // Set initial PTY size - use reasonable defaults
@@ -150,8 +155,11 @@ impl SessionServer {
                 let c_args: Vec<std::ffi::CString> = std::iter::once(Ok(c_exe.clone()))
                     .chain(args.iter().map(|a| std::ffi::CString::new(a.as_bytes())))
                     .collect::<Result<Vec<_>, _>>()
-                    .map_err(|e| anyhow::anyhow!("Invalid argument string (contains null byte): {}", e))?;
-                let c_args_ptrs: Vec<*const libc::c_char> = c_args.iter()
+                    .map_err(|e| {
+                        anyhow::anyhow!("Invalid argument string (contains null byte): {}", e)
+                    })?;
+                let c_args_ptrs: Vec<*const libc::c_char> = c_args
+                    .iter()
                     .map(|a| a.as_ptr())
                     .chain(std::iter::once(std::ptr::null()))
                     .collect();
@@ -188,7 +196,10 @@ impl SessionServer {
         // - Show cursor: ESC [ ? 25 h
         let terminal_cleanup = b"\x1b[?1003l\x1b[?1006l\x1b[?2004l\x1b[?1049l\x1b[?25h";
         if let Err(e) = stream.write_all(terminal_cleanup) {
-            daemon_log(session_id, &format!("Failed to send terminal cleanup: {}", e));
+            daemon_log(
+                session_id,
+                &format!("Failed to send terminal cleanup: {}", e),
+            );
         } else {
             daemon_log(session_id, "Sent terminal cleanup sequences to client");
         }
@@ -196,14 +207,19 @@ impl SessionServer {
 
     /// Main server loop - accepts clients and proxies I/O
     fn server_loop(&mut self) -> Result<i32> {
-        daemon_log(&self.session_id, &format!("Binding socket: {}", self.socket_path.display()));
+        daemon_log(
+            &self.session_id,
+            &format!("Binding socket: {}", self.socket_path.display()),
+        );
 
         // Bind to socket
         let listener = match UnixListener::bind(&self.socket_path) {
             Ok(l) => l,
             Err(e) => {
                 daemon_log(&self.session_id, &format!("Failed to bind socket: {}", e));
-                return Err(e).with_context(|| format!("Failed to bind socket: {}", self.socket_path.display()));
+                return Err(e).with_context(|| {
+                    format!("Failed to bind socket: {}", self.socket_path.display())
+                });
             }
         };
 
@@ -262,11 +278,17 @@ impl SessionServer {
                     match stream.read_exact(&mut winsize_buf) {
                         Ok(()) => {
                             // Check if it's a window size message: ESC ] W S [cols:u16] [rows:u16]
-                            if winsize_buf[0] == 0x1b && winsize_buf[1] == 0x5d
-                               && winsize_buf[2] == 0x57 && winsize_buf[3] == 0x53 {
+                            if winsize_buf[0] == 0x1b
+                                && winsize_buf[1] == 0x5d
+                                && winsize_buf[2] == 0x57
+                                && winsize_buf[3] == 0x53
+                            {
                                 let cols = u16::from_be_bytes([winsize_buf[4], winsize_buf[5]]);
                                 let rows = u16::from_be_bytes([winsize_buf[6], winsize_buf[7]]);
-                                daemon_log(&self.session_id, &format!("Initial window size from client: {}x{}", cols, rows));
+                                daemon_log(
+                                    &self.session_id,
+                                    &format!("Initial window size from client: {}x{}", cols, rows),
+                                );
 
                                 // Set PTY size
                                 let mut ws: libc::winsize = unsafe { std::mem::zeroed() };
@@ -278,7 +300,10 @@ impl SessionServer {
                                     libc::ioctl(master_fd, libc::TIOCSWINSZ, &ws);
                                 }
                             } else {
-                                daemon_log(&self.session_id, "First message wasn't window size, using defaults");
+                                daemon_log(
+                                    &self.session_id,
+                                    "First message wasn't window size, using defaults",
+                                );
                                 // Set default size
                                 let mut ws: libc::winsize = unsafe { std::mem::zeroed() };
                                 ws.ws_col = 80;
@@ -288,12 +313,19 @@ impl SessionServer {
                                 }
                                 // Write the data to PTY since it wasn't a window size message
                                 unsafe {
-                                    libc::write(master_fd, winsize_buf.as_ptr() as *const libc::c_void, 8);
+                                    libc::write(
+                                        master_fd,
+                                        winsize_buf.as_ptr() as *const libc::c_void,
+                                        8,
+                                    );
                                 }
                             }
                         }
                         Err(e) => {
-                            daemon_log(&self.session_id, &format!("Failed to read initial window size: {}", e));
+                            daemon_log(
+                                &self.session_id,
+                                &format!("Failed to read initial window size: {}", e),
+                            );
                             // Set default size
                             let mut ws: libc::winsize = unsafe { std::mem::zeroed() };
                             ws.ws_col = 80;
@@ -316,7 +348,10 @@ impl SessionServer {
                     // - Enable bracketed paste: ESC [ ? 2004 h
                     let terminal_setup = b"\x1b[?1049h\x1b[?1006h\x1b[?1003h\x1b[?2004h";
                     if let Err(e) = stream.write_all(terminal_setup) {
-                        daemon_log(&self.session_id, &format!("Failed to send terminal setup: {}", e));
+                        daemon_log(
+                            &self.session_id,
+                            &format!("Failed to send terminal setup: {}", e),
+                        );
                     } else {
                         daemon_log(&self.session_id, "Sent terminal setup sequences to client");
                     }
@@ -355,11 +390,17 @@ impl SessionServer {
                         while i < data.len() {
                             // Look for window size escape sequence
                             if i + 8 <= data.len()
-                               && data[i] == 0x1b && data[i+1] == 0x5d
-                               && data[i+2] == 0x57 && data[i+3] == 0x53 {
-                                let cols = u16::from_be_bytes([data[i+4], data[i+5]]);
-                                let rows = u16::from_be_bytes([data[i+6], data[i+7]]);
-                                daemon_log(&self.session_id, &format!("Window size update: {}x{}", cols, rows));
+                                && data[i] == 0x1b
+                                && data[i + 1] == 0x5d
+                                && data[i + 2] == 0x57
+                                && data[i + 3] == 0x53
+                            {
+                                let cols = u16::from_be_bytes([data[i + 4], data[i + 5]]);
+                                let rows = u16::from_be_bytes([data[i + 6], data[i + 7]]);
+                                daemon_log(
+                                    &self.session_id,
+                                    &format!("Window size update: {}x{}", cols, rows),
+                                );
 
                                 // Update PTY size
                                 let mut ws: libc::winsize = unsafe { std::mem::zeroed() };
@@ -391,9 +432,16 @@ impl SessionServer {
                             let chunk = &data[i..end];
                             if !chunk.is_empty() {
                                 let written = unsafe {
-                                    libc::write(master_fd, chunk.as_ptr() as *const libc::c_void, chunk.len())
+                                    libc::write(
+                                        master_fd,
+                                        chunk.as_ptr() as *const libc::c_void,
+                                        chunk.len(),
+                                    )
                                 };
-                                daemon_log(&self.session_id, &format!("Wrote {} bytes to PTY", written));
+                                daemon_log(
+                                    &self.session_id,
+                                    &format!("Wrote {} bytes to PTY", written),
+                                );
                             }
                             i = end;
                         }
@@ -409,18 +457,22 @@ impl SessionServer {
             // Read from PTY, write to client
             let mut pty_buf = [0u8; 4096];
             let n = unsafe {
-                libc::read(master_fd, pty_buf.as_mut_ptr() as *mut libc::c_void, pty_buf.len())
+                libc::read(
+                    master_fd,
+                    pty_buf.as_mut_ptr() as *mut libc::c_void,
+                    pty_buf.len(),
+                )
             };
 
             if n > 0 {
                 let n = n as usize;
                 daemon_log(&self.session_id, &format!("PTY -> Client: {} bytes", n));
                 if let Some(ref mut stream) = client {
-                    if let Err(e) = stream.write_all(&pty_buf[..n]) {
-                        if e.kind() != std::io::ErrorKind::WouldBlock {
-                            daemon_log(&self.session_id, &format!("Client write error: {}", e));
-                            client = None;
-                        }
+                    if let Err(e) = stream.write_all(&pty_buf[..n])
+                        && e.kind() != std::io::ErrorKind::WouldBlock
+                    {
+                        daemon_log(&self.session_id, &format!("Client write error: {}", e));
+                        client = None;
                     }
                 } else {
                     // No client connected - output is discarded
@@ -429,8 +481,12 @@ impl SessionServer {
             } else if n < 0 {
                 let err = std::io::Error::last_os_error();
                 if err.kind() != std::io::ErrorKind::WouldBlock
-                   && err.raw_os_error() != Some(libc::EAGAIN) {
-                    daemon_log(&self.session_id, &format!("PTY read error: {} (closing)", err));
+                    && err.raw_os_error() != Some(libc::EAGAIN)
+                {
+                    daemon_log(
+                        &self.session_id,
+                        &format!("PTY read error: {} (closing)", err),
+                    );
                     // PTY closed - TUI exited
                     break;
                 }
@@ -484,7 +540,10 @@ impl Drop for SessionServer {
 ///
 /// This forks a daemon process that runs the session server.
 /// Returns the session ID and socket path.
-pub fn spawn_session(session_id: Option<String>, tui_args: Vec<String>) -> Result<(String, PathBuf)> {
+pub fn spawn_session(
+    session_id: Option<String>,
+    tui_args: Vec<String>,
+) -> Result<(String, PathBuf)> {
     let session_id = session_id.unwrap_or_else(super::generate_session_id);
     let socket_path = super::get_session_socket_path(&session_id)?;
 
@@ -531,10 +590,16 @@ pub fn spawn_session(session_id: Option<String>, tui_args: Vec<String>) -> Resul
                             std::process::exit(1);
                         }
                     };
-                    daemon_log(&session_id, &format!("SessionServer created, running with args: {:?}", tui_args));
+                    daemon_log(
+                        &session_id,
+                        &format!("SessionServer created, running with args: {:?}", tui_args),
+                    );
                     let exit_code = match server.run(tui_args) {
                         Ok(code) => {
-                            daemon_log(&session_id, &format!("Server run completed with code {}", code));
+                            daemon_log(
+                                &session_id,
+                                &format!("Server run completed with code {}", code),
+                            );
                             code
                         }
                         Err(e) => {

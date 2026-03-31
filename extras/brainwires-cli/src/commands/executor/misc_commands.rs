@@ -28,7 +28,7 @@ impl CommandExecutor {
     }
 
     fn cmd_checkpoint(&self, args: &[String]) -> Result<CommandResult> {
-        let name = args.first().map(|s| s.clone());
+        let name = args.first().cloned();
         Ok(CommandResult::Action(CommandAction::CreateCheckpoint(name)))
     }
 
@@ -37,7 +37,9 @@ impl CommandExecutor {
             anyhow::bail!("Usage: /restore <checkpoint_id_or_index>");
         }
         let checkpoint_id = args[0].clone();
-        Ok(CommandResult::Action(CommandAction::RestoreCheckpoint(checkpoint_id)))
+        Ok(CommandResult::Action(CommandAction::RestoreCheckpoint(
+            checkpoint_id,
+        )))
     }
 
     fn cmd_review(&self) -> Result<CommandResult> {
@@ -52,20 +54,18 @@ impl CommandExecutor {
             Ok(output) if output.status.success() => {
                 String::from_utf8_lossy(&output.stdout).to_string()
             }
-            _ => String::new()
+            _ => String::new(),
         };
 
         // If no staged changes, try unstaged changes
         let diff = if staged_diff.trim().is_empty() {
-            let unstaged_result = ProcessCommand::new("git")
-                .args(["diff"])
-                .output();
+            let unstaged_result = ProcessCommand::new("git").args(["diff"]).output();
 
             match unstaged_result {
                 Ok(output) if output.status.success() => {
                     String::from_utf8_lossy(&output.stdout).to_string()
                 }
-                _ => String::new()
+                _ => String::new(),
             }
         } else {
             staged_diff
@@ -74,9 +74,16 @@ impl CommandExecutor {
         // Build review message
         let cmd = self.registry.get("review").unwrap();
         let message = if diff.trim().is_empty() {
-            format!("{}\n\nNo git changes found. Please stage or modify some files first.", cmd.content)
+            format!(
+                "{}\n\nNo git changes found. Please stage or modify some files first.",
+                cmd.content
+            )
         } else {
-            format!("{}\n\nHere are the code changes:\n\n```diff\n{}\n```", cmd.content, diff.trim())
+            format!(
+                "{}\n\nHere are the code changes:\n\n```diff\n{}\n```",
+                cmd.content,
+                diff.trim()
+            )
         };
 
         Ok(CommandResult::Message(message))
@@ -85,17 +92,15 @@ impl CommandExecutor {
     fn cmd_brainwires(&self) -> Result<CommandResult> {
         use crate::utils::brainwires_md;
 
-        let cwd = std::env::current_dir()
-            .context("Failed to get current working directory")?;
+        let cwd = std::env::current_dir().context("Failed to get current working directory")?;
 
         match brainwires_md::load_brainwires_instructions(&cwd) {
-            Ok(content) if content.is_empty() => {
-                Ok(CommandResult::Message(
-                    "No BRAINWIRES.md file found in current directory.\n\n\
+            Ok(content) if content.is_empty() => Ok(CommandResult::Message(
+                "No BRAINWIRES.md file found in current directory.\n\n\
                     Create a BRAINWIRES.md file to add project-specific instructions.\n\
-                    You can use @file.md syntax to import other markdown files.".to_string()
-                ))
-            }
+                    You can use @file.md syntax to import other markdown files."
+                    .to_string(),
+            )),
             Ok(content) => {
                 let message = format!(
                     "Loaded project instructions from BRAINWIRES.md:\n\n{}\n\n\
@@ -112,7 +117,9 @@ impl CommandExecutor {
 
     fn cmd_exec(&self, args: &[String]) -> Result<CommandResult> {
         if args.is_empty() {
-            anyhow::bail!("Usage: /exec <command>\n\nExecute a shell command in a full-screen terminal overlay.");
+            anyhow::bail!(
+                "Usage: /exec <command>\n\nExecute a shell command in a full-screen terminal overlay."
+            );
         }
 
         let command = args.join(" ");

@@ -1,8 +1,8 @@
 use std::time::Duration;
 
 use nusb::{
-    transfer::{ControlIn, ControlOut, ControlType, Recipient, RequestBuffer},
     Interface,
+    transfer::{ControlIn, ControlOut, ControlType, Recipient, RequestBuffer},
 };
 use tracing::debug;
 
@@ -46,7 +46,11 @@ impl UsbHandle {
              bulk_in={endpoint_in:?} bulk_out={endpoint_out:?}"
         );
 
-        Ok(Self { interface, endpoint_in, endpoint_out })
+        Ok(Self {
+            interface,
+            endpoint_in,
+            endpoint_out,
+        })
     }
 
     // ── Control Transfers ─────────────────────────────────────────────────────
@@ -208,7 +212,8 @@ fn discover_bulk_endpoints(interface: &Interface) -> (Option<u8>, Option<u8>) {
     let mut ep_in: Option<u8> = None;
     let mut ep_out: Option<u8> = None;
 
-    for alt in interface.descriptors() {
+    // Only inspect the first alternate setting
+    if let Some(alt) = interface.descriptors().next() {
         for ep in alt.endpoints() {
             use nusb::transfer::EndpointType;
             if ep.transfer_type() == EndpointType::Bulk {
@@ -219,7 +224,6 @@ fn discover_bulk_endpoints(interface: &Interface) -> (Option<u8>, Option<u8>) {
                 }
             }
         }
-        break; // only inspect the first alternate setting
     }
 
     (ep_in, ep_out)

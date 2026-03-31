@@ -125,12 +125,18 @@ pub enum ApprovalResponse {
 impl ApprovalResponse {
     /// Check if this is an approval (yes or always)
     pub fn is_approved(&self) -> bool {
-        matches!(self, ApprovalResponse::Approve | ApprovalResponse::ApproveForSession)
+        matches!(
+            self,
+            ApprovalResponse::Approve | ApprovalResponse::ApproveForSession
+        )
     }
 
     /// Check if this should be remembered for the session
     pub fn is_session_persistent(&self) -> bool {
-        matches!(self, ApprovalResponse::ApproveForSession | ApprovalResponse::DenyForSession)
+        matches!(
+            self,
+            ApprovalResponse::ApproveForSession | ApprovalResponse::DenyForSession
+        )
     }
 }
 

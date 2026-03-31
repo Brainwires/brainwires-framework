@@ -28,12 +28,12 @@ impl CommandExecutor {
     }
 
     fn cmd_project_index(&self, args: &[String]) -> Result<CommandResult> {
-        let path = args.first()
-            .map(|s| s.clone())
-            .unwrap_or_else(|| std::env::current_dir()
+        let path = args.first().cloned().unwrap_or_else(|| {
+            std::env::current_dir()
                 .ok()
                 .and_then(|p| p.to_str().map(String::from))
-                .unwrap_or_else(|| ".".to_string()));
+                .unwrap_or_else(|| ".".to_string())
+        });
 
         let message = format!(
             "Please use the mcp__project__index_codebase tool to index the codebase at path: {}\n\n\
@@ -45,7 +45,9 @@ impl CommandExecutor {
 
     fn cmd_project_query(&self, args: &[String]) -> Result<CommandResult> {
         if args.is_empty() {
-            anyhow::bail!("Usage: /project:query <search_query>\n\nSearch the indexed codebase using semantic search.");
+            anyhow::bail!(
+                "Usage: /project:query <search_query>\n\nSearch the indexed codebase using semantic search."
+            );
         }
         let query = args.join(" ");
         let message = format!(
@@ -57,8 +59,10 @@ impl CommandExecutor {
     }
 
     fn cmd_project_stats(&self) -> Result<CommandResult> {
-        let message = "Please use the mcp__project__get_statistics tool to show index statistics.\n\n\
-            This will display information about indexed files, chunks, and languages.".to_string();
+        let message =
+            "Please use the mcp__project__get_statistics tool to show index statistics.\n\n\
+            This will display information about indexed files, chunks, and languages."
+                .to_string();
         Ok(CommandResult::Message(message))
     }
 
@@ -72,8 +76,8 @@ impl CommandExecutor {
         }
 
         let query = args[0].clone();
-        let extensions = args.get(1).map(|s| s.clone());
-        let languages = args.get(2).map(|s| s.clone());
+        let extensions = args.get(1).cloned();
+        let languages = args.get(2).cloned();
 
         let mut message = format!(
             "Please use the mcp__project__search_by_filters tool with:\n\
@@ -93,8 +97,10 @@ impl CommandExecutor {
     }
 
     fn cmd_project_clear(&self) -> Result<CommandResult> {
-        let message = "Please use the mcp__project__clear_index tool to clear all indexed data.\n\n\
-            WARNING: This will delete the entire index. You'll need to reindex to search again.".to_string();
+        let message =
+            "Please use the mcp__project__clear_index tool to clear all indexed data.\n\n\
+            WARNING: This will delete the entire index. You'll need to reindex to search again."
+                .to_string();
         Ok(CommandResult::Message(message))
     }
 
@@ -108,7 +114,8 @@ impl CommandExecutor {
         }
 
         let query = args[0].clone();
-        let max_commits = args.get(1)
+        let max_commits = args
+            .get(1)
             .and_then(|s| s.parse::<u32>().ok())
             .unwrap_or(10);
 
@@ -135,8 +142,12 @@ impl CommandExecutor {
         }
 
         let file_path = args[0].clone();
-        let line = args[1].parse::<u32>().map_err(|_| anyhow::anyhow!("Invalid line number: {}", args[1]))?;
-        let column = args[2].parse::<u32>().map_err(|_| anyhow::anyhow!("Invalid column number: {}", args[2]))?;
+        let line = args[1]
+            .parse::<u32>()
+            .map_err(|_| anyhow::anyhow!("Invalid line number: {}", args[1]))?;
+        let column = args[2]
+            .parse::<u32>()
+            .map_err(|_| anyhow::anyhow!("Invalid column number: {}", args[2]))?;
 
         let message = format!(
             "Please use the mcp__project__find_definition tool with:\n\
@@ -163,9 +174,14 @@ impl CommandExecutor {
         }
 
         let file_path = args[0].clone();
-        let line = args[1].parse::<u32>().map_err(|_| anyhow::anyhow!("Invalid line number: {}", args[1]))?;
-        let column = args[2].parse::<u32>().map_err(|_| anyhow::anyhow!("Invalid column number: {}", args[2]))?;
-        let limit = args.get(3)
+        let line = args[1]
+            .parse::<u32>()
+            .map_err(|_| anyhow::anyhow!("Invalid line number: {}", args[1]))?;
+        let column = args[2]
+            .parse::<u32>()
+            .map_err(|_| anyhow::anyhow!("Invalid column number: {}", args[2]))?;
+        let limit = args
+            .get(3)
             .and_then(|s| s.parse::<u32>().ok())
             .unwrap_or(100);
 
@@ -195,11 +211,13 @@ impl CommandExecutor {
         }
 
         let file_path = args[0].clone();
-        let line = args[1].parse::<u32>().map_err(|_| anyhow::anyhow!("Invalid line number: {}", args[1]))?;
-        let column = args[2].parse::<u32>().map_err(|_| anyhow::anyhow!("Invalid column number: {}", args[2]))?;
-        let depth = args.get(3)
-            .and_then(|s| s.parse::<u32>().ok())
-            .unwrap_or(2);
+        let line = args[1]
+            .parse::<u32>()
+            .map_err(|_| anyhow::anyhow!("Invalid line number: {}", args[1]))?;
+        let column = args[2]
+            .parse::<u32>()
+            .map_err(|_| anyhow::anyhow!("Invalid column number: {}", args[2]))?;
+        let depth = args.get(3).and_then(|s| s.parse::<u32>().ok()).unwrap_or(2);
 
         let message = format!(
             "Please use the mcp__project__get_call_graph tool with:\n\
