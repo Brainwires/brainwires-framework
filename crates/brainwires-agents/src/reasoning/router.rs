@@ -219,7 +219,7 @@ mod tests {
 
     #[test]
     fn test_parse_categories() {
-        let router = LocalRouterBuilder::default();
+        let _router = LocalRouterBuilder::default();
 
         // Test the parsing logic directly
         let output = "FileOps, Git, Bash";

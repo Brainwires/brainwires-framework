@@ -2361,6 +2361,7 @@ async fn stream_continuation_with_tool_result(
 
 #[cfg(test)]
 mod tests {
+    #[allow(unused_imports)]
     use super::*;
 
     // Integration tests would go here

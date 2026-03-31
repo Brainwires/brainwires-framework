@@ -14,8 +14,8 @@
 //! | `RoutingStrategy` | [`routing::RoutingStrategy`](crate::routing::RoutingStrategy) |
 //!
 //! Types that remain unique to the mesh module:
-//! - [`FederationGateway`] / [`FederationPolicy`] — cross-mesh federation
-//! - [`MeshTopology`] / [`TopologyType`] — mesh topology management
+//! - `FederationGateway` / `FederationPolicy` — cross-mesh federation
+//! - `MeshTopology` / `TopologyType` — mesh topology management
 
 /// Peer discovery protocols for locating nodes in the mesh.
 #[deprecated(since = "0.4.0", note = "Use `crate::discovery::Discovery` instead")]

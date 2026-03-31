@@ -270,7 +270,7 @@ mod tests {
     #[test]
     fn test_heuristic_scoring() {
         // Create a stub scorer for testing heuristics
-        let scorer = ComplexityScorerBuilder::default();
+        let _scorer = ComplexityScorerBuilder::default();
 
         // Test with a simple task
         let simple = "read a file";
@@ -317,7 +317,7 @@ mod tests {
 
     #[test]
     fn test_parse_score() {
-        let scorer = ComplexityScorerBuilder::default();
+        let _scorer = ComplexityScorerBuilder::default();
 
         // Test parsing logic
         assert_eq!(parse_score_direct("0.5"), Some(0.5));

@@ -333,7 +333,7 @@ fn test_history_list_handles_corrupted_db_gracefully() {
     }
 
     // Should handle error gracefully
-    env.cmd().arg("history").arg("list").assert(); // May fail or succeed depending on error handling
+    let _ = env.cmd().arg("history").arg("list").assert(); // May fail or succeed depending on error handling
 }
 
 // ============================================================================

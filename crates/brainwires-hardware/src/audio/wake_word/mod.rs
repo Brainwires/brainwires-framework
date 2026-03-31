@@ -48,12 +48,12 @@ pub struct WakeWordDetection {
 /// keyword detection.
 ///
 /// All implementations expect 16 kHz mono i16 PCM. Use
-/// [`crate::audio::vad::pcm_to_i16_mono`] to convert an [`AudioBuffer`] first.
+/// [`crate::audio::vad::pcm_to_i16_mono`] to convert an `AudioBuffer` first.
 pub trait WakeWordDetector: Send + Sync {
     /// The sample rate this detector expects (always 16 000 Hz).
     fn sample_rate(&self) -> u32;
 
-    /// Number of i16 samples that must be provided per [`process_frame`] call.
+    /// Number of i16 samples that must be provided per `process_frame` call.
     fn frame_size(&self) -> usize;
 
     /// Process one audio frame. Returns `Some(detection)` when the wake word

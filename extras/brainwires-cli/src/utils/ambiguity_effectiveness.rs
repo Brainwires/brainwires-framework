@@ -293,6 +293,7 @@ impl AmbiguityEffectivenessTracker {
 
     /// Get all tracked type combinations
     #[cfg(test)]
+    #[allow(dead_code)]
     pub(crate) fn get_all_combinations(&self) -> Vec<(Vec<AmbiguityType>, TypeStats)> {
         self.local_stats
             .iter()

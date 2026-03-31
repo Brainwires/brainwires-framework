@@ -136,7 +136,7 @@ mod tests {
 
     #[test]
     fn test_approval_dialog_state() {
-        let mut state = ApprovalDialogState::new();
+        let state = ApprovalDialogState::new();
         assert!(!state.has_pending_request());
         assert!(state.get_session_decision("write_file").is_none());
     }

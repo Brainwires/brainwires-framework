@@ -1313,6 +1313,7 @@ mod tests {
     }
 
     /// Helper struct for testing is_mcp_allowed_tool without full handler
+    #[allow(dead_code)]
     struct TestableHandler {
         tool_registry: ToolRegistry,
     }

@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 // Common utilities for integration tests
 use brainwires_cli::types::agent::PermissionMode;
 use brainwires_cli::types::message::{Message, MessageContent, Role};

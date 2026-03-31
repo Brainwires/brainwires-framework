@@ -7,7 +7,7 @@ use brainwires::brain::EntityType;
 use brainwires::brain::bks_pks::{BehavioralKnowledgeCache, PersonalKnowledgeCache};
 use brainwires::seal::{
     EntityResolutionStrategy, IntegrationConfig, ReferenceType, ResolvedReference, SalienceScore,
-    SealKnowledgeCoordinator, SealProcessingResult, SealProcessor, UnresolvedReference,
+    SealKnowledgeCoordinator, SealProcessingResult, UnresolvedReference,
 };
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -20,11 +20,6 @@ fn create_test_coordinator() -> SealKnowledgeCoordinator {
     let pks_cache = Arc::new(Mutex::new(PersonalKnowledgeCache::in_memory(100).unwrap()));
 
     SealKnowledgeCoordinator::new(bks_cache, pks_cache, IntegrationConfig::default()).unwrap()
-}
-
-/// Create test SEAL processor
-fn create_test_seal() -> SealProcessor {
-    SealProcessor::with_defaults()
 }
 
 #[tokio::test]

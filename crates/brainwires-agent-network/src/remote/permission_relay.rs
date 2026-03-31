@@ -1,9 +1,9 @@
 //! Permission Relay — manages pending tool-approval requests between CLI and remote UI.
 //!
 //! When the CLI agent wants to execute a dangerous tool while a remote bridge is
-//! active, it sends a [`PermissionRequest`] and waits on a oneshot channel.
+//! active, it sends a `PermissionRequest` and waits on a oneshot channel.
 //! The backend relays the request to the web UI; the user approves/denies;
-//! the backend sends a [`PermissionResponse`] back; this module resolves
+//! the backend sends a `PermissionResponse` back; this module resolves
 //! the waiting oneshot.
 
 use std::collections::HashMap;

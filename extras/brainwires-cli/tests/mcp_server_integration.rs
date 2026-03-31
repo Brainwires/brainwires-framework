@@ -63,7 +63,7 @@ fn test_mcp_server_initialize() -> Result<()> {
     assert!(response["result"]["capabilities"]["tools"].is_object());
 
     // Clean up
-    drop(stdin);
+    let _ = stdin;
     let _ = child.wait();
 
     Ok(())
@@ -159,7 +159,7 @@ fn test_mcp_server_list_tools() -> Result<()> {
     );
 
     // Clean up
-    drop(stdin);
+    let _ = stdin;
     let _ = child.wait();
 
     Ok(())
@@ -211,7 +211,7 @@ fn test_mcp_server_invalid_method() -> Result<()> {
     assert_eq!(response["error"]["code"], -32601); // Method not found
 
     // Clean up
-    drop(stdin);
+    let _ = stdin;
     let _ = child.wait();
 
     Ok(())
@@ -304,7 +304,7 @@ fn test_agent_tool_schemas() -> Result<()> {
     );
 
     // Clean up
-    drop(stdin);
+    let _ = stdin;
     let _ = child.wait();
 
     Ok(())

@@ -4,10 +4,10 @@
 //!
 //! | Module | Description |
 //! |--------|-------------|
-//! | [`interfaces`] | Enumerate wired/wireless NICs and their IP addresses |
-//! | [`ipconfig`] | IP configuration and default gateway per interface |
-//! | [`discovery`] | ARP-based host discovery on local subnets |
-//! | [`portscan`] | Async TCP connect-based port scanning |
+//! | `interfaces` | Enumerate wired/wireless NICs and their IP addresses |
+//! | `ipconfig` | IP configuration and default gateway per interface |
+//! | `discovery` | ARP-based host discovery on local subnets |
+//! | `portscan` | Async TCP connect-based port scanning |
 //!
 //! ## Quick start
 //!

@@ -1656,7 +1656,7 @@ mod tests {
         orchestrator.preprocess_input("Let's look at main.rs");
 
         // Now use a pronoun - should resolve
-        let (resolved, seal_result) = orchestrator.preprocess_input("Fix it");
+        let (_resolved, seal_result) = orchestrator.preprocess_input("Fix it");
 
         // The seal result should exist
         assert!(seal_result.is_some());

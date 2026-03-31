@@ -84,7 +84,7 @@ where
             Some(s) => s,
             None => return,
         };
-        span.extensions_mut().insert(EntryTime(Instant::now()));
+        span.extensions_mut().replace(EntryTime(Instant::now()));
     }
 
     fn on_close(&self, id: tracing::span::Id, ctx: Context<'_, S>) {

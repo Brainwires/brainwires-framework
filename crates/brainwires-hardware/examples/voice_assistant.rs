@@ -14,7 +14,7 @@
 //!   --silence-db <dB>        — silence threshold, default -40
 //!   --silence-ms <ms>        — silence duration to end utterance, default 800
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use brainwires_hardware::audio::{
@@ -23,7 +23,6 @@ use brainwires_hardware::audio::{
     capture::AudioCapture as _,
     error::AudioError,
     hardware::{CpalCapture, CpalPlayback},
-    playback::AudioPlayback as _,
     types::Transcript,
 };
 
@@ -76,6 +75,7 @@ async fn main() -> anyhow::Result<()> {
         ..Default::default()
     };
 
+    #[allow(unused_mut)]
     let mut builder = VoiceAssistant::builder(capture, stt)
         .with_playback(playback)
         .with_config(config);

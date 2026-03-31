@@ -1223,6 +1223,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[allow(deprecated)]
     async fn test_compact_if_needed() {
         let mut manager = ConversationManager::new(4096);
         let result = manager.compact_if_needed().await;

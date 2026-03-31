@@ -830,7 +830,7 @@ mod tests {
 
     #[test]
     fn test_heuristic_extraction_url() {
-        let enhancer = EntityEnhancerBuilder::default();
+        let _enhancer = EntityEnhancerBuilder::default();
         let result = extract_heuristic_direct("Check https://example.com/docs for more info");
         assert!(
             result

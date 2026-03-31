@@ -50,6 +50,7 @@ pub trait MessageRouter: Send + Sync {
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod tests {
     use super::*;
 
