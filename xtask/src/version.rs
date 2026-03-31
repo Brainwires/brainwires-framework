@@ -99,11 +99,16 @@ pub fn bump_version(args: &[String]) -> ExitCode {
 /// 0. Reset any per-crate version overrides from previous patch releases
 /// 1. Update root Cargo.toml (workspace.package + workspace.dependencies)
 /// 2. Update member Cargo.toml files with direct path deps
-/// 3. Update hardcoded versions in *.rs files
-/// 4. Update version examples in *.md files
-/// 5. Stamp CHANGELOG.md
+/// 3. Update excluded sub-workspace Cargo.toml files (e.g. extras/brainclaw)
+/// 4. Update hardcoded versions in *.rs files
+/// 5. Update hardcoded versions in *.ts files
+/// 6. Update hardcoded versions in *.json files
+/// 7. Update version examples in *.md files
+/// 8. Stamp CHANGELOG.md
 fn bump_full(root: &Path, new_version: &str, major_minor: &str) -> ExitCode {
     let mut changes = 0u32;
+
+    let old_version = read_workspace_version(root);
 
     // Reset any per-crate version overrides from previous patch releases
     changes += reset_explicit_versions(root);
@@ -114,13 +119,22 @@ fn bump_full(root: &Path, new_version: &str, major_minor: &str) -> ExitCode {
     // 2. Update member Cargo.toml files with direct path deps
     changes += update_member_cargo_tomls(root, new_version);
 
-    // 3. Update hardcoded versions in *.rs files
+    // 3. Update excluded sub-workspace Cargo.toml files
+    changes += update_excluded_workspace_cargo_tomls(root, &old_version, new_version);
+
+    // 4. Update hardcoded versions in *.rs files
     changes += update_rs_files(root, new_version);
 
-    // 4. Update version examples in *.md files
-    changes += update_md_files(root, major_minor);
+    // 5. Update hardcoded versions in *.ts files
+    changes += update_ts_files(root, &old_version, new_version);
 
-    // 5. Stamp CHANGELOG.md
+    // 6. Update hardcoded versions in *.json files
+    changes += update_json_files(root, &old_version, new_version);
+
+    // 7. Update version examples in *.md files
+    changes += update_md_files(root, major_minor, &old_version, new_version);
+
+    // 8. Stamp CHANGELOG.md
     changes += update_changelog(root, new_version);
 
     println!();
@@ -406,8 +420,11 @@ fn replace_version_in_rs(content: &str, new_version: &str) -> String {
 }
 
 /// Update version references in Markdown files.
-/// Replaces `brainwires[-*] = { version = "X.Y"` and `brainwires[-*] = "X.Y"` patterns.
-fn update_md_files(root: &Path, new_major_minor: &str) -> u32 {
+/// Replaces:
+/// - `brainwires[-*] = { version = "X.Y"` and `brainwires[-*] = "X.Y"` patterns
+/// - `"version": "OLD"` and `"cli_version": "OLD"` in code-block examples
+/// - `vOLD_VERSION` bare version tags (e.g. `v0.6.0`)
+fn update_md_files(root: &Path, new_major_minor: &str, old_version: &str, new_version: &str) -> u32 {
     let mut count = 0u32;
 
     for entry in WalkDir::new(root)
@@ -434,7 +451,22 @@ fn update_md_files(root: &Path, new_major_minor: &str) -> u32 {
             Err(_) => continue,
         };
 
-        let new_content = replace_version_in_md(&content, new_major_minor);
+        // Existing brainwires dep-style replacements
+        let mut new_content = replace_version_in_md(&content, new_major_minor);
+
+        // Also replace verbatim version strings in code-block examples:
+        // "version": "OLD", "cli_version": "OLD", vOLD (bare tag), /OLD/ path segment
+        for pattern in &[
+            format!("\"version\": \"{old_version}\""),
+            format!("\"cli_version\": \"{old_version}\""),
+            format!("v{old_version}"),
+            format!("/{old_version}"),
+        ] {
+            let replacement = pattern.replace(old_version, new_version);
+            if new_content.contains(pattern.as_str()) {
+                new_content = new_content.replace(pattern.as_str(), &replacement);
+            }
+        }
 
         if new_content != content {
             std::fs::write(path, &new_content).expect("Failed to write .md file");
@@ -445,6 +477,162 @@ fn update_md_files(root: &Path, new_major_minor: &str) -> u32 {
 
     if count == 0 {
         println!("  No .md files needed updating.");
+    }
+    count
+}
+
+/// Update version strings in TypeScript source and test files.
+/// Replaces `version: "OLD"` patterns used in example/test data.
+fn update_ts_files(root: &Path, old_version: &str, new_version: &str) -> u32 {
+    let mut count = 0u32;
+
+    for entry in WalkDir::new(root)
+        .into_iter()
+        .filter_entry(|e| {
+            let name = e.file_name().to_str().unwrap_or("");
+            name != "target" && name != ".git" && name != "node_modules" && name != "deprecated"
+        })
+        .filter_map(|e| e.ok())
+    {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("ts") {
+            continue;
+        }
+
+        let content = match std::fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+
+        let new_content = content
+            .replace(
+                &format!("version: \"{old_version}\""),
+                &format!("version: \"{new_version}\""),
+            )
+            .replace(
+                &format!("\"version\": \"{old_version}\""),
+                &format!("\"version\": \"{new_version}\""),
+            );
+
+        if new_content != content {
+            std::fs::write(path, &new_content).expect("Failed to write .ts file");
+            println!("  Updated: {}", path.display());
+            count += 1;
+        }
+    }
+
+    if count == 0 {
+        println!("  No .ts files needed updating.");
+    }
+    count
+}
+
+/// Update version strings in JSON files (e.g. user_agent strings in config examples).
+fn update_json_files(root: &Path, old_version: &str, new_version: &str) -> u32 {
+    let mut count = 0u32;
+
+    for entry in WalkDir::new(root)
+        .into_iter()
+        .filter_entry(|e| {
+            let name = e.file_name().to_str().unwrap_or("");
+            name != "target" && name != ".git" && name != "node_modules" && name != "deprecated"
+        })
+        .filter_map(|e| e.ok())
+    {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("json") {
+            continue;
+        }
+
+        let content = match std::fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+
+        // Only replace version strings that appear after a brainwires crate name,
+        // e.g. "brainwires-cli/0.6.0" or `"version": "0.6.0"` in example configs.
+        let new_content = content
+            .replace(
+                &format!("/{old_version}\""),
+                &format!("/{new_version}\""),
+            )
+            .replace(
+                &format!("\"version\": \"{old_version}\""),
+                &format!("\"version\": \"{new_version}\""),
+            );
+
+        if new_content != content {
+            std::fs::write(path, &new_content).expect("Failed to write .json file");
+            println!("  Updated: {}", path.display());
+            count += 1;
+        }
+    }
+
+    if count == 0 {
+        println!("  No .json files needed updating.");
+    }
+    count
+}
+
+/// Update [workspace.package].version in excluded sub-workspace Cargo.toml files
+/// (e.g. extras/brainclaw/Cargo.toml which has its own workspace, not inherited).
+fn update_excluded_workspace_cargo_tomls(root: &Path, old_version: &str, new_version: &str) -> u32 {
+    let mut count = 0u32;
+
+    for entry in WalkDir::new(root)
+        .max_depth(3)
+        .into_iter()
+        .filter_entry(|e| {
+            let name = e.file_name().to_str().unwrap_or("");
+            name != "target" && name != ".git" && name != "node_modules" && name != "deprecated"
+        })
+        .filter_map(|e| e.ok())
+    {
+        let path = entry.path();
+        if path.file_name().and_then(|n| n.to_str()) != Some("Cargo.toml") {
+            continue;
+        }
+        // Skip the root workspace Cargo.toml (already handled)
+        if path == root.join("Cargo.toml") {
+            continue;
+        }
+
+        let content = match std::fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+
+        let mut doc = match content.parse::<toml_edit::DocumentMut>() {
+            Ok(d) => d,
+            Err(_) => continue,
+        };
+
+        // Only act on files that have a [workspace] table (sub-workspaces)
+        // and whose [workspace.package].version is the old version.
+        let Some(pkg) = doc
+            .get_mut("workspace")
+            .and_then(|w| w.get_mut("package"))
+        else {
+            continue;
+        };
+
+        let Some(v) = pkg.get_mut("version") else {
+            continue;
+        };
+
+        if v.as_str() != Some(old_version) {
+            continue;
+        }
+
+        *v = toml_edit::value(new_version);
+        std::fs::write(path, doc.to_string()).expect("Failed to write sub-workspace Cargo.toml");
+        println!("  [workspace.package].version: {old_version} -> {new_version}");
+        println!("  Updated: {}", path.display());
+        count += 1;
+    }
+
+    if count == 0 {
+        println!("  No excluded sub-workspace Cargo.toml files needed updating.");
     }
     count
 }

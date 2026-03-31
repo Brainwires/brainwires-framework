@@ -354,7 +354,7 @@ Register the bridge and receive a session token + Realtime credentials.
   "device_fingerprint": "sha256hex",
   "hostname": "my-machine",
   "os": "linux",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "protocol_hello": {
     "type": "hello",
     "supported_versions": ["1.1", "1.0"],
@@ -412,7 +412,7 @@ Send agent status; receive pending commands. Used in polling mode.
   "system_load": 0.42,
   "hostname": "my-machine",
   "os": "linux",
-  "version": "0.6.0"
+  "version": "0.7.0"
 }
 ```
 
@@ -459,7 +459,7 @@ Start a pairing request. **No authentication required.**
 {
   "hostname": "my-machine",
   "os": "linux",
-  "cli_version": "0.6.0",
+  "cli_version": "0.7.0",
   "device_fingerprint": "sha256hex"
 }
 ```

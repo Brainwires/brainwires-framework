@@ -107,7 +107,7 @@ async function main(): Promise<void> {
   const minimalCard: AgentCard = {
     name: "echo-agent",
     description: "A minimal agent that echoes messages back.",
-    version: "0.6.0",
+    version: "0.7.0",
     supportedInterfaces: [],
     capabilities: {},
     skills: [],

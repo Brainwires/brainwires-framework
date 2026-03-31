@@ -49,6 +49,6 @@ pub mod build_info {
     };
 
     /// Full version string including build date and git hash, e.g.
-    /// "0.6.0 (built 2026-03-30 UTC • abc1234)"
+    /// "0.7.0 (built 2026-03-30 UTC • abc1234)"
     pub const FULL_VERSION: &str = env!("FULL_VERSION");
 }
