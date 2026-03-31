@@ -312,7 +312,11 @@ fn update_rs_files(root: &Path, new_version: &str) -> u32 {
         .into_iter()
         .filter_entry(|e| {
             let name = e.file_name().to_str().unwrap_or("");
-            name != "target" && name != ".git" && name != "node_modules" && name != "deprecated"
+            name != "target"
+                && name != ".git"
+                && name != "node_modules"
+                && name != "deprecated"
+                && name != "xtask"
         })
         .filter_map(|e| e.ok())
     {
@@ -326,8 +330,7 @@ fn update_rs_files(root: &Path, new_version: &str) -> u32 {
             Err(_) => continue,
         };
 
-        // Replace "version": "X.Y.Z" patterns (JSON-style in Rust string literals)
-        // and version: "X.Y.Z".into() patterns
+        // Replace "version": "X.Y.Z" patterns (JSON-style in Rust string literals).
         let new_content = replace_version_in_rs(&content, new_version);
 
         if new_content != content {
@@ -1360,19 +1363,22 @@ mod tests {
 
     #[test]
     fn test_rs_version_json_style() {
-        // Test JSON-style version replacement in Rust source
-        let input = concat!(
-            r#"    "version": ""#,
-            "0.1.0",
-            r#"""#,
-            "\n",
-            r#"    version: ""#,
-            "0.1.0",
-            r#"".into()"#,
-        );
-        let result = replace_version_in_rs(input, "0.5.0");
+        // Only JSON-style "version": "X.Y.Z" is replaced.
+        // Bare struct-field `version: "X.Y.Z"` is intentionally left alone
+        // to avoid corrupting arbitrary test-data version strings.
+        let json_line = r#"    "version": "0.1.0""#;
+        let field_line = r#"    version: "0.1.0".into()"#;
+        let input = format!("{json_line}\n{field_line}");
+        let result = replace_version_in_rs(&input, "0.5.0");
         assert!(result.contains("0.5.0"), "should contain new version");
-        assert!(!result.contains("0.1.0"), "should not contain old version");
+        assert!(
+            !result.contains(r#""version": "0.1.0""#),
+            "JSON-style line should be replaced"
+        );
+        assert!(
+            result.contains(r#"version: "0.1.0""#),
+            "bare struct-field line should be left unchanged"
+        );
     }
 
     #[test]
@@ -1499,7 +1505,7 @@ mod tests {
             "brainwires-core,brainwires-agents".into(),
         ];
         let parsed = parse_bump_args(&args).unwrap();
-        assert_eq!(parsed.version, "0.7.0");
+        assert_eq!(parsed.version, "0.4.1");
         assert_eq!(
             parsed.crates,
             Some(vec!["brainwires-core".into(), "brainwires-agents".into()])
@@ -1510,7 +1516,7 @@ mod tests {
     fn test_parse_no_crates_flag() {
         let args = vec!["0.5.0".into()];
         let parsed = parse_bump_args(&args).unwrap();
-        assert_eq!(parsed.version, "0.7.0");
+        assert_eq!(parsed.version, "0.5.0");
         assert_eq!(parsed.crates, None);
     }
 
