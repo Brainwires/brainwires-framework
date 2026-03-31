@@ -424,7 +424,12 @@ fn replace_version_in_rs(content: &str, new_version: &str) -> String {
 /// - `brainwires[-*] = { version = "X.Y"` and `brainwires[-*] = "X.Y"` patterns
 /// - `"version": "OLD"` and `"cli_version": "OLD"` in code-block examples
 /// - `vOLD_VERSION` bare version tags (e.g. `v0.6.0`)
-fn update_md_files(root: &Path, new_major_minor: &str, old_version: &str, new_version: &str) -> u32 {
+fn update_md_files(
+    root: &Path,
+    new_major_minor: &str,
+    old_version: &str,
+    new_version: &str,
+) -> u32 {
     let mut count = 0u32;
 
     for entry in WalkDir::new(root)
@@ -552,10 +557,7 @@ fn update_json_files(root: &Path, old_version: &str, new_version: &str) -> u32 {
         // Only replace version strings that appear after a brainwires crate name,
         // e.g. "brainwires-cli/0.6.0" or `"version": "0.6.0"` in example configs.
         let new_content = content
-            .replace(
-                &format!("/{old_version}\""),
-                &format!("/{new_version}\""),
-            )
+            .replace(&format!("/{old_version}\""), &format!("/{new_version}\""))
             .replace(
                 &format!("\"version\": \"{old_version}\""),
                 &format!("\"version\": \"{new_version}\""),
@@ -609,10 +611,7 @@ fn update_excluded_workspace_cargo_tomls(root: &Path, old_version: &str, new_ver
 
         // Only act on files that have a [workspace] table (sub-workspaces)
         // and whose [workspace.package].version is the old version.
-        let Some(pkg) = doc
-            .get_mut("workspace")
-            .and_then(|w| w.get_mut("package"))
-        else {
+        let Some(pkg) = doc.get_mut("workspace").and_then(|w| w.get_mut("package")) else {
             continue;
         };
 
