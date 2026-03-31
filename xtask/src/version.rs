@@ -354,8 +354,6 @@ fn replace_version_in_rs(content: &str, new_version: &str) -> String {
         (r#""version": ""#, '"'),
         // Rust struct field: version: "X.Y.Z".into()
         (r#"version: ""#, '"'),
-        // Rust assert/comparison: config.version, "X.Y.Z")
-        (r#"version, ""#, '"'),
     ];
 
     for (prefix, terminator) in &patterns {
