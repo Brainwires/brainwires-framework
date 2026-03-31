@@ -48,6 +48,12 @@ impl std::fmt::Debug for SudoDialogState {
     }
 }
 
+impl Default for SudoDialogState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SudoDialogState {
     /// Create a new sudo dialog state
     pub fn new() -> Self {
