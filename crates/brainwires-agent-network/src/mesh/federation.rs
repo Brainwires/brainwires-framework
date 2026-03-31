@@ -1,11 +1,9 @@
-#![allow(deprecated)]
-
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::error::MeshError;
-use super::node::MeshNode;
+use crate::identity::AgentIdentity;
+use crate::network::NetworkError;
 
 /// Policy governing which peers may join a federated mesh.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -24,7 +22,7 @@ pub enum FederationPolicy {
 #[async_trait]
 pub trait FederationGateway: Send + Sync {
     /// Evaluate and optionally accept a peer into the federation.
-    async fn accept_peer(&mut self, peer: &MeshNode) -> Result<bool, MeshError>;
+    async fn accept_peer(&mut self, peer: &AgentIdentity) -> Result<bool, NetworkError>;
 
     /// Return the current federation policy.
     fn policy(&self) -> &FederationPolicy;

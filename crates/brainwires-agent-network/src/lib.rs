@@ -1,9 +1,4 @@
 #![deny(missing_docs)]
-// The mesh sub-modules are marked #[deprecated] at the module level. The test
-// harness calls their test functions through the deprecated module path from
-// outside the module, so its generated code doesn't inherit the #[allow] from
-// within the files. Suppress the lint crate-wide when building tests.
-#![cfg_attr(test, allow(deprecated))]
 //! # Brainwires Agent Network
 //!
 //! Agent-to-agent networking layer for the Brainwires Agent Framework.
