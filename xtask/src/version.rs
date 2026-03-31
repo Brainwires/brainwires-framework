@@ -350,10 +350,10 @@ fn replace_version_in_rs(content: &str, new_version: &str) -> String {
     // Pattern: "version": "X.Y.Z" (JSON in Rust strings)
     // We look for the specific pattern used in protocol.rs and similar
     let patterns = [
-        // JSON-style: "version": "X.Y.Z"
+        // JSON-style only: "version": "X.Y.Z" (embedded JSON literals in Rust strings).
+        // Do NOT match bare `version: "X.Y.Z"` struct fields — those are often arbitrary
+        // test data (e.g. "0.1.0-test") and must not be treated as the framework version.
         (r#""version": ""#, '"'),
-        // Rust struct field: version: "X.Y.Z".into()
-        (r#"version: ""#, '"'),
     ];
 
     for (prefix, terminator) in &patterns {
