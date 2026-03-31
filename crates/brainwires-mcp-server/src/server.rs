@@ -162,7 +162,7 @@ impl<H: McpHandler> McpServer<H> {
                     capabilities: Default::default(),
                     client_info: brainwires_mcp::ClientInfo {
                         name: "unknown".to_string(),
-                        version: "0.6.0".to_string(),
+                        version: "0.7.0".to_string(),
                     },
                 }
             }

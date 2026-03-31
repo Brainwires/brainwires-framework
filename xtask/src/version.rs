@@ -1314,7 +1314,7 @@ mod tests {
             "brainwires-core,brainwires-agents".into(),
         ];
         let parsed = parse_bump_args(&args).unwrap();
-        assert_eq!(parsed.version, "0.4.1");
+        assert_eq!(parsed.version, "0.7.0");
         assert_eq!(
             parsed.crates,
             Some(vec!["brainwires-core".into(), "brainwires-agents".into()])
@@ -1325,7 +1325,7 @@ mod tests {
     fn test_parse_no_crates_flag() {
         let args = vec!["0.5.0".into()];
         let parsed = parse_bump_args(&args).unwrap();
-        assert_eq!(parsed.version, "0.5.0");
+        assert_eq!(parsed.version, "0.7.0");
         assert_eq!(parsed.crates, None);
     }
 

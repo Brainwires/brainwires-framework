@@ -13,6 +13,7 @@ publish = false
 [[bin]]
 name = "brainwires"
 path = "src/main.rs"
+doc = false
 
 [dependencies]
 # Async runtime

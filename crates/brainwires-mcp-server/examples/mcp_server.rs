@@ -62,7 +62,7 @@ impl brainwires_mcp_server::McpHandler for DemoHandler {
     fn server_info(&self) -> ServerInfo {
         ServerInfo {
             name: "demo-mcp-server".to_string(),
-            version: "0.1.0".to_string(),
+            version: "0.7.0".to_string(),
         }
     }
 

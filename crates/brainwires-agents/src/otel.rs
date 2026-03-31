@@ -8,7 +8,7 @@
 //! This module is only available when the `otel` feature is enabled:
 //!
 //! ```toml
-//! brainwires-agents = { version = "0.6", features = ["otel"] }
+//! brainwires-agents = { version = "0.7", features = ["otel"] }
 //! ```
 //!
 //! # Usage

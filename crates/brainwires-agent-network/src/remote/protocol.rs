@@ -688,7 +688,7 @@ mod tests {
             api_key: "bw_prod_test123".to_string(),
             hostname: "my-laptop".to_string(),
             os: "linux".to_string(),
-            version: "0.6.0".to_string(),
+            version: "0.7.0".to_string(),
             protocol: None,
             device_fingerprint: None,
         };
@@ -704,7 +704,7 @@ mod tests {
             api_key: "bw_prod_test123".to_string(),
             hostname: "my-laptop".to_string(),
             os: "linux".to_string(),
-            version: "0.6.0".to_string(),
+            version: "0.7.0".to_string(),
             protocol: Some(ProtocolHello::default()),
             device_fingerprint: Some("abc123def456".to_string()),
         };

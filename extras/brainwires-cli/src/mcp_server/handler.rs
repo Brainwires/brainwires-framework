@@ -1131,7 +1131,7 @@ mod tests {
             capabilities,
             server_info: ServerInfo {
                 name: "brainwires-cli".to_string(),
-                version: "0.6.0".to_string(),
+                version: "0.7.0".to_string(),
             },
         };
 

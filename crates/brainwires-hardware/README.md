@@ -23,13 +23,13 @@ Provides a unified hardware abstraction layer covering audio, GPIO, Bluetooth, a
 ```toml
 [dependencies]
 # Pick only what you need:
-brainwires-hardware = { version = "0.6", features = ["audio"] }
-brainwires-hardware = { version = "0.6", features = ["gpio"] }
-brainwires-hardware = { version = "0.6", features = ["bluetooth"] }
-brainwires-hardware = { version = "0.6", features = ["network"] }
+brainwires-hardware = { version = "0.7", features = ["audio"] }
+brainwires-hardware = { version = "0.7", features = ["gpio"] }
+brainwires-hardware = { version = "0.7", features = ["bluetooth"] }
+brainwires-hardware = { version = "0.7", features = ["network"] }
 
 # Or enable everything:
-brainwires-hardware = { version = "0.6", features = ["full"] }
+brainwires-hardware = { version = "0.7", features = ["full"] }
 ```
 
 ## Feature flags
@@ -173,10 +173,10 @@ assistant.run(&MyHandler).await?;
 
 ```toml
 # Before
-brainwires-audio = "0.5"
+brainwires-audio = "0.7"
 
 # After
-brainwires-hardware = { version = "0.6", features = ["audio"] }
+brainwires-hardware = { version = "0.7", features = ["audio"] }
 ```
 
 All public types and traits are re-exported from the crate root — existing code using

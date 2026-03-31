@@ -42,7 +42,7 @@ impl DemoHandler {
         let card = AgentCard {
             name: "demo-agent".to_string(),
             description: "A demo A2A agent for the client/server example.".to_string(),
-            version: "0.1.0".to_string(),
+            version: "0.7.0".to_string(),
             supported_interfaces: vec![],
             capabilities: AgentCapabilities {
                 streaming: Some(false),

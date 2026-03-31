@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-03-31
+
 ### Added
 
 #### New Crates
@@ -122,6 +124,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Test coverage expansion** — Added ~440 tests across 14 previously untested or undertested crates and extras. Coverage: A2A protocol serialization roundtrips; analytics event construction; brainwires-issues CRUD + BM25 search + pagination; mcp-matrix, mcp-whatsapp, mcp-mattermost, and mcp-signal config serde + protocol parsing + envelope helpers; hardware VAD, Bluetooth, GPIO, and network types via a mock backend; autonomy git workflows, merge policies, and webhook HMAC signatures; mcp-server middleware (auth, rate limiting, logging, connection context); storage BM25/RRF ranking correctness with tempdir-isolated indexes; provider trait contract via a zero-network `MockProvider` integration suite; audio-demo-ffi FFI type conversion roundtrips.
 
 ### Refactored
+
+- **Deprecated mesh submodules removed** (`brainwires-agent-network`) — `mesh::discovery`, `mesh::error`, `mesh::node`, and `mesh::routing` deleted. `mesh::federation` and `mesh::topology` updated to use the canonical replacements: `AgentIdentity` (was `MeshNode`) and `NetworkError` (was `MeshError`). Only `FederationGateway`, `FederationPolicy`, `MeshTopology`, and `TopologyType` are now exported from `mesh::*`.
 
 - **BrainClaw workspace** — BrainClaw is now a self-contained Cargo workspace at `extras/brainclaw/`, excluded from the root workspace via `[workspace].exclude`. Members use path dependencies back to `crates/` for framework libraries.
 - **Docker Dockerfile** — Moved `extras/docker/Dockerfile.sandbox` to `crates/brainwires-code-interpreters/docker/` where it belongs alongside the crate it supports.

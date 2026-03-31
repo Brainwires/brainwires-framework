@@ -17,9 +17,9 @@
 //!
 //! ```toml
 //! [dependencies]
-//! brainwires-hardware = { version = "0.6", features = ["audio", "gpio", "bluetooth", "network"] }
+//! brainwires-hardware = { version = "0.7", features = ["audio", "gpio", "bluetooth", "network"] }
 //! # or enable everything:
-//! brainwires-hardware = { version = "0.6", features = ["full"] }
+//! brainwires-hardware = { version = "0.7", features = ["full"] }
 //! ```
 //!
 //! ### Audio
