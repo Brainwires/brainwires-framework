@@ -235,6 +235,9 @@ impl ChatSession {
                     });
                 }
                 StreamChunk::Done => {}
+                StreamChunk::ContextCompacted { .. } => {
+                    // Context compaction is handled by the agent layer; chat session ignores it
+                }
             }
         }
 

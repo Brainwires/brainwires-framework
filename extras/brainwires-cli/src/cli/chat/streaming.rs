@@ -164,6 +164,9 @@ pub async fn process_chat_stream(
             StreamChunk::ToolUse { .. } | StreamChunk::ToolInputDelta { .. } => {
                 // These are for other tool formats, ignore
             }
+            StreamChunk::ContextCompacted { .. } => {
+                // Context compaction is handled by the agent layer
+            }
         }
     }
 

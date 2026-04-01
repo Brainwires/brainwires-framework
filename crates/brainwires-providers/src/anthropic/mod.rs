@@ -556,6 +556,17 @@ pub struct AnthropicStreamEvent {
     pub delta: Option<AnthropicDelta>,
     /// Token usage statistics, if present.
     pub usage: Option<AnthropicUsage>,
+    /// Summary text from a `context_window_management_event`.
+    ///
+    /// Present only when `event_type == "context_window_management_event"`.
+    /// Contains the model-generated summary that replaces the compacted history.
+    #[serde(default)]
+    pub summary: Option<String>,
+    /// Approximate tokens freed by context compaction.
+    ///
+    /// Present only when `event_type == "context_window_management_event"`.
+    #[serde(default)]
+    pub tokens_freed: Option<u32>,
 }
 
 /// An incremental delta within a streaming Anthropic event.
@@ -660,34 +671,34 @@ mod tests {
 
     #[test]
     fn test_anthropic_client_new() {
-        let client = AnthropicClient::new("test-key".to_string(), "claude-3-sonnet".to_string());
+        let client = AnthropicClient::new("test-key".to_string(), "claude-sonnet-4-6".to_string());
         assert_eq!(client.api_key(), Some("test-key"));
-        assert_eq!(client.model, "claude-3-sonnet");
+        assert_eq!(client.model, "claude-sonnet-4-6");
     }
 
     #[test]
     fn test_client_model_accessor() {
-        let client = AnthropicClient::new("test-key".to_string(), "claude-3-sonnet".to_string());
-        assert_eq!(client.model(), "claude-3-sonnet");
+        let client = AnthropicClient::new("test-key".to_string(), "claude-sonnet-4-6".to_string());
+        assert_eq!(client.model(), "claude-sonnet-4-6");
     }
 
     #[test]
     fn test_client_api_key_accessor() {
-        let client = AnthropicClient::new("test-key".to_string(), "claude-3-sonnet".to_string());
+        let client = AnthropicClient::new("test-key".to_string(), "claude-sonnet-4-6".to_string());
         assert_eq!(client.api_key(), Some("test-key"));
     }
 
     #[test]
     fn test_anthropic_client_with_empty_api_key() {
-        let client = AnthropicClient::new("".to_string(), "claude-3-sonnet".to_string());
+        let client = AnthropicClient::new("".to_string(), "claude-sonnet-4-6".to_string());
         assert_eq!(client.api_key(), Some(""));
-        assert_eq!(client.model, "claude-3-sonnet");
+        assert_eq!(client.model, "claude-sonnet-4-6");
     }
 
     #[test]
     fn test_anthropic_client_with_special_characters_in_api_key() {
         let api_key = "sk-ant-api03-!@#$%^&*()_+-=[]{}|;':\",./<>?".to_string();
-        let client = AnthropicClient::new(api_key.clone(), "claude-3-opus".to_string());
+        let client = AnthropicClient::new(api_key.clone(), "claude-opus-4-6".to_string());
         assert_eq!(client.api_key(), Some(api_key.as_str()));
     }
 
@@ -700,6 +711,9 @@ mod tests {
             "claude-2.1",
             "claude-2.0",
             "custom-model-123",
+            // Claude 4.6 generation
+            "claude-sonnet-4-6",
+            "claude-opus-4-6",
         ];
 
         for model in models {
@@ -716,14 +730,14 @@ mod tests {
 
     #[test]
     fn test_resolve_url_anthropic() {
-        let client = AnthropicClient::new("key".to_string(), "claude-3-sonnet".to_string());
+        let client = AnthropicClient::new("key".to_string(), "claude-sonnet-4-6".to_string());
         assert_eq!(client.resolve_url(false), ANTHROPIC_API_URL);
         assert_eq!(client.resolve_url(true), ANTHROPIC_API_URL);
     }
 
     #[test]
     fn test_backend_label() {
-        let client = AnthropicClient::new("key".to_string(), "claude-3-sonnet".to_string());
+        let client = AnthropicClient::new("key".to_string(), "claude-sonnet-4-6".to_string());
         assert_eq!(client.backend_label(), "Anthropic");
     }
 
@@ -738,7 +752,7 @@ mod tests {
         );
         let client = AnthropicClient::bedrock(
             auth,
-            "anthropic.claude-3-5-sonnet-20241022-v2:0".to_string(),
+            "anthropic.claude-sonnet-4-6-v1:0".to_string(),
         );
         assert_eq!(client.api_key(), None);
         assert_eq!(client.backend_label(), "Bedrock");
@@ -768,7 +782,7 @@ mod tests {
     #[test]
     fn test_vertex_client() {
         let auth = vertex::VertexAuth::new("my-project".to_string(), "us-central1".to_string());
-        let client = AnthropicClient::vertex(auth, "claude-3-5-sonnet-v2@20241022".to_string());
+        let client = AnthropicClient::vertex(auth, "claude-sonnet-4-6".to_string());
         assert_eq!(client.api_key(), None);
         assert_eq!(client.backend_label(), "Vertex AI");
         assert!(client.resolve_url(false).contains("rawPredict"));
@@ -779,7 +793,7 @@ mod tests {
     #[test]
     fn test_anthropic_request_serialization() {
         let req = AnthropicRequest {
-            model: "claude-3-sonnet".to_string(),
+            model: "claude-sonnet-4-6".to_string(),
             messages: vec![AnthropicMessage {
                 role: "user".to_string(),
                 content: vec![AnthropicContentBlock::Text {
@@ -796,7 +810,7 @@ mod tests {
         };
 
         let json = serde_json::to_value(&req).unwrap();
-        assert_eq!(json["model"], "claude-3-sonnet");
+        assert_eq!(json["model"], "claude-sonnet-4-6");
         assert_eq!(json["max_tokens"], 4096);
         let temp = json["temperature"].as_f64().unwrap();
         assert!(
@@ -926,9 +940,9 @@ mod tests {
 
     #[test]
     fn test_build_body_anthropic() {
-        let client = AnthropicClient::new("key".to_string(), "claude-3-sonnet".to_string());
+        let client = AnthropicClient::new("key".to_string(), "claude-sonnet-4-6".to_string());
         let req = AnthropicRequest {
-            model: "claude-3-sonnet".to_string(),
+            model: "claude-sonnet-4-6".to_string(),
             messages: vec![],
             system: None,
             max_tokens: 1024,
@@ -939,7 +953,7 @@ mod tests {
             stream: false,
         };
         let body = client.build_body(&req, false);
-        assert_eq!(body["model"], "claude-3-sonnet");
+        assert_eq!(body["model"], "claude-sonnet-4-6");
         assert_eq!(body["stream"], false);
     }
 }

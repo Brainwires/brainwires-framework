@@ -127,6 +127,9 @@ impl Provider for BrainwiresHttpProvider {
                 StreamChunk::ToolUse { .. } | StreamChunk::ToolInputDelta { .. } => {
                     // Not used by brainwires backend
                 }
+                StreamChunk::ContextCompacted { .. } => {
+                    // Context compaction is handled by the agent layer; relay ignores it
+                }
             }
         }
 
