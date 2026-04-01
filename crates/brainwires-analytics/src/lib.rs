@@ -49,7 +49,9 @@
 pub mod collector;
 pub mod error;
 pub mod events;
+pub mod export;
 pub mod layer;
+pub mod pii;
 pub mod schema;
 pub mod sink;
 pub mod sinks;
@@ -62,7 +64,7 @@ pub use error::{AnalyticsError, AnalyticsResult};
 pub use events::AnalyticsEvent;
 pub use layer::AnalyticsLayer;
 pub use sink::{AnalyticsSink, BoxedSink};
-pub use sinks::memory::MemoryAnalyticsSink;
+pub use sinks::memory::{DEFAULT_CAPACITY, MemoryAnalyticsSink};
 
 #[cfg(feature = "sqlite")]
 pub use sinks::sqlite::SqliteAnalyticsSink;

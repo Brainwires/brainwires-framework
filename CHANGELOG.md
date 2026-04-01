@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### MCP 2026 Spec Compliance (`brainwires-mcp-server`, `brainwires-mcp`)
+
+- **Streamable HTTP transport** (`brainwires-mcp-server`, feature `http`) — `HttpServerTransport` implements the MCP 2026 stateless HTTP transport: `POST /mcp` for JSON-RPC and `GET /mcp/events` SSE for server-initiated messages. Slots into the existing `ServerTransport` trait, wired with a bounded `mpsc` channel (`REQUEST_CHANNEL_CAPACITY = 128`), configurable request timeout (`REQUEST_TIMEOUT_SECS = 30`), and SSE keep-alive pings (`SSE_KEEPALIVE_INTERVAL_SECS = 15`).
+- **MCP Server Cards** (SEP-1649) — `GET /.well-known/mcp/server-card.json` endpoint served by `HttpServerTransport`. Types: `McpServerCard`, `McpToolCardEntry`, `McpAuthInfo`, `McpTransportInfo`. Builder: `build_server_card()`. All re-exported from `brainwires-mcp-server`.
+- **RFC9728 OAuth Protected Resource** — `GET /.well-known/oauth-protected-resource` endpoint served by `HttpServerTransport`. `OAuthProtectedResource` type with `resource`, `authorization_servers`, `scopes_supported`, `bearer_methods_supported`.
+- **OAuth 2.1 JWT validation middleware** (`brainwires-mcp-server`, feature `oauth`) — `OAuthMiddleware` validates `Authorization: Bearer` JWTs via HS256 (shared secret) or RS256 (RSA public key PEM). Configurable `iss`/`aud` claim enforcement. `initialize` method is always unauthenticated per MCP spec. Validated state is cached per-session in `RequestContext` metadata.
+- **MCP Tasks primitive** (SEP-1686) — `McpTaskStore` thread-safe in-memory store with full 5-state lifecycle: `Working → Completed`, `Working → Failed`, `Working → Cancelled`, `Working ↔ InputRequired`. TTL-based expiry with `evict_expired()`. Typed accessors: `complete()`, `fail()`, `cancel()`, `update_state()`. `DEFAULT_MAX_RETRIES = 3`. Re-exported from `brainwires-mcp-server`.
+- **HTTP client transport** (`brainwires-mcp`, feature `http`) — `HttpTransport` implements stateless JSON-RPC-over-HTTP: buffers requests in `send_request()`, POSTs to `{base_url}/mcp` in `receive_response()`/`receive_message()`. `Transport::Http(HttpTransport)` variant added. Re-exported as `brainwires_mcp::HttpTransport` (requires both `native` + `http` features).
+
+#### Claude 4.6 + Context Compaction
+
+- **Claude 4.6 model IDs** — Default models updated across the provider registry: Anthropic → `claude-sonnet-4-6`, Bedrock → `anthropic.claude-sonnet-4-6-v1:0`, VertexAI → `claude-sonnet-4-6`. OpenAI Responses API default updated to `gpt-5-mini`.
+- **Context compaction handling** (`brainwires-core`, `brainwires-providers`, `brainwires-agents`) — New `StreamChunk::ContextCompacted { summary, tokens_freed }` variant. The Anthropic provider emits it when a `context_window_management_event` arrives mid-stream. `ChatAgent` handles it by replacing conversation history with the system prompt + a synthetic assistant summary message, with a `tracing::info!` log. All other streaming consumers (`brainwires-providers/brainwires_http`, `agent-chat`, `brainwires-cli`) handle the variant as a no-op.
+
+#### EU AI Act Audit Logging (`brainwires-analytics`)
+
+- **`ComplianceMetadata`** — New struct with `data_region`, `pii_present`, `retention_days`, `regulation`, `audit_required` fields. Added as `Option<ComplianceMetadata>` (`#[serde(default)]`) to `ProviderCall` and `AgentRun` event variants — fully backward-compatible with existing serialized events.
+- **`AuditExporter`** — Time-range filtered export from `MemoryAnalyticsSink`: `export_json()` (JSON array), `export_csv()` (CSV with `event_type,session_id,timestamp,payload_json` columns), `apply_retention_policy(days)` (removes events older than N days, returns deleted count).
+- **`PiiRedactionRules`** / `redact_event()`** — Configurable PII scrubbing: `hash_session_ids` (one-way `DefaultHasher` hash), `redact_prompt_content` (replaces `Custom` payload with `"[REDACTED]"`), `custom_patterns` (substring matching in string fields). `redact_event()` is pure — returns a new scrubbed event leaving the original intact.
+- **`MemoryAnalyticsSink` helpers** — Added `deposit()` (sync record), `drain_matching(pred)` (filter-drain), `retain(pred)` (filter-in-place, returns removed count). `DEFAULT_CAPACITY = 1_000` constant re-exported from `brainwires_analytics`.
+
 #### New Crates
 
 - **`brainwires-system`** — Generic OS-level primitives extracted from `brainwires-autonomy`

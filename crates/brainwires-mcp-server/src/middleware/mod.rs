@@ -2,6 +2,9 @@
 pub mod auth;
 /// Request logging middleware.
 pub mod logging;
+/// OAuth 2.1 JWT validation middleware.
+#[cfg(feature = "oauth")]
+pub mod oauth;
 /// Rate limiting middleware.
 pub mod rate_limit;
 /// Tool filtering middleware.

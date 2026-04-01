@@ -1,6 +1,29 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+/// Compliance metadata attached to auditable events (EU AI Act, HIPAA, SOC2).
+///
+/// All fields are optional so existing serialized events deserialise correctly
+/// when this field is absent (`#[serde(default)]`).
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ComplianceMetadata {
+    /// ISO 3166-1 alpha-2 region where data was processed (e.g. `"EU"`, `"US"`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data_region: Option<String>,
+    /// Whether the event payload may contain PII.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pii_present: Option<bool>,
+    /// Number of days this record must be retained before it can be deleted.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub retention_days: Option<u32>,
+    /// Applicable regulation identifier (e.g. `"GDPR"`, `"HIPAA"`, `"EU_AI_ACT"`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub regulation: Option<String>,
+    /// Whether this event requires inclusion in a compliance audit trail.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub audit_required: Option<bool>,
+}
+
 /// A typed analytics event emitted anywhere in the framework.
 ///
 /// All variants are self-contained (no imports from other brainwires crates)
@@ -20,6 +43,9 @@ pub enum AnalyticsEvent {
         cost_usd: f64,
         success: bool,
         timestamp: DateTime<Utc>,
+        /// Optional compliance metadata for audit / data-residency tracking.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        compliance: Option<ComplianceMetadata>,
     },
 
     /// A TaskAgent run completed.
@@ -39,6 +65,9 @@ pub enum AnalyticsEvent {
         duration_ms: u64,
         failure_category: Option<String>,
         timestamp: DateTime<Utc>,
+        /// Optional compliance metadata for audit / data-residency tracking.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        compliance: Option<ComplianceMetadata>,
     },
 
     /// A single tool call within an agent run.
@@ -202,6 +231,7 @@ mod tests {
             cost_usd: 0.01,
             success: true,
             timestamp: now(),
+            compliance: None,
         }
     }
 
@@ -230,6 +260,7 @@ mod tests {
                     duration_ms: 0,
                     failure_category: None,
                     timestamp: ts,
+                    compliance: None,
                 },
             ),
             (
@@ -421,6 +452,7 @@ mod tests {
             duration_ms: 2000,
             failure_category: None,
             timestamp: now(),
+            compliance: None,
         };
         let json = serde_json::to_string(&event).unwrap();
         let back: AnalyticsEvent = serde_json::from_str(&json).unwrap();

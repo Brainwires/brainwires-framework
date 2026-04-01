@@ -15,18 +15,30 @@ categories = ["network-programming"]
 
 [dependencies]
 brainwires-mcp = { workspace = true }
-tokio = { workspace = true, features = ["io-std", "io-util", "sync", "macros"] }
+tokio = { workspace = true, features = ["io-std", "io-util", "sync", "macros", "net"] }
 async-trait = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
+futures = { workspace = true }
 thiserror = { workspace = true }
+uuid = { workspace = true }
 tracing = { workspace = true }
 brainwires-analytics = { workspace = true, optional = true }
 chrono = { workspace = true, optional = true }
+# HTTP transport
+axum = { workspace = true, optional = true }
+tokio-stream = { workspace = true, optional = true }
+# OAuth 2.1 JWT validation
+jsonwebtoken = { version = "9", optional = true }
+reqwest = { workspace = true, optional = true }
 
 [dev-dependencies]
-tokio = { workspace = true, features = ["test-util"] }
+tokio = { workspace = true, features = ["test-util", "net"] }
 chrono = { workspace = true }
+reqwest = { workspace = true }
 
 [features]
 analytics = ["dep:brainwires-analytics", "brainwires-analytics/native", "dep:chrono"]
+http = ["dep:axum", "dep:tokio-stream"]
+oauth = ["dep:jsonwebtoken", "dep:reqwest"]

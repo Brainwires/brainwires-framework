@@ -27,6 +27,8 @@ pub mod types;
 pub use client::McpClient;
 #[cfg(feature = "native")]
 pub use transport::{StdioTransport, Transport};
+#[cfg(all(feature = "native", feature = "http"))]
+pub use transport::HttpTransport;
 
 // Re-exports - always available
 #[cfg(feature = "native")]
