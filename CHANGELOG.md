@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+#### New Extras
+
+- **`brainwires-scheduler`** — Local-machine MCP server for cron-based job scheduling with optional per-job Docker sandboxing
+  - 9 MCP tools: `add_job`, `remove_job`, `list_jobs`, `get_job`, `enable_job`, `disable_job`, `run_job`, `get_logs`, `status`
+  - Native and optional per-job Docker sandbox execution (`--memory`, `--cpus`, `--network=none`, volume mounts)
+  - JSON-backed persistence at `~/.brainwires/scheduler/`; per-run log files with configurable retention (default: 20 per job)
+  - Bounded concurrency via semaphore; `Ignore`/`Retry`/`Disable` failure policies; SIGTERM + Ctrl+C graceful shutdown with in-flight drain
+  - stdio transport (primary, for Claude Code MCP integration) + optional HTTP via `--http <addr>`
+  - 36 unit tests covering executor, store, daemon cron logic, and retry policy permutations
+
 ## [0.7.0] - 2026-03-31
 
 ### Added

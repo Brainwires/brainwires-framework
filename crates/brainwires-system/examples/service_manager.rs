@@ -1,11 +1,11 @@
 //! Example: Service Manager — safety policies, allow/deny lists, and operations.
 //!
 //! ```bash
-//! cargo run -p brainwires-autonomy --example service_manager --features services
+//! cargo run -p brainwires-system --example service_manager --features services
 //! ```
 
-use brainwires_autonomy::config::ServiceConfig;
-use brainwires_autonomy::services::{
+use brainwires_system::config::ServiceConfig;
+use brainwires_system::services::{
     CRITICAL_SERVICES, ServiceInfo, ServiceOperation, ServiceSafety, ServiceStatus, ServiceType,
 };
 

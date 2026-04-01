@@ -209,6 +209,18 @@ pub mod autonomy {
     pub use brainwires_autonomy::*;
 }
 
+/// Generic OS-level primitives — filesystem event reactor, service management.
+#[cfg(feature = "system")]
+pub mod system {
+    pub use brainwires_system::*;
+}
+
+/// Offline memory consolidation — summarization, fact extraction, hot/warm/cold tier transitions.
+#[cfg(feature = "dream")]
+pub mod dream {
+    pub use brainwires_cognition::dream::*;
+}
+
 /// Analytics — typed event collection, SQLite persistence, and cost/usage queries.
 #[cfg(feature = "analytics")]
 pub mod analytics {

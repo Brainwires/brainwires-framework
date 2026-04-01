@@ -97,6 +97,9 @@ zip = { version = "8", optional = true }
 [features]
 default = ["knowledge", "prompting"]
 
+# Dream — offline memory consolidation, summarization, fact extraction
+dream = ["dep:futures", "dep:async-trait"]
+
 # Knowledge graph, entities, thoughts, brain client (from brainwires-brain)
 knowledge = [
     "dep:brainwires-storage", "brainwires-storage/native",
@@ -170,7 +173,7 @@ stack-graphs = []
 native = [
     "knowledge", "prompting", "prompting-storage", "spectral",
     "rag", "code-analysis", "tree-sitter-languages",
-    "documents", "pdf-extract-feature",
+    "documents", "pdf-extract-feature", "dream",
 ]
 
 # WASM = lightweight

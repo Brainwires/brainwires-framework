@@ -1,11 +1,11 @@
 //! Example: File System Reactor — rules, debouncing, and event matching.
 //!
 //! ```bash
-//! cargo run -p brainwires-autonomy --example fs_reactor --features reactor
+//! cargo run -p brainwires-system --example fs_reactor --features reactor
 //! ```
 
-use brainwires_autonomy::config::ReactorConfig;
-use brainwires_autonomy::reactor::{EventDebouncer, FsEventType, ReactorAction, ReactorRule};
+use brainwires_system::config::ReactorConfig;
+use brainwires_system::reactor::{EventDebouncer, FsEventType, ReactorAction, ReactorRule};
 
 fn main() {
     println!("=== File System Reactor Example ===\n");
