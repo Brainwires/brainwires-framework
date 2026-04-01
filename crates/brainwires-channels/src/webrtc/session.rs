@@ -17,6 +17,7 @@
 //!
 //! Subscribe to all events with [`WebRtcSession::subscribe`].
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
@@ -30,10 +31,12 @@ use webrtc::media_stream::MediaStreamTrack;
 use webrtc::media_stream::track_local::TrackLocal;
 use webrtc::media_stream::track_local::static_sample::TrackLocalStaticSample;
 use webrtc::media_stream::track_remote::TrackRemote;
+use webrtc::media_stream::track_remote::TrackRemoteEvent;
 use webrtc::peer_connection::{
-    MediaEngine, PeerConnection, PeerConnectionBuilder, PeerConnectionEventHandler, Registry,
-    RTCIceConnectionState, RTCPeerConnectionIceEvent, RTCPeerConnectionState, RTCSessionDescription,
-    register_default_interceptors,
+    MediaEngine, MulticastDnsMode, PeerConnection, PeerConnectionBuilder,
+    PeerConnectionEventHandler, Registry, RTCIceConnectionState, RTCIceGatheringState,
+    RTCPeerConnectionIceEvent, RTCPeerConnectionState, RTCSessionDescription, RTCSignalingState,
+    SettingEngine, register_default_interceptors,
 };
 use rtc::rtp_transceiver::rtp_sender::{
     RTCRtpCodec, RTCRtpCodingParameters, RTCRtpEncodingParameters, RtpCodecKind,
@@ -44,9 +47,10 @@ use crate::events::ChannelEvent;
 use crate::identity::ConversationId;
 
 use super::config::{AudioCodec, VideoCodec, WebRtcConfig};
+use super::config::DtlsRole;
 use super::track::{
-    AudioTrack, DataChannel, DataChannelConfig, DataChannelMessage, MediaTrack, TrackDirection,
-    TrackId, VideoTrack,
+    AudioTrack, DataChannel, DataChannelConfig, DataChannelMessage, MediaTrack, RemoteTrack,
+    TrackDirection, TrackId, VideoTrack,
 };
 
 // ── Identifier ────────────────────────────────────────────────────────────────
@@ -123,6 +127,7 @@ struct SessionState {
     peer_connection_state: PeerConnectionState,
     ice_connection_state: IceConnectionState,
     local_tracks: Vec<MediaTrack>,
+    remote_tracks: HashMap<TrackId, Arc<RemoteTrack>>,
 }
 
 // ── Event handler ─────────────────────────────────────────────────────────────
@@ -189,26 +194,88 @@ impl PeerConnectionEventHandler for SessionEventHandler {
         });
     }
 
+    async fn on_ice_gathering_state_change(&self, state: RTCIceGatheringState) {
+        if state == RTCIceGatheringState::Complete {
+            let _ = self.event_tx.send(ChannelEvent::IceGatheringComplete {
+                session_id: self.session_id.clone(),
+                conversation: self.conversation.clone(),
+            });
+        }
+    }
+
+    async fn on_signaling_state_change(&self, state: RTCSignalingState) {
+        let mapped = match state {
+            RTCSignalingState::Stable => SignalingState::Stable,
+            RTCSignalingState::HaveLocalOffer => SignalingState::HaveLocalOffer,
+            RTCSignalingState::HaveRemoteOffer => SignalingState::HaveRemoteOffer,
+            RTCSignalingState::HaveLocalPranswer => SignalingState::HaveLocalPrAnswer,
+            RTCSignalingState::HaveRemotePranswer => SignalingState::HaveRemotePrAnswer,
+            RTCSignalingState::Closed => SignalingState::Closed,
+            _ => return,
+        };
+        self.state.write().await.signaling_state = mapped.clone();
+        let _ = self.event_tx.send(ChannelEvent::SignalingStateChanged {
+            session_id: self.session_id.clone(),
+            state: mapped,
+            conversation: self.conversation.clone(),
+        });
+    }
+
     async fn on_track(&self, track: Arc<dyn TrackRemote>) {
         let kind = match track.kind().await {
             RtpCodecKind::Audio => "audio",
             RtpCodecKind::Video => "video",
             _ => "unknown",
         };
-        let track_id = track.track_id().await.to_string();
+        let track_id = TrackId::new(track.track_id().await.to_string());
         let ssrcs = track.ssrcs().await;
         let codec = if let Some(&ssrc) = ssrcs.first() {
             track.codec(ssrc).await.map(|c| c.mime_type.clone())
         } else {
             None
         };
+
+        // Store the remote track so callers can read RTP frames via get_remote_track().
+        let remote_track = Arc::new(RemoteTrack::new(
+            track_id.clone(),
+            kind.to_string(),
+            codec.clone(),
+            track.clone(),
+        ));
+        self.state
+            .write()
+            .await
+            .remote_tracks
+            .insert(track_id.clone(), Arc::clone(&remote_track));
+
         let _ = self.event_tx.send(ChannelEvent::TrackAdded {
             session_id: self.session_id.clone(),
-            track_id: TrackId::new(track_id),
+            track_id: track_id.clone(),
             kind: kind.to_string(),
             codec,
             direction: TrackDirection::RecvOnly,
             conversation: self.conversation.clone(),
+        });
+
+        // Spawn a task that watches for OnEnded and emits TrackRemoved.
+        let session_id = self.session_id.clone();
+        let conversation = self.conversation.clone();
+        let event_tx = self.event_tx.clone();
+        let state = Arc::clone(&self.state);
+        let tid = track_id;
+        tokio::spawn(async move {
+            loop {
+                match track.poll().await {
+                    Some(TrackRemoteEvent::OnEnded) | None => break,
+                    _ => {}
+                }
+            }
+            state.write().await.remote_tracks.remove(&tid);
+            let _ = event_tx.send(ChannelEvent::TrackRemoved {
+                session_id,
+                track_id: tid,
+                conversation,
+            });
         });
     }
 
@@ -264,6 +331,9 @@ pub struct WebRtcSession {
     state: Arc<RwLock<SessionState>>,
     /// Broadcast channel through which all `ChannelEvent`s emitted by this session flow.
     event_tx: broadcast::Sender<ChannelEvent>,
+    /// GCC bandwidth estimation handle (available only with the `webrtc-advanced` feature).
+    #[cfg(feature = "webrtc-advanced")]
+    gcc_handle: std::sync::Mutex<Option<rtc_interceptor::GccHandle>>,
 }
 
 impl WebRtcSession {
@@ -282,8 +352,11 @@ impl WebRtcSession {
                 peer_connection_state: PeerConnectionState::New,
                 ice_connection_state: IceConnectionState::New,
                 local_tracks: Vec::new(),
+                remote_tracks: HashMap::new(),
             })),
             event_tx,
+            #[cfg(feature = "webrtc-advanced")]
+            gcc_handle: std::sync::Mutex::new(None),
         }
     }
 
@@ -299,9 +372,45 @@ impl WebRtcSession {
         let mut media_engine = MediaEngine::default();
         media_engine
             .register_default_codecs()
-            .map_err(|e| anyhow!("{e}"))?;
-        let registry = register_default_interceptors(Registry::new(), &mut media_engine)
-            .map_err(|e| anyhow!("{e}"))?;
+            .map_err(|e| anyhow!("register codecs: {e}"))?;
+
+        // Build the base interceptor chain: NACK, RTCP reports, TwccReceiver, simulcast.
+        let base_registry = register_default_interceptors(Registry::new(), &mut media_engine)
+            .map_err(|e| anyhow!("register interceptors: {e}"))?;
+
+        // With `webrtc-advanced`, layer on JitterBuffer + TwccSender + GCC.
+        #[cfg(feature = "webrtc-advanced")]
+        let registry = {
+            use rtc_interceptor::{GccInterceptorBuilder, JitterBufferBuilder, TwccSenderBuilder};
+            let bw = &self.config.bandwidth;
+            let (gcc_builder_raw, gcc_handle) = GccInterceptorBuilder::new();
+            let gcc_builder = gcc_builder_raw
+                .with_min_bitrate(bw.min_bps)
+                .with_max_bitrate(bw.max_bps);
+            if let Ok(mut lock) = self.gcc_handle.lock() {
+                *lock = Some(gcc_handle);
+            }
+            base_registry
+                .with(TwccSenderBuilder::new().build())
+                .with(gcc_builder.build())
+                .with(JitterBufferBuilder::new().build())
+        };
+        #[cfg(not(feature = "webrtc-advanced"))]
+        let registry = base_registry;
+
+        // Apply DTLS role via SettingEngine (only when not Auto).
+        let mut setting_engine = SettingEngine::default();
+        if self.config.dtls_role != DtlsRole::Auto {
+            use rtc::peer_connection::transport::RTCDtlsRole;
+            let role = match self.config.dtls_role {
+                DtlsRole::Client => RTCDtlsRole::Client,
+                DtlsRole::Server => RTCDtlsRole::Server,
+                DtlsRole::Auto => unreachable!(),
+            };
+            setting_engine
+                .set_answering_dtls_role(role)
+                .map_err(|e| anyhow!("set dtls_role: {e}"))?;
+        }
 
         let handler = Arc::new(SessionEventHandler {
             session_id: self.id.clone(),
@@ -310,16 +419,30 @@ impl WebRtcSession {
             state: self.state.clone(),
         });
 
+        let bind_addrs = self.config.bind_addresses.clone();
+
+        let mut builder = PeerConnectionBuilder::new()
+            .with_configuration(rtc_config)
+            .with_media_engine(media_engine)
+            .with_interceptor_registry(registry)
+            .with_setting_engine(setting_engine)
+            .with_handler(handler as Arc<dyn PeerConnectionEventHandler>)
+            .with_mdns_mode(if self.config.mdns_enabled {
+                MulticastDnsMode::QueryAndGather
+            } else {
+                MulticastDnsMode::Disabled
+            })
+            .with_udp_addrs(bind_addrs.clone());
+
+        if self.config.tcp_candidates_enabled {
+            builder = builder.with_tcp_addrs(bind_addrs);
+        }
+
         let pc: Arc<dyn PeerConnection> = Arc::new(
-            PeerConnectionBuilder::new()
-                .with_configuration(rtc_config)
-                .with_media_engine(media_engine)
-                .with_interceptor_registry(registry)
-                .with_handler(handler as Arc<dyn PeerConnectionEventHandler>)
-                .with_udp_addrs(vec!["0.0.0.0:0"])
+            builder
                 .build()
                 .await
-                .map_err(|e| anyhow!("{e}"))?,
+                .map_err(|e| anyhow!("build PeerConnection: {e}"))?,
         );
 
         *self.peer_connection.write().await = Some(pc);
@@ -569,6 +692,31 @@ impl WebRtcSession {
 
     pub async fn ice_connection_state(&self) -> IceConnectionState {
         self.state.read().await.ice_connection_state.clone()
+    }
+
+    // ── Remote tracks ─────────────────────────────────────────────────────────
+
+    /// Look up a remote track received from the peer by its [`TrackId`].
+    ///
+    /// Returns `None` if the track has not yet arrived or has already ended.
+    /// The [`TrackId`] is available in the [`ChannelEvent::TrackAdded`] payload.
+    pub async fn get_remote_track(&self, id: &TrackId) -> Option<Arc<RemoteTrack>> {
+        self.state.read().await.remote_tracks.get(id).cloned()
+    }
+
+    // ── Bandwidth estimation ───────────────────────────────────────────────────
+
+    /// Query the current GCC target bitrate in bps.
+    ///
+    /// Returns `None` before the first TWCC feedback cycle completes.
+    /// Only available with the `webrtc-advanced` feature.
+    #[cfg(feature = "webrtc-advanced")]
+    pub fn target_bitrate_bps(&self) -> Option<u32> {
+        self.gcc_handle
+            .lock()
+            .ok()?
+            .as_ref()
+            .and_then(|h| h.target_bitrate_bps())
     }
 
     // ── Close ─────────────────────────────────────────────────────────────────

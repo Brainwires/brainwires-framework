@@ -10,6 +10,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use webrtc::media_stream::track_local::static_sample::TrackLocalStaticSample;
+use webrtc::media_stream::track_remote::TrackRemote;
+pub use webrtc::media_stream::track_remote::TrackRemoteEvent;
 
 // ── TrackId ───────────────────────────────────────────────────────────────────
 
@@ -201,6 +203,43 @@ impl VideoTrack {
             .write_sample(self.ssrc, sample, &[])
             .await
             .map_err(|e| anyhow::anyhow!("{e}"))
+    }
+}
+
+// ── RemoteTrack ───────────────────────────────────────────────────────────────
+
+/// A handle to an incoming remote media track from a WebRTC PeerConnection.
+///
+/// Use [`poll`](RemoteTrack::poll) to receive RTP packets and lifecycle events.
+/// The track is available via [`WebRtcSession::get_remote_track`] after a
+/// [`ChannelEvent::TrackAdded`](crate::events::ChannelEvent::TrackAdded) is received.
+pub struct RemoteTrack {
+    /// Unique identifier for this track.
+    pub id: TrackId,
+    /// Media kind: `"audio"` or `"video"`.
+    pub kind: String,
+    /// Negotiated codec MIME type (e.g. `"audio/opus"`, `"video/VP8"`), if known.
+    pub codec: Option<String>,
+    pub(crate) inner: Arc<dyn TrackRemote>,
+}
+
+impl RemoteTrack {
+    pub(crate) fn new(
+        id: TrackId,
+        kind: String,
+        codec: Option<String>,
+        inner: Arc<dyn TrackRemote>,
+    ) -> Self {
+        Self { id, kind, codec, inner }
+    }
+
+    /// Poll for the next event from this remote track.
+    ///
+    /// Returns `None` when the track has ended or an unrecoverable error occurred.
+    /// Yields [`TrackRemoteEvent::OnRtpPacket`] for each incoming RTP packet,
+    /// and [`TrackRemoteEvent::OnEnded`] when the remote side stops the track.
+    pub async fn poll(&self) -> Option<TrackRemoteEvent> {
+        self.inner.poll().await
     }
 }
 

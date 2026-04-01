@@ -127,6 +127,11 @@ pub struct WebRtcConfig {
     pub mdns_enabled: bool,
     /// Also gather TCP ICE candidates (useful when UDP is blocked by firewalls).
     pub tcp_candidates_enabled: bool,
+    /// Local addresses to bind to for ICE candidate gathering.
+    ///
+    /// Defaults to `["0.0.0.0:0"]` (all interfaces, OS-assigned port).
+    /// Use specific IPs to restrict to a particular network interface.
+    pub bind_addresses: Vec<String>,
 }
 
 impl Default for WebRtcConfig {
@@ -143,6 +148,7 @@ impl Default for WebRtcConfig {
             dtls_role: DtlsRole::Auto,
             mdns_enabled: false,
             tcp_candidates_enabled: true,
+            bind_addresses: vec!["0.0.0.0:0".to_string()],
         }
     }
 }
@@ -206,6 +212,7 @@ mod tests {
             dtls_role: DtlsRole::Client,
             mdns_enabled: true,
             tcp_candidates_enabled: false,
+            bind_addresses: vec!["192.168.1.1:0".to_string()],
         };
 
         let json = serde_json::to_string(&config).unwrap();
@@ -217,6 +224,7 @@ mod tests {
         assert!(rt.mdns_enabled);
         assert!(!rt.tcp_candidates_enabled);
         assert_eq!(rt.bandwidth.min_bps, 50_000);
+        assert_eq!(rt.bind_addresses, vec!["192.168.1.1:0"]);
     }
 
     #[test]

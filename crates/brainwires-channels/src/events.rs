@@ -8,7 +8,7 @@ use crate::message::{ChannelMessage, MessageId, ThreadId};
 
 #[cfg(feature = "webrtc")]
 use crate::webrtc::{
-    session::{IceConnectionState, PeerConnectionState, WebRtcSessionId},
+    session::{IceConnectionState, PeerConnectionState, SignalingState, WebRtcSessionId},
     track::{DataChannelMessage, TrackDirection, TrackId},
 };
 
@@ -164,6 +164,26 @@ pub enum ChannelEvent {
         session_id: WebRtcSessionId,
         /// The new ICE connection state.
         state: IceConnectionState,
+        /// The conversation context.
+        conversation: ConversationId,
+    },
+
+    /// ICE candidate gathering has completed; no further candidates will be gathered.
+    #[cfg(feature = "webrtc")]
+    IceGatheringComplete {
+        /// The WebRTC session that finished ICE gathering.
+        session_id: WebRtcSessionId,
+        /// The conversation context.
+        conversation: ConversationId,
+    },
+
+    /// The SDP signaling state changed.
+    #[cfg(feature = "webrtc")]
+    SignalingStateChanged {
+        /// The WebRTC session whose signaling state changed.
+        session_id: WebRtcSessionId,
+        /// The new signaling state.
+        state: SignalingState,
         /// The conversation context.
         conversation: ConversationId,
     },

@@ -61,8 +61,8 @@ pub use signaling::{
     SIGNALING_METADATA_KEY,
 };
 pub use track::{
-    AudioTrack, DataChannel, DataChannelConfig, DataChannelMessage, MediaTrack, TrackDirection,
-    TrackId, VideoTrack,
+    AudioTrack, DataChannel, DataChannelConfig, DataChannelMessage, MediaTrack, RemoteTrack,
+    TrackDirection, TrackId, TrackRemoteEvent, VideoTrack,
 };
 
 // ── WebRtcChannel trait ───────────────────────────────────────────────────────

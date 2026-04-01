@@ -43,8 +43,7 @@ pub use webrtc::{
     // Trait
     WebRtcChannel,
     // Session
-    IceConnectionState, PeerConnectionState, SdpType, SignalingState, WebRtcSession,
-    WebRtcSessionId,
+    IceConnectionState, PeerConnectionState, SdpType, SignalingState, WebRtcSession, WebRtcSessionId,
     // Config
     AudioCodec, BandwidthConstraints, CodecPreferences, DtlsRole, IceServer, IceTransportPolicy,
     VideoCodec, WebRtcConfig,
@@ -52,6 +51,6 @@ pub use webrtc::{
     BroadcastSignaling, ChannelMessageSignaling, SignalingMessage, WebRtcSignaling,
     SIGNALING_METADATA_KEY,
     // Tracks & DataChannels
-    AudioTrack, DataChannel, DataChannelConfig, DataChannelMessage, MediaTrack, TrackDirection,
-    TrackId, VideoTrack,
+    AudioTrack, DataChannel, DataChannelConfig, DataChannelMessage, MediaTrack, RemoteTrack,
+    TrackDirection, TrackId, TrackRemoteEvent, VideoTrack,
 };
