@@ -33,7 +33,7 @@ brainwires  (facade — re-exports all crates via feature flags)
 ├─── Storage & Intelligence
 │    ├── brainwires-storage         Unified database layer (9 backends), tiered memory, embeddings
 │    │   └─> core
-│    └── brainwires-cognition       Unified intelligence — knowledge graphs, adaptive prompting, RAG
+│    └── brainwires-cognition       Unified intelligence — knowledge graphs, adaptive prompting, RAG, dream consolidation
 │        └─> core
 │        └─> storage (opt, "knowledge" and "rag" features)
 │
@@ -52,6 +52,10 @@ brainwires  (facade — re-exports all crates via feature flags)
 │        └─> core
 │        └─> datasets
 │        └─> providers (opt, "cloud" feature)
+│
+├─── System
+│    └── brainwires-system          Generic OS-level primitives — FS reactor, service management
+│        (no internal deps)
 │
 ├─── Autonomy
 │    └── brainwires-autonomy        Self-improvement, Git workflows, human-out-of-loop execution

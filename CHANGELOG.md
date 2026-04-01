@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### New Crates
+
+- **`brainwires-system`** — Generic OS-level primitives extracted from `brainwires-autonomy`
+  - `reactor` feature — cross-platform filesystem event watcher (`FsReactor`, `EventDebouncer`, `ReactorRule`) via `notify 7`
+  - `services` feature — controlled systemd / Docker / process management (`SystemdManager`, `DockerManager`, `ProcessManager`, `ServiceSafety` with hardcoded critical-service deny-list)
+  - Usable independently; no dependency on the autonomy crate
+
 #### New Extras
 
 - **`brainwires-scheduler`** — Local-machine MCP server for cron-based job scheduling with optional per-job Docker sandboxing
@@ -18,6 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Bounded concurrency via semaphore; `Ignore`/`Retry`/`Disable` failure policies; SIGTERM + Ctrl+C graceful shutdown with in-flight drain
   - stdio transport (primary, for Claude Code MCP integration) + optional HTTP via `--http <addr>`
   - 36 unit tests covering executor, store, daemon cron logic, and retry policy permutations
+
+### Changed
+
+#### Autonomy (`brainwires-autonomy`)
+
+- **`dream/` extracted → `brainwires-cognition`** (new `dream` feature) — memory consolidation belongs with the knowledge graph and RAG layer, not autonomous operations. Access via `brainwires_cognition::dream` or `brainwires::dream` (meta-crate `dream` feature).
+- **`reactor/` + `services/` extracted → `brainwires-system`** — generic OS primitives are now independently usable without pulling in the full autonomy dependency tree. Access via `brainwires_system` or `brainwires::system`.
+- **`scheduler/` removed** — superseded by `extras/brainwires-scheduler`, which provides the same functionality as a proper MCP server with a richer job model, persistence, and Docker sandboxing.
 
 ## [0.7.0] - 2026-03-31
 
