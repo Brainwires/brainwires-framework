@@ -4,7 +4,7 @@ services:
       context: ../..
       dockerfile: extras/brainwires-docs/Dockerfile
     ports:
-      - "3001:3000"
+      - "17830:3000"
     restart: unless-stopped
 
   docs-dev:
@@ -18,5 +18,5 @@ services:
       DOCS_ROOT: /workspace
       PORT: "3000"
     ports:
-      - "3001:3000"
+      - "17830:3000"
     command: sh -c "npm install && npm run dev"

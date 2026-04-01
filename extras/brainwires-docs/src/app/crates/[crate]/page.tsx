@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CRATE_LIST, TIER_LABELS, TIER_COLORS } from "@/lib/crates";
 import { getCrateReadme } from "@/lib/docs";
-import { Markdown } from "@/components/docs/markdown";
+import { MdxContent } from "@/components/docs/mdx-content";
 import { Toc } from "@/components/layout/toc";
 import { ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -39,7 +39,7 @@ export default async function CratePage({ params }: Props) {
             docs.rs <ExternalLink className="size-3" />
           </a>
         </div>
-        <Markdown content={content} />
+        <MdxContent content={content} />
       </article>
       <Toc markdown={content} />
     </div>

@@ -7,7 +7,7 @@ COPY extras/ ./extras/
 COPY deprecated/ ./deprecated/
 COPY deno/ ./deno/
 COPY xtask/ ./xtask/
-RUN cargo doc --workspace --no-deps 2>&1 || true
+RUN cargo doc --workspace --no-deps 2>&1 || true && mkdir -p /workspace/target/doc
 
 # ─── Stage 2: Build Next.js app ───────────────────────────────────────────────
 FROM node:22-alpine AS builder

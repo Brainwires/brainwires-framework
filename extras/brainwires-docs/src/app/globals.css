@@ -1,14 +1,15 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, monospace;
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -127,4 +128,33 @@
   html {
     @apply font-sans;
   }
+}
+
+/* rehype-pretty-code: CSS-variable-based syntax theme, responds to .dark class */
+code[data-theme*=' '],
+code[data-theme*=' '] span {
+  color: var(--shiki-light);
+  background-color: var(--shiki-light-bg);
+}
+.dark code[data-theme*=' '],
+.dark code[data-theme*=' '] span {
+  color: var(--shiki-dark);
+  background-color: var(--shiki-dark-bg);
+}
+
+/* Code block container */
+[data-rehype-pretty-code-figure] {
+  @apply my-4 overflow-hidden rounded-lg border text-sm;
+}
+[data-rehype-pretty-code-figure] pre,
+[data-rehype-pretty-code-figure] code,
+[data-rehype-pretty-code-figure] span {
+  font-family: ui-monospace, monospace !important;
+  line-height: 1.6 !important;
+}
+[data-rehype-pretty-code-figure] > pre {
+  @apply overflow-x-auto p-4;
+}
+[data-rehype-pretty-code-title] {
+  @apply border-b bg-muted/50 px-4 py-1.5 font-mono text-xs text-muted-foreground;
 }
