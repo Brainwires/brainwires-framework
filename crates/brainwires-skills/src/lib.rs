@@ -42,7 +42,8 @@ pub mod verification;
 pub use executor::{ScriptPrepared, SkillExecutor, SubagentPrepared};
 pub use manifest::{SkillDependency, SkillManifest};
 pub use metadata::{
-    MatchSource, Skill, SkillExecutionMode, SkillMatch, SkillMetadata, SkillResult, SkillSource,
+    MatchSource, Skill, SkillExecutionMode, SkillMatch, SkillMetadata, SkillResources, SkillResult,
+    SkillSource,
 };
 pub use package::SkillPackage;
 pub use parser::{parse_skill_file, parse_skill_metadata, render_template};

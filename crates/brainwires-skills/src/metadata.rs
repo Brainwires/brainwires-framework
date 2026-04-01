@@ -9,6 +9,38 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+/// Level 3 resources for a skill — discovered and loaded on-demand only when referenced.
+///
+/// Per the Agent Skills specification, a skill directory may contain:
+/// - `scripts/`    — executable files (Python, Bash, JS, etc.)
+/// - `references/` — detailed documentation or reference material
+/// - `assets/`     — templates, images, data files, or other supporting content
+///
+/// These are never loaded at startup (Level 1) or on skill activation (Level 2).
+/// They are listed here so agents can discover what's available and request specific
+/// files as needed, keeping context usage minimal.
+#[derive(Debug, Clone, Default)]
+pub struct SkillResources {
+    /// Files in `<skill-dir>/scripts/`
+    pub scripts: Vec<PathBuf>,
+    /// Files in `<skill-dir>/references/`
+    pub references: Vec<PathBuf>,
+    /// Files in `<skill-dir>/assets/`
+    pub assets: Vec<PathBuf>,
+}
+
+impl SkillResources {
+    /// Returns true if no resource directories contain any files
+    pub fn is_empty(&self) -> bool {
+        self.scripts.is_empty() && self.references.is_empty() && self.assets.is_empty()
+    }
+
+    /// Total number of resource files across all directories
+    pub fn total_count(&self) -> usize {
+        self.scripts.len() + self.references.len() + self.assets.len()
+    }
+}
+
 /// Source location of a skill
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum SkillSource {
@@ -124,6 +156,14 @@ pub struct SkillMetadata {
     /// File path for lazy loading the full content
     #[serde(skip)]
     pub source_path: PathBuf,
+
+    /// Parent directory of the skill (set only for subdirectory layout: `skill-name/SKILL.md`).
+    ///
+    /// Used by [`SkillRegistry::get_resources`] to discover Level 3 resource files
+    /// (`scripts/`, `references/`, `assets/`) without scanning at startup.
+    /// None for flat file layout (`skill-name.md`).
+    #[serde(skip)]
+    pub resources_dir: Option<PathBuf>,
 }
 
 impl SkillMetadata {
@@ -140,6 +180,7 @@ impl SkillMetadata {
             hooks: None,
             source: SkillSource::Personal,
             source_path: PathBuf::new(),
+            resources_dir: None,
         }
     }
 

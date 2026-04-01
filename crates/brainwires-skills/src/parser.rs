@@ -129,6 +129,31 @@ pub fn parse_skill_metadata(path: &Path) -> Result<SkillMetadata> {
     parse_metadata_from_content(&content, path)
 }
 
+/// Warn if the skill description uses a YAML block scalar (multi-line format).
+///
+/// The Agent Skills specification requires descriptions to be on a single line
+/// for cross-platform compatibility with Claude Code, ChatGPT, Copilot, and other
+/// agent runtimes whose YAML parsers may not support block scalars. Brainwires'
+/// own parser handles them correctly, but portability requires a single-line value.
+fn warn_multiline_description(raw_yaml: &str, path: &Path) {
+    for line in raw_yaml.lines() {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with("description:") {
+            let rest = trimmed["description:".len()..].trim();
+            if matches!(rest, "|" | ">" | "|-" | ">-" | "|+" | ">+") {
+                tracing::warn!(
+                    "Skill description in {} uses a YAML block scalar ({}). \
+                     For cross-platform compatibility (Claude Code, ChatGPT, Copilot), \
+                     keep the description on a single line.",
+                    path.display(),
+                    rest
+                );
+            }
+            break;
+        }
+    }
+}
+
 /// Parse metadata from content string
 fn parse_metadata_from_content(content: &str, path: &Path) -> Result<SkillMetadata> {
     // Split frontmatter and body
@@ -140,6 +165,9 @@ fn parse_metadata_from_content(content: &str, path: &Path) -> Result<SkillMetada
             path.display()
         );
     }
+
+    // Warn about cross-platform portability issues before parsing
+    warn_multiline_description(parts[1], path);
 
     // Parse YAML frontmatter
     let frontmatter: SkillFrontmatter = serde_yml::from_str(parts[1].trim())
@@ -169,6 +197,7 @@ fn parse_metadata_from_content(content: &str, path: &Path) -> Result<SkillMetada
         hooks: frontmatter.hooks,
         source: SkillSource::Personal, // Will be set by caller
         source_path: path.to_path_buf(),
+        resources_dir: None, // Set by registry for subdirectory layout
     })
 }
 
@@ -561,10 +590,25 @@ description: |
 Instructions"#;
 
         let path = Path::new("test.md");
+        // Parsing succeeds (Brainwires parser handles block scalars), but a warning is emitted
         let metadata = parse_metadata_from_content(content, path).unwrap();
 
         assert!(metadata.description.contains("multiline description"));
         assert!(metadata.description.contains("spans multiple lines"));
+    }
+
+    #[test]
+    fn test_warn_multiline_description_block_scalar() {
+        // Block scalar variants that should trigger the portability warning
+        for marker in &["|", ">", "|-", ">-"] {
+            let raw = format!("name: test\ndescription: {marker}\n  Some content\n");
+            // warn_multiline_description should not panic — it only logs
+            warn_multiline_description(&raw, Path::new("test.md"));
+        }
+
+        // Single-line description should NOT trigger a warning (no block scalar marker)
+        let raw = "name: test\ndescription: A single line description\n";
+        warn_multiline_description(raw, Path::new("test.md"));
     }
 
     #[test]
