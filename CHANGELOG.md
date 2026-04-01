@@ -69,6 +69,40 @@ Existing `.fastembed_cache/` directories in project folders are stale and can be
   - stdio transport (primary, for Claude Code MCP integration) + optional HTTP via `--http <addr>`
   - 36 unit tests covering executor, store, daemon cron logic, and retry policy permutations
 
+#### WebRTC Real-Time Media (`brainwires-channels`)
+
+- **`webrtc` feature flag** — Full WebRTC peer connection support using the Brainwires fork of `webrtc-rs` (v0.20.0-alpha.1, trait-based async API). Zero impact on compile time or binary size without the feature.
+- **`WebRtcSession`** — Manages a single `RTCPeerConnection` with full offer/answer state machine, trickle ICE, DTLS-SRTP, audio/video tracks, and DataChannels. All methods take `&self` for `Arc<WebRtcSession>` sharing across tasks.
+  - `open()` / `close()` — create/tear down the underlying PeerConnection
+  - `add_audio_track(AudioCodec)` / `add_video_track(VideoCodec)` — add local media before offer creation; returns an `AudioTrack`/`VideoTrack` handle for writing encoded frames
+  - `create_offer()` / `create_answer()` / `set_remote_description()` — SDP negotiation
+  - `add_ice_candidate()` / `restart_ice()` — trickle ICE and ICE restart
+  - `create_data_channel(DataChannelConfig)` — open a WebRTC DataChannel
+  - `get_remote_track(id)` — access incoming remote media tracks after `TrackAdded` event
+  - `get_stats()` — full `RTCStatsReport` snapshot (jitter, packet loss, RTT, bitrate, jitter buffer, NACK counts, frame stats)
+  - `subscribe()` — broadcast receiver for all session events
+- **`webrtc-advanced` feature flag** — Adds congestion control and media quality interceptors on top of the default NACK/RTCP chain:
+  - **GCC (Google Congestion Control)** — adaptive bitrate estimation from TWCC feedback; configure via `BandwidthConstraints` in `WebRtcConfig`; query via `session.target_bitrate_bps()`
+  - **JitterBuffer** — adaptive playout delay, outermost in the receive chain
+  - **TwccSender** — transport-wide sequence numbers for GCC feedback loop
+  - A `tracing::warn!` is emitted at `open()` time when the feature is absent
+- **`WebRtcConfig`** — Fully serde-serializable configuration:
+  - `ice_servers` (STUN/TURN), `ice_transport_policy` (All / Relay)
+  - `dtls_role` (Auto / Client / Server) — applied via `SettingEngine`
+  - `mdns_enabled` — obfuscate LAN IPs with `.local` hostnames
+  - `tcp_candidates_enabled` — gather TCP ICE candidates for firewall traversal
+  - `bind_addresses` — restrict ICE gathering to specific interfaces (default: `0.0.0.0:0`)
+  - `codec_preferences` (`VideoCodec` / `AudioCodec` enums) and `bandwidth` (`BandwidthConstraints`) for GCC
+- **`WebRtcSignaling` trait** + two built-in impls:
+  - `BroadcastSignaling` — in-process `tokio::broadcast` channel; used by the integration test and gateway intermediation
+  - `ChannelMessageSignaling` — encodes SDP/ICE as JSON inside regular `ChannelMessage`s with metadata key `"_bw_webrtc_signaling"`; works through any existing adapter without changes
+- **`WebRtcChannel` trait** — extension of `Channel` for adapters that support real-time media: `initiate_session()`, `get_session()`, `close_session()`, `signaling()`
+- **`RemoteTrack`** — handle to an incoming remote media track; `poll() -> Option<TrackRemoteEvent>` for reading RTP packets and lifecycle events
+- **`RTCStatsReport` / `StatsSelector`** re-exported from `brainwires_channels` root
+- **10 new `ChannelEvent` variants** (all `#[cfg(feature = "webrtc")]`): `IceCandidate`, `SdpOffer`, `SdpAnswer`, `TrackAdded`, `TrackRemoved`, `WebRtcDataChannel`, `PeerConnectionStateChanged`, `IceConnectionStateChanged`, `IceGatheringComplete`, `SignalingStateChanged`
+- **2 new `ChannelCapabilities` flags**: `DATA_CHANNELS` (bit 12), `ENCRYPTED_MEDIA` (bit 13)
+- **Integration test** — `offer_answer_reaches_connected`: two in-process sessions complete a full offer/answer + trickle ICE exchange and both reach `PeerConnectionState::Connected` in ~1.3 s on loopback
+
 ### Changed
 
 #### Autonomy (`brainwires-autonomy`)

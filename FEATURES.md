@@ -705,11 +705,32 @@ Universal messaging channel contract for adapter implementations (Discord, Teleg
 
 - **Channel** trait — Core interface that all messaging adapters must implement
 - **ChannelMessage** — Core message types with attachments, embeds, and media
-- **ChannelEvent** — Events: message received, edited, deleted, reactions, presence changes
-- **ChannelCapabilities** — Capability flags for adapter feature negotiation
+- **ChannelEvent** — Events: message received, edited, deleted, reactions, presence changes, and 10 WebRTC variants (feature-gated)
+- **ChannelCapabilities** — 14 bitflags: rich text, media, threads, reactions, voice, video, data channels, encrypted media, etc.
 - **ChannelUser** / **ChannelSession** — User and session identity types
 - **ChannelHandshake** — Gateway handshake protocol for adapter registration
 - **Conversion** — Bidirectional conversion between `ChannelMessage` and agent-network `MessageEnvelope`
+
+### WebRTC Real-Time Media (feature: `webrtc`)
+
+Full peer-to-peer audio/video/DataChannel support via the Brainwires `webrtc-rs` fork.
+
+- **`WebRtcSession`** — One `PeerConnection` per call; offer/answer, trickle ICE, DTLS-SRTP
+  - `add_audio_track()` / `add_video_track()` — push encoded frames via `write_sample()`
+  - `create_data_channel()` — bi-directional binary/text DataChannels
+  - `get_remote_track(id)` — read incoming RTP packets from remote peers
+  - `get_stats()` — `RTCStatsReport` snapshot (jitter, packet loss, RTT, bitrate, frame stats)
+  - `subscribe()` — broadcast receiver for all 10 WebRTC `ChannelEvent` variants
+- **`WebRtcConfig`** — Serde-serializable: ICE servers, DTLS role, mDNS, TCP candidates, bind addresses, codec preferences, bandwidth constraints
+- **`WebRtcSignaling`** trait + `BroadcastSignaling` (in-process) + `ChannelMessageSignaling` (piggybacks on existing channel messages)
+- **`WebRtcChannel`** trait — adapter extension: `initiate_session()`, `get_session()`, `close_session()`, `signaling()`
+- **`RemoteTrack`** — handle to incoming remote media; `poll() -> Option<TrackRemoteEvent>`
+
+### Advanced Congestion Control (feature: `webrtc-advanced`)
+
+- **GCC** (Google Congestion Control) — adaptive bitrate from TWCC feedback; `session.target_bitrate_bps()`
+- **JitterBuffer** — adaptive playout delay; reorders out-of-sequence packets
+- **TwccSender** — transport-wide sequence numbers enabling the GCC feedback loop
 
 ---
 
