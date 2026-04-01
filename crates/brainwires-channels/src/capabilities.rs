@@ -34,6 +34,10 @@ bitflags! {
         const MENTIONS          = 1 << 10;
         /// Channel supports rich embeds/cards.
         const EMBEDS            = 1 << 11;
+        /// Channel supports WebRTC DataChannels (arbitrary binary/text streams).
+        const DATA_CHANNELS     = 1 << 12;
+        /// Channel uses DTLS-SRTP media encryption (always true for WebRTC sessions).
+        const ENCRYPTED_MEDIA   = 1 << 13;
     }
 }
 

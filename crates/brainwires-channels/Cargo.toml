@@ -20,6 +20,17 @@ name = "brainwires_channels"
 # Agent network (optional — only needed for MessageEnvelope conversion)
 brainwires-agent-network = { workspace = true, optional = true }
 
+# WebRTC — Brainwires forks with JitterBuffer, GCC, DTLS restart, serde config, TURN, TCP ICE, mDNS
+# Both `webrtc` and the sub-crates (`rtc`, `rtc-interceptor`, `rtc-ice`) come from the same
+# webrtc-rs monorepo so Cargo deduplicates the inner `rtc` path-dep and avoids type conflicts.
+webrtc          = { git = "https://github.com/Brainwires/webrtc-rs",  branch = "master", optional = true }
+rtc             = { git = "https://github.com/Brainwires/webrtc-rs",  branch = "master", package = "rtc",             optional = true }
+rtc-interceptor = { git = "https://github.com/Brainwires/webrtc-rs",  branch = "master", package = "rtc-interceptor", optional = true }
+rtc-ice         = { git = "https://github.com/Brainwires/webrtc-rs",  branch = "master", package = "rtc-ice",         optional = true }
+bytes           = { workspace = true, optional = true }
+rand            = { workspace = true, optional = true }
+tokio           = { workspace = true, optional = true }
+
 # Async runtime
 async-trait = { workspace = true }
 
@@ -43,6 +54,8 @@ bitflags = { workspace = true }
 [features]
 default = []
 agent-network = ["dep:brainwires-agent-network"]
+webrtc = ["dep:webrtc", "dep:rtc", "dep:bytes", "dep:rand", "dep:tokio"]
+webrtc-advanced = ["webrtc", "dep:rtc-interceptor", "dep:rtc-ice"]
 
 [dev-dependencies]
 serde_json = { workspace = true }
