@@ -378,6 +378,15 @@ impl WebRtcSession {
         let base_registry = register_default_interceptors(Registry::new(), &mut media_engine)
             .map_err(|e| anyhow!("register interceptors: {e}"))?;
 
+        // Warn when congestion control is unavailable (missing `webrtc-advanced` feature).
+        #[cfg(not(feature = "webrtc-advanced"))]
+        tracing::warn!(
+            session_id = %self.id,
+            "WebRtcSession opened without the `webrtc-advanced` feature: \
+             GCC congestion control, JitterBuffer, and TwccSender are disabled. \
+             Add `features = [\"webrtc-advanced\"]` to enable adaptive bitrate."
+        );
+
         // With `webrtc-advanced`, layer on JitterBuffer + TwccSender + GCC.
         #[cfg(feature = "webrtc-advanced")]
         let registry = {
@@ -457,9 +466,11 @@ impl WebRtcSession {
     /// [`WebRtcSignaling::send_signaling`](super::signaling::WebRtcSignaling::send_signaling).
     pub async fn create_offer(&self) -> Result<String> {
         let pc = self.get_pc().await?;
-        let offer = pc.create_offer(None).await.map_err(|e| anyhow!("{e}"))?;
+        let offer = pc.create_offer(None).await.map_err(|e| anyhow!("create_offer: {e}"))?;
         let sdp = offer.sdp.clone();
-        pc.set_local_description(offer).await.map_err(|e| anyhow!("{e}"))?;
+        pc.set_local_description(offer)
+            .await
+            .map_err(|e| anyhow!("set_local_description (offer): {e}"))?;
         self.state.write().await.signaling_state = SignalingState::HaveLocalOffer;
         Ok(sdp)
     }
@@ -469,9 +480,11 @@ impl WebRtcSession {
     /// Returns the SDP body to be forwarded to the initiating peer.
     pub async fn create_answer(&self) -> Result<String> {
         let pc = self.get_pc().await?;
-        let answer = pc.create_answer(None).await.map_err(|e| anyhow!("{e}"))?;
+        let answer = pc.create_answer(None).await.map_err(|e| anyhow!("create_answer: {e}"))?;
         let sdp = answer.sdp.clone();
-        pc.set_local_description(answer).await.map_err(|e| anyhow!("{e}"))?;
+        pc.set_local_description(answer)
+            .await
+            .map_err(|e| anyhow!("set_local_description (answer): {e}"))?;
         self.state.write().await.signaling_state = SignalingState::Stable;
         Ok(sdp)
     }
@@ -483,7 +496,9 @@ impl WebRtcSession {
             SdpType::Offer => RTCSessionDescription::offer(sdp).map_err(|e| anyhow!("{e}"))?,
             SdpType::Answer => RTCSessionDescription::answer(sdp).map_err(|e| anyhow!("{e}"))?,
         };
-        pc.set_remote_description(desc).await.map_err(|e| anyhow!("{e}"))?;
+        pc.set_remote_description(desc)
+            .await
+            .map_err(|e| anyhow!("set_remote_description: {e}"))?;
         let next_state = match sdp_type {
             SdpType::Offer => SignalingState::HaveRemoteOffer,
             SdpType::Answer => SignalingState::Stable,
@@ -511,7 +526,7 @@ impl WebRtcSession {
             url: None,
         })
         .await
-        .map_err(|e| anyhow!("{e}"))
+        .map_err(|e| anyhow!("add_ice_candidate: {e}"))
     }
 
     // ── ICE restart ───────────────────────────────────────────────────────────
@@ -522,7 +537,7 @@ impl WebRtcSession {
     /// [`create_offer`](Self::create_offer).
     pub async fn restart_ice(&self) -> Result<()> {
         let pc = self.get_pc().await?;
-        pc.restart_ice().await.map_err(|e| anyhow!("{e}"))
+        pc.restart_ice().await.map_err(|e| anyhow!("restart_ice: {e}"))
     }
 
     // ── Tracks ────────────────────────────────────────────────────────────────
@@ -566,11 +581,12 @@ impl WebRtcSession {
         );
 
         let inner = Arc::new(
-            TrackLocalStaticSample::new(media_track).map_err(|e| anyhow!("{e}"))?,
+            TrackLocalStaticSample::new(media_track)
+                .map_err(|e| anyhow!("create audio TrackLocalStaticSample: {e}"))?,
         );
         pc.add_track(Arc::clone(&inner) as Arc<dyn TrackLocal>)
             .await
-            .map_err(|e| anyhow!("{e}"))?;
+            .map_err(|e| anyhow!("add_track (audio): {e}"))?;
 
         let audio = AudioTrack {
             id: id.clone(),
@@ -626,11 +642,12 @@ impl WebRtcSession {
         );
 
         let inner = Arc::new(
-            TrackLocalStaticSample::new(media_track).map_err(|e| anyhow!("{e}"))?,
+            TrackLocalStaticSample::new(media_track)
+                .map_err(|e| anyhow!("create video TrackLocalStaticSample: {e}"))?,
         );
         pc.add_track(Arc::clone(&inner) as Arc<dyn TrackLocal>)
             .await
-            .map_err(|e| anyhow!("{e}"))?;
+            .map_err(|e| anyhow!("add_track (video): {e}"))?;
 
         let video = VideoTrack {
             id: id.clone(),
@@ -665,7 +682,7 @@ impl WebRtcSession {
         let rtc_dc = pc
             .create_data_channel(&config.label, Some(init))
             .await
-            .map_err(|e| anyhow!("{e}"))?;
+            .map_err(|e| anyhow!("create_data_channel '{}': {e}", config.label))?;
 
         DataChannel::new(rtc_dc).await
     }
@@ -726,7 +743,7 @@ impl WebRtcSession {
         let pc: Option<Arc<dyn PeerConnection>> =
             self.peer_connection.write().await.take();
         if let Some(pc) = pc {
-            pc.close().await.map_err(|e| anyhow!("{e}"))?;
+            pc.close().await.map_err(|e| anyhow!("close PeerConnection: {e}"))?;
         }
         self.state.write().await.signaling_state = SignalingState::Closed;
         Ok(())
@@ -739,5 +756,137 @@ impl WebRtcSession {
         guard
             .clone()
             .ok_or_else(|| anyhow!("WebRtcSession not opened; call open() first"))
+    }
+}
+
+// ── Integration tests ─────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::identity::ConversationId;
+    use std::sync::Arc;
+
+    fn test_conv() -> ConversationId {
+        ConversationId {
+            platform: "test".to_string(),
+            channel_id: "webrtc-lifecycle".to_string(),
+            server_id: None,
+        }
+    }
+
+    /// Two in-process sessions complete a full offer/answer exchange and both
+    /// reach `PeerConnectionState::Connected` within 10 seconds.
+    ///
+    /// Requires `flavor = "multi_thread"` because the webrtc-rs runtime spawns
+    /// background tasks that need a real thread pool.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn offer_answer_reaches_connected() {
+        let conv = test_conv();
+
+        let initiator = Arc::new(WebRtcSession::new(WebRtcConfig::default(), conv.clone()));
+        let responder = Arc::new(WebRtcSession::new(WebRtcConfig::default(), conv.clone()));
+
+        // Subscribe before open() so the broadcast receiver is registered and
+        // we do not miss early ICE candidates buffered in the channel.
+        let mut init_rx = initiator.subscribe();
+        let mut resp_rx = responder.subscribe();
+
+        initiator.open().await.expect("initiator open");
+        responder.open().await.expect("responder open");
+
+        initiator
+            .add_audio_track(AudioCodec::Opus)
+            .await
+            .expect("add audio track");
+
+        // ── Offer / answer exchange ────────────────────────────────────────────
+        let offer = initiator.create_offer().await.expect("create offer");
+        responder
+            .set_remote_description(offer, SdpType::Offer)
+            .await
+            .expect("set remote description (offer)");
+        let answer = responder.create_answer().await.expect("create answer");
+        initiator
+            .set_remote_description(answer, SdpType::Answer)
+            .await
+            .expect("set remote description (answer)");
+
+        // ── Bidirectional ICE candidate relay ─────────────────────────────────
+        // Each task forwards IceCandidate events to the other peer and exits
+        // when PeerConnectionState::Connected (or Failed) is observed.
+
+        let resp_clone = Arc::clone(&responder);
+        let init_relay = tokio::spawn(async move {
+            loop {
+                match init_rx.recv().await {
+                    Ok(ChannelEvent::IceCandidate {
+                        candidate,
+                        sdp_mid,
+                        sdp_mline_index,
+                        ..
+                    }) => {
+                        let _ = resp_clone
+                            .add_ice_candidate(candidate, sdp_mid, sdp_mline_index)
+                            .await;
+                    }
+                    Ok(ChannelEvent::PeerConnectionStateChanged { state, .. })
+                        if state == PeerConnectionState::Connected
+                            || state == PeerConnectionState::Failed =>
+                    {
+                        break;
+                    }
+                    Err(_) => break,
+                    _ => {}
+                }
+            }
+        });
+
+        let init_clone = Arc::clone(&initiator);
+        let resp_relay = tokio::spawn(async move {
+            loop {
+                match resp_rx.recv().await {
+                    Ok(ChannelEvent::IceCandidate {
+                        candidate,
+                        sdp_mid,
+                        sdp_mline_index,
+                        ..
+                    }) => {
+                        let _ = init_clone
+                            .add_ice_candidate(candidate, sdp_mid, sdp_mline_index)
+                            .await;
+                    }
+                    Ok(ChannelEvent::PeerConnectionStateChanged { state, .. })
+                        if state == PeerConnectionState::Connected
+                            || state == PeerConnectionState::Failed =>
+                    {
+                        break;
+                    }
+                    Err(_) => break,
+                    _ => {}
+                }
+            }
+        });
+
+        tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            async { tokio::join!(init_relay, resp_relay) },
+        )
+        .await
+        .expect("sessions did not connect within 10 seconds");
+
+        assert_eq!(
+            initiator.peer_connection_state().await,
+            PeerConnectionState::Connected,
+            "initiator did not reach Connected"
+        );
+        assert_eq!(
+            responder.peer_connection_state().await,
+            PeerConnectionState::Connected,
+            "responder did not reach Connected"
+        );
+
+        initiator.close().await.expect("initiator close");
+        responder.close().await.expect("responder close");
     }
 }
