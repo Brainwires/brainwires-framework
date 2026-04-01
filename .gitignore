@@ -3,5 +3,6 @@ Cargo.lock
 *.swp
 *.swo
 .DS_Store
+# Legacy: fastembed now stores models in ~/.brainwires/cache/fastembed/
 .fastembed_cache/
 .cache/

@@ -137,6 +137,20 @@ impl PlatformPaths {
         Self::project_cache_dir().join("git_cache.json")
     }
 
+    /// Get default fastembed model cache path
+    ///
+    /// Returns: ~/.brainwires/cache/fastembed
+    ///
+    /// Models are global (not per-project), so this is a single shared location
+    /// consistent with the rest of the framework's use of ~/.brainwires/.
+    pub fn default_fastembed_cache_path() -> PathBuf {
+        dirs::home_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join(".brainwires")
+            .join("cache")
+            .join("fastembed")
+    }
+
     /// Get default config file path
     ///
     /// Returns: {config_dir}/{project_folder_name}/config.toml

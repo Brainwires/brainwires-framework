@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+#### Centralized FastEmbed Model Cache
+
+- **Scattered `.fastembed_cache/` directories eliminated** — FastEmbed ONNX model files (87–759 MB each) were accumulating as `.fastembed_cache/` in whatever the working directory was at runtime, creating duplicate copies across the filesystem. Both `brainwires-storage` and `brainwires-cognition` now write to a single shared location: `~/.brainwires/cache/fastembed/`.
+- **`PlatformPaths::default_fastembed_cache_path()`** (`brainwires-storage`) — New utility method returning `~/.brainwires/cache/fastembed/`, consistent with the rest of the framework's use of `~/.brainwires/`.
+- **`brainwires-storage` embedding manager** — `FastEmbedManager::with_model()` now sets `options.cache_dir` (previously unset, causing the default CWD-relative cache scatter).
+- **`brainwires-cognition` embedding manager** — Unified to use `PlatformPaths::default_fastembed_cache_path()` instead of the old `dirs::cache_dir().join("fastembed")` path (`~/.cache/fastembed/`), so both crates share the same model files.
+
+Existing `.fastembed_cache/` directories in project folders are stale and can be safely deleted.
+
 ### Added
 
 #### Magic Number Cleanup
