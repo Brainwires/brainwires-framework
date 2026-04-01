@@ -21,6 +21,7 @@ members = [
     "crates/brainwires-cognition",
     "crates/brainwires-channels",
     "crates/brainwires-analytics",
+    "extras/brainwires-scheduler",
     "extras/brainwires-proxy",
     "extras/brainwires-brain-server",
     "extras/brainwires-rag-server",
