@@ -19,6 +19,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Instant;
 
 use anyhow::{anyhow, Result};
 use schemars::JsonSchema;
@@ -719,6 +720,26 @@ impl WebRtcSession {
     /// The [`TrackId`] is available in the [`ChannelEvent::TrackAdded`] payload.
     pub async fn get_remote_track(&self, id: &TrackId) -> Option<Arc<RemoteTrack>> {
         self.state.read().await.remote_tracks.get(id).cloned()
+    }
+
+    // ── Stats ─────────────────────────────────────────────────────────────────
+
+    /// Return a snapshot of all RTCP statistics for this PeerConnection.
+    ///
+    /// The returned [`RTCStatsReport`] gives access to per-stream metrics via:
+    /// - [`inbound_rtp_streams()`](rtc::statistics::report::RTCStatsReport::inbound_rtp_streams)
+    ///   — jitter, packets lost/received, NACK/PLI/FIR counts, jitter buffer stats
+    /// - [`outbound_rtp_streams()`](rtc::statistics::report::RTCStatsReport::outbound_rtp_streams)
+    ///   — bytes/packets sent, retransmissions, target/encoded bitrate
+    /// - [`candidate_pairs()`](rtc::statistics::report::RTCStatsReport::candidate_pairs)
+    ///   — round-trip time (RTT), available bandwidth estimates
+    ///
+    /// Returns `Err` if the session has not been opened yet.
+    pub async fn get_stats(&self) -> Result<rtc::statistics::report::RTCStatsReport> {
+        let pc = self.get_pc().await?;
+        Ok(pc
+            .get_stats(Instant::now(), rtc::statistics::StatsSelector::None)
+            .await)
     }
 
     // ── Bandwidth estimation ───────────────────────────────────────────────────

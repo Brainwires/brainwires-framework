@@ -42,8 +42,9 @@ pub use traits::Channel;
 pub use webrtc::{
     // Trait
     WebRtcChannel,
-    // Session
-    IceConnectionState, PeerConnectionState, SdpType, SignalingState, WebRtcSession, WebRtcSessionId,
+    // Session & Stats
+    IceConnectionState, PeerConnectionState, RTCStatsReport, SdpType, SignalingState,
+    StatsSelector, WebRtcSession, WebRtcSessionId,
     // Config
     AudioCodec, BandwidthConstraints, CodecPreferences, DtlsRole, IceServer, IceTransportPolicy,
     VideoCodec, WebRtcConfig,

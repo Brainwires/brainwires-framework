@@ -56,6 +56,8 @@ pub use session::{
     IceConnectionState, PeerConnectionState, SdpType, SignalingState, WebRtcSession,
     WebRtcSessionId,
 };
+pub use rtc::statistics::StatsSelector;
+pub use rtc::statistics::report::RTCStatsReport;
 pub use signaling::{
     BroadcastSignaling, ChannelMessageSignaling, SignalingMessage, WebRtcSignaling,
     SIGNALING_METADATA_KEY,
