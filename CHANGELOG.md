@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Magic Number Cleanup
+
+- **Audio PCM normalization** (`brainwires-hardware`) — Bare `32768.0` literals in `vad/mod.rs` and `audio/local/whisper_stt.rs` replaced with named constant `I16_NORMALIZE_DIVISOR: f32 = 32768.0` (2^15, the i16 range divisor for [-1, 1] normalisation).
+- **Orchestrator token limit** (`brainwires-cli`) — `let max_tokens = 4096` in `orchestrator.rs` replaced with module-level constant `ORCHESTRATOR_MAX_TOKENS: u32 = 4096`.
+- **Model output token comment** (`brainwires-providers`) — Added clarifying comment to `brainwires_http::max_output_tokens()` match block documenting values as 2026-Q1 provider specifications.
+
+#### A2A/ACP Protocol Compliance (`brainwires-a2a`)
+
+- **`A2A_PROTOCOL_VERSION` constant** — `pub const A2A_PROTOCOL_VERSION: &str = "0.3"` added to crate root, targeting the A2A 0.3 spec (post-ACP merger under AAIF/Linux Foundation, December 2025). `AgentInterface::protocol_version` field documentation updated to reference this constant.
+- **ACP merger acknowledgement** — ACP (Agent Communication Protocol) merged into A2A under the Linux Foundation's Agentic AI Foundation (AAIF) in December 2025. The `brainwires-a2a` crate is compliant with A2A 0.3.0: all 11 JSON-RPC methods, all 9 task states, full security scheme support (PKCE, mTLS, OAuth2, OIDC), `/.well-known/agent-card.json` discovery endpoint, gRPC service, and REST router are implemented.
+
 #### MCP 2026 Spec Compliance (`brainwires-mcp-server`, `brainwires-mcp`)
 
 - **Streamable HTTP transport** (`brainwires-mcp-server`, feature `http`) — `HttpServerTransport` implements the MCP 2026 stateless HTTP transport: `POST /mcp` for JSON-RPC and `GET /mcp/events` SSE for server-initiated messages. Slots into the existing `ServerTransport` trait, wired with a bounded `mpsc` channel (`REQUEST_CHANNEL_CAPACITY = 128`), configurable request timeout (`REQUEST_TIMEOUT_SECS = 30`), and SSE keep-alive pings (`SSE_KEEPALIVE_INTERVAL_SECS = 15`).

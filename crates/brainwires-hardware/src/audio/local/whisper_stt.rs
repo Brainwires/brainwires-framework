@@ -4,6 +4,10 @@ use std::path::PathBuf;
 
 use crate::audio::error::{AudioError, AudioResult};
 use crate::audio::stt::SpeechToText;
+
+/// Divisor for normalising i16 PCM samples to the [-1.0, 1.0] range.
+/// Equals 2^15 = 32768 (the absolute value of i16::MIN).
+const I16_NORMALIZE_DIVISOR: f32 = 32768.0;
 use crate::audio::types::{
     AudioBuffer, AudioConfig, SAMPLE_RATE_SPEECH, SampleFormat, SttOptions, Transcript,
     TranscriptSegment,
@@ -28,7 +32,7 @@ impl WhisperStt {
             SampleFormat::I16 => audio
                 .data
                 .chunks_exact(2)
-                .map(|c| i16::from_le_bytes([c[0], c[1]]) as f32 / 32768.0)
+                .map(|c| i16::from_le_bytes([c[0], c[1]]) as f32 / I16_NORMALIZE_DIVISOR)
                 .collect(),
             SampleFormat::F32 => audio
                 .data
