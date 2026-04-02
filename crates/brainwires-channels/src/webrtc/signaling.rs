@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{broadcast, RwLock};
+use tokio::sync::{RwLock, broadcast};
 
 use crate::identity::ConversationId;
 
@@ -41,9 +41,7 @@ pub enum SignalingMessage {
         sdp_mline_index: Option<u16>,
     },
     /// ICE gathering is complete; no further candidates will follow.
-    IceGatheringComplete {
-        session_id: WebRtcSessionId,
-    },
+    IceGatheringComplete { session_id: WebRtcSessionId },
 }
 
 impl SignalingMessage {
@@ -86,10 +84,7 @@ pub trait WebRtcSignaling: Send + Sync {
     /// Receive the next signaling message for the given conversation.
     ///
     /// Returns `None` when the signaling channel is closed.
-    async fn receive_signaling(
-        &self,
-        target: &ConversationId,
-    ) -> Result<Option<SignalingMessage>>;
+    async fn receive_signaling(&self, target: &ConversationId) -> Result<Option<SignalingMessage>>;
 }
 
 // ── BroadcastSignaling ────────────────────────────────────────────────────────
@@ -139,10 +134,7 @@ impl WebRtcSignaling for BroadcastSignaling {
         Ok(())
     }
 
-    async fn receive_signaling(
-        &self,
-        target: &ConversationId,
-    ) -> Result<Option<SignalingMessage>> {
+    async fn receive_signaling(&self, target: &ConversationId) -> Result<Option<SignalingMessage>> {
         let mut rx = self.tx.subscribe();
         loop {
             match rx.recv().await {
@@ -192,8 +184,10 @@ impl ChannelMessageSignaling {
     pub async fn inject(&self, conv: &ConversationId, json_payload: &str) -> Result<()> {
         let msg: SignalingMessage = serde_json::from_str(json_payload)?;
         let key = Self::conv_key(conv);
-        let queues: tokio::sync::RwLockReadGuard<'_, HashMap<String, broadcast::Sender<SignalingMessage>>> =
-            self.queues.read().await;
+        let queues: tokio::sync::RwLockReadGuard<
+            '_,
+            HashMap<String, broadcast::Sender<SignalingMessage>>,
+        > = self.queues.read().await;
         if let Some(tx) = queues.get(&key) {
             let _ = tx.send(msg);
         }
@@ -223,10 +217,7 @@ impl WebRtcSignaling for ChannelMessageSignaling {
         ))
     }
 
-    async fn receive_signaling(
-        &self,
-        target: &ConversationId,
-    ) -> Result<Option<SignalingMessage>> {
+    async fn receive_signaling(&self, target: &ConversationId) -> Result<Option<SignalingMessage>> {
         let key = Self::conv_key(target);
         // Ensure a queue exists for this conversation.
         let tx = {
@@ -293,9 +284,8 @@ mod tests {
         let sid2 = sid.clone();
 
         // Spawn a task that listens, then send from the main task.
-        let handle = tokio::spawn(async move {
-            sig2.receive_signaling(&conv2).await.unwrap().unwrap()
-        });
+        let handle =
+            tokio::spawn(async move { sig2.receive_signaling(&conv2).await.unwrap().unwrap() });
 
         // Small yield to let the subscriber task register.
         tokio::task::yield_now().await;

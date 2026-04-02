@@ -165,17 +165,17 @@ fn warn_multiline_description(raw_yaml: &str, path: &Path) {
         // Case 2: value is absent or starts a quoted string that continues on next line.
         // A continuation line is more-indented than the `description:` key line.
         let key_indent = line.len() - line.trim_start().len();
-        if let Some(next_line) = lines.get(i + 1) {
-            if !next_line.trim().is_empty() {
-                let next_indent = next_line.len() - next_line.trim_start().len();
-                if next_indent > key_indent && !next_line.trim_start().starts_with('-') {
-                    tracing::warn!(
-                        "Skill description in {} appears to wrap onto a continuation line. \
-                         For cross-platform compatibility (Claude Code, ChatGPT, Copilot), \
-                         keep the description on a single line.",
-                        path.display()
-                    );
-                }
+        if let Some(next_line) = lines.get(i + 1)
+            && !next_line.trim().is_empty()
+        {
+            let next_indent = next_line.len() - next_line.trim_start().len();
+            if next_indent > key_indent && !next_line.trim_start().starts_with('-') {
+                tracing::warn!(
+                    "Skill description in {} appears to wrap onto a continuation line. \
+                     For cross-platform compatibility (Claude Code, ChatGPT, Copilot), \
+                     keep the description on a single line.",
+                    path.display()
+                );
             }
         }
 
@@ -363,30 +363,30 @@ fn validate_name_directory_match(name: &str, path: &Path) -> Result<()> {
             .and_then(|p| p.file_name())
             .and_then(|n| n.to_str());
 
-        if let Some(dir_name) = dir_name {
-            if dir_name != name {
-                anyhow::bail!(
-                    "Skill name '{}' must match its parent directory '{}' (Agent Skills spec \
-                     requirement). Rename either the directory or the name field in {}.",
-                    name,
-                    dir_name,
-                    path.display()
-                );
-            }
+        if let Some(dir_name) = dir_name
+            && dir_name != name
+        {
+            anyhow::bail!(
+                "Skill name '{}' must match its parent directory '{}' (Agent Skills spec \
+                 requirement). Rename either the directory or the name field in {}.",
+                name,
+                dir_name,
+                path.display()
+            );
         }
     } else {
         // Flat-file layout: warn only (spec doesn't define this layout)
         let stem = path.file_stem().and_then(|s| s.to_str());
-        if let Some(stem) = stem {
-            if stem != name {
-                tracing::warn!(
-                    "Skill name '{}' does not match filename '{}' in {}. \
-                     Consider renaming for consistency.",
-                    name,
-                    stem,
-                    path.display()
-                );
-            }
+        if let Some(stem) = stem
+            && stem != name
+        {
+            tracing::warn!(
+                "Skill name '{}' does not match filename '{}' in {}. \
+                 Consider renaming for consistency.",
+                name,
+                stem,
+                path.display()
+            );
         }
     }
 

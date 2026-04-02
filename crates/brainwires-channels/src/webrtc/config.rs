@@ -158,7 +158,9 @@ impl WebRtcConfig {
     ///
     /// This is the **sole** bridge between our serde types and the `webrtc` crate types.
     pub fn to_rtc_configuration(&self) -> webrtc::peer_connection::RTCConfiguration {
-        use webrtc::peer_connection::{RTCConfigurationBuilder, RTCIceServer, RTCIceTransportPolicy};
+        use webrtc::peer_connection::{
+            RTCConfigurationBuilder, RTCIceServer, RTCIceTransportPolicy,
+        };
 
         let ice_servers: Vec<RTCIceServer> = self
             .ice_servers

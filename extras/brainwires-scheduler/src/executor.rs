@@ -3,7 +3,7 @@ use chrono::Utc;
 use std::process::Stdio;
 use std::time::Instant;
 use tokio::process::Command;
-use tokio::time::{timeout, Duration};
+use tokio::time::{Duration, timeout};
 
 /// Maximum bytes of stdout/stderr kept in a `JobResult` (older content is truncated).
 const TRUNCATE_BYTES: usize = 4096;
@@ -56,9 +56,12 @@ impl JobExecutor {
             .stderr(Stdio::piped())
             .spawn()?;
 
-        let out = timeout(Duration::from_secs(job.timeout_secs), child.wait_with_output())
-            .await
-            .map_err(|_| anyhow::anyhow!("job timed out after {}s", job.timeout_secs))??;
+        let out = timeout(
+            Duration::from_secs(job.timeout_secs),
+            child.wait_with_output(),
+        )
+        .await
+        .map_err(|_| anyhow::anyhow!("job timed out after {}s", job.timeout_secs))??;
 
         Ok((
             out.status.code().unwrap_or(-1),
@@ -67,7 +70,10 @@ impl JobExecutor {
         ))
     }
 
-    async fn run_docker(job: &Job, sandbox: &DockerSandbox) -> anyhow::Result<(i32, String, String)> {
+    async fn run_docker(
+        job: &Job,
+        sandbox: &DockerSandbox,
+    ) -> anyhow::Result<(i32, String, String)> {
         if !Self::docker_available().await {
             anyhow::bail!(
                 "docker binary not found or daemon not running; \
@@ -120,9 +126,12 @@ impl JobExecutor {
             .stderr(Stdio::piped())
             .spawn()?;
 
-        let out = timeout(Duration::from_secs(job.timeout_secs), child.wait_with_output())
-            .await
-            .map_err(|_| anyhow::anyhow!("docker job timed out after {}s", job.timeout_secs))??;
+        let out = timeout(
+            Duration::from_secs(job.timeout_secs),
+            child.wait_with_output(),
+        )
+        .await
+        .map_err(|_| anyhow::anyhow!("docker job timed out after {}s", job.timeout_secs))??;
 
         Ok((
             out.status.code().unwrap_or(-1),
@@ -202,7 +211,10 @@ mod tests {
     fn long_string_gets_truncation_marker() {
         let s = "x".repeat(5000);
         let result = truncate_tail(&s, 4096);
-        assert!(result.starts_with("[...truncated]"), "should start with truncation marker");
+        assert!(
+            result.starts_with("[...truncated]"),
+            "should start with truncation marker"
+        );
         assert!(result.len() < 5000, "result should be shorter than input");
     }
 
@@ -211,14 +223,20 @@ mod tests {
         // 4-byte emoji — the boundary check must not split mid-codepoint
         let s = "🦀".repeat(2000); // 8000 bytes total
         let result = truncate_tail(&s, 4096);
-        assert!(std::str::from_utf8(result.as_bytes()).is_ok(), "result must be valid UTF-8");
+        assert!(
+            std::str::from_utf8(result.as_bytes()).is_ok(),
+            "result must be valid UTF-8"
+        );
     }
 
     #[test]
     fn truncated_result_ends_with_original_suffix() {
         let s = format!("{}{}", "a".repeat(5000), "SUFFIX");
         let result = truncate_tail(&s, 100);
-        assert!(result.ends_with("SUFFIX"), "truncated result should preserve the tail");
+        assert!(
+            result.ends_with("SUFFIX"),
+            "truncated result should preserve the tail"
+        );
     }
 
     // ── JobExecutor (native) ──────────────────────────────────────────────────
@@ -244,7 +262,10 @@ mod tests {
         let result = JobExecutor::run(&job).await;
         assert!(!result.success, "false should fail");
         assert!(result.exit_code.is_some_and(|c| c != 0));
-        assert!(result.error.is_none(), "error field is for launch failures only");
+        assert!(
+            result.error.is_none(),
+            "error field is for launch failures only"
+        );
     }
 
     #[tokio::test]
@@ -253,7 +274,10 @@ mod tests {
         job.command = "this-binary-does-not-exist-brainwires-test".into();
         let result = JobExecutor::run(&job).await;
         assert!(!result.success);
-        assert!(result.error.is_some(), "launch failure should populate the error field");
+        assert!(
+            result.error.is_some(),
+            "launch failure should populate the error field"
+        );
     }
 
     #[tokio::test]

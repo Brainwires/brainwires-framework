@@ -750,10 +750,7 @@ mod tests {
             "secret".to_string(),
             None,
         );
-        let client = AnthropicClient::bedrock(
-            auth,
-            "anthropic.claude-sonnet-4-6-v1:0".to_string(),
-        );
+        let client = AnthropicClient::bedrock(auth, "anthropic.claude-sonnet-4-6-v1:0".to_string());
         assert_eq!(client.api_key(), None);
         assert_eq!(client.backend_label(), "Bedrock");
         assert!(client.resolve_url(false).contains("us-west-2"));

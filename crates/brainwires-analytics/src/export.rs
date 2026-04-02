@@ -10,7 +10,7 @@
 use chrono::{DateTime, Utc};
 
 use crate::AnalyticsEvent;
-use crate::sinks::memory::{DEFAULT_CAPACITY, MemoryAnalyticsSink};
+use crate::sinks::memory::MemoryAnalyticsSink;
 
 /// Exports events from a [`MemoryAnalyticsSink`] within a time range.
 pub struct AuditExporter<'a> {
@@ -67,8 +67,7 @@ impl<'a> AuditExporter<'a> {
     ///
     /// Returns the number of events removed.
     pub fn apply_retention_policy(&self, retention_days: u32) -> usize {
-        let cutoff = Utc::now()
-            - chrono::Duration::days(retention_days as i64);
+        let cutoff = Utc::now() - chrono::Duration::days(retention_days as i64);
         self.sink.retain(|event| event.timestamp() >= cutoff)
     }
 

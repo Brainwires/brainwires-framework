@@ -67,7 +67,6 @@ pub enum ChannelEvent {
     },
 
     // ── WebRTC signaling & media events (requires the `webrtc` feature) ──────
-
     /// A local ICE candidate was gathered or a remote candidate was received.
     #[cfg(feature = "webrtc")]
     IceCandidate {

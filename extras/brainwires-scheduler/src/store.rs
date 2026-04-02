@@ -135,7 +135,6 @@ impl JobStore {
         }
         Ok(results)
     }
-
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -244,7 +243,9 @@ mod tests {
         let result = sample_result(true);
         store.write_log("job1", &result).await.unwrap();
 
-        let logs = JobStore::read_logs_from_dir(&store.log_dir_for("job1"), 5).await.unwrap();
+        let logs = JobStore::read_logs_from_dir(&store.log_dir_for("job1"), 5)
+            .await
+            .unwrap();
         assert_eq!(logs.len(), 1);
         assert!(logs[0].success);
         let _ = fs::remove_dir_all(&dir).await;
@@ -263,7 +264,9 @@ mod tests {
             store.write_log("job1", &result).await.unwrap();
         }
 
-        let logs = JobStore::read_logs_from_dir(&store.log_dir_for("job1"), 10).await.unwrap();
+        let logs = JobStore::read_logs_from_dir(&store.log_dir_for("job1"), 10)
+            .await
+            .unwrap();
         assert_eq!(logs.len(), 3, "only the 3 most recent logs should be kept");
         let _ = fs::remove_dir_all(&dir).await;
     }
@@ -283,7 +286,9 @@ mod tests {
         tokio::time::sleep(tokio::time::Duration::from_millis(2)).await;
         store.write_log("j", &r2).await.unwrap();
 
-        let logs = JobStore::read_logs_from_dir(&store.log_dir_for("j"), 10).await.unwrap();
+        let logs = JobStore::read_logs_from_dir(&store.log_dir_for("j"), 10)
+            .await
+            .unwrap();
         assert_eq!(logs.len(), 2);
         // newest first → logs[0] is r2 (failed), logs[1] is r1 (success)
         assert!(!logs[0].success, "newest log should be first");

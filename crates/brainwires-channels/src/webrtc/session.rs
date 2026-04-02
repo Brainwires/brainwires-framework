@@ -21,10 +21,14 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
+use rtc::rtp_transceiver::SSRC;
+use rtc::rtp_transceiver::rtp_sender::{
+    RTCRtpCodec, RTCRtpCodingParameters, RTCRtpEncodingParameters, RtpCodecKind,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use tokio::sync::{broadcast, RwLock};
+use tokio::sync::{RwLock, broadcast};
 use uuid::Uuid;
 use webrtc::data_channel::DataChannel as WrtcDataChannel;
 use webrtc::data_channel::DataChannelEvent;
@@ -35,20 +39,16 @@ use webrtc::media_stream::track_remote::TrackRemote;
 use webrtc::media_stream::track_remote::TrackRemoteEvent;
 use webrtc::peer_connection::{
     MediaEngine, MulticastDnsMode, PeerConnection, PeerConnectionBuilder,
-    PeerConnectionEventHandler, Registry, RTCIceConnectionState, RTCIceGatheringState,
+    PeerConnectionEventHandler, RTCIceConnectionState, RTCIceGatheringState,
     RTCPeerConnectionIceEvent, RTCPeerConnectionState, RTCSessionDescription, RTCSignalingState,
-    SettingEngine, register_default_interceptors,
+    Registry, SettingEngine, register_default_interceptors,
 };
-use rtc::rtp_transceiver::rtp_sender::{
-    RTCRtpCodec, RTCRtpCodingParameters, RTCRtpEncodingParameters, RtpCodecKind,
-};
-use rtc::rtp_transceiver::SSRC;
 
 use crate::events::ChannelEvent;
 use crate::identity::ConversationId;
 
-use super::config::{AudioCodec, VideoCodec, WebRtcConfig};
 use super::config::DtlsRole;
+use super::config::{AudioCodec, VideoCodec, WebRtcConfig};
 use super::track::{
     AudioTrack, DataChannel, DataChannelConfig, DataChannelMessage, MediaTrack, RemoteTrack,
     TrackDirection, TrackId, VideoTrack,
@@ -169,11 +169,13 @@ impl PeerConnectionEventHandler for SessionEventHandler {
             _ => return,
         };
         self.state.write().await.peer_connection_state = mapped.clone();
-        let _ = self.event_tx.send(ChannelEvent::PeerConnectionStateChanged {
-            session_id: self.session_id.clone(),
-            state: mapped,
-            conversation: self.conversation.clone(),
-        });
+        let _ = self
+            .event_tx
+            .send(ChannelEvent::PeerConnectionStateChanged {
+                session_id: self.session_id.clone(),
+                state: mapped,
+                conversation: self.conversation.clone(),
+            });
     }
 
     async fn on_ice_connection_state_change(&self, state: RTCIceConnectionState) {
@@ -467,7 +469,10 @@ impl WebRtcSession {
     /// [`WebRtcSignaling::send_signaling`](super::signaling::WebRtcSignaling::send_signaling).
     pub async fn create_offer(&self) -> Result<String> {
         let pc = self.get_pc().await?;
-        let offer = pc.create_offer(None).await.map_err(|e| anyhow!("create_offer: {e}"))?;
+        let offer = pc
+            .create_offer(None)
+            .await
+            .map_err(|e| anyhow!("create_offer: {e}"))?;
         let sdp = offer.sdp.clone();
         pc.set_local_description(offer)
             .await
@@ -481,7 +486,10 @@ impl WebRtcSession {
     /// Returns the SDP body to be forwarded to the initiating peer.
     pub async fn create_answer(&self) -> Result<String> {
         let pc = self.get_pc().await?;
-        let answer = pc.create_answer(None).await.map_err(|e| anyhow!("create_answer: {e}"))?;
+        let answer = pc
+            .create_answer(None)
+            .await
+            .map_err(|e| anyhow!("create_answer: {e}"))?;
         let sdp = answer.sdp.clone();
         pc.set_local_description(answer)
             .await
@@ -538,7 +546,9 @@ impl WebRtcSession {
     /// [`create_offer`](Self::create_offer).
     pub async fn restart_ice(&self) -> Result<()> {
         let pc = self.get_pc().await?;
-        pc.restart_ice().await.map_err(|e| anyhow!("restart_ice: {e}"))
+        pc.restart_ice()
+            .await
+            .map_err(|e| anyhow!("restart_ice: {e}"))
     }
 
     // ── Tracks ────────────────────────────────────────────────────────────────
@@ -595,12 +605,16 @@ impl WebRtcSession {
             ssrc,
             inner: inner.clone(),
         };
-        self.state.write().await.local_tracks.push(MediaTrack::Audio(AudioTrack {
-            id,
-            direction: TrackDirection::SendOnly,
-            ssrc,
-            inner,
-        }));
+        self.state
+            .write()
+            .await
+            .local_tracks
+            .push(MediaTrack::Audio(AudioTrack {
+                id,
+                direction: TrackDirection::SendOnly,
+                ssrc,
+                inner,
+            }));
         Ok(audio)
     }
 
@@ -656,12 +670,16 @@ impl WebRtcSession {
             ssrc,
             inner: inner.clone(),
         };
-        self.state.write().await.local_tracks.push(MediaTrack::Video(VideoTrack {
-            id,
-            direction: TrackDirection::SendOnly,
-            ssrc,
-            inner,
-        }));
+        self.state
+            .write()
+            .await
+            .local_tracks
+            .push(MediaTrack::Video(VideoTrack {
+                id,
+                direction: TrackDirection::SendOnly,
+                ssrc,
+                inner,
+            }));
         Ok(video)
     }
 
@@ -761,10 +779,11 @@ impl WebRtcSession {
 
     /// Close the PeerConnection and clean up all resources.
     pub async fn close(&self) -> Result<()> {
-        let pc: Option<Arc<dyn PeerConnection>> =
-            self.peer_connection.write().await.take();
+        let pc: Option<Arc<dyn PeerConnection>> = self.peer_connection.write().await.take();
         if let Some(pc) = pc {
-            pc.close().await.map_err(|e| anyhow!("close PeerConnection: {e}"))?;
+            pc.close()
+                .await
+                .map_err(|e| anyhow!("close PeerConnection: {e}"))?;
         }
         self.state.write().await.signaling_state = SignalingState::Closed;
         Ok(())
@@ -889,10 +908,9 @@ mod tests {
             }
         });
 
-        tokio::time::timeout(
-            std::time::Duration::from_secs(10),
-            async { tokio::join!(init_relay, resp_relay) },
-        )
+        tokio::time::timeout(std::time::Duration::from_secs(10), async {
+            tokio::join!(init_relay, resp_relay)
+        })
         .await
         .expect("sessions did not connect within 10 seconds");
 

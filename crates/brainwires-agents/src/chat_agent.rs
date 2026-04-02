@@ -322,7 +322,12 @@ impl ChatAgent {
         &mut self,
         tools_opt: Option<&[Tool]>,
         on_chunk: &Option<F>,
-    ) -> Result<(String, Vec<ToolUse>, Option<String>, Option<(String, Option<u32>)>)>
+    ) -> Result<(
+        String,
+        Vec<ToolUse>,
+        Option<String>,
+        Option<(String, Option<u32>)>,
+    )>
     where
         F: Fn(&str) + Send + Sync,
     {
@@ -384,7 +389,10 @@ impl ChatAgent {
                     self.cumulative_usage.total_tokens += u.total_tokens;
                 }
                 StreamChunk::Done => {}
-                StreamChunk::ContextCompacted { summary, tokens_freed } => {
+                StreamChunk::ContextCompacted {
+                    summary,
+                    tokens_freed,
+                } => {
                     // Record compaction info; applied to self.messages after the stream
                     // borrow is released (see run_completion).
                     compaction = Some((summary, tokens_freed));

@@ -414,16 +414,16 @@ impl SkillRegistry {
         output.push_str(&format!("\n**File**: {}\n", metadata.source_path.display()));
 
         // Show Level 3 resources if available
-        if let Ok(resources) = self.get_resources(name) {
-            if !resources.is_empty() {
-                output.push_str(&format!(
-                    "\n**Resources**: {} file(s) (scripts: {}, references: {}, assets: {})\n",
-                    resources.total_count(),
-                    resources.scripts.len(),
-                    resources.references.len(),
-                    resources.assets.len(),
-                ));
-            }
+        if let Ok(resources) = self.get_resources(name)
+            && !resources.is_empty()
+        {
+            output.push_str(&format!(
+                "\n**Resources**: {} file(s) (scripts: {}, references: {}, assets: {})\n",
+                resources.total_count(),
+                resources.scripts.len(),
+                resources.references.len(),
+                resources.assets.len(),
+            ));
         }
 
         Ok(output)

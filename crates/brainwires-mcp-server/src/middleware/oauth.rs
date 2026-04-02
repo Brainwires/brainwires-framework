@@ -113,7 +113,12 @@ mod tests {
 
     fn make_token(secret: &[u8]) -> String {
         let claims = json!({ "sub": "test", "exp": 9999999999u64 });
-        encode(&Header::default(), &claims, &EncodingKey::from_secret(secret)).unwrap()
+        encode(
+            &Header::default(),
+            &claims,
+            &EncodingKey::from_secret(secret),
+        )
+        .unwrap()
     }
 
     fn make_request(method: &str, token: Option<&str>) -> JsonRpcRequest {
@@ -179,8 +184,11 @@ mod tests {
         let mut ctx = RequestContext::new(json!(1));
 
         // First call validates and caches
-        mw.process_request(&make_request("tools/call", Some(&make_token(secret))), &mut ctx)
-            .await;
+        mw.process_request(
+            &make_request("tools/call", Some(&make_token(secret))),
+            &mut ctx,
+        )
+        .await;
 
         // Second call uses cached result — no token required
         assert!(matches!(

@@ -38,7 +38,6 @@ pub mod git_workflow;
 #[cfg(feature = "gpio")]
 pub use brainwires_hardware::gpio;
 
-
 pub use config::AutonomyConfig;
 pub use error::AutonomyError;
 pub use metrics::{SessionMetrics, SessionReport};

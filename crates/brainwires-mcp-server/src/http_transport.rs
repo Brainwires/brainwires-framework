@@ -22,8 +22,8 @@ use axum::{
     Router,
     extract::State,
     http::{HeaderMap, HeaderValue, StatusCode},
-    response::{IntoResponse, Sse},
     response::sse::{Event, KeepAlive},
+    response::{IntoResponse, Sse},
     routing::{get, post},
 };
 use serde::Serialize;
@@ -100,10 +100,7 @@ impl HttpServerTransport {
         let app = Router::new()
             .route("/mcp", post(handle_mcp_post))
             .route("/mcp/events", get(handle_mcp_events))
-            .route(
-                "/.well-known/mcp/server-card.json",
-                get(handle_server_card),
-            )
+            .route("/.well-known/mcp/server-card.json", get(handle_server_card))
             .route(
                 "/.well-known/oauth-protected-resource",
                 get(handle_oauth_resource),
@@ -164,10 +161,7 @@ thread_local! {
 
 // ── axum handlers ─────────────────────────────────────────────────────────────
 
-async fn handle_mcp_post(
-    State(state): State<HttpState>,
-    body: String,
-) -> impl IntoResponse {
+async fn handle_mcp_post(State(state): State<HttpState>, body: String) -> impl IntoResponse {
     let (response_tx, response_rx) = oneshot::channel::<String>();
 
     if state.request_tx.send((body, response_tx)).await.is_err() {
@@ -181,10 +175,7 @@ async fn handle_mcp_post(
     match tokio::time::timeout(Duration::from_secs(REQUEST_TIMEOUT_SECS), response_rx).await {
         Ok(Ok(response)) => {
             let mut headers = HeaderMap::new();
-            headers.insert(
-                "content-type",
-                HeaderValue::from_static("application/json"),
-            );
+            headers.insert("content-type", HeaderValue::from_static("application/json"));
             (StatusCode::OK, headers, response).into_response()
         }
         Ok(Err(_)) => (StatusCode::INTERNAL_SERVER_ERROR, "Response dropped").into_response(),
@@ -207,15 +198,14 @@ async fn handle_mcp_events(
 
 async fn handle_server_card(State(state): State<HttpState>) -> impl IntoResponse {
     let mut headers = HeaderMap::new();
-    headers.insert(
-        "content-type",
-        HeaderValue::from_static("application/json"),
-    );
-    headers.insert(
-        "access-control-allow-origin",
-        HeaderValue::from_static("*"),
-    );
-    (StatusCode::OK, headers, state.server_card_json.as_str().to_string()).into_response()
+    headers.insert("content-type", HeaderValue::from_static("application/json"));
+    headers.insert("access-control-allow-origin", HeaderValue::from_static("*"));
+    (
+        StatusCode::OK,
+        headers,
+        state.server_card_json.as_str().to_string(),
+    )
+        .into_response()
 }
 
 async fn handle_oauth_resource(State(state): State<HttpState>) -> impl IntoResponse {
@@ -223,11 +213,13 @@ async fn handle_oauth_resource(State(state): State<HttpState>) -> impl IntoRespo
         return StatusCode::NOT_FOUND.into_response();
     }
     let mut headers = HeaderMap::new();
-    headers.insert(
-        "content-type",
-        HeaderValue::from_static("application/json"),
-    );
-    (StatusCode::OK, headers, state.oauth_resource_json.as_str().to_string()).into_response()
+    headers.insert("content-type", HeaderValue::from_static("application/json"));
+    (
+        StatusCode::OK,
+        headers,
+        state.oauth_resource_json.as_str().to_string(),
+    )
+        .into_response()
 }
 
 // ── Server Card types (SEP-1649) ───────────────────────────────────────────
@@ -335,8 +327,14 @@ mod tests {
                 description: "Ping tool".to_string(),
                 input_schema: serde_json::json!({}),
             }],
-            McpAuthInfo { scheme: "none".to_string(), authorization_server: None },
-            vec![McpTransportInfo { kind: "http+sse".to_string(), url: None }],
+            McpAuthInfo {
+                scheme: "none".to_string(),
+                authorization_server: None,
+            },
+            vec![McpTransportInfo {
+                kind: "http+sse".to_string(),
+                url: None,
+            }],
         );
 
         let mut transport = HttpServerTransport::bind(addr, Some(card), None)
@@ -380,7 +378,10 @@ mod tests {
             "1.0.0",
             Some("Test server".to_string()),
             vec![],
-            McpAuthInfo { scheme: "none".to_string(), authorization_server: None },
+            McpAuthInfo {
+                scheme: "none".to_string(),
+                authorization_server: None,
+            },
             vec![],
         );
 
@@ -444,8 +445,14 @@ mod tests {
                 description: "A tool".to_string(),
                 input_schema: serde_json::json!({"type":"object"}),
             }],
-            McpAuthInfo { scheme: "oauth2".to_string(), authorization_server: Some("https://auth.example.com".to_string()) },
-            vec![McpTransportInfo { kind: "http+sse".to_string(), url: Some("https://mcp.example.com".to_string()) }],
+            McpAuthInfo {
+                scheme: "oauth2".to_string(),
+                authorization_server: Some("https://auth.example.com".to_string()),
+            },
+            vec![McpTransportInfo {
+                kind: "http+sse".to_string(),
+                url: Some("https://mcp.example.com".to_string()),
+            }],
         );
 
         let json = serde_json::to_value(&card).unwrap();

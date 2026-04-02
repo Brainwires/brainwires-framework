@@ -103,9 +103,7 @@ pub struct DataChannel {
 }
 
 impl DataChannel {
-    pub(crate) async fn new(
-        inner: Arc<dyn webrtc::data_channel::DataChannel>,
-    ) -> Result<Self> {
+    pub(crate) async fn new(inner: Arc<dyn webrtc::data_channel::DataChannel>) -> Result<Self> {
         let label = inner.label().await.map_err(|e| anyhow::anyhow!("{e}"))?;
         let id = inner.id();
         Ok(Self { id, label, inner })
@@ -118,9 +116,7 @@ impl DataChannel {
             match self.inner.poll().await {
                 Some(DataChannelEvent::OnMessage(msg)) => {
                     return Some(if msg.is_string {
-                        DataChannelMessage::Text(
-                            String::from_utf8_lossy(&msg.data).into_owned(),
-                        )
+                        DataChannelMessage::Text(String::from_utf8_lossy(&msg.data).into_owned())
                     } else {
                         DataChannelMessage::Binary(msg.data.to_vec())
                     });
@@ -230,7 +226,12 @@ impl RemoteTrack {
         codec: Option<String>,
         inner: Arc<dyn TrackRemote>,
     ) -> Self {
-        Self { id, kind, codec, inner }
+        Self {
+            id,
+            kind,
+            codec,
+            inner,
+        }
     }
 
     /// Poll for the next event from this remote track.

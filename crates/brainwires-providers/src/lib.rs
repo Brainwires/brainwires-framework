@@ -370,10 +370,7 @@ mod tests {
 
     #[test]
     fn test_provider_type_default_model() {
-        assert_eq!(
-            ProviderType::Anthropic.default_model(),
-            "claude-sonnet-4-6"
-        );
+        assert_eq!(ProviderType::Anthropic.default_model(), "claude-sonnet-4-6");
         assert_eq!(ProviderType::OpenAI.default_model(), "gpt-5-mini");
         assert_eq!(ProviderType::Google.default_model(), "gemini-2.5-flash");
         assert_eq!(

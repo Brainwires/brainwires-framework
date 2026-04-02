@@ -274,7 +274,10 @@ impl HttpTransport {
             anyhow::bail!("MCP server returned HTTP {}", resp.status());
         }
 
-        let text = resp.text().await.context("Failed to read MCP response body")?;
+        let text = resp
+            .text()
+            .await
+            .context("Failed to read MCP response body")?;
         let value: serde_json::Value =
             serde_json::from_str(&text).context("Failed to parse MCP response as JSON")?;
 

@@ -16,6 +16,9 @@ pub mod connection;
 pub mod error;
 /// MCP request handler trait.
 pub mod handler;
+/// Stateless HTTP + SSE transport (MCP 2026 spec).
+#[cfg(feature = "http")]
+pub mod http_transport;
 /// MCP server transport (stdio).
 pub mod mcp_transport;
 /// Middleware pipeline (auth, logging, rate-limiting, tool filtering).
@@ -26,9 +29,6 @@ pub mod registry;
 pub mod server;
 /// MCP Tasks primitive (SEP-1686).
 pub mod tasks;
-/// Stateless HTTP + SSE transport (MCP 2026 spec).
-#[cfg(feature = "http")]
-pub mod http_transport;
 
 pub use connection::{ClientInfo, RequestContext};
 pub use error::AgentNetworkError;
@@ -42,14 +42,14 @@ pub use tasks::{McpTask, McpTaskState, McpTaskStore};
 // Re-export HTTP transport types
 #[cfg(feature = "http")]
 pub use http_transport::{
-    HttpServerTransport, McpServerCard, McpToolCardEntry, McpAuthInfo, McpTransportInfo,
+    HttpServerTransport, McpAuthInfo, McpServerCard, McpToolCardEntry, McpTransportInfo,
     OAuthProtectedResource, build_server_card,
 };
 
 // Re-export middleware implementations
 pub use middleware::auth::AuthMiddleware;
 pub use middleware::logging::LoggingMiddleware;
-pub use middleware::rate_limit::RateLimitMiddleware;
-pub use middleware::tool_filter::ToolFilterMiddleware;
 #[cfg(feature = "oauth")]
 pub use middleware::oauth::OAuthMiddleware;
+pub use middleware::rate_limit::RateLimitMiddleware;
+pub use middleware::tool_filter::ToolFilterMiddleware;

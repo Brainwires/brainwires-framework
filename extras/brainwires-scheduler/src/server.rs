@@ -74,10 +74,7 @@ pub struct GetLogsRequest {
 #[tool_router(router = tool_router)]
 impl SchedulerServer {
     #[tool(description = "Add a new scheduled job. Returns the generated job ID.")]
-    async fn add_job(
-        &self,
-        Parameters(req): Parameters<AddJobRequest>,
-    ) -> Result<String, String> {
+    async fn add_job(&self, Parameters(req): Parameters<AddJobRequest>) -> Result<String, String> {
         let now = Utc::now();
         let id = uuid::Uuid::new_v4().to_string();
 
@@ -148,10 +145,7 @@ impl SchedulerServer {
     }
 
     #[tool(description = "List all scheduled jobs with their status and next scheduled run time.")]
-    async fn list_jobs(
-        &self,
-        Parameters(()): Parameters<()>,
-    ) -> Result<String, String> {
+    async fn list_jobs(&self, Parameters(()): Parameters<()>) -> Result<String, String> {
         let store = self.handle.store.read().await;
         let jobs = store.all();
 
@@ -161,13 +155,17 @@ impl SchedulerServer {
 
         let now = Utc::now();
         let mut lines = vec![
-            format!("{:<36}  {:<20}  {:<8}  {:<22}  {}", "ID", "NAME", "STATUS", "NEXT RUN", "LAST RESULT"),
+            format!(
+                "{:<36}  {:<20}  {:<8}  {:<22}  {}",
+                "ID", "NAME", "STATUS", "NEXT RUN", "LAST RESULT"
+            ),
             "-".repeat(110),
         ];
 
         for j in jobs {
             let status = if j.enabled { "enabled" } else { "disabled" };
-            let next = j.last_fired_at
+            let next = j
+                .last_fired_at
                 .and_then(|lf| next_fire_after(&j.cron, lf))
                 .or_else(|| next_fire(&j.cron))
                 .map(|t| {
@@ -202,14 +200,14 @@ impl SchedulerServer {
     }
 
     #[tool(description = "Get full details of a specific job including its current configuration.")]
-    async fn get_job(
-        &self,
-        Parameters(req): Parameters<JobIdRequest>,
-    ) -> Result<String, String> {
+    async fn get_job(&self, Parameters(req): Parameters<JobIdRequest>) -> Result<String, String> {
         let store = self.handle.store.read().await;
-        let job = store.get(&req.id).ok_or_else(|| format!("job not found: {}", req.id))?;
+        let job = store
+            .get(&req.id)
+            .ok_or_else(|| format!("job not found: {}", req.id))?;
 
-        let next = job.last_fired_at
+        let next = job
+            .last_fired_at
             .and_then(|lf| next_fire_after(&job.cron, lf))
             .or_else(|| next_fire(&job.cron))
             .map(|t| t.to_rfc3339())
@@ -220,7 +218,9 @@ impl SchedulerServer {
             Some(r) => format!(
                 "{} (exit {}), {:.1}s, started {}",
                 if r.success { "success" } else { "failed" },
-                r.exit_code.map(|c| c.to_string()).unwrap_or_else(|| "?".to_string()),
+                r.exit_code
+                    .map(|c| c.to_string())
+                    .unwrap_or_else(|| "?".to_string()),
                 r.duration_secs,
                 r.started_at.format("%Y-%m-%d %H:%M:%S UTC"),
             ),
@@ -230,7 +230,9 @@ impl SchedulerServer {
             None => "none (runs natively)".to_string(),
             Some(s) => format!(
                 "Docker image={}, memory={}MB, cpu={}, network={}",
-                s.image, s.memory_mb, s.cpu_limit,
+                s.image,
+                s.memory_mb,
+                s.cpu_limit,
                 if s.network { "enabled" } else { "disabled" }
             ),
         };
@@ -300,11 +302,10 @@ impl SchedulerServer {
         Ok(format!("Job {} disabled.", req.id))
     }
 
-    #[tool(description = "Trigger a job to run immediately, outside its normal cron schedule. Waits for the job to complete and returns the result.")]
-    async fn run_job(
-        &self,
-        Parameters(req): Parameters<JobIdRequest>,
-    ) -> Result<String, String> {
+    #[tool(
+        description = "Trigger a job to run immediately, outside its normal cron schedule. Waits for the job to complete and returns the result."
+    )]
+    async fn run_job(&self, Parameters(req): Parameters<JobIdRequest>) -> Result<String, String> {
         let result = self
             .handle
             .run_now(&req.id)
@@ -351,10 +352,7 @@ impl SchedulerServer {
     }
 
     #[tool(description = "Return overall scheduler status: uptime, job counts, and daemon health.")]
-    async fn status(
-        &self,
-        Parameters(()): Parameters<()>,
-    ) -> Result<String, String> {
+    async fn status(&self, Parameters(()): Parameters<()>) -> Result<String, String> {
         let store = self.handle.store.read().await;
         let all = store.all();
         let total = all.len();
@@ -387,9 +385,8 @@ impl ServerHandler for SchedulerServer {
     fn get_info(&self) -> ServerInfo {
         let mut info = ServerInfo::default();
         info.capabilities = ServerCapabilities::builder().enable_tools().build();
-        info.server_info =
-            Implementation::new("brainwires-scheduler", env!("CARGO_PKG_VERSION"))
-                .with_title("Brainwires Scheduler — local cron job manager");
+        info.server_info = Implementation::new("brainwires-scheduler", env!("CARGO_PKG_VERSION"))
+            .with_title("Brainwires Scheduler — local cron job manager");
         info.instructions = Some(
             "Schedule and manage local cron jobs. Use add_job to create a job, \
              list_jobs to see all jobs, run_job to trigger immediately, and \
@@ -409,7 +406,9 @@ fn format_result(r: &JobResult) -> String {
     } else {
         format!(
             "✗ failed (exit {}) in {:.2}s",
-            r.exit_code.map(|c| c.to_string()).unwrap_or_else(|| "?".to_string()),
+            r.exit_code
+                .map(|c| c.to_string())
+                .unwrap_or_else(|| "?".to_string()),
             r.duration_secs
         )
     };

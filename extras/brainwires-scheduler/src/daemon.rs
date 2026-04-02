@@ -6,8 +6,8 @@ use chrono::{DateTime, Utc};
 use cron::Schedule;
 use std::str::FromStr;
 use std::sync::Arc;
-use tokio::sync::{mpsc, oneshot, watch, RwLock, Semaphore};
-use tokio::time::{sleep, Duration};
+use tokio::sync::{RwLock, Semaphore, mpsc, oneshot, watch};
+use tokio::time::{Duration, sleep};
 
 // ── Command channel ──────────────────────────────────────────────────────────
 
@@ -151,10 +151,15 @@ impl SchedulerDaemon {
 
         // Graceful shutdown: wait for all in-flight jobs to release their semaphore permits.
         // Acquiring every permit means every running task has finished.
-        let in_flight = self.max_concurrent.saturating_sub(self.semaphore.available_permits());
+        let in_flight = self
+            .max_concurrent
+            .saturating_sub(self.semaphore.available_permits());
         if in_flight > 0 {
             tracing::info!("waiting for {in_flight} in-flight job(s) to complete before exit");
-            let _ = self.semaphore.acquire_many(self.max_concurrent as u32).await;
+            let _ = self
+                .semaphore
+                .acquire_many(self.max_concurrent as u32)
+                .await;
         }
 
         tracing::info!("scheduler daemon stopped");
@@ -281,7 +286,10 @@ pub(crate) async fn run_with_retry(job: &Job) -> JobResult {
     }
 
     let (max_retries, backoff_secs) = match &job.failure_policy {
-        FailurePolicy::Retry { max_retries, backoff_secs } => (*max_retries, *backoff_secs),
+        FailurePolicy::Retry {
+            max_retries,
+            backoff_secs,
+        } => (*max_retries, *backoff_secs),
         _ => return result,
     };
 
@@ -489,8 +497,7 @@ mod tests {
     #[tokio::test]
     async fn retry_succeeds_on_second_attempt() {
         // A counter file lets the command fail once then succeed.
-        let counter = std::env::temp_dir()
-            .join(format!("bw-retry-{}.txt", uuid::Uuid::new_v4()));
+        let counter = std::env::temp_dir().join(format!("bw-retry-{}.txt", uuid::Uuid::new_v4()));
         let p = counter.to_string_lossy().to_string();
 
         let mut job = make_job("* * * * *", None);
@@ -500,7 +507,10 @@ mod tests {
             "-c".into(),
             format!("N=$(cat {p} 2>/dev/null || echo 0); N=$((N+1)); echo $N > {p}; [ $N -ge 2 ]"),
         ];
-        job.failure_policy = FailurePolicy::Retry { max_retries: 3, backoff_secs: 0 };
+        job.failure_policy = FailurePolicy::Retry {
+            max_retries: 3,
+            backoff_secs: 0,
+        };
 
         let result = run_with_retry(&job).await;
         let _ = tokio::fs::remove_file(&counter).await;
@@ -513,7 +523,10 @@ mod tests {
         let mut job = make_job("* * * * *", None);
         job.command = "false".into();
         job.args = vec![];
-        job.failure_policy = FailurePolicy::Retry { max_retries: 2, backoff_secs: 0 };
+        job.failure_policy = FailurePolicy::Retry {
+            max_retries: 2,
+            backoff_secs: 0,
+        };
 
         let result = run_with_retry(&job).await;
         assert!(!result.success, "should fail after exhausting all retries");
@@ -549,22 +562,27 @@ mod tests {
         let result = run_with_retry(&job).await;
 
         assert!(!result.success);
-        assert!(start.elapsed().as_secs() < 2, "Disable policy must not retry");
+        assert!(
+            start.elapsed().as_secs() < 2,
+            "Disable policy must not retry"
+        );
     }
 
     #[tokio::test]
     async fn successful_job_runs_exactly_once_regardless_of_policy() {
         let mut job = make_job("* * * * *", None);
         // Count invocations via a temp file
-        let counter = std::env::temp_dir()
-            .join(format!("bw-once-{}.txt", uuid::Uuid::new_v4()));
+        let counter = std::env::temp_dir().join(format!("bw-once-{}.txt", uuid::Uuid::new_v4()));
         let p = counter.to_string_lossy().to_string();
         job.command = "sh".into();
         job.args = vec![
             "-c".into(),
             format!("N=$(cat {p} 2>/dev/null || echo 0); echo $((N+1)) > {p}"),
         ];
-        job.failure_policy = FailurePolicy::Retry { max_retries: 5, backoff_secs: 0 };
+        job.failure_policy = FailurePolicy::Retry {
+            max_retries: 5,
+            backoff_secs: 0,
+        };
 
         let result = run_with_retry(&job).await;
         let count: u32 = tokio::fs::read_to_string(&counter)
@@ -576,6 +594,9 @@ mod tests {
         let _ = tokio::fs::remove_file(&counter).await;
 
         assert!(result.success);
-        assert_eq!(count, 1, "successful job should run exactly once, not retry");
+        assert_eq!(
+            count, 1,
+            "successful job should run exactly once, not retry"
+        );
     }
 }

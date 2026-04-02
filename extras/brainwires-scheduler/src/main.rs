@@ -30,11 +30,10 @@ mod store;
 use clap::Parser;
 use config::Config;
 use daemon::SchedulerDaemon;
-use rmcp::{ServiceExt, transport::io::stdio};
 use rmcp::transport::streamable_http_server::{
-    StreamableHttpServerConfig, StreamableHttpService,
-    session::local::LocalSessionManager,
+    StreamableHttpServerConfig, StreamableHttpService, session::local::LocalSessionManager,
 };
+use rmcp::{ServiceExt, transport::io::stdio};
 use server::SchedulerServer;
 use std::sync::Arc;
 use store::JobStore;
@@ -64,8 +63,7 @@ struct Cli {
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info".into()),
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
         )
         .with_writer(std::io::stderr) // keep stdout clean for MCP stdio
         .init();
@@ -83,8 +81,7 @@ async fn main() -> anyhow::Result<()> {
     let store = Arc::new(RwLock::new(store));
 
     // Create the scheduler daemon and the handle the MCP server uses
-    let (daemon, handle, cancel_tx) =
-        SchedulerDaemon::new(Arc::clone(&store), cfg.max_concurrent);
+    let (daemon, handle, cancel_tx) = SchedulerDaemon::new(Arc::clone(&store), cfg.max_concurrent);
 
     // Spawn the daemon loop in the background
     tokio::spawn(daemon.run());
@@ -145,8 +142,7 @@ async fn serve_http(handle: daemon::DaemonHandle, addr: &str) -> anyhow::Result<
 async fn shutdown_signal() {
     use tokio::signal::unix::{SignalKind, signal};
 
-    let mut sigterm = signal(SignalKind::terminate())
-        .expect("failed to install SIGTERM handler");
+    let mut sigterm = signal(SignalKind::terminate()).expect("failed to install SIGTERM handler");
 
     tokio::select! {
         _ = tokio::signal::ctrl_c() => {

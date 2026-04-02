@@ -52,15 +52,15 @@ pub use config::{
     AudioCodec, BandwidthConstraints, CodecPreferences, DtlsRole, IceServer, IceTransportPolicy,
     VideoCodec, WebRtcConfig,
 };
+pub use rtc::statistics::StatsSelector;
+pub use rtc::statistics::report::RTCStatsReport;
 pub use session::{
     IceConnectionState, PeerConnectionState, SdpType, SignalingState, WebRtcSession,
     WebRtcSessionId,
 };
-pub use rtc::statistics::StatsSelector;
-pub use rtc::statistics::report::RTCStatsReport;
 pub use signaling::{
-    BroadcastSignaling, ChannelMessageSignaling, SignalingMessage, WebRtcSignaling,
-    SIGNALING_METADATA_KEY,
+    BroadcastSignaling, ChannelMessageSignaling, SIGNALING_METADATA_KEY, SignalingMessage,
+    WebRtcSignaling,
 };
 pub use track::{
     AudioTrack, DataChannel, DataChannelConfig, DataChannelMessage, MediaTrack, RemoteTrack,
