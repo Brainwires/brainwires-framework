@@ -271,11 +271,10 @@ fn draw_normal_layout(f: &mut Frame, app: &mut App) {
                 .split(main_area)
         }
     } else {
-        // Calculate dynamic input height based on content
-        // Count lines in input (split by newline) + 2 for borders
-        // Note: We count newlines instead of using lines() because lines() doesn't count trailing newlines
-        let newline_count = app.input_state.line_count().saturating_sub(1);
-        let input_lines = (newline_count + 1).max(1) as u16;
+        // Calculate dynamic input height based on content, accounting for soft-wrap.
+        // Content width = terminal width minus 2 border chars.
+        let content_width = main_area.width.saturating_sub(2) as usize;
+        let input_lines = app.input_state.visual_line_count(content_width) as u16;
         let input_height_needed = input_lines + 2; // +2 for top and bottom borders
 
         // Cap at 35% of screen height
