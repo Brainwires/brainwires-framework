@@ -8,11 +8,14 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::providers::Provider;
+use crate::storage::{EmbeddingProvider, MessageMetadata, MessageStore, VectorDatabase};
 use crate::tools::ToolExecutor;
 use crate::types::agent::{AgentContext, PermissionMode, Task};
 use crate::types::message::{ChatResponse, ContentBlock, Message, MessageContent, Role};
 use crate::types::provider::ChatOptions;
+use crate::types::session_budget::SessionBudget;
 use crate::types::tool::{ToolContext, ToolContextExt, ToolUse};
+use crate::utils::context_builder::{ContextBuilder, ContextBuilderConfig};
 
 use super::communication::{AgentMessage, CommunicationHub};
 use super::file_locks::{FileLockManager, LockType};
@@ -81,6 +84,19 @@ pub struct TaskAgentConfig {
     pub mdap_config: Option<crate::mdap::MdapConfig>,
     /// Analytics collector — emit AgentRun and ToolCall events
     pub analytics_collector: Option<std::sync::Arc<brainwires_analytics::AnalyticsCollector>>,
+
+    // --- Budget limits (per-agent) ---
+    /// Maximum total tokens (prompt + completion) this agent may consume.
+    /// Checked after each provider call; the agent fails gracefully when exceeded.
+    pub max_total_tokens: Option<u64>,
+    /// Maximum cost in USD this agent may incur. Requires the provider to supply
+    /// token-usage data and a matching entry in the pricing table.
+    pub max_cost_usd: Option<f64>,
+    /// Wall-clock timeout in seconds. The agent fails gracefully when exceeded.
+    pub timeout_secs: Option<u64>,
+    /// Optional session-level budget shared across all agents in a session.
+    /// When set, both per-agent limits *and* the shared session cap are enforced.
+    pub session_budget: Option<Arc<SessionBudget>>,
 }
 
 impl Default for TaskAgentConfig {
@@ -95,6 +111,10 @@ impl Default for TaskAgentConfig {
             mdap_config: None, // Disabled by default
             analytics_collector: crate::utils::logger::analytics_collector()
                 .map(std::sync::Arc::new),
+            max_total_tokens: None,
+            max_cost_usd: None,
+            timeout_secs: None,
+            session_budget: None,
         }
     }
 }
@@ -248,6 +268,28 @@ impl TaskAgent {
         }
 
         let mut iterations = 0;
+        let mut total_tokens_used: u64 = 0;
+        let started_at = std::time::Instant::now();
+
+        // Register this agent with the session budget (if any).
+        if let Some(ref budget) = self.config.session_budget {
+            budget.increment_agent_count();
+        }
+
+        // Initialise context enhancement. Runs without gating so retrieval fires on
+        // every call (task agents don't use compaction markers like the chat path).
+        let message_store = Self::init_message_store().await;
+        let context_builder = ContextBuilder::with_config(ContextBuilderConfig {
+            use_gating: false,
+            ..ContextBuilderConfig::default()
+        });
+        // Ensure the messages table exists before we start writing to it.
+        if let Some(ref store) = message_store {
+            if let Err(e) = store.ensure_table().await {
+                tracing::debug!("TaskAgent: MessageStore ensure_table failed (non-fatal) — {e}");
+            }
+        }
+        let mut persisted_up_to: usize = 0;
 
         loop {
             iterations += 1;
@@ -263,6 +305,18 @@ impl TaskAgent {
             {
                 let mut task = self.task.write().await;
                 task.increment_iteration();
+            }
+
+            // Check wall-clock timeout
+            if let Some(timeout_secs) = self.config.timeout_secs {
+                if started_at.elapsed().as_secs() >= timeout_secs {
+                    let error = format!(
+                        "Agent {} timed out after {}s",
+                        self.id, timeout_secs
+                    );
+                    tracing::error!(agent_id = %self.id, timeout_secs, "TaskAgent timed out");
+                    return self.fail_agent(&task_id, &error, iterations).await;
+                }
             }
 
             // Check iteration limit
@@ -341,7 +395,36 @@ impl TaskAgent {
             }
 
             // Call the AI provider
-            let response = self.call_provider().await?;
+            let response = self
+                .call_provider(message_store.as_ref(), &context_builder, &task_id)
+                .await?;
+
+            // --- Budget enforcement ---
+            let call_tokens = response.usage.total_tokens as u64;
+            total_tokens_used += call_tokens;
+
+            // Per-agent token limit
+            if let Some(limit) = self.config.max_total_tokens {
+                if total_tokens_used > limit {
+                    let error = format!(
+                        "Agent {} exceeded token budget ({} > {})",
+                        self.id, total_tokens_used, limit
+                    );
+                    tracing::warn!(agent_id = %self.id, total_tokens_used, limit, "token budget exceeded");
+                    return self.fail_agent(&task_id, &error, iterations).await;
+                }
+            }
+
+            // Session-level budget: record usage then check accumulated totals
+            if let Some(ref budget) = self.config.session_budget {
+                budget.record_run(call_tokens, 0.0);
+                if let Err(e) = budget.check_limits() {
+                    let error = format!("Agent {} stopped: session budget — {}", self.id, e);
+                    tracing::warn!(agent_id = %self.id, %e, "session budget exceeded");
+                    return self.fail_agent(&task_id, &error, iterations).await;
+                }
+            }
+            // --- End budget enforcement ---
 
             // Check if task is complete
             if let Some(finish_reason) = &response.finish_reason
@@ -558,6 +641,17 @@ impl TaskAgent {
                     }
                 }
             }
+
+            // Persist new messages to MessageStore for future context retrieval.
+            // Runs fire-and-forget — a failure here never aborts the agent.
+            if let Some(ref store) = message_store {
+                let history = self.context.read().await;
+                let new_msgs = &history.conversation_history[persisted_up_to..];
+                if !new_msgs.is_empty() {
+                    Self::persist_messages(store, new_msgs, &task_id).await;
+                    persisted_up_to = history.conversation_history.len();
+                }
+            }
         }
     }
 
@@ -683,8 +777,129 @@ impl TaskAgent {
         }))
     }
 
-    /// Call the AI provider
-    async fn call_provider(&self) -> Result<ChatResponse> {
+    /// Shared failure path: update task state, broadcast result, unregister, release locks.
+    async fn fail_agent(
+        &self,
+        task_id: &str,
+        error: &str,
+        iterations: u32,
+    ) -> Result<TaskAgentResult> {
+        {
+            let mut task = self.task.write().await;
+            task.fail(error);
+        }
+        self.set_status(TaskAgentStatus::Failed(error.to_string()))
+            .await;
+        let _ = self
+            .communication_hub
+            .broadcast(
+                self.id.clone(),
+                AgentMessage::TaskResult {
+                    task_id: task_id.to_string(),
+                    success: false,
+                    result: error.to_string(),
+                },
+            )
+            .await;
+        let _ = self.communication_hub.unregister_agent(&self.id).await;
+        self.file_lock_manager.release_all_locks(&self.id).await;
+        Ok(TaskAgentResult {
+            agent_id: self.id.clone(),
+            task_id: task_id.to_string(),
+            success: false,
+            summary: error.to_string(),
+            iterations,
+        })
+    }
+
+    /// Try to initialise a `MessageStore` backed by LanceDB.
+    ///
+    /// Returns `None` (with a debug log) if the DB or embedding provider cannot be
+    /// created — the agent continues without context enhancement rather than failing.
+    async fn init_message_store() -> Option<MessageStore> {
+        let db_path = match crate::config::PlatformPaths::conversations_db_path() {
+            Ok(p) => p,
+            Err(e) => {
+                tracing::debug!("TaskAgent: skipping MessageStore — {e}");
+                return None;
+            }
+        };
+        let embeddings = match EmbeddingProvider::new() {
+            Ok(e) => Arc::new(e),
+            Err(e) => {
+                tracing::debug!("TaskAgent: skipping MessageStore (embeddings) — {e}");
+                return None;
+            }
+        };
+        let lance_client = match crate::storage::LanceDatabase::new(
+            db_path.to_str().unwrap_or_default(),
+        )
+        .await
+        {
+            Ok(c) => Arc::new(c),
+            Err(e) => {
+                tracing::debug!("TaskAgent: skipping MessageStore (LanceDB) — {e}");
+                return None;
+            }
+        };
+        if let Err(e) = lance_client.initialize(embeddings.dimension()).await {
+            tracing::debug!("TaskAgent: skipping MessageStore (init) — {e}");
+            return None;
+        }
+        Some(MessageStore::new(lance_client, embeddings))
+    }
+
+    /// Persist messages that haven't been stored yet.
+    ///
+    /// Runs fire-and-forget (errors are logged, not propagated) to avoid blocking
+    /// the main agent loop on storage I/O.
+    async fn persist_messages(
+        store: &MessageStore,
+        messages: &[Message],
+        conversation_id: &str,
+    ) {
+        let batch: Vec<MessageMetadata> = messages
+            .iter()
+            .filter_map(|m| {
+                let content = match &m.content {
+                    MessageContent::Text(t) => t.clone(),
+                    MessageContent::Blocks(_) => {
+                        // Skip tool-result / tool-use blocks — they're noisy for retrieval
+                        return None;
+                    }
+                };
+                if content.trim().is_empty() {
+                    return None;
+                }
+                Some(MessageMetadata {
+                    message_id: uuid::Uuid::new_v4().to_string(),
+                    conversation_id: conversation_id.to_string(),
+                    role: format!("{:?}", m.role).to_lowercase(),
+                    content,
+                    token_count: None,
+                    model_id: None,
+                    images: None,
+                    created_at: chrono::Utc::now().timestamp(),
+                    expires_at: None,
+                })
+            })
+            .collect();
+
+        if !batch.is_empty() {
+            if let Err(e) = store.add_batch(batch).await {
+                tracing::debug!("TaskAgent: MessageStore persist error (non-fatal) — {e}");
+            }
+        }
+    }
+
+    /// Call the AI provider, optionally enhancing the message history with
+    /// semantically retrieved context from `MessageStore`.
+    async fn call_provider(
+        &self,
+        message_store: Option<&MessageStore>,
+        context_builder: &ContextBuilder,
+        conversation_id: &str,
+    ) -> Result<ChatResponse> {
         let context = self.context.read().await;
 
         let system_prompt = self.config.system_prompt.clone().unwrap_or_else(|| {
@@ -693,6 +908,37 @@ impl TaskAgent {
                 &context.working_directory,
             )
         });
+
+        // Build enhanced message list when a message store is available.
+        // ContextBuilder uses use_gating=false so retrieval fires on every call
+        // (unlike chat mode which gates on a compaction marker).
+        let messages = if let Some(store) = message_store {
+            let last_user_query = context
+                .conversation_history
+                .iter()
+                .rev()
+                .find(|m| m.role == Role::User)
+                .and_then(|m| match &m.content {
+                    MessageContent::Text(t) => Some(t.as_str()),
+                    _ => None,
+                })
+                .unwrap_or("");
+
+            context_builder
+                .build_full_context(
+                    &context.conversation_history,
+                    last_user_query,
+                    store,
+                    conversation_id,
+                )
+                .await
+                .unwrap_or_else(|e| {
+                    tracing::debug!("TaskAgent: context enhancement failed (non-fatal) — {e}");
+                    context.conversation_history.clone()
+                })
+        } else {
+            context.conversation_history.clone()
+        };
 
         let options = ChatOptions {
             temperature: Some(self.config.temperature),
@@ -704,11 +950,7 @@ impl TaskAgent {
         };
 
         self.provider
-            .chat(
-                &context.conversation_history,
-                Some(&context.tools),
-                &options,
-            )
+            .chat(&messages, Some(&context.tools), &options)
             .await
     }
 

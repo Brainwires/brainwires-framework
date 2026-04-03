@@ -553,6 +553,10 @@ impl McpServerHandler {
             mdap_config,
             analytics_collector: crate::utils::logger::analytics_collector()
                 .map(std::sync::Arc::new),
+            max_total_tokens: None,
+            max_cost_usd: None,
+            timeout_secs: None,
+            session_budget: None,
         };
 
         let agent = Arc::new(TaskAgent::new(
