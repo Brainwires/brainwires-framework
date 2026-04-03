@@ -17,6 +17,9 @@ use crate::types::session_budget::SessionBudget;
 use crate::types::tool::{ToolContext, ToolContextExt, ToolUse};
 use crate::utils::context_builder::{ContextBuilder, ContextBuilderConfig};
 use brainwires::agents::roles::AgentRole;
+use brainwires::core::workflow_state::{
+    FsWorkflowStateStore, SideEffectRecord, WorkflowCheckpoint, WorkflowStateStore,
+};
 
 use super::communication::{AgentMessage, CommunicationHub};
 use super::file_locks::{FileLockManager, LockType};
@@ -286,6 +289,39 @@ impl TaskAgent {
             budget.increment_agent_count();
         }
 
+        // Initialise workflow checkpoint store and load any existing checkpoint.
+        // A prior checkpoint means the agent crashed mid-run; we resume from where
+        // it left off rather than re-executing already-completed tool calls.
+        let workflow_store = match FsWorkflowStateStore::with_default_path() {
+            Ok(s) => Some(s),
+            Err(e) => {
+                tracing::warn!(agent_id = %self.id, %e, "workflow state store unavailable");
+                None
+            }
+        };
+        let mut workflow_checkpoint: Option<WorkflowCheckpoint> = if let Some(ref s) = workflow_store
+        {
+            match s.load_checkpoint(&task_id).await {
+                Ok(Some(cp)) => {
+                    tracing::info!(
+                        agent_id = %self.id,
+                        task_id = %task_id,
+                        step = cp.step_index,
+                        completed = cp.completed_tool_ids.len(),
+                        "Resuming from prior workflow checkpoint"
+                    );
+                    Some(cp)
+                }
+                Ok(None) => None,
+                Err(e) => {
+                    tracing::warn!(%e, "could not load workflow checkpoint");
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         // Initialise context enhancement. Runs without gating so retrieval fires on
         // every call (task agents don't use compaction markers like the chat path).
         let message_store = Self::init_message_store().await;
@@ -450,6 +486,12 @@ impl TaskAgent {
                 if let Some(validation_attempt) =
                     self.attempt_validated_completion(&message_text).await?
                 {
+                    // Clean up workflow checkpoint on successful completion.
+                    if let Some(ref s) = workflow_store {
+                        if let Err(e) = s.delete_checkpoint(&task_id).await {
+                            tracing::debug!(%e, "checkpoint delete failed (non-fatal)");
+                        }
+                    }
                     return Ok(validation_attempt);
                 }
 
@@ -472,6 +514,12 @@ impl TaskAgent {
                 if let Some(validation_attempt) =
                     self.attempt_validated_completion(&message_text).await?
                 {
+                    // Clean up workflow checkpoint on successful completion.
+                    if let Some(ref s) = workflow_store {
+                        if let Err(e) = s.delete_checkpoint(&task_id).await {
+                            tracing::debug!(%e, "checkpoint delete failed (non-fatal)");
+                        }
+                    }
                     return Ok(validation_attempt);
                 }
 
@@ -493,6 +541,19 @@ impl TaskAgent {
 
             for tool_use in tool_uses {
                 tracing::debug!("[Agent {}] Processing tool: {}", self.id, tool_use.name);
+
+                // Skip tool calls that were already completed in a prior run.
+                if let Some(ref cp) = workflow_checkpoint {
+                    if cp.is_completed(&tool_use.id) {
+                        tracing::info!(
+                            agent_id = %self.id,
+                            tool_use_id = %tool_use.id,
+                            tool = %tool_use.name,
+                            "Skipping already-completed tool call (crash-resume)"
+                        );
+                        continue;
+                    }
+                }
 
                 // Determine if we need file locks
                 let lock_needed = self.get_lock_requirement(&tool_use);
@@ -584,6 +645,38 @@ impl TaskAgent {
                                 );
                             }
 
+                            // Persist checkpoint for this completed tool call (fire-and-forget).
+                            if !result.is_error {
+                                let target = Self::extract_file_path(&tool_use)
+                                    .map(|p| p.display().to_string());
+                                let reversible = matches!(
+                                    tool_use.name.as_str(),
+                                    "read_file" | "list_directory" | "search_code" | "glob"
+                                );
+                                let effect = SideEffectRecord::new(
+                                    &tool_use.id,
+                                    &tool_use.name,
+                                    target,
+                                    reversible,
+                                );
+                                if let Some(ref s) = workflow_store {
+                                    if let Err(e) = s
+                                        .mark_step_complete(&task_id, &tool_use.id, effect)
+                                        .await
+                                    {
+                                        tracing::debug!(%e, "checkpoint persist failed (non-fatal)");
+                                    } else {
+                                        // Keep in-memory checkpoint in sync.
+                                        workflow_checkpoint
+                                            .get_or_insert_with(|| {
+                                                WorkflowCheckpoint::new(&task_id, &self.id)
+                                            })
+                                            .completed_tool_ids
+                                            .insert(tool_use.id.clone());
+                                    }
+                                }
+                            }
+
                             // Lock is released when guard is dropped
                         }
                         Err(e) => {
@@ -648,6 +741,37 @@ impl TaskAgent {
                         );
                         context.working_set.add(file_path, tokens);
                         tracing::debug!("[Agent {}] Added file to working set", self.id);
+                    }
+
+                    // Persist checkpoint (fire-and-forget).
+                    if !result.is_error {
+                        let target = Self::extract_file_path(&tool_use)
+                            .map(|p| p.display().to_string());
+                        let reversible = matches!(
+                            tool_use.name.as_str(),
+                            "read_file" | "list_directory" | "search_code" | "glob"
+                        );
+                        let effect = SideEffectRecord::new(
+                            &tool_use.id,
+                            &tool_use.name,
+                            target,
+                            reversible,
+                        );
+                        if let Some(ref s) = workflow_store {
+                            if let Err(e) = s
+                                .mark_step_complete(&task_id, &tool_use.id, effect)
+                                .await
+                            {
+                                tracing::debug!(%e, "checkpoint persist failed (non-fatal)");
+                            } else {
+                                workflow_checkpoint
+                                    .get_or_insert_with(|| {
+                                        WorkflowCheckpoint::new(&task_id, &self.id)
+                                    })
+                                    .completed_tool_ids
+                                    .insert(tool_use.id.clone());
+                            }
+                        }
                     }
                 }
             }

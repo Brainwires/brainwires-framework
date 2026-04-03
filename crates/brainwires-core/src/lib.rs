@@ -46,6 +46,8 @@ pub mod tool;
 pub mod vector_store;
 /// Working set for file context management with LRU eviction.
 pub mod working_set;
+/// Persistent workflow state for crash-safe agent retry.
+pub mod workflow_state;
 
 // Re-export core types at crate root
 pub use content_source::ContentSource;
