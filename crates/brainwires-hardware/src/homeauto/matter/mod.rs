@@ -14,6 +14,8 @@ pub mod interaction_model;
 pub mod types;
 /// Matter controller — commissions and controls Matter devices.
 pub mod controller;
+/// Matter device discovery — commissionable and operational DNS-SD.
+pub mod discovery;
 /// Matter device server — exposes agents as Matter devices.
 pub mod server;
 

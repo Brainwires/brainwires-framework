@@ -12,11 +12,11 @@
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
-use mdns_sd::{ServiceDaemon, ServiceInfo};
 use tokio::net::UdpSocket;
 use tracing::{debug, error, info};
 
 use crate::homeauto::error::{HomeAutoError, HomeAutoResult};
+use super::discovery::CommissionableAdvertiser;
 use super::types::MatterDeviceConfig;
 
 // Cluster handler callback types
@@ -30,7 +30,6 @@ pub type ThermostatHandler = Arc<dyn Fn(f32) + Send + Sync>;
 const MATTER_PORT: u16 = 5540;
 #[allow(dead_code)]
 const MATTER_MDNS_SERVICE_TYPE: &str = "_matter._tcp";
-const MATTER_COMMISSIONABLE_SERVICE_TYPE: &str = "_matterc._udp";
 
 struct ServerInner {
     on_off: Option<OnOffHandler>,
@@ -153,10 +152,9 @@ impl MatterDeviceServer {
             }
         }
 
-        // Stop mDNS
-        if let Some(handle) = mdns_handle {
-            let _ = handle.stop_browse(MATTER_COMMISSIONABLE_SERVICE_TYPE);
-        }
+        // Stop mDNS (CommissionableAdvertiser Drop will deregister automatically,
+        // but we drop it explicitly here to be clear about lifetimes)
+        drop(mdns_handle);
         inner.lock().unwrap().running = false;
         Ok(())
     }
@@ -199,45 +197,10 @@ impl MatterDeviceServer {
 
     // ── Internal ──────────────────────────────────────────────────────────────
 
-    fn start_mdns_advertisement(&self) -> HomeAutoResult<Option<ServiceDaemon>> {
-        let mdns = ServiceDaemon::new()
-            .map_err(|e| HomeAutoError::Matter(format!("mDNS daemon error: {e}")))?;
-
-        // Commissionable announcement: _matterc._udp
-        // TXT records per Matter spec §4.3.1.2
-        let txt = [
-            ("D", self.config.discriminator.to_string()),
-            ("CM", "1".to_string()), // commissioning mode = 1 (open)
-            ("DN", self.config.device_name.clone()),
-            ("VP", format!("{}+{}", self.config.vendor_id, self.config.product_id)),
-            ("SII", "5000".to_string()),   // sleep idle interval ms
-            ("SAI", "300".to_string()),    // sleep active interval ms
-            ("T", "0".to_string()),        // TCP support = 0
-            ("PH", "33".to_string()),      // PHY = Thread+WiFi+Ethernet
-        ];
-        let host = gethostname::gethostname()
-            .to_string_lossy()
-            .to_string();
-        let service_name = format!("BW-{:04X}", self.config.discriminator);
-
-        let svc = ServiceInfo::new(
-            MATTER_COMMISSIONABLE_SERVICE_TYPE,
-            &service_name,
-            &format!("{host}.local."),
-            (),
-            self.config.port,
-            &txt[..],
-        )
-        .map_err(|e| HomeAutoError::Matter(format!("ServiceInfo error: {e}")))?;
-
-        mdns.register(svc)
-            .map_err(|e| HomeAutoError::Matter(format!("mDNS register error: {e}")))?;
-
-        info!(
-            "Matter mDNS: advertising '{}' on port {} (discriminator {})",
-            service_name, self.config.port, self.config.discriminator
-        );
-        Ok(Some(mdns))
+    fn start_mdns_advertisement(&self) -> HomeAutoResult<Option<CommissionableAdvertiser>> {
+        CommissionableAdvertiser::start(&self.config)
+            .map_err(|e| HomeAutoError::Matter(e.to_string()))
+            .map(Some)
     }
 
     /// Dispatch an incoming Matter UDP frame.
