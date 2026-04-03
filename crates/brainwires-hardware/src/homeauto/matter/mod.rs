@@ -24,6 +24,9 @@ pub mod server;
 pub mod transport;
 /// Matter data model — cluster servers, ACL, and node dispatch.
 pub mod data_model;
+/// BLE commissioning peripheral — BTP handshake and transport channels.
+#[cfg(feature = "matter-ble")]
+pub mod ble;
 
 pub use commissioning::{parse_manual_code, parse_qr_code, CommissioningPayload};
 pub use controller::MatterController;
