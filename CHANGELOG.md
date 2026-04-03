@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+#### Session-Level Token Budget Enforcement (`brainwires-cli`)
+
+- **`SessionBudget`** — New type in `extras/brainwires-cli/src/types/session_budget.rs` with atomic counters (`Arc<AtomicU64>` for tokens and cost-in-microcents, `Arc<AtomicU32>` for agent count). Methods: `check_before_spawn()`, `record_run(tokens, cost_usd)`, `check_limits()`, `increment_agent_count()`.
+- **`TaskAgentConfig` budget fields** — Added `max_total_tokens: Option<u64>`, `max_cost_usd: Option<f64>`, `timeout_secs: Option<u64>`, and `session_budget: Option<Arc<SessionBudget>>`. The execution loop enforces per-agent token and cost caps from provider response usage, and delegates session-level cap checks to `SessionBudget` before each spawn.
+
+#### Infinite Context Wired into TaskAgent (`brainwires-cli`)
+
+- **`MessageStore` initialization in `TaskAgent`** — `TaskAgent::execute()` now initializes a `MessageStore` backed by LanceDB using the same pattern as the chat loop (`PlatformPaths::conversations_db_path()` + `EmbeddingProvider` + `LanceDatabase::initialize()`). Falls back to raw conversation history if LanceDB is unavailable; never fails hard.
+- **`ContextBuilder` integration** — `call_provider()` now calls `ContextBuilder::build_full_context()` with `use_gating: false` so semantic retrieval fires on every call without requiring compaction markers. This matches the always-on behavior of the chat path (`ai_processing.rs`). Task agents now benefit from the same personal knowledge injection and semantic history retrieval as chat sessions.
+- **Message persistence** — Each agent turn is stored in `MessageStore` so long-running tasks accumulate retrievable history across iterations.
+
+#### Structured Agent Roles with Tool Restrictions (`brainwires-agents`)
+
+- **`AgentRole` enum** — New `crates/brainwires-agents/src/roles.rs` with four variants:
+  - `Exploration` — read-only: `read_file`, `list_directory`, `search_code`, `glob`, `grep`, `fetch_url`, `web_search`, `context_recall`, `task_get`, `task_list`
+  - `Planning` — task management + read access: `task_create`, `task_update`, `task_add_subtask`, `plan_task`, plus read tools
+  - `Verification` — read + build/test: `execute_command`, `check_duplicates`, `verify_build`, `check_syntax`, plus read tools
+  - `Execution` — full access (default, all tools permitted)
+- **Enforcement at provider call time** — `AgentRole::filter_tools()` filters the tool list passed to the provider, not post-hoc. The model never receives tools it cannot use, reducing hallucination and wasted tokens.
+- **System prompt suffix** — `AgentRole::system_prompt_suffix()` appends a role constraint reminder to the agent's system prompt.
+- **`registry.filtered_view()`** — Added `filtered_view(&self, allow: &[&str]) -> Vec<Tool>` to `brainwires-tool-system` registry for building role-scoped tool lists.
+- **`role: Option<AgentRole>`** added to `TaskAgentConfig`.
+
+#### Persistent Workflow State / Crash-Safe Retry (`brainwires-core`)
+
+- **`WorkflowCheckpoint`** — Snapshot of agent execution progress: `task_id`, `agent_id`, `step_index`, `completed_tool_ids: HashSet<String>`, `side_effects_log: Vec<SideEffectRecord>`, `updated_at`.
+- **`SideEffectRecord`** — Per-tool completion record: `tool_use_id`, `tool_name`, `target: Option<String>`, `completed_at`, `reversible`.
+- **`WorkflowStateStore` trait** — `save_checkpoint`, `load_checkpoint`, `mark_step_complete`, `delete_checkpoint`.
+- **`FsWorkflowStateStore`** — Persists checkpoints as JSON under `~/.brainwires/workflow/{task_id}.json` using atomic write (write to `.tmp`, then `rename`). Never leaves a partially-written file.
+- **`InMemoryWorkflowStateStore`** — In-memory store for tests; no filesystem I/O.
+- **`TaskAgent` crash-resume** — On startup, loads any prior checkpoint and skips `tool_use_id`s already recorded as complete. Persists each successful tool call. Deletes the checkpoint on clean task completion.
+
+#### Unified Event Schema with Trace IDs (`brainwires-core`, `brainwires-a2a`, `brainwires-agent-network`)
+
+- **`Event` trait** — Common interface: `event_id()`, `trace_id()`, `sequence()`, `occurred_at()`, `event_type()`. Implementing is optional; prefer `EventEnvelope` at boundaries.
+- **`EventEnvelope<E>`** — Generic wrapper carrying any payload with `event_id: Uuid`, `trace_id: Uuid`, `sequence: u64`, `occurred_at: DateTime<Utc>`. Implements `Event`. `map()` preserves all correlation fields. `new_trace_id()` helper for call-site clarity.
+- **Trace ID propagation in `TaskAgent`** — `execute()` generates a `trace_id: Uuid::new_v4()` at startup, writes it into `AgentContext.metadata["trace_id"]`, and logs it at the `INFO` level. Every `ToolContext` built from that agent context automatically carries the trace ID, enabling correlation with `AuditEvent.metadata["trace_id"]` without struct changes.
+- **A2A streaming events** — `TaskStatusUpdateEvent` and `TaskArtifactUpdateEvent` gain `trace_id: Option<Uuid>` (serialized as `traceId`) and `sequence: Option<u64>`, both `skip_serializing_if = None` for wire compatibility.
+- **`MessageEnvelope`** — Gains `trace_id: Option<Uuid>` field. `reply()` inherits the sender's trace ID. New `with_trace(trace_id)` builder method.
+
 ## [0.8.0] - 2026-04-03
 
 ### Fixed

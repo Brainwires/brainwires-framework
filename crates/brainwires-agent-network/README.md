@@ -316,6 +316,7 @@ Distributed agent mesh networking for multi-node coordination. Includes topology
 | `timestamp` | `DateTime<Utc>` | When the message was created |
 | `ttl` | `Option<u32>` | Remaining hops before discard |
 | `correlation_id` | `Option<Uuid>` | Links replies to requests |
+| `trace_id` | `Option<Uuid>` | Cross-system trace ID; inherited by `reply()`, set via `with_trace()` |
 | `transport_type` | `TransportType` | Which transport originated this message |
 
 ### Device Allowlists & Sender Verification

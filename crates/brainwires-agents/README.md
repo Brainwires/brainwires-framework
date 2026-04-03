@@ -113,11 +113,12 @@ A `TaskAgent` runs an AI provider in a loop — calling tools, tracking progress
 **Key types:**
 
 - `TaskAgent` — the autonomous execution unit; owns its conversation history and working set
-- `TaskAgentConfig` — controls iteration limits, budgets, validation, and loop detection
+- `TaskAgentConfig` — controls iteration limits, budgets, validation, loop detection, and role
 - `TaskAgentResult` — outcome including iterations used, token counts, cost, and failure category
 - `FailureCategory` — why an agent stopped (when unsuccessful)
 - `ExecutionGraph` — full DAG trace of provider calls and tool invocations
 - `RunTelemetry` — aggregate summary derived from the execution graph
+- `AgentRole` — least-privilege tool restriction enforced at provider call time
 
 **`FailureCategory` variants:**
 
@@ -381,6 +382,30 @@ if confidence.is_high_confidence() {
 }
 ```
 
+## Agent Roles
+
+`AgentRole` restricts the tool list passed to the provider at call time — the model never receives tools it cannot use.
+
+| Role | Tool access | Intended use |
+|------|-------------|--------------|
+| `Exploration` | Read-only: `read_file`, `glob`, `grep`, `search_code`, `web_search`, etc. | Safe exploration of untrusted repos |
+| `Planning` | Read + task management: `task_create`, `task_update`, `plan_task`, etc. | Plan-only phase before execution |
+| `Verification` | Read + build/test: `execute_command`, `check_duplicates`, `verify_build`, etc. | Post-execution quality checks |
+| `Execution` | All tools (default) | Full autonomous execution |
+
+```rust
+use brainwires_agents::roles::AgentRole;
+
+let config = TaskAgentConfig {
+    role: Some(AgentRole::Exploration),
+    ..Default::default()
+};
+// The agent will only receive read-only tools — write_file, execute_command, etc.
+// are filtered before being sent to the provider.
+```
+
+Each role also appends a short `[ROLE: ...]` suffix to the system prompt to reinforce constraints.
+
 ## Configuration
 
 ### TaskAgentConfig Fields
@@ -399,6 +424,7 @@ if confidence.is_high_confidence() {
 | `max_cost_usd` | `Option<f64>` | `None` | Cumulative cost ceiling (USD) |
 | `timeout_secs` | `Option<u64>` | `None` | Wall-clock timeout |
 | `allowed_files` | `Option<Vec<PathBuf>>` | `None` | File scope whitelist |
+| `role` | `Option<AgentRole>` | `None` | Least-privilege tool filter (see `AgentRole`) |
 
 ### ValidationConfig Builder
 
