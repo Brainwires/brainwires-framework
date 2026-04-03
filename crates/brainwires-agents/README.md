@@ -406,6 +406,50 @@ let config = TaskAgentConfig {
 
 Each role also appends a short `[ROLE: ...]` suffix to the system prompt to reinforce constraints.
 
+## System Prompt Registry
+
+`AgentPromptKind` is the authoritative inventory of every agent system prompt in the framework. Use `build_agent_prompt(kind, role)` to construct any prompt — it handles `AgentRole` suffix injection automatically.
+
+```rust
+use brainwires_agents::system_prompts::{AgentPromptKind, build_agent_prompt};
+use brainwires_agents::roles::AgentRole;
+
+// Default reasoning agent — no role restriction
+let prompt = build_agent_prompt(
+    AgentPromptKind::Reasoning { agent_id: "agent-1", working_directory: "/project" },
+    None,
+);
+
+// Exploration role — role suffix appended automatically
+let prompt = build_agent_prompt(
+    AgentPromptKind::Reasoning { agent_id: "agent-1", working_directory: "/project" },
+    Some(AgentRole::Exploration),
+);
+
+// MDAP voting microagent — independent reasoning context
+let prompt = build_agent_prompt(
+    AgentPromptKind::MdapMicroagent {
+        agent_id: "micro-2",
+        working_directory: "/project",
+        vote_round: 2,
+        peer_count: 3,
+    },
+    None,
+);
+```
+
+**`AgentPromptKind` variants:**
+
+| Variant | Description |
+|---------|-------------|
+| `Reasoning` | DECIDE → PRE-EVALUATE → EXECUTE → POST-EVALUATE cycle. Default for `TaskAgent`. |
+| `Planner` | Read-only exploration; outputs structured JSON task plan. |
+| `Judge` | Evaluates Plan→Work cycle results; outputs verdict JSON. |
+| `Simple` | Minimal fallback for straightforward tasks. |
+| `MdapMicroagent` | One of k independent voting agents; discourages anchoring on peer results. |
+
+To add a new agent type: add a variant to `AgentPromptKind`, implement the function in `system_prompts/agents.rs`, wire it into `build_agent_prompt`.
+
 ## Configuration
 
 ### TaskAgentConfig Fields

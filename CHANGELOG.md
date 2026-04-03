@@ -49,6 +49,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A2A streaming events** — `TaskStatusUpdateEvent` and `TaskArtifactUpdateEvent` gain `trace_id: Option<Uuid>` (serialized as `traceId`) and `sequence: Option<u64>`, both `skip_serializing_if = None` for wire compatibility.
 - **`MessageEnvelope`** — Gains `trace_id: Option<Uuid>` field. `reply()` inherits the sender's trace ID. New `with_trace(trace_id)` builder method.
 
+#### Framework-Level System Prompt Registry (`brainwires-agents`, `brainwires-cli`)
+
+- **`AgentPromptKind` enum** — New `crates/brainwires-agents/src/system_prompts/mod.rs` is the authoritative inventory of every agent system prompt in the framework. Variants: `Reasoning`, `Planner`, `Judge`, `Simple`, `MdapMicroagent`. Adding a new agent type means adding a variant here first.
+- **`build_agent_prompt(kind, role)` dispatcher** — Single function to build any agent system prompt. Automatically appends `AgentRole::system_prompt_suffix()` when a role is provided, removing the need for callers to handle role suffix injection manually. Replaces the manual `format!("{}{}", base, role.system_prompt_suffix())` pattern in `task_agent.rs`.
+- **`MdapMicroagent` prompt** — New `mdap_microagent_prompt()` for MDAP voting agents. Instructs each microagent to reason independently, notes the vote round and peer count, and explicitly discourages anchoring on what other agents might produce.
+- **Eliminated CLI duplicate** — `extras/brainwires-cli/src/agents/system_prompts.rs` was an exact copy of the framework module. Deleted; all callers now import from `brainwires::agents`.
+- **CLI mode prompt registry** — New `extras/brainwires-cli/src/system_prompts/modes.rs` consolidates all interactive-mode system prompts: Edit, Ask, Plan, Batch, and the `plan_task` tool sub-agent. Prompts that were previously buried inside `agent/plan_mode.rs` and `tools/plan.rs` are now extracted here.
+- **`build_ask_mode_system_prompt_with_knowledge()`** — Previously missing variant (Edit mode had knowledge injection; Ask mode did not). Now available in `modes.rs`.
+- **`build_batch_mode_system_prompt()`** — New distinct Batch-mode prompt optimised for throughput: concise/consistent output, self-contained responses, no exploratory dialogue.
+- **`utils/system_prompt.rs` simplified** — Reduced to a thin re-export shim pointing to `system_prompts::modes` for backward compatibility.
+
 ## [0.8.0] - 2026-04-03
 
 ### Fixed
