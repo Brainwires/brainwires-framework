@@ -83,12 +83,14 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore = "requires FastEmbed model files on disk — run manually after downloading the model"]
     fn test_embeddings_manager_new() {
         let manager = EmbeddingsManager::new().unwrap();
         assert_eq!(manager.dimension(), 384);
     }
 
     #[tokio::test]
+    #[ignore = "requires FastEmbed model files on disk — run manually after downloading the model"]
     async fn test_generate_embedding() {
         let manager = EmbeddingsManager::new().unwrap();
         let result = manager.generate_embedding("test text").await;
@@ -98,6 +100,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "requires FastEmbed model files on disk — run manually after downloading the model"]
     async fn test_generate_embeddings_batch() {
         let manager = EmbeddingsManager::new().unwrap();
         let texts = vec!["first message".to_string(), "second message".to_string()];
@@ -107,6 +110,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "requires FastEmbed model files on disk — run manually after downloading the model"]
     async fn test_caching() {
         let manager = EmbeddingsManager::new().unwrap();
 
@@ -128,6 +132,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires FastEmbed model files on disk — run manually after downloading the model"]
     fn test_clone() {
         let manager = EmbeddingsManager::new().unwrap();
         let cloned = manager.clone();
