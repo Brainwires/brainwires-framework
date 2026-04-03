@@ -98,6 +98,13 @@ burn-autodiff = { version = "0.20", default-features = false, features = ["std"]
 burn-wgpu = { version = "0.20", default-features = false, features = ["std", "autotune"] }
 burn-ndarray = { version = "0.20", default-features = false, features = ["std"] }
 
+# Home automation serial protocols
+tokio-serial = "5.4"
+# CRC calculations (Zigbee EZSP/ASH CRC-16-CCITT)
+crc = "3"
+# mDNS service discovery (Matter device/controller discovery)
+mdns-sd = "0.12"
+
 # Async runtime & utilities
 tokio = { version = "1.43", features = ["full"] }
 futures = "0.3"

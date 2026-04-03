@@ -82,6 +82,19 @@ rustpotter = { version = "3.0", optional = true }
 # Voice Activity Detection — WebRTC VAD (vad feature)
 webrtc-vad = { version = "0.4", optional = true }
 
+# Home automation serial transport (zigbee + zwave features)
+tokio-serial = { workspace = true, optional = true }
+# CRC-16-CCITT for Zigbee EZSP/ASH framing
+crc = { workspace = true, optional = true }
+# Byte buffer manipulation (zigbee + zwave framing)
+bytes = { workspace = true, optional = true }
+# HTTP client for Thread OTBR REST API (reuse workspace reqwest)
+reqwest = { workspace = true, optional = true }
+# mDNS service discovery — Matter device/controller discovery via DNS-SD
+mdns-sd = { workspace = true, optional = true }
+# Hostname lookup (used by Matter mDNS advertisement)
+gethostname = { workspace = true, optional = true }
+
 [features]
 default = []
 
@@ -132,14 +145,48 @@ wake-word-porcupine = ["wake-word"]
 # Full voice assistant pipeline (capture → wake word → VAD → STT → handler → TTS → playback)
 voice-assistant = ["audio", "vad", "wake-word"]
 
+# Zigbee: ZigbeeCoordinator trait + EZSP (Silicon Labs) + ZNP (TI Z-Stack) backends
+zigbee = [
+    "dep:tokio-serial",
+    "dep:crc",
+    "dep:bytes",
+    "dep:async-stream",
+    "dep:tokio-stream",
+]
+
+# Z-Wave: ZWaveController trait + full Z-Wave Serial API (ZAPI) over USB stick
+zwave = [
+    "dep:tokio-serial",
+    "dep:bytes",
+    "dep:async-stream",
+    "dep:tokio-stream",
+]
+
+# Thread: ThreadBorderRouter client for OpenThread Border Router REST API
+thread = ["dep:reqwest"]
+
+# Matter: MatterController (commission + control) + MatterDeviceServer (device side).
+# Implemented using our own Matter protocol stack (TLV, commissioning, UDP, mDNS)
+# to avoid embassy-time links conflict between rs-matter and the burn ML ecosystem.
+matter = [
+    "dep:mdns-sd",
+    "dep:gethostname",
+    "dep:tokio-stream",
+    "dep:async-stream",
+]
+
+# All home automation protocols
+homeauto = ["zigbee", "zwave", "thread", "matter"]
+
 # Convenience: everything
-full = ["audio", "gpio", "bluetooth", "network", "camera", "usb", "vad", "wake-word", "voice-assistant"]
+full = ["audio", "gpio", "bluetooth", "network", "camera", "usb", "vad", "wake-word", "voice-assistant", "homeauto"]
 
 [dev-dependencies]
 tokio = { workspace = true }
 anyhow = { workspace = true }
 tracing-subscriber = { workspace = true }
 ctrlc = { version = "3", features = ["termination"] }
+wiremock = "0.6"
 
 [[example]]
 name = "speech_to_text"
@@ -172,4 +219,20 @@ required-features = ["wake-word-rustpotter"]
 [[example]]
 name = "voice_assistant"
 required-features = ["voice-assistant"]
+
+[[example]]
+name = "zigbee_scan"
+required-features = ["zigbee"]
+
+[[example]]
+name = "zwave_nodes"
+required-features = ["zwave"]
+
+[[example]]
+name = "thread_info"
+required-features = ["thread"]
+
+[[example]]
+name = "matter_on_off"
+required-features = ["matter"]
 

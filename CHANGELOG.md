@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Home Automation Protocols (`brainwires-hardware`)
+
+- **`homeauto` module** — New `src/homeauto/` module group behind four feature flags: `zigbee`, `zwave`, `thread`, `matter` (or all via `homeauto`). Each sub-module is independent; pull in only what you need.
+- **Shared types** — `HomeDevice`, `HomeAutoEvent`, `Capability`, `AttributeValue`, `Protocol` enum used across all four protocols. `BoxStream<'a, T>` alias for async event streams.
+- **`zigbee` feature** — Full Zigbee 3.0 coordinator support via raw serial, two backends:
+  - `EzspCoordinator` — Silicon Labs EZSP v8 over ASH framing (CRC-16-CCITT poly=0x1021, byte-stuffing 0x7E/0x7D, ACK/NAK/RST flow control). Targets EmberZNet 7.x / EFR32-based sticks (Sonoff Zigbee 3.0 USB Dongle Plus, Aeotec USB 7).
+  - `ZnpCoordinator` — TI Z-Stack 3.x ZNP protocol (SREQ/SRSP/AREQ frames with XOR FCS). Targets CC2652, CC2531, and Z-Stack-based dongles.
+  - `ZigbeeCoordinator` trait — `start`, `stop`, `permit_join`, `devices`, `read_attribute`, `write_attribute`, `invoke_command`, `events` stream.
+  - Standard cluster helpers in `zigbee::clusters`: on/off, level, color temperature, color RGB, temperature sensor, humidity, door lock.
+- **`zwave` feature** — Full Z-Wave Plus v2 (specification 7.x / ZAPI2) over USB stick serial port. `ZWaveController` trait with `ZWaveSerialController` implementation. Supports node inclusion/exclusion, 27-variant `CommandClass` enum (BinarySwitch, MultilevelSwitch, Thermostat, DoorLock, SensorMultilevel, Configuration, and more), ACK/NAK/CAN flow control, XOR checksum, 3-retry retransmit on timeout.
+- **`thread` feature** — `ThreadBorderRouter` client for the OpenThread Border Router (OTBR) REST API (Thread 1.3.0, default port 8081). Network node info, neighbor table, active/pending dataset retrieval, joiner commissioning. Uses the existing `reqwest` workspace dep — no new heavy dependencies.
+- **`matter` feature** — Matter 1.3 support via a purpose-built pure-Rust stack (avoids `rs-matter` due to an `embassy-time` links conflict with the `burn` ML ecosystem):
+  - `MatterController` — Commissioner and cluster client. Supports QR-code (`MT:...`) and manual-pairing-code commissioning with full bit-packed Base38 payload parsing. Convenience helpers for OnOff, LevelControl, ColorControl, Thermostat, DoorLock, WindowCovering.
+  - `MatterDeviceServer` — Expose Brainwires agents as Matter devices. Commissionable mDNS advertisement (`_matterc._udp`) via `mdns-sd`, UDP transport on port 5540, per-cluster callback handlers (on/off, level, color temp, thermostat). PASE/CASE session establishment is scaffolded with TODO markers pending upstream conflict resolution.
+  - `CommissioningPayload` parser — Full Base38 decode + bit-unpack (version, VID, PID, discriminator, passcode, commissioning flow, rendezvous info). Manual pairing code (11-digit decimal) also supported.
+  - Cluster TLV helpers — typed encoders for all major clusters using the Matter TLV wire format.
+- **New workspace deps** — `tokio-serial = "5.4"`, `crc = "3"`, `mdns-sd = "0.12"`, `gethostname = "1.0"` (last two already in workspace, now also optional in hardware).
+- **New examples** — `zigbee_scan`, `zwave_nodes`, `thread_info`, `matter_on_off`.
+- **`full` feature** — Now includes `homeauto`.
+- **71 unit tests** — All pure-logic tests (no hardware required): ASH framing + CRC-16-CCITT (verified against `b"123456789"` → 0x29B1), EZSP frame encode/decode, ZNP SREQ/SRESP/AREQ roundtrip, ZAPI frame + XOR checksum, Z-Wave CommandClass serialization, Thread OTBR responses (mocked via `wiremock`), Matter QR/manual code parsing, Matter cluster TLV encoding.
+
 #### Session-Level Token Budget Enforcement (`brainwires-cli`)
 
 - **`SessionBudget`** — New type in `extras/brainwires-cli/src/types/session_budget.rs` with atomic counters (`Arc<AtomicU64>` for tokens and cost-in-microcents, `Arc<AtomicU32>` for agent count). Methods: `check_before_spawn()`, `record_run(tokens, cost_usd)`, `check_limits()`, `increment_agent_count()`.
