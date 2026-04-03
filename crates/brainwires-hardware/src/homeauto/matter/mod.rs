@@ -6,6 +6,8 @@ pub mod clusters;
 pub mod crypto;
 /// Typed errors wrapping rs-matter.
 pub mod error;
+/// Matter fabric management — root CA, NOC issuance, and fabric storage.
+pub mod fabric;
 /// Matter device types, cluster IDs, and configuration.
 pub mod types;
 /// Matter controller — commissions and controls Matter devices.
