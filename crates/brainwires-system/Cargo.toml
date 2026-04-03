@@ -8,6 +8,7 @@ rust-version.workspace = true
 repository.workspace = true
 homepage.workspace = true
 authors.workspace = true
+readme = "README.md"
 documentation = "https://docs.rs/brainwires-system"
 keywords = ["filesystem", "watcher", "systemd", "docker", "process"]
 categories = ["os", "filesystem", "asynchronous"]
