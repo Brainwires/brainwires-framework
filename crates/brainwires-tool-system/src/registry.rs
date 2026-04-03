@@ -430,4 +430,39 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn filtered_view_returns_only_named_tools() {
+        let mut registry = ToolRegistry::new();
+        registry.register(make_tool("read_file", false));
+        registry.register(make_tool("write_file", false));
+        registry.register(make_tool("execute_command", false));
+
+        let view = registry.filtered_view(&["read_file", "execute_command"]);
+        assert_eq!(view.len(), 2);
+        let names: Vec<&str> = view.iter().map(|t| t.name.as_str()).collect();
+        assert!(names.contains(&"read_file"));
+        assert!(names.contains(&"execute_command"));
+        assert!(!names.contains(&"write_file"));
+    }
+
+    #[test]
+    fn filtered_view_unknown_names_are_silently_skipped() {
+        let mut registry = ToolRegistry::new();
+        registry.register(make_tool("read_file", false));
+
+        // "nonexistent" is not in the registry — must not panic, just ignored
+        let view = registry.filtered_view(&["read_file", "nonexistent"]);
+        assert_eq!(view.len(), 1);
+        assert_eq!(view[0].name, "read_file");
+    }
+
+    #[test]
+    fn filtered_view_empty_allow_list_returns_empty() {
+        let mut registry = ToolRegistry::new();
+        registry.register(make_tool("read_file", false));
+
+        let view = registry.filtered_view(&[]);
+        assert!(view.is_empty());
+    }
 }

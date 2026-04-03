@@ -166,4 +166,50 @@ mod tests {
         let filtered = AgentRole::Execution.filter_tools(&tools);
         assert_eq!(filtered.len(), 2);
     }
+
+    #[test]
+    fn planning_allows_task_tools_not_write_or_execute() {
+        let tools = vec![
+            fake_tool("read_file"),
+            fake_tool("task_create"),
+            fake_tool("task_update"),
+            fake_tool("plan_task"),
+            fake_tool("write_file"),
+            fake_tool("execute_command"),
+        ];
+        let filtered = AgentRole::Planning.filter_tools(&tools);
+        let names: Vec<&str> = filtered.iter().map(|t| t.name.as_str()).collect();
+        assert!(names.contains(&"read_file"));
+        assert!(names.contains(&"task_create"));
+        assert!(names.contains(&"task_update"));
+        assert!(names.contains(&"plan_task"));
+        assert!(!names.contains(&"write_file"));
+        assert!(!names.contains(&"execute_command"));
+    }
+
+    #[test]
+    fn verification_allows_execute_command_not_write() {
+        let tools = vec![
+            fake_tool("read_file"),
+            fake_tool("execute_command"),
+            fake_tool("verify_build"),
+            fake_tool("write_file"),
+            fake_tool("task_create"),
+        ];
+        let filtered = AgentRole::Verification.filter_tools(&tools);
+        let names: Vec<&str> = filtered.iter().map(|t| t.name.as_str()).collect();
+        assert!(names.contains(&"read_file"));
+        assert!(names.contains(&"execute_command"));
+        assert!(names.contains(&"verify_build"));
+        assert!(!names.contains(&"write_file"));
+        assert!(!names.contains(&"task_create"));
+    }
+
+    #[test]
+    fn system_prompt_suffix_non_empty_for_constrained_roles() {
+        assert!(!AgentRole::Exploration.system_prompt_suffix().is_empty());
+        assert!(!AgentRole::Planning.system_prompt_suffix().is_empty());
+        assert!(!AgentRole::Verification.system_prompt_suffix().is_empty());
+        assert_eq!(AgentRole::Execution.system_prompt_suffix(), "");
+    }
 }

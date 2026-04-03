@@ -325,4 +325,89 @@ mod tests {
         store.delete_checkpoint("t3").await.unwrap();
         assert!(store.load_checkpoint("t3").await.unwrap().is_none());
     }
+
+    // ── FsWorkflowStateStore tests ───────────────────────────────────────────
+
+    #[tokio::test]
+    async fn fs_save_and_load_roundtrip() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = FsWorkflowStateStore::new(dir.path().to_path_buf()).unwrap();
+
+        assert!(store.load_checkpoint("task-a").await.unwrap().is_none());
+
+        let cp = WorkflowCheckpoint::new("task-a", "agent-x");
+        store.save_checkpoint(&cp).await.unwrap();
+
+        let loaded = store.load_checkpoint("task-a").await.unwrap().unwrap();
+        assert_eq!(loaded.task_id, "task-a");
+        assert_eq!(loaded.agent_id, "agent-x");
+    }
+
+    #[tokio::test]
+    async fn fs_atomic_write_produces_no_tmp_file_after_save() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = FsWorkflowStateStore::new(dir.path().to_path_buf()).unwrap();
+
+        let cp = WorkflowCheckpoint::new("atomic-task", "a");
+        store.save_checkpoint(&cp).await.unwrap();
+
+        // The .tmp file must not be left behind after a successful save
+        let tmp = dir.path().join("atomic-task.json.tmp");
+        assert!(!tmp.exists(), ".tmp file should be gone after rename");
+
+        // The real checkpoint file must exist
+        let real = dir.path().join("atomic-task.json");
+        assert!(real.exists());
+    }
+
+    #[tokio::test]
+    async fn fs_mark_step_creates_checkpoint_implicitly() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = FsWorkflowStateStore::new(dir.path().to_path_buf()).unwrap();
+
+        let effect = SideEffectRecord::new("use-99", "write_file", Some("foo.rs".into()), true);
+        store.mark_step_complete("fresh-task", "use-99", effect).await.unwrap();
+
+        let cp = store.load_checkpoint("fresh-task").await.unwrap().unwrap();
+        assert!(cp.is_completed("use-99"));
+        assert_eq!(cp.step_index, 1);
+        assert_eq!(cp.side_effects_log.len(), 1);
+        assert_eq!(cp.side_effects_log[0].tool_name, "write_file");
+    }
+
+    #[tokio::test]
+    async fn fs_delete_is_idempotent() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = FsWorkflowStateStore::new(dir.path().to_path_buf()).unwrap();
+
+        let cp = WorkflowCheckpoint::new("del-task", "a");
+        store.save_checkpoint(&cp).await.unwrap();
+        store.delete_checkpoint("del-task").await.unwrap();
+
+        // Second delete of a non-existent file must not error
+        store.delete_checkpoint("del-task").await.unwrap();
+
+        // Also fine when the file never existed
+        store.delete_checkpoint("never-existed").await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn fs_checkpoint_path_sanitizes_special_chars() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = FsWorkflowStateStore::new(dir.path().to_path_buf()).unwrap();
+
+        // task IDs with slashes, dots, and spaces must not create subdirs or fail
+        let cp = WorkflowCheckpoint::new("proj/task.1 final", "a");
+        store.save_checkpoint(&cp).await.unwrap();
+
+        let loaded = store.load_checkpoint("proj/task.1 final").await.unwrap().unwrap();
+        assert_eq!(loaded.task_id, "proj/task.1 final");
+
+        // Verify the file is directly in `dir`, not in a subdirectory
+        let entries: Vec<_> = std::fs::read_dir(dir.path())
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .collect();
+        assert_eq!(entries.len(), 1, "should be exactly one file, no subdirs");
+    }
 }

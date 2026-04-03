@@ -106,6 +106,13 @@ impl SessionBudget {
 
     /// Check whether spawning a new agent is allowed. Call this **before** constructing a
     /// `TaskAgent`. Returns `Err` if any limit would be exceeded.
+    ///
+    /// # Design: pre-spawn is stricter than mid-run
+    ///
+    /// This function uses `>=` comparisons: it denies when the budget is **already at** the
+    /// limit, not just above it. This is intentional — we do not want to start another agent
+    /// if there is no headroom left. See [`check_limits`](Self::check_limits) which uses `>`
+    /// and therefore allows a mid-run agent to finish when exactly at the limit.
     pub fn check_before_spawn(&self) -> Result<(), BudgetError> {
         if let Some(limit) = self.max_agents {
             let spawned = self.agents_spawned.load(Ordering::Acquire);
@@ -153,6 +160,13 @@ impl SessionBudget {
 
     /// Check whether the session limits are currently exceeded. Call this after
     /// `record_run` to decide whether to abort the current agent.
+    ///
+    /// # Design: mid-run allows exact-equal, aborts above
+    ///
+    /// This function uses `>` comparisons: a running agent is allowed to complete the
+    /// current call when the budget is **exactly at** the limit. Only exceeding the limit
+    /// triggers an abort. Compare with [`check_before_spawn`](Self::check_before_spawn)
+    /// which uses `>=` and is therefore stricter.
     pub fn check_limits(&self) -> Result<(), BudgetError> {
         if let Some(limit) = self.max_total_tokens {
             let used = self.tokens_used.load(Ordering::Acquire);
@@ -176,5 +190,112 @@ impl SessionBudget {
 impl Default for SessionBudget {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+
+    #[test]
+    fn unlimited_budget_always_allows_spawn() {
+        let b = SessionBudget::new();
+        assert!(b.check_before_spawn().is_ok());
+        b.record_run(1_000_000, 100.0);
+        assert!(b.check_before_spawn().is_ok());
+    }
+
+    #[test]
+    fn agent_limit_blocks_at_exact_capacity() {
+        let b = SessionBudget::new().with_max_agents(2);
+        b.increment_agent_count();
+        b.increment_agent_count();
+        // Design: check_before_spawn uses >= so it blocks when already AT limit
+        match b.check_before_spawn() {
+            Err(BudgetError::AgentsExceeded { spawned: 2, limit: 2 }) => {}
+            other => panic!("expected AgentsExceeded, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn token_limit_blocks_before_spawn_at_limit() {
+        let b = SessionBudget::new().with_max_tokens(500);
+        b.record_run(500, 0.0);
+        // Design: check_before_spawn uses >= (denies when AT limit)
+        assert!(matches!(b.check_before_spawn(), Err(BudgetError::TokensExceeded { .. })));
+    }
+
+    #[test]
+    fn token_limit_allows_running_at_limit_aborts_above() {
+        let b = SessionBudget::new().with_max_tokens(500);
+        b.record_run(500, 0.0);
+        // Design: check_limits uses > (allows AT limit, aborts ABOVE)
+        assert!(b.check_limits().is_ok(), "exact-equal should still be allowed mid-run");
+        b.record_run(1, 0.0);
+        assert!(matches!(b.check_limits(), Err(BudgetError::TokensExceeded { .. })));
+    }
+
+    #[test]
+    fn cost_limit_blocks_before_spawn_at_limit() {
+        let b = SessionBudget::new().with_max_cost_usd(1.0);
+        b.record_run(0, 1.0);
+        assert!(matches!(b.check_before_spawn(), Err(BudgetError::CostExceeded { .. })));
+    }
+
+    #[test]
+    fn cost_limit_allows_running_at_limit_aborts_above() {
+        let b = SessionBudget::new().with_max_cost_usd(1.0);
+        b.record_run(0, 1.0);
+        // Design: check_limits uses > (allows AT limit, aborts ABOVE)
+        assert!(b.check_limits().is_ok());
+        b.record_run(0, 0.0001);
+        assert!(matches!(b.check_limits(), Err(BudgetError::CostExceeded { .. })));
+    }
+
+    #[test]
+    fn record_run_accumulates_correctly() {
+        let b = SessionBudget::new();
+        b.record_run(100, 0.5);
+        b.record_run(200, 0.25);
+        assert_eq!(b.tokens_used(), 300);
+        // 0.75 USD stored as microcents: 750_000
+        let cost = b.cost_used_usd();
+        assert!((cost - 0.75).abs() < 1e-6, "cost was {}", cost);
+    }
+
+    #[test]
+    fn cost_microcent_precision_4_decimal_places() {
+        let b = SessionBudget::new();
+        b.record_run(0, 0.0001); // 1 ten-thousandth of a dollar = 100 microcents
+        let cost = b.cost_used_usd();
+        assert!((cost - 0.0001).abs() < 1e-9, "cost was {}", cost);
+    }
+
+    #[test]
+    fn increment_agent_count_and_read_back() {
+        let b = SessionBudget::new();
+        assert_eq!(b.agents_spawned(), 0);
+        b.increment_agent_count();
+        b.increment_agent_count();
+        assert_eq!(b.agents_spawned(), 2);
+    }
+
+    #[test]
+    fn concurrent_record_run_does_not_corrupt_state() {
+        let b = Arc::new(SessionBudget::new());
+        std::thread::scope(|s| {
+            for _ in 0..8 {
+                let b = Arc::clone(&b);
+                s.spawn(move || {
+                    for _ in 0..100 {
+                        b.record_run(1, 0.000_001);
+                    }
+                });
+            }
+        });
+        assert_eq!(b.tokens_used(), 800);
+        let cost = b.cost_used_usd();
+        assert!((cost - 0.000_800).abs() < 1e-9, "cost was {}", cost);
     }
 }

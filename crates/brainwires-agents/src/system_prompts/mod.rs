@@ -136,3 +136,109 @@ pub fn build_agent_prompt(kind: AgentPromptKind<'_>, role: Option<AgentRole>) ->
 
     prompt
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn all_variants_build_without_panic() {
+        let _ = build_agent_prompt(
+            AgentPromptKind::Reasoning { agent_id: "a", working_directory: "/tmp" },
+            None,
+        );
+        let _ = build_agent_prompt(
+            AgentPromptKind::Planner {
+                agent_id: "a",
+                working_directory: "/tmp",
+                goal: "do something",
+                hints: &[],
+            },
+            None,
+        );
+        let _ = build_agent_prompt(
+            AgentPromptKind::Judge { agent_id: "a", working_directory: "/tmp" },
+            None,
+        );
+        let _ = build_agent_prompt(
+            AgentPromptKind::Simple { agent_id: "a", working_directory: "/tmp" },
+            None,
+        );
+        let _ = build_agent_prompt(
+            AgentPromptKind::MdapMicroagent {
+                agent_id: "a",
+                working_directory: "/tmp",
+                vote_round: 1,
+                peer_count: 3,
+            },
+            None,
+        );
+    }
+
+    #[test]
+    fn no_role_does_not_append_suffix() {
+        let prompt = build_agent_prompt(
+            AgentPromptKind::Reasoning { agent_id: "a", working_directory: "/tmp" },
+            None,
+        );
+        assert!(!prompt.contains("[ROLE:"));
+    }
+
+    #[test]
+    fn role_suffix_is_appended() {
+        let prompt = build_agent_prompt(
+            AgentPromptKind::Reasoning { agent_id: "a", working_directory: "/tmp" },
+            Some(AgentRole::Exploration),
+        );
+        assert!(prompt.contains("[ROLE: Exploration]"));
+    }
+
+    #[test]
+    fn planner_embeds_goal() {
+        let prompt = build_agent_prompt(
+            AgentPromptKind::Planner {
+                agent_id: "a",
+                working_directory: "/tmp",
+                goal: "implement LRU cache",
+                hints: &[],
+            },
+            None,
+        );
+        assert!(prompt.contains("implement LRU cache"));
+    }
+
+    #[test]
+    fn mdap_embeds_vote_round_and_peer_count() {
+        let prompt = build_agent_prompt(
+            AgentPromptKind::MdapMicroagent {
+                agent_id: "a",
+                working_directory: "/tmp",
+                vote_round: 2,
+                peer_count: 5,
+            },
+            None,
+        );
+        assert!(prompt.contains('2') || prompt.contains("round"),
+            "vote_round should appear in prompt");
+        assert!(prompt.contains('5') || prompt.contains("peer"),
+            "peer_count should appear in prompt");
+    }
+
+    #[test]
+    fn simple_is_shorter_than_reasoning() {
+        let simple = build_agent_prompt(
+            AgentPromptKind::Simple { agent_id: "a", working_directory: "/tmp" },
+            None,
+        );
+        let reasoning = build_agent_prompt(
+            AgentPromptKind::Reasoning { agent_id: "a", working_directory: "/tmp" },
+            None,
+        );
+        assert!(
+            simple.len() < reasoning.len(),
+            "Simple prompt ({} chars) should be shorter than Reasoning ({} chars)",
+            simple.len(),
+            reasoning.len()
+        );
+    }
+}
