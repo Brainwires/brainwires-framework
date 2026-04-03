@@ -6,6 +6,8 @@ pub mod clusters;
 pub mod crypto;
 /// Typed errors wrapping rs-matter.
 pub mod error;
+/// Matter Interaction Model — read, write, invoke, and subscribe messages.
+pub mod interaction_model;
 /// Matter device types, cluster IDs, and configuration.
 pub mod types;
 /// Matter controller — commissions and controls Matter devices.
@@ -20,6 +22,13 @@ pub use crypto::{
     spake2plus::{Spake2PlusKeys, Spake2PlusProver, Spake2PlusVerifier},
 };
 pub use error::{MatterError, MatterResult};
+pub use interaction_model::{
+    ImOpcode, InvokeRequest, InvokeResponse, InvokeResponseItem,
+    AttributeData, ReadRequest, ReportData,
+    SubscribeRequest, SubscribeResponse,
+    AttributeStatus, InteractionStatus, WriteRequest, WriteResponse,
+    PROTOCOL_ID as IM_PROTOCOL_ID,
+};
 pub use server::{MatterDeviceServer, OnOffHandler};
 pub use types::{
     cluster_id, device_type, MatterDevice, MatterDeviceConfig, MatterDeviceConfigBuilder,

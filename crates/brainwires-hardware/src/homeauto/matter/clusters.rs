@@ -11,7 +11,7 @@ use super::types::cluster_id;
 
 /// Matter TLV element types (control byte upper nibble).
 #[allow(dead_code)]
-mod tlv {
+pub(super) mod tlv {
     pub const TYPE_SIGNED_INT_1: u8 = 0x00;
     pub const TYPE_SIGNED_INT_2: u8 = 0x01;
     pub const TYPE_SIGNED_INT_4: u8 = 0x02;
@@ -22,37 +22,229 @@ mod tlv {
     pub const TYPE_BOOL_TRUE: u8 = 0x09;
     pub const TYPE_NULL: u8 = 0x14;
     pub const TYPE_STRUCTURE: u8 = 0x15;
+    /// TLV array (ordered, anonymous-tagged elements).
+    pub const TYPE_ARRAY: u8 = 0x16;
+    /// TLV list (elements may carry context tags).
+    pub const TYPE_LIST: u8 = 0x17;
     pub const TYPE_END_OF_CONTAINER: u8 = 0x18;
 
     pub const TAG_ANONYMOUS: u8 = 0x00; // anonymous (no tag)
     pub const TAG_CONTEXT_1: u8 = 0x20; // context-specific 1-byte tag
 }
 
-fn tlv_uint8(tag: u8, val: u8) -> Vec<u8> {
+pub(super) fn tlv_uint8(tag: u8, val: u8) -> Vec<u8> {
     vec![tlv::TAG_CONTEXT_1 | tlv::TYPE_UNSIGNED_INT_1, tag, val]
 }
 
-fn tlv_uint16(tag: u8, val: u16) -> Vec<u8> {
+pub(super) fn tlv_uint16(tag: u8, val: u16) -> Vec<u8> {
     let mut v = vec![tlv::TAG_CONTEXT_1 | tlv::TYPE_UNSIGNED_INT_2, tag];
     v.extend_from_slice(&val.to_le_bytes());
     v
 }
 
-#[allow(dead_code)]
-fn tlv_bool(tag: u8, val: bool) -> Vec<u8> {
+pub(super) fn tlv_uint32(tag: u8, val: u32) -> Vec<u8> {
+    let mut v = vec![tlv::TAG_CONTEXT_1 | tlv::TYPE_UNSIGNED_INT_4, tag];
+    v.extend_from_slice(&val.to_le_bytes());
+    v
+}
+
+pub(super) fn tlv_bool(tag: u8, val: bool) -> Vec<u8> {
     let ty = if val { tlv::TYPE_BOOL_TRUE } else { tlv::TYPE_BOOL_FALSE };
     vec![tlv::TAG_CONTEXT_1 | ty, tag]
 }
 
-fn tlv_null(tag: u8) -> Vec<u8> {
+pub(super) fn tlv_null(tag: u8) -> Vec<u8> {
     vec![tlv::TAG_CONTEXT_1 | tlv::TYPE_NULL, tag]
 }
 
-fn wrap_struct(inner: &[u8]) -> Vec<u8> {
+pub(super) fn wrap_struct(inner: &[u8]) -> Vec<u8> {
     let mut v = vec![tlv::TYPE_STRUCTURE];
     v.extend_from_slice(inner);
     v.push(tlv::TYPE_END_OF_CONTAINER);
     v
+}
+
+/// Wrap `inner` bytes in a context-tagged TLV structure: `{ tag: struct { inner } }`.
+pub(super) fn wrap_struct_tagged(tag: u8, inner: &[u8]) -> Vec<u8> {
+    let mut v = vec![tlv::TAG_CONTEXT_1 | tlv::TYPE_STRUCTURE, tag];
+    v.extend_from_slice(inner);
+    v.push(tlv::TYPE_END_OF_CONTAINER);
+    v
+}
+
+/// Wrap `inner` bytes in a context-tagged TLV list: `{ tag: list { inner } }`.
+pub(super) fn wrap_list_tagged(tag: u8, inner: &[u8]) -> Vec<u8> {
+    let mut v = vec![tlv::TAG_CONTEXT_1 | tlv::TYPE_LIST, tag];
+    v.extend_from_slice(inner);
+    v.push(tlv::TYPE_END_OF_CONTAINER);
+    v
+}
+
+/// Read a little-endian u16 from `bytes` at `offset`. Returns `(value, offset+2)`.
+pub(super) fn read_u16_le(bytes: &[u8], offset: usize) -> Option<(u16, usize)> {
+    if offset + 2 > bytes.len() { return None; }
+    let v = u16::from_le_bytes([bytes[offset], bytes[offset + 1]]);
+    Some((v, offset + 2))
+}
+
+/// Read a little-endian u32 from `bytes` at `offset`. Returns `(value, offset+4)`.
+pub(super) fn read_u32_le(bytes: &[u8], offset: usize) -> Option<(u32, usize)> {
+    if offset + 4 > bytes.len() { return None; }
+    let v = u32::from_le_bytes([bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]]);
+    Some((v, offset + 4))
+}
+
+// ── Path types for Interaction Model ─────────────────────────────────────────
+
+/// An attribute path used in Read, Write, Subscribe, and Report interactions.
+///
+/// Any field may be `None` to indicate a wildcard.
+#[derive(Debug, Clone, PartialEq)]
+pub struct AttributePath {
+    /// Endpoint identifier (`None` = wildcard).
+    pub endpoint_id: Option<u16>,
+    /// Cluster identifier (`None` = wildcard).
+    pub cluster_id: Option<u32>,
+    /// Attribute identifier (`None` = wildcard).
+    pub attribute_id: Option<u32>,
+}
+
+impl AttributePath {
+    /// Construct a fully-specified (non-wildcard) attribute path.
+    pub fn specific(endpoint_id: u16, cluster_id: u32, attribute_id: u32) -> Self {
+        Self { endpoint_id: Some(endpoint_id), cluster_id: Some(cluster_id), attribute_id: Some(attribute_id) }
+    }
+
+    /// Construct a fully-wildcard attribute path.
+    pub fn wildcard() -> Self {
+        Self { endpoint_id: None, cluster_id: None, attribute_id: None }
+    }
+
+    /// TLV-encode as a struct with context tags:
+    /// tag 2 = endpoint_id (uint16), tag 3 = cluster_id (uint32), tag 4 = attribute_id (uint32).
+    /// Missing fields are omitted (wildcard).
+    pub fn encode(&self) -> Vec<u8> {
+        let mut inner = Vec::new();
+        if let Some(ep) = self.endpoint_id {
+            inner.extend_from_slice(&tlv_uint16(2, ep));
+        }
+        if let Some(cl) = self.cluster_id {
+            inner.extend_from_slice(&tlv_uint32(3, cl));
+        }
+        if let Some(attr) = self.attribute_id {
+            inner.extend_from_slice(&tlv_uint32(4, attr));
+        }
+        wrap_struct(&inner)
+    }
+
+    /// Decode an `AttributePath` from TLV bytes produced by [`AttributePath::encode`].
+    ///
+    /// Returns `None` if the bytes are malformed.
+    pub fn decode(bytes: &[u8]) -> Option<Self> {
+        // Expect: TYPE_STRUCTURE (0x15) ... END_OF_CONTAINER (0x18)
+        if bytes.is_empty() || bytes[0] != tlv::TYPE_STRUCTURE { return None; }
+        let mut endpoint_id = None;
+        let mut cluster_id = None;
+        let mut attribute_id = None;
+        let mut i = 1;
+        while i < bytes.len() {
+            if bytes[i] == tlv::TYPE_END_OF_CONTAINER { break; }
+            if i + 1 >= bytes.len() { return None; }
+            let ctrl = bytes[i];
+            let tag = bytes[i + 1];
+            i += 2;
+            let type_bits = ctrl & 0x1F; // lower 5 bits = element type
+            match (tag, type_bits) {
+                (2, t) if t == tlv::TYPE_UNSIGNED_INT_2 => {
+                    let (v, next) = read_u16_le(bytes, i)?;
+                    endpoint_id = Some(v);
+                    i = next;
+                }
+                (3, t) if t == tlv::TYPE_UNSIGNED_INT_4 => {
+                    let (v, next) = read_u32_le(bytes, i)?;
+                    cluster_id = Some(v);
+                    i = next;
+                }
+                (4, t) if t == tlv::TYPE_UNSIGNED_INT_4 => {
+                    let (v, next) = read_u32_le(bytes, i)?;
+                    attribute_id = Some(v);
+                    i = next;
+                }
+                _ => return None, // unknown field
+            }
+        }
+        Some(Self { endpoint_id, cluster_id, attribute_id })
+    }
+}
+
+/// A command path used in Invoke interactions.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CommandPath {
+    /// Endpoint identifier.
+    pub endpoint_id: u16,
+    /// Cluster identifier.
+    pub cluster_id: u32,
+    /// Command identifier.
+    pub command_id: u32,
+}
+
+impl CommandPath {
+    /// Construct a new `CommandPath`.
+    pub fn new(endpoint_id: u16, cluster_id: u32, command_id: u32) -> Self {
+        Self { endpoint_id, cluster_id, command_id }
+    }
+
+    /// TLV-encode as a struct:
+    /// tag 0 = endpoint_id (uint16), tag 1 = cluster_id (uint32), tag 2 = command_id (uint32).
+    pub fn encode(&self) -> Vec<u8> {
+        let mut inner = Vec::new();
+        inner.extend_from_slice(&tlv_uint16(0, self.endpoint_id));
+        inner.extend_from_slice(&tlv_uint32(1, self.cluster_id));
+        inner.extend_from_slice(&tlv_uint32(2, self.command_id));
+        wrap_struct(&inner)
+    }
+
+    /// Decode a `CommandPath` from TLV bytes produced by [`CommandPath::encode`].
+    ///
+    /// Returns `None` if the bytes are malformed or required fields are missing.
+    pub fn decode(bytes: &[u8]) -> Option<Self> {
+        if bytes.is_empty() || bytes[0] != tlv::TYPE_STRUCTURE { return None; }
+        let mut endpoint_id = None::<u16>;
+        let mut cluster_id = None::<u32>;
+        let mut command_id = None::<u32>;
+        let mut i = 1;
+        while i < bytes.len() {
+            if bytes[i] == tlv::TYPE_END_OF_CONTAINER { break; }
+            if i + 1 >= bytes.len() { return None; }
+            let ctrl = bytes[i];
+            let tag = bytes[i + 1];
+            i += 2;
+            let type_bits = ctrl & 0x1F;
+            match (tag, type_bits) {
+                (0, t) if t == tlv::TYPE_UNSIGNED_INT_2 => {
+                    let (v, next) = read_u16_le(bytes, i)?;
+                    endpoint_id = Some(v);
+                    i = next;
+                }
+                (1, t) if t == tlv::TYPE_UNSIGNED_INT_4 => {
+                    let (v, next) = read_u32_le(bytes, i)?;
+                    cluster_id = Some(v);
+                    i = next;
+                }
+                (2, t) if t == tlv::TYPE_UNSIGNED_INT_4 => {
+                    let (v, next) = read_u32_le(bytes, i)?;
+                    command_id = Some(v);
+                    i = next;
+                }
+                _ => return None,
+            }
+        }
+        Some(Self {
+            endpoint_id: endpoint_id?,
+            cluster_id: cluster_id?,
+            command_id: command_id?,
+        })
+    }
 }
 
 // ── On/Off cluster (0x0006) ───────────────────────────────────────────────────
@@ -263,5 +455,38 @@ mod tests {
         // mireds 300 = 0x012C, should appear as LE bytes somewhere in TLV
         let has_mireds = tlv.windows(2).any(|w| w == [0x2C, 0x01]);
         assert!(has_mireds);
+    }
+
+    // ── Path type tests ───────────────────────────────────────────────────────
+
+    #[test]
+    fn attribute_path_specific_encode_decode_roundtrip() {
+        let path = AttributePath::specific(1, 0x0006, 0x0000);
+        let encoded = path.encode();
+        // starts with structure, ends with end-of-container
+        assert_eq!(encoded[0], tlv::TYPE_STRUCTURE);
+        assert_eq!(*encoded.last().unwrap(), tlv::TYPE_END_OF_CONTAINER);
+        let decoded = AttributePath::decode(&encoded).expect("decode failed");
+        assert_eq!(decoded, path);
+    }
+
+    #[test]
+    fn attribute_path_wildcard_encode_has_no_fields() {
+        let path = AttributePath::wildcard();
+        let encoded = path.encode();
+        // wildcard = empty struct: [0x15, 0x18]
+        assert_eq!(encoded, vec![tlv::TYPE_STRUCTURE, tlv::TYPE_END_OF_CONTAINER]);
+        let decoded = AttributePath::decode(&encoded).expect("decode failed");
+        assert_eq!(decoded, path);
+    }
+
+    #[test]
+    fn command_path_encode_decode_roundtrip() {
+        let path = CommandPath::new(0, 0x0006, 0x01);
+        let encoded = path.encode();
+        assert_eq!(encoded[0], tlv::TYPE_STRUCTURE);
+        assert_eq!(*encoded.last().unwrap(), tlv::TYPE_END_OF_CONTAINER);
+        let decoded = CommandPath::decode(&encoded).expect("decode failed");
+        assert_eq!(decoded, path);
     }
 }
