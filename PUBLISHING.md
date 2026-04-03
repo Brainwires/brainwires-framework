@@ -2,10 +2,38 @@
 
 Reusable checklist for releasing new versions of the Brainwires Framework to crates.io.
 
+## 0. New Crate Checklist
+
+Run this whenever a new crate is added to the workspace before the release that includes it.
+
+- [ ] **`README.md` exists** in the crate directory — crates.io displays nothing without it
+- [ ] **`publish = false` is NOT set** (or is intentionally set for internal-only crates that must not be published)
+- [ ] **`readme = "README.md"`** is present in `[package]` (not inherited from workspace)
+- [ ] **`documentation`, `keywords`, `categories`** are set in `[package]` (not inherited from workspace)
+- [ ] **No git-only dependencies** — all deps must have a `version = "..."` for crates.io. Git deps without a version block publishing. If a git-only dep is required (e.g. a fork), either:
+  - Publish the fork to crates.io first, or
+  - Put the git-dep code in a separate `extras/` crate marked `publish = false`
+- [ ] **Added to `scripts/publish.sh` CRATES array** in the correct dependency layer
+- [ ] **Added to the publish order table** in this file (Section 3)
+
+Quick audit command (run from workspace root):
+```bash
+for dir in crates/*/; do
+  crate=$(basename "$dir")
+  readme="$dir/README.md"
+  publish=$(grep -m1 'publish' "$dir/Cargo.toml" 2>/dev/null || echo "")
+  in_script=$(grep -c "$crate" scripts/publish.sh 2>/dev/null || echo 0)
+  echo "$crate | readme=$(test -f $readme && echo YES || echo MISSING) | $publish | in_script=$in_script"
+done
+```
+
+---
+
 ## 1. Pre-release Checks
 
 - [ ] All changes committed, clean working tree (`git status`)
 - [ ] `CHANGELOG.md` has release notes under `## [Unreleased]` (version stamp is automatic — see step 2)
+- [ ] **New crates audited** — run the Section 0 checklist for every crate added since the last release
 - [ ] **README.md files updated** — verify all crate READMEs reflect the release changes:
   - Root `README.md` — crate descriptions, feature tables, architecture diagrams
   - Each changed crate's `README.md` — API tables, code examples, feature flags
@@ -111,13 +139,15 @@ The script handles:
 
 | Layer | Crates |
 |-------|--------|
-| 1 | brainwires-core, brainwires-a2a, brainwires-code-interpreters, brainwires-skills |
-| 2 | brainwires-mcp, brainwires-permissions, brainwires-datasets, brainwires-providers, brainwires-storage |
+| 1 | brainwires-core, brainwires-a2a, brainwires-code-interpreters, brainwires-skills, brainwires-analytics, brainwires-system |
+| 2 | brainwires-mcp, brainwires-mcp-server, brainwires-permissions, brainwires-datasets, brainwires-providers, brainwires-storage |
 | 3 | brainwires-cognition |
 | 4 | brainwires-tool-system, brainwires-agent-network, brainwires-hardware, brainwires-training |
 | 5 | brainwires-agents, brainwires-wasm |
 | 6 | brainwires-autonomy, brainwires-proxy |
 | 7 | brainwires (facade) |
+
+**Excluded from publish:** `brainwires-channels` — optional `webrtc` feature uses a git-only fork (`Brainwires/webrtc-rs` at `0.20.0-alpha.1`). Needs the fork published to crates.io before this crate can be published.
 
 ## 4. Post-publish
 
