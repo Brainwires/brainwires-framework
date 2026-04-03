@@ -123,7 +123,7 @@ This updates all version references across the workspace in one command:
 |---|---|
 | `[workspace.package].version` | `0.2.0` → `0.3.0` |
 | `[workspace.dependencies]` internal crate versions (19 entries) | `version = "0.2.0"` → `version = "0.3.0"` |
-| Member `Cargo.toml` direct path deps with version fields (brainwires-wasm) | `version = "0.7"` |
+| Member `Cargo.toml` direct path deps with version fields (brainwires-wasm) | `version = "0.8"` |
 | Hardcoded versions in `*.rs` source files | `"version": "0.2.0"` patterns |
 | Version examples in `*.md` READMEs (skips CHANGELOGs) | `version = "0.2"` → `version = "0.3"` |
 

@@ -32,7 +32,7 @@
     },
     "web": {
       "timeout_seconds": 30,
-      "user_agent": "brainwires-cli/0.7.0"
+      "user_agent": "brainwires-cli/0.8.0"
     }
   },
 

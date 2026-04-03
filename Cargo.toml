@@ -48,7 +48,7 @@ exclude = [
 resolver = "2"
 
 [workspace.package]
-version = "0.7.0"
+version = "0.8.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 rust-version = "1.91"
@@ -62,28 +62,28 @@ documentation = "https://docs.rs/brainwires"
 
 [workspace.dependencies]
 # Internal crates
-brainwires-core = { path = "crates/brainwires-core", version = "0.7.0" }
-brainwires-tool-system = { path = "crates/brainwires-tool-system", version = "0.7.0" }
-brainwires-agents = { path = "crates/brainwires-agents", version = "0.7.0" }
-brainwires-storage = { path = "crates/brainwires-storage", version = "0.7.0", default-features = false }
-brainwires-mcp = { path = "crates/brainwires-mcp", version = "0.7.0" }
-brainwires-permissions = { path = "crates/brainwires-permissions", version = "0.7.0" }
-brainwires-code-interpreters = { path = "crates/brainwires-code-interpreters", version = "0.7.0" }
-brainwires-wasm = { path = "crates/brainwires-wasm", version = "0.7.0" }
-brainwires-agent-network = { path = "crates/brainwires-agent-network", version = "0.7.0" }
-brainwires-mcp-server = { path = "crates/brainwires-mcp-server", version = "0.7.0" }
-brainwires-a2a = { path = "crates/brainwires-a2a", version = "0.7.0", default-features = false }
-brainwires-providers = { path = "crates/brainwires-providers", version = "0.7.0" }
-brainwires-skills = { path = "crates/brainwires-skills", version = "0.7.0" }
-brainwires-hardware = { path = "crates/brainwires-hardware", version = "0.7.0" }
-brainwires-datasets = { path = "crates/brainwires-datasets", version = "0.7.0" }
-brainwires-training = { path = "crates/brainwires-training", version = "0.7.0" }
-brainwires-autonomy = { path = "crates/brainwires-autonomy", version = "0.7.0", default-features = false }
-brainwires-cognition = { path = "crates/brainwires-cognition", version = "0.7.0", default-features = false }
-brainwires-system = { path = "crates/brainwires-system", version = "0.7.0", default-features = false }
-brainwires-channels   = { path = "crates/brainwires-channels",   version = "0.7.0" }
-brainwires-analytics  = { path = "crates/brainwires-analytics",  version = "0.7.0", default-features = false }
-brainwires-proxy = { path = "extras/brainwires-proxy", version = "0.7.0" }
+brainwires-core = { path = "crates/brainwires-core", version = "0.8.0" }
+brainwires-tool-system = { path = "crates/brainwires-tool-system", version = "0.8.0" }
+brainwires-agents = { path = "crates/brainwires-agents", version = "0.8.0" }
+brainwires-storage = { path = "crates/brainwires-storage", version = "0.8.0", default-features = false }
+brainwires-mcp = { path = "crates/brainwires-mcp", version = "0.8.0" }
+brainwires-permissions = { path = "crates/brainwires-permissions", version = "0.8.0" }
+brainwires-code-interpreters = { path = "crates/brainwires-code-interpreters", version = "0.8.0" }
+brainwires-wasm = { path = "crates/brainwires-wasm", version = "0.8.0" }
+brainwires-agent-network = { path = "crates/brainwires-agent-network", version = "0.8.0" }
+brainwires-mcp-server = { path = "crates/brainwires-mcp-server", version = "0.8.0" }
+brainwires-a2a = { path = "crates/brainwires-a2a", version = "0.8.0", default-features = false }
+brainwires-providers = { path = "crates/brainwires-providers", version = "0.8.0" }
+brainwires-skills = { path = "crates/brainwires-skills", version = "0.8.0" }
+brainwires-hardware = { path = "crates/brainwires-hardware", version = "0.8.0" }
+brainwires-datasets = { path = "crates/brainwires-datasets", version = "0.8.0" }
+brainwires-training = { path = "crates/brainwires-training", version = "0.8.0" }
+brainwires-autonomy = { path = "crates/brainwires-autonomy", version = "0.8.0", default-features = false }
+brainwires-cognition = { path = "crates/brainwires-cognition", version = "0.8.0", default-features = false }
+brainwires-system = { path = "crates/brainwires-system", version = "0.8.0", default-features = false }
+brainwires-channels   = { path = "crates/brainwires-channels",   version = "0.8.0" }
+brainwires-analytics  = { path = "crates/brainwires-analytics",  version = "0.8.0", default-features = false }
+brainwires-proxy = { path = "extras/brainwires-proxy", version = "0.8.0" }
 
 # Tokenizer dependencies
 tokenizers = "0.22"

@@ -384,7 +384,7 @@ cargo run -- chat
 
 ```bash
 cargo build --lib
-# → Compiling brainwires-cli v0.7.0
+# → Compiling brainwires-cli v0.8.0
 # → Finished (warnings only, no errors)
 ```
 

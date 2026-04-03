@@ -107,7 +107,7 @@ Deno.test("RemoteMessage serialization - register", () => {
     api_key: "bw_prod_test123",
     hostname: "my-laptop",
     os: "linux",
-    version: "0.7.0",
+    version: "0.8.0",
   };
   const json = JSON.stringify(msg);
   assert(json.includes('"type":"register"'));

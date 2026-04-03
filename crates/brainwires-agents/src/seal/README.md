@@ -23,13 +23,13 @@ SEAL was previously a standalone crate (`brainwires-seal`). It was moved here be
 
 ```toml
 # Core SEAL
-brainwires-agents = { version = "0.7", features = ["seal"] }
+brainwires-agents = { version = "0.8", features = ["seal"] }
 
 # With knowledge integration
-brainwires-agents = { version = "0.7", features = ["seal-knowledge"] }
+brainwires-agents = { version = "0.8", features = ["seal-knowledge"] }
 
 # Via the brainwires facade
-brainwires = { version = "0.7", features = ["seal"] }
+brainwires = { version = "0.8", features = ["seal"] }
 ```
 
 ## Architecture
