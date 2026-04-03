@@ -14,6 +14,8 @@ pub mod types;
 pub mod controller;
 /// Matter device server — exposes agents as Matter devices.
 pub mod server;
+/// Matter transport layer: message framing, MRP, and UDP/BLE I/O.
+pub mod transport;
 
 pub use commissioning::{parse_manual_code, parse_qr_code, CommissioningPayload};
 pub use controller::MatterController;
