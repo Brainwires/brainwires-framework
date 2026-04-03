@@ -9,7 +9,9 @@ repository.workspace = true
 homepage.workspace = true
 authors.workspace = true
 readme = "README.md"
-publish = false
+documentation = "https://docs.rs/brainwires-system"
+keywords = ["filesystem", "watcher", "systemd", "docker", "process"]
+categories = ["os", "filesystem", "asynchronous"]
 
 [dependencies]
 serde = { workspace = true }

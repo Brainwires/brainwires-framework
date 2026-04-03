@@ -36,6 +36,7 @@ CRATES=(
     brainwires-code-interpreters
     brainwires-skills
     brainwires-analytics
+    brainwires-system
 
     # Layer 2: Depend only on core (or leaf crates)
     brainwires-mcp
@@ -56,7 +57,7 @@ CRATES=(
 
     # Layer 5: Agents (depends on tool-system, cognition, agent-network)
     brainwires-agents
-    brainwires-channels
+    # brainwires-channels  # excluded: optional webrtc feature depends on git-only fork (0.20.0-alpha.1)
     brainwires-wasm
 
     # Layer 6: Top-level (depends on agents, cognition, training)
