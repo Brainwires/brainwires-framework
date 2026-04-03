@@ -2,6 +2,8 @@
 pub mod commissioning;
 /// Typed cluster helpers (TLV-encoded command and attribute payloads).
 pub mod clusters;
+/// Matter 1.3 cryptographic stack: KDF helpers and SPAKE2+ PAKE.
+pub mod crypto;
 /// Typed errors wrapping rs-matter.
 pub mod error;
 /// Matter device types, cluster IDs, and configuration.
@@ -13,6 +15,10 @@ pub mod server;
 
 pub use commissioning::{parse_manual_code, parse_qr_code, CommissioningPayload};
 pub use controller::MatterController;
+pub use crypto::{
+    kdf::{derive_passcode_verifier, hkdf_expand_label},
+    spake2plus::{Spake2PlusKeys, Spake2PlusProver, Spake2PlusVerifier},
+};
 pub use error::{MatterError, MatterResult};
 pub use server::{MatterDeviceServer, OnOffHandler};
 pub use types::{

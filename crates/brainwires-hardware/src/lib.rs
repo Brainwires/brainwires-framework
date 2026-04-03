@@ -74,7 +74,14 @@ pub mod camera;
 pub mod usb;
 
 /// Home automation protocols: Zigbee (EZSP + ZNP), Z-Wave (Serial API), Thread (OTBR), Matter.
-#[cfg(feature = "homeauto")]
+#[cfg(any(
+    feature = "homeauto",
+    feature = "zigbee",
+    feature = "zwave",
+    feature = "thread",
+    feature = "matter",
+    feature = "matter-ble",
+))]
 pub mod homeauto;
 
 // ── Convenience re-exports: mirrors the old brainwires-audio public API ──────
@@ -125,7 +132,14 @@ pub use usb::{UsbClass, UsbDevice, UsbError, UsbHandle, UsbSpeed};
 
 // ── Home automation re-exports ────────────────────────────────────────────────
 
-#[cfg(feature = "homeauto")]
+#[cfg(any(
+    feature = "homeauto",
+    feature = "zigbee",
+    feature = "zwave",
+    feature = "thread",
+    feature = "matter",
+    feature = "matter-ble",
+))]
 pub use homeauto::{HomeAutoError, HomeAutoEvent, HomeAutoResult, HomeDevice, Protocol};
 
 #[cfg(feature = "zigbee")]

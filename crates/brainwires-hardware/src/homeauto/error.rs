@@ -4,6 +4,7 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum HomeAutoError {
     // ── Serial / transport ──────────────────────────────────────────────────
+    #[cfg(any(feature = "zigbee", feature = "zwave"))]
     #[error("serial port error: {0}")]
     Serial(#[from] tokio_serial::Error),
 

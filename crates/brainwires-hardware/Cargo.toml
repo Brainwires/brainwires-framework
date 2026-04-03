@@ -95,6 +95,22 @@ mdns-sd = { workspace = true, optional = true }
 # Hostname lookup (used by Matter mDNS advertisement)
 gethostname = { workspace = true, optional = true }
 
+# Matter cryptographic stack
+p256   = { workspace = true, optional = true }
+ecdsa  = { workspace = true, optional = true }
+hmac   = { workspace = true, optional = true }
+hkdf   = { workspace = true, optional = true }
+pbkdf2 = { workspace = true, optional = true }
+aes    = { workspace = true, optional = true }
+ccm    = { workspace = true, optional = true }
+der    = { workspace = true, optional = true }
+pkcs8  = { workspace = true, optional = true }
+# Hashing, RNG, and encoding shared by the matter crypto stack
+sha2      = { workspace = true, optional = true }
+rand_core = { workspace = true, optional = true }
+zeroize   = { workspace = true, optional = true }
+hex       = { workspace = true, optional = true }
+
 [features]
 default = []
 
@@ -173,13 +189,30 @@ matter = [
     "dep:gethostname",
     "dep:tokio-stream",
     "dep:async-stream",
+    "dep:p256",
+    "dep:ecdsa",
+    "dep:hmac",
+    "dep:hkdf",
+    "dep:pbkdf2",
+    "dep:aes",
+    "dep:ccm",
+    "dep:der",
+    "dep:pkcs8",
+    "dep:sha2",
+    "dep:rand_core",
+    "dep:zeroize",
+    "dep:hex",
 ]
 
-# All home automation protocols
+# Matter over BLE (adds BLE transport layer)
+matter-ble = ["matter", "dep:btleplug", "dep:uuid"]
+
+# All home automation protocols + Matter BLE
 homeauto = ["zigbee", "zwave", "thread", "matter"]
+homeauto-full = ["homeauto", "matter-ble"]
 
 # Convenience: everything
-full = ["audio", "gpio", "bluetooth", "network", "camera", "usb", "vad", "wake-word", "voice-assistant", "homeauto"]
+full = ["audio", "gpio", "bluetooth", "network", "camera", "usb", "vad", "wake-word", "voice-assistant", "homeauto-full"]
 
 [dev-dependencies]
 tokio = { workspace = true }
