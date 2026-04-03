@@ -57,7 +57,9 @@ brainwires-hardware = { version = "0.8", features = ["full"] }
 | `zwave` | Z-Wave Plus v2 (ZAPI2) over USB serial stick |
 | `thread` | OpenThread Border Router (OTBR) REST API client |
 | `matter` | Matter 1.3 controller + device server (pure-Rust stack, no rs-matter) |
+| `matter-ble` | BLE commissioning window (btleplug peripheral, Linux/macOS) |
 | `homeauto` | All four home automation protocols (`zigbee` + `zwave` + `thread` + `matter`) |
+| `homeauto-full` | All home automation including BLE (`homeauto` + `matter-ble`) |
 | `full` | All features (except `local-stt`, `wake-word-rustpotter`, `wake-word-porcupine`) |
 
 ## Audio
@@ -264,6 +266,36 @@ let server = MatterDeviceServer::new(config).await?;
 server.set_on_off_handler(|on| println!("On/Off: {on}"));
 println!("QR: {}", server.qr_code());
 server.start().await?;  // blocks; scan QR code with your Matter controller
+```
+
+#### Matter Stack — What's Implemented
+
+The `matter` feature ships a **complete Matter 1.3 protocol stack** written entirely in pure Rust (no `rs-matter` or `embassy-time` dependency):
+
+| Layer | Status | Notes |
+|-------|--------|-------|
+| SPAKE2+ (RFC 9383) | Complete | RustCrypto p256, PBKDF2-HMAC-SHA256, cA/cB confirmation |
+| PASE commissioning | Complete | Full PBKDFParam/Pake1/2/3 handshake, session key derivation |
+| CASE operational | Complete | SIGMA Sigma1/2/3, P-256 ECDH, AES-CCM-128, NOC verification |
+| Matter TLV certs | Complete | NOC/ICAC/RCAC encode/decode, P-256 ECDSA-SHA256 |
+| Fabric management | Complete | Root CA generation, NOC issuance, JSON persistence |
+| Message transport | Complete | Matter §4.4 header, MRP retry/backoff, AES-CCM-128 UDP |
+| Interaction Model | Complete | Read/Write/Invoke/Subscribe, wildcard paths, TLV codec |
+| Commissioning clusters | Complete | BasicInformation, GeneralCommissioning, OperationalCredentials, NetworkCommissioning |
+| mDNS advertisement | Complete | `_matterc._udp` commissionable + `_matter._tcp` operational |
+| BLE commissioning | Complete (`matter-ble`) | BTP handshake, segmentation/reassembly, btleplug peripheral |
+| CASE session resumption | Not yet implemented | Sigma2Resume path |
+| Multi-fabric | Not yet implemented | Single fabric per controller instance |
+| BLE on Windows | Not implemented | btleplug WinRT BLE requires additional work |
+
+Run the ready-made examples to get started:
+
+```bash
+# Expose this machine as a Matter on/off light — scan the printed QR code
+cargo run --example matter_server --features matter
+
+# Commission a real Matter device and toggle it
+cargo run --example matter_on_off --features matter -- commission "MT:YOUR_QR_CODE"
 ```
 
 ## Migration from brainwires-audio

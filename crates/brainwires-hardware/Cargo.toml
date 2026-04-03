@@ -220,6 +220,9 @@ anyhow = { workspace = true }
 tracing-subscriber = { workspace = true }
 ctrlc = { version = "3", features = ["termination"] }
 wiremock = "0.6"
+# Used by matter integration tests (CASE handshake with real keys)
+p256      = { workspace = true }
+rand_core = { workspace = true }
 
 [[example]]
 name = "speech_to_text"
@@ -267,5 +270,13 @@ required-features = ["thread"]
 
 [[example]]
 name = "matter_on_off"
+required-features = ["matter"]
+
+[[example]]
+name = "matter_server"
+required-features = ["matter"]
+
+[[test]]
+name = "matter_integration"
 required-features = ["matter"]
 

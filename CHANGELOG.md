@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Full Matter 1.3 Protocol Stack (`brainwires-hardware`)
+
+- **SPAKE2+ Augmented PAKE** (RFC 9383) — pure Rust implementation using RustCrypto p256, implemented from scratch due to the absence of a production-ready SPAKE2+ crate. Prover + Verifier roles, PBKDF2-HMAC-SHA256 passcode derivation, HMAC-SHA256 confirmation (cA/cB).
+- **PASE** (Password-Authenticated Session Establishment) — full commissioning handshake: PBKDFParamRequest/Response, Pake1/2/3, session key derivation (I2RKey, R2IKey, AttestationChallenge via HKDF-SHA256).
+- **CASE** (Certificate-Authenticated Session Establishment) — SIGMA protocol: Sigma1/2/3 exchange, P-256 ephemeral ECDH, AES-CCM-128 encrypted payloads, NOC chain verification.
+- **Matter compact certificate format** — TLV-encoded NOC/ICAC/RCAC encode/decode per Matter spec §6.4, P-256 ECDSA-SHA256 signatures, Matter OIDs for NodeId/FabricId.
+- **Fabric management** — `FabricManager` with root CA generation, NOC issuance, JSON persistence, multi-fabric bookkeeping.
+- **Matter transport layer** — Message Layer header encode/decode (Matter spec §4.4), MRP (Message Reliability Protocol) with configurable retry/backoff (Matter spec §4.12), AES-CCM-128 UDP session encryption.
+- **Interaction Model** — `ReadRequest`/`ReportData`, `WriteRequest`/`WriteResponse`, `InvokeRequest`/`InvokeResponse`, `SubscribeRequest`/`SubscribeResponse` with full TLV encode/decode and wildcard `AttributePath`/`CommandPath`.
+- **Mandatory commissioning clusters** — `BasicInformation` (0x0028), `GeneralCommissioning` (0x0030), `OperationalCredentials` (0x003E), `NetworkCommissioning` (0x0031).
+- **`MatterDeviceServer`** — fully functional device server: PASE commissioning window, CASE operational sessions, IM cluster dispatch, `CommissionableAdvertiser` mDNS (`_matterc._udp`).
+- **`MatterController`** — fully functional controller: mDNS device discovery, PASE commissioning, CASE session management, cluster invoke/read, session caching.
+- **BLE commissioning** (`matter-ble` feature) — BTP transport protocol (Matter spec §4.17): handshake, segmentation/reassembly, fragmentation. `MatterBlePeripheral` with Matter BLE service UUID, Linux/macOS btleplug peripheral support.
+- **`OperationalAdvertiser`/`OperationalBrowser`** — post-commissioning `_matter._tcp` DNS-SD with CompressedFabricId derivation.
+- **New workspace deps** — `p256 0.13.2`, `ecdsa 0.16.9`, `hmac 0.12`, `hkdf 0.12`, `pbkdf2 0.12.2`, `aes 0.8.4`, `ccm 0.5.0`, `der 0.8.0`, `pkcs8 0.10.2`.
+- **New features** — `matter-ble` (BLE commissioning), `homeauto-full` (all protocols including BLE).
+- **80 unit tests** — all pure logic, no hardware required. Integration test `matter_e2e` available with `--include-ignored`.
+
 #### Home Automation Protocols (`brainwires-hardware`)
 
 - **`homeauto` module** — New `src/homeauto/` module group behind four feature flags: `zigbee`, `zwave`, `thread`, `matter` (or all via `homeauto`). Each sub-module is independent; pull in only what you need.
