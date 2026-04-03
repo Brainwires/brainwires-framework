@@ -6,8 +6,12 @@ pub mod clusters;
 pub mod crypto;
 /// Typed errors wrapping rs-matter.
 pub mod error;
+/// Matter fabric management — root CA, NOC issuance, and fabric storage.
+pub mod fabric;
 /// Matter Interaction Model — read, write, invoke, and subscribe messages.
 pub mod interaction_model;
+/// Matter secure channel — PASE (commissioning) and CASE (operational) session establishment.
+pub mod secure_channel;
 /// Matter device types, cluster IDs, and configuration.
 pub mod types;
 /// Matter controller — commissions and controls Matter devices.
@@ -16,6 +20,8 @@ pub mod controller;
 pub mod server;
 /// Matter transport layer: message framing, MRP, and UDP/BLE I/O.
 pub mod transport;
+/// Matter data model — cluster servers, ACL, and node dispatch.
+pub mod data_model;
 
 pub use commissioning::{parse_manual_code, parse_qr_code, CommissioningPayload};
 pub use controller::MatterController;
@@ -24,6 +30,11 @@ pub use crypto::{
     spake2plus::{Spake2PlusKeys, Spake2PlusProver, Spake2PlusVerifier},
 };
 pub use error::{MatterError, MatterResult};
+pub use fabric::{FabricDescriptor, FabricIndex, MatterCert};
+pub use secure_channel::{
+    CaseInitiator, CaseResponder, EstablishedSession, PaseCommissionee, PaseCommissioner,
+    SecureChannelOpcode, SECURE_CHANNEL_PROTOCOL_ID,
+};
 pub use interaction_model::{
     ImOpcode, InvokeRequest, InvokeResponse, InvokeResponseItem,
     AttributeData, ReadRequest, ReportData,
