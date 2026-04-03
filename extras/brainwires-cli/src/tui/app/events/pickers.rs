@@ -3,7 +3,7 @@
 //! Event handling for session picker, tool picker, and file explorer modes.
 
 use crate::tui::Event;
-use crate::tui::app::state::{App, AppMode};
+use crate::tui::app::state::{App, AppMode, LogLevel};
 use anyhow::Result;
 use crossterm::event::KeyCode;
 
@@ -74,7 +74,7 @@ impl App {
                 KeyCode::Esc => {
                     // Exit picker mode
                     self.mode = AppMode::Normal;
-                    self.status = "Session picker cancelled".to_string();
+                    self.set_status(LogLevel::Info, "Session picker cancelled");
                 }
                 KeyCode::Up => {
                     // Move selection up
@@ -130,7 +130,7 @@ impl App {
             // Cancel picker
             self.tool_picker_state = None;
             self.mode = AppMode::Normal;
-            self.status = "Tool picker cancelled".to_string();
+            self.set_status(LogLevel::Info, "Tool picker cancelled");
             return Ok(());
         }
 

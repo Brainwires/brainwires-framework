@@ -12,7 +12,7 @@ pub(crate) mod hotkey_content;
 pub mod question_parser;
 mod ui;
 
-pub use app::{App, AppMode};
+pub use app::{App, AppMode, LogLevel};
 pub use console::ConsoleBuffer;
 pub use events::{Event, EventHandler};
 pub use exec_overlay::execute_command_overlay;
@@ -201,7 +201,7 @@ pub async fn run_tui(
                 created_at: m.created_at,
             })
             .collect();
-        app.status = status;
+        app.set_status(LogLevel::Info, status);
         app.model = session_model;
         app.tool_mode = tool_mode;
         app.mcp_connected_servers = mcp_servers;
@@ -313,7 +313,7 @@ async fn run_app(
             if let Err(e) = background_process(terminal, &session_id, &model) {
                 reinit_terminal(terminal)?;
                 events.resume();
-                app.status = format!("Background failed: {}", e);
+                app.set_status(LogLevel::Error, format!("Background failed: {}", e));
             }
             // Note: If background_process succeeds, it calls exit(0), so we never reach here
             continue;
@@ -334,9 +334,9 @@ async fn run_app(
         if app.pending_resume_ai {
             app.pending_resume_ai = false;
             // Resume AI response for the last user message
-            app.status = "Resuming AI response...".to_string();
+            app.set_status(LogLevel::Info, "Resuming AI response...");
             if let Err(e) = app.call_ai_provider().await {
-                app.status = format!("Failed to resume AI: {}", e);
+                app.set_status(LogLevel::Error, format!("Failed to resume AI: {}", e));
             }
         }
 
@@ -445,7 +445,7 @@ async fn run_app(
                         content: result_msg,
                         created_at: chrono::Utc::now().timestamp(),
                     });
-                    app.status = format!("Command executed (exit code: {})", exit_code);
+                    app.set_status(LogLevel::Info, format!("Command executed (exit code: {})", exit_code));
                 }
                 Err(e) => {
                     // Store failed execution in history too
@@ -461,7 +461,7 @@ async fn run_app(
                         content: format!("Failed to execute command: {}", e),
                         created_at: chrono::Utc::now().timestamp(),
                     });
-                    app.status = "Command execution failed".to_string();
+                    app.set_status(LogLevel::Error, "Command execution failed");
                 }
             }
         }
@@ -555,7 +555,7 @@ async fn run_app(
                                             created_at: m.created_at,
                                         })
                                         .collect();
-                                    app.status = status;
+                                    app.set_status(LogLevel::Info, status);
                                     app.model = model;
                                     app.tool_mode = tool_mode;
                                     app.mcp_connected_servers = mcp_servers;
@@ -706,7 +706,7 @@ async fn run_app(
                 }
                 Err(e) => {
                     app.add_console_message(format!("❌ Session respawn failed: {}", e));
-                    app.status = format!("Respawn failed: {}", e);
+                    app.set_status(LogLevel::Error, format!("Respawn failed: {}", e));
                     app.ipc_needs_respawn = false; // Don't keep trying
                 }
             }

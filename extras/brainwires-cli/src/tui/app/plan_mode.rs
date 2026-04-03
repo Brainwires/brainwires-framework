@@ -6,7 +6,7 @@
 use anyhow::Result;
 
 use super::autocomplete::AutocompleteOps;
-use super::state::{App, AppMode, TuiMessage};
+use super::state::{App, AppMode, LogLevel, TuiMessage};
 use crate::tui::Event;
 use crate::types::plan_mode::{PlanModeState, SavedMainContext};
 use brainwires::agent_network::ipc::{AgentMessage, DisplayMessage, ViewerMessage};
@@ -90,7 +90,7 @@ impl App {
 
         // Update status
         let focus_str = focus.as_deref().unwrap_or("general planning");
-        self.status = format!("Plan Mode - Focus: {} (Ctrl+P to exit)", focus_str);
+        self.set_status(LogLevel::Info, format!("Plan Mode - Focus: {} (Ctrl+P to exit)", focus_str));
 
         // Add console message
         self.add_console_message(format!("Entered plan mode: {}", focus_str));
@@ -152,10 +152,10 @@ impl App {
             self.scroll = saved.scroll;
 
             // Restore status
-            self.status = saved.status;
+            self.set_status(LogLevel::Info, saved.status);
         } else {
             // No saved context, just reset
-            self.status = format!("Ready - Model: {}", self.model);
+            self.set_status(LogLevel::Info, format!("Ready - Model: {}", self.model));
         }
 
         // Exit plan mode
@@ -360,7 +360,7 @@ impl App {
                     })
                     .collect();
 
-                self.status = status.clone();
+                self.set_status(LogLevel::Info, status.clone());
                 self.mode = AppMode::PlanMode;
             }
 
@@ -383,7 +383,7 @@ impl App {
                         .collect();
                     self.conversation_history = saved.conversation_history;
                     self.scroll = saved.scroll;
-                    self.status = saved.status;
+                    self.set_status(LogLevel::Info, saved.status);
                 }
 
                 self.mode = AppMode::Normal;
@@ -412,7 +412,7 @@ impl App {
                     })
                     .collect();
 
-                self.status = status.clone();
+                self.set_status(LogLevel::Info, status.clone());
             }
 
             AgentMessage::PlanModeMessageAdded { message } => {

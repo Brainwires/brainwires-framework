@@ -11,7 +11,7 @@ mod plan_lifecycle;
 mod task_handlers;
 mod template_handlers;
 
-use super::state::{App, AppMode, TuiMessage};
+use super::state::{App, AppMode, LogLevel, TuiMessage};
 use crate::agents::OrchestratorAgent;
 use crate::types::agent::PermissionMode;
 use crate::types::message::{Message, MessageContent, Role, StreamChunk};
@@ -118,11 +118,12 @@ impl App {
 
         // Enter waiting mode
         self.mode = AppMode::Waiting;
-        self.status = if self.active_plan.is_some() {
+        let status_msg = if self.active_plan.is_some() {
             "Working on plan...".to_string()
         } else {
             "Streaming response...".to_string()
         };
+        self.set_status(LogLevel::Info, status_msg);
 
         // Clone user_content before calling AI (for saving to storage later)
         let user_content = self
@@ -331,12 +332,6 @@ impl App {
     async fn call_ai_provider_ipc(&mut self) -> Result<()> {
         use brainwires::agent_network::ipc::ViewerMessage;
 
-        // Get the IPC writer
-        let writer = self
-            .ipc_writer
-            .as_mut()
-            .ok_or_else(|| anyhow::anyhow!("No IPC connection in IPC mode"))?;
-
         // Get the last user message content
         let user_content = self
             .conversation_history
@@ -355,9 +350,9 @@ impl App {
             .map(|p| p.to_string_lossy().to_string())
             .collect();
 
-        // Enter waiting mode
+        // Enter waiting mode and journal the status before borrowing ipc_writer
         self.mode = AppMode::Waiting;
-        self.status = "Sending to session...".to_string();
+        self.set_status(LogLevel::Info, "Sending to session...");
 
         // Add placeholder assistant message for streaming
         let assistant_msg = TuiMessage {
@@ -369,14 +364,20 @@ impl App {
         self.streaming_msg_idx = Some(self.messages.len() - 1);
         self.streaming_content = String::new();
 
-        // Send user input to Session
+        // Get the IPC writer and send (borrow is scoped to the block)
         let msg = ViewerMessage::UserInput {
             content: user_content,
             context_files,
         };
-        writer.write(&msg).await?;
+        {
+            let writer = self
+                .ipc_writer
+                .as_mut()
+                .ok_or_else(|| anyhow::anyhow!("No IPC connection in IPC mode"))?;
+            writer.write(&msg).await?;
+        }
 
-        self.status = "Streaming from session...".to_string();
+        self.set_status(LogLevel::Info, "Streaming from session...");
         self.add_console_message("📤 Sent input to session via IPC".to_string());
 
         // Streaming responses will be received via Event::Ipc in the main event loop
@@ -400,12 +401,12 @@ impl App {
                 }
             }
             AgentMessage::StreamEnd { .. } => {
-                self.status = "Ready".to_string();
+                self.set_status(LogLevel::Info, "Ready");
                 self.transition_to_normal_after_streaming();
                 self.streaming_msg_idx = None;
             }
             AgentMessage::ToolCallStart { name, .. } => {
-                self.status = format!("Tool: {} (executing...)", name);
+                self.set_status(LogLevel::Info, format!("Tool: {} (executing...)", name));
             }
             AgentMessage::ToolResult {
                 name,
@@ -427,10 +428,10 @@ impl App {
                 );
             }
             AgentMessage::StatusUpdate { status } => {
-                self.status = status;
+                self.set_status(LogLevel::Info, status);
             }
             AgentMessage::Error { message, .. } => {
-                self.status = format!("Error: {}", message);
+                self.set_status(LogLevel::Error, format!("Error: {}", message));
                 self.transition_to_normal_after_streaming();
             }
             AgentMessage::ConversationSync {
@@ -448,7 +449,7 @@ impl App {
                         created_at: m.created_at,
                     })
                     .collect();
-                self.status = status;
+                self.set_status(LogLevel::Info, status);
                 self.tool_mode = tool_mode;
                 self.mcp_connected_servers = mcp_servers;
             }
@@ -489,7 +490,7 @@ impl App {
 
                 // If it's a user message, we might be about to receive a stream
                 if message.role == "user" {
-                    self.status = "Working...".to_string();
+                    self.set_status(LogLevel::Info, "Working...");
                     self.mode = AppMode::Waiting;
                     // Prepare for assistant response
                     self.streaming_content.clear();
@@ -503,7 +504,7 @@ impl App {
             }
             AgentMessage::Exiting { reason } => {
                 self.add_console_message(format!("⚠️ Session exiting: {}", reason));
-                self.status = "Session ended".to_string();
+                self.set_status(LogLevel::Warn, "Session ended");
                 self.ipc_needs_respawn = true;
             }
             _ => {}
@@ -521,7 +522,7 @@ impl App {
         use brainwires::agent_network::ipc::{AgentMessage, Handshake};
 
         self.add_console_message("🔄 Respawning session...".to_string());
-        self.status = "Respawning session...".to_string();
+        self.set_status(LogLevel::Warn, "Respawning session...");
 
         // Spawn a new Session process
         let socket_path = spawn_agent_process(
@@ -583,7 +584,7 @@ impl App {
                     created_at: m.created_at,
                 })
                 .collect();
-            self.status = status;
+            self.set_status(LogLevel::Info, status);
             self.model = model;
             self.tool_mode = tool_mode;
             self.mcp_connected_servers = mcp_servers;
@@ -661,7 +662,7 @@ impl App {
                     parameters,
                 } => {
                     if server == "cli-local" {
-                        self.status = format!("Tool: {} (executing...)", tool_name);
+                        self.set_status(LogLevel::Info, format!("Tool: {} (executing...)", tool_name));
                         console_messages.push(format!("🔧 Tool requested: {}", tool_name));
                         pending_tool_call =
                             Some((call_id, response_id, chat_id, tool_name, server, parameters));
@@ -679,13 +680,14 @@ impl App {
                     let progress_str = progress
                         .map(|p| format!(" ({:.0}%)", p * 100.0))
                         .unwrap_or_default();
+                    // Progress is ephemeral — set status directly to avoid journal spam
                     self.status = format!("⏳ {} - {}{}", tool_name, message, progress_str);
                 }
                 StreamEvent::Done => {
                     stream_done = true;
                 }
                 StreamEvent::Error(e) => {
-                    self.status = format!("Error: {}", e);
+                    self.set_status(LogLevel::Error, format!("Error: {}", e));
                     console_messages.push(format!("❌ Stream error: {}", e));
                     stream_done = true;
                 }
@@ -966,6 +968,7 @@ impl App {
                     let progress_str = progress
                         .map(|p| format!(" ({:.0}%)", p * 100.0))
                         .unwrap_or_default();
+                    // Progress is ephemeral — set status directly to avoid journal spam
                     self.status = format!("⏳ {} - {}{}", tool_name, message, progress_str);
                 }
                 StreamEvent::ToolResult {
@@ -994,7 +997,7 @@ impl App {
 
             if let Some(ref error) = tool_error {
                 self.add_console_message(format!("❌ Tool {} failed: {}", tool_name, error));
-                self.status = format!("Tool error: {}", error);
+                self.set_status(LogLevel::Error, format!("Tool error: {}", error));
 
                 // Record failed tool execution for Journal display
                 self.record_tool_execution(
@@ -1044,7 +1047,7 @@ impl App {
                 );
 
                 // Spawn continuation request in background (non-blocking)
-                self.status = "Processing tool result...".to_string();
+                self.set_status(LogLevel::Info, "Processing tool result...");
                 self.spawn_continuation_request(pending, truncated_output);
 
                 // Return true - continuation is now running, poll_stream_events will handle it
@@ -1187,9 +1190,12 @@ impl App {
             self.pending_questions = Some(question_block.clone());
             self.question_state = QuestionAnswerState::new(&question_block);
             self.mode = AppMode::QuestionAnswer;
-            self.status = format!(
-                "Clarifying Questions - {} question(s)",
-                question_block.questions.len()
+            self.set_status(
+                LogLevel::Info,
+                format!(
+                    "Clarifying Questions - {} question(s)",
+                    question_block.questions.len()
+                ),
             );
             return; // Don't return to normal mode yet
         }
@@ -1199,16 +1205,19 @@ impl App {
 
         // Check if there are queued messages to process
         if !self.queued_messages.is_empty() {
-            self.status = format!("Ready - {} queued messages", self.queued_messages.len());
+            self.set_status(
+                LogLevel::Info,
+                format!("Ready - {} queued messages", self.queued_messages.len()),
+            );
         } else {
             let mdap_indicator = if self.mdap_config.is_some() {
                 " [MDAP]"
             } else {
                 ""
             };
-            self.status = format!(
-                "Ready - Model: {}{} (Ctrl+C to quit)",
-                self.model, mdap_indicator
+            self.set_status(
+                LogLevel::Info,
+                format!("Ready - Model: {}{} (Ctrl+C to quit)", self.model, mdap_indicator),
             );
         }
     }
@@ -1223,7 +1232,7 @@ impl App {
 
         // Enter waiting mode with MDAP indicator
         self.mode = AppMode::Waiting;
-        self.status = format!("MDAP Processing (k={})...", mdap_config.k);
+        self.set_status(LogLevel::Info, format!("MDAP Processing (k={})...", mdap_config.k));
 
         // Clone user_content before calling AI (for saving to storage later)
         let user_content = self
@@ -1350,9 +1359,9 @@ impl App {
                 } else {
                     ""
                 };
-                self.status = format!(
-                    "Ready - Model: {}{} (Ctrl+C to quit)",
-                    self.model, mdap_indicator
+                self.set_status(
+                    LogLevel::Info,
+                    format!("Ready - Model: {}{} (Ctrl+C to quit)", self.model, mdap_indicator),
                 );
             }
             Err(e) => {
@@ -1362,7 +1371,7 @@ impl App {
                 }
 
                 self.add_console_message(format!("❌ MDAP error: {}", e));
-                self.status = format!("MDAP Error: {}", e);
+                self.set_status(LogLevel::Error, format!("MDAP Error: {}", e));
             }
         }
 
@@ -1478,11 +1487,12 @@ impl App {
         let remaining = self.queued_messages.len();
 
         // Set status to show we're processing queued message
-        self.status = if remaining > 0 {
+        let queued_msg = if remaining > 0 {
             format!("Processing queued message ({} remaining)", remaining)
         } else {
             "Processing queued message".to_string()
         };
+        self.set_status(LogLevel::Info, queued_msg);
 
         // Set the input to the queued message and submit it
         self.input_state.set_text(queued_message);

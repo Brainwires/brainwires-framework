@@ -29,7 +29,7 @@ pub use file_explorer::{EntryType, FileEntry, FileExplorerMode};
 pub use find_replace::{DialogFocus, FindReplaceContext, FindReplaceMode};
 pub use git_scm::{GitFileEntry, GitFileStatus, GitOperationMode, ScmPanel};
 pub use state::{
-    App, AppMode, ConversationViewStyle, FocusedPanel, PromptMode, ShellExecution,
+    App, AppMode, ConversationViewStyle, FocusedPanel, LogLevel, PromptMode, ShellExecution,
     SubAgentPanelFocus, ToolExecutionEntry, ToolPickerState, TuiMessage,
 };
 pub use suspend_dialog::SuspendFocus;

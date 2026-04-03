@@ -2,7 +2,7 @@
 //!
 //! Handles plan lifecycle operations: activate, deactivate, status, pause, resume.
 
-use super::super::state::{App, TuiMessage};
+use super::super::state::{App, LogLevel, TuiMessage};
 use crate::types::plan::PlanStatus;
 use anyhow::Result;
 use std::sync::Arc;
@@ -75,7 +75,7 @@ impl App {
 
             self.active_plan = Some(plan);
             self.completed_plan_steps.clear();
-            self.status = "Plan active".to_string();
+            self.set_status(LogLevel::Info, "Plan active");
 
             plan_summary
         } else {
@@ -98,7 +98,7 @@ impl App {
             self.active_plan = None;
             self.completed_plan_steps.clear();
             self.plan_progress = None;
-            self.status = "Ready".to_string();
+            self.set_status(LogLevel::Info, "Ready");
             msg
         } else {
             "No active plan to deactivate".to_string()
@@ -195,7 +195,7 @@ impl App {
             // Clear active plan but keep tasks in storage
             self.active_plan = None;
             self.plan_progress = None;
-            self.status = "Ready".to_string();
+            self.set_status(LogLevel::Info, "Ready");
 
             msg
         } else {
@@ -298,7 +298,7 @@ impl App {
 
             self.active_plan = Some(plan);
             self.completed_plan_steps.clear();
-            self.status = "Plan active".to_string();
+            self.set_status(LogLevel::Info, "Plan active");
 
             msg
         } else {

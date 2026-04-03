@@ -108,6 +108,26 @@ pub struct SubAgentViewerState {
     pub panel_focus: SubAgentPanelFocus,
 }
 
+/// Severity level for activity journal entries
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LogLevel {
+    Debug,
+    Info,
+    Warn,
+    Error,
+}
+
+impl LogLevel {
+    pub fn label(self) -> &'static str {
+        match self {
+            LogLevel::Debug => "DEBUG",
+            LogLevel::Info => "INFO ",
+            LogLevel::Warn => "WARN ",
+            LogLevel::Error => "ERROR",
+        }
+    }
+}
+
 /// Application state
 pub struct App {
     /// Current session ID
@@ -366,6 +386,8 @@ pub struct App {
     pub(super) plan_mode_saved_main: Option<SavedMainContext>,
     /// PKS integration for implicit fact detection and behavioral inference
     pub pks_integration: brainwires::brain::bks_pks::personal::PksIntegration,
+    /// Count of unread Warn/Error journal entries (cleared when journal is opened)
+    pub unread_error_count: usize,
 }
 
 /// SEAL processing status for TUI display
@@ -788,6 +810,7 @@ impl App {
             plan_mode_saved_main: None,
             // PKS integration for implicit fact detection and behavioral inference
             pks_integration: brainwires::brain::bks_pks::personal::PksIntegration::default(),
+            unread_error_count: 0,
         });
 
         // Record working directory for PKS after creation (avoids move issue)
@@ -1096,6 +1119,7 @@ impl App {
             plan_mode_saved_main: None,
             // PKS integration for implicit fact detection and behavioral inference
             pks_integration: brainwires::brain::bks_pks::personal::PksIntegration::default(),
+            unread_error_count: 0,
         });
 
         // Record working directory for PKS after creation (avoids move issue)
@@ -1396,6 +1420,24 @@ impl App {
     /// Add a message to the console
     pub fn add_console_message(&mut self, msg: String) {
         self.console_state.push_line(msg);
+    }
+
+    /// Set the status bar text AND permanently journal the event with timestamp + level.
+    ///
+    /// Use this instead of bare `self.status = ...` so nothing gets silently lost.
+    pub fn set_status(&mut self, level: LogLevel, msg: impl Into<String>) {
+        let msg = msg.into();
+        self.status = msg.clone();
+        let ts = chrono::Local::now().format("%H:%M:%S").to_string();
+        self.add_console_message(format!("{} [{}] {}", ts, level.label(), msg));
+        if matches!(level, LogLevel::Warn | LogLevel::Error) {
+            self.unread_error_count += 1;
+        }
+    }
+
+    /// Clear the unread error/warning badge (call when the user opens the journal).
+    pub fn clear_unread_errors(&mut self) {
+        self.unread_error_count = 0;
     }
 
     /// Record a tool execution for Journal display

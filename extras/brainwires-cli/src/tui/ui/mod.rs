@@ -411,6 +411,19 @@ fn draw_status_bar(
         ));
     }
 
+    // Add unread error/warning badge
+    if app.unread_error_count > 0 {
+        status_spans.push(Span::raw(" | "));
+        status_spans.push(Span::styled(
+            format!(
+                "⚠ {} error{}",
+                app.unread_error_count,
+                if app.unread_error_count == 1 { "" } else { "s" }
+            ),
+            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+        ));
+    }
+
     // Add task summary when task panel sidebar is not visible
     if !task_panel_visible && !app.session_task_summary.is_empty() {
         status_spans.push(Span::raw(" | "));
@@ -430,7 +443,7 @@ fn draw_status_bar(
             Span::styled("Ctrl+L", Style::default().fg(Color::Gray)),
             Span::raw(": sessions | "),
             Span::styled("Ctrl+D", Style::default().fg(Color::Gray)),
-            Span::raw(": console"),
+            Span::raw(": journal"),
         ]),
         Line::from(vec![
             Span::styled("Tab", Style::default().fg(Color::Gray)),

@@ -2,7 +2,7 @@
 //!
 //! Handles plan execution: starting automated plan execution with various approval modes.
 
-use super::super::state::{App, TuiMessage};
+use super::super::state::{App, LogLevel, TuiMessage};
 use crate::types::plan::PlanStatus;
 use anyhow::Result;
 use std::sync::Arc;
@@ -109,7 +109,7 @@ impl App {
                 ExecutionApprovalMode::FullAuto => super::super::state::ApprovalMode::FullAuto,
             };
 
-            self.status = format!("Executing plan ({})", approval_mode);
+            self.set_status(LogLevel::Info, format!("Executing plan ({})", approval_mode));
 
             // Generate initial prompt to start execution
             let stats = {

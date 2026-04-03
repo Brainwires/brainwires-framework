@@ -2,7 +2,7 @@
 //!
 //! Handles checkpoint create, restore, and list operations.
 
-use super::super::state::{App, TuiMessage};
+use super::super::state::{App, LogLevel, TuiMessage};
 use crate::types::message::{MessageContent, Role};
 use anyhow::Result;
 
@@ -25,7 +25,7 @@ impl App {
                     content: format!("Checkpoint created: {}", display_name),
                     created_at: chrono::Utc::now().timestamp(),
                 });
-                self.status = format!("Checkpoint created: {}", display_name);
+                self.set_status(LogLevel::Info, format!("Checkpoint created: {}", display_name));
             }
             Err(e) => {
                 self.messages.push(TuiMessage {
@@ -76,7 +76,7 @@ impl App {
                 let display_name = checkpoint
                     .name
                     .unwrap_or_else(|| checkpoint.id[..8].to_string());
-                self.status = format!("Restored checkpoint: {}", display_name);
+                self.set_status(LogLevel::Info, format!("Restored checkpoint: {}", display_name));
             }
             Err(e) => {
                 self.messages.push(TuiMessage {
