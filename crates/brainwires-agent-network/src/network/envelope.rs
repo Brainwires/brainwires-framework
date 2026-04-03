@@ -22,6 +22,11 @@ pub struct MessageEnvelope {
     pub ttl: Option<u32>,
     /// Optional correlation ID for request-response patterns.
     pub correlation_id: Option<Uuid>,
+    /// Optional trace ID for cross-system event correlation.
+    ///
+    /// Set this to the same UUID used by the originating `TaskAgent` so that
+    /// network hops can be joined with audit log entries and A2A stream events.
+    pub trace_id: Option<Uuid>,
 }
 
 impl MessageEnvelope {
@@ -35,6 +40,7 @@ impl MessageEnvelope {
             timestamp: Utc::now(),
             ttl: None,
             correlation_id: None,
+            trace_id: None,
         }
     }
 
@@ -48,6 +54,7 @@ impl MessageEnvelope {
             timestamp: Utc::now(),
             ttl: None,
             correlation_id: None,
+            trace_id: None,
         }
     }
 
@@ -61,6 +68,7 @@ impl MessageEnvelope {
             timestamp: Utc::now(),
             ttl: None,
             correlation_id: None,
+            trace_id: None,
         }
     }
 
@@ -77,6 +85,9 @@ impl MessageEnvelope {
     }
 
     /// Create a reply envelope to this message.
+    ///
+    /// The reply inherits the sender's `trace_id` so the full
+    /// request-response exchange shares one trace.
     pub fn reply(&self, sender: Uuid, payload: impl Into<Payload>) -> Self {
         Self {
             id: Uuid::new_v4(),
@@ -86,7 +97,14 @@ impl MessageEnvelope {
             timestamp: Utc::now(),
             ttl: None,
             correlation_id: Some(self.id),
+            trace_id: self.trace_id,
         }
+    }
+
+    /// Attach a trace ID to this envelope (builder pattern).
+    pub fn with_trace(mut self, trace_id: Uuid) -> Self {
+        self.trace_id = Some(trace_id);
+        self
     }
 }
 

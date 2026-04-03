@@ -14,6 +14,8 @@
 
 /// Content source types for tracking where content originates.
 pub mod content_source;
+/// Unified event trait and `EventEnvelope<E>` with trace IDs and sequence numbers.
+pub mod event;
 /// Embedding provider trait for vector operations.
 pub mod embedding;
 /// Framework error types and result aliases.

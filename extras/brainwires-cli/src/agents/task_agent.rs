@@ -245,9 +245,20 @@ impl TaskAgent {
             task.description.clone()
         };
 
+        // Generate a trace ID for this execution. Written into AgentContext.metadata so
+        // every ToolContext created from it automatically carries the trace ID, enabling
+        // cross-system correlation in audit logs and OTel exporters.
+        let trace_id = uuid::Uuid::new_v4();
+        {
+            let mut ctx = self.context.write().await;
+            ctx.metadata
+                .insert("trace_id".to_string(), trace_id.to_string());
+        }
+
         tracing::info!(
             agent_id = %self.id,
             task_id = %task_id,
+            %trace_id,
             task = %task_description,
             "TaskAgent starting execution"
         );
