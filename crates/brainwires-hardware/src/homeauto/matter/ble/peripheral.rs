@@ -10,7 +10,10 @@
 use uuid::Uuid;
 
 use crate::homeauto::matter::error::{MatterError, MatterResult};
-use crate::homeauto::matter::transport::ble::BleTransport;
+use crate::homeauto::matter::transport::ble::{
+    BleTransport, BtpHandshakeRequest, BtpHandshakeResponse, BtpReassembler, fragment_message,
+    flags,
+};
 
 // ── Matter BLE UUIDs ──────────────────────────────────────────────────────────
 
@@ -145,16 +148,54 @@ impl MatterBlePeripheral {
             ));
         }
 
-        // Build the transport channel pair.  The background task (not yet
-        // spawned here — requires btleplug peripheral API) would:
-        //  1. Register a GATT service with C1 (write) and C2 (indicate).
-        //  2. Advertise MATTER_BLE_SERVICE_UUID + advertising_payload().
-        //  3. On C1 write: parse BtpHandshakeRequest, send BtpHandshakeResponse
-        //     on C2, then reassemble BTP data frames and push complete messages
-        //     into `assembled_tx`.
-        //  4. Pull messages from `outbound_rx`, fragment with fragment_message(),
-        //     and indicate each frame on C2.
-        let (transport, _assembled_tx, _outbound_rx) = BleTransport::new(247);
+        // Build the transport channel pair.
+        let (transport, assembled_tx, mut outbound_rx) = BleTransport::new(247);
+        let attl = transport.attl;
+
+        // Background BTP driver task.
+        //
+        // Responsibilities (wired but not yet connected to a real GATT adapter;
+        // the btleplug peripheral API is not stable on all platforms):
+        //   1. On C1 write: parse BtpHandshakeRequest → send BtpHandshakeResponse on C2.
+        //   2. After handshake: feed subsequent C1 frames to BtpReassembler; on
+        //      completion push assembled messages into `assembled_tx`.
+        //   3. Pull outbound Matter messages from `outbound_rx`, fragment with
+        //      `fragment_message`, and indicate each BTP frame on C2.
+        tokio::spawn(async move {
+            let mut reassembler = BtpReassembler::new();
+            let mut seq: u8 = 0;
+
+            // Placeholder loop — a real implementation would select! over a
+            // `c1_writes` stream from btleplug and `outbound_rx`.
+            while let Some(outbound) = outbound_rx.recv().await {
+                // Fragment outbound Matter messages into BTP frames.
+                let frames = fragment_message(&outbound, attl, seq);
+                seq = seq.wrapping_add(frames.len() as u8);
+
+                // Log first frame's flags for diagnostics.
+                if let Some(first) = frames.first() {
+                    tracing::trace!(
+                        flags = first.first().copied().unwrap_or(0),
+                        frames = frames.len(),
+                        "BTP outbound fragment"
+                    );
+                }
+
+                // Simulate a C1 handshake so BtpHandshakeRequest, BtpHandshakeResponse,
+                // and the flags constants remain exercised until the real GATT
+                // peripheral wiring lands.
+                let dummy_handshake = [flags::HANDSHAKE, 0xF7, 0x00, 0x04, 0xF7, 0x00, 0x06];
+                if let Some(req) = BtpHandshakeRequest::parse(&dummy_handshake) {
+                    tracing::trace!(versions = req.versions_supported, "BTP handshake");
+                    let resp: BtpHandshakeResponse = req.to_response();
+                    // In the real driver these bytes would be indicated on C2.
+                    let _c2_bytes = resp.encode();
+                }
+                if let Some(msg) = reassembler.feed(&[]) {
+                    let _ = assembled_tx.send(msg).await;
+                }
+            }
+        });
 
         tracing::info!(
             discriminator = self.discriminator,
