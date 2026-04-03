@@ -553,6 +553,7 @@ impl McpServerHandler {
             mdap_config,
             analytics_collector: crate::utils::logger::analytics_collector()
                 .map(std::sync::Arc::new),
+            role: None,
             max_total_tokens: None,
             max_cost_usd: None,
             timeout_secs: None,

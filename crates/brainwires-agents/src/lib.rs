@@ -55,6 +55,7 @@ pub mod execution_graph;
 pub mod judge_agent;
 pub mod planner_agent;
 pub mod pool;
+pub mod roles;
 pub mod system_prompts;
 pub mod task_agent;
 pub mod validator_agent;

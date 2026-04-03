@@ -285,6 +285,22 @@ impl ToolRegistry {
             .collect())
     }
 
+    /// Return a filtered view containing only the named tools.
+    ///
+    /// Useful when constructing a provider call for a constrained agent role —
+    /// the caller supplies the allow-list (e.g. from `AgentRole::allowed_tools`)
+    /// and receives only the matching `Tool` definitions.
+    ///
+    /// Tools not present in the registry are silently skipped, so the list may
+    /// be shorter than `allow` if some tools are not registered.
+    pub fn filtered_view(&self, allow: &[&str]) -> Vec<Tool> {
+        self.tools
+            .iter()
+            .filter(|t| allow.contains(&t.name.as_str()))
+            .cloned()
+            .collect()
+    }
+
     /// Total number of registered tools
     pub fn len(&self) -> usize {
         self.tools.len()

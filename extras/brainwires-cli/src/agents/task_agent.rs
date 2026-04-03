@@ -16,6 +16,7 @@ use crate::types::provider::ChatOptions;
 use crate::types::session_budget::SessionBudget;
 use crate::types::tool::{ToolContext, ToolContextExt, ToolUse};
 use crate::utils::context_builder::{ContextBuilder, ContextBuilderConfig};
+use brainwires::agents::roles::AgentRole;
 
 use super::communication::{AgentMessage, CommunicationHub};
 use super::file_locks::{FileLockManager, LockType};
@@ -85,6 +86,14 @@ pub struct TaskAgentConfig {
     /// Analytics collector — emit AgentRun and ToolCall events
     pub analytics_collector: Option<std::sync::Arc<brainwires_analytics::AnalyticsCollector>>,
 
+    /// Optional role that restricts which tools are presented to the model.
+    ///
+    /// Enforcement happens at provider-call time: the model only sees the tools
+    /// permitted by the role, so it cannot accidentally (or intentionally) use
+    /// out-of-scope tools. `None` grants full tool access (equivalent to
+    /// `AgentRole::Execution`).
+    pub role: Option<AgentRole>,
+
     // --- Budget limits (per-agent) ---
     /// Maximum total tokens (prompt + completion) this agent may consume.
     /// Checked after each provider call; the agent fails gracefully when exceeded.
@@ -111,6 +120,7 @@ impl Default for TaskAgentConfig {
             mdap_config: None, // Disabled by default
             analytics_collector: crate::utils::logger::analytics_collector()
                 .map(std::sync::Arc::new),
+            role: None,
             max_total_tokens: None,
             max_cost_usd: None,
             timeout_secs: None,
@@ -902,12 +912,25 @@ impl TaskAgent {
     ) -> Result<ChatResponse> {
         let context = self.context.read().await;
 
-        let system_prompt = self.config.system_prompt.clone().unwrap_or_else(|| {
-            crate::agents::system_prompts::reasoning_agent_prompt(
-                &self.id,
-                &context.working_directory,
-            )
-        });
+        // Build system prompt, appending role constraint suffix if a role is set.
+        let system_prompt = {
+            let base = self.config.system_prompt.clone().unwrap_or_else(|| {
+                crate::agents::system_prompts::reasoning_agent_prompt(
+                    &self.id,
+                    &context.working_directory,
+                )
+            });
+            match self.config.role {
+                Some(role) => format!("{}{}", base, role.system_prompt_suffix()),
+                None => base,
+            }
+        };
+
+        // Filter tools to only those permitted by the agent's role.
+        let available_tools: Vec<_> = match self.config.role {
+            Some(role) => role.filter_tools(&context.tools),
+            None => context.tools.clone(),
+        };
 
         // Build enhanced message list when a message store is available.
         // ContextBuilder uses use_gating=false so retrieval fires on every call
@@ -950,7 +973,7 @@ impl TaskAgent {
         };
 
         self.provider
-            .chat(&messages, Some(&context.tools), &options)
+            .chat(&messages, Some(&available_tools), &options)
             .await
     }
 
