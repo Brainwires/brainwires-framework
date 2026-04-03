@@ -76,7 +76,7 @@ mod tests {
     fn test_provider_type_default_model() {
         assert_eq!(
             ProviderType::Anthropic.default_model(),
-            "claude-sonnet-4-20250514"
+            "claude-sonnet-4-6"
         );
     }
 

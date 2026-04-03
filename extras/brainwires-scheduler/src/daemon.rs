@@ -12,7 +12,7 @@ use tokio::time::{Duration, sleep};
 // ── Command channel ──────────────────────────────────────────────────────────
 
 pub enum DaemonCommand {
-    AddJob(Job),
+    AddJob(Box<Job>),
     RemoveJob(String),
     EnableJob(String),
     DisableJob(String),
@@ -34,7 +34,7 @@ pub struct DaemonHandle {
 impl DaemonHandle {
     pub async fn add_job(&self, job: Job) -> Result<()> {
         self.tx
-            .send(DaemonCommand::AddJob(job))
+            .send(DaemonCommand::AddJob(Box::new(job)))
             .await
             .map_err(|_| anyhow::anyhow!("scheduler daemon has stopped"))
     }
@@ -122,11 +122,8 @@ impl SchedulerDaemon {
 
         loop {
             // Drain all pending commands before sleeping
-            loop {
-                match self.rx.try_recv() {
-                    Ok(cmd) => self.handle_command(cmd).await,
-                    Err(_) => break,
-                }
+            while let Ok(cmd) = self.rx.try_recv() {
+                self.handle_command(cmd).await;
             }
 
             if *self.cancel.borrow() {
@@ -183,32 +180,33 @@ impl SchedulerDaemon {
 
     async fn handle_command(&mut self, cmd: DaemonCommand) {
         match cmd {
-            DaemonCommand::AddJob(mut job) => {
+            DaemonCommand::AddJob(job) => {
                 // Treat the creation moment as "last fired" so the job waits
                 // for the next cron tick rather than firing immediately on add.
+                let mut job = *job;
                 job.last_fired_at.get_or_insert_with(Utc::now);
                 let mut store = self.store.write().await;
                 store.insert(job);
-                persist(&mut *store).await;
+                persist(&mut store).await;
             }
             DaemonCommand::RemoveJob(id) => {
                 let mut store = self.store.write().await;
                 store.remove(&id);
-                persist(&mut *store).await;
+                persist(&mut store).await;
             }
             DaemonCommand::EnableJob(id) => {
                 let mut store = self.store.write().await;
                 if let Some(j) = store.get_mut(&id) {
                     j.enabled = true;
                 }
-                persist(&mut *store).await;
+                persist(&mut store).await;
             }
             DaemonCommand::DisableJob(id) => {
                 let mut store = self.store.write().await;
                 if let Some(j) = store.get_mut(&id) {
                     j.enabled = false;
                 }
-                persist(&mut *store).await;
+                persist(&mut store).await;
             }
             DaemonCommand::RunNow(id, reply) => {
                 let job = self.store.read().await.get(&id).cloned();
@@ -341,7 +339,7 @@ async fn update_store_after_run(
     if let Err(e) = s.write_log(job_id, &result).await {
         tracing::error!("failed to write log for job {job_id}: {e:#}");
     }
-    persist(&mut *s).await;
+    persist(&mut s).await;
 }
 
 async fn persist(store: &mut JobStore) {

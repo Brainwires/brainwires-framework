@@ -127,10 +127,10 @@ impl JobStore {
 
         let mut results = Vec::new();
         for f in files {
-            if let Ok(text) = fs::read_to_string(&f).await {
-                if let Ok(r) = serde_json::from_str::<JobResult>(&text) {
-                    results.push(r);
-                }
+            if let Ok(text) = fs::read_to_string(&f).await
+                && let Ok(r) = serde_json::from_str::<JobResult>(&text)
+            {
+                results.push(r);
             }
         }
         Ok(results)
