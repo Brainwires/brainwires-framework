@@ -265,47 +265,14 @@ impl AgentState {
         Ok(())
     }
 
-    /// Build the system prompt for plan mode
-    ///
-    /// This creates a planning-focused system prompt that emphasizes
-    /// research and planning without making changes.
+    /// Build the system prompt for plan mode.
     fn build_plan_mode_system_prompt(&self) -> String {
         let focus = self
             .plan_mode_state
             .as_ref()
             .and_then(|s| s.focus.as_deref())
             .unwrap_or("the task at hand");
-
-        format!(
-            r#"You are in PLAN MODE - an isolated planning context.
-
-## Your Role
-You are a planning assistant focused on: {}
-
-## Guidelines
-1. **Research & Explore**: Use read-only tools to understand the codebase and gather information.
-2. **No Modifications**: Do NOT create, edit, or delete files. Only read and search.
-3. **Think Through**: Consider multiple approaches and their trade-offs.
-4. **Document Your Plan**: Create a clear, actionable plan with:
-   - Summary of what needs to be done
-   - Key files that will be affected
-   - Step-by-step implementation approach
-   - Potential risks or considerations
-
-## Available Actions
-- Read files to understand existing code
-- Search for patterns and implementations
-- Ask clarifying questions
-- Propose implementation approaches
-
-## Output Format
-When you have a plan ready, format it clearly with headers and bullet points.
-The plan should be concrete enough that it can be directly executed.
-
-Remember: This is a PLANNING context. Your research and exploration here is isolated
-from the main conversation. Only the final plan will be shared with the main context."#,
-            focus
-        )
+        crate::system_prompts::build_plan_mode_system_prompt(focus)
     }
 
     /// Get read-only tools for plan mode

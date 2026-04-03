@@ -197,7 +197,8 @@ pub use context::AgentContext;
 pub use execution_graph::{ExecutionGraph, RunTelemetry, StepNode, ToolCallRecord};
 pub use pool::{AgentPool, AgentPoolStats};
 pub use system_prompts::{
-    judge_agent_prompt, planner_agent_prompt, reasoning_agent_prompt, simple_agent_prompt,
+    AgentPromptKind, build_agent_prompt, judge_agent_prompt, mdap_microagent_prompt,
+    planner_agent_prompt, reasoning_agent_prompt, simple_agent_prompt,
 };
 
 // SEAL re-exports

@@ -29,6 +29,7 @@ pub mod self_improve;
 pub mod session;
 pub mod storage;
 pub mod sudo;
+pub mod system_prompts;
 pub mod tools;
 pub mod tui;
 pub mod types;

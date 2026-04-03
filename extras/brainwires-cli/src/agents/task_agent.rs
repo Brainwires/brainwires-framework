@@ -1047,19 +1047,16 @@ impl TaskAgent {
     ) -> Result<ChatResponse> {
         let context = self.context.read().await;
 
-        // Build system prompt, appending role constraint suffix if a role is set.
-        let system_prompt = {
-            let base = self.config.system_prompt.clone().unwrap_or_else(|| {
-                crate::agents::system_prompts::reasoning_agent_prompt(
-                    &self.id,
-                    &context.working_directory,
-                )
-            });
-            match self.config.role {
-                Some(role) => format!("{}{}", base, role.system_prompt_suffix()),
-                None => base,
-            }
-        };
+        // Build system prompt via the framework registry, which handles role suffix injection.
+        let system_prompt = self.config.system_prompt.clone().unwrap_or_else(|| {
+            brainwires::agents::build_agent_prompt(
+                brainwires::agents::AgentPromptKind::Reasoning {
+                    agent_id: &self.id,
+                    working_directory: &context.working_directory,
+                },
+                self.config.role,
+            )
+        });
 
         // Filter tools to only those permitted by the agent's role.
         let available_tools: Vec<_> = match self.config.role {
