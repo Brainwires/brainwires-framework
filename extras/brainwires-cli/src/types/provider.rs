@@ -74,10 +74,7 @@ mod tests {
 
     #[test]
     fn test_provider_type_default_model() {
-        assert_eq!(
-            ProviderType::Anthropic.default_model(),
-            "claude-sonnet-4-6"
-        );
+        assert_eq!(ProviderType::Anthropic.default_model(), "claude-sonnet-4-6");
     }
 
     #[test]

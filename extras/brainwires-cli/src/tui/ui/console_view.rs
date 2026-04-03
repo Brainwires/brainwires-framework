@@ -99,46 +99,45 @@ fn render_journal_line(msg: &str) -> Line<'static> {
         && msg.as_bytes()[5] == b':'
         && msg.as_bytes()[8] == b' '
         && msg.as_bytes()[9] == b'['
+        && let Some(bracket_end) = msg[9..].find(']')
     {
-        if let Some(bracket_end) = msg[9..].find(']') {
-            let level_str = &msg[10..9 + bracket_end];
-            let ts = &msg[..8];
-            let tag = &msg[9..9 + bracket_end + 1]; // "[LEVEL]"
-            let rest = if msg.len() > 9 + bracket_end + 2 {
-                &msg[9 + bracket_end + 2..]
-            } else {
-                ""
-            };
+        let level_str = &msg[10..9 + bracket_end];
+        let ts = &msg[..8];
+        let tag = &msg[9..9 + bracket_end + 1]; // "[LEVEL]"
+        let rest = if msg.len() > 9 + bracket_end + 2 {
+            &msg[9 + bracket_end + 2..]
+        } else {
+            ""
+        };
 
-            let (tag_style, msg_style) = match level_str.trim() {
-                "ERROR" => (
-                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
-                    Style::default().fg(Color::Red),
-                ),
-                "WARN" => (
-                    Style::default()
-                        .fg(Color::Yellow)
-                        .add_modifier(Modifier::BOLD),
-                    Style::default().fg(Color::Yellow),
-                ),
-                "DEBUG" => (
-                    Style::default().fg(Color::Cyan),
-                    Style::default().fg(Color::Cyan),
-                ),
-                "INFO" | _ => (
-                    Style::default().fg(Color::Green),
-                    Style::default().fg(Color::White),
-                ),
-            };
+        let (tag_style, msg_style) = match level_str.trim() {
+            "ERROR" => (
+                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                Style::default().fg(Color::Red),
+            ),
+            "WARN" => (
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+                Style::default().fg(Color::Yellow),
+            ),
+            "DEBUG" => (
+                Style::default().fg(Color::Cyan),
+                Style::default().fg(Color::Cyan),
+            ),
+            _ => (
+                Style::default().fg(Color::Green),
+                Style::default().fg(Color::White),
+            ),
+        };
 
-            return Line::from(vec![
-                Span::styled(ts.to_string(), Style::default().fg(Color::DarkGray)),
-                Span::raw(" "),
-                Span::styled(tag.to_string(), tag_style),
-                Span::raw(" "),
-                Span::styled(rest.to_string(), msg_style),
-            ]);
-        }
+        return Line::from(vec![
+            Span::styled(ts.to_string(), Style::default().fg(Color::DarkGray)),
+            Span::raw(" "),
+            Span::styled(tag.to_string(), tag_style),
+            Span::raw(" "),
+            Span::styled(rest.to_string(), msg_style),
+        ]);
     }
 
     // Fallback: legacy heuristic coloring for raw add_console_message entries
