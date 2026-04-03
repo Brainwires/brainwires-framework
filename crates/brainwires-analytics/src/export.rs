@@ -90,6 +90,7 @@ fn csv_escape(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::DEFAULT_CAPACITY;
     use chrono::Duration;
 
     fn make_event(offset_secs: i64) -> AnalyticsEvent {

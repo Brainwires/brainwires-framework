@@ -29,15 +29,15 @@ impl ProcessManager {
 
         for line in stdout.lines() {
             let parts: Vec<&str> = line.splitn(2, ' ').collect();
-            if let Some(pid_str) = parts.first() {
-                if let Ok(pid) = pid_str.parse::<u32>() {
-                    results.push(ServiceInfo {
-                        name: parts.get(1).unwrap_or(&name).to_string(),
-                        service_type: ServiceType::Process,
-                        status: ServiceStatus::Running,
-                        pid: Some(pid),
-                    });
-                }
+            if let Some(pid_str) = parts.first()
+                && let Ok(pid) = pid_str.parse::<u32>()
+            {
+                results.push(ServiceInfo {
+                    name: parts.get(1).unwrap_or(&name).to_string(),
+                    service_type: ServiceType::Process,
+                    status: ServiceStatus::Running,
+                    pid: Some(pid),
+                });
             }
         }
 

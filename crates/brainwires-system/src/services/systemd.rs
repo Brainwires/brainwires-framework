@@ -118,12 +118,11 @@ impl SystemdManager {
                     _ => ServiceStatus::Unknown,
                 };
             }
-            if let Some(pid_str) = line.strip_prefix("MainPID=") {
-                if let Ok(p) = pid_str.parse::<u32>() {
-                    if p > 0 {
-                        pid = Some(p);
-                    }
-                }
+            if let Some(pid_str) = line.strip_prefix("MainPID=")
+                && let Ok(p) = pid_str.parse::<u32>()
+                && p > 0
+            {
+                pid = Some(p);
             }
         }
 

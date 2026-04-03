@@ -145,9 +145,9 @@ impl DockerManager {
             .await?;
 
         let stdout = String::from_utf8_lossy(&output.stdout);
-        let parts: Vec<&str> = stdout.trim().split_whitespace().collect();
+        let parts: Vec<&str> = stdout.split_whitespace().collect();
 
-        let status = match parts.first().map(|s| *s) {
+        let status = match parts.first().copied() {
             Some("running") => ServiceStatus::Running,
             Some("exited") => ServiceStatus::Stopped,
             Some("dead") | Some("removing") => ServiceStatus::Failed,

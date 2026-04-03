@@ -56,10 +56,10 @@ impl EventDebouncer {
 
         // Check per-rule debounce
         let debounce = Duration::from_millis(per_rule_debounce_ms).max(self.global_debounce);
-        if let Some(last) = self.last_events.get(key) {
-            if now.duration_since(*last) < debounce {
-                return false;
-            }
+        if let Some(last) = self.last_events.get(key)
+            && now.duration_since(*last) < debounce
+        {
+            return false;
         }
 
         // Allow the event

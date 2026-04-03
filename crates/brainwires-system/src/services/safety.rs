@@ -59,12 +59,12 @@ impl ServiceSafety {
     pub fn check(&self, operation: &ServiceOperation) -> Result<(), String> {
         // Read-only operations are always allowed (unless service is forbidden)
         if operation.is_read_only() {
-            if let Some(name) = operation.service_name() {
-                if self.is_forbidden(name) {
-                    return Err(format!(
-                        "Service '{name}' is in the deny-list and cannot be accessed"
-                    ));
-                }
+            if let Some(name) = operation.service_name()
+                && self.is_forbidden(name)
+            {
+                return Err(format!(
+                    "Service '{name}' is in the deny-list and cannot be accessed"
+                ));
             }
             return Ok(());
         }
