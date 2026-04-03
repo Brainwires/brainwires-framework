@@ -109,7 +109,10 @@ impl App {
                 ExecutionApprovalMode::FullAuto => super::super::state::ApprovalMode::FullAuto,
             };
 
-            self.set_status(LogLevel::Info, format!("Executing plan ({})", approval_mode));
+            self.set_status(
+                LogLevel::Info,
+                format!("Executing plan ({})", approval_mode),
+            );
 
             // Generate initial prompt to start execution
             let stats = {

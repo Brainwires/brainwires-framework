@@ -122,10 +122,16 @@ impl App {
                     // Load conversation from database by ID
                     match self.load_conversation(&conv_id).await {
                         Ok(()) => {
-                            self.set_status(LogLevel::Info, format!("Loaded conversation: {}", conv_id));
+                            self.set_status(
+                                LogLevel::Info,
+                                format!("Loaded conversation: {}", conv_id),
+                            );
                         }
                         Err(e) => {
-                            self.set_status(LogLevel::Error, format!("Failed to load conversation: {}", e));
+                            self.set_status(
+                                LogLevel::Error,
+                                format!("Failed to load conversation: {}", e),
+                            );
                         }
                     }
                 } else {
@@ -144,7 +150,10 @@ impl App {
                             }
                         }
                         Err(e) => {
-                            self.set_status(LogLevel::Error, format!("Failed to load conversations: {}", e));
+                            self.set_status(
+                                LogLevel::Error,
+                                format!("Failed to load conversations: {}", e),
+                            );
                         }
                     }
                 }
@@ -163,7 +172,10 @@ impl App {
                             tracing::warn!("Failed to persist model to config: {}", e);
                         }
 
-                        self.set_status(LogLevel::Info, format!("Model switched to: {}", new_model));
+                        self.set_status(
+                            LogLevel::Info,
+                            format!("Model switched to: {}", new_model),
+                        );
                     }
                     Err(e) => {
                         self.set_status(LogLevel::Error, format!("Failed to switch model: {}", e));
@@ -641,7 +653,10 @@ impl App {
             self.add_console_message("ℹ️  MDAP mode is already enabled".to_string());
         } else {
             self.mdap_config = Some(MdapConfig::default());
-            self.set_status(LogLevel::Info, format!("Ready - Model: {} [MDAP] (Ctrl+C to quit)", self.model));
+            self.set_status(
+                LogLevel::Info,
+                format!("Ready - Model: {} [MDAP] (Ctrl+C to quit)", self.model),
+            );
             self.add_console_message("✅ MDAP mode enabled (k=3, target=95%)".to_string());
         }
         self.clear_input();
@@ -651,7 +666,10 @@ impl App {
     fn handle_mdap_disable(&mut self) {
         if self.mdap_config.is_some() {
             self.mdap_config = None;
-            self.set_status(LogLevel::Info, format!("Ready - Model: {} (Ctrl+C to quit)", self.model));
+            self.set_status(
+                LogLevel::Info,
+                format!("Ready - Model: {} (Ctrl+C to quit)", self.model),
+            );
             self.add_console_message("✅ MDAP mode disabled".to_string());
         } else {
             self.add_console_message("ℹ️  MDAP mode is already disabled".to_string());
@@ -673,7 +691,10 @@ impl App {
                 ..Default::default()
             };
             self.mdap_config = Some(config);
-            self.set_status(LogLevel::Info, format!("Ready - Model: {} [MDAP] (Ctrl+C to quit)", self.model));
+            self.set_status(
+                LogLevel::Info,
+                format!("Ready - Model: {} [MDAP] (Ctrl+C to quit)", self.model),
+            );
             self.add_console_message(format!("✅ MDAP mode enabled with k={}", k));
         }
         self.clear_input();
@@ -696,7 +717,10 @@ impl App {
                 ..Default::default()
             };
             self.mdap_config = Some(config);
-            self.set_status(LogLevel::Info, format!("Ready - Model: {} [MDAP] (Ctrl+C to quit)", self.model));
+            self.set_status(
+                LogLevel::Info,
+                format!("Ready - Model: {} [MDAP] (Ctrl+C to quit)", self.model),
+            );
             self.add_console_message(format!(
                 "✅ MDAP mode enabled with target={:.1}%",
                 target * 100.0
@@ -923,7 +947,10 @@ impl App {
         let mode_name = mode.display_name();
         self.tool_mode = mode;
 
-        self.set_status(LogLevel::Info, format!("Tool mode: {} ({} tools)", mode_name, count));
+        self.set_status(
+            LogLevel::Info,
+            format!("Tool mode: {} ({} tools)", mode_name, count),
+        );
         self.add_console_message(format!(
             "✅ Tool mode set to: {} ({} tools active)",
             mode_name, count
@@ -1017,7 +1044,10 @@ impl App {
         });
 
         self.mode = AppMode::ToolPicker;
-        self.set_status(LogLevel::Info, "Select tools (Space: toggle, Enter: confirm, A: all, N: none, Esc: cancel)");
+        self.set_status(
+            LogLevel::Info,
+            "Select tools (Space: toggle, Enter: confirm, A: all, N: none, Esc: cancel)",
+        );
         self.clear_input();
     }
 
@@ -1055,7 +1085,10 @@ impl App {
             self.tools = tools;
             self.tool_mode = ToolMode::Explicit(selected);
 
-            self.set_status(LogLevel::Info, format!("Tool mode: explicit ({} tools selected)", count));
+            self.set_status(
+                LogLevel::Info,
+                format!("Tool mode: explicit ({} tools selected)", count),
+            );
             self.add_console_message(format!("✅ Selected {} tools", count));
         }
 

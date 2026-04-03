@@ -20,7 +20,10 @@ pub fn draw_console_view(f: &mut Frame, app: &App, area: Rect) {
 
     // Header
     items.push(Line::from(vec![Span::styled(
-        format!("Activity Journal — {} entries", app.console_state.line_count()),
+        format!(
+            "Activity Journal — {} entries",
+            app.console_state.line_count()
+        ),
         Style::default()
             .fg(Color::Magenta)
             .add_modifier(Modifier::BOLD),
@@ -113,7 +116,9 @@ fn render_journal_line(msg: &str) -> Line<'static> {
                     Style::default().fg(Color::Red),
                 ),
                 "WARN" => (
-                    Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
                     Style::default().fg(Color::Yellow),
                 ),
                 "DEBUG" => (

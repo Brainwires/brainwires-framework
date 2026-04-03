@@ -445,7 +445,10 @@ async fn run_app(
                         content: result_msg,
                         created_at: chrono::Utc::now().timestamp(),
                     });
-                    app.set_status(LogLevel::Info, format!("Command executed (exit code: {})", exit_code));
+                    app.set_status(
+                        LogLevel::Info,
+                        format!("Command executed (exit code: {})", exit_code),
+                    );
                 }
                 Err(e) => {
                     // Store failed execution in history too

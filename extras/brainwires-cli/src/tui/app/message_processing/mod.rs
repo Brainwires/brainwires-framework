@@ -662,7 +662,10 @@ impl App {
                     parameters,
                 } => {
                     if server == "cli-local" {
-                        self.set_status(LogLevel::Info, format!("Tool: {} (executing...)", tool_name));
+                        self.set_status(
+                            LogLevel::Info,
+                            format!("Tool: {} (executing...)", tool_name),
+                        );
                         console_messages.push(format!("🔧 Tool requested: {}", tool_name));
                         pending_tool_call =
                             Some((call_id, response_id, chat_id, tool_name, server, parameters));
@@ -1217,7 +1220,10 @@ impl App {
             };
             self.set_status(
                 LogLevel::Info,
-                format!("Ready - Model: {}{} (Ctrl+C to quit)", self.model, mdap_indicator),
+                format!(
+                    "Ready - Model: {}{} (Ctrl+C to quit)",
+                    self.model, mdap_indicator
+                ),
             );
         }
     }
@@ -1232,7 +1238,10 @@ impl App {
 
         // Enter waiting mode with MDAP indicator
         self.mode = AppMode::Waiting;
-        self.set_status(LogLevel::Info, format!("MDAP Processing (k={})...", mdap_config.k));
+        self.set_status(
+            LogLevel::Info,
+            format!("MDAP Processing (k={})...", mdap_config.k),
+        );
 
         // Clone user_content before calling AI (for saving to storage later)
         let user_content = self
@@ -1361,7 +1370,10 @@ impl App {
                 };
                 self.set_status(
                     LogLevel::Info,
-                    format!("Ready - Model: {}{} (Ctrl+C to quit)", self.model, mdap_indicator),
+                    format!(
+                        "Ready - Model: {}{} (Ctrl+C to quit)",
+                        self.model, mdap_indicator
+                    ),
                 );
             }
             Err(e) => {

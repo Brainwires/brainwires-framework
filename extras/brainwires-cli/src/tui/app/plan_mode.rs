@@ -90,7 +90,10 @@ impl App {
 
         // Update status
         let focus_str = focus.as_deref().unwrap_or("general planning");
-        self.set_status(LogLevel::Info, format!("Plan Mode - Focus: {} (Ctrl+P to exit)", focus_str));
+        self.set_status(
+            LogLevel::Info,
+            format!("Plan Mode - Focus: {} (Ctrl+P to exit)", focus_str),
+        );
 
         // Add console message
         self.add_console_message(format!("Entered plan mode: {}", focus_str));

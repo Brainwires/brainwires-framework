@@ -600,7 +600,10 @@ impl App {
             // Queue the message to be sent after the agent finishes
             if !self.input_text().trim().is_empty() {
                 self.queued_messages.push(self.input_text());
-                self.set_status(LogLevel::Info, format!("Message queued ({} pending)", self.queued_messages.len()));
+                self.set_status(
+                    LogLevel::Info,
+                    format!("Message queued ({} pending)", self.queued_messages.len()),
+                );
                 self.clear_input();
             }
             return Ok(());
