@@ -2,7 +2,7 @@
 //!
 //! Handles slash command parsing and execution.
 
-use super::super::state::{App, AppMode, ApprovalMode, TuiMessage};
+use super::super::state::{App, AppMode, ApprovalMode, LogLevel, TuiMessage};
 use crate::providers::ProviderFactory;
 use crate::types::message::{Message, MessageContent, Role};
 use anyhow::Result;
@@ -109,8 +109,10 @@ impl App {
                 self.selected_shell_index = 0;
                 self.shell_viewer_scroll = 0;
 
-                self.status =
-                    "Conversation and shell history cleared (use /resume to restore)".to_string();
+                self.set_status(
+                    LogLevel::Info,
+                    "Conversation and shell history cleared (use /resume to restore)",
+                );
                 self.clear_input();
                 Ok(true)
             }
@@ -120,10 +122,16 @@ impl App {
                     // Load conversation from database by ID
                     match self.load_conversation(&conv_id).await {
                         Ok(()) => {
-                            self.status = format!("Loaded conversation: {}", conv_id);
+                            self.set_status(
+                                LogLevel::Info,
+                                format!("Loaded conversation: {}", conv_id),
+                            );
                         }
                         Err(e) => {
-                            self.status = format!("Failed to load conversation: {}", e);
+                            self.set_status(
+                                LogLevel::Error,
+                                format!("Failed to load conversation: {}", e),
+                            );
                         }
                     }
                 } else {
@@ -131,18 +139,21 @@ impl App {
                     match self.conversation_store.list(Some(50)).await {
                         Ok(conversations) => {
                             if conversations.is_empty() {
-                                self.status = "No saved conversations found".to_string();
+                                self.set_status(LogLevel::Info, "No saved conversations found");
                             } else {
                                 // list() already returns sorted by updated_at descending (newest first)
                                 self.available_sessions = conversations;
                                 self.selected_session_index = 0;
                                 self.session_picker_scroll = 0;
                                 self.mode = AppMode::SessionPicker;
-                                self.status = "Select a conversation to resume (↑/↓ to navigate, Enter to select, Esc to cancel)".to_string();
+                                self.set_status(LogLevel::Info, "Select a conversation to resume (↑/↓ to navigate, Enter to select, Esc to cancel)");
                             }
                         }
                         Err(e) => {
-                            self.status = format!("Failed to load conversations: {}", e);
+                            self.set_status(
+                                LogLevel::Error,
+                                format!("Failed to load conversations: {}", e),
+                            );
                         }
                     }
                 }
@@ -161,10 +172,13 @@ impl App {
                             tracing::warn!("Failed to persist model to config: {}", e);
                         }
 
-                        self.status = format!("Model switched to: {}", new_model);
+                        self.set_status(
+                            LogLevel::Info,
+                            format!("Model switched to: {}", new_model),
+                        );
                     }
                     Err(e) => {
-                        self.status = format!("Failed to switch model: {}", e);
+                        self.set_status(LogLevel::Error, format!("Failed to switch model: {}", e));
                     }
                 }
                 self.clear_input();
@@ -193,7 +207,7 @@ impl App {
                     self.messages.pop();
                     self.conversation_history.pop();
                 }
-                self.status = format!("Rewound {} steps", steps);
+                self.set_status(LogLevel::Info, format!("Rewound {} steps", steps));
                 self.clear_input();
                 Ok(true)
             }
@@ -223,7 +237,7 @@ impl App {
                     "full-auto" => ApprovalMode::FullAuto,
                     _ => ApprovalMode::Suggest, // Default to safest
                 };
-                self.status = format!("Approval mode set to: {}", mode);
+                self.set_status(LogLevel::Info, format!("Approval mode set to: {}", mode));
                 self.clear_input();
                 Ok(true)
             }
@@ -639,7 +653,10 @@ impl App {
             self.add_console_message("ℹ️  MDAP mode is already enabled".to_string());
         } else {
             self.mdap_config = Some(MdapConfig::default());
-            self.status = format!("Ready - Model: {} [MDAP] (Ctrl+C to quit)", self.model);
+            self.set_status(
+                LogLevel::Info,
+                format!("Ready - Model: {} [MDAP] (Ctrl+C to quit)", self.model),
+            );
             self.add_console_message("✅ MDAP mode enabled (k=3, target=95%)".to_string());
         }
         self.clear_input();
@@ -649,7 +666,10 @@ impl App {
     fn handle_mdap_disable(&mut self) {
         if self.mdap_config.is_some() {
             self.mdap_config = None;
-            self.status = format!("Ready - Model: {} (Ctrl+C to quit)", self.model);
+            self.set_status(
+                LogLevel::Info,
+                format!("Ready - Model: {} (Ctrl+C to quit)", self.model),
+            );
             self.add_console_message("✅ MDAP mode disabled".to_string());
         } else {
             self.add_console_message("ℹ️  MDAP mode is already disabled".to_string());
@@ -671,7 +691,10 @@ impl App {
                 ..Default::default()
             };
             self.mdap_config = Some(config);
-            self.status = format!("Ready - Model: {} [MDAP] (Ctrl+C to quit)", self.model);
+            self.set_status(
+                LogLevel::Info,
+                format!("Ready - Model: {} [MDAP] (Ctrl+C to quit)", self.model),
+            );
             self.add_console_message(format!("✅ MDAP mode enabled with k={}", k));
         }
         self.clear_input();
@@ -694,7 +717,10 @@ impl App {
                 ..Default::default()
             };
             self.mdap_config = Some(config);
-            self.status = format!("Ready - Model: {} [MDAP] (Ctrl+C to quit)", self.model);
+            self.set_status(
+                LogLevel::Info,
+                format!("Ready - Model: {} [MDAP] (Ctrl+C to quit)", self.model),
+            );
             self.add_console_message(format!(
                 "✅ MDAP mode enabled with target={:.1}%",
                 target * 100.0
@@ -921,7 +947,10 @@ impl App {
         let mode_name = mode.display_name();
         self.tool_mode = mode;
 
-        self.status = format!("Tool mode: {} ({} tools)", mode_name, count);
+        self.set_status(
+            LogLevel::Info,
+            format!("Tool mode: {} ({} tools)", mode_name, count),
+        );
         self.add_console_message(format!(
             "✅ Tool mode set to: {} ({} tools active)",
             mode_name, count
@@ -1015,8 +1044,10 @@ impl App {
         });
 
         self.mode = AppMode::ToolPicker;
-        self.status = "Select tools (Space: toggle, Enter: confirm, A: all, N: none, Esc: cancel)"
-            .to_string();
+        self.set_status(
+            LogLevel::Info,
+            "Select tools (Space: toggle, Enter: confirm, A: all, N: none, Esc: cancel)",
+        );
         self.clear_input();
     }
 
@@ -1054,7 +1085,10 @@ impl App {
             self.tools = tools;
             self.tool_mode = ToolMode::Explicit(selected);
 
-            self.status = format!("Tool mode: explicit ({} tools selected)", count);
+            self.set_status(
+                LogLevel::Info,
+                format!("Tool mode: explicit ({} tools selected)", count),
+            );
             self.add_console_message(format!("✅ Selected {} tools", count));
         }
 
@@ -1994,7 +2028,7 @@ impl App {
                         metadata: None,
                     });
 
-                    self.status = format!("Skill '{}' invoked", name);
+                    self.set_status(LogLevel::Info, format!("Skill '{}' invoked", name));
                 }
                 Err(e) => {
                     self.add_console_message(format!("Failed to load skill '{}': {}", name, e));

@@ -1,4 +1,7 @@
 use anyhow::Result;
+
+/// Conservative token limit for orchestrator completions to prevent runaway generation.
+const ORCHESTRATOR_MAX_TOKENS: u32 = 4096;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -500,7 +503,7 @@ impl OrchestratorAgent {
 
         // Use conservative token limits to prevent runaway generation
         // For file operations, rely on edit_file instead of write_file for large files
-        let max_tokens = 4096; // Conservative limit to prevent corruption
+        let max_tokens = ORCHESTRATOR_MAX_TOKENS; // Conservative limit to prevent corruption
 
         let options = ChatOptions {
             temperature: Some(0.7),

@@ -212,8 +212,28 @@ impl ChatAgent {
                 Some(tool_defs.as_slice())
             };
 
-            let (text_buf, tool_uses, response_id) =
+            let (text_buf, tool_uses, response_id, compaction) =
                 self.collect_stream(tools_opt, &on_chunk).await?;
+
+            // Apply context compaction if the model summarised the history.
+            // Must happen after collect_stream returns so the stream's borrow
+            // on self.messages is released.
+            if let Some((summary, tokens_freed)) = compaction {
+                tracing::info!(
+                    tokens_freed = ?tokens_freed,
+                    "context compaction triggered; replacing history with model summary"
+                );
+                let system_msg = self
+                    .messages
+                    .iter()
+                    .find(|m| m.role == Role::System)
+                    .cloned();
+                self.messages.clear();
+                if let Some(sys) = system_msg {
+                    self.messages.push(sys);
+                }
+                self.messages.push(Message::assistant(&summary));
+            }
 
             if tool_uses.is_empty() {
                 // No tool calls — this is the final response
@@ -292,11 +312,22 @@ impl ChatAgent {
     }
 
     /// Collect the stream into accumulated text + tool uses.
+    ///
+    /// Returns `(text, tool_uses, response_id, compaction)`.
+    /// `compaction` is `Some((summary, tokens_freed))` when the model emitted a
+    /// `context_window_management_event` during the stream.  The caller is
+    /// responsible for applying compaction to `self.messages` after the borrow
+    /// on `self.messages` (held by the stream) is released.
     async fn collect_stream<F>(
         &mut self,
         tools_opt: Option<&[Tool]>,
         on_chunk: &Option<F>,
-    ) -> Result<(String, Vec<ToolUse>, Option<String>)>
+    ) -> Result<(
+        String,
+        Vec<ToolUse>,
+        Option<String>,
+        Option<(String, Option<u32>)>,
+    )>
     where
         F: Fn(&str) + Send + Sync,
     {
@@ -310,6 +341,7 @@ impl ChatAgent {
         let mut current_tool_name = String::new();
         let mut current_tool_input = String::new();
         let mut last_response_id: Option<String> = None;
+        let mut compaction: Option<(String, Option<u32>)> = None;
 
         while let Some(chunk) = stream.next().await {
             match chunk? {
@@ -357,6 +389,14 @@ impl ChatAgent {
                     self.cumulative_usage.total_tokens += u.total_tokens;
                 }
                 StreamChunk::Done => {}
+                StreamChunk::ContextCompacted {
+                    summary,
+                    tokens_freed,
+                } => {
+                    // Record compaction info; applied to self.messages after the stream
+                    // borrow is released (see run_completion).
+                    compaction = Some((summary, tokens_freed));
+                }
             }
         }
 
@@ -371,7 +411,7 @@ impl ChatAgent {
             });
         }
 
-        Ok((text_buf, tool_uses, last_response_id))
+        Ok((text_buf, tool_uses, last_response_id, compaction))
     }
 }
 

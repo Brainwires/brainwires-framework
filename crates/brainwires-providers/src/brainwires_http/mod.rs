@@ -64,6 +64,7 @@ impl Provider for BrainwiresHttpProvider {
     }
 
     fn max_output_tokens(&self) -> Option<u32> {
+        // Max output tokens per model family (provider specifications as of 2026-Q1).
         match self.model.as_str() {
             // Claude models
             s if s.contains("claude-3-5-sonnet") => Some(8192),
@@ -126,6 +127,9 @@ impl Provider for BrainwiresHttpProvider {
                 }
                 StreamChunk::ToolUse { .. } | StreamChunk::ToolInputDelta { .. } => {
                     // Not used by brainwires backend
+                }
+                StreamChunk::ContextCompacted { .. } => {
+                    // Context compaction is handled by the agent layer; relay ignores it
                 }
             }
         }

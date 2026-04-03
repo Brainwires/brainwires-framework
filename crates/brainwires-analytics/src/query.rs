@@ -387,6 +387,7 @@ mod tests {
                 cost_usd: 0.05,
                 success: true,
                 timestamp: Utc::now(),
+                compliance: None,
             },
         )
         .await;
@@ -422,6 +423,7 @@ mod tests {
                 duration_ms: 1200,
                 failure_category: None,
                 timestamp: Utc::now(),
+                compliance: None,
             },
         )
         .await;

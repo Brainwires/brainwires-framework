@@ -1828,6 +1828,7 @@ impl TaskAgent {
                 duration_ms: t.duration_ms,
                 failure_category: result.failure_category.as_ref().map(|fc| format!("{fc:?}")),
                 timestamp: chrono::Utc::now(),
+                compliance: None,
             });
         }
     }

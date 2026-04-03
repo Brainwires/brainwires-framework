@@ -13,6 +13,9 @@
 //! - `grpc-server` — gRPC server service
 //! - `full` — Everything
 
+/// The A2A protocol version this crate targets (merged with ACP under AAIF, Dec 2025).
+pub const A2A_PROTOCOL_VERSION: &str = "0.3";
+
 // Core types (always available)
 /// Agent card and capability types.
 pub mod agent_card;

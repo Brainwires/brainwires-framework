@@ -7,6 +7,112 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-04-03
+
+### Fixed
+
+#### Centralized FastEmbed Model Cache
+
+- **Scattered `.fastembed_cache/` directories eliminated** — FastEmbed ONNX model files (87–759 MB each) were accumulating as `.fastembed_cache/` in whatever the working directory was at runtime, creating duplicate copies across the filesystem. Both `brainwires-storage` and `brainwires-cognition` now write to a single shared location: `~/.brainwires/cache/fastembed/`.
+- **`PlatformPaths::default_fastembed_cache_path()`** (`brainwires-storage`) — New utility method returning `~/.brainwires/cache/fastembed/`, consistent with the rest of the framework's use of `~/.brainwires/`.
+- **`brainwires-storage` embedding manager** — `FastEmbedManager::with_model()` now sets `options.cache_dir` (previously unset, causing the default CWD-relative cache scatter).
+- **`brainwires-cognition` embedding manager** — Unified to use `PlatformPaths::default_fastembed_cache_path()` instead of the old `dirs::cache_dir().join("fastembed")` path (`~/.cache/fastembed/`), so both crates share the same model files.
+
+Existing `.fastembed_cache/` directories in project folders are stale and can be safely deleted.
+
+### Added
+
+#### Magic Number Cleanup
+
+- **Audio PCM normalization** (`brainwires-hardware`) — Bare `32768.0` literals in `vad/mod.rs` and `audio/local/whisper_stt.rs` replaced with named constant `I16_NORMALIZE_DIVISOR: f32 = 32768.0` (2^15, the i16 range divisor for [-1, 1] normalisation).
+- **Orchestrator token limit** (`brainwires-cli`) — `let max_tokens = 4096` in `orchestrator.rs` replaced with module-level constant `ORCHESTRATOR_MAX_TOKENS: u32 = 4096`.
+- **Model output token comment** (`brainwires-providers`) — Added clarifying comment to `brainwires_http::max_output_tokens()` match block documenting values as 2026-Q1 provider specifications.
+
+#### A2A/ACP Protocol Compliance (`brainwires-a2a`)
+
+- **`A2A_PROTOCOL_VERSION` constant** — `pub const A2A_PROTOCOL_VERSION: &str = "0.3"` added to crate root, targeting the A2A 0.3 spec (post-ACP merger under AAIF/Linux Foundation, December 2025). `AgentInterface::protocol_version` field documentation updated to reference this constant.
+- **ACP merger acknowledgement** — ACP (Agent Communication Protocol) merged into A2A under the Linux Foundation's Agentic AI Foundation (AAIF) in December 2025. The `brainwires-a2a` crate is compliant with A2A 0.3.0: all 11 JSON-RPC methods, all 9 task states, full security scheme support (PKCE, mTLS, OAuth2, OIDC), `/.well-known/agent-card.json` discovery endpoint, gRPC service, and REST router are implemented.
+
+#### MCP 2026 Spec Compliance (`brainwires-mcp-server`, `brainwires-mcp`)
+
+- **Streamable HTTP transport** (`brainwires-mcp-server`, feature `http`) — `HttpServerTransport` implements the MCP 2026 stateless HTTP transport: `POST /mcp` for JSON-RPC and `GET /mcp/events` SSE for server-initiated messages. Slots into the existing `ServerTransport` trait, wired with a bounded `mpsc` channel (`REQUEST_CHANNEL_CAPACITY = 128`), configurable request timeout (`REQUEST_TIMEOUT_SECS = 30`), and SSE keep-alive pings (`SSE_KEEPALIVE_INTERVAL_SECS = 15`).
+- **MCP Server Cards** (SEP-1649) — `GET /.well-known/mcp/server-card.json` endpoint served by `HttpServerTransport`. Types: `McpServerCard`, `McpToolCardEntry`, `McpAuthInfo`, `McpTransportInfo`. Builder: `build_server_card()`. All re-exported from `brainwires-mcp-server`.
+- **RFC9728 OAuth Protected Resource** — `GET /.well-known/oauth-protected-resource` endpoint served by `HttpServerTransport`. `OAuthProtectedResource` type with `resource`, `authorization_servers`, `scopes_supported`, `bearer_methods_supported`.
+- **OAuth 2.1 JWT validation middleware** (`brainwires-mcp-server`, feature `oauth`) — `OAuthMiddleware` validates `Authorization: Bearer` JWTs via HS256 (shared secret) or RS256 (RSA public key PEM). Configurable `iss`/`aud` claim enforcement. `initialize` method is always unauthenticated per MCP spec. Validated state is cached per-session in `RequestContext` metadata.
+- **MCP Tasks primitive** (SEP-1686) — `McpTaskStore` thread-safe in-memory store with full 5-state lifecycle: `Working → Completed`, `Working → Failed`, `Working → Cancelled`, `Working ↔ InputRequired`. TTL-based expiry with `evict_expired()`. Typed accessors: `complete()`, `fail()`, `cancel()`, `update_state()`. `DEFAULT_MAX_RETRIES = 3`. Re-exported from `brainwires-mcp-server`.
+- **HTTP client transport** (`brainwires-mcp`, feature `http`) — `HttpTransport` implements stateless JSON-RPC-over-HTTP: buffers requests in `send_request()`, POSTs to `{base_url}/mcp` in `receive_response()`/`receive_message()`. `Transport::Http(HttpTransport)` variant added. Re-exported as `brainwires_mcp::HttpTransport` (requires both `native` + `http` features).
+
+#### Claude 4.6 + Context Compaction
+
+- **Claude 4.6 model IDs** — Default models updated across the provider registry: Anthropic → `claude-sonnet-4-6`, Bedrock → `anthropic.claude-sonnet-4-6-v1:0`, VertexAI → `claude-sonnet-4-6`. OpenAI Responses API default updated to `gpt-5-mini`.
+- **Context compaction handling** (`brainwires-core`, `brainwires-providers`, `brainwires-agents`) — New `StreamChunk::ContextCompacted { summary, tokens_freed }` variant. The Anthropic provider emits it when a `context_window_management_event` arrives mid-stream. `ChatAgent` handles it by replacing conversation history with the system prompt + a synthetic assistant summary message, with a `tracing::info!` log. All other streaming consumers (`brainwires-providers/brainwires_http`, `agent-chat`, `brainwires-cli`) handle the variant as a no-op.
+
+#### EU AI Act Audit Logging (`brainwires-analytics`)
+
+- **`ComplianceMetadata`** — New struct with `data_region`, `pii_present`, `retention_days`, `regulation`, `audit_required` fields. Added as `Option<ComplianceMetadata>` (`#[serde(default)]`) to `ProviderCall` and `AgentRun` event variants — fully backward-compatible with existing serialized events.
+- **`AuditExporter`** — Time-range filtered export from `MemoryAnalyticsSink`: `export_json()` (JSON array), `export_csv()` (CSV with `event_type,session_id,timestamp,payload_json` columns), `apply_retention_policy(days)` (removes events older than N days, returns deleted count).
+- **`PiiRedactionRules`** / `redact_event()`** — Configurable PII scrubbing: `hash_session_ids` (one-way `DefaultHasher` hash), `redact_prompt_content` (replaces `Custom` payload with `"[REDACTED]"`), `custom_patterns` (substring matching in string fields). `redact_event()` is pure — returns a new scrubbed event leaving the original intact.
+- **`MemoryAnalyticsSink` helpers** — Added `deposit()` (sync record), `drain_matching(pred)` (filter-drain), `retain(pred)` (filter-in-place, returns removed count). `DEFAULT_CAPACITY = 1_000` constant re-exported from `brainwires_analytics`.
+
+#### New Crates
+
+- **`brainwires-system`** — Generic OS-level primitives extracted from `brainwires-autonomy`
+  - `reactor` feature — cross-platform filesystem event watcher (`FsReactor`, `EventDebouncer`, `ReactorRule`) via `notify 7`
+  - `services` feature — controlled systemd / Docker / process management (`SystemdManager`, `DockerManager`, `ProcessManager`, `ServiceSafety` with hardcoded critical-service deny-list)
+  - Usable independently; no dependency on the autonomy crate
+
+#### New Extras
+
+- **`brainwires-scheduler`** — Local-machine MCP server for cron-based job scheduling with optional per-job Docker sandboxing
+  - 9 MCP tools: `add_job`, `remove_job`, `list_jobs`, `get_job`, `enable_job`, `disable_job`, `run_job`, `get_logs`, `status`
+  - Native and optional per-job Docker sandbox execution (`--memory`, `--cpus`, `--network=none`, volume mounts)
+  - JSON-backed persistence at `~/.brainwires/scheduler/`; per-run log files with configurable retention (default: 20 per job)
+  - Bounded concurrency via semaphore; `Ignore`/`Retry`/`Disable` failure policies; SIGTERM + Ctrl+C graceful shutdown with in-flight drain
+  - stdio transport (primary, for Claude Code MCP integration) + optional HTTP via `--http <addr>`
+  - 36 unit tests covering executor, store, daemon cron logic, and retry policy permutations
+
+#### WebRTC Real-Time Media (`brainwires-channels`)
+
+- **`webrtc` feature flag** — Full WebRTC peer connection support using the Brainwires fork of `webrtc-rs` (v0.20.0-alpha.1, trait-based async API). Zero impact on compile time or binary size without the feature.
+- **`WebRtcSession`** — Manages a single `RTCPeerConnection` with full offer/answer state machine, trickle ICE, DTLS-SRTP, audio/video tracks, and DataChannels. All methods take `&self` for `Arc<WebRtcSession>` sharing across tasks.
+  - `open()` / `close()` — create/tear down the underlying PeerConnection
+  - `add_audio_track(AudioCodec)` / `add_video_track(VideoCodec)` — add local media before offer creation; returns an `AudioTrack`/`VideoTrack` handle for writing encoded frames
+  - `create_offer()` / `create_answer()` / `set_remote_description()` — SDP negotiation
+  - `add_ice_candidate()` / `restart_ice()` — trickle ICE and ICE restart
+  - `create_data_channel(DataChannelConfig)` — open a WebRTC DataChannel
+  - `get_remote_track(id)` — access incoming remote media tracks after `TrackAdded` event
+  - `get_stats()` — full `RTCStatsReport` snapshot (jitter, packet loss, RTT, bitrate, jitter buffer, NACK counts, frame stats)
+  - `subscribe()` — broadcast receiver for all session events
+- **`webrtc-advanced` feature flag** — Adds congestion control and media quality interceptors on top of the default NACK/RTCP chain:
+  - **GCC (Google Congestion Control)** — adaptive bitrate estimation from TWCC feedback; configure via `BandwidthConstraints` in `WebRtcConfig`; query via `session.target_bitrate_bps()`
+  - **JitterBuffer** — adaptive playout delay, outermost in the receive chain
+  - **TwccSender** — transport-wide sequence numbers for GCC feedback loop
+  - A `tracing::warn!` is emitted at `open()` time when the feature is absent
+- **`WebRtcConfig`** — Fully serde-serializable configuration:
+  - `ice_servers` (STUN/TURN), `ice_transport_policy` (All / Relay)
+  - `dtls_role` (Auto / Client / Server) — applied via `SettingEngine`
+  - `mdns_enabled` — obfuscate LAN IPs with `.local` hostnames
+  - `tcp_candidates_enabled` — gather TCP ICE candidates for firewall traversal
+  - `bind_addresses` — restrict ICE gathering to specific interfaces (default: `0.0.0.0:0`)
+  - `codec_preferences` (`VideoCodec` / `AudioCodec` enums) and `bandwidth` (`BandwidthConstraints`) for GCC
+- **`WebRtcSignaling` trait** + two built-in impls:
+  - `BroadcastSignaling` — in-process `tokio::broadcast` channel; used by the integration test and gateway intermediation
+  - `ChannelMessageSignaling` — encodes SDP/ICE as JSON inside regular `ChannelMessage`s with metadata key `"_bw_webrtc_signaling"`; works through any existing adapter without changes
+- **`WebRtcChannel` trait** — extension of `Channel` for adapters that support real-time media: `initiate_session()`, `get_session()`, `close_session()`, `signaling()`
+- **`RemoteTrack`** — handle to an incoming remote media track; `poll() -> Option<TrackRemoteEvent>` for reading RTP packets and lifecycle events
+- **`RTCStatsReport` / `StatsSelector`** re-exported from `brainwires_channels` root
+- **10 new `ChannelEvent` variants** (all `#[cfg(feature = "webrtc")]`): `IceCandidate`, `SdpOffer`, `SdpAnswer`, `TrackAdded`, `TrackRemoved`, `WebRtcDataChannel`, `PeerConnectionStateChanged`, `IceConnectionStateChanged`, `IceGatheringComplete`, `SignalingStateChanged`
+- **2 new `ChannelCapabilities` flags**: `DATA_CHANNELS` (bit 12), `ENCRYPTED_MEDIA` (bit 13)
+- **Integration test** — `offer_answer_reaches_connected`: two in-process sessions complete a full offer/answer + trickle ICE exchange and both reach `PeerConnectionState::Connected` in ~1.3 s on loopback
+
+### Changed
+
+#### Autonomy (`brainwires-autonomy`)
+
+- **`dream/` extracted → `brainwires-cognition`** (new `dream` feature) — memory consolidation belongs with the knowledge graph and RAG layer, not autonomous operations. Access via `brainwires_cognition::dream` or `brainwires::dream` (meta-crate `dream` feature).
+- **`reactor/` + `services/` extracted → `brainwires-system`** — generic OS primitives are now independently usable without pulling in the full autonomy dependency tree. Access via `brainwires_system` or `brainwires::system`.
+- **`scheduler/` removed** — superseded by `extras/brainwires-scheduler`, which provides the same functionality as a proper MCP server with a richer job model, persistence, and Docker sandboxing.
+
 ## [0.7.0] - 2026-03-31
 
 ### Added

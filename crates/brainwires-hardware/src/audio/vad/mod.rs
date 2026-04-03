@@ -62,6 +62,10 @@ pub trait VoiceActivityDetector: Send + Sync {
     fn detect_segments(&self, audio: &AudioBuffer, frame_ms: u32) -> Vec<SpeechSegment>;
 }
 
+/// Divisor for normalising i16 PCM samples to the [-1.0, 1.0] range.
+/// Equals 2^15 = 32768 (the absolute value of i16::MIN).
+const I16_NORMALIZE_DIVISOR: f32 = 32768.0;
+
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
 /// Compute the RMS energy of a PCM buffer in decibels (dBFS).
@@ -84,7 +88,7 @@ pub(crate) fn pcm_to_f32(audio: &AudioBuffer) -> Vec<f32> {
         SampleFormat::I16 => audio
             .data
             .chunks_exact(2)
-            .map(|b| i16::from_le_bytes([b[0], b[1]]) as f32 / 32768.0)
+            .map(|b| i16::from_le_bytes([b[0], b[1]]) as f32 / I16_NORMALIZE_DIVISOR)
             .collect(),
         SampleFormat::F32 => audio
             .data

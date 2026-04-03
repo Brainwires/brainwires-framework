@@ -363,6 +363,17 @@ pub enum StreamChunk {
     },
     /// Usage statistics (usually sent at the end)
     Usage(Usage),
+    /// The model auto-compacted (summarised) the context window.
+    ///
+    /// Emitted by Claude 4.6+ when `context_window_management_event` fires.
+    /// Agents should replace their message history with a synthetic assistant
+    /// message containing the summary so future turns stay coherent.
+    ContextCompacted {
+        /// The model-generated summary that replaces the compacted messages.
+        summary: String,
+        /// Approximate number of tokens freed by compaction.
+        tokens_freed: Option<u32>,
+    },
     /// Stream completed
     Done,
 }

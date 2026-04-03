@@ -17,7 +17,7 @@ Unified analytics collection, persistence, and querying for the [Brainwires Agen
 
 ```toml
 [dependencies]
-brainwires-analytics = { version = "0.7", features = ["sqlite"] }
+brainwires-analytics = { version = "0.8", features = ["sqlite"] }
 ```
 
 ```rust

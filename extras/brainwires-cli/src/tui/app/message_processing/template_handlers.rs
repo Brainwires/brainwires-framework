@@ -2,7 +2,7 @@
 //!
 //! Handles template management command operations.
 
-use super::super::state::{App, TuiMessage};
+use super::super::state::{App, LogLevel, TuiMessage};
 use anyhow::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -281,7 +281,7 @@ impl App {
 
                             self.active_plan = Some(active_plan);
                             self.completed_plan_steps.clear();
-                            self.status = "Plan active".to_string();
+                            self.set_status(LogLevel::Info, "Plan active");
 
                             format!(
                                 "Plan created from template '{}':\n\n\

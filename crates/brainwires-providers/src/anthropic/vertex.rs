@@ -101,10 +101,10 @@ mod tests {
 
     #[test]
     fn vertex_stream_url_includes_region_project_model() {
-        let url = vertex_stream_url("us-central1", "my-project", "claude-3-5-sonnet-v2");
+        let url = vertex_stream_url("us-central1", "my-project", "claude-sonnet-4-6");
         assert!(url.contains("us-central1"));
         assert!(url.contains("my-project"));
-        assert!(url.contains("claude-3-5-sonnet-v2"));
+        assert!(url.contains("claude-sonnet-4-6"));
         assert!(url.contains("aiplatform.googleapis.com"));
         assert!(url.ends_with("streamRawPredict"));
     }

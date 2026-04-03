@@ -8,7 +8,7 @@
 //! This module requires the `openapi` feature:
 //!
 //! ```toml
-//! brainwires-tool-system = { version = "0.7", features = ["openapi"] }
+//! brainwires-tool-system = { version = "0.8", features = ["openapi"] }
 //! ```
 //!
 //! # Usage

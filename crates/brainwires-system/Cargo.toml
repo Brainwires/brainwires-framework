@@ -1,0 +1,35 @@
+[package]
+name = "brainwires-system"
+description = "Generic OS-level primitives — filesystem event watching and system service management"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+readme = "README.md"
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+anyhow = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+
+# File system reactor
+notify = { version = "7", optional = true }
+
+[features]
+default = []
+reactor = ["dep:notify"]
+services = []
+full = ["reactor", "services"]
+
+[[example]]
+name = "fs_reactor"
+required-features = ["reactor"]
+
+[[example]]
+name = "service_manager"
+required-features = ["services"]

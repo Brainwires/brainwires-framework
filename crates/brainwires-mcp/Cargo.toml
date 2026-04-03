@@ -32,10 +32,13 @@ tokio = { version = "1.43", features = ["sync"] }
 
 # Filesystem (native only)
 dirs = { workspace = true, optional = true }
+# HTTP transport
+reqwest = { workspace = true, optional = true }
 
 [features]
 default = ["native"]
 native = ["dep:rmcp", "dep:dirs", "tokio/io-util", "tokio/process"]
+http = ["dep:reqwest"]
 wasm = ["brainwires-core/wasm"]
 
 [dev-dependencies]

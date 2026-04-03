@@ -70,7 +70,7 @@ The Brainwires Framework is a workspace of 20 framework crates plus 13 extras th
 | [**brainwires-autonomy**](crates/brainwires-autonomy/README.md) | Self-improvement strategies, evaluation-driven optimization, supervisor agents |
 | [**brainwires-a2a**](crates/brainwires-a2a/README.md) | Agent-to-Agent protocol — JSON-RPC 2.0, HTTP/REST, and gRPC bindings |
 | [**brainwires-channels**](crates/brainwires-channels/README.md) | Universal messaging channel contract — `Channel` trait, message types, events, capabilities |
-| [**brainwires-mcp-server**](crates/brainwires-mcp-server/README.md) | MCP server framework — build MCP tool servers with composable middleware |
+| [**brainwires-mcp-server**](crates/brainwires-mcp-server/README.md) | MCP server framework — build MCP tool servers with composable middleware; `http` feature adds stateless HTTP+SSE transport, Server Cards (SEP-1649), RFC9728, and Tasks (SEP-1686); `oauth` feature adds JWT validation middleware |
 
 ### Extras
 
@@ -105,14 +105,14 @@ The simplest way to use the framework is through the `brainwires` facade crate, 
 
 ```toml
 [dependencies]
-brainwires = "0.7"  # defaults: tools + agents
+brainwires = "0.8"  # defaults: tools + agents
 ```
 
 Enable only what you need:
 
 ```toml
 [dependencies]
-brainwires = { version = "0.7", features = ["providers", "rag"] }
+brainwires = { version = "0.8", features = ["providers", "rag"] }
 ```
 
 ### Using Individual Crates
@@ -121,9 +121,9 @@ Each crate is independently publishable and usable:
 
 ```toml
 [dependencies]
-brainwires-core = "0.7"
-brainwires-providers = "0.7"
-brainwires-agents = "0.7"
+brainwires-core = "0.8"
+brainwires-providers = "0.8"
+brainwires-agents = "0.8"
 ```
 
 ### Minimal Example
@@ -137,7 +137,7 @@ async fn main() -> anyhow::Result<()> {
     // Create a provider via the factory
     let config = ProviderConfig {
         provider: ProviderType::Anthropic,
-        model: "claude-sonnet-4-20250514".into(),
+        model: "claude-sonnet-4-6".into(),
         api_key: Some("your-api-key".into()),
         base_url: None,
     };

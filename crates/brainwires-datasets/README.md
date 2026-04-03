@@ -49,7 +49,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires-datasets = "0.7"
+brainwires-datasets = "0.8"
 ```
 
 Load a JSONL dataset and validate it:
@@ -88,15 +88,15 @@ let dataset = InstructDataset::from_examples(examples);
 ```toml
 # With tiktoken for OpenAI token counting
 [dependencies]
-brainwires-datasets = { version = "0.7", features = ["tiktoken"] }
+brainwires-datasets = { version = "0.8", features = ["tiktoken"] }
 
 # Full feature set
 [dependencies]
-brainwires-datasets = { version = "0.7", features = ["full"] }
+brainwires-datasets = { version = "0.8", features = ["full"] }
 
 # Minimal — no tokenizer, just I/O and format conversion
 [dependencies]
-brainwires-datasets = { version = "0.7", default-features = false }
+brainwires-datasets = { version = "0.8", default-features = false }
 ```
 
 ## Architecture
@@ -280,7 +280,7 @@ Use via the `brainwires` facade crate:
 
 ```toml
 [dependencies]
-brainwires = { version = "0.7", features = ["datasets"] }
+brainwires = { version = "0.8", features = ["datasets"] }
 ```
 
 Or depend on `brainwires-datasets` directly for standalone dataset tooling without the rest of the framework.

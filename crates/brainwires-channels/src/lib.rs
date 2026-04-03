@@ -22,6 +22,10 @@ pub mod identity;
 pub mod message;
 /// The `Channel` trait that all adapters must implement.
 pub mod traits;
+/// WebRTC real-time media extension (voice, video, DataChannels).
+#[cfg(feature = "webrtc")]
+#[allow(missing_docs)]
+pub mod webrtc;
 
 // Re-export core types at crate root
 pub use capabilities::ChannelCapabilities;
@@ -33,3 +37,44 @@ pub use message::{
     MessageId, ThreadId,
 };
 pub use traits::Channel;
+
+#[cfg(feature = "webrtc")]
+pub use webrtc::{
+    // Config
+    AudioCodec,
+    // Tracks & DataChannels
+    AudioTrack,
+    BandwidthConstraints,
+    // Signaling
+    BroadcastSignaling,
+    ChannelMessageSignaling,
+    CodecPreferences,
+    DataChannel,
+    DataChannelConfig,
+    DataChannelMessage,
+    DtlsRole,
+    // Session & Stats
+    IceConnectionState,
+    IceServer,
+    IceTransportPolicy,
+    MediaTrack,
+    PeerConnectionState,
+    RTCStatsReport,
+    RemoteTrack,
+    SIGNALING_METADATA_KEY,
+    SdpType,
+    SignalingMessage,
+    SignalingState,
+    StatsSelector,
+    TrackDirection,
+    TrackId,
+    TrackRemoteEvent,
+    VideoCodec,
+    VideoTrack,
+    // Trait
+    WebRtcChannel,
+    WebRtcConfig,
+    WebRtcSession,
+    WebRtcSessionId,
+    WebRtcSignaling,
+};

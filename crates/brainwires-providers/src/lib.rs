@@ -196,7 +196,7 @@ impl ProviderType {
     /// Get the default model for this provider
     pub fn default_model(&self) -> &'static str {
         match self {
-            Self::Anthropic => "claude-sonnet-4-20250514",
+            Self::Anthropic => "claude-sonnet-4-6",
             Self::OpenAI => "gpt-5-mini",
             Self::Google => "gemini-2.5-flash",
             Self::Groq => "llama-3.3-70b-versatile",
@@ -205,8 +205,8 @@ impl ProviderType {
             Self::Together => "meta-llama/Llama-3.1-8B-Instruct",
             Self::Fireworks => "accounts/fireworks/models/llama-v3p1-8b-instruct",
             Self::Anyscale => "meta-llama/Meta-Llama-3.1-8B-Instruct",
-            Self::Bedrock => "anthropic.claude-sonnet-4-20250514-v1:0",
-            Self::VertexAI => "claude-sonnet-4@20250514",
+            Self::Bedrock => "anthropic.claude-sonnet-4-6-v1:0",
+            Self::VertexAI => "claude-sonnet-4-6",
             Self::ElevenLabs => "eleven_multilingual_v2",
             Self::Deepgram => "nova-2",
             Self::Azure => "en-US-JennyNeural",
@@ -214,7 +214,7 @@ impl ProviderType {
             Self::Cartesia => "sonic-english",
             Self::Murf => "en-US-natalie",
             Self::OpenAiResponses => "gpt-5-mini",
-            Self::Custom => "claude-sonnet-4-20250514",
+            Self::Custom => "claude-sonnet-4-6",
         }
     }
 
@@ -370,10 +370,7 @@ mod tests {
 
     #[test]
     fn test_provider_type_default_model() {
-        assert_eq!(
-            ProviderType::Anthropic.default_model(),
-            "claude-sonnet-4-20250514"
-        );
+        assert_eq!(ProviderType::Anthropic.default_model(), "claude-sonnet-4-6");
         assert_eq!(ProviderType::OpenAI.default_model(), "gpt-5-mini");
         assert_eq!(ProviderType::Google.default_model(), "gemini-2.5-flash");
         assert_eq!(

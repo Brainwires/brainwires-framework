@@ -262,6 +262,7 @@ impl Provider for GoogleChatProvider {
                 cost_usd: 0.0,
                 success: true,
                 timestamp: chrono::Utc::now(),
+                compliance: None,
             });
         }
         Ok(chat_response)

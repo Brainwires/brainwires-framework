@@ -123,6 +123,7 @@ pub fn draw_input(f: &mut Frame, app: &mut App, area: Rect) {
         .title(Line::from(input_title))
         .placeholder("Type a message...")
         .style(style)
+        .wrap_mode(WrapMode::Soft)
         .border_color(input_border_color);
 
     app.input_state.focused = app.focused_panel == FocusedPanel::Input;

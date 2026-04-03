@@ -123,7 +123,9 @@ All chat providers honour `ChatOptions::model: Option<String>`. When `Some`, pro
 - **RateLimiter** — Token-bucket rate limiter
 - **Model listing** — `ModelLister`, `AvailableModel`, `ModelCapability` for querying available models
 - **Local LLM** — `llama-cpp-2` integration for local inference (feature: `llama-cpp-2`)
-- **Streaming** — All providers return async streams for real-time output
+- **Streaming** — All providers return async streams for real-time output; `StreamChunk::ContextCompacted { summary, tokens_freed }` emitted when Claude auto-summarizes context mid-stream (Claude 4.6+)
+- **Default models** — Updated to GA Claude 4.6 IDs: Anthropic → `claude-sonnet-4-6`, Bedrock → `anthropic.claude-sonnet-4-6-v1:0`, VertexAI → `claude-sonnet-4-6`
+- **HTTP client transport** (`brainwires-mcp`, feature `http`) — `HttpTransport` for stateless JSON-RPC-over-HTTP MCP clients
 
 ---
 
@@ -274,7 +276,7 @@ MCP client for connecting to external MCP servers.
 
 **Crate:** `brainwires-mcp-server`
 
-Build MCP-compliant tool servers with a composable middleware pipeline.
+Build MCP-compliant tool servers with a composable middleware pipeline. Conforms to the MCP 2026 specification.
 
 - **McpServer** — Async event loop: reads JSON-RPC requests, runs middleware chain, dispatches to handler
 - **McpHandler** — Trait defining server identity, capabilities, and tool dispatch (`server_info()`, `list_tools()`, `call_tool()`)
@@ -286,8 +288,30 @@ Build MCP-compliant tool servers with a composable middleware pipeline.
   - `LoggingMiddleware` — Structured request/response logging via `tracing`
   - `RateLimitMiddleware` — Token-bucket rate limiting with per-tool limits
   - `ToolFilterMiddleware` — Allow-list or deny-list for tool access
+  - `OAuthMiddleware` (feature `oauth`) — OAuth 2.1 JWT validation; HS256 (shared secret) or RS256 (RSA PEM); configurable `iss`/`aud` claim enforcement; token cached per session
 - **`RequestContext`** — Per-request client info passed through the middleware chain
 - **`AgentNetworkError`** — Unified error type
+
+### HTTP Transport (feature `http`, MCP 2026 spec)
+
+- **`HttpServerTransport`** — Stateless HTTP + SSE transport; `bind(addr, server_card, oauth_resource)` spawns an axum server and returns a transport compatible with `McpServer::with_transport()`
+  - `POST /mcp` — JSON-RPC request/response with configurable timeout (`REQUEST_TIMEOUT_SECS = 30`)
+  - `GET /mcp/events` — Server-sent events for server-initiated messages; keep-alive pings every `SSE_KEEPALIVE_INTERVAL_SECS = 15` seconds
+  - `GET /.well-known/mcp/server-card.json` — MCP Server Card (SEP-1649) for registry discoverability
+  - `GET /.well-known/oauth-protected-resource` — RFC9728 OAuth Protected Resource metadata
+  - Bounded request queue (`REQUEST_CHANNEL_CAPACITY = 128` in-flight requests)
+- **`McpServerCard`** / `build_server_card()` — SEP-1649 server card types: `McpToolCardEntry`, `McpAuthInfo`, `McpTransportInfo`
+- **`OAuthProtectedResource`** — RFC9728 response body: `resource`, `authorization_servers`, `scopes_supported`, `bearer_methods_supported`
+
+### Tasks Primitive (SEP-1686)
+
+- **`McpTaskStore`** — Thread-safe in-memory store for long-running async tool calls
+  - 5-state lifecycle: `Working → Completed`, `Working → Failed`, `Working → Cancelled`, `Working ↔ InputRequired`
+  - TTL-based expiry with `evict_expired()` returning eviction count
+  - Typed transitions: `complete(id, result)`, `fail(id, error)`, `cancel(id)`, `update_state(id, state)`
+  - `DEFAULT_MAX_RETRIES = 3` default retry budget per task
+- **`McpTask`** — Task entry: `id` (UUID v4), `state`, `created_at`, `expires_at`, `result`, `error`, `retry_count`, `max_retries`
+- **`McpTaskState`** — `Working | InputRequired | Completed | Failed | Cancelled`
 
 ---
 
@@ -681,11 +705,32 @@ Universal messaging channel contract for adapter implementations (Discord, Teleg
 
 - **Channel** trait — Core interface that all messaging adapters must implement
 - **ChannelMessage** — Core message types with attachments, embeds, and media
-- **ChannelEvent** — Events: message received, edited, deleted, reactions, presence changes
-- **ChannelCapabilities** — Capability flags for adapter feature negotiation
+- **ChannelEvent** — Events: message received, edited, deleted, reactions, presence changes, and 10 WebRTC variants (feature-gated)
+- **ChannelCapabilities** — 14 bitflags: rich text, media, threads, reactions, voice, video, data channels, encrypted media, etc.
 - **ChannelUser** / **ChannelSession** — User and session identity types
 - **ChannelHandshake** — Gateway handshake protocol for adapter registration
 - **Conversion** — Bidirectional conversion between `ChannelMessage` and agent-network `MessageEnvelope`
+
+### WebRTC Real-Time Media (feature: `webrtc`)
+
+Full peer-to-peer audio/video/DataChannel support via the Brainwires `webrtc-rs` fork.
+
+- **`WebRtcSession`** — One `PeerConnection` per call; offer/answer, trickle ICE, DTLS-SRTP
+  - `add_audio_track()` / `add_video_track()` — push encoded frames via `write_sample()`
+  - `create_data_channel()` — bi-directional binary/text DataChannels
+  - `get_remote_track(id)` — read incoming RTP packets from remote peers
+  - `get_stats()` — `RTCStatsReport` snapshot (jitter, packet loss, RTT, bitrate, frame stats)
+  - `subscribe()` — broadcast receiver for all 10 WebRTC `ChannelEvent` variants
+- **`WebRtcConfig`** — Serde-serializable: ICE servers, DTLS role, mDNS, TCP candidates, bind addresses, codec preferences, bandwidth constraints
+- **`WebRtcSignaling`** trait + `BroadcastSignaling` (in-process) + `ChannelMessageSignaling` (piggybacks on existing channel messages)
+- **`WebRtcChannel`** trait — adapter extension: `initiate_session()`, `get_session()`, `close_session()`, `signaling()`
+- **`RemoteTrack`** — handle to incoming remote media; `poll() -> Option<TrackRemoteEvent>`
+
+### Advanced Congestion Control (feature: `webrtc-advanced`)
+
+- **GCC** (Google Congestion Control) — adaptive bitrate from TWCC feedback; `session.target_bitrate_bps()`
+- **JitterBuffer** — adaptive playout delay; reorders out-of-sequence packets
+- **TwccSender** — transport-wide sequence numbers enabling the GCC feedback loop
 
 ---
 
@@ -926,7 +971,7 @@ Monte Carlo evaluation framework for agent quality assurance.
 
 **Crate:** `brainwires-analytics`
 
-Unified analytics collection, persistence, and querying — zero-friction observability for all framework components.
+Unified analytics collection, persistence, and querying — zero-friction observability for all framework components. Includes EU AI Act / GDPR compliance tooling.
 
 ### Event Types (`AnalyticsEvent`)
 
@@ -934,8 +979,8 @@ Unified analytics collection, persistence, and querying — zero-friction observ
 
 | Variant | Key fields |
 |---------|-----------|
-| `ProviderCall` | provider, model, prompt/completion tokens, cost, latency, success |
-| `AgentRun` | agent_id, task_id, iterations, tool calls, token totals, cost, duration |
+| `ProviderCall` | provider, model, prompt/completion tokens, cost, latency, success, `compliance?` |
+| `AgentRun` | agent_id, task_id, iterations, tool calls, token totals, cost, duration, `compliance?` |
 | `ToolCall` | agent_id, tool_name, tool_use_id, is_error, duration |
 | `McpRequest` | server_name, tool_name, success, duration |
 | `ChannelMessage` | channel_type, direction, message length |
@@ -945,6 +990,18 @@ Unified analytics collection, persistence, and querying — zero-friction observ
 | `AutonomySession` | tasks attempted/succeeded/failed, total cost, duration |
 | `Custom` | name, arbitrary JSON payload |
 
+`ProviderCall` and `AgentRun` carry an optional `ComplianceMetadata` field (`#[serde(default)]` — backward-compatible with existing serialized events).
+
+### Compliance Metadata (`ComplianceMetadata`)
+
+Attach to `ProviderCall` / `AgentRun` events for EU AI Act, GDPR, HIPAA, SOC2 audit trails:
+
+- `data_region` — ISO 3166-1 alpha-2 region (e.g. `"EU"`, `"US"`)
+- `pii_present` — Whether the event payload may contain PII
+- `retention_days` — Minimum retention period before deletion
+- `regulation` — Applicable regulation (`"GDPR"`, `"HIPAA"`, `"EU_AI_ACT"`, etc.)
+- `audit_required` — Include in compliance audit trail
+
 ### Collection
 
 - **`AnalyticsCollector`** — Multi-sink dispatcher; call `record(event)` from any instrumented site. Clone-safe (`Arc`-backed).
@@ -952,7 +1009,7 @@ Unified analytics collection, persistence, and querying — zero-friction observ
 
 ### Sinks
 
-- **`MemoryAnalyticsSink`** — In-process ring buffer; useful for testing and dashboards.
+- **`MemoryAnalyticsSink`** — In-process ring buffer (`DEFAULT_CAPACITY = 1_000`); useful for testing and dashboards. Helpers: `deposit()` (sync), `drain_matching(pred)`, `retain(pred)`.
 - **`SqliteAnalyticsSink`** (feature `sqlite`) — Persists events to a local SQLite database at `<data_dir>/brainwires-analytics/analytics.db`.
 
 ### Querying (feature `sqlite`)
@@ -962,6 +1019,23 @@ Unified analytics collection, persistence, and querying — zero-friction observ
   - `tool_frequency(start, end)` → `Vec<ToolFrequencyRow>` (tool name, call count, error count)
   - `daily_summary(start, end)` → `Vec<DailySummaryRow>` (date, calls, tokens, cost)
   - `rebuild_summaries()` — Refresh materialized summary tables
+
+### Audit Export (`AuditExporter`)
+
+Time-range filtered export from `MemoryAnalyticsSink`:
+
+- `export_json(start, end)` — JSON array of matching events
+- `export_csv(start, end)` — CSV with columns `event_type,session_id,timestamp,payload_json`
+- `apply_retention_policy(days)` — Remove events older than N days; returns deleted count
+
+### PII Redaction (`PiiRedactionRules` / `redact_event()`)
+
+Configurable PII scrubbing before events reach storage sinks:
+
+- `hash_session_ids` — Replace session IDs with a one-way hash (events remain groupable)
+- `redact_prompt_content` — Replace `Custom` event payloads with `"[REDACTED]"`
+- `custom_patterns` — Substring patterns; any matching string field is replaced with `"[REDACTED]"`
+- `redact_event(event, rules)` — Pure function; returns a new scrubbed event
 
 ---
 

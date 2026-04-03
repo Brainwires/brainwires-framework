@@ -129,6 +129,60 @@ pub fn parse_skill_metadata(path: &Path) -> Result<SkillMetadata> {
     parse_metadata_from_content(&content, path)
 }
 
+/// Warn if the skill description spans multiple lines in the raw YAML.
+///
+/// The Agent Skills specification requires descriptions to be on a single line
+/// for cross-platform compatibility with Claude Code, ChatGPT, Copilot, and other
+/// agent runtimes whose YAML parsers may not support multi-line values. Brainwires'
+/// own parser handles them correctly, but portability requires a single-line value.
+///
+/// Detects two cases:
+/// 1. Block scalar markers: `description: |` / `description: >`
+/// 2. Continuation-line wrapping: a `description:` line whose value is empty or quoted
+///    and the following line is indented (YAML flow continuation)
+fn warn_multiline_description(raw_yaml: &str, path: &Path) {
+    let lines: Vec<&str> = raw_yaml.lines().collect();
+    for (i, line) in lines.iter().enumerate() {
+        let trimmed = line.trim_start();
+        if !trimmed.starts_with("description:") {
+            continue;
+        }
+
+        let rest = trimmed["description:".len()..].trim();
+
+        // Case 1: explicit block scalar marker
+        if matches!(rest, "|" | ">" | "|-" | ">-" | "|+" | ">+") {
+            tracing::warn!(
+                "Skill description in {} uses a YAML block scalar ({}). \
+                 For cross-platform compatibility (Claude Code, ChatGPT, Copilot), \
+                 keep the description on a single line.",
+                path.display(),
+                rest
+            );
+            break;
+        }
+
+        // Case 2: value is absent or starts a quoted string that continues on next line.
+        // A continuation line is more-indented than the `description:` key line.
+        let key_indent = line.len() - line.trim_start().len();
+        if let Some(next_line) = lines.get(i + 1)
+            && !next_line.trim().is_empty()
+        {
+            let next_indent = next_line.len() - next_line.trim_start().len();
+            if next_indent > key_indent && !next_line.trim_start().starts_with('-') {
+                tracing::warn!(
+                    "Skill description in {} appears to wrap onto a continuation line. \
+                     For cross-platform compatibility (Claude Code, ChatGPT, Copilot), \
+                     keep the description on a single line.",
+                    path.display()
+                );
+            }
+        }
+
+        break;
+    }
+}
+
 /// Parse metadata from content string
 fn parse_metadata_from_content(content: &str, path: &Path) -> Result<SkillMetadata> {
     // Split frontmatter and body
@@ -140,6 +194,9 @@ fn parse_metadata_from_content(content: &str, path: &Path) -> Result<SkillMetada
             path.display()
         );
     }
+
+    // Warn about cross-platform portability issues before parsing
+    warn_multiline_description(parts[1], path);
 
     // Parse YAML frontmatter
     let frontmatter: SkillFrontmatter = serde_yml::from_str(parts[1].trim())
@@ -155,8 +212,9 @@ fn parse_metadata_from_content(content: &str, path: &Path) -> Result<SkillMetada
             .with_context(|| format!("Invalid compatibility in {}", path.display()))?;
     }
 
-    // Warn if skill name doesn't match parent directory name (spec recommendation)
-    warn_name_directory_mismatch(&frontmatter.name, path);
+    // Enforce name/directory match (error for subdirectory layout, warning for flat-file)
+    validate_name_directory_match(&frontmatter.name, path)
+        .with_context(|| format!("Name/directory mismatch in {}", path.display()))?;
 
     Ok(SkillMetadata {
         name: frontmatter.name,
@@ -169,6 +227,7 @@ fn parse_metadata_from_content(content: &str, path: &Path) -> Result<SkillMetada
         hooks: frontmatter.hooks,
         source: SkillSource::Personal, // Will be set by caller
         source_path: path.to_path_buf(),
+        resources_dir: None, // Set by registry for subdirectory layout
     })
 }
 
@@ -287,26 +346,51 @@ fn validate_compatibility(compat: &str) -> Result<()> {
     Ok(())
 }
 
-/// Warn if the skill name doesn't match the parent directory name.
+/// Enforce that the skill name matches the parent directory name for subdirectory layout.
 ///
-/// The Agent Skills specification requires that the name field must match the parent
-/// directory name. We emit a warning rather than an error since brainwires-skills also
-/// supports flat file layout (`skills/review-pr.md`) which the spec doesn't define.
-fn warn_name_directory_mismatch(name: &str, path: &Path) {
-    // Only check for subdirectory layout (skill-name/SKILL.md)
-    if path.file_name().map(|f| f == "SKILL.md").unwrap_or(false)
-        && let Some(parent) = path.parent()
-        && let Some(dir_name) = parent.file_name().and_then(|n| n.to_str())
-        && dir_name != name
-    {
-        tracing::warn!(
-            "Skill name '{}' does not match parent directory '{}' in {}. \
-                         The Agent Skills spec requires these to match.",
-            name,
-            dir_name,
-            path.display()
-        );
+/// The Agent Skills specification requires the `name` field to equal the parent directory
+/// name when using the subdirectory layout (`skill-name/SKILL.md`). This is an error for
+/// that layout to ensure cross-platform portability.
+///
+/// For flat-file layout (`skills/skill-name.md`) the spec doesn't apply, so we only
+/// emit a warning there.
+fn validate_name_directory_match(name: &str, path: &Path) -> Result<()> {
+    let is_subdirectory_layout = path.file_name().map(|f| f == "SKILL.md").unwrap_or(false);
+
+    if is_subdirectory_layout {
+        let dir_name = path
+            .parent()
+            .and_then(|p| p.file_name())
+            .and_then(|n| n.to_str());
+
+        if let Some(dir_name) = dir_name
+            && dir_name != name
+        {
+            anyhow::bail!(
+                "Skill name '{}' must match its parent directory '{}' (Agent Skills spec \
+                 requirement). Rename either the directory or the name field in {}.",
+                name,
+                dir_name,
+                path.display()
+            );
+        }
+    } else {
+        // Flat-file layout: warn only (spec doesn't define this layout)
+        let stem = path.file_stem().and_then(|s| s.to_str());
+        if let Some(stem) = stem
+            && stem != name
+        {
+            tracing::warn!(
+                "Skill name '{}' does not match filename '{}' in {}. \
+                 Consider renaming for consistency.",
+                name,
+                stem,
+                path.display()
+            );
+        }
     }
+
+    Ok(())
 }
 
 /// Render skill template with arguments
@@ -561,10 +645,25 @@ description: |
 Instructions"#;
 
         let path = Path::new("test.md");
+        // Parsing succeeds (Brainwires parser handles block scalars), but a warning is emitted
         let metadata = parse_metadata_from_content(content, path).unwrap();
 
         assert!(metadata.description.contains("multiline description"));
         assert!(metadata.description.contains("spans multiple lines"));
+    }
+
+    #[test]
+    fn test_warn_multiline_description_block_scalar() {
+        // Block scalar variants that should trigger the portability warning
+        for marker in &["|", ">", "|-", ">-"] {
+            let raw = format!("name: test\ndescription: {marker}\n  Some content\n");
+            // warn_multiline_description should not panic — it only logs
+            warn_multiline_description(&raw, Path::new("test.md"));
+        }
+
+        // Single-line description should NOT trigger a warning (no block scalar marker)
+        let raw = "name: test\ndescription: A single line description\n";
+        warn_multiline_description(raw, Path::new("test.md"));
     }
 
     #[test]

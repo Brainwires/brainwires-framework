@@ -271,11 +271,10 @@ fn draw_normal_layout(f: &mut Frame, app: &mut App) {
                 .split(main_area)
         }
     } else {
-        // Calculate dynamic input height based on content
-        // Count lines in input (split by newline) + 2 for borders
-        // Note: We count newlines instead of using lines() because lines() doesn't count trailing newlines
-        let newline_count = app.input_state.line_count().saturating_sub(1);
-        let input_lines = (newline_count + 1).max(1) as u16;
+        // Calculate dynamic input height based on content, accounting for soft-wrap.
+        // Content width = terminal width minus 2 border chars.
+        let content_width = main_area.width.saturating_sub(2) as usize;
+        let input_lines = app.input_state.visual_line_count(content_width) as u16;
         let input_height_needed = input_lines + 2; // +2 for top and bottom borders
 
         // Cap at 35% of screen height
@@ -412,6 +411,19 @@ fn draw_status_bar(
         ));
     }
 
+    // Add unread error/warning badge
+    if app.unread_error_count > 0 {
+        status_spans.push(Span::raw(" | "));
+        status_spans.push(Span::styled(
+            format!(
+                "⚠ {} error{}",
+                app.unread_error_count,
+                if app.unread_error_count == 1 { "" } else { "s" }
+            ),
+            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+        ));
+    }
+
     // Add task summary when task panel sidebar is not visible
     if !task_panel_visible && !app.session_task_summary.is_empty() {
         status_spans.push(Span::raw(" | "));
@@ -431,7 +443,7 @@ fn draw_status_bar(
             Span::styled("Ctrl+L", Style::default().fg(Color::Gray)),
             Span::raw(": sessions | "),
             Span::styled("Ctrl+D", Style::default().fg(Color::Gray)),
-            Span::raw(": console"),
+            Span::raw(": journal"),
         ]),
         Line::from(vec![
             Span::styled("Tab", Style::default().fg(Color::Gray)),

@@ -17,7 +17,6 @@ categories = ["development-tools"]
 brainwires-core.workspace = true
 brainwires-agents = { workspace = true, optional = true }
 brainwires-tool-system = { workspace = true, optional = true }
-brainwires-providers = { workspace = true, optional = true }
 brainwires-training = { workspace = true, optional = true }
 brainwires-cognition = { workspace = true, optional = true }
 brainwires-datasets = { workspace = true, optional = true }
@@ -56,11 +55,6 @@ brainwires-hardware = { workspace = true, optional = true, features = ["gpio"] }
 # Analytics
 brainwires-analytics = { workspace = true, optional = true }
 
-# Scheduler
-cron = { version = "0.15", optional = true }
-
-# File system reactor
-notify = { version = "7", optional = true }
 
 [features]
 default = ["native"]
@@ -87,18 +81,12 @@ training = ["dep:brainwires-training", "dep:brainwires-datasets"]
 git-workflow = ["dep:brainwires-agents", "dep:brainwires-tool-system", "dep:reqwest", "dep:toml"]
 webhook = ["git-workflow", "dep:axum", "dep:hmac", "dep:sha1", "dep:subtle"]
 
-# Dream memory consolidation
-dream = ["dep:brainwires-providers", "dep:futures"]
-
 # Environment interaction
 gpio = ["dep:brainwires-hardware"]
-scheduler = ["dep:cron"]
-reactor = ["dep:notify"]
-services = []
 
 analytics = ["dep:brainwires-analytics", "brainwires-analytics/native"]
 
-full = ["self-improve", "eval-driven", "supervisor", "attention", "parallel", "training", "git-workflow", "webhook", "gpio", "scheduler", "reactor", "services", "dream"]
+full = ["self-improve", "eval-driven", "supervisor", "attention", "parallel", "training", "git-workflow", "webhook", "gpio"]
 
 [[example]]
 name = "safety_guard"
@@ -124,18 +112,6 @@ required-features = ["git-workflow"]
 [[example]]
 name = "cicd_orchestrator"
 required-features = ["webhook"]
-
-[[example]]
-name = "cron_scheduler"
-required-features = ["scheduler"]
-
-[[example]]
-name = "fs_reactor"
-required-features = ["reactor"]
-
-[[example]]
-name = "service_manager"
-required-features = ["services"]
 
 [[example]]
 name = "gpio_pins"

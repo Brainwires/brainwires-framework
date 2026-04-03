@@ -54,7 +54,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires-mcp = "0.7"
+brainwires-mcp = "0.8"
 ```
 
 Connect to an MCP server and call a tool:
@@ -102,10 +102,10 @@ async fn main() -> anyhow::Result<()> {
 
 ```toml
 # Default (native with full MCP client)
-brainwires-mcp = "0.7"
+brainwires-mcp = "0.8"
 
 # WASM target (JSON-RPC types only, no client or transport)
-brainwires-mcp = { version = "0.7", default-features = false, features = ["wasm"] }
+brainwires-mcp = { version = "0.8", default-features = false, features = ["wasm"] }
 ```
 
 ## Architecture
@@ -497,11 +497,11 @@ Use via the `brainwires` facade crate with the `mcp` feature, or depend on `brai
 ```toml
 # Via facade
 [dependencies]
-brainwires = { version = "0.7", features = ["mcp"] }
+brainwires = { version = "0.8", features = ["mcp"] }
 
 # Direct
 [dependencies]
-brainwires-mcp = "0.7"
+brainwires-mcp = "0.8"
 ```
 
 The `prelude` module re-exports the most commonly used types:

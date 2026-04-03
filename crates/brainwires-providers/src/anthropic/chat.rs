@@ -228,6 +228,7 @@ impl Provider for AnthropicChatProvider {
                 cost_usd: 0.0,
                 success: true,
                 timestamp: chrono::Utc::now(),
+                compliance: None,
             });
         }
         Ok(chat_response)
@@ -284,6 +285,11 @@ impl Provider for AnthropicChatProvider {
                             "message_stop" => {
                                 yield Ok(StreamChunk::Done);
                             }
+                            "context_window_management_event" => {
+                                let summary = event.summary.unwrap_or_default();
+                                let tokens_freed = event.tokens_freed;
+                                yield Ok(StreamChunk::ContextCompacted { summary, tokens_freed });
+                            }
                             _ => {}
                         }
                     }
@@ -308,12 +314,12 @@ mod tests {
     fn dummy_client() -> Arc<AnthropicClient> {
         Arc::new(AnthropicClient::new(
             "test-key".to_string(),
-            "claude-3-sonnet".to_string(),
+            "claude-sonnet-4-6".to_string(),
         ))
     }
 
     fn provider() -> AnthropicChatProvider {
-        AnthropicChatProvider::new(dummy_client(), "claude-3-sonnet".to_string())
+        AnthropicChatProvider::new(dummy_client(), "claude-sonnet-4-6".to_string())
     }
 
     #[test]

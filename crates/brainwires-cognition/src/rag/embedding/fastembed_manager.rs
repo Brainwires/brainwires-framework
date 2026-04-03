@@ -51,9 +51,8 @@ impl FastEmbedManager {
         // Use a single shared cache directory rather than the default
         // `.fastembed_cache` relative to the process working directory, which
         // causes a separate 87–759 MB copy to accumulate in every project.
-        let cache_dir = dirs::cache_dir()
-            .unwrap_or_else(|| std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default()))
-            .join("fastembed");
+        let cache_dir = brainwires_storage::paths::PlatformPaths::default_fastembed_cache_path();
+        let _ = std::fs::create_dir_all(&cache_dir);
 
         let mut options = InitOptions::default();
         options.model_name = model;

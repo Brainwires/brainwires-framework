@@ -3,7 +3,7 @@
 //! Main event dispatch and core input handling for normal, waiting, and cancel modes.
 
 use crate::tui::Event;
-use crate::tui::app::state::{App, AppMode, FocusedPanel};
+use crate::tui::app::state::{App, AppMode, FocusedPanel, LogLevel};
 use anyhow::Result;
 use crossterm::event::KeyCode;
 
@@ -40,7 +40,7 @@ impl App {
         // Handle IPC disconnection - set flag for respawn
         if let Event::IpcDisconnected = event {
             self.add_console_message("⚠️ Session connection lost".to_string());
-            self.status = "Session disconnected - respawning...".to_string();
+            self.set_status(LogLevel::Warn, "Session disconnected - respawning...");
             self.ipc_needs_respawn = true;
             return Ok(true);
         }
@@ -61,7 +61,9 @@ impl App {
                 self.mode = AppMode::Normal;
             } else {
                 self.mode = AppMode::ConsoleView;
-                self.console_state.scroll_to_top();
+                self.clear_unread_errors();
+                // Scroll to bottom so the most recent journal entries are visible
+                self.console_state.scroll_down(usize::MAX / 2, 100);
             }
             return Ok(true);
         }
@@ -186,7 +188,7 @@ impl App {
                     self.mode = AppMode::SessionPicker;
                 }
                 Err(e) => {
-                    self.status = format!("Failed to load sessions: {}", e);
+                    self.set_status(LogLevel::Error, format!("Failed to load sessions: {}", e));
                 }
             }
             return Ok(());
@@ -590,7 +592,7 @@ impl App {
         // Cancel operation on Escape - show confirmation prompt first
         if event.is_escape() {
             self.mode = AppMode::CancelConfirm;
-            self.status = "Cancel operation? (y/n)".to_string();
+            self.set_status(LogLevel::Warn, "Cancel operation? (y/n)");
             return Ok(());
         }
 
@@ -598,7 +600,10 @@ impl App {
             // Queue the message to be sent after the agent finishes
             if !self.input_text().trim().is_empty() {
                 self.queued_messages.push(self.input_text());
-                self.status = format!("Message queued ({} pending)", self.queued_messages.len());
+                self.set_status(
+                    LogLevel::Info,
+                    format!("Message queued ({} pending)", self.queued_messages.len()),
+                );
                 self.clear_input();
             }
             return Ok(());
@@ -681,7 +686,7 @@ impl App {
 
                     // Add cancellation message to console
                     self.add_console_message("Operation cancelled by user".to_string());
-                    self.status = "Operation cancelled".to_string();
+                    self.set_status(LogLevel::Info, "Operation cancelled");
 
                     // Return to normal mode
                     self.mode = AppMode::Normal;
@@ -689,7 +694,7 @@ impl App {
                 KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
                     // User declined - return to waiting mode
                     self.mode = AppMode::Waiting;
-                    self.status = "Continuing...".to_string();
+                    self.set_status(LogLevel::Info, "Continuing...");
                 }
                 _ => {
                     // Ignore other keys, keep showing confirmation

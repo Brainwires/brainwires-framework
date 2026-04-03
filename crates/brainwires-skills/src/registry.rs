@@ -16,7 +16,7 @@ use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use super::metadata::{Skill, SkillMetadata, SkillSource};
+use super::metadata::{Skill, SkillMetadata, SkillResources, SkillSource};
 use super::parser;
 
 /// Skill registry managing all available skills
@@ -100,6 +100,12 @@ impl SkillRegistry {
             Ok(mut metadata) => {
                 metadata.source = source;
                 metadata.source_path = path.to_path_buf();
+
+                // For subdirectory layout (skill-name/SKILL.md), record the parent dir
+                // so get_resources() can lazily discover Level 3 resource files.
+                if path.file_name().map(|f| f == "SKILL.md").unwrap_or(false) {
+                    metadata.resources_dir = path.parent().map(|p| p.to_path_buf());
+                }
 
                 tracing::debug!(
                     "Loaded skill '{}' from {} ({})",
@@ -285,6 +291,31 @@ impl SkillRegistry {
         self.skills.remove(name)
     }
 
+    /// Discover Level 3 resource files for a skill (on-demand).
+    ///
+    /// Returns the files found in `scripts/`, `references/`, and `assets/`
+    /// subdirectories inside the skill's directory. Only available for skills
+    /// using the subdirectory layout (`skill-name/SKILL.md`).
+    ///
+    /// These are never loaded automatically — this method lets agents discover
+    /// what supplementary files are available and request them as needed.
+    pub fn get_resources(&self, name: &str) -> Result<SkillResources> {
+        let metadata = self
+            .skills
+            .get(name)
+            .ok_or_else(|| anyhow::anyhow!("Skill not found: {}", name))?;
+
+        let Some(ref dir) = metadata.resources_dir else {
+            return Ok(SkillResources::default());
+        };
+
+        Ok(SkillResources {
+            scripts: collect_files(&dir.join("scripts")),
+            references: collect_files(&dir.join("references")),
+            assets: collect_files(&dir.join("assets")),
+        })
+    }
+
     /// Get skills that match a category
     pub fn skills_by_category(&self, category: &str) -> Vec<&SkillMetadata> {
         self.skills
@@ -382,6 +413,19 @@ impl SkillRegistry {
 
         output.push_str(&format!("\n**File**: {}\n", metadata.source_path.display()));
 
+        // Show Level 3 resources if available
+        if let Ok(resources) = self.get_resources(name)
+            && !resources.is_empty()
+        {
+            output.push_str(&format!(
+                "\n**Resources**: {} file(s) (scripts: {}, references: {}, assets: {})\n",
+                resources.total_count(),
+                resources.scripts.len(),
+                resources.references.len(),
+                resources.assets.len(),
+            ));
+        }
+
         Ok(output)
     }
 }
@@ -389,6 +433,26 @@ impl SkillRegistry {
 impl Default for SkillRegistry {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Collect all files from a directory, returning their paths.
+/// Returns an empty vec if the directory doesn't exist.
+fn collect_files(dir: &std::path::Path) -> Vec<PathBuf> {
+    if !dir.exists() {
+        return Vec::new();
+    }
+    match std::fs::read_dir(dir) {
+        Ok(entries) => {
+            let mut files: Vec<PathBuf> = entries
+                .filter_map(|e| e.ok())
+                .map(|e| e.path())
+                .filter(|p| p.is_file())
+                .collect();
+            files.sort();
+            files
+        }
+        Err(_) => Vec::new(),
     }
 }
 

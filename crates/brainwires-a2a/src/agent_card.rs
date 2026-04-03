@@ -59,7 +59,7 @@ pub struct AgentInterface {
     /// Optional tenant identifier.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tenant: Option<String>,
-    /// A2A protocol version.
+    /// A2A protocol version. Use [`crate::A2A_PROTOCOL_VERSION`] for the canonical value.
     #[serde(rename = "protocolVersion")]
     pub protocol_version: String,
 }

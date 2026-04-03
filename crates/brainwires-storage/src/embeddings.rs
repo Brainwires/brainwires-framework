@@ -71,9 +71,13 @@ impl FastEmbedManager {
             _ => (EMBEDDING_DIM_MINILM, "all-MiniLM-L6-v2"),
         };
 
+        let cache_dir = crate::paths::PlatformPaths::default_fastembed_cache_path();
+        let _ = std::fs::create_dir_all(&cache_dir);
+
         let mut options = InitOptions::default();
         options.model_name = model;
         options.show_download_progress = true;
+        options.cache_dir = cache_dir;
 
         let embedding_model =
             TextEmbedding::try_new(options).context("Failed to initialize FastEmbed model")?;

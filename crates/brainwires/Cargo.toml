@@ -54,6 +54,9 @@ brainwires-training = { workspace = true, optional = true }
 # Autonomy
 brainwires-autonomy = { workspace = true, optional = true }
 
+# System primitives
+brainwires-system = { workspace = true, optional = true }
+
 # Analytics
 brainwires-analytics = { workspace = true, optional = true }
 
@@ -138,6 +141,8 @@ training-cloud = ["training", "brainwires-training/cloud"]
 training-local = ["training", "brainwires-training/local"]
 training-full = ["training", "brainwires-training/full", "datasets", "brainwires-datasets/full"]
 autonomy = ["dep:brainwires-autonomy"]
+system = ["dep:brainwires-system", "brainwires-system/full"]
+dream = ["dep:brainwires-cognition", "brainwires-cognition/dream"]
 analytics = ["dep:brainwires-analytics", "brainwires-analytics/native", "brainwires-providers?/analytics"]
 brain = ["dep:brainwires-cognition", "brainwires-cognition/knowledge"]
 bedrock = ["providers", "brainwires-providers/bedrock"]
@@ -160,6 +165,8 @@ full = [
     "vad", "wake-word", "voice-assistant", "mcp-server-framework",
     "training-cloud", "datasets",
     "autonomy",
+    "system",
+    "dream",
     "analytics",
 ]
 

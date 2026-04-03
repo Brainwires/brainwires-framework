@@ -5,6 +5,9 @@ use async_trait::async_trait;
 
 use crate::{AnalyticsError, AnalyticsEvent, AnalyticsSink};
 
+/// Default ring-buffer capacity for [`MemoryAnalyticsSink`].
+pub const DEFAULT_CAPACITY: usize = 1_000;
+
 /// In-memory ring-buffer analytics sink.
 ///
 /// Stores up to `capacity` events, evicting the oldest when full.
@@ -23,6 +26,16 @@ impl MemoryAnalyticsSink {
         }
     }
 
+    /// Deposit an event synchronously (bypasses the async record path).
+    /// Evicts the oldest event if over capacity.
+    pub fn deposit(&self, event: AnalyticsEvent) {
+        let mut events = self.events.lock().expect("lock poisoned");
+        if events.len() >= self.capacity {
+            events.pop_front();
+        }
+        events.push_back(event);
+    }
+
     /// Drain and return all buffered events, clearing the buffer.
     pub fn drain(&self) -> Vec<AnalyticsEvent> {
         let mut events = self
@@ -30,6 +43,30 @@ impl MemoryAnalyticsSink {
             .lock()
             .expect("MemoryAnalyticsSink lock poisoned");
         events.drain(..).collect()
+    }
+
+    /// Drain events matching `pred`, leaving non-matching events in place.
+    pub fn drain_matching(&self, pred: impl Fn(&AnalyticsEvent) -> bool) -> Vec<AnalyticsEvent> {
+        let mut events = self.events.lock().expect("lock poisoned");
+        let mut matched = Vec::new();
+        let mut remaining = VecDeque::new();
+        for event in events.drain(..) {
+            if pred(&event) {
+                matched.push(event);
+            } else {
+                remaining.push_back(event);
+            }
+        }
+        *events = remaining;
+        matched
+    }
+
+    /// Retain events matching `pred`; remove and count non-matching events.
+    pub fn retain(&self, pred: impl Fn(&AnalyticsEvent) -> bool) -> usize {
+        let mut events = self.events.lock().expect("lock poisoned");
+        let before = events.len();
+        events.retain(|e| pred(e));
+        before - events.len()
     }
 
     /// Number of events currently in the buffer.

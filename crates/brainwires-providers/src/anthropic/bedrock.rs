@@ -151,9 +151,9 @@ mod tests {
 
     #[test]
     fn bedrock_invoke_url_includes_region_and_model() {
-        let url = bedrock_invoke_url("us-east-1", "anthropic.claude-3-sonnet-20240229-v1:0");
+        let url = bedrock_invoke_url("us-east-1", "anthropic.claude-sonnet-4-6-v1:0");
         assert!(url.contains("us-east-1"));
-        assert!(url.contains("anthropic.claude-3-sonnet-20240229-v1:0"));
+        assert!(url.contains("anthropic.claude-sonnet-4-6-v1:0"));
         assert!(url.starts_with("https://bedrock-runtime."));
         assert!(url.ends_with("/invoke"));
     }

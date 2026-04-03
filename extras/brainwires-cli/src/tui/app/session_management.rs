@@ -2,7 +2,7 @@
 //!
 //! Handles loading and managing conversation sessions.
 
-use super::state::{App, TuiMessage};
+use super::state::{App, LogLevel, TuiMessage};
 use crate::types::message::{Message, MessageContent, Role};
 use anyhow::Result;
 
@@ -90,11 +90,14 @@ impl SessionManagement for App {
         } else {
             String::new()
         };
-        self.status = format!(
-            "Loaded session: {} ({} messages{})",
-            &conversation_id[..8.min(conversation_id.len())],
-            self.messages.len(),
-            task_info
+        self.set_status(
+            LogLevel::Info,
+            format!(
+                "Loaded session: {} ({} messages{})",
+                &conversation_id[..8.min(conversation_id.len())],
+                self.messages.len(),
+                task_info
+            ),
         );
 
         // Check if the last message is from the user - if so, we need to resume AI response

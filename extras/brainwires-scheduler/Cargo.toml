@@ -1,0 +1,34 @@
+[package]
+name = "brainwires-scheduler"
+publish = false
+description = "Local-machine MCP scheduler — cron-based job scheduling with optional Docker sandboxing"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "brainwires-scheduler"
+path = "src/main.rs"
+
+[lib]
+name = "brainwires_scheduler"
+path = "src/lib.rs"
+
+[dependencies]
+rmcp = { workspace = true, features = ["server", "macros", "transport-io", "transport-streamable-http-server"] }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+schemars = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+chrono = { workspace = true }
+uuid = { workspace = true }
+dirs = { workspace = true }
+clap = { version = "4", features = ["derive"] }
+cron = "0.15"
+axum = "0.8"
