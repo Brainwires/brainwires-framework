@@ -30,6 +30,24 @@ pub enum MatterError {
 
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
+
+    #[error("crypto error: {0}")]
+    Crypto(String),
+
+    #[error("SPAKE2+ error: {0}")]
+    Spake2(String),
+
+    #[error("session {session_id} error: {msg}")]
+    Session { session_id: u16, msg: String },
+
+    #[error("protocol error (opcode {opcode:#04x}): {msg}")]
+    Protocol { opcode: u8, msg: String },
+
+    #[error("access denied")]
+    AccessDenied,
+
+    #[error("fabric not found")]
+    FabricNotFound,
 }
 
 pub type MatterResult<T> = Result<T, MatterError>;
