@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### `matter-tool` — Brainwires-native Matter CLI (`extras/matter-tool`)
+
+- **New `matter-tool` binary** — first-party CLI equivalent of `chip-tool` built entirely on the Brainwires pure-Rust Matter 1.3 stack. No `connectedhomeip` dependency; compiles in seconds.
+- **`pair` subcommand** — commission devices via QR code (`pair qr <node-id> <MT:…>`), 11-digit manual pairing code (`pair code`), or BLE (`pair ble`, requires `--features ble`). `pair unpair <node-id>` removes a device from the local fabric.
+- **Cluster control commands** — `onoff {on,off,toggle,read}`, `level {set,read}`, `thermostat {setpoint,read}`, `doorlock {lock,unlock,read}`. Each takes `<node-id> <endpoint>`.
+- **`invoke`** — send a raw cluster command: `invoke <node-id> <endpoint> <cluster-hex> <cmd-hex> [payload-hex]`.
+- **`read`** — read a raw cluster attribute: `read <node-id> <endpoint> <cluster-hex> <attr-hex>`.
+- **`discover`** — browse `_matterc._udp` (commissionable) and `_matter._tcp` (operational) via mDNS, print found devices with addresses and TXT records. `--timeout <secs>` (default 5).
+- **`serve`** — run as a Matter device server (commission us from another controller). Prints QR code and pairing code on startup. Flags: `--device-name`, `--vendor-id`, `--product-id`, `--discriminator`, `--passcode`, `--port`, `--storage`.
+- **`devices`** — list all commissioned devices in the local fabric.
+- **`fabric info`** — print fabric directory and commissioned node count. **`fabric reset`** — wipe fabric storage (interactive `yes` confirmation required).
+- **Global flags** — `--fabric-dir <DIR>` (default `~/.local/share/matter-tool/` on Linux), `--verbose` / `-v`, `--json` (machine-readable output for all commands).
+- **`ble` feature** — BLE commissioning path via `brainwires-hardware/matter-ble`; excluded from the default build.
+
 #### GitHub Channel Adapter (`extras/brainclaw/mcp-github`)
 
 - **New `brainclaw-mcp-github` crate** — full GitHub channel adapter for the Brainwires gateway. Receives GitHub webhook events and exposes GitHub operations as an MCP tool server.

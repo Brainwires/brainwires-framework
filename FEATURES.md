@@ -1203,6 +1203,10 @@ Browser-compatible WASM bindings via `wasm-bindgen`.
 
 ## Extras & Standalone Binaries
 
+### matter-tool *(extras/)*
+
+First-party Matter 1.3 CLI — a `chip-tool` equivalent built entirely on the Brainwires pure-Rust Matter stack. No `connectedhomeip` dependency. Subcommands: `pair {qr,code,ble,unpair}`, `onoff {on,off,toggle,read}`, `level {set,read}`, `thermostat {setpoint,read}`, `doorlock {lock,unlock,read}`, `invoke`, `read`, `discover`, `serve`, `devices`, `fabric {info,reset}`. Global flags: `--fabric-dir`, `--verbose`, `--json`. Fabric stored at `~/.local/share/matter-tool/` by default. `ble` feature enables BLE commissioning via `brainwires-hardware/matter-ble`.
+
 ### voice-assistant *(extras/)*
 
 Personal voice assistant binary built on `brainwires-hardware`. Mic capture → optional energy wake trigger → VAD-gated speech accumulation → OpenAI Whisper STT → LLM response (OpenAI chat completions) → OpenAI TTS playback. CLI: `--config <path.toml>`, `--list-devices`, `--wake-word <model>`, `--verbose`. TOML config covers STT model, TTS voice/model, silence tuning, wake word path, LLM model, system prompt, device names, and API key (or `OPENAI_API_KEY` env var). Graceful Ctrl-C shutdown.
