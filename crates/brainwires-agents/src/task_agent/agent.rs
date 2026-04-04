@@ -1,33 +1,4 @@
-//! TaskAgent - Autonomous agent that executes a task in a loop using AI + tools
-//!
-//! Each `TaskAgent` owns its conversation history and calls the AI provider
-//! repeatedly, executing tool requests and running validation before it
-//! signals completion.
-//!
-//! ## Usage
-//!
-//! ```rust,ignore
-//! use std::sync::Arc;
-//! use brainwires_agents::{AgentContext, TaskAgent, TaskAgentConfig, TaskAgentResult};
-//! use brainwires_core::Task;
-//!
-//! let context = Arc::new(AgentContext::new(
-//!     "/my/project",
-//!     Arc::new(my_executor),
-//!     Arc::clone(&hub),
-//!     Arc::clone(&lock_manager),
-//! ));
-//!
-//! let agent = Arc::new(TaskAgent::new(
-//!     "agent-1".to_string(),
-//!     Task::new("task-1", "Refactor src/lib.rs"),
-//!     Arc::clone(&provider),
-//!     Arc::clone(&context),
-//!     TaskAgentConfig::default(),
-//! ));
-//!
-//! let result: TaskAgentResult = agent.execute().await?;
-//! ```
+//! `TaskAgent` struct and its complete `impl` block.
 
 use std::collections::VecDeque;
 use std::path::PathBuf;
@@ -49,268 +20,33 @@ use crate::communication::AgentMessage;
 use crate::context::AgentContext;
 use crate::execution_graph::{ExecutionGraph, RunTelemetry, ToolCallRecord};
 use crate::file_locks::LockType;
-use crate::validation_loop::{ValidationConfig, format_validation_feedback, run_validation};
+use crate::validation_loop::{format_validation_feedback, run_validation};
 
-/// Tool names whose results originate from external / untrusted sources and
-/// must be sanitised before injection into the conversation history.
-const EXTERNAL_CONTENT_TOOLS: &[&str] = &[
-    "fetch_url",
-    "web_fetch",
-    "web_search",
-    "context_recall",
-    "semantic_search",
-];
-
-const DEFAULT_LOOP_DETECTION_WINDOW: usize = 5;
-const DEFAULT_MAX_ITERATIONS: u32 = 100;
-
-/// Configuration for stuck-agent (loop) detection.
-#[derive(Debug, Clone)]
-pub struct LoopDetectionConfig {
-    /// Consecutive identical tool-name calls that trigger abort. Default: 5.
-    pub window_size: usize,
-    /// Whether loop detection is active. Default: true.
-    pub enabled: bool,
-}
-
-impl Default for LoopDetectionConfig {
-    fn default() -> Self {
-        Self {
-            window_size: DEFAULT_LOOP_DETECTION_WINDOW,
-            enabled: true,
-        }
-    }
-}
-
-/// Runtime status of a task agent.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TaskAgentStatus {
-    /// Agent is idle, waiting to be started.
-    Idle,
-    /// Agent is actively working on something.
-    Working(String),
-    /// Agent is blocked waiting for a file lock.
-    WaitingForLock(String),
-    /// Agent execution is paused.
-    Paused(String),
-    /// Agent is replanning after detecting goal drift or failure.
-    Replanning(String),
-    /// Agent completed the task successfully.
-    Completed(String),
-    /// Agent failed to complete the task.
-    Failed(String),
-}
-
-impl std::fmt::Display for TaskAgentStatus {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TaskAgentStatus::Idle => write!(f, "Idle"),
-            TaskAgentStatus::Working(desc) => write!(f, "Working: {}", desc),
-            TaskAgentStatus::WaitingForLock(path) => write!(f, "Waiting for lock: {}", path),
-            TaskAgentStatus::Paused(reason) => write!(f, "Paused: {}", reason),
-            TaskAgentStatus::Replanning(reason) => write!(f, "Replanning: {}", reason),
-            TaskAgentStatus::Completed(summary) => write!(f, "Completed: {}", summary),
-            TaskAgentStatus::Failed(error) => write!(f, "Failed: {}", error),
-        }
-    }
-}
-
-/// Classification of why an agent run failed.
-///
-/// Always `Some` when [`TaskAgentResult::success`] is `false`, always `None`
-/// on success.  Enables trend queries and dashboards over failure modes.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum FailureCategory {
-    /// Agent exhausted the allowed iteration count.
-    IterationLimitExceeded,
-    /// Cumulative token usage exceeded [`TaskAgentConfig::max_total_tokens`].
-    TokenBudgetExceeded,
-    /// Cumulative cost exceeded [`TaskAgentConfig::max_cost_usd`].
-    CostBudgetExceeded,
-    /// Wall-clock timeout exceeded [`TaskAgentConfig::timeout_secs`].
-    WallClockTimeout,
-    /// Loop detection fired — agent was calling the same tool repeatedly.
-    LoopDetected,
-    /// Replan cycle count exceeded [`TaskAgentConfig::max_replan_attempts`].
-    MaxReplanAttemptsExceeded,
-    /// File scope whitelist violation (reserved for future hard-stop policy).
-    FileScopeViolation,
-    /// Validation checks failed and could not be resolved within the
-    /// iteration budget.
-    ValidationFailed,
-    /// An unexpected tool execution error caused abort.
-    ToolExecutionError,
-    /// Failure cause could not be determined.
-    Unknown,
-    /// Plan budget check failed before execution started — task was rejected
-    /// before any side effects occurred.
-    PlanBudgetExceeded,
-}
-
-/// Result of a completed task agent execution.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct TaskAgentResult {
-    /// The agent's unique ID.
-    pub agent_id: String,
-    /// The task ID that was executed.
-    pub task_id: String,
-    /// Whether the task completed successfully.
-    pub success: bool,
-    /// Completion summary or error description.
-    pub summary: String,
-    /// Number of provider call iterations used.
-    pub iterations: u32,
-    /// Number of replan cycles during execution.
-    pub replan_count: u32,
-    /// True when any budget ceiling caused the stop.
-    pub budget_exhausted: bool,
-    /// Last meaningful assistant message when stopped early, if any.
-    pub partial_output: Option<String>,
-    /// Cumulative tokens consumed across all provider calls.
-    pub total_tokens_used: u64,
-    /// Estimated cost in USD ($0.000003/token conservative estimate).
-    pub total_cost_usd: f64,
-    /// True when wall-clock timeout caused the stop.
-    pub timed_out: bool,
-    /// Why the agent failed. `None` on success, always `Some` on failure.
-    pub failure_category: Option<FailureCategory>,
-    /// Full execution trace (DAG of provider-call steps + tool call records).
-    pub execution_graph: ExecutionGraph,
-    /// Structured telemetry summary derived from the execution graph.
-    pub telemetry: RunTelemetry,
-    /// Pre-execution plan produced before the task loop started, if
-    /// [`TaskAgentConfig::plan_budget`] was configured.  `None` when planning
-    /// was not requested or when the plan could not be parsed.
-    pub pre_execution_plan: Option<brainwires_core::SerializablePlan>,
-}
-
-/// Configuration for a task agent.
-#[non_exhaustive]
-#[derive(Debug, Clone)]
-pub struct TaskAgentConfig {
-    /// Maximum provider call iterations before the agent is forced to fail.
-    ///
-    /// Default: 100 (high default to avoid artificial limits on complex tasks).
-    pub max_iterations: u32,
-
-    /// Override the system prompt.
-    ///
-    /// When `None`, [`crate::system_prompts::reasoning_agent_prompt`] is used.
-    pub system_prompt: Option<String>,
-
-    /// Temperature for AI calls (0.0 – 1.0).
-    pub temperature: f32,
-
-    /// Maximum tokens for a single AI response.
-    pub max_tokens: u32,
-
-    /// Quality checks to run before accepting completion.
-    ///
-    /// Set to `None` to disable validation entirely (useful in tests).
-    pub validation_config: Option<ValidationConfig>,
-
-    /// Loop detection settings. `None` disables. Default: 5-call window, enabled.
-    pub loop_detection: Option<LoopDetectionConfig>,
-
-    /// Inject goal-reminder every N iterations. `None` disables. Default: Some(10).
-    pub goal_revalidation_interval: Option<u32>,
-
-    /// Abort after this many REPLAN cycles. Default: 3.
-    pub max_replan_attempts: u32,
-
-    /// Abort when cumulative tokens reach this ceiling. Default: None.
-    pub max_total_tokens: Option<u64>,
-
-    /// Abort when cumulative cost (USD) reaches this ceiling. Default: None.
-    pub max_cost_usd: Option<f64>,
-
-    /// Wall-clock timeout for the entire execute() call, in seconds. Default: None.
-    pub timeout_secs: Option<u64>,
-
-    /// Per-agent file scope whitelist.
-    ///
-    /// When `Some`, the agent receives a scope-violation error for any file
-    /// operation targeting a path that is not prefixed by at least one entry
-    /// in this list.  When `None`, file access is unrestricted.
-    ///
-    /// Uses [`Path::starts_with`](std::path::Path::starts_with) for prefix matching, which is
-    /// component-aware: `"/src"` allows `"/src/main.rs"` but denies
-    /// `"/src_extra/file.txt"`.
-    pub allowed_files: Option<Vec<PathBuf>>,
-
-    /// Optional pre-execution budget check.
-    ///
-    /// When `Some`, the agent asks the provider to produce a structured JSON
-    /// plan before starting execution. The plan is validated against the budget
-    /// constraints; if any constraint is exceeded the run fails immediately
-    /// with [`FailureCategory::PlanBudgetExceeded`] before any file or tool
-    /// side-effects occur.
-    ///
-    /// Set to `None` (the default) to skip the planning phase entirely.
-    pub plan_budget: Option<brainwires_core::PlanBudget>,
-
-    /// Context budget in tokens.
-    ///
-    /// When the estimated conversation token count exceeds this value,
-    /// the [`on_context_pressure`][crate::agent_hooks::AgentLifecycleHooks::on_context_pressure]
-    /// hook is called so the consumer can summarize or evict messages.
-    ///
-    /// Only effective when lifecycle hooks are set on the [`AgentContext`].
-    /// Default: `None` (no context pressure callbacks).
-    pub context_budget_tokens: Option<u64>,
-
-    /// Optional analytics collector.
-    ///
-    /// When `Some`, emits [`brainwires_analytics::AnalyticsEvent::AgentRun`] after
-    /// each run completes (success or failure). Feature-gated by `analytics`.
-    #[cfg(feature = "analytics")]
-    pub analytics_collector: Option<std::sync::Arc<brainwires_analytics::AnalyticsCollector>>,
-}
-
-impl Default for TaskAgentConfig {
-    fn default() -> Self {
-        Self {
-            max_iterations: DEFAULT_MAX_ITERATIONS,
-            system_prompt: None,
-            temperature: 0.7,
-            max_tokens: 4096,
-            validation_config: Some(ValidationConfig::default()),
-            loop_detection: Some(LoopDetectionConfig::default()),
-            goal_revalidation_interval: Some(10),
-            max_replan_attempts: 3,
-            max_total_tokens: None,
-            max_cost_usd: None,
-            timeout_secs: None,
-            allowed_files: None,
-            plan_budget: None,
-            context_budget_tokens: None,
-            #[cfg(feature = "analytics")]
-            analytics_collector: None,
-        }
-    }
-}
+use super::types::{
+    EXTERNAL_CONTENT_TOOLS, FailureCategory, TaskAgentConfig, TaskAgentResult, TaskAgentStatus,
+};
 
 /// Autonomous task agent that runs a provider + tool loop until completion.
 ///
 /// Create with [`TaskAgent::new`], then call [`TaskAgent::execute`] (or spawn
-/// it on a background task with [`spawn_task_agent`]).
+/// it on a background task with [`super::spawn_task_agent`]).
 pub struct TaskAgent {
     /// Unique agent ID.
     pub id: String,
     /// Task being executed (mutated as iterations progress).
-    task: Arc<RwLock<Task>>,
+    pub(super) task: Arc<RwLock<Task>>,
     /// AI provider for chat completions.
-    provider: Arc<dyn Provider>,
+    pub(super) provider: Arc<dyn Provider>,
     /// Shared environment context.
-    context: Arc<AgentContext>,
+    pub(super) context: Arc<AgentContext>,
     /// Agent configuration.
-    config: TaskAgentConfig,
+    pub(super) config: TaskAgentConfig,
     /// Current status (observable from outside the agent).
-    status: Arc<RwLock<TaskAgentStatus>>,
+    pub(super) status: Arc<RwLock<TaskAgentStatus>>,
     /// Conversation history (internal — grows each iteration).
-    conversation_history: Arc<RwLock<Vec<Message>>>,
+    pub(super) conversation_history: Arc<RwLock<Vec<Message>>>,
     /// Internal replan cycle counter.
-    replan_count: Arc<RwLock<u32>>,
+    pub(super) replan_count: Arc<RwLock<u32>>,
 }
 
 impl TaskAgent {
@@ -369,7 +105,7 @@ impl TaskAgent {
 
     // ── Internal helpers ─────────────────────────────────────────────────────
 
-    async fn set_status(&self, status: TaskAgentStatus) {
+    pub(super) async fn set_status(&self, status: TaskAgentStatus) {
         *self.status.write().await = status.clone();
         let _ = self
             .context
@@ -599,7 +335,7 @@ impl TaskAgent {
     /// Execute the task to completion, returning the result.
     ///
     /// Blocks the calling async task until the agent finishes. Use
-    /// [`spawn_task_agent`] to run the agent on a Tokio background task.
+    /// [`super::spawn_task_agent`] to run the agent on a Tokio background task.
     pub async fn execute(&self) -> Result<TaskAgentResult> {
         let result = self.execute_impl().await?;
         self.maybe_emit_run_analytics(&result);
@@ -1504,7 +1240,7 @@ impl TaskAgent {
                 let _tool_exec_start = std::time::Instant::now();
                 let tool_result =
                     if let Some((path, lock_type)) = Self::get_lock_requirement(tool_use) {
-                        // ── File scope whitelist check (Item 3) ──────────────
+                        // ── File scope whitelist check ───────────────────────
                         if let Some(ref allowed) = self.config.allowed_files
                             && !Self::is_file_path_allowed(&path, allowed)
                         {
@@ -1626,8 +1362,8 @@ impl TaskAgent {
                 }
 
                 // Sanitize + wrap external tool results before injecting into
-                // conversation history (Items 1 + 2: input sanitization and
-                // instruction hierarchy enforcement).
+                // conversation history (input sanitization and instruction
+                // hierarchy enforcement).
                 let final_result = if EXTERNAL_CONTENT_TOOLS.contains(&tool_use.name.as_str())
                     && !tool_result.is_error
                 {
@@ -1836,307 +1572,4 @@ impl TaskAgent {
     #[cfg(not(feature = "analytics"))]
     #[inline(always)]
     fn maybe_emit_run_analytics(&self, _result: &TaskAgentResult) {}
-}
-
-/// Spawn a task agent on a Tokio background task.
-///
-/// Returns a [`JoinHandle`][tokio::task::JoinHandle] that resolves to the
-/// agent's [`TaskAgentResult`] when execution finishes.
-pub fn spawn_task_agent(agent: Arc<TaskAgent>) -> tokio::task::JoinHandle<Result<TaskAgentResult>> {
-    tokio::spawn(async move { agent.execute().await })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::communication::CommunicationHub;
-    use crate::context::AgentContext;
-    use crate::file_locks::FileLockManager;
-    use async_trait::async_trait;
-    use brainwires_core::{
-        ChatResponse, StreamChunk, Tool, ToolContext, ToolResult, ToolUse, Usage,
-    };
-    use brainwires_tool_system::ToolExecutor;
-    use futures::stream::BoxStream;
-
-    // ── Mock provider ──────────────────────────────────────────────────────
-
-    struct MockProvider {
-        responses: std::sync::Mutex<Vec<ChatResponse>>,
-    }
-
-    impl MockProvider {
-        fn single(text: &str) -> Self {
-            Self {
-                responses: std::sync::Mutex::new(vec![ChatResponse {
-                    message: Message::assistant(text),
-                    finish_reason: Some("stop".to_string()),
-                    usage: Usage::default(),
-                }]),
-            }
-        }
-    }
-
-    #[async_trait]
-    impl Provider for MockProvider {
-        fn name(&self) -> &str {
-            "mock"
-        }
-
-        async fn chat(
-            &self,
-            _messages: &[Message],
-            _tools: Option<&[Tool]>,
-            _options: &ChatOptions,
-        ) -> Result<ChatResponse> {
-            let mut guard = self.responses.lock().unwrap();
-            if guard.is_empty() {
-                anyhow::bail!("no more mock responses")
-            }
-            Ok(guard.remove(0))
-        }
-
-        fn stream_chat<'a>(
-            &'a self,
-            _messages: &'a [Message],
-            _tools: Option<&'a [Tool]>,
-            _options: &'a ChatOptions,
-        ) -> BoxStream<'a, Result<StreamChunk>> {
-            Box::pin(futures::stream::empty())
-        }
-    }
-
-    // ── Mock tool executor ─────────────────────────────────────────────────
-
-    struct NoOpExecutor;
-
-    #[async_trait]
-    impl ToolExecutor for NoOpExecutor {
-        async fn execute(&self, tool_use: &ToolUse, _ctx: &ToolContext) -> Result<ToolResult> {
-            Ok(ToolResult::success(tool_use.id.clone(), "ok".to_string()))
-        }
-
-        fn available_tools(&self) -> Vec<Tool> {
-            vec![]
-        }
-    }
-
-    fn make_context() -> Arc<AgentContext> {
-        Arc::new(AgentContext::new(
-            "/tmp",
-            Arc::new(NoOpExecutor),
-            Arc::new(CommunicationHub::new()),
-            Arc::new(FileLockManager::new()),
-        ))
-    }
-
-    // ── Tests ──────────────────────────────────────────────────────────────
-
-    #[tokio::test]
-    async fn test_creation() {
-        let task = Task::new("t-1", "Do something");
-        let agent = TaskAgent::new(
-            "agent-1".to_string(),
-            task,
-            Arc::new(MockProvider::single("done")),
-            make_context(),
-            TaskAgentConfig::default(),
-        );
-        assert_eq!(agent.id(), "agent-1");
-        assert_eq!(agent.status().await, TaskAgentStatus::Idle);
-    }
-
-    #[tokio::test]
-    async fn test_execution_completes() {
-        let task = Task::new("t-1", "Simple task");
-        let agent = Arc::new(TaskAgent::new(
-            "agent-1".to_string(),
-            task,
-            Arc::new(MockProvider::single("Task completed successfully")),
-            make_context(),
-            TaskAgentConfig {
-                validation_config: None,
-                ..Default::default()
-            },
-        ));
-
-        let result = agent.execute().await.unwrap();
-        assert!(result.success);
-        assert_eq!(result.agent_id, "agent-1");
-        assert_eq!(result.task_id, "t-1");
-        assert_eq!(result.iterations, 1);
-    }
-
-    #[tokio::test]
-    async fn test_spawn_task_agent() {
-        let task = Task::new("t-1", "Background task");
-        let agent = Arc::new(TaskAgent::new(
-            "agent-1".to_string(),
-            task,
-            Arc::new(MockProvider::single("done")),
-            make_context(),
-            TaskAgentConfig {
-                validation_config: None,
-                ..Default::default()
-            },
-        ));
-
-        let handle = spawn_task_agent(agent);
-        let result = handle.await.unwrap().unwrap();
-        assert!(result.success);
-    }
-
-    #[tokio::test]
-    async fn test_status_display() {
-        assert_eq!(TaskAgentStatus::Idle.to_string(), "Idle");
-        assert_eq!(
-            TaskAgentStatus::Working("reading".to_string()).to_string(),
-            "Working: reading"
-        );
-        assert_eq!(
-            TaskAgentStatus::Failed("oops".to_string()).to_string(),
-            "Failed: oops"
-        );
-    }
-
-    #[tokio::test]
-    async fn test_result_has_execution_graph() {
-        let task = Task::new("t-1", "Simple task");
-        let agent = Arc::new(TaskAgent::new(
-            "agent-1".to_string(),
-            task,
-            Arc::new(MockProvider::single("done")),
-            make_context(),
-            TaskAgentConfig {
-                validation_config: None,
-                ..Default::default()
-            },
-        ));
-
-        let result = agent.execute().await.unwrap();
-        assert!(result.success);
-        // One iteration = one step node
-        assert_eq!(result.execution_graph.steps.len(), 1);
-        assert_eq!(result.execution_graph.steps[0].iteration, 1);
-        // prompt_hash must be non-empty
-        assert!(!result.execution_graph.prompt_hash.is_empty());
-        // telemetry must match
-        assert_eq!(result.telemetry.total_iterations, 1);
-        assert!(result.telemetry.success);
-        assert_eq!(
-            result.telemetry.prompt_hash,
-            result.execution_graph.prompt_hash
-        );
-    }
-
-    #[tokio::test]
-    async fn test_pre_execute_hook_reject() {
-        use brainwires_tool_system::{PreHookDecision, ToolPreHook};
-
-        struct RejectAll;
-        #[async_trait]
-        impl ToolPreHook for RejectAll {
-            async fn before_execute(
-                &self,
-                tool_use: &ToolUse,
-                _ctx: &ToolContext,
-            ) -> anyhow::Result<PreHookDecision> {
-                Ok(PreHookDecision::Reject(format!(
-                    "rejected: {}",
-                    tool_use.name
-                )))
-            }
-        }
-
-        // Provider that requests a tool call on iteration 1, then stops.
-        struct ToolThenStop;
-        #[async_trait]
-        impl Provider for ToolThenStop {
-            fn name(&self) -> &str {
-                "tool-then-stop"
-            }
-            async fn chat(
-                &self,
-                messages: &[Message],
-                _tools: Option<&[Tool]>,
-                _options: &ChatOptions,
-            ) -> Result<ChatResponse> {
-                // First call: return a tool use. Subsequent calls: return done.
-                let has_tool_result = messages.iter().any(|m| {
-                    matches!(&m.content, MessageContent::Blocks(b) if b.iter().any(|cb| matches!(cb, ContentBlock::ToolResult { .. })))
-                });
-                if has_tool_result {
-                    return Ok(ChatResponse {
-                        message: Message::assistant("done after hook rejection"),
-                        finish_reason: Some("stop".to_string()),
-                        usage: Usage::default(),
-                    });
-                }
-                Ok(ChatResponse {
-                    message: Message {
-                        role: Role::Assistant,
-                        content: MessageContent::Blocks(vec![ContentBlock::ToolUse {
-                            id: "tu-1".to_string(),
-                            name: "bash".to_string(),
-                            input: serde_json::json!({"command": "echo hi"}),
-                        }]),
-                        name: None,
-                        metadata: None,
-                    },
-                    finish_reason: None,
-                    usage: Usage::default(),
-                })
-            }
-            fn stream_chat<'a>(
-                &'a self,
-                _messages: &'a [Message],
-                _tools: Option<&'a [Tool]>,
-                _options: &'a ChatOptions,
-            ) -> futures::stream::BoxStream<'a, Result<brainwires_core::StreamChunk>> {
-                Box::pin(futures::stream::empty())
-            }
-        }
-
-        let ctx = Arc::new(
-            AgentContext::new(
-                "/tmp",
-                Arc::new(NoOpExecutor),
-                Arc::new(CommunicationHub::new()),
-                Arc::new(FileLockManager::new()),
-            )
-            .with_pre_execute_hook(Arc::new(RejectAll)),
-        );
-
-        let task = Task::new("t-hook", "test hook rejection");
-        let agent = Arc::new(TaskAgent::new(
-            "agent-hook".to_string(),
-            task,
-            Arc::new(ToolThenStop),
-            ctx,
-            TaskAgentConfig {
-                validation_config: None,
-                ..Default::default()
-            },
-        ));
-
-        let result = agent.execute().await.unwrap();
-        assert!(result.success);
-        // The rejected tool call should appear in the graph as is_error=true
-        let rejected: Vec<_> = result
-            .execution_graph
-            .steps
-            .iter()
-            .flat_map(|s| s.tool_calls.iter())
-            .filter(|tc| tc.is_error)
-            .collect();
-        assert_eq!(rejected.len(), 1);
-        assert_eq!(rejected[0].tool_name, "bash");
-        // And "bash" should still appear in the tool_sequence
-        assert!(
-            result
-                .execution_graph
-                .tool_sequence
-                .contains(&"bash".to_string())
-        );
-    }
 }
