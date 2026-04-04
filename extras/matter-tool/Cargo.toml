@@ -30,3 +30,6 @@ dirs.workspace = true
 hex.workspace = true
 clap = { version = "4", features = ["derive"] }
 mdns-sd.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

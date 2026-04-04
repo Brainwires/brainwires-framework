@@ -33,6 +33,7 @@ pub async fn load_devices(fabric_dir: &PathBuf) -> Result<Vec<MatterDevice>> {
 
 /// Interactive "are you sure?" prompt for destructive operations.
 /// Returns `true` if the user typed exactly `yes`.
+#[allow(dead_code)]
 pub fn confirm_destructive(prompt: &str) -> bool {
     use std::io::{self, Write};
     print!("{prompt} [type 'yes' to confirm]: ");
@@ -40,4 +41,55 @@ pub fn confirm_destructive(prompt: &str) -> bool {
     let mut input = String::new();
     io::stdin().read_line(&mut input).ok();
     input.trim() == "yes"
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use brainwires_hardware::homeauto::MatterDevice;
+
+    #[test]
+    fn resolve_fabric_dir_uses_override() {
+        let custom = PathBuf::from("/tmp/my-fabric");
+        let result = resolve_fabric_dir(Some(&custom));
+        assert_eq!(result, custom);
+    }
+
+    #[test]
+    fn resolve_fabric_dir_default_ends_with_matter_tool() {
+        let result = resolve_fabric_dir(None);
+        assert!(
+            result.ends_with("matter-tool"),
+            "default path should end with 'matter-tool', got: {}",
+            result.display()
+        );
+    }
+
+    #[tokio::test]
+    async fn load_devices_missing_file_returns_empty() {
+        let dir = PathBuf::from("/tmp/no-such-matter-tool-dir-xyz123");
+        let devices = load_devices(&dir).await.unwrap();
+        assert!(devices.is_empty());
+    }
+
+    #[tokio::test]
+    async fn load_devices_reads_json() {
+        let dir = tempfile::tempdir().unwrap();
+        let device = MatterDevice::new(42);
+        let json = serde_json::to_string(&vec![device]).unwrap();
+        tokio::fs::write(dir.path().join("devices.json"), json).await.unwrap();
+
+        let devices = load_devices(&dir.path().to_path_buf()).await.unwrap();
+        assert_eq!(devices.len(), 1);
+        assert_eq!(devices[0].node_id, 42);
+    }
+
+    #[tokio::test]
+    async fn load_devices_rejects_malformed_json() {
+        let dir = tempfile::tempdir().unwrap();
+        tokio::fs::write(dir.path().join("devices.json"), b"not json").await.unwrap();
+
+        let result = load_devices(&dir.path().to_path_buf()).await;
+        assert!(result.is_err());
+    }
 }

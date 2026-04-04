@@ -234,3 +234,233 @@ fn parse_hex_u32(s: &str) -> Result<u32, String> {
     let s = s.trim_start_matches("0x").trim_start_matches("0X");
     u32::from_str_radix(s, 16).map_err(|e| format!("invalid hex u32 '{s}': {e}"))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse(args: &[&str]) -> Result<Cli, clap::Error> {
+        Cli::try_parse_from(std::iter::once("matter-tool").chain(args.iter().copied()))
+    }
+
+    // ── pair ─────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn pair_qr() {
+        let cli = parse(&["pair", "qr", "1", "MT:Y.K9042C00KA0648G00"]).unwrap();
+        match cli.command {
+            Command::Pair { action: PairAction::Qr { node_id, qr_code } } => {
+                assert_eq!(node_id, 1);
+                assert_eq!(qr_code, "MT:Y.K9042C00KA0648G00");
+            }
+            other => panic!("unexpected: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn pair_code() {
+        let cli = parse(&["pair", "code", "7", "34970112332"]).unwrap();
+        match cli.command {
+            Command::Pair { action: PairAction::Code { node_id, manual_code } } => {
+                assert_eq!(node_id, 7);
+                assert_eq!(manual_code, "34970112332");
+            }
+            other => panic!("unexpected: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn pair_unpair() {
+        let cli = parse(&["pair", "unpair", "3"]).unwrap();
+        match cli.command {
+            Command::Pair { action: PairAction::Unpair { node_id } } => {
+                assert_eq!(node_id, 3);
+            }
+            other => panic!("unexpected: {other:?}"),
+        }
+    }
+
+    // ── onoff ────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn onoff_on() {
+        let cli = parse(&["onoff", "on", "1", "1"]).unwrap();
+        assert!(matches!(
+            cli.command,
+            Command::Onoff { action: OnoffAction::On { node_id: 1, endpoint: 1 } }
+        ));
+    }
+
+    #[test]
+    fn onoff_toggle() {
+        let cli = parse(&["onoff", "toggle", "2", "3"]).unwrap();
+        assert!(matches!(
+            cli.command,
+            Command::Onoff { action: OnoffAction::Toggle { node_id: 2, endpoint: 3 } }
+        ));
+    }
+
+    // ── level ────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn level_set_default_transition() {
+        let cli = parse(&["level", "set", "1", "1", "200"]).unwrap();
+        match cli.command {
+            Command::Level { action: LevelAction::Set { node_id, endpoint, level, transition } } => {
+                assert_eq!(node_id, 1);
+                assert_eq!(endpoint, 1);
+                assert_eq!(level, 200);
+                assert_eq!(transition, 0); // default
+            }
+            other => panic!("unexpected: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn level_set_with_transition() {
+        let cli = parse(&["level", "set", "1", "1", "128", "--transition", "10"]).unwrap();
+        match cli.command {
+            Command::Level { action: LevelAction::Set { transition, .. } } => {
+                assert_eq!(transition, 10);
+            }
+            other => panic!("unexpected: {other:?}"),
+        }
+    }
+
+    // ── invoke / read ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn invoke_hex_cluster_and_cmd() {
+        let cli = parse(&["invoke", "1", "1", "0x0006", "0x01"]).unwrap();
+        match cli.command {
+            Command::Invoke { cluster_id, command_id, payload_hex, .. } => {
+                assert_eq!(cluster_id, 0x0006);
+                assert_eq!(command_id, 0x01);
+                assert!(payload_hex.is_none());
+            }
+            other => panic!("unexpected: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn invoke_with_payload() {
+        let cli = parse(&["invoke", "1", "1", "0x0006", "0x01", "DEADBEEF"]).unwrap();
+        match cli.command {
+            Command::Invoke { payload_hex, .. } => {
+                assert_eq!(payload_hex.as_deref(), Some("DEADBEEF"));
+            }
+            other => panic!("unexpected: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn read_hex_cluster_and_attr() {
+        let cli = parse(&["read", "5", "2", "0x0006", "0x0000"]).unwrap();
+        match cli.command {
+            Command::Read { node_id, endpoint, cluster_id, attribute_id } => {
+                assert_eq!(node_id, 5);
+                assert_eq!(endpoint, 2);
+                assert_eq!(cluster_id, 0x0006);
+                assert_eq!(attribute_id, 0x0000);
+            }
+            other => panic!("unexpected: {other:?}"),
+        }
+    }
+
+    // ── global flags ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn global_json_flag() {
+        let cli = parse(&["--json", "devices"]).unwrap();
+        assert!(cli.json);
+    }
+
+    #[test]
+    fn global_verbose_flag() {
+        let cli = parse(&["-v", "devices"]).unwrap();
+        assert!(cli.verbose);
+    }
+
+    #[test]
+    fn global_fabric_dir() {
+        let cli = parse(&["--fabric-dir", "/tmp/myfabric", "devices"]).unwrap();
+        assert_eq!(cli.fabric_dir, Some(PathBuf::from("/tmp/myfabric")));
+    }
+
+    // ── hex parsers ───────────────────────────────────────────────────────────
+
+    #[test]
+    fn parse_hex_u32_with_prefix() {
+        assert_eq!(parse_hex_u32("0x0006").unwrap(), 6);
+        assert_eq!(parse_hex_u32("0XFFF1").unwrap(), 0xFFF1);
+        assert_eq!(parse_hex_u32("DEAD").unwrap(), 0xDEAD);
+    }
+
+    #[test]
+    fn parse_hex_u32_invalid() {
+        assert!(parse_hex_u32("0xGGGG").is_err());
+    }
+
+    #[test]
+    fn parse_hex_u16_limits() {
+        assert_eq!(parse_hex_u16("0xFFFF").unwrap(), 0xFFFF);
+        assert!(parse_hex_u16("0x10000").is_err()); // overflows u16
+    }
+
+    // ── discover / serve / fabric ─────────────────────────────────────────────
+
+    #[test]
+    fn discover_default_timeout() {
+        let cli = parse(&["discover"]).unwrap();
+        assert!(matches!(cli.command, Command::Discover { timeout: 5 }));
+    }
+
+    #[test]
+    fn discover_custom_timeout() {
+        let cli = parse(&["discover", "--timeout", "30"]).unwrap();
+        assert!(matches!(cli.command, Command::Discover { timeout: 30 }));
+    }
+
+    #[test]
+    fn fabric_info() {
+        let cli = parse(&["fabric", "info"]).unwrap();
+        assert!(matches!(
+            cli.command,
+            Command::Fabric { action: FabricAction::Info }
+        ));
+    }
+
+    #[test]
+    fn fabric_reset() {
+        let cli = parse(&["fabric", "reset"]).unwrap();
+        assert!(matches!(
+            cli.command,
+            Command::Fabric { action: FabricAction::Reset }
+        ));
+    }
+
+    #[test]
+    fn serve_defaults() {
+        let cli = parse(&["serve"]).unwrap();
+        match cli.command {
+            Command::Serve {
+                device_name,
+                vendor_id,
+                product_id,
+                discriminator,
+                passcode,
+                port,
+                storage,
+            } => {
+                assert_eq!(device_name, "Brainwires Matter Device");
+                assert_eq!(vendor_id, 0xFFF1);
+                assert_eq!(product_id, 0x8001);
+                assert_eq!(discriminator, 3840);
+                assert_eq!(passcode, 20202021);
+                assert_eq!(port, 5540);
+                assert!(storage.is_none());
+            }
+            other => panic!("unexpected: {other:?}"),
+        }
+    }
+}
