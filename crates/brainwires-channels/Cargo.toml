@@ -60,3 +60,5 @@ webrtc-advanced = ["webrtc", "dep:rtc-interceptor", "dep:rtc-ice"]
 
 [dev-dependencies]
 serde_json = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+anyhow = { workspace = true }

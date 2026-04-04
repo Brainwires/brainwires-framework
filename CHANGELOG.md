@@ -9,6 +9,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### GitHub Channel Adapter (`extras/brainclaw/mcp-github`)
+
+- **New `brainclaw-mcp-github` crate** — full GitHub channel adapter for the Brainwires gateway. Receives GitHub webhook events and exposes GitHub operations as an MCP tool server.
+- **Webhook receiver** — Axum HTTP server with HMAC-SHA256 signature verification (`X-Hub-Signature-256`). Normalises `issue_comment`, `issues`, `pull_request`, and `pull_request_review_comment` events into `ChannelMessage` values.
+- **`GitHubChannel`** — implements the `Channel` trait against the GitHub REST API: post/edit/delete comments, list issue comments, add reactions (with Unicode emoji → GitHub reaction name mapping), retrieve issue history.
+- **MCP tool server** — 10 tools via rmcp `tool_router` macros: `post_comment`, `edit_comment`, `delete_comment`, `get_comments`, `create_issue`, `close_issue`, `add_labels`, `create_pull_request`, `merge_pull_request`, `add_reaction`. Runs over stdio alongside the gateway client.
+- **Gateway client** — mirrors the `mcp-discord` gateway client pattern: `ChannelHandshake { channel_type: "github" }`, bidirectional `ChannelEvent` ↔ gateway WebSocket forwarding.
+- **Config** — env-var driven: `GITHUB_TOKEN`, `GITHUB_WEBHOOK_SECRET`, `WEBHOOK_ADDR` (default `0.0.0.0:9000`), `GATEWAY_URL`, `GATEWAY_TOKEN`, `GITHUB_REPOS` (comma-separated allowlist), `GITHUB_API_URL`.
+- **CLI** — `serve` and `version` subcommands via Clap. `--mcp` flag enables the MCP stdio server alongside the gateway client.
+- **Tests** — HMAC-SHA256 signature verification, `normalise()` for all four event types, `GitHubChannel` conversation/message-ID parsing, reaction emoji mapping.
+
+#### Multi-Turn Conversation History (`extras/voice-assistant`)
+
+- **`LlmHandler` history** — added `history: Mutex<Vec<OpenAIMessage>>` to `LlmHandler`. Each completed STT→LLM turn appends the user message and assistant reply; the system prompt is prepended fresh on every request. The assistant can now reference earlier turns within a session. `clear_history()` provided for explicit reset.
+
+#### New Examples
+
+- **`brainwires-mcp-server/examples/hello_world_server.rs`** — minimal runnable stdio MCP server with `echo` and `greet` tools. Demonstrates `McpServer`, `McpToolRegistry::dispatch`, `Content::text`, and `LoggingMiddleware`. Can be exercised with raw JSON-RPC on stdin.
+- **`brainwires-channels/examples/mock_channel.rs`** — reference `Channel` trait implementation backed by an in-memory `HashMap`. Exercises all six trait methods (`send_message`, `edit_message`, `delete_message`, `add_reaction`, `get_history`, `set_presence`). Serves as the blueprint for real channel adapters.
+- **`brainwires-analytics/examples/track_agent_run.rs`** — end-to-end demo of `AnalyticsCollector` + `MemoryAnalyticsSink`. Records `ProviderCall`, `ToolCall`, and `AgentRun` events, calls `flush()`, then snapshots the sink to verify event counts and cost tallies.
+
+### Changed
+
+#### CI Hardening
+
+- **MSRV job** — new `msrv` CI job pins `rustup override set 1.91` and runs `cargo check --workspace`, validating the declared `rust-version` on every push.
+- **Stub guard job** — new `stubs` CI job runs `cargo xtask check-stubs crates/ extras/` to fail the build if new `todo!()`/`unimplemented!()`/`FIXME` markers are introduced outside test blocks.
+- **Deno check/lint/test job** — new `deno` CI job runs `deno check`, `deno lint`, and `deno test --allow-all` against the `deno/` workspace.
+- **`brainwires-channels` dev-dependencies** — added `tokio` (full) and `anyhow` to `[dev-dependencies]` to support the new `mock_channel` example.
+
+### Removed
+
+- **Stale `persistent_task_manager` comments** in `brainwires-storage/src/lib.rs` — removed phantom TODO and re-export comments referencing a module that was never implemented. Replaced with a concise note pointing future implementors toward `brainwires-agents`.
+
 #### Full Matter 1.3 Protocol Stack (`brainwires-hardware`)
 
 - **SPAKE2+ Augmented PAKE** (RFC 9383) — pure Rust implementation using RustCrypto p256, implemented from scratch due to the absence of a production-ready SPAKE2+ crate. Prover + Verifier roles, PBKDF2-HMAC-SHA256 passcode derivation, HMAC-SHA256 confirmation (cA/cB).

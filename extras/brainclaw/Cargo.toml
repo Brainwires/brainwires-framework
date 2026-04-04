@@ -3,6 +3,7 @@ members = [
     "daemon",
     "gateway",
     "mcp-discord",
+    "mcp-github",
     "mcp-telegram",
     "mcp-slack",
     "mcp-skill-registry",
