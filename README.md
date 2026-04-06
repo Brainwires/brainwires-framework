@@ -1,5 +1,13 @@
 # Brainwires Framework
 
+[![CI](https://github.com/Brainwires/brainwires-framework/actions/workflows/ci.yml/badge.svg)](https://github.com/Brainwires/brainwires-framework/actions/workflows/ci.yml)
+[![Crates.io](https://img.shields.io/crates/v/brainwires.svg)](https://crates.io/crates/brainwires)
+[![Documentation](https://docs.rs/brainwires/badge.svg)](https://docs.rs/brainwires)
+[![Tests](https://img.shields.io/badge/tests-11%2C749%20passing-brightgreen)](#testing)
+[![Lines of Code](https://img.shields.io/badge/loc-112k-blue)](#)
+[![License](https://img.shields.io/badge/license-MIT%20%7C%20Apache--2.0-blue)](https://github.com/Brainwires/brainwires-framework/blob/main/LICENSE-MIT)
+[![Rust](https://img.shields.io/badge/rust-1.91%2B%20%7C%202024%20edition-orange)](https://www.rust-lang.org/)
+
 A modular Rust framework for building AI agents with multi-provider support, tool orchestration, MCP integration, and pluggable agent networking.
 
 ## Overview
