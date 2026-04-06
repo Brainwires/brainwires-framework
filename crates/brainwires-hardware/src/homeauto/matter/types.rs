@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use super::super::types::Capability;
+use serde::{Deserialize, Serialize};
 
 /// A commissioned Matter device on the fabric.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -114,7 +114,9 @@ impl MatterDeviceConfigBuilder {
     }
     pub fn build(self) -> MatterDeviceConfig {
         MatterDeviceConfig {
-            device_name: self.device_name.unwrap_or_else(|| "Brainwires Device".into()),
+            device_name: self
+                .device_name
+                .unwrap_or_else(|| "Brainwires Device".into()),
             vendor_id: self.vendor_id.unwrap_or(0xFFF1), // test VID
             product_id: self.product_id.unwrap_or(0x8001),
             discriminator: self.discriminator.unwrap_or(3840),

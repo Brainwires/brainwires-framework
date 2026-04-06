@@ -53,6 +53,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Deno check/lint/test job** — new `deno` CI job runs `deno check`, `deno lint`, and `deno test --allow-all` against the `deno/` workspace.
 - **`brainwires-channels` dev-dependencies** — added `tokio` (full) and `anyhow` to `[dev-dependencies]` to support the new `mock_channel` example.
 
+#### `xtask` — Autofix Mode
+
+- **`--fix` flag** — `cargo xtask --fix` now auto-heals CI failures. Format issues are fixed by running `cargo fmt --all` directly; check, clippy, test, and doc failures are dispatched to Claude Code CLI (`claude -p`) with captured error output, scoped tool permissions (`Read,Edit,Glob,Grep,Bash(cargo *)`), and a turn limit. Each failed step is re-verified after the fix attempt.
+- **`--max-turns <N>`** — configurable turn limit per Claude fix invocation (default: 30). Gracefully skips Claude fixes when the `claude` binary is not on PATH.
+
 ### Removed
 
 - **Stale `persistent_task_manager` comments** in `brainwires-storage/src/lib.rs` — removed phantom TODO and re-export comments referencing a module that was never implemented. Replaced with a concise note pointing future implementors toward `brainwires-agents`.

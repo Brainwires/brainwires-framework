@@ -10,10 +10,6 @@ Status of code execution abilities.
 
 High Entropy Task Runner... If some task could potentially have a very large context consumption, we should have a way to run it in a more isolated context and just consume the results in the main context. This could be done by having a separate "task runner" agent that can be spawned with a specific task and context, and then the main agent can communicate with it to get updates and results.
 
-2. ~~GitHub as a channel for framework / BrainClaw app development and collaboration.~~ ✓ Implemented in `extras/brainclaw/mcp-github` — webhook receiver, `GitHubChannel` adapter, MCP tool server (10 tools), gateway client.
-
-3. YouTube API as a channel.
-
 Advertiste to the universities
 
 Using xtask as an MCP server - Still doing xtask's just with an MCP interface instead of a CLI interface.

@@ -7,7 +7,6 @@
 /// - [`Privilege`] — access privilege levels (Matter spec §6.6.5.1).
 /// - [`acl`] — Access Control List enforcement.
 /// - [`clusters`] — commissioning and basic-information cluster servers.
-
 pub mod acl;
 pub mod clusters;
 
@@ -27,10 +26,10 @@ use crate::homeauto::matter::interaction_model::{
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Privilege {
-    View       = 1,
-    ProxyView  = 2,
-    Operate    = 3,
-    Manage     = 4,
+    View = 1,
+    ProxyView = 2,
+    Operate = 3,
+    Manage = 4,
     Administer = 5,
 }
 
@@ -72,7 +71,9 @@ pub struct DataModelNode {
 impl DataModelNode {
     /// Create an empty node.
     pub fn new() -> Self {
-        Self { endpoints: HashMap::new() }
+        Self {
+            endpoints: HashMap::new(),
+        }
     }
 
     /// Add a cluster server to the given endpoint.  Replaces any existing
@@ -137,17 +138,16 @@ impl DataModelNode {
         cmd_id: u32,
         args: &[u8],
     ) -> MatterResult<Vec<u8>> {
-        let ep = self
-            .endpoints
-            .get(&endpoint)
-            .ok_or_else(|| crate::homeauto::matter::error::MatterError::Transport(
-                format!("endpoint {endpoint} not found"),
-            ))?;
-        let server = ep
-            .get(&cluster_id)
-            .ok_or_else(|| crate::homeauto::matter::error::MatterError::Transport(
-                format!("cluster {cluster_id:#010x} not found on endpoint {endpoint}"),
-            ))?;
+        let ep = self.endpoints.get(&endpoint).ok_or_else(|| {
+            crate::homeauto::matter::error::MatterError::Transport(format!(
+                "endpoint {endpoint} not found"
+            ))
+        })?;
+        let server = ep.get(&cluster_id).ok_or_else(|| {
+            crate::homeauto::matter::error::MatterError::Transport(format!(
+                "cluster {cluster_id:#010x} not found on endpoint {endpoint}"
+            ))
+        })?;
         server.invoke_command(cmd_id, args).await
     }
 
@@ -189,18 +189,16 @@ impl DataModelNode {
                 path: path.clone(),
                 status: InteractionStatus::UnsupportedCluster,
             },
-            Some(server) => {
-                match server.write_attribute(attr_id, &data.data).await {
-                    Ok(()) => AttributeStatus {
-                        path: path.clone(),
-                        status: InteractionStatus::Success,
-                    },
-                    Err(_) => AttributeStatus {
-                        path: path.clone(),
-                        status: InteractionStatus::Failure,
-                    },
-                }
-            }
+            Some(server) => match server.write_attribute(attr_id, &data.data).await {
+                Ok(()) => AttributeStatus {
+                    path: path.clone(),
+                    status: InteractionStatus::Success,
+                },
+                Err(_) => AttributeStatus {
+                    path: path.clone(),
+                    status: InteractionStatus::Failure,
+                },
+            },
         }
     }
 }
@@ -215,8 +213,7 @@ impl Default for DataModelNode {
 
 pub use acl::{AccessControlEntry, AccessControlList, AclTarget};
 pub use clusters::{
-    basic_information::BasicInformationCluster,
-    general_commissioning::GeneralCommissioningCluster,
+    basic_information::BasicInformationCluster, general_commissioning::GeneralCommissioningCluster,
     network_commissioning::NetworkCommissioningCluster,
     operational_credentials::OperationalCredentialsCluster,
 };

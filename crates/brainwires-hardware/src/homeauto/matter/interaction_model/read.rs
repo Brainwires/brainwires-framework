@@ -27,9 +27,8 @@
 ///   tag 4: bool                   // suppress_response
 /// }
 /// ```
-
 use super::super::clusters::{
-    tlv, tlv_bool, tlv_uint32, wrap_list_tagged, wrap_struct, wrap_struct_tagged, AttributePath,
+    AttributePath, tlv, tlv_bool, tlv_uint32, wrap_list_tagged, wrap_struct, wrap_struct_tagged,
 };
 use super::super::error::{MatterError, MatterResult};
 
@@ -47,7 +46,10 @@ pub struct ReadRequest {
 impl ReadRequest {
     /// Construct a new read request for the given paths.
     pub fn new(paths: Vec<AttributePath>) -> Self {
-        Self { attribute_requests: paths, fabric_filtered: false }
+        Self {
+            attribute_requests: paths,
+            fabric_filtered: false,
+        }
     }
 
     /// TLV-encode the `ReadRequest`.
@@ -80,14 +82,18 @@ impl ReadRequest {
     /// Decode a `ReadRequest` from TLV bytes.
     pub fn decode(bytes: &[u8]) -> MatterResult<Self> {
         if bytes.is_empty() || bytes[0] != tlv::TYPE_STRUCTURE {
-            return Err(MatterError::Transport("ReadRequest: expected structure".into()));
+            return Err(MatterError::Transport(
+                "ReadRequest: expected structure".into(),
+            ));
         }
         let mut attribute_requests = Vec::new();
         let mut fabric_filtered = false;
 
         let mut i = 1;
         while i < bytes.len() {
-            if bytes[i] == tlv::TYPE_END_OF_CONTAINER { break; }
+            if bytes[i] == tlv::TYPE_END_OF_CONTAINER {
+                break;
+            }
             if i + 1 >= bytes.len() {
                 return Err(MatterError::Transport("ReadRequest: truncated".into()));
             }
@@ -103,37 +109,48 @@ impl ReadRequest {
                         // Each path is a structure
                         let start = i;
                         if bytes[i] != tlv::TYPE_STRUCTURE {
-                            return Err(MatterError::Transport("ReadRequest: expected path struct".into()));
+                            return Err(MatterError::Transport(
+                                "ReadRequest: expected path struct".into(),
+                            ));
                         }
                         // Scan to matching END_OF_CONTAINER
                         i += 1;
                         let mut depth = 1u32;
                         while i < bytes.len() && depth > 0 {
-                            if bytes[i] == tlv::TYPE_END_OF_CONTAINER { depth -= 1; }
-                            else if bytes[i] == tlv::TYPE_STRUCTURE
+                            if bytes[i] == tlv::TYPE_END_OF_CONTAINER {
+                                depth -= 1;
+                            } else if bytes[i] == tlv::TYPE_STRUCTURE
                                 || bytes[i] == tlv::TYPE_LIST
                                 || bytes[i] == (tlv::TAG_CONTEXT_1 | tlv::TYPE_STRUCTURE)
                                 || bytes[i] == (tlv::TAG_CONTEXT_1 | tlv::TYPE_LIST)
-                            { depth += 1; }
+                            {
+                                depth += 1;
+                            }
                             i += 1;
                         }
-                        let path = AttributePath::decode(&bytes[start..i])
-                            .ok_or_else(|| MatterError::Transport("ReadRequest: bad AttributePath".into()))?;
+                        let path = AttributePath::decode(&bytes[start..i]).ok_or_else(|| {
+                            MatterError::Transport("ReadRequest: bad AttributePath".into())
+                        })?;
                         attribute_requests.push(path);
                     }
-                    if i < bytes.len() { i += 1; } // consume END_OF_CONTAINER for list
+                    if i < bytes.len() {
+                        i += 1;
+                    } // consume END_OF_CONTAINER for list
                 }
                 (3, t) if t == tlv::TYPE_BOOL_TRUE || t == tlv::TYPE_BOOL_FALSE => {
                     fabric_filtered = t == tlv::TYPE_BOOL_TRUE;
                 }
                 _ => {
-                    return Err(MatterError::Transport(
-                        format!("ReadRequest: unexpected field tag={tag} ctrl={ctrl:#04x}")
-                    ));
+                    return Err(MatterError::Transport(format!(
+                        "ReadRequest: unexpected field tag={tag} ctrl={ctrl:#04x}"
+                    )));
                 }
             }
         }
-        Ok(Self { attribute_requests, fabric_filtered })
+        Ok(Self {
+            attribute_requests,
+            fabric_filtered,
+        })
     }
 }
 
@@ -159,7 +176,8 @@ impl AttributeData {
     /// }
     /// ```
     pub fn encode(&self) -> Vec<u8> {
-        let path_tagged = wrap_struct_tagged(0, &self.path.encode()[1..self.path.encode().len() - 1]);
+        let path_tagged =
+            wrap_struct_tagged(0, &self.path.encode()[1..self.path.encode().len() - 1]);
         // tag 1: raw data — wrap data bytes as a context-tagged anonymous blob
         // We treat data as a pre-encoded TLV octet — embed verbatim with tag 1 prefix
         let data_tagged = {
@@ -178,14 +196,20 @@ impl AttributeData {
 
     /// Decode an `AttributeData` from TLV bytes produced by [`AttributeData::encode`].
     pub fn decode(bytes: &[u8]) -> Option<Self> {
-        if bytes.is_empty() || bytes[0] != tlv::TYPE_STRUCTURE { return None; }
+        if bytes.is_empty() || bytes[0] != tlv::TYPE_STRUCTURE {
+            return None;
+        }
         let mut path: Option<AttributePath> = None;
         let mut data: Option<Vec<u8>> = None;
         let mut i = 1;
 
         while i < bytes.len() {
-            if bytes[i] == tlv::TYPE_END_OF_CONTAINER { break; }
-            if i + 1 >= bytes.len() { return None; }
+            if bytes[i] == tlv::TYPE_END_OF_CONTAINER {
+                break;
+            }
+            if i + 1 >= bytes.len() {
+                return None;
+            }
             let ctrl = bytes[i];
             let tag = bytes[i + 1];
             i += 2;
@@ -198,8 +222,11 @@ impl AttributeData {
                     let start = i;
                     let mut depth = 1u32;
                     while i < bytes.len() && depth > 0 {
-                        if bytes[i] == tlv::TYPE_END_OF_CONTAINER { depth -= 1; }
-                        else if bytes[i] == tlv::TYPE_STRUCTURE { depth += 1; }
+                        if bytes[i] == tlv::TYPE_END_OF_CONTAINER {
+                            depth -= 1;
+                        } else if bytes[i] == tlv::TYPE_STRUCTURE {
+                            depth += 1;
+                        }
                         i += 1;
                     }
                     // Reconstruct: prepend TYPE_STRUCTURE, the body is bytes[start..i-1], then END
@@ -213,8 +240,11 @@ impl AttributeData {
                     let start = i;
                     let mut depth = 1u32;
                     while i < bytes.len() && depth > 0 {
-                        if bytes[i] == tlv::TYPE_END_OF_CONTAINER { depth -= 1; }
-                        else if bytes[i] == tlv::TYPE_STRUCTURE { depth += 1; }
+                        if bytes[i] == tlv::TYPE_END_OF_CONTAINER {
+                            depth -= 1;
+                        } else if bytes[i] == tlv::TYPE_STRUCTURE {
+                            depth += 1;
+                        }
                         i += 1;
                     }
                     data = Some(bytes[start..i - 1].to_vec());
@@ -222,7 +252,10 @@ impl AttributeData {
                 _ => return None,
             }
         }
-        Some(Self { path: path?, data: data.unwrap_or_default() })
+        Some(Self {
+            path: path?,
+            data: data.unwrap_or_default(),
+        })
     }
 }
 
@@ -267,7 +300,9 @@ impl ReportData {
     /// Decode a `ReportData` from TLV bytes.
     pub fn decode(bytes: &[u8]) -> MatterResult<Self> {
         if bytes.is_empty() || bytes[0] != tlv::TYPE_STRUCTURE {
-            return Err(MatterError::Transport("ReportData: expected structure".into()));
+            return Err(MatterError::Transport(
+                "ReportData: expected structure".into(),
+            ));
         }
         let mut subscription_id = None;
         let mut attribute_reports = Vec::new();
@@ -275,7 +310,9 @@ impl ReportData {
         let mut i = 1;
 
         while i < bytes.len() {
-            if bytes[i] == tlv::TYPE_END_OF_CONTAINER { break; }
+            if bytes[i] == tlv::TYPE_END_OF_CONTAINER {
+                break;
+            }
             if i + 1 >= bytes.len() {
                 return Err(MatterError::Transport("ReportData: truncated".into()));
             }
@@ -287,8 +324,9 @@ impl ReportData {
             match (tag, type_bits) {
                 (0, t) if t == tlv::TYPE_UNSIGNED_INT_4 => {
                     use super::super::clusters::read_u32_le;
-                    let (v, next) = read_u32_le(bytes, i)
-                        .ok_or_else(|| MatterError::Transport("ReportData: bad subscription_id".into()))?;
+                    let (v, next) = read_u32_le(bytes, i).ok_or_else(|| {
+                        MatterError::Transport("ReportData: bad subscription_id".into())
+                    })?;
                     subscription_id = Some(v);
                     i = next;
                 }
@@ -296,35 +334,47 @@ impl ReportData {
                     // Read list of AttributeData structs
                     while i < bytes.len() && bytes[i] != tlv::TYPE_END_OF_CONTAINER {
                         if bytes[i] != tlv::TYPE_STRUCTURE {
-                            return Err(MatterError::Transport("ReportData: expected AttributeData struct".into()));
+                            return Err(MatterError::Transport(
+                                "ReportData: expected AttributeData struct".into(),
+                            ));
                         }
                         let start = i;
                         i += 1;
                         let mut depth = 1u32;
                         while i < bytes.len() && depth > 0 {
-                            if bytes[i] == tlv::TYPE_END_OF_CONTAINER { depth -= 1; }
-                            else if bytes[i] == tlv::TYPE_STRUCTURE
+                            if bytes[i] == tlv::TYPE_END_OF_CONTAINER {
+                                depth -= 1;
+                            } else if bytes[i] == tlv::TYPE_STRUCTURE
                                 || bytes[i] == (tlv::TAG_CONTEXT_1 | tlv::TYPE_STRUCTURE)
-                            { depth += 1; }
+                            {
+                                depth += 1;
+                            }
                             i += 1;
                         }
-                        let attr = AttributeData::decode(&bytes[start..i])
-                            .ok_or_else(|| MatterError::Transport("ReportData: bad AttributeData".into()))?;
+                        let attr = AttributeData::decode(&bytes[start..i]).ok_or_else(|| {
+                            MatterError::Transport("ReportData: bad AttributeData".into())
+                        })?;
                         attribute_reports.push(attr);
                     }
-                    if i < bytes.len() { i += 1; } // consume END_OF_CONTAINER
+                    if i < bytes.len() {
+                        i += 1;
+                    } // consume END_OF_CONTAINER
                 }
                 (4, t) if t == tlv::TYPE_BOOL_TRUE || t == tlv::TYPE_BOOL_FALSE => {
                     suppress_response = t == tlv::TYPE_BOOL_TRUE;
                 }
                 _ => {
-                    return Err(MatterError::Transport(
-                        format!("ReportData: unexpected field tag={tag} ctrl={ctrl:#04x}")
-                    ));
+                    return Err(MatterError::Transport(format!(
+                        "ReportData: unexpected field tag={tag} ctrl={ctrl:#04x}"
+                    )));
                 }
             }
         }
-        Ok(Self { subscription_id, attribute_reports, suppress_response })
+        Ok(Self {
+            subscription_id,
+            attribute_reports,
+            suppress_response,
+        })
     }
 }
 
@@ -332,8 +382,8 @@ impl ReportData {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::super::clusters::AttributePath;
+    use super::*;
 
     #[test]
     fn read_request_single_path_roundtrip() {
@@ -367,8 +417,14 @@ mod tests {
         let decoded = ReportData::decode(&encoded).expect("decode failed");
         assert_eq!(decoded.subscription_id, Some(42));
         assert_eq!(decoded.attribute_reports.len(), 2);
-        assert_eq!(decoded.attribute_reports[0].path, AttributePath::specific(1, 0x0006, 0x0000));
-        assert_eq!(decoded.attribute_reports[1].path, AttributePath::specific(1, 0x0008, 0x0000));
+        assert_eq!(
+            decoded.attribute_reports[0].path,
+            AttributePath::specific(1, 0x0006, 0x0000)
+        );
+        assert_eq!(
+            decoded.attribute_reports[1].path,
+            AttributePath::specific(1, 0x0008, 0x0000)
+        );
         assert!(!decoded.suppress_response);
     }
 }

@@ -187,7 +187,8 @@ impl MatterMessage {
         };
 
         // Session type from Security Flags bits 7:3.
-        let session_type_bits = (security_flags & SECFLAG_SESSION_TYPE_MASK) >> SECFLAG_SESSION_TYPE_SHIFT;
+        let session_type_bits =
+            (security_flags & SECFLAG_SESSION_TYPE_MASK) >> SECFLAG_SESSION_TYPE_SHIFT;
         let session_type = if session_type_bits == 0 {
             SessionType::Unicast
         } else {
@@ -298,7 +299,10 @@ mod tests {
         let msg = make_message(5, None, Some(NodeAddress::Group(0xFF01)), 99, vec![1, 2, 3]);
         let encoded = msg.encode();
         let decoded = MatterMessage::decode(&encoded).expect("decode failed");
-        assert_eq!(decoded.header.dest_node_id, Some(NodeAddress::Group(0xFF01)));
+        assert_eq!(
+            decoded.header.dest_node_id,
+            Some(NodeAddress::Group(0xFF01))
+        );
         assert_eq!(decoded.payload, vec![1, 2, 3]);
     }
 }

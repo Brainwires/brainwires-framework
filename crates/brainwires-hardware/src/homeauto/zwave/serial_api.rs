@@ -14,23 +14,22 @@
 /// - ACK = 0x06 (frame received OK)
 /// - NAK = 0x15 (frame rejected, retransmit)
 /// - CAN = 0x18 (host cancelled / collision)
-
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::sync::{mpsc, oneshot, Mutex};
+use tokio::sync::{Mutex, mpsc, oneshot};
 use tokio::time::timeout;
 use tokio_serial::SerialStream;
 use tracing::{debug, error, warn};
 
-use crate::homeauto::error::{HomeAutoError, HomeAutoResult};
-use crate::homeauto::types::{HomeAutoEvent, Protocol};
-use super::types::{NodeId, ZWaveNode};
 use super::ZWaveController;
 use super::command_class::CommandClass;
+use super::types::{NodeId, ZWaveNode};
+use crate::homeauto::error::{HomeAutoError, HomeAutoResult};
+use crate::homeauto::types::{HomeAutoEvent, Protocol};
 
 // ── Wire constants ────────────────────────────────────────────────────────────
 
@@ -45,7 +44,7 @@ pub const FRAME_TYPE_RES: u8 = 0x01;
 // ── ZAPI command IDs ─────────────────────────────────────────────────────────
 
 pub const GET_CAPABILITIES: u8 = 0x07;
-pub const SERIAL_API_STARTED: u8 = 0x0A;          // REQ from controller after reset
+pub const SERIAL_API_STARTED: u8 = 0x0A; // REQ from controller after reset
 pub const GET_VERSION: u8 = 0x15;
 pub const SEND_DATA: u8 = 0x13;
 pub const SEND_DATA_MULTI: u8 = 0x14;
@@ -88,7 +87,11 @@ pub struct ZApiFrame {
 
 impl ZApiFrame {
     pub fn new_request(cmd_id: u8, data: Vec<u8>) -> Self {
-        Self { frame_type: FRAME_TYPE_REQ, cmd_id, data }
+        Self {
+            frame_type: FRAME_TYPE_REQ,
+            cmd_id,
+            data,
+        }
     }
 
     /// Encode to wire bytes (SOF | LEN | TYPE | CMD_ID | DATA | CS).
@@ -123,7 +126,14 @@ impl ZApiFrame {
             return Err("ZAPI checksum mismatch");
         }
         let total = 1 + len + 1; // LEN byte + content + CS
-        Ok((Self { frame_type, cmd_id, data: payload }, total))
+        Ok((
+            Self {
+                frame_type,
+                cmd_id,
+                data: payload,
+            },
+            total,
+        ))
     }
 }
 
@@ -200,7 +210,9 @@ impl ZWaveSerialController {
                 Err(_) => return Err(HomeAutoError::Timeout),
             }
         }
-        Err(HomeAutoError::ZWaveNak { retries: MAX_RETRIES })
+        Err(HomeAutoError::ZWaveNak {
+            retries: MAX_RETRIES,
+        })
     }
 
     /// Allocate a new callback function ID (1–255, wraps).
@@ -353,7 +365,10 @@ impl ZWaveController for ZWaveSerialController {
                 for bit in 0..8 {
                     if byte & (1 << bit) != 0 {
                         let node_id = (byte_idx * 8 + bit + 1) as NodeId;
-                        inner.nodes.entry(node_id).or_insert_with(|| ZWaveNode::new(node_id));
+                        inner
+                            .nodes
+                            .entry(node_id)
+                            .or_insert_with(|| ZWaveNode::new(node_id));
                     }
                 }
             }
@@ -370,11 +385,13 @@ impl ZWaveController for ZWaveSerialController {
     async fn include_node(&self, timeout_secs: u8) -> HomeAutoResult<ZWaveNode> {
         // Start inclusion (ADD_NODE_ANY)
         let cb_id = self.next_callback_id().await;
-        self.send_request(ADD_NODE_TO_NETWORK, vec![ADD_NODE_ANY, cb_id]).await?;
+        self.send_request(ADD_NODE_TO_NETWORK, vec![ADD_NODE_ANY, cb_id])
+            .await?;
         // Wait for the node to be added (event arrives via APPLICATION_COMMAND_HANDLER)
         tokio::time::sleep(Duration::from_secs(timeout_secs as u64)).await;
         // Stop inclusion
-        self.send_request(ADD_NODE_TO_NETWORK, vec![ADD_NODE_STOP, 0]).await?;
+        self.send_request(ADD_NODE_TO_NETWORK, vec![ADD_NODE_STOP, 0])
+            .await?;
         // Return the most recently added node
         let inner = self.inner.lock().await;
         inner
@@ -387,9 +404,11 @@ impl ZWaveController for ZWaveSerialController {
 
     async fn exclude_node(&self, timeout_secs: u8) -> HomeAutoResult<()> {
         let cb_id = self.next_callback_id().await;
-        self.send_request(REMOVE_NODE_FROM_NETWORK, vec![REMOVE_NODE_ANY, cb_id]).await?;
+        self.send_request(REMOVE_NODE_FROM_NETWORK, vec![REMOVE_NODE_ANY, cb_id])
+            .await?;
         tokio::time::sleep(Duration::from_secs(timeout_secs as u64)).await;
-        self.send_request(REMOVE_NODE_FROM_NETWORK, vec![REMOVE_NODE_STOP, 0]).await?;
+        self.send_request(REMOVE_NODE_FROM_NETWORK, vec![REMOVE_NODE_STOP, 0])
+            .await?;
         Ok(())
     }
 
@@ -397,15 +416,9 @@ impl ZWaveController for ZWaveSerialController {
         Ok(self.inner.lock().await.nodes.values().cloned().collect())
     }
 
-    async fn send_cc(
-        &self,
-        node_id: NodeId,
-        cc: CommandClass,
-        data: &[u8],
-    ) -> HomeAutoResult<()> {
+    async fn send_cc(&self, node_id: NodeId, cc: CommandClass, data: &[u8]) -> HomeAutoResult<()> {
         let cb_id = self.next_callback_id().await;
-        let tx_opts =
-            TRANSMIT_OPTION_ACK | TRANSMIT_OPTION_AUTO_ROUTE | TRANSMIT_OPTION_EXPLORE;
+        let tx_opts = TRANSMIT_OPTION_ACK | TRANSMIT_OPTION_AUTO_ROUTE | TRANSMIT_OPTION_EXPLORE;
         // SEND_DATA payload: nodeId(1) | dataLen(1) | cc(1) | data... | txOptions(1) | callbackId(1)
         let mut payload = vec![node_id, (1 + data.len()) as u8, cc.id()];
         payload.extend_from_slice(data);
@@ -474,7 +487,11 @@ mod tests {
         // Construct a minimal APPLICATION_COMMAND_HANDLER RES frame
         let cmd_id = APPLICATION_COMMAND_HANDLER;
         let data: Vec<u8> = vec![0x00, 0x05, 0x03, 0x25, 0x03, 0xFF]; // rxStat|src|len|SWITCH_BINARY|REPORT|value
-        let frame = ZApiFrame { frame_type: FRAME_TYPE_REQ, cmd_id, data: data.clone() };
+        let frame = ZApiFrame {
+            frame_type: FRAME_TYPE_REQ,
+            cmd_id,
+            data: data.clone(),
+        };
         let encoded = frame.encode();
         // Decode starting after SOF
         let (decoded, _) = ZApiFrame::decode_after_sof(&encoded[1..]).unwrap();

@@ -1,7 +1,7 @@
 //! Helper functions for NornicDB query construction and result mapping.
 
-use serde_json::{Value, json};
 use brainwires_core::SearchResult;
+use serde_json::{Value, json};
 
 // ── Helper functions ────────────────────────────────────────────────────
 

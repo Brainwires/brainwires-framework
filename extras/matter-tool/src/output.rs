@@ -1,5 +1,4 @@
 /// Output rendering helpers: pretty text or machine-readable JSON.
-
 use brainwires_hardware::homeauto::{AttributeValue, MatterDevice};
 
 pub struct Output {
@@ -14,7 +13,10 @@ impl Output {
     /// Print a simple success message.
     pub fn ok(&self, msg: &str) {
         if self.json {
-            println!("{{\"ok\":true,\"msg\":{}}}", serde_json::to_string(msg).unwrap());
+            println!(
+                "{{\"ok\":true,\"msg\":{}}}",
+                serde_json::to_string(msg).unwrap()
+            );
         } else {
             println!("✓ {msg}");
         }
@@ -23,7 +25,10 @@ impl Output {
     /// Print an error (does not exit).
     pub fn err(&self, msg: &str) {
         if self.json {
-            eprintln!("{{\"ok\":false,\"error\":{}}}", serde_json::to_string(msg).unwrap());
+            eprintln!(
+                "{{\"ok\":false,\"error\":{}}}",
+                serde_json::to_string(msg).unwrap()
+            );
         } else {
             eprintln!("✗ {msg}");
         }
@@ -32,11 +37,17 @@ impl Output {
     /// Print a device list.
     pub fn devices(&self, devices: &[MatterDevice]) {
         if self.json {
-            println!("{}", serde_json::to_string_pretty(devices).unwrap_or_else(|_| "[]".into()));
+            println!(
+                "{}",
+                serde_json::to_string_pretty(devices).unwrap_or_else(|_| "[]".into())
+            );
         } else if devices.is_empty() {
             println!("No commissioned devices.");
         } else {
-            println!("{:<10} {:<8} {:<8} {:<20} {}", "NODE-ID", "VID", "PID", "NAME", "STATUS");
+            println!(
+                "{:<10} {:<8} {:<8} {:<20} {}",
+                "NODE-ID", "VID", "PID", "NAME", "STATUS"
+            );
             println!("{}", "-".repeat(62));
             for d in devices {
                 let name = d.name.as_deref().unwrap_or("-");
@@ -50,7 +61,14 @@ impl Output {
     }
 
     /// Print an attribute value (result of a Read operation).
-    pub fn attribute(&self, node_id: u64, endpoint: u16, cluster: u32, attr: u32, value: &AttributeValue) {
+    pub fn attribute(
+        &self,
+        node_id: u64,
+        endpoint: u16,
+        cluster: u32,
+        attr: u32,
+        value: &AttributeValue,
+    ) {
         if self.json {
             let v = attribute_value_to_json(value);
             println!(
@@ -66,11 +84,7 @@ impl Output {
     /// Print a generic key-value pair.
     pub fn kv(&self, key: &str, value: &str) {
         if self.json {
-            println!(
-                "{{\"{}\":{}}}",
-                key,
-                serde_json::to_string(value).unwrap()
-            );
+            println!("{{\"{}\":{}}}", key, serde_json::to_string(value).unwrap());
         } else {
             println!("{key}: {value}");
         }
@@ -107,7 +121,10 @@ mod tests {
     #[test]
     fn attribute_value_to_json_primitives() {
         assert_eq!(attribute_value_to_json(&AttributeValue::Bool(true)), "true");
-        assert_eq!(attribute_value_to_json(&AttributeValue::Bool(false)), "false");
+        assert_eq!(
+            attribute_value_to_json(&AttributeValue::Bool(false)),
+            "false"
+        );
         assert_eq!(attribute_value_to_json(&AttributeValue::U8(42)), "42");
         assert_eq!(attribute_value_to_json(&AttributeValue::U16(1000)), "1000");
         assert_eq!(attribute_value_to_json(&AttributeValue::I16(-500)), "-500");
@@ -135,7 +152,10 @@ mod tests {
         // We can't capture stdout easily in a unit test, but we can verify the
         // format by constructing the string the same way the impl does.
         let msg = "all good";
-        let json = format!("{{\"ok\":true,\"msg\":{}}}", serde_json::to_string(msg).unwrap());
+        let json = format!(
+            "{{\"ok\":true,\"msg\":{}}}",
+            serde_json::to_string(msg).unwrap()
+        );
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed["ok"], true);
         assert_eq!(parsed["msg"], "all good");

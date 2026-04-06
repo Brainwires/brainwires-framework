@@ -4,53 +4,53 @@
 
 // ── Subsystem IDs ─────────────────────────────────────────────────────────────
 
-pub const SYS: u8 = 0x21;   // System subsystem
-pub const MAC: u8 = 0x22;   // MAC layer
-pub const NWK: u8 = 0x26;   // Network layer
-pub const AF: u8 = 0x24;    // Application Framework
-pub const ZDO: u8 = 0x25;   // Zigbee Device Object
-pub const SAPI: u8 = 0x2F;  // Simple API
-pub const UTIL: u8 = 0x27;  // Utilities
+pub const SYS: u8 = 0x21; // System subsystem
+pub const MAC: u8 = 0x22; // MAC layer
+pub const NWK: u8 = 0x26; // Network layer
+pub const AF: u8 = 0x24; // Application Framework
+pub const ZDO: u8 = 0x25; // Zigbee Device Object
+pub const SAPI: u8 = 0x2F; // Simple API
+pub const UTIL: u8 = 0x27; // Utilities
 pub const APP_CNF: u8 = 0x26; // App config (overlaps NWK per Z-Stack 3.x)
-pub const APP: u8 = 0x29;   // Application layer
+pub const APP: u8 = 0x29; // Application layer
 
 // ── SYS subsystem commands ────────────────────────────────────────────────────
 
-pub const SYS_RESET_REQ: u8 = 0x09;      // Reset NCP (SREQ)
-pub const SYS_RESET_IND: u8 = 0x80;      // Reset indication (AREQ)
-pub const SYS_VERSION: u8 = 0x02;        // Get firmware version
-pub const SYS_PING: u8 = 0x01;           // Ping (connectivity check)
-pub const SYS_OSAL_NV_READ: u8 = 0x08;   // Read NV item
-pub const SYS_OSAL_NV_WRITE: u8 = 0x09;  // Write NV item (non-RESET cmd slot)
-pub const SYS_GET_EXTADDR: u8 = 0x04;    // Get IEEE address
+pub const SYS_RESET_REQ: u8 = 0x09; // Reset NCP (SREQ)
+pub const SYS_RESET_IND: u8 = 0x80; // Reset indication (AREQ)
+pub const SYS_VERSION: u8 = 0x02; // Get firmware version
+pub const SYS_PING: u8 = 0x01; // Ping (connectivity check)
+pub const SYS_OSAL_NV_READ: u8 = 0x08; // Read NV item
+pub const SYS_OSAL_NV_WRITE: u8 = 0x09; // Write NV item (non-RESET cmd slot)
+pub const SYS_GET_EXTADDR: u8 = 0x04; // Get IEEE address
 
 // ── ZDO subsystem commands ────────────────────────────────────────────────────
 
-pub const ZDO_STARTUP_FROM_APP: u8 = 0x40;  // Start Zigbee stack (SREQ)
+pub const ZDO_STARTUP_FROM_APP: u8 = 0x40; // Start Zigbee stack (SREQ)
 pub const ZDO_NODE_DESC_REQ: u8 = 0x02;
 pub const ZDO_ACTIVE_EP_REQ: u8 = 0x05;
 pub const ZDO_SIMPLE_DESC_REQ: u8 = 0x04;
 pub const ZDO_END_DEVICE_ANNCE_IND: u8 = 0xFF; // New device joined (AREQ)
-pub const ZDO_TC_DEV_IND: u8 = 0xCA;           // Trust center device indication (AREQ)
+pub const ZDO_TC_DEV_IND: u8 = 0xCA; // Trust center device indication (AREQ)
 pub const ZDO_PERMIT_JOIN_REQ: u8 = 0x36;
-pub const ZDO_PERMIT_JOIN_IND: u8 = 0xCB;      // Permit join status (AREQ)
+pub const ZDO_PERMIT_JOIN_IND: u8 = 0xCB; // Permit join status (AREQ)
 pub const ZDO_NWK_ADDR_RSP: u8 = 0x80;
 pub const ZDO_IEEE_ADDR_RSP: u8 = 0x81;
-pub const ZDO_STATE_CHANGE_IND: u8 = 0xC0;     // Network state changed (AREQ)
-pub const ZDO_LEAVE_IND: u8 = 0xC9;            // Device left (AREQ)
+pub const ZDO_STATE_CHANGE_IND: u8 = 0xC0; // Network state changed (AREQ)
+pub const ZDO_LEAVE_IND: u8 = 0xC9; // Device left (AREQ)
 
 // ── AF subsystem commands ─────────────────────────────────────────────────────
 
-pub const AF_REGISTER: u8 = 0x00;          // Register an endpoint
-pub const AF_DATA_REQUEST: u8 = 0x01;      // Send data (SREQ)
-pub const AF_DATA_CONFIRM: u8 = 0x05;      // Data confirm (AREQ)
-pub const AF_INCOMING_MSG: u8 = 0x81;      // Incoming message (AREQ)
-pub const AF_DATA_REQUEST_EXT: u8 = 0x02;  // Extended data request
+pub const AF_REGISTER: u8 = 0x00; // Register an endpoint
+pub const AF_DATA_REQUEST: u8 = 0x01; // Send data (SREQ)
+pub const AF_DATA_CONFIRM: u8 = 0x05; // Data confirm (AREQ)
+pub const AF_INCOMING_MSG: u8 = 0x81; // Incoming message (AREQ)
+pub const AF_DATA_REQUEST_EXT: u8 = 0x02; // Extended data request
 
 // ── APP_CNF subsystem commands ────────────────────────────────────────────────
 
-pub const APP_CNF_BDB_START_COMMISSIONING: u8 = 0x00;  // Start BDB commissioning
-pub const APP_CNF_BDB_SET_CHANNEL: u8 = 0x08;          // Set Zigbee channel mask
+pub const APP_CNF_BDB_START_COMMISSIONING: u8 = 0x00; // Start BDB commissioning
+pub const APP_CNF_BDB_SET_CHANNEL: u8 = 0x08; // Set Zigbee channel mask
 pub const APP_CNF_BDB_COMMISSIONING_NOTIFICATION: u8 = 0x80; // AREQ: commissioning done
 
 // ── ZDO network state values ─────────────────────────────────────────────────
@@ -123,5 +123,7 @@ pub fn decode_af_incoming(params: &[u8]) -> Option<(u16, u16, u16, u8, u8, u8, &
     // params[9] = broadcast radius, params[10] = link quality
     let data_len = *params.get(11)? as usize;
     let data = params.get(12..12 + data_len)?;
-    Some((group_id, cluster_id, src_addr, src_ep, dst_ep, trans_id, data))
+    Some((
+        group_id, cluster_id, src_addr, src_ep, dst_ep, trans_id, data,
+    ))
 }

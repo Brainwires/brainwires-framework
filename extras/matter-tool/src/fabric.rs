@@ -1,8 +1,7 @@
-/// Fabric directory resolution and device listing helpers.
-
-use std::path::PathBuf;
 use anyhow::Result;
 use brainwires_hardware::homeauto::MatterDevice;
+/// Fabric directory resolution and device listing helpers.
+use std::path::PathBuf;
 
 /// Resolve the fabric storage directory:
 /// 1. Explicit `--fabric-dir` arg (if provided)
@@ -77,7 +76,9 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let device = MatterDevice::new(42);
         let json = serde_json::to_string(&vec![device]).unwrap();
-        tokio::fs::write(dir.path().join("devices.json"), json).await.unwrap();
+        tokio::fs::write(dir.path().join("devices.json"), json)
+            .await
+            .unwrap();
 
         let devices = load_devices(&dir.path().to_path_buf()).await.unwrap();
         assert_eq!(devices.len(), 1);
@@ -87,7 +88,9 @@ mod tests {
     #[tokio::test]
     async fn load_devices_rejects_malformed_json() {
         let dir = tempfile::tempdir().unwrap();
-        tokio::fs::write(dir.path().join("devices.json"), b"not json").await.unwrap();
+        tokio::fs::write(dir.path().join("devices.json"), b"not json")
+            .await
+            .unwrap();
 
         let result = load_devices(&dir.path().to_path_buf()).await;
         assert!(result.is_err());

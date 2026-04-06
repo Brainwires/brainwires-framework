@@ -4,7 +4,6 @@
 /// These helpers produce the TLV bytes for the most common cluster interactions.
 ///
 /// TLV encoding reference: Matter spec §A.7 (TLV Format).
-
 use super::types::cluster_id;
 
 // ── TLV primitives ────────────────────────────────────────────────────────────
@@ -49,7 +48,11 @@ pub(super) fn tlv_uint32(tag: u8, val: u32) -> Vec<u8> {
 }
 
 pub(super) fn tlv_bool(tag: u8, val: bool) -> Vec<u8> {
-    let ty = if val { tlv::TYPE_BOOL_TRUE } else { tlv::TYPE_BOOL_FALSE };
+    let ty = if val {
+        tlv::TYPE_BOOL_TRUE
+    } else {
+        tlv::TYPE_BOOL_FALSE
+    };
     vec![tlv::TAG_CONTEXT_1 | ty, tag]
 }
 
@@ -82,15 +85,24 @@ pub(super) fn wrap_list_tagged(tag: u8, inner: &[u8]) -> Vec<u8> {
 
 /// Read a little-endian u16 from `bytes` at `offset`. Returns `(value, offset+2)`.
 pub(super) fn read_u16_le(bytes: &[u8], offset: usize) -> Option<(u16, usize)> {
-    if offset + 2 > bytes.len() { return None; }
+    if offset + 2 > bytes.len() {
+        return None;
+    }
     let v = u16::from_le_bytes([bytes[offset], bytes[offset + 1]]);
     Some((v, offset + 2))
 }
 
 /// Read a little-endian u32 from `bytes` at `offset`. Returns `(value, offset+4)`.
 pub(super) fn read_u32_le(bytes: &[u8], offset: usize) -> Option<(u32, usize)> {
-    if offset + 4 > bytes.len() { return None; }
-    let v = u32::from_le_bytes([bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]]);
+    if offset + 4 > bytes.len() {
+        return None;
+    }
+    let v = u32::from_le_bytes([
+        bytes[offset],
+        bytes[offset + 1],
+        bytes[offset + 2],
+        bytes[offset + 3],
+    ]);
     Some((v, offset + 4))
 }
 
@@ -112,12 +124,20 @@ pub struct AttributePath {
 impl AttributePath {
     /// Construct a fully-specified (non-wildcard) attribute path.
     pub fn specific(endpoint_id: u16, cluster_id: u32, attribute_id: u32) -> Self {
-        Self { endpoint_id: Some(endpoint_id), cluster_id: Some(cluster_id), attribute_id: Some(attribute_id) }
+        Self {
+            endpoint_id: Some(endpoint_id),
+            cluster_id: Some(cluster_id),
+            attribute_id: Some(attribute_id),
+        }
     }
 
     /// Construct a fully-wildcard attribute path.
     pub fn wildcard() -> Self {
-        Self { endpoint_id: None, cluster_id: None, attribute_id: None }
+        Self {
+            endpoint_id: None,
+            cluster_id: None,
+            attribute_id: None,
+        }
     }
 
     /// TLV-encode as a struct with context tags:
@@ -142,14 +162,20 @@ impl AttributePath {
     /// Returns `None` if the bytes are malformed.
     pub fn decode(bytes: &[u8]) -> Option<Self> {
         // Expect: TYPE_STRUCTURE (0x15) ... END_OF_CONTAINER (0x18)
-        if bytes.is_empty() || bytes[0] != tlv::TYPE_STRUCTURE { return None; }
+        if bytes.is_empty() || bytes[0] != tlv::TYPE_STRUCTURE {
+            return None;
+        }
         let mut endpoint_id = None;
         let mut cluster_id = None;
         let mut attribute_id = None;
         let mut i = 1;
         while i < bytes.len() {
-            if bytes[i] == tlv::TYPE_END_OF_CONTAINER { break; }
-            if i + 1 >= bytes.len() { return None; }
+            if bytes[i] == tlv::TYPE_END_OF_CONTAINER {
+                break;
+            }
+            if i + 1 >= bytes.len() {
+                return None;
+            }
             let ctrl = bytes[i];
             let tag = bytes[i + 1];
             i += 2;
@@ -173,7 +199,11 @@ impl AttributePath {
                 _ => return None, // unknown field
             }
         }
-        Some(Self { endpoint_id, cluster_id, attribute_id })
+        Some(Self {
+            endpoint_id,
+            cluster_id,
+            attribute_id,
+        })
     }
 }
 
@@ -191,7 +221,11 @@ pub struct CommandPath {
 impl CommandPath {
     /// Construct a new `CommandPath`.
     pub fn new(endpoint_id: u16, cluster_id: u32, command_id: u32) -> Self {
-        Self { endpoint_id, cluster_id, command_id }
+        Self {
+            endpoint_id,
+            cluster_id,
+            command_id,
+        }
     }
 
     /// TLV-encode as a struct:
@@ -208,14 +242,20 @@ impl CommandPath {
     ///
     /// Returns `None` if the bytes are malformed or required fields are missing.
     pub fn decode(bytes: &[u8]) -> Option<Self> {
-        if bytes.is_empty() || bytes[0] != tlv::TYPE_STRUCTURE { return None; }
+        if bytes.is_empty() || bytes[0] != tlv::TYPE_STRUCTURE {
+            return None;
+        }
         let mut endpoint_id = None::<u16>;
         let mut cluster_id = None::<u32>;
         let mut command_id = None::<u32>;
         let mut i = 1;
         while i < bytes.len() {
-            if bytes[i] == tlv::TYPE_END_OF_CONTAINER { break; }
-            if i + 1 >= bytes.len() { return None; }
+            if bytes[i] == tlv::TYPE_END_OF_CONTAINER {
+                break;
+            }
+            if i + 1 >= bytes.len() {
+                return None;
+            }
             let ctrl = bytes[i];
             let tag = bytes[i + 1];
             i += 2;
@@ -262,11 +302,17 @@ pub mod on_off {
     pub const CMD_TOGGLE: u32 = 0x02;
 
     /// TLV payload for the On command (empty struct).
-    pub fn on_tlv() -> Vec<u8> { wrap_struct(&[]) }
+    pub fn on_tlv() -> Vec<u8> {
+        wrap_struct(&[])
+    }
     /// TLV payload for the Off command (empty struct).
-    pub fn off_tlv() -> Vec<u8> { wrap_struct(&[]) }
+    pub fn off_tlv() -> Vec<u8> {
+        wrap_struct(&[])
+    }
     /// TLV payload for the Toggle command (empty struct).
-    pub fn toggle_tlv() -> Vec<u8> { wrap_struct(&[]) }
+    pub fn toggle_tlv() -> Vec<u8> {
+        wrap_struct(&[])
+    }
 }
 
 // ── Level Control cluster (0x0008) ───────────────────────────────────────────
@@ -475,7 +521,10 @@ mod tests {
         let path = AttributePath::wildcard();
         let encoded = path.encode();
         // wildcard = empty struct: [0x15, 0x18]
-        assert_eq!(encoded, vec![tlv::TYPE_STRUCTURE, tlv::TYPE_END_OF_CONTAINER]);
+        assert_eq!(
+            encoded,
+            vec![tlv::TYPE_STRUCTURE, tlv::TYPE_END_OF_CONTAINER]
+        );
         let decoded = AttributePath::decode(&encoded).expect("decode failed");
         assert_eq!(decoded, path);
     }

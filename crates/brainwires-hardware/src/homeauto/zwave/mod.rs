@@ -4,9 +4,9 @@ pub mod types;
 
 use async_trait::async_trait;
 
+use super::BoxStream;
 use super::error::HomeAutoResult;
 use super::types::HomeAutoEvent;
-use super::BoxStream;
 pub use command_class::CommandClass;
 pub use serial_api::ZWaveSerialController;
 pub use types::{NodeId, ZWaveNode, ZWaveNodeKind};
@@ -34,12 +34,7 @@ pub trait ZWaveController: Send + Sync {
 
     /// Transmit a Z-Wave command class frame to a specific node.
     /// `data` is the payload *after* the Command Class ID byte (which is taken from `cc`).
-    async fn send_cc(
-        &self,
-        node_id: NodeId,
-        cc: CommandClass,
-        data: &[u8],
-    ) -> HomeAutoResult<()>;
+    async fn send_cc(&self, node_id: NodeId, cc: CommandClass, data: &[u8]) -> HomeAutoResult<()>;
 
     /// Subscribe to a stream of events from this controller.
     fn events(&self) -> BoxStream<'static, HomeAutoEvent>;

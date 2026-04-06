@@ -1,8 +1,8 @@
-use std::path::PathBuf;
-use anyhow::Result;
 use crate::cli::FabricAction;
 use crate::fabric;
 use crate::output::Output;
+use anyhow::Result;
+use std::path::PathBuf;
 
 pub async fn run(action: FabricAction, fabric_dir: &PathBuf, out: &Output) -> Result<()> {
     match action {

@@ -41,12 +41,12 @@ async fn main() -> Result<()> {
     // 1. Build device config (test VID/PID, standard dev passcode).
     let config = MatterDeviceConfig::builder()
         .device_name("Brainwires Agent Light")
-        .vendor_id(0xFFF1)   // 0xFFF1 = test/development vendor
+        .vendor_id(0xFFF1) // 0xFFF1 = test/development vendor
         .product_id(0x8001)
         .discriminator(3840)
-        .passcode(20202021)  // standard Matter development passcode
+        .passcode(20202021) // standard Matter development passcode
         .storage_path("/tmp/brainwires-matter-server")
-        .port(5540)          // standard Matter UDP port
+        .port(5540) // standard Matter UDP port
         .build();
 
     // 2. Create the server.
@@ -79,22 +79,24 @@ async fn main() -> Result<()> {
     println!("==========================================================");
     println!("  QR code:       {}", server.qr_code());
     println!("  Pairing code:  {}", server.pairing_code());
-    println!("  QR URL:        https://project-chip.github.io/connectedhomeip/qrcode.html?data={}",
-             urlencoded(server.qr_code()));
+    println!(
+        "  QR URL:        https://project-chip.github.io/connectedhomeip/qrcode.html?data={}",
+        urlencoded(server.qr_code())
+    );
     println!();
     println!("  Scan the QR code (or enter the pairing code) in:");
     println!("  - Apple Home (iOS 16.2+ / macOS 13+)");
     println!("  - Google Home");
     println!("  - Home Assistant  (Settings → Devices → Add integration → Matter)");
-    println!("  - chip-tool:  chip-tool pairing qrcode 1 \"{}\"",
-             server.qr_code());
+    println!(
+        "  - chip-tool:  chip-tool pairing qrcode 1 \"{}\"",
+        server.qr_code()
+    );
     println!("==========================================================");
     println!();
 
     // 5. Print mDNS service info.
-    info!(
-        "Advertising as '_matterc._udp' (discriminator=3840) on UDP port 5540"
-    );
+    info!("Advertising as '_matterc._udp' (discriminator=3840) on UDP port 5540");
     info!("Waiting for commissioner…  Press Ctrl+C to stop.");
 
     // 6. Run server until Ctrl+C.

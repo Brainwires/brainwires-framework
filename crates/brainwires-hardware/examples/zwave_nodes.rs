@@ -1,3 +1,7 @@
+use anyhow::Result;
+use brainwires_hardware::homeauto::zwave::{
+    CommandClass, ZWaveController, ZWaveSerialController, command_class::switch_binary_set,
+};
 /// Example: List Z-Wave nodes and toggle a binary switch.
 ///
 /// Usage:
@@ -7,13 +11,7 @@
 ///
 /// Connects to a Z-Wave USB stick (Aeotec Z-Stick Gen5+, etc.), lists all known nodes,
 /// and optionally toggles the binary switch on `node_id`.
-
 use std::env;
-use anyhow::Result;
-use brainwires_hardware::homeauto::zwave::{
-    CommandClass, ZWaveController, ZWaveSerialController,
-    command_class::switch_binary_set,
-};
 use tracing::info;
 
 #[tokio::main]
@@ -40,13 +38,21 @@ async fn main() -> Result<()> {
         info!("Toggling binary switch on node {node_id}…");
         // Turn on
         controller
-            .send_cc(node_id, CommandClass::SwitchBinary, &switch_binary_set(true)[1..])
+            .send_cc(
+                node_id,
+                CommandClass::SwitchBinary,
+                &switch_binary_set(true)[1..],
+            )
             .await?;
         info!("Sent ON to node {node_id}");
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
         // Turn off
         controller
-            .send_cc(node_id, CommandClass::SwitchBinary, &switch_binary_set(false)[1..])
+            .send_cc(
+                node_id,
+                CommandClass::SwitchBinary,
+                &switch_binary_set(false)[1..],
+            )
             .await?;
         info!("Sent OFF to node {node_id}");
     }

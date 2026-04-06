@@ -39,12 +39,11 @@ pub(super) fn train_lora(
         .with_alpha(config.lora.alpha);
 
     // Try loading base weights from SafeTensors
-    let model =
-        if let Some(base_weight) = try_load_safetensors_weights(config, dim, &device) {
-            lora_config.init_with_base_weights::<super::types::TrainBackend>(base_weight, &device)
-        } else {
-            lora_config.init::<super::types::TrainBackend>(&device)
-        };
+    let model = if let Some(base_weight) = try_load_safetensors_weights(config, dim, &device) {
+        lora_config.init_with_base_weights::<super::types::TrainBackend>(base_weight, &device)
+    } else {
+        lora_config.init::<super::types::TrainBackend>(&device)
+    };
 
     let batch_size = config.hyperparams.batch_size as usize;
     let steps_per_epoch = dataset.steps_per_epoch(batch_size);
@@ -204,12 +203,11 @@ pub(super) fn train_dora(
         .with_rank(rank)
         .with_alpha(config.lora.alpha);
 
-    let model =
-        if let Some(base_weight) = try_load_safetensors_weights(config, dim, &device) {
-            dora_config.init_with_base_weights::<super::types::TrainBackend>(base_weight, &device)
-        } else {
-            dora_config.init::<super::types::TrainBackend>(&device)
-        };
+    let model = if let Some(base_weight) = try_load_safetensors_weights(config, dim, &device) {
+        dora_config.init_with_base_weights::<super::types::TrainBackend>(base_weight, &device)
+    } else {
+        dora_config.init::<super::types::TrainBackend>(&device)
+    };
 
     let batch_size = config.hyperparams.batch_size as usize;
     let steps_per_epoch = dataset.steps_per_epoch(batch_size);
@@ -372,9 +370,7 @@ pub(super) fn train_qlora(
         .with_alpha(config.lora.alpha)
         .with_bits(bits);
 
-    let model = if let Some(dequantized) =
-        try_load_quantized_weights(config, dim, bits, &device)
-    {
+    let model = if let Some(dequantized) = try_load_quantized_weights(config, dim, bits, &device) {
         qlora_config.init_quantized::<super::types::TrainBackend>(&dequantized, &device)
     } else {
         info!("No quantized weights loaded, using random init for QLoRA");

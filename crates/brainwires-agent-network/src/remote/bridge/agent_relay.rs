@@ -419,8 +419,7 @@ pub(super) fn convert_agent_message_to_stream(
             }
         }
         AgentMessage::ConversationSync { messages, .. } => {
-            let history_json =
-                serde_json::to_string(messages).unwrap_or_else(|_| "[]".to_string());
+            let history_json = serde_json::to_string(messages).unwrap_or_else(|_| "[]".to_string());
             Some((StreamChunkType::History, history_json))
         }
         AgentMessage::SlashCommandResult {

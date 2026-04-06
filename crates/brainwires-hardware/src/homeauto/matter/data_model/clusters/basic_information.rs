@@ -2,27 +2,26 @@
 ///
 /// Serves device identity attributes such as VendorID, ProductID, and name.
 /// Matter spec §11.1.
-
 use async_trait::async_trait;
 
 use crate::homeauto::matter::clusters::tlv;
+use crate::homeauto::matter::data_model::ClusterServer;
 use crate::homeauto::matter::error::{MatterError, MatterResult};
 use crate::homeauto::matter::types::MatterDeviceConfig;
-use crate::homeauto::matter::data_model::ClusterServer;
 
 // ── Attribute IDs ─────────────────────────────────────────────────────────────
 
-pub const ATTR_DATA_MODEL_REVISION: u32     = 0x0000;
-pub const ATTR_VENDOR_NAME: u32             = 0x0001;
-pub const ATTR_VENDOR_ID: u32               = 0x0002;
-pub const ATTR_PRODUCT_NAME: u32            = 0x0003;
-pub const ATTR_PRODUCT_ID: u32              = 0x0004;
-pub const ATTR_NODE_LABEL: u32              = 0x0005;
-pub const ATTR_LOCATION: u32                = 0x0006;
-pub const ATTR_HARDWARE_VERSION: u32        = 0x0007;
-pub const ATTR_SOFTWARE_VERSION: u32        = 0x000A;
+pub const ATTR_DATA_MODEL_REVISION: u32 = 0x0000;
+pub const ATTR_VENDOR_NAME: u32 = 0x0001;
+pub const ATTR_VENDOR_ID: u32 = 0x0002;
+pub const ATTR_PRODUCT_NAME: u32 = 0x0003;
+pub const ATTR_PRODUCT_ID: u32 = 0x0004;
+pub const ATTR_NODE_LABEL: u32 = 0x0005;
+pub const ATTR_LOCATION: u32 = 0x0006;
+pub const ATTR_HARDWARE_VERSION: u32 = 0x0007;
+pub const ATTR_SOFTWARE_VERSION: u32 = 0x000A;
 pub const ATTR_SOFTWARE_VERSION_STRING: u32 = 0x000B;
-pub const ATTR_CAPABILITY_MINIMA: u32       = 0x000F;
+pub const ATTR_CAPABILITY_MINIMA: u32 = 0x000F;
 
 const CLUSTER_ID: u32 = 0x0028;
 
@@ -65,22 +64,22 @@ fn wrap_struct(inner: &[u8]) -> Vec<u8> {
 
 /// Server for the BasicInformation cluster (0x0028).
 pub struct BasicInformationCluster {
-    vendor_name:  String,
-    vendor_id:    u16,
+    vendor_name: String,
+    vendor_id: u16,
     product_name: String,
-    product_id:   u16,
-    node_label:   String,
+    product_id: u16,
+    node_label: String,
 }
 
 impl BasicInformationCluster {
     /// Create a new server populated from a [`MatterDeviceConfig`].
     pub fn new(config: &MatterDeviceConfig) -> Self {
         Self {
-            vendor_name:  "Brainwires".to_string(),
-            vendor_id:    config.vendor_id,
+            vendor_name: "Brainwires".to_string(),
+            vendor_id: config.vendor_id,
             product_name: config.device_name.clone(),
-            product_id:   config.product_id,
-            node_label:   config.device_name.clone(),
+            product_id: config.product_id,
+            node_label: config.device_name.clone(),
         }
     }
 }
@@ -97,33 +96,15 @@ impl ClusterServer for BasicInformationCluster {
                 // uint16 value = 1
                 Ok(tlv_uint16(0, 1))
             }
-            ATTR_VENDOR_NAME => {
-                Ok(tlv_utf8_string(0, &self.vendor_name))
-            }
-            ATTR_VENDOR_ID => {
-                Ok(tlv_uint16(0, self.vendor_id))
-            }
-            ATTR_PRODUCT_NAME => {
-                Ok(tlv_utf8_string(0, &self.product_name))
-            }
-            ATTR_PRODUCT_ID => {
-                Ok(tlv_uint16(0, self.product_id))
-            }
-            ATTR_NODE_LABEL => {
-                Ok(tlv_utf8_string(0, &self.node_label))
-            }
-            ATTR_LOCATION => {
-                Ok(tlv_utf8_string(0, "XX"))
-            }
-            ATTR_HARDWARE_VERSION => {
-                Ok(tlv_uint16(0, 0))
-            }
-            ATTR_SOFTWARE_VERSION => {
-                Ok(tlv_uint32(0, 1))
-            }
-            ATTR_SOFTWARE_VERSION_STRING => {
-                Ok(tlv_utf8_string(0, "1.0.0"))
-            }
+            ATTR_VENDOR_NAME => Ok(tlv_utf8_string(0, &self.vendor_name)),
+            ATTR_VENDOR_ID => Ok(tlv_uint16(0, self.vendor_id)),
+            ATTR_PRODUCT_NAME => Ok(tlv_utf8_string(0, &self.product_name)),
+            ATTR_PRODUCT_ID => Ok(tlv_uint16(0, self.product_id)),
+            ATTR_NODE_LABEL => Ok(tlv_utf8_string(0, &self.node_label)),
+            ATTR_LOCATION => Ok(tlv_utf8_string(0, "XX")),
+            ATTR_HARDWARE_VERSION => Ok(tlv_uint16(0, 0)),
+            ATTR_SOFTWARE_VERSION => Ok(tlv_uint32(0, 1)),
+            ATTR_SOFTWARE_VERSION_STRING => Ok(tlv_utf8_string(0, "1.0.0")),
             ATTR_CAPABILITY_MINIMA => {
                 // struct { CaseSessionsPerFabric(0): uint16=3, SubscriptionsPerFabric(1): uint16=3 }
                 let mut inner = tlv_uint16(0, 3);
@@ -135,11 +116,15 @@ impl ClusterServer for BasicInformationCluster {
     }
 
     async fn write_attribute(&self, _attr_id: u32, _value: &[u8]) -> MatterResult<()> {
-        Err(MatterError::Transport("BasicInformation attributes are read-only".into()))
+        Err(MatterError::Transport(
+            "BasicInformation attributes are read-only".into(),
+        ))
     }
 
     async fn invoke_command(&self, _cmd_id: u32, _args: &[u8]) -> MatterResult<Vec<u8>> {
-        Err(MatterError::Transport("BasicInformation has no commands".into()))
+        Err(MatterError::Transport(
+            "BasicInformation has no commands".into(),
+        ))
     }
 
     fn attribute_ids(&self) -> Vec<u32> {

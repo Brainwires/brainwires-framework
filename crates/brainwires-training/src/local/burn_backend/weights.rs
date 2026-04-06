@@ -17,8 +17,8 @@ pub(super) fn create_tokenizer(
 ) -> Result<Box<dyn Tokenizer>, TrainingError> {
     if let Some(ref tok_path) = config.tokenizer_path {
         info!("Loading BPE tokenizer from {:?}", tok_path);
-        let tok = ModelTokenizer::from_file(tok_path)?
-            .with_max_seq_len(config.hyperparams.max_seq_len);
+        let tok =
+            ModelTokenizer::from_file(tok_path)?.with_max_seq_len(config.hyperparams.max_seq_len);
         info!("Tokenizer vocab size: {}", tok.vocab_size());
         Ok(Box::new(tok))
     } else {
@@ -52,9 +52,8 @@ pub(super) fn finalize_training(
         buf.extend_from_slice(extra);
     }
 
-    std::fs::write(&output_path, &buf).map_err(|e| {
-        TrainingError::Backend(format!("Failed to write adapter weights: {}", e))
-    })?;
+    std::fs::write(&output_path, &buf)
+        .map_err(|e| TrainingError::Backend(format!("Failed to write adapter weights: {}", e)))?;
     info!("Wrote {} bytes of adapter weights", buf.len());
 
     let metadata = crate::local::export::ExportMetadata {

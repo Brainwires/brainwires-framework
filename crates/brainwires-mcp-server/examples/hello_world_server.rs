@@ -40,10 +40,7 @@ struct GreetTool;
 #[async_trait]
 impl ToolHandler for GreetTool {
     async fn call(&self, args: Value, _ctx: &RequestContext) -> Result<CallToolResult> {
-        let name = args
-            .get("name")
-            .and_then(Value::as_str)
-            .unwrap_or("World");
+        let name = args.get("name").and_then(Value::as_str).unwrap_or("World");
         Ok(CallToolResult::success(vec![Content::text(format!(
             "Hello, {name}!"
         ))]))

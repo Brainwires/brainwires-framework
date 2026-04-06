@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use super::super::types::Capability;
+use serde::{Deserialize, Serialize};
 
 /// Z-Wave node ID (1–232, 0 = invalid).
 pub type NodeId = u8;

@@ -9,7 +9,7 @@ use tracing::info;
 use super::batch::make_preference_batch;
 use super::weights::{finalize_training, try_load_safetensors_weights};
 use crate::error::TrainingError;
-use crate::local::burn_modules::{dpo_loss, orpo_loss, LoraLinearConfig};
+use crate::local::burn_modules::{LoraLinearConfig, dpo_loss, orpo_loss};
 use crate::local::dataset_loader::{PreferenceDataset, Tokenizer};
 use crate::local::lr_schedule::LrSchedule;
 use crate::local::weight_loader::SafeTensorsLoader;
@@ -44,12 +44,11 @@ pub(super) fn train_dpo_alignment(
         .with_rank(rank)
         .with_alpha(config.lora.alpha);
 
-    let model =
-        if let Some(base_weight) = try_load_safetensors_weights(config, dim, &device) {
-            lora_config.init_with_base_weights::<TrainBackend>(base_weight, &device)
-        } else {
-            lora_config.init::<TrainBackend>(&device)
-        };
+    let model = if let Some(base_weight) = try_load_safetensors_weights(config, dim, &device) {
+        lora_config.init_with_base_weights::<TrainBackend>(base_weight, &device)
+    } else {
+        lora_config.init::<TrainBackend>(&device)
+    };
 
     // Clone initial adapter weights as frozen reference model
     let ref_model = model.valid();
@@ -131,8 +130,7 @@ pub(super) fn train_dpo_alignment(
                 .squeeze::<1>();
 
             // Wrap back into autodiff tensors (as constants, no grad)
-            let ref_chosen_logps =
-                Tensor::<TrainBackend, 1>::from_inner(ref_chosen_logps_inner);
+            let ref_chosen_logps = Tensor::<TrainBackend, 1>::from_inner(ref_chosen_logps_inner);
             let ref_rejected_logps =
                 Tensor::<TrainBackend, 1>::from_inner(ref_rejected_logps_inner);
 
@@ -215,12 +213,11 @@ pub(super) fn train_orpo_alignment(
         .with_rank(rank)
         .with_alpha(config.lora.alpha);
 
-    let model =
-        if let Some(base_weight) = try_load_safetensors_weights(config, dim, &device) {
-            lora_config.init_with_base_weights::<TrainBackend>(base_weight, &device)
-        } else {
-            lora_config.init::<TrainBackend>(&device)
-        };
+    let model = if let Some(base_weight) = try_load_safetensors_weights(config, dim, &device) {
+        lora_config.init_with_base_weights::<TrainBackend>(base_weight, &device)
+    } else {
+        lora_config.init::<TrainBackend>(&device)
+    };
 
     let batch_size = config.hyperparams.batch_size as usize;
     let steps_per_epoch = pref_dataset.steps_per_epoch(batch_size);

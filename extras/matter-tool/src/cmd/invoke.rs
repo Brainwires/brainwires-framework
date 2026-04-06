@@ -1,7 +1,7 @@
-use std::path::PathBuf;
+use crate::output::Output;
 use anyhow::Result;
 use brainwires_hardware::homeauto::MatterController;
-use crate::output::Output;
+use std::path::PathBuf;
 
 pub async fn run_invoke(
     node_id: u64,
@@ -25,7 +25,8 @@ pub async fn run_invoke(
         .find(|d| d.node_id == node_id)
         .ok_or_else(|| anyhow::anyhow!("node_id={node_id} not found in fabric"))?;
 
-    ctrl.invoke(&device, endpoint, cluster_id, command_id, &tlv).await?;
+    ctrl.invoke(&device, endpoint, cluster_id, command_id, &tlv)
+        .await?;
     out.ok(&format!(
         "invoke node_id={node_id} ep={endpoint} cluster={cluster_id:#010x} cmd={command_id:#010x} OK"
     ));
@@ -47,7 +48,9 @@ pub async fn run_read(
         .find(|d| d.node_id == node_id)
         .ok_or_else(|| anyhow::anyhow!("node_id={node_id} not found in fabric"))?;
 
-    let val = ctrl.read_attr(&device, endpoint, cluster_id, attribute_id).await?;
+    let val = ctrl
+        .read_attr(&device, endpoint, cluster_id, attribute_id)
+        .await?;
     out.attribute(node_id, endpoint, cluster_id, attribute_id, &val);
     Ok(())
 }

@@ -6,15 +6,14 @@
 /// - The CA's private signing key (zeroized on drop via `SecretKey`)
 ///
 /// Fabric state is persisted to `{storage_path}/fabrics.json`.
-
 use std::path::{Path, PathBuf};
 
+use ecdsa::signature::Signer;
 use p256::{
+    SecretKey,
     ecdsa::{Signature, SigningKey},
     elliptic_curve::sec1::ToEncodedPoint,
-    SecretKey,
 };
-use ecdsa::signature::Signer;
 use rand_core::OsRng;
 
 use super::cert::{MatterCert, MatterCertSubject};
@@ -134,9 +133,8 @@ impl FabricManager {
             .await
             .map_err(MatterError::Io)?;
 
-        let fabrics: Vec<StoredFabricEntry> = serde_json::from_str(&json).map_err(|e| {
-            MatterError::Commissioning(format!("fabrics.json parse error: {e}"))
-        })?;
+        let fabrics: Vec<StoredFabricEntry> = serde_json::from_str(&json)
+            .map_err(|e| MatterError::Commissioning(format!("fabrics.json parse error: {e}")))?;
 
         // next_index = max(existing index) + 1, clamped to [1, 254]
         let next_index = fabrics
@@ -187,7 +185,11 @@ impl FabricManager {
         let secret = SecretKey::random(&mut OsRng);
         let verifying = secret.public_key();
         let pubkey_bytes: Vec<u8> = verifying.to_encoded_point(false).as_bytes().to_vec();
-        assert_eq!(pubkey_bytes.len(), 65, "P-256 uncompressed point must be 65 bytes");
+        assert_eq!(
+            pubkey_bytes.len(),
+            65,
+            "P-256 uncompressed point must be 65 bytes"
+        );
 
         let mut pubkey_arr = [0u8; 65];
         pubkey_arr.copy_from_slice(&pubkey_bytes);
@@ -312,9 +314,8 @@ impl FabricManager {
             )));
         }
         let sk_arr: [u8; 32] = entry.private_key_bytes[..32].try_into().unwrap();
-        let secret = SecretKey::from_bytes(&sk_arr.into()).map_err(|e| {
-            MatterError::Commissioning(format!("invalid CA private key: {e}"))
-        })?;
+        let secret = SecretKey::from_bytes(&sk_arr.into())
+            .map_err(|e| MatterError::Commissioning(format!("invalid CA private key: {e}")))?;
         let signing_key = SigningKey::from(&secret);
 
         // Sign TBS
@@ -408,7 +409,10 @@ mod tests {
         assert_eq!(descriptor.node_id, node_id);
         assert_eq!(descriptor.label, "Test Fabric");
         assert_eq!(descriptor.root_public_key.len(), 65);
-        assert_eq!(descriptor.root_public_key[0], 0x04, "uncompressed point prefix");
+        assert_eq!(
+            descriptor.root_public_key[0], 0x04,
+            "uncompressed point prefix"
+        );
 
         // Verify RCAC fields
         assert_eq!(rcac.subject.rcac_id, Some(fabric_id));
@@ -447,8 +451,8 @@ mod tests {
         // Verify NOC signature against the CA public key
         use ecdsa::signature::Verifier;
         use p256::{
-            ecdsa::{Signature as EcdsaSig, VerifyingKey},
             EncodedPoint,
+            ecdsa::{Signature as EcdsaSig, VerifyingKey},
         };
         let ca_pubkey = VerifyingKey::from_encoded_point(
             &EncodedPoint::from_bytes(&csr_pubkey).expect("valid CA point"),

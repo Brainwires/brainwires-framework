@@ -32,9 +32,9 @@
 //! Suitable hardware: any Matter 1.x certified on/off bulb, plug, or switch.
 //! The development passcode `20202021` is standard on many test/dev builds.
 
-use std::env;
 use anyhow::Result;
 use brainwires_hardware::homeauto::matter::MatterController;
+use std::env;
 use tracing::info;
 
 #[tokio::main]
@@ -45,13 +45,15 @@ async fn main() -> Result<()> {
     match subcommand.as_str() {
         "commission" => {
             // Prefer env var, fall back to CLI arg, then a hard-coded test QR.
-            let qr_code = env::var("MATTER_DEVICE_QR").ok()
+            let qr_code = env::var("MATTER_DEVICE_QR")
+                .ok()
                 .or_else(|| env::args().nth(2))
                 .unwrap_or_else(|| "MT:Y.K9042C00KA0648G00".into());
             commission_and_toggle(&qr_code, /*use_qr=*/ true).await
         }
         "code" => {
-            let pairing_code = env::var("MATTER_DEVICE_CODE").ok()
+            let pairing_code = env::var("MATTER_DEVICE_CODE")
+                .ok()
                 .or_else(|| env::args().nth(2))
                 .unwrap_or_else(|| "34970112332".into());
             commission_and_toggle(&pairing_code, /*use_qr=*/ false).await

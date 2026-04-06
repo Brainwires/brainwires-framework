@@ -5,32 +5,31 @@
 /// return immediate success so the commissioning flow can continue.
 ///
 /// Matter spec §11.8.
-
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 
 use crate::homeauto::matter::clusters::tlv;
-use crate::homeauto::matter::error::{MatterError, MatterResult};
 use crate::homeauto::matter::data_model::ClusterServer;
+use crate::homeauto::matter::error::{MatterError, MatterResult};
 
 // ── Attribute IDs ─────────────────────────────────────────────────────────────
 
-pub const ATTR_MAX_NETWORKS: u32             = 0x0000;
-pub const ATTR_NETWORKS: u32                 = 0x0001;
-pub const ATTR_SCAN_MAX_TIME_SECONDS: u32    = 0x0002;
+pub const ATTR_MAX_NETWORKS: u32 = 0x0000;
+pub const ATTR_NETWORKS: u32 = 0x0001;
+pub const ATTR_SCAN_MAX_TIME_SECONDS: u32 = 0x0002;
 pub const ATTR_CONNECT_MAX_TIME_SECONDS: u32 = 0x0003;
-pub const ATTR_INTERFACE_ENABLED: u32        = 0x0004;
-pub const ATTR_LAST_NETWORKING_STATUS: u32   = 0x0005;
-pub const ATTR_LAST_NETWORK_ID: u32          = 0x0006;
+pub const ATTR_INTERFACE_ENABLED: u32 = 0x0004;
+pub const ATTR_LAST_NETWORKING_STATUS: u32 = 0x0005;
+pub const ATTR_LAST_NETWORK_ID: u32 = 0x0006;
 pub const ATTR_LAST_CONNECT_ERROR_VALUE: u32 = 0x0007;
 
 // ── Command IDs ───────────────────────────────────────────────────────────────
 
-pub const CMD_SCAN_NETWORKS: u32               = 0x00;
-pub const CMD_ADD_OR_UPDATE_WIFI_NETWORK: u32  = 0x02;
-pub const CMD_CONNECT_NETWORK: u32             = 0x06;
-pub const CMD_REORDER_NETWORK: u32             = 0x07;
+pub const CMD_SCAN_NETWORKS: u32 = 0x00;
+pub const CMD_ADD_OR_UPDATE_WIFI_NETWORK: u32 = 0x02;
+pub const CMD_CONNECT_NETWORK: u32 = 0x06;
+pub const CMD_REORDER_NETWORK: u32 = 0x07;
 
 const CLUSTER_ID: u32 = 0x0031;
 
@@ -41,7 +40,11 @@ fn tlv_uint8(tag: u8, val: u8) -> Vec<u8> {
 }
 
 fn tlv_bool(tag: u8, val: bool) -> Vec<u8> {
-    let ty = if val { tlv::TYPE_BOOL_TRUE } else { tlv::TYPE_BOOL_FALSE };
+    let ty = if val {
+        tlv::TYPE_BOOL_TRUE
+    } else {
+        tlv::TYPE_BOOL_FALSE
+    };
     vec![tlv::TAG_CONTEXT_1 | ty, tag]
 }
 
@@ -134,9 +137,8 @@ impl ClusterServer for NetworkCommissioningCluster {
                 let st = self.state.lock().unwrap();
                 let mut items = Vec::new();
                 for entry in &st.networks {
-                    let mut inner = vec![
-                        tlv::TAG_CONTEXT_1 | 0x10, 0u8, entry.network_id.len() as u8,
-                    ];
+                    let mut inner =
+                        vec![tlv::TAG_CONTEXT_1 | 0x10, 0u8, entry.network_id.len() as u8];
                     inner.extend_from_slice(&entry.network_id);
                     inner.extend_from_slice(&tlv_bool(1, entry.connected));
                     items.extend_from_slice(&wrap_struct(&inner));
@@ -197,10 +199,10 @@ impl ClusterServer for NetworkCommissioningCluster {
                 // Already connected (on-network device).
                 Ok(connect_network_response(0))
             }
-            CMD_REORDER_NETWORK => {
-                Ok(network_config_response(0))
-            }
-            _ => Err(MatterError::Transport(format!("unknown command {cmd_id:#06x}"))),
+            CMD_REORDER_NETWORK => Ok(network_config_response(0)),
+            _ => Err(MatterError::Transport(format!(
+                "unknown command {cmd_id:#06x}"
+            ))),
         }
     }
 

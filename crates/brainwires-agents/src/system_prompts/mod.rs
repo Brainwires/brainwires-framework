@@ -144,7 +144,10 @@ mod tests {
     #[test]
     fn all_variants_build_without_panic() {
         let _ = build_agent_prompt(
-            AgentPromptKind::Reasoning { agent_id: "a", working_directory: "/tmp" },
+            AgentPromptKind::Reasoning {
+                agent_id: "a",
+                working_directory: "/tmp",
+            },
             None,
         );
         let _ = build_agent_prompt(
@@ -157,11 +160,17 @@ mod tests {
             None,
         );
         let _ = build_agent_prompt(
-            AgentPromptKind::Judge { agent_id: "a", working_directory: "/tmp" },
+            AgentPromptKind::Judge {
+                agent_id: "a",
+                working_directory: "/tmp",
+            },
             None,
         );
         let _ = build_agent_prompt(
-            AgentPromptKind::Simple { agent_id: "a", working_directory: "/tmp" },
+            AgentPromptKind::Simple {
+                agent_id: "a",
+                working_directory: "/tmp",
+            },
             None,
         );
         let _ = build_agent_prompt(
@@ -178,7 +187,10 @@ mod tests {
     #[test]
     fn no_role_does_not_append_suffix() {
         let prompt = build_agent_prompt(
-            AgentPromptKind::Reasoning { agent_id: "a", working_directory: "/tmp" },
+            AgentPromptKind::Reasoning {
+                agent_id: "a",
+                working_directory: "/tmp",
+            },
             None,
         );
         assert!(!prompt.contains("[ROLE:"));
@@ -187,7 +199,10 @@ mod tests {
     #[test]
     fn role_suffix_is_appended() {
         let prompt = build_agent_prompt(
-            AgentPromptKind::Reasoning { agent_id: "a", working_directory: "/tmp" },
+            AgentPromptKind::Reasoning {
+                agent_id: "a",
+                working_directory: "/tmp",
+            },
             Some(AgentRole::Exploration),
         );
         assert!(prompt.contains("[ROLE: Exploration]"));
@@ -218,20 +233,30 @@ mod tests {
             },
             None,
         );
-        assert!(prompt.contains('2') || prompt.contains("round"),
-            "vote_round should appear in prompt");
-        assert!(prompt.contains('5') || prompt.contains("peer"),
-            "peer_count should appear in prompt");
+        assert!(
+            prompt.contains('2') || prompt.contains("round"),
+            "vote_round should appear in prompt"
+        );
+        assert!(
+            prompt.contains('5') || prompt.contains("peer"),
+            "peer_count should appear in prompt"
+        );
     }
 
     #[test]
     fn simple_is_shorter_than_reasoning() {
         let simple = build_agent_prompt(
-            AgentPromptKind::Simple { agent_id: "a", working_directory: "/tmp" },
+            AgentPromptKind::Simple {
+                agent_id: "a",
+                working_directory: "/tmp",
+            },
             None,
         );
         let reasoning = build_agent_prompt(
-            AgentPromptKind::Reasoning { agent_id: "a", working_directory: "/tmp" },
+            AgentPromptKind::Reasoning {
+                agent_id: "a",
+                working_directory: "/tmp",
+            },
             None,
         );
         assert!(

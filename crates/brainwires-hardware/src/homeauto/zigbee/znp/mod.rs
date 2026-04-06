@@ -7,16 +7,16 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::sync::{mpsc, oneshot, Mutex};
+use tokio::sync::{Mutex, mpsc, oneshot};
 use tokio::time::timeout;
 use tokio_serial::SerialStream;
 use tracing::{debug, error, warn};
 
+use super::ZigbeeCoordinator;
+use super::types::{ZigbeeAddr, ZigbeeAttrId, ZigbeeClusterId, ZigbeeDevice, ZigbeeDeviceKind};
 use crate::homeauto::error::{HomeAutoError, HomeAutoResult};
 use crate::homeauto::types::{AttributeValue, HomeAutoEvent, HomeDevice, Protocol};
-use super::types::{ZigbeeAddr, ZigbeeAttrId, ZigbeeClusterId, ZigbeeDevice, ZigbeeDeviceKind};
-use super::ZigbeeCoordinator;
-use frame::{ZnpFrame, TYPE_AREQ, TYPE_SRSP};
+use frame::{TYPE_AREQ, TYPE_SRSP, ZnpFrame};
 
 /// Pending synchronous SRSP waiter keyed by (subsystem, cmd).
 struct PendingSrsp {
@@ -106,17 +106,15 @@ impl ZnpCoordinator {
                         } else {
                             buf.push(b);
                             if buf.len() >= 5 {
-                                let expected_len =
-                                    buf.get(1).copied().unwrap_or(0) as usize + 5;
+                                let expected_len = buf.get(1).copied().unwrap_or(0) as usize + 5;
                                 if buf.len() == expected_len {
                                     match ZnpFrame::decode(&buf) {
                                         Ok((f, _)) => {
                                             let mut g = inner.lock().await;
                                             match f.msg_type {
                                                 TYPE_SRSP => {
-                                                    if let Some(p) = g
-                                                        .pending
-                                                        .remove(&(f.subsystem, f.cmd))
+                                                    if let Some(p) =
+                                                        g.pending.remove(&(f.subsystem, f.cmd))
                                                     {
                                                         let _ = p.tx.send(f.clone());
                                                     }
@@ -161,7 +159,9 @@ impl ZnpCoordinator {
                         firmware_version: None,
                         capabilities: Vec::new(),
                     };
-                    let _ = inner.event_tx.try_send(HomeAutoEvent::DeviceJoined(home_dev));
+                    let _ = inner
+                        .event_tx
+                        .try_send(HomeAutoEvent::DeviceJoined(home_dev));
                 }
             }
             // ZDO leave indication
@@ -209,14 +209,20 @@ impl ZigbeeCoordinator for ZnpCoordinator {
                 "SYS_PING response too short".into(),
             ));
         }
-        debug!("ZNP coordinator started on {}, capabilities={:#06x}",
+        debug!(
+            "ZNP coordinator started on {}, capabilities={:#06x}",
             self.port_path,
-            u16::from_le_bytes([resp.payload[0], resp.payload[1]]));
+            u16::from_le_bytes([resp.payload[0], resp.payload[1]])
+        );
 
         // Start the BDB commissioning (coordinator mode)
         let startup_payload = commands::startup_payload(100);
         let resp = self
-            .sreq(commands::ZDO, commands::ZDO_STARTUP_FROM_APP, startup_payload)
+            .sreq(
+                commands::ZDO,
+                commands::ZDO_STARTUP_FROM_APP,
+                startup_payload,
+            )
             .await?;
         let status = resp.payload.first().copied().unwrap_or(0xFF);
         debug!("ZDO startup status: {status:#04x}");
@@ -230,7 +236,9 @@ impl ZigbeeCoordinator for ZnpCoordinator {
 
     async fn permit_join(&self, duration_secs: u8) -> HomeAutoResult<()> {
         let payload = commands::permit_join_payload(0xFFFC, duration_secs);
-        let resp = self.sreq(commands::ZDO, commands::ZDO_PERMIT_JOIN_REQ, payload).await?;
+        let resp = self
+            .sreq(commands::ZDO, commands::ZDO_PERMIT_JOIN_REQ, payload)
+            .await?;
         let status = resp.payload.first().copied().unwrap_or(0xFF);
         if status != commands::ZNP_STATUS_SUCCESS {
             return Err(HomeAutoError::ZnpStatus {
@@ -257,7 +265,9 @@ impl ZigbeeCoordinator for ZnpCoordinator {
         zcl.extend_from_slice(&attr.to_le_bytes());
 
         let payload = commands::af_data_request(addr.nwk, 0x01, 0x01, cluster, zcl_seq, &zcl);
-        let resp = self.sreq(commands::AF, commands::AF_DATA_REQUEST, payload).await?;
+        let resp = self
+            .sreq(commands::AF, commands::AF_DATA_REQUEST, payload)
+            .await?;
         let status = resp.payload.first().copied().unwrap_or(0xFF);
         if status != commands::ZNP_STATUS_SUCCESS {
             return Err(HomeAutoError::ZigbeeAttribute {
@@ -285,7 +295,9 @@ impl ZigbeeCoordinator for ZnpCoordinator {
         zcl.extend_from_slice(&encoded_val);
 
         let payload = commands::af_data_request(addr.nwk, 0x01, 0x01, cluster, zcl_seq, &zcl);
-        let resp = self.sreq(commands::AF, commands::AF_DATA_REQUEST, payload).await?;
+        let resp = self
+            .sreq(commands::AF, commands::AF_DATA_REQUEST, payload)
+            .await?;
         let status = resp.payload.first().copied().unwrap_or(0xFF);
         if status != commands::ZNP_STATUS_SUCCESS {
             return Err(HomeAutoError::ZigbeeAttribute {
@@ -309,7 +321,9 @@ impl ZigbeeCoordinator for ZnpCoordinator {
         zcl.extend_from_slice(cmd_payload);
 
         let payload = commands::af_data_request(addr.nwk, 0x01, 0x01, cluster, zcl_seq, &zcl);
-        let resp = self.sreq(commands::AF, commands::AF_DATA_REQUEST, payload).await?;
+        let resp = self
+            .sreq(commands::AF, commands::AF_DATA_REQUEST, payload)
+            .await?;
         let status = resp.payload.first().copied().unwrap_or(0xFF);
         if status != commands::ZNP_STATUS_SUCCESS {
             return Err(HomeAutoError::ZigbeeCoordinator(format!(
@@ -357,7 +371,7 @@ fn encode_zcl_value(value: &AttributeValue) -> HomeAutoResult<(u8, Vec<u8>)> {
         _ => {
             return Err(HomeAutoError::Unsupported(format!(
                 "ZCL encoding not implemented for {value:?}"
-            )))
+            )));
         }
     })
 }

@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use super::super::types::Capability;
+use serde::{Deserialize, Serialize};
 
 /// 64-bit IEEE (EUI-64) extended address.
 pub type IeeeAddr = u64;

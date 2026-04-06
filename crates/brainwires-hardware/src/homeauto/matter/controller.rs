@@ -7,7 +7,6 @@
 /// - Cluster TLV encoding (complete)
 /// - Invoke and read operations over established sessions (complete)
 /// - Session caching to reuse CASE sessions across calls
-
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::path::Path;
@@ -17,26 +16,26 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use tokio::sync::Mutex;
 use tracing::{debug, info, warn};
 
-use crate::homeauto::error::{HomeAutoError, HomeAutoResult};
-use crate::homeauto::types::{AttributeValue, HomeAutoEvent};
-use crate::homeauto::BoxStream;
 use super::clusters;
+use super::clusters::{AttributePath, CommandPath};
 use super::commissioning::{parse_manual_code, parse_qr_code};
-use super::discovery::operational::{derive_compressed_fabric_id, OperationalBrowser};
+use super::discovery::operational::{OperationalBrowser, derive_compressed_fabric_id};
 use super::fabric::FabricManager;
 use super::interaction_model::{
-    ImOpcode, InvokeRequest, InvokeResponse, InvokeResponseItem, InteractionStatus,
-    ReadRequest, ReportData,
+    ImOpcode, InteractionStatus, InvokeRequest, InvokeResponse, InvokeResponseItem, ReadRequest,
+    ReportData,
 };
 use super::secure_channel::{
-    EstablishedSession, PaseCommissioner, CaseInitiator,
-    SecureChannelOpcode, SECURE_CHANNEL_PROTOCOL_ID,
+    CaseInitiator, EstablishedSession, PaseCommissioner, SECURE_CHANNEL_PROTOCOL_ID,
+    SecureChannelOpcode,
 };
-use super::transport::{SessionKeys, UdpTransport};
+use super::server::{build_payload, parse_payload_header};
 use super::transport::message::{MatterMessage, MessageHeader, SessionType};
+use super::transport::{SessionKeys, UdpTransport};
 use super::types::MatterDevice;
-use super::clusters::{AttributePath, CommandPath};
-use super::server::{parse_payload_header, build_payload};
+use crate::homeauto::BoxStream;
+use crate::homeauto::error::{HomeAutoError, HomeAutoResult};
+use crate::homeauto::types::{AttributeValue, HomeAutoEvent};
 
 // IM protocol ID
 const IM_PROTOCOL_ID: u16 = 0x0001;
@@ -82,10 +81,7 @@ pub struct MatterController {
 impl MatterController {
     /// Create a new controller. `fabric_name` is stored in the fabric label.
     /// `storage_path` is where the fabric certificate and node data are persisted.
-    pub async fn new(
-        fabric_name: impl Into<String>,
-        storage_path: &Path,
-    ) -> HomeAutoResult<Self> {
+    pub async fn new(fabric_name: impl Into<String>, storage_path: &Path) -> HomeAutoResult<Self> {
         tokio::fs::create_dir_all(storage_path)
             .await
             .map_err(HomeAutoError::Io)?;
@@ -106,11 +102,7 @@ impl MatterController {
     ///
     /// Parses the commissioning payload, discovers the device via mDNS,
     /// establishes a PASE session over UDP, and returns the commissioned device.
-    pub async fn commission_qr(
-        &self,
-        qr_code: &str,
-        node_id: u64,
-    ) -> HomeAutoResult<MatterDevice> {
+    pub async fn commission_qr(&self, qr_code: &str, node_id: u64) -> HomeAutoResult<MatterDevice> {
         let payload = parse_qr_code(qr_code)
             .map_err(|e| HomeAutoError::MatterCommissioning(e.to_string()))?;
         debug!(
@@ -120,10 +112,15 @@ impl MatterController {
 
         // Discover device via mDNS — browse _matterc._udp by discriminator.
         // We attempt mDNS discovery with a 10-second timeout.
-        let peer_addr = self.discover_commissionable(payload.discriminator).await
-            .map_err(|e| HomeAutoError::MatterCommissioning(
-                format!("device discovery failed (disc={}): {e}", payload.discriminator)
-            ))?;
+        let peer_addr = self
+            .discover_commissionable(payload.discriminator)
+            .await
+            .map_err(|e| {
+                HomeAutoError::MatterCommissioning(format!(
+                    "device discovery failed (disc={}): {e}",
+                    payload.discriminator
+                ))
+            })?;
 
         info!("Commissioning: found device at {peer_addr}");
 
@@ -132,13 +129,18 @@ impl MatterController {
             .await
             .map_err(|e| HomeAutoError::MatterCommissioning(format!("UDP bind: {e}")))?;
 
-        let session = self.run_pase(&transport, peer_addr, payload.passcode).await?;
+        let session = self
+            .run_pase(&transport, peer_addr, payload.passcode)
+            .await?;
 
         // Register session keys
-        transport.sessions.lock().await.insert(session.session_id, SessionKeys {
-            encrypt_key: session.encrypt_key,
-            decrypt_key: session.decrypt_key,
-        });
+        transport.sessions.lock().await.insert(
+            session.session_id,
+            SessionKeys {
+                encrypt_key: session.encrypt_key,
+                decrypt_key: session.decrypt_key,
+            },
+        );
 
         info!("PASE commissioned: session_id={}", session.session_id);
 
@@ -151,7 +153,11 @@ impl MatterController {
             endpoints: Vec::new(),
             online: true,
         };
-        self.inner.lock().await.devices.insert(node_id, device.clone());
+        self.inner
+            .lock()
+            .await
+            .devices
+            .insert(node_id, device.clone());
         Ok(device)
     }
 
@@ -169,10 +175,15 @@ impl MatterController {
         );
 
         // Discover device via mDNS
-        let peer_addr = self.discover_commissionable(payload.discriminator).await
-            .map_err(|e| HomeAutoError::MatterCommissioning(
-                format!("device discovery failed (disc={}): {e}", payload.discriminator)
-            ))?;
+        let peer_addr = self
+            .discover_commissionable(payload.discriminator)
+            .await
+            .map_err(|e| {
+                HomeAutoError::MatterCommissioning(format!(
+                    "device discovery failed (disc={}): {e}",
+                    payload.discriminator
+                ))
+            })?;
 
         info!("Commissioning: found device at {peer_addr}");
 
@@ -180,12 +191,17 @@ impl MatterController {
             .await
             .map_err(|e| HomeAutoError::MatterCommissioning(format!("UDP bind: {e}")))?;
 
-        let session = self.run_pase(&transport, peer_addr, payload.passcode).await?;
+        let session = self
+            .run_pase(&transport, peer_addr, payload.passcode)
+            .await?;
 
-        transport.sessions.lock().await.insert(session.session_id, SessionKeys {
-            encrypt_key: session.encrypt_key,
-            decrypt_key: session.decrypt_key,
-        });
+        transport.sessions.lock().await.insert(
+            session.session_id,
+            SessionKeys {
+                encrypt_key: session.encrypt_key,
+                decrypt_key: session.decrypt_key,
+            },
+        );
 
         info!("PASE commissioned: session_id={}", session.session_id);
 
@@ -198,7 +214,11 @@ impl MatterController {
             endpoints: Vec::new(),
             online: true,
         };
-        self.inner.lock().await.devices.insert(node_id, device.clone());
+        self.inner
+            .lock()
+            .await
+            .devices
+            .insert(node_id, device.clone());
         Ok(device)
     }
 
@@ -221,7 +241,8 @@ impl MatterController {
         } else {
             (clusters::on_off::CMD_OFF, clusters::on_off::off_tlv())
         };
-        self.invoke(device, endpoint, clusters::on_off::CLUSTER_ID, cmd, &tlv).await
+        self.invoke(device, endpoint, clusters::on_off::CLUSTER_ID, cmd, &tlv)
+            .await
     }
 
     /// Set the level on a Level Control endpoint (0–254).
@@ -254,7 +275,14 @@ impl MatterController {
         } else {
             clusters::window_covering::CMD_DOWN_OR_CLOSE
         };
-        self.invoke(device, endpoint, clusters::window_covering::CLUSTER_ID, cmd, &[]).await
+        self.invoke(
+            device,
+            endpoint,
+            clusters::window_covering::CLUSTER_ID,
+            cmd,
+            &[],
+        )
+        .await
     }
 
     /// Lock or unlock a door lock endpoint.
@@ -271,7 +299,8 @@ impl MatterController {
             clusters::door_lock::CMD_UNLOCK_DOOR
         };
         let tlv = clusters::door_lock::lock_tlv(pin);
-        self.invoke(device, endpoint, clusters::door_lock::CLUSTER_ID, cmd, &tlv).await
+        self.invoke(device, endpoint, clusters::door_lock::CLUSTER_ID, cmd, &tlv)
+            .await
     }
 
     // ── Generic interaction model operations ──────────────────────────────────
@@ -311,9 +340,8 @@ impl MatterController {
         let resp_msg = send_and_recv(&transport, peer, msg).await?;
 
         // Parse the response payload header
-        let (_, resp_opcode, _, resp_proto, resp_app) =
-            parse_payload_header(&resp_msg.payload)
-                .ok_or_else(|| HomeAutoError::Matter("invoke: bad response payload header".into()))?;
+        let (_, resp_opcode, _, resp_proto, resp_app) = parse_payload_header(&resp_msg.payload)
+            .ok_or_else(|| HomeAutoError::Matter("invoke: bad response payload header".into()))?;
 
         if resp_proto != IM_PROTOCOL_ID {
             return Err(HomeAutoError::Matter(format!(
@@ -378,9 +406,8 @@ impl MatterController {
 
         let resp_msg = send_and_recv(&transport, peer, msg).await?;
 
-        let (_, resp_opcode, _, resp_proto, resp_app) =
-            parse_payload_header(&resp_msg.payload)
-                .ok_or_else(|| HomeAutoError::Matter("read_attr: bad response header".into()))?;
+        let (_, resp_opcode, _, resp_proto, resp_app) = parse_payload_header(&resp_msg.payload)
+            .ok_or_else(|| HomeAutoError::Matter("read_attr: bad response header".into()))?;
 
         if resp_proto != IM_PROTOCOL_ID || resp_opcode != ImOpcode::ReportData as u8 {
             return Err(HomeAutoError::Matter(format!(
@@ -449,7 +476,7 @@ impl MatterController {
         let fabrics = fabric_manager.fabrics();
         if fabrics.is_empty() {
             return Err(HomeAutoError::Matter(
-                "no fabric found — commission the device first".into()
+                "no fabric found — commission the device first".into(),
             ));
         }
         let fabric_entry = &fabrics[0];
@@ -473,9 +500,10 @@ impl MatterController {
 
         let noc = super::fabric::MatterCert::decode(&fabric_entry.noc_der)
             .map_err(|e| HomeAutoError::Matter(format!("decode NOC: {e}")))?;
-        let icac = fabric_entry.icac_der.as_deref().and_then(|d| {
-            super::fabric::MatterCert::decode(d).ok()
-        });
+        let icac = fabric_entry
+            .icac_der
+            .as_deref()
+            .and_then(|d| super::fabric::MatterCert::decode(d).ok());
 
         let transport = Arc::new(
             UdpTransport::bind_addr("0.0.0.0:0")
@@ -484,12 +512,7 @@ impl MatterController {
         );
 
         // Run CASE (SIGMA protocol)
-        let mut initiator = CaseInitiator::new(
-            node_key,
-            noc,
-            icac,
-            fabric.clone(),
-        );
+        let mut initiator = CaseInitiator::new(node_key, noc, icac, fabric.clone());
 
         let (session_id, sigma1) = initiator
             .build_sigma1()
@@ -543,18 +566,24 @@ impl MatterController {
             .clone();
 
         // Register session keys
-        transport.sessions.lock().await.insert(session_id, SessionKeys {
-            encrypt_key: session.encrypt_key,
-            decrypt_key: session.decrypt_key,
-        });
+        transport.sessions.lock().await.insert(
+            session_id,
+            SessionKeys {
+                encrypt_key: session.encrypt_key,
+                decrypt_key: session.decrypt_key,
+            },
+        );
 
         info!("CASE: session {session_id} established with {peer}");
 
         // Cache the session
-        self.inner.lock().await.session_cache.insert(device.node_id, CachedSession {
-            addr: peer,
-            session: session.clone(),
-        });
+        self.inner.lock().await.session_cache.insert(
+            device.node_id,
+            CachedSession {
+                addr: peer,
+                session: session.clone(),
+            },
+        );
 
         Ok((transport, session, peer))
     }
@@ -585,11 +614,16 @@ impl MatterController {
             &param_req,
         );
         let param_req_msg = build_matter_message(0, next_counter(), wire_req);
-        let param_resp_msg = send_and_recv(transport, peer, param_req_msg).await
-            .map_err(|e| HomeAutoError::MatterCommissioning(format!("PBKDFParamResponse recv: {e}")))?;
+        let param_resp_msg = send_and_recv(transport, peer, param_req_msg)
+            .await
+            .map_err(|e| {
+                HomeAutoError::MatterCommissioning(format!("PBKDFParamResponse recv: {e}"))
+            })?;
 
         let (_, op_r, _, _, param_resp_app) = parse_payload_header(&param_resp_msg.payload)
-            .ok_or_else(|| HomeAutoError::MatterCommissioning("bad PBKDFParamResponse header".into()))?;
+            .ok_or_else(|| {
+                HomeAutoError::MatterCommissioning("bad PBKDFParamResponse header".into())
+            })?;
         if op_r != SecureChannelOpcode::PbkdfParamResponse as u8 {
             return Err(HomeAutoError::MatterCommissioning(format!(
                 "expected PBKDFParamResponse, got {op_r:#04x}"
@@ -599,7 +633,9 @@ impl MatterController {
         // Step 2: send Pake1
         let pake1 = commissioner
             .handle_param_response(param_resp_app)
-            .map_err(|e| HomeAutoError::MatterCommissioning(format!("handle_param_response: {e}")))?;
+            .map_err(|e| {
+                HomeAutoError::MatterCommissioning(format!("handle_param_response: {e}"))
+            })?;
 
         let wire_pake1 = build_payload(
             SecureChannelOpcode::Pake1 as u8,
@@ -608,7 +644,8 @@ impl MatterController {
             &pake1,
         );
         let pake1_msg = build_matter_message(0, next_counter(), wire_pake1);
-        let pake2_resp = send_and_recv(transport, peer, pake1_msg).await
+        let pake2_resp = send_and_recv(transport, peer, pake1_msg)
+            .await
             .map_err(|e| HomeAutoError::MatterCommissioning(format!("Pake2 recv: {e}")))?;
 
         let (_, op_2, _, _, pake2_app) = parse_payload_header(&pake2_resp.payload)
@@ -631,7 +668,8 @@ impl MatterController {
             &pake3,
         );
         let pake3_msg = build_matter_message(0, next_counter(), wire_pake3);
-        let status_msg = send_and_recv(transport, peer, pake3_msg).await
+        let status_msg = send_and_recv(transport, peer, pake3_msg)
+            .await
             .map_err(|e| HomeAutoError::MatterCommissioning(format!("StatusReport recv: {e}")))?;
 
         // Parse StatusReport for success
@@ -641,10 +679,9 @@ impl MatterController {
             warn!("PASE: expected StatusReport, got {op_sr:#04x}");
         }
 
-        commissioner
-            .established_session()
-            .cloned()
-            .ok_or_else(|| HomeAutoError::MatterCommissioning("PASE: session not established after Pake3".into()))
+        commissioner.established_session().cloned().ok_or_else(|| {
+            HomeAutoError::MatterCommissioning("PASE: session not established after Pake3".into())
+        })
     }
 
     // ── mDNS discovery helper ─────────────────────────────────────────────────
@@ -657,8 +694,8 @@ impl MatterController {
         use mdns_sd::{ServiceDaemon, ServiceEvent};
         use std::time::Duration;
 
-        let daemon = ServiceDaemon::new()
-            .map_err(|e| HomeAutoError::Matter(format!("mDNS daemon: {e}")))?;
+        let daemon =
+            ServiceDaemon::new().map_err(|e| HomeAutoError::Matter(format!("mDNS daemon: {e}")))?;
 
         let receiver = daemon
             .browse("_matterc._udp")
@@ -693,7 +730,9 @@ impl MatterController {
                             .find(|a| matches!(a, std::net::IpAddr::V4(_)))
                             .or_else(|| info.get_addresses().iter().next())
                             .copied()
-                            .ok_or_else(|| HomeAutoError::Matter("mDNS: no address for device".into()))?;
+                            .ok_or_else(|| {
+                                HomeAutoError::Matter("mDNS: no address for device".into())
+                            })?;
                         let _ = daemon.stop_browse("_matterc._udp");
                         return Ok(SocketAddr::new(addr, port));
                     }
@@ -736,16 +775,13 @@ async fn send_and_recv(
     peer: SocketAddr,
     msg: MatterMessage,
 ) -> HomeAutoResult<MatterMessage> {
-    transport.send(&msg, peer).await
+    transport
+        .send(&msg, peer)
+        .await
         .map_err(|e| HomeAutoError::Matter(format!("send_and_recv: send: {e}")))?;
 
     // Wait for response with timeout
-    match tokio::time::timeout(
-        std::time::Duration::from_secs(5),
-        transport.recv(),
-    )
-    .await
-    {
+    match tokio::time::timeout(std::time::Duration::from_secs(5), transport.recv()).await {
         Ok(Ok((resp, _))) => Ok(resp),
         Ok(Err(e)) => Err(HomeAutoError::Matter(format!("send_and_recv: recv: {e}"))),
         Err(_) => Err(HomeAutoError::Timeout),
@@ -786,9 +822,10 @@ fn tlv_to_attribute_value(data: &[u8]) -> AttributeValue {
         0x08 => AttributeValue::Bool(false),
         0x09 => AttributeValue::Bool(true),
         0x04 if inner.len() > value_start => AttributeValue::U8(inner[value_start]),
-        0x05 if inner.len() >= value_start + 2 => {
-            AttributeValue::U16(u16::from_le_bytes([inner[value_start], inner[value_start + 1]]))
-        }
+        0x05 if inner.len() >= value_start + 2 => AttributeValue::U16(u16::from_le_bytes([
+            inner[value_start],
+            inner[value_start + 1],
+        ])),
         0x06 if inner.len() >= value_start + 4 => {
             let bytes: [u8; 4] = inner[value_start..value_start + 4].try_into().unwrap();
             AttributeValue::U32(u32::from_le_bytes(bytes))

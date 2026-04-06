@@ -23,7 +23,6 @@
 /// | 21 | fabric_id | uint |
 ///
 /// Timestamps use the Matter epoch: seconds since 2000-01-01 00:00:00 UTC.
-
 use crate::homeauto::matter::error::{MatterError, MatterResult};
 
 // ── TLV encoding constants ────────────────────────────────────────────────────
@@ -85,7 +84,10 @@ fn tlv_ctx_u64(tag: u8, val: u64) -> Vec<u8> {
 
 /// Encode a context-tagged octet string (length fits in 1 byte, i.e. ≤ 255 bytes).
 fn tlv_ctx_bytes(tag: u8, data: &[u8]) -> Vec<u8> {
-    assert!(data.len() <= 255, "TLV octet-string: length > 255 not supported");
+    assert!(
+        data.len() <= 255,
+        "TLV octet-string: length > 255 not supported"
+    );
     let mut v = Vec::with_capacity(3 + data.len());
     v.push(CTX | BYTES1);
     v.push(tag);
@@ -113,7 +115,9 @@ impl<'a> TlvReader<'a> {
 
     fn peek_byte(&self) -> MatterResult<u8> {
         if self.pos >= self.buf.len() {
-            return Err(MatterError::Commissioning("TLV: unexpected end of buffer".into()));
+            return Err(MatterError::Commissioning(
+                "TLV: unexpected end of buffer".into(),
+            ));
         }
         Ok(self.buf[self.pos])
     }
@@ -145,10 +149,10 @@ impl<'a> TlvReader<'a> {
         }
         let ctrl = self.read_byte()?;
         let tag_type = (ctrl >> 5) & 0x07; // upper 3 bits
-        let elem_type = ctrl & 0x1f;       // lower 5 bits
+        let elem_type = ctrl & 0x1f; // lower 5 bits
 
         let tag: Option<u8> = match tag_type {
-            0 => None,           // anonymous
+            0 => None,                    // anonymous
             1 => Some(self.read_byte()?), // context 1-byte tag
             _ => {
                 return Err(MatterError::Commissioning(format!(
@@ -400,9 +404,8 @@ impl MatterCert {
         let serial_number = serial_number.ok_or_else(|| {
             MatterError::Commissioning("TLV cert: missing serial_number (tag 1)".into())
         })?;
-        let issuer = issuer.ok_or_else(|| {
-            MatterError::Commissioning("TLV cert: missing issuer (tag 3)".into())
-        })?;
+        let issuer = issuer
+            .ok_or_else(|| MatterError::Commissioning("TLV cert: missing issuer (tag 3)".into()))?;
         let not_before = not_before.ok_or_else(|| {
             MatterError::Commissioning("TLV cert: missing not_before (tag 4)".into())
         })?;
@@ -551,6 +554,9 @@ mod tests {
 
         // TBS must not contain the signature bytes
         let full = cert.encode();
-        assert!(full.len() > tbs1.len(), "full cert should be larger than TBS");
+        assert!(
+            full.len() > tbs1.len(),
+            "full cert should be larger than TBS"
+        );
     }
 }

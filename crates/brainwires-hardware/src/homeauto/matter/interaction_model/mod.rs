@@ -6,7 +6,6 @@
 /// message body.
 ///
 /// Reference: Matter spec §8 (Interaction Model).
-
 pub mod invoke;
 pub mod read;
 pub mod subscribe;
@@ -23,16 +22,16 @@ pub const PROTOCOL_ID: u16 = 0x0001;
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ImOpcode {
-    StatusResponse    = 0x01,
-    ReadRequest       = 0x02,
-    SubscribeRequest  = 0x03,
+    StatusResponse = 0x01,
+    ReadRequest = 0x02,
+    SubscribeRequest = 0x03,
     SubscribeResponse = 0x04,
-    ReportData        = 0x05,
-    WriteRequest      = 0x06,
-    WriteResponse     = 0x07,
-    InvokeRequest     = 0x08,
-    InvokeResponse    = 0x09,
-    TimedRequest      = 0x0A,
+    ReportData = 0x05,
+    WriteRequest = 0x06,
+    WriteResponse = 0x07,
+    InvokeRequest = 0x08,
+    InvokeResponse = 0x09,
+    TimedRequest = 0x0A,
 }
 
 // ── Public re-exports ─────────────────────────────────────────────────────────

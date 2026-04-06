@@ -1,10 +1,7 @@
 //! Core [`LanceDatabase`] struct and helper methods.
 
 use anyhow::{Context, Result};
-use arrow_array::{
-    FixedSizeListArray, RecordBatch, StringArray, UInt32Array,
-    types::Float32Type,
-};
+use arrow_array::{FixedSizeListArray, RecordBatch, StringArray, UInt32Array, types::Float32Type};
 use arrow_schema::{DataType, Field, Schema};
 use lancedb::Table;
 use lancedb::connection::Connection;

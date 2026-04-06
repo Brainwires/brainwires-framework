@@ -2,29 +2,28 @@
 ///
 /// Handles NOC management, CSR generation, and attestation during commissioning.
 /// Matter spec §11.17.
-
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 
 use crate::homeauto::matter::clusters::tlv;
-use crate::homeauto::matter::error::{MatterError, MatterResult};
 use crate::homeauto::matter::data_model::ClusterServer;
+use crate::homeauto::matter::error::{MatterError, MatterResult};
 
 // ── Attribute IDs ─────────────────────────────────────────────────────────────
 
-pub const ATTR_NOCS: u32               = 0x0000;
-pub const ATTR_FABRICS: u32            = 0x0001;
-pub const ATTR_SUPPORTED_FABRICS: u32  = 0x0002;
+pub const ATTR_NOCS: u32 = 0x0000;
+pub const ATTR_FABRICS: u32 = 0x0001;
+pub const ATTR_SUPPORTED_FABRICS: u32 = 0x0002;
 pub const ATTR_COMMISSIONED_FABRICS: u32 = 0x0003;
 
 // ── Command IDs ───────────────────────────────────────────────────────────────
 
-pub const CMD_ATTESTATION_REQUEST: u32   = 0x00;
-pub const CMD_CSR_REQUEST: u32           = 0x02;
-pub const CMD_ADD_NOC: u32               = 0x06;
-pub const CMD_UPDATE_FABRIC_LABEL: u32   = 0x0B;
-pub const CMD_REMOVE_FABRIC: u32         = 0x0C;
+pub const CMD_ATTESTATION_REQUEST: u32 = 0x00;
+pub const CMD_CSR_REQUEST: u32 = 0x02;
+pub const CMD_ADD_NOC: u32 = 0x06;
+pub const CMD_UPDATE_FABRIC_LABEL: u32 = 0x0B;
+pub const CMD_REMOVE_FABRIC: u32 = 0x0C;
 
 const CLUSTER_ID: u32 = 0x003E;
 
@@ -156,9 +155,7 @@ impl ClusterServer for OperationalCredentialsCluster {
                 }
                 Ok(wrap_list(&items))
             }
-            ATTR_SUPPORTED_FABRICS => {
-                Ok(tlv_uint8(0, 5))
-            }
+            ATTR_SUPPORTED_FABRICS => Ok(tlv_uint8(0, 5)),
             ATTR_COMMISSIONED_FABRICS => {
                 let count = self.state.lock().unwrap().noc_entries.len() as u8;
                 Ok(tlv_uint8(0, count))
@@ -168,7 +165,9 @@ impl ClusterServer for OperationalCredentialsCluster {
     }
 
     async fn write_attribute(&self, _attr_id: u32, _value: &[u8]) -> MatterResult<()> {
-        Err(MatterError::Transport("OperationalCredentials attributes are not writable".into()))
+        Err(MatterError::Transport(
+            "OperationalCredentials attributes are not writable".into(),
+        ))
     }
 
     async fn invoke_command(&self, cmd_id: u32, args: &[u8]) -> MatterResult<Vec<u8>> {
@@ -176,8 +175,7 @@ impl ClusterServer for OperationalCredentialsCluster {
             CMD_ATTESTATION_REQUEST => {
                 // AttestationRequest { AttestationNonce: bytes(32) }
                 // Extract nonce: find octet_string at tag 0.
-                let nonce = extract_octet_string_tag(args, 0)
-                    .unwrap_or_else(|| vec![0u8; 32]);
+                let nonce = extract_octet_string_tag(args, 0).unwrap_or_else(|| vec![0u8; 32]);
 
                 // AttestationElements TLV: { tag 1: CD (16 zero bytes), tag 2: nonce, tag 3: timestamp }
                 let cd = vec![0u8; 16];
@@ -197,8 +195,7 @@ impl ClusterServer for OperationalCredentialsCluster {
 
             CMD_CSR_REQUEST => {
                 // CSRRequest { CSRNonce: bytes(32) }
-                let csr_nonce = extract_octet_string_tag(args, 0)
-                    .unwrap_or_else(|| vec![0u8; 32]);
+                let csr_nonce = extract_octet_string_tag(args, 0).unwrap_or_else(|| vec![0u8; 32]);
 
                 // Generate a P-256 keypair scalar (32 random bytes as stub).
                 let scalar = generate_ephemeral_scalar();
@@ -250,8 +247,14 @@ impl ClusterServer for OperationalCredentialsCluster {
                 // UpdateFabricLabel { Label(0): string } → NOCResponse
                 // The fabric index context is carried by the CASE session; for the
                 // server stub we just return success on the first fabric.
-                let fabric_index = self.state.lock().unwrap()
-                    .noc_entries.first().map(|e| e.fabric_index).unwrap_or(1);
+                let fabric_index = self
+                    .state
+                    .lock()
+                    .unwrap()
+                    .noc_entries
+                    .first()
+                    .map(|e| e.fabric_index)
+                    .unwrap_or(1);
                 Ok(noc_response(0, fabric_index))
             }
 
@@ -265,7 +268,9 @@ impl ClusterServer for OperationalCredentialsCluster {
                 Ok(noc_response(0, fi))
             }
 
-            _ => Err(MatterError::Transport(format!("unknown command {cmd_id:#06x}"))),
+            _ => Err(MatterError::Transport(format!(
+                "unknown command {cmd_id:#06x}"
+            ))),
         }
     }
 
@@ -297,7 +302,9 @@ impl ClusterServer for OperationalCredentialsCluster {
 fn extract_octet_string_tag(args: &[u8], tag: u8) -> Option<Vec<u8>> {
     let ctrl = tlv::TAG_CONTEXT_1 | 0x10; // TYPE_OCTET_STRING_1
     let mut i = 0;
-    if args.first() == Some(&tlv::TYPE_STRUCTURE) { i += 1; }
+    if args.first() == Some(&tlv::TYPE_STRUCTURE) {
+        i += 1;
+    }
     while i + 2 < args.len() {
         if args[i] == ctrl && args[i + 1] == tag {
             let len = args[i + 2] as usize;
@@ -315,7 +322,9 @@ fn extract_octet_string_tag(args: &[u8], tag: u8) -> Option<Vec<u8>> {
 fn extract_uint8_tag(args: &[u8], tag: u8) -> Option<u8> {
     let ctrl = tlv::TAG_CONTEXT_1 | tlv::TYPE_UNSIGNED_INT_1;
     let mut i = 0;
-    if args.first() == Some(&tlv::TYPE_STRUCTURE) { i += 1; }
+    if args.first() == Some(&tlv::TYPE_STRUCTURE) {
+        i += 1;
+    }
     while i + 2 < args.len() {
         if args[i] == ctrl && args[i + 1] == tag {
             return Some(args[i + 2]);
@@ -347,8 +356,8 @@ fn generate_ephemeral_scalar() -> [u8; 32] {
 /// Here we just use a recognisable byte pattern so tests can verify structure.
 fn derive_stub_pubkey(scalar: &[u8; 32]) -> Vec<u8> {
     let mut pk = vec![0x04u8]; // uncompressed point prefix
-    pk.extend_from_slice(scalar);   // X coordinate = scalar (stub)
-    pk.extend_from_slice(scalar);   // Y coordinate = scalar (stub)
+    pk.extend_from_slice(scalar); // X coordinate = scalar (stub)
+    pk.extend_from_slice(scalar); // Y coordinate = scalar (stub)
     pk.truncate(65);
     pk
 }

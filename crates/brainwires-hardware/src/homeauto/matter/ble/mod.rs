@@ -37,4 +37,6 @@
 
 pub mod peripheral;
 
-pub use peripheral::{MatterBlePeripheral, MATTER_BLE_SERVICE_UUID, MATTER_C1_UUID, MATTER_C2_UUID};
+pub use peripheral::{
+    MATTER_BLE_SERVICE_UUID, MATTER_C1_UUID, MATTER_C2_UUID, MatterBlePeripheral,
+};

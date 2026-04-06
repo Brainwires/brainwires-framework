@@ -1,3 +1,7 @@
+/// Matter TLV-encoded certificate (NOC / RCAC / ICAC) codec.
+pub mod cert;
+/// Fabric lifecycle management (root CA, NOC issuance, storage).
+pub mod manager;
 /// Matter 1.3 fabric management.
 ///
 /// A Matter **fabric** is an administrative domain composed of a root Certificate
@@ -11,10 +15,6 @@
 
 /// Identity types for Matter fabrics.
 pub mod types;
-/// Matter TLV-encoded certificate (NOC / RCAC / ICAC) codec.
-pub mod cert;
-/// Fabric lifecycle management (root CA, NOC issuance, storage).
-pub mod manager;
 
 pub use cert::{MatterCert, MatterCertSubject};
 pub use manager::{FabricManager, StoredFabricEntry};

@@ -1,5 +1,4 @@
 /// All clap CLI structs for matter-tool.
-
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
@@ -249,7 +248,9 @@ mod tests {
     fn pair_qr() {
         let cli = parse(&["pair", "qr", "1", "MT:Y.K9042C00KA0648G00"]).unwrap();
         match cli.command {
-            Command::Pair { action: PairAction::Qr { node_id, qr_code } } => {
+            Command::Pair {
+                action: PairAction::Qr { node_id, qr_code },
+            } => {
                 assert_eq!(node_id, 1);
                 assert_eq!(qr_code, "MT:Y.K9042C00KA0648G00");
             }
@@ -261,7 +262,13 @@ mod tests {
     fn pair_code() {
         let cli = parse(&["pair", "code", "7", "34970112332"]).unwrap();
         match cli.command {
-            Command::Pair { action: PairAction::Code { node_id, manual_code } } => {
+            Command::Pair {
+                action:
+                    PairAction::Code {
+                        node_id,
+                        manual_code,
+                    },
+            } => {
                 assert_eq!(node_id, 7);
                 assert_eq!(manual_code, "34970112332");
             }
@@ -273,7 +280,9 @@ mod tests {
     fn pair_unpair() {
         let cli = parse(&["pair", "unpair", "3"]).unwrap();
         match cli.command {
-            Command::Pair { action: PairAction::Unpair { node_id } } => {
+            Command::Pair {
+                action: PairAction::Unpair { node_id },
+            } => {
                 assert_eq!(node_id, 3);
             }
             other => panic!("unexpected: {other:?}"),
@@ -287,7 +296,12 @@ mod tests {
         let cli = parse(&["onoff", "on", "1", "1"]).unwrap();
         assert!(matches!(
             cli.command,
-            Command::Onoff { action: OnoffAction::On { node_id: 1, endpoint: 1 } }
+            Command::Onoff {
+                action: OnoffAction::On {
+                    node_id: 1,
+                    endpoint: 1
+                }
+            }
         ));
     }
 
@@ -296,7 +310,12 @@ mod tests {
         let cli = parse(&["onoff", "toggle", "2", "3"]).unwrap();
         assert!(matches!(
             cli.command,
-            Command::Onoff { action: OnoffAction::Toggle { node_id: 2, endpoint: 3 } }
+            Command::Onoff {
+                action: OnoffAction::Toggle {
+                    node_id: 2,
+                    endpoint: 3
+                }
+            }
         ));
     }
 
@@ -306,7 +325,15 @@ mod tests {
     fn level_set_default_transition() {
         let cli = parse(&["level", "set", "1", "1", "200"]).unwrap();
         match cli.command {
-            Command::Level { action: LevelAction::Set { node_id, endpoint, level, transition } } => {
+            Command::Level {
+                action:
+                    LevelAction::Set {
+                        node_id,
+                        endpoint,
+                        level,
+                        transition,
+                    },
+            } => {
                 assert_eq!(node_id, 1);
                 assert_eq!(endpoint, 1);
                 assert_eq!(level, 200);
@@ -320,7 +347,9 @@ mod tests {
     fn level_set_with_transition() {
         let cli = parse(&["level", "set", "1", "1", "128", "--transition", "10"]).unwrap();
         match cli.command {
-            Command::Level { action: LevelAction::Set { transition, .. } } => {
+            Command::Level {
+                action: LevelAction::Set { transition, .. },
+            } => {
                 assert_eq!(transition, 10);
             }
             other => panic!("unexpected: {other:?}"),
@@ -333,7 +362,12 @@ mod tests {
     fn invoke_hex_cluster_and_cmd() {
         let cli = parse(&["invoke", "1", "1", "0x0006", "0x01"]).unwrap();
         match cli.command {
-            Command::Invoke { cluster_id, command_id, payload_hex, .. } => {
+            Command::Invoke {
+                cluster_id,
+                command_id,
+                payload_hex,
+                ..
+            } => {
                 assert_eq!(cluster_id, 0x0006);
                 assert_eq!(command_id, 0x01);
                 assert!(payload_hex.is_none());
@@ -357,7 +391,12 @@ mod tests {
     fn read_hex_cluster_and_attr() {
         let cli = parse(&["read", "5", "2", "0x0006", "0x0000"]).unwrap();
         match cli.command {
-            Command::Read { node_id, endpoint, cluster_id, attribute_id } => {
+            Command::Read {
+                node_id,
+                endpoint,
+                cluster_id,
+                attribute_id,
+            } => {
                 assert_eq!(node_id, 5);
                 assert_eq!(endpoint, 2);
                 assert_eq!(cluster_id, 0x0006);
@@ -426,7 +465,9 @@ mod tests {
         let cli = parse(&["fabric", "info"]).unwrap();
         assert!(matches!(
             cli.command,
-            Command::Fabric { action: FabricAction::Info }
+            Command::Fabric {
+                action: FabricAction::Info
+            }
         ));
     }
 
@@ -435,7 +476,9 @@ mod tests {
         let cli = parse(&["fabric", "reset"]).unwrap();
         assert!(matches!(
             cli.command,
-            Command::Fabric { action: FabricAction::Reset }
+            Command::Fabric {
+                action: FabricAction::Reset
+            }
         ));
     }
 

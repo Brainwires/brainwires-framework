@@ -1,9 +1,9 @@
+use super::super::types::AttributeValue;
 /// High-level helpers for the most common Zigbee clusters.
 ///
 /// Each function returns the (cluster_id, command_id, payload) tuple ready to pass to
 /// [`ZigbeeCoordinator::send_command`] or (`cluster_id`, `attr_id`) for reads/writes.
 use super::types::cluster_id;
-use super::super::types::AttributeValue;
 
 // ── On/Off cluster (0x0006) ──────────────────────────────────────────────────
 
@@ -58,7 +58,11 @@ pub const ATTR_COLOR_COLOR_MODE: u16 = 0x0008;
 pub fn move_to_hue_sat(hue: u8, sat: u8, transition_time_ds: u16) -> (u16, u8, Vec<u8>) {
     let mut payload = vec![hue, sat];
     payload.extend_from_slice(&transition_time_ds.to_le_bytes());
-    (cluster_id::COLOR_CONTROL, CMD_COLOR_MOVE_TO_HUE_SAT, payload)
+    (
+        cluster_id::COLOR_CONTROL,
+        CMD_COLOR_MOVE_TO_HUE_SAT,
+        payload,
+    )
 }
 
 /// Returns (cluster, cmd, payload) to move to a color temperature in mireds (153–500 typical).
@@ -66,7 +70,11 @@ pub fn move_to_color_temp(mireds: u16, transition_time_ds: u16) -> (u16, u8, Vec
     let mut payload = Vec::new();
     payload.extend_from_slice(&mireds.to_le_bytes());
     payload.extend_from_slice(&transition_time_ds.to_le_bytes());
-    (cluster_id::COLOR_CONTROL, CMD_COLOR_MOVE_TO_COLOR_TEMP, payload)
+    (
+        cluster_id::COLOR_CONTROL,
+        CMD_COLOR_MOVE_TO_COLOR_TEMP,
+        payload,
+    )
 }
 
 // ── Temperature Measurement cluster (0x0402) ─────────────────────────────────
@@ -122,7 +130,11 @@ pub const ATTR_DOOR_LOCK_STATE: u16 = 0x0000;
 /// Returns (cluster, cmd, payload) to lock or unlock a door lock.
 /// Pass an optional PIN code (as ASCII bytes). May be empty if PIN not required.
 pub fn door_lock_command(lock: bool, pin: &[u8]) -> (u16, u8, Vec<u8>) {
-    let cmd = if lock { CMD_DOOR_LOCK_LOCK } else { CMD_DOOR_LOCK_UNLOCK };
+    let cmd = if lock {
+        CMD_DOOR_LOCK_LOCK
+    } else {
+        CMD_DOOR_LOCK_UNLOCK
+    };
     // ZCL door lock command payload: PIN code string (length-prefixed octet string)
     let mut payload = vec![pin.len() as u8];
     payload.extend_from_slice(pin);

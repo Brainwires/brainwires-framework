@@ -12,8 +12,8 @@
 //! - `check_before_spawn()` is called before creating a new agent; `record_run()` is
 //!   called after each provider response is received.
 
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
 use thiserror::Error;
 
@@ -117,10 +117,7 @@ impl SessionBudget {
         if let Some(limit) = self.max_agents {
             let spawned = self.agents_spawned.load(Ordering::Acquire);
             if spawned >= limit {
-                return Err(BudgetError::AgentsExceeded {
-                    spawned,
-                    limit,
-                });
+                return Err(BudgetError::AgentsExceeded { spawned, limit });
             }
         }
         if let Some(limit) = self.max_total_tokens {
@@ -213,7 +210,10 @@ mod tests {
         b.increment_agent_count();
         // Design: check_before_spawn uses >= so it blocks when already AT limit
         match b.check_before_spawn() {
-            Err(BudgetError::AgentsExceeded { spawned: 2, limit: 2 }) => {}
+            Err(BudgetError::AgentsExceeded {
+                spawned: 2,
+                limit: 2,
+            }) => {}
             other => panic!("expected AgentsExceeded, got {:?}", other),
         }
     }
@@ -223,7 +223,10 @@ mod tests {
         let b = SessionBudget::new().with_max_tokens(500);
         b.record_run(500, 0.0);
         // Design: check_before_spawn uses >= (denies when AT limit)
-        assert!(matches!(b.check_before_spawn(), Err(BudgetError::TokensExceeded { .. })));
+        assert!(matches!(
+            b.check_before_spawn(),
+            Err(BudgetError::TokensExceeded { .. })
+        ));
     }
 
     #[test]
@@ -231,16 +234,25 @@ mod tests {
         let b = SessionBudget::new().with_max_tokens(500);
         b.record_run(500, 0.0);
         // Design: check_limits uses > (allows AT limit, aborts ABOVE)
-        assert!(b.check_limits().is_ok(), "exact-equal should still be allowed mid-run");
+        assert!(
+            b.check_limits().is_ok(),
+            "exact-equal should still be allowed mid-run"
+        );
         b.record_run(1, 0.0);
-        assert!(matches!(b.check_limits(), Err(BudgetError::TokensExceeded { .. })));
+        assert!(matches!(
+            b.check_limits(),
+            Err(BudgetError::TokensExceeded { .. })
+        ));
     }
 
     #[test]
     fn cost_limit_blocks_before_spawn_at_limit() {
         let b = SessionBudget::new().with_max_cost_usd(1.0);
         b.record_run(0, 1.0);
-        assert!(matches!(b.check_before_spawn(), Err(BudgetError::CostExceeded { .. })));
+        assert!(matches!(
+            b.check_before_spawn(),
+            Err(BudgetError::CostExceeded { .. })
+        ));
     }
 
     #[test]
@@ -250,7 +262,10 @@ mod tests {
         // Design: check_limits uses > (allows AT limit, aborts ABOVE)
         assert!(b.check_limits().is_ok());
         b.record_run(0, 0.0001);
-        assert!(matches!(b.check_limits(), Err(BudgetError::CostExceeded { .. })));
+        assert!(matches!(
+            b.check_limits(),
+            Err(BudgetError::CostExceeded { .. })
+        ));
     }
 
     #[test]

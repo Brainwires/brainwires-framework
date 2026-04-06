@@ -172,7 +172,13 @@ impl FsWorkflowStateStore {
         // Sanitise task_id so it's safe as a filename.
         let safe_id: String = task_id
             .chars()
-            .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+            .map(|c| {
+                if c.is_alphanumeric() || c == '-' || c == '_' {
+                    c
+                } else {
+                    '_'
+                }
+            })
             .collect();
         self.dir.join(format!("{safe_id}.json"))
     }
@@ -309,7 +315,10 @@ mod tests {
         let store = InMemoryWorkflowStateStore::new();
 
         let effect = SideEffectRecord::new("use-1", "write_file", Some("src/main.rs".into()), true);
-        store.mark_step_complete("t2", "use-1", effect).await.unwrap();
+        store
+            .mark_step_complete("t2", "use-1", effect)
+            .await
+            .unwrap();
 
         let cp = store.load_checkpoint("t2").await.unwrap().unwrap();
         assert!(cp.is_completed("use-1"));
@@ -366,7 +375,10 @@ mod tests {
         let store = FsWorkflowStateStore::new(dir.path().to_path_buf()).unwrap();
 
         let effect = SideEffectRecord::new("use-99", "write_file", Some("foo.rs".into()), true);
-        store.mark_step_complete("fresh-task", "use-99", effect).await.unwrap();
+        store
+            .mark_step_complete("fresh-task", "use-99", effect)
+            .await
+            .unwrap();
 
         let cp = store.load_checkpoint("fresh-task").await.unwrap().unwrap();
         assert!(cp.is_completed("use-99"));
@@ -400,7 +412,11 @@ mod tests {
         let cp = WorkflowCheckpoint::new("proj/task.1 final", "a");
         store.save_checkpoint(&cp).await.unwrap();
 
-        let loaded = store.load_checkpoint("proj/task.1 final").await.unwrap().unwrap();
+        let loaded = store
+            .load_checkpoint("proj/task.1 final")
+            .await
+            .unwrap()
+            .unwrap();
         assert_eq!(loaded.task_id, "proj/task.1 final");
 
         // Verify the file is directly in `dir`, not in a subdirectory

@@ -8,7 +8,6 @@
 /// | [`general_commissioning`]   | 0x0030     | FailSafe, regulatory config               |
 /// | [`operational_credentials`] | 0x003E     | NOC, fabrics, attestation                 |
 /// | [`network_commissioning`]   | 0x0031     | Network interface config (on-network)     |
-
 pub mod basic_information;
 pub mod general_commissioning;
 pub mod network_commissioning;

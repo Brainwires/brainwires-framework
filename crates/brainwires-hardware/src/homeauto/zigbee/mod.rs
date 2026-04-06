@@ -8,14 +8,14 @@ pub mod znp;
 
 use async_trait::async_trait;
 
+use super::BoxStream;
 use super::error::HomeAutoResult;
 use super::types::{AttributeValue, HomeAutoEvent};
-use super::BoxStream;
+pub use ezsp::EzspCoordinator;
 pub use types::{
-    ZigbeeAddr, ZigbeeAttrId, ZigbeeClusterId, ZigbeeDevice, ZigbeeDeviceKind, IeeeAddr, NwkAddr,
+    IeeeAddr, NwkAddr, ZigbeeAddr, ZigbeeAttrId, ZigbeeClusterId, ZigbeeDevice, ZigbeeDeviceKind,
     cluster_id,
 };
-pub use ezsp::EzspCoordinator;
 pub use znp::ZnpCoordinator;
 
 /// Abstraction over a Zigbee network coordinator.

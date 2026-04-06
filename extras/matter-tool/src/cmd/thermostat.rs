@@ -1,22 +1,28 @@
-use std::path::PathBuf;
-use anyhow::Result;
-use brainwires_hardware::homeauto::{AttributeValue, MatterController, MatterDevice};
-use brainwires_hardware::homeauto::matter::clusters::thermostat;
 use crate::cli::ThermostatAction;
 use crate::output::Output;
+use anyhow::Result;
+use brainwires_hardware::homeauto::matter::clusters::thermostat;
+use brainwires_hardware::homeauto::{AttributeValue, MatterController, MatterDevice};
+use std::path::PathBuf;
 
 pub async fn run(action: ThermostatAction, fabric_dir: &PathBuf, out: &Output) -> Result<()> {
     match action {
-        ThermostatAction::Setpoint { node_id, endpoint, celsius } => {
+        ThermostatAction::Setpoint {
+            node_id,
+            endpoint,
+            celsius,
+        } => {
             let (ctrl, device) = get_ctrl_and_device(fabric_dir, node_id).await?;
 
             // Read current heating setpoint (in 0.01°C units) to compute the delta.
-            let current = ctrl.read_attr(
-                &device,
-                endpoint,
-                thermostat::CLUSTER_ID,
-                thermostat::ATTR_OCCUPIED_HEATING_SETPOINT,
-            ).await?;
+            let current = ctrl
+                .read_attr(
+                    &device,
+                    endpoint,
+                    thermostat::CLUSTER_ID,
+                    thermostat::ATTR_OCCUPIED_HEATING_SETPOINT,
+                )
+                .await?;
             let current_raw = match current {
                 AttributeValue::I16(n) => n,
                 _ => 0,
@@ -40,23 +46,30 @@ pub async fn run(action: ThermostatAction, fabric_dir: &PathBuf, out: &Output) -
                 thermostat::CLUSTER_ID,
                 thermostat::CMD_SET_SETPOINT_RAISE_LOWER,
                 &tlv,
-            ).await?;
-            out.ok(&format!("node_id={node_id} ep={endpoint} heating setpoint={celsius:.1}°C"));
+            )
+            .await?;
+            out.ok(&format!(
+                "node_id={node_id} ep={endpoint} heating setpoint={celsius:.1}°C"
+            ));
         }
         ThermostatAction::Read { node_id, endpoint } => {
             let (ctrl, device) = get_ctrl_and_device(fabric_dir, node_id).await?;
-            let local_temp = ctrl.read_attr(
-                &device,
-                endpoint,
-                thermostat::CLUSTER_ID,
-                thermostat::ATTR_LOCAL_TEMP,
-            ).await?;
-            let heating_sp = ctrl.read_attr(
-                &device,
-                endpoint,
-                thermostat::CLUSTER_ID,
-                thermostat::ATTR_OCCUPIED_HEATING_SETPOINT,
-            ).await?;
+            let local_temp = ctrl
+                .read_attr(
+                    &device,
+                    endpoint,
+                    thermostat::CLUSTER_ID,
+                    thermostat::ATTR_LOCAL_TEMP,
+                )
+                .await?;
+            let heating_sp = ctrl
+                .read_attr(
+                    &device,
+                    endpoint,
+                    thermostat::CLUSTER_ID,
+                    thermostat::ATTR_OCCUPIED_HEATING_SETPOINT,
+                )
+                .await?;
 
             let raw_to_c = |v: AttributeValue| -> f32 {
                 match v {
@@ -84,7 +97,10 @@ pub async fn run(action: ThermostatAction, fabric_dir: &PathBuf, out: &Output) -
     Ok(())
 }
 
-async fn get_ctrl_and_device(fabric_dir: &PathBuf, node_id: u64) -> Result<(MatterController, MatterDevice)> {
+async fn get_ctrl_and_device(
+    fabric_dir: &PathBuf,
+    node_id: u64,
+) -> Result<(MatterController, MatterDevice)> {
     let ctrl = MatterController::new("matter-tool", fabric_dir).await?;
     let devices = ctrl.devices().await?;
     let device = devices

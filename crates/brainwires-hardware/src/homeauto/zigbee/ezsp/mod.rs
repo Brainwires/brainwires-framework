@@ -8,15 +8,15 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::sync::{mpsc, oneshot, Mutex};
+use tokio::sync::{Mutex, mpsc, oneshot};
 use tokio::time::timeout;
 use tokio_serial::SerialStream;
 use tracing::{debug, error, warn};
 
+use super::ZigbeeCoordinator;
+use super::types::{ZigbeeAddr, ZigbeeAttrId, ZigbeeClusterId, ZigbeeDevice, ZigbeeDeviceKind};
 use crate::homeauto::error::{HomeAutoError, HomeAutoResult};
 use crate::homeauto::types::{AttributeValue, HomeAutoEvent, HomeDevice, Protocol};
-use super::types::{ZigbeeAddr, ZigbeeAttrId, ZigbeeClusterId, ZigbeeDevice, ZigbeeDeviceKind};
-use super::ZigbeeCoordinator;
 use frame::EzspFrame;
 
 /// Pending synchronous EZSP response correlation entry.
@@ -156,7 +156,9 @@ impl EzspCoordinator {
                         firmware_version: None,
                         capabilities: Vec::new(),
                     };
-                    let _ = inner.event_tx.try_send(HomeAutoEvent::DeviceJoined(home_dev));
+                    let _ = inner
+                        .event_tx
+                        .try_send(HomeAutoEvent::DeviceJoined(home_dev));
                 }
             }
             commands::INCOMING_MESSAGE_HANDLER => {
@@ -351,7 +353,7 @@ fn encode_zcl_value(value: &AttributeValue) -> HomeAutoResult<(u8, Vec<u8>)> {
         _ => {
             return Err(HomeAutoError::Unsupported(format!(
                 "ZCL encoding not implemented for {value:?}"
-            )))
+            )));
         }
     })
 }

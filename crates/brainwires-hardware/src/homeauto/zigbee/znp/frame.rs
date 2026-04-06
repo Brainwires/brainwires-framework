@@ -34,7 +34,12 @@ pub struct ZnpFrame {
 impl ZnpFrame {
     /// Create a new SREQ frame.
     pub fn sreq(subsystem: u8, cmd: u8, payload: Vec<u8>) -> Self {
-        Self { msg_type: TYPE_SREQ, subsystem, cmd, payload }
+        Self {
+            msg_type: TYPE_SREQ,
+            subsystem,
+            cmd,
+            payload,
+        }
     }
 
     /// Encode to wire bytes (SOF | LEN | type_sub | cmd | payload | FCS).
@@ -54,7 +59,11 @@ impl ZnpFrame {
     /// Decode from wire bytes (with SOF byte included or not).
     /// Returns the frame and the number of bytes consumed, or an error.
     pub fn decode(data: &[u8]) -> Result<(Self, usize), &'static str> {
-        let data = if data.first() == Some(&SOF) { &data[1..] } else { data };
+        let data = if data.first() == Some(&SOF) {
+            &data[1..]
+        } else {
+            data
+        };
         if data.len() < 4 {
             return Err("ZNP frame too short");
         }
@@ -73,7 +82,15 @@ impl ZnpFrame {
             return Err("ZNP FCS mismatch");
         }
         let consumed = 1 + 4 + len; // SOF + header + payload + FCS
-        Ok((Self { msg_type, subsystem, cmd, payload }, consumed))
+        Ok((
+            Self {
+                msg_type,
+                subsystem,
+                cmd,
+                payload,
+            },
+            consumed,
+        ))
     }
 }
 

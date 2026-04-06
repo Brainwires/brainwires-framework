@@ -171,7 +171,9 @@ impl PlanTool {
         let config = TaskAgentConfig {
             max_iterations: params.max_iterations,
             permission_mode: PermissionMode::ReadOnly,
-            system_prompt: Some(crate::system_prompts::planning_agent_system_prompt(&working_dir)),
+            system_prompt: Some(crate::system_prompts::planning_agent_system_prompt(
+                &working_dir,
+            )),
             temperature: 0.7,
             max_tokens: 4096,
             validation_config: None, // No validation for read-only planning agents
@@ -273,7 +275,6 @@ impl PlanTool {
 
         Ok(plan.plan_id)
     }
-
 }
 
 #[cfg(test)]

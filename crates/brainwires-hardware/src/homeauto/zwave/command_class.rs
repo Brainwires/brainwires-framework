@@ -127,7 +127,11 @@ impl CommandClass {
 
 /// Encode a SWITCH_BINARY_SET command. `value`: 0x00 = off, 0xFF = on.
 pub fn switch_binary_set(on: bool) -> Vec<u8> {
-    vec![CommandClass::SwitchBinary.id(), 0x01, if on { 0xFF } else { 0x00 }]
+    vec![
+        CommandClass::SwitchBinary.id(),
+        0x01,
+        if on { 0xFF } else { 0x00 },
+    ]
 }
 
 /// Encode a SWITCH_BINARY_GET command.
@@ -138,7 +142,12 @@ pub fn switch_binary_get() -> Vec<u8> {
 /// Encode a SWITCH_MULTILEVEL_SET command. `level`: 0–99, 0xFF = last non-zero.
 /// `duration`: 0 = instant, 1–127 = seconds, 128–254 = minutes (value - 127).
 pub fn switch_multilevel_set(level: u8, duration: u8) -> Vec<u8> {
-    vec![CommandClass::SwitchMultilevel.id(), 0x01, level.min(99), duration]
+    vec![
+        CommandClass::SwitchMultilevel.id(),
+        0x01,
+        level.min(99),
+        duration,
+    ]
 }
 
 /// Encode a SWITCH_MULTILEVEL_GET command.

@@ -3,7 +3,6 @@
 /// Implements:
 /// - `derive_passcode_verifier` — Matter §3.10 PBKDF2-based SPAKE2+ verifier generation.
 /// - `hkdf_expand_label` — Generic HKDF-SHA256 helper used for session key derivation.
-
 use hkdf::Hkdf;
 use pbkdf2::pbkdf2_hmac;
 use sha2::Sha256;

@@ -37,7 +37,16 @@ async fn main() -> Result<()> {
             command_id,
             payload_hex,
         } => {
-            cmd::invoke::run_invoke(node_id, endpoint, cluster_id, command_id, payload_hex, &fabric_dir, &out).await?
+            cmd::invoke::run_invoke(
+                node_id,
+                endpoint,
+                cluster_id,
+                command_id,
+                payload_hex,
+                &fabric_dir,
+                &out,
+            )
+            .await?
         }
         Command::Read {
             node_id,
@@ -45,7 +54,15 @@ async fn main() -> Result<()> {
             cluster_id,
             attribute_id,
         } => {
-            cmd::invoke::run_read(node_id, endpoint, cluster_id, attribute_id, &fabric_dir, &out).await?
+            cmd::invoke::run_read(
+                node_id,
+                endpoint,
+                cluster_id,
+                attribute_id,
+                &fabric_dir,
+                &out,
+            )
+            .await?
         }
         Command::Discover { timeout } => cmd::discover::run(timeout, &out).await?,
         Command::Serve {
@@ -57,7 +74,17 @@ async fn main() -> Result<()> {
             port,
             storage,
         } => {
-            cmd::serve::run(device_name, vendor_id, product_id, discriminator, passcode, port, storage, &out).await?
+            cmd::serve::run(
+                device_name,
+                vendor_id,
+                product_id,
+                discriminator,
+                passcode,
+                port,
+                storage,
+                &out,
+            )
+            .await?
         }
         Command::Devices => cmd::devices::run(&fabric_dir, &out).await?,
         Command::Fabric { action } => cmd::fabric::run(action, &fabric_dir, &out).await?,

@@ -1,3 +1,4 @@
+pub mod case;
 /// Matter 1.3 Secure Channel — PASE and CASE session establishment.
 ///
 /// Implements Matter Core Specification §4.13 (CASE/SIGMA) and §4.14 (PASE).
@@ -19,9 +20,7 @@
 ///   Initiator ──Sigma3──>  Responder
 ///   (both derive session keys via ECDH + HKDF)
 /// ```
-
 pub mod pase;
-pub mod case;
 
 // ── Protocol constants ────────────────────────────────────────────────────────
 
@@ -34,19 +33,19 @@ pub const SECURE_CHANNEL_PROTOCOL_ID: u16 = 0x0000;
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SecureChannelOpcode {
-    MsgCounterSyncReq  = 0x00,
-    MsgCounterSyncRsp  = 0x01,
-    MrpStandaloneAck   = 0x10,
-    PbkdfParamRequest  = 0x20,
+    MsgCounterSyncReq = 0x00,
+    MsgCounterSyncRsp = 0x01,
+    MrpStandaloneAck = 0x10,
+    PbkdfParamRequest = 0x20,
     PbkdfParamResponse = 0x21,
-    Pake1              = 0x22,
-    Pake2              = 0x23,
-    Pake3              = 0x24,
-    StatusReport       = 0x40,
-    Sigma1             = 0x30,
-    Sigma2             = 0x31,
-    Sigma3             = 0x32,
-    Sigma2Resume       = 0x33,
+    Pake1 = 0x22,
+    Pake2 = 0x23,
+    Pake3 = 0x24,
+    StatusReport = 0x40,
+    Sigma1 = 0x30,
+    Sigma2 = 0x31,
+    Sigma3 = 0x32,
+    Sigma2Resume = 0x33,
 }
 
 // ── Established session ───────────────────────────────────────────────────────
@@ -77,5 +76,5 @@ pub struct EstablishedSession {
 
 // ── Re-exports ────────────────────────────────────────────────────────────────
 
-pub use pase::{PaseCommissionee, PaseCommissioner};
 pub use case::{CaseInitiator, CaseResponder};
+pub use pase::{PaseCommissionee, PaseCommissioner};

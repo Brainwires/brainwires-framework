@@ -1,9 +1,9 @@
-use std::path::PathBuf;
-use anyhow::Result;
-use brainwires_hardware::homeauto::{AttributeValue, MatterController};
-use brainwires_hardware::homeauto::matter::clusters::on_off;
 use crate::cli::OnoffAction;
 use crate::output::Output;
+use anyhow::Result;
+use brainwires_hardware::homeauto::matter::clusters::on_off;
+use brainwires_hardware::homeauto::{AttributeValue, MatterController};
+use std::path::PathBuf;
 
 pub async fn run(action: OnoffAction, fabric_dir: &PathBuf, out: &Output) -> Result<()> {
     match action {
@@ -19,19 +19,31 @@ pub async fn run(action: OnoffAction, fabric_dir: &PathBuf, out: &Output) -> Res
         }
         OnoffAction::Toggle { node_id, endpoint } => {
             let (ctrl, device) = get_ctrl_and_device(fabric_dir, node_id).await?;
-            ctrl.invoke(&device, endpoint, on_off::CLUSTER_ID, on_off::CMD_TOGGLE, &[]).await?;
+            ctrl.invoke(
+                &device,
+                endpoint,
+                on_off::CLUSTER_ID,
+                on_off::CMD_TOGGLE,
+                &[],
+            )
+            .await?;
             out.ok(&format!("node_id={node_id} ep={endpoint} → TOGGLE"));
         }
         OnoffAction::Read { node_id, endpoint } => {
             let (ctrl, device) = get_ctrl_and_device(fabric_dir, node_id).await?;
-            let val = ctrl.read_attr(&device, endpoint, on_off::CLUSTER_ID, on_off::ATTR_ON_OFF).await?;
+            let val = ctrl
+                .read_attr(&device, endpoint, on_off::CLUSTER_ID, on_off::ATTR_ON_OFF)
+                .await?;
             let state = match &val {
                 AttributeValue::Bool(true) => "on",
                 AttributeValue::Bool(false) => "off",
                 _ => "unknown",
             };
             if out.json {
-                out.kv("on_off", &format!("{}", matches!(val, AttributeValue::Bool(true))));
+                out.kv(
+                    "on_off",
+                    &format!("{}", matches!(val, AttributeValue::Bool(true))),
+                );
             } else {
                 println!("node_id={node_id} ep={endpoint} on/off={state}");
             }
@@ -43,7 +55,10 @@ pub async fn run(action: OnoffAction, fabric_dir: &PathBuf, out: &Output) -> Res
 async fn get_ctrl_and_device(
     fabric_dir: &PathBuf,
     node_id: u64,
-) -> Result<(MatterController, brainwires_hardware::homeauto::MatterDevice)> {
+) -> Result<(
+    MatterController,
+    brainwires_hardware::homeauto::MatterDevice,
+)> {
     let ctrl = MatterController::new("matter-tool", fabric_dir).await?;
     let devices = ctrl.devices().await?;
     let device = devices

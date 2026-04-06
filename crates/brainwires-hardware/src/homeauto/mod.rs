@@ -25,23 +25,23 @@ pub use error::{HomeAutoError, HomeAutoResult};
 pub use types::{AttributeValue, Capability, HomeAutoEvent, HomeDevice, Protocol};
 
 #[cfg(feature = "zigbee")]
-pub use zigbee::{
-    ZigbeeAddr, ZigbeeAttrId, ZigbeeClusterId, ZigbeeCoordinator, ZigbeeDevice, ZigbeeDeviceKind,
-};
-#[cfg(feature = "zigbee")]
 pub use zigbee::ezsp::EzspCoordinator;
 #[cfg(feature = "zigbee")]
 pub use zigbee::znp::ZnpCoordinator;
+#[cfg(feature = "zigbee")]
+pub use zigbee::{
+    ZigbeeAddr, ZigbeeAttrId, ZigbeeClusterId, ZigbeeCoordinator, ZigbeeDevice, ZigbeeDeviceKind,
+};
 
 #[cfg(feature = "zwave")]
-pub use zwave::{CommandClass, NodeId, ZWaveController, ZWaveNode, ZWaveNodeKind};
-#[cfg(feature = "zwave")]
 pub use zwave::serial_api::ZWaveSerialController;
+#[cfg(feature = "zwave")]
+pub use zwave::{CommandClass, NodeId, ZWaveController, ZWaveNode, ZWaveNodeKind};
 
 #[cfg(feature = "thread")]
 pub use thread::border_router::ThreadBorderRouter;
 #[cfg(feature = "thread")]
-pub use thread::types::{ThreadNetworkDataset, ThreadNeighbor, ThreadNodeInfo};
+pub use thread::types::{ThreadNeighbor, ThreadNetworkDataset, ThreadNodeInfo};
 
 #[cfg(feature = "matter")]
 pub use matter::controller::MatterController;

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::index::PROJECT_NAME_MAX_LENGTH;
-use super::query::{default_limit, default_min_score, QueryRequest};
+use super::query::{QueryRequest, default_limit, default_min_score};
 
 /// Request to search with file type filters
 #[derive(Debug, Clone, Serialize, Deserialize)]

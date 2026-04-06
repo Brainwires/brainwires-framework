@@ -37,26 +37,24 @@
 ///
 /// TBEData2Signature = ECDSA-SHA256(responder_node_key, init_eph_pub ‖ resp_eph_pub)
 /// TBEData3Signature = ECDSA-SHA256(initiator_node_key, init_eph_pub ‖ resp_eph_pub)
-
 use p256::{
-    ecdh,
-    ecdsa::{signature::Signer, Signature, SigningKey, VerifyingKey},
+    PublicKey, SecretKey, ecdh,
+    ecdsa::{Signature, SigningKey, VerifyingKey, signature::Signer},
     elliptic_curve::sec1::ToEncodedPoint,
-    PublicKey, SecretKey,
 };
 use rand_core::{OsRng, RngCore};
 
+use aes::Aes128;
 use ccm::{
+    Ccm,
     aead::{Aead, KeyInit, generic_array::GenericArray},
     consts::{U13, U16},
-    Ccm,
 };
-use aes::Aes128;
 
+use super::EstablishedSession;
 use crate::homeauto::matter::crypto::kdf::hkdf_expand_label;
 use crate::homeauto::matter::error::{MatterError, MatterResult};
 use crate::homeauto::matter::fabric::{FabricDescriptor, MatterCert};
-use super::EstablishedSession;
 
 // ── AES-128-CCM type alias ────────────────────────────────────────────────────
 
@@ -89,7 +87,10 @@ fn tlv_ctx_bytes(tag: u8, data: &[u8]) -> Vec<u8> {
         v.extend_from_slice(data);
         v
     } else {
-        assert!(data.len() <= 65535, "TLV bytes: length > 65535 not supported");
+        assert!(
+            data.len() <= 65535,
+            "TLV bytes: length > 65535 not supported"
+        );
         let mut v = vec![CTX_TAG | BYTES2_TYPE, tag];
         v.extend_from_slice(&(data.len() as u16).to_le_bytes());
         v.extend_from_slice(data);
@@ -169,11 +170,17 @@ impl<'a> TlvReader<'a> {
         match val_type {
             0x04 => {
                 let b = self.read_byte()?;
-                Ok(TlvElem { tag, value: TlvVal::Uint(b as u64) })
+                Ok(TlvElem {
+                    tag,
+                    value: TlvVal::Uint(b as u64),
+                })
             }
             0x05 => {
                 let b = self.read_slice(2)?;
-                Ok(TlvElem { tag, value: TlvVal::Uint(u16::from_le_bytes([b[0], b[1]]) as u64) })
+                Ok(TlvElem {
+                    tag,
+                    value: TlvVal::Uint(u16::from_le_bytes([b[0], b[1]]) as u64),
+                })
             }
             0x06 => {
                 let b = self.read_slice(4)?;
@@ -192,17 +199,29 @@ impl<'a> TlvReader<'a> {
             0x10 => {
                 let len = self.read_byte()? as usize;
                 let data = self.read_slice(len)?;
-                Ok(TlvElem { tag, value: TlvVal::Bytes(data) })
+                Ok(TlvElem {
+                    tag,
+                    value: TlvVal::Bytes(data),
+                })
             }
             // bytes 2-byte length (for payloads > 255 bytes, e.g. Encrypted2)
             0x11 => {
                 let b = self.read_slice(2)?;
                 let len = u16::from_le_bytes([b[0], b[1]]) as usize;
                 let data = self.read_slice(len)?;
-                Ok(TlvElem { tag, value: TlvVal::Bytes(data) })
+                Ok(TlvElem {
+                    tag,
+                    value: TlvVal::Bytes(data),
+                })
             }
-            0x15 => Ok(TlvElem { tag, value: TlvVal::StructStart }),
-            0x18 => Ok(TlvElem { tag, value: TlvVal::End }),
+            0x15 => Ok(TlvElem {
+                tag,
+                value: TlvVal::StructStart,
+            }),
+            0x18 => Ok(TlvElem {
+                tag,
+                value: TlvVal::End,
+            }),
             _ => Err(MatterError::Protocol {
                 opcode: 0,
                 msg: format!("TLV: unsupported val type {val_type:#04x}"),
@@ -243,7 +262,11 @@ fn aes128_ccm_encrypt(key: &[u8; 16], nonce: &[u8; 13], plaintext: &[u8]) -> Mat
 }
 
 /// Decrypt an inner block with AES-128-CCM.
-fn aes128_ccm_decrypt(key: &[u8; 16], nonce: &[u8; 13], ciphertext: &[u8]) -> MatterResult<Vec<u8>> {
+fn aes128_ccm_decrypt(
+    key: &[u8; 16],
+    nonce: &[u8; 13],
+    ciphertext: &[u8],
+) -> MatterResult<Vec<u8>> {
     let cipher = Aes128Ccm::new(GenericArray::from_slice(key));
     let nonce_arr = GenericArray::from_slice(nonce);
     cipher
@@ -287,7 +310,12 @@ fn derive_session_keys(
 }
 
 /// Derive Sigma2 or Sigma3 inner encryption key.
-fn derive_sigma_key(shared: &[u8], init_random: &[u8; 32], resp_random: &[u8; 32], label: &str) -> [u8; 16] {
+fn derive_sigma_key(
+    shared: &[u8],
+    init_random: &[u8; 32],
+    resp_random: &[u8; 32],
+    label: &str,
+) -> [u8; 16] {
     let salt = make_sigma_salt(init_random, resp_random);
     let out = hkdf_expand_label(shared, &salt, label, 16);
     let mut key = [0u8; 16];
@@ -341,8 +369,7 @@ fn ecdsa_verify(verifying_key_bytes: &[u8], data: &[u8], sig_bytes: &[u8]) -> Ma
     let sig = EcdsaSig::from_bytes(&sig_arr.into())
         .map_err(|_| MatterError::Crypto("invalid ECDSA signature".into()))?;
 
-    vk.verify(data, &sig)
-        .map_err(|_| MatterError::AccessDenied)
+    vk.verify(data, &sig).map_err(|_| MatterError::AccessDenied)
 }
 
 // ── CaseInitiator ─────────────────────────────────────────────────────────────
@@ -456,8 +483,7 @@ impl CaseInitiator {
         self.state = CaseInitiatorState::Failed("sigma2 processing".into());
 
         // Decode Sigma2
-        let (resp_random, _resp_session_id, resp_eph_pub, encrypted2) =
-            decode_sigma2(payload)?;
+        let (resp_random, _resp_session_id, resp_eph_pub, encrypted2) = decode_sigma2(payload)?;
 
         // ECDH
         let mut resp_eph_pub_arr = [0u8; 65];
@@ -667,25 +693,30 @@ impl CaseResponder {
 
     /// Process a Sigma3 message and return the established session.
     pub fn handle_sigma3(&mut self, payload: &[u8]) -> MatterResult<EstablishedSession> {
-        let (eph_secret, resp_random, init_eph_pub, init_random, session_id) =
-            match &self.state {
-                CaseResponderState::SentSigma2 {
+        let (eph_secret, resp_random, init_eph_pub, init_random, session_id) = match &self.state {
+            CaseResponderState::SentSigma2 {
+                eph_secret,
+                resp_random,
+                init_eph_pub,
+                init_random,
+                session_id,
+            } => {
+                let eph_secret = unsafe { std::ptr::read(eph_secret as *const SecretKey) };
+                (
                     eph_secret,
-                    resp_random,
-                    init_eph_pub,
-                    init_random,
-                    session_id,
-                } => {
-                    let eph_secret = unsafe { std::ptr::read(eph_secret as *const SecretKey) };
-                    (eph_secret, *resp_random, *init_eph_pub, *init_random, *session_id)
-                }
-                _ => {
-                    return Err(MatterError::Protocol {
-                        opcode: 0x32,
-                        msg: "unexpected state for Sigma3".into(),
-                    });
-                }
-            };
+                    *resp_random,
+                    *init_eph_pub,
+                    *init_random,
+                    *session_id,
+                )
+            }
+            _ => {
+                return Err(MatterError::Protocol {
+                    opcode: 0x32,
+                    msg: "unexpected state for Sigma3".into(),
+                });
+            }
+        };
         self.state = CaseResponderState::Failed("sigma3 processing".into());
 
         // Decode Sigma3: { tag1: encrypted3 }
@@ -961,8 +992,7 @@ mod tests {
         resp_key: &SecretKey,
         resp_node_id: u64,
     ) -> (FabricDescriptor, MatterCert, MatterCert) {
-        let dir = std::env::temp_dir()
-            .join(format!("case_fabric_{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("case_fabric_{}", std::process::id()));
         let mut mgr = FabricManager::new(&dir).unwrap();
 
         // Generate root CA
@@ -1004,10 +1034,8 @@ mod tests {
         let init_key_2 = SecretKey::from_bytes(&initiator_key.to_bytes()).unwrap();
         let resp_key_2 = SecretKey::from_bytes(&responder_key.to_bytes()).unwrap();
 
-        let mut initiator =
-            CaseInitiator::new(init_key_2, init_noc, None, descriptor.clone());
-        let mut responder =
-            CaseResponder::new(resp_key_2, resp_noc, None, descriptor.clone());
+        let mut initiator = CaseInitiator::new(init_key_2, init_noc, None, descriptor.clone());
+        let mut responder = CaseResponder::new(resp_key_2, resp_noc, None, descriptor.clone());
 
         // Step 1: Sigma1
         let (_sid, sigma1) = initiator.build_sigma1().unwrap();
@@ -1045,8 +1073,7 @@ mod tests {
         let resp_key = SecretKey::random(&mut OsRng);
 
         // Setup fabric A (initiator)
-        let dir_a = std::env::temp_dir()
-            .join(format!("case_wrong_a_{}", std::process::id()));
+        let dir_a = std::env::temp_dir().join(format!("case_wrong_a_{}", std::process::id()));
         let mut mgr_a = FabricManager::new(&dir_a).unwrap();
         let (sk_a, rcac_a, desc_a) = mgr_a
             .generate_root_ca(0xFFF1, 0xAAAA_0001, 0x0001, "FabricA")
@@ -1058,8 +1085,7 @@ mod tests {
             .unwrap();
 
         // Setup fabric B (responder — different root CA)
-        let dir_b = std::env::temp_dir()
-            .join(format!("case_wrong_b_{}", std::process::id()));
+        let dir_b = std::env::temp_dir().join(format!("case_wrong_b_{}", std::process::id()));
         let mut mgr_b = FabricManager::new(&dir_b).unwrap();
         let (sk_b, rcac_b, desc_b) = mgr_b
             .generate_root_ca(0xFFF1, 0xBBBB_0001, 0x0002, "FabricB")

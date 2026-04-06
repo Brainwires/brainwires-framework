@@ -17,7 +17,11 @@ pub enum MatterError {
     ClusterInvoke { cluster: u32, cmd: u32, msg: String },
 
     #[error("attribute read error (cluster {cluster:#010x} attr {attr:#010x}): {msg}")]
-    AttributeRead { cluster: u32, attr: u32, msg: String },
+    AttributeRead {
+        cluster: u32,
+        attr: u32,
+        msg: String,
+    },
 
     #[error("device not found: node_id={node_id}")]
     DeviceNotFound { node_id: u64 },

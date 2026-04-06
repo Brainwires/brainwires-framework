@@ -13,15 +13,17 @@ mod statistics;
 mod tests;
 
 // --- index ---
+pub use index::default_max_file_size;
 pub use index::{IndexRequest, IndexResponse, IndexingMode};
-pub use index::{default_max_file_size};
 
 // --- query ---
 pub use query::{QueryRequest, QueryResponse};
 pub use query::{default_hybrid, default_limit, default_min_score};
 
 // --- statistics ---
-pub use statistics::{ClearRequest, ClearResponse, LanguageStats, StatisticsRequest, StatisticsResponse};
+pub use statistics::{
+    ClearRequest, ClearResponse, LanguageStats, StatisticsRequest, StatisticsResponse,
+};
 
 // --- incremental ---
 pub use incremental::{IncrementalUpdateRequest, IncrementalUpdateResponse};

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::query::{default_limit, default_min_score, SearchResult};
+use super::query::{SearchResult, default_limit, default_min_score};
 
 /// Search strategies available for the ensemble query.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

@@ -310,28 +310,28 @@ impl TaskAgent {
                 None
             }
         };
-        let mut workflow_checkpoint: Option<WorkflowCheckpoint> = if let Some(ref s) = workflow_store
-        {
-            match s.load_checkpoint(&task_id).await {
-                Ok(Some(cp)) => {
-                    tracing::info!(
-                        agent_id = %self.id,
-                        task_id = %task_id,
-                        step = cp.step_index,
-                        completed = cp.completed_tool_ids.len(),
-                        "Resuming from prior workflow checkpoint"
-                    );
-                    Some(cp)
+        let mut workflow_checkpoint: Option<WorkflowCheckpoint> =
+            if let Some(ref s) = workflow_store {
+                match s.load_checkpoint(&task_id).await {
+                    Ok(Some(cp)) => {
+                        tracing::info!(
+                            agent_id = %self.id,
+                            task_id = %task_id,
+                            step = cp.step_index,
+                            completed = cp.completed_tool_ids.len(),
+                            "Resuming from prior workflow checkpoint"
+                        );
+                        Some(cp)
+                    }
+                    Ok(None) => None,
+                    Err(e) => {
+                        tracing::warn!(%e, "could not load workflow checkpoint");
+                        None
+                    }
                 }
-                Ok(None) => None,
-                Err(e) => {
-                    tracing::warn!(%e, "could not load workflow checkpoint");
-                    None
-                }
-            }
-        } else {
-            None
-        };
+            } else {
+                None
+            };
 
         // Initialise context enhancement. Runs without gating so retrieval fires on
         // every call (task agents don't use compaction markers like the chat path).
@@ -367,10 +367,7 @@ impl TaskAgent {
             // Check wall-clock timeout
             if let Some(timeout_secs) = self.config.timeout_secs {
                 if started_at.elapsed().as_secs() >= timeout_secs {
-                    let error = format!(
-                        "Agent {} timed out after {}s",
-                        self.id, timeout_secs
-                    );
+                    let error = format!("Agent {} timed out after {}s", self.id, timeout_secs);
                     tracing::error!(agent_id = %self.id, timeout_secs, "TaskAgent timed out");
                     return self.fail_agent(&task_id, &error, iterations).await;
                 }
@@ -671,9 +668,8 @@ impl TaskAgent {
                                     reversible,
                                 );
                                 if let Some(ref s) = workflow_store {
-                                    if let Err(e) = s
-                                        .mark_step_complete(&task_id, &tool_use.id, effect)
-                                        .await
+                                    if let Err(e) =
+                                        s.mark_step_complete(&task_id, &tool_use.id, effect).await
                                     {
                                         tracing::debug!(%e, "checkpoint persist failed (non-fatal)");
                                     } else {
@@ -756,22 +752,17 @@ impl TaskAgent {
 
                     // Persist checkpoint (fire-and-forget).
                     if !result.is_error {
-                        let target = Self::extract_file_path(&tool_use)
-                            .map(|p| p.display().to_string());
+                        let target =
+                            Self::extract_file_path(&tool_use).map(|p| p.display().to_string());
                         let reversible = matches!(
                             tool_use.name.as_str(),
                             "read_file" | "list_directory" | "search_code" | "glob"
                         );
-                        let effect = SideEffectRecord::new(
-                            &tool_use.id,
-                            &tool_use.name,
-                            target,
-                            reversible,
-                        );
+                        let effect =
+                            SideEffectRecord::new(&tool_use.id, &tool_use.name, target, reversible);
                         if let Some(ref s) = workflow_store {
-                            if let Err(e) = s
-                                .mark_step_complete(&task_id, &tool_use.id, effect)
-                                .await
+                            if let Err(e) =
+                                s.mark_step_complete(&task_id, &tool_use.id, effect).await
                             {
                                 tracing::debug!(%e, "checkpoint persist failed (non-fatal)");
                             } else {
@@ -976,17 +967,14 @@ impl TaskAgent {
                 return None;
             }
         };
-        let lance_client = match crate::storage::LanceDatabase::new(
-            db_path.to_str().unwrap_or_default(),
-        )
-        .await
-        {
-            Ok(c) => Arc::new(c),
-            Err(e) => {
-                tracing::debug!("TaskAgent: skipping MessageStore (LanceDB) — {e}");
-                return None;
-            }
-        };
+        let lance_client =
+            match crate::storage::LanceDatabase::new(db_path.to_str().unwrap_or_default()).await {
+                Ok(c) => Arc::new(c),
+                Err(e) => {
+                    tracing::debug!("TaskAgent: skipping MessageStore (LanceDB) — {e}");
+                    return None;
+                }
+            };
         if let Err(e) = lance_client.initialize(embeddings.dimension()).await {
             tracing::debug!("TaskAgent: skipping MessageStore (init) — {e}");
             return None;
@@ -998,11 +986,7 @@ impl TaskAgent {
     ///
     /// Runs fire-and-forget (errors are logged, not propagated) to avoid blocking
     /// the main agent loop on storage I/O.
-    async fn persist_messages(
-        store: &MessageStore,
-        messages: &[Message],
-        conversation_id: &str,
-    ) {
+    async fn persist_messages(store: &MessageStore, messages: &[Message], conversation_id: &str) {
         let batch: Vec<MessageMetadata> = messages
             .iter()
             .filter_map(|m| {

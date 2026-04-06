@@ -7,10 +7,14 @@ use std::time::Duration;
 use anyhow::{Result, bail};
 use tokio::sync::RwLock;
 
-use super::types::{AgentSubscription, BridgeConfig, BridgeState, ConnectionMode, RealtimeCredentials};
+use super::types::{
+    AgentSubscription, BridgeConfig, BridgeState, ConnectionMode, RealtimeCredentials,
+};
 use crate::remote::attachments::AttachmentReceiver;
 use crate::remote::heartbeat::HeartbeatCollector;
-use crate::remote::protocol::{NegotiatedProtocol, ProtocolCapability, RemoteMessage, StreamChunkType};
+use crate::remote::protocol::{
+    NegotiatedProtocol, ProtocolCapability, RemoteMessage, StreamChunkType,
+};
 use crate::traits::AgentSpawner;
 
 const REMOTE_BRIDGE_TIMEOUT_SECS: u64 = 30;
@@ -34,7 +38,8 @@ pub struct RemoteBridge {
     pub(super) heartbeat_collector: Arc<RwLock<HeartbeatCollector>>,
     pub(super) command_result_queue: Arc<RwLock<Vec<RemoteMessage>>>,
     #[allow(clippy::type_complexity)]
-    pub(super) stream_tx: Arc<RwLock<Option<tokio::sync::mpsc::Sender<(String, StreamChunkType, String)>>>>,
+    pub(super) stream_tx:
+        Arc<RwLock<Option<tokio::sync::mpsc::Sender<(String, StreamChunkType, String)>>>>,
     pub(super) sync_trigger_tx: Arc<RwLock<Option<tokio::sync::mpsc::Sender<()>>>>,
     pub(super) shutdown_tx: Option<tokio::sync::broadcast::Sender<()>>,
     pub(super) negotiated_protocol: Arc<RwLock<NegotiatedProtocol>>,
@@ -49,7 +54,8 @@ pub struct RemoteBridge {
     pub permission_relay: crate::remote::permission_relay::PermissionRelay,
     /// Analytics collector for NetworkMessage events.
     #[cfg(feature = "analytics")]
-    pub(super) analytics_collector: Option<std::sync::Arc<brainwires_analytics::AnalyticsCollector>>,
+    pub(super) analytics_collector:
+        Option<std::sync::Arc<brainwires_analytics::AnalyticsCollector>>,
 }
 
 impl RemoteBridge {

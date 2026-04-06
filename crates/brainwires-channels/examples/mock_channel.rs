@@ -82,10 +82,7 @@ impl Channel for MockChannel {
         let mut stored = message.clone();
         stored.id = id.clone();
         stored.conversation = target.clone();
-        self.messages
-            .lock()
-            .unwrap()
-            .insert(id.0.clone(), stored);
+        self.messages.lock().unwrap().insert(id.0.clone(), stored);
         println!("[mock] sent {} → {:?}", id, message.content);
         Ok(id)
     }
@@ -175,7 +172,10 @@ async fn main() -> Result<()> {
 
     // Edit the bot's reply
     channel
-        .edit_message(&id2, &make_message(conv.clone(), "bot", "Hi Alice! How can I help?"))
+        .edit_message(
+            &id2,
+            &make_message(conv.clone(), "bot", "Hi Alice! How can I help?"),
+        )
         .await?;
 
     // Fetch history

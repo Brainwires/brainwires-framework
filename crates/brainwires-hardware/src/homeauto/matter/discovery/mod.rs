@@ -26,4 +26,4 @@ pub mod commissionable;
 pub mod operational;
 
 pub use commissionable::CommissionableAdvertiser;
-pub use operational::{derive_compressed_fabric_id, OperationalAdvertiser, OperationalBrowser};
+pub use operational::{OperationalAdvertiser, OperationalBrowser, derive_compressed_fabric_id};

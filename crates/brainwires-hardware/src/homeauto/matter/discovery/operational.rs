@@ -3,7 +3,6 @@
 ///
 /// Post-commissioning, a node advertises itself on `_matter._tcp.local.` so
 /// that controllers can find it by compressed-fabric-id + node-id.
-
 use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
 
@@ -57,8 +56,8 @@ impl OperationalAdvertiser {
     /// Instance name: `"{CFID_HEX_16}-{NODE_ID_HEX_16}"`, e.g.
     /// `"AABBCCDDEEFF0011-0000000000000002"`.
     pub fn start(fabric: &FabricDescriptor, port: u16) -> MatterResult<Self> {
-        let daemon = ServiceDaemon::new()
-            .map_err(|e| MatterError::Mdns(format!("daemon init: {e}")))?;
+        let daemon =
+            ServiceDaemon::new().map_err(|e| MatterError::Mdns(format!("daemon init: {e}")))?;
 
         let cfid = derive_compressed_fabric_id(fabric);
         let instance_name = format!("{:016X}-{:016X}", cfid, fabric.node_id);
@@ -67,16 +66,11 @@ impl OperationalAdvertiser {
         let txt_owned: Vec<(&str, String)> = vec![
             ("SII", "5000".to_string()),
             ("SAI", "300".to_string()),
-            ("T",   "0".to_string()),
+            ("T", "0".to_string()),
         ];
-        let txt_refs: Vec<(&str, &str)> = txt_owned
-            .iter()
-            .map(|(k, v)| (*k, v.as_str()))
-            .collect();
+        let txt_refs: Vec<(&str, &str)> = txt_owned.iter().map(|(k, v)| (*k, v.as_str())).collect();
 
-        let hostname = gethostname::gethostname()
-            .to_string_lossy()
-            .to_string();
+        let hostname = gethostname::gethostname().to_string_lossy().to_string();
         let host_fqdn = if hostname.is_empty() {
             format!("matter-node-{:016X}.local.", fabric.node_id)
         } else {
@@ -104,7 +98,10 @@ impl OperationalAdvertiser {
             instance_name, port
         );
 
-        Ok(Self { daemon, service_fullname })
+        Ok(Self {
+            daemon,
+            service_fullname,
+        })
     }
 
     /// Deregister the operational advertisement from mDNS.
@@ -140,8 +137,8 @@ pub struct OperationalBrowser {
 impl OperationalBrowser {
     /// Create a new browser (starts the background mDNS daemon thread).
     pub fn new() -> MatterResult<Self> {
-        let daemon = ServiceDaemon::new()
-            .map_err(|e| MatterError::Mdns(format!("daemon init: {e}")))?;
+        let daemon =
+            ServiceDaemon::new().map_err(|e| MatterError::Mdns(format!("daemon init: {e}")))?;
         Ok(Self { daemon })
     }
 
@@ -189,7 +186,7 @@ impl OperationalBrowser {
                         return Ok(addr);
                     }
                 }
-                Ok(_) => {} // SearchStarted, ServiceFound, ServiceRemoved, etc.
+                Ok(_) => {}      // SearchStarted, ServiceFound, ServiceRemoved, etc.
                 Err(_) => break, // timeout or channel closed
             }
         }
@@ -266,12 +263,15 @@ mod tests {
 
         let cfid1a = derive_compressed_fabric_id(&fabric1);
         let cfid1b = derive_compressed_fabric_id(&fabric1);
-        let cfid2  = derive_compressed_fabric_id(&fabric2);
+        let cfid2 = derive_compressed_fabric_id(&fabric2);
 
         // Deterministic
         assert_eq!(cfid1a, cfid1b, "CompressedFabricId must be deterministic");
         // Different fabric_id → different compressed ID
-        assert_ne!(cfid1a, cfid2, "Different fabric IDs must produce different compressed IDs");
+        assert_ne!(
+            cfid1a, cfid2,
+            "Different fabric IDs must produce different compressed IDs"
+        );
 
         // Verify against a fixed expected value computed offline using the same
         // HKDF-SHA256 parameters.  This pins the derivation against regressions.
@@ -319,11 +319,15 @@ mod tests {
 
         // Both parts must be valid uppercase hex
         assert!(
-            parts[0].chars().all(|c| c.is_ascii_hexdigit() && !c.is_lowercase()),
+            parts[0]
+                .chars()
+                .all(|c| c.is_ascii_hexdigit() && !c.is_lowercase()),
             "CFID must be uppercase hex"
         );
         assert!(
-            parts[1].chars().all(|c| c.is_ascii_hexdigit() && !c.is_lowercase()),
+            parts[1]
+                .chars()
+                .all(|c| c.is_ascii_hexdigit() && !c.is_lowercase()),
             "NodeID must be uppercase hex"
         );
 

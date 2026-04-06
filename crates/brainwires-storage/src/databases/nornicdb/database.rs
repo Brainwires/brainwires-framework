@@ -10,9 +10,9 @@ use crate::databases::traits::VectorDatabase;
 use crate::glob_utils;
 use brainwires_core::{ChunkMetadata, DatabaseStats, SearchResult};
 
-use super::helpers::{build_filters, map_node_to_search_result, map_to_search_result};
 #[cfg(any(feature = "nornicdb-bolt", feature = "nornicdb-grpc"))]
 use super::helpers::extract_host;
+use super::helpers::{build_filters, map_node_to_search_result, map_to_search_result};
 use super::transport::{NornicTransport, RestTransport};
 use super::types::{CognitiveMemoryTier, NornicConfig, TransportKind};
 

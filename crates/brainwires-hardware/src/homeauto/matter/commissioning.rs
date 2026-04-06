@@ -28,7 +28,10 @@ pub struct CommissioningPayload {
 ///
 /// The QR code payload is a Base38-encoded bit-packed structure per Matter spec §5.1.2.
 pub fn parse_qr_code(qr: &str) -> Result<CommissioningPayload, &'static str> {
-    let data = qr.trim().strip_prefix("MT:").ok_or("QR code must start with 'MT:'")?;
+    let data = qr
+        .trim()
+        .strip_prefix("MT:")
+        .ok_or("QR code must start with 'MT:'")?;
     let bytes = base38_decode(data)?;
     if bytes.len() < 11 {
         return Err("QR code payload too short");
@@ -126,13 +129,13 @@ fn base38_decode(s: &str) -> Result<Vec<u8>, &'static str> {
 
 fn parse_bit_packed(bytes: &[u8]) -> Result<CommissioningPayload, &'static str> {
     let bits = BitReader::new(bytes);
-    let _version = bits.read(3)?;          // 3 bits: version (must be 0)
-    let vendor_id = bits.read(16)? as u16;  // 16 bits
+    let _version = bits.read(3)?; // 3 bits: version (must be 0)
+    let vendor_id = bits.read(16)? as u16; // 16 bits
     let product_id = bits.read(16)? as u16; // 16 bits
     let commissioning_flow = bits.read(2)? as u8; // 2 bits
-    let rendezvous_info = bits.read(8)? as u8;     // 8 bits
-    let discriminator = bits.read(12)? as u16;     // 12 bits
-    let passcode = bits.read(27)?;                  // 27 bits
+    let rendezvous_info = bits.read(8)? as u8; // 8 bits
+    let discriminator = bits.read(12)? as u16; // 12 bits
+    let passcode = bits.read(27)?; // 27 bits
 
     if passcode == 0 || passcode > 99_999_998 {
         return Err("QR passcode out of valid range");
@@ -169,7 +172,10 @@ struct BitReader<'a> {
 
 impl<'a> BitReader<'a> {
     fn new(data: &'a [u8]) -> Self {
-        Self { data, pos: std::cell::Cell::new(0) }
+        Self {
+            data,
+            pos: std::cell::Cell::new(0),
+        }
     }
 
     fn read(&self, count: usize) -> Result<u32, &'static str> {

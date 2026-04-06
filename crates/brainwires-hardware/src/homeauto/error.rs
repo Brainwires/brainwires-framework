@@ -25,7 +25,11 @@ pub enum HomeAutoError {
     ZigbeeDeviceNotFound { addr: u64 },
 
     #[error("Zigbee attribute error (cluster {cluster:#06x} attr {attr:#06x}): {msg}")]
-    ZigbeeAttribute { cluster: u16, attr: u16, msg: String },
+    ZigbeeAttribute {
+        cluster: u16,
+        attr: u16,
+        msg: String,
+    },
 
     #[error("Zigbee EZSP error (status {status:#04x}): {msg}")]
     EzspStatus { status: u8, msg: String },

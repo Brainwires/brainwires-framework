@@ -40,15 +40,14 @@
 ///
 /// ## Pake3
 /// - tag 1: cA (bytes, 32)
-
 use rand_core::{OsRng, RngCore};
 
+use super::EstablishedSession;
 use crate::homeauto::matter::crypto::{
     kdf::{derive_passcode_verifier, hkdf_expand_label},
     spake2plus::{Spake2PlusProver, Spake2PlusVerifier},
 };
 use crate::homeauto::matter::error::{MatterError, MatterResult};
-use super::EstablishedSession;
 
 // ── TLV encoding helpers ──────────────────────────────────────────────────────
 
@@ -175,18 +174,30 @@ impl<'a> TlvReader<'a> {
 
         match val_type {
             // boolean false (no payload)
-            0x08 => Ok(TlvElem { tag, value: TlvVal::Bool(false) }),
+            0x08 => Ok(TlvElem {
+                tag,
+                value: TlvVal::Bool(false),
+            }),
             // boolean true (no payload)
-            0x09 => Ok(TlvElem { tag, value: TlvVal::Bool(true) }),
+            0x09 => Ok(TlvElem {
+                tag,
+                value: TlvVal::Bool(true),
+            }),
             // uint1
             0x04 => {
                 let b = self.read_byte()?;
-                Ok(TlvElem { tag, value: TlvVal::Uint(b as u64) })
+                Ok(TlvElem {
+                    tag,
+                    value: TlvVal::Uint(b as u64),
+                })
             }
             // uint2
             0x05 => {
                 let b = self.read_bytes_slice(2)?;
-                Ok(TlvElem { tag, value: TlvVal::Uint(u16::from_le_bytes([b[0], b[1]]) as u64) })
+                Ok(TlvElem {
+                    tag,
+                    value: TlvVal::Uint(u16::from_le_bytes([b[0], b[1]]) as u64),
+                })
             }
             // uint4
             0x06 => {
@@ -208,12 +219,21 @@ impl<'a> TlvReader<'a> {
             0x10 => {
                 let len = self.read_byte()? as usize;
                 let data = self.read_bytes_slice(len)?;
-                Ok(TlvElem { tag, value: TlvVal::Bytes(data) })
+                Ok(TlvElem {
+                    tag,
+                    value: TlvVal::Bytes(data),
+                })
             }
             // struct start
-            0x15 => Ok(TlvElem { tag, value: TlvVal::StructStart }),
+            0x15 => Ok(TlvElem {
+                tag,
+                value: TlvVal::StructStart,
+            }),
             // end of container
-            0x18 => Ok(TlvElem { tag, value: TlvVal::End }),
+            0x18 => Ok(TlvElem {
+                tag,
+                value: TlvVal::End,
+            }),
             _ => Err(MatterError::Protocol {
                 opcode: 0,
                 msg: format!("TLV: unsupported value type {val_type:#04x}"),
@@ -347,8 +367,8 @@ impl PaseCommissioner {
         let (w0s, w1s) = derive_passcode_verifier(self.passcode, &salt, iterations)
             .map_err(|e| MatterError::Spake2(e.to_string()))?;
 
-        let prover = Spake2PlusProver::new(&w0s, &w1s)
-            .map_err(|e| MatterError::Spake2(e.to_string()))?;
+        let prover =
+            Spake2PlusProver::new(&w0s, &w1s).map_err(|e| MatterError::Spake2(e.to_string()))?;
 
         let pa = prover.pake_message();
 
@@ -550,7 +570,12 @@ impl PaseCommissionee {
                 resp_bytes,
                 salt,
                 iterations,
-            } => (req_bytes.clone(), resp_bytes.clone(), salt.clone(), *iterations),
+            } => (
+                req_bytes.clone(),
+                resp_bytes.clone(),
+                salt.clone(),
+                *iterations,
+            ),
             _ => {
                 return Err(MatterError::Protocol {
                     opcode: 0x22,
@@ -608,9 +633,13 @@ impl PaseCommissionee {
     /// Process a Pake3 and return the established session on success.
     pub fn handle_pake3(&mut self, payload: &[u8]) -> MatterResult<EstablishedSession> {
         let (keys, session_id) = match &self.state {
-            PaseCommissioneeState::SentPake2 { keys, session_id, .. } => {
+            PaseCommissioneeState::SentPake2 {
+                keys, session_id, ..
+            } => {
                 let keys = unsafe {
-                    std::ptr::read(keys as *const crate::homeauto::matter::crypto::spake2plus::Spake2PlusKeys)
+                    std::ptr::read(
+                        keys as *const crate::homeauto::matter::crypto::spake2plus::Spake2PlusKeys,
+                    )
                 };
                 (keys, *session_id)
             }
@@ -638,7 +667,7 @@ impl PaseCommissionee {
         let session = EstablishedSession {
             session_id,
             peer_session_id: 0,
-            encrypt_key: r2i,   // commissionee = responder, R2I = our encrypt key
+            encrypt_key: r2i, // commissionee = responder, R2I = our encrypt key
             decrypt_key: i2r,
             attestation_challenge: challenge,
             peer_node_id: None,
@@ -682,7 +711,7 @@ fn decode_param_request(buf: &[u8]) -> MatterResult<([u8; 32], u8, u16)> {
                     session_id = v as u16;
                 }
             }
-            TlvVal::Bool(_) => {} // hasPbkdfParameters
+            TlvVal::Bool(_) => {}  // hasPbkdfParameters
             TlvVal::Bytes(_) => {} // skip unknown bytes
             _ => {}
         }
@@ -906,8 +935,7 @@ mod tests {
         let iterations = 1000u32;
 
         let mut commissioner = PaseCommissioner::new(TEST_PASSCODE);
-        let mut commissionee =
-            PaseCommissionee::new_with_params(TEST_PASSCODE, salt, iterations);
+        let mut commissionee = PaseCommissionee::new_with_params(TEST_PASSCODE, salt, iterations);
 
         // Step 1: Commissioner → Commissionee: PBKDFParamRequest
         let (_session_id, req) = commissioner
@@ -966,8 +994,7 @@ mod tests {
         let iterations = 1000u32;
 
         let mut commissioner = PaseCommissioner::new(11111111); // wrong passcode
-        let mut commissionee =
-            PaseCommissionee::new_with_params(TEST_PASSCODE, salt, iterations);
+        let mut commissionee = PaseCommissionee::new_with_params(TEST_PASSCODE, salt, iterations);
 
         let (_sid, req) = commissioner.build_param_request().unwrap();
         let resp = commissionee.handle_param_request(&req).unwrap();

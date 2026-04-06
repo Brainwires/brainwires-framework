@@ -2,27 +2,26 @@
 ///
 /// Handles FailSafe, regulatory config, and CommissioningComplete.
 /// Matter spec §11.9.
-
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 
 use crate::homeauto::matter::clusters::tlv;
-use crate::homeauto::matter::error::{MatterError, MatterResult};
 use crate::homeauto::matter::data_model::ClusterServer;
+use crate::homeauto::matter::error::{MatterError, MatterResult};
 
 // ── Attribute IDs ─────────────────────────────────────────────────────────────
 
-pub const ATTR_BREADCRUMB: u32                   = 0x0000;
-pub const ATTR_BASIC_COMMISSIONING_INFO: u32     = 0x0001;
-pub const ATTR_REGULATORY_CONFIG: u32            = 0x0002;
-pub const ATTR_LOCATION_CAPABILITY: u32          = 0x0003;
+pub const ATTR_BREADCRUMB: u32 = 0x0000;
+pub const ATTR_BASIC_COMMISSIONING_INFO: u32 = 0x0001;
+pub const ATTR_REGULATORY_CONFIG: u32 = 0x0002;
+pub const ATTR_LOCATION_CAPABILITY: u32 = 0x0003;
 pub const ATTR_SUPPORTS_CONCURRENT_CONNECTION: u32 = 0x0004;
 
 // ── Command IDs ───────────────────────────────────────────────────────────────
 
-pub const CMD_ARM_FAIL_SAFE: u32          = 0x00;
-pub const CMD_SET_REGULATORY_CONFIG: u32  = 0x02;
+pub const CMD_ARM_FAIL_SAFE: u32 = 0x00;
+pub const CMD_SET_REGULATORY_CONFIG: u32 = 0x02;
 pub const CMD_COMMISSIONING_COMPLETE: u32 = 0x04;
 
 const CLUSTER_ID: u32 = 0x0030;
@@ -46,7 +45,11 @@ fn tlv_uint64(tag: u8, val: u64) -> Vec<u8> {
 }
 
 fn tlv_bool(tag: u8, val: bool) -> Vec<u8> {
-    let ty = if val { tlv::TYPE_BOOL_TRUE } else { tlv::TYPE_BOOL_FALSE };
+    let ty = if val {
+        tlv::TYPE_BOOL_TRUE
+    } else {
+        tlv::TYPE_BOOL_FALSE
+    };
     vec![tlv::TAG_CONTEXT_1 | ty, tag]
 }
 
@@ -133,9 +136,7 @@ impl ClusterServer for GeneralCommissioningCluster {
                 // 2 = IndoorOutdoor
                 Ok(tlv_uint8(0, 2))
             }
-            ATTR_SUPPORTS_CONCURRENT_CONNECTION => {
-                Ok(tlv_bool(0, true))
-            }
+            ATTR_SUPPORTS_CONCURRENT_CONNECTION => Ok(tlv_bool(0, true)),
             _ => Err(MatterError::Transport("unsupported attribute".into())),
         }
     }
@@ -147,7 +148,9 @@ impl ClusterServer for GeneralCommissioningCluster {
                 // Value may arrive as raw bytes or TLV-encoded; we accept both forms.
                 let raw = if value.len() >= 2 && value[0] == (tlv::TAG_CONTEXT_1 | 0x07) {
                     // TLV-encoded: [ctrl, tag, 8 bytes LE]
-                    if value.len() < 10 { return Err(MatterError::Transport("bad Breadcrumb TLV".into())); }
+                    if value.len() < 10 {
+                        return Err(MatterError::Transport("bad Breadcrumb TLV".into()));
+                    }
                     &value[2..10]
                 } else if value.len() >= 8 {
                     &value[..8]
@@ -188,7 +191,9 @@ impl ClusterServer for GeneralCommissioningCluster {
                 }
                 Ok(commissioning_complete_response(0, ""))
             }
-            _ => Err(MatterError::Transport(format!("unknown command {cmd_id:#06x}"))),
+            _ => Err(MatterError::Transport(format!(
+                "unknown command {cmd_id:#06x}"
+            ))),
         }
     }
 
@@ -203,7 +208,11 @@ impl ClusterServer for GeneralCommissioningCluster {
     }
 
     fn command_ids(&self) -> Vec<u32> {
-        vec![CMD_ARM_FAIL_SAFE, CMD_SET_REGULATORY_CONFIG, CMD_COMMISSIONING_COMPLETE]
+        vec![
+            CMD_ARM_FAIL_SAFE,
+            CMD_SET_REGULATORY_CONFIG,
+            CMD_COMMISSIONING_COMPLETE,
+        ]
     }
 }
 
@@ -216,7 +225,9 @@ fn parse_u16_tag0(args: &[u8]) -> Option<u16> {
     let ctrl = tlv::TAG_CONTEXT_1 | tlv::TYPE_UNSIGNED_INT_2;
     let mut i = 0;
     // Skip struct opener if present.
-    if args.first() == Some(&tlv::TYPE_STRUCTURE) { i += 1; }
+    if args.first() == Some(&tlv::TYPE_STRUCTURE) {
+        i += 1;
+    }
     while i + 3 < args.len() {
         if args[i] == ctrl && args[i + 1] == 0 {
             return Some(u16::from_le_bytes([args[i + 2], args[i + 3]]));
@@ -230,7 +241,9 @@ fn parse_u16_tag0(args: &[u8]) -> Option<u16> {
 fn parse_u64_tag2(args: &[u8]) -> Option<u64> {
     let ctrl = tlv::TAG_CONTEXT_1 | 0x07; // TYPE_UNSIGNED_INT_8
     let mut i = 0;
-    if args.first() == Some(&tlv::TYPE_STRUCTURE) { i += 1; }
+    if args.first() == Some(&tlv::TYPE_STRUCTURE) {
+        i += 1;
+    }
     while i + 9 < args.len() {
         if args[i] == ctrl && args[i + 1] == 2 {
             let raw: [u8; 8] = args[i + 2..i + 10].try_into().ok()?;

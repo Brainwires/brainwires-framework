@@ -1,8 +1,8 @@
-use std::path::PathBuf;
-use anyhow::Result;
-use brainwires_hardware::homeauto::MatterController;
 use crate::cli::PairAction;
 use crate::output::Output;
+use anyhow::Result;
+use brainwires_hardware::homeauto::MatterController;
+use std::path::PathBuf;
 
 pub async fn run(action: PairAction, fabric_dir: &PathBuf, out: &Output) -> Result<()> {
     match action {
@@ -14,7 +14,10 @@ pub async fn run(action: PairAction, fabric_dir: &PathBuf, out: &Output) -> Resu
                 device.node_id, device.vendor_id, device.product_id
             ));
         }
-        PairAction::Code { node_id, manual_code } => {
+        PairAction::Code {
+            node_id,
+            manual_code,
+        } => {
             let ctrl = MatterController::new("matter-tool", fabric_dir).await?;
             let device = ctrl.commission_code(&manual_code, node_id).await?;
             out.ok(&format!(
@@ -22,11 +25,17 @@ pub async fn run(action: PairAction, fabric_dir: &PathBuf, out: &Output) -> Resu
                 device.node_id, device.vendor_id, device.product_id
             ));
         }
-        PairAction::Ble { node_id: _, passcode: _, discriminator: _ } => {
+        PairAction::Ble {
+            node_id: _,
+            passcode: _,
+            discriminator: _,
+        } => {
             #[cfg(feature = "ble")]
             {
                 // BLE commissioning path — feature-gated
-                anyhow::bail!("BLE commissioning not yet wired in matter-tool; the matter-ble stack is present, implement commission_ble in MatterController first");
+                anyhow::bail!(
+                    "BLE commissioning not yet wired in matter-tool; the matter-ble stack is present, implement commission_ble in MatterController first"
+                );
             }
             #[cfg(not(feature = "ble"))]
             {

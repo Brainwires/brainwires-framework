@@ -1,9 +1,9 @@
-use std::path::PathBuf;
-use anyhow::Result;
-use brainwires_hardware::homeauto::{AttributeValue, MatterController, MatterDevice};
-use brainwires_hardware::homeauto::matter::clusters::door_lock;
 use crate::cli::DoorlockAction;
 use crate::output::Output;
+use anyhow::Result;
+use brainwires_hardware::homeauto::matter::clusters::door_lock;
+use brainwires_hardware::homeauto::{AttributeValue, MatterController, MatterDevice};
+use std::path::PathBuf;
 
 pub async fn run(action: DoorlockAction, fabric_dir: &PathBuf, out: &Output) -> Result<()> {
     match action {
@@ -19,12 +19,14 @@ pub async fn run(action: DoorlockAction, fabric_dir: &PathBuf, out: &Output) -> 
         }
         DoorlockAction::Read { node_id, endpoint } => {
             let (ctrl, device) = get_ctrl_and_device(fabric_dir, node_id).await?;
-            let val = ctrl.read_attr(
-                &device,
-                endpoint,
-                door_lock::CLUSTER_ID,
-                door_lock::ATTR_LOCK_STATE,
-            ).await?;
+            let val = ctrl
+                .read_attr(
+                    &device,
+                    endpoint,
+                    door_lock::CLUSTER_ID,
+                    door_lock::ATTR_LOCK_STATE,
+                )
+                .await?;
             // LockState: 0=Not Fully Locked, 1=Locked, 2=Unlocked
             let state_str = match &val {
                 AttributeValue::U8(1) => "locked",
@@ -42,7 +44,10 @@ pub async fn run(action: DoorlockAction, fabric_dir: &PathBuf, out: &Output) -> 
     Ok(())
 }
 
-async fn get_ctrl_and_device(fabric_dir: &PathBuf, node_id: u64) -> Result<(MatterController, MatterDevice)> {
+async fn get_ctrl_and_device(
+    fabric_dir: &PathBuf,
+    node_id: u64,
+) -> Result<(MatterController, MatterDevice)> {
     let ctrl = MatterController::new("matter-tool", fabric_dir).await?;
     let devices = ctrl.devices().await?;
     let device = devices

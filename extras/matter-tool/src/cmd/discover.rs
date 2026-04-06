@@ -1,7 +1,7 @@
-use std::time::Duration;
+use crate::output::Output;
 use anyhow::Result;
 use mdns_sd::{ServiceDaemon, ServiceEvent};
-use crate::output::Output;
+use std::time::Duration;
 
 /// Browse for Matter devices on the local network via mDNS.
 ///
@@ -86,7 +86,10 @@ pub async fn run(timeout_secs: u64, out: &Output) -> Result<()> {
                 })
             })
             .collect();
-        println!("{}", serde_json::to_string_pretty(&items).unwrap_or_else(|_| "[]".into()));
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&items).unwrap_or_else(|_| "[]".into())
+        );
     } else if found.is_empty() {
         println!("No Matter devices found.");
     } else {

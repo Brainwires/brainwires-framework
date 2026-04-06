@@ -13,7 +13,7 @@ pub use self::inner::BleTransport;
 
 #[cfg(feature = "matter-ble")]
 pub(crate) use self::inner::{
-    BtpHandshakeRequest, BtpHandshakeResponse, BtpReassembler, fragment_message, flags,
+    BtpHandshakeRequest, BtpHandshakeResponse, BtpReassembler, flags, fragment_message,
 };
 
 #[cfg(feature = "matter-ble")]
@@ -120,13 +120,13 @@ mod inner {
         pub fn encode(&self) -> Vec<u8> {
             let seg_len = self.attl;
             vec![
-                flags::HANDSHAKE,                      // byte 0: 0x65 SYN+ACK marker (we reuse HANDSHAKE)
-                (seg_len & 0xFF) as u8,                // byte 1: seg len low
-                ((seg_len >> 8) & 0xFF) as u8,         // byte 2: seg len high
-                self.selected_version,                 // byte 3: version
-                (self.attl & 0xFF) as u8,              // byte 4: attl low
-                ((self.attl >> 8) & 0xFF) as u8,       // byte 5: attl high
-                self.window_size,                      // byte 6: window
+                flags::HANDSHAKE,                // byte 0: 0x65 SYN+ACK marker (we reuse HANDSHAKE)
+                (seg_len & 0xFF) as u8,          // byte 1: seg len low
+                ((seg_len >> 8) & 0xFF) as u8,   // byte 2: seg len high
+                self.selected_version,           // byte 3: version
+                (self.attl & 0xFF) as u8,        // byte 4: attl low
+                ((self.attl >> 8) & 0xFF) as u8, // byte 5: attl high
+                self.window_size,                // byte 6: window
             ]
         }
     }
@@ -340,13 +340,13 @@ mod inner {
         // Helper: build a minimal BtpHandshakeRequest byte slice.
         fn make_handshake_request_bytes(versions: u8, attl: u16, window: u8) -> Vec<u8> {
             vec![
-                flags::HANDSHAKE,              // byte 0: flags
-                (attl & 0xFF) as u8,           // byte 1: seg_len low  (mirrors attl)
-                ((attl >> 8) & 0xFF) as u8,    // byte 2: seg_len high
-                versions,                      // byte 3: versions_supported
-                (attl & 0xFF) as u8,           // byte 4: attl low
-                ((attl >> 8) & 0xFF) as u8,    // byte 5: attl high
-                window,                        // byte 6: window_size
+                flags::HANDSHAKE,           // byte 0: flags
+                (attl & 0xFF) as u8,        // byte 1: seg_len low  (mirrors attl)
+                ((attl >> 8) & 0xFF) as u8, // byte 2: seg_len high
+                versions,                   // byte 3: versions_supported
+                (attl & 0xFF) as u8,        // byte 4: attl low
+                ((attl >> 8) & 0xFF) as u8, // byte 5: attl high
+                window,                     // byte 6: window_size
             ]
         }
 
@@ -386,9 +386,9 @@ mod inner {
             let bytes = resp.encode();
             assert_eq!(bytes.len(), 7);
             assert_eq!(bytes[0], flags::HANDSHAKE); // SYN+ACK marker
-            assert_eq!(bytes[3], 4);                // selected_version
+            assert_eq!(bytes[3], 4); // selected_version
             assert_eq!(u16::from_le_bytes([bytes[4], bytes[5]]), 247); // attl
-            assert_eq!(bytes[6], 6);                // window_size
+            assert_eq!(bytes[6], 6); // window_size
         }
 
         /// Round-trip: request → to_response() → encode, check version=4.
@@ -416,7 +416,12 @@ mod inner {
                 frame_flags |= flags::MORE_DATA;
             }
             let plen = payload.len() as u16;
-            let mut frame = vec![frame_flags, seq, (plen & 0xFF) as u8, ((plen >> 8) & 0xFF) as u8];
+            let mut frame = vec![
+                frame_flags,
+                seq,
+                (plen & 0xFF) as u8,
+                ((plen >> 8) & 0xFF) as u8,
+            ];
             frame.extend_from_slice(payload);
             frame
         }
@@ -445,7 +450,9 @@ mod inner {
 
             assert!(r.feed(&frame1).is_none());
             assert!(r.feed(&frame2).is_none());
-            let result = r.feed(&frame3).expect("expected assembled message on last segment");
+            let result = r
+                .feed(&frame3)
+                .expect("expected assembled message on last segment");
             assert_eq!(result, b"aaabbbccc");
         }
 

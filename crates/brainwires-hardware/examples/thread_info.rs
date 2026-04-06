@@ -1,3 +1,5 @@
+use anyhow::Result;
+use brainwires_hardware::homeauto::thread::ThreadBorderRouter;
 /// Example: Print Thread network topology via OTBR REST API.
 ///
 /// Usage:
@@ -8,10 +10,7 @@
 /// Connects to an OpenThread Border Router (OTBR) REST API and prints:
 /// - Node info (role, RLOC16, network name)
 /// - Neighbor table
-
 use std::env;
-use anyhow::Result;
-use brainwires_hardware::homeauto::thread::ThreadBorderRouter;
 use tracing::info;
 
 #[tokio::main]
@@ -28,9 +27,18 @@ async fn main() -> Result<()> {
     let info = client.node_info().await?;
     info!("Thread Node Info:");
     info!("  Role:         {:?}", info.role);
-    info!("  RLOC16:       {}", info.rloc16.as_deref().unwrap_or("N/A"));
-    info!("  Network Name: {}", info.network_name.as_deref().unwrap_or("N/A"));
-    info!("  Ext Address:  {}", info.ext_address.as_deref().unwrap_or("N/A"));
+    info!(
+        "  RLOC16:       {}",
+        info.rloc16.as_deref().unwrap_or("N/A")
+    );
+    info!(
+        "  Network Name: {}",
+        info.network_name.as_deref().unwrap_or("N/A")
+    );
+    info!(
+        "  Ext Address:  {}",
+        info.ext_address.as_deref().unwrap_or("N/A")
+    );
 
     let neighbors = client.neighbors().await?;
     info!("\nNeighbors ({}):", neighbors.len());
@@ -44,7 +52,10 @@ async fn main() -> Result<()> {
     }
 
     let dataset = client.active_dataset().await?;
-    info!("\nActive Dataset (TLV hex): {}", &dataset.active_dataset[..dataset.active_dataset.len().min(64)]);
+    info!(
+        "\nActive Dataset (TLV hex): {}",
+        &dataset.active_dataset[..dataset.active_dataset.len().min(64)]
+    );
 
     Ok(())
 }

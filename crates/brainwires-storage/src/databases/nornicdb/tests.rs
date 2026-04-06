@@ -10,12 +10,12 @@ mod tests {
 
     use brainwires_core::{ChunkMetadata, SearchResult};
 
-    use crate::glob_utils;
     use super::super::database::NornicDatabase;
     use super::super::helpers::{build_filters, extract_host, map_to_search_result};
     use super::super::transport::NornicTransport;
     use super::super::types::{CognitiveMemoryTier, NornicConfig, TransportKind};
     use crate::databases::traits::VectorDatabase;
+    use crate::glob_utils;
 
     // ── Mock transport ──────────────────────────────────────────────────
 

@@ -11,8 +11,8 @@ use uuid::Uuid;
 
 use crate::homeauto::matter::error::{MatterError, MatterResult};
 use crate::homeauto::matter::transport::ble::{
-    BleTransport, BtpHandshakeRequest, BtpHandshakeResponse, BtpReassembler, fragment_message,
-    flags,
+    BleTransport, BtpHandshakeRequest, BtpHandshakeResponse, BtpReassembler, flags,
+    fragment_message,
 };
 
 // ── Matter BLE UUIDs ──────────────────────────────────────────────────────────
@@ -23,13 +23,11 @@ pub const MATTER_BLE_SERVICE_UUID: Uuid =
 
 /// Matter C1 characteristic UUID (controller → device write):
 /// `18EE2EF5-263D-4559-959F-4F9C429F9D11`.
-pub const MATTER_C1_UUID: Uuid =
-    Uuid::from_u128(0x18EE2EF5_263D_4559_959F_4F9C429F9D11_u128);
+pub const MATTER_C1_UUID: Uuid = Uuid::from_u128(0x18EE2EF5_263D_4559_959F_4F9C429F9D11_u128);
 
 /// Matter C2 characteristic UUID (device → controller indication):
 /// `18EE2EF5-263D-4559-959F-4F9C429F9D12`.
-pub const MATTER_C2_UUID: Uuid =
-    Uuid::from_u128(0x18EE2EF5_263D_4559_959F_4F9C429F9D12_u128);
+pub const MATTER_C2_UUID: Uuid = Uuid::from_u128(0x18EE2EF5_263D_4559_959F_4F9C429F9D12_u128);
 
 // ── MatterBlePeripheral ───────────────────────────────────────────────────────
 
@@ -134,18 +132,16 @@ impl MatterBlePeripheral {
         use btleplug::platform::Manager;
 
         // Verify that at least one Bluetooth adapter is available.
-        let manager = Manager::new().await.map_err(|e| {
-            MatterError::Transport(format!("btleplug manager init failed: {e}"))
-        })?;
+        let manager = Manager::new()
+            .await
+            .map_err(|e| MatterError::Transport(format!("btleplug manager init failed: {e}")))?;
 
         let adapters = manager.adapters().await.map_err(|e| {
             MatterError::Transport(format!("failed to enumerate BLE adapters: {e}"))
         })?;
 
         if adapters.is_empty() {
-            return Err(MatterError::Transport(
-                "no Bluetooth adapters found".into(),
-            ));
+            return Err(MatterError::Transport("no Bluetooth adapters found".into()));
         }
 
         // Build the transport channel pair.

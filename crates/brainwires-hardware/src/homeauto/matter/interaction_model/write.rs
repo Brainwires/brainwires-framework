@@ -21,9 +21,8 @@
 ///   tag 0: list of AttributeStatus  // write_responses
 /// }
 /// ```
-
 use super::super::clusters::{
-    tlv, tlv_bool, tlv_uint8, wrap_list_tagged, wrap_struct, AttributePath,
+    AttributePath, tlv, tlv_bool, tlv_uint8, wrap_list_tagged, wrap_struct,
 };
 use super::super::error::{MatterError, MatterResult};
 use super::read::AttributeData;
@@ -34,32 +33,32 @@ use super::read::AttributeData;
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InteractionStatus {
-    Success                  = 0x00,
-    Failure                  = 0x01,
-    InvalidSubscription      = 0x7d,
-    UnsupportedAccess        = 0x7e,
-    UnsupportedEndpoint      = 0x7f,
-    InvalidAction            = 0x80,
-    UnsupportedCommand       = 0x81,
-    InvalidCommand           = 0x85,
-    UnsupportedAttribute     = 0x86,
-    ConstraintError          = 0x87,
-    UnsupportedWrite         = 0x88,
-    ResourceExhausted        = 0x89,
-    NotFound                 = 0x8b,
-    UnreportableAttribute    = 0x8c,
-    InvalidDataType          = 0x8d,
-    UnsupportedRead          = 0x8f,
-    DataVersionMismatch      = 0x92,
-    Timeout                  = 0x94,
-    Busy                     = 0x9c,
-    UnsupportedCluster       = 0xc3,
-    NoUpstreamSubscription   = 0xc5,
-    NeedsTimedInteraction    = 0xc6,
-    UnsupportedEvent         = 0xc7,
-    PathsExhausted           = 0xc8,
-    TimedRequestMismatch     = 0xc9,
-    FailsafeRequired         = 0xca,
+    Success = 0x00,
+    Failure = 0x01,
+    InvalidSubscription = 0x7d,
+    UnsupportedAccess = 0x7e,
+    UnsupportedEndpoint = 0x7f,
+    InvalidAction = 0x80,
+    UnsupportedCommand = 0x81,
+    InvalidCommand = 0x85,
+    UnsupportedAttribute = 0x86,
+    ConstraintError = 0x87,
+    UnsupportedWrite = 0x88,
+    ResourceExhausted = 0x89,
+    NotFound = 0x8b,
+    UnreportableAttribute = 0x8c,
+    InvalidDataType = 0x8d,
+    UnsupportedRead = 0x8f,
+    DataVersionMismatch = 0x92,
+    Timeout = 0x94,
+    Busy = 0x9c,
+    UnsupportedCluster = 0xc3,
+    NoUpstreamSubscription = 0xc5,
+    NeedsTimedInteraction = 0xc6,
+    UnsupportedEvent = 0xc7,
+    PathsExhausted = 0xc8,
+    TimedRequestMismatch = 0xc9,
+    FailsafeRequired = 0xca,
 }
 
 impl InteractionStatus {
@@ -137,7 +136,9 @@ impl WriteRequest {
     /// Decode a `WriteRequest` from TLV bytes.
     pub fn decode(bytes: &[u8]) -> MatterResult<Self> {
         if bytes.is_empty() || bytes[0] != tlv::TYPE_STRUCTURE {
-            return Err(MatterError::Transport("WriteRequest: expected structure".into()));
+            return Err(MatterError::Transport(
+                "WriteRequest: expected structure".into(),
+            ));
         }
         let mut suppress_response = false;
         let mut timed_request = false;
@@ -145,7 +146,9 @@ impl WriteRequest {
         let mut i = 1;
 
         while i < bytes.len() {
-            if bytes[i] == tlv::TYPE_END_OF_CONTAINER { break; }
+            if bytes[i] == tlv::TYPE_END_OF_CONTAINER {
+                break;
+            }
             if i + 1 >= bytes.len() {
                 return Err(MatterError::Transport("WriteRequest: truncated".into()));
             }
@@ -164,32 +167,44 @@ impl WriteRequest {
                 (2, t) if t == tlv::TYPE_LIST => {
                     while i < bytes.len() && bytes[i] != tlv::TYPE_END_OF_CONTAINER {
                         if bytes[i] != tlv::TYPE_STRUCTURE {
-                            return Err(MatterError::Transport("WriteRequest: expected AttributeData struct".into()));
+                            return Err(MatterError::Transport(
+                                "WriteRequest: expected AttributeData struct".into(),
+                            ));
                         }
                         let start = i;
                         i += 1;
                         let mut depth = 1u32;
                         while i < bytes.len() && depth > 0 {
-                            if bytes[i] == tlv::TYPE_END_OF_CONTAINER { depth -= 1; }
-                            else if bytes[i] == tlv::TYPE_STRUCTURE
+                            if bytes[i] == tlv::TYPE_END_OF_CONTAINER {
+                                depth -= 1;
+                            } else if bytes[i] == tlv::TYPE_STRUCTURE
                                 || bytes[i] == (tlv::TAG_CONTEXT_1 | tlv::TYPE_STRUCTURE)
-                            { depth += 1; }
+                            {
+                                depth += 1;
+                            }
                             i += 1;
                         }
-                        let attr = AttributeData::decode(&bytes[start..i])
-                            .ok_or_else(|| MatterError::Transport("WriteRequest: bad AttributeData".into()))?;
+                        let attr = AttributeData::decode(&bytes[start..i]).ok_or_else(|| {
+                            MatterError::Transport("WriteRequest: bad AttributeData".into())
+                        })?;
                         write_requests.push(attr);
                     }
-                    if i < bytes.len() { i += 1; }
+                    if i < bytes.len() {
+                        i += 1;
+                    }
                 }
                 _ => {
-                    return Err(MatterError::Transport(
-                        format!("WriteRequest: unexpected field tag={tag} ctrl={ctrl:#04x}")
-                    ));
+                    return Err(MatterError::Transport(format!(
+                        "WriteRequest: unexpected field tag={tag} ctrl={ctrl:#04x}"
+                    )));
                 }
             }
         }
-        Ok(Self { suppress_response, timed_request, write_requests })
+        Ok(Self {
+            suppress_response,
+            timed_request,
+            write_requests,
+        })
     }
 }
 
@@ -229,14 +244,20 @@ impl AttributeStatus {
 
     /// Decode an `AttributeStatus` from TLV bytes.
     pub fn decode(bytes: &[u8]) -> Option<Self> {
-        if bytes.is_empty() || bytes[0] != tlv::TYPE_STRUCTURE { return None; }
+        if bytes.is_empty() || bytes[0] != tlv::TYPE_STRUCTURE {
+            return None;
+        }
         let mut path: Option<AttributePath> = None;
         let mut status_code: Option<u8> = None;
         let mut i = 1;
 
         while i < bytes.len() {
-            if bytes[i] == tlv::TYPE_END_OF_CONTAINER { break; }
-            if i + 1 >= bytes.len() { return None; }
+            if bytes[i] == tlv::TYPE_END_OF_CONTAINER {
+                break;
+            }
+            if i + 1 >= bytes.len() {
+                return None;
+            }
             let ctrl = bytes[i];
             let tag = bytes[i + 1];
             i += 2;
@@ -247,8 +268,11 @@ impl AttributeStatus {
                     let start = i;
                     let mut depth = 1u32;
                     while i < bytes.len() && depth > 0 {
-                        if bytes[i] == tlv::TYPE_END_OF_CONTAINER { depth -= 1; }
-                        else if bytes[i] == tlv::TYPE_STRUCTURE { depth += 1; }
+                        if bytes[i] == tlv::TYPE_END_OF_CONTAINER {
+                            depth -= 1;
+                        } else if bytes[i] == tlv::TYPE_STRUCTURE {
+                            depth += 1;
+                        }
                         i += 1;
                     }
                     let mut path_bytes = vec![tlv::TYPE_STRUCTURE];
@@ -265,7 +289,10 @@ impl AttributeStatus {
                 _ => return None,
             }
         }
-        Some(Self { path: path?, status: InteractionStatus::from_u8(status_code?)? })
+        Some(Self {
+            path: path?,
+            status: InteractionStatus::from_u8(status_code?)?,
+        })
     }
 }
 
@@ -299,13 +326,17 @@ impl WriteResponse {
     /// Decode a `WriteResponse` from TLV bytes.
     pub fn decode(bytes: &[u8]) -> MatterResult<Self> {
         if bytes.is_empty() || bytes[0] != tlv::TYPE_STRUCTURE {
-            return Err(MatterError::Transport("WriteResponse: expected structure".into()));
+            return Err(MatterError::Transport(
+                "WriteResponse: expected structure".into(),
+            ));
         }
         let mut write_responses = Vec::new();
         let mut i = 1;
 
         while i < bytes.len() {
-            if bytes[i] == tlv::TYPE_END_OF_CONTAINER { break; }
+            if bytes[i] == tlv::TYPE_END_OF_CONTAINER {
+                break;
+            }
             if i + 1 >= bytes.len() {
                 return Err(MatterError::Transport("WriteResponse: truncated".into()));
             }
@@ -318,28 +349,36 @@ impl WriteResponse {
                 (0, t) if t == tlv::TYPE_LIST => {
                     while i < bytes.len() && bytes[i] != tlv::TYPE_END_OF_CONTAINER {
                         if bytes[i] != tlv::TYPE_STRUCTURE {
-                            return Err(MatterError::Transport("WriteResponse: expected status struct".into()));
+                            return Err(MatterError::Transport(
+                                "WriteResponse: expected status struct".into(),
+                            ));
                         }
                         let start = i;
                         i += 1;
                         let mut depth = 1u32;
                         while i < bytes.len() && depth > 0 {
-                            if bytes[i] == tlv::TYPE_END_OF_CONTAINER { depth -= 1; }
-                            else if bytes[i] == tlv::TYPE_STRUCTURE
+                            if bytes[i] == tlv::TYPE_END_OF_CONTAINER {
+                                depth -= 1;
+                            } else if bytes[i] == tlv::TYPE_STRUCTURE
                                 || bytes[i] == (tlv::TAG_CONTEXT_1 | tlv::TYPE_STRUCTURE)
-                            { depth += 1; }
+                            {
+                                depth += 1;
+                            }
                             i += 1;
                         }
-                        let st = AttributeStatus::decode(&bytes[start..i])
-                            .ok_or_else(|| MatterError::Transport("WriteResponse: bad AttributeStatus".into()))?;
+                        let st = AttributeStatus::decode(&bytes[start..i]).ok_or_else(|| {
+                            MatterError::Transport("WriteResponse: bad AttributeStatus".into())
+                        })?;
                         write_responses.push(st);
                     }
-                    if i < bytes.len() { i += 1; }
+                    if i < bytes.len() {
+                        i += 1;
+                    }
                 }
                 _ => {
-                    return Err(MatterError::Transport(
-                        format!("WriteResponse: unexpected field tag={tag} ctrl={ctrl:#04x}")
-                    ));
+                    return Err(MatterError::Transport(format!(
+                        "WriteResponse: unexpected field tag={tag} ctrl={ctrl:#04x}"
+                    )));
                 }
             }
         }
@@ -351,44 +390,49 @@ impl WriteResponse {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::super::clusters::AttributePath;
     use super::super::read::AttributeData;
+    use super::*;
 
     #[test]
     fn write_request_roundtrip() {
         let req = WriteRequest {
             suppress_response: false,
             timed_request: false,
-            write_requests: vec![
-                AttributeData {
-                    path: AttributePath::specific(1, 0x0006, 0x0000),
-                    data: vec![tlv::TYPE_BOOL_TRUE],
-                },
-            ],
+            write_requests: vec![AttributeData {
+                path: AttributePath::specific(1, 0x0006, 0x0000),
+                data: vec![tlv::TYPE_BOOL_TRUE],
+            }],
         };
         let encoded = req.encode();
         let decoded = WriteRequest::decode(&encoded).expect("decode failed");
         assert!(!decoded.suppress_response);
         assert!(!decoded.timed_request);
         assert_eq!(decoded.write_requests.len(), 1);
-        assert_eq!(decoded.write_requests[0].path, AttributePath::specific(1, 0x0006, 0x0000));
+        assert_eq!(
+            decoded.write_requests[0].path,
+            AttributePath::specific(1, 0x0006, 0x0000)
+        );
     }
 
     #[test]
     fn write_response_success_roundtrip() {
         let resp = WriteResponse {
-            write_responses: vec![
-                AttributeStatus {
-                    path: AttributePath::specific(1, 0x0006, 0x0000),
-                    status: InteractionStatus::Success,
-                },
-            ],
+            write_responses: vec![AttributeStatus {
+                path: AttributePath::specific(1, 0x0006, 0x0000),
+                status: InteractionStatus::Success,
+            }],
         };
         let encoded = resp.encode();
         let decoded = WriteResponse::decode(&encoded).expect("decode failed");
         assert_eq!(decoded.write_responses.len(), 1);
-        assert_eq!(decoded.write_responses[0].status, InteractionStatus::Success);
-        assert_eq!(decoded.write_responses[0].path, AttributePath::specific(1, 0x0006, 0x0000));
+        assert_eq!(
+            decoded.write_responses[0].status,
+            InteractionStatus::Success
+        );
+        assert_eq!(
+            decoded.write_responses[0].path,
+            AttributePath::specific(1, 0x0006, 0x0000)
+        );
     }
 }

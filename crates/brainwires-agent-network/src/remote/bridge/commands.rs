@@ -148,10 +148,7 @@ impl RemoteBridge {
                 {
                     Ok(all_received) => {
                         if all_received {
-                            tracing::info!(
-                                "All chunks received for attachment: {}",
-                                attachment_id
-                            );
+                            tracing::info!("All chunks received for attachment: {}", attachment_id);
                         }
                     }
                     Err(e) => {

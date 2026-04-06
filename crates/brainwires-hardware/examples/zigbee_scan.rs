@@ -9,7 +9,6 @@
 /// opens a 60-second join window, and prints any devices that join.
 ///
 /// For a TI Z-Stack coordinator (CC2652, etc.), change `EzspCoordinator` to `ZnpCoordinator`.
-
 use std::env;
 use std::time::Duration;
 
@@ -46,7 +45,10 @@ async fn main() -> Result<()> {
     let devices = coordinator.devices().await?;
     info!("Known devices ({}):", devices.len());
     for dev in &devices {
-        info!("  {:016x} ({:#06x}) — {:?}", dev.addr.ieee, dev.addr.nwk, dev.kind);
+        info!(
+            "  {:016x} ({:#06x}) — {:?}",
+            dev.addr.ieee, dev.addr.nwk, dev.kind
+        );
     }
 
     coordinator.stop().await?;

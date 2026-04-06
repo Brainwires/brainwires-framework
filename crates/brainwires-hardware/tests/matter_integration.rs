@@ -9,9 +9,7 @@
 
 #![cfg(feature = "matter")]
 
-use brainwires_hardware::homeauto::matter::secure_channel::{
-    PaseCommissionee, PaseCommissioner,
-};
+use brainwires_hardware::homeauto::matter::secure_channel::{PaseCommissionee, PaseCommissioner};
 
 // ── PASE smoke test ───────────────────────────────────────────────────────────
 
@@ -24,8 +22,7 @@ fn pase_handshake_smoke() {
     const ITERATIONS: u32 = 1000;
 
     // Commissionee side
-    let mut commissionee =
-        PaseCommissionee::new_with_params(PASSCODE, SALT.to_vec(), ITERATIONS);
+    let mut commissionee = PaseCommissionee::new_with_params(PASSCODE, SALT.to_vec(), ITERATIONS);
 
     // Commissioner side
     let mut commissioner = PaseCommissioner::new(PASSCODE);
@@ -116,7 +113,7 @@ async fn case_handshake_with_fabric_manager() {
     mgr.add_fabric_entry(
         descriptor.clone(),
         &rcac,
-        &rcac,  // placeholder NOC for registration
+        &rcac, // placeholder NOC for registration
         None,
         ca_key_bytes.clone(),
     );
@@ -133,15 +130,11 @@ async fn case_handshake_with_fabric_manager() {
         .expect("issue_noc (responder) failed");
 
     // Run the CASE (SIGMA) handshake entirely in-memory (no network)
-    let mut initiator =
-        CaseInitiator::new(init_node_key, init_noc, None, descriptor.clone());
-    let mut responder =
-        CaseResponder::new(resp_node_key, resp_noc, None, descriptor.clone());
+    let mut initiator = CaseInitiator::new(init_node_key, init_noc, None, descriptor.clone());
+    let mut responder = CaseResponder::new(resp_node_key, resp_noc, None, descriptor.clone());
 
     // Sigma1: initiator → responder
-    let (_init_session_id, sigma1) = initiator
-        .build_sigma1()
-        .expect("build_sigma1 failed");
+    let (_init_session_id, sigma1) = initiator.build_sigma1().expect("build_sigma1 failed");
 
     // Sigma2: responder → initiator
     let (_resp_session_id, sigma2) = responder
@@ -194,13 +187,13 @@ async fn case_handshake_with_fabric_manager() {
 #[tokio::test]
 #[ignore]
 async fn matter_e2e_commission_and_invoke() {
+    use brainwires_hardware::homeauto::matter::{
+        MatterController, MatterDeviceConfig, MatterDeviceServer,
+    };
     use std::net::UdpSocket;
     use std::sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
-    };
-    use brainwires_hardware::homeauto::matter::{
-        MatterController, MatterDeviceConfig, MatterDeviceServer,
     };
 
     // 1. Find a free UDP port via OS port-0 bind trick.
@@ -296,8 +289,8 @@ impl TempDir {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .subsec_nanos();
-        let path = std::env::temp_dir()
-            .join(format!("bw-matter-test-{}-{}", std::process::id(), ts));
+        let path =
+            std::env::temp_dir().join(format!("bw-matter-test-{}-{}", std::process::id(), ts));
         std::fs::create_dir_all(&path).unwrap();
         Self { path }
     }

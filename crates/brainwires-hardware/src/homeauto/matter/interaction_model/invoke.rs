@@ -33,9 +33,8 @@
 ///   }
 /// }
 /// ```
-
 use super::super::clusters::{
-    tlv, tlv_bool, tlv_uint8, wrap_list_tagged, wrap_struct, wrap_struct_tagged, CommandPath,
+    CommandPath, tlv, tlv_bool, tlv_uint8, wrap_list_tagged, wrap_struct, wrap_struct_tagged,
 };
 use super::super::error::{MatterError, MatterResult};
 use super::write::InteractionStatus;
@@ -108,7 +107,9 @@ impl InvokeRequest {
     /// Decode an `InvokeRequest` from TLV bytes.
     pub fn decode(bytes: &[u8]) -> MatterResult<Self> {
         if bytes.is_empty() || bytes[0] != tlv::TYPE_STRUCTURE {
-            return Err(MatterError::Transport("InvokeRequest: expected structure".into()));
+            return Err(MatterError::Transport(
+                "InvokeRequest: expected structure".into(),
+            ));
         }
         let mut suppress_response = false;
         let mut timed_request = false;
@@ -116,7 +117,9 @@ impl InvokeRequest {
         let mut i = 1;
 
         while i < bytes.len() {
-            if bytes[i] == tlv::TYPE_END_OF_CONTAINER { break; }
+            if bytes[i] == tlv::TYPE_END_OF_CONTAINER {
+                break;
+            }
             if i + 1 >= bytes.len() {
                 return Err(MatterError::Transport("InvokeRequest: truncated".into()));
             }
@@ -136,7 +139,9 @@ impl InvokeRequest {
                     // Each element is a CommandDataIB struct
                     while i < bytes.len() && bytes[i] != tlv::TYPE_END_OF_CONTAINER {
                         if bytes[i] != tlv::TYPE_STRUCTURE {
-                            return Err(MatterError::Transport("InvokeRequest: expected CommandDataIB struct".into()));
+                            return Err(MatterError::Transport(
+                                "InvokeRequest: expected CommandDataIB struct".into(),
+                            ));
                         }
                         // Parse CommandDataIB
                         i += 1; // skip TYPE_STRUCTURE
@@ -145,7 +150,9 @@ impl InvokeRequest {
 
                         while i < bytes.len() && bytes[i] != tlv::TYPE_END_OF_CONTAINER {
                             if i + 1 >= bytes.len() {
-                                return Err(MatterError::Transport("InvokeRequest: truncated CommandDataIB".into()));
+                                return Err(MatterError::Transport(
+                                    "InvokeRequest: truncated CommandDataIB".into(),
+                                ));
                             }
                             let inner_ctrl = bytes[i];
                             let inner_tag = bytes[i + 1];
@@ -158,8 +165,11 @@ impl InvokeRequest {
                                     let start = i;
                                     let mut depth = 1u32;
                                     while i < bytes.len() && depth > 0 {
-                                        if bytes[i] == tlv::TYPE_END_OF_CONTAINER { depth -= 1; }
-                                        else if bytes[i] == tlv::TYPE_STRUCTURE { depth += 1; }
+                                        if bytes[i] == tlv::TYPE_END_OF_CONTAINER {
+                                            depth -= 1;
+                                        } else if bytes[i] == tlv::TYPE_STRUCTURE {
+                                            depth += 1;
+                                        }
                                         i += 1;
                                     }
                                     let mut cp_bytes = vec![tlv::TYPE_STRUCTURE];
@@ -172,33 +182,46 @@ impl InvokeRequest {
                                     let start = i;
                                     let mut depth = 1u32;
                                     while i < bytes.len() && depth > 0 {
-                                        if bytes[i] == tlv::TYPE_END_OF_CONTAINER { depth -= 1; }
-                                        else if bytes[i] == tlv::TYPE_STRUCTURE { depth += 1; }
+                                        if bytes[i] == tlv::TYPE_END_OF_CONTAINER {
+                                            depth -= 1;
+                                        } else if bytes[i] == tlv::TYPE_STRUCTURE {
+                                            depth += 1;
+                                        }
                                         i += 1;
                                     }
                                     args = bytes[start..i - 1].to_vec();
                                 }
                                 _ => {
-                                    return Err(MatterError::Transport(
-                                        format!("InvokeRequest: unexpected CommandDataIB field tag={inner_tag}")
-                                    ));
+                                    return Err(MatterError::Transport(format!(
+                                        "InvokeRequest: unexpected CommandDataIB field tag={inner_tag}"
+                                    )));
                                 }
                             }
                         }
-                        if i < bytes.len() { i += 1; } // consume END_OF_CONTAINER of CommandDataIB
-                        let p = path.ok_or_else(|| MatterError::Transport("InvokeRequest: missing CommandPath".into()))?;
+                        if i < bytes.len() {
+                            i += 1;
+                        } // consume END_OF_CONTAINER of CommandDataIB
+                        let p = path.ok_or_else(|| {
+                            MatterError::Transport("InvokeRequest: missing CommandPath".into())
+                        })?;
                         invoke_requests.push((p, args));
                     }
-                    if i < bytes.len() { i += 1; } // consume END_OF_CONTAINER of list
+                    if i < bytes.len() {
+                        i += 1;
+                    } // consume END_OF_CONTAINER of list
                 }
                 _ => {
-                    return Err(MatterError::Transport(
-                        format!("InvokeRequest: unexpected field tag={tag} ctrl={ctrl:#04x}")
-                    ));
+                    return Err(MatterError::Transport(format!(
+                        "InvokeRequest: unexpected field tag={tag} ctrl={ctrl:#04x}"
+                    )));
                 }
             }
         }
-        Ok(Self { suppress_response, timed_request, invoke_requests })
+        Ok(Self {
+            suppress_response,
+            timed_request,
+            invoke_requests,
+        })
     }
 }
 
@@ -210,7 +233,10 @@ pub enum InvokeResponseItem {
     /// The command returned data.
     Command { path: CommandPath, data: Vec<u8> },
     /// The command returned a status code.
-    Status { path: CommandPath, status: InteractionStatus },
+    Status {
+        path: CommandPath,
+        status: InteractionStatus,
+    },
 }
 
 // ── InvokeResponse ────────────────────────────────────────────────────────────
@@ -284,14 +310,18 @@ impl InvokeResponse {
     /// Decode an `InvokeResponse` from TLV bytes.
     pub fn decode(bytes: &[u8]) -> MatterResult<Self> {
         if bytes.is_empty() || bytes[0] != tlv::TYPE_STRUCTURE {
-            return Err(MatterError::Transport("InvokeResponse: expected structure".into()));
+            return Err(MatterError::Transport(
+                "InvokeResponse: expected structure".into(),
+            ));
         }
         let mut suppress_response = false;
         let mut invoke_responses = Vec::new();
         let mut i = 1;
 
         while i < bytes.len() {
-            if bytes[i] == tlv::TYPE_END_OF_CONTAINER { break; }
+            if bytes[i] == tlv::TYPE_END_OF_CONTAINER {
+                break;
+            }
             if i + 1 >= bytes.len() {
                 return Err(MatterError::Transport("InvokeResponse: truncated".into()));
             }
@@ -308,12 +338,16 @@ impl InvokeResponse {
                     while i < bytes.len() && bytes[i] != tlv::TYPE_END_OF_CONTAINER {
                         // Each is a struct with either tag 0 (Command) or tag 1 (Status) field
                         if bytes[i] != tlv::TYPE_STRUCTURE {
-                            return Err(MatterError::Transport("InvokeResponse: expected response item struct".into()));
+                            return Err(MatterError::Transport(
+                                "InvokeResponse: expected response item struct".into(),
+                            ));
                         }
                         i += 1; // skip TYPE_STRUCTURE
                         // Read the discriminant: ctrl + tag
                         if i + 1 >= bytes.len() {
-                            return Err(MatterError::Transport("InvokeResponse: truncated item".into()));
+                            return Err(MatterError::Transport(
+                                "InvokeResponse: truncated item".into(),
+                            ));
                         }
                         let item_ctrl = bytes[i];
                         let item_tag = bytes[i + 1];
@@ -321,24 +355,31 @@ impl InvokeResponse {
                         let item_type = item_ctrl & 0x1F;
 
                         if item_type != tlv::TYPE_STRUCTURE {
-                            return Err(MatterError::Transport("InvokeResponse: expected inner struct".into()));
+                            return Err(MatterError::Transport(
+                                "InvokeResponse: expected inner struct".into(),
+                            ));
                         }
 
                         // Parse inner struct body
                         let inner_start = i;
                         let mut depth = 1u32;
                         while i < bytes.len() && depth > 0 {
-                            if bytes[i] == tlv::TYPE_END_OF_CONTAINER { depth -= 1; }
-                            else if bytes[i] == tlv::TYPE_STRUCTURE
+                            if bytes[i] == tlv::TYPE_END_OF_CONTAINER {
+                                depth -= 1;
+                            } else if bytes[i] == tlv::TYPE_STRUCTURE
                                 || bytes[i] == (tlv::TAG_CONTEXT_1 | tlv::TYPE_STRUCTURE)
-                            { depth += 1; }
+                            {
+                                depth += 1;
+                            }
                             i += 1;
                         }
                         let inner_bytes = &bytes[inner_start..i - 1]; // body without END
 
                         // Parse inner struct: { tag 0: CommandPath, tag 1: data/status }
-                        let (path, extra) = parse_command_response_inner(inner_bytes)
-                            .ok_or_else(|| MatterError::Transport("InvokeResponse: bad inner struct".into()))?;
+                        let (path, extra) =
+                            parse_command_response_inner(inner_bytes).ok_or_else(|| {
+                                MatterError::Transport("InvokeResponse: bad inner struct".into())
+                            })?;
 
                         let item = match item_tag {
                             0 => InvokeResponseItem::Command { path, data: extra },
@@ -348,25 +389,34 @@ impl InvokeResponse {
                                     .unwrap_or(InteractionStatus::Failure);
                                 InvokeResponseItem::Status { path, status }
                             }
-                            _ => return Err(MatterError::Transport(
-                                format!("InvokeResponse: unknown item_tag={item_tag}")
-                            )),
+                            _ => {
+                                return Err(MatterError::Transport(format!(
+                                    "InvokeResponse: unknown item_tag={item_tag}"
+                                )));
+                            }
                         };
                         invoke_responses.push(item);
 
                         // consume END_OF_CONTAINER for outer item struct
-                        if i < bytes.len() && bytes[i] == tlv::TYPE_END_OF_CONTAINER { i += 1; }
+                        if i < bytes.len() && bytes[i] == tlv::TYPE_END_OF_CONTAINER {
+                            i += 1;
+                        }
                     }
-                    if i < bytes.len() { i += 1; } // consume list END_OF_CONTAINER
+                    if i < bytes.len() {
+                        i += 1;
+                    } // consume list END_OF_CONTAINER
                 }
                 _ => {
-                    return Err(MatterError::Transport(
-                        format!("InvokeResponse: unexpected field tag={tag} ctrl={ctrl:#04x}")
-                    ));
+                    return Err(MatterError::Transport(format!(
+                        "InvokeResponse: unexpected field tag={tag} ctrl={ctrl:#04x}"
+                    )));
                 }
             }
         }
-        Ok(Self { suppress_response, invoke_responses })
+        Ok(Self {
+            suppress_response,
+            invoke_responses,
+        })
     }
 }
 
@@ -378,8 +428,12 @@ fn parse_command_response_inner(body: &[u8]) -> Option<(CommandPath, Vec<u8>)> {
     let mut i = 0;
 
     while i < body.len() {
-        if body[i] == tlv::TYPE_END_OF_CONTAINER { break; }
-        if i + 1 >= body.len() { return None; }
+        if body[i] == tlv::TYPE_END_OF_CONTAINER {
+            break;
+        }
+        if i + 1 >= body.len() {
+            return None;
+        }
         let ctrl = body[i];
         let tag = body[i + 1];
         i += 2;
@@ -390,8 +444,11 @@ fn parse_command_response_inner(body: &[u8]) -> Option<(CommandPath, Vec<u8>)> {
                 let start = i;
                 let mut depth = 1u32;
                 while i < body.len() && depth > 0 {
-                    if body[i] == tlv::TYPE_END_OF_CONTAINER { depth -= 1; }
-                    else if body[i] == tlv::TYPE_STRUCTURE { depth += 1; }
+                    if body[i] == tlv::TYPE_END_OF_CONTAINER {
+                        depth -= 1;
+                    } else if body[i] == tlv::TYPE_STRUCTURE {
+                        depth += 1;
+                    }
                     i += 1;
                 }
                 let mut cp_bytes = vec![tlv::TYPE_STRUCTURE];
@@ -404,8 +461,11 @@ fn parse_command_response_inner(body: &[u8]) -> Option<(CommandPath, Vec<u8>)> {
                 let start = i;
                 let mut depth = 1u32;
                 while i < body.len() && depth > 0 {
-                    if body[i] == tlv::TYPE_END_OF_CONTAINER { depth -= 1; }
-                    else if body[i] == tlv::TYPE_STRUCTURE { depth += 1; }
+                    if body[i] == tlv::TYPE_END_OF_CONTAINER {
+                        depth -= 1;
+                    } else if body[i] == tlv::TYPE_STRUCTURE {
+                        depth += 1;
+                    }
                     i += 1;
                 }
                 extra = body[start..i - 1].to_vec();
@@ -427,8 +487,8 @@ fn parse_command_response_inner(body: &[u8]) -> Option<(CommandPath, Vec<u8>)> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::super::clusters::{CommandPath, on_off};
+    use super::*;
 
     #[test]
     fn invoke_request_single_command_roundtrip() {
@@ -458,11 +518,20 @@ mod tests {
         // and the invoke list (tag 2).
         // Look for tag 0 false bool: [TAG_CONTEXT_1 | TYPE_BOOL_FALSE, 0]
         let sr_ctrl = tlv::TAG_CONTEXT_1 | tlv::TYPE_BOOL_FALSE;
-        assert!(encoded.windows(2).any(|w| w == [sr_ctrl, 0]), "suppress_response field not found");
+        assert!(
+            encoded.windows(2).any(|w| w == [sr_ctrl, 0]),
+            "suppress_response field not found"
+        );
         // Look for tag 1 false bool
-        assert!(encoded.windows(2).any(|w| w == [sr_ctrl, 1]), "timed_request field not found");
+        assert!(
+            encoded.windows(2).any(|w| w == [sr_ctrl, 1]),
+            "timed_request field not found"
+        );
         // Contains list marker (TAG_CONTEXT_1 | TYPE_LIST = 0x37) with tag 2
         let list_ctrl = tlv::TAG_CONTEXT_1 | tlv::TYPE_LIST;
-        assert!(encoded.windows(2).any(|w| w == [list_ctrl, 2]), "invoke list not found");
+        assert!(
+            encoded.windows(2).any(|w| w == [list_ctrl, 2]),
+            "invoke list not found"
+        );
     }
 }

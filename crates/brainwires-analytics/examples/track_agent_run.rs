@@ -122,7 +122,11 @@ async fn main() -> anyhow::Result<()> {
                     "       {provider}/{model}  {prompt_tokens}+{completion_tokens} tokens  ${cost_usd:.4}"
                 );
             }
-            AnalyticsEvent::ToolCall { tool_name, is_error, .. } => {
+            AnalyticsEvent::ToolCall {
+                tool_name,
+                is_error,
+                ..
+            } => {
                 println!("       tool={tool_name}  error={is_error}");
             }
             AnalyticsEvent::AgentRun {

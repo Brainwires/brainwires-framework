@@ -4,12 +4,11 @@
 /// Default base URL: `http://<host>:8081`.
 ///
 /// Reference: <https://openthread.io/reference/group/api-rest>
-
 use reqwest::Client;
 use tracing::debug;
 
-use crate::homeauto::error::{HomeAutoError, HomeAutoResult};
 use super::types::{ThreadNeighbor, ThreadNetworkDataset, ThreadNodeInfo};
+use crate::homeauto::error::{HomeAutoError, HomeAutoResult};
 
 /// HTTP client for the OpenThread Border Router REST API.
 ///
@@ -184,8 +183,8 @@ impl ThreadBorderRouter {
 mod tests {
     use super::*;
     use wiremock::{
-        matchers::{method, path},
         Mock, MockServer, ResponseTemplate,
+        matchers::{method, path},
     };
 
     #[tokio::test]
@@ -236,8 +235,7 @@ mod tests {
         // Verify the request was received (wiremock counts it)
         let received = server.received_requests().await.unwrap();
         assert_eq!(received.len(), 1);
-        let body: serde_json::Value =
-            serde_json::from_slice(&received[0].body).unwrap();
+        let body: serde_json::Value = serde_json::from_slice(&received[0].body).unwrap();
         assert_eq!(body["eui64"].as_str(), Some("*"));
         assert_eq!(body["pskd"].as_str(), Some("J01NME"));
     }

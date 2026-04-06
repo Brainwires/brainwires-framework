@@ -59,7 +59,12 @@ impl EzspFrame {
         let frame_control = data[1] as u16 | ((data[2] as u16) << 8);
         let cmd_id = data[3] as u16 | ((data[4] as u16) << 8);
         let params = data[5..].to_vec();
-        Ok(Self { seq, frame_control, cmd_id, params })
+        Ok(Self {
+            seq,
+            frame_control,
+            cmd_id,
+            params,
+        })
     }
 
     /// Return true if this is a NCP→host callback/response (direction bit set).

@@ -143,9 +143,7 @@ pub use usb::{UsbClass, UsbDevice, UsbError, UsbHandle, UsbSpeed};
 pub use homeauto::{HomeAutoError, HomeAutoEvent, HomeAutoResult, HomeDevice, Protocol};
 
 #[cfg(feature = "zigbee")]
-pub use homeauto::{
-    EzspCoordinator, ZigbeeAddr, ZigbeeCoordinator, ZigbeeDevice, ZnpCoordinator,
-};
+pub use homeauto::{EzspCoordinator, ZigbeeAddr, ZigbeeCoordinator, ZigbeeDevice, ZnpCoordinator};
 
 #[cfg(feature = "zwave")]
 pub use homeauto::{CommandClass, NodeId, ZWaveController, ZWaveNode, ZWaveSerialController};

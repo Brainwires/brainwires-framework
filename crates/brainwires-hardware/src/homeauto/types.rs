@@ -115,10 +115,7 @@ pub enum HomeAutoEvent {
     DeviceJoined(HomeDevice),
 
     /// A device left or was removed from the network.
-    DeviceLeft {
-        id: String,
-        protocol: Protocol,
-    },
+    DeviceLeft { id: String, protocol: Protocol },
 
     /// An attribute value changed (e.g. temperature sensor update, switch toggled).
     AttributeChanged {

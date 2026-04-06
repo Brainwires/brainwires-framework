@@ -9,7 +9,6 @@
 /// 3. PASE commissioning window (SPAKE2+ passcode verification)
 /// 4. CASE session establishment (certificate-based operational sessions)
 /// 5. Interaction Model dispatch (On/Off, Level Control, Color Control, Thermostat)
-
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -17,22 +16,22 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, warn};
 
-use crate::homeauto::error::{HomeAutoError, HomeAutoResult};
 use super::data_model::{
     BasicInformationCluster, DataModelNode, GeneralCommissioningCluster,
     NetworkCommissioningCluster, OperationalCredentialsCluster,
 };
 use super::discovery::CommissionableAdvertiser;
 use super::fabric::FabricManager;
-use super::interaction_model::{ImOpcode, InvokeResponse, InvokeResponseItem, InteractionStatus};
 use super::interaction_model::read::ReportData;
+use super::interaction_model::{ImOpcode, InteractionStatus, InvokeResponse, InvokeResponseItem};
 use super::secure_channel::{
-    EstablishedSession, PaseCommissionee, CaseResponder,
-    SecureChannelOpcode, SECURE_CHANNEL_PROTOCOL_ID,
+    CaseResponder, EstablishedSession, PaseCommissionee, SECURE_CHANNEL_PROTOCOL_ID,
+    SecureChannelOpcode,
 };
-use super::transport::{SessionKeys, UdpTransport};
 use super::transport::message::{MatterMessage, MessageHeader, SessionType};
+use super::transport::{SessionKeys, UdpTransport};
 use super::types::MatterDeviceConfig;
+use crate::homeauto::error::{HomeAutoError, HomeAutoResult};
 
 // Cluster handler callback types
 pub type OnOffHandler = Arc<dyn Fn(bool) + Send + Sync>;
@@ -174,10 +173,7 @@ impl MatterDeviceServer {
         // 4. Build DataModelNode with mandatory clusters
         let mut data_model = DataModelNode::new();
         // Endpoint 0: mandatory commissioning clusters
-        data_model.add_cluster(
-            0,
-            Box::new(BasicInformationCluster::new(&self.config)),
-        );
+        data_model.add_cluster(0, Box::new(BasicInformationCluster::new(&self.config)));
         data_model.add_cluster(0, Box::new(GeneralCommissioningCluster::new()));
         data_model.add_cluster(0, Box::new(OperationalCredentialsCluster::new()));
         data_model.add_cluster(0, Box::new(NetworkCommissioningCluster::new()));
@@ -200,11 +196,8 @@ impl MatterDeviceServer {
                 break;
             }
 
-            match tokio::time::timeout(
-                std::time::Duration::from_millis(100),
-                transport.recv(),
-            )
-            .await
+            match tokio::time::timeout(std::time::Duration::from_millis(100), transport.recv())
+                .await
             {
                 Ok(Ok((msg, peer))) => {
                     let session_id = msg.header.session_id;
@@ -334,15 +327,30 @@ pub fn parse_payload_header(payload: &[u8]) -> Option<(u8, u8, u16, u16, &[u8])>
     let protocol_id = u16::from_le_bytes([payload[4], payload[5]]);
 
     const EXCHANGE_FLAG_ACK: u8 = 0x02;
-    let base = if exchange_flags & EXCHANGE_FLAG_ACK != 0 { 10 } else { 6 };
+    let base = if exchange_flags & EXCHANGE_FLAG_ACK != 0 {
+        10
+    } else {
+        6
+    };
     if payload.len() < base {
         return None;
     }
-    Some((exchange_flags, opcode, exchange_id, protocol_id, &payload[base..]))
+    Some((
+        exchange_flags,
+        opcode,
+        exchange_id,
+        protocol_id,
+        &payload[base..],
+    ))
 }
 
 /// Build a Matter payload header + application payload.
-pub fn build_payload(opcode: u8, exchange_id: u16, protocol_id: u16, app_payload: &[u8]) -> Vec<u8> {
+pub fn build_payload(
+    opcode: u8,
+    exchange_id: u16,
+    protocol_id: u16,
+    app_payload: &[u8],
+) -> Vec<u8> {
     let mut out = Vec::with_capacity(6 + app_payload.len());
     out.push(0x00); // Exchange Flags: no ACK, no reliability
     out.push(opcode);
@@ -354,11 +362,7 @@ pub fn build_payload(opcode: u8, exchange_id: u16, protocol_id: u16, app_payload
 
 // ── Helper: send a bare Matter response message (session 0, unencrypted) ─────
 
-fn make_response_message(
-    session_id: u16,
-    message_counter: u32,
-    payload: Vec<u8>,
-) -> MatterMessage {
+fn make_response_message(session_id: u16, message_counter: u32, payload: Vec<u8>) -> MatterMessage {
     MatterMessage {
         header: MessageHeader {
             version: 0,
@@ -469,15 +473,13 @@ async fn handle_commissioning_message(
         x if x == SecureChannelOpcode::Pake3 as u8 => {
             let mut guard = pase_state.lock().await;
             let commissionee = match guard.take() {
-                Some(mut c) => {
-                    match c.handle_pake3(app_payload) {
-                        Ok(session) => session,
-                        Err(e) => {
-                            error!("PASE: Pake3 error: {e}");
-                            return;
-                        }
+                Some(mut c) => match c.handle_pake3(app_payload) {
+                    Ok(session) => session,
+                    Err(e) => {
+                        error!("PASE: Pake3 error: {e}");
+                        return;
                     }
-                }
+                },
                 None => {
                     warn!("PASE: received Pake3 but no PASE state, ignoring");
                     return;
@@ -735,7 +737,11 @@ async fn dispatch_handler_callbacks(
 /// Decode the first context-tagged uint8 from a TLV struct body (tag 0).
 fn decode_first_uint8(data: &[u8]) -> Option<u8> {
     // Skip the outer STRUCTURE byte (0x15) if present
-    let data = if data.first() == Some(&0x15) { &data[1..] } else { data };
+    let data = if data.first() == Some(&0x15) {
+        &data[1..]
+    } else {
+        data
+    };
     let mut i = 0;
     while i + 2 < data.len() {
         let ctrl = data[i];
@@ -752,7 +758,11 @@ fn decode_first_uint8(data: &[u8]) -> Option<u8> {
 
 /// Decode the first context-tagged uint16 from a TLV struct body (tag 0).
 fn decode_first_uint16(data: &[u8]) -> Option<u16> {
-    let data = if data.first() == Some(&0x15) { &data[1..] } else { data };
+    let data = if data.first() == Some(&0x15) {
+        &data[1..]
+    } else {
+        data
+    };
     let mut i = 0;
     while i + 3 < data.len() {
         let ctrl = data[i];
@@ -768,7 +778,11 @@ fn decode_first_uint16(data: &[u8]) -> Option<u16> {
 
 /// Decode the context-tagged int8 at tag 1 from a TLV struct body.
 fn decode_signed_int8_tag1(data: &[u8]) -> Option<i8> {
-    let data = if data.first() == Some(&0x15) { &data[1..] } else { data };
+    let data = if data.first() == Some(&0x15) {
+        &data[1..]
+    } else {
+        data
+    };
     let mut i = 0;
     while i + 2 < data.len() {
         let ctrl = data[i];
@@ -806,9 +820,12 @@ fn skip_tlv_element(data: &[u8], pos: usize) -> usize {
         0x02 | 0x06 => 4, // signed/unsigned int 4
         0x03 | 0x07 => 8, // signed/unsigned int 8
         0x08 | 0x09 => 0, // bool
-        0x10 => {          // bytes 1-byte length
+        0x10 => {
+            // bytes 1-byte length
             let len_pos = pos + header;
-            if len_pos >= data.len() { return 1; }
+            if len_pos >= data.len() {
+                return 1;
+            }
             data[len_pos] as usize + 1
         }
         0x18 => 0, // end of container
@@ -831,14 +848,14 @@ fn generate_qr_code_string(config: &MatterDeviceConfig) -> String {
         *pos += count;
     };
 
-    push(&mut bits, &mut pos, 0, 3);                                      // version = 0
+    push(&mut bits, &mut pos, 0, 3); // version = 0
     push(&mut bits, &mut pos, config.vendor_id as u64, 16);
     push(&mut bits, &mut pos, config.product_id as u64, 16);
-    push(&mut bits, &mut pos, 0, 2);                                       // flow = standard
-    push(&mut bits, &mut pos, 0x10, 8);                                    // rendezvous = OnNetwork
+    push(&mut bits, &mut pos, 0, 2); // flow = standard
+    push(&mut bits, &mut pos, 0x10, 8); // rendezvous = OnNetwork
     push(&mut bits, &mut pos, config.discriminator as u64, 12);
     push(&mut bits, &mut pos, config.passcode as u64, 27);
-    push(&mut bits, &mut pos, 0, 4);                                       // padding
+    push(&mut bits, &mut pos, 0, 4); // padding
 
     // Extract 11 bytes from the 88-bit packed value
     let mut payload = [0u8; 11];
@@ -879,9 +896,9 @@ fn base38_encode(data: &[u8]) -> String {
 fn generate_pairing_code(config: &MatterDeviceConfig) -> String {
     let disc = config.discriminator as u32;
     let pass = config.passcode;
-    let chunk1 = disc >> 10;                          // upper 2 bits (0–3) → 2 digits
+    let chunk1 = disc >> 10; // upper 2 bits (0–3) → 2 digits
     let chunk2 = ((disc & 0x3FF) << 14) | (pass >> 14); // lower 10 bits + upper 14 bits of passcode
-    let chunk3 = pass & 0x3FFF;                       // lower 14 bits of passcode
+    let chunk3 = pass & 0x3FFF; // lower 14 bits of passcode
     // Compute a simple Luhn-like check digit (Verhoeff not implemented, use 0)
     format!("{chunk1:02}{chunk2:06}{chunk3:04}0")
 }
@@ -906,7 +923,10 @@ mod tests {
     fn qr_code_starts_with_mt() {
         let config = test_config();
         let qr = generate_qr_code_string(&config);
-        assert!(qr.starts_with("MT:"), "QR code must start with MT:, got: {qr}");
+        assert!(
+            qr.starts_with("MT:"),
+            "QR code must start with MT:, got: {qr}"
+        );
     }
 
     #[test]
@@ -917,7 +937,10 @@ mod tests {
         // format width (a known limitation of this implementation).
         // Ensure it is non-empty and all-numeric.
         assert!(!code.is_empty(), "pairing code must not be empty");
-        assert!(code.chars().all(|c| c.is_ascii_digit()), "pairing code must be all digits, got: {code}");
+        assert!(
+            code.chars().all(|c| c.is_ascii_digit()),
+            "pairing code must be all digits, got: {code}"
+        );
     }
 
     #[test]
@@ -925,7 +948,7 @@ mod tests {
         let app = vec![0xDE, 0xAD, 0xBE, 0xEF];
         let built = build_payload(0x20, 0x1234, 0x0000, &app);
         let parsed = parse_payload_header(&built).expect("parse failed");
-        assert_eq!(parsed.1, 0x20);   // opcode
+        assert_eq!(parsed.1, 0x20); // opcode
         assert_eq!(parsed.2, 0x1234); // exchange_id
         assert_eq!(parsed.3, 0x0000); // protocol_id
         assert_eq!(parsed.4, app.as_slice());

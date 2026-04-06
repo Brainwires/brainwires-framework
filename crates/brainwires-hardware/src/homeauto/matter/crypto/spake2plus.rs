@@ -1,3 +1,5 @@
+use hkdf::Hkdf;
+use hmac::{Hmac, Mac};
 /// SPAKE2+ password-authenticated key exchange.
 ///
 /// Implements RFC 9383 "SPAKE2+, an Augmented Password-Authenticated Key Exchange (PAKE) Protocol"
@@ -18,19 +20,16 @@
 ///  keys = finish(pB, ctx)                  keys = finish(pA, ctx)
 ///  assert keys.ke == remote_ke
 /// ```
-
 use p256::{
+    EncodedPoint, FieldBytes, NonZeroScalar, ProjectivePoint, PublicKey, Scalar, U256,
     elliptic_curve::{
         ops::{MulByGenerator, Reduce},
         sec1::{FromEncodedPoint, ToEncodedPoint},
     },
-    EncodedPoint, FieldBytes, NonZeroScalar, ProjectivePoint, PublicKey, Scalar, U256,
 };
 use rand_core::OsRng;
 use sha2::{Digest, Sha256};
 use zeroize::{Zeroize, ZeroizeOnDrop};
-use hmac::{Hmac, Mac};
-use hkdf::Hkdf;
 
 // ── Augmented SPAKE2+ fixed points M and N (from RFC 9383 Appendix B.1) ──────
 //
@@ -41,16 +40,16 @@ use hkdf::Hkdf;
 
 /// M point (compressed) — prover's fixed point.
 const M_COMPRESSED: &[u8] = &[
-    0x02, 0x88, 0x6e, 0x2f, 0x97, 0xac, 0xe4, 0x6e, 0x55, 0xba, 0x9d, 0xd7, 0x24, 0x25, 0x79,
-    0xf2, 0x99, 0x3b, 0x64, 0xe1, 0x6e, 0xf3, 0xdc, 0xab, 0x95, 0xaf, 0xd4, 0x97, 0x33, 0x3d,
-    0x8f, 0xa1, 0x2f,
+    0x02, 0x88, 0x6e, 0x2f, 0x97, 0xac, 0xe4, 0x6e, 0x55, 0xba, 0x9d, 0xd7, 0x24, 0x25, 0x79, 0xf2,
+    0x99, 0x3b, 0x64, 0xe1, 0x6e, 0xf3, 0xdc, 0xab, 0x95, 0xaf, 0xd4, 0x97, 0x33, 0x3d, 0x8f, 0xa1,
+    0x2f,
 ];
 
 /// N point (compressed) — verifier's fixed point.
 const N_COMPRESSED: &[u8] = &[
-    0x02, 0xd8, 0xbb, 0xd6, 0xc6, 0x39, 0xc6, 0x29, 0x37, 0xb0, 0x4d, 0x99, 0x7f, 0x38, 0xc3,
-    0x77, 0x07, 0x19, 0xc6, 0x29, 0xd7, 0x01, 0x4d, 0x49, 0xa2, 0x4b, 0x4f, 0x98, 0xba, 0xa1,
-    0x29, 0x2b, 0x49,
+    0x02, 0xd8, 0xbb, 0xd6, 0xc6, 0x39, 0xc6, 0x29, 0x37, 0xb0, 0x4d, 0x99, 0x7f, 0x38, 0xc3, 0x77,
+    0x07, 0x19, 0xc6, 0x29, 0xd7, 0x01, 0x4d, 0x49, 0xa2, 0x4b, 0x4f, 0x98, 0xba, 0xa1, 0x29, 0x2b,
+    0x49,
 ];
 
 // ── Key output ────────────────────────────────────────────────────────────────
@@ -269,14 +268,14 @@ fn derive_keys(
     let kccb = &kcc[16..];
 
     // ── cA = HMAC-SHA256(Kcca, pB) ──
-    let mut mac_a: Hmac<Sha256> = Mac::new_from_slice(kcca)
-        .map_err(|_| "HMAC init failed for cA")?;
+    let mut mac_a: Hmac<Sha256> =
+        Mac::new_from_slice(kcca).map_err(|_| "HMAC init failed for cA")?;
     mac_a.update(&pb_bytes);
     let ca_vec = mac_a.finalize().into_bytes();
 
     // ── cB = HMAC-SHA256(Kccb, pA) ──
-    let mut mac_b: Hmac<Sha256> = Mac::new_from_slice(kccb)
-        .map_err(|_| "HMAC init failed for cB")?;
+    let mut mac_b: Hmac<Sha256> =
+        Mac::new_from_slice(kccb).map_err(|_| "HMAC init failed for cB")?;
     mac_b.update(&pa_bytes);
     let cb_vec = mac_b.finalize().into_bytes();
 
@@ -357,7 +356,10 @@ mod tests {
         let verifier_keys = verifier.finish(&pa, TEST_CONTEXT).unwrap();
 
         assert_eq!(prover_keys.ke, verifier_keys.ke, "session keys must match");
-        assert_eq!(prover_keys.ka, verifier_keys.ka, "attestation keys must match");
+        assert_eq!(
+            prover_keys.ka, verifier_keys.ka,
+            "attestation keys must match"
+        );
     }
 
     #[test]
@@ -397,7 +399,10 @@ mod tests {
         let pk = prover.finish(&pb, TEST_CONTEXT).unwrap();
         let vk = verifier.finish(&pa, TEST_CONTEXT).unwrap();
 
-        assert_ne!(pk.ke, vk.ke, "mismatched passcode must produce different session keys");
+        assert_ne!(
+            pk.ke, vk.ke,
+            "mismatched passcode must produce different session keys"
+        );
     }
 
     // ── pake_message returns 65-byte uncompressed point ──────────────────────
@@ -446,7 +451,10 @@ mod tests {
         let _ = verifier_b.finish(&pa_b, b"ContextB").unwrap();
 
         // Both contexts and ephemeral scalars differ — ca must differ
-        assert_ne!(keys_a.ca, keys_b.ca, "different contexts must yield different cA");
+        assert_ne!(
+            keys_a.ca, keys_b.ca,
+            "different contexts must yield different cA"
+        );
     }
 
     // ── Zeroize compiles and runs without panic ───────────────────────────────

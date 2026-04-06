@@ -19,15 +19,15 @@ use zeroize::Zeroize;
 
 // ccm re-exports aead at ccm::aead, so we avoid a direct aead dep.
 use ccm::{
+    Ccm,
     aead::{Aead, KeyInit, generic_array::GenericArray},
     consts::{U13, U16},
-    Ccm,
 };
 
 use aes::Aes128;
 
-use crate::homeauto::matter::error::{MatterError, MatterResult};
 use super::message::MatterMessage;
+use crate::homeauto::matter::error::{MatterError, MatterResult};
 
 // ── AES-128-CCM type alias ────────────────────────────────────────────────────
 
@@ -124,7 +124,13 @@ impl UdpTransport {
 
                 let cipher = Aes128Ccm::new(GenericArray::from_slice(&enc_key));
                 let ciphertext = cipher
-                    .encrypt(nonce, ccm::aead::Payload { msg: &msg.payload, aad: &aad })
+                    .encrypt(
+                        nonce,
+                        ccm::aead::Payload {
+                            msg: &msg.payload,
+                            aad: &aad,
+                        },
+                    )
                     .map_err(|_| MatterError::Transport("AES-CCM encrypt failed".into()))?;
 
                 // Replace payload with ciphertext (includes 16-byte appended tag).
@@ -179,7 +185,13 @@ impl UdpTransport {
 
             let cipher = Aes128Ccm::new(GenericArray::from_slice(&dec_key));
             let plaintext = cipher
-                .decrypt(nonce, ccm::aead::Payload { msg: &raw_msg.payload, aad: &aad })
+                .decrypt(
+                    nonce,
+                    ccm::aead::Payload {
+                        msg: &raw_msg.payload,
+                        aad: &aad,
+                    },
+                )
                 .map_err(|_| MatterError::Transport("AES-CCM decrypt/verify failed".into()))?;
 
             let mut out_msg = raw_msg;

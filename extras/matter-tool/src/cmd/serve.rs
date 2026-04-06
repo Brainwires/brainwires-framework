@@ -1,7 +1,7 @@
-use std::path::PathBuf;
+use crate::output::Output;
 use anyhow::Result;
 use brainwires_hardware::homeauto::{MatterDeviceConfig, MatterDeviceServer};
-use crate::output::Output;
+use std::path::PathBuf;
 
 pub async fn run(
     device_name: String,

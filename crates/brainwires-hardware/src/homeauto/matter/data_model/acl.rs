@@ -1,7 +1,6 @@
 /// Access Control List (ACL) for the Matter data model.
 ///
 /// Enforces privilege-based access to endpoints and clusters per Matter spec §6.6.
-
 use super::Privilege;
 
 // ── AclTarget ─────────────────────────────────────────────────────────────────
@@ -44,7 +43,9 @@ pub struct AccessControlList {
 impl AccessControlList {
     /// Create an empty ACL.
     pub fn new() -> Self {
-        Self { entries: Vec::new() }
+        Self {
+            entries: Vec::new(),
+        }
     }
 
     /// Append an entry to the list.
@@ -140,7 +141,10 @@ mod tests {
             privilege: Privilege::Operate,
             auth_mode: 2, // CASE
             subjects: vec![node_a],
-            targets: vec![AclTarget { cluster: Some(0x0006), endpoint: Some(1) }],
+            targets: vec![AclTarget {
+                cluster: Some(0x0006),
+                endpoint: Some(1),
+            }],
         });
 
         // node_a has Operate on ep=1, cluster=0x0006.
