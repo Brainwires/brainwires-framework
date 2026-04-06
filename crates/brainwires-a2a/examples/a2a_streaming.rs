@@ -35,6 +35,8 @@ fn main() {
             message: None,
             timestamp: Some(chrono::Utc::now().to_rfc3339()),
         },
+        trace_id: None,
+        sequence: None,
         metadata: None,
     };
 
@@ -54,6 +56,8 @@ fn main() {
             message: Some(Message::agent_text("Processing your request...")),
             timestamp: Some(chrono::Utc::now().to_rfc3339()),
         },
+        trace_id: None,
+        sequence: None,
         metadata: None,
     };
 
@@ -87,6 +91,8 @@ fn main() {
         index: Some(0),
         append: Some(false),
         last_chunk: Some(false),
+        trace_id: None,
+        sequence: None,
         metadata: None,
     };
 
@@ -120,6 +126,8 @@ fn main() {
         index: Some(0),
         append: Some(true),
         last_chunk: Some(true),
+        trace_id: None,
+        sequence: None,
         metadata: None,
     };
 
@@ -203,6 +211,8 @@ fn main() {
             message: Some(Message::agent_text("Analysis complete.")),
             timestamp: Some(chrono::Utc::now().to_rfc3339()),
         },
+        trace_id: None,
+        sequence: None,
         metadata: None,
     };
 

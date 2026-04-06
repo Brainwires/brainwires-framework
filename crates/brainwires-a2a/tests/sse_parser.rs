@@ -20,6 +20,8 @@ fn make_status_response(task_id: &str, state: TaskState) -> StreamResponse {
                 message: None,
                 timestamp: None,
             },
+            trace_id: None,
+            sequence: None,
             metadata: None,
         }),
         artifact_update: None,

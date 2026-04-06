@@ -193,6 +193,8 @@ fn test_stream_response_roundtrip() {
             message: None,
             timestamp: None,
         },
+        trace_id: None,
+        sequence: None,
         metadata: None,
     };
     roundtrip(&event);
@@ -219,6 +221,8 @@ fn test_stream_response_roundtrip() {
         index: None,
         append: Some(true),
         last_chunk: Some(false),
+        trace_id: None,
+        sequence: None,
         metadata: None,
     };
     roundtrip(&event);
