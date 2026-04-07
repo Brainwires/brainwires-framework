@@ -94,16 +94,16 @@ impl DataModelNode {
         let mut results = Vec::new();
 
         for (ep_id, clusters) in &self.endpoints {
-            if let Some(want_ep) = path.endpoint_id {
-                if *ep_id != want_ep {
-                    continue;
-                }
+            if let Some(want_ep) = path.endpoint_id
+                && *ep_id != want_ep
+            {
+                continue;
             }
             for (cl_id, server) in clusters {
-                if let Some(want_cl) = path.cluster_id {
-                    if *cl_id != want_cl {
-                        continue;
-                    }
+                if let Some(want_cl) = path.cluster_id
+                    && *cl_id != want_cl
+                {
+                    continue;
                 }
                 let attr_ids: Vec<u32> = if let Some(want_attr) = path.attribute_id {
                     vec![want_attr]

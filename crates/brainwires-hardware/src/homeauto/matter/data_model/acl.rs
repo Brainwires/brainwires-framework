@@ -79,8 +79,8 @@ impl AccessControlList {
             // Target check: empty targets list means all endpoints/clusters.
             if !entry.targets.is_empty() {
                 let target_match = entry.targets.iter().any(|t| {
-                    let ep_ok = t.endpoint.map_or(true, |e| e == endpoint);
-                    let cl_ok = t.cluster.map_or(true, |c| c == cluster);
+                    let ep_ok = t.endpoint.is_none_or(|e| e == endpoint);
+                    let cl_ok = t.cluster.is_none_or(|c| c == cluster);
                     ep_ok && cl_ok
                 });
                 if !target_match {

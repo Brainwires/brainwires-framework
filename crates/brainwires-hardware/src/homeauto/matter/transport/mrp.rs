@@ -1,9 +1,9 @@
-/// Matter Message Reliability Protocol (MRP) per Matter spec §4.12.
-///
-/// MRP provides reliable delivery over UDP by retransmitting messages that have
-/// not been acknowledged within a configurable window.  This module tracks the
-/// state for a single exchange and provides helper methods for computing retry
-/// delays and building standalone ACK payloads.
+//! Matter Message Reliability Protocol (MRP) per Matter spec §4.12.
+//!
+//! MRP provides reliable delivery over UDP by retransmitting messages that have
+//! not been acknowledged within a configurable window.  This module tracks the
+//! state for a single exchange and provides helper methods for computing retry
+//! delays and building standalone ACK payloads.
 
 // ── MRP configuration ─────────────────────────────────────────────────────────
 

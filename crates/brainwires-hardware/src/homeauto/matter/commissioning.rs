@@ -57,7 +57,7 @@ pub fn parse_qr_code(qr: &str) -> Result<CommissioningPayload, &'static str> {
 /// - digits[6..=9]: remaining passcode (4 digits)
 /// - digits\[10\]: Verhoeff check digit (not validated here for simplicity)
 pub fn parse_manual_code(code: &str) -> Result<CommissioningPayload, &'static str> {
-    let code = code.trim().replace('-', "").replace(' ', "");
+    let code = code.trim().replace(['-', ' '], "");
     if code.len() != 11 {
         return Err("manual pairing code must be 11 digits");
     }

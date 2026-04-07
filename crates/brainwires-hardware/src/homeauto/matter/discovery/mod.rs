@@ -19,7 +19,7 @@
 /// - Matter Core Specification §4.3 — Device Discovery
 /// - Matter Core Specification §4.3.1.2 — Commissionable Node Discovery
 /// - Matter Core Specification §4.3.2 — Operational Node Discovery
-
+///
 /// Commissionable device advertisement (`_matterc._udp`).
 pub mod commissionable;
 /// Operational device advertisement and browsing (`_matter._tcp`).

@@ -22,8 +22,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Instant;
 
-use super::{LanguageExecutor, get_limits, truncate_output};
 use super::super::types::{ExecutionLimits, ExecutionRequest, ExecutionResult};
+use super::{LanguageExecutor, get_limits, truncate_output};
 
 /// JavaScript code executor using Boa engine
 pub struct JavaScriptExecutor {
@@ -459,8 +459,8 @@ fn format_js_error(error: &JsError, context: &mut Context) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::types::Language;
+    use super::*;
 
     fn make_request(code: &str) -> ExecutionRequest {
         ExecutionRequest {

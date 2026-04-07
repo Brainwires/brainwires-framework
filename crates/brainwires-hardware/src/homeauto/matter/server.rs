@@ -593,7 +593,7 @@ async fn handle_operational_message(
                 );
 
                 // Fire handler callbacks for well-known clusters
-                dispatch_handler_callbacks(cluster, cmd, args, &inner).await;
+                dispatch_handler_callbacks(cluster, cmd, args, inner).await;
 
                 // Dispatch to the data model node
                 let result = data_model.dispatch_invoke(ep, cluster, cmd, args).await;
@@ -699,12 +699,12 @@ async fn dispatch_handler_callbacks(
         }
         CLUSTER_LEVEL_CONTROL => {
             let handler = inner.lock().await.level.clone();
-            if let Some(h) = handler {
-                if cmd == CMD_MOVE_TO_LEVEL || cmd == CMD_MOVE_TO_LEVEL_WITH_ON_OFF {
-                    // Level is the first field in MoveToLevel args (tag 0, uint8)
-                    let level = decode_first_uint8(args).unwrap_or(0);
-                    h(level);
-                }
+            if let Some(h) = handler
+                && (cmd == CMD_MOVE_TO_LEVEL || cmd == CMD_MOVE_TO_LEVEL_WITH_ON_OFF)
+            {
+                // Level is the first field in MoveToLevel args (tag 0, uint8)
+                let level = decode_first_uint8(args).unwrap_or(0);
+                h(level);
             }
         }
         CLUSTER_COLOR_CONTROL => {
@@ -719,13 +719,13 @@ async fn dispatch_handler_callbacks(
         }
         CLUSTER_THERMOSTAT => {
             let handler = inner.lock().await.thermostat.clone();
-            if let Some(h) = handler {
-                if cmd == CMD_SETPOINT_RAISE_LOWER {
-                    // SetpointRaiseLower: Amount (tag 1, int8). Convert centi-degrees to f32.
-                    let amount = decode_signed_int8_tag1(args).unwrap_or(0);
-                    // amount is in units of 0.1°C per Matter spec
-                    h(amount as f32 * 0.1);
-                }
+            if let Some(h) = handler
+                && cmd == CMD_SETPOINT_RAISE_LOWER
+            {
+                // SetpointRaiseLower: Amount (tag 1, int8). Convert centi-degrees to f32.
+                let amount = decode_signed_int8_tag1(args).unwrap_or(0);
+                // amount is in units of 0.1°C per Matter spec
+                h(amount as f32 * 0.1);
             }
         }
         _ => {}

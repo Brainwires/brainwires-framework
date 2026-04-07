@@ -1,8 +1,8 @@
-/// Matter fabric identity types.
-///
-/// A Matter fabric is an administrative domain identified by a root CA certificate,
-/// a fabric ID, and a node ID.  The `FabricIndex` is a per-device handle (1..=254)
-/// used in the Fabric Descriptor cluster.
+//! Matter fabric identity types.
+//!
+//! A Matter fabric is an administrative domain identified by a root CA certificate,
+//! a fabric ID, and a node ID.  The `FabricIndex` is a per-device handle (1..=254)
+//! used in the Fabric Descriptor cluster.
 
 // ── Primitive identity wrappers ───────────────────────────────────────────────
 

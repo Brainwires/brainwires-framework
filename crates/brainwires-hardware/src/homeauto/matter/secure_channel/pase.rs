@@ -478,7 +478,7 @@ pub enum PaseCommissioneeState {
         iterations: u32,
     },
     SentPake2 {
-        verifier: Spake2PlusVerifier,
+        verifier: Box<Spake2PlusVerifier>,
         keys: crate::homeauto::matter::crypto::spake2plus::Spake2PlusKeys,
         session_id: u16,
     },
@@ -622,7 +622,7 @@ impl PaseCommissionee {
         };
 
         self.state = PaseCommissioneeState::SentPake2 {
-            verifier,
+            verifier: Box::new(verifier),
             keys,
             session_id,
         };
@@ -725,7 +725,10 @@ fn decode_param_request(buf: &[u8]) -> MatterResult<([u8; 32], u8, u16)> {
 }
 
 /// Decode PBKDFParamResponse → (init_random, resp_random, session_id, iterations, salt).
-fn decode_param_response(buf: &[u8]) -> MatterResult<([u8; 32], [u8; 32], u16, u32, Vec<u8>)> {
+/// `(init_random, resp_random, session_id, iterations, salt)`
+type PbkdfParamResponseFields = ([u8; 32], [u8; 32], u16, u32, Vec<u8>);
+
+fn decode_param_response(buf: &[u8]) -> MatterResult<PbkdfParamResponseFields> {
     let mut r = TlvReader::new(buf);
 
     let el = r.read_element()?;
@@ -751,10 +754,10 @@ fn decode_param_response(buf: &[u8]) -> MatterResult<([u8; 32], [u8; 32], u16, u
                     if b.len() == 32 {
                         init_random.copy_from_slice(b);
                     }
-                } else if el.tag == Some(2) {
-                    if b.len() == 32 {
-                        resp_random.copy_from_slice(b);
-                    }
+                } else if el.tag == Some(2)
+                    && b.len() == 32
+                {
+                    resp_random.copy_from_slice(b);
                 }
             }
             TlvVal::Uint(v) => {

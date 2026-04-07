@@ -272,7 +272,7 @@ impl FabricManager {
             .fabrics
             .iter()
             .find(|f| f.descriptor.fabric_index == fabric_index)
-            .ok_or_else(|| MatterError::DeviceNotFound { node_id })?;
+            .ok_or(MatterError::DeviceNotFound { node_id })?;
 
         if csr_public_key.len() != 65 {
             return Err(MatterError::Commissioning(format!(
@@ -350,7 +350,7 @@ impl FabricManager {
             .fabrics
             .iter()
             .position(|f| f.descriptor.fabric_index == index)
-            .ok_or_else(|| MatterError::DeviceNotFound { node_id: 0 })?;
+            .ok_or(MatterError::DeviceNotFound { node_id: 0 })?;
         self.fabrics.remove(pos);
         Ok(())
     }

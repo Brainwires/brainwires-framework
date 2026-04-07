@@ -17,8 +17,8 @@ use mlua::{Lua, MultiValue, Result as LuaResult, Value};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use super::{LanguageExecutor, get_limits, truncate_output};
 use super::super::types::{ExecutionLimits, ExecutionRequest, ExecutionResult};
+use super::{LanguageExecutor, get_limits, truncate_output};
 
 /// Lua code executor
 pub struct LuaExecutor {
@@ -336,8 +336,8 @@ fn format_lua_error(error: &mlua::Error) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::types::Language;
+    use super::*;
 
     fn make_request(code: &str) -> ExecutionRequest {
         ExecutionRequest {

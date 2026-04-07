@@ -11,7 +11,7 @@
 /// | [`mrp`]     | Message Reliability Protocol state machine (§4.12) |
 /// | [`udp`]     | UDP send/receive with AES-128-CCM encryption |
 /// | [`ble`]     | BLE transport stub (Phase 8, `matter-ble` feature) |
-
+///
 /// Matter Message Layer: header encoding/decoding and wire format.
 pub mod message;
 

@@ -16,8 +16,8 @@ use rhai::{Dynamic, Engine, EvalAltResult, Scope};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use super::{LanguageExecutor, get_limits, truncate_output};
 use super::super::types::{ExecutionLimits, ExecutionRequest, ExecutionResult};
+use super::{LanguageExecutor, get_limits, truncate_output};
 
 /// Rhai code executor
 pub struct RhaiExecutor {
@@ -284,8 +284,8 @@ fn format_rhai_error(error: &EvalAltResult) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::types::Language;
+    use super::*;
 
     fn make_request(code: &str) -> ExecutionRequest {
         ExecutionRequest {

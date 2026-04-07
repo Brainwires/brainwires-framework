@@ -360,14 +360,14 @@ impl MatterController {
 
         // Check for any failure status in the response
         for item in &resp.invoke_responses {
-            if let InvokeResponseItem::Status { path: _, status } = item {
-                if *status != InteractionStatus::Success {
-                    return Err(HomeAutoError::MatterCluster {
-                        cluster,
-                        cmd,
-                        msg: format!("invoke failed with status {:?}", status),
-                    });
-                }
+            if let InvokeResponseItem::Status { path: _, status } = item
+                && *status != InteractionStatus::Success
+            {
+                return Err(HomeAutoError::MatterCluster {
+                    cluster,
+                    cmd,
+                    msg: format!("invoke failed with status {:?}", status),
+                });
             }
         }
 

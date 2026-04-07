@@ -12,7 +12,7 @@ pub mod manager;
 /// - `types` — `FabricIndex`, `OperationalNodeId`, `CompressedFabricId`, `FabricDescriptor`
 /// - `cert`  — `MatterCert` / `MatterCertSubject`: TLV encoding + decoding
 /// - `manager` — `FabricManager`: root-CA generation, NOC issuance, persistence
-
+///
 /// Identity types for Matter fabrics.
 pub mod types;
 

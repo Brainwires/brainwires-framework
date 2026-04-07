@@ -335,7 +335,7 @@ fn pubkey_from_bytes(bytes: &[u8; 65]) -> MatterResult<PublicKey> {
 fn ecdh_shared_secret(secret: &SecretKey, peer_pub: &[u8; 65]) -> MatterResult<[u8; 32]> {
     let peer_pk = pubkey_from_bytes(peer_pub)?;
     let shared = ecdh::diffie_hellman(secret.to_nonzero_scalar(), peer_pk.as_affine());
-    let bytes: [u8; 32] = shared.raw_secret_bytes().clone().into();
+    let bytes: [u8; 32] = (*shared.raw_secret_bytes()).into();
     Ok(bytes)
 }
 
@@ -773,8 +773,14 @@ impl CaseResponder {
 
 // ── Sigma message decoders ────────────────────────────────────────────────────
 
+/// `(random_32, session_id, dest_or_eph_bytes, eph_pub_bytes)`
+type SigmaFields = ([u8; 32], u16, Vec<u8>, Vec<u8>);
+
+/// `(noc_bytes, icac_bytes_opt, signature_64)`
+type TbeDataFields = (Vec<u8>, Option<Vec<u8>>, Vec<u8>);
+
 /// Decode Sigma1 → (init_random[32], session_id, dest_id[32], init_eph_pub[65]).
-fn decode_sigma1(buf: &[u8]) -> MatterResult<([u8; 32], u16, Vec<u8>, Vec<u8>)> {
+fn decode_sigma1(buf: &[u8]) -> MatterResult<SigmaFields> {
     let mut r = TlvReader::new(buf);
     let el = r.read_element()?;
     if !matches!(el.value, TlvVal::StructStart) || el.tag.is_some() {
@@ -826,7 +832,7 @@ fn decode_sigma1(buf: &[u8]) -> MatterResult<([u8; 32], u16, Vec<u8>, Vec<u8>)> 
 }
 
 /// Decode Sigma2 → (resp_random[32], session_id, resp_eph_pub, encrypted2).
-fn decode_sigma2(buf: &[u8]) -> MatterResult<([u8; 32], u16, Vec<u8>, Vec<u8>)> {
+fn decode_sigma2(buf: &[u8]) -> MatterResult<SigmaFields> {
     let mut r = TlvReader::new(buf);
     let el = r.read_element()?;
     if !matches!(el.value, TlvVal::StructStart) || el.tag.is_some() {
@@ -913,7 +919,7 @@ fn decode_sigma3(buf: &[u8]) -> MatterResult<Vec<u8>> {
 /// Decode TBEData (Sigma2 or Sigma3 inner plaintext).
 ///
 /// Returns `(noc_bytes, icac_bytes_opt, signature_64)`.
-fn decode_tbedata(buf: &[u8]) -> MatterResult<(Vec<u8>, Option<Vec<u8>>, Vec<u8>)> {
+fn decode_tbedata(buf: &[u8]) -> MatterResult<TbeDataFields> {
     let mut r = TlvReader::new(buf);
     let el = r.read_element()?;
     if !matches!(el.value, TlvVal::StructStart) || el.tag.is_some() {

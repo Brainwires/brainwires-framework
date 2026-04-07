@@ -6,7 +6,7 @@
 /// - `spake2plus`: SPAKE2+ password-authenticated key exchange per RFC 9383 / Matter §3.9.
 ///
 /// All key material is zeroized on drop via the `zeroize` crate.
-
+///
 /// Key-derivation function helpers (PBKDF2, HKDF).
 pub mod kdf;
 /// SPAKE2+ PAKE — prover (commissioner) and verifier (commissionee) sides.
