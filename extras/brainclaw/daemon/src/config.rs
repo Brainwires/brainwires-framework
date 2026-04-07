@@ -591,8 +591,8 @@ impl BrainClawConfig {
     /// Returns `None` if no `[email]` section is present; returns `Err` if the
     /// env var is missing.
     #[cfg(feature = "email")]
-    pub fn to_email_config(&self) -> Option<anyhow::Result<brainwires_tool_system::EmailConfig>> {
-        use brainwires_tool_system::{EmailConfig, EmailProvider};
+    pub fn to_email_config(&self) -> Option<anyhow::Result<brainwires_tools::EmailConfig>> {
+        use brainwires_tools::{EmailConfig, EmailProvider};
         self.email.as_ref().map(|e| {
             let password = std::env::var(&e.password_env).map_err(|_| {
                 anyhow::anyhow!(
@@ -622,8 +622,8 @@ impl BrainClawConfig {
     #[cfg(feature = "calendar")]
     pub fn to_calendar_config(
         &self,
-    ) -> Option<anyhow::Result<brainwires_tool_system::CalendarConfig>> {
-        use brainwires_tool_system::{CalendarConfig, CalendarProvider};
+    ) -> Option<anyhow::Result<brainwires_tools::CalendarConfig>> {
+        use brainwires_tools::{CalendarConfig, CalendarProvider};
         self.calendar.as_ref().map(|c| match c {
             CalendarSection::Google {
                 client_id,

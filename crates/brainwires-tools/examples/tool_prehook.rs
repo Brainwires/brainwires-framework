@@ -5,11 +5,11 @@
 //! control tool execution flow.
 //!
 //! Run:
-//!   cargo run -p brainwires-tool-system --example tool_prehook
+//!   cargo run -p brainwires-tools --example tool_prehook
 
 use async_trait::async_trait;
 use brainwires_core::ToolUse;
-use brainwires_tool_system::{PreHookDecision, ToolContext, ToolPreHook};
+use brainwires_tools::{PreHookDecision, ToolContext, ToolPreHook};
 use serde_json::json;
 
 // ── 1. Define a safety-check hook ───────────────────────────────────────────

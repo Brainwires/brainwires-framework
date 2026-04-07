@@ -12,7 +12,7 @@ use brainwires_core::{
     ChatOptions, ContentBlock, Message, MessageContent, Provider, Role, StreamChunk, Tool,
     ToolContext, ToolUse, Usage,
 };
-use brainwires_tool_system::{BuiltinToolExecutor, PreHookDecision, ToolPreHook};
+use brainwires_tools::{BuiltinToolExecutor, PreHookDecision, ToolPreHook};
 
 /// A simple chat agent that processes messages through an LLM provider with tool support.
 ///
@@ -24,7 +24,7 @@ use brainwires_tool_system::{BuiltinToolExecutor, PreHookDecision, ToolPreHook};
 ///
 /// ```rust,ignore
 /// use brainwires_agents::ChatAgent;
-/// use brainwires_tool_system::{BuiltinToolExecutor, ToolRegistry};
+/// use brainwires_tools::{BuiltinToolExecutor, ToolRegistry};
 /// use brainwires_core::{ChatOptions, ToolContext};
 /// use std::sync::Arc;
 ///
@@ -419,7 +419,7 @@ impl ChatAgent {
 mod tests {
     use super::*;
     use brainwires_core::{ToolContext, ToolInputSchema};
-    use brainwires_tool_system::ToolRegistry;
+    use brainwires_tools::ToolRegistry;
     use futures::stream;
     use std::collections::HashMap;
 

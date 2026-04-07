@@ -21,7 +21,7 @@ use brainwires_channels::identity::ConversationId;
 use brainwires_channels::message::{ChannelMessage, MessageContent, MessageId};
 use brainwires_core::{ChatOptions, Provider, ToolContext, ToolUse};
 use brainwires_core::lifecycle::{LifecycleEvent, LifecycleHook};
-use brainwires_tool_system::{BuiltinToolExecutor, PreHookDecision, ToolPreHook};
+use brainwires_tools::{BuiltinToolExecutor, PreHookDecision, ToolPreHook};
 
 use crate::approval::{ApprovalRegistry, ChatApprovalHook};
 use crate::channel_registry::ChannelRegistry;
@@ -877,7 +877,7 @@ mod tests {
     use brainwires_core::{
         ChatOptions, ChatResponse, Message, StreamChunk, Tool, ToolContext, Usage,
     };
-    use brainwires_tool_system::{BuiltinToolExecutor, ToolRegistry};
+    use brainwires_tools::{BuiltinToolExecutor, ToolRegistry};
     use futures::stream;
     use std::collections::HashMap;
 

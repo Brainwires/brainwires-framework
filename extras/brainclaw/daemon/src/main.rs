@@ -80,7 +80,7 @@ fn show_version() {
     println!("  Gateway:     brainwires-gateway (WebSocket + webhook)");
     println!("  Agents:      brainwires-agents (ChatAgent with tool loops)");
     println!("  Providers:   brainwires-providers (Anthropic, OpenAI, Google, etc.)");
-    println!("  Tools:       brainwires-tool-system (bash, files, git, search, web, validation)");
+    println!("  Tools:       brainwires-tools (bash, files, git, search, web, validation)");
     println!("  Skills:      brainwires-skills (SKILL.md-based extensibility)");
     println!("  Channels:    brainwires-channels (Discord, Telegram, Slack, etc.)");
 }

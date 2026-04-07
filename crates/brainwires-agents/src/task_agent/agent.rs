@@ -13,7 +13,7 @@ use brainwires_core::{
     ChatOptions, ChatResponse, ContentBlock, ContentSource, Message, MessageContent, Provider,
     Role, Task, ToolContext, ToolResult, ToolUse, estimate_tokens_from_size,
 };
-use brainwires_tool_system::{PreHookDecision, wrap_with_content_source};
+use brainwires_tools::{PreHookDecision, wrap_with_content_source};
 
 use crate::agent_hooks::{ConversationView, IterationContext, IterationDecision, ToolDecision};
 use crate::communication::AgentMessage;

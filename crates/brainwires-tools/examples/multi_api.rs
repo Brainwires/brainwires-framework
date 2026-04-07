@@ -2,9 +2,9 @@
 //!
 //! Demonstrates orchestrating multiple API calls with conditional logic.
 //!
-//! Run with: `cargo run -p brainwires-tool-system --features orchestrator --example multi_api`
+//! Run with: `cargo run -p brainwires-tools --features orchestrator --example multi_api`
 
-use brainwires_tool_system::orchestrator::{ExecutionLimits, ToolOrchestrator};
+use brainwires_tools::orchestrator::{ExecutionLimits, ToolOrchestrator};
 
 fn main() {
     println!("=== Multi-API Orchestration Example ===\n");

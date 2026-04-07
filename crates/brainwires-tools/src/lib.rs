@@ -1,5 +1,5 @@
 #![deny(missing_docs)]
-//! Brainwires Tools - Built-in tool implementations for the Brainwires Agent Framework
+//! `brainwires-tools` — Built-in tool implementations for the Brainwires Agent Framework
 //!
 //! This crate provides a composable set of tools that agents can use:
 //!
@@ -25,7 +25,7 @@
 //! whichever tools you need, or use `ToolRegistry::with_builtins()` for all.
 //!
 //! ```ignore
-//! use brainwires_tool_system::{ToolRegistry, BashTool, FileOpsTool};
+//! use brainwires_tools::{ToolRegistry, BashTool, FileOpsTool};
 //!
 //! let mut registry = ToolRegistry::new();
 //! registry.register_tools(BashTool::get_tools());

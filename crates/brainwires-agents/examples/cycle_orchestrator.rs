@@ -18,7 +18,7 @@ use brainwires_agents::brainwires_core::{
     ChatOptions, ChatResponse, Message, Provider, StreamChunk, Tool, ToolContext, ToolResult,
     ToolUse, Usage,
 };
-use brainwires_agents::brainwires_tool_system::ToolExecutor;
+use brainwires_agents::brainwires_tools::ToolExecutor;
 use brainwires_agents::{
     CommunicationHub, CycleOrchestrator, CycleOrchestratorConfig, FileLockManager,
     JudgeAgentConfig, JudgeVerdict, PlannerAgentConfig, TaskAgentConfig,

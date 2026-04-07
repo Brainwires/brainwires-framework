@@ -33,9 +33,9 @@ use std::rc::Rc;
 
 use wasm_bindgen::prelude::*;
 
-use brainwires_tool_system::orchestrator::ExecutionLimits as CoreExecutionLimits;
-use brainwires_tool_system::orchestrator::dynamic_to_json;
-use brainwires_tool_system::orchestrator::{
+use brainwires_tools::orchestrator::ExecutionLimits as CoreExecutionLimits;
+use brainwires_tools::orchestrator::dynamic_to_json;
+use brainwires_tools::orchestrator::{
     OrchestratorResult as CoreOrchestratorResult, ToolCall as CoreToolCall,
 };
 

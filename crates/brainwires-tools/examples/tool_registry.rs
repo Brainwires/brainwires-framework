@@ -4,9 +4,9 @@
 //! tools, list tools by `ToolCategory`, and inspect tool metadata.
 //!
 //! Run:
-//!   cargo run -p brainwires-tool-system --example tool_registry
+//!   cargo run -p brainwires-tools --example tool_registry
 
-use brainwires_tool_system::{Tool, ToolCategory, ToolInputSchema, ToolRegistry};
+use brainwires_tools::{Tool, ToolCategory, ToolInputSchema, ToolRegistry};
 use std::collections::HashMap;
 
 /// Helper: create a custom tool definition with the given name and description.

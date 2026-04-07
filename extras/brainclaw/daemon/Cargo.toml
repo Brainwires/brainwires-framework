@@ -23,7 +23,7 @@ doc = false
 brainwires-gateway.workspace = true
 brainwires-agents.workspace = true
 brainwires-providers.workspace = true
-brainwires-tool-system.workspace = true
+brainwires-tools.workspace = true
 brainwires-channels.workspace = true
 brainwires-skills.workspace = true
 brainwires-core.workspace = true
@@ -50,9 +50,9 @@ tokio = { workspace = true, features = ["test-util"] }
 
 [features]
 default = ["native-tools"]
-native-tools = ["brainwires-tool-system/native"]
-email = ["brainwires-tool-system/email"]
-calendar = ["brainwires-tool-system/calendar"]
-rag = ["brainwires-tool-system/rag"]
-browser = ["brainwires-tool-system/browser"]
+native-tools = ["brainwires-tools/native"]
+email = ["brainwires-tools/email"]
+calendar = ["brainwires-tools/calendar"]
+rag = ["brainwires-tools/rag"]
+browser = ["brainwires-tools/browser"]
 voice = ["dep:brainwires-hardware", "brainwires-gateway/voice"]

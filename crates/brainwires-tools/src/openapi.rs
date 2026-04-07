@@ -8,13 +8,13 @@
 //! This module requires the `openapi` feature:
 //!
 //! ```toml
-//! brainwires-tool-system = { version = "0.8", features = ["openapi"] }
+//! brainwires-tools = { version = "0.8", features = ["openapi"] }
 //! ```
 //!
 //! # Usage
 //!
 //! ```rust,ignore
-//! use brainwires_tool_system::openapi::{openapi_to_tools, execute_openapi_tool, OpenApiAuth};
+//! use brainwires_tools::openapi::{openapi_to_tools, execute_openapi_tool, OpenApiAuth};
 //!
 //! // Parse spec and get tools
 //! let spec_json = std::fs::read_to_string("openapi.json")?;

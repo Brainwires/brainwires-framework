@@ -1,6 +1,6 @@
 //! Tool registry builder — conditionally registers tools based on config.
 
-use brainwires_tool_system::ToolRegistry;
+use brainwires_tools::ToolRegistry;
 
 use crate::config::ToolsSection;
 
@@ -32,7 +32,7 @@ pub fn build_tool_registry(config: &ToolsSection) -> ToolRegistry {
 /// Register all tools belonging to a named group.
 #[cfg(feature = "native-tools")]
 fn register_tool_group(registry: &mut ToolRegistry, group: &str) {
-    use brainwires_tool_system::{
+    use brainwires_tools::{
         BashTool, FileOpsTool, GitTool, SearchTool, ValidationTool, WebTool,
     };
 
@@ -46,7 +46,7 @@ fn register_tool_group(registry: &mut ToolRegistry, group: &str) {
 
         #[cfg(feature = "email")]
         "email" => {
-            use brainwires_tool_system::EmailTool;
+            use brainwires_tools::EmailTool;
             registry.register_tools(EmailTool::get_tools());
         }
         #[cfg(not(feature = "email"))]
@@ -56,7 +56,7 @@ fn register_tool_group(registry: &mut ToolRegistry, group: &str) {
 
         #[cfg(feature = "calendar")]
         "calendar" => {
-            use brainwires_tool_system::CalendarTool;
+            use brainwires_tools::CalendarTool;
             registry.register_tools(CalendarTool::get_tools());
         }
         #[cfg(not(feature = "calendar"))]
@@ -66,7 +66,7 @@ fn register_tool_group(registry: &mut ToolRegistry, group: &str) {
 
         #[cfg(feature = "rag")]
         "semantic-search" => {
-            use brainwires_tool_system::SemanticSearchTool;
+            use brainwires_tools::SemanticSearchTool;
             registry.register_tools(SemanticSearchTool::get_tools());
         }
         #[cfg(not(feature = "rag"))]
@@ -76,7 +76,7 @@ fn register_tool_group(registry: &mut ToolRegistry, group: &str) {
 
         #[cfg(feature = "browser")]
         "browser" => {
-            use brainwires_tool_system::BrowserTool;
+            use brainwires_tools::BrowserTool;
             registry.register_tools(BrowserTool::get_tools());
         }
         #[cfg(not(feature = "browser"))]

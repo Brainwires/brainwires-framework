@@ -16,7 +16,7 @@ categories = ["development-tools"]
 [dependencies]
 # Internal crates
 brainwires-core.workspace = true
-brainwires-tool-system.workspace = true
+brainwires-tools.workspace = true
 
 # Async runtime
 tokio = { workspace = true, features = ["sync", "time", "rt", "macros"] }
@@ -80,8 +80,8 @@ brainwires-permissions = { workspace = true }
 
 [features]
 default = ["native"]
-native = ["dep:git2", "dep:libc", "brainwires-core/native", "brainwires-tool-system/native"]
-wasm = ["brainwires-core/wasm", "brainwires-tool-system/wasm"]
+native = ["dep:git2", "dep:libc", "brainwires-core/native", "brainwires-tools/native"]
+wasm = ["brainwires-core/wasm", "brainwires-tools/wasm"]
 # Reasoning module (merged from brainwires-reasoning)
 reasoning = ["dep:regex"]
 # Evaluation framework (merged from brainwires-eval)

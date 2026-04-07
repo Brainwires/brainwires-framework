@@ -18,7 +18,7 @@ categories = ["development-tools"]
 brainwires-core.workspace = true
 
 # Feature-gated framework crates
-brainwires-tool-system = { workspace = true, optional = true }
+brainwires-tools = { workspace = true, optional = true }
 brainwires-agents = { workspace = true, optional = true }
 brainwires-storage = { workspace = true, optional = true }
 brainwires-mcp = { workspace = true, optional = true }
@@ -100,7 +100,7 @@ required-features = ["storage", "rag"]
 [features]
 default = ["tools", "agents"]
 wasm = ["brainwires-core/wasm"]
-tools = ["dep:brainwires-tool-system"]
+tools = ["dep:brainwires-tools"]
 agents = ["dep:brainwires-agents"]
 storage = ["dep:brainwires-storage", "brainwires-storage/native"]
 mcp = ["dep:brainwires-mcp"]
@@ -108,9 +108,9 @@ mdap = ["agents", "brainwires-agents/mdap"]
 knowledge = ["brain"]
 prompting = ["dep:brainwires-cognition", "brainwires-cognition/prompting"]
 permissions = ["dep:brainwires-permissions"]
-orchestrator = ["tools", "brainwires-tool-system/orchestrator"]
-openapi = ["tools", "brainwires-tool-system/openapi"]
-rag = ["dep:brainwires-cognition", "brainwires-cognition/rag", "dep:brainwires-storage", "brainwires-storage/vector-db", "tools", "brainwires-tool-system/rag"]
+orchestrator = ["tools", "brainwires-tools/orchestrator"]
+openapi = ["tools", "brainwires-tools/openapi"]
+rag = ["dep:brainwires-cognition", "brainwires-cognition/rag", "dep:brainwires-storage", "brainwires-storage/vector-db", "tools", "brainwires-tools/rag"]
 rag-full-languages = ["rag", "brainwires-cognition/tree-sitter-languages"]
 interpreters = ["dep:brainwires-code-interpreters"]
 providers = ["dep:brainwires-providers"]

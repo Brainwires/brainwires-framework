@@ -3,9 +3,9 @@
 //! Demonstrates the token savings of Programmatic Tool Calling
 //! vs traditional sequential tool calling.
 //!
-//! Run with: `cargo bench -p brainwires-tool-system --features orchestrator`
+//! Run with: `cargo bench -p brainwires-tools --features orchestrator`
 
-use brainwires_tool_system::orchestrator::{ExecutionLimits, ToolOrchestrator};
+use brainwires_tools::orchestrator::{ExecutionLimits, ToolOrchestrator};
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
 /// Simulates traditional approach: each tool result would go back to LLM

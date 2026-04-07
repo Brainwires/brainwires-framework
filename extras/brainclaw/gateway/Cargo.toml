@@ -22,7 +22,7 @@ doc = false
 brainwires-agents.workspace = true
 brainwires-channels.workspace = true
 brainwires-core.workspace = true
-brainwires-tool-system.workspace = true
+brainwires-tools.workspace = true
 tokio.workspace = true
 axum = { workspace = true, features = ["ws"] }
 serde.workspace = true

@@ -29,7 +29,7 @@ publish = false
 brainwires-core = { path = "../../crates/brainwires-core" }
 brainwires-agents = { path = "../../crates/brainwires-agents" }
 brainwires-providers = { path = "../../crates/brainwires-providers" }
-brainwires-tool-system = { path = "../../crates/brainwires-tool-system" }
+brainwires-tools = { path = "../../crates/brainwires-tools", version = "0.8.0" }
 brainwires-channels = { path = "../../crates/brainwires-channels" }
 brainwires-skills = { path = "../../crates/brainwires-skills", features = ["registry"] }
 brainwires-hardware = { path = "../../crates/brainwires-hardware" }

@@ -26,7 +26,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use brainwires_channels::{ChannelMessage, ConversationId, MessageContent, MessageId};
 use brainwires_core::{ToolContext, ToolUse};
-use brainwires_tool_system::{PreHookDecision, ToolPreHook};
+use brainwires_tools::{PreHookDecision, ToolPreHook};
 use chrono::Utc;
 use dashmap::DashMap;
 use tokio::sync::{RwLock, mpsc, oneshot};

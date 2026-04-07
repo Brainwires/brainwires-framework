@@ -21,7 +21,7 @@ use crate::registry::ToolRegistry;
 /// # Example
 ///
 /// ```rust,ignore
-/// use brainwires_tool_system::{BuiltinToolExecutor, ToolRegistry};
+/// use brainwires_tools::{BuiltinToolExecutor, ToolRegistry};
 /// use brainwires_core::ToolContext;
 ///
 /// let registry = ToolRegistry::with_builtins();
