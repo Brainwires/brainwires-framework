@@ -48,8 +48,8 @@ libc = { version = "0.2", optional = true }
 # Async traits
 async-trait.workspace = true
 
-# Code search (optional, for reasoning module)
-regex = { workspace = true, optional = true }
+# Regex — required for skills template parsing; also used by reasoning/mdap/seal
+regex = { workspace = true }
 
 # Async streams (needed by ChatAgent for StreamExt)
 futures.workspace = true
@@ -70,6 +70,13 @@ brainwires-telemetry = { workspace = true, optional = true }
 # Logging
 tracing.workspace = true
 
+# ── Skills deps (absorbed from brainwires-skills) ─────────────────────────
+serde_yml = { workspace = true }
+semver = { workspace = true }
+reqwest = { workspace = true, optional = true }
+ed25519-dalek = { version = "2", features = ["rand_core"], optional = true }
+rand_core = { version = "0.6", features = ["getrandom"], optional = true }
+
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }
 futures.workspace = true
@@ -83,7 +90,7 @@ default = ["native"]
 native = ["dep:git2", "dep:libc", "brainwires-core/native", "brainwires-tools/native"]
 wasm = ["brainwires-core/wasm", "brainwires-tools/wasm"]
 # Reasoning module (merged from brainwires-reasoning)
-reasoning = ["dep:regex"]
+reasoning = []
 # Evaluation framework (merged from brainwires-eval)
 eval = ["dep:thiserror"]
 # OpenTelemetry span export for agent execution traces
@@ -91,12 +98,15 @@ otel = ["dep:opentelemetry"]
 # Analytics events + billing hooks
 telemetry = ["dep:brainwires-telemetry", "brainwires-telemetry/native"]
 # MDAP: Multi-Dimensional Adaptive Planning (merged from brainwires-mdap)
-mdap = ["dep:regex", "dep:thiserror"]
+mdap = ["dep:thiserror"]
 # SEAL (Self-Evolving Agentic Learning)
-seal = ["dep:regex"]
+seal = []
 seal-mdap = ["seal", "mdap"]
 seal-feedback = ["seal", "dep:brainwires-permissions"]
 seal-knowledge = ["seal", "dep:brainwires-cognition", "brainwires-cognition/knowledge"]
+# Skills (absorbed from brainwires-skills)
+skills-registry = ["dep:reqwest"]
+skills-signing = ["dep:ed25519-dalek", "dep:rand_core"]
 
 [[example]]
 name = "agent_pool"

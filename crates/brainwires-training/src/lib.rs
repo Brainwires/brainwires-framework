@@ -18,6 +18,9 @@ pub mod error;
 /// Training job types and status.
 pub mod types;
 
+/// Dataset pipelines (absorbed from brainwires-datasets).
+pub mod datasets;
+
 /// Cloud fine-tuning providers.
 #[cfg(feature = "cloud")]
 pub mod cloud;

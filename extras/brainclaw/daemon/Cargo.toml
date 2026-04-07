@@ -25,7 +25,6 @@ brainwires-agents.workspace = true
 brainwires-providers.workspace = true
 brainwires-tools.workspace = true
 brainwires-channels.workspace = true
-brainwires-skills.workspace = true
 brainwires-core.workspace = true
 brainwires-hardware = { workspace = true, optional = true, features = ["audio"] }
 

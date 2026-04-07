@@ -8,8 +8,8 @@ rust-version.workspace = true
 repository.workspace = true
 homepage.workspace = true
 authors.workspace = true
+publish = false
 readme = "README.md"
-documentation = "https://docs.rs/brainwires-autonomy"
 keywords = ["autonomy", "self-improvement", "ai-agents", "evaluation", "autonomous"]
 categories = ["development-tools"]
 
@@ -19,7 +19,6 @@ brainwires-agents = { workspace = true, optional = true }
 brainwires-tools = { workspace = true, optional = true }
 brainwires-training = { workspace = true, optional = true }
 brainwires-cognition = { workspace = true, optional = true }
-brainwires-datasets = { workspace = true, optional = true }
 brainwires-storage = { workspace = true, optional = true }
 
 serde = { workspace = true }
@@ -75,7 +74,7 @@ eval-driven = [
 supervisor = ["dep:brainwires-agents"]
 attention = ["dep:brainwires-cognition", "brainwires-cognition/rag"]
 parallel = ["dep:brainwires-agents", "brainwires-agents/mdap"]
-training = ["dep:brainwires-training", "dep:brainwires-datasets"]
+training = ["dep:brainwires-training"]
 
 # Git workflow
 git-workflow = ["dep:brainwires-agents", "dep:brainwires-tools", "dep:reqwest", "dep:toml"]

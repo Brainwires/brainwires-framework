@@ -3,7 +3,7 @@
 //! Tests the public `parse_skill_file` and `parse_skill_metadata` functions
 //! using skill content written to temporary files.
 
-use brainwires_skills::{
+use brainwires_agents::skills::{
     SkillExecutionMode, parse_skill_file, parse_skill_metadata, render_template,
 };
 use std::collections::HashMap;

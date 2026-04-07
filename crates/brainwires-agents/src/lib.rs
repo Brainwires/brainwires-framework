@@ -120,6 +120,9 @@ pub mod mdap;
 #[cfg(feature = "seal")]
 pub mod seal;
 
+// ── Skills (absorbed from brainwires-skills) ─────────────────────────────
+pub mod skills;
+
 // ── Analysis & validation ────────────────────────────────────────────────────
 
 pub mod resource_checker;

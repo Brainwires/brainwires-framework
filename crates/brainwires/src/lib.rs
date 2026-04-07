@@ -116,7 +116,7 @@ pub mod mcp_server_framework {
 /// Skills — SKILL.md parsing, skill registry, and execution.
 #[cfg(feature = "skills")]
 pub mod skills {
-    pub use brainwires_skills::*;
+    pub use brainwires_agents::skills::*;
 }
 
 /// Evaluation framework — Monte Carlo runner, Wilson CI, adversarial tests.
@@ -194,7 +194,7 @@ pub mod voice_assistant {
 /// Training data pipelines — JSONL, format conversion, tokenization, dedup.
 #[cfg(feature = "datasets")]
 pub mod datasets {
-    pub use brainwires_datasets::*;
+    pub use brainwires_training::datasets::*;
 }
 
 /// Model training — cloud fine-tuning, local Burn-based LoRA/QLoRA/DoRA.

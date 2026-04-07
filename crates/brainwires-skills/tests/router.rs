@@ -3,7 +3,7 @@
 //! Tests keyword matching, confidence thresholds, explicit matches,
 //! suggestion formatting, and interaction with a populated registry.
 
-use brainwires_skills::{MatchSource, SkillMatch, SkillMetadata, SkillRegistry, SkillRouter};
+use brainwires_agents::skills::{MatchSource, SkillMatch, SkillMetadata, SkillRegistry, SkillRouter};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 

@@ -4,7 +4,7 @@
 //! register them in the registry, route queries to find matches, and
 //! execute matched skills through the executor.
 
-use brainwires_skills::{
+use brainwires_agents::skills::{
     MatchSource, SkillExecutor, SkillRegistry, SkillResult, SkillRouter, SkillSource,
 };
 use std::collections::HashMap;

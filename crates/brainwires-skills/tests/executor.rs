@@ -3,7 +3,7 @@
 //! Tests inline/subagent/script execution, template rendering through
 //! the executor, tool filtering, and prepare_* methods.
 
-use brainwires_skills::{
+use brainwires_agents::skills::{
     Skill, SkillExecutionMode, SkillExecutor, SkillMetadata, SkillRegistry, SkillResult,
     SkillSource,
 };

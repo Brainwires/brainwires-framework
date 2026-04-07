@@ -16,7 +16,7 @@ pub mod together;
 pub mod vertex;
 
 use async_trait::async_trait;
-use brainwires_datasets::DataFormat;
+use crate::datasets::DataFormat;
 
 use crate::config::{AlignmentMethod, LoraConfig, TrainingHyperparams};
 use crate::error::TrainingError;

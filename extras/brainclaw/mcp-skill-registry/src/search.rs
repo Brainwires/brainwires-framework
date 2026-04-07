@@ -4,7 +4,7 @@
 //! skill names and descriptions.
 
 use anyhow::{Context, Result};
-use brainwires_skills::{SkillManifest, SkillPackage};
+use brainwires_agents::skills::{SkillManifest, SkillPackage};
 use rusqlite::Connection;
 
 /// Ensure the FTS5 virtual table exists.

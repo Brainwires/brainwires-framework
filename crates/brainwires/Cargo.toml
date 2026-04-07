@@ -41,14 +41,13 @@ brainwires-mcp-server = { workspace = true, optional = true }
 brainwires-a2a = { workspace = true, optional = true }
 
 # Skills system
-brainwires-skills = { workspace = true, optional = true }
+# skills now part of brainwires-agents (see skills module)
 
 
 # Hardware I/O (audio, GPIO, Bluetooth, network)
 brainwires-hardware = { workspace = true, optional = true }
 
 # Datasets & Training
-brainwires-datasets = { workspace = true, optional = true }
 brainwires-training = { workspace = true, optional = true }
 
 # Autonomy
@@ -119,7 +118,7 @@ reasoning = ["agents", "brainwires-agents/reasoning"]
 seal = ["agents", "brainwires-agents/seal"]
 agent-network = ["dep:brainwires-network"]
 mcp-server-framework = ["dep:brainwires-mcp-server"]
-skills = ["dep:brainwires-skills"]
+skills = ["agents", "brainwires-agents/skills-registry"]
 eval = ["agents", "brainwires-agents/eval"]
 otel = ["agents", "brainwires-agents/otel"]
 # proxy feature removed — brainwires-proxy is an extras app, not a framework crate
@@ -135,11 +134,11 @@ vad = ["dep:brainwires-hardware", "brainwires-hardware/vad"]
 wake-word = ["dep:brainwires-hardware", "brainwires-hardware/wake-word"]
 wake-word-porcupine = ["dep:brainwires-hardware", "brainwires-hardware/wake-word-porcupine"]
 voice-assistant = ["dep:brainwires-hardware", "brainwires-hardware/voice-assistant"]
-datasets = ["dep:brainwires-datasets"]
+datasets = ["training", "brainwires-training/datasets-full"]
 training = ["dep:brainwires-training"]
 training-cloud = ["training", "brainwires-training/cloud"]
 training-local = ["training", "brainwires-training/local"]
-training-full = ["training", "brainwires-training/full", "datasets", "brainwires-datasets/full"]
+training-full = ["training", "brainwires-training/full", "datasets"]
 autonomy = ["dep:brainwires-autonomy"]
 system = ["dep:brainwires-system", "brainwires-system/full"]
 dream = ["dep:brainwires-cognition", "brainwires-cognition/dream"]

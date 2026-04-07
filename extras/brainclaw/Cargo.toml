@@ -31,7 +31,7 @@ brainwires-agents = { path = "../../crates/brainwires-agents" }
 brainwires-providers = { path = "../../crates/brainwires-providers" }
 brainwires-tools = { path = "../../crates/brainwires-tools", version = "0.8.0" }
 brainwires-channels = { path = "../../crates/brainwires-channels" }
-brainwires-skills = { path = "../../crates/brainwires-skills", features = ["registry"] }
+# skills now part of brainwires-agents
 brainwires-hardware = { path = "../../crates/brainwires-hardware" }
 brainwires-gateway = { path = "gateway" }
 brainwires-telemetry = { path = "../../crates/brainwires-telemetry", default-features = false }

@@ -13,11 +13,9 @@ members = [
     "crates/brainwires-mcp-server",
     "crates/brainwires-a2a",
     "crates/brainwires-providers",
-    "crates/brainwires-skills",
     "crates/brainwires-hardware",
-    "crates/brainwires-datasets",
     "crates/brainwires-training",
-    "crates/brainwires-autonomy",
+    "extras/brainwires-autonomy",
     "crates/brainwires-cognition",
     "crates/brainwires-system",
     "crates/brainwires-channels",
@@ -77,11 +75,9 @@ brainwires-network = { path = "crates/brainwires-network", version = "0.8.0" }
 brainwires-mcp-server = { path = "crates/brainwires-mcp-server", version = "0.8.0" }
 brainwires-a2a = { path = "crates/brainwires-a2a", version = "0.8.0", default-features = false }
 brainwires-providers = { path = "crates/brainwires-providers", version = "0.8.0" }
-brainwires-skills = { path = "crates/brainwires-skills", version = "0.8.0" }
 brainwires-hardware = { path = "crates/brainwires-hardware", version = "0.8.0" }
-brainwires-datasets = { path = "crates/brainwires-datasets", version = "0.8.0" }
 brainwires-training = { path = "crates/brainwires-training", version = "0.8.0" }
-brainwires-autonomy = { path = "crates/brainwires-autonomy", version = "0.8.0", default-features = false }
+brainwires-autonomy = { path = "extras/brainwires-autonomy", version = "0.8.0", default-features = false }
 brainwires-cognition = { path = "crates/brainwires-cognition", version = "0.8.0", default-features = false }
 brainwires-system = { path = "crates/brainwires-system", version = "0.8.0", default-features = false }
 brainwires-channels   = { path = "crates/brainwires-channels",   version = "0.8.0" }

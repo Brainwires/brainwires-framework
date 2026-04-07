@@ -10,7 +10,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use brainwires_skills::SkillPackage;
+use brainwires_agents::skills::SkillPackage;
 use serde::Deserialize;
 use std::sync::Arc;
 use tokio::sync::Mutex;

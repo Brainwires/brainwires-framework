@@ -3,7 +3,7 @@
 //! Tests skill discovery from directories, registration, lookup, listing,
 //! category filtering, source overrides, and lazy loading.
 
-use brainwires_skills::{SkillExecutionMode, SkillMetadata, SkillRegistry, SkillSource};
+use brainwires_agents::skills::{SkillExecutionMode, SkillMetadata, SkillRegistry, SkillSource};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tempfile::TempDir;
