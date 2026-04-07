@@ -1,6 +1,6 @@
 [package]
-name = "brainwires-analytics"
-description = "Unified analytics collection, persistence, and query for the Brainwires Agent Framework"
+name = "brainwires-billing-impl"
+description = "Full billing implementation for Brainwires agents — ledger, wallet, and Stripe integration"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,11 +8,16 @@ rust-version.workspace = true
 repository.workspace = true
 homepage.workspace = true
 authors.workspace = true
+publish = false
 readme = "README.md"
-keywords = ["ai-agents", "analytics", "telemetry", "observability", "llm"]
-categories = ["development-tools"]
+
+[lib]
+name = "brainwires_billing_impl"
+path = "src/lib.rs"
 
 [dependencies]
+brainwires-telemetry = { workspace = true }
+
 serde         = { workspace = true }
 serde_json    = { workspace = true }
 anyhow        = { workspace = true }
@@ -22,15 +27,16 @@ uuid          = { workspace = true }
 tokio         = { workspace = true, features = ["sync", "rt", "macros"] }
 async-trait   = { workspace = true }
 tracing       = { workspace = true }
-tracing-subscriber = { workspace = true, features = ["registry"] }
 rusqlite      = { workspace = true, optional = true }
 dirs          = { workspace = true, optional = true }
+reqwest       = { workspace = true, optional = true }
 
 [dev-dependencies]
 tokio    = { workspace = true, features = ["full", "test-util"] }
 tempfile = { workspace = true }
 
 [features]
-default = ["native"]
-native  = ["sqlite", "dep:dirs"]
-sqlite  = ["dep:rusqlite"]
+default  = ["native"]
+native   = ["sqlite", "dep:dirs"]
+sqlite   = ["dep:rusqlite"]
+stripe   = ["dep:reqwest"]

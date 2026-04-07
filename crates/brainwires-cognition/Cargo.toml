@@ -20,7 +20,7 @@ path = "src/lib.rs"
 [dependencies]
 # ── Always available ────────────────────────────────────────────────────
 brainwires-core = { workspace = true }
-brainwires-analytics = { workspace = true, optional = true }
+brainwires-telemetry = { workspace = true, optional = true }
 
 # Serialization
 serde = { workspace = true }
@@ -102,7 +102,7 @@ default = ["knowledge", "prompting"]
 dream = ["dep:futures", "dep:async-trait"]
 
 # Analytics integration — enables DreamCycle event recording
-analytics = ["dep:brainwires-analytics"]
+telemetry = ["dep:brainwires-telemetry"]
 
 # Knowledge graph, entities, thoughts, brain client (from brainwires-brain)
 knowledge = [
@@ -177,7 +177,7 @@ stack-graphs = []
 native = [
     "knowledge", "prompting", "prompting-storage", "spectral",
     "rag", "code-analysis", "tree-sitter-languages",
-    "documents", "pdf-extract-feature", "dream", "analytics",
+    "documents", "pdf-extract-feature", "dream", "telemetry",
 ]
 
 # WASM = lightweight

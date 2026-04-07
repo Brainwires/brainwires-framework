@@ -37,8 +37,8 @@ pub struct SelfImprovementController {
     metrics: SessionMetrics,
     safety: SafetyGuard,
     provider: Arc<dyn Provider>,
-    #[cfg(feature = "analytics")]
-    analytics_collector: Option<std::sync::Arc<brainwires_analytics::AnalyticsCollector>>,
+    #[cfg(feature = "telemetry")]
+    analytics_collector: Option<std::sync::Arc<brainwires_telemetry::AnalyticsCollector>>,
 }
 
 impl SelfImprovementController {
@@ -52,7 +52,7 @@ impl SelfImprovementController {
             metrics: SessionMetrics::new(),
             safety,
             provider,
-            #[cfg(feature = "analytics")]
+            #[cfg(feature = "telemetry")]
             analytics_collector: None,
         }
     }
@@ -71,16 +71,16 @@ impl SelfImprovementController {
             metrics: SessionMetrics::new(),
             safety,
             provider,
-            #[cfg(feature = "analytics")]
+            #[cfg(feature = "telemetry")]
             analytics_collector: None,
         }
     }
 
     /// Attach an analytics collector to record AutonomySession events.
-    #[cfg(feature = "analytics")]
+    #[cfg(feature = "telemetry")]
     pub fn with_analytics(
         mut self,
-        collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>,
+        collector: std::sync::Arc<brainwires_telemetry::AnalyticsCollector>,
     ) -> Self {
         self.analytics_collector = Some(collector);
         self
@@ -158,9 +158,9 @@ impl SelfImprovementController {
 
         let report = SessionReport::new(self.metrics.clone(), start.elapsed(), stop_reason);
 
-        #[cfg(feature = "analytics")]
+        #[cfg(feature = "telemetry")]
         if let Some(ref collector) = self.analytics_collector {
-            use brainwires_analytics::AnalyticsEvent;
+            use brainwires_telemetry::AnalyticsEvent;
             let m = &report.metrics;
             collector.record(AnalyticsEvent::AutonomySession {
                 session_id: None,

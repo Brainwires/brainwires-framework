@@ -9,7 +9,7 @@ use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberI
 static LOGGER_INITIALIZED: AtomicBool = AtomicBool::new(false);
 
 /// Global analytics collector — set once during startup, reused everywhere.
-static ANALYTICS: OnceLock<brainwires_analytics::AnalyticsCollector> = OnceLock::new();
+static ANALYTICS: OnceLock<brainwires_telemetry::AnalyticsCollector> = OnceLock::new();
 
 /// Initialize the analytics subsystem.
 ///
@@ -19,7 +19,7 @@ static ANALYTICS: OnceLock<brainwires_analytics::AnalyticsCollector> = OnceLock:
 ///
 /// Safe to call multiple times — only the first call has any effect.
 pub fn init_analytics() {
-    use brainwires_analytics::{AnalyticsCollector, SqliteAnalyticsSink};
+    use brainwires_telemetry::{AnalyticsCollector, SqliteAnalyticsSink};
     if ANALYTICS.get().is_none() {
         match SqliteAnalyticsSink::new_default() {
             Ok(sink) => {
@@ -35,7 +35,7 @@ pub fn init_analytics() {
 }
 
 /// Return a clone of the global analytics collector, if initialized.
-pub fn analytics_collector() -> Option<brainwires_analytics::AnalyticsCollector> {
+pub fn analytics_collector() -> Option<brainwires_telemetry::AnalyticsCollector> {
     ANALYTICS.get().cloned()
 }
 
@@ -69,7 +69,7 @@ pub fn init_with_output(enable_output: bool) {
     let analytics_layer = ANALYTICS
         .get()
         .cloned()
-        .map(brainwires_analytics::AnalyticsLayer::new);
+        .map(brainwires_telemetry::AnalyticsLayer::new);
 
     if !enable_output {
         // TUI mode: Only log to file, disable console

@@ -16,7 +16,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use brainwires_analytics::{
+use brainwires_telemetry::{
     AnalyticsCollector, AnalyticsError, AnalyticsEvent, AnalyticsSink, MemoryAnalyticsSink,
 };
 use chrono::Utc;

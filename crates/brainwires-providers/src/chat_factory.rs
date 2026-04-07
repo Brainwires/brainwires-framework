@@ -60,7 +60,7 @@ impl ChatProviderFactory {
         let mut provider =
             super::openai_chat::chat::OpenAiChatProvider::new(client, config.model.clone())
                 .with_provider_name(config.provider.as_str());
-        #[cfg(feature = "analytics")]
+        #[cfg(feature = "telemetry")]
         if let Some(ref c) = config.analytics_collector {
             provider = provider.with_analytics(Arc::clone(c));
         }
@@ -80,7 +80,7 @@ impl ChatProviderFactory {
         let mut provider =
             super::openai_responses::OpenAiResponsesProvider::new(client, config.model.clone())
                 .with_provider_name(config.provider.as_str());
-        #[cfg(feature = "analytics")]
+        #[cfg(feature = "telemetry")]
         if let Some(ref c) = config.analytics_collector {
             provider = provider.with_analytics(Arc::clone(c));
         }
@@ -111,7 +111,7 @@ impl ChatProviderFactory {
         let mut provider =
             super::anthropic::chat::AnthropicChatProvider::new(client, config.model.clone())
                 .with_provider_name(config.provider.as_str());
-        #[cfg(feature = "analytics")]
+        #[cfg(feature = "telemetry")]
         if let Some(ref c) = config.analytics_collector {
             provider = provider.with_analytics(Arc::clone(c));
         }
@@ -158,7 +158,7 @@ impl ChatProviderFactory {
         let mut provider =
             super::anthropic::chat::AnthropicChatProvider::new(client, config.model.clone())
                 .with_provider_name("bedrock");
-        #[cfg(feature = "analytics")]
+        #[cfg(feature = "telemetry")]
         if let Some(ref c) = config.analytics_collector {
             provider = provider.with_analytics(Arc::clone(c));
         }
@@ -193,7 +193,7 @@ impl ChatProviderFactory {
         let mut provider =
             super::anthropic::chat::AnthropicChatProvider::new(client, config.model.clone())
                 .with_provider_name("vertex-ai");
-        #[cfg(feature = "analytics")]
+        #[cfg(feature = "telemetry")]
         if let Some(ref c) = config.analytics_collector {
             provider = provider.with_analytics(Arc::clone(c));
         }
@@ -211,7 +211,7 @@ impl ChatProviderFactory {
         ));
         let mut provider =
             super::gemini::chat::GoogleChatProvider::new(client, config.model.clone());
-        #[cfg(feature = "analytics")]
+        #[cfg(feature = "telemetry")]
         if let Some(ref c) = config.analytics_collector {
             provider = provider.with_analytics(Arc::clone(c));
         }
@@ -223,7 +223,7 @@ impl ChatProviderFactory {
             config.model.clone(),
             config.base_url.clone(),
         );
-        #[cfg(feature = "analytics")]
+        #[cfg(feature = "telemetry")]
         if let Some(ref c) = config.analytics_collector {
             provider = provider.with_analytics(Arc::clone(c));
         }

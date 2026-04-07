@@ -905,7 +905,22 @@ impl TaskAgent {
 
             // ── Accumulate token usage ───────────────────────────────────────
             total_tokens_used += response.usage.total_tokens as u64;
-            total_cost_usd += response.usage.total_tokens as f64 * COST_PER_TOKEN;
+            let call_cost = response.usage.total_tokens as f64 * COST_PER_TOKEN;
+            total_cost_usd += call_cost;
+
+            // ── Emit billing UsageEvent::Tokens ─────────────────────────────
+            #[cfg(feature = "telemetry")]
+            if let Some(ref hook) = self.config.billing_hook {
+                let event = brainwires_telemetry::UsageEvent::tokens(
+                    self.id.clone(),
+                    self.config.system_prompt.as_deref().unwrap_or("unknown"),
+                    response.usage.total_tokens as u64,
+                    call_cost,
+                );
+                if let Err(e) = hook.0.on_usage(&event).await {
+                    tracing::warn!(agent_id = %self.id, error = %e, "billing hook error (tokens)");
+                }
+            }
 
             // ── Hook C: on_after_provider_call ───────────────────────────────
             if let Some(ref hooks) = self.context.lifecycle_hooks {
@@ -1336,10 +1351,22 @@ impl TaskAgent {
                     },
                 );
 
+                // ── Emit billing UsageEvent::ToolCall ───────────────────────
+                #[cfg(feature = "telemetry")]
+                if let Some(ref hook) = self.config.billing_hook {
+                    let event = brainwires_telemetry::UsageEvent::tool_call(
+                        self.id.clone(),
+                        tool_use.name.clone(),
+                    );
+                    if let Err(e) = hook.0.on_usage(&event).await {
+                        tracing::warn!(agent_id = %self.id, error = %e, "billing hook error (tool_call)");
+                    }
+                }
+
                 // ── Emit analytics ToolCall event ────────────────────────────
-                #[cfg(feature = "analytics")]
+                #[cfg(feature = "telemetry")]
                 if let Some(ref collector) = self.config.analytics_collector {
-                    collector.record(brainwires_analytics::AnalyticsEvent::ToolCall {
+                    collector.record(brainwires_telemetry::AnalyticsEvent::ToolCall {
                         session_id: None,
                         agent_id: Some(self.id.clone()),
                         tool_name: tool_use.name.clone(),
@@ -1543,9 +1570,9 @@ impl TaskAgent {
     /// Emit an [`AnalyticsEvent::AgentRun`] event if an analytics collector is configured.
     ///
     /// This is a no-op when compiled without the `analytics` feature.
-    #[cfg(feature = "analytics")]
+    #[cfg(feature = "telemetry")]
     fn maybe_emit_run_analytics(&self, result: &TaskAgentResult) {
-        use brainwires_analytics::AnalyticsEvent;
+        use brainwires_telemetry::AnalyticsEvent;
         if let Some(ref collector) = self.config.analytics_collector {
             let t = &result.telemetry;
             collector.record(AnalyticsEvent::AgentRun {
@@ -1569,7 +1596,7 @@ impl TaskAgent {
         }
     }
 
-    #[cfg(not(feature = "analytics"))]
+    #[cfg(not(feature = "telemetry"))]
     #[inline(always)]
     fn maybe_emit_run_analytics(&self, _result: &TaskAgentResult) {}
 }

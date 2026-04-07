@@ -192,9 +192,9 @@ impl RemoteBridge {
             bail!("Heartbeat failed: {} - {}", status, body);
         }
 
-        #[cfg(feature = "analytics")]
+        #[cfg(feature = "telemetry")]
         if let Some(ref collector) = self.analytics_collector {
-            use brainwires_analytics::AnalyticsEvent;
+            use brainwires_telemetry::AnalyticsEvent;
             let body_bytes = serde_json::to_vec(&heartbeat_body).unwrap_or_default();
             collector.record(AnalyticsEvent::NetworkMessage {
                 session_id: None,

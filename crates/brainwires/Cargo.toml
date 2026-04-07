@@ -58,7 +58,7 @@ brainwires-autonomy = { workspace = true, optional = true }
 brainwires-system = { workspace = true, optional = true }
 
 # Analytics
-brainwires-analytics = { workspace = true, optional = true }
+brainwires-telemetry = { workspace = true, optional = true }
 
 # MCP server re-exports (optional)
 rmcp = { workspace = true, optional = true }
@@ -143,7 +143,7 @@ training-full = ["training", "brainwires-training/full", "datasets", "brainwires
 autonomy = ["dep:brainwires-autonomy"]
 system = ["dep:brainwires-system", "brainwires-system/full"]
 dream = ["dep:brainwires-cognition", "brainwires-cognition/dream"]
-analytics = ["dep:brainwires-analytics", "brainwires-analytics/native", "brainwires-providers?/analytics"]
+telemetry = ["dep:brainwires-telemetry", "brainwires-telemetry/native", "brainwires-providers?/telemetry"]
 brain = ["dep:brainwires-cognition", "brainwires-cognition/knowledge"]
 bedrock = ["providers", "brainwires-providers/bedrock"]
 vertex-ai = ["providers", "brainwires-providers/vertex-ai"]
@@ -167,6 +167,6 @@ full = [
     "autonomy",
     "system",
     "dream",
-    "analytics",
+    "telemetry",
 ]
 

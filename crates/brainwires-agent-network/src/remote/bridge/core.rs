@@ -53,9 +53,9 @@ pub struct RemoteBridge {
     /// Permission relay for remote tool-approval prompts.
     pub permission_relay: crate::remote::permission_relay::PermissionRelay,
     /// Analytics collector for NetworkMessage events.
-    #[cfg(feature = "analytics")]
+    #[cfg(feature = "telemetry")]
     pub(super) analytics_collector:
-        Option<std::sync::Arc<brainwires_analytics::AnalyticsCollector>>,
+        Option<std::sync::Arc<brainwires_telemetry::AnalyticsCollector>>,
 }
 
 impl RemoteBridge {
@@ -96,16 +96,16 @@ impl RemoteBridge {
             device_status: Arc::new(RwLock::new(None)),
             org_policies: Arc::new(RwLock::new(None)),
             permission_relay: crate::remote::permission_relay::PermissionRelay::new(),
-            #[cfg(feature = "analytics")]
+            #[cfg(feature = "telemetry")]
             analytics_collector: None,
         }
     }
 
     /// Attach an analytics collector to record NetworkMessage events.
-    #[cfg(feature = "analytics")]
+    #[cfg(feature = "telemetry")]
     pub fn with_analytics(
         mut self,
-        collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>,
+        collector: std::sync::Arc<brainwires_telemetry::AnalyticsCollector>,
     ) -> Self {
         self.analytics_collector = Some(collector);
         self

@@ -13,10 +13,10 @@ use brainwires_core::{ChatOptions, ChatResponse, Message, Provider, StreamChunk,
 /// Ollama local model chat provider.
 pub struct OllamaChatProvider {
     inner: super::OllamaProvider,
-    #[cfg(feature = "analytics")]
+    #[cfg(feature = "telemetry")]
     model: String,
-    #[cfg(feature = "analytics")]
-    analytics_collector: Option<std::sync::Arc<brainwires_analytics::AnalyticsCollector>>,
+    #[cfg(feature = "telemetry")]
+    analytics_collector: Option<std::sync::Arc<brainwires_telemetry::AnalyticsCollector>>,
 }
 
 impl OllamaChatProvider {
@@ -24,9 +24,9 @@ impl OllamaChatProvider {
     pub fn new(model: String, base_url: Option<String>) -> Self {
         Self {
             inner: super::OllamaProvider::new(model.clone(), base_url),
-            #[cfg(feature = "analytics")]
+            #[cfg(feature = "telemetry")]
             model,
-            #[cfg(feature = "analytics")]
+            #[cfg(feature = "telemetry")]
             analytics_collector: None,
         }
     }
@@ -35,18 +35,18 @@ impl OllamaChatProvider {
     pub fn with_rate_limit(model: String, base_url: Option<String>, rpm: u32) -> Self {
         Self {
             inner: super::OllamaProvider::with_rate_limit(model.clone(), base_url, rpm),
-            #[cfg(feature = "analytics")]
+            #[cfg(feature = "telemetry")]
             model,
-            #[cfg(feature = "analytics")]
+            #[cfg(feature = "telemetry")]
             analytics_collector: None,
         }
     }
 
     /// Attach an analytics collector to this provider.
-    #[cfg(feature = "analytics")]
+    #[cfg(feature = "telemetry")]
     pub fn with_analytics(
         mut self,
-        collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>,
+        collector: std::sync::Arc<brainwires_telemetry::AnalyticsCollector>,
     ) -> Self {
         self.analytics_collector = Some(collector);
         self
@@ -65,12 +65,12 @@ impl Provider for OllamaChatProvider {
         tools: Option<&[Tool]>,
         options: &ChatOptions,
     ) -> Result<ChatResponse> {
-        #[cfg(feature = "analytics")]
+        #[cfg(feature = "telemetry")]
         let _started = std::time::Instant::now();
         let response = self.inner.chat(messages, tools, options).await?;
-        #[cfg(feature = "analytics")]
+        #[cfg(feature = "telemetry")]
         if let Some(ref collector) = self.analytics_collector {
-            use brainwires_analytics::AnalyticsEvent;
+            use brainwires_telemetry::AnalyticsEvent;
             collector.record(AnalyticsEvent::ProviderCall {
                 session_id: None,
                 provider: "ollama".to_string(),

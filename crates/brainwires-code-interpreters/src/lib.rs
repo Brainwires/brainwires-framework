@@ -36,6 +36,9 @@ mod types;
 #[cfg(feature = "docker")]
 pub mod docker;
 
+#[cfg(feature = "remote")]
+pub mod remote;
+
 #[cfg(feature = "wasm")]
 mod wasm_bindings;
 

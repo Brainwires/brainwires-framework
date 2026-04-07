@@ -24,7 +24,7 @@ futures = { workspace = true }
 thiserror = { workspace = true }
 uuid = { workspace = true }
 tracing = { workspace = true }
-brainwires-analytics = { workspace = true, optional = true }
+brainwires-telemetry = { workspace = true, optional = true }
 chrono = { workspace = true, optional = true }
 # HTTP transport
 axum = { workspace = true, optional = true }
@@ -39,6 +39,6 @@ chrono = { workspace = true }
 reqwest = { workspace = true }
 
 [features]
-analytics = ["dep:brainwires-analytics", "brainwires-analytics/native", "dep:chrono"]
+telemetry = ["dep:brainwires-telemetry", "brainwires-telemetry/native", "dep:chrono"]
 http = ["dep:axum", "dep:tokio-stream"]
 oauth = ["dep:jsonwebtoken", "dep:reqwest"]

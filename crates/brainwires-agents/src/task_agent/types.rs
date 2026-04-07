@@ -215,10 +215,20 @@ pub struct TaskAgentConfig {
 
     /// Optional analytics collector.
     ///
-    /// When `Some`, emits [`brainwires_analytics::AnalyticsEvent::AgentRun`] after
+    /// When `Some`, emits [`brainwires_telemetry::AnalyticsEvent::AgentRun`] after
     /// each run completes (success or failure). Feature-gated by `analytics`.
-    #[cfg(feature = "analytics")]
-    pub analytics_collector: Option<std::sync::Arc<brainwires_analytics::AnalyticsCollector>>,
+    #[cfg(feature = "telemetry")]
+    pub analytics_collector: Option<std::sync::Arc<brainwires_telemetry::AnalyticsCollector>>,
+
+    /// Optional billing hook.
+    ///
+    /// When `Some`, emits a [`brainwires_telemetry::UsageEvent`] at every
+    /// cost-accrual point during the run: once per provider call (tokens) and
+    /// once per tool call. Feature-gated by `billing`.
+    ///
+    /// The hook is fail-open — errors are logged but never abort the agent run.
+    #[cfg(feature = "telemetry")]
+    pub billing_hook: Option<crate::task_agent::BillingHookRef>,
 }
 
 impl Default for TaskAgentConfig {
@@ -238,8 +248,10 @@ impl Default for TaskAgentConfig {
             allowed_files: None,
             plan_budget: None,
             context_budget_tokens: None,
-            #[cfg(feature = "analytics")]
+            #[cfg(feature = "telemetry")]
             analytics_collector: None,
+            #[cfg(feature = "telemetry")]
+            billing_hook: None,
         }
     }
 }

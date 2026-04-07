@@ -53,7 +53,7 @@ subtle = { workspace = true, optional = true }
 brainwires-hardware = { workspace = true, optional = true, features = ["gpio"] }
 
 # Analytics
-brainwires-analytics = { workspace = true, optional = true }
+brainwires-telemetry = { workspace = true, optional = true }
 
 
 [features]
@@ -84,7 +84,7 @@ webhook = ["git-workflow", "dep:axum", "dep:hmac", "dep:sha1", "dep:subtle"]
 # Environment interaction
 gpio = ["dep:brainwires-hardware"]
 
-analytics = ["dep:brainwires-analytics", "brainwires-analytics/native"]
+telemetry = ["dep:brainwires-telemetry", "brainwires-telemetry/native"]
 
 full = ["self-improve", "eval-driven", "supervisor", "attention", "parallel", "training", "git-workflow", "webhook", "gpio"]
 

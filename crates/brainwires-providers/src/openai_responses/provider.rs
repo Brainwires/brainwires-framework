@@ -22,8 +22,8 @@ pub struct OpenAiResponsesProvider {
     model: String,
     provider_name: String,
     last_response_id: Arc<Mutex<Option<String>>>,
-    #[cfg(feature = "analytics")]
-    analytics_collector: Option<std::sync::Arc<brainwires_analytics::AnalyticsCollector>>,
+    #[cfg(feature = "telemetry")]
+    analytics_collector: Option<std::sync::Arc<brainwires_telemetry::AnalyticsCollector>>,
 }
 
 impl OpenAiResponsesProvider {
@@ -34,7 +34,7 @@ impl OpenAiResponsesProvider {
             model,
             provider_name: "openai-responses".to_string(),
             last_response_id: Arc::new(Mutex::new(None)),
-            #[cfg(feature = "analytics")]
+            #[cfg(feature = "telemetry")]
             analytics_collector: None,
         }
     }
@@ -46,10 +46,10 @@ impl OpenAiResponsesProvider {
     }
 
     /// Attach an analytics collector to this provider.
-    #[cfg(feature = "analytics")]
+    #[cfg(feature = "telemetry")]
     pub fn with_analytics(
         mut self,
-        collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>,
+        collector: std::sync::Arc<brainwires_telemetry::AnalyticsCollector>,
     ) -> Self {
         self.analytics_collector = Some(collector);
         self
@@ -106,7 +106,7 @@ impl Provider for OpenAiResponsesProvider {
             req.tool_choice = Some(ToolChoice::Mode("auto".to_string()));
         }
 
-        #[cfg(feature = "analytics")]
+        #[cfg(feature = "telemetry")]
         let _started = std::time::Instant::now();
         let resp = self.client.create(&req).await?;
 
@@ -114,9 +114,9 @@ impl Provider for OpenAiResponsesProvider {
         *self.last_response_id.lock().await = Some(resp.id.clone());
 
         let chat_response = convert::response_to_chat_response(&resp)?;
-        #[cfg(feature = "analytics")]
+        #[cfg(feature = "telemetry")]
         if let Some(ref collector) = self.analytics_collector {
-            use brainwires_analytics::AnalyticsEvent;
+            use brainwires_telemetry::AnalyticsEvent;
             collector.record(AnalyticsEvent::ProviderCall {
                 session_id: None,
                 provider: self.provider_name.clone(),

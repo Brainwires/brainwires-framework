@@ -35,8 +35,8 @@ pub struct DreamConsolidator {
     provider: Arc<dyn Provider>,
     policy: DemotionPolicy,
     metrics: DreamMetrics,
-    #[cfg(feature = "analytics")]
-    analytics_collector: Option<std::sync::Arc<brainwires_analytics::AnalyticsCollector>>,
+    #[cfg(feature = "telemetry")]
+    analytics_collector: Option<std::sync::Arc<brainwires_telemetry::AnalyticsCollector>>,
 }
 
 impl DreamConsolidator {
@@ -46,16 +46,16 @@ impl DreamConsolidator {
             provider,
             policy,
             metrics: DreamMetrics::default(),
-            #[cfg(feature = "analytics")]
+            #[cfg(feature = "telemetry")]
             analytics_collector: None,
         }
     }
 
     /// Attach an analytics collector to record DreamCycle events.
-    #[cfg(feature = "analytics")]
+    #[cfg(feature = "telemetry")]
     pub fn with_analytics(
         mut self,
-        collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>,
+        collector: std::sync::Arc<brainwires_telemetry::AnalyticsCollector>,
     ) -> Self {
         self.analytics_collector = Some(collector);
         self
@@ -89,9 +89,9 @@ impl DreamConsolidator {
         report.metrics.duration = start.elapsed();
         self.metrics = report.metrics.clone();
 
-        #[cfg(feature = "analytics")]
+        #[cfg(feature = "telemetry")]
         if let Some(ref collector) = self.analytics_collector {
-            use brainwires_analytics::AnalyticsEvent;
+            use brainwires_telemetry::AnalyticsEvent;
             let m = &report.metrics;
             collector.record(AnalyticsEvent::DreamCycle {
                 session_id: None,

@@ -87,7 +87,7 @@ pub struct TaskAgentConfig {
     /// MDAP configuration (Massively Decomposed Agentic Processes)
     pub mdap_config: Option<crate::mdap::MdapConfig>,
     /// Analytics collector — emit AgentRun and ToolCall events
-    pub analytics_collector: Option<std::sync::Arc<brainwires_analytics::AnalyticsCollector>>,
+    pub analytics_collector: Option<std::sync::Arc<brainwires_telemetry::AnalyticsCollector>>,
 
     /// Optional role that restricts which tools are presented to the model.
     ///
@@ -600,7 +600,7 @@ impl TaskAgent {
                             let result =
                                 self.tool_executor.execute(&tool_use, &tool_context).await?;
                             if let Some(ref collector) = self.config.analytics_collector {
-                                collector.record(brainwires_analytics::AnalyticsEvent::ToolCall {
+                                collector.record(brainwires_telemetry::AnalyticsEvent::ToolCall {
                                     session_id: None,
                                     agent_id: Some(self.id.clone()),
                                     tool_name: tool_use.name.clone(),
@@ -713,7 +713,7 @@ impl TaskAgent {
                     let _tool_start = std::time::Instant::now();
                     let result = self.tool_executor.execute(&tool_use, &tool_context).await?;
                     if let Some(ref collector) = self.config.analytics_collector {
-                        collector.record(brainwires_analytics::AnalyticsEvent::ToolCall {
+                        collector.record(brainwires_telemetry::AnalyticsEvent::ToolCall {
                             session_id: None,
                             agent_id: Some(self.id.clone()),
                             tool_name: tool_use.name.clone(),

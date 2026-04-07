@@ -221,10 +221,10 @@ pub mod dream {
     pub use brainwires_cognition::dream::*;
 }
 
-/// Analytics — typed event collection, SQLite persistence, and cost/usage queries.
-#[cfg(feature = "analytics")]
-pub mod analytics {
-    pub use brainwires_analytics::*;
+/// Telemetry — analytics events, billing hooks, SQLite persistence, and cost/usage queries.
+#[cfg(feature = "telemetry")]
+pub mod telemetry {
+    pub use brainwires_telemetry::*;
 }
 
 /// Central knowledge — BKS, PKS, entity graphs, thought processing.

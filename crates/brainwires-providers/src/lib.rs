@@ -306,9 +306,9 @@ pub struct ProviderConfig {
     #[serde(flatten)]
     pub options: std::collections::HashMap<String, serde_json::Value>,
     /// Analytics collector — not serialized, threaded through at runtime.
-    #[cfg(feature = "analytics")]
+    #[cfg(feature = "telemetry")]
     #[serde(skip)]
-    pub analytics_collector: Option<std::sync::Arc<brainwires_analytics::AnalyticsCollector>>,
+    pub analytics_collector: Option<std::sync::Arc<brainwires_telemetry::AnalyticsCollector>>,
 }
 
 impl ProviderConfig {
@@ -320,7 +320,7 @@ impl ProviderConfig {
             api_key: None,
             base_url: None,
             options: std::collections::HashMap::new(),
-            #[cfg(feature = "analytics")]
+            #[cfg(feature = "telemetry")]
             analytics_collector: None,
         }
     }
@@ -354,10 +354,10 @@ impl ProviderConfig {
     }
 
     /// Attach an analytics collector — called by the factory layer before provider construction.
-    #[cfg(feature = "analytics")]
+    #[cfg(feature = "telemetry")]
     pub fn with_analytics(
         mut self,
-        collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>,
+        collector: std::sync::Arc<brainwires_telemetry::AnalyticsCollector>,
     ) -> Self {
         self.analytics_collector = Some(collector);
         self

@@ -86,6 +86,8 @@ assert!(result.success);
 | `lua` | Yes | Lua 5.4 via mlua (vendored) |
 | `javascript` | No | JavaScript ES2022+ via Boa engine |
 | `python` | No | Python 3.12 compatible via RustPython |
+| `docker` | No | Docker CLI sandbox backend |
+| `remote` | No | Remote REST sandbox backend (E2B, Modal, Daytona, custom) |
 | `all-languages` | No | Enables all four language interpreters |
 | `wasm` | No | WASM target with `wasm-bindgen` exports |
 
@@ -97,6 +99,9 @@ brainwires-code-interpreters = "0.8"
 
 # All languages
 brainwires-code-interpreters = { version = "0.8", features = ["all-languages"] }
+
+# Remote sandbox (E2B, Modal, Daytona, custom REST endpoint)
+brainwires-code-interpreters = { version = "0.8", features = ["remote"] }
 
 # WASM target
 brainwires-code-interpreters = { version = "0.8", default-features = false, features = ["wasm", "rhai", "lua"] }
@@ -380,6 +385,42 @@ let result = rhai.execute(&ExecutionRequest {
 
 assert!(result.success);
 ```
+
+### Remote Sandbox (E2B / Modal / Daytona / custom)
+
+As Nate B Jones put it: *"whoever solves orchestration at infrastructure grade is going to own the most valuable position in the agent stack."* The `remote` feature lets you hand execution off to any REST sandbox service without changing your agent code.
+
+```toml
+brainwires-code-interpreters = { version = "0.8", features = ["remote"] }
+```
+
+```rust
+use brainwires_code_interpreters::remote::{RemoteSandboxConfig, RemoteSandboxExecutor};
+use brainwires_code_interpreters::{ExecutionRequest, Language};
+use std::time::Duration;
+
+# async fn example() -> anyhow::Result<()> {
+// Works with E2B, Modal custom endpoints, Daytona workspaces, or your own service.
+let config = RemoteSandboxConfig::new("https://sandbox.example.com", "sk-my-api-key")
+    .with_timeout(Duration::from_secs(120))
+    .with_header("X-Team-Id", "team-abc");  // vendor-specific metadata
+
+let executor = RemoteSandboxExecutor::new(config)?;
+
+if executor.health_check().await {
+    let result = executor.execute(ExecutionRequest {
+        language: Language::Python,
+        code: "import sys; print(sys.version)".to_string(),
+        ..Default::default()
+    }).await?;
+
+    println!("{}", result.stdout);
+}
+# Ok(())
+# }
+```
+
+The executor POSTs `ExecutionRequest` as JSON to `{base_url}/execute` and deserialises the `ExecutionResult` response — the same wire format the brainwires sandbox server speaks.
 
 ### Check Supported Languages
 

@@ -184,9 +184,9 @@ impl Gateway {
 
         let metrics = self.shared_metrics.clone().unwrap_or_else(|| {
             let m = MetricsCollector::new();
-            #[cfg(feature = "analytics")]
+            #[cfg(feature = "telemetry")]
             let m = {
-                use brainwires_analytics::{AnalyticsCollector, SqliteAnalyticsSink};
+                use brainwires_telemetry::{AnalyticsCollector, SqliteAnalyticsSink};
                 match SqliteAnalyticsSink::new_default() {
                     Ok(sink) => {
                         let collector = std::sync::Arc::new(AnalyticsCollector::new(vec![Box::new(sink)]));

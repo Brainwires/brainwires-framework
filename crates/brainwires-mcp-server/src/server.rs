@@ -14,8 +14,8 @@ pub struct McpServer<H: McpHandler> {
     handler: H,
     middleware: MiddlewareChain,
     transport: Box<dyn ServerTransport>,
-    #[cfg(feature = "analytics")]
-    analytics_collector: Option<std::sync::Arc<brainwires_analytics::AnalyticsCollector>>,
+    #[cfg(feature = "telemetry")]
+    analytics_collector: Option<std::sync::Arc<brainwires_telemetry::AnalyticsCollector>>,
 }
 
 impl<H: McpHandler> McpServer<H> {
@@ -25,7 +25,7 @@ impl<H: McpHandler> McpServer<H> {
             handler,
             middleware: MiddlewareChain::new(),
             transport: Box::new(StdioServerTransport::new()),
-            #[cfg(feature = "analytics")]
+            #[cfg(feature = "telemetry")]
             analytics_collector: None,
         }
     }
@@ -43,10 +43,10 @@ impl<H: McpHandler> McpServer<H> {
     }
 
     /// Attach an analytics collector to record McpRequest events.
-    #[cfg(feature = "analytics")]
+    #[cfg(feature = "telemetry")]
     pub fn with_analytics(
         mut self,
-        collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>,
+        collector: std::sync::Arc<brainwires_telemetry::AnalyticsCollector>,
     ) -> Self {
         self.analytics_collector = Some(collector);
         self
@@ -252,7 +252,7 @@ impl<H: McpHandler> McpServer<H> {
 
         let args = params.get("arguments").cloned().unwrap_or(json!({}));
 
-        #[cfg(feature = "analytics")]
+        #[cfg(feature = "telemetry")]
         let _started = std::time::Instant::now();
 
         let (response, _success) = match self.handler.call_tool(tool_name, args, ctx).await {
@@ -282,9 +282,9 @@ impl<H: McpHandler> McpServer<H> {
             }
         };
 
-        #[cfg(feature = "analytics")]
+        #[cfg(feature = "telemetry")]
         if let Some(ref collector) = self.analytics_collector {
-            use brainwires_analytics::AnalyticsEvent;
+            use brainwires_telemetry::AnalyticsEvent;
             collector.record(AnalyticsEvent::McpRequest {
                 session_id: None,
                 server_name: self.handler.server_info().name.clone(),
