@@ -10,7 +10,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use tokio::sync::mpsc;
 
-use brainwires_channels::{Channel, ChannelEvent};
+use brainwires_network::channels::{Channel, ChannelEvent};
 
 use config::GitHubConfig;
 use github::GitHubChannel;

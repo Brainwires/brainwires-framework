@@ -20,7 +20,7 @@ doc = false
 
 [dependencies]
 brainwires-agents.workspace = true
-brainwires-channels.workspace = true
+brainwires-network.workspace = true
 brainwires-core.workspace = true
 brainwires-tools.workspace = true
 tokio.workspace = true

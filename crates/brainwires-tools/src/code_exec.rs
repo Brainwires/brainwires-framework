@@ -2,7 +2,7 @@
 //!
 //! Provides a unified `execute_code` tool that supports multiple languages:
 //!
-//! ## Default (Native Interpreters via brainwires-code-interpreters crate)
+//! ## Default (Native Interpreters via brainwires-tools interpreters module crate)
 //! - **Rhai**: Lightweight Rust scripting (always available)
 //! - **Lua**: Lua 5.4 via mlua (always available)
 //! - **JavaScript**: ES2022+ via Boa engine (with feature flag)
@@ -11,7 +11,7 @@
 //! Requires the `interpreters` feature flag.
 
 use anyhow::Result;
-use brainwires_code_interpreters::{ExecutionLimits, ExecutionRequest, Executor, Language};
+use crate::interpreters::{ExecutionLimits, ExecutionRequest, Executor, Language};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::collections::HashMap;

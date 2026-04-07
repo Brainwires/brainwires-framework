@@ -19,7 +19,7 @@ path = "src/main.rs"
 doc = false
 
 [dependencies]
-brainwires-channels.workspace = true
+brainwires-network.workspace = true
 brainwires-core.workspace = true
 tokio.workspace = true
 serde.workspace = true

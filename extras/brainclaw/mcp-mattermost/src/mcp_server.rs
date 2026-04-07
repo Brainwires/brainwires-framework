@@ -13,7 +13,7 @@ use rmcp::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use brainwires_channels::{Channel, ChannelMessage, ConversationId, MessageContent, MessageId};
+use brainwires_network::channels::{Channel, ChannelMessage, ConversationId, MessageContent, MessageId};
 
 use crate::mattermost::MattermostChannel;
 
@@ -115,7 +115,7 @@ impl MattermostMcpServer {
             conversation: conversation.clone(),
             author: "bot".to_string(),
             content: MessageContent::Text(req.content),
-            thread_id: req.thread_id.map(brainwires_channels::ThreadId::new),
+            thread_id: req.thread_id.map(brainwires_network::channels::ThreadId::new),
             reply_to: None,
             timestamp: chrono::Utc::now(),
             attachments: vec![],

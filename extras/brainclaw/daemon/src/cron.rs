@@ -14,8 +14,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::Result;
-use brainwires_channels::message::{ChannelMessage, MessageContent, MessageId};
-use brainwires_channels::ConversationId;
+use brainwires_network::channels::message::{ChannelMessage, MessageContent, MessageId};
+use brainwires_network::channels::ConversationId;
 use brainwires_gateway::channel_registry::ChannelRegistry;
 use brainwires_gateway::cron::CronStore;
 use brainwires_gateway::AgentInboundHandler;

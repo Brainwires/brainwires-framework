@@ -8,7 +8,7 @@ use serenity::model::prelude::{ChannelId, GuildId, Reaction};
 use serenity::prelude::{Context, EventHandler};
 use tokio::sync::mpsc;
 
-use brainwires_channels::{ChannelEvent, ChannelUser, ConversationId, MessageId};
+use brainwires_network::channels::{ChannelEvent, ChannelUser, ConversationId, MessageId};
 
 use crate::config::DiscordConfig;
 use crate::discord::discord_message_to_channel_message;

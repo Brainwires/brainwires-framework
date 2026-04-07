@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use brainwires_channels::{Channel, ChannelMessage, ConversationId, MessageContent, MessageId};
+use brainwires_network::channels::{Channel, ChannelMessage, ConversationId, MessageContent, MessageId};
 use chrono::Utc;
 use rmcp::{
     ServerHandler, ServiceExt,

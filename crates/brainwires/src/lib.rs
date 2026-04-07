@@ -98,7 +98,7 @@ pub mod rag {
 /// Sandboxed code interpreters — Rhai, Lua, JavaScript (Boa), Python (RustPython).
 #[cfg(feature = "interpreters")]
 pub mod interpreters {
-    pub use brainwires_code_interpreters::*;
+    pub use brainwires_tools::interpreters::*;
 }
 
 /// Agent network — IPC, remote bridge, mesh networking, routing, discovery.
@@ -212,7 +212,7 @@ pub mod autonomy {
 /// Generic OS-level primitives — filesystem event reactor, service management.
 #[cfg(feature = "system")]
 pub mod system {
-    pub use brainwires_system::*;
+    pub use brainwires_tools::system::*;
 }
 
 /// Offline memory consolidation — summarization, fact extraction, hot/warm/cold tier transitions.

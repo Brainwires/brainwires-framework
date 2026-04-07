@@ -7,7 +7,7 @@ use teloxide::respond;
 use teloxide::types::{ChatKind, Message, MessageEntityKind};
 use tokio::sync::mpsc;
 
-use brainwires_channels::ChannelEvent;
+use brainwires_network::channels::ChannelEvent;
 
 use crate::config::TelegramConfig;
 use crate::telegram::telegram_message_to_channel_message;

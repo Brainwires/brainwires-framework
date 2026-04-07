@@ -8,7 +8,7 @@ use tokio::sync::mpsc;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing;
 
-use brainwires_channels::{
+use brainwires_network::channels::{
     Channel, ChannelCapabilities, ChannelEvent, ChannelHandshake, ChannelHandshakeResponse,
     ChannelMessage,
 };

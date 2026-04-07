@@ -34,12 +34,12 @@ pub use brainwires_core;
 /// who need MDAP (Multi-Dimensional Adaptive Planning) types and configuration.
 pub use brainwires_agents::mdap;
 
-/// Re-export of the [`brainwires_code_interpreters`] crate (requires the `interpreters` feature).
+/// Re-export of the interpreters module (requires the `interpreters` feature).
 ///
 /// Provides sandboxed code execution capabilities for languages like JavaScript and Python
 /// within the WASM environment.
 #[cfg(feature = "interpreters")]
-pub use brainwires_code_interpreters;
+pub use brainwires_tools::interpreters;
 
 /// WASM orchestrator module providing JavaScript-compatible bindings for the tool orchestrator.
 ///

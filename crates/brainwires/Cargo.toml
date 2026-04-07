@@ -25,9 +25,6 @@ brainwires-mcp = { workspace = true, optional = true }
 brainwires-cognition = { workspace = true, optional = true }
 brainwires-permissions = { workspace = true, optional = true }
 
-# Feature-gated existing crates
-brainwires-code-interpreters = { workspace = true, optional = true }
-
 # Providers
 brainwires-providers = { workspace = true, optional = true }
 
@@ -53,8 +50,6 @@ brainwires-training = { workspace = true, optional = true }
 # Autonomy
 brainwires-autonomy = { workspace = true, optional = true }
 
-# System primitives
-brainwires-system = { workspace = true, optional = true }
 
 # Analytics
 brainwires-telemetry = { workspace = true, optional = true }
@@ -111,7 +106,7 @@ orchestrator = ["tools", "brainwires-tools/orchestrator"]
 openapi = ["tools", "brainwires-tools/openapi"]
 rag = ["dep:brainwires-cognition", "brainwires-cognition/rag", "dep:brainwires-storage", "brainwires-storage/vector-db", "tools", "brainwires-tools/rag"]
 rag-full-languages = ["rag", "brainwires-cognition/tree-sitter-languages"]
-interpreters = ["dep:brainwires-code-interpreters"]
+interpreters = ["tools", "brainwires-tools/interpreters"]
 providers = ["dep:brainwires-providers"]
 chat = ["providers"]
 reasoning = ["agents", "brainwires-agents/reasoning"]
@@ -140,7 +135,7 @@ training-cloud = ["training", "brainwires-training/cloud"]
 training-local = ["training", "brainwires-training/local"]
 training-full = ["training", "brainwires-training/full", "datasets"]
 autonomy = ["dep:brainwires-autonomy"]
-system = ["dep:brainwires-system", "brainwires-system/full"]
+system = ["tools", "brainwires-tools/system"]
 dream = ["dep:brainwires-cognition", "brainwires-cognition/dream"]
 telemetry = ["dep:brainwires-telemetry", "brainwires-telemetry/native", "brainwires-providers?/telemetry"]
 brain = ["dep:brainwires-cognition", "brainwires-cognition/knowledge"]

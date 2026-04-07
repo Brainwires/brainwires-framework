@@ -9,8 +9,8 @@ use futures::{SinkExt, StreamExt};
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
-use brainwires_channels::ChannelCapabilities;
-use brainwires_channels::events::ChannelEvent;
+use brainwires_network::channels::ChannelCapabilities;
+use brainwires_network::channels::events::ChannelEvent;
 
 use crate::channel_registry::ConnectedChannel;
 use crate::state::AppState;

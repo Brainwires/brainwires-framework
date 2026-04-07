@@ -7,7 +7,7 @@
 
 use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
-use brainwires_channels::{
+use brainwires_network::channels::{
     Channel, ChannelCapabilities, ChannelMessage, ConversationId, MessageContent, MessageId,
 };
 use chrono::Utc;

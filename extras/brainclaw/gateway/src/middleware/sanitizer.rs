@@ -3,7 +3,7 @@
 //! Processes inbound channel messages to detect system-message spoofing attempts
 //! and scrubs outbound responses to prevent leaking secrets (API keys, SSNs, etc.).
 
-use brainwires_channels::ChannelEvent;
+use brainwires_network::channels::ChannelEvent;
 use regex::Regex;
 use std::sync::LazyLock;
 
@@ -144,7 +144,7 @@ impl MessageSanitizer {
 // Helpers
 // ---------------------------------------------------------------------------
 
-use brainwires_channels::MessageContent;
+use brainwires_network::channels::MessageContent;
 
 /// Extract a reference to the plain-text body of a message (if available).
 fn extract_text(content: &MessageContent) -> Option<&str> {
@@ -191,9 +191,9 @@ fn strip_spoof_text(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use brainwires_channels::{ChannelMessage, MessageContent};
-    use brainwires_channels::identity::ConversationId;
-    use brainwires_channels::message::MessageId;
+    use brainwires_network::channels::{ChannelMessage, MessageContent};
+    use brainwires_network::channels::identity::ConversationId;
+    use brainwires_network::channels::message::MessageId;
     use chrono::Utc;
     use std::collections::HashMap;
 

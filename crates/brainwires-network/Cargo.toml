@@ -71,6 +71,15 @@ keyring = { workspace = true, optional = true }
 # Analytics
 brainwires-telemetry = { workspace = true, optional = true }
 
+# ── Channels deps (absorbed from brainwires-channels) ─────────────────────
+schemars = { workspace = true, features = ["uuid1", "chrono04"] }
+bitflags = { workspace = true }
+webrtc          = { git = "https://github.com/Brainwires/webrtc-rs", branch = "master", optional = true }
+rtc             = { git = "https://github.com/Brainwires/webrtc-rs", branch = "master", package = "rtc",             optional = true }
+rtc-interceptor = { git = "https://github.com/Brainwires/webrtc-rs", branch = "master", package = "rtc-interceptor", optional = true }
+rtc-ice         = { git = "https://github.com/Brainwires/webrtc-rs", branch = "master", package = "rtc-ice",         optional = true }
+bytes           = { workspace = true, optional = true }
+
 [features]
 default = ["client", "ipc-transport", "remote-transport"]
 client = ["dep:brainwires-mcp"]
@@ -86,6 +95,10 @@ auth-keyring = ["keyring"]
 telemetry = ["dep:brainwires-telemetry", "brainwires-telemetry/native"]
 # Internet-facing agent email identity (send/receive via Mailgun, Postmark, Resend, or custom endpoint)
 email-identity = []
+# Channels (absorbed from brainwires-channels)
+channels = []
+channels-webrtc = ["channels", "dep:webrtc", "dep:rtc", "dep:bytes"]
+channels-webrtc-advanced = ["channels-webrtc", "dep:rtc-interceptor", "dep:rtc-ice"]
 
 [dev-dependencies]
 tempfile = { workspace = true }

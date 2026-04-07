@@ -16,7 +16,7 @@ use axum::{
     response::IntoResponse,
     routing::post,
 };
-use brainwires_channels::{ChannelMessage, ConversationId, MessageContent, MessageId};
+use brainwires_network::channels::{ChannelMessage, ConversationId, MessageContent, MessageId};
 use chrono::Utc;
 use hmac::{Hmac, Mac};
 use sha2::Sha256;

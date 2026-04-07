@@ -24,7 +24,7 @@ use std::time::Duration;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use brainwires_channels::{ChannelMessage, ConversationId, MessageContent, MessageId};
+use brainwires_network::channels::{ChannelMessage, ConversationId, MessageContent, MessageId};
 use brainwires_core::{ToolContext, ToolUse};
 use brainwires_tools::{PreHookDecision, ToolPreHook};
 use chrono::Utc;
@@ -210,7 +210,7 @@ impl ToolPreHook for ChatApprovalHook {
             metadata: std::collections::HashMap::new(),
         };
 
-        let event = brainwires_channels::ChannelEvent::MessageReceived(approval_msg);
+        let event = brainwires_network::channels::ChannelEvent::MessageReceived(approval_msg);
         let json = serde_json::to_string(&event)?;
 
         // Register the pending approval before sending (avoid race)

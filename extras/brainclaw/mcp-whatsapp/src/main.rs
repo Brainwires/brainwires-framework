@@ -5,7 +5,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use tokio::sync::mpsc;
 
-use brainwires_channels::Channel;
+use brainwires_network::channels::Channel;
 use brainwires_whatsapp_channel::config::WhatsAppConfig;
 use brainwires_whatsapp_channel::event_handler::{WebhookState, build_router};
 use brainwires_whatsapp_channel::gateway_client::GatewayClient;

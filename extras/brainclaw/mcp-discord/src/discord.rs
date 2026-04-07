@@ -12,7 +12,7 @@ use serenity::all::{CreateMessage, EditMessage, GetMessages, ReactionType};
 use serenity::http::Http;
 use tokio::sync::RwLock;
 
-use brainwires_channels::{
+use brainwires_network::channels::{
     Attachment, ChannelCapabilities, ChannelMessage, ConversationId, EmbedField, EmbedPayload,
     MessageContent, MessageId, ThreadId,
 };
@@ -49,7 +49,7 @@ impl DiscordChannel {
 }
 
 #[async_trait]
-impl brainwires_channels::Channel for DiscordChannel {
+impl brainwires_network::channels::Channel for DiscordChannel {
     fn channel_type(&self) -> &str {
         "discord"
     }
@@ -351,7 +351,7 @@ pub fn channel_message_to_discord_content(message: &ChannelMessage) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use brainwires_channels::{ChannelCapabilities, MediaPayload, MediaType};
+    use brainwires_network::channels::{ChannelCapabilities, MediaPayload, MediaType};
     use chrono::Utc;
 
     fn sample_conversation() -> ConversationId {

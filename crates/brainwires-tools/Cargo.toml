@@ -80,8 +80,21 @@ icalendar = { version = "0.16", optional = true }
 
 # Feature-gated dependencies
 brainwires-cognition = { workspace = true, optional = true }
-brainwires-code-interpreters = { workspace = true, optional = true }
 brainwires-mcp = { workspace = true, optional = true }
+
+# ── System deps (absorbed from brainwires-system) ─────────────────────────
+notify = { version = "7", optional = true }
+
+# ── Interpreter deps (absorbed from brainwires-code-interpreters) ─────────
+mlua = { version = "0.10.3", features = ["lua54", "vendored"], optional = true }
+boa_engine = { version = "0.21", optional = true }
+tempfile = { version = "3", optional = true }
+# wasm interpreter bindings
+wasm-bindgen = { version = "0.2", optional = true }
+js-sys = { version = "0.3", optional = true }
+web-sys = { version = "0.3", features = ["console"], optional = true }
+getrandom = { version = "0.2", optional = true }
+serde-wasm-bindgen = { version = "0.6", optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }
@@ -100,14 +113,22 @@ wasm = ["brainwires-core/wasm"]
 orchestrator = ["dep:rhai", "rhai/sync"]
 orchestrator-wasm = ["dep:rhai", "dep:web-time"]
 rag = ["dep:brainwires-cognition", "brainwires-cognition/rag", "brainwires-cognition/lancedb-backend", "brainwires-cognition/tree-sitter-languages"]
-interpreters = ["dep:brainwires-code-interpreters"]
+interpreters = ["interpreters-rhai", "interpreters-lua"]
+interpreters-rhai = ["dep:rhai"]
+interpreters-lua = ["dep:mlua"]
+interpreters-js = ["dep:boa_engine"]
+interpreters-all = ["interpreters-rhai", "interpreters-lua", "interpreters-js"]
+interpreters-wasm = ["dep:wasm-bindgen", "dep:js-sys", "dep:web-sys", "dep:getrandom", "dep:serde-wasm-bindgen"]
 openapi = ["dep:openapiv3", "dep:serde_yml", "dep:reqwest"]
 email = ["dep:lettre", "dep:async-imap", "dep:imap-proto", "dep:tokio-native-tls", "dep:native-tls", "dep:futures", "dep:mailparse", "dep:base64"]
 calendar = ["dep:icalendar", "dep:reqwest"]
 browser = ["dep:brainwires-mcp", "native"]
 # OAuth 2.0 middleware — PKCE, client credentials, token refresh, pluggable store
 oauth = ["native"]
-full = ["orchestrator", "rag", "interpreters", "openapi", "email", "calendar", "browser", "oauth"]
+# System primitives (absorbed from brainwires-system)
+system = ["dep:notify"]
+system-full = ["system"]
+full = ["orchestrator", "rag", "interpreters", "openapi", "email", "calendar", "browser", "oauth", "system"]
 
 [[bench]]
 name = "token_comparison"

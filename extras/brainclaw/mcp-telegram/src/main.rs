@@ -4,7 +4,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use tokio::sync::mpsc;
 
-use brainwires_channels::Channel;
+use brainwires_network::channels::Channel;
 use brainwires_telegram_channel::config::TelegramConfig;
 use brainwires_telegram_channel::event_handler;
 use brainwires_telegram_channel::gateway_client::GatewayClient;

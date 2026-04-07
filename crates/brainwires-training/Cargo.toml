@@ -28,6 +28,7 @@ chrono.workspace = true
 # ── Datasets deps (absorbed from brainwires-datasets) ─────────────────────
 sha2 = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
+tiktoken-rs = { workspace = true, optional = true }
 
 # Cloud feature
 reqwest = { version = "0.12", features = ["json", "stream", "multipart"], optional = true }
@@ -67,7 +68,7 @@ vertex = ["cloud", "dep:gcp_auth"]
 full = ["cloud", "local", "bedrock", "vertex", "datasets-full"]
 # Datasets sub-features
 datasets-hf-tokenizer = ["dep:tokenizers"]
-datasets-tiktoken = []
+datasets-tiktoken = ["dep:tiktoken-rs"]
 datasets-dedup = ["dep:sha2", "dep:rand"]
 datasets-full = ["datasets-hf-tokenizer", "datasets-tiktoken", "datasets-dedup"]
 

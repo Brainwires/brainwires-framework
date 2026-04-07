@@ -96,6 +96,14 @@ mod browser;
 #[cfg(feature = "oauth")]
 pub mod oauth;
 
+/// OS-level primitives — filesystem event watching and service management (absorbed from brainwires-system).
+#[cfg(feature = "system")]
+pub mod system;
+
+/// Sandboxed multi-language code interpreters (absorbed from brainwires-code-interpreters).
+#[cfg(feature = "interpreters")]
+pub mod interpreters;
+
 // ── Public re-exports ────────────────────────────────────────────────────────
 
 // Always-available tools

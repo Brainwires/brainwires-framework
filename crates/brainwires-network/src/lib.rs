@@ -71,6 +71,9 @@ pub mod network;
 /// Message routing — direct, broadcast, and content-based routing.
 pub mod routing;
 
+/// Universal messaging channels (absorbed from brainwires-channels).
+pub mod channels;
+
 pub use identity::{AgentCard, AgentIdentity, ProtocolId};
 pub use network::{
     ConnectionState, MessageEnvelope, MessageTarget, NetworkError, NetworkEvent, NetworkManager,

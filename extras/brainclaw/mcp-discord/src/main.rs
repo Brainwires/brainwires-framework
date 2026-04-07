@@ -6,7 +6,7 @@ use serenity::all::GatewayIntents;
 use serenity::Client;
 use tokio::sync::mpsc;
 
-use brainwires_channels::Channel;
+use brainwires_network::channels::Channel;
 use brainwires_discord_channel::config::DiscordConfig;
 use brainwires_discord_channel::discord::DiscordChannel;
 use brainwires_discord_channel::event_handler::DiscordEventHandler;
