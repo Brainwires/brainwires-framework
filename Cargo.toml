@@ -14,6 +14,7 @@ members = [
     "crates/brainwires-hardware",
     "crates/brainwires-training",
     "extras/brainwires-autonomy",
+    "extras/brainwires-wasm",
     "crates/brainwires-knowledge",
     "crates/brainwires-reasoning",
 
@@ -43,6 +44,7 @@ exclude = [
     "deprecated/brainwires-channels",
     "deprecated/brainwires-system",
     "deprecated/brainwires-code-interpreters",
+    "deprecated/brainwires-wasm",
     "deprecated/brainwires-relay",
     "deprecated/brainwires-seal",
     "deprecated/brainwires-mdap",
