@@ -3,6 +3,7 @@ use anyhow::Result;
 use brainwires_hardware::homeauto::{MatterDeviceConfig, MatterDeviceServer};
 use std::path::PathBuf;
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run(
     device_name: String,
     vendor_id: u16,

@@ -3,9 +3,9 @@ use crate::output::Output;
 use anyhow::Result;
 use brainwires_hardware::homeauto::matter::clusters::level_control;
 use brainwires_hardware::homeauto::{AttributeValue, MatterController, MatterDevice};
-use std::path::PathBuf;
+use std::path::Path;
 
-pub async fn run(action: LevelAction, fabric_dir: &PathBuf, out: &Output) -> Result<()> {
+pub async fn run(action: LevelAction, fabric_dir: &Path, out: &Output) -> Result<()> {
     match action {
         LevelAction::Set {
             node_id,
@@ -52,7 +52,7 @@ pub async fn run(action: LevelAction, fabric_dir: &PathBuf, out: &Output) -> Res
 }
 
 async fn get_ctrl_and_device(
-    fabric_dir: &PathBuf,
+    fabric_dir: &Path,
     node_id: u64,
 ) -> Result<(MatterController, MatterDevice)> {
     let ctrl = MatterController::new("matter-tool", fabric_dir).await?;

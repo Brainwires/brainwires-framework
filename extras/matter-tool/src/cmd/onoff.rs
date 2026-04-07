@@ -3,9 +3,9 @@ use crate::output::Output;
 use anyhow::Result;
 use brainwires_hardware::homeauto::matter::clusters::on_off;
 use brainwires_hardware::homeauto::{AttributeValue, MatterController};
-use std::path::PathBuf;
+use std::path::Path;
 
-pub async fn run(action: OnoffAction, fabric_dir: &PathBuf, out: &Output) -> Result<()> {
+pub async fn run(action: OnoffAction, fabric_dir: &Path, out: &Output) -> Result<()> {
     match action {
         OnoffAction::On { node_id, endpoint } => {
             let (ctrl, device) = get_ctrl_and_device(fabric_dir, node_id).await?;
@@ -53,7 +53,7 @@ pub async fn run(action: OnoffAction, fabric_dir: &PathBuf, out: &Output) -> Res
 }
 
 async fn get_ctrl_and_device(
-    fabric_dir: &PathBuf,
+    fabric_dir: &Path,
     node_id: u64,
 ) -> Result<(
     MatterController,

@@ -2,9 +2,9 @@ use crate::cli::PairAction;
 use crate::output::Output;
 use anyhow::Result;
 use brainwires_hardware::homeauto::MatterController;
-use std::path::PathBuf;
+use std::path::Path;
 
-pub async fn run(action: PairAction, fabric_dir: &PathBuf, out: &Output) -> Result<()> {
+pub async fn run(action: PairAction, fabric_dir: &Path, out: &Output) -> Result<()> {
     match action {
         PairAction::Qr { node_id, qr_code } => {
             let ctrl = MatterController::new("matter-tool", fabric_dir).await?;

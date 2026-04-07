@@ -45,8 +45,8 @@ impl Output {
             println!("No commissioned devices.");
         } else {
             println!(
-                "{:<10} {:<8} {:<8} {:<20} {}",
-                "NODE-ID", "VID", "PID", "NAME", "STATUS"
+                "{:<10} {:<8} {:<8} {:<20} STATUS",
+                "NODE-ID", "VID", "PID", "NAME"
             );
             println!("{}", "-".repeat(62));
             for d in devices {

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use brainwires_hardware::homeauto::MatterDevice;
 /// Fabric directory resolution and device listing helpers.
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Resolve the fabric storage directory:
 /// 1. Explicit `--fabric-dir` arg (if provided)
@@ -20,7 +20,7 @@ pub fn resolve_fabric_dir(override_path: Option<&PathBuf>) -> PathBuf {
 ///
 /// The `MatterController` persists devices as JSON under `<fabric_dir>/devices.json`.
 /// This function loads them without opening a full controller session.
-pub async fn load_devices(fabric_dir: &PathBuf) -> Result<Vec<MatterDevice>> {
+pub async fn load_devices(fabric_dir: &Path) -> Result<Vec<MatterDevice>> {
     let path = fabric_dir.join("devices.json");
     if !path.exists() {
         return Ok(Vec::new());

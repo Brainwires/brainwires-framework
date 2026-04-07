@@ -341,10 +341,10 @@ impl TaskAgent {
             ..ContextBuilderConfig::default()
         });
         // Ensure the messages table exists before we start writing to it.
-        if let Some(ref store) = message_store {
-            if let Err(e) = store.ensure_table().await {
-                tracing::debug!("TaskAgent: MessageStore ensure_table failed (non-fatal) — {e}");
-            }
+        if let Some(ref store) = message_store
+            && let Err(e) = store.ensure_table().await
+        {
+            tracing::debug!("TaskAgent: MessageStore ensure_table failed (non-fatal) — {e}");
         }
         let mut persisted_up_to: usize = 0;
 
@@ -365,12 +365,12 @@ impl TaskAgent {
             }
 
             // Check wall-clock timeout
-            if let Some(timeout_secs) = self.config.timeout_secs {
-                if started_at.elapsed().as_secs() >= timeout_secs {
-                    let error = format!("Agent {} timed out after {}s", self.id, timeout_secs);
-                    tracing::error!(agent_id = %self.id, timeout_secs, "TaskAgent timed out");
-                    return self.fail_agent(&task_id, &error, iterations).await;
-                }
+            if let Some(timeout_secs) = self.config.timeout_secs
+                && started_at.elapsed().as_secs() >= timeout_secs
+            {
+                let error = format!("Agent {} timed out after {}s", self.id, timeout_secs);
+                tracing::error!(agent_id = %self.id, timeout_secs, "TaskAgent timed out");
+                return self.fail_agent(&task_id, &error, iterations).await;
             }
 
             // Check iteration limit
@@ -458,15 +458,15 @@ impl TaskAgent {
             total_tokens_used += call_tokens;
 
             // Per-agent token limit
-            if let Some(limit) = self.config.max_total_tokens {
-                if total_tokens_used > limit {
-                    let error = format!(
-                        "Agent {} exceeded token budget ({} > {})",
-                        self.id, total_tokens_used, limit
-                    );
-                    tracing::warn!(agent_id = %self.id, total_tokens_used, limit, "token budget exceeded");
-                    return self.fail_agent(&task_id, &error, iterations).await;
-                }
+            if let Some(limit) = self.config.max_total_tokens
+                && total_tokens_used > limit
+            {
+                let error = format!(
+                    "Agent {} exceeded token budget ({} > {})",
+                    self.id, total_tokens_used, limit
+                );
+                tracing::warn!(agent_id = %self.id, total_tokens_used, limit, "token budget exceeded");
+                return self.fail_agent(&task_id, &error, iterations).await;
             }
 
             // Session-level budget: record usage then check accumulated totals
@@ -495,10 +495,10 @@ impl TaskAgent {
                     self.attempt_validated_completion(&message_text).await?
                 {
                     // Clean up workflow checkpoint on successful completion.
-                    if let Some(ref s) = workflow_store {
-                        if let Err(e) = s.delete_checkpoint(&task_id).await {
-                            tracing::debug!(%e, "checkpoint delete failed (non-fatal)");
-                        }
+                    if let Some(ref s) = workflow_store
+                        && let Err(e) = s.delete_checkpoint(&task_id).await
+                    {
+                        tracing::debug!(%e, "checkpoint delete failed (non-fatal)");
                     }
                     return Ok(validation_attempt);
                 }
@@ -523,10 +523,10 @@ impl TaskAgent {
                     self.attempt_validated_completion(&message_text).await?
                 {
                     // Clean up workflow checkpoint on successful completion.
-                    if let Some(ref s) = workflow_store {
-                        if let Err(e) = s.delete_checkpoint(&task_id).await {
-                            tracing::debug!(%e, "checkpoint delete failed (non-fatal)");
-                        }
+                    if let Some(ref s) = workflow_store
+                        && let Err(e) = s.delete_checkpoint(&task_id).await
+                    {
+                        tracing::debug!(%e, "checkpoint delete failed (non-fatal)");
                     }
                     return Ok(validation_attempt);
                 }
@@ -551,16 +551,16 @@ impl TaskAgent {
                 tracing::debug!("[Agent {}] Processing tool: {}", self.id, tool_use.name);
 
                 // Skip tool calls that were already completed in a prior run.
-                if let Some(ref cp) = workflow_checkpoint {
-                    if cp.is_completed(&tool_use.id) {
-                        tracing::info!(
-                            agent_id = %self.id,
-                            tool_use_id = %tool_use.id,
-                            tool = %tool_use.name,
-                            "Skipping already-completed tool call (crash-resume)"
-                        );
-                        continue;
-                    }
+                if let Some(ref cp) = workflow_checkpoint
+                    && cp.is_completed(&tool_use.id)
+                {
+                    tracing::info!(
+                        agent_id = %self.id,
+                        tool_use_id = %tool_use.id,
+                        tool = %tool_use.name,
+                        "Skipping already-completed tool call (crash-resume)"
+                    );
+                    continue;
                 }
 
                 // Determine if we need file locks
@@ -1014,10 +1014,10 @@ impl TaskAgent {
             })
             .collect();
 
-        if !batch.is_empty() {
-            if let Err(e) = store.add_batch(batch).await {
-                tracing::debug!("TaskAgent: MessageStore persist error (non-fatal) — {e}");
-            }
+        if !batch.is_empty()
+            && let Err(e) = store.add_batch(batch).await
+        {
+            tracing::debug!("TaskAgent: MessageStore persist error (non-fatal) — {e}");
         }
     }
 

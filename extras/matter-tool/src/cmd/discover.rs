@@ -34,39 +34,33 @@ pub async fn run(timeout_secs: u64, out: &Output) -> Result<()> {
         }
 
         // Poll commissionable
-        match rx_c.recv_timeout(Duration::from_millis(50)) {
-            Ok(ServiceEvent::ServiceResolved(info)) => {
-                found.push(DiscoveredDevice {
-                    kind: DeviceKind::Commissionable,
-                    instance: info.get_fullname().to_owned(),
-                    addresses: info.get_addresses().iter().map(|a| a.to_string()).collect(),
-                    port: info.get_port(),
-                    txt: info
-                        .get_properties()
-                        .iter()
-                        .map(|p| format!("{}={}", p.key(), p.val_str()))
-                        .collect(),
-                });
-            }
-            Ok(_) | Err(_) => {}
+        if let Ok(ServiceEvent::ServiceResolved(info)) = rx_c.recv_timeout(Duration::from_millis(50)) {
+            found.push(DiscoveredDevice {
+                kind: DeviceKind::Commissionable,
+                instance: info.get_fullname().to_owned(),
+                addresses: info.get_addresses().iter().map(|a| a.to_string()).collect(),
+                port: info.get_port(),
+                txt: info
+                    .get_properties()
+                    .iter()
+                    .map(|p| format!("{}={}", p.key(), p.val_str()))
+                    .collect(),
+            });
         }
 
         // Poll operational
-        match rx_o.recv_timeout(Duration::from_millis(50)) {
-            Ok(ServiceEvent::ServiceResolved(info)) => {
-                found.push(DiscoveredDevice {
-                    kind: DeviceKind::Operational,
-                    instance: info.get_fullname().to_owned(),
-                    addresses: info.get_addresses().iter().map(|a| a.to_string()).collect(),
-                    port: info.get_port(),
-                    txt: info
-                        .get_properties()
-                        .iter()
-                        .map(|p| format!("{}={}", p.key(), p.val_str()))
-                        .collect(),
-                });
-            }
-            Ok(_) | Err(_) => {}
+        if let Ok(ServiceEvent::ServiceResolved(info)) = rx_o.recv_timeout(Duration::from_millis(50)) {
+            found.push(DiscoveredDevice {
+                kind: DeviceKind::Operational,
+                instance: info.get_fullname().to_owned(),
+                addresses: info.get_addresses().iter().map(|a| a.to_string()).collect(),
+                port: info.get_port(),
+                txt: info
+                    .get_properties()
+                    .iter()
+                    .map(|p| format!("{}={}", p.key(), p.val_str()))
+                    .collect(),
+            });
         }
     }
 

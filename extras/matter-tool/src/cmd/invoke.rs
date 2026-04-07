@@ -1,7 +1,7 @@
 use crate::output::Output;
 use anyhow::Result;
 use brainwires_hardware::homeauto::MatterController;
-use std::path::PathBuf;
+use std::path::Path;
 
 pub async fn run_invoke(
     node_id: u64,
@@ -9,7 +9,7 @@ pub async fn run_invoke(
     cluster_id: u32,
     command_id: u32,
     payload_hex: Option<String>,
-    fabric_dir: &PathBuf,
+    fabric_dir: &Path,
     out: &Output,
 ) -> Result<()> {
     let tlv = if let Some(hex) = payload_hex {
@@ -38,7 +38,7 @@ pub async fn run_read(
     endpoint: u16,
     cluster_id: u32,
     attribute_id: u32,
-    fabric_dir: &PathBuf,
+    fabric_dir: &Path,
     out: &Output,
 ) -> Result<()> {
     let ctrl = MatterController::new("matter-tool", fabric_dir).await?;
