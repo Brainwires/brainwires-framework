@@ -9,6 +9,9 @@
 
 mod agent_identity;
 mod credentials;
+/// Internet-facing email identity — send/receive email on behalf of an agent.
+#[cfg(feature = "email-identity")]
+pub mod email;
 
 pub use agent_identity::{AgentCard, AgentIdentity, ProtocolId};
 pub use credentials::{SigningKey, VerifyingKey};
