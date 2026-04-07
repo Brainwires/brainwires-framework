@@ -1,8 +1,8 @@
 use serde_json::json;
 
-use super::FormatConverter;
 use super::super::error::{DatasetError, DatasetResult};
 use super::super::types::{TrainingExample, TrainingMessage, TrainingRole};
+use super::FormatConverter;
 
 /// Together AI fine-tuning format.
 ///
@@ -165,8 +165,8 @@ impl FormatConverter for TogetherFormat {
     }
 }
 
-use super::PreferenceConverter;
 use super::super::types::PreferencePair;
+use super::PreferenceConverter;
 
 impl PreferenceConverter for TogetherFormat {
     fn name(&self) -> &str {
@@ -275,7 +275,7 @@ mod tests {
     #[test]
     fn test_together_preference_roundtrip() {
         use super::PreferenceConverter;
-        use crate::types::PreferencePair;
+        use crate::datasets::types::PreferencePair;
         let format = TogetherFormat::chat();
         let pair = PreferencePair::new(
             vec![TrainingMessage::user("Q")],

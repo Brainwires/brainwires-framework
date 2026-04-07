@@ -3,10 +3,10 @@
 //! A wake word is a short phrase (e.g. "hey assistant", "ok computer") that
 //! activates the voice assistant from idle. Two backends are supported:
 //!
-//! - [`RustpotterDetector`] — pure-Rust, Apache 2.0, no native deps.
+//! - `RustpotterDetector` — pure-Rust, Apache 2.0, no native deps.
 //!   Uses DTW or ONNX neural models (`.rpw` files). Feature: `wake-word`.
 //!
-//! - [`PorcupineDetector`] — Picovoice Porcupine, maximum accuracy.
+//! - `PorcupineDetector` — Picovoice Porcupine, maximum accuracy.
 //!   Requires a free AccessKey and the native Porcupine library.
 //!   Feature: `wake-word-porcupine`.
 //!

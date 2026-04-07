@@ -63,9 +63,7 @@ impl BillingLedger for InMemoryLedger {
             .lock()
             .unwrap()
             .iter()
-            .filter(|e| {
-                e.agent_id() == agent_id && since.map_or(true, |t| e.timestamp() >= t)
-            })
+            .filter(|e| e.agent_id() == agent_id && since.is_none_or(|t| e.timestamp() >= t))
             .cloned()
             .collect();
         Ok(events)
@@ -104,7 +102,9 @@ impl SqliteLedger {
 
         crate::schema::ensure_tables(&conn)?;
 
-        Ok(Self { conn: Mutex::new(conn) })
+        Ok(Self {
+            conn: Mutex::new(conn),
+        })
     }
 
     #[cfg(feature = "native")]
@@ -197,9 +197,18 @@ mod tests {
     #[tokio::test]
     async fn in_memory_record_and_total() {
         let ledger = InMemoryLedger::new();
-        ledger.record(UsageEvent::tokens("a1", "model", 100, 0.001)).await.unwrap();
-        ledger.record(UsageEvent::tokens("a1", "model", 200, 0.002)).await.unwrap();
-        ledger.record(UsageEvent::tool_call("a2", "bash")).await.unwrap();
+        ledger
+            .record(UsageEvent::tokens("a1", "model", 100, 0.001))
+            .await
+            .unwrap();
+        ledger
+            .record(UsageEvent::tokens("a1", "model", 200, 0.002))
+            .await
+            .unwrap();
+        ledger
+            .record(UsageEvent::tool_call("a2", "bash"))
+            .await
+            .unwrap();
 
         let total = ledger.total_cost("a1").await.unwrap();
         assert!((total - 0.003).abs() < 1e-9);
@@ -213,8 +222,14 @@ mod tests {
         let db_path = dir.path().join("billing.db");
         let ledger = SqliteLedger::new_with_path(&db_path).unwrap();
 
-        ledger.record(UsageEvent::tokens("x", "gpt-4o", 500, 0.005)).await.unwrap();
-        ledger.record(UsageEvent::tool_call("x", "bash")).await.unwrap();
+        ledger
+            .record(UsageEvent::tokens("x", "gpt-4o", 500, 0.005))
+            .await
+            .unwrap();
+        ledger
+            .record(UsageEvent::tool_call("x", "bash"))
+            .await
+            .unwrap();
 
         let total = ledger.total_cost("x").await.unwrap();
         assert!((total - 0.005).abs() < 1e-9);

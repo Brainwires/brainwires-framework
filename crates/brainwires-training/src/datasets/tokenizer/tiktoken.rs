@@ -1,5 +1,5 @@
-use super::Tokenizer;
 use super::super::error::{DatasetError, DatasetResult};
+use super::Tokenizer;
 
 /// OpenAI tiktoken tokenizer wrapper.
 pub struct TiktokenTokenizer {

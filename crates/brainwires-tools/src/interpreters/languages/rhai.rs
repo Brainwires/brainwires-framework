@@ -17,7 +17,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use super::{LanguageExecutor, get_limits, truncate_output};
-use crate::types::{ExecutionLimits, ExecutionRequest, ExecutionResult};
+use super::super::types::{ExecutionLimits, ExecutionRequest, ExecutionResult};
 
 /// Rhai code executor
 pub struct RhaiExecutor {
@@ -285,7 +285,7 @@ fn format_rhai_error(error: &EvalAltResult) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::Language;
+    use super::super::types::Language;
 
     fn make_request(code: &str) -> ExecutionRequest {
         ExecutionRequest {

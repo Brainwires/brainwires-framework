@@ -143,12 +143,19 @@ impl PlatformPaths {
     ///
     /// Models are global (not per-project), so this is a single shared location
     /// consistent with the rest of the framework's use of ~/.brainwires/.
+    #[cfg(feature = "native")]
     pub fn default_fastembed_cache_path() -> PathBuf {
         dirs::home_dir()
             .unwrap_or_else(|| PathBuf::from("."))
             .join(".brainwires")
             .join("cache")
             .join("fastembed")
+    }
+
+    /// Get default fastembed model cache path (non-native fallback)
+    #[cfg(not(feature = "native"))]
+    pub fn default_fastembed_cache_path() -> PathBuf {
+        PathBuf::from(".brainwires").join("cache").join("fastembed")
     }
 
     /// Get default config file path

@@ -61,8 +61,8 @@ pub use sink::{AnalyticsSink, BoxedSink};
 pub use sinks::memory::{DEFAULT_CAPACITY, MemoryAnalyticsSink};
 
 pub use billing_hook::{BillingError, BillingHook};
-pub use usage::UsageEvent;
 pub use metrics::{MetricsRegistry, OutcomeMetrics};
+pub use usage::UsageEvent;
 
 #[cfg(feature = "sqlite")]
 pub use sinks::sqlite::SqliteAnalyticsSink;

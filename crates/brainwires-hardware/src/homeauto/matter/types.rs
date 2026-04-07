@@ -45,7 +45,7 @@ pub struct MatterEndpoint {
     pub capabilities: Vec<Capability>,
 }
 
-/// Configuration for a [`MatterDeviceServer`] instance.
+/// Configuration for a [`MatterDeviceServer`](super::MatterDeviceServer) instance.
 ///
 /// Use [`MatterDeviceConfig::builder`] for ergonomic construction.
 #[derive(Debug, Clone)]

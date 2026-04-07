@@ -1,8 +1,8 @@
 use serde_json::json;
 
-use super::FormatConverter;
 use super::super::error::{DatasetError, DatasetResult};
 use super::super::types::{TrainingExample, TrainingMessage, TrainingRole};
+use super::FormatConverter;
 
 /// ChatML template format.
 ///
@@ -93,8 +93,8 @@ impl FormatConverter for ChatMlFormat {
     }
 }
 
-use super::PreferenceConverter;
 use super::super::types::PreferencePair;
+use super::PreferenceConverter;
 
 impl PreferenceConverter for ChatMlFormat {
     fn name(&self) -> &str {
@@ -197,7 +197,7 @@ mod tests {
     #[test]
     fn test_chatml_preference_roundtrip() {
         use super::PreferenceConverter;
-        use crate::types::PreferencePair;
+        use crate::datasets::types::PreferencePair;
         let format = ChatMlFormat;
         let pair = PreferencePair::new(
             vec![TrainingMessage::user("Q")],

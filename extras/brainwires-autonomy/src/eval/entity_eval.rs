@@ -18,8 +18,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use brainwires_agents::eval::{EvaluationCase, TrialResult, ndcg_at_k};
-use brainwires_knowledge::knowledge::entity::{Entity, EntityType};
-use brainwires_knowledge::knowledge::relationship_graph::RelationshipGraph;
+use brainwires_cognition::knowledge::entity::{Entity, EntityType};
+use brainwires_cognition::knowledge::relationship_graph::RelationshipGraph;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

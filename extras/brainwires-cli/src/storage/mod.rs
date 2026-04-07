@@ -6,7 +6,7 @@ pub use brainwires::storage::databases::VectorDatabase;
 pub use brainwires::storage::*;
 
 // Document types (live in brainwires-cognition::rag::documents)
-pub use brainwires_knowledge::rag::documents::{
+pub use brainwires_cognition::rag::documents::{
     ChunkerConfig, DocumentBM25Manager, DocumentChunk, DocumentChunker, DocumentMetadata,
     DocumentMetadataStore, DocumentProcessor, DocumentScope, DocumentSearchRequest,
     DocumentSearchResult, DocumentStore, DocumentType, ExtractedDocument,

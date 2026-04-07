@@ -203,9 +203,9 @@ pub enum PresenceStatus {
 
 #[cfg(test)]
 mod tests {
+    use crate::channels::identity::ConversationId;
+    use crate::channels::message::MessageId;
     use super::*;
-    use super::identity::ConversationId;
-    use super::message::MessageId;
 
     #[test]
     fn channel_event_serde_roundtrip() {

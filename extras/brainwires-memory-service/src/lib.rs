@@ -46,7 +46,10 @@ pub fn build_app(store: MemoryStore) -> Router {
                 .get(routes::list_memories)
                 .delete(routes::delete_all_memories),
         )
-        .route("/v1/memories/search", routing::post(routes::search_memories))
+        .route(
+            "/v1/memories/search",
+            routing::post(routes::search_memories),
+        )
         .route(
             "/v1/memories/{id}",
             routing::get(routes::get_memory)

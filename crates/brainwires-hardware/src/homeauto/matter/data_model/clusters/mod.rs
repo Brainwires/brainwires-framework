@@ -1,6 +1,6 @@
 /// Cluster server implementations for required Matter commissioning clusters.
 ///
-/// Each sub-module implements [`super::super::ClusterServer`] for one cluster:
+/// Each sub-module implements [`ClusterServer`](super::ClusterServer) for one cluster:
 ///
 /// | Module                      | Cluster ID | Description                               |
 /// |-----------------------------|-----------|-------------------------------------------|

@@ -1,5 +1,5 @@
-use super::Tokenizer;
 use super::super::error::{DatasetError, DatasetResult};
+use super::Tokenizer;
 
 /// HuggingFace tokenizers wrapper.
 pub struct HfTokenizer {

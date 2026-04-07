@@ -247,7 +247,7 @@ impl Dataset for PreferenceDataset {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::TrainingMessage;
+    use crate::datasets::types::TrainingMessage;
 
     fn sample_examples(n: usize) -> Vec<TrainingExample> {
         (0..n)

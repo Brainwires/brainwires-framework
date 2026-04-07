@@ -3,7 +3,7 @@
 /// Implements:
 /// - Section 5.1.2: QR Code payload (Base38 + bit-packed)
 /// - Section 5.1.4: 11-digit Manual Pairing Code
-
+///
 /// Base38 alphabet used by the Matter QR code.
 const BASE38_CHARS: &[u8; 38] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-.";
 
@@ -55,7 +55,7 @@ pub fn parse_qr_code(qr: &str) -> Result<CommissioningPayload, &'static str> {
 /// - digits[0..=1]: floor(discriminator / 0x300) (2 digits)
 /// - digits[2..=5]: (discriminator & 0xFF) * 10000 + passcode[0..=4] (4 digits grouping)
 /// - digits[6..=9]: remaining passcode (4 digits)
-/// - digits[10]: Verhoeff check digit (not validated here for simplicity)
+/// - digits\[10\]: Verhoeff check digit (not validated here for simplicity)
 pub fn parse_manual_code(code: &str) -> Result<CommissioningPayload, &'static str> {
     let code = code.trim().replace('-', "").replace(' ', "");
     if code.len() != 11 {

@@ -73,9 +73,9 @@ impl TryFrom<MessageEnvelope> for ChannelMessage {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::identity::ConversationId;
     use super::message::{ChannelMessage, MessageContent, MessageId};
+    use super::*;
     use brainwires_network::network::MessageTarget;
     use chrono::Utc;
     use std::collections::HashMap;

@@ -780,8 +780,8 @@ impl Default for ReflectionModule {
 mod tests {
     use super::*;
     use crate::seal::query_core::{QueryExpr, QueryResultValue, QuestionType};
-    use brainwires_knowledge::RelationshipGraph;
     use brainwires_core::graph::EntityType;
+    use brainwires_cognition::RelationshipGraph;
 
     fn create_test_query() -> QueryCore {
         QueryCore::new(

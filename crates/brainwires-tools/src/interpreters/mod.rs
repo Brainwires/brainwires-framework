@@ -33,13 +33,7 @@ mod executor;
 mod languages;
 mod types;
 
-#[cfg(feature = "docker")]
-pub mod docker;
-
-#[cfg(feature = "remote")]
-pub mod remote;
-
-#[cfg(feature = "wasm")]
+#[cfg(feature = "interpreters-wasm")]
 mod wasm_bindings;
 
 pub use executor::Executor;
@@ -47,17 +41,17 @@ pub use types::*;
 
 /// Re-exports of language-specific executors for advanced use.
 pub mod lang {
-    #[cfg(feature = "rhai")]
-    pub use crate::languages::rhai::RhaiExecutor;
+    #[cfg(feature = "interpreters-rhai")]
+    pub use super::languages::rhai::RhaiExecutor;
 
-    #[cfg(feature = "lua")]
-    pub use crate::languages::lua::LuaExecutor;
+    #[cfg(feature = "interpreters-lua")]
+    pub use super::languages::lua::LuaExecutor;
 
-    #[cfg(feature = "javascript")]
-    pub use crate::languages::javascript::JavaScriptExecutor;
+    #[cfg(feature = "interpreters-js")]
+    pub use super::languages::javascript::JavaScriptExecutor;
 
-    #[cfg(feature = "python")]
-    pub use crate::languages::python::PythonExecutor;
+    #[cfg(feature = "interpreters-python")]
+    pub use super::languages::python::PythonExecutor;
 }
 
 /// Get a list of supported languages based on enabled features
@@ -65,16 +59,16 @@ pub mod lang {
 pub fn supported_languages() -> Vec<Language> {
     let mut languages = Vec::new();
 
-    #[cfg(feature = "rhai")]
+    #[cfg(feature = "interpreters-rhai")]
     languages.push(Language::Rhai);
 
-    #[cfg(feature = "lua")]
+    #[cfg(feature = "interpreters-lua")]
     languages.push(Language::Lua);
 
-    #[cfg(feature = "javascript")]
+    #[cfg(feature = "interpreters-js")]
     languages.push(Language::JavaScript);
 
-    #[cfg(feature = "python")]
+    #[cfg(feature = "interpreters-python")]
     languages.push(Language::Python);
 
     languages
@@ -83,16 +77,16 @@ pub fn supported_languages() -> Vec<Language> {
 /// Check if a language is supported
 pub fn is_language_supported(language: Language) -> bool {
     match language {
-        #[cfg(feature = "rhai")]
+        #[cfg(feature = "interpreters-rhai")]
         Language::Rhai => true,
 
-        #[cfg(feature = "lua")]
+        #[cfg(feature = "interpreters-lua")]
         Language::Lua => true,
 
-        #[cfg(feature = "javascript")]
+        #[cfg(feature = "interpreters-js")]
         Language::JavaScript => true,
 
-        #[cfg(feature = "python")]
+        #[cfg(feature = "interpreters-python")]
         Language::Python => true,
 
         #[allow(unreachable_patterns)]

@@ -5,14 +5,17 @@ pub use brainwires_core::SearchResult;
 
 use super::index::PROJECT_NAME_MAX_LENGTH;
 
+/// Default value for hybrid search (enabled).
 pub fn default_hybrid() -> bool {
     true
 }
 
+/// Default result limit.
 pub fn default_limit() -> usize {
     10
 }
 
+/// Default minimum similarity score.
 pub fn default_min_score() -> f32 {
     0.7
 }

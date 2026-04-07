@@ -183,75 +183,171 @@ impl MetricsRegistry {
         }
 
         // ── brainwires_agent_runs_total ──────────────────────────────────────
-        counter(&mut out, "brainwires_agent_runs_total", "Total agent runs attempted");
+        counter(
+            &mut out,
+            "brainwires_agent_runs_total",
+            "Total agent runs attempted",
+        );
         for m in metrics.values() {
-            out.push_str(&metric_line("brainwires_agent_runs_total", &m.agent_id, m.total_runs));
+            out.push_str(&metric_line(
+                "brainwires_agent_runs_total",
+                &m.agent_id,
+                m.total_runs,
+            ));
         }
 
         // ── brainwires_agent_runs_success ────────────────────────────────────
-        counter(&mut out, "brainwires_agent_runs_success_total", "Agent runs that succeeded");
+        counter(
+            &mut out,
+            "brainwires_agent_runs_success_total",
+            "Agent runs that succeeded",
+        );
         for m in metrics.values() {
-            out.push_str(&metric_line("brainwires_agent_runs_success_total", &m.agent_id, m.success_count));
+            out.push_str(&metric_line(
+                "brainwires_agent_runs_success_total",
+                &m.agent_id,
+                m.success_count,
+            ));
         }
 
         // ── brainwires_agent_runs_failure ────────────────────────────────────
-        counter(&mut out, "brainwires_agent_runs_failure_total", "Agent runs that failed");
+        counter(
+            &mut out,
+            "brainwires_agent_runs_failure_total",
+            "Agent runs that failed",
+        );
         for m in metrics.values() {
-            out.push_str(&metric_line("brainwires_agent_runs_failure_total", &m.agent_id, m.failure_count));
+            out.push_str(&metric_line(
+                "brainwires_agent_runs_failure_total",
+                &m.agent_id,
+                m.failure_count,
+            ));
         }
 
         // ── brainwires_agent_success_rate ────────────────────────────────────
-        gauge(&mut out, "brainwires_agent_success_rate", "Agent run success rate (0-1)");
+        gauge(
+            &mut out,
+            "brainwires_agent_success_rate",
+            "Agent run success rate (0-1)",
+        );
         for m in metrics.values() {
-            out.push_str(&metric_line_f("brainwires_agent_success_rate", &m.agent_id, m.success_rate()));
+            out.push_str(&metric_line_f(
+                "brainwires_agent_success_rate",
+                &m.agent_id,
+                m.success_rate(),
+            ));
         }
 
         // ── brainwires_agent_tool_calls_total ────────────────────────────────
-        counter(&mut out, "brainwires_agent_tool_calls_total", "Total tool calls made by agent");
+        counter(
+            &mut out,
+            "brainwires_agent_tool_calls_total",
+            "Total tool calls made by agent",
+        );
         for m in metrics.values() {
-            out.push_str(&metric_line("brainwires_agent_tool_calls_total", &m.agent_id, m.total_tool_calls));
+            out.push_str(&metric_line(
+                "brainwires_agent_tool_calls_total",
+                &m.agent_id,
+                m.total_tool_calls,
+            ));
         }
 
         // ── brainwires_agent_tool_errors_total ───────────────────────────────
-        counter(&mut out, "brainwires_agent_tool_errors_total", "Tool calls that produced an error");
+        counter(
+            &mut out,
+            "brainwires_agent_tool_errors_total",
+            "Tool calls that produced an error",
+        );
         for m in metrics.values() {
-            out.push_str(&metric_line("brainwires_agent_tool_errors_total", &m.agent_id, m.tool_error_count));
+            out.push_str(&metric_line(
+                "brainwires_agent_tool_errors_total",
+                &m.agent_id,
+                m.tool_error_count,
+            ));
         }
 
         // ── brainwires_agent_provider_calls_total ────────────────────────────
-        counter(&mut out, "brainwires_agent_provider_calls_total", "Total LLM provider calls");
+        counter(
+            &mut out,
+            "brainwires_agent_provider_calls_total",
+            "Total LLM provider calls",
+        );
         for m in metrics.values() {
-            out.push_str(&metric_line("brainwires_agent_provider_calls_total", &m.agent_id, m.provider_call_count));
+            out.push_str(&metric_line(
+                "brainwires_agent_provider_calls_total",
+                &m.agent_id,
+                m.provider_call_count,
+            ));
         }
 
         // ── brainwires_agent_tokens_prompt_total ─────────────────────────────
-        counter(&mut out, "brainwires_agent_tokens_prompt_total", "Total prompt tokens consumed");
+        counter(
+            &mut out,
+            "brainwires_agent_tokens_prompt_total",
+            "Total prompt tokens consumed",
+        );
         for m in metrics.values() {
-            out.push_str(&metric_line("brainwires_agent_tokens_prompt_total", &m.agent_id, m.total_tokens_prompt));
+            out.push_str(&metric_line(
+                "brainwires_agent_tokens_prompt_total",
+                &m.agent_id,
+                m.total_tokens_prompt,
+            ));
         }
 
         // ── brainwires_agent_tokens_completion_total ─────────────────────────
-        counter(&mut out, "brainwires_agent_tokens_completion_total", "Total completion tokens generated");
+        counter(
+            &mut out,
+            "brainwires_agent_tokens_completion_total",
+            "Total completion tokens generated",
+        );
         for m in metrics.values() {
-            out.push_str(&metric_line("brainwires_agent_tokens_completion_total", &m.agent_id, m.total_tokens_completion));
+            out.push_str(&metric_line(
+                "brainwires_agent_tokens_completion_total",
+                &m.agent_id,
+                m.total_tokens_completion,
+            ));
         }
 
         // ── brainwires_agent_cost_usd_total ──────────────────────────────────
-        counter(&mut out, "brainwires_agent_cost_usd_total", "Cumulative LLM cost in USD");
+        counter(
+            &mut out,
+            "brainwires_agent_cost_usd_total",
+            "Cumulative LLM cost in USD",
+        );
         for m in metrics.values() {
-            out.push_str(&metric_line_f("brainwires_agent_cost_usd_total", &m.agent_id, m.total_cost_usd));
+            out.push_str(&metric_line_f(
+                "brainwires_agent_cost_usd_total",
+                &m.agent_id,
+                m.total_cost_usd,
+            ));
         }
 
         // ── brainwires_agent_avg_run_duration_ms ─────────────────────────────
-        gauge(&mut out, "brainwires_agent_avg_run_duration_ms", "Average agent run duration in milliseconds");
+        gauge(
+            &mut out,
+            "brainwires_agent_avg_run_duration_ms",
+            "Average agent run duration in milliseconds",
+        );
         for m in metrics.values() {
-            out.push_str(&metric_line_f("brainwires_agent_avg_run_duration_ms", &m.agent_id, m.avg_run_duration_ms()));
+            out.push_str(&metric_line_f(
+                "brainwires_agent_avg_run_duration_ms",
+                &m.agent_id,
+                m.avg_run_duration_ms(),
+            ));
         }
 
         // ── brainwires_agent_avg_provider_latency_ms ─────────────────────────
-        gauge(&mut out, "brainwires_agent_avg_provider_latency_ms", "Average LLM provider call latency in ms");
+        gauge(
+            &mut out,
+            "brainwires_agent_avg_provider_latency_ms",
+            "Average LLM provider call latency in ms",
+        );
         for m in metrics.values() {
-            out.push_str(&metric_line_f("brainwires_agent_avg_provider_latency_ms", &m.agent_id, m.avg_provider_latency_ms()));
+            out.push_str(&metric_line_f(
+                "brainwires_agent_avg_provider_latency_ms",
+                &m.agent_id,
+                m.avg_provider_latency_ms(),
+            ));
         }
 
         out
@@ -275,10 +371,12 @@ impl MetricsRegistry {
                 total_completion_tokens,
                 ..
             } => {
-                let m = map.entry(agent_id.clone()).or_insert_with(|| OutcomeMetrics {
-                    agent_id: agent_id.clone(),
-                    ..Default::default()
-                });
+                let m = map
+                    .entry(agent_id.clone())
+                    .or_insert_with(|| OutcomeMetrics {
+                        agent_id: agent_id.clone(),
+                        ..Default::default()
+                    });
                 m.total_runs += 1;
                 if *success {
                     m.success_count += 1;
@@ -304,7 +402,9 @@ impl MetricsRegistry {
             } => {
                 // ProviderCall doesn't carry an agent_id directly; use session_id
                 // as a best-effort key so provider stats are still tracked.
-                let key = session_id.clone().unwrap_or_else(|| "__global__".to_string());
+                let key = session_id
+                    .clone()
+                    .unwrap_or_else(|| "__global__".to_string());
                 let m = map.entry(key.clone()).or_insert_with(|| OutcomeMetrics {
                     agent_id: key,
                     ..Default::default()
@@ -316,7 +416,9 @@ impl MetricsRegistry {
                 m.total_cost_usd += *cost_usd;
             }
 
-            AnalyticsEvent::ToolCall { agent_id, is_error, .. } => {
+            AnalyticsEvent::ToolCall {
+                agent_id, is_error, ..
+            } => {
                 let key = agent_id.clone().unwrap_or_else(|| "__global__".to_string());
                 let m = map.entry(key.clone()).or_insert_with(|| OutcomeMetrics {
                     agent_id: key,
@@ -354,15 +456,23 @@ impl AnalyticsSink for MetricsRegistry {
 // ── Prometheus formatting helpers ─────────────────────────────────────────────
 
 fn escape_label(s: &str) -> String {
-    s.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n")
+    s.replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('\n', "\\n")
 }
 
 fn metric_line(name: &str, agent_id: &str, value: u64) -> String {
-    format!("{name}{{agent_id=\"{}\"}} {value}\n", escape_label(agent_id))
+    format!(
+        "{name}{{agent_id=\"{}\"}} {value}\n",
+        escape_label(agent_id)
+    )
 }
 
 fn metric_line_f(name: &str, agent_id: &str, value: f64) -> String {
-    format!("{name}{{agent_id=\"{}\"}} {value:.6}\n", escape_label(agent_id))
+    format!(
+        "{name}{{agent_id=\"{}\"}} {value:.6}\n",
+        escape_label(agent_id)
+    )
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -411,7 +521,9 @@ mod tests {
     #[tokio::test]
     async fn prometheus_text_well_formed() {
         let reg = MetricsRegistry::new();
-        reg.record(agent_run("code-review", true, 0.005)).await.unwrap();
+        reg.record(agent_run("code-review", true, 0.005))
+            .await
+            .unwrap();
 
         let text = reg.prometheus_text();
         assert!(text.contains("# HELP brainwires_agent_runs_total"));

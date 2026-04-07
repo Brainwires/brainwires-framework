@@ -803,8 +803,8 @@ impl WebRtcSession {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::identity::ConversationId;
+    use super::*;
     use std::sync::Arc;
 
     fn test_conv() -> ConversationId {

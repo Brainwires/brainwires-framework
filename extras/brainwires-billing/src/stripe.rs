@@ -17,7 +17,10 @@ pub struct StripeClient {
 
 impl StripeClient {
     pub fn new(api_key: impl Into<String>) -> Self {
-        Self { api_key: api_key.into(), http: Client::new() }
+        Self {
+            api_key: api_key.into(),
+            http: Client::new(),
+        }
     }
 
     /// Report metered usage against a Stripe billing meter.
@@ -30,7 +33,10 @@ impl StripeClient {
         let now = chrono::Utc::now().timestamp();
         let params = [
             ("event_name", event_name.to_string()),
-            ("payload[stripe_customer_id]", stripe_customer_id.to_string()),
+            (
+                "payload[stripe_customer_id]",
+                stripe_customer_id.to_string(),
+            ),
             ("payload[value]", quantity.to_string()),
             ("timestamp", now.to_string()),
         ];
@@ -52,7 +58,9 @@ impl StripeClient {
             )));
         }
 
-        resp.json().await.map_err(|e| BillingImplError::Stripe(e.to_string()))
+        resp.json()
+            .await
+            .map_err(|e| BillingImplError::Stripe(e.to_string()))
     }
 
     /// Create a Stripe payment link for a one-time purchase.
@@ -83,7 +91,9 @@ impl StripeClient {
             )));
         }
 
-        resp.json().await.map_err(|e| BillingImplError::Stripe(e.to_string()))
+        resp.json()
+            .await
+            .map_err(|e| BillingImplError::Stripe(e.to_string()))
     }
 
     /// Retrieve a customer's current balance in cents (negative = credit).
@@ -105,8 +115,13 @@ impl StripeClient {
         }
 
         #[derive(Deserialize)]
-        struct CustomerResp { balance: i64 }
-        let c: CustomerResp = resp.json().await.map_err(|e| BillingImplError::Stripe(e.to_string()))?;
+        struct CustomerResp {
+            balance: i64,
+        }
+        let c: CustomerResp = resp
+            .json()
+            .await
+            .map_err(|e| BillingImplError::Stripe(e.to_string()))?;
         Ok(c.balance)
     }
 }

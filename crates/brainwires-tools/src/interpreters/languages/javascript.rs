@@ -23,7 +23,7 @@ use std::rc::Rc;
 use std::time::Instant;
 
 use super::{LanguageExecutor, get_limits, truncate_output};
-use crate::types::{ExecutionLimits, ExecutionRequest, ExecutionResult};
+use super::super::types::{ExecutionLimits, ExecutionRequest, ExecutionResult};
 
 /// JavaScript code executor using Boa engine
 pub struct JavaScriptExecutor {
@@ -460,7 +460,7 @@ fn format_js_error(error: &JsError, context: &mut Context) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::Language;
+    use super::super::types::Language;
 
     fn make_request(code: &str) -> ExecutionRequest {
         ExecutionRequest {

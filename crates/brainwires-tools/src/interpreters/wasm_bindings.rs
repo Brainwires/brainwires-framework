@@ -3,7 +3,7 @@
 //! Provides JavaScript/TypeScript bindings for executing code in various languages
 //! directly in the browser via WebAssembly.
 
-use crate::{ExecutionLimits, ExecutionRequest, Executor, Language};
+use super::{ExecutionLimits, ExecutionRequest, Executor, Language};
 use wasm_bindgen::prelude::*;
 
 /// WASM-compatible code executor
@@ -97,7 +97,7 @@ pub fn execute_code(language: &str, code: &str) -> Result<JsValue, JsValue> {
 /// Get list of all supported languages
 #[wasm_bindgen]
 pub fn get_supported_languages() -> Vec<String> {
-    crate::supported_languages()
+    super::supported_languages()
         .iter()
         .map(|l| l.as_str().to_string())
         .collect()
@@ -112,7 +112,7 @@ mod console_error_panic_hook {
         SET_HOOK.call_once(|| {
             std::panic::set_hook(Box::new(|panic_info| {
                 let msg = panic_info.to_string();
-                web_sys::console::error_1(&wasm_bindgen::JsValue::from_str(&msg));
+                web_sys::console::error_1(&::wasm_bindgen::JsValue::from_str(&msg));
             }));
         });
     }

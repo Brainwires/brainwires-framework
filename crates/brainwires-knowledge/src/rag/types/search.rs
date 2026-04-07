@@ -76,10 +76,12 @@ impl AdvancedSearchRequest {
     }
 }
 
+/// Default git path for search.
 pub fn default_git_path() -> String {
     ".".to_string()
 }
 
+/// Default maximum number of commits to search.
 pub fn default_max_commits() -> usize {
     10
 }

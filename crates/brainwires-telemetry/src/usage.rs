@@ -66,7 +66,12 @@ impl UsageEvent {
     // ── Constructors ──────────────────────────────────────────────────────────
 
     /// Create a [`UsageEvent::Tokens`] event stamped with the current time.
-    pub fn tokens(agent_id: impl Into<String>, model: impl Into<String>, total_tokens: u64, cost_usd: f64) -> Self {
+    pub fn tokens(
+        agent_id: impl Into<String>,
+        model: impl Into<String>,
+        total_tokens: u64,
+        cost_usd: f64,
+    ) -> Self {
         Self::Tokens {
             agent_id: agent_id.into(),
             model: model.into(),
@@ -82,7 +87,11 @@ impl UsageEvent {
     }
 
     /// Create a [`UsageEvent::ToolCall`] event with an explicit USD charge.
-    pub fn tool_call_paid(agent_id: impl Into<String>, tool_name: impl Into<String>, cost_usd: f64) -> Self {
+    pub fn tool_call_paid(
+        agent_id: impl Into<String>,
+        tool_name: impl Into<String>,
+        cost_usd: f64,
+    ) -> Self {
         Self::ToolCall {
             agent_id: agent_id.into(),
             tool_name: tool_name.into(),
@@ -108,7 +117,11 @@ impl UsageEvent {
     }
 
     /// Create a [`UsageEvent::ApiCall`] event.
-    pub fn api_call(agent_id: impl Into<String>, service: impl Into<String>, cost_usd: f64) -> Self {
+    pub fn api_call(
+        agent_id: impl Into<String>,
+        service: impl Into<String>,
+        cost_usd: f64,
+    ) -> Self {
         Self::ApiCall {
             agent_id: agent_id.into(),
             service: service.into(),

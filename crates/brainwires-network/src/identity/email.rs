@@ -228,7 +228,9 @@ impl HttpEmailConfig {
     /// Mailgun configuration.
     pub fn mailgun(domain: impl Into<String>, api_key: impl Into<String>) -> Self {
         Self {
-            backend: HttpEmailBackend::Mailgun { domain: domain.into() },
+            backend: HttpEmailBackend::Mailgun {
+                domain: domain.into(),
+            },
             api_key: api_key.into(),
             inbox_url: None,
             extra_headers: HashMap::new(),
@@ -258,7 +260,9 @@ impl HttpEmailConfig {
     /// Custom REST endpoint for both send and poll.
     pub fn custom(send_url: impl Into<String>, api_key: impl Into<String>) -> Self {
         Self {
-            backend: HttpEmailBackend::Custom { url: send_url.into() },
+            backend: HttpEmailBackend::Custom {
+                url: send_url.into(),
+            },
             api_key: api_key.into(),
             inbox_url: None,
             extra_headers: HashMap::new(),
@@ -291,7 +295,10 @@ pub struct HttpEmailProvider {
 impl HttpEmailProvider {
     /// Build a provider from the given config.
     pub fn new(config: HttpEmailConfig) -> Self {
-        Self { config, client: reqwest::Client::new() }
+        Self {
+            config,
+            client: reqwest::Client::new(),
+        }
     }
 
     // ------------------------------------------------------------------
@@ -429,11 +436,18 @@ impl HttpEmailProvider {
     }
 
     async fn send_custom(&self, url: &str, message: &EmailMessage) -> Result<String, EmailError> {
-        let mut req = self.client.post(url).bearer_auth(&self.config.api_key).json(message);
+        let mut req = self
+            .client
+            .post(url)
+            .bearer_auth(&self.config.api_key)
+            .json(message);
         for (k, v) in &self.config.extra_headers {
             req = req.header(k.as_str(), v.as_str());
         }
-        let resp = req.send().await.map_err(|e| EmailError::Http(e.to_string()))?;
+        let resp = req
+            .send()
+            .await
+            .map_err(|e| EmailError::Http(e.to_string()))?;
 
         let status = resp.status().as_u16();
         let text = resp.text().await.unwrap_or_default();
@@ -555,7 +569,10 @@ mod tests {
     fn http_config_custom_with_inbox() {
         let cfg = HttpEmailConfig::custom("https://api.agentmail.to/send", "tok-abc")
             .with_inbox_url("https://api.agentmail.to/inbox");
-        assert_eq!(cfg.inbox_url.as_deref(), Some("https://api.agentmail.to/inbox"));
+        assert_eq!(
+            cfg.inbox_url.as_deref(),
+            Some("https://api.agentmail.to/inbox")
+        );
     }
 
     #[test]

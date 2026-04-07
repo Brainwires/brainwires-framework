@@ -10,8 +10,8 @@
 //!
 //! Requires the `interpreters` feature flag.
 
-use anyhow::Result;
 use crate::interpreters::{ExecutionLimits, ExecutionRequest, Executor, Language};
+use anyhow::Result;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::collections::HashMap;

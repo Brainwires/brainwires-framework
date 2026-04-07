@@ -1,18 +1,18 @@
 //! Language-specific executors
 
-#[cfg(feature = "rhai")]
+#[cfg(feature = "interpreters-rhai")]
 pub mod rhai;
 
-#[cfg(feature = "lua")]
+#[cfg(feature = "interpreters-lua")]
 pub mod lua;
 
-#[cfg(feature = "javascript")]
+#[cfg(feature = "interpreters-js")]
 pub mod javascript;
 
-#[cfg(feature = "python")]
+#[cfg(feature = "interpreters-python")]
 pub mod python;
 
-use crate::types::{ExecutionLimits, ExecutionRequest, ExecutionResult};
+use super::types::{ExecutionLimits, ExecutionRequest, ExecutionResult};
 
 /// Trait for language executors
 #[allow(dead_code)]

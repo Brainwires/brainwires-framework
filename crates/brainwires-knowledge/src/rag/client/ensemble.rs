@@ -1,6 +1,7 @@
 //! Multi-strategy ensemble query (Reciprocal Rank Fusion) for [`RagClient`].
 
 use super::RagClient;
+use crate::rag::embedding::EmbeddingProvider;
 use crate::rag::types::*;
 use anyhow::{Context, Result};
 use std::collections::HashMap;

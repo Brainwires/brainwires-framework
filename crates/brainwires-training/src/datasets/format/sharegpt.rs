@@ -1,8 +1,8 @@
 use serde_json::json;
 
-use super::FormatConverter;
 use super::super::error::{DatasetError, DatasetResult};
 use super::super::types::{TrainingExample, TrainingMessage, TrainingRole};
+use super::FormatConverter;
 
 /// ShareGPT conversation format.
 ///
@@ -76,8 +76,8 @@ impl FormatConverter for ShareGptFormat {
     }
 }
 
-use super::PreferenceConverter;
 use super::super::types::PreferencePair;
+use super::PreferenceConverter;
 
 impl PreferenceConverter for ShareGptFormat {
     fn name(&self) -> &str {
@@ -199,7 +199,7 @@ mod tests {
     #[test]
     fn test_sharegpt_preference_roundtrip() {
         use super::PreferenceConverter;
-        use crate::types::PreferencePair;
+        use crate::datasets::types::PreferencePair;
         let format = ShareGptFormat;
         let pair = PreferencePair::new(
             vec![TrainingMessage::user("Q")],

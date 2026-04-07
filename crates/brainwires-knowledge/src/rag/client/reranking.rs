@@ -3,8 +3,13 @@
 //! Requires the `spectral-select` feature.
 
 use super::RagClient;
+#[cfg(feature = "spectral-select")]
+use crate::rag::embedding::EmbeddingProvider;
+#[cfg(feature = "spectral-select")]
 use crate::rag::types::*;
+#[cfg(feature = "spectral-select")]
 use anyhow::{Context, Result};
+#[cfg(feature = "spectral-select")]
 use std::time::Instant;
 
 impl RagClient {

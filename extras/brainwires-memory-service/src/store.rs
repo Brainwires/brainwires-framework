@@ -32,14 +32,18 @@ impl MemoryStore {
 
         ensure_schema(&conn)?;
 
-        Ok(Self { conn: Arc::new(Mutex::new(conn)) })
+        Ok(Self {
+            conn: Arc::new(Mutex::new(conn)),
+        })
     }
 
     /// Open an in-memory database (useful for tests).
     pub fn in_memory() -> anyhow::Result<Self> {
         let conn = Connection::open_in_memory()?;
         ensure_schema(&conn)?;
-        Ok(Self { conn: Arc::new(Mutex::new(conn)) })
+        Ok(Self {
+            conn: Arc::new(Mutex::new(conn)),
+        })
     }
 
     // ── Write ops ────────────────────────────────────────────────────────────
@@ -224,13 +228,18 @@ impl MemoryStore {
                FROM memories WHERE id = ?1",
         )?;
         let mut rows = stmt.query(params![id.to_string()])?;
-        Ok(rows.next()?.map(|r| row_to_memory(r).expect("row valid after update")))
+        Ok(rows
+            .next()?
+            .map(|r| row_to_memory(r).expect("row valid after update")))
     }
 
     /// Delete a memory by ID. Returns true if a row was deleted.
     pub fn delete(&self, id: Uuid) -> anyhow::Result<bool> {
         let conn = self.conn.lock().unwrap();
-        let rows = conn.execute("DELETE FROM memories WHERE id = ?1", params![id.to_string()])?;
+        let rows = conn.execute(
+            "DELETE FROM memories WHERE id = ?1",
+            params![id.to_string()],
+        )?;
         Ok(rows > 0)
     }
 
@@ -285,10 +294,8 @@ fn row_to_memory(row: &rusqlite::Row<'_>) -> anyhow::Result<Memory> {
     let metadata: serde_json::Value =
         serde_json::from_str(&meta_str).unwrap_or(serde_json::Value::Object(Default::default()));
 
-    let created_at = DateTime::<Utc>::from_timestamp_millis(created_ms)
-        .unwrap_or_else(Utc::now);
-    let updated_at = DateTime::<Utc>::from_timestamp_millis(updated_ms)
-        .unwrap_or_else(Utc::now);
+    let created_at = DateTime::<Utc>::from_timestamp_millis(created_ms).unwrap_or_else(Utc::now);
+    let updated_at = DateTime::<Utc>::from_timestamp_millis(updated_ms).unwrap_or_else(Utc::now);
 
     Ok(Memory {
         id,
@@ -316,7 +323,15 @@ mod tests {
     #[test]
     fn add_and_get() {
         let s = store();
-        let m = s.add("user1", None, None, "the sky is blue", &serde_json::Value::Null).unwrap();
+        let m = s
+            .add(
+                "user1",
+                None,
+                None,
+                "the sky is blue",
+                &serde_json::Value::Null,
+            )
+            .unwrap();
         let fetched = s.get(m.id).unwrap().unwrap();
         assert_eq!(fetched.memory, "the sky is blue");
         assert_eq!(fetched.user_id, "user1");
@@ -325,9 +340,12 @@ mod tests {
     #[test]
     fn list_with_user_filter() {
         let s = store();
-        s.add("u1", None, None, "mem A", &serde_json::Value::Null).unwrap();
-        s.add("u1", None, None, "mem B", &serde_json::Value::Null).unwrap();
-        s.add("u2", None, None, "mem C", &serde_json::Value::Null).unwrap();
+        s.add("u1", None, None, "mem A", &serde_json::Value::Null)
+            .unwrap();
+        s.add("u1", None, None, "mem B", &serde_json::Value::Null)
+            .unwrap();
+        s.add("u2", None, None, "mem C", &serde_json::Value::Null)
+            .unwrap();
 
         let q = ListMemoriesQuery {
             user_id: Some("u1".to_string()),
@@ -344,8 +362,16 @@ mod tests {
     #[test]
     fn search_returns_matches() {
         let s = store();
-        s.add("u1", None, None, "rust programming is fast", &serde_json::Value::Null).unwrap();
-        s.add("u1", None, None, "python is easy", &serde_json::Value::Null).unwrap();
+        s.add(
+            "u1",
+            None,
+            None,
+            "rust programming is fast",
+            &serde_json::Value::Null,
+        )
+        .unwrap();
+        s.add("u1", None, None, "python is easy", &serde_json::Value::Null)
+            .unwrap();
 
         let req = SearchMemoriesRequest {
             query: "rust".to_string(),
@@ -361,7 +387,9 @@ mod tests {
     #[test]
     fn update_memory() {
         let s = store();
-        let m = s.add("u1", None, None, "original", &serde_json::Value::Null).unwrap();
+        let m = s
+            .add("u1", None, None, "original", &serde_json::Value::Null)
+            .unwrap();
         let updated = s.update(m.id, "updated content").unwrap().unwrap();
         assert_eq!(updated.memory, "updated content");
     }
@@ -369,7 +397,9 @@ mod tests {
     #[test]
     fn delete_memory() {
         let s = store();
-        let m = s.add("u1", None, None, "to delete", &serde_json::Value::Null).unwrap();
+        let m = s
+            .add("u1", None, None, "to delete", &serde_json::Value::Null)
+            .unwrap();
         assert!(s.delete(m.id).unwrap());
         assert!(s.get(m.id).unwrap().is_none());
         assert!(!s.delete(m.id).unwrap());
@@ -378,14 +408,23 @@ mod tests {
     #[test]
     fn delete_all_for_user() {
         let s = store();
-        s.add("u1", None, None, "a", &serde_json::Value::Null).unwrap();
-        s.add("u1", None, None, "b", &serde_json::Value::Null).unwrap();
-        s.add("u2", None, None, "c", &serde_json::Value::Null).unwrap();
+        s.add("u1", None, None, "a", &serde_json::Value::Null)
+            .unwrap();
+        s.add("u1", None, None, "b", &serde_json::Value::Null)
+            .unwrap();
+        s.add("u2", None, None, "c", &serde_json::Value::Null)
+            .unwrap();
 
         let deleted = s.delete_all_for_user("u1").unwrap();
         assert_eq!(deleted, 2);
 
-        let q = ListMemoriesQuery { user_id: Some("u2".to_string()), agent_id: None, session_id: None, page: 1, page_size: 50 };
+        let q = ListMemoriesQuery {
+            user_id: Some("u2".to_string()),
+            agent_id: None,
+            session_id: None,
+            page: 1,
+            page_size: 50,
+        };
         let (mems, _) = s.list(&q).unwrap();
         assert_eq!(mems.len(), 1);
     }

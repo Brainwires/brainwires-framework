@@ -15,5 +15,7 @@ pub use brainwires_core::output_parser;
 pub use brainwires_core::plan_parser;
 
 // Flat re-exports for convenience
-pub use brainwires_core::output_parser::{JsonListParser, JsonOutputParser, OutputParser, RegexOutputParser};
+pub use brainwires_core::output_parser::{
+    JsonListParser, JsonOutputParser, OutputParser, RegexOutputParser,
+};
 pub use brainwires_core::plan_parser::{ParsedStep, parse_plan_steps, steps_to_tasks};

@@ -38,7 +38,7 @@ impl<L: BillingLedger> AgentWallet<L> {
 
     pub async fn budget_exhausted(&self) -> bool {
         let spent = *self.accumulated.lock().await;
-        self.max_cost_usd.map_or(false, |limit| spent >= limit)
+        self.max_cost_usd.is_some_and(|limit| spent >= limit)
     }
 
     pub async fn remaining_usd(&self) -> Option<f64> {
@@ -87,16 +87,25 @@ mod tests {
     #[tokio::test]
     async fn accumulates_cost() {
         let w = make_wallet(None);
-        w.on_usage(&UsageEvent::tokens("agent-test", "m", 100, 0.001)).await.unwrap();
-        w.on_usage(&UsageEvent::tokens("agent-test", "m", 200, 0.002)).await.unwrap();
+        w.on_usage(&UsageEvent::tokens("agent-test", "m", 100, 0.001))
+            .await
+            .unwrap();
+        w.on_usage(&UsageEvent::tokens("agent-test", "m", 200, 0.002))
+            .await
+            .unwrap();
         assert!((w.total_cost_usd().await - 0.003).abs() < 1e-9);
     }
 
     #[tokio::test]
     async fn budget_exceeded_returns_error() {
         let w = make_wallet(Some(0.005));
-        w.on_usage(&UsageEvent::tokens("agent-test", "m", 100, 0.003)).await.unwrap();
-        let err = w.on_usage(&UsageEvent::tokens("agent-test", "m", 100, 0.003)).await.unwrap_err();
+        w.on_usage(&UsageEvent::tokens("agent-test", "m", 100, 0.003))
+            .await
+            .unwrap();
+        let err = w
+            .on_usage(&UsageEvent::tokens("agent-test", "m", 100, 0.003))
+            .await
+            .unwrap_err();
         assert!(matches!(err, BillingError::Hook(_)));
         assert!(w.budget_exhausted().await);
     }
@@ -105,7 +114,9 @@ mod tests {
     async fn no_limit_never_errors() {
         let w = make_wallet(None);
         for _ in 0..50 {
-            w.on_usage(&UsageEvent::tokens("agent-test", "m", 1000, 0.10)).await.unwrap();
+            w.on_usage(&UsageEvent::tokens("agent-test", "m", 1000, 0.10))
+                .await
+                .unwrap();
         }
         assert!(!w.budget_exhausted().await);
     }

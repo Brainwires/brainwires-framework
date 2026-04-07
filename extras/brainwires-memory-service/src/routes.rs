@@ -24,9 +24,8 @@ use uuid::Uuid;
 use crate::{
     AppState,
     types::{
-        AddMemoryRequest, AddMemoryResponse, ListMemoriesQuery, ListMemoriesResponse,
-        MemoryResult, MessageResponse, SearchMemoriesRequest, SearchMemoriesResponse,
-        UpdateMemoryRequest,
+        AddMemoryRequest, AddMemoryResponse, ListMemoriesQuery, ListMemoriesResponse, MemoryResult,
+        MessageResponse, SearchMemoriesRequest, SearchMemoriesResponse, UpdateMemoryRequest,
     },
 };
 
@@ -36,14 +35,18 @@ fn internal_error(e: anyhow::Error) -> (StatusCode, Json<MessageResponse>) {
     tracing::error!("internal error: {e:#}");
     (
         StatusCode::INTERNAL_SERVER_ERROR,
-        Json(MessageResponse { message: e.to_string() }),
+        Json(MessageResponse {
+            message: e.to_string(),
+        }),
     )
 }
 
 fn not_found(id: Uuid) -> (StatusCode, Json<MessageResponse>) {
     (
         StatusCode::NOT_FOUND,
-        Json(MessageResponse { message: format!("Memory {id} not found") }),
+        Json(MessageResponse {
+            message: format!("Memory {id} not found"),
+        }),
     )
 }
 
@@ -76,7 +79,9 @@ pub async fn add_memory(
     if contents.is_empty() {
         return Err((
             StatusCode::BAD_REQUEST,
-            Json(MessageResponse { message: "No memory content provided".to_string() }),
+            Json(MessageResponse {
+                message: "No memory content provided".to_string(),
+            }),
         ));
     }
 
@@ -93,7 +98,11 @@ pub async fn add_memory(
             )
             .map_err(internal_error)?;
 
-        results.push(MemoryResult { memory: m.memory, event: "add".to_string(), id: m.id });
+        results.push(MemoryResult {
+            memory: m.memory,
+            event: "add".to_string(),
+            id: m.id,
+        });
     }
 
     Ok((StatusCode::CREATED, Json(AddMemoryResponse { results })))
@@ -110,7 +119,12 @@ pub async fn list_memories(
     let page_size = query.page_size;
     let (results, total) = state.store.list(&query).map_err(internal_error)?;
 
-    Ok(Json(ListMemoriesResponse { results, total, page, page_size }))
+    Ok(Json(ListMemoriesResponse {
+        results,
+        total,
+        page,
+        page_size,
+    }))
 }
 
 // ── Get memory ────────────────────────────────────────────────────────────────
@@ -134,7 +148,11 @@ pub async fn update_memory(
     Path(id): Path<Uuid>,
     Json(req): Json<UpdateMemoryRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<MessageResponse>)> {
-    match state.store.update(id, &req.memory).map_err(internal_error)? {
+    match state
+        .store
+        .update(id, &req.memory)
+        .map_err(internal_error)?
+    {
         Some(m) => Ok(Json(m)),
         None => Err(not_found(id)),
     }
@@ -148,7 +166,9 @@ pub async fn delete_memory(
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<MessageResponse>)> {
     if state.store.delete(id).map_err(internal_error)? {
-        Ok(Json(MessageResponse { message: format!("Memory {id} deleted") }))
+        Ok(Json(MessageResponse {
+            message: format!("Memory {id} deleted"),
+        }))
     } else {
         Err(not_found(id))
     }
@@ -164,11 +184,16 @@ pub async fn delete_all_memories(
     let user_id = params.get("user_id").ok_or_else(|| {
         (
             StatusCode::BAD_REQUEST,
-            Json(MessageResponse { message: "user_id query parameter is required".to_string() }),
+            Json(MessageResponse {
+                message: "user_id query parameter is required".to_string(),
+            }),
         )
     })?;
 
-    let count = state.store.delete_all_for_user(user_id).map_err(internal_error)?;
+    let count = state
+        .store
+        .delete_all_for_user(user_id)
+        .map_err(internal_error)?;
     Ok(Json(MessageResponse {
         message: format!("Deleted {count} memories for user {user_id}"),
     }))

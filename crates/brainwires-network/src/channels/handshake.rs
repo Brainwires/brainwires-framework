@@ -35,8 +35,8 @@ pub struct ChannelHandshakeResponse {
 
 #[cfg(test)]
 mod tests {
+    use crate::channels::capabilities::ChannelCapabilities;
     use super::*;
-    use super::capabilities::ChannelCapabilities;
 
     #[test]
     fn handshake_serde_roundtrip() {

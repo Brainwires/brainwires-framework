@@ -1,6 +1,6 @@
 //! Main executor that routes to appropriate language implementation
 
-use crate::types::{ExecutionError, ExecutionLimits, ExecutionRequest, ExecutionResult, Language};
+use super::types::{ExecutionError, ExecutionLimits, ExecutionRequest, ExecutionResult, Language};
 
 /// Main code executor that dispatches to language-specific implementations
 pub struct Executor {
@@ -34,9 +34,9 @@ impl Executor {
 
         // Dispatch to appropriate executor
         match request.language {
-            #[cfg(feature = "rhai")]
+            #[cfg(feature = "interpreters-rhai")]
             Language::Rhai => {
-                use crate::languages::rhai::RhaiExecutor;
+                use super::languages::rhai::RhaiExecutor;
                 let executor = RhaiExecutor::with_limits(
                     request
                         .limits
@@ -46,9 +46,9 @@ impl Executor {
                 executor.execute_code(&request)
             }
 
-            #[cfg(feature = "lua")]
+            #[cfg(feature = "interpreters-lua")]
             Language::Lua => {
-                use crate::languages::lua::LuaExecutor;
+                use super::languages::lua::LuaExecutor;
                 let executor = LuaExecutor::with_limits(
                     request
                         .limits
@@ -58,9 +58,9 @@ impl Executor {
                 executor.execute_code(&request)
             }
 
-            #[cfg(feature = "javascript")]
+            #[cfg(feature = "interpreters-js")]
             Language::JavaScript => {
-                use crate::languages::javascript::JavaScriptExecutor;
+                use super::languages::javascript::JavaScriptExecutor;
                 let executor = JavaScriptExecutor::with_limits(
                     request
                         .limits
@@ -70,9 +70,9 @@ impl Executor {
                 executor.execute_code(&request)
             }
 
-            #[cfg(feature = "python")]
+            #[cfg(feature = "interpreters-python")]
             Language::Python => {
-                use crate::languages::python::PythonExecutor;
+                use super::languages::python::PythonExecutor;
                 let executor = PythonExecutor::with_limits(
                     request
                         .limits
@@ -102,12 +102,12 @@ impl Executor {
 
     /// Get list of supported languages
     pub fn supported_languages(&self) -> Vec<Language> {
-        crate::supported_languages()
+        super::supported_languages()
     }
 
     /// Check if a language is supported
     pub fn is_supported(&self, language: Language) -> bool {
-        crate::is_language_supported(language)
+        super::is_language_supported(language)
     }
 
     /// Get the current limits
@@ -140,7 +140,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "rhai")]
+    #[cfg(feature = "interpreters-rhai")]
     fn test_rhai_execution() {
         let executor = Executor::new();
         let result = executor.execute_str("rhai", "1 + 2");
@@ -149,7 +149,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "lua")]
+    #[cfg(feature = "interpreters-lua")]
     fn test_lua_execution() {
         let executor = Executor::new();
         let result = executor.execute_str("lua", "return 1 + 2");
@@ -158,7 +158,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "javascript")]
+    #[cfg(feature = "interpreters-js")]
     fn test_javascript_execution() {
         let executor = Executor::new();
         let result = executor.execute_str("js", "1 + 2");
@@ -167,7 +167,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "python")]
+    #[cfg(feature = "interpreters-python")]
     fn test_python_execution() {
         let executor = Executor::new();
         let result = executor.execute_str("python", "print(1 + 2)");

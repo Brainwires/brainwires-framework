@@ -42,10 +42,10 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use reqwest::header::{HeaderMap, HeaderName, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::Client;
+use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue};
 
-use crate::types::{ExecutionRequest, ExecutionResult};
+use super::types::{ExecutionRequest, ExecutionResult};
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -89,11 +89,7 @@ impl RemoteSandboxConfig {
     }
 
     /// Add an extra header sent with every request.
-    pub fn with_header(
-        mut self,
-        name: impl Into<String>,
-        value: impl Into<String>,
-    ) -> Self {
+    pub fn with_header(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
         self.extra_headers.insert(name.into(), value.into());
         self
     }
@@ -120,9 +116,8 @@ impl RemoteSandboxExecutor {
         let mut default_headers = HeaderMap::new();
         default_headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
 
-        let bearer =
-            HeaderValue::from_str(&format!("Bearer {}", config.api_key))
-                .map_err(|e| anyhow::anyhow!("Invalid API key (bad header value): {e}"))?;
+        let bearer = HeaderValue::from_str(&format!("Bearer {}", config.api_key))
+            .map_err(|e| anyhow::anyhow!("Invalid API key (bad header value): {e}"))?;
         default_headers.insert(AUTHORIZATION, bearer);
 
         for (name, value) in &config.extra_headers {

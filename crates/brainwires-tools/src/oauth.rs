@@ -61,7 +61,9 @@ pub struct OAuthToken {
 impl OAuthToken {
     /// Returns `true` if the token is known to have expired (with a 30 s buffer).
     pub fn is_expired(&self) -> bool {
-        let Some(exp) = self.expires_at else { return false };
+        let Some(exp) = self.expires_at else {
+            return false;
+        };
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap_or_default()
@@ -180,7 +182,9 @@ impl OAuthConfig {
             client_id: client_id.into(),
             client_secret: Some(client_secret.into()),
             scopes: scopes.iter().map(|s| s.to_string()).collect(),
-            flow: OAuthFlow::ClientCredentials { token_url: token_url.into() },
+            flow: OAuthFlow::ClientCredentials {
+                token_url: token_url.into(),
+            },
             timeout: Duration::from_secs(30),
         }
     }
@@ -256,7 +260,10 @@ impl PkceChallenge {
         let digest = hasher.finalize();
         let challenge = base64_url_encode(&digest);
 
-        Self { verifier, challenge }
+        Self {
+            verifier,
+            challenge,
+        }
     }
 
     /// Build the authorization URL with PKCE parameters appended.
@@ -295,8 +302,16 @@ fn base64_url_encode(data: &[u8]) -> String {
     let mut out = String::with_capacity((data.len() * 4 + 2) / 3);
     for chunk in data.chunks(3) {
         let b0 = chunk[0] as usize;
-        let b1 = if chunk.len() > 1 { chunk[1] as usize } else { 0 };
-        let b2 = if chunk.len() > 2 { chunk[2] as usize } else { 0 };
+        let b1 = if chunk.len() > 1 {
+            chunk[1] as usize
+        } else {
+            0
+        };
+        let b2 = if chunk.len() > 2 {
+            chunk[2] as usize
+        } else {
+            0
+        };
         let _ = write!(out, "{}", CHARS[(b0 >> 2) & 63] as char);
         let _ = write!(out, "{}", CHARS[((b0 << 4) | (b1 >> 4)) & 63] as char);
         if chunk.len() > 1 {
@@ -325,7 +340,11 @@ impl<S: OAuthTokenStore> OAuthClient<S> {
     /// Build a client from config and token store.
     pub fn new(config: OAuthConfig, store: S) -> anyhow::Result<Self> {
         let http = Client::builder().timeout(config.timeout).build()?;
-        Ok(Self { config, store, http })
+        Ok(Self {
+            config,
+            store,
+            http,
+        })
     }
 
     /// Return a valid access token for `user_id`, refreshing or fetching as needed.
@@ -343,7 +362,9 @@ impl<S: OAuthTokenStore> OAuthClient<S> {
             // Try to refresh
             if let Some(refresh_token) = &token.refresh_token {
                 if let Ok(refreshed) = self.refresh_token(refresh_token).await {
-                    self.store.set(user_id, &self.config.provider, refreshed.clone()).await;
+                    self.store
+                        .set(user_id, &self.config.provider, refreshed.clone())
+                        .await;
                     return Ok(refreshed.access_token);
                 }
                 // Refresh failed — fall through to re-auth
@@ -353,7 +374,9 @@ impl<S: OAuthTokenStore> OAuthClient<S> {
         // 2. Client credentials can fetch without user interaction
         if let OAuthFlow::ClientCredentials { .. } = &self.config.flow {
             let token = self.fetch_client_credentials().await?;
-            self.store.set(user_id, &self.config.provider, token.clone()).await;
+            self.store
+                .set(user_id, &self.config.provider, token.clone())
+                .await;
             return Ok(token.access_token);
         }
 
@@ -379,15 +402,13 @@ impl<S: OAuthTokenStore> OAuthClient<S> {
     ///
     /// Call this after the user is redirected back to your `redirect_uri` with
     /// a `code` parameter.
-    pub async fn exchange_code(
-        &self,
-        code: &str,
-        verifier: &str,
-    ) -> anyhow::Result<OAuthToken> {
+    pub async fn exchange_code(&self, code: &str, verifier: &str) -> anyhow::Result<OAuthToken> {
         let token_url = match &self.config.flow {
-            OAuthFlow::AuthorizationCodePkce { token_url, redirect_uri, .. } => {
-                (token_url.clone(), Some(redirect_uri.clone()))
-            }
+            OAuthFlow::AuthorizationCodePkce {
+                token_url,
+                redirect_uri,
+                ..
+            } => (token_url.clone(), Some(redirect_uri.clone())),
             _ => anyhow::bail!("exchange_code requires AuthorizationCodePkce flow"),
         };
 
@@ -413,7 +434,11 @@ impl<S: OAuthTokenStore> OAuthClient<S> {
     /// can pass it to [`exchange_code`] when the callback arrives.
     pub fn authorization_url(&self, state: &str) -> anyhow::Result<(String, PkceChallenge)> {
         match &self.config.flow {
-            OAuthFlow::AuthorizationCodePkce { auth_url, redirect_uri, .. } => {
+            OAuthFlow::AuthorizationCodePkce {
+                auth_url,
+                redirect_uri,
+                ..
+            } => {
                 let pkce = PkceChallenge::new();
                 let url = pkce.authorization_url(
                     auth_url,
@@ -469,11 +494,7 @@ impl<S: OAuthTokenStore> OAuthClient<S> {
         self.post_token(&token_url, &params).await
     }
 
-    async fn post_token(
-        &self,
-        url: &str,
-        params: &[(&str, String)],
-    ) -> anyhow::Result<OAuthToken> {
+    async fn post_token(&self, url: &str, params: &[(&str, String)]) -> anyhow::Result<OAuthToken> {
         let resp = self
             .http
             .post(url)
@@ -579,7 +600,9 @@ mod tests {
 
     #[test]
     fn in_memory_store_operations() {
-        let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
         rt.block_on(async {
             let store = InMemoryTokenStore::new();
             let token = OAuthToken {

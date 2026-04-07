@@ -54,7 +54,7 @@ pub mod mdap {
 /// Adaptive prompting — technique library, clustering, temperature optimization.
 #[cfg(feature = "prompting")]
 pub mod prompting {
-    pub use brainwires_knowledge::prompting::*;
+    pub use brainwires_cognition::prompting::*;
 }
 
 /// Permissions — capability profiles, policy engine, audit logging.
@@ -92,7 +92,7 @@ pub mod seal {
 /// RAG — codebase indexing, semantic search, and retrieval-augmented generation.
 #[cfg(feature = "rag")]
 pub mod rag {
-    pub use brainwires_knowledge::rag::*;
+    pub use brainwires_cognition::rag::*;
 }
 
 /// Sandboxed code interpreters — Rhai, Lua, JavaScript (Boa), Python (RustPython).
@@ -218,7 +218,7 @@ pub mod system {
 /// Offline memory consolidation — summarization, fact extraction, hot/warm/cold tier transitions.
 #[cfg(feature = "dream")]
 pub mod dream {
-    pub use brainwires_knowledge::dream::*;
+    pub use brainwires_cognition::dream::*;
 }
 
 /// Telemetry — analytics events, billing hooks, SQLite persistence, and cost/usage queries.
@@ -230,7 +230,7 @@ pub mod telemetry {
 /// Central knowledge — BKS, PKS, entity graphs, thought processing.
 #[cfg(feature = "brain")]
 pub mod brain {
-    pub use brainwires_knowledge::knowledge::*;
+    pub use brainwires_cognition::knowledge::*;
 }
 
 /// Re-exports for building MCP servers (rmcp, schemars, CancellationToken).
@@ -352,13 +352,13 @@ pub mod prelude {
 
     // Knowledge — available with "knowledge" feature (now in brainwires-cognition::knowledge)
     #[cfg(feature = "knowledge")]
-    pub use brainwires_knowledge::knowledge::bks_pks::{
+    pub use brainwires_cognition::knowledge::bks_pks::{
         BehavioralKnowledgeCache, BehavioralTruth, PersonalKnowledgeCache, TruthCategory,
     };
 
     // Prompting — available with "prompting" feature
     #[cfg(feature = "prompting")]
-    pub use brainwires_knowledge::prompting::{
+    pub use brainwires_cognition::prompting::{
         GeneratedPrompt, PromptGenerator, PromptingTechnique, TaskClusterManager, TechniqueLibrary,
         TemperatureOptimizer,
     };

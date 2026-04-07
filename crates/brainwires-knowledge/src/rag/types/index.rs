@@ -23,6 +23,7 @@ pub struct IndexRequest {
     pub max_file_size: usize,
 }
 
+/// Default maximum file size for indexing (1 MB).
 pub fn default_max_file_size() -> usize {
     1_048_576 // 1MB
 }

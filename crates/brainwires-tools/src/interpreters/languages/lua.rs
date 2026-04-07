@@ -18,7 +18,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use super::{LanguageExecutor, get_limits, truncate_output};
-use crate::types::{ExecutionLimits, ExecutionRequest, ExecutionResult};
+use super::super::types::{ExecutionLimits, ExecutionRequest, ExecutionResult};
 
 /// Lua code executor
 pub struct LuaExecutor {
@@ -337,7 +337,7 @@ fn format_lua_error(error: &mlua::Error) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::Language;
+    use super::super::types::Language;
 
     fn make_request(code: &str) -> ExecutionRequest {
         ExecutionRequest {

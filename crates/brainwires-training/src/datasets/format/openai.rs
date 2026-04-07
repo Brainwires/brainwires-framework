@@ -1,8 +1,8 @@
 use serde_json::json;
 
-use super::FormatConverter;
 use super::super::error::{DatasetError, DatasetResult};
 use super::super::types::{TrainingExample, TrainingMessage, TrainingRole};
+use super::FormatConverter;
 
 /// OpenAI chat fine-tuning JSONL format.
 ///
@@ -109,8 +109,8 @@ impl FormatConverter for OpenAiFormat {
     }
 }
 
-use super::PreferenceConverter;
 use super::super::types::PreferencePair;
+use super::PreferenceConverter;
 
 impl PreferenceConverter for OpenAiFormat {
     fn name(&self) -> &str {
@@ -222,7 +222,7 @@ mod tests {
     #[test]
     fn test_openai_preference_roundtrip() {
         use super::PreferenceConverter;
-        use crate::types::PreferencePair;
+        use crate::datasets::types::PreferencePair;
         let format = OpenAiFormat;
         let pair = PreferencePair::new(
             vec![TrainingMessage::user("What is 2+2?")],
