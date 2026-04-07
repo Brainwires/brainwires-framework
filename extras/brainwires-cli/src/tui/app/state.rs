@@ -371,7 +371,7 @@ pub struct App {
     /// Flag indicating Session connection was lost and needs respawn
     pub ipc_needs_respawn: bool,
     /// Skill registry for agent skills
-    pub skill_registry: Option<brainwires_skills::SkillRegistry>,
+    pub skill_registry: Option<brainwires_agents::skills::SkillRegistry>,
 
     // Journal Tree Fields
     /// Collapsible tree for the Journal view
@@ -796,7 +796,7 @@ impl App {
             ipc_needs_respawn: false,
             // Skills system
             skill_registry: {
-                let mut registry = brainwires_skills::SkillRegistry::new();
+                let mut registry = brainwires_agents::skills::SkillRegistry::new();
                 if let Err(e) = crate::utils::skills::discover_skills(&mut registry) {
                     tracing::warn!("Failed to discover skills: {}", e);
                 }
@@ -1105,7 +1105,7 @@ impl App {
             ipc_needs_respawn: false,
             // Skills system
             skill_registry: {
-                let mut registry = brainwires_skills::SkillRegistry::new();
+                let mut registry = brainwires_agents::skills::SkillRegistry::new();
                 if let Err(e) = crate::utils::skills::discover_skills(&mut registry) {
                     tracing::warn!("Failed to discover skills: {}", e);
                 }

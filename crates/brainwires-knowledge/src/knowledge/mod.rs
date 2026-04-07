@@ -11,7 +11,7 @@
 //! ## Library Usage
 //!
 //! ```no_run
-//! use brainwires_cognition::knowledge::BrainClient;
+//! use brainwires_knowledge::knowledge::BrainClient;
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {

@@ -79,7 +79,7 @@ base64 = { version = "0.22", optional = true }
 icalendar = { version = "0.16", optional = true }
 
 # Feature-gated dependencies
-brainwires-cognition = { workspace = true, optional = true }
+brainwires-knowledge = { workspace = true, optional = true }
 brainwires-mcp = { workspace = true, optional = true }
 
 # ── System deps (absorbed from brainwires-system) ─────────────────────────
@@ -112,7 +112,7 @@ native = [
 wasm = ["brainwires-core/wasm"]
 orchestrator = ["dep:rhai", "rhai/sync"]
 orchestrator-wasm = ["dep:rhai", "dep:web-time"]
-rag = ["dep:brainwires-cognition", "brainwires-cognition/rag", "brainwires-cognition/lancedb-backend", "brainwires-cognition/tree-sitter-languages"]
+rag = ["dep:brainwires-knowledge", "brainwires-knowledge/rag", "brainwires-knowledge/lancedb-backend", "brainwires-knowledge/tree-sitter-languages"]
 interpreters = ["interpreters-rhai", "interpreters-lua"]
 interpreters-rhai = ["dep:rhai"]
 interpreters-lua = ["dep:mlua"]

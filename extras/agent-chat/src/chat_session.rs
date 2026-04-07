@@ -6,7 +6,7 @@ use brainwires_core::{
     ChatOptions, ContentBlock, Message, MessageContent, Provider, StreamChunk, Tool, ToolContext,
     ToolResult, ToolUse,
 };
-use brainwires_tool_system::{BuiltinToolExecutor, ToolRegistry};
+use brainwires_tools::{BuiltinToolExecutor, ToolRegistry};
 
 use crate::cli::Cli;
 use crate::config::ChatConfig;

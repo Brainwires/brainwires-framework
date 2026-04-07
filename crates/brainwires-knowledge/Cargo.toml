@@ -1,6 +1,6 @@
 [package]
-name = "brainwires-cognition"
-description = "Unified intelligence layer — knowledge graphs, adaptive prompting, RAG, spectral math, and code analysis for the Brainwires Agent Framework"
+name = "brainwires-knowledge"
+description = "Knowledge layer — knowledge graphs, adaptive prompting, RAG, spectral math, and code analysis for the Brainwires Agent Framework"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,7 +9,7 @@ repository.workspace = true
 homepage.workspace = true
 authors.workspace = true
 readme = "README.md"
-documentation = "https://docs.rs/brainwires-cognition"
+documentation = "https://docs.rs/brainwires-knowledge"
 keywords = ["knowledge-graph", "rag", "prompting", "semantic-search", "code-analysis"]
 categories = ["development-tools"]
 

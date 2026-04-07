@@ -9,11 +9,11 @@
 //! cargo run -p brainwires-cognition --example knowledge_graph --features knowledge
 //! ```
 
-use brainwires_cognition::knowledge::entity::{
+use brainwires_knowledge::knowledge::entity::{
     EntityStore, EntityType, ExtractionResult, Relationship,
 };
-use brainwires_cognition::knowledge::relationship_graph::RelationshipGraph;
-use brainwires_cognition::knowledge::thought::{Thought, ThoughtCategory};
+use brainwires_knowledge::knowledge::relationship_graph::RelationshipGraph;
+use brainwires_knowledge::knowledge::thought::{Thought, ThoughtCategory};
 
 fn main() {
     println!("=== Brainwires Knowledge Graph Example ===\n");

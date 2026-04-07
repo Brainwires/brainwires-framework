@@ -11,13 +11,13 @@
 
 use std::collections::HashMap;
 
-use brainwires_cognition::code_analysis::types::{
+use brainwires_knowledge::code_analysis::types::{
     CallEdge, CallGraphNode, DefinitionResult, PrecisionLevel, SymbolId,
 };
-use brainwires_cognition::code_analysis::{
+use brainwires_knowledge::code_analysis::{
     Definition, HybridRelationsProvider, RelationsProvider, SymbolKind,
 };
-use brainwires_cognition::rag::indexer::FileInfo;
+use brainwires_knowledge::rag::indexer::FileInfo;
 
 fn main() -> anyhow::Result<()> {
     println!("=== Brainwires Code Analysis Example ===\n");
@@ -275,7 +275,7 @@ fn main() {
     // ── Step 6: Precision levels and configuration ───────────────────
     println!("--- Step 6: Configuration ---\n");
 
-    let config = brainwires_cognition::code_analysis::RelationsConfig::default();
+    let config = brainwires_knowledge::code_analysis::RelationsConfig::default();
     println!("Default RelationsConfig:");
     println!("  enabled:          {}", config.enabled);
     println!("  use_stack_graphs: {}", config.use_stack_graphs);

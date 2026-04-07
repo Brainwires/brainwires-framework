@@ -22,7 +22,7 @@ brainwires-tools = { workspace = true, optional = true }
 brainwires-agents = { workspace = true, optional = true }
 brainwires-storage = { workspace = true, optional = true }
 brainwires-mcp = { workspace = true, optional = true }
-brainwires-cognition = { workspace = true, optional = true }
+brainwires-knowledge = { workspace = true, optional = true }
 brainwires-permissions = { workspace = true, optional = true }
 
 # Providers
@@ -100,12 +100,12 @@ storage = ["dep:brainwires-storage", "brainwires-storage/native"]
 mcp = ["dep:brainwires-mcp"]
 mdap = ["agents", "brainwires-agents/mdap"]
 knowledge = ["brain"]
-prompting = ["dep:brainwires-cognition", "brainwires-cognition/prompting"]
+prompting = ["dep:brainwires-knowledge", "brainwires-knowledge/prompting"]
 permissions = ["dep:brainwires-permissions"]
 orchestrator = ["tools", "brainwires-tools/orchestrator"]
 openapi = ["tools", "brainwires-tools/openapi"]
-rag = ["dep:brainwires-cognition", "brainwires-cognition/rag", "dep:brainwires-storage", "brainwires-storage/vector-db", "tools", "brainwires-tools/rag"]
-rag-full-languages = ["rag", "brainwires-cognition/tree-sitter-languages"]
+rag = ["dep:brainwires-knowledge", "brainwires-knowledge/rag", "dep:brainwires-storage", "brainwires-storage/vector-db", "tools", "brainwires-tools/rag"]
+rag-full-languages = ["rag", "brainwires-knowledge/tree-sitter-languages"]
 interpreters = ["tools", "brainwires-tools/interpreters"]
 providers = ["dep:brainwires-providers"]
 chat = ["providers"]
@@ -136,9 +136,9 @@ training-local = ["training", "brainwires-training/local"]
 training-full = ["training", "brainwires-training/full", "datasets"]
 autonomy = ["dep:brainwires-autonomy"]
 system = ["tools", "brainwires-tools/system"]
-dream = ["dep:brainwires-cognition", "brainwires-cognition/dream"]
+dream = ["dep:brainwires-knowledge", "brainwires-knowledge/dream"]
 telemetry = ["dep:brainwires-telemetry", "brainwires-telemetry/native", "brainwires-providers?/telemetry"]
-brain = ["dep:brainwires-cognition", "brainwires-cognition/knowledge"]
+brain = ["dep:brainwires-knowledge", "brainwires-knowledge/knowledge"]
 bedrock = ["providers", "brainwires-providers/bedrock"]
 vertex-ai = ["providers", "brainwires-providers/vertex-ai"]
 llama-cpp-2 = ["providers", "brainwires-providers/llama-cpp-2"]

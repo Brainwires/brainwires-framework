@@ -4,7 +4,7 @@
 //! prompting techniques by category, complexity level, and task
 //! characteristics.
 
-use brainwires_cognition::prompting::techniques::{
+use brainwires_knowledge::prompting::techniques::{
     ComplexityLevel, PromptingTechnique, TaskCharacteristic, TechniqueCategory, TechniqueMetadata,
 };
 use std::collections::HashMap;

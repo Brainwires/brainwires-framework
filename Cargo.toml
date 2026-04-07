@@ -14,7 +14,8 @@ members = [
     "crates/brainwires-hardware",
     "crates/brainwires-training",
     "extras/brainwires-autonomy",
-    "crates/brainwires-cognition",
+    "crates/brainwires-knowledge",
+    "crates/brainwires-reasoning",
 
     "crates/brainwires-telemetry",
     "extras/brainwires-billing",
@@ -38,6 +39,7 @@ exclude = [
     "deprecated/brainwires-mesh",
     "deprecated/brainwires-prompting",
     "deprecated/brainwires-rag",
+    "deprecated/brainwires-cognition",
     "deprecated/brainwires-channels",
     "deprecated/brainwires-system",
     "deprecated/brainwires-code-interpreters",
@@ -76,7 +78,8 @@ brainwires-providers = { path = "crates/brainwires-providers", version = "0.8.0"
 brainwires-hardware = { path = "crates/brainwires-hardware", version = "0.8.0" }
 brainwires-training = { path = "crates/brainwires-training", version = "0.8.0" }
 brainwires-autonomy = { path = "extras/brainwires-autonomy", version = "0.8.0", default-features = false }
-brainwires-cognition = { path = "crates/brainwires-cognition", version = "0.8.0", default-features = false }
+brainwires-knowledge = { path = "crates/brainwires-knowledge", version = "0.8.0", default-features = false }
+brainwires-reasoning = { path = "crates/brainwires-reasoning", version = "0.8.0" }
 brainwires-telemetry  = { path = "crates/brainwires-telemetry",  version = "0.8.0", default-features = false }
 brainwires-proxy = { path = "extras/brainwires-proxy", version = "0.8.0" }
 
