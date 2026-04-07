@@ -47,6 +47,9 @@ pub mod sinks;
 pub mod billing_hook;
 pub mod usage;
 
+// Outcome metrics + Prometheus text export
+pub mod metrics;
+
 #[cfg(feature = "sqlite")]
 pub mod query;
 
@@ -59,6 +62,7 @@ pub use sinks::memory::{DEFAULT_CAPACITY, MemoryAnalyticsSink};
 
 pub use billing_hook::{BillingError, BillingHook};
 pub use usage::UsageEvent;
+pub use metrics::{MetricsRegistry, OutcomeMetrics};
 
 #[cfg(feature = "sqlite")]
 pub use sinks::sqlite::SqliteAnalyticsSink;
