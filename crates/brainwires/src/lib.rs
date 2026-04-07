@@ -104,7 +104,7 @@ pub mod interpreters {
 /// Agent network — IPC, remote bridge, mesh networking, routing, discovery.
 #[cfg(feature = "agent-network")]
 pub mod agent_network {
-    pub use brainwires_agent_network::*;
+    pub use brainwires_network::*;
 }
 
 /// MCP server framework — build MCP-compliant tool servers with middleware.
@@ -136,7 +136,7 @@ pub mod a2a {
 /// Distributed mesh networking — topology, discovery, federation, routing.
 #[cfg(feature = "mesh")]
 pub mod mesh {
-    pub use brainwires_agent_network::mesh::*;
+    pub use brainwires_network::mesh::*;
 }
 
 /// Hardware I/O — audio, GPIO, Bluetooth, network, camera, USB, voice assistant.

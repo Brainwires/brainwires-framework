@@ -1,12 +1,12 @@
 //! Integration tests for routing — verifying that routers, peer tables,
 //! and message envelopes work together correctly across modules.
 
-use brainwires_agent_network::identity::{AgentCard, AgentIdentity};
-use brainwires_agent_network::network::{MessageEnvelope, Payload};
-use brainwires_agent_network::routing::{
+use brainwires_network::identity::{AgentCard, AgentIdentity};
+use brainwires_network::network::{MessageEnvelope, Payload};
+use brainwires_network::routing::{
     BroadcastRouter, ContentRouter, DirectRouter, PeerTable, Router, RoutingStrategy,
 };
-use brainwires_agent_network::transport::TransportAddress;
+use brainwires_network::transport::TransportAddress;
 use uuid::Uuid;
 
 /// Helper: create an agent identity with a TCP endpoint.

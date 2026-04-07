@@ -10,7 +10,7 @@
 //! construction API so you can see how the pieces fit together.
 //!
 //! ```bash
-//! cargo run -p brainwires-agent-network --example mcp_server --features server
+//! cargo run -p brainwires-network --example mcp_server --features server
 //! ```
 
 use anyhow::Result;

@@ -1,12 +1,12 @@
 //! Integration tests for the NetworkManager — verifying the builder pattern,
 //! event subscription, peer table management, and discovery integration.
 
-use brainwires_agent_network::discovery::{Discovery, ManualDiscovery};
-use brainwires_agent_network::identity::AgentIdentity;
-use brainwires_agent_network::network::{
+use brainwires_network::discovery::{Discovery, ManualDiscovery};
+use brainwires_network::identity::AgentIdentity;
+use brainwires_network::network::{
     ConnectionState, NetworkError, NetworkEvent, NetworkManagerBuilder, TransportType,
 };
-use brainwires_agent_network::transport::TransportAddress;
+use brainwires_network::transport::TransportAddress;
 
 /// Test that NetworkManagerBuilder creates a properly configured manager.
 #[tokio::test]

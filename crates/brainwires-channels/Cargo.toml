@@ -18,7 +18,7 @@ name = "brainwires_channels"
 
 [dependencies]
 # Agent network (optional — only needed for MessageEnvelope conversion)
-brainwires-agent-network = { workspace = true, optional = true }
+brainwires-network = { workspace = true, optional = true }
 
 # WebRTC — Brainwires forks with JitterBuffer, GCC, DTLS restart, serde config, TURN, TCP ICE, mDNS
 # Both `webrtc` and the sub-crates (`rtc`, `rtc-interceptor`, `rtc-ice`) come from the same
@@ -54,7 +54,7 @@ bitflags = { workspace = true }
 
 [features]
 default = []
-agent-network = ["dep:brainwires-agent-network"]
+agent-network = ["dep:brainwires-network"]
 webrtc = ["dep:webrtc", "dep:rtc", "dep:bytes", "dep:rand", "dep:tokio", "dep:tracing"]
 webrtc-advanced = ["webrtc", "dep:rtc-interceptor", "dep:rtc-ice"]
 

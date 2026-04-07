@@ -8,12 +8,12 @@
 //! - Subscribing to `NetworkEvent` and inspecting `ConnectionState`
 //!
 //! ```bash
-//! cargo run -p brainwires-agent-network --example network_manager \
+//! cargo run -p brainwires-network --example network_manager \
 //!     --features "server,client,ipc-transport"
 //! ```
 
-use brainwires_agent_network::discovery::ManualDiscovery;
-use brainwires_agent_network::{
+use brainwires_network::discovery::ManualDiscovery;
+use brainwires_network::{
     AgentCard, AgentIdentity, ConnectionState, MessageEnvelope, NetworkEvent,
     NetworkManagerBuilder, Payload, TransportType,
 };

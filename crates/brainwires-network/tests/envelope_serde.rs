@@ -5,7 +5,7 @@
 //! cross-payload envelope interactions (reply chains, correlation IDs)
 //! work as expected.
 
-use brainwires_agent_network::network::{MessageEnvelope, MessageTarget, Payload};
+use brainwires_network::network::{MessageEnvelope, MessageTarget, Payload};
 use uuid::Uuid;
 
 /// Verify that all three payload variants survive a JSON round-trip

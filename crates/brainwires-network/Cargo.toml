@@ -1,5 +1,5 @@
 [package]
-name = "brainwires-agent-network"
+name = "brainwires-network"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,7 +9,7 @@ homepage.workspace = true
 authors.workspace = true
 description = "Agent-to-agent networking — IPC, remote bridge, mesh networking, routing, and discovery for Brainwires"
 readme = "README.md"
-documentation = "https://docs.rs/brainwires-agent-network"
+documentation = "https://docs.rs/brainwires-network"
 keywords = ["mcp", "ipc", "mesh-networking", "agent-communication", "topology"]
 categories = ["network-programming"]
 

@@ -16,7 +16,7 @@
 //! ## Example
 //!
 //! ```rust,no_run
-//! use brainwires_agent_network::identity::email::{
+//! use brainwires_network::identity::email::{
 //!     EmailIdentity, EmailMessage, HttpEmailProvider, HttpEmailConfig, EmailProvider,
 //! };
 //!

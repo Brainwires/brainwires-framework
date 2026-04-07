@@ -32,7 +32,7 @@ brainwires-code-interpreters = { workspace = true, optional = true }
 brainwires-providers = { workspace = true, optional = true }
 
 # Agent network (IPC, remote bridge, mesh)
-brainwires-agent-network = { workspace = true, optional = true }
+brainwires-network = { workspace = true, optional = true }
 
 # MCP server framework
 brainwires-mcp-server = { workspace = true, optional = true }
@@ -117,14 +117,14 @@ providers = ["dep:brainwires-providers"]
 chat = ["providers"]
 reasoning = ["agents", "brainwires-agents/reasoning"]
 seal = ["agents", "brainwires-agents/seal"]
-agent-network = ["dep:brainwires-agent-network"]
+agent-network = ["dep:brainwires-network"]
 mcp-server-framework = ["dep:brainwires-mcp-server"]
 skills = ["dep:brainwires-skills"]
 eval = ["agents", "brainwires-agents/eval"]
 otel = ["agents", "brainwires-agents/otel"]
 # proxy feature removed — brainwires-proxy is an extras app, not a framework crate
 a2a = ["dep:brainwires-a2a", "brainwires-a2a/native"]
-mesh = ["agent-network", "brainwires-agent-network/mesh"]
+mesh = ["agent-network", "brainwires-network/mesh"]
 audio = ["dep:brainwires-hardware", "brainwires-hardware/audio"]
 gpio = ["dep:brainwires-hardware", "brainwires-hardware/gpio"]
 bluetooth = ["dep:brainwires-hardware", "brainwires-hardware/bluetooth"]

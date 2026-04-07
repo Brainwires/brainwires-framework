@@ -2,11 +2,11 @@
 //! identities flow correctly through the discovery layer and interact
 //! with routing and network events.
 
-use brainwires_agent_network::discovery::{Discovery, DiscoveryProtocol, ManualDiscovery};
-use brainwires_agent_network::identity::{AgentCard, AgentIdentity, SigningKey, VerifyingKey};
-use brainwires_agent_network::network::{NetworkEvent, NetworkManagerBuilder};
-use brainwires_agent_network::routing::PeerTable;
-use brainwires_agent_network::transport::TransportAddress;
+use brainwires_network::discovery::{Discovery, DiscoveryProtocol, ManualDiscovery};
+use brainwires_network::identity::{AgentCard, AgentIdentity, SigningKey, VerifyingKey};
+use brainwires_network::network::{NetworkEvent, NetworkManagerBuilder};
+use brainwires_network::routing::PeerTable;
+use brainwires_network::transport::TransportAddress;
 
 /// Test that agents discovered via ManualDiscovery can be looked up
 /// and have their capabilities inspected.

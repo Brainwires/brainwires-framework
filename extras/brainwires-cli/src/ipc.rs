@@ -1,7 +1,7 @@
 //! Inter-Process Communication for Agent-Viewer Architecture
 //!
 //! This module provides the IPC protocol for communication between the TUI viewer
-//! and the Agent process. The core implementation lives in the `brainwires_agent_network`
+//! and the Agent process. The core implementation lives in the `brainwires_network`
 //! framework crate. This CLI adapter re-exports those types and provides
 //! convenience wrappers that inject `PlatformPaths::sessions_dir()`.
 //!

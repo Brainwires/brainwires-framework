@@ -154,7 +154,7 @@ brainwires = { path = "../../crates/brainwires", features = ["full"] }
 brainwires-tools = { workspace = true, features = ["orchestrator", "rag", "interpreters"] }
 brainwires-cognition = { workspace = true, features = ["rag", "lancedb-backend", "alt-folder-name", "documents"] }
 brainwires-code-interpreters = { path = "../../crates/brainwires-code-interpreters", default-features = false, features = ["rhai", "lua"] }
-brainwires-agent-network = { workspace = true, features = ["auth-keyring"] }
+brainwires-network = { workspace = true, features = ["auth-keyring"] }
 brainwires-providers.workspace = true
 brainwires-skills.workspace = true
 brainwires-telemetry = { workspace = true, features = ["native"] }
