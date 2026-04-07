@@ -105,7 +105,9 @@ openapi = ["dep:openapiv3", "dep:serde_yml", "dep:reqwest"]
 email = ["dep:lettre", "dep:async-imap", "dep:imap-proto", "dep:tokio-native-tls", "dep:native-tls", "dep:futures", "dep:mailparse", "dep:base64"]
 calendar = ["dep:icalendar", "dep:reqwest"]
 browser = ["dep:brainwires-mcp", "native"]
-full = ["orchestrator", "rag", "interpreters", "openapi", "email", "calendar", "browser"]
+# OAuth 2.0 middleware — PKCE, client credentials, token refresh, pluggable store
+oauth = ["native"]
+full = ["orchestrator", "rag", "interpreters", "openapi", "email", "calendar", "browser", "oauth"]
 
 [[bench]]
 name = "token_comparison"

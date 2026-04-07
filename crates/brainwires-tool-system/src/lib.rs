@@ -92,6 +92,10 @@ mod calendar;
 #[cfg(feature = "browser")]
 mod browser;
 
+/// OAuth 2.0 client, token store, and PKCE helpers for tool integrations.
+#[cfg(feature = "oauth")]
+pub mod oauth;
+
 // ── Public re-exports ────────────────────────────────────────────────────────
 
 // Always-available tools
