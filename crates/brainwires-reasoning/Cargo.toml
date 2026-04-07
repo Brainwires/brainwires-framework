@@ -14,7 +14,7 @@ keywords = ["reasoning", "plan-parsing", "output-parsing", "llm", "prompting"]
 categories = ["development-tools"]
 
 [dependencies]
-brainwires-core.workspace = true
+brainwires-core = { workspace = true, features = ["planning"] }
 
 # Serialization
 serde = { workspace = true }
@@ -24,8 +24,6 @@ serde_json = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 
-# Parsing
-regex = "1"
 
 [features]
 default = []

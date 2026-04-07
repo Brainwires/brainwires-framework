@@ -3,19 +3,17 @@
 //!
 //! Structured reasoning primitives for the Brainwires Agent Framework.
 //!
-//! ## Always Available
+//! Re-exports the plan and output parsing utilities from `brainwires-core`
+//! as a single, discoverable reasoning crate for Layer 3 consumers.
+//!
+//! ## Available
 //! - **plan_parser** — Extract numbered task steps from LLM plan output
 //! - **output_parser** — Parse structured data (JSON, regex) from raw LLM text
-//!
-//! These modules were previously part of `brainwires-core`. Re-exports from
-//! core are kept for one release cycle to avoid breaking changes.
 
-/// Plan parsing — extract numbered task steps from LLM plan output.
-pub mod plan_parser;
+// Re-export from core — canonical source of truth lives in brainwires-core
+pub use brainwires_core::output_parser;
+pub use brainwires_core::plan_parser;
 
-/// Output parsing — extract structured data from raw LLM text.
-pub mod output_parser;
-
-// Re-exports for convenience
-pub use output_parser::{JsonListParser, JsonOutputParser, OutputParser, RegexOutputParser};
-pub use plan_parser::{ParsedStep, parse_plan_steps, steps_to_tasks};
+// Flat re-exports for convenience
+pub use brainwires_core::output_parser::{JsonListParser, JsonOutputParser, OutputParser, RegexOutputParser};
+pub use brainwires_core::plan_parser::{ParsedStep, parse_plan_steps, steps_to_tasks};
