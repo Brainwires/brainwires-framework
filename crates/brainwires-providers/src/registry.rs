@@ -175,6 +175,15 @@ pub static PROVIDER_REGISTRY: &[ProviderEntry] = &[
         supports_model_listing: false,
         models_url: None,
     },
+    ProviderEntry {
+        provider_type: ProviderType::MiniMax,
+        chat_protocol: ChatProtocol::OpenAiChatCompletions,
+        default_base_url: "https://api.minimax.io/v1/chat/completions",
+        default_model: "MiniMax-M2.7",
+        auth: AuthScheme::BearerToken,
+        supports_model_listing: false,
+        models_url: None,
+    },
 ];
 
 /// Look up the registry entry for a given provider type.
@@ -202,6 +211,7 @@ mod tests {
         assert!(lookup(ProviderType::Ollama).is_some());
         assert!(lookup(ProviderType::OpenAiResponses).is_some());
         assert!(lookup(ProviderType::Brainwires).is_some());
+        assert!(lookup(ProviderType::MiniMax).is_some());
     }
 
     #[test]

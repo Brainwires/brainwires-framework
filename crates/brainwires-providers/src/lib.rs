@@ -188,6 +188,8 @@ pub enum ProviderType {
     Murf,
     /// OpenAI Responses API.
     OpenAiResponses,
+    /// MiniMax AI.
+    MiniMax,
     /// Custom / user-defined provider.
     Custom,
 }
@@ -214,6 +216,7 @@ impl ProviderType {
             Self::Cartesia => "sonic-english",
             Self::Murf => "en-US-natalie",
             Self::OpenAiResponses => "gpt-5-mini",
+            Self::MiniMax => "MiniMax-M2.7",
             Self::Custom => "claude-sonnet-4-6",
         }
     }
@@ -239,6 +242,7 @@ impl ProviderType {
             "cartesia" => Some(Self::Cartesia),
             "murf" => Some(Self::Murf),
             "openai-responses" | "openai_responses" => Some(Self::OpenAiResponses),
+            "minimax" => Some(Self::MiniMax),
             "custom" => Some(Self::Custom),
             _ => None,
         }
@@ -265,6 +269,7 @@ impl ProviderType {
             Self::Cartesia => "cartesia",
             Self::Murf => "murf",
             Self::OpenAiResponses => "openai-responses",
+            Self::MiniMax => "minimax",
             Self::Custom => "custom",
         }
     }
@@ -379,6 +384,7 @@ mod tests {
         );
         assert_eq!(ProviderType::Ollama.default_model(), "llama3.3");
         assert_eq!(ProviderType::Brainwires.default_model(), "gpt-5-mini");
+        assert_eq!(ProviderType::MiniMax.default_model(), "MiniMax-M2.7");
     }
 
     #[test]
@@ -432,6 +438,10 @@ mod tests {
             ProviderType::from_str_opt("custom"),
             Some(ProviderType::Custom)
         );
+        assert_eq!(
+            ProviderType::from_str_opt("minimax"),
+            Some(ProviderType::MiniMax)
+        );
         assert_eq!(ProviderType::from_str_opt("unknown"), None);
     }
 
@@ -441,6 +451,7 @@ mod tests {
         assert!(ProviderType::OpenAI.requires_api_key());
         assert!(!ProviderType::Ollama.requires_api_key());
         assert!(ProviderType::ElevenLabs.requires_api_key());
+        assert!(ProviderType::MiniMax.requires_api_key());
     }
 
     #[test]

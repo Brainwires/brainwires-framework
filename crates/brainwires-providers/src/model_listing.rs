@@ -182,6 +182,7 @@ pub fn create_model_lister(
         }
         ProviderType::Brainwires
         | ProviderType::Custom
+        | ProviderType::MiniMax
         | ProviderType::Bedrock
         | ProviderType::VertexAI
         | ProviderType::ElevenLabs
