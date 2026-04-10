@@ -39,11 +39,9 @@ pub type LevelHandler = Arc<dyn Fn(u8) + Send + Sync>;
 pub type ColorTempHandler = Arc<dyn Fn(u16) + Send + Sync>;
 pub type ThermostatHandler = Arc<dyn Fn(f32) + Send + Sync>;
 
-// Matter protocol constants
-#[allow(dead_code)]
-const MATTER_PORT: u16 = 5540;
-#[allow(dead_code)]
-const MATTER_MDNS_SERVICE_TYPE: &str = "_matter._tcp";
+// Matter protocol constants (used when binding the Matter server socket)
+const _MATTER_PORT: u16 = 5540;
+const _MATTER_MDNS_SERVICE_TYPE: &str = "_matter._tcp";
 
 // IM protocol ID
 const IM_PROTOCOL_ID: u16 = 0x0001;
@@ -73,8 +71,7 @@ struct ServerInner {
     thermostat: Option<ThermostatHandler>,
     running: bool,
     /// Whether the device is commissioned (has an operational fabric).
-    #[allow(dead_code)]
-    commissioned: bool,
+    _commissioned: bool,
 }
 
 /// A Matter 1.3 device server.
@@ -125,7 +122,7 @@ impl MatterDeviceServer {
                 color_temp: None,
                 thermostat: None,
                 running: false,
-                commissioned: false,
+                _commissioned: false,
             })),
             qr_code,
             pairing_code,

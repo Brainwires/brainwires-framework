@@ -6,7 +6,7 @@
 //!
 //! Run:
 //! ```sh
-//! cargo run -p brainwires-cognition --example knowledge_graph --features knowledge
+//! cargo run -p brainwires-knowledge --example knowledge_graph --features knowledge
 //! ```
 
 use brainwires_knowledge::knowledge::entity::{

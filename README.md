@@ -62,22 +62,18 @@ The Brainwires Framework is a workspace of 20 framework crates plus 13 extras th
 | [**brainwires**](crates/brainwires/README.md) | Facade crate — re-exports all other crates behind feature flags |
 | [**brainwires-core**](crates/brainwires-core/README.md) | Core types, traits, and error handling shared by all crates |
 | [**brainwires-providers**](crates/brainwires-providers/README.md) | Multi-provider AI interface (Anthropic, OpenAI, Google, Ollama, local LLMs) |
-| [**brainwires-tool-system**](crates/brainwires-tool-system/README.md) | Tool definitions and execution for AI model interactions |
-| [**brainwires-agents**](crates/brainwires-agents/README.md) | Multi-agent orchestration, task decomposition, file lock coordination |
-| [**brainwires-cognition**](crates/brainwires-cognition/README.md) | Knowledge (BKS/PKS, entity graphs), prompting (technique library, clustering), and RAG (code search, hybrid retrieval) |
+| [**brainwires-tools**](crates/brainwires-tools/README.md) | Tool definitions, execution, interpreters, and system primitives for AI model interactions |
+| [**brainwires-agents**](crates/brainwires-agents/README.md) | Multi-agent orchestration, task decomposition, file lock coordination, skills and slash commands |
+| [**brainwires-knowledge**](crates/brainwires-knowledge/README.md) | Knowledge (BKS/PKS, entity graphs), prompting (technique library, clustering), and RAG (code search, hybrid retrieval) |
 | [**brainwires-storage**](crates/brainwires-storage/README.md) | Unified database layer (9 backends), tiered memory, semantic search |
 | [**brainwires-permissions**](crates/brainwires-permissions/README.md) | Permission policies (auto, ask, reject) for tool execution |
 | [**brainwires-mcp**](crates/brainwires-mcp/README.md) | MCP client — connect to external MCP servers and use their tools |
-| [**brainwires-agent-network**](crates/brainwires-agent-network/README.md) | Agent networking — MCP server, IPC, remote bridge, 5-layer protocol stack (transport, routing, discovery) |
-| [**brainwires-skills**](crates/brainwires-skills/README.md) | Skill definitions and slash command registry |
-| [**brainwires-code-interpreters**](crates/brainwires-code-interpreters/README.md) | Sandboxed JavaScript and Python code execution |
-| [**brainwires-wasm**](crates/brainwires-wasm/README.md) | WASM bindings for browser-based agent deployment |
-| [**brainwires-hardware**](crates/brainwires-hardware/README.md) | Hardware I/O — audio (STT/TTS), GPIO, Bluetooth, network discovery, camera/webcam capture, raw USB transfers |
-| [**brainwires-datasets**](crates/brainwires-datasets/README.md) | Training data pipelines — JSONL I/O, tokenization, dedup, format conversion |
-| [**brainwires-training**](crates/brainwires-training/README.md) | Cloud fine-tuning (6 providers) and local LoRA/QLoRA/DoRA via Burn |
-| [**brainwires-autonomy**](crates/brainwires-autonomy/README.md) | Self-improvement strategies, evaluation-driven optimization, supervisor agents |
+| [**brainwires-network**](crates/brainwires-network/README.md) | Agent networking — MCP server, IPC, remote bridge, channels, WebRTC, 5-layer protocol stack |
+| [**brainwires-reasoning**](crates/brainwires-reasoning/README.md) | Reasoning strategies — re-exports from core |
+| [**brainwires-hardware**](crates/brainwires-hardware/README.md) | Hardware I/O — audio (STT/TTS), GPIO, Bluetooth, Matter 1.3, home automation, camera/webcam, raw USB |
+| [**brainwires-training**](crates/brainwires-training/README.md) | Training data pipelines, cloud fine-tuning (6 providers), and local LoRA/QLoRA/DoRA via Burn |
+| [**brainwires-telemetry**](crates/brainwires-telemetry/README.md) | OutcomeMetrics, Prometheus export, billing hooks |
 | [**brainwires-a2a**](crates/brainwires-a2a/README.md) | Agent-to-Agent protocol — JSON-RPC 2.0, HTTP/REST, and gRPC bindings |
-| [**brainwires-channels**](crates/brainwires-channels/README.md) | Universal messaging channel contract — `Channel` trait, message types, events, capabilities |
 | [**brainwires-mcp-server**](crates/brainwires-mcp-server/README.md) | MCP server framework — build MCP tool servers with composable middleware; `http` feature adds stateless HTTP+SSE transport, Server Cards (SEP-1649), RFC9728, and Tasks (SEP-1686); `oauth` feature adds JWT validation middleware |
 
 ### Extras
@@ -210,32 +206,30 @@ cargo test -p brainwires-core
   brainwires (facade)
   ├── brainwires-agents
   │   ├── brainwires-core
-  │   ├── brainwires-tool-system
-  │   └── brainwires-cognition (seal-knowledge feature)
-  ├── brainwires-cognition
+  │   ├── brainwires-tools
+  │   └── brainwires-knowledge (seal-knowledge feature)
+  ├── brainwires-knowledge
   │   ├── brainwires-core
   │   └── brainwires-storage (knowledge feature)
   ├── brainwires-storage
   │   └── brainwires-core
   ├── brainwires-mcp
   │   └── brainwires-core
-  ├── brainwires-agent-network
+  ├── brainwires-network
   │   ├── brainwires-core
   │   ├── brainwires-mcp
   │   ├── brainwires-mcp-server
   │   └── brainwires-a2a (a2a-transport feature)
   ├── brainwires-mcp-server
   │   └── brainwires-mcp
-  ├── brainwires-channels
-  │   ├── brainwires-core
-  │   └── brainwires-agent-network (agent-network feature, optional)
   ├── brainwires-training
   │   ├── brainwires-core
-  │   ├── brainwires-datasets
   │   └── brainwires-providers (cloud feature)
+  ├── brainwires-telemetry
+  │   └── brainwires-core
   └── brainwires-hardware
       ├── brainwires-providers (audio feature, optional)
-      └── (standalone for gpio, bluetooth, network modules)
+      └── (standalone for gpio, bluetooth, matter, home automation)
 ```
 
 ## License

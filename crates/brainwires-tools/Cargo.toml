@@ -125,7 +125,7 @@ email = ["dep:lettre", "dep:async-imap", "dep:imap-proto", "dep:tokio-native-tls
 calendar = ["dep:icalendar", "dep:reqwest"]
 browser = ["dep:brainwires-mcp", "native"]
 # OAuth 2.0 middleware — PKCE, client credentials, token refresh, pluggable store
-oauth = ["native"]
+oauth = ["native", "dep:getrandom"]
 # System primitives (absorbed from brainwires-system)
 system = ["dep:notify"]
 reactor = ["system"]

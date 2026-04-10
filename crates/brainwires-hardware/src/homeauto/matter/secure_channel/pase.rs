@@ -754,9 +754,7 @@ fn decode_param_response(buf: &[u8]) -> MatterResult<PbkdfParamResponseFields> {
                     if b.len() == 32 {
                         init_random.copy_from_slice(b);
                     }
-                } else if el.tag == Some(2)
-                    && b.len() == 32
-                {
+                } else if el.tag == Some(2) && b.len() == 32 {
                     resp_random.copy_from_slice(b);
                 }
             }

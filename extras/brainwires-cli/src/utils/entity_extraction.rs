@@ -14,7 +14,7 @@
 //! - Classifies relationships semantically (not just co-occurrence)
 //! - Identifies domain concepts dynamically
 
-// Re-export entity types from framework (brainwires-cognition::knowledge)
+// Re-export entity types from framework (brainwires-knowledge::knowledge)
 pub use brainwires::brain::entity::{
     Entity, EntityStore, EntityStoreStats, EntityType, ExtractionResult, Relationship,
 };

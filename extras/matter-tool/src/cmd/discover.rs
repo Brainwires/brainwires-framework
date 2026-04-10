@@ -34,7 +34,9 @@ pub async fn run(timeout_secs: u64, out: &Output) -> Result<()> {
         }
 
         // Poll commissionable
-        if let Ok(ServiceEvent::ServiceResolved(info)) = rx_c.recv_timeout(Duration::from_millis(50)) {
+        if let Ok(ServiceEvent::ServiceResolved(info)) =
+            rx_c.recv_timeout(Duration::from_millis(50))
+        {
             found.push(DiscoveredDevice {
                 kind: DeviceKind::Commissionable,
                 instance: info.get_fullname().to_owned(),
@@ -49,7 +51,9 @@ pub async fn run(timeout_secs: u64, out: &Output) -> Result<()> {
         }
 
         // Poll operational
-        if let Ok(ServiceEvent::ServiceResolved(info)) = rx_o.recv_timeout(Duration::from_millis(50)) {
+        if let Ok(ServiceEvent::ServiceResolved(info)) =
+            rx_o.recv_timeout(Duration::from_millis(50))
+        {
             found.push(DiscoveredDevice {
                 kind: DeviceKind::Operational,
                 instance: info.get_fullname().to_owned(),

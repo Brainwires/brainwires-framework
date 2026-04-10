@@ -336,7 +336,7 @@ fn format_lua_error(error: &mlua::Error) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::super::types::Language;
+    use crate::interpreters::Language;
     use super::*;
 
     fn make_request(code: &str) -> ExecutionRequest {

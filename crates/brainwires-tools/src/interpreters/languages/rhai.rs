@@ -284,7 +284,7 @@ fn format_rhai_error(error: &EvalAltResult) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::super::types::Language;
+    use crate::interpreters::Language;
     use super::*;
 
     fn make_request(code: &str) -> ExecutionRequest {

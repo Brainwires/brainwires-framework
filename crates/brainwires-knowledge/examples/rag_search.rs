@@ -5,11 +5,11 @@
 //! against the indexed codebase.
 //!
 //! **Note:** This example requires a local codebase directory to index.
-//! By default it indexes the brainwires-cognition crate itself.
+//! By default it indexes the brainwires-knowledge crate itself.
 //!
 //! Run:
 //! ```sh
-//! cargo run -p brainwires-cognition --example rag_search --features rag
+//! cargo run -p brainwires-knowledge --example rag_search --features rag
 //! ```
 
 use brainwires_knowledge::rag::client::RagClient;

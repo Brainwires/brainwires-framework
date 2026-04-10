@@ -13,7 +13,7 @@
 //! - **Temperature**: Adaptive temperature optimization per cluster
 //! - **Storage**: SQLite persistence for clusters and performance data
 
-// Knowledge systems re-exported from brainwires-cognition knowledge module (optional)
+// Knowledge systems re-exported from brainwires-knowledge knowledge module (optional)
 #[cfg(feature = "knowledge")]
 pub use crate::knowledge::bks_pks;
 

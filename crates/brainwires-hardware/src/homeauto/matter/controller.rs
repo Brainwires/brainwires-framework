@@ -60,8 +60,7 @@ struct ControllerInner {
     /// Commissioned devices keyed by node_id.
     devices: HashMap<u64, MatterDevice>,
     /// Next node ID to assign on commissioning (reserved for future auto-assignment).
-    #[allow(dead_code)]
-    next_node_id: u64,
+    _next_node_id: u64,
     /// CASE session cache keyed by node_id.
     session_cache: HashMap<u64, CachedSession>,
 }
@@ -72,8 +71,7 @@ struct ControllerInner {
 /// operational device discovery via mDNS, and cluster command invocation.
 pub struct MatterController {
     /// Fabric label stored in NOC (informational).
-    #[allow(dead_code)]
-    fabric_name: String,
+    _fabric_name: String,
     storage_path: std::path::PathBuf,
     inner: Arc<Mutex<ControllerInner>>,
 }
@@ -88,11 +86,11 @@ impl MatterController {
         let fabric_name = fabric_name.into();
         info!("MatterController initialised (fabric: {})", fabric_name);
         Ok(Self {
-            fabric_name,
+            _fabric_name: fabric_name,
             storage_path: storage_path.to_path_buf(),
             inner: Arc::new(Mutex::new(ControllerInner {
                 devices: HashMap::new(),
-                next_node_id: 1,
+                _next_node_id: 1,
                 session_cache: HashMap::new(),
             })),
         })

@@ -130,7 +130,7 @@ impl ClusterServer for OperationalCredentialsCluster {
     async fn read_attribute(&self, attr_id: u32) -> MatterResult<Vec<u8>> {
         match attr_id {
             ATTR_NOCS => {
-                let st = self.state.lock().unwrap();
+                let st = self.state.lock().expect("opcred state lock poisoned");
                 let mut items = Vec::new();
                 for entry in &st.noc_entries {
                     let mut inner = tlv_octet_string(1, &entry.noc);
@@ -142,7 +142,7 @@ impl ClusterServer for OperationalCredentialsCluster {
                 Ok(wrap_list(&items))
             }
             ATTR_FABRICS => {
-                let st = self.state.lock().unwrap();
+                let st = self.state.lock().expect("opcred state lock poisoned");
                 let mut items = Vec::new();
                 for entry in &st.noc_entries {
                     let mut inner = tlv_uint8(0, entry.fabric_index);
@@ -157,7 +157,12 @@ impl ClusterServer for OperationalCredentialsCluster {
             }
             ATTR_SUPPORTED_FABRICS => Ok(tlv_uint8(0, 5)),
             ATTR_COMMISSIONED_FABRICS => {
-                let count = self.state.lock().unwrap().noc_entries.len() as u8;
+                let count = self
+                    .state
+                    .lock()
+                    .expect("opcred state lock poisoned")
+                    .noc_entries
+                    .len() as u8;
                 Ok(tlv_uint8(0, count))
             }
             _ => Err(MatterError::Transport("unsupported attribute".into())),
@@ -185,7 +190,9 @@ impl ClusterServer for OperationalCredentialsCluster {
                 elem_inner.extend_from_slice(&tlv_uint32(3, timestamp));
                 let attestation_elements = wrap_struct(&elem_inner);
 
-                // AttestationSignature: 64 zero bytes (stub).
+                // TODO(matter-crypto): Attestation requires a Device Attestation Key (DAK)
+                // provisioned at manufacturing time. Until DAK provisioning is implemented,
+                // the signature is zeroed. Real commissioners will reject this.
                 let sig = vec![0u8; 64];
 
                 let mut resp_inner = tlv_octet_string(0, &attestation_elements);
@@ -200,20 +207,24 @@ impl ClusterServer for OperationalCredentialsCluster {
                 // Generate a P-256 keypair scalar (32 random bytes as stub).
                 let scalar = generate_ephemeral_scalar();
                 {
-                    let mut st = self.state.lock().unwrap();
+                    let mut st = self.state.lock().expect("opcred state lock poisoned");
                     st.noc_keypair_bytes = Some(scalar);
                 }
 
-                // Derive a 65-byte uncompressed public key stub from scalar.
-                let pubkey = derive_stub_pubkey(&scalar);
+                // Derive the 65-byte uncompressed public key from the scalar.
+                let pubkey = derive_pubkey(&scalar);
 
                 // NOCSRElements TLV: { tag 1: csr (pubkey as stub), tag 2: CSRNonce }
                 let mut noecsr_inner = tlv_octet_string(1, &pubkey);
                 noecsr_inner.extend_from_slice(&tlv_octet_string(2, &csr_nonce));
                 let nocsr_elements = wrap_struct(&noecsr_inner);
 
-                // Signature over NOCSRElements: 64 zero bytes (stub).
-                let sig = vec![0u8; 64];
+                // ECDSA signature over NOCSRElements using the ephemeral key.
+                let signing_key = p256::ecdsa::SigningKey::from_bytes((&scalar).into())
+                    .expect("valid P-256 signing key");
+                let sig: p256::ecdsa::Signature =
+                    ecdsa::signature::Signer::sign(&signing_key, &nocsr_elements);
+                let sig = sig.to_bytes().to_vec();
 
                 let mut resp_inner = tlv_octet_string(0, &nocsr_elements);
                 resp_inner.extend_from_slice(&tlv_octet_string(1, &sig));
@@ -228,7 +239,7 @@ impl ClusterServer for OperationalCredentialsCluster {
                 let icac_value = extract_octet_string_tag(args, 1);
 
                 let fabric_index = {
-                    let mut st = self.state.lock().unwrap();
+                    let mut st = self.state.lock().expect("opcred state lock poisoned");
                     let idx = st.next_fabric_index;
                     st.next_fabric_index = st.next_fabric_index.saturating_add(1);
                     st.noc_entries.push(NocEntry {
@@ -262,7 +273,7 @@ impl ClusterServer for OperationalCredentialsCluster {
                 // RemoveFabric { FabricIndex(0): uint8 }
                 let fi = extract_uint8_tag(args, 0).unwrap_or(1);
                 {
-                    let mut st = self.state.lock().unwrap();
+                    let mut st = self.state.lock().expect("opcred state lock poisoned");
                     st.noc_entries.retain(|e| e.fabric_index != fi);
                 }
                 Ok(noc_response(0, fi))
@@ -334,30 +345,22 @@ fn extract_uint8_tag(args: &[u8], tag: u8) -> Option<u8> {
     None
 }
 
-// ── Stub cryptographic helpers ────────────────────────────────────────────────
+// ── Cryptographic helpers ────────────────────────────────────────────────────
 
-/// Generate a 32-byte ephemeral scalar.
-///
-/// This is a stub implementation that produces a deterministic pseudo-random
-/// value based on a counter.  Production code would use a CSPRNG.
+/// Generate a random 32-byte P-256 secret key scalar using the OS CSPRNG.
 fn generate_ephemeral_scalar() -> [u8; 32] {
-    use std::sync::atomic::{AtomicU64, Ordering};
-    static COUNTER: AtomicU64 = AtomicU64::new(1);
-    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let secret_key = p256::SecretKey::random(&mut rand_core::OsRng);
+    let bytes = secret_key.to_bytes();
     let mut out = [0u8; 32];
-    out[..8].copy_from_slice(&n.to_le_bytes());
-    out[8] = 0x42; // sentinel for testing
+    out.copy_from_slice(&bytes);
     out
 }
 
-/// Derive a stub 65-byte uncompressed P-256 public key from a 32-byte scalar.
-///
-/// For a real implementation this would perform the EC scalar multiplication.
-/// Here we just use a recognisable byte pattern so tests can verify structure.
-fn derive_stub_pubkey(scalar: &[u8; 32]) -> Vec<u8> {
-    let mut pk = vec![0x04u8]; // uncompressed point prefix
-    pk.extend_from_slice(scalar); // X coordinate = scalar (stub)
-    pk.extend_from_slice(scalar); // Y coordinate = scalar (stub)
-    pk.truncate(65);
-    pk
+/// Derive the 65-byte SEC1 uncompressed public key from a P-256 secret key scalar.
+fn derive_pubkey(scalar: &[u8; 32]) -> Vec<u8> {
+    use p256::elliptic_curve::sec1::ToEncodedPoint;
+    let secret_key =
+        p256::SecretKey::from_bytes(scalar.into()).expect("valid 32-byte P-256 scalar");
+    let public_key = secret_key.public_key();
+    public_key.to_encoded_point(false).as_bytes().to_vec()
 }

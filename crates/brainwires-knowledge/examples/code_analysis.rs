@@ -6,7 +6,7 @@
 //!
 //! Run:
 //! ```sh
-//! cargo run -p brainwires-cognition --example code_analysis --features code-analysis,rag
+//! cargo run -p brainwires-knowledge --example code_analysis --features code-analysis,rag
 //! ```
 
 use std::collections::HashMap;

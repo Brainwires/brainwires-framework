@@ -241,17 +241,9 @@ impl PkceChallenge {
     pub fn new() -> Self {
         use sha2::{Digest, Sha256};
 
-        // 32 random bytes → base64url verifier
+        // 32 cryptographically random bytes → base64url verifier
         let mut raw = [0u8; 32];
-        for (i, b) in raw.iter_mut().enumerate() {
-            // Deterministic-ish seed from SystemTime — good enough for PKCE,
-            // real implementations should use a CSPRNG.
-            let t = SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_nanos();
-            *b = ((t >> (i % 8)) ^ (i as u128 * 0x9e37)) as u8;
-        }
+        getrandom::getrandom(&mut raw).expect("CSPRNG unavailable");
         let verifier = base64_url_encode(&raw);
 
         // SHA-256(verifier) → base64url challenge

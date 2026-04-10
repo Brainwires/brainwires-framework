@@ -1,4 +1,5 @@
 use super::*;
+use crate::rag::types::*;
 use tempfile::TempDir;
 
 // Helper to create a test client

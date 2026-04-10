@@ -134,22 +134,37 @@ impl MetricsRegistry {
 
     /// Return a snapshot of the metrics for a specific agent.
     pub fn get(&self, agent_id: &str) -> Option<OutcomeMetrics> {
-        self.inner.lock().unwrap().get(agent_id).cloned()
+        self.inner
+            .lock()
+            .expect("metrics registry lock poisoned")
+            .get(agent_id)
+            .cloned()
     }
 
     /// Return snapshots for all tracked agents.
     pub fn all(&self) -> Vec<OutcomeMetrics> {
-        self.inner.lock().unwrap().values().cloned().collect()
+        self.inner
+            .lock()
+            .expect("metrics registry lock poisoned")
+            .values()
+            .cloned()
+            .collect()
     }
 
     /// Reset metrics for a specific agent.
     pub fn reset(&self, agent_id: &str) {
-        self.inner.lock().unwrap().remove(agent_id);
+        self.inner
+            .lock()
+            .expect("metrics registry lock poisoned")
+            .remove(agent_id);
     }
 
     /// Reset all tracked metrics.
     pub fn reset_all(&self) {
-        self.inner.lock().unwrap().clear();
+        self.inner
+            .lock()
+            .expect("metrics registry lock poisoned")
+            .clear();
     }
 
     // ── Prometheus export ─────────────────────────────────────────────────────
@@ -165,7 +180,7 @@ impl MetricsRegistry {
     /// brainwires_agent_runs_total{agent_id="code-review"} 42
     /// ```
     pub fn prometheus_text(&self) -> String {
-        let metrics = self.inner.lock().unwrap();
+        let metrics = self.inner.lock().expect("metrics registry lock poisoned");
         let mut out = String::with_capacity(metrics.len() * 512);
 
         // Helper closures
@@ -356,7 +371,7 @@ impl MetricsRegistry {
     // ── Internal update ───────────────────────────────────────────────────────
 
     fn update(&self, event: &AnalyticsEvent) {
-        let mut map = self.inner.lock().unwrap();
+        let mut map = self.inner.lock().expect("metrics registry lock poisoned");
 
         match event {
             AnalyticsEvent::AgentRun {
@@ -438,7 +453,7 @@ impl MetricsRegistry {
 
 impl std::fmt::Debug for MetricsRegistry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let map = self.inner.lock().unwrap();
+        let map = self.inner.lock().expect("metrics registry lock poisoned");
         f.debug_struct("MetricsRegistry")
             .field("agent_count", &map.len())
             .finish()

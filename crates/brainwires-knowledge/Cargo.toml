@@ -14,7 +14,7 @@ keywords = ["knowledge-graph", "rag", "prompting", "semantic-search", "code-anal
 categories = ["development-tools"]
 
 [lib]
-name = "brainwires_cognition"
+name = "brainwires_knowledge"
 path = "src/lib.rs"
 
 [dependencies]

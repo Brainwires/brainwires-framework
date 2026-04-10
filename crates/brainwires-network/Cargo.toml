@@ -74,10 +74,10 @@ brainwires-telemetry = { workspace = true, optional = true }
 # ── Channels deps (absorbed from brainwires-channels) ─────────────────────
 schemars = { workspace = true, features = ["uuid1", "chrono04"] }
 bitflags = { workspace = true }
-webrtc          = { git = "https://github.com/Brainwires/webrtc-rs", branch = "master", optional = true }
-rtc             = { git = "https://github.com/Brainwires/webrtc-rs", branch = "master", package = "rtc",             optional = true }
-rtc-interceptor = { git = "https://github.com/Brainwires/webrtc-rs", branch = "master", package = "rtc-interceptor", optional = true }
-rtc-ice         = { git = "https://github.com/Brainwires/webrtc-rs", branch = "master", package = "rtc-ice",         optional = true }
+webrtc          = { git = "https://github.com/Brainwires/webrtc-rs", rev = "a0c7a51876a44758448e7d5a76dea06aca653203", optional = true }
+rtc             = { git = "https://github.com/Brainwires/webrtc-rs", rev = "a0c7a51876a44758448e7d5a76dea06aca653203", package = "rtc",             optional = true }
+rtc-interceptor = { git = "https://github.com/Brainwires/webrtc-rs", rev = "a0c7a51876a44758448e7d5a76dea06aca653203", package = "rtc-interceptor", optional = true }
+rtc-ice         = { git = "https://github.com/Brainwires/webrtc-rs", rev = "a0c7a51876a44758448e7d5a76dea06aca653203", package = "rtc-ice",         optional = true }
 bytes           = { workspace = true, optional = true }
 
 [features]

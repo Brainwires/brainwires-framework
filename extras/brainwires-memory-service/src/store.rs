@@ -61,7 +61,7 @@ impl MemoryStore {
         let now = Utc::now();
         let meta_str = serde_json::to_string(metadata)?;
 
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("memory store lock poisoned");
         conn.execute(
             "INSERT INTO memories
                (id, user_id, agent_id, session_id, content, metadata, created_at, updated_at)
@@ -94,7 +94,7 @@ impl MemoryStore {
 
     /// Retrieve a single memory by ID.
     pub fn get(&self, id: Uuid) -> anyhow::Result<Option<Memory>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("memory store lock poisoned");
         let mut stmt = conn.prepare(
             "SELECT id, user_id, agent_id, session_id, content, metadata, created_at, updated_at
                FROM memories WHERE id = ?1",
@@ -109,7 +109,7 @@ impl MemoryStore {
 
     /// List memories with optional filters and pagination.
     pub fn list(&self, query: &ListMemoriesQuery) -> anyhow::Result<(Vec<Memory>, u64)> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("memory store lock poisoned");
 
         // Build a dynamic WHERE clause.
         let mut conditions: Vec<String> = vec!["1=1".to_string()];
@@ -162,7 +162,7 @@ impl MemoryStore {
 
     /// Substring search across memory content.
     pub fn search(&self, req: &SearchMemoriesRequest) -> anyhow::Result<Vec<SearchResult>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("memory store lock poisoned");
 
         let pattern = format!("%{}%", req.query.replace('%', "\\%").replace('_', "\\_"));
         let mut conditions = vec!["content LIKE ?1 ESCAPE '\\'".to_string()];
@@ -212,7 +212,7 @@ impl MemoryStore {
     /// Update memory content. Returns the updated record.
     pub fn update(&self, id: Uuid, content: &str) -> anyhow::Result<Option<Memory>> {
         let now = Utc::now();
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("memory store lock poisoned");
 
         let rows_affected = conn.execute(
             "UPDATE memories SET content = ?1, updated_at = ?2 WHERE id = ?3",
@@ -235,7 +235,7 @@ impl MemoryStore {
 
     /// Delete a memory by ID. Returns true if a row was deleted.
     pub fn delete(&self, id: Uuid) -> anyhow::Result<bool> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("memory store lock poisoned");
         let rows = conn.execute(
             "DELETE FROM memories WHERE id = ?1",
             params![id.to_string()],
@@ -245,7 +245,7 @@ impl MemoryStore {
 
     /// Delete all memories belonging to a user.
     pub fn delete_all_for_user(&self, user_id: &str) -> anyhow::Result<u64> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().expect("memory store lock poisoned");
         let rows = conn.execute("DELETE FROM memories WHERE user_id = ?1", params![user_id])?;
         Ok(rows as u64)
     }

@@ -9,7 +9,7 @@
 //! - [`StorageBackend`] — generic CRUD + vector search for domain stores
 //!   (conversations, messages, tasks, plans, images, tiered memory, etc.)
 //! - [`VectorDatabase`] — RAG-style embedding storage with hybrid search
-//!   for the codebase indexing subsystem in `brainwires-cognition`
+//!   for the codebase indexing subsystem in `brainwires-knowledge`
 //!
 //! ## Trait implementation matrix
 //!

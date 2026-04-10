@@ -644,7 +644,7 @@ impl Default for CoreferenceResolver {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use brainwires_cognition::knowledge::EntityStore;
+    use brainwires_knowledge::knowledge::EntityStore;
 
     #[test]
     fn test_detect_pronouns() {

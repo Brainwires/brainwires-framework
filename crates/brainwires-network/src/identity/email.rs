@@ -305,8 +305,7 @@ impl HttpEmailProvider {
     // Internal helpers
     // ------------------------------------------------------------------
 
-    #[allow(dead_code)]
-    fn auth_header(&self) -> String {
+    fn _auth_header(&self) -> String {
         match &self.config.backend {
             HttpEmailBackend::Postmark => self.config.api_key.clone(),
             _ => format!("Bearer {}", self.config.api_key),

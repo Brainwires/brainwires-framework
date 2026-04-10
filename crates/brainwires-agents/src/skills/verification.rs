@@ -73,7 +73,7 @@ impl SkillVerifier {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::manifest::SkillManifest;
+    use crate::skills::manifest::SkillManifest;
     use chrono::Utc;
 
     fn sample_package() -> SkillPackage {
