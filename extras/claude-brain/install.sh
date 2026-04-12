@@ -20,6 +20,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FRAMEWORK_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 BINARY_PATH="$FRAMEWORK_DIR/target/release/claude-brain"
+INTEGRATION_DIR="$SCRIPT_DIR/integration"
 BRAINWIRES_DIR="$HOME/.brainwires"
 CONFIG_FILE="$BRAINWIRES_DIR/claude-brain.toml"
 LOG_FILE="$BRAINWIRES_DIR/claude-brain-hooks.log"
@@ -54,6 +55,8 @@ if $GLOBAL; then
     MCP_FILE="$CLAUDE_DIR/mcp.json"
     RULES_DIR="$CLAUDE_DIR/rules"
     RULES_FILE="$RULES_DIR/claude-brain.md"
+    SKILLS_DIR="$CLAUDE_DIR/skills/claude-brain"
+    SKILL_FILE="$SKILLS_DIR/SKILL.md"
     INSTALL_LABEL="global (~/.claude/)"
 else
     PROJECT_DIR="${PROJECT_DIR:-$FRAMEWORK_DIR}"
@@ -62,6 +65,8 @@ else
     MCP_FILE="$PROJECT_DIR/.mcp.json"
     RULES_DIR="$CLAUDE_DIR/rules"
     RULES_FILE="$RULES_DIR/claude-brain.md"
+    SKILLS_DIR="$CLAUDE_DIR/skills/claude-brain"
+    SKILL_FILE="$SKILLS_DIR/SKILL.md"
     INSTALL_LABEL="project ($PROJECT_DIR)"
 fi
 
@@ -244,43 +249,18 @@ print(f"  Cleaned {mcp_path}")
 PYEOF
 }
 
-# Write rules file
+# Install rules file from source
 install_rules() {
     mkdir -p "$RULES_DIR"
-    cat > "$RULES_FILE" <<'RULES'
-# Claude Brain — Context Management
+    cp "$INTEGRATION_DIR/rules.md" "$RULES_FILE"
+    echo "  Installed $RULES_FILE"
+}
 
-You have a persistent brain powered by Brainwires. Compaction is enabled but Brainwires-powered.
-When compaction fires, PreCompact saves everything to persistent memory, then PostCompact
-restores the important context (facts, decisions, summaries) so nothing critical is lost.
-
-## When to use recall_context
-- When you sense information was discussed earlier but isn't in current context
-- Before making architectural decisions (check for prior decisions on same topic)
-- When the user references something from a previous conversation or session
-- When context feels incomplete after a long session
-
-## When to use capture_thought
-- After making significant architectural or design decisions
-- When the user shares preferences, constraints, or requirements
-- After resolving non-trivial bugs (capture root cause + fix approach)
-- When discovering important patterns or conventions in the codebase
-
-## When to use search_knowledge
-- Before suggesting tools, patterns, or approaches (check PKS for user preferences)
-- When starting work in a new area of the codebase
-- When the user asks about previous decisions or rationale
-
-## When to use search_memory
-- For broad semantic search across all memory tiers
-- When looking for related context across multiple conversations
-- To find previously captured thoughts on a topic
-
-## When to use memory_stats
-- When the user asks about what you remember
-- To verify the brain is functioning and capturing data
-RULES
-    echo "  Wrote $RULES_FILE"
+# Install skill file from source
+install_skill() {
+    mkdir -p "$SKILLS_DIR"
+    cp "$INTEGRATION_DIR/SKILL.md" "$SKILL_FILE"
+    echo "  Installed $SKILL_FILE"
 }
 
 # Write default config
@@ -360,6 +340,11 @@ do_install() {
     install_rules
     echo ""
 
+    # 6. Skill file
+    echo "Installing skill..."
+    install_skill
+    echo ""
+
     green "═══ Installation Complete ═══"
     echo ""
     echo "  Start a new Claude Code session to activate."
@@ -387,6 +372,12 @@ do_uninstall() {
     if [ -f "$RULES_FILE" ]; then
         rm "$RULES_FILE"
         echo "  Removed $RULES_FILE"
+    fi
+
+    if [ -f "$SKILL_FILE" ]; then
+        rm "$SKILL_FILE"
+        rmdir "$SKILLS_DIR" 2>/dev/null || true
+        echo "  Removed $SKILL_FILE"
     fi
 
     echo ""
@@ -421,6 +412,7 @@ do_status() {
     local global_settings="$HOME/.claude/settings.json"
     local global_mcp="$HOME/.claude/mcp.json"
     local global_rules="$HOME/.claude/rules/claude-brain.md"
+    local global_skill="$HOME/.claude/skills/claude-brain/SKILL.md"
 
     echo ""
     echo "  Global (~/.claude/):"
@@ -438,6 +430,11 @@ do_status() {
         green "    Rules:    $global_rules"
     else
         yellow "    Rules:    not installed"
+    fi
+    if [ -f "$global_skill" ]; then
+        green "    Skill:    $global_skill"
+    else
+        yellow "    Skill:    not installed"
     fi
 
     # Check project (if not global mode or always show framework)
@@ -462,6 +459,11 @@ do_status() {
             green "    Rules:    $proj_rules"
         else
             yellow "    Rules:    not installed"
+        fi
+        if [ -f "$SKILL_FILE" ]; then
+            green "    Skill:    $SKILL_FILE"
+        else
+            yellow "    Skill:    not installed"
         fi
     fi
 
