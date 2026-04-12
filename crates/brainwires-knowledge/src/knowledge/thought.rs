@@ -102,6 +102,8 @@ pub enum ThoughtCategory {
     ActionItem,
     /// A reference link or document.
     Reference,
+    /// Auto-captured conversation turn.
+    Conversation,
     /// General uncategorised thought.
     General,
 }
@@ -116,6 +118,7 @@ impl ThoughtCategory {
         Self::Idea,
         Self::ActionItem,
         Self::Reference,
+        Self::Conversation,
         Self::General,
     ];
 
@@ -129,6 +132,7 @@ impl ThoughtCategory {
             Self::Idea => "idea",
             Self::ActionItem => "action_item",
             Self::Reference => "reference",
+            Self::Conversation => "conversation",
             Self::General => "general",
         }
     }
@@ -143,6 +147,7 @@ impl ThoughtCategory {
             "idea" => Self::Idea,
             "action_item" | "actionitem" | "todo" => Self::ActionItem,
             "reference" | "ref" => Self::Reference,
+            "conversation" | "conversation_extract" => Self::Conversation,
             _ => Self::General,
         }
     }

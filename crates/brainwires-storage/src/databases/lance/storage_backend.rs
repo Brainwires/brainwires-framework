@@ -126,7 +126,7 @@ impl StorageBackend for LanceDatabase {
     async fn vector_search(
         &self,
         table_name: &str,
-        _vector_column: &str,
+        vector_column: &str,
         vector: Vec<f32>,
         limit: usize,
         filter: Option<&Filter>,
@@ -138,7 +138,7 @@ impl StorageBackend for LanceDatabase {
             .await
             .with_context(|| format!("Failed to open table '{table_name}'"))?;
 
-        let mut q = table.vector_search(vector)?;
+        let mut q = table.vector_search(vector)?.column(vector_column);
         q = q.limit(limit);
         if let Some(f) = filter {
             q = q.only_if(filter_to_sql(f));

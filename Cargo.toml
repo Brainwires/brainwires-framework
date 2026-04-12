@@ -32,6 +32,7 @@ members = [
     "extras/audio-demo-ffi",
     "extras/voice-assistant",
     "extras/matter-tool",
+    "extras/claude-brain",
     "xtask",
 ]
 exclude = [
