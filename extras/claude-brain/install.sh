@@ -110,6 +110,8 @@ mcp_perms = [
     "mcp__claude-brain__search_memory",
     "mcp__claude-brain__search_knowledge",
     "mcp__claude-brain__capture_thought",
+    "mcp__claude-brain__consolidate_now",
+    "mcp__claude-brain__learn",
 ]
 for perm in mcp_perms:
     if perm not in allowed:

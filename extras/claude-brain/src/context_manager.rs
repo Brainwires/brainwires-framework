@@ -45,19 +45,18 @@ impl ContextManager {
 
     /// Load relevant context for a session start.
     ///
-    /// Queries knowledge base for facts relevant to the working directory
-    /// and recent thoughts.
+    /// Queries knowledge base for facts relevant to the working directory,
+    /// recent thoughts from any session, and previous session context.
     pub async fn load_session_context(
         &self,
         cwd: Option<&str>,
-        _session_id: Option<&str>,
+        session_id: Option<&str>,
     ) -> Result<String> {
         let client = self.client.lock().await;
         let mut sections: Vec<String> = Vec::new();
 
         // Search knowledge base for project-relevant facts
         if let Some(dir) = cwd {
-            // Extract project name from cwd
             let project_name = std::path::Path::new(dir)
                 .file_name()
                 .and_then(|n| n.to_str())
@@ -71,8 +70,8 @@ impl ContextManager {
                 category: None,
             });
 
-            if let Ok(resp) = knowledge_results {
-                if !resp.results.is_empty() {
+            if let Ok(resp) = knowledge_results
+                && !resp.results.is_empty() {
                     let mut facts_section = String::from("## Relevant Knowledge\n\n");
                     for result in &resp.results {
                         facts_section
@@ -80,10 +79,9 @@ impl ContextManager {
                     }
                     sections.push(facts_section);
                 }
-            }
         }
 
-        // Load recent thoughts
+        // Load recent thoughts (from any session)
         let recent = client
             .list_recent(ListRecentRequest {
                 limit: self.config.session_start.max_summaries,
@@ -92,11 +90,10 @@ impl ContextManager {
             })
             .await;
 
-        if let Ok(resp) = recent {
-            if !resp.thoughts.is_empty() {
+        if let Ok(resp) = recent
+            && !resp.thoughts.is_empty() {
                 let mut recent_section = String::from("## Recent Context\n\n");
                 for thought in &resp.thoughts {
-                    // Truncate long content for context preview
                     let preview = if thought.content.len() > 200 {
                         format!("{}...", &thought.content[..200])
                     } else {
@@ -108,6 +105,31 @@ impl ContextManager {
                     ));
                 }
                 sections.push(recent_section);
+            }
+
+        // Load previous session context (thoughts NOT from current session)
+        if let Some(sid) = session_id {
+            use brainwires_storage::{Filter, FieldValue};
+            let filter = Filter::And(vec![
+                Filter::Eq("deleted".into(), FieldValue::Boolean(Some(false))),
+                Filter::Raw(format!("tags NOT LIKE '%session:{}%'", sid)),
+                Filter::Raw("tags LIKE '%auto-capture%'".to_string()),
+            ]);
+            let prev_contents = client
+                .query_thought_contents(&filter, self.config.session_start.max_summaries)
+                .await
+                .unwrap_or_default();
+            if !prev_contents.is_empty() {
+                let mut prev_section = String::from("## Previous Session\n\n");
+                for content in &prev_contents {
+                    let preview = if content.len() > 200 {
+                        format!("{}...", &content[..200])
+                    } else {
+                        content.clone()
+                    };
+                    prev_section.push_str(&format!("- {}\n", preview));
+                }
+                sections.push(prev_section);
             }
         }
 
@@ -135,6 +157,25 @@ impl ContextManager {
                 tags: Some(vec!["claude-code".to_string(), "auto-capture".to_string()]),
                 importance: Some(0.5),
                 source: Some(source.to_string()),
+            })
+            .await
+    }
+
+    /// Search thoughts only (hot-tier LanceDB). Used by recall_context.
+    pub async fn search_thoughts(
+        &self,
+        query: &str,
+        limit: usize,
+        min_score: f32,
+    ) -> Result<SearchMemoryResponse> {
+        let client = self.client.lock().await;
+        client
+            .search_memory(SearchMemoryRequest {
+                query: query.to_string(),
+                limit,
+                min_score,
+                category: None,
+                sources: Some(vec!["thoughts".to_string()]),
             })
             .await
     }

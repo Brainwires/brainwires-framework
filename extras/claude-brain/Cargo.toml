@@ -22,6 +22,7 @@ doc = false
 # Core brainwires subsystems
 brainwires-knowledge = { workspace = true, features = ["knowledge", "dream"] }
 brainwires-core = { workspace = true }
+brainwires-storage = { workspace = true }
 
 # MCP server
 rmcp = { workspace = true, features = ["server", "transport-io", "macros"] }

@@ -33,7 +33,32 @@ pub async fn handle() -> Result<()> {
 
     let mut sections: Vec<String> = Vec::new();
 
-    // If compaction produced a summary, use it as a search query to find related context
+    // First, look for a structured session digest created by PreCompact
+    let session_tag = payload
+        .session_id
+        .as_deref()
+        .map(|id| format!("session:{id}"))
+        .unwrap_or_else(|| "session:default".to_string());
+
+    {
+        use brainwires_storage::{Filter, FieldValue};
+        let filter = Filter::And(vec![
+            Filter::Eq("deleted".into(), FieldValue::Boolean(Some(false))),
+            Filter::Raw("tags LIKE '%session-digest%'".to_string()),
+            Filter::Raw(format!("tags LIKE '%{}%'", session_tag)),
+        ]);
+        let arc = ctx.client();
+        let client = arc.lock().await;
+        let digests = client.query_thought_contents(&filter, 1).await.unwrap_or_default();
+        if let Some(digest) = digests.first() {
+            let mut section = String::from("## Session Digest\n\n");
+            section.push_str(digest);
+            section.push('\n');
+            sections.push(section);
+        }
+    }
+
+    // Search query for supplemental context
     let search_query = payload
         .compact_summary
         .as_deref()
@@ -41,27 +66,27 @@ pub async fn handle() -> Result<()> {
 
     // Search for relevant facts from knowledge base
     let knowledge = ctx.search_knowledge(search_query, 15).await;
-    if let Ok(resp) = knowledge {
-        if !resp.results.is_empty() {
+    if let Ok(resp) = knowledge
+        && !resp.results.is_empty() {
             let mut section = String::from("## Key Knowledge (from Brainwires)\n\n");
             for result in &resp.results {
                 section.push_str(&format!("- {}: {}\n", result.key, result.value));
             }
             sections.push(section);
         }
-    }
 
-    // Search for relevant past conversation context
-    let memory = ctx.search_memory(search_query, 10, 0.5).await;
-    if let Ok(resp) = memory {
-        if !resp.results.is_empty() {
-            let mut section = String::from("## Recalled Context (from Brainwires)\n\n");
-            for result in resp.results.iter().take(10) {
-                let cat = result.category.as_deref().unwrap_or("general");
-                section.push_str(&format!("- [{}] {}\n", cat, result.content));
+    // Search for relevant past conversation context (only if no digest found)
+    if sections.len() <= 1 {
+        let memory = ctx.search_memory(search_query, 10, 0.3).await;
+        if let Ok(resp) = memory
+            && !resp.results.is_empty() {
+                let mut section = String::from("## Recalled Context (from Brainwires)\n\n");
+                for result in resp.results.iter().take(10) {
+                    let cat = result.category.as_deref().unwrap_or("general");
+                    section.push_str(&format!("- [{}] {}\n", cat, result.content));
+                }
+                sections.push(section);
             }
-            sections.push(section);
-        }
     }
 
     if !sections.is_empty() {

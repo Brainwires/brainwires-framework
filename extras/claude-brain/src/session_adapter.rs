@@ -102,15 +102,48 @@ impl DreamSessionStore for BrainSessionAdapter {
         Ok(Some(messages))
     }
 
-    async fn save(&self, _session_key: &str, _messages: &[Message]) -> Result<()> {
-        // After consolidation, the consolidated messages replace the originals.
-        // For now, we store the consolidated summary as a new thought.
-        // The original thoughts remain (they'll age out via demotion policy).
-        //
-        // A full implementation would delete the originals and store the summary,
-        // but BrainClient doesn't expose bulk delete by tag yet.
-        // This is a reasonable starting point — consolidation summaries accumulate
-        // and old thoughts gradually lose relevance in search results.
+    async fn save(&self, session_key: &str, messages: &[Message]) -> Result<()> {
+        use brainwires_storage::{Filter, FieldValue};
+
+        let mut client = self.client.lock().await;
+
+        // Store consolidated summary as a new high-importance thought
+        let summary_content = messages
+            .iter()
+            .filter_map(|m| match &m.content {
+                brainwires_core::MessageContent::Text(s) => Some(s.as_str()),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        if !summary_content.is_empty() {
+            client
+                .capture_thought(CaptureThoughtRequest {
+                    content: summary_content,
+                    category: Some("insight".to_string()),
+                    tags: Some(vec![
+                        "consolidated".to_string(),
+                        format!("session:{session_key}"),
+                        "claude-code".to_string(),
+                    ]),
+                    importance: Some(0.85),
+                    source: Some("dream-consolidation".to_string()),
+                })
+                .await?;
+        }
+
+        // Delete original session thoughts
+        let filter = Filter::And(vec![
+            Filter::Eq("deleted".into(), FieldValue::Boolean(Some(false))),
+            Filter::Raw(format!("tags LIKE '%session:{}%'", session_key)),
+            Filter::Raw("tags LIKE '%auto-capture%'".to_string()),
+        ]);
+        let deleted = client.delete_by_filter(&filter).await?;
+        tracing::info!(
+            "Consolidated session {session_key}: stored summary, deleted {deleted} originals"
+        );
+
         Ok(())
     }
 }

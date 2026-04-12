@@ -8,6 +8,7 @@ use brainwires_knowledge::dream::policy::DemotionPolicy;
 
 /// Top-level configuration for claude-brain.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct ClaudeBrainConfig {
     #[serde(default)]
     pub storage: StorageConfig,
@@ -19,16 +20,6 @@ pub struct ClaudeBrainConfig {
     pub capture: CaptureConfig,
 }
 
-impl Default for ClaudeBrainConfig {
-    fn default() -> Self {
-        Self {
-            storage: StorageConfig::default(),
-            policy: PolicyConfig::default(),
-            session_start: SessionStartConfig::default(),
-            capture: CaptureConfig::default(),
-        }
-    }
-}
 
 /// Storage paths.
 #[derive(Debug, Clone, Serialize, Deserialize)]

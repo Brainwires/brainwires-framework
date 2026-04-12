@@ -102,6 +102,11 @@ pub fn detect_category(text: &str) -> ThoughtCategory {
         return ThoughtCategory::Reference;
     }
 
+    // Auto-captured conversation turns from hooks
+    if text.starts_with("[assistant]") || text.starts_with("[user]") {
+        return ThoughtCategory::Conversation;
+    }
+
     ThoughtCategory::General
 }
 
@@ -187,6 +192,28 @@ pub fn extract_tags(text: &str) -> Vec<String> {
         let tag = cap[1].to_lowercase();
         if !tags.contains(&tag) {
             tags.push(tag);
+        }
+    }
+
+    // Common tech name detection
+    static TECH_NAMES: &[(&str, &str)] = &[
+        ("react", "react"), ("nextjs", "nextjs"), ("next.js", "nextjs"),
+        ("postgresql", "postgresql"), ("postgres", "postgresql"),
+        ("sqlite", "sqlite"), ("redis", "redis"), ("mongodb", "mongodb"),
+        ("docker", "docker"), ("kubernetes", "kubernetes"), ("k8s", "kubernetes"),
+        ("typescript", "typescript"), ("javascript", "javascript"),
+        ("python", "python"), ("rust", "rust"), ("golang", "golang"),
+        ("graphql", "graphql"), ("grpc", "grpc"), ("websocket", "websocket"),
+        ("supabase", "supabase"), ("firebase", "firebase"), ("aws", "aws"),
+        ("terraform", "terraform"), ("nginx", "nginx"), ("linux", "linux"),
+        ("git", "git"), ("github", "github"), ("claude", "claude"),
+        ("openai", "openai"), ("lancedb", "lancedb"), ("tokio", "tokio"),
+    ];
+
+    let lower = text.to_lowercase();
+    for &(pattern, tag) in TECH_NAMES {
+        if lower.contains(pattern) && !tags.contains(&tag.to_string()) {
+            tags.push(tag.to_string());
         }
     }
 

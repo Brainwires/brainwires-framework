@@ -17,10 +17,10 @@ use crate::context_manager::ContextManager;
 pub struct RecallContextRequest {
     /// Natural language query to search conversation history.
     pub query: String,
-    /// Maximum results (default: 10).
-    #[serde(default = "default_limit")]
+    /// Maximum results (default: 20).
+    #[serde(default = "default_recall_limit")]
     pub limit: usize,
-    /// Minimum relevance score 0.0-1.0 (default: 0.6).
+    /// Minimum relevance score 0.0-1.0 (default: 0.3).
     #[serde(default = "default_min_score")]
     pub min_score: f32,
 }
@@ -64,12 +64,39 @@ pub struct KnowledgeSearchRequest {
     pub limit: usize,
 }
 
+/// Request to consolidate session thoughts.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub struct ConsolidateRequest {
+    /// Optional session ID to consolidate. If omitted, consolidates all sessions.
+    #[serde(default)]
+    pub session_id: Option<String>,
+}
+
+/// Request to teach a behavioral rule.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub struct LearnRequest {
+    /// The rule to learn (e.g., "always use --no-stream with pm2 logs").
+    pub rule: String,
+    /// Category: command_usage, task_strategy, tool_behavior, error_recovery, resource_management, pattern_avoidance, prompting_technique.
+    #[serde(default)]
+    pub category: Option<String>,
+    /// Why this rule exists.
+    #[serde(default)]
+    pub rationale: Option<String>,
+    /// Context pattern where this rule applies.
+    #[serde(default)]
+    pub context: Option<String>,
+}
+
 /// Empty request for stats.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct StatsRequest {}
 
 fn default_limit() -> usize {
     10
+}
+fn default_recall_limit() -> usize {
+    20
 }
 fn default_min_score() -> f32 {
     0.3
@@ -117,7 +144,7 @@ impl ClaudeBrainMcpServer {
 #[tool_router(router = tool_router)]
 impl ClaudeBrainMcpServer {
     #[tool(
-        description = "Search conversation history for context that may be outside the current window. Use this when you need to recall earlier discussion details, decisions, code snippets, or any information from previous turns or sessions."
+        description = "Search captured thoughts (hot-tier only) for conversation context outside the current window. Use when recalling earlier discussion details, decisions, or code from previous turns/sessions. Does NOT search PKS/BKS knowledge — use search_knowledge for that."
     )]
     async fn recall_context(
         &self,
@@ -125,7 +152,7 @@ impl ClaudeBrainMcpServer {
     ) -> Result<String, String> {
         let response = self
             .ctx
-            .search_memory(&req.query, req.limit, req.min_score)
+            .search_thoughts(&req.query, req.limit, req.min_score)
             .await
             .map_err(|e| format!("{:#}", e))?;
         serde_json::to_string_pretty(&response).map_err(|e| format!("Serialization failed: {e}"))
@@ -155,7 +182,7 @@ impl ClaudeBrainMcpServer {
     }
 
     #[tool(
-        description = "Search across all memory tiers — thoughts, personal facts (PKS), and behavioral knowledge (BKS). Returns results ranked by relevance."
+        description = "Search across ALL memory tiers — thoughts, personal facts (PKS), and behavioral knowledge (BKS). Broader than recall_context. Use for cross-tier semantic search when you need the full picture."
     )]
     async fn search_memory(
         &self,
@@ -197,6 +224,91 @@ impl ClaudeBrainMcpServer {
             .await
             .map_err(|e| format!("{:#}", e))?;
         serde_json::to_string_pretty(&response).map_err(|e| format!("Serialization failed: {e}"))
+    }
+
+    #[tool(
+        description = "Consolidate session thoughts — merges auto-captured messages into a compact summary and deletes originals. Reduces storage bloat while preserving key context. Optionally target a specific session_id."
+    )]
+    async fn consolidate_now(
+        &self,
+        Parameters(req): Parameters<ConsolidateRequest>,
+    ) -> Result<String, String> {
+        use crate::session_adapter::BrainSessionAdapter;
+        use brainwires_knowledge::dream::consolidator::DreamSessionStore;
+
+        let adapter = BrainSessionAdapter::new(self.ctx.client());
+
+        let sessions = if let Some(ref sid) = req.session_id {
+            vec![sid.clone()]
+        } else {
+            adapter
+                .list_sessions()
+                .await
+                .map_err(|e| format!("{:#}", e))?
+        };
+
+        let mut total_consolidated = 0;
+        for session_key in &sessions {
+            let messages = adapter
+                .load(session_key)
+                .await
+                .map_err(|e| format!("{:#}", e))?;
+            if let Some(msgs) = messages
+                && !msgs.is_empty() {
+                    adapter
+                        .save(session_key, &msgs)
+                        .await
+                        .map_err(|e| format!("{:#}", e))?;
+                    total_consolidated += 1;
+                }
+        }
+
+        Ok(format!(
+            "{{\"consolidated_sessions\": {}, \"total_sessions\": {}}}",
+            total_consolidated,
+            sessions.len()
+        ))
+    }
+
+    #[tool(
+        description = "Teach a behavioral rule to the BKS (Behavioral Knowledge System). Use this when you discover patterns about how to work effectively — command usage, error recovery, tool behavior, etc. Rules persist across sessions and inform future behavior."
+    )]
+    async fn learn(
+        &self,
+        Parameters(req): Parameters<LearnRequest>,
+    ) -> Result<String, String> {
+        use brainwires_knowledge::knowledge::bks_pks::{BehavioralTruth, TruthCategory, TruthSource};
+
+        let category = match req.category.as_deref() {
+            Some("command_usage") => TruthCategory::CommandUsage,
+            Some("task_strategy") => TruthCategory::TaskStrategy,
+            Some("tool_behavior") => TruthCategory::ToolBehavior,
+            Some("error_recovery") => TruthCategory::ErrorRecovery,
+            Some("resource_management") => TruthCategory::ResourceManagement,
+            Some("pattern_avoidance") => TruthCategory::PatternAvoidance,
+            Some("prompting_technique") => TruthCategory::PromptingTechnique,
+            _ => TruthCategory::TaskStrategy,
+        };
+
+        let truth = BehavioralTruth::new(
+            category,
+            req.context.unwrap_or_else(|| "*".to_string()),
+            req.rule,
+            req.rationale.unwrap_or_default(),
+            TruthSource::ExplicitCommand,
+            Some("claude-brain-mcp".to_string()),
+        );
+        let truth_id = truth.id.clone();
+
+        let mut client = self.ctx.client().lock_owned().await;
+        client
+            .add_behavioral_truth(truth)
+            .map_err(|e| format!("{:#}", e))?;
+
+        Ok(format!(
+            "{{\"learned\": true, \"truth_id\": \"{}\"}}",
+            truth_id
+        ))
     }
 }
 

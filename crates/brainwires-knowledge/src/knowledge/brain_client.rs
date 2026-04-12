@@ -151,6 +151,23 @@ impl BrainClient {
         Ok(())
     }
 
+    // ── Helpers ─────────────────────────────────────────────────────────
+
+    /// Default importance score based on thought category.
+    fn importance_for_category(cat: &ThoughtCategory) -> f32 {
+        match cat {
+            ThoughtCategory::Decision => 0.85,
+            ThoughtCategory::ActionItem => 0.8,
+            ThoughtCategory::Insight => 0.75,
+            ThoughtCategory::Idea => 0.65,
+            ThoughtCategory::Person => 0.6,
+            ThoughtCategory::MeetingNote => 0.55,
+            ThoughtCategory::Reference => 0.5,
+            ThoughtCategory::Conversation => 0.45,
+            ThoughtCategory::General => 0.4,
+        }
+    }
+
     // ── Capture ──────────────────────────────────────────────────────────
 
     /// Capture a new thought, embed it, detect category, extract PKS facts.
@@ -191,7 +208,7 @@ impl BrainClient {
             .with_category(category)
             .with_tags(auto_tags.clone())
             .with_source(source)
-            .with_importance(req.importance.unwrap_or(0.5));
+            .with_importance(req.importance.unwrap_or_else(|| Self::importance_for_category(&category)));
 
         // Embed
         let embedding = self.embeddings.embed(&thought.content)?;
@@ -258,6 +275,78 @@ impl BrainClient {
             contradictions: evidence.contradictions,
             confidence: initial_confidence,
         })
+    }
+
+    /// Batch-capture multiple thoughts in a single embed + insert pass.
+    ///
+    /// Skips per-message evidence checks for speed. PKS extraction still runs per message.
+    /// Returns the number of thoughts stored.
+    pub async fn capture_thoughts_batch(
+        &mut self,
+        requests: Vec<CaptureThoughtRequest>,
+    ) -> Result<usize> {
+        if requests.is_empty() {
+            return Ok(0);
+        }
+
+        // Build Thought objects with category detection + importance
+        let thoughts: Vec<Thought> = requests
+            .iter()
+            .map(|req| {
+                let category = match &req.category {
+                    Some(c) => ThoughtCategory::parse(c),
+                    None => fact_extractor::detect_category(&req.content),
+                };
+                let mut auto_tags = fact_extractor::extract_tags(&req.content);
+                if let Some(ref user_tags) = req.tags {
+                    for t in user_tags {
+                        if !auto_tags.contains(t) {
+                            auto_tags.push(t.clone());
+                        }
+                    }
+                }
+                let source = req
+                    .source
+                    .as_deref()
+                    .map(ThoughtSource::parse)
+                    .unwrap_or(ThoughtSource::ManualCapture);
+                Thought::new(req.content.clone())
+                    .with_category(category)
+                    .with_tags(auto_tags)
+                    .with_source(source)
+                    .with_importance(req.importance.unwrap_or_else(|| Self::importance_for_category(&category)))
+            })
+            .collect();
+
+        // Single batch embed
+        let contents: Vec<String> = thoughts.iter().map(|t| t.content.clone()).collect();
+        let embeddings = self.embeddings.embed_batch(&contents)?;
+
+        // Build records
+        let records: Vec<Record> = thoughts
+            .iter()
+            .zip(embeddings.iter())
+            .map(|(thought, emb)| Self::thought_to_record(thought, emb))
+            .collect();
+
+        let count = records.len();
+        self.backend
+            .insert(THOUGHTS_TABLE, records)
+            .await
+            .context("Failed to batch-store thoughts")?;
+
+        // PKS extraction per message (sync, fast)
+        for req in &requests {
+            let facts = self.fact_collector.process_message(&req.content);
+            for fact in facts {
+                if let Err(e) = self.pks_cache.upsert_fact(fact) {
+                    tracing::warn!("Failed to upsert PKS fact: {}", e);
+                }
+            }
+        }
+
+        tracing::info!("Batch-captured {} thoughts", count);
+        Ok(count)
     }
 
     // ── Search (semantic) ────────────────────────────────────────────────
@@ -415,6 +504,16 @@ impl BrainClient {
             thoughts: summaries,
             total,
         })
+    }
+
+    /// Query thought content strings matching a filter. Used for deduplication.
+    pub async fn query_thought_contents(&self, filter: &Filter, limit: usize) -> Result<Vec<String>> {
+        let records = self
+            .backend
+            .query(THOUGHTS_TABLE, Some(filter), Some(limit))
+            .await?;
+        let thoughts = Self::records_to_thoughts(&records)?;
+        Ok(thoughts.into_iter().map(|t| t.content).collect())
     }
 
     // ── Get by ID ────────────────────────────────────────────────────────
@@ -611,6 +710,25 @@ impl BrainClient {
             deleted: true,
             id: id.to_string(),
         })
+    }
+
+    /// Add a behavioral truth to the BKS.
+    pub fn add_behavioral_truth(
+        &mut self,
+        truth: crate::knowledge::bks_pks::BehavioralTruth,
+    ) -> Result<()> {
+        self.bks_cache.add_truth(truth)?;
+        Ok(())
+    }
+
+    /// Delete all thoughts matching a filter. Returns count deleted.
+    pub async fn delete_by_filter(&self, filter: &Filter) -> Result<usize> {
+        let count = self.backend.count(THOUGHTS_TABLE, Some(filter)).await?;
+        if count > 0 {
+            self.backend.delete(THOUGHTS_TABLE, filter).await?;
+            tracing::info!("Deleted {} thoughts by filter", count);
+        }
+        Ok(count)
     }
 
     // ── Record conversion ────────────────────────────────────────────────

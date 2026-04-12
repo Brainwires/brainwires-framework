@@ -151,6 +151,47 @@ impl PersonalFactCollector {
                 1,
                 None,
             ),
+            // Decision/approach patterns from code conversations
+            PatternRule::new(
+                r"(?i)let's go with\s+(.+?)(?:\s*[,.]|$)",
+                "decision",
+                PersonalFactCategory::Preference,
+                0.8,
+                1,
+                None,
+            ),
+            PatternRule::new(
+                r"(?i)we should use\s+(.+?)(?:\s+for|\s*[,.]|$)",
+                "approach",
+                PersonalFactCategory::Preference,
+                0.75,
+                1,
+                None,
+            ),
+            PatternRule::new(
+                r"(?i)(?:decided|going) (?:to |with )\s*(.+?)(?:\s+because|\s*[,.]|$)",
+                "decision",
+                PersonalFactCategory::Preference,
+                0.8,
+                1,
+                None,
+            ),
+            PatternRule::new(
+                r"(?i)always use\s+(.+?)\s+when",
+                "rule",
+                PersonalFactCategory::Preference,
+                0.85,
+                1,
+                None,
+            ),
+            PatternRule::new(
+                r"(?i)the approach is\s+(.+?)(?:\s*[,.]|$)",
+                "approach",
+                PersonalFactCategory::Preference,
+                0.7,
+                1,
+                None,
+            ),
         ];
 
         // Capability patterns

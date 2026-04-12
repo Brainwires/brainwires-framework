@@ -36,6 +36,12 @@ pub async fn handle() -> Result<()> {
         .map(|id| format!("session:{id}"))
         .unwrap_or_else(|| "session:default".to_string());
 
+    // Derive project tag from cwd
+    let project_tag = std::env::current_dir()
+        .ok()
+        .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
+        .map(|name| format!("project:{name}"));
+
     // Capture assistant message
     if let Some(ref msg) = payload.assistant_message {
         // Skip very short messages (likely just tool calls)
@@ -46,6 +52,9 @@ pub async fn handle() -> Result<()> {
                 "auto-capture".to_string(),
                 session_tag.clone(),
             ];
+            if let Some(ref pt) = project_tag {
+                tags.push(pt.clone());
+            }
 
             if let Some(ref reason) = payload.stop_reason {
                 tags.push(format!("stop:{reason}"));
@@ -56,9 +65,9 @@ pub async fn handle() -> Result<()> {
                 .capture_thought(
                     brainwires_knowledge::knowledge::types::CaptureThoughtRequest {
                         content,
-                        category: Some("conversation".to_string()),
+                        category: None,
                         tags: Some(tags),
-                        importance: Some(0.5),
+                        importance: None,
                         source: Some("claude-code-turn".to_string()),
                     },
                 )
@@ -67,29 +76,31 @@ pub async fn handle() -> Result<()> {
     }
 
     // Capture user message if present
-    if let Some(ref msg) = payload.user_message {
-        if msg.len() > 20 {
+    if let Some(ref msg) = payload.user_message
+        && msg.len() > 20 {
             let content = format!("[user] {msg}");
-            let tags = vec![
+            let mut tags = vec![
                 "claude-code".to_string(),
                 "auto-capture".to_string(),
                 session_tag,
             ];
+            if let Some(ref pt) = project_tag {
+                tags.push(pt.clone());
+            }
 
             let mut client = ctx.client().lock_owned().await;
             client
                 .capture_thought(
                     brainwires_knowledge::knowledge::types::CaptureThoughtRequest {
                         content,
-                        category: Some("conversation".to_string()),
+                        category: None,
                         tags: Some(tags),
-                        importance: Some(0.4),
+                        importance: None,
                         source: Some("claude-code-turn".to_string()),
                     },
                 )
                 .await?;
         }
-    }
 
     Ok(())
 }

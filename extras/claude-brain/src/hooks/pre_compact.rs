@@ -1,7 +1,10 @@
 //! PreCompact hook — export conversation from transcript file to Brainwires before compaction.
 
 use anyhow::Result;
+use std::collections::HashSet;
 use std::io::BufRead;
+
+use brainwires_storage::{Filter, FieldValue};
 
 use crate::config::ClaudeBrainConfig;
 use crate::context_manager::ContextManager;
@@ -44,42 +47,98 @@ pub async fn handle() -> Result<()> {
         .open(&log_path)
         .and_then(|mut f| std::io::Write::write_all(&mut f, log_line.as_bytes()));
 
-    // Store each extracted message
-    for (role, content) in &messages {
-        if content.len() < 20 {
-            continue;
+    // Query existing thoughts for this session to avoid duplicates from Stop hook
+    let existing_prefixes: HashSet<String> = {
+        let arc = ctx.client();
+        let client = arc.lock().await;
+        let filter = Filter::And(vec![
+            Filter::Eq("deleted".into(), FieldValue::Boolean(Some(false))),
+            Filter::Raw(format!("tags LIKE '%auto-capture%' AND tags LIKE '%{}%'", session_tag)),
+        ]);
+        let contents = client.query_thought_contents(&filter, 500).await.unwrap_or_default();
+        contents
+            .into_iter()
+            .map(|c| {
+                let prefix_len = c.len().min(150);
+                c[..prefix_len].to_string()
+            })
+            .collect()
+    };
+
+    // Build batch of capture requests, skipping already-captured messages
+    let requests: Vec<brainwires_knowledge::knowledge::types::CaptureThoughtRequest> = messages
+        .iter()
+        .filter(|(_, content)| content.len() >= 20)
+        .filter(|(role, content)| {
+            let tagged = format!("[{role}] {content}");
+            let prefix_len = tagged.len().min(150);
+            !existing_prefixes.contains(&tagged[..prefix_len])
+        })
+        .map(|(role, content)| {
+            let tagged_content = format!("[{role}] {content}");
+            let store_content = if tagged_content.len() > 2000 {
+                format!("{}...[truncated]", &tagged_content[..2000])
+            } else {
+                tagged_content
+            };
+            brainwires_knowledge::knowledge::types::CaptureThoughtRequest {
+                content: store_content,
+                category: None,
+                tags: Some(vec![
+                    "claude-code".to_string(),
+                    "pre-compact".to_string(),
+                    session_tag.clone(),
+                ]),
+                importance: None,
+                source: Some("pre-compact-export".to_string()),
+            }
+        })
+        .collect();
+
+    // Single lock, single embed, single insert
+    let batch_count = requests.len();
+    let mut client = ctx.client().lock_owned().await;
+    let stored = client.capture_thoughts_batch(requests).await.unwrap_or(0);
+
+    // Create a session digest for PostCompact to find
+    if !messages.is_empty() {
+        let mut digest_parts: Vec<String> = Vec::new();
+        let mut total_len = 0;
+        for (role, content) in &messages {
+            if total_len >= 1500 {
+                break;
+            }
+            let preview = if content.len() > 100 {
+                &content[..100]
+            } else {
+                content.as_str()
+            };
+            let part = format!("[{role}] {preview}");
+            total_len += part.len();
+            digest_parts.push(part);
         }
-
-        let tagged_content = format!("[{role}] {content}");
-
-        // Truncate very long messages for storage efficiency
-        let store_content = if tagged_content.len() > 2000 {
-            format!("{}...[truncated]", &tagged_content[..2000])
-        } else {
-            tagged_content
-        };
-
-        let mut client = ctx.client().lock_owned().await;
+        let digest_content = digest_parts.join("\n");
         let _ = client
             .capture_thought(
                 brainwires_knowledge::knowledge::types::CaptureThoughtRequest {
-                    content: store_content,
-                    category: Some("conversation".to_string()),
+                    content: digest_content,
+                    category: Some("insight".to_string()),
                     tags: Some(vec![
-                        "claude-code".to_string(),
-                        "pre-compact".to_string(),
+                        "session-digest".to_string(),
                         session_tag.clone(),
+                        "claude-code".to_string(),
                     ]),
-                    importance: Some(0.6),
-                    source: Some("pre-compact-export".to_string()),
+                    importance: Some(0.9),
+                    source: Some("pre-compact-digest".to_string()),
                 },
             )
             .await;
     }
 
+    drop(client);
+
     tracing::info!(
-        "Pre-compact: exported {} messages to Brainwires",
-        msg_count
+        "Pre-compact: batch-stored {stored}/{batch_count} messages (from {msg_count} total)"
     );
 
     Ok(())
