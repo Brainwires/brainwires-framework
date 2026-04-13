@@ -1,6 +1,6 @@
 # Brainwires Framework — Complete Feature List
 
-A comprehensive catalog of every feature provided by the framework's 21 crates and 14 extras.
+A comprehensive catalog of every feature provided by the framework's 16 crates and 20 extras.
 
 ---
 
@@ -219,7 +219,7 @@ Multi-agent infrastructure for autonomous task execution.
 
 ## Tool System
 
-**Crate:** `brainwires-tool-system`
+**Crate:** `brainwires-tools`
 
 Composable tool implementations for agent use.
 
@@ -322,7 +322,7 @@ Build MCP-compliant tool servers with a composable middleware pipeline. Conforms
 
 ## Agent Networking
 
-**Crate:** `brainwires-agent-network`
+**Crate:** `brainwires-network`
 
 Agent IPC, remote bridge, 5-layer protocol stack, device allowlists, permission relay, and optional mesh networking. MCP server framework has been extracted to `brainwires-mcp-server`.
 
@@ -415,7 +415,7 @@ LanceDB-backed persistent storage with semantic search.
 
 ## RAG & Code Search
 
-**Crate:** `brainwires-cognition` (feature: `rag`)
+**Crate:** `brainwires-knowledge` (feature: `rag`)
 
 RAG-based codebase indexing and semantic search.
 
@@ -434,7 +434,7 @@ RAG-based codebase indexing and semantic search.
 
 ## Knowledge & Brain
 
-**Crate:** `brainwires-cognition` (feature: `knowledge`)
+**Crate:** `brainwires-knowledge` (feature: `knowledge`)
 
 Central knowledge crate for persistent thought storage and entity graphs.
 
@@ -453,7 +453,7 @@ Central knowledge crate for persistent thought storage and entity graphs.
 
 ## Adaptive Prompting
 
-**Crate:** `brainwires-cognition` (feature: `prompting`)
+**Crate:** `brainwires-knowledge` (feature: `prompting`)
 
 Implements "Adaptive Selection of Prompting Techniques" (arXiv:2510.18162).
 
@@ -790,7 +790,7 @@ Matter 1.3 controller and device server. Implemented with a pure-Rust stack (`md
 
 ## Code Interpreters
 
-**Crate:** `brainwires-code-interpreters`
+**Crate:** `brainwires-tools` (absorbed from `brainwires-code-interpreters`)
 
 Sandboxed multi-language code execution.
 
@@ -809,7 +809,7 @@ Sandboxed multi-language code execution.
 
 ## Skills System
 
-**Crate:** `brainwires-skills`
+**Crate:** `brainwires-agents` (absorbed from `brainwires-skills`)
 
 Markdown-based agent skill packages.
 
@@ -827,7 +827,7 @@ Markdown-based agent skill packages.
 
 ## Channels
 
-**Crate:** `brainwires-channels`
+**Crate:** `brainwires-network` (absorbed from `brainwires-channels`)
 
 Universal messaging channel contract for adapter implementations (Discord, Telegram, Slack, etc.).
 
@@ -945,7 +945,7 @@ Cloud and local model fine-tuning.
 
 ## Distributed Mesh Networking
 
-**Crate:** `brainwires-agent-network` (feature: `mesh`)
+**Crate:** `brainwires-network` (feature: `mesh`)
 
 Connect agents across processes and machines.
 

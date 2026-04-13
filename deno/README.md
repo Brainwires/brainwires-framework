@@ -13,10 +13,9 @@ A modular, Deno-native TypeScript port of the [Brainwires Agent Framework](https
 | `@brainwires/a2a` | `deno add @brainwires/a2a` | Agent-to-Agent protocol (Google A2A) |
 | `@brainwires/storage` | `deno add @brainwires/storage` | Backend-agnostic storage with domain stores |
 | `@brainwires/permissions` | `deno add @brainwires/permissions` | Capability profiles, policy engine, audit, trust |
-| `@brainwires/tool-system` | `deno add @brainwires/tool-system` | Tool registry, built-in tools (bash, files, git, web, search) |
-| `@brainwires/cognition` | `deno add @brainwires/cognition` | Prompting techniques, knowledge graph, RAG interfaces |
-| `@brainwires/agent-network` | `deno add @brainwires/agent-network` | MCP server framework, middleware, routing, discovery |
-| `@brainwires/skills` | `deno add @brainwires/skills` | Skill parsing, registry, routing, and execution |
+| `@brainwires/tools` | `deno add @brainwires/tools` | Tool registry, built-in tools (bash, files, git, web, search) |
+| `@brainwires/knowledge` | `deno add @brainwires/knowledge` | Prompting techniques, knowledge graph, RAG interfaces |
+| `@brainwires/network` | `deno add @brainwires/network` | MCP server framework, middleware, routing, discovery |
 
 All packages are versioned at **0.5.0** and published to JSR under the `@brainwires` scope.
 
@@ -35,14 +34,14 @@ All packages are versioned at **0.5.0** and published to JSR under the `@brainwi
               |        |       |
               +--------+-------+
               |
-            agents -----> tool-system
-              |               |
-         agent-network    cognition
+            agents -----> tools
+              |             |
+           network      knowledge
               |
              a2a
 ```
 
-`core` has zero external dependencies. Every other package depends on `core`. The `agents` package pulls in `providers`, `storage`, `mcp`, and `tool-system`. The `agent-network` and `a2a` packages are leaf-level consumers.
+`core` has zero external dependencies. Every other package depends on `core`. The `agents` package pulls in `providers`, `storage`, `mcp`, `tools`, and skills (absorbed). The `network` and `a2a` packages are leaf-level consumers.
 
 ## Quick Start
 
@@ -70,7 +69,7 @@ console.log(response.content);
 ```ts
 import { ChatOptions, Message } from "@brainwires/core";
 import { AnthropicChatProvider } from "@brainwires/providers";
-import { ToolRegistry, BashTool, FileOpsTool } from "@brainwires/tool-system";
+import { ToolRegistry, BashTool, FileOpsTool } from "@brainwires/tools";
 import { TaskAgent, AgentContext, spawnTaskAgent } from "@brainwires/agents";
 
 // Set up tools
@@ -124,16 +123,13 @@ console.log("Available tools:", tools.map((t) => t.name));
 | `brainwires-a2a` | `@brainwires/a2a` | Fully ported (JSON-RPC + REST, no gRPC) |
 | `brainwires-storage` | `@brainwires/storage` | Fully ported (in-memory backend, domain stores, tiered memory) |
 | `brainwires-permissions` | `@brainwires/permissions` | Fully ported (capabilities, policies, audit, trust, anomaly) |
-| `brainwires-tool-system` | `@brainwires/tool-system` | Fully ported (bash, file ops, git, web, search) |
-| `brainwires-cognition` | `@brainwires/cognition` | Fully ported (prompting, knowledge, RAG interfaces) |
-| `brainwires-agent-network` | `@brainwires/agent-network` | Fully ported (MCP server, middleware, routing, discovery) |
+| `brainwires-tools` | `@brainwires/tools` | Fully ported (bash, file ops, git, web, search) |
+| `brainwires-knowledge` | `@brainwires/knowledge` | Fully ported (prompting, knowledge, RAG interfaces) |
+| `brainwires-network` | `@brainwires/network` | Fully ported (MCP server, middleware, routing, discovery) |
 | `brainwires-hardware` | -- | Not ported |
-| `brainwires-autonomy` | -- | Not ported |
-| `brainwires-code-interpreters` | -- | Not ported |
-| `brainwires-datasets` | -- | Not ported |
-| `brainwires-skills` | `@brainwires/skills` | Fully ported (parsing, registry, routing, execution) |
+| `brainwires-reasoning` | -- | Not ported (re-exports from core in Rust) |
 | `brainwires-training` | -- | Not ported |
-| `brainwires-wasm` | -- | Not ported |
+| `brainwires-telemetry` | -- | Not ported |
 
 ## Installation
 

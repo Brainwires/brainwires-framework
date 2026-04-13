@@ -1,6 +1,6 @@
 # Networking (Agent Network)
 
-The `@brainwires/agent-network` package provides an MCP server framework, middleware pipeline, agent identity, peer discovery, message routing, and a remote bridge.
+The `@brainwires/network` package provides an MCP server framework, middleware pipeline, agent identity, peer discovery, message routing, and a remote bridge.
 
 ## MCP Server Framework
 
@@ -11,7 +11,7 @@ import {
   McpServer,
   McpToolRegistry,
   StdioServerTransport,
-} from "@brainwires/agent-network";
+} from "@brainwires/network";
 
 const toolRegistry = new McpToolRegistry();
 
@@ -46,7 +46,7 @@ import {
   AuthMiddleware,
   LoggingMiddleware,
   RateLimitMiddleware,
-} from "@brainwires/agent-network";
+} from "@brainwires/network";
 
 const chain = new MiddlewareChain();
 chain.use(new LoggingMiddleware());
@@ -61,7 +61,7 @@ Custom middleware implements the `Middleware` interface and returns `middlewareC
 Every agent has an `AgentIdentity` with capabilities and protocol support:
 
 ```ts
-import { createAgentIdentity, defaultAgentCard } from "@brainwires/agent-network";
+import { createAgentIdentity, defaultAgentCard } from "@brainwires/network";
 
 const identity = createAgentIdentity("agent-1", defaultAgentCard("agent-1"));
 ```
@@ -85,7 +85,7 @@ Messages are wrapped in `MessageEnvelope` with target, TTL, and correlation meta
 Use `ManualDiscovery` to register peers, or implement the `Discovery` interface for custom protocols (mDNS, service registry, etc.).
 
 ```ts
-import { ManualDiscovery, PeerTable } from "@brainwires/agent-network";
+import { ManualDiscovery, PeerTable } from "@brainwires/network";
 
 const discovery = new ManualDiscovery();
 const peerTable = new PeerTable();
@@ -98,7 +98,7 @@ See: `../examples/agent-network/peer_discovery.ts`.
 The remote bridge enables cross-process agent communication with protocol negotiation, heartbeats, and command queuing:
 
 ```ts
-import { RemoteBridge, defaultBridgeConfig, RemoteBridgeManager } from "@brainwires/agent-network";
+import { RemoteBridge, defaultBridgeConfig, RemoteBridgeManager } from "@brainwires/network";
 
 const bridge = new RemoteBridge(defaultBridgeConfig());
 const manager = new RemoteBridgeManager();

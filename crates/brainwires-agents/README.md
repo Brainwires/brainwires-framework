@@ -88,7 +88,7 @@ println!("{} iterations, success={}", result.iterations, result.success);
 | `seal` | No | SEAL pipeline: coreference resolution, query extraction, learning, reflection |
 | `mdap` | No | MDAP: Multi-Dimensional Adaptive Planning — k-agent voting, microagent decomposition, red flags |
 | `seal-mdap` | No | MDAP metric recording for SEAL (enables `seal` + `mdap`) |
-| `seal-knowledge` | No | BKS/PKS knowledge system integration for SEAL via `brainwires-cognition` |
+| `seal-knowledge` | No | BKS/PKS knowledge system integration for SEAL via `brainwires-knowledge` |
 | `seal-feedback` | No | Audit feedback bridge for SEAL via `brainwires-permissions` |
 | `reasoning` | No | Named reasoning strategies (ReAct, Reflexion, CoT, ToT) and local inference |
 | `eval` | No | Evaluation framework (trials, adversarial, regression, stability, ranking metrics — NDCG, MRR, Precision@K) |
@@ -738,7 +738,7 @@ brainwires = { version = "0.8", features = ["agents"] }
 brainwires = { version = "0.8", features = ["agents", "seal"] }
 ```
 
-Or use standalone — `brainwires-agents` depends only on `brainwires-core` and `brainwires-tool-system`.
+Or use standalone — `brainwires-agents` depends only on `brainwires-core` and `brainwires-tools`.
 
 ## License
 

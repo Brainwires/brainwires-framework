@@ -16,7 +16,7 @@ MCP server framework with composable middleware for the Brainwires Agent Framewo
 - **`MiddlewareChain`** — Composable onion-model middleware pipeline
 - **Built-in middlewares** — Auth, logging, rate limiting, and tool filtering included
 
-This crate was extracted from `brainwires-agent-network` so that consumers who only need to build MCP servers don't have to pull in the full networking stack.
+This crate was extracted from `brainwires-network` so that consumers who only need to build MCP servers don't have to pull in the full networking stack.
 
 ```text
   JSON-RPC request

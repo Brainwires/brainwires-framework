@@ -10,9 +10,8 @@
     "@brainwires/a2a": "workspace:@brainwires/a2a@*",
     "@brainwires/storage": "workspace:@brainwires/storage@*",
     "@brainwires/permissions": "workspace:@brainwires/permissions@*",
-    "@brainwires/tool-system": "workspace:@brainwires/tool-system@*",
-    "@brainwires/cognition": "workspace:@brainwires/cognition@*",
-    "@brainwires/agent-network": "workspace:@brainwires/agent-network@*",
-    "@brainwires/skills": "workspace:@brainwires/skills@*"
+    "@brainwires/tools": "workspace:@brainwires/tools@*",
+    "@brainwires/knowledge": "workspace:@brainwires/knowledge@*",
+    "@brainwires/network": "workspace:@brainwires/network@*"
   }
 }

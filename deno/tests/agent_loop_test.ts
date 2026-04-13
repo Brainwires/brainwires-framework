@@ -24,7 +24,7 @@ import {
   CommunicationHub,
   FileLockManager,
 } from "@brainwires/agents";
-import { ToolRegistry } from "@brainwires/tool-system";
+import { ToolRegistry } from "@brainwires/tools";
 
 // ---------------------------------------------------------------------------
 // Mock provider that returns canned responses

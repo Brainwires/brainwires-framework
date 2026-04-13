@@ -1,7 +1,7 @@
 /**
  * Cross-package integration test: Tool registry and smart router.
  *
- * Verifies that @brainwires/tool-system ToolRegistry correctly registers
+ * Verifies that @brainwires/tools ToolRegistry correctly registers
  * built-in tools (WebTool, SearchTool) and that the smart router detects
  * appropriate categories for various queries.
  */
@@ -14,7 +14,7 @@ import {
   analyzeQuery,
   getToolsForCategories,
   type ToolCategory,
-} from "@brainwires/tool-system";
+} from "@brainwires/tools";
 
 // ---------------------------------------------------------------------------
 // Tool registration tests

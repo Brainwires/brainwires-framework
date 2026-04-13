@@ -42,22 +42,21 @@ fn read_claude_compact_settings() -> (usize, f64) {
 
     // Read global first, then project overrides
     for path in [global_settings, project_settings].into_iter().flatten() {
-        if let Ok(content) = std::fs::read_to_string(&path) {
-            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-                if let Some(env) = json.get("env") {
-                    if let Some(val) = env.get("CLAUDE_CODE_AUTO_COMPACT_WINDOW")
-                        .and_then(|v| v.as_str())
-                        .and_then(|v| v.parse::<usize>().ok())
-                    {
-                        window_tokens = Some(val);
-                    }
-                    if let Some(val) = env.get("CLAUDE_AUTOCOMPACT_PCT_OVERRIDE")
-                        .and_then(|v| v.as_str())
-                        .and_then(|v| v.parse::<f64>().ok())
-                    {
-                        compact_pct = Some(val);
-                    }
-                }
+        if let Ok(content) = std::fs::read_to_string(&path)
+            && let Ok(json) = serde_json::from_str::<serde_json::Value>(&content)
+            && let Some(env) = json.get("env")
+        {
+            if let Some(val) = env.get("CLAUDE_CODE_AUTO_COMPACT_WINDOW")
+                .and_then(|v| v.as_str())
+                .and_then(|v| v.parse::<usize>().ok())
+            {
+                window_tokens = Some(val);
+            }
+            if let Some(val) = env.get("CLAUDE_AUTOCOMPACT_PCT_OVERRIDE")
+                .and_then(|v| v.as_str())
+                .and_then(|v| v.parse::<f64>().ok())
+            {
+                compact_pct = Some(val);
             }
         }
     }

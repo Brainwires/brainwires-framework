@@ -18,7 +18,7 @@ brainwires  (facade — re-exports all crates via feature flags)
 │        └─> providers (opt, "audio" feature)
 │
 ├─── Tools & Agents
-│    ├── brainwires-tool-system     Built-in tools (file ops, git, bash, web, search, validation)
+│    ├── brainwires-tools     Built-in tools (file ops, git, bash, web, search, validation)
 │    │   └─> core
 │    │   └─> cognition (opt, "rag" feature)
 │    │   └─> code-interpreters (opt, "interpreters" feature)
@@ -33,14 +33,14 @@ brainwires  (facade — re-exports all crates via feature flags)
 ├─── Storage & Intelligence
 │    ├── brainwires-storage         Unified database layer (9 backends), tiered memory, embeddings
 │    │   └─> core
-│    └── brainwires-cognition       Unified intelligence — knowledge graphs, adaptive prompting, RAG, dream consolidation
+│    └── brainwires-knowledge       Unified intelligence — knowledge graphs, adaptive prompting, RAG, dream consolidation
 │        └─> core
 │        └─> storage (opt, "knowledge" and "rag" features)
 │
 ├─── Networking
 │    ├── brainwires-mcp             MCP client, transport, protocol types
 │    │   └─> core
-│    └── brainwires-agent-network   MCP server, IPC, remote bridge, 5-layer protocol stack, mesh networking
+│    └── brainwires-network   MCP server, IPC, remote bridge, 5-layer protocol stack, mesh networking
 │        └─> core
 │        └─> mcp
 │        └─> a2a (opt, "a2a-transport" feature)

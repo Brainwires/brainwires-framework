@@ -1,14 +1,14 @@
-# brainwires-cognition
+# brainwires-knowledge
 
-[![Crates.io](https://img.shields.io/crates/v/brainwires-cognition.svg)](https://crates.io/crates/brainwires-cognition)
-[![Documentation](https://img.shields.io/docsrs/brainwires-cognition)](https://docs.rs/brainwires-cognition)
-[![License](https://img.shields.io/crates/l/brainwires-cognition.svg)](LICENSE)
+[![Crates.io](https://img.shields.io/crates/v/brainwires-knowledge.svg)](https://crates.io/crates/brainwires-knowledge)
+[![Documentation](https://img.shields.io/docsrs/brainwires-knowledge)](https://docs.rs/brainwires-knowledge)
+[![License](https://img.shields.io/crates/l/brainwires-knowledge.svg)](LICENSE)
 
 Unified intelligence layer — knowledge graphs, adaptive prompting, RAG, spectral math, and code analysis for the Brainwires Agent Framework.
 
 ## Overview
 
-`brainwires-cognition` consolidates three previously separate crates (`brainwires-brain`, `brainwires-prompting`, `brainwires-rag`) into a single coherent intelligence layer. It provides persistent thought storage with semantic search, adaptive prompting technique selection, codebase indexing with hybrid retrieval, spectral diversity reranking, and AST-aware code analysis.
+`brainwires-knowledge` consolidates three previously separate crates (`brainwires-brain`, `brainwires-prompting`, `brainwires-rag`) into a single coherent intelligence layer. It provides persistent thought storage with semantic search, adaptive prompting technique selection, codebase indexing with hybrid retrieval, spectral diversity reranking, and AST-aware code analysis.
 
 **Design principles:**
 
@@ -19,7 +19,7 @@ Unified intelligence layer — knowledge graphs, adaptive prompting, RAG, spectr
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────┐
-│                       brainwires-cognition                          │
+│                       brainwires-knowledge                          │
 │                                                                     │
 │  ┌─── Knowledge (brainwires-brain) ──────────────────────────────┐ │
 │  │  BrainClient ──► LanceDB thoughts + semantic search           │ │
@@ -57,7 +57,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires-cognition = "0.8"
+brainwires-knowledge = "0.9"
 ```
 
 Capture a thought and search memory:
@@ -113,16 +113,16 @@ async fn main() -> anyhow::Result<()> {
 
 ```toml
 # Default (knowledge + prompting)
-brainwires-cognition = "0.8"
+brainwires-knowledge = "0.9"
 
 # Full native build
-brainwires-cognition = { version = "0.8", features = ["native"] }
+brainwires-knowledge = { version = "0.9", features = ["native"] }
 
 # RAG only
-brainwires-cognition = { version = "0.8", default-features = false, features = ["rag"] }
+brainwires-knowledge = { version = "0.9", default-features = false, features = ["rag"] }
 
 # WASM target
-brainwires-cognition = { version = "0.8", default-features = false, features = ["wasm"] }
+brainwires-knowledge = { version = "0.9", default-features = false, features = ["wasm"] }
 ```
 
 ## Knowledge Subsystem
@@ -452,14 +452,14 @@ Use via the `brainwires` facade crate:
 
 ```toml
 [dependencies]
-brainwires = { version = "0.8", features = ["cognition"] }
+brainwires = { version = "0.9", features = ["cognition"] }
 ```
 
-Or depend on `brainwires-cognition` directly:
+Or depend on `brainwires-knowledge` directly:
 
 ```toml
 [dependencies]
-brainwires-cognition = { version = "0.8", features = ["native"] }
+brainwires-knowledge = { version = "0.9", features = ["native"] }
 ```
 
 **Import path migration:**

@@ -46,10 +46,10 @@ Add to `~/.claude/mcp_servers.json`:
 
 ## Library vs Server
 
-- **Library**: Use `brainwires-cognition` crate (feature `rag`) in your Rust code for programmatic access
+- **Library**: Use `brainwires-knowledge` crate (feature `rag`) in your Rust code for programmatic access
 - **Server**: Use this binary to expose RAG as an MCP server for any AI assistant
 
-See [brainwires-cognition README](../../crates/brainwires-cognition/README.md) for full API documentation.
+See [brainwires-knowledge README](../../crates/brainwires-knowledge/README.md) for full API documentation.
 
 ## License
 

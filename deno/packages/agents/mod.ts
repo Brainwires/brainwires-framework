@@ -425,3 +425,48 @@ export {
   VoterBuilder,
   type RedFlagValidator,
 } from "./mdap/mod.ts";
+
+// Skills (absorbed from former @brainwires/skills package)
+export { SkillExecutor, type ScriptPrepared, type SubagentPrepared } from "./skills_executor.ts";
+
+export {
+  createSkill,
+  createSkillMatch,
+  createSkillMetadata,
+  executionMode,
+  explicitMatch,
+  getMetadataValue,
+  hasToolRestrictions,
+  inlineResult,
+  isResultError,
+  isScript,
+  isToolAllowed,
+  keywordMatch,
+  parseExecutionMode,
+  runsAsSubagent,
+  scriptResult,
+  semanticMatch,
+  subagentResult,
+  type MatchSource,
+  type Skill,
+  type SkillExecutionMode,
+  type SkillMatch,
+  type SkillMetadata,
+  type SkillResult,
+  type SkillSource,
+} from "./skills_metadata.ts";
+
+export {
+  parseMetadataFromContent,
+  parseSkillFile,
+  parseSkillFromContent,
+  parseSkillMetadata,
+  renderTemplate,
+  validateCompatibility,
+  validateDescription,
+  validateSkillName,
+} from "./skills_parser.ts";
+
+export { SkillRegistry, truncateDescription, type DiscoveryPath } from "./skills_registry.ts";
+
+export { SkillRouter } from "./skills_router.ts";

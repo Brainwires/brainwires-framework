@@ -1,6 +1,6 @@
 # Cognition
 
-The `@brainwires/cognition` package provides prompting techniques, a knowledge graph interface, RAG (Retrieval-Augmented Generation) client, and code analysis tools.
+The `@brainwires/knowledge` package provides prompting techniques, a knowledge graph interface, RAG (Retrieval-Augmented Generation) client, and code analysis tools.
 
 ## Prompting Techniques
 
@@ -14,7 +14,7 @@ import {
   getTechniquesByComplexity,
   bestTechnique,
   PromptGenerator,
-} from "@brainwires/cognition";
+} from "@brainwires/knowledge";
 
 // Browse all techniques
 const metadata = getTechniqueMetadata("chain_of_thought");
@@ -43,8 +43,8 @@ See: `../examples/cognition/prompting_techniques.ts`.
 The `BrainClient` interface provides persistent thought storage, entity/relationship management, and knowledge search.
 
 ```ts
-import type { BrainClient, Thought, Entity } from "@brainwires/cognition";
-import { createThought } from "@brainwires/cognition";
+import type { BrainClient, Thought, Entity } from "@brainwires/knowledge";
+import { createThought } from "@brainwires/knowledge";
 
 // Create a thought
 const thought = createThought({
@@ -67,7 +67,7 @@ See: `../examples/cognition/knowledge_graph.ts`.
 The `RagClient` interface defines semantic code search operations: index, query, advanced search, and statistics.
 
 ```ts
-import type { RagClient, IndexRequest, QueryRequest } from "@brainwires/cognition";
+import type { RagClient, IndexRequest, QueryRequest } from "@brainwires/knowledge";
 
 // Index a codebase
 const indexReq: IndexRequest = { path: "/path/to/project", mode: "full" };
@@ -92,7 +92,7 @@ import {
   buildCallGraph,
   findReferences,
   CallGraph,
-} from "@brainwires/cognition";
+} from "@brainwires/knowledge";
 
 // Generate a repository map
 const repoMap = new RepoMap();

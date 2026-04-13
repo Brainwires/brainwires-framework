@@ -1,13 +1,13 @@
 # Tools
 
-The `@brainwires/tool-system` package provides a tool registry, built-in tool implementations, smart routing, transactions, and pre-execution hooks.
+The `@brainwires/tools` package provides a tool registry, built-in tool implementations, smart routing, transactions, and pre-execution hooks.
 
 ## ToolRegistry
 
 The registry holds tool definitions and their execution handlers. Register tools, then pass them to an `AgentContext`.
 
 ```ts
-import { ToolRegistry, BashTool, FileOpsTool, GitTool } from "@brainwires/tool-system";
+import { ToolRegistry, BashTool, FileOpsTool, GitTool } from "@brainwires/tools";
 
 const registry = new ToolRegistry();
 registry.registerTools(BashTool.getTools());
@@ -36,7 +36,7 @@ See: `../examples/tool-system/tool_registry.ts`, `../examples/tool-system/tool_e
 Define a `Tool` with an input schema and implement execution via `ToolExecutor`:
 
 ```ts
-import { type Tool, type ToolExecutor } from "@brainwires/tool-system";
+import { type Tool, type ToolExecutor } from "@brainwires/tools";
 import { ToolResult, type ToolUse, objectSchema } from "@brainwires/core";
 
 const myTool: Tool = {
@@ -59,7 +59,7 @@ const executor: ToolExecutor = {
 Automatically generate tools from an OpenAPI spec:
 
 ```ts
-import { openApiToTools, executeOpenApiTool } from "@brainwires/tool-system";
+import { openApiToTools, executeOpenApiTool } from "@brainwires/tools";
 
 const tools = openApiToTools(openApiSpec);
 ```
@@ -69,7 +69,7 @@ const tools = openApiToTools(openApiSpec);
 Smart routing analyzes the conversation and selects only relevant tools, reducing token usage:
 
 ```ts
-import { getSmartTools, analyzeQuery } from "@brainwires/tool-system";
+import { getSmartTools, analyzeQuery } from "@brainwires/tools";
 
 const relevantTools = getSmartTools(messages, allTools);
 ```
@@ -81,7 +81,7 @@ See: `../examples/tool-system/smart_routing.ts`.
 `TransactionManager` provides atomic multi-step tool operations with rollback:
 
 ```ts
-import { TransactionManager } from "@brainwires/tool-system";
+import { TransactionManager } from "@brainwires/tools";
 
 const tx = new TransactionManager();
 // Operations within the transaction can be committed or rolled back
@@ -94,7 +94,7 @@ See: `../examples/tool-system/tool_transactions.ts`.
 Use `ToolPreHook` to gate or modify tool calls before execution:
 
 ```ts
-import { type ToolPreHook, allow, reject } from "@brainwires/tool-system";
+import { type ToolPreHook, allow, reject } from "@brainwires/tools";
 
 const safetyHook: ToolPreHook = {
   beforeExecute: (toolUse) => {

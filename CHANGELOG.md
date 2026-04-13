@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.9.0] - 2026-04-10
+## [0.9.0] - 2026-04-13
 
 ### Added
 
@@ -45,24 +45,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`brainwires-mcp-server/examples/hello_world_server.rs`** — minimal runnable stdio MCP server with `echo` and `greet` tools. Demonstrates `McpServer`, `McpToolRegistry::dispatch`, `Content::text`, and `LoggingMiddleware`. Can be exercised with raw JSON-RPC on stdin.
 - **`brainwires-channels/examples/mock_channel.rs`** — reference `Channel` trait implementation backed by an in-memory `HashMap`. Exercises all six trait methods (`send_message`, `edit_message`, `delete_message`, `add_reaction`, `get_history`, `set_presence`). Serves as the blueprint for real channel adapters.
 - **`brainwires-analytics/examples/track_agent_run.rs`** — end-to-end demo of `AnalyticsCollector` + `MemoryAnalyticsSink`. Records `ProviderCall`, `ToolCall`, and `AgentRun` events, calls `flush()`, then snapshots the sink to verify event counts and cost tallies.
-
-### Changed
-
-#### CI Hardening
-
-- **MSRV job** — new `msrv` CI job pins `rustup override set 1.91` and runs `cargo check --workspace`, validating the declared `rust-version` on every push.
-- **Stub guard job** — new `stubs` CI job runs `cargo xtask check-stubs crates/ extras/` to fail the build if new `todo!()`/`unimplemented!()`/`FIXME` markers are introduced outside test blocks.
-- **Deno check/lint/test job** — new `deno` CI job runs `deno check`, `deno lint`, and `deno test --allow-all` against the `deno/` workspace.
-- **`brainwires-channels` dev-dependencies** — added `tokio` (full) and `anyhow` to `[dev-dependencies]` to support the new `mock_channel` example.
-
-#### `xtask` — Autofix Mode
-
-- **`--fix` flag** — `cargo xtask --fix` now auto-heals CI failures. Format issues are fixed by running `cargo fmt --all` directly; check, clippy, test, and doc failures are dispatched to Claude Code CLI (`claude -p`) with captured error output, scoped tool permissions (`Read,Edit,Glob,Grep,Bash(cargo *)`), and a turn limit. Each failed step is re-verified after the fix attempt.
-- **`--max-turns <N>`** — configurable turn limit per Claude fix invocation (default: 30). Gracefully skips Claude fixes when the `claude` binary is not on PATH.
-
-### Removed
-
-- **Stale `persistent_task_manager` comments** in `brainwires-storage/src/lib.rs` — removed phantom TODO and re-export comments referencing a module that was never implemented. Replaced with a concise note pointing future implementors toward `brainwires-agents`.
 
 #### Full Matter 1.3 Protocol Stack (`brainwires-hardware`)
 
@@ -102,6 +84,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **New examples** — `zigbee_scan`, `zwave_nodes`, `thread_info`, `matter_on_off`.
 - **`full` feature** — Now includes `homeauto`.
 - **71 unit tests** — All pure-logic tests (no hardware required): ASH framing + CRC-16-CCITT (verified against `b"123456789"` → 0x29B1), EZSP frame encode/decode, ZNP SREQ/SRESP/AREQ roundtrip, ZAPI frame + XOR checksum, Z-Wave CommandClass serialization, Thread OTBR responses (mocked via `wiremock`), Matter QR/manual code parsing, Matter cluster TLV encoding.
+
+#### Claude Brain — Brainwires Context Management (`extras/claude-brain`)
+
+- **New `claude-brain` crate** — persistent context management for Claude Code sessions via hook-based integration. Survives compaction events so critical context (decisions, facts, summaries) is never lost.
+- **Hook-based architecture** — `PreCompact` saves context to persistent storage before compaction, `SessionStart` restores it on session init (routed through SessionStart instead of PostCompact for reliability).
+- **Dynamic hook budget** — hook output budget computed from compaction threshold × 70%, ensuring restored context fits within available token window.
+- **Settings from JSON** — reads configuration from JSON settings files; replaced magic numbers with named constants.
+- **v2 structural improvements** — 10 improvements across 3 phases: better compaction loop handling, integration file sourcing from `extras/`, and `install.sh` for automated setup.
+
+#### `brainwires-memory-service` — Mem0-Compatible Memory REST API (`extras/brainwires-memory-service`)
+
+- **New `brainwires-memory-service` crate** — standalone REST API server providing Mem0-compatible endpoints for memory storage and retrieval, backed by the Brainwires storage layer.
+
+#### `EmailIdentityProvider` (`brainwires-network`)
+
+- **New `EmailIdentityProvider`** — identity provider for internet-facing agent email, enabling agents to have verifiable email-based identities for external communication.
 
 #### Session-Level Token Budget Enforcement (`brainwires-cli`)
 
@@ -153,6 +151,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`build_ask_mode_system_prompt_with_knowledge()`** — Previously missing variant (Edit mode had knowledge injection; Ask mode did not). Now available in `modes.rs`.
 - **`build_batch_mode_system_prompt()`** — New distinct Batch-mode prompt optimised for throughput: concise/consistent output, self-contained responses, no exploratory dialogue.
 - **`utils/system_prompt.rs` simplified** — Reduced to a thin re-export shim pointing to `system_prompts::modes` for backward compatibility.
+
+### Changed
+
+#### Architecture Refactoring — 22 → 16 Framework Crates
+
+- **Crate renames** — `brainwires-tool-system` → `brainwires-tools`, `brainwires-agent-network` → `brainwires-network`, `brainwires-cognition` → `brainwires-knowledge`. All public API paths updated accordingly.
+- **Crate absorptions** — `brainwires-channels` merged into `brainwires-network`, `brainwires-skills` merged into `brainwires-agents`, `brainwires-code-interpreters` merged into `brainwires-tools`, `brainwires-datasets` merged into `brainwires-training`.
+- **Moved to extras** — `brainwires-wasm` and `brainwires-autonomy` moved from `crates/` to `extras/` (no longer independently published framework crates).
+- **New crate** — `brainwires-reasoning` re-exports reasoning strategies from `brainwires-core`.
+- **`publish.sh` updated** — publish order reduced from 22 to 16 crates.
+
+#### Deno/TypeScript Port — Package Renames
+
+- **Package renames** — `@brainwires/tool-system` → `@brainwires/tools`, `@brainwires/agent-network` → `@brainwires/network`, `@brainwires/cognition` → `@brainwires/knowledge`.
+- **`@brainwires/skills` merged into `@brainwires/agents`** — skill parsing, registry, routing, and execution now re-exported from the agents package.
+- All internal imports, examples, and documentation updated.
+
+#### CI Hardening
+
+- **MSRV job** — new `msrv` CI job pins `rustup override set 1.91` and runs `cargo check --workspace`, validating the declared `rust-version` on every push.
+- **Stub guard job** — new `stubs` CI job runs `cargo xtask check-stubs crates/ extras/` to fail the build if new `todo!()`/`unimplemented!()`/`FIXME` markers are introduced outside test blocks.
+- **Deno check/lint/test job** — new `deno` CI job runs `deno check`, `deno lint`, and `deno test --allow-all` against the `deno/` workspace.
+- **`brainwires-channels` dev-dependencies** — added `tokio` (full) and `anyhow` to `[dev-dependencies]` to support the new `mock_channel` example.
+
+#### `xtask` — Autofix Mode
+
+- **`--fix` flag** — `cargo xtask --fix` now auto-heals CI failures. Format issues are fixed by running `cargo fmt --all` directly; check, clippy, test, and doc failures are dispatched to Claude Code CLI (`claude -p`) with captured error output, scoped tool permissions (`Read,Edit,Glob,Grep,Bash(cargo *)`), and a turn limit. Each failed step is re-verified after the fix attempt.
+- **`--max-turns <N>`** — configurable turn limit per Claude fix invocation (default: 30). Gracefully skips Claude fixes when the `claude` binary is not on PATH.
+
+### Fixed
+
+- **Clippy warnings** resolved across `brainwires-cli`, `matter-tool`, `brainwires-network`, `brainwires-tools`, and `brainwires-agents`.
+- **CI errors from architecture refactor** — fixed broken imports, missing re-exports, and formatting issues introduced during crate consolidation.
+- **v0.9.0 release cleanup** — removed stale references, fixed security metadata, and corrected test assertions.
+- **A2A event initializers** — added missing `trace_id` and `sequence` fields to `TaskStatusUpdateEvent` and `TaskArtifactUpdateEvent` constructors.
+
+### Removed
+
+- **Stale `persistent_task_manager` comments** in `brainwires-storage/src/lib.rs` — removed phantom TODO and re-export comments referencing a module that was never implemented.
+- **Absorbed crates deleted from `crates/`** — `brainwires-channels`, `brainwires-skills`, `brainwires-code-interpreters`, `brainwires-datasets` directories removed after absorption into their parent crates.
 
 ## [0.8.0] - 2026-04-03
 

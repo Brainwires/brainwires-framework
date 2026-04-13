@@ -1,7 +1,7 @@
-# brainwires-tool-system
+# brainwires-tools
 
-[![Crates.io](https://img.shields.io/crates/v/brainwires-tool-system.svg)](https://crates.io/crates/brainwires-tool-system)
-[![Documentation](https://docs.rs/brainwires-tool-system/badge.svg)](https://docs.rs/brainwires-tool-system)
+[![Crates.io](https://img.shields.io/crates/v/brainwires-tools.svg)](https://crates.io/crates/brainwires-tools)
+[![Documentation](https://docs.rs/brainwires-tools/badge.svg)](https://docs.rs/brainwires-tools)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **Composable tool infrastructure for the Brainwires Agent Framework**
@@ -10,7 +10,7 @@ The tooling layer that gives agents their capabilities: file operations, shell e
 
 ## Overview
 
-`brainwires-tool-system` provides:
+`brainwires-tools` provides:
 
 - **Built-in tool implementations** — Bash, file ops, git, web, code search, validation
 - **Composable ToolRegistry** — Register individual tools or categories; supports initial + deferred loading
@@ -23,7 +23,7 @@ The tooling layer that gives agents their capabilities: file operations, shell e
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        brainwires-tool-system                       │
+│                        brainwires-tools                       │
 ├─────────────┬───────────────┬───────────────┬───────────────────┤
 │  Registry   │   Executor    │  Sanitization │  Error Taxonomy   │
 │  ─────────  │   ─────────   │  ───────────  │  ──────────────   │
@@ -54,7 +54,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires-tool-system = { version = "0.8", features = ["native"] }
+brainwires-tools = { version = "0.9", features = ["native"] }
 ```
 
 Register tools and execute:
@@ -214,7 +214,7 @@ Requires the `orchestrator` feature. See `examples/` for complete workflows.
 Automatically create tools from OpenAPI 3.x specs (feature-gated: `openapi`):
 
 ```toml
-brainwires-tool-system = { version = "0.8", features = ["native", "openapi"] }
+brainwires-tools = { version = "0.9", features = ["native", "openapi"] }
 ```
 
 ```rust
@@ -245,7 +245,7 @@ Each endpoint becomes a `Tool` with:
 
 ## Integration
 
-`brainwires-tool-system` is used by:
+`brainwires-tools` is used by:
 
 - **brainwires-agents** — Task agents use `ToolExecutor` for all tool dispatch and `ToolRegistry` for tool discovery
 - **brainwires-agents** (reasoning feature) — Reasoning router uses tool categories for smart delegation

@@ -1,14 +1,14 @@
-# brainwires-agent-network
+# brainwires-network
 
-[![Crates.io](https://img.shields.io/crates/v/brainwires-agent-network.svg)](https://crates.io/crates/brainwires-agent-network)
-[![Documentation](https://img.shields.io/docsrs/brainwires-agent-network)](https://docs.rs/brainwires-agent-network)
-[![License](https://img.shields.io/crates/l/brainwires-agent-network.svg)](LICENSE)
+[![Crates.io](https://img.shields.io/crates/v/brainwires-network.svg)](https://crates.io/crates/brainwires-network)
+[![Documentation](https://img.shields.io/docsrs/brainwires-network)](https://docs.rs/brainwires-network)
+[![License](https://img.shields.io/crates/l/brainwires-network.svg)](LICENSE)
 
 Agent networking layer for the Brainwires Agent Framework.
 
 ## Overview
 
-`brainwires-agent-network` provides the full networking stack for AI agents: a 5-layer protocol stack for pluggable agent communication, encrypted IPC, a remote bridge for backend connectivity, agent lifecycle management, device allowlists, permission relay, and optional distributed mesh networking.
+`brainwires-network` provides the full networking stack for AI agents: a 5-layer protocol stack for pluggable agent communication, encrypted IPC, a remote bridge for backend connectivity, agent lifecycle management, device allowlists, permission relay, and optional distributed mesh networking.
 
 > **Note:** The MCP server framework (McpServer, McpHandler, McpToolRegistry, middleware pipeline) has been extracted into [`brainwires-mcp-server`](../brainwires-mcp-server/README.md). Use that crate if you only need to build MCP tool servers without the full networking stack.
 
@@ -22,7 +22,7 @@ Agent networking layer for the Brainwires Agent Framework.
 
 ```text
               ┌───────────────────────────────────────────────────────────┐
-              │              brainwires-agent-network                     │
+              │              brainwires-network                     │
               │                                                           │
               │  ┌─────────────────────────────────────────────────────┐  │
               │  │         5-Layer Protocol Stack                      │  │
@@ -51,7 +51,7 @@ Agent networking layer for the Brainwires Agent Framework.
 
 ```toml
 [dependencies]
-brainwires-agent-network = "0.8"
+brainwires-network = "0.9"
 ```
 
 > **Building an MCP server?** Use [`brainwires-mcp-server`](../brainwires-mcp-server/README.md) directly — it provides McpServer, McpHandler, McpToolRegistry and the middleware pipeline without the full networking stack.
@@ -95,10 +95,10 @@ manager.send(peer_id, Payload::Text("hello".into())).await?;
 
 ```toml
 # With all transports and discovery
-brainwires-agent-network = { version = "0.8", features = ["full"] }
+brainwires-network = { version = "0.9", features = ["full"] }
 
 # Just TCP and pub/sub
-brainwires-agent-network = { version = "0.8", features = ["tcp-transport", "pubsub-transport"] }
+brainwires-network = { version = "0.9", features = ["tcp-transport", "pubsub-transport"] }
 ```
 
 ## Architecture
@@ -252,7 +252,7 @@ while let Ok(event) = events.recv().await {
 
 ### MCP Server Framework
 
-The MCP server framework has been extracted into [`brainwires-mcp-server`](../brainwires-mcp-server/README.md). See that crate for McpServer, McpHandler, McpToolRegistry, and the middleware pipeline. `brainwires-agent-network` re-exports the mcp-server crate for consumers who need both.
+The MCP server framework has been extracted into [`brainwires-mcp-server`](../brainwires-mcp-server/README.md). See that crate for McpServer, McpHandler, McpToolRegistry, and the middleware pipeline. `brainwires-network` re-exports the mcp-server crate for consumers who need both.
 
 ### IPC (Inter-Process Communication)
 
@@ -460,10 +460,10 @@ Use via the `brainwires` facade crate:
 
 ```toml
 [dependencies]
-brainwires = { version = "0.8", features = ["agent-network"] }
+brainwires = { version = "0.9", features = ["agent-network"] }
 ```
 
-Or use standalone — `brainwires-agent-network` depends on `brainwires-core`, `brainwires-mcp`, and `brainwires-mcp-server`.
+Or use standalone — `brainwires-network` depends on `brainwires-core`, `brainwires-mcp`, and `brainwires-mcp-server`.
 
 ## License
 

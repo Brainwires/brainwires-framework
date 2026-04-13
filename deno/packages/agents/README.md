@@ -15,7 +15,7 @@ deno add @brainwires/agents
 ```ts
 import { ChatOptions, Message } from "@brainwires/core";
 import { AnthropicChatProvider } from "@brainwires/providers";
-import { ToolRegistry, BashTool } from "@brainwires/tool-system";
+import { ToolRegistry, BashTool } from "@brainwires/tools";
 import { TaskAgent, AgentContext, spawnTaskAgent } from "@brainwires/agents";
 
 const registry = new ToolRegistry();

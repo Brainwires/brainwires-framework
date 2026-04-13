@@ -13,7 +13,7 @@ Get from zero to a running agent in about 5 minutes.
 deno add @brainwires/core
 deno add @brainwires/providers
 deno add @brainwires/agents
-deno add @brainwires/tool-system
+deno add @brainwires/tools
 ```
 
 ## 2. Create a provider
@@ -41,7 +41,7 @@ console.log(response.content);
 Tools give agents the ability to interact with the world. The `ToolRegistry` holds them.
 
 ```ts
-import { ToolRegistry, BashTool, FileOpsTool } from "@brainwires/tool-system";
+import { ToolRegistry, BashTool, FileOpsTool } from "@brainwires/tools";
 
 const registry = new ToolRegistry();
 registry.registerTools(BashTool.getTools());

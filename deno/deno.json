@@ -5,12 +5,11 @@
     "./packages/mcp",
     "./packages/providers",
     "./packages/storage",
-    "./packages/tool-system",
-    "./packages/cognition",
-    "./packages/agent-network",
+    "./packages/tools",
+    "./packages/knowledge",
+    "./packages/network",
     "./packages/agents",
     "./packages/a2a",
-    "./packages/skills",
     "./examples"
   ]
 }

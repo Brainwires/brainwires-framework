@@ -35,14 +35,14 @@ The framework follows a layered, modular design. Every package is independently 
 | `@brainwires/core` | `deno add @brainwires/core` | Messages, tools, errors, lifecycle hooks, output parsers, working set |
 | `@brainwires/providers` | `deno add @brainwires/providers` | AI chat providers (Anthropic, OpenAI, Google, Ollama, Bedrock, Vertex) |
 | `@brainwires/agents` | `deno add @brainwires/agents` | Agent runtime, task agents, coordination patterns, MDAP voting |
-| `@brainwires/tool-system` | `deno add @brainwires/tool-system` | Tool registry, built-in tools (bash, file, git, web, search, OpenAPI) |
+| `@brainwires/tools` | `deno add @brainwires/tools` | Tool registry, built-in tools (bash, file, git, web, search, OpenAPI) |
 | `@brainwires/storage` | `deno add @brainwires/storage` | Backend-agnostic storage, domain stores, tiered memory |
-| `@brainwires/cognition` | `deno add @brainwires/cognition` | Prompting techniques, knowledge graph, RAG interfaces, code analysis |
+| `@brainwires/knowledge` | `deno add @brainwires/knowledge` | Prompting techniques, knowledge graph, RAG interfaces, code analysis |
 | `@brainwires/mcp` | `deno add @brainwires/mcp` | Model Context Protocol client (stdio transport) |
-| `@brainwires/agent-network` | `deno add @brainwires/agent-network` | MCP server framework, middleware, routing, discovery, remote bridge |
+| `@brainwires/network` | `deno add @brainwires/network` | MCP server framework, middleware, routing, discovery, remote bridge |
 | `@brainwires/a2a` | `deno add @brainwires/a2a` | Google A2A protocol (JSON-RPC + REST, SSE streaming) |
 | `@brainwires/permissions` | `deno add @brainwires/permissions` | Capability profiles, policy engine, audit logging, trust, anomaly detection |
-| `@brainwires/skills` | `deno add @brainwires/skills` | SKILL.md parsing, skill registry, routing, execution |
+| `@brainwires/agents` | `deno add @brainwires/agents` | SKILL.md parsing, skill registry, routing, execution |
 
 ## Key Types from Core
 
