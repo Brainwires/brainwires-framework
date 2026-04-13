@@ -10,6 +10,13 @@ use brainwires_knowledge::knowledge::types::*;
 
 use crate::config::ClaudeBrainConfig;
 
+/// Max preview length for individual thoughts/contents in session context.
+const THOUGHT_PREVIEW_LEN: usize = 200;
+/// Minimum remaining chars worth appending before truncating a section.
+const MIN_SECTION_REMAINDER: usize = 50;
+/// Chars-per-token multiplier for converting token budgets to char budgets.
+const CHARS_PER_TOKEN: usize = 4;
+
 /// Central context manager wrapping all Brainwires storage tiers.
 pub struct ContextManager {
     client: Arc<Mutex<BrainClient>>,
@@ -94,8 +101,8 @@ impl ContextManager {
             && !resp.thoughts.is_empty() {
                 let mut recent_section = String::from("## Recent Context\n\n");
                 for thought in &resp.thoughts {
-                    let preview = if thought.content.len() > 200 {
-                        format!("{}...", &thought.content[..200])
+                    let preview = if thought.content.len() > THOUGHT_PREVIEW_LEN {
+                        format!("{}...", &thought.content[..THOUGHT_PREVIEW_LEN])
                     } else {
                         thought.content.clone()
                     };
@@ -122,8 +129,8 @@ impl ContextManager {
             if !prev_contents.is_empty() {
                 let mut prev_section = String::from("## Previous Session\n\n");
                 for content in &prev_contents {
-                    let preview = if content.len() > 200 {
-                        format!("{}...", &content[..200])
+                    let preview = if content.len() > THOUGHT_PREVIEW_LEN {
+                        format!("{}...", &content[..THOUGHT_PREVIEW_LEN])
                     } else {
                         content.clone()
                     };
@@ -139,7 +146,7 @@ impl ContextManager {
 
         // Budget: use env-based budget or config max_context_tokens (whichever smaller)
         let env_budget = crate::compute_output_budget();
-        let config_budget = self.config.session_start.max_context_tokens * 4; // tokens→chars
+        let config_budget = self.config.session_start.max_context_tokens * CHARS_PER_TOKEN;
         let budget = env_budget.min(config_budget);
 
         let header = "# Claude Brain — Session Context\n\n";
@@ -147,7 +154,7 @@ impl ContextManager {
         for section in &sections {
             if output.len() + section.len() > budget {
                 let remaining = budget.saturating_sub(output.len());
-                if remaining > 50 {
+                if remaining > MIN_SECTION_REMAINDER {
                     output.push_str(&section[..remaining.min(section.len())]);
                     output.push_str("\n...[truncated to fit context budget]\n");
                 }

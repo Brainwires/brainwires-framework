@@ -11,6 +11,19 @@ use crate::context_manager::ContextManager;
 use crate::hook_protocol::{self, PreCompactPayload};
 use crate::sanitize_tag_value;
 
+/// Max chars to store per individual thought (truncate beyond this).
+const MAX_THOUGHT_CHARS: usize = 2_000;
+/// Prefix length used for deduplication matching.
+const DEDUP_PREFIX_LEN: usize = 150;
+/// Minimum message length worth capturing.
+const MIN_MESSAGE_LEN: usize = 20;
+/// Max char budget for the session digest content.
+const DIGEST_MAX_CHARS: usize = 1_500;
+/// Max preview length per message in the digest.
+const DIGEST_PREVIEW_LEN: usize = 100;
+/// Max existing thoughts to query for dedup check.
+const DEDUP_QUERY_LIMIT: usize = 500;
+
 /// Handle the PreCompact hook event.
 ///
 /// Claude Code sends `transcript_path` pointing to the JSONL conversation file.
@@ -56,11 +69,11 @@ pub async fn handle() -> Result<()> {
             Filter::Eq("deleted".into(), FieldValue::Boolean(Some(false))),
             Filter::Raw(format!("tags LIKE '%auto-capture%' AND tags LIKE '%{}%'", session_tag)),
         ]);
-        let contents = client.query_thought_contents(&filter, 500).await.unwrap_or_default();
+        let contents = client.query_thought_contents(&filter, DEDUP_QUERY_LIMIT).await.unwrap_or_default();
         contents
             .into_iter()
             .map(|c| {
-                let prefix_len = c.len().min(150);
+                let prefix_len = c.len().min(DEDUP_PREFIX_LEN);
                 c[..prefix_len].to_string()
             })
             .collect()
@@ -69,16 +82,16 @@ pub async fn handle() -> Result<()> {
     // Build batch of capture requests, skipping already-captured messages
     let requests: Vec<brainwires_knowledge::knowledge::types::CaptureThoughtRequest> = messages
         .iter()
-        .filter(|(_, content)| content.len() >= 20)
+        .filter(|(_, content)| content.len() >= MIN_MESSAGE_LEN)
         .filter(|(role, content)| {
             let tagged = format!("[{role}] {content}");
-            let prefix_len = tagged.len().min(150);
+            let prefix_len = tagged.len().min(DEDUP_PREFIX_LEN);
             !existing_prefixes.contains(&tagged[..prefix_len])
         })
         .map(|(role, content)| {
             let tagged_content = format!("[{role}] {content}");
-            let store_content = if tagged_content.len() > 2000 {
-                format!("{}...[truncated]", &tagged_content[..2000])
+            let store_content = if tagged_content.len() > MAX_THOUGHT_CHARS {
+                format!("{}...[truncated]", &tagged_content[..MAX_THOUGHT_CHARS])
             } else {
                 tagged_content
             };
@@ -107,11 +120,11 @@ pub async fn handle() -> Result<()> {
         let mut digest_parts: Vec<String> = Vec::new();
         let mut total_len = 0;
         for (role, content) in &messages {
-            if total_len >= 1500 {
+            if total_len >= DIGEST_MAX_CHARS {
                 break;
             }
-            let preview = if content.len() > 100 {
-                &content[..100]
+            let preview = if content.len() > DIGEST_PREVIEW_LEN {
+                &content[..DIGEST_PREVIEW_LEN]
             } else {
                 content.as_str()
             };
