@@ -20,8 +20,8 @@ pub struct RecallContextRequest {
     /// Maximum results (default: 20).
     #[serde(default = "default_recall_limit")]
     pub limit: usize,
-    /// Minimum relevance score 0.0-1.0 (default: 0.3).
-    #[serde(default = "default_min_score")]
+    /// Minimum relevance score 0.0-1.0 (default: 0.45).
+    #[serde(default = "default_recall_min_score")]
     pub min_score: f32,
 }
 
@@ -100,6 +100,9 @@ fn default_recall_limit() -> usize {
 }
 fn default_min_score() -> f32 {
     0.3
+}
+fn default_recall_min_score() -> f32 {
+    0.45
 }
 
 /// Claude Brain MCP server.
@@ -227,7 +230,7 @@ impl ClaudeBrainMcpServer {
     }
 
     #[tool(
-        description = "Consolidate session thoughts — merges auto-captured messages into a compact summary and deletes originals. Reduces storage bloat while preserving key context. Optionally target a specific session_id."
+        description = "Compact session thoughts — concatenates auto-captured messages into a single record and deletes originals. Reduces storage bloat. Does NOT summarize (no LLM pass). Optionally target a specific session_id."
     )]
     async fn consolidate_now(
         &self,

@@ -64,34 +64,35 @@ impl DreamSessionStore for BrainSessionAdapter {
     }
 
     async fn load(&self, session_key: &str) -> Result<Option<Vec<Message>>> {
+        use brainwires_storage::{Filter, FieldValue};
+
         let client = self.client.lock().await;
+        let safe_key = crate::sanitize_tag_value(session_key);
 
-        // Search for thoughts tagged with this session
-        let results = client
-            .search_memory(SearchMemoryRequest {
-                query: format!("session:{session_key}"),
-                limit: 100,
-                min_score: 0.0,
-                category: None,
-                sources: Some(vec!["claude-code-turn".to_string()]),
-            })
-            .await?;
+        // Filter query — exact tag match, no semantic search ambiguity
+        let filter = Filter::And(vec![
+            Filter::Eq("deleted".into(), FieldValue::Boolean(Some(false))),
+            Filter::Raw(format!("tags LIKE '%session:{}%'", safe_key)),
+            Filter::Raw("tags LIKE '%auto-capture%'".to_string()),
+        ]);
+        let contents = client
+            .query_thought_contents(&filter, 500)
+            .await
+            .unwrap_or_default();
 
-        if results.results.is_empty() {
+        if contents.is_empty() {
             return Ok(None);
         }
 
-        // Convert thoughts to Messages
-        let messages: Vec<Message> = results
-            .results
+        // Convert to Messages based on [role] prefix
+        let messages: Vec<Message> = contents
             .iter()
-            .map(|r| {
-                let content = r
-                    .content
+            .map(|c| {
+                let content = c
                     .strip_prefix("[assistant] ")
-                    .or_else(|| r.content.strip_prefix("[user] "))
-                    .unwrap_or(&r.content);
-                if r.content.starts_with("[assistant]") {
+                    .or_else(|| c.strip_prefix("[user] "))
+                    .unwrap_or(c);
+                if c.starts_with("[assistant]") {
                     Message::assistant(content)
                 } else {
                     Message::user(content)
@@ -136,7 +137,7 @@ impl DreamSessionStore for BrainSessionAdapter {
         // Delete original session thoughts
         let filter = Filter::And(vec![
             Filter::Eq("deleted".into(), FieldValue::Boolean(Some(false))),
-            Filter::Raw(format!("tags LIKE '%session:{}%'", session_key)),
+            Filter::Raw(format!("tags LIKE '%session:{}%'", crate::sanitize_tag_value(session_key))),
             Filter::Raw("tags LIKE '%auto-capture%'".to_string()),
         ]);
         let deleted = client.delete_by_filter(&filter).await?;

@@ -5,6 +5,7 @@ use anyhow::Result;
 use crate::config::ClaudeBrainConfig;
 use crate::context_manager::ContextManager;
 use crate::hook_protocol::{self, PostCompactPayload};
+use crate::sanitize_tag_value;
 
 /// Handle the PostCompact hook event.
 ///
@@ -24,7 +25,8 @@ pub async fn handle() -> Result<()> {
     let _ = std::fs::create_dir_all(log_path.parent().unwrap_or(std::path::Path::new("/tmp")));
     let timestamp = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC");
     let summary_len = payload.compact_summary.as_ref().map(|s| s.len()).unwrap_or(0);
-    let log_line = format!("[{timestamp}] POST-COMPACT fired — summary {summary_len} chars\n");
+    let budget = crate::compute_output_budget();
+    let log_line = format!("[{timestamp}] POST-COMPACT fired — summary {summary_len} chars, budget {budget} chars\n");
     let _ = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
@@ -37,7 +39,7 @@ pub async fn handle() -> Result<()> {
     let session_tag = payload
         .session_id
         .as_deref()
-        .map(|id| format!("session:{id}"))
+        .map(|id| format!("session:{}", sanitize_tag_value(id)))
         .unwrap_or_else(|| "session:default".to_string());
 
     {
@@ -89,16 +91,25 @@ pub async fn handle() -> Result<()> {
             }
     }
 
-    if !sections.is_empty() {
-        let output = format!(
-            "# Post-Compaction Context Restoration\n\n\
-             The following context was restored from Brainwires persistent memory \
-             after compaction. This supplements the compaction summary with durable \
-             facts and prior conversation context.\n\n{}",
-            sections.join("\n")
-        );
-        hook_protocol::write_output(&output);
+    // IMPORTANT: Do NOT emit large context here. The compaction summary already
+    // provides continuity. Emitting too much triggers a compaction loop because
+    // system prompt + compaction summary + hook outputs exceed the threshold.
+    //
+    // Instead, emit a tiny reminder that Brainwires tools are available.
+    // All context was already saved by PreCompact and can be retrieved on demand.
+    let fact_count = sections.iter().filter(|s| s.contains("Knowledge")).count();
+    let digest_found = sections.iter().any(|s| s.contains("Session Digest"));
+
+    let mut hint = String::from("Context saved to Brainwires.");
+    if digest_found {
+        hint.push_str(" Session digest available.");
     }
+    if fact_count > 0 {
+        hint.push_str(" Knowledge facts indexed.");
+    }
+    hint.push_str(" Use recall_context/search_memory MCP tools to retrieve details.");
+
+    hook_protocol::write_output(&hint);
 
     Ok(())
 }

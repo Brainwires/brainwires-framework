@@ -9,6 +9,7 @@ use brainwires_storage::{Filter, FieldValue};
 use crate::config::ClaudeBrainConfig;
 use crate::context_manager::ContextManager;
 use crate::hook_protocol::{self, PreCompactPayload};
+use crate::sanitize_tag_value;
 
 /// Handle the PreCompact hook event.
 ///
@@ -23,7 +24,7 @@ pub async fn handle() -> Result<()> {
     let session_tag = payload
         .session_id
         .as_deref()
-        .map(|id| format!("session:{id}"))
+        .map(|id| format!("session:{}", sanitize_tag_value(id)))
         .unwrap_or_else(|| "session:default".to_string());
 
     // Read messages from transcript file
@@ -86,6 +87,7 @@ pub async fn handle() -> Result<()> {
                 category: None,
                 tags: Some(vec![
                     "claude-code".to_string(),
+                    "auto-capture".to_string(),
                     "pre-compact".to_string(),
                     session_tag.clone(),
                 ]),

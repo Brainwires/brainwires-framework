@@ -112,7 +112,7 @@ impl ContextManager {
             use brainwires_storage::{Filter, FieldValue};
             let filter = Filter::And(vec![
                 Filter::Eq("deleted".into(), FieldValue::Boolean(Some(false))),
-                Filter::Raw(format!("tags NOT LIKE '%session:{}%'", sid)),
+                Filter::Raw(format!("tags NOT LIKE '%session:{}%'", crate::sanitize_tag_value(sid))),
                 Filter::Raw("tags LIKE '%auto-capture%'".to_string()),
             ]);
             let prev_contents = client
@@ -134,13 +134,28 @@ impl ContextManager {
         }
 
         if sections.is_empty() {
-            Ok(String::new())
-        } else {
-            Ok(format!(
-                "# Claude Brain — Session Context\n\n{}",
-                sections.join("\n")
-            ))
+            return Ok(String::new());
         }
+
+        // Budget: use env-based budget or config max_context_tokens (whichever smaller)
+        let env_budget = crate::compute_output_budget();
+        let config_budget = self.config.session_start.max_context_tokens * 4; // tokens→chars
+        let budget = env_budget.min(config_budget);
+
+        let header = "# Claude Brain — Session Context\n\n";
+        let mut output = String::from(header);
+        for section in &sections {
+            if output.len() + section.len() > budget {
+                let remaining = budget.saturating_sub(output.len());
+                if remaining > 50 {
+                    output.push_str(&section[..remaining.min(section.len())]);
+                    output.push_str("\n...[truncated to fit context budget]\n");
+                }
+                break;
+            }
+            output.push_str(section);
+        }
+        Ok(output)
     }
 
     /// Capture a conversation turn into hot-tier storage.

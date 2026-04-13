@@ -169,7 +169,7 @@ impl PersonalFactCollector {
                 None,
             ),
             PatternRule::new(
-                r"(?i)(?:decided|going) (?:to |with )\s*(.+?)(?:\s+because|\s*[,.]|$)",
+                r"(?i)(?:decided|going) (?:to |with )(.+?)(?:\s+because|\s*[,.]|$)",
                 "decision",
                 PersonalFactCategory::Preference,
                 0.8,

@@ -5,6 +5,7 @@ use anyhow::Result;
 use crate::config::ClaudeBrainConfig;
 use crate::context_manager::ContextManager;
 use crate::hook_protocol::{self, StopPayload};
+use crate::sanitize_tag_value;
 
 /// Handle the Stop hook event.
 ///
@@ -33,14 +34,14 @@ pub async fn handle() -> Result<()> {
     let session_tag = payload
         .session_id
         .as_deref()
-        .map(|id| format!("session:{id}"))
+        .map(|id| format!("session:{}", sanitize_tag_value(id)))
         .unwrap_or_else(|| "session:default".to_string());
 
     // Derive project tag from cwd
     let project_tag = std::env::current_dir()
         .ok()
         .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
-        .map(|name| format!("project:{name}"));
+        .map(|name| format!("project:{}", sanitize_tag_value(&name)));
 
     // Capture assistant message
     if let Some(ref msg) = payload.assistant_message {

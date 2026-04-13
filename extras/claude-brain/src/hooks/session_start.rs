@@ -30,6 +30,26 @@ pub async fn handle() -> Result<()> {
     let config = ClaudeBrainConfig::load()?;
     let ctx = ContextManager::new(config).await?;
 
+    // Detect post-compaction restart: if this session already has thoughts stored,
+    // this is NOT a fresh session start — it's a restart after compaction.
+    // In that case, emit nothing to avoid triggering a compaction loop.
+    // The compaction summary + PostCompact's tiny hint are sufficient.
+    if let Some(sid) = payload.session_id.as_deref() {
+        use brainwires_storage::{Filter, FieldValue};
+        let session_tag = format!("session:{}", crate::sanitize_tag_value(sid));
+        let filter = Filter::And(vec![
+            Filter::Eq("deleted".into(), FieldValue::Boolean(Some(false))),
+            Filter::Raw(format!("tags LIKE '%{}%'", session_tag)),
+        ]);
+        let arc = ctx.client();
+        let client = arc.lock().await;
+        let existing = client.query_thought_contents(&filter, 1).await.unwrap_or_default();
+        if !existing.is_empty() {
+            // Post-compaction restart — skip output to avoid compaction loop
+            return Ok(());
+        }
+    }
+
     let context = ctx
         .load_session_context(payload.cwd.as_deref(), payload.session_id.as_deref())
         .await?;
