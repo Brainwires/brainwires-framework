@@ -190,6 +190,15 @@ if not env:
 if not hooks:
     data.pop("hooks", None)
 
+# Remove MCP tool permissions we added
+perms = data.get("permissions", {})
+allowed = perms.get("allow", [])
+allowed = [p for p in allowed if not p.startswith("mcp__claude-brain__")]
+if allowed:
+    perms["allow"] = allowed
+elif "allow" in perms:
+    del perms["allow"]
+
 with open(settings_path, "w") as f:
     json.dump(data, f, indent=2)
     f.write("\n")
