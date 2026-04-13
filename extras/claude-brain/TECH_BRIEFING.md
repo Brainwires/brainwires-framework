@@ -4,7 +4,7 @@
 > research-grade tiered memory, semantic search, and knowledge extraction.
 
 **Version:** 0.9.0
-**Codebase:** 1,813 lines Rust + 583 lines shell
+**Codebase:** 1,888 lines Rust + 907 lines shell
 **Binary:** `target/release/claude-brain`
 
 ---
@@ -225,12 +225,14 @@ This means even if PreCompact somehow fails, individual turns are already captur
   2. Loads recent thoughts via `list_recent()`
   3. Formats as "# Claude Brain — Session Context"
   4. Writes to stdout
-- **compact** → Post-compaction restoration:
-  1. Queries session digest (created by PreCompact)
-  2. Searches PKS/BKS knowledge for project facts
-  3. Queries recent session thoughts (top 5)
-  4. Formats as "# Claude Brain — Post-Compaction Context"
-  5. Budget-capped via `compute_output_budget()`, writes to stdout
+- **compact** → Post-compaction restoration (with loop detection):
+  1. Checks hook log for recent `source=compact` entries for this session
+  2. If >2 compactions in 5 minutes → **suppresses output** (breaks loop)
+  3. Queries session digest (created by PreCompact)
+  4. Searches PKS/BKS knowledge for project facts
+  5. Queries recent session thoughts (top 5)
+  6. Formats as "# Claude Brain — Post-Compaction Context"
+  7. Budget-capped via `compute_output_budget()`, writes to stdout
 - **clear** → Emit nothing (user cleared intentionally)
 
 ### Stop
@@ -572,6 +574,7 @@ extras/claude-brain/
 ├── Cargo.toml                    (53 lines)   Package manifest
 ├── install.sh                    (502 lines)  Install/uninstall/status script
 ├── test-compaction.sh            (81 lines)   Test helper for compaction hooks
+├── test-efficacy.sh              (324 lines)  Efficacy tests (budget, routing, loop detection)
 ├── TECH_BRIEFING.md              (this file)
 └── src/
     ├── lib.rs                    (97 lines)   Module re-exports + budget computation
@@ -583,7 +586,7 @@ extras/claude-brain/
     ├── session_adapter.rs        (150 lines)  DreamSessionStore bridge (partial)
     └── hooks/
         ├── mod.rs                (4 lines)    Module re-exports
-        ├── session_start.rs      (75 lines)   Route by source, load/restore context
+        ├── session_start.rs      (147 lines)  Route by source, load/restore context + loop detection
         ├── stop.rs               (107 lines)  Capture every turn
         ├── pre_compact.rs        (235 lines)  Export transcript + create session digest
         └── post_compact.rs       (36 lines)   Logging only (stdout ignored)
@@ -673,6 +676,19 @@ echo '{"assistant_message":"Here is the implementation...","session_id":"test"}'
 # Check stats
 # Use memory_stats MCP tool in session
 ```
+
+### Efficacy Tests
+
+```bash
+cd extras/claude-brain/
+./test-efficacy.sh          # Run all tests (budget math, routing, loop detection, output sizes)
+./test-efficacy.sh quick    # Budget math + loop detection only (no Brainwires data needed)
+./test-efficacy.sh hooks    # Hook output tests only (needs Brainwires data)
+```
+
+Tests verify: budget computation for various window/pct settings, source routing
+(startup/compact/resume/clear), loop detection suppression, output sizes within budget,
+PostCompact silence, and headroom analysis.
 
 ### Compaction Testing
 
