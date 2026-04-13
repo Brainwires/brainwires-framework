@@ -9,6 +9,7 @@ use brainwires_knowledge::knowledge::brain_client::BrainClient;
 use brainwires_knowledge::knowledge::types::*;
 
 use crate::config::ClaudeBrainConfig;
+use crate::truncate_utf8;
 
 /// Max preview length for individual thoughts/contents in session context.
 const THOUGHT_PREVIEW_LEN: usize = 200;
@@ -102,7 +103,7 @@ impl ContextManager {
                 let mut recent_section = String::from("## Recent Context\n\n");
                 for thought in &resp.thoughts {
                     let preview = if thought.content.len() > THOUGHT_PREVIEW_LEN {
-                        format!("{}...", &thought.content[..THOUGHT_PREVIEW_LEN])
+                        format!("{}...", truncate_utf8(&thought.content, THOUGHT_PREVIEW_LEN))
                     } else {
                         thought.content.clone()
                     };
@@ -130,7 +131,7 @@ impl ContextManager {
                 let mut prev_section = String::from("## Previous Session\n\n");
                 for content in &prev_contents {
                     let preview = if content.len() > THOUGHT_PREVIEW_LEN {
-                        format!("{}...", &content[..THOUGHT_PREVIEW_LEN])
+                        format!("{}...", truncate_utf8(content, THOUGHT_PREVIEW_LEN))
                     } else {
                         content.clone()
                     };
@@ -313,7 +314,7 @@ impl ContextManager {
                 let mut section = String::from("## Recent Context\n\n");
                 for content in &contents {
                     let preview = if content.len() > THOUGHT_PREVIEW_LEN {
-                        format!("{}...", &content[..THOUGHT_PREVIEW_LEN])
+                        format!("{}...", truncate_utf8(content, THOUGHT_PREVIEW_LEN))
                     } else {
                         content.clone()
                     };

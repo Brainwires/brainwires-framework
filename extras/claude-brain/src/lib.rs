@@ -19,6 +19,18 @@ const MIN_OUTPUT_BUDGET: usize = 2_000;
 /// Maximum hook output budget (chars).
 const MAX_OUTPUT_BUDGET: usize = 40_000;
 
+/// Truncate a string to at most `max_bytes` without splitting a UTF-8 character.
+pub fn truncate_utf8(s: &str, max_bytes: usize) -> &str {
+    if s.len() <= max_bytes {
+        return s;
+    }
+    let mut end = max_bytes;
+    while end > 0 && !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    &s[..end]
+}
+
 /// Sanitize a value used inside `Filter::Raw` SQL-like expressions.
 /// Strips everything except alphanumeric, hyphen, and underscore.
 pub fn sanitize_tag_value(s: &str) -> String {
