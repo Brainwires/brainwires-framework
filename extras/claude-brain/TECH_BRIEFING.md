@@ -118,13 +118,13 @@ This is the key question. Here's the exact sequence:
 ```json
 {
   "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "200000",
-  "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "50"
+  "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "70"
 }
 ```
 
-Auto-compaction is NOT disabled — it fires when context hits the threshold (window × pct).
-These values are read from `settings.local.json` at runtime. Compaction still runs, but
-Brainwires augments it with persistent memory and context restoration.
+Auto-compaction fires when context hits the threshold (window × pct = 200K × 0.70 = 140K tokens).
+These values are read from `settings.local.json` at runtime (project overrides global).
+Compaction still runs, but Brainwires augments it with persistent memory and context restoration.
 
 ### The Compaction Sequence
 
@@ -499,7 +499,7 @@ consolidation_threshold = 20    # Turn count before triggering consolidation
 {
   "env": {
     "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "200000",
-    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "50"
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "70"
   },
   "permissions": {
     "allow": [

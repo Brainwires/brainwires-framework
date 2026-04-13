@@ -19,7 +19,7 @@ set -euo pipefail
 # ── Resolve paths ──────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FRAMEWORK_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-BINARY_PATH="$FRAMEWORK_DIR/target/release/claude-brain"
+BINARY_PATH="${CARGO_HOME:-$HOME/.cargo}/bin/claude-brain"
 INTEGRATION_DIR="$SCRIPT_DIR/integration"
 BRAINWIRES_DIR="$HOME/.brainwires"
 CONFIG_FILE="$BRAINWIRES_DIR/claude-brain.toml"
@@ -98,8 +98,8 @@ else:
 
 # Ensure env section
 data.setdefault("env", {})
-data["env"]["CLAUDE_CODE_AUTO_COMPACT_WINDOW"] = "100000"
-data["env"]["CLAUDE_AUTOCOMPACT_PCT_OVERRIDE"] = "50"
+data["env"]["CLAUDE_CODE_AUTO_COMPACT_WINDOW"] = "200000"
+data["env"]["CLAUDE_AUTOCOMPACT_PCT_OVERRIDE"] = "70"
 
 # Ensure MCP tool permissions are allowed
 data.setdefault("permissions", {})
@@ -310,14 +310,14 @@ do_install() {
     echo "  MCP:       $MCP_FILE"
     echo ""
 
-    # 1. Build
-    echo "Building release binary..."
-    (cd "$FRAMEWORK_DIR" && cargo build --release -p claude-brain 2>&1 | tail -3)
+    # 1. Build + install to ~/.cargo/bin/
+    echo "Installing binary via cargo install..."
+    (cd "$FRAMEWORK_DIR" && cargo install --path extras/claude-brain --force 2>&1 | tail -5)
     if [ ! -f "$BINARY_PATH" ]; then
-        red "Build failed — binary not found at $BINARY_PATH"
+        red "Install failed — binary not found at $BINARY_PATH"
         exit 1
     fi
-    green "  Binary: $BINARY_PATH"
+    green "  Binary: $BINARY_PATH (stable path, survives cargo rebuilds)"
     echo ""
 
     # 2. Config
@@ -385,7 +385,7 @@ do_uninstall() {
     echo ""
     yellow "═══ Uninstall Complete ═══"
     echo ""
-    echo "  Binary kept at: $BINARY_PATH"
+    echo "  Binary kept at: $BINARY_PATH (run 'cargo uninstall claude-brain' to remove)"
     echo "  Data kept at:   $BRAINWIRES_DIR"
     echo "  To fully purge data: rm -rf $BRAINWIRES_DIR"
     echo ""
@@ -400,7 +400,7 @@ do_status() {
     if [ -f "$BINARY_PATH" ]; then
         green "  Binary:     $BINARY_PATH ($(du -h "$BINARY_PATH" | cut -f1))"
     else
-        red   "  Binary:     NOT BUILT"
+        red   "  Binary:     NOT INSTALLED (run ./install.sh install)"
     fi
 
     # Config
