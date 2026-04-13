@@ -1,10 +1,10 @@
 # Claude Brain — Technical Briefing
 
-> Single Rust binary that replaces Claude Code's default compaction with Brainwires
+> Single Rust binary that augments Claude Code's default compaction with Brainwires
 > research-grade tiered memory, semantic search, and knowledge extraction.
 
 **Version:** 0.9.0
-**Codebase:** 1,332 lines Rust + 580 lines shell
+**Codebase:** 1,813 lines Rust + 583 lines shell
 **Binary:** `target/release/claude-brain`
 
 ---
@@ -33,14 +33,16 @@ Claude Code's built-in compaction is dumb LLM summarization — it nukes your fu
 and replaces it with a lossy summary. Critical decisions, code context, user preferences, and
 architectural reasoning get flattened into a paragraph.
 
-Claude Brain intercepts the compaction lifecycle via Claude Code hooks and replaces it with
-Brainwires' tiered memory system:
+Claude Brain augments the compaction lifecycle via Claude Code hooks:
 
 - **Every turn** gets captured to vector-indexed storage (Stop hook)
 - **Before compaction** fires, the full transcript is exported to persistent memory (PreCompact hook)
-- **After compaction**, rich context is injected back — facts, prior decisions, recalled memories (PostCompact hook)
-- **On session start**, relevant context from all prior sessions is loaded (SessionStart hook)
+- **After compaction**, SessionStart detects `source="compact"` and restores context from Brainwires
+- **On fresh session start**, relevant context from all prior sessions is loaded (SessionStart hook)
 - **During the session**, 5 MCP tools let Claude actively search and store to persistent memory
+
+**Important:** Only SessionStart and UserPromptSubmit hook stdout reaches Claude's context.
+PostCompact stdout goes to debug log only. All context restoration routes through SessionStart.
 
 The result: context survives compaction, spans sessions, and is semantically searchable.
 
@@ -115,15 +117,28 @@ This is the key question. Here's the exact sequence:
 
 ```json
 {
-  "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "100000",
+  "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "200000",
   "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "50"
 }
 ```
 
-Auto-compaction is NOT disabled — it fires when context hits ~100K tokens at 50% threshold.
-This is intentional. Compaction still runs, but Brainwires wraps it.
+Auto-compaction is NOT disabled — it fires when context hits the threshold (window × pct).
+These values are read from `settings.local.json` at runtime. Compaction still runs, but
+Brainwires augments it with persistent memory and context restoration.
 
 ### The Compaction Sequence
+
+**Hook stdout capability:**
+
+| Hook | stdout reaches Claude's context? |
+|------|----------------------------------|
+| SessionStart | **YES** |
+| UserPromptSubmit | **YES** |
+| PreCompact | No (debug log only) |
+| PostCompact | No (debug log only) |
+| Stop | No (debug log only) |
+
+**Execution order** (verified from hook logs):
 
 ```
 1. Context window fills past threshold
@@ -136,36 +151,31 @@ This is intentional. Compaction still runs, but Brainwires wraps it.
    │   ├─ Handles both string content and block-array content
    │   ├─ Only captures user + assistant messages (skips system)
    │   └─ Skips messages < 20 chars (noise)
-   ├─ For EACH message:
-   │   ├─ Formats as "[role] content" (truncated at 2000 chars)
-   │   ├─ Generates embedding vector (all-MiniLM-L6-v2, 384d)
-   │   ├─ Extracts tags from content (#hashtags)
-   │   ├─ Runs PKS fact extraction (regex patterns for preferences/identity)
-   │   ├─ Runs evidence checking (corroboration/contradiction against existing thoughts)
-   │   └─ Stores to LanceDB thoughts table with:
-   │       ├─ category: "conversation"
-   │       ├─ tags: ["claude-code", "pre-compact", "session:{id}"]
-   │       ├─ importance: 0.6
-   │       └─ source: "pre-compact-export"
-   └─ Logs: "[timestamp] PRE-COMPACT fired — N messages from transcript (trigger=auto)"
+   ├─ Batch-stores messages to LanceDB with dedup against existing session thoughts
+   ├─ Creates a session digest (tagged "session-digest" + "session:{id}")
+   │   └─ First 100 chars of each message, up to 1500 chars total
+   └─ Logs: "[timestamp] PRE-COMPACT fired — N messages from transcript"
 
 3. CLAUDE CODE RUNS ITS NORMAL COMPACTION
    └─ LLM summarizes the conversation → compact_summary
    └─ Full conversation context is replaced with the summary
 
-4. POST-COMPACT HOOK FIRES (timeout: 10s)
-   ├─ Receives: session_id, transcript_path, cwd, compact_summary
-   ├─ Uses compact_summary as a semantic search query
-   │   (fallback: "recent conversation context decisions")
-   ├─ Searches PKS/BKS knowledge base (top 15 facts)
-   ├─ Searches thought memory (top 10 results, min_score 0.5)
-   ├─ Formats results as markdown:
-   │   ├─ "## Key Knowledge (from Brainwires)" — PKS/BKS facts
-   │   └─ "## Recalled Context (from Brainwires)" — relevant memories
-   ├─ Writes to stdout → Claude Code injects as system message
-   └─ Logs: "[timestamp] POST-COMPACT fired — summary N chars"
+4. SESSION-START HOOK FIRES (source="compact", timeout: 5s)
+   ├─ Receives: session_id, cwd, source="compact"
+   ├─ Routes by source field → post-compact restoration path
+   ├─ Queries session digest (created by PreCompact in step 2)
+   ├─ Queries PKS/BKS knowledge for project-relevant facts
+   ├─ Queries recent session thoughts (top 5)
+   ├─ Formats as markdown, budget-capped by compute_output_budget()
+   ├─ Writes to stdout → INJECTED INTO CLAUDE'S CONTEXT ✓
+   └─ Logs: "[timestamp] SESSION-START fired — source=compact"
 
-5. SESSION CONTINUES
+5. POST-COMPACT HOOK FIRES (timeout: 10s)
+   ├─ Receives: session_id, compact_summary, cwd
+   ├─ Logs summary length for diagnostics
+   └─ stdout is NOT written (would be ignored by Claude Code anyway)
+
+6. SESSION CONTINUES
    └─ Claude now has: compact_summary + Brainwires context restoration
    └─ All pre-compact data persists in LanceDB for future recall
 ```
@@ -176,7 +186,7 @@ This is intentional. Compaction still runs, but Brainwires wraps it.
 
 **After claude-brain:**
 - Full conversation exported to searchable vector storage BEFORE compaction runs
-- After compaction, relevant facts and memories injected back alongside the summary
+- SessionStart (source="compact") restores digest + knowledge + thoughts into context
 - Everything remains searchable via `recall_context` and `search_memory` MCP tools
 - Context accumulates across compaction events and across sessions
 
@@ -203,17 +213,25 @@ This means even if PreCompact somehow fails, individual turns are already captur
 
 ### SessionStart
 
-**When:** New Claude Code session starts
+**When:** Session start, post-compaction restart, resume, or clear
 **Timeout:** 5 seconds
 **Input:** `{ session_id, cwd, transcript_path, source, model }`
-**Output:** Markdown context (stdout) or nothing
+**Output:** Markdown context (stdout → **injected into Claude's context**) or nothing
+**Source field values:** `"startup"` (new), `"compact"` (post-compaction), `"resume"` (continue/resume), `"clear"` (/clear)
 
-**Flow:**
-1. Extracts project name from cwd (last path component)
-2. Searches PKS/BKS for facts matching project name
-3. Loads 5 most recent thoughts via `list_recent()`
-4. Formats as "# Claude Brain — Session Context" with subsections
-5. Writes to stdout (Claude sees it as system message)
+**Flow (routes by `source`):**
+- **startup / resume / absent** → Fresh session context:
+  1. Searches PKS/BKS for facts matching project name
+  2. Loads recent thoughts via `list_recent()`
+  3. Formats as "# Claude Brain — Session Context"
+  4. Writes to stdout
+- **compact** → Post-compaction restoration:
+  1. Queries session digest (created by PreCompact)
+  2. Searches PKS/BKS knowledge for project facts
+  3. Queries recent session thoughts (top 5)
+  4. Formats as "# Claude Brain — Post-Compaction Context"
+  5. Budget-capped via `compute_output_budget()`, writes to stdout
+- **clear** → Emit nothing (user cleared intentionally)
 
 ### Stop
 
@@ -244,13 +262,11 @@ This means even if PreCompact somehow fails, individual turns are already captur
 **When:** After compaction completes
 **Timeout:** 10 seconds
 **Input:** `{ session_id, transcript_path, cwd, compact_summary }`
-**Output:** Markdown context (stdout) injected into conversation
+**Output:** Logging only (stdout ignored by Claude Code — goes to debug log)
 
 **Flow:**
-1. Uses compact_summary as semantic search query
-2. Retrieves relevant PKS/BKS facts (top 15)
-3. Retrieves relevant memories (top 10, min_score 0.5)
-4. Formats and writes to stdout
+1. Logs event with summary length for diagnostics
+2. No queries, no stdout — context restoration handled by SessionStart
 
 ---
 
@@ -480,7 +496,7 @@ consolidation_threshold = 20    # Turn count before triggering consolidation
 ```json
 {
   "env": {
-    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "100000",
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "200000",
     "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "50"
   },
   "permissions": {
@@ -553,24 +569,24 @@ Guidance for Claude on when to use each MCP tool. Installed by `install.sh`.
 
 ```
 extras/claude-brain/
-├── Cargo.toml                    (52 lines)   Package manifest
-├── install.sh                    (498 lines)  Install/uninstall/status script
+├── Cargo.toml                    (53 lines)   Package manifest
+├── install.sh                    (502 lines)  Install/uninstall/status script
 ├── test-compaction.sh            (81 lines)   Test helper for compaction hooks
 ├── TECH_BRIEFING.md              (this file)
 └── src/
-    ├── lib.rs                    (6 lines)    Module re-exports
+    ├── lib.rs                    (97 lines)   Module re-exports + budget computation
     ├── main.rs                   (131 lines)  CLI entry: serve | hook | version
-    ├── config.rs                 (195 lines)  TOML config with defaults
-    ├── context_manager.rs        (182 lines)  Core orchestrator (wraps BrainClient)
+    ├── config.rs                 (186 lines)  TOML config with defaults
+    ├── context_manager.rs        (356 lines)  Core orchestrator (wraps BrainClient)
     ├── hook_protocol.rs          (98 lines)   Claude Code hook JSON stdin/stdout
-    ├── mcp_server.rs             (223 lines)  MCP server with 5 tools
-    ├── session_adapter.rs        (116 lines)  DreamSessionStore bridge (partial)
+    ├── mcp_server.rs             (338 lines)  MCP server with 5 tools
+    ├── session_adapter.rs        (150 lines)  DreamSessionStore bridge (partial)
     └── hooks/
         ├── mod.rs                (4 lines)    Module re-exports
-        ├── session_start.rs      (42 lines)   Load context on session start
-        ├── stop.rs               (95 lines)   Capture every turn
-        ├── pre_compact.rs        (161 lines)  Export transcript before compaction
-        └── post_compact.rs       (79 lines)   Inject context after compaction
+        ├── session_start.rs      (75 lines)   Route by source, load/restore context
+        ├── stop.rs               (107 lines)  Capture every turn
+        ├── pre_compact.rs        (235 lines)  Export transcript + create session digest
+        └── post_compact.rs       (36 lines)   Logging only (stdout ignored)
 ```
 
 **Framework crates used:**
@@ -623,12 +639,11 @@ The `session_adapter.rs` bridges BrainClient to DreamSessionStore, but:
 - No hook or cron triggers consolidation automatically
 - `consolidate_now` MCP tool planned but not implemented
 
-### Duplicate Storage on Compaction
+### PostCompact stdout Ignored
 
-If Stop hook captures turns AND PreCompact exports the full transcript, the same messages
-get stored twice (once per-turn, once bulk). They get different tags ("auto-capture" vs
-"pre-compact") and different importance (0.5 vs 0.6), but it's redundant storage. The
-evidence system partially handles this (corroboration detection), but deduplication is imperfect.
+Claude Code only injects SessionStart and UserPromptSubmit stdout into context.
+PostCompact stdout goes to debug log only. All context restoration is routed through
+SessionStart (source="compact") which fires after PreCompact but before PostCompact.
 
 ### No Context Editing
 
@@ -674,8 +689,9 @@ cd extras/claude-brain/
 All hook events logged to `~/.brainwires/claude-brain-hooks.log`:
 
 ```
-[2026-04-12 10:00:00 UTC] SESSION-START fired — cwd=/home/user/project session=abc123
+[2026-04-12 10:00:00 UTC] SESSION-START fired — source=startup cwd=/home/user/project session=abc123
 [2026-04-12 10:01:30 UTC] STOP fired — assistant_message 1500 chars
 [2026-04-12 10:05:00 UTC] PRE-COMPACT fired — 45 messages from transcript (trigger=auto)
-[2026-04-12 10:05:02 UTC] POST-COMPACT fired — summary 800 chars
+[2026-04-12 10:05:01 UTC] SESSION-START fired — source=compact cwd=/home/user/project session=abc123
+[2026-04-12 10:05:02 UTC] POST-COMPACT fired — summary 800 chars, trigger=auto (stdout ignored, context restored via SessionStart)
 ```

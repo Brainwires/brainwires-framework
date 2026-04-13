@@ -237,6 +237,117 @@ impl ContextManager {
         })
     }
 
+    /// Load context for post-compaction restart.
+    ///
+    /// Called by SessionStart when `source = "compact"`. PreCompact has already
+    /// saved the transcript and created a session digest — we read it back here
+    /// along with PKS/BKS knowledge and recent thoughts.
+    ///
+    /// Sections are built in priority order (digest > knowledge > thoughts)
+    /// and truncated to fit `compute_output_budget()`.
+    pub async fn load_post_compact_context(
+        &self,
+        cwd: Option<&str>,
+        session_id: Option<&str>,
+    ) -> Result<String> {
+        let client = self.client.lock().await;
+        let mut sections: Vec<String> = Vec::new();
+
+        // 1. Session digest — created by PreCompact, highest value
+        if let Some(sid) = session_id {
+            use brainwires_storage::{Filter, FieldValue};
+            let session_tag = format!("session:{}", crate::sanitize_tag_value(sid));
+            let filter = Filter::And(vec![
+                Filter::Eq("deleted".into(), FieldValue::Boolean(Some(false))),
+                Filter::Raw("tags LIKE '%session-digest%'".to_string()),
+                Filter::Raw(format!("tags LIKE '%{}%'", session_tag)),
+            ]);
+            let digests = client.query_thought_contents(&filter, 1).await.unwrap_or_default();
+            if let Some(digest) = digests.first() {
+                let mut section = String::from("## Session Digest\n\n");
+                section.push_str(digest);
+                section.push('\n');
+                sections.push(section);
+            }
+        }
+
+        // 2. PKS/BKS knowledge — durable cross-session facts
+        if let Some(dir) = cwd {
+            let project_name = std::path::Path::new(dir)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or(dir);
+
+            let knowledge_results = client.search_knowledge(SearchKnowledgeRequest {
+                query: project_name.to_string(),
+                limit: self.config.session_start.max_facts,
+                min_confidence: 0.5,
+                source: None,
+                category: None,
+            });
+
+            if let Ok(resp) = knowledge_results
+                && !resp.results.is_empty() {
+                    let mut section = String::from("## Key Knowledge\n\n");
+                    for result in &resp.results {
+                        section.push_str(&format!("- {}: {}\n", result.key, result.value));
+                    }
+                    sections.push(section);
+                }
+        }
+
+        // 3. Recent thoughts from this session — supplementary detail
+        if let Some(sid) = session_id {
+            use brainwires_storage::{Filter, FieldValue};
+            let session_tag = format!("session:{}", crate::sanitize_tag_value(sid));
+            let filter = Filter::And(vec![
+                Filter::Eq("deleted".into(), FieldValue::Boolean(Some(false))),
+                Filter::Raw(format!("tags LIKE '%auto-capture%' AND tags LIKE '%{}%'", session_tag)),
+                Filter::Raw("tags NOT LIKE '%session-digest%'".to_string()),
+            ]);
+            let contents = client
+                .query_thought_contents(&filter, 5)
+                .await
+                .unwrap_or_default();
+            if !contents.is_empty() {
+                let mut section = String::from("## Recent Context\n\n");
+                for content in &contents {
+                    let preview = if content.len() > THOUGHT_PREVIEW_LEN {
+                        format!("{}...", &content[..THOUGHT_PREVIEW_LEN])
+                    } else {
+                        content.clone()
+                    };
+                    section.push_str(&format!("- {}\n", preview));
+                }
+                sections.push(section);
+            }
+        }
+
+        if sections.is_empty() {
+            return Ok(String::new());
+        }
+
+        // Budget enforcement
+        let env_budget = crate::compute_output_budget();
+        let config_budget = self.config.session_start.max_context_tokens * CHARS_PER_TOKEN;
+        let budget = env_budget.min(config_budget);
+
+        let header = "# Claude Brain — Post-Compaction Context\n\n";
+        let mut output = String::from(header);
+        for section in &sections {
+            if output.len() + section.len() > budget {
+                let remaining = budget.saturating_sub(output.len());
+                if remaining > MIN_SECTION_REMAINDER {
+                    output.push_str(&section[..remaining.min(section.len())]);
+                    output.push_str("\n...[truncated to fit context budget]\n");
+                }
+                break;
+            }
+            output.push_str(section);
+        }
+        Ok(output)
+    }
+
     /// Get memory statistics.
     pub async fn memory_stats(&self) -> Result<MemoryStatsResponse> {
         let client = self.client.lock().await;
