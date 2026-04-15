@@ -487,6 +487,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "requires FastEmbed ONNX model on disk"]
     async fn test_save_and_get_pattern() {
         let (store, _temp) = create_test_store().await;
         let pattern = create_test_pattern();
@@ -525,6 +526,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "requires FastEmbed ONNX model on disk"]
     async fn test_count_patterns() {
         let (store, _temp) = create_test_store().await;
 
