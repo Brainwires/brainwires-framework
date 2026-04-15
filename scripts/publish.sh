@@ -36,11 +36,13 @@ CRATES=(
     # Layer 0: Contracts
     brainwires-core
 
-    # Layer 1: Infrastructure (no brainwires deps except core)
-    brainwires-providers
-    brainwires-storage
-    brainwires-hardware
+    # Layer 1a: Infrastructure — zero internal deps (except core)
     brainwires-telemetry
+    brainwires-storage
+
+    # Layer 1b: Infrastructure — deps on 1a
+    brainwires-providers          # optional dep: telemetry
+    brainwires-hardware           # optional dep: providers
 
     # Layer 2: Protocols (dep: core only)
     brainwires-mcp
