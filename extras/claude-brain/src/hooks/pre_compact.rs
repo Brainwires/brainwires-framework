@@ -4,7 +4,7 @@ use anyhow::Result;
 use std::collections::HashSet;
 use std::io::BufRead;
 
-use brainwires_storage::{Filter, FieldValue};
+use brainwires_storage::{FieldValue, Filter};
 
 use crate::config::ClaudeBrainConfig;
 use crate::context_manager::ContextManager;
@@ -67,9 +67,15 @@ pub async fn handle() -> Result<()> {
         let client = arc.lock().await;
         let filter = Filter::And(vec![
             Filter::Eq("deleted".into(), FieldValue::Boolean(Some(false))),
-            Filter::Raw(format!("tags LIKE '%auto-capture%' AND tags LIKE '%{}%'", session_tag)),
+            Filter::Raw(format!(
+                "tags LIKE '%auto-capture%' AND tags LIKE '%{}%'",
+                session_tag
+            )),
         ]);
-        let contents = client.query_thought_contents(&filter, DEDUP_QUERY_LIMIT).await.unwrap_or_default();
+        let contents = client
+            .query_thought_contents(&filter, DEDUP_QUERY_LIMIT)
+            .await
+            .unwrap_or_default();
         contents
             .into_iter()
             .map(|c| truncate_utf8(&c, DEDUP_PREFIX_LEN).to_string())
@@ -87,7 +93,10 @@ pub async fn handle() -> Result<()> {
         .map(|(role, content)| {
             let tagged_content = format!("[{role}] {content}");
             let store_content = if tagged_content.len() > MAX_THOUGHT_CHARS {
-                format!("{}...[truncated]", truncate_utf8(&tagged_content, MAX_THOUGHT_CHARS))
+                format!(
+                    "{}...[truncated]",
+                    truncate_utf8(&tagged_content, MAX_THOUGHT_CHARS)
+                )
             } else {
                 tagged_content
             };

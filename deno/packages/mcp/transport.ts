@@ -9,7 +9,6 @@
 
 import type {
   JsonRpcMessage,
-  JsonRpcNotification,
   JsonRpcRequest,
   JsonRpcResponse,
 } from "./types.ts";
@@ -44,6 +43,7 @@ export class StdioTransport {
    * Create a new stdio transport by spawning a command.
    * Equivalent to Rust `StdioTransport::new`.
    */
+  // deno-lint-ignore require-await
   static async create(
     command: string,
     args: string[],
@@ -61,20 +61,15 @@ export class StdioTransport {
     const writer = child.stdin.getWriter();
 
     // Create a line reader from stdout
+    let lineBuffer = "";
     const reader = child.stdout
       .pipeThrough(new TextDecoderStream())
       .pipeThrough(new TransformStream<string, string>({
-        start() {
-          // deno-lint-ignore no-this-alias
-          const self = this as unknown as { buffer: string };
-          self.buffer = "";
-        },
         transform(chunk, controller) {
-          const self = this as unknown as { buffer: string };
-          self.buffer += chunk;
-          const lines = self.buffer.split("\n");
+          lineBuffer += chunk;
+          const lines = lineBuffer.split("\n");
           // Keep the last (possibly incomplete) line in the buffer
-          self.buffer = lines.pop() ?? "";
+          lineBuffer = lines.pop() ?? "";
           for (const line of lines) {
             if (line.trim().length > 0) {
               controller.enqueue(line);
@@ -82,9 +77,8 @@ export class StdioTransport {
           }
         },
         flush(controller) {
-          const self = this as unknown as { buffer: string };
-          if (self.buffer.trim().length > 0) {
-            controller.enqueue(self.buffer);
+          if (lineBuffer.trim().length > 0) {
+            controller.enqueue(lineBuffer);
           }
         },
       }))

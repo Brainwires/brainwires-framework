@@ -4,7 +4,7 @@
  * These tests exercise the pure functions (no live database required).
  */
 
-import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assertEquals } from "@std/assert";
 import {
   filterToSql,
   buildCreateTable,

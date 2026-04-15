@@ -25,10 +25,9 @@
  * ```
  */
 
-import { parse as parseYaml } from "jsr:@std/yaml@1/parse";
+import { parse as parseYaml } from "@std/yaml/parse";
 import {
   createSkill,
-  executionMode,
   type Skill,
   type SkillMetadata,
 } from "./skills_metadata.ts";

@@ -1,5 +1,5 @@
-import { assertEquals, assertThrows } from "jsr:@std/assert@1";
-import { assert } from "jsr:@std/assert@1/assert";
+import { assertEquals, assertThrows } from "@std/assert";
+import { assert } from "@std/assert/assert";
 
 import {
   parseMetadataFromContent,

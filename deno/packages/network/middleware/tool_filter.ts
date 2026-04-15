@@ -55,6 +55,7 @@ export class ToolFilterMiddleware implements Middleware {
     return !this.mode.tools.has(toolName);
   }
 
+  // deno-lint-ignore require-await
   async processRequest(
     request: JsonRpcRequest,
     _ctx: RequestContext,

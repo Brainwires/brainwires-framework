@@ -64,6 +64,7 @@ export class AgentNetworkClient {
   }
 
   /** Connect to a relay process with custom arguments. */
+  // deno-lint-ignore require-await
   static async connect(
     binaryPath: string,
     args: string[] = ["chat", "--mcp-server"],
@@ -164,6 +165,7 @@ export class AgentNetworkClient {
   }
 
   /** Call a tool on the relay server by name with arguments. */
+  // deno-lint-ignore require-await
   async callTool(
     name: string,
     args: Record<string, unknown>,
@@ -178,6 +180,7 @@ export class AgentNetworkClient {
   }
 
   /** List all tools available on the relay server. */
+  // deno-lint-ignore require-await
   async listTools(): Promise<unknown> {
     if (!this._initialized) {
       throw new AgentNetworkClientError(
@@ -216,6 +219,7 @@ export class AgentNetworkClient {
   }
 
   /** Wait for an agent to complete. */
+  // deno-lint-ignore require-await
   async awaitAgent(
     agentId: string,
     timeoutSecs?: number,
@@ -228,6 +232,7 @@ export class AgentNetworkClient {
   }
 
   /** List all agents. */
+  // deno-lint-ignore require-await
   async listAgents(): Promise<unknown> {
     return this.callTool("agent_list", {});
   }

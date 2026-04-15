@@ -14,7 +14,6 @@ import type {
   ReferenceKind,
   SymbolId,
   SymbolKind,
-  Visibility,
 } from "./types.ts";
 import { visibilityFromKeywords } from "./types.ts";
 

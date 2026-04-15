@@ -2,7 +2,7 @@
  * Tests for TieredMemory, tier metadata, and multi-factor scoring.
  */
 
-import { assertEquals, assertNotEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assertEquals } from "@std/assert";
 import {
   TieredMemory,
   computeMultiFactorScore,

@@ -3,7 +3,7 @@
  * and output parsing.
  */
 
-import { assertEquals, assertThrows } from "jsr:@std/assert";
+import { assertEquals, assertThrows } from "@std/assert";
 
 import {
   judgeAgentPrompt,
@@ -15,7 +15,6 @@ import {
   formatMergeStatus,
   type JudgeContext,
   type JudgeVerdict,
-  type WorkerResult,
 } from "./judge_agent.ts";
 
 import {
@@ -28,7 +27,6 @@ import {
 
 import {
   formatValidatorStatus,
-  type ValidatorAgentStatus,
 } from "./validator_agent.ts";
 
 import {

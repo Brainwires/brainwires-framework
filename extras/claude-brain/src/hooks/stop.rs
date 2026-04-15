@@ -23,7 +23,11 @@ pub async fn handle() -> Result<()> {
         .join("claude-brain-hooks.log");
     let _ = std::fs::create_dir_all(log_path.parent().unwrap_or(std::path::Path::new("/tmp")));
     let timestamp = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC");
-    let msg_len = payload.assistant_message.as_ref().map(|m| m.len()).unwrap_or(0);
+    let msg_len = payload
+        .assistant_message
+        .as_ref()
+        .map(|m| m.len())
+        .unwrap_or(0);
     let log_line = format!("[{timestamp}] STOP fired — assistant_message {msg_len} chars\n");
     let _ = std::fs::OpenOptions::new()
         .create(true)
@@ -78,30 +82,31 @@ pub async fn handle() -> Result<()> {
 
     // Capture user message if present
     if let Some(ref msg) = payload.user_message
-        && msg.len() > 20 {
-            let content = format!("[user] {msg}");
-            let mut tags = vec![
-                "claude-code".to_string(),
-                "auto-capture".to_string(),
-                session_tag,
-            ];
-            if let Some(ref pt) = project_tag {
-                tags.push(pt.clone());
-            }
-
-            let mut client = ctx.client().lock_owned().await;
-            client
-                .capture_thought(
-                    brainwires_knowledge::knowledge::types::CaptureThoughtRequest {
-                        content,
-                        category: None,
-                        tags: Some(tags),
-                        importance: None,
-                        source: Some("claude-code-turn".to_string()),
-                    },
-                )
-                .await?;
+        && msg.len() > 20
+    {
+        let content = format!("[user] {msg}");
+        let mut tags = vec![
+            "claude-code".to_string(),
+            "auto-capture".to_string(),
+            session_tag,
+        ];
+        if let Some(ref pt) = project_tag {
+            tags.push(pt.clone());
         }
+
+        let mut client = ctx.client().lock_owned().await;
+        client
+            .capture_thought(
+                brainwires_knowledge::knowledge::types::CaptureThoughtRequest {
+                    content,
+                    category: None,
+                    tags: Some(tags),
+                    importance: None,
+                    source: Some("claude-code-turn".to_string()),
+                },
+            )
+            .await?;
+    }
 
     Ok(())
 }

@@ -7,7 +7,7 @@
  * @module
  */
 
-import { Task, type TaskPriority, type TaskStatus } from "@brainwires/core";
+import type { Task, TaskPriority, TaskStatus } from "@brainwires/core";
 
 // ---------------------------------------------------------------------------
 // Queued task
@@ -34,7 +34,7 @@ function createQueuedTask(task: Task, priority: TaskPriority): QueuedTask {
 // Priority order helper
 // ---------------------------------------------------------------------------
 
-const PRIORITY_ORDER: Record<TaskPriority, number> = {
+const _PRIORITY_ORDER: Record<TaskPriority, number> = {
   urgent: 0,
   high: 1,
   normal: 2,

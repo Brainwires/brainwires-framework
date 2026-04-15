@@ -1,4 +1,4 @@
-import { assertEquals, assertThrows } from "jsr:@std/assert";
+import { assertEquals, assertThrows } from "@std/assert";
 import { CommunicationHub } from "./communication.ts";
 
 Deno.test("register and unregister agent", () => {
@@ -16,6 +16,7 @@ Deno.test("register and unregister agent", () => {
   assertEquals(hub.isRegistered("agent-1"), false);
 });
 
+// deno-lint-ignore require-await
 Deno.test("send and receive message", async () => {
   const hub = new CommunicationHub();
   hub.registerAgent("agent-1");

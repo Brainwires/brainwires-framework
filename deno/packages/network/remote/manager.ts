@@ -127,6 +127,7 @@ export class RemoteBridgeManager {
   }
 
   /** Start the remote bridge with an explicit config. */
+  // deno-lint-ignore require-await
   async startWithConfig(config: BridgeConfig): Promise<boolean> {
     if (this.running) return false;
     if (!config.apiKey) throw new Error("No API key configured");
@@ -146,6 +147,7 @@ export class RemoteBridgeManager {
   }
 
   /** Start the remote bridge using configuration from the provider. */
+  // deno-lint-ignore require-await
   async startFromConfig(): Promise<boolean> {
     const config = this.buildBridgeConfig();
     if (!config) return false;

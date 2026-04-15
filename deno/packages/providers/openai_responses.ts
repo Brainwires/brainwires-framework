@@ -6,7 +6,7 @@
  */
 
 import {
-  ChatOptions,
+  type ChatOptions,
   Message,
   type ChatResponse,
   type ContentBlock,

@@ -7,7 +7,9 @@ use std::panic;
 #[derive(Parser)]
 #[command(name = "claude-brain")]
 #[command(version = env!("CARGO_PKG_VERSION"))]
-#[command(about = "Replaces Claude Code compaction with Brainwires tiered memory, dream consolidation, and semantic recall")]
+#[command(
+    about = "Replaces Claude Code compaction with Brainwires tiered memory, dream consolidation, and semantic recall"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,

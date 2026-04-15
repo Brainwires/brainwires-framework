@@ -1,4 +1,4 @@
-import { assertEquals, assertThrows } from "jsr:@std/assert";
+import { assertEquals, assertThrows } from "@std/assert";
 import { Task } from "@brainwires/core";
 import { TaskQueue } from "./task_queue.ts";
 

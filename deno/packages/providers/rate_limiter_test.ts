@@ -1,5 +1,5 @@
-import { assertEquals } from "https://deno.land/std@0.224.0/assert/assert_equals.ts";
-import { assert } from "https://deno.land/std@0.224.0/assert/assert.ts";
+import { assertEquals } from "@std/assert/equals";
+import { assert } from "@std/assert/assert";
 import { RateLimiter, RateLimitedClient } from "./rate_limiter.ts";
 
 Deno.test("RateLimiter: creation sets correct values", () => {
@@ -49,6 +49,7 @@ Deno.test("RateLimiter: tryAcquire returns false when no tokens", async () => {
 
 Deno.test("RateLimitedClient: wraps function with rate limiting", async () => {
   let callCount = 0;
+  // deno-lint-ignore require-await
   const fn = async (x: number): Promise<number> => {
     callCount++;
     return x * 2;
@@ -63,6 +64,7 @@ Deno.test("RateLimitedClient: wraps function with rate limiting", async () => {
 });
 
 Deno.test("RateLimitedClient: multiple calls consume tokens", async () => {
+  // deno-lint-ignore require-await
   const fn = async (s: string): Promise<string> => `hello ${s}`;
   const client = new RateLimitedClient(fn, { requestsPerMinute: 5 });
 

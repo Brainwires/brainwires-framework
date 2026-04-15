@@ -40,6 +40,7 @@ export interface Router {
  * Equivalent to Rust `DirectRouter`.
  */
 export class DirectRouter implements Router {
+  // deno-lint-ignore require-await
   async route(
     envelope: MessageEnvelope,
     peers: PeerTable,
@@ -67,6 +68,7 @@ export class DirectRouter implements Router {
  * Equivalent to Rust `BroadcastRouter`.
  */
 export class BroadcastRouter implements Router {
+  // deno-lint-ignore require-await
   async route(
     envelope: MessageEnvelope,
     peers: PeerTable,
@@ -93,6 +95,7 @@ export class BroadcastRouter implements Router {
  * Equivalent to Rust `ContentRouter`.
  */
 export class ContentRouter implements Router {
+  // deno-lint-ignore require-await
   async route(
     envelope: MessageEnvelope,
     peers: PeerTable,

@@ -86,7 +86,7 @@ export function disabledValidationConfig(): ValidationConfig {
 // ---------------------------------------------------------------------------
 
 /** Check if file is a source code file worth validating. */
-function isSourceFile(path: string): boolean {
+function _isSourceFile(path: string): boolean {
   const lower = path.toLowerCase();
   return (
     lower.endsWith(".rs") ||

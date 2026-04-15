@@ -213,6 +213,7 @@ export class QdrantDatabase implements VectorDatabase {
     return embeddings.length;
   }
 
+  // deno-lint-ignore require-await
   async search(
     queryVector: number[],
     queryText: string,

@@ -21,7 +21,7 @@ import {
   type SkillMatch,
   type SkillMetadata,
 } from "./skills_metadata.ts";
-import { SkillRegistry } from "./skills_registry.ts";
+import type { SkillRegistry } from "./skills_registry.ts";
 
 /** Minimum confidence for showing skill suggestions. */
 const MIN_SUGGESTION_CONFIDENCE = 0.5;

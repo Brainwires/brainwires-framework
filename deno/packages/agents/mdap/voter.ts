@@ -282,6 +282,7 @@ export class FirstToAheadByKVoter {
   /**
    * Simple vote with default string key extraction via JSON.stringify.
    */
+  // deno-lint-ignore require-await
   async voteSimple<T>(
     sampler: () => Promise<SampledResponse<T>>,
     redFlagValidator: RedFlagValidator,

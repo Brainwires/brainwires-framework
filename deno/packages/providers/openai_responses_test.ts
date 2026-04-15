@@ -1,4 +1,4 @@
-import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assertEquals } from "@std/assert";
 import { Message } from "@brainwires/core";
 import {
   buildRequestBody,
@@ -308,6 +308,7 @@ Deno.test("buildRequestBody - minimal", () => {
     [{ type: "message", role: "user", content: "Hello" }],
     undefined,
     undefined,
+    // deno-lint-ignore no-explicit-any
     { temperature: 0.7, max_tokens: 4096 } as any,
   );
   assertEquals(body.model, "gpt-4o");
@@ -328,6 +329,7 @@ Deno.test("buildRequestBody - with instructions and tools", () => {
     [{ type: "message", role: "user", content: "Hi" }],
     "Be helpful",
     tools,
+    // deno-lint-ignore no-explicit-any
     { temperature: 0.5 } as any,
   );
   assertEquals(body.instructions, "Be helpful");
@@ -341,6 +343,7 @@ Deno.test("buildRequestBody - with previous response id", () => {
     [{ type: "message", role: "user", content: "Hi" }],
     undefined,
     undefined,
+    // deno-lint-ignore no-explicit-any
     {} as any,
     "resp_prev",
   );

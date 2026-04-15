@@ -17,7 +17,7 @@ import {
   type SkillResult,
 } from "./skills_metadata.ts";
 import { renderTemplate } from "./skills_parser.ts";
-import { SkillRegistry } from "./skills_registry.ts";
+import type { SkillRegistry } from "./skills_registry.ts";
 
 /**
  * Prepared subagent execution -- caller converts into Task + AgentContext.

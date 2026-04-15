@@ -11,7 +11,7 @@
 import {
   ChatOptions,
   Message,
-  ToolResult,
+  type ToolResult,
   type ChatResponse,
   type Provider,
   type Task,
@@ -20,7 +20,7 @@ import {
 } from "@brainwires/core";
 
 import type { AgentContext } from "./context.ts";
-import type { AgentRuntime, AgentExecutionResult } from "./runtime.ts";
+import type { AgentRuntime } from "./runtime.ts";
 import { runAgentLoop } from "./runtime.ts";
 import type { LockType } from "./file_locks.ts";
 import type { AgentLifecycleHooks } from "./hooks.ts";
@@ -226,34 +226,33 @@ export class TaskAgent {
     this._status = { kind: "working", description: this.task.description };
 
     // Build an AgentRuntime adapter
-    const self = this;
     const runtime: AgentRuntime = {
-      agentId: () => self.id,
-      maxIterations: () => self.config.maxIterations,
+      agentId: () => this.id,
+      maxIterations: () => this.config.maxIterations,
 
-      async callProvider(): Promise<ChatResponse> {
+      callProvider: async (): Promise<ChatResponse> => {
         const systemPrompt =
-          self.config.systemPrompt ??
-          `You are an autonomous agent working on a task. Task: ${self.task.description}`;
+          this.config.systemPrompt ??
+          `You are an autonomous agent working on a task. Task: ${this.task.description}`;
 
         const options = new ChatOptions({
-          temperature: self.config.temperature,
-          max_tokens: self.config.maxTokens,
+          temperature: this.config.temperature,
+          max_tokens: this.config.maxTokens,
           system: systemPrompt,
         });
 
         // Get available tools from the executor
-        const tools: Tool[] = self.context.toolExecutor.availableTools();
+        const tools: Tool[] = this.context.toolExecutor.availableTools();
 
-        const response = await self.provider.chat(
-          self.messages,
+        const response = await this.provider.chat(
+          this.messages,
           tools.length > 0 ? tools : undefined,
           options,
         );
 
         // Track usage
         if (response.usage) {
-          self.totalTokensUsed +=
+          this.totalTokensUsed +=
             (response.usage.prompt_tokens ?? 0) +
             (response.usage.completion_tokens ?? 0);
         }
@@ -287,9 +286,10 @@ export class TaskAgent {
         );
       },
 
-      async executeTool(toolUse: ToolUse): Promise<ToolResult> {
-        const ctx = { agentId: self.id, workingDirectory: self.context.workingDirectory };
-        return await self.context.toolExecutor.execute(toolUse, ctx as any);
+      executeTool: async (toolUse: ToolUse): Promise<ToolResult> => {
+        const ctx = { agentId: this.id, workingDirectory: this.context.workingDirectory };
+        // deno-lint-ignore no-explicit-any
+        return await this.context.toolExecutor.execute(toolUse, ctx as any);
       },
 
       getLockRequirement(
@@ -313,16 +313,16 @@ export class TaskAgent {
         return undefined;
       },
 
-      onProviderResponse(response: ChatResponse): void {
+      onProviderResponse: (response: ChatResponse): void => {
         // Ensure it's a Message instance
         const msg = response.message instanceof Message
           ? response.message
           : new Message(response.message);
-        self.messages.push(msg);
+        this.messages.push(msg);
       },
 
-      onToolResult(_toolUse: ToolUse, result: ToolResult): void {
-        self.messages.push(new Message({
+      onToolResult: (_toolUse: ToolUse, result: ToolResult): void => {
+        this.messages.push(new Message({
           role: "user",
           content: [
             {
@@ -335,6 +335,7 @@ export class TaskAgent {
         }));
       },
 
+      // deno-lint-ignore require-await
       async onCompletion(
         response: ChatResponse,
       ): Promise<string | undefined> {
@@ -355,36 +356,36 @@ export class TaskAgent {
         return `Hit iteration limit at ${iterations}`;
       },
 
-      lifecycleHooks(): AgentLifecycleHooks | undefined {
-        return self.context.lifecycleHooks;
+      lifecycleHooks: (): AgentLifecycleHooks | undefined => {
+        return this.context.lifecycleHooks;
       },
 
-      contextBudgetTokens(): number | undefined {
-        return self.config.contextBudgetTokens;
+      contextBudgetTokens: (): number | undefined => {
+        return this.config.contextBudgetTokens;
       },
 
-      conversation(): Message[] | undefined {
-        return self.messages;
+      conversation: (): Message[] | undefined => {
+        return this.messages;
       },
     };
 
     const executionResult = await runAgentLoop(
       runtime,
-      self.context.communicationHub,
-      self.context.fileLockManager,
+      this.context.communicationHub,
+      this.context.fileLockManager,
       signal,
     );
 
     const result: TaskAgentResult = {
-      agentId: self.id,
-      taskId: self.task.id,
+      agentId: this.id,
+      taskId: this.task.id,
       success: executionResult.success,
       summary: executionResult.output,
       iterations: executionResult.iterations,
       replanCount: 0,
       budgetExhausted: false,
-      totalTokensUsed: self.totalTokensUsed,
-      totalCostUsd: self.totalCostUsd,
+      totalTokensUsed: this.totalTokensUsed,
+      totalCostUsd: this.totalCostUsd,
       timedOut: false,
       failureCategory: executionResult.success
         ? undefined
@@ -395,7 +396,7 @@ export class TaskAgent {
             : "unknown",
     };
 
-    self._status = executionResult.success
+    this._status = executionResult.success
       ? { kind: "completed", summary: executionResult.output }
       : { kind: "failed", error: executionResult.output };
 

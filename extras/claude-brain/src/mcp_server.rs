@@ -2,11 +2,8 @@
 
 use anyhow::{Context, Result};
 use rmcp::{
-    ServerHandler, ServiceExt,
-    handler::server::tool::ToolRouter,
-    handler::server::wrapper::Parameters,
-    model::*,
-    tool, tool_handler, tool_router,
+    ServerHandler, ServiceExt, handler::server::tool::ToolRouter,
+    handler::server::wrapper::Parameters, model::*, tool, tool_handler, tool_router,
 };
 
 use crate::config::ClaudeBrainConfig;
@@ -257,13 +254,14 @@ impl ClaudeBrainMcpServer {
                 .await
                 .map_err(|e| format!("{:#}", e))?;
             if let Some(msgs) = messages
-                && !msgs.is_empty() {
-                    adapter
-                        .save(session_key, &msgs)
-                        .await
-                        .map_err(|e| format!("{:#}", e))?;
-                    total_consolidated += 1;
-                }
+                && !msgs.is_empty()
+            {
+                adapter
+                    .save(session_key, &msgs)
+                    .await
+                    .map_err(|e| format!("{:#}", e))?;
+                total_consolidated += 1;
+            }
         }
 
         Ok(format!(
@@ -276,11 +274,10 @@ impl ClaudeBrainMcpServer {
     #[tool(
         description = "Teach a behavioral rule to the BKS (Behavioral Knowledge System). Use this when you discover patterns about how to work effectively — command usage, error recovery, tool behavior, etc. Rules persist across sessions and inform future behavior."
     )]
-    async fn learn(
-        &self,
-        Parameters(req): Parameters<LearnRequest>,
-    ) -> Result<String, String> {
-        use brainwires_knowledge::knowledge::bks_pks::{BehavioralTruth, TruthCategory, TruthSource};
+    async fn learn(&self, Parameters(req): Parameters<LearnRequest>) -> Result<String, String> {
+        use brainwires_knowledge::knowledge::bks_pks::{
+            BehavioralTruth, TruthCategory, TruthSource,
+        };
 
         let category = match req.category.as_deref() {
             Some("command_usage") => TruthCategory::CommandUsage,
@@ -322,9 +319,8 @@ impl ServerHandler for ClaudeBrainMcpServer {
     fn get_info(&self) -> ServerInfo {
         let mut info = ServerInfo::default();
         info.capabilities = ServerCapabilities::builder().enable_tools().build();
-        info.server_info =
-            Implementation::new("claude-brain", env!("CARGO_PKG_VERSION"))
-                .with_title("Claude Brain — Brainwires Context Management for Claude Code");
+        info.server_info = Implementation::new("claude-brain", env!("CARGO_PKG_VERSION"))
+            .with_title("Claude Brain — Brainwires Context Management for Claude Code");
         info.instructions = Some(
             "Claude Brain replaces Claude Code's default compaction with Brainwires \
              research-grade context management. Use recall_context to search past \

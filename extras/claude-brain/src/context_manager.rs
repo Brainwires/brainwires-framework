@@ -79,14 +79,14 @@ impl ContextManager {
             });
 
             if let Ok(resp) = knowledge_results
-                && !resp.results.is_empty() {
-                    let mut facts_section = String::from("## Relevant Knowledge\n\n");
-                    for result in &resp.results {
-                        facts_section
-                            .push_str(&format!("- {}: {}\n", result.key, result.value));
-                    }
-                    sections.push(facts_section);
+                && !resp.results.is_empty()
+            {
+                let mut facts_section = String::from("## Relevant Knowledge\n\n");
+                for result in &resp.results {
+                    facts_section.push_str(&format!("- {}: {}\n", result.key, result.value));
                 }
+                sections.push(facts_section);
+            }
         }
 
         // Load recent thoughts (from any session)
@@ -99,28 +99,32 @@ impl ContextManager {
             .await;
 
         if let Ok(resp) = recent
-            && !resp.thoughts.is_empty() {
-                let mut recent_section = String::from("## Recent Context\n\n");
-                for thought in &resp.thoughts {
-                    let preview = if thought.content.len() > THOUGHT_PREVIEW_LEN {
-                        format!("{}...", truncate_utf8(&thought.content, THOUGHT_PREVIEW_LEN))
-                    } else {
-                        thought.content.clone()
-                    };
-                    recent_section.push_str(&format!(
-                        "- [{}] {}\n",
-                        thought.category, preview
-                    ));
-                }
-                sections.push(recent_section);
+            && !resp.thoughts.is_empty()
+        {
+            let mut recent_section = String::from("## Recent Context\n\n");
+            for thought in &resp.thoughts {
+                let preview = if thought.content.len() > THOUGHT_PREVIEW_LEN {
+                    format!(
+                        "{}...",
+                        truncate_utf8(&thought.content, THOUGHT_PREVIEW_LEN)
+                    )
+                } else {
+                    thought.content.clone()
+                };
+                recent_section.push_str(&format!("- [{}] {}\n", thought.category, preview));
             }
+            sections.push(recent_section);
+        }
 
         // Load previous session context (thoughts NOT from current session)
         if let Some(sid) = session_id {
-            use brainwires_storage::{Filter, FieldValue};
+            use brainwires_storage::{FieldValue, Filter};
             let filter = Filter::And(vec![
                 Filter::Eq("deleted".into(), FieldValue::Boolean(Some(false))),
-                Filter::Raw(format!("tags NOT LIKE '%session:{}%'", crate::sanitize_tag_value(sid))),
+                Filter::Raw(format!(
+                    "tags NOT LIKE '%session:{}%'",
+                    crate::sanitize_tag_value(sid)
+                )),
                 Filter::Raw("tags LIKE '%auto-capture%'".to_string()),
             ]);
             let prev_contents = client
@@ -256,14 +260,17 @@ impl ContextManager {
 
         // 1. Session digest — created by PreCompact, highest value
         if let Some(sid) = session_id {
-            use brainwires_storage::{Filter, FieldValue};
+            use brainwires_storage::{FieldValue, Filter};
             let session_tag = format!("session:{}", crate::sanitize_tag_value(sid));
             let filter = Filter::And(vec![
                 Filter::Eq("deleted".into(), FieldValue::Boolean(Some(false))),
                 Filter::Raw("tags LIKE '%session-digest%'".to_string()),
                 Filter::Raw(format!("tags LIKE '%{}%'", session_tag)),
             ]);
-            let digests = client.query_thought_contents(&filter, 1).await.unwrap_or_default();
+            let digests = client
+                .query_thought_contents(&filter, 1)
+                .await
+                .unwrap_or_default();
             if let Some(digest) = digests.first() {
                 let mut section = String::from("## Session Digest\n\n");
                 section.push_str(digest);
@@ -288,22 +295,26 @@ impl ContextManager {
             });
 
             if let Ok(resp) = knowledge_results
-                && !resp.results.is_empty() {
-                    let mut section = String::from("## Key Knowledge\n\n");
-                    for result in &resp.results {
-                        section.push_str(&format!("- {}: {}\n", result.key, result.value));
-                    }
-                    sections.push(section);
+                && !resp.results.is_empty()
+            {
+                let mut section = String::from("## Key Knowledge\n\n");
+                for result in &resp.results {
+                    section.push_str(&format!("- {}: {}\n", result.key, result.value));
                 }
+                sections.push(section);
+            }
         }
 
         // 3. Recent thoughts from this session — supplementary detail
         if let Some(sid) = session_id {
-            use brainwires_storage::{Filter, FieldValue};
+            use brainwires_storage::{FieldValue, Filter};
             let session_tag = format!("session:{}", crate::sanitize_tag_value(sid));
             let filter = Filter::And(vec![
                 Filter::Eq("deleted".into(), FieldValue::Boolean(Some(false))),
-                Filter::Raw(format!("tags LIKE '%auto-capture%' AND tags LIKE '%{}%'", session_tag)),
+                Filter::Raw(format!(
+                    "tags LIKE '%auto-capture%' AND tags LIKE '%{}%'",
+                    session_tag
+                )),
                 Filter::Raw("tags NOT LIKE '%session-digest%'".to_string()),
             ]);
             let contents = client

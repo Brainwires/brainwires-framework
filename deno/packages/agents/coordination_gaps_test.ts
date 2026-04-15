@@ -2,7 +2,7 @@
  * Tests for MarketAllocator, ThreeStateModel, and WaitQueue.
  */
 
-import { assertEquals, assertThrows } from "jsr:@std/assert";
+import { assertEquals, assertThrows } from "@std/assert";
 
 import {
   MarketAllocator,

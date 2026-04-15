@@ -7,7 +7,7 @@
  * @module
  */
 
-import Surreal from "npm:surrealdb@1";
+import Surreal from "surrealdb";
 import type { StorageBackend } from "../traits.ts";
 import type {
   FieldDef,

@@ -1,7 +1,7 @@
 /**
  * Tests for approval.ts — mirrors Rust tests in approval.rs
  */
-import { assertEquals, assert } from "jsr:@std/assert";
+import { assertEquals, assert } from "@std/assert";
 import {
   approvalActionDescription,
   approvalActionCategory,

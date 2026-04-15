@@ -100,10 +100,7 @@ pub async fn handle() -> Result<()> {
             let config = ClaudeBrainConfig::load()?;
             let ctx = ContextManager::new(config).await?;
             let context = ctx
-                .load_post_compact_context(
-                    payload.cwd.as_deref(),
-                    payload.session_id.as_deref(),
-                )
+                .load_post_compact_context(payload.cwd.as_deref(), payload.session_id.as_deref())
                 .await?;
             let len = context.len();
             if !context.is_empty() {
@@ -116,10 +113,7 @@ pub async fn handle() -> Result<()> {
             let config = ClaudeBrainConfig::load()?;
             let ctx = ContextManager::new(config).await?;
             let context = ctx
-                .load_session_context(
-                    payload.cwd.as_deref(),
-                    payload.session_id.as_deref(),
-                )
+                .load_session_context(payload.cwd.as_deref(), payload.session_id.as_deref())
                 .await?;
             let len = context.len();
             if !context.is_empty() {

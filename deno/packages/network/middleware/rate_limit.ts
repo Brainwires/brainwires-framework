@@ -43,6 +43,7 @@ export class RateLimitMiddleware implements Middleware {
     return this.perToolLimits.get(key) ?? this.maxRequestsPerSecond;
   }
 
+  // deno-lint-ignore require-await
   async processRequest(
     request: JsonRpcRequest,
     _ctx: RequestContext,

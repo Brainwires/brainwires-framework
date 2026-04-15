@@ -86,7 +86,6 @@ export class McpServer {
     const ctx = new RequestContext(null);
     console.info("MCP Relay server starting");
 
-    // deno-lint-ignore no-constant-condition
     while (true) {
       let line: string | null;
       try {
@@ -147,6 +146,7 @@ export class McpServer {
     console.info("MCP Relay server shut down");
   }
 
+  // deno-lint-ignore require-await
   private async handleRequest(
     request: JsonRpcRequest,
     ctx: RequestContext,

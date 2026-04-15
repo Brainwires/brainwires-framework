@@ -1,4 +1,4 @@
-import { assertEquals, assertExists } from "jsr:@std/assert@^1.0.0";
+import { assertEquals, assertExists } from "@std/assert";
 import { ToolRegistry } from "./registry.ts";
 import type { Tool } from "@brainwires/core";
 import { objectSchema } from "@brainwires/core";

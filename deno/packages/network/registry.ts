@@ -62,6 +62,7 @@ export class McpToolRegistry {
   }
 
   /** Dispatch a tool call to its registered handler. */
+  // deno-lint-ignore require-await
   async dispatch(
     name: string,
     args: Record<string, unknown>,

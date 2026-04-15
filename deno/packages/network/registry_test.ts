@@ -8,10 +8,11 @@ import {
   assert,
   assertFalse,
   assertRejects,
-} from "https://deno.land/std@0.224.0/assert/mod.ts";
+} from "@std/assert";
 import { McpToolRegistry } from "./registry.ts";
 import { RequestContext } from "./server.ts";
 
+// deno-lint-ignore require-await
 const echoHandler = async (
   _args: Record<string, unknown>,
   _ctx: RequestContext,
@@ -43,6 +44,7 @@ Deno.test("registry - dispatch calls handler", async () => {
     "greet",
     "Greet tool",
     { type: "object" },
+    // deno-lint-ignore require-await
     async (args: Record<string, unknown>) => ({
       content: [{ type: "text" as const, text: `Hello ${args.name}` }],
       isError: false,

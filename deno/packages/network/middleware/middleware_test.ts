@@ -3,7 +3,7 @@
  * Equivalent to Rust middleware::tests.
  */
 
-import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assertEquals } from "@std/assert";
 import type { JsonRpcRequest } from "@brainwires/mcp";
 import { RequestContext } from "../server.ts";
 import {
@@ -15,6 +15,7 @@ import {
 } from "./mod.ts";
 
 class PassMiddleware implements Middleware {
+  // deno-lint-ignore require-await
   async processRequest(
     _request: JsonRpcRequest,
     _ctx: RequestContext,
@@ -24,6 +25,7 @@ class PassMiddleware implements Middleware {
 }
 
 class RejectMiddleware implements Middleware {
+  // deno-lint-ignore require-await
   async processRequest(
     _request: JsonRpcRequest,
     _ctx: RequestContext,

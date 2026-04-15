@@ -267,7 +267,7 @@ export class WeaviateDatabase implements VectorDatabase {
 
   // -- VectorDatabase -----------------------------------------------------
 
-  async initialize(dimension: number): Promise<void> {
+  async initialize(_dimension: number): Promise<void> {
     if (await this.classExists()) return;
 
     const schema = {
@@ -315,6 +315,7 @@ export class WeaviateDatabase implements VectorDatabase {
     return stored;
   }
 
+  // deno-lint-ignore require-await
   async search(
     queryVector: number[],
     queryText: string,

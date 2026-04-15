@@ -7,7 +7,6 @@
 
 import type {
   BackendCommand,
-  CommandPriority,
   PrioritizedCommand,
 } from "./protocol.ts";
 import { PRIORITY_ORDER } from "./protocol.ts";

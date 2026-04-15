@@ -3,7 +3,7 @@
  * Mirrors Rust tests in `brainwires-mcp/src/types.rs`.
  */
 
-import { assertEquals, assertExists } from "jsr:@std/assert";
+import { assertEquals, assertExists } from "@std/assert";
 import {
   createJsonRpcNotification,
   createJsonRpcRequest,

@@ -85,7 +85,7 @@ class MockAgentRuntime implements AgentRuntime {
     return this.provider.chat(
       this.conversationMessages,
       undefined,
-      ChatOptions.new(),
+      ChatOptions.create(),
     );
   }
 

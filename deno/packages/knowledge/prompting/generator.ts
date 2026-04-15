@@ -6,7 +6,7 @@
  */
 
 import type { TaskCluster } from "./cluster.ts";
-import { TaskClusterManager } from "./cluster.ts";
+import type { TaskClusterManager } from "./cluster.ts";
 import type { PromptingTechnique, TechniqueMetadata } from "./techniques.ts";
 import { TECHNIQUE_METADATA } from "./techniques.ts";
 

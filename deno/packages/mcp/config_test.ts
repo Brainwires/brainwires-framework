@@ -3,7 +3,7 @@
  * Mirrors Rust tests in `brainwires-mcp/src/config.rs`.
  */
 
-import { assertEquals, assertExists } from "jsr:@std/assert";
+import { assertEquals, assertExists } from "@std/assert";
 import { McpConfigManager, type McpServerConfig } from "./config.ts";
 
 // =============================================================================

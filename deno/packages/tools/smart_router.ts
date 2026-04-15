@@ -6,8 +6,8 @@
  */
 
 import type { Tool } from "@brainwires/core";
-import { Message } from "@brainwires/core";
-import { type ToolCategory, ToolRegistry } from "./registry.ts";
+import type { Message } from "@brainwires/core";
+import type { ToolCategory, ToolRegistry } from "./registry.ts";
 
 /** Keyword patterns for each tool category. */
 interface CategoryPatterns {

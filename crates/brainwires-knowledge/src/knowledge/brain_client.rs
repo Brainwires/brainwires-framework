@@ -208,7 +208,10 @@ impl BrainClient {
             .with_category(category)
             .with_tags(auto_tags.clone())
             .with_source(source)
-            .with_importance(req.importance.unwrap_or_else(|| Self::importance_for_category(&category)));
+            .with_importance(
+                req.importance
+                    .unwrap_or_else(|| Self::importance_for_category(&category)),
+            );
 
         // Embed
         let embedding = self.embeddings.embed(&thought.content)?;
@@ -314,7 +317,10 @@ impl BrainClient {
                     .with_category(category)
                     .with_tags(auto_tags)
                     .with_source(source)
-                    .with_importance(req.importance.unwrap_or_else(|| Self::importance_for_category(&category)))
+                    .with_importance(
+                        req.importance
+                            .unwrap_or_else(|| Self::importance_for_category(&category)),
+                    )
             })
             .collect();
 
@@ -507,7 +513,11 @@ impl BrainClient {
     }
 
     /// Query thought content strings matching a filter. Used for deduplication.
-    pub async fn query_thought_contents(&self, filter: &Filter, limit: usize) -> Result<Vec<String>> {
+    pub async fn query_thought_contents(
+        &self,
+        filter: &Filter,
+        limit: usize,
+    ) -> Result<Vec<String>> {
         let records = self
             .backend
             .query(THOUGHTS_TABLE, Some(filter), Some(limit))

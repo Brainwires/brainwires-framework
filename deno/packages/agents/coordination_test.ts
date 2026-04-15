@@ -1,4 +1,4 @@
-import { assertEquals, assertThrows } from "jsr:@std/assert";
+import { assertEquals, assertThrows } from "@std/assert";
 
 import {
   bidScore,
@@ -218,6 +218,7 @@ class NoOpOp implements CompensableOperation {
     private desc: string,
     private opType: "generic" | "file_write" = "generic",
   ) {}
+  // deno-lint-ignore require-await
   async execute(): Promise<OperationResult> {
     return successResult(this.desc);
   }
@@ -226,10 +227,12 @@ class NoOpOp implements CompensableOperation {
     return this.desc;
   }
   operationType() {
+    // deno-lint-ignore no-explicit-any
     return this.opType as any;
   }
 }
 
+// deno-lint-ignore require-await
 Deno.test("saga: basic execution", async () => {
   const saga = new SagaExecutor("test-agent", "test saga");
   assertEquals(saga.status, "running");
@@ -302,6 +305,7 @@ Deno.test("optimistic: commit conflict", () => {
   try {
     controller.commitOptimistic(token2, "hash2");
     throw new Error("Should have thrown");
+  // deno-lint-ignore no-explicit-any
   } catch (e: any) {
     assertEquals(e.expectedVersion, 0);
     assertEquals(e.actualVersion, 1);

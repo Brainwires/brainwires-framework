@@ -1,4 +1,4 @@
-import { assertEquals } from "jsr:@std/assert@^1.0.0";
+import { assertEquals } from "@std/assert";
 import { allow, reject, type PreHookDecision } from "./executor.ts";
 
 Deno.test("PreHookDecision - allow", () => {

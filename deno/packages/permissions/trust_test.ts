@@ -1,7 +1,7 @@
 /**
  * Tests for trust.ts — mirrors Rust tests in trust.rs
  */
-import { assertEquals, assert } from "jsr:@std/assert";
+import { assertEquals, assert } from "@std/assert";
 import {
   trustLevelFromScore,
   compareTrustLevels,
@@ -9,7 +9,6 @@ import {
   createSystemTrustFactor,
   trustFactorRecordSuccess,
   trustFactorRecordViolation,
-  trustFactorReset,
   defaultViolationCounts,
   recordViolation,
   violationsTotalPenalty,

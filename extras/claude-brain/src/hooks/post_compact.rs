@@ -21,7 +21,11 @@ pub async fn handle() -> Result<()> {
         .join("claude-brain-hooks.log");
     let _ = std::fs::create_dir_all(log_path.parent().unwrap_or(std::path::Path::new("/tmp")));
     let timestamp = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC");
-    let summary_len = payload.compact_summary.as_ref().map(|s| s.len()).unwrap_or(0);
+    let summary_len = payload
+        .compact_summary
+        .as_ref()
+        .map(|s| s.len())
+        .unwrap_or(0);
     let log_line = format!(
         "[{timestamp}] POST-COMPACT fired — summary {summary_len} chars, trigger={} (stdout ignored, context restored via SessionStart)\n",
         payload.trigger.as_deref().unwrap_or("?")

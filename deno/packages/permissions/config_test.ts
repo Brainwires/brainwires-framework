@@ -1,7 +1,7 @@
 /**
  * Tests for config.ts — mirrors Rust tests in config.rs
  */
-import { assertEquals, assert } from "jsr:@std/assert";
+import { assertEquals, assert } from "@std/assert";
 import {
   parseSize,
   parseDuration,

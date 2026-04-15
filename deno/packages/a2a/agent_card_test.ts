@@ -2,23 +2,14 @@
  * AgentCard construction and serialization tests (v1.0).
  */
 
-import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assertEquals } from "@std/assert";
 import type {
   AgentCard,
-  AgentCapabilities,
-  AgentExtension,
   AgentInterface,
-  AgentProvider,
   AgentSkill,
-  ApiKeySecurityScheme,
   AuthorizationCodeOAuthFlow,
   ClientCredentialsOAuthFlow,
   DeviceCodeOAuthFlow,
-  HttpAuthSecurityScheme,
-  MutualTlsSecurityScheme,
-  OAuth2SecurityScheme,
-  OAuthFlows,
-  OpenIdConnectSecurityScheme,
   SecurityRequirement,
   SecurityScheme,
 } from "./agent_card.ts";

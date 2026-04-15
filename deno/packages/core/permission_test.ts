@@ -1,4 +1,4 @@
-import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assertEquals } from "@std/assert";
 import { DEFAULT_PERMISSION_MODE, parsePermissionMode } from "./mod.ts";
 
 Deno.test("parsePermissionMode", () => {

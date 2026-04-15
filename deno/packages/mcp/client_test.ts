@@ -3,7 +3,7 @@
  * Mirrors Rust tests in `brainwires-mcp/src/client.rs`.
  */
 
-import { assertEquals } from "jsr:@std/assert";
+import { assertEquals } from "@std/assert";
 import { McpClient } from "./client.ts";
 
 // =============================================================================

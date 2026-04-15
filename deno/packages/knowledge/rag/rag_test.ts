@@ -1,4 +1,4 @@
-import { assertEquals } from "jsr:@std/assert";
+import { assertEquals } from "@std/assert";
 import { DEFAULT_LIMIT, DEFAULT_MAX_FILE_SIZE, DEFAULT_MIN_SCORE } from "./mod.ts";
 import type {
   AdvancedSearchRequest,
@@ -10,7 +10,6 @@ import type {
   IndexResponse,
   QueryRequest,
   QueryResponse,
-  SearchGitHistoryRequest,
   SearchGitHistoryResponse,
   SearchResult,
   StatisticsResponse,

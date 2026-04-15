@@ -7,7 +7,7 @@
  */
 
 import type { Tool, ToolContext, ToolUse } from "@brainwires/core";
-import { ToolResult } from "@brainwires/core";
+import type { ToolResult } from "@brainwires/core";
 
 /** Decision returned by a ToolPreHook before a tool call. */
 export type PreHookDecision =

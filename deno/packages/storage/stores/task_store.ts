@@ -70,7 +70,6 @@ export function taskToMetadata(task: Task, conversationId: string): TaskMetadata
 
 /** Convert TaskMetadata back to a Task-like object. */
 export function metadataToTask(m: TaskMetadata): Task {
-  const task = new (Object.getPrototypeOf({ id: "", description: "" }).constructor ?? Object)() as Task;
   // Build a plain object matching Task shape
   return Object.assign(Object.create(null), {
     id: m.taskId,

@@ -18,6 +18,7 @@ import {
  * Equivalent to Rust `LoggingMiddleware`.
  */
 export class LoggingMiddleware implements Middleware {
+  // deno-lint-ignore require-await
   async processRequest(
     request: JsonRpcRequest,
     _ctx: RequestContext,
@@ -28,6 +29,7 @@ export class LoggingMiddleware implements Middleware {
     return middlewareContinue();
   }
 
+  // deno-lint-ignore require-await
   async processResponse(
     response: JsonRpcResponse,
     _ctx: RequestContext,

@@ -162,6 +162,7 @@ pub struct IssuesMcpServer {
     issues: Arc<IssueStore<LanceDatabase>>,
     comments: Arc<CommentStore<LanceDatabase>>,
     tool_router: ToolRouter<Self>,
+    #[allow(dead_code)]
     prompt_router: PromptRouter<Self>,
 }
 

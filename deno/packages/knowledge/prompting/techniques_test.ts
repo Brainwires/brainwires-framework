@@ -1,4 +1,4 @@
-import { assertEquals, assertExists } from "jsr:@std/assert";
+import { assertEquals, assertExists } from "@std/assert";
 import {
   ALL_CATEGORIES,
   ALL_COMPLEXITY_LEVELS,
@@ -14,11 +14,7 @@ import {
   TECHNIQUE_METADATA,
   techniqueToId,
 } from "./techniques.ts";
-import type {
-  ComplexityLevel,
-  PromptingTechnique,
-  TechniqueCategory,
-} from "./techniques.ts";
+// Types ComplexityLevel, PromptingTechnique, TechniqueCategory used via value imports above
 
 // ---------------------------------------------------------------------------
 // Enum completeness

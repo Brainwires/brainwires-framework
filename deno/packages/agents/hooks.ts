@@ -15,7 +15,6 @@
 import type {
   ChatResponse,
   Message,
-  Role,
   ToolResult,
   ToolUse,
 } from "@brainwires/core";

@@ -2,7 +2,7 @@
  * Serialization round-trip tests for core A2A types (v1.0).
  */
 
-import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assertEquals } from "@std/assert";
 import type {
   Artifact,
   Message,

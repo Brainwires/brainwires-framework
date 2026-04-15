@@ -26,6 +26,7 @@ export class AuthMiddleware implements Middleware {
     this.token = token;
   }
 
+  // deno-lint-ignore require-await
   async processRequest(
     request: JsonRpcRequest,
     ctx: RequestContext,

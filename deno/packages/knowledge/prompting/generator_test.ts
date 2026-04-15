@@ -1,4 +1,4 @@
-import { assertEquals, assertExists } from "jsr:@std/assert";
+import { assertEquals, assertExists } from "@std/assert";
 import { PromptGenerator, inferRoleAndDomain, inferTaskType } from "./generator.ts";
 import { TaskClusterManager, createTaskCluster } from "./cluster.ts";
 

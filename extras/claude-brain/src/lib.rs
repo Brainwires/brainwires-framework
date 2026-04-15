@@ -58,13 +58,15 @@ fn read_claude_compact_settings() -> (usize, f64) {
             && let Ok(json) = serde_json::from_str::<serde_json::Value>(&content)
             && let Some(env) = json.get("env")
         {
-            if let Some(val) = env.get("CLAUDE_CODE_AUTO_COMPACT_WINDOW")
+            if let Some(val) = env
+                .get("CLAUDE_CODE_AUTO_COMPACT_WINDOW")
                 .and_then(|v| v.as_str())
                 .and_then(|v| v.parse::<usize>().ok())
             {
                 window_tokens = Some(val);
             }
-            if let Some(val) = env.get("CLAUDE_AUTOCOMPACT_PCT_OVERRIDE")
+            if let Some(val) = env
+                .get("CLAUDE_AUTOCOMPACT_PCT_OVERRIDE")
                 .and_then(|v| v.as_str())
                 .and_then(|v| v.parse::<f64>().ok())
             {

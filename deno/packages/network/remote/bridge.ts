@@ -9,16 +9,14 @@
 
 import type {
   BackendCommand,
-  NegotiatedProtocol,
   ProtocolCapability,
   RemoteMessage,
-  StreamChunkType,
 } from "./protocol.ts";
 import {
   NegotiatedProtocol as NegotiatedProtocolClass,
   defaultProtocolHello,
 } from "./protocol.ts";
-import { HeartbeatCollector, type HeartbeatData } from "./heartbeat.ts";
+import { HeartbeatCollector } from "./heartbeat.ts";
 import type { AgentInfoProvider } from "./heartbeat.ts";
 
 // ============================================================================

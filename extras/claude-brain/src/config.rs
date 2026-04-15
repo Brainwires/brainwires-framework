@@ -7,8 +7,7 @@ use serde::{Deserialize, Serialize};
 use brainwires_knowledge::dream::policy::DemotionPolicy;
 
 /// Top-level configuration for claude-brain.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ClaudeBrainConfig {
     #[serde(default)]
     pub storage: StorageConfig,
@@ -19,7 +18,6 @@ pub struct ClaudeBrainConfig {
     #[serde(default)]
     pub capture: CaptureConfig,
 }
-
 
 /// Storage paths.
 #[derive(Debug, Clone, Serialize, Deserialize)]

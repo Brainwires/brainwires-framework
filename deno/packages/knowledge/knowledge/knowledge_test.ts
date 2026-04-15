@@ -1,4 +1,4 @@
-import { assertEquals, assertExists } from "jsr:@std/assert";
+import { assertEquals, assertExists } from "@std/assert";
 import {
   ALL_THOUGHT_CATEGORIES,
   createThought,
@@ -10,7 +10,6 @@ import type {
   Entity,
   ExtractionResult,
   Relationship,
-  Thought,
 } from "./mod.ts";
 
 // ---------------------------------------------------------------------------

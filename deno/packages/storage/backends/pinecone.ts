@@ -229,6 +229,7 @@ export class PineconeDatabase implements VectorDatabase {
     return stored;
   }
 
+  // deno-lint-ignore require-await
   async search(
     queryVector: number[],
     queryText: string,

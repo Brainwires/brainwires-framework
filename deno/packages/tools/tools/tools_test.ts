@@ -1,4 +1,4 @@
-import { assertEquals } from "jsr:@std/assert@^1.0.0";
+import { assertEquals } from "@std/assert";
 import { FileOpsTool } from "./file_ops.ts";
 import { GitTool } from "./git.ts";
 import { SearchTool } from "./search.ts";

@@ -68,18 +68,22 @@ export class ManualDiscovery implements Discovery {
     return identity;
   }
 
+  // deno-lint-ignore require-await
   async register(identity: AgentIdentity): Promise<void> {
     this.peers.set(identity.id, identity);
   }
 
+  // deno-lint-ignore require-await
   async deregister(id: string): Promise<void> {
     this.peers.delete(id);
   }
 
+  // deno-lint-ignore require-await
   async discover(): Promise<AgentIdentity[]> {
     return [...this.peers.values()];
   }
 
+  // deno-lint-ignore require-await
   async lookup(id: string): Promise<AgentIdentity | undefined> {
     return this.peers.get(id);
   }

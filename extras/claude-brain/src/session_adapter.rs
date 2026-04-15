@@ -64,7 +64,7 @@ impl DreamSessionStore for BrainSessionAdapter {
     }
 
     async fn load(&self, session_key: &str) -> Result<Option<Vec<Message>>> {
-        use brainwires_storage::{Filter, FieldValue};
+        use brainwires_storage::{FieldValue, Filter};
 
         let client = self.client.lock().await;
         let safe_key = crate::sanitize_tag_value(session_key);
@@ -104,7 +104,7 @@ impl DreamSessionStore for BrainSessionAdapter {
     }
 
     async fn save(&self, session_key: &str, messages: &[Message]) -> Result<()> {
-        use brainwires_storage::{Filter, FieldValue};
+        use brainwires_storage::{FieldValue, Filter};
 
         let mut client = self.client.lock().await;
 
@@ -137,7 +137,10 @@ impl DreamSessionStore for BrainSessionAdapter {
         // Delete original session thoughts
         let filter = Filter::And(vec![
             Filter::Eq("deleted".into(), FieldValue::Boolean(Some(false))),
-            Filter::Raw(format!("tags LIKE '%session:{}%'", crate::sanitize_tag_value(session_key))),
+            Filter::Raw(format!(
+                "tags LIKE '%session:{}%'",
+                crate::sanitize_tag_value(session_key)
+            )),
             Filter::Raw("tags LIKE '%auto-capture%'".to_string()),
         ]);
         let deleted = client.delete_by_filter(&filter).await?;

@@ -6,10 +6,9 @@
  */
 
 import {
-  ChatOptions,
+  type ChatOptions,
   Message,
   type ChatResponse,
-  type ContentBlock,
   type MessageContent,
   type Provider,
   type StreamChunk,

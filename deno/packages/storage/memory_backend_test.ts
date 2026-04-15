@@ -2,7 +2,7 @@
  * Tests for InMemoryStorageBackend CRUD and vector search.
  */
 
-import { assertEquals, assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assertEquals, assertRejects } from "@std/assert";
 import { InMemoryStorageBackend } from "./memory_backend.ts";
 import {
   type FieldDef,
@@ -11,7 +11,6 @@ import {
   Filters,
   recordGet,
   fieldValueAsStr,
-  fieldValueAsI64,
   requiredField,
   optionalField,
 } from "./types.ts";

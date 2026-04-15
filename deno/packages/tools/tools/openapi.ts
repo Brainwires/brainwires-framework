@@ -283,6 +283,7 @@ function extractSchemaType(schema: any): string {
  * Substitutes path parameters, adds query parameters, attaches headers
  * and request body, and returns the response as a ToolResult.
  */
+// deno-lint-ignore require-await
 export async function executeOpenApiTool(
   tool: Tool,
   input: any,

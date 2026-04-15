@@ -1,9 +1,8 @@
-import { assertEquals } from "jsr:@std/assert@1/equals";
-import { assert } from "jsr:@std/assert@1/assert";
+import { assertEquals } from "@std/assert/equals";
+import { assert } from "@std/assert/assert";
 
 import {
   createSkill,
-  createSkillMatch,
   createSkillMetadata,
   executionMode,
   explicitMatch,

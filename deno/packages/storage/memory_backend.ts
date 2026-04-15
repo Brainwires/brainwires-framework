@@ -86,7 +86,7 @@ export class InMemoryStorageBackend implements StorageBackend {
       throw new Error(`Table '${tableName}' does not exist`);
     }
 
-    let candidates = filter
+    const candidates = filter
       ? table.records.filter((r) => matchesFilter(r, filter))
       : [...table.records];
 

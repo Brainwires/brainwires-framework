@@ -7,7 +7,7 @@ import {
   assertEquals,
   assert,
   assertRejects,
-} from "https://deno.land/std@0.224.0/assert/mod.ts";
+} from "@std/assert";
 import { DirectRouter, BroadcastRouter, ContentRouter } from "./routing.ts";
 import { PeerTable, type TransportAddress } from "./peer_table.ts";
 import { createAgentIdentity } from "./identity.ts";

@@ -39,6 +39,7 @@ impl Drop for CancelOnDropGuard {
 pub struct RagMcpServer {
     client: Arc<RagClient>,
     tool_router: ToolRouter<Self>,
+    #[allow(dead_code)]
     prompt_router: PromptRouter<Self>,
 }
 
