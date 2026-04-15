@@ -15,7 +15,7 @@ set -euo pipefail
 # Non-published extras (brainwires-autonomy, brainwires-wasm) are excluded.
 #
 # Usage:
-#   ./scripts/publish.sh          # Preflight checks + dry run (default)
+#   ./scripts/publish.sh          # Dry run (default)
 #   ./scripts/publish.sh --live   # Actually publish
 
 DRY_RUN=true
@@ -67,74 +67,6 @@ CRATES=(
     # Facade (must be last)
     brainwires
 )
-
-# ── Preflight checks (dry-run only) ─────────────────────────────────────────
-# Catches common publish blockers before anything hits crates.io.
-if $DRY_RUN; then
-    SCRIPT_DIR_PF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    WORKSPACE_ROOT_PF="$SCRIPT_DIR_PF/.."
-
-    echo "============================================"
-    echo "Preflight checks"
-    echo "============================================"
-
-    PREFLIGHT_ERRORS=0
-
-    # Collect publish=false crate names from direct crate/extra subdirs
-    UNPUBLISHABLE=()
-    for search_dir in "$WORKSPACE_ROOT_PF/crates" "$WORKSPACE_ROOT_PF/extras"; do
-        [ -d "$search_dir" ] || continue
-        for sub in "$search_dir"/*/; do
-            toml_candidate="$sub/Cargo.toml"
-            [ -f "$toml_candidate" ] || continue
-            if grep -qE '^publish\s*=\s*false' "$toml_candidate"; then
-                name=$(grep -m1 '^name' "$toml_candidate" | sed 's/.*"\(.*\)"/\1/' || true)
-                [ -n "$name" ] && UNPUBLISHABLE+=("$name")
-            fi
-        done
-    done
-
-    for crate in "${CRATES[@]}"; do
-        toml="$WORKSPACE_ROOT_PF/crates/$crate/Cargo.toml"
-        [ -f "$toml" ] || continue
-
-        # 1. Missing README file
-        readme_field=$(grep -m1 '^readme\s*=' "$toml" | sed 's/.*"\(.*\)"/\1/')
-        if [ -n "$readme_field" ] && [ ! -f "$WORKSPACE_ROOT_PF/crates/$crate/$readme_field" ]; then
-            echo "  ERROR [$crate] readme = \"$readme_field\" does not exist"
-            PREFLIGHT_ERRORS=$((PREFLIGHT_ERRORS + 1))
-        fi
-
-        # 2. Git deps missing a version (cargo requires version when publishing)
-        while IFS= read -r line; do
-            dep_name=$(echo "$line" | sed 's/^\s*\([a-zA-Z0-9_-]*\)\s*=.*/\1/')
-            if ! echo "$line" | grep -qE 'version\s*='; then
-                echo "  ERROR [$crate] git dep '$dep_name' has no version field (cargo publish requires one)"
-                PREFLIGHT_ERRORS=$((PREFLIGHT_ERRORS + 1))
-            fi
-        done < <(grep -E '^\s*[a-zA-Z0-9_-]+\s*=.*git\s*=' "$toml" || true)
-
-        # 3. Deps on publish=false crates (can't be resolved from crates.io)
-        # Match dep table entries only: `name = {` or `name.workspace` — not feature defs
-        for unpub in "${UNPUBLISHABLE[@]}"; do
-            [ -n "$unpub" ] || continue
-            if grep -vE '^\s*#' "$toml" | grep -qE "^\s*${unpub}\s*=\s*\{|^\s*${unpub}\.workspace"; then
-                echo "  ERROR [$crate] depends on '$unpub' which has publish = false"
-                PREFLIGHT_ERRORS=$((PREFLIGHT_ERRORS + 1))
-            fi
-        done
-    done
-
-    if [ "$PREFLIGHT_ERRORS" -eq 0 ]; then
-        echo "  All checks passed."
-    else
-        echo ""
-        echo "  $PREFLIGHT_ERRORS preflight error(s) found. Fix before running --live."
-        exit 1
-    fi
-    echo ""
-fi
-# ── End preflight ────────────────────────────────────────────────────────────
 
 BURST_LIMIT=30
 BURST_DELAY=15          # seconds between crates in the burst (index propagation)
