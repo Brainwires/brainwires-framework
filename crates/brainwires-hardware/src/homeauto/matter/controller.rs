@@ -100,6 +100,10 @@ impl MatterController {
     ///
     /// Parses the commissioning payload, discovers the device via mDNS,
     /// establishes a PASE session over UDP, and returns the commissioned device.
+    ///
+    /// **Experimental**: This performs PASE only. The returned device is held
+    /// in memory and is not persisted. No operational credentials or fabric
+    /// state are written. CASE session resumption is not supported.
     pub async fn commission_qr(&self, qr_code: &str, node_id: u64) -> HomeAutoResult<MatterDevice> {
         let payload = parse_qr_code(qr_code)
             .map_err(|e| HomeAutoError::MatterCommissioning(e.to_string()))?;
@@ -160,6 +164,8 @@ impl MatterController {
     }
 
     /// Commission a device using its 11-digit manual pairing code.
+    ///
+    /// **Experimental**: Same limitations as [`commission_qr`](Self::commission_qr).
     pub async fn commission_code(
         &self,
         pairing_code: &str,
@@ -433,6 +439,9 @@ impl MatterController {
     }
 
     /// Subscribe to a stream of events from all commissioned devices.
+    ///
+    /// **Stub**: Currently returns an empty stream. Event subscription is not
+    /// yet implemented.
     pub fn events(&self) -> BoxStream<'static, HomeAutoEvent> {
         Box::pin(futures::stream::empty())
     }

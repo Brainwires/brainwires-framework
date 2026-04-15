@@ -1,3 +1,26 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// ⚠️  EXPERIMENTAL — This Matter implementation is a development preview.
+//
+// What works:
+//   • PASE (Password Authenticated Session Establishment) over UDP
+//   • mDNS commissionable-device discovery
+//   • Basic Interaction Model: read/write attributes, invoke commands
+//   • Manual pairing code and QR code parsing
+//   • In-memory device tracking after PASE
+//
+// Known limitations:
+//   • No CASE (Certificate Authenticated Session Establishment) — operational
+//     sessions after commissioning cannot be established
+//   • Commissioned devices are NOT persisted — state is lost on restart
+//   • No fabric or operational credential management
+//   • Pairing code check digit is hardcoded (Verhoeff not implemented)
+//   • BLE transport is not wired (feature-gated but unimplemented)
+//   • Event streaming returns an empty stream (stub)
+//   • Not tested against real Matter controllers or certified devices
+//
+// Do not rely on this module for production home automation deployments.
+// ─────────────────────────────────────────────────────────────────────────────
+
 /// BLE commissioning peripheral — BTP handshake and transport channels.
 #[cfg(feature = "matter-ble")]
 pub mod ble;
@@ -5,9 +28,9 @@ pub mod ble;
 pub mod clusters;
 /// Matter commissioning payload parser (QR code + manual pairing code).
 pub mod commissioning;
-/// Matter controller — commissions and controls Matter devices.
+/// Matter controller — commissions and controls Matter devices (PASE only, experimental).
 pub mod controller;
-/// Matter 1.3 cryptographic stack: KDF helpers and SPAKE2+ PAKE.
+/// Matter cryptographic stack: KDF helpers and SPAKE2+ PAKE.
 pub mod crypto;
 /// Matter data model — cluster servers, ACL, and node dispatch.
 pub mod data_model;
@@ -15,13 +38,13 @@ pub mod data_model;
 pub mod discovery;
 /// Typed errors wrapping rs-matter.
 pub mod error;
-/// Matter fabric management — root CA, NOC issuance, and fabric storage.
+/// Matter fabric management — root CA, NOC issuance, and fabric storage (incomplete).
 pub mod fabric;
 /// Matter Interaction Model — read, write, invoke, and subscribe messages.
 pub mod interaction_model;
-/// Matter secure channel — PASE (commissioning) and CASE (operational) session establishment.
+/// Matter secure channel — PASE (commissioning) and CASE (operational, not yet functional).
 pub mod secure_channel;
-/// Matter device server — exposes agents as Matter devices.
+/// Matter device server — exposes agents as Matter devices (PASE only).
 pub mod server;
 /// Matter transport layer: message framing, MRP, and UDP/BLE I/O.
 pub mod transport;

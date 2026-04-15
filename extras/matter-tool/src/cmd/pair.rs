@@ -34,7 +34,9 @@ pub async fn run(action: PairAction, fabric_dir: &Path, out: &Output) -> Result<
             {
                 // BLE commissioning path — feature-gated
                 anyhow::bail!(
-                    "BLE commissioning not yet wired in matter-tool; the matter-ble stack is present, implement commission_ble in MatterController first"
+                    "BLE commissioning is not yet implemented. The matter-ble \
+                     transport stack exists but is not wired into MatterController. \
+                     Use mDNS/UDP commissioning (QR or manual code) instead."
                 );
             }
             #[cfg(not(feature = "ble"))]
