@@ -17,7 +17,7 @@ use brainwires_gateway::session_persistence::{JsonFileStore, expand_tilde};
 use brainwires_gateway::middleware::rate_limit::RateLimiter;
 use brainwires_gateway::middleware::sanitizer::MessageSanitizer;
 use brainwires_providers::{ChatProviderFactory, ProviderConfig, ProviderType};
-use brainwires_tool_system::BuiltinToolExecutor;
+use brainwires_tools::BuiltinToolExecutor;
 
 use brainwires_gateway::cron::CronStore;
 

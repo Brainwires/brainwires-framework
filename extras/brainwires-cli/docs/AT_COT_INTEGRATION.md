@@ -388,8 +388,8 @@ Track which ambiguity types lead to successful task completion:
 ### Phase 6: BKS/PKS Integration
 
 **Files:**
-- `crates/brainwires-cognition/src/knowledge/truth.rs` - Add `TruthCategory::ClarifyingQuestions`
-- `crates/brainwires-cognition/src/knowledge/personal/mod.rs` - Add `PersonalFactCategory::AmbiguityTypePreference`
+- `crates/brainwires-knowledge/src/knowledge/truth.rs` - Add `TruthCategory::ClarifyingQuestions`
+- `crates/brainwires-knowledge/src/knowledge/personal/mod.rs` - Add `PersonalFactCategory::AmbiguityTypePreference`
 
 Enable collective learning and user personalization.
 

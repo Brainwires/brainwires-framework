@@ -7,7 +7,7 @@
  * @module
  */
 
-import { Task, type TaskPriority, type TaskStatus } from "@brainwires/core";
+import { Task, type TaskPriority } from "@brainwires/core";
 
 // ---------------------------------------------------------------------------
 // Task node (internal)

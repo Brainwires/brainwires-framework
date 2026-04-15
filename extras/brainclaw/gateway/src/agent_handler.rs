@@ -16,12 +16,12 @@ use tokio::sync::{Mutex, RwLock};
 use uuid::Uuid;
 
 use brainwires_agents::ChatAgent;
-use brainwires_channels::events::ChannelEvent;
-use brainwires_channels::identity::ConversationId;
-use brainwires_channels::message::{ChannelMessage, MessageContent, MessageId};
+use brainwires_network::channels::events::ChannelEvent;
+use brainwires_network::channels::identity::ConversationId;
+use brainwires_network::channels::message::{ChannelMessage, MessageContent, MessageId};
 use brainwires_core::{ChatOptions, Provider, ToolContext, ToolUse};
 use brainwires_core::lifecycle::{LifecycleEvent, LifecycleHook};
-use brainwires_tool_system::{BuiltinToolExecutor, PreHookDecision, ToolPreHook};
+use brainwires_tools::{BuiltinToolExecutor, PreHookDecision, ToolPreHook};
 
 use crate::approval::{ApprovalRegistry, ChatApprovalHook};
 use crate::channel_registry::ChannelRegistry;
@@ -494,7 +494,7 @@ impl AgentInboundHandler {
             rate_limiter.record_message(&platform, &user_id);
         }
 
-        let user = brainwires_channels::ChannelUser {
+        let user = brainwires_network::channels::ChannelUser {
             platform: platform.clone(),
             platform_user_id: user_id.clone(),
             display_name: user_id.clone(),
@@ -782,10 +782,10 @@ impl AgentInboundHandler {
         //   (a) TTS is configured AND (b) the original input was a voice/audio
         //       message OR the session has Talk Mode enabled.
         #[cfg(feature = "voice")]
-        let attachments: Vec<brainwires_channels::message::Attachment> = {
+        let attachments: Vec<brainwires_network::channels::message::Attachment> = {
             let is_audio_input = matches!(
                 &original_msg.content,
-                MessageContent::Media(p) if matches!(p.media_type, brainwires_channels::message::MediaType::Audio)
+                MessageContent::Media(p) if matches!(p.media_type, brainwires_network::channels::message::MediaType::Audio)
             );
             let talk_mode_active = self
                 .talk_mode_sessions
@@ -797,7 +797,7 @@ impl AgentInboundHandler {
             if let Some(ref tts) = self.tts {
                 if is_audio_input || talk_mode_active {
                     if let Some(audio_url) = tts.synthesize_to_url(response_text).await {
-                        vec![brainwires_channels::message::Attachment {
+                        vec![brainwires_network::channels::message::Attachment {
                             url: audio_url,
                             media_type: Some("audio/mpeg".to_string()),
                             filename: None,
@@ -815,7 +815,7 @@ impl AgentInboundHandler {
         };
 
         #[cfg(not(feature = "voice"))]
-        let attachments: Vec<brainwires_channels::message::Attachment> = vec![];
+        let attachments: Vec<brainwires_network::channels::message::Attachment> = vec![];
 
         let response_event = ChannelEvent::MessageReceived(ChannelMessage {
             id: MessageId::new(Uuid::new_v4().to_string()),
@@ -873,11 +873,11 @@ impl InboundHandler for AgentInboundHandler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use brainwires_channels::message::{ChannelMessage, MessageContent, MessageId};
+    use brainwires_network::channels::message::{ChannelMessage, MessageContent, MessageId};
     use brainwires_core::{
         ChatOptions, ChatResponse, Message, StreamChunk, Tool, ToolContext, Usage,
     };
-    use brainwires_tool_system::{BuiltinToolExecutor, ToolRegistry};
+    use brainwires_tools::{BuiltinToolExecutor, ToolRegistry};
     use futures::stream;
     use std::collections::HashMap;
 
@@ -1000,8 +1000,8 @@ mod tests {
                 markdown: "second line".to_string(),
                 fallback_plain: "second".to_string(),
             },
-            MessageContent::Media(brainwires_channels::message::MediaPayload {
-                media_type: brainwires_channels::message::MediaType::Image,
+            MessageContent::Media(brainwires_network::channels::message::MediaPayload {
+                media_type: brainwires_network::channels::message::MediaType::Image,
                 url: "https://example.com/img.png".to_string(),
                 caption: None,
                 thumbnail_url: None,
@@ -1015,8 +1015,8 @@ mod tests {
 
     #[test]
     fn test_extract_text_media_returns_empty() {
-        let content = MessageContent::Media(brainwires_channels::message::MediaPayload {
-            media_type: brainwires_channels::message::MediaType::Image,
+        let content = MessageContent::Media(brainwires_network::channels::message::MediaPayload {
+            media_type: brainwires_network::channels::message::MediaType::Image,
             url: "https://example.com/img.png".to_string(),
             caption: None,
             thumbnail_url: None,
@@ -1026,7 +1026,7 @@ mod tests {
 
     #[test]
     fn test_extract_text_embed_returns_empty() {
-        let content = MessageContent::Embed(brainwires_channels::message::EmbedPayload {
+        let content = MessageContent::Embed(brainwires_network::channels::message::EmbedPayload {
             title: Some("Title".to_string()),
             description: Some("Desc".to_string()),
             url: None,
@@ -1105,7 +1105,7 @@ mod tests {
                 channel_id: "general".to_string(),
                 server_id: None,
             },
-            user: brainwires_channels::ChannelUser {
+            user: brainwires_network::channels::ChannelUser {
                 platform: "discord".to_string(),
                 platform_user_id: "user-1".to_string(),
                 display_name: "User 1".to_string(),
@@ -1137,8 +1137,8 @@ mod tests {
     async fn test_handle_message_empty_text_is_noop() {
         let handler = make_handler();
         let mut msg = make_message("discord", "user-1", "");
-        msg.content = MessageContent::Media(brainwires_channels::message::MediaPayload {
-            media_type: brainwires_channels::message::MediaType::Image,
+        msg.content = MessageContent::Media(brainwires_network::channels::message::MediaPayload {
+            media_type: brainwires_network::channels::message::MediaType::Image,
             url: "https://example.com/img.png".to_string(),
             caption: None,
             thumbnail_url: None,

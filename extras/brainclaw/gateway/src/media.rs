@@ -14,7 +14,7 @@ use anyhow::{Context, Result, bail};
 use reqwest::Client;
 use tokio::io::AsyncWriteExt;
 
-use brainwires_channels::message::Attachment;
+use brainwires_network::channels::message::Attachment;
 
 #[cfg(feature = "voice")]
 use brainwires_hardware::{AudioBuffer, AudioConfig, SpeechToText, SttOptions};

@@ -177,6 +177,7 @@ export function createModelLister(
   // Return a stub lister — concrete HTTP-based implementations can be added
   // per-provider in future PRs, matching the Rust provider modules.
   return {
+    // deno-lint-ignore require-await
     async listModels(): Promise<AvailableModel[]> {
       void baseUrl; // reserved for future use
       void apiKey;

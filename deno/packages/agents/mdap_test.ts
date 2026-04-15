@@ -2,7 +2,7 @@
  * Tests for the MDAP module.
  */
 
-import { assertEquals, assertThrows, assert } from "jsr:@std/assert";
+import { assertEquals, assertThrows, assert } from "@std/assert";
 
 import {
   // Types
@@ -10,9 +10,7 @@ import {
   type SampledResponse,
   type ResponseMetadata,
   type RedFlagResult,
-  type VoteResult,
   type SubtaskOutput,
-  type Subtask,
   type DecompositionResult,
 
   // Early stopping
@@ -899,6 +897,7 @@ Deno.test("FirstToAheadByKVoter - unanimous voting", async () => {
 
   let count = 0;
   const result = await voter.vote(
+    // deno-lint-ignore require-await
     async () => {
       count++;
       return makeResponse(`answer_a_${count}`, "answer_a");
@@ -929,6 +928,7 @@ Deno.test("FirstToAheadByKVoter - red-flagging", async () => {
 
   let count = 0;
   const result = await voter.vote(
+    // deno-lint-ignore require-await
     async () => {
       count++;
       const raw = count % 3 === 0 ? "bad response" : "good";
@@ -953,6 +953,7 @@ Deno.test("FirstToAheadByKVoter - max samples exceeded", async () => {
   let count = 0;
   try {
     await voter.vote(
+      // deno-lint-ignore require-await
       async () => {
         count++;
         return makeResponse(`unique_${count}`, "response");
@@ -984,6 +985,7 @@ Deno.test("FirstToAheadByKVoter - all red-flagged", async () => {
 
   try {
     await voter.vote(
+      // deno-lint-ignore require-await
       async () => makeResponse("value", "response"),
       validator,
       (v) => v,

@@ -43,7 +43,7 @@ export class ChatOptions {
   }
 
   /** Create new chat options with defaults. */
-  static new(): ChatOptions {
+  static create(): ChatOptions {
     return new ChatOptions();
   }
 

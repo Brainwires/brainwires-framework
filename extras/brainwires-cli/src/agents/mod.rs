@@ -14,7 +14,6 @@ pub use brainwires::agents::*;
 mod manager;
 mod orchestrator;
 mod pool;
-mod system_prompts;
 mod task_agent;
 mod worker;
 

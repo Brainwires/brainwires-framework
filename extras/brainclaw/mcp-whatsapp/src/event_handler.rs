@@ -19,7 +19,7 @@ use serde::Deserialize;
 use sha2::Sha256;
 use tokio::sync::mpsc;
 
-use brainwires_channels::ChannelEvent;
+use brainwires_network::channels::ChannelEvent;
 
 use crate::whatsapp::parse_webhook_messages;
 

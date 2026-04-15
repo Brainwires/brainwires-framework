@@ -6,7 +6,7 @@ use crate::agents::TaskManager;
 use crate::tools::ToolExecutor;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use brainwires_agent_network::agent_manager::{AgentInfo, AgentManager, AgentResult, SpawnConfig};
+use brainwires_network::agent_manager::{AgentInfo, AgentManager, AgentResult, SpawnConfig};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
@@ -553,6 +553,11 @@ impl McpServerHandler {
             mdap_config,
             analytics_collector: crate::utils::logger::analytics_collector()
                 .map(std::sync::Arc::new),
+            role: None,
+            max_total_tokens: None,
+            max_cost_usd: None,
+            timeout_secs: None,
+            session_budget: None,
         };
 
         let agent = Arc::new(TaskAgent::new(

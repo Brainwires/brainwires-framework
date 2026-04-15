@@ -4,9 +4,9 @@
 
 import {
   assertEquals,
-} from "https://deno.land/std@0.224.0/assert/mod.ts";
+} from "@std/assert";
 import { A2aClient } from "./client.ts";
-import type { JsonRpcRequest, JsonRpcResponse } from "./jsonrpc.ts";
+import type { JsonRpcRequest } from "./jsonrpc.ts";
 import {
   createJsonRpcError,
   createJsonRpcSuccess,

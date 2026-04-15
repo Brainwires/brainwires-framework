@@ -25,11 +25,10 @@ import {
   type ToolUse,
 } from "@brainwires/core";
 
-import { CommunicationHub } from "./communication.ts";
-import { FileLockManager, type LockType } from "./file_locks.ts";
+import type { CommunicationHub } from "./communication.ts";
+import type { FileLockManager, LockType } from "./file_locks.ts";
 import type {
   AgentLifecycleHooks,
-  ConversationView,
   IterationContext,
 } from "./hooks.ts";
 

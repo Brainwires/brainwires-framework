@@ -32,8 +32,8 @@
 // Re-export core types
 pub use brainwires_core;
 
-// Re-export brainwires-tool-system for ToolExecutor trait
-pub use brainwires_tool_system;
+// Re-export brainwires-tools for ToolExecutor trait
+pub use brainwires_tools;
 
 // ── Chat agent (ready-to-use completion loop) ────────────────────────────────
 
@@ -55,6 +55,7 @@ pub mod execution_graph;
 pub mod judge_agent;
 pub mod planner_agent;
 pub mod pool;
+pub mod roles;
 pub mod system_prompts;
 pub mod task_agent;
 pub mod validator_agent;
@@ -118,6 +119,9 @@ pub mod mdap;
 // ── SEAL: Self-Evolving Agentic Learning ─────────────────────────────────
 #[cfg(feature = "seal")]
 pub mod seal;
+
+// ── Skills (absorbed from brainwires-skills) ─────────────────────────────
+pub mod skills;
 
 // ── Analysis & validation ────────────────────────────────────────────────────
 
@@ -191,12 +195,13 @@ pub use state_model::{StateModelProposedOperation, StateSnapshot, ThreeStateMode
 pub use wait_queue::WaitQueue;
 
 // Concrete agent types
-pub use brainwires_tool_system::{PreHookDecision, ToolPreHook};
+pub use brainwires_tools::{PreHookDecision, ToolPreHook};
 pub use context::AgentContext;
 pub use execution_graph::{ExecutionGraph, RunTelemetry, StepNode, ToolCallRecord};
 pub use pool::{AgentPool, AgentPoolStats};
 pub use system_prompts::{
-    judge_agent_prompt, planner_agent_prompt, reasoning_agent_prompt, simple_agent_prompt,
+    AgentPromptKind, build_agent_prompt, judge_agent_prompt, mdap_microagent_prompt,
+    planner_agent_prompt, reasoning_agent_prompt, simple_agent_prompt,
 };
 
 // SEAL re-exports
@@ -246,7 +251,7 @@ pub mod prelude {
     pub use super::validator_agent::{
         ValidatorAgent, ValidatorAgentConfig, ValidatorAgentResult, ValidatorAgentStatus,
     };
-    pub use brainwires_tool_system::{PreHookDecision, ToolPreHook};
+    pub use brainwires_tools::{PreHookDecision, ToolPreHook};
 
     // Core components
     pub use super::communication::{AgentMessage, CommunicationHub, ConflictInfo, ConflictType};

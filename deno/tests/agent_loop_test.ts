@@ -24,7 +24,7 @@ import {
   CommunicationHub,
   FileLockManager,
 } from "@brainwires/agents";
-import { ToolRegistry } from "@brainwires/tool-system";
+import { ToolRegistry } from "@brainwires/tools";
 
 // ---------------------------------------------------------------------------
 // Mock provider that returns canned responses
@@ -85,7 +85,7 @@ class MockAgentRuntime implements AgentRuntime {
     return this.provider.chat(
       this.conversationMessages,
       undefined,
-      ChatOptions.new(),
+      ChatOptions.create(),
     );
   }
 

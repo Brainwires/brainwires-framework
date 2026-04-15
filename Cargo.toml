@@ -2,26 +2,25 @@
 members = [
     "crates/brainwires-core",
     "crates/brainwires",
-    "crates/brainwires-tool-system",
+    "crates/brainwires-tools",
     "crates/brainwires-agents",
     "crates/brainwires-storage",
     "crates/brainwires-mcp",
     "crates/brainwires-permissions",
-    "crates/brainwires-code-interpreters",
-    "crates/brainwires-wasm",
-    "crates/brainwires-agent-network",
+    "crates/brainwires-network",
     "crates/brainwires-mcp-server",
     "crates/brainwires-a2a",
     "crates/brainwires-providers",
-    "crates/brainwires-skills",
     "crates/brainwires-hardware",
-    "crates/brainwires-datasets",
     "crates/brainwires-training",
-    "crates/brainwires-autonomy",
-    "crates/brainwires-cognition",
-    "crates/brainwires-system",
-    "crates/brainwires-channels",
-    "crates/brainwires-analytics",
+    "extras/brainwires-autonomy",
+    "extras/brainwires-wasm",
+    "crates/brainwires-knowledge",
+    "crates/brainwires-reasoning",
+
+    "crates/brainwires-telemetry",
+    "extras/brainwires-billing",
+    "extras/brainwires-memory-service",
     "extras/brainwires-scheduler",
     "extras/brainwires-proxy",
     "extras/brainwires-brain-server",
@@ -32,6 +31,8 @@ members = [
     "extras/brainwires-cli",
     "extras/audio-demo-ffi",
     "extras/voice-assistant",
+    "extras/matter-tool",
+    "extras/claude-brain",
     "xtask",
 ]
 exclude = [
@@ -40,15 +41,24 @@ exclude = [
     "deprecated/brainwires-mesh",
     "deprecated/brainwires-prompting",
     "deprecated/brainwires-rag",
+    "deprecated/brainwires-cognition",
+    "deprecated/brainwires-channels",
+    "deprecated/brainwires-system",
+    "deprecated/brainwires-code-interpreters",
+    "deprecated/brainwires-wasm",
     "deprecated/brainwires-relay",
     "deprecated/brainwires-seal",
     "deprecated/brainwires-mdap",
+    "deprecated/brainwires-tool-system",
+    "deprecated/brainwires-agent-network",
+    "deprecated/brainwires-skills",
+    "deprecated/brainwires-datasets",
     "extras/brainclaw",
 ]
 resolver = "2"
 
 [workspace.package]
-version = "0.8.0"
+version = "0.9.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 rust-version = "1.91"
@@ -62,28 +72,23 @@ documentation = "https://docs.rs/brainwires"
 
 [workspace.dependencies]
 # Internal crates
-brainwires-core = { path = "crates/brainwires-core", version = "0.8.0" }
-brainwires-tool-system = { path = "crates/brainwires-tool-system", version = "0.8.0" }
-brainwires-agents = { path = "crates/brainwires-agents", version = "0.8.0" }
-brainwires-storage = { path = "crates/brainwires-storage", version = "0.8.0", default-features = false }
-brainwires-mcp = { path = "crates/brainwires-mcp", version = "0.8.0" }
-brainwires-permissions = { path = "crates/brainwires-permissions", version = "0.8.0" }
-brainwires-code-interpreters = { path = "crates/brainwires-code-interpreters", version = "0.8.0" }
-brainwires-wasm = { path = "crates/brainwires-wasm", version = "0.8.0" }
-brainwires-agent-network = { path = "crates/brainwires-agent-network", version = "0.8.0" }
-brainwires-mcp-server = { path = "crates/brainwires-mcp-server", version = "0.8.0" }
-brainwires-a2a = { path = "crates/brainwires-a2a", version = "0.8.0", default-features = false }
-brainwires-providers = { path = "crates/brainwires-providers", version = "0.8.0" }
-brainwires-skills = { path = "crates/brainwires-skills", version = "0.8.0" }
-brainwires-hardware = { path = "crates/brainwires-hardware", version = "0.8.0" }
-brainwires-datasets = { path = "crates/brainwires-datasets", version = "0.8.0" }
-brainwires-training = { path = "crates/brainwires-training", version = "0.8.0" }
-brainwires-autonomy = { path = "crates/brainwires-autonomy", version = "0.8.0", default-features = false }
-brainwires-cognition = { path = "crates/brainwires-cognition", version = "0.8.0", default-features = false }
-brainwires-system = { path = "crates/brainwires-system", version = "0.8.0", default-features = false }
-brainwires-channels   = { path = "crates/brainwires-channels",   version = "0.8.0" }
-brainwires-analytics  = { path = "crates/brainwires-analytics",  version = "0.8.0", default-features = false }
-brainwires-proxy = { path = "extras/brainwires-proxy", version = "0.8.0" }
+brainwires-core = { path = "crates/brainwires-core", version = "0.9.0" }
+brainwires-tools = { path = "crates/brainwires-tools", version = "0.9.0" }
+brainwires-agents = { path = "crates/brainwires-agents", version = "0.9.0" }
+brainwires-storage = { path = "crates/brainwires-storage", version = "0.9.0", default-features = false }
+brainwires-mcp = { path = "crates/brainwires-mcp", version = "0.9.0" }
+brainwires-permissions = { path = "crates/brainwires-permissions", version = "0.9.0" }
+brainwires-network = { path = "crates/brainwires-network", version = "0.9.0" }
+brainwires-mcp-server = { path = "crates/brainwires-mcp-server", version = "0.9.0" }
+brainwires-a2a = { path = "crates/brainwires-a2a", version = "0.9.0", default-features = false }
+brainwires-providers = { path = "crates/brainwires-providers", version = "0.9.0" }
+brainwires-hardware = { path = "crates/brainwires-hardware", version = "0.9.0" }
+brainwires-training = { path = "crates/brainwires-training", version = "0.9.0" }
+brainwires-autonomy = { path = "extras/brainwires-autonomy", version = "0.9.0", default-features = false }
+brainwires-knowledge = { path = "crates/brainwires-knowledge", version = "0.9.0", default-features = false }
+brainwires-reasoning = { path = "crates/brainwires-reasoning", version = "0.9.0" }
+brainwires-telemetry  = { path = "crates/brainwires-telemetry",  version = "0.9.0", default-features = false }
+brainwires-proxy = { path = "extras/brainwires-proxy", version = "0.9.0" }
 
 # Tokenizer dependencies
 tokenizers = "0.22"
@@ -97,6 +102,13 @@ burn-optim = { version = "0.20", default-features = false, features = ["std"] }
 burn-autodiff = { version = "0.20", default-features = false, features = ["std"] }
 burn-wgpu = { version = "0.20", default-features = false, features = ["std", "autotune"] }
 burn-ndarray = { version = "0.20", default-features = false, features = ["std"] }
+
+# Home automation serial protocols
+tokio-serial = "5.4"
+# CRC calculations (Zigbee EZSP/ASH CRC-16-CCITT)
+crc = "3"
+# mDNS service discovery (Matter device/controller discovery)
+mdns-sd = "0.12"
 
 # Async runtime & utilities
 tokio = { version = "1.43", features = ["full"] }
@@ -191,9 +203,19 @@ bincode = { version = "2", features = ["serde"] }
 # Crypto
 chacha20poly1305 = "0.10"
 rand = "0.10"
+rand_core = { version = "0.6", features = ["getrandom"] }
 base64 = "0.22"
 hex = "0.4"
 subtle = "2.6"
+p256    = { version = "0.13.2", features = ["ecdh", "ecdsa", "arithmetic"] }
+ecdsa   = { version = "0.16.9", features = ["der", "signing", "verifying"] }
+hmac    = "0.12.1"
+hkdf    = "0.12.4"
+pbkdf2  = { version = "0.12.2", features = ["hmac"] }
+aes     = "0.8.4"
+ccm     = { version = "0.5.0", features = ["std"] }
+der     = { version = "0.8.0", features = ["alloc", "derive"] }
+pkcs8   = { version = "0.10.2", features = ["alloc"] }
 
 # Keyring (secure key storage)
 keyring = "3"

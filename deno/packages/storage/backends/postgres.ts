@@ -8,7 +8,7 @@
  * @module
  */
 
-import pg from "npm:pg@8";
+import pg from "pg";
 import type { ChunkMetadata, DatabaseStats, SearchResult } from "@brainwires/core";
 import type { StorageBackend, VectorDatabase } from "../traits.ts";
 import type {
@@ -474,6 +474,7 @@ export class PostgresDatabase implements StorageBackend, VectorDatabase {
     return embeddings.length;
   }
 
+  // deno-lint-ignore require-await
   async search(
     queryVector: number[],
     queryText: string,

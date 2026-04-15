@@ -39,7 +39,13 @@ Core types, traits, and error handling for the Brainwires Agent Framework.
   │  │ ContentSource  │  │ WorkingSet   │  │ OutputParser   │   │
   │  │ Trust levels   │  │ LRU eviction │  │ JSON/Regex     │   │
   │  └────────────────┘  └──────────────┘  └────────────────┘   │
-  └──────────────────────────────────────────────────────────────┘
+  │                                                             │
+  │  ┌─────────────────────┐  ┌──────────────────────────────┐  │
+  │  │ Event /             │  │ WorkflowCheckpoint /         │  │
+  │  │ EventEnvelope<E>    │  │ WorkflowStateStore (trait)   │  │
+  │  │ trace_id, sequence  │  │ FsWorkflowStateStore (atomic)│  │
+  │  └─────────────────────┘  └──────────────────────────────┘  │
+  └─────────────────────────────────────────────────────────────┘
 ```
 
 ## Quick Start
@@ -396,6 +402,55 @@ pub trait OutputParser: Send + Sync {
 | `PermissionDenied(String)` | Permission denied |
 | `Serialization(serde_json::Error)` | JSON serialization error |
 | `Other(anyhow::Error)` | Catch-all |
+
+### Workflow State (Crash-Safe Retry)
+
+Persist and resume agent execution across process restarts. Each completed tool call is checkpointed so a restarted agent can skip already-executed side effects.
+
+```rust
+use brainwires_core::workflow_state::{
+    FsWorkflowStateStore, SideEffectRecord, WorkflowStateStore,
+};
+
+let store = FsWorkflowStateStore::with_default_path()?;  // ~/.brainwires/workflow/
+
+// On agent start — check for a prior checkpoint
+if let Some(cp) = store.load_checkpoint(&task_id).await? {
+    // cp.completed_tool_ids — skip these tool_use_ids
+    // cp.step_index — resume iteration count
+}
+
+// After each successful tool call
+let effect = SideEffectRecord::new(&tool_use_id, "write_file", Some("src/main.rs".into()), true);
+store.mark_step_complete(&task_id, &tool_use_id, effect).await?;
+
+// On clean completion
+store.delete_checkpoint(&task_id).await?;
+```
+
+`FsWorkflowStateStore` writes atomically (write to `.tmp`, then `rename`). Use `InMemoryWorkflowStateStore` in tests.
+
+### Events and Trace IDs
+
+Wrap any domain event with correlation metadata for cross-system tracing without breaking existing types.
+
+```rust
+use brainwires_core::event::{EventEnvelope, new_trace_id};
+
+// Generate a trace ID at the start of a logical operation
+let trace = new_trace_id();
+
+// Wrap events at boundaries (audit logger, OTel export)
+let env = EventEnvelope::new(trace, 0, my_event);
+assert_eq!(env.trace_id, trace);
+
+// Map payload while preserving correlation fields
+let mapped = env.map(|e| format!("{:?}", e));
+assert_eq!(mapped.trace_id, trace);
+assert_eq!(mapped.sequence, 0);
+```
+
+`TaskAgent` automatically generates a `trace_id` per `execute()` call and stamps it into `ToolContext.metadata["trace_id"]`, enabling correlation with `AuditEvent.metadata` and A2A stream events.
 
 ## Usage Examples
 

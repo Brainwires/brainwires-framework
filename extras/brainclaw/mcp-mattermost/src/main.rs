@@ -4,7 +4,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use tokio::sync::mpsc;
 
-use brainwires_channels::Channel;
+use brainwires_network::channels::Channel;
 use brainwires_mattermost_channel::config::MattermostConfig;
 use brainwires_mattermost_channel::event_handler::MattermostEventHandler;
 use brainwires_mattermost_channel::gateway_client::GatewayClient;

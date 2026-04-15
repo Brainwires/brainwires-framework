@@ -316,6 +316,7 @@ export class MilvusDatabase implements VectorDatabase {
     return inserted;
   }
 
+  // deno-lint-ignore require-await
   async search(
     queryVector: number[],
     queryText: string,

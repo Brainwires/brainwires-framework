@@ -8,7 +8,7 @@ This module (inside `brainwires-agents`) implements the SEAL framework for enhan
 
 SEAL was previously a standalone crate (`brainwires-seal`). It was moved here because:
 
-1. **No circular dependencies** — SEAL needs `ResponseConfidence` (defined in agents) and `ToolOutcome`/`ToolErrorCategory` (from `brainwires-tool-system`, already a dep of agents).
+1. **No circular dependencies** — SEAL needs `ResponseConfidence` (defined in agents) and `ToolOutcome`/`ToolErrorCategory` (from `brainwires-tools`, already a dep of agents).
 2. **Semantically correct** — "Self-Evolving **Agentic** Learning" belongs with agents.
 3. **Feature-gated** — the `seal` feature flag keeps it opt-in; optional integrations use `seal-knowledge`, `seal-feedback`, and `seal-mdap`.
 
@@ -18,18 +18,18 @@ SEAL was previously a standalone crate (`brainwires-seal`). It was moved here be
 |---------|-------------|
 | `seal` | Core SEAL pipeline (coreference, query extraction, learning, reflection) |
 | `seal-mdap` | MDAP metric recording via `mdap` feature |
-| `seal-knowledge` | BKS/PKS knowledge system integration via `brainwires-cognition` |
+| `seal-knowledge` | BKS/PKS knowledge system integration via `brainwires-knowledge` |
 | `seal-feedback` | Audit feedback bridge via `brainwires-permissions` |
 
 ```toml
 # Core SEAL
-brainwires-agents = { version = "0.8", features = ["seal"] }
+brainwires-agents = { version = "0.9", features = ["seal"] }
 
 # With knowledge integration
-brainwires-agents = { version = "0.8", features = ["seal-knowledge"] }
+brainwires-agents = { version = "0.9", features = ["seal-knowledge"] }
 
 # Via the brainwires facade
-brainwires = { version = "0.8", features = ["seal"] }
+brainwires = { version = "0.9", features = ["seal"] }
 ```
 
 ## Architecture

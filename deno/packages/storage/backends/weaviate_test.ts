@@ -4,7 +4,7 @@
  * These tests exercise the pure helper functions (no live Weaviate server required).
  */
 
-import { assertEquals, assertNotEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assertEquals, assertNotEquals } from "@std/assert";
 import {
   buildWhereFilter,
   buildSearchQuery,

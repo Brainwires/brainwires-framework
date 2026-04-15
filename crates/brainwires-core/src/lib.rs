@@ -18,6 +18,8 @@ pub mod content_source;
 pub mod embedding;
 /// Framework error types and result aliases.
 pub mod error;
+/// Unified event trait and `EventEnvelope<E>` with trace IDs and sequence numbers.
+pub mod event;
 /// Knowledge graph types: entities, edges, and trait interfaces.
 pub mod graph;
 /// Lifecycle hooks for intercepting framework events.
@@ -44,6 +46,8 @@ pub mod task;
 pub mod tool;
 /// Vector store trait for similarity search.
 pub mod vector_store;
+/// Persistent workflow state for crash-safe agent retry.
+pub mod workflow_state;
 /// Working set for file context management with LRU eviction.
 pub mod working_set;
 

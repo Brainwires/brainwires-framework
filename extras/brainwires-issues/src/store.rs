@@ -246,7 +246,12 @@ impl<B: StorageBackend + 'static> IssueStore<B> {
 
         if let Some(bm25) = &self.bm25 {
             let content = format!("{} {}", issue.title, issue.description);
-            if let Err(e) = bm25.add_documents(vec![(issue.number, content, issue.id.clone())]) {
+            if let Err(e) = bm25.add_documents(vec![(
+                issue.number,
+                issue.id.clone(),
+                content,
+                issue.id.clone(),
+            )]) {
                 tracing::warn!(
                     "BM25 index failed on create for issue {}: {}",
                     issue.number,
@@ -477,7 +482,12 @@ impl<B: StorageBackend + 'static> IssueStore<B> {
                 );
             }
             let content = format!("{} {}", issue.title, issue.description);
-            if let Err(e) = bm25.add_documents(vec![(issue.number, content, issue.id.clone())]) {
+            if let Err(e) = bm25.add_documents(vec![(
+                issue.number,
+                issue.id.clone(),
+                content,
+                issue.id.clone(),
+            )]) {
                 tracing::warn!(
                     "BM25 index failed on update for issue {}: {}",
                     issue.number,

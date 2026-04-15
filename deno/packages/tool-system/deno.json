@@ -1,5 +1,0 @@
-{
-  "name": "@brainwires/tool-system",
-  "version": "0.5.0",
-  "exports": "./mod.ts"
-}

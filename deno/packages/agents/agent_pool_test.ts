@@ -2,8 +2,8 @@
  * Tests for AgentPool.
  */
 
-import { assertEquals, assertThrows } from "jsr:@std/assert";
-import { AgentPool, type AgentPoolStats } from "./agent_pool.ts";
+import { assertEquals } from "@std/assert";
+import type { AgentPoolStats } from "./agent_pool.ts";
 
 // We test the pool's structural behavior without a real provider.
 // Since the pool requires a Provider and AgentContext, we test the

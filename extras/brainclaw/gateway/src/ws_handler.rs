@@ -6,7 +6,7 @@ use futures::{SinkExt, StreamExt};
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
-use brainwires_channels::{ChannelEvent, ChannelHandshake, ChannelHandshakeResponse};
+use brainwires_network::channels::{ChannelEvent, ChannelHandshake, ChannelHandshakeResponse};
 
 use crate::channel_registry::ConnectedChannel;
 use crate::state::AppState;
@@ -232,7 +232,7 @@ async fn send_json<T: serde::Serialize>(
 
 #[cfg(test)]
 mod tests {
-    use brainwires_channels::{ChannelCapabilities, ChannelHandshake, ChannelHandshakeResponse};
+    use brainwires_network::channels::{ChannelCapabilities, ChannelHandshake, ChannelHandshakeResponse};
 
     #[test]
     fn handshake_validation_accepted() {

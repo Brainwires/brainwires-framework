@@ -115,10 +115,8 @@ pub mod embeddings;
 /// Domain stores for conversation, message, task, plan, and other data.
 pub mod stores;
 
-// Note: persistent_task_manager lives in this crate but requires brainwires-agents
-// which creates a cyclic dependency. It's compiled only when brought in by a
-// higher-level crate (e.g. brainwires facade) that can resolve the cycle.
-// TODO: Move to brainwires-agents or a bridge crate.
+// Note: PersistentTaskManager (if implemented) belongs in brainwires-agents,
+// not here, to avoid a cyclic dependency (storage → agents → storage).
 
 // ── Re-exports (always available) ────────────────────────────────────────
 
@@ -169,7 +167,6 @@ pub use tiered_memory::{
     CanonicalWriteToken, MemoryAuthority, MemoryTier, MultiFactorScore, TieredMemory,
     TieredMemoryConfig, TieredMemoryStats, TieredSearchResult,
 };
-// persistent_task_manager re-exports moved to brainwires facade crate
 
 /// Prelude module for convenient imports
 pub mod prelude {

@@ -15,8 +15,8 @@ pub mod together;
 /// Google Vertex AI fine-tuning provider.
 pub mod vertex;
 
+use crate::datasets::DataFormat;
 use async_trait::async_trait;
-use brainwires_datasets::DataFormat;
 
 use crate::config::{AlignmentMethod, LoraConfig, TrainingHyperparams};
 use crate::error::TrainingError;

@@ -1,7 +1,7 @@
 /**
  * Tests for policy.ts — mirrors Rust tests in policy.rs
  */
-import { assertEquals, assert } from "jsr:@std/assert";
+import { assertEquals, assert } from "@std/assert";
 import {
   PolicyEngine,
   createPolicy,

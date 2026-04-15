@@ -41,7 +41,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires = "0.8"  # default features: tools + agents
+brainwires = "0.9"  # default features: tools + agents
 ```
 
 Then import via the prelude:
@@ -62,28 +62,28 @@ let response = provider.chat(&messages, None, &options).await?;
 
 | Feature | Default | Activates | Description |
 |---------|---------|-----------|-------------|
-| `tools` | **yes** | `brainwires-tool-system` | File, bash, git, search, web, and validation tools |
+| `tools` | **yes** | `brainwires-tools` | File, bash, git, search, web, and validation tools |
 | `agents` | **yes** | `brainwires-agents` | Agent runtime, communication hub, task manager, validation loop |
 | `storage` | no | `brainwires-storage` | Unified database layer (9 backends), tiered memory (hot/warm/cold) |
 | `mcp` | no | `brainwires-mcp` | MCP client for connecting to external MCP servers |
 | `mdap` | no | `brainwires-agents/mdap` | Multi-Dimensional Adaptive Planning with k-agent voting |
-| `prompting` | no | `brainwires-cognition/prompting` | Prompt generation, technique library, temperature optimizer |
-| `knowledge` | no | `brainwires-cognition/knowledge` | Behavioral + personal knowledge caches (implies `brain`) |
+| `prompting` | no | `brainwires-knowledge/prompting` | Prompt generation, technique library, temperature optimizer |
+| `knowledge` | no | `brainwires-knowledge/knowledge` | Behavioral + personal knowledge caches (implies `brain`) |
 | `permissions` | no | `brainwires-permissions` | Capability profiles, trust levels, policy engine, audit logging |
-| `orchestrator` | no | `brainwires-tool-system/orchestrator` | Tool orchestration layer (implies `tools`) |
-| `rag` | no | `brainwires-cognition/rag` | Semantic code search with vector + BM25 hybrid search |
-| `interpreters` | no | `brainwires-code-interpreters` | Sandboxed JavaScript and Python code execution |
+| `orchestrator` | no | `brainwires-tools/orchestrator` | Tool orchestration layer (implies `tools`) |
+| `rag` | no | `brainwires-knowledge/rag` | Semantic code search with vector + BM25 hybrid search |
+| `interpreters` | no | `brainwires-tools/interpreters` | Sandboxed JavaScript and Python code execution |
 | `providers` | no | `brainwires-providers` | AI providers (Anthropic, OpenAI, Google, Ollama) |
 | `reasoning` | no | `brainwires-agents/reasoning` | Extended reasoning support (implies `agents`) |
 | `seal` | no | `brainwires-agents/seal` | Self-Evolving Autonomous Learner |
-| `relay` | no | `brainwires-agent-network` | Remote relay / bridge for IPC and remote control |
-| `skills` | no | `brainwires-skills` | Pluggable skills system |
+| `relay` | no | `brainwires-network` | Remote relay / bridge for IPC and remote control |
+| `skills` | no | `brainwires-agents/skills` | Pluggable skills system |
 | `eval` | no | `brainwires-agents/eval` | Evaluation framework for benchmarking agents (implies `agents`) |
 | `otel` | no | `brainwires-agents/otel` | OpenTelemetry span export for agent traces (implies `agents`) |
-| `openapi` | no | `brainwires-tool-system/openapi` | Auto-generate tools from OpenAPI 3.x specs (implies `tools`) |
+| `openapi` | no | `brainwires-tools/openapi` | Auto-generate tools from OpenAPI 3.x specs (implies `tools`) |
 | `proxy` | no | `brainwires-proxy` | AI proxy framework |
 | `a2a` | no | `brainwires-a2a` | Agent-to-Agent protocol |
-| `mesh` | no | `brainwires-agent-network/mesh` | Mesh networking for distributed agents |
+| `mesh` | no | `brainwires-network/mesh` | Mesh networking for distributed agents |
 | `audio` | no | `brainwires-hardware/audio` | Audio capture, STT, TTS (16 cloud providers + local Whisper) |
 | `vad` | no | `brainwires-hardware/vad` | WebRTC voice activity detection (`EnergyVad` always available with `audio`) |
 | `wake-word` | no | `brainwires-hardware/wake-word` | Wake word detection — `EnergyTriggerDetector` (zero deps) |
@@ -97,7 +97,7 @@ let response = provider.chat(&messages, None, &options).await?;
 | `datasets` | no | `brainwires-datasets` | Training data pipelines (JSONL, tokenization, dedup) |
 | `training` | no | `brainwires-training` | Model fine-tuning (cloud + local) |
 | `autonomy` | no | `brainwires-autonomy` | Self-improvement and evaluation-driven optimization |
-| `brain` | no | `brainwires-cognition/knowledge` | Persistent knowledge, entity graphs, PKS/BKS |
+| `brain` | no | `brainwires-knowledge/knowledge` | Persistent knowledge, entity graphs, PKS/BKS |
 | `mcp-server` | no | `rmcp` + `schemars` + `tokio-util` | Re-exports for building MCP servers |
 | `llama-cpp-2` | no | `brainwires-providers/llama-cpp-2` | Local LLM inference (implies `providers`) |
 
@@ -147,7 +147,7 @@ let response = provider.chat(&messages, None, &options).await?;
 
 ```toml
 [dependencies]
-brainwires = { version = "0.8", features = ["agent-full"] }
+brainwires = { version = "0.9", features = ["agent-full"] }
 ```
 
 ```rust
@@ -172,7 +172,7 @@ let validation = ValidationConfig {
 
 ```toml
 [dependencies]
-brainwires = { version = "0.8", features = ["rag", "mcp-server"] }
+brainwires = { version = "0.9", features = ["rag", "mcp-server"] }
 ```
 
 ```rust
@@ -190,7 +190,7 @@ async fn main() -> anyhow::Result<()> {
 
 ```toml
 [dependencies]
-brainwires = { version = "0.8", features = ["rag"] }
+brainwires = { version = "0.9", features = ["rag"] }
 ```
 
 ```rust
@@ -209,7 +209,7 @@ for result in results {
 
 ```toml
 [dependencies]
-brainwires = { version = "0.8", features = ["learning"] }
+brainwires = { version = "0.9", features = ["learning"] }
 ```
 
 ```rust

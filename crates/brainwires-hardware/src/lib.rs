@@ -12,6 +12,7 @@
 //! | [`network`] | `network` | NIC enumeration, IP config, ARP discovery, port scanning |
 //! | [`camera`] | `camera` | Webcam/camera frame capture (V4L2/AVFoundation/MSMF) |
 //! | [`usb`] | `usb` | Raw USB device enumeration and bulk/control/interrupt transfers |
+//! | [`homeauto`] | `homeauto` | Home automation: Zigbee (EZSP+ZNP), Z-Wave, Thread (OTBR), Matter |
 //!
 //! ## Feature flags
 //!
@@ -72,6 +73,17 @@ pub mod camera;
 #[cfg(feature = "usb")]
 pub mod usb;
 
+/// Home automation protocols: Zigbee (EZSP + ZNP), Z-Wave (Serial API), Thread (OTBR), Matter.
+#[cfg(any(
+    feature = "homeauto",
+    feature = "zigbee",
+    feature = "zwave",
+    feature = "thread",
+    feature = "matter",
+    feature = "matter-ble",
+))]
+pub mod homeauto;
+
 // ── Convenience re-exports: mirrors the old brainwires-audio public API ──────
 
 #[cfg(feature = "audio")]
@@ -117,6 +129,30 @@ pub use camera::{
 
 #[cfg(feature = "usb")]
 pub use usb::{UsbClass, UsbDevice, UsbError, UsbHandle, UsbSpeed};
+
+// ── Home automation re-exports ────────────────────────────────────────────────
+
+#[cfg(any(
+    feature = "homeauto",
+    feature = "zigbee",
+    feature = "zwave",
+    feature = "thread",
+    feature = "matter",
+    feature = "matter-ble",
+))]
+pub use homeauto::{HomeAutoError, HomeAutoEvent, HomeAutoResult, HomeDevice, Protocol};
+
+#[cfg(feature = "zigbee")]
+pub use homeauto::{EzspCoordinator, ZigbeeAddr, ZigbeeCoordinator, ZigbeeDevice, ZnpCoordinator};
+
+#[cfg(feature = "zwave")]
+pub use homeauto::{CommandClass, NodeId, ZWaveController, ZWaveNode, ZWaveSerialController};
+
+#[cfg(feature = "thread")]
+pub use homeauto::{ThreadBorderRouter, ThreadNeighbor, ThreadNodeInfo};
+
+#[cfg(feature = "matter")]
+pub use homeauto::{MatterController, MatterDevice, MatterDeviceConfig, MatterDeviceServer};
 
 // ── VAD re-exports ────────────────────────────────────────────────────────────
 

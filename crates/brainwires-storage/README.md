@@ -78,7 +78,7 @@ Backend-agnostic storage, tiered memory, and document management for the Brainwi
   |  +--- Images -------------------------------------------------------+  |
   |  |  ImageStore --- analyzed images with semantic search              |  |
   |  +------------------------------------------------------------------+  |
-  |  Note: EntityStore and RelationshipGraph moved to brainwires-cognition |
+  |  Note: EntityStore and RelationshipGraph moved to brainwires-knowledge |
   |                                                                        |
   |  +--- Coordination & Templates -------------------------------------+  |
   |  |  LockStore --- SQLite WAL locks, stale detection, cleanup         |  |

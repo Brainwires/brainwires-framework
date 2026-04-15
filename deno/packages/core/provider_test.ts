@@ -1,14 +1,14 @@
-import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assertEquals } from "@std/assert";
 import { ChatOptions } from "./mod.ts";
 
 Deno.test("ChatOptions default values", () => {
-  const opts = ChatOptions.new();
+  const opts = ChatOptions.create();
   assertEquals(opts.temperature, 0.7);
   assertEquals(opts.max_tokens, 4096);
 });
 
 Deno.test("ChatOptions builder", () => {
-  const opts = ChatOptions.new()
+  const opts = ChatOptions.create()
     .setTemperature(0.5)
     .setMaxTokens(2048)
     .setSystem("Test");

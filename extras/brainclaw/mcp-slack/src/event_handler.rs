@@ -12,7 +12,7 @@ use serde_json::Value;
 use tokio::sync::mpsc;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
-use brainwires_channels::{ChannelEvent, ChannelUser, ConversationId, MessageId};
+use brainwires_network::channels::{ChannelEvent, ChannelUser, ConversationId, MessageId};
 
 use crate::slack::{slack_message_to_channel_message, SlackChannel};
 
@@ -458,7 +458,7 @@ pub fn parse_socket_mode_url(url: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use brainwires_channels::MessageContent;
+    use brainwires_network::channels::MessageContent;
 
     #[test]
     fn parse_socket_mode_url_valid() {

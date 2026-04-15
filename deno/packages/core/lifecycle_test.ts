@@ -1,4 +1,4 @@
-import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assertEquals } from "@std/assert";
 import {
   defaultEventFilter,
   eventAgentId,
@@ -15,6 +15,7 @@ Deno.test("HookRegistry register", () => {
   assertEquals(registry.isEmpty(), true);
   const hook: LifecycleHook = {
     name: "test",
+    // deno-lint-ignore require-await
     async onEvent() {
       return { type: "continue" };
     },

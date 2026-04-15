@@ -16,7 +16,7 @@ use serde_json::Value;
 use tokio::sync::mpsc;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
-use brainwires_channels::ChannelEvent;
+use brainwires_network::channels::ChannelEvent;
 
 use crate::signal::{SignalChannel, envelope_recipient, parse_envelope};
 

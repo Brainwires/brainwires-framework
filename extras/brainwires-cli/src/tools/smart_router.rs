@@ -2,17 +2,17 @@
 //!
 //! Re-exports all generic routing functions from the framework crate.
 //! CLI-specific variants that integrate with the Skill system and LocalRouter
-//! are defined here (inference dep lives in CLI, not in brainwires-tool-system).
+//! are defined here (inference dep lives in CLI, not in brainwires-tools).
 
 // Re-export all framework smart_router functions
 #[allow(hidden_glob_reexports)]
-pub use brainwires_tool_system::smart_router::*;
+pub use brainwires_tools::smart_router::*;
 
 // ── CLI-specific: inference-integrated variants ───────────────────────────
 
 use crate::types::message::Message;
 use brainwires::agents::reasoning::LocalRouter;
-use brainwires_tool_system::{Tool, ToolCategory, ToolRegistry};
+use brainwires_tools::{Tool, ToolCategory, ToolRegistry};
 
 /// Analyze a query using local inference with keyword fallback
 ///
@@ -55,8 +55,8 @@ pub async fn get_smart_tools_with_local(
 
 // ── CLI-specific: skill-integrated variants ───────────────────────────────
 
-use brainwires_skills::metadata::SkillMatch;
-use brainwires_skills::router::SkillRouter;
+use brainwires_agents::skills::metadata::SkillMatch;
+use brainwires_agents::skills::router::SkillRouter;
 
 /// Analyze query and return both tool categories and skill matches
 pub async fn analyze_with_skills(

@@ -1,4 +1,4 @@
-import { assertEquals, assertNotEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assertEquals, assertNotEquals } from "@std/assert";
 import { lookup, PROVIDER_REGISTRY } from "./registry.ts";
 
 Deno.test("lookup - known providers return entries", () => {

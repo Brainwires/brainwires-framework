@@ -7,7 +7,7 @@ use futures::{SinkExt, StreamExt};
 use tokio::sync::mpsc;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
-use brainwires_channels::{
+use brainwires_network::channels::{
     Channel, ChannelCapabilities, ChannelEvent, ChannelHandshake, ChannelHandshakeResponse,
     ChannelMessage,
 };

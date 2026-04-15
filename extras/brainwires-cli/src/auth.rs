@@ -1,4 +1,4 @@
-//! Auth module — thin adapter over brainwires-agent-network auth
+//! Auth module — thin adapter over brainwires-network auth
 //!
 //! Re-exports bridge types and provides CLI-specific wrappers that preserve
 //! the static API used by 20+ call sites throughout the codebase.

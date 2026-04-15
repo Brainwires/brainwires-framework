@@ -1,0 +1,29 @@
+[package]
+name = "brainwires-reasoning"
+description = "Structured reasoning primitives — plan parsing, output parsing, and prompt engineering for the Brainwires Agent Framework"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+readme = "README.md"
+documentation = "https://docs.rs/brainwires-reasoning"
+keywords = ["reasoning", "plan-parsing", "output-parsing", "llm", "prompting"]
+categories = ["development-tools"]
+
+[dependencies]
+brainwires-core = { workspace = true, features = ["planning"] }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+
+[features]
+default = []

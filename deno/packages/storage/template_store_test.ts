@@ -2,7 +2,7 @@
  * Tests for TemplateStore and template variable substitution.
  */
 
-import { assertEquals, assertNotEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assertEquals, assertNotEquals } from "@std/assert";
 import {
   TemplateStore,
   createTemplate,

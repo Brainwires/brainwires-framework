@@ -1,7 +1,7 @@
 //! Shared search types used across the RAG, vector DB, and spectral modules.
 //!
 //! These types live in core because they are needed by both `brainwires-storage`
-//! (the vector DB layer) and `brainwires-cognition` (the RAG / indexer layer).
+//! (the vector DB layer) and `brainwires-knowledge` (the RAG / indexer layer).
 
 use serde::{Deserialize, Serialize};
 

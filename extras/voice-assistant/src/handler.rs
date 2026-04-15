@@ -6,6 +6,7 @@ use brainwires_providers::openai_chat::{
     OpenAIContent, OpenAIMessage, OpenAiClient, OpenAiRequestOptions,
 };
 use std::sync::Arc;
+use tokio::sync::Mutex;
 use tracing::{info, warn};
 
 #[cfg(any(
@@ -16,10 +17,16 @@ use tracing::{info, warn};
 use brainwires_hardware::audio::wake_word::WakeWordDetection;
 
 /// Handler that forwards transcripts to an LLM and returns the response text.
+///
+/// Maintains full multi-turn conversation history across calls so the assistant
+/// can reference earlier messages in the session.
 pub struct LlmHandler {
     client: Arc<OpenAiClient>,
     model: String,
     system_prompt: String,
+    /// Accumulated conversation history (user + assistant turns only; system
+    /// prompt is prepended fresh on every request so it is never stale).
+    history: Mutex<Vec<OpenAIMessage>>,
 }
 
 impl LlmHandler {
@@ -28,7 +35,14 @@ impl LlmHandler {
             client,
             model,
             system_prompt,
+            history: Mutex::new(Vec::new()),
         }
+    }
+
+    /// Clear the conversation history (useful after a long pause or explicit reset).
+    #[allow(dead_code)]
+    pub async fn clear_history(&self) {
+        self.history.lock().await.clear();
     }
 }
 
@@ -55,22 +69,29 @@ impl VoiceAssistantHandler for LlmHandler {
 
         info!("You: {text}");
 
-        let messages = vec![
-            OpenAIMessage {
+        let user_msg = OpenAIMessage {
+            role: "user".into(),
+            content: OpenAIContent::Text(text.to_string()),
+            name: None,
+            tool_calls: None,
+            tool_call_id: None,
+        };
+
+        // Build full message list: system + history + new user turn
+        let messages = {
+            let history = self.history.lock().await;
+            let mut msgs = Vec::with_capacity(history.len() + 2);
+            msgs.push(OpenAIMessage {
                 role: "system".into(),
                 content: OpenAIContent::Text(self.system_prompt.clone()),
                 name: None,
                 tool_calls: None,
                 tool_call_id: None,
-            },
-            OpenAIMessage {
-                role: "user".into(),
-                content: OpenAIContent::Text(text.to_string()),
-                name: None,
-                tool_calls: None,
-                tool_call_id: None,
-            },
-        ];
+            });
+            msgs.extend(history.iter().cloned());
+            msgs.push(user_msg.clone());
+            msgs
+        };
 
         let opts = OpenAiRequestOptions::default();
 
@@ -89,8 +110,21 @@ impl VoiceAssistantHandler for LlmHandler {
                         OpenAIContent::Array(_) => String::new(),
                     })
                     .unwrap_or_default();
+
                 if !reply.is_empty() {
                     info!("Assistant: {reply}");
+
+                    // Persist this turn to history
+                    let mut history = self.history.lock().await;
+                    history.push(user_msg);
+                    history.push(OpenAIMessage {
+                        role: "assistant".into(),
+                        content: OpenAIContent::Text(reply.clone()),
+                        name: None,
+                        tool_calls: None,
+                        tool_call_id: None,
+                    });
+
                     Some(reply)
                 } else {
                     None

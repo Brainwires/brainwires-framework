@@ -17,7 +17,7 @@ The framework is trait-based: implement a trait, pass it to the component, done.
 | `LifecycleHook` | `name`, `on_event` (+`priority`, `filter` defaults) | Framework event interception |
 | `StagingBackend` | `stage`, `commit`, `rollback`, `pending_count` | Two-phase file write commits |
 
-### RAG Traits (brainwires-cognition, feature `rag`)
+### RAG Traits (brainwires-knowledge, feature `rag`)
 
 | Trait | Required Methods | Purpose |
 |-------|-----------------|---------|
@@ -35,7 +35,7 @@ The framework is trait-based: implement a trait, pass it to the component, done.
 | `CompensableOperation` | `execute`, `compensate`, `description` (+`operation_type` default) | Saga step with rollback |
 | `EvaluationCase` | `name`, `category`, `run` | Eval scenario |
 
-### Tool Traits (brainwires-tool-system)
+### Tool Traits (brainwires-tools)
 
 | Trait | Required Methods | Purpose |
 |-------|-----------------|---------|
@@ -64,10 +64,10 @@ The framework is trait-based: implement a trait, pass it to the component, done.
 |-------|-------|---------|
 | `TextToSpeech` | brainwires-hardware | TTS synthesis backend |
 | `SpeechToText` | brainwires-hardware | STT transcription backend |
-| `LanguageExecutor` | brainwires-code-interpreters | Sandboxed code execution |
-| `Dataset` | brainwires-datasets | Training data container |
-| `FormatConverter` | brainwires-datasets | Training data format conversion |
-| `Tokenizer` | brainwires-datasets | Token encoding/counting |
+| `LanguageExecutor` | brainwires-tools (interpreters) | Sandboxed code execution |
+| `Dataset` | brainwires-training | Training data container |
+| `FormatConverter` | brainwires-training | Training data format conversion |
+| `Tokenizer` | brainwires-training | Token encoding/counting |
 | `ApprovalPolicy` | brainwires-autonomy | Autonomous operation approval |
 | `GitForge` | brainwires-autonomy | Git forge API (GitHub, GitLab) |
 
@@ -182,10 +182,10 @@ struct CrossEncoderReranker;
 impl SearchScorer for CrossEncoderReranker {
     fn fuse(
         &self,
-        vector_results: Vec<(u64, f32)>,
+        vector_results: Vec<(String, f32)>,
         bm25_results: Vec<BM25Result>,
         limit: usize,
-    ) -> Vec<(u64, f32)> {
+    ) -> Vec<(String, f32)> {
         // Your fusion/reranking logic
         vector_results.into_iter().take(limit).collect()
     }
@@ -236,26 +236,26 @@ This enables: `providers`, `agents`, `storage`, `rag`, `training`, `datasets`.
 
 | Feature | Enables | Transitive Dependencies |
 |---------|---------|------------------------|
-| `tools` | `brainwires-tool-system` | — |
-| `agents` | `brainwires-agents` | brainwires-tool-system |
+| `tools` | `brainwires-tools` | — |
+| `agents` | `brainwires-agents` | brainwires-tools |
 | `storage` | `brainwires-storage` (with native) | lancedb, arrow, fastembed |
 | `mcp` | `brainwires-mcp` | rmcp |
 | `mdap` | `brainwires-agents/mdap` | — |
-| `prompting` | `brainwires-cognition/prompting` | linfa-clustering, ndarray |
+| `prompting` | `brainwires-knowledge/prompting` | linfa-clustering, ndarray |
 | `permissions` | `brainwires-permissions` | — |
-| `rag` | `brainwires-cognition/rag` + `brainwires-storage` | lancedb, tantivy, tree-sitter |
+| `rag` | `brainwires-knowledge/rag` + `brainwires-storage` | lancedb, tantivy, tree-sitter |
 | `providers` | `brainwires-providers` | reqwest |
 | `seal` | `brainwires-agents/seal` | — |
-| `agent-network` | `brainwires-agent-network` | — |
-| `skills` | `brainwires-skills` | — |
+| `agent-network` | `brainwires-network` | — |
+| `skills` | `brainwires-agents` (skills) | — |
 | `audio` | `brainwires-hardware/audio` | — |
 | `gpio` | `brainwires-hardware/gpio` | — |
 | `bluetooth` | `brainwires-hardware/bluetooth` | — |
 | `network-hardware` | `brainwires-hardware/network` | — |
-| `datasets` | `brainwires-datasets` | — |
+| `datasets` | `brainwires-training` | — |
 | `training` | `brainwires-training` | — |
 | `autonomy` | `brainwires-autonomy` | — |
-| `brain` | `brainwires-cognition/knowledge` | — |
+| `brain` | `brainwires-knowledge/knowledge` | — |
 
 ### Compound features
 
@@ -281,22 +281,22 @@ This enables: `providers`, `agents`, `storage`, `rag`, `training`, `datasets`.
 ```
 brainwires (facade)
   ├── brainwires-core (always)       ← core traits, types, errors
-  ├── brainwires-tool-system         ← ToolExecutor, built-in tools
+  ├── brainwires-tools         ← ToolExecutor, built-in tools
   ├── brainwires-agents              ← AgentRuntime, CommunicationHub, SEAL
   ├── brainwires-providers           ← Anthropic, OpenAI, Google, Ollama
-  ├── brainwires-cognition           ← RAG, Knowledge/Brain, Prompting, Spectral
-  ├── brainwires-agent-network       ← MCP server, IPC, remote, mesh
+  ├── brainwires-knowledge           ← RAG, Knowledge/Brain, Prompting, Spectral
+  ├── brainwires-network       ← MCP server, IPC, remote, mesh
   ├── brainwires-storage             ← TieredMemory, LanceDB stores
   ├── brainwires-training            ← Fine-tuning backends
-  └── brainwires-datasets            ← Dataset containers, format converters
+  └── brainwires-training            ← Dataset containers, format converters
 ```
 
 ### Where to define new traits
 
 - **Pure types/traits with no heavy deps** → `brainwires-core`
-- **Tool implementations** → `brainwires-tool-system`
+- **Tool implementations** → `brainwires-tools`
 - **Agent coordination** → `brainwires-agents`
-- **RAG pipeline components** → `brainwires-cognition`
+- **RAG pipeline components** → `brainwires-knowledge`
 
 ### Error handling
 

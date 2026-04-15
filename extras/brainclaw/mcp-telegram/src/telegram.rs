@@ -12,7 +12,7 @@ use teloxide::types::{
     ThreadId as TeloxideThreadId,
 };
 
-use brainwires_channels::{
+use brainwires_network::channels::{
     Attachment, ChannelCapabilities, ChannelMessage, ConversationId,
     MediaPayload, MediaType, MessageContent, MessageId, ThreadId,
 };
@@ -38,7 +38,7 @@ impl TelegramChannel {
 }
 
 #[async_trait]
-impl brainwires_channels::Channel for TelegramChannel {
+impl brainwires_network::channels::Channel for TelegramChannel {
     fn channel_type(&self) -> &str {
         "telegram"
     }
@@ -392,7 +392,7 @@ pub fn channel_message_to_telegram_text(message: &ChannelMessage) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use brainwires_channels::{ChannelCapabilities, EmbedField, EmbedPayload};
+    use brainwires_network::channels::{ChannelCapabilities, EmbedField, EmbedPayload};
     use chrono::Utc;
 
     fn sample_conversation() -> ConversationId {

@@ -147,6 +147,7 @@ export class MessageStore implements MessageStoreI {
     return records.map(fromRecord);
   }
 
+  // deno-lint-ignore require-await
   async search(
     query: string,
     limit: number,
@@ -155,6 +156,7 @@ export class MessageStore implements MessageStoreI {
     return this.searchWithFilter(query, limit, minScore);
   }
 
+  // deno-lint-ignore require-await
   async searchConversation(
     conversationId: string,
     query: string,

@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 use crate::task::{Task, TaskStatus};
 use crate::types::{Artifact, Message};
@@ -17,6 +18,14 @@ pub struct TaskStatusUpdateEvent {
     pub context_id: String,
     /// New task status.
     pub status: TaskStatus,
+    /// Trace ID for cross-system correlation. Matches the `trace_id` stamped by
+    /// the originating `TaskAgent` and carried in `AuditEvent.metadata["trace_id"]`.
+    #[serde(rename = "traceId", skip_serializing_if = "Option::is_none")]
+    pub trace_id: Option<Uuid>,
+    /// Monotonically increasing sequence number within the trace.
+    /// Allows receivers to detect and reorder out-of-order events.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sequence: Option<u64>,
     /// Optional metadata.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<HashMap<String, serde_json::Value>>,
@@ -42,6 +51,12 @@ pub struct TaskArtifactUpdateEvent {
     /// If true, this is the final chunk.
     #[serde(rename = "lastChunk", skip_serializing_if = "Option::is_none")]
     pub last_chunk: Option<bool>,
+    /// Trace ID for cross-system correlation.
+    #[serde(rename = "traceId", skip_serializing_if = "Option::is_none")]
+    pub trace_id: Option<Uuid>,
+    /// Monotonically increasing sequence number within the trace.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sequence: Option<u64>,
     /// Optional metadata.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<HashMap<String, serde_json::Value>>,

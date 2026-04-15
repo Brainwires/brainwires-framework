@@ -4,7 +4,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use tokio::sync::mpsc;
 
-use brainwires_channels::Channel;
+use brainwires_network::channels::Channel;
 use brainwires_slack_channel::config::SlackConfig;
 use brainwires_slack_channel::event_handler::SlackEventHandler;
 use brainwires_slack_channel::gateway_client::GatewayClient;

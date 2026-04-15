@@ -1,7 +1,7 @@
 /**
  * Tests for types.ts — mirrors Rust tests in types.rs
  */
-import { assertEquals, assert, assertNotEquals } from "jsr:@std/assert";
+import { assertEquals, assert, assertNotEquals } from "@std/assert";
 import {
   AgentCapabilities,
   PathPattern,

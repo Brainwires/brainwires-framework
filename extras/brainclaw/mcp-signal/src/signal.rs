@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use reqwest::Client;
 use serde_json::{Value, json};
 
-use brainwires_channels::{
+use brainwires_network::channels::{
     ChannelCapabilities, ChannelMessage, ConversationId, MessageContent, MessageId,
 };
 
@@ -136,7 +136,7 @@ impl SignalChannel {
 }
 
 #[async_trait]
-impl brainwires_channels::Channel for SignalChannel {
+impl brainwires_network::channels::Channel for SignalChannel {
     fn channel_type(&self) -> &str {
         "signal"
     }
@@ -257,7 +257,7 @@ pub fn envelope_recipient(envelope: &Value, own_number: &str) -> String {
 pub fn parse_envelope(
     envelope: &Value,
     own_number: &str,
-) -> Option<brainwires_channels::ChannelMessage> {
+) -> Option<brainwires_network::channels::ChannelMessage> {
     let data_msg = envelope.get("dataMessage")?;
     let text = data_msg.get("message").and_then(|v| v.as_str())?;
     if text.is_empty() {
@@ -289,7 +289,7 @@ pub fn parse_envelope(
     let timestamp = chrono::DateTime::from_timestamp(ts_ms / 1000, 0)
         .unwrap_or_else(chrono::Utc::now);
 
-    Some(brainwires_channels::ChannelMessage {
+    Some(brainwires_network::channels::ChannelMessage {
         id: MessageId::new(msg_id),
         conversation,
         author: sender,

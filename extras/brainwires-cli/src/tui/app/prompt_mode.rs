@@ -71,11 +71,11 @@ impl App {
     pub(super) fn rebuild_system_prompt(&mut self) {
         let new_prompt = match self.prompt_mode {
             PromptMode::Ask => {
-                crate::utils::system_prompt::build_ask_mode_system_prompt(Some(&self.working_set))
+                crate::system_prompts::build_ask_mode_system_prompt(Some(&self.working_set))
                     .unwrap_or_else(|_| "You are a helpful read-only coding assistant.".to_string())
             }
             PromptMode::Edit | PromptMode::Plan => {
-                crate::utils::system_prompt::build_system_prompt_with_context(
+                crate::system_prompts::build_system_prompt_with_context(
                     None,
                     Some(&self.working_set),
                 )

@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use reqwest::Client;
 use serde_json::json;
 
-use brainwires_channels::{
+use brainwires_network::channels::{
     Channel, ChannelCapabilities, ChannelMessage, ConversationId, MediaType, MessageContent,
     MessageId,
 };

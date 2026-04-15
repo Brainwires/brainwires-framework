@@ -10,7 +10,6 @@ import { StdioTransport, Transport } from "./transport.ts";
 import type {
   CallToolParams,
   CallToolResult,
-  ClientCapabilities,
   GetPromptParams,
   GetPromptResult,
   InitializeParams,

@@ -46,7 +46,7 @@ http = { workspace = true, optional = true }
 gcp_auth = { workspace = true, optional = true }
 
 # Analytics (optional)
-brainwires-analytics = { workspace = true, optional = true }
+brainwires-telemetry = { workspace = true, optional = true }
 chrono = { workspace = true, optional = true }
 
 # WebSocket transport (OpenAI Responses API)
@@ -63,7 +63,7 @@ native = [
 llama-cpp-2 = ["dep:tracing", "dep:tokio", "dep:llama-cpp-2", "dep:encoding_rs"]
 bedrock = ["native", "dep:aws-sigv4", "dep:aws-credential-types", "dep:aws-smithy-runtime-api", "dep:http"]
 vertex-ai = ["native", "dep:gcp_auth"]
-analytics = ["dep:brainwires-analytics", "brainwires-analytics/native", "dep:chrono"]
+telemetry = ["dep:brainwires-telemetry", "brainwires-telemetry/native", "dep:chrono"]
 
 [dev-dependencies]
 serde_json = { workspace = true }

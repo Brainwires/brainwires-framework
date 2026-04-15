@@ -9,14 +9,14 @@
  */
 
 import { WorkingSet } from "@brainwires/core";
-import type { ToolExecutor, ToolPreHook } from "@brainwires/tool-system";
+import type { ToolExecutor, ToolPreHook } from "@brainwires/tools";
 
 import type { AgentLifecycleHooks } from "./hooks.ts";
-import { CommunicationHub } from "./communication.ts";
-import { FileLockManager } from "./file_locks.ts";
+import type { CommunicationHub } from "./communication.ts";
+import type { FileLockManager } from "./file_locks.ts";
 
 // Re-export for convenience
-export type { ToolPreHook } from "@brainwires/tool-system";
+export type { ToolPreHook } from "@brainwires/tools";
 
 /** Environment context for a task agent. */
 export class AgentContext {

@@ -22,7 +22,7 @@ use matrix_sdk::ruma::{
 };
 use reqwest::Client as HttpClient;
 
-use brainwires_channels::{
+use brainwires_network::channels::{
     Channel, ChannelCapabilities, ChannelMessage, ConversationId, MediaType, MessageContent,
     MessageId,
 };

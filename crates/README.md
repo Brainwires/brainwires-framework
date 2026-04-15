@@ -8,8 +8,7 @@ brainwires  (facade — re-exports all crates via feature flags)
 ├─── Foundation (no internal deps)
 │    ├── brainwires-core            Core types, traits, messages, tools, tasks
 │    ├── brainwires-a2a             Agent-to-Agent protocol (JSON-RPC, REST, gRPC)
-│    ├── brainwires-code-interpreters  Sandboxed execution (Rhai, Lua, JS, Python)
-│    └── brainwires-skills          Skill system — SKILL.md parsing, registry, routing
+│    └── brainwires-a2a             Agent-to-Agent protocol (JSON-RPC, REST, gRPC)
 │
 ├─── Providers
 │    ├── brainwires-providers       AI providers (Anthropic, OpenAI, Google, Ollama, Bedrock, Vertex AI)
@@ -18,14 +17,14 @@ brainwires  (facade — re-exports all crates via feature flags)
 │        └─> providers (opt, "audio" feature)
 │
 ├─── Tools & Agents
-│    ├── brainwires-tool-system     Built-in tools (file ops, git, bash, web, search, validation)
+│    ├── brainwires-tools     Built-in tools (file ops, git, bash, web, search, validation)
 │    │   └─> core
-│    │   └─> cognition (opt, "rag" feature)
-│    │   └─> code-interpreters (opt, "interpreters" feature)
+│    │   └─> knowledge (opt, "rag" feature)
+│    │   └─> tools (interpreters feature) (opt, "interpreters" feature)
 │    ├── brainwires-agents          Agent orchestration, lifecycle hooks, coordination patterns, SEAL
 │    │   └─> core
-│    │   └─> tool-system
-│    │   └─> cognition (opt, "seal-knowledge" feature)
+│    │   └─> tools
+│    │   └─> knowledge (opt, "seal-knowledge" feature)
 │    │   └─> permissions (opt, "seal-feedback" feature)
 │    └── brainwires-permissions     Permission policies, audit logging, trust profiles
 │        └─> core
@@ -33,14 +32,14 @@ brainwires  (facade — re-exports all crates via feature flags)
 ├─── Storage & Intelligence
 │    ├── brainwires-storage         Unified database layer (9 backends), tiered memory, embeddings
 │    │   └─> core
-│    └── brainwires-cognition       Unified intelligence — knowledge graphs, adaptive prompting, RAG, dream consolidation
+│    └── brainwires-knowledge       Unified intelligence — knowledge graphs, adaptive prompting, RAG, dream consolidation
 │        └─> core
 │        └─> storage (opt, "knowledge" and "rag" features)
 │
 ├─── Networking
 │    ├── brainwires-mcp             MCP client, transport, protocol types
 │    │   └─> core
-│    └── brainwires-agent-network   MCP server, IPC, remote bridge, 5-layer protocol stack, mesh networking
+│    └── brainwires-network   MCP server, IPC, remote bridge, 5-layer protocol stack, mesh networking
 │        └─> core
 │        └─> mcp
 │        └─> a2a (opt, "a2a-transport" feature)
@@ -61,10 +60,10 @@ brainwires  (facade — re-exports all crates via feature flags)
 │    └── brainwires-autonomy        Self-improvement, Git workflows, human-out-of-loop execution
 │        └─> core
 │        └─> agents (opt)
-│        └─> tool-system (opt)
+│        └─> tools (opt)
 │        └─> training (opt)
 │        └─> mdap (opt)
-│        └─> cognition (opt, "attention" feature)
+│        └─> knowledge (opt, "attention" feature)
 │        └─> datasets (opt)
 │        └─> hardware (opt, "gpio" feature — re-exports GPIO)
 │
@@ -72,8 +71,8 @@ brainwires  (facade — re-exports all crates via feature flags)
      └── brainwires-wasm            Browser deployment bindings
          └─> core (wasm)
          └─> mdap (wasm)
-         └─> tool-system (opt)
-         └─> code-interpreters (opt)
+         └─> tools (opt)
+         └─> tools (interpreters feature) (opt)
 ```
 
 ## Longest Dependency Chain

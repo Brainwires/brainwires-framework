@@ -8,7 +8,7 @@
 
 import type { PlanMetadata, Task } from "@brainwires/core";
 
-import { TaskManager } from "./task_manager.ts";
+import type { TaskManager } from "./task_manager.ts";
 import { formatDurationSecs } from "./task_manager.ts";
 
 // ---------------------------------------------------------------------------

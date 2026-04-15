@@ -10,7 +10,7 @@ use reqwest::Client;
 use serde_json::Value;
 use tokio::sync::RwLock;
 
-use brainwires_channels::{
+use brainwires_network::channels::{
     Attachment, ChannelCapabilities, ChannelMessage, ConversationId, MessageContent, MessageId,
     ThreadId,
 };
@@ -101,7 +101,7 @@ impl SlackChannel {
 }
 
 #[async_trait]
-impl brainwires_channels::Channel for SlackChannel {
+impl brainwires_network::channels::Channel for SlackChannel {
     fn channel_type(&self) -> &str {
         "slack"
     }
@@ -396,7 +396,7 @@ pub fn parse_slack_ts(ts: &str) -> DateTime<Utc> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use brainwires_channels::{
+    use brainwires_network::channels::{
         Channel, ChannelCapabilities, EmbedField, EmbedPayload, MediaPayload, MediaType,
     };
     use chrono::Utc;

@@ -1988,7 +1988,7 @@ fn extract_mcp_server_name(tool_name: &str) -> Option<String> {
 impl App {
     /// Handle /skill <name> [args...] - invoke a skill
     async fn handle_invoke_skill(&mut self, name: &str, args: Vec<String>) {
-        use brainwires_skills::SkillSource;
+        use brainwires_agents::skills::SkillSource;
 
         // Try to get the skill from registry
         if let Some(ref mut registry) = self.skill_registry {
@@ -2043,7 +2043,7 @@ impl App {
 
     /// Handle /skills - list all available skills
     async fn handle_list_skills(&mut self) {
-        use brainwires_skills::SkillSource;
+        use brainwires_agents::skills::SkillSource;
 
         let result = if let Some(ref registry) = self.skill_registry {
             let skills = registry.list_skills();
@@ -2127,7 +2127,7 @@ impl App {
 
     /// Handle /skill:show <name> - show skill details
     async fn handle_show_skill(&mut self, name: &str) {
-        use brainwires_skills::SkillSource;
+        use brainwires_agents::skills::SkillSource;
 
         let result = if let Some(ref mut registry) = self.skill_registry {
             match registry.get_skill(name) {

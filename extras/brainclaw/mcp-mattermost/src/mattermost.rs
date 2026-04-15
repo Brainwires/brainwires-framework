@@ -8,7 +8,7 @@ use chrono::{DateTime, Utc};
 use reqwest::Client;
 use serde_json::{Value, json};
 
-use brainwires_channels::{
+use brainwires_network::channels::{
     ChannelCapabilities, ChannelMessage, ConversationId, MessageContent, MessageId, ThreadId,
 };
 
@@ -162,7 +162,7 @@ fn parse_mm_ts(ms: i64) -> DateTime<Utc> {
 }
 
 #[async_trait]
-impl brainwires_channels::Channel for MattermostChannel {
+impl brainwires_network::channels::Channel for MattermostChannel {
     fn channel_type(&self) -> &str {
         "mattermost"
     }

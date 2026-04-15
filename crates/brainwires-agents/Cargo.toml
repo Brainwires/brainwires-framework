@@ -16,7 +16,7 @@ categories = ["development-tools"]
 [dependencies]
 # Internal crates
 brainwires-core.workspace = true
-brainwires-tool-system.workspace = true
+brainwires-tools.workspace = true
 
 # Async runtime
 tokio = { workspace = true, features = ["sync", "time", "rt", "macros"] }
@@ -48,8 +48,8 @@ libc = { version = "0.2", optional = true }
 # Async traits
 async-trait.workspace = true
 
-# Code search (optional, for reasoning module)
-regex = { workspace = true, optional = true }
+# Regex — required for skills template parsing; also used by reasoning/mdap/seal
+regex = { workspace = true }
 
 # Async streams (needed by ChatAgent for StreamExt)
 futures.workspace = true
@@ -58,45 +58,55 @@ futures.workspace = true
 thiserror = { workspace = true, optional = true }
 
 # ── SEAL deps ──────────────────────────────────────────────────────────
-brainwires-cognition = { workspace = true, optional = true }
+brainwires-knowledge = { workspace = true, optional = true }
 brainwires-permissions = { workspace = true, optional = true }
 
 # OpenTelemetry (optional, for otel feature)
 opentelemetry = { version = "0.28", optional = true }
 
-# Analytics (optional)
-brainwires-analytics = { workspace = true, optional = true }
+# Telemetry — analytics events + billing hooks (optional)
+brainwires-telemetry = { workspace = true, optional = true }
 
 # Logging
 tracing.workspace = true
+
+# ── Skills deps (absorbed from brainwires-skills) ─────────────────────────
+serde_yml = { workspace = true }
+semver = { workspace = true }
+reqwest = { workspace = true, optional = true }
+ed25519-dalek = { version = "2", features = ["rand_core"], optional = true }
+rand_core = { version = "0.6", features = ["getrandom"], optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }
 futures.workspace = true
 tempfile.workspace = true
 tracing-subscriber = "0.3"
-brainwires-cognition = { workspace = true, features = ["knowledge", "prompting"] }
+brainwires-knowledge = { workspace = true, features = ["knowledge", "prompting"] }
 brainwires-permissions = { workspace = true }
 
 [features]
 default = ["native"]
-native = ["dep:git2", "dep:libc", "brainwires-core/native", "brainwires-tool-system/native"]
-wasm = ["brainwires-core/wasm", "brainwires-tool-system/wasm"]
+native = ["dep:git2", "dep:libc", "brainwires-core/native", "brainwires-tools/native"]
+wasm = ["brainwires-core/wasm", "brainwires-tools/wasm"]
 # Reasoning module (merged from brainwires-reasoning)
-reasoning = ["dep:regex"]
+reasoning = []
 # Evaluation framework (merged from brainwires-eval)
 eval = ["dep:thiserror"]
 # OpenTelemetry span export for agent execution traces
 otel = ["dep:opentelemetry"]
-# Emit AnalyticsEvent::AgentRun after each TaskAgent run
-analytics = ["dep:brainwires-analytics", "brainwires-analytics/native"]
+# Analytics events + billing hooks
+telemetry = ["dep:brainwires-telemetry", "brainwires-telemetry/native"]
 # MDAP: Multi-Dimensional Adaptive Planning (merged from brainwires-mdap)
-mdap = ["dep:regex", "dep:thiserror"]
+mdap = ["dep:thiserror"]
 # SEAL (Self-Evolving Agentic Learning)
-seal = ["dep:regex"]
+seal = []
 seal-mdap = ["seal", "mdap"]
 seal-feedback = ["seal", "dep:brainwires-permissions"]
-seal-knowledge = ["seal", "dep:brainwires-cognition", "brainwires-cognition/knowledge"]
+seal-knowledge = ["seal", "dep:brainwires-knowledge", "brainwires-knowledge/knowledge"]
+# Skills (absorbed from brainwires-skills)
+skills-registry = ["dep:reqwest"]
+skills-signing = ["dep:ed25519-dalek", "dep:rand_core"]
 
 [[example]]
 name = "agent_pool"

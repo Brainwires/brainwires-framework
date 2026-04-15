@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
-use brainwires_channels::ChannelCapabilities;
+use brainwires_network::channels::ChannelCapabilities;
 
 /// A connected channel adapter with its WebSocket send handle.
 pub struct ConnectedChannel {

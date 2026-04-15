@@ -1,4 +1,4 @@
-import { assertEquals, assertThrows } from "jsr:@std/assert";
+import { assertEquals, assertThrows } from "@std/assert";
 import { FileLockManager } from "./file_locks.ts";
 
 Deno.test("acquire write lock", () => {

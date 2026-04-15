@@ -49,7 +49,7 @@
 
 use super::{QueryPattern, ResolvedReference, SealProcessingResult};
 use anyhow::Result;
-use brainwires_cognition::knowledge::bks_pks::{
+use brainwires_knowledge::knowledge::bks_pks::{
     BehavioralKnowledgeCache, BehavioralTruth, PersonalKnowledgeCache, TruthCategory, TruthSource,
 };
 use std::sync::Arc;

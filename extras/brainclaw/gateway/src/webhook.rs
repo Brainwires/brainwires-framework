@@ -8,7 +8,7 @@ use axum::Json;
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
-use brainwires_channels::events::ChannelEvent;
+use brainwires_network::channels::events::ChannelEvent;
 
 use crate::state::AppState;
 

@@ -1,7 +1,7 @@
 /**
  * Tests for anomaly.ts — mirrors Rust tests in anomaly.rs
  */
-import { assertEquals, assert } from "jsr:@std/assert";
+import { assertEquals, assert } from "@std/assert";
 import { AnomalyDetector, defaultAnomalyConfig } from "./anomaly.ts";
 import { createAuditEvent, withAgent, withAction, withTarget, withOutcome } from "./audit.ts";
 import type { AuditEventType } from "./audit.ts";

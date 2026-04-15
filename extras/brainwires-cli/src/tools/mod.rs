@@ -1,6 +1,6 @@
 // Tools module - built-in tool implementations
 //
-// Re-exports from the brainwires-tool-system framework crate, plus CLI-specific tools.
+// Re-exports from the brainwires-tools framework crate, plus CLI-specific tools.
 #![allow(hidden_glob_reexports)]
 
 pub use brainwires::tools::*;
@@ -29,5 +29,5 @@ pub use task_manager::*;
 pub use validation_tools::*;
 
 // Explicitly re-export the CLI's concrete ToolExecutor struct so it shadows
-// the brainwires_tool_system::ToolExecutor trait that enters via the glob above.
+// the brainwires_tools::ToolExecutor trait that enters via the glob above.
 pub use executor::ToolExecutor;

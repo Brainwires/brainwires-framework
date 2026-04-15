@@ -3,6 +3,7 @@ members = [
     "daemon",
     "gateway",
     "mcp-discord",
+    "mcp-github",
     "mcp-telegram",
     "mcp-slack",
     "mcp-skill-registry",
@@ -28,12 +29,12 @@ publish = false
 brainwires-core = { path = "../../crates/brainwires-core" }
 brainwires-agents = { path = "../../crates/brainwires-agents" }
 brainwires-providers = { path = "../../crates/brainwires-providers" }
-brainwires-tool-system = { path = "../../crates/brainwires-tool-system" }
-brainwires-channels = { path = "../../crates/brainwires-channels" }
-brainwires-skills = { path = "../../crates/brainwires-skills", features = ["registry"] }
+brainwires-tools = { path = "../../crates/brainwires-tools", version = "0.8.0" }
+brainwires-network = { path = "../../crates/brainwires-network", features = ["channels"] }
+# skills now part of brainwires-agents
 brainwires-hardware = { path = "../../crates/brainwires-hardware" }
 brainwires-gateway = { path = "gateway" }
-brainwires-analytics = { path = "../../crates/brainwires-analytics", default-features = false }
+brainwires-telemetry = { path = "../../crates/brainwires-telemetry", default-features = false }
 
 # Async runtime & utilities
 tokio = { version = "1.43", features = ["full"] }

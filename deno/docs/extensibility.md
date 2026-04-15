@@ -11,15 +11,15 @@ This guide covers how to extend the Brainwires framework by implementing key int
 | `VectorStore` | `@brainwires/core` | Embedding storage and search |
 | `StorageBackend` | `@brainwires/storage` | Record persistence backend |
 | `VectorDatabase` | `@brainwires/storage` | Storage + vector search |
-| `ToolExecutor` | `@brainwires/tool-system` | Custom tool execution backend |
-| `ToolPreHook` | `@brainwires/tool-system` | Pre-execution tool gate |
+| `ToolExecutor` | `@brainwires/tools` | Custom tool execution backend |
+| `ToolPreHook` | `@brainwires/tools` | Pre-execution tool gate |
 | `AgentRuntime` | `@brainwires/agents` | Custom agent execution loop |
 | `LifecycleHook` | `@brainwires/core` | Framework event interception |
 | `OutputParser` | `@brainwires/core` | Structured LLM output parsing |
-| `BrainClient` | `@brainwires/cognition` | Knowledge storage interface |
-| `RagClient` | `@brainwires/cognition` | Semantic code search interface |
-| `Middleware` | `@brainwires/agent-network` | MCP server request processing |
-| `Discovery` | `@brainwires/agent-network` | Peer discovery protocol |
+| `BrainClient` | `@brainwires/knowledge` | Knowledge storage interface |
+| `RagClient` | `@brainwires/knowledge` | Semantic code search interface |
+| `Middleware` | `@brainwires/network` | MCP server request processing |
+| `Discovery` | `@brainwires/network` | Peer discovery protocol |
 | `A2aHandler` | `@brainwires/a2a` | A2A agent server handler |
 
 ## Custom Provider
@@ -83,10 +83,10 @@ Pass it to any domain store: `new MessageStore(new RedisBackend())`.
 
 ## Custom Tools
 
-Implement `ToolExecutor` from `@brainwires/tool-system`:
+Implement `ToolExecutor` from `@brainwires/tools`:
 
 ```ts
-import type { ToolExecutor } from "@brainwires/tool-system";
+import type { ToolExecutor } from "@brainwires/tools";
 import { ToolResult, type Tool, type ToolUse, objectSchema } from "@brainwires/core";
 
 const databaseTool: Tool = {
@@ -137,7 +137,7 @@ import {
   middlewareContinue,
   middlewareReject,
   RequestContext,
-} from "@brainwires/agent-network";
+} from "@brainwires/network";
 
 class MetricsMiddleware implements Middleware {
   async process(ctx: RequestContext): Promise<MiddlewareResult> {
@@ -181,10 +181,10 @@ throw FrameworkError.storageSchema("my-store", "Missing table");
 ## Where to Define Extensions
 
 - **Types and interfaces** -- `@brainwires/core`
-- **Tool implementations** -- `@brainwires/tool-system`
+- **Tool implementations** -- `@brainwires/tools`
 - **Agent coordination** -- `@brainwires/agents`
 - **Storage backends** -- `@brainwires/storage`
-- **Network components** -- `@brainwires/agent-network`
+- **Network components** -- `@brainwires/network`
 
 ## Further Reading
 

@@ -5,7 +5,7 @@ use clap::{Parser, Subcommand};
 use matrix_sdk::{Client, config::SyncSettings};
 use tokio::sync::mpsc;
 
-use brainwires_channels::Channel;
+use brainwires_network::channels::Channel;
 use brainwires_matrix_channel::config::MatrixConfig;
 use brainwires_matrix_channel::event_handler::register_handlers;
 use brainwires_matrix_channel::gateway_client::GatewayClient;

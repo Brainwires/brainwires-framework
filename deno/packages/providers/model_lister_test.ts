@@ -1,6 +1,6 @@
-import { assertEquals } from "https://deno.land/std@0.224.0/assert/assert_equals.ts";
-import { assert } from "https://deno.land/std@0.224.0/assert/assert.ts";
-import { assertThrows } from "https://deno.land/std@0.224.0/assert/assert_throws.ts";
+import { assertEquals } from "@std/assert/equals";
+import { assert } from "@std/assert/assert";
+import { assertThrows } from "@std/assert";
 import {
   createModelLister,
   isChatCapable,

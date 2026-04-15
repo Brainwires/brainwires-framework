@@ -23,8 +23,8 @@ pub struct AnthropicChatProvider {
     client: Arc<AnthropicClient>,
     model: String,
     provider_name: String,
-    #[cfg(feature = "analytics")]
-    analytics_collector: Option<std::sync::Arc<brainwires_analytics::AnalyticsCollector>>,
+    #[cfg(feature = "telemetry")]
+    analytics_collector: Option<std::sync::Arc<brainwires_telemetry::AnalyticsCollector>>,
 }
 
 impl AnthropicChatProvider {
@@ -34,7 +34,7 @@ impl AnthropicChatProvider {
             client,
             model,
             provider_name: "anthropic".to_string(),
-            #[cfg(feature = "analytics")]
+            #[cfg(feature = "telemetry")]
             analytics_collector: None,
         }
     }
@@ -49,10 +49,10 @@ impl AnthropicChatProvider {
     }
 
     /// Attach an analytics collector to this provider.
-    #[cfg(feature = "analytics")]
+    #[cfg(feature = "telemetry")]
     pub fn with_analytics(
         mut self,
-        collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>,
+        collector: std::sync::Arc<brainwires_telemetry::AnalyticsCollector>,
     ) -> Self {
         self.analytics_collector = Some(collector);
         self
@@ -211,13 +211,13 @@ impl Provider for AnthropicChatProvider {
             stream: false,
         };
 
-        #[cfg(feature = "analytics")]
+        #[cfg(feature = "telemetry")]
         let _started = std::time::Instant::now();
         let anthropic_response = self.client.messages(&req).await?;
         let chat_response = Self::parse_response(anthropic_response);
-        #[cfg(feature = "analytics")]
+        #[cfg(feature = "telemetry")]
         if let Some(ref collector) = self.analytics_collector {
-            use brainwires_analytics::AnalyticsEvent;
+            use brainwires_telemetry::AnalyticsEvent;
             collector.record(AnalyticsEvent::ProviderCall {
                 session_id: None,
                 provider: self.provider_name.clone(),

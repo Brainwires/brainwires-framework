@@ -16,7 +16,7 @@ use brainwires_agents::brainwires_core::{
     ChatOptions, ChatResponse, Message, Provider, StreamChunk, Task, Tool, ToolContext, ToolResult,
     ToolUse, Usage,
 };
-use brainwires_agents::brainwires_tool_system::ToolExecutor;
+use brainwires_agents::brainwires_tools::ToolExecutor;
 use brainwires_agents::{
     AgentMessage, AgentPool, CommunicationHub, FileLockManager, LockType, TaskAgentConfig,
 };

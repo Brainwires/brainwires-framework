@@ -1,5 +1,5 @@
-use brainwires_cognition::knowledge::brain_client::BrainClient;
-use brainwires_cognition::knowledge::types::*;
+use brainwires_knowledge::knowledge::brain_client::BrainClient;
+use brainwires_knowledge::knowledge::types::*;
 
 use anyhow::{Context, Result};
 use rmcp::{
@@ -17,6 +17,7 @@ use tokio::sync::Mutex;
 pub struct BrainMcpServer {
     client: Arc<Mutex<BrainClient>>,
     tool_router: ToolRouter<Self>,
+    #[allow(dead_code)]
     prompt_router: PromptRouter<Self>,
 }
 

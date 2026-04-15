@@ -12,19 +12,14 @@ import type {
   ConfigSummary,
   DecomposeContext,
   DecompositionResult,
-  DecompositionStrategy,
   EarlyStoppingConfig,
   MdapEstimate,
   MicroagentConfig,
-  MicroagentProvider,
-  MicroagentResponse,
   ModelCosts,
   OutputFormat,
   RedFlagConfig,
-  RedFlagReason,
   RedFlagResult,
   ResponseMetadata,
-  SampledResponse,
   Subtask,
   SubtaskMetric,
   SubtaskOutput,
@@ -54,7 +49,7 @@ const CONSERVATIVE_MIN_VOTES = 5;
 const CONSERVATIVE_MAX_VARIANCE_THRESHOLD = 0.1;
 const CONSERVATIVE_MIN_WEIGHTED_CONFIDENCE = 0.85;
 
-const DEFAULT_BATCH_SIZE = 4;
+const _DEFAULT_BATCH_SIZE = 4;
 
 // ---------------------------------------------------------------------------
 // Early stopping presets

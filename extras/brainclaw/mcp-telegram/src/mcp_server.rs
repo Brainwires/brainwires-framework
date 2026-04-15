@@ -13,7 +13,7 @@ use rmcp::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use brainwires_channels::{Channel, ChannelMessage, ConversationId, MessageContent, MessageId};
+use brainwires_network::channels::{Channel, ChannelMessage, ConversationId, MessageContent, MessageId};
 
 use crate::telegram::TelegramChannel;
 

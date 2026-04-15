@@ -24,8 +24,8 @@ use brainwires_core::{
 pub struct GoogleChatProvider {
     client: Arc<GoogleClient>,
     model: String,
-    #[cfg(feature = "analytics")]
-    analytics_collector: Option<std::sync::Arc<brainwires_analytics::AnalyticsCollector>>,
+    #[cfg(feature = "telemetry")]
+    analytics_collector: Option<std::sync::Arc<brainwires_telemetry::AnalyticsCollector>>,
 }
 
 impl GoogleChatProvider {
@@ -34,16 +34,16 @@ impl GoogleChatProvider {
         Self {
             client,
             model,
-            #[cfg(feature = "analytics")]
+            #[cfg(feature = "telemetry")]
             analytics_collector: None,
         }
     }
 
     /// Attach an analytics collector to this provider.
-    #[cfg(feature = "analytics")]
+    #[cfg(feature = "telemetry")]
     pub fn with_analytics(
         mut self,
-        collector: std::sync::Arc<brainwires_analytics::AnalyticsCollector>,
+        collector: std::sync::Arc<brainwires_telemetry::AnalyticsCollector>,
     ) -> Self {
         self.analytics_collector = Some(collector);
         self
@@ -212,7 +212,7 @@ impl Provider for GoogleChatProvider {
         options: &ChatOptions,
     ) -> Result<ChatResponse> {
         let request = Self::build_request(messages, tools, options);
-        #[cfg(feature = "analytics")]
+        #[cfg(feature = "telemetry")]
         let _started = std::time::Instant::now();
         let gemini_response = if let Some(ref override_model) = options.model {
             self.client
@@ -249,9 +249,9 @@ impl Provider for GoogleChatProvider {
             usage,
             finish_reason: Some(candidate.finish_reason),
         };
-        #[cfg(feature = "analytics")]
+        #[cfg(feature = "telemetry")]
         if let Some(ref collector) = self.analytics_collector {
-            use brainwires_analytics::AnalyticsEvent;
+            use brainwires_telemetry::AnalyticsEvent;
             collector.record(AnalyticsEvent::ProviderCall {
                 session_id: None,
                 provider: "google".to_string(),

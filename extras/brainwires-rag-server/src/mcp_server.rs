@@ -1,5 +1,5 @@
-use brainwires_cognition::rag::client::RagClient;
-use brainwires_cognition::rag::types::*;
+use brainwires_knowledge::rag::client::RagClient;
+use brainwires_knowledge::rag::types::*;
 
 use anyhow::{Context, Result};
 use rmcp::{
@@ -39,6 +39,7 @@ impl Drop for CancelOnDropGuard {
 pub struct RagMcpServer {
     client: Arc<RagClient>,
     tool_router: ToolRouter<Self>,
+    #[allow(dead_code)]
     prompt_router: PromptRouter<Self>,
 }
 
@@ -64,7 +65,7 @@ impl RagMcpServer {
     }
 
     /// Create a new RAG MCP server with custom configuration
-    pub async fn with_config(config: brainwires_cognition::rag::config::Config) -> Result<Self> {
+    pub async fn with_config(config: brainwires_knowledge::rag::config::Config) -> Result<Self> {
         let client = RagClient::with_config(config).await?;
         Self::with_client(Arc::new(client))
     }
@@ -88,7 +89,7 @@ impl RagMcpServer {
         cancel_token: Option<CancellationToken>,
     ) -> Result<IndexResponse> {
         let cancel_token = cancel_token.unwrap_or_default();
-        brainwires_cognition::rag::client::indexing::do_index_smart(
+        brainwires_knowledge::rag::client::indexing::do_index_smart(
             &self.client,
             path,
             project,
@@ -129,7 +130,7 @@ impl RagMcpServer {
         // Use a guard to cancel on drop
         let _cancel_guard = CancelOnDropGuard::new(cancel_token);
 
-        let response = brainwires_cognition::rag::client::indexing::do_index_smart(
+        let response = brainwires_knowledge::rag::client::indexing::do_index_smart(
             &self.client,
             req.path,
             req.project,

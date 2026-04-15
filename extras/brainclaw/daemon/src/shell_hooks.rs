@@ -35,7 +35,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use brainwires_core::ToolContext;
 use brainwires_core::lifecycle::{HookResult, LifecycleEvent, LifecycleHook};
-use brainwires_tool_system::{PreHookDecision, ToolPreHook};
+use brainwires_tools::{PreHookDecision, ToolPreHook};
 use brainwires_core::ToolUse;
 use serde_json::json;
 use tokio::io::AsyncWriteExt;

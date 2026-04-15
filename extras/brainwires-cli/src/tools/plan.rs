@@ -171,13 +171,20 @@ impl PlanTool {
         let config = TaskAgentConfig {
             max_iterations: params.max_iterations,
             permission_mode: PermissionMode::ReadOnly,
-            system_prompt: Some(Self::planning_system_prompt(&working_dir)),
+            system_prompt: Some(crate::system_prompts::planning_agent_system_prompt(
+                &working_dir,
+            )),
             temperature: 0.7,
             max_tokens: 4096,
             validation_config: None, // No validation for read-only planning agents
             mdap_config: None,       // MDAP not used for planning agents
             analytics_collector: crate::utils::logger::analytics_collector()
                 .map(std::sync::Arc::new),
+            role: None,
+            max_total_tokens: None,
+            max_cost_usd: None,
+            timeout_secs: None,
+            session_budget: None,
         };
 
         // Create task
@@ -268,33 +275,6 @@ impl PlanTool {
 
         Ok(plan.plan_id)
     }
-
-    /// System prompt for the planning agent
-    fn planning_system_prompt(working_dir: &str) -> String {
-        format!(
-            r#"You are a planning agent. Your task is to create a detailed execution plan.
-
-Working Directory: {}
-
-Your role:
-1. Research the codebase using available read-only tools (read_file, list_directory, search_code, query_codebase)
-2. Understand the existing architecture and patterns
-3. Create a comprehensive, step-by-step execution plan
-
-Your plan should include:
-- Clear, numbered steps
-- Dependencies between steps
-- Files that need to be modified or created
-- Potential risks or challenges
-- Testing considerations
-
-Use your tools to explore the codebase before creating the plan. Be thorough in your research.
-
-When you have gathered enough information, provide your final plan in a clear, structured format.
-Do NOT execute any changes - only create the plan."#,
-            working_dir
-        )
-    }
 }
 
 #[cfg(test)]
@@ -318,7 +298,7 @@ mod tests {
 
     #[test]
     fn test_planning_system_prompt() {
-        let prompt = PlanTool::planning_system_prompt("/test/dir");
+        let prompt = crate::system_prompts::planning_agent_system_prompt("/test/dir");
         assert!(prompt.contains("/test/dir"));
         assert!(prompt.contains("read-only"));
         assert!(prompt.contains("Do NOT execute"));

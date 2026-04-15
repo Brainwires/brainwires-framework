@@ -111,3 +111,47 @@ jobs:
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libasound2-dev libssl-dev pkg-config libdbus-1-dev
       - run: cargo doc --workspace --no-deps
+
+  msrv:
+    name: MSRV (Rust 1.91)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.91"
+      - uses: Swatinem/rust-cache@v2
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libasound2-dev libssl-dev pkg-config libdbus-1-dev
+      - name: Check on minimum supported Rust version
+        run: cargo check --workspace
+
+  stubs:
+    name: No stubs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.91"
+      - uses: Swatinem/rust-cache@v2
+      - name: Fail if todo!/unimplemented!/FIXME stubs exist outside tests
+        run: cargo xtask check-stubs crates/ extras/
+
+  deno:
+    name: Deno
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check all Deno packages
+        working-directory: deno
+        run: deno check packages/**/*.ts
+      - name: Lint
+        working-directory: deno
+        run: deno lint packages/
+      - name: Run tests
+        working-directory: deno
+        run: deno test --allow-all tests/

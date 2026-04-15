@@ -1,4 +1,4 @@
-import { assertEquals } from "jsr:@std/assert";
+import { assertEquals } from "@std/assert";
 
 import {
   createUsage,
@@ -32,6 +32,7 @@ class TestAgent implements AgentRuntime {
     return this.maxIters;
   }
 
+  // deno-lint-ignore require-await
   async callProvider(): Promise<ChatResponse> {
     const count = this.callCount++;
     const finish_reason = count >= this.completeAfter ? "end_turn" : undefined;
@@ -51,6 +52,7 @@ class TestAgent implements AgentRuntime {
       response.finish_reason === "stop";
   }
 
+  // deno-lint-ignore require-await
   async executeTool(toolUse: ToolUse): Promise<ToolResult> {
     return new ToolResult(toolUse.id, "ok", false);
   }
@@ -62,6 +64,7 @@ class TestAgent implements AgentRuntime {
   onProviderResponse(_response: ChatResponse): void {}
   onToolResult(_toolUse: ToolUse, _result: ToolResult): void {}
 
+  // deno-lint-ignore require-await
   async onCompletion(response: ChatResponse): Promise<string | undefined> {
     if (
       response.finish_reason === "end_turn" ||
@@ -95,6 +98,7 @@ class ToolUsingAgent implements AgentRuntime {
     return 10;
   }
 
+  // deno-lint-ignore require-await
   async callProvider(): Promise<ChatResponse> {
     const count = this.callCount++;
     if (count === 0) {
@@ -124,7 +128,9 @@ class ToolUsingAgent implements AgentRuntime {
     const content = response.message.content;
     if (!Array.isArray(content)) return [];
     return content
+      // deno-lint-ignore no-explicit-any
       .filter((b: any) => b.type === "tool_use")
+      // deno-lint-ignore no-explicit-any
       .map((b: any) => ({ id: b.id, name: b.name, input: b.input }));
   }
 
@@ -133,12 +139,14 @@ class ToolUsingAgent implements AgentRuntime {
       response.finish_reason === "stop";
   }
 
+  // deno-lint-ignore require-await
   async executeTool(toolUse: ToolUse): Promise<ToolResult> {
     return new ToolResult(toolUse.id, "file contents", false);
   }
 
   getLockRequirement(toolUse: ToolUse): [string, LockType] | undefined {
     if (toolUse.name === "read_file") {
+      // deno-lint-ignore no-explicit-any
       const path = (toolUse.input as any).path as string;
       if (path) return [path, "read"];
     }
@@ -147,6 +155,7 @@ class ToolUsingAgent implements AgentRuntime {
 
   onProviderResponse(_response: ChatResponse): void {}
   onToolResult(_toolUse: ToolUse, _result: ToolResult): void {}
+  // deno-lint-ignore require-await
   async onCompletion(_response: ChatResponse): Promise<string | undefined> {
     return "Done!";
   }
@@ -169,6 +178,7 @@ class LoopingAgent implements AgentRuntime {
     return 100;
   }
 
+  // deno-lint-ignore require-await
   async callProvider(): Promise<ChatResponse> {
     return {
       message: new Message({
@@ -190,7 +200,9 @@ class LoopingAgent implements AgentRuntime {
     const content = response.message.content;
     if (!Array.isArray(content)) return [];
     return content
+      // deno-lint-ignore no-explicit-any
       .filter((b: any) => b.type === "tool_use")
+      // deno-lint-ignore no-explicit-any
       .map((b: any) => ({ id: b.id, name: b.name, input: b.input }));
   }
 
@@ -198,6 +210,7 @@ class LoopingAgent implements AgentRuntime {
     return false;
   }
 
+  // deno-lint-ignore require-await
   async executeTool(toolUse: ToolUse): Promise<ToolResult> {
     return new ToolResult(toolUse.id, "ok", false);
   }
@@ -208,6 +221,7 @@ class LoopingAgent implements AgentRuntime {
 
   onProviderResponse(_response: ChatResponse): void {}
   onToolResult(_toolUse: ToolUse, _result: ToolResult): void {}
+  // deno-lint-ignore require-await
   async onCompletion(_response: ChatResponse): Promise<string | undefined> {
     return undefined;
   }

@@ -8,7 +8,7 @@
  * @module
  */
 
-import mysql from "npm:mysql2@3/promise";
+import mysql from "mysql2/promise";
 import type { StorageBackend } from "../traits.ts";
 import type {
   FieldDef,

@@ -6,12 +6,13 @@ set -euo pipefail
 # Rate limits for NEW VERSIONS of existing crates (as of 2026):
 #   - Burst: 30 new versions at once
 #   - After burst: 1 crate per minute
-#   - 22 workspace crates total = all within burst → ~5 minutes
+#   - 16 workspace crates total = all within burst → ~5 minutes
 #
-# Strategy: publish all 22 within the burst window with short index-propagation
+# Strategy: publish all 16 within the burst window with short index-propagation
 # delays between each. If we ever exceed 30, fall back to 1/min after burst.
 # Crates are ordered by dependency DAG (leaves first, facade last).
 # Deprecated stubs are published separately after all workspace crates.
+# Non-published extras (brainwires-autonomy, brainwires-wasm) are excluded.
 #
 # Usage:
 #   ./scripts/publish.sh          # Dry run (default)
@@ -21,50 +22,47 @@ DRY_RUN=true
 if [[ "${1:-}" == "--live" ]]; then
     DRY_RUN=false
     echo "=== LIVE PUBLISH MODE ==="
-    echo "This will publish all 22 workspace crates + any unpublished deprecated crates to crates.io."
+    echo "This will publish all 16 workspace crates + any unpublished deprecated crates to crates.io."
     echo "Estimated time: ~5 minutes (burst 30, then 1/min)"
     echo "Press Ctrl+C within 5 seconds to abort..."
     sleep 5
 fi
 
-# All 20 workspace crates in strict dependency order (leaves → facade).
+# 16 publishable workspace crates in strict dependency order (leaves → facade).
 # Within each layer, crates have no mutual dependencies.
+# Excluded (publish = false): brainwires-autonomy, brainwires-wasm
+# Excluded (webrtc git-only dep): brainwires-channels (tombstone only)
 CRATES=(
-    # Layer 1: Leaf crates (no internal deps)
+    # Layer 0: Contracts
     brainwires-core
-    brainwires-a2a
-    brainwires-code-interpreters
-    brainwires-skills
-    brainwires-analytics
-    brainwires-system
 
-    # Layer 2: Depend only on core (or leaf crates)
-    brainwires-mcp
-    brainwires-mcp-server
-    brainwires-permissions
-    brainwires-datasets
+    # Layer 1: Infrastructure (no brainwires deps except core)
     brainwires-providers
     brainwires-storage
-
-    # Layer 3: Cognition (core + storage)
-    brainwires-cognition
-
-    # Layer 4: Tool & network layer
-    brainwires-tool-system
-    brainwires-agent-network
     brainwires-hardware
+    brainwires-telemetry
+
+    # Layer 2: Protocols (dep: core only)
+    brainwires-mcp
+    brainwires-mcp-server
+    brainwires-a2a
+
+    # Layer 3: Intelligence (reasoning before knowledge — knowledge may dep on storage)
+    brainwires-reasoning
+    brainwires-knowledge
+
+    # Layer 4: Action
+    brainwires-tools
+    brainwires-permissions
+
+    # Layer 5: Agency
+    brainwires-agents
+    brainwires-network
+
+    # Layer 6: Training
     brainwires-training
 
-    # Layer 5: Agents (depends on tool-system, cognition, agent-network)
-    brainwires-agents
-    # brainwires-channels  # excluded: optional webrtc feature depends on git-only fork (0.20.0-alpha.1)
-    brainwires-wasm
-
-    # Layer 6: Top-level (depends on agents, cognition, training)
-    brainwires-autonomy
-    brainwires-proxy
-
-    # Layer 7: Facade (must be last)
+    # Facade (must be last)
     brainwires
 )
 

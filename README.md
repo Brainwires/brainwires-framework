@@ -1,10 +1,18 @@
 # Brainwires Framework
 
+[![CI](https://github.com/Brainwires/brainwires-framework/actions/workflows/ci.yml/badge.svg)](https://github.com/Brainwires/brainwires-framework/actions/workflows/ci.yml)
+[![Crates.io](https://img.shields.io/crates/v/brainwires.svg)](https://crates.io/crates/brainwires)
+[![Documentation](https://docs.rs/brainwires/badge.svg)](https://docs.rs/brainwires)
+[![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](#testing)
+[![Lines of Code](https://img.shields.io/badge/loc-112k-blue)](#)
+[![License](https://img.shields.io/badge/license-MIT%20%7C%20Apache--2.0-blue)](https://github.com/Brainwires/brainwires-framework/blob/main/LICENSE-MIT)
+[![Rust](https://img.shields.io/badge/rust-1.91%2B%20%7C%202024%20edition-orange)](https://www.rust-lang.org/)
+
 A modular Rust framework for building AI agents with multi-provider support, tool orchestration, MCP integration, and pluggable agent networking.
 
 ## Overview
 
-The Brainwires Framework is a workspace of 20 framework crates plus 13 extras that provide everything needed to build, train, deploy, and coordinate AI agents. Each framework crate is independently publishable to crates.io and usable standalone, but they compose together through the `brainwires` facade crate for a batteries-included experience.
+The Brainwires Framework is a workspace of 16 framework crates plus 20 extras that provide everything needed to build, train, deploy, and coordinate AI agents. Each framework crate is independently publishable to crates.io and usable standalone, but they compose together through the `brainwires` facade crate for a batteries-included experience.
 
 **[Full feature list](FEATURES.md)** | **Key capabilities:**
 
@@ -26,7 +34,7 @@ The Brainwires Framework is a workspace of 20 framework crates plus 13 extras th
   │                                                            │
   │  ┌───────────┐ ┌────────────┐ ┌───────────┐ ┌───────────┐  │
   │  │  agents   │ │  providers │ │  storage  │ │    mcp    │  │
-  │  │  mdap     │ │tool-system │ │ cognition │ │agent-net  │  │
+  │  │  mdap     │ │   tools    │ │ knowledge │ │  network  │  │
   │  └─────┬─────┘ └──────┬─────┘ └─────┬─────┘ └─────┬─────┘  │
   │        │              │             │             │        │
   │        └──────────────┴─────────────┴─────────────┘        │
@@ -37,13 +45,9 @@ The Brainwires Framework is a workspace of 20 framework crates plus 13 extras th
   │                     └─────────────┘                        │
   │                                                            │
   │  ┌──────────┐ ┌────────────┐ ┌───────────┐ ┌───────────┐   │
-  │  │  skills  │ │  datasets  │ │ training  │ │   audio   │   │
-  │  │code-inter│ │  autonomy  │ │    a2a    │ │    wasm   │   │
+  │  │reasoning │ │  training  │ │ telemetry │ │   audio   │   │
+  │  │ hardware │ │    a2a     │ │mcp-server │ │           │   │
   │  └──────────┘ └────────────┘ └───────────┘ └───────────┘   │
-  │                                                            │
-  │  ┌──────────────┐ ┌────────────────────────────────────┐   │
-  │  │  channels    │ │        mcp-server                  │   │
-  │  └──────────────┘ └────────────────────────────────────┘   │
   └────────────────────────────────────────────────────────────┘
 ```
 
@@ -54,22 +58,18 @@ The Brainwires Framework is a workspace of 20 framework crates plus 13 extras th
 | [**brainwires**](crates/brainwires/README.md) | Facade crate — re-exports all other crates behind feature flags |
 | [**brainwires-core**](crates/brainwires-core/README.md) | Core types, traits, and error handling shared by all crates |
 | [**brainwires-providers**](crates/brainwires-providers/README.md) | Multi-provider AI interface (Anthropic, OpenAI, Google, Ollama, local LLMs) |
-| [**brainwires-tool-system**](crates/brainwires-tool-system/README.md) | Tool definitions and execution for AI model interactions |
-| [**brainwires-agents**](crates/brainwires-agents/README.md) | Multi-agent orchestration, task decomposition, file lock coordination |
-| [**brainwires-cognition**](crates/brainwires-cognition/README.md) | Knowledge (BKS/PKS, entity graphs), prompting (technique library, clustering), and RAG (code search, hybrid retrieval) |
+| [**brainwires-tools**](crates/brainwires-tools/README.md) | Tool definitions, execution, interpreters, and system primitives for AI model interactions |
+| [**brainwires-agents**](crates/brainwires-agents/README.md) | Multi-agent orchestration, task decomposition, file lock coordination, skills and slash commands |
+| [**brainwires-knowledge**](crates/brainwires-knowledge/README.md) | Knowledge (BKS/PKS, entity graphs), prompting (technique library, clustering), and RAG (code search, hybrid retrieval) |
 | [**brainwires-storage**](crates/brainwires-storage/README.md) | Unified database layer (9 backends), tiered memory, semantic search |
 | [**brainwires-permissions**](crates/brainwires-permissions/README.md) | Permission policies (auto, ask, reject) for tool execution |
 | [**brainwires-mcp**](crates/brainwires-mcp/README.md) | MCP client — connect to external MCP servers and use their tools |
-| [**brainwires-agent-network**](crates/brainwires-agent-network/README.md) | Agent networking — MCP server, IPC, remote bridge, 5-layer protocol stack (transport, routing, discovery) |
-| [**brainwires-skills**](crates/brainwires-skills/README.md) | Skill definitions and slash command registry |
-| [**brainwires-code-interpreters**](crates/brainwires-code-interpreters/README.md) | Sandboxed JavaScript and Python code execution |
-| [**brainwires-wasm**](crates/brainwires-wasm/README.md) | WASM bindings for browser-based agent deployment |
-| [**brainwires-hardware**](crates/brainwires-hardware/README.md) | Hardware I/O — audio (STT/TTS), GPIO, Bluetooth, network discovery, camera/webcam capture, raw USB transfers |
-| [**brainwires-datasets**](crates/brainwires-datasets/README.md) | Training data pipelines — JSONL I/O, tokenization, dedup, format conversion |
-| [**brainwires-training**](crates/brainwires-training/README.md) | Cloud fine-tuning (6 providers) and local LoRA/QLoRA/DoRA via Burn |
-| [**brainwires-autonomy**](crates/brainwires-autonomy/README.md) | Self-improvement strategies, evaluation-driven optimization, supervisor agents |
+| [**brainwires-network**](crates/brainwires-network/README.md) | Agent networking — MCP server, IPC, remote bridge, channels, WebRTC, 5-layer protocol stack |
+| [**brainwires-reasoning**](crates/brainwires-reasoning/README.md) | Reasoning strategies — re-exports from core |
+| [**brainwires-hardware**](crates/brainwires-hardware/README.md) | Hardware I/O — audio (STT/TTS), GPIO, Bluetooth, Matter (experimental PASE), home automation, camera/webcam, raw USB |
+| [**brainwires-training**](crates/brainwires-training/README.md) | Training data pipelines, cloud fine-tuning (6 providers), and local LoRA/QLoRA/DoRA via Burn |
+| [**brainwires-telemetry**](crates/brainwires-telemetry/README.md) | OutcomeMetrics, Prometheus export, billing hooks |
 | [**brainwires-a2a**](crates/brainwires-a2a/README.md) | Agent-to-Agent protocol — JSON-RPC 2.0, HTTP/REST, and gRPC bindings |
-| [**brainwires-channels**](crates/brainwires-channels/README.md) | Universal messaging channel contract — `Channel` trait, message types, events, capabilities |
 | [**brainwires-mcp-server**](crates/brainwires-mcp-server/README.md) | MCP server framework — build MCP tool servers with composable middleware; `http` feature adds stateless HTTP+SSE transport, Server Cards (SEP-1649), RFC9728, and Tasks (SEP-1686); `oauth` feature adds JWT validation middleware |
 
 ### Extras
@@ -89,6 +89,15 @@ The Brainwires Framework is a workspace of 20 framework crates plus 13 extras th
 | [**brainwires-telegram-channel**](extras/brainclaw/mcp-telegram/README.md) | Telegram channel adapter — teloxide-based, optional MCP server mode |
 | [**brainwires-slack-channel**](extras/brainclaw/mcp-slack/README.md) | Slack channel adapter — Socket Mode (no public URL), optional MCP server mode |
 | [**brainwires-skill-registry**](extras/brainclaw/mcp-skill-registry/README.md) | Skill registry HTTP server — SQLite FTS5, publish/search/download endpoints |
+| [**brainclaw-mcp-github**](extras/brainclaw/mcp-github/README.md) | GitHub channel adapter — webhook receiver, REST API, MCP server mode |
+| [**brainwires-memory-service**](extras/brainwires-memory-service/README.md) | Mem0-compatible memory REST API backed by Brainwires storage |
+| [**matter-tool**](extras/matter-tool/README.md) | Brainwires-native Matter CLI (experimental) — PASE pairing, mDNS discovery, basic control |
+| [**claude-brain**](extras/claude-brain/README.md) | Brainwires context management for Claude Code — persistent context across compaction |
+| [**brainwires-cli**](extras/brainwires-cli/README.md) | AI-powered agentic CLI tool for autonomous coding assistance |
+| [**brainwires-issues**](extras/brainwires-issues/README.md) | MCP-native issue tracking server |
+| [**brainwires-scheduler**](extras/brainwires-scheduler/README.md) | MCP server for cron scheduling |
+| [**brainwires-autonomy**](extras/brainwires-autonomy/README.md) | Autonomous agent operations |
+| [**brainwires-wasm**](extras/brainwires-wasm/README.md) | WASM browser bindings |
 
 ## Getting Started
 
@@ -105,7 +114,7 @@ The simplest way to use the framework is through the `brainwires` facade crate, 
 
 ```toml
 [dependencies]
-brainwires = "0.8"  # defaults: tools + agents
+brainwires = "0.9"  # defaults: tools + agents
 ```
 
 Enable only what you need:
@@ -121,9 +130,9 @@ Each crate is independently publishable and usable:
 
 ```toml
 [dependencies]
-brainwires-core = "0.8"
-brainwires-providers = "0.8"
-brainwires-agents = "0.8"
+brainwires-core = "0.9"
+brainwires-providers = "0.9"
+brainwires-agents = "0.9"
 ```
 
 ### Minimal Example
@@ -160,21 +169,22 @@ The `brainwires` facade crate exposes feature flags corresponding to each sub-cr
 | Feature | Default | What it enables |
 |---------|---------|-----------------|
 | `core` | Always | Core types and traits (not feature-gated) |
-| `tools` | Yes | Tool definitions and execution |
-| `agents` | Yes | Multi-agent orchestration |
+| `tools` | Yes | Tool definitions, execution, and interpreters (`brainwires-tools`) |
+| `agents` | Yes | Multi-agent orchestration, skills (`brainwires-agents`) |
 | `providers` | No | AI provider integrations |
 | `storage` | No | Vector storage and semantic search |
 | `mcp` | No | MCP client support |
-| `agent-network` | No | Agent networking (IPC, remote bridge, 5-layer protocol stack) |
-| `channels` | No | Messaging channel contract types (Channel trait, message/event types) |
+| `agent-network` | No | Agent networking — IPC, remote bridge, channels, 5-layer protocol stack (`brainwires-network`) |
 | `mcp-server-framework` | No | MCP server building blocks (McpServer, McpHandler, middleware pipeline) |
 | `rag` | No | RAG engine with code search |
 | `audio` | No | Audio capture, STT, TTS |
-| `datasets` | No | Training data pipelines |
 | `training` | No | Model fine-tuning (cloud + local) |
+| `datasets` | No | Training data pipelines (delegates to `brainwires-training`) |
+| `telemetry` | No | OutcomeMetrics, Prometheus export, billing hooks |
+| `reasoning` | No | Reasoning strategies (re-exports from core) |
 | `mesh` | No | Mesh networking (via `agent-network` mesh feature) |
 | `a2a` | No | Agent-to-Agent protocol |
-| `wasm` | No | WASM browser bindings |
+| `wasm` | No | WASM core bindings |
 | `researcher` | No | Bundle: providers + agents + storage + rag + training + datasets |
 
 ## Building
@@ -202,32 +212,30 @@ cargo test -p brainwires-core
   brainwires (facade)
   ├── brainwires-agents
   │   ├── brainwires-core
-  │   ├── brainwires-tool-system
-  │   └── brainwires-cognition (seal-knowledge feature)
-  ├── brainwires-cognition
+  │   ├── brainwires-tools
+  │   └── brainwires-knowledge (seal-knowledge feature)
+  ├── brainwires-knowledge
   │   ├── brainwires-core
   │   └── brainwires-storage (knowledge feature)
   ├── brainwires-storage
   │   └── brainwires-core
   ├── brainwires-mcp
   │   └── brainwires-core
-  ├── brainwires-agent-network
+  ├── brainwires-network
   │   ├── brainwires-core
   │   ├── brainwires-mcp
   │   ├── brainwires-mcp-server
   │   └── brainwires-a2a (a2a-transport feature)
   ├── brainwires-mcp-server
   │   └── brainwires-mcp
-  ├── brainwires-channels
-  │   ├── brainwires-core
-  │   └── brainwires-agent-network (agent-network feature, optional)
   ├── brainwires-training
   │   ├── brainwires-core
-  │   ├── brainwires-datasets
   │   └── brainwires-providers (cloud feature)
+  ├── brainwires-telemetry
+  │   └── brainwires-core
   └── brainwires-hardware
       ├── brainwires-providers (audio feature, optional)
-      └── (standalone for gpio, bluetooth, network modules)
+      └── (standalone for gpio, bluetooth, matter, home automation)
 ```
 
 ## License

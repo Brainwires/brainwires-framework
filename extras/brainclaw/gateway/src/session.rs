@@ -6,7 +6,7 @@ use chrono::Utc;
 use dashmap::DashMap;
 use uuid::Uuid;
 
-use brainwires_channels::identity::{ChannelSession, ChannelUser};
+use brainwires_network::channels::identity::{ChannelSession, ChannelUser};
 
 /// Manages the mapping of (platform, platform_user_id) to agent sessions.
 pub struct SessionManager {

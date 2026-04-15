@@ -5,4 +5,6 @@ Cargo.lock
 .DS_Store
 # Legacy: fastembed now stores models in ~/.brainwires/cache/fastembed/
 .fastembed_cache/
-.cache/
+.cache/.claude/
+.mcp.json
+CLAUDE_CODE_INTEGRATION.md

@@ -6,8 +6,8 @@ use anyhow::{Result, bail};
 use async_trait::async_trait;
 use uuid::Uuid;
 
-use brainwires_channels::events::ChannelEvent;
-use brainwires_channels::message::MessageContent;
+use brainwires_network::channels::events::ChannelEvent;
+use brainwires_network::channels::message::MessageContent;
 
 use crate::channel_registry::ChannelRegistry;
 use crate::session::SessionManager;
@@ -61,7 +61,7 @@ impl MessageRouter {
                 };
 
                 // Resolve user session from conversation platform info
-                let user = brainwires_channels::ChannelUser {
+                let user = brainwires_network::channels::ChannelUser {
                     platform: msg.conversation.platform.clone(),
                     platform_user_id: msg.author.clone(),
                     display_name: msg.author.clone(),
