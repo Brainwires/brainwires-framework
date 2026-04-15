@@ -95,7 +95,13 @@ impl VectorDatabase for LanceDatabase {
         let bm25_docs: Vec<_> = (0..count)
             .map(|i| {
                 let id = current_count + i as u64;
-                (id, contents[i].clone(), metadata[i].file_path.clone())
+                let string_id = format!("{}:{}", metadata[i].file_path, metadata[i].start_line);
+                (
+                    id,
+                    string_id,
+                    contents[i].clone(),
+                    metadata[i].file_path.clone(),
+                )
             })
             .collect();
 
@@ -166,10 +172,11 @@ impl VectorDatabase for LanceDatabase {
                 .context("Failed to collect search results")?;
 
             let mut vector_results = Vec::new();
-            let mut row_offset = 0u64;
-            let mut original_scores: HashMap<u64, (f32, Option<f32>)> = HashMap::new();
+            let mut original_scores: HashMap<String, (f32, Option<f32>)> = HashMap::new();
+            // Pre-build lookup: string_id → (batch_index, row_index) for post-fusion resolution
+            let mut id_to_location: HashMap<String, (usize, usize)> = HashMap::new();
 
-            for batch in &results {
+            for (batch_idx, batch) in results.iter().enumerate() {
                 let distance_array = batch
                     .column_by_name("_distance")
                     .context("Missing _distance column")?
@@ -177,14 +184,21 @@ impl VectorDatabase for LanceDatabase {
                     .downcast_ref::<Float32Array>()
                     .context("Invalid _distance type")?;
 
+                let id_array = batch
+                    .column_by_name("id")
+                    .context("Missing id column in vector results")?
+                    .as_any()
+                    .downcast_ref::<StringArray>()
+                    .context("Invalid id column type")?;
+
                 for i in 0..batch.num_rows() {
                     let distance = distance_array.value(i);
                     let score = 1.0 / (1.0 + distance);
-                    let id = row_offset + i as u64;
-                    vector_results.push((id, score));
-                    original_scores.insert(id, (score, None));
+                    let string_id = id_array.value(i).to_string();
+                    vector_results.push((string_id.clone(), score));
+                    original_scores.insert(string_id.clone(), (score, None));
+                    id_to_location.insert(string_id, (batch_idx, i));
                 }
-                row_offset += batch.num_rows() as u64;
             }
 
             let bm25_indexes = self
@@ -201,7 +215,7 @@ impl VectorDatabase for LanceDatabase {
 
                 for result in &bm25_results {
                     original_scores
-                        .entry(result.id)
+                        .entry(result.string_id.clone())
                         .and_modify(|e| e.1 = Some(result.score))
                         .or_insert((0.0, Some(result.score)));
                 }
@@ -220,105 +234,102 @@ impl VectorDatabase for LanceDatabase {
 
             let mut search_results = Vec::new();
 
-            for (id, combined_score) in combined {
-                let mut found = false;
-                let mut batch_offset = 0u64;
+            for (string_id, combined_score) in combined {
+                let Some(&(batch_idx, idx)) = id_to_location.get(&string_id) else {
+                    // BM25-only hit not in vector results — cannot materialize
+                    // without a separate LanceDB lookup (acceptable trade-off for now)
+                    tracing::debug!(
+                        "BM25-only hit '{}' not in vector result batches — skipping",
+                        string_id
+                    );
+                    continue;
+                };
 
-                for batch in &results {
-                    if id >= batch_offset && id < batch_offset + batch.num_rows() as u64 {
-                        let idx = (id - batch_offset) as usize;
+                let batch = &results[batch_idx];
 
-                        let file_path_array = batch
-                            .column_by_name("file_path")
-                            .and_then(|c| c.as_any().downcast_ref::<StringArray>());
-                        let root_path_array = batch
-                            .column_by_name("root_path")
-                            .and_then(|c| c.as_any().downcast_ref::<StringArray>());
-                        let start_line_array = batch
-                            .column_by_name("start_line")
-                            .and_then(|c| c.as_any().downcast_ref::<UInt32Array>());
-                        let end_line_array = batch
-                            .column_by_name("end_line")
-                            .and_then(|c| c.as_any().downcast_ref::<UInt32Array>());
-                        let language_array = batch
-                            .column_by_name("language")
-                            .and_then(|c| c.as_any().downcast_ref::<StringArray>());
-                        let content_array = batch
-                            .column_by_name("content")
-                            .and_then(|c| c.as_any().downcast_ref::<StringArray>());
-                        let project_array = batch
-                            .column_by_name("project")
-                            .and_then(|c| c.as_any().downcast_ref::<StringArray>());
-                        let indexed_at_array = batch
-                            .column_by_name("indexed_at")
-                            .and_then(|c| c.as_any().downcast_ref::<StringArray>());
+                let file_path_array = batch
+                    .column_by_name("file_path")
+                    .and_then(|c| c.as_any().downcast_ref::<StringArray>());
+                let root_path_array = batch
+                    .column_by_name("root_path")
+                    .and_then(|c| c.as_any().downcast_ref::<StringArray>());
+                let start_line_array = batch
+                    .column_by_name("start_line")
+                    .and_then(|c| c.as_any().downcast_ref::<UInt32Array>());
+                let end_line_array = batch
+                    .column_by_name("end_line")
+                    .and_then(|c| c.as_any().downcast_ref::<UInt32Array>());
+                let language_array = batch
+                    .column_by_name("language")
+                    .and_then(|c| c.as_any().downcast_ref::<StringArray>());
+                let content_array = batch
+                    .column_by_name("content")
+                    .and_then(|c| c.as_any().downcast_ref::<StringArray>());
+                let project_array = batch
+                    .column_by_name("project")
+                    .and_then(|c| c.as_any().downcast_ref::<StringArray>());
+                let indexed_at_array = batch
+                    .column_by_name("indexed_at")
+                    .and_then(|c| c.as_any().downcast_ref::<StringArray>());
 
-                        if let (
-                            Some(fp),
-                            Some(rp),
-                            Some(sl),
-                            Some(el),
-                            Some(lang),
-                            Some(cont),
-                            Some(proj),
-                        ) = (
-                            file_path_array,
-                            root_path_array,
-                            start_line_array,
-                            end_line_array,
-                            language_array,
-                            content_array,
-                            project_array,
-                        ) {
-                            let (vector_score, keyword_score) =
-                                original_scores.get(&id).copied().unwrap_or((0.0, None));
+                if let (
+                    Some(fp),
+                    Some(rp),
+                    Some(sl),
+                    Some(el),
+                    Some(lang),
+                    Some(cont),
+                    Some(proj),
+                ) = (
+                    file_path_array,
+                    root_path_array,
+                    start_line_array,
+                    end_line_array,
+                    language_array,
+                    content_array,
+                    project_array,
+                ) {
+                    let (vector_score, keyword_score) = original_scores
+                        .get(&string_id)
+                        .copied()
+                        .unwrap_or((0.0, None));
 
-                            let passes_filter = vector_score >= min_score
-                                || keyword_score.is_some_and(|k| k >= min_score);
+                    let passes_filter =
+                        vector_score >= min_score || keyword_score.is_some_and(|k| k >= min_score);
 
-                            if passes_filter {
-                                let result_root_path = if rp.is_null(idx) {
-                                    None
-                                } else {
-                                    Some(rp.value(idx).to_string())
-                                };
+                    if passes_filter {
+                        let result_root_path = if rp.is_null(idx) {
+                            None
+                        } else {
+                            Some(rp.value(idx).to_string())
+                        };
 
-                                if let Some(ref filter_path) = root_path
-                                    && result_root_path.as_ref() != Some(filter_path)
-                                {
-                                    found = true;
-                                    break;
-                                }
-
-                                search_results.push(SearchResult {
-                                    score: combined_score,
-                                    vector_score,
-                                    keyword_score,
-                                    file_path: fp.value(idx).to_string(),
-                                    root_path: result_root_path,
-                                    start_line: sl.value(idx) as usize,
-                                    end_line: el.value(idx) as usize,
-                                    language: lang.value(idx).to_string(),
-                                    content: cont.value(idx).to_string(),
-                                    project: if proj.is_null(idx) {
-                                        None
-                                    } else {
-                                        Some(proj.value(idx).to_string())
-                                    },
-                                    indexed_at: indexed_at_array
-                                        .and_then(|ia| ia.value(idx).parse::<i64>().ok())
-                                        .unwrap_or(0),
-                                });
-                            }
-                            found = true;
-                            break;
+                        if let Some(ref filter_path) = root_path
+                            && result_root_path.as_ref() != Some(filter_path)
+                        {
+                            continue;
                         }
-                    }
-                    batch_offset += batch.num_rows() as u64;
-                }
 
-                if !found {
-                    tracing::warn!("Could not find result for RRF ID {}", id);
+                        search_results.push(SearchResult {
+                            score: combined_score,
+                            vector_score,
+                            keyword_score,
+                            file_path: fp.value(idx).to_string(),
+                            root_path: result_root_path,
+                            start_line: sl.value(idx) as usize,
+                            end_line: el.value(idx) as usize,
+                            language: lang.value(idx).to_string(),
+                            content: cont.value(idx).to_string(),
+                            project: if proj.is_null(idx) {
+                                None
+                            } else {
+                                Some(proj.value(idx).to_string())
+                            },
+                            indexed_at: indexed_at_array
+                                .and_then(|ia| ia.value(idx).parse::<i64>().ok())
+                                .unwrap_or(0),
+                        });
+                    }
                 }
             }
 
@@ -698,10 +709,16 @@ impl VectorDatabase for LanceDatabase {
         let mut embeddings = Vec::with_capacity(results.len());
 
         for result in &results {
-            let filter = format!(
-                "file_path = '{}' AND start_line = {}",
-                result.file_path, result.start_line
-            );
+            let filter = filter_to_sql(&Filter::And(vec![
+                Filter::Eq(
+                    "file_path".into(),
+                    FieldValue::Utf8(Some(result.file_path.clone())),
+                ),
+                Filter::Eq(
+                    "start_line".into(),
+                    FieldValue::UInt32(Some(result.start_line as u32)),
+                ),
+            ]));
             let stream = table
                 .query()
                 .only_if(filter)

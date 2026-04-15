@@ -11,6 +11,7 @@ use tantivy::{Index, IndexWriter, ReloadPolicy, TantivyDocument, doc};
 pub struct BM25Search {
     index: Index,
     id_field: Field,
+    string_id_field: Field,
     content_field: Field,
     file_path_field: Field,
     /// Path to the index directory (needed for lock cleanup)
@@ -22,8 +23,10 @@ pub struct BM25Search {
 /// Search result from BM25
 #[derive(Debug, Clone)]
 pub struct BM25Result {
-    /// Document identifier.
+    /// Legacy numeric document identifier (Tantivy internal).
     pub id: u64,
+    /// Stable composite key matching the LanceDB `id` column (`"{file_path}:{start_line}"`).
+    pub string_id: String,
     /// BM25 relevance score.
     pub score: f32,
 }
@@ -37,6 +40,7 @@ impl BM25Search {
         // content is TEXT | STORED so documents can be retrieved after indexing.
         let mut schema_builder = Schema::builder();
         let id_field = schema_builder.add_u64_field("id", STORED | INDEXED);
+        let string_id_field = schema_builder.add_text_field("string_id", STRING | STORED);
         let content_field = schema_builder.add_text_field("content", TEXT | STORED);
         let file_path_field = schema_builder.add_text_field("file_path", STRING | STORED);
         let schema = schema_builder.build();
@@ -50,6 +54,7 @@ impl BM25Search {
             // Validate that the on-disk schema matches the expected fields.
             // If it doesn't (e.g. after a schema change), recreate the index.
             let schema_ok = existing.schema().get_field("id").is_ok()
+                && existing.schema().get_field("string_id").is_ok()
                 && existing.schema().get_field("content").is_ok()
                 && existing.schema().get_field("file_path").is_ok();
             if schema_ok {
@@ -74,6 +79,7 @@ impl BM25Search {
         Ok(Self {
             index,
             id_field,
+            string_id_field,
             content_field,
             file_path_field,
             index_path,
@@ -134,8 +140,12 @@ impl BM25Search {
     /// Add documents to the index
     ///
     /// Arguments:
-    /// * `documents` - Vec of (id, content, file_path) tuples
-    pub fn add_documents(&self, documents: Vec<(u64, String, String)>) -> Result<()> {
+    /// * `documents` - Vec of (id, string_id, content, file_path) tuples
+    ///   - `id`: sequential u64 for Tantivy internal use
+    ///   - `string_id`: stable composite key (`"{file_path}:{start_line}"`) for cross-index fusion
+    ///   - `content`: document text
+    ///   - `file_path`: source file path
+    pub fn add_documents(&self, documents: Vec<(u64, String, String, String)>) -> Result<()> {
         // Lock to ensure only one writer at a time (within this process)
         let _guard = self
             .writer_lock
@@ -184,9 +194,10 @@ impl BM25Search {
             }
         };
 
-        for (id, content, file_path) in documents {
+        for (id, string_id, content, file_path) in documents {
             let doc = doc!(
                 self.id_field => id,
+                self.string_id_field => string_id,
                 self.content_field => content,
                 self.file_path_field => file_path,
             );
@@ -236,13 +247,26 @@ impl BM25Search {
                 .doc(doc_address)
                 .context("Failed to retrieve document")?;
 
-            match retrieved_doc
+            let id = retrieved_doc
                 .get_first(self.id_field)
-                .and_then(|v| v.as_u64())
-            {
-                Some(id) => results.push(BM25Result { id, score }),
-                None => tracing::warn!(
-                    "BM25: document at {:?} is missing or has corrupt 'id' field — skipping",
+                .and_then(|v| v.as_u64());
+            let string_id = retrieved_doc
+                .get_first(self.string_id_field)
+                .and_then(|v| match v {
+                    tantivy::schema::OwnedValue::Str(s) => Some(s.to_string()),
+                    _ => None,
+                });
+
+            match (id, string_id) {
+                (Some(id), Some(string_id)) => {
+                    results.push(BM25Result {
+                        id,
+                        string_id,
+                        score,
+                    });
+                }
+                _ => tracing::warn!(
+                    "BM25: document at {:?} is missing id or string_id field — skipping",
                     doc_address
                 ),
             }
@@ -362,10 +386,10 @@ pub struct BM25Stats {
 /// impl SearchScorer for WeightedFusion {
 ///     fn fuse(
 ///         &self,
-///         vector_results: Vec<(u64, f32)>,
+///         vector_results: Vec<(String, f32)>,
 ///         bm25_results: Vec<BM25Result>,
 ///         limit: usize,
-///     ) -> Vec<(u64, f32)> {
+///     ) -> Vec<(String, f32)> {
 ///         // Your custom fusion logic here
 ///         vec![]
 ///     }
@@ -374,17 +398,17 @@ pub struct BM25Stats {
 pub trait SearchScorer: Send + Sync {
     /// Combine vector search and BM25 keyword results into a single ranked list.
     ///
-    /// - `vector_results`: (id, similarity_score) pairs from vector search, sorted by score desc
-    /// - `bm25_results`: keyword search results with raw BM25 scores
+    /// - `vector_results`: (string_id, similarity_score) pairs from vector search, sorted by score desc
+    /// - `bm25_results`: keyword search results with raw BM25 scores and string IDs
     /// - `limit`: maximum number of combined results to return
     ///
-    /// Returns (id, combined_score) pairs sorted by score descending.
+    /// Returns (string_id, combined_score) pairs sorted by score descending.
     fn fuse(
         &self,
-        vector_results: Vec<(u64, f32)>,
+        vector_results: Vec<(String, f32)>,
         bm25_results: Vec<BM25Result>,
         limit: usize,
-    ) -> Vec<(u64, f32)>;
+    ) -> Vec<(String, f32)>;
 }
 
 /// Standard RRF constant (60.0 is the commonly used value from the RRF paper)
@@ -398,25 +422,28 @@ pub struct RrfScorer;
 impl SearchScorer for RrfScorer {
     fn fuse(
         &self,
-        vector_results: Vec<(u64, f32)>,
+        vector_results: Vec<(String, f32)>,
         bm25_results: Vec<BM25Result>,
         limit: usize,
-    ) -> Vec<(u64, f32)> {
+    ) -> Vec<(String, f32)> {
         reciprocal_rank_fusion(vector_results, bm25_results, limit)
     }
 }
 
 /// Reciprocal Rank Fusion (RRF) for combining vector and BM25 results
 ///
-/// This is a convenience wrapper around `reciprocal_rank_fusion_generic` for the common case
-/// of combining vector search results (u64 IDs) with BM25 results.
+/// Uses stable string IDs (`"{file_path}:{start_line}"`) so vector and BM25
+/// results share the same ID space and fuse correctly.
 pub fn reciprocal_rank_fusion(
-    vector_results: Vec<(u64, f32)>,
+    vector_results: Vec<(String, f32)>,
     bm25_results: Vec<BM25Result>,
     k: usize,
-) -> Vec<(u64, f32)> {
-    // Convert BM25 results to the same format as vector results
-    let bm25_tuples: Vec<(u64, f32)> = bm25_results.into_iter().map(|r| (r.id, r.score)).collect();
+) -> Vec<(String, f32)> {
+    // Convert BM25 results to the same format as vector results using string_id
+    let bm25_tuples: Vec<(String, f32)> = bm25_results
+        .into_iter()
+        .map(|r| (r.string_id, r.score))
+        .collect();
 
     // Use the generic implementation
     reciprocal_rank_fusion_generic([vector_results, bm25_tuples], k)
@@ -470,39 +497,53 @@ mod tests {
 
     #[test]
     fn rrf_vector_only_result_ranked_first_gets_highest_score() {
-        let vector_results = vec![(1u64, 0.9), (2u64, 0.8), (3u64, 0.7)];
+        let vector_results = vec![
+            ("a:1".to_string(), 0.9),
+            ("b:2".to_string(), 0.8),
+            ("c:3".to_string(), 0.7),
+        ];
         let result = reciprocal_rank_fusion(vector_results, vec![], 3);
-        // Item 1 should score higher than item 2 (rank 0 vs rank 1)
-        let scores: Vec<u64> = result.iter().map(|(id, _)| *id).collect();
-        assert!(scores.contains(&1));
-        assert!(scores.contains(&2));
-        assert!(scores.contains(&3));
-        // Id 1 was rank 0 -> highest RRF score
-        let id1_score = result.iter().find(|(id, _)| *id == 1).unwrap().1;
-        let id2_score = result.iter().find(|(id, _)| *id == 2).unwrap().1;
+        let scores: Vec<&str> = result.iter().map(|(id, _)| id.as_str()).collect();
+        assert!(scores.contains(&"a:1"));
+        assert!(scores.contains(&"b:2"));
+        assert!(scores.contains(&"c:3"));
+        let id1_score = result.iter().find(|(id, _)| id == "a:1").unwrap().1;
+        let id2_score = result.iter().find(|(id, _)| id == "b:2").unwrap().1;
         assert!(id1_score > id2_score);
     }
 
     #[test]
     fn rrf_limit_caps_result_count() {
-        let vector_results = vec![(1u64, 1.0), (2u64, 0.9), (3u64, 0.8), (4u64, 0.7)];
+        let vector_results = vec![
+            ("a:1".to_string(), 1.0),
+            ("b:2".to_string(), 0.9),
+            ("c:3".to_string(), 0.8),
+            ("d:4".to_string(), 0.7),
+        ];
         let result = reciprocal_rank_fusion(vector_results, vec![], 2);
         assert_eq!(result.len(), 2);
     }
 
     #[test]
     fn rrf_item_in_both_lists_ranks_higher() {
-        // Item 10 appears in both vector and bm25 results
-        let vector_results = vec![(10u64, 0.9), (20u64, 0.8)];
+        // Item "x:10" appears in both vector and bm25 results
+        let vector_results = vec![("x:10".to_string(), 0.9), ("y:20".to_string(), 0.8)];
         let bm25_results = vec![
-            BM25Result { id: 10, score: 0.9 },
-            BM25Result { id: 30, score: 0.7 },
+            BM25Result {
+                id: 10,
+                string_id: "x:10".to_string(),
+                score: 0.9,
+            },
+            BM25Result {
+                id: 30,
+                string_id: "z:30".to_string(),
+                score: 0.7,
+            },
         ];
         let result = reciprocal_rank_fusion(vector_results, bm25_results, 10);
-        // Item 10 should have higher combined score than items in only one list
-        let score_10 = result.iter().find(|(id, _)| *id == 10).unwrap().1;
-        let score_20 = result.iter().find(|(id, _)| *id == 20).unwrap().1;
-        let score_30 = result.iter().find(|(id, _)| *id == 30).unwrap().1;
+        let score_10 = result.iter().find(|(id, _)| id == "x:10").unwrap().1;
+        let score_20 = result.iter().find(|(id, _)| id == "y:20").unwrap().1;
+        let score_30 = result.iter().find(|(id, _)| id == "z:30").unwrap().1;
         assert!(
             score_10 > score_20,
             "item in both lists should beat vector-only"
@@ -534,7 +575,7 @@ mod tests {
     #[test]
     fn rrf_score_for_rank_zero_is_one_over_61() {
         // At rank 0 (first item): 1 / (60 + 1) = 1/61
-        let vector_results = vec![(42u64, 1.0)];
+        let vector_results = vec![("doc:42".to_string(), 1.0)];
         let result = reciprocal_rank_fusion(vector_results, vec![], 1);
         let score = result[0].1;
         let expected = 1.0 / 61.0f32;
@@ -560,9 +601,15 @@ mod tests {
         let search = BM25Search::new(dir.path()).unwrap();
         search
             .add_documents(vec![
-                (1, "the quick brown fox".to_string(), "file1.rs".to_string()),
+                (
+                    1,
+                    "file1.rs:1".to_string(),
+                    "the quick brown fox".to_string(),
+                    "file1.rs".to_string(),
+                ),
                 (
                     2,
+                    "file2.rs:1".to_string(),
                     "jumps over the lazy dog".to_string(),
                     "file2.rs".to_string(),
                 ),
@@ -580,16 +627,19 @@ mod tests {
             .add_documents(vec![
                 (
                     1,
+                    "auth.rs:1".to_string(),
                     "authentication login user password".to_string(),
                     "auth.rs".to_string(),
                 ),
                 (
                     2,
+                    "db.rs:1".to_string(),
                     "database storage connection pool".to_string(),
                     "db.rs".to_string(),
                 ),
                 (
                     3,
+                    "oauth.rs:1".to_string(),
                     "authentication oauth token".to_string(),
                     "oauth.rs".to_string(),
                 ),
@@ -601,11 +651,10 @@ mod tests {
             !results.is_empty(),
             "should find results for 'authentication'"
         );
-        // All results should have positive score
         for r in &results {
             assert!(r.score > 0.0);
+            assert!(!r.string_id.is_empty(), "string_id should be populated");
         }
-        // Should find docs 1 and 3 but not 2
         let ids: Vec<u64> = results.iter().map(|r| r.id).collect();
         assert!(ids.contains(&1) || ids.contains(&3));
     }
@@ -615,7 +664,12 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let search = BM25Search::new(dir.path()).unwrap();
         search
-            .add_documents(vec![(1, "some content".to_string(), "f.rs".to_string())])
+            .add_documents(vec![(
+                1,
+                "f.rs:1".to_string(),
+                "some content".to_string(),
+                "f.rs".to_string(),
+            )])
             .unwrap();
         let results = search.search("xyzabsolutelynotinindex", 10).unwrap();
         assert!(results.is_empty());
@@ -626,7 +680,12 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let search = BM25Search::new(dir.path()).unwrap();
         search
-            .add_documents(vec![(1, "content".to_string(), "f.rs".to_string())])
+            .add_documents(vec![(
+                1,
+                "f.rs:1".to_string(),
+                "content".to_string(),
+                "f.rs".to_string(),
+            )])
             .unwrap();
         search.clear().unwrap();
         let stats = search.get_stats().unwrap();
@@ -639,8 +698,18 @@ mod tests {
         let search = BM25Search::new(dir.path()).unwrap();
         search
             .add_documents(vec![
-                (1, "hello world".to_string(), "a.rs".to_string()),
-                (2, "goodbye world".to_string(), "b.rs".to_string()),
+                (
+                    1,
+                    "a.rs:1".to_string(),
+                    "hello world".to_string(),
+                    "a.rs".to_string(),
+                ),
+                (
+                    2,
+                    "b.rs:1".to_string(),
+                    "goodbye world".to_string(),
+                    "b.rs".to_string(),
+                ),
             ])
             .unwrap();
         search.delete_by_id(1).unwrap();
@@ -659,6 +728,7 @@ mod tests {
             search
                 .add_documents(vec![(
                     1,
+                    "p.rs:1".to_string(),
                     "persistent content".to_string(),
                     "p.rs".to_string(),
                 )])

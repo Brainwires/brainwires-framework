@@ -91,11 +91,12 @@ impl DocumentBM25Manager {
         let index = self.get_index(scope)?;
 
         // Convert chunk_id strings to u64 by hashing
-        let documents: Vec<(u64, String, String)> = chunks
+        let documents: Vec<(u64, String, String, String)> = chunks
             .into_iter()
             .map(|(chunk_id, content)| {
                 let id_hash = Self::hash_chunk_id(&chunk_id);
-                (id_hash, content, chunk_id)
+                // Use chunk_id as both string_id and file_path for document-level BM25
+                (id_hash, chunk_id.clone(), content, chunk_id)
             })
             .collect();
 

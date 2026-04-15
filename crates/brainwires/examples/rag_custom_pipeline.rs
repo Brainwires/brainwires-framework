@@ -66,17 +66,17 @@ struct WeightedScorer {
 impl SearchScorer for WeightedScorer {
     fn fuse(
         &self,
-        vector_results: Vec<(u64, f32)>,
+        vector_results: Vec<(String, f32)>,
         bm25_results: Vec<BM25Result>,
         limit: usize,
-    ) -> Vec<(u64, f32)> {
+    ) -> Vec<(String, f32)> {
         use std::collections::HashMap;
 
-        let mut scores: HashMap<u64, f32> = HashMap::new();
+        let mut scores: HashMap<String, f32> = HashMap::new();
 
         // Normalize vector scores (already 0-1) and weight them
         for (id, score) in &vector_results {
-            *scores.entry(*id).or_default() += score * self.vector_weight;
+            *scores.entry(id.clone()).or_default() += score * self.vector_weight;
         }
 
         // Normalize BM25 scores to 0-1 range, then weight
@@ -85,11 +85,12 @@ impl SearchScorer for WeightedScorer {
         if max_bm25 > 0.0 {
             for result in &bm25_results {
                 let normalized = result.score / max_bm25;
-                *scores.entry(result.id).or_default() += normalized * self.keyword_weight;
+                *scores.entry(result.string_id.clone()).or_default() +=
+                    normalized * self.keyword_weight;
             }
         }
 
-        let mut combined: Vec<(u64, f32)> = scores.into_iter().collect();
+        let mut combined: Vec<(String, f32)> = scores.into_iter().collect();
         combined.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
         combined.truncate(limit);
         combined
@@ -124,17 +125,33 @@ fn main() {
         keyword_weight: 0.3,
     };
 
-    let vector_results = vec![(1, 0.95), (2, 0.80), (3, 0.60)];
+    let vector_results = vec![
+        ("file.rs:1".to_string(), 0.95),
+        ("file.rs:10".to_string(), 0.80),
+        ("file.rs:20".to_string(), 0.60),
+    ];
     let bm25_results = vec![
-        BM25Result { id: 2, score: 12.5 },
-        BM25Result { id: 4, score: 10.0 },
-        BM25Result { id: 1, score: 5.0 },
+        BM25Result {
+            id: 2,
+            string_id: "file.rs:10".to_string(),
+            score: 12.5,
+        },
+        BM25Result {
+            id: 4,
+            string_id: "other.rs:1".to_string(),
+            score: 10.0,
+        },
+        BM25Result {
+            id: 1,
+            string_id: "file.rs:1".to_string(),
+            score: 5.0,
+        },
     ];
 
     let fused = scorer.fuse(vector_results, bm25_results, 5);
     println!("\nWeighted fusion results (0.7 vector + 0.3 keyword):");
     for (id, score) in &fused {
-        println!("  ID {}: combined score {:.4}", id, score);
+        println!("  {}: combined score {:.4}", id, score);
     }
 
     // To use with the actual RAG system:

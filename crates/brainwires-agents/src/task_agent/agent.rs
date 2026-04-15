@@ -1259,27 +1259,27 @@ impl TaskAgent {
                         .get("path")
                         .or_else(|| tool_use.input.get("file_path"))
                         .and_then(|v| v.as_str());
-                    if let Some(p) = candidate_path {
-                        if !Self::is_file_path_allowed(p, allowed) {
-                            tracing::warn!(
-                                agent_id = %self.id,
-                                path = %p,
-                                tool = %tool_use.name,
-                                "file scope violation (tool not in lock list)"
-                            );
-                            let result = ToolResult::error(
-                                tool_use.id.clone(),
-                                format!(
-                                    "File scope violation: '{}' is outside allowed paths: {:?}",
-                                    p, allowed
-                                ),
-                            );
-                            self.conversation_history
-                                .write()
-                                .await
-                                .push(Self::tool_result_message(&result));
-                            continue;
-                        }
+                    if let Some(p) = candidate_path
+                        && !Self::is_file_path_allowed(p, allowed)
+                    {
+                        tracing::warn!(
+                            agent_id = %self.id,
+                            path = %p,
+                            tool = %tool_use.name,
+                            "file scope violation (tool not in lock list)"
+                        );
+                        let result = ToolResult::error(
+                            tool_use.id.clone(),
+                            format!(
+                                "File scope violation: '{}' is outside allowed paths: {:?}",
+                                p, allowed
+                            ),
+                        );
+                        self.conversation_history
+                            .write()
+                            .await
+                            .push(Self::tool_result_message(&result));
+                        continue;
                     }
                 }
 

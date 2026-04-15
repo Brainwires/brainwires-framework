@@ -182,10 +182,10 @@ struct CrossEncoderReranker;
 impl SearchScorer for CrossEncoderReranker {
     fn fuse(
         &self,
-        vector_results: Vec<(u64, f32)>,
+        vector_results: Vec<(String, f32)>,
         bm25_results: Vec<BM25Result>,
         limit: usize,
-    ) -> Vec<(u64, f32)> {
+    ) -> Vec<(String, f32)> {
         // Your fusion/reranking logic
         vector_results.into_iter().take(limit).collect()
     }
