@@ -17,6 +17,7 @@ use tokio::sync::Mutex;
 pub struct BrainMcpServer {
     client: Arc<Mutex<BrainClient>>,
     tool_router: ToolRouter<Self>,
+    #[allow(dead_code)]
     prompt_router: PromptRouter<Self>,
 }
 
