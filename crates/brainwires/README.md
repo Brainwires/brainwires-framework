@@ -72,12 +72,12 @@ let response = provider.chat(&messages, None, &options).await?;
 | `permissions` | no | `brainwires-permissions` | Capability profiles, trust levels, policy engine, audit logging |
 | `orchestrator` | no | `brainwires-tools/orchestrator` | Tool orchestration layer (implies `tools`) |
 | `rag` | no | `brainwires-knowledge/rag` | Semantic code search with vector + BM25 hybrid search |
-| `interpreters` | no | `brainwires-code-interpreters` | Sandboxed JavaScript and Python code execution |
+| `interpreters` | no | `brainwires-tools/interpreters` | Sandboxed JavaScript and Python code execution |
 | `providers` | no | `brainwires-providers` | AI providers (Anthropic, OpenAI, Google, Ollama) |
 | `reasoning` | no | `brainwires-agents/reasoning` | Extended reasoning support (implies `agents`) |
 | `seal` | no | `brainwires-agents/seal` | Self-Evolving Autonomous Learner |
 | `relay` | no | `brainwires-network` | Remote relay / bridge for IPC and remote control |
-| `skills` | no | `brainwires-skills` | Pluggable skills system |
+| `skills` | no | `brainwires-agents/skills` | Pluggable skills system |
 | `eval` | no | `brainwires-agents/eval` | Evaluation framework for benchmarking agents (implies `agents`) |
 | `otel` | no | `brainwires-agents/otel` | OpenTelemetry span export for agent traces (implies `agents`) |
 | `openapi` | no | `brainwires-tools/openapi` | Auto-generate tools from OpenAPI 3.x specs (implies `tools`) |

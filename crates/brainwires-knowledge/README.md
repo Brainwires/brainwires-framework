@@ -63,7 +63,7 @@ brainwires-knowledge = "0.9"
 Capture a thought and search memory:
 
 ```rust
-use brainwires_cognition::knowledge::{BrainClient, CaptureThoughtRequest, SearchMemoryRequest};
+use brainwires_knowledge::knowledge::{BrainClient, CaptureThoughtRequest, SearchMemoryRequest};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -265,7 +265,7 @@ Dynamic prompt generation with multi-source technique selection:
 3. **Cluster default** — fallback based on task cluster membership
 
 ```rust
-use brainwires_cognition::prompting::{PromptGenerator, GeneratedPrompt};
+use brainwires_knowledge::prompting::{PromptGenerator, GeneratedPrompt};
 
 let generator = PromptGenerator::new(pks_cache, bks_cache, cluster_manager);
 let prompt: GeneratedPrompt = generator.generate(task_embedding, seal_result).await?;
@@ -353,7 +353,7 @@ Search combines two scoring methods via Reciprocal Rank Fusion (RRF):
 Semantic search over commit messages, diffs, and metadata:
 
 ```rust
-use brainwires_cognition::rag::{RagClient, SearchGitHistoryRequest};
+use brainwires_knowledge::rag::{RagClient, SearchGitHistoryRequest};
 
 let client = RagClient::new().await?;
 let results = client.search_git_history(SearchGitHistoryRequest {
@@ -376,7 +376,7 @@ With the `code-analysis` feature enabled, RagClient provides IDE-like navigation
 ### Configuration
 
 ```rust
-use brainwires_cognition::rag::Config;
+use brainwires_knowledge::rag::Config;
 
 let config = Config {
     vector_db: VectorDbConfig {
@@ -412,7 +412,7 @@ MSS-inspired spectral subset selection for diverse RAG retrieval. Standard top-k
 **Algorithm:** Build a relevance-weighted kernel matrix `L_ij = (r_i^lambda) * (r_j^lambda) * cos_sim(v_i, v_j)` and greedily select the subset that maximizes `log det(L_S)`. Achieves a (1-1/e) approximation ratio with O(n*k^2) complexity via incremental Cholesky updates.
 
 ```rust
-use brainwires_cognition::spectral::{SpectralReranker, SpectralSelectConfig};
+use brainwires_knowledge::spectral::{SpectralReranker, SpectralSelectConfig};
 
 let reranker = SpectralReranker::new(SpectralSelectConfig {
     lambda: 0.5,          // relevance/diversity trade-off (0=diverse, 1=relevant)
@@ -466,17 +466,17 @@ brainwires-knowledge = { version = "0.9", features = ["native"] }
 
 | Old path | New path |
 |----------|----------|
-| `brainwires_brain::BrainClient` | `brainwires_cognition::knowledge::BrainClient` |
-| `brainwires_brain::EntityStore` | `brainwires_cognition::knowledge::EntityStore` |
-| `brainwires_prompting::TechniqueLibrary` | `brainwires_cognition::prompting::TechniqueLibrary` |
-| `brainwires_prompting::PromptGenerator` | `brainwires_cognition::prompting::PromptGenerator` |
-| `brainwires_rag::RagClient` | `brainwires_cognition::rag::RagClient` |
-| `brainwires_rag::Config` | `brainwires_cognition::rag::Config` |
+| `brainwires_brain::BrainClient` | `brainwires_knowledge::knowledge::BrainClient` |
+| `brainwires_brain::EntityStore` | `brainwires_knowledge::knowledge::EntityStore` |
+| `brainwires_prompting::TechniqueLibrary` | `brainwires_knowledge::prompting::TechniqueLibrary` |
+| `brainwires_prompting::PromptGenerator` | `brainwires_knowledge::prompting::PromptGenerator` |
+| `brainwires_rag::RagClient` | `brainwires_knowledge::rag::RagClient` |
+| `brainwires_rag::Config` | `brainwires_knowledge::rag::Config` |
 
 Most types are also re-exported at the crate root and in the `prelude` module:
 
 ```rust
-use brainwires_cognition::prelude::*;
+use brainwires_knowledge::prelude::*;
 // BrainClient, EntityStore, PromptGenerator, RagClient, SpectralReranker, etc.
 ```
 

@@ -49,7 +49,7 @@ enum Commands {
         webhook_secret: Option<String>,
 
         /// Local address for the webhook HTTP server.
-        #[arg(long, default_value = "0.0.0.0:9000", env = "WEBHOOK_ADDR")]
+        #[arg(long, default_value = "127.0.0.1:9000", env = "WEBHOOK_ADDR")]
         listen_addr: String,
 
         /// WebSocket URL of the brainwires-gateway.
@@ -59,6 +59,10 @@ enum Commands {
         /// Optional auth token for the gateway handshake.
         #[arg(long, env = "GATEWAY_TOKEN")]
         gateway_token: Option<String>,
+
+        /// Skip webhook secret requirement (INSECURE — development only).
+        #[arg(long, default_value_t = false, env = "INSECURE_DEV_WEBHOOK")]
+        insecure_dev_webhook: bool,
 
         /// Comma-separated list of repos to accept events from (e.g. `owner/repo`).
         /// Empty means all repos.
@@ -100,10 +104,21 @@ async fn main() -> Result<()> {
             repos,
             api_url,
             mcp,
+            insecure_dev_webhook,
         }) => {
+            // Require webhook secret unless explicitly opted out
+            if webhook_secret.is_none() && !insecure_dev_webhook {
+                anyhow::bail!(
+                    "webhook_secret is required for production use. \
+                     Set --webhook-secret / GITHUB_WEBHOOK_SECRET, \
+                     or pass --insecure-dev-webhook to skip (development only)."
+                );
+            }
+
             let config = Arc::new(GitHubConfig {
                 github_token: github_token.clone(),
                 webhook_secret,
+                insecure_dev_webhook,
                 listen_addr,
                 repos,
                 gateway_url,

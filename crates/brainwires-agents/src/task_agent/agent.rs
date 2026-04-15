@@ -624,7 +624,7 @@ impl TaskAgent {
             }
 
             // ── Iteration limit ──────────────────────────────────────────────
-            if iterations >= self.config.max_iterations {
+            if iterations > self.config.max_iterations {
                 let error = format!(
                     "Agent {} exceeded maximum iterations ({})",
                     self.id, self.config.max_iterations
@@ -1252,10 +1252,41 @@ impl TaskAgent {
                     }
                 }
 
+                // ── File scope check (all tools with path params) ────────
+                if let Some(ref allowed) = self.config.allowed_files {
+                    let candidate_path = tool_use
+                        .input
+                        .get("path")
+                        .or_else(|| tool_use.input.get("file_path"))
+                        .and_then(|v| v.as_str());
+                    if let Some(p) = candidate_path {
+                        if !Self::is_file_path_allowed(p, allowed) {
+                            tracing::warn!(
+                                agent_id = %self.id,
+                                path = %p,
+                                tool = %tool_use.name,
+                                "file scope violation (tool not in lock list)"
+                            );
+                            let result = ToolResult::error(
+                                tool_use.id.clone(),
+                                format!(
+                                    "File scope violation: '{}' is outside allowed paths: {:?}",
+                                    p, allowed
+                                ),
+                            );
+                            self.conversation_history
+                                .write()
+                                .await
+                                .push(Self::tool_result_message(&result));
+                            continue;
+                        }
+                    }
+                }
+
                 let _tool_exec_start = std::time::Instant::now();
                 let tool_result =
                     if let Some((path, lock_type)) = Self::get_lock_requirement(tool_use) {
-                        // ── File scope whitelist check ───────────────────────
+                        // ── File scope whitelist check (lock-requiring tools) ─
                         if let Some(ref allowed) = self.config.allowed_files
                             && !Self::is_file_path_allowed(&path, allowed)
                         {

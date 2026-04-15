@@ -16,9 +16,15 @@ pub struct GitHubConfig {
     pub webhook_secret: Option<String>,
 
     /// Local address and port for the webhook HTTP server.
-    /// Default: `0.0.0.0:9000`
+    /// Default: `127.0.0.1:9000`
     #[serde(default = "default_listen_addr")]
     pub listen_addr: String,
+
+    /// Skip webhook secret requirement for local development.
+    /// When `false` (default), `webhook_secret` must be set or the server
+    /// will refuse to start.
+    #[serde(default)]
+    pub insecure_dev_webhook: bool,
 
     /// Repositories to accept events from.
     /// Format: `["owner/repo", ...]`. Empty means accept all.
@@ -44,7 +50,7 @@ pub struct GitHubConfig {
 }
 
 fn default_listen_addr() -> String {
-    "0.0.0.0:9000".to_string()
+    "127.0.0.1:9000".to_string()
 }
 
 fn default_gateway_url() -> String {
@@ -69,6 +75,7 @@ impl Default for GitHubConfig {
         Self {
             github_token: String::new(),
             webhook_secret: None,
+            insecure_dev_webhook: false,
             listen_addr: default_listen_addr(),
             repos: Vec::new(),
             on_events: default_events(),
@@ -86,7 +93,7 @@ mod tests {
     #[test]
     fn default_config_values() {
         let cfg = GitHubConfig::default();
-        assert_eq!(cfg.listen_addr, "0.0.0.0:9000");
+        assert_eq!(cfg.listen_addr, "127.0.0.1:9000");
         assert_eq!(cfg.gateway_url, "ws://127.0.0.1:18789/ws");
         assert_eq!(cfg.api_url, "https://api.github.com");
         assert!(cfg.repos.is_empty());

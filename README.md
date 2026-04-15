@@ -3,7 +3,7 @@
 [![CI](https://github.com/Brainwires/brainwires-framework/actions/workflows/ci.yml/badge.svg)](https://github.com/Brainwires/brainwires-framework/actions/workflows/ci.yml)
 [![Crates.io](https://img.shields.io/crates/v/brainwires.svg)](https://crates.io/crates/brainwires)
 [![Documentation](https://docs.rs/brainwires/badge.svg)](https://docs.rs/brainwires)
-[![Tests](https://img.shields.io/badge/tests-11%2C749%20passing-brightgreen)](#testing)
+[![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](#testing)
 [![Lines of Code](https://img.shields.io/badge/loc-112k-blue)](#)
 [![License](https://img.shields.io/badge/license-MIT%20%7C%20Apache--2.0-blue)](https://github.com/Brainwires/brainwires-framework/blob/main/LICENSE-MIT)
 [![Rust](https://img.shields.io/badge/rust-1.91%2B%20%7C%202024%20edition-orange)](https://www.rust-lang.org/)
@@ -66,7 +66,7 @@ The Brainwires Framework is a workspace of 16 framework crates plus 20 extras th
 | [**brainwires-mcp**](crates/brainwires-mcp/README.md) | MCP client — connect to external MCP servers and use their tools |
 | [**brainwires-network**](crates/brainwires-network/README.md) | Agent networking — MCP server, IPC, remote bridge, channels, WebRTC, 5-layer protocol stack |
 | [**brainwires-reasoning**](crates/brainwires-reasoning/README.md) | Reasoning strategies — re-exports from core |
-| [**brainwires-hardware**](crates/brainwires-hardware/README.md) | Hardware I/O — audio (STT/TTS), GPIO, Bluetooth, Matter 1.3, home automation, camera/webcam, raw USB |
+| [**brainwires-hardware**](crates/brainwires-hardware/README.md) | Hardware I/O — audio (STT/TTS), GPIO, Bluetooth, Matter (experimental PASE), home automation, camera/webcam, raw USB |
 | [**brainwires-training**](crates/brainwires-training/README.md) | Training data pipelines, cloud fine-tuning (6 providers), and local LoRA/QLoRA/DoRA via Burn |
 | [**brainwires-telemetry**](crates/brainwires-telemetry/README.md) | OutcomeMetrics, Prometheus export, billing hooks |
 | [**brainwires-a2a**](crates/brainwires-a2a/README.md) | Agent-to-Agent protocol — JSON-RPC 2.0, HTTP/REST, and gRPC bindings |
@@ -91,7 +91,7 @@ The Brainwires Framework is a workspace of 16 framework crates plus 20 extras th
 | [**brainwires-skill-registry**](extras/brainclaw/mcp-skill-registry/README.md) | Skill registry HTTP server — SQLite FTS5, publish/search/download endpoints |
 | [**brainclaw-mcp-github**](extras/brainclaw/mcp-github/README.md) | GitHub channel adapter — webhook receiver, REST API, MCP server mode |
 | [**brainwires-memory-service**](extras/brainwires-memory-service/README.md) | Mem0-compatible memory REST API backed by Brainwires storage |
-| [**matter-tool**](extras/matter-tool/README.md) | Brainwires-native Matter 1.3 CLI — pair, discover, control, serve |
+| [**matter-tool**](extras/matter-tool/README.md) | Brainwires-native Matter CLI (experimental) — PASE pairing, mDNS discovery, basic control |
 | [**claude-brain**](extras/claude-brain/README.md) | Brainwires context management for Claude Code — persistent context across compaction |
 | [**brainwires-cli**](extras/brainwires-cli/README.md) | AI-powered agentic CLI tool for autonomous coding assistance |
 | [**brainwires-issues**](extras/brainwires-issues/README.md) | MCP-native issue tracking server |

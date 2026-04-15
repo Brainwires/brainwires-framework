@@ -31,6 +31,10 @@ async fn main() -> anyhow::Result<()> {
             .to_string()
     });
 
+    tracing::warn!(
+        "brainwires-memory-service has no authentication or tenant isolation \
+         — intended for local development use only"
+    );
     tracing::info!("Opening memory database at {db_path}");
     let store = MemoryStore::open(&db_path)?;
     let app = build_app(store);

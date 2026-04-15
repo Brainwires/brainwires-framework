@@ -545,9 +545,9 @@ The framework crates, grouped by function:
 | **Core** | `brainwires-core`, `brainwires-tools`, `brainwires-agents` |
 | **Intelligence** | `brainwires-providers`, `brainwires-knowledge` (knowledge, prompting, RAG), `brainwires-storage` |
 | **Integration** | `brainwires-mcp`, `brainwires-mcp-server`, `brainwires-network` |
-| **Security & Skills** | `brainwires-permissions`, `brainwires-skills` |
-| **Execution** | `brainwires-code-interpreters`, `brainwires-wasm`, `brainwires-autonomy` |
-| **Hardware & Training** | `brainwires-hardware`, `brainwires-datasets`, `brainwires-training`, `brainwires-a2a`, `brainwires-channels` |
+| **Security** | `brainwires-permissions` |
+| **Execution** | `brainwires-wasm`, `brainwires-autonomy` |
+| **Hardware & Training** | `brainwires-hardware`, `brainwires-training`, `brainwires-a2a` |
 
 ### CLI Layer
 

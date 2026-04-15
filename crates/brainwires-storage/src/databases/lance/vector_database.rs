@@ -531,7 +531,10 @@ impl VectorDatabase for LanceDatabase {
         }
 
         let table = self.get_rag_table().await?;
-        let filter = format!("file_path = '{}'", file_path);
+        let filter = filter_to_sql(&Filter::Eq(
+            "file_path".into(),
+            FieldValue::Utf8(Some(file_path.to_string())),
+        ));
         table
             .delete(&filter)
             .await

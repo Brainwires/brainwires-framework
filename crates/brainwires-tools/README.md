@@ -60,7 +60,7 @@ brainwires-tools = { version = "0.9", features = ["native"] }
 Register tools and execute:
 
 ```rust
-use brainwires_tool_system::{ToolRegistry, ToolExecutor, BashTool, FileOpsTool, GitTool};
+use brainwires_tools::{ToolRegistry, ToolExecutor, BashTool, FileOpsTool, GitTool};
 
 // Compose only the tools you need
 let mut registry = ToolRegistry::new();
@@ -144,7 +144,7 @@ Pre-hooks (`ToolPreHook`) allow intercepting tool calls for permission checks, l
 Two-phase commit for atomic file operations:
 
 ```rust
-use brainwires_tool_system::TransactionManager;
+use brainwires_tools::TransactionManager;
 
 let tm = TransactionManager::new("/path/to/staging");
 
@@ -165,7 +165,7 @@ Auto-cleanup on drop ensures no leaked staging files.
 Defense-in-depth for agent safety:
 
 ```rust
-use brainwires_tool_system::{
+use brainwires_tools::{
     is_injection_attempt, contains_sensitive_data,
     redact_sensitive_data, sanitize_external_content,
 };
@@ -187,7 +187,7 @@ if contains_sensitive_data(output) {
 Taxonomy based on the AgentDebug paper (arxiv:2509.25370):
 
 ```rust
-use brainwires_tool_system::{classify_error, ToolErrorCategory, RetryStrategy};
+use brainwires_tools::{classify_error, ToolErrorCategory, RetryStrategy};
 
 let outcome = classify_error("connection refused");
 // → ToolErrorCategory::Transient
@@ -201,7 +201,7 @@ Seven categories: `Transient`, `InputValidation`, `ExternalService`, `Permission
 Rhai-based script engine for composing multi-step tool pipelines:
 
 ```rust
-use brainwires_tool_system::OrchestratorTool;
+use brainwires_tools::OrchestratorTool;
 
 // Define workflows as Rhai scripts
 // Supports sandboxed execution with resource limits
@@ -218,7 +218,7 @@ brainwires-tools = { version = "0.9", features = ["native", "openapi"] }
 ```
 
 ```rust
-use brainwires_tool_system::openapi::{openapi_to_tools, execute_openapi_tool, OpenApiAuth};
+use brainwires_tools::openapi::{openapi_to_tools, execute_openapi_tool, OpenApiAuth};
 
 // Parse an OpenAPI spec (JSON or YAML)
 let spec = std::fs::read_to_string("petstore.json")?;
