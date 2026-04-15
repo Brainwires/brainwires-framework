@@ -303,11 +303,8 @@ mod tests {
 
     #[test]
     fn test_create_minimax_with_key() {
-        let config = ProviderConfig::new(
-            ProviderType::MiniMax,
-            "MiniMax-M2.7".to_string(),
-        )
-        .with_api_key("minimax_test_key");
+        let config = ProviderConfig::new(ProviderType::MiniMax, "MiniMax-M2.7".to_string())
+            .with_api_key("minimax_test_key");
         let result = ChatProviderFactory::create(&config);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().name(), "minimax");
