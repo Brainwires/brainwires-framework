@@ -47,8 +47,6 @@ brainwires-hardware = { workspace = true, optional = true }
 # Datasets & Training
 brainwires-training = { workspace = true, optional = true }
 
-# Autonomy
-brainwires-autonomy = { workspace = true, optional = true }
 
 
 # Analytics
@@ -134,7 +132,7 @@ training = ["dep:brainwires-training"]
 training-cloud = ["training", "brainwires-training/cloud"]
 training-local = ["training", "brainwires-training/local"]
 training-full = ["training", "brainwires-training/full", "datasets"]
-autonomy = ["dep:brainwires-autonomy"]
+# autonomy feature requires brainwires-autonomy (publish = false, workspace-only)
 system = ["tools", "brainwires-tools/system"]
 dream = ["dep:brainwires-knowledge", "brainwires-knowledge/dream"]
 telemetry = ["dep:brainwires-telemetry", "brainwires-telemetry/native", "brainwires-providers?/telemetry"]
@@ -158,7 +156,6 @@ full = [
     "a2a", "mesh", "audio", "gpio", "bluetooth", "network-hardware", "camera", "usb",
     "vad", "wake-word", "voice-assistant", "mcp-server-framework",
     "training-cloud", "datasets",
-    "autonomy",
     "system",
     "dream",
     "telemetry",

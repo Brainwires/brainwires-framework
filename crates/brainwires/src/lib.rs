@@ -203,11 +203,8 @@ pub mod training {
     pub use brainwires_training::*;
 }
 
-/// Autonomous operations — self-improvement, git workflows, safety checks.
-#[cfg(feature = "autonomy")]
-pub mod autonomy {
-    pub use brainwires_autonomy::*;
-}
+// autonomy module requires brainwires-autonomy (publish = false, workspace-only).
+// Available when building from the workspace with the `autonomy` feature.
 
 /// Generic OS-level primitives — filesystem event reactor, service management.
 #[cfg(feature = "system")]
