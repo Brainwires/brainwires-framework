@@ -3,6 +3,7 @@ name = "voice-assistant"
 description = "Personal voice assistant built on the Brainwires framework"
 version.workspace = true
 edition.workspace = true
+publish = false
 license.workspace = true
 rust-version.workspace = true
 

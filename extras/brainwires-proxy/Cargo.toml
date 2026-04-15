@@ -3,6 +3,7 @@ name = "brainwires-proxy"
 description = "Protocol-agnostic proxy framework for debugging app traffic"
 version.workspace = true
 edition.workspace = true
+publish = false
 license.workspace = true
 rust-version.workspace = true
 repository.workspace = true
