@@ -22,6 +22,7 @@ pub mod session_management;
 mod state;
 pub mod sudo_dialog;
 pub mod suspend_dialog;
+pub mod user_question;
 
 // Re-export public types and the App struct
 pub use exit_dialog::ExitFocus;

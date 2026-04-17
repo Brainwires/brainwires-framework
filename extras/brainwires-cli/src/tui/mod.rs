@@ -403,6 +403,31 @@ async fn run_app(
             ));
         }
 
+        // Refresh the user's custom status line (if configured). No-op
+        // when the cache is warm so we don't shell out on every frame.
+        app.refresh_status_line().await;
+
+        // Poll `ask_user_question` tool calls (non-blocking). Renders the
+        // existing question panel overlay but routes submission back over
+        // the tool's oneshot response channel.
+        if let Some(ref mut user_q_rx) = app.user_question_rx
+            && let Ok(request) = user_q_rx.try_recv()
+        {
+            let preview = request.question.clone();
+            app.active_user_question = Some(
+                crate::tui::app::user_question::PendingUserQuestion::from_request(request),
+            );
+            app.mode = AppMode::UserQuestion;
+            app.add_console_message(format!(
+                "❔ Question from agent: {}",
+                if preview.len() > 60 {
+                    format!("{}…", &preview[..60])
+                } else {
+                    preview
+                }
+            ));
+        }
+
         // Handle mouse capture toggle
         let should_capture_mouse = !app.mouse_capture_disabled;
         if should_capture_mouse != mouse_capture_enabled {

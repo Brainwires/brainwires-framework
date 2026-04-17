@@ -126,6 +126,16 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         return;
     }
 
+    // One-shot `ask_user_question` tool call — same panel, different
+    // backing state.
+    if app.mode == AppMode::UserQuestion {
+        draw_normal_layout(f, app);
+        if let Some(ref pending) = app.active_user_question {
+            question_panel::draw_question_panel(f, &pending.block, &pending.state, f.area());
+        }
+        return;
+    }
+
     // Find/Replace dialog modes render as overlay on top of fullscreen content
     if app.mode == AppMode::FindDialog || app.mode == AppMode::FindReplaceDialog {
         use super::app::FindReplaceContext;

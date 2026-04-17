@@ -96,6 +96,7 @@ impl App {
             AppMode::GitScm => self.handle_git_scm_event(event).await?,
             AppMode::CancelConfirm => self.handle_cancel_confirm_event(event).await?,
             AppMode::QuestionAnswer => self.handle_question_event(event).await?,
+            AppMode::UserQuestion => self.handle_user_question_event(event).await?,
             AppMode::FindDialog | AppMode::FindReplaceDialog => {
                 self.handle_find_replace_event(event).await?
             }

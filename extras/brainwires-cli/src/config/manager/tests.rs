@@ -234,6 +234,7 @@ fn test_config_load_from_file() {
         knowledge: KnowledgeSettings::default(),
         remote: RemoteSettings::default(),
         local_llm: LocalLlmSettings::default(),
+        status_line_command: None,
     };
 
     let json = serde_json::to_string_pretty(&config).unwrap();

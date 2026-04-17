@@ -67,6 +67,12 @@ pub struct Config {
     /// Local LLM configuration for CPU-based inference
     #[serde(default)]
     pub local_llm: LocalLlmSettings,
+
+    /// Optional shell command whose stdout is appended to the TUI status
+    /// line. Executed via `bash -c` with a short timeout; its output is
+    /// cached between renders so it never slows the UI.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status_line_command: Option<String>,
 }
 
 /// SEAL (Self-Evolving Agentic Learning) settings
@@ -693,6 +699,7 @@ impl Default for Config {
             knowledge: KnowledgeSettings::default(),
             remote: RemoteSettings::default(),
             local_llm: LocalLlmSettings::default(),
+            status_line_command: None,
         }
     }
 }

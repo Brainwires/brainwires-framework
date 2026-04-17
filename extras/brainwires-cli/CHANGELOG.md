@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (settings)
+- **Layered `settings.json`** — new user/project/local `settings.json` merge, separate from `config.json`. Sources (later wins for scalars, arrays concatenate): `~/.brainwires/settings.json` → `~/.claude/settings.json` (migrator compat) → `<project>/.brainwires/settings.json` → `<project>/.brainwires/settings.local.json`.
+- **Tool-specific permissions** — Claude-Code-shaped rules under `settings.permissions.allow/deny/ask` (`Bash(ls:*)`, `Edit(src/**/*.rs)`, `mcp__server__tool`). `deny` overrides everything including `PermissionMode::Full`.
+- `SettingsManager::load(cwd)` + `PermissionMatcher` with short-name aliases (`Bash` → `execute_command`, etc.).
+
+### Added (hooks)
+- **Lifecycle hooks** — `PreToolUse` / `PostToolUse` / `UserPromptSubmit` / `Stop` shell commands configured under `settings.hooks`. Exit 0 = continue, 2 = block with stderr feedback, other non-zero = soft error. Default 5 s timeout. Event JSON piped to stdin.
+- `HookDispatcher` in `src/hooks/mod.rs` wired into `ToolExecutor` (Pre/Post), `chat_loop.rs` (UserPromptSubmit), and `ai_processing.rs` (Stop).
+
+### Added (memory)
+- **Per-project auto-memory** — `~/.brainwires/projects/<encoded-cwd>/memory/` with a `MEMORY.md` index plus typed files (`user` / `feedback` / `project` / `reference`). Layout matches Claude Code so existing memory dirs can be symlinked or copied.
+- `memory_save` / `memory_delete` / `memory_list` agent tools; index is rewritten on every mutation so orphans prune automatically.
+- System prompt injects `## Auto Memory` block; opt out with `BRAINWIRES_DISABLE_AUTO_MEMORY=1`.
+
+### Added (tools)
+- **`ask_user_question` tool** — pauses the agent and prompts the user via the TUI question panel (new `AppMode::UserQuestion`) or falls back to `dialoguer::Select`/`Input` in plain CLI mode. Non-TTY returns `{"cancelled": true}` rather than hanging.
+- `monitor_read` / `monitor_list` now report `dropped_lines` so agents notice when a chatty background process outran the ring buffer.
+
+### Added (tui)
+- **Agent question modal** — one-shot prompts from the `ask_user_question` tool render via the existing question panel; answer routes back over a oneshot channel instead of feeding into the AI conversation.
+- **Dynamic skill autocomplete** — typing `/<skill-name>` autocompletes against the discovered `SkillRegistry`; unknown slash commands that match a discovered skill invoke automatically as `/skill <name>`.
+- **Custom status line** — `Config.status_line_command` appends the stdout of a shell command to the status bar (1 s cache, 200 ms timeout).
+
+### Changed (config)
+- First-run picker now actually defaults to Brainwires when a SaaS session exists (previously hard-coded Anthropic despite the comment).
+
+### Added (docs)
+- `docs/harness/settings.md` — full reference for layered settings, permission patterns, hook exit codes + event payloads, memory types, and the `ask_user_question` contract.
+
 ### Added (tui)
 - **Collapsible Journal Tree** — the Journal view now renders conversation history as an expandable/collapsible tree instead of a flat list. Hierarchy: Turn → UserMessage / AssistantMessage (with ToolCall and SubAgentSpawn children). Navigate with `j`/`k`, expand/collapse with `l`/`h` or `Enter`/`Space`. Classic view is unchanged.
 - **Sub-Agent Viewer** (`Ctrl+B`) — new `AppMode::SubAgentViewer` with a 30/70 split layout: left panel shows all running sub-agents with live status icons (⟳ Working, ✓ Completed, ✗ Failed, · Idle); right panel shows the selected agent's journal subtree. When the agent has an IPC socket (`●` badge), you can type and send messages to it directly from the right panel.

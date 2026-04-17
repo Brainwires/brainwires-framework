@@ -2430,6 +2430,37 @@ mod tests {
         assert!(result.is_error);
     }
 
+    /// Smoke test: a `deny` rule in layered settings blocks tool execution
+    /// even under `PermissionMode::Full`. This is the central safety
+    /// guarantee documented in `docs/harness/settings.md`.
+    #[tokio::test]
+    async fn settings_deny_blocks_even_in_full_mode() {
+        let mut executor = ToolExecutor::new(PermissionMode::Full);
+        let settings = std::sync::Arc::new(crate::config::Settings {
+            permissions: Some(crate::config::Permissions {
+                allow: vec![],
+                deny: vec!["Bash(rm:*)".into()],
+                ask: vec![],
+            }),
+            ..Default::default()
+        });
+        executor.set_settings(settings);
+
+        let tool_use = ToolUse {
+            id: "deny-test".to_string(),
+            name: "execute_command".to_string(),
+            input: serde_json::json!({"command": "rm -rf /tmp/bwsmoke"}),
+        };
+        let context = ToolContext::default();
+        let result = executor.execute(&tool_use, &context).await.unwrap();
+        assert!(result.is_error, "expected deny to produce an error result");
+        assert!(
+            result.content.contains("denied by settings rule"),
+            "error should cite the deny rule, got: {}",
+            result.content
+        );
+    }
+
     #[test]
     fn test_tool_executor_default() {
         let executor = ToolExecutor::default();

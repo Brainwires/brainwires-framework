@@ -197,6 +197,24 @@ mod tests {
     }
 
     #[test]
+    fn docs_example_parses() {
+        // Guard against drift between the documented example and the schema.
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("docs/harness/settings.example.json");
+        let raw = std::fs::read_to_string(&path).unwrap_or_else(|e| {
+            panic!("failed to read {}: {}", path.display(), e)
+        });
+        let parsed: Settings = serde_json::from_str(&raw).unwrap_or_else(|e| {
+            panic!("failed to parse {}: {}", path.display(), e)
+        });
+        let perms = parsed.permissions.expect("example should define permissions");
+        assert!(!perms.allow.is_empty());
+        assert!(!perms.deny.is_empty());
+        let hooks = parsed.hooks.expect("example should define hooks");
+        assert!(!hooks.pre_tool_use.is_empty());
+    }
+
+    #[test]
     fn malformed_json_is_skipped_not_fatal() {
         let tmp = TempDir::new().unwrap();
         let bad = tmp.path().join(".brainwires").join("settings.json");

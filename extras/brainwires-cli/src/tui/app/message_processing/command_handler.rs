@@ -76,6 +76,19 @@ impl App {
                 Ok(false) // Don't skip AI - need to process the message
             }
             Err(e) => {
+                // Fall-through: if the unknown command matches a discovered
+                // skill, treat `/<skill-name> args` as `/skill <name> args`.
+                // Mirrors Claude Code's skill-invocation shorthand.
+                let matches_skill = self
+                    .skill_registry
+                    .as_ref()
+                    .map(|r| r.contains(&cmd_name))
+                    .unwrap_or(false);
+                if matches_skill {
+                    self.handle_invoke_skill(&cmd_name, cmd_args.to_vec()).await;
+                    return Ok(true);
+                }
+
                 // Display error as system message
                 self.messages.push(TuiMessage {
                     role: "system".to_string(),

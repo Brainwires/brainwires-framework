@@ -660,6 +660,122 @@ impl App {
         Ok(())
     }
 
+    // ── Ask-user question ─────────────────────────────────────────────────────
+
+    /// Handle events while an `ask_user_question` tool modal is active.
+    /// Mirrors the navigation from `handle_question_event` but routes the
+    /// final answer back to the tool call over a oneshot channel rather
+    /// than feeding it into the AI conversation.
+    pub(in crate::tui::app) async fn handle_user_question_event(
+        &mut self,
+        event: Event,
+    ) -> Result<()> {
+        // Short-circuit if no question is active (shouldn't happen, but be
+        // defensive — the mode could be set with no backing state).
+        if self.active_user_question.is_none() {
+            self.mode = AppMode::Normal;
+            return Ok(());
+        }
+
+        // Esc cancels.
+        if event.is_escape() {
+            if let Some(pending) = self.active_user_question.take() {
+                let _ = pending.respond(crate::ask::UserQuestionResponse::Cancelled);
+            }
+            self.mode = AppMode::Normal;
+            return Ok(());
+        }
+
+        // Enter submits.
+        if event.is_enter() {
+            if let Some(pending) = self.active_user_question.as_mut() {
+                // Ensure the user's current-cursor toggle is captured. If
+                // the agent asked a yes/no-style single-select question
+                // and the user hit Enter on a highlighted option without
+                // first pressing Space, treat Enter as toggle-and-submit.
+                let any_selected = pending
+                    .state
+                    .selected_options
+                    .first()
+                    .map(|row| row.iter().any(|s| *s))
+                    .unwrap_or(false)
+                    || pending.state.other_selected.first().copied().unwrap_or(false);
+                if !any_selected && !pending.block.questions.is_empty() {
+                    pending.state.toggle_current(&pending.block);
+                }
+            }
+            if let Some(pending) = self.active_user_question.take() {
+                let response = pending.collect_response();
+                let _ = pending.respond(response);
+            }
+            self.mode = AppMode::Normal;
+            return Ok(());
+        }
+
+        // Everything else — navigation + "Other" editing. Mirror the
+        // question_answer handler.
+        let block = self
+            .active_user_question
+            .as_ref()
+            .map(|p| p.block.clone());
+        let block = match block {
+            Some(b) => b,
+            None => return Ok(()),
+        };
+
+        if let Some(pending) = self.active_user_question.as_mut() {
+            if let Event::Key(key) = event {
+                if pending.state.editing_other {
+                    match key.code {
+                        KeyCode::Char(c) => pending.state.append_other_char(c),
+                        KeyCode::Backspace => pending.state.backspace_other(),
+                        KeyCode::Tab => {
+                            pending.state.editing_other = false;
+                        }
+                        _ => {}
+                    }
+                    return Ok(());
+                }
+
+                match key.code {
+                    KeyCode::Up => pending.state.cursor_up(),
+                    KeyCode::Down => pending.state.cursor_down(&block),
+                    KeyCode::Char(' ') => {
+                        pending.state.toggle_current(&block);
+                        if pending.state.is_cursor_on_other(&block) {
+                            let q_idx = pending.state.current_question_idx;
+                            if pending
+                                .state
+                                .other_selected
+                                .get(q_idx)
+                                .copied()
+                                .unwrap_or(false)
+                            {
+                                pending.state.editing_other = true;
+                            }
+                        }
+                    }
+                    KeyCode::Char(c) => {
+                        // Typing on the "Other" row starts text entry.
+                        if pending.state.is_cursor_on_other(&block) {
+                            let q_idx = pending.state.current_question_idx;
+                            if let Some(selected) =
+                                pending.state.other_selected.get_mut(q_idx)
+                            {
+                                *selected = true;
+                            }
+                            pending.state.editing_other = true;
+                            pending.state.append_other_char(c);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     // ── Sub-Agent Viewer ──────────────────────────────────────────────────────
 
     /// Handle events in Sub-Agent Viewer mode
