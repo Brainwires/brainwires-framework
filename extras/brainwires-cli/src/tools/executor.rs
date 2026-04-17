@@ -6,8 +6,8 @@ use tokio::sync::RwLock;
 
 use super::{
     AgentPoolTool, BashTool, CodeExecTool, ContextRecallTool, FileOpsTool, GitTool,
-    McpToolExecutor, OrchestratorTool, PlanTool, SearchTool, SemanticSearchTool, SessionTaskTool,
-    TaskManagerTool, ToolRegistry, ToolSearchTool, WebTool,
+    McpToolExecutor, MonitorTool, OrchestratorTool, PlanTool, SearchTool, SemanticSearchTool,
+    SessionTaskTool, TaskManagerTool, ToolRegistry, ToolSearchTool, WebTool,
 };
 use crate::agents::{AccessControlManager, AgentPool, TaskManager};
 use crate::providers::Provider;
@@ -69,6 +69,8 @@ pub struct ToolExecutor {
     task_manager_tool: Option<TaskManagerTool>,
     /// Optional SessionTaskTool instance for session-specific task list
     session_task_tool: Option<SessionTaskTool>,
+    /// Monitor tool — watch long-running background processes. Always on.
+    monitor_tool: MonitorTool,
     /// Policy engine for declarative permission rules
     policy_engine: Option<PolicyEngine>,
     /// Audit logger for tracking tool executions
@@ -95,7 +97,11 @@ impl ToolExecutor {
     /// Create a new tool executor
     pub fn new(permission_mode: PermissionMode) -> Self {
         Self {
-            registry: ToolRegistry::with_builtins(),
+            registry: {
+                let mut r = ToolRegistry::with_builtins();
+                r.register_tools(MonitorTool::get_tools());
+                r
+            },
             permission_mode,
             provider: None,
             orchestrator: OrchestratorTool::new(),
@@ -106,6 +112,7 @@ impl ToolExecutor {
             task_manager: None,
             task_manager_tool: None,
             session_task_tool: None,
+            monitor_tool: MonitorTool::new(),
             policy_engine: None,
             audit_logger: None,
             approval_tx: None,
@@ -121,7 +128,11 @@ impl ToolExecutor {
     /// Create a new tool executor with a provider (enables agent-based tools)
     pub fn with_provider(permission_mode: PermissionMode, provider: Arc<dyn Provider>) -> Self {
         Self {
-            registry: ToolRegistry::with_builtins(),
+            registry: {
+                let mut r = ToolRegistry::with_builtins();
+                r.register_tools(MonitorTool::get_tools());
+                r
+            },
             permission_mode,
             provider: Some(provider),
             orchestrator: OrchestratorTool::new(),
@@ -132,6 +143,7 @@ impl ToolExecutor {
             task_manager: None,
             task_manager_tool: None,
             session_task_tool: None,
+            monitor_tool: MonitorTool::new(),
             policy_engine: None,
             audit_logger: None,
             approval_tx: None,
@@ -2105,6 +2117,11 @@ impl ToolExecutor {
                     "Agent pool tools require an agent pool to be configured. Use ToolExecutor::set_agent_pool().".to_string()
                 )
             }
+        } else if tool_name.starts_with("monitor_") {
+            // Background process watcher (long-running dev servers, log tails, etc.)
+            self.monitor_tool
+                .execute(tool_use_id, tool_name, input)
+                .await
         } else if tool_name == "task_list_write" {
             // Session task tool for session-specific task list tracking
             if let Some(session_task_tool) = &self.session_task_tool {
@@ -2204,6 +2221,7 @@ impl Default for ToolExecutor {
             task_manager: None,
             task_manager_tool: None,
             session_task_tool: None,
+            monitor_tool: MonitorTool::new(),
             policy_engine: None,
             audit_logger: None,
             approval_tx: None,
