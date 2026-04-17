@@ -404,18 +404,18 @@ mod tests {
     #![allow(clippy::await_holding_lock)]
 
     use super::*;
-    use crate::utils::test_util::ENV_LOCK;
+    use crate::utils::test_util::{ENV_LOCK, EnvVarGuard};
     use tempfile::TempDir;
 
     /// Redirect memory storage into a tempdir via `BRAINWIRES_MEMORY_ROOT`,
-    /// holding the shared env lock so parallel tests don't stomp each other.
-    fn setup_temp_home() -> (TempDir, std::sync::MutexGuard<'static, ()>) {
-        let guard = ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    /// holding the shared env lock + a guard that restores the previous
+    /// value on drop so post-test env state is clean.
+    fn setup_temp_home()
+    -> (TempDir, EnvVarGuard, std::sync::MutexGuard<'static, ()>) {
+        let lock = ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         let tmp = TempDir::new().unwrap();
-        unsafe {
-            std::env::set_var("BRAINWIRES_MEMORY_ROOT", tmp.path());
-        }
-        (tmp, guard)
+        let env = EnvVarGuard::set("BRAINWIRES_MEMORY_ROOT", tmp.path());
+        (tmp, env, lock)
     }
 
     #[test]
@@ -428,7 +428,7 @@ mod tests {
 
     #[tokio::test]
     async fn save_then_list_then_delete_roundtrip() {
-        let (_home, _guard) = setup_temp_home();
+        let (_home, _env, _lock) = setup_temp_home();
         let cwd = std::path::PathBuf::from("/tmp/testproj");
         let tool = MemoryTool::new();
 
@@ -503,7 +503,7 @@ mod tests {
 
     #[tokio::test]
     async fn invalid_type_is_error() {
-        let (_home, _guard) = setup_temp_home();
+        let (_home, _env, _lock) = setup_temp_home();
         let cwd = std::path::PathBuf::from("/tmp/testproj-t");
         let tool = MemoryTool::new();
         let r = tool
@@ -523,7 +523,7 @@ mod tests {
 
     #[tokio::test]
     async fn delete_nonexistent_is_no_op() {
-        let (_home, _guard) = setup_temp_home();
+        let (_home, _env, _lock) = setup_temp_home();
         let cwd = std::path::PathBuf::from("/tmp/testproj-del");
         let tool = MemoryTool::new();
         let r = tool
@@ -536,7 +536,7 @@ mod tests {
 
     #[tokio::test]
     async fn index_prunes_orphaned_manual_deletion() {
-        let (_home, _guard) = setup_temp_home();
+        let (_home, _env, _lock) = setup_temp_home();
         let cwd = std::path::PathBuf::from("/tmp/testproj-prune");
         let tool = MemoryTool::new();
         tool.do_save(

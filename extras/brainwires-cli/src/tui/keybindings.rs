@@ -44,6 +44,25 @@ fn default_bindings() -> HashMap<String, KeyBinding> {
         "plan_mode_toggle".to_string(),
         (KeyCode::Char('p'), KeyModifiers::CONTROL),
     );
+    m.insert(
+        "task_viewer".to_string(),
+        (KeyCode::Char('t'), KeyModifiers::CONTROL),
+    );
+    m.insert(
+        "reverse_search".to_string(),
+        (KeyCode::Char('r'), KeyModifiers::CONTROL),
+    );
+    m.insert(
+        "sub_agent_viewer".to_string(),
+        (KeyCode::Char('b'), KeyModifiers::CONTROL),
+    );
+    m.insert(
+        "file_explorer".to_string(),
+        (
+            KeyCode::Char('f'),
+            KeyModifiers::CONTROL | KeyModifiers::ALT,
+        ),
+    );
     m
 }
 

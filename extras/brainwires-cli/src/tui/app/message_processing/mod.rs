@@ -84,6 +84,13 @@ impl App {
                     detected_count
                 );
             }
+
+            // SkillRouter suggestion: if the user's message looks like a
+            // discovered skill's purpose, print a hint. Non-intrusive —
+            // we never auto-invoke; the user still has to type `/<name>`.
+            if let Some(hint) = self.suggest_skill_for(&user_content) {
+                self.add_console_message(hint);
+            }
         }
 
         // Only proceed with AI if we added a user message AND command didn't skip AI
@@ -108,25 +115,11 @@ impl App {
 
         // In IPC mode, route request to Session instead of calling provider directly
         if self.is_ipc_mode {
-            if self.pending_skill_tool_scope.is_some() {
-                tracing::warn!(
-                    "pending_skill_tool_scope is set but tool scoping is not yet \
-                     wired in IPC mode; clearing"
-                );
-                self.pending_skill_tool_scope = None;
-            }
             return self.call_ai_provider_ipc().await;
         }
 
         // Check if MDAP mode is enabled - use synchronous execution path
         if let Some(ref mdap_config) = self.mdap_config {
-            if self.pending_skill_tool_scope.is_some() {
-                tracing::warn!(
-                    "pending_skill_tool_scope is set but tool scoping is not yet \
-                     wired in MDAP mode; clearing"
-                );
-                self.pending_skill_tool_scope = None;
-            }
             return self.call_ai_provider_mdap(mdap_config.clone()).await;
         }
 
@@ -260,26 +253,11 @@ impl App {
             _ => self.tools.clone(),
         };
 
-        // Apply prompt mode filtering (Ask mode removes write tools)
-        let mut tools = self.filter_tools_for_prompt_mode(tools);
-
-        // Apply per-skill tool allowlist scoping if a skill was just invoked
-        // and declared `allowed_tools`. Consumed here — cleared after this
-        // turn so subsequent turns see the full set.
-        if let Some(ref allowed) = self.pending_skill_tool_scope {
-            let allowed: std::collections::HashSet<&str> =
-                allowed.iter().map(|s| s.as_str()).collect();
-            tools.retain(|t| {
-                allowed.contains(t.name.as_str())
-                    || allowed.iter().any(|a| t.name.ends_with(&format!("__{}", a)))
-            });
-            tracing::debug!(
-                "Scoped tool set for skill turn: {} tools remaining",
-                tools.len()
-            );
-        }
-        // Clear the one-shot scope so the next turn isn't restricted.
-        self.pending_skill_tool_scope = None;
+        // Apply prompt mode filtering (Ask mode removes write tools) and
+        // any pending skill tool scope. `apply_and_clear_skill_tool_scope`
+        // is a no-op when no skill invocation is in flight.
+        let tools = self.filter_tools_for_prompt_mode(tools);
+        let tools = self.apply_and_clear_skill_tool_scope(tools);
 
         let options = ChatOptions {
             system: system_prompt,
@@ -363,6 +341,17 @@ impl App {
     /// streaming responses via IPC events. The Session handles all AI/tools/MCP.
     async fn call_ai_provider_ipc(&mut self) -> Result<()> {
         use brainwires::agent_network::ipc::ViewerMessage;
+
+        // The pending_skill_tool_scope lives on the client side; the remote
+        // session owns its own ToolExecutor and tool list. We can't enforce
+        // scope over the wire today — surface the limitation to the user
+        // and clear the scope so it doesn't leak.
+        if self.pending_skill_tool_scope.take().is_some() {
+            self.add_console_message(
+                "⚠️  Skill allowed_tools is not yet enforced over IPC — tool scope skipped"
+                    .to_string(),
+            );
+        }
 
         // Get the last user message content
         let user_content = self
@@ -1343,12 +1332,15 @@ impl App {
             created_at: chrono::Utc::now().timestamp(),
         });
 
-        // Build agent context for MDAP execution
+        // Build agent context for MDAP execution. Apply any pending
+        // skill tool scope (consumed + cleared here so subsequent turns
+        // see the full set).
+        let scoped_tools = self.apply_and_clear_skill_tool_scope(self.tools.clone());
         let mut agent_context = AgentContext {
             working_directory: self.working_directory.clone(),
             user_id: None,
             conversation_history: conversation_clone,
-            tools: self.tools.clone(),
+            tools: scoped_tools,
             metadata: std::collections::HashMap::new(),
             working_set: crate::types::WorkingSet::new(),
             // Use full_access for TUI mode - users expect agents to have write access

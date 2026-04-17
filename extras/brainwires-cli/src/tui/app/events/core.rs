@@ -163,14 +163,17 @@ impl App {
             return Ok(());
         }
 
-        // Ctrl+B: open Sub-Agent Viewer (guard: not during waiting/streaming)
-        if event.is_sub_agent_viewer() && self.mode != AppMode::Waiting {
+        // Default Ctrl+B: Sub-Agent Viewer (remappable via keybindings).
+        // Guard: not during waiting/streaming.
+        if self.keybindings.matches("sub_agent_viewer", &event)
+            && self.mode != AppMode::Waiting
+        {
             self.refresh_sub_agent_list().await;
             self.mode = AppMode::SubAgentViewer;
             return Ok(());
         }
 
-        if event.is_reverse_search() {
+        if self.keybindings.matches("reverse_search", &event) {
             // Enter reverse search mode
             self.mode = AppMode::ReverseSearch;
             self.search_query.clear();
@@ -197,7 +200,7 @@ impl App {
 
         // Ctrl+D is now handled globally in handle_event()
 
-        if event.is_task_viewer() {
+        if self.keybindings.matches("task_viewer", &event) {
             // Enter task viewer mode and refresh task tree
             self.refresh_task_tree_cache().await;
             self.task_viewer_state.selected_index = 0;

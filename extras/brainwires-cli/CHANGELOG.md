@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (agents)
+- **Worktree isolation primitive** — new `src/agent/worktree.rs` exposes a
+  `WorktreeGuard` that creates a scratch `git worktree` under
+  `~/.brainwires/worktrees/<uuid>/` and cleans up on drop. Agents that want
+  isolation can spawn with their working directory pointed at the guard's
+  path. Full `Agent({isolation: "worktree"})` wiring into the agent-spawn
+  lifecycle is still TBD — this ships the RAII primitive so that future
+  pass has something to build on.
+- `prune_worktree_orphans()` helper for startup GC of leaked worktrees.
+- `BRAINWIRES_HOME` env var now overrides `dot_brainwires_dir()` —
+  parallels `BRAINWIRES_MEMORY_ROOT`; useful for tests and non-standard
+  layouts.
+
+### Added (skills)
+- **Subagent + Script execution modes** land for real. Subagent reuses
+  the framework's `prepare_subagent` system prompt and runs inside the
+  current agent context with tool scoping (true TaskAgent isolation
+  still routes through `/spawn`). Script mode injects an explicit
+  "execute this Rhai script via `execute_script`" instruction and
+  guarantees `execute_script` is present in the scoped tool list.
+- **SkillRouter auto-suggest** — after every user message, the TUI
+  runs a keyword match against discovered skills and emits a console
+  hint like `💡 Skill 'code-review' may help — invoke with /code-review`
+  when confidence ≥ 0.75. Non-intrusive; the user still has to invoke.
+- **Skill tool scope extended to MDAP mode** — `pending_skill_tool_scope`
+  now filters the `AgentContext.tools` passed to `OrchestratorAgent::execute_mdap`.
+  IPC mode still can't enforce scope over the wire (the remote session
+  owns its own ToolExecutor); it now surfaces an explicit one-line
+  notice instead of a silent clear.
+
+### Added (tui)
+- **Six global keybindings remappable**, up from two — added
+  `task_viewer`, `reverse_search`, `sub_agent_viewer`, `file_explorer`
+  to the `settings.keybindings.global` table. Per-mode dispatch swapped
+  from `event.is_<action>()` → `self.keybindings.matches("<action>", &event)`
+  at all four call sites.
+
+### Added (tests)
+- `EnvVarGuard` RAII helper in `src/utils/mod.rs::test_util` restores the
+  previous value of an env var on drop, preventing cross-test leakage
+  from tests that had to mutate `$HOME` / `BRAINWIRES_MEMORY_ROOT`.
+
 ### Added (skills)
 - **`/skill <name>` honors `allowed_tools`** — the invoked skill's body is
   injected as a **system** message (was user-role) and the next AI turn's

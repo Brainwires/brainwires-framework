@@ -280,13 +280,18 @@ stay hardcoded for now — remapping those is a larger refactor.
 
 ### Remappable actions
 
-| Action              | Default   | Effect                                           |
-|---------------------|-----------|--------------------------------------------------|
-| `console_view`      | `Ctrl+D`  | Toggle the console / journal view                |
-| `plan_mode_toggle`  | `Ctrl+P`  | Enter/exit plan mode                             |
+| Action              | Default       | Effect                                        |
+|---------------------|---------------|-----------------------------------------------|
+| `console_view`      | `Ctrl+D`      | Toggle the console / journal view             |
+| `plan_mode_toggle`  | `Ctrl+P`      | Enter/exit plan mode                          |
+| `task_viewer`       | `Ctrl+T`      | Open the task viewer                          |
+| `reverse_search`    | `Ctrl+R`      | Reverse-search the prompt history             |
+| `sub_agent_viewer`  | `Ctrl+B`      | Open the sub-agent viewer                     |
+| `file_explorer`     | `Ctrl+Alt+F`  | Open the file explorer                        |
 
-More actions can be added in later passes — the default fallback restores
-the current behavior exactly for anything unset.
+The default fallback restores the current behavior exactly for anything
+unset. Per-mode hardcoded keys (arrow keys inside dialogs, Tab inside
+nano, etc.) stay hardcoded for now.
 
 ### Key-spec grammar
 

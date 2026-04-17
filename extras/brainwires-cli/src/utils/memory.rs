@@ -136,21 +136,20 @@ fn strip_frontmatter(text: &str) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::test_util::ENV_LOCK;
+    use crate::utils::test_util::{ENV_LOCK, EnvVarGuard};
     use tempfile::TempDir;
 
-    fn setup_temp_home() -> (TempDir, std::sync::MutexGuard<'static, ()>) {
-        let guard = ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    fn setup_temp_home()
+    -> (TempDir, EnvVarGuard, std::sync::MutexGuard<'static, ()>) {
+        let lock = ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         let tmp = TempDir::new().unwrap();
-        unsafe {
-            std::env::set_var("BRAINWIRES_MEMORY_ROOT", tmp.path());
-        }
-        (tmp, guard)
+        let env = EnvVarGuard::set("BRAINWIRES_MEMORY_ROOT", tmp.path());
+        (tmp, env, lock)
     }
 
     #[test]
     fn empty_dir_yields_empty_memory() {
-        let (_home, _guard) = setup_temp_home();
+        let (_home, _env, _lock) = setup_temp_home();
         let mem = load_memory_for_cwd(std::path::Path::new("/tmp/no-such-proj"));
         assert!(mem.is_empty());
         assert_eq!(render_memory(&mem), "");
@@ -158,7 +157,7 @@ mod tests {
 
     #[test]
     fn loads_index_and_file() {
-        let (_home, _guard) = setup_temp_home();
+        let (_home, _env, _lock) = setup_temp_home();
         let cwd = std::path::PathBuf::from("/tmp/mem-proj");
         let dir = PlatformPaths::ensure_project_memory_dir(&cwd).unwrap();
         std::fs::write(

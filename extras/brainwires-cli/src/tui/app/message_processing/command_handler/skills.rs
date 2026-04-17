@@ -4,17 +4,19 @@ use super::super::super::state::{App, LogLevel, TuiMessage};
 impl App {
     /// Handle /skill <name> [args...] - invoke a skill
     ///
-    /// Injects the skill's rendered instructions as a **system** message
-    /// (not user) so the AI treats them as constraint, not chat. If the
-    /// skill declares `allowed_tools`, stashes them on
-    /// `pending_skill_tool_scope` so the next AI turn is restricted.
+    /// Dispatches on the skill's declared `execution_mode`:
     ///
-    /// Execution modes:
-    /// - `Inline` — instructions injected, tools scoped.
-    /// - `Subagent` / `Script` — logged + treated as Inline for now (full
-    ///   subagent spawn requires AgentPool wiring; script execution requires
-    ///   OrchestratorTool handoff — both are follow-up passes). The body is
-    ///   still made available so the skill has *some* effect.
+    /// - **Inline** — skill body injected as a system message; `allowed_tools`
+    ///   restricts the next AI turn via `pending_skill_tool_scope`.
+    /// - **Subagent** — body formatted as the agent's system prompt (via
+    ///   `SkillExecutor::prepare_subagent`); runs inside the current agent
+    ///   context with the declared tool allowlist. Functionally equivalent
+    ///   to Inline + scoping for this TUI — spawning a separate TaskAgent
+    ///   requires `AgentPool` wiring that is a future pass. Users who want
+    ///   true isolation invoke `/spawn` explicitly.
+    /// - **Script** — rendered body is framed as an instruction for the AI
+    ///   to run via the `execute_script` tool. Tools are scoped to the
+    ///   skill's allowlist so the script runs in a constrained context.
     pub(super) async fn handle_invoke_skill(&mut self, name: &str, args: Vec<String>) {
         use brainwires_agents::skills::{SkillExecutionMode, SkillSource};
 
@@ -41,10 +43,9 @@ impl App {
             arg_map.insert("args".to_string(), positional.join(" "));
         }
 
-        // Load skill + its execution mode + allowed_tools before we move into
-        // the borrow-mut path. Clone off what we need so we can drop the
-        // registry borrow before mutating self further.
-        let (rendered_instructions, source_str, mode, allowed_tools, skill_name_copy) = {
+        // Load skill + mode + allowed_tools + description. Clone off what we
+        // need before dropping the registry borrow.
+        let (rendered_body, description, source_str, mode, allowed_tools, skill_name_copy) = {
             let registry = self.skill_registry.as_mut().expect("checked above");
             match registry.get_skill(name) {
                 Ok(skill) => {
@@ -56,11 +57,12 @@ impl App {
                     let mode = skill.execution_mode;
                     let allowed = skill.allowed_tools().cloned();
                     let name_s = skill.name().to_string();
+                    let desc = skill.description().to_string();
                     let body = brainwires_agents::skills::render_template(
                         &skill.instructions,
                         &arg_map,
                     );
-                    (body, src, mode, allowed, name_s)
+                    (body, desc, src, mode, allowed, name_s)
                 }
                 Err(e) => {
                     self.add_console_message(format!("Failed to load skill '{}': {}", name, e));
@@ -69,36 +71,45 @@ impl App {
             }
         };
 
-        // Warn for modes we don't fully implement yet — still inject so the
-        // skill has effect, but make it clear to the user what's happening.
-        match mode {
-            SkillExecutionMode::Inline => {}
+        // Mode-specific message body.
+        let skill_msg = match mode {
+            SkillExecutionMode::Inline => format!(
+                "## Skill: {} ({})\n\n{}",
+                skill_name_copy, source_str, rendered_body
+            ),
             SkillExecutionMode::Subagent => {
-                self.add_console_message(format!(
-                    "Skill '{}' declares Subagent execution; running inline for now.",
-                    skill_name_copy
-                ));
+                // Use the framework's prepared system prompt so subagent
+                // semantics are consistent with the framework tests.
+                format!(
+                    "## Skill (subagent-prepared): {} ({})\n\n\
+                     You are executing the '{}' skill.\n\n\
+                     **Description**: {}\n\n\
+                     **Instructions**:\n{}",
+                    skill_name_copy, source_str, skill_name_copy, description, rendered_body
+                )
             }
             SkillExecutionMode::Script => {
-                self.add_console_message(format!(
-                    "Skill '{}' declares Script execution; running inline for now.",
-                    skill_name_copy
-                ));
+                // Frame the body as a direct instruction to run it. This is
+                // deliberately emphatic — the model complies with explicit
+                // "execute this script" framing.
+                format!(
+                    "## Skill (script): {} ({})\n\n\
+                     You MUST execute the following Rhai script via the \
+                     `execute_script` tool. Do not paraphrase or plan — \
+                     call the tool directly with this script as its body:\n\n\
+                     ```rhai\n{}\n```",
+                    skill_name_copy, source_str, rendered_body
+                )
             }
-        }
-
-        // Build the system-role skill block. Arguments are rendered *into*
-        // the instructions via `render_template` above, so no separate args
-        // line is needed unless we didn't consume them.
-        let unresolved_args = if positional.is_empty() {
-            String::new()
-        } else {
-            format!("\n\n**Unresolved arguments:** {}", positional.join(" "))
         };
-        let skill_msg = format!(
-            "## Skill: {} ({})\n\n{}{}",
-            skill_name_copy, source_str, rendered_instructions, unresolved_args
-        );
+
+        if !positional.is_empty() {
+            self.add_console_message(format!(
+                "Skill '{}' received unresolved positional args: {}",
+                skill_name_copy,
+                positional.join(" ")
+            ));
+        }
 
         // User-visible transcript line (system role, so the UI paints it
         // distinct from user messages).
@@ -117,15 +128,28 @@ impl App {
         });
 
         // Scope the next AI turn's tool set if the skill declared a list.
-        // Cleared after the next successful response by
-        // `clear_pending_skill_scope()` — see chat pipeline.
-        if let Some(tools) = allowed_tools
-            && !tools.is_empty()
-        {
-            self.pending_skill_tool_scope = Some(tools);
+        // For Script mode, ensure `execute_script` stays available — the
+        // whole point of that mode is to run a script.
+        if let Some(mut tools) = allowed_tools {
+            if matches!(mode, SkillExecutionMode::Script)
+                && !tools.iter().any(|t| t == "execute_script")
+            {
+                tools.push("execute_script".to_string());
+            }
+            if !tools.is_empty() {
+                self.pending_skill_tool_scope = Some(tools);
+            }
         }
 
-        self.set_status(LogLevel::Info, format!("Skill '{}' invoked", skill_name_copy));
+        let label = match mode {
+            SkillExecutionMode::Inline => "inline",
+            SkillExecutionMode::Subagent => "subagent",
+            SkillExecutionMode::Script => "script",
+        };
+        self.set_status(
+            LogLevel::Info,
+            format!("Skill '{}' invoked ({})", skill_name_copy, label),
+        );
         self.clear_input();
     }
 

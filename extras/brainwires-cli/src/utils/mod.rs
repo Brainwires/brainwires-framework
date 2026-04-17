@@ -19,11 +19,44 @@ pub mod paths;
 #[cfg(test)]
 pub mod test_util {
     use std::sync::Mutex;
-    /// Serialise tests that set `BRAINWIRES_MEMORY_ROOT`. Env vars are
-    /// process-global, and tokio's default test executor runs tests
-    /// concurrently, so we must gate on this shared lock whenever a
-    /// test wants deterministic behaviour from that env var.
+    /// Serialise tests that mutate process-global env vars (`HOME`,
+    /// `BRAINWIRES_MEMORY_ROOT`). Env vars leak across test boundaries
+    /// and tokio's default test executor runs tests concurrently, so
+    /// every such test must hold this mutex for the duration of the
+    /// mutation.
     pub static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    /// RAII guard: sets an env var on creation and restores the previous
+    /// value on drop. Always acquire [`ENV_LOCK`] before creating one so
+    /// two tests don't race on the same var.
+    pub struct EnvVarGuard {
+        key: String,
+        prev: Option<String>,
+    }
+
+    impl EnvVarGuard {
+        pub fn set<K: AsRef<str>, V: AsRef<std::ffi::OsStr>>(key: K, value: V) -> Self {
+            let key = key.as_ref().to_string();
+            let prev = std::env::var(&key).ok();
+            // Safety: callers hold ENV_LOCK.
+            unsafe {
+                std::env::set_var(&key, value);
+            }
+            Self { key, prev }
+        }
+    }
+
+    impl Drop for EnvVarGuard {
+        fn drop(&mut self) {
+            // Safety: Drop runs while the caller still holds ENV_LOCK.
+            unsafe {
+                match &self.prev {
+                    Some(v) => std::env::set_var(&self.key, v),
+                    None => std::env::remove_var(&self.key),
+                }
+            }
+        }
+    }
 }
 /// Plan parser re-exported from framework core
 pub mod plan_parser {

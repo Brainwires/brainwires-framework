@@ -108,7 +108,14 @@ impl PlatformPaths {
     ///
     /// This is used for user-facing config files like permissions.toml
     /// that users might want to edit manually.
+    ///
+    /// Honors `BRAINWIRES_HOME` as an override — useful in tests and for
+    /// pointing at an alternate home dir without mutating `$HOME` (which
+    /// is process-global and races under parallel tests).
     pub fn dot_brainwires_dir() -> Result<PathBuf> {
+        if let Ok(override_dir) = std::env::var("BRAINWIRES_HOME") {
+            return Ok(PathBuf::from(override_dir));
+        }
         let home = dirs::home_dir().context("Failed to get home directory")?;
         Ok(home.join(".brainwires"))
     }
