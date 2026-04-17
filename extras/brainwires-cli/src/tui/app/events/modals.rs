@@ -723,9 +723,10 @@ impl App {
             None => return Ok(()),
         };
 
-        if let Some(pending) = self.active_user_question.as_mut() {
-            if let Event::Key(key) = event {
-                if pending.state.editing_other {
+        if let Some(pending) = self.active_user_question.as_mut()
+            && let Event::Key(key) = event
+        {
+            if pending.state.editing_other {
                     match key.code {
                         KeyCode::Char(c) => pending.state.append_other_char(c),
                         KeyCode::Backspace => pending.state.backspace_other(),
@@ -770,13 +771,12 @@ impl App {
                     }
                     _ => {}
                 }
-            }
         }
 
         Ok(())
     }
 
-    // ── Sub-Agent Viewer ──────────────────────────────────────────────────────
+    // ── Sub-Agent Viewer ────────────────────────────────────────────────────
 
     /// Handle events in Sub-Agent Viewer mode
     pub(in crate::tui::app) async fn handle_sub_agent_viewer_event(

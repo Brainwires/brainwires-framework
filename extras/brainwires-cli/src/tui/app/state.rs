@@ -1279,10 +1279,10 @@ impl App {
             Some(c) if !c.trim().is_empty() => c.clone(),
             _ => return,
         };
-        if let Some((at, _)) = self.status_line_cache {
-            if at.elapsed() < std::time::Duration::from_millis(1_000) {
-                return;
-            }
+        if let Some((at, _)) = self.status_line_cache
+            && at.elapsed() < std::time::Duration::from_millis(1_000)
+        {
+            return;
         }
         let run = async move {
             use tokio::process::Command;

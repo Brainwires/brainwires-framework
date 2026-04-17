@@ -111,26 +111,24 @@ pub fn render_memory(loaded: &LoadedMemory) -> String {
 }
 
 fn truncate_lines(text: &str, max: usize) -> String {
-    let mut count = 0usize;
     let mut out = String::with_capacity(text.len().min(max * 80));
-    for line in text.lines() {
+    for (count, line) in text.lines().enumerate() {
         if count >= max {
             out.push_str("…(truncated)\n");
             break;
         }
         out.push_str(line);
         out.push('\n');
-        count += 1;
     }
     out
 }
 
 fn strip_frontmatter(text: &str) -> &str {
     let trimmed = text.trim_start_matches('\n');
-    if let Some(rest) = trimmed.strip_prefix("---\n") {
-        if let Some(end) = rest.find("\n---") {
-            return &rest[end + 4..];
-        }
+    if let Some(rest) = trimmed.strip_prefix("---\n")
+        && let Some(end) = rest.find("\n---")
+    {
+        return &rest[end + 4..];
     }
     trimmed
 }

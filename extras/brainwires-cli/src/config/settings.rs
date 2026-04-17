@@ -184,11 +184,11 @@ impl<'a> PermissionMatcher<'a> {
 }
 
 fn split_pattern(raw: &str) -> (&str, Option<&str>) {
-    if let Some(open) = raw.find('(') {
-        if let Some(close_rel) = raw[open + 1..].rfind(')') {
-            let close = open + 1 + close_rel;
-            return (&raw[..open], Some(&raw[open + 1..close]));
-        }
+    if let Some(open) = raw.find('(')
+        && let Some(close_rel) = raw[open + 1..].rfind(')')
+    {
+        let close = open + 1 + close_rel;
+        return (&raw[..open], Some(&raw[open + 1..close]));
     }
     (raw, None)
 }

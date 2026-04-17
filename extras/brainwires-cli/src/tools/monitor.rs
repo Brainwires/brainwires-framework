@@ -366,8 +366,7 @@ impl MonitorTool {
         let max = args
             .max_lines
             .unwrap_or(DEFAULT_READ_LIMIT)
-            .min(MAX_READ_LIMIT)
-            .max(1);
+            .clamp(1, MAX_READ_LIMIT);
         let since = args.since_offset.unwrap_or(0);
 
         let proc = match self.procs.lock().await.get(&args.id).cloned() {

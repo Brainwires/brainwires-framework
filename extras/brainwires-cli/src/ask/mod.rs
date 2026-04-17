@@ -107,12 +107,12 @@ pub fn collect_response(
             })
             .collect();
         let other_selected = state.other_selected.first().copied().unwrap_or(false);
-        if other_selected {
-            if let Some(text) = state.other_text.first() {
-                let trimmed = text.trim();
-                if !trimmed.is_empty() {
-                    picked.push(trimmed.to_string());
-                }
+        if other_selected
+            && let Some(text) = state.other_text.first()
+        {
+            let trimmed = text.trim();
+            if !trimmed.is_empty() {
+                picked.push(trimmed.to_string());
             }
         }
         if picked.is_empty() {

@@ -251,13 +251,13 @@ impl MemoryTool {
         };
         let file_path = dir.join(format!("{}.md", slugify(&args.name)));
         let existed = file_path.exists();
-        if existed {
-            if let Err(e) = std::fs::remove_file(&file_path) {
-                return ToolResult::error(
-                    tool_use_id.to_string(),
-                    format!("failed to delete memory: {}", e),
-                );
-            }
+        if existed
+            && let Err(e) = std::fs::remove_file(&file_path)
+        {
+            return ToolResult::error(
+                tool_use_id.to_string(),
+                format!("failed to delete memory: {}", e),
+            );
         }
 
         if let Err(e) = rewrite_index(cwd).await {
@@ -399,6 +399,10 @@ async fn rewrite_index(cwd: &std::path::Path) -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
+    // MutexGuard held across await is intentional — the guard serialises
+    // process-global env-var mutation for the duration of each test.
+    #![allow(clippy::await_holding_lock)]
+
     use super::*;
     use crate::utils::test_util::ENV_LOCK;
     use tempfile::TempDir;
