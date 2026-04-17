@@ -270,6 +270,25 @@ impl App {
                 self.clear_input();
                 Ok(true)
             }
+            CommandAction::OpenShell => {
+                // Main loop takes over and hands the terminal to an
+                // interactive shell; we just raise the flag here.
+                #[cfg(unix)]
+                {
+                    self.pending_shell = true;
+                    self.add_console_message(
+                        "Opening interactive shell (exit/Ctrl+D to return)...".to_string(),
+                    );
+                }
+                #[cfg(not(unix))]
+                {
+                    self.add_console_message(
+                        "/shell is not supported on this platform yet".to_string(),
+                    );
+                }
+                self.clear_input();
+                Ok(true)
+            }
             CommandAction::ShowShellHistory => {
                 // Open shell history viewer
                 self.mode = AppMode::ShellViewer;

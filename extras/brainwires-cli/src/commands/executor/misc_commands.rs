@@ -20,6 +20,7 @@ impl CommandExecutor {
             "review" => Some(self.cmd_review()),
             "brainwires" => Some(self.cmd_brainwires()),
             "exec" => Some(self.cmd_exec(args)),
+            "shell" => Some(Ok(CommandResult::Action(CommandAction::OpenShell))),
             "shells" => Some(Ok(CommandResult::Action(CommandAction::ShowShellHistory))),
             "hotkeys" | "keys" => Some(Ok(CommandResult::Action(CommandAction::OpenHotkeyDialog))),
             "approvals" => Some(self.cmd_approvals(args)),

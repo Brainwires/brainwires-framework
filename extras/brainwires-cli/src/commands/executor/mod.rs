@@ -68,6 +68,8 @@ pub enum CommandAction {
     SetApprovalMode(String),
     /// Execute shell command (requires confirmation)
     ExecCommand(String),
+    /// Drop into an interactive shell with the terminal handed over.
+    OpenShell,
     /// Show shell command history
     ShowShellHistory,
     /// Open hotkey configuration dialog

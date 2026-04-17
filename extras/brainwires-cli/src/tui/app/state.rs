@@ -350,6 +350,12 @@ pub struct App {
     /// (refreshed_at, text) cache for the custom status line. Avoids
     /// spawning a process on every frame.
     pub status_line_cache: Option<(std::time::Instant, String)>,
+    /// Set by the `/shell` slash command — the main TUI loop drops into
+    /// an interactive shell and clears this flag on return.
+    pub pending_shell: bool,
+    /// User-configurable keybinding map. Loaded from layered `settings.json`
+    /// at App construction; falls back to defaults if unset.
+    pub keybindings: std::sync::Arc<crate::tui::keybindings::KeybindingMap>,
     /// Flag to signal main loop to background the process
     pub pending_background: bool,
     /// Flag to signal main loop to suspend the process
@@ -801,6 +807,17 @@ impl App {
             active_user_question: None,
             status_line_command: config.status_line_command.clone(),
             status_line_cache: None,
+            pending_shell: false,
+            keybindings: {
+                let cwd = std::env::current_dir()
+                    .unwrap_or_else(|_| std::path::PathBuf::from("."));
+                let settings = crate::config::SettingsManager::load(&cwd).merged;
+                std::sync::Arc::new(
+                    crate::tui::keybindings::KeybindingMap::from_settings(
+                        settings.keybindings.as_ref(),
+                    ),
+                )
+            },
             pending_background: false,
             pending_suspend: false,
             exit_when_agent_done: false,
@@ -1116,6 +1133,17 @@ impl App {
             active_user_question: None,
             status_line_command: config.status_line_command.clone(),
             status_line_cache: None,
+            pending_shell: false,
+            keybindings: {
+                let cwd = std::env::current_dir()
+                    .unwrap_or_else(|_| std::path::PathBuf::from("."));
+                let settings = crate::config::SettingsManager::load(&cwd).merged;
+                std::sync::Arc::new(
+                    crate::tui::keybindings::KeybindingMap::from_settings(
+                        settings.keybindings.as_ref(),
+                    ),
+                )
+            },
             pending_background: false,
             pending_suspend: false,
             exit_when_agent_done: false,

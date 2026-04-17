@@ -505,6 +505,13 @@ pub fn register_builtin_commands(registry: &mut CommandRegistry) {
         "".to_string(),
     ));
 
+    // /shell - Drop into an interactive shell with the terminal handed over
+    registry.register(Command::builtin(
+        "shell".to_string(),
+        "Drop into an interactive shell (exit or Ctrl+D to return)".to_string(),
+        "".to_string(),
+    ));
+
     // /hotkeys - Open hotkey configuration dialog
     registry.register(Command::builtin(
         "hotkeys".to_string(),

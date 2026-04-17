@@ -54,9 +54,9 @@ impl App {
             return Ok(true);
         }
 
-        // Check for console view (Ctrl+D) - globally available
-        // Toggle: if already in ConsoleView, return to Normal; otherwise enter ConsoleView
-        if event.is_console_view() {
+        // Check for console view (default Ctrl+D, remappable via
+        // `settings.keybindings.global.console_view`). Toggle in/out.
+        if self.keybindings.matches("console_view", &event) {
             if self.mode == AppMode::ConsoleView {
                 self.mode = AppMode::Normal;
             } else {
@@ -68,8 +68,8 @@ impl App {
             return Ok(true);
         }
 
-        // Check for plan mode toggle (Ctrl+P) - globally available
-        if event.is_plan_mode_toggle() {
+        // Check for plan mode toggle (default Ctrl+P, remappable).
+        if self.keybindings.matches("plan_mode_toggle", &event) {
             if self.mode == AppMode::PlanMode {
                 self.exit_plan_mode().await?;
             } else {

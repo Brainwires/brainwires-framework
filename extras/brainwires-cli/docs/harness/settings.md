@@ -272,6 +272,49 @@ The tool result is a JSON string containing one of:
 
 ---
 
+## Keybindings
+
+Top-level global TUI shortcuts are remappable under `settings.keybindings`.
+Per-mode keys (arrow keys inside dialogs, text editing inside nano, etc.)
+stay hardcoded for now — remapping those is a larger refactor.
+
+### Remappable actions
+
+| Action              | Default   | Effect                                           |
+|---------------------|-----------|--------------------------------------------------|
+| `console_view`      | `Ctrl+D`  | Toggle the console / journal view                |
+| `plan_mode_toggle`  | `Ctrl+P`  | Enter/exit plan mode                             |
+
+More actions can be added in later passes — the default fallback restores
+the current behavior exactly for anything unset.
+
+### Key-spec grammar
+
+Keys are written as one or more modifiers separated by `+` followed by a
+key name. Modifiers (case-insensitive): `Ctrl`, `Alt` (alias `Meta`),
+`Shift`. Key names (case-insensitive): a single character, `Esc`,
+`Enter`, `Tab`, `Space`, `Backspace`, `Delete`, `Up`, `Down`, `Left`,
+`Right`, `Home`, `End`, `PageUp`, `PageDown`, `F1`–`F24`.
+
+Examples: `"Ctrl+D"`, `"Alt+Shift+F4"`, `"Esc"`, `"F1"`, `"PageUp"`.
+
+### Example
+
+Rebind the console view to `Ctrl+K` and leave plan mode on the default:
+
+```json
+{
+  "keybindings": {
+    "global": {
+      "console_view": "Ctrl+K"
+    }
+  }
+}
+```
+
+Typos and unknown actions are logged via `tracing::warn!` and ignored;
+the rest of the config still applies.
+
 ## Custom status line
 
 Set `Config.status_line_command` (in `config.json`) to any shell command —

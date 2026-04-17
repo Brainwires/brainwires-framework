@@ -27,6 +27,10 @@ pub struct Settings {
     pub permissions: Option<Permissions>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hooks: Option<Hooks>,
+    /// Optional user-remapped TUI keybindings. See
+    /// `crate::tui::keybindings` for action names + key-spec grammar.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub keybindings: Option<crate::tui::keybindings::Keybindings>,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub env: HashMap<String, String>,
 }
@@ -104,6 +108,12 @@ impl Settings {
                 me.user_prompt_submit.extend(them.user_prompt_submit);
                 me.stop.extend(them.stop);
             }
+            (slot @ None, Some(them)) => *slot = Some(them),
+            _ => {}
+        }
+        // keybindings — per-action later-wins on key collision.
+        match (&mut self.keybindings, other.keybindings) {
+            (Some(me), Some(them)) => me.merge(them),
             (slot @ None, Some(them)) => *slot = Some(them),
             _ => {}
         }
@@ -457,6 +467,7 @@ mod tests {
                 }],
                 ..Default::default()
             }),
+            keybindings: None,
             env: {
                 let mut m = HashMap::new();
                 m.insert("FOO".into(), "bar".into());

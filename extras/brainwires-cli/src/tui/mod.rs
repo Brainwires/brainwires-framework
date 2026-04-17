@@ -8,6 +8,8 @@ mod console;
 mod events;
 mod exec_overlay;
 mod help_content;
+pub mod keybindings;
+mod shell_overlay;
 pub(crate) mod hotkey_content;
 pub mod question_parser;
 mod ui;
@@ -16,6 +18,7 @@ pub use app::{App, AppMode, LogLevel};
 pub use console::ConsoleBuffer;
 pub use events::{Event, EventHandler};
 pub use exec_overlay::execute_command_overlay;
+pub use shell_overlay::{ShellResult, run_interactive_shell};
 
 use anyhow::{Context, Result};
 use crossterm::{
@@ -490,6 +493,44 @@ async fn run_app(
                         created_at: chrono::Utc::now().timestamp(),
                     });
                     app.set_status(LogLevel::Error, "Command execution failed");
+                }
+            }
+        }
+
+        // Check for pending interactive shell (/shell). Hands the terminal
+        // over wholesale, then restores the TUI when the shell exits.
+        if app.pending_shell {
+            app.pending_shell = false;
+            events.pause();
+            let cwd = std::path::PathBuf::from(&app.working_directory);
+            let started_at = chrono::Utc::now().timestamp();
+            let result = shell_overlay::run_interactive_shell(terminal, &cwd, None);
+            events.resume();
+            match result {
+                Ok(shell_result) => {
+                    let code = shell_result
+                        .exit_code
+                        .map(|c| c.to_string())
+                        .unwrap_or_else(|| "signal".to_string());
+                    app.shell_history.push(crate::tui::app::ShellExecution {
+                        command: "(interactive shell)".to_string(),
+                        output: format!("Interactive shell session (exit: {})", code),
+                        exit_code: shell_result.exit_code.unwrap_or(-1),
+                        executed_at: started_at,
+                    });
+                    app.set_status(
+                        LogLevel::Info,
+                        format!("Shell exited (code: {})", code),
+                    );
+                }
+                Err(e) => {
+                    app.shell_history.push(crate::tui::app::ShellExecution {
+                        command: "(interactive shell)".to_string(),
+                        output: format!("Error: {}", e),
+                        exit_code: -1,
+                        executed_at: started_at,
+                    });
+                    app.set_status(LogLevel::Error, format!("Shell failed: {}", e));
                 }
             }
         }

@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (skills)
+- **`/skill <name>` honors `allowed_tools`** — the invoked skill's body is
+  injected as a **system** message (was user-role) and the next AI turn's
+  tool set is filtered to the skill's declared `allowed_tools`. Scope is
+  one-shot and cleared on the next response. IPC and MDAP paths log a
+  warning and clear the scope unfiltered — follow-up.
+- **Execution modes**: `Inline` fully implemented; `Subagent`/`Script`
+  log a notice + fall back to Inline so the skill still has effect
+  (full Subagent spawn / Script orchestration are future passes).
+- **Level-3 resources** (`scripts/`, `references/`, `assets/`) now
+  appear in `/skill:show` via `SkillRegistry::get_resources`.
+
+### Added (tui)
+- **Interactive `/shell`** — drop into a live `bash` (or `$SHELL`) from
+  inside the TUI. Terminal is fully handed over (raw mode off, alt-screen
+  off, mouse capture off) for the shell's lifetime, then restored on
+  return. Unix-only; Windows prints a clear "not supported" message.
+- **Remappable global keybindings** — `settings.keybindings.global` lets
+  users rebind the top-level global shortcuts (`console_view`,
+  `plan_mode_toggle`). Per-mode hardcoded keys still work. Defaults
+  match the current behavior exactly so unconfigured users see no
+  change.
+
+### Changed (refactor)
+- `src/tui/app/message_processing/command_handler.rs` (2456 lines) split
+  into a directory module with one file per topic: `mod.rs` (dispatch +
+  mdap + context + tools-mode), `knowledge.rs`, `profile.rs`,
+  `agents.rs`, `skills.rs`. Zero behavior change.
+- Cleaned clippy warnings from passes 3–5: nested `if let` →  `&& let`,
+  `.min().max()` → `.clamp()`, counter loop → `enumerate()`,
+  `#![allow(clippy::await_holding_lock)]` on the memory tests module
+  (the env-var lock is process-global and held intentionally).
+
+### Added (docs)
+- `docs/harness/settings.md` — new "Keybindings" section covering action
+  names, key-spec grammar, and an example.
+
 ### Added (settings)
 - **Layered `settings.json`** — new user/project/local `settings.json` merge, separate from `config.json`. Sources (later wins for scalars, arrays concatenate): `~/.brainwires/settings.json` → `~/.claude/settings.json` (migrator compat) → `<project>/.brainwires/settings.json` → `<project>/.brainwires/settings.local.json`.
 - **Tool-specific permissions** — Claude-Code-shaped rules under `settings.permissions.allow/deny/ask` (`Bash(ls:*)`, `Edit(src/**/*.rs)`, `mcp__server__tool`). `deny` overrides everything including `PermissionMode::Full`.
