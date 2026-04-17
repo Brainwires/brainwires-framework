@@ -384,6 +384,10 @@ pub struct App {
     pub ipc_needs_respawn: bool,
     /// Skill registry for agent skills
     pub skill_registry: Option<brainwires_agents::skills::SkillRegistry>,
+    /// Tool allowlist scoped to the next AI turn, set by `/skill` when the
+    /// invoked skill declared `allowed_tools`. Cleared after the next
+    /// successful AI response so subsequent turns see the full tool set again.
+    pub pending_skill_tool_scope: Option<Vec<String>>,
 
     // Journal Tree Fields
     /// Collapsible tree for the Journal view
@@ -822,6 +826,7 @@ impl App {
                 }
                 Some(registry)
             },
+            pending_skill_tool_scope: None,
             // Journal tree and sub-agent viewer
             journal_tree: super::journal_tree::JournalTreeState::new(),
             sub_agent_viewer_state: None,
@@ -1140,6 +1145,7 @@ impl App {
                 }
                 Some(registry)
             },
+            pending_skill_tool_scope: None,
             // Journal tree and sub-agent viewer
             journal_tree: super::journal_tree::JournalTreeState::new(),
             sub_agent_viewer_state: None,

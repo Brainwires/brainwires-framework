@@ -2010,57 +2010,129 @@ fn extract_mcp_server_name(tool_name: &str) -> Option<String> {
 
 impl App {
     /// Handle /skill <name> [args...] - invoke a skill
+    ///
+    /// Injects the skill's rendered instructions as a **system** message
+    /// (not user) so the AI treats them as constraint, not chat. If the
+    /// skill declares `allowed_tools`, stashes them on
+    /// `pending_skill_tool_scope` so the next AI turn is restricted.
+    ///
+    /// Execution modes:
+    /// - `Inline` — instructions injected, tools scoped.
+    /// - `Subagent` / `Script` — logged + treated as Inline for now (full
+    ///   subagent spawn requires AgentPool wiring; script execution requires
+    ///   OrchestratorTool handoff — both are follow-up passes). The body is
+    ///   still made available so the skill has *some* effect.
     async fn handle_invoke_skill(&mut self, name: &str, args: Vec<String>) {
-        use brainwires_agents::skills::SkillSource;
+        use brainwires_agents::skills::{SkillExecutionMode, SkillSource};
 
-        // Try to get the skill from registry
-        if let Some(ref mut registry) = self.skill_registry {
+        if self.skill_registry.is_none() {
+            self.add_console_message("Skill registry not initialized".to_string());
+            return;
+        }
+
+        // Render positional args as key=value when they look like assignments,
+        // else keep the bare tokens under `args` so the template can reference
+        // them positionally if needed. SkillExecutor::execute renders
+        // `{{key}}` substitutions against this map.
+        let mut arg_map: std::collections::HashMap<String, String> =
+            std::collections::HashMap::new();
+        let mut positional: Vec<String> = Vec::new();
+        for a in &args {
+            if let Some((k, v)) = a.split_once('=') {
+                arg_map.insert(k.trim().to_string(), v.trim().to_string());
+            } else {
+                positional.push(a.clone());
+            }
+        }
+        if !positional.is_empty() {
+            arg_map.insert("args".to_string(), positional.join(" "));
+        }
+
+        // Load skill + its execution mode + allowed_tools before we move into
+        // the borrow-mut path. Clone off what we need so we can drop the
+        // registry borrow before mutating self further.
+        let (rendered_instructions, source_str, mode, allowed_tools, skill_name_copy) = {
+            let registry = self.skill_registry.as_mut().expect("checked above");
             match registry.get_skill(name) {
                 Ok(skill) => {
-                    // Build the skill invocation message
-                    let source_str = match skill.metadata.source {
+                    let src = match skill.metadata.source {
                         SkillSource::Personal => "personal",
                         SkillSource::Project => "project",
                         SkillSource::Builtin => "builtin",
                     };
-
-                    let args_str = if args.is_empty() {
-                        String::new()
-                    } else {
-                        format!("\n\n**Arguments:** {}", args.join(" "))
-                    };
-
-                    // Add the skill instructions to the conversation
-                    let skill_msg = format!(
-                        "**Invoking skill: {}** ({}){}\n\n---\n\n{}",
-                        name, source_str, args_str, skill.instructions
+                    let mode = skill.execution_mode;
+                    let allowed = skill.allowed_tools().cloned();
+                    let name_s = skill.name().to_string();
+                    let body = brainwires_agents::skills::render_template(
+                        &skill.instructions,
+                        &arg_map,
                     );
-
-                    // Add as user message so the AI can see and act on it
-                    self.messages.push(TuiMessage {
-                        role: "user".to_string(),
-                        content: skill_msg.clone(),
-                        created_at: chrono::Utc::now().timestamp(),
-                    });
-
-                    use crate::types::message::{Message, MessageContent, Role};
-                    self.conversation_history.push(Message {
-                        role: Role::User,
-                        content: MessageContent::Text(skill_msg),
-                        name: None,
-                        metadata: None,
-                    });
-
-                    self.set_status(LogLevel::Info, format!("Skill '{}' invoked", name));
+                    (body, src, mode, allowed, name_s)
                 }
                 Err(e) => {
                     self.add_console_message(format!("Failed to load skill '{}': {}", name, e));
+                    return;
                 }
             }
-        } else {
-            self.add_console_message("Skill registry not initialized".to_string());
+        };
+
+        // Warn for modes we don't fully implement yet — still inject so the
+        // skill has effect, but make it clear to the user what's happening.
+        match mode {
+            SkillExecutionMode::Inline => {}
+            SkillExecutionMode::Subagent => {
+                self.add_console_message(format!(
+                    "Skill '{}' declares Subagent execution; running inline for now.",
+                    skill_name_copy
+                ));
+            }
+            SkillExecutionMode::Script => {
+                self.add_console_message(format!(
+                    "Skill '{}' declares Script execution; running inline for now.",
+                    skill_name_copy
+                ));
+            }
         }
 
+        // Build the system-role skill block. Arguments are rendered *into*
+        // the instructions via `render_template` above, so no separate args
+        // line is needed unless we didn't consume them.
+        let unresolved_args = if positional.is_empty() {
+            String::new()
+        } else {
+            format!("\n\n**Unresolved arguments:** {}", positional.join(" "))
+        };
+        let skill_msg = format!(
+            "## Skill: {} ({})\n\n{}{}",
+            skill_name_copy, source_str, rendered_instructions, unresolved_args
+        );
+
+        // User-visible transcript line (system role, so the UI paints it
+        // distinct from user messages).
+        self.messages.push(TuiMessage {
+            role: "system".to_string(),
+            content: skill_msg.clone(),
+            created_at: chrono::Utc::now().timestamp(),
+        });
+
+        use crate::types::message::{Message, MessageContent, Role};
+        self.conversation_history.push(Message {
+            role: Role::System,
+            content: MessageContent::Text(skill_msg),
+            name: None,
+            metadata: None,
+        });
+
+        // Scope the next AI turn's tool set if the skill declared a list.
+        // Cleared after the next successful response by
+        // `clear_pending_skill_scope()` — see chat pipeline.
+        if let Some(tools) = allowed_tools {
+            if !tools.is_empty() {
+                self.pending_skill_tool_scope = Some(tools);
+            }
+        }
+
+        self.set_status(LogLevel::Info, format!("Skill '{}' invoked", skill_name_copy));
         self.clear_input();
     }
 
@@ -2153,6 +2225,41 @@ impl App {
         use brainwires_agents::skills::SkillSource;
 
         let result = if let Some(ref mut registry) = self.skill_registry {
+            // Collect the resource listing first (shared borrow scope) so it
+            // doesn't fight with the later `&mut get_skill` borrow.
+            let resources_listing = registry
+                .get_resources(name)
+                .ok()
+                .map(|r| {
+                    let mut lines = Vec::new();
+                    let fmt = |label: &str, paths: &[std::path::PathBuf]| {
+                        if paths.is_empty() {
+                            None
+                        } else {
+                            let names: Vec<&str> = paths
+                                .iter()
+                                .filter_map(|p| p.file_name().and_then(|n| n.to_str()))
+                                .collect();
+                            Some(format!("  {}/ ({})", label, names.join(", ")))
+                        }
+                    };
+                    if let Some(l) = fmt("scripts", &r.scripts) {
+                        lines.push(l);
+                    }
+                    if let Some(l) = fmt("references", &r.references) {
+                        lines.push(l);
+                    }
+                    if let Some(l) = fmt("assets", &r.assets) {
+                        lines.push(l);
+                    }
+                    if lines.is_empty() {
+                        "(none)".to_string()
+                    } else {
+                        lines.join("\n")
+                    }
+                })
+                .unwrap_or_else(|| "(none)".to_string());
+
             match registry.get_skill(name) {
                 Ok(skill) => {
                     let source_str = match skill.metadata.source {
@@ -2171,7 +2278,6 @@ impl App {
                     let model = skill.metadata.model.as_deref().unwrap_or("default");
                     let license = skill.metadata.license.as_deref().unwrap_or("unspecified");
 
-                    // Truncate instructions for display
                     let instructions_preview = if skill.instructions.len() > 500 {
                         format!(
                             "{}...\n\n(truncated, {} chars total)",
@@ -2189,6 +2295,7 @@ impl App {
                         **Model:** {}\n\
                         **Allowed Tools:** {}\n\
                         **License:** {}\n\n\
+                        **Resources:**\n{}\n\n\
                         **Instructions:**\n{}",
                         name,
                         skill.metadata.description,
@@ -2196,6 +2303,7 @@ impl App {
                         model,
                         allowed_tools,
                         license,
+                        resources_listing,
                         instructions_preview
                     )
                 }

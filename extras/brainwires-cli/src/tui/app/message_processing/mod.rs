@@ -108,11 +108,25 @@ impl App {
 
         // In IPC mode, route request to Session instead of calling provider directly
         if self.is_ipc_mode {
+            if self.pending_skill_tool_scope.is_some() {
+                tracing::warn!(
+                    "pending_skill_tool_scope is set but tool scoping is not yet \
+                     wired in IPC mode; clearing"
+                );
+                self.pending_skill_tool_scope = None;
+            }
             return self.call_ai_provider_ipc().await;
         }
 
         // Check if MDAP mode is enabled - use synchronous execution path
         if let Some(ref mdap_config) = self.mdap_config {
+            if self.pending_skill_tool_scope.is_some() {
+                tracing::warn!(
+                    "pending_skill_tool_scope is set but tool scoping is not yet \
+                     wired in MDAP mode; clearing"
+                );
+                self.pending_skill_tool_scope = None;
+            }
             return self.call_ai_provider_mdap(mdap_config.clone()).await;
         }
 
@@ -247,7 +261,25 @@ impl App {
         };
 
         // Apply prompt mode filtering (Ask mode removes write tools)
-        let tools = self.filter_tools_for_prompt_mode(tools);
+        let mut tools = self.filter_tools_for_prompt_mode(tools);
+
+        // Apply per-skill tool allowlist scoping if a skill was just invoked
+        // and declared `allowed_tools`. Consumed here — cleared after this
+        // turn so subsequent turns see the full set.
+        if let Some(ref allowed) = self.pending_skill_tool_scope {
+            let allowed: std::collections::HashSet<&str> =
+                allowed.iter().map(|s| s.as_str()).collect();
+            tools.retain(|t| {
+                allowed.contains(t.name.as_str())
+                    || allowed.iter().any(|a| t.name.ends_with(&format!("__{}", a)))
+            });
+            tracing::debug!(
+                "Scoped tool set for skill turn: {} tools remaining",
+                tools.len()
+            );
+        }
+        // Clear the one-shot scope so the next turn isn't restricted.
+        self.pending_skill_tool_scope = None;
 
         let options = ChatOptions {
             system: system_prompt,
