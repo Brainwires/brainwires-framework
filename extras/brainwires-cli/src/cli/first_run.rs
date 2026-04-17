@@ -14,6 +14,7 @@ use console::style;
 use dialoguer::{Select, theme::ColorfulTheme};
 use std::io::IsTerminal;
 
+use crate::auth::SessionManager;
 use crate::config::{ConfigManager, ConfigUpdates};
 use crate::providers::ProviderType;
 use crate::types::provider_ext::{CHAT_PROVIDERS, credential_hint, detect_provider_from_env, summary};
@@ -97,11 +98,18 @@ pub async fn prompt_and_save(config: &mut ConfigManager) -> Result<ProviderType>
         .map(|p| format!("{:<14}  {}", p.as_str(), style(summary(*p)).dim()))
         .collect();
 
-    // Default selection: Brainwires if a session already exists anywhere,
-    // otherwise Anthropic (most common coding target).
+    // Default selection: Brainwires if the user already has a saved SaaS
+    // session (they previously ran `auth login`), otherwise Anthropic as
+    // the most common coding target.
+    let prefer_brainwires = SessionManager::is_authenticated().unwrap_or(false);
+    let preferred = if prefer_brainwires {
+        ProviderType::Brainwires
+    } else {
+        ProviderType::Anthropic
+    };
     let default_idx = CHAT_PROVIDERS
         .iter()
-        .position(|p| *p == ProviderType::Anthropic)
+        .position(|p| *p == preferred)
         .unwrap_or(0);
 
     let choice = Select::with_theme(&ColorfulTheme::default())

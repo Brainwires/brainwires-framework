@@ -61,6 +61,9 @@ struct MonitorProcess {
     /// increasing offset so callers can pass `since_offset` for idempotent
     /// reads. Higher than the last line's offset means no new data.
     next_offset: Arc<Mutex<u64>>,
+    /// Count of lines evicted by the ring buffer cap. Surfaced on read so
+    /// agents know when a chatty process has outrun them.
+    dropped: Arc<Mutex<u64>>,
     /// Child handle; `None` after the process has been awaited.
     child: Arc<Mutex<Option<Child>>>,
     /// Join handle for the output-pumping task. We keep it so a future
@@ -177,7 +180,7 @@ impl MonitorTool {
         );
         Tool {
             name: "monitor_read".to_string(),
-            description: "Read new stdout/stderr lines from a monitored process. Returns up to `max_lines` lines at or after `since_offset`, plus `next_offset` and status. Non-blocking — returns immediately with whatever is buffered."
+            description: "Read new stdout/stderr lines from a monitored process. Returns up to `max_lines` lines at or after `since_offset`, plus `next_offset`, `dropped_lines` (count of lines the ring buffer evicted before you read them), and status. Non-blocking — returns immediately with whatever is buffered."
                 .to_string(),
             input_schema: ToolInputSchema::object(props, vec!["id".to_string()]),
             requires_approval: false,
@@ -283,6 +286,7 @@ impl MonitorTool {
         let id = new_id();
         let buffer: Arc<Mutex<VecDeque<Line>>> = Arc::new(Mutex::new(VecDeque::new()));
         let next_offset = Arc::new(Mutex::new(0u64));
+        let dropped = Arc::new(Mutex::new(0u64));
         let final_status = Arc::new(Mutex::new(None));
 
         let proc = Arc::new(MonitorProcess {
@@ -291,6 +295,7 @@ impl MonitorTool {
             started_at: Instant::now(),
             buffer: buffer.clone(),
             next_offset: next_offset.clone(),
+            dropped: dropped.clone(),
             child: Arc::new(Mutex::new(Some(child))),
             pump: None, // filled in below
             final_status: final_status.clone(),
@@ -306,6 +311,7 @@ impl MonitorTool {
             stderr,
             buffer,
             next_offset,
+            dropped,
             final_status,
         ));
 
@@ -318,6 +324,7 @@ impl MonitorTool {
             started_at: proc.started_at,
             buffer: proc.buffer.clone(),
             next_offset: proc.next_offset.clone(),
+            dropped: proc.dropped.clone(),
             child: proc.child.clone(),
             pump: Some(pump),
             final_status: proc.final_status.clone(),
@@ -400,6 +407,7 @@ impl MonitorTool {
 
         drop(buffer);
 
+        let dropped = *proc.dropped.lock().await;
         let status = describe_status(&proc).await;
 
         ToolResult::success(
@@ -409,6 +417,7 @@ impl MonitorTool {
                 "lines": rendered,
                 "next_offset": next_offset,
                 "more_available": truncated,
+                "dropped_lines": dropped,
                 "status": status,
             }))
             .unwrap_or_default(),
@@ -479,6 +488,7 @@ impl MonitorTool {
             let buffer = proc.buffer.lock().await;
             let buffered = buffer.len();
             drop(buffer);
+            let dropped = *proc.dropped.lock().await;
             let status = describe_status(proc).await;
             items.push(json!({
                 "id": id,
@@ -486,6 +496,7 @@ impl MonitorTool {
                 "cwd": proc.cwd,
                 "age_seconds": proc.started_at.elapsed().as_secs(),
                 "buffered_lines": buffered,
+                "dropped_lines": dropped,
                 "status": status,
             }));
         }
@@ -529,15 +540,18 @@ async fn pump_output(
     stderr: Option<tokio::process::ChildStderr>,
     buffer: Arc<Mutex<VecDeque<Line>>>,
     next_offset: Arc<Mutex<u64>>,
+    dropped: Arc<Mutex<u64>>,
     final_status: Arc<Mutex<Option<FinalStatus>>>,
 ) {
     // Spawn two reader tasks so stderr isn't starved by a chatty stdout.
     let push_line = {
         let buffer = buffer.clone();
         let next_offset = next_offset.clone();
+        let dropped = dropped.clone();
         move |stream: LineStream, text: String| {
             let buffer = buffer.clone();
             let next_offset = next_offset.clone();
+            let dropped = dropped.clone();
             async move {
                 let mut off = next_offset.lock().await;
                 let offset = *off;
@@ -549,8 +563,14 @@ async fn pump_output(
                     stream,
                     text,
                 });
+                let mut evicted: u64 = 0;
                 while b.len() > MAX_BUFFERED_LINES {
                     b.pop_front();
+                    evicted += 1;
+                }
+                drop(b);
+                if evicted > 0 {
+                    *dropped.lock().await += evicted;
                 }
             }
         }
@@ -733,5 +753,55 @@ mod tests {
         let tool = MonitorTool::new();
         let result = tool.do_start("t1", &json!({"command": "   "})).await;
         assert!(result.is_error);
+    }
+
+    #[tokio::test]
+    async fn failed_command_records_nonzero_exit() {
+        let tool = MonitorTool::new();
+        let started = tool.do_start("t1", &start_args("exit 7")).await;
+        assert!(!started.is_error);
+        let v: Value = serde_json::from_str(&started.content).unwrap();
+        let id = v["id"].as_str().unwrap().to_string();
+
+        wait_for_status(&tool, &id, false).await;
+
+        let read = tool.do_read("t2", &json!({"id": id})).await;
+        let v: Value = serde_json::from_str(&read.content).unwrap();
+        assert_eq!(v["status"]["state"], "exited_error");
+        assert_eq!(v["status"]["exit_code"], 7);
+        assert_eq!(v["dropped_lines"], 0);
+    }
+
+    #[tokio::test]
+    async fn ring_buffer_records_dropped_lines() {
+        // Emit more lines than MAX_BUFFERED_LINES so the ring evicts older
+        // ones. Tested at the do_read level: `dropped_lines` must grow past
+        // zero and the oldest surviving line must no longer be offset 0.
+        let tool = MonitorTool::new();
+        let overrun = MAX_BUFFERED_LINES + 50;
+        let cmd = format!("for i in $(seq 1 {}); do echo \"$i\"; done", overrun);
+        let started = tool.do_start("t1", &start_args(&cmd)).await;
+        assert!(!started.is_error);
+        let v: Value = serde_json::from_str(&started.content).unwrap();
+        let id = v["id"].as_str().unwrap().to_string();
+
+        wait_for_status(&tool, &id, false).await;
+
+        let read = tool
+            .do_read("t2", &json!({"id": id, "max_lines": 1}))
+            .await;
+        let v: Value = serde_json::from_str(&read.content).unwrap();
+        assert!(
+            v["dropped_lines"].as_u64().unwrap() >= 50,
+            "expected at least 50 dropped lines, got {:?}",
+            v["dropped_lines"]
+        );
+        // First surviving line's offset should be >= 50 (we evicted the oldest).
+        let first_off = v["lines"][0]["offset"].as_u64().unwrap();
+        assert!(
+            first_off >= 50,
+            "oldest surviving line should have been past offset 50, got {}",
+            first_off
+        );
     }
 }

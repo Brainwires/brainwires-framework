@@ -5,9 +5,9 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use super::{
-    AgentPoolTool, BashTool, CodeExecTool, ContextRecallTool, FileOpsTool, GitTool,
-    McpToolExecutor, MonitorTool, OrchestratorTool, PlanTool, SearchTool, SemanticSearchTool,
-    SessionTaskTool, TaskManagerTool, ToolRegistry, ToolSearchTool, WebTool,
+    AgentPoolTool, AskUserQuestionTool, BashTool, CodeExecTool, ContextRecallTool, FileOpsTool,
+    GitTool, McpToolExecutor, MemoryTool, MonitorTool, OrchestratorTool, PlanTool, SearchTool,
+    SemanticSearchTool, SessionTaskTool, TaskManagerTool, ToolRegistry, ToolSearchTool, WebTool,
 };
 use crate::agents::{AccessControlManager, AgentPool, TaskManager};
 use crate::providers::Provider;
@@ -91,6 +91,14 @@ pub struct ToolExecutor {
     org_permission_relay_required: bool,
     /// Whether org policy requires audit logging of all tool executions
     org_audit_all_commands: bool,
+    /// Merged harness settings (permissions + hooks) from layered
+    /// `settings.json` files. `None` = no layered settings configured;
+    /// behavior falls back to the existing PolicyEngine / approval flow.
+    settings: Option<std::sync::Arc<crate::config::Settings>>,
+    /// Optional hook dispatcher for PreToolUse / PostToolUse / Stop events.
+    hooks: Option<std::sync::Arc<crate::hooks::HookDispatcher>>,
+    /// Optional channel for `ask_user_question` tool calls.
+    user_question_tx: Option<tokio::sync::mpsc::Sender<crate::ask::UserQuestionRequest>>,
 }
 
 impl ToolExecutor {
@@ -100,6 +108,8 @@ impl ToolExecutor {
             registry: {
                 let mut r = ToolRegistry::with_builtins();
                 r.register_tools(MonitorTool::get_tools());
+                r.register_tools(MemoryTool::get_tools());
+                r.register_tools(AskUserQuestionTool::get_tools());
                 r
             },
             permission_mode,
@@ -122,6 +132,9 @@ impl ToolExecutor {
             org_blocked_tools: Vec::new(),
             org_permission_relay_required: false,
             org_audit_all_commands: false,
+            settings: None,
+            hooks: None,
+            user_question_tx: None,
         }
     }
 
@@ -131,6 +144,8 @@ impl ToolExecutor {
             registry: {
                 let mut r = ToolRegistry::with_builtins();
                 r.register_tools(MonitorTool::get_tools());
+                r.register_tools(MemoryTool::get_tools());
+                r.register_tools(AskUserQuestionTool::get_tools());
                 r
             },
             permission_mode,
@@ -153,6 +168,9 @@ impl ToolExecutor {
             org_blocked_tools: Vec::new(),
             org_permission_relay_required: false,
             org_audit_all_commands: false,
+            settings: None,
+            hooks: None,
+            user_question_tx: None,
         }
     }
 
@@ -186,6 +204,28 @@ impl ToolExecutor {
         tx: tokio::sync::mpsc::Sender<crate::approval::ApprovalRequest>,
     ) {
         self.approval_tx = Some(tx);
+    }
+
+    /// Attach layered `settings.json` permissions/hooks to this executor.
+    /// Missing (`None`) behavior is identical to pre-settings code — existing
+    /// PolicyEngine / approval paths still run.
+    pub fn set_settings(&mut self, settings: std::sync::Arc<crate::config::Settings>) {
+        self.settings = Some(settings);
+    }
+
+    /// Attach the hook dispatcher. Events fire at PreToolUse / PostToolUse.
+    /// `UserPromptSubmit` and `Stop` are dispatched by the chat handler —
+    /// this executor only fires the per-tool events.
+    pub fn set_hooks(&mut self, hooks: std::sync::Arc<crate::hooks::HookDispatcher>) {
+        self.hooks = Some(hooks);
+    }
+
+    /// Set the channel used by the `ask_user_question` tool.
+    pub fn set_user_question_channel(
+        &mut self,
+        tx: tokio::sync::mpsc::Sender<crate::ask::UserQuestionRequest>,
+    ) {
+        self.user_question_tx = Some(tx);
     }
 
     /// Check if approval channel is configured
@@ -1558,6 +1598,41 @@ impl ToolExecutor {
             ));
         }
 
+        // Layered-settings permission check (deny > ask > allow). Runs
+        // before the PolicyEngine branch so `deny` trumps everything,
+        // including `PermissionMode::Full`.
+        let settings_decision = self
+            .settings
+            .as_ref()
+            .and_then(|s| s.permissions.as_ref())
+            .map(|p| p.decide(&tool_use.name, &tool_use.input))
+            .unwrap_or(crate::config::PermissionDecision::Unset);
+
+        if let crate::config::PermissionDecision::Deny(ref reason) = settings_decision {
+            tracing::warn!(
+                "Tool '{}' denied by layered settings: {}",
+                tool_use.name,
+                reason
+            );
+            if let Some(ref audit_logger) = self.audit_logger {
+                let agent_id = context
+                    .metadata
+                    .get("agent_id")
+                    .cloned()
+                    .unwrap_or_else(|| "main".to_string());
+                let _ = audit_logger.log_denied(
+                    Some(&agent_id),
+                    &format!("tool:{}", tool_use.name),
+                    tool_use.input.get("path").and_then(|v| v.as_str()),
+                    reason,
+                );
+            }
+            return Ok(ToolResult::error(
+                tool_use.id.clone(),
+                format!("Tool '{}' {}", tool_use.name, reason),
+            ));
+        }
+
         // Check capabilities if present (new capability-based permission system)
         // Deserialize from JSON value to concrete AgentCapabilities type
         let capabilities: Option<brainwires::permissions::AgentCapabilities> = context
@@ -1807,6 +1882,20 @@ impl ToolExecutor {
         if self.org_permission_relay_required && self.tool_requires_approval(&tool_use.name) {
             needs_approval = true;
         }
+        // Layered settings override: `allow` skips approval; `ask` forces it
+        // even on tools that normally wouldn't prompt. `deny` already
+        // short-circuited above.
+        match settings_decision {
+            crate::config::PermissionDecision::Allow => {
+                needs_approval = false;
+            }
+            crate::config::PermissionDecision::Ask => {
+                if self.approval_tx.is_some() {
+                    needs_approval = true;
+                }
+            }
+            _ => {}
+        }
 
         if needs_approval {
             tracing::info!(
@@ -1867,6 +1956,27 @@ impl ToolExecutor {
             None
         };
 
+        // PreToolUse hook — fires after approval, before dispatch. Exit 2
+        // blocks the tool; other failures are logged but don't stop execution.
+        if let Some(ref hooks) = self.hooks {
+            match hooks
+                .dispatch_pre_tool(&tool_use.name, &tool_use.input)
+                .await
+            {
+                crate::hooks::HookOutcome::Continue => {}
+                crate::hooks::HookOutcome::Block { reason } => {
+                    tracing::info!("Tool '{}' blocked by PreToolUse hook: {}", tool_use.name, reason);
+                    return Ok(ToolResult::error(
+                        tool_use.id.clone(),
+                        format!("Blocked by PreToolUse hook: {}", reason),
+                    ));
+                }
+                crate::hooks::HookOutcome::SoftError(msg) => {
+                    tracing::warn!("PreToolUse hook error (continuing): {}", msg);
+                }
+            }
+        }
+
         // Route to the appropriate tool implementation
         tracing::debug!("[ToolExecutor] Routing tool: {}", tool_use.name);
         let result = self
@@ -1877,6 +1987,40 @@ impl ToolExecutor {
             tool_use.name,
             result.is_error
         );
+
+        // PostToolUse hook — observes the tool result. Block outcome here
+        // does NOT undo the side-effects (the tool has already run) but is
+        // surfaced as an error so the model sees the feedback.
+        if let Some(ref hooks) = self.hooks {
+            let result_payload = serde_json::json!({
+                "content": result.content,
+            });
+            match hooks
+                .dispatch_post_tool(
+                    &tool_use.name,
+                    &tool_use.input,
+                    &result_payload,
+                    result.is_error,
+                )
+                .await
+            {
+                crate::hooks::HookOutcome::Continue => {}
+                crate::hooks::HookOutcome::Block { reason } => {
+                    tracing::info!(
+                        "PostToolUse hook signalled block for '{}': {}",
+                        tool_use.name,
+                        reason
+                    );
+                    return Ok(ToolResult::error(
+                        tool_use.id.clone(),
+                        format!("PostToolUse hook: {}", reason),
+                    ));
+                }
+                crate::hooks::HookOutcome::SoftError(msg) => {
+                    tracing::warn!("PostToolUse hook error (continuing): {}", msg);
+                }
+            }
+        }
 
         // Track successful file reads for read-before-write enforcement
         if let Some(acm) = &self.access_control
@@ -2122,6 +2266,18 @@ impl ToolExecutor {
             self.monitor_tool
                 .execute(tool_use_id, tool_name, input)
                 .await
+        } else if tool_name.starts_with("memory_") {
+            // Per-project auto-memory (MEMORY.md + typed memory files).
+            let cwd = std::path::PathBuf::from(&context.working_directory);
+            MemoryTool::new()
+                .execute(tool_use_id, tool_name, input, &cwd)
+                .await
+        } else if tool_name == "ask_user_question" {
+            // Ask the user directly — channel when TUI is active, dialoguer
+            // otherwise, Cancelled on non-TTY.
+            AskUserQuestionTool::new(self.user_question_tx.clone())
+                .execute(tool_use_id, input)
+                .await
         } else if tool_name == "task_list_write" {
             // Session task tool for session-specific task list tracking
             if let Some(session_task_tool) = &self.session_task_tool {
@@ -2231,6 +2387,9 @@ impl Default for ToolExecutor {
             org_blocked_tools: Vec::new(),
             org_permission_relay_required: false,
             org_audit_all_commands: false,
+            settings: None,
+            hooks: None,
+            user_question_tx: None,
         }
     }
 }

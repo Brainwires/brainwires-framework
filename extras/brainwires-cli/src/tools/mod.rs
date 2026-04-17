@@ -7,9 +7,11 @@ pub use brainwires::tools::*;
 
 // CLI-specific tool modules
 mod agent_pool;
+mod ask;
 mod context_recall;
 mod executor;
 mod mcp_tool;
+mod memory;
 mod monitor;
 mod plan;
 mod session_task;
@@ -21,8 +23,10 @@ pub mod error;
 pub mod validation_tools;
 
 pub use agent_pool::*;
+pub use ask::AskUserQuestionTool;
 pub use context_recall::*;
 pub use mcp_tool::*;
+pub use memory::MemoryTool;
 pub use monitor::MonitorTool;
 pub use plan::*;
 pub use session_task::*;

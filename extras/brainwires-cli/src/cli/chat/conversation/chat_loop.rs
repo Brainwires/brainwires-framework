@@ -185,6 +185,14 @@ pub async fn handle_chat_with_conversation(
     let stdin = io::stdin();
     let mut stdin_reader = stdin.lock();
 
+    // Load layered harness settings + hook dispatcher once per chat
+    // session. Used for UserPromptSubmit and Stop events; tool-level
+    // hooks are wired separately inside the ToolExecutor.
+    let hook_dispatcher: Arc<crate::hooks::HookDispatcher> = {
+        let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        crate::hooks::load_for_cwd(&cwd).1
+    };
+
     // Main chat loop
     loop {
         // Get user input
@@ -252,6 +260,20 @@ pub async fn handle_chat_with_conversation(
                 metadata: None,
             };
             conversation_manager.add_message(user_message);
+
+            // UserPromptSubmit hook — fired after the prompt is in the
+            // conversation. Exit 2 from a hook blocks the turn, returning
+            // the hook's stderr to the user as a reason.
+            match hook_dispatcher.dispatch_user_prompt(&input).await {
+                crate::hooks::HookOutcome::Continue => {}
+                crate::hooks::HookOutcome::Block { reason } => {
+                    Logger::warn(format!("Blocked by UserPromptSubmit hook: {}", reason));
+                    continue;
+                }
+                crate::hooks::HookOutcome::SoftError(msg) => {
+                    tracing::warn!("UserPromptSubmit hook error: {}", msg);
+                }
+            }
 
             // PKS: Process user message for implicit fact detection
             let detected_count = pks_integration.process_user_message(&input);
