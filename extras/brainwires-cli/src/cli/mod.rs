@@ -5,6 +5,7 @@ pub mod auth;
 pub mod chat;
 pub mod config;
 pub mod cost;
+pub mod first_run;
 pub mod history;
 pub mod local_models;
 pub mod local_models_setup;

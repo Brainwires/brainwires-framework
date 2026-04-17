@@ -41,6 +41,23 @@ pub fn register_builtin_commands(registry: &mut CommandRegistry) {
         ),
     );
 
+    // /provider - List or switch AI providers
+    registry.register(
+        Command::builtin(
+            "provider".to_string(),
+            "List available providers or switch to a different provider".to_string(),
+            "".to_string(),
+        )
+        .with_arg(
+            "name".to_string(),
+            Some(
+                "Provider name (e.g. anthropic, openai, ollama) — omit to list providers"
+                    .to_string(),
+            ),
+            false,
+        ),
+    );
+
     // /rewind - Rewind to previous checkpoint
     registry.register(
         Command::builtin(

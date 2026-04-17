@@ -29,7 +29,7 @@ use brainwires::brain::bks_pks::personal::PksIntegration;
 #[allow(clippy::too_many_arguments)]
 pub async fn handle_chat_with_conversation(
     model: Option<String>,
-    _provider: Option<String>,
+    provider: Option<String>,
     system: Option<String>,
     conversation_id: Option<String>,
     json_output: bool,
@@ -42,8 +42,10 @@ pub async fn handle_chat_with_conversation(
     let config_manager = ConfigManager::new()?;
     let session = SessionManager::load()?;
 
-    // Resolve model and provider from config
+    // Resolve provider (CLI flag > env > config) and model.
     let config = config_manager.get();
+    let active_provider =
+        ProviderFactory::effective_provider(provider.as_deref(), config.provider_type)?;
     let model_id = match model {
         Some(m) => m,
         None => config.model.clone(),
@@ -51,22 +53,25 @@ pub async fn handle_chat_with_conversation(
 
     if let Some(ref url) = backend_url_override {
         Logger::info(format!(
-            "Starting chat session with {} (dev backend: {})",
-            model_id, url
+            "Starting chat session with {} via {} (dev backend: {})",
+            model_id,
+            active_provider.as_str(),
+            url
         ));
     } else {
         Logger::info(format!(
-            "Starting chat session with {} (brainwires)",
-            model_id
+            "Starting chat session with {} via {}",
+            model_id,
+            active_provider.as_str()
         ));
     }
 
     // Create provider using factory with optional backend URL override
     let factory = ProviderFactory;
     let provider_instance = factory
-        .create_with_backend(model_id.clone(), backend_url_override)
+        .create_with_overrides(model_id.clone(), Some(active_provider), backend_url_override)
         .await
-        .context("Failed to create provider. Run: brainwires auth status")?;
+        .context("Failed to create provider — run `brainwires auth status` to diagnose")?;
 
     // Initialize agent context with core tools only to reduce token cost
     let user_id = session.as_ref().map(|s| s.user.user_id.clone());

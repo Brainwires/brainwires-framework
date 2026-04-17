@@ -46,6 +46,10 @@ pub enum CommandAction {
     ClearHistory,
     /// Switch to a different model
     SwitchModel(String),
+    /// Switch to a different provider (reconstructs the Provider instance)
+    SwitchProvider(String),
+    /// Show the current provider + list of available providers
+    ListProviders,
     /// Show status
     ShowStatus,
     /// Rewind conversation

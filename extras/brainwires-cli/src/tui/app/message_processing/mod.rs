@@ -1529,6 +1529,110 @@ impl App {
         Ok(())
     }
 
+    /// Render the `/provider` list into a system message.
+    pub(super) fn handle_list_providers(&mut self) {
+        use super::state::TuiMessage;
+        use crate::providers::ProviderType;
+        use crate::types::provider_ext::{CHAT_PROVIDERS, summary};
+
+        let current = match crate::config::ConfigManager::new() {
+            Ok(mgr) => mgr.get().provider_type,
+            Err(_) => ProviderType::Brainwires,
+        };
+
+        let mut lines = vec![format!(
+            "Current provider: {}",
+            current.as_str()
+        )];
+        lines.push(String::new());
+        lines.push("Available providers (use `/provider <name>` to switch):".to_string());
+        for p in CHAT_PROVIDERS {
+            let marker = if *p == current { "*" } else { " " };
+            lines.push(format!("  {} {:<14}  {}", marker, p.as_str(), summary(*p)));
+        }
+
+        self.messages.push(TuiMessage {
+            role: "system".to_string(),
+            content: lines.join("\n"),
+            created_at: chrono::Utc::now().timestamp(),
+        });
+    }
+
+    /// Switch provider by updating config and rebuilding the Provider instance.
+    ///
+    /// Tolerates missing credentials — we only surface an error to the user;
+    /// the session continues to use the previously active provider.
+    pub(super) async fn handle_switch_provider(&mut self, name: String) {
+        use super::state::{LogLevel, TuiMessage};
+        use crate::config::{ConfigManager, ConfigUpdates};
+        use crate::providers::{ProviderFactory, ProviderType};
+
+        let target = match ProviderType::from_str_opt(&name) {
+            Some(p) => p,
+            None => {
+                self.set_status(
+                    LogLevel::Error,
+                    format!(
+                        "Unknown provider: '{}'. Try: /provider  to see the list.",
+                        name
+                    ),
+                );
+                return;
+            }
+        };
+
+        // Persist the choice and update in-memory model to the provider's default.
+        let new_model = target.default_model().to_string();
+        let mut mgr = match ConfigManager::new() {
+            Ok(m) => m,
+            Err(e) => {
+                self.set_status(LogLevel::Error, format!("Config load failed: {}", e));
+                return;
+            }
+        };
+        mgr.update(ConfigUpdates {
+            provider_type: Some(target),
+            model: Some(new_model.clone()),
+            ..Default::default()
+        });
+        if let Err(e) = mgr.save() {
+            self.set_status(LogLevel::Error, format!("Config save failed: {}", e));
+            return;
+        }
+
+        // Rebuild the provider instance so subsequent turns use the new one.
+        match ProviderFactory::new()
+            .create_with_overrides(new_model.clone(), Some(target), None)
+            .await
+        {
+            Ok(new_provider) => {
+                self.provider = new_provider;
+                self.model = new_model.clone();
+                self.set_status(
+                    LogLevel::Info,
+                    format!("Switched to {} ({})", target.as_str(), new_model),
+                );
+            }
+            Err(e) => {
+                // Don't revert config — the user clearly wants this provider;
+                // surface the credential hint so they can fix it.
+                self.messages.push(TuiMessage {
+                    role: "system".to_string(),
+                    content: format!(
+                        "Provider set to {} but couldn't start it: {}",
+                        target.as_str(),
+                        e
+                    ),
+                    created_at: chrono::Utc::now().timestamp(),
+                });
+                self.set_status(
+                    LogLevel::Error,
+                    format!("{} not ready — see message above", target.as_str()),
+                );
+            }
+        }
+    }
+
     /// Detect completed tasks from AI response and auto-complete them
     async fn detect_and_complete_tasks(&mut self, response: &str) {
         use crate::types::agent::TaskStatus;

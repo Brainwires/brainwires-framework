@@ -94,6 +94,7 @@ fn test_config_manager_get() {
     let manager = ConfigManager {
         config: Config::default(),
         config_path: config_path.clone(),
+        is_new: false,
     };
 
     let _retrieved = manager.get();
@@ -108,6 +109,7 @@ fn test_config_manager_get_mut() {
     let mut manager = ConfigManager {
         config: Config::default(),
         config_path,
+        is_new: false,
     };
 
     let config_mut = manager.get_mut();
@@ -125,6 +127,7 @@ fn test_config_manager_update() {
     let mut manager = ConfigManager {
         config: Config::default(),
         config_path,
+        is_new: false,
     };
 
     let updates = ConfigUpdates {
@@ -154,6 +157,7 @@ fn test_config_manager_partial_update() {
     let mut manager = ConfigManager {
         config: Config::default(),
         config_path,
+        is_new: false,
     };
 
     // Only update some fields
@@ -178,6 +182,7 @@ fn test_config_manager_save() {
     let manager = ConfigManager {
         config: Config::default(),
         config_path: config_path.clone(),
+        is_new: false,
     };
 
     // Save should create the file
@@ -336,6 +341,7 @@ fn test_config_save_success() {
     let manager = ConfigManager {
         config,
         config_path: config_path.clone(),
+        is_new: false,
     };
 
     // Save should succeed
@@ -379,6 +385,7 @@ fn test_config_update_empty() {
     let mut manager = ConfigManager {
         config: Config::default(),
         config_path,
+        is_new: false,
     };
 
     let original_model = manager.get().model.clone();
@@ -400,6 +407,7 @@ fn test_config_update_only_backend_url() {
     let mut manager = ConfigManager {
         config: Config::default(),
         config_path,
+        is_new: false,
     };
 
     // Only update backend_url
@@ -467,6 +475,7 @@ fn test_config_update_provider_type() {
     let mut manager = ConfigManager {
         config: Config::default(),
         config_path,
+        is_new: false,
     };
 
     manager.update(ConfigUpdates {
@@ -488,6 +497,7 @@ fn test_config_manager_get_mut_multiple_changes() {
     let mut manager = ConfigManager {
         config: Config::default(),
         config_path,
+        is_new: false,
     };
 
     // Make multiple changes via get_mut
@@ -515,6 +525,7 @@ fn test_config_update_extreme_values() {
     let mut manager = ConfigManager {
         config: Config::default(),
         config_path,
+        is_new: false,
     };
 
     // Update with extreme values
@@ -565,6 +576,7 @@ fn test_config_update_all_fields_individually() {
     let mut manager = ConfigManager {
         config: Config::default(),
         config_path,
+        is_new: false,
     };
 
     // Update provider only

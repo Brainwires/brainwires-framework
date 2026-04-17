@@ -351,6 +351,28 @@ impl App {
             crate::utils::logger::init();
         }
 
+        // First-run provider picker: triggers on the first user-facing
+        // interactive command when no config exists and no provider was
+        // detected from the environment. Keeps non-TTY invocations usable
+        // by emitting a clear error instead of hanging on a prompt.
+        let needs_provider_setup = matches!(
+            &self.cli.command,
+            Some(Commands::Chat { mcp_server: false, .. }) | Some(Commands::Task { .. })
+        );
+        if needs_provider_setup {
+            let mut config_manager = crate::config::ConfigManager::new()?;
+            if config_manager.is_first_run() {
+                match super::first_run::maybe_prompt(&mut config_manager).await {
+                    Ok(_) => {}
+                    Err(e) => {
+                        // `maybe_prompt` already printed helpful guidance for
+                        // non-TTY cases; surface the error and exit.
+                        return Err(e);
+                    }
+                }
+            }
+        }
+
         // Check for local models setup on interactive commands
         // Only show for Chat and Task commands (main user-facing commands)
         if matches!(

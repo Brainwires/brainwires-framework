@@ -184,6 +184,16 @@ impl App {
                 self.clear_input();
                 Ok(true)
             }
+            CommandAction::SwitchProvider(name) => {
+                self.handle_switch_provider(name).await;
+                self.clear_input();
+                Ok(true)
+            }
+            CommandAction::ListProviders => {
+                self.handle_list_providers();
+                self.clear_input();
+                Ok(true)
+            }
             CommandAction::ShowStatus => {
                 // Show status as system message
                 let status_msg = format!(
