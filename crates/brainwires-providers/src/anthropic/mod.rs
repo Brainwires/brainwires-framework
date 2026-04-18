@@ -198,8 +198,23 @@ impl AnthropicClient {
             body["anthropic_version"] = json!(ANTHROPIC_VERSION);
         }
 
+        // Prompt caching is only supported on the direct Anthropic API.
+        // Bedrock and Vertex AI have their own (proprietary, different-shaped)
+        // caching mechanisms, and some SDK versions reject unknown top-level
+        // fields — emitting `cache_control` there risks a 400 regression.
+        let cache_prompt =
+            req.cache_prompt && matches!(&self.auth_strategy, AuthStrategy::Anthropic { .. });
+
         if let Some(ref sys) = req.system {
-            body["system"] = json!(sys);
+            body["system"] = if cache_prompt {
+                json!([{
+                    "type": "text",
+                    "text": sys,
+                    "cache_control": { "type": "ephemeral" }
+                }])
+            } else {
+                json!(sys)
+            };
         }
         if let Some(temp) = req.temperature {
             body["temperature"] = json!(temp);
@@ -211,7 +226,23 @@ impl AnthropicClient {
             body["stop_sequences"] = json!(stop);
         }
         if let Some(ref tools) = req.tools {
-            body["tools"] = json!(tools);
+            body["tools"] = if cache_prompt && !tools.is_empty() {
+                let mut tools_arr: Vec<serde_json::Value> = tools
+                    .iter()
+                    .map(|t| serde_json::to_value(t).unwrap_or(serde_json::Value::Null))
+                    .collect();
+                if let Some(last) = tools_arr.last_mut()
+                    && let Some(obj) = last.as_object_mut()
+                {
+                    obj.insert(
+                        "cache_control".to_string(),
+                        json!({ "type": "ephemeral" }),
+                    );
+                }
+                json!(tools_arr)
+            } else {
+                json!(tools)
+            };
         }
 
         body
@@ -473,6 +504,12 @@ pub struct AnthropicRequest {
     /// Whether to stream the response.
     #[serde(default)]
     pub stream: bool,
+    /// Emit `cache_control: ephemeral` breakpoints on the system prompt and
+    /// the final tool definition. Anthropic silently no-ops when the cached
+    /// prefix is below the model's minimum cacheable size, so it's always
+    /// safe to leave on; disable for debugging or deterministic replay.
+    #[serde(skip)]
+    pub cache_prompt: bool,
 }
 
 // ---------------------------------------------------------------------------
@@ -497,6 +534,11 @@ pub enum AnthropicContentBlock {
         /// The text string.
         text: String,
     },
+    /// Base64-encoded image for vision-capable models.
+    Image {
+        /// Anthropic-native source envelope (`{type, media_type, data}`).
+        source: AnthropicImageSource,
+    },
     /// A tool use request from the model.
     ToolUse {
         /// Unique identifier for this tool use.
@@ -512,6 +554,19 @@ pub enum AnthropicContentBlock {
         tool_use_id: String,
         /// The textual result content.
         content: String,
+    },
+}
+
+/// Image source envelope used inside `AnthropicContentBlock::Image`.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum AnthropicImageSource {
+    /// Inline base64-encoded image data.
+    Base64 {
+        /// MIME type, e.g. `"image/png"` or `"image/jpeg"`.
+        media_type: String,
+        /// Base64-encoded image bytes.
+        data: String,
     },
 }
 
@@ -538,12 +593,18 @@ pub struct AnthropicResponse {
 }
 
 /// Token usage statistics from an Anthropic response.
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct AnthropicUsage {
     /// Number of input tokens consumed.
     pub input_tokens: u32,
     /// Number of output tokens generated.
     pub output_tokens: u32,
+    /// Tokens written to the prompt cache on this request.
+    #[serde(default)]
+    pub cache_creation_input_tokens: Option<u32>,
+    /// Tokens read from the prompt cache (charged at 10% of input rate).
+    #[serde(default)]
+    pub cache_read_input_tokens: Option<u32>,
 }
 
 /// A single server-sent event from a streaming Anthropic response.
@@ -804,6 +865,7 @@ mod tests {
             stop_sequences: None,
             tools: None,
             stream: false,
+            cache_prompt: false,
         };
 
         let json = serde_json::to_value(&req).unwrap();
@@ -948,9 +1010,119 @@ mod tests {
             stop_sequences: None,
             tools: None,
             stream: false,
+            cache_prompt: false,
         };
         let body = client.build_body(&req, false);
         assert_eq!(body["model"], "claude-sonnet-4-6");
         assert_eq!(body["stream"], false);
+    }
+
+    #[test]
+    fn test_build_body_system_cache_control_when_enabled() {
+        let client = AnthropicClient::new("key".to_string(), "claude-sonnet-4-6".to_string());
+        let req = AnthropicRequest {
+            model: "claude-sonnet-4-6".to_string(),
+            messages: vec![],
+            system: Some("You are helpful".to_string()),
+            max_tokens: 1024,
+            temperature: None,
+            top_p: None,
+            stop_sequences: None,
+            tools: None,
+            stream: false,
+            cache_prompt: true,
+        };
+        let body = client.build_body(&req, false);
+        // When caching is on, system must be an array with a cache_control marker
+        let system = &body["system"];
+        assert!(system.is_array(), "system should be array when caching");
+        let first = &system[0];
+        assert_eq!(first["type"], "text");
+        assert_eq!(first["text"], "You are helpful");
+        assert_eq!(first["cache_control"]["type"], "ephemeral");
+    }
+
+    #[test]
+    fn test_build_body_system_plain_when_cache_disabled() {
+        let client = AnthropicClient::new("key".to_string(), "claude-sonnet-4-6".to_string());
+        let req = AnthropicRequest {
+            model: "claude-sonnet-4-6".to_string(),
+            messages: vec![],
+            system: Some("Plain system".to_string()),
+            max_tokens: 1024,
+            temperature: None,
+            top_p: None,
+            stop_sequences: None,
+            tools: None,
+            stream: false,
+            cache_prompt: false,
+        };
+        let body = client.build_body(&req, false);
+        // When caching is off, system stays a plain string
+        assert_eq!(body["system"], "Plain system");
+    }
+
+    #[cfg(feature = "bedrock")]
+    #[test]
+    fn test_build_body_bedrock_never_emits_cache_control_even_when_cache_prompt_true() {
+        let auth = bedrock::BedrockAuth::new(
+            "us-west-2".to_string(),
+            "AKID".to_string(),
+            "secret".to_string(),
+            None,
+        );
+        let client = AnthropicClient::bedrock(auth, "anthropic.claude-sonnet-4-6-v1:0".to_string());
+        let req = AnthropicRequest {
+            model: "anthropic.claude-sonnet-4-6-v1:0".to_string(),
+            messages: vec![],
+            system: Some("You are helpful".to_string()),
+            max_tokens: 1024,
+            temperature: None,
+            top_p: None,
+            stop_sequences: None,
+            tools: None,
+            stream: false,
+            // Even with cache_prompt=true, the build must suppress cache_control
+            // for Bedrock to avoid 400 regressions on its proprietary caching.
+            cache_prompt: true,
+        };
+        let body = client.build_body(&req, false);
+        // system must serialise as a plain string, not an array-with-cache-control.
+        assert_eq!(body["system"], "You are helpful");
+    }
+
+    #[test]
+    fn test_build_body_tools_cache_control_on_last() {
+        let client = AnthropicClient::new("key".to_string(), "claude-sonnet-4-6".to_string());
+        let tools = vec![
+            AnthropicTool {
+                name: "first".to_string(),
+                description: "First tool".to_string(),
+                input_schema: std::collections::HashMap::new(),
+            },
+            AnthropicTool {
+                name: "second".to_string(),
+                description: "Second tool".to_string(),
+                input_schema: std::collections::HashMap::new(),
+            },
+        ];
+        let req = AnthropicRequest {
+            model: "claude-sonnet-4-6".to_string(),
+            messages: vec![],
+            system: None,
+            max_tokens: 1024,
+            temperature: None,
+            top_p: None,
+            stop_sequences: None,
+            tools: Some(tools),
+            stream: false,
+            cache_prompt: true,
+        };
+        let body = client.build_body(&req, false);
+        let tools_arr = body["tools"].as_array().expect("tools must be array");
+        assert_eq!(tools_arr.len(), 2);
+        // Only the last tool gets cache_control
+        assert!(tools_arr[0].get("cache_control").is_none());
+        assert_eq!(tools_arr[1]["cache_control"]["type"], "ephemeral");
     }
 }
