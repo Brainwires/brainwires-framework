@@ -138,13 +138,31 @@ fn query_filters_by_agent_and_outcome() {
     let (logger, _dir) = fresh_logger();
 
     logger
-        .log_tool_execution(Some("alice"), "read_file", Some("/x"), ActionOutcome::Success, None)
+        .log_tool_execution(
+            Some("alice"),
+            "read_file",
+            Some("/x"),
+            ActionOutcome::Success,
+            None,
+        )
         .unwrap();
     logger
-        .log_tool_execution(Some("bob"), "read_file", Some("/x"), ActionOutcome::Success, None)
+        .log_tool_execution(
+            Some("bob"),
+            "read_file",
+            Some("/x"),
+            ActionOutcome::Success,
+            None,
+        )
         .unwrap();
     logger
-        .log_tool_execution(Some("alice"), "write_file", Some("/x"), ActionOutcome::Failure, None)
+        .log_tool_execution(
+            Some("alice"),
+            "write_file",
+            Some("/x"),
+            ActionOutcome::Failure,
+            None,
+        )
         .unwrap();
     logger.flush().unwrap();
 
@@ -184,9 +202,16 @@ fn new_logger_replays_events_from_previous_session() {
     let events = logger2
         .query(&AuditQuery::new().of_type(AuditEventType::TrustChange))
         .unwrap();
-    assert_eq!(events.len(), 1, "new logger must replay prior-session events");
+    assert_eq!(
+        events.len(),
+        1,
+        "new logger must replay prior-session events"
+    );
     assert_eq!(events[0].agent_id.as_deref(), Some("agent-A"));
-    assert_eq!(events[0].metadata.get("new_level").map(|s| s.as_str()), Some("3"));
+    assert_eq!(
+        events[0].metadata.get("new_level").map(|s| s.as_str()),
+        Some("3")
+    );
 }
 
 #[test]

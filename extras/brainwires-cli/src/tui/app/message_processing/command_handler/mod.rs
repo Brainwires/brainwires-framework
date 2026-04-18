@@ -789,7 +789,8 @@ impl App {
 
         if self.messages.is_empty() {
             self.add_console_message(
-                "ℹ️  Dream: no messages in the active session yet — nothing to consolidate.".to_string(),
+                "ℹ️  Dream: no messages in the active session yet — nothing to consolidate."
+                    .to_string(),
             );
             self.clear_input();
             return;
@@ -1216,7 +1217,6 @@ impl App {
         self.tool_picker_state = None;
         self.mode = AppMode::Normal;
     }
-
 }
 
 // Split submodules — each defines further `impl App` blocks in its own file.

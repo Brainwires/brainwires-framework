@@ -63,7 +63,10 @@ fn response_with_error_omits_result_field_on_the_wire() {
         }),
     };
     let wire = serde_json::to_string(&resp).unwrap();
-    assert!(!wire.contains("\"result\""), "result=None must be skipped: {wire}");
+    assert!(
+        !wire.contains("\"result\""),
+        "result=None must be skipped: {wire}"
+    );
     assert!(wire.contains("\"error\""));
     let back: JsonRpcResponse = serde_json::from_str(&wire).unwrap();
     let err = back.error.expect("error preserved");
@@ -76,7 +79,10 @@ fn response_with_error_omits_result_field_on_the_wire() {
 fn notification_has_no_id_field_on_the_wire() {
     let n = JsonRpcNotification::new::<Value>("notifications/progress", None).unwrap();
     let wire = serde_json::to_string(&n).unwrap();
-    assert!(!wire.contains("\"id\""), "notification wire must not contain id: {wire}");
+    assert!(
+        !wire.contains("\"id\""),
+        "notification wire must not contain id: {wire}"
+    );
     assert!(wire.contains("\"jsonrpc\":\"2.0\""));
     assert!(wire.contains("\"notifications/progress\""));
 }
@@ -134,7 +140,10 @@ fn progress_notification_with_malformed_params_falls_through_to_unknown() {
 #[test]
 fn discriminator_classifies_response_with_integer_id() {
     let wire = r#"{"jsonrpc":"2.0","id":1,"result":{"ok":true}}"#;
-    assert!(matches!(discriminate(wire).unwrap(), JsonRpcMessage::Response(_)));
+    assert!(matches!(
+        discriminate(wire).unwrap(),
+        JsonRpcMessage::Response(_)
+    ));
 }
 
 #[test]

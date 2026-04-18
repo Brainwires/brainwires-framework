@@ -234,10 +234,7 @@ impl AnthropicClient {
                 if let Some(last) = tools_arr.last_mut()
                     && let Some(obj) = last.as_object_mut()
                 {
-                    obj.insert(
-                        "cache_control".to_string(),
-                        json!({ "type": "ephemeral" }),
-                    );
+                    obj.insert("cache_control".to_string(), json!({ "type": "ephemeral" }));
                 }
                 json!(tools_arr)
             } else {

@@ -141,7 +141,13 @@ fn json_parser_extracts_from_markdown_fence_with_language_tag() {
     let parser = JsonOutputParser::<Review>::new();
     let input = "```json\n{\"sentiment\": \"positive\", \"score\": 9}\n```";
     let out = parser.parse(input).unwrap();
-    assert_eq!(out, Review { sentiment: "positive".into(), score: 9 });
+    assert_eq!(
+        out,
+        Review {
+            sentiment: "positive".into(),
+            score: 9
+        }
+    );
 }
 
 #[test]
@@ -163,7 +169,9 @@ fn json_parser_extracts_from_surrounding_prose() {
 #[test]
 fn json_parser_fails_cleanly_on_no_json() {
     let parser = JsonOutputParser::<Review>::new();
-    let err = parser.parse("Sorry I cannot help with that today").unwrap_err();
+    let err = parser
+        .parse("Sorry I cannot help with that today")
+        .unwrap_err();
     // Must be an Err, not a panic; message must mention JSON so callers can log usefully.
     assert!(
         format!("{err:#}").to_lowercase().contains("json"),

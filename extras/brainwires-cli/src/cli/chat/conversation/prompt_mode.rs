@@ -59,7 +59,11 @@ pub async fn handle_prompt_mode(
     // Create provider with optional backend URL override
     let factory = ProviderFactory;
     let provider_instance = factory
-        .create_with_overrides(model_id.clone(), Some(active_provider), backend_url_override)
+        .create_with_overrides(
+            model_id.clone(),
+            Some(active_provider),
+            backend_url_override,
+        )
         .await
         .context("Failed to create provider — run `brainwires auth status` to diagnose")?;
 
@@ -228,7 +232,11 @@ pub async fn handle_prompt_mode_mdap(
     // Create provider with optional backend URL override
     let factory = ProviderFactory;
     let provider_instance = factory
-        .create_with_overrides(model_id.clone(), Some(active_provider), backend_url_override)
+        .create_with_overrides(
+            model_id.clone(),
+            Some(active_provider),
+            backend_url_override,
+        )
         .await
         .context("Failed to create provider — run `brainwires auth status` to diagnose")?;
 

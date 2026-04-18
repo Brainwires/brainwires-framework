@@ -15,8 +15,13 @@ use brainwires_permissions::audit::{ActionOutcome, AuditEvent, AuditEventType};
 use chrono::{DateTime, TimeZone, Utc};
 
 fn at(epoch_secs: i64, kind: AuditEventType, agent: &str) -> AuditEvent {
-    let mut ev = AuditEvent::new(kind).with_agent(agent).with_outcome(ActionOutcome::Success);
-    ev.timestamp = Utc.timestamp_opt(epoch_secs, 0).single().expect("valid epoch");
+    let mut ev = AuditEvent::new(kind)
+        .with_agent(agent)
+        .with_outcome(ActionOutcome::Success);
+    ev.timestamp = Utc
+        .timestamp_opt(epoch_secs, 0)
+        .single()
+        .expect("valid epoch");
     ev
 }
 
@@ -158,7 +163,11 @@ fn unusual_path_scope_is_flagged_when_allowlist_is_set() {
     det.observe(&ok);
 
     let anomalies = det.drain_anomalies();
-    assert_eq!(anomalies.len(), 1, "only the out-of-scope target should flag");
+    assert_eq!(
+        anomalies.len(),
+        1,
+        "only the out-of-scope target should flag"
+    );
     assert!(
         matches!(
             &anomalies[0].kind,

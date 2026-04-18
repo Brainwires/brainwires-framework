@@ -144,7 +144,8 @@ impl AnthropicChatProvider {
         {
             tracing::info!(
                 cache_read_input_tokens = read,
-                cache_creation_input_tokens = response.usage.cache_creation_input_tokens.unwrap_or(0),
+                cache_creation_input_tokens =
+                    response.usage.cache_creation_input_tokens.unwrap_or(0),
                 "prompt cache hit",
             );
         } else if let Some(write) = response.usage.cache_creation_input_tokens

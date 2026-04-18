@@ -68,7 +68,11 @@ impl App {
     }
 
     /// Handle /spawn command - spawn a new child agent
-    pub(super) async fn handle_spawn_child_agent(&mut self, model: Option<String>, reason: Option<String>) {
+    pub(super) async fn handle_spawn_child_agent(
+        &mut self,
+        model: Option<String>,
+        reason: Option<String>,
+    ) {
         // The actual spawning will be handled via IPC message to current agent
         // This command just shows feedback
         let reason_str = reason.as_deref().unwrap_or("child agent");

@@ -13,7 +13,7 @@ Re-exports plan parsing and output parsing utilities from `brainwires-core` as a
 
 ```toml
 [dependencies]
-brainwires-reasoning = "0.9"
+brainwires-reasoning = "0.10"
 ```
 
 ```rust

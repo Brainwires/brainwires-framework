@@ -40,11 +40,7 @@ impl SettingsManager {
                 }
                 Ok(None) => {} // file missing — fine
                 Err(e) => {
-                    tracing::warn!(
-                        "Ignoring malformed settings file {}: {}",
-                        path.display(),
-                        e
-                    );
+                    tracing::warn!("Ignoring malformed settings file {}: {}", path.display(), e);
                 }
             }
         }
@@ -201,13 +197,13 @@ mod tests {
         // Guard against drift between the documented example and the schema.
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("docs/harness/settings.example.json");
-        let raw = std::fs::read_to_string(&path).unwrap_or_else(|e| {
-            panic!("failed to read {}: {}", path.display(), e)
-        });
-        let parsed: Settings = serde_json::from_str(&raw).unwrap_or_else(|e| {
-            panic!("failed to parse {}: {}", path.display(), e)
-        });
-        let perms = parsed.permissions.expect("example should define permissions");
+        let raw = std::fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("failed to read {}: {}", path.display(), e));
+        let parsed: Settings = serde_json::from_str(&raw)
+            .unwrap_or_else(|e| panic!("failed to parse {}: {}", path.display(), e));
+        let perms = parsed
+            .permissions
+            .expect("example should define permissions");
         assert!(!perms.allow.is_empty());
         assert!(!perms.deny.is_empty());
         let hooks = parsed.hooks.expect("example should define hooks");

@@ -17,7 +17,9 @@ use std::io::IsTerminal;
 use crate::auth::SessionManager;
 use crate::config::{ConfigManager, ConfigUpdates};
 use crate::providers::ProviderType;
-use crate::types::provider_ext::{CHAT_PROVIDERS, credential_hint, detect_provider_from_env, summary};
+use crate::types::provider_ext::{
+    CHAT_PROVIDERS, credential_hint, detect_provider_from_env, summary,
+};
 
 /// Check whether we should offer a first-run picker.
 ///
@@ -49,7 +51,10 @@ pub fn print_unconfigured_help() {
     eprintln!();
     eprintln!("Choose one of the following to get started:");
     eprintln!();
-    eprintln!("  {} Set an API key in your environment:", style("·").cyan());
+    eprintln!(
+        "  {} Set an API key in your environment:",
+        style("·").cyan()
+    );
     eprintln!("      export ANTHROPIC_API_KEY=…   # Claude");
     eprintln!("      export OPENAI_API_KEY=…      # GPT");
     eprintln!("      export GEMINI_API_KEY=…      # Gemini");
@@ -134,10 +139,7 @@ pub async fn prompt_and_save(config: &mut ConfigManager) -> Result<ProviderType>
         style(chosen.as_str()).cyan().bold()
     );
     println!("  {}", style("Default model: ").dim());
-    println!(
-        "    {}",
-        style(chosen.default_model()).cyan()
-    );
+    println!("    {}", style(chosen.default_model()).cyan());
 
     // If the provider needs an API key that isn't yet in keyring or env,
     // print a helpful next-step hint (non-blocking — they can also just

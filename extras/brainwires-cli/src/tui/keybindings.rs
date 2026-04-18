@@ -160,9 +160,7 @@ pub fn parse_key_spec(spec: &str) -> Option<KeyBinding> {
 
     let code = match *key_part {
         k if k.eq_ignore_ascii_case("esc") || k.eq_ignore_ascii_case("escape") => KeyCode::Esc,
-        k if k.eq_ignore_ascii_case("enter") || k.eq_ignore_ascii_case("return") => {
-            KeyCode::Enter
-        }
+        k if k.eq_ignore_ascii_case("enter") || k.eq_ignore_ascii_case("return") => KeyCode::Enter,
         k if k.eq_ignore_ascii_case("tab") => KeyCode::Tab,
         k if k.eq_ignore_ascii_case("space") => KeyCode::Char(' '),
         k if k.eq_ignore_ascii_case("backspace") => KeyCode::Backspace,
@@ -243,12 +241,18 @@ mod tests {
             parse_key_spec("Alt+Shift+F4"),
             Some((KeyCode::F(4), KeyModifiers::ALT | KeyModifiers::SHIFT))
         );
-        assert_eq!(parse_key_spec("Esc"), Some((KeyCode::Esc, KeyModifiers::NONE)));
+        assert_eq!(
+            parse_key_spec("Esc"),
+            Some((KeyCode::Esc, KeyModifiers::NONE))
+        );
         assert_eq!(
             parse_key_spec("Space"),
             Some((KeyCode::Char(' '), KeyModifiers::NONE))
         );
-        assert_eq!(parse_key_spec("F1"), Some((KeyCode::F(1), KeyModifiers::NONE)));
+        assert_eq!(
+            parse_key_spec("F1"),
+            Some((KeyCode::F(1), KeyModifiers::NONE))
+        );
     }
 
     #[test]

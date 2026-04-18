@@ -17,9 +17,7 @@ impl CommandExecutor {
         _args: &[String],
     ) -> Option<Result<CommandResult>> {
         match name {
-            "dream" | "dream:status" => {
-                Some(Ok(CommandResult::Action(CommandAction::DreamStatus)))
-            }
+            "dream" | "dream:status" => Some(Ok(CommandResult::Action(CommandAction::DreamStatus))),
             "dream:run" => Some(Ok(CommandResult::Action(CommandAction::DreamRun))),
             _ => None,
         }

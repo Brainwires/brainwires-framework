@@ -49,23 +49,26 @@ impl InMemoryDreamSessionStore {
 #[async_trait]
 impl DreamSessionStore for InMemoryDreamSessionStore {
     async fn list_sessions(&self) -> Result<Vec<String>> {
-        let lock = self.sessions.lock().map_err(|e| {
-            anyhow::anyhow!("dream session store mutex poisoned: {e}")
-        })?;
+        let lock = self
+            .sessions
+            .lock()
+            .map_err(|e| anyhow::anyhow!("dream session store mutex poisoned: {e}"))?;
         Ok(lock.keys().cloned().collect())
     }
 
     async fn load(&self, session_key: &str) -> Result<Option<Vec<Message>>> {
-        let lock = self.sessions.lock().map_err(|e| {
-            anyhow::anyhow!("dream session store mutex poisoned: {e}")
-        })?;
+        let lock = self
+            .sessions
+            .lock()
+            .map_err(|e| anyhow::anyhow!("dream session store mutex poisoned: {e}"))?;
         Ok(lock.get(session_key).cloned())
     }
 
     async fn save(&self, session_key: &str, messages: &[Message]) -> Result<()> {
-        let mut lock = self.sessions.lock().map_err(|e| {
-            anyhow::anyhow!("dream session store mutex poisoned: {e}")
-        })?;
+        let mut lock = self
+            .sessions
+            .lock()
+            .map_err(|e| anyhow::anyhow!("dream session store mutex poisoned: {e}"))?;
         lock.insert(session_key.to_string(), messages.to_vec());
         Ok(())
     }
@@ -174,8 +177,7 @@ mod tests {
 
     #[tokio::test]
     async fn in_memory_store_reports_missing_session_as_none() {
-        let store =
-            InMemoryDreamSessionStore::with_session("a", vec![msg(Role::User, "x")]);
+        let store = InMemoryDreamSessionStore::with_session("a", vec![msg(Role::User, "x")]);
         assert!(store.load("does-not-exist").await.unwrap().is_none());
     }
 

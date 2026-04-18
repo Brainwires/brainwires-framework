@@ -165,9 +165,7 @@ impl App {
 
         // Default Ctrl+B: Sub-Agent Viewer (remappable via keybindings).
         // Guard: not during waiting/streaming.
-        if self.keybindings.matches("sub_agent_viewer", &event)
-            && self.mode != AppMode::Waiting
-        {
+        if self.keybindings.matches("sub_agent_viewer", &event) && self.mode != AppMode::Waiting {
             self.refresh_sub_agent_list().await;
             self.mode = AppMode::SubAgentViewer;
             return Ok(());

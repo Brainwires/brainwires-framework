@@ -122,15 +122,16 @@ impl WorktreeGuard {
             .arg("--force")
             .arg(path)
             .status()
-            .with_context(|| format!("failed to run `git worktree remove` for {}", path.display()))?;
+            .with_context(|| {
+                format!("failed to run `git worktree remove` for {}", path.display())
+            })?;
         if !status.success() {
             // Fall back to removing the directory manually — git bookkeeping
             // gets stale but the files are gone. Caller can run
             // `git worktree prune` to clean up the metadata.
             if path.exists() {
-                std::fs::remove_dir_all(path).with_context(|| {
-                    format!("failed to manually remove {}", path.display())
-                })?;
+                std::fs::remove_dir_all(path)
+                    .with_context(|| format!("failed to manually remove {}", path.display()))?;
             }
         }
         Ok(())

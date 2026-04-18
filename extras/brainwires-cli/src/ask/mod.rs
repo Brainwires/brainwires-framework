@@ -107,9 +107,7 @@ pub fn collect_response(
             })
             .collect();
         let other_selected = state.other_selected.first().copied().unwrap_or(false);
-        if other_selected
-            && let Some(text) = state.other_text.first()
-        {
+        if other_selected && let Some(text) = state.other_text.first() {
             let trimmed = text.trim();
             if !trimmed.is_empty() {
                 picked.push(trimmed.to_string());
@@ -122,18 +120,18 @@ pub fn collect_response(
         }
     } else if !req.options.is_empty() {
         // Single-select from options.
-        let picked_label = q
-            .options
-            .iter()
-            .enumerate()
-            .find_map(|(i, opt)| {
-                let selected = state
-                    .selected_options
-                    .first()
-                    .and_then(|row| row.get(i).copied())
-                    .unwrap_or(false);
-                if selected { Some(opt.label.clone()) } else { None }
-            });
+        let picked_label = q.options.iter().enumerate().find_map(|(i, opt)| {
+            let selected = state
+                .selected_options
+                .first()
+                .and_then(|row| row.get(i).copied())
+                .unwrap_or(false);
+            if selected {
+                Some(opt.label.clone())
+            } else {
+                None
+            }
+        });
 
         if let Some(label) = picked_label {
             UserQuestionResponse::Answer(label)

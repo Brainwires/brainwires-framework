@@ -699,7 +699,12 @@ impl App {
                     .first()
                     .map(|row| row.iter().any(|s| *s))
                     .unwrap_or(false)
-                    || pending.state.other_selected.first().copied().unwrap_or(false);
+                    || pending
+                        .state
+                        .other_selected
+                        .first()
+                        .copied()
+                        .unwrap_or(false);
                 if !any_selected && !pending.block.questions.is_empty() {
                     pending.state.toggle_current(&pending.block);
                 }
@@ -714,10 +719,7 @@ impl App {
 
         // Everything else — navigation + "Other" editing. Mirror the
         // question_answer handler.
-        let block = self
-            .active_user_question
-            .as_ref()
-            .map(|p| p.block.clone());
+        let block = self.active_user_question.as_ref().map(|p| p.block.clone());
         let block = match block {
             Some(b) => b,
             None => return Ok(()),
@@ -727,50 +729,48 @@ impl App {
             && let Event::Key(key) = event
         {
             if pending.state.editing_other {
-                    match key.code {
-                        KeyCode::Char(c) => pending.state.append_other_char(c),
-                        KeyCode::Backspace => pending.state.backspace_other(),
-                        KeyCode::Tab => {
-                            pending.state.editing_other = false;
-                        }
-                        _ => {}
-                    }
-                    return Ok(());
-                }
-
                 match key.code {
-                    KeyCode::Up => pending.state.cursor_up(),
-                    KeyCode::Down => pending.state.cursor_down(&block),
-                    KeyCode::Char(' ') => {
-                        pending.state.toggle_current(&block);
-                        if pending.state.is_cursor_on_other(&block) {
-                            let q_idx = pending.state.current_question_idx;
-                            if pending
-                                .state
-                                .other_selected
-                                .get(q_idx)
-                                .copied()
-                                .unwrap_or(false)
-                            {
-                                pending.state.editing_other = true;
-                            }
-                        }
-                    }
-                    KeyCode::Char(c) => {
-                        // Typing on the "Other" row starts text entry.
-                        if pending.state.is_cursor_on_other(&block) {
-                            let q_idx = pending.state.current_question_idx;
-                            if let Some(selected) =
-                                pending.state.other_selected.get_mut(q_idx)
-                            {
-                                *selected = true;
-                            }
-                            pending.state.editing_other = true;
-                            pending.state.append_other_char(c);
-                        }
+                    KeyCode::Char(c) => pending.state.append_other_char(c),
+                    KeyCode::Backspace => pending.state.backspace_other(),
+                    KeyCode::Tab => {
+                        pending.state.editing_other = false;
                     }
                     _ => {}
                 }
+                return Ok(());
+            }
+
+            match key.code {
+                KeyCode::Up => pending.state.cursor_up(),
+                KeyCode::Down => pending.state.cursor_down(&block),
+                KeyCode::Char(' ') => {
+                    pending.state.toggle_current(&block);
+                    if pending.state.is_cursor_on_other(&block) {
+                        let q_idx = pending.state.current_question_idx;
+                        if pending
+                            .state
+                            .other_selected
+                            .get(q_idx)
+                            .copied()
+                            .unwrap_or(false)
+                        {
+                            pending.state.editing_other = true;
+                        }
+                    }
+                }
+                KeyCode::Char(c) => {
+                    // Typing on the "Other" row starts text entry.
+                    if pending.state.is_cursor_on_other(&block) {
+                        let q_idx = pending.state.current_question_idx;
+                        if let Some(selected) = pending.state.other_selected.get_mut(q_idx) {
+                            *selected = true;
+                        }
+                        pending.state.editing_other = true;
+                        pending.state.append_other_char(c);
+                    }
+                }
+                _ => {}
+            }
         }
 
         Ok(())

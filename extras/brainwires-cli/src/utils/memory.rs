@@ -139,8 +139,7 @@ mod tests {
     use crate::utils::test_util::{ENV_LOCK, EnvVarGuard};
     use tempfile::TempDir;
 
-    fn setup_temp_home()
-    -> (TempDir, EnvVarGuard, std::sync::MutexGuard<'static, ()>) {
+    fn setup_temp_home() -> (TempDir, EnvVarGuard, std::sync::MutexGuard<'static, ()>) {
         let lock = ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         let tmp = TempDir::new().unwrap();
         let env = EnvVarGuard::set("BRAINWIRES_MEMORY_ROOT", tmp.path());
@@ -185,15 +184,15 @@ mod tests {
     #[test]
     fn strip_frontmatter_handles_missing() {
         assert_eq!(strip_frontmatter("no frontmatter\n"), "no frontmatter\n");
-        assert_eq!(
-            strip_frontmatter("---\nname: x\n---\nbody"),
-            "\nbody"
-        );
+        assert_eq!(strip_frontmatter("---\nname: x\n---\nbody"), "\nbody");
     }
 
     #[test]
     fn truncate_lines_caps_output() {
-        let input = (0..500).map(|i| i.to_string()).collect::<Vec<_>>().join("\n");
+        let input = (0..500)
+            .map(|i| i.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
         let out = truncate_lines(&input, 10);
         let lines = out.lines().collect::<Vec<_>>();
         // 10 real lines + truncation marker

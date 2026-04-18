@@ -123,9 +123,7 @@ async fn ask_via_channel(
     if tx.send(req).await.is_err() {
         return UserQuestionResponse::Cancelled;
     }
-    resp_rx
-        .await
-        .unwrap_or(UserQuestionResponse::Cancelled)
+    resp_rx.await.unwrap_or(UserQuestionResponse::Cancelled)
 }
 
 async fn ask_via_dialoguer(
@@ -191,14 +189,14 @@ mod tests {
         // Responder: reply to any incoming request with "yes".
         let responder = tokio::spawn(async move {
             if let Some(req) = rx.recv().await {
-                let _ = req.response_tx.send(UserQuestionResponse::Answer("yes".into()));
+                let _ = req
+                    .response_tx
+                    .send(UserQuestionResponse::Answer("yes".into()));
             }
         });
 
         let tool = AskUserQuestionTool::new(Some(tx));
-        let out = tool
-            .execute("t1", &json!({"question": "continue?"}))
-            .await;
+        let out = tool.execute("t1", &json!({"question": "continue?"})).await;
         responder.await.unwrap();
 
         assert!(!out.is_error);
@@ -245,9 +243,7 @@ mod tests {
         });
 
         let tool = AskUserQuestionTool::new(Some(tx));
-        let out = tool
-            .execute("t3", &json!({"question": "foo"}))
-            .await;
+        let out = tool.execute("t3", &json!({"question": "foo"})).await;
         responder.await.unwrap();
 
         let v: Value = serde_json::from_str(&out.content).unwrap();

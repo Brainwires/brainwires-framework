@@ -442,10 +442,7 @@ mod tests {
             ask: vec!["Read".into()],
             deny: vec![],
         };
-        assert_eq!(
-            p.decide("read_file", &json!({})),
-            PermissionDecision::Ask
-        );
+        assert_eq!(p.decide("read_file", &json!({})), PermissionDecision::Ask);
     }
 
     #[test]

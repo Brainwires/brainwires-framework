@@ -40,7 +40,7 @@ This crate was extracted from `brainwires-network` so that consumers who only ne
 
 ```toml
 [dependencies]
-brainwires-mcp-server = "0.8"
+brainwires-mcp-server = "0.10"
 ```
 
 Minimal server:
@@ -174,7 +174,7 @@ Use via the `brainwires` facade crate:
 
 ```toml
 [dependencies]
-brainwires = { version = "0.8", features = ["mcp-server-framework"] }
+brainwires = { version = "0.10", features = ["mcp-server-framework"] }
 ```
 
 Or use standalone — `brainwires-mcp-server` depends only on `brainwires-mcp`.

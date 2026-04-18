@@ -8,10 +8,10 @@ mod console;
 mod events;
 mod exec_overlay;
 mod help_content;
-pub mod keybindings;
-mod shell_overlay;
 pub(crate) mod hotkey_content;
+pub mod keybindings;
 pub mod question_parser;
+mod shell_overlay;
 mod ui;
 
 pub use app::{App, AppMode, LogLevel};
@@ -417,9 +417,8 @@ async fn run_app(
             && let Ok(request) = user_q_rx.try_recv()
         {
             let preview = request.question.clone();
-            app.active_user_question = Some(
-                crate::tui::app::user_question::PendingUserQuestion::from_request(request),
-            );
+            app.active_user_question =
+                Some(crate::tui::app::user_question::PendingUserQuestion::from_request(request));
             app.mode = AppMode::UserQuestion;
             app.add_console_message(format!(
                 "❔ Question from agent: {}",
@@ -518,10 +517,7 @@ async fn run_app(
                         exit_code: shell_result.exit_code.unwrap_or(-1),
                         executed_at: started_at,
                     });
-                    app.set_status(
-                        LogLevel::Info,
-                        format!("Shell exited (code: {})", code),
-                    );
+                    app.set_status(LogLevel::Info, format!("Shell exited (code: {})", code));
                 }
                 Err(e) => {
                     app.shell_history.push(crate::tui::app::ShellExecution {

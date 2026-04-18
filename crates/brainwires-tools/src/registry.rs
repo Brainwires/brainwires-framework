@@ -401,7 +401,11 @@ mod tests {
             registry.register(make_tool(name, false));
         }
 
-        let core_names: Vec<&str> = registry.get_core().iter().map(|t| t.name.as_str()).collect();
+        let core_names: Vec<&str> = registry
+            .get_core()
+            .iter()
+            .map(|t| t.name.as_str())
+            .collect();
         let expected: Vec<&str> = ToolRegistry::CORE_TOOL_NAMES.to_vec();
         assert_eq!(core_names, expected);
     }

@@ -373,7 +373,10 @@ impl App {
         // by emitting a clear error instead of hanging on a prompt.
         let needs_provider_setup = matches!(
             &self.cli.command,
-            Some(Commands::Chat { mcp_server: false, .. }) | Some(Commands::Task { .. })
+            Some(Commands::Chat {
+                mcp_server: false,
+                ..
+            }) | Some(Commands::Task { .. })
         );
         if needs_provider_setup {
             let mut config_manager = crate::config::ConfigManager::new()?;

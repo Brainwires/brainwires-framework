@@ -255,13 +255,11 @@ impl MonitorTool {
             );
         }
 
-        let cwd = args
-            .cwd
-            .unwrap_or_else(|| {
-                std::env::current_dir()
-                    .map(|p| p.to_string_lossy().to_string())
-                    .unwrap_or_else(|_| ".".to_string())
-            });
+        let cwd = args.cwd.unwrap_or_else(|| {
+            std::env::current_dir()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|_| ".".to_string())
+        });
 
         let mut cmd = Command::new("bash");
         cmd.arg("-o").arg("pipefail").arg("-c").arg(&args.command);
@@ -398,11 +396,7 @@ impl MonitorTool {
             .collect();
 
         let next_offset = lines.last().map(|l| l.offset + 1).unwrap_or(since);
-        let truncated = buffer
-            .iter()
-            .skip_while(|l| l.offset < since)
-            .count()
-            > lines.len();
+        let truncated = buffer.iter().skip_while(|l| l.offset < since).count() > lines.len();
 
         drop(buffer);
 
@@ -634,7 +628,10 @@ fn new_id() -> String {
     use std::sync::atomic::{AtomicU64, Ordering};
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     let c = COUNTER.fetch_add(1, Ordering::Relaxed);
-    format!("mon-{:012x}", (nanos as u64) ^ c.wrapping_mul(0x9E37_79B9_7F4A_7C15))
+    format!(
+        "mon-{:012x}",
+        (nanos as u64) ^ c.wrapping_mul(0x9E37_79B9_7F4A_7C15)
+    )
 }
 
 #[cfg(test)]
@@ -701,9 +698,7 @@ mod tests {
         wait_for_status(&tool, &id, false).await;
 
         // Read first line only.
-        let first = tool
-            .do_read("t2", &json!({"id": id, "max_lines": 1}))
-            .await;
+        let first = tool.do_read("t2", &json!({"id": id, "max_lines": 1})).await;
         let v: Value = serde_json::from_str(&first.content).unwrap();
         assert_eq!(v["lines"].as_array().unwrap().len(), 1);
         assert_eq!(v["next_offset"], 1);
@@ -786,9 +781,7 @@ mod tests {
 
         wait_for_status(&tool, &id, false).await;
 
-        let read = tool
-            .do_read("t2", &json!({"id": id, "max_lines": 1}))
-            .await;
+        let read = tool.do_read("t2", &json!({"id": id, "max_lines": 1})).await;
         let v: Value = serde_json::from_str(&read.content).unwrap();
         assert!(
             v["dropped_lines"].as_u64().unwrap() >= 50,

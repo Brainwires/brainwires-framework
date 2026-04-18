@@ -108,11 +108,11 @@ fn domain_condition_wildcard_matches_bare_and_subdomains() {
     let c = PolicyCondition::Domain("*.example.com".into());
 
     let cases = [
-        ("example.com", true),            // bare apex matches
-        ("api.example.com", true),        // subdomain matches
-        ("a.b.example.com", true),        // nested subdomain matches
+        ("example.com", true),              // bare apex matches
+        ("api.example.com", true),          // subdomain matches
+        ("a.b.example.com", true),          // nested subdomain matches
         ("example.com.attacker.io", false), // suffix-confusion bypass attempt
-        ("fakeexample.com", false),       // must be a proper subdomain
+        ("fakeexample.com", false),         // must be a proper subdomain
         ("notexample.com", false),
     ];
     for (domain, expected) in cases {
@@ -218,8 +218,7 @@ fn empty_conditions_never_match_as_safety_default() {
     // A policy with no conditions is treated as non-matching. This is the
     // documented safety fallback — deleting the last condition must NOT
     // suddenly blanket-apply the policy.
-    let p = Policy::new("bogus")
-        .with_action(PolicyAction::Deny);
+    let p = Policy::new("bogus").with_action(PolicyAction::Deny);
     assert!(!p.matches(&PolicyRequest::new()));
 }
 

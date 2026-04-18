@@ -113,9 +113,7 @@ impl App {
             }
             if score > 0 {
                 let confidence = (0.6f32 + score as f32 * 0.05).min(0.9);
-                if confidence >= THRESHOLD
-                    && best.as_ref().is_none_or(|(_, c)| confidence > *c)
-                {
+                if confidence >= THRESHOLD && best.as_ref().is_none_or(|(_, c)| confidence > *c) {
                     best = Some((m.name.clone(), confidence));
                 }
             }

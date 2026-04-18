@@ -809,14 +809,11 @@ impl App {
             status_line_cache: None,
             pending_shell: false,
             keybindings: {
-                let cwd = std::env::current_dir()
-                    .unwrap_or_else(|_| std::path::PathBuf::from("."));
+                let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
                 let settings = crate::config::SettingsManager::load(&cwd).merged;
-                std::sync::Arc::new(
-                    crate::tui::keybindings::KeybindingMap::from_settings(
-                        settings.keybindings.as_ref(),
-                    ),
-                )
+                std::sync::Arc::new(crate::tui::keybindings::KeybindingMap::from_settings(
+                    settings.keybindings.as_ref(),
+                ))
             },
             pending_background: false,
             pending_suspend: false,
@@ -953,8 +950,7 @@ impl App {
         tool_executor.set_sudo_password_channel(sudo_tx);
 
         // Create user-question channel for the `ask_user_question` tool.
-        let (user_q_tx, user_q_rx) =
-            mpsc::channel::<crate::ask::UserQuestionRequest>(4);
+        let (user_q_tx, user_q_rx) = mpsc::channel::<crate::ask::UserQuestionRequest>(4);
         tool_executor.set_user_question_channel(user_q_tx);
 
         let tool_executor = Arc::new(tool_executor);
@@ -1135,14 +1131,11 @@ impl App {
             status_line_cache: None,
             pending_shell: false,
             keybindings: {
-                let cwd = std::env::current_dir()
-                    .unwrap_or_else(|_| std::path::PathBuf::from("."));
+                let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
                 let settings = crate::config::SettingsManager::load(&cwd).merged;
-                std::sync::Arc::new(
-                    crate::tui::keybindings::KeybindingMap::from_settings(
-                        settings.keybindings.as_ref(),
-                    ),
-                )
+                std::sync::Arc::new(crate::tui::keybindings::KeybindingMap::from_settings(
+                    settings.keybindings.as_ref(),
+                ))
             },
             pending_background: false,
             pending_suspend: false,
@@ -1318,11 +1311,7 @@ impl App {
             child.arg("-c").arg(&cmd);
             child.stdin(std::process::Stdio::null());
             let output = child.output();
-            let timed = tokio::time::timeout(
-                std::time::Duration::from_millis(200),
-                output,
-            )
-            .await;
+            let timed = tokio::time::timeout(std::time::Duration::from_millis(200), output).await;
             match timed {
                 Ok(Ok(out)) if out.status.success() => {
                     String::from_utf8_lossy(&out.stdout).trim().to_string()

@@ -214,9 +214,7 @@ impl ProviderFactory {
 
         if let Ok(Some(session)) = SessionManager::get_session() {
             let api_key = SessionManager::get_api_key()?.ok_or_else(|| {
-                anyhow!(
-                    "No API key found. Please re-authenticate with: brainwires auth login"
-                )
+                anyhow!("No API key found. Please re-authenticate with: brainwires auth login")
             })?;
 
             let backend_url = backend_url_override.unwrap_or_else(|| session.backend.clone());
@@ -444,8 +442,8 @@ mod tests {
 
     #[test]
     fn parse_provider_override_rejects_garbage() {
-        let err = ProviderFactory::parse_provider_override(Some("not-a-real-provider"))
-            .unwrap_err();
+        let err =
+            ProviderFactory::parse_provider_override(Some("not-a-real-provider")).unwrap_err();
         let msg = err.to_string();
         assert!(msg.contains("Unknown provider"));
         assert!(msg.contains("anthropic"));

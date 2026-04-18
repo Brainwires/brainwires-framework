@@ -138,11 +138,7 @@ fn dirs_home() -> Option<PathBuf> {
 /// Look for each recognized instruction filename in `dir` and append any
 /// successfully parsed ones to `sources`. Silently skips missing files and
 /// logs (but does not propagate) parse errors.
-fn collect_from_dir(
-    dir: &Path,
-    sources: &mut Vec<InstructionSource>,
-    seen: &mut HashSet<PathBuf>,
-) {
+fn collect_from_dir(dir: &Path, sources: &mut Vec<InstructionSource>, seen: &mut HashSet<PathBuf>) {
     for name in INSTRUCTION_FILENAMES {
         let path = dir.join(name);
         if !path.exists() {
@@ -168,11 +164,7 @@ fn collect_from_dir(
                 // Empty file — skip.
             }
             Err(e) => {
-                tracing::warn!(
-                    "failed to parse instruction file {}: {}",
-                    path.display(),
-                    e
-                );
+                tracing::warn!("failed to parse instruction file {}: {}", path.display(), e);
             }
         }
     }

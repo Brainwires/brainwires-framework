@@ -1564,10 +1564,7 @@ impl App {
             Err(_) => ProviderType::Brainwires,
         };
 
-        let mut lines = vec![format!(
-            "Current provider: {}",
-            current.as_str()
-        )];
+        let mut lines = vec![format!("Current provider: {}", current.as_str())];
         lines.push(String::new());
         lines.push("Available providers (use `/provider <name>` to switch):".to_string());
         for p in CHAT_PROVIDERS {

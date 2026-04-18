@@ -114,14 +114,14 @@ The simplest way to use the framework is through the `brainwires` facade crate, 
 
 ```toml
 [dependencies]
-brainwires = "0.9"  # defaults: tools + agents
+brainwires = "0.10"  # defaults: tools + agents
 ```
 
 Enable only what you need:
 
 ```toml
 [dependencies]
-brainwires = { version = "0.8", features = ["providers", "rag"] }
+brainwires = { version = "0.10", features = ["providers", "rag"] }
 ```
 
 ### Using Individual Crates
@@ -130,9 +130,9 @@ Each crate is independently publishable and usable:
 
 ```toml
 [dependencies]
-brainwires-core = "0.9"
-brainwires-providers = "0.9"
-brainwires-agents = "0.9"
+brainwires-core = "0.10"
+brainwires-providers = "0.10"
+brainwires-agents = "0.10"
 ```
 
 ### Minimal Example

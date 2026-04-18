@@ -67,9 +67,7 @@ pub fn run_interactive_shell(
     let _restore = RestoreGuard;
 
     // Print a one-line banner so the user knows which shell they're in.
-    eprintln!(
-        "(brainwires) interactive shell — type `exit` or press Ctrl+D to return"
-    );
+    eprintln!("(brainwires) interactive shell — type `exit` or press Ctrl+D to return");
 
     // Spawn with stdio inherited so the child owns the TTY directly.
     // `.status()` blocks until the child exits; SIGWINCH / job-control /

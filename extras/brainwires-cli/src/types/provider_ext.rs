@@ -162,7 +162,10 @@ mod tests {
 
     #[test]
     fn env_var_name_covers_common_providers() {
-        assert_eq!(env_var_name(ProviderType::Anthropic), Some("ANTHROPIC_API_KEY"));
+        assert_eq!(
+            env_var_name(ProviderType::Anthropic),
+            Some("ANTHROPIC_API_KEY")
+        );
         assert_eq!(env_var_name(ProviderType::OpenAI), Some("OPENAI_API_KEY"));
         assert_eq!(env_var_name(ProviderType::Ollama), None);
         assert_eq!(env_var_name(ProviderType::Bedrock), None);

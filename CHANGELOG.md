@@ -7,6 +7,171 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-04-18
+
+### Changed
+
+#### `brainwires-reasoning` restored as Layer 3 owner (BREAKING)
+
+The 0.9.0 `brainwires-reasoning` crate shipped as a 22-line re-export shell.
+The 0.8 → 0.9 refactor split the intended content across two other crates:
+the plan/output parsers stayed in `brainwires-core` behind a `planning`
+feature, and the 9 local-inference scorers were tucked into
+`brainwires-agents::reasoning` behind a feature. The original architectural
+plan (PR 7 in the 0.9 refactor series) specified these move into
+`brainwires-reasoning`; the move did not happen.
+
+0.10.0 completes it. `brainwires-reasoning` now owns, as real modules:
+
+- `plan_parser` and `output_parser` (moved from `brainwires-core`),
+- `complexity`, `entity_enhancer`, `relevance_scorer`,
+  `retrieval_classifier`, `router`, `strategies`, `strategy_selector`,
+  `summarizer`, `validator` (moved from `brainwires-agents::reasoning`).
+
+Backward-compatibility: `brainwires-agents` still exposes
+`brainwires_agents::reasoning::…` under its `reasoning` feature — it now
+simply re-exports `brainwires_reasoning`. No changes needed for callers
+using that path.
+
+**Breaking:** callers importing directly from `brainwires_core` must
+update.
+
+| 0.9.0 path | 0.10.0 path |
+|---|---|
+| `brainwires_core::plan_parser::{parse_plan_steps, steps_to_tasks, ParsedStep}` | `brainwires_reasoning::plan_parser::…` (also re-exported at crate root) |
+| `brainwires_core::output_parser::{JsonOutputParser, JsonListParser, OutputParser, RegexOutputParser}` | `brainwires_reasoning::output_parser::…` (also re-exported at crate root) |
+| `brainwires_core/planning` feature | feature removed — pull `brainwires-reasoning` directly |
+| `brainwires_core/native` feature | kept as an empty stub for downstream compatibility |
+
+### Added
+
+#### Tools — bash sandbox + byte caps (`brainwires-tools`)
+
+- **`BashSandboxMode::NetworkDeny`** — wraps every `execute_command` in
+  `unshare -U -r -n -- bash -o pipefail -c …` on Linux, denying outbound
+  network via a new user + network namespace without requiring root. Silent
+  no-op on non-Linux with a warning surfaced in the tool result so the
+  model knows sandboxing was not enforced.
+- **Opt-in from env or CLI** — `BRAINWIRES_BASH_SANDBOX=network-deny`
+  (also `networkdeny`, `1`, `on`) or the new `brainwires chat --sandbox
+  network-deny` CLI flag. `Off` is the default; `from_env()` is read at
+  command-build time, so every bash tool call goes through the same
+  policy gate regardless of invocation path.
+- **Per-stream 25KB byte cap** — `MAX_STREAM_BYTES = 25_000`. Stdout and
+  stderr are each middle-truncated with a `… [N bytes truncated] …`
+  marker, preserving head + tail and respecting UTF-8 boundaries. Guards
+  against a single runaway line (binary blob, `cat` on a huge log)
+  blowing past context limits regardless of line-based `output_mode`.
+
+#### Providers — Anthropic prompt caching + image blocks
+(`brainwires-providers`)
+
+- **Prompt caching enabled by default** — `cache_prompt: true` on both
+  `messages` (single-shot) and streaming requests. `cache_read` and
+  `cache_creation` token counts are logged (`tracing::info!` on cache
+  hits, `tracing::debug!` on writes) so operators can verify
+  cache-hit-rate in production.
+- **`ContentBlock::Image` (Base64) → Anthropic image envelope** — the
+  Anthropic chat provider now converts core `ImageSource::Base64
+  { media_type, data }` blocks into native Anthropic
+  `image` content blocks. Unblocks multimodal user messages; added a
+  dedicated roundtrip test.
+
+#### CLI — dream, sandbox, tool curation, monitor, shell overlay, and more
+(`brainwires-cli`)
+
+- **Dream (sleep) consolidation** — new `/dream`, `/dream:status`,
+  `/dream:run` slash commands. The framework's
+  `brainwires::dream::DreamConsolidator` does the work; the CLI supplies
+  an `InMemoryDreamSessionStore` adapter that feeds the active
+  conversation into the consolidator and surfaces a before/after token
+  report. Manual on-demand today; a tokio-interval scheduler can sit on
+  top later without changing this API.
+- **`--sandbox=network-deny`** — top-level CLI flag that sets
+  `BRAINWIRES_BASH_SANDBOX` once at startup (pre-thread-spawn) so the
+  bash tool's env read is race-free.
+- **`--all-tools`** — opt-in eager enumeration of every registered
+  tool. Non-TUI chat paths default to the curated core set (14 tools
+  including `search_tools`) in canonical order — smaller outbound
+  request body and a stable prefix for Anthropic prompt caching.
+- **Monitor tool** — background process watcher that streams stdout
+  events as notifications; filter-first design so a single noisy log
+  doesn't flood the conversation.
+- **`/shell` interactive overlay** — full terminal subshell overlay
+  inside the TUI.
+- **Remappable global keybindings** — `~/.claude/keybindings.json`
+  drives chord and single-key rebinding for all global TUI shortcuts.
+- **Harness parity** — settings, hooks, memory, ask-user-question,
+  monitor polish; TUI skill autocomplete; custom status line;
+  auto-loading of `CLAUDE.md` / `BRAINWIRES.md` from cwd upward;
+  `--provider` first-run picker; worktree primitive; skill
+  `allowed_tools` + execution-mode honouring in `/skill`; 2 456-line
+  `command_handler.rs` split into topic submodules.
+
+#### Tests — proptest + 92 new tests
+
+`proptest` added as a workspace dev-dependency. 92 new tests land across
+five new integration-test files:
+
+- **`brainwires-permissions` (44 tests, 4 files)** —
+  `tests/policy_matching.rs` (23 tests: every `PolicyCondition` variant
+  incl. And/Or/Not composition, priority ordering, default-action
+  fallback, disabled-policy skipping, `with_defaults()` preset);
+  `tests/wildcard_domains.rs` (5 proptests guarding
+  `*.example.com` suffix/prefix-confusion bypasses);
+  `tests/audit_durability.rs` (8 tests covering important-event
+  immediate-write, buffer-flush ordering, JSONL replay from a prior
+  session, disabled-logger silence); `tests/anomaly_thresholds.rs`
+  (8 tests pinning the sliding-window threshold boundary, per-agent
+  isolation, out-of-window forgetting, path-scope allowlist).
+- **`brainwires-mcp` (15 tests, 1 file)** — `tests/jsonrpc_roundtrip.rs`:
+  string/integer/null id roundtrips, response-error wire shape,
+  notification id-absence contract, progress-notification parsing,
+  unknown-method fallthrough, malformed-JSON rejection, transport
+  discriminator on explicit null id, five proptest roundtrips for
+  Request/Response-success/Response-error/Notification/ProgressParams.
+- **`brainwires-reasoning` (25 tests, 1 file)** —
+  `tests/parser_properties.rs`: numbered + bulleted + `Step N:` plan
+  formats, priority-keyword detection, indent→substep mapping,
+  steps-to-tasks invariants, JSON extraction from markdown fences with
+  and without language tags and from surrounding prose, regex-parser
+  named-capture extraction and invalid-pattern rejection, five
+  proptests including panic-freeness on arbitrary text and embedded-
+  object extraction.
+- **`brainwires-tools` (7 tests, 1 file)** —
+  `tests/path_resolution.rs`: relative-vs-absolute anchoring,
+  nonexistent-path fallback, nested paths, documented-and-pinned
+  current non-sandbox `..` traversal behaviour, two proptests covering
+  arbitrary UTF-8 input and unicode-named paths.
+- **`brainwires` metacrate (1 test, 1 file)** —
+  `tests/reexports.rs`: compile-time smoke for the feature-gated
+  re-export surface (core, tools, agents, permissions, reasoning,
+  storage, mcp).
+
+### Fixed
+
+- **`brainwires-providers`** — unreachable catch-arm removed from the
+  Anthropic content-block conversion; any future `ContentBlock` variant
+  now fails loudly at compile time instead of being silently filtered.
+
+### Documentation
+
+- **`TESTING.md`** — corrected every `brainwires-eval` reference. The
+  eval framework lives at `brainwires_agents::eval` (feature-gated
+  module on `brainwires-agents`), not a standalone
+  `brainwires-eval` crate. §8 now notes the empirical-scoring suite
+  targets `brainwires_reasoning::ComplexityScorer` after the 0.10
+  restoration.
+- **`brainwires-hardware`** — Matter implementation marked experimental
+  with a documented list of spec-compliance gaps.
+
+### Publish tooling
+
+- **`scripts/publish.sh --preflight-only`** — fast manifest checks
+  (README present, no git-only deps without version, metadata set) for
+  every publishable crate. Runs in seconds without spending
+  `cargo publish --dry-run` time budget.
+
 ## [0.9.0] - 2026-04-13
 
 ### Added

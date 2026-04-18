@@ -1965,7 +1965,11 @@ impl ToolExecutor {
             {
                 crate::hooks::HookOutcome::Continue => {}
                 crate::hooks::HookOutcome::Block { reason } => {
-                    tracing::info!("Tool '{}' blocked by PreToolUse hook: {}", tool_use.name, reason);
+                    tracing::info!(
+                        "Tool '{}' blocked by PreToolUse hook: {}",
+                        tool_use.name,
+                        reason
+                    );
                     return Ok(ToolResult::error(
                         tool_use.id.clone(),
                         format!("Blocked by PreToolUse hook: {}", reason),

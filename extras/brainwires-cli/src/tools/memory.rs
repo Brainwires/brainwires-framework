@@ -140,12 +140,7 @@ impl MemoryTool {
         }
     }
 
-    async fn do_save(
-        &self,
-        tool_use_id: &str,
-        input: &Value,
-        cwd: &std::path::Path,
-    ) -> ToolResult {
+    async fn do_save(&self, tool_use_id: &str, input: &Value, cwd: &std::path::Path) -> ToolResult {
         #[derive(Deserialize)]
         struct Args {
             name: String,
@@ -168,8 +163,7 @@ impl MemoryTool {
                 tool_use_id.to_string(),
                 format!(
                     "type must be one of {:?}, got '{}'",
-                    MEMORY_TYPES,
-                    args.r#type
+                    MEMORY_TYPES, args.r#type
                 ),
             );
         }
@@ -251,9 +245,7 @@ impl MemoryTool {
         };
         let file_path = dir.join(format!("{}.md", slugify(&args.name)));
         let existed = file_path.exists();
-        if existed
-            && let Err(e) = std::fs::remove_file(&file_path)
-        {
+        if existed && let Err(e) = std::fs::remove_file(&file_path) {
             return ToolResult::error(
                 tool_use_id.to_string(),
                 format!("failed to delete memory: {}", e),
@@ -290,8 +282,7 @@ impl MemoryTool {
         let contents = std::fs::read_to_string(&index).unwrap_or_default();
         ToolResult::success(
             tool_use_id.to_string(),
-            serde_json::to_string_pretty(&json!({ "index": contents }))
-                .unwrap_or_default(),
+            serde_json::to_string_pretty(&json!({ "index": contents })).unwrap_or_default(),
         )
     }
 }
@@ -410,8 +401,7 @@ mod tests {
     /// Redirect memory storage into a tempdir via `BRAINWIRES_MEMORY_ROOT`,
     /// holding the shared env lock + a guard that restores the previous
     /// value on drop so post-test env state is clean.
-    fn setup_temp_home()
-    -> (TempDir, EnvVarGuard, std::sync::MutexGuard<'static, ()>) {
+    fn setup_temp_home() -> (TempDir, EnvVarGuard, std::sync::MutexGuard<'static, ()>) {
         let lock = ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         let tmp = TempDir::new().unwrap();
         let env = EnvVarGuard::set("BRAINWIRES_MEMORY_ROOT", tmp.path());
@@ -526,9 +516,7 @@ mod tests {
         let (_home, _env, _lock) = setup_temp_home();
         let cwd = std::path::PathBuf::from("/tmp/testproj-del");
         let tool = MemoryTool::new();
-        let r = tool
-            .do_delete("t1", &json!({"name": "ghost"}), &cwd)
-            .await;
+        let r = tool.do_delete("t1", &json!({"name": "ghost"}), &cwd).await;
         assert!(!r.is_error);
         let v: Value = serde_json::from_str(&r.content).unwrap();
         assert_eq!(v["deleted"], false);

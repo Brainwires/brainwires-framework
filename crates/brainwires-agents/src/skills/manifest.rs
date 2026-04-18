@@ -91,7 +91,7 @@ mod tests {
     fn test_manifest_minimal() {
         let json = r#"{
             "name": "simple",
-            "version": "0.7.0",
+            "version": "0.10.0",
             "description": "A simple skill",
             "author": "Me",
             "license": "MIT",

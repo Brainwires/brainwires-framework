@@ -354,10 +354,7 @@ mod tests {
             d.dispatch_pre_tool("x", &json!({})).await,
             HookOutcome::Continue
         );
-        assert_eq!(
-            d.dispatch_user_prompt("hi").await,
-            HookOutcome::Continue
-        );
+        assert_eq!(d.dispatch_user_prompt("hi").await, HookOutcome::Continue);
     }
 
     #[tokio::test]
@@ -391,10 +388,7 @@ mod tests {
         let tmp = tempfile::NamedTempFile::new().unwrap();
         let out = tmp.path().to_string_lossy().to_string();
         let hook_cmd = format!("cat > {}", out);
-        let d = HookDispatcher::new(
-            single_hook("prompt", &hook_cmd),
-            PathBuf::from("/tmp"),
-        );
+        let d = HookDispatcher::new(single_hook("prompt", &hook_cmd), PathBuf::from("/tmp"));
         assert_eq!(
             d.dispatch_user_prompt("hello world").await,
             HookOutcome::Continue
