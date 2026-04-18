@@ -285,4 +285,5 @@ pgvector = { version = "0.4.1", features = ["postgres"] }
 
 # Testing
 tempfile = "3"
+proptest = "1"
 
