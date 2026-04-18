@@ -110,7 +110,6 @@ impl AnthropicChatProvider {
                                 tool_use_id: tool_use_id.clone(),
                                 content: content.clone(),
                             }),
-                            _ => None,
                         })
                         .collect(),
                 },
