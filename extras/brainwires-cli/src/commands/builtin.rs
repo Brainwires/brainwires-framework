@@ -935,6 +935,25 @@ pub fn register_builtin_commands(registry: &mut CommandRegistry) {
         ),
     );
 
+    // Dream (sleep) consolidation commands — offline summarise + fact extract
+    registry.register(Command::builtin(
+        "dream".to_string(),
+        "Show the last dream consolidation cycle report".to_string(),
+        "".to_string(),
+    ));
+
+    registry.register(Command::builtin(
+        "dream:status".to_string(),
+        "Show the last dream consolidation cycle report".to_string(),
+        "".to_string(),
+    ));
+
+    registry.register(Command::builtin(
+        "dream:run".to_string(),
+        "Run a dream (sleep) consolidation cycle against the active conversation".to_string(),
+        "".to_string(),
+    ));
+
     // Knowledge Commands (Behavioral Knowledge System)
 
     // /learn - Explicitly teach a behavioral truth

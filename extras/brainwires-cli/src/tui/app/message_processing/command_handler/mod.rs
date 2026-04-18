@@ -476,6 +476,15 @@ impl App {
                 self.handle_mdap_set_target(target);
                 Ok(true)
             }
+            // Dream (sleep) consolidation commands
+            CommandAction::DreamRun => {
+                self.handle_dream_run().await;
+                Ok(true)
+            }
+            CommandAction::DreamStatus => {
+                self.handle_dream_status();
+                Ok(true)
+            }
             // Knowledge commands
             CommandAction::LearnTruth(rule, rationale) => {
                 self.handle_learn_truth(&rule, rationale.as_deref()).await;
@@ -768,6 +777,76 @@ impl App {
                 target * 100.0
             ));
         }
+        self.clear_input();
+    }
+
+    /// Handle /dream:run — run one consolidation cycle against the active
+    /// in-memory conversation. The summarised messages are *not* written back
+    /// to the live TUI buffer; this is strictly a report path until the
+    /// persistence-aware adapter lands.
+    async fn handle_dream_run(&mut self) {
+        use brainwires::core::{Message, MessageContent, Role};
+
+        if self.messages.is_empty() {
+            self.add_console_message(
+                "ℹ️  Dream: no messages in the active session yet — nothing to consolidate.".to_string(),
+            );
+            self.clear_input();
+            return;
+        }
+
+        let session_key = format!("tui-session-{}", chrono::Utc::now().timestamp());
+        let messages: Vec<Message> = self
+            .messages
+            .iter()
+            .map(|m| Message {
+                role: match m.role.as_str() {
+                    "user" => Role::User,
+                    "assistant" => Role::Assistant,
+                    "system" => Role::System,
+                    _ => Role::User,
+                },
+                content: MessageContent::Text(m.content.clone()),
+                name: None,
+                metadata: None,
+            })
+            .collect();
+
+        self.add_console_message("💤 Dream cycle starting...".to_string());
+        let provider = self.provider.clone();
+        match crate::dream::run_once(provider, session_key, messages).await {
+            Ok((report, _after)) => {
+                let body = crate::dream::format_report(&report);
+                self.messages.push(TuiMessage {
+                    role: "system".to_string(),
+                    content: body,
+                    created_at: chrono::Utc::now().timestamp(),
+                });
+            }
+            Err(e) => {
+                self.add_console_message(format!("❌ Dream cycle failed: {e}"));
+            }
+        }
+        self.clear_input();
+    }
+
+    /// Handle /dream or /dream:status — show the last-cycle report.
+    fn handle_dream_status(&mut self) {
+        let msg = match crate::dream::last_report() {
+            Some(report) => {
+                format!(
+                    "Last dream cycle:\n\n{}\nRun `/dream:run` to execute another cycle.",
+                    crate::dream::format_report(&report)
+                )
+            }
+            None => "Dream has not run yet this session. Use `/dream:run` to execute a consolidation cycle."
+                .to_string(),
+        };
+        self.messages.push(TuiMessage {
+            role: "system".to_string(),
+            content: msg,
+            created_at: chrono::Utc::now().timestamp(),
+        });
         self.clear_input();
     }
 

@@ -81,7 +81,7 @@ pub async fn handle_chat_with_conversation(
         working_directory: std::env::current_dir()?.to_string_lossy().to_string(),
         user_id,
         conversation_history: Vec::new(),
-        tools: registry.get_core().into_iter().cloned().collect(),
+        tools: crate::tools::select_non_tui_tools(&registry),
         metadata: std::collections::HashMap::new(),
         working_set: crate::types::WorkingSet::new(),
         // Use full_access for CLI mode - users expect agents to have write access

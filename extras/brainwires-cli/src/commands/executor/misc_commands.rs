@@ -189,6 +189,10 @@ impl CommandExecutor {
             return result;
         }
 
+        if let Some(result) = self.execute_dream_command(name, args) {
+            return result;
+        }
+
         if let Some(result) = self.execute_knowledge_command(name, args) {
             return result;
         }

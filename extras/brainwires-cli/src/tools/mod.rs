@@ -37,3 +37,35 @@ pub use validation_tools::*;
 // Explicitly re-export the CLI's concrete ToolExecutor struct so it shadows
 // the brainwires_tools::ToolExecutor trait that enters via the glob above.
 pub use executor::ToolExecutor;
+
+// ── CLI-level tool-selection flag ─────────────────────────────────────────
+// Non-TUI chat paths default to the curated core set (14 tools including
+// `search_tools`) so outbound request bodies stay small and get Anthropic
+// prompt-cache hits. Users who want every registered tool enumerated up
+// front can flip this once at startup via `--all-tools`.
+
+use std::sync::atomic::{AtomicBool, Ordering};
+
+static ALL_TOOLS_OVERRIDE: AtomicBool = AtomicBool::new(false);
+
+/// Opt into eager enumeration of every registered tool (bypasses the curated
+/// core set). Set once at startup from `--all-tools`.
+pub fn set_all_tools_override(enabled: bool) {
+    ALL_TOOLS_OVERRIDE.store(enabled, Ordering::Relaxed);
+}
+
+/// Was `--all-tools` requested?
+pub fn all_tools_override() -> bool {
+    ALL_TOOLS_OVERRIDE.load(Ordering::Relaxed)
+}
+
+/// Return the tool set to send to the provider for a non-TUI chat path.
+/// Honors `--all-tools` when set; otherwise returns the curated core set
+/// in canonical order (stable prefix for prompt caching).
+pub fn select_non_tui_tools(registry: &brainwires_tools::ToolRegistry) -> Vec<Tool> {
+    if all_tools_override() {
+        registry.get_all().to_vec()
+    } else {
+        registry.get_core().into_iter().cloned().collect()
+    }
+}
