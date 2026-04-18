@@ -17,6 +17,9 @@ categories = ["development-tools"]
 # Internal crates
 brainwires-core.workspace = true
 brainwires-tools.workspace = true
+# Reasoning: re-exported under the `reasoning` feature so existing
+# `brainwires_agents::reasoning::*` callers keep resolving.
+brainwires-reasoning = { workspace = true, optional = true }
 
 # Async runtime
 tokio = { workspace = true, features = ["sync", "time", "rt", "macros"] }
@@ -89,8 +92,9 @@ brainwires-permissions = { workspace = true }
 default = ["native"]
 native = ["dep:git2", "dep:libc", "brainwires-core/native", "brainwires-tools/native"]
 wasm = ["brainwires-core/wasm", "brainwires-tools/wasm"]
-# Reasoning module (merged from brainwires-reasoning)
-reasoning = []
+# Reasoning primitives — re-exports brainwires-reasoning at
+# `brainwires_agents::reasoning`.
+reasoning = ["dep:brainwires-reasoning"]
 # Evaluation framework (merged from brainwires-eval)
 eval = ["dep:thiserror"]
 # OpenTelemetry span export for agent execution traces

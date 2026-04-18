@@ -9,7 +9,7 @@ use tracing::warn;
 use brainwires_core::message::Message;
 use brainwires_core::provider::{ChatOptions, Provider};
 
-use super::InferenceTimer;
+use crate::InferenceTimer;
 
 /// Enhanced entity type with semantic classification
 #[derive(Clone, Debug, PartialEq, Eq)]
