@@ -226,28 +226,52 @@ impl ToolRegistry {
         self.get_all_with_extra(mcp_tools)
     }
 
-    /// Get core tools for basic project exploration
+    /// Core tool names used for basic project exploration. Exposed so callers
+    /// can extend the default set with extras from config without forking the
+    /// list. Keep alphabetised so the serialised tools array is a stable
+    /// prefix — that is what makes the Anthropic prompt cache break points
+    /// in `brainwires_providers::anthropic` actually land cache hits.
+    pub const CORE_TOOL_NAMES: &'static [&'static str] = &[
+        "edit_file",
+        "execute_command",
+        "git_commit",
+        "git_diff",
+        "git_log",
+        "git_stage",
+        "git_status",
+        "index_codebase",
+        "list_directory",
+        "query_codebase",
+        "read_file",
+        "search_code",
+        "search_tools",
+        "write_file",
+    ];
+
+    /// Get core tools for basic project exploration, returned in the
+    /// canonical order defined by `CORE_TOOL_NAMES` so the resulting `tools`
+    /// array is byte-stable across turns.
     pub fn get_core(&self) -> Vec<&Tool> {
-        let core_names = [
-            "read_file",
-            "write_file",
-            "edit_file",
-            "list_directory",
-            "search_code",
-            "execute_command",
-            "git_status",
-            "git_diff",
-            "git_log",
-            "git_stage",
-            "git_commit",
-            "search_tools",
-            "index_codebase",
-            "query_codebase",
-        ];
-        self.tools
+        Self::CORE_TOOL_NAMES
             .iter()
-            .filter(|t| core_names.contains(&t.name.as_str()))
+            .filter_map(|name| self.tools.iter().find(|t| t.name == *name))
             .collect()
+    }
+
+    /// Get core tools plus any extras named by `extra_names` (deduplicated,
+    /// extras appended after core in the order given). Unknown names are
+    /// silently skipped.
+    pub fn get_core_with_extras(&self, extra_names: &[String]) -> Vec<&Tool> {
+        let mut out = self.get_core();
+        for name in extra_names {
+            if Self::CORE_TOOL_NAMES.contains(&name.as_str()) {
+                continue; // already in core
+            }
+            if let Some(tool) = self.tools.iter().find(|t| t.name == *name) {
+                out.push(tool);
+            }
+        }
+        out
     }
 
     /// Get primary meta-tools (always available)
@@ -364,6 +388,51 @@ mod tests {
 
         assert!(registry.get("my_tool").is_some());
         assert!(registry.get("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_get_core_preserves_canonical_order() {
+        // Build a registry with the canonical core tools inserted in reverse,
+        // to prove get_core() returns them in CORE_TOOL_NAMES order regardless
+        // of insertion order — that's what gives the API request body a stable
+        // prefix for prompt-cache hits.
+        let mut registry = ToolRegistry::new();
+        for name in ToolRegistry::CORE_TOOL_NAMES.iter().rev() {
+            registry.register(make_tool(name, false));
+        }
+
+        let core_names: Vec<&str> = registry.get_core().iter().map(|t| t.name.as_str()).collect();
+        let expected: Vec<&str> = ToolRegistry::CORE_TOOL_NAMES.to_vec();
+        assert_eq!(core_names, expected);
+    }
+
+    #[test]
+    fn test_get_core_with_extras_appends_unknown_core() {
+        let mut registry = ToolRegistry::new();
+        for name in ToolRegistry::CORE_TOOL_NAMES {
+            registry.register(make_tool(name, false));
+        }
+        registry.register(make_tool("extra_one", false));
+        registry.register(make_tool("extra_two", false));
+
+        // "read_file" is already core — must not duplicate; unknown names
+        // silently skipped.
+        let extras = vec![
+            "extra_one".to_string(),
+            "read_file".to_string(),
+            "does_not_exist".to_string(),
+            "extra_two".to_string(),
+        ];
+        let names: Vec<&str> = registry
+            .get_core_with_extras(&extras)
+            .iter()
+            .map(|t| t.name.as_str())
+            .collect();
+
+        let mut expected: Vec<&str> = ToolRegistry::CORE_TOOL_NAMES.to_vec();
+        expected.push("extra_one");
+        expected.push("extra_two");
+        assert_eq!(names, expected);
     }
 
     #[test]

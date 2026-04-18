@@ -30,10 +30,29 @@ impl FileOpsTool {
 
     fn read_file_tool() -> Tool {
         let mut properties = HashMap::new();
-        properties.insert("path".to_string(), json!({"type": "string", "description": "Path to the file to read (relative or absolute)"}));
+        properties.insert(
+            "path".to_string(),
+            json!({"type": "string", "description": "Path to the file to read (relative or absolute)"}),
+        );
+        properties.insert(
+            "offset".to_string(),
+            json!({
+                "type": "number",
+                "description": "Line number to start reading from (1-based, default 1)",
+                "default": 1
+            }),
+        );
+        properties.insert(
+            "limit".to_string(),
+            json!({
+                "type": "number",
+                "description": "Maximum lines to read (default 2000). Output truncation marker is appended if the file is larger.",
+                "default": 2000
+            }),
+        );
         Tool {
             name: "read_file".to_string(),
-            description: "Read the contents of a local file.".to_string(),
+            description: "Read the contents of a local file. Defaults to the first 2000 lines; use offset+limit for paged reads of large files.".to_string(),
             input_schema: ToolInputSchema::object(properties, vec!["path".to_string()]),
             requires_approval: false,
             ..Default::default()
@@ -218,17 +237,57 @@ impl FileOpsTool {
         #[derive(Deserialize)]
         struct Input {
             path: String,
+            #[serde(default = "default_read_offset")]
+            offset: u32,
+            #[serde(default = "default_read_limit")]
+            limit: u32,
+        }
+        fn default_read_offset() -> u32 {
+            1
+        }
+        fn default_read_limit() -> u32 {
+            2000
         }
         let params: Input = serde_json::from_value(input.clone())?;
         let full_path = Self::resolve_path(&params.path, context)?;
         let content = fs::read_to_string(&full_path)
             .with_context(|| format!("Failed to read file: {}", full_path.display()))?;
-        Ok(format!(
-            "File: {}\nSize: {} bytes\n\n{}",
-            full_path.display(),
-            content.len(),
-            content
-        ))
+        let total_bytes = content.len();
+        let total_lines = content.lines().count();
+
+        let start = params.offset.saturating_sub(1) as usize;
+        let limit = params.limit.max(1) as usize;
+        let sliced: String = content
+            .lines()
+            .skip(start)
+            .take(limit)
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let end = (start + limit).min(total_lines);
+        let truncated = end < total_lines;
+        let header = if truncated {
+            format!(
+                "File: {}\nSize: {} bytes, {} lines total\nShowing lines {}-{} of {} (... truncated: call again with offset={} to continue)\n\n",
+                full_path.display(),
+                total_bytes,
+                total_lines,
+                start + 1,
+                end,
+                total_lines,
+                end + 1,
+            )
+        } else {
+            format!(
+                "File: {}\nSize: {} bytes, {} lines total\nShowing lines {}-{}\n\n",
+                full_path.display(),
+                total_bytes,
+                total_lines,
+                start + 1,
+                end.max(start + 1),
+            )
+        };
+        Ok(format!("{}{}", header, sliced))
     }
 
     fn write_file(input: &Value, context: &ToolContext) -> Result<String> {
@@ -630,6 +689,46 @@ mod tests {
         let result = FileOpsTool::execute("1", "read_file", &input, &context);
         assert!(!result.is_error);
         assert!(result.content.contains("Hello, World!"));
+    }
+
+    #[test]
+    fn test_read_file_truncates_large_file_and_emits_marker() {
+        let temp_dir = TempDir::new().unwrap();
+        let test_file = temp_dir.path().join("big.txt");
+        let body = (1..=3000)
+            .map(|i| format!("line {}", i))
+            .collect::<Vec<_>>()
+            .join("\n");
+        fs::write(&test_file, &body).unwrap();
+        let context = create_test_context(temp_dir.path().to_str().unwrap());
+        // Default limit is 2000 lines
+        let input = json!({"path": "big.txt"});
+        let result = FileOpsTool::execute("1", "read_file", &input, &context);
+        assert!(!result.is_error);
+        assert!(result.content.contains("truncated"));
+        assert!(result.content.contains("line 1\n"));
+        assert!(result.content.contains("line 2000"));
+        assert!(!result.content.contains("line 2001"));
+    }
+
+    #[test]
+    fn test_read_file_respects_offset_and_limit() {
+        let temp_dir = TempDir::new().unwrap();
+        let test_file = temp_dir.path().join("paged.txt");
+        let body = (1..=100)
+            .map(|i| format!("row {}", i))
+            .collect::<Vec<_>>()
+            .join("\n");
+        fs::write(&test_file, &body).unwrap();
+        let context = create_test_context(temp_dir.path().to_str().unwrap());
+        // Read lines 10..=14 (offset=10, limit=5)
+        let input = json!({"path": "paged.txt", "offset": 10, "limit": 5});
+        let result = FileOpsTool::execute("1", "read_file", &input, &context);
+        assert!(!result.is_error);
+        assert!(result.content.contains("row 10"));
+        assert!(result.content.contains("row 14"));
+        assert!(!result.content.contains("row 15"));
+        assert!(!result.content.contains("row 9\n"));
     }
 
     #[test]
