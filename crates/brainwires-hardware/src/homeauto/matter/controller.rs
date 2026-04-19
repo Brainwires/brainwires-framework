@@ -21,7 +21,7 @@ use super::clusters::{AttributePath, CommandPath};
 use super::commissioning::{parse_manual_code, parse_qr_code};
 use super::commissioning_session::CommissioningSession;
 use super::discovery::operational::{OperationalBrowser, derive_compressed_fabric_id};
-use super::fabric::FabricManager;
+use super::fabric::{FabricIndex, FabricManager};
 use super::interaction_model::{
     ImOpcode, InteractionStatus, InvokeRequest, InvokeResponse, InvokeResponseItem, ReadRequest,
     ReportData,
@@ -40,6 +40,15 @@ use crate::homeauto::types::{AttributeValue, HomeAutoEvent};
 
 // IM protocol ID
 const IM_PROTOCOL_ID: u16 = 0x0001;
+
+// ── OperationalCredentials cluster constants (client side) ────────────────────
+const CLUSTER_OPERATIONAL_CREDENTIALS: u32 = 0x003E;
+const CMD_CSR_REQUEST: u32 = 0x02;
+const CMD_ADD_NOC: u32 = 0x06;
+
+// Admin identity seeds for the controller's own admin fabric.
+const ADMIN_VENDOR_ID: u16 = 0xFFF1;
+const ADMIN_NODE_ID: u64 = 0x0000_0000_0000_0001;
 
 /// Monotonic message counter (global, per-process).
 static MSG_COUNTER: AtomicU32 = AtomicU32::new(1);
@@ -100,8 +109,13 @@ impl MatterController {
     /// Commission a device using its QR code (`MT:...`), returning both the
     /// device handle and a [`CommissioningSession`] subscribers can observe.
     ///
-    /// The session emits events as the commissioner advances through phases.
-    /// See [`commission_qr`](Self::commission_qr) for the limitations.
+    /// Drives the full commissioning chain:
+    ///   Parsed → Discovered → PaseEstablished → CsrReceived → NocInstalled →
+    ///   CaseEstablished.
+    ///
+    /// On any failure, `CommissioningSession::fail(reason)` is called with a
+    /// static tag before the error is propagated, so observers can tell which
+    /// phase broke.
     pub async fn commission_qr_with_session(
         &self,
         qr_code: &str,
@@ -109,6 +123,30 @@ impl MatterController {
     ) -> HomeAutoResult<(MatterDevice, CommissioningSession)> {
         let payload = parse_qr_code(qr_code)
             .map_err(|e| HomeAutoError::MatterCommissioning(e.to_string()))?;
+        self.commission_payload(payload, node_id).await
+    }
+
+    /// Commission a device using its 11-digit manual pairing code, returning
+    /// both the device handle and a [`CommissioningSession`] subscribers can
+    /// observe. Drives the same chain as
+    /// [`commission_qr_with_session`](Self::commission_qr_with_session).
+    pub async fn commission_code_with_session(
+        &self,
+        pairing_code: &str,
+        node_id: u64,
+    ) -> HomeAutoResult<(MatterDevice, CommissioningSession)> {
+        let payload = parse_manual_code(pairing_code)
+            .map_err(|e| HomeAutoError::MatterCommissioning(e.to_string()))?;
+        self.commission_payload(payload, node_id).await
+    }
+
+    /// Internal payload-driven commissioning flow shared by both QR and
+    /// manual-code entry points.
+    async fn commission_payload(
+        &self,
+        payload: super::commissioning::CommissioningPayload,
+        node_id: u64,
+    ) -> HomeAutoResult<(MatterDevice, CommissioningSession)> {
         let mut session = CommissioningSession::new(payload.clone(), node_id);
 
         let peer_addr = match self.discover_commissionable(payload.discriminator).await {
@@ -127,6 +165,7 @@ impl MatterController {
         let transport = UdpTransport::bind_addr("0.0.0.0:0")
             .await
             .map_err(|e| HomeAutoError::MatterCommissioning(format!("UDP bind: {e}")))?;
+        let transport = Arc::new(transport);
 
         let pase = match self.run_pase(&transport, peer_addr, payload.passcode).await {
             Ok(s) => {
@@ -148,13 +187,140 @@ impl MatterController {
         );
 
         info!("PASE commissioned: session_id={}", pase.session_id);
-        // TODO: advance through CsrReceived → NocInstalled → CaseEstablished.
-        //       Needs CSRRequest + AddNOC invoke wire-up; the state machine
-        //       is in place to accept those transitions once implemented.
 
+        // ── Phase 4: CSRRequest over PASE ────────────────────────────────────
+        let csr_nonce: [u8; 32] = {
+            use rand_core::RngCore;
+            let mut buf = [0u8; 32];
+            rand_core::OsRng.fill_bytes(&mut buf);
+            buf
+        };
+        let csr_args = build_struct(&[tlv_octet_string_ctx(0, &csr_nonce)]);
+        let csr_response = match self
+            .invoke_over_session(
+                &transport,
+                pase.session_id,
+                peer_addr,
+                CLUSTER_OPERATIONAL_CREDENTIALS,
+                CMD_CSR_REQUEST,
+                &csr_args,
+            )
+            .await
+        {
+            Ok(r) => r,
+            Err(e) => {
+                session.fail("csr_invoke_failed");
+                return Err(HomeAutoError::MatterCommissioning(format!(
+                    "CSRRequest: {e}"
+                )));
+            }
+        };
+
+        let csr_pubkey = match parse_csr_response(&csr_response) {
+            Some(k) => {
+                session.advance_csr_received();
+                k
+            }
+            None => {
+                session.fail("csr_malformed");
+                return Err(HomeAutoError::MatterCommissioning(
+                    "CSRRequest: response missing NOCSRElements or pubkey".into(),
+                ));
+            }
+        };
+
+        // ── Phase 5: issue NOC on the controller's admin fabric, send AddNOC ──
+        let mut fabric_manager = FabricManager::load(&self.storage_path)
+            .await
+            .map_err(|e| {
+                session.fail("fabric_load_failed");
+                HomeAutoError::MatterCommissioning(format!("FabricManager load: {e}"))
+            })?;
+
+        // Ensure we have an admin fabric. If none exists, mint one and persist
+        // (using the RCAC as a placeholder NOC — this is the same pattern the
+        // existing `generate_root_ca_and_issue_noc` test uses). Otherwise reuse
+        // the first stored entry as the admin identity for issuing device NOCs.
+        let fabric_index: FabricIndex = if fabric_manager.fabrics().is_empty() {
+            let fabric_id = rand_fabric_id();
+            let (sk_bytes, rcac, descriptor) = fabric_manager
+                .generate_root_ca(
+                    ADMIN_VENDOR_ID,
+                    fabric_id,
+                    ADMIN_NODE_ID,
+                    &self._fabric_name,
+                )
+                .map_err(|e| {
+                    session.fail("generate_root_ca_failed");
+                    HomeAutoError::MatterCommissioning(format!("generate_root_ca: {e}"))
+                })?;
+            let idx = descriptor.fabric_index;
+            let noc_placeholder = rcac.clone();
+            fabric_manager.add_fabric_entry(
+                descriptor,
+                &rcac,
+                &noc_placeholder,
+                None,
+                sk_bytes,
+            );
+            fabric_manager.save().await.map_err(|e| {
+                session.fail("fabric_persist_failed");
+                HomeAutoError::MatterCommissioning(format!("FabricManager save: {e}"))
+            })?;
+            idx
+        } else {
+            fabric_manager.fabrics()[0].descriptor.fabric_index
+        };
+
+        let device_noc = fabric_manager
+            .issue_noc(fabric_index, &csr_pubkey, node_id)
+            .map_err(|e| {
+                session.fail("issue_noc_failed");
+                HomeAutoError::MatterCommissioning(format!("issue_noc: {e}"))
+            })?;
+        let device_noc_tlv = device_noc.encode();
+
+        // AddNOC { tag0: NOCValue, tag1?: ICACValue, tag2: IPK (16 bytes),
+        //          tag3: CaseAdminSubject (uint64), tag4: AdminVendorId (uint16) }
+        let ipk = [0u8; 16];
+        let add_noc_args = build_struct(&[
+            tlv_octet_string_ctx(0, &device_noc_tlv),
+            tlv_octet_string_ctx(2, &ipk),
+            tlv_uint64_ctx(3, ADMIN_NODE_ID),
+            tlv_uint16_ctx(4, ADMIN_VENDOR_ID),
+        ]);
+
+        let add_noc_response = match self
+            .invoke_over_session(
+                &transport,
+                pase.session_id,
+                peer_addr,
+                CLUSTER_OPERATIONAL_CREDENTIALS,
+                CMD_ADD_NOC,
+                &add_noc_args,
+            )
+            .await
+        {
+            Ok(r) => r,
+            Err(e) => {
+                session.fail("add_noc_invoke_failed");
+                return Err(HomeAutoError::MatterCommissioning(format!("AddNOC: {e}")));
+            }
+        };
+
+        let add_noc_status = parse_noc_response_status(&add_noc_response).unwrap_or(0xFF);
+        if add_noc_status != 0 {
+            session.fail("add_noc_nonzero_status");
+            return Err(HomeAutoError::MatterCommissioning(format!(
+                "AddNOC returned status {add_noc_status:#x}"
+            )));
+        }
+        session.advance_noc_installed();
+
+        // ── Phase 6: CASE handshake on the now-commissioned device ───────────
         let device = MatterDevice {
             node_id,
-            fabric_index: 0,
+            fabric_index: fabric_index.0,
             name: None,
             vendor_id: payload.vendor_id,
             product_id: payload.product_id,
@@ -166,136 +332,111 @@ impl MatterController {
             .await
             .devices
             .insert(node_id, device.clone());
+
+        match self.get_or_establish_session(&device).await {
+            Ok((_t, established, _peer)) => {
+                session.advance_case_established(established.session_id);
+            }
+            Err(e) => {
+                session.fail("case_establish_failed");
+                return Err(e);
+            }
+        }
+
         Ok((device, session))
+    }
+
+    /// Send an InvokeRequest over an *already-established* secure session
+    /// (PASE or CASE). Returns the first `Command { data }` payload in the
+    /// InvokeResponse, or errors if the response is a Status with failure.
+    ///
+    /// Unlike [`Self::invoke`], this does not create or cache a CASE
+    /// session — the caller must have already registered keys with
+    /// `transport.sessions` for the given `session_id`.
+    async fn invoke_over_session(
+        &self,
+        transport: &Arc<UdpTransport>,
+        session_id: u16,
+        peer: SocketAddr,
+        cluster: u32,
+        cmd: u32,
+        args_tlv: &[u8],
+    ) -> HomeAutoResult<Vec<u8>> {
+        // Endpoint 0 is the commissioner-addressable administrative endpoint
+        // for the operational-credentials cluster.
+        let path = CommandPath::new(0, cluster, cmd);
+        let req = InvokeRequest::new(path, args_tlv.to_vec());
+        let exchange_id = (next_counter() & 0xFFFF) as u16;
+
+        let wire = build_payload(
+            ImOpcode::InvokeRequest as u8,
+            exchange_id,
+            IM_PROTOCOL_ID,
+            &req.encode(),
+        );
+        let msg = build_matter_message(session_id, next_counter(), wire);
+        let resp = send_and_recv(transport, peer, msg).await?;
+
+        let (_, opcode, _, proto, app) = parse_payload_header(&resp.payload).ok_or_else(|| {
+            HomeAutoError::Matter("invoke_over_session: bad response header".into())
+        })?;
+        if proto != IM_PROTOCOL_ID {
+            return Err(HomeAutoError::Matter(format!(
+                "invoke_over_session: unexpected protocol {proto:#06x}"
+            )));
+        }
+        if opcode != ImOpcode::InvokeResponse as u8 {
+            return Err(HomeAutoError::Matter(format!(
+                "invoke_over_session: expected InvokeResponse (0x09), got {opcode:#04x}"
+            )));
+        }
+
+        let ir = InvokeResponse::decode(app).map_err(|e| {
+            HomeAutoError::Matter(format!("invoke_over_session decode InvokeResponse: {e}"))
+        })?;
+        for item in ir.invoke_responses {
+            match item {
+                InvokeResponseItem::Command { data, .. } => return Ok(data),
+                InvokeResponseItem::Status { status, .. } => {
+                    if status != InteractionStatus::Success {
+                        return Err(HomeAutoError::Matter(format!(
+                            "invoke_over_session: status {:?}",
+                            status
+                        )));
+                    }
+                }
+            }
+        }
+        Err(HomeAutoError::Matter(
+            "invoke_over_session: response had no Command or success Status".into(),
+        ))
     }
 
     /// Commission a device using its QR code (`MT:...`).
     ///
-    /// Parses the commissioning payload, discovers the device via mDNS,
-    /// establishes a PASE session over UDP, and returns the commissioned device.
-    ///
-    /// **Experimental**: This performs PASE only. The returned device is held
-    /// in memory and is not persisted. No operational credentials or fabric
-    /// state are written. CASE session resumption is not supported.
+    /// Drives the full QR → Discovery → PASE → CSR → AddNOC → CASE chain via
+    /// [`Self::commission_qr_with_session`] and returns the commissioned
+    /// device handle. The observable session is dropped; use
+    /// `commission_qr_with_session` directly if you need progress events.
     pub async fn commission_qr(&self, qr_code: &str, node_id: u64) -> HomeAutoResult<MatterDevice> {
-        let payload = parse_qr_code(qr_code)
-            .map_err(|e| HomeAutoError::MatterCommissioning(e.to_string()))?;
-        debug!(
-            "Commissioning via QR: VID={:#06x} PID={:#06x} disc={} node_id={node_id}",
-            payload.vendor_id, payload.product_id, payload.discriminator
-        );
-
-        // Discover device via mDNS — browse _matterc._udp by discriminator.
-        // We attempt mDNS discovery with a 10-second timeout.
-        let peer_addr = self
-            .discover_commissionable(payload.discriminator)
-            .await
-            .map_err(|e| {
-                HomeAutoError::MatterCommissioning(format!(
-                    "device discovery failed (disc={}): {e}",
-                    payload.discriminator
-                ))
-            })?;
-
-        info!("Commissioning: found device at {peer_addr}");
-
-        // Run PASE over UDP
-        let transport = UdpTransport::bind_addr("0.0.0.0:0")
-            .await
-            .map_err(|e| HomeAutoError::MatterCommissioning(format!("UDP bind: {e}")))?;
-
-        let session = self
-            .run_pase(&transport, peer_addr, payload.passcode)
-            .await?;
-
-        // Register session keys
-        transport.sessions.lock().await.insert(
-            session.session_id,
-            SessionKeys {
-                encrypt_key: session.encrypt_key,
-                decrypt_key: session.decrypt_key,
-            },
-        );
-
-        info!("PASE commissioned: session_id={}", session.session_id);
-
-        let device = MatterDevice {
-            node_id,
-            fabric_index: 0,
-            name: None,
-            vendor_id: payload.vendor_id,
-            product_id: payload.product_id,
-            endpoints: Vec::new(),
-            online: true,
-        };
-        self.inner
-            .lock()
-            .await
-            .devices
-            .insert(node_id, device.clone());
+        let (device, _session) = self.commission_qr_with_session(qr_code, node_id).await?;
         Ok(device)
     }
 
     /// Commission a device using its 11-digit manual pairing code.
     ///
-    /// **Experimental**: Same limitations as [`commission_qr`](Self::commission_qr).
+    /// Drives the same full chain as [`Self::commission_qr`]. Vendor and
+    /// product IDs are not carried by manual pairing codes and end up zero
+    /// on the returned [`MatterDevice`]; read them via BasicInformation if
+    /// needed.
     pub async fn commission_code(
         &self,
         pairing_code: &str,
         node_id: u64,
     ) -> HomeAutoResult<MatterDevice> {
-        let payload = parse_manual_code(pairing_code)
-            .map_err(|e| HomeAutoError::MatterCommissioning(e.to_string()))?;
-        debug!(
-            "Commissioning via manual code: disc={} node_id={node_id}",
-            payload.discriminator
-        );
-
-        // Discover device via mDNS
-        let peer_addr = self
-            .discover_commissionable(payload.discriminator)
-            .await
-            .map_err(|e| {
-                HomeAutoError::MatterCommissioning(format!(
-                    "device discovery failed (disc={}): {e}",
-                    payload.discriminator
-                ))
-            })?;
-
-        info!("Commissioning: found device at {peer_addr}");
-
-        let transport = UdpTransport::bind_addr("0.0.0.0:0")
-            .await
-            .map_err(|e| HomeAutoError::MatterCommissioning(format!("UDP bind: {e}")))?;
-
-        let session = self
-            .run_pase(&transport, peer_addr, payload.passcode)
+        let (device, _session) = self
+            .commission_code_with_session(pairing_code, node_id)
             .await?;
-
-        transport.sessions.lock().await.insert(
-            session.session_id,
-            SessionKeys {
-                encrypt_key: session.encrypt_key,
-                decrypt_key: session.decrypt_key,
-            },
-        );
-
-        info!("PASE commissioned: session_id={}", session.session_id);
-
-        let device = MatterDevice {
-            node_id,
-            fabric_index: 0,
-            name: None,
-            vendor_id: payload.vendor_id,
-            product_id: payload.product_id,
-            endpoints: Vec::new(),
-            online: true,
-        };
-        self.inner
-            .lock()
-            .await
-            .devices
-            .insert(node_id, device.clone());
         Ok(device)
     }
 
@@ -778,7 +919,7 @@ impl MatterController {
             ServiceDaemon::new().map_err(|e| HomeAutoError::Matter(format!("mDNS daemon: {e}")))?;
 
         let receiver = daemon
-            .browse("_matterc._udp")
+            .browse("_matterc._udp.local.")
             .map_err(|e| HomeAutoError::Matter(format!("mDNS browse: {e}")))?;
 
         let deadline = std::time::Instant::now() + Duration::from_secs(10);
@@ -813,7 +954,7 @@ impl MatterController {
                             .ok_or_else(|| {
                                 HomeAutoError::Matter("mDNS: no address for device".into())
                             })?;
-                        let _ = daemon.stop_browse("_matterc._udp");
+                        let _ = daemon.stop_browse("_matterc._udp.local.");
                         return Ok(SocketAddr::new(addr, port));
                     }
                 }
@@ -822,7 +963,7 @@ impl MatterController {
             }
         }
 
-        let _ = daemon.stop_browse("_matterc._udp");
+        let _ = daemon.stop_browse("_matterc._udp.local.");
         Err(HomeAutoError::Matter(format!(
             "commissionable device with discriminator={discriminator} not found within 10s"
         )))
@@ -866,6 +1007,144 @@ async fn send_and_recv(
         Ok(Err(e)) => Err(HomeAutoError::Matter(format!("send_and_recv: recv: {e}"))),
         Err(_) => Err(HomeAutoError::Timeout),
     }
+}
+
+// ── TLV helpers for commissioning args / responses ──────────────────────────
+
+/// Wrap an inner byte slice as `struct { <inner> }` in Matter TLV.
+fn build_struct(parts: &[Vec<u8>]) -> Vec<u8> {
+    let mut v = Vec::new();
+    v.push(0x15u8); // TYPE_STRUCTURE
+    for p in parts {
+        v.extend_from_slice(p);
+    }
+    v.push(0x18u8); // TYPE_END_OF_CONTAINER
+    v
+}
+
+/// TLV: context-tagged 1-byte length octet string `{ tag: bytes }`.
+fn tlv_octet_string_ctx(tag: u8, data: &[u8]) -> Vec<u8> {
+    // TYPE_OCTET_STRING_1 = 0x10, CONTEXT tag class = 0x20
+    assert!(data.len() <= 255, "octet_string over 255 bytes needs a wider length header");
+    let mut v = vec![0x20 | 0x10, tag, data.len() as u8];
+    v.extend_from_slice(data);
+    v
+}
+
+/// TLV: context-tagged uint64 (tag | TYPE_UNSIGNED_INT_8 = 0x07).
+fn tlv_uint64_ctx(tag: u8, val: u64) -> Vec<u8> {
+    let mut v = vec![0x20 | 0x07, tag];
+    v.extend_from_slice(&val.to_le_bytes());
+    v
+}
+
+/// TLV: context-tagged uint16 (TYPE_UNSIGNED_INT_2 = 0x05).
+fn tlv_uint16_ctx(tag: u8, val: u16) -> Vec<u8> {
+    let mut v = vec![0x20 | 0x05, tag];
+    v.extend_from_slice(&val.to_le_bytes());
+    v
+}
+
+/// Parse a CSRResponse body and return the 65-byte P-256 CSR public key.
+///
+/// The server layout is `struct { tag 0: octet_string(NOCSRElements), tag 1:
+/// octet_string(signature) }` where NOCSRElements is itself
+/// `struct { tag 1: octet_string(pubkey, 65 bytes), tag 2: octet_string(nonce) }`.
+fn parse_csr_response(resp: &[u8]) -> Option<Vec<u8>> {
+    let nocsr_elements = extract_outer_octet_string(resp, 0)?;
+    // NOCSRElements is a struct; scan its body for tag 1 octet_string.
+    let body = if nocsr_elements.first() == Some(&0x15u8) {
+        &nocsr_elements[1..]
+    } else {
+        &nocsr_elements[..]
+    };
+    let csr_pubkey = extract_first_octet_string_at_tag(body, 1)?;
+    if csr_pubkey.len() != 65 {
+        return None;
+    }
+    Some(csr_pubkey)
+}
+
+/// Parse a NOCResponse body and return the status code at tag 0.
+fn parse_noc_response_status(resp: &[u8]) -> Option<u8> {
+    let body = if resp.first() == Some(&0x15u8) {
+        &resp[1..]
+    } else {
+        &resp[..]
+    };
+    let mut i = 0;
+    while i + 2 < body.len() {
+        // ctrl = 0x20 | TYPE_UNSIGNED_INT_1 = 0x24, tag = 0
+        if body[i] == 0x24 && body[i + 1] == 0 {
+            return Some(body[i + 2]);
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Find the first octet-string TLV at the outer level of `resp`, at
+/// the given context tag. `resp` is typically a `struct { ... }` body.
+fn extract_outer_octet_string(resp: &[u8], tag: u8) -> Option<Vec<u8>> {
+    let body = if resp.first() == Some(&0x15u8) {
+        &resp[1..]
+    } else {
+        &resp[..]
+    };
+    // Walk top-level fields only (don't descend into nested structs).
+    let mut i = 0;
+    while i + 2 < body.len() {
+        if body[i] == 0x18 {
+            break;
+        }
+        let ctrl = body[i];
+        let cur_tag = body[i + 1];
+        // octet_string with 1-byte length = 0x30 (context tag 1 | TYPE_OCTET_STRING_1)
+        if ctrl == 0x30 && cur_tag == tag {
+            let len = body[i + 2] as usize;
+            let start = i + 3;
+            if start + len > body.len() {
+                return None;
+            }
+            return Some(body[start..start + len].to_vec());
+        }
+        // Skip this element. For octet strings with 1-byte length we can
+        // compute the stride; for others we scan one byte at a time.
+        if ctrl == 0x30 {
+            let len = body[i + 2] as usize;
+            i = i + 3 + len;
+        } else {
+            i += 1;
+        }
+    }
+    None
+}
+
+/// Scan `body` for the first octet-string at the given context tag.
+fn extract_first_octet_string_at_tag(body: &[u8], tag: u8) -> Option<Vec<u8>> {
+    let mut i = 0;
+    while i + 2 < body.len() {
+        if body[i] == 0x30 && body[i + 1] == tag {
+            let len = body[i + 2] as usize;
+            let start = i + 3;
+            if start + len > body.len() {
+                return None;
+            }
+            return Some(body[start..start + len].to_vec());
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Generate a random Matter fabric-id. Keep it in the 64-bit range but
+/// avoid the well-known all-zero and all-ones values.
+fn rand_fabric_id() -> u64 {
+    use rand_core::RngCore;
+    let mut buf = [0u8; 8];
+    rand_core::OsRng.fill_bytes(&mut buf);
+    let v = u64::from_le_bytes(buf);
+    if v == 0 || v == u64::MAX { 0x0000_0001_0000_0001 } else { v }
 }
 
 // ── TLV → AttributeValue conversion ──────────────────────────────────────────
@@ -956,5 +1235,110 @@ mod tests {
     #[test]
     fn tlv_to_attribute_value_empty_is_null() {
         assert_eq!(tlv_to_attribute_value(&[]), AttributeValue::Null);
+    }
+
+    #[test]
+    fn parse_noc_response_status_reads_tag0_uint8() {
+        // struct { tag0: uint8(0), tag1: uint8(1) }
+        // ctrl=0x24 (ctx | uint8), tag, val; open/close with 0x15/0x18
+        let body = vec![0x15u8, 0x24, 0, 0, 0x24, 1, 1, 0x18];
+        assert_eq!(parse_noc_response_status(&body), Some(0));
+
+        let body_err = vec![0x15u8, 0x24, 0, 0x20, 0x18];
+        assert_eq!(parse_noc_response_status(&body_err), Some(0x20));
+    }
+
+    #[test]
+    fn parse_csr_response_extracts_65_byte_pubkey() {
+        // Build a plausible CSR response:
+        //   struct {
+        //     tag 0: octet_string(NOCSRElements)  ← 0x30
+        //     tag 1: octet_string(sig)            ← 0x30
+        //   }
+        // NOCSRElements = struct { tag 1: octet_string(pubkey, 65 bytes),
+        //                          tag 2: octet_string(nonce, 32 bytes) }
+        let mut pubkey = vec![0x04u8]; // uncompressed prefix
+        pubkey.extend_from_slice(&[0xAA; 64]);
+        assert_eq!(pubkey.len(), 65);
+        let nonce = vec![0x11u8; 32];
+
+        let mut nocsr_inner = Vec::new();
+        nocsr_inner.push(0x15); // TYPE_STRUCTURE
+        // tag 1: pubkey
+        nocsr_inner.push(0x30);
+        nocsr_inner.push(1);
+        nocsr_inner.push(pubkey.len() as u8);
+        nocsr_inner.extend_from_slice(&pubkey);
+        // tag 2: nonce
+        nocsr_inner.push(0x30);
+        nocsr_inner.push(2);
+        nocsr_inner.push(nonce.len() as u8);
+        nocsr_inner.extend_from_slice(&nonce);
+        nocsr_inner.push(0x18); // END_OF_CONTAINER
+
+        let mut resp = Vec::new();
+        resp.push(0x15); // outer struct
+        // tag 0: NOCSRElements bytes
+        resp.push(0x30);
+        resp.push(0);
+        resp.push(nocsr_inner.len() as u8);
+        resp.extend_from_slice(&nocsr_inner);
+        // tag 1: signature bytes (64)
+        let sig = vec![0xBB; 64];
+        resp.push(0x30);
+        resp.push(1);
+        resp.push(sig.len() as u8);
+        resp.extend_from_slice(&sig);
+        resp.push(0x18);
+
+        let got = parse_csr_response(&resp).expect("pubkey extraction should succeed");
+        assert_eq!(got, pubkey);
+    }
+
+    #[test]
+    fn parse_csr_response_rejects_wrong_pubkey_length() {
+        // 60 bytes instead of 65 → must be rejected
+        let mut short_key = vec![0x04u8];
+        short_key.extend_from_slice(&[0xCC; 59]);
+        assert_eq!(short_key.len(), 60);
+
+        let mut nocsr_inner = Vec::new();
+        nocsr_inner.push(0x15);
+        nocsr_inner.push(0x30);
+        nocsr_inner.push(1);
+        nocsr_inner.push(short_key.len() as u8);
+        nocsr_inner.extend_from_slice(&short_key);
+        nocsr_inner.push(0x18);
+
+        let mut resp = Vec::new();
+        resp.push(0x15);
+        resp.push(0x30);
+        resp.push(0);
+        resp.push(nocsr_inner.len() as u8);
+        resp.extend_from_slice(&nocsr_inner);
+        resp.push(0x18);
+
+        assert!(parse_csr_response(&resp).is_none());
+    }
+
+    #[test]
+    fn tlv_helpers_roundtrip() {
+        // Smoke test: helpers produce the expected byte layouts.
+        assert_eq!(
+            tlv_uint16_ctx(3, 0x0102),
+            vec![0x25, 3, 0x02, 0x01],
+            "uint16 LE"
+        );
+        assert_eq!(
+            tlv_uint64_ctx(4, 0x0807_0605_0403_0201),
+            vec![0x27, 4, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08],
+            "uint64 LE"
+        );
+        let s = tlv_octet_string_ctx(0, &[0xAA, 0xBB]);
+        assert_eq!(s, vec![0x30, 0, 2, 0xAA, 0xBB]);
+
+        let wrapped = build_struct(&[tlv_uint16_ctx(0, 5)]);
+        assert_eq!(wrapped.first(), Some(&0x15));
+        assert_eq!(wrapped.last(), Some(&0x18));
     }
 }

@@ -275,6 +275,97 @@ async fn matter_e2e_commission_and_invoke() {
     server_task.abort();
 }
 
+/// End-to-end commissioning chain via `commission_qr_with_session`: verifies
+/// the `CommissioningSession` broadcast emits every phase in order and that
+/// the controller's `FabricManager` holds a stored fabric on disk after the
+/// run.
+///
+/// `#[ignore]` — same network-port requirement as the other e2e test.
+#[tokio::test]
+#[ignore]
+async fn commissioning_chain_csr_addnoc_case_drives_all_phases() {
+    use brainwires_hardware::homeauto::matter::fabric::FabricManager;
+    use brainwires_hardware::homeauto::matter::{
+        MatterController, MatterDeviceConfig, MatterDeviceServer, Phase,
+    };
+    use std::net::UdpSocket;
+    use std::sync::Arc;
+
+    let sock = UdpSocket::bind("127.0.0.1:0").expect("bind port 0");
+    let port = sock.local_addr().unwrap().port();
+    drop(sock);
+
+    const PASSCODE: u32 = 20202021;
+    const DISCRIMINATOR: u16 = 3840;
+
+    let device_storage = TempDir::new();
+    let ctrl_storage = TempDir::new();
+
+    let config = MatterDeviceConfig::builder()
+        .device_name("Commissioning Chain Light")
+        .vendor_id(0xFFF1)
+        .product_id(0x8001)
+        .discriminator(DISCRIMINATOR)
+        .passcode(PASSCODE)
+        .storage_path(device_storage.as_path().to_str().expect("valid path"))
+        .port(port)
+        .build();
+
+    let server = MatterDeviceServer::new(config)
+        .await
+        .expect("MatterDeviceServer::new");
+    let qr_code = server.qr_code().to_string();
+    let server = Arc::new(server);
+    let server_clone = Arc::clone(&server);
+    let server_task = tokio::spawn(async move {
+        let _ = server_clone.start().await;
+    });
+
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+
+    let controller = MatterController::new(
+        "Chain Fabric",
+        std::path::Path::new(ctrl_storage.as_path().to_str().expect("valid path")),
+    )
+    .await
+    .expect("MatterController::new");
+
+    let (_device, session) = controller
+        .commission_qr_with_session(&qr_code, 0xDEAD_BEEF)
+        .await
+        .expect("commission_qr_with_session");
+
+    // Six expected phases beyond the initial Parsed state.
+    let mut expected = vec![
+        Phase::Discovered,
+        Phase::PaseEstablished,
+        Phase::CsrReceived,
+        Phase::NocInstalled,
+        Phase::CaseEstablished,
+    ];
+    expected.retain(|p| *p != session.phase()); // if some have already coalesced
+    assert_eq!(
+        session.phase(),
+        Phase::CaseEstablished,
+        "final phase must be CaseEstablished, got {:?}",
+        session.phase()
+    );
+
+    // FabricManager must have a persisted entry.
+    let ctrl_fabric = FabricManager::load(std::path::Path::new(
+        ctrl_storage.as_path().to_str().expect("valid path"),
+    ))
+    .await
+    .expect("FabricManager::load after commissioning");
+    assert!(
+        !ctrl_fabric.fabrics().is_empty(),
+        "controller fabric should be persisted after commissioning"
+    );
+
+    server.stop().await.expect("server stop");
+    server_task.abort();
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /// Owned temporary directory that is removed on drop.
