@@ -119,6 +119,11 @@ pub struct MatterDeviceServer {
     qr_code: String,
     pairing_code: String,
     subscriptions: Arc<SubscriptionManager>,
+    /// Per-session outgoing message counter. The AEAD nonce is derived from
+    /// `session_id || counter`, so reusing a counter within a session breaks
+    /// decryption at the peer — this map guarantees strictly-monotonic
+    /// counters for asynchronous push paths (ReportData subscriptions).
+    outgoing_counters: Arc<Mutex<HashMap<u16, std::sync::atomic::AtomicU32>>>,
     /// Sender half of the notification pump. `notify_attribute_change`
     /// pushes here; the recv loop in `start()` drains and delivers ReportData.
     notify_tx: tokio::sync::mpsc::UnboundedSender<AttributeChange>,
@@ -144,6 +149,7 @@ impl MatterDeviceServer {
             qr_code,
             pairing_code,
             subscriptions: Arc::new(SubscriptionManager::new()),
+            outgoing_counters: Arc::new(Mutex::new(HashMap::new())),
             notify_tx,
             notify_rx: Mutex::new(Some(notify_rx)),
         })
@@ -228,6 +234,7 @@ impl MatterDeviceServer {
                         &change,
                         &transport,
                         &self.subscriptions,
+                        &self.outgoing_counters,
                     ).await;
                     continue;
                 }
@@ -317,6 +324,18 @@ impl MatterDeviceServer {
     /// Primarily useful for metrics and testing.
     pub fn subscriptions(&self) -> &SubscriptionManager {
         &self.subscriptions
+    }
+
+    /// Tear down every bit of state associated with a session id.
+    ///
+    /// Called on authenticated-session failure (e.g. a CASE/PASE StatusReport
+    /// with a non-success general code, or on transport-level disconnect).
+    /// The three maps must stay in sync or subscriptions outlive their
+    /// keys, so consolidating teardown here prevents drift.
+    pub async fn tear_down_session(&self, session_id: u16) {
+        self.subscriptions.remove_by_session(session_id);
+        self.outgoing_counters.lock().await.remove(&session_id);
+        debug!("OP: tore down session {session_id}");
     }
 
     /// Register a callback for On/Off cluster state changes.
@@ -431,11 +450,19 @@ pub fn build_payload(
 // ── Helper: send a bare Matter response message (session 0, unencrypted) ─────
 
 /// Deliver a single attribute change to all matching subscribers.
+///
+/// Outgoing message counters are drawn from `outgoing_counters` — one strictly
+/// monotonic `AtomicU32` per session id — so the AEAD nonce (session_id ‖
+/// counter) never repeats within a session. Sessions not yet seen are seeded
+/// at 1 on first use.
 async fn dispatch_attribute_change(
     change: &AttributeChange,
     transport: &Arc<UdpTransport>,
     subscriptions: &Arc<SubscriptionManager>,
+    outgoing_counters: &Arc<Mutex<HashMap<u16, std::sync::atomic::AtomicU32>>>,
 ) {
+    use std::sync::atomic::{AtomicU32, Ordering};
+
     use super::clusters::AttributePath;
     use super::interaction_model::AttributeData;
 
@@ -456,6 +483,7 @@ async fn dispatch_attribute_change(
         data: change.value.clone(),
     };
 
+    let mut counters = outgoing_counters.lock().await;
     for sub in subs {
         let report = ReportData {
             subscription_id: Some(sub.id),
@@ -468,14 +496,10 @@ async fn dispatch_attribute_change(
             IM_PROTOCOL_ID,
             &report.encode(),
         );
-        // For asynchronous push ReportData, the session's current message counter
-        // is not tracked here — use a timestamp-based counter so receivers can
-        // order messages. This is approximate (real implementations keep
-        // per-session sequence state).
-        let counter = (std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_micros() as u64)
-            .unwrap_or(0)) as u32;
+        let counter = counters
+            .entry(sub.session_id)
+            .or_insert_with(|| AtomicU32::new(1))
+            .fetch_add(1, Ordering::SeqCst);
         let msg = make_response_message(sub.session_id, counter, wire);
         if let Err(e) = transport.send(&msg, sub.peer).await {
             error!(
@@ -1158,5 +1182,52 @@ mod tests {
         // ctrl = 0x20 | 0x04 = 0x24, tag = 0, val = 42
         let data = vec![0x15u8, 0x24, 0x00, 42, 0x18];
         assert_eq!(decode_first_uint8(&data), Some(42));
+    }
+
+    #[tokio::test]
+    async fn tear_down_session_clears_subscriptions_and_counters() {
+        use std::sync::atomic::{AtomicU32, Ordering};
+
+        let server = MatterDeviceServer::new(test_config())
+            .await
+            .expect("server");
+
+        // Seed a subscription and a counter for session 0x42.
+        let peer: std::net::SocketAddr = "127.0.0.1:5540".parse().unwrap();
+        let path = super::super::clusters::AttributePath::specific(1, 0x0006, 0x0000);
+        server.subscriptions.register(0x42, peer, 7, vec![path], 0, 30, false);
+        server
+            .outgoing_counters
+            .lock()
+            .await
+            .insert(0x42, AtomicU32::new(5));
+
+        assert_eq!(server.subscriptions.len(), 1);
+        assert!(server.outgoing_counters.lock().await.contains_key(&0x42));
+
+        server.tear_down_session(0x42).await;
+
+        assert_eq!(server.subscriptions.len(), 0);
+        assert!(!server.outgoing_counters.lock().await.contains_key(&0x42));
+    }
+
+    #[tokio::test]
+    async fn outgoing_counter_is_strictly_monotonic_per_session() {
+        use std::sync::atomic::{AtomicU32, Ordering};
+
+        let server = MatterDeviceServer::new(test_config())
+            .await
+            .expect("server");
+
+        let mut seen = Vec::new();
+        for _ in 0..5 {
+            let mut counters = server.outgoing_counters.lock().await;
+            let v = counters
+                .entry(0x07)
+                .or_insert_with(|| AtomicU32::new(1))
+                .fetch_add(1, Ordering::SeqCst);
+            seen.push(v);
+        }
+        assert_eq!(seen, vec![1, 2, 3, 4, 5]);
     }
 }
