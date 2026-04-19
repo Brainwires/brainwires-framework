@@ -46,7 +46,7 @@ pub struct EnsembleRequest {
     /// Programming languages to restrict results to.
     #[serde(default)]
     pub languages: Vec<String>,
-    /// If `true` and the `spectral-select` feature is enabled, apply spectral
+    /// If `true` and the `spectral` feature is enabled, apply spectral
     /// diversity reranking as a final pass on the fused result set.
     #[serde(default)]
     pub spectral_rerank: bool,

@@ -118,7 +118,7 @@ impl<B: StorageBackend> TierMetadataStore<B> {
         self.backend.ensure_table(TABLE_NAME, &table_schema()).await
     }
 
-    /// Get the Arrow schema for backward-compatible table creation via LanceDatabase.
+    /// Arrow schema for the tier metadata table, used by `LanceDatabase` table creation.
     #[cfg(feature = "native")]
     pub fn tier_metadata_schema() -> Arc<arrow_schema::Schema> {
         Arc::new(arrow_schema::Schema::new(vec![

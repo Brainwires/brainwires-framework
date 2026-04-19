@@ -544,7 +544,7 @@ mod tests {
         let _execute = ToolDecision::Execute;
         let _override =
             ToolDecision::Override(ToolResult::success("id".to_string(), "ok".to_string()));
-        let _delegate = ToolDecision::Delegate(Box::new(DelegationRequest::default()));
+        let _delegate = ToolDecision::Delegate(Box::default());
     }
 
     #[test]

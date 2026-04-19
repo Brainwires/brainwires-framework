@@ -49,3 +49,7 @@ proptest.workspace = true
 [[example]]
 name = "mcp_client"
 required-features = ["native"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

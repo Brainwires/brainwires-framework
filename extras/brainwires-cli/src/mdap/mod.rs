@@ -55,7 +55,7 @@ pub use tool_executor::{
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use brainwires::agents::reasoning::{ComplexityScorer, RecommendedStrategy, StrategySelector};
+use brainwires::reasoning::{ComplexityScorer, RecommendedStrategy, StrategySelector};
 
 /// Main MDAP configuration
 #[derive(Clone, Debug)]
@@ -192,7 +192,7 @@ impl MdapConfig {
                 None => s.select_heuristic(task),
             }
         } else {
-            let _selector = brainwires::agents::reasoning::StrategySelectorBuilder::default();
+            let _selector = brainwires::reasoning::StrategySelectorBuilder::default();
             self.select_strategy_heuristic(task)
         };
 
@@ -211,8 +211,8 @@ impl MdapConfig {
     fn select_strategy_heuristic(
         &self,
         task: &str,
-    ) -> brainwires::agents::reasoning::StrategyResult {
-        use brainwires::agents::reasoning::{RecommendedStrategy, StrategyResult, TaskType};
+    ) -> brainwires::reasoning::StrategyResult {
+        use brainwires::reasoning::{RecommendedStrategy, StrategyResult, TaskType};
 
         let lower = task.to_lowercase();
         let word_count = task.split_whitespace().count();
@@ -569,7 +569,7 @@ mod local_llm_mdap {
             temperature: f32,
             max_tokens: u32,
         ) -> MdapResult<MicroagentResponse> {
-            use brainwires::agents::reasoning::InferenceTimer;
+            use brainwires::reasoning::InferenceTimer;
 
             let timer = InferenceTimer::new("microagent_chat", self.config().name.as_str());
             let start = std::time::Instant::now();

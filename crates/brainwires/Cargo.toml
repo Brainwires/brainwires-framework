@@ -24,6 +24,7 @@ brainwires-storage = { workspace = true, optional = true }
 brainwires-mcp = { workspace = true, optional = true }
 brainwires-knowledge = { workspace = true, optional = true }
 brainwires-permissions = { workspace = true, optional = true }
+brainwires-reasoning = { workspace = true, optional = true }
 
 # Providers
 brainwires-providers = { workspace = true, optional = true }
@@ -97,17 +98,17 @@ agents = ["dep:brainwires-agents"]
 storage = ["dep:brainwires-storage", "brainwires-storage/native"]
 mcp = ["dep:brainwires-mcp"]
 mdap = ["agents", "brainwires-agents/mdap"]
-knowledge = ["brain"]
+knowledge = ["dep:brainwires-knowledge", "brainwires-knowledge/knowledge"]
 prompting = ["dep:brainwires-knowledge", "brainwires-knowledge/prompting"]
 permissions = ["dep:brainwires-permissions"]
 orchestrator = ["tools", "brainwires-tools/orchestrator"]
 openapi = ["tools", "brainwires-tools/openapi"]
-rag = ["dep:brainwires-knowledge", "brainwires-knowledge/rag", "dep:brainwires-storage", "brainwires-storage/vector-db", "tools", "brainwires-tools/rag"]
+rag = ["dep:brainwires-knowledge", "brainwires-knowledge/rag", "dep:brainwires-storage", "brainwires-storage/lance-backend", "tools", "brainwires-tools/rag"]
 rag-full-languages = ["rag", "brainwires-knowledge/tree-sitter-languages"]
 interpreters = ["tools", "brainwires-tools/interpreters"]
 providers = ["dep:brainwires-providers"]
 chat = ["providers"]
-reasoning = ["agents", "brainwires-agents/reasoning"]
+reasoning = ["dep:brainwires-reasoning"]
 seal = ["agents", "brainwires-agents/seal"]
 agent-network = ["dep:brainwires-network"]
 mcp-server-framework = ["dep:brainwires-mcp-server"]
@@ -125,7 +126,6 @@ camera = ["dep:brainwires-hardware", "brainwires-hardware/camera"]
 usb = ["dep:brainwires-hardware", "brainwires-hardware/usb"]
 vad = ["dep:brainwires-hardware", "brainwires-hardware/vad"]
 wake-word = ["dep:brainwires-hardware", "brainwires-hardware/wake-word"]
-wake-word-porcupine = ["dep:brainwires-hardware", "brainwires-hardware/wake-word-porcupine"]
 voice-assistant = ["dep:brainwires-hardware", "brainwires-hardware/voice-assistant"]
 datasets = ["training", "brainwires-training/datasets-full"]
 training = ["dep:brainwires-training"]
@@ -136,7 +136,6 @@ training-full = ["training", "brainwires-training/full", "datasets"]
 system = ["tools", "brainwires-tools/system"]
 dream = ["dep:brainwires-knowledge", "brainwires-knowledge/dream"]
 telemetry = ["dep:brainwires-telemetry", "brainwires-telemetry/native", "brainwires-providers?/telemetry"]
-brain = ["dep:brainwires-knowledge", "brainwires-knowledge/knowledge"]
 bedrock = ["providers", "brainwires-providers/bedrock"]
 vertex-ai = ["providers", "brainwires-providers/vertex-ai"]
 llama-cpp-2 = ["providers", "brainwires-providers/llama-cpp-2"]
@@ -160,4 +159,8 @@ full = [
     "dream",
     "telemetry",
 ]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 

@@ -713,9 +713,9 @@ mod tests {
         };
 
         let serialized = serde_json::to_value(&msg).unwrap();
-        assert!(!serialized.get("name").is_some());
-        assert!(!serialized.get("tool_calls").is_some());
-        assert!(!serialized.get("tool_call_id").is_some());
+        assert!(serialized.get("name").is_none());
+        assert!(serialized.get("tool_calls").is_none());
+        assert!(serialized.get("tool_call_id").is_none());
     }
 
     #[test]

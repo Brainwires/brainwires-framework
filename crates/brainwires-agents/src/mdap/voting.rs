@@ -1045,7 +1045,7 @@ mod tests {
                     let count = call_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                     async move {
                         // Every 3rd response is "bad"
-                        let raw = if count % 3 == 0 {
+                        let raw = if count.is_multiple_of(3) {
                             "bad response"
                         } else {
                             "good"

@@ -1,3 +1,5 @@
+#![warn(missing_docs)]
+
 //! Unified telemetry for the Brainwires Agent Framework.
 //!
 //! Covers both observability (analytics events, tracing layer, SQLite

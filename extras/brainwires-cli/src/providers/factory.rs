@@ -376,7 +376,7 @@ mod tests {
 
     #[test]
     fn test_factory_default() {
-        let factory = ProviderFactory::default();
+        let factory = ProviderFactory;
         let _factory = factory;
     }
 

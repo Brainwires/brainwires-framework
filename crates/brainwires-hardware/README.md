@@ -46,7 +46,6 @@ brainwires-hardware = { version = "0.10", features = ["full"] }
 | `vad` | WebRTC VAD algorithm (`EnergyVad` is always available with `audio`) |
 | `wake-word` | Wake word detection — `EnergyTriggerDetector` (zero deps) |
 | `wake-word-rustpotter` | `RustpotterDetector` — pure-Rust ML wake word (opt-in, see notes) |
-| `wake-word-porcupine` | `PorcupineDetector` — Picovoice Porcupine (requires AccessKey + git dep) |
 | `voice-assistant` | Full pipeline: capture → wake word → VAD → STT → handler → TTS |
 | `gpio` | GPIO pin control via Linux character device API (`gpio-cdev`) |
 | `bluetooth` | BLE scanning and adapter enumeration via `btleplug` |
@@ -60,7 +59,7 @@ brainwires-hardware = { version = "0.10", features = ["full"] }
 | `matter-ble` | BLE commissioning window (btleplug peripheral, Linux/macOS) |
 | `homeauto` | All four home automation protocols (`zigbee` + `zwave` + `thread` + `matter`) |
 | `homeauto-full` | All home automation including BLE (`homeauto` + `matter-ble`) |
-| `full` | All features (except `local-stt`, `wake-word-rustpotter`, `wake-word-porcupine`) |
+| `full` | All features (except `local-stt`, `wake-word-rustpotter`) |
 
 ## Audio
 

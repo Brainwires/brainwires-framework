@@ -8,7 +8,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::providers::Provider;
-use crate::storage::{EmbeddingProvider, MessageMetadata, MessageStore, VectorDatabase};
+use crate::storage::{CachedEmbeddingProvider, MessageMetadata, MessageStore, VectorDatabase};
 use crate::tools::ToolExecutor;
 use crate::types::agent::{AgentContext, PermissionMode, Task};
 use crate::types::message::{ChatResponse, ContentBlock, Message, MessageContent, Role};
@@ -960,7 +960,7 @@ impl TaskAgent {
                 return None;
             }
         };
-        let embeddings = match EmbeddingProvider::new() {
+        let embeddings = match CachedEmbeddingProvider::new() {
             Ok(e) => Arc::new(e),
             Err(e) => {
                 tracing::debug!("TaskAgent: skipping MessageStore (embeddings) — {e}");

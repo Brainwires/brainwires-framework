@@ -23,8 +23,7 @@ use crate::audio::{
 
 #[cfg(any(
     feature = "wake-word",
-    feature = "wake-word-rustpotter",
-    feature = "wake-word-porcupine"
+    feature = "wake-word-rustpotter"
 ))]
 use crate::audio::wake_word::{WakeWordDetection, WakeWordDetector};
 
@@ -100,8 +99,7 @@ pub trait VoiceAssistantHandler: Send + Sync {
     /// Override to provide feedback (e.g. a chime sound or LED flash).
     #[cfg(any(
         feature = "wake-word",
-        feature = "wake-word-rustpotter",
-        feature = "wake-word-porcupine"
+        feature = "wake-word-rustpotter"
     ))]
     async fn on_wake_word(&self, _detection: &WakeWordDetection) {}
 
@@ -125,8 +123,7 @@ pub struct VoiceAssistantBuilder {
     tts: Option<Arc<dyn TextToSpeech>>,
     #[cfg(any(
         feature = "wake-word",
-        feature = "wake-word-rustpotter",
-        feature = "wake-word-porcupine"
+        feature = "wake-word-rustpotter"
     ))]
     wake_word: Option<Box<dyn WakeWordDetector>>,
     vad: Option<Box<dyn VoiceActivityDetector>>,
@@ -143,8 +140,7 @@ impl VoiceAssistantBuilder {
             tts: None,
             #[cfg(any(
                 feature = "wake-word",
-                feature = "wake-word-rustpotter",
-                feature = "wake-word-porcupine"
+                feature = "wake-word-rustpotter"
             ))]
             wake_word: None,
             vad: None,
@@ -167,8 +163,7 @@ impl VoiceAssistantBuilder {
     /// Set the wake word detector used to activate the listening phase.
     #[cfg(any(
         feature = "wake-word",
-        feature = "wake-word-rustpotter",
-        feature = "wake-word-porcupine"
+        feature = "wake-word-rustpotter"
     ))]
     pub fn with_wake_word(mut self, detector: Box<dyn WakeWordDetector>) -> Self {
         self.wake_word = Some(detector);
@@ -201,8 +196,7 @@ impl VoiceAssistantBuilder {
             tts: self.tts,
             #[cfg(any(
                 feature = "wake-word",
-                feature = "wake-word-rustpotter",
-                feature = "wake-word-porcupine"
+                feature = "wake-word-rustpotter"
             ))]
             wake_word: self.wake_word,
             vad,
@@ -227,8 +221,7 @@ pub struct VoiceAssistant {
     tts: Option<Arc<dyn TextToSpeech>>,
     #[cfg(any(
         feature = "wake-word",
-        feature = "wake-word-rustpotter",
-        feature = "wake-word-porcupine"
+        feature = "wake-word-rustpotter"
     ))]
     wake_word: Option<Box<dyn WakeWordDetector>>,
     vad: Box<dyn VoiceActivityDetector>,
@@ -302,8 +295,7 @@ impl VoiceAssistant {
             // ── Wake word phase ───────────────────────────────────────────────
             #[cfg(any(
                 feature = "wake-word",
-                feature = "wake-word-rustpotter",
-                feature = "wake-word-porcupine"
+                feature = "wake-word-rustpotter"
             ))]
             {
                 // Take detector out to avoid simultaneous &self borrow conflict.
@@ -497,8 +489,7 @@ impl VoiceAssistant {
     /// Static to avoid borrow conflicts when `wake_word` is taken out of self.
     #[cfg(any(
         feature = "wake-word",
-        feature = "wake-word-rustpotter",
-        feature = "wake-word-porcupine"
+        feature = "wake-word-rustpotter"
     ))]
     async fn wait_for_wake_word_inner(
         capture: &Arc<dyn AudioCapture>,

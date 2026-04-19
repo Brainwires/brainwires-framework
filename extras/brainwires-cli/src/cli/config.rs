@@ -195,7 +195,7 @@ mod tests {
     #[test]
     fn test_parse_set_args_with_equals() {
         // Simulate parsing "key=value" format
-        let args = vec!["model=openai/gpt-4".to_string()];
+        let args = ["model=openai/gpt-4".to_string()];
         let parts: Vec<&str> = args[0].splitn(2, '=').collect();
 
         assert_eq!(parts.len(), 2);
@@ -206,7 +206,7 @@ mod tests {
     #[test]
     fn test_parse_set_args_with_spaces() {
         // Simulate parsing "key value" format
-        let args = vec!["model".to_string(), "openai/gpt-4".to_string()];
+        let args = ["model".to_string(), "openai/gpt-4".to_string()];
 
         assert_eq!(args.len(), 2);
         assert_eq!(args[0], "model");
@@ -227,7 +227,7 @@ mod tests {
     #[test]
     fn test_temperature_range() {
         let temp: f32 = "0.7".parse().unwrap();
-        assert!(temp >= 0.0 && temp <= 1.0);
+        assert!((0.0..=1.0).contains(&temp));
 
         let temp_low: f32 = "-0.1".parse().unwrap();
         assert!(temp_low < 0.0); // Should fail range check

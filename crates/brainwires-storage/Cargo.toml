@@ -118,9 +118,6 @@ nornicdb-grpc = ["nornicdb-backend", "dep:qdrant-client"]
 # NornicDB: all transports
 nornicdb-full = ["nornicdb-bolt", "nornicdb-grpc"]
 
-# Backward-compat alias
-vector-db = ["lance-backend"]
-
 alt-folder-name = []
 wasm = ["brainwires-core/wasm"]
 
@@ -143,3 +140,7 @@ required-features = ["native"]
 [[example]]
 name = "lock_coordination"
 required-features = ["native"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

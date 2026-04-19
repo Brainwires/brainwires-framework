@@ -137,9 +137,7 @@ pub use stores::template_store::{PlanTemplate, TemplateStore};
 // ── Re-exports (native only) ─────────────────────────────────────────────
 
 #[cfg(feature = "native")]
-pub use embeddings::{
-    CachedEmbeddingProvider, EmbeddingProvider, EmbeddingProviderTrait, FastEmbedManager,
-};
+pub use embeddings::{CachedEmbeddingProvider, EmbeddingProvider, FastEmbedManager};
 #[cfg(feature = "native")]
 pub use file_context::{FileChunk, FileContent, FileContextManager};
 #[cfg(feature = "native")]
@@ -173,9 +171,7 @@ pub mod prelude {
     pub use super::stores::template_store::{PlanTemplate, TemplateStore};
 
     #[cfg(feature = "native")]
-    pub use super::embeddings::{
-        CachedEmbeddingProvider, EmbeddingProvider, EmbeddingProviderTrait, FastEmbedManager,
-    };
+    pub use super::embeddings::{CachedEmbeddingProvider, EmbeddingProvider, FastEmbedManager};
     #[cfg(feature = "native")]
     pub use super::file_context::{FileContent, FileContextManager};
     #[cfg(feature = "native")]

@@ -1,3 +1,5 @@
+#![warn(missing_docs)]
+
 //! # brainwires-hardware
 //!
 //! Hardware I/O for the Brainwires Agent Framework.
@@ -163,14 +165,11 @@ pub use audio::{VadMode, WebRtcVad};
 
 // ── Wake word re-exports ──────────────────────────────────────────────────────
 
-#[cfg(feature = "wake-word-porcupine")]
-pub use audio::PorcupineDetector;
 #[cfg(feature = "wake-word-rustpotter")]
 pub use audio::RustpotterDetector;
 #[cfg(any(
     feature = "wake-word",
-    feature = "wake-word-rustpotter",
-    feature = "wake-word-porcupine"
+    feature = "wake-word-rustpotter"
 ))]
 pub use audio::{EnergyTriggerDetector, WakeWordDetection, WakeWordDetector};
 

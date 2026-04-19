@@ -529,14 +529,14 @@ assert!(result.success);
 
 ## Reasoning Strategies
 
-Named reasoning patterns behind the `reasoning` feature flag:
+Named reasoning patterns live in the `brainwires-reasoning` crate (they used to be re-exported here under a `reasoning` feature; that compat surface was removed in the pre-1.0 hygiene pass):
 
 ```toml
-brainwires-agents = { version = "0.10", features = ["reasoning"] }
+brainwires-reasoning = "0.10"
 ```
 
 ```rust
-use brainwires_agents::reasoning::strategies::*;
+use brainwires_reasoning::strategies::*;
 
 // Factory creation via preset
 let strategy = StrategyPreset::ReAct.create();

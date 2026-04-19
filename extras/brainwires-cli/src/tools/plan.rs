@@ -13,7 +13,7 @@ use std::sync::Arc;
 use crate::agents::{CommunicationHub, FileLockManager, TaskAgent, TaskAgentConfig};
 use crate::config::PlatformPaths;
 use crate::providers::Provider;
-use crate::storage::{EmbeddingProvider, LanceDatabase, PlanStore, VectorDatabase};
+use crate::storage::{CachedEmbeddingProvider, LanceDatabase, PlanStore, VectorDatabase};
 use crate::tools::ToolRegistry;
 use crate::types::agent::{AgentContext, PermissionMode, Task};
 use crate::types::plan::{PlanMetadata, PlanStatus};
@@ -247,7 +247,7 @@ impl PlanTool {
             .await?,
         );
 
-        let embeddings = Arc::new(EmbeddingProvider::new()?);
+        let embeddings = Arc::new(CachedEmbeddingProvider::new()?);
         client.initialize(embeddings.dimension()).await?;
 
         let plan_store = PlanStore::new(client, embeddings);

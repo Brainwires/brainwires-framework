@@ -10,7 +10,7 @@ use std::sync::Arc;
 use crate::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
-use crate::embeddings::EmbeddingProvider;
+use crate::embeddings::CachedEmbeddingProvider;
 use brainwires_core::{PlanMetadata, PlanStatus};
 
 const TABLE_NAME: &str = "plans";
@@ -43,8 +43,7 @@ pub fn plans_field_defs(embedding_dim: usize) -> Vec<FieldDef> {
     ]
 }
 
-/// Return an Arrow `Schema` for backward compatibility with
-/// [`LanceDatabase`](crate::databases::lance::LanceDatabase).
+/// Arrow schema for the plans table, used by `LanceDatabase` table creation.
 #[cfg(feature = "native")]
 pub fn plans_schema() -> std::sync::Arc<arrow_schema::Schema> {
     use arrow_schema::{DataType, Field};
@@ -209,14 +208,14 @@ fn from_record(r: &Record) -> Result<PlanMetadata> {
 /// Store for managing execution plans
 pub struct PlanStore<B: StorageBackend = crate::databases::lance::LanceDatabase> {
     backend: Arc<B>,
-    embeddings: Arc<EmbeddingProvider>,
+    embeddings: Arc<CachedEmbeddingProvider>,
     /// Directory for plan markdown exports
     plans_dir: Option<PathBuf>,
 }
 
 impl<B: StorageBackend> PlanStore<B> {
     /// Create a new plan store
-    pub fn new(backend: Arc<B>, embeddings: Arc<EmbeddingProvider>) -> Self {
+    pub fn new(backend: Arc<B>, embeddings: Arc<CachedEmbeddingProvider>) -> Self {
         Self {
             backend,
             embeddings,
@@ -227,7 +226,7 @@ impl<B: StorageBackend> PlanStore<B> {
     /// Create a plan store with a plans directory for markdown exports
     pub fn with_plans_dir(
         backend: Arc<B>,
-        embeddings: Arc<EmbeddingProvider>,
+        embeddings: Arc<CachedEmbeddingProvider>,
         plans_dir: impl Into<PathBuf>,
     ) -> Self {
         Self {

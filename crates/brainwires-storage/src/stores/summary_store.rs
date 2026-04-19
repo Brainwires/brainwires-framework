@@ -8,7 +8,7 @@ use std::sync::Arc;
 use crate::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, ScoredRecord, StorageBackend, record_get,
 };
-use crate::embeddings::EmbeddingProvider;
+use crate::embeddings::CachedEmbeddingProvider;
 use crate::tiered_memory::MessageSummary;
 
 const TABLE_NAME: &str = "summaries";
@@ -29,8 +29,7 @@ pub fn summaries_field_defs(embedding_dim: usize) -> Vec<FieldDef> {
     ]
 }
 
-/// Return an Arrow `Schema` for backward compatibility with
-/// [`LanceDatabase`](crate::databases::lance::LanceDatabase).
+/// Arrow schema for the summaries table, used by `LanceDatabase` table creation.
 #[cfg(feature = "native")]
 pub fn summaries_schema(embedding_dim: usize) -> std::sync::Arc<arrow_schema::Schema> {
     use arrow_schema::{DataType, Field};
@@ -129,12 +128,12 @@ fn from_record(r: &Record) -> Result<MessageSummary> {
 /// Store for warm tier message summaries with semantic search
 pub struct SummaryStore<B: StorageBackend = crate::databases::lance::LanceDatabase> {
     backend: Arc<B>,
-    embeddings: Arc<EmbeddingProvider>,
+    embeddings: Arc<CachedEmbeddingProvider>,
 }
 
 impl<B: StorageBackend> SummaryStore<B> {
     /// Create a new summary store
-    pub fn new(backend: Arc<B>, embeddings: Arc<EmbeddingProvider>) -> Self {
+    pub fn new(backend: Arc<B>, embeddings: Arc<CachedEmbeddingProvider>) -> Self {
         Self {
             backend,
             embeddings,

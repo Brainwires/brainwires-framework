@@ -73,7 +73,7 @@ mod tests {
 
     #[tokio::test]
     async fn logging_middleware_process_response_does_not_panic() {
-        let middleware = LoggingMiddleware::default();
+        let middleware = LoggingMiddleware;
         let mut response = JsonRpcResponse {
             jsonrpc: "2.0".to_string(),
             id: json!(1),

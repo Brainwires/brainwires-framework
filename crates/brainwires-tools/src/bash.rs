@@ -912,7 +912,7 @@ mod tests {
         let got = truncate_middle(&s, 100);
         assert!(got.contains("truncated"));
         // Must not panic / produce invalid UTF-8 — if we got here, we're good.
-        assert!(!got.as_bytes().is_empty());
+        assert!(!got.is_empty());
     }
 
     #[test]

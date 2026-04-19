@@ -7,6 +7,87 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Pre-1.0 hygiene pass: remove backwards-compat shims, close feature-flag half-wires, fix documentation and publish-readiness gaps.
+
+### Removed (BREAKING)
+
+#### Compile-breaking feature deleted
+
+- **`wake-word-porcupine`** — feature and `PorcupineDetector` module deleted from `brainwires-hardware`, the `brainwires` facade, and `voice-assistant`. The Picovoice `pv_porcupine` dep was never on crates.io and the feature could not compile without manual git-dep injection. If Porcupine is needed, implement `WakeWordDetector` against it out-of-tree.
+
+#### Feature-flag aliases removed
+
+- **`brainwires-storage/vector-db`** — backward-compat alias for `lance-backend`. Use `lance-backend` directly.
+- **`brainwires-knowledge/spectral-select`** — deprecated alias for `spectral`. Use `spectral` directly.
+- **Facade `brain` feature and `brainwires::brain` module** — consolidated into the canonical `knowledge` feature. Callers: `brainwires::brain::*` → `brainwires::knowledge::*`.
+- **`brainwires-agents/reasoning` feature** — removed. Depend on `brainwires-reasoning` directly.
+
+#### Type aliases removed
+
+- **`brainwires_storage::embeddings::EmbeddingProvider` type alias** — was a backward-compat alias for `CachedEmbeddingProvider`. Callers using it as a concrete type (`Arc<EmbeddingProvider>`, `EmbeddingProvider::new()`) must switch to `CachedEmbeddingProvider`. Callers using the trait should import `brainwires_core::EmbeddingProvider` (also re-exported as `brainwires_storage::embeddings::EmbeddingProvider` post-rename, since the name collision is gone).
+- **`brainwires_storage::EmbeddingProviderTrait` re-export** — removed. The trait is now re-exported as its canonical name `EmbeddingProvider`.
+- **`brainwires_providers::openai_responses::ResponseApiResponse` type alias** — removed. Use `ResponseObject`.
+- **`brainwires_agents::reasoning` re-export module** — removed. Use `brainwires_reasoning::*` directly (the facade exposes it as `brainwires::reasoning::*`).
+
+#### Other pre-1.0 cleanup
+
+- **`LegacyHashCache` + migration code** removed from `brainwires-knowledge::rag::cache`. Old RAG cache files on disk will fail to parse and be regenerated on next index run (acceptable pre-1.0; no data loss — only recomputed indices).
+- **`PksSseListener` renamed to `PksRestPoller`** in `brainwires-knowledge::knowledge::bks_pks::personal`. The old name lied — the type uses REST polling, not SSE. The SSE client is only the web frontend, unaffected.
+- **`stack-graphs` feature over-promise stripped**: `PrecisionLevel::High` no longer claims "~95% accuracy"; `code_analysis::stack_graphs` module is now labelled as a stub until the real `stack-graphs` crate integration lands. The feature flag and provider scaffolding remain in place so the real wire-up can slot in without another API change.
+
+### Added
+
+#### Publish / docs.rs readiness
+
+- **`[package.metadata.docs.rs]` stanza** added to all 16 published framework crates:
+  ```toml
+  [package.metadata.docs.rs]
+  all-features = true
+  rustdoc-args = ["--cfg", "docsrs"]
+  ```
+  so docs.rs renders the full feature surface (previously heavy feature-flag crates like `brainwires-hardware`, `brainwires-telemetry`, `brainwires-knowledge`, `brainwires-storage`, `brainwires-providers` rendered only the default-feature surface).
+- **`#![warn(missing_docs)]`** added to `brainwires-hardware` and `brainwires-telemetry` (previously the only two framework crates not enforcing it — the other 13 already did).
+- **`AgentCard`, `MeshTopology`, `TopologyType`** added to the `brainwires::prelude` under the `a2a` and `mesh` features.
+- **`brainwires::knowledge` facade module** — replaces the old `brainwires::brain` module, gated on the canonical `knowledge` feature.
+
+### Changed
+
+- **`brainwires::reasoning` module** now re-exports from `brainwires_reasoning` directly instead of going through `brainwires_agents::reasoning`. The `reasoning` feature in the facade activates `brainwires-reasoning` directly.
+- **Storage Arrow schema docs** — removed "for backward compatibility with `LanceDatabase`" mislabelling on `tasks_arrow_schema`, `agent_states_arrow_schema`, `facts_schema`, `summaries_schema`, `plans_schema`, `tier_metadata_schema`. These are current infrastructure, not legacy shims.
+- **`Filter::Raw` doc comment** (`brainwires-storage::databases::lance::arrow_convert`) — clarified as an explicit escape hatch, not a backward-compat concession. Dropped the runtime `tracing::warn!` on every call.
+- **`#[ignore]` markers** in `brainwires-storage::databases::nornicdb::tests` (33 occurrences) now carry the reason string `"requires running nornicdb instance"` so `cargo test -- --ignored` output is self-explanatory.
+- **`matter::verhoeff`** demoted from `pub mod` to `pub(crate) mod` (internal-only helper used by the commissioning-code parser).
+
+### Documentation
+
+- **`PUBLISHING.md`** — publish-order table rewritten against the real 16-crate DAG. The previous table listed 9 crates that don't exist (`brainwires-analytics`, `brainwires-code-interpreters`, `brainwires-skills`, `brainwires-system`, `brainwires-datasets`, `brainwires-cognition`, `brainwires-tool-system`, `brainwires-agent-network`, `brainwires-channels`) and omitted 7 that do (`brainwires-knowledge`, `brainwires-reasoning`, `brainwires-telemetry`, `brainwires-training`, `brainwires-hardware`, `brainwires-a2a`, `brainwires-mcp-server`). `scripts/publish.sh` is the source of truth.
+- **Top-level `README.md`** — crate-count claims fixed (16 framework crates + 25 extras including the 7-crate `brainclaw` set). Added missing extras entries: `brainwires-billing`, `brainwires-docs`, `voice-assistant`.
+- **Facade `crates/brainwires/README.md`** — feature table rewritten. Previously omitted 13 features that were already exposed in `Cargo.toml` (`chat`, `agent-network`, `mcp-server-framework`, `system`, `dream`, `telemetry`, `bedrock`, `vertex-ai`, `wasm`, `training-cloud`, `training-full`, `training-local`, `rag-full-languages`) and listed 3 that no longer exist (`relay`, `proxy`, `autonomy`). Convenience features table unchanged.
+- **`brainwires-storage/README.md`, `brainwires-mcp/README.md`** — license links converted from relative (`[LICENSE](../../LICENSE)`, which 404s on crates.io) to absolute GitHub URLs for both MIT and Apache-2.0 license files.
+- **`brainwires-hardware/README.md`, `FEATURES.md`** — all `wake-word-porcupine` / `PorcupineDetector` references removed in line with the code deletion.
+- **Workspace-wide markdown consistency sweep** — stale crate names repointed to current successors in: `crates/README.md` (full rewrite of the dependency tree), `FEATURES.md` (datasets, analytics, and extras sections), `extras/brainwires-brain-server/README.md`, `extras/brainwires-rag-server/README.md`, `extras/brainwires-wasm/README.md`, `extras/brainclaw/mcp-skill-registry/README.md`, `crates/brainwires-training/README.md`, `crates/brainwires-agents/README.md`, `docs/wishlist-crates/Distributed-Training.md`, `extras/brainwires-cli/docs/ARCHITECTURE.md`, `extras/brainwires-cli/docs/distributed-swarms/IPC_AND_REMOTE_CONTROL.md`, `extras/brainwires-cli/docs/adaptive-prompting/ADAPTIVE_PROMPTING_IMPLEMENTATION.md`, `CONTRIBUTING.md`. Historical CHANGELOG entries for prior releases were left intact — they document what shipped at the time.
+
+### Fixed (lint sweep)
+
+- **`cargo clippy --fix`** applied across the workspace — ~57 of 80 pre-existing non-docs warnings auto-fixed (`useless vec!`, collapsible `if`, `unwrap_err`-after-`is_err`, `RangeInclusive::contains`, `Default::default()` field assigns, redundant pattern-matching, etc.). 139 files touched. The remaining ~23 warnings (too-many-args, loop-index-as-var) need manual thought per-site and are deferred.
+
+### Deferred — still present, slated for follow-up work
+
+These remaining backwards-compat surfaces were scoped out of this pass because they change runtime behaviour (not just names) or touch many downstream consumers. Each will land as its own focused PR:
+
+- **`brainwires-mcp::types` rmcp compat aliases** (`McpTool`, `McpResource`, `McpPrompt`, `CallToolParams`, `ServerCapabilities`, `ClientCapabilities`) — touches 20+ files including the brainclaw channel servers.
+- **`brainwires-network::auth` session legacy path** — `api_key` field on `Session`/`SessionInfo` + `migrate_legacy_session` + file fallback. Removing breaks existing on-disk session files (acceptable pre-1.0, but needs a dedicated migration note).
+- **`brainwires-network::remote::protocol` `Option<Protocol>` fields** — wire-format change; requires protocol-version bump and coordinated client/server updates.
+- **`brainwires-network::ipc::socket` legacy plaintext `IpcReader` / `IpcWriter`** — need to audit whether the handshake still needs the plaintext path before deletion.
+- **`brainwires-agents` crate** still compiles with the old "reasoning feature" shape; clean up `[features]` to drop residual entries.
+
+### Follow-up plans (filed separately)
+
+1. **`stack-graphs` full wire-up** — add the real `stack-graphs` crate as an optional dep under the existing feature flag, implement `extract_definitions` / `extract_references` for Python / TypeScript / Java / Ruby, benchmark, restore accuracy claims.
+2. **Matter DAC/PAI/CD CSA-signing** — organizational, blocked on CSA membership (see `BRAINWIRES_MATTER_DAK_PATH`). Not a code change.
+3. **(Optional) Porcupine wake-word re-add** — if/when the `pv_porcupine` crate lands on crates.io or a real vendored path is agreed on.
+4. **Missing-docs cleanup** — 428 warnings in `brainwires-hardware` and 129 in `brainwires-telemetry` surfaced by the new `#![warn(missing_docs)]` stepping stone; close them before promoting to `#![deny]`.
+
 ## [0.10.0] - 2026-04-18
 
 ### Changed

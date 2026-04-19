@@ -11,7 +11,7 @@ pub use brainwires_tools::smart_router::*;
 // ── CLI-specific: inference-integrated variants ───────────────────────────
 
 use crate::types::message::Message;
-use brainwires::agents::reasoning::LocalRouter;
+use brainwires::reasoning::LocalRouter;
 use brainwires_tools::{Tool, ToolCategory, ToolRegistry};
 
 /// Analyze a query using local inference with keyword fallback

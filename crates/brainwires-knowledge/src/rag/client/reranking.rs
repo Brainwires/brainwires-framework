@@ -1,15 +1,15 @@
 //! Diversity / relevance reranking via pluggable reranker strategies for [`RagClient`].
 //!
-//! Requires the `spectral-select` feature.
+//! Requires the `spectral` feature.
 
 use super::RagClient;
-#[cfg(feature = "spectral-select")]
+#[cfg(feature = "spectral")]
 use crate::rag::embedding::EmbeddingProvider;
-#[cfg(feature = "spectral-select")]
+#[cfg(feature = "spectral")]
 use crate::rag::types::*;
-#[cfg(feature = "spectral-select")]
+#[cfg(feature = "spectral")]
 use anyhow::{Context, Result};
-#[cfg(feature = "spectral-select")]
+#[cfg(feature = "spectral")]
 use std::time::Instant;
 
 impl RagClient {
@@ -25,8 +25,8 @@ impl RagClient {
     /// - [`RerankerKind::CrossEncoder`] — query-document cosine blend (relevance-focused)
     /// - [`RerankerKind::Both`] — spectral first, then cross-encoder on the selected subset
     ///
-    /// Requires the `spectral-select` feature.
-    #[cfg(feature = "spectral-select")]
+    /// Requires the `spectral` feature.
+    #[cfg(feature = "spectral")]
     pub async fn query_diverse(
         &self,
         request: QueryRequest,

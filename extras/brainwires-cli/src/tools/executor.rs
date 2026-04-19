@@ -2398,6 +2398,26 @@ impl Default for ToolExecutor {
     }
 }
 
+// ── Framework trait implementation ──────────────────────────────────────────
+
+/// Implement the framework's `ToolExecutor` trait so that the CLI's concrete
+/// executor can be used with `brainwires-agents`' `TaskAgent` and `AgentPool`.
+#[async_trait::async_trait]
+impl brainwires::tools::ToolExecutor for ToolExecutor {
+    async fn execute(
+        &self,
+        tool_use: &crate::types::tool::ToolUse,
+        context: &crate::types::tool::ToolContext,
+    ) -> anyhow::Result<crate::types::tool::ToolResult> {
+        // Delegate to the existing concrete implementation.
+        ToolExecutor::execute(self, tool_use, context).await
+    }
+
+    fn available_tools(&self) -> Vec<crate::types::tool::Tool> {
+        self.registry.get_all().to_vec()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2408,7 +2428,7 @@ mod tests {
         let tools = executor.get_tools();
 
         // Should have tools registered
-        assert!(tools.len() > 0);
+        assert!(!tools.is_empty());
 
         // Check for specific tools
         assert!(tools.iter().any(|t| t.name == "read_file"));
@@ -2969,25 +2989,5 @@ mod tests {
 
         assert_eq!(response, ApprovalResponse::Deny);
         handle.await.unwrap();
-    }
-}
-
-// ── Framework trait implementation ──────────────────────────────────────────
-
-/// Implement the framework's `ToolExecutor` trait so that the CLI's concrete
-/// executor can be used with `brainwires-agents`' `TaskAgent` and `AgentPool`.
-#[async_trait::async_trait]
-impl brainwires::tools::ToolExecutor for ToolExecutor {
-    async fn execute(
-        &self,
-        tool_use: &crate::types::tool::ToolUse,
-        context: &crate::types::tool::ToolContext,
-    ) -> anyhow::Result<crate::types::tool::ToolResult> {
-        // Delegate to the existing concrete implementation.
-        ToolExecutor::execute(self, tool_use, context).await
-    }
-
-    fn available_tools(&self) -> Vec<crate::types::tool::Tool> {
-        self.registry.get_all().to_vec()
     }
 }

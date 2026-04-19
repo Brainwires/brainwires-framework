@@ -1392,7 +1392,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_rest_initialize_creates_index() {
         if skip_if_no_server().await {
             return;
@@ -1406,7 +1406,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_rest_clear_removes_all() {
         if skip_if_no_server().await {
             return;
@@ -1426,7 +1426,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_rest_store_single() {
         if skip_if_no_server().await {
             return;
@@ -1445,7 +1445,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_rest_store_multiple() {
         if skip_if_no_server().await {
             return;
@@ -1476,7 +1476,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_rest_store_idempotent_upsert() {
         if skip_if_no_server().await {
             return;
@@ -1506,7 +1506,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_rest_store_large_batch() {
         if skip_if_no_server().await {
             return;
@@ -1527,7 +1527,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_rest_store_metadata_roundtrip() {
         if skip_if_no_server().await {
             return;
@@ -1558,7 +1558,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_rest_search_vector() {
         if skip_if_no_server().await {
             return;
@@ -1581,7 +1581,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_rest_search_hybrid() {
         if skip_if_no_server().await {
             return;
@@ -1614,7 +1614,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_rest_search_min_score() {
         if skip_if_no_server().await {
             return;
@@ -1639,7 +1639,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_rest_search_limit() {
         if skip_if_no_server().await {
             return;
@@ -1664,7 +1664,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_rest_search_project_filter() {
         if skip_if_no_server().await {
             return;
@@ -1696,7 +1696,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_rest_search_empty_db() {
         if skip_if_no_server().await {
             return;
@@ -1710,7 +1710,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_rest_search_filtered_extension() {
         if skip_if_no_server().await {
             return;
@@ -1745,7 +1745,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_rest_search_filtered_language() {
         if skip_if_no_server().await {
             return;
@@ -1779,7 +1779,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_rest_search_filtered_combined() {
         if skip_if_no_server().await {
             return;
@@ -1814,7 +1814,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_rest_delete_existing() {
         if skip_if_no_server().await {
             return;
@@ -1835,7 +1835,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_rest_delete_nonexistent() {
         if skip_if_no_server().await {
             return;
@@ -1846,7 +1846,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_rest_statistics_empty() {
         if skip_if_no_server().await {
             return;
@@ -1857,7 +1857,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_rest_statistics_with_data() {
         if skip_if_no_server().await {
             return;
@@ -1877,7 +1877,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_rest_count_by_root_path() {
         if skip_if_no_server().await {
             return;
@@ -1897,7 +1897,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_rest_get_indexed_files() {
         if skip_if_no_server().await {
             return;
@@ -1929,7 +1929,7 @@ mod tests {
 
     #[cfg(feature = "nornicdb-bolt")]
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_bolt_store_and_search() {
         let db = match NornicDatabase::with_bolt("http://localhost:7474", "neo4j", "password").await
         {
@@ -1957,7 +1957,7 @@ mod tests {
 
     #[cfg(feature = "nornicdb-bolt")]
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_bolt_delete_by_file() {
         let db = match NornicDatabase::with_bolt("http://localhost:7474", "neo4j", "password").await
         {
@@ -1982,7 +1982,7 @@ mod tests {
 
     #[cfg(feature = "nornicdb-bolt")]
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_bolt_statistics() {
         let db = match NornicDatabase::with_bolt("http://localhost:7474", "neo4j", "password").await
         {
@@ -2000,7 +2000,7 @@ mod tests {
 
     #[cfg(feature = "nornicdb-grpc")]
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_grpc_store_and_search() {
         let db = match NornicDatabase::with_grpc("http://localhost:6334").await {
             Ok(db) => db,
@@ -2027,7 +2027,7 @@ mod tests {
 
     #[cfg(feature = "nornicdb-grpc")]
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_grpc_cypher_returns_error() {
         let db = match NornicDatabase::with_grpc("http://localhost:6334").await {
             Ok(db) => db,
@@ -2041,7 +2041,7 @@ mod tests {
     // ── Extension integration tests ─────────────────────────────────────
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_create_relationship() {
         if skip_if_no_server().await {
             return;
@@ -2076,7 +2076,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_find_related_depth_1() {
         if skip_if_no_server().await {
             return;
@@ -2104,7 +2104,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_find_related_depth_2() {
         if skip_if_no_server().await {
             return;
@@ -2141,7 +2141,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_store_episodic_tier() {
         if skip_if_no_server().await {
             return;
@@ -2159,7 +2159,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_store_semantic_tier() {
         if skip_if_no_server().await {
             return;
@@ -2177,7 +2177,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires running nornicdb instance"]
     async fn test_search_by_tier_isolated() {
         if skip_if_no_server().await {
             return;

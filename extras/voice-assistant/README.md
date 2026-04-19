@@ -28,7 +28,6 @@ cargo build --release -p voice-assistant
 |---|---|
 | `wake-word` | Enable wake-word detection (engine auto-selected) |
 | `wake-word-rustpotter` | Use Rustpotter for wake-word detection |
-| `wake-word-porcupine` | Use Picovoice Porcupine for wake-word detection |
 
 ## License
 

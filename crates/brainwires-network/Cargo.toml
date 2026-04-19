@@ -106,3 +106,7 @@ tempfile = { workspace = true }
 [[example]]
 name = "network_manager"
 required-features = ["client", "ipc-transport"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

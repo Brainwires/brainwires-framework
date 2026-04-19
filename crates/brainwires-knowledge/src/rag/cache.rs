@@ -70,17 +70,11 @@ pub struct HashCache {
     pub dirty_roots: HashMap<String, DirtyInfo>,
 }
 
-/// Legacy cache format for migration (dirty_roots was a HashSet)
-#[derive(Debug, Deserialize)]
-struct LegacyHashCache {
-    roots: HashMap<String, HashMap<String, String>>,
-    #[serde(default)]
-    dirty_roots: std::collections::HashSet<String>,
-}
-
 impl HashCache {
-    /// Load cache from disk
-    /// Handles migration from old format (dirty_roots as HashSet) to new format (dirty_roots as HashMap with DirtyInfo)
+    /// Load cache from disk.
+    ///
+    /// Pre-1.0: only the current format is supported. Old cache files will
+    /// fail to parse and will be regenerated on next index.
     pub fn load(cache_path: &Path) -> Result<Self> {
         if !cache_path.exists() {
             tracing::debug!("Cache file not found, starting with empty cache");
@@ -89,44 +83,10 @@ impl HashCache {
 
         let content = fs::read_to_string(cache_path).context("Failed to read cache file")?;
 
-        // Try to parse as new format first
-        if let Ok(cache) = serde_json::from_str::<HashCache>(&content) {
-            tracing::info!("Loaded cache with {} indexed roots", cache.roots.len());
-            return Ok(cache);
-        }
-
-        // Try to parse as legacy format and migrate
-        if let Ok(legacy) = serde_json::from_str::<LegacyHashCache>(&content) {
-            tracing::info!(
-                "Migrating cache from legacy format ({} roots, {} dirty roots)",
-                legacy.roots.len(),
-                legacy.dirty_roots.len()
-            );
-
-            // Migrate dirty_roots from HashSet to HashMap with default DirtyInfo
-            let dirty_roots: HashMap<String, DirtyInfo> = legacy
-                .dirty_roots
-                .into_iter()
-                .map(|root| (root, DirtyInfo::new()))
-                .collect();
-
-            let cache = HashCache {
-                roots: legacy.roots,
-                dirty_roots,
-            };
-
-            // Save the migrated cache immediately
-            if let Err(e) = cache.save(cache_path) {
-                tracing::warn!("Failed to save migrated cache: {}", e);
-            } else {
-                tracing::info!("Successfully migrated cache to new format");
-            }
-
-            return Ok(cache);
-        }
-
-        // Neither format worked
-        anyhow::bail!("Failed to parse cache file as either new or legacy format")
+        let cache = serde_json::from_str::<HashCache>(&content)
+            .context("Failed to parse cache file")?;
+        tracing::info!("Loaded cache with {} indexed roots", cache.roots.len());
+        Ok(cache)
     }
 
     /// Save cache to disk
@@ -535,49 +495,19 @@ mod tests {
     }
 
     #[test]
-    fn test_dirty_flag_with_old_cache_format() {
-        // Test that loading a cache without dirty_roots field works (backwards compatibility)
+    fn test_load_with_missing_dirty_roots_field() {
+        // The `dirty_roots` field uses `#[serde(default)]`, so a JSON
+        // payload without it loads as an empty map.
         let temp_file = NamedTempFile::new().unwrap();
         let cache_path = temp_file.path().to_path_buf();
 
-        // Write old format JSON (without dirty_roots)
-        let old_format = r#"{"roots":{"/test/path":{"file1.rs":"hash1"}}}"#;
-        fs::write(&cache_path, old_format).unwrap();
+        let minimal = r#"{"roots":{"/test/path":{"file1.rs":"hash1"}}}"#;
+        fs::write(&cache_path, minimal).unwrap();
 
-        // Load should succeed with empty dirty_roots
         let loaded = HashCache::load(&cache_path).unwrap();
         assert!(loaded.get_root("/test/path").is_some());
         assert!(!loaded.has_dirty_roots());
         assert!(!loaded.is_dirty("/test/path"));
-    }
-
-    #[test]
-    fn test_dirty_flag_migration_from_hashset() {
-        // Test that loading a cache with old HashSet dirty_roots format works
-        // This handles migration from the old format (HashSet<String>) to new (HashMap<String, DirtyInfo>)
-        let temp_file = NamedTempFile::new().unwrap();
-        let cache_path = temp_file.path().to_path_buf();
-
-        // Write old format JSON with HashSet dirty_roots (array format)
-        let old_format =
-            r#"{"roots":{"/test/path":{"file1.rs":"hash1"}},"dirty_roots":["/test/path"]}"#;
-        fs::write(&cache_path, old_format).unwrap();
-
-        // Load should successfully migrate the old format
-        let loaded = HashCache::load(&cache_path).unwrap();
-
-        // Verify the migration worked
-        assert!(loaded.get_root("/test/path").is_some());
-        assert!(loaded.is_dirty("/test/path"));
-        assert!(loaded.has_dirty_roots());
-
-        // Verify the dirty info has a timestamp
-        let info = loaded.get_dirty_info("/test/path").unwrap();
-        assert!(info.timestamp > 0);
-
-        // Verify the file was updated to new format
-        let reloaded = HashCache::load(&cache_path).unwrap();
-        assert!(reloaded.is_dirty("/test/path"));
     }
 
     #[test]

@@ -206,7 +206,7 @@ async fn test_query_codebase_with_data() {
     assert!(result.is_ok());
 
     let response = result.unwrap();
-    assert!(response.results.len() > 0);
+    assert!(!response.results.is_empty());
     assert!(response.duration_ms > 0);
 }
 
@@ -938,7 +938,7 @@ async fn test_full_workflow_index_query_clear() {
         hybrid: true,
     };
     let query_resp = client.query_codebase(query_req).await.unwrap();
-    assert!(query_resp.results.len() > 0);
+    assert!(!query_resp.results.is_empty());
 
     // Step 3: Statistics
     let stats = client.get_statistics().await.unwrap();

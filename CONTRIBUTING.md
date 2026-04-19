@@ -127,7 +127,7 @@ This updates all version references across the workspace in one command:
 | Hardcoded versions in `*.rs` source files | `"version": "0.2.0"` patterns |
 | Version examples in `*.md` READMEs (skips CHANGELOGs) | `version = "0.2"` → `version = "0.3"` |
 
-> **Why brainwires-wasm uses direct deps:** Cargo doesn't allow `default-features = false` on workspace dep overrides when the workspace dep has defaults enabled. So `brainwires-core`, `brainwires-code-interpreters`, and `brainwires-tool-system` in the wasm crate must stay as direct path deps. The bump script handles these too.
+> **Why brainwires-wasm uses direct deps:** Cargo doesn't allow `default-features = false` on workspace dep overrides when the workspace dep has defaults enabled. So `brainwires-core` (and any other wasm-specific dep variants) in the wasm crate must stay as direct path deps. The bump script handles these too.
 
 After bumping, review the diff and run `cargo check --workspace` before committing.
 

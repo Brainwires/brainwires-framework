@@ -534,7 +534,7 @@ async fn test_index_preserves_cache_across_operations() {
 
     // Verify cache was saved
     let cache = client.hash_cache.read().await;
-    let cached_hashes = cache.get_root(&data_dir.to_string_lossy().to_string());
+    let cached_hashes = cache.get_root(data_dir.to_string_lossy().as_ref());
     assert!(cached_hashes.is_some());
     assert!(!cached_hashes.unwrap().is_empty());
 }

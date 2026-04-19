@@ -130,24 +130,29 @@ Only leaf crates fully verify in dry-run mode (later layers can't resolve deps n
 ```
 
 The script handles:
-- **Dependency ordering** — 7 layers, 18 crates, leaves first, facade last
-- **Rate limiting** — burst 30 at once, then 1/min (18 crates fits in burst)
+- **Dependency ordering** — 8 layers, 16 crates, leaves first, facade last
+- **Rate limiting** — burst 30 at once, then 1/min (16 crates fits in burst)
 - **Idempotency** — already-published versions are skipped automatically
 - **Tagging** — creates and pushes `vX.Y.Z` git tag on success
 
 ### Publish order
 
+Source of truth: `scripts/publish.sh`. Reproduced here for reference.
+
 | Layer | Crates |
 |-------|--------|
-| 1 | brainwires-core, brainwires-a2a, brainwires-code-interpreters, brainwires-skills, brainwires-analytics, brainwires-system |
-| 2 | brainwires-mcp, brainwires-mcp-server, brainwires-permissions, brainwires-datasets, brainwires-providers, brainwires-storage |
-| 3 | brainwires-cognition |
-| 4 | brainwires-tool-system, brainwires-agent-network, brainwires-hardware, brainwires-training |
-| 5 | brainwires-agents, brainwires-wasm |
-| 6 | brainwires-autonomy, brainwires-proxy |
-| 7 | brainwires (facade) |
+| 0 — Contracts | `brainwires-core` |
+| 1a — Infrastructure (deps: core) | `brainwires-telemetry`, `brainwires-storage` |
+| 1b — Infrastructure (deps on 1a) | `brainwires-providers`, `brainwires-hardware` |
+| 2 — Protocols (deps: core only) | `brainwires-mcp`, `brainwires-mcp-server`, `brainwires-a2a` |
+| 3 — Intelligence (storage-backed) | `brainwires-knowledge` |
+| 4 — Action | `brainwires-tools`, `brainwires-permissions` |
+| 4b — Reasoning (deps: tools) | `brainwires-reasoning` |
+| 5 — Agency | `brainwires-agents`, `brainwires-network` |
+| 6 — Training | `brainwires-training` |
+| 7 — Facade | `brainwires` |
 
-**Excluded from publish:** `brainwires-channels` — optional `webrtc` feature uses a git-only fork (`Brainwires/webrtc-rs` at `0.20.0-alpha.1`). Needs the fork published to crates.io before this crate can be published.
+**Excluded from publish** (`publish = false` in their `Cargo.toml`): `brainwires-autonomy`, `brainwires-wasm`. All other `extras/*` crates are also not published.
 
 ## 4. Post-publish
 

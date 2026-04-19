@@ -80,7 +80,7 @@ mod tests {
             .await
             .unwrap();
 
-        let devices = load_devices(&dir.path().to_path_buf()).await.unwrap();
+        let devices = load_devices(dir.path()).await.unwrap();
         assert_eq!(devices.len(), 1);
         assert_eq!(devices[0].node_id, 42);
     }
@@ -92,7 +92,7 @@ mod tests {
             .await
             .unwrap();
 
-        let result = load_devices(&dir.path().to_path_buf()).await;
+        let result = load_devices(dir.path()).await;
         assert!(result.is_err());
     }
 }

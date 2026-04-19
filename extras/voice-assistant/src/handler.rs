@@ -11,8 +11,7 @@ use tracing::{info, warn};
 
 #[cfg(any(
     feature = "wake-word",
-    feature = "wake-word-rustpotter",
-    feature = "wake-word-porcupine"
+    feature = "wake-word-rustpotter"
 ))]
 use brainwires_hardware::audio::wake_word::WakeWordDetection;
 
@@ -50,8 +49,7 @@ impl LlmHandler {
 impl VoiceAssistantHandler for LlmHandler {
     #[cfg(any(
         feature = "wake-word",
-        feature = "wake-word-rustpotter",
-        feature = "wake-word-porcupine"
+        feature = "wake-word-rustpotter"
     ))]
     async fn on_wake_word(&self, detection: &WakeWordDetection) {
         info!(

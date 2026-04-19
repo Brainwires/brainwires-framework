@@ -14,7 +14,7 @@ use futures::TryStreamExt;
 use lancedb::query::{ExecutableQuery, QueryBase};
 use std::sync::Arc;
 
-use super::EmbeddingProvider;
+use super::CachedEmbeddingProvider;
 use super::{LanceDatabase, LanceDatabaseExt};
 use brainwires::seal::{QueryPattern, QuestionType};
 
@@ -46,12 +46,12 @@ impl PatternMetadata {
 /// Store for SEAL learned patterns with semantic search
 pub struct PatternStore {
     client: Arc<LanceDatabase>,
-    embeddings: Arc<EmbeddingProvider>,
+    embeddings: Arc<CachedEmbeddingProvider>,
 }
 
 impl PatternStore {
     /// Create a new pattern store
-    pub fn new(client: Arc<LanceDatabase>, embeddings: Arc<EmbeddingProvider>) -> Self {
+    pub fn new(client: Arc<LanceDatabase>, embeddings: Arc<CachedEmbeddingProvider>) -> Self {
         Self { client, embeddings }
     }
 
@@ -466,7 +466,7 @@ mod tests {
         client.initialize(384).await.unwrap();
         client.ensure_seal_patterns_table(384).await.unwrap();
 
-        let embeddings = Arc::new(EmbeddingProvider::new().unwrap());
+        let embeddings = Arc::new(CachedEmbeddingProvider::new().unwrap());
         let store = PatternStore::new(client, embeddings);
 
         (store, temp)

@@ -479,12 +479,12 @@ mod tests {
 
         for part in output.split(',') {
             let part = part.trim();
-            if let Some(colon_pos) = part.find(':') {
-                if let (Ok(idx), score_str) = (
+            if let Some(colon_pos) = part.find(':')
+                && let (Ok(idx), score_str) = (
                     part[..colon_pos].trim().parse::<usize>(),
                     part[colon_pos + 1..].trim(),
-                ) {
-                    if let Ok(score) = score_str.parse::<f32>() {
+                )
+                    && let Ok(score) = score_str.parse::<f32>() {
                         let actual_idx = idx.saturating_sub(1);
                         if actual_idx < items.len() && !scored_indices.contains(&actual_idx) {
                             scored_indices.insert(actual_idx);
@@ -497,8 +497,6 @@ mod tests {
                             ));
                         }
                     }
-                }
-            }
         }
 
         results
@@ -520,15 +518,12 @@ mod tests {
             return Some(score.clamp(0.0, 1.0));
         }
 
-        if let Ok(re) = regex::Regex::new(r"(\d+\.?\d*)") {
-            if let Some(captures) = re.captures(trimmed) {
-                if let Some(m) = captures.get(1) {
-                    if let Ok(score) = m.as_str().parse::<f32>() {
+        if let Ok(re) = regex::Regex::new(r"(\d+\.?\d*)")
+            && let Some(captures) = re.captures(trimmed)
+                && let Some(m) = captures.get(1)
+                    && let Ok(score) = m.as_str().parse::<f32>() {
                         return Some(score.clamp(0.0, 1.0));
                     }
-                }
-            }
-        }
 
         None
     }

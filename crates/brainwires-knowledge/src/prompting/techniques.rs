@@ -224,12 +224,10 @@ mod tests {
 
     #[test]
     fn test_technique_category_variants() {
-        let categories = vec![
-            TechniqueCategory::RoleAssignment,
+        let categories = [TechniqueCategory::RoleAssignment,
             TechniqueCategory::EmotionalStimulus,
             TechniqueCategory::Reasoning,
-            TechniqueCategory::Others,
-        ];
+            TechniqueCategory::Others];
         assert_eq!(categories.len(), 4);
     }
 
@@ -279,15 +277,13 @@ mod tests {
 
     #[test]
     fn test_task_characteristic_variants() {
-        let characteristics = vec![
-            TaskCharacteristic::MultiStepReasoning,
+        let characteristics = [TaskCharacteristic::MultiStepReasoning,
             TaskCharacteristic::NumericalCalculation,
             TaskCharacteristic::LogicalDeduction,
             TaskCharacteristic::CreativeGeneration,
             TaskCharacteristic::LongContextSummarization,
             TaskCharacteristic::SpatialReasoning,
-            TaskCharacteristic::VisualUnderstanding,
-        ];
+            TaskCharacteristic::VisualUnderstanding];
         assert_eq!(characteristics.len(), 7);
     }
 }

@@ -9,7 +9,7 @@ use crate::types::agent::PermissionMode;
 use crate::types::provider::ProviderType;
 use brainwires::agent_network::auth::keyring::KeyringKeyStore;
 use brainwires::agent_network::traits::KeyStore;
-use brainwires::brain::bks_pks::KnowledgeSettings as KnowledgeSettingsCore;
+use brainwires::knowledge::bks_pks::KnowledgeSettings as KnowledgeSettingsCore;
 use brainwires::seal::SealConfig;
 
 /// Application configuration

@@ -50,7 +50,7 @@ Backend-agnostic storage, tiered memory, and document management for the Brainwi
   |  +------------------------------------------------------------------+  |
   |                                                                        |
   |  +--- Core Infrastructure -------------------------------------------+  |
-  |  |  EmbeddingProvider --- all-MiniLM-L6-v2 with LRU cache (1000)    |  |
+  |  |  CachedEmbeddingProvider -- all-MiniLM-L6-v2 w/ LRU cache (1000) |  |
   |  +------------------------------------------------------------------+  |
   |                                                                        |
   |  +--- Domain Stores (stores/) --------------------------------------+  |
@@ -99,14 +99,14 @@ brainwires-storage = "0.10"
 Store and search conversation messages:
 
 ```rust
-use brainwires_storage::{LanceDatabase, EmbeddingProvider, MessageStore, MessageMetadata};
+use brainwires_storage::{LanceDatabase, CachedEmbeddingProvider, MessageStore, MessageMetadata};
 use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Initialize storage — one struct, one connection
     let db = Arc::new(LanceDatabase::new("~/.brainwires/db").await?);
-    let embeddings = Arc::new(EmbeddingProvider::new()?);
+    let embeddings = Arc::new(CachedEmbeddingProvider::new()?);
     db.initialize(embeddings.dimension()).await?;
 
     let store = MessageStore::new(db.clone(), embeddings.clone());
@@ -220,7 +220,6 @@ databases/
 | `nornicdb-bolt` | No | NornicDB with Neo4j Bolt transport |
 | `nornicdb-grpc` | No | NornicDB with Qdrant-compatible gRPC |
 | `nornicdb-full` | No | NornicDB with all transports |
-| `vector-db` | No | Backward-compat alias for `lance-backend` |
 | `wasm` | No | WASM-compatible compilation (pure types only) |
 
 ```toml
@@ -305,9 +304,9 @@ RAG-style embedding storage used by the codebase indexing subsystem.
 | `count_by_root_path(root)` | Count embeddings per project |
 | `get_indexed_files(root)` | List indexed file paths |
 
-### EmbeddingProvider
+### CachedEmbeddingProvider
 
-Text embedding with LRU caching, backed by FastEmbed (all-MiniLM-L6-v2, 384 dimensions).
+Text embedding with LRU caching, backed by FastEmbed (all-MiniLM-L6-v2, 384 dimensions). Implements the `brainwires_core::EmbeddingProvider` trait.
 
 | Method | Description |
 |--------|-------------|
@@ -456,13 +455,13 @@ JSON file-based reusable plan template storage with `{{variable}}` substitution.
 
 ```rust
 use brainwires_storage::{
-    LanceDatabase, EmbeddingProvider, MessageStore, ConversationStore,
+    LanceDatabase, CachedEmbeddingProvider, MessageStore, ConversationStore,
 };
 use brainwires_storage::databases::VectorDatabase;
 use std::sync::Arc;
 
 let db = Arc::new(LanceDatabase::new("~/.brainwires/db").await?);
-let embeddings = Arc::new(EmbeddingProvider::new()?);
+let embeddings = Arc::new(CachedEmbeddingProvider::new()?);
 db.initialize(embeddings.dimension()).await?;
 
 // All stores share the same LanceDatabase connection
@@ -476,11 +475,11 @@ let conversations = ConversationStore::new(db.clone());
 ### Store and search conversation messages
 
 ```rust
-use brainwires_storage::{LanceDatabase, EmbeddingProvider, MessageStore, MessageMetadata};
+use brainwires_storage::{LanceDatabase, CachedEmbeddingProvider, MessageStore, MessageMetadata};
 use std::sync::Arc;
 
 let db = Arc::new(LanceDatabase::new("~/.brainwires/db").await?);
-let embeddings = Arc::new(EmbeddingProvider::new()?);
+let embeddings = Arc::new(CachedEmbeddingProvider::new()?);
 db.initialize(embeddings.dimension()).await?;
 
 let store = MessageStore::new(db.clone(), embeddings.clone());
@@ -513,12 +512,12 @@ let results = store.search_conversation("conv-001", "indexing", 3, 0.6).await?;
 ```rust
 use brainwires_storage::{
     TieredMemory, TieredMemoryConfig, MessageStore, MessageMetadata,
-    MemoryTier, LanceDatabase, EmbeddingProvider,
+    MemoryTier, LanceDatabase, CachedEmbeddingProvider,
 };
 use std::sync::Arc;
 
 let db = Arc::new(LanceDatabase::new("~/.brainwires/db").await?);
-let embeddings = Arc::new(EmbeddingProvider::new()?);
+let embeddings = Arc::new(CachedEmbeddingProvider::new()?);
 db.initialize(embeddings.dimension()).await?;
 
 let hot_store = Arc::new(MessageStore::new(db.clone(), embeddings.clone()));
@@ -558,13 +557,13 @@ for result in &results {
 ```rust
 use brainwires_storage::{
     DocumentStore, DocumentScope, DocumentSearchRequest, DocumentType,
-    LanceDatabase, EmbeddingProvider,
+    LanceDatabase, CachedEmbeddingProvider,
 };
 use std::sync::Arc;
 use std::path::Path;
 
 let db = Arc::new(LanceDatabase::new("~/.brainwires/db").await?);
-let embeddings = Arc::new(EmbeddingProvider::new()?);
+let embeddings = Arc::new(CachedEmbeddingProvider::new()?);
 db.initialize(embeddings.dimension()).await?;
 
 let store = DocumentStore::new(db.clone(), embeddings.clone(), "~/.brainwires/bm25");
@@ -650,7 +649,7 @@ use brainwires_storage::LanceDatabase;
 // Native-only stores
 #[cfg(feature = "native")]
 use brainwires_storage::{
-    EmbeddingProvider, CachedEmbeddingProvider, FastEmbedManager,
+    CachedEmbeddingProvider, FastEmbedManager,
     ConversationMetadata, ConversationStore,
     MessageMetadata, MessageStore,
     TaskMetadata, TaskStore, AgentStateMetadata, AgentStateStore,
@@ -675,4 +674,4 @@ use brainwires_storage::prelude::*;
 
 ## License
 
-Licensed under the MIT License. See [LICENSE](../../LICENSE) for details.
+Licensed under either MIT or Apache-2.0 at your option. See [LICENSE-MIT](https://github.com/Brainwires/brainwires-framework/blob/main/LICENSE-MIT) and [LICENSE-APACHE](https://github.com/Brainwires/brainwires-framework/blob/main/LICENSE-APACHE).

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
-use crate::embeddings::EmbeddingProvider;
+use crate::embeddings::CachedEmbeddingProvider;
 
 const TABLE_NAME: &str = "messages";
 
@@ -133,12 +133,12 @@ fn from_record(r: &Record) -> Result<MessageMetadata> {
 /// Store for managing messages with semantic search
 pub struct MessageStore<B: StorageBackend = crate::databases::lance::LanceDatabase> {
     backend: Arc<B>,
-    embeddings: Arc<EmbeddingProvider>,
+    embeddings: Arc<CachedEmbeddingProvider>,
 }
 
 impl<B: StorageBackend> MessageStore<B> {
     /// Create a new message store
-    pub fn new(backend: Arc<B>, embeddings: Arc<EmbeddingProvider>) -> Self {
+    pub fn new(backend: Arc<B>, embeddings: Arc<CachedEmbeddingProvider>) -> Self {
         Self {
             backend,
             embeddings,

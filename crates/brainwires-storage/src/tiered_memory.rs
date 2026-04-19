@@ -25,7 +25,7 @@ use uuid::Uuid;
 use crate::databases::StorageBackend;
 use crate::stores::mental_model_store::{MentalModel, MentalModelStore, ModelType};
 use crate::{
-    EmbeddingProvider, FactStore, LanceDatabase, MessageMetadata, MessageStore, SummaryStore,
+    CachedEmbeddingProvider, FactStore, LanceDatabase, MessageMetadata, MessageStore, SummaryStore,
     TierMetadataStore,
 };
 
@@ -462,7 +462,7 @@ pub struct TieredMemory {
 
     /// Embedding provider for searches
     #[allow(dead_code)]
-    embeddings: Arc<EmbeddingProvider>,
+    embeddings: Arc<CachedEmbeddingProvider>,
 }
 
 impl TieredMemory {
@@ -470,7 +470,7 @@ impl TieredMemory {
     pub async fn new(
         hot_store: Arc<MessageStore>,
         db: Arc<LanceDatabase>,
-        embeddings: Arc<EmbeddingProvider>,
+        embeddings: Arc<CachedEmbeddingProvider>,
         config: TieredMemoryConfig,
     ) -> Self {
         let mental_model = MentalModelStore::new(
@@ -492,7 +492,7 @@ impl TieredMemory {
     pub async fn with_defaults(
         hot_store: Arc<MessageStore>,
         db: Arc<LanceDatabase>,
-        embeddings: Arc<EmbeddingProvider>,
+        embeddings: Arc<CachedEmbeddingProvider>,
     ) -> Self {
         Self::new(hot_store, db, embeddings, TieredMemoryConfig::default()).await
     }

@@ -512,4 +512,4 @@ use brainwires_mcp::prelude::*;
 
 ## License
 
-Licensed under the MIT License. See [LICENSE](../../LICENSE) for details.
+Licensed under either MIT or Apache-2.0 at your option. See [LICENSE-MIT](https://github.com/Brainwires/brainwires-framework/blob/main/LICENSE-MIT) and [LICENSE-APACHE](https://github.com/Brainwires/brainwires-framework/blob/main/LICENSE-APACHE).

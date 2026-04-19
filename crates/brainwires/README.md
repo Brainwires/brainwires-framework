@@ -60,46 +60,56 @@ let response = provider.chat(&messages, None, &options).await?;
 
 ## Features
 
+Source of truth: [`Cargo.toml`](Cargo.toml). Listed in rough capability order.
+
 | Feature | Default | Activates | Description |
 |---------|---------|-----------|-------------|
 | `tools` | **yes** | `brainwires-tools` | File, bash, git, search, web, and validation tools |
 | `agents` | **yes** | `brainwires-agents` | Agent runtime, communication hub, task manager, validation loop |
+| `wasm` | no | `brainwires-core/wasm` | WASM-safe build of `brainwires-core` (no native deps) |
 | `storage` | no | `brainwires-storage` | Unified database layer (9 backends), tiered memory (hot/warm/cold) |
 | `mcp` | no | `brainwires-mcp` | MCP client for connecting to external MCP servers |
-| `mdap` | no | `brainwires-agents/mdap` | Multi-Dimensional Adaptive Planning with k-agent voting |
+| `mcp-server` | no | `rmcp` + `schemars` + `tokio-util` | Low-level MCP server re-exports |
+| `mcp-server-framework` | no | `brainwires-mcp-server` | Higher-level MCP server framework with middleware |
+| `a2a` | no | `brainwires-a2a` | Agent-to-Agent protocol (JSON-RPC 2.0, HTTP, gRPC) |
+| `agent-network` | no | `brainwires-network` | 5-layer networking stack (IPC, TCP, A2A, pub/sub) |
+| `mesh` | no | `brainwires-network/mesh` | Mesh networking for distributed agents (implies `agent-network`) |
+| `mdap` | no | `brainwires-agents/mdap` | Multi-Dimensional Adaptive Planning with k-agent voting (implies `agents`) |
 | `prompting` | no | `brainwires-knowledge/prompting` | Prompt generation, technique library, temperature optimizer |
-| `knowledge` | no | `brainwires-knowledge/knowledge` | Behavioral + personal knowledge caches (implies `brain`) |
+| `knowledge` | no | `brainwires-knowledge/knowledge` | Persistent knowledge caches — BKS/PKS behavioral + personal stores, entity graphs |
+| `dream` | no | `brainwires-knowledge/dream` | Offline consolidation / replay passes over knowledge stores |
+| `rag` | no | `brainwires-knowledge/rag` + `brainwires-storage` | Semantic code search with vector + BM25 hybrid search |
+| `rag-full-languages` | no | `brainwires-knowledge/tree-sitter-languages` | Full tree-sitter language pack for `rag` |
 | `permissions` | no | `brainwires-permissions` | Capability profiles, trust levels, policy engine, audit logging |
 | `orchestrator` | no | `brainwires-tools/orchestrator` | Tool orchestration layer (implies `tools`) |
-| `rag` | no | `brainwires-knowledge/rag` | Semantic code search with vector + BM25 hybrid search |
 | `interpreters` | no | `brainwires-tools/interpreters` | Sandboxed JavaScript and Python code execution |
+| `system` | no | `brainwires-tools/system` | System-level tool primitives |
+| `openapi` | no | `brainwires-tools/openapi` | Auto-generate tools from OpenAPI 3.x specs |
 | `providers` | no | `brainwires-providers` | AI providers (Anthropic, OpenAI, Google, Ollama) |
-| `reasoning` | no | `brainwires-agents/reasoning` | Extended reasoning support (implies `agents`) |
+| `chat` | no | `brainwires-providers` | Chat helpers built on `providers` |
+| `bedrock` | no | `brainwires-providers/bedrock` | AWS Bedrock provider (implies `providers`) |
+| `vertex-ai` | no | `brainwires-providers/vertex-ai` | Google Vertex AI provider (implies `providers`) |
+| `llama-cpp-2` | no | `brainwires-providers/llama-cpp-2` | Local LLM inference (implies `providers`) |
+| `reasoning` | no | `brainwires-reasoning` | Reasoning strategies (planners, validators, routers, scorers) |
 | `seal` | no | `brainwires-agents/seal` | Self-Evolving Autonomous Learner |
-| `relay` | no | `brainwires-network` | Remote relay / bridge for IPC and remote control |
-| `skills` | no | `brainwires-agents/skills` | Pluggable skills system |
-| `eval` | no | `brainwires-agents/eval` | Evaluation framework for benchmarking agents (implies `agents`) |
-| `otel` | no | `brainwires-agents/otel` | OpenTelemetry span export for agent traces (implies `agents`) |
-| `openapi` | no | `brainwires-tools/openapi` | Auto-generate tools from OpenAPI 3.x specs (implies `tools`) |
-| `proxy` | no | `brainwires-proxy` | AI proxy framework |
-| `a2a` | no | `brainwires-a2a` | Agent-to-Agent protocol |
-| `mesh` | no | `brainwires-network/mesh` | Mesh networking for distributed agents |
+| `skills` | no | `brainwires-agents/skills-registry` | Pluggable skills system |
+| `eval` | no | `brainwires-agents/eval` | Evaluation framework for benchmarking agents |
+| `otel` | no | `brainwires-agents/otel` | OpenTelemetry span export for agent traces |
+| `telemetry` | no | `brainwires-telemetry` | OutcomeMetrics, Prometheus export, billing hooks |
 | `audio` | no | `brainwires-hardware/audio` | Audio capture, STT, TTS (16 cloud providers + local Whisper) |
 | `vad` | no | `brainwires-hardware/vad` | WebRTC voice activity detection (`EnergyVad` always available with `audio`) |
 | `wake-word` | no | `brainwires-hardware/wake-word` | Wake word detection — `EnergyTriggerDetector` (zero deps) |
-| `wake-word-porcupine` | no | `brainwires-hardware/wake-word-porcupine` | Picovoice Porcupine wake word (requires AccessKey) |
 | `voice-assistant` | no | `brainwires-hardware/voice-assistant` | Full voice assistant pipeline (implies `audio` + `vad` + `wake-word`) |
 | `gpio` | no | `brainwires-hardware/gpio` | GPIO pin control with safety allow-lists (Linux) |
 | `bluetooth` | no | `brainwires-hardware/bluetooth` | BLE advertisement scanning and adapter enumeration |
 | `network-hardware` | no | `brainwires-hardware/network` | NIC enumeration, IP config, ARP discovery, port scanning |
 | `camera` | no | `brainwires-hardware/camera` | Webcam/camera frame capture (V4L2/AVFoundation/MSMF) |
 | `usb` | no | `brainwires-hardware/usb` | Raw USB device enumeration and transfers (no libusb) |
-| `datasets` | no | `brainwires-datasets` | Training data pipelines (JSONL, tokenization, dedup) |
 | `training` | no | `brainwires-training` | Model fine-tuning (cloud + local) |
-| `autonomy` | no | `brainwires-autonomy` | Self-improvement and evaluation-driven optimization |
-| `brain` | no | `brainwires-knowledge/knowledge` | Persistent knowledge, entity graphs, PKS/BKS |
-| `mcp-server` | no | `rmcp` + `schemars` + `tokio-util` | Re-exports for building MCP servers |
-| `llama-cpp-2` | no | `brainwires-providers/llama-cpp-2` | Local LLM inference (implies `providers`) |
+| `training-cloud` | no | `brainwires-training/cloud` | Cloud fine-tuning only (implies `training`) |
+| `training-local` | no | `brainwires-training/local` | Local LoRA/QLoRA/DoRA via Burn (implies `training`) |
+| `training-full` | no | `brainwires-training/full` + `datasets` | Cloud + local + dataset tooling |
+| `datasets` | no | `brainwires-training/datasets-full` | Training data pipelines (JSONL, tokenization, dedup) |
 
 ### Convenience Features
 

@@ -226,7 +226,7 @@ impl RagClient {
             .collect();
 
         // Optional spectral reranking as a final diversity pass.
-        #[cfg(feature = "spectral-select")]
+        #[cfg(feature = "spectral")]
         if request.spectral_rerank && results.len() > limit {
             use crate::spectral::{DiversityReranker, SpectralReranker, SpectralSelectConfig};
             let keys: Vec<String> = results

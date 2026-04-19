@@ -70,8 +70,10 @@ pub trait RelationsProvider: Send + Sync {
 
 /// Hybrid provider that selects the best available provider per language.
 ///
-/// Uses stack-graphs for supported languages (Python, TypeScript, Java, Ruby)
-/// when the feature is enabled, and falls back to RepoMap for all other languages.
+/// Uses RepoMap (tree-sitter AST-based) for all languages today. The
+/// `stack-graphs` feature is scaffolded for Python/TypeScript/Java/Ruby
+/// but the provider currently returns empty results until the real
+/// stack-graphs crate integration is wired — see the separate plan.
 pub struct HybridRelationsProvider {
     /// Stack-graphs provider (if feature enabled)
     #[cfg(feature = "stack-graphs")]

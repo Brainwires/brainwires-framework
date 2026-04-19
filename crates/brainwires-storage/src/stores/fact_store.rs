@@ -8,7 +8,7 @@ use std::sync::Arc;
 use crate::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, ScoredRecord, StorageBackend, record_get,
 };
-use crate::embeddings::EmbeddingProvider;
+use crate::embeddings::CachedEmbeddingProvider;
 use crate::tiered_memory::{FactType, KeyFact};
 
 const TABLE_NAME: &str = "facts";
@@ -28,8 +28,7 @@ pub fn facts_field_defs(embedding_dim: usize) -> Vec<FieldDef> {
     ]
 }
 
-/// Return an Arrow `Schema` for backward compatibility with
-/// [`LanceDatabase`](crate::databases::lance::LanceDatabase).
+/// Arrow schema for the facts table, used by `LanceDatabase` table creation.
 #[cfg(feature = "native")]
 pub fn facts_schema(embedding_dim: usize) -> std::sync::Arc<arrow_schema::Schema> {
     use arrow_schema::{DataType, Field};
@@ -145,12 +144,12 @@ fn string_to_fact_type(s: &str) -> FactType {
 /// Store for cold tier key facts with semantic search
 pub struct FactStore<B: StorageBackend = crate::databases::lance::LanceDatabase> {
     backend: Arc<B>,
-    embeddings: Arc<EmbeddingProvider>,
+    embeddings: Arc<CachedEmbeddingProvider>,
 }
 
 impl<B: StorageBackend> FactStore<B> {
     /// Create a new fact store
-    pub fn new(backend: Arc<B>, embeddings: Arc<EmbeddingProvider>) -> Self {
+    pub fn new(backend: Arc<B>, embeddings: Arc<CachedEmbeddingProvider>) -> Self {
         Self {
             backend,
             embeddings,

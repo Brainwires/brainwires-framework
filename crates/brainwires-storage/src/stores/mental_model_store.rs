@@ -16,7 +16,7 @@ use uuid::Uuid;
 use crate::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
-use crate::embeddings::EmbeddingProvider;
+use crate::embeddings::CachedEmbeddingProvider;
 
 const TABLE_NAME: &str = "mental_models";
 
@@ -104,12 +104,12 @@ impl MentalModel {
 /// Persistent storage for the mental-model tier.
 pub struct MentalModelStore {
     backend: Arc<dyn StorageBackend>,
-    embeddings: Arc<EmbeddingProvider>,
+    embeddings: Arc<CachedEmbeddingProvider>,
 }
 
 impl MentalModelStore {
     /// Create a new store backed by the given [`StorageBackend`].
-    pub fn new(backend: Arc<dyn StorageBackend>, embeddings: Arc<EmbeddingProvider>) -> Self {
+    pub fn new(backend: Arc<dyn StorageBackend>, embeddings: Arc<CachedEmbeddingProvider>) -> Self {
         Self {
             backend,
             embeddings,

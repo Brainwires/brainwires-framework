@@ -10,7 +10,7 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 // Storage types come from `brainwires::storage::*`
-use brainwires::storage::{EmbeddingProvider, LanceDatabase, MessageMetadata, MessageStore};
+use brainwires::storage::{CachedEmbeddingProvider, LanceDatabase, MessageMetadata, MessageStore};
 
 // RAG types come from `brainwires::rag::*`
 use brainwires::rag::{IndexRequest, QueryRequest, RagClient};
@@ -30,9 +30,9 @@ async fn main() -> Result<()> {
 
     // ── 2. Set up the embedding provider ────────────────────────────────
     //
-    // EmbeddingProvider (type alias for CachedEmbeddingProvider) wraps
-    // FastEmbedManager with an LRU cache for repeated queries.
-    let embeddings: Arc<EmbeddingProvider> = Arc::new(EmbeddingProvider::new()?);
+    // CachedEmbeddingProvider wraps FastEmbedManager with an LRU cache
+    // for repeated queries.
+    let embeddings: Arc<CachedEmbeddingProvider> = Arc::new(CachedEmbeddingProvider::new()?);
     println!("Embedding provider ready (dim={})", embeddings.dimension());
 
     // ── 3. Store conversation messages ──────────────────────────────────

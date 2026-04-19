@@ -42,11 +42,10 @@ pub mod local;
 /// Voice Activity Detection — EnergyVad (always available) + WebRtcVad (`vad` feature).
 pub mod vad;
 
-/// Wake word detection — `EnergyTriggerDetector` (`wake-word`), `RustpotterDetector` (`wake-word-rustpotter`), `PorcupineDetector` (`wake-word-porcupine`).
+/// Wake word detection — `EnergyTriggerDetector` (`wake-word`), `RustpotterDetector` (`wake-word-rustpotter`).
 #[cfg(any(
     feature = "wake-word",
-    feature = "wake-word-rustpotter",
-    feature = "wake-word-porcupine"
+    feature = "wake-word-rustpotter"
 ))]
 pub mod wake_word;
 
@@ -87,14 +86,11 @@ pub use vad::{EnergyVad, SpeechSegment, VoiceActivityDetector};
 pub use vad::{VadMode, WebRtcVad};
 
 // ── Wake word re-exports ──────────────────────────────────────────────────────
-#[cfg(feature = "wake-word-porcupine")]
-pub use wake_word::PorcupineDetector;
 #[cfg(feature = "wake-word-rustpotter")]
 pub use wake_word::RustpotterDetector;
 #[cfg(any(
     feature = "wake-word",
-    feature = "wake-word-rustpotter",
-    feature = "wake-word-porcupine"
+    feature = "wake-word-rustpotter"
 ))]
 pub use wake_word::{EnergyTriggerDetector, WakeWordDetection, WakeWordDetector};
 

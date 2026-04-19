@@ -439,7 +439,7 @@ impl<B: StorageBackend + 'static> TaskStore<B> {
         tasks_field_defs()
     }
 
-    /// Schema for the tasks table as an Arrow schema (for backward compat with LanceDatabase).
+    /// Arrow schema for the tasks table, used by `LanceDatabase` table creation.
     #[cfg(feature = "native")]
     pub fn tasks_arrow_schema() -> Arc<arrow_schema::Schema> {
         use arrow_schema::{DataType, Field, Schema};
@@ -602,7 +602,7 @@ impl<B: StorageBackend + 'static> AgentStateStore<B> {
         agent_states_field_defs()
     }
 
-    /// Schema for the agent_states table as an Arrow schema (for backward compat).
+    /// Arrow schema for the agent_states table, used by `LanceDatabase` table creation.
     #[cfg(feature = "native")]
     pub fn agent_states_arrow_schema() -> Arc<arrow_schema::Schema> {
         use arrow_schema::{DataType, Field, Schema};

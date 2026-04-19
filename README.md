@@ -14,7 +14,7 @@ A modular Rust framework for building AI agents with multi-provider support, too
 
 ## Overview
 
-The Brainwires Framework is a workspace of 16 framework crates plus 20 extras that provide everything needed to build, train, deploy, and coordinate AI agents. Each framework crate is independently publishable to crates.io and usable standalone, but they compose together through the `brainwires` facade crate for a batteries-included experience.
+The Brainwires Framework is a workspace of 16 framework crates plus 25 extras (including the 7-crate `brainclaw` set) that provide everything needed to build, train, deploy, and coordinate AI agents. Each framework crate is independently publishable to crates.io and usable standalone, but they compose together through the `brainwires` facade crate for a batteries-included experience.
 
 **[Full feature list](FEATURES.md)** | **Key capabilities:**
 
@@ -79,8 +79,8 @@ The Brainwires Framework is a workspace of 16 framework crates plus 20 extras th
 | Crate | Description |
 |-------|-------------|
 | [**brainwires-proxy**](extras/brainwires-proxy/README.md) | HTTP proxy for AI API request routing |
-| [**brainwires-brain-server**](extras/brainwires-brain-server/README.md) | MCP server binary for brainwires-brain |
-| [**brainwires-rag-server**](extras/brainwires-rag-server/README.md) | MCP server binary for brainwires-rag |
+| [**brainwires-brain-server**](extras/brainwires-brain-server/README.md) | MCP server binary exposing the `brainwires-knowledge::knowledge` subsystem (BKS/PKS, thoughts, entity graphs) |
+| [**brainwires-rag-server**](extras/brainwires-rag-server/README.md) | MCP server binary exposing the `brainwires-knowledge::rag` subsystem (codebase indexing + hybrid search) |
 | [**agent-chat**](extras/agent-chat/README.md) | Simplified AI chat client with TUI and plain modes |
 | [**reload-daemon**](extras/reload-daemon/README.md) | MCP server for killing and restarting AI coding clients |
 | [**audio-demo-ffi**](extras/audio-demo-ffi/README.md) | UniFFI bindings (cdylib) exposing brainwires-hardware (audio) to C#, Kotlin, Swift, Python |
@@ -100,6 +100,9 @@ The Brainwires Framework is a workspace of 16 framework crates plus 20 extras th
 | [**brainwires-scheduler**](extras/brainwires-scheduler/README.md) | MCP server for cron scheduling |
 | [**brainwires-autonomy**](extras/brainwires-autonomy/README.md) | Autonomous agent operations |
 | [**brainwires-wasm**](extras/brainwires-wasm/README.md) | WASM browser bindings |
+| [**brainwires-billing**](extras/brainwires-billing/README.md) | Billing and cost accounting hooks for agent telemetry |
+| [**brainwires-docs**](extras/brainwires-docs/README.md) | Documentation tooling and reference site generation |
+| [**voice-assistant**](extras/voice-assistant/README.md) | End-to-end voice assistant binary using the `brainwires-hardware` pipeline |
 
 ## Getting Started
 

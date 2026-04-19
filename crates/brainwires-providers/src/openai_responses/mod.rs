@@ -31,6 +31,3 @@ pub use types::{
 // WebSocket transport
 pub use websocket::ResponsesWebSocket;
 pub use ws_provider::OpenAiResponsesWsProvider;
-
-// Backward-compatible alias
-pub use convert::ResponseApiResponse;

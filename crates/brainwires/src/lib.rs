@@ -36,7 +36,7 @@ pub mod agents {
 /// Reasoning — planners, validators, routers, strategies, output parsers.
 #[cfg(feature = "reasoning")]
 pub mod reasoning {
-    pub use brainwires_agents::reasoning::*;
+    pub use brainwires_reasoning::*;
 }
 
 /// Persistent storage — LanceDB vector database, tiered memory, embeddings.
@@ -186,7 +186,7 @@ pub mod vad {
 }
 
 /// Wake word detection.
-#[cfg(any(feature = "wake-word", feature = "wake-word-porcupine"))]
+#[cfg(feature = "wake-word")]
 pub mod wake_word {
     pub use brainwires_hardware::audio::wake_word::*;
 }
@@ -231,8 +231,8 @@ pub mod telemetry {
 }
 
 /// Central knowledge — BKS, PKS, entity graphs, thought processing.
-#[cfg(feature = "brain")]
-pub mod brain {
+#[cfg(feature = "knowledge")]
+pub mod knowledge {
     pub use brainwires_knowledge::knowledge::*;
 }
 
@@ -340,7 +340,7 @@ pub mod prelude {
 
     // Storage — available with "storage" feature
     #[cfg(feature = "storage")]
-    pub use brainwires_storage::{EmbeddingProvider as StorageEmbeddingProvider, TieredMemory};
+    pub use brainwires_storage::{CachedEmbeddingProvider, TieredMemory};
 
     // MCP — available with "mcp" feature
     #[cfg(feature = "mcp")]
@@ -379,4 +379,12 @@ pub mod prelude {
         AudioBuffer, AudioCapture, AudioConfig, AudioDevice, AudioError, AudioPlayback,
         AudioResult, SpeechToText, SttOptions, TextToSpeech, Transcript, TtsOptions, Voice,
     };
+
+    // A2A protocol — available with "a2a" feature
+    #[cfg(feature = "a2a")]
+    pub use brainwires_a2a::AgentCard;
+
+    // Mesh networking — available with "mesh" feature
+    #[cfg(feature = "mesh")]
+    pub use brainwires_network::mesh::{MeshTopology, TopologyType};
 }

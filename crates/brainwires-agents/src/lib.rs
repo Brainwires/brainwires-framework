@@ -100,12 +100,6 @@ pub mod task_orchestrator;
 
 pub mod workflow;
 
-// ── Reasoning (lives in brainwires-reasoning — re-exported here for
-//    backward compatibility with existing `brainwires_agents::reasoning::*`
-//    callers) ──────────────────────────────────────────────────────────────
-#[cfg(feature = "reasoning")]
-pub use brainwires_reasoning as reasoning;
-
 // ── OpenTelemetry export ─────────────────────────────────────────────────────
 #[cfg(feature = "otel")]
 pub mod otel;

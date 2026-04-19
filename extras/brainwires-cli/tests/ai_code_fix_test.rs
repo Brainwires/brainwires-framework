@@ -294,8 +294,8 @@ Respond with ONLY a JSON object in this exact format:
 
     // Try to parse the evaluation JSON
     // Extract JSON from the response (it might be wrapped in other text)
-    if let Some(json_start) = eval_response.find('{') {
-        if let Some(json_end) = eval_response.rfind('}') {
+    if let Some(json_start) = eval_response.find('{')
+        && let Some(json_end) = eval_response.rfind('}') {
             let json_str = &eval_response[json_start..=json_end];
 
             match serde_json::from_str::<serde_json::Value>(json_str) {
@@ -331,7 +331,6 @@ Respond with ONLY a JSON object in this exact format:
                 }
             }
         }
-    }
 }
 
 #[test]

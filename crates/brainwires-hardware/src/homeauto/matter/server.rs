@@ -750,7 +750,7 @@ async fn handle_operational_message(
                     cmd,
                     args,
                     inner,
-                    &subscription_notify_tx,
+                    subscription_notify_tx,
                 )
                 .await;
 
@@ -1244,7 +1244,7 @@ mod tests {
 
     #[tokio::test]
     async fn tear_down_session_clears_subscriptions_and_counters() {
-        use std::sync::atomic::{AtomicU32, Ordering};
+        use std::sync::atomic::AtomicU32;
 
         let server = MatterDeviceServer::new(test_config())
             .await

@@ -84,3 +84,7 @@ required-features = ["cloud"]
 [[example]]
 name = "local_training"
 required-features = ["local"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

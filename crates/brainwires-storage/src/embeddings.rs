@@ -10,7 +10,7 @@
 //! Both implement the `brainwires_core::EmbeddingProvider` trait.
 
 use anyhow::{Context, Result};
-pub use brainwires_core::EmbeddingProvider as EmbeddingProviderTrait;
+pub use brainwires_core::EmbeddingProvider;
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
 use lru::LruCache;
 use std::collections::hash_map::DefaultHasher;
@@ -160,7 +160,7 @@ impl FastEmbedManager {
     }
 }
 
-impl EmbeddingProviderTrait for FastEmbedManager {
+impl EmbeddingProvider for FastEmbedManager {
     fn embed(&self, text: &str) -> Result<Vec<f32>> {
         let embeddings = self.embed_batch_vec(vec![text.to_string()])?;
         embeddings
@@ -295,7 +295,7 @@ impl CachedEmbeddingProvider {
     }
 }
 
-impl EmbeddingProviderTrait for CachedEmbeddingProvider {
+impl EmbeddingProvider for CachedEmbeddingProvider {
     fn embed(&self, text: &str) -> Result<Vec<f32>> {
         self.embed_cached(text)
     }
@@ -323,9 +323,6 @@ impl Clone for CachedEmbeddingProvider {
         }
     }
 }
-
-/// Type alias for backward compatibility
-pub type EmbeddingProvider = CachedEmbeddingProvider;
 
 #[cfg(test)]
 mod tests {

@@ -407,7 +407,7 @@ pub struct App {
     /// Saved main context when entering plan mode (for restoration)
     pub(super) plan_mode_saved_main: Option<SavedMainContext>,
     /// PKS integration for implicit fact detection and behavioral inference
-    pub pks_integration: brainwires::brain::bks_pks::personal::PksIntegration,
+    pub pks_integration: brainwires::knowledge::bks_pks::personal::PksIntegration,
     /// Count of unread Warn/Error journal entries (cleared when journal is opened)
     pub unread_error_count: usize,
 }
@@ -664,7 +664,7 @@ impl App {
             .await
             .context("Failed to initialize LanceDB")?;
         let embeddings = std::sync::Arc::new(
-            crate::storage::embeddings::EmbeddingProvider::new()
+            crate::storage::embeddings::CachedEmbeddingProvider::new()
                 .context("Failed to create embedding provider")?,
         );
 
@@ -848,7 +848,7 @@ impl App {
             plan_mode_state: None,
             plan_mode_saved_main: None,
             // PKS integration for implicit fact detection and behavioral inference
-            pks_integration: brainwires::brain::bks_pks::personal::PksIntegration::default(),
+            pks_integration: brainwires::knowledge::bks_pks::personal::PksIntegration::default(),
             unread_error_count: 0,
         });
 
@@ -912,7 +912,7 @@ impl App {
             .await
             .context("Failed to initialize LanceDB")?;
         let embeddings = std::sync::Arc::new(
-            crate::storage::embeddings::EmbeddingProvider::new()
+            crate::storage::embeddings::CachedEmbeddingProvider::new()
                 .context("Failed to create embedding provider")?,
         );
 
@@ -959,8 +959,8 @@ impl App {
         // Build system prompt with CWD context and behavioral knowledge
         let system_prompt = {
             use crate::utils::paths::PlatformPaths;
-            use brainwires::brain::bks_pks::BehavioralKnowledgeCache;
-            use brainwires::brain::bks_pks::matcher::{MatchedTruth, format_truths_for_prompt};
+            use brainwires::knowledge::bks_pks::BehavioralKnowledgeCache;
+            use brainwires::knowledge::bks_pks::matcher::{MatchedTruth, format_truths_for_prompt};
 
             // Try to load BKS cache and get reliable truths
             let truths_section = if let Ok(cache_path) = PlatformPaths::knowledge_db() {
@@ -1174,7 +1174,7 @@ impl App {
             plan_mode_state: None,
             plan_mode_saved_main: None,
             // PKS integration for implicit fact detection and behavioral inference
-            pks_integration: brainwires::brain::bks_pks::personal::PksIntegration::default(),
+            pks_integration: brainwires::knowledge::bks_pks::personal::PksIntegration::default(),
             unread_error_count: 0,
         });
 

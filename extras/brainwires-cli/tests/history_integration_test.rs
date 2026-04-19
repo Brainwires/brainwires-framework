@@ -55,7 +55,7 @@ fn test_history_list_no_conversations() {
         .stdout(predicate::str::contains("No conversations found"));
 }
 
-// Now that FastEmbed loads lazily, `EmbeddingProvider::new()` no longer
+// Now that FastEmbed loads lazily, `CachedEmbeddingProvider::new()` no longer
 // touches the network, so list paths that construct one but never embed
 // can run offline in CI.
 #[test]

@@ -42,3 +42,7 @@ wasm = ["chrono/wasmbind"]
 [dev-dependencies]
 serde_json = { workspace = true }
 tempfile = "3"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

@@ -59,3 +59,7 @@ required-features = ["native"]
 [[example]]
 name = "trust_audit"
 required-features = ["native"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

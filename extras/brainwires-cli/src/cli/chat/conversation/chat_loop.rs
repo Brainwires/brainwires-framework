@@ -23,7 +23,7 @@ use crate::utils::conversation::ConversationManager;
 use crate::utils::logger::Logger;
 use crate::utils::rich_output::RichOutput;
 use crate::utils::system_prompt::build_system_prompt;
-use brainwires::brain::bks_pks::personal::PksIntegration;
+use brainwires::knowledge::bks_pks::personal::PksIntegration;
 
 /// Handle chat with conversation management
 #[allow(clippy::too_many_arguments)]
@@ -120,7 +120,7 @@ pub async fn handle_chat_with_conversation(
             .context("Failed to create LanceDB client")?,
     );
     let embeddings = Arc::new(
-        crate::storage::EmbeddingProvider::new().context("Failed to create embedding provider")?,
+        crate::storage::CachedEmbeddingProvider::new().context("Failed to create embedding provider")?,
     );
     lance_client
         .initialize(embeddings.dimension())

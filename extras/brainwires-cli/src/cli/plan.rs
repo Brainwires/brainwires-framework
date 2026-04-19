@@ -11,7 +11,7 @@ use crate::agents::AgentManager;
 use crate::auth::SessionManager;
 use crate::config::{ConfigManager, ModelRegistry, PlatformPaths};
 use crate::providers::ProviderFactory;
-use crate::storage::{EmbeddingProvider, LanceDatabase, PlanStore, VectorDatabase};
+use crate::storage::{CachedEmbeddingProvider, LanceDatabase, PlanStore, VectorDatabase};
 use crate::tools::ToolRegistry;
 use crate::types::agent::{AgentContext, PermissionMode};
 use crate::types::plan::{PlanMetadata, PlanStatus};
@@ -320,7 +320,7 @@ async fn save_plan(
             .context("Failed to create LanceDatabase")?,
     );
 
-    let embeddings = Arc::new(EmbeddingProvider::new()?);
+    let embeddings = Arc::new(CachedEmbeddingProvider::new()?);
     client.initialize(embeddings.dimension()).await?;
 
     let plan_store = PlanStore::new(client, embeddings);
@@ -369,7 +369,7 @@ async fn initialize_plan_storage() -> Result<(Arc<LanceDatabase>, PlanStore)> {
             .context("Failed to create LanceDatabase")?,
     );
 
-    let embeddings = Arc::new(EmbeddingProvider::new()?);
+    let embeddings = Arc::new(CachedEmbeddingProvider::new()?);
     client.initialize(embeddings.dimension()).await?;
 
     let plan_store = PlanStore::new(client.clone(), embeddings);

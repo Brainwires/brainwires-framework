@@ -24,7 +24,7 @@ use crate::utils::checkpoint::CheckpointManager;
 use crate::utils::paths::PlatformPaths;
 use crate::utils::system_prompt::build_system_prompt;
 use brainwires::agent_network::ipc::{AgentMessage, DisplayMessage};
-use brainwires::brain::bks_pks::{BehavioralKnowledgeCache, LearningCollector, detect_correction};
+use brainwires::knowledge::bks_pks::{BehavioralKnowledgeCache, LearningCollector, detect_correction};
 
 /// Core agent state that persists across viewer attach/detach cycles
 pub struct AgentState {
@@ -193,7 +193,7 @@ impl AgentState {
             .await
             .context("Failed to initialize LanceDB")?;
         let embeddings = std::sync::Arc::new(
-            crate::storage::embeddings::EmbeddingProvider::new()
+            crate::storage::embeddings::CachedEmbeddingProvider::new()
                 .context("Failed to create embedding provider")?,
         );
 
@@ -236,8 +236,8 @@ impl AgentState {
         // Build system prompt
         let system_prompt = {
             use crate::utils::paths::PlatformPaths;
-            use brainwires::brain::bks_pks::BehavioralKnowledgeCache;
-            use brainwires::brain::bks_pks::matcher::{MatchedTruth, format_truths_for_prompt};
+            use brainwires::knowledge::bks_pks::BehavioralKnowledgeCache;
+            use brainwires::knowledge::bks_pks::matcher::{MatchedTruth, format_truths_for_prompt};
 
             let truths_section = if let Ok(cache_path) = PlatformPaths::knowledge_db() {
                 if let Ok(cache) = BehavioralKnowledgeCache::new(&cache_path, 100) {

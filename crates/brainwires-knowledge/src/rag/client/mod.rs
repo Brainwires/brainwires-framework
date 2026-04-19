@@ -11,7 +11,7 @@
 //! - [`locking`] — two-layer index locking (filesystem + in-process broadcast)
 //! - [`search`] — indexing dispatch, semantic search, filtered search, statistics, clear, git history
 //! - [`ensemble`] — multi-strategy ensemble query with Reciprocal Rank Fusion
-//! - [`reranking`] — pluggable diversity/relevance reranking (`spectral-select` feature)
+//! - [`reranking`] — pluggable diversity/relevance reranking (`spectral` feature)
 //! - `code_analysis` — find definition, find references, call graph (`code-analysis` feature)
 
 #[cfg(feature = "code-analysis")]
@@ -50,7 +50,7 @@ mod search;
 /// Multi-strategy ensemble query with RRF fusion.
 mod ensemble;
 
-/// Pluggable diversity/relevance reranking (requires `spectral-select`).
+/// Pluggable diversity/relevance reranking (requires `spectral`).
 mod reranking;
 
 /// Code-navigation: find definition, find references, call graph (requires `code-analysis`).

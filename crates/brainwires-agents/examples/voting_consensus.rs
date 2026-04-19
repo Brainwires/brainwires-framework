@@ -20,8 +20,7 @@ fn main() {
     // 1. Create sampled responses with metadata
     println!("--- 1. Creating Sampled Responses ---\n");
 
-    let responses = vec![
-        SampledResponse::new(
+    let responses = [SampledResponse::new(
             "Paris".to_string(),
             ResponseMetadata {
                 token_count: 12,
@@ -65,8 +64,7 @@ fn main() {
                 model: Some("gpt-4o".to_string()),
             },
             "A very long response that was truncated...".to_string(),
-        ),
-    ];
+        )];
 
     for (i, resp) in responses.iter().enumerate() {
         println!(

@@ -74,11 +74,6 @@ nusb = { version = "0.1", optional = true }
 # Enable this feature only once the upstream conflict is resolved.
 rustpotter = { version = "3.0", optional = true }
 
-# Wake word detection — Porcupine commercial (wake-word-porcupine feature)
-# pv_porcupine is not published to crates.io; add it manually as a git dep:
-#   pv_porcupine = { git = "https://github.com/Picovoice/porcupine", optional = true }
-# then un-comment the dep: prefix in the wake-word-porcupine feature below.
-
 # Voice Activity Detection — WebRTC VAD (vad feature)
 webrtc-vad = { version = "0.4", optional = true }
 
@@ -153,10 +148,6 @@ wake-word = ["audio"]
 # NOTE: rustpotter 3.0.x has a candle-core/rand_distr dep conflict as of 2026-03.
 # Enable when the upstream issue is resolved.
 wake-word-rustpotter = ["dep:rustpotter", "wake-word"]
-
-# Wake word detection via Porcupine (opt-in, requires Picovoice AccessKey + git dep)
-# See the pv_porcupine comment in [dependencies] above for setup instructions.
-wake-word-porcupine = ["wake-word"]
 
 # Full voice assistant pipeline (capture → wake word → VAD → STT → handler → TTS → playback)
 voice-assistant = ["audio", "vad", "wake-word"]
@@ -279,4 +270,8 @@ required-features = ["matter"]
 [[test]]
 name = "matter_integration"
 required-features = ["matter"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 

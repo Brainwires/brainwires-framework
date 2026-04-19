@@ -34,3 +34,7 @@ tempfile = { workspace = true }
 default = ["native"]
 native  = ["sqlite", "dep:dirs"]
 sqlite  = ["dep:rusqlite"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

@@ -78,7 +78,7 @@ pub mod types;
 /// Subscription registry for Interaction Model Subscribe/Report.
 pub mod subscription_manager;
 /// Verhoeff check-digit algorithm used by the 11-digit manual pairing code.
-pub mod verhoeff;
+pub(crate) mod verhoeff;
 
 pub use commissioning::{CommissioningPayload, parse_manual_code, parse_qr_code};
 pub use commissioning_session::{CommissioningEvent, CommissioningSession, Phase};

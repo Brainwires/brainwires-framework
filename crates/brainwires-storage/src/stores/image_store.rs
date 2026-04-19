@@ -10,7 +10,7 @@ use std::sync::Arc;
 use crate::databases::{
     FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
-use crate::embeddings::EmbeddingProvider;
+use crate::embeddings::CachedEmbeddingProvider;
 use crate::image_types::{
     ImageFormat, ImageMetadata, ImageSearchRequest, ImageSearchResult, ImageStorage,
 };
@@ -206,12 +206,12 @@ fn storage_from_record(r: &Record) -> Option<ImageStorage> {
 /// Store for analyzed images with semantic search
 pub struct ImageStore<B: StorageBackend = crate::databases::lance::LanceDatabase> {
     backend: Arc<B>,
-    embeddings: Arc<EmbeddingProvider>,
+    embeddings: Arc<CachedEmbeddingProvider>,
 }
 
 impl<B: StorageBackend> ImageStore<B> {
     /// Create a new image store
-    pub fn new(backend: Arc<B>, embeddings: Arc<EmbeddingProvider>) -> Self {
+    pub fn new(backend: Arc<B>, embeddings: Arc<CachedEmbeddingProvider>) -> Self {
         Self {
             backend,
             embeddings,

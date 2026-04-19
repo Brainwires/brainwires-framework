@@ -40,7 +40,7 @@ pub struct OrchestratorAgent {
     // Track last prompt generation for learning
     last_generated_prompt: Option<brainwires::prompting::generator::GeneratedPrompt>,
     // Embedding provider for adaptive prompting (Phase 8)
-    embedding_provider: Option<Arc<crate::storage::embeddings::EmbeddingProvider>>,
+    embedding_provider: Option<Arc<crate::storage::embeddings::CachedEmbeddingProvider>>,
 }
 
 impl OrchestratorAgent {
@@ -166,7 +166,7 @@ impl OrchestratorAgent {
     pub fn enable_adaptive_prompting(
         &mut self,
         generator: brainwires::prompting::PromptGenerator,
-        embedding_provider: Arc<crate::storage::embeddings::EmbeddingProvider>,
+        embedding_provider: Arc<crate::storage::embeddings::CachedEmbeddingProvider>,
     ) {
         self.prompt_generator = Some(generator);
         self.embedding_provider = Some(embedding_provider);
@@ -188,7 +188,7 @@ impl OrchestratorAgent {
     /// Set the embedding provider for adaptive prompting
     pub fn set_embedding_provider(
         &mut self,
-        provider: Arc<crate::storage::embeddings::EmbeddingProvider>,
+        provider: Arc<crate::storage::embeddings::CachedEmbeddingProvider>,
     ) {
         self.embedding_provider = Some(provider);
     }

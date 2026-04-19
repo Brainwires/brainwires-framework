@@ -17,7 +17,7 @@ Model training and fine-tuning for the Brainwires Agent Framework — cloud fine
 - **Dual-path** — one API for cloud fine-tuning and local adapter training; switch with a feature flag
 - **Provider-agnostic** — `FineTuneProvider` trait abstracts all cloud APIs behind `submit`, `status`, `cancel`, `download`
 - **Adapter-first** — local training uses parameter-efficient adapters (LoRA/QLoRA/DoRA) rather than full fine-tuning
-- **Dataset-integrated** — consumes `brainwires-datasets` types directly for seamless data → training pipelines
+- **Dataset-integrated** — built-in `datasets` feature handles the full data → training pipeline (JSONL, tokenization, dedup); absorbed from the deprecated `brainwires-datasets` crate
 - **Observable** — `TrainingProgress` and `TrainingMetrics` provide real-time job monitoring
 
 ```text
@@ -360,7 +360,7 @@ Use via the `brainwires` facade crate:
 brainwires = { version = "0.10", features = ["training"] }
 ```
 
-Or depend on `brainwires-training` directly for standalone training capabilities. The crate depends on `brainwires-datasets` for data types, so both are pulled in together.
+Or depend on `brainwires-training` directly for standalone training capabilities. Dataset handling (JSONL, tokenization, dedup) lives behind the `datasets` feature, absorbed from the deprecated `brainwires-datasets` crate.
 
 ## References
 

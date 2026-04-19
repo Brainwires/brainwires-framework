@@ -116,7 +116,7 @@ console.log(stateless); // → stateless protocol format
 | Feature | Default | Description |
 |---------|---------|-------------|
 | *(none)* | Yes | Core bindings: `version`, `validate_message`, `validate_tool`, `serialize_history` |
-| `interpreters` | No | Enables `brainwires-code-interpreters` re-export for WASM code execution |
+| `interpreters` | No | Enables `brainwires-tools/interpreters` re-export for WASM code execution |
 | `orchestrator` | No | Enables `WasmOrchestrator` and `ExecutionLimits` with Rhai script engine, `js-sys`, `web-sys`, and real-time timeout support |
 
 ```toml

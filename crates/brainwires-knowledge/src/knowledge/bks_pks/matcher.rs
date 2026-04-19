@@ -385,10 +385,8 @@ mod tests {
     fn test_find_matches() {
         let matcher = ContextMatcher::new(0.5, 30, 10);
 
-        let truths = vec![
-            create_test_truth("pm2 logs", "Use --nostream flag"),
-            create_test_truth("cargo build", "Use cargo-watch for watch mode"),
-        ];
+        let truths = [create_test_truth("pm2 logs", "Use --nostream flag"),
+            create_test_truth("cargo build", "Use cargo-watch for watch mode")];
 
         let matches = matcher.find_matches("run pm2 logs for my app", truths.iter());
 
@@ -400,10 +398,8 @@ mod tests {
     fn test_search() {
         let matcher = ContextMatcher::new(0.0, 30, 10);
 
-        let truths = vec![
-            create_test_truth("pm2 logs", "Use --nostream flag to avoid blocking"),
-            create_test_truth("docker", "Use --follow=false"),
-        ];
+        let truths = [create_test_truth("pm2 logs", "Use --nostream flag to avoid blocking"),
+            create_test_truth("docker", "Use --follow=false")];
 
         let matches = matcher.search("nostream", truths.iter());
 

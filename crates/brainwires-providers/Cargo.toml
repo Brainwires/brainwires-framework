@@ -77,3 +77,7 @@ required-features = ["native"]
 [[example]]
 name = "rate_limited_client"
 required-features = ["native"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

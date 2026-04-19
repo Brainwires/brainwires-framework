@@ -256,8 +256,6 @@ pub fn build_request(
     }
 }
 
-/// Backward-compatible type alias.
-pub type ResponseApiResponse = ResponseObject;
 
 #[cfg(test)]
 mod tests {

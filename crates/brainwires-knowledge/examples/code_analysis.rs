@@ -29,18 +29,16 @@ fn main() -> anyhow::Result<()> {
 
     // Check language support and precision levels
     let languages = ["Rust", "Python", "JavaScript", "TypeScript", "Go", "Java"];
-    println!("{:<14} {:<10} {}", "Language", "Supported", "Precision");
+    println!("{:<14} {:<10} Precision", "Language", "Supported");
     println!("{:-<44}", "");
     for lang in &languages {
         let supported = provider.supports_language(lang);
         let precision = provider.precision_level(lang);
-        let has_sg = provider.has_stack_graphs_for(lang);
         println!(
-            "{:<14} {:<10} {} {}",
+            "{:<14} {:<10} {}",
             lang,
             if supported { "yes" } else { "no" },
             precision.description(),
-            if has_sg { "(stack-graphs)" } else { "" }
         );
     }
     println!();

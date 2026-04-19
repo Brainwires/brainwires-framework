@@ -1073,7 +1073,7 @@ fn parse_noc_response_status(resp: &[u8]) -> Option<u8> {
     let body = if resp.first() == Some(&0x15u8) {
         &resp[1..]
     } else {
-        &resp[..]
+        resp
     };
     let mut i = 0;
     while i + 2 < body.len() {
@@ -1092,7 +1092,7 @@ fn extract_outer_octet_string(resp: &[u8], tag: u8) -> Option<Vec<u8>> {
     let body = if resp.first() == Some(&0x15u8) {
         &resp[1..]
     } else {
-        &resp[..]
+        resp
     };
     // Walk top-level fields only (don't descend into nested structs).
     let mut i = 0;

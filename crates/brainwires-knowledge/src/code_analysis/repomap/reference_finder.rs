@@ -251,7 +251,7 @@ fn greet(name: &str) {
         let references = finder.find_references(&file_info, &symbol_index).unwrap();
 
         // First occurrence is a write, second is a read
-        assert!(references.len() >= 1);
+        assert!(!references.is_empty());
         assert!(
             references
                 .iter()

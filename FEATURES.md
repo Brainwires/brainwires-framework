@@ -1,6 +1,6 @@
 # Brainwires Framework — Complete Feature List
 
-A comprehensive catalog of every feature provided by the framework's 16 crates and 20 extras.
+A comprehensive catalog of every feature provided by the framework's 16 crates and 25 extras.
 
 ---
 
@@ -650,7 +650,6 @@ Keyword-triggered activation for the voice assistant pipeline.
 - **`WakeWordDetection`** — `keyword: String`, `score: f32` (0–1), `timestamp_ms: u64`
 - **`EnergyTriggerDetector`** — Zero-dependency energy-burst trigger. Fires when audio exceeds a configurable dB threshold for N consecutive 30 ms frames. Useful as a zero-cost "tap-to-wake" or "clap-to-wake" fallback.
 - **`RustpotterDetector`** (feature: `wake-word-rustpotter`) — Pure-Rust wake word detection using DTW or ONNX neural models (`.rpw` files). `from_model_file(path, threshold)`, `from_model_files(paths, threshold)`.
-- **`PorcupineDetector`** (feature: `wake-word-porcupine`) — Picovoice Porcupine; maximum accuracy. `from_builtin(access_key, keyword)`, `from_keyword_files(access_key, paths, sensitivities)`. Requires a free Picovoice AccessKey.
 
 ### Voice Assistant Pipeline (feature: `voice-assistant`)
 
@@ -864,7 +863,7 @@ Full peer-to-peer audio/video/DataChannel support via the Brainwires `webrtc-rs`
 
 ## Datasets & Training Data
 
-**Crate:** `brainwires-datasets`
+**Crate:** `brainwires-training` (feature `datasets` — absorbed from the deprecated `brainwires-datasets` crate)
 
 Training data pipelines for fine-tuning workflows.
 
@@ -1047,7 +1046,7 @@ Self-improvement, Git workflows, and human-out-of-loop execution.
 
 ## Reasoning & Inference
 
-**Module:** `brainwires-agents::reasoning` (feature: `reasoning`)
+**Crate:** `brainwires-reasoning` (facade: `brainwires::reasoning` behind the `reasoning` feature)
 
 Provider-agnostic inference components for quality and cost optimization.
 
@@ -1095,9 +1094,9 @@ Monte Carlo evaluation framework for agent quality assurance.
 
 ---
 
-## Analytics
+## Telemetry & Analytics
 
-**Crate:** `brainwires-analytics`
+**Crate:** `brainwires-telemetry` (previously `brainwires-analytics` — renamed in the 0.10 consolidation)
 
 Unified analytics collection, persistence, and querying — zero-friction observability for all framework components. Includes EU AI Act / GDPR compliance tooling.
 
@@ -1138,7 +1137,7 @@ Attach to `ProviderCall` / `AgentRun` events for EU AI Act, GDPR, HIPAA, SOC2 au
 ### Sinks
 
 - **`MemoryAnalyticsSink`** — In-process ring buffer (`DEFAULT_CAPACITY = 1_000`); useful for testing and dashboards. Helpers: `deposit()` (sync), `drain_matching(pred)`, `retain(pred)`.
-- **`SqliteAnalyticsSink`** (feature `sqlite`) — Persists events to a local SQLite database at `<data_dir>/brainwires-analytics/analytics.db`.
+- **`SqliteAnalyticsSink`** (feature `sqlite`) — Persists events to a local SQLite database at `<data_dir>/brainwires-telemetry/analytics.db`.
 
 ### Querying (feature `sqlite`)
 
@@ -1217,11 +1216,11 @@ Lightweight MCP-native issue tracking server inspired by Linear's agent interfac
 
 ### brainwires-brain-server *(extras/)*
 
-MCP server binary wrapping `brainwires-brain` for use with AI assistants (Claude Desktop, etc.).
+MCP server binary wrapping `brainwires-knowledge::knowledge` for use with AI assistants (Claude Desktop, etc.). The underlying "brain" subsystem is now part of `brainwires-knowledge`.
 
 ### brainwires-rag-server *(extras/)*
 
-MCP server binary wrapping `brainwires-rag` for semantic code search via MCP protocol.
+MCP server binary wrapping `brainwires-knowledge::rag` (formerly the standalone `brainwires-rag` crate) for semantic code search via MCP protocol.
 
 ### agent-chat *(extras/)*
 

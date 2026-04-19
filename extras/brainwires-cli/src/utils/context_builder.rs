@@ -17,7 +17,7 @@ use crate::types::message::{Message, MessageContent, Role};
 use crate::utils::retrieval_gate::{RetrievalNeed, classify_retrieval_need, needs_retrieval};
 use brainwires::seal::{ResolvedReference, SealProcessingResult};
 
-use brainwires::agents::reasoning::RelevanceScorer;
+use brainwires::reasoning::RelevanceScorer;
 
 /// Configuration for context building
 #[derive(Debug, Clone)]
@@ -833,7 +833,7 @@ impl ContextBuilder {
     /// Formatted string for injection, or empty string if PKS disabled or no facts
     pub fn build_personal_context(&self, user_query: Option<&str>) -> String {
         use crate::utils::paths::PlatformPaths;
-        use brainwires::brain::bks_pks::personal::{PersonalFactMatcher, PersonalKnowledgeCache};
+        use brainwires::knowledge::bks_pks::personal::{PersonalFactMatcher, PersonalKnowledgeCache};
 
         if !self.config.enable_personal_knowledge {
             return String::new();

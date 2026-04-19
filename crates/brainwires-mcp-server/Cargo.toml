@@ -42,3 +42,7 @@ reqwest = { workspace = true }
 telemetry = ["dep:brainwires-telemetry", "brainwires-telemetry/native", "dep:chrono"]
 http = ["dep:axum", "dep:tokio-stream"]
 oauth = ["dep:jsonwebtoken", "dep:reqwest"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

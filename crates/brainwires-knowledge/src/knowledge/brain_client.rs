@@ -9,7 +9,7 @@ use crate::knowledge::bks_pks::{
     BehavioralKnowledgeCache, PersonalFactCollector, PersonalKnowledgeCache,
 };
 use brainwires_storage::{
-    EmbeddingProvider, FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
+    CachedEmbeddingProvider, FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
 };
 
 #[cfg(feature = "knowledge")]
@@ -23,7 +23,7 @@ use crate::knowledge::types::*;
 /// Central orchestrator for all Open Brain storage operations.
 pub struct BrainClient {
     backend: Arc<dyn StorageBackend>,
-    embeddings: Arc<EmbeddingProvider>,
+    embeddings: Arc<CachedEmbeddingProvider>,
     pks_cache: PersonalKnowledgeCache,
     bks_cache: BehavioralKnowledgeCache,
     fact_collector: PersonalFactCollector,
@@ -71,7 +71,7 @@ impl BrainClient {
     ///
     /// Creates a LanceDatabase internally as the default backend.
     pub async fn with_paths(lance_path: &str, pks_path: &str, bks_path: &str) -> Result<Self> {
-        let embeddings = Arc::new(EmbeddingProvider::new()?);
+        let embeddings = Arc::new(CachedEmbeddingProvider::new()?);
         let backend: Arc<dyn StorageBackend> = Arc::new(LanceDatabase::new(lance_path).await?);
 
         Self::with_backend(backend, embeddings, pks_path, bks_path).await
@@ -83,7 +83,7 @@ impl BrainClient {
     /// [`StorageBackend`] implementation can be used (LanceDB, Postgres, etc.).
     pub async fn with_backend(
         backend: Arc<dyn StorageBackend>,
-        embeddings: Arc<EmbeddingProvider>,
+        embeddings: Arc<CachedEmbeddingProvider>,
         pks_path: &str,
         bks_path: &str,
     ) -> Result<Self> {

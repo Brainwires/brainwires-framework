@@ -181,11 +181,10 @@ async fn process_response_runs_all_layers() {
 
         async fn process_response(&self, response: &mut JsonRpcResponse, _ctx: &RequestContext) {
             // Add marker to the response result
-            if let Some(result) = &mut response.result {
-                if let Some(obj) = result.as_object_mut() {
+            if let Some(result) = &mut response.result
+                && let Some(obj) = result.as_object_mut() {
                     obj.insert(self.marker.clone(), serde_json::Value::Bool(true));
                 }
-            }
         }
     }
 

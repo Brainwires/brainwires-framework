@@ -131,7 +131,7 @@ rag = [
     "dep:rmcp", "dep:schemars", "dep:clap",
     "dep:dirs", "dep:futures", "dep:tracing-subscriber",
     "dep:lancedb", "dep:arrow-array", "dep:arrow-schema",
-    "brainwires-storage/vector-db",
+    "brainwires-storage/lance-backend",
     "brainwires-core/native",
     "brainwires-core/schemars",
     "tokio/full",
@@ -165,9 +165,6 @@ qdrant-backend = ["brainwires-storage/qdrant-backend"]
 
 # Alternative folder name for data storage
 alt-folder-name = []
-
-# Spectral subset selection (deprecated alias for spectral)
-spectral-select = ["spectral"]
 
 # Stack-graphs (prepared, not yet fully implemented)
 stack-graphs = []
@@ -204,3 +201,7 @@ required-features = ["rag"]
 [[example]]
 name = "code_analysis"
 required-features = ["code-analysis", "rag"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

@@ -1,9 +1,12 @@
-//! Stack-graphs based high-precision name resolution.
+//! Stack-graphs based name resolution (stub).
 //!
-//! Uses the `stack-graphs` algorithm to provide ~95% accuracy name
-//! resolution for Python, TypeScript, Java, and Ruby.
+//! This module is behind the `stack-graphs` feature flag and is currently a
+//! **stub**: `extract_definitions` and `extract_references` return empty
+//! results. The `stack-graphs` crate integration for Python / TypeScript /
+//! Java / Ruby is tracked in a separate plan and is not yet wired.
 //!
-//! This module is behind the `stack-graphs` feature flag.
+//! Real implementations should re-enable `PrecisionLevel::High` once they
+//! return non-empty results with verified accuracy.
 
 use anyhow::Result;
 use std::collections::HashMap;

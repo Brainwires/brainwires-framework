@@ -6,85 +6,79 @@ Crates organized in layers. Arrows (`->`) indicate internal dependencies. For st
 brainwires  (facade — re-exports all crates via feature flags)
 │
 ├─── Foundation (no internal deps)
-│    ├── brainwires-core            Core types, traits, messages, tools, tasks
-│    ├── brainwires-a2a             Agent-to-Agent protocol (JSON-RPC, REST, gRPC)
-│    └── brainwires-a2a             Agent-to-Agent protocol (JSON-RPC, REST, gRPC)
+│    └── brainwires-core               Core types, traits, messages, tools, tasks, embeddings
 │
-├─── Providers
-│    ├── brainwires-providers       AI providers (Anthropic, OpenAI, Google, Ollama, Bedrock, Vertex AI)
+├─── Infrastructure
+│    ├── brainwires-telemetry          OutcomeMetrics, Prometheus export, billing hooks
 │    │   └─> core
-│    └── brainwires-hardware         Audio, GPIO, Bluetooth, network, camera, USB hardware I/O
+│    ├── brainwires-storage            Unified database layer (9 backends), tiered memory, embeddings
+│    │   └─> core
+│    ├── brainwires-providers          AI providers (Anthropic, OpenAI, Google, Ollama, Bedrock, Vertex AI)
+│    │   └─> core
+│    │   └─> telemetry (opt, "telemetry" feature)
+│    └── brainwires-hardware           Audio, GPIO, Bluetooth, camera, USB, Matter, homeauto I/O
 │        └─> providers (opt, "audio" feature)
 │
-├─── Tools & Agents
-│    ├── brainwires-tools     Built-in tools (file ops, git, bash, web, search, validation)
+├─── Protocols
+│    ├── brainwires-mcp                MCP client (rmcp-backed)
+│    │   └─> core
+│    ├── brainwires-mcp-server         MCP server framework with middleware; optional HTTP+SSE, OAuth
+│    │   └─> core
+│    └── brainwires-a2a                Agent-to-Agent protocol (JSON-RPC, REST, gRPC)
+│        └─> core
+│
+├─── Intelligence
+│    └── brainwires-knowledge          Knowledge (BKS/PKS), prompting, RAG (indexing + hybrid search)
+│        └─> core
+│        └─> storage (opt, "knowledge" / "rag" features)
+│
+├─── Action
+│    ├── brainwires-tools              File ops, git, bash, web, search, validation, interpreters
 │    │   └─> core
 │    │   └─> knowledge (opt, "rag" feature)
-│    │   └─> tools (interpreters feature) (opt, "interpreters" feature)
-│    ├── brainwires-agents          Agent orchestration, lifecycle hooks, coordination patterns, SEAL
+│    └── brainwires-permissions        Permission policies, audit logging, trust profiles
+│        └─> core
+│
+├─── Reasoning
+│    └── brainwires-reasoning          Planners, validators, routers, strategies, scorers, output parsers
+│        └─> core
+│        └─> tools (dep on ToolCategory in router.rs)
+│
+├─── Agency
+│    ├── brainwires-agents             Agent runtime, communication hub, task decomposition, MDAP, SEAL, skills, eval
 │    │   └─> core
 │    │   └─> tools
 │    │   └─> knowledge (opt, "seal-knowledge" feature)
 │    │   └─> permissions (opt, "seal-feedback" feature)
-│    └── brainwires-permissions     Permission policies, audit logging, trust profiles
-│        └─> core
-│
-├─── Storage & Intelligence
-│    ├── brainwires-storage         Unified database layer (9 backends), tiered memory, embeddings
-│    │   └─> core
-│    └── brainwires-knowledge       Unified intelligence — knowledge graphs, adaptive prompting, RAG, dream consolidation
-│        └─> core
-│        └─> storage (opt, "knowledge" and "rag" features)
-│
-├─── Networking
-│    ├── brainwires-mcp             MCP client, transport, protocol types
-│    │   └─> core
-│    └── brainwires-network   MCP server, IPC, remote bridge, 5-layer protocol stack, mesh networking
+│    └── brainwires-network            IPC, TCP, remote bridge, 5-layer protocol stack, mesh
 │        └─> core
 │        └─> mcp
 │        └─> a2a (opt, "a2a-transport" feature)
 │
-├─── Learning & Training
-│    ├── brainwires-datasets        Training data pipelines — JSONL, tokenization, dedup
-│    │   └─> core
-│    └── brainwires-training        Fine-tuning — cloud (Anthropic/OpenAI) & local (LoRA/QLoRA)
-│        └─> core
-│        └─> datasets
-│        └─> providers (opt, "cloud" feature)
-│
-├─── System
-│    └── brainwires-system          Generic OS-level primitives — FS reactor, service management
-│        (no internal deps)
-│
-├─── Autonomy
-│    └── brainwires-autonomy        Self-improvement, Git workflows, human-out-of-loop execution
-│        └─> core
-│        └─> agents (opt)
-│        └─> tools (opt)
-│        └─> training (opt)
-│        └─> mdap (opt)
-│        └─> knowledge (opt, "attention" feature)
-│        └─> datasets (opt)
-│        └─> hardware (opt, "gpio" feature — re-exports GPIO)
-│
-└─── WASM
-     └── brainwires-wasm            Browser deployment bindings
-         └─> core (wasm)
-         └─> mdap (wasm)
-         └─> tools (opt)
-         └─> tools (interpreters feature) (opt)
+└─── Training
+     └── brainwires-training           Fine-tuning — cloud (6 providers) & local LoRA/QLoRA/DoRA (Burn)
+         └─> core
+         └─> providers (opt, "cloud" feature)
 ```
 
 ## Longest Dependency Chain
 
+With the `rag` features active (which pull in the optional `storage` and `knowledge` edges of `tools`), the longest leaf-to-leaf chain is 4 hops:
+
 ```
-core -> storage -> cognition (knowledge feature)
+core -> storage -> knowledge -> tools -> reasoning
+core -> storage -> knowledge -> tools -> agents
 ```
+
+`reasoning` and `agents` both depend on `tools` directly; there is no edge between them. Without the optional `rag` features the chain collapses to `core -> tools -> reasoning` / `core -> tools -> agents`.
 
 ## Feature Presets (facade crate)
 
+See [`crates/brainwires/README.md`](brainwires/README.md) for the full feature table. Convenience presets:
+
 | Preset | Includes |
 |--------|----------|
-| `agent-full` | agents, permissions, cognition, tools |
-| `researcher` | providers, agents, storage, cognition, training, datasets |
+| `agent-full` | agents, permissions, prompting, tools |
+| `researcher` | providers, agents, storage, rag, training, datasets |
+| `learning` | seal, knowledge, permissions, seal-knowledge, seal-feedback |
 | `full` | everything |
