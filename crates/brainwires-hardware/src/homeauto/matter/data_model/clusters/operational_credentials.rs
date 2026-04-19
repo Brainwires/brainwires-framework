@@ -84,10 +84,15 @@ pub const ATTR_COMMISSIONED_FABRICS: u32 = 0x0003;
 // ── Command IDs ───────────────────────────────────────────────────────────────
 
 pub const CMD_ATTESTATION_REQUEST: u32 = 0x00;
-pub const CMD_CSR_REQUEST: u32 = 0x02;
+pub const CMD_CERTIFICATE_CHAIN_REQUEST: u32 = 0x02;
+pub const CMD_CSR_REQUEST: u32 = 0x04;
 pub const CMD_ADD_NOC: u32 = 0x06;
 pub const CMD_UPDATE_FABRIC_LABEL: u32 = 0x0B;
 pub const CMD_REMOVE_FABRIC: u32 = 0x0C;
+
+/// CertificateChainRequest type (spec §11.17.5.3). 1 = DAC, 2 = PAI.
+const CERT_TYPE_DAC: u8 = 1;
+const CERT_TYPE_PAI: u8 = 2;
 
 const CLUSTER_ID: u32 = 0x003E;
 
@@ -300,6 +305,31 @@ impl ClusterServer for OperationalCredentialsCluster {
                 Ok(wrap_struct(&resp_inner))
             }
 
+            CMD_CERTIFICATE_CHAIN_REQUEST => {
+                // CertificateChainRequest { CertificateType: uint8 (1=DAC, 2=PAI) }
+                // → CertificateChainResponse { Certificate: octet_string }
+                let cert_type = extract_uint8_tag(args, 0).unwrap_or(CERT_TYPE_DAC);
+                let cert_bytes: &[u8] = match cert_type {
+                    CERT_TYPE_DAC => &self.attestation.dac_cert,
+                    CERT_TYPE_PAI => &self.attestation.pai_cert,
+                    _ => {
+                        return Err(MatterError::Transport(format!(
+                            "CertificateChainRequest: unknown certificate type {cert_type}"
+                        )));
+                    }
+                };
+                if cert_bytes.is_empty() {
+                    // Empty DAC/PAI would fail parse on the commissioner side.
+                    // Log loudly so tests catch this when not using a real chain.
+                    tracing::warn!(
+                        "CertificateChainRequest({cert_type}) returning empty cert — \
+                         provision BRAINWIRES_MATTER_DAK_PATH for real commissioner interop"
+                    );
+                }
+                let resp_inner = tlv_octet_string(0, cert_bytes);
+                Ok(wrap_struct(&resp_inner))
+            }
+
             CMD_CSR_REQUEST => {
                 // CSRRequest { CSRNonce: bytes(32) }
                 let csr_nonce = extract_octet_string_tag(args, 0).unwrap_or_else(|| vec![0u8; 32]);
@@ -397,6 +427,7 @@ impl ClusterServer for OperationalCredentialsCluster {
     fn command_ids(&self) -> Vec<u32> {
         vec![
             CMD_ATTESTATION_REQUEST,
+            CMD_CERTIFICATE_CHAIN_REQUEST,
             CMD_CSR_REQUEST,
             CMD_ADD_NOC,
             CMD_UPDATE_FABRIC_LABEL,
@@ -495,6 +526,51 @@ mod tests {
             i = start + len;
         }
         (fields.remove(0), fields.remove(0))
+    }
+
+    fn make_cert_chain_request(cert_type: u8) -> Vec<u8> {
+        // struct { tag 0: uint8 cert_type }
+        let ctrl = tlv::TAG_CONTEXT_1 | tlv::TYPE_UNSIGNED_INT_1;
+        vec![tlv::TYPE_STRUCTURE, ctrl, 0u8, cert_type, tlv::TYPE_END_OF_CONTAINER]
+    }
+
+    #[tokio::test]
+    async fn certificate_chain_request_returns_dac_bytes() {
+        let creds = DeviceAttestationCredentials {
+            dak: p256::SecretKey::random(&mut rand_core::OsRng),
+            dac_cert: b"FAKE-DAC-CERT-BYTES".to_vec(),
+            pai_cert: b"FAKE-PAI-CERT-BYTES".to_vec(),
+            cd_bytes: vec![0u8; 16],
+        };
+        let cluster = OperationalCredentialsCluster::with_attestation(creds);
+
+        let req = make_cert_chain_request(CERT_TYPE_DAC);
+        let resp = cluster
+            .invoke_command(CMD_CERTIFICATE_CHAIN_REQUEST, &req)
+            .await
+            .expect("cert chain request should succeed");
+        let got = extract_octet_string_tag(&resp, 0).expect("cert at tag 0");
+        assert_eq!(got, b"FAKE-DAC-CERT-BYTES");
+
+        let req = make_cert_chain_request(CERT_TYPE_PAI);
+        let resp = cluster
+            .invoke_command(CMD_CERTIFICATE_CHAIN_REQUEST, &req)
+            .await
+            .expect("cert chain request should succeed");
+        let got = extract_octet_string_tag(&resp, 0).expect("cert at tag 0");
+        assert_eq!(got, b"FAKE-PAI-CERT-BYTES");
+    }
+
+    #[tokio::test]
+    async fn certificate_chain_request_rejects_unknown_type() {
+        let cluster = OperationalCredentialsCluster::with_attestation(
+            DeviceAttestationCredentials::dev(),
+        );
+        let req = make_cert_chain_request(99);
+        let result = cluster
+            .invoke_command(CMD_CERTIFICATE_CHAIN_REQUEST, &req)
+            .await;
+        assert!(result.is_err(), "unknown cert type must be rejected");
     }
 
     #[tokio::test]

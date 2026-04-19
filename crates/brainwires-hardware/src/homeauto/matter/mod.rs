@@ -11,19 +11,37 @@
 //   • Manual pairing code + QR code parsing (Verhoeff check digit validated)
 //   • BLE commissioning transport (btleplug, Linux/macOS) behind `matter-ble`
 //
+// What also works now:
+//   • AttestationResponse signs over `attestation_elements || nonce` with a
+//     real ECDSA-P256 Device Attestation Key. `BRAINWIRES_MATTER_DAK_PATH`
+//     loads production credentials from disk; otherwise a dev DAK is minted
+//     at startup (logged as a warning).
+//   • Subscription registry: `SubscribeRequest` is handled; cluster command
+//     writes (OnOff, LevelControl, ColorControl, Thermostat) push
+//     `ReportData` through a per-session monotonic counter to every matching
+//     subscriber.
+//   • Commissioning orchestration: `commission_qr_with_session` drives the
+//     full QR → Discover → PASE → CSRRequest → AddNOC → CASE chain, with a
+//     `CommissioningSession` state machine that broadcasts phase events.
+//
 // Known limitations:
-//   • Device Attestation Key (DAK) is stubbed — AttestationResponse signatures
-//     are zeroed, so real Matter commissioners reject this device. Provisioning
-//     hook is in progress.
-//   • Subscribe/ReportData only encodes/decodes TLV — there is no active
-//     subscription registry, so attribute mutations do not propagate to
-//     subscribers.
-//   • Commissioning orchestration (BLE → PASE → AddNOC → CASE state machine)
-//     is not yet wired; QR/manual code parsing and each handshake work in
-//     isolation but not as an end-to-end chain.
+//   • **Device Attestation Certificate chain is not CSA-signed.** The dev
+//     DAK is real, but the DAC / PAI / CD bytes are placeholders. Certified
+//     Matter commissioners verify the DAC chain against the CSA root of
+//     trust and will reject this device. Provision a real chain via
+//     `BRAINWIRES_MATTER_DAK_PATH` for interop testing.
+//   • **Attestation challenge is approximated.** Matter spec §11.17.6.2
+//     signs over `attestation_elements || attestation_challenge` where
+//     `attestation_challenge` is the active session's challenge field; we
+//     sign over the `AttestationNonce` instead. This is self-consistent and
+//     defeats replay attacks, but some commissioners may reject the TBS.
+//   • Loopback integration tests (`matter_e2e_*`, `commissioning_chain_*`)
+//     are `#[ignore]` — mDNS multicast on loopback is flaky; they run in
+//     the nightly workflow only.
 //   • Not tested against real certified Matter controllers.
 //
-// Do not rely on this module for production home automation deployments.
+// Do not rely on this module for production home automation deployments
+// without provisioning a CSA-signed DAC chain.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// BLE commissioning peripheral — BTP handshake and transport channels.

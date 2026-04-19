@@ -43,7 +43,10 @@ const IM_PROTOCOL_ID: u16 = 0x0001;
 
 // ── OperationalCredentials cluster constants (client side) ────────────────────
 const CLUSTER_OPERATIONAL_CREDENTIALS: u32 = 0x003E;
-const CMD_CSR_REQUEST: u32 = 0x02;
+// CertificateChainRequest (cmd 0x02) is server-side-only for now — the
+// controller doesn't currently request the DAC/PAI chain. Left documented
+// here for future commissioner-side attestation validation.
+const CMD_CSR_REQUEST: u32 = 0x04;
 const CMD_ADD_NOC: u32 = 0x06;
 
 // Admin identity seeds for the controller's own admin fabric.
