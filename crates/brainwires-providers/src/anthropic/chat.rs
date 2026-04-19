@@ -81,35 +81,35 @@ impl AnthropicChatProvider {
                     }
                     MessageContent::Blocks(blocks) => blocks
                         .iter()
-                        .filter_map(|b| match b {
+                        .map(|b| match b {
                             ContentBlock::Text { text } => {
-                                Some(AnthropicContentBlock::Text { text: text.clone() })
+                                AnthropicContentBlock::Text { text: text.clone() }
                             }
                             ContentBlock::Image { source } => match source {
                                 ImageSource::Base64 { media_type, data } => {
-                                    Some(AnthropicContentBlock::Image {
+                                    AnthropicContentBlock::Image {
                                         source: AnthropicImageSource::Base64 {
                                             media_type: media_type.clone(),
                                             data: data.clone(),
                                         },
-                                    })
+                                    }
                                 }
                             },
                             ContentBlock::ToolUse { id, name, input } => {
-                                Some(AnthropicContentBlock::ToolUse {
+                                AnthropicContentBlock::ToolUse {
                                     id: id.clone(),
                                     name: name.clone(),
                                     input: input.clone(),
-                                })
+                                }
                             }
                             ContentBlock::ToolResult {
                                 tool_use_id,
                                 content,
                                 ..
-                            } => Some(AnthropicContentBlock::ToolResult {
+                            } => AnthropicContentBlock::ToolResult {
                                 tool_use_id: tool_use_id.clone(),
                                 content: content.clone(),
-                            }),
+                            },
                         })
                         .collect(),
                 },

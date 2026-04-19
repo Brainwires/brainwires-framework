@@ -26,8 +26,7 @@ impl ProviderFactory {
     /// on unknown provider names, listing the common chat-capable options.
     pub fn parse_provider_override(raw: Option<&str>) -> Result<Option<ProviderType>> {
         match raw {
-            None => Ok(None),
-            Some(s) if s.is_empty() => Ok(None),
+            None | Some("") => Ok(None),
             Some(s) => match ProviderType::from_str_opt(s) {
                 Some(p) => Ok(Some(p)),
                 None => Err(anyhow!(

@@ -897,7 +897,7 @@ mod tests {
 
     #[test]
     fn test_truncate_middle_long_input_keeps_head_and_tail() {
-        let s = "A".repeat(10_000) + &"Z".repeat(10_000);
+        let s = format!("{}{}", "A".repeat(10_000), "Z".repeat(10_000));
         let got = truncate_middle(&s, 1_000);
         assert!(got.len() < s.len());
         assert!(got.contains("truncated"));
