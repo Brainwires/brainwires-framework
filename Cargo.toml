@@ -287,3 +287,21 @@ pgvector = { version = "0.4.1", features = ["postgres"] }
 tempfile = "3"
 proptest = "1"
 
+# ── Build profiles ──────────────────────────────────────────────────────────
+#
+# `dev` and `test` profiles emit minimal debug info (file:line only). Full
+# debug info on the knowledge/storage test binaries pulls in lancedb,
+# datafusion, arrow, tantivy, tree-sitter-*, and image processing, and the
+# linker OOMs on stock GitHub Actions runners (signal 7, ld bus error).
+# Line tables keep panic stack traces readable without the binary-size
+# explosion.
+#
+# Release builds keep the default (full debug). Override per-crate if a
+# specific consumer needs richer debug info.
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.test]
+debug = "line-tables-only"
+
