@@ -63,7 +63,6 @@ bincode = { workspace = true, optional = true }
 
 # ── RAG deps (from brainwires-rag) ──────────────────────────────────────
 rmcp = { version = "1.1", features = ["server", "transport-io", "macros"], optional = true }
-fastembed = { workspace = true, optional = true }
 git2 = { workspace = true, optional = true }
 async-trait = { workspace = true, optional = true }
 walkdir = { workspace = true, optional = true }
@@ -125,8 +124,8 @@ spectral = ["dep:ndarray"]
 
 # RAG: codebase indexing + semantic search
 rag = [
-    "dep:brainwires-storage",
-    "dep:fastembed", "dep:git2", "dep:async-trait",
+    "dep:brainwires-storage", "brainwires-storage/native",
+    "dep:git2", "dep:async-trait",
     "dep:walkdir", "dep:sha2", "dep:ignore",
     "dep:tree-sitter", "dep:toml", "dep:rayon", "dep:tokio-util", "dep:fs2",
     "dep:rmcp", "dep:schemars", "dep:clap",

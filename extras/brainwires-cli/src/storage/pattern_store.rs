@@ -487,8 +487,11 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "requires FastEmbed ONNX model on disk"]
     async fn test_save_and_get_pattern() {
+        if std::env::var("TEST_EMBED_NETWORK").ok().as_deref() != Some("1") {
+            eprintln!("skipping: set TEST_EMBED_NETWORK=1 to run (needs FastEmbed model)");
+            return;
+        }
         let (store, _temp) = create_test_store().await;
         let pattern = create_test_pattern();
 
@@ -526,8 +529,11 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "requires FastEmbed ONNX model on disk"]
     async fn test_count_patterns() {
+        if std::env::var("TEST_EMBED_NETWORK").ok().as_deref() != Some("1") {
+            eprintln!("skipping: set TEST_EMBED_NETWORK=1 to run (needs FastEmbed model)");
+            return;
+        }
         let (store, _temp) = create_test_store().await;
 
         // Initially empty

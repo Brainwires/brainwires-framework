@@ -1,17 +1,8 @@
-mod fastembed_manager;
+//! Embedding provider re-exports.
+//!
+//! Canonical embedding infrastructure lives in `brainwires-storage`; this module
+//! re-exports it so RAG code can import from a single path. The trait itself is
+//! `brainwires_core::EmbeddingProvider`.
 
-pub use fastembed_manager::FastEmbedManager;
-
-use anyhow::Result;
-
-/// Trait for embedding generation
-pub trait EmbeddingProvider: Send + Sync {
-    /// Generate embeddings for a batch of text
-    fn embed_batch(&self, texts: Vec<String>) -> Result<Vec<Vec<f32>>>;
-
-    /// Get the dimension of the embeddings
-    fn dimension(&self) -> usize;
-
-    /// Get the model name
-    fn model_name(&self) -> &str;
-}
+pub use brainwires_core::EmbeddingProvider;
+pub use brainwires_storage::embeddings::{CachedEmbeddingProvider, FastEmbedManager};

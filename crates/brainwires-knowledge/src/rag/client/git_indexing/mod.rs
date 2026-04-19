@@ -113,7 +113,7 @@ where
             let metadatas = chunks.iter().map(|c| c.metadata.clone()).collect();
 
             let embeddings = embedding_provider
-                .embed_batch(contents.clone())
+                .embed_batch(&contents)
                 .context("Failed to generate embeddings for commits")?;
 
             tracing::info!("Generated {} embeddings", embeddings.len());
@@ -142,14 +142,9 @@ where
     drop(git_cache_guard); // Release write lock before search
 
     // Generate query embedding
-    let query_embeddings = embedding_provider
-        .embed_batch(vec![req.query.clone()])
+    let query_vector = embedding_provider
+        .embed(&req.query)
         .context("Failed to generate query embedding")?;
-
-    let query_vector = query_embeddings
-        .into_iter()
-        .next()
-        .context("No query embedding generated")?;
 
     // Search vector database for git commits
     // Filter by language="git-commit" to only get commits

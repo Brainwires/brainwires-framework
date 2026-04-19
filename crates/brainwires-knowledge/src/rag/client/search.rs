@@ -1,7 +1,6 @@
 //! Core search, indexing dispatch, statistics, and clear operations for [`RagClient`].
 
 use super::RagClient;
-use crate::rag::embedding::EmbeddingProvider;
 use crate::rag::types::*;
 use anyhow::{Context, Result};
 use std::time::Instant;
@@ -93,11 +92,8 @@ impl RagClient {
 
         let query_embedding = self
             .embedding_provider
-            .embed_batch(vec![request.query.clone()])
-            .context("Failed to generate query embedding")?
-            .into_iter()
-            .next()
-            .ok_or_else(|| anyhow::anyhow!("No embedding generated"))?;
+            .embed(&request.query)
+            .context("Failed to generate query embedding")?;
 
         let original_threshold = request.min_score;
         let mut threshold_used = original_threshold;
@@ -169,11 +165,8 @@ impl RagClient {
 
         let query_embedding = self
             .embedding_provider
-            .embed_batch(vec![request.query.clone()])
-            .context("Failed to generate query embedding")?
-            .into_iter()
-            .next()
-            .ok_or_else(|| anyhow::anyhow!("No embedding generated"))?;
+            .embed(&request.query)
+            .context("Failed to generate query embedding")?;
 
         let original_threshold = request.min_score;
         let mut threshold_used = original_threshold;

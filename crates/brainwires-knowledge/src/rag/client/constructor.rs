@@ -5,7 +5,7 @@ use super::RagClient;
 use crate::code_analysis::HybridRelationsProvider;
 use crate::rag::cache::HashCache;
 use crate::rag::config::Config;
-use crate::rag::embedding::{EmbeddingProvider, FastEmbedManager};
+use crate::rag::embedding::FastEmbedManager;
 use crate::rag::git_cache::GitCache;
 use crate::rag::indexer::CodeChunker;
 #[cfg(feature = "code-analysis")]

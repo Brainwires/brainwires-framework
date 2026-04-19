@@ -33,6 +33,12 @@ pub mod agents {
     pub use brainwires_agents::*;
 }
 
+/// Reasoning — planners, validators, routers, strategies, output parsers.
+#[cfg(feature = "reasoning")]
+pub mod reasoning {
+    pub use brainwires_agents::reasoning::*;
+}
+
 /// Persistent storage — LanceDB vector database, tiered memory, embeddings.
 #[cfg(feature = "storage")]
 pub mod storage {

@@ -53,11 +53,8 @@ impl RagClient {
 
         let query_embedding = self
             .embedding_provider
-            .embed_batch(vec![request.query.clone()])
-            .context("Failed to generate query embedding")?
-            .into_iter()
-            .next()
-            .ok_or_else(|| anyhow::anyhow!("No embedding generated"))?;
+            .embed(&request.query)
+            .context("Failed to generate query embedding")?;
 
         let original_threshold = request.min_score;
         let mut threshold_used = original_threshold;

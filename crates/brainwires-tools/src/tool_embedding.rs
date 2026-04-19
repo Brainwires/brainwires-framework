@@ -4,7 +4,7 @@
 //! similarity to find semantically relevant tools for a given query.
 
 use anyhow::{Context, Result};
-use brainwires_knowledge::rag::embedding::{EmbeddingProvider, FastEmbedManager};
+use brainwires_knowledge::rag::embedding::FastEmbedManager;
 use std::sync::{Arc, OnceLock};
 
 static EMBED_MANAGER: OnceLock<Arc<FastEmbedManager>> = OnceLock::new();
@@ -58,7 +58,7 @@ impl ToolEmbeddingIndex {
             .collect();
 
         let embeddings = manager
-            .embed_batch(texts)
+            .embed_batch(&texts)
             .context("Failed to generate tool embeddings")?;
 
         let entries = tools
@@ -86,10 +86,8 @@ impl ToolEmbeddingIndex {
         }
 
         let manager = get_embed_manager().context("Failed to get embedding model")?;
-        let query_embeddings = manager
-            .embed_batch(vec![query.to_string()])
-            .context("Failed to embed query")?;
-        let query_vec = &query_embeddings[0];
+        let query_vec = manager.embed(query).context("Failed to embed query")?;
+        let query_vec = &query_vec;
 
         let mut scored: Vec<(String, f32)> = self
             .entries

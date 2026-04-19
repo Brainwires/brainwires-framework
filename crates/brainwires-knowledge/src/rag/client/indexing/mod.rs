@@ -1,5 +1,4 @@
 use super::RagClient;
-use crate::rag::embedding::EmbeddingProvider;
 use crate::rag::indexer::{CodeChunk, FileWalker};
 use crate::rag::types::{ChunkMetadata, IndexResponse};
 use anyhow::{Context, Result};
@@ -85,7 +84,7 @@ async fn generate_embeddings_with_cancellation(
 
             // Generate embeddings with timeout protection
             let provider = client.embedding_provider.clone();
-            let embed_future = tokio::task::spawn_blocking(move || provider.embed_batch(texts));
+            let embed_future = tokio::task::spawn_blocking(move || provider.embed_batch(&texts));
 
             match tokio::time::timeout(std::time::Duration::from_secs(timeout_secs), embed_future)
                 .await

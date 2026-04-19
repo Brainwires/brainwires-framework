@@ -1,7 +1,6 @@
 //! Multi-strategy ensemble query (Reciprocal Rank Fusion) for [`RagClient`].
 
 use super::RagClient;
-use crate::rag::embedding::EmbeddingProvider;
 use crate::rag::types::*;
 use anyhow::{Context, Result};
 use std::collections::HashMap;
@@ -47,11 +46,8 @@ impl RagClient {
         // Embed the query once.
         let query_embedding = self
             .embedding_provider
-            .embed_batch(vec![request.query.clone()])
-            .context("Failed to generate query embedding for ensemble")?
-            .into_iter()
-            .next()
-            .ok_or_else(|| anyhow::anyhow!("No embedding generated for ensemble query"))?;
+            .embed(&request.query)
+            .context("Failed to generate query embedding for ensemble")?;
 
         // Fan out across strategies concurrently.
         // Each strategy returns (strategy_name, Vec<SearchResult>).
