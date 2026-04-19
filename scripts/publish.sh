@@ -56,13 +56,18 @@ CRATES=(
     brainwires-mcp-server
     brainwires-a2a
 
-    # Layer 3: Intelligence (reasoning before knowledge — knowledge may dep on storage)
-    brainwires-reasoning
+    # Layer 3: Intelligence (storage-backed)
     brainwires-knowledge
 
     # Layer 4: Action
     brainwires-tools
     brainwires-permissions
+
+    # Layer 4b: Reasoning — depends on tools (ToolCategory in router.rs), so
+    # must publish after tools. Prior releases had reasoning as a Layer 3
+    # re-export facade with no tools dep; the 0.10 restoration moved real
+    # scorer modules back in and this order became necessary.
+    brainwires-reasoning
 
     # Layer 5: Agency
     brainwires-agents
