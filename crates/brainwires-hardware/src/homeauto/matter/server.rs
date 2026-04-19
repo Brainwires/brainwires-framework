@@ -269,6 +269,7 @@ impl MatterDeviceServer {
                                     &data_model,
                                     &self.inner,
                                     &self.subscriptions,
+                                    &self.notify_tx,
                                 )
                                 .await;
                             }
@@ -694,6 +695,7 @@ async fn handle_operational_message(
     data_model: &Arc<DataModelNode>,
     inner: &Arc<Mutex<ServerInner>>,
     subscriptions: &Arc<SubscriptionManager>,
+    subscription_notify_tx: &tokio::sync::mpsc::UnboundedSender<AttributeChange>,
 ) {
     let session_id = msg.header.session_id;
     let counter = msg.header.message_counter;
@@ -741,8 +743,16 @@ async fn handle_operational_message(
                     args.len()
                 );
 
-                // Fire handler callbacks for well-known clusters
-                dispatch_handler_callbacks(cluster, cmd, args, inner).await;
+                // Fire handler callbacks for well-known clusters, and push
+                // any resulting attribute mutation to active subscriptions.
+                dispatch_handler_callbacks(
+                    cluster,
+                    cmd,
+                    args,
+                    inner,
+                    &subscription_notify_tx,
+                )
+                .await;
 
                 // Dispatch to the data model node
                 let result = data_model.dispatch_invoke(ep, cluster, cmd, args).await;
@@ -901,19 +911,53 @@ async fn dispatch_handler_callbacks(
     cmd: u32,
     args: &[u8],
     inner: &Arc<Mutex<ServerInner>>,
+    notify_tx: &tokio::sync::mpsc::UnboundedSender<AttributeChange>,
 ) {
+    /// Fire-and-forget: push the attribute change through the subscription
+    /// pump. A send failure means the pump is shut down, which is fine on
+    /// server teardown — we just log at debug level and drop the event.
+    fn push(
+        notify_tx: &tokio::sync::mpsc::UnboundedSender<AttributeChange>,
+        endpoint: u16,
+        cluster: u32,
+        attribute: u32,
+        value: Vec<u8>,
+    ) {
+        if let Err(e) = notify_tx.send(AttributeChange {
+            endpoint,
+            cluster,
+            attribute,
+            value,
+        }) {
+            debug!("notify pump closed, dropping attribute change: {e}");
+        }
+    }
+
     match cluster {
         CLUSTER_ON_OFF => {
             let handler = inner.lock().await.on_off.clone();
             if let Some(h) = handler {
-                match cmd {
-                    CMD_OFF => h(false),
-                    CMD_ON => h(true),
+                let new_state_opt: Option<bool> = match cmd {
+                    CMD_OFF => {
+                        h(false);
+                        Some(false)
+                    }
+                    CMD_ON => {
+                        h(true);
+                        Some(true)
+                    }
                     CMD_TOGGLE => {
                         // We don't track current state in the server; call handler with true as a hint
                         h(true);
+                        Some(true)
                     }
-                    _ => {}
+                    _ => None,
+                };
+                if let Some(on) = new_state_opt {
+                    // OnOff attribute (id 0x0000) is a bool; encode as anonymous
+                    // TLV bool true (0x09) / false (0x08).
+                    let tlv = vec![if on { 0x09u8 } else { 0x08 }];
+                    push(notify_tx, 1, CLUSTER_ON_OFF, 0x0000, tlv);
                 }
             }
         }
@@ -925,6 +969,9 @@ async fn dispatch_handler_callbacks(
                 // Level is the first field in MoveToLevel args (tag 0, uint8)
                 let level = decode_first_uint8(args).unwrap_or(0);
                 h(level);
+                // CurrentLevel attribute (id 0x0000) is uint8.
+                let tlv = vec![0x04u8, level];
+                push(notify_tx, 1, CLUSTER_LEVEL_CONTROL, 0x0000, tlv);
             }
         }
         CLUSTER_COLOR_CONTROL => {
@@ -934,6 +981,10 @@ async fn dispatch_handler_callbacks(
                 if cmd == 0x0A {
                     let mireds = decode_first_uint16(args).unwrap_or(0);
                     h(mireds);
+                    // ColorTemperatureMireds attribute (id 0x0007) is uint16 LE.
+                    let mut tlv = vec![0x05u8];
+                    tlv.extend_from_slice(&mireds.to_le_bytes());
+                    push(notify_tx, 1, CLUSTER_COLOR_CONTROL, 0x0007, tlv);
                 }
             }
         }
@@ -946,6 +997,13 @@ async fn dispatch_handler_callbacks(
                 let amount = decode_signed_int8_tag1(args).unwrap_or(0);
                 // amount is in units of 0.1°C per Matter spec
                 h(amount as f32 * 0.1);
+                // OccupiedHeatingSetpoint attribute (id 0x0012) is int16 centi-°C.
+                // We don't track absolute temp server-side, so push the delta
+                // as an int16 TLV and let subscribers apply it.
+                let mut tlv = vec![0x01u8]; // TYPE_SIGNED_INT_2 anonymous
+                let delta16 = (amount as i16).saturating_mul(10);
+                tlv.extend_from_slice(&delta16.to_le_bytes());
+                push(notify_tx, 1, CLUSTER_THERMOSTAT, 0x0012, tlv);
             }
         }
         _ => {}
@@ -1209,6 +1267,63 @@ mod tests {
 
         assert_eq!(server.subscriptions.len(), 0);
         assert!(!server.outgoing_counters.lock().await.contains_key(&0x42));
+    }
+
+    #[tokio::test]
+    async fn onoff_handler_pushes_attribute_change_through_notify_pump() {
+        let (notify_tx, mut notify_rx) = tokio::sync::mpsc::unbounded_channel::<AttributeChange>();
+        let inner = Arc::new(Mutex::new(ServerInner {
+            on_off: Some(Arc::new(|_| {})),
+            level: None,
+            color_temp: None,
+            thermostat: None,
+            running: false,
+            _commissioned: false,
+        }));
+
+        // CMD_ON (0x01) → should push an OnOff attribute TLV of 0x09 (bool true).
+        dispatch_handler_callbacks(CLUSTER_ON_OFF, CMD_ON, &[], &inner, &notify_tx).await;
+        let ev = notify_rx
+            .recv()
+            .await
+            .expect("notify pump should deliver a change");
+        assert_eq!(ev.endpoint, 1);
+        assert_eq!(ev.cluster, CLUSTER_ON_OFF);
+        assert_eq!(ev.attribute, 0x0000);
+        assert_eq!(ev.value, vec![0x09]); // bool true
+
+        // CMD_OFF → bool false (0x08).
+        dispatch_handler_callbacks(CLUSTER_ON_OFF, CMD_OFF, &[], &inner, &notify_tx).await;
+        let ev = notify_rx.recv().await.unwrap();
+        assert_eq!(ev.value, vec![0x08]);
+    }
+
+    #[tokio::test]
+    async fn level_handler_pushes_current_level_attribute() {
+        let (notify_tx, mut notify_rx) = tokio::sync::mpsc::unbounded_channel::<AttributeChange>();
+        let inner = Arc::new(Mutex::new(ServerInner {
+            on_off: None,
+            level: Some(Arc::new(|_| {})),
+            color_temp: None,
+            thermostat: None,
+            running: false,
+            _commissioned: false,
+        }));
+
+        // MoveToLevel { tag0: uint8(200) } — control byte 0x24 = ctx-tag | uint8.
+        let args = vec![0x15u8, 0x24, 0x00, 200, 0x18];
+        dispatch_handler_callbacks(
+            CLUSTER_LEVEL_CONTROL,
+            CMD_MOVE_TO_LEVEL,
+            &args,
+            &inner,
+            &notify_tx,
+        )
+        .await;
+        let ev = notify_rx.recv().await.expect("attribute change");
+        assert_eq!(ev.cluster, CLUSTER_LEVEL_CONTROL);
+        assert_eq!(ev.attribute, 0x0000);
+        assert_eq!(ev.value, vec![0x04, 200]);
     }
 
     #[tokio::test]
