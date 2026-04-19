@@ -3,7 +3,7 @@
 //! Parses structured plan content to extract numbered steps
 //! that can be converted into tasks.
 
-use crate::task::{Task, TaskPriority};
+use brainwires_core::task::{Task, TaskPriority};
 use regex::Regex;
 use std::sync::LazyLock;
 

@@ -54,9 +54,9 @@ impl App {
             return Ok(true);
         }
 
-        // Check for console view (Ctrl+D) - globally available
-        // Toggle: if already in ConsoleView, return to Normal; otherwise enter ConsoleView
-        if event.is_console_view() {
+        // Check for console view (default Ctrl+D, remappable via
+        // `settings.keybindings.global.console_view`). Toggle in/out.
+        if self.keybindings.matches("console_view", &event) {
             if self.mode == AppMode::ConsoleView {
                 self.mode = AppMode::Normal;
             } else {
@@ -68,8 +68,8 @@ impl App {
             return Ok(true);
         }
 
-        // Check for plan mode toggle (Ctrl+P) - globally available
-        if event.is_plan_mode_toggle() {
+        // Check for plan mode toggle (default Ctrl+P, remappable).
+        if self.keybindings.matches("plan_mode_toggle", &event) {
             if self.mode == AppMode::PlanMode {
                 self.exit_plan_mode().await?;
             } else {
@@ -96,6 +96,7 @@ impl App {
             AppMode::GitScm => self.handle_git_scm_event(event).await?,
             AppMode::CancelConfirm => self.handle_cancel_confirm_event(event).await?,
             AppMode::QuestionAnswer => self.handle_question_event(event).await?,
+            AppMode::UserQuestion => self.handle_user_question_event(event).await?,
             AppMode::FindDialog | AppMode::FindReplaceDialog => {
                 self.handle_find_replace_event(event).await?
             }
@@ -162,14 +163,15 @@ impl App {
             return Ok(());
         }
 
-        // Ctrl+B: open Sub-Agent Viewer (guard: not during waiting/streaming)
-        if event.is_sub_agent_viewer() && self.mode != AppMode::Waiting {
+        // Default Ctrl+B: Sub-Agent Viewer (remappable via keybindings).
+        // Guard: not during waiting/streaming.
+        if self.keybindings.matches("sub_agent_viewer", &event) && self.mode != AppMode::Waiting {
             self.refresh_sub_agent_list().await;
             self.mode = AppMode::SubAgentViewer;
             return Ok(());
         }
 
-        if event.is_reverse_search() {
+        if self.keybindings.matches("reverse_search", &event) {
             // Enter reverse search mode
             self.mode = AppMode::ReverseSearch;
             self.search_query.clear();
@@ -196,7 +198,7 @@ impl App {
 
         // Ctrl+D is now handled globally in handle_event()
 
-        if event.is_task_viewer() {
+        if self.keybindings.matches("task_viewer", &event) {
             // Enter task viewer mode and refresh task tree
             self.refresh_task_tree_cache().await;
             self.task_viewer_state.selected_index = 0;

@@ -9,13 +9,16 @@ mod events;
 mod exec_overlay;
 mod help_content;
 pub(crate) mod hotkey_content;
+pub mod keybindings;
 pub mod question_parser;
+mod shell_overlay;
 mod ui;
 
 pub use app::{App, AppMode, LogLevel};
 pub use console::ConsoleBuffer;
 pub use events::{Event, EventHandler};
 pub use exec_overlay::execute_command_overlay;
+pub use shell_overlay::{ShellResult, run_interactive_shell};
 
 use anyhow::{Context, Result};
 use crossterm::{
@@ -403,6 +406,30 @@ async fn run_app(
             ));
         }
 
+        // Refresh the user's custom status line (if configured). No-op
+        // when the cache is warm so we don't shell out on every frame.
+        app.refresh_status_line().await;
+
+        // Poll `ask_user_question` tool calls (non-blocking). Renders the
+        // existing question panel overlay but routes submission back over
+        // the tool's oneshot response channel.
+        if let Some(ref mut user_q_rx) = app.user_question_rx
+            && let Ok(request) = user_q_rx.try_recv()
+        {
+            let preview = request.question.clone();
+            app.active_user_question =
+                Some(crate::tui::app::user_question::PendingUserQuestion::from_request(request));
+            app.mode = AppMode::UserQuestion;
+            app.add_console_message(format!(
+                "❔ Question from agent: {}",
+                if preview.len() > 60 {
+                    format!("{}…", &preview[..60])
+                } else {
+                    preview
+                }
+            ));
+        }
+
         // Handle mouse capture toggle
         let should_capture_mouse = !app.mouse_capture_disabled;
         if should_capture_mouse != mouse_capture_enabled {
@@ -465,6 +492,41 @@ async fn run_app(
                         created_at: chrono::Utc::now().timestamp(),
                     });
                     app.set_status(LogLevel::Error, "Command execution failed");
+                }
+            }
+        }
+
+        // Check for pending interactive shell (/shell). Hands the terminal
+        // over wholesale, then restores the TUI when the shell exits.
+        if app.pending_shell {
+            app.pending_shell = false;
+            events.pause();
+            let cwd = std::path::PathBuf::from(&app.working_directory);
+            let started_at = chrono::Utc::now().timestamp();
+            let result = shell_overlay::run_interactive_shell(terminal, &cwd, None);
+            events.resume();
+            match result {
+                Ok(shell_result) => {
+                    let code = shell_result
+                        .exit_code
+                        .map(|c| c.to_string())
+                        .unwrap_or_else(|| "signal".to_string());
+                    app.shell_history.push(crate::tui::app::ShellExecution {
+                        command: "(interactive shell)".to_string(),
+                        output: format!("Interactive shell session (exit: {})", code),
+                        exit_code: shell_result.exit_code.unwrap_or(-1),
+                        executed_at: started_at,
+                    });
+                    app.set_status(LogLevel::Info, format!("Shell exited (code: {})", code));
+                }
+                Err(e) => {
+                    app.shell_history.push(crate::tui::app::ShellExecution {
+                        command: "(interactive shell)".to_string(),
+                        output: format!("Error: {}", e),
+                        exit_code: -1,
+                        executed_at: started_at,
+                    });
+                    app.set_status(LogLevel::Error, format!("Shell failed: {}", e));
                 }
             }
         }

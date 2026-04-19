@@ -58,7 +58,7 @@ exclude = [
 resolver = "2"
 
 [workspace.package]
-version = "0.9.0"
+version = "0.10.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 rust-version = "1.91"
@@ -72,23 +72,23 @@ documentation = "https://docs.rs/brainwires"
 
 [workspace.dependencies]
 # Internal crates
-brainwires-core = { path = "crates/brainwires-core", version = "0.9.0" }
-brainwires-tools = { path = "crates/brainwires-tools", version = "0.9.0" }
-brainwires-agents = { path = "crates/brainwires-agents", version = "0.9.0" }
-brainwires-storage = { path = "crates/brainwires-storage", version = "0.9.0", default-features = false }
-brainwires-mcp = { path = "crates/brainwires-mcp", version = "0.9.0" }
-brainwires-permissions = { path = "crates/brainwires-permissions", version = "0.9.0" }
-brainwires-network = { path = "crates/brainwires-network", version = "0.9.0" }
-brainwires-mcp-server = { path = "crates/brainwires-mcp-server", version = "0.9.0" }
-brainwires-a2a = { path = "crates/brainwires-a2a", version = "0.9.0", default-features = false }
-brainwires-providers = { path = "crates/brainwires-providers", version = "0.9.0" }
-brainwires-hardware = { path = "crates/brainwires-hardware", version = "0.9.0" }
-brainwires-training = { path = "crates/brainwires-training", version = "0.9.0" }
-brainwires-autonomy = { path = "extras/brainwires-autonomy", version = "0.9.0", default-features = false }
-brainwires-knowledge = { path = "crates/brainwires-knowledge", version = "0.9.0", default-features = false }
-brainwires-reasoning = { path = "crates/brainwires-reasoning", version = "0.9.0" }
-brainwires-telemetry  = { path = "crates/brainwires-telemetry",  version = "0.9.0", default-features = false }
-brainwires-proxy = { path = "extras/brainwires-proxy", version = "0.9.0" }
+brainwires-core = { path = "crates/brainwires-core", version = "0.10.0" }
+brainwires-tools = { path = "crates/brainwires-tools", version = "0.10.0" }
+brainwires-agents = { path = "crates/brainwires-agents", version = "0.10.0" }
+brainwires-storage = { path = "crates/brainwires-storage", version = "0.10.0", default-features = false }
+brainwires-mcp = { path = "crates/brainwires-mcp", version = "0.10.0" }
+brainwires-permissions = { path = "crates/brainwires-permissions", version = "0.10.0" }
+brainwires-network = { path = "crates/brainwires-network", version = "0.10.0" }
+brainwires-mcp-server = { path = "crates/brainwires-mcp-server", version = "0.10.0" }
+brainwires-a2a = { path = "crates/brainwires-a2a", version = "0.10.0", default-features = false }
+brainwires-providers = { path = "crates/brainwires-providers", version = "0.10.0" }
+brainwires-hardware = { path = "crates/brainwires-hardware", version = "0.10.0" }
+brainwires-training = { path = "crates/brainwires-training", version = "0.10.0" }
+brainwires-autonomy = { path = "extras/brainwires-autonomy", version = "0.10.0", default-features = false }
+brainwires-knowledge = { path = "crates/brainwires-knowledge", version = "0.10.0", default-features = false }
+brainwires-reasoning = { path = "crates/brainwires-reasoning", version = "0.10.0" }
+brainwires-telemetry  = { path = "crates/brainwires-telemetry",  version = "0.10.0", default-features = false }
+brainwires-proxy = { path = "extras/brainwires-proxy", version = "0.10.0" }
 
 # Tokenizer dependencies
 tokenizers = "0.22"
@@ -285,4 +285,23 @@ pgvector = { version = "0.4.1", features = ["postgres"] }
 
 # Testing
 tempfile = "3"
+proptest = "1"
+
+# ── Build profiles ──────────────────────────────────────────────────────────
+#
+# `dev` and `test` profiles emit minimal debug info (file:line only). Full
+# debug info on the knowledge/storage test binaries pulls in lancedb,
+# datafusion, arrow, tantivy, tree-sitter-*, and image processing, and the
+# linker OOMs on stock GitHub Actions runners (signal 7, ld bus error).
+# Line tables keep panic stack traces readable without the binary-size
+# explosion.
+#
+# Release builds keep the default (full debug). Override per-crate if a
+# specific consumer needs richer debug info.
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.test]
+debug = "line-tables-only"
 

@@ -20,6 +20,7 @@ impl CommandExecutor {
             "review" => Some(self.cmd_review()),
             "brainwires" => Some(self.cmd_brainwires()),
             "exec" => Some(self.cmd_exec(args)),
+            "shell" => Some(Ok(CommandResult::Action(CommandAction::OpenShell))),
             "shells" => Some(Ok(CommandResult::Action(CommandAction::ShowShellHistory))),
             "hotkeys" | "keys" => Some(Ok(CommandResult::Action(CommandAction::OpenHotkeyDialog))),
             "approvals" => Some(self.cmd_approvals(args)),
@@ -185,6 +186,10 @@ impl CommandExecutor {
         }
 
         if let Some(result) = self.execute_mdap_command(name, args) {
+            return result;
+        }
+
+        if let Some(result) = self.execute_dream_command(name, args) {
             return result;
         }
 

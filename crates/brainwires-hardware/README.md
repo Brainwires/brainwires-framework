@@ -27,13 +27,13 @@ Provides a unified hardware abstraction layer covering audio, GPIO, Bluetooth, n
 ```toml
 [dependencies]
 # Pick only what you need:
-brainwires-hardware = { version = "0.8", features = ["audio"] }
-brainwires-hardware = { version = "0.8", features = ["gpio"] }
-brainwires-hardware = { version = "0.8", features = ["bluetooth"] }
-brainwires-hardware = { version = "0.8", features = ["network"] }
+brainwires-hardware = { version = "0.10", features = ["audio"] }
+brainwires-hardware = { version = "0.10", features = ["gpio"] }
+brainwires-hardware = { version = "0.10", features = ["bluetooth"] }
+brainwires-hardware = { version = "0.10", features = ["network"] }
 
 # Or enable everything:
-brainwires-hardware = { version = "0.8", features = ["full"] }
+brainwires-hardware = { version = "0.10", features = ["full"] }
 ```
 
 ## Feature flags
@@ -185,7 +185,7 @@ assistant.run(&MyHandler).await?;
 All four protocols are behind the `homeauto` feature (or enable each individually).
 
 ```toml
-brainwires-hardware = { version = "0.8", features = ["homeauto"] }
+brainwires-hardware = { version = "0.10", features = ["homeauto"] }
 ```
 
 ### Zigbee (`zigbee`)
@@ -302,10 +302,10 @@ cargo run --example matter_on_off --features matter -- commission "MT:YOUR_QR_CO
 
 ```toml
 # Before
-brainwires-audio = "0.8"
+brainwires-audio = "0.10"
 
 # After
-brainwires-hardware = { version = "0.8", features = ["audio"] }
+brainwires-hardware = { version = "0.10", features = ["audio"] }
 ```
 
 All public types and traits are re-exported from the crate root — existing code using

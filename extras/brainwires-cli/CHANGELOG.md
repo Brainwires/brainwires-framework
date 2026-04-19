@@ -7,6 +7,114 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (agents)
+- **Worktree isolation primitive** — new `src/agent/worktree.rs` exposes a
+  `WorktreeGuard` that creates a scratch `git worktree` under
+  `~/.brainwires/worktrees/<uuid>/` and cleans up on drop. Agents that want
+  isolation can spawn with their working directory pointed at the guard's
+  path. Full `Agent({isolation: "worktree"})` wiring into the agent-spawn
+  lifecycle is still TBD — this ships the RAII primitive so that future
+  pass has something to build on.
+- `prune_worktree_orphans()` helper for startup GC of leaked worktrees.
+- `BRAINWIRES_HOME` env var now overrides `dot_brainwires_dir()` —
+  parallels `BRAINWIRES_MEMORY_ROOT`; useful for tests and non-standard
+  layouts.
+
+### Added (skills)
+- **Subagent + Script execution modes** land for real. Subagent reuses
+  the framework's `prepare_subagent` system prompt and runs inside the
+  current agent context with tool scoping (true TaskAgent isolation
+  still routes through `/spawn`). Script mode injects an explicit
+  "execute this Rhai script via `execute_script`" instruction and
+  guarantees `execute_script` is present in the scoped tool list.
+- **SkillRouter auto-suggest** — after every user message, the TUI
+  runs a keyword match against discovered skills and emits a console
+  hint like `💡 Skill 'code-review' may help — invoke with /code-review`
+  when confidence ≥ 0.75. Non-intrusive; the user still has to invoke.
+- **Skill tool scope extended to MDAP mode** — `pending_skill_tool_scope`
+  now filters the `AgentContext.tools` passed to `OrchestratorAgent::execute_mdap`.
+  IPC mode still can't enforce scope over the wire (the remote session
+  owns its own ToolExecutor); it now surfaces an explicit one-line
+  notice instead of a silent clear.
+
+### Added (tui)
+- **Six global keybindings remappable**, up from two — added
+  `task_viewer`, `reverse_search`, `sub_agent_viewer`, `file_explorer`
+  to the `settings.keybindings.global` table. Per-mode dispatch swapped
+  from `event.is_<action>()` → `self.keybindings.matches("<action>", &event)`
+  at all four call sites.
+
+### Added (tests)
+- `EnvVarGuard` RAII helper in `src/utils/mod.rs::test_util` restores the
+  previous value of an env var on drop, preventing cross-test leakage
+  from tests that had to mutate `$HOME` / `BRAINWIRES_MEMORY_ROOT`.
+
+### Added (skills)
+- **`/skill <name>` honors `allowed_tools`** — the invoked skill's body is
+  injected as a **system** message (was user-role) and the next AI turn's
+  tool set is filtered to the skill's declared `allowed_tools`. Scope is
+  one-shot and cleared on the next response. IPC and MDAP paths log a
+  warning and clear the scope unfiltered — follow-up.
+- **Execution modes**: `Inline` fully implemented; `Subagent`/`Script`
+  log a notice + fall back to Inline so the skill still has effect
+  (full Subagent spawn / Script orchestration are future passes).
+- **Level-3 resources** (`scripts/`, `references/`, `assets/`) now
+  appear in `/skill:show` via `SkillRegistry::get_resources`.
+
+### Added (tui)
+- **Interactive `/shell`** — drop into a live `bash` (or `$SHELL`) from
+  inside the TUI. Terminal is fully handed over (raw mode off, alt-screen
+  off, mouse capture off) for the shell's lifetime, then restored on
+  return. Unix-only; Windows prints a clear "not supported" message.
+- **Remappable global keybindings** — `settings.keybindings.global` lets
+  users rebind the top-level global shortcuts (`console_view`,
+  `plan_mode_toggle`). Per-mode hardcoded keys still work. Defaults
+  match the current behavior exactly so unconfigured users see no
+  change.
+
+### Changed (refactor)
+- `src/tui/app/message_processing/command_handler.rs` (2456 lines) split
+  into a directory module with one file per topic: `mod.rs` (dispatch +
+  mdap + context + tools-mode), `knowledge.rs`, `profile.rs`,
+  `agents.rs`, `skills.rs`. Zero behavior change.
+- Cleaned clippy warnings from passes 3–5: nested `if let` →  `&& let`,
+  `.min().max()` → `.clamp()`, counter loop → `enumerate()`,
+  `#![allow(clippy::await_holding_lock)]` on the memory tests module
+  (the env-var lock is process-global and held intentionally).
+
+### Added (docs)
+- `docs/harness/settings.md` — new "Keybindings" section covering action
+  names, key-spec grammar, and an example.
+
+### Added (settings)
+- **Layered `settings.json`** — new user/project/local `settings.json` merge, separate from `config.json`. Sources (later wins for scalars, arrays concatenate): `~/.brainwires/settings.json` → `~/.claude/settings.json` (migrator compat) → `<project>/.brainwires/settings.json` → `<project>/.brainwires/settings.local.json`.
+- **Tool-specific permissions** — Claude-Code-shaped rules under `settings.permissions.allow/deny/ask` (`Bash(ls:*)`, `Edit(src/**/*.rs)`, `mcp__server__tool`). `deny` overrides everything including `PermissionMode::Full`.
+- `SettingsManager::load(cwd)` + `PermissionMatcher` with short-name aliases (`Bash` → `execute_command`, etc.).
+
+### Added (hooks)
+- **Lifecycle hooks** — `PreToolUse` / `PostToolUse` / `UserPromptSubmit` / `Stop` shell commands configured under `settings.hooks`. Exit 0 = continue, 2 = block with stderr feedback, other non-zero = soft error. Default 5 s timeout. Event JSON piped to stdin.
+- `HookDispatcher` in `src/hooks/mod.rs` wired into `ToolExecutor` (Pre/Post), `chat_loop.rs` (UserPromptSubmit), and `ai_processing.rs` (Stop).
+
+### Added (memory)
+- **Per-project auto-memory** — `~/.brainwires/projects/<encoded-cwd>/memory/` with a `MEMORY.md` index plus typed files (`user` / `feedback` / `project` / `reference`). Layout matches Claude Code so existing memory dirs can be symlinked or copied.
+- `memory_save` / `memory_delete` / `memory_list` agent tools; index is rewritten on every mutation so orphans prune automatically.
+- System prompt injects `## Auto Memory` block; opt out with `BRAINWIRES_DISABLE_AUTO_MEMORY=1`.
+
+### Added (tools)
+- **`ask_user_question` tool** — pauses the agent and prompts the user via the TUI question panel (new `AppMode::UserQuestion`) or falls back to `dialoguer::Select`/`Input` in plain CLI mode. Non-TTY returns `{"cancelled": true}` rather than hanging.
+- `monitor_read` / `monitor_list` now report `dropped_lines` so agents notice when a chatty background process outran the ring buffer.
+
+### Added (tui)
+- **Agent question modal** — one-shot prompts from the `ask_user_question` tool render via the existing question panel; answer routes back over a oneshot channel instead of feeding into the AI conversation.
+- **Dynamic skill autocomplete** — typing `/<skill-name>` autocompletes against the discovered `SkillRegistry`; unknown slash commands that match a discovered skill invoke automatically as `/skill <name>`.
+- **Custom status line** — `Config.status_line_command` appends the stdout of a shell command to the status bar (1 s cache, 200 ms timeout).
+
+### Changed (config)
+- First-run picker now actually defaults to Brainwires when a SaaS session exists (previously hard-coded Anthropic despite the comment).
+
+### Added (docs)
+- `docs/harness/settings.md` — full reference for layered settings, permission patterns, hook exit codes + event payloads, memory types, and the `ask_user_question` contract.
+
 ### Added (tui)
 - **Collapsible Journal Tree** — the Journal view now renders conversation history as an expandable/collapsible tree instead of a flat list. Hierarchy: Turn → UserMessage / AssistantMessage (with ToolCall and SubAgentSpawn children). Navigate with `j`/`k`, expand/collapse with `l`/`h` or `Enter`/`Space`. Classic view is unchanged.
 - **Sub-Agent Viewer** (`Ctrl+B`) — new `AppMode::SubAgentViewer` with a 30/70 split layout: left panel shows all running sub-agents with live status icons (⟳ Working, ✓ Completed, ✗ Failed, · Idle); right panel shows the selected agent's journal subtree. When the agent has an IPC socket (`●` badge), you can type and send messages to it directly from the right panel.

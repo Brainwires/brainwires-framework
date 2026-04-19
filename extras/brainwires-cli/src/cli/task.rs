@@ -14,26 +14,34 @@ use crate::utils::rich_output::RichOutput;
 pub async fn handle_task(
     prompt: String,
     model: Option<String>,
-    _provider: Option<String>,
+    provider: Option<String>,
 ) -> Result<()> {
     // Load configuration and session
-    let _config_manager = ConfigManager::new()?;
+    let config_manager = ConfigManager::new()?;
     let session = SessionManager::load()?;
 
-    // Resolve model (provider is always Brainwires)
+    // Resolve provider (CLI flag > env > config) and model.
+    let active_provider = ProviderFactory::effective_provider(
+        provider.as_deref(),
+        config_manager.get().provider_type,
+    )?;
     let model_id = match model {
         Some(m) => m,
         None => ModelRegistry::default_model().await,
     };
 
-    Logger::info(format!("Executing task with {} (brainwires)", model_id));
+    Logger::info(format!(
+        "Executing task with {} via {}",
+        model_id,
+        active_provider.as_str()
+    ));
 
     // Create provider using factory (requires active session)
     let factory = ProviderFactory;
     let provider_instance = factory
-        .create(model_id.clone())
+        .create_with_overrides(model_id.clone(), Some(active_provider), None)
         .await
-        .context("Failed to create provider. Run: brainwires auth status")?;
+        .context("Failed to create provider — run `brainwires auth status` to diagnose")?;
 
     // Create agent manager with Full permission mode for quick tasks
     let agent_manager = AgentManager::new(
@@ -58,7 +66,11 @@ pub async fn handle_task(
 
     // Print header
     println!("\n{}", RichOutput::header("Brainwires Task", "blue"));
-    println!("Model: {} (brainwires)", model_id);
+    println!(
+        "Model: {} (provider: {})",
+        model_id,
+        active_provider.as_str()
+    );
     println!("Task: {}\n", console::style(&prompt).cyan());
 
     // Show execution indicator

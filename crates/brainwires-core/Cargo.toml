@@ -27,16 +27,15 @@ async-trait = { workspace = true }
 futures = { workspace = true }
 tokio = { workspace = true, features = ["fs"] }
 
-# Plan parsing
-regex = { workspace = true, optional = true }
-
 # Schema generation (optional, for types shared with MCP tooling)
 schemars = { workspace = true, optional = true }
 
 [features]
 default = ["native"]
-native = ["planning"]
-planning = ["dep:regex"]
+# Kept as an empty stub so downstream crates still referencing
+# `brainwires-core/native` resolve. Plan/output parsing moved to
+# `brainwires-reasoning` (see 2026-04 arch restoration).
+native = []
 schemars = ["dep:schemars"]
 wasm = ["chrono/wasmbind"]
 

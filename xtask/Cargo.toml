@@ -7,3 +7,11 @@ publish = false
 [dependencies]
 toml_edit = "0.22"
 walkdir = "2.5"
+
+# MSRV pin: constant_time_eq 0.4.3 (released 2026-04-18, the same day we cut
+# 0.10.0) bumped its own MSRV to Rust 1.95. Our workspace MSRV is 1.91, so
+# letting the resolver pick the latest `^0.4` breaks CI. Declaring it here as
+# `=0.4.2` makes the workspace resolver unify the transitive (blake3 →
+# datafusion → lancedb) at 0.4.2 without us having to commit Cargo.lock.
+# xtask is `publish = false`, so this adds nothing to the published surface.
+constant_time_eq = "=0.4.2"

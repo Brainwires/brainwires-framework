@@ -338,6 +338,24 @@ pub struct App {
     pub sudo_dialog_state: Option<super::sudo_dialog::SudoDialogState>,
     /// Channel receiver for sudo password requests from tool executor
     pub sudo_password_rx: Option<mpsc::Receiver<crate::sudo::SudoPasswordRequest>>,
+    /// Channel receiver for `ask_user_question` tool calls.
+    pub user_question_rx: Option<mpsc::Receiver<crate::ask::UserQuestionRequest>>,
+    /// In-flight user question (if any). Holds the synthetic QuestionBlock
+    /// used by the existing question panel renderer, plus the oneshot
+    /// response channel we must reply on when the user submits.
+    pub active_user_question: Option<super::user_question::PendingUserQuestion>,
+    /// Optional shell command whose stdout is appended to the status bar.
+    /// Sourced from `Config.status_line_command`; refreshed asynchronously.
+    pub status_line_command: Option<String>,
+    /// (refreshed_at, text) cache for the custom status line. Avoids
+    /// spawning a process on every frame.
+    pub status_line_cache: Option<(std::time::Instant, String)>,
+    /// Set by the `/shell` slash command — the main TUI loop drops into
+    /// an interactive shell and clears this flag on return.
+    pub pending_shell: bool,
+    /// User-configurable keybinding map. Loaded from layered `settings.json`
+    /// at App construction; falls back to defaults if unset.
+    pub keybindings: std::sync::Arc<crate::tui::keybindings::KeybindingMap>,
     /// Flag to signal main loop to background the process
     pub pending_background: bool,
     /// Flag to signal main loop to suspend the process
@@ -372,6 +390,10 @@ pub struct App {
     pub ipc_needs_respawn: bool,
     /// Skill registry for agent skills
     pub skill_registry: Option<brainwires_agents::skills::SkillRegistry>,
+    /// Tool allowlist scoped to the next AI turn, set by `/skill` when the
+    /// invoked skill declared `allowed_tools`. Cleared after the next
+    /// successful AI response so subsequent turns see the full tool set again.
+    pub pending_skill_tool_scope: Option<Vec<String>>,
 
     // Journal Tree Fields
     /// Collapsible tree for the Journal view
@@ -497,6 +519,10 @@ pub enum AppMode {
     CancelConfirm,
     /// Answering clarifying questions from AI
     QuestionAnswer,
+    /// Answering a one-shot `ask_user_question` tool call. Uses the same
+    /// panel renderer as `QuestionAnswer` but submission routes the answer
+    /// back over a oneshot channel instead of continuing the AI turn.
+    UserQuestion,
     /// Find dialog mode (Ctrl+F in fullscreen modes)
     FindDialog,
     /// Find and Replace dialog mode (Ctrl+H in InputFullscreen only)
@@ -777,6 +803,18 @@ impl App {
             approval_rx: None, // Approval handled by Session
             sudo_dialog_state: None,
             sudo_password_rx: None, // Sudo handled by Session
+            user_question_rx: None,
+            active_user_question: None,
+            status_line_command: config.status_line_command.clone(),
+            status_line_cache: None,
+            pending_shell: false,
+            keybindings: {
+                let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+                let settings = crate::config::SettingsManager::load(&cwd).merged;
+                std::sync::Arc::new(crate::tui::keybindings::KeybindingMap::from_settings(
+                    settings.keybindings.as_ref(),
+                ))
+            },
             pending_background: false,
             pending_suspend: false,
             exit_when_agent_done: false,
@@ -802,6 +840,7 @@ impl App {
                 }
                 Some(registry)
             },
+            pending_skill_tool_scope: None,
             // Journal tree and sub-agent viewer
             journal_tree: super::journal_tree::JournalTreeState::new(),
             sub_agent_viewer_state: None,
@@ -909,6 +948,10 @@ impl App {
         // Create sudo password channel and wire it to the executor
         let (sudo_tx, sudo_rx) = mpsc::channel::<crate::sudo::SudoPasswordRequest>(4);
         tool_executor.set_sudo_password_channel(sudo_tx);
+
+        // Create user-question channel for the `ask_user_question` tool.
+        let (user_q_tx, user_q_rx) = mpsc::channel::<crate::ask::UserQuestionRequest>(4);
+        tool_executor.set_user_question_channel(user_q_tx);
 
         let tool_executor = Arc::new(tool_executor);
         let working_directory = std::env::current_dir()?.to_string_lossy().to_string();
@@ -1082,6 +1125,18 @@ impl App {
             approval_rx: Some(approval_rx),
             sudo_dialog_state: None,
             sudo_password_rx: Some(sudo_rx),
+            user_question_rx: Some(user_q_rx),
+            active_user_question: None,
+            status_line_command: config.status_line_command.clone(),
+            status_line_cache: None,
+            pending_shell: false,
+            keybindings: {
+                let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+                let settings = crate::config::SettingsManager::load(&cwd).merged;
+                std::sync::Arc::new(crate::tui::keybindings::KeybindingMap::from_settings(
+                    settings.keybindings.as_ref(),
+                ))
+            },
             pending_background: false,
             pending_suspend: false,
             exit_when_agent_done: false,
@@ -1111,6 +1166,7 @@ impl App {
                 }
                 Some(registry)
             },
+            pending_skill_tool_scope: None,
             // Journal tree and sub-agent viewer
             journal_tree: super::journal_tree::JournalTreeState::new(),
             sub_agent_viewer_state: None,
@@ -1233,6 +1289,50 @@ impl App {
         user_input.to_string()
     }
 
+    /// Refresh the cached custom status line by running
+    /// `status_line_command` if configured. Cached for 1 second to keep
+    /// the render loop cheap. Call this from an async context (event loop
+    /// tick) — the command runs via `tokio::process::Command` with a
+    /// 200 ms timeout; if it takes longer or fails, the previous value
+    /// is kept.
+    pub async fn refresh_status_line(&mut self) {
+        let cmd = match self.status_line_command.as_ref() {
+            Some(c) if !c.trim().is_empty() => c.clone(),
+            _ => return,
+        };
+        if let Some((at, _)) = self.status_line_cache
+            && at.elapsed() < std::time::Duration::from_millis(1_000)
+        {
+            return;
+        }
+        let run = async move {
+            use tokio::process::Command;
+            let mut child = Command::new("bash");
+            child.arg("-c").arg(&cmd);
+            child.stdin(std::process::Stdio::null());
+            let output = child.output();
+            let timed = tokio::time::timeout(std::time::Duration::from_millis(200), output).await;
+            match timed {
+                Ok(Ok(out)) if out.status.success() => {
+                    String::from_utf8_lossy(&out.stdout).trim().to_string()
+                }
+                _ => String::new(),
+            }
+        };
+        let text = run.await;
+        if !text.is_empty() {
+            self.status_line_cache = Some((std::time::Instant::now(), text));
+        }
+    }
+
+    /// Current cached custom status line (or empty).
+    pub fn custom_status_line(&self) -> &str {
+        self.status_line_cache
+            .as_ref()
+            .map(|(_, t)| t.as_str())
+            .unwrap_or("")
+    }
+
     /// Get SEAL status line for display
     ///
     /// Returns a formatted status line showing SEAL processing information,
@@ -1295,11 +1395,18 @@ impl App {
 
                 // Append SEAL status if available
                 let seal_status = self.get_seal_status_line();
-                if seal_status.is_empty() {
+                let mut assembled = if seal_status.is_empty() {
                     base_status
                 } else {
                     format!("{} {}", base_status, seal_status)
+                };
+                // Append user-configured custom status line (cached).
+                let custom = self.custom_status_line();
+                if !custom.is_empty() {
+                    assembled.push(' ');
+                    assembled.push_str(custom);
                 }
+                assembled
             }
             AppMode::ReverseSearch => {
                 let current_result = self.get_current_search_result().unwrap_or_default();
@@ -1403,6 +1510,10 @@ impl App {
                 "Tool Approval ([Y]es / [N]o / [A]lways / [D]eny always)".to_string()
             }
             AppMode::SudoPasswordDialog => "Sudo Password (Enter: submit, Esc: cancel)".to_string(),
+            AppMode::UserQuestion => {
+                "Agent Question (↑↓: navigate, Space: select, Enter: submit, Esc: cancel)"
+                    .to_string()
+            }
             AppMode::PlanMode => {
                 let msg_count = self
                     .plan_mode_state

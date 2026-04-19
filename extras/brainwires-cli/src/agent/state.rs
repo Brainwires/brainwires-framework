@@ -221,6 +221,15 @@ impl AgentState {
             session_id.clone(),
         );
 
+        // Attach layered settings (permissions) + hook dispatcher so
+        // PreToolUse / PostToolUse hooks fire around every tool call.
+        {
+            let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+            let (settings, hooks) = crate::hooks::load_for_cwd(&cwd);
+            tool_executor.set_settings(settings);
+            tool_executor.set_hooks(hooks);
+        }
+
         let tool_executor = Arc::new(tool_executor);
         let working_directory = std::env::current_dir()?.to_string_lossy().to_string();
 

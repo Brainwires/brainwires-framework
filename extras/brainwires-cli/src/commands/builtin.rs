@@ -41,6 +41,23 @@ pub fn register_builtin_commands(registry: &mut CommandRegistry) {
         ),
     );
 
+    // /provider - List or switch AI providers
+    registry.register(
+        Command::builtin(
+            "provider".to_string(),
+            "List available providers or switch to a different provider".to_string(),
+            "".to_string(),
+        )
+        .with_arg(
+            "name".to_string(),
+            Some(
+                "Provider name (e.g. anthropic, openai, ollama) — omit to list providers"
+                    .to_string(),
+            ),
+            false,
+        ),
+    );
+
     // /rewind - Rewind to previous checkpoint
     registry.register(
         Command::builtin(
@@ -488,6 +505,13 @@ pub fn register_builtin_commands(registry: &mut CommandRegistry) {
         "".to_string(),
     ));
 
+    // /shell - Drop into an interactive shell with the terminal handed over
+    registry.register(Command::builtin(
+        "shell".to_string(),
+        "Drop into an interactive shell (exit or Ctrl+D to return)".to_string(),
+        "".to_string(),
+    ));
+
     // /hotkeys - Open hotkey configuration dialog
     registry.register(Command::builtin(
         "hotkeys".to_string(),
@@ -910,6 +934,25 @@ pub fn register_builtin_commands(registry: &mut CommandRegistry) {
             true,
         ),
     );
+
+    // Dream (sleep) consolidation commands — offline summarise + fact extract
+    registry.register(Command::builtin(
+        "dream".to_string(),
+        "Show the last dream consolidation cycle report".to_string(),
+        "".to_string(),
+    ));
+
+    registry.register(Command::builtin(
+        "dream:status".to_string(),
+        "Show the last dream consolidation cycle report".to_string(),
+        "".to_string(),
+    ));
+
+    registry.register(Command::builtin(
+        "dream:run".to_string(),
+        "Run a dream (sleep) consolidation cycle against the active conversation".to_string(),
+        "".to_string(),
+    ));
 
     // Knowledge Commands (Behavioral Knowledge System)
 

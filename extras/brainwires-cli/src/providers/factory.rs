@@ -20,6 +20,43 @@ impl ProviderFactory {
         Self
     }
 
+    /// Parse a `--provider <name>` CLI argument into a `ProviderType`.
+    ///
+    /// Returns `Ok(None)` for `None` input (no override). Returns an error
+    /// on unknown provider names, listing the common chat-capable options.
+    pub fn parse_provider_override(raw: Option<&str>) -> Result<Option<ProviderType>> {
+        match raw {
+            None | Some("") => Ok(None),
+            Some(s) => match ProviderType::from_str_opt(s) {
+                Some(p) => Ok(Some(p)),
+                None => Err(anyhow!(
+                    "Unknown provider: '{}'. Supported: anthropic, openai, google, groq, ollama, brainwires, bedrock, vertex-ai, together, fireworks, minimax",
+                    s
+                )),
+            },
+        }
+    }
+
+    /// Resolve the effective provider for an invocation.
+    ///
+    /// Precedence: explicit CLI flag > `BRAINWIRES_PROVIDER` env var > config.
+    /// Does NOT fall back to env-var-based auto-detection — that's a first-run
+    /// concern, not a per-invocation one.
+    pub fn effective_provider(
+        cli_override: Option<&str>,
+        config_value: ProviderType,
+    ) -> Result<ProviderType> {
+        if let Some(p) = Self::parse_provider_override(cli_override)? {
+            return Ok(p);
+        }
+        if let Ok(env) = std::env::var("BRAINWIRES_PROVIDER")
+            && let Some(p) = ProviderType::from_str_opt(&env)
+        {
+            return Ok(p);
+        }
+        Ok(config_value)
+    }
+
     /// Create a provider based on the active config.
     ///
     /// - `Brainwires` → uses SessionManager for API key
@@ -35,10 +72,29 @@ impl ProviderFactory {
         model: String,
         backend_url_override: Option<String>,
     ) -> Result<Arc<dyn Provider>> {
+        self.create_with_overrides(model, None, backend_url_override)
+            .await
+    }
+
+    /// Create a provider with an explicit provider-type override and/or
+    /// backend URL override.
+    ///
+    /// - `provider_type_override` — if `Some`, ignore `config.provider_type`
+    ///   and build this provider instead. Keyring lookups still use the
+    ///   override.
+    /// - `backend_url_override` — optional base URL (used for dev mode,
+    ///   custom endpoints, or per-invocation Ollama targets).
+    pub async fn create_with_overrides(
+        &self,
+        model: String,
+        provider_type_override: Option<ProviderType>,
+        backend_url_override: Option<String>,
+    ) -> Result<Arc<dyn Provider>> {
         let config_manager = ConfigManager::new()?;
         let config = config_manager.get();
+        let active = provider_type_override.unwrap_or(config.provider_type);
 
-        match config.provider_type {
+        match active {
             ProviderType::Brainwires => {
                 self.create_brainwires_provider(model, backend_url_override)
                     .await
@@ -82,17 +138,33 @@ impl ProviderFactory {
                 ChatProviderFactory::create(&provider_config)
             }
             provider_type => {
-                // Direct providers: Anthropic, OpenAI, Google, Groq
-                let api_key = config_manager.get_provider_api_key()?.ok_or_else(|| {
-                    anyhow!(
-                        "No API key configured for {}. Run: brainwires auth login --provider {}",
-                        provider_type.as_str(),
-                        provider_type.as_str()
-                    )
-                })?;
+                // Direct providers: Anthropic, OpenAI, Google, Groq, Together, etc.
+                //
+                // API key resolution order:
+                //   1. System keyring (brainwires auth login --provider X)
+                //   2. Provider-specific env var (ANTHROPIC_API_KEY, etc.)
+                //
+                // This matches what users expect from tools like the
+                // official Anthropic/OpenAI SDKs — if the env var is set,
+                // it just works.
+                let api_key = match config_manager.get_provider_api_key_for(provider_type)? {
+                    Some(k) => k.to_string(),
+                    None => match crate::types::provider_ext::env_var_name(provider_type)
+                        .and_then(|v| std::env::var(v).ok())
+                    {
+                        Some(k) if !k.is_empty() => k,
+                        _ => {
+                            return Err(anyhow!(
+                                "No API key configured for {}. {}",
+                                provider_type.as_str(),
+                                crate::types::provider_ext::credential_hint(provider_type)
+                            ));
+                        }
+                    },
+                };
 
                 let mut provider_config =
-                    ProviderConfig::new(provider_type, model).with_api_key(api_key.to_string());
+                    ProviderConfig::new(provider_type, model).with_api_key(api_key);
 
                 if let Some(url) = backend_url_override.or_else(|| config.provider_base_url.clone())
                 {
@@ -121,9 +193,27 @@ impl ProviderFactory {
         model: String,
         backend_url_override: Option<String>,
     ) -> Result<Arc<dyn Provider>> {
+        // Env-var fallback: BRAINWIRES_API_KEY lets users run Brainwires SaaS
+        // without a persisted session (useful for CI / ephemeral shells).
+        if let Ok(env_key) = std::env::var("BRAINWIRES_API_KEY")
+            && !env_key.is_empty()
+        {
+            let backend_url = backend_url_override.clone().unwrap_or_else(|| {
+                crate::config::constants::get_backend_from_api_key(&env_key).to_string()
+            });
+            tracing::info!(
+                "Using BRAINWIRES_API_KEY from environment (backend: {})",
+                backend_url
+            );
+            let provider_config = ProviderConfig::new(ProviderType::Brainwires, model)
+                .with_api_key(env_key)
+                .with_base_url(backend_url);
+            return ChatProviderFactory::create(&provider_config);
+        }
+
         if let Ok(Some(session)) = SessionManager::get_session() {
             let api_key = SessionManager::get_api_key()?.ok_or_else(|| {
-                anyhow!("No API key found. Please re-authenticate with: brainwires auth")
+                anyhow!("No API key found. Please re-authenticate with: brainwires auth login")
             })?;
 
             let backend_url = backend_url_override.unwrap_or_else(|| session.backend.clone());
@@ -140,7 +230,10 @@ impl ProviderFactory {
             return ChatProviderFactory::create(&provider_config);
         }
 
-        Err(anyhow!("No active session. Run: brainwires auth login"))
+        Err(anyhow!(
+            "No active Brainwires session. {}",
+            crate::types::provider_ext::credential_hint(ProviderType::Brainwires)
+        ))
     }
 
     /// Create a provider from session (alias for create)
@@ -309,5 +402,76 @@ mod tests {
 
         // Should fail when no session exists
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_provider_override_none_is_noop() {
+        assert!(matches!(
+            ProviderFactory::parse_provider_override(None),
+            Ok(None)
+        ));
+        assert!(matches!(
+            ProviderFactory::parse_provider_override(Some("")),
+            Ok(None)
+        ));
+    }
+
+    #[test]
+    fn parse_provider_override_accepts_known_names() {
+        assert_eq!(
+            ProviderFactory::parse_provider_override(Some("anthropic"))
+                .unwrap()
+                .unwrap(),
+            ProviderType::Anthropic
+        );
+        assert_eq!(
+            ProviderFactory::parse_provider_override(Some("ollama"))
+                .unwrap()
+                .unwrap(),
+            ProviderType::Ollama
+        );
+        // from_str_opt is case-insensitive for the leading segment, so check one alias too
+        assert_eq!(
+            ProviderFactory::parse_provider_override(Some("gemini"))
+                .unwrap()
+                .unwrap(),
+            ProviderType::Google
+        );
+    }
+
+    #[test]
+    fn parse_provider_override_rejects_garbage() {
+        let err =
+            ProviderFactory::parse_provider_override(Some("not-a-real-provider")).unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("Unknown provider"));
+        assert!(msg.contains("anthropic"));
+    }
+
+    #[test]
+    fn effective_provider_flag_beats_config() {
+        let p = ProviderFactory::effective_provider(Some("anthropic"), ProviderType::Brainwires)
+            .unwrap();
+        assert_eq!(p, ProviderType::Anthropic);
+    }
+
+    #[test]
+    fn effective_provider_falls_back_to_config() {
+        // Clear BRAINWIRES_PROVIDER to avoid test interference.
+        let _guard = TEST_ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+        let original = std::env::var("BRAINWIRES_PROVIDER").ok();
+        // SAFETY: guarded by TEST_ENV_MUTEX
+        unsafe { std::env::remove_var("BRAINWIRES_PROVIDER") };
+
+        let p = ProviderFactory::effective_provider(None, ProviderType::Ollama).unwrap();
+        assert_eq!(p, ProviderType::Ollama);
+
+        // SAFETY: guarded by TEST_ENV_MUTEX
+        unsafe {
+            match original {
+                Some(v) => std::env::set_var("BRAINWIRES_PROVIDER", v),
+                None => std::env::remove_var("BRAINWIRES_PROVIDER"),
+            }
+        }
     }
 }

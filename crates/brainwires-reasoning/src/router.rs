@@ -10,7 +10,7 @@ use brainwires_core::message::Message;
 use brainwires_core::provider::{ChatOptions, Provider};
 use brainwires_tools::ToolCategory;
 
-use super::InferenceTimer;
+use crate::InferenceTimer;
 
 /// Result of route classification
 #[derive(Clone, Debug)]

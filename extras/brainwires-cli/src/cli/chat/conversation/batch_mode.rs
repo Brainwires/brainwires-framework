@@ -19,7 +19,7 @@ use crate::utils::system_prompt::build_system_prompt;
 /// Handle batch processing mode
 pub async fn handle_batch_mode(
     model: Option<String>,
-    _provider: Option<String>,
+    provider: Option<String>,
     system: Option<String>,
     quiet: bool,
     format: &str,
@@ -29,8 +29,10 @@ pub async fn handle_batch_mode(
     let config_manager = ConfigManager::new()?;
     let session = SessionManager::load()?;
 
-    // Resolve model from config
+    // Resolve provider (CLI flag > env > config) and model.
     let config = config_manager.get();
+    let active_provider =
+        ProviderFactory::effective_provider(provider.as_deref(), config.provider_type)?;
     let model_id = match model {
         Some(m) => m,
         None => config.model.clone(),
@@ -39,13 +41,16 @@ pub async fn handle_batch_mode(
     if !quiet {
         if let Some(ref url) = backend_url_override {
             Logger::info(format!(
-                "Starting batch mode with {} (dev backend: {})",
-                model_id, url
+                "Starting batch mode with {} via {} (dev backend: {})",
+                model_id,
+                active_provider.as_str(),
+                url
             ));
         } else {
             Logger::info(format!(
-                "Starting batch mode with {} (brainwires)",
-                model_id
+                "Starting batch mode with {} via {}",
+                model_id,
+                active_provider.as_str()
             ));
         }
     }
@@ -53,9 +58,13 @@ pub async fn handle_batch_mode(
     // Create provider with optional backend URL override
     let factory = ProviderFactory;
     let provider_instance = factory
-        .create_with_backend(model_id.clone(), backend_url_override)
+        .create_with_overrides(
+            model_id.clone(),
+            Some(active_provider),
+            backend_url_override,
+        )
         .await
-        .context("Failed to create provider. Run: brainwires auth status")?;
+        .context("Failed to create provider — run `brainwires auth status` to diagnose")?;
 
     // Read prompts from stdin
     let stdin = io::stdin();
@@ -79,7 +88,7 @@ pub async fn handle_batch_mode(
                     working_directory: std::env::current_dir()?.to_string_lossy().to_string(),
                     user_id,
                     conversation_history: Vec::new(),
-                    tools: registry.get_core().into_iter().cloned().collect(),
+                    tools: crate::tools::select_non_tui_tools(&registry),
                     metadata: std::collections::HashMap::new(),
                     working_set: crate::types::WorkingSet::new(),
                     // Use full_access for CLI mode - users expect agents to have write access

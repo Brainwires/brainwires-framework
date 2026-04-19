@@ -67,6 +67,12 @@ pub struct Config {
     /// Local LLM configuration for CPU-based inference
     #[serde(default)]
     pub local_llm: LocalLlmSettings,
+
+    /// Optional shell command whose stdout is appended to the TUI status
+    /// line. Executed via `bash -c` with a short timeout; its output is
+    /// cached between renders so it never slows the UI.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status_line_command: Option<String>,
 }
 
 /// SEAL (Self-Evolving Agentic Learning) settings
@@ -693,6 +699,7 @@ impl Default for Config {
             knowledge: KnowledgeSettings::default(),
             remote: RemoteSettings::default(),
             local_llm: LocalLlmSettings::default(),
+            status_line_command: None,
         }
     }
 }
@@ -701,6 +708,9 @@ impl Default for Config {
 pub struct ConfigManager {
     config: Config,
     config_path: PathBuf,
+    /// `true` when the config file did not exist on load — indicates a fresh
+    /// install that should trigger the first-run provider picker.
+    is_new: bool,
 }
 
 impl ConfigManager {
@@ -709,7 +719,8 @@ impl ConfigManager {
         PlatformPaths::ensure_config_dir()?;
         let config_path = PlatformPaths::config_file()?;
 
-        let config = if config_path.exists() {
+        let existed = config_path.exists();
+        let config = if existed {
             Self::load_from_file(&config_path)?
         } else {
             Config::default()
@@ -718,7 +729,17 @@ impl ConfigManager {
         Ok(Self {
             config,
             config_path,
+            is_new: !existed,
         })
+    }
+
+    /// Whether the config file did not exist when this manager loaded.
+    ///
+    /// Used by the CLI to decide whether to show the first-run provider
+    /// picker. Once the user saves any config, this does not flip back —
+    /// callers that care should check before calling `save()`.
+    pub fn is_first_run(&self) -> bool {
+        self.is_new
     }
 
     /// Load configuration from file

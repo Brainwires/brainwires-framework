@@ -81,13 +81,70 @@ let config = if has_cargo {{ read_file("Cargo.toml") }} else {{ "No config" }};
         today, cwd
     );
 
+    // Auto-load project and user instructions (BRAINWIRES.md / CLAUDE.md).
+    // This is the `/instructions` workflow made automatic — it matches
+    // Claude Code's CLAUDE.md auto-loading so migrating users don't need
+    // to learn a new incantation.
+    let instructions = load_auto_instructions();
+
+    // Auto-load per-project memory notes (~/.brainwires/projects/<cwd>/memory/).
+    let memory = load_auto_memory();
+
+    let mut assembled = base_prompt;
+    if !instructions.is_empty() {
+        assembled.push_str("\n\n");
+        assembled.push_str(&instructions);
+    }
+    if !memory.is_empty() {
+        assembled.push_str("\n\n");
+        assembled.push_str(&memory);
+    }
+
     if let Some(ws) = working_set
         && let Some(context_injection) = ws.build_context_injection()
     {
-        return Ok(format!("{}\n\n{}", base_prompt, context_injection));
+        return Ok(format!("{}\n\n{}", assembled, context_injection));
     }
 
-    Ok(base_prompt)
+    Ok(assembled)
+}
+
+/// Load auto-discovered project and user instructions as a rendered block.
+///
+/// Returns an empty string when discovery finds nothing, when the cwd is
+/// unreadable, or when the user has opted out via
+/// `BRAINWIRES_DISABLE_AUTO_INSTRUCTIONS=1`.
+fn load_auto_instructions() -> String {
+    if std::env::var("BRAINWIRES_DISABLE_AUTO_INSTRUCTIONS")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+    {
+        return String::new();
+    }
+
+    let Ok(cwd) = std::env::current_dir() else {
+        return String::new();
+    };
+    let sources = crate::utils::brainwires_md::discover_project_instructions(&cwd);
+    crate::utils::brainwires_md::render_instructions(&sources)
+}
+
+/// Load per-project auto memory for injection into the system prompt.
+/// Opt-out via `BRAINWIRES_DISABLE_AUTO_MEMORY=1`, mirroring the auto
+/// instructions escape hatch.
+fn load_auto_memory() -> String {
+    if std::env::var("BRAINWIRES_DISABLE_AUTO_MEMORY")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+    {
+        return String::new();
+    }
+
+    let Ok(cwd) = std::env::current_dir() else {
+        return String::new();
+    };
+    let loaded = crate::utils::memory::load_memory_for_cwd(&cwd);
+    crate::utils::memory::render_memory(&loaded)
 }
 
 /// Build the Edit-mode system prompt extended with learned behavioral knowledge.
@@ -152,13 +209,20 @@ You MUST NOT:
         today, cwd
     );
 
+    let instructions = load_auto_instructions();
+    let mut assembled = base_prompt;
+    if !instructions.is_empty() {
+        assembled.push_str("\n\n");
+        assembled.push_str(&instructions);
+    }
+
     if let Some(ws) = working_set
         && let Some(context_injection) = ws.build_context_injection()
     {
-        return Ok(format!("{}\n\n{}", base_prompt, context_injection));
+        return Ok(format!("{}\n\n{}", assembled, context_injection));
     }
 
-    Ok(base_prompt)
+    Ok(assembled)
 }
 
 /// Build the Ask-mode system prompt extended with learned behavioral knowledge.
@@ -219,13 +283,20 @@ Complete each batch item fully before reporting done."#,
         today, cwd
     );
 
+    let instructions = load_auto_instructions();
+    let mut assembled = base_prompt;
+    if !instructions.is_empty() {
+        assembled.push_str("\n\n");
+        assembled.push_str(&instructions);
+    }
+
     if let Some(ws) = working_set
         && let Some(context_injection) = ws.build_context_injection()
     {
-        return Ok(format!("{}\n\n{}", base_prompt, context_injection));
+        return Ok(format!("{}\n\n{}", assembled, context_injection));
     }
 
-    Ok(base_prompt)
+    Ok(assembled)
 }
 
 // ── Plan mode ───────────────────────────────────────────────────────────────

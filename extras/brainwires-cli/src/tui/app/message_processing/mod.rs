@@ -84,6 +84,13 @@ impl App {
                     detected_count
                 );
             }
+
+            // SkillRouter suggestion: if the user's message looks like a
+            // discovered skill's purpose, print a hint. Non-intrusive —
+            // we never auto-invoke; the user still has to type `/<name>`.
+            if let Some(hint) = self.suggest_skill_for(&user_content) {
+                self.add_console_message(hint);
+            }
         }
 
         // Only proceed with AI if we added a user message AND command didn't skip AI
@@ -246,8 +253,11 @@ impl App {
             _ => self.tools.clone(),
         };
 
-        // Apply prompt mode filtering (Ask mode removes write tools)
+        // Apply prompt mode filtering (Ask mode removes write tools) and
+        // any pending skill tool scope. `apply_and_clear_skill_tool_scope`
+        // is a no-op when no skill invocation is in flight.
         let tools = self.filter_tools_for_prompt_mode(tools);
+        let tools = self.apply_and_clear_skill_tool_scope(tools);
 
         let options = ChatOptions {
             system: system_prompt,
@@ -331,6 +341,17 @@ impl App {
     /// streaming responses via IPC events. The Session handles all AI/tools/MCP.
     async fn call_ai_provider_ipc(&mut self) -> Result<()> {
         use brainwires::agent_network::ipc::ViewerMessage;
+
+        // The pending_skill_tool_scope lives on the client side; the remote
+        // session owns its own ToolExecutor and tool list. We can't enforce
+        // scope over the wire today — surface the limitation to the user
+        // and clear the scope so it doesn't leak.
+        if self.pending_skill_tool_scope.take().is_some() {
+            self.add_console_message(
+                "⚠️  Skill allowed_tools is not yet enforced over IPC — tool scope skipped"
+                    .to_string(),
+            );
+        }
 
         // Get the last user message content
         let user_content = self
@@ -1311,12 +1332,15 @@ impl App {
             created_at: chrono::Utc::now().timestamp(),
         });
 
-        // Build agent context for MDAP execution
+        // Build agent context for MDAP execution. Apply any pending
+        // skill tool scope (consumed + cleared here so subsequent turns
+        // see the full set).
+        let scoped_tools = self.apply_and_clear_skill_tool_scope(self.tools.clone());
         let mut agent_context = AgentContext {
             working_directory: self.working_directory.clone(),
             user_id: None,
             conversation_history: conversation_clone,
-            tools: self.tools.clone(),
+            tools: scoped_tools,
             metadata: std::collections::HashMap::new(),
             working_set: crate::types::WorkingSet::new(),
             // Use full_access for TUI mode - users expect agents to have write access
@@ -1527,6 +1551,107 @@ impl App {
         config_manager.save()?;
 
         Ok(())
+    }
+
+    /// Render the `/provider` list into a system message.
+    pub(super) fn handle_list_providers(&mut self) {
+        use super::state::TuiMessage;
+        use crate::providers::ProviderType;
+        use crate::types::provider_ext::{CHAT_PROVIDERS, summary};
+
+        let current = match crate::config::ConfigManager::new() {
+            Ok(mgr) => mgr.get().provider_type,
+            Err(_) => ProviderType::Brainwires,
+        };
+
+        let mut lines = vec![format!("Current provider: {}", current.as_str())];
+        lines.push(String::new());
+        lines.push("Available providers (use `/provider <name>` to switch):".to_string());
+        for p in CHAT_PROVIDERS {
+            let marker = if *p == current { "*" } else { " " };
+            lines.push(format!("  {} {:<14}  {}", marker, p.as_str(), summary(*p)));
+        }
+
+        self.messages.push(TuiMessage {
+            role: "system".to_string(),
+            content: lines.join("\n"),
+            created_at: chrono::Utc::now().timestamp(),
+        });
+    }
+
+    /// Switch provider by updating config and rebuilding the Provider instance.
+    ///
+    /// Tolerates missing credentials — we only surface an error to the user;
+    /// the session continues to use the previously active provider.
+    pub(super) async fn handle_switch_provider(&mut self, name: String) {
+        use super::state::{LogLevel, TuiMessage};
+        use crate::config::{ConfigManager, ConfigUpdates};
+        use crate::providers::{ProviderFactory, ProviderType};
+
+        let target = match ProviderType::from_str_opt(&name) {
+            Some(p) => p,
+            None => {
+                self.set_status(
+                    LogLevel::Error,
+                    format!(
+                        "Unknown provider: '{}'. Try: /provider  to see the list.",
+                        name
+                    ),
+                );
+                return;
+            }
+        };
+
+        // Persist the choice and update in-memory model to the provider's default.
+        let new_model = target.default_model().to_string();
+        let mut mgr = match ConfigManager::new() {
+            Ok(m) => m,
+            Err(e) => {
+                self.set_status(LogLevel::Error, format!("Config load failed: {}", e));
+                return;
+            }
+        };
+        mgr.update(ConfigUpdates {
+            provider_type: Some(target),
+            model: Some(new_model.clone()),
+            ..Default::default()
+        });
+        if let Err(e) = mgr.save() {
+            self.set_status(LogLevel::Error, format!("Config save failed: {}", e));
+            return;
+        }
+
+        // Rebuild the provider instance so subsequent turns use the new one.
+        match ProviderFactory::new()
+            .create_with_overrides(new_model.clone(), Some(target), None)
+            .await
+        {
+            Ok(new_provider) => {
+                self.provider = new_provider;
+                self.model = new_model.clone();
+                self.set_status(
+                    LogLevel::Info,
+                    format!("Switched to {} ({})", target.as_str(), new_model),
+                );
+            }
+            Err(e) => {
+                // Don't revert config — the user clearly wants this provider;
+                // surface the credential hint so they can fix it.
+                self.messages.push(TuiMessage {
+                    role: "system".to_string(),
+                    content: format!(
+                        "Provider set to {} but couldn't start it: {}",
+                        target.as_str(),
+                        e
+                    ),
+                    created_at: chrono::Utc::now().timestamp(),
+                });
+                self.set_status(
+                    LogLevel::Error,
+                    format!("{} not ready — see message above", target.as_str()),
+                );
+            }
+        }
     }
 
     /// Detect completed tasks from AI response and auto-complete them

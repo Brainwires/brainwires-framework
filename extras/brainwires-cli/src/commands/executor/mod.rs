@@ -5,6 +5,7 @@
 mod agent_commands;
 mod context_commands;
 mod conversation_commands;
+mod dream_commands;
 mod knowledge_commands;
 mod mdap_commands;
 mod misc_commands;
@@ -46,6 +47,10 @@ pub enum CommandAction {
     ClearHistory,
     /// Switch to a different model
     SwitchModel(String),
+    /// Switch to a different provider (reconstructs the Provider instance)
+    SwitchProvider(String),
+    /// Show the current provider + list of available providers
+    ListProviders,
     /// Show status
     ShowStatus,
     /// Rewind conversation
@@ -64,6 +69,8 @@ pub enum CommandAction {
     SetApprovalMode(String),
     /// Execute shell command (requires confirmation)
     ExecCommand(String),
+    /// Drop into an interactive shell with the terminal handed over.
+    OpenShell,
     /// Show shell command history
     ShowShellHistory,
     /// Open hotkey configuration dialog
@@ -152,6 +159,11 @@ pub enum CommandAction {
     MdapSetK(u32),
     /// Set MDAP target success rate
     MdapSetTarget(f64),
+    /// Run one dream (sleep) consolidation cycle against the active
+    /// conversation, then report tokens before/after + facts extracted.
+    DreamRun,
+    /// Show the last dream cycle report (or a "never run" message).
+    DreamStatus,
     /// Learn a behavioral truth (rule, optional rationale)
     LearnTruth(String, Option<String>),
     /// Show knowledge system status

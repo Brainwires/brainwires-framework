@@ -19,7 +19,7 @@ use crate::utils::system_prompt::build_system_prompt;
 /// Handle single-shot prompt mode
 pub async fn handle_prompt_mode(
     model: Option<String>,
-    _provider: Option<String>,
+    provider: Option<String>,
     system: Option<String>,
     prompt: String,
     quiet: bool,
@@ -30,8 +30,10 @@ pub async fn handle_prompt_mode(
     let config_manager = ConfigManager::new()?;
     let session = SessionManager::load()?;
 
-    // Resolve model from config
+    // Resolve provider (CLI flag > env > config) and model (CLI flag > config).
     let config = config_manager.get();
+    let active_provider =
+        ProviderFactory::effective_provider(provider.as_deref(), config.provider_type)?;
     let model_id = match model {
         Some(m) => m,
         None => config.model.clone(),
@@ -40,20 +42,30 @@ pub async fn handle_prompt_mode(
     if !quiet {
         if let Some(ref url) = backend_url_override {
             Logger::info(format!(
-                "Processing prompt with {} (dev backend: {})",
-                model_id, url
+                "Processing prompt with {} via {} (dev backend: {})",
+                model_id,
+                active_provider.as_str(),
+                url
             ));
         } else {
-            Logger::info(format!("Processing prompt with {} (brainwires)", model_id));
+            Logger::info(format!(
+                "Processing prompt with {} via {}",
+                model_id,
+                active_provider.as_str()
+            ));
         }
     }
 
     // Create provider with optional backend URL override
     let factory = ProviderFactory;
     let provider_instance = factory
-        .create_with_backend(model_id.clone(), backend_url_override)
+        .create_with_overrides(
+            model_id.clone(),
+            Some(active_provider),
+            backend_url_override,
+        )
         .await
-        .context("Failed to create provider. Run: brainwires auth status")?;
+        .context("Failed to create provider — run `brainwires auth status` to diagnose")?;
 
     // Initialize agent context with core tools only to reduce token cost
     let user_id = session.as_ref().map(|s| s.user.user_id.clone());
@@ -62,7 +74,7 @@ pub async fn handle_prompt_mode(
         working_directory: std::env::current_dir()?.to_string_lossy().to_string(),
         user_id,
         conversation_history: Vec::new(),
-        tools: registry.get_core().into_iter().cloned().collect(),
+        tools: crate::tools::select_non_tui_tools(&registry),
         metadata: std::collections::HashMap::new(),
         working_set: crate::types::WorkingSet::new(),
         // Use full_access for CLI mode - users expect agents to have write access
@@ -153,7 +165,7 @@ pub async fn handle_prompt_mode(
 #[allow(clippy::too_many_arguments)]
 pub async fn handle_prompt_mode_mdap(
     model: Option<String>,
-    _provider: Option<String>,
+    provider: Option<String>,
     system: Option<String>,
     prompt: String,
     quiet: bool,
@@ -168,8 +180,10 @@ pub async fn handle_prompt_mode_mdap(
     let config_manager = ConfigManager::new()?;
     let session = SessionManager::load()?;
 
-    // Resolve model from config
+    // Resolve provider (CLI flag > env > config) and model.
     let config = config_manager.get();
+    let active_provider =
+        ProviderFactory::effective_provider(provider.as_deref(), config.provider_type)?;
     let model_id = match model {
         Some(m) => m,
         None => config.model.clone(),
@@ -182,7 +196,7 @@ pub async fn handle_prompt_mode_mdap(
             // Fall back to regular prompt mode
             return handle_prompt_mode(
                 Some(model_id),
-                _provider,
+                provider,
                 system,
                 prompt,
                 quiet,
@@ -196,11 +210,17 @@ pub async fn handle_prompt_mode_mdap(
     if !quiet {
         if let Some(ref url) = backend_url_override {
             Logger::info(format!(
-                "Processing prompt with {} in MDAP mode (dev backend: {})",
-                model_id, url
+                "Processing prompt with {} via {} in MDAP mode (dev backend: {})",
+                model_id,
+                active_provider.as_str(),
+                url
             ));
         } else {
-            Logger::info(format!("Processing prompt with {} in MDAP mode", model_id));
+            Logger::info(format!(
+                "Processing prompt with {} via {} in MDAP mode",
+                model_id,
+                active_provider.as_str()
+            ));
         }
         Logger::info(format!(
             "MDAP config: k={}, target={}%",
@@ -212,9 +232,13 @@ pub async fn handle_prompt_mode_mdap(
     // Create provider with optional backend URL override
     let factory = ProviderFactory;
     let provider_instance = factory
-        .create_with_backend(model_id.clone(), backend_url_override)
+        .create_with_overrides(
+            model_id.clone(),
+            Some(active_provider),
+            backend_url_override,
+        )
         .await
-        .context("Failed to create provider. Run: brainwires auth status")?;
+        .context("Failed to create provider — run `brainwires auth status` to diagnose")?;
 
     // Initialize agent context with core tools
     let user_id = session.as_ref().map(|s| s.user.user_id.clone());
@@ -223,7 +247,7 @@ pub async fn handle_prompt_mode_mdap(
         working_directory: std::env::current_dir()?.to_string_lossy().to_string(),
         user_id,
         conversation_history: Vec::new(),
-        tools: registry.get_core().into_iter().cloned().collect(),
+        tools: crate::tools::select_non_tui_tools(&registry),
         metadata: std::collections::HashMap::new(),
         working_set: crate::types::WorkingSet::new(),
         // Use full_access for CLI mode - users expect agents to have write access

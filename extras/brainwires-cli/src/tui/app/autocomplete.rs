@@ -87,6 +87,16 @@ impl AutocompleteOps for App {
             .cloned()
             .collect();
 
+        // Also surface discovered skills — typing `/<skill-name>` should
+        // autocomplete to the full name the same way built-in commands do.
+        if let Some(ref registry) = self.skill_registry {
+            for name in registry.list_skills() {
+                if name.starts_with(partial_cmd) && !matching_commands.iter().any(|c| c == name) {
+                    matching_commands.push(name.to_string());
+                }
+            }
+        }
+
         // Sort alphabetically for consistent display
         matching_commands.sort();
 

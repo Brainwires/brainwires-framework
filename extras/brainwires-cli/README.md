@@ -36,22 +36,76 @@ cargo install --path .
 
 Download the latest release from the releases page.
 
+## Providers
+
+Brainwires CLI is provider-agnostic — point it at Anthropic, OpenAI, Google, Groq, Ollama (local), Amazon Bedrock, Google Vertex AI, Together, Fireworks, MiniMax, or the Brainwires SaaS relay. Three ways to configure a provider:
+
+**1. First-run picker (interactive).** The very first time you run `brainwires chat` or `brainwires task` with no config, you'll see a picker listing the chat-capable providers. The choice is persisted to `~/.brainwires/config.json`.
+
+**2. Environment variables.** If any of these are set, the CLI picks the provider up automatically and skips the picker:
+
+| Provider | Env var |
+|----------|---------|
+| Anthropic (Claude) | `ANTHROPIC_API_KEY` |
+| OpenAI (GPT) | `OPENAI_API_KEY` |
+| Google (Gemini) | `GEMINI_API_KEY` *or* `GOOGLE_API_KEY` |
+| Groq | `GROQ_API_KEY` |
+| Ollama (local) | `OLLAMA_HOST` (just presence detected) |
+| Brainwires SaaS | `BRAINWIRES_API_KEY` |
+| Together / Fireworks / MiniMax | `TOGETHER_API_KEY` / `FIREWORKS_API_KEY` / `MINIMAX_API_KEY` |
+| Bedrock | AWS credential chain (`AWS_ACCESS_KEY_ID`, …) |
+| Vertex AI | `GOOGLE_APPLICATION_CREDENTIALS` + project ID |
+
+You can also override per-invocation with `BRAINWIRES_PROVIDER=anthropic` or `--provider anthropic`.
+
+**3. Explicit login.** Store credentials in your system keyring so they persist across shells:
+
+```bash
+# Brainwires SaaS (default)
+brainwires auth login
+
+# Any direct provider
+brainwires auth login --provider anthropic
+brainwires auth login --provider openai --model gpt-5-mini
+brainwires auth login --provider ollama --base-url http://localhost:11434
+brainwires auth login --provider bedrock --region us-west-2
+brainwires auth login --provider vertex-ai --project-id my-gcp-project
+```
+
+### Switching providers
+
+Inside an interactive TUI session, use slash commands:
+
+```
+/provider                # list providers, shows current with *
+/provider anthropic      # switch; persists to config
+/auth status             # show credential state for the active provider
+```
+
+From the shell, just pass `--provider` to any command:
+
+```bash
+brainwires chat --provider anthropic --prompt "explain ownership"
+brainwires task --provider ollama "summarize src/main.rs"
+```
+
 ## Quick Start
 
 ### Authentication
 
-First, authenticate with Brainwires Studio:
+First, pick a provider — either run `brainwires chat` and use the first-run picker, or explicitly:
 
 ```bash
-brainwires auth login
+brainwires auth login                             # Brainwires SaaS
+brainwires auth login --provider anthropic        # Claude
 ```
 
-Or set environment variables for direct provider access:
+Or just export an API key and the CLI picks it up:
 
 ```bash
 export ANTHROPIC_API_KEY=your_key_here
 export OPENAI_API_KEY=your_key_here
-export GOOGLE_API_KEY=your_key_here
+export GEMINI_API_KEY=your_key_here
 ```
 
 ### Chat Modes

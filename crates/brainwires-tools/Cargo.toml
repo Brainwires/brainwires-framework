@@ -100,6 +100,7 @@ serde-wasm-bindgen = { version = "0.6", optional = true }
 tokio = { workspace = true, features = ["full", "test-util"] }
 tempfile = "3"
 criterion = { version = "0.5", features = ["html_reports"] }
+proptest.workspace = true
 
 [features]
 default = ["native"]

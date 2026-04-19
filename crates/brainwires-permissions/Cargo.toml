@@ -50,6 +50,7 @@ wasm = ["brainwires-core/wasm"]
 [dev-dependencies]
 tempfile.workspace = true
 tokio = { workspace = true }
+proptest.workspace = true
 
 [[example]]
 name = "policy_engine"

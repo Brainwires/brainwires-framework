@@ -6,7 +6,7 @@
 //! # Example
 //!
 //! ```rust
-//! use brainwires_core::output_parser::{JsonOutputParser, OutputParser};
+//! use brainwires_reasoning::output_parser::{JsonOutputParser, OutputParser};
 //! use serde::Deserialize;
 //!
 //! #[derive(Deserialize)]

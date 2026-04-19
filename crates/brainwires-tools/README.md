@@ -54,7 +54,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-brainwires-tools = { version = "0.9", features = ["native"] }
+brainwires-tools = { version = "0.10", features = ["native"] }
 ```
 
 Register tools and execute:
@@ -214,7 +214,7 @@ Requires the `orchestrator` feature. See `examples/` for complete workflows.
 Automatically create tools from OpenAPI 3.x specs (feature-gated: `openapi`):
 
 ```toml
-brainwires-tools = { version = "0.9", features = ["native", "openapi"] }
+brainwires-tools = { version = "0.10", features = ["native", "openapi"] }
 ```
 
 ```rust

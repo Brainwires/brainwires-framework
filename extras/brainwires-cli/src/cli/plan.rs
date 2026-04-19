@@ -119,14 +119,14 @@ pub async fn handle_plan(
         None => ModelRegistry::default_model().await,
     };
 
-    Logger::info(format!("Planning task with {} (brainwires)", model_id));
+    Logger::info(format!("Planning task with {}", model_id));
 
     // Create provider using factory (requires active session)
     let factory = ProviderFactory;
     let provider_instance = factory
         .create(model_id.clone())
         .await
-        .context("Failed to create provider. Run: brainwires auth status")?;
+        .context("Failed to create provider — run `brainwires auth status` to diagnose")?;
 
     // Create agent manager
     let agent_manager = AgentManager::new(provider_instance, PermissionMode::Auto, 5).await?;

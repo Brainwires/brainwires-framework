@@ -11,7 +11,7 @@ use crate::utils::logger::Logger;
 #[allow(clippy::too_many_arguments)]
 pub async fn handle_chat(
     model: Option<String>,
-    _provider: Option<String>,
+    provider: Option<String>,
     system: Option<String>,
     dev: bool,
     dev_port: u16,
@@ -60,7 +60,7 @@ pub async fn handle_chat(
         if mdap_config.is_some() {
             super::conversation::handle_prompt_mode_mdap(
                 model,
-                _provider,
+                provider,
                 system,
                 prompt_text,
                 quiet,
@@ -72,7 +72,7 @@ pub async fn handle_chat(
         } else {
             super::conversation::handle_prompt_mode(
                 model,
-                _provider,
+                provider,
                 system,
                 prompt_text,
                 quiet,
@@ -85,7 +85,7 @@ pub async fn handle_chat(
         // Batch processing mode (MDAP not yet supported in batch)
         super::conversation::handle_batch_mode(
             model,
-            _provider,
+            provider,
             system,
             quiet,
             &format,
@@ -97,7 +97,7 @@ pub async fn handle_chat(
         let json_output = json || format == "json";
         super::conversation::handle_chat_with_conversation(
             model,
-            _provider,
+            provider,
             system,
             None,
             json_output,

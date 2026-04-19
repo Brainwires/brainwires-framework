@@ -26,16 +26,10 @@ pub mod graph;
 pub mod lifecycle;
 /// Message, role, and streaming types for AI conversations.
 pub mod message;
-/// Structured output parsers for LLM responses.
-#[cfg(feature = "planning")]
-pub mod output_parser;
 /// Permission mode definitions.
 pub mod permission;
 /// Plan metadata, steps, budgets, and serializable plans.
 pub mod plan;
-/// Plan text parser for extracting steps from LLM output.
-#[cfg(feature = "planning")]
-pub mod plan_parser;
 /// Provider configuration and chat options.
 pub mod provider;
 /// Shared search types (SearchResult, ChunkMetadata, DatabaseStats).
@@ -57,12 +51,8 @@ pub use embedding::EmbeddingProvider;
 pub use error::*;
 pub use graph::*;
 pub use message::*;
-#[cfg(feature = "planning")]
-pub use output_parser::{JsonListParser, JsonOutputParser, OutputParser, RegexOutputParser};
 pub use permission::*;
 pub use plan::*;
-#[cfg(feature = "planning")]
-pub use plan_parser::{ParsedStep, parse_plan_steps, steps_to_tasks};
 pub use provider::*;
 pub use search::{ChunkMetadata, DatabaseStats, SearchResult};
 pub use task::*;

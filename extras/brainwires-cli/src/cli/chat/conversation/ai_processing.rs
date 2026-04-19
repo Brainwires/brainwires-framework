@@ -127,6 +127,11 @@ pub async fn process_ai_response(
             if let Err(e) = conversation_manager.save_to_db().await {
                 Logger::warn(format!("Failed to auto-save conversation: {}", e));
             }
+
+            // Stop hook — fires at end of model turn. Block is advisory
+            // here (the message is already stored); we surface it so the
+            // user sees the warning.
+            dispatch_stop_hook(&text).await;
         }
         Err(e) => {
             Logger::error(format!("Error: {}", e));
@@ -135,6 +140,22 @@ pub async fn process_ai_response(
     }
 
     Ok(())
+}
+
+/// Load hooks for the current cwd and fire the `Stop` event with the
+/// assistant's final message. No-op when no Stop hooks are configured.
+async fn dispatch_stop_hook(final_message: &str) {
+    let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let (_, dispatcher) = crate::hooks::load_for_cwd(&cwd);
+    match dispatcher.dispatch_stop(final_message).await {
+        crate::hooks::HookOutcome::Continue => {}
+        crate::hooks::HookOutcome::Block { reason } => {
+            Logger::warn(format!("Stop hook reported: {}", reason));
+        }
+        crate::hooks::HookOutcome::SoftError(msg) => {
+            tracing::warn!("Stop hook error: {}", msg);
+        }
+    }
 }
 
 /// Process AI response with MDAP mode for high reliability
@@ -244,6 +265,8 @@ pub async fn process_ai_response_mdap(
             if let Err(e) = conversation_manager.save_to_db().await {
                 Logger::warn(format!("Failed to auto-save conversation: {}", e));
             }
+
+            dispatch_stop_hook(&response.message).await;
         }
         Err(e) => {
             Logger::error(format!("MDAP Error: {}", e));

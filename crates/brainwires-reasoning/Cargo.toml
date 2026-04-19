@@ -1,6 +1,6 @@
 [package]
 name = "brainwires-reasoning"
-description = "Structured reasoning primitives — plan parsing, output parsing, and prompt engineering for the Brainwires Agent Framework"
+description = "Layer 3 reasoning — plan/output parsers + provider-agnostic local-inference scorers (router, complexity, relevance, retrieval, strategy, summariser, validator, entity enhancer) for the Brainwires Agent Framework"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -14,16 +14,31 @@ keywords = ["reasoning", "plan-parsing", "output-parsing", "llm", "prompting"]
 categories = ["development-tools"]
 
 [dependencies]
-brainwires-core = { workspace = true, features = ["planning"] }
+brainwires-core = { workspace = true }
+brainwires-tools = { workspace = true }
+
+# Async primitives used by scorers
+async-trait = { workspace = true }
+futures = { workspace = true }
+tokio = { workspace = true, features = ["sync", "time", "rt"] }
 
 # Serialization
 serde = { workspace = true }
 serde_json = { workspace = true }
 
+# Parsing
+regex = { workspace = true }
+
 # Error handling
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 
+# Logging
+tracing = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full", "test-util"] }
+proptest.workspace = true
 
 [features]
 default = []

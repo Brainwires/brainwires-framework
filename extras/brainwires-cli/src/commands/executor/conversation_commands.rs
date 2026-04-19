@@ -18,6 +18,7 @@ impl CommandExecutor {
             "clear" => Some(Ok(CommandResult::Action(CommandAction::ClearHistory))),
             "status" => Some(Ok(CommandResult::Action(CommandAction::ShowStatus))),
             "model" => Some(self.cmd_model(args)),
+            "provider" => Some(self.cmd_provider(args)),
             "rewind" => Some(self.cmd_rewind(args)),
             "resume" => Some(self.cmd_resume(args)),
             "exit" => Some(Ok(CommandResult::Action(CommandAction::Exit))),
@@ -65,6 +66,20 @@ impl CommandExecutor {
         Ok(CommandResult::Action(CommandAction::SwitchModel(
             model_name,
         )))
+    }
+
+    /// `/provider` — list providers. `/provider <name>` — switch.
+    ///
+    /// Switching only updates config + reconstructs the provider instance.
+    /// It does NOT prompt for an API key; if the target provider has no
+    /// credentials configured, the TUI status line will show an error
+    /// and the user can run `/auth` or set the env var.
+    fn cmd_provider(&self, args: &[String]) -> Result<CommandResult> {
+        if args.is_empty() {
+            return Ok(CommandResult::Action(CommandAction::ListProviders));
+        }
+        let name = args[0].clone();
+        Ok(CommandResult::Action(CommandAction::SwitchProvider(name)))
     }
 
     fn cmd_rewind(&self, args: &[String]) -> Result<CommandResult> {

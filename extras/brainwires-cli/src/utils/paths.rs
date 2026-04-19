@@ -108,7 +108,14 @@ impl PlatformPaths {
     ///
     /// This is used for user-facing config files like permissions.toml
     /// that users might want to edit manually.
+    ///
+    /// Honors `BRAINWIRES_HOME` as an override — useful in tests and for
+    /// pointing at an alternate home dir without mutating `$HOME` (which
+    /// is process-global and races under parallel tests).
     pub fn dot_brainwires_dir() -> Result<PathBuf> {
+        if let Ok(override_dir) = std::env::var("BRAINWIRES_HOME") {
+            return Ok(PathBuf::from(override_dir));
+        }
         let home = dirs::home_dir().context("Failed to get home directory")?;
         Ok(home.join(".brainwires"))
     }
@@ -520,6 +527,79 @@ impl PlatformPaths {
         Ok(std::env::current_dir()
             .context("Failed to get current working directory")?
             .join(".brainwires"))
+    }
+
+    /// Find the project root by walking upward from `cwd` looking for a
+    /// marker: `.git`, `.brainwires/`, `BRAINWIRES.md`, or `CLAUDE.md`.
+    /// Returns `cwd` unchanged if none is found before the filesystem root.
+    pub fn find_project_root(cwd: &Path) -> PathBuf {
+        const MAX_WALK_UP_DEPTH: usize = 32;
+        for dir in cwd.ancestors().take(MAX_WALK_UP_DEPTH) {
+            if dir.join(".git").exists()
+                || dir.join(".brainwires").is_dir()
+                || dir.join("BRAINWIRES.md").is_file()
+                || dir.join("CLAUDE.md").is_file()
+            {
+                return dir.to_path_buf();
+            }
+        }
+        cwd.to_path_buf()
+    }
+
+    /// Encode a filesystem path as the directory name used for per-project
+    /// memory storage. Replaces path separators with `-`, matching the
+    /// convention used by Claude Code and the user's existing memory layout.
+    pub fn encode_cwd_for_projects(cwd: &Path) -> String {
+        let s = cwd.to_string_lossy().replace('\\', "/");
+        s.replace('/', "-")
+    }
+
+    /// Per-project memory directory, resolved against an explicit home
+    /// directory. Mostly useful in tests — production callers should use
+    /// [`project_memory_dir`].
+    pub fn project_memory_dir_in(home: &Path, cwd: &Path) -> PathBuf {
+        let encoded = Self::encode_cwd_for_projects(cwd);
+        home.join(".brainwires")
+            .join("projects")
+            .join(encoded)
+            .join("memory")
+    }
+
+    /// Per-project memory directory for the given cwd.
+    /// Returns: `~/.brainwires/projects/<encoded-cwd>/memory/`.
+    ///
+    /// Respects the `BRAINWIRES_MEMORY_ROOT` env var when set — useful in
+    /// tests and for pointing at an alternate home directory without
+    /// mutating `HOME` (which is process-global and races under parallel
+    /// test execution).
+    pub fn project_memory_dir(cwd: &Path) -> Result<PathBuf> {
+        if let Ok(override_root) = std::env::var("BRAINWIRES_MEMORY_ROOT") {
+            let base = PathBuf::from(override_root);
+            return Ok(base
+                .join("projects")
+                .join(Self::encode_cwd_for_projects(cwd))
+                .join("memory"));
+        }
+        let home = Self::dot_brainwires_dir()?;
+        Ok(Self::project_memory_dir_in(
+            home.parent().unwrap_or(&home),
+            cwd,
+        ))
+    }
+
+    /// Ensure the per-project memory directory exists.
+    pub fn ensure_project_memory_dir(cwd: &Path) -> Result<PathBuf> {
+        let dir = Self::project_memory_dir(cwd)?;
+        if !dir.exists() {
+            std::fs::create_dir_all(&dir)
+                .with_context(|| format!("Failed to create memory dir: {}", dir.display()))?;
+        }
+        Ok(dir)
+    }
+
+    /// Path to the `MEMORY.md` index file for the given cwd.
+    pub fn memory_index_path(cwd: &Path) -> Result<PathBuf> {
+        Ok(Self::project_memory_dir(cwd)?.join("MEMORY.md"))
     }
 
     /// Get the project-specific brainwires directory (infallible)

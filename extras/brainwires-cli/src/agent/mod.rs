@@ -18,9 +18,11 @@ pub mod plan_mode;
 pub mod process;
 pub mod spawn;
 pub mod state;
+pub mod worktree;
 
 pub use hibernate::*;
 pub use message_queue::*;
 pub use process::*;
 pub use spawn::*;
 pub use state::*;
+pub use worktree::{WorktreeGuard, prune_orphans as prune_worktree_orphans};

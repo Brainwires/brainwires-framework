@@ -168,8 +168,8 @@ impl App {
             return Ok(());
         }
 
-        // Open file explorer with Ctrl+Alt+F
-        if event.is_file_explorer() {
+        // Default Ctrl+Alt+F: file explorer (remappable via keybindings).
+        if self.keybindings.matches("file_explorer", &event) {
             use super::super::file_explorer::FileExplorerState;
             let start_dir = std::env::current_dir().unwrap_or_default();
             self.file_explorer_state = Some(FileExplorerState::new(start_dir));

@@ -10,11 +10,14 @@
 pub mod agent;
 pub mod agents;
 pub mod approval;
+pub mod ask;
 pub mod auth;
 pub mod cli;
 pub mod commands;
 pub mod config;
+pub mod dream;
 pub mod error;
+pub mod hooks;
 pub mod ipc;
 pub mod logging;
 pub mod mcp;

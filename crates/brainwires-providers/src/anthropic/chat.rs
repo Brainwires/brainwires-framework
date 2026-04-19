@@ -9,9 +9,11 @@ use super::{
     AnthropicTool,
 };
 use brainwires_core::{
-    ChatOptions, ChatResponse, ContentBlock, Message, MessageContent, Provider, Role, StreamChunk,
-    Tool, Usage,
+    ChatOptions, ChatResponse, ContentBlock, ImageSource, Message, MessageContent, Provider, Role,
+    StreamChunk, Tool, Usage,
 };
+
+use super::AnthropicImageSource;
 
 // ---------------------------------------------------------------------------
 // Chat provider
@@ -79,26 +81,35 @@ impl AnthropicChatProvider {
                     }
                     MessageContent::Blocks(blocks) => blocks
                         .iter()
-                        .filter_map(|b| match b {
+                        .map(|b| match b {
                             ContentBlock::Text { text } => {
-                                Some(AnthropicContentBlock::Text { text: text.clone() })
+                                AnthropicContentBlock::Text { text: text.clone() }
                             }
+                            ContentBlock::Image { source } => match source {
+                                ImageSource::Base64 { media_type, data } => {
+                                    AnthropicContentBlock::Image {
+                                        source: AnthropicImageSource::Base64 {
+                                            media_type: media_type.clone(),
+                                            data: data.clone(),
+                                        },
+                                    }
+                                }
+                            },
                             ContentBlock::ToolUse { id, name, input } => {
-                                Some(AnthropicContentBlock::ToolUse {
+                                AnthropicContentBlock::ToolUse {
                                     id: id.clone(),
                                     name: name.clone(),
                                     input: input.clone(),
-                                })
+                                }
                             }
                             ContentBlock::ToolResult {
                                 tool_use_id,
                                 content,
                                 ..
-                            } => Some(AnthropicContentBlock::ToolResult {
+                            } => AnthropicContentBlock::ToolResult {
                                 tool_use_id: tool_use_id.clone(),
                                 content: content.clone(),
-                            }),
-                            _ => None,
+                            },
                         })
                         .collect(),
                 },
@@ -128,6 +139,20 @@ impl AnthropicChatProvider {
 
     /// Parse an `AnthropicResponse` into a core `ChatResponse`.
     fn parse_response(response: AnthropicResponse) -> ChatResponse {
+        if let Some(read) = response.usage.cache_read_input_tokens
+            && read > 0
+        {
+            tracing::info!(
+                cache_read_input_tokens = read,
+                cache_creation_input_tokens =
+                    response.usage.cache_creation_input_tokens.unwrap_or(0),
+                "prompt cache hit",
+            );
+        } else if let Some(write) = response.usage.cache_creation_input_tokens
+            && write > 0
+        {
+            tracing::debug!(cache_creation_input_tokens = write, "prompt cache write");
+        }
         let content = if response.content.len() == 1 {
             match &response.content[0] {
                 AnthropicContentBlock::Text { text } => MessageContent::Text(text.clone()),
@@ -209,6 +234,7 @@ impl Provider for AnthropicChatProvider {
             stop_sequences: None,
             tools: tools.map(Self::convert_tools),
             stream: false,
+            cache_prompt: true,
         };
 
         #[cfg(feature = "telemetry")]
@@ -258,6 +284,7 @@ impl Provider for AnthropicChatProvider {
                 stop_sequences: None,
                 tools: tools.map(Self::convert_tools),
                 stream: true,
+                cache_prompt: true,
             };
 
             let mut stream = self.client.stream_messages(&req);
@@ -393,6 +420,41 @@ mod tests {
         assert_eq!(converted.len(), 1);
         assert_eq!(converted[0].role, "assistant");
         assert_eq!(converted[0].content.len(), 2);
+    }
+
+    #[test]
+    fn test_convert_messages_image_block_roundtrips_as_anthropic_image() {
+        let messages = vec![Message {
+            role: Role::User,
+            content: MessageContent::Blocks(vec![
+                ContentBlock::Text {
+                    text: "What's in this picture?".to_string(),
+                },
+                ContentBlock::Image {
+                    source: ImageSource::Base64 {
+                        media_type: "image/png".to_string(),
+                        data: "iVBORw0KGgo=".to_string(),
+                    },
+                },
+            ]),
+            name: None,
+            metadata: None,
+        }];
+
+        let converted = AnthropicChatProvider::convert_messages(&messages);
+        assert_eq!(converted.len(), 1);
+        assert_eq!(converted[0].content.len(), 2);
+
+        // Second block must serialise as Anthropic's native image envelope so
+        // the provider crate stays the single source of truth for the wire
+        // format.
+        let json = serde_json::to_value(&converted[0]).unwrap();
+        let blocks = json["content"].as_array().unwrap();
+        assert_eq!(blocks[0]["type"], "text");
+        assert_eq!(blocks[1]["type"], "image");
+        assert_eq!(blocks[1]["source"]["type"], "base64");
+        assert_eq!(blocks[1]["source"]["media_type"], "image/png");
+        assert_eq!(blocks[1]["source"]["data"], "iVBORw0KGgo=");
     }
 
     #[test]
@@ -555,6 +617,8 @@ mod tests {
             usage: crate::anthropic::AnthropicUsage {
                 input_tokens: 10,
                 output_tokens: 5,
+                cache_creation_input_tokens: None,
+                cache_read_input_tokens: None,
             },
         };
 
@@ -589,6 +653,8 @@ mod tests {
             usage: crate::anthropic::AnthropicUsage {
                 input_tokens: 20,
                 output_tokens: 15,
+                cache_creation_input_tokens: None,
+                cache_read_input_tokens: None,
             },
         };
 
