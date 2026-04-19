@@ -28,6 +28,7 @@ use super::secure_channel::{
     CaseResponder, EstablishedSession, PaseCommissionee, SECURE_CHANNEL_PROTOCOL_ID,
     SecureChannelOpcode,
 };
+use super::subscription_manager::SubscriptionManager;
 use super::transport::message::{MatterMessage, MessageHeader, SessionType};
 use super::transport::{SessionKeys, UdpTransport};
 use super::types::MatterDeviceConfig;
@@ -74,6 +75,16 @@ struct ServerInner {
     _commissioned: bool,
 }
 
+/// An attribute mutation pushed through the notification pump.
+#[derive(Debug, Clone)]
+struct AttributeChange {
+    endpoint: u16,
+    cluster: u32,
+    attribute: u32,
+    /// TLV-encoded new value (the cluster owner knows the type).
+    value: Vec<u8>,
+}
+
 /// A Matter 1.3 device server.
 ///
 /// Once started, this device:
@@ -107,6 +118,11 @@ pub struct MatterDeviceServer {
     inner: Arc<Mutex<ServerInner>>,
     qr_code: String,
     pairing_code: String,
+    subscriptions: Arc<SubscriptionManager>,
+    /// Sender half of the notification pump. `notify_attribute_change`
+    /// pushes here; the recv loop in `start()` drains and delivers ReportData.
+    notify_tx: tokio::sync::mpsc::UnboundedSender<AttributeChange>,
+    notify_rx: Mutex<Option<tokio::sync::mpsc::UnboundedReceiver<AttributeChange>>>,
 }
 
 impl MatterDeviceServer {
@@ -114,6 +130,7 @@ impl MatterDeviceServer {
     pub async fn new(config: MatterDeviceConfig) -> HomeAutoResult<Self> {
         let qr_code = generate_qr_code_string(&config);
         let pairing_code = generate_pairing_code(&config);
+        let (notify_tx, notify_rx) = tokio::sync::mpsc::unbounded_channel();
         Ok(Self {
             config,
             inner: Arc::new(Mutex::new(ServerInner {
@@ -126,6 +143,9 @@ impl MatterDeviceServer {
             })),
             qr_code,
             pairing_code,
+            subscriptions: Arc::new(SubscriptionManager::new()),
+            notify_tx,
+            notify_rx: Mutex::new(Some(notify_rx)),
         })
     }
 
@@ -186,6 +206,14 @@ impl MatterDeviceServer {
 
         let passcode = self.config.passcode;
 
+        // Take the notification receiver out — start() must only run once.
+        let mut notify_rx = self
+            .notify_rx
+            .lock()
+            .await
+            .take()
+            .ok_or_else(|| HomeAutoError::Matter("server already started once".into()))?;
+
         // 6. Receive loop
         loop {
             let running = self.inner.lock().await.running;
@@ -193,46 +221,58 @@ impl MatterDeviceServer {
                 break;
             }
 
-            match tokio::time::timeout(std::time::Duration::from_millis(100), transport.recv())
-                .await
-            {
-                Ok(Ok((msg, peer))) => {
-                    let session_id = msg.header.session_id;
-                    debug!(
-                        "Matter UDP from {peer}: session={session_id} payload_len={}",
-                        msg.payload.len()
-                    );
+            tokio::select! {
+                biased;
+                Some(change) = notify_rx.recv() => {
+                    dispatch_attribute_change(
+                        &change,
+                        &transport,
+                        &self.subscriptions,
+                    ).await;
+                    continue;
+                }
+                result = tokio::time::timeout(std::time::Duration::from_millis(100), transport.recv()) => {
+                    match result {
+                        Ok(Ok((msg, peer))) => {
+                            let session_id = msg.header.session_id;
+                            debug!(
+                                "Matter UDP from {peer}: session={session_id} payload_len={}",
+                                msg.payload.len()
+                            );
 
-                    if session_id == 0 {
-                        // Unencrypted commissioning — PASE
-                        handle_commissioning_message(
-                            msg,
-                            peer,
-                            &transport,
-                            &pase_state,
-                            &established,
-                            passcode,
-                        )
-                        .await;
-                    } else {
-                        // Operational — CASE or IM dispatch
-                        handle_operational_message(
-                            msg,
-                            peer,
-                            &transport,
-                            &case_sessions,
-                            &established,
-                            &data_model,
-                            &self.inner,
-                        )
-                        .await;
+                            if session_id == 0 {
+                                // Unencrypted commissioning — PASE
+                                handle_commissioning_message(
+                                    msg,
+                                    peer,
+                                    &transport,
+                                    &pase_state,
+                                    &established,
+                                    passcode,
+                                )
+                                .await;
+                            } else {
+                                // Operational — CASE or IM dispatch
+                                handle_operational_message(
+                                    msg,
+                                    peer,
+                                    &transport,
+                                    &case_sessions,
+                                    &established,
+                                    &data_model,
+                                    &self.inner,
+                                    &self.subscriptions,
+                                )
+                                .await;
+                            }
+                        }
+                        Ok(Err(e)) => {
+                            error!("Matter UDP recv error: {e}");
+                            break;
+                        }
+                        Err(_) => {} // timeout — loop back and check running flag
                     }
                 }
-                Ok(Err(e)) => {
-                    error!("Matter UDP recv error: {e}");
-                    break;
-                }
-                Err(_) => {} // timeout — loop back and check running flag
             }
         }
 
@@ -246,6 +286,37 @@ impl MatterDeviceServer {
     pub async fn stop(&self) -> HomeAutoResult<()> {
         self.inner.lock().await.running = false;
         Ok(())
+    }
+
+    /// Push an attribute change to all active subscribers.
+    ///
+    /// The change is delivered asynchronously by the server's receive loop —
+    /// this call is non-blocking and only enqueues the event. `value` should
+    /// already be TLV-encoded per the attribute's schema.
+    ///
+    /// Returns `Err` if the server is not running (the channel has been closed).
+    pub fn notify_attribute_change(
+        &self,
+        endpoint: u16,
+        cluster: u32,
+        attribute: u32,
+        value: Vec<u8>,
+    ) -> HomeAutoResult<()> {
+        self.notify_tx
+            .send(AttributeChange {
+                endpoint,
+                cluster,
+                attribute,
+                value,
+            })
+            .map_err(|e| HomeAutoError::Matter(format!("notify_attribute_change: {e}")))
+    }
+
+    /// Access the active subscription registry (read-only snapshot).
+    ///
+    /// Primarily useful for metrics and testing.
+    pub fn subscriptions(&self) -> &SubscriptionManager {
+        &self.subscriptions
     }
 
     /// Register a callback for On/Off cluster state changes.
@@ -358,6 +429,62 @@ pub fn build_payload(
 }
 
 // ── Helper: send a bare Matter response message (session 0, unencrypted) ─────
+
+/// Deliver a single attribute change to all matching subscribers.
+async fn dispatch_attribute_change(
+    change: &AttributeChange,
+    transport: &Arc<UdpTransport>,
+    subscriptions: &Arc<SubscriptionManager>,
+) {
+    use super::clusters::AttributePath;
+    use super::interaction_model::AttributeData;
+
+    let subs = subscriptions.matches(change.endpoint, change.cluster, change.attribute);
+    if subs.is_empty() {
+        return;
+    }
+    debug!(
+        "OP: dispatching attribute change ep={} cluster={:#x} attr={:#x} to {} subscribers",
+        change.endpoint,
+        change.cluster,
+        change.attribute,
+        subs.len()
+    );
+
+    let attr_data = AttributeData {
+        path: AttributePath::specific(change.endpoint, change.cluster, change.attribute),
+        data: change.value.clone(),
+    };
+
+    for sub in subs {
+        let report = ReportData {
+            subscription_id: Some(sub.id),
+            attribute_reports: vec![attr_data.clone()],
+            suppress_response: false,
+        };
+        let wire = build_payload(
+            ImOpcode::ReportData as u8,
+            sub.exchange_id,
+            IM_PROTOCOL_ID,
+            &report.encode(),
+        );
+        // For asynchronous push ReportData, the session's current message counter
+        // is not tracked here — use a timestamp-based counter so receivers can
+        // order messages. This is approximate (real implementations keep
+        // per-session sequence state).
+        let counter = (std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_micros() as u64)
+            .unwrap_or(0)) as u32;
+        let msg = make_response_message(sub.session_id, counter, wire);
+        if let Err(e) = transport.send(&msg, sub.peer).await {
+            error!(
+                "OP: push ReportData to subscription {} failed: {e}",
+                sub.id
+            );
+        }
+    }
+}
 
 fn make_response_message(session_id: u16, message_counter: u32, payload: Vec<u8>) -> MatterMessage {
     MatterMessage {
@@ -542,6 +669,7 @@ async fn handle_operational_message(
     _established: &Arc<Mutex<HashMap<u16, EstablishedSession>>>,
     data_model: &Arc<DataModelNode>,
     inner: &Arc<Mutex<ServerInner>>,
+    subscriptions: &Arc<SubscriptionManager>,
 ) {
     let session_id = msg.header.session_id;
     let counter = msg.header.message_counter;
@@ -662,6 +790,77 @@ async fn handle_operational_message(
             let resp = make_response_message(session_id, counter.wrapping_add(1), wire_payload);
             if let Err(e) = transport.send(&resp, peer).await {
                 error!("OP: send ReportData error: {e}");
+            }
+        }
+
+        // SubscribeRequest (0x03)
+        x if x == ImOpcode::SubscribeRequest as u8 => {
+            use super::interaction_model::{SubscribeRequest, SubscribeResponse};
+
+            let req = match SubscribeRequest::decode(app_payload) {
+                Ok(r) => r,
+                Err(e) => {
+                    error!("OP: SubscribeRequest decode error: {e}");
+                    return;
+                }
+            };
+
+            // Negotiate the max interval — for now we accept the controller's ceiling.
+            let max_interval = req.max_interval_ceiling_seconds;
+
+            let sub_id = subscriptions.register(
+                session_id,
+                peer,
+                exchange_id,
+                req.attribute_requests.clone(),
+                req.min_interval_floor_seconds,
+                max_interval,
+                req.fabric_filtered,
+            );
+
+            debug!(
+                "OP: registered subscription {sub_id} session={session_id} paths={} max_interval={max_interval}s",
+                req.attribute_requests.len()
+            );
+
+            // Priming ReportData — send current values for every requested attribute.
+            let mut all_attrs = Vec::new();
+            for path in &req.attribute_requests {
+                let mut attrs = data_model.dispatch_read(path).await;
+                all_attrs.append(&mut attrs);
+            }
+            let report = ReportData {
+                subscription_id: Some(sub_id),
+                attribute_reports: all_attrs,
+                suppress_response: false,
+            };
+            let report_wire = build_payload(
+                ImOpcode::ReportData as u8,
+                exchange_id,
+                IM_PROTOCOL_ID,
+                &report.encode(),
+            );
+            let report_msg =
+                make_response_message(session_id, counter.wrapping_add(1), report_wire);
+            if let Err(e) = transport.send(&report_msg, peer).await {
+                error!("OP: send priming ReportData error: {e}");
+            }
+
+            // SubscribeResponse confirming the negotiated parameters.
+            let resp = SubscribeResponse {
+                subscription_id: sub_id,
+                max_interval,
+            };
+            let resp_wire = build_payload(
+                ImOpcode::SubscribeResponse as u8,
+                exchange_id,
+                IM_PROTOCOL_ID,
+                &resp.encode(),
+            );
+            let resp_msg =
+                make_response_message(session_id, counter.wrapping_add(2), resp_wire);
+            if let Err(e) = transport.send(&resp_msg, peer).await {
+                error!("OP: send SubscribeResponse error: {e}");
             }
         }
 
@@ -896,8 +1095,10 @@ fn generate_pairing_code(config: &MatterDeviceConfig) -> String {
     let chunk1 = disc >> 10; // upper 2 bits (0–3) → 2 digits
     let chunk2 = ((disc & 0x3FF) << 14) | (pass >> 14); // lower 10 bits + upper 14 bits of passcode
     let chunk3 = pass & 0x3FFF; // lower 14 bits of passcode
-    // Compute a simple Luhn-like check digit (Verhoeff not implemented, use 0)
-    format!("{chunk1:02}{chunk2:06}{chunk3:04}0")
+    let prefix = format!("{chunk1:02}{chunk2:06}{chunk3:04}");
+    let digits: Vec<u8> = prefix.bytes().map(|b| b - b'0').collect();
+    let check = super::verhoeff::compute(&digits);
+    format!("{prefix}{check}")
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

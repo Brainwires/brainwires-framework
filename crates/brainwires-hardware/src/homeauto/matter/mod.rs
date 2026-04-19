@@ -2,21 +2,26 @@
 // ⚠️  EXPERIMENTAL — This Matter implementation is a development preview.
 //
 // What works:
-//   • PASE (Password Authenticated Session Establishment) over UDP
+//   • PASE (SPAKE2+ Password Authenticated Session Establishment) over UDP
+//   • CASE (Certificate Authenticated Session Establishment) — Sigma 1/2/3 with
+//     real P-256 ECDH, ECDSA signing, HKDF session keys, AES-128-CCM framing
+//   • Fabric management + on-disk persistence (fabrics.json via tokio::fs)
 //   • mDNS commissionable-device discovery
 //   • Basic Interaction Model: read/write attributes, invoke commands
-//   • Manual pairing code and QR code parsing
-//   • In-memory device tracking after PASE
+//   • Manual pairing code + QR code parsing (Verhoeff check digit validated)
+//   • BLE commissioning transport (btleplug, Linux/macOS) behind `matter-ble`
 //
 // Known limitations:
-//   • No CASE (Certificate Authenticated Session Establishment) — operational
-//     sessions after commissioning cannot be established
-//   • Commissioned devices are NOT persisted — state is lost on restart
-//   • No fabric or operational credential management
-//   • Pairing code check digit is hardcoded (Verhoeff not implemented)
-//   • BLE transport is not wired (feature-gated but unimplemented)
-//   • Event streaming returns an empty stream (stub)
-//   • Not tested against real Matter controllers or certified devices
+//   • Device Attestation Key (DAK) is stubbed — AttestationResponse signatures
+//     are zeroed, so real Matter commissioners reject this device. Provisioning
+//     hook is in progress.
+//   • Subscribe/ReportData only encodes/decodes TLV — there is no active
+//     subscription registry, so attribute mutations do not propagate to
+//     subscribers.
+//   • Commissioning orchestration (BLE → PASE → AddNOC → CASE state machine)
+//     is not yet wired; QR/manual code parsing and each handshake work in
+//     isolation but not as an end-to-end chain.
+//   • Not tested against real certified Matter controllers.
 //
 // Do not rely on this module for production home automation deployments.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -28,6 +33,8 @@ pub mod ble;
 pub mod clusters;
 /// Matter commissioning payload parser (QR code + manual pairing code).
 pub mod commissioning;
+/// State machine for the commissioner-driven commissioning flow.
+pub mod commissioning_session;
 /// Matter controller — commissions and controls Matter devices (PASE only, experimental).
 pub mod controller;
 /// Matter cryptographic stack: KDF helpers and SPAKE2+ PAKE.
@@ -50,8 +57,13 @@ pub mod server;
 pub mod transport;
 /// Matter device types, cluster IDs, and configuration.
 pub mod types;
+/// Subscription registry for Interaction Model Subscribe/Report.
+pub mod subscription_manager;
+/// Verhoeff check-digit algorithm used by the 11-digit manual pairing code.
+pub mod verhoeff;
 
 pub use commissioning::{CommissioningPayload, parse_manual_code, parse_qr_code};
+pub use commissioning_session::{CommissioningEvent, CommissioningSession, Phase};
 pub use controller::MatterController;
 pub use crypto::{
     kdf::{derive_passcode_verifier, hkdf_expand_label},
@@ -69,6 +81,7 @@ pub use secure_channel::{
     SECURE_CHANNEL_PROTOCOL_ID, SecureChannelOpcode,
 };
 pub use server::{MatterDeviceServer, OnOffHandler};
+pub use subscription_manager::{Subscription, SubscriptionManager};
 pub use types::{
     MatterDevice, MatterDeviceConfig, MatterDeviceConfigBuilder, MatterEndpoint, cluster_id,
     device_type,

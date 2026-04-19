@@ -19,6 +19,7 @@ use tracing::{debug, info, warn};
 use super::clusters;
 use super::clusters::{AttributePath, CommandPath};
 use super::commissioning::{parse_manual_code, parse_qr_code};
+use super::commissioning_session::CommissioningSession;
 use super::discovery::operational::{OperationalBrowser, derive_compressed_fabric_id};
 use super::fabric::FabricManager;
 use super::interaction_model::{
@@ -94,6 +95,78 @@ impl MatterController {
                 session_cache: HashMap::new(),
             })),
         })
+    }
+
+    /// Commission a device using its QR code (`MT:...`), returning both the
+    /// device handle and a [`CommissioningSession`] subscribers can observe.
+    ///
+    /// The session emits events as the commissioner advances through phases.
+    /// See [`commission_qr`](Self::commission_qr) for the limitations.
+    pub async fn commission_qr_with_session(
+        &self,
+        qr_code: &str,
+        node_id: u64,
+    ) -> HomeAutoResult<(MatterDevice, CommissioningSession)> {
+        let payload = parse_qr_code(qr_code)
+            .map_err(|e| HomeAutoError::MatterCommissioning(e.to_string()))?;
+        let mut session = CommissioningSession::new(payload.clone(), node_id);
+
+        let peer_addr = match self.discover_commissionable(payload.discriminator).await {
+            Ok(addr) => {
+                session.advance_discovered(addr);
+                addr
+            }
+            Err(e) => {
+                session.fail("discovery_timeout");
+                return Err(e);
+            }
+        };
+
+        info!("Commissioning: found device at {peer_addr}");
+
+        let transport = UdpTransport::bind_addr("0.0.0.0:0")
+            .await
+            .map_err(|e| HomeAutoError::MatterCommissioning(format!("UDP bind: {e}")))?;
+
+        let pase = match self.run_pase(&transport, peer_addr, payload.passcode).await {
+            Ok(s) => {
+                session.advance_pase_established(s.session_id);
+                s
+            }
+            Err(e) => {
+                session.fail("pase_failed");
+                return Err(e);
+            }
+        };
+
+        transport.sessions.lock().await.insert(
+            pase.session_id,
+            SessionKeys {
+                encrypt_key: pase.encrypt_key,
+                decrypt_key: pase.decrypt_key,
+            },
+        );
+
+        info!("PASE commissioned: session_id={}", pase.session_id);
+        // TODO: advance through CsrReceived → NocInstalled → CaseEstablished.
+        //       Needs CSRRequest + AddNOC invoke wire-up; the state machine
+        //       is in place to accept those transitions once implemented.
+
+        let device = MatterDevice {
+            node_id,
+            fabric_index: 0,
+            name: None,
+            vendor_id: payload.vendor_id,
+            product_id: payload.product_id,
+            endpoints: Vec::new(),
+            online: true,
+        };
+        self.inner
+            .lock()
+            .await
+            .devices
+            .insert(node_id, device.clone());
+        Ok((device, session))
     }
 
     /// Commission a device using its QR code (`MT:...`).

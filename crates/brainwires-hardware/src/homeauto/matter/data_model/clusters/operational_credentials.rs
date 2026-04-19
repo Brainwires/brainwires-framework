@@ -10,6 +10,70 @@ use crate::homeauto::matter::clusters::tlv;
 use crate::homeauto::matter::data_model::ClusterServer;
 use crate::homeauto::matter::error::{MatterError, MatterResult};
 
+/// Device Attestation Credentials.
+///
+/// In a certified production Matter device these are provisioned at
+/// manufacturing time by the CSA. For development use `DeviceAttestationCredentials::dev()`
+/// generates a throwaway key and a placeholder Certification Declaration so the
+/// commissioning flow can be exercised end-to-end.
+///
+/// Real commissioners verify the DAC against the PAI/PAA chain published by the
+/// CSA, so development credentials **will be rejected** by certified commissioners.
+#[derive(Clone)]
+pub struct DeviceAttestationCredentials {
+    /// Device Attestation Key — ECDSA-P256 signing key for attestation responses.
+    pub dak: p256::SecretKey,
+    /// Device Attestation Certificate (DAC). Opaque bytes handed back on request.
+    pub dac_cert: Vec<u8>,
+    /// Product Attestation Intermediate certificate, intermediate in the chain.
+    pub pai_cert: Vec<u8>,
+    /// Certification Declaration (CD) bytes — CSA-signed in production.
+    pub cd_bytes: Vec<u8>,
+}
+
+impl DeviceAttestationCredentials {
+    /// Generate a throwaway development DAK and empty cert placeholders.
+    ///
+    /// Logs a warning: real commissioners will reject this attestation.
+    pub fn dev() -> Self {
+        tracing::warn!(
+            "Using development Device Attestation Credentials — real Matter commissioners will reject this device. \
+             Set BRAINWIRES_MATTER_DAK_PATH or provide a DeviceAttestationCredentials explicitly for production."
+        );
+        let dak = p256::SecretKey::random(&mut rand_core::OsRng);
+        Self {
+            dak,
+            dac_cert: Vec::new(),
+            pai_cert: Vec::new(),
+            cd_bytes: vec![0u8; 16],
+        }
+    }
+
+    /// Load credentials from a directory. Expects four files: `dak.pem`,
+    /// `dac_cert.der`, `pai_cert.der`, `cd.der`.
+    ///
+    /// Returns an error if any file is missing or the DAK cannot be parsed.
+    pub fn from_path(dir: &std::path::Path) -> MatterResult<Self> {
+        use p256::pkcs8::DecodePrivateKey;
+        let dak_pem = std::fs::read_to_string(dir.join("dak.pem"))
+            .map_err(|e| MatterError::Transport(format!("read dak.pem: {e}")))?;
+        let dak = p256::SecretKey::from_pkcs8_pem(&dak_pem)
+            .map_err(|e| MatterError::Transport(format!("parse dak.pem: {e}")))?;
+        let dac_cert = std::fs::read(dir.join("dac_cert.der"))
+            .map_err(|e| MatterError::Transport(format!("read dac_cert.der: {e}")))?;
+        let pai_cert = std::fs::read(dir.join("pai_cert.der"))
+            .map_err(|e| MatterError::Transport(format!("read pai_cert.der: {e}")))?;
+        let cd_bytes = std::fs::read(dir.join("cd.der"))
+            .map_err(|e| MatterError::Transport(format!("read cd.der: {e}")))?;
+        Ok(Self {
+            dak,
+            dac_cert,
+            pai_cert,
+            cd_bytes,
+        })
+    }
+}
+
 // ── Attribute IDs ─────────────────────────────────────────────────────────────
 
 pub const ATTR_NOCS: u32 = 0x0000;
@@ -104,13 +168,41 @@ impl OpCredState {
 /// Server for the OperationalCredentials cluster (0x003E).
 pub struct OperationalCredentialsCluster {
     state: Arc<Mutex<OpCredState>>,
+    attestation: DeviceAttestationCredentials,
 }
 
 impl OperationalCredentialsCluster {
-    /// Create a new cluster server with fresh state.
+    /// Create a new cluster with freshly generated development attestation credentials.
+    ///
+    /// Also checks `BRAINWIRES_MATTER_DAK_PATH`: if set, loads credentials from that
+    /// directory instead of generating dev credentials.
     pub fn new() -> Self {
+        let attestation = match std::env::var("BRAINWIRES_MATTER_DAK_PATH") {
+            Ok(path) => match DeviceAttestationCredentials::from_path(path.as_ref()) {
+                Ok(creds) => {
+                    tracing::info!("Loaded Matter DAK from {path}");
+                    creds
+                }
+                Err(e) => {
+                    tracing::error!(
+                        "Failed to load Matter DAK from {path}: {e}. Falling back to dev credentials."
+                    );
+                    DeviceAttestationCredentials::dev()
+                }
+            },
+            Err(_) => DeviceAttestationCredentials::dev(),
+        };
         Self {
             state: Arc::new(Mutex::new(OpCredState::new())),
+            attestation,
+        }
+    }
+
+    /// Create a cluster with explicit attestation credentials.
+    pub fn with_attestation(attestation: DeviceAttestationCredentials) -> Self {
+        Self {
+            state: Arc::new(Mutex::new(OpCredState::new())),
+            attestation,
         }
     }
 }
@@ -183,17 +275,25 @@ impl ClusterServer for OperationalCredentialsCluster {
                 let nonce = extract_octet_string_tag(args, 0).unwrap_or_else(|| vec![0u8; 32]);
 
                 // AttestationElements TLV: { tag 1: CD (16 zero bytes), tag 2: nonce, tag 3: timestamp }
-                let cd = vec![0u8; 16];
+                let cd = &self.attestation.cd_bytes;
                 let timestamp: u32 = 0;
-                let mut elem_inner = tlv_octet_string(1, &cd);
+                let mut elem_inner = tlv_octet_string(1, cd);
                 elem_inner.extend_from_slice(&tlv_octet_string(2, &nonce));
                 elem_inner.extend_from_slice(&tlv_uint32(3, timestamp));
                 let attestation_elements = wrap_struct(&elem_inner);
 
-                // TODO(matter-crypto): Attestation requires a Device Attestation Key (DAK)
-                // provisioned at manufacturing time. Until DAK provisioning is implemented,
-                // the signature is zeroed. Real commissioners will reject this.
-                let sig = vec![0u8; 64];
+                // ECDSA-P256-SHA256 signature over `attestation_elements || attestation_nonce`.
+                // Spec §11.17.6.2 concatenates `attestation_challenge` (the PAKE session
+                // attestation challenge) rather than the nonce; the challenge is not yet
+                // plumbed through to the cluster, so we sign over the nonce as a
+                // self-consistent approximation that still defeats replay attacks.
+                let signing_key =
+                    p256::ecdsa::SigningKey::from(self.attestation.dak.clone());
+                let mut tbs = attestation_elements.clone();
+                tbs.extend_from_slice(&nonce);
+                let sig: p256::ecdsa::Signature =
+                    ecdsa::signature::Signer::sign(&signing_key, &tbs);
+                let sig = sig.to_bytes().to_vec();
 
                 let mut resp_inner = tlv_octet_string(0, &attestation_elements);
                 resp_inner.extend_from_slice(&tlv_octet_string(1, &sig));
@@ -363,4 +463,65 @@ fn derive_pubkey(scalar: &[u8; 32]) -> Vec<u8> {
         p256::SecretKey::from_bytes(scalar.into()).expect("valid 32-byte P-256 scalar");
     let public_key = secret_key.public_key();
     public_key.to_encoded_point(false).as_bytes().to_vec()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ecdsa::signature::Verifier;
+
+    fn make_attestation_request(nonce: &[u8; 32]) -> Vec<u8> {
+        // struct { octet_string(tag 0): nonce }
+        let mut inner = tlv_octet_string(0, nonce);
+        inner.insert(0, tlv::TYPE_STRUCTURE);
+        inner
+    }
+
+    /// Walk the top-level struct in `resp` and return the octet strings at
+    /// context tags 0 and 1 in order. The shared `extract_octet_string_tag`
+    /// helper is a naive byte-scan, so nested TLVs inside attestation_elements
+    /// can match the same tag; this helper only looks at the outer struct.
+    fn split_response_octet_strings(resp: &[u8]) -> (Vec<u8>, Vec<u8>) {
+        assert_eq!(resp[0], tlv::TYPE_STRUCTURE, "response must be a struct");
+        let ctrl = tlv::TAG_CONTEXT_1 | 0x10;
+        let mut i = 1;
+        let mut fields: Vec<Vec<u8>> = Vec::new();
+        while i + 2 < resp.len() && fields.len() < 2 {
+            assert_eq!(resp[i], ctrl, "expected octet string control byte");
+            let _tag = resp[i + 1];
+            let len = resp[i + 2] as usize;
+            let start = i + 3;
+            fields.push(resp[start..start + len].to_vec());
+            i = start + len;
+        }
+        (fields.remove(0), fields.remove(0))
+    }
+
+    #[tokio::test]
+    async fn attestation_signature_verifies_with_dak_pubkey() {
+        let creds = DeviceAttestationCredentials::dev();
+        let expected_pubkey = creds.dak.public_key();
+        let cluster = OperationalCredentialsCluster::with_attestation(creds);
+
+        let nonce = [0x42u8; 32];
+        let req = make_attestation_request(&nonce);
+        let resp = cluster
+            .invoke_command(CMD_ATTESTATION_REQUEST, &req)
+            .await
+            .expect("attestation should succeed");
+
+        let (attestation_elements, sig_bytes) = split_response_octet_strings(&resp);
+        assert_eq!(sig_bytes.len(), 64, "ECDSA-P256 signature is 64 bytes");
+        assert_ne!(sig_bytes, vec![0u8; 64], "signature must not be zeroed");
+
+        // Verify: rebuild tbs = attestation_elements || nonce, then verify with the DAK pubkey.
+        let mut tbs = attestation_elements.clone();
+        tbs.extend_from_slice(&nonce);
+        let sig = p256::ecdsa::Signature::from_slice(&sig_bytes)
+            .expect("valid ECDSA-P256 signature encoding");
+        let verifying_key = p256::ecdsa::VerifyingKey::from(&expected_pubkey);
+        verifying_key
+            .verify(&tbs, &sig)
+            .expect("signature must verify with the DAK public key");
+    }
 }

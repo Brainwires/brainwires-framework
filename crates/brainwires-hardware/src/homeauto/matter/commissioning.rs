@@ -67,6 +67,11 @@ pub fn parse_manual_code(code: &str) -> Result<CommissioningPayload, &'static st
         .collect::<Option<Vec<_>>>()
         .ok_or("non-numeric character in pairing code")?;
 
+    // Verhoeff check digit is the 11th digit (§5.1.4.2).
+    if !super::verhoeff::validate(&digits) {
+        return Err("invalid Verhoeff check digit in pairing code");
+    }
+
     // Reconstruct discriminator and passcode per Matter spec §5.1.4.1
     let chunk1 = digits[0..2].iter().fold(0u32, |a, &d| a * 10 + d as u32);
     let chunk2 = digits[2..6].iter().fold(0u32, |a, &d| a * 10 + d as u32);
@@ -274,6 +279,24 @@ mod tests {
         };
         assert!(!is_forbidden_passcode(payload.passcode));
         assert_eq!(payload.passcode, 20202021);
+    }
+
+    #[test]
+    fn manual_pairing_code_verhoeff_roundtrip() {
+        // Build a 10-digit prefix that decodes (per parse_manual_code's scheme) to
+        // a valid, non-forbidden passcode. digits[0..2] = chunk1, [2..6] = chunk2,
+        // [6..10] = chunk3; passcode = (chunk2 & 0x3FFF) << 14 | (chunk3 & 0x3FFF).
+        let prefix = "0010001000";
+        let digits: Vec<u8> = prefix.bytes().map(|b| b - b'0').collect();
+        let check = super::super::verhoeff::compute(&digits);
+        let good = format!("{prefix}{check}");
+        assert_eq!(good.len(), 11);
+        let parsed = parse_manual_code(&good).expect("valid code should parse");
+        assert!(parsed.passcode > 0);
+        // Flip the check digit; parse must reject.
+        let bad_check = (check + 1) % 10;
+        let bad = format!("{prefix}{bad_check}");
+        assert!(parse_manual_code(&bad).is_err());
     }
 
     #[test]
