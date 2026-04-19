@@ -472,9 +472,15 @@ mod tests {
 
     #[test]
     fn daily_job_not_due_again_within_same_day() {
-        let last = Utc::now() - chrono::Duration::minutes(30);
+        // Use a fixed reference time far from the cron's 02:00 fire, otherwise
+        // the test is flaky: CI that runs at, say, 02:23 UTC sees `last_fired`
+        // 30 min earlier (01:53) with the 02:00 window crossed between `last`
+        // and `now`, which correctly marks the job as due.
+        use chrono::TimeZone;
+        let now = Utc.with_ymd_and_hms(2026, 1, 15, 12, 0, 0).unwrap(); // noon UTC
+        let last = now - chrono::Duration::minutes(30); // 11:30 UTC — no 02:00 crossing
         let job = make_job("0 2 * * *", Some(last));
-        assert!(!is_due(&job, Utc::now()));
+        assert!(!is_due(&job, now));
     }
 
     #[test]
