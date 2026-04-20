@@ -90,6 +90,9 @@ mod email;
 #[cfg(feature = "calendar")]
 mod calendar;
 
+#[cfg(feature = "sessions")]
+pub mod sessions;
+
 #[cfg(feature = "browser")]
 mod browser;
 
@@ -166,6 +169,12 @@ pub use email::EmailTool;
 
 #[cfg(feature = "calendar")]
 pub use calendar::CalendarTool;
+
+#[cfg(feature = "sessions")]
+pub use sessions::{
+    SessionBroker, SessionId, SessionMessage, SessionSummary, SessionsTool, SpawnRequest,
+    SpawnedSession,
+};
 
 #[cfg(feature = "browser")]
 pub use browser::BrowserTool;

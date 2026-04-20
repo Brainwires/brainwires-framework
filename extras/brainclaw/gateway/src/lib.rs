@@ -43,6 +43,9 @@ pub mod server;
 pub mod session;
 /// Session persistence — save/restore conversation history across restarts.
 pub mod session_persistence;
+/// Gateway-side [`brainwires_tools::SessionBroker`] implementation for the
+/// agent's session-control tools (sessions_list / history / send / spawn).
+pub mod sessions_broker;
 /// In-chat slash commands (/new, /compact, /think, /usage, /trace, /status, /restart, /help).
 pub mod slash;
 /// Shared application state.

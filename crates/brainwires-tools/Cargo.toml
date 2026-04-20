@@ -78,6 +78,11 @@ base64 = { version = "0.22", optional = true }
 # Calendar tools (behind calendar feature)
 icalendar = { version = "0.16", optional = true }
 
+# Session tools (behind sessions feature). chrono is workspace-shared so
+# timestamps in SessionSummary / SessionMessage line up with the rest of the
+# framework.
+chrono = { workspace = true, optional = true }
+
 # Feature-gated dependencies
 brainwires-knowledge = { workspace = true, optional = true }
 brainwires-mcp = { workspace = true, optional = true }
@@ -135,7 +140,12 @@ services = ["system"]
 system-full = ["system"]
 # Route dangerous tool calls (bash, code_exec) through a container sandbox
 sandbox = ["dep:brainwires-sandbox", "native"]
-full = ["orchestrator", "rag", "interpreters", "openapi", "email", "calendar", "browser", "oauth", "system", "sandbox"]
+# Agent-facing session-control tools (sessions_list / sessions_history /
+# sessions_send / sessions_spawn) + `SessionBroker` trait. The host crate
+# (e.g. BrainClaw gateway) implements `SessionBroker` over its real session
+# registry.
+sessions = ["native", "dep:chrono"]
+full = ["orchestrator", "rag", "interpreters", "openapi", "email", "calendar", "browser", "oauth", "system", "sandbox", "sessions"]
 
 [[bench]]
 name = "token_comparison"

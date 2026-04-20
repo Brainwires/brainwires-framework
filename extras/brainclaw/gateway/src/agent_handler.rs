@@ -21,7 +21,7 @@ use brainwires_core::{ChatOptions, Provider, ToolContext, ToolUse};
 use brainwires_network::channels::events::ChannelEvent;
 use brainwires_network::channels::identity::ConversationId;
 use brainwires_network::channels::message::{ChannelMessage, MessageContent, MessageId};
-use brainwires_tools::{PreHookDecision, ToolExecutor, ToolPreHook};
+use brainwires_tools::{PreHookDecision, SessionBroker, SessionId, ToolExecutor, ToolPreHook};
 
 use crate::approval::{ApprovalRegistry, ChatApprovalHook};
 use crate::channel_registry::ChannelRegistry;
@@ -33,6 +33,7 @@ use crate::middleware::sanitizer::MessageSanitizer;
 use crate::router::InboundHandler;
 use crate::session::SessionManager;
 use crate::session_persistence::{SessionStore, session_key};
+use crate::sessions_broker::SessionsExecutor;
 
 /// Whether a provider (identified by its `Provider::name()`) is known to
 /// support extended-thinking budgets. Used by `/think` to decide between
@@ -151,6 +152,11 @@ pub struct AgentInboundHandler {
     model_overrides: DashMap<(String, String), String>,
     /// Per-session slash-command state (thinking level, trace counter).
     slash_state: DashMap<(String, String), Arc<Mutex<crate::slash::SessionSlashState>>>,
+    /// Optional session broker. When set, each `ChatAgent` constructed by
+    /// this handler is given a [`SessionsExecutor`] that layers the four
+    /// `sessions_*` tools on top of the shared executor — so the agent can
+    /// introspect and orchestrate other sessions in the gateway.
+    session_broker: Option<Arc<dyn SessionBroker>>,
 }
 
 impl AgentInboundHandler {
@@ -189,7 +195,19 @@ impl AgentInboundHandler {
             identity_store: None,
             model_overrides: DashMap::new(),
             slash_state: DashMap::new(),
+            session_broker: None,
         }
+    }
+
+    /// Attach a session broker so this handler exposes the `sessions_list`,
+    /// `sessions_history`, `sessions_send`, and `sessions_spawn` tools to
+    /// every `ChatAgent` it creates.
+    ///
+    /// The broker is typically a `GatewaySessionBroker` wired over the
+    /// gateway's own session registry — see `crate::sessions_broker`.
+    pub fn with_session_broker(mut self, broker: Arc<dyn SessionBroker>) -> Self {
+        self.session_broker = Some(broker);
+        self
     }
 
     /// Enable interactive tool approval via chat.
@@ -678,12 +696,24 @@ impl AgentInboundHandler {
         if let Some(model_override) = self.model_overrides.get(&raw_key) {
             session_options.model = Some(model_override.clone());
         }
-        let mut agent = ChatAgent::new(
-            self.provider.clone(),
-            self.executor.clone(),
-            session_options,
-        )
-        .with_max_tool_rounds(self.max_tool_rounds);
+        // If a session broker is configured, wrap the shared executor with a
+        // `SessionsExecutor` bound to *this* session's id so the agent can
+        // introspect/orchestrate sibling sessions. Otherwise fall through to
+        // the raw executor unchanged.
+        let executor_for_agent: Arc<dyn ToolExecutor> =
+            if let Some(ref broker) = self.session_broker {
+                let session_id_str = format!("{}:{}", key.0, key.1);
+                Arc::new(SessionsExecutor::new(
+                    self.executor.clone(),
+                    broker.clone(),
+                    Some(SessionId::new(session_id_str)),
+                ))
+            } else {
+                self.executor.clone()
+            };
+
+        let mut agent = ChatAgent::new(self.provider.clone(), executor_for_agent, session_options)
+            .with_max_tool_rounds(self.max_tool_rounds);
 
         // Build pre-tool hook(s). Shell hook runs first; approval hook second.
         let mut pre_hooks: Vec<Arc<dyn ToolPreHook>> = Vec::new();
@@ -793,14 +823,26 @@ impl AgentInboundHandler {
         // is re-applied. Pre-tool hooks are not rebuilt here — `/restart`
         // discards approval/shell hook state by design.
         let provider = self.provider.clone();
-        let executor = self.executor.clone();
+        let base_executor = self.executor.clone();
         let max_tool_rounds = self.max_tool_rounds;
         let mut session_options = self.default_options.clone();
         if let Some(model_override) = self.model_overrides.get(&key) {
             session_options.model = Some(model_override.clone());
         }
+        // Preserve session-tool wiring across /restart.
+        let broker_for_rebuild = self.session_broker.clone();
+        let session_id_for_rebuild = format!("{}:{}", key.0, key.1);
         let rebuild: Arc<dyn Fn() -> ChatAgent + Send + Sync> = Arc::new(move || {
-            ChatAgent::new(provider.clone(), executor.clone(), session_options.clone())
+            let exec: Arc<dyn ToolExecutor> = if let Some(ref broker) = broker_for_rebuild {
+                Arc::new(SessionsExecutor::new(
+                    base_executor.clone(),
+                    broker.clone(),
+                    Some(SessionId::new(session_id_for_rebuild.clone())),
+                ))
+            } else {
+                base_executor.clone()
+            };
+            ChatAgent::new(provider.clone(), exec, session_options.clone())
                 .with_max_tool_rounds(max_tool_rounds)
         });
 
