@@ -11,6 +11,7 @@ pub mod app;
 pub mod config;
 pub mod cron;
 pub mod persona;
+pub mod session_spawn;
 pub mod shell_hooks;
 pub mod skill_handler;
 pub mod tools;

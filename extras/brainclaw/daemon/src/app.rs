@@ -11,19 +11,21 @@ use brainwires_gateway::channel_registry::ChannelRegistry;
 use brainwires_gateway::identity::UserIdentityStore;
 use brainwires_gateway::media::MediaProcessor;
 use brainwires_gateway::metrics::MetricsCollector;
+use brainwires_gateway::middleware::rate_limit::RateLimiter;
+use brainwires_gateway::middleware::sanitizer::MessageSanitizer;
 use brainwires_gateway::server::Gateway;
 use brainwires_gateway::session::SessionManager;
 use brainwires_gateway::session_persistence::{JsonFileStore, expand_tilde};
-use brainwires_gateway::middleware::rate_limit::RateLimiter;
-use brainwires_gateway::middleware::sanitizer::MessageSanitizer;
+use brainwires_gateway::sessions_broker::{GatewaySessionBroker, SessionRegistry};
 use brainwires_providers::{ChatProviderFactory, ProviderConfig, ProviderType};
-use brainwires_tools::{BuiltinToolExecutor, ToolExecutor};
+use brainwires_tools::{BuiltinToolExecutor, SessionBroker, ToolExecutor};
 
 use brainwires_gateway::cron::CronStore;
 
 use crate::config::BrainClawConfig;
 use crate::cron::CronRunner;
 use crate::persona::Persona;
+use crate::session_spawn::BrainClawSpawnFactory;
 use crate::shell_hooks::{ShellHookRunner, ShellPreToolHook};
 use crate::skill_handler::SkillHandler;
 use crate::tools::build_tool_registry;
@@ -134,11 +136,30 @@ impl BrainClaw {
         let mut handler = AgentInboundHandler::new(
             Arc::clone(&sessions),
             Arc::clone(&channels),
-            provider,
-            executor,
-            options,
+            Arc::clone(&provider),
+            Arc::clone(&executor),
+            options.clone(),
         )
         .with_max_tool_rounds(self.config.agent.max_tool_rounds);
+
+        // 7aa. Session-as-tools wiring. Share one `SessionRegistry` between
+        //       the handler (which registers each per-user ChatAgent there
+        //       so the `sessions_*` tools can see them) and the
+        //       `GatewaySessionBroker` (which backs the four tools and
+        //       delegates `sessions_spawn` to `BrainClawSpawnFactory`).
+        let session_registry = Arc::new(SessionRegistry::new());
+        let spawn_factory = Arc::new(BrainClawSpawnFactory::new(
+            Arc::clone(&provider),
+            Arc::clone(&executor),
+            options,
+        ));
+        let session_broker: Arc<dyn SessionBroker> = Arc::new(GatewaySessionBroker::new(
+            (*session_registry).clone(),
+            spawn_factory,
+        ));
+        handler = handler
+            .with_session_registry(Arc::clone(&session_registry))
+            .with_session_broker(Arc::clone(&session_broker));
 
         // 7b. Attach session persistence if configured
         if self.config.memory.persist_conversations {
@@ -300,8 +321,8 @@ impl BrainClaw {
         if let Some(ref voice_cfg) = self.config.voice {
             if let Some(ref tts_provider_name) = voice_cfg.tts_provider {
                 if let Some(tts_provider) = build_tts_provider(voice_cfg) {
-                    use brainwires_hardware::{OutputFormat, TtsOptions, Voice};
                     use brainwires_gateway::tts::TtsProcessor;
+                    use brainwires_hardware::{OutputFormat, TtsOptions, Voice};
 
                     let format = match voice_cfg.tts_format.as_deref().unwrap_or("mp3") {
                         "opus" => OutputFormat::Opus,
@@ -309,9 +330,16 @@ impl BrainClaw {
                         "wav" => OutputFormat::Wav,
                         _ => OutputFormat::Mp3,
                     };
-                    let voice_id = voice_cfg.tts_voice.clone().unwrap_or_else(|| "alloy".to_string());
+                    let voice_id = voice_cfg
+                        .tts_voice
+                        .clone()
+                        .unwrap_or_else(|| "alloy".to_string());
                     let options = TtsOptions {
-                        voice: Voice { id: voice_id, name: None, language: None },
+                        voice: Voice {
+                            id: voice_id,
+                            name: None,
+                            language: None,
+                        },
                         output_format: format,
                         speed: None,
                         language: voice_cfg.language.clone(),
@@ -321,14 +349,12 @@ impl BrainClaw {
                         .as_deref()
                         .map(|p| std::path::PathBuf::from(expand_tilde_str(p)))
                         .unwrap_or_else(|| std::env::temp_dir().join("brainclaw-audio"));
-                    let base_url = voice_cfg
-                        .tts_base_url
-                        .clone()
-                        .unwrap_or_else(|| format!(
+                    let base_url = voice_cfg.tts_base_url.clone().unwrap_or_else(|| {
+                        format!(
                             "http://{}:{}/audio",
-                            self.config.gateway.host,
-                            self.config.gateway.port
-                        ));
+                            self.config.gateway.host, self.config.gateway.port
+                        )
+                    });
 
                     let processor = Arc::new(TtsProcessor::new(
                         tts_provider,
@@ -345,10 +371,9 @@ impl BrainClaw {
 
         // 8. Create Gateway with handler, sharing the same sessions/channels/metrics.
         let handler = Arc::new(handler);
-        let mut gateway =
-            Gateway::with_handler(gateway_config.clone(), Arc::clone(&handler) as _)
-                .with_shared_state(Arc::clone(&sessions), Arc::clone(&channels))
-                .with_metrics(Arc::clone(&metrics));
+        let mut gateway = Gateway::with_handler(gateway_config.clone(), Arc::clone(&handler) as _)
+            .with_shared_state(Arc::clone(&sessions), Arc::clone(&channels))
+            .with_metrics(Arc::clone(&metrics));
 
         if let Some(audio_dir) = tts_audio_dir {
             gateway = gateway.with_audio_dir(audio_dir);
@@ -404,13 +429,10 @@ impl BrainClaw {
     /// returns the error so the daemon exits instead of silently downgrading
     /// isolation.
     #[cfg(feature = "sandbox")]
-    fn wrap_with_sandbox(
-        &self,
-        builtin: BuiltinToolExecutor,
-    ) -> Result<Arc<dyn ToolExecutor>> {
-        use std::time::Duration;
+    fn wrap_with_sandbox(&self, builtin: BuiltinToolExecutor) -> Result<Arc<dyn ToolExecutor>> {
         use brainwires_sandbox::{Sandbox, SandboxRuntime};
         use brainwires_tools::SandboxedToolExecutor;
+        use std::time::Duration;
 
         let sb = &self.config.sandbox;
         if !sb.enabled {
@@ -436,7 +458,11 @@ impl BrainClaw {
             SandboxRuntime::Docker | SandboxRuntime::Podman => {
                 match brainwires_sandbox::DockerSandbox::connect(policy.clone()) {
                     Ok(s) => Ok(Arc::new(s) as Arc<dyn Sandbox>),
-                    Err(e) => Err(anyhow::anyhow!("sandbox: failed to connect to {:?} daemon: {}", policy.runtime, e)),
+                    Err(e) => Err(anyhow::anyhow!(
+                        "sandbox: failed to connect to {:?} daemon: {}",
+                        policy.runtime,
+                        e
+                    )),
                 }
             }
             SandboxRuntime::Host => {
@@ -445,7 +471,10 @@ impl BrainClaw {
                     tracing::warn!(
                         "Sandbox runtime = 'host' — dev/testing only, NO isolation is applied"
                     );
-                    Ok(Arc::new(brainwires_sandbox::HostSandbox::new(policy.clone())) as Arc<dyn Sandbox>)
+                    Ok(
+                        Arc::new(brainwires_sandbox::HostSandbox::new(policy.clone()))
+                            as Arc<dyn Sandbox>,
+                    )
                 }
                 #[cfg(not(feature = "sandbox-unsafe-host"))]
                 {
@@ -485,13 +514,8 @@ impl BrainClaw {
 
     /// No-op stub used when the daemon is built without the `sandbox` feature.
     #[cfg(not(feature = "sandbox"))]
-    fn wrap_with_sandbox(
-        &self,
-        builtin: BuiltinToolExecutor,
-    ) -> Result<Arc<dyn ToolExecutor>> {
-        tracing::info!(
-            "Sandbox feature not compiled in; tool calls run directly on the host"
-        );
+    fn wrap_with_sandbox(&self, builtin: BuiltinToolExecutor) -> Result<Arc<dyn ToolExecutor>> {
+        tracing::info!("Sandbox feature not compiled in; tool calls run directly on the host");
         Ok(Arc::new(builtin) as Arc<dyn ToolExecutor>)
     }
 
@@ -499,7 +523,14 @@ impl BrainClaw {
     ///
     /// Tools read their config from metadata at call time; this avoids passing
     /// typed configs through the generic tool registry.
-    fn inject_tool_configs(&self, #[cfg_attr(not(any(feature = "email", feature = "calendar")), allow(unused_variables))] context: &mut ToolContext) {
+    fn inject_tool_configs(
+        &self,
+        #[cfg_attr(
+            not(any(feature = "email", feature = "calendar")),
+            allow(unused_variables)
+        )]
+        context: &mut ToolContext,
+    ) {
         #[cfg(feature = "email")]
         if let Some(result) = self.config.to_email_config() {
             match result {
@@ -608,10 +639,7 @@ fn build_stt_provider(
 
     /// Resolve an API key: first from `api_key_env`, then from a named env var.
     fn resolve_key(cfg: &crate::config::VoiceSection, default_var: &str) -> Option<String> {
-        let var_name = cfg
-            .api_key_env
-            .as_deref()
-            .unwrap_or(default_var);
+        let var_name = cfg.api_key_env.as_deref().unwrap_or(default_var);
         std::env::var(var_name).ok().filter(|k| !k.is_empty())
     }
 
@@ -635,12 +663,15 @@ fn build_stt_provider(
         "azure" => {
             // Azure requires both subscription key and region.
             let key = resolve_key(cfg, "AZURE_SPEECH_KEY")?;
-            let region = std::env::var("AZURE_SPEECH_REGION").ok().filter(|r| !r.is_empty())?;
+            let region = std::env::var("AZURE_SPEECH_REGION")
+                .ok()
+                .filter(|r| !r.is_empty())?;
             Some(std::sync::Arc::new(AzureStt::new(key, region)) as Arc<dyn SpeechToText>)
         }
         #[cfg(feature = "local-stt")]
         "whisper-local" | "whisper" => {
-            Some(std::sync::Arc::new(brainwires_hardware::WhisperStt::new()) as Arc<dyn SpeechToText>)
+            Some(std::sync::Arc::new(brainwires_hardware::WhisperStt::new())
+                as Arc<dyn SpeechToText>)
         }
         other => {
             tracing::warn!(provider = %other, "Unknown STT provider; voice transcription disabled");

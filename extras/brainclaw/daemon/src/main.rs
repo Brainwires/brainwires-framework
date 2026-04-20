@@ -104,10 +104,7 @@ fn config_check(cli: &Cli) -> Result<()> {
         config.gateway.host, config.gateway.port
     );
     println!("  Persona:      {}", config.persona.name);
-    println!(
-        "  Tools:        {} enabled",
-        config.tools.enabled.len()
-    );
+    println!("  Tools:        {} enabled", config.tools.enabled.len());
     println!(
         "  Skills:       {}",
         if config.skills.enabled {

@@ -241,9 +241,15 @@ pub struct EmailSection {
     pub from_address: String,
 }
 
-fn default_imap_port() -> u16 { 993 }
-fn default_smtp_port() -> u16 { 587 }
-fn default_true() -> bool { true }
+fn default_imap_port() -> u16 {
+    993
+}
+fn default_smtp_port() -> u16 {
+    587
+}
+fn default_true() -> bool {
+    true
+}
 
 /// Calendar tool configuration.
 ///
@@ -279,7 +285,9 @@ pub enum CalendarSection {
     },
 }
 
-fn default_calendar_id() -> String { "primary".to_string() }
+fn default_calendar_id() -> String {
+    "primary".to_string()
+}
 
 /// Browser automation configuration (Thalora).
 ///
@@ -311,7 +319,6 @@ pub struct VoiceSection {
     pub language: Option<String>,
 
     // ── TTS settings ──────────────────────────────────────────────────────
-
     /// TTS provider name (optional).
     ///
     /// When set, agent text responses are also synthesised to audio and
@@ -722,10 +729,7 @@ impl BrainClawConfig {
         use brainwires_tools::{EmailConfig, EmailProvider};
         self.email.as_ref().map(|e| {
             let password = std::env::var(&e.password_env).map_err(|_| {
-                anyhow::anyhow!(
-                    "Email password env var '{}' is not set",
-                    e.password_env
-                )
+                anyhow::anyhow!("Email password env var '{}' is not set", e.password_env)
             })?;
             Ok(EmailConfig {
                 provider: EmailProvider::ImapSmtp {
@@ -747,9 +751,7 @@ impl BrainClawConfig {
     /// Credentials are resolved from environment variables at runtime.
     /// Returns `None` if no `[calendar]` section is present.
     #[cfg(feature = "calendar")]
-    pub fn to_calendar_config(
-        &self,
-    ) -> Option<anyhow::Result<brainwires_tools::CalendarConfig>> {
+    pub fn to_calendar_config(&self) -> Option<anyhow::Result<brainwires_tools::CalendarConfig>> {
         use brainwires_tools::{CalendarConfig, CalendarProvider};
         self.calendar.as_ref().map(|c| match c {
             CalendarSection::Google {
@@ -780,10 +782,7 @@ impl BrainClawConfig {
                 default_calendar_id,
             } => {
                 let password = std::env::var(password_env).map_err(|_| {
-                    anyhow::anyhow!(
-                        "CalDAV password env var '{}' is not set",
-                        password_env
-                    )
+                    anyhow::anyhow!("CalDAV password env var '{}' is not set", password_env)
                 })?;
                 Ok(CalendarConfig {
                     provider: CalendarProvider::CalDav {
@@ -913,10 +912,7 @@ require_signed_skills = true
         assert_eq!(config.memory.max_history_messages, 50);
         assert!(config.skills.enabled);
         assert_eq!(config.skills.directories, vec!["/home/user/skills"]);
-        assert_eq!(
-            config.security.allowed_origins,
-            vec!["https://example.com"]
-        );
+        assert_eq!(config.security.allowed_origins, vec!["https://example.com"]);
         assert_eq!(config.security.max_messages_per_minute, 10);
         assert!(config.security.require_signed_skills);
     }

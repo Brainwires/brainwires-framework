@@ -8,7 +8,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, mpsc};
 
 use brainwires_agents::ChatAgent;
 use brainwires_gateway::sessions_broker::{
@@ -26,6 +26,7 @@ impl SessionSpawnFactory for NoopFactory {
         _parent: &SessionId,
         _req: &SpawnRequest,
         _on_assistant_reply: Arc<dyn Fn(SessionMessage) + Send + Sync>,
+        _inbound_rx: mpsc::UnboundedReceiver<String>,
     ) -> anyhow::Result<Option<Arc<Mutex<ChatAgent>>>> {
         // Register the session but don't materialise a ChatAgent — keeps
         // the test hermetic and decoupled from any real provider.

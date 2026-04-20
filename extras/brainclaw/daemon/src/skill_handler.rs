@@ -141,10 +141,7 @@ impl SkillHandler {
 
     /// Return the number of loaded skills.
     pub fn skill_count(&self) -> usize {
-        self.registry
-            .lock()
-            .map(|r| r.len())
-            .unwrap_or(0)
+        self.registry.lock().map(|r| r.len()).unwrap_or(0)
     }
 }
 

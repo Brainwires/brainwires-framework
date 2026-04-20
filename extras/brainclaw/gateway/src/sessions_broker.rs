@@ -82,15 +82,23 @@ pub trait SessionSpawnFactory: Send + Sync {
     /// `on_assistant_reply` so the broker can satisfy
     /// [`SpawnRequest::wait_for_first_reply`].
     ///
+    /// `inbound_rx` is the receiver side of the new session's inbound mpsc
+    /// queue. The factory takes ownership so it can drive the spawned
+    /// ChatAgent with any follow-up `sessions_send` messages the parent
+    /// pushes after the initial prompt — without the factory draining this
+    /// queue, `sessions_send` on a spawned session would silently pile up.
+    ///
     /// Returning `Ok(None)` means "session registered but no ChatAgent
     /// materialised" — used by test doubles and in production when the
-    /// gateway simply records the intent without actually running.
+    /// gateway simply records the intent without actually running. The
+    /// `inbound_rx` is dropped in that case.
     async fn spawn(
         &self,
         new_session_id: &SessionId,
         parent: &SessionId,
         req: &SpawnRequest,
         on_assistant_reply: Arc<dyn Fn(SessionMessage) + Send + Sync>,
+        inbound_rx: mpsc::UnboundedReceiver<String>,
     ) -> anyhow::Result<Option<Arc<Mutex<ChatAgent>>>>;
 }
 
@@ -152,6 +160,20 @@ impl SessionRegistry {
     /// Whether the registry is empty.
     pub async fn is_empty(&self) -> bool {
         self.inner.read().await.is_empty()
+    }
+
+    /// Bump `last_active` on a registered session (no-op if unknown).
+    pub async fn touch(&self, id: &SessionId) {
+        if let Some(handle) = self.get(id).await {
+            *handle.last_active.write().await = Utc::now();
+        }
+    }
+}
+
+impl SessionHandle {
+    /// Update `last_active` to the current UTC timestamp.
+    pub async fn touch(&self) {
+        *self.last_active.write().await = Utc::now();
     }
 }
 
@@ -270,9 +292,10 @@ impl SessionBroker for GatewaySessionBroker {
         };
 
         // 3. Register the session *without* an agent — the factory hands us
-        //    one in a moment. We drop the inbound receiver here because
-        //    the factory owns draining it (if at all).
-        let _inbound_rx = self
+        //    one in a moment. The returned inbound receiver is passed to
+        //    the factory so it can drain follow-up `sessions_send` messages
+        //    after the initial prompt is processed.
+        let inbound_rx = self
             .registry
             .register(
                 new_id.clone(),
@@ -314,7 +337,7 @@ impl SessionBroker for GatewaySessionBroker {
         //    registered so `sessions_list` still shows the attempted spawn.
         let agent = self
             .spawn_factory
-            .spawn(&new_id, parent, &req, on_reply)
+            .spawn(&new_id, parent, &req, on_reply, inbound_rx)
             .await?;
 
         if let Some(agent) = agent {
@@ -472,6 +495,7 @@ mod tests {
             _parent: &SessionId,
             _req: &SpawnRequest,
             _on_assistant_reply: Arc<dyn Fn(SessionMessage) + Send + Sync>,
+            _inbound_rx: mpsc::UnboundedReceiver<String>,
         ) -> anyhow::Result<Option<Arc<Mutex<ChatAgent>>>> {
             // No actual ChatAgent construction — the session is registered
             // but has no live agent. Good enough for broker-layer unit

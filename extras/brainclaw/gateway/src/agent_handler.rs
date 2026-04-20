@@ -33,7 +33,7 @@ use crate::middleware::sanitizer::MessageSanitizer;
 use crate::router::InboundHandler;
 use crate::session::SessionManager;
 use crate::session_persistence::{SessionStore, session_key};
-use crate::sessions_broker::SessionsExecutor;
+use crate::sessions_broker::{SessionRegistry, SessionsExecutor};
 
 /// Whether a provider (identified by its `Provider::name()`) is known to
 /// support extended-thinking budgets. Used by `/think` to decide between
@@ -157,6 +157,10 @@ pub struct AgentInboundHandler {
     /// `sessions_*` tools on top of the shared executor — so the agent can
     /// introspect and orchestrate other sessions in the gateway.
     session_broker: Option<Arc<dyn SessionBroker>>,
+    /// Shared [`SessionRegistry`]. Must point at the same registry the
+    /// [`session_broker`] is backed by so the four `sessions_*` tools see
+    /// handler-managed per-user sessions (not just spawned children).
+    session_registry: Option<Arc<SessionRegistry>>,
 }
 
 impl AgentInboundHandler {
@@ -196,6 +200,7 @@ impl AgentInboundHandler {
             model_overrides: DashMap::new(),
             slash_state: DashMap::new(),
             session_broker: None,
+            session_registry: None,
         }
     }
 
@@ -207,6 +212,16 @@ impl AgentInboundHandler {
     /// gateway's own session registry — see `crate::sessions_broker`.
     pub fn with_session_broker(mut self, broker: Arc<dyn SessionBroker>) -> Self {
         self.session_broker = Some(broker);
+        self
+    }
+
+    /// Attach the shared [`SessionRegistry`] so every ChatAgent this handler
+    /// creates is also registered there. Must be the same Arc passed to the
+    /// [`crate::sessions_broker::GatewaySessionBroker`] backing
+    /// [`with_session_broker`] — otherwise `sessions_list` / `sessions_history`
+    /// / `sessions_send` would not see handler-managed sessions.
+    pub fn with_session_registry(mut self, registry: Arc<SessionRegistry>) -> Self {
+        self.session_registry = Some(registry);
         self
     }
 
@@ -460,6 +475,8 @@ impl AgentInboundHandler {
                     // Drop the existing agent so it is recreated with no override.
                     let session_key = self.resolve_session_key(&msg_platform, &msg_author).await;
                     self.agent_sessions.remove(&session_key);
+                    self.unregister_session(&session_key.0, &session_key.1)
+                        .await;
                     "Model reset to provider default. Starting a new session.".to_string()
                 }
                 ModelCommand::Set(model_name) => {
@@ -467,6 +484,8 @@ impl AgentInboundHandler {
                     // Drop the existing agent so it is recreated with the override.
                     let session_key = self.resolve_session_key(&msg_platform, &msg_author).await;
                     self.agent_sessions.remove(&session_key);
+                    self.unregister_session(&session_key.0, &session_key.1)
+                        .await;
                     tracing::info!(
                         platform = %msg_platform,
                         user_id = %msg_author,
@@ -581,6 +600,14 @@ impl AgentInboundHandler {
                 task_description: text.chars().take(120).collect(),
             })
             .await;
+        }
+
+        // Touch the session in the shared registry (if wired) before and
+        // after the agent turn so `sessions_list` surfaces accurate
+        // `last_active` timestamps.
+        if let Some(ref registry) = self.session_registry {
+            let sid = Self::session_id_for(&platform, &user_id);
+            registry.touch(&sid).await;
         }
 
         let mut agent = agent.lock().await;
@@ -776,8 +803,72 @@ impl AgentInboundHandler {
         }
 
         let arc = Arc::new(Mutex::new(agent));
-        self.agent_sessions.entry(key).or_insert(arc.clone());
+        self.agent_sessions
+            .entry(key.clone())
+            .or_insert(arc.clone());
+
+        // Register with the shared session registry (if wired) so the four
+        // `sessions_*` tools see this session in `sessions_list`,
+        // `sessions_history`, and `sessions_send`. The session id format must
+        // match what `get_or_create_agent`'s caller used when wrapping the
+        // executor with `SessionsExecutor` (i.e. `"platform:user_id"`).
+        if let Some(ref registry) = self.session_registry {
+            let session_id = SessionId::new(format!("{}:{}", key.0, key.1));
+            let channel = platform.to_string();
+            let peer = user_id.to_string();
+            let registry_clone = Arc::clone(registry);
+            let agent_for_handle = Arc::clone(&arc);
+            let sid_clone = session_id.clone();
+            // `register()` returns a receiver that must be drained or
+            // `sessions_send` will pile up messages. We spawn a simple
+            // drainer that, for each inbound text, calls `process_message`
+            // on the agent and discards the reply (fire-and-forget per the
+            // sessions_send contract). Any errors are logged.
+            let drainer_agent = Arc::clone(&arc);
+            let drainer_sid = sid_clone.clone();
+            let drainer_registry = Arc::clone(registry);
+            tokio::spawn(async move {
+                let mut rx = registry_clone
+                    .register(
+                        sid_clone.clone(),
+                        channel,
+                        peer,
+                        None,
+                        Some(agent_for_handle),
+                    )
+                    .await;
+                while let Some(text) = rx.recv().await {
+                    drainer_registry.touch(&drainer_sid).await;
+                    let mut guard = drainer_agent.lock().await;
+                    if let Err(e) = guard.process_message(&text).await {
+                        tracing::warn!(
+                            session_id = %drainer_sid,
+                            error = %e,
+                            "session inbound drainer: process_message failed",
+                        );
+                    }
+                }
+            });
+        }
         arc
+    }
+
+    /// Session id string used when this handler registers a user session in
+    /// the shared [`SessionRegistry`]. Format: `"platform:user_id"` so the
+    /// id matches the one baked into each user's [`SessionsExecutor`].
+    fn session_id_for(platform: &str, user_id: &str) -> SessionId {
+        SessionId::new(format!("{platform}:{user_id}"))
+    }
+
+    /// Unregister a session from the shared registry, if wired. Called from
+    /// the `/restart` and `/model` paths (which tear down the cached agent),
+    /// and from [`remove_session_by_key`]. The session will be re-registered
+    /// lazily on the next inbound message.
+    async fn unregister_session(&self, platform: &str, user_id: &str) {
+        if let Some(ref registry) = self.session_registry {
+            let session_id = Self::session_id_for(platform, user_id);
+            registry.unregister(&session_id).await;
+        }
     }
 
     /// Handle a parsed slash command for a specific user and return the reply
