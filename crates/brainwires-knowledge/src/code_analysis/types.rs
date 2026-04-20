@@ -658,7 +658,10 @@ mod tests {
 
     #[test]
     fn test_precision_level_description() {
-        assert_eq!(PrecisionLevel::High.description(), "high (stack-graphs)");
+        assert_eq!(
+            PrecisionLevel::High.description(),
+            "high (reserved — stack-graphs stub)"
+        );
         assert_eq!(PrecisionLevel::Medium.description(), "medium (AST-based)");
         assert_eq!(PrecisionLevel::Low.description(), "low (text-based)");
     }
