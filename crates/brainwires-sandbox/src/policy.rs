@@ -56,6 +56,16 @@ pub struct SandboxPolicy {
     pub workspace_mount: Option<PathBuf>,
     /// Whitelist of host paths permitted as bind-mount sources.
     pub allowed_mount_sources: Vec<PathBuf>,
+    /// Image used for the egress-allowlist proxy when
+    /// [`NetworkPolicy::Limited`] is active.
+    pub proxy_image: String,
+    /// TCP port the proxy listens on inside its container.
+    pub proxy_listen_port: u16,
+    /// Optional stable name for a long-lived shared proxy container. When
+    /// set, the sandbox will attach to an existing container with this name
+    /// instead of spawning an ephemeral one per exec. Leave `None` for
+    /// per-spawn ephemeral proxies (safer default).
+    pub proxy_container_name: Option<String>,
 }
 
 impl Default for SandboxPolicy {
@@ -70,6 +80,9 @@ impl Default for SandboxPolicy {
             read_only_rootfs: true,
             workspace_mount: None,
             allowed_mount_sources: Vec::new(),
+            proxy_image: "ghcr.io/brainwires/brainwires-sandbox-proxy:latest".to_string(),
+            proxy_listen_port: 3128,
+            proxy_container_name: None,
         }
     }
 }

@@ -17,9 +17,7 @@ use brainwires_core::{ToolContext, ToolUse};
 use brainwires_sandbox::{
     ExecHandle, ExecOutput, ExecSpec, Sandbox, SandboxPolicy, SandboxRuntime,
 };
-use brainwires_tools::{
-    BuiltinToolExecutor, SandboxedToolExecutor, ToolExecutor, ToolRegistry,
-};
+use brainwires_tools::{BuiltinToolExecutor, SandboxedToolExecutor, ToolExecutor, ToolRegistry};
 
 /// Canned Sandbox implementation used in place of a real Docker daemon.
 struct MockSandbox;

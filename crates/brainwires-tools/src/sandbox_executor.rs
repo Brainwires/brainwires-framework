@@ -136,11 +136,7 @@ impl<E: ToolExecutor> SandboxedToolExecutor<E> {
                 "sandbox: missing or non-string 'command' parameter".to_string(),
             );
         };
-        let cmd = vec![
-            "/bin/sh".to_string(),
-            "-c".to_string(),
-            command.to_string(),
-        ];
+        let cmd = vec!["/bin/sh".to_string(), "-c".to_string(), command.to_string()];
         self.run_in_sandbox(&tool_use.id, &tool_use.name, cmd, self.workdir_for(context))
             .await
     }
@@ -167,11 +163,9 @@ impl<E: ToolExecutor> SandboxedToolExecutor<E> {
             "node" | "javascript" | "js" => {
                 vec!["node".to_string(), "-e".to_string(), code.to_string()]
             }
-            "bash" | "sh" | "shell" => vec![
-                "/bin/sh".to_string(),
-                "-c".to_string(),
-                code.to_string(),
-            ],
+            "bash" | "sh" | "shell" => {
+                vec!["/bin/sh".to_string(), "-c".to_string(), code.to_string()]
+            }
             other => {
                 return ToolResult::error(
                     tool_use.id.clone(),
@@ -200,11 +194,7 @@ impl<E: ToolExecutor> ToolExecutor for SandboxedToolExecutor<E> {
     }
 }
 
-fn sandbox_error_to_result(
-    tool_use_id: &str,
-    err: SandboxError,
-    timeout: Duration,
-) -> ToolResult {
+fn sandbox_error_to_result(tool_use_id: &str, err: SandboxError, timeout: Duration) -> ToolResult {
     let msg = match err {
         SandboxError::Timeout => format!("sandboxed command timed out after {:?}", timeout),
         SandboxError::PolicyViolation(reason) => format!("policy violation: {reason}"),

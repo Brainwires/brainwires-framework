@@ -8,6 +8,7 @@ members = [
     "crates/brainwires-mcp",
     "crates/brainwires-permissions",
     "crates/brainwires-sandbox",
+    "crates/brainwires-sandbox-proxy",
     "crates/brainwires-network",
     "crates/brainwires-mcp-server",
     "crates/brainwires-a2a",

@@ -4,12 +4,17 @@
 //! and no inherited host environment. Only mounts permitted by the
 //! [`SandboxPolicy`] whitelist are forwarded to the container runtime.
 //!
-//! # Known limitations
+//! # Network policies
 //!
-//! - [`NetworkPolicy::Limited`] is not yet implemented and currently returns
-//!   [`SandboxError::NotAvailable`]. Per-host egress allowlists require an
-//!   out-of-band firewall (iptables, nftables, cilium) that bollard does not
-//!   expose directly.
+//! - [`NetworkPolicy::None`][]: `--network=none`.
+//! - [`NetworkPolicy::Full`][]: bridge network, no egress controls.
+//! - [`NetworkPolicy::Limited`][]: the sandbox container is attached to a
+//!   freshly-created `internal: true` docker network with no default route.
+//!   A sidecar `brainwires-sandbox-proxy` container is attached to BOTH that
+//!   internal network and the default bridge; the sandbox receives
+//!   `HTTP_PROXY`/`HTTPS_PROXY` env vars pointing at the proxy. The proxy
+//!   enforces a per-host allowlist; raw (non-HTTP) TCP is inherently blocked
+//!   because the internal network has no external route.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -20,7 +25,8 @@ use bollard::container::{
     AttachContainerOptions, AttachContainerResults, Config, CreateContainerOptions, LogOutput,
     RemoveContainerOptions, StartContainerOptions,
 };
-use bollard::models::HostConfig;
+use bollard::models::{EndpointSettings, HostConfig};
+use bollard::network::{ConnectNetworkOptions, CreateNetworkOptions};
 use futures::StreamExt;
 use tokio::sync::Mutex;
 use tokio::time::timeout;
@@ -30,11 +36,27 @@ use crate::{
     ExecHandle, ExecOutput, ExecSpec, Mount, NetworkPolicy, Sandbox, SandboxPolicy, SandboxRuntime,
 };
 
+/// Per-spawn Limited-mode sidecar state that must be torn down with the
+/// sandbox container.
+struct LimitedSidecar {
+    network_id: String,
+    /// Proxy container ID. `None` when a shared proxy (named via
+    /// `SandboxPolicy::proxy_container_name`) is reused across spawns — in
+    /// that case the sandbox only disconnects from the network; it does not
+    /// remove the proxy.
+    ephemeral_proxy: Option<String>,
+    /// Shared proxy container ID (set when a named long-lived proxy was
+    /// reused). Used so `wait()` can disconnect it from the per-spawn
+    /// network during cleanup.
+    shared_proxy: Option<String>,
+}
+
 struct Job {
     container_id: String,
     started: Instant,
     timeout: Duration,
     attach: AttachContainerResults,
+    limited: Option<LimitedSidecar>,
 }
 
 /// Sandbox backed by a Docker- or Podman-compatible daemon.
@@ -63,13 +85,6 @@ impl DockerSandbox {
             }
         };
 
-        if matches!(policy.network, NetworkPolicy::Limited(_)) {
-            return Err(SandboxError::NotAvailable(
-                "Limited network policy not yet implemented; set network = \"None\" or \"Full\""
-                    .into(),
-            ));
-        }
-
         Ok(Self {
             client: Arc::new(client),
             policy,
@@ -77,7 +92,7 @@ impl DockerSandbox {
         })
     }
 
-    fn build_host_config(&self, mounts: &[Mount]) -> HostConfig {
+    fn build_host_config(&self, mounts: &[Mount], network_mode: Option<String>) -> HostConfig {
         let memory = self
             .policy
             .memory_limit_mb
@@ -100,12 +115,6 @@ impl DockerSandbox {
             })
             .collect();
 
-        let network_mode = match &self.policy.network {
-            NetworkPolicy::None => Some("none".to_string()),
-            NetworkPolicy::Full => Some("bridge".to_string()),
-            NetworkPolicy::Limited(_) => Some("none".to_string()),
-        };
-
         HostConfig {
             memory,
             nano_cpus,
@@ -117,6 +126,207 @@ impl DockerSandbox {
             ..Default::default()
         }
     }
+
+    /// Create an internal (no-egress) docker network and attach the proxy to
+    /// it. Returns (network_id, network_name, proxy_ip_on_network, sidecar).
+    async fn setup_limited_network(
+        &self,
+        handle: &ExecHandle,
+        hosts: &[String],
+    ) -> Result<(String, String, String, LimitedSidecar)> {
+        let net_name = format!("brainwires-sandbox-net-{}", handle.as_uuid());
+        let create = CreateNetworkOptions::<String> {
+            name: net_name.clone(),
+            driver: "bridge".to_string(),
+            internal: true,
+            ..Default::default()
+        };
+        let net = self.client.create_network(create).await?;
+        let network_id = net.id.unwrap_or_else(|| net_name.clone());
+
+        let allow_env = format!("PROXY_ALLOW_HOSTS={}", hosts.join(","));
+        let listen_env = format!("PROXY_LISTEN=0.0.0.0:{}", self.policy.proxy_listen_port);
+
+        let (proxy_id, is_ephemeral) = match self
+            .ensure_proxy_on_network(&network_id, &allow_env, &listen_env)
+            .await
+        {
+            Ok(p) => p,
+            Err(e) => {
+                let _ = self.client.remove_network(&network_id).await;
+                return Err(e);
+            }
+        };
+
+        let ip = match self.proxy_ip_on_network(&proxy_id, &network_id).await {
+            Ok(ip) => ip,
+            Err(e) => {
+                let sidecar = LimitedSidecar {
+                    network_id: network_id.clone(),
+                    ephemeral_proxy: if is_ephemeral {
+                        Some(proxy_id.clone())
+                    } else {
+                        None
+                    },
+                    shared_proxy: if is_ephemeral {
+                        None
+                    } else {
+                        Some(proxy_id.clone())
+                    },
+                };
+                self.teardown_limited(sidecar).await;
+                return Err(e);
+            }
+        };
+
+        tracing::info!(
+            allow_hosts = %hosts.join(","),
+            proxy_container = %proxy_id,
+            network = %network_id,
+            "DockerSandbox Limited mode ready"
+        );
+
+        let sidecar = LimitedSidecar {
+            network_id: network_id.clone(),
+            ephemeral_proxy: if is_ephemeral {
+                Some(proxy_id.clone())
+            } else {
+                None
+            },
+            shared_proxy: if is_ephemeral { None } else { Some(proxy_id) },
+        };
+
+        Ok((network_id, net_name, ip, sidecar))
+    }
+
+    /// Returns `(proxy_container_id, is_ephemeral)`. When `is_ephemeral`
+    /// is false, the caller MUST NOT remove the container during cleanup
+    /// (it belongs to a shared named proxy).
+    async fn ensure_proxy_on_network(
+        &self,
+        network_id: &str,
+        allow_env: &str,
+        listen_env: &str,
+    ) -> Result<(String, bool)> {
+        let (id, is_ephemeral) = if let Some(name) = &self.policy.proxy_container_name {
+            match self.client.inspect_container(name, None).await {
+                Ok(info) => (info.id.unwrap_or_else(|| name.clone()), false),
+                Err(bollard::errors::Error::DockerResponseServerError {
+                    status_code: 404, ..
+                }) => {
+                    // Create the named shared proxy on first use.
+                    let new_id = self
+                        .create_proxy_container(Some(name.clone()), allow_env, listen_env)
+                        .await?;
+                    (new_id, false)
+                }
+                Err(e) => return Err(e.into()),
+            }
+        } else {
+            let new_id = self
+                .create_proxy_container(None, allow_env, listen_env)
+                .await?;
+            (new_id, true)
+        };
+
+        self.client
+            .connect_network(
+                network_id,
+                ConnectNetworkOptions::<String> {
+                    container: id.clone(),
+                    endpoint_config: EndpointSettings::default(),
+                },
+            )
+            .await?;
+        Ok((id, is_ephemeral))
+    }
+
+    async fn create_proxy_container(
+        &self,
+        name: Option<String>,
+        allow_env: &str,
+        listen_env: &str,
+    ) -> Result<String> {
+        let cfg: Config<String> = Config {
+            image: Some(self.policy.proxy_image.clone()),
+            env: Some(vec![allow_env.to_string(), listen_env.to_string()]),
+            host_config: Some(HostConfig {
+                // Default bridge so the proxy can actually reach the
+                // internet. The internal per-spawn network is attached
+                // separately.
+                network_mode: Some("bridge".to_string()),
+                auto_remove: Some(false),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let opts = name.map(|n| CreateContainerOptions::<String> {
+            name: n,
+            platform: None,
+        });
+        let created = self.client.create_container(opts, cfg).await?;
+        self.client
+            .start_container(&created.id, None::<StartContainerOptions<String>>)
+            .await?;
+        Ok(created.id)
+    }
+
+    async fn proxy_ip_on_network(&self, proxy_id: &str, network_id: &str) -> Result<String> {
+        // Docker assigns the IP asynchronously on network connect. Poll
+        // inspect_container briefly until the Networks map contains our
+        // network with a non-empty IP.
+        for _ in 0..20 {
+            let info = self.client.inspect_container(proxy_id, None).await?;
+            if let Some(ns) = info.network_settings.as_ref()
+                && let Some(map) = ns.networks.as_ref()
+            {
+                for (_, ep) in map
+                    .iter()
+                    .filter(|(_, ep)| ep.network_id.as_deref() == Some(network_id))
+                {
+                    if let Some(ip) = ep.ip_address.as_ref()
+                        && !ip.is_empty()
+                    {
+                        return Ok(ip.clone());
+                    }
+                }
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+        Err(SandboxError::NotAvailable(format!(
+            "proxy container {proxy_id} never got an IP on network {network_id}"
+        )))
+    }
+
+    async fn teardown_limited(&self, sidecar: LimitedSidecar) {
+        if let Some(proxy_id) = sidecar.ephemeral_proxy {
+            let _ = self
+                .client
+                .remove_container(
+                    &proxy_id,
+                    Some(RemoveContainerOptions {
+                        force: true,
+                        v: true,
+                        link: false,
+                    }),
+                )
+                .await;
+        } else if let Some(shared_id) = sidecar.shared_proxy {
+            // Leave the shared proxy running, but disconnect it from this
+            // spawn's internal network so the network can be removed.
+            let _ = self
+                .client
+                .disconnect_network(
+                    &sidecar.network_id,
+                    bollard::network::DisconnectNetworkOptions::<String> {
+                        container: shared_id,
+                        force: true,
+                    },
+                )
+                .await;
+        }
+        let _ = self.client.remove_network(&sidecar.network_id).await;
+    }
 }
 
 #[async_trait::async_trait]
@@ -126,9 +336,29 @@ impl Sandbox for DockerSandbox {
             self.policy.validate_mount(m)?;
         }
 
-        let env: Vec<String> = spec.env.iter().map(|(k, v)| format!("{k}={v}")).collect();
+        let handle = ExecHandle::new();
 
-        let host_config = self.build_host_config(&spec.mounts);
+        let mut env: Vec<String> = spec.env.iter().map(|(k, v)| format!("{k}={v}")).collect();
+
+        let (network_mode, limited) = match &self.policy.network {
+            NetworkPolicy::None => (Some("none".to_string()), None),
+            NetworkPolicy::Full => (Some("bridge".to_string()), None),
+            NetworkPolicy::Limited(hosts) => {
+                let (_network_id, net_name, proxy_ip, sidecar) =
+                    self.setup_limited_network(&handle, hosts).await?;
+                let proxy_url = format!("http://{}:{}", proxy_ip, self.policy.proxy_listen_port);
+                // Both upper- and lower-case — many CLIs only honour one.
+                env.push(format!("HTTP_PROXY={proxy_url}"));
+                env.push(format!("HTTPS_PROXY={proxy_url}"));
+                env.push(format!("http_proxy={proxy_url}"));
+                env.push(format!("https_proxy={proxy_url}"));
+                env.push("NO_PROXY=localhost,127.0.0.1".to_string());
+                env.push("no_proxy=localhost,127.0.0.1".to_string());
+                (Some(net_name), Some(sidecar))
+            }
+        };
+
+        let host_config = self.build_host_config(&spec.mounts, network_mode);
 
         let config: Config<String> = Config {
             image: Some(self.policy.image.clone()),
@@ -145,18 +375,25 @@ impl Sandbox for DockerSandbox {
             ..Default::default()
         };
 
-        let handle = ExecHandle::new();
         let name = format!("brainwires-sandbox-{}", handle.as_uuid());
-
         let create_opts = CreateContainerOptions {
             name: name.clone(),
             platform: None,
         };
 
-        let created = self
+        let created = match self
             .client
             .create_container(Some(create_opts), config)
-            .await?;
+            .await
+        {
+            Ok(c) => c,
+            Err(e) => {
+                if let Some(sidecar) = limited {
+                    self.teardown_limited(sidecar).await;
+                }
+                return Err(e.into());
+            }
+        };
         let container_id = created.id;
 
         let mut attach = self
@@ -189,6 +426,7 @@ impl Sandbox for DockerSandbox {
             started: Instant::now(),
             timeout: spec.timeout,
             attach,
+            limited,
         };
         self.jobs.lock().await.insert(handle, job);
         Ok(handle)
@@ -200,6 +438,7 @@ impl Sandbox for DockerSandbox {
             started,
             timeout: timeout_dur,
             mut attach,
+            limited,
         } = self
             .jobs
             .lock()
@@ -207,6 +446,7 @@ impl Sandbox for DockerSandbox {
             .remove(&handle)
             .ok_or_else(|| SandboxError::NotAvailable("unknown exec handle".into()))?;
 
+        let client = self.client.clone();
         let collect_and_wait = async {
             let mut stdout = Vec::new();
             let mut stderr = Vec::new();
@@ -220,7 +460,7 @@ impl Sandbox for DockerSandbox {
                 }
             }
 
-            let mut wait_stream = self.client.wait_container(
+            let mut wait_stream = client.wait_container(
                 &container_id,
                 None::<bollard::container::WaitContainerOptions<String>>,
             );
@@ -260,6 +500,10 @@ impl Sandbox for DockerSandbox {
             )
             .await;
 
+        if let Some(sidecar) = limited {
+            self.teardown_limited(sidecar).await;
+        }
+
         result
     }
 
@@ -280,6 +524,9 @@ impl Sandbox for DockerSandbox {
                     }),
                 )
                 .await;
+            if let Some(sidecar) = job.limited {
+                self.teardown_limited(sidecar).await;
+            }
         }
         Ok(())
     }
@@ -295,12 +542,33 @@ mod tests {
     use std::collections::BTreeMap;
     use std::path::PathBuf;
 
+    fn curl_spec(url: &str) -> ExecSpec {
+        ExecSpec {
+            cmd: vec![
+                "curl".into(),
+                "-sS".into(),
+                "-o".into(),
+                "/dev/null".into(),
+                "-w".into(),
+                "%{http_code}".into(),
+                url.into(),
+            ],
+            env: BTreeMap::new(),
+            workdir: PathBuf::from("/"),
+            stdin: None,
+            mounts: vec![],
+            timeout: Duration::from_secs(30),
+        }
+    }
+
     #[tokio::test]
     #[ignore = "requires a live Docker daemon"]
     async fn echo_hello_in_docker() {
-        let mut policy = SandboxPolicy::default();
-        policy.image = "alpine:3".into();
-        policy.network = NetworkPolicy::None;
+        let policy = SandboxPolicy {
+            image: "alpine:3".into(),
+            network: NetworkPolicy::None,
+            ..SandboxPolicy::default()
+        };
         let sandbox = DockerSandbox::connect(policy).expect("connect");
 
         let spec = ExecSpec {
@@ -316,5 +584,79 @@ mod tests {
         let out = sandbox.wait(handle).await.expect("wait");
         assert_eq!(out.exit_code, 0);
         assert_eq!(String::from_utf8_lossy(&out.stdout).trim(), "hello");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires live Docker + published proxy image"]
+    async fn limited_network_allows_listed_host() {
+        let policy = SandboxPolicy {
+            image: "curlimages/curl:latest".into(),
+            network: NetworkPolicy::Limited(vec!["pypi.org".into()]),
+            read_only_rootfs: false,
+            ..SandboxPolicy::default()
+        };
+        let sandbox = DockerSandbox::connect(policy).expect("connect");
+        let handle = sandbox
+            .spawn(curl_spec("https://pypi.org/"))
+            .await
+            .expect("spawn");
+        let out = sandbox.wait(handle).await.expect("wait");
+        assert_eq!(
+            out.exit_code,
+            0,
+            "stderr: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires live Docker + published proxy image"]
+    async fn limited_network_blocks_unlisted_host() {
+        let policy = SandboxPolicy {
+            image: "curlimages/curl:latest".into(),
+            network: NetworkPolicy::Limited(vec!["pypi.org".into()]),
+            read_only_rootfs: false,
+            ..SandboxPolicy::default()
+        };
+        let sandbox = DockerSandbox::connect(policy).expect("connect");
+        let handle = sandbox
+            .spawn(curl_spec("https://example.com/"))
+            .await
+            .expect("spawn");
+        let out = sandbox.wait(handle).await.expect("wait");
+        assert_ne!(
+            out.exit_code, 0,
+            "expected curl to fail against blocked host"
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires live Docker + published proxy image"]
+    async fn limited_network_blocks_raw_tcp() {
+        let policy = SandboxPolicy {
+            image: "busybox:latest".into(),
+            network: NetworkPolicy::Limited(vec!["pypi.org".into()]),
+            read_only_rootfs: false,
+            ..SandboxPolicy::default()
+        };
+        let sandbox = DockerSandbox::connect(policy).expect("connect");
+        let spec = ExecSpec {
+            cmd: vec![
+                "sh".into(),
+                "-c".into(),
+                "nc -w2 1.1.1.1 53 < /dev/null".into(),
+            ],
+            env: BTreeMap::new(),
+            workdir: PathBuf::from("/"),
+            stdin: None,
+            mounts: vec![],
+            timeout: Duration::from_secs(10),
+        };
+        let handle = sandbox.spawn(spec).await.expect("spawn");
+        let out = sandbox.wait(handle).await.expect("wait");
+        assert_ne!(
+            out.exit_code, 0,
+            "raw TCP should be blocked by internal network"
+        );
     }
 }
