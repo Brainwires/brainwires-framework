@@ -30,6 +30,7 @@ use crate::media::MediaProcessor;
 use crate::metrics::MetricsCollector;
 use crate::middleware::rate_limit::RateLimiter;
 use crate::middleware::sanitizer::MessageSanitizer;
+use crate::pairing::{PairingHandler, PairingOutcome};
 use crate::router::InboundHandler;
 use crate::session::SessionManager;
 use crate::session_persistence::{SessionStore, session_key};
@@ -161,6 +162,9 @@ pub struct AgentInboundHandler {
     /// [`session_broker`] is backed by so the four `sessions_*` tools see
     /// handler-managed per-user sessions (not just spawned children).
     session_registry: Option<Arc<SessionRegistry>>,
+    /// Optional pairing handler — intercepts inbound messages from
+    /// unapproved peers before they reach the agent.
+    pairing: Option<Arc<PairingHandler>>,
 }
 
 impl AgentInboundHandler {
@@ -201,7 +205,18 @@ impl AgentInboundHandler {
             slash_state: DashMap::new(),
             session_broker: None,
             session_registry: None,
+            pairing: None,
         }
+    }
+
+    /// Attach a [`PairingHandler`] so inbound DMs from unapproved peers
+    /// are intercepted before they reach the agent.
+    ///
+    /// When unset, every inbound message is treated as allowed — callers
+    /// that want the secure default must explicitly install a handler.
+    pub fn with_pairing(mut self, pairing: Arc<PairingHandler>) -> Self {
+        self.pairing = Some(pairing);
+        self
     }
 
     /// Attach a session broker so this handler exposes the `sessions_list`,
@@ -383,6 +398,42 @@ impl AgentInboundHandler {
 
     /// Handle an inbound message by routing it through the appropriate agent.
     async fn handle_message(&self, channel_id: Uuid, msg: &ChannelMessage) -> Result<()> {
+        // 0a. Pairing gate — if a pairing handler is configured, ask it
+        //     whether this peer is allowed through. This must run before
+        //     approval checks, slash commands, and the agent call so
+        //     unapproved peers never reach any of those paths.
+        if let Some(ref pairing) = self.pairing {
+            let channel = &msg.conversation.platform;
+            let user_id = &msg.author;
+            let peer_display = user_id;
+            let incoming = Self::extract_text(&msg.content);
+            match pairing
+                .check(channel, user_id, peer_display, &incoming)
+                .await?
+            {
+                PairingOutcome::Allow => {}
+                PairingOutcome::Reject(reply) => {
+                    tracing::info!(
+                        channel = %channel,
+                        user_id = %user_id,
+                        "pairing: rejected peer"
+                    );
+                    self.send_response(channel_id, msg, &reply).await?;
+                    return Ok(());
+                }
+                PairingOutcome::PendingCodeIssued { code, reply } => {
+                    tracing::info!(
+                        channel = %channel,
+                        user_id = %user_id,
+                        %code,
+                        "pairing: issued code to unknown peer"
+                    );
+                    self.send_response(channel_id, msg, &reply).await?;
+                    return Ok(());
+                }
+            }
+        }
+
         // 0. If tool approval is enabled, check whether this message is a
         //    yes/no response to a pending approval request.
         if let Some(ref registry) = self.approval_registry {

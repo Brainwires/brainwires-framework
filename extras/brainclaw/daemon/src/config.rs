@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 use brainwires_gateway::config::GatewayConfig;
+use brainwires_gateway::pairing::PairingPolicy;
 use serde::{Deserialize, Serialize};
 
 /// Top-level BrainClaw configuration.
@@ -43,6 +44,28 @@ pub struct BrainClawConfig {
     pub identity: IdentitySection,
     /// Sandbox settings — container-based isolation for dangerous tool calls.
     pub sandbox: SandboxConfig,
+    /// DM pairing policy — gates unknown peers behind an operator-approval flow.
+    pub pairing: PairingSection,
+}
+
+/// Per-channel DM pairing policy configuration.
+///
+/// The gateway rejects direct messages from unknown peers unless they are
+/// explicitly paired via the approval flow. `default` is applied to any
+/// channel not listed in `channels`; `allow_from` pre-approves peers
+/// without requiring a code.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(default)]
+pub struct PairingSection {
+    /// Default policy applied to channels without their own override.
+    /// `None` resolves to the library default (Pairing mode, 15-minute TTL).
+    pub default: Option<PairingPolicy>,
+    /// Per-channel overrides keyed by channel name (e.g. "discord", "telegram").
+    pub channels: std::collections::HashMap<String, PairingPolicy>,
+    /// Pre-approved peers keyed by `<channel>:<user_id>`.
+    pub allow_from: Vec<String>,
+    /// Path to the pairing store JSON file.
+    pub store_path: Option<String>,
 }
 
 // ── Section structs ─────────────────────────────────────────────────────
@@ -510,6 +533,7 @@ impl Default for BrainClawConfig {
             voice: None,
             identity: IdentitySection::default(),
             sandbox: SandboxConfig::default(),
+            pairing: PairingSection::default(),
         }
     }
 }

@@ -129,6 +129,38 @@ require_tool_approval = false
 # Example: ["bash", "file_write", "http_request"]
 approval_tools = []
 
+# ── DM pairing policy ────────────────────────────────────────────────────────
+#
+# Gates DMs from unknown peers behind an operator-approval flow. Secure
+# default: unknown peers receive a 6-digit code and nothing else — the
+# agent is never invoked for them. Operators approve codes out-of-band
+# via `brainclaw pairing approve <code>` or the `/admin/pairing/*` API.
+
+[pairing]
+# Optional explicit path to the pairing state file. Defaults to
+# ~/.brainclaw/pairing.json when unset.
+# store_path = "~/.brainclaw/pairing.json"
+# Pre-approved peers keyed by `<channel>:<user_id>`. Skips the code flow
+# for listed peers — useful for operators, known bots, and test scaffolding.
+allow_from = []
+# Per-channel policy overrides. Each value is a policy document. Omit a
+# channel here to fall through to `default` (or the built-in secure default).
+# Example:
+# [pairing.channels.discord]
+# mode = "pairing"
+# code_ttl_secs = 900
+# persist_approvals = true
+# [pairing.channels.telegram]
+# mode = "open"
+# allow_from = ["telegram:123456"]
+[pairing.channels]
+# The default policy applied to channels without their own entry above.
+# Commented out → use the library default (mode = "pairing", 15 min TTL).
+# [pairing.default]
+# mode = "pairing"
+# code_ttl_secs = 900
+# persist_approvals = true
+
 # ── Sandbox ──────────────────────────────────────────────────────────────────
 #
 # When enabled, the built-in tool executor is wrapped in a SandboxedToolExecutor

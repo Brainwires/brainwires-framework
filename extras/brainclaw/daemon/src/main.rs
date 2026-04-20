@@ -45,6 +45,34 @@ enum Commands {
     Version,
     /// Validate the configuration file
     ConfigCheck,
+    /// DM pairing administration (approve/reject peer DMs).
+    #[command(subcommand)]
+    Pairing(PairingCmd),
+}
+
+#[derive(Subcommand)]
+enum PairingCmd {
+    /// List pending pairing codes.
+    Pending,
+    /// List approved peers.
+    List,
+    /// Approve a pending pairing code.
+    Approve {
+        /// The 6-digit code.
+        code: String,
+    },
+    /// Reject (discard) a pending pairing code.
+    Reject {
+        /// The 6-digit code.
+        code: String,
+    },
+    /// Revoke a previously-approved peer.
+    Revoke {
+        /// Channel name (e.g. `discord`).
+        channel: String,
+        /// Platform user id.
+        user: String,
+    },
 }
 
 #[tokio::main]
@@ -65,8 +93,138 @@ async fn main() -> Result<()> {
         Some(Commands::ConfigCheck) => {
             config_check(&cli)?;
         }
+        Some(Commands::Pairing(ref cmd)) => {
+            pairing_cmd(&cli, cmd).await?;
+        }
         Some(Commands::Serve) | None => {
             serve(cli).await?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Run a `brainclaw pairing ...` subcommand against the local gateway's
+/// admin API.
+async fn pairing_cmd(cli: &Cli, cmd: &PairingCmd) -> Result<()> {
+    let config = load_config(cli)?;
+    let host = cli
+        .host
+        .clone()
+        .unwrap_or_else(|| config.gateway.host.clone());
+    let port = cli.port.unwrap_or(config.gateway.port);
+    // The daemon listens on `127.0.0.1` by default; when host is `0.0.0.0`
+    // we still address it via loopback on this machine.
+    let connect_host = if host == "0.0.0.0" {
+        "127.0.0.1".to_string()
+    } else {
+        host
+    };
+    let base = format!("http://{connect_host}:{port}/admin/pairing");
+    let token = config.security.admin_token.clone();
+    let client = reqwest::Client::new();
+
+    let auth = |req: reqwest::RequestBuilder| match &token {
+        Some(t) => req.bearer_auth(t),
+        None => req,
+    };
+
+    match cmd {
+        PairingCmd::Pending => {
+            let resp = auth(client.get(format!("{base}/pending")))
+                .send()
+                .await?
+                .error_for_status()?;
+            let codes: Vec<serde_json::Value> = resp.json().await?;
+            if codes.is_empty() {
+                println!("(no pending codes)");
+            } else {
+                for pc in codes {
+                    println!(
+                        "{}  {}:{}  {} (expires {})",
+                        pc.get("code").and_then(|v| v.as_str()).unwrap_or("?"),
+                        pc.get("channel").and_then(|v| v.as_str()).unwrap_or("?"),
+                        pc.get("user_id").and_then(|v| v.as_str()).unwrap_or("?"),
+                        pc.get("peer_display")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or(""),
+                        pc.get("expires_at").and_then(|v| v.as_str()).unwrap_or(""),
+                    );
+                }
+            }
+        }
+        PairingCmd::List => {
+            let resp = auth(client.get(format!("{base}/approved")))
+                .send()
+                .await?
+                .error_for_status()?;
+            let peers: Vec<String> = resp.json().await?;
+            if peers.is_empty() {
+                println!("(no approved peers)");
+            } else {
+                for p in peers {
+                    println!("{p}");
+                }
+            }
+        }
+        PairingCmd::Approve { code } => {
+            let resp = auth(client.post(format!("{base}/approve")))
+                .json(&serde_json::json!({ "code": code }))
+                .send()
+                .await?
+                .error_for_status()?;
+            let body: serde_json::Value = resp.json().await?;
+            if body
+                .get("approved")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
+            {
+                println!(
+                    "approved {}:{}",
+                    body.get("channel").and_then(|v| v.as_str()).unwrap_or("?"),
+                    body.get("user_id").and_then(|v| v.as_str()).unwrap_or("?"),
+                );
+            } else {
+                let reason = body
+                    .get("reason")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("unknown");
+                println!("not approved: {reason}");
+            }
+        }
+        PairingCmd::Reject { code } => {
+            let resp = auth(client.post(format!("{base}/reject")))
+                .json(&serde_json::json!({ "code": code }))
+                .send()
+                .await?
+                .error_for_status()?;
+            let body: serde_json::Value = resp.json().await?;
+            let rejected = body
+                .get("rejected")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            if rejected {
+                println!("rejected code {code}");
+            } else {
+                println!("code {code} not found");
+            }
+        }
+        PairingCmd::Revoke { channel, user } => {
+            let resp = auth(client.post(format!("{base}/revoke")))
+                .json(&serde_json::json!({ "channel": channel, "user_id": user }))
+                .send()
+                .await?
+                .error_for_status()?;
+            let body: serde_json::Value = resp.json().await?;
+            if body
+                .get("revoked")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
+            {
+                println!("revoked {channel}:{user}");
+            } else {
+                println!("revoke failed for {channel}:{user}");
+            }
         }
     }
 

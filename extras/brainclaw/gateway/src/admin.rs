@@ -385,3 +385,104 @@ pub async fn unlink_identity(
         None => Ok(StatusCode::NOT_FOUND.into_response()),
     }
 }
+
+// ---------------------------------------------------------------------------
+// Pairing admin API
+// ---------------------------------------------------------------------------
+
+/// Request body for approving / rejecting a pairing code.
+#[derive(Debug, Deserialize)]
+pub struct PairingCodeRequest {
+    /// The 6-digit code.
+    pub code: String,
+}
+
+/// Request body for revoking a previously-approved peer.
+#[derive(Debug, Deserialize)]
+pub struct PairingRevokeRequest {
+    /// Channel name (e.g. `"discord"`).
+    pub channel: String,
+    /// Platform user id.
+    pub user_id: String,
+}
+
+/// GET /admin/pairing/pending — list all currently-valid pending codes.
+pub async fn list_pending_pairing(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_admin_auth(&headers, &state.config)?;
+    let store = state.pairing_store.as_ref().ok_or(StatusCode::NOT_FOUND)?;
+    Ok(Json(store.list_pending().await))
+}
+
+/// GET /admin/pairing/approved — list approved peers (`<channel>:<user_id>`).
+pub async fn list_approved_pairing(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_admin_auth(&headers, &state.config)?;
+    let store = state.pairing_store.as_ref().ok_or(StatusCode::NOT_FOUND)?;
+    Ok(Json(store.list_approved().await))
+}
+
+/// POST /admin/pairing/approve — approve a pending code.
+pub async fn approve_pairing(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(payload): Json<PairingCodeRequest>,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_admin_auth(&headers, &state.config)?;
+    let store = state.pairing_store.as_ref().ok_or(StatusCode::NOT_FOUND)?;
+    match store.approve_by_code(&payload.code).await.map_err(|e| {
+        tracing::error!(error = %e, "Failed to approve pairing code");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })? {
+        Some((channel, user_id)) => Ok(Json(json!({
+            "approved": true,
+            "channel": channel,
+            "user_id": user_id
+        }))),
+        None => Ok(Json(json!({
+            "approved": false,
+            "reason": "code not found or expired"
+        }))),
+    }
+}
+
+/// POST /admin/pairing/reject — reject (discard) a pending code.
+pub async fn reject_pairing(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(payload): Json<PairingCodeRequest>,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_admin_auth(&headers, &state.config)?;
+    let store = state.pairing_store.as_ref().ok_or(StatusCode::NOT_FOUND)?;
+    let rejected = store.reject_by_code(&payload.code).await.map_err(|e| {
+        tracing::error!(error = %e, "Failed to reject pairing code");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    Ok(Json(json!({ "rejected": rejected })))
+}
+
+/// POST /admin/pairing/revoke — revoke a previously-approved peer.
+pub async fn revoke_pairing(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+    Json(payload): Json<PairingRevokeRequest>,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_admin_auth(&headers, &state.config)?;
+    let store = state.pairing_store.as_ref().ok_or(StatusCode::NOT_FOUND)?;
+    store
+        .revoke(&payload.channel, &payload.user_id)
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "Failed to revoke pairing");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+    Ok(Json(json!({
+        "revoked": true,
+        "channel": payload.channel,
+        "user_id": payload.user_id
+    })))
+}

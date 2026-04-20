@@ -13,6 +13,7 @@ use brainwires_gateway::media::MediaProcessor;
 use brainwires_gateway::metrics::MetricsCollector;
 use brainwires_gateway::middleware::rate_limit::RateLimiter;
 use brainwires_gateway::middleware::sanitizer::MessageSanitizer;
+use brainwires_gateway::pairing::{PairingHandler, PairingStore, default_policy};
 use brainwires_gateway::server::Gateway;
 use brainwires_gateway::session::SessionManager;
 use brainwires_gateway::session_persistence::{JsonFileStore, expand_tilde};
@@ -315,6 +316,33 @@ impl BrainClaw {
             }
         }
 
+        // 7l. Wire DM pairing policy. Secure default: if no config is
+        //      provided, the gateway runs in Pairing mode and unknown peers
+        //      are intercepted before their messages reach the agent.
+        let pairing_store = self.build_pairing_store().await;
+        if let Some(ref store) = pairing_store {
+            let default_pol = self
+                .config
+                .pairing
+                .default
+                .clone()
+                .unwrap_or_else(default_policy);
+            let per_channel = self.config.pairing.channels.clone();
+            let policy_fn = std::sync::Arc::new(move |channel: &str| {
+                per_channel
+                    .get(channel)
+                    .cloned()
+                    .unwrap_or_else(|| default_pol.clone())
+            });
+            let pairing_handler =
+                std::sync::Arc::new(PairingHandler::new(Arc::clone(store), policy_fn));
+            handler = handler.with_pairing(pairing_handler);
+            tracing::info!(
+                path = %store.path().display(),
+                "DM pairing policy enabled"
+            );
+        }
+
         // 7j. Wire TTS if configured (voice feature only).
         let mut tts_audio_dir: Option<std::path::PathBuf> = None;
         #[cfg(feature = "voice")]
@@ -385,6 +413,12 @@ impl BrainClaw {
         // 8c. Attach identity store to gateway if enabled.
         if let Some(ref store) = identity_store {
             gateway = gateway.with_identity_store(Arc::clone(store));
+        }
+
+        // 8d. Attach pairing store to gateway so the admin pairing endpoints
+        //     are wired up.
+        if let Some(ref store) = pairing_store {
+            gateway = gateway.with_pairing_store(Arc::clone(store));
         }
         tracing::info!("OpenAI-compatible API enabled at /v1/chat/completions");
 
@@ -578,6 +612,46 @@ impl BrainClaw {
         }
         #[cfg(not(feature = "browser"))]
         let _ = &self.config.browser;
+    }
+
+    /// Build (and load) the pairing store from the `[pairing]` config section.
+    ///
+    /// Falls back to `~/.brainclaw/pairing.json` when `pairing.store_path`
+    /// is unset. Returns `None` if the path cannot be resolved (e.g.
+    /// missing `$HOME`).
+    async fn build_pairing_store(&self) -> Option<Arc<PairingStore>> {
+        let configured = self.config.pairing.store_path.clone();
+        let path: std::path::PathBuf = match configured {
+            Some(p) => std::path::PathBuf::from(expand_tilde_str(&p)),
+            None => match dirs::home_dir() {
+                Some(home) => home.join(".brainclaw").join("pairing.json"),
+                None => {
+                    tracing::warn!(
+                        "Cannot resolve home directory for default pairing store path; \
+                         pairing disabled"
+                    );
+                    return None;
+                }
+            },
+        };
+
+        match PairingStore::load(&path) {
+            Ok(store) => {
+                let store = Arc::new(store);
+                store
+                    .set_allowlist(self.config.pairing.allow_from.clone())
+                    .await;
+                Some(store)
+            }
+            Err(e) => {
+                tracing::warn!(
+                    error = %e,
+                    path = %path.display(),
+                    "Failed to open pairing store; pairing disabled"
+                );
+                None
+            }
+        }
     }
 
     /// Resolve the API key from config, environment variable, or standard env vars.

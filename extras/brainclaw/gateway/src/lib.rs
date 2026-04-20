@@ -27,6 +27,8 @@ pub mod identity;
 pub mod middleware;
 /// OpenAI-compatible API endpoint (/v1/chat/completions, /v1/models, /v1/embeddings).
 pub mod openai_compat;
+/// DM pairing policy — gate unknown peers behind an operator-approval flow.
+pub mod pairing;
 /// Message routing logic.
 pub mod router;
 

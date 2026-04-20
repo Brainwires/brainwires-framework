@@ -14,6 +14,7 @@ use crate::identity::UserIdentityStore;
 use crate::metrics::MetricsCollector;
 use crate::middleware::rate_limit::RateLimiter;
 use crate::middleware::sanitizer::MessageSanitizer;
+use crate::pairing::PairingStore;
 use crate::router::InboundHandler;
 use crate::session::SessionManager;
 
@@ -46,4 +47,6 @@ pub struct AppState {
     pub cron_store: Option<Arc<CronStore>>,
     /// Optional cross-channel user identity store.
     pub identity_store: Option<Arc<UserIdentityStore>>,
+    /// Optional pairing store exposed to the admin pairing endpoints.
+    pub pairing_store: Option<Arc<PairingStore>>,
 }

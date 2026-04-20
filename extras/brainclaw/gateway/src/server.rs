@@ -22,6 +22,7 @@ use crate::metrics::MetricsCollector;
 use crate::middleware::rate_limit::RateLimiter;
 use crate::middleware::sanitizer::MessageSanitizer;
 use crate::openai_compat;
+use crate::pairing::PairingStore;
 use crate::router::{InboundHandler, MessageRouter};
 use crate::session::SessionManager;
 use crate::state::AppState;
@@ -48,6 +49,8 @@ pub struct Gateway {
     shared_metrics: Option<Arc<MetricsCollector>>,
     /// Optional cross-channel identity store.
     identity_store: Option<Arc<UserIdentityStore>>,
+    /// Optional pairing store exposed via the admin pairing endpoints.
+    pairing_store: Option<Arc<PairingStore>>,
 }
 
 impl Gateway {
@@ -65,6 +68,7 @@ impl Gateway {
             cron_store: None,
             shared_metrics: None,
             identity_store: None,
+            pairing_store: None,
         }
     }
 
@@ -83,6 +87,7 @@ impl Gateway {
             cron_store: None,
             shared_metrics: None,
             identity_store: None,
+            pairing_store: None,
         }
     }
 
@@ -93,6 +98,16 @@ impl Gateway {
     /// carries the store so downstream consumers can access it.
     pub fn with_identity_store(mut self, store: Arc<UserIdentityStore>) -> Self {
         self.identity_store = Some(store);
+        self
+    }
+
+    /// Attach a pairing store.
+    ///
+    /// When set and `admin_enabled` is true, the gateway exposes the
+    /// `/admin/pairing/*` endpoints for approving, rejecting, and
+    /// revoking peer pairings.
+    pub fn with_pairing_store(mut self, store: Arc<PairingStore>) -> Self {
+        self.pairing_store = Some(store);
         self
     }
 
@@ -213,6 +228,7 @@ impl Gateway {
             audio_dir: self.audio_dir.clone(),
             cron_store: self.cron_store.clone(),
             identity_store: self.identity_store.clone(),
+            pairing_store: self.pairing_store.clone(),
         };
 
         let app = build_router(state.clone());
@@ -310,6 +326,31 @@ fn build_router(state: AppState) -> Router {
                 .route(
                     &format!("{}/identity/unlink", admin_prefix),
                     axum::routing::delete(admin::unlink_identity),
+                );
+        }
+
+        // Pairing admin API (only when a pairing store is wired in)
+        if state.pairing_store.is_some() {
+            app = app
+                .route(
+                    &format!("{}/pairing/pending", admin_prefix),
+                    get(admin::list_pending_pairing),
+                )
+                .route(
+                    &format!("{}/pairing/approved", admin_prefix),
+                    get(admin::list_approved_pairing),
+                )
+                .route(
+                    &format!("{}/pairing/approve", admin_prefix),
+                    post(admin::approve_pairing),
+                )
+                .route(
+                    &format!("{}/pairing/reject", admin_prefix),
+                    post(admin::reject_pairing),
+                )
+                .route(
+                    &format!("{}/pairing/revoke", admin_prefix),
+                    post(admin::revoke_pairing),
                 );
         }
     }
