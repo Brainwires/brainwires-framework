@@ -333,7 +333,8 @@ impl ClusterServer for OperationalCredentialsCluster {
                 // CSRRequest { CSRNonce: bytes(32) }
                 let csr_nonce = extract_octet_string_tag(args, 0).unwrap_or_else(|| vec![0u8; 32]);
 
-                // Generate a P-256 keypair scalar (32 random bytes as stub).
+                // Generate a P-256 keypair via OsRng; persist the secret scalar
+                // so AddNOC can install the matching NOC against it.
                 let scalar = generate_ephemeral_scalar();
                 {
                     let mut st = self.state.lock().expect("opcred state lock poisoned");
@@ -343,7 +344,10 @@ impl ClusterServer for OperationalCredentialsCluster {
                 // Derive the 65-byte uncompressed public key from the scalar.
                 let pubkey = derive_pubkey(&scalar);
 
-                // NOCSRElements TLV: { tag 1: csr (pubkey as stub), tag 2: CSRNonce }
+                // NOCSRElements TLV: { tag 1: csr_pubkey (65-byte uncompressed
+                // SEC1 P-256 point), tag 2: CSRNonce }. Matter encodes this as
+                // its own TLV rather than PKCS#10 — see controller.rs
+                // parse_csr_response for the reader.
                 let mut noecsr_inner = tlv_octet_string(1, &pubkey);
                 noecsr_inner.extend_from_slice(&tlv_octet_string(2, &csr_nonce));
                 let nocsr_elements = wrap_struct(&noecsr_inner);
@@ -385,8 +389,14 @@ impl ClusterServer for OperationalCredentialsCluster {
 
             CMD_UPDATE_FABRIC_LABEL => {
                 // UpdateFabricLabel { Label(0): string } → NOCResponse
-                // The fabric index context is carried by the CASE session; for the
-                // server stub we just return success on the first fabric.
+                //
+                // Per Matter spec §11.17.6.11 this applies to the fabric
+                // carried by the current CASE session. Our ClusterServer trait
+                // has no session-context plumbing yet, so we scope the update
+                // to the first stored fabric — works for single-admin servers,
+                // wrong for multi-admin. Tracked as a known limitation in
+                // matter/mod.rs; fix requires threading session fabric index
+                // into ClusterServer::invoke_command.
                 let fabric_index = self
                     .state
                     .lock()
