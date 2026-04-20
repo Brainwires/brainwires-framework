@@ -23,8 +23,8 @@ use clap::Args;
 use rand::TryRngCore;
 
 use crate::config::{
-    BrainClawConfig, MemorySection, PairingSection, PersonaSection, SandboxConfig,
-    SecuritySection, SkillsSection,
+    BrainClawConfig, MemorySection, PairingSection, PersonaSection, SandboxConfig, SecuritySection,
+    SkillsSection,
 };
 use crate::doctor;
 

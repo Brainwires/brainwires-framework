@@ -410,6 +410,26 @@ impl BrainClaw {
         // 8a. Attach provider for OpenAI-compatible endpoint.
         gateway = gateway.with_openai_provider(openai_provider);
 
+        // 8ab. Wire the webchat verifier + history store when the browser
+        //      chat channel is enabled and we have (or can derive) a
+        //      shared HS256 secret.
+        if self.config.webchat.enabled {
+            if let Some(secret) = self.config.resolve_webchat_secret() {
+                let verifier = Arc::new(brainwires_gateway::webchat::Hs256Verifier::new(
+                    secret.as_bytes().to_vec(),
+                ));
+                let history = Arc::new(brainwires_gateway::webchat::WebChatHistory::new());
+                gateway = gateway.with_webchat_verifier(verifier, history);
+                tracing::info!("WebChat JWT endpoint enabled at /webchat/ws");
+            } else {
+                tracing::warn!(
+                    "WebChat is enabled but no JWT secret could be resolved \
+                     (set [webchat] jwt_secret or [security] admin_token); \
+                     /webchat/ws will reject all upgrade attempts"
+                );
+            }
+        }
+
         // 8c. Attach identity store to gateway if enabled.
         if let Some(ref store) = identity_store {
             gateway = gateway.with_identity_store(Arc::clone(store));

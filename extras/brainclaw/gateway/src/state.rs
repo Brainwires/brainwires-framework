@@ -17,6 +17,7 @@ use crate::middleware::sanitizer::MessageSanitizer;
 use crate::pairing::PairingStore;
 use crate::router::InboundHandler;
 use crate::session::SessionManager;
+use crate::webchat::{SharedVerifier, WebChatHistory};
 
 /// Shared application state, passed to all axum handlers via Extension.
 #[derive(Clone)]
@@ -49,4 +50,11 @@ pub struct AppState {
     pub identity_store: Option<Arc<UserIdentityStore>>,
     /// Optional pairing store exposed to the admin pairing endpoints.
     pub pairing_store: Option<Arc<PairingStore>>,
+    /// Optional bearer-token verifier for the JWT-gated `/webchat/ws`
+    /// endpoint. When `None`, `/webchat/ws` rejects every upgrade.
+    pub webchat_verifier: Option<SharedVerifier>,
+    /// Optional per-session history store for the webchat channel.
+    /// When `None`, history is not retained and `/webchat/history/:id`
+    /// returns an empty list.
+    pub webchat_history: Option<Arc<WebChatHistory>>,
 }

@@ -46,6 +46,45 @@ pub struct BrainClawConfig {
     pub sandbox: SandboxConfig,
     /// DM pairing policy — gates unknown peers behind an operator-approval flow.
     pub pairing: PairingSection,
+    /// Browser-based WebChat channel settings.
+    pub webchat: WebChatSection,
+}
+
+/// Browser-based WebChat channel settings.
+///
+/// The webchat channel is exposed at `/webchat/ws` on the gateway and
+/// authenticates each browser connection with an HS256 JWT signed by
+/// `jwt_secret`. When `jwt_secret` is `None` at startup, the daemon
+/// derives a stable secret from `security.admin_token`; if that is also
+/// unset, a fresh random secret is generated and logged on first boot.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct WebChatSection {
+    /// Whether the `/webchat/ws` endpoint is enabled.
+    pub enabled: bool,
+    /// Explicit HS256 shared secret. When unset, derived from
+    /// `security.admin_token` or randomly generated at startup.
+    pub jwt_secret: Option<String>,
+    /// Maximum history entries retained per webchat session.
+    pub session_history_limit: usize,
+    /// Maximum attachment size in bytes (reserved — attachments scoped
+    /// out in the initial cut).
+    pub attachment_max_bytes: u64,
+    /// Optional per-channel origin allow-list.  When empty, inherits
+    /// `security.allowed_origins`.
+    pub allowed_origins: Vec<String>,
+}
+
+impl Default for WebChatSection {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            jwt_secret: None,
+            session_history_limit: 50,
+            attachment_max_bytes: 10 * 1024 * 1024,
+            allowed_origins: Vec::new(),
+        }
+    }
 }
 
 /// Per-channel DM pairing policy configuration.
@@ -534,6 +573,7 @@ impl Default for BrainClawConfig {
             identity: IdentitySection::default(),
             sandbox: SandboxConfig::default(),
             pairing: PairingSection::default(),
+            webchat: WebChatSection::default(),
         }
     }
 }
@@ -820,6 +860,33 @@ impl BrainClawConfig {
         })
     }
 
+    /// Resolve the webchat JWT secret. Precedence:
+    ///
+    /// 1. Explicit `[webchat] jwt_secret` from config.
+    /// 2. A secret derived deterministically from `security.admin_token`
+    ///    so that webchat tokens survive daemon restarts without extra
+    ///    setup. The derivation is `sha256("brainclaw-webchat:" + admin)`
+    ///    hex-encoded, keeping the admin token itself off disk and out
+    ///    of log messages.
+    /// 3. `None` — callers must then generate their own.
+    pub fn resolve_webchat_secret(&self) -> Option<String> {
+        if let Some(s) = &self.webchat.jwt_secret {
+            if !s.is_empty() {
+                return Some(s.clone());
+            }
+        }
+        if let Some(admin) = &self.security.admin_token {
+            if !admin.is_empty() {
+                use sha2::{Digest, Sha256};
+                let mut h = Sha256::new();
+                h.update(b"brainclaw-webchat:");
+                h.update(admin.as_bytes());
+                return Some(hex::encode(h.finalize()));
+            }
+        }
+        None
+    }
+
     /// Convert to a [`GatewayConfig`] for the gateway server.
     pub fn to_gateway_config(&self) -> GatewayConfig {
         GatewayConfig {
@@ -837,7 +904,9 @@ impl BrainClawConfig {
             redact_secrets_in_output: self.security.redact_secrets_in_output,
             max_messages_per_minute: self.security.max_messages_per_minute,
             max_tool_calls_per_minute: self.security.max_tool_calls_per_minute,
-            webchat_enabled: true,
+            webchat_enabled: self.webchat.enabled,
+            webchat_jwt_secret: self.resolve_webchat_secret(),
+            webchat_session_history_limit: self.webchat.session_history_limit,
             max_attachment_size_mb: 10,
             admin_token: self.security.admin_token.clone(),
             webhook_secret: self.security.webhook_secret.clone(),

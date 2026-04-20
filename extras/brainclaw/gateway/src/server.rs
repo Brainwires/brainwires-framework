@@ -51,6 +51,10 @@ pub struct Gateway {
     identity_store: Option<Arc<UserIdentityStore>>,
     /// Optional pairing store exposed via the admin pairing endpoints.
     pairing_store: Option<Arc<PairingStore>>,
+    /// Optional JWT verifier enabling `/webchat/ws`.
+    webchat_verifier: Option<crate::webchat::SharedVerifier>,
+    /// Optional history store for webchat sessions.
+    webchat_history: Option<Arc<crate::webchat::WebChatHistory>>,
 }
 
 impl Gateway {
@@ -69,6 +73,8 @@ impl Gateway {
             shared_metrics: None,
             identity_store: None,
             pairing_store: None,
+            webchat_verifier: None,
+            webchat_history: None,
         }
     }
 
@@ -88,6 +94,8 @@ impl Gateway {
             shared_metrics: None,
             identity_store: None,
             pairing_store: None,
+            webchat_verifier: None,
+            webchat_history: None,
         }
     }
 
@@ -98,6 +106,24 @@ impl Gateway {
     /// carries the store so downstream consumers can access it.
     pub fn with_identity_store(mut self, store: Arc<UserIdentityStore>) -> Self {
         self.identity_store = Some(store);
+        self
+    }
+
+    /// Attach a JWT verifier for the browser-facing `/webchat/ws`
+    /// endpoint.
+    ///
+    /// When set, the gateway exposes the JWT-gated WebChat channel on
+    /// `/webchat/ws` and the history backfill endpoint on
+    /// `/webchat/history/:session_id` (the latter admin-token gated when
+    /// one is configured).  When unset, every upgrade attempt at
+    /// `/webchat/ws` is rejected with 401.
+    pub fn with_webchat_verifier(
+        mut self,
+        verifier: crate::webchat::SharedVerifier,
+        history: Arc<crate::webchat::WebChatHistory>,
+    ) -> Self {
+        self.webchat_verifier = Some(verifier);
+        self.webchat_history = Some(history);
         self
     }
 
@@ -229,6 +255,8 @@ impl Gateway {
             cron_store: self.cron_store.clone(),
             identity_store: self.identity_store.clone(),
             pairing_store: self.pairing_store.clone(),
+            webchat_verifier: self.webchat_verifier.clone(),
+            webchat_history: self.webchat_history.clone(),
         };
 
         let app = build_router(state.clone());
@@ -261,7 +289,14 @@ fn build_router(state: AppState) -> Router {
     if state.config.webchat_enabled {
         app = app
             .route("/chat", get(webchat::serve_webchat_page))
-            .route("/chat/ws", get(webchat::webchat_ws_handler));
+            // Legacy unauthenticated WebSocket for the built-in /chat HTML
+            // page. Retained for continuity; new clients should use the
+            // JWT-gated `/webchat/ws` endpoint below instead.
+            .route("/chat/ws", get(webchat::legacy_chat_ws_handler))
+            // JWT-gated WebSocket endpoint used by the external Next.js app
+            // (extras/brainwires-webchat).
+            .route("/webchat/ws", get(webchat::webchat_ws_handler))
+            .route("/webchat/history/{session_id}", post(webchat_history_route));
     }
 
     // Admin endpoints (conditionally enabled)
@@ -400,6 +435,24 @@ async fn ws_upgrade(
 
     ws.on_upgrade(move |socket| ws_handler::handle_ws_connection(socket, state))
         .into_response()
+}
+
+/// Admin-authenticated wrapper around [`webchat::serve_history`].
+///
+/// Returns 401 when an admin token is configured and the request does
+/// not carry a matching `Authorization: Bearer <token>` header. When no
+/// admin token is configured the endpoint is open — matching the
+/// behaviour of the rest of the admin surface.
+async fn webchat_history_route(
+    State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
+    path: axum::extract::Path<String>,
+    body: Option<axum::Json<webchat::HistoryRequest>>,
+) -> axum::response::Response {
+    if let Err(code) = crate::admin::check_admin_auth(&headers, &state.config) {
+        return code.into_response();
+    }
+    webchat::serve_history(State(state), path, body).await
 }
 
 /// Serve TTS-generated audio files at `/audio/<filename>`.

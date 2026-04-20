@@ -54,3 +54,5 @@ telemetry = ["dep:brainwires-telemetry", "brainwires-telemetry/native"]
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
 tempfile.workspace = true
+tokio-tungstenite.workspace = true
+futures-util = "0.3"
