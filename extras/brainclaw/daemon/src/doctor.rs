@@ -677,6 +677,35 @@ fn check_channel_credentials(config: &BrainClawConfig) -> Vec<CheckResult> {
     let mut out = Vec::new();
     for ch in channels {
         let name = format!("channel-{}", ch.to_ascii_lowercase());
+        // Some channels require multiple env vars — handle each group.
+        match ch.to_ascii_lowercase().as_str() {
+            "google_chat" | "google-chat" | "googlechat" => {
+                out.extend(check_multi_env(
+                    &name,
+                    &[
+                        "GOOGLE_CHAT_PROJECT_ID",
+                        "GOOGLE_CHAT_AUDIENCE",
+                        "GOOGLE_CHAT_SERVICE_ACCOUNT_KEY",
+                    ],
+                ));
+                continue;
+            }
+            "teams" | "ms_teams" | "msteams" => {
+                out.extend(check_multi_env(
+                    &name,
+                    &["TEAMS_APP_ID", "TEAMS_APP_PASSWORD", "TEAMS_TENANT_ID"],
+                ));
+                continue;
+            }
+            "irc" => {
+                out.extend(check_multi_env(
+                    &name,
+                    &["IRC_SERVER", "IRC_NICK"],
+                ));
+                continue;
+            }
+            _ => {}
+        }
         let env_var = match ch.to_ascii_lowercase().as_str() {
             "discord" => "DISCORD_TOKEN",
             "telegram" => "TELEGRAM_BOT_TOKEN",
@@ -701,6 +730,25 @@ fn check_channel_credentials(config: &BrainClawConfig) -> Vec<CheckResult> {
             _ => out.push(
                 CheckResult::fail(name, format!("{env_var} is not set"))
                     .with_hint(format!("export {env_var}=... before starting the daemon")),
+            ),
+        }
+    }
+    out
+}
+
+/// Check that a group of env vars are all set; returns one `CheckResult`
+/// per variable so the operator can see exactly which ones are missing.
+fn check_multi_env(base_name: &str, vars: &[&str]) -> Vec<CheckResult> {
+    let mut out = Vec::new();
+    for v in vars {
+        let name = format!("{base_name}:{v}");
+        match std::env::var(v) {
+            Ok(val) if !val.is_empty() => {
+                out.push(CheckResult::pass(name, format!("{v} is set")));
+            }
+            _ => out.push(
+                CheckResult::fail(name, format!("{v} is not set"))
+                    .with_hint(format!("export {v}=... before starting the adapter")),
             ),
         }
     }
@@ -1121,5 +1169,22 @@ mod tests {
         let r = check_channel_credentials(&cfg);
         assert_eq!(r.len(), 1);
         assert_eq!(r[0].status, Status::Skip);
+    }
+
+    #[test]
+    fn new_channel_types_expand_to_multi_env_rows() {
+        let mut cfg = BrainClawConfig::default();
+        cfg.security.allowed_channel_types = vec![
+            "google_chat".into(),
+            "teams".into(),
+            "irc".into(),
+        ];
+        let rows = check_channel_credentials(&cfg);
+        // google_chat has 3 vars, teams has 3, irc has 2 → 8 rows.
+        assert_eq!(rows.len(), 8);
+        // Every row name must start with the adapter's prefix.
+        assert!(rows.iter().any(|r| r.name.contains("google_chat")));
+        assert!(rows.iter().any(|r| r.name.contains("teams")));
+        assert!(rows.iter().any(|r| r.name.contains("irc")));
     }
 }

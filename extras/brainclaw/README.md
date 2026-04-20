@@ -32,6 +32,9 @@ Signal ───┘
 | `mcp-mattermost` | `mcp-mattermost` | Mattermost adapter |
 | `mcp-signal` | `mcp-signal` | Signal adapter (signal-cli REST API) |
 | `mcp-github` | `mcp-github` | GitHub webhooks + operations adapter |
+| `mcp-google-chat` | `brainclaw-mcp-google-chat` | Google Chat bot adapter (HTTPS webhook + Chat REST API) |
+| `mcp-teams` | `brainclaw-mcp-teams` | Microsoft Teams adapter (Bot Framework ingress/egress) |
+| `mcp-irc` | `brainclaw-mcp-irc` | IRC adapter (persistent TCP, TLS/SASL) |
 | `mcp-skill-registry` | `mcp-skill-registry` | Skill marketplace — stores, searches, and serves distributable skill packages |
 
 ## Quick start
