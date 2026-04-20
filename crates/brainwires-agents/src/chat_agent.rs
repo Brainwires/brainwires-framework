@@ -15,6 +15,8 @@ use brainwires_core::{
 use brainwires_resilience::BudgetGuard;
 use brainwires_tools::{PreHookDecision, ToolExecutor, ToolPreHook};
 
+use crate::summarization::Summarizer;
+
 /// A simple chat agent that processes messages through an LLM provider with tool support.
 ///
 /// This is the framework's ready-to-use agent for text message -> response flows.
@@ -59,6 +61,13 @@ pub struct ChatAgent {
     /// Tools with `Tool::serialize == true` always run sequentially, before
     /// the parallel batch. `1` preserves the legacy fully-sequential behavior.
     tool_concurrency: usize,
+    /// Optional summarizer used by [`Self::compact_history`] to replace the
+    /// middle of the conversation with an LLM-generated summary instead of
+    /// plain trimming.
+    summarizer: Option<Arc<dyn Summarizer>>,
+    /// How many trailing messages to preserve verbatim when summarization
+    /// runs. Default 6. The first message (if system) is always kept.
+    summarization_keep_tail: usize,
 }
 
 impl ChatAgent {
@@ -80,7 +89,24 @@ impl ChatAgent {
             cumulative_usage: Usage::default(),
             budget: None,
             tool_concurrency: 4,
+            summarizer: None,
+            summarization_keep_tail: 6,
         }
+    }
+
+    /// Attach a [`Summarizer`]. When set, [`Self::compact_history`] will
+    /// invoke the summarizer on the middle of the conversation instead of
+    /// dropping those messages.
+    pub fn with_summarizer(mut self, summarizer: Arc<dyn Summarizer>) -> Self {
+        self.summarizer = Some(summarizer);
+        self
+    }
+
+    /// Override the number of trailing messages preserved verbatim during
+    /// summarization. Default: 6.
+    pub fn with_summarization_keep_tail(mut self, keep: usize) -> Self {
+        self.summarization_keep_tail = keep.max(1);
+        self
     }
 
     /// Set the maximum number of tool calls to dispatch concurrently within a
@@ -221,14 +247,55 @@ impl ChatAgent {
         self.cumulative_usage = Usage::default();
     }
 
-    /// Compact conversation history by trimming older messages.
+    /// Compact conversation history.
     ///
-    /// This is a simple, LLM-free compaction that keeps the system prompt
-    /// (if any) and the most recent `keep` messages. For LLM-powered
-    /// summarisation, use the `DreamSummarizer` from `brainwires-autonomy`.
+    /// If a [`Summarizer`] has been attached via
+    /// [`Self::with_summarizer`], the middle of the conversation is replaced
+    /// with an LLM-generated summary injected as a synthetic assistant turn;
+    /// the system prompt and the last `summarization_keep_tail` messages
+    /// (default 6) are preserved verbatim.
+    ///
+    /// Without a summarizer this falls back to a plain trim keeping the
+    /// system prompt plus the last 20 messages.
     pub async fn compact_history(&mut self) -> Result<()> {
-        // Default: keep system prompt + last 20 messages
-        self.trim_history(20);
+        let Some(summarizer) = self.summarizer.clone() else {
+            self.trim_history(20);
+            return Ok(());
+        };
+
+        let keep_tail = self.summarization_keep_tail;
+        if self.messages.len() <= keep_tail + 1 {
+            // Nothing worth compacting yet.
+            return Ok(());
+        }
+
+        let has_system = self
+            .messages
+            .first()
+            .map(|m| m.role == Role::System)
+            .unwrap_or(false);
+        let head_end = if has_system { 1 } else { 0 };
+        let tail_start = self.messages.len().saturating_sub(keep_tail);
+        if tail_start <= head_end {
+            return Ok(());
+        }
+
+        let to_summarize: Vec<Message> = self.messages[head_end..tail_start].to_vec();
+        let summary = summarizer.summarize(&to_summarize).await?;
+
+        // Replace the middle span with a single synthetic assistant message
+        // so the downstream provider sees a contiguous, well-formed history.
+        let synthetic = Message::assistant(format!("[Prior conversation summary] {summary}"));
+        let tail: Vec<Message> = self.messages[tail_start..].to_vec();
+
+        let mut new_messages = Vec::with_capacity(head_end + 1 + tail.len());
+        if has_system {
+            new_messages.push(self.messages[0].clone());
+        }
+        new_messages.push(synthetic);
+        new_messages.extend(tail);
+        self.messages = new_messages;
+
         Ok(())
     }
 

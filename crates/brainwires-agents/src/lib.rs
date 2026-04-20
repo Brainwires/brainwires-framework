@@ -39,6 +39,10 @@ pub use brainwires_tools;
 
 pub mod chat_agent;
 
+// ── Summarization (LLM-powered history compaction) ───────────────────────────
+
+pub mod summarization;
+
 // ── Agent loop hooks ─────────────────────────────────────────────────────────
 
 pub mod agent_hooks;
