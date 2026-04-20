@@ -383,15 +383,26 @@ pub struct SandboxConfig {
     pub memory_limit_mb: Option<u64>,
     /// Max process count inside the sandbox. `None` disables the limit.
     pub pid_limit: Option<u64>,
-    /// Network policy: `"none"` (default) or `"full"`. `"limited"` is
-    /// accepted by the schema but currently rejected by `DockerSandbox`.
+    /// Network policy: `"none"` (default), `"full"`, or `"limited"`. When
+    /// `"limited"`, only hosts in `allowed_hosts` are reachable via the
+    /// egress proxy sidecar.
     pub network: String,
+    /// Hostnames permitted when `network = "limited"`. Exact or `*.wildcard`.
+    pub allowed_hosts: Vec<String>,
     /// Optional workspace directory mounted into the container. If set, the
     /// sandbox's workdir defaults to this path.
     pub workspace_mount: Option<PathBuf>,
     /// Additional host paths allowed as bind-mount sources. Every requested
     /// mount is validated against this list plus `workspace_mount`.
     pub allowed_mount_sources: Vec<PathBuf>,
+    /// Container image for the egress proxy sidecar (used when
+    /// `network = "limited"`).
+    pub proxy_image: String,
+    /// TCP port the proxy listens on inside the internal network.
+    pub proxy_listen_port: u16,
+    /// If set, reuse a named long-lived proxy container across spawns
+    /// instead of creating an ephemeral one per sandbox.
+    pub proxy_container_name: Option<String>,
     /// Wall-clock timeout applied to sandboxed tool calls.
     pub default_timeout_secs: u64,
     /// If `true`, fall back to the unsandboxed executor when the sandbox
@@ -410,8 +421,12 @@ impl Default for SandboxConfig {
             memory_limit_mb: Some(1024),
             pid_limit: Some(256),
             network: "none".to_string(),
+            allowed_hosts: Vec::new(),
             workspace_mount: None,
             allowed_mount_sources: Vec::new(),
+            proxy_image: "ghcr.io/brainwires/brainwires-sandbox-proxy:latest".to_string(),
+            proxy_listen_port: 3128,
+            proxy_container_name: None,
             default_timeout_secs: 300,
             fallback_to_host_on_error: false,
         }
@@ -441,10 +456,10 @@ impl SandboxConfig {
         let network = match self.network.to_lowercase().as_str() {
             "none" => NetworkPolicy::None,
             "full" => NetworkPolicy::Full,
-            "limited" => NetworkPolicy::Limited(Vec::new()),
+            "limited" => NetworkPolicy::Limited(self.allowed_hosts.clone()),
             other => {
                 anyhow::bail!(
-                    "sandbox.network '{}' is not recognised; use 'none' or 'full'",
+                    "sandbox.network '{}' is not recognised; use 'none', 'full', or 'limited'",
                     other
                 );
             }
@@ -460,6 +475,9 @@ impl SandboxConfig {
             read_only_rootfs: true,
             workspace_mount: self.workspace_mount.clone(),
             allowed_mount_sources: self.allowed_mount_sources.clone(),
+            proxy_image: self.proxy_image.clone(),
+            proxy_listen_port: self.proxy_listen_port,
+            proxy_container_name: self.proxy_container_name.clone(),
         })
     }
 }

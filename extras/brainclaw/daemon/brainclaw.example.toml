@@ -148,14 +148,23 @@ image = "ghcr.io/brainwires/brainclaw-sandbox:latest"
 cpu_limit = 2.0
 memory_limit_mb = 1024
 pid_limit = 256
-# Network policy: "none" (no network) or "full" (unrestricted). "limited" is
-# accepted by the schema but currently rejected by the Docker backend.
+# Network policy: "none" (no network), "full" (unrestricted), or "limited"
+# (egress allowlist via proxy sidecar — see allowed_hosts).
 network = "none"
+# Hostnames permitted when network = "limited". Exact match or "*.wildcard".
+allowed_hosts = []
 # Optional workspace directory bind-mounted into the container. If set, the
 # sandbox's default workdir becomes this path.
 # workspace_mount = "/home/user/project"
 # Additional host paths permitted as bind-mount sources.
 allowed_mount_sources = []
+# Egress proxy (used when network = "limited"). Built from
+# crates/brainwires-sandbox-proxy; push to a registry you control.
+proxy_image = "ghcr.io/brainwires/brainwires-sandbox-proxy:latest"
+proxy_listen_port = 3128
+# Uncomment to reuse a long-lived proxy container across sandbox spawns
+# instead of creating an ephemeral one per spawn.
+# proxy_container_name = "brainclaw-sandbox-proxy"
 # Wall-clock timeout applied to each sandboxed tool call (seconds).
 default_timeout_secs = 300
 # If true, fall back to the unsandboxed executor when the sandbox backend
