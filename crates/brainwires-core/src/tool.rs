@@ -41,6 +41,19 @@ pub struct Tool {
     /// Example inputs that teach the AI proper parameter usage.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub input_examples: Vec<Value>,
+    /// When `true`, the agent loop MUST execute this tool sequentially — never
+    /// concurrently with other tools in the same round.
+    ///
+    /// Use for tools that mutate shared state (file writes, git operations,
+    /// registry updates) where concurrent execution could corrupt data or
+    /// interleave side effects. Read-only tools (read_file, search, web_fetch)
+    /// should leave this `false`.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub serialize: bool,
+}
+
+fn is_false(b: &bool) -> bool {
+    !*b
 }
 
 /// JSON Schema for tool input

@@ -70,6 +70,7 @@ impl GitTool {
             description: "Stage files for commit.".to_string(),
             input_schema: ToolInputSchema::object(properties, vec!["files".to_string()]),
             requires_approval: true,
+            serialize: true,
             ..Default::default()
         }
     }
@@ -82,6 +83,7 @@ impl GitTool {
             description: "Unstage files from the staging area.".to_string(),
             input_schema: ToolInputSchema::object(properties, vec!["files".to_string()]),
             requires_approval: true,
+            serialize: true,
             ..Default::default()
         }
     }
@@ -98,6 +100,7 @@ impl GitTool {
             description: "Create a git commit with staged changes.".to_string(),
             input_schema: ToolInputSchema::object(properties, vec!["message".to_string()]),
             requires_approval: true,
+            serialize: true,
             ..Default::default()
         }
     }
@@ -115,6 +118,7 @@ impl GitTool {
             description: "Push commits to a remote repository.".to_string(),
             input_schema: ToolInputSchema::object(properties, vec![]),
             requires_approval: true,
+            serialize: true,
             ..Default::default()
         }
     }
@@ -132,6 +136,7 @@ impl GitTool {
             description: "Pull changes from a remote repository.".to_string(),
             input_schema: ToolInputSchema::object(properties, vec![]),
             requires_approval: true,
+            serialize: true,
             ..Default::default()
         }
     }
@@ -149,6 +154,7 @@ impl GitTool {
             description: "Fetch changes from a remote without merging.".to_string(),
             input_schema: ToolInputSchema::object(properties, vec![]),
             requires_approval: false,
+            serialize: true,
             ..Default::default()
         }
     }
@@ -161,6 +167,7 @@ impl GitTool {
             description: "Discard uncommitted changes. WARNING: Permanent!".to_string(),
             input_schema: ToolInputSchema::object(properties, vec!["files".to_string()]),
             requires_approval: true,
+            serialize: true,
             ..Default::default()
         }
     }
@@ -181,6 +188,7 @@ impl GitTool {
             description: "Manage git branches: list, create, switch, or delete.".to_string(),
             input_schema: ToolInputSchema::object(properties, vec![]),
             requires_approval: true,
+            serialize: true,
             ..Default::default()
         }
     }

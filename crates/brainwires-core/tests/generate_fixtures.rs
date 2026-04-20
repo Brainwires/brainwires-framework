@@ -97,6 +97,7 @@ fn generate_json_fixtures() {
         defer_loading: false,
         allowed_callers: vec![],
         input_examples: vec![],
+        serialize: false,
     };
     write_fixture(&fixtures_dir, "tool_sample", &tool);
 

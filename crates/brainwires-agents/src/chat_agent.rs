@@ -54,6 +54,11 @@ pub struct ChatAgent {
     /// Optional shared budget guard enforcing token/cost/round caps across
     /// this agent (and any others sharing the same guard).
     budget: Option<BudgetGuard>,
+    /// Maximum concurrent tool executions within a single agent round.
+    ///
+    /// Tools with `Tool::serialize == true` always run sequentially, before
+    /// the parallel batch. `1` preserves the legacy fully-sequential behavior.
+    tool_concurrency: usize,
 }
 
 impl ChatAgent {
@@ -74,7 +79,19 @@ impl ChatAgent {
             pre_execute_hook: None,
             cumulative_usage: Usage::default(),
             budget: None,
+            tool_concurrency: 4,
         }
+    }
+
+    /// Set the maximum number of tool calls to dispatch concurrently within a
+    /// single agent round. `1` forces fully sequential execution (the legacy
+    /// behavior prior to 0.11). The default is 4.
+    ///
+    /// Tools whose [`Tool::serialize`] flag is set always run sequentially
+    /// regardless of this value.
+    pub fn with_tool_concurrency(mut self, concurrency: usize) -> Self {
+        self.tool_concurrency = concurrency.max(1);
+        self
     }
 
     /// Set the maximum number of tool-call rounds before the agent stops.
@@ -288,42 +305,75 @@ impl ChatAgent {
                 metadata,
             });
 
-            // Execute each tool call and add results as a user message
-            let mut result_blocks = Vec::new();
-            for tu in &tool_uses {
-                // Run pre-execute hook if configured
-                if let Some(ref hook) = self.pre_execute_hook {
-                    let ctx = ToolContext::default();
-                    match hook.before_execute(tu, &ctx).await {
-                        Ok(PreHookDecision::Allow) => {}
-                        Ok(PreHookDecision::Reject(reason)) => {
-                            result_blocks.push(ContentBlock::ToolResult {
-                                tool_use_id: tu.id.clone(),
-                                content: reason,
-                                is_error: Some(true),
-                            });
-                            continue;
-                        }
-                        Err(e) => {
-                            tracing::warn!(tool = %tu.name, error = %e, "Pre-execute hook error");
-                        }
-                    }
-                }
+            // Execute tool calls, honoring each tool's `serialize` flag.
+            //
+            // Tools marked `serialize: true` (write-like, state-mutating) run
+            // sequentially first so their side effects are ordered.
+            // Remaining tools dispatch concurrently with
+            // `buffer_unordered(self.tool_concurrency)`, but result order in
+            // the outgoing user message still matches the input `tool_uses`
+            // order via position-indexed slots.
+            let serialize_map: std::collections::HashMap<&str, bool> = tool_defs
+                .iter()
+                .map(|t| (t.name.as_str(), t.serialize))
+                .collect();
 
-                let exec_ctx = ToolContext::default();
-                let result = match self.executor.execute(tu, &exec_ctx).await {
-                    Ok(r) => r,
-                    Err(e) => brainwires_core::ToolResult::error(
-                        tu.id.clone(),
-                        format!("tool executor error: {e}"),
-                    ),
-                };
-                result_blocks.push(ContentBlock::ToolResult {
-                    tool_use_id: tu.id.clone(),
-                    content: result.content,
-                    is_error: Some(result.is_error),
+            let (serial_idx, parallel_idx): (Vec<usize>, Vec<usize>) = (0..tool_uses.len())
+                .partition(|&i| {
+                    serialize_map
+                        .get(tool_uses[i].name.as_str())
+                        .copied()
+                        .unwrap_or(false)
                 });
+
+            let mut slots: Vec<Option<ContentBlock>> = (0..tool_uses.len()).map(|_| None).collect();
+
+            // Serial tools — preserve legacy behavior for mutating tools.
+            for i in serial_idx {
+                let tu = &tool_uses[i];
+                let block = execute_one_tool(
+                    tu,
+                    self.executor.clone(),
+                    self.pre_execute_hook.clone(),
+                )
+                .await;
+                slots[i] = Some(block);
             }
+
+            // Parallel-eligible tools — dispatch with bounded concurrency.
+            if !parallel_idx.is_empty() {
+                use futures::StreamExt as _;
+                use futures::future::BoxFuture;
+
+                let concurrency = self.tool_concurrency.max(1);
+                let executor = self.executor.clone();
+                let hook = self.pre_execute_hook.clone();
+
+                let futures: Vec<BoxFuture<'static, (usize, ContentBlock)>> = parallel_idx
+                    .into_iter()
+                    .map(|i| {
+                        let tu = tool_uses[i].clone();
+                        let exec = executor.clone();
+                        let hk = hook.clone();
+                        Box::pin(async move { (i, execute_one_tool(&tu, exec, hk).await) })
+                            as BoxFuture<'static, (usize, ContentBlock)>
+                    })
+                    .collect();
+
+                let results: Vec<(usize, ContentBlock)> = futures::stream::iter(futures)
+                    .buffer_unordered(concurrency)
+                    .collect()
+                    .await;
+
+                for (i, block) in results {
+                    slots[i] = Some(block);
+                }
+            }
+
+            let result_blocks: Vec<ContentBlock> = slots
+                .into_iter()
+                .map(|b| b.expect("every tool use produced a result"))
+                .collect();
 
             self.messages.push(Message {
                 role: Role::User,
@@ -443,6 +493,48 @@ impl ChatAgent {
         }
 
         Ok((text_buf, tool_uses, last_response_id, compaction))
+    }
+}
+
+/// Execute a single tool call and return the resulting `ContentBlock`.
+///
+/// Consolidated out of the main loop so it can be driven both sequentially
+/// (for `serialize: true` tools) and concurrently (for everything else) by
+/// `run_completion`.
+async fn execute_one_tool(
+    tu: &ToolUse,
+    executor: Arc<dyn ToolExecutor>,
+    pre_execute_hook: Option<Arc<dyn ToolPreHook>>,
+) -> ContentBlock {
+    if let Some(ref hook) = pre_execute_hook {
+        let ctx = ToolContext::default();
+        match hook.before_execute(tu, &ctx).await {
+            Ok(PreHookDecision::Allow) => {}
+            Ok(PreHookDecision::Reject(reason)) => {
+                return ContentBlock::ToolResult {
+                    tool_use_id: tu.id.clone(),
+                    content: reason,
+                    is_error: Some(true),
+                };
+            }
+            Err(e) => {
+                tracing::warn!(tool = %tu.name, error = %e, "Pre-execute hook error");
+            }
+        }
+    }
+
+    let exec_ctx = ToolContext::default();
+    let result = match executor.execute(tu, &exec_ctx).await {
+        Ok(r) => r,
+        Err(e) => brainwires_core::ToolResult::error(
+            tu.id.clone(),
+            format!("tool executor error: {e}"),
+        ),
+    };
+    ContentBlock::ToolResult {
+        tool_use_id: tu.id.clone(),
+        content: result.content,
+        is_error: Some(result.is_error),
     }
 }
 

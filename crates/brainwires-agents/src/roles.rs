@@ -141,6 +141,7 @@ mod tests {
             defer_loading: false,
             allowed_callers: vec![],
             input_examples: vec![],
+            serialize: false,
         }
     }
 

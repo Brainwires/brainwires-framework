@@ -252,6 +252,7 @@ impl BashTool {
             description: "Execute a bash command and return the output. Supports proactive output limiting to manage context size.".to_string(),
             input_schema: ToolInputSchema::object(properties, vec!["command".to_string()]),
             requires_approval: true,
+            serialize: true,
             ..Default::default()
         }
     }

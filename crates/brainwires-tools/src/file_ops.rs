@@ -77,6 +77,7 @@ impl FileOpsTool {
                 vec!["path".to_string(), "content".to_string()],
             ),
             requires_approval: true,
+            serialize: true,
             ..Default::default()
         }
     }
@@ -108,6 +109,7 @@ impl FileOpsTool {
                 ],
             ),
             requires_approval: true,
+            serialize: true,
             ..Default::default()
         }
     }
@@ -130,6 +132,7 @@ impl FileOpsTool {
                 vec!["path".to_string(), "patch".to_string()],
             ),
             requires_approval: true,
+            serialize: true,
             ..Default::default()
         }
     }
@@ -183,6 +186,7 @@ impl FileOpsTool {
             description: "Delete a file or directory.".to_string(),
             input_schema: ToolInputSchema::object(properties, vec!["path".to_string()]),
             requires_approval: true,
+            serialize: true,
             ..Default::default()
         }
     }
@@ -198,6 +202,7 @@ impl FileOpsTool {
             description: "Create a new directory (including parent directories).".to_string(),
             input_schema: ToolInputSchema::object(properties, vec!["path".to_string()]),
             requires_approval: true,
+            serialize: true,
             ..Default::default()
         }
     }
