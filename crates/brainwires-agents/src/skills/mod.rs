@@ -36,6 +36,7 @@ pub mod registry;
 #[cfg(feature = "skills-registry")]
 pub mod registry_client;
 pub mod router;
+pub mod tool_adapter;
 #[cfg(feature = "skills-signing")]
 pub mod verification;
 
@@ -51,5 +52,6 @@ pub use registry::SkillRegistry;
 #[cfg(feature = "skills-registry")]
 pub use registry_client::RegistryClient;
 pub use router::SkillRouter;
+pub use tool_adapter::SkillToolExecutor;
 #[cfg(feature = "skills-signing")]
 pub use verification::SkillVerifier;
