@@ -19,6 +19,7 @@
 //! - **semantic_search** (`rag` feature) - RAG-powered semantic codebase search
 //! - **email** (`email` feature) - Email send/search/read/list via IMAP/SMTP
 //! - **calendar** (`calendar` feature) - Calendar CRUD and free/busy via Google Calendar/CalDAV
+//! - **sandbox** (`sandbox` feature) - Wrap any `ToolExecutor` to run bash/code_exec inside a container
 //!
 //! ## Registry
 //! The `ToolRegistry` is a composable container. Create one and register
@@ -91,6 +92,9 @@ mod calendar;
 
 #[cfg(feature = "browser")]
 mod browser;
+
+#[cfg(feature = "sandbox")]
+mod sandbox_executor;
 
 /// OAuth 2.0 client, token store, and PKCE helpers for tool integrations.
 #[cfg(feature = "oauth")]
@@ -165,3 +169,6 @@ pub use calendar::CalendarTool;
 
 #[cfg(feature = "browser")]
 pub use browser::BrowserTool;
+
+#[cfg(feature = "sandbox")]
+pub use sandbox_executor::SandboxedToolExecutor;

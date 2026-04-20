@@ -81,6 +81,7 @@ icalendar = { version = "0.16", optional = true }
 # Feature-gated dependencies
 brainwires-knowledge = { workspace = true, optional = true }
 brainwires-mcp = { workspace = true, optional = true }
+brainwires-sandbox = { workspace = true, optional = true }
 
 # ── System deps (absorbed from brainwires-system) ─────────────────────────
 notify = { version = "7", optional = true }
@@ -132,7 +133,9 @@ system = ["dep:notify"]
 reactor = ["system"]
 services = ["system"]
 system-full = ["system"]
-full = ["orchestrator", "rag", "interpreters", "openapi", "email", "calendar", "browser", "oauth", "system"]
+# Route dangerous tool calls (bash, code_exec) through a container sandbox
+sandbox = ["dep:brainwires-sandbox", "native"]
+full = ["orchestrator", "rag", "interpreters", "openapi", "email", "calendar", "browser", "oauth", "system", "sandbox"]
 
 [[bench]]
 name = "token_comparison"
@@ -156,6 +159,10 @@ name = "tool_registry"
 
 [[example]]
 name = "tool_prehook"
+
+[[example]]
+name = "sandboxed_executor"
+required-features = ["sandbox"]
 
 [package.metadata.docs.rs]
 all-features = true

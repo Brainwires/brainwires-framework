@@ -128,3 +128,37 @@ require_tool_approval = false
 # Specific tools that require approval (empty = all tools).
 # Example: ["bash", "file_write", "http_request"]
 approval_tools = []
+
+# ── Sandbox ──────────────────────────────────────────────────────────────────
+#
+# When enabled, the built-in tool executor is wrapped in a SandboxedToolExecutor
+# that routes `bash`/`execute_command` and `execute_code`/`code_exec` calls
+# through a container runtime (Docker or Podman). Requires the `sandbox`
+# build feature (on by default).
+
+[sandbox]
+# Enable container-based isolation for dangerous tool calls.
+enabled = true
+# Which runtime to use: "docker", "podman", or "host" (dev-only; requires
+# the `sandbox-unsafe-host` build feature and provides NO isolation).
+runtime = "docker"
+# Container image launched for each sandboxed call.
+image = "ghcr.io/brainwires/brainclaw-sandbox:latest"
+# Resource limits. Set to the commented-out value to disable a specific limit.
+cpu_limit = 2.0
+memory_limit_mb = 1024
+pid_limit = 256
+# Network policy: "none" (no network) or "full" (unrestricted). "limited" is
+# accepted by the schema but currently rejected by the Docker backend.
+network = "none"
+# Optional workspace directory bind-mounted into the container. If set, the
+# sandbox's default workdir becomes this path.
+# workspace_mount = "/home/user/project"
+# Additional host paths permitted as bind-mount sources.
+allowed_mount_sources = []
+# Wall-clock timeout applied to each sandboxed tool call (seconds).
+default_timeout_secs = 300
+# If true, fall back to the unsandboxed executor when the sandbox backend
+# cannot be constructed (e.g. Docker socket missing). Default: false — a
+# broken sandbox is a hard error, not a silent downgrade to host execution.
+fallback_to_host_on_error = false

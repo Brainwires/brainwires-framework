@@ -17,7 +17,7 @@ use brainwires_gateway::session_persistence::{JsonFileStore, expand_tilde};
 use brainwires_gateway::middleware::rate_limit::RateLimiter;
 use brainwires_gateway::middleware::sanitizer::MessageSanitizer;
 use brainwires_providers::{ChatProviderFactory, ProviderConfig, ProviderType};
-use brainwires_tools::BuiltinToolExecutor;
+use brainwires_tools::{BuiltinToolExecutor, ToolExecutor};
 
 use brainwires_gateway::cron::CronStore;
 
@@ -91,7 +91,8 @@ impl BrainClaw {
         let mut context = ToolContext::default();
         self.inject_tool_configs(&mut context);
 
-        let executor = Arc::new(BuiltinToolExecutor::new(registry, context));
+        let builtin = BuiltinToolExecutor::new(registry, context);
+        let executor: Arc<dyn ToolExecutor> = self.wrap_with_sandbox(builtin)?;
 
         tracing::info!(tools = tool_count, "Tool registry built");
 
@@ -391,6 +392,107 @@ impl BrainClaw {
 
         // 9. Run gateway (blocks until shutdown)
         gateway.run().await
+    }
+
+    /// Wrap `builtin` with a `SandboxedToolExecutor` if the `sandbox` feature
+    /// is enabled AND `config.sandbox.enabled` is true. Otherwise return the
+    /// builtin executor untouched.
+    ///
+    /// On sandbox construction failure, this method obeys
+    /// `config.sandbox.fallback_to_host_on_error`: when `true`, it logs the
+    /// error and falls back to the unsandboxed builtin; when `false`, it
+    /// returns the error so the daemon exits instead of silently downgrading
+    /// isolation.
+    #[cfg(feature = "sandbox")]
+    fn wrap_with_sandbox(
+        &self,
+        builtin: BuiltinToolExecutor,
+    ) -> Result<Arc<dyn ToolExecutor>> {
+        use std::time::Duration;
+        use brainwires_sandbox::{Sandbox, SandboxRuntime};
+        use brainwires_tools::SandboxedToolExecutor;
+
+        let sb = &self.config.sandbox;
+        if !sb.enabled {
+            tracing::info!("Sandbox disabled by config; tool calls run on the host");
+            return Ok(Arc::new(builtin) as Arc<dyn ToolExecutor>);
+        }
+
+        let policy = match sb.to_policy() {
+            Ok(p) => p,
+            Err(e) => {
+                if sb.fallback_to_host_on_error {
+                    tracing::error!(
+                        error = %e,
+                        "Sandbox policy invalid; falling back to unsandboxed executor"
+                    );
+                    return Ok(Arc::new(builtin) as Arc<dyn ToolExecutor>);
+                }
+                return Err(e);
+            }
+        };
+
+        let sandbox_result: Result<Arc<dyn Sandbox>> = match policy.runtime {
+            SandboxRuntime::Docker | SandboxRuntime::Podman => {
+                match brainwires_sandbox::DockerSandbox::connect(policy.clone()) {
+                    Ok(s) => Ok(Arc::new(s) as Arc<dyn Sandbox>),
+                    Err(e) => Err(anyhow::anyhow!("sandbox: failed to connect to {:?} daemon: {}", policy.runtime, e)),
+                }
+            }
+            SandboxRuntime::Host => {
+                #[cfg(feature = "sandbox-unsafe-host")]
+                {
+                    tracing::warn!(
+                        "Sandbox runtime = 'host' — dev/testing only, NO isolation is applied"
+                    );
+                    Ok(Arc::new(brainwires_sandbox::HostSandbox::new(policy.clone())) as Arc<dyn Sandbox>)
+                }
+                #[cfg(not(feature = "sandbox-unsafe-host"))]
+                {
+                    Err(anyhow::anyhow!(
+                        "sandbox.runtime = 'host' requires the `sandbox-unsafe-host` build feature"
+                    ))
+                }
+            }
+        };
+
+        let sandbox = match sandbox_result {
+            Ok(s) => s,
+            Err(e) => {
+                if sb.fallback_to_host_on_error {
+                    tracing::error!(
+                        error = %e,
+                        "Sandbox backend unavailable; falling back to unsandboxed executor \
+                         (sandbox.fallback_to_host_on_error = true)"
+                    );
+                    return Ok(Arc::new(builtin) as Arc<dyn ToolExecutor>);
+                }
+                return Err(e);
+            }
+        };
+
+        tracing::info!(
+            runtime = ?policy.runtime,
+            image = %policy.image,
+            timeout_secs = sb.default_timeout_secs,
+            "Sandbox enabled; dangerous tool calls will be isolated"
+        );
+
+        let wrapped = SandboxedToolExecutor::new(builtin, sandbox, policy)
+            .with_timeout(Duration::from_secs(sb.default_timeout_secs));
+        Ok(Arc::new(wrapped) as Arc<dyn ToolExecutor>)
+    }
+
+    /// No-op stub used when the daemon is built without the `sandbox` feature.
+    #[cfg(not(feature = "sandbox"))]
+    fn wrap_with_sandbox(
+        &self,
+        builtin: BuiltinToolExecutor,
+    ) -> Result<Arc<dyn ToolExecutor>> {
+        tracing::info!(
+            "Sandbox feature not compiled in; tool calls run directly on the host"
+        );
+        Ok(Arc::new(builtin) as Arc<dyn ToolExecutor>)
     }
 
     /// Inject tool-specific configs into `ToolContext.metadata` as JSON strings.

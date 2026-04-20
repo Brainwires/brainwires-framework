@@ -15,7 +15,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.8.0"
+version = "0.10.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 rust-version = "1.91"
@@ -27,9 +27,9 @@ publish = false
 [workspace.dependencies]
 # Brainwires framework crates (path deps to monorepo)
 brainwires-core = { path = "../../crates/brainwires-core" }
-brainwires-agents = { path = "../../crates/brainwires-agents" }
+brainwires-agents = { path = "../../crates/brainwires-agents", features = ["skills-registry"] }
 brainwires-providers = { path = "../../crates/brainwires-providers" }
-brainwires-tools = { path = "../../crates/brainwires-tools", version = "0.8.0" }
+brainwires-tools = { path = "../../crates/brainwires-tools", version = "0.10.0" }
 brainwires-network = { path = "../../crates/brainwires-network", features = ["channels"] }
 # skills now part of brainwires-agents
 brainwires-hardware = { path = "../../crates/brainwires-hardware" }

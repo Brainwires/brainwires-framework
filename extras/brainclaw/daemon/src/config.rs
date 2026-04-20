@@ -41,6 +41,8 @@ pub struct BrainClawConfig {
     pub voice: Option<VoiceSection>,
     /// Cross-channel user identity settings.
     pub identity: IdentitySection,
+    /// Sandbox settings — container-based isolation for dangerous tool calls.
+    pub sandbox: SandboxConfig,
 }
 
 // ── Section structs ─────────────────────────────────────────────────────
@@ -356,6 +358,112 @@ impl Default for IdentitySection {
     }
 }
 
+/// Sandbox configuration — how BrainClaw isolates dangerous tool calls.
+///
+/// When `enabled`, the built-in tool executor is wrapped in a
+/// `SandboxedToolExecutor` that routes `bash` / `execute_command` and
+/// `execute_code` / `code_exec` calls through the configured runtime
+/// (Docker, Podman, or — dev only — the host).
+///
+/// See `[sandbox]` in `brainclaw.example.toml` for a fully-annotated sample.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct SandboxConfig {
+    /// Whether sandboxing is enabled. Defaults to true — tool calls are
+    /// isolated by default.
+    pub enabled: bool,
+    /// Which runtime to use: `"docker"`, `"podman"`, or `"host"` (dev only,
+    /// requires the `sandbox-unsafe-host` build feature).
+    pub runtime: String,
+    /// Container image to launch. Ignored for the `host` runtime.
+    pub image: String,
+    /// CPU core limit (e.g. `2.0` = two cores). `None` disables the limit.
+    pub cpu_limit: Option<f64>,
+    /// Memory cap in megabytes. `None` disables the limit.
+    pub memory_limit_mb: Option<u64>,
+    /// Max process count inside the sandbox. `None` disables the limit.
+    pub pid_limit: Option<u64>,
+    /// Network policy: `"none"` (default) or `"full"`. `"limited"` is
+    /// accepted by the schema but currently rejected by `DockerSandbox`.
+    pub network: String,
+    /// Optional workspace directory mounted into the container. If set, the
+    /// sandbox's workdir defaults to this path.
+    pub workspace_mount: Option<PathBuf>,
+    /// Additional host paths allowed as bind-mount sources. Every requested
+    /// mount is validated against this list plus `workspace_mount`.
+    pub allowed_mount_sources: Vec<PathBuf>,
+    /// Wall-clock timeout applied to sandboxed tool calls.
+    pub default_timeout_secs: u64,
+    /// If `true`, fall back to the unsandboxed executor when the sandbox
+    /// backend can't be constructed (e.g. Docker socket missing). Defaults
+    /// to `false` — a broken sandbox is an error, not a silent downgrade.
+    pub fallback_to_host_on_error: bool,
+}
+
+impl Default for SandboxConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            runtime: "docker".to_string(),
+            image: "ghcr.io/brainwires/brainclaw-sandbox:latest".to_string(),
+            cpu_limit: Some(2.0),
+            memory_limit_mb: Some(1024),
+            pid_limit: Some(256),
+            network: "none".to_string(),
+            workspace_mount: None,
+            allowed_mount_sources: Vec::new(),
+            default_timeout_secs: 300,
+            fallback_to_host_on_error: false,
+        }
+    }
+}
+
+#[cfg(feature = "sandbox")]
+impl SandboxConfig {
+    /// Translate this config into a [`brainwires_sandbox::SandboxPolicy`].
+    ///
+    /// Returns an error if `runtime` or `network` contains an unknown value.
+    pub fn to_policy(&self) -> anyhow::Result<brainwires_sandbox::SandboxPolicy> {
+        use brainwires_sandbox::{NetworkPolicy, SandboxPolicy, SandboxRuntime};
+
+        let runtime = match self.runtime.to_lowercase().as_str() {
+            "docker" => SandboxRuntime::Docker,
+            "podman" => SandboxRuntime::Podman,
+            "host" => SandboxRuntime::Host,
+            other => {
+                anyhow::bail!(
+                    "sandbox.runtime '{}' is not recognised; use 'docker', 'podman', or 'host'",
+                    other
+                );
+            }
+        };
+
+        let network = match self.network.to_lowercase().as_str() {
+            "none" => NetworkPolicy::None,
+            "full" => NetworkPolicy::Full,
+            "limited" => NetworkPolicy::Limited(Vec::new()),
+            other => {
+                anyhow::bail!(
+                    "sandbox.network '{}' is not recognised; use 'none' or 'full'",
+                    other
+                );
+            }
+        };
+
+        Ok(SandboxPolicy {
+            runtime,
+            image: self.image.clone(),
+            network,
+            cpu_limit: self.cpu_limit,
+            memory_limit_mb: self.memory_limit_mb,
+            pid_limit: self.pid_limit,
+            read_only_rootfs: true,
+            workspace_mount: self.workspace_mount.clone(),
+            allowed_mount_sources: self.allowed_mount_sources.clone(),
+        })
+    }
+}
+
 // ── Defaults ────────────────────────────────────────────────────────────
 
 impl Default for BrainClawConfig {
@@ -376,6 +484,7 @@ impl Default for BrainClawConfig {
             browser: None,
             voice: None,
             identity: IdentitySection::default(),
+            sandbox: SandboxConfig::default(),
         }
     }
 }

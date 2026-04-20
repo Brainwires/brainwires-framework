@@ -12,7 +12,7 @@ use brainwires_core::{
     ChatOptions, ContentBlock, Message, MessageContent, Provider, Role, StreamChunk, Tool,
     ToolContext, ToolUse, Usage,
 };
-use brainwires_tools::{BuiltinToolExecutor, PreHookDecision, ToolPreHook};
+use brainwires_tools::{PreHookDecision, ToolExecutor, ToolPreHook};
 
 /// A simple chat agent that processes messages through an LLM provider with tool support.
 ///
@@ -43,7 +43,7 @@ use brainwires_tools::{BuiltinToolExecutor, PreHookDecision, ToolPreHook};
 /// ```
 pub struct ChatAgent {
     provider: Arc<dyn Provider>,
-    executor: Arc<BuiltinToolExecutor>,
+    executor: Arc<dyn ToolExecutor>,
     messages: Vec<Message>,
     options: ChatOptions,
     max_tool_rounds: usize,
@@ -58,7 +58,7 @@ impl ChatAgent {
     /// Defaults `max_tool_rounds` to 10.
     pub fn new(
         provider: Arc<dyn Provider>,
-        executor: Arc<BuiltinToolExecutor>,
+        executor: Arc<dyn ToolExecutor>,
         options: ChatOptions,
     ) -> Self {
         Self {
@@ -205,7 +205,7 @@ impl ChatAgent {
         let mut final_text = String::new();
 
         for _ in 0..self.max_tool_rounds {
-            let tool_defs: Vec<Tool> = self.executor.tools();
+            let tool_defs: Vec<Tool> = self.executor.available_tools();
             let tools_opt = if tool_defs.is_empty() {
                 None
             } else {
@@ -286,10 +286,14 @@ impl ChatAgent {
                     }
                 }
 
-                let result = self
-                    .executor
-                    .execute_tool(&tu.name, &tu.id, &tu.input)
-                    .await;
+                let exec_ctx = ToolContext::default();
+                let result = match self.executor.execute(tu, &exec_ctx).await {
+                    Ok(r) => r,
+                    Err(e) => brainwires_core::ToolResult::error(
+                        tu.id.clone(),
+                        format!("tool executor error: {e}"),
+                    ),
+                };
                 result_blocks.push(ContentBlock::ToolResult {
                     tool_use_id: tu.id.clone(),
                     content: result.content,
@@ -419,7 +423,7 @@ impl ChatAgent {
 mod tests {
     use super::*;
     use brainwires_core::{ToolContext, ToolInputSchema};
-    use brainwires_tools::ToolRegistry;
+    use brainwires_tools::{BuiltinToolExecutor, ToolRegistry};
     use futures::stream;
     use std::collections::HashMap;
 
@@ -469,7 +473,7 @@ mod tests {
         }
     }
 
-    fn make_executor() -> Arc<BuiltinToolExecutor> {
+    fn make_executor() -> Arc<dyn ToolExecutor> {
         let mut registry = ToolRegistry::new();
         registry.register(Tool {
             name: "test_tool".to_string(),

@@ -21,7 +21,7 @@ use brainwires_network::channels::identity::ConversationId;
 use brainwires_network::channels::message::{ChannelMessage, MessageContent, MessageId};
 use brainwires_core::{ChatOptions, Provider, ToolContext, ToolUse};
 use brainwires_core::lifecycle::{LifecycleEvent, LifecycleHook};
-use brainwires_tools::{BuiltinToolExecutor, PreHookDecision, ToolPreHook};
+use brainwires_tools::{PreHookDecision, ToolExecutor, ToolPreHook};
 
 use crate::approval::{ApprovalRegistry, ChatApprovalHook};
 use crate::channel_registry::ChannelRegistry;
@@ -86,7 +86,7 @@ pub struct AgentInboundHandler {
     /// Shared provider instance.
     provider: Arc<dyn Provider>,
     /// Shared tool executor.
-    executor: Arc<BuiltinToolExecutor>,
+    executor: Arc<dyn ToolExecutor>,
     /// Default chat options (system prompt, temperature, etc.).
     default_options: ChatOptions,
     /// Max tool rounds per message.
@@ -152,7 +152,7 @@ impl AgentInboundHandler {
         sessions: Arc<SessionManager>,
         channels: Arc<ChannelRegistry>,
         provider: Arc<dyn Provider>,
-        executor: Arc<BuiltinToolExecutor>,
+        executor: Arc<dyn ToolExecutor>,
         default_options: ChatOptions,
     ) -> Self {
         Self {
@@ -927,7 +927,7 @@ mod tests {
         }
     }
 
-    fn make_executor() -> Arc<BuiltinToolExecutor> {
+    fn make_executor() -> Arc<dyn ToolExecutor> {
         let registry = ToolRegistry::new();
         let context = ToolContext::default();
         Arc::new(BuiltinToolExecutor::new(registry, context))

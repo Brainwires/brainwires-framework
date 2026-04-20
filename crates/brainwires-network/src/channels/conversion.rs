@@ -3,7 +3,7 @@
 //! These conversions allow channel messages to be routed through the
 //! agent network as standard message envelopes and vice versa.
 
-use brainwires_network::network::{MessageEnvelope, Payload};
+use crate::network::{MessageEnvelope, Payload};
 use uuid::Uuid;
 
 use super::message::{ChannelMessage, MessageContent};

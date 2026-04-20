@@ -26,6 +26,7 @@ brainwires-providers.workspace = true
 brainwires-tools.workspace = true
 brainwires-network.workspace = true
 brainwires-core.workspace = true
+brainwires-sandbox = { path = "../../../crates/brainwires-sandbox", default-features = false, features = ["docker"], optional = true }
 brainwires-hardware = { workspace = true, optional = true, features = ["audio"] }
 
 tokio.workspace = true
@@ -48,10 +49,14 @@ tempfile.workspace = true
 tokio = { workspace = true, features = ["test-util"] }
 
 [features]
-default = ["native-tools"]
+default = ["native-tools", "sandbox"]
 native-tools = ["brainwires-tools/native"]
 email = ["brainwires-tools/email"]
 calendar = ["brainwires-tools/calendar"]
 rag = ["brainwires-tools/rag"]
 browser = ["brainwires-tools/browser"]
 voice = ["dep:brainwires-hardware", "brainwires-gateway/voice"]
+# Route dangerous tool calls (bash, code_exec) through a container sandbox.
+sandbox = ["dep:brainwires-sandbox", "brainwires-tools/sandbox"]
+# Opt-in: allow host-sandbox (no isolation) — dev only, dangerous.
+sandbox-unsafe-host = ["sandbox", "brainwires-sandbox/unsafe-host"]
