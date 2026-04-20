@@ -43,6 +43,10 @@ pub mod chat_agent;
 
 pub mod summarization;
 
+// ── Personas (pluggable system-prompt assembly) ──────────────────────────────
+
+pub mod personas;
+
 // ── Agent loop hooks ─────────────────────────────────────────────────────────
 
 pub mod agent_hooks;
