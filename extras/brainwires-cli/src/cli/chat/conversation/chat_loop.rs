@@ -120,7 +120,8 @@ pub async fn handle_chat_with_conversation(
             .context("Failed to create LanceDB client")?,
     );
     let embeddings = Arc::new(
-        crate::storage::CachedEmbeddingProvider::new().context("Failed to create embedding provider")?,
+        crate::storage::CachedEmbeddingProvider::new()
+            .context("Failed to create embedding provider")?,
     );
     lance_client
         .initialize(embeddings.dimension())

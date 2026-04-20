@@ -112,13 +112,15 @@ fn test_mcp_server_list_tools() -> Result<()> {
 
     for line in reader.lines() {
         let line = line?;
-        if line.starts_with('{') && line.contains("\"jsonrpc\"")
-            && let Ok(value) = serde_json::from_str::<serde_json::Value>(&line) {
-                json_responses.push(value);
-                if json_responses.len() >= 2 {
-                    break;
-                }
+        if line.starts_with('{')
+            && line.contains("\"jsonrpc\"")
+            && let Ok(value) = serde_json::from_str::<serde_json::Value>(&line)
+        {
+            json_responses.push(value);
+            if json_responses.len() >= 2 {
+                break;
             }
+        }
     }
 
     // Find the tools/list response (id: 2)
@@ -244,13 +246,15 @@ fn test_agent_tool_schemas() -> Result<()> {
 
     for line in reader.lines() {
         let line = line?;
-        if line.starts_with('{') && line.contains("\"jsonrpc\"")
-            && let Ok(value) = serde_json::from_str::<serde_json::Value>(&line) {
-                json_responses.push(value);
-                if json_responses.len() >= 2 {
-                    break;
-                }
+        if line.starts_with('{')
+            && line.contains("\"jsonrpc\"")
+            && let Ok(value) = serde_json::from_str::<serde_json::Value>(&line)
+        {
+            json_responses.push(value);
+            if json_responses.len() >= 2 {
+                break;
             }
+        }
     }
 
     let tools_response = json_responses

@@ -18,9 +18,10 @@ pub fn convert_response(
 
     // Text content
     if let Some(ref text) = choice.message.content
-        && !text.is_empty() {
-            content.push(ResponseContentBlock::Text { text: text.clone() });
-        }
+        && !text.is_empty()
+    {
+        content.push(ResponseContentBlock::Text { text: text.clone() });
+    }
 
     // Tool calls → tool_use blocks
     if let Some(ref tool_calls) = choice.message.tool_calls {

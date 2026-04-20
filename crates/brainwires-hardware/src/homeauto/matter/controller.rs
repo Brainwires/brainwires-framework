@@ -233,12 +233,10 @@ impl MatterController {
         };
 
         // ── Phase 5: issue NOC on the controller's admin fabric, send AddNOC ──
-        let mut fabric_manager = FabricManager::load(&self.storage_path)
-            .await
-            .map_err(|e| {
-                session.fail("fabric_load_failed");
-                HomeAutoError::MatterCommissioning(format!("FabricManager load: {e}"))
-            })?;
+        let mut fabric_manager = FabricManager::load(&self.storage_path).await.map_err(|e| {
+            session.fail("fabric_load_failed");
+            HomeAutoError::MatterCommissioning(format!("FabricManager load: {e}"))
+        })?;
 
         // Ensure we have an admin fabric. If none exists, mint one and persist
         // (using the RCAC as a placeholder NOC — this is the same pattern the
@@ -259,13 +257,7 @@ impl MatterController {
                 })?;
             let idx = descriptor.fabric_index;
             let noc_placeholder = rcac.clone();
-            fabric_manager.add_fabric_entry(
-                descriptor,
-                &rcac,
-                &noc_placeholder,
-                None,
-                sk_bytes,
-            );
+            fabric_manager.add_fabric_entry(descriptor, &rcac, &noc_placeholder, None, sk_bytes);
             fabric_manager.save().await.map_err(|e| {
                 session.fail("fabric_persist_failed");
                 HomeAutoError::MatterCommissioning(format!("FabricManager save: {e}"))
@@ -1028,7 +1020,10 @@ fn build_struct(parts: &[Vec<u8>]) -> Vec<u8> {
 /// TLV: context-tagged 1-byte length octet string `{ tag: bytes }`.
 fn tlv_octet_string_ctx(tag: u8, data: &[u8]) -> Vec<u8> {
     // TYPE_OCTET_STRING_1 = 0x10, CONTEXT tag class = 0x20
-    assert!(data.len() <= 255, "octet_string over 255 bytes needs a wider length header");
+    assert!(
+        data.len() <= 255,
+        "octet_string over 255 bytes needs a wider length header"
+    );
     let mut v = vec![0x20 | 0x10, tag, data.len() as u8];
     v.extend_from_slice(data);
     v
@@ -1147,7 +1142,11 @@ fn rand_fabric_id() -> u64 {
     let mut buf = [0u8; 8];
     rand_core::OsRng.fill_bytes(&mut buf);
     let v = u64::from_le_bytes(buf);
-    if v == 0 || v == u64::MAX { 0x0000_0001_0000_0001 } else { v }
+    if v == 0 || v == u64::MAX {
+        0x0000_0001_0000_0001
+    } else {
+        v
+    }
 }
 
 // ── TLV → AttributeValue conversion ──────────────────────────────────────────

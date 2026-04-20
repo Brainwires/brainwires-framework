@@ -292,8 +292,7 @@ impl ClusterServer for OperationalCredentialsCluster {
                 // attestation challenge) rather than the nonce; the challenge is not yet
                 // plumbed through to the cluster, so we sign over the nonce as a
                 // self-consistent approximation that still defeats replay attacks.
-                let signing_key =
-                    p256::ecdsa::SigningKey::from(self.attestation.dak.clone());
+                let signing_key = p256::ecdsa::SigningKey::from(self.attestation.dak.clone());
                 let mut tbs = attestation_elements.clone();
                 tbs.extend_from_slice(&nonce);
                 let sig: p256::ecdsa::Signature =
@@ -531,7 +530,13 @@ mod tests {
     fn make_cert_chain_request(cert_type: u8) -> Vec<u8> {
         // struct { tag 0: uint8 cert_type }
         let ctrl = tlv::TAG_CONTEXT_1 | tlv::TYPE_UNSIGNED_INT_1;
-        vec![tlv::TYPE_STRUCTURE, ctrl, 0u8, cert_type, tlv::TYPE_END_OF_CONTAINER]
+        vec![
+            tlv::TYPE_STRUCTURE,
+            ctrl,
+            0u8,
+            cert_type,
+            tlv::TYPE_END_OF_CONTAINER,
+        ]
     }
 
     #[tokio::test]
@@ -563,9 +568,8 @@ mod tests {
 
     #[tokio::test]
     async fn certificate_chain_request_rejects_unknown_type() {
-        let cluster = OperationalCredentialsCluster::with_attestation(
-            DeviceAttestationCredentials::dev(),
-        );
+        let cluster =
+            OperationalCredentialsCluster::with_attestation(DeviceAttestationCredentials::dev());
         let req = make_cert_chain_request(99);
         let result = cluster
             .invoke_command(CMD_CERTIFICATE_CHAIN_REQUEST, &req)

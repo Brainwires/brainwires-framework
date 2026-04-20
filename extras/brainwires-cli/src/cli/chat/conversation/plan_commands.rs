@@ -12,7 +12,9 @@ pub async fn handle_plan_action(action: CommandAction) -> Result<bool> {
     match action {
         CommandAction::ListPlans(conversation_id) => {
             use crate::config::PlatformPaths;
-            use crate::storage::{CachedEmbeddingProvider, LanceDatabase, PlanStore, VectorDatabase};
+            use crate::storage::{
+                CachedEmbeddingProvider, LanceDatabase, PlanStore, VectorDatabase,
+            };
 
             match PlatformPaths::conversations_db_path() {
                 Ok(db_path) => {
@@ -73,7 +75,9 @@ pub async fn handle_plan_action(action: CommandAction) -> Result<bool> {
         }
         CommandAction::ShowPlan(plan_id) => {
             use crate::config::PlatformPaths;
-            use crate::storage::{CachedEmbeddingProvider, LanceDatabase, PlanStore, VectorDatabase};
+            use crate::storage::{
+                CachedEmbeddingProvider, LanceDatabase, PlanStore, VectorDatabase,
+            };
 
             match PlatformPaths::conversations_db_path() {
                 Ok(db_path) => {
@@ -128,7 +132,9 @@ pub async fn handle_plan_action(action: CommandAction) -> Result<bool> {
         }
         CommandAction::DeletePlan(plan_id) => {
             use crate::config::PlatformPaths;
-            use crate::storage::{CachedEmbeddingProvider, LanceDatabase, PlanStore, VectorDatabase};
+            use crate::storage::{
+                CachedEmbeddingProvider, LanceDatabase, PlanStore, VectorDatabase,
+            };
 
             match PlatformPaths::conversations_db_path() {
                 Ok(db_path) => {
@@ -183,7 +189,9 @@ pub async fn handle_plan_action(action: CommandAction) -> Result<bool> {
         }
         CommandAction::SearchPlans(query) => {
             use crate::config::PlatformPaths;
-            use crate::storage::{CachedEmbeddingProvider, LanceDatabase, PlanStore, VectorDatabase};
+            use crate::storage::{
+                CachedEmbeddingProvider, LanceDatabase, PlanStore, VectorDatabase,
+            };
 
             match PlatformPaths::conversations_db_path() {
                 Ok(db_path) => {

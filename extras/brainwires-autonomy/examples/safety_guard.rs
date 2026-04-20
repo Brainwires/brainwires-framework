@@ -23,12 +23,13 @@ struct CostCapPolicy {
 impl ApprovalPolicy for CostCapPolicy {
     async fn check(&self, op: &AutonomousOperation) -> Result<(), SafetyStop> {
         if let AutonomousOperation::StartImprovement { estimated_cost, .. } = op
-            && *estimated_cost > self.max_cost {
-                return Err(SafetyStop::OperationRejected(format!(
-                    "Estimated cost ${estimated_cost:.2} exceeds cap ${:.2}",
-                    self.max_cost
-                )));
-            }
+            && *estimated_cost > self.max_cost
+        {
+            return Err(SafetyStop::OperationRejected(format!(
+                "Estimated cost ${estimated_cost:.2} exceeds cap ${:.2}",
+                self.max_cost
+            )));
+        }
         Ok(())
     }
 }

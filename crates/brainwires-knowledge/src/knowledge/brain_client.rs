@@ -9,7 +9,8 @@ use crate::knowledge::bks_pks::{
     BehavioralKnowledgeCache, PersonalFactCollector, PersonalKnowledgeCache,
 };
 use brainwires_storage::{
-    CachedEmbeddingProvider, FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend, record_get,
+    CachedEmbeddingProvider, FieldDef, FieldType, FieldValue, Filter, Record, StorageBackend,
+    record_get,
 };
 
 #[cfg(feature = "knowledge")]

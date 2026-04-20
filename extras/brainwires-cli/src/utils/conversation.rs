@@ -3,8 +3,8 @@ use crate::config::PlatformPaths;
 #[allow(deprecated)]
 use crate::config::constants::COMPACTION_THRESHOLD_TOKENS;
 use crate::storage::{
-    ConversationStore, DocumentMetadata, DocumentScope, DocumentSearchRequest,
-    DocumentSearchResult, DocumentStore, CachedEmbeddingProvider, FileContent, FileContextManager,
+    CachedEmbeddingProvider, ConversationStore, DocumentMetadata, DocumentScope,
+    DocumentSearchRequest, DocumentSearchResult, DocumentStore, FileContent, FileContextManager,
     ImageFormat, ImageMetadata, ImageSearchRequest, ImageSearchResult, ImageStorage, ImageStore,
     LanceDatabase, MessageMetadata, MessageStore, VectorDatabase,
 };

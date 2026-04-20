@@ -24,7 +24,9 @@ use crate::utils::checkpoint::CheckpointManager;
 use crate::utils::paths::PlatformPaths;
 use crate::utils::system_prompt::build_system_prompt;
 use brainwires::agent_network::ipc::{AgentMessage, DisplayMessage};
-use brainwires::knowledge::bks_pks::{BehavioralKnowledgeCache, LearningCollector, detect_correction};
+use brainwires::knowledge::bks_pks::{
+    BehavioralKnowledgeCache, LearningCollector, detect_correction,
+};
 
 /// Core agent state that persists across viewer attach/detach cycles
 pub struct AgentState {

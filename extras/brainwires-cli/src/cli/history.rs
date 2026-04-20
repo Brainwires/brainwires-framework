@@ -5,7 +5,7 @@ use console::style;
 
 use crate::config::PlatformPaths;
 use crate::storage::{
-    ConversationStore, CachedEmbeddingProvider, LanceDatabase, MessageStore, VectorDatabase,
+    CachedEmbeddingProvider, ConversationStore, LanceDatabase, MessageStore, VectorDatabase,
 };
 use std::sync::Arc;
 

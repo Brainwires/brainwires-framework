@@ -71,12 +71,12 @@ pub mod interaction_model;
 pub mod secure_channel;
 /// Matter device server — exposes agents as Matter devices (PASE only).
 pub mod server;
+/// Subscription registry for Interaction Model Subscribe/Report.
+pub mod subscription_manager;
 /// Matter transport layer: message framing, MRP, and UDP/BLE I/O.
 pub mod transport;
 /// Matter device types, cluster IDs, and configuration.
 pub mod types;
-/// Subscription registry for Interaction Model Subscribe/Report.
-pub mod subscription_manager;
 /// Verhoeff check-digit algorithm used by the 11-digit manual pairing code.
 pub(crate) mod verhoeff;
 

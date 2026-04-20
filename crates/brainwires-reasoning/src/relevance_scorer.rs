@@ -484,19 +484,20 @@ mod tests {
                     part[..colon_pos].trim().parse::<usize>(),
                     part[colon_pos + 1..].trim(),
                 )
-                    && let Ok(score) = score_str.parse::<f32>() {
-                        let actual_idx = idx.saturating_sub(1);
-                        if actual_idx < items.len() && !scored_indices.contains(&actual_idx) {
-                            scored_indices.insert(actual_idx);
-                            let (content, original_score) = &items[actual_idx];
-                            results.push(RelevanceResult::from_local(
-                                content.clone(),
-                                actual_idx,
-                                score.clamp(0.0, 1.0),
-                                *original_score,
-                            ));
-                        }
-                    }
+                && let Ok(score) = score_str.parse::<f32>()
+            {
+                let actual_idx = idx.saturating_sub(1);
+                if actual_idx < items.len() && !scored_indices.contains(&actual_idx) {
+                    scored_indices.insert(actual_idx);
+                    let (content, original_score) = &items[actual_idx];
+                    results.push(RelevanceResult::from_local(
+                        content.clone(),
+                        actual_idx,
+                        score.clamp(0.0, 1.0),
+                        *original_score,
+                    ));
+                }
+            }
         }
 
         results
@@ -520,10 +521,11 @@ mod tests {
 
         if let Ok(re) = regex::Regex::new(r"(\d+\.?\d*)")
             && let Some(captures) = re.captures(trimmed)
-                && let Some(m) = captures.get(1)
-                    && let Ok(score) = m.as_str().parse::<f32>() {
-                        return Some(score.clamp(0.0, 1.0));
-                    }
+            && let Some(m) = captures.get(1)
+            && let Ok(score) = m.as_str().parse::<f32>()
+        {
+            return Some(score.clamp(0.0, 1.0));
+        }
 
         None
     }

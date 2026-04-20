@@ -43,10 +43,7 @@ pub mod local;
 pub mod vad;
 
 /// Wake word detection — `EnergyTriggerDetector` (`wake-word`), `RustpotterDetector` (`wake-word-rustpotter`).
-#[cfg(any(
-    feature = "wake-word",
-    feature = "wake-word-rustpotter"
-))]
+#[cfg(any(feature = "wake-word", feature = "wake-word-rustpotter"))]
 pub mod wake_word;
 
 /// Voice Assistant pipeline — orchestrates capture → wake word → VAD → STT → handler → TTS.
@@ -88,10 +85,7 @@ pub use vad::{VadMode, WebRtcVad};
 // ── Wake word re-exports ──────────────────────────────────────────────────────
 #[cfg(feature = "wake-word-rustpotter")]
 pub use wake_word::RustpotterDetector;
-#[cfg(any(
-    feature = "wake-word",
-    feature = "wake-word-rustpotter"
-))]
+#[cfg(any(feature = "wake-word", feature = "wake-word-rustpotter"))]
 pub use wake_word::{EnergyTriggerDetector, WakeWordDetection, WakeWordDetector};
 
 // ── Voice assistant re-exports ────────────────────────────────────────────────

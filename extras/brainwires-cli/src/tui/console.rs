@@ -80,10 +80,11 @@ impl Write for ConsoleWriter {
     fn flush(&mut self) -> std::io::Result<()> {
         // Flush any remaining content in line buffer
         if let Ok(mut line_buf) = self.line_buffer.lock()
-            && !line_buf.is_empty() {
-                self.buffer.add_message(line_buf.clone());
-                line_buf.clear();
-            }
+            && !line_buf.is_empty()
+        {
+            self.buffer.add_message(line_buf.clone());
+            line_buf.clear();
+        }
         Ok(())
     }
 }

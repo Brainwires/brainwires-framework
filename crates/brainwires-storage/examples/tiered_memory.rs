@@ -56,7 +56,8 @@ async fn main() -> Result<()> {
 
     // 5. Add messages with varying importance scores
     let conversation_id = "conv-tiered-1";
-    let entries = [(
+    let entries = [
+        (
             "Architecture decision: we will use an event-driven design with CQRS.",
             0.95,
         ),
@@ -69,7 +70,8 @@ async fn main() -> Result<()> {
         (
             "We decided to use PostgreSQL with pgvector for production storage.",
             0.9,
-        )];
+        ),
+    ];
 
     for (i, (content, importance)) in entries.iter().enumerate() {
         let msg = MessageMetadata {

@@ -167,10 +167,7 @@ pub use audio::{VadMode, WebRtcVad};
 
 #[cfg(feature = "wake-word-rustpotter")]
 pub use audio::RustpotterDetector;
-#[cfg(any(
-    feature = "wake-word",
-    feature = "wake-word-rustpotter"
-))]
+#[cfg(any(feature = "wake-word", feature = "wake-word-rustpotter"))]
 pub use audio::{EnergyTriggerDetector, WakeWordDetection, WakeWordDetector};
 
 // ── Voice assistant re-exports ────────────────────────────────────────────────

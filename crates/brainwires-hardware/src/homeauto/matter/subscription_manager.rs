@@ -17,8 +17,8 @@
 //! `server.rs::notify_attribute_change`.
 
 use std::net::SocketAddr;
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use super::clusters::AttributePath;
 

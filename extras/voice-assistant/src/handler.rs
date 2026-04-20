@@ -9,10 +9,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::{info, warn};
 
-#[cfg(any(
-    feature = "wake-word",
-    feature = "wake-word-rustpotter"
-))]
+#[cfg(any(feature = "wake-word", feature = "wake-word-rustpotter"))]
 use brainwires_hardware::audio::wake_word::WakeWordDetection;
 
 /// Handler that forwards transcripts to an LLM and returns the response text.
@@ -47,10 +44,7 @@ impl LlmHandler {
 
 #[async_trait]
 impl VoiceAssistantHandler for LlmHandler {
-    #[cfg(any(
-        feature = "wake-word",
-        feature = "wake-word-rustpotter"
-    ))]
+    #[cfg(any(feature = "wake-word", feature = "wake-word-rustpotter"))]
     async fn on_wake_word(&self, detection: &WakeWordDetection) {
         info!(
             keyword = %detection.keyword,

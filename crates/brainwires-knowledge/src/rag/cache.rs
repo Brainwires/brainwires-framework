@@ -83,8 +83,8 @@ impl HashCache {
 
         let content = fs::read_to_string(cache_path).context("Failed to read cache file")?;
 
-        let cache = serde_json::from_str::<HashCache>(&content)
-            .context("Failed to parse cache file")?;
+        let cache =
+            serde_json::from_str::<HashCache>(&content).context("Failed to parse cache file")?;
         tracing::info!("Loaded cache with {} indexed roots", cache.roots.len());
         Ok(cache)
     }

@@ -446,7 +446,9 @@ mod tests {
         let upper = output.to_uppercase();
         let trimmed = output.trim();
 
-        let intent = trimmed.find(':').map(|colon_pos| trimmed[colon_pos + 1..].trim().to_string());
+        let intent = trimmed
+            .find(':')
+            .map(|colon_pos| trimmed[colon_pos + 1..].trim().to_string());
 
         let need = if upper.starts_with("HIGH") {
             RetrievalNeed::High

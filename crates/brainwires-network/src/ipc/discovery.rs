@@ -440,7 +440,8 @@ mod tests {
 
     #[test]
     fn test_agent_tree_relationships() {
-        let agents = [AgentMetadata::new(
+        let agents = [
+            AgentMetadata::new(
                 "parent-1".to_string(),
                 "gpt-4".to_string(),
                 "/home".to_string(),
@@ -456,7 +457,8 @@ mod tests {
                 "claude".to_string(),
                 "/home".to_string(),
             )
-            .with_parent("parent-1".to_string(), Some("code review".to_string()))];
+            .with_parent("parent-1".to_string(), Some("code review".to_string())),
+        ];
 
         // Verify parent-child relationships
         let children: Vec<_> = agents

@@ -6,7 +6,9 @@ impl App {
     /// Handle /profile command - show profile summary
     pub(super) async fn handle_profile_show(&mut self) {
         use crate::utils::paths::PlatformPaths;
-        use brainwires::knowledge::bks_pks::personal::{PersonalFactMatcher, PersonalKnowledgeCache};
+        use brainwires::knowledge::bks_pks::personal::{
+            PersonalFactMatcher, PersonalKnowledgeCache,
+        };
 
         let result = match PlatformPaths::personal_knowledge_db() {
             Ok(db_path) => match PersonalKnowledgeCache::new(&db_path, 100) {
@@ -93,7 +95,9 @@ impl App {
     /// Handle /profile:list command
     pub(super) async fn handle_profile_list(&mut self, category: Option<&str>) {
         use crate::utils::paths::PlatformPaths;
-        use brainwires::knowledge::bks_pks::personal::{PersonalFactCategory, PersonalKnowledgeCache};
+        use brainwires::knowledge::bks_pks::personal::{
+            PersonalFactCategory, PersonalKnowledgeCache,
+        };
 
         let result = match PlatformPaths::personal_knowledge_db() {
             Ok(db_path) => match PersonalKnowledgeCache::new(&db_path, 100) {
@@ -323,7 +327,9 @@ impl App {
     /// Handle /profile:stats command
     pub(super) async fn handle_profile_stats(&mut self) {
         use crate::utils::paths::PlatformPaths;
-        use brainwires::knowledge::bks_pks::personal::{PersonalFactCategory, PersonalKnowledgeCache};
+        use brainwires::knowledge::bks_pks::personal::{
+            PersonalFactCategory, PersonalKnowledgeCache,
+        };
 
         let result = match PlatformPaths::personal_knowledge_db() {
             Ok(db_path) => match PersonalKnowledgeCache::new(&db_path, 100) {

@@ -431,9 +431,11 @@ mod tests {
     fn test_get_relevant_facts() {
         let matcher = PersonalFactMatcher::default();
 
-        let facts = [create_test_fact(PersonalFactCategory::Identity, "name", "John"),
+        let facts = [
+            create_test_fact(PersonalFactCategory::Identity, "name", "John"),
             create_test_fact(PersonalFactCategory::Preference, "language", "Rust"),
-            create_test_fact(PersonalFactCategory::Context, "project", "brainwires")];
+            create_test_fact(PersonalFactCategory::Context, "project", "brainwires"),
+        ];
 
         let relevant: Vec<_> = matcher
             .get_relevant_facts(facts.iter(), None)
@@ -466,8 +468,10 @@ mod tests {
     fn test_format_for_context() {
         let matcher = PersonalFactMatcher::default();
 
-        let facts = [create_test_fact(PersonalFactCategory::Identity, "name", "John"),
-            create_test_fact(PersonalFactCategory::Preference, "editor", "VSCode")];
+        let facts = [
+            create_test_fact(PersonalFactCategory::Identity, "name", "John"),
+            create_test_fact(PersonalFactCategory::Preference, "editor", "VSCode"),
+        ];
 
         let refs: Vec<&PersonalFact> = facts.iter().collect();
         let formatted = matcher.format_for_context(&refs);

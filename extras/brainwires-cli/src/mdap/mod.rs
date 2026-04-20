@@ -208,10 +208,7 @@ impl MdapConfig {
         self
     }
 
-    fn select_strategy_heuristic(
-        &self,
-        task: &str,
-    ) -> brainwires::reasoning::StrategyResult {
+    fn select_strategy_heuristic(&self, task: &str) -> brainwires::reasoning::StrategyResult {
         use brainwires::reasoning::{RecommendedStrategy, StrategyResult, TaskType};
 
         let lower = task.to_lowercase();

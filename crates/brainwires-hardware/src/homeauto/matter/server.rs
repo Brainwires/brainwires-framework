@@ -503,10 +503,7 @@ async fn dispatch_attribute_change(
             .fetch_add(1, Ordering::SeqCst);
         let msg = make_response_message(sub.session_id, counter, wire);
         if let Err(e) = transport.send(&msg, sub.peer).await {
-            error!(
-                "OP: push ReportData to subscription {} failed: {e}",
-                sub.id
-            );
+            error!("OP: push ReportData to subscription {} failed: {e}", sub.id);
         }
     }
 }
@@ -745,14 +742,7 @@ async fn handle_operational_message(
 
                 // Fire handler callbacks for well-known clusters, and push
                 // any resulting attribute mutation to active subscriptions.
-                dispatch_handler_callbacks(
-                    cluster,
-                    cmd,
-                    args,
-                    inner,
-                    subscription_notify_tx,
-                )
-                .await;
+                dispatch_handler_callbacks(cluster, cmd, args, inner, subscription_notify_tx).await;
 
                 // Dispatch to the data model node
                 let result = data_model.dispatch_invoke(ep, cluster, cmd, args).await;
@@ -891,8 +881,7 @@ async fn handle_operational_message(
                 IM_PROTOCOL_ID,
                 &resp.encode(),
             );
-            let resp_msg =
-                make_response_message(session_id, counter.wrapping_add(2), resp_wire);
+            let resp_msg = make_response_message(session_id, counter.wrapping_add(2), resp_wire);
             if let Err(e) = transport.send(&resp_msg, peer).await {
                 error!("OP: send SubscribeResponse error: {e}");
             }
@@ -1253,7 +1242,9 @@ mod tests {
         // Seed a subscription and a counter for session 0x42.
         let peer: std::net::SocketAddr = "127.0.0.1:5540".parse().unwrap();
         let path = super::super::clusters::AttributePath::specific(1, 0x0006, 0x0000);
-        server.subscriptions.register(0x42, peer, 7, vec![path], 0, 30, false);
+        server
+            .subscriptions
+            .register(0x42, peer, 7, vec![path], 0, 30, false);
         server
             .outgoing_counters
             .lock()

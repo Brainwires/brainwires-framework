@@ -15,10 +15,10 @@ use std::sync::Arc;
 use anyhow::Result;
 use async_trait::async_trait;
 use brainwires_agents::eval::{EvaluationCase, TrialResult, ndcg_at_k};
-use brainwires_reasoning::ComplexityScorer;
 use brainwires_core::message::{ChatResponse, Message, StreamChunk};
 use brainwires_core::provider::{ChatOptions, Provider};
 use brainwires_core::tool::Tool;
+use brainwires_reasoning::ComplexityScorer;
 use futures::stream::BoxStream;
 
 // ── Stub provider ─────────────────────────────────────────────────────────────
