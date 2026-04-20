@@ -17,6 +17,7 @@ categories = ["development-tools"]
 # Internal crates
 brainwires-core.workspace = true
 brainwires-tools.workspace = true
+brainwires-resilience.workspace = true
 
 # Async runtime
 tokio = { workspace = true, features = ["sync", "time", "rt", "macros"] }

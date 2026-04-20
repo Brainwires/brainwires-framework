@@ -13,6 +13,7 @@ members = [
     "crates/brainwires-mcp-server",
     "crates/brainwires-a2a",
     "crates/brainwires-providers",
+    "crates/brainwires-resilience",
     "crates/brainwires-hardware",
     "crates/brainwires-training",
     "extras/brainwires-autonomy",
@@ -85,6 +86,7 @@ brainwires-network = { path = "crates/brainwires-network", version = "0.10.0" }
 brainwires-mcp-server = { path = "crates/brainwires-mcp-server", version = "0.10.0" }
 brainwires-a2a = { path = "crates/brainwires-a2a", version = "0.10.0", default-features = false }
 brainwires-providers = { path = "crates/brainwires-providers", version = "0.10.0" }
+brainwires-resilience = { path = "crates/brainwires-resilience", version = "0.10.0" }
 brainwires-hardware = { path = "crates/brainwires-hardware", version = "0.10.0" }
 brainwires-training = { path = "crates/brainwires-training", version = "0.10.0" }
 brainwires-autonomy = { path = "extras/brainwires-autonomy", version = "0.10.0", default-features = false }

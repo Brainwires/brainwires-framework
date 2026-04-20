@@ -1,0 +1,29 @@
+[package]
+name = "brainwires-resilience"
+description = "Provider-layer resilience middleware (retry, budget, circuit breaker) for the Brainwires Agent Framework"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+readme = "README.md"
+documentation = "https://docs.rs/brainwires-resilience"
+keywords = ["resilience", "retry", "circuit-breaker", "budget", "llm"]
+categories = ["asynchronous"]
+
+[dependencies]
+brainwires-core = { workspace = true }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+futures = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["time", "sync"] }
+tracing = { workspace = true }
+serde = { workspace = true }
+rand = "0.8"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full", "test-util"] }
+async-stream = { workspace = true }

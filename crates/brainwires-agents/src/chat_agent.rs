@@ -12,6 +12,7 @@ use brainwires_core::{
     ChatOptions, ContentBlock, Message, MessageContent, Provider, Role, StreamChunk, Tool,
     ToolContext, ToolUse, Usage,
 };
+use brainwires_resilience::BudgetGuard;
 use brainwires_tools::{PreHookDecision, ToolExecutor, ToolPreHook};
 
 /// A simple chat agent that processes messages through an LLM provider with tool support.
@@ -50,6 +51,9 @@ pub struct ChatAgent {
     pre_execute_hook: Option<Arc<dyn ToolPreHook>>,
     /// Accumulated token usage across all completions in this session.
     cumulative_usage: Usage,
+    /// Optional shared budget guard enforcing token/cost/round caps across
+    /// this agent (and any others sharing the same guard).
+    budget: Option<BudgetGuard>,
 }
 
 impl ChatAgent {
@@ -69,12 +73,27 @@ impl ChatAgent {
             max_tool_rounds: 10,
             pre_execute_hook: None,
             cumulative_usage: Usage::default(),
+            budget: None,
         }
     }
 
     /// Set the maximum number of tool-call rounds before the agent stops.
     pub fn with_max_tool_rounds(mut self, rounds: usize) -> Self {
         self.max_tool_rounds = rounds;
+        self
+    }
+
+    /// Attach a shared [`BudgetGuard`].
+    ///
+    /// When set, each tool round checks the guard before invoking the provider;
+    /// a tripped cap ends the loop and surfaces a
+    /// `brainwires_resilience::ResilienceError::BudgetExceeded` error (wrapped
+    /// in `anyhow::Error`).
+    ///
+    /// The same guard can be shared across multiple agents to enforce a
+    /// session-wide or tenant-wide budget.
+    pub fn with_budget(mut self, guard: BudgetGuard) -> Self {
+        self.budget = Some(guard);
         self
     }
 
@@ -205,6 +224,11 @@ impl ChatAgent {
         let mut final_text = String::new();
 
         for _ in 0..self.max_tool_rounds {
+            // Budget pre-flight: stop the loop if any cap has been reached.
+            if let Some(ref guard) = self.budget {
+                guard.check_and_tick().map_err(anyhow::Error::from)?;
+            }
+
             let tool_defs: Vec<Tool> = self.executor.available_tools();
             let tools_opt = if tool_defs.is_empty() {
                 None
@@ -391,6 +415,9 @@ impl ChatAgent {
                     self.cumulative_usage.prompt_tokens += u.prompt_tokens;
                     self.cumulative_usage.completion_tokens += u.completion_tokens;
                     self.cumulative_usage.total_tokens += u.total_tokens;
+                    if let Some(ref guard) = self.budget {
+                        guard.record_usage(&u);
+                    }
                 }
                 StreamChunk::Done => {}
                 StreamChunk::ContextCompacted {
