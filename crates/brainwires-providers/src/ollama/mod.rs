@@ -208,6 +208,7 @@ impl Provider for OllamaProvider {
                 completion_tokens: ollama_response.eval_count.unwrap_or(0),
                 total_tokens: ollama_response.prompt_eval_count.unwrap_or(0)
                     + ollama_response.eval_count.unwrap_or(0),
+                ..Default::default()
             },
             finish_reason: Some(
                 ollama_response
@@ -318,6 +319,7 @@ impl Provider for OllamaProvider {
                                         prompt_tokens,
                                         completion_tokens,
                                         total_tokens: prompt_tokens + completion_tokens,
+                                        ..Default::default()
                                     }));
                                 }
                                 yield Ok(StreamChunk::Done);

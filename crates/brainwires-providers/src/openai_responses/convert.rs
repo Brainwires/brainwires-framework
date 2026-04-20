@@ -158,15 +158,12 @@ pub fn response_to_chat_response(resp: &ResponseObject) -> Result<ChatResponse> 
 /// Convert ResponseUsage to brainwires-core Usage.
 pub fn convert_usage(usage: Option<&ResponseUsage>) -> Usage {
     usage.map_or(
-        Usage {
-            prompt_tokens: 0,
-            completion_tokens: 0,
-            total_tokens: 0,
-        },
+        Usage::default(),
         |u| Usage {
             prompt_tokens: u.input_tokens,
             completion_tokens: u.output_tokens,
             total_tokens: u.total_tokens.unwrap_or(u.input_tokens + u.output_tokens),
+            ..Default::default()
         },
     )
 }

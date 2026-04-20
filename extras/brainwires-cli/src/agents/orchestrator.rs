@@ -512,6 +512,7 @@ impl OrchestratorAgent {
             stop: None,
             system: Some(system_prompt),
             model: None,
+            cache_strategy: Default::default(),
         };
 
         self.provider
@@ -1232,6 +1233,7 @@ impl MicroagentProvider for ProviderMicroagentAdapter {
             stop: None,
             system: Some(enhanced_system),
             model: None,
+            cache_strategy: Default::default(),
         };
 
         let start = std::time::Instant::now();

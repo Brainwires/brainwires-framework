@@ -106,6 +106,8 @@ impl Provider for OpenAiChatProvider {
                 cost_usd: 0.0,
                 success: true,
                 timestamp: chrono::Utc::now(),
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
                 compliance: None,
             });
         }
@@ -268,6 +270,7 @@ pub fn parse_response(openai_response: super::OpenAIResponse) -> Result<ChatResp
         prompt_tokens: openai_response.usage.prompt_tokens,
         completion_tokens: openai_response.usage.completion_tokens,
         total_tokens: openai_response.usage.total_tokens,
+        ..Default::default()
     };
 
     let choice = openai_response
@@ -326,6 +329,7 @@ fn convert_stream_chunk(chunk: OpenAIStreamChunk) -> Vec<StreamChunk> {
             prompt_tokens: usage.prompt_tokens,
             completion_tokens: usage.completion_tokens,
             total_tokens: usage.total_tokens,
+            ..Default::default()
         }));
     }
 

@@ -214,6 +214,7 @@ impl TaskAgent {
             stop: None,
             system: Some(system_prompt),
             model: None,
+            cache_strategy: Default::default(),
         };
 
         self.provider.chat(&history, Some(&tools), &options).await
@@ -419,6 +420,7 @@ impl TaskAgent {
                         .to_string(),
                 ),
                 model: None,
+                cache_strategy: Default::default(),
             };
             match self
                 .provider

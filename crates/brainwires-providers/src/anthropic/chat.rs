@@ -129,6 +129,18 @@ impl AnthropicChatProvider {
             .collect()
     }
 
+    /// Map a [`CacheStrategy`] to the Anthropic request's `cache_prompt` bool.
+    ///
+    /// Today the underlying builder at `anthropic/mod.rs::build_body` treats
+    /// `cache_prompt` as a combined "system + tools" switch, so `Off` and
+    /// `SystemOnly` both decay to "no cache" in practice until we refine the
+    /// request path to emit breakpoints per-field. `SystemAndTools` and
+    /// `SystemAndTailTurn` both enable it.
+    fn cache_prompt_enabled(strategy: brainwires_core::CacheStrategy) -> bool {
+        use brainwires_core::CacheStrategy::*;
+        matches!(strategy, SystemAndTools | SystemAndTailTurn { .. })
+    }
+
     /// Extract the first system message from the message list.
     fn get_system_message(messages: &[Message]) -> Option<String> {
         messages
@@ -199,6 +211,11 @@ impl AnthropicChatProvider {
                 prompt_tokens: response.usage.input_tokens,
                 completion_tokens: response.usage.output_tokens,
                 total_tokens: response.usage.input_tokens + response.usage.output_tokens,
+                cache_creation_input_tokens: response
+                    .usage
+                    .cache_creation_input_tokens
+                    .unwrap_or(0),
+                cache_read_input_tokens: response.usage.cache_read_input_tokens.unwrap_or(0),
             },
             finish_reason: Some(response.stop_reason),
         }
@@ -234,7 +251,7 @@ impl Provider for AnthropicChatProvider {
             stop_sequences: None,
             tools: tools.map(Self::convert_tools),
             stream: false,
-            cache_prompt: true,
+            cache_prompt: Self::cache_prompt_enabled(options.cache_strategy),
         };
 
         #[cfg(feature = "telemetry")]
@@ -254,6 +271,10 @@ impl Provider for AnthropicChatProvider {
                 cost_usd: 0.0,
                 success: true,
                 timestamp: chrono::Utc::now(),
+                cache_creation_input_tokens: chat_response
+                    .usage
+                    .cache_creation_input_tokens,
+                cache_read_input_tokens: chat_response.usage.cache_read_input_tokens,
                 compliance: None,
             });
         }
@@ -284,7 +305,7 @@ impl Provider for AnthropicChatProvider {
                 stop_sequences: None,
                 tools: tools.map(Self::convert_tools),
                 stream: true,
-                cache_prompt: true,
+                cache_prompt: Self::cache_prompt_enabled(options.cache_strategy),
             };
 
             let mut stream = self.client.stream_messages(&req);
@@ -306,6 +327,12 @@ impl Provider for AnthropicChatProvider {
                                         prompt_tokens: 0,
                                         completion_tokens: usage.output_tokens,
                                         total_tokens: usage.output_tokens,
+                                        cache_creation_input_tokens: usage
+                                            .cache_creation_input_tokens
+                                            .unwrap_or(0),
+                                        cache_read_input_tokens: usage
+                                            .cache_read_input_tokens
+                                            .unwrap_or(0),
                                     }));
                                 }
                             }
@@ -605,6 +632,42 @@ mod tests {
 
         let converted = AnthropicChatProvider::convert_messages(&messages);
         assert_eq!(converted.len(), 0);
+    }
+
+    #[test]
+    fn test_cache_prompt_enabled_maps_strategy() {
+        use brainwires_core::CacheStrategy;
+        assert!(!AnthropicChatProvider::cache_prompt_enabled(CacheStrategy::Off));
+        assert!(!AnthropicChatProvider::cache_prompt_enabled(
+            CacheStrategy::SystemOnly
+        ));
+        assert!(AnthropicChatProvider::cache_prompt_enabled(
+            CacheStrategy::SystemAndTools
+        ));
+        assert!(AnthropicChatProvider::cache_prompt_enabled(
+            CacheStrategy::SystemAndTailTurn {
+                threshold_tokens: 2000
+            }
+        ));
+    }
+
+    #[test]
+    fn test_parse_response_propagates_cache_tokens() {
+        let response = crate::anthropic::AnthropicResponse {
+            content: vec![AnthropicContentBlock::Text {
+                text: "ok".into(),
+            }],
+            stop_reason: "end_turn".into(),
+            usage: crate::anthropic::AnthropicUsage {
+                input_tokens: 100,
+                output_tokens: 20,
+                cache_creation_input_tokens: Some(50),
+                cache_read_input_tokens: Some(800),
+            },
+        };
+        let cr = AnthropicChatProvider::parse_response(response);
+        assert_eq!(cr.usage.cache_creation_input_tokens, 50);
+        assert_eq!(cr.usage.cache_read_input_tokens, 800);
     }
 
     #[test]

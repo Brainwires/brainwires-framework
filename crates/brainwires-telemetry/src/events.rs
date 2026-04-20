@@ -1,6 +1,10 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+fn is_zero_u32(v: &u32) -> bool {
+    *v == 0
+}
+
 /// Compliance metadata attached to auditable events (EU AI Act, HIPAA, SOC2).
 ///
 /// All fields are optional so existing serialized events deserialise correctly
@@ -43,6 +47,15 @@ pub enum AnalyticsEvent {
         cost_usd: f64,
         success: bool,
         timestamp: DateTime<Utc>,
+        /// Tokens charged to populate the provider's prompt cache this call.
+        /// Zero when the provider doesn't support caching or the cache wasn't
+        /// used. Anthropic only, today.
+        #[serde(default, skip_serializing_if = "is_zero_u32")]
+        cache_creation_input_tokens: u32,
+        /// Tokens served from the provider's prompt cache this call — the
+        /// primary cost-savings signal.
+        #[serde(default, skip_serializing_if = "is_zero_u32")]
+        cache_read_input_tokens: u32,
         /// Optional compliance metadata for audit / data-residency tracking.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         compliance: Option<ComplianceMetadata>,
@@ -231,6 +244,8 @@ mod tests {
             cost_usd: 0.01,
             success: true,
             timestamp: now(),
+            cache_creation_input_tokens: 0,
+            cache_read_input_tokens: 0,
             compliance: None,
         }
     }

@@ -124,6 +124,8 @@ where
                 cost_usd: 0.0,
                 success: true,
                 timestamp: chrono::Utc::now(),
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
                 compliance: None,
             });
         }

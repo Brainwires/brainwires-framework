@@ -236,6 +236,7 @@ impl Provider for GoogleChatProvider {
                 prompt_tokens: u.prompt_token_count,
                 completion_tokens: u.candidates_token_count,
                 total_tokens: u.total_token_count,
+                ..Default::default()
             })
             .unwrap_or_default();
 
@@ -262,6 +263,8 @@ impl Provider for GoogleChatProvider {
                 cost_usd: 0.0,
                 success: true,
                 timestamp: chrono::Utc::now(),
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
                 compliance: None,
             });
         }
@@ -314,6 +317,7 @@ impl Provider for GoogleChatProvider {
                                 prompt_tokens: usage.prompt_token_count,
                                 completion_tokens: usage.candidates_token_count,
                                 total_tokens: usage.total_token_count,
+                                ..Default::default()
                             }));
                         }
                     }
@@ -550,6 +554,7 @@ mod tests {
             stop: None,
             system: None,
             model: None,
+            cache_strategy: Default::default(),
         };
 
         let req = GoogleChatProvider::build_request(&messages, None, &options);
@@ -574,6 +579,7 @@ mod tests {
             stop: None,
             system: Some("Be helpful".to_string()),
             model: None,
+            cache_strategy: Default::default(),
         };
 
         let req = GoogleChatProvider::build_request(&messages, None, &options);
@@ -595,6 +601,7 @@ mod tests {
             stop: None,
             system: None,
             model: None,
+            cache_strategy: Default::default(),
         };
 
         let req = GoogleChatProvider::build_request(&messages, None, &options);
