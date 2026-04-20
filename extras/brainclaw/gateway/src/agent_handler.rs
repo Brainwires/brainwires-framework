@@ -16,11 +16,11 @@ use tokio::sync::{Mutex, RwLock};
 use uuid::Uuid;
 
 use brainwires_agents::ChatAgent;
+use brainwires_core::lifecycle::{LifecycleEvent, LifecycleHook};
+use brainwires_core::{ChatOptions, Provider, ToolContext, ToolUse};
 use brainwires_network::channels::events::ChannelEvent;
 use brainwires_network::channels::identity::ConversationId;
 use brainwires_network::channels::message::{ChannelMessage, MessageContent, MessageId};
-use brainwires_core::{ChatOptions, Provider, ToolContext, ToolUse};
-use brainwires_core::lifecycle::{LifecycleEvent, LifecycleHook};
 use brainwires_tools::{PreHookDecision, ToolExecutor, ToolPreHook};
 
 use crate::approval::{ApprovalRegistry, ChatApprovalHook};
@@ -33,6 +33,13 @@ use crate::middleware::sanitizer::MessageSanitizer;
 use crate::router::InboundHandler;
 use crate::session::SessionManager;
 use crate::session_persistence::{SessionStore, session_key};
+
+/// Whether a provider (identified by its `Provider::name()`) is known to
+/// support extended-thinking budgets. Used by `/think` to decide between
+/// applying the budget and replying "not supported".
+fn provider_supports_thinking(name: &str) -> bool {
+    matches!(name, "anthropic" | "claude" | "bedrock-anthropic")
+}
 
 /// Runs a sequence of [`ToolPreHook`]s in order; the first rejection wins.
 struct CompositePreToolHook {
@@ -142,6 +149,8 @@ pub struct AgentInboundHandler {
     /// session uses `ChatOptions::model` override instead of the provider's
     /// default configured model.
     model_overrides: DashMap<(String, String), String>,
+    /// Per-session slash-command state (thinking level, trace counter).
+    slash_state: DashMap<(String, String), Arc<Mutex<crate::slash::SessionSlashState>>>,
 }
 
 impl AgentInboundHandler {
@@ -179,6 +188,7 @@ impl AgentInboundHandler {
             talk_mode_sessions: DashSet::new(),
             identity_store: None,
             model_overrides: DashMap::new(),
+            slash_state: DashMap::new(),
         }
     }
 
@@ -328,15 +338,14 @@ impl AgentInboundHandler {
         // so we rely on the gateway SessionManager's `cleanup_expired` for
         // time-based cleanup. Here we remove agent sessions that have an empty
         // history (i.e., have been cleared or never used).
-        self.agent_sessions
-            .retain(|_key, agent| {
-                // Try-lock to avoid blocking; keep the session if we can't
-                // inspect it right now.
-                match agent.try_lock() {
-                    Ok(guard) => !guard.messages().is_empty(),
-                    Err(_) => true, // busy — keep it
-                }
-            });
+        self.agent_sessions.retain(|_key, agent| {
+            // Try-lock to avoid blocking; keep the session if we can't
+            // inspect it right now.
+            match agent.try_lock() {
+                Ok(guard) => !guard.messages().is_empty(),
+                Err(_) => true, // busy — keep it
+            }
+        });
     }
 
     /// Handle an inbound message by routing it through the appropriate agent.
@@ -458,6 +467,21 @@ impl AgentInboundHandler {
             return Ok(());
         }
 
+        // 1d2. Slash-command interception (P1.2). Runs after legacy `/talk`
+        //       and `/model` so those remain handled by their dedicated paths.
+        match crate::slash::parse(&text) {
+            crate::slash::ParseResult::Forward(t) => {
+                text = t;
+            }
+            crate::slash::ParseResult::Command(cmd) => {
+                let reply = self
+                    .handle_slash(&msg.conversation.platform, &msg.author, cmd)
+                    .await;
+                self.send_response(channel_id, msg, &reply).await?;
+                return Ok(());
+            }
+        }
+
         // 1e. Apply text preprocessor (e.g. skill dispatch)
         if let Some(ref pp) = self.text_preprocessor {
             if let Some(transformed) = pp(&text) {
@@ -518,16 +542,13 @@ impl AgentInboundHandler {
         //     channel and conversation for this turn.
         if self.approval_registry.is_some() {
             let key = (platform.clone(), user_id.clone());
-            let ctx = self
-                .approval_contexts
-                .entry(key)
-                .or_insert_with(|| {
-                    (
-                        Arc::new(RwLock::new(None)),
-                        Arc::new(RwLock::new(None)),
-                        Arc::new(RwLock::new(None)),
-                    )
-                });
+            let ctx = self.approval_contexts.entry(key).or_insert_with(|| {
+                (
+                    Arc::new(RwLock::new(None)),
+                    Arc::new(RwLock::new(None)),
+                    Arc::new(RwLock::new(None)),
+                )
+            });
             *ctx.0.write().await = Some(msg.conversation.clone());
             *ctx.2.write().await = Some(channel_id);
             if let Some(tx) = self.channels.get_sender(&channel_id) {
@@ -551,8 +572,12 @@ impl AgentInboundHandler {
         // Record per-message token delta to the shared metrics collector.
         if let Some(ref metrics) = self.metrics {
             let usage_after = agent.cumulative_usage();
-            let prompt_delta = usage_after.prompt_tokens.saturating_sub(usage_before.prompt_tokens);
-            let completion_delta = usage_after.completion_tokens.saturating_sub(usage_before.completion_tokens);
+            let prompt_delta = usage_after
+                .prompt_tokens
+                .saturating_sub(usage_before.prompt_tokens);
+            let completion_delta = usage_after
+                .completion_tokens
+                .saturating_sub(usage_before.completion_tokens);
             if prompt_delta > 0 || completion_delta > 0 {
                 metrics.record_token_usage(prompt_delta as u64, completion_delta as u64);
             }
@@ -581,6 +606,15 @@ impl AgentInboundHandler {
         }
 
         let raw_response = process_result?;
+
+        // Decrement trace counter after a successful agent turn so `/trace on`
+        // auto-disables after N turns.
+        if let Some(state_arc) = self.slash_state.get(&(platform.clone(), user_id.clone())) {
+            let mut s = state_arc.lock().await;
+            if s.trace_remaining > 0 {
+                s.trace_remaining -= 1;
+            }
+        }
 
         // 4b. Sanitize outbound response (redact secrets)
         let response = match &self.sanitizer {
@@ -716,6 +750,77 @@ impl AgentInboundHandler {
         arc
     }
 
+    /// Handle a parsed slash command for a specific user and return the reply
+    /// text to send back. Lazily materialises the per-user slash state and the
+    /// `SessionController` bridge over the current `ChatAgent`.
+    async fn handle_slash(
+        &self,
+        platform: &str,
+        user_id: &str,
+        cmd: crate::slash::SlashCommand,
+    ) -> String {
+        use crate::slash::{AgentSessionHandle, SessionSlashState, SlashOutcome};
+
+        let key = (platform.to_string(), user_id.to_string());
+        let state_arc = self
+            .slash_state
+            .entry(key.clone())
+            .or_insert_with(|| Arc::new(Mutex::new(SessionSlashState::default())))
+            .clone();
+
+        // Resolve (or lazily create) the agent so `/status`, `/usage`, etc.
+        // report against the same session the user's messages hit.
+        let agent = self.get_or_create_agent(platform, user_id).await;
+
+        let session_key = self.resolve_session_key(platform, user_id).await;
+        let model = self
+            .model_overrides
+            .get(&key)
+            .map(|m| m.clone())
+            .or_else(|| self.default_options.model.clone())
+            .unwrap_or_else(|| "(provider default)".to_string());
+        let channels: Vec<String> = self
+            .channels
+            .list()
+            .into_iter()
+            .map(|c| c.channel_type)
+            .collect();
+        let provider_name = self.provider.name().to_string();
+        let thinking_supported = provider_supports_thinking(&provider_name);
+
+        // Rebuild callback for `/restart`: reconstructs a fresh ChatAgent with
+        // the same provider/executor/options. Session-specific model override
+        // is re-applied. Pre-tool hooks are not rebuilt here — `/restart`
+        // discards approval/shell hook state by design.
+        let provider = self.provider.clone();
+        let executor = self.executor.clone();
+        let max_tool_rounds = self.max_tool_rounds;
+        let mut session_options = self.default_options.clone();
+        if let Some(model_override) = self.model_overrides.get(&key) {
+            session_options.model = Some(model_override.clone());
+        }
+        let rebuild: Arc<dyn Fn() -> ChatAgent + Send + Sync> = Arc::new(move || {
+            ChatAgent::new(provider.clone(), executor.clone(), session_options.clone())
+                .with_max_tool_rounds(max_tool_rounds)
+        });
+
+        let mut controller = AgentSessionHandle {
+            agent,
+            provider_name,
+            model,
+            session_id: format!("{}:{}", session_key.0, session_key.1),
+            channels_connected: channels,
+            thinking_supported,
+            rebuild: Some(rebuild),
+        };
+
+        let mut state = state_arc.lock().await;
+        match crate::slash::handle(cmd, &mut state, &mut controller).await {
+            SlashOutcome::Reply(r) => r,
+            SlashOutcome::Forward(t) => t,
+        }
+    }
+
     /// Parse `/model [name|default]` commands.
     ///
     /// Returns `None` if the text is not a model command.
@@ -787,12 +892,10 @@ impl AgentInboundHandler {
                 &original_msg.content,
                 MessageContent::Media(p) if matches!(p.media_type, brainwires_network::channels::message::MediaType::Audio)
             );
-            let talk_mode_active = self
-                .talk_mode_sessions
-                .contains(&(
-                    original_msg.conversation.platform.clone(),
-                    original_msg.author.clone(),
-                ));
+            let talk_mode_active = self.talk_mode_sessions.contains(&(
+                original_msg.conversation.platform.clone(),
+                original_msg.author.clone(),
+            ));
 
             if let Some(ref tts) = self.tts {
                 if is_audio_input || talk_mode_active {
@@ -873,10 +976,10 @@ impl InboundHandler for AgentInboundHandler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use brainwires_network::channels::message::{ChannelMessage, MessageContent, MessageId};
     use brainwires_core::{
         ChatOptions, ChatResponse, Message, StreamChunk, Tool, ToolContext, Usage,
     };
+    use brainwires_network::channels::message::{ChannelMessage, MessageContent, MessageId};
     use brainwires_tools::{BuiltinToolExecutor, ToolRegistry};
     use futures::stream;
     use std::collections::HashMap;
@@ -986,10 +1089,7 @@ mod tests {
             markdown: "**bold text**".to_string(),
             fallback_plain: "bold text".to_string(),
         };
-        assert_eq!(
-            AgentInboundHandler::extract_text(&content),
-            "**bold text**"
-        );
+        assert_eq!(AgentInboundHandler::extract_text(&content), "**bold text**");
     }
 
     #[test]

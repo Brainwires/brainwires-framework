@@ -9,24 +9,24 @@
 
 /// Admin API handlers (health check, channel listing, session listing, broadcast).
 pub mod admin;
-/// Cron job data types and persistent store.
-pub mod cron;
-/// Cross-channel user identity mapping.
-pub mod identity;
-/// Interactive tool approval via chat (ask user yes/no before executing tools).
-pub mod approval;
-/// OpenAI-compatible API endpoint (/v1/chat/completions, /v1/models, /v1/embeddings).
-pub mod openai_compat;
-/// Audit logging for security-relevant events.
-pub mod audit;
 /// Agent-backed inbound handler that bridges gateway events to ChatAgent.
 pub mod agent_handler;
+/// Interactive tool approval via chat (ask user yes/no before executing tools).
+pub mod approval;
+/// Audit logging for security-relevant events.
+pub mod audit;
 /// Channel registry for tracking connected channel adapters.
 pub mod channel_registry;
 /// Gateway configuration.
 pub mod config;
+/// Cron job data types and persistent store.
+pub mod cron;
+/// Cross-channel user identity mapping.
+pub mod identity;
 /// Security middleware (sanitizer, origin validation, rate limiting).
 pub mod middleware;
+/// OpenAI-compatible API endpoint (/v1/chat/completions, /v1/models, /v1/embeddings).
+pub mod openai_compat;
 /// Message routing logic.
 pub mod router;
 
@@ -43,12 +43,14 @@ pub mod server;
 pub mod session;
 /// Session persistence — save/restore conversation history across restarts.
 pub mod session_persistence;
+/// In-chat slash commands (/new, /compact, /think, /usage, /trace, /status, /restart, /help).
+pub mod slash;
 /// Shared application state.
 pub mod state;
-/// Built-in WebChat channel (browser-based chat UI).
-pub mod webchat;
 /// TTS response processor (requires `voice` feature).
 pub mod tts;
+/// Built-in WebChat channel (browser-based chat UI).
+pub mod webchat;
 /// Webhook handler for HTTP-based channel integrations.
 pub mod webhook;
 /// WebSocket connection handler for channel adapters.

@@ -156,10 +156,7 @@ mod tests {
     #[tokio::test]
     async fn test_save_and_load() {
         let (_dir, store) = temp_store();
-        let messages = vec![
-            Message::user("Hello"),
-            Message::assistant("Hi there!"),
-        ];
+        let messages = vec![Message::user("Hello"), Message::assistant("Hi there!")];
         store.save("test_session", &messages).await.unwrap();
 
         let loaded = store.load("test_session").await.unwrap().unwrap();

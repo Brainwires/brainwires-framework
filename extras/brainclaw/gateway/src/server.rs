@@ -3,18 +3,17 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use axum::extract::ws::WebSocketUpgrade;
+use axum::Router;
 use axum::extract::State;
+use axum::extract::ws::WebSocketUpgrade;
 use axum::http::HeaderMap;
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
-use axum::Router;
 use chrono::Utc;
 use tokio::net::TcpListener;
 
 use crate::admin;
 use crate::audit::AuditLogger;
-use crate::openai_compat;
 use crate::channel_registry::ChannelRegistry;
 use crate::config::GatewayConfig;
 use crate::cron::CronStore;
@@ -22,6 +21,7 @@ use crate::identity::UserIdentityStore;
 use crate::metrics::MetricsCollector;
 use crate::middleware::rate_limit::RateLimiter;
 use crate::middleware::sanitizer::MessageSanitizer;
+use crate::openai_compat;
 use crate::router::{InboundHandler, MessageRouter};
 use crate::session::SessionManager;
 use crate::state::AppState;
@@ -127,10 +127,7 @@ impl Gateway {
     ///
     /// When set, the gateway exposes `/v1/chat/completions`, `/v1/models`,
     /// and `/v1/embeddings` endpoints that proxy requests to this provider.
-    pub fn with_openai_provider(
-        mut self,
-        provider: Arc<dyn brainwires_core::Provider>,
-    ) -> Self {
+    pub fn with_openai_provider(mut self, provider: Arc<dyn brainwires_core::Provider>) -> Self {
         self.openai_provider = Some(provider);
         self
     }
@@ -189,7 +186,8 @@ impl Gateway {
                 use brainwires_telemetry::{AnalyticsCollector, SqliteAnalyticsSink};
                 match SqliteAnalyticsSink::new_default() {
                     Ok(sink) => {
-                        let collector = std::sync::Arc::new(AnalyticsCollector::new(vec![Box::new(sink)]));
+                        let collector =
+                            std::sync::Arc::new(AnalyticsCollector::new(vec![Box::new(sink)]));
                         m.with_analytics(collector)
                     }
                     Err(e) => {
@@ -277,6 +275,10 @@ fn build_router(state: AppState) -> Router {
             .route(
                 &format!("{}/metrics", admin_prefix),
                 get(admin::get_metrics),
+            )
+            .route(
+                &format!("{}/slash/commands", admin_prefix),
+                get(admin::list_slash_commands),
             );
 
         // Cron admin API (only when a cron store is wired in)
@@ -316,7 +318,10 @@ fn build_router(state: AppState) -> Router {
     if state.openai_provider.is_some() {
         app = app
             .route("/v1/models", get(openai_compat::list_models))
-            .route("/v1/chat/completions", post(openai_compat::chat_completions))
+            .route(
+                "/v1/chat/completions",
+                post(openai_compat::chat_completions),
+            )
             .route("/v1/embeddings", post(openai_compat::embeddings));
         tracing::debug!("OpenAI-compatible API endpoint enabled at /v1/");
     }
@@ -341,9 +346,7 @@ async fn ws_upgrade(
 ) -> impl IntoResponse {
     use crate::middleware::OriginValidator;
 
-    let origin = headers
-        .get("origin")
-        .and_then(|v| v.to_str().ok());
+    let origin = headers.get("origin").and_then(|v| v.to_str().ok());
 
     let validator = OriginValidator::new(state.config.allowed_origins.clone());
     if !validator.validate(origin) {
@@ -368,7 +371,7 @@ async fn serve_audio_file(
     axum::extract::Path(filename): axum::extract::Path<String>,
     State(state): State<AppState>,
 ) -> impl IntoResponse {
-    use axum::http::{header, StatusCode};
+    use axum::http::{StatusCode, header};
 
     // Reject any path that tries to escape the audio directory
     if filename.contains('/') || filename.contains("..") {
@@ -392,11 +395,7 @@ async fn serve_audio_file(
             } else {
                 "audio/wav"
             };
-            (
-                [(header::CONTENT_TYPE, mime)],
-                bytes,
-            )
-                .into_response()
+            ([(header::CONTENT_TYPE, mime)], bytes).into_response()
         }
         Err(_) => (StatusCode::NOT_FOUND, "Not found").into_response(),
     }

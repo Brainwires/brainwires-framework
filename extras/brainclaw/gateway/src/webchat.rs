@@ -1,8 +1,8 @@
 //! WebChat channel handler — serves a built-in chat UI and handles WebSocket
 //! connections directly, without requiring an external channel adapter.
 
-use axum::extract::ws::{Message, WebSocket};
 use axum::extract::State;
+use axum::extract::ws::{Message, WebSocket};
 use axum::response::{Html, IntoResponse};
 use chrono::Utc;
 use futures::{SinkExt, StreamExt};
@@ -83,30 +83,28 @@ async fn handle_webchat_connection(ws: WebSocket, state: AppState) {
     // and route through the inbound handler.
     while let Some(result) = ws_receiver.next().await {
         match result {
-            Ok(Message::Text(text)) => {
-                match serde_json::from_str::<ChannelEvent>(&text) {
-                    Ok(event) => {
-                        let router = state.router.clone();
-                        let cid = channel_id;
-                        tokio::spawn(async move {
-                            if let Err(e) = router.handle_inbound(cid, &event).await {
-                                tracing::error!(
-                                    channel_id = %cid,
-                                    error = %e,
-                                    "WebChat: failed to handle inbound event"
-                                );
-                            }
-                        });
-                    }
-                    Err(e) => {
-                        tracing::warn!(
-                            channel_id = %channel_id,
-                            error = %e,
-                            "WebChat: failed to deserialize event"
-                        );
-                    }
+            Ok(Message::Text(text)) => match serde_json::from_str::<ChannelEvent>(&text) {
+                Ok(event) => {
+                    let router = state.router.clone();
+                    let cid = channel_id;
+                    tokio::spawn(async move {
+                        if let Err(e) = router.handle_inbound(cid, &event).await {
+                            tracing::error!(
+                                channel_id = %cid,
+                                error = %e,
+                                "WebChat: failed to handle inbound event"
+                            );
+                        }
+                    });
                 }
-            }
+                Err(e) => {
+                    tracing::warn!(
+                        channel_id = %channel_id,
+                        error = %e,
+                        "WebChat: failed to deserialize event"
+                    );
+                }
+            },
             Ok(Message::Close(_)) => {
                 tracing::info!(channel_id = %channel_id, "WebChat client sent close frame");
                 break;

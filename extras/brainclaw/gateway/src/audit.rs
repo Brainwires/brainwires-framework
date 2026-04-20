@@ -16,15 +16,9 @@ const MAX_RING_ENTRIES: usize = 1000;
 #[serde(tag = "event_type")]
 pub enum AuditEvent {
     /// Failed authentication attempt.
-    AuthFailure {
-        source: String,
-        reason: String,
-    },
+    AuthFailure { source: String, reason: String },
     /// Message dropped due to rate limiting.
-    RateLimited {
-        platform: String,
-        user_id: String,
-    },
+    RateLimited { platform: String, user_id: String },
     /// System-message spoofing detected and blocked.
     SpoofingDetected {
         platform: String,
@@ -55,9 +49,7 @@ pub enum AuditEvent {
         session_id: String,
     },
     /// Webhook signature verification failed.
-    WebhookAuthFailure {
-        reason: String,
-    },
+    WebhookAuthFailure { reason: String },
 }
 
 /// Timestamped audit entry.

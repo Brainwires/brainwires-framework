@@ -118,11 +118,7 @@ impl MediaProcessor {
             .and_then(|n| n.to_str())
             .unwrap_or("unknown");
         let metadata = std::fs::metadata(path).context("Failed to read image metadata")?;
-        Ok(format!(
-            "[Image: {}, {} bytes]",
-            filename,
-            metadata.len()
-        ))
+        Ok(format!("[Image: {}, {} bytes]", filename, metadata.len()))
     }
 
     /// Produce a transcription for an audio file.
@@ -240,9 +236,7 @@ impl MediaProcessor {
             self.transcribe_audio(&path).await
         } else {
             let filename = &attachment.filename;
-            let size = std::fs::metadata(&path)
-                .map(|m| m.len())
-                .unwrap_or(0);
+            let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
             Ok(format!("[File: {}, {} bytes]", filename, size))
         };
 

@@ -1,9 +1,9 @@
 //! Admin API handlers for gateway monitoring and control.
 
+use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
-use axum::Json;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -176,6 +176,19 @@ pub async fn get_metrics(
     Ok(Json(state.metrics.snapshot()))
 }
 
+/// GET /admin/slash/commands — list available in-chat slash commands.
+pub async fn list_slash_commands(
+    headers: HeaderMap,
+    State(state): State<AppState>,
+) -> Result<impl IntoResponse, StatusCode> {
+    check_admin_auth(&headers, &state.config)?;
+    let entries: Vec<serde_json::Value> = crate::slash::help_entries()
+        .iter()
+        .map(|(cmd, desc)| json!({ "command": cmd, "description": desc }))
+        .collect();
+    Ok(Json(entries))
+}
+
 // ---------------------------------------------------------------------------
 // Cron admin API
 // ---------------------------------------------------------------------------
@@ -216,8 +229,7 @@ pub async fn create_cron_job(
     check_admin_auth(&headers, &state.config)?;
     let store = state.cron_store.as_ref().ok_or(StatusCode::NOT_FOUND)?;
 
-    CronJob::validate_schedule(&payload.schedule)
-        .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+    CronJob::validate_schedule(&payload.schedule).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
 
     let job = CronJob {
         id: Uuid::new_v4(),
@@ -263,8 +275,7 @@ pub async fn update_cron_job(
 
     let mut job = store.get(id).await.ok_or(StatusCode::NOT_FOUND)?;
 
-    CronJob::validate_schedule(&payload.schedule)
-        .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+    CronJob::validate_schedule(&payload.schedule).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
 
     job.name = payload.name;
     job.schedule = payload.schedule;
@@ -365,13 +376,10 @@ pub async fn unlink_identity(
 ) -> Result<impl IntoResponse, StatusCode> {
     check_admin_auth(&headers, &state.config)?;
     let store = state.identity_store.as_ref().ok_or(StatusCode::NOT_FOUND)?;
-    let old_id = store
-        .unlink(&payload)
-        .await
-        .map_err(|e| {
-            tracing::error!(error = %e, "Failed to unlink identity");
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+    let old_id = store.unlink(&payload).await.map_err(|e| {
+        tracing::error!(error = %e, "Failed to unlink identity");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
     match old_id {
         Some(id) => Ok(Json(json!({ "unlinked_from": id, "identity": payload })).into_response()),
         None => Ok(StatusCode::NOT_FOUND.into_response()),
