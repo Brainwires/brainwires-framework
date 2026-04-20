@@ -704,6 +704,43 @@ fn check_channel_credentials(config: &BrainClawConfig) -> Vec<CheckResult> {
                 ));
                 continue;
             }
+            "imessage" | "bluebubbles" => {
+                out.extend(check_multi_env(
+                    &name,
+                    &["BB_SERVER_URL", "BB_PASSWORD"],
+                ));
+                continue;
+            }
+            "nextcloud_talk" | "nextcloud-talk" | "nextcloudtalk" => {
+                out.extend(check_multi_env(
+                    &name,
+                    &[
+                        "NEXTCLOUD_URL",
+                        "NEXTCLOUD_USERNAME",
+                        "NEXTCLOUD_APP_PASSWORD",
+                        "NEXTCLOUD_ROOMS",
+                    ],
+                ));
+                continue;
+            }
+            "line" => {
+                out.extend(check_multi_env(
+                    &name,
+                    &["LINE_CHANNEL_SECRET", "LINE_CHANNEL_ACCESS_TOKEN"],
+                ));
+                continue;
+            }
+            "feishu" | "lark" => {
+                out.extend(check_multi_env(
+                    &name,
+                    &[
+                        "FEISHU_APP_ID",
+                        "FEISHU_APP_SECRET",
+                        "FEISHU_VERIFICATION_TOKEN",
+                    ],
+                ));
+                continue;
+            }
             _ => {}
         }
         let env_var = match ch.to_ascii_lowercase().as_str() {
@@ -1186,5 +1223,23 @@ mod tests {
         assert!(rows.iter().any(|r| r.name.contains("google_chat")));
         assert!(rows.iter().any(|r| r.name.contains("teams")));
         assert!(rows.iter().any(|r| r.name.contains("irc")));
+    }
+
+    #[test]
+    fn batch2_channel_types_expand_to_multi_env_rows() {
+        let mut cfg = BrainClawConfig::default();
+        cfg.security.allowed_channel_types = vec![
+            "imessage".into(),
+            "nextcloud_talk".into(),
+            "line".into(),
+            "feishu".into(),
+        ];
+        let rows = check_channel_credentials(&cfg);
+        // imessage: 2, nextcloud_talk: 4, line: 2, feishu: 3 → 11
+        assert_eq!(rows.len(), 11);
+        assert!(rows.iter().any(|r| r.name.contains("imessage")));
+        assert!(rows.iter().any(|r| r.name.contains("nextcloud_talk")));
+        assert!(rows.iter().any(|r| r.name.contains("line")));
+        assert!(rows.iter().any(|r| r.name.contains("feishu")));
     }
 }

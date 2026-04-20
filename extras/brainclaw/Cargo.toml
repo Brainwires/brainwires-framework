@@ -14,6 +14,10 @@ members = [
     "mcp-google-chat",
     "mcp-teams",
     "mcp-irc",
+    "mcp-imessage",
+    "mcp-nextcloud-talk",
+    "mcp-line",
+    "mcp-feishu",
 ]
 resolver = "2"
 
