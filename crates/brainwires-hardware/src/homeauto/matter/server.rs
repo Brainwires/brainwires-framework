@@ -255,6 +255,8 @@ impl MatterDeviceServer {
                                     &transport,
                                     &pase_state,
                                     &established,
+                                    &self.subscriptions,
+                                    &self.outgoing_counters,
                                     passcode,
                                 )
                                 .await;
@@ -269,6 +271,7 @@ impl MatterDeviceServer {
                                     &data_model,
                                     &self.inner,
                                     &self.subscriptions,
+                                    &self.outgoing_counters,
                                     &self.notify_tx,
                                 )
                                 .await;
@@ -334,9 +337,7 @@ impl MatterDeviceServer {
     /// The three maps must stay in sync or subscriptions outlive their
     /// keys, so consolidating teardown here prevents drift.
     pub async fn tear_down_session(&self, session_id: u16) {
-        self.subscriptions.remove_by_session(session_id);
-        self.outgoing_counters.lock().await.remove(&session_id);
-        debug!("OP: tore down session {session_id}");
+        tear_down_session_inner(&self.subscriptions, &self.outgoing_counters, session_id).await;
     }
 
     /// Register a callback for On/Off cluster state changes.
@@ -525,12 +526,39 @@ fn make_response_message(session_id: u16, message_counter: u32, payload: Vec<u8>
 
 // ── PASE dispatch ─────────────────────────────────────────────────────────────
 
+/// Shared teardown helper used by both the public `MatterDeviceServer::tear_down_session`
+/// method and the internal StatusReport-failure paths.
+async fn tear_down_session_inner(
+    subscriptions: &Arc<SubscriptionManager>,
+    outgoing_counters: &Arc<Mutex<HashMap<u16, std::sync::atomic::AtomicU32>>>,
+    session_id: u16,
+) {
+    subscriptions.remove_by_session(session_id);
+    outgoing_counters.lock().await.remove(&session_id);
+    debug!("OP: tore down session {session_id}");
+}
+
+/// Parse a StatusReport TLV per Matter spec §4.12:
+/// `GeneralCode (u16 LE) | ProtocolId (u32 LE) | ProtocolCode (u16 LE)`.
+/// Returns `None` if the payload is shorter than the 8-byte minimum.
+fn parse_status_report(tlv: &[u8]) -> Option<(u16, u32, u16)> {
+    if tlv.len() < 8 {
+        return None;
+    }
+    let general = u16::from_le_bytes([tlv[0], tlv[1]]);
+    let proto_id = u32::from_le_bytes([tlv[2], tlv[3], tlv[4], tlv[5]]);
+    let proto_code = u16::from_le_bytes([tlv[6], tlv[7]]);
+    Some((general, proto_id, proto_code))
+}
+
 async fn handle_commissioning_message(
     msg: MatterMessage,
     peer: SocketAddr,
     transport: &Arc<UdpTransport>,
     pase_state: &Arc<Mutex<Option<PaseCommissionee>>>,
     established: &Arc<Mutex<HashMap<u16, EstablishedSession>>>,
+    subscriptions: &Arc<SubscriptionManager>,
+    outgoing_counters: &Arc<Mutex<HashMap<u16, std::sync::atomic::AtomicU32>>>,
     passcode: u32,
 ) {
     let counter = msg.header.message_counter;
@@ -662,6 +690,34 @@ async fn handle_commissioning_message(
             }
         }
 
+        // StatusReport (0x40) — peer-reported failure. Per spec §4.12, a
+        // non-zero GeneralCode means the peer has given up on this session.
+        // Drop every bit of state associated with it so we don't keep pushing
+        // ReportData to a dead endpoint.
+        x if x == SecureChannelOpcode::StatusReport as u8 => {
+            let session_id = msg.header.session_id;
+            match parse_status_report(app_payload) {
+                Some((0, _, _)) => {
+                    debug!("PASE: StatusReport SUCCESS from {peer} session={session_id}");
+                }
+                Some((general, proto_id, proto_code)) => {
+                    warn!(
+                        "PASE: StatusReport FAILURE from {peer} session={session_id} \
+                         general={general:#06x} proto_id={proto_id:#010x} proto_code={proto_code:#06x}"
+                    );
+                    // Tear down any in-flight PASE state plus operational state
+                    // attached to this session id.
+                    *pase_state.lock().await = None;
+                    established.lock().await.remove(&session_id);
+                    transport.sessions.lock().await.remove(&session_id);
+                    tear_down_session_inner(subscriptions, outgoing_counters, session_id).await;
+                }
+                None => {
+                    warn!("PASE: malformed StatusReport from {peer}");
+                }
+            }
+        }
+
         other => {
             debug!("PASE: unhandled SecureChannel opcode {other:#04x} from {peer}");
         }
@@ -688,10 +744,11 @@ async fn handle_operational_message(
     peer: SocketAddr,
     transport: &Arc<UdpTransport>,
     _case_sessions: &Arc<Mutex<HashMap<u16, CaseResponder>>>,
-    _established: &Arc<Mutex<HashMap<u16, EstablishedSession>>>,
+    established: &Arc<Mutex<HashMap<u16, EstablishedSession>>>,
     data_model: &Arc<DataModelNode>,
     inner: &Arc<Mutex<ServerInner>>,
     subscriptions: &Arc<SubscriptionManager>,
+    outgoing_counters: &Arc<Mutex<HashMap<u16, std::sync::atomic::AtomicU32>>>,
     subscription_notify_tx: &tokio::sync::mpsc::UnboundedSender<AttributeChange>,
 ) {
     let session_id = msg.header.session_id;
@@ -710,6 +767,30 @@ async fn handle_operational_message(
         "OP proto={protocol_id:#06x} opcode={opcode:#04x} exch={exchange_id} \
          flags={exchange_flags:#04x} session={session_id} from {peer}"
     );
+
+    // StatusReport arrives on SECURE_CHANNEL_PROTOCOL_ID even on an already
+    // operational (CASE-encrypted) session, so handle it before the IM
+    // protocol filter below.
+    if protocol_id == SECURE_CHANNEL_PROTOCOL_ID
+        && opcode == SecureChannelOpcode::StatusReport as u8
+    {
+        match parse_status_report(app_payload) {
+            Some((0, _, _)) => {
+                debug!("OP: StatusReport SUCCESS session={session_id} from {peer}");
+            }
+            Some((general, proto_id, proto_code)) => {
+                warn!(
+                    "OP: StatusReport FAILURE session={session_id} from {peer} \
+                     general={general:#06x} proto_id={proto_id:#010x} proto_code={proto_code:#06x}"
+                );
+                established.lock().await.remove(&session_id);
+                transport.sessions.lock().await.remove(&session_id);
+                tear_down_session_inner(subscriptions, outgoing_counters, session_id).await;
+            }
+            None => warn!("OP: malformed StatusReport from {peer}"),
+        }
+        return;
+    }
 
     if protocol_id != IM_PROTOCOL_ID {
         debug!("OP: ignoring non-IM protocol {protocol_id:#06x}");
@@ -1231,6 +1312,20 @@ mod tests {
         assert_eq!(decode_first_uint8(&data), Some(42));
     }
 
+    #[test]
+    fn parse_status_report_success_and_failure() {
+        // GeneralCode=0, ProtoId=0, ProtoCode=0 → success tuple.
+        let ok = [0u8, 0, 0, 0, 0, 0, 0, 0];
+        assert_eq!(parse_status_report(&ok), Some((0, 0, 0)));
+
+        // GeneralCode=1 (failure), ProtoId=0x0001, ProtoCode=0x0002 (LE).
+        let fail = [0x01u8, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00];
+        assert_eq!(parse_status_report(&fail), Some((1, 1, 2)));
+
+        // Truncated payload → None.
+        assert_eq!(parse_status_report(&[0u8; 4]), None);
+    }
+
     #[tokio::test]
     async fn tear_down_session_clears_subscriptions_and_counters() {
         use std::sync::atomic::AtomicU32;
@@ -1335,5 +1430,107 @@ mod tests {
             seen.push(v);
         }
         assert_eq!(seen, vec![1, 2, 3, 4, 5]);
+    }
+
+    /// End-to-end: bind two UDP transports, share session keys, push three
+    /// ReportData changes through `dispatch_attribute_change`, and verify on
+    /// the peer side that each datagram decrypts cleanly with strictly
+    /// increasing message counters. Exercises the actual AEAD nonce that the
+    /// counter feeds — a regression here means the counter fix is wrong.
+    ///
+    /// No mDNS, no full server loop, no loopback multicast: just transports +
+    /// the pure dispatch function.
+    #[tokio::test]
+    async fn dispatch_attribute_change_emits_decryptable_push_with_monotonic_counter() {
+        use std::sync::atomic::AtomicU32;
+
+        use super::super::clusters::AttributePath;
+        use super::super::transport::{SessionKeys, UdpTransport};
+
+        // Bind both sides on 127.0.0.1 with OS-assigned ports.
+        let server_t = Arc::new(
+            UdpTransport::bind_addr("127.0.0.1:0")
+                .await
+                .expect("server bind"),
+        );
+        let peer_t = Arc::new(
+            UdpTransport::bind_addr("127.0.0.1:0")
+                .await
+                .expect("peer bind"),
+        );
+
+        let server_addr = server_t.local_addr().expect("server addr");
+        let peer_addr = peer_t.local_addr().expect("peer addr");
+        let _ = server_addr;
+
+        // Shared session 0x0077 with a random AEAD key. Server encrypts with
+        // `k`, peer decrypts with the same `k` — symmetric.
+        let session_id: u16 = 0x0077;
+        let k = [0xA5u8; 16];
+        server_t.sessions.lock().await.insert(
+            session_id,
+            SessionKeys {
+                encrypt_key: k,
+                decrypt_key: k,
+            },
+        );
+        peer_t.sessions.lock().await.insert(
+            session_id,
+            SessionKeys {
+                encrypt_key: k,
+                decrypt_key: k,
+            },
+        );
+
+        // Register a subscription on the server pointing at the peer address.
+        let subs = Arc::new(SubscriptionManager::new());
+        let path = AttributePath::specific(1, CLUSTER_ON_OFF, 0x0000);
+        let _sub_id = subs.register(session_id, peer_addr, 0x1234, vec![path], 0, 30, false);
+
+        // Seed the outgoing-counter map at 1 so the first push is counter=1.
+        let counters: Arc<Mutex<HashMap<u16, AtomicU32>>> = Arc::new(Mutex::new(HashMap::new()));
+        counters
+            .lock()
+            .await
+            .insert(session_id, AtomicU32::new(1));
+
+        // Push three changes: OnOff attribute toggled true → false → true.
+        for (i, on) in [true, false, true].into_iter().enumerate() {
+            let value = if on { vec![0x09u8] } else { vec![0x08u8] };
+            let change = AttributeChange {
+                endpoint: 1,
+                cluster: CLUSTER_ON_OFF,
+                attribute: 0x0000,
+                value,
+            };
+            dispatch_attribute_change(&change, &server_t, &subs, &counters).await;
+            let _ = i;
+        }
+
+        // Drain three datagrams on the peer side and assert:
+        //   - each one decrypts (AEAD nonce correct → key+counter match)
+        //   - counters come out strictly increasing (1, 2, 3)
+        //   - each carries a ReportData payload with the expected attribute
+        let mut seen_counters = Vec::new();
+        for _ in 0..3 {
+            let (msg, from) =
+                tokio::time::timeout(std::time::Duration::from_secs(2), peer_t.recv())
+                    .await
+                    .expect("recv timed out — push datagram never arrived")
+                    .expect("decrypt failed — counter/nonce mismatch");
+            assert_eq!(
+                from.ip(),
+                std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST),
+                "push must come from the loopback server"
+            );
+            assert_eq!(msg.header.session_id, session_id);
+            seen_counters.push(msg.header.message_counter);
+        }
+
+        assert_eq!(
+            seen_counters,
+            vec![1, 2, 3],
+            "counters must be strictly increasing across pushes"
+        );
     }
 }

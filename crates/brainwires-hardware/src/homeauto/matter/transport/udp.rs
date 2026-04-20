@@ -203,6 +203,14 @@ impl UdpTransport {
         }
     }
 
+    /// Local address the transport is bound to.
+    ///
+    /// Useful in tests that bind to an ephemeral port (`127.0.0.1:0`) and
+    /// need to know which port the OS assigned.
+    pub fn local_addr(&self) -> std::io::Result<SocketAddr> {
+        self.socket.local_addr()
+    }
+
     /// Register session keys for a given session ID.
     ///
     /// This is called by the commissioning layer once SPAKE2+ is complete and
