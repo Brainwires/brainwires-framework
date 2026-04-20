@@ -35,6 +35,9 @@ pub mod router;
 // Re-export key types for external consumers.
 pub use agent_handler::AgentInboundHandler;
 pub use router::InboundHandler;
+/// Gmail push ingestion via Google Pub/Sub (OpenClaw parity P3.1).
+#[cfg(feature = "email-push")]
+pub mod gmail_push;
 /// Media processing pipeline for attachments.
 pub mod media;
 /// In-memory metrics collection.

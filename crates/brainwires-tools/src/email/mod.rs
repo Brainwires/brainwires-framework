@@ -1,5 +1,17 @@
 //! Email tools: send, search, read, and list email messages via IMAP/SMTP.
+//!
+//! Inbound email can be ingested two ways:
+//!
+//! - **IMAP polling** — the historical path, driven by [`ImapClient`].
+//! - **Gmail push** — the low-latency path, driven by [`gmail_push::GmailPushHandler`].
+//!   Gmail delivers Pub/Sub webhooks to the BrainClaw gateway which
+//!   authenticates Google's signed JWT and pulls the new messages via the
+//!   Gmail REST API.
+//!
+//! When both are configured for the same account, Gmail push wins — see
+//! [`EmailSource`] and the startup warning emitted by the daemon.
 
+pub mod gmail_push;
 pub mod imap_client;
 pub mod smtp_client;
 pub mod types;
@@ -15,6 +27,21 @@ use brainwires_core::{Tool, ToolContext, ToolInputSchema, ToolResult};
 use self::imap_client::ImapClient;
 use self::smtp_client::SmtpClient;
 use self::types::EmailSearchQuery;
+
+/// Where inbound email for an account is pulled from.
+///
+/// This is an operator-facing configuration pivot: each account may be
+/// connected via classical IMAP polling *or* Gmail Pub/Sub push. When
+/// both are configured for the same address, BrainClaw prefers push and
+/// suppresses IMAP to avoid double delivery. See the daemon startup logs
+/// for the warning that documents the choice.
+#[derive(Debug, Clone)]
+pub enum EmailSource {
+    /// Classical IMAP polling — the historical path.
+    Imap(EmailConfig),
+    /// Gmail push via Google Pub/Sub — the low-latency path.
+    GmailPush(gmail_push::GmailPushConfig),
+}
 
 /// Email provider configuration variants.
 #[derive(Debug, Clone, Serialize, Deserialize)]

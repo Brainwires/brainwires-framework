@@ -223,8 +223,117 @@ async fn run_all_checks(config: &BrainClawConfig, _config_path: Option<&Path>) -
     out.push(check_memory(config));
     out.push(check_disk_space(config));
     out.push(check_ports(config).await);
+    out.extend(check_gmail_push(config).await);
 
     out
+}
+
+/// `gmail-push` — one row per configured account.
+///
+/// Verifies that an OAuth token is reachable and, when reachable, asks
+/// Gmail to register (or refresh) the watch. A successful `users.watch`
+/// response is treated as Pass; a 4xx is Fail (token/scope problem);
+/// anything else is Warn.
+///
+/// The OAuth refresh path is not implemented here — if the token is
+/// expired, Gmail responds 401 and this check reports Fail. That is the
+/// correct and intended behaviour for now: operators must supply a
+/// fresh token (typically from the BrainClaw OAuth skill or a paired
+/// Google Cloud service account).
+async fn check_gmail_push(config: &BrainClawConfig) -> Vec<CheckResult> {
+    if !config.gmail_push.enabled {
+        return vec![CheckResult::skip(
+            "gmail-push",
+            "gmail_push.enabled = false",
+        )];
+    }
+    if config.gmail_push.accounts.is_empty() {
+        return vec![CheckResult::warn(
+            "gmail-push",
+            "gmail_push.enabled but no accounts configured",
+        )];
+    }
+
+    #[cfg(not(feature = "email-push"))]
+    {
+        return vec![CheckResult::warn(
+            "gmail-push",
+            "daemon built without the `email-push` feature; Gmail push is disabled at runtime",
+        )];
+    }
+
+    #[cfg(feature = "email-push")]
+    {
+        use brainwires_tools::gmail_push::{GmailPushConfig, GmailPushHandler};
+
+        let mut out = Vec::new();
+        for acct in &config.gmail_push.accounts {
+            let name = format!("gmail-push:{}", acct.email_address);
+            let token = match (&acct.oauth_token_env, &acct.oauth_token) {
+                (Some(env), _) => match std::env::var(env) {
+                    Ok(v) if !v.is_empty() => v,
+                    _ => {
+                        out.push(
+                            CheckResult::fail(
+                                name.clone(),
+                                format!("oauth_token_env '{env}' is not set"),
+                            )
+                            .with_hint(format!("export {env}=... before starting the daemon")),
+                        );
+                        continue;
+                    }
+                },
+                (None, Some(inline)) if !inline.is_empty() => inline.clone(),
+                _ => {
+                    out.push(
+                        CheckResult::fail(name.clone(), "no oauth_token_env or oauth_token set")
+                            .with_hint("set gmail_push.accounts.[..].oauth_token_env"),
+                    );
+                    continue;
+                }
+            };
+
+            let cfg = GmailPushConfig {
+                project_id: acct.project_id.clone(),
+                topic_name: acct.topic_name.clone(),
+                push_audience: acct.push_audience.clone(),
+                watched_label_ids: if acct.watched_label_ids.is_empty() {
+                    vec!["INBOX".to_string()]
+                } else {
+                    acct.watched_label_ids.clone()
+                },
+                oauth_token: token,
+                gmail_base_url: None,
+            };
+            let handler = GmailPushHandler::new(cfg);
+            // Bound the network call so `doctor` stays fast.
+            match tokio::time::timeout(Duration::from_secs(10), handler.register_watch()).await {
+                Ok(Ok(resp)) => out.push(CheckResult::pass(
+                    name,
+                    format!(
+                        "watch registered (history_id={}, expires {})",
+                        resp.history_id, resp.expiration
+                    ),
+                )),
+                Ok(Err(e)) => {
+                    let msg = e.to_string();
+                    let is_auth = msg.contains("401") || msg.contains("403");
+                    let r = if is_auth {
+                        CheckResult::fail(name, format!("users.watch rejected: {msg}"))
+                            .with_hint("refresh the OAuth token — Gmail rejected the current one")
+                    } else {
+                        CheckResult::warn(name, format!("users.watch error: {msg}"))
+                    };
+                    out.push(r);
+                }
+                Err(_) => out.push(CheckResult::warn(
+                    name,
+                    "users.watch timed out after 10s — network slow or offline",
+                )),
+            }
+        }
+        out
+    }
 }
 
 // ── Check implementations ───────────────────────────────────────────────

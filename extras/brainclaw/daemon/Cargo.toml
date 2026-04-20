@@ -58,6 +58,8 @@ futures.workspace = true
 default = ["native-tools", "sandbox"]
 native-tools = ["brainwires-tools/native"]
 email = ["brainwires-tools/email"]
+# Gmail push ingestion via Google Pub/Sub (OpenClaw parity P3.1).
+email-push = ["brainwires-tools/email", "brainwires-gateway/email-push"]
 calendar = ["brainwires-tools/calendar"]
 rag = ["brainwires-tools/rag"]
 browser = ["brainwires-tools/browser"]

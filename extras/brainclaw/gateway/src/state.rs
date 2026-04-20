@@ -19,6 +19,9 @@ use crate::router::InboundHandler;
 use crate::session::SessionManager;
 use crate::webchat::{SharedVerifier, WebChatHistory};
 
+#[cfg(feature = "email-push")]
+use crate::gmail_push::GmailPushRegistry;
+
 /// Shared application state, passed to all axum handlers via Extension.
 #[derive(Clone)]
 pub struct AppState {
@@ -57,4 +60,9 @@ pub struct AppState {
     /// When `None`, history is not retained and `/webchat/history/:id`
     /// returns an empty list.
     pub webchat_history: Option<Arc<WebChatHistory>>,
+    /// Optional Gmail push registry. When `Some`, the gateway exposes
+    /// `POST /webhooks/gmail-push` and authenticates requests against the
+    /// per-account [`GmailPushHandler`]s kept inside.
+    #[cfg(feature = "email-push")]
+    pub gmail_push_registry: Option<Arc<GmailPushRegistry>>,
 }

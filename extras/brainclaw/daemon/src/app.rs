@@ -397,11 +397,27 @@ impl BrainClaw {
             }
         }
 
+        // 7n. Wire Gmail push ingestion.  Each configured account gets a
+        //       long-lived `GmailPushHandler`; the in-memory registry owns
+        //       the per-mailbox cursors and is attached to both the
+        //       gateway (for the webhook) and a background task (for watch
+        //       renewal every ~6 days).  Gmail push and IMAP polling are
+        //       mutually exclusive per account — if both are configured,
+        //       push wins and a warning is emitted on startup.
+        #[cfg(feature = "email-push")]
+        let gmail_push_registry = self.build_gmail_push_registry().await;
+
         // 8. Create Gateway with handler, sharing the same sessions/channels/metrics.
         let handler = Arc::new(handler);
         let mut gateway = Gateway::with_handler(gateway_config.clone(), Arc::clone(&handler) as _)
             .with_shared_state(Arc::clone(&sessions), Arc::clone(&channels))
             .with_metrics(Arc::clone(&metrics));
+
+        #[cfg(feature = "email-push")]
+        if let Some(ref registry) = gmail_push_registry {
+            gateway = gateway.with_gmail_push(Arc::clone(registry));
+            tracing::info!("Gmail push webhook mounted at /webhooks/gmail-push");
+        }
 
         if let Some(audio_dir) = tts_audio_dir {
             gateway = gateway.with_audio_dir(audio_dir);
@@ -464,6 +480,17 @@ impl BrainClaw {
             }
         }
 
+        // 8e. Spawn the Gmail watch-renewal task(s). Gmail watches expire
+        //       after 7 days; we re-register every 6 days with a small
+        //       random jitter so concurrent daemons don't all hammer
+        //       Google at the same second. The task is detached — if
+        //       renewal starts failing the operator finds out via the
+        //       doctor check and the log.
+        #[cfg(feature = "email-push")]
+        if let Some(ref registry) = gmail_push_registry {
+            self.spawn_gmail_watch_renewals(Arc::clone(registry)).await;
+        }
+
         tracing::info!(
             address = %gateway_config.bind_address(),
             "BrainClaw ready"
@@ -471,6 +498,183 @@ impl BrainClaw {
 
         // 9. Run gateway (blocks until shutdown)
         gateway.run().await
+    }
+
+    /// Build the [`GmailPushRegistry`] from config, seeding each handler
+    /// and kicking off an initial watch registration when the cursor
+    /// store has no entry for that mailbox yet.
+    #[cfg(feature = "email-push")]
+    async fn build_gmail_push_registry(
+        &self,
+    ) -> Option<Arc<brainwires_gateway::gmail_push::GmailPushRegistry>> {
+        use brainwires_gateway::gmail_push::{GmailCursorStore, GmailPushRegistry};
+        use brainwires_tools::gmail_push::GmailPushHandler;
+
+        if !self.config.gmail_push.enabled || self.config.gmail_push.accounts.is_empty() {
+            return None;
+        }
+
+        // The email tool (IMAP/SMTP) only runs on demand — it has no
+        // polling loop in this codebase — so there's no double-delivery
+        // to guard against.  Still, warn the operator when the same
+        // mailbox is wired into both: it usually means the config was
+        // copy-pasted.
+        if let Some(ref email) = self.config.email {
+            for acct in &self.config.gmail_push.accounts {
+                if email.username.eq_ignore_ascii_case(&acct.email_address) {
+                    tracing::warn!(
+                        email = %acct.email_address,
+                        "Gmail push is configured for the same account that has IMAP/SMTP credentials. \
+                         Push will deliver inbound messages; the IMAP tool remains available for on-demand search."
+                    );
+                }
+            }
+        }
+
+        let cursor_path = match self.config.gmail_push.cursor_store.clone() {
+            Some(p) => p,
+            None => match dirs::home_dir() {
+                Some(h) => h.join(".brainclaw").join("gmail_cursor.json"),
+                None => {
+                    tracing::warn!(
+                        "Cannot resolve home directory for gmail cursor store; Gmail push disabled"
+                    );
+                    return None;
+                }
+            },
+        };
+
+        let cursors = match GmailCursorStore::load(&cursor_path).await {
+            Ok(c) => Arc::new(c),
+            Err(e) => {
+                tracing::warn!(
+                    error = %e,
+                    path = %cursor_path.display(),
+                    "Failed to open Gmail cursor store; Gmail push disabled"
+                );
+                return None;
+            }
+        };
+        let registry = Arc::new(GmailPushRegistry::new(Arc::clone(&cursors)));
+
+        for acct in &self.config.gmail_push.accounts {
+            // Resolve token again — keeps secrets off our argument list.
+            let token = match (&acct.oauth_token_env, &acct.oauth_token) {
+                (Some(env), _) => match std::env::var(env) {
+                    Ok(v) if !v.is_empty() => v,
+                    _ => continue,
+                },
+                (None, Some(inline)) if !inline.is_empty() => inline.clone(),
+                _ => continue,
+            };
+            let label_ids = if acct.watched_label_ids.is_empty() {
+                vec!["INBOX".to_string()]
+            } else {
+                acct.watched_label_ids.clone()
+            };
+            let cfg = brainwires_tools::gmail_push::GmailPushConfig {
+                project_id: acct.project_id.clone(),
+                topic_name: acct.topic_name.clone(),
+                push_audience: acct.push_audience.clone(),
+                watched_label_ids: label_ids,
+                oauth_token: token,
+                gmail_base_url: None,
+            };
+            let handler = Arc::new(GmailPushHandler::new(cfg));
+            registry
+                .register(acct.email_address.clone(), Arc::clone(&handler))
+                .await;
+            tracing::info!(
+                email = %acct.email_address,
+                topic = %acct.topic_name,
+                "Gmail push handler registered"
+            );
+        }
+
+        Some(registry)
+    }
+
+    /// Spawn background watch-renewal tasks — one per registered mailbox.
+    ///
+    /// Watches expire at 7 days; we renew at 6 days with ±1 hour jitter.
+    /// Failures are logged but do not crash the daemon — the operator can
+    /// re-run `brainclaw gmail-watch register --account <email>` to
+    /// recover.
+    #[cfg(feature = "email-push")]
+    async fn spawn_gmail_watch_renewals(
+        &self,
+        registry: Arc<brainwires_gateway::gmail_push::GmailPushRegistry>,
+    ) {
+        use std::time::Duration;
+        for acct in &self.config.gmail_push.accounts {
+            let email = acct.email_address.clone();
+            let registry = Arc::clone(&registry);
+            tokio::spawn(async move {
+                // Perform an initial registration immediately so Pub/Sub
+                // has a live subscription before the first message lands.
+                if let Some(handler) = registry.get(&email).await {
+                    match brainwires_gateway::gmail_push::register_watch_and_seed(
+                        &handler,
+                        &email,
+                        &registry.cursors(),
+                    )
+                    .await
+                    {
+                        Ok(resp) => {
+                            tracing::info!(
+                                email = %email,
+                                expires = %resp.expiration,
+                                history_id = resp.history_id,
+                                "Gmail watch registered"
+                            );
+                        }
+                        Err(e) => {
+                            tracing::warn!(
+                                email = %email,
+                                error = %e,
+                                "Initial Gmail watch registration failed"
+                            );
+                        }
+                    }
+                }
+                loop {
+                    // 6 days +/- 1 hour.
+                    let base = Duration::from_secs(6 * 24 * 60 * 60);
+                    // Cheap jitter without pulling rand into the daemon
+                    // for this one call — 0..3600 via the nanosecond
+                    // clock.
+                    let jitter_secs = (std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.subsec_nanos() as u64 % 7200)
+                        .unwrap_or(0))
+                    .saturating_sub(3600);
+                    let sleep_for = base + Duration::from_secs(jitter_secs);
+                    tokio::time::sleep(sleep_for).await;
+
+                    if let Some(handler) = registry.get(&email).await {
+                        match handler.register_watch().await {
+                            Ok(resp) => {
+                                tracing::info!(
+                                    email = %email,
+                                    expires = %resp.expiration,
+                                    history_id = resp.history_id,
+                                    "Gmail watch renewed"
+                                );
+                            }
+                            Err(e) => {
+                                tracing::warn!(
+                                    email = %email,
+                                    error = %e,
+                                    "Gmail watch renewal failed; will retry on next cycle"
+                                );
+                            }
+                        }
+                    } else {
+                        break;
+                    }
+                }
+            });
+        }
     }
 
     /// Wrap `builtin` with a `SandboxedToolExecutor` if the `sandbox` feature

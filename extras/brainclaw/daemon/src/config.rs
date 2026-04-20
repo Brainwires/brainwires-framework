@@ -34,6 +34,11 @@ pub struct BrainClawConfig {
     pub hooks: HooksSection,
     /// Email tool settings (requires `email` feature; tool group `"email"` must be in `tools.enabled`).
     pub email: Option<EmailSection>,
+    /// Gmail push ingestion settings (requires `email-push` feature).
+    /// When enabled, inbound Gmail is delivered via Google Pub/Sub instead
+    /// of (or in addition to) IMAP polling.
+    #[serde(default)]
+    pub gmail_push: GmailPushSection,
     /// Calendar tool settings (requires `calendar` feature; tool group `"calendar"` must be in `tools.enabled`).
     pub calendar: Option<CalendarSection>,
     /// Browser automation settings (requires `browser` feature; tool group `"browser"` must be in `tools.enabled`).
@@ -306,6 +311,59 @@ pub struct EmailSection {
 fn default_imap_port() -> u16 {
     993
 }
+
+/// Gmail push (Google Pub/Sub) ingestion configuration.
+///
+/// Each watched Gmail account needs its own entry in `accounts`. When
+/// `enabled = false`, no watches are registered and the webhook is not
+/// exposed — IMAP polling (if configured) remains the only inbound path.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(default)]
+pub struct GmailPushSection {
+    /// Whether Gmail push is enabled.
+    pub enabled: bool,
+    /// Watched Gmail accounts.
+    pub accounts: Vec<GmailAccountConfig>,
+    /// Optional override for the history-cursor JSON file.
+    /// Defaults to `~/.brainclaw/gmail_cursor.json`.
+    pub cursor_store: Option<PathBuf>,
+}
+
+/// One Gmail mailbox pushing into this daemon.
+///
+/// The OAuth token is resolved from either `oauth_token_env` (preferred,
+/// keeps secrets off disk) or `oauth_token` (inline fallback).  When
+/// neither is set and the environment variable isn't present at startup,
+/// the handler for that account is not constructed and a warning is
+/// emitted — the daemon continues to serve other channels.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GmailAccountConfig {
+    /// The mailbox address being watched (used as the lookup key when
+    /// Pub/Sub pushes arrive).
+    pub email_address: String,
+    /// GCP project id that owns the Pub/Sub topic.
+    pub project_id: String,
+    /// Fully-qualified topic name (`projects/<proj>/topics/<topic>`).
+    pub topic_name: String,
+    /// Expected `aud` claim on the Google-signed push JWT.
+    pub push_audience: String,
+    /// Gmail labels to watch — defaults to `["INBOX"]`.
+    #[serde(default = "default_inbox_labels")]
+    pub watched_label_ids: Vec<String>,
+    /// Name of the environment variable that holds the user's Gmail
+    /// OAuth 2.0 access token.  Mutually exclusive with `oauth_token`.
+    #[serde(default)]
+    pub oauth_token_env: Option<String>,
+    /// Inline OAuth 2.0 access token (dev/testing only). Prefer
+    /// `oauth_token_env` in production so secrets are never written to
+    /// disk.
+    #[serde(default)]
+    pub oauth_token: Option<String>,
+}
+
+fn default_inbox_labels() -> Vec<String> {
+    vec!["INBOX".to_string()]
+}
 fn default_smtp_port() -> u16 {
     587
 }
@@ -567,6 +625,7 @@ impl Default for BrainClawConfig {
             cron: CronSection::default(),
             hooks: HooksSection::default(),
             email: None,
+            gmail_push: GmailPushSection::default(),
             calendar: None,
             browser: None,
             voice: None,
@@ -808,6 +867,60 @@ impl BrainClawConfig {
                 from_address: e.from_address.clone(),
             })
         })
+    }
+
+    /// Build [`GmailPushConfig`]s from the `[gmail_push]` section.
+    ///
+    /// Returns `None` when the section is disabled or contains no
+    /// accounts.  Individual account entries with missing OAuth tokens
+    /// are skipped with a warning — the returned list only holds
+    /// well-formed configs ready for [`brainwires_tools::gmail_push::GmailPushHandler::new`].
+    #[cfg(feature = "email-push")]
+    pub fn to_gmail_push_configs(
+        &self,
+    ) -> Option<Vec<brainwires_tools::gmail_push::GmailPushConfig>> {
+        use brainwires_tools::gmail_push::GmailPushConfig;
+        if !self.gmail_push.enabled || self.gmail_push.accounts.is_empty() {
+            return None;
+        }
+        let mut out = Vec::with_capacity(self.gmail_push.accounts.len());
+        for acct in &self.gmail_push.accounts {
+            let token = match (&acct.oauth_token_env, &acct.oauth_token) {
+                (Some(env), _) => match std::env::var(env) {
+                    Ok(v) if !v.is_empty() => v,
+                    _ => {
+                        tracing::warn!(
+                            email = %acct.email_address,
+                            env = %env,
+                            "Gmail push: OAuth token env var is not set; skipping account"
+                        );
+                        continue;
+                    }
+                },
+                (None, Some(inline)) if !inline.is_empty() => inline.clone(),
+                _ => {
+                    tracing::warn!(
+                        email = %acct.email_address,
+                        "Gmail push: account has no oauth_token_env or oauth_token; skipping"
+                    );
+                    continue;
+                }
+            };
+            let label_ids = if acct.watched_label_ids.is_empty() {
+                vec!["INBOX".to_string()]
+            } else {
+                acct.watched_label_ids.clone()
+            };
+            out.push(GmailPushConfig {
+                project_id: acct.project_id.clone(),
+                topic_name: acct.topic_name.clone(),
+                push_audience: acct.push_audience.clone(),
+                watched_label_ids: label_ids,
+                oauth_token: token,
+                gmail_base_url: None,
+            });
+        }
+        if out.is_empty() { None } else { Some(out) }
     }
 
     /// Build a [`CalendarConfig`] from the `[calendar]` section.

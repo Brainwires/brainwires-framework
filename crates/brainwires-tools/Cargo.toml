@@ -74,6 +74,12 @@ native-tls = { version = "0.2", optional = true }
 futures = { workspace = true, optional = true }
 mailparse = { version = "0.15", optional = true }
 base64 = { version = "0.22", optional = true }
+# Gmail push (behind email feature) — RS256 JWT verification for Google-signed Pub/Sub push tokens
+jsonwebtoken = { version = "9", optional = true }
+parking_lot = { version = "0.12", optional = true }
+
+# URL encoding (calendar + gmail push)
+urlencoding = { version = "2", optional = true }
 
 # Calendar tools (behind calendar feature)
 icalendar = { version = "0.16", optional = true }
@@ -128,8 +134,22 @@ interpreters-python = []
 interpreters-all = ["interpreters-rhai", "interpreters-lua", "interpreters-js"]
 interpreters-wasm = ["dep:wasm-bindgen", "dep:js-sys", "dep:web-sys", "dep:getrandom", "dep:serde-wasm-bindgen"]
 openapi = ["dep:openapiv3", "dep:serde_yml", "dep:reqwest"]
-email = ["dep:lettre", "dep:async-imap", "dep:imap-proto", "dep:tokio-native-tls", "dep:native-tls", "dep:futures", "dep:mailparse", "dep:base64"]
-calendar = ["dep:icalendar", "dep:reqwest"]
+email = [
+    "dep:lettre",
+    "dep:async-imap",
+    "dep:imap-proto",
+    "dep:tokio-native-tls",
+    "dep:native-tls",
+    "dep:futures",
+    "dep:mailparse",
+    "dep:base64",
+    "dep:jsonwebtoken",
+    "dep:parking_lot",
+    "dep:reqwest",
+    "dep:chrono",
+    "dep:urlencoding",
+]
+calendar = ["dep:icalendar", "dep:reqwest", "dep:urlencoding"]
 browser = ["dep:brainwires-mcp", "native"]
 # OAuth 2.0 middleware — PKCE, client credentials, token refresh, pluggable store
 oauth = ["native", "dep:getrandom"]

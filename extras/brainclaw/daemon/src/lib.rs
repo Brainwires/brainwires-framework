@@ -20,5 +20,6 @@ pub mod tools;
 
 pub use app::BrainClaw;
 pub use config::BrainClawConfig;
+pub use config::{GmailAccountConfig, GmailPushSection};
 pub use persona::Persona;
 pub use skill_handler::SkillHandler;

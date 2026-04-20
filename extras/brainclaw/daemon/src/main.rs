@@ -54,6 +54,32 @@ enum Commands {
     Doctor(DoctorArgs),
     /// Interactive setup wizard — writes a ready-to-use `brainclaw.toml`.
     Onboard(OnboardArgs),
+    /// Manage Gmail Pub/Sub watches (register, status, reset cursor).
+    #[cfg(feature = "email-push")]
+    #[command(subcommand)]
+    GmailWatch(GmailWatchCmd),
+}
+
+/// `brainclaw gmail-watch ...` subcommands.
+#[cfg(feature = "email-push")]
+#[derive(Subcommand)]
+enum GmailWatchCmd {
+    /// Register (or re-register) the Gmail watch for a configured account.
+    Register {
+        /// Email address of the watched mailbox. Must appear in
+        /// `gmail_push.accounts`.
+        #[arg(long)]
+        account: String,
+    },
+    /// Print the current status of each configured Gmail watch.
+    Status,
+    /// Reset the persisted history cursor for an account so the next
+    /// push replays from the beginning of the available history window.
+    ResetCursor {
+        /// Email address to reset.
+        #[arg(long)]
+        account: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -116,12 +142,109 @@ async fn main() -> Result<()> {
             }
             onboard::run(&args).await?;
         }
+        #[cfg(feature = "email-push")]
+        Some(Commands::GmailWatch(ref cmd)) => {
+            gmail_watch_cmd(&cli, cmd).await?;
+        }
         Some(Commands::Serve) | None => {
             serve(cli).await?;
         }
     }
 
     Ok(())
+}
+
+#[cfg(feature = "email-push")]
+async fn gmail_watch_cmd(cli: &Cli, cmd: &GmailWatchCmd) -> Result<()> {
+    use brainwires_gateway::gmail_push::{GmailCursorStore, register_watch_and_seed};
+
+    let config = load_config(cli)?;
+    if !config.gmail_push.enabled {
+        anyhow::bail!("gmail_push.enabled = false; edit brainclaw.toml first");
+    }
+
+    let cursor_path = match config.gmail_push.cursor_store.clone() {
+        Some(p) => p,
+        None => dirs::home_dir()
+            .ok_or_else(|| anyhow::anyhow!("HOME not set; can't resolve cursor store path"))?
+            .join(".brainclaw")
+            .join("gmail_cursor.json"),
+    };
+    let cursors = GmailCursorStore::load(&cursor_path).await?;
+
+    match cmd {
+        GmailWatchCmd::Register { account } => {
+            let acct = config
+                .gmail_push
+                .accounts
+                .iter()
+                .find(|a| a.email_address.eq_ignore_ascii_case(account))
+                .ok_or_else(|| anyhow::anyhow!("no gmail_push account matches {account}"))?;
+            let handler = build_handler_from_acct(acct)?;
+            let resp = register_watch_and_seed(&handler, &acct.email_address, &cursors).await?;
+            println!(
+                "registered: {} (history_id={}, expires={})",
+                acct.email_address, resp.history_id, resp.expiration
+            );
+        }
+        GmailWatchCmd::Status => {
+            if config.gmail_push.accounts.is_empty() {
+                println!("(no accounts configured)");
+                return Ok(());
+            }
+            println!("cursor store: {}", cursor_path.display());
+            for acct in &config.gmail_push.accounts {
+                let cursor = cursors
+                    .get(&acct.email_address)
+                    .await
+                    .map(|h| h.to_string())
+                    .unwrap_or_else(|| "(none)".to_string());
+                let token_src = match (&acct.oauth_token_env, &acct.oauth_token) {
+                    (Some(env), _) => format!("env:{env}"),
+                    (None, Some(_)) => "inline".to_string(),
+                    _ => "missing".to_string(),
+                };
+                println!(
+                    "  {}  topic={}  cursor={}  token={}",
+                    acct.email_address, acct.topic_name, cursor, token_src
+                );
+            }
+        }
+        GmailWatchCmd::ResetCursor { account } => {
+            // Set cursor to 0 so the next push reads the full available
+            // history window. (Gmail caps this at ~30 days server-side,
+            // so this is safe even for very old mailboxes.)
+            cursors.put(account, 0).await?;
+            println!("cursor reset for {account}");
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "email-push")]
+fn build_handler_from_acct(
+    acct: &brainclaw::GmailAccountConfig,
+) -> Result<brainwires_tools::gmail_push::GmailPushHandler> {
+    use brainwires_tools::gmail_push::{GmailPushConfig, GmailPushHandler};
+    let token = match (&acct.oauth_token_env, &acct.oauth_token) {
+        (Some(env), _) => {
+            std::env::var(env).map_err(|_| anyhow::anyhow!("oauth_token_env '{env}' is not set"))?
+        }
+        (None, Some(inline)) => inline.clone(),
+        _ => anyhow::bail!("account {} has no oauth token source", acct.email_address),
+    };
+    Ok(GmailPushHandler::new(GmailPushConfig {
+        project_id: acct.project_id.clone(),
+        topic_name: acct.topic_name.clone(),
+        push_audience: acct.push_audience.clone(),
+        watched_label_ids: if acct.watched_label_ids.is_empty() {
+            vec!["INBOX".to_string()]
+        } else {
+            acct.watched_label_ids.clone()
+        },
+        oauth_token: token,
+        gmail_base_url: None,
+    }))
 }
 
 /// Run a `brainclaw pairing ...` subcommand against the local gateway's

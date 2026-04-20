@@ -55,6 +55,9 @@ pub struct Gateway {
     webchat_verifier: Option<crate::webchat::SharedVerifier>,
     /// Optional history store for webchat sessions.
     webchat_history: Option<Arc<crate::webchat::WebChatHistory>>,
+    /// Optional Gmail push registry.
+    #[cfg(feature = "email-push")]
+    gmail_push_registry: Option<Arc<crate::gmail_push::GmailPushRegistry>>,
 }
 
 impl Gateway {
@@ -75,6 +78,8 @@ impl Gateway {
             pairing_store: None,
             webchat_verifier: None,
             webchat_history: None,
+            #[cfg(feature = "email-push")]
+            gmail_push_registry: None,
         }
     }
 
@@ -96,7 +101,18 @@ impl Gateway {
             pairing_store: None,
             webchat_verifier: None,
             webchat_history: None,
+            #[cfg(feature = "email-push")]
+            gmail_push_registry: None,
         }
+    }
+
+    /// Attach a Gmail push registry so the gateway exposes
+    /// `POST /webhooks/gmail-push` and authenticates Pub/Sub pushes
+    /// against the per-account handlers inside the registry.
+    #[cfg(feature = "email-push")]
+    pub fn with_gmail_push(mut self, registry: Arc<crate::gmail_push::GmailPushRegistry>) -> Self {
+        self.gmail_push_registry = Some(registry);
+        self
     }
 
     /// Attach a cross-channel user identity store.
@@ -257,6 +273,8 @@ impl Gateway {
             pairing_store: self.pairing_store.clone(),
             webchat_verifier: self.webchat_verifier.clone(),
             webchat_history: self.webchat_history.clone(),
+            #[cfg(feature = "email-push")]
+            gmail_push_registry: self.gmail_push_registry.clone(),
         };
 
         let app = build_router(state.clone());
@@ -283,6 +301,17 @@ fn build_router(state: AppState) -> Router {
     if state.config.webhook_enabled {
         let webhook_path = state.config.webhook_path.clone();
         app = app.route(&webhook_path, post(webhook::handle_webhook));
+    }
+
+    // Gmail push webhook — always mounted when a registry is configured,
+    // independent of `webhook_enabled` (which gates the HMAC webhook).
+    #[cfg(feature = "email-push")]
+    if state.gmail_push_registry.is_some() {
+        app = app.route(
+            "/webhooks/gmail-push",
+            post(crate::gmail_push::handle_gmail_push),
+        );
+        tracing::debug!("Gmail push webhook enabled at /webhooks/gmail-push");
     }
 
     // WebChat endpoints (conditionally enabled)

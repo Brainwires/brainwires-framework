@@ -165,7 +165,7 @@ pub use openapi::{
 };
 
 #[cfg(feature = "email")]
-pub use email::EmailTool;
+pub use email::{EmailConfig, EmailProvider, EmailSource, EmailTool, gmail_push};
 
 #[cfg(feature = "calendar")]
 pub use calendar::CalendarTool;
