@@ -44,6 +44,9 @@ chrono.workspace = true
 dirs.workspace = true
 cron.workspace = true
 reqwest.workspace = true
+dialoguer.workspace = true
+rand.workspace = true
+hex.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

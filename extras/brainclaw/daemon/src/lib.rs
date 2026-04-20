@@ -10,6 +10,8 @@
 pub mod app;
 pub mod config;
 pub mod cron;
+pub mod doctor;
+pub mod onboard;
 pub mod persona;
 pub mod session_spawn;
 pub mod shell_hooks;

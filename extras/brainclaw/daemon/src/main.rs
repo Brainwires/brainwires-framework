@@ -1,6 +1,8 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 
+use brainclaw::doctor::{self, DoctorArgs};
+use brainclaw::onboard::{self, OnboardArgs};
 use brainclaw::{BrainClaw, BrainClawConfig};
 
 /// BrainClaw — personal AI assistant daemon
@@ -48,6 +50,10 @@ enum Commands {
     /// DM pairing administration (approve/reject peer DMs).
     #[command(subcommand)]
     Pairing(PairingCmd),
+    /// Run diagnostic checks across all subsystems.
+    Doctor(DoctorArgs),
+    /// Interactive setup wizard — writes a ready-to-use `brainclaw.toml`.
+    Onboard(OnboardArgs),
 }
 
 #[derive(Subcommand)]
@@ -95,6 +101,20 @@ async fn main() -> Result<()> {
         }
         Some(Commands::Pairing(ref cmd)) => {
             pairing_cmd(&cli, cmd).await?;
+        }
+        Some(Commands::Doctor(ref args)) => {
+            let (_results, exit) = doctor::run(cli.config.as_deref(), args).await?;
+            if exit != 0 {
+                std::process::exit(exit);
+            }
+        }
+        Some(Commands::Onboard(ref args)) => {
+            // Allow `--config` at the top-level to stand in for the per-subcommand flag.
+            let mut args = args.clone();
+            if args.config.is_none() {
+                args.config = cli.config.clone();
+            }
+            onboard::run(&args).await?;
         }
         Some(Commands::Serve) | None => {
             serve(cli).await?;
