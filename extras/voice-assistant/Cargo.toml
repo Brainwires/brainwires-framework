@@ -18,6 +18,11 @@ wake-word-rustpotter = ["brainwires-hardware/wake-word-rustpotter"]
 [dependencies]
 brainwires-hardware = { workspace = true, features = ["voice-assistant"] }
 brainwires-providers = { workspace = true }
+brainwires-core = { workspace = true }
+brainwires-agents = { workspace = true }
+brainwires-tools = { workspace = true }
+brainwires-resilience = { workspace = true }
+brainwires-session = { workspace = true, features = ["sqlite"] }
 
 tokio = { workspace = true, features = ["full"] }
 async-trait.workspace = true
