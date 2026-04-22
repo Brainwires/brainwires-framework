@@ -101,6 +101,10 @@ export default function ChatPane({ wsBase }: ChatPaneProps) {
         </header>
         <div
           ref={scrollerRef}
+          role="log"
+          aria-live="polite"
+          aria-atomic="false"
+          aria-label="Conversation history"
           className="flex-1 overflow-y-auto scrollbar-thin bg-bw-bg px-4 py-4"
         >
           <div className="mx-auto flex max-w-3xl flex-col gap-3">
@@ -114,6 +118,7 @@ export default function ChatPane({ wsBase }: ChatPaneProps) {
                 key={m.id}
                 kind={m.role === "tool" || m.role === "error" ? m.role : m.role}
                 meta={m.meta}
+                ariaText={m.content}
               >
                 {m.content}
                 {m.streaming ? (
@@ -122,7 +127,9 @@ export default function ChatPane({ wsBase }: ChatPaneProps) {
               </MessageBubble>
             ))}
             {lastError ? (
-              <MessageBubble kind="error">{lastError}</MessageBubble>
+              <MessageBubble kind="error" ariaText={lastError}>
+                {lastError}
+              </MessageBubble>
             ) : null}
           </div>
         </div>

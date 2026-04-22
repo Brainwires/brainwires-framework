@@ -42,12 +42,22 @@ export function InputBar({ disabled, onSend }: InputBarProps) {
     : [];
 
   return (
-    <div className="relative border-t border-bw-border bg-bw-surface p-3">
+    <div
+      role="form"
+      aria-label="Send a message"
+      className="relative border-t border-bw-border bg-bw-surface p-3"
+    >
       {completions.length > 0 ? (
-        <ul className="absolute bottom-full left-3 mb-1 w-60 rounded border border-bw-border bg-bw-bg shadow-lg">
+        <ul
+          role="listbox"
+          aria-label="Slash command suggestions"
+          className="absolute bottom-full left-3 mb-1 w-60 rounded border border-bw-border bg-bw-bg shadow-lg"
+        >
           {completions.map((c) => (
             <li
               key={c}
+              role="option"
+              aria-selected={value === c}
               className="cursor-pointer px-3 py-1.5 text-sm hover:bg-bw-assistant"
               onMouseDown={(e) => {
                 e.preventDefault();
@@ -68,6 +78,8 @@ export function InputBar({ disabled, onSend }: InputBarProps) {
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
           rows={1}
+          aria-label="Message input"
+          aria-multiline="true"
           placeholder={
             disabled
               ? "Reconnecting…"
@@ -79,6 +91,7 @@ export function InputBar({ disabled, onSend }: InputBarProps) {
           type="button"
           onClick={submit}
           disabled={disabled || value.trim().length === 0}
+          aria-label="Send message"
           className="rounded bg-bw-accent px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
         >
           Send
