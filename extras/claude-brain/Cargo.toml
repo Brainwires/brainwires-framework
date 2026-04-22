@@ -51,3 +51,6 @@ uuid.workspace = true
 
 [build-dependencies]
 # None — we skip build.rs for now; version info comes from CARGO_PKG_VERSION
+
+[dev-dependencies]
+tempfile = { workspace = true }

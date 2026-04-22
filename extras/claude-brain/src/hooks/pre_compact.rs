@@ -167,7 +167,10 @@ pub async fn handle() -> Result<()> {
 /// Each line is a JSON object. We look for objects with `role` and `content` fields
 /// (the standard Claude API message format). Content can be a string or an array
 /// of content blocks — we extract text from both.
-fn read_transcript_messages(path: Option<&str>) -> Vec<(String, String)> {
+///
+/// Exposed for integration testing; the hook handler is still the sole
+/// production caller.
+pub fn read_transcript_messages(path: Option<&str>) -> Vec<(String, String)> {
     let Some(path) = path else {
         return Vec::new();
     };
@@ -217,7 +220,9 @@ fn read_transcript_messages(path: Option<&str>) -> Vec<(String, String)> {
 
 /// Extract text content from a message object.
 /// Handles both `"content": "string"` and `"content": [{"type":"text","text":"..."}]`.
-fn extract_text_content(msg: &serde_json::Value) -> String {
+///
+/// Exposed for integration testing.
+pub fn extract_text_content(msg: &serde_json::Value) -> String {
     let Some(content) = msg.get("content") else {
         return String::new();
     };
