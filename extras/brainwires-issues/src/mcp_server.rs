@@ -170,7 +170,14 @@ impl IssuesMcpServer {
     /// Create a new server with the default LanceDB backend.
     pub async fn new() -> Result<Self> {
         let data_dir = PlatformPaths::data_dir().join("brainwires-issues");
+        Self::with_data_dir(&data_dir).await
+    }
 
+    /// Create a new server rooted at `data_dir`. The directory will be created
+    /// if needed, with a `lancedb/` subdir for the table backend and a `bm25/`
+    /// subdir for the keyword index. Exposed for integration tests that need
+    /// an isolated `TempDir` per run.
+    pub async fn with_data_dir(data_dir: &std::path::Path) -> Result<Self> {
         let db_path = data_dir.join("lancedb");
         let backend = Arc::new(
             LanceDatabase::new(db_path.to_string_lossy())
