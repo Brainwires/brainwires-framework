@@ -279,16 +279,16 @@ fn test_agent_tool_schemas() -> Result<()> {
     );
     assert!(agent_spawn["inputSchema"].is_object());
     assert_eq!(agent_spawn["inputSchema"]["type"], "object");
-    assert!(agent_spawn["inputSchema"]["properties"]["task"].is_object());
+    assert!(agent_spawn["inputSchema"]["properties"]["description"].is_object());
     assert_eq!(
-        agent_spawn["inputSchema"]["properties"]["task"]["type"],
+        agent_spawn["inputSchema"]["properties"]["description"]["type"],
         "string"
     );
     assert!(
         agent_spawn["inputSchema"]["required"]
             .as_array()
             .unwrap()
-            .contains(&json!("task"))
+            .contains(&json!("description"))
     );
 
     // Find agent_status and verify its schema
