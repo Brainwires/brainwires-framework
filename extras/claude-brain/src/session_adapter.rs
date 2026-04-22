@@ -34,6 +34,7 @@ impl DreamSessionStore for BrainSessionAdapter {
                 limit: 1000,
                 category: None,
                 since: None,
+                owner_id: None,
             })
             .await?;
 
@@ -130,6 +131,7 @@ impl DreamSessionStore for BrainSessionAdapter {
                     ]),
                     importance: Some(0.85),
                     source: Some("dream-consolidation".to_string()),
+                    owner_id: None,
                 })
                 .await?;
         }

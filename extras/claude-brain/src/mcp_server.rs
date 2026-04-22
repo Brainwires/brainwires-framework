@@ -175,6 +175,7 @@ impl ClaudeBrainMcpServer {
                 tags: req.tags,
                 importance: req.importance,
                 source: Some("claude-brain-mcp".to_string()),
+                owner_id: None,
             })
             .await
             .map_err(|e| format!("{:#}", e))?;

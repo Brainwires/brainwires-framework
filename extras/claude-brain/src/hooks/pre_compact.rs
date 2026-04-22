@@ -111,6 +111,7 @@ pub async fn handle() -> Result<()> {
                 ]),
                 importance: None,
                 source: Some("pre-compact-export".to_string()),
+                owner_id: None,
             }
         })
         .collect();
@@ -146,6 +147,7 @@ pub async fn handle() -> Result<()> {
                     ]),
                     importance: Some(0.9),
                     source: Some("pre-compact-digest".to_string()),
+                    owner_id: None,
                 },
             )
             .await;

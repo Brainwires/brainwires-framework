@@ -1,3 +1,22 @@
+//! # Tenant scoping
+//!
+//! This module supports optional per-owner (tenant) scoping of thoughts via
+//! the [`Thought::owner_id`] field and the matching request-side `owner_id`
+//! fields on the request types in [`crate::knowledge::types`].
+//!
+//! Behavior is deliberately asymmetric to preserve single-tenant backward
+//! compatibility:
+//!
+//! - If a **write** request has `owner_id: None`, the thought is stored with
+//!   `owner_id = None` (unscoped row).
+//! - If a **read** request has `owner_id: None`, **no owner filter is added**
+//!   to the storage query. Unscoped callers see every row regardless of
+//!   owner, matching the pre-tenant-scoping single-tenant semantics.
+//! - If a **read** request has `owner_id: Some(x)`, an equality filter
+//!   `owner_id = x` is appended to the existing filter composition, so only
+//!   thoughts owned by `x` are returned (and unscoped `None` rows are NOT
+//!   surfaced — opt-in callers get an isolated view).
+
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -143,6 +162,7 @@ impl BrainClient {
                     FieldDef::optional("evidence_chain", FieldType::Utf8),
                     FieldDef::optional("reinforcement_count", FieldType::Int64),
                     FieldDef::optional("contradiction_count", FieldType::Int64),
+                    FieldDef::optional("owner_id", FieldType::Utf8),
                 ],
             )
             .await
@@ -212,7 +232,8 @@ impl BrainClient {
             .with_importance(
                 req.importance
                     .unwrap_or_else(|| Self::importance_for_category(&category)),
-            );
+            )
+            .with_owner_id(req.owner_id.clone());
 
         // Embed
         let embedding = self.embeddings.embed(&thought.content)?;
@@ -322,6 +343,7 @@ impl BrainClient {
                         req.importance
                             .unwrap_or_else(|| Self::importance_for_category(&category)),
                     )
+                    .with_owner_id(req.owner_id.clone())
             })
             .collect();
 
@@ -386,6 +408,14 @@ impl BrainClient {
                 filters.push(Filter::Eq(
                     "category".into(),
                     FieldValue::Utf8(Some(cat_str)),
+                ));
+            }
+
+            // Tenant scoping: only apply an owner filter when the caller opted in.
+            if let Some(ref owner) = req.owner_id {
+                filters.push(Filter::Eq(
+                    "owner_id".into(),
+                    FieldValue::Utf8(Some(owner.clone())),
                 ));
             }
 
@@ -483,6 +513,14 @@ impl BrainClient {
             ));
         }
 
+        // Tenant scoping: only apply an owner filter when the caller opted in.
+        if let Some(ref owner) = req.owner_id {
+            filters.push(Filter::Eq(
+                "owner_id".into(),
+                FieldValue::Utf8(Some(owner.clone())),
+            ));
+        }
+
         let filter = Filter::And(filters);
 
         let records = self
@@ -529,12 +567,27 @@ impl BrainClient {
 
     // ── Get by ID ────────────────────────────────────────────────────────
 
-    /// Get a single thought by ID.
-    pub async fn get_thought(&self, id: &str) -> Result<Option<GetThoughtResponse>> {
-        let filter = Filter::And(vec![
+    /// Get a single thought by ID, optionally scoped to an owner.
+    ///
+    /// When `owner_id` is `None`, the lookup is unscoped (matches pre-tenant
+    /// behavior). When `Some(x)`, only a thought whose stored owner_id equals
+    /// `x` is returned; otherwise this returns `None`.
+    pub async fn get_thought(
+        &self,
+        id: &str,
+        owner_id: Option<&str>,
+    ) -> Result<Option<GetThoughtResponse>> {
+        let mut parts = vec![
             Filter::Eq("id".into(), FieldValue::Utf8(Some(id.to_string()))),
             Filter::Eq("deleted".into(), FieldValue::Boolean(Some(false))),
-        ]);
+        ];
+        if let Some(owner) = owner_id {
+            parts.push(Filter::Eq(
+                "owner_id".into(),
+                FieldValue::Utf8(Some(owner.to_string())),
+            ));
+        }
+        let filter = Filter::And(parts);
 
         let records = self
             .backend
@@ -696,13 +749,29 @@ impl BrainClient {
 
     // ── Delete ───────────────────────────────────────────────────────────
 
-    /// Soft-delete a thought by ID.
-    pub async fn delete_thought(&self, id: &str) -> Result<DeleteThoughtResponse> {
-        // Check existence
-        let filter = Filter::And(vec![
+    /// Soft-delete a thought by ID, optionally scoped to an owner.
+    ///
+    /// When `owner_id` is `None`, any non-deleted thought with matching ID is
+    /// removed (pre-tenant behavior). When `Some(x)`, only a thought owned by
+    /// `x` is removed; attempting to delete another owner's thought is a
+    /// no-op that returns `deleted: false`.
+    pub async fn delete_thought(
+        &self,
+        id: &str,
+        owner_id: Option<&str>,
+    ) -> Result<DeleteThoughtResponse> {
+        // Check existence (scope-respecting)
+        let mut parts = vec![
             Filter::Eq("id".into(), FieldValue::Utf8(Some(id.to_string()))),
             Filter::Eq("deleted".into(), FieldValue::Boolean(Some(false))),
-        ]);
+        ];
+        if let Some(owner) = owner_id {
+            parts.push(Filter::Eq(
+                "owner_id".into(),
+                FieldValue::Utf8(Some(owner.to_string())),
+            ));
+        }
+        let filter = Filter::And(parts);
 
         let count = self.backend.count(THOUGHTS_TABLE, Some(&filter)).await?;
         if count == 0 {
@@ -712,8 +781,23 @@ impl BrainClient {
             });
         }
 
-        // Delete the row via backend
-        let delete_filter = Filter::Eq("id".into(), FieldValue::Utf8(Some(id.to_string())));
+        // Delete the row via backend (same scope-respecting filter, minus the
+        // `deleted = false` clause which does not apply to hard deletion).
+        let mut del_parts = vec![Filter::Eq(
+            "id".into(),
+            FieldValue::Utf8(Some(id.to_string())),
+        )];
+        if let Some(owner) = owner_id {
+            del_parts.push(Filter::Eq(
+                "owner_id".into(),
+                FieldValue::Utf8(Some(owner.to_string())),
+            ));
+        }
+        let delete_filter = if del_parts.len() == 1 {
+            del_parts.into_iter().next().unwrap()
+        } else {
+            Filter::And(del_parts)
+        };
         self.backend.delete(THOUGHTS_TABLE, &delete_filter).await?;
 
         tracing::info!(id = id, "Deleted thought");
@@ -721,6 +805,54 @@ impl BrainClient {
             deleted: true,
             id: id.to_string(),
         })
+    }
+
+    /// Update an existing thought's content in-place, preserving its ID.
+    ///
+    /// If `owner_id` is `Some`, the thought is only updated when its stored
+    /// `owner_id` matches; otherwise this is a no-op (returns `Ok(false)`).
+    /// If `owner_id` is `None`, the update applies regardless of owner,
+    /// matching single-tenant semantics.
+    ///
+    /// Returns `Ok(true)` when the thought was updated, `Ok(false)` when it
+    /// did not exist (or belonged to a different owner).
+    ///
+    /// Re-embeds the content so vector search stays consistent. Updates the
+    /// `updated_at` timestamp; other fields (category, tags, importance,
+    /// confidence, evidence_chain) are preserved.
+    pub async fn update_thought(
+        &self,
+        id: &str,
+        content: String,
+        owner_id: Option<String>,
+    ) -> Result<bool> {
+        // Look up the existing thought with scoping.
+        let mut parts = vec![
+            Filter::Eq("id".into(), FieldValue::Utf8(Some(id.to_string()))),
+            Filter::Eq("deleted".into(), FieldValue::Boolean(Some(false))),
+        ];
+        if let Some(ref owner) = owner_id {
+            parts.push(Filter::Eq(
+                "owner_id".into(),
+                FieldValue::Utf8(Some(owner.clone())),
+            ));
+        }
+        let filter = Filter::And(parts);
+
+        let records = self
+            .backend
+            .query(THOUGHTS_TABLE, Some(&filter), Some(1))
+            .await?;
+        let mut thoughts = Self::records_to_thoughts(&records)?;
+        let Some(mut thought) = thoughts.pop() else {
+            return Ok(false);
+        };
+
+        thought.content = content;
+        thought.updated_at = Utc::now().timestamp();
+
+        self.replace_thought(&thought).await?;
+        Ok(true)
     }
 
     /// Add a behavioral truth to the BKS.
@@ -794,6 +926,10 @@ impl BrainClient {
                 "contradiction_count".into(),
                 FieldValue::Int64(Some(thought.contradiction_count as i64)),
             ),
+            (
+                "owner_id".into(),
+                FieldValue::Utf8(thought.owner_id.clone()),
+            ),
         ]
     }
 
@@ -843,6 +979,9 @@ impl BrainClient {
         let contradiction_count = record_get(record, "contradiction_count")
             .and_then(|v| v.as_i64())
             .unwrap_or(0) as u32;
+        let owner_id = record_get(record, "owner_id")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
 
         Ok(Thought {
             id,
@@ -858,6 +997,7 @@ impl BrainClient {
             evidence_chain,
             reinforcement_count,
             contradiction_count,
+            owner_id,
         })
     }
 
@@ -900,6 +1040,7 @@ impl BrainClient {
                 min_score: CONTRADICTION_THRESHOLD,
                 category: None,
                 sources: Some(vec!["thoughts".into()]),
+                owner_id: None,
             })
             .await?;
 
@@ -1013,6 +1154,7 @@ mod tests {
                 tags: Some(vec!["db".into()]),
                 importance: Some(0.8),
                 source: None,
+                owner_id: None,
             })
             .await
             .unwrap();
@@ -1020,7 +1162,7 @@ mod tests {
         assert_eq!(resp.category, "decision");
         assert!(resp.tags.contains(&"db".to_string()));
 
-        let thought = client.get_thought(&resp.id).await.unwrap();
+        let thought = client.get_thought(&resp.id, None).await.unwrap();
         assert!(thought.is_some());
         let t = thought.unwrap();
         assert_eq!(t.category, "decision");
@@ -1037,6 +1179,7 @@ mod tests {
                 tags: None,
                 importance: None,
                 source: None,
+                owner_id: None,
             })
             .await
             .unwrap();
@@ -1048,6 +1191,7 @@ mod tests {
                 min_score: 0.0,
                 category: None,
                 sources: None,
+                owner_id: None,
             })
             .await
             .unwrap();
@@ -1066,14 +1210,15 @@ mod tests {
                 tags: None,
                 importance: None,
                 source: None,
+                owner_id: None,
             })
             .await
             .unwrap();
 
-        let del = client.delete_thought(&resp.id).await.unwrap();
+        let del = client.delete_thought(&resp.id, None).await.unwrap();
         assert!(del.deleted);
 
-        let thought = client.get_thought(&resp.id).await.unwrap();
+        let thought = client.get_thought(&resp.id, None).await.unwrap();
         assert!(thought.is_none());
     }
 
