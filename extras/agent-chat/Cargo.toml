@@ -36,6 +36,9 @@ ratatui = "0.29"
 crossterm = { version = "0.28", features = ["event-stream"] }
 rpassword = "5"
 
+[dev-dependencies]
+tempfile = { workspace = true }
+
 [features]
 default = []
 bedrock = ["brainwires-providers/bedrock"]
