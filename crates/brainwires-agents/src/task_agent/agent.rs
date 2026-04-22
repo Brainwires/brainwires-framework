@@ -1217,6 +1217,42 @@ impl TaskAgent {
                     }
                 }
 
+                // ── Billing authorize hook (fail-closed) ─────────────────────
+                // Ask the billing hook to authorize the pending tool call
+                // before we dispatch it. When the hook enforces a budget and
+                // returns `BudgetExhausted`, we reject the call outright
+                // (unlike the fail-open `on_usage` advisory path below).
+                #[cfg(feature = "telemetry")]
+                if let Some(ref hook) = self.config.billing_hook {
+                    let pending = brainwires_telemetry::UsageEvent::tool_call(
+                        self.id.clone(),
+                        tool_use.name.clone(),
+                    );
+                    if let Err(e) = hook.0.authorize(&pending).await {
+                        tracing::warn!(
+                            agent_id = %self.id,
+                            tool = %tool_use.name,
+                            error = %e,
+                            "tool call rejected by billing authorize()"
+                        );
+                        execution_graph.record_tool_call(
+                            step_idx,
+                            ToolCallRecord {
+                                tool_use_id: tool_use.id.clone(),
+                                tool_name: tool_use.name.clone(),
+                                is_error: true,
+                                executed_at: Utc::now(),
+                            },
+                        );
+                        let rejection = ToolResult::error(tool_use.id.clone(), e.to_string());
+                        self.conversation_history
+                            .write()
+                            .await
+                            .push(Self::tool_result_message(&rejection));
+                        continue;
+                    }
+                }
+
                 // ── Pre-execute hook ─────────────────────────────────────────
                 if let Some(ref hook) = self.context.pre_execute_hook {
                     match hook.before_execute(tool_use, &tool_context).await {
