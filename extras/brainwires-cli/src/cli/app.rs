@@ -504,7 +504,8 @@ impl App {
             Some(Commands::Kill { session }) => super::attach::kill_session(session).await,
             Some(Commands::Init) => {
                 crate::utils::logger::Logger::warn("Init not yet implemented");
-                Ok(())
+                // Non-zero exit so scripts can detect the no-op and not mistake it for success.
+                Err(anyhow::anyhow!("Init not yet implemented"))
             }
             Some(Commands::Analytics(cmd)) => super::analytics::handle_analytics(cmd).await,
             Some(Commands::EvalImprove {

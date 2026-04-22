@@ -108,7 +108,12 @@ impl McpServerHandler {
         crate::utils::logger::init_with_output(false);
 
         tracing::info!("MCP Server started - listening on stdin");
-        Logger::info("MCP Server started - listening on stdin");
+        // MCP stdio protocol: stdout is reserved for JSON-RPC frames only.
+        // Status messages must go to stderr.
+        eprintln!(
+            "{} MCP Server started - listening on stdin",
+            console::style("ℹ").blue()
+        );
 
         let stdin = std::io::stdin();
         let reader = BufReader::new(stdin.lock());
@@ -142,7 +147,11 @@ impl McpServerHandler {
             }
         }
 
-        Logger::info("MCP Server stopped");
+        // MCP stdio protocol: route status to stderr, not stdout.
+        eprintln!(
+            "{} MCP Server stopped",
+            console::style("ℹ").blue()
+        );
         Ok(())
     }
 

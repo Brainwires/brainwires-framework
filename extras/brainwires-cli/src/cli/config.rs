@@ -69,11 +69,26 @@ pub async fn handle_config(
                     }
                 }
             }
-            "provider" => {
-                // Provider field is deprecated - all requests go through Brainwires
-                Logger::warn("The 'provider' configuration field is deprecated.");
-                Logger::warn("All requests now go through the Brainwires backend.");
-                Logger::warn("This setting is ignored.");
+            "provider" | "provider_type" => {
+                // Both "provider" and "provider_type" are accepted — the on-disk
+                // schema uses `provider_type` (see ConfigManager), but older docs
+                // and muscle memory use `provider`. Aliasing them keeps the setter
+                // consistent with what `config --list` emits.
+                match crate::providers::ProviderType::from_str_opt(value) {
+                    Some(pt) => {
+                        updates.provider_type = Some(pt);
+                        config_manager.update(updates);
+                        config_manager.save()?;
+                        println!("✓ Provider set to: {}", pt.as_str());
+                    }
+                    None => {
+                        Logger::warn(format!(
+                            "Unknown provider '{}'. Supported: anthropic, openai, google, groq, ollama, brainwires, bedrock, vertex-ai, together, fireworks, minimax",
+                            value
+                        ));
+                        return Ok(());
+                    }
+                }
             }
             "backend_url" => {
                 // Validate URL format and security
@@ -177,7 +192,7 @@ pub async fn handle_config(
             _ => {
                 Logger::warn(format!("Unknown config key: {}", key));
                 Logger::warn(
-                    "Valid keys: model, provider, backend_url, temperature, max_tokens, permission_mode",
+                    "Valid keys: model, provider (alias: provider_type), backend_url, temperature, max_tokens, permission_mode",
                 );
                 return Ok(());
             }
