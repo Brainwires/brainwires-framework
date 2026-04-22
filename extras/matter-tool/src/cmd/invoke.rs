@@ -13,7 +13,7 @@ pub async fn run_invoke(
     out: &Output,
 ) -> Result<()> {
     let tlv = if let Some(hex) = payload_hex {
-        hex::decode(hex.trim_start_matches("0x"))?
+        matter_tool::parse_tlv_hex(&hex)?
     } else {
         vec![]
     };
