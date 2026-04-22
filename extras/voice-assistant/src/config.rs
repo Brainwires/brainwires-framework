@@ -99,6 +99,18 @@ impl VaConfig {
         Ok(config)
     }
 
+    /// Load from the given path, or fall back to [`VaConfig::default`] if the
+    /// file does not exist. This mirrors the behaviour the binary uses when
+    /// `--config` is omitted: if no config has been written yet, running on
+    /// defaults is a friendlier outcome than an error.
+    pub fn load_from(path: &std::path::Path) -> anyhow::Result<Self> {
+        if path.exists() {
+            Self::from_file(path)
+        } else {
+            Ok(Self::default())
+        }
+    }
+
     /// Resolve the OpenAI API key: config file first, then `OPENAI_API_KEY` env var.
     pub fn resolve_api_key(&self) -> anyhow::Result<String> {
         self.openai_api_key

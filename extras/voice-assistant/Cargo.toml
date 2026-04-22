@@ -35,3 +35,6 @@ toml.workspace = true
 dirs.workspace = true
 clap = { version = "4", features = ["derive"] }
 ctrlc = { version = "3", features = ["termination"] }
+
+[dev-dependencies]
+tempfile = { workspace = true }

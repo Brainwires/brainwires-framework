@@ -14,6 +14,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use brainwires_agents::ChatAgent;
 use brainwires_agents::personas::{PersonaContext, PersonaProvider, blocks_to_system_text};
+use brainwires_core::ToolContext;
 use brainwires_core::{CacheStrategy, ChatOptions, Provider};
 use brainwires_hardware::audio::{
     assistant::VoiceAssistantHandler, error::AudioError, types::Transcript,
@@ -21,7 +22,6 @@ use brainwires_hardware::audio::{
 use brainwires_resilience::BudgetGuard;
 use brainwires_session::{ArcSessionStore, SessionId};
 use brainwires_tools::{BuiltinToolExecutor, ToolExecutor, ToolRegistry};
-use brainwires_core::ToolContext;
 use tokio::sync::Mutex;
 use tracing::{info, warn};
 
@@ -55,8 +55,7 @@ impl LlmHandler {
         let blocks = persona.build(&PersonaContext::new()).await?;
         let system = blocks_to_system_text(&blocks);
 
-        let options = ChatOptions::default()
-            .cache_strategy(CacheStrategy::SystemAndTools);
+        let options = ChatOptions::default().cache_strategy(CacheStrategy::SystemAndTools);
 
         let executor: Arc<dyn ToolExecutor> = Arc::new(BuiltinToolExecutor::new(
             ToolRegistry::new(),

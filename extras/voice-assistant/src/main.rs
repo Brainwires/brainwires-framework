@@ -1,6 +1,3 @@
-mod config;
-mod handler;
-
 use std::path::PathBuf;
 use std::sync::{
     Arc,
@@ -24,8 +21,8 @@ use clap::Parser;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
-use config::VaConfig;
-use handler::LlmHandler;
+use voice_assistant::config::VaConfig;
+use voice_assistant::handler::LlmHandler;
 
 /// Brainwires Personal Voice Assistant
 #[derive(Parser, Debug)]
