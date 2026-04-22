@@ -1,12 +1,17 @@
-//! brainwires-memory — Mem0-compatible memory service.
+//! brainwires-memory — Mem0-compatible memory service backed by
+//! `brainwires-knowledge`.
 //!
-//! Usage:
-//!   brainwires-memory [--host 0.0.0.0] [--port 8765] [--db ./memories.db]
+//! Configuration is via environment variables:
+//!   MEMORY_HOST  — bind address (default: 127.0.0.1)
+//!   MEMORY_PORT  — listen port (default: 8765)
+//!   MEMORY_DB    — knowledge storage directory
+//!                  (default: ~/.local/share/brainwires/memory)
 
 use std::net::SocketAddr;
+use std::path::PathBuf;
 
 use anyhow::Context;
-use brainwires_memory_service::{build_app, store::MemoryStore};
+use brainwires_memory_service::{AppState, build_app, build_client};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -22,22 +27,21 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or_else(|_| "8765".to_string())
         .parse()
         .context("MEMORY_PORT must be a valid port number")?;
-    let db_path = std::env::var("MEMORY_DB").unwrap_or_else(|_| {
-        dirs::data_dir()
-            .unwrap_or_else(|| std::path::PathBuf::from("."))
-            .join("brainwires")
-            .join("memories.db")
-            .to_string_lossy()
-            .to_string()
-    });
+    let storage_dir: PathBuf = std::env::var("MEMORY_DB")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| {
+            dirs::data_dir()
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join("brainwires")
+                .join("memory")
+        });
 
-    tracing::warn!(
-        "brainwires-memory-service has no authentication or tenant isolation \
-         — intended for local development use only"
+    tracing::info!(
+        "brainwires-memory-service storage directory: {}",
+        storage_dir.display()
     );
-    tracing::info!("Opening memory database at {db_path}");
-    let store = MemoryStore::open(&db_path)?;
-    let app = build_app(store);
+    let client = build_client(&storage_dir).await?;
+    let app = build_app(AppState::new(client));
 
     let addr: SocketAddr = format!("{host}:{port}").parse()?;
     tracing::info!("brainwires-memory listening on http://{addr}");

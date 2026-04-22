@@ -4,18 +4,33 @@ A Mem0-compatible memory REST API server for Brainwires agents.
 
 Gives every agent a persistent, per-user memory store accessible over HTTP — point any Mem0 SDK client (or plain `curl`) at it and your agents remember things between sessions.
 
+Storage is delegated to [`brainwires-knowledge`](../../crates/brainwires-knowledge) (LanceDB-backed thought store with semantic search). Tenant isolation is enforced on every request via `user_id`, which is passed through to the knowledge layer as its `owner_id` scope — a request for user A can never see, update, or delete data belonging to user B.
+
 As Nate B Jones put it: *"whoever solves orchestration at infrastructure grade is going to own the most valuable position in the agent stack."* Memory is how agents build context across sessions; this service is the persistence layer for that.
 
 ## Quick start
 
 ```sh
-# Run with default settings (localhost:8765, ~/.local/share/brainwires/memories.db)
+# Run with default settings (localhost:8765, ~/.local/share/brainwires/memory/)
 cargo run --bin brainwires-memory
 
 # Override via environment variables
-MEMORY_HOST=0.0.0.0 MEMORY_PORT=8765 MEMORY_DB=/data/memories.db \
+MEMORY_HOST=0.0.0.0 MEMORY_PORT=8765 MEMORY_DB=/data/memory \
   cargo run --bin brainwires-memory
 ```
+
+## Tenant isolation (`user_id` is required)
+
+Every endpoint that touches stored memories requires a `user_id` — either in the request body (for `POST`/`PATCH`) or as a query parameter (for `GET`/`DELETE`). Requests missing `user_id` receive HTTP 400.
+
+The `user_id` is forwarded to the underlying knowledge layer as `owner_id`, which guarantees:
+
+- A `GET`/`POST search` request for user A never returns user B's memories.
+- A `PATCH`/`DELETE` request for user A cannot mutate user B's memories; cross-tenant attempts return 404 (identical to a missing ID, so the existence of other tenants' memories is not leaked).
+
+## Auth
+
+This service does not ship with bearer-token auth. If you need authentication, layer it via a reverse proxy (Traefik, Caddy, nginx, etc.) that validates credentials before forwarding to `brainwires-memory`.
 
 ## API
 
@@ -62,7 +77,7 @@ GET /v1/memories?user_id=user-42&page=1&page_size=20
 ### Get a memory
 
 ```http
-GET /v1/memories/{id}
+GET /v1/memories/{id}?user_id=user-42
 ```
 
 ### Search memories
@@ -76,17 +91,19 @@ POST /v1/memories/search
 }
 ```
 
+Search is a semantic (vector) query against the knowledge layer's embedding index.
+
 ### Update a memory
 
 ```http
 PATCH /v1/memories/{id}
-{ "memory": "Updated content." }
+{ "memory": "Updated content.", "user_id": "user-42" }
 ```
 
 ### Delete a memory
 
 ```http
-DELETE /v1/memories/{id}
+DELETE /v1/memories/{id}?user_id=user-42
 ```
 
 ### Delete all memories for a user
@@ -108,7 +125,7 @@ GET /health
 |----------|---------|-------------|
 | `MEMORY_HOST` | `127.0.0.1` | Bind address |
 | `MEMORY_PORT` | `8765` | Listen port |
-| `MEMORY_DB` | `~/.local/share/brainwires/memories.db` | SQLite database path |
+| `MEMORY_DB` | `~/.local/share/brainwires/memory` | Knowledge storage directory (contains `brain.lance/`, `pks.db`, `bks.db`) |
 | `RUST_LOG` | `brainwires_memory_service=info` | Log filter |
 
 ## Using with Mem0 SDK
@@ -129,13 +146,13 @@ results = client.search("programming language preference", user_id="user-42")
 │                                  │
 │  POST /v1/memories               │
 │  GET  /v1/memories               │  Axum HTTP server
-│  POST /v1/memories/search   ─────┼──► MemoryStore (SQLite WAL)
-│  PATCH/DELETE /v1/memories/{id}  │
-│  GET  /health                    │
+│  POST /v1/memories/search   ─────┼──► BrainClient (brainwires-knowledge)
+│  PATCH/DELETE /v1/memories/{id}  │    └─► LanceDB (vectors)
+│  GET  /health                    │    └─► SQLite (PKS/BKS)
 └──────────────────────────────────┘
 ```
 
-The server is stateless apart from the SQLite file — scale horizontally by pointing multiple instances at a shared network filesystem or swap the store for a Postgres backend.
+The server is a thin adapter over `brainwires-knowledge` — all storage decisions (embedding model, vector index, backend selection) are made by the knowledge crate. Tenant isolation is implemented there, via the `owner_id` column on every thought row.
 
 ## License
 

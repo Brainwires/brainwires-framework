@@ -33,8 +33,8 @@ serde_json = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 
-# Storage — SQLite backend
-rusqlite = { workspace = true, features = ["bundled"] }
+# Knowledge backend (LanceDB-backed thought store + tenant scoping)
+brainwires-knowledge = { workspace = true, features = ["knowledge"] }
 
 # Time + IDs
 chrono = { workspace = true }
@@ -46,6 +46,11 @@ dirs = { workspace = true }
 # Logging
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+
+[dev-dependencies]
+reqwest = { workspace = true, features = ["json"] }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["full", "test-util"] }
 
 [features]
 default = []

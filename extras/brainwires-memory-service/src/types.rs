@@ -1,4 +1,9 @@
 //! Wire types for the Mem0-compatible REST API.
+//!
+//! The service is backed by `brainwires-knowledge` (LanceDB-backed thought
+//! store) with per-`user_id` tenant isolation. Legacy Mem0 request fields that
+//! the knowledge layer does not model (`agent_id`, `session_id`) are accepted
+//! for wire-compatibility but are not used for storage filtering.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -6,22 +11,22 @@ use uuid::Uuid;
 
 // ── Memory record ─────────────────────────────────────────────────────────────
 
-/// A persisted memory record.
+/// A persisted memory record (Mem0-compatible response shape).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Memory {
     /// Unique memory ID.
     pub id: Uuid,
     /// Memory content (plain text).
     pub memory: String,
-    /// Owner user ID.
+    /// Owner user ID (tenant).
     pub user_id: String,
-    /// Optional agent ID (for agent-scoped memories).
+    /// Accepted on input for Mem0 compatibility; not currently persisted.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,
-    /// Optional session ID.
+    /// Accepted on input for Mem0 compatibility; not currently persisted.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
-    /// Arbitrary metadata.
+    /// Arbitrary metadata (currently passthrough-only).
     #[serde(default)]
     pub metadata: serde_json::Value,
     /// Creation timestamp.
@@ -44,13 +49,13 @@ pub struct AddMemoryRequest {
     pub messages: Vec<MessageItem>,
     /// Direct memory text (brainwires extension — bypasses extraction).
     pub memory: Option<String>,
-    /// Owner user ID.
+    /// Owner user ID. Required for tenant isolation.
     pub user_id: String,
-    /// Optional agent scope.
+    /// Optional agent scope (accepted but not persisted).
     pub agent_id: Option<String>,
-    /// Optional session scope.
+    /// Optional session scope (accepted but not persisted).
     pub session_id: Option<String>,
-    /// Arbitrary metadata to attach.
+    /// Arbitrary metadata to attach (currently unused).
     #[serde(default)]
     pub metadata: serde_json::Value,
 }
@@ -74,7 +79,7 @@ pub struct AddMemoryResponse {
 /// Single item in an add-memories response.
 #[derive(Debug, Serialize)]
 pub struct MemoryResult {
-    /// The created memory record.
+    /// The stored memory text.
     pub memory: String,
     /// `"add"`, `"update"`, or `"delete"`.
     pub event: String,
@@ -85,11 +90,11 @@ pub struct MemoryResult {
 /// `GET /v1/memories` query parameters.
 #[derive(Debug, Deserialize)]
 pub struct ListMemoriesQuery {
-    /// Filter by user ID.
+    /// Filter by user ID (required for tenant isolation).
     pub user_id: Option<String>,
-    /// Filter by agent ID.
+    /// Filter by agent ID (accepted but not applied).
     pub agent_id: Option<String>,
-    /// Filter by session ID.
+    /// Filter by session ID (accepted but not applied).
     pub session_id: Option<String>,
     /// Pagination: page number (1-based, default 1).
     #[serde(default = "default_page")]
@@ -111,7 +116,7 @@ fn default_page_size() -> u32 {
 pub struct ListMemoriesResponse {
     /// Returned memories.
     pub results: Vec<Memory>,
-    /// Total count (before pagination).
+    /// Total count (matches the filtered list size before pagination).
     pub total: u64,
     /// Page returned.
     pub page: u32,
@@ -122,11 +127,11 @@ pub struct ListMemoriesResponse {
 /// `POST /v1/memories/search` request body.
 #[derive(Debug, Deserialize)]
 pub struct SearchMemoriesRequest {
-    /// Search query (substring match; vector search when embedding is available).
+    /// Search query (vector similarity search via the knowledge backend).
     pub query: String,
-    /// Filter by user ID.
+    /// Filter by user ID (required for tenant isolation).
     pub user_id: Option<String>,
-    /// Filter by agent ID.
+    /// Filter by agent ID (accepted but not applied).
     pub agent_id: Option<String>,
     /// Maximum results to return (default 10).
     #[serde(default = "default_search_limit")]
@@ -150,7 +155,7 @@ pub struct SearchResult {
     /// The matching memory.
     #[serde(flatten)]
     pub memory: Memory,
-    /// Relevance score (0–1); 1.0 for exact substring matches.
+    /// Relevance score (0–1).
     pub score: f64,
 }
 
@@ -159,6 +164,8 @@ pub struct SearchResult {
 pub struct UpdateMemoryRequest {
     /// New memory content.
     pub memory: String,
+    /// Owner user ID (required for tenant isolation).
+    pub user_id: String,
 }
 
 /// Generic success/message response.
