@@ -689,6 +689,20 @@ impl ToolExecutor {
                     .ok_or_else(|| "write_file requires 'content' parameter".to_string())?;
                 std::fs::write(path, content)
                     .map_err(|e| format!("Failed to write file '{}': {}", path, e))?;
+                // Read-back verification to detect concurrent clobber — see
+                // FileOpsTool::write_file for the full rationale.
+                let readback = std::fs::read(path)
+                    .map_err(|e| format!("post-write readback failed for '{}': {}", path, e))?;
+                if readback.as_slice() != content.as_bytes() {
+                    return Err(format!(
+                        "Write to {} succeeded but immediate read-back returned {} bytes \
+                         (wrote {} bytes). This indicates concurrent modification by another \
+                         process. Use a unique filename or coordinate with the other writer.",
+                        path,
+                        readback.len(),
+                        content.len()
+                    ));
+                }
                 Ok(format!(
                     "Successfully wrote {} bytes to {}",
                     content.len(),

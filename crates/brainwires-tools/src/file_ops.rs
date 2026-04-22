@@ -337,6 +337,32 @@ impl FileOpsTool {
         }
         fs::write(&full_path, &params.content)
             .with_context(|| format!("Failed to write file: {}", full_path.display()))?;
+
+        // 4. Read-back verification — detects concurrent clobber.
+        //
+        // The in-process file-lock manager serializes individual write syscalls,
+        // but it does NOT prevent two agents from independently overwriting each
+        // other's content: from the lock manager's perspective, those are valid
+        // sequential writes. Without this check, the losing writer would report
+        // `Success: true` while its content is silently gone.
+        //
+        // We re-read the file and compare bytes. A mismatch means another
+        // process modified the file between our write and our read-back, so we
+        // surface a tool-level error that the agent's LLM can see and handle
+        // (retry with a unique filename, coordinate, or abort — its choice).
+        let readback = fs::read(&full_path)
+            .with_context(|| format!("post-write readback failed for {}", full_path.display()))?;
+        if readback.as_slice() != params.content.as_bytes() {
+            return Err(anyhow::anyhow!(
+                "Write to {} succeeded but immediate read-back returned {} bytes (wrote {} bytes). \
+                 This indicates concurrent modification by another process. \
+                 Use a unique filename or coordinate with the other writer.",
+                full_path.display(),
+                readback.len(),
+                params.content.len()
+            ));
+        }
+
         let msg = format!(
             "Successfully wrote {} bytes to {}",
             params.content.len(),
@@ -969,6 +995,102 @@ mod tests {
         );
         mgr.rollback();
         assert!(!target.exists(), "File must not exist after rollback");
+    }
+
+    // ── Concurrent clobber detection ──────────────────────────────────────────
+    //
+    // Regression test for the bug where two concurrent agents both reported
+    // `Success: true` after writing conflicting content to the same file.
+    //
+    // Honest scope: the in-process FileLockManager serializes individual write
+    // syscalls but does NOT prevent two writers from each issuing a full
+    // overwrite. The fix — an immediate read-back after write — closes the
+    // common race window where writer X's read-back lands after writer Y's
+    // write. It does NOT catch the case where X's full write+readback
+    // completes before Y's write begins (those are logically sequential and
+    // indistinguishable from the non-concurrent case).
+    //
+    // So this test runs many iterations of tight concurrent writes and asserts
+    // that across the batch, at least one writer observes the clobber and
+    // returns an error. With the fix this is reliable (the race fires
+    // overwhelmingly often); without the fix, both writers always return
+    // success regardless of outcome — exactly the bug we're preventing.
+    #[test]
+    fn write_file_detects_concurrent_clobber() {
+        use std::sync::{Arc, Barrier};
+        use std::thread;
+
+        const ITERATIONS: usize = 128;
+        let mut errors_observed = 0usize;
+
+        for _ in 0..ITERATIONS {
+            let temp_dir = TempDir::new().unwrap();
+            let working_dir = temp_dir.path().to_str().unwrap().to_string();
+            // Larger content widens the write+read window, making the race
+            // fire more consistently.
+            let content_a = "A".repeat(16 * 1024);
+            let content_b = "B".repeat(16 * 1024);
+            let barrier = Arc::new(Barrier::new(2));
+
+            let b1 = barrier.clone();
+            let wd1 = working_dir.clone();
+            let ca = content_a.clone();
+            let t1 = thread::spawn(move || {
+                let ctx = ToolContext {
+                    working_directory: wd1,
+                    ..Default::default()
+                };
+                b1.wait();
+                FileOpsTool::execute(
+                    "a",
+                    "write_file",
+                    &json!({"path": "conflict.txt", "content": ca}),
+                    &ctx,
+                )
+            });
+
+            let b2 = barrier.clone();
+            let wd2 = working_dir.clone();
+            let cb = content_b.clone();
+            let t2 = thread::spawn(move || {
+                let ctx = ToolContext {
+                    working_directory: wd2,
+                    ..Default::default()
+                };
+                b2.wait();
+                FileOpsTool::execute(
+                    "b",
+                    "write_file",
+                    &json!({"path": "conflict.txt", "content": cb}),
+                    &ctx,
+                )
+            });
+
+            let r1 = t1.join().unwrap();
+            let r2 = t2.join().unwrap();
+
+            // Final file must be exactly one of the two inputs — write_file
+            // does not produce interleaved bytes.
+            let on_disk = fs::read_to_string(temp_dir.path().join("conflict.txt")).unwrap();
+            assert!(on_disk == content_a || on_disk == content_b);
+
+            if r1.is_error || r2.is_error {
+                errors_observed += 1;
+            }
+        }
+
+        // With tight concurrent writes across 128 iterations and 16 KiB
+        // contents, the read-back race should fire on a substantial fraction
+        // of runs. A single detection is enough to prove the mechanism works;
+        // we require at least one to avoid confidence-free green tests.
+        assert!(
+            errors_observed >= 1,
+            "Expected at least one concurrent writer to observe the clobber \
+             across {} iterations; saw {}. This suggests the read-back check \
+             is not engaging.",
+            ITERATIONS,
+            errors_observed
+        );
     }
 
     #[test]

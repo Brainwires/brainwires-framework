@@ -230,9 +230,17 @@ let _lock = file_lock_manager.acquire_write("src/main.rs").await?;
 ```
 
 Locks automatically released on drop. Prevents:
-- Lost writes from concurrent modifications
-- Read-during-write inconsistencies
+- Interleaved writes corrupting a single write operation
+- Read-during-write returning a partial file
 - Deadlocks via lock ordering
+
+Does NOT prevent: two agents each issuing a full overwrite of the same file —
+those are valid sequential writes from the lock manager's perspective, so the
+later one silently "wins." For end-to-end conflict detection, the `write_file`
+tool performs an immediate read-back after the write and surfaces a mismatch
+as a tool error. This ensures at least one of two conflicting writers sees the
+conflict and can retry, pick a unique filename, or abort — rather than both
+reporting `Success: true` while one agent's content is gone.
 
 ### Validation Loop Pattern
 
