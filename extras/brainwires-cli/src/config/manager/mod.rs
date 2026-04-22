@@ -668,7 +668,14 @@ fn default_provider_type() -> ProviderType {
 }
 
 pub(crate) fn default_model() -> String {
-    "gpt-5-mini".to_string()
+    // A first-run default must be a model the backend actually advertises in
+    // `brainwires models list`. The previous default "gpt-5-mini" did not
+    // appear in that list (the closest real model is "openai-gpt-5-mini"),
+    // which produced silent request failures for fresh installs.
+    //
+    // Claude Haiku 4.5 is small, cheap, supported on the Brainwires SaaS
+    // relay, and widely available to users who are just exploring the CLI.
+    "claude-haiku-4-5-20251001".to_string()
 }
 
 pub(crate) fn default_backend_url() -> String {

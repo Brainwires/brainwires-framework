@@ -56,7 +56,7 @@ pub mod models {
     pub const GOOGLE_DEFAULT: &str = "gemini-2.0-flash-exp";
     pub const GROQ_DEFAULT: &str = "llama-3.3-70b-versatile";
     pub const OLLAMA_DEFAULT: &str = "llama3.1";
-    pub const BRAINWIRES_DEFAULT: &str = "gpt-5-mini";
+    pub const BRAINWIRES_DEFAULT: &str = "claude-haiku-4-5-20251001";
 }
 
 #[cfg(test)]
