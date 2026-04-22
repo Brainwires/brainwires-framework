@@ -364,7 +364,14 @@ impl App {
         if let Some(Commands::Chat { tui: true, .. }) = &self.cli.command {
             // Skip logging init for TUI mode
         } else {
-            crate::utils::logger::init();
+            // Honor `--quiet` / `--format json` on `chat` by raising the
+            // default console filter to warn so stderr stays clean for
+            // scripts. RUST_LOG still wins (see logger::init_with_options).
+            let quiet_chat = match &self.cli.command {
+                Some(Commands::Chat { quiet, format, .. }) => *quiet || format == "json",
+                _ => false,
+            };
+            crate::utils::logger::init_with_options(true, quiet_chat);
         }
 
         // First-run provider picker: triggers on the first user-facing

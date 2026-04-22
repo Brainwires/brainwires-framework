@@ -169,8 +169,11 @@ Most of these are essential for core functionality. Only `llama-cpp-2` is truly 
 6. **MCP Layer** (`src/mcp/` and `src/mcp_server/`)
    - **MCP Client**: Connect to external MCP servers and use their tools
    - **MCP Server Mode**: Expose CLI as MCP server via `--mcp-server` flag
-   - Agent management tools: `agent_spawn`, `agent_list`, `agent_status`, `agent_stop`, `agent_await`
-   - File lock tools: `agent_pool_stats`, `agent_file_locks`
+   - Exposes exactly 10 tools today (verified via `tools/list`):
+     - Agent management (5): `agent_spawn`, `agent_list`, `agent_status`, `agent_stop`, `agent_await`
+     - Agent pool / locks (2): `agent_pool_stats`, `agent_file_locks`
+     - Self-improvement loop (3): `self_improve_start`, `self_improve_status`, `self_improve_stop`
+   - The `ToolCategory::TaskManager`, `SessionTask`, `Planning`, and `Context` registries are wired into `handle_list_tools` but currently empty — the `task_*`, `plan_task`, and `recall_context` names in `is_mcp_allowed_tool` are reserved for future use and not exposed yet.
 
 7. **Storage Layer** (`src/storage/`)
    - **LanceDB**: Vector database for conversation persistence

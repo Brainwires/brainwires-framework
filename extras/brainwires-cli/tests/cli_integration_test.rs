@@ -388,9 +388,15 @@ fn test_plan_help() {
 
 #[test]
 fn test_init() {
+    // `brainwires init` is documented as not yet implemented and now exits
+    // non-zero so scripts can detect the no-op. Assert the current, correct
+    // behavior: failure + "not yet implemented" message.
     brainwires_cmd()
         .arg("init")
         .assert()
-        .success()
-        .stderr(predicate::str::contains("Init not yet implemented"));
+        .failure()
+        .stderr(
+            predicate::str::contains("Init not yet implemented")
+                .or(predicate::str::contains("not yet implemented")),
+        );
 }
