@@ -61,7 +61,16 @@ See `Dockerfile` and `docker-compose.yml` for the build pipeline — the contain
 
 ## Tests
 
-Vitest covers the docs and nav helpers. Run with `npm test`. Test files live beside their modules (e.g. `src/lib/docs.test.ts`, `src/lib/nav.test.ts`).
+Vitest covers the docs and nav helpers. Run with `npm test`. Test files live beside their modules (e.g. `src/lib/docs.test.ts`, `src/lib/nav.test.ts`, `src/lib/search.test.ts`).
+
+## Search
+
+The in-app search dialog (⌘K / Ctrl+K) is backed by a JSON index built at build time and queried on the client with [fuse.js](https://www.fusejs.io/).
+
+- **Builder**: `src/lib/search.ts` walks `NAV_TREE`, resolves each href to its backing markdown via `DOC_SLUG_MAP` / `DENO_SLUG_MAP` / the crate + extra READMEs, and emits `{ href, title, section, body }` records. Frontmatter is stripped via `gray-matter`.
+- **Build script**: `scripts/build-search-index.mjs` invokes the builder and writes the result to `public/search-index.json`. Run it with `npm run build:search`, or let `npm run build` do it for you — the search index is generated before every `next build`.
+- **Output**: `public/search-index.json` (gitignored — it's a regenerable artifact).
+- **Runtime**: `src/components/docs/search-dialog.tsx` fetches `/search-index.json` on first open, wraps it in a `Fuse` instance, and queries as the user types.
 
 ## Notes
 
