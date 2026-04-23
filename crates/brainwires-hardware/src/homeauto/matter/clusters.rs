@@ -289,16 +289,20 @@ impl CommandPath {
 
 // ── On/Off cluster (0x0006) ───────────────────────────────────────────────────
 
+/// On/Off cluster (`0x0006`) — binary actuator control.
 pub mod on_off {
     use super::*;
+    /// Cluster ID for this module.
     pub const CLUSTER_ID: u32 = cluster_id::ON_OFF;
 
-    // Attribute IDs
+    /// `0x0000` — OnOff attribute (boolean current state).
     pub const ATTR_ON_OFF: u32 = 0x0000;
 
-    // Command IDs
+    /// `0x00` — Off command.
     pub const CMD_OFF: u32 = 0x00;
+    /// `0x01` — On command.
     pub const CMD_ON: u32 = 0x01;
+    /// `0x02` — Toggle command.
     pub const CMD_TOGGLE: u32 = 0x02;
 
     /// TLV payload for the On command (empty struct).
@@ -317,18 +321,28 @@ pub mod on_off {
 
 // ── Level Control cluster (0x0008) ───────────────────────────────────────────
 
+/// Level Control cluster (`0x0008`) — dimmer / percentage-position control.
 pub mod level_control {
     use super::*;
+    /// Cluster ID for this module.
     pub const CLUSTER_ID: u32 = cluster_id::LEVEL_CONTROL;
 
+    /// `0x0000` — CurrentLevel attribute (0..=254).
     pub const ATTR_CURRENT_LEVEL: u32 = 0x0000;
+    /// `0x0001` — RemainingTime attribute (0.1 s units).
     pub const ATTR_REMAINING_TIME: u32 = 0x0001;
+    /// `0x0011` — OnLevel attribute (level applied when OnOff goes true).
     pub const ATTR_ON_LEVEL: u32 = 0x0011;
 
+    /// `0x00` — MoveToLevel command.
     pub const CMD_MOVE_TO_LEVEL: u32 = 0x00;
+    /// `0x01` — Move command (at a given rate).
     pub const CMD_MOVE: u32 = 0x01;
+    /// `0x02` — Step command.
     pub const CMD_STEP: u32 = 0x02;
+    /// `0x03` — Stop command.
     pub const CMD_STOP: u32 = 0x03;
+    /// `0x04` — MoveToLevelWithOnOff — turns the fixture on if off.
     pub const CMD_MOVE_TO_LEVEL_WITH_ON_OFF: u32 = 0x04;
 
     /// TLV for MoveToLevel: `{ level(0): u8, transitionTime(1): u16 | null, optionsMask(2): u8, optionsOverride(3): u8 }`
@@ -346,18 +360,28 @@ pub mod level_control {
 
 // ── Color Control cluster (0x0300) ───────────────────────────────────────────
 
+/// Color Control cluster (`0x0300`) — HSV / CIE / color-temperature.
 pub mod color_control {
     use super::*;
+    /// Cluster ID for this module.
     pub const CLUSTER_ID: u32 = cluster_id::COLOR_CONTROL;
 
+    /// `0x0000` — CurrentHue attribute.
     pub const ATTR_CURRENT_HUE: u32 = 0x0000;
+    /// `0x0001` — CurrentSaturation attribute.
     pub const ATTR_CURRENT_SAT: u32 = 0x0001;
+    /// `0x0007` — ColorTemperatureMireds attribute.
     pub const ATTR_COLOR_TEMP_MIREDS: u32 = 0x0007;
+    /// `0x0008` — ColorMode attribute (HSV vs CIE vs color-temp).
     pub const ATTR_COLOR_MODE: u32 = 0x0008;
 
+    /// `0x00` — MoveToHue command.
     pub const CMD_MOVE_TO_HUE: u32 = 0x00;
+    /// `0x03` — MoveToSaturation command.
     pub const CMD_MOVE_TO_SAT: u32 = 0x03;
+    /// `0x06` — MoveToHueAndSaturation command.
     pub const CMD_MOVE_TO_HUE_AND_SAT: u32 = 0x06;
+    /// `0x0A` — MoveToColorTemperature command.
     pub const CMD_MOVE_TO_COLOR_TEMP: u32 = 0x0A;
 
     /// TLV for MoveToHueAndSaturation.
@@ -382,16 +406,24 @@ pub mod color_control {
 
 // ── Thermostat cluster (0x0201) ───────────────────────────────────────────────
 
+/// Thermostat cluster (`0x0201`) — HVAC setpoint and mode control.
 pub mod thermostat {
     use super::*;
+    /// Cluster ID for this module.
     pub const CLUSTER_ID: u32 = cluster_id::THERMOSTAT;
 
+    /// `0x0000` — LocalTemperature attribute (signed 0.01°C).
     pub const ATTR_LOCAL_TEMP: u32 = 0x0000;
+    /// `0x0011` — OccupiedCoolingSetpoint attribute.
     pub const ATTR_OCCUPIED_COOLING_SETPOINT: u32 = 0x0011;
+    /// `0x0012` — OccupiedHeatingSetpoint attribute.
     pub const ATTR_OCCUPIED_HEATING_SETPOINT: u32 = 0x0012;
+    /// `0x001C` — SystemMode attribute (Off/Auto/Cool/Heat/…).
     pub const ATTR_SYSTEM_MODE: u32 = 0x001C;
 
+    /// `0x01` — SetWeeklySchedule command.
     pub const CMD_SET_WEEKLY_SCHEDULE: u32 = 0x01;
+    /// `0x00` — SetpointRaiseLower command.
     pub const CMD_SET_SETPOINT_RAISE_LOWER: u32 = 0x00;
 
     /// TLV for SetpointRaiseLower: `{ mode(0): u8, amount(1): i8 }`
@@ -407,14 +439,20 @@ pub mod thermostat {
 
 // ── Door Lock cluster (0x0101) ────────────────────────────────────────────────
 
+/// Door Lock cluster (`0x0101`) — lock actuator and PIN management.
 pub mod door_lock {
     use super::*;
+    /// Cluster ID for this module.
     pub const CLUSTER_ID: u32 = cluster_id::DOOR_LOCK;
 
+    /// `0x0000` — LockState attribute.
     pub const ATTR_LOCK_STATE: u32 = 0x0000;
+    /// `0x0001` — LockType attribute.
     pub const ATTR_LOCK_TYPE: u32 = 0x0001;
 
+    /// `0x00` — LockDoor command.
     pub const CMD_LOCK_DOOR: u32 = 0x00;
+    /// `0x01` — UnlockDoor command.
     pub const CMD_UNLOCK_DOOR: u32 = 0x01;
 
     /// TLV for LockDoor / UnlockDoor: `{ PINCode(0)?: octet_string }` (PIN optional)
@@ -433,19 +471,29 @@ pub mod door_lock {
 
 // ── Window Covering cluster (0x0102) ─────────────────────────────────────────
 
+/// Window Covering cluster (`0x0102`) — blinds / shades / awnings.
 pub mod window_covering {
     use super::*;
+    /// Cluster ID for this module.
     pub const CLUSTER_ID: u32 = cluster_id::WINDOW_COVERING;
 
+    /// `0x0008` — CurrentPositionLiftPercentage.
     pub const ATTR_CURRENT_POSITION_LIFT_PCT: u32 = 0x0008;
+    /// `0x0009` — CurrentPositionTiltPercentage.
     pub const ATTR_CURRENT_POSITION_TILT_PCT: u32 = 0x0009;
 
+    /// `0x00` — UpOrOpen command.
     pub const CMD_UP_OR_OPEN: u32 = 0x00;
+    /// `0x01` — DownOrClose command.
     pub const CMD_DOWN_OR_CLOSE: u32 = 0x01;
+    /// `0x02` — StopMotion command.
     pub const CMD_STOP_MOTION: u32 = 0x02;
+    /// `0x05` — GoToLiftPercentage command.
     pub const CMD_GO_TO_LIFT_PERCENTAGE: u32 = 0x05;
+    /// `0x08` — GoToTiltPercentage command.
     pub const CMD_GO_TO_TILT_PERCENTAGE: u32 = 0x08;
 
+    /// TLV for `GoToLiftPercentage { liftPercent100thsValue }`.
     pub fn go_to_lift_percentage_tlv(percent: u8) -> Vec<u8> {
         let inner = tlv_uint8(0, percent);
         wrap_struct(&inner)
