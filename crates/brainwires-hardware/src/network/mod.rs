@@ -38,10 +38,15 @@
 //! }
 //! ```
 
+/// Layer-2/3 host discovery: ARP probing and subnet-scoped sweeps.
 pub mod discovery;
+/// Enumerate the machine's network interfaces (physical + virtual).
 pub mod interfaces;
+/// Read per-interface IP configuration (addresses, CIDR, gateway).
 pub mod ipconfig;
+/// TCP port scanning helpers (single-port, common-port set, range).
 pub mod portscan;
+/// Typed inputs/outputs for the network module (interfaces, hosts, scan results).
 pub mod types;
 
 pub use discovery::{arp_probe, arp_scan};

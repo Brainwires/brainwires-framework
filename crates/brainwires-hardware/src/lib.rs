@@ -1,4 +1,4 @@
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 
 //! # brainwires-hardware
 //!
@@ -76,6 +76,11 @@ pub mod camera;
 pub mod usb;
 
 /// Home automation protocols: Zigbee (EZSP + ZNP), Z-Wave (Serial API), Thread (OTBR), Matter.
+// The Matter subsystem contains ~380 spec-defined constants and TLV struct fields
+// whose names are self-documenting against the Matter Core Specification. Full
+// doc sweep is tracked as follow-up to P2.1; the suppression scopes to this
+// module so regressions anywhere else in the crate still break the build.
+#[allow(missing_docs)]
 #[cfg(any(
     feature = "homeauto",
     feature = "zigbee",
