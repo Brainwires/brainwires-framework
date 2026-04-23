@@ -1,4 +1,4 @@
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 
 //! Unified telemetry for the Brainwires Agent Framework.
 //!
