@@ -57,13 +57,14 @@ impl ChatProviderFactory {
         let base_url = config.base_url.as_deref().unwrap_or(default_base_url);
         client = client.with_base_url(base_url.to_string());
         let client = Arc::new(client);
-        let mut provider =
+        let provider =
             super::openai_chat::chat::OpenAiChatProvider::new(client, config.model.clone())
                 .with_provider_name(config.provider.as_str());
         #[cfg(feature = "telemetry")]
-        if let Some(ref c) = config.analytics_collector {
-            provider = provider.with_analytics(Arc::clone(c));
-        }
+        let provider = match config.analytics_collector.as_ref() {
+            Some(c) => provider.with_analytics(Arc::clone(c)),
+            None => provider,
+        };
         Ok(Arc::new(provider))
     }
 
@@ -77,13 +78,14 @@ impl ChatProviderFactory {
             client = client.with_base_url(base_url.clone());
         }
         let client = Arc::new(client);
-        let mut provider =
+        let provider =
             super::openai_responses::OpenAiResponsesProvider::new(client, config.model.clone())
                 .with_provider_name(config.provider.as_str());
         #[cfg(feature = "telemetry")]
-        if let Some(ref c) = config.analytics_collector {
-            provider = provider.with_analytics(Arc::clone(c));
-        }
+        let provider = match config.analytics_collector.as_ref() {
+            Some(c) => provider.with_analytics(Arc::clone(c)),
+            None => provider,
+        };
         Ok(Arc::new(provider))
     }
 
@@ -108,13 +110,14 @@ impl ChatProviderFactory {
             api_key,
             config.model.clone(),
         ));
-        let mut provider =
+        let provider =
             super::anthropic::chat::AnthropicChatProvider::new(client, config.model.clone())
                 .with_provider_name(config.provider.as_str());
         #[cfg(feature = "telemetry")]
-        if let Some(ref c) = config.analytics_collector {
-            provider = provider.with_analytics(Arc::clone(c));
-        }
+        let provider = match config.analytics_collector.as_ref() {
+            Some(c) => provider.with_analytics(Arc::clone(c)),
+            None => provider,
+        };
         Ok(Arc::new(provider))
     }
 
@@ -209,24 +212,26 @@ impl ChatProviderFactory {
             api_key,
             config.model.clone(),
         ));
-        let mut provider =
+        let provider =
             super::gemini::chat::GoogleChatProvider::new(client, config.model.clone());
         #[cfg(feature = "telemetry")]
-        if let Some(ref c) = config.analytics_collector {
-            provider = provider.with_analytics(Arc::clone(c));
-        }
+        let provider = match config.analytics_collector.as_ref() {
+            Some(c) => provider.with_analytics(Arc::clone(c)),
+            None => provider,
+        };
         Ok(Arc::new(provider))
     }
 
     fn create_ollama(config: &ProviderConfig) -> Result<Arc<dyn Provider>> {
-        let mut provider = super::ollama::chat::OllamaChatProvider::new(
+        let provider = super::ollama::chat::OllamaChatProvider::new(
             config.model.clone(),
             config.base_url.clone(),
         );
         #[cfg(feature = "telemetry")]
-        if let Some(ref c) = config.analytics_collector {
-            provider = provider.with_analytics(Arc::clone(c));
-        }
+        let provider = match config.analytics_collector.as_ref() {
+            Some(c) => provider.with_analytics(Arc::clone(c)),
+            None => provider,
+        };
         Ok(Arc::new(provider))
     }
 
