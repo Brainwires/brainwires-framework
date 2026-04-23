@@ -162,7 +162,9 @@ fn greedy_log_det_select(kernel: &Array2<f32>, k: usize) -> Vec<usize> {
                 let cross = cross_column(kernel, &selected, c);
                 let diag_cc = kernel[[c, c]];
                 let new_ld =
-                    log_det_incremental(chol_s.as_ref().unwrap(), &cross, diag_cc, current_log_det);
+                    log_det_incremental(chol_s
+                        .as_ref()
+                        .expect("chol_s is initialized in round 0 before any incremental round runs"), &cross, diag_cc, current_log_det);
                 new_ld - current_log_det
             };
 
@@ -188,7 +190,9 @@ fn greedy_log_det_select(kernel: &Array2<f32>, k: usize) -> Vec<usize> {
             let cross = cross_column(kernel, &selected, best_idx);
             let diag_cc = kernel[[best_idx, best_idx]];
             chol_s = Some(
-                cholesky_extend(chol_s.as_ref().unwrap(), &cross, diag_cc)
+                cholesky_extend(chol_s
+                        .as_ref()
+                        .expect("chol_s is initialized in round 0 before any incremental round runs"), &cross, diag_cc)
                     .expect("Cholesky extend failed after positive gain check"),
             );
             current_log_det += best_gain;

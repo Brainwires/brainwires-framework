@@ -86,6 +86,7 @@ async fn retry_succeeds_after_transient_429s() {
             max: Duration::from_millis(4),
             jitter: 0.0,
             honor_retry_after: false,
+            overall_deadline: None,
         },
     );
     let resp = wrapped
@@ -107,6 +108,7 @@ async fn retry_gives_up_with_typed_error() {
             max: Duration::from_millis(2),
             jitter: 0.0,
             honor_retry_after: false,
+            overall_deadline: None,
         },
     );
     let err = wrapped
@@ -131,6 +133,7 @@ async fn retry_skips_non_retryable() {
             max: Duration::from_millis(2),
             jitter: 0.0,
             honor_retry_after: false,
+            overall_deadline: None,
         },
     );
     assert!(wrapped.chat(&[], None, &ChatOptions::default()).await.is_err());
@@ -174,6 +177,7 @@ async fn stacked_retry_over_budget_composes_cleanly() {
             max: Duration::from_millis(2),
             jitter: 0.0,
             honor_retry_after: false,
+            overall_deadline: None,
         },
     );
     wrapped

@@ -14,7 +14,7 @@ use tokio::sync::Mutex;
 
 use brainwires_core::Message;
 
-use crate::{SessionId, SessionRecord, SessionStore};
+use crate::{ListOptions, SessionId, SessionRecord, SessionStore};
 
 /// Disk-backed session store. Access is serialised through a single
 /// connection — adequate for single-node agent workloads.
@@ -111,6 +111,34 @@ impl SessionStore for SqliteSessionStore {
         let conn = self.conn.lock().await;
         conn.execute("DELETE FROM sessions WHERE id = ?1", params![id.as_str()])?;
         Ok(())
+    }
+
+    async fn list_paginated(&self, opts: ListOptions) -> Result<Vec<SessionRecord>> {
+        let conn = self.conn.lock().await;
+        // SQLite uses i64 for LIMIT/OFFSET. -1 means "no limit" — use it when
+        // the caller passed `None`.
+        let limit_sql: i64 = opts
+            .limit
+            .map(|l| l.try_into().unwrap_or(i64::MAX))
+            .unwrap_or(-1);
+        let offset_sql: i64 = opts.offset.try_into().unwrap_or(i64::MAX);
+        let mut stmt = conn.prepare(
+            "SELECT id, message_count, created_at, updated_at FROM sessions
+             ORDER BY updated_at ASC LIMIT ?1 OFFSET ?2",
+        )?;
+        let rows = stmt.query_map(params![limit_sql, offset_sql], |row| {
+            Ok(SessionRecord {
+                id: SessionId::new(row.get::<_, String>(0)?),
+                message_count: row.get::<_, i64>(1)? as usize,
+                created_at: ts_to_utc(row.get::<_, i64>(2)?),
+                updated_at: ts_to_utc(row.get::<_, i64>(3)?),
+            })
+        })?;
+        let mut out = Vec::new();
+        for r in rows {
+            out.push(r?);
+        }
+        Ok(out)
     }
 }
 

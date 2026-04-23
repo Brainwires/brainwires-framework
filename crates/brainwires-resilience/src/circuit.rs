@@ -264,4 +264,47 @@ mod tests {
 
         assert_eq!(cb.state_for("default").await, CircuitState::Closed);
     }
+
+    #[tokio::test]
+    async fn half_open_reopens_on_failure() {
+        use crate::tests_util::ToggleProvider;
+        let prov = Arc::new(ToggleProvider::new("p1"));
+        let cb = CircuitBreakerProvider::new(
+            prov.clone(),
+            CircuitBreakerConfig {
+                failure_threshold: 2,
+                cooldown: Duration::from_millis(20),
+            },
+        );
+        let opts = ChatOptions::default();
+
+        // Fail twice to open.
+        prov.set_fail(true);
+        let _ = cb.chat(&[], None, &opts).await;
+        let _ = cb.chat(&[], None, &opts).await;
+        assert_eq!(cb.state_for("default").await, CircuitState::Open);
+
+        // Wait cooldown so the next call enters half-open. Provider still failing →
+        // breaker must trip back to Open immediately, not require another threshold.
+        tokio::time::sleep(Duration::from_millis(30)).await;
+        let err = cb.chat(&[], None, &opts).await.unwrap_err();
+        // The half-open trial call surfaces the provider's transient error
+        // (not CircuitOpen) — that's the diagnostic signal the breaker re-tripped.
+        assert!(
+            err.to_string().contains("500"),
+            "expected provider error from half-open trial, got: {err}"
+        );
+        assert_eq!(
+            cb.state_for("default").await,
+            CircuitState::Open,
+            "half-open + failure must re-open the circuit",
+        );
+
+        // And the next call should be fast-failed by the now-open circuit.
+        let err2 = cb.chat(&[], None, &opts).await.unwrap_err();
+        assert!(matches!(
+            err2.downcast_ref::<ResilienceError>(),
+            Some(ResilienceError::CircuitOpen { .. })
+        ));
+    }
 }

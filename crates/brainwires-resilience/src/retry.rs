@@ -1,7 +1,7 @@
 //! Retry decorator with exponential backoff + jitter.
 
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -28,6 +28,11 @@ pub struct RetryPolicy {
     pub jitter: f64,
     /// If true, honor `retry-after` hints embedded in error messages.
     pub honor_retry_after: bool,
+    /// Hard wall-clock ceiling for the entire retry sequence. When set, the
+    /// loop exits with [`ResilienceError::DeadlineExceeded`] once the elapsed
+    /// time exceeds this value, regardless of `max_attempts`. `None` disables
+    /// the ceiling — retries run up to `max_attempts` only.
+    pub overall_deadline: Option<Duration>,
 }
 
 impl Default for RetryPolicy {
@@ -38,6 +43,7 @@ impl Default for RetryPolicy {
             max: Duration::from_secs(30),
             jitter: 0.2,
             honor_retry_after: true,
+            overall_deadline: Some(Duration::from_secs(60)),
         }
     }
 }
@@ -110,6 +116,7 @@ impl<P: Provider + ?Sized + 'static> Provider for RetryProvider<P> {
         options: &ChatOptions,
     ) -> Result<ChatResponse> {
         let mut last_err: Option<anyhow::Error> = None;
+        let started = Instant::now();
 
         for attempt in 1..=self.policy.max_attempts {
             match self.inner.chat(messages, tools, options).await {
@@ -127,11 +134,35 @@ impl<P: Provider + ?Sized + 'static> Provider for RetryProvider<P> {
                         return Err(e);
                     }
 
-                    let delay = if self.policy.honor_retry_after {
+                    let mut delay = if self.policy.honor_retry_after {
                         parse_retry_after(&e).unwrap_or_else(|| self.policy.backoff_for(attempt))
                     } else {
                         self.policy.backoff_for(attempt)
                     };
+
+                    if let Some(deadline) = self.policy.overall_deadline {
+                        let elapsed = started.elapsed();
+                        if elapsed >= deadline || elapsed.saturating_add(delay) >= deadline {
+                            tracing::warn!(
+                                provider = self.inner.name(),
+                                attempt,
+                                elapsed_ms = elapsed.as_millis() as u64,
+                                deadline_ms = deadline.as_millis() as u64,
+                                "retry deadline reached, giving up"
+                            );
+                            return Err(ResilienceError::DeadlineExceeded {
+                                attempts: attempt,
+                                elapsed_ms: elapsed.as_millis() as u64,
+                                source: e,
+                            }
+                            .into());
+                        }
+                        // Cap the next sleep so it doesn't overshoot the deadline.
+                        let remaining = deadline.saturating_sub(elapsed);
+                        if delay > remaining {
+                            delay = remaining;
+                        }
+                    }
 
                     tracing::warn!(
                         provider = self.inner.name(),
@@ -185,6 +216,7 @@ mod tests {
             max: Duration::from_millis(800),
             jitter: 0.0,
             honor_retry_after: false,
+            overall_deadline: None,
         };
         assert_eq!(p.backoff_for(1), Duration::from_millis(100));
         assert_eq!(p.backoff_for(2), Duration::from_millis(200));

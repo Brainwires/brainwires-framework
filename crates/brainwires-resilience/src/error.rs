@@ -39,4 +39,16 @@ pub enum ResilienceError {
         #[source]
         source: anyhow::Error,
     },
+
+    /// `RetryPolicy.overall_deadline` elapsed before the call could succeed.
+    #[error("retry deadline exceeded after {elapsed_ms}ms ({attempts} attempts): {source}")]
+    DeadlineExceeded {
+        /// How many attempts were made before the deadline tripped.
+        attempts: u32,
+        /// Wall-clock elapsed since the first attempt, in milliseconds.
+        elapsed_ms: u64,
+        /// The most recent attempt's error.
+        #[source]
+        source: anyhow::Error,
+    },
 }

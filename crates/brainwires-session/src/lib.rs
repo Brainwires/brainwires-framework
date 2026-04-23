@@ -24,6 +24,26 @@ pub use memory::InMemorySessionStore;
 pub use sqlite::SqliteSessionStore;
 pub use types::{SessionId, SessionRecord};
 
+/// Pagination window passed to [`SessionStore::list_paginated`].
+///
+/// `offset` rows are skipped from the start of the listing; `limit`, when
+/// `Some`, caps how many rows are returned. `Default` is `{ offset: 0, limit: None }`,
+/// which is equivalent to the unbounded [`SessionStore::list`] call.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ListOptions {
+    /// Number of records to skip from the start of the listing.
+    pub offset: usize,
+    /// Maximum number of records to return. `None` means no cap.
+    pub limit: Option<usize>,
+}
+
+impl ListOptions {
+    /// Convenience constructor.
+    pub fn new(offset: usize, limit: Option<usize>) -> Self {
+        Self { offset, limit }
+    }
+}
+
 /// Trait implemented by every session-persistence backend.
 ///
 /// Implementations must be cheap to share via `Arc` and safe to call
@@ -45,6 +65,20 @@ pub trait SessionStore: Send + Sync {
     /// Enumerate every session the store knows about, newest-last. Returns
     /// metadata only — use [`Self::load`] to read message content.
     async fn list(&self) -> Result<Vec<SessionRecord>>;
+
+    /// Enumerate sessions with `offset` / `limit` pagination. The default
+    /// implementation calls [`Self::list`] and slices in memory; backends that
+    /// can push the window down to storage (e.g. SQLite `LIMIT/OFFSET`) should
+    /// override this to avoid loading the full set.
+    async fn list_paginated(&self, opts: ListOptions) -> Result<Vec<SessionRecord>> {
+        let all = self.list().await?;
+        let start = opts.offset.min(all.len());
+        let end = match opts.limit {
+            Some(limit) => start.saturating_add(limit).min(all.len()),
+            None => all.len(),
+        };
+        Ok(all[start..end].to_vec())
+    }
 
     /// Remove a session. Deleting an unknown id is a no-op (not an error).
     async fn delete(&self, id: &SessionId) -> Result<()>;

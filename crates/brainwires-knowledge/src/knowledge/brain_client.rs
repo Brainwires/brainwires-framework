@@ -794,7 +794,10 @@ impl BrainClient {
             ));
         }
         let delete_filter = if del_parts.len() == 1 {
-            del_parts.into_iter().next().unwrap()
+            del_parts
+                .into_iter()
+                .next()
+                .expect("len()==1 guarantees a single element")
         } else {
             Filter::And(del_parts)
         };

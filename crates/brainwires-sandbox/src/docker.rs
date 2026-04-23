@@ -336,6 +336,22 @@ impl Sandbox for DockerSandbox {
             self.policy.validate_mount(m)?;
         }
 
+        let mut spec = spec;
+        for m in spec.mounts.iter_mut() {
+            let resolved = std::fs::canonicalize(&m.source).map_err(|e| {
+                SandboxError::PolicyViolation(format!(
+                    "mount source {} could not be canonicalized: {e}",
+                    m.source.display()
+                ))
+            })?;
+            self.policy.validate_mount(&Mount {
+                source: resolved.clone(),
+                target: m.target.clone(),
+                read_only: m.read_only,
+            })?;
+            m.source = resolved;
+        }
+
         let handle = ExecHandle::new();
 
         let mut env: Vec<String> = spec.env.iter().map(|(k, v)| format!("{k}={v}")).collect();
@@ -485,7 +501,22 @@ impl Sandbox for DockerSandbox {
 
         let result = match timeout(timeout_dur, collect_and_wait).await {
             Ok(res) => res,
-            Err(_) => Err(SandboxError::Timeout),
+            Err(_) => {
+                tracing::warn!(
+                    container_id = %container_id,
+                    elapsed_ms = started.elapsed().as_millis() as u64,
+                    timeout_ms = timeout_dur.as_millis() as u64,
+                    "DockerSandbox exec exceeded ExecSpec.timeout; killing container"
+                );
+                let _ = self
+                    .client
+                    .kill_container(
+                        &container_id,
+                        None::<bollard::container::KillContainerOptions<String>>,
+                    )
+                    .await;
+                Err(SandboxError::Timeout)
+            }
         };
 
         let _ = self
