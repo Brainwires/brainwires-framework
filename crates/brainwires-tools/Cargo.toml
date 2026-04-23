@@ -108,6 +108,15 @@ web-sys = { version = "0.3", features = ["console"], optional = true }
 getrandom = { version = "0.2", optional = true }
 serde-wasm-bindgen = { version = "0.6", optional = true }
 
+# Seccomp-bpf sandbox (Linux only) — used by `BashSandboxMode::NetworkDeny` to
+# deny network syscalls in the child process via a pre_exec hook. These deps
+# are only compiled on Linux; the code that uses them is cfg'd out on other
+# platforms. No separate feature gate: network-deny must always work when
+# requested on Linux, and is a warn-only no-op elsewhere.
+[target.'cfg(target_os = "linux")'.dependencies]
+seccompiler = "0.5"
+libc = "0.2"
+
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }
 tempfile = "3"

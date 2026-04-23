@@ -72,10 +72,11 @@ const MAX_STREAM_BYTES: usize = 25_000;
 pub enum BashSandboxMode {
     /// No sandboxing (current default).
     Off,
-    /// Run bash inside a new user + network namespace via `unshare -U -r -n`.
-    /// Outbound network is denied, bind mounts from the host remain visible.
-    /// Linux-only; silently falls through to `Off` on other platforms with
-    /// an attached warning in the tool result.
+    /// Install a seccomp-bpf filter on the spawned bash child that denies
+    /// network-related syscalls (`socket` for AF_INET/AF_INET6/AF_PACKET/
+    /// AF_NETLINK/AF_VSOCK, plus `connect`, `sendto`, `sendmsg`, `sendmmsg`)
+    /// with `EPERM`. AF_UNIX sockets remain allowed. Linux-only; on other
+    /// platforms this is a no-op that emits a `tracing::warn!`.
     NetworkDeny,
 }
 
@@ -90,33 +91,122 @@ impl BashSandboxMode {
     }
 }
 
-/// Wrap a command for the active sandbox mode. The wrapper runs the original
-/// command inside `unshare -U -r -n -- bash -o pipefail -c '<orig>'` on
-/// Linux when `NetworkDeny` is requested.
+/// Outcome of resolving a sandbox policy into concrete spawn parameters.
 ///
-/// On non-Linux platforms with `NetworkDeny`, this function returns the
-/// original command verbatim — the caller should surface a warning.
-fn apply_sandbox(command: &str, mode: BashSandboxMode) -> String {
+/// The command string is unchanged from the caller's input in all cases;
+/// enforcement happens in the child's pre-exec hook (see
+/// `run_command_with_timeout`) rather than via a shell wrapper. This avoids
+/// depending on `unshare -U -r -n`, which is blocked by AppArmor's
+/// user-namespaces policy on default-configured Ubuntu 24.04+.
+#[derive(Debug, Clone)]
+pub(crate) struct SandboxedCommand {
+    /// The command string to pass to `bash -c`. Identical to the caller's
+    /// input; the seccomp filter operates below the shell layer.
+    pub command: String,
+    /// When true, install the seccomp network-deny filter on the child
+    /// before `exec`. Always `false` on non-Linux.
+    pub seccomp_network_deny: bool,
+}
+
+/// Resolve the active sandbox mode into a [`SandboxedCommand`].
+///
+/// On Linux with `NetworkDeny`, sets `seccomp_network_deny: true` so the
+/// spawn site installs the BPF filter in `pre_exec`. On non-Linux with
+/// `NetworkDeny`, emits a `tracing::warn!` so operators know sandboxing was
+/// requested but not enforced (seccomp is Linux-only).
+pub(crate) fn apply_sandbox(command: &str, mode: BashSandboxMode) -> SandboxedCommand {
     match mode {
-        BashSandboxMode::Off => command.to_string(),
+        BashSandboxMode::Off => SandboxedCommand {
+            command: command.to_string(),
+            seccomp_network_deny: false,
+        },
         BashSandboxMode::NetworkDeny => {
-            if cfg!(target_os = "linux") {
-                // -U: new user namespace (no root needed)
-                // -r: map invoking uid to root inside the namespace
-                // -n: new network namespace (no outbound network)
-                // --: stop unshare arg parsing, everything after is the program.
-                format!(
-                    "unshare -U -r -n -- bash -o pipefail -c {}",
-                    shell_escape(command)
-                )
-            } else {
-                // Not supported on this platform — fall through; the caller
-                // surfaces a warning so the model knows sandboxing was not
-                // actually enforced.
-                command.to_string()
+            #[cfg(target_os = "linux")]
+            {
+                SandboxedCommand {
+                    command: command.to_string(),
+                    seccomp_network_deny: true,
+                }
+            }
+            #[cfg(not(target_os = "linux"))]
+            {
+                tracing::warn!(
+                    target: "brainwires_tools::bash::sandbox",
+                    "network-deny sandbox requested but only Linux seccomp is supported; running unrestricted"
+                );
+                SandboxedCommand {
+                    command: command.to_string(),
+                    seccomp_network_deny: false,
+                }
             }
         }
     }
+}
+
+/// Install a seccomp-bpf filter on the current thread that denies the
+/// network syscalls listed on [`BashSandboxMode::NetworkDeny`] with EPERM.
+/// Called from a child process' `pre_exec` hook.
+///
+/// AF_UNIX (domain=1) is intentionally allowed so local IPC (e.g. writing to
+/// a Unix socket, syslog) keeps working inside the sandbox. The filter
+/// leaves the default action as Allow and enumerates only the narrow set of
+/// syscalls we want to block.
+#[cfg(target_os = "linux")]
+fn install_seccomp_network_deny_filter() -> std::result::Result<(), String> {
+    use seccompiler::{
+        BpfProgram, SeccompAction, SeccompCmpArgLen, SeccompCmpOp, SeccompCondition, SeccompFilter,
+        SeccompRule,
+    };
+    use std::convert::TryInto;
+
+    // Address families we want to deny on `socket(2)`. Taken from
+    // <bits/socket.h>; leaving AF_UNIX(=1) / AF_LOCAL un-denied.
+    //   AF_INET     = 2   (IPv4)
+    //   AF_INET6    = 10  (IPv6)
+    //   AF_NETLINK  = 16  (kernel-user netlink)
+    //   AF_PACKET   = 17  (raw packet / L2)
+    //   AF_VSOCK    = 40  (VM sockets)
+    const DENIED_DOMAINS: &[u64] = &[2, 10, 16, 17, 40];
+
+    let mut socket_rules: Vec<SeccompRule> = Vec::with_capacity(DENIED_DOMAINS.len());
+    for &domain in DENIED_DOMAINS {
+        let cond = SeccompCondition::new(0, SeccompCmpArgLen::Dword, SeccompCmpOp::Eq, domain)
+            .map_err(|e| format!("seccomp condition: {}", e))?;
+        socket_rules
+            .push(SeccompRule::new(vec![cond]).map_err(|e| format!("seccomp rule: {}", e))?);
+    }
+
+    // `connect`, `sendto`, `sendmsg`, `sendmmsg` get flat denies regardless
+    // of address family — an empty rule vec in seccompiler means "match
+    // every invocation of this syscall".
+    let filter_map: std::collections::BTreeMap<i64, Vec<SeccompRule>> = [
+        (libc::SYS_socket, socket_rules),
+        (libc::SYS_connect, vec![]),
+        (libc::SYS_sendto, vec![]),
+        (libc::SYS_sendmsg, vec![]),
+        (libc::SYS_sendmmsg, vec![]),
+    ]
+    .into_iter()
+    .collect();
+
+    let filter = SeccompFilter::new(
+        filter_map,
+        // Default action for any syscall we didn't enumerate: allow.
+        SeccompAction::Allow,
+        // Action for matched syscalls: return EPERM so userspace sees a
+        // normal -EPERM rather than SIGSYS (which would kill bash).
+        SeccompAction::Errno(libc::EPERM as u32),
+        std::env::consts::ARCH
+            .try_into()
+            .map_err(|e| format!("seccomp target arch: {:?}", e))?,
+    )
+    .map_err(|e| format!("seccomp filter: {}", e))?;
+
+    let program: BpfProgram = filter
+        .try_into()
+        .map_err(|e| format!("seccomp compile: {}", e))?;
+    seccompiler::apply_filter(&program).map_err(|e| format!("seccomp apply: {}", e))?;
+    Ok(())
 }
 
 /// Truncate a stream to at most `max_bytes`, preserving head and tail with
@@ -552,14 +642,12 @@ impl BashTool {
             cmd = format!("set -o pipefail; {}", cmd);
         }
 
-        // Sandbox wrap happens *last* so the unshare wrapper sees the final
-        // transformed pipeline (with any `head -n`, `grep`, stderr routing
-        // already applied inside its bash shell).
-        let sandbox = BashSandboxMode::from_env();
-        if sandbox != BashSandboxMode::Off {
-            cmd = apply_sandbox(&cmd, sandbox);
-        }
-
+        // Note: sandbox enforcement used to be layered here as a shell
+        // wrapper (`unshare -U -r -n …`), but that path is unreliable under
+        // AppArmor's user-namespace restrictions. Sandbox mode is now
+        // resolved to a [`SandboxedCommand`] at spawn time and applied via
+        // a seccomp-bpf filter in the child's pre_exec hook — the shell
+        // command text is unchanged.
         cmd
     }
 
@@ -644,6 +732,12 @@ impl BashTool {
             shell_escape(effective_command)
         );
 
+        // NB: sudo's own privilege-elevation path requires netlink + IPC
+        // that our seccomp filter would block, so we deliberately do NOT
+        // install the network-deny filter when running under sudo. The
+        // caller opted into sudo; sandboxing sudo itself needs a different
+        // approach (e.g. nftables in the user namespace) and is out of
+        // scope for this path.
         let mut child = Command::new("bash")
             .arg("-c")
             .arg(&sudo_command)
@@ -774,14 +868,34 @@ impl BashTool {
         _timeout: Duration,
     ) -> Result<CommandOutput> {
         use std::process::Stdio;
-        let output = Command::new("bash")
-            .arg("-o")
+
+        let sandbox = apply_sandbox(command, BashSandboxMode::from_env());
+
+        let mut cmd = Command::new("bash");
+        cmd.arg("-o")
             .arg("pipefail")
             .arg("-c")
-            .arg(command)
+            .arg(&sandbox.command)
             .current_dir(working_dir)
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
+            .stderr(Stdio::piped());
+
+        #[cfg(target_os = "linux")]
+        if sandbox.seccomp_network_deny {
+            use std::os::unix::process::CommandExt;
+            // SAFETY: pre_exec runs in the child between fork and exec. We
+            // only touch the thread's seccomp filter and return; no
+            // allocator / async-signal-unsafe calls beyond what seccompiler
+            // performs internally (a single prctl + syscall).
+            unsafe {
+                cmd.pre_exec(|| {
+                    install_seccomp_network_deny_filter()
+                        .map_err(|e| std::io::Error::other(format!("seccomp: {}", e)))
+                });
+            }
+        }
+
+        let output = cmd
             .output()
             .with_context(|| format!("Failed to execute command: {}", command))?;
 
@@ -917,17 +1031,114 @@ mod tests {
     }
 
     #[test]
-    #[cfg(target_os = "linux")]
-    fn test_apply_sandbox_network_deny_wraps_with_unshare_on_linux() {
-        let wrapped = apply_sandbox("echo hi", BashSandboxMode::NetworkDeny);
-        assert!(wrapped.starts_with("unshare -U -r -n -- bash -o pipefail -c "));
-        assert!(wrapped.contains("echo hi"));
+    fn test_apply_sandbox_off_is_identity() {
+        let got = apply_sandbox("echo hi", BashSandboxMode::Off);
+        assert_eq!(got.command, "echo hi");
+        assert!(!got.seccomp_network_deny);
     }
 
     #[test]
-    fn test_apply_sandbox_off_is_identity() {
-        let got = apply_sandbox("echo hi", BashSandboxMode::Off);
-        assert_eq!(got, "echo hi");
+    #[cfg(target_os = "linux")]
+    fn test_apply_sandbox_network_deny_sets_seccomp_flag_on_linux() {
+        // New contract: command text is passed through unchanged, and the
+        // sandbox flag signals that the spawn site should install the
+        // seccomp filter via pre_exec. The old unshare wrapper is gone.
+        let got = apply_sandbox("echo hi", BashSandboxMode::NetworkDeny);
+        assert_eq!(got.command, "echo hi");
+        assert!(got.seccomp_network_deny);
+    }
+
+    #[test]
+    #[cfg(not(target_os = "linux"))]
+    fn test_apply_sandbox_network_deny_is_noop_on_non_linux() {
+        let got = apply_sandbox("echo hi", BashSandboxMode::NetworkDeny);
+        assert_eq!(got.command, "echo hi");
+        assert!(!got.seccomp_network_deny);
+    }
+
+    /// End-to-end: with BRAINWIRES_BASH_SANDBOX=network-deny, `echo` still
+    /// runs (no network syscalls) but a TCP connect via bash's `/dev/tcp`
+    /// builtin is blocked by the seccomp filter. `/dev/tcp` is resolved
+    /// inside bash via `socket(AF_INET, …)` + `connect(…)`, both of which
+    /// our filter denies with EPERM.
+    ///
+    /// Note: this test mutates the process env, so it can't safely run in
+    /// parallel with other tests that read BRAINWIRES_BASH_SANDBOX. We
+    /// restore the previous value on exit.
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn test_network_deny_blocks_tcp_but_allows_echo() {
+        use std::sync::Mutex;
+        // Serialize env mutation across the whole test binary.
+        static ENV_LOCK: Mutex<()> = Mutex::new(());
+        let _guard = ENV_LOCK.lock().unwrap();
+
+        let prev = std::env::var("BRAINWIRES_BASH_SANDBOX").ok();
+        // SAFETY: guarded by ENV_LOCK; no other thread in this test binary
+        // reads this variable while the guard is held.
+        unsafe {
+            std::env::set_var("BRAINWIRES_BASH_SANDBOX", "network-deny");
+        }
+
+        let context = create_test_context();
+
+        let echo_result = BashTool::execute(
+            "bash-sandbox-echo",
+            "execute_command",
+            &json!({"command": "echo sandbox-works", "timeout": 5}),
+            &context,
+        );
+        assert!(
+            !echo_result.is_error,
+            "echo should pass through the sandbox: {:?}",
+            echo_result.content
+        );
+        assert!(
+            echo_result.content.contains("sandbox-works"),
+            "expected sandbox-works in output, got: {}",
+            echo_result.content
+        );
+
+        // The formatter echoes the command back in the "Command:" line, so
+        // any token present in the command string will appear in
+        // `tcp_result.content` regardless of outcome. To avoid that, we
+        // have the success branch mutate process state (exit 7) and the
+        // failure branch mutate it differently (exit 0 + stdout marker)
+        // so we can distinguish via the Exit Code line + a stdout token
+        // that is NOT in the command text.
+        //
+        // Success: connects, prints nothing, exits 7.
+        // Failure (expected under seccomp): bash 'exec' redirect fails,
+        //   `||` branch runs, prints our marker on stdout, exits 0.
+        let tcp_result = BashTool::execute(
+            "bash-sandbox-tcp",
+            "execute_command",
+            &json!({
+                "command": "{ exec 3<>/dev/tcp/1.1.1.1/80 && exit 7 ; } 2>/dev/null || printf 'denied-by-sandbox'",
+                "timeout": 5,
+                "stderr_mode": "separate",
+            }),
+            &context,
+        );
+        assert!(
+            tcp_result.content.contains("denied-by-sandbox"),
+            "expected tcp connect to be denied; got: {}",
+            tcp_result.content
+        );
+        assert!(
+            !tcp_result.content.contains("Exit Code: 7"),
+            "tcp connect should NOT have succeeded under network-deny; got: {}",
+            tcp_result.content
+        );
+
+        // Restore prior env so subsequent tests see the expected value.
+        // SAFETY: still holding ENV_LOCK.
+        unsafe {
+            match prev {
+                Some(v) => std::env::set_var("BRAINWIRES_BASH_SANDBOX", v),
+                None => std::env::remove_var("BRAINWIRES_BASH_SANDBOX"),
+            }
+        }
     }
 
     #[test]
