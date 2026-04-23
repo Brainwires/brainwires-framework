@@ -9,7 +9,6 @@ pub mod types;
 pub mod zigbee;
 
 /// Z-Wave controller — direct Z-Wave Serial API (ZAPI) over USB stick.
-#[allow(missing_docs)] // Z-Wave Serial API spec constants — see zwave/mod.rs comment.
 #[cfg(feature = "zwave")]
 pub mod zwave;
 

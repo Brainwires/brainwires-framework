@@ -1,5 +1,14 @@
+//! Z-Wave support — direct Z-Wave Serial API (ZAPI) over a USB controller.
+//!
+//! Implements Z-Wave Plus v2 / SDK 7.x (INS13954) for the most common device
+//! interactions. The `ZWaveController` trait sits over `ZWaveSerialController`,
+//! which owns the serial stream and the include/exclude state machines.
+
+/// `CommandClass` enum + wire-format encoders for common commands.
 pub mod command_class;
+/// ZAPI framing, flow control, and the `ZWaveSerialController` implementation.
 pub mod serial_api;
+/// Typed records: `NodeId`, `ZWaveNode`, `ZWaveNodeKind`, frame types.
 pub mod types;
 
 use async_trait::async_trait;

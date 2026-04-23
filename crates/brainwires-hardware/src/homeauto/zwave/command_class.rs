@@ -1,61 +1,76 @@
-/// Z-Wave Command Class encoding.
-///
-/// Implements Z-Wave Plus v2 (Specification 7.x) command class encoding for the most
-/// common device interactions.
+//! Z-Wave Command Class encoding.
+//!
+//! Implements Z-Wave Plus v2 (Specification 7.x) command class encoding for
+//! the most common device interactions. Variant values are the on-wire
+//! command-class ID bytes defined by the Z-Wave spec.
 
-/// Command class ID byte.
+/// Z-Wave command-class identifier.
+///
+/// Each variant maps to the spec-defined command-class ID byte. `Unknown(id)`
+/// is the pass-through for command classes not yet modelled by this crate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum CommandClass {
-    // Basic classes
+    /// `0x20` — BASIC. Generic on/off/level fallback supported by most nodes.
     Basic = 0x20,
-    // Switch classes
+    /// `0x25` — SWITCH_BINARY. Binary on/off switches.
     SwitchBinary = 0x25,
+    /// `0x26` — SWITCH_MULTILEVEL. Dimmer / percentage-position devices.
     SwitchMultilevel = 0x26,
+    /// `0x27` — SWITCH_ALL. Broadcast all-on / all-off.
     SwitchAll = 0x27,
+    /// `0x33` — SWITCH_COLOR. Colored light control.
     SwitchColor = 0x33,
-    // Sensor classes
+    /// `0x30` — SENSOR_BINARY. Binary trip sensors (door, motion).
     SensorBinary = 0x30,
+    /// `0x31` — SENSOR_MULTILEVEL. Multi-sensor readings (temp, humidity…).
     SensorMultilevel = 0x31,
-    // Meter
+    /// `0x32` — METER. Energy / water / gas meters.
     Meter = 0x32,
-    // Notification (formerly Alarm)
+    /// `0x71` — NOTIFICATION (formerly ALARM).
     Notification = 0x71,
-    // Thermostat
+    /// `0x40` — THERMOSTAT_MODE.
     ThermostatMode = 0x40,
+    /// `0x43` — THERMOSTAT_SETPOINT.
     ThermostatSetpoint = 0x43,
+    /// `0x44` — THERMOSTAT_FAN_MODE.
     ThermostatFanMode = 0x44,
+    /// `0x42` — THERMOSTAT_OPERATING_STATE.
     ThermostatOperatingState = 0x42,
-    // Door lock
+    /// `0x62` — DOOR_LOCK.
     DoorLock = 0x62,
+    /// `0x63` — USER_CODE (door-lock PINs).
     UserCode = 0x63,
-    // Battery
+    /// `0x80` — BATTERY level reporting.
     Battery = 0x80,
-    // Association
+    /// `0x85` — ASSOCIATION. Direct node→node grouping.
     Association = 0x85,
+    /// `0x8E` — MULTI_CHANNEL_ASSOCIATION.
     MultiChannelAssociation = 0x8E,
-    // Configuration
+    /// `0x70` — CONFIGURATION. Manufacturer-defined parameters.
     Configuration = 0x70,
-    // Version
+    /// `0x86` — VERSION. Firmware / command-class version reporting.
     Version = 0x86,
-    // Manufacturer specific
+    /// `0x72` — MANUFACTURER_SPECIFIC.
     ManufacturerSpecific = 0x72,
-    // Wake Up
+    /// `0x84` — WAKE_UP. Battery-powered polling schedule.
     WakeUp = 0x84,
-    // Security
+    /// `0x98` — SECURITY (S0).
     Security = 0x98,
+    /// `0x9F` — SECURITY_2 (S2).
     Security2 = 0x9F,
-    // Transport service
+    /// `0x55` — TRANSPORT_SERVICE. Segmentation for large payloads.
     TransportService = 0x55,
-    // Z-Wave Plus Info
+    /// `0x5E` — ZWAVEPLUS_INFO. Z-Wave Plus identifying metadata.
     ZWavePlusInfo = 0x5E,
-    // Multi-channel
+    /// `0x60` — MULTI_CHANNEL. Endpoint-addressed sub-devices.
     MultiChannel = 0x60,
-    // Unknown (pass-through)
+    /// Any command-class ID not modelled above.
     Unknown(u8),
 }
 
 impl CommandClass {
+    /// Return the on-wire command-class ID byte for this variant.
     pub fn id(&self) -> u8 {
         match self {
             Self::Basic => 0x20,
@@ -89,6 +104,8 @@ impl CommandClass {
         }
     }
 
+    /// Parse a wire command-class ID byte into a typed variant; unknown codes
+    /// map to `Unknown(id)`.
     pub fn from_id(id: u8) -> Self {
         match id {
             0x20 => Self::Basic,

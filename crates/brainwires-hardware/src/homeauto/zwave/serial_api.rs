@@ -33,41 +33,64 @@ use crate::homeauto::types::{HomeAutoEvent, Protocol};
 
 // ── Wire constants ────────────────────────────────────────────────────────────
 
+/// Start-of-Frame byte — every ZAPI message begins with this byte.
 pub const SOF: u8 = 0x01;
+/// Acknowledge flow-control byte (frame received intact).
 pub const ACK: u8 = 0x06;
+/// Negative-acknowledge flow-control byte (frame rejected, retransmit).
 pub const NAK: u8 = 0x15;
+/// Cancel flow-control byte (host-originated cancellation or collision).
 pub const CAN: u8 = 0x18;
 
+/// Frame type: host → controller request (`0x00`).
 pub const FRAME_TYPE_REQ: u8 = 0x00;
+/// Frame type: controller → host response (`0x01`).
 pub const FRAME_TYPE_RES: u8 = 0x01;
 
 // ── ZAPI command IDs ─────────────────────────────────────────────────────────
 
+/// `GET_CAPABILITIES` (`0x07`) — controller capability query.
 pub const GET_CAPABILITIES: u8 = 0x07;
-pub const SERIAL_API_STARTED: u8 = 0x0A; // REQ from controller after reset
+/// `SERIAL_API_STARTED` (`0x0A`) — controller sends after a soft reset.
+pub const SERIAL_API_STARTED: u8 = 0x0A;
+/// `GET_VERSION` (`0x15`) — controller firmware/protocol version.
 pub const GET_VERSION: u8 = 0x15;
+/// `SEND_DATA` (`0x13`) — unicast command to a single node.
 pub const SEND_DATA: u8 = 0x13;
+/// `SEND_DATA_MULTI` (`0x14`) — multicast command to a node group.
 pub const SEND_DATA_MULTI: u8 = 0x14;
+/// `GET_INIT_DATA` (`0x02`) — initial node-list snapshot.
 pub const GET_INIT_DATA: u8 = 0x02;
-pub const APPLICATION_COMMAND_HANDLER: u8 = 0x04; // Incoming application frame (REQ)
+/// `APPLICATION_COMMAND_HANDLER` (`0x04`) — controller-originated node report.
+pub const APPLICATION_COMMAND_HANDLER: u8 = 0x04;
+/// `ADD_NODE_TO_NETWORK` (`0x4A`) — inclusion state-machine kickoff.
 pub const ADD_NODE_TO_NETWORK: u8 = 0x4A;
+/// `REMOVE_NODE_FROM_NETWORK` (`0x4B`) — exclusion state-machine kickoff.
 pub const REMOVE_NODE_FROM_NETWORK: u8 = 0x4B;
+/// `SET_DEFAULT` (`0x42`) — controller factory reset.
 pub const SET_DEFAULT: u8 = 0x42;
+/// `GET_NODE_PROTOCOL_INFO` (`0x41`) — basic/generic/specific device type.
 pub const GET_NODE_PROTOCOL_INFO: u8 = 0x41;
+/// `REQUEST_NODE_INFO` (`0x60`) — ask a node to re-send its command-class list.
 pub const REQUEST_NODE_INFO: u8 = 0x60;
+/// `APPLICATION_SLAVE_COMMAND_HANDLER` (`0xA1`) — slave-role frame variant.
 pub const APPLICATION_SLAVE_COMMAND_HANDLER: u8 = 0xA1;
 
-// ADD_NODE_TO_NETWORK mode bytes
+/// `ADD_NODE_TO_NETWORK` mode byte: any (`0x01`).
 pub const ADD_NODE_ANY: u8 = 0x01;
+/// `ADD_NODE_TO_NETWORK` mode byte: stop inclusion (`0x05`).
 pub const ADD_NODE_STOP: u8 = 0x05;
 
-// REMOVE_NODE_FROM_NETWORK mode bytes
+/// `REMOVE_NODE_FROM_NETWORK` mode byte: any (`0x01`).
 pub const REMOVE_NODE_ANY: u8 = 0x01;
+/// `REMOVE_NODE_FROM_NETWORK` mode byte: stop exclusion (`0x05`).
 pub const REMOVE_NODE_STOP: u8 = 0x05;
 
-// SEND_DATA tx options
+/// `SEND_DATA` tx option: request an ACK from the destination (`0x01`).
 pub const TRANSMIT_OPTION_ACK: u8 = 0x01;
+/// `SEND_DATA` tx option: auto-route via mesh (`0x04`).
 pub const TRANSMIT_OPTION_AUTO_ROUTE: u8 = 0x04;
+/// `SEND_DATA` tx option: use Explorer frames for route discovery (`0x20`).
 pub const TRANSMIT_OPTION_EXPLORE: u8 = 0x20;
 
 // ── Frame encoding / decoding ─────────────────────────────────────────────────
@@ -80,12 +103,16 @@ pub fn checksum(data: &[u8]) -> u8 {
 /// A decoded ZAPI frame.
 #[derive(Debug, Clone)]
 pub struct ZApiFrame {
+    /// `FRAME_TYPE_REQ` (0x00) or `FRAME_TYPE_RES` (0x01).
     pub frame_type: u8,
+    /// ZAPI command-ID byte (see the `GET_*` / `SEND_*` constants above).
     pub cmd_id: u8,
+    /// Command-specific payload (excludes type, cmd_id, and checksum).
     pub data: Vec<u8>,
 }
 
 impl ZApiFrame {
+    /// Build a request frame with `cmd_id` and payload `data`.
     pub fn new_request(cmd_id: u8, data: Vec<u8>) -> Self {
         Self {
             frame_type: FRAME_TYPE_REQ,
