@@ -76,14 +76,13 @@ pub mod camera;
 pub mod usb;
 
 /// Home automation protocols: Zigbee (EZSP + ZNP), Z-Wave (Serial API), Thread (OTBR), Matter.
-// The Zigbee / Z-Wave / Thread / Matter subsystems together carry ~560
-// spec-defined constants, cluster/command/attribute IDs, and TLV struct fields
-// whose names are self-documenting against the respective protocol
-// specifications. Fully doc-sweeping them is a dedicated effort tracked as
-// P2.1 follow-up; scoped #[allow(missing_docs)] keeps the crate root's
-// `deny(missing_docs)` intact for non-homeauto code (audio, gpio, bluetooth,
-// network, camera, usb) so regressions there still break the build.
-#[allow(missing_docs)]
+// The homeauto module root (error.rs, types.rs, thread/) is fully
+// documented. The zigbee, zwave, and matter subtrees hold hundreds of
+// spec-defined constants whose names are self-documenting against the
+// respective protocol specifications; `#[allow(missing_docs)]` is scoped
+// to those subtrees individually (see their mod.rs files) rather than
+// here, so documentation regressions anywhere else in the crate still
+// break the build.
 #[cfg(any(
     feature = "homeauto",
     feature = "zigbee",

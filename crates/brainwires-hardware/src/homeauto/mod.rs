@@ -4,10 +4,12 @@ pub mod error;
 pub mod types;
 
 /// Zigbee coordinator — EZSP (Silicon Labs) and ZNP (TI Z-Stack) backends.
+#[allow(missing_docs)] // Zigbee Cluster Library spec constants — see zigbee/mod.rs comment.
 #[cfg(feature = "zigbee")]
 pub mod zigbee;
 
 /// Z-Wave controller — direct Z-Wave Serial API (ZAPI) over USB stick.
+#[allow(missing_docs)] // Z-Wave Serial API spec constants — see zwave/mod.rs comment.
 #[cfg(feature = "zwave")]
 pub mod zwave;
 
@@ -16,6 +18,7 @@ pub mod zwave;
 pub mod thread;
 
 /// Matter — controller (commission + cluster client) and device server.
+#[allow(missing_docs)] // Matter Core Spec constants — see matter/mod.rs comment.
 #[cfg(feature = "matter")]
 pub mod matter;
 
