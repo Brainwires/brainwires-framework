@@ -2,7 +2,10 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use zeroize::Zeroizing;
+
+static STALE_MODEL_WARNED: AtomicBool = AtomicBool::new(false);
 
 use super::paths::PlatformPaths;
 use crate::types::agent::PermissionMode;
@@ -764,11 +767,13 @@ impl ConfigManager {
         const STALE_MODELS: &[&str] = &["openai-gpt-5.2", "gpt-5-mini"];
         if STALE_MODELS.contains(&config.model.as_str()) {
             let fresh = default_model();
-            eprintln!(
-                "⚠ Config pins a stale model ('{}'). Using '{}' for this session. \
-                 Run `brainwires config --set model=<name>` to persist a choice.",
-                config.model, fresh
-            );
+            if !STALE_MODEL_WARNED.swap(true, Ordering::Relaxed) {
+                eprintln!(
+                    "⚠ Config pins a stale model ('{}'). Using '{}' for this session. \
+                     Run `brainwires config --set model=<name>` to persist a choice.",
+                    config.model, fresh
+                );
+            }
             config.model = fresh;
         }
 
