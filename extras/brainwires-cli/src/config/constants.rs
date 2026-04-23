@@ -49,16 +49,6 @@ pub const COMPACTION_THRESHOLD_TOKENS: usize = 80_000;
 /// Maximum worker iterations
 pub const MAX_WORKER_ITERATIONS: u32 = 15;
 
-/// Default model configurations
-pub mod models {
-    pub const ANTHROPIC_DEFAULT: &str = "claude-3-5-sonnet-20241022";
-    pub const OPENAI_DEFAULT: &str = "gpt-5.2";
-    pub const GOOGLE_DEFAULT: &str = "gemini-2.0-flash-exp";
-    pub const GROQ_DEFAULT: &str = "llama-3.3-70b-versatile";
-    pub const OLLAMA_DEFAULT: &str = "llama3.1";
-    pub const BRAINWIRES_DEFAULT: &str = "claude-haiku-4-5-20251001";
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -135,22 +125,6 @@ mod tests {
     fn test_worker_iterations() {
         assert_eq!(MAX_WORKER_ITERATIONS, 15);
         assert!(MAX_WORKER_ITERATIONS > 0);
-    }
-
-    #[test]
-    fn test_model_defaults_not_empty() {
-        assert!(!models::ANTHROPIC_DEFAULT.is_empty());
-        assert!(!models::OPENAI_DEFAULT.is_empty());
-        assert!(!models::GOOGLE_DEFAULT.is_empty());
-        assert!(!models::OLLAMA_DEFAULT.is_empty());
-    }
-
-    #[test]
-    fn test_model_defaults_correct() {
-        assert!(models::ANTHROPIC_DEFAULT.starts_with("claude"));
-        assert!(models::OPENAI_DEFAULT.starts_with("gpt"));
-        assert!(models::GOOGLE_DEFAULT.starts_with("gemini"));
-        assert!(models::OLLAMA_DEFAULT.starts_with("llama"));
     }
 
     #[test]

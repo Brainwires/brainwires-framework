@@ -222,7 +222,7 @@ fn test_config_load_from_file() {
     // Write a config file
     let config = Config {
         provider_type: ProviderType::OpenAI,
-        model: "openai-gpt-5.2".to_string(),
+        model: "claude-haiku-4-5-20251001".to_string(),
         permission_mode: PermissionMode::Full,
         backend_url: "https://api.openai.com".to_string(),
         provider_base_url: None,
@@ -243,7 +243,7 @@ fn test_config_load_from_file() {
     // Load it
     let loaded = ConfigManager::load_from_file(&config_path).unwrap();
 
-    assert_eq!(loaded.model, "openai-gpt-5.2");
+    assert_eq!(loaded.model, "claude-haiku-4-5-20251001");
     assert_eq!(loaded.permission_mode, PermissionMode::Full);
     assert_eq!(loaded.temperature, 0.8);
     assert_eq!(loaded.max_tokens, 2048);

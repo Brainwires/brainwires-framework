@@ -1745,7 +1745,7 @@ mod tests {
     #[test]
     fn test_update_config_model() {
         // Test that update_config_model updates and saves the config
-        let test_model = "openai-gpt-5.2";
+        let test_model = "claude-haiku-4-5-20251001";
 
         // This will create/update the config file
         let result = App::update_config_model(test_model);

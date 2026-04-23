@@ -42,7 +42,7 @@ pub trait Provider: Send + Sync {
 /// Caching reuses cached prompt bytes across turns for a 50–90% input-token
 /// discount on subsequent calls, at the cost of a one-time "creation" charge
 /// on first population.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum CacheStrategy {
     /// No cache breakpoints. Fresh compute on every call.
@@ -50,6 +50,7 @@ pub enum CacheStrategy {
     /// Cache only the system prompt.
     SystemOnly,
     /// Cache the system prompt and tool definitions (the default).
+    #[default]
     SystemAndTools,
     /// Cache system + tools + the tail of the conversation once the message
     /// history reaches the given approximate token threshold.
@@ -58,12 +59,6 @@ pub enum CacheStrategy {
         /// breakpoint is emitted. Avoids wasting a cache slot on short chats.
         threshold_tokens: u32,
     },
-}
-
-impl Default for CacheStrategy {
-    fn default() -> Self {
-        Self::SystemAndTools
-    }
 }
 
 /// Chat completion options
