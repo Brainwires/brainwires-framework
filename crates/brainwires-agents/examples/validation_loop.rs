@@ -48,6 +48,7 @@ export function greet(name: string): string {
         max_retries: 3,
         enabled: true,
         working_set_files: vec!["utils.ts".to_string()],
+        intended_writes: None,
     };
 
     println!("Validation config:");
@@ -120,6 +121,7 @@ export function farewell(name: string): string {
         max_retries: 1,
         enabled: true,
         working_set_files: vec!["nonexistent.rs".to_string()],
+        intended_writes: None,
     };
 
     let missing_result = run_validation(&missing_config).await?;

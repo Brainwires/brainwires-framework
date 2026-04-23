@@ -63,6 +63,7 @@ impl ChatSession {
             capabilities: None,
             idempotency_registry: None,
             staging_backend: None,
+            intended_writes: None,
         };
         let executor = Arc::new(BuiltinToolExecutor::new(tools, context));
 

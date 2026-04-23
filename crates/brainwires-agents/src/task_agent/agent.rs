@@ -10,8 +10,9 @@ use sha2::{Digest, Sha256};
 use tokio::sync::RwLock;
 
 use brainwires_core::{
-    ChatOptions, ChatResponse, ContentBlock, ContentSource, Message, MessageContent, Provider,
-    Role, Task, ToolContext, ToolResult, ToolUse, estimate_tokens_from_size,
+    ChatOptions, ChatResponse, ContentBlock, ContentSource, IntendedWrites, Message,
+    MessageContent, Provider, Role, Task, ToolContext, ToolResult, ToolUse,
+    estimate_tokens_from_size,
 };
 use brainwires_tools::{PreHookDecision, wrap_with_content_source};
 
@@ -233,6 +234,7 @@ impl TaskAgent {
         replan_count: u32,
         execution_graph: ExecutionGraph,
         pre_execution_plan: Option<brainwires_core::SerializablePlan>,
+        intended_writes: &IntendedWrites,
     ) -> Result<Option<TaskAgentResult>> {
         let task_id = self.task.read().await.id.clone();
 
@@ -254,6 +256,21 @@ impl TaskAgent {
 
             let mut config_with_ws = validation_config.clone();
             config_with_ws.working_set_files = working_set_files;
+            // Wire in the shared intended-writes registry so validation can
+            // detect post-validation clobber (see validation_loop.rs).
+            if config_with_ws.intended_writes.is_none() {
+                config_with_ws.intended_writes = Some(intended_writes.clone());
+            }
+
+            // Mirror intended-writes into the agent's WorkingSet so external
+            // observers (hooks, persona reporters) can inspect the per-file
+            // hash history alongside existence/token state.
+            {
+                let mut ws = self.context.working_set.write().await;
+                for (path, hash) in intended_writes.snapshot() {
+                    ws.record_write(&path, hash);
+                }
+            }
 
             match run_validation(&config_with_ws).await {
                 Ok(result) if !result.passed => {
@@ -529,11 +546,17 @@ impl TaskAgent {
                 .map(|c| c.window_size)
                 .unwrap_or(5),
         );
+        // Shared intended-writes registry for this run.  The tool layer
+        // (write_file) records the SHA-256 of each write; the validation
+        // loop re-reads at finalisation and compares to detect
+        // post-validation clobber by a concurrent writer.
+        let intended_writes = IntendedWrites::new();
         let tool_context = ToolContext {
             working_directory: self.context.working_directory.clone(),
             // Each agent run gets its own idempotency registry so that
             // identical write operations within a single run are deduplicated.
             idempotency_registry: Some(brainwires_core::IdempotencyRegistry::new()),
+            intended_writes: Some(intended_writes.clone()),
             ..Default::default()
         };
 
@@ -1053,6 +1076,7 @@ impl TaskAgent {
                         *self.replan_count.read().await,
                         execution_graph.clone(),
                         pre_execution_plan.clone(),
+                        &intended_writes,
                     )
                     .await?
                 {
@@ -1107,6 +1131,7 @@ impl TaskAgent {
                         *self.replan_count.read().await,
                         execution_graph.clone(),
                         pre_execution_plan.clone(),
+                        &intended_writes,
                     )
                     .await?
                 {

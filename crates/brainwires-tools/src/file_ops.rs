@@ -363,6 +363,17 @@ impl FileOpsTool {
             ));
         }
 
+        // 5. Record intended content hash for post-validation clobber detection.
+        //
+        // The read-back above proves our bytes were on disk at time T; it
+        // cannot prove they remain on disk when the agent later finalises
+        // `Success: true` at some T' > T.  We record the hash so the agent's
+        // validation loop can re-read at finalisation and detect a clobber.
+        //
+        // No-op when no registry is attached (CLI-driven invocations).
+        let content_hash_bytes: [u8; 32] = content_hash.into();
+        context.record_write(full_path.clone(), content_hash_bytes);
+
         let msg = format!(
             "Successfully wrote {} bytes to {}",
             params.content.len(),

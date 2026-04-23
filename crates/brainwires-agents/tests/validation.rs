@@ -73,6 +73,7 @@ async fn validation_catches_missing_working_set_files() {
         max_retries: 3,
         enabled: true,
         working_set_files: vec!["nonexistent.rs".into()],
+        intended_writes: None,
     };
 
     let result = run_validation(&config).await.unwrap();
@@ -97,6 +98,7 @@ async fn validation_passes_when_working_set_files_exist() {
         max_retries: 3,
         enabled: true,
         working_set_files: vec!["exists.txt".into()],
+        intended_writes: None,
     };
 
     let result = run_validation(&config).await.unwrap();
@@ -115,6 +117,7 @@ async fn validation_mixed_existing_and_missing_files() {
         max_retries: 3,
         enabled: true,
         working_set_files: vec!["real.rs".into(), "ghost.rs".into()],
+        intended_writes: None,
     };
 
     let result = run_validation(&config).await.unwrap();
@@ -182,8 +185,141 @@ async fn empty_working_set_no_checks_passes() {
         max_retries: 3,
         enabled: true,
         working_set_files: vec![],
+        intended_writes: None,
     };
 
     let result = run_validation(&config).await.unwrap();
     assert!(result.passed);
+}
+
+// ---------------------------------------------------------------------------
+// content_persisted — catches post-validation clobber by concurrent writer
+// ---------------------------------------------------------------------------
+
+/// End-to-end proof of the R1 fix:
+///
+/// An agent records the SHA-256 of content it wrote.  Before the agent
+/// finalises `Success: true`, a *different* writer (simulated here by a
+/// direct `fs::write`) clobbers the file with different bytes.  The
+/// validation loop must emit a `content_persisted` error so the agent's
+/// retry machinery runs instead of silently claiming success.
+///
+/// Without this check, the losing agent would report `Success: true`
+/// while its content is gone from disk — the failure mode that prompted
+/// this R1 fix.
+#[tokio::test]
+async fn validation_catches_post_validation_clobber() {
+    use brainwires_core::IntendedWrites;
+    use sha2::{Digest, Sha256};
+
+    let dir = tempdir().unwrap();
+    let target = dir.path().join("contested.txt");
+
+    // ── Step 1: simulate a successful write_file ─────────────────────────
+    // Tool writes "agent-A content" and records the hash.  (The readback
+    // check inside write_file would have passed at this instant.)
+    let agent_a_content = b"agent-A content";
+    std::fs::write(&target, agent_a_content).unwrap();
+    let agent_a_hash: [u8; 32] = Sha256::digest(agent_a_content).into();
+
+    let intended = IntendedWrites::new();
+    intended.record(target.clone(), agent_a_hash);
+
+    // Sanity: validation should currently pass (content matches hash).
+    let config_ok = ValidationConfig {
+        checks: vec![],
+        working_directory: dir.path().to_str().unwrap().to_string(),
+        max_retries: 1,
+        enabled: true,
+        working_set_files: vec![],
+        intended_writes: Some(intended.clone()),
+    };
+    let ok = run_validation(&config_ok).await.unwrap();
+    assert!(
+        ok.passed,
+        "expected validation to pass immediately after write; got issues: {:?}",
+        ok.issues
+    );
+
+    // ── Step 2: a concurrent writer clobbers our bytes ───────────────────
+    // Agent A has NOT yet finalised success.  Agent B silently overwrites.
+    std::fs::write(&target, b"agent-B clobbered this").unwrap();
+
+    // ── Step 3: agent A runs validation again before finalising ──────────
+    let config_clobbered = ValidationConfig {
+        checks: vec![],
+        working_directory: dir.path().to_str().unwrap().to_string(),
+        max_retries: 1,
+        enabled: true,
+        working_set_files: vec![],
+        intended_writes: Some(intended),
+    };
+    let result = run_validation(&config_clobbered).await.unwrap();
+
+    assert!(
+        !result.passed,
+        "validation MUST fail when a concurrent writer has clobbered \
+         this agent's content; otherwise two agents can both report Success: true"
+    );
+
+    let content_persisted_issues: Vec<_> = result
+        .issues
+        .iter()
+        .filter(|i| i.check == "content_persisted")
+        .collect();
+    assert_eq!(
+        content_persisted_issues.len(),
+        1,
+        "expected exactly one content_persisted issue, got {:?}",
+        result.issues
+    );
+
+    let issue = content_persisted_issues[0];
+    assert_eq!(issue.severity, ValidationSeverity::Error);
+    assert!(
+        issue.message.contains("overwritten by a concurrent writer"),
+        "message should explain the clobber clearly, got: {}",
+        issue.message
+    );
+    assert_eq!(issue.file.as_deref(), Some(target.display().to_string()).as_deref());
+}
+
+/// If a concurrently running process deletes the file between our write
+/// and finalisation, validation must still catch it (same class of bug).
+#[tokio::test]
+async fn validation_catches_deleted_written_file() {
+    use brainwires_core::IntendedWrites;
+    use sha2::{Digest, Sha256};
+
+    let dir = tempdir().unwrap();
+    let target = dir.path().join("ephemeral.txt");
+    let content = b"will be deleted";
+    std::fs::write(&target, content).unwrap();
+    let hash: [u8; 32] = Sha256::digest(content).into();
+
+    let intended = IntendedWrites::new();
+    intended.record(target.clone(), hash);
+
+    std::fs::remove_file(&target).unwrap();
+
+    let config = ValidationConfig {
+        checks: vec![],
+        working_directory: dir.path().to_str().unwrap().to_string(),
+        max_retries: 1,
+        enabled: true,
+        working_set_files: vec![],
+        intended_writes: Some(intended),
+    };
+
+    let result = run_validation(&config).await.unwrap();
+    assert!(!result.passed);
+    let has_persisted_issue = result
+        .issues
+        .iter()
+        .any(|i| i.check == "content_persisted");
+    assert!(
+        has_persisted_issue,
+        "expected content_persisted error when written file disappeared; got {:?}",
+        result.issues
+    );
 }

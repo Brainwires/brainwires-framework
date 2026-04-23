@@ -101,6 +101,7 @@ fn mock_context() -> ToolContext {
         capabilities: None,
         idempotency_registry: None,
         staging_backend: None,
+        intended_writes: None,
     }
 }
 

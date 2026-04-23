@@ -7,6 +7,7 @@
 //! (check_duplicates, verify_build, check_syntax). Without it, those checks are skipped.
 
 use anyhow::Result;
+use brainwires_core::IntendedWrites;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 #[cfg(feature = "native")]
@@ -83,6 +84,13 @@ pub struct ValidationConfig {
     pub enabled: bool,
     /// Specific files to validate (from working set). If empty, falls back to git diff.
     pub working_set_files: Vec<String>,
+    /// Shared registry of `(path -> SHA-256 of most recent intended write)`.
+    ///
+    /// When present, the validation loop re-reads each tracked path and
+    /// compares its on-disk SHA-256 against the recorded hash.  A mismatch
+    /// means a concurrent writer overwrote our content after our own
+    /// read-back succeeded — the agent must NOT report `Success: true`.
+    pub intended_writes: Option<IntendedWrites>,
 }
 
 impl Default for ValidationConfig {
@@ -93,6 +101,7 @@ impl Default for ValidationConfig {
             max_retries: DEFAULT_VALIDATION_MAX_RETRIES,
             enabled: true,
             working_set_files: Vec::new(),
+            intended_writes: None,
         }
     }
 }
@@ -117,6 +126,13 @@ impl ValidationConfig {
     /// Set the working set files to validate (from agent's working set)
     pub fn with_working_set_files(mut self, files: Vec<String>) -> Self {
         self.working_set_files = files;
+        self
+    }
+
+    /// Attach the shared intended-writes registry so the validation loop
+    /// can detect post-validation clobber by a concurrent writer.
+    pub fn with_intended_writes(mut self, registry: IntendedWrites) -> Self {
+        self.intended_writes = Some(registry);
         self
     }
 }
@@ -165,6 +181,71 @@ pub async fn run_validation(config: &ValidationConfig) -> Result<ValidationResul
                 "Validation failed: File {} does not exist but is in working set",
                 file
             );
+        }
+    }
+
+    // CRITICAL: Content-persistence check — catches post-validation clobber.
+    //
+    // The tool-level read-back in write_file catches interleaved concurrent
+    // writes within a single call.  It does NOT catch: agent A writes at T1,
+    // A's read-back passes, A's validation passes at T2, agent B writes at
+    // T3, A finalises `Success: true` at T4 claiming content that's no
+    // longer on disk.
+    //
+    // Here we re-read each file that THIS agent recorded an intended SHA-256
+    // for, and compare.  A mismatch means a concurrent writer overwrote our
+    // content after our own read-back — emit a retryable error so the
+    // agent's retry machinery runs.  If retries are exhausted, `success`
+    // correctly propagates up as `false` and at most one of two racing
+    // agents can legitimately report success.
+    if let Some(ref intended) = config.intended_writes {
+        use sha2::{Digest, Sha256};
+        for (path, expected_hash) in intended.snapshot() {
+            match std::fs::read(&path) {
+                Ok(current_bytes) => {
+                    let current_hash: [u8; 32] = Sha256::digest(&current_bytes).into();
+                    if current_hash != expected_hash {
+                        let display_path = path.display().to_string();
+                        tracing::error!(
+                            path = %display_path,
+                            "Validation failed: content_persisted — file clobbered by concurrent writer after write_file's own read-back passed"
+                        );
+                        issues.push(ValidationIssue {
+                            check: "content_persisted".to_string(),
+                            severity: ValidationSeverity::Error,
+                            message: format!(
+                                "File '{}' was written by this agent but its current on-disk \
+                                 contents do not match the expected SHA-256 — it was likely \
+                                 overwritten by a concurrent writer. Re-write or fail.",
+                                display_path
+                            ),
+                            file: Some(display_path),
+                            line: None,
+                        });
+                    }
+                }
+                Err(e) => {
+                    // File disappeared between our write and validation — same
+                    // category of problem.  Surface as a content_persisted error.
+                    let display_path = path.display().to_string();
+                    tracing::error!(
+                        path = %display_path,
+                        error = %e,
+                        "Validation failed: content_persisted — file unreadable after write"
+                    );
+                    issues.push(ValidationIssue {
+                        check: "content_persisted".to_string(),
+                        severity: ValidationSeverity::Error,
+                        message: format!(
+                            "File '{}' was written by this agent but can no longer be read: {}. \
+                             Likely removed or replaced by a concurrent writer.",
+                            display_path, e
+                        ),
+                        file: Some(display_path),
+                        line: None,
+                    });
+                }
+            }
         }
     }
 
