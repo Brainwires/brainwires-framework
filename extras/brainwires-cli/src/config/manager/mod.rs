@@ -754,8 +754,23 @@ impl ConfigManager {
         let contents = fs::read_to_string(path)
             .with_context(|| format!("Failed to read config file: {}", path.display()))?;
 
-        let config: Config =
+        let mut config: Config =
             serde_json::from_str(&contents).context("Failed to parse config file")?;
+
+        // Migration: pre-v0.11 installs may still pin stale/phantom model names
+        // as the value of `model`. Remap in-memory only — the user's config.json
+        // stays untouched until they run `config --set`, which is the expected
+        // place for persistent changes.
+        const STALE_MODELS: &[&str] = &["openai-gpt-5.2", "gpt-5-mini"];
+        if STALE_MODELS.contains(&config.model.as_str()) {
+            let fresh = default_model();
+            eprintln!(
+                "⚠ Config pins a stale model ('{}'). Using '{}' for this session. \
+                 Run `brainwires config --set model=<name>` to persist a choice.",
+                config.model, fresh
+            );
+            config.model = fresh;
+        }
 
         Ok(config)
     }

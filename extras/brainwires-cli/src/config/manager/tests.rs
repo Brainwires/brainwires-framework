@@ -629,3 +629,44 @@ fn test_config_load_with_missing_fields() {
     assert_eq!(loaded.temperature, default_temperature());
     assert_eq!(loaded.max_tokens, default_max_tokens());
 }
+
+#[test]
+fn test_stale_model_migrated_on_load() {
+    use tempfile::TempDir;
+    let temp = TempDir::new().unwrap();
+    let config_path = temp.path().join("config.json");
+
+    // Write a config fixture that pins a stale/phantom model name.
+    let stale_config = Config {
+        provider_type: ProviderType::Brainwires,
+        model: "openai-gpt-5.2".to_string(),
+        permission_mode: PermissionMode::Auto,
+        backend_url: "https://api.brainwires.net".to_string(),
+        provider_base_url: None,
+        temperature: 0.7,
+        max_tokens: 4096,
+        extra: std::collections::HashMap::new(),
+        seal: SealSettings::default(),
+        seal_knowledge: SealKnowledgeSettings::default(),
+        knowledge: KnowledgeSettings::default(),
+        remote: RemoteSettings::default(),
+        local_llm: LocalLlmSettings::default(),
+        status_line_command: None,
+    };
+    let json = serde_json::to_string_pretty(&stale_config).unwrap();
+    std::fs::write(&config_path, &json).unwrap();
+
+    // Load: the in-memory migration must swap to the current default.
+    let loaded = ConfigManager::load_from_file(&config_path).unwrap();
+    assert_eq!(loaded.model, default_model());
+    assert_eq!(loaded.model, "claude-haiku-4-5-20251001");
+
+    // Invariant: the file on disk is NOT silently rewritten — persistence is
+    // user-initiated via `config --set`.
+    let on_disk = std::fs::read_to_string(&config_path).unwrap();
+    assert!(
+        on_disk.contains("\"openai-gpt-5.2\""),
+        "load_from_file must not rewrite the user's config.json; raw disk contents were: {}",
+        on_disk
+    );
+}

@@ -163,11 +163,22 @@ pub async fn process_chat_stream(
                     eprintln!("⚠️  Ignoring tool from unknown server: {}\n", server);
                 }
             }
+            // The brainwires HTTP provider emits StreamChunk::Usage exactly once per
+            // SSE stream inside the "complete" event, with cumulative totals for that
+            // turn. Tool-use continuations open a new stream that emits its own cumulative
+            // Usage — hence saturating_add across chunks correctly sums turn totals.
+            // If counts ever look wrong, enable RUST_LOG=trace and compare per-turn
+            // totals against actual reply length before touching this math.
             StreamChunk::Usage(usage) => {
                 // Accumulate so `brainwires cost` has data to show.
                 total_prompt_tokens = total_prompt_tokens.saturating_add(usage.prompt_tokens);
                 total_completion_tokens =
                     total_completion_tokens.saturating_add(usage.completion_tokens);
+                tracing::debug!(
+                    prompt = total_prompt_tokens,
+                    completion = total_completion_tokens,
+                    "accumulated stream usage (cumulative across tool-continuations)"
+                );
                 got_usage = true;
             }
             StreamChunk::Done => {
