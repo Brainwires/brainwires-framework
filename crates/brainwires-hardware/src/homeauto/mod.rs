@@ -16,7 +16,7 @@ pub mod zwave;
 pub mod thread;
 
 /// Matter — controller (commission + cluster client) and device server.
-#[allow(missing_docs)] // Matter Core Spec constants — see matter/mod.rs comment.
+#[allow(missing_docs)] // Matter spec constants — progressive doc sweep in progress.
 #[cfg(feature = "matter")]
 pub mod matter;
 
