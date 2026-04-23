@@ -1,5 +1,8 @@
+/// ASH (Asynchronous Serial Host) framing layer for EZSP over UART.
 pub mod ash;
+/// EZSP v8 command-ID constants + typed payload helpers.
 pub mod commands;
+/// EZSP frame encode/decode (sequence, frame-control, cmd-ID, params).
 pub mod frame;
 
 use std::collections::HashMap;

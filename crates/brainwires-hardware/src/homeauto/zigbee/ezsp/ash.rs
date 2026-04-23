@@ -1,10 +1,10 @@
-/// ASH (Asynchronous Serial Host) framing layer for EZSP over UART.
-///
-/// Implements the framing described in Silicon Labs AN0042 / UG100:
-/// - CRC-16-CCITT (init=0xFFFF, poly=0x1021, reflected=false)
-/// - Byte stuffing: 0x7E ↔ [0x7D, 0x5E], 0x7D ↔ [0x7D, 0x5D]
-/// - Frame delimited by FLAG byte 0x7E
-/// - Frame types: DATA (reliable), ACK, NAK, RST, RSTACK, ERROR
+//! ASH (Asynchronous Serial Host) framing layer for EZSP over UART.
+//!
+//! Implements the framing described in Silicon Labs AN0042 / UG100:
+//! - CRC-16-CCITT (init=0xFFFF, poly=0x1021, reflected=false)
+//! - Byte stuffing: 0x7E ↔ [0x7D, 0x5E], 0x7D ↔ [0x7D, 0x5D]
+//! - Frame delimited by FLAG byte 0x7E
+//! - Frame types: DATA (reliable), ACK, NAK, RST, RSTACK, ERROR
 
 /// FLAG byte — marks start/end of an ASH frame.
 pub const FLAG: u8 = 0x7E;
@@ -16,11 +16,15 @@ pub const ESC_MASK: u8 = 0x20;
 /// Reserved bytes that must be byte-stuffed.
 const RESERVED: &[u8] = &[0x7E, 0x7D, 0x11, 0x13];
 
-// Single-byte control frame values
-pub const ACK_FRAME: u8 = 0x81; // ACK 0, nRdy=0
-pub const NAK_FRAME: u8 = 0xA1; // NAK 0
+/// ASH control byte for ACK 0 with nRdy=0 (`0x81`).
+pub const ACK_FRAME: u8 = 0x81;
+/// ASH control byte for NAK 0 (`0xA1`).
+pub const NAK_FRAME: u8 = 0xA1;
+/// ASH control byte for RST — host requests NCP reset (`0xC0`).
 pub const RST_FRAME: u8 = 0xC0;
-pub const RSTACK_FRAME: u8 = 0xC1; // RST ACK
+/// ASH control byte for RSTACK — NCP acknowledges reset (`0xC1`).
+pub const RSTACK_FRAME: u8 = 0xC1;
+/// ASH control byte for ERROR — fatal transport error (`0xC2`).
 pub const ERROR_FRAME: u8 = 0xC2;
 
 /// Compute CRC-16-CCITT (init=0xFFFF, poly=0x1021, no reflection) over `data`.

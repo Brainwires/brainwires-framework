@@ -12,10 +12,14 @@
 ///
 /// FCS = XOR of all bytes from LEN through the last payload byte.
 
+/// Start-of-Frame byte — every ZNP UART frame begins with `0xFE`.
 pub const SOF: u8 = 0xFE;
 
+/// ZNP message type: synchronous request, host→NCP (`0x20`).
 pub const TYPE_SREQ: u8 = 0x20;
+/// ZNP message type: synchronous response, NCP→host (`0x60`).
 pub const TYPE_SRSP: u8 = 0x60;
+/// ZNP message type: asynchronous callback, NCP→host (`0x40`).
 pub const TYPE_AREQ: u8 = 0x40;
 
 /// A decoded ZNP frame.

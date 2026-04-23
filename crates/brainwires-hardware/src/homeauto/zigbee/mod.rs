@@ -1,4 +1,13 @@
+//! Zigbee coordinator — two interchangeable USB-stick backends.
+//!
+//! Implements Zigbee 3.0 / ZCL over either Silicon Labs EZSP (EFR32 chipsets,
+//! ASH framing over UART) or TI Z-Stack 3.x ZNP (CC2652/CC1352 chipsets, MT
+//! API). The `ZigbeeCoordinator` trait unifies both.
+
+/// High-level helpers + constants for common ZCL clusters (On/Off, Level,
+/// Color, Temp, Humidity, IAS Zone, Door Lock).
 pub mod clusters;
+/// Typed records: `ZigbeeAddr`, `ZigbeeDevice`, `ZigbeeDeviceKind`, cluster/attr IDs.
 pub mod types;
 
 /// Silicon Labs EZSP v8 coordinator backend.

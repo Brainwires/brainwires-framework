@@ -4,7 +4,6 @@ pub mod error;
 pub mod types;
 
 /// Zigbee coordinator — EZSP (Silicon Labs) and ZNP (TI Z-Stack) backends.
-#[allow(missing_docs)] // Zigbee Cluster Library spec constants — see zigbee/mod.rs comment.
 #[cfg(feature = "zigbee")]
 pub mod zigbee;
 

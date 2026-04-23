@@ -1,4 +1,6 @@
+/// ZNP Monitor-and-Test (MT) command-ID constants + payload helpers.
 pub mod commands;
+/// ZNP frame encode/decode (SOF, LEN, TYPE/subsystem, CMD, payload, FCS).
 pub mod frame;
 
 use std::collections::HashMap;
