@@ -87,6 +87,15 @@ pub use brainwires_core;
 
 // ── Always available (pure types/logic) ──────────────────────────────────
 
+/// Structured error taxonomy. See [`StorageError`].
+///
+/// Public APIs on this crate return `anyhow::Result<T>` so backends don't
+/// break across a trait rewrite; callers recover the typed variant via
+/// `err.downcast_ref::<StorageError>()`.
+pub mod error;
+
+pub use error::StorageError;
+
 pub mod image_types;
 
 /// Unified database layer — one struct per database, shared connection,

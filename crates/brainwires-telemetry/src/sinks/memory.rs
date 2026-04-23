@@ -105,6 +105,7 @@ impl MemoryAnalyticsSink {
             .len()
     }
 
+    /// True when the ring buffer holds no events.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }

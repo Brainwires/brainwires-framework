@@ -20,6 +20,8 @@ pub struct AnalyticsLayer {
 }
 
 impl AnalyticsLayer {
+    /// Wrap a pre-built `AnalyticsCollector`. Install via
+    /// `tracing_subscriber::registry().with(AnalyticsLayer::new(collector))`.
     pub fn new(collector: AnalyticsCollector) -> Self {
         Self { collector }
     }

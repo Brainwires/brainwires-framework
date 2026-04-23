@@ -411,7 +411,16 @@ Persisted to `~/.brainwires/trust_store.json`.
 
 ### Anomaly Detector
 
-Real-time anomaly detection using sliding window counters.
+Real-time anomaly detection using per-agent sliding-window counters.
+
+**Window semantics:** each threshold uses an event-timestamp window (not a
+time-bucketed histogram). Every recorded event carries its `now_secs`
+timestamp; on each `record_and_count` the counter evicts entries older than
+`now - window_secs` and returns the in-window count. Counters are keyed per
+`(agent_id, kind)`, so one noisy agent does not trip thresholds for its
+peers, and a quiet agent retains no memory after its window elapses. There is
+no internal bucket size — resolution is per-event. All three window durations
+and thresholds are live-configurable via `AnomalyConfig`.
 
 **`AnomalyKind` (4 types):**
 

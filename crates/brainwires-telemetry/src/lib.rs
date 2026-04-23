@@ -35,23 +35,36 @@
 //!     .init();
 //! ```
 
+/// Fan-out `AnalyticsCollector` that dispatches events to every attached sink.
 pub mod collector;
+/// Typed error enum for analytics recording / query failures.
 pub mod error;
+/// `AnalyticsEvent` variants — provider calls, tool calls, agent runs, custom.
 pub mod events;
+/// Export helpers: flush buffered events to disk / CSV / JSONL.
 pub mod export;
+/// `tracing_subscriber::Layer` that intercepts known spans and emits analytics events.
 pub mod layer;
+/// PII redaction helpers (session-id hashing, payload scrubbing).
 pub mod pii;
+/// SQLite schema migrations for the `sqlite` sink.
 pub mod schema;
+/// `AnalyticsSink` trait + `BoxedSink` alias.
 pub mod sink;
+/// Concrete sink implementations: in-memory ring buffer, SQLite.
 pub mod sinks;
 
 // Billing hook surface
+/// `BillingHook` trait and error type — invoked at every provider / tool call.
 pub mod billing_hook;
+/// `UsageEvent` — the payload handed to a `BillingHook`.
 pub mod usage;
 
 // Outcome metrics + Prometheus text export
+/// Outcome metric counters + Prometheus text exposition.
 pub mod metrics;
 
+/// SQL-backed analytics queries (cost by model, tool frequency, daily summaries).
 #[cfg(feature = "sqlite")]
 pub mod query;
 

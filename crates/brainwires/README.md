@@ -111,6 +111,22 @@ Source of truth: [`Cargo.toml`](Cargo.toml). Listed in rough capability order.
 | `training-full` | no | `brainwires-training/full` + `datasets` | Cloud + local + dataset tooling |
 | `datasets` | no | `brainwires-training/datasets-full` | Training data pipelines (JSONL, tokenization, dedup) |
 
+### Recommended profile
+
+If you're unsure which features to pick, start with:
+
+```toml
+[dependencies]
+brainwires = { version = "0.10", features = ["agent-full", "reasoning", "providers"] }
+```
+
+That gives you the full agent runtime (communication hub, validation loop,
+task manager), capability-based permissions, prompt generation, the reasoning
+scorers and strategy selector, and the Anthropic / OpenAI / Google / Ollama
+providers — the smallest feature set that ships a complete chat-agent app.
+Add `storage + rag` when you need persistence, `mcp` or `a2a` when you need
+interop, and `seal + knowledge` when you want self-improving behavior.
+
 ### Convenience Features
 
 | Feature | Enables | Use Case |
