@@ -1,7 +1,8 @@
-/// BasicInformation cluster server (cluster ID 0x0028).
-///
-/// Serves device identity attributes such as VendorID, ProductID, and name.
-/// Matter spec §11.1.
+//! BasicInformation cluster server (cluster ID 0x0028).
+//!
+//! Serves device identity attributes such as VendorID, ProductID, and name.
+//! Matter spec §11.1.
+
 use async_trait::async_trait;
 
 use crate::homeauto::matter::clusters::tlv;
@@ -11,16 +12,27 @@ use crate::homeauto::matter::types::MatterDeviceConfig;
 
 // ── Attribute IDs ─────────────────────────────────────────────────────────────
 
+/// `0x0000` — DataModelRevision attribute.
 pub const ATTR_DATA_MODEL_REVISION: u32 = 0x0000;
+/// `0x0001` — VendorName attribute (string).
 pub const ATTR_VENDOR_NAME: u32 = 0x0001;
+/// `0x0002` — VendorID attribute.
 pub const ATTR_VENDOR_ID: u32 = 0x0002;
+/// `0x0003` — ProductName attribute (string).
 pub const ATTR_PRODUCT_NAME: u32 = 0x0003;
+/// `0x0004` — ProductID attribute.
 pub const ATTR_PRODUCT_ID: u32 = 0x0004;
+/// `0x0005` — NodeLabel attribute (user-assigned name).
 pub const ATTR_NODE_LABEL: u32 = 0x0005;
+/// `0x0006` — Location attribute (ISO 3166-1 country code).
 pub const ATTR_LOCATION: u32 = 0x0006;
+/// `0x0007` — HardwareVersion attribute.
 pub const ATTR_HARDWARE_VERSION: u32 = 0x0007;
+/// `0x000A` — SoftwareVersion attribute (numeric).
 pub const ATTR_SOFTWARE_VERSION: u32 = 0x000A;
+/// `0x000B` — SoftwareVersionString attribute.
 pub const ATTR_SOFTWARE_VERSION_STRING: u32 = 0x000B;
+/// `0x000F` — CapabilityMinima attribute (min SDK capability thresholds).
 pub const ATTR_CAPABILITY_MINIMA: u32 = 0x000F;
 
 const CLUSTER_ID: u32 = 0x0028;

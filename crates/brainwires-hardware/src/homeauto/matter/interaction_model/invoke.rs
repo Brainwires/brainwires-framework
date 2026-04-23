@@ -231,10 +231,17 @@ impl InvokeRequest {
 #[derive(Debug, Clone)]
 pub enum InvokeResponseItem {
     /// The command returned data.
-    Command { path: CommandPath, data: Vec<u8> },
+    Command {
+        /// Endpoint / cluster / command identifying this result.
+        path: CommandPath,
+        /// TLV-encoded response payload.
+        data: Vec<u8>,
+    },
     /// The command returned a status code.
     Status {
+        /// Endpoint / cluster / command identifying this result.
         path: CommandPath,
+        /// IM status code (Success or an error code).
         status: InteractionStatus,
     },
 }

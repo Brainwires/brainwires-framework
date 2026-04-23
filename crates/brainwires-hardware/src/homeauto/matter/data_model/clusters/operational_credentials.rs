@@ -1,7 +1,8 @@
-/// OperationalCredentials cluster server (cluster ID 0x003E).
-///
-/// Handles NOC management, CSR generation, and attestation during commissioning.
-/// Matter spec §11.17.
+//! OperationalCredentials cluster server (cluster ID 0x003E).
+//!
+//! Handles NOC management, CSR generation, and attestation during
+//! commissioning. Matter spec §11.17.
+
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
@@ -76,18 +77,28 @@ impl DeviceAttestationCredentials {
 
 // ── Attribute IDs ─────────────────────────────────────────────────────────────
 
+/// `0x0000` — NOCs attribute (list of installed Node Operational Certificates).
 pub const ATTR_NOCS: u32 = 0x0000;
+/// `0x0001` — Fabrics attribute (list of commissioned fabrics).
 pub const ATTR_FABRICS: u32 = 0x0001;
+/// `0x0002` — SupportedFabrics attribute (max fabric count).
 pub const ATTR_SUPPORTED_FABRICS: u32 = 0x0002;
+/// `0x0003` — CommissionedFabrics attribute (current fabric count).
 pub const ATTR_COMMISSIONED_FABRICS: u32 = 0x0003;
 
 // ── Command IDs ───────────────────────────────────────────────────────────────
 
+/// `0x00` — AttestationRequest command.
 pub const CMD_ATTESTATION_REQUEST: u32 = 0x00;
+/// `0x02` — CertificateChainRequest command.
 pub const CMD_CERTIFICATE_CHAIN_REQUEST: u32 = 0x02;
+/// `0x04` — CSRRequest command (Certificate Signing Request).
 pub const CMD_CSR_REQUEST: u32 = 0x04;
+/// `0x06` — AddNOC command (install a new Node Operational Certificate).
 pub const CMD_ADD_NOC: u32 = 0x06;
+/// `0x0B` — UpdateFabricLabel command.
 pub const CMD_UPDATE_FABRIC_LABEL: u32 = 0x0B;
+/// `0x0C` — RemoveFabric command.
 pub const CMD_REMOVE_FABRIC: u32 = 0x0C;
 
 /// CertificateChainRequest type (spec §11.17.5.3). 1 = DAC, 2 = PAI.
@@ -141,9 +152,13 @@ fn noc_response(status_code: u8, fabric_index: u8) -> Vec<u8> {
 /// Stored NOC entry: the raw NOC bytes and optional ICAC.
 #[derive(Debug, Clone)]
 pub struct NocEntry {
+    /// Raw NOC (Node Operational Certificate) TLV bytes as provided by the commissioner.
     pub noc: Vec<u8>,
+    /// Optional ICAC (Intermediate Certificate) bytes, if the fabric uses one.
     pub icac: Option<Vec<u8>>,
+    /// Fabric index this NOC belongs to.
     pub fabric_index: u8,
+    /// Human-readable fabric label.
     pub label: String,
 }
 
@@ -159,6 +174,7 @@ pub struct OpCredState {
 }
 
 impl OpCredState {
+    /// Empty state: no keypair, no fabrics.
     pub fn new() -> Self {
         Self {
             noc_keypair_bytes: None,
@@ -171,6 +187,10 @@ impl OpCredState {
 // ── OperationalCredentialsCluster ─────────────────────────────────────────────
 
 /// Server for the OperationalCredentials cluster (0x003E).
+/// `ClusterServer` implementation for the OperationalCredentials cluster.
+///
+/// Owns the set of installed fabrics + their NOCs and the DAC used for
+/// attestation responses during commissioning.
 pub struct OperationalCredentialsCluster {
     state: Arc<Mutex<OpCredState>>,
     attestation: DeviceAttestationCredentials,

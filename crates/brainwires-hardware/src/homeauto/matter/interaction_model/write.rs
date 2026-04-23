@@ -33,31 +33,57 @@ use super::read::AttributeData;
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InteractionStatus {
+    /// `0x00` — Operation succeeded.
     Success = 0x00,
+    /// `0x01` — Operation failed with no more specific code.
     Failure = 0x01,
+    /// `0x7d` — Subscription ID is unknown.
     InvalidSubscription = 0x7d,
+    /// `0x7e` — Caller's privilege level is insufficient.
     UnsupportedAccess = 0x7e,
+    /// `0x7f` — Requested endpoint does not exist.
     UnsupportedEndpoint = 0x7f,
+    /// `0x80` — Action is not permitted in the current state.
     InvalidAction = 0x80,
+    /// `0x81` — Cluster does not support this command ID.
     UnsupportedCommand = 0x81,
+    /// `0x85` — Command invocation payload is malformed.
     InvalidCommand = 0x85,
+    /// `0x86` — Cluster does not support this attribute ID.
     UnsupportedAttribute = 0x86,
+    /// `0x87` — Value violated an attribute constraint.
     ConstraintError = 0x87,
+    /// `0x88` — Attribute is read-only.
     UnsupportedWrite = 0x88,
+    /// `0x89` — Resource limit (e.g. subscription count) reached.
     ResourceExhausted = 0x89,
+    /// `0x8b` — Requested entry does not exist.
     NotFound = 0x8b,
+    /// `0x8c` — Attribute cannot be subscribed to.
     UnreportableAttribute = 0x8c,
+    /// `0x8d` — Value's TLV type does not match the attribute schema.
     InvalidDataType = 0x8d,
+    /// `0x8f` — Attribute is not readable.
     UnsupportedRead = 0x8f,
+    /// `0x92` — Submitted DataVersion did not match the current value.
     DataVersionMismatch = 0x92,
+    /// `0x94` — Operation took too long to complete.
     Timeout = 0x94,
+    /// `0x9c` — Node is busy and cannot process the request right now.
     Busy = 0x9c,
+    /// `0xc3` — Endpoint does not support this cluster.
     UnsupportedCluster = 0xc3,
+    /// `0xc5` — Proxy has no upstream subscription to fulfil the request.
     NoUpstreamSubscription = 0xc5,
+    /// `0xc6` — Command must be sent inside a TimedRequest envelope.
     NeedsTimedInteraction = 0xc6,
+    /// `0xc7` — Cluster does not support this event ID.
     UnsupportedEvent = 0xc7,
+    /// `0xc8` — Too many paths submitted in a single interaction.
     PathsExhausted = 0xc8,
+    /// `0xc9` — TimedRequest deadline does not match the follow-up action.
     TimedRequestMismatch = 0xc9,
+    /// `0xca` — Operation requires an armed FailSafe window.
     FailsafeRequired = 0xca,
 }
 

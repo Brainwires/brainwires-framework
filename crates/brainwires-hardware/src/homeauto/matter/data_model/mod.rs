@@ -1,13 +1,18 @@
-/// Matter Data Model — cluster server dispatch, ACL, and cluster implementations.
-///
-/// This module forms Phase 6 of the Matter 1.3 protocol stack.  It provides:
-///
-/// - [`ClusterServer`] trait — uniform interface for serving a single cluster.
-/// - [`DataModelNode`] — routes read/write/invoke requests to the right cluster.
-/// - [`Privilege`] — access privilege levels (Matter spec §6.6.5.1).
-/// - [`acl`] — Access Control List enforcement.
-/// - [`clusters`] — commissioning and basic-information cluster servers.
+//! Matter Data Model — cluster server dispatch, ACL, and cluster implementations.
+//!
+//! This module forms Phase 6 of the Matter 1.3 protocol stack. It provides:
+//!
+//! - [`ClusterServer`] trait — uniform interface for serving a single cluster.
+//! - [`DataModelNode`] — routes read/write/invoke requests to the right cluster.
+//! - [`Privilege`] — access privilege levels (Matter spec §6.6.5.1).
+//! - [`acl`] — Access Control List enforcement.
+//! - [`clusters`] — commissioning and basic-information cluster servers.
+
+/// Access-control-list entries + enforcement (Matter ACL cluster).
 pub mod acl;
+/// Concrete server-side implementations of built-in Matter clusters
+/// (basic_information, general_commissioning, network_commissioning,
+/// operational_credentials).
 pub mod clusters;
 
 use std::collections::HashMap;
@@ -23,13 +28,21 @@ use crate::homeauto::matter::interaction_model::{
 // ── Privilege levels ──────────────────────────────────────────────────────────
 
 /// Privilege levels per Matter spec §6.6.5.1.
+///
+/// Ordered from lowest to highest — ordinal comparison returns whether one
+/// privilege subsumes another.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Privilege {
+    /// `1` — View: read-only access to attributes and events.
     View = 1,
+    /// `2` — ProxyView: used by sleepy device proxies.
     ProxyView = 2,
+    /// `3` — Operate: issue operational commands and write operate-level attributes.
     Operate = 3,
+    /// `4` — Manage: configure the device (adjust non-operational attributes).
     Manage = 4,
+    /// `5` — Administer: full fabric-level access (commissioning, ACL edits).
     Administer = 5,
 }
 

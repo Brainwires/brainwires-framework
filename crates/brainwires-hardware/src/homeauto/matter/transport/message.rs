@@ -40,7 +40,9 @@ const SECFLAG_SESSION_TYPE_MASK: u8 = 0b1111_1000; // bits 7:3
 /// Session type carried in the Security Flags field (bits 7:3).
 #[derive(Debug, Clone, PartialEq)]
 pub enum SessionType {
+    /// Unicast session — addressed to a single peer node.
     Unicast,
+    /// Group session — addressed to a multicast group.
     Group,
 }
 
@@ -75,7 +77,9 @@ pub struct MessageHeader {
 /// A fully parsed Matter message.
 #[derive(Debug, Clone)]
 pub struct MatterMessage {
+    /// Header (version, session, counter, source/dest, flags).
     pub header: MessageHeader,
+    /// Payload bytes — TLV-encoded after decryption.
     pub payload: Vec<u8>,
 }
 

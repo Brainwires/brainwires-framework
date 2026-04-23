@@ -1,7 +1,8 @@
-/// GeneralCommissioning cluster server (cluster ID 0x0030).
-///
-/// Handles FailSafe, regulatory config, and CommissioningComplete.
-/// Matter spec §11.9.
+//! GeneralCommissioning cluster server (cluster ID 0x0030).
+//!
+//! Handles FailSafe, regulatory config, and CommissioningComplete.
+//! Matter spec §11.9.
+
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
@@ -12,16 +13,24 @@ use crate::homeauto::matter::error::{MatterError, MatterResult};
 
 // ── Attribute IDs ─────────────────────────────────────────────────────────────
 
+/// `0x0000` — Breadcrumb attribute (commissioner-supplied tracking value).
 pub const ATTR_BREADCRUMB: u32 = 0x0000;
+/// `0x0001` — BasicCommissioningInfo attribute (FailSafe defaults).
 pub const ATTR_BASIC_COMMISSIONING_INFO: u32 = 0x0001;
+/// `0x0002` — RegulatoryConfig attribute (indoor / outdoor / both).
 pub const ATTR_REGULATORY_CONFIG: u32 = 0x0002;
+/// `0x0003` — LocationCapability attribute (supported regulatory locations).
 pub const ATTR_LOCATION_CAPABILITY: u32 = 0x0003;
+/// `0x0004` — SupportsConcurrentConnection attribute.
 pub const ATTR_SUPPORTS_CONCURRENT_CONNECTION: u32 = 0x0004;
 
 // ── Command IDs ───────────────────────────────────────────────────────────────
 
+/// `0x00` — ArmFailSafe command (opens the FailSafe window).
 pub const CMD_ARM_FAIL_SAFE: u32 = 0x00;
+/// `0x02` — SetRegulatoryConfig command.
 pub const CMD_SET_REGULATORY_CONFIG: u32 = 0x02;
+/// `0x04` — CommissioningComplete command (closes FailSafe on success).
 pub const CMD_COMMISSIONING_COMPLETE: u32 = 0x04;
 
 const CLUSTER_ID: u32 = 0x0030;

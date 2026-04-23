@@ -276,22 +276,31 @@ fn derive_session_keys(ke: &[u8]) -> ([u8; 16], [u8; 16], [u8; 32]) {
 
 /// State machine for the PASE commissioner (initiator) side.
 pub enum PaseCommissionerState {
+    /// Initial state before PBKDFParamRequest is sent.
     Idle,
+    /// PBKDFParamRequest emitted; waiting for PBKDFParamResponse.
     SentParamRequest {
+        /// 32-byte initiator random used in the request.
         initiator_random: [u8; 32],
+        /// Local session ID allocated for this handshake.
         session_id: u16,
         /// The raw encoded PBKDFParamRequest bytes (used as SPAKE2+ context).
         req_bytes: Vec<u8>,
     },
+    /// Pake1 emitted; waiting for Pake2.
     SentPake1 {
+        /// SPAKE2+ prover holding `w0`, `w1`, and the random pA scalar.
         prover: Spake2PlusProver,
         /// Saved request bytes for context hash.
         req_bytes: Vec<u8>,
         /// Saved response bytes for context hash.
         resp_bytes: Vec<u8>,
+        /// Local session ID allocated for this handshake.
         session_id: u16,
     },
+    /// Handshake completed; session keys are available.
     Established(EstablishedSession),
+    /// Handshake failed — holds a human-readable reason.
     Failed(String),
 }
 
@@ -470,19 +479,31 @@ impl PaseCommissioner {
 
 /// State machine for the PASE commissionee (responder) side.
 pub enum PaseCommissioneeState {
+    /// Initial state before PBKDFParamRequest arrives.
     Idle,
+    /// PBKDFParamResponse emitted; waiting for Pake1.
     SentParamResponse {
+        /// Captured PBKDFParamRequest bytes for context hashing.
         req_bytes: Vec<u8>,
+        /// Captured PBKDFParamResponse bytes for context hashing.
         resp_bytes: Vec<u8>,
+        /// SPAKE2+ salt chosen by the commissionee.
         salt: Vec<u8>,
+        /// SPAKE2+ PBKDF2 iteration count.
         iterations: u32,
     },
+    /// Pake2 emitted; waiting for Pake3 to confirm the SPAKE2+ exchange.
     SentPake2 {
+        /// SPAKE2+ verifier holding `L` and the random pB scalar.
         verifier: Box<Spake2PlusVerifier>,
+        /// Derived SPAKE2+ keys (`Ke`, `cA`, `cB`, shared).
         keys: crate::homeauto::matter::crypto::spake2plus::Spake2PlusKeys,
+        /// Local session ID allocated for this handshake.
         session_id: u16,
     },
+    /// Handshake completed; session keys are available.
     Established(EstablishedSession),
+    /// Handshake failed — holds a human-readable reason.
     Failed(String),
 }
 

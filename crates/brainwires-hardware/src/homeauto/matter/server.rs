@@ -35,9 +35,13 @@ use super::types::MatterDeviceConfig;
 use crate::homeauto::error::{HomeAutoError, HomeAutoResult};
 
 // Cluster handler callback types
+/// Callback invoked when the On/Off cluster receives an On or Off command.
 pub type OnOffHandler = Arc<dyn Fn(bool) + Send + Sync>;
+/// Callback invoked with a Level Control MoveToLevel payload (0..=254).
 pub type LevelHandler = Arc<dyn Fn(u8) + Send + Sync>;
+/// Callback invoked with a Color Control MoveToColorTemperature mireds value.
 pub type ColorTempHandler = Arc<dyn Fn(u16) + Send + Sync>;
+/// Callback invoked with a Thermostat setpoint (in °C).
 pub type ThermostatHandler = Arc<dyn Fn(f32) + Send + Sync>;
 
 // Matter protocol constants (used when binding the Matter server socket)

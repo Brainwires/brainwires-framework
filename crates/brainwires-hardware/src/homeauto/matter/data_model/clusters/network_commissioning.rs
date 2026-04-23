@@ -1,10 +1,11 @@
-/// NetworkCommissioning cluster server (cluster ID 0x0031).
-///
-/// Simplified on-network commissioning implementation.  For IP-connected
-/// devices that are already on-network, all WiFi/Thread scan/connect commands
-/// return immediate success so the commissioning flow can continue.
-///
-/// Matter spec §11.8.
+//! NetworkCommissioning cluster server (cluster ID 0x0031).
+//!
+//! Simplified on-network commissioning implementation. For IP-connected
+//! devices that are already on-network, all WiFi/Thread scan/connect commands
+//! return immediate success so the commissioning flow can continue.
+//!
+//! Matter spec §11.8.
+
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
@@ -15,20 +16,32 @@ use crate::homeauto::matter::error::{MatterError, MatterResult};
 
 // ── Attribute IDs ─────────────────────────────────────────────────────────────
 
+/// `0x0000` — MaxNetworks attribute (max provisioned networks).
 pub const ATTR_MAX_NETWORKS: u32 = 0x0000;
+/// `0x0001` — Networks attribute (list of provisioned networks).
 pub const ATTR_NETWORKS: u32 = 0x0001;
+/// `0x0002` — ScanMaxTimeSeconds attribute.
 pub const ATTR_SCAN_MAX_TIME_SECONDS: u32 = 0x0002;
+/// `0x0003` — ConnectMaxTimeSeconds attribute.
 pub const ATTR_CONNECT_MAX_TIME_SECONDS: u32 = 0x0003;
+/// `0x0004` — InterfaceEnabled attribute.
 pub const ATTR_INTERFACE_ENABLED: u32 = 0x0004;
+/// `0x0005` — LastNetworkingStatus attribute (last network-op result code).
 pub const ATTR_LAST_NETWORKING_STATUS: u32 = 0x0005;
+/// `0x0006` — LastNetworkID attribute (last network we attempted to connect to).
 pub const ATTR_LAST_NETWORK_ID: u32 = 0x0006;
+/// `0x0007` — LastConnectErrorValue attribute.
 pub const ATTR_LAST_CONNECT_ERROR_VALUE: u32 = 0x0007;
 
 // ── Command IDs ───────────────────────────────────────────────────────────────
 
+/// `0x00` — ScanNetworks command.
 pub const CMD_SCAN_NETWORKS: u32 = 0x00;
+/// `0x02` — AddOrUpdateWiFiNetwork command.
 pub const CMD_ADD_OR_UPDATE_WIFI_NETWORK: u32 = 0x02;
+/// `0x06` — ConnectNetwork command.
 pub const CMD_CONNECT_NETWORK: u32 = 0x06;
+/// `0x07` — ReorderNetwork command.
 pub const CMD_REORDER_NETWORK: u32 = 0x07;
 
 const CLUSTER_ID: u32 = 0x0031;
@@ -88,7 +101,9 @@ fn connect_network_response(status: u8) -> Vec<u8> {
 /// A stored network entry (added via AddOrUpdateWiFiNetwork).
 #[derive(Debug, Clone)]
 pub struct NetworkEntry {
+    /// Network identifier — SSID for WiFi, Extended PAN ID for Thread.
     pub network_id: Vec<u8>,
+    /// Whether the device currently has connectivity on this network.
     pub connected: bool,
 }
 
@@ -97,8 +112,11 @@ pub struct NetworkEntry {
 /// Mutable state for the NetworkCommissioning cluster.
 #[derive(Debug, Default)]
 pub struct NetworkCommissioningState {
+    /// Provisioned networks (SSIDs / Thread datasets).
     pub networks: Vec<NetworkEntry>,
+    /// Result code of the most recent network operation.
     pub last_networking_status: Option<u8>,
+    /// Last network identifier the device attempted to connect to.
     pub last_network_id: Option<Vec<u8>>,
 }
 

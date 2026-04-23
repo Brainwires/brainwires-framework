@@ -377,14 +377,22 @@ fn ecdsa_verify(verifying_key_bytes: &[u8], data: &[u8], sig_bytes: &[u8]) -> Ma
 /// State of the CASE initiator.
 #[derive(Debug)]
 pub enum CaseInitiatorState {
+    /// Initial state before Sigma1 is sent.
     Idle,
+    /// Sigma1 emitted; waiting for Sigma2 from the responder.
     SentSigma1 {
+        /// Initiator's ephemeral ECDH secret key.
         eph_secret: SecretKey,
+        /// Serialised uncompressed SEC1 form of the ephemeral public key (65 B).
         eph_pub: [u8; 65],
+        /// 32-byte initiator random used in the Sigma1 TBS.
         init_random: [u8; 32],
+        /// Local session ID allocated for this handshake.
         session_id: u16,
     },
+    /// Handshake completed; session keys are available.
     Established(EstablishedSession),
+    /// Handshake failed — holds a human-readable reason.
     Failed(String),
 }
 
@@ -574,15 +582,24 @@ impl CaseInitiator {
 /// State of the CASE responder.
 #[derive(Debug)]
 pub enum CaseResponderState {
+    /// Initial state before Sigma1 arrives.
     Idle,
+    /// Sigma2 emitted; waiting for Sigma3 from the initiator.
     SentSigma2 {
+        /// Responder's ephemeral ECDH secret key.
         eph_secret: SecretKey,
+        /// 32-byte responder random used in the Sigma2 TBS.
         resp_random: [u8; 32],
+        /// Initiator's SEC1-encoded ephemeral public key captured from Sigma1.
         init_eph_pub: [u8; 65],
+        /// Initiator's random captured from Sigma1.
         init_random: [u8; 32],
+        /// Local session ID allocated for this handshake.
         session_id: u16,
     },
+    /// Handshake completed; session keys are available.
     Established(EstablishedSession),
+    /// Handshake failed — holds a human-readable reason.
     Failed(String),
 }
 
