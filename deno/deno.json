@@ -14,6 +14,7 @@
     "./packages/resilience",
     "./packages/telemetry",
     "./packages/reasoning",
+    "./packages/training",
     "./examples"
   ],
   "imports": {
