@@ -12,6 +12,7 @@
     "./packages/a2a",
     "./packages/session",
     "./packages/resilience",
+    "./packages/telemetry",
     "./examples"
   ],
   "imports": {
