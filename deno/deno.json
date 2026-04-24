@@ -1,4 +1,7 @@
 {
+  "tasks": {
+    "parity": "deno run --allow-read scripts/parity.ts"
+  },
   "workspace": [
     "./packages/core",
     "./packages/permissions",
