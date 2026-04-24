@@ -10,6 +10,7 @@
     "./packages/network",
     "./packages/agents",
     "./packages/a2a",
+    "./packages/session",
     "./examples"
   ],
   "imports": {
