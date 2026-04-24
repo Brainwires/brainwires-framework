@@ -470,3 +470,25 @@ export {
 export { SkillRegistry, truncateDescription, type DiscoveryPath } from "./skills_registry.ts";
 
 export { SkillRouter } from "./skills_router.ts";
+
+// Agent roles (least-privilege tool restriction)
+export {
+  allowedTools,
+  filterTools,
+  roleDisplayName,
+  systemPromptSuffix,
+  type AgentRole,
+} from "./roles.ts";
+
+// System prompt registry (Rust-parity canonical prompts).
+// Note: judgeAgentPrompt and plannerAgentPrompt already exist on this package
+// from judge_agent.ts / planner_agent.ts with slightly drifted wording. Import
+// the canonical versions directly from "@brainwires/agents/system_prompts/mod.ts"
+// when strict Rust↔Deno parity is required.
+export {
+  type AgentPromptKind,
+  buildAgentPrompt,
+  mdapMicroagentPrompt,
+  reasoningAgentPrompt,
+  simpleAgentPrompt,
+} from "./system_prompts/mod.ts";
