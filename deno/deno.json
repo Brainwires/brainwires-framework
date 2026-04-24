@@ -13,6 +13,7 @@
     "./packages/session",
     "./packages/resilience",
     "./packages/telemetry",
+    "./packages/reasoning",
     "./examples"
   ],
   "imports": {
