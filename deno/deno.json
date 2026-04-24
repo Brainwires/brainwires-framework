@@ -11,6 +11,7 @@
     "./packages/agents",
     "./packages/a2a",
     "./packages/session",
+    "./packages/resilience",
     "./examples"
   ],
   "imports": {
