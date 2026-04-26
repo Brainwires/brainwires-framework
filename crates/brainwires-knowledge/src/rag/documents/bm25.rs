@@ -311,7 +311,8 @@ mod tests {
     fn test_manager_creation() {
         let temp = TempDir::new().unwrap();
         let manager = DocumentBM25Manager::new(temp.path());
-        assert!(manager.base_path.exists() || true);
+        // Smoke test: simply ensure construction succeeded; base_path may or may not exist yet.
+        let _ = &manager.base_path;
     }
 
     #[test]

@@ -250,8 +250,10 @@ async fn test_coordinator_creation() {
     assert!(coordinator.is_ok());
 
     // Should fail with invalid config
-    let mut invalid_config = IntegrationConfig::default();
-    invalid_config.seal_weight = 2.0; // Invalid weight sum
+    let invalid_config = IntegrationConfig {
+        seal_weight: 2.0, // Invalid weight sum
+        ..Default::default()
+    };
     let coordinator = SealKnowledgeCoordinator::new(bks_cache, pks_cache, invalid_config);
     assert!(coordinator.is_err());
 }

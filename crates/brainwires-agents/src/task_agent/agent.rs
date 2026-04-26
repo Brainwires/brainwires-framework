@@ -226,6 +226,10 @@ impl TaskAgent {
     /// Returns `Some(result)` when the agent should stop (validation passed),
     /// `None` when validation failed and the loop should continue so the agent
     /// can self-correct.
+    // reason: too_many_arguments — refactoring this orchestration function would
+    // require introducing a struct just to bundle args, which obscures the
+    // call site. The arguments are all distinct semantically.
+    #[allow(clippy::too_many_arguments)]
     async fn attempt_validated_completion(
         &self,
         message_text: &str,

@@ -334,9 +334,11 @@ mod tests {
         let (hub, locks) = make_hub_and_locks();
 
         let dir = tempfile::tempdir().unwrap();
-        let mut vc = ValidationConfig::default();
-        vc.working_directory = dir.path().to_string_lossy().to_string();
-        vc.working_set_files = vec!["nonexistent.rs".to_string()];
+        let vc = ValidationConfig {
+            working_directory: dir.path().to_string_lossy().to_string(),
+            working_set_files: vec!["nonexistent.rs".to_string()],
+            ..Default::default()
+        };
 
         let config = ValidatorAgentConfig::new(vc);
         let agent = ValidatorAgent::new("val-missing", config, hub, locks);

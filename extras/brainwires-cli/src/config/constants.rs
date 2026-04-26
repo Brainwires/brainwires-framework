@@ -115,7 +115,7 @@ mod tests {
         #[allow(deprecated)]
         {
             assert_eq!(COMPACTION_THRESHOLD_TOKENS, 80_000);
-            assert!(COMPACTION_THRESHOLD_TOKENS < MAX_CONTEXT_TOKENS);
+            const _: () = assert!(COMPACTION_THRESHOLD_TOKENS < MAX_CONTEXT_TOKENS);
             // Threshold should be 80% of max
             assert_eq!(COMPACTION_THRESHOLD_TOKENS, (MAX_CONTEXT_TOKENS * 80) / 100);
         }
@@ -124,7 +124,7 @@ mod tests {
     #[test]
     fn test_worker_iterations() {
         assert_eq!(MAX_WORKER_ITERATIONS, 15);
-        assert!(MAX_WORKER_ITERATIONS > 0);
+        const _: () = assert!(MAX_WORKER_ITERATIONS > 0);
     }
 
     #[test]

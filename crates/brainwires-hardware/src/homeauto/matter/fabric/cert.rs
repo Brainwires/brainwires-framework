@@ -461,16 +461,16 @@ mod tests {
     fn dummy_pubkey() -> [u8; 65] {
         let mut k = [0u8; 65];
         k[0] = 0x04; // uncompressed point prefix
-        for i in 1..65 {
-            k[i] = i as u8;
+        for (i, slot) in k.iter_mut().enumerate().skip(1) {
+            *slot = i as u8;
         }
         k
     }
 
     fn dummy_sig() -> [u8; 64] {
         let mut s = [0u8; 64];
-        for i in 0..64 {
-            s[i] = (i + 128) as u8;
+        for (i, slot) in s.iter_mut().enumerate() {
+            *slot = (i + 128) as u8;
         }
         s
     }

@@ -666,9 +666,9 @@ mod tests {
         let j = dynamic_to_json(&d);
         assert_eq!(j, serde_json::json!(42));
 
-        let d = Dynamic::from(3.14_f64);
+        let d = Dynamic::from(2.5_f64);
         let j = dynamic_to_json(&d);
-        assert!(j.as_f64().unwrap() - 3.14 < 0.001);
+        assert!((j.as_f64().unwrap() - 2.5).abs() < 0.001);
 
         let d = Dynamic::from(true);
         let j = dynamic_to_json(&d);

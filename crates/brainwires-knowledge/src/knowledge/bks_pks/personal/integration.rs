@@ -656,7 +656,7 @@ mod tests {
         }
 
         // Should have tracked usage
-        assert!(integration.tool_usage.usage.get("read_file").is_some());
+        assert!(integration.tool_usage.usage.contains_key("read_file"));
     }
 
     #[test]

@@ -1264,12 +1264,13 @@ mod tests {
         assert_eq!(pubkey.len(), 65);
         let nonce = vec![0x11u8; 32];
 
-        let mut nocsr_inner = Vec::new();
-        nocsr_inner.push(0x15); // TYPE_STRUCTURE
-        // tag 1: pubkey
-        nocsr_inner.push(0x30);
-        nocsr_inner.push(1);
-        nocsr_inner.push(pubkey.len() as u8);
+        let mut nocsr_inner = vec![
+            0x15, // TYPE_STRUCTURE
+            // tag 1: pubkey
+            0x30,
+            1,
+            pubkey.len() as u8,
+        ];
         nocsr_inner.extend_from_slice(&pubkey);
         // tag 2: nonce
         nocsr_inner.push(0x30);
@@ -1278,12 +1279,13 @@ mod tests {
         nocsr_inner.extend_from_slice(&nonce);
         nocsr_inner.push(0x18); // END_OF_CONTAINER
 
-        let mut resp = Vec::new();
-        resp.push(0x15); // outer struct
-        // tag 0: NOCSRElements bytes
-        resp.push(0x30);
-        resp.push(0);
-        resp.push(nocsr_inner.len() as u8);
+        let mut resp = vec![
+            0x15, // outer struct
+            // tag 0: NOCSRElements bytes
+            0x30,
+            0,
+            nocsr_inner.len() as u8,
+        ];
         resp.extend_from_slice(&nocsr_inner);
         // tag 1: signature bytes (64)
         let sig = vec![0xBB; 64];
@@ -1304,19 +1306,11 @@ mod tests {
         short_key.extend_from_slice(&[0xCC; 59]);
         assert_eq!(short_key.len(), 60);
 
-        let mut nocsr_inner = Vec::new();
-        nocsr_inner.push(0x15);
-        nocsr_inner.push(0x30);
-        nocsr_inner.push(1);
-        nocsr_inner.push(short_key.len() as u8);
+        let mut nocsr_inner = vec![0x15, 0x30, 1, short_key.len() as u8];
         nocsr_inner.extend_from_slice(&short_key);
         nocsr_inner.push(0x18);
 
-        let mut resp = Vec::new();
-        resp.push(0x15);
-        resp.push(0x30);
-        resp.push(0);
-        resp.push(nocsr_inner.len() as u8);
+        let mut resp = vec![0x15, 0x30, 0, nocsr_inner.len() as u8];
         resp.extend_from_slice(&nocsr_inner);
         resp.push(0x18);
 

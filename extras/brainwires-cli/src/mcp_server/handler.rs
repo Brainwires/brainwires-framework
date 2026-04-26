@@ -1314,9 +1314,11 @@ mod tests {
     fn test_validation_config_building() {
         use crate::agents::ValidationConfig;
 
-        let mut config = ValidationConfig::default();
-        config.working_directory = "/test/path".to_string();
-        config = config.with_build("typescript");
+        let config = ValidationConfig {
+            working_directory: "/test/path".to_string(),
+            ..Default::default()
+        }
+        .with_build("typescript");
 
         assert_eq!(config.working_directory, "/test/path");
         // Verify build_type was set (internal field)

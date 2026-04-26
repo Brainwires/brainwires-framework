@@ -555,6 +555,9 @@ fn parse_status_report(tlv: &[u8]) -> Option<(u16, u32, u16)> {
     Some((general, proto_id, proto_code))
 }
 
+// reason: too_many_arguments — Matter commissioning state is shared across
+// many Arc-wrapped fields; bundling them would just be a pass-through struct.
+#[allow(clippy::too_many_arguments)]
 async fn handle_commissioning_message(
     msg: MatterMessage,
     peer: SocketAddr,
@@ -743,6 +746,9 @@ fn build_status_report_success() -> Vec<u8> {
 
 // ── Operational (CASE + IM) dispatch ─────────────────────────────────────────
 
+// reason: too_many_arguments — same as handle_commissioning_message; the
+// Matter server has a lot of independently-owned shared state.
+#[allow(clippy::too_many_arguments)]
 async fn handle_operational_message(
     msg: MatterMessage,
     peer: SocketAddr,

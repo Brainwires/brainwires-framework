@@ -1142,13 +1142,12 @@ async fn test_cancellation_during_file_walk() {
 
     // Should either succeed quickly (if file walk completed before cancel)
     // or fail with cancellation error
-    if result.is_err() {
+    if let Err(err) = result {
         // Use {:#} format to see full error chain (anyhow wraps errors with context)
-        let error = format!("{:#}", result.unwrap_err());
+        let error = format!("{err:#}");
         assert!(
             error.contains("cancelled"),
-            "Error should mention cancellation: {}",
-            error
+            "Error should mention cancellation: {error}"
         );
     }
     // If it succeeded, that's also OK - it just means file walk completed before cancellation
@@ -1345,13 +1344,12 @@ async fn test_cancellation_during_embedding_batch() {
     .await;
 
     // Either succeeds (if embedding finished before cancel) or fails with cancellation
-    if result.is_err() {
+    if let Err(err) = result {
         // Use {:#} format to see full error chain (anyhow wraps errors with context)
-        let error = format!("{:#}", result.unwrap_err());
+        let error = format!("{err:#}");
         assert!(
             error.contains("cancelled"),
-            "Error should mention cancellation: {}",
-            error
+            "Error should mention cancellation: {error}"
         );
     }
 }

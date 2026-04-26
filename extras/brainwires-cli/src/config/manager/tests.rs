@@ -200,9 +200,11 @@ fn test_config_provider_type_default() {
 
 #[test]
 fn test_config_provider_type_serialization() {
-    let mut config = Config::default();
-    config.provider_type = ProviderType::Anthropic;
-    config.provider_base_url = Some("https://custom.api.com".to_string());
+    let config = Config {
+        provider_type: ProviderType::Anthropic,
+        provider_base_url: Some("https://custom.api.com".to_string()),
+        ..Default::default()
+    };
 
     let json = serde_json::to_string(&config).unwrap();
     let parsed: Config = serde_json::from_str(&json).unwrap();
@@ -335,9 +337,11 @@ fn test_config_save_success() {
     std::fs::create_dir_all(temp.path()).unwrap();
     let config_path = temp.path().join("save_test.json");
 
-    let mut config = Config::default();
-    config.model = "gemini-2.0".to_string();
-    config.temperature = 0.5;
+    let config = Config {
+        model: "gemini-2.0".to_string(),
+        temperature: 0.5,
+        ..Default::default()
+    };
 
     let manager = ConfigManager {
         config,
@@ -423,10 +427,12 @@ fn test_config_update_only_backend_url() {
 
 #[test]
 fn test_config_temperature_boundary() {
-    let mut config = Config::default();
+    let mut config = Config {
+        temperature: 0.0,
+        ..Default::default()
+    };
 
     // Test minimum temperature
-    config.temperature = 0.0;
     let json = serde_json::to_string(&config).unwrap();
     let parsed: Config = serde_json::from_str(&json).unwrap();
     assert_eq!(parsed.temperature, 0.0);
@@ -446,10 +452,12 @@ fn test_config_temperature_boundary() {
 
 #[test]
 fn test_config_max_tokens_boundary() {
-    let mut config = Config::default();
+    let mut config = Config {
+        max_tokens: 0,
+        ..Default::default()
+    };
 
     // Test minimum tokens
-    config.max_tokens = 0;
     let json = serde_json::to_string(&config).unwrap();
     let parsed: Config = serde_json::from_str(&json).unwrap();
     assert_eq!(parsed.max_tokens, 0);
@@ -549,8 +557,10 @@ fn test_config_update_extreme_values() {
 #[test]
 fn test_config_serialization_with_all_permission_modes() {
     // Test Auto
-    let mut config = Config::default();
-    config.permission_mode = PermissionMode::Auto;
+    let mut config = Config {
+        permission_mode: PermissionMode::Auto,
+        ..Default::default()
+    };
     let json = serde_json::to_string(&config).unwrap();
     let parsed: Config = serde_json::from_str(&json).unwrap();
     assert_eq!(parsed.permission_mode, PermissionMode::Auto);

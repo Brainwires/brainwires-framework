@@ -43,7 +43,7 @@ impl MemoryAnalyticsSink {
 
     fn note_drop(&self) {
         let n = self.dropped.fetch_add(1, Ordering::Relaxed) + 1;
-        if n == 1 || n % DROP_WARN_EVERY == 0 {
+        if n == 1 || n.is_multiple_of(DROP_WARN_EVERY) {
             tracing::warn!(
                 target: "telemetry.dropped",
                 dropped = n,

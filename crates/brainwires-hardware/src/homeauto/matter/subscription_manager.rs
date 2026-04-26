@@ -61,6 +61,10 @@ impl SubscriptionManager {
     }
 
     /// Register a new subscription and return the assigned id.
+    // reason: too_many_arguments — Matter subscription registration takes
+    // many distinct Matter-protocol parameters; bundling into a struct would
+    // be ceremony without clarity.
+    #[allow(clippy::too_many_arguments)]
     pub fn register(
         &self,
         session_id: u16,

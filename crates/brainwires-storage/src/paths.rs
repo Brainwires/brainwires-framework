@@ -170,6 +170,7 @@ impl PlatformPaths {
 mod tests {
     use super::*;
     use std::env;
+    use std::path::Path;
 
     #[test]
     fn test_data_dir_not_empty() {
@@ -232,7 +233,7 @@ mod tests {
     fn test_paths_are_absolute_or_relative() {
         // Paths should either be absolute or fallback to "."
         let data_dir = PlatformPaths::data_dir();
-        assert!(data_dir.is_absolute() || data_dir == PathBuf::from("."));
+        assert!(data_dir.is_absolute() || data_dir == Path::new("."));
     }
 
     #[test]
@@ -389,7 +390,7 @@ mod tests {
         let project_data = PlatformPaths::project_data_dir();
 
         assert!(
-            project_data.starts_with(&data_dir) || data_dir == PathBuf::from("."),
+            project_data.starts_with(&data_dir) || data_dir == Path::new("."),
             "project_data_dir should be subdirectory of data_dir"
         );
 
@@ -397,7 +398,7 @@ mod tests {
         let project_cache = PlatformPaths::project_cache_dir();
 
         assert!(
-            project_cache.starts_with(&cache_dir) || cache_dir == PathBuf::from("."),
+            project_cache.starts_with(&cache_dir) || cache_dir == Path::new("."),
             "project_cache_dir should be subdirectory of cache_dir"
         );
     }

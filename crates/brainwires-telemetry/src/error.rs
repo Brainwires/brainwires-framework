@@ -62,7 +62,7 @@ mod tests {
     #[test]
     fn analytics_result_ok() {
         let result: AnalyticsResult<i32> = Ok(42);
-        assert_eq!(result.unwrap(), 42);
+        assert!(matches!(result, Ok(42)));
     }
 
     #[test]

@@ -160,10 +160,12 @@ mod tests {
 
     #[test]
     fn mrp_back_off_caps_at_idle_interval() {
-        let mut config = MrpConfig::default();
-        config.active_retry_interval_ms = 300;
-        config.idle_retry_interval_ms = 5_000;
-        config.max_retransmit_count = 10;
+        let config = MrpConfig {
+            active_retry_interval_ms: 300,
+            idle_retry_interval_ms: 5_000,
+            max_retransmit_count: 10,
+            ..Default::default()
+        };
 
         let mut ex = MrpExchange::with_config(3, 0, config);
         // After several retries the delay must not exceed the idle interval.
