@@ -70,9 +70,14 @@ image = { version = "0.25", optional = true, default-features = false, features 
 nusb = { version = "0.1", optional = true }
 
 # Wake word detection — rustpotter (wake-word-rustpotter feature)
-# NOTE: rustpotter 3.0.x has a dependency conflict with candle-core 0.2.2 / rand_distr 0.4.x.
-# Enable this feature only once the upstream conflict is resolved.
-rustpotter = { version = "3.0", optional = true }
+# NOTE: workspace root patches `rustpotter` to the Brainwires fork at
+# https://github.com/Brainwires/rustpotter (branch `candle-0.10`), which
+# bumps `candle-core`/`candle-nn` to 0.10. The fork ships as the prerelease
+# `3.0.3-candle-0.10`; cargo only resolves prereleases when the version
+# requirement explicitly names that prerelease tag, hence the exact pin
+# below. If the patch is removed in the future, this requirement should be
+# bumped to whatever stable `3.x` (or newer) crates.io publishes.
+rustpotter = { version = "3.0.3-candle-0.10", optional = true }
 
 # Voice Activity Detection — WebRTC VAD (vad feature)
 webrtc-vad = { version = "0.4", optional = true }

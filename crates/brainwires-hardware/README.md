@@ -152,13 +152,12 @@ if let Some(detection) = detector.process_frame(&frame) {
 }
 ```
 
-> **Heads-up: avoid `cargo … --all-features` on this crate.** The optional
-> `wake-word-rustpotter` feature pulls `rustpotter 3.x` → `candle-core 0.2.2`,
-> which fails to build against modern `rand_distr 0.4.3` + `half 2.7`
-> (upstream incompat; see `Cargo.toml` for the tracking comment). Every
-> other feature combination builds clean — enable the ones you actually
-> need instead of `--all-features`. Example: `cargo check -p brainwires-hardware
-> --features audio,vad,wake-word,gpio,bluetooth,network,camera,usb,zigbee,zwave,thread,matter,matter-ble`.
+> **Note on `wake-word-rustpotter`.** The workspace `[patch.crates-io]` table
+> redirects `rustpotter` to
+> [Brainwires/rustpotter@`candle-0.10`](https://github.com/Brainwires/rustpotter)
+> (the prerelease `3.0.3-candle-0.10`), which bumps `candle-core`/`candle-nn`
+> to 0.10 so the dep aligns with the rest of the workspace. With that patch
+> in place `cargo … --all-features` builds clean, including this crate.
 
 ## Voice Assistant Pipeline
 

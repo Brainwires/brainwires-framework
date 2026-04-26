@@ -313,3 +313,13 @@ debug = "line-tables-only"
 [profile.test]
 debug = "line-tables-only"
 
+# ── Patches ─────────────────────────────────────────────────────────────────
+#
+# Redirect `rustpotter` (transitive dep of `brainwires-hardware`'s
+# `wake-word-rustpotter` feature) to the Brainwires fork on `candle-0.10`,
+# which bumps `candle-core`/`candle-nn` to 0.10 and fixes test tolerances.
+# Without this patch, `--all-features` pulls in upstream `rustpotter 3.0.2`
+# → `candle-core 0.2.2`, which won't build against the workspace's candle 0.10.
+[patch.crates-io]
+rustpotter = { git = "https://github.com/Brainwires/rustpotter", rev = "e9b268d76b4493b2c88253c9e03b5a1ca391be2b" }
+

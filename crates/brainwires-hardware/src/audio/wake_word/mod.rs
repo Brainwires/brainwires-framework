@@ -18,6 +18,7 @@
 
 /// Energy-burst wake trigger — zero-dependency fallback.
 pub mod energy_trigger;
+/// Rustpotter-backed wake word detector (pure Rust, `.rpw` models).
 #[cfg(feature = "wake-word-rustpotter")]
 pub mod rustpotter;
 
