@@ -85,6 +85,57 @@ export function postToServiceWorker(msg) {
     return true;
 }
 
+// ── Local model handle (in-memory only) ────────────────────────
+//
+// Holds the wasm-side `LocalModelHandle` returned by
+// `init_local_model(weights, tokenizer, modelId)`. Owned exclusively
+// by `providers/local.js` — UI code and other providers should treat
+// this as opaque.
+
+let _localModelHandle = null;
+let _localModelId = null;
+
+/** @returns {object | null} */
+export function getLocalModelHandle() {
+    return _localModelHandle;
+}
+
+/** @returns {string | null} */
+export function getLocalModelId() {
+    return _localModelId;
+}
+
+/**
+ * @param {object | null} handle the wasm handle, or null to clear
+ * @param {string | null} [modelId] the registered id (e.g. 'gemma-4-e2b')
+ */
+export function setLocalModelHandle(handle, modelId = null) {
+    const wasLoaded = _localModelHandle !== null;
+    _localModelHandle = handle;
+    _localModelId = handle ? modelId : null;
+    if (handle && !wasLoaded) {
+        appEvents.dispatchEvent(new CustomEvent('local-model-loaded', { detail: { modelId: _localModelId } }));
+    }
+    if (!handle && wasLoaded) {
+        appEvents.dispatchEvent(new Event('local-model-unloaded'));
+    }
+}
+
+// ── Decrypted session key (in-memory only) ─────────────────────
+//
+// Convenience alias for `getSessionKey()` so the providers layer can
+// reach for a more descriptive name. The underlying slot is shared.
+
+/** @returns {CryptoKey | null} */
+export function getDecryptedSessionKey() {
+    return _sessionKey;
+}
+
+/** @param {CryptoKey | null} key */
+export function setDecryptedSessionKey(key) {
+    setSessionKey(key);
+}
+
 // ── App-wide pub/sub ───────────────────────────────────────────
 //
 // Known event types (consumers should listen for these, dispatchers fire
@@ -93,5 +144,15 @@ export function postToServiceWorker(msg) {
 //   - 'chat-chunk'   { conversationId, messageId, delta } (CustomEvent.detail)
 //   - 'chat-done'    { conversationId, messageId, usage }
 //   - 'chat-error'   { conversationId, messageId, error }
+//   - 'chat_chunk' / 'chat_done' / 'chat_error' (mirrors of the SW
+//      message types; `providers/local.js` dispatches these so the UI
+//      doesn't care whether a stream is cloud-via-SW or local-via-WASM)
+//   - 'model_progress' { modelId, file, fileBytesDone, ... }
+//   - 'model_deleted'  { modelId }
+//   - 'local-model-loaded' / 'local-model-unloaded'
 //   - 'sw-ready'     { registration }
 export const appEvents = new EventTarget();
+
+// Alias for code that prefers `state.events` over `state.appEvents`.
+// They reference the same `EventTarget` — pick whichever reads better.
+export const events = appEvents;

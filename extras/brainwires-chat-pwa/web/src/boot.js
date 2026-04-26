@@ -6,13 +6,17 @@
 //   3. lazy-init the wasm module + write a status line into #app
 //   4. wire SW → page chat IPC into the appEvents bus (tasks #6/#7
 //      will subscribe and render UI; for now we just console-log)
+//   5. mirror local-provider chat events (state.events) onto the same
+//      hyphenated channel UI subscribes to, so the UI is provider-agnostic
 
 import { openDb } from './db.js';
 import {
     getWasm,
     setSwRegistration,
     appEvents,
+    events as stateEvents,
 } from './state.js';
+import { isDownloaded } from './model-store.js';
 
 async function registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return null;
@@ -48,6 +52,22 @@ function wireServiceWorkerMessages() {
     });
 }
 
+// Mirror local-provider events into the same hyphenated channel the SW
+// path uses. Local providers dispatch `chat_chunk` / `chat_done` /
+// `chat_error` (with underscores) on `state.events`. UI code can pick
+// either form, but consolidating into 'chat-chunk' / 'chat-done' /
+// 'chat-error' on appEvents matches the SW path so UI doesn't branch.
+function wireLocalProviderEvents() {
+    const fwd = (underscore, hyphen) => {
+        stateEvents.addEventListener(underscore, (e) => {
+            appEvents.dispatchEvent(new CustomEvent(hyphen, { detail: { type: underscore, ...(e.detail || {}) } }));
+        });
+    };
+    fwd('chat_chunk', 'chat-chunk');
+    fwd('chat_done', 'chat-done');
+    fwd('chat_error', 'chat-error');
+}
+
 async function boot() {
     const app = document.getElementById('app');
 
@@ -64,6 +84,7 @@ async function boot() {
     }
 
     wireServiceWorkerMessages();
+    wireLocalProviderEvents();
 
     try {
         const wasm = await getWasm();
@@ -73,6 +94,17 @@ async function boot() {
         console.error('boot failed:', err);
         if (app) app.textContent = `Boot failed: ${err && err.message ? err.message : err}`;
     }
+
+    // Probe whether the default local model is already cached. We do
+    // NOT auto-load it (a 2.5 GB ArrayBuffer read on every page load
+    // would defeat the PWA's snappy-cold-start design); the UI's
+    // Settings page is responsible for explicit load/unload.
+    try {
+        const cached = await isDownloaded('gemma-4-e2b');
+        appEvents.dispatchEvent(new CustomEvent('local-model-cached-status', {
+            detail: { modelId: 'gemma-4-e2b', cached },
+        }));
+    } catch (_) { /* Cache Storage may be unavailable in tests/SSR */ }
 }
 
 boot();

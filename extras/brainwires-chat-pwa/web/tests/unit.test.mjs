@@ -197,6 +197,202 @@ describe('db', async () => {
     });
 });
 
+// ── provider adapters ─────────────────────────────────────────
+
+const anthropic = await import('../src/providers/anthropic.js');
+const openai = await import('../src/providers/openai.js');
+const google = await import('../src/providers/google.js');
+const ollama = await import('../src/providers/ollama.js');
+const modelStore = await import('../src/model-store.js');
+
+describe('providers/anthropic', () => {
+    test('buildRequest: URL, sentinel header, system extraction, stream:true', () => {
+        const req = anthropic.buildRequest({
+            model: 'claude-opus-4-7',
+            messages: [
+                { role: 'system', content: 'You are helpful.' },
+                { role: 'user', content: 'Hi' },
+                { role: 'assistant', content: 'Hello.' },
+                { role: 'user', content: 'Tell me a joke.' },
+            ],
+            params: { max_tokens: 256, temperature: 0.5 },
+        });
+        assert.equal(req.url, 'https://api.anthropic.com/v1/messages');
+        assert.equal(req.method, 'POST');
+        assert.equal(req.format, 'sse');
+        assert.equal(req.headers['anthropic-version'], '2023-06-01');
+        assert.equal(req.headers['x-api-key'], '__API_KEY__');
+        assert.equal(req.headers['content-type'], 'application/json');
+        const body = JSON.parse(req.body);
+        assert.equal(body.model, 'claude-opus-4-7');
+        assert.equal(body.stream, true);
+        assert.equal(body.max_tokens, 256);
+        assert.equal(body.temperature, 0.5);
+        assert.equal(body.system, 'You are helpful.');
+        assert.equal(body.messages.length, 3);
+        assert.equal(body.messages[0].role, 'user');
+        assert.equal(body.messages[1].role, 'assistant');
+    });
+
+    test('parseChunk: text_delta event extracts the delta', () => {
+        const ev = {
+            type: 'event',
+            event: 'content_block_delta',
+            data: JSON.stringify({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'hello' } }),
+            done: false,
+        };
+        assert.deepEqual(anthropic.parseChunk(ev), { delta: 'hello' });
+    });
+
+    test('parseChunk: message_stop returns finished', () => {
+        const ev = {
+            type: 'event',
+            event: 'message_stop',
+            data: JSON.stringify({ type: 'message_stop' }),
+            done: false,
+        };
+        assert.deepEqual(anthropic.parseChunk(ev), { finished: true });
+    });
+});
+
+describe('providers/openai', () => {
+    test('buildRequest: URL, Bearer sentinel, stream:true', () => {
+        const req = openai.buildRequest({
+            model: 'gpt-4o-mini',
+            messages: [
+                { role: 'system', content: 'sys' },
+                { role: 'user', content: 'hi' },
+            ],
+            params: { max_tokens: 64 },
+        });
+        assert.equal(req.url, 'https://api.openai.com/v1/chat/completions');
+        assert.equal(req.method, 'POST');
+        assert.equal(req.format, 'sse');
+        assert.equal(req.headers['Authorization'], 'Bearer __API_KEY__');
+        const body = JSON.parse(req.body);
+        assert.equal(body.stream, true);
+        assert.equal(body.model, 'gpt-4o-mini');
+        // OpenAI keeps system in the messages array (unlike Anthropic).
+        assert.equal(body.messages[0].role, 'system');
+        assert.equal(body.max_tokens, 64);
+    });
+
+    test('parseChunk: extracts choices[0].delta.content', () => {
+        const ev = {
+            type: 'event',
+            event: 'message',
+            data: JSON.stringify({ choices: [{ delta: { content: 'tok' }, index: 0 }] }),
+            done: false,
+        };
+        assert.deepEqual(openai.parseChunk(ev), { delta: 'tok' });
+    });
+
+    test('parseChunk: [DONE] sentinel returns finished', () => {
+        assert.deepEqual(openai.parseChunk({ done: true, data: '[DONE]', event: 'message' }), { finished: true });
+    });
+});
+
+describe('providers/google', () => {
+    test('buildRequest: URL contains __API_KEY__, system → systemInstruction', () => {
+        const req = google.buildRequest({
+            model: 'gemini-2.5-flash',
+            messages: [
+                { role: 'system', content: 'be terse' },
+                { role: 'user', content: 'hi' },
+                { role: 'assistant', content: 'sup' },
+            ],
+            params: { temperature: 0.2 },
+        });
+        assert.ok(req.url.startsWith('https://generativelanguage.googleapis.com/v1beta/models/'));
+        assert.ok(req.url.includes('streamGenerateContent'));
+        assert.ok(req.url.includes('alt=sse'));
+        assert.ok(req.url.includes('key=__API_KEY__'));
+        assert.equal(req.format, 'sse');
+        const body = JSON.parse(req.body);
+        assert.equal(body.systemInstruction.parts[0].text, 'be terse');
+        assert.equal(body.contents.length, 2);
+        assert.equal(body.contents[0].role, 'user');
+        assert.equal(body.contents[1].role, 'model');
+        assert.equal(body.generationConfig.temperature, 0.2);
+    });
+
+    test('parseChunk: pulls candidates[0].content.parts[0].text', () => {
+        const ev = {
+            type: 'event',
+            event: 'message',
+            data: JSON.stringify({
+                candidates: [{ content: { parts: [{ text: 'piece' }], role: 'model' } }],
+            }),
+            done: false,
+        };
+        assert.deepEqual(google.parseChunk(ev), { delta: 'piece' });
+    });
+});
+
+describe('providers/ollama', () => {
+    test('buildRequest: defaults to localhost:11434, no auth header, stream:true', () => {
+        const req = ollama.buildRequest({
+            model: 'gemma3:latest',
+            messages: [{ role: 'user', content: 'hi' }],
+            params: {},
+        });
+        assert.equal(req.url, 'http://localhost:11434/api/chat');
+        assert.equal(req.format, 'ndjson');
+        assert.equal(req.headers['Authorization'], undefined);
+        assert.equal(req.headers['x-api-key'], undefined);
+        const body = JSON.parse(req.body);
+        assert.equal(body.stream, true);
+        assert.equal(body.model, 'gemma3:latest');
+    });
+
+    test('buildRequest: honors params.baseUrl override and trims trailing slash', () => {
+        const req = ollama.buildRequest({
+            model: 'llama3.2:latest',
+            messages: [{ role: 'user', content: 'x' }],
+            params: { baseUrl: 'http://10.0.0.5:11434/' },
+        });
+        assert.equal(req.url, 'http://10.0.0.5:11434/api/chat');
+    });
+
+    test('parseChunk: ndjson line yields delta and finished', () => {
+        assert.deepEqual(
+            ollama.parseChunk({ message: { role: 'assistant', content: 'hey' }, done: false }),
+            { delta: 'hey' },
+        );
+        const fin = ollama.parseChunk({ message: { role: 'assistant', content: '' }, done: true, eval_count: 5 });
+        assert.equal(fin.finished, true);
+        assert.equal(fin.usage.completion_tokens, 5);
+    });
+});
+
+describe('model-store', () => {
+    test('KNOWN_MODELS has gemma-4-e2b with the expected shape', () => {
+        const m = modelStore.KNOWN_MODELS['gemma-4-e2b'];
+        assert.ok(m);
+        assert.equal(m.id, 'gemma-4-e2b');
+        assert.equal(m.hf.repo, 'google/gemma-4-e2b');
+        assert.equal(m.hf.revision, 'main');
+        assert.ok(Array.isArray(m.files));
+        const kinds = m.files.map((f) => f.kind).sort();
+        assert.deepEqual(kinds, ['tokenizer', 'weights']);
+    });
+
+    test('cacheKey produces a HF resolve URL', () => {
+        const url = modelStore.cacheKey('gemma-4-e2b', 'model.safetensors');
+        assert.equal(url, 'https://huggingface.co/google/gemma-4-e2b/resolve/main/model.safetensors');
+    });
+
+    test('cacheKey throws on unknown model', () => {
+        assert.throws(() => modelStore.cacheKey('does-not-exist', 'x.bin'));
+    });
+
+    // The download path needs Cache Storage + a fetch polyfill that
+    // streams a Response.body. Skipping until we wire one in.
+    // TODO: bring in a Cache + fetch test polyfill (or use Playwright)
+    // and exercise downloadModel({onProgress}) end-to-end.
+    test.skip('downloadModel writes to Cache Storage and emits progress', () => {});
+});
+
 // ── helpers ────────────────────────────────────────────────────
 
 function mkResponse(body) {

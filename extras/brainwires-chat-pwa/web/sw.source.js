@@ -32,6 +32,30 @@ import {
 // ── Cache versioning ───────────────────────────────────────────
 const CACHE_NAME = 'bw-chat-cache-v1';
 
+// ── Passthrough host allowlist ─────────────────────────────────
+//
+// The fetch handler already passes everything that's not pinned to
+// the network unmodified. This list is informational: any host
+// matching here is GUARANTEED never to be cached by the SW. We use
+// it for an explicit early-return so a future maintainer adding new
+// caching logic can't accidentally swallow these.
+const PASSTHROUGH_HOST_PATTERNS = [
+    /^huggingface\.co$/i,
+    /\.huggingface\.co$/i,
+    /^api\.anthropic\.com$/i,
+    /^api\.openai\.com$/i,
+    /^generativelanguage\.googleapis\.com$/i,
+    /:11434$/,                        // any Ollama LAN host
+];
+
+function isPassthroughHost(url) {
+    try {
+        const u = new URL(url);
+        const hostport = u.port ? `${u.hostname}:${u.port}` : u.hostname;
+        return PASSTHROUGH_HOST_PATTERNS.some((re) => re.test(hostport) || re.test(u.hostname));
+    } catch (_) { return false; }
+}
+
 // ── SRI hash table (build-time substituted) ────────────────────
 //
 // Keys are paths relative to the web root (e.g. 'app.js',
@@ -102,6 +126,11 @@ self.addEventListener('fetch', (event) => {
     if (req.method !== 'GET') return;
 
     const sameOrigin = req.url.startsWith(self.location.origin);
+    if (isPassthroughHost(req.url)) {
+        // Explicit allowlist: provider + HF URLs go straight to the
+        // network and never land in any SW-managed cache.
+        return;
+    }
     if (!sameOrigin || !isPinned(req.url)) {
         // Pure network passthrough. Provider/HF URLs are not cached.
         return;
@@ -313,18 +342,26 @@ async function handleChatStart(msg, event) {
             throw new Error('requestPayload.format must be "sse" or "ndjson"');
         }
 
-        // Caller may use the sentinel '__API_KEY__' inside header values to
-        // request post-decrypt substitution. Keeps the SW provider-agnostic.
+        // Caller embeds the sentinel '__API_KEY__' inside header values
+        // and (for Gemini) the URL query string; the SW substitutes
+        // the decrypted plaintext after the postMessage boundary so
+        // the page never has to hold the plaintext key in memory
+        // alongside the request envelope. See providers/index.js for
+        // the full contract.
         const finalHeaders = { ...headers };
+        let finalUrl = url;
         if (apiKey !== null) {
             for (const k of Object.keys(finalHeaders)) {
-                if (typeof finalHeaders[k] === 'string') {
-                    finalHeaders[k] = finalHeaders[k].replace('__API_KEY__', apiKey);
+                if (typeof finalHeaders[k] === 'string' && finalHeaders[k].includes('__API_KEY__')) {
+                    finalHeaders[k] = finalHeaders[k].split('__API_KEY__').join(apiKey);
                 }
+            }
+            if (finalUrl.includes('__API_KEY__')) {
+                finalUrl = finalUrl.split('__API_KEY__').join(encodeURIComponent(apiKey));
             }
         }
 
-        const resp = await fetch(url, {
+        const resp = await fetch(finalUrl, {
             method,
             headers: finalHeaders,
             body: body !== undefined && method !== 'GET' ? body : undefined,
