@@ -321,5 +321,5 @@ debug = "line-tables-only"
 # Without this patch, `--all-features` pulls in upstream `rustpotter 3.0.2`
 # → `candle-core 0.2.2`, which won't build against the workspace's candle 0.10.
 [patch.crates-io]
-rustpotter = { git = "https://github.com/Brainwires/rustpotter", rev = "9dcf28393f955c56847a5ae896018f7988d9a588" }
+rustpotter = { git = "https://github.com/Brainwires/rustpotter", rev = "4dbd6fd55a7c198cedb7c5e2574497343fd620a7" }
 

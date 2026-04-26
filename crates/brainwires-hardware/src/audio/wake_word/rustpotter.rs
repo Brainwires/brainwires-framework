@@ -87,10 +87,15 @@ impl WakeWordDetector for RustpotterDetector {
     }
 
     fn process_frame(&mut self, samples: &[i16]) -> Option<WakeWordDetection> {
-        // `process_samples` consumes the buffer; copy our `&[i16]` into a
-        // `Vec<i16>` (`i16` implements rustpotter's `Sample` trait).
-        let owned: Vec<i16> = samples.to_vec();
-        let result = self.inner.get_mut().ok()?.process_samples(owned)?;
+        // Slice-based API on the Brainwires fork avoids the per-frame
+        // `Vec<i16>` allocation that the upstream by-value
+        // `process_samples` would have required (`i16` implements
+        // rustpotter's `Sample` trait, which already implies `Copy`).
+        let result = self
+            .inner
+            .get_mut()
+            .ok()?
+            .process_samples_slice(samples)?;
         let timestamp_ms = self.start.elapsed().as_millis() as u64;
         debug!(
             keyword = %result.name,
