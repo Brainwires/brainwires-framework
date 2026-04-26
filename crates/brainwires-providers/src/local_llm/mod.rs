@@ -16,6 +16,12 @@ mod config;
 mod model_registry;
 mod provider;
 
+#[cfg(feature = "local-llm-candle")]
+pub mod candle_provider;
+
 pub use config::*;
 pub use model_registry::*;
 pub use provider::*;
+
+#[cfg(feature = "local-llm-candle")]
+pub use candle_provider::CandleLlmProvider;

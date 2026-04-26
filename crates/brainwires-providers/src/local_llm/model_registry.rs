@@ -258,6 +258,19 @@ pub struct KnownModel {
     pub supports_tools: bool,
     /// Short description of the model.
     pub description: &'static str,
+    /// Hugging Face revision (branch, tag, or commit SHA) to pin against.
+    ///
+    /// Defaults to `"main"` for legacy GGUF entries.
+    pub huggingface_revision: &'static str,
+    /// Tokenizer asset filename within the repository, when the model uses a
+    /// `tokenizer.json` companion (Candle / safetensors path). Empty for GGUF.
+    pub tokenizer_filename: &'static str,
+    /// SHA-256 of the weights file, hex encoded. `None` until weights are
+    /// published and pinned.
+    pub weights_sha256: Option<&'static str>,
+    /// SHA-256 of the tokenizer file, hex encoded. `None` until weights are
+    /// published and pinned.
+    pub tokenizer_sha256: Option<&'static str>,
 }
 
 /// Get list of known/recommended models
@@ -273,6 +286,10 @@ pub fn known_models() -> Vec<KnownModel> {
             estimated_ram_mb: 220,
             supports_tools: false,
             description: "Fastest. For routing, binary decisions. ~220MB RAM.",
+            huggingface_revision: "main",
+            tokenizer_filename: "",
+            weights_sha256: None,
+            tokenizer_sha256: None,
         },
         KnownModel {
             id: "lfm2-1.2b",
@@ -284,6 +301,10 @@ pub fn known_models() -> Vec<KnownModel> {
             estimated_ram_mb: 700,
             supports_tools: false,
             description: "Sweet spot for agentic logic. Competitive with larger models.",
+            huggingface_revision: "main",
+            tokenizer_filename: "",
+            weights_sha256: None,
+            tokenizer_sha256: None,
         },
         KnownModel {
             id: "lfm2-2.6b-exp",
@@ -295,6 +316,10 @@ pub fn known_models() -> Vec<KnownModel> {
             estimated_ram_mb: 1500,
             supports_tools: true,
             description: "Complex reasoning, tool-calling. Best for agents.",
+            huggingface_revision: "main",
+            tokenizer_filename: "",
+            weights_sha256: None,
+            tokenizer_sha256: None,
         },
         KnownModel {
             id: "granite-nano-350m",
@@ -306,6 +331,10 @@ pub fn known_models() -> Vec<KnownModel> {
             estimated_ram_mb: 250,
             supports_tools: false,
             description: "Sub-second CPU responses. Classification, summarization.",
+            huggingface_revision: "main",
+            tokenizer_filename: "",
+            weights_sha256: None,
+            tokenizer_sha256: None,
         },
         KnownModel {
             id: "granite-nano-1.5b",
@@ -317,6 +346,30 @@ pub fn known_models() -> Vec<KnownModel> {
             estimated_ram_mb: 900,
             supports_tools: false,
             description: "Balanced performance. Good for business tasks.",
+            huggingface_revision: "main",
+            tokenizer_filename: "",
+            weights_sha256: None,
+            tokenizer_sha256: None,
+        },
+        // Candle / safetensors path — used by `CandleLlmProvider` (WASM-friendly).
+        // TODO(gemma-4): pin `weights_sha256` and `tokenizer_sha256` once
+        // `google/gemma-4-e2b` is published. Intentionally leaving them as
+        // `None` until upstream releases the model card; never substitute a
+        // fallback URL outside huggingface.co.
+        KnownModel {
+            id: "gemma-4-e2b",
+            name: "Gemma 4 E2B",
+            huggingface_repo: "google/gemma-4-e2b",
+            filename: "model.safetensors",
+            model_type: LocalModelType::Generic,
+            context_size: 8192,
+            estimated_ram_mb: 2400,
+            supports_tools: false,
+            description: "Gemma 4 E2B (effective ~2B) — Candle/safetensors, runs in WASM.",
+            huggingface_revision: "main",
+            tokenizer_filename: "tokenizer.json",
+            weights_sha256: None,
+            tokenizer_sha256: None,
         },
     ]
 }
