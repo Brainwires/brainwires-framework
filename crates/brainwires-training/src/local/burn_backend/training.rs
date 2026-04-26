@@ -1,5 +1,6 @@
 use std::time::Instant;
 
+use burn_core::module::AutodiffModule;
 use burn_optim::{AdamConfig, GradientsParams, Optimizer};
 use burn_wgpu::WgpuDevice;
 use tracing::{info, warn};

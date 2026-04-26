@@ -1,16 +1,16 @@
-/// ZNP (Zigbee Network Processor) frame encoding/decoding for TI Z-Stack 3.x.
-///
-/// Frame layout:
-/// ```text
-/// SOF (0xFE) | LEN (1B) | TYPE_SUBSYSTEM (1B) | CMD (1B) | PAYLOAD (LEN bytes) | FCS (1B)
-/// ```
-///
-/// TYPE byte encodes both the message type (upper nibble) and subsystem (lower nibble):
-/// - SREQ = 0x20  (synchronous request, host→NCP)
-/// - SRSP = 0x60  (synchronous response, NCP→host)
-/// - AREQ = 0x41  (asynchronous event, NCP→host)
-///
-/// FCS = XOR of all bytes from LEN through the last payload byte.
+//! ZNP (Zigbee Network Processor) frame encoding/decoding for TI Z-Stack 3.x.
+//!
+//! Frame layout:
+//! ```text
+//! SOF (0xFE) | LEN (1B) | TYPE_SUBSYSTEM (1B) | CMD (1B) | PAYLOAD (LEN bytes) | FCS (1B)
+//! ```
+//!
+//! TYPE byte encodes both the message type (upper nibble) and subsystem (lower nibble):
+//! - SREQ = 0x20  (synchronous request, host→NCP)
+//! - SRSP = 0x60  (synchronous response, NCP→host)
+//! - AREQ = 0x41  (asynchronous event, NCP→host)
+//!
+//! FCS = XOR of all bytes from LEN through the last payload byte.
 
 /// Start-of-Frame byte — every ZNP UART frame begins with `0xFE`.
 pub const SOF: u8 = 0xFE;

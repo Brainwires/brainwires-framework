@@ -183,6 +183,9 @@ pub fn sensor_multilevel_get(sensor_type: u8) -> Vec<u8> {
 /// `value_celsius`: temperature as signed 16-bit integer in 0.1 °C units (e.g. 215 = 21.5°C).
 pub fn thermostat_setpoint_set(setpoint_type: u8, value_tenths_celsius: i16) -> Vec<u8> {
     // precision=1 (1 decimal), scale=0 (°C), size=2 (2 bytes)
+    // reason: the `(0 << 3)` term is kept for symmetry with the precision/size
+    // fields; it documents the scale slot in the bit-packed level byte.
+    #[allow(clippy::identity_op)]
     let level = (1 << 5) | (0 << 3) | 2; // precision=1, scale=0, size=2
     let bytes = value_tenths_celsius.to_be_bytes();
     vec![

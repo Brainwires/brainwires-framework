@@ -413,6 +413,9 @@ pub struct PromptMessage {
 #[cfg(feature = "native")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
+// reason: `Resource` carries an `McpResource` (~hundreds of bytes); boxing it
+// would change this enum's public layout and serialization expectations.
+#[allow(clippy::large_enum_variant)]
 pub enum PromptContent {
     /// Text content.
     Text {
@@ -449,6 +452,9 @@ pub struct PromptArgument {
 #[cfg(feature = "native")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
+// reason: `Resource` carries an `McpResource` (~hundreds of bytes); boxing it
+// would change this enum's public layout and serialization expectations.
+#[allow(clippy::large_enum_variant)]
 pub enum ToolResultContent {
     /// Text result.
     Text {

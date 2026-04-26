@@ -307,9 +307,9 @@ mod inner {
         ///
         /// Returns `(transport, c1_tx, c2_rx)` where:
         /// - `c1_tx`  — push raw C1 bytes received from the BLE controller into
-        ///              the reassembler (used by the peripheral task).
+        ///   the reassembler (used by the peripheral task).
         /// - `c2_rx`  — pull fragmented BTP frames to indicate on C2
-        ///              (used by the peripheral task).
+        ///   (used by the peripheral task).
         pub fn new(attl: u16) -> (Self, mpsc::Sender<Vec<u8>>, mpsc::Receiver<Vec<u8>>) {
             // Channel: controller → transport (reassembled messages)
             let (assembled_tx, assembled_rx) = mpsc::channel::<Vec<u8>>(32);

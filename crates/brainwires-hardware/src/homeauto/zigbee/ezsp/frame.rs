@@ -1,16 +1,16 @@
-/// EZSP frame encoding/decoding (EZSP v8, EmberZNet 7.x).
-///
-/// Frame layout (before ASH wrapping):
-/// ```text
-/// SEQ (1B) | FC_LOW (1B) | FC_HIGH (1B) | CMD_ID_LOW (1B) | CMD_ID_HIGH (1B) | PARAMS...
-/// ```
-///
-/// FC (Frame Control) bits (v8):
-/// - bit 0    : frame direction (0 = host→NCP, 1 = NCP→host)
-/// - bit 1    : sleep mode
-/// - bit 4    : network index (4 bits)
-/// - bit 5-7  : padding
-/// - high byte: padding / extended frame control
+//! EZSP frame encoding/decoding (EZSP v8, EmberZNet 7.x).
+//!
+//! Frame layout (before ASH wrapping):
+//! ```text
+//! SEQ (1B) | FC_LOW (1B) | FC_HIGH (1B) | CMD_ID_LOW (1B) | CMD_ID_HIGH (1B) | PARAMS...
+//! ```
+//!
+//! FC (Frame Control) bits (v8):
+//! - bit 0    : frame direction (0 = host→NCP, 1 = NCP→host)
+//! - bit 1    : sleep mode
+//! - bit 4    : network index (4 bits)
+//! - bit 5-7  : padding
+//! - high byte: padding / extended frame control
 
 /// An EZSP v8 frame.
 #[derive(Debug, Clone, PartialEq, Eq)]

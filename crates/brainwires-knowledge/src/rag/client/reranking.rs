@@ -4,8 +4,6 @@
 
 use super::RagClient;
 #[cfg(feature = "spectral")]
-use crate::rag::embedding::EmbeddingProvider;
-#[cfg(feature = "spectral")]
 use crate::rag::types::*;
 #[cfg(feature = "spectral")]
 use anyhow::{Context, Result};

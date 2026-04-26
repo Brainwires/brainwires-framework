@@ -18,6 +18,9 @@ use crate::homeauto::matter::transport::ble::{
 // ── Matter BLE UUIDs ──────────────────────────────────────────────────────────
 
 /// Matter BLE service UUID: `0000FFF6-0000-1000-8000-00805F9B34FB`.
+// reason: groups mirror the canonical 8-4-4-4-12 hex UUID format used by BLE,
+// not the clippy-preferred uniform 4-digit groups.
+#[allow(clippy::unusual_byte_groupings)]
 pub const MATTER_BLE_SERVICE_UUID: Uuid =
     Uuid::from_u128(0x0000_FFF6_0000_1000_8000_00805F9B34FB_u128);
 

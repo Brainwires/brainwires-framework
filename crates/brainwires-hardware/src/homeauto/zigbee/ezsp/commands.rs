@@ -107,6 +107,9 @@ pub fn permit_joining_payload(duration: u8) -> Vec<u8> {
 ///
 /// Full unicast frame:
 /// `type(1) | indexOrDest(2) | apsFrame(11+) | msgTag(1) | msgLen(1) | msg(msgLen)`
+// reason: the 8 args correspond 1:1 to the EZSP wire format fields; bundling
+// them into a struct only relocates the same field list.
+#[allow(clippy::too_many_arguments)]
 pub fn send_unicast_payload(
     dest_nwk: u16,
     src_endpoint: u8,

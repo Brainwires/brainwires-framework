@@ -252,7 +252,7 @@ pub fn smallest_eigenvectors(
             }
         }
 
-        if !converged && found.len() >= 1 {
+        if !converged && !found.is_empty() {
             // If we can't converge on more eigenvectors, stop
             break;
         }

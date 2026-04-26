@@ -277,7 +277,7 @@ impl ZWaveSerialController {
                                 // Try to parse once we have at least LEN + min bytes
                                 if buf.len() >= 5 && buf.first() == Some(&SOF) {
                                     let payload = &buf[1..]; // skip SOF
-                                    if payload.len() >= 1 {
+                                    if !payload.is_empty() {
                                         let expected = payload[0] as usize + 2; // LEN byte + LEN + CS
                                         if payload.len() >= expected {
                                             match ZApiFrame::decode_after_sof(payload) {

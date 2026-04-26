@@ -155,6 +155,10 @@ pub fn permit_join_payload(dest: u16, duration: u8) -> Vec<u8> {
 
 /// Decode an AF_INCOMING_MSG AREQ payload.
 /// Returns (groupId, clusterId, srcAddr, srcEp, dstEp, transId, payload) or None.
+// reason: the tuple maps 1:1 to the AF_INCOMING_MSG wire layout; a named
+// struct would just rename the same fields without making the call site
+// clearer at the single decode point.
+#[allow(clippy::type_complexity)]
 pub fn decode_af_incoming(params: &[u8]) -> Option<(u16, u16, u16, u8, u8, u8, &[u8])> {
     if params.len() < 11 {
         return None;
