@@ -31,8 +31,43 @@ import * as uiUnlock from './ui-unlock.js';
 
 const PASSPHRASE_SETTING = 'passphraseConfig';
 
+// Cache name kept in sync with sw.source.js (CACHE_NAME = 'bw-chat-cache-v1').
+// Models cache ('bw-models-v1') is intentionally preserved across mode flips.
+const STATIC_CACHE_NAME = 'bw-chat-cache-v1';
+
+async function isDevMode() {
+    try {
+        const info = await import('../build-info.js');
+        return info.DEV_MODE === true;
+    } catch (_) {
+        return false;
+    }
+}
+
+async function disableServiceWorkerForDev() {
+    if (!('serviceWorker' in navigator)) return;
+    try {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister().catch(() => false)));
+    } catch (err) {
+        console.warn('DEV_MODE: failed to unregister existing SWs:', err && err.message ? err.message : err);
+    }
+    try {
+        if (typeof caches !== 'undefined' && caches.delete) {
+            await caches.delete(STATIC_CACHE_NAME);
+        }
+    } catch (err) {
+        console.warn('DEV_MODE: failed to clear static cache:', err && err.message ? err.message : err);
+    }
+    console.log('DEV_MODE: service worker disabled');
+}
+
 async function registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return null;
+    if (await isDevMode()) {
+        await disableServiceWorkerForDev();
+        return null;
+    }
     try {
         const reg = await navigator.serviceWorker.register('./sw.js', { scope: './' });
         setSwRegistration(reg);

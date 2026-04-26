@@ -37,6 +37,20 @@ Serves the bundle on http://127.0.0.1:3000 with esbuild's built-in dev
 server. Use `npm run watch` if you only want incremental rebuilds without
 the server.
 
+### Live editing against the Docker image
+
+```sh
+./web/dev.sh
+```
+
+Orchestrates three loops: esbuild `--watch` (JS/SW), cargo-watch +
+wasm-pack (Rust → wasm), and `docker compose` with `docker-compose.dev.yml`
+overlaying `web/` into the nginx docroot read-only. Combined with
+`DEV_MODE=true` (which the overlay forces via `BRAINWIRES_DEV_MODE`),
+`boot.js` unregisters any existing service worker and clears
+`bw-chat-cache-v1`, so HTML/CSS/JS edits hit the browser on next reload
+without an image rebuild. `bw-models-v1` is preserved.
+
 ## Layout
 
 ```
