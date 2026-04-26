@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 /// Top-level BrainClaw configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
+#[derive(Default)]
 pub struct BrainClawConfig {
     /// Gateway (WebSocket server) settings.
     pub gateway: GatewaySection,
@@ -206,6 +207,7 @@ pub struct MemorySection {
 /// Skill system configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
+#[derive(Default)]
 pub struct SkillsSection {
     /// Whether the skill system is enabled.
     pub enabled: bool,
@@ -611,32 +613,6 @@ impl SandboxConfig {
 
 // ── Defaults ────────────────────────────────────────────────────────────
 
-impl Default for BrainClawConfig {
-    fn default() -> Self {
-        Self {
-            gateway: GatewaySection::default(),
-            provider: ProviderSection::default(),
-            agent: AgentSection::default(),
-            tools: ToolsSection::default(),
-            persona: PersonaSection::default(),
-            memory: MemorySection::default(),
-            skills: SkillsSection::default(),
-            security: SecuritySection::default(),
-            cron: CronSection::default(),
-            hooks: HooksSection::default(),
-            email: None,
-            gmail_push: GmailPushSection::default(),
-            calendar: None,
-            browser: None,
-            voice: None,
-            identity: IdentitySection::default(),
-            sandbox: SandboxConfig::default(),
-            pairing: PairingSection::default(),
-            webchat: WebChatSection::default(),
-        }
-    }
-}
-
 impl Default for GatewaySection {
     fn default() -> Self {
         Self {
@@ -716,16 +692,6 @@ impl Default for MemorySection {
             storage_dir: "~/.brainclaw/memory".to_string(),
             max_history_messages: 100,
             persist_conversations: true,
-        }
-    }
-}
-
-impl Default for SkillsSection {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            directories: Vec::new(),
-            registry_url: None,
         }
     }
 }
@@ -928,8 +894,10 @@ impl BrainClawConfig {
     /// Credentials are resolved from environment variables at runtime.
     /// Returns `None` if no `[calendar]` section is present.
     #[cfg(feature = "calendar")]
-    pub fn to_calendar_config(&self) -> Option<anyhow::Result<brainwires_tools::CalendarConfig>> {
-        use brainwires_tools::{CalendarConfig, CalendarProvider};
+    pub fn to_calendar_config(
+        &self,
+    ) -> Option<anyhow::Result<brainwires_tools::calendar::CalendarConfig>> {
+        use brainwires_tools::calendar::{CalendarConfig, CalendarProvider};
         self.calendar.as_ref().map(|c| match c {
             CalendarSection::Google {
                 client_id,
@@ -983,19 +951,19 @@ impl BrainClawConfig {
     ///    of log messages.
     /// 3. `None` — callers must then generate their own.
     pub fn resolve_webchat_secret(&self) -> Option<String> {
-        if let Some(s) = &self.webchat.jwt_secret {
-            if !s.is_empty() {
-                return Some(s.clone());
-            }
+        if let Some(s) = &self.webchat.jwt_secret
+            && !s.is_empty()
+        {
+            return Some(s.clone());
         }
-        if let Some(admin) = &self.security.admin_token {
-            if !admin.is_empty() {
-                use sha2::{Digest, Sha256};
-                let mut h = Sha256::new();
-                h.update(b"brainclaw-webchat:");
-                h.update(admin.as_bytes());
-                return Some(hex::encode(h.finalize()));
-            }
+        if let Some(admin) = &self.security.admin_token
+            && !admin.is_empty()
+        {
+            use sha2::{Digest, Sha256};
+            let mut h = Sha256::new();
+            h.update(b"brainclaw-webchat:");
+            h.update(admin.as_bytes());
+            return Some(hex::encode(h.finalize()));
         }
         None
     }

@@ -115,7 +115,7 @@ mod tests {
         let registry = build_tool_registry(&config);
         // With native-tools feature, should have registered tools from all 6 groups
         #[cfg(feature = "native-tools")]
-        assert!(registry.len() > 0);
+        assert!(!registry.is_empty());
         #[cfg(not(feature = "native-tools"))]
         assert_eq!(registry.len(), 0);
     }

@@ -87,16 +87,6 @@ fn oai_messages_to_core(messages: Vec<OaiMessage>) -> Vec<Message> {
         .collect()
 }
 
-fn extract_text_from_response(chunks: Vec<StreamChunk>) -> String {
-    chunks
-        .into_iter()
-        .filter_map(|c| match c {
-            StreamChunk::Text(t) => Some(t),
-            _ => None,
-        })
-        .collect()
-}
-
 fn build_options(req: &ChatCompletionRequest) -> ChatOptions {
     ChatOptions {
         temperature: req.temperature,
@@ -113,6 +103,7 @@ fn build_options(req: &ChatCompletionRequest) -> ChatOptions {
         }),
         system: None,
         model: Some(req.model.clone()),
+        ..Default::default()
     }
 }
 

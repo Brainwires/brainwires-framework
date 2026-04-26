@@ -52,10 +52,10 @@ impl Provider for RecordingProvider {
         _tools: Option<&[Tool]>,
         _options: &ChatOptions,
     ) -> Result<ChatResponse> {
-        if let Some(last) = messages.last() {
-            if let Some(t) = last.text() {
-                self.seen_user_text.lock().unwrap().push(t.to_string());
-            }
+        if let Some(last) = messages.last()
+            && let Some(t) = last.text()
+        {
+            self.seen_user_text.lock().unwrap().push(t.to_string());
         }
         Ok(ChatResponse {
             message: Message::assistant(&self.response_text),
@@ -70,10 +70,10 @@ impl Provider for RecordingProvider {
         _tools: Option<&'a [Tool]>,
         _options: &'a ChatOptions,
     ) -> futures::stream::BoxStream<'a, Result<StreamChunk>> {
-        if let Some(last) = messages.last() {
-            if let Some(t) = last.text() {
-                self.seen_user_text.lock().unwrap().push(t.to_string());
-            }
+        if let Some(last) = messages.last()
+            && let Some(t) = last.text()
+        {
+            self.seen_user_text.lock().unwrap().push(t.to_string());
         }
         let text = self.response_text.clone();
         Box::pin(stream::iter(vec![

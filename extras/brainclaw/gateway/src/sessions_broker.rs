@@ -308,10 +308,10 @@ impl SessionBroker for GatewaySessionBroker {
 
         // 4. Stash the first-reply sender on the handle so the factory can
         //    fire it when its agent produces its first assistant message.
-        if let Some(tx) = first_tx {
-            if let Some(handle) = self.registry.get(&new_id).await {
-                *handle.first_reply_tx.lock().await = Some(tx);
-            }
+        if let Some(tx) = first_tx
+            && let Some(handle) = self.registry.get(&new_id).await
+        {
+            *handle.first_reply_tx.lock().await = Some(tx);
         }
 
         // 5. Build the `on_assistant_reply` callback. It pulls the latest

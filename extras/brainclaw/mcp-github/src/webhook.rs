@@ -109,11 +109,11 @@ async fn handle_webhook(
     }
 
     // ── Normalise to ChannelMessage ───────────────────────────────────────────
-    if let Some(msg) = normalise(&event_type, &payload, &repo_full) {
-        if let Err(e) = state.event_tx.try_send(msg) {
-            tracing::error!("webhook event dropped: {e}");
-            return (StatusCode::SERVICE_UNAVAILABLE, "backpressure").into_response();
-        }
+    if let Some(msg) = normalise(&event_type, &payload, &repo_full)
+        && let Err(e) = state.event_tx.try_send(msg)
+    {
+        tracing::error!("webhook event dropped: {e}");
+        return (StatusCode::SERVICE_UNAVAILABLE, "backpressure").into_response();
     }
 
     (StatusCode::OK, "accepted").into_response()

@@ -196,10 +196,8 @@ impl MattermostEventHandler {
             .unwrap_or("O");
         let is_dm = channel_type == "D" || channel_type == "G";
 
-        if self.group_mention_required && !is_dm {
-            if !self.is_mentioned(&message) {
-                return Ok(());
-            }
+        if self.group_mention_required && !is_dm && !self.is_mentioned(&message) {
+            return Ok(());
         }
 
         let team_id = data

@@ -68,10 +68,10 @@ impl brainwires_network::channels::Channel for TelegramChannel {
         let mut req = self.bot.send_message(ChatId(chat_id), &content);
 
         // Route to a forum topic / thread if thread_id is set.
-        if let Some(ref tid) = message.thread_id {
-            if let Ok(thread_msg_id) = tid.0.parse::<i32>() {
-                req = req.message_thread_id(TeloxideThreadId(TeloxideMessageId(thread_msg_id)));
-            }
+        if let Some(ref tid) = message.thread_id
+            && let Ok(thread_msg_id) = tid.0.parse::<i32>()
+        {
+            req = req.message_thread_id(TeloxideThreadId(TeloxideMessageId(thread_msg_id)));
         }
 
         let sent = req
@@ -309,15 +309,15 @@ fn collect_attachments(msg: &teloxide::types::Message) -> Vec<Attachment> {
         });
     }
 
-    if let Some(photo) = msg.photo() {
-        if let Some(largest) = photo.last() {
-            attachments.push(Attachment {
-                filename: "photo.jpg".to_string(),
-                content_type: "image/jpeg".to_string(),
-                url: largest.file.id.clone(),
-                size_bytes: Some(largest.file.size as u64),
-            });
-        }
+    if let Some(photo) = msg.photo()
+        && let Some(largest) = photo.last()
+    {
+        attachments.push(Attachment {
+            filename: "photo.jpg".to_string(),
+            content_type: "image/jpeg".to_string(),
+            url: largest.file.id.clone(),
+            size_bytes: Some(largest.file.size as u64),
+        });
     }
 
     attachments

@@ -53,6 +53,7 @@ pub struct EmailAttachment {
 }
 
 /// An IMAP folder (mailbox).
+#[allow(dead_code)] // reason: public API, surfaced via list_folders.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EmailFolder {
     /// Folder name (e.g. `INBOX`).

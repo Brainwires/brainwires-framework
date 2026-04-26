@@ -256,17 +256,18 @@ impl BrainClaw {
         }
 
         // 7f. Attach media processor (+ optional STT for voice)
+        #[allow(unused_mut)] // mut required when `voice` feature is enabled.
         let mut media = MediaProcessor::new(10); // 10 MB attachment limit
 
         #[cfg(feature = "voice")]
-        if let Some(ref voice_cfg) = self.config.voice {
-            if let Some(stt) = build_stt_provider(voice_cfg) {
-                tracing::info!(
-                    provider = %voice_cfg.stt_provider,
-                    "Speech-to-text enabled"
-                );
-                media = media.with_stt(stt);
-            }
+        if let Some(ref voice_cfg) = self.config.voice
+            && let Some(stt) = build_stt_provider(voice_cfg)
+        {
+            tracing::info!(
+                provider = %voice_cfg.stt_provider,
+                "Speech-to-text enabled"
+            );
+            media = media.with_stt(stt);
         }
 
         handler = handler.with_media(Arc::new(media));
@@ -344,57 +345,56 @@ impl BrainClaw {
         }
 
         // 7j. Wire TTS if configured (voice feature only).
+        #[allow(unused_mut)] // mut required when `voice` feature is enabled.
         let mut tts_audio_dir: Option<std::path::PathBuf> = None;
         #[cfg(feature = "voice")]
-        if let Some(ref voice_cfg) = self.config.voice {
-            if let Some(ref tts_provider_name) = voice_cfg.tts_provider {
-                if let Some(tts_provider) = build_tts_provider(voice_cfg) {
-                    use brainwires_gateway::tts::TtsProcessor;
-                    use brainwires_hardware::{OutputFormat, TtsOptions, Voice};
+        if let Some(ref voice_cfg) = self.config.voice
+            && let Some(ref tts_provider_name) = voice_cfg.tts_provider
+            && let Some(tts_provider) = build_tts_provider(voice_cfg)
+        {
+            use brainwires_gateway::tts::TtsProcessor;
+            use brainwires_hardware::{OutputFormat, TtsOptions, Voice};
 
-                    let format = match voice_cfg.tts_format.as_deref().unwrap_or("mp3") {
-                        "opus" => OutputFormat::Opus,
-                        "flac" => OutputFormat::Flac,
-                        "wav" => OutputFormat::Wav,
-                        _ => OutputFormat::Mp3,
-                    };
-                    let voice_id = voice_cfg
-                        .tts_voice
-                        .clone()
-                        .unwrap_or_else(|| "alloy".to_string());
-                    let options = TtsOptions {
-                        voice: Voice {
-                            id: voice_id,
-                            name: None,
-                            language: None,
-                        },
-                        output_format: format,
-                        speed: None,
-                        language: voice_cfg.language.clone(),
-                    };
-                    let audio_dir = voice_cfg
-                        .tts_audio_dir
-                        .as_deref()
-                        .map(|p| std::path::PathBuf::from(expand_tilde_str(p)))
-                        .unwrap_or_else(|| std::env::temp_dir().join("brainclaw-audio"));
-                    let base_url = voice_cfg.tts_base_url.clone().unwrap_or_else(|| {
-                        format!(
-                            "http://{}:{}/audio",
-                            self.config.gateway.host, self.config.gateway.port
-                        )
-                    });
+            let format = match voice_cfg.tts_format.as_deref().unwrap_or("mp3") {
+                "opus" => OutputFormat::Opus,
+                "flac" => OutputFormat::Flac,
+                "wav" => OutputFormat::Wav,
+                _ => OutputFormat::Mp3,
+            };
+            let voice_id = voice_cfg
+                .tts_voice
+                .clone()
+                .unwrap_or_else(|| "alloy".to_string());
+            let options = TtsOptions {
+                voice: Voice {
+                    id: voice_id,
+                    name: None,
+                    language: voice_cfg.language.clone(),
+                },
+                output_format: format,
+                speed: None,
+            };
+            let audio_dir = voice_cfg
+                .tts_audio_dir
+                .as_deref()
+                .map(|p| std::path::PathBuf::from(expand_tilde_str(p)))
+                .unwrap_or_else(|| std::env::temp_dir().join("brainclaw-audio"));
+            let base_url = voice_cfg.tts_base_url.clone().unwrap_or_else(|| {
+                format!(
+                    "http://{}:{}/audio",
+                    self.config.gateway.host, self.config.gateway.port
+                )
+            });
 
-                    let processor = Arc::new(TtsProcessor::new(
-                        tts_provider,
-                        options,
-                        audio_dir.clone(),
-                        base_url,
-                    ));
-                    handler = handler.with_tts(processor);
-                    tts_audio_dir = Some(audio_dir);
-                    tracing::info!(provider = %tts_provider_name, "TTS output enabled");
-                }
-            }
+            let processor = Arc::new(TtsProcessor::new(
+                tts_provider,
+                options,
+                audio_dir.clone(),
+                base_url,
+            ));
+            handler = handler.with_tts(processor);
+            tts_audio_dir = Some(audio_dir);
+            tracing::info!(provider = %tts_provider_name, "TTS output enabled");
         }
 
         // 7n. Wire Gmail push ingestion.  Each configured account gets a
@@ -881,19 +881,18 @@ impl BrainClaw {
     /// Resolve the API key from config, environment variable, or standard env vars.
     fn resolve_api_key(&self) -> Result<Option<String>> {
         // 1. Direct config value
-        if let Some(ref key) = self.config.provider.api_key {
-            if !key.is_empty() {
-                return Ok(Some(key.clone()));
-            }
+        if let Some(ref key) = self.config.provider.api_key
+            && !key.is_empty()
+        {
+            return Ok(Some(key.clone()));
         }
 
         // 2. Custom env var name from config
-        if let Some(ref env_name) = self.config.provider.api_key_env {
-            if let Ok(key) = std::env::var(env_name) {
-                if !key.is_empty() {
-                    return Ok(Some(key));
-                }
-            }
+        if let Some(ref env_name) = self.config.provider.api_key_env
+            && let Ok(key) = std::env::var(env_name)
+            && !key.is_empty()
+        {
+            return Ok(Some(key));
         }
 
         // 3. Standard env vars based on provider
@@ -911,12 +910,11 @@ impl BrainClaw {
             _ => "",
         };
 
-        if !env_var.is_empty() {
-            if let Ok(key) = std::env::var(env_var) {
-                if !key.is_empty() {
-                    return Ok(Some(key));
-                }
-            }
+        if !env_var.is_empty()
+            && let Ok(key) = std::env::var(env_var)
+            && !key.is_empty()
+        {
+            return Ok(Some(key));
         }
 
         Ok(None)
@@ -968,8 +966,16 @@ fn build_stt_provider(
         }
         #[cfg(feature = "local-stt")]
         "whisper-local" | "whisper" => {
-            Some(std::sync::Arc::new(brainwires_hardware::WhisperStt::new())
-                as Arc<dyn SpeechToText>)
+            // Local Whisper requires a GGML model file. Resolve from
+            // `WHISPER_MODEL_PATH`; if unset, voice transcription stays
+            // disabled rather than panicking at runtime.
+            let model_path = std::env::var("WHISPER_MODEL_PATH")
+                .ok()
+                .filter(|p| !p.is_empty())?;
+            Some(
+                std::sync::Arc::new(brainwires_hardware::WhisperStt::new(model_path))
+                    as Arc<dyn SpeechToText>,
+            )
         }
         other => {
             tracing::warn!(provider = %other, "Unknown STT provider; voice transcription disabled");
@@ -1067,10 +1073,10 @@ fn load_context_files(extra_paths: &[String]) -> String {
 
 /// Expand a leading `~` to the home directory.
 fn expand_tilde_str(path: &str) -> String {
-    if let Some(rest) = path.strip_prefix("~/") {
-        if let Some(home) = dirs::home_dir() {
-            return home.join(rest).to_string_lossy().into_owned();
-        }
+    if let Some(rest) = path.strip_prefix("~/")
+        && let Some(home) = dirs::home_dir()
+    {
+        return home.join(rest).to_string_lossy().into_owned();
     }
     path.to_string()
 }

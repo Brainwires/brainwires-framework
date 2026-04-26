@@ -107,11 +107,9 @@ impl AuditLogger {
         ring.iter()
             .rev()
             .filter(|e| {
-                event_type.map_or(true, |t| {
+                event_type.is_none_or(|t| {
                     let json = serde_json::to_value(&e.event).unwrap_or_default();
-                    json.get("event_type")
-                        .and_then(|v| v.as_str())
-                        .map_or(false, |et| et == t)
+                    json.get("event_type").and_then(|v| v.as_str()) == Some(t)
                 })
             })
             .take(limit)

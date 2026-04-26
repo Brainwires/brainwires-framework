@@ -83,31 +83,31 @@ impl MessageSanitizer {
         };
 
         let text = extract_text(&message.content);
-        if let Some(text) = text {
-            if Self::is_system_spoofing(text) {
-                tracing::warn!(
-                    author = %message.author,
-                    conversation = %message.conversation.channel_id,
-                    "System-message spoofing attempt detected and stripped"
-                );
-                // Tag the message metadata so downstream handlers know it was flagged
-                message.metadata.insert(
-                    "_sanitizer_spoofing_stripped".to_string(),
-                    "true".to_string(),
-                );
-                // Tag origin info
-                message.metadata.insert(
-                    "_origin_platform".to_string(),
-                    message.conversation.platform.clone(),
-                );
-                message.metadata.insert(
-                    "_origin_channel".to_string(),
-                    message.conversation.channel_id.clone(),
-                );
+        if let Some(text) = text
+            && Self::is_system_spoofing(text)
+        {
+            tracing::warn!(
+                author = %message.author,
+                conversation = %message.conversation.channel_id,
+                "System-message spoofing attempt detected and stripped"
+            );
+            // Tag the message metadata so downstream handlers know it was flagged
+            message.metadata.insert(
+                "_sanitizer_spoofing_stripped".to_string(),
+                "true".to_string(),
+            );
+            // Tag origin info
+            message.metadata.insert(
+                "_origin_platform".to_string(),
+                message.conversation.platform.clone(),
+            );
+            message.metadata.insert(
+                "_origin_channel".to_string(),
+                message.conversation.channel_id.clone(),
+            );
 
-                // Strip the spoofing content from the message
-                strip_spoof_content(&mut message.content);
-            }
+            // Strip the spoofing content from the message
+            strip_spoof_content(&mut message.content);
         }
     }
 

@@ -198,10 +198,10 @@ impl brainwires_network::channels::Channel for MattermostChannel {
         }
 
         // If replying to a specific message, use that as root_id
-        if let Some(ref reply_to) = message.reply_to {
-            if body["root_id"].is_null() {
-                body["root_id"] = json!(reply_to.0);
-            }
+        if let Some(ref reply_to) = message.reply_to
+            && body["root_id"].is_null()
+        {
+            body["root_id"] = json!(reply_to.0);
         }
 
         let resp = self.api_post("/posts", &body).await?;

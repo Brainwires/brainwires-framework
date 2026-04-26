@@ -64,6 +64,8 @@ calendar = ["brainwires-tools/calendar"]
 rag = ["brainwires-tools/rag"]
 browser = ["brainwires-tools/browser"]
 voice = ["dep:brainwires-hardware", "brainwires-gateway/voice"]
+# Local Whisper-based STT (requires the hardware crate's `local-stt` feature).
+local-stt = ["voice", "brainwires-hardware/local-stt"]
 # Route dangerous tool calls (bash, code_exec) through a container sandbox.
 sandbox = ["dep:brainwires-sandbox", "brainwires-tools/sandbox"]
 # Opt-in: allow host-sandbox (no isolation) — dev only, dangerous.

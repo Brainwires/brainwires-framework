@@ -183,11 +183,11 @@ impl MediaProcessor {
 
     /// Remove all files in the temporary media directory.
     pub fn cleanup(&self) {
-        if self.temp_dir.exists() {
-            if let Ok(entries) = std::fs::read_dir(&self.temp_dir) {
-                for entry in entries.flatten() {
-                    let _ = std::fs::remove_file(entry.path());
-                }
+        if self.temp_dir.exists()
+            && let Ok(entries) = std::fs::read_dir(&self.temp_dir)
+        {
+            for entry in entries.flatten() {
+                let _ = std::fs::remove_file(entry.path());
             }
         }
     }
@@ -329,6 +329,8 @@ mod tests {
             max_size_bytes: 1024,
             temp_dir: PathBuf::from("/tmp/brainwires-media-nonexistent-test-dir"),
             http_client: Client::new(),
+            #[cfg(feature = "voice")]
+            stt: None,
         };
         processor.cleanup(); // Should not panic.
     }

@@ -6,7 +6,6 @@ use anyhow::{Context, Result};
 use futures::{SinkExt, StreamExt};
 use tokio::sync::mpsc;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
-use tracing;
 
 use brainwires_network::channels::{
     Channel, ChannelCapabilities, ChannelEvent, ChannelHandshake, ChannelHandshakeResponse,

@@ -88,7 +88,7 @@ pub mod openapi;
 mod email;
 
 #[cfg(feature = "calendar")]
-mod calendar;
+pub mod calendar;
 
 #[cfg(feature = "sessions")]
 pub mod sessions;

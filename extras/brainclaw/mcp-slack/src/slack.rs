@@ -260,7 +260,7 @@ pub fn slack_message_to_channel_message(
     let thread_ts = msg
         .get("thread_ts")
         .and_then(|v| v.as_str())
-        .map(|t| ThreadId::new(t));
+        .map(ThreadId::new);
 
     // Parse attachments/files
     let attachments = msg

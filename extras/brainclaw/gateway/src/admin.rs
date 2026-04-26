@@ -141,10 +141,10 @@ pub async fn broadcast(
 
     for info in &channels {
         // Filter by channel type if specified
-        if let Some(ref ct) = payload.channel_type {
-            if info.channel_type != *ct {
-                continue;
-            }
+        if let Some(ref ct) = payload.channel_type
+            && info.channel_type != *ct
+        {
+            continue;
         }
 
         if let Some(tx) = state.channels.get_sender(&info.id) {

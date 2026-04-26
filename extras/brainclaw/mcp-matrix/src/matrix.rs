@@ -271,30 +271,29 @@ impl Channel for MatrixChannel {
             if let Ok(AnySyncTimelineEvent::MessageLike(AnySyncMessageLikeEvent::RoomMessage(
                 msg_event,
             ))) = raw.deserialize()
+                && let Some(original) = msg_event.as_original()
             {
-                if let Some(original) = msg_event.as_original() {
-                    use matrix_sdk::ruma::events::room::message::MessageType;
-                    let text = match &original.content.msgtype {
-                        MessageType::Text(t) => t.body.clone(),
-                        other => format!("[{}]", other.msgtype()),
-                    };
-                    let channel_msg = ChannelMessage {
-                        id: MessageId::new(original.event_id.to_string()),
-                        conversation: target.clone(),
-                        author: original.sender.to_string(),
-                        content: MessageContent::Text(text),
-                        thread_id: None,
-                        reply_to: None,
-                        timestamp: original
-                            .origin_server_ts
-                            .to_system_time()
-                            .map(chrono::DateTime::from)
-                            .unwrap_or_else(chrono::Utc::now),
-                        attachments: vec![],
-                        metadata: HashMap::new(),
-                    };
-                    out.push(channel_msg);
-                }
+                use matrix_sdk::ruma::events::room::message::MessageType;
+                let text = match &original.content.msgtype {
+                    MessageType::Text(t) => t.body.clone(),
+                    other => format!("[{}]", other.msgtype()),
+                };
+                let channel_msg = ChannelMessage {
+                    id: MessageId::new(original.event_id.to_string()),
+                    conversation: target.clone(),
+                    author: original.sender.to_string(),
+                    content: MessageContent::Text(text),
+                    thread_id: None,
+                    reply_to: None,
+                    timestamp: original
+                        .origin_server_ts
+                        .to_system_time()
+                        .map(chrono::DateTime::from)
+                        .unwrap_or_else(chrono::Utc::now),
+                    attachments: vec![],
+                    metadata: HashMap::new(),
+                };
+                out.push(channel_msg);
             }
         }
 

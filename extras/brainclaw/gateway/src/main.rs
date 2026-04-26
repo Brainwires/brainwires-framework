@@ -53,9 +53,11 @@ async fn main() -> Result<()> {
         }) => {
             setup_panic_handler();
 
-            let mut gateway_config = GatewayConfig::default();
-            gateway_config.host = host;
-            gateway_config.port = port;
+            let gateway_config = GatewayConfig {
+                host,
+                port,
+                ..Default::default()
+            };
 
             let gateway = Gateway::new(gateway_config);
             if let Err(e) = gateway.run().await {

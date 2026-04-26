@@ -255,6 +255,7 @@ impl ImapClient {
     }
 
     /// List available IMAP folders (mailboxes).
+    #[allow(dead_code)] // reason: public API, currently unused internally.
     pub async fn list_folders(&mut self) -> Result<Vec<EmailFolder>> {
         let names_stream = self
             .session

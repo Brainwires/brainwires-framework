@@ -83,6 +83,14 @@ enum ModelCommand {
     Reset,
 }
 
+/// State cells shared between an `AgentInboundHandler` session and its
+/// `ChatApprovalHook`: `(current_conversation, current_sender, current_channel_id)`.
+type ApprovalContextCell = (
+    Arc<RwLock<Option<ConversationId>>>,
+    Arc<RwLock<Option<tokio::sync::mpsc::Sender<String>>>>,
+    Arc<RwLock<Option<Uuid>>>,
+);
+
 /// An [`InboundHandler`] that dispatches incoming messages to per-user
 /// [`ChatAgent`] instances and sends responses back through the channel.
 pub struct AgentInboundHandler {
@@ -116,14 +124,7 @@ pub struct AgentInboundHandler {
     approval_tools: HashSet<String>,
     /// Per-user state cells shared with `ChatApprovalHook`:
     /// (platform, user_id) -> (current_conversation, current_sender, current_channel_id)
-    approval_contexts: DashMap<
-        (String, String),
-        (
-            Arc<RwLock<Option<ConversationId>>>,
-            Arc<RwLock<Option<tokio::sync::mpsc::Sender<String>>>>,
-            Arc<RwLock<Option<Uuid>>>,
-        ),
-    >,
+    approval_contexts: DashMap<(String, String), ApprovalContextCell>,
     /// Optional shell-script pre-tool hook (blocks tool calls on non-zero exit).
     shell_pre_tool_hook: Option<Arc<dyn ToolPreHook>>,
     /// Optional lifecycle hook for session start/end and post-tool events.
@@ -464,16 +465,16 @@ impl AgentInboundHandler {
         let mut text = Self::extract_text(&msg.content);
 
         // 1b. Process attachments if a media processor is configured
-        if let Some(ref media) = self.media {
-            if !msg.attachments.is_empty() {
-                let descriptions = media.process_attachments(&msg.attachments).await;
-                if !descriptions.is_empty() {
-                    let attachment_text = descriptions.join("\n");
-                    if text.is_empty() {
-                        text = attachment_text;
-                    } else {
-                        text = format!("{}\n\n{}", text, attachment_text);
-                    }
+        if let Some(ref media) = self.media
+            && !msg.attachments.is_empty()
+        {
+            let descriptions = media.process_attachments(&msg.attachments).await;
+            if !descriptions.is_empty() {
+                let attachment_text = descriptions.join("\n");
+                if text.is_empty() {
+                    text = attachment_text;
+                } else {
+                    text = format!("{}\n\n{}", text, attachment_text);
                 }
             }
         }
@@ -571,22 +572,23 @@ impl AgentInboundHandler {
         }
 
         // 1e. Apply text preprocessor (e.g. skill dispatch)
-        if let Some(ref pp) = self.text_preprocessor {
-            if let Some(transformed) = pp(&text) {
-                text = transformed;
-            }
+        if let Some(ref pp) = self.text_preprocessor
+            && let Some(transformed) = pp(&text)
+        {
+            text = transformed;
         }
 
         // 1e. Sanitize inbound: detect and strip system-message spoofing
-        if let Some(ref sanitizer) = self.sanitizer {
-            if sanitizer.strip_system_spoofing && MessageSanitizer::is_system_spoofing(&text) {
-                tracing::warn!(
-                    author = %msg.author,
-                    conversation = %msg.conversation.channel_id,
-                    "System-message spoofing detected; rejecting message"
-                );
-                return Ok(());
-            }
+        if let Some(ref sanitizer) = self.sanitizer
+            && sanitizer.strip_system_spoofing
+            && MessageSanitizer::is_system_spoofing(&text)
+        {
+            tracing::warn!(
+                author = %msg.author,
+                conversation = %msg.conversation.channel_id,
+                "System-message spoofing detected; rejecting message"
+            );
+            return Ok(());
         }
 
         // 2. Build a ChannelUser from the message and touch the gateway session
@@ -1086,9 +1088,9 @@ impl AgentInboundHandler {
                     if let Some(audio_url) = tts.synthesize_to_url(response_text).await {
                         vec![brainwires_network::channels::message::Attachment {
                             url: audio_url,
-                            media_type: Some("audio/mpeg".to_string()),
-                            filename: None,
-                            size: None,
+                            content_type: "audio/mpeg".to_string(),
+                            filename: String::new(),
+                            size_bytes: None,
                         }]
                     } else {
                         vec![]
