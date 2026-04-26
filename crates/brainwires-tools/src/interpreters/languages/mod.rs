@@ -9,9 +9,6 @@ pub mod lua;
 #[cfg(feature = "interpreters-js")]
 pub mod javascript;
 
-#[cfg(feature = "interpreters-python")]
-pub mod python;
-
 use super::types::{ExecutionLimits, ExecutionRequest, ExecutionResult};
 
 /// Trait for language executors

@@ -15,8 +15,6 @@ pub enum Language {
     Lua,
     /// JavaScript - ECMAScript via Boa engine
     JavaScript,
-    /// Python - CPython 3.12 compatible via RustPython
-    Python,
 }
 
 impl Language {
@@ -26,7 +24,6 @@ impl Language {
             Language::Rhai => "rhai",
             Language::Lua => "lua",
             Language::JavaScript => "javascript",
-            Language::Python => "python",
         }
     }
 
@@ -36,7 +33,6 @@ impl Language {
             "rhai" => Some(Language::Rhai),
             "lua" => Some(Language::Lua),
             "javascript" | "js" => Some(Language::JavaScript),
-            "python" | "py" => Some(Language::Python),
             _ => None,
         }
     }
@@ -47,7 +43,6 @@ impl Language {
             Language::Rhai => "rhai",
             Language::Lua => "lua",
             Language::JavaScript => "js",
-            Language::Python => "py",
         }
     }
 }
@@ -377,12 +372,11 @@ mod tests {
 
     #[test]
     fn test_language_parsing() {
-        assert_eq!(Language::parse("python"), Some(Language::Python));
-        assert_eq!(Language::parse("py"), Some(Language::Python));
         assert_eq!(Language::parse("JAVASCRIPT"), Some(Language::JavaScript));
         assert_eq!(Language::parse("js"), Some(Language::JavaScript));
         assert_eq!(Language::parse("lua"), Some(Language::Lua));
         assert_eq!(Language::parse("rhai"), Some(Language::Rhai));
+        assert_eq!(Language::parse("python"), None);
         assert_eq!(Language::parse("unknown"), None);
     }
 

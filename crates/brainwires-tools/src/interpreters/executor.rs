@@ -70,18 +70,6 @@ impl Executor {
                 executor.execute_code(&request)
             }
 
-            #[cfg(feature = "interpreters-python")]
-            Language::Python => {
-                use super::languages::python::PythonExecutor;
-                let executor = PythonExecutor::with_limits(
-                    request
-                        .limits
-                        .clone()
-                        .unwrap_or_else(ExecutionLimits::default),
-                );
-                executor.execute_code(&request)
-            }
-
             #[allow(unreachable_patterns)]
             _ => ExecutionError::UnsupportedLanguage(request.language.to_string()).to_result(0),
         }
@@ -167,15 +155,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "interpreters-python")]
-    fn test_python_execution() {
-        let executor = Executor::new();
-        let result = executor.execute_str("python", "print(1 + 2)");
-        assert!(result.success);
-        assert!(result.stdout.contains("3"));
-    }
-
-    #[test]
     fn test_unsupported_language() {
         let executor = Executor::new();
         let result = executor.execute_str("cobol", "DISPLAY 'HELLO'");
@@ -187,15 +166,12 @@ mod tests {
     fn test_language_aliases() {
         // Test that language parsing works for aliases
         // (whether the language is actually supported depends on features)
-        assert!(Language::parse("python").is_some());
-        assert!(Language::parse("py").is_some());
         assert!(Language::parse("javascript").is_some());
         assert!(Language::parse("js").is_some());
         assert!(Language::parse("lua").is_some());
         assert!(Language::parse("rhai").is_some());
 
         // Ensure both aliases map to the same variant
-        assert_eq!(Language::parse("python"), Language::parse("py"));
         assert_eq!(Language::parse("javascript"), Language::parse("js"));
     }
 }

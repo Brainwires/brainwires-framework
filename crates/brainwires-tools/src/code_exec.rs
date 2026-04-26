@@ -6,7 +6,6 @@
 //! - **Rhai**: Lightweight Rust scripting (always available)
 //! - **Lua**: Lua 5.4 via mlua (always available)
 //! - **JavaScript**: ES2022+ via Boa engine (with feature flag)
-//! - **Python**: Python 3.12 via RustPython (with feature flag)
 //!
 //! Requires the `interpreters` feature flag.
 
@@ -82,7 +81,7 @@ impl CodeExecTool {
 
     /// Generate language description based on available features
     fn language_description() -> String {
-        let langs = ["'rhai'", "'lua'", "'javascript'", "'python'"];
+        let langs = ["'rhai'", "'lua'", "'javascript'"];
         format!(
             "Programming language identifier: {}. Native interpreters run in-process.",
             langs.join(", ")
@@ -98,7 +97,6 @@ Native interpreters (no Docker required):
 - rhai: Lightweight Rust scripting
 - lua: Lua 5.4
 - javascript: ES2022+ via Boa engine
-- python: Python 3.12 via RustPython
 
 Examples:
 - Rhai: language="rhai", code="let x = 1 + 2; x"
@@ -169,14 +167,13 @@ Examples:
             "rhai" => Some(Language::Rhai),
             "lua" => Some(Language::Lua),
             "javascript" | "js" => Some(Language::JavaScript),
-            "python" | "py" => Some(Language::Python),
             _ => None,
         }
     }
 
     /// Get list of supported native languages
     fn supported_languages() -> Vec<&'static str> {
-        vec!["rhai", "lua", "javascript", "python"]
+        vec!["rhai", "lua", "javascript"]
     }
 
     /// Execute code using native interpreter
@@ -215,7 +212,6 @@ Examples:
             Language::Rhai => "rhai",
             Language::Lua => "lua",
             Language::JavaScript => "javascript",
-            Language::Python => "python",
         };
 
         let mut output = format!(

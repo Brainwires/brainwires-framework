@@ -11,7 +11,6 @@
 //! | Rhai | `rhai` | ⚡⚡⚡⚡ | ⭐⭐ | Native Rust, fastest startup |
 //! | Lua | `lua` | ⚡⚡⚡ | ⭐⭐⭐ | Small runtime, good stdlib |
 //! | JavaScript | `javascript` | ⚡⚡ | ⭐⭐⭐⭐ | ECMAScript compliant (Boa) |
-//! | Python | `python` | ⚡ | ⭐⭐⭐⭐⭐ | CPython 3.12 compatible |
 //!
 //! ## Example
 //!
@@ -49,9 +48,6 @@ pub mod lang {
 
     #[cfg(feature = "interpreters-js")]
     pub use super::languages::javascript::JavaScriptExecutor;
-
-    #[cfg(feature = "interpreters-python")]
-    pub use super::languages::python::PythonExecutor;
 }
 
 /// Get a list of supported languages based on enabled features
@@ -68,9 +64,6 @@ pub fn supported_languages() -> Vec<Language> {
     #[cfg(feature = "interpreters-js")]
     languages.push(Language::JavaScript);
 
-    #[cfg(feature = "interpreters-python")]
-    languages.push(Language::Python);
-
     languages
 }
 
@@ -85,9 +78,6 @@ pub fn is_language_supported(language: Language) -> bool {
 
         #[cfg(feature = "interpreters-js")]
         Language::JavaScript => true,
-
-        #[cfg(feature = "interpreters-python")]
-        Language::Python => true,
 
         #[allow(unreachable_patterns)]
         _ => false,

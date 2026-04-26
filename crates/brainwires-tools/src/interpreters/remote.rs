@@ -29,8 +29,8 @@
 //! let executor = RemoteSandboxExecutor::new(config)?;
 //!
 //! let result = executor.execute(ExecutionRequest {
-//!     language: Language::Python,
-//!     code: "print('hello from the cloud')".to_string(),
+//!     language: Language::JavaScript,
+//!     code: "console.log('hello from the cloud')".to_string(),
 //!     ..Default::default()
 //! }).await?;
 //!

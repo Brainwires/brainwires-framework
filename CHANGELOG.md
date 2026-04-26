@@ -14,6 +14,7 @@ Pre-1.0 hygiene pass: remove backwards-compat shims, close feature-flag half-wir
 #### Compile-breaking feature deleted
 
 - **`wake-word-porcupine`** — feature and `PorcupineDetector` module deleted from `brainwires-hardware`, the `brainwires` facade, and `voice-assistant`. The Picovoice `pv_porcupine` dep was never on crates.io and the feature could not compile without manual git-dep injection. If Porcupine is needed, implement `WakeWordDetector` against it out-of-tree.
+- **`brainwires-tools/interpreters-python`** — feature, `PythonExecutor`, `Language::Python` variant, and `crates/brainwires-tools/src/interpreters/languages/python.rs` deleted. The feature advertised in-process Python execution but was a stub returning a runtime error: the only viable wiring (RustPython) hits a `liblzma-sys` ↔ `lzma-sys` C-link collision with `xz2` (transitive of `lancedb`/`datafusion`) that needs a separate workspace-level resolution. `code_exec`'s native dispatch and the `Language` enum now cover Rhai/Lua/JavaScript only. The Docker-backed and remote-sandbox interpreters still accept `"python"` as a language string — they shell out to a system `python3`, unaffected by this change. Re-add when a working in-process backend is selected.
 
 #### Feature-flag aliases removed
 
