@@ -139,6 +139,8 @@ telemetry = ["dep:brainwires-telemetry", "brainwires-telemetry/native", "brainwi
 bedrock = ["providers", "brainwires-providers/bedrock"]
 vertex-ai = ["providers", "brainwires-providers/vertex-ai"]
 llama-cpp-2 = ["providers", "brainwires-providers/llama-cpp-2"]
+local-llm-candle = ["providers", "brainwires-providers/local-llm-candle"]
+web-speech = ["providers", "brainwires-providers/web-speech"]
 mcp-server = ["dep:rmcp", "dep:schemars", "dep:tokio-util"]
 # Convenience: enables all learning/knowledge subsystems with integration
 learning = ["seal", "knowledge", "permissions", "brainwires-agents/seal-knowledge", "brainwires-agents/seal-feedback"]

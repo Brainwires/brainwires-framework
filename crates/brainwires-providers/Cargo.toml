@@ -14,7 +14,13 @@ keywords = ["ai-providers", "llm", "anthropic", "openai", "google"]
 categories = ["api-bindings"]
 
 [dependencies]
-brainwires-core = { workspace = true }
+# Direct path dep (rather than `workspace = true`) so we can set
+# `default-features = false`. The workspace declaration omits
+# `default-features`, which would otherwise prevent us from overriding it.
+# This lets wasm32 builds (e.g. the `web-speech` feature) opt out of
+# brainwires-core's default `native` feature; native callers re-enable it via
+# this crate's own `native` feature below.
+brainwires-core = { path = "../brainwires-core", version = "0.10.0", default-features = false }
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -62,13 +68,36 @@ chrono = { workspace = true, optional = true }
 tokio-tungstenite = { workspace = true, optional = true }
 url = { workspace = true, optional = true }
 
+# Browser-native speech (web-speech feature) — wasm32-only at runtime.
+wasm-bindgen = { version = "0.2", optional = true }
+js-sys = { version = "0.3", optional = true }
+wasm-bindgen-futures = { version = "0.4", optional = true }
+web-sys = { version = "0.3", optional = true, features = [
+    "Window",
+    "SpeechSynthesis",
+    "SpeechSynthesisUtterance",
+    "SpeechSynthesisVoice",
+    "SpeechRecognition",
+    "SpeechRecognitionEvent",
+    "SpeechRecognitionResult",
+    "SpeechRecognitionResultList",
+    "SpeechRecognitionAlternative",
+    "SpeechRecognitionError",
+    "SpeechGrammarList",
+    "SpeechGrammar",
+] }
+
 [features]
 default = ["native"]
 native = [
+    "brainwires-core/native",
     "dep:reqwest", "dep:async-stream",
     "dep:tracing", "dep:tokio", "dep:uuid",
     "dep:tokio-tungstenite", "dep:url",
 ]
+# Wasm-friendly companion for `web-speech` and other future browser providers.
+# Forwards `wasm` to brainwires-core (which enables chrono/wasmbind etc.).
+wasm = ["brainwires-core/wasm"]
 llama-cpp-2 = ["dep:tracing", "dep:tokio", "dep:llama-cpp-2", "dep:encoding_rs"]
 local-llm-candle = [
     "dep:candle-core",
@@ -81,6 +110,15 @@ local-llm-candle = [
 bedrock = ["native", "dep:aws-sigv4", "dep:aws-credential-types", "dep:aws-smithy-runtime-api", "dep:http"]
 vertex-ai = ["native", "dep:gcp_auth"]
 telemetry = ["dep:brainwires-telemetry", "brainwires-telemetry/native", "dep:chrono"]
+# Browser-native TTS / STT providers. Only takes effect on wasm32 — on native
+# targets the module is empty (see crates/brainwires-providers/src/web_speech/).
+web-speech = [
+    "wasm",
+    "dep:wasm-bindgen",
+    "dep:js-sys",
+    "dep:web-sys",
+    "dep:wasm-bindgen-futures",
+]
 
 [dev-dependencies]
 serde_json = { workspace = true }

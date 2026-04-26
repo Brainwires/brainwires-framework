@@ -91,6 +91,16 @@ pub mod chat_factory;
 /// Local LLM inference (always compiled, llama.cpp behind feature flag).
 pub mod local_llm;
 
+// ── Browser-native speech (wasm32 + feature gated) ────────────────────
+
+/// Browser-native TTS (`speechSynthesis`) and STT (`SpeechRecognition`).
+///
+/// Only compiled on `wasm32` with the `web-speech` feature enabled — on
+/// native targets the feature is a no-op so downstream crates that
+/// conditionally enable it for browser builds keep building on native.
+#[cfg(all(target_arch = "wasm32", feature = "web-speech"))]
+pub mod web_speech;
+
 // ── Re-exports ────────────────────────────────────────────────────────
 
 // Chat-capable API clients
