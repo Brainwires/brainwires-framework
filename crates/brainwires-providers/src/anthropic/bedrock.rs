@@ -179,8 +179,12 @@ mod tests {
     #[test]
     fn bedrock_auth_from_env_fails_without_credentials() {
         // Make sure no AWS env vars are set (or they are set to garbage)
-        // This should fail because AWS_ACCESS_KEY_ID won't be set in CI
-        std::env::remove_var("AWS_ACCESS_KEY_ID");
+        // This should fail because AWS_ACCESS_KEY_ID won't be set in CI.
+        // SAFETY: this is a single-threaded unit test; we mutate process env
+        // before calling into BedrockAuth, with no other threads racing.
+        unsafe {
+            std::env::remove_var("AWS_ACCESS_KEY_ID");
+        }
         let result = BedrockAuth::from_environment(None);
         assert!(result.is_err());
     }

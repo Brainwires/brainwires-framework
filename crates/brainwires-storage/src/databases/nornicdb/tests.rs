@@ -1,6 +1,7 @@
 //! Tests for [`NornicDatabase`].
 
 #[cfg(test)]
+#[allow(clippy::module_inception)] // file already named tests.rs, inner `mod tests` mirrors convention
 mod tests {
     use std::sync::Arc;
     use std::sync::Mutex;
@@ -8,7 +9,7 @@ mod tests {
     use anyhow::Result;
     use serde_json::{Value, json};
 
-    use brainwires_core::{ChunkMetadata, SearchResult};
+    use brainwires_core::ChunkMetadata;
 
     use super::super::database::NornicDatabase;
     use super::super::helpers::{build_filters, extract_host, map_to_search_result};
@@ -57,6 +58,7 @@ mod tests {
             }
         }
 
+        #[allow(dead_code)] // kept as a debugging hook for future tests that want to inspect the query log
         fn recorded_queries(&self) -> Vec<String> {
             self.queries.lock().unwrap().clone()
         }
@@ -284,9 +286,9 @@ mod tests {
         let db = mock_db(transport);
         db.initialize(384).await.unwrap();
 
-        let queries = db.transport.execute_cypher("", json!({})).await.ok(); // dummy — we check via the mock's recorded queries
+        let _queries = db.transport.execute_cypher("", json!({})).await.ok(); // dummy — we check via the mock's recorded queries
         // Actually, re-derive the queries from the MockTransport directly:
-        let mock = db.transport.as_ref() as *const dyn NornicTransport;
+        let _mock = db.transport.as_ref() as *const dyn NornicTransport;
         // We can't downcast easily; instead verify through the initialize call above.
         // The mock's query list was populated by initialize().
         // We'll use a different approach: just test the string format directly.
@@ -397,7 +399,7 @@ mod tests {
 
     #[test]
     fn test_build_find_related_with_type_filter() {
-        let types = vec!["CALLS".to_string(), "IMPORTS".to_string()];
+        let types = ["CALLS".to_string(), "IMPORTS".to_string()];
         let rel_pattern = format!(":{}", types.join("|"));
         assert_eq!(rel_pattern, ":CALLS|IMPORTS");
 
@@ -705,7 +707,7 @@ mod tests {
         assert_eq!(count, 1);
 
         // Verify what was stored via the mock.
-        let mock_ref = db.transport.as_ref();
+        let _mock_ref = db.transport.as_ref();
         // We need to downcast — but with our mock we recorded calls.
         // Since we can't downcast trait objects easily, we verify via the
         // return count from store_nodes.
