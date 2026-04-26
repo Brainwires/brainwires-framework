@@ -611,8 +611,15 @@ mod local_llm_mdap {
         }
 
         fn available_tools(&self) -> Vec<ToolSchema> {
-            // Tool schemas aren't surfaced for the local backend yet; return
-            // an empty list regardless of `supports_tools` until that's wired.
+            // The model's `supports_tools` flag (see `LocalLlmProviderConfig` /
+            // `KnownModel`) describes whether the underlying weights were
+            // trained for function calling — it's informational metadata used
+            // by CLI listings (`local-models list`, etc.), not a dispatch
+            // switch. The actual tool-call wiring lives at the orchestrator
+            // layer, and `LocalLlmProvider::generate` exposes a plain
+            // text-completion API with no tool-schema parameter. Until that
+            // changes upstream, microagents driven by the local backend run
+            // tool-free regardless of model capability.
             Vec::new()
         }
     }
