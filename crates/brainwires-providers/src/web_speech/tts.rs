@@ -91,10 +91,10 @@ impl WebSpeechTts {
         if let Some(lang) = opts.lang.as_deref() {
             utter.set_lang(lang);
         }
-        if let Some(voice_uri) = opts.voice_uri.as_deref() {
-            if let Some(voice) = self.find_voice_by_uri(voice_uri) {
-                utter.set_voice(Some(&voice));
-            }
+        if let Some(voice_uri) = opts.voice_uri.as_deref()
+            && let Some(voice) = self.find_voice_by_uri(voice_uri)
+        {
+            utter.set_voice(Some(&voice));
         }
 
         self.synth.speak(&utter);
