@@ -1,0 +1,29 @@
+/* brainwires-chat-pwa — minimal scaffold styles.
+ * Task #7 replaces this with the real mobile-first chat UI. */
+
+:root {
+    color-scheme: dark;
+    --bg: #0b0d10;
+    --fg: #e8eaed;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, sans-serif;
+}
+
+#app {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100dvh;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+             env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
