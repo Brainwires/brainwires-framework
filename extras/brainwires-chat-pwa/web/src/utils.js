@@ -105,7 +105,6 @@ function drainToasts() {
     const node = el('div', { class: `toast toast-${kind}`, attrs: { role: 'alert' } }, String(message));
     host.appendChild(node);
     // Force reflow so the enter transition fires.
-    // eslint-disable-next-line no-unused-expressions
     void node.offsetWidth;
     node.classList.add('is-visible');
     const fade = () => {

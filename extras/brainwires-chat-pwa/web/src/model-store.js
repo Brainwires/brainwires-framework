@@ -273,7 +273,6 @@ export async function downloadModel(modelId, opts = {}) {
             const reader = resp.body.getReader();
             const chunks = [];
             let fileBytesDone = 0;
-            // eslint-disable-next-line no-constant-condition
             while (true) {
                 const { value, done } = await reader.read();
                 if (done) break;

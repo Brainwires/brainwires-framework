@@ -21,7 +21,6 @@ import {
     deleteConversation,
     listMessages,
     putMessage,
-    appendMessageChunk,
     setSetting,
     getSetting,
 } from './db.js';
@@ -46,7 +45,7 @@ let _autoScroll = true;
 let _activeProviderId = null;
 
 // DOM cache
-let _ui = {
+const _ui = {
     titleEl: null,
     listEl: null,
     drawerEl: null,
@@ -798,7 +797,7 @@ export function renderMarkdown(src) {
     const text = String(src);
 
     // Tokenize fenced code blocks first.
-    const fenceRe = /```([a-zA-Z0-9_+\-]*)\n([\s\S]*?)```/g;
+    const fenceRe = /```([a-zA-Z0-9_+-]*)\n([\s\S]*?)```/g;
     let last = 0;
     let m;
     const parts = [];

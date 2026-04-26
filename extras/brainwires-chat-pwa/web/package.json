@@ -9,10 +9,15 @@
     "watch": "node build.mjs --watch",
     "serve": "node build.mjs --serve",
     "test": "node --test tests/unit.test.mjs",
-    "test:e2e": "node --test tests/e2e/e2e.test.mjs"
+    "test:e2e": "node --test tests/e2e/e2e.test.mjs",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix"
   },
   "devDependencies": {
+    "@eslint/js": "9.39.4",
     "esbuild": "^0.24.0",
-    "fake-indexeddb": "^6.2.5"
+    "eslint": "9.39.4",
+    "fake-indexeddb": "^6.2.5",
+    "globals": "15.15.0"
   }
 }

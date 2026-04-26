@@ -333,7 +333,7 @@ async function handleChatStart(msg, event) {
         }
     };
 
-    let usage = null;
+    const usage = null;
 
     try {
         const { url, method = 'POST', headers = {}, body, format } = requestPayload;

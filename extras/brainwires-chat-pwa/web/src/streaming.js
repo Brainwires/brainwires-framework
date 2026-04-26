@@ -86,7 +86,7 @@ export async function* streamFromResponse(response, format) {
             if (done) {
                 // Flush any trailing buffered line.
                 if (buffer.length > 0) {
-                    yield* handleLine(buffer, format, sseDataLines, sseEventType, (e, t) => {
+                    yield* handleLine(buffer, format, sseDataLines, sseEventType, (_e, _t) => {
                         sseDataLines = []; sseEventType = 'message';
                     });
                     buffer = '';
@@ -149,7 +149,7 @@ export async function* streamFromResponse(response, format) {
 // Helper used in the EOF path above. Re-runs the per-line dispatch on a
 // trailing un-terminated line. Generator-of-generator pattern keeps the
 // EOF flush in one place.
-function* handleLine(line, format, sseDataLines, sseEventType, _reset) {
+function* handleLine(line, format, sseDataLines, _sseEventType, _reset) {
     if (format === 'ndjson') {
         if (line.trim() === '') return;
         try {
