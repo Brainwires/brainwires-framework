@@ -20,15 +20,29 @@ chrono = { workspace = true }
 uuid = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
-dirs = { workspace = true }
 
 # Needed for Provider trait (lightweight, always available)
 async-trait = { workspace = true }
 futures = { workspace = true }
-tokio = { workspace = true, features = ["fs"] }
 
 # Schema generation (optional, for types shared with MCP tooling)
 schemars = { workspace = true, optional = true }
+
+# Native-only deps. The workspace `tokio` declaration enables `features = ["full"]`
+# (which pulls in `mio` and friends) — that breaks the wasm32 build, so tokio and
+# the filesystem-backed `workflow_state` module are only compiled off-wasm.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = { workspace = true, features = ["fs"] }
+dirs = { workspace = true }
+
+# wasm32 needs the JS-backed `getrandom` so `uuid::Uuid::new_v4()` and any
+# downstream RNG work in the browser. Native targets keep their default RNG.
+# `chrono` needs `wasmbind` to use the browser clock; `uuid` needs `js` so that
+# `getrandom` resolves to its wasm-bindgen backend.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["js"] }
+chrono = { workspace = true, features = ["wasmbind"] }
+uuid = { workspace = true, features = ["v4", "serde", "js"] }
 
 [features]
 default = ["native"]

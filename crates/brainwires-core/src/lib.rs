@@ -41,6 +41,10 @@ pub mod tool;
 /// Vector store trait for similarity search.
 pub mod vector_store;
 /// Persistent workflow state for crash-safe agent retry.
+///
+/// Native-only: the filesystem-backed checkpoint store uses `tokio::fs` and
+/// `dirs::home_dir`, neither of which are available on `wasm32-unknown-unknown`.
+#[cfg(not(target_arch = "wasm32"))]
 pub mod workflow_state;
 /// Working set for file context management with LRU eviction.
 pub mod working_set;

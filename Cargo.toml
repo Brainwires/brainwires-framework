@@ -86,7 +86,7 @@ brainwires-sandbox = { path = "crates/brainwires-sandbox", version = "0.10.0", d
 brainwires-network = { path = "crates/brainwires-network", version = "0.10.0" }
 brainwires-mcp-server = { path = "crates/brainwires-mcp-server", version = "0.10.0" }
 brainwires-a2a = { path = "crates/brainwires-a2a", version = "0.10.0", default-features = false }
-brainwires-providers = { path = "crates/brainwires-providers", version = "0.10.0" }
+brainwires-providers = { path = "crates/brainwires-providers", version = "0.10.0", default-features = false, features = ["native"] }
 brainwires-resilience = { path = "crates/brainwires-resilience", version = "0.10.0" }
 brainwires-session = { path = "crates/brainwires-session", version = "0.10.0" }
 brainwires-hardware = { path = "crates/brainwires-hardware", version = "0.10.0" }

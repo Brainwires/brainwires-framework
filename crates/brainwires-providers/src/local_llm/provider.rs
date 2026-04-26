@@ -5,12 +5,21 @@
 
 use super::config::{LocalInferenceParams, LocalLlmConfig};
 use anyhow::{Result, anyhow};
-use async_trait::async_trait;
-use brainwires_core::message::{ChatResponse, Message, Role, StreamChunk, Usage};
-use brainwires_core::provider::{ChatOptions, Provider};
-use brainwires_core::tool::Tool;
-use futures::stream::BoxStream;
+use brainwires_core::message::{Message, Role};
 use std::sync::Arc;
+
+// The `Provider` trait impl below is gated on `feature = "native"` because it
+// uses `async_stream` and `tokio::time`. These imports are only needed there.
+#[cfg(feature = "native")]
+use async_trait::async_trait;
+#[cfg(feature = "native")]
+use brainwires_core::message::{ChatResponse, StreamChunk, Usage};
+#[cfg(feature = "native")]
+use brainwires_core::provider::{ChatOptions, Provider};
+#[cfg(feature = "native")]
+use brainwires_core::tool::Tool;
+#[cfg(feature = "native")]
+use futures::stream::BoxStream;
 
 #[cfg(feature = "llama-cpp-2")]
 use llama_cpp_2::{
@@ -166,6 +175,7 @@ impl LocalLlmProvider {
     }
 
     /// Format messages into a prompt string using the model's chat template
+    #[cfg_attr(not(feature = "native"), allow(dead_code))]
     fn format_prompt(&self, messages: &[Message], system: Option<&str>) -> String {
         let template = self.config.model_type.chat_template();
 
@@ -392,6 +402,11 @@ impl LocalLlmProvider {
     }
 }
 
+// The streaming `Provider` impl uses `async_stream` and `tokio::time`, which are
+// only enabled by the `native` feature. On wasm32 builds (or any non-`native`
+// build) the `Provider` trait is still implemented via `Self::route` / `generate`
+// directly when needed; the LLM types themselves are constructible.
+#[cfg(feature = "native")]
 #[async_trait]
 impl Provider for LocalLlmProvider {
     #[allow(clippy::misnamed_getters)] // Returns config.id intentionally — this is a trait method, not a field getter

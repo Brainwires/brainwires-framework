@@ -31,13 +31,6 @@ async-trait = { workspace = true }
 futures = { workspace = true }
 dirs = { workspace = true }
 
-# HTTP providers (native feature)
-reqwest = { workspace = true, optional = true, features = ["multipart"] }
-async-stream = { workspace = true, optional = true }
-tracing = { workspace = true, optional = true }
-tokio = { workspace = true, optional = true }
-uuid = { workspace = true, optional = true }
-
 # Local LLM inference (optional heavy dep)
 llama-cpp-2 = { version = "0.1", optional = true }
 encoding_rs = { workspace = true, optional = true }
@@ -47,26 +40,12 @@ encoding_rs = { workspace = true, optional = true }
 candle-core = { version = "0.10", default-features = false, optional = true }
 candle-nn = { version = "0.10", default-features = false, optional = true }
 candle-transformers = { version = "0.10", default-features = false, optional = true }
-tokenizers = { version = "0.22", default-features = false, optional = true }
-hf-hub = { version = "0.4", default-features = false, features = ["tokio", "rustls-tls"], optional = true }
+tokenizers = { version = "0.22", default-features = false, features = ["fancy-regex"], optional = true }
 safetensors = { version = "0.7", default-features = false, features = ["std"], optional = true }
 
-# Bedrock auth (AWS SigV4) — official AWS crates
-aws-sigv4 = { workspace = true, optional = true }
-aws-credential-types = { workspace = true, optional = true }
-aws-smithy-runtime-api = { workspace = true, optional = true }
-http = { workspace = true, optional = true }
-
-# Vertex AI auth (Google OAuth2)
-gcp_auth = { workspace = true, optional = true }
-
-# Analytics (optional)
+# Analytics (optional) — used on both native and wasm if `telemetry` is on.
 brainwires-telemetry = { workspace = true, optional = true }
 chrono = { workspace = true, optional = true }
-
-# WebSocket transport (OpenAI Responses API)
-tokio-tungstenite = { workspace = true, optional = true }
-url = { workspace = true, optional = true }
 
 # Browser-native speech (web-speech feature) — wasm32-only at runtime.
 wasm-bindgen = { version = "0.2", optional = true }
@@ -87,8 +66,47 @@ web-sys = { version = "0.3", optional = true, features = [
     "SpeechGrammar",
 ] }
 
+# All deps below are native-only. We declare them under a wasm-excluding target
+# so the optional `dep:foo` references in the `native`/`bedrock`/`vertex-ai`/
+# `local-llm-candle` features become no-ops on wasm32 (cargo silently ignores
+# `dep:` entries whose underlying dep doesn't exist for the current target).
+# This lets `cargo check ... --target wasm32-unknown-unknown` succeed even with
+# `default = ["native"]` enabled.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+# HTTP providers
+reqwest = { workspace = true, optional = true, features = ["multipart"] }
+async-stream = { workspace = true, optional = true }
+tracing = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
+uuid = { workspace = true, optional = true }
+# WebSocket transport (OpenAI Responses API)
+tokio-tungstenite = { workspace = true, optional = true }
+url = { workspace = true, optional = true }
+# Bedrock auth (AWS SigV4) — official AWS crates
+aws-sigv4 = { workspace = true, optional = true }
+aws-credential-types = { workspace = true, optional = true }
+aws-smithy-runtime-api = { workspace = true, optional = true }
+http = { workspace = true, optional = true }
+# Vertex AI auth (Google OAuth2)
+gcp_auth = { workspace = true, optional = true }
+# `hf-hub` is only used by the native `from_hf` model loader. It enables tokio's
+# `fs` feature, which doesn't compile on wasm32. WASM consumers must load model
+# bytes via JS (see `CandleLlmProvider::from_bytes`).
+hf-hub = { version = "0.4", default-features = false, features = ["tokio", "rustls-tls"], optional = true }
+
+# wasm32 needs the JS-backed `getrandom` for any RNG-using transitive deps
+# (uuid, candle/tokenizers via rand). We enable both 0.2 (`js`) and 0.3
+# (`wasm_js`) since the dep graph includes both major versions.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["js"] }
+getrandom_v3 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }
+
 [features]
-default = ["native"]
+# No default features. Native callers must opt into `native` (the workspace
+# `brainwires-providers` declaration enables it for them). This lets
+# `cargo check ... --target wasm32-unknown-unknown --features web-speech`
+# (and similar) succeed without `--no-default-features`.
+default = []
 native = [
     "brainwires-core/native",
     "dep:reqwest", "dep:async-stream",
