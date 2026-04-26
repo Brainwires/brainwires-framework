@@ -556,9 +556,14 @@ mod local_llm_mdap {
     use super::*;
     use crate::providers::local_llm::{LocalInferenceParams, LocalLlmProvider};
 
-    /// MicroagentProvider implementation for LocalLlmProvider
+    /// Newtype wrapper around `LocalLlmProvider` to satisfy Rust's orphan
+    /// rules — both `MicroagentProvider` (defined in `brainwires_agents`) and
+    /// `LocalLlmProvider` (re-exported from `brainwires::providers::local_llm`)
+    /// are foreign to this crate, so the impl has to hang off a local type.
+    pub struct LocalLlmMicroagent(pub Arc<LocalLlmProvider>);
+
     #[async_trait::async_trait]
-    impl MicroagentProvider for LocalLlmProvider {
+    impl MicroagentProvider for LocalLlmMicroagent {
         async fn chat(
             &self,
             system: &str,
@@ -568,7 +573,7 @@ mod local_llm_mdap {
         ) -> MdapResult<MicroagentResponse> {
             use brainwires::reasoning::InferenceTimer;
 
-            let timer = InferenceTimer::new("microagent_chat", self.config().name.as_str());
+            let timer = InferenceTimer::new("microagent_chat", self.0.config().name.as_str());
             let start = std::time::Instant::now();
 
             let prompt = format!("{}\n\n{}\n", system, user);
@@ -582,7 +587,7 @@ mod local_llm_mdap {
                 stop_sequences: vec![],
             };
 
-            let result = self.generate(&prompt, &params).await;
+            let result = self.0.generate(&prompt, &params).await;
             let elapsed = start.elapsed();
 
             match result {
@@ -606,11 +611,9 @@ mod local_llm_mdap {
         }
 
         fn available_tools(&self) -> Vec<ToolSchema> {
-            if self.config().supports_tools {
-                vec![]
-            } else {
-                vec![]
-            }
+            // Tool schemas aren't surfaced for the local backend yet; return
+            // an empty list regardless of `supports_tools` until that's wired.
+            Vec::new()
         }
     }
 
@@ -618,13 +621,13 @@ mod local_llm_mdap {
     pub fn create_local_microagent(
         provider: Arc<LocalLlmProvider>,
         subtask: Subtask,
-    ) -> Microagent<LocalLlmProvider> {
+    ) -> Microagent<LocalLlmMicroagent> {
         let config = MicroagentConfigBuilder::new()
             .max_output_tokens(512)
             .temperature(0.1)
             .timeout_ms(10000)
             .build();
-        Microagent::new(provider, subtask, config)
+        Microagent::new(Arc::new(LocalLlmMicroagent(provider)), subtask, config)
     }
 
     /// Determine if a subtask is suitable for local execution
@@ -632,15 +635,11 @@ mod local_llm_mdap {
         if subtask.complexity_estimate >= 0.4 {
             return false;
         }
-        if let Some(ref format) = subtask.expected_output_format {
-            match format {
-                OutputFormat::JsonWithFields(_) | OutputFormat::Custom { .. } => {
-                    if subtask.complexity_estimate >= 0.3 {
-                        return false;
-                    }
-                }
-                _ => {}
-            }
+        if let Some(OutputFormat::JsonWithFields(_) | OutputFormat::Custom { .. }) =
+            subtask.expected_output_format.as_ref()
+            && subtask.complexity_estimate >= 0.3
+        {
+            return false;
         }
         if subtask.description.len() > 500 {
             return false;

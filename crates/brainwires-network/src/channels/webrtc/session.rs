@@ -910,11 +910,14 @@ mod tests {
             }
         });
 
-        tokio::time::timeout(std::time::Duration::from_secs(10), async {
-            tokio::join!(init_relay, resp_relay)
-        })
-        .await
-        .expect("sessions did not connect within 10 seconds");
+        let (init_res, resp_res) =
+            tokio::time::timeout(std::time::Duration::from_secs(10), async {
+                tokio::join!(init_relay, resp_relay)
+            })
+            .await
+            .expect("sessions did not connect within 10 seconds");
+        init_res.expect("initiator relay task panicked");
+        resp_res.expect("responder relay task panicked");
 
         assert_eq!(
             initiator.peer_connection_state().await,

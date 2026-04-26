@@ -43,18 +43,21 @@ pub use brainwires_tools::interpreters;
 
 /// WASM orchestrator module providing JavaScript-compatible bindings for the tool orchestrator.
 ///
-/// This module is only available when the `orchestrator` feature is enabled. It exposes
+/// This module is only available when the `orchestrator` feature is enabled and the target
+/// is `wasm32` — its closures capture `js_sys::Function` and `Rc<RefCell<…>>`, neither of
+/// which is `Send`/`Sync`, so it can't link against `rhai/sync` on native (and there is
+/// no JS function to call there anyway). It exposes
 /// [`WasmOrchestrator`](wasm_orchestrator::WasmOrchestrator) and
 /// [`ExecutionLimits`](wasm_orchestrator::ExecutionLimits) for running Rhai scripts
 /// that can call registered JavaScript tool functions.
-#[cfg(feature = "orchestrator")]
+#[cfg(all(feature = "orchestrator", target_arch = "wasm32"))]
 pub mod wasm_orchestrator;
 
 /// Convenience re-exports of the orchestrator types at crate root level.
 ///
 /// - [`WasmExecutionLimits`] — Alias for [`wasm_orchestrator::ExecutionLimits`]
 /// - [`WasmOrchestrator`] — The main orchestrator entry point
-#[cfg(feature = "orchestrator")]
+#[cfg(all(feature = "orchestrator", target_arch = "wasm32"))]
 pub use wasm_orchestrator::{ExecutionLimits as WasmExecutionLimits, WasmOrchestrator};
 
 // ── WASM Bindings ────────────────────────────────────────────────────────

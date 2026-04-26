@@ -629,8 +629,8 @@ mod tests {
         assert!(!input.is_empty());
         // Prompt portion should be masked
         let prompt_len = tok.encode("Hello").len();
-        for i in 0..prompt_len.min(target.len()) {
-            assert_eq!(target[i], u32::MAX, "Prompt token {} should be masked", i);
+        for (i, tok_id) in target.iter().take(prompt_len).enumerate() {
+            assert_eq!(*tok_id, u32::MAX, "Prompt token {i} should be masked");
         }
     }
 

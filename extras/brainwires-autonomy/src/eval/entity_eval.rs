@@ -61,7 +61,7 @@ impl EvaluationCase for EntityImportanceRankingCase {
     async fn run(&self, trial_id: usize) -> anyhow::Result<TrialResult> {
         let start = std::time::Instant::now();
 
-        let entities = vec![
+        let entities = [
             make_entity("hub", EntityType::Concept, 20, 10),
             make_entity("mid_a", EntityType::Concept, 5, 3),
             make_entity("mid_b", EntityType::Concept, 3, 2),
