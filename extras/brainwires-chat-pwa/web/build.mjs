@@ -5,19 +5,20 @@
 //   1. esbuild-bundle src/boot.js → app.js (esm, sourcemap, es2022).
 //      ./pkg/* is left external — wasm-pack output is loaded as a
 //      module at runtime, not bundled.
-//   2. Patch sw.source.js → sw.js by substituting the __SRI_HASHES__
+//   2. esbuild-bundle sw.source.js → sw.bundle.js (IIFE, es2022).
+//      IIFE because some mobile browsers still ship without
+//      type=module SW support; an IIFE works everywhere classic SWs do.
+//      sw.bundle.js is a build intermediate (gitignored).
+//   3. Patch sw.bundle.js → sw.js by substituting the __SRI_HASHES__
 //      placeholder with a JSON object mapping each cacheable static
-//      asset to its base64 sha256 (parolnet pattern).
-//   3. Emit build-info.js with BUILD_TIME + BUILD_GIT exports.
+//      asset to its base64 sha256. sw.js itself is excluded from the
+//      table — workers can't verify themselves.
+//   4. Emit build-info.js with BUILD_TIME + BUILD_GIT exports.
 //
 // Modes:
 //   node build.mjs            — one-shot build
 //   node build.mjs --watch    — esbuild ctx.watch() (no server)
 //   node build.mjs --serve    — esbuild ctx.serve() on 127.0.0.1:3000.
-//                                If you'd rather use `npx serve` against
-//                                this directory, drop --serve and run
-//                                `npx serve .` separately; build.mjs
-//                                doesn't care.
 
 import * as esbuild from 'esbuild';
 import { createHash } from 'node:crypto';
@@ -31,8 +32,8 @@ const argv = new Set(process.argv.slice(2));
 const isWatch = argv.has('--watch');
 const isServe = argv.has('--serve');
 
-// ── esbuild config ──────────────────────────────────────────────
-const esbuildConfig = {
+// ── esbuild config: app bundle ──────────────────────────────────
+const appConfig = {
     entryPoints: [join(__dirname, 'src/boot.js')],
     bundle: true,
     outfile: join(__dirname, 'app.js'),
@@ -48,10 +49,26 @@ const esbuildConfig = {
     logLevel: 'info',
 };
 
+// ── esbuild config: service-worker bundle ───────────────────────
+// IIFE so the file can be registered as a classic worker on every
+// browser that ships ServiceWorker — type=module SWs are broadly
+// supported but iOS lagged for a long while; IIFE is a safe floor.
+const swConfig = {
+    entryPoints: [join(__dirname, 'sw.source.js')],
+    bundle: true,
+    outfile: join(__dirname, 'sw.bundle.js'),
+    format: 'iife',
+    sourcemap: false,
+    target: ['es2022'],
+    absWorkingDir: __dirname,
+    platform: 'browser',
+    logLevel: 'info',
+};
+
 // ── SRI patching ────────────────────────────────────────────────
-// The list of assets that need integrity pinning. Files that don't exist
-// yet (e.g. before wasm-pack runs) are silently skipped; build.sh runs
-// wasm-pack before this script, so on a real build all of these resolve.
+// Files pinned with SRI hashes. sw.js is excluded — a service worker
+// cannot meaningfully verify its own bytes against a hash that lives
+// inside it.
 const STATIC_ASSETS = [
     'index.html',
     'manifest.json',
@@ -68,13 +85,13 @@ function sha256Base64(absPath) {
 }
 
 function patchServiceWorker() {
-    const sourcePath = join(__dirname, 'sw.source.js');
+    const bundlePath = join(__dirname, 'sw.bundle.js');
     const outPath = join(__dirname, 'sw.js');
-    if (!existsSync(sourcePath)) {
-        console.warn('  sw.source.js missing, skipping sw.js generation');
+    if (!existsSync(bundlePath)) {
+        console.warn('  sw.bundle.js missing, skipping sw.js generation');
         return;
     }
-    const source = readFileSync(sourcePath, 'utf8');
+    const source = readFileSync(bundlePath, 'utf8');
 
     const hashes = {};
     const skipped = [];
@@ -86,7 +103,7 @@ function patchServiceWorker() {
 
     const marker = '__SRI_HASHES__';
     if (!source.includes(marker)) {
-        throw new Error(`sw.source.js missing ${marker} placeholder`);
+        throw new Error(`sw.bundle.js missing ${marker} placeholder (esbuild may have stripped it)`);
     }
     const out = source.replace(marker, JSON.stringify(hashes, null, 4));
     writeFileSync(outPath, out);
@@ -106,22 +123,25 @@ function generateBuildInfo() {
     console.log(`  build-info: ${ts} (${sha})`);
 }
 
-// ── Run ─────────────────────────────────────────────────────────
-async function oneShot() {
+async function buildAll() {
     const t0 = performance.now();
-    await esbuild.build(esbuildConfig);
+    await esbuild.build(appConfig);
+    await esbuild.build(swConfig);
     console.log(`  bundled in ${Math.round(performance.now() - t0)}ms`);
     patchServiceWorker();
     generateBuildInfo();
 }
 
+// ── Run ─────────────────────────────────────────────────────────
 if (isServe) {
-    const ctx = await esbuild.context(esbuildConfig);
-    // Build once so app.js / sw.js / build-info.js exist before serving.
+    const ctx = await esbuild.context(appConfig);
+    const swCtx = await esbuild.context(swConfig);
     await ctx.rebuild();
+    await swCtx.rebuild();
     patchServiceWorker();
     generateBuildInfo();
     await ctx.watch();
+    await swCtx.watch();
     const server = await ctx.serve({
         host: '127.0.0.1',
         port: 3000,
@@ -129,12 +149,15 @@ if (isServe) {
     });
     console.log(`Serving http://${server.host}:${server.port}/`);
 } else if (isWatch) {
-    const ctx = await esbuild.context(esbuildConfig);
+    const ctx = await esbuild.context(appConfig);
+    const swCtx = await esbuild.context(swConfig);
     await ctx.rebuild();
+    await swCtx.rebuild();
     patchServiceWorker();
     generateBuildInfo();
     await ctx.watch();
+    await swCtx.watch();
     console.log('Watching for changes...');
 } else {
-    await oneShot();
+    await buildAll();
 }

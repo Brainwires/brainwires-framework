@@ -3,4 +3,5 @@ pkg/
 app.js
 app.js.map
 sw.js
+sw.bundle.js
 build-info.js
