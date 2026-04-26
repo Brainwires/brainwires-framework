@@ -29,33 +29,43 @@ and patches `sw.js` with SRI hashes. Output lands under `web/`:
 
 ## Run
 
-One launcher handles both modes and always shuts down any existing
-instance first, so switching is seamless:
+One launcher with daemon-mode subcommands. Every start always shuts
+down any existing instance first, so switching between prod and dev
+is seamless and idempotent.
 
 ```sh
-./web/start.sh         # production (default)
-./web/start.sh prod    # same as above
-./web/start.sh dev     # live-edit
+./web/start.sh                # prod (default) — containers detached
+./web/start.sh prod
+./web/start.sh dev            # live-edit — all loops detached
+./web/start.sh status         # show running state + container ps
+./web/start.sh logs           # tail combined logs
+./web/start.sh logs esbuild   # tail one channel — esbuild | cargo | compose | container
+./web/start.sh stop           # tear everything down
+./web/start.sh --help
 ```
+
+State (PIDs + log files) lives in `web/.run/` (gitignored). Every
+start command returns control to the shell as soon as the loops are
+launched — no foreground compose process to Ctrl-C.
 
 ### Production
 
-`./web/start.sh prod` runs `docker compose up --build` in the
-foreground. The image bakes the bundled output (`app.js`, `sw.js`,
-`pkg/`, `index.html`, `manifest.json`, …) and nginx serves them with
-the WASM-aware CSP, Cross-Origin Isolation headers, long-cache for
-`*.wasm`, and a no-cache rule on `/sw.js`. Set `HOST_PORT` in `.env`
-to override the default `8080`.
+`./web/start.sh prod` runs `docker compose up -d --build`. The image
+bakes the bundled output (`app.js`, `sw.js`, `pkg/`, `index.html`,
+`manifest.json`, …) and nginx serves them with the WASM-aware CSP,
+Cross-Origin Isolation headers, long-cache for `*.wasm`, and a
+no-cache rule on `/sw.js`. Set `HOST_PORT` in `.env` to override the
+default `8080`.
 
 ### Dev (live editing)
 
-`./web/start.sh dev` orchestrates three loops:
+`./web/start.sh dev` backgrounds three loops:
 
 1. **esbuild** `--watch` — `web/src/*.js` → `web/app.js` + `web/sw.js`.
 2. **cargo-watch + wasm-pack** — `wasm/` → `web/pkg/`.
-3. **`docker compose watch`** (Compose 2.22+) — the `develop.watch`
-   block in `docker-compose.yml` syncs `web/` into the nginx docroot
-   and triggers an image rebuild only when `Dockerfile`,
+3. **`docker compose up -d --watch`** (Compose 2.22+) — the
+   `develop.watch` block in `docker-compose.yml` syncs `web/` into the
+   nginx docroot and triggers an image rebuild only when `Dockerfile`,
    `entrypoint.sh`, `nginx.conf`, `wasm/Cargo.toml`, or
    `.dockerignore` change.
 
@@ -65,20 +75,34 @@ unregisters any existing service worker and clears
 reload without an image rebuild. `bw-models-v1` (downloaded local
 models) is preserved.
 
-Ctrl-C cleans up all three loops and brings the container down.
-
-Prefer to manage the host watchers yourself? Skip `start.sh` and run:
+Tail logs to follow what's syncing:
 
 ```sh
-DEV_MODE=true docker compose watch
+./web/start.sh logs           # all four channels combined
+./web/start.sh logs compose   # just compose-watch sync events
+./web/start.sh logs container # just nginx
 ```
 
-…then run `npm run watch` and a `wasm-pack` loop in separate shells.
+Stop with `./web/start.sh stop` — kills the host watchers and
+`docker compose down`s.
+
+### Manual mode (no `start.sh`)
+
+Prefer to drive it yourself? `develop.watch` is declared in
+`docker-compose.yml`, so:
+
+```sh
+DEV_MODE=true docker compose up -d --watch
+```
+
+Run `npm run watch` and a `wasm-pack` (or `cargo watch`) loop in
+separate shells to regenerate the bundled outputs. `docker compose
+down` to stop.
 
 ### Esbuild-only dev (no Docker)
 
-If you don't need the nginx headers / Docker pipeline, just bundle and
-serve from esbuild:
+If you don't need the nginx headers / Docker pipeline, just bundle
+and serve from esbuild:
 
 ```sh
 cd web
