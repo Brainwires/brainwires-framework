@@ -27,42 +27,66 @@ and patches `sw.js` with SRI hashes. Output lands under `web/`:
 - `web/sw.js` — service worker with SRI table substituted
 - `web/build-info.js` — build timestamp + git SHA
 
-## Dev
+## Run
+
+One launcher handles both modes and always shuts down any existing
+instance first, so switching is seamless:
 
 ```sh
-cd web
-npm install
-npm run serve
+./web/start.sh         # production (default)
+./web/start.sh prod    # same as above
+./web/start.sh dev     # live-edit
 ```
 
-Serves the bundle on http://127.0.0.1:3000 with esbuild's built-in dev
-server. Use `npm run watch` if you only want incremental rebuilds without
-the server.
+### Production
 
-### Live editing against the Docker image
+`./web/start.sh prod` runs `docker compose up --build` in the
+foreground. The image bakes the bundled output (`app.js`, `sw.js`,
+`pkg/`, `index.html`, `manifest.json`, …) and nginx serves them with
+the WASM-aware CSP, Cross-Origin Isolation headers, long-cache for
+`*.wasm`, and a no-cache rule on `/sw.js`. Set `HOST_PORT` in `.env`
+to override the default `8080`.
 
-```sh
-./web/dev.sh
-```
+### Dev (live editing)
 
-Orchestrates three loops: esbuild `--watch` (JS/SW), cargo-watch +
-wasm-pack (Rust → wasm), and `docker compose watch` (Compose 2.22+
-file-sync) — the `develop.watch` block in `docker-compose.yml`
-declaratively syncs `web/` into the nginx docroot and triggers an
-image rebuild only when `Dockerfile`, `entrypoint.sh`, `nginx.conf`,
-`wasm/Cargo.toml`, or `.dockerignore` change. With `DEV_MODE=true`
-(which `dev.sh` exports), `boot.js` unregisters any existing service
-worker and clears `bw-chat-cache-v1`, so HTML/CSS/JS edits hit the
-browser on next reload without an image rebuild. `bw-models-v1` is
-preserved.
+`./web/start.sh dev` orchestrates three loops:
 
-Prefer to manage the host watchers yourself? Skip `dev.sh` and run:
+1. **esbuild** `--watch` — `web/src/*.js` → `web/app.js` + `web/sw.js`.
+2. **cargo-watch + wasm-pack** — `wasm/` → `web/pkg/`.
+3. **`docker compose watch`** (Compose 2.22+) — the `develop.watch`
+   block in `docker-compose.yml` syncs `web/` into the nginx docroot
+   and triggers an image rebuild only when `Dockerfile`,
+   `entrypoint.sh`, `nginx.conf`, `wasm/Cargo.toml`, or
+   `.dockerignore` change.
+
+With `DEV_MODE=true` (which `start.sh dev` exports), `boot.js`
+unregisters any existing service worker and clears
+`bw-chat-cache-v1`, so HTML/CSS/JS edits hit the browser on next
+reload without an image rebuild. `bw-models-v1` (downloaded local
+models) is preserved.
+
+Ctrl-C cleans up all three loops and brings the container down.
+
+Prefer to manage the host watchers yourself? Skip `start.sh` and run:
 
 ```sh
 DEV_MODE=true docker compose watch
 ```
 
 …then run `npm run watch` and a `wasm-pack` loop in separate shells.
+
+### Esbuild-only dev (no Docker)
+
+If you don't need the nginx headers / Docker pipeline, just bundle and
+serve from esbuild:
+
+```sh
+cd web
+npm install
+npm run serve     # http://127.0.0.1:3000
+```
+
+Use `npm run watch` for incremental rebuilds without the server.
 
 ## Layout
 
