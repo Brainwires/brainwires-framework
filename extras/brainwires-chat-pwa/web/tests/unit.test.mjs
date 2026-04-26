@@ -393,6 +393,96 @@ describe('model-store', () => {
     test.skip('downloadModel writes to Cache Storage and emits progress', () => {});
 });
 
+// ── utils (formatters + pure DOM helpers) ─────────────────────
+
+const utils = await import('../src/utils.js');
+
+describe('utils.formatBytes', () => {
+    test('handles 0, sub-KB, KB, MB, GB', () => {
+        assert.equal(utils.formatBytes(0), '0 B');
+        assert.equal(utils.formatBytes(512), '512 B');
+        assert.equal(utils.formatBytes(1024), '1.00 KB');
+        assert.equal(utils.formatBytes(1536), '1.50 KB');
+        assert.equal(utils.formatBytes(5_242_880), '5.00 MB');
+        assert.equal(utils.formatBytes(2_500_000_000), '2.33 GB');
+    });
+
+    test('rejects non-number / negative', () => {
+        assert.equal(utils.formatBytes(NaN), '0 B');
+        assert.equal(utils.formatBytes(-1), '0 B');
+        assert.equal(utils.formatBytes('hello'), '0 B');
+    });
+});
+
+describe('utils.formatEta', () => {
+    test('seconds, minutes, hours', () => {
+        assert.equal(utils.formatEta(0), '0s');
+        assert.equal(utils.formatEta(45), '45s');
+        assert.equal(utils.formatEta(75), '1m 15s');
+        assert.equal(utils.formatEta(3725), '1h 2m 5s');
+    });
+
+    test('null/Infinity/negative → em-dash', () => {
+        assert.equal(utils.formatEta(null), '—');
+        assert.equal(utils.formatEta(undefined), '—');
+        assert.equal(utils.formatEta(Infinity), '—');
+        assert.equal(utils.formatEta(-1), '—');
+    });
+});
+
+describe('utils.escapeHtml', () => {
+    test('escapes the five usual suspects', () => {
+        assert.equal(utils.escapeHtml('<a href="x">&y</a>'), '&lt;a href=&quot;x&quot;&gt;&amp;y&lt;/a&gt;');
+        assert.equal(utils.escapeHtml("o'reilly"), 'o&#39;reilly');
+    });
+});
+
+describe('utils.debounce / throttle', () => {
+    test('debounce only fires once after quiet period', async () => {
+        let calls = 0;
+        const fn = utils.debounce(() => { calls += 1; }, 30);
+        fn(); fn(); fn();
+        await new Promise((r) => setTimeout(r, 80));
+        assert.equal(calls, 1);
+    });
+
+    test('throttle fires at most once per window', async () => {
+        let calls = 0;
+        const fn = utils.throttle(() => { calls += 1; }, 30);
+        fn(); fn(); fn();
+        // The first call is immediate; further calls coalesce into one trailing call.
+        await new Promise((r) => setTimeout(r, 80));
+        assert.ok(calls >= 1 && calls <= 2, `expected 1..2 calls, got ${calls}`);
+    });
+});
+
+// ── i18n ─────────────────────────────────────────────────────
+
+describe('i18n', () => {
+    test('falls back to the key when missing', async () => {
+        const i18n = await import('../src/i18n.js');
+        i18n._setDictForTests({ 'app.title': 'Brainwires Chat' });
+        assert.equal(i18n.t('app.title'), 'Brainwires Chat');
+        assert.equal(i18n.t('not.in.dict'), 'not.in.dict');
+    });
+
+    test('substitutes {var} placeholders', async () => {
+        const i18n = await import('../src/i18n.js');
+        i18n._setDictForTests({ 'hello': 'Hello, {name}!' });
+        assert.equal(i18n.t('hello', { name: 'world' }), 'Hello, world!');
+        // Missing variable → leaves the placeholder visible.
+        assert.equal(i18n.t('hello', {}), 'Hello, {name}!');
+    });
+});
+
+// ── views (no-DOM smoke) ──────────────────────────────────────
+//
+// Skipped: the router needs a real `document` to mount sections under.
+// Without a JSDOM/linkedom dependency we'd have to fake too much of
+// the DOM API to get a useful signal here. See the Tests section in
+// the task notes.
+test.skip('views.mount toggles classes correctly', () => {});
+
 // ── helpers ────────────────────────────────────────────────────
 
 function mkResponse(body) {

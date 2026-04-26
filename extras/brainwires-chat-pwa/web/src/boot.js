@@ -1,13 +1,16 @@
 // brainwires-chat-pwa — entry point
 //
-// On boot we:
-//   1. register the service worker (sw.js, scope = pwa root)
-//   2. open IndexedDB so the schema is created on first run
-//   3. lazy-init the wasm module + write a status line into #app
-//   4. wire SW → page chat IPC into the appEvents bus (tasks #6/#7
-//      will subscribe and render UI; for now we just console-log)
-//   5. mirror local-provider chat events (state.events) onto the same
-//      hyphenated channel UI subscribes to, so the UI is provider-agnostic
+// Boot order:
+//   1. open IndexedDB + register the SW (parallel)
+//   2. wire SW → page chat IPC into the appEvents bus
+//   3. wire local-provider events to the same hyphenated channel
+//   4. mount the persistent download banner above the view region
+//   5. initialize i18n
+//   6. set up the view router and register chat / settings / unlock
+//   7. route to 'unlock' if a passphrase is configured but the
+//      session key isn't loaded; otherwise route to 'chat'
+//   8. lazy-init the wasm module in the background — TTS/STT/local
+//      providers wait on `getWasm()` themselves; first paint must not.
 
 import { openDb } from './db.js';
 import {
@@ -15,8 +18,18 @@ import {
     setSwRegistration,
     appEvents,
     events as stateEvents,
+    isSessionUnlocked,
 } from './state.js';
 import { isDownloaded } from './model-store.js';
+import { getSetting } from './db.js';
+import * as views from './views.js';
+import { mountBanner } from './ui-download-banner.js';
+import { loadLocale } from './i18n.js';
+import * as uiChat from './ui-chat.js';
+import * as uiSettings from './ui-settings.js';
+import * as uiUnlock from './ui-unlock.js';
+
+const PASSPHRASE_SETTING = 'passphraseConfig';
 
 async function registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return null;
@@ -38,13 +51,16 @@ function wireServiceWorkerMessages() {
         if (!msg || typeof msg !== 'object') return;
         switch (msg.type) {
             case 'chat_chunk':
+                stateEvents.dispatchEvent(new CustomEvent('chat_chunk', { detail: msg }));
                 appEvents.dispatchEvent(new CustomEvent('chat-chunk', { detail: msg }));
                 break;
             case 'chat_done':
+                stateEvents.dispatchEvent(new CustomEvent('chat_done', { detail: msg }));
                 appEvents.dispatchEvent(new CustomEvent('chat-done', { detail: msg }));
                 break;
             case 'chat_error':
             case 'chat_aborted':
+                stateEvents.dispatchEvent(new CustomEvent('chat_error', { detail: msg }));
                 appEvents.dispatchEvent(new CustomEvent('chat-error', { detail: msg }));
                 break;
             // open_chat / chat_status / sri_table — not handled until UI lands.
@@ -52,11 +68,9 @@ function wireServiceWorkerMessages() {
     });
 }
 
-// Mirror local-provider events into the same hyphenated channel the SW
-// path uses. Local providers dispatch `chat_chunk` / `chat_done` /
-// `chat_error` (with underscores) on `state.events`. UI code can pick
-// either form, but consolidating into 'chat-chunk' / 'chat-done' /
-// 'chat-error' on appEvents matches the SW path so UI doesn't branch.
+// Mirror local-provider events from `state.events` (which providers/local.js
+// dispatches under 'chat_chunk' etc) into `appEvents` 'chat-chunk' etc so
+// any code that prefers the hyphenated channel still works.
 function wireLocalProviderEvents() {
     const fwd = (underscore, hyphen) => {
         stateEvents.addEventListener(underscore, (e) => {
@@ -68,10 +82,28 @@ function wireLocalProviderEvents() {
     fwd('chat_error', 'chat-error');
 }
 
+async function shouldStartLocked() {
+    try {
+        const cfg = await getSetting(PASSPHRASE_SETTING);
+        if (cfg && cfg.salt && cfg.verify && !isSessionUnlocked()) return true;
+    } catch (_) { /* no idb yet */ }
+    return false;
+}
+
 async function boot() {
     const app = document.getElementById('app');
+    const bannerSlot = document.getElementById('download-banner-slot');
 
-    // Fire DB open and SW registration in parallel; neither needs the other.
+    // Mount the persistent banner first — it has no async dependencies and
+    // works correctly with an empty state. This way it's visible during the
+    // brief window before the chat view paints.
+    if (bannerSlot) mountBanner(bannerSlot);
+
+    // i18n is fast (single fetch from same-origin); awaiting it before
+    // mounting the views means the first render uses translated strings.
+    await loadLocale('en').catch(() => {});
+
+    // DB + SW in parallel.
     const [dbResult, swResult] = await Promise.allSettled([
         openDb(),
         registerServiceWorker(),
@@ -86,19 +118,30 @@ async function boot() {
     wireServiceWorkerMessages();
     wireLocalProviderEvents();
 
-    try {
-        const wasm = await getWasm();
-        const v = typeof wasm.version === 'function' ? wasm.version() : 'unknown';
-        if (app) app.textContent = `Brainwires Chat v${v}`;
-    } catch (err) {
-        console.error('boot failed:', err);
-        if (app) app.textContent = `Boot failed: ${err && err.message ? err.message : err}`;
+    // Set up view router. Each view's render() runs on first activation.
+    if (app) {
+        views.init(app);
+        views.register('chat', uiChat);
+        views.register('settings', uiSettings);
+        views.register('unlock', uiUnlock);
     }
 
-    // Probe whether the default local model is already cached. We do
-    // NOT auto-load it (a 2.5 GB ArrayBuffer read on every page load
-    // would defeat the PWA's snappy-cold-start design); the UI's
-    // Settings page is responsible for explicit load/unload.
+    // Decide initial view.
+    if (await shouldStartLocked()) {
+        views.mount('unlock');
+    } else {
+        views.mount('chat');
+    }
+
+    // Lazy-init the wasm module in the background. The chat composer
+    // uses `voice.getTts()` / `voice.getStt()` which both await
+    // `getWasm()` themselves; this just warms the cache so the first
+    // user interaction doesn't pay the load cost.
+    getWasm().catch((err) => {
+        console.warn('wasm warmup failed:', err && err.message ? err.message : err);
+    });
+
+    // Probe whether the default local model is already cached.
     try {
         const cached = await isDownloaded('gemma-4-e2b');
         appEvents.dispatchEvent(new CustomEvent('local-model-cached-status', {
@@ -107,4 +150,8 @@ async function boot() {
     } catch (_) { /* Cache Storage may be unavailable in tests/SSR */ }
 }
 
-boot();
+boot().catch((err) => {
+    console.error('boot failed:', err);
+    const app = document.getElementById('app');
+    if (app) app.textContent = `Boot failed: ${err && err.message ? err.message : err}`;
+});
