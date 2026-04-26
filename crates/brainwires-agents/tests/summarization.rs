@@ -1,7 +1,7 @@
 //! End-to-end test for ChatAgent history compaction via LLM summarizer.
 
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -9,11 +9,11 @@ use futures::stream::BoxStream;
 
 use brainwires_agents::ChatAgent;
 use brainwires_agents::summarization::LlmSummarizer;
+use brainwires_core::ToolContext;
 use brainwires_core::{
     ChatOptions, ChatResponse, Message, Provider, Role, StreamChunk, Tool, Usage,
 };
-use brainwires_tools::{ToolExecutor, ToolRegistry, BuiltinToolExecutor};
-use brainwires_core::ToolContext;
+use brainwires_tools::{BuiltinToolExecutor, ToolExecutor, ToolRegistry};
 
 /// Minimal provider — never called by compact_history() itself.
 struct NoopProvider;
@@ -153,9 +153,21 @@ async fn compact_history_replaces_middle_with_summary() {
         .skip(2)
         .map(|m| m.text().unwrap_or(""))
         .collect();
-    assert!(tail_texts.iter().any(|t| t.contains("msg 9") || t.contains("reply 9")));
-    assert!(tail_texts.iter().any(|t| t.contains("msg 10") || t.contains("reply 10")));
-    assert!(tail_texts.iter().any(|t| t.contains("msg 11") || t.contains("reply 11")));
+    assert!(
+        tail_texts
+            .iter()
+            .any(|t| t.contains("msg 9") || t.contains("reply 9"))
+    );
+    assert!(
+        tail_texts
+            .iter()
+            .any(|t| t.contains("msg 10") || t.contains("reply 10"))
+    );
+    assert!(
+        tail_texts
+            .iter()
+            .any(|t| t.contains("msg 11") || t.contains("reply 11"))
+    );
 
     // Summarizer provider was called exactly once.
     assert_eq!(recorder.calls(), 1);

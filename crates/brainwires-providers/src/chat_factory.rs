@@ -212,8 +212,7 @@ impl ChatProviderFactory {
             api_key,
             config.model.clone(),
         ));
-        let provider =
-            super::gemini::chat::GoogleChatProvider::new(client, config.model.clone());
+        let provider = super::gemini::chat::GoogleChatProvider::new(client, config.model.clone());
         #[cfg(feature = "telemetry")]
         let provider = match config.analytics_collector.as_ref() {
             Some(c) => provider.with_analytics(Arc::clone(c)),

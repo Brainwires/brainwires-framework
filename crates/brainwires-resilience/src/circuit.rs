@@ -166,7 +166,11 @@ impl<P: Provider + ?Sized + 'static> Provider for CircuitBreakerProvider<P> {
 
         if let Err(e) = self.transition_in(&key).await {
             if let Some(fallback) = &self.fallback {
-                tracing::warn!(provider = self.inner.name(), model = model_label, "circuit open; routing to fallback");
+                tracing::warn!(
+                    provider = self.inner.name(),
+                    model = model_label,
+                    "circuit open; routing to fallback"
+                );
                 return fallback.chat(messages, tools, options).await;
             }
             return Err(e.into());

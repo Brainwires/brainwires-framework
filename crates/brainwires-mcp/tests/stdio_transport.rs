@@ -31,10 +31,7 @@ async fn send_request_and_receive_response_round_trip() {
     let req = JsonRpcRequest::new::<Value>(json!(1), "ping".into(), None)
         .expect("serialize ping request");
 
-    transport
-        .send_request(&req)
-        .await
-        .expect("send request");
+    transport.send_request(&req).await.expect("send request");
 
     let resp = transport
         .receive_response()

@@ -80,7 +80,8 @@ async fn list_enumerates_all_sessions() {
     }
     let listed = store.list().await.unwrap();
     assert_eq!(listed.len(), 3);
-    let ids: std::collections::HashSet<_> = listed.iter().map(|r| r.id.as_str().to_string()).collect();
+    let ids: std::collections::HashSet<_> =
+        listed.iter().map(|r| r.id.as_str().to_string()).collect();
     assert_eq!(
         ids,
         ["alpha", "beta", "gamma"]
@@ -163,7 +164,11 @@ async fn reopen_recovers_persisted_state() {
     }
 
     let store = SqliteSessionStore::open(&path).unwrap();
-    let loaded = store.load(&id).await.unwrap().expect("session must persist across reopen");
+    let loaded = store
+        .load(&id)
+        .await
+        .unwrap()
+        .expect("session must persist across reopen");
     assert_eq!(loaded.len(), 1);
     assert_eq!(loaded[0].text(), Some("survives restart"));
 }

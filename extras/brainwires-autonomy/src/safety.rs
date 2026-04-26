@@ -646,8 +646,7 @@ mod tests {
         // Build a guard whose approval policy is "always reject" — the analogue
         // of "require explicit approval". Any op should be blocked.
         let config = SelfImprovementConfig::default();
-        let guard = SafetyGuard::new(&config)
-            .with_approval_policy(Arc::new(AlwaysReject));
+        let guard = SafetyGuard::new(&config).with_approval_policy(Arc::new(AlwaysReject));
         let result = guard.check_approval(&commit_op()).await;
         assert!(
             result.is_err(),
@@ -687,11 +686,9 @@ mod tests {
     async fn approval_denied_for_non_preapproved_op() {
         let config = SelfImprovementConfig::default();
         let pre_approved = commit_op();
-        let guard = SafetyGuard::new(&config).with_approval_policy(Arc::new(
-            PreApprovedOnly {
-                approved_label: pre_approved.to_string(),
-            },
-        ));
+        let guard = SafetyGuard::new(&config).with_approval_policy(Arc::new(PreApprovedOnly {
+            approved_label: pre_approved.to_string(),
+        }));
 
         // Pre-approved op passes.
         assert!(

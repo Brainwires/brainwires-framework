@@ -281,7 +281,10 @@ async fn validation_catches_post_validation_clobber() {
         "message should explain the clobber clearly, got: {}",
         issue.message
     );
-    assert_eq!(issue.file.as_deref(), Some(target.display().to_string()).as_deref());
+    assert_eq!(
+        issue.file.as_deref(),
+        Some(target.display().to_string()).as_deref()
+    );
 }
 
 /// If a concurrently running process deletes the file between our write
@@ -313,10 +316,7 @@ async fn validation_catches_deleted_written_file() {
 
     let result = run_validation(&config).await.unwrap();
     assert!(!result.passed);
-    let has_persisted_issue = result
-        .issues
-        .iter()
-        .any(|i| i.check == "content_persisted");
+    let has_persisted_issue = result.issues.iter().any(|i| i.check == "content_persisted");
     assert!(
         has_persisted_issue,
         "expected content_persisted error when written file disappeared; got {:?}",

@@ -112,10 +112,7 @@ mod tests {
     async fn save_overwrites_atomically() {
         let store = InMemorySessionStore::new();
         let id = SessionId::new("bob");
-        store
-            .save(&id, &[Message::user("one")])
-            .await
-            .unwrap();
+        store.save(&id, &[Message::user("one")]).await.unwrap();
         store
             .save(&id, &[Message::user("two"), Message::user("three")])
             .await

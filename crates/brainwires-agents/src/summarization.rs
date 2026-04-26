@@ -79,9 +79,7 @@ impl LlmSummarizer {
     pub fn new(provider: Arc<dyn Provider>) -> Self {
         Self {
             provider,
-            options: ChatOptions::default()
-                .temperature(0.0)
-                .max_tokens(1024),
+            options: ChatOptions::default().temperature(0.0).max_tokens(1024),
             system_prompt: Self::DEFAULT_SYSTEM_PROMPT.to_string(),
         }
     }

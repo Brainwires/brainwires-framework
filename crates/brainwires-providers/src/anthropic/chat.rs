@@ -271,9 +271,7 @@ impl Provider for AnthropicChatProvider {
                 cost_usd: 0.0,
                 success: true,
                 timestamp: chrono::Utc::now(),
-                cache_creation_input_tokens: chat_response
-                    .usage
-                    .cache_creation_input_tokens,
+                cache_creation_input_tokens: chat_response.usage.cache_creation_input_tokens,
                 cache_read_input_tokens: chat_response.usage.cache_read_input_tokens,
                 compliance: None,
             });
@@ -637,7 +635,9 @@ mod tests {
     #[test]
     fn test_cache_prompt_enabled_maps_strategy() {
         use brainwires_core::CacheStrategy;
-        assert!(!AnthropicChatProvider::cache_prompt_enabled(CacheStrategy::Off));
+        assert!(!AnthropicChatProvider::cache_prompt_enabled(
+            CacheStrategy::Off
+        ));
         assert!(!AnthropicChatProvider::cache_prompt_enabled(
             CacheStrategy::SystemOnly
         ));
@@ -654,9 +654,7 @@ mod tests {
     #[test]
     fn test_parse_response_propagates_cache_tokens() {
         let response = crate::anthropic::AnthropicResponse {
-            content: vec![AnthropicContentBlock::Text {
-                text: "ok".into(),
-            }],
+            content: vec![AnthropicContentBlock::Text { text: "ok".into() }],
             stop_reason: "end_turn".into(),
             usage: crate::anthropic::AnthropicUsage {
                 input_tokens: 100,

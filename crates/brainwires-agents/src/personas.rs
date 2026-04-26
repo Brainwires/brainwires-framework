@@ -217,12 +217,8 @@ mod tests {
     #[test]
     fn blocks_to_system_text_joins_and_escapes() {
         let blocks = vec![
-            ContentBlock::Text {
-                text: "one".into(),
-            },
-            ContentBlock::Text {
-                text: "two".into(),
-            },
+            ContentBlock::Text { text: "one".into() },
+            ContentBlock::Text { text: "two".into() },
         ];
         assert_eq!(blocks_to_system_text(&blocks), "one\n\ntwo");
     }

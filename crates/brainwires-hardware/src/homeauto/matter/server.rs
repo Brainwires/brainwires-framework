@@ -1493,10 +1493,7 @@ mod tests {
 
         // Seed the outgoing-counter map at 1 so the first push is counter=1.
         let counters: Arc<Mutex<HashMap<u16, AtomicU32>>> = Arc::new(Mutex::new(HashMap::new()));
-        counters
-            .lock()
-            .await
-            .insert(session_id, AtomicU32::new(1));
+        counters.lock().await.insert(session_id, AtomicU32::new(1));
 
         // Push three changes: OnOff attribute toggled true → false → true.
         for (i, on) in [true, false, true].into_iter().enumerate() {

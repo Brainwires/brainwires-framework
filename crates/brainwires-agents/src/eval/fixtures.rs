@@ -168,11 +168,7 @@ impl EvaluationCase for FixtureCase {
         };
         match evaluate(&self.fixture.expected, &outcome) {
             Ok(()) => Ok(TrialResult::success(trial_id, outcome.duration_ms)),
-            Err(reason) => Ok(TrialResult::failure(
-                trial_id,
-                outcome.duration_ms,
-                reason,
-            )),
+            Err(reason) => Ok(TrialResult::failure(trial_id, outcome.duration_ms, reason)),
         }
     }
 }
@@ -195,8 +191,8 @@ pub fn evaluate(expected: &ExpectedBehavior, outcome: &RunOutcome) -> Result<(),
             ));
         }
         if let Some(pat) = &a.regex {
-            let re = Regex::new(pat)
-                .map_err(|e| format!("invalid regex in fixture: {pat:?} ({e})"))?;
+            let re =
+                Regex::new(pat).map_err(|e| format!("invalid regex in fixture: {pat:?} ({e})"))?;
             if !re.is_match(&outcome.output_text) {
                 return Err(format!("output_text did not match regex: {pat:?}"));
             }
@@ -226,8 +222,8 @@ pub fn load_fixture_file(path: impl AsRef<Path>) -> Result<Fixture> {
     let path = path.as_ref();
     let raw = std::fs::read_to_string(path)
         .with_context(|| format!("reading fixture {}", path.display()))?;
-    let fixture: Fixture = serde_yml::from_str(&raw)
-        .with_context(|| format!("parsing fixture {}", path.display()))?;
+    let fixture: Fixture =
+        serde_yml::from_str(&raw).with_context(|| format!("parsing fixture {}", path.display()))?;
     Ok(fixture)
 }
 
@@ -237,8 +233,8 @@ pub fn load_fixtures_from_dir(dir: impl AsRef<Path>) -> Result<Vec<Fixture>> {
     let dir = dir.as_ref();
     let mut out = Vec::new();
     let mut paths: Vec<PathBuf> = Vec::new();
-    let entries = std::fs::read_dir(dir)
-        .with_context(|| format!("reading fixture dir {}", dir.display()))?;
+    let entries =
+        std::fs::read_dir(dir).with_context(|| format!("reading fixture dir {}", dir.display()))?;
     for entry in entries {
         let entry = entry?;
         let path = entry.path();
@@ -419,6 +415,11 @@ expected:
         let case = FixtureCase::new(fixture_bad, runner);
         let r = case.run(0).await.unwrap();
         assert!(!r.success);
-        assert!(r.error.as_deref().unwrap().contains("missing expected substring"));
+        assert!(
+            r.error
+                .as_deref()
+                .unwrap()
+                .contains("missing expected substring")
+        );
     }
 }

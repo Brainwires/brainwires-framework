@@ -156,10 +156,7 @@ mod tests {
     async fn roundtrip() {
         let (store, _tmp) = tmp_store();
         let id = SessionId::new("u1");
-        store
-            .save(&id, &[Message::user("hi")])
-            .await
-            .unwrap();
+        store.save(&id, &[Message::user("hi")]).await.unwrap();
         let loaded = store.load(&id).await.unwrap().unwrap();
         assert_eq!(loaded.len(), 1);
         assert_eq!(loaded[0].text(), Some("hi"));
@@ -177,7 +174,11 @@ mod tests {
                 .unwrap();
         }
         let store = SqliteSessionStore::open(&path).unwrap();
-        let loaded = store.load(&SessionId::new("persist")).await.unwrap().unwrap();
+        let loaded = store
+            .load(&SessionId::new("persist"))
+            .await
+            .unwrap()
+            .unwrap();
         assert_eq!(loaded.len(), 1);
     }
 

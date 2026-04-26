@@ -96,11 +96,7 @@ impl StorageError {
     }
 
     /// Shorthand for the `Conflict` variant.
-    pub fn conflict(
-        kind: &'static str,
-        id: impl Into<String>,
-        reason: impl Into<String>,
-    ) -> Self {
+    pub fn conflict(kind: &'static str, id: impl Into<String>, reason: impl Into<String>) -> Self {
         Self::Conflict {
             kind,
             id: id.into(),

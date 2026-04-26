@@ -98,10 +98,9 @@ impl ToolExecutor for SkillToolExecutor {
             .unwrap_or_default();
 
         match self.skill_executor.execute_by_name(&skill_name, args).await {
-            Ok(SkillResult::Inline { instructions, .. }) => Ok(ToolResult::success(
-                tool_use.id.clone(),
-                instructions,
-            )),
+            Ok(SkillResult::Inline { instructions, .. }) => {
+                Ok(ToolResult::success(tool_use.id.clone(), instructions))
+            }
             Ok(SkillResult::Subagent { agent_id }) => Ok(ToolResult::success(
                 tool_use.id.clone(),
                 format!(

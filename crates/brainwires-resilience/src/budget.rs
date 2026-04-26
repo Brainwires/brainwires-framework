@@ -236,10 +236,7 @@ impl<P: Provider + ?Sized + 'static> Provider for BudgetProvider<P> {
             }
         }
 
-        self.guard
-            .state
-            .rounds
-            .fetch_add(1, Ordering::Relaxed);
+        self.guard.state.rounds.fetch_add(1, Ordering::Relaxed);
 
         let resp = self.inner.chat(messages, tools, options).await?;
         self.guard.record_usage(&resp.usage);
@@ -270,7 +267,8 @@ impl<P: Provider + ?Sized + 'static> Provider for BudgetProvider<P> {
                     consumed: projected,
                     limit,
                 };
-                let err_stream = futures::stream::once(async move { Err(anyhow::Error::from(err)) });
+                let err_stream =
+                    futures::stream::once(async move { Err(anyhow::Error::from(err)) });
                 return Box::pin(err_stream);
             }
         }
@@ -304,7 +302,10 @@ mod tests {
         g.record_usage(&Usage::new(30, 0));
         assert_eq!(g.tokens_consumed(), 110);
         let err = g.check().unwrap_err();
-        assert!(matches!(err, ResilienceError::BudgetExceeded { kind: "tokens", .. }));
+        assert!(matches!(
+            err,
+            ResilienceError::BudgetExceeded { kind: "tokens", .. }
+        ));
     }
 
     #[test]
@@ -316,7 +317,10 @@ mod tests {
         g.check_and_tick().unwrap();
         g.check_and_tick().unwrap();
         let err = g.check_and_tick().unwrap_err();
-        assert!(matches!(err, ResilienceError::BudgetExceeded { kind: "rounds", .. }));
+        assert!(matches!(
+            err,
+            ResilienceError::BudgetExceeded { kind: "rounds", .. }
+        ));
     }
 
     #[test]

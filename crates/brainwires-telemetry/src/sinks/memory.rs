@@ -183,7 +183,11 @@ mod tests {
             sink.record(make_event(&format!("e{i}"))).await.unwrap();
         }
         assert_eq!(sink.len(), 2);
-        assert_eq!(sink.dropped_count(), 3, "5 records into a 2-capacity ring = 3 evictions");
+        assert_eq!(
+            sink.dropped_count(),
+            3,
+            "5 records into a 2-capacity ring = 3 evictions"
+        );
     }
 
     #[test]

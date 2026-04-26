@@ -398,12 +398,9 @@ impl ChatAgent {
             // Serial tools — preserve legacy behavior for mutating tools.
             for i in serial_idx {
                 let tu = &tool_uses[i];
-                let block = execute_one_tool(
-                    tu,
-                    self.executor.clone(),
-                    self.pre_execute_hook.clone(),
-                )
-                .await;
+                let block =
+                    execute_one_tool(tu, self.executor.clone(), self.pre_execute_hook.clone())
+                        .await;
                 slots[i] = Some(block);
             }
 
@@ -593,10 +590,9 @@ async fn execute_one_tool(
     let exec_ctx = ToolContext::default();
     let result = match executor.execute(tu, &exec_ctx).await {
         Ok(r) => r,
-        Err(e) => brainwires_core::ToolResult::error(
-            tu.id.clone(),
-            format!("tool executor error: {e}"),
-        ),
+        Err(e) => {
+            brainwires_core::ToolResult::error(tu.id.clone(), format!("tool executor error: {e}"))
+        }
     };
     ContentBlock::ToolResult {
         tool_use_id: tu.id.clone(),

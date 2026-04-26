@@ -25,11 +25,11 @@ mod retry;
 mod tests_util;
 
 pub use budget::{BudgetConfig, BudgetGuard, BudgetProvider};
+#[cfg(feature = "cache")]
+pub use cache::SqliteCache;
 pub use cache::{
     CacheBackend, CacheKey, CachedProvider, CachedResponse, MemoryCache, cache_key_for,
 };
-#[cfg(feature = "cache")]
-pub use cache::SqliteCache;
 pub use circuit::{CircuitBreakerConfig, CircuitBreakerProvider, CircuitState};
 pub use classify::{ErrorClass, classify_error};
 pub use error::ResilienceError;

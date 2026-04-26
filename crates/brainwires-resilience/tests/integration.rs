@@ -136,7 +136,12 @@ async fn retry_skips_non_retryable() {
             overall_deadline: None,
         },
     );
-    assert!(wrapped.chat(&[], None, &ChatOptions::default()).await.is_err());
+    assert!(
+        wrapped
+            .chat(&[], None, &ChatOptions::default())
+            .await
+            .is_err()
+    );
     assert_eq!(inner.calls(), 1, "auth errors must not be retried");
 }
 
@@ -148,13 +153,22 @@ async fn budget_caps_tokens_post_flight() {
         ..Default::default()
     });
     let wrapped = BudgetProvider::new(inner.clone(), guard.clone());
-    wrapped.chat(&[], None, &ChatOptions::default()).await.unwrap(); // 100 tokens consumed
+    wrapped
+        .chat(&[], None, &ChatOptions::default())
+        .await
+        .unwrap(); // 100 tokens consumed
     // Second call pre-check passes (100 < 120), post-accumulates to 200.
-    wrapped.chat(&[], None, &ChatOptions::default()).await.unwrap();
+    wrapped
+        .chat(&[], None, &ChatOptions::default())
+        .await
+        .unwrap();
     assert_eq!(guard.tokens_consumed(), 200);
 
     // Third call fails pre-flight.
-    let err = wrapped.chat(&[], None, &ChatOptions::default()).await.unwrap_err();
+    let err = wrapped
+        .chat(&[], None, &ChatOptions::default())
+        .await
+        .unwrap_err();
     assert!(matches!(
         err.downcast_ref::<ResilienceError>(),
         Some(ResilienceError::BudgetExceeded { kind: "tokens", .. }),
@@ -185,7 +199,11 @@ async fn stacked_retry_over_budget_composes_cleanly() {
         .await
         .expect("should succeed after one retry");
     assert_eq!(inner.calls(), 2, "one 503 + one success");
-    assert_eq!(guard.rounds_consumed(), 2, "budget ticks once per inner call");
+    assert_eq!(
+        guard.rounds_consumed(),
+        2,
+        "budget ticks once per inner call"
+    );
 }
 
 #[tokio::test]
@@ -204,7 +222,10 @@ async fn circuit_breaker_opens_then_recovers() {
     }
     // Third call: circuit open → fast-fail, inner not called.
     let before = inner.calls();
-    let err = cb.chat(&[], None, &ChatOptions::default()).await.unwrap_err();
+    let err = cb
+        .chat(&[], None, &ChatOptions::default())
+        .await
+        .unwrap_err();
     assert!(matches!(
         err.downcast_ref::<ResilienceError>(),
         Some(ResilienceError::CircuitOpen { .. }),

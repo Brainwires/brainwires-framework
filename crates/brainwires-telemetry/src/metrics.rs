@@ -679,9 +679,7 @@ mod tests {
 
         let text = reg.prometheus_text();
         assert!(text.contains("brainwires_agent_cache_read_tokens_total{agent_id=\"s1\"} 185"));
-        assert!(
-            text.contains("brainwires_agent_cache_creation_tokens_total{agent_id=\"s1\"} 200")
-        );
+        assert!(text.contains("brainwires_agent_cache_creation_tokens_total{agent_id=\"s1\"} 200"));
         assert!(text.contains("brainwires_agent_cache_hit_rate{agent_id=\"s1\"}"));
     }
 

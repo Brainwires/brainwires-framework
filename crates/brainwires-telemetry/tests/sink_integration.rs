@@ -95,7 +95,9 @@ mod sqlite {
         let tmp = tempfile::tempdir().unwrap();
         let path = tmp.path().join("analytics.db");
         let sink = SqliteAnalyticsSink::new_with_path(&path).expect("open sqlite sink");
-        sink.record(custom_event("persisted")).await.expect("record");
+        sink.record(custom_event("persisted"))
+            .await
+            .expect("record");
         // Reopen to confirm durability.
         let reopened = SqliteAnalyticsSink::new_with_path(&path).expect("reopen");
         // We can't easily query custom events without depending on `query`, but

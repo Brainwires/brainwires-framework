@@ -148,10 +148,7 @@ impl McpServerHandler {
         }
 
         // MCP stdio protocol: route status to stderr, not stdout.
-        eprintln!(
-            "{} MCP Server stopped",
-            console::style("ℹ").blue()
-        );
+        eprintln!("{} MCP Server stopped", console::style("ℹ").blue());
         Ok(())
     }
 

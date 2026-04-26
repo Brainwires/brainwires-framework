@@ -304,13 +304,16 @@ fn serialize_history_roundtrip_two_turn() {
         .expect("serialize_history should succeed on a valid 2-turn conversation");
 
     // Output must parse back into valid JSON
-    let parsed: serde_json::Value = serde_json::from_str(&serialized)
-        .expect("serialize_history output should be valid JSON");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&serialized).expect("serialize_history output should be valid JSON");
 
     // The stateless history format preserves the roles and content; check via string
     // content since the exact shape depends on the internal serializer.
     let serialized_lower = serialized.to_lowercase();
-    assert!(serialized_lower.contains("user"), "roundtrip should preserve user role");
+    assert!(
+        serialized_lower.contains("user"),
+        "roundtrip should preserve user role"
+    );
     assert!(
         serialized_lower.contains("assistant"),
         "roundtrip should preserve assistant role"
@@ -319,10 +322,16 @@ fn serialize_history_roundtrip_two_turn() {
         serialized.contains("What is 2+2?"),
         "roundtrip should preserve user content"
     );
-    assert!(serialized.contains('4'), "roundtrip should preserve assistant content");
+    assert!(
+        serialized.contains('4'),
+        "roundtrip should preserve assistant content"
+    );
 
     // The parsed value should be non-null
-    assert!(!parsed.is_null(), "parsed roundtrip JSON should not be null");
+    assert!(
+        !parsed.is_null(),
+        "parsed roundtrip JSON should not be null"
+    );
 }
 
 #[test]
@@ -330,8 +339,8 @@ fn validate_message_roundtrip_preserves_content() {
     let json = r#"{"role":"assistant","content":"The answer is 42."}"#;
     let normalized = validate_message(json).expect("valid message should succeed");
     // Re-validate the normalized output — it must itself be a valid message.
-    let revalidated = validate_message(&normalized)
-        .expect("normalized message should revalidate successfully");
+    let revalidated =
+        validate_message(&normalized).expect("normalized message should revalidate successfully");
     assert!(revalidated.contains("The answer is 42."));
     assert!(revalidated.contains("assistant"));
 }
