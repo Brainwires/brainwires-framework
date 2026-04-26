@@ -63,11 +63,13 @@ default `8080`.
 
 1. **esbuild** `--watch` — `web/src/*.js` → `web/app.js` + `web/sw.js`.
 2. **cargo-watch + wasm-pack** — `wasm/` → `web/pkg/`.
-3. **`docker compose up -d --watch`** (Compose 2.22+) — the
+3. **`docker compose up --build --watch`** (Compose 2.22+) — the
    `develop.watch` block in `docker-compose.yml` syncs `web/` into the
    nginx docroot and triggers an image rebuild only when `Dockerfile`,
    `entrypoint.sh`, `nginx.conf`, `wasm/Cargo.toml`, or
-   `.dockerignore` change.
+   `.dockerignore` change. (Compose forbids `-d --watch` — the watch
+   process stays foreground, but `start.sh` backgrounds the whole
+   thing via shell `&` so the terminal returns.)
 
 With `DEV_MODE=true` (which `start.sh dev` exports), `boot.js`
 unregisters any existing service worker and clears
@@ -92,12 +94,13 @@ Prefer to drive it yourself? `develop.watch` is declared in
 `docker-compose.yml`, so:
 
 ```sh
-DEV_MODE=true docker compose up -d --watch
+DEV_MODE=true docker compose up --build --watch
 ```
 
-Run `npm run watch` and a `wasm-pack` (or `cargo watch`) loop in
-separate shells to regenerate the bundled outputs. `docker compose
-down` to stop.
+(Compose forbids `-d --watch`; if you want it backgrounded, append
+`&` to the shell.) Run `npm run watch` and a `wasm-pack` (or `cargo
+watch`) loop in separate shells to regenerate the bundled outputs.
+`docker compose down` to stop.
 
 ### Esbuild-only dev (no Docker)
 

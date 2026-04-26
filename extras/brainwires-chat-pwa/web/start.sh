@@ -124,10 +124,11 @@ start_dev() {
     ) >"$RUN_DIR/cargo-watch.log" 2>&1 &
     write_pid cargo-watch "$!"
 
-    # Watcher 3: `docker compose up -d --watch` — containers detach,
-    # compose itself stays foreground running the file watcher; we
-    # background the whole compose process to free the shell.
-    ( cd "$PWA_DIR" && exec env DEV_MODE=true docker compose up --build -d --watch ) \
+    # Watcher 3: `docker compose up --build --watch`. Note: Compose
+    # forbids `-d --watch` together. We let compose itself stay
+    # foreground (it has to, to monitor file events) and shell-background
+    # the whole subshell with `&` instead.
+    ( cd "$PWA_DIR" && exec env DEV_MODE=true docker compose up --build --watch ) \
         >"$RUN_DIR/compose-watch.log" 2>&1 &
     write_pid compose-watch "$!"
 
