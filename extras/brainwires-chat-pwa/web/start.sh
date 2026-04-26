@@ -134,18 +134,21 @@ start_dev() {
 
     echo "==> starting chat-pwa (dev, bind-mount overlay, detached)"
 
-    # Watcher 1: esbuild
-    ( cd "$WEB_DIR" && exec node build.mjs --watch ) \
-        >"$RUN_DIR/esbuild.log" 2>&1 &
+    # Watcher 1: esbuild — `setsid` detaches the subshell from the
+    # controlling terminal so it survives parent-shell exit (the whole
+    # point of daemon-mode dev). `< /dev/null` closes stdin so the
+    # detached process doesn't compete for the tty.
+    setsid bash -c "cd \"$WEB_DIR\" && exec node build.mjs --watch" \
+        </dev/null >"$RUN_DIR/esbuild.log" 2>&1 &
     write_pid esbuild "$!"
 
-    # Watcher 2: cargo-watch + wasm-pack — mirrors web/build.sh
-    ( exec cargo watch \
-        --workdir "$WASM_CRATE_DIR" \
-        -w "$WASM_CRATE_DIR/src" \
-        -w "$WASM_CRATE_DIR/Cargo.toml" \
-        -s "wasm-pack build --target web --release --out-dir \"$WEB_DIR/pkg\" --out-name brainwires_chat_pwa \"$WASM_CRATE_DIR\"" \
-    ) >"$RUN_DIR/cargo-watch.log" 2>&1 &
+    # Watcher 2: cargo-watch + wasm-pack — mirrors web/build.sh.
+    setsid bash -c "exec cargo watch \
+        --workdir \"$WASM_CRATE_DIR\" \
+        -w \"$WASM_CRATE_DIR/src\" \
+        -w \"$WASM_CRATE_DIR/Cargo.toml\" \
+        -s 'wasm-pack build --target web --release --out-dir \"$WEB_DIR/pkg\" --out-name brainwires_chat_pwa \"$WASM_CRATE_DIR\"'" \
+        </dev/null >"$RUN_DIR/cargo-watch.log" 2>&1 &
     write_pid cargo-watch "$!"
 
     # Containers — proper compose-managed daemon via the dev overlay.
