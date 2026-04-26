@@ -4,27 +4,32 @@
 # Usage:
 #   ./web/start.sh                  # production (default)
 #   ./web/start.sh prod
-#   ./web/start.sh dev              # live-edit
+#   ./web/start.sh dev              # live-edit via bind-mount overlay
 #   ./web/start.sh stop             # stop everything
 #   ./web/start.sh status           # show running state
 #   ./web/start.sh logs [WHICH]     # tail logs
-#                                   #   WHICH = esbuild | cargo | compose | container | all
+#                                   #   WHICH = esbuild | cargo | container | all
 #
 # Each start always shuts down any existing instance first (containers +
 # host watchers), so switching between prod and dev is seamless and
 # idempotent.
 #
-# prod  → docker compose up -d --build (containers detached).
-# dev   → all three loops detached:
-#           1. esbuild --watch            (web/src     → web/app.js, web/sw.js)
-#           2. cargo-watch + wasm-pack    (wasm/       → web/pkg/)
-#           3. docker compose up -d --watch  (host web/ → nginx docroot)
-#         With DEV_MODE=true, boot.js unregisters the service worker
-#         and clears bw-chat-cache-v1; bw-models-v1 is preserved.
+# prod  → docker compose up -d --build
+#         (just docker-compose.yml; no bind mount)
 #
-# State (PIDs + log files) lives in web/.run/ (gitignored). The script
-# returns control to the shell as soon as everything is launched —
-# tail logs or stop with the corresponding subcommand.
+# dev   → docker compose -f docker-compose.yml -f docker-compose.dev.yml
+#         up -d --build
+#         The overlay bind-mounts ./web → /usr/share/nginx/html (ro), so
+#         host-side edits to the bundled output reflect in the running
+#         container immediately. Plus two background loops on the host:
+#           1. esbuild --watch          (web/src → web/app.js, web/sw.js)
+#           2. cargo-watch + wasm-pack  (wasm/   → web/pkg/)
+#         With DEV_MODE=true, boot.js unregisters the service worker and
+#         clears bw-chat-cache-v1; bw-models-v1 is preserved.
+#
+# State (PIDs + log files) lives in web/.run/ (gitignored). Every
+# start command returns control to the shell as soon as the loops are
+# launched.
 
 set -euo pipefail
 
@@ -34,10 +39,21 @@ cd ..
 PWA_DIR="$(pwd)"
 WASM_CRATE_DIR="$PWA_DIR/wasm"
 RUN_DIR="$WEB_DIR/.run"
+COMPOSE_BASE="docker-compose.yml"
+COMPOSE_DEV="docker-compose.dev.yml"
 
 CMD="${1:-prod}"
 
 # ── Helpers ────────────────────────────────────────────────────────────
+
+# Compose invocation for the recorded mode (or current request).
+# $1 = mode (prod|dev). Echoes the `-f` flag chain.
+compose_files_for() {
+    case "$1" in
+        dev) echo "-f $COMPOSE_BASE -f $COMPOSE_DEV" ;;
+        *)   echo "-f $COMPOSE_BASE" ;;
+    esac
+}
 
 stop_pid_file() {
     local file=$1
@@ -62,7 +78,15 @@ stop_all() {
             stop_pid_file "$f"
         done
     fi
-    ( cd "$PWA_DIR" && docker compose down --remove-orphans ) >/dev/null 2>&1 || true
+    # Use the recorded mode's compose files if present; fall back to dev
+    # overlay (a superset that also matches prod-only containers).
+    local prior_mode="prod"
+    if [ -f "$RUN_DIR/mode" ]; then
+        prior_mode=$(cat "$RUN_DIR/mode")
+    fi
+    # shellcheck disable=SC2086
+    ( cd "$PWA_DIR" && docker compose $(compose_files_for "$prior_mode") \
+        down --remove-orphans ) >/dev/null 2>&1 || true
 }
 
 write_pid() {
@@ -82,7 +106,7 @@ start_prod() {
 
     echo "==> starting chat-pwa (production, detached)"
     cd "$PWA_DIR"
-    DEV_MODE=false docker compose up -d --build
+    DEV_MODE=false docker compose -f "$COMPOSE_BASE" up -d --build
 
     echo
     echo "Containers detached. Open http://localhost:${HOST_PORT:-8080}"
@@ -108,7 +132,7 @@ start_dev() {
     mkdir -p "$RUN_DIR"
     echo "dev" > "$RUN_DIR/mode"
 
-    echo "==> starting chat-pwa (dev, all loops detached)"
+    echo "==> starting chat-pwa (dev, bind-mount overlay, detached)"
 
     # Watcher 1: esbuild
     ( cd "$WEB_DIR" && exec node build.mjs --watch ) \
@@ -124,21 +148,16 @@ start_dev() {
     ) >"$RUN_DIR/cargo-watch.log" 2>&1 &
     write_pid cargo-watch "$!"
 
-    # Watcher 3: `docker compose up --build --watch`. Note: Compose
-    # forbids `-d --watch` together. We let compose itself stay
-    # foreground (it has to, to monitor file events) and shell-background
-    # the whole subshell with `&` instead.
-    ( cd "$PWA_DIR" && exec env DEV_MODE=true docker compose up --build --watch ) \
-        >"$RUN_DIR/compose-watch.log" 2>&1 &
-    write_pid compose-watch "$!"
+    # Containers — proper compose-managed daemon via the dev overlay.
+    cd "$PWA_DIR"
+    DEV_MODE=true docker compose -f "$COMPOSE_BASE" -f "$COMPOSE_DEV" up -d --build
 
-    sleep 1
     echo
     echo "All loops detached. State in: $RUN_DIR"
     echo "  open:    http://localhost:${HOST_PORT:-8080}"
     echo "  status:  ./web/start.sh status"
     echo "  logs:    ./web/start.sh logs        (combined)"
-    echo "           ./web/start.sh logs esbuild | cargo | compose | container"
+    echo "           ./web/start.sh logs esbuild | cargo | container"
     echo "  stop:    ./web/start.sh stop"
 }
 
@@ -158,7 +177,7 @@ cmd_status() {
     mode=$(cat "$RUN_DIR/mode")
     echo "chat-pwa: $mode"
     if [ "$mode" = "dev" ]; then
-        for name in esbuild cargo-watch compose-watch; do
+        for name in esbuild cargo-watch; do
             local f="$RUN_DIR/$name.pid"
             [ -f "$f" ] || continue
             local pid
@@ -171,11 +190,15 @@ cmd_status() {
         done
     fi
     echo
-    ( cd "$PWA_DIR" && docker compose ps )
+    # shellcheck disable=SC2086
+    ( cd "$PWA_DIR" && docker compose $(compose_files_for "$mode") ps )
 }
 
 cmd_logs() {
     local what="${1:-all}"
+    local mode="prod"
+    [ -f "$RUN_DIR/mode" ] && mode=$(cat "$RUN_DIR/mode")
+
     case "$what" in
         esbuild)
             [ -f "$RUN_DIR/esbuild.log" ] || { echo "no esbuild log (is dev running?)" >&2; exit 1; }
@@ -185,13 +208,10 @@ cmd_logs() {
             [ -f "$RUN_DIR/cargo-watch.log" ] || { echo "no cargo-watch log (is dev running?)" >&2; exit 1; }
             exec tail -F "$RUN_DIR/cargo-watch.log"
             ;;
-        compose|compose-watch)
-            [ -f "$RUN_DIR/compose-watch.log" ] || { echo "no compose log (is dev running?)" >&2; exit 1; }
-            exec tail -F "$RUN_DIR/compose-watch.log"
-            ;;
         container|cnt|nginx)
             cd "$PWA_DIR"
-            exec docker compose logs -f
+            # shellcheck disable=SC2086
+            exec docker compose $(compose_files_for "$mode") logs -f
             ;;
         all|*)
             local logs=()
@@ -201,10 +221,19 @@ cmd_logs() {
                 done
             fi
             if [ ${#logs[@]} -gt 0 ]; then
-                exec tail -F "${logs[@]}"
+                # Tail host-watcher logs alongside container logs by
+                # backgrounding compose-logs and tailing files in
+                # foreground; the trap cleans up compose-logs on Ctrl-C.
+                cd "$PWA_DIR"
+                # shellcheck disable=SC2086
+                docker compose $(compose_files_for "$mode") logs -f --no-color &
+                local logs_pid=$!
+                trap 'kill '"$logs_pid"' 2>/dev/null || true' INT TERM EXIT
+                tail -F "${logs[@]}"
             else
                 cd "$PWA_DIR"
-                exec docker compose logs -f
+                # shellcheck disable=SC2086
+                exec docker compose $(compose_files_for "$mode") logs -f
             fi
             ;;
     esac
@@ -216,11 +245,12 @@ Usage: $(basename "$0") <command> [args]
 
 Commands:
   prod (default)      Start in production mode (containers detached).
-  dev                 Start in dev mode with live-editing (all loops detached).
+  dev                 Start in dev mode with bind-mounted live editing
+                      (containers detached + host watchers backgrounded).
   stop                Stop everything (containers + host watchers).
   status              Show running state.
   logs [WHICH]        Tail logs.
-                      WHICH = esbuild | cargo | compose | container | all (default).
+                      WHICH = esbuild | cargo | container | all (default).
   -h, --help, help    This message.
 
 Each start command always shuts down any existing instance first, so

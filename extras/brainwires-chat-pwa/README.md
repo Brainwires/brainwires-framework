@@ -59,48 +59,51 @@ default `8080`.
 
 ### Dev (live editing)
 
-`./web/start.sh dev` backgrounds three loops:
+`./web/start.sh dev` runs three loops, all detached:
 
 1. **esbuild** `--watch` — `web/src/*.js` → `web/app.js` + `web/sw.js`.
 2. **cargo-watch + wasm-pack** — `wasm/` → `web/pkg/`.
-3. **`docker compose up --build --watch`** (Compose 2.22+) — the
-   `develop.watch` block in `docker-compose.yml` syncs `web/` into the
-   nginx docroot and triggers an image rebuild only when `Dockerfile`,
-   `entrypoint.sh`, `nginx.conf`, `wasm/Cargo.toml`, or
-   `.dockerignore` change. (Compose forbids `-d --watch` — the watch
-   process stays foreground, but `start.sh` backgrounds the whole
-   thing via shell `&` so the terminal returns.)
+3. **`docker compose up -d --build`** with the
+   [`docker-compose.dev.yml`](./docker-compose.dev.yml) overlay — the
+   overlay bind-mounts `./web` → `/usr/share/nginx/html` (read-only),
+   so the freshly bundled output is served by nginx as soon as
+   esbuild / wasm-pack write the file. No image rebuild for source
+   changes; rebuild only when the image itself changes (Dockerfile,
+   nginx.conf, etc. — bring it down and `start.sh dev` again).
 
-With `DEV_MODE=true` (which `start.sh dev` exports), `boot.js`
-unregisters any existing service worker and clears
-`bw-chat-cache-v1`, so HTML/CSS/JS edits hit the browser on next
-reload without an image rebuild. `bw-models-v1` (downloaded local
-models) is preserved.
+With `DEV_MODE=true` (which the overlay forces and `start.sh dev`
+exports), `boot.js` unregisters any existing service worker and
+clears `bw-chat-cache-v1`, so HTML/CSS/JS edits hit the browser on
+next reload without an image rebuild. `bw-models-v1` (downloaded
+local models) is preserved.
 
-Tail logs to follow what's syncing:
+Tail logs to follow what's happening:
 
 ```sh
-./web/start.sh logs           # all four channels combined
-./web/start.sh logs compose   # just compose-watch sync events
-./web/start.sh logs container # just nginx
+./web/start.sh logs           # esbuild + cargo + container, combined
+./web/start.sh logs esbuild   # just esbuild's incremental rebuilds
+./web/start.sh logs cargo     # just cargo-watch / wasm-pack
+./web/start.sh logs container # just nginx (docker compose logs -f)
 ```
 
 Stop with `./web/start.sh stop` — kills the host watchers and
-`docker compose down`s.
+`docker compose down`s with the right `-f` chain for the recorded
+mode.
 
 ### Manual mode (no `start.sh`)
 
-Prefer to drive it yourself? `develop.watch` is declared in
-`docker-compose.yml`, so:
+Prefer to drive it yourself? Compose with the dev overlay:
 
 ```sh
-DEV_MODE=true docker compose up --build --watch
+DEV_MODE=true docker compose \
+    -f docker-compose.yml \
+    -f docker-compose.dev.yml \
+    up -d --build
 ```
 
-(Compose forbids `-d --watch`; if you want it backgrounded, append
-`&` to the shell.) Run `npm run watch` and a `wasm-pack` (or `cargo
-watch`) loop in separate shells to regenerate the bundled outputs.
-`docker compose down` to stop.
+Then run `npm run watch` and a `wasm-pack` (or `cargo watch`) loop in
+separate shells to regenerate the bundled outputs. `docker compose
+-f docker-compose.yml -f docker-compose.dev.yml down` to stop.
 
 ### Esbuild-only dev (no Docker)
 

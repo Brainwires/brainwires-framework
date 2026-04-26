@@ -1,11 +1,15 @@
-# brainwires-chat-pwa — local & single-host deployment.
+# brainwires-chat-pwa — local & single-host deployment (production).
 #
 # Build context is the workspace root because the wasm crate depends on
-# `../../../crates/brainwires-*`. Run from this directory:
+# `../../../crates/brainwires-*`. Use the launcher:
 #
-#   cp .env.example .env      # then edit .env to taste
-#   docker compose up --build              # plain prod-style launch
-#   DEV_MODE=true docker compose watch     # live-edit via develop.watch
+#   ./web/start.sh prod   # docker compose up -d --build
+#   ./web/start.sh dev    # adds docker-compose.dev.yml overlay (bind mount)
+#
+# Or invoke compose directly:
+#
+#   cp .env.example .env
+#   docker compose up -d --build
 #
 # .env is auto-loaded by Docker Compose from this directory and is
 # git-ignored. Variables not set in .env fall back to the defaults below.
@@ -34,38 +38,3 @@ services:
       - BRAINWIRES_BUILD_COMMIT=${BUILD_COMMIT:-}
       - BRAINWIRES_BUILD_VERSION=${BUILD_VERSION:-0.1.0}
     restart: unless-stopped
-    # Compose 2.22+ file-watch. `docker compose watch` syncs the bundled
-    # web output into the running nginx docroot and rebuilds the image
-    # for any change that affects the image itself. Plain `docker
-    # compose up` ignores this block, so prod is unaffected.
-    develop:
-      watch:
-        # Sync the bundled web output into nginx's docroot.
-        # esbuild --watch and wasm-pack regenerate these on the host.
-        - action: sync
-          path: ./web
-          target: /usr/share/nginx/html
-          ignore:
-            - node_modules/
-            - src/                  # source modules; the bundled app.js is what gets synced
-            - tests/
-            - build.mjs
-            - build.sh
-            - dev.sh
-            - package.json
-            - package-lock.json
-            - eslint.config.js
-            - .gitignore
-            - sw.bundle.js          # build intermediate
-
-        # Image-level changes require a full rebuild.
-        - action: rebuild
-          path: ./Dockerfile
-        - action: rebuild
-          path: ./entrypoint.sh
-        - action: rebuild
-          path: ./nginx.conf
-        - action: rebuild
-          path: ./wasm/Cargo.toml
-        - action: rebuild
-          path: ./.dockerignore
