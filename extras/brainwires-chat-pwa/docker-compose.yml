@@ -1,0 +1,35 @@
+# brainwires-chat-pwa — local & single-host deployment.
+#
+# Build context is the workspace root because the wasm crate depends on
+# `../../../crates/brainwires-*`. Run from this directory:
+#
+#   cp .env.example .env      # then edit .env to taste
+#   docker compose up --build
+#
+# .env is auto-loaded by Docker Compose from this directory and is
+# git-ignored. Variables not set in .env fall back to the defaults below.
+
+services:
+  chat-pwa:
+    build:
+      context: ../..
+      dockerfile: extras/brainwires-chat-pwa/Dockerfile
+      args:
+        BUILD_DATE: ${BUILD_DATE:-}
+        BUILD_COMMIT: ${BUILD_COMMIT:-}
+        BUILD_VERSION: ${BUILD_VERSION:-0.1.0}
+        DEV_MODE: ${DEV_MODE:-false}
+    image: brainwires-chat-pwa:latest
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "${HOST_PORT:-8080}:80"
+    environment:
+      # Runtime overrides — entrypoint.sh rewrites build-info.js with
+      # these values at container start.
+      - BRAINWIRES_DEV_MODE=${DEV_MODE:-false}
+      - BRAINWIRES_BUILD_DATE=${BUILD_DATE:-}
+      - BRAINWIRES_BUILD_COMMIT=${BUILD_COMMIT:-}
+      - BRAINWIRES_BUILD_VERSION=${BUILD_VERSION:-0.1.0}
+    restart: unless-stopped

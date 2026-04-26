@@ -78,6 +78,63 @@ node --test tests/e2e/e2e.test.mjs     # scaffold; scenarios are skipped pending
                                        # browser harness (Thalora / Playwright).
 ```
 
+## Docker
+
+A multi-stage Dockerfile bundles the wasm + JS pipeline and serves the
+result behind nginx.
+
+```sh
+# From the workspace root:
+docker build -f extras/brainwires-chat-pwa/Dockerfile -t brainwires-chat-pwa .
+docker run --rm -p 8080:80 brainwires-chat-pwa
+# → http://localhost:8080
+```
+
+Or via compose (run from `extras/brainwires-chat-pwa/`):
+
+```sh
+docker compose up --build
+# → http://localhost:8080  (compose default)
+
+# Or with the example overrides:
+cp .env.example .env
+docker compose up --build
+# → http://localhost:8888
+```
+
+`.env` is git-ignored. Compose loads it automatically; anything not set
+falls back to the defaults baked into `docker-compose.yml`. Useful keys:
+
+| Var             | Compose default | `.env.example` value | Effect                                    |
+|-----------------|-----------------|----------------------|-------------------------------------------|
+| `HOST_PORT`     | `8080`          | `8888`               | Host-side port mapped to container `:80`  |
+| `DEV_MODE`      | `false`         | `false`              | Enables debug surfaces in the PWA         |
+| `BUILD_VERSION` | `0.1.0`         | (commented)          | Stamped into `build-info.js`              |
+| `BUILD_COMMIT`  | (auto)          | (commented)          | Stamped into `build-info.js`              |
+| `BUILD_DATE`    | (auto)          | (commented)          | Stamped into `build-info.js`              |
+
+The image is ~30 MB at runtime: nginx:alpine plus the static bundle. The
+builder stage uses `rust:1-bookworm` + Node 20 + `wasm-pack`; first-time
+builds compile the workspace crates the wasm crate depends on, so expect
+a few minutes. Subsequent builds reuse Docker layers.
+
+`entrypoint.sh` rewrites `build-info.js` at container start so build
+metadata and `DEV_MODE` can be flipped via env vars without rebuilding:
+
+| Env var                       | Effect                              |
+|-------------------------------|-------------------------------------|
+| `BRAINWIRES_DEV_MODE`         | Sets `DEV_MODE` exported by build-info.js |
+| `BRAINWIRES_BUILD_VERSION`    | Overrides `BUILD_VERSION`           |
+| `BRAINWIRES_BUILD_COMMIT`     | Overrides `BUILD_GIT`               |
+| `BRAINWIRES_BUILD_DATE`       | Overrides `BUILD_TIME`              |
+
+`nginx.conf` ships with a CSP that allows `wasm-unsafe-eval` (with a
+fallback for Safari ≤ 16.0), Cross-Origin-Isolation headers for
+`SharedArrayBuffer`, long-cache for `*.wasm`, and a no-cache rule for
+`/sw.js`. There is no backend in this image — no relay, no TURN, no
+proxy. The PWA talks to LLM providers (Anthropic, OpenAI, Gemini, Ollama)
+or runs Candle locally in-browser.
+
 ## Constraints
 
 No model weights are bundled. Every model is fetched from huggingface.co

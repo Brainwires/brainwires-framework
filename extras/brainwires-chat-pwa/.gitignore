@@ -1,0 +1,2 @@
+# Local docker-compose env overrides — never commit.
+.env
