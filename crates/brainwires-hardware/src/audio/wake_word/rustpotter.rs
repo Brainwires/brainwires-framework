@@ -91,11 +91,7 @@ impl WakeWordDetector for RustpotterDetector {
         // `Vec<i16>` allocation that the upstream by-value
         // `process_samples` would have required (`i16` implements
         // rustpotter's `Sample` trait, which already implies `Copy`).
-        let result = self
-            .inner
-            .get_mut()
-            .ok()?
-            .process_samples_slice(samples)?;
+        let result = self.inner.get_mut().ok()?.process_samples_slice(samples)?;
         let timestamp_ms = self.start.elapsed().as_millis() as u64;
         debug!(
             keyword = %result.name,
