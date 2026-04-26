@@ -1,5 +1,7 @@
 # brainwires-chat-pwa
 
+**Hosted at:** [chat.brainwires.dev](https://chat.brainwires.dev/)
+
 ## Overview
 
 Installable PWA UI over the brainwires framework. Supports cloud providers
@@ -44,12 +46,23 @@ the server.
 ```
 
 Orchestrates three loops: esbuild `--watch` (JS/SW), cargo-watch +
-wasm-pack (Rust → wasm), and `docker compose` with `docker-compose.dev.yml`
-overlaying `web/` into the nginx docroot read-only. Combined with
-`DEV_MODE=true` (which the overlay forces via `BRAINWIRES_DEV_MODE`),
-`boot.js` unregisters any existing service worker and clears
-`bw-chat-cache-v1`, so HTML/CSS/JS edits hit the browser on next reload
-without an image rebuild. `bw-models-v1` is preserved.
+wasm-pack (Rust → wasm), and `docker compose watch` (Compose 2.22+
+file-sync) — the `develop.watch` block in `docker-compose.yml`
+declaratively syncs `web/` into the nginx docroot and triggers an
+image rebuild only when `Dockerfile`, `entrypoint.sh`, `nginx.conf`,
+`wasm/Cargo.toml`, or `.dockerignore` change. With `DEV_MODE=true`
+(which `dev.sh` exports), `boot.js` unregisters any existing service
+worker and clears `bw-chat-cache-v1`, so HTML/CSS/JS edits hit the
+browser on next reload without an image rebuild. `bw-models-v1` is
+preserved.
+
+Prefer to manage the host watchers yourself? Skip `dev.sh` and run:
+
+```sh
+DEV_MODE=true docker compose watch
+```
+
+…then run `npm run watch` and a `wasm-pack` loop in separate shells.
 
 ## Layout
 

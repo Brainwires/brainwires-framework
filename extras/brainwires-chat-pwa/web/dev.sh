@@ -3,12 +3,13 @@
 #
 #   1. esbuild --watch (web/src → web/app.js + web/sw.js)
 #   2. cargo watch on wasm/ → wasm-pack build → web/pkg/
-#   3. docker compose with the dev overlay
+#   3. docker compose watch (Compose 2.22+ file-sync)
 #
 # Edits to JS/CSS/HTML on the host are picked up in the browser
-# automatically (esbuild rebuilds + nginx serves the freshly mounted
-# file + DEV_MODE bypasses the SW). Edits to the Rust wasm crate
-# trigger wasm-pack via cargo-watch.
+# automatically (esbuild rebuilds + compose-watch syncs the file into
+# the nginx docroot + DEV_MODE bypasses the SW). Edits to the Rust wasm
+# crate trigger wasm-pack via cargo-watch, and the regenerated
+# web/pkg/ files are then synced by compose-watch.
 #
 # Ctrl-C cleans up all three loops.
 
@@ -32,7 +33,8 @@ if [ ! -d node_modules ]; then
     npm install
 fi
 
-# Ensure DEV_MODE is set so docker-compose substitutes it correctly.
+# Ensure DEV_MODE is set so docker-compose substitutes it correctly
+# (BRAINWIRES_DEV_MODE -> ${DEV_MODE:-false} in docker-compose.yml).
 export DEV_MODE=true
 
 # ── Cleanup on exit ────────────────────────────────────────────────────
@@ -43,7 +45,7 @@ cleanup() {
     for pid in "${PIDS[@]}"; do
         kill "$pid" 2>/dev/null || true
     done
-    docker compose -f docker-compose.yml -f docker-compose.dev.yml down 2>/dev/null || true
+    ( cd "$PWA_DIR" && docker compose down ) 2>/dev/null || true
 }
 trap cleanup INT TERM EXIT
 
@@ -65,8 +67,5 @@ PIDS+=("$!")
 ) &
 PIDS+=("$!")
 
-# ── Watcher 3: docker compose (foreground) ─────────────────────────────
-docker compose \
-    -f docker-compose.yml \
-    -f docker-compose.dev.yml \
-    up --build
+# ── Watcher 3: docker compose watch (foreground) ───────────────────────
+docker compose watch
