@@ -274,6 +274,7 @@ fn parse_operation(
         defer_loading: true, // Lazy-load by default
         allowed_callers: Vec::new(),
         input_examples: Vec::new(),
+        serialize: false,
     };
 
     let endpoint = OpenApiEndpoint {

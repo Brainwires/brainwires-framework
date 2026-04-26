@@ -459,7 +459,7 @@ fn format_js_error(error: &JsError, context: &mut Context) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::super::types::Language;
+    use super::super::super::types::Language;
     use super::*;
 
     fn make_request(code: &str) -> ExecutionRequest {

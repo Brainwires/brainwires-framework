@@ -487,7 +487,11 @@ mod tests {
         // CS = 0xFF ^ 3 ^ 0x00 ^ 0x07 = 0xFF ^ 3 ^ 7
         let data: &[u8] = &[0x03, 0x00, 0x07]; // LEN | TYPE | CMD_ID
         let cs = checksum(data);
-        assert_eq!(cs, 0xFF ^ 0x03 ^ 0x00 ^ 0x07);
+        // reason: keep the explicit `^ 0x00` for symmetry with the spec
+        // citation in the comment block above (LEN ^ TYPE ^ CMD_ID).
+        #[allow(clippy::identity_op)]
+        let expected = 0xFF ^ 0x03 ^ 0x00 ^ 0x07;
+        assert_eq!(cs, expected);
     }
 
     #[test]

@@ -291,7 +291,7 @@ fn base64_url_encode(data: &[u8]) -> String {
     use std::fmt::Write;
     // RFC 4648 base64url without padding
     const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-    let mut out = String::with_capacity((data.len() * 4 + 2) / 3);
+    let mut out = String::with_capacity((data.len() * 4).div_ceil(3));
     for chunk in data.chunks(3) {
         let b0 = chunk[0] as usize;
         let b1 = if chunk.len() > 1 {
@@ -352,13 +352,13 @@ impl<S: OAuthTokenStore> OAuthClient<S> {
                 return Ok(token.access_token.clone());
             }
             // Try to refresh
-            if let Some(refresh_token) = &token.refresh_token {
-                if let Ok(refreshed) = self.refresh_token(refresh_token).await {
-                    self.store
-                        .set(user_id, &self.config.provider, refreshed.clone())
-                        .await;
-                    return Ok(refreshed.access_token);
-                }
+            if let Some(refresh_token) = &token.refresh_token
+                && let Ok(refreshed) = self.refresh_token(refresh_token).await
+            {
+                self.store
+                    .set(user_id, &self.config.provider, refreshed.clone())
+                    .await;
+                return Ok(refreshed.access_token);
                 // Refresh failed — fall through to re-auth
             }
         }

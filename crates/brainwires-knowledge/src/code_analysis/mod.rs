@@ -218,9 +218,9 @@ mod tests {
 
     #[test]
     fn test_has_stack_graphs() {
-        let provider = HybridRelationsProvider::new(false).unwrap();
+        let _provider = HybridRelationsProvider::new(false).unwrap();
         // Without the feature, should always return false
         #[cfg(not(feature = "stack-graphs"))]
-        assert!(!provider.has_stack_graphs_for("Python"));
+        assert!(!_provider.has_stack_graphs_for("Python"));
     }
 }

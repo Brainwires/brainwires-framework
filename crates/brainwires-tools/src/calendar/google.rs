@@ -120,10 +120,7 @@ impl GoogleCalendarClient {
             .cloned()
             .unwrap_or_default();
 
-        let events = items
-            .iter()
-            .filter_map(|item| Self::parse_event(item))
-            .collect();
+        let events = items.iter().filter_map(Self::parse_event).collect();
         Ok(events)
     }
 

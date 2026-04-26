@@ -201,7 +201,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let client = ThreadBorderRouter::new(&server.uri()).unwrap();
+        let client = ThreadBorderRouter::new(server.uri()).unwrap();
         let info = client.node_info().await.unwrap();
         assert_eq!(info.rloc16.as_deref(), Some("0x0400"));
         assert_eq!(info.network_name.as_deref(), Some("TestNet"));
@@ -216,7 +216,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let client = ThreadBorderRouter::new(&server.uri()).unwrap();
+        let client = ThreadBorderRouter::new(server.uri()).unwrap();
         let neighbors = client.neighbors().await.unwrap();
         assert!(neighbors.is_empty());
     }
@@ -230,7 +230,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let client = ThreadBorderRouter::new(&server.uri()).unwrap();
+        let client = ThreadBorderRouter::new(server.uri()).unwrap();
         client.add_joiner("*", "J01NME").await.unwrap();
         // Verify the request was received (wiremock counts it)
         let received = server.received_requests().await.unwrap();
@@ -249,7 +249,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let client = ThreadBorderRouter::new(&server.uri()).unwrap();
+        let client = ThreadBorderRouter::new(server.uri()).unwrap();
         let result = client.node_info().await;
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), HomeAutoError::ThreadHttp(_)));

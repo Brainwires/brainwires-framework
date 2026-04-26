@@ -223,7 +223,7 @@ impl CalDavClient {
     /// Convert RFC-3339 datetime to iCalendar datetime format.
     fn rfc3339_to_ical(dt: &str) -> String {
         // "2025-06-01T10:00:00Z" -> "20250601T100000Z"
-        dt.replace('-', "").replace(':', "")
+        dt.replace(['-', ':'], "")
     }
 
     /// Parse PROPFIND response to extract calendar info (simplified).

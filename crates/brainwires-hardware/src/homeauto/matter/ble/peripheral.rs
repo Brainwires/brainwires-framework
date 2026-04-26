@@ -272,6 +272,7 @@ mod tests {
 
     /// Matter BLE service UUID must match the spec.
     #[test]
+    #[allow(clippy::unusual_byte_groupings)] // mirrors canonical 8-4-4-4-12 BLE UUID format
     fn service_uuid_value() {
         let expected = Uuid::from_u128(0x0000_FFF6_0000_1000_8000_00805F9B34FB_u128);
         assert_eq!(MATTER_BLE_SERVICE_UUID, expected);

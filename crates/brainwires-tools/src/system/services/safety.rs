@@ -2,7 +2,7 @@
 
 use std::collections::HashSet;
 
-use crate::config::ServiceConfig;
+use crate::system::config::ServiceConfig;
 
 use super::ServiceOperation;
 

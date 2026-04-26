@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 use ed25519_dalek::{Signer, SigningKey, Verifier, VerifyingKey};
 use sha2::{Digest, Sha256};
 
-use crate::package::SkillPackage;
+use crate::skills::package::SkillPackage;
 
 /// Ed25519-based skill package signer and verifier.
 pub struct SkillVerifier;

@@ -8,7 +8,7 @@ use tokio::sync::{RwLock, mpsc, watch};
 
 use super::debounce::EventDebouncer;
 use super::rules::{FsEventType, ReactorRule};
-use crate::config::ReactorConfig;
+use crate::system::config::ReactorConfig;
 
 /// File system reactor that watches directories and dispatches actions.
 ///
