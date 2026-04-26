@@ -55,12 +55,28 @@ extras/brainwires-chat-pwa/
     ├── package.json           # devDependency: esbuild
     ├── styles.css
     ├── sw.source.js           # checked-in SW template
-    └── src/boot.js            # entry, bootstraps the WASM module
+    ├── crypto-store.js        # passphrase-derived key + AES-GCM helpers
+    ├── src/                   # boot, views, streaming, providers, voice, …
+    │   ├── boot.js            # entry, bootstraps the WASM module
+    │   ├── providers/         # anthropic / openai / google / ollama adapters
+    │   └── …                  # db, model-store, ui-*, streaming, i18n, utils
+    └── tests/
+        ├── unit.test.mjs      # node --test, runs in CI
+        └── e2e/e2e.test.mjs   # scaffold (currently all test.skip)
 ```
 
 `web/pkg/`, `web/app.js`, `web/sw.js`, and `web/build-info.js` are all
 build artifacts — they are regenerated on every `./build.sh` and stay
 ignored from git.
+
+## Tests
+
+```sh
+cd web
+node --test tests/unit.test.mjs        # streaming, crypto-store, providers, db, utils
+node --test tests/e2e/e2e.test.mjs     # scaffold; scenarios are skipped pending a
+                                       # browser harness (Thalora / Playwright).
+```
 
 ## Constraints
 
