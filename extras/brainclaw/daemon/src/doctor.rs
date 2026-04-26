@@ -698,17 +698,11 @@ fn check_channel_credentials(config: &BrainClawConfig) -> Vec<CheckResult> {
                 continue;
             }
             "irc" => {
-                out.extend(check_multi_env(
-                    &name,
-                    &["IRC_SERVER", "IRC_NICK"],
-                ));
+                out.extend(check_multi_env(&name, &["IRC_SERVER", "IRC_NICK"]));
                 continue;
             }
             "imessage" | "bluebubbles" => {
-                out.extend(check_multi_env(
-                    &name,
-                    &["BB_SERVER_URL", "BB_PASSWORD"],
-                ));
+                out.extend(check_multi_env(&name, &["BB_SERVER_URL", "BB_PASSWORD"]));
                 continue;
             }
             "nextcloud_talk" | "nextcloud-talk" | "nextcloudtalk" => {
@@ -1211,11 +1205,8 @@ mod tests {
     #[test]
     fn new_channel_types_expand_to_multi_env_rows() {
         let mut cfg = BrainClawConfig::default();
-        cfg.security.allowed_channel_types = vec![
-            "google_chat".into(),
-            "teams".into(),
-            "irc".into(),
-        ];
+        cfg.security.allowed_channel_types =
+            vec!["google_chat".into(), "teams".into(), "irc".into()];
         let rows = check_channel_credentials(&cfg);
         // google_chat has 3 vars, teams has 3, irc has 2 → 8 rows.
         assert_eq!(rows.len(), 8);

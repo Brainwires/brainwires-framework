@@ -137,16 +137,8 @@ impl Channel for MatrixChannel {
                     .context("Failed to upload media to Matrix homeserver")?;
                 let mxc_uri: OwnedMxcUri = upload_resp.content_uri;
 
-                let filename = media
-                    .url
-                    .rsplit('/')
-                    .next()
-                    .unwrap_or("media")
-                    .to_string();
-                let caption = media
-                    .caption
-                    .clone()
-                    .unwrap_or_else(|| filename.clone());
+                let filename = media.url.rsplit('/').next().unwrap_or("media").to_string();
+                let caption = media.caption.clone().unwrap_or_else(|| filename.clone());
 
                 let msgtype = match media.media_type {
                     MediaType::Image | MediaType::GIF => {
@@ -178,9 +170,7 @@ impl Channel for MatrixChannel {
             let thread_event_id = EventId::parse(tid.0.as_str())
                 .context("Invalid Matrix thread event ID")?
                 .to_owned();
-            content.relates_to = Some(Relation::Thread(Thread::without_fallback(
-                thread_event_id,
-            )));
+            content.relates_to = Some(Relation::Thread(Thread::without_fallback(thread_event_id)));
         }
 
         let response = room
@@ -278,9 +268,9 @@ impl Channel for MatrixChannel {
         let mut out = Vec::new();
         for timeline_event in response.chunk {
             let raw = timeline_event.raw();
-            if let Ok(AnySyncTimelineEvent::MessageLike(
-                AnySyncMessageLikeEvent::RoomMessage(msg_event),
-            )) = raw.deserialize()
+            if let Ok(AnySyncTimelineEvent::MessageLike(AnySyncMessageLikeEvent::RoomMessage(
+                msg_event,
+            ))) = raw.deserialize()
             {
                 if let Some(original) = msg_event.as_original() {
                     use matrix_sdk::ruma::events::room::message::MessageType;

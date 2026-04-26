@@ -4,18 +4,20 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use tokio::sync::mpsc;
 
-use brainwires_network::channels::Channel;
 use brainwires_mattermost_channel::config::MattermostConfig;
 use brainwires_mattermost_channel::event_handler::MattermostEventHandler;
 use brainwires_mattermost_channel::gateway_client::GatewayClient;
 use brainwires_mattermost_channel::mattermost::MattermostChannel;
 use brainwires_mattermost_channel::mcp_server::MattermostMcpServer;
+use brainwires_network::channels::Channel;
 
 /// Brainwires Mattermost Channel Adapter
 #[derive(Parser)]
 #[command(name = "brainclaw-mcp-mattermost")]
 #[command(version = env!("CARGO_PKG_VERSION"))]
-#[command(about = "Mattermost channel adapter for the Brainwires gateway — also serves as an MCP tool server")]
+#[command(
+    about = "Mattermost channel adapter for the Brainwires gateway — also serves as an MCP tool server"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,

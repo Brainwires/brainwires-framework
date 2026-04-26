@@ -157,8 +157,7 @@ impl MattermostChannel {
 
 /// Parse Mattermost timestamp (milliseconds since epoch) to `DateTime<Utc>`.
 fn parse_mm_ts(ms: i64) -> DateTime<Utc> {
-    DateTime::from_timestamp(ms / 1000, ((ms % 1000) as u32) * 1_000_000)
-        .unwrap_or_else(Utc::now)
+    DateTime::from_timestamp(ms / 1000, ((ms % 1000) as u32) * 1_000_000).unwrap_or_else(Utc::now)
 }
 
 #[async_trait]
@@ -288,10 +287,7 @@ impl brainwires_network::channels::Channel for MattermostChannel {
                 .and_then(|v| v.as_str())
                 .unwrap_or("unknown")
                 .to_string();
-            let ts_ms = post
-                .get("create_at")
-                .and_then(|v| v.as_i64())
-                .unwrap_or(0);
+            let ts_ms = post.get("create_at").and_then(|v| v.as_i64()).unwrap_or(0);
             let root_id = post
                 .get("root_id")
                 .and_then(|v| v.as_str())
