@@ -105,11 +105,12 @@ a { color: var(--accent); }
 #app {
     display: flex;
     flex-direction: column;
-    min-height: 100dvh;
+    height: 100dvh;
     width: 100%;
     padding-top: env(safe-area-inset-top);
     padding-right: env(safe-area-inset-right);
     padding-left: env(safe-area-inset-left);
+    overflow: hidden;
 }
 .view {
     display: none;
