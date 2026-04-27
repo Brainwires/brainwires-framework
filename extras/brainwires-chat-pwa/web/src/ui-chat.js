@@ -300,7 +300,19 @@ function renderMessages() {
     if (!_ui.listEl) return;
     clear(_ui.listEl);
     if (_messages.length === 0) {
-        _ui.listEl.appendChild(el('li', { class: 'chat-empty' }, t('chat.empty')));
+        const emptyState = el('li', { class: 'chat-empty-state' },
+            el('img', { class: 'chat-logo', attrs: { src: 'icons/icon-192.png', alt: 'Brainwires Chat' } }),
+            el('h2', {}, 'Brainwires Chat'),
+            el('p', { class: 'build-stamp', id: 'build-stamp' }),
+        );
+        _ui.listEl.appendChild(emptyState);
+        import('../build-info.js').then(info => {
+            const stamp = document.getElementById('build-stamp');
+            if (!stamp || !info) return;
+            const parts = [info.BUILD_GIT, info.BUILD_TIME].filter(Boolean);
+            stamp.textContent = parts.join(' — ') || 'dev';
+            wireHardRefresh(stamp);
+        }).catch(() => {});
         return;
     }
     for (const m of _messages) {
@@ -361,7 +373,7 @@ async function handleSend() {
     };
     await putMessage(userMsg);
     _messages.push(userMsg);
-    _ui.listEl.querySelector('.chat-empty')?.remove();
+    _ui.listEl.querySelector('.chat-empty-state')?.remove();
     _ui.listEl.appendChild(buildBubble(userMsg));
 
     _ui.textarea.value = '';
@@ -935,3 +947,27 @@ function glyph(name) {
 // directly; we re-import here only because future encryption-on-send
 // support will live in this module).
 void cryptoStore;
+
+// ── Build-stamp hard refresh (dblclick + long-press) ─────────────────
+
+function wireHardRefresh(stamp) {
+    let pressTimer = null;
+    let fired = false;
+    stamp.addEventListener('dblclick', (e) => { e.preventDefault(); hardRefresh(); });
+    stamp.addEventListener('pointerdown', () => {
+        fired = false;
+        pressTimer = setTimeout(() => { fired = true; hardRefresh(); }, 800);
+    });
+    stamp.addEventListener('pointerup', () => clearTimeout(pressTimer));
+    stamp.addEventListener('pointercancel', () => clearTimeout(pressTimer));
+    stamp.addEventListener('pointermove', () => clearTimeout(pressTimer));
+    stamp.addEventListener('contextmenu', (e) => e.preventDefault());
+    stamp.addEventListener('click', (e) => { if (fired) { e.preventDefault(); e.stopPropagation(); } });
+}
+
+function hardRefresh() {
+    if ('caches' in self) caches.keys().then(ks => ks.forEach(k => caches.delete(k)));
+    if ('serviceWorker' in navigator)
+        navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister()));
+    setTimeout(() => location.reload(), 300);
+}

@@ -243,12 +243,39 @@ a { color: var(--accent); }
     gap: 10px;
     scroll-behavior: smooth;
 }
-.chat-empty {
-    color: var(--muted);
+.chat-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    gap: 12px;
+    padding: 32px;
     text-align: center;
-    margin-top: 20vh;
-    font-size: 15px;
+    color: var(--muted);
     list-style: none;
+    margin-top: 15vh;
+}
+.chat-logo {
+    width: 96px;
+    height: 96px;
+    border-radius: 20px;
+    opacity: 0.8;
+}
+.chat-empty-state h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text);
+}
+.build-stamp {
+    font-size: 11px;
+    color: var(--muted);
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    padding: 8px;
+    margin: 0;
 }
 
 .bubble {
