@@ -254,49 +254,90 @@ export async function downloadModel(modelId, opts = {}) {
                 }
             }
 
-            const headers = {};
-            if (opts.hfToken) headers['Authorization'] = `Bearer ${opts.hfToken}`;
+            const baseHeaders = {};
+            if (opts.hfToken) baseHeaders['Authorization'] = `Bearer ${opts.hfToken}`;
 
-            let resp;
-            try {
-                resp = await fetch(url, { headers, signal: controller.signal });
-            } catch (e) {
-                if (controller.signal.aborted) throw new DOMException('aborted', 'AbortError');
-                throw e;
-            }
-            if (resp.status === 401 || resp.status === 403) {
-                throw new HfAuthRequiredError(`HF responded ${resp.status} for ${f.filename}`);
-            }
-            if (!resp.ok) {
-                throw new Error(`HF fetch failed (${resp.status}) for ${f.filename}`);
-            }
-
-            const contentLength = Number(resp.headers.get('content-length')) || 0;
-            fileTotals[i] = contentLength;
-            totalBytesTotal += contentLength;
-
-            // Read the body as chunks; build an ArrayBuffer at the end.
-            // Blob path: simpler than tee()'ing into the cache.
-            const reader = resp.body.getReader();
+            // Retry loop with Range-header resume. On network failure,
+            // we keep the chunks already received and resume from that
+            // byte offset. HuggingFace supports Range requests.
+            const MAX_RETRIES = 3;
             const chunks = [];
             let fileBytesDone = 0;
-            while (true) {
-                const { value, done } = await reader.read();
-                if (done) break;
-                if (controller.signal.aborted) throw new DOMException('aborted', 'AbortError');
-                chunks.push(value);
-                fileBytesDone += value.byteLength;
-                totalBytesDone += value.byteLength;
-                emitProgress(f, fileBytesDone, contentLength);
+            let contentLength = 0;
+
+            for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+                const fetchHeaders = { ...baseHeaders };
+                if (fileBytesDone > 0) {
+                    fetchHeaders['Range'] = `bytes=${fileBytesDone}-`;
+                }
+
+                let resp;
+                try {
+                    resp = await fetch(url, { headers: fetchHeaders, signal: controller.signal });
+                } catch (e) {
+                    if (controller.signal.aborted) throw new DOMException('aborted', 'AbortError');
+                    if (attempt === MAX_RETRIES) throw e;
+                    await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+                    continue;
+                }
+                if (resp.status === 401 || resp.status === 403) {
+                    throw new HfAuthRequiredError(`HF responded ${resp.status} for ${f.filename}`);
+                }
+                if (resp.status === 416) {
+                    // Range not satisfiable — file was already fully received
+                    break;
+                }
+                if (!resp.ok && resp.status !== 206) {
+                    if (attempt === MAX_RETRIES) throw new Error(`HF fetch failed (${resp.status}) for ${f.filename}`);
+                    await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+                    continue;
+                }
+
+                // On 200 (full response), reset partial state; on 206, append.
+                if (resp.status === 200 && fileBytesDone > 0) {
+                    chunks.length = 0;
+                    fileBytesDone = 0;
+                    totalBytesDone -= fileBytesDone;
+                }
+
+                // Set total size from the first response.
+                if (contentLength === 0) {
+                    if (resp.status === 206) {
+                        const cr = resp.headers.get('content-range');
+                        contentLength = cr ? Number(cr.split('/')[1]) || 0 : 0;
+                    } else {
+                        contentLength = Number(resp.headers.get('content-length')) || 0;
+                    }
+                    fileTotals[i] = contentLength;
+                    totalBytesTotal += contentLength;
+                }
+
+                const reader = resp.body.getReader();
+                let streamFailed = false;
+                try {
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+                        if (controller.signal.aborted) throw new DOMException('aborted', 'AbortError');
+                        chunks.push(value);
+                        fileBytesDone += value.byteLength;
+                        totalBytesDone += value.byteLength;
+                        emitProgress(f, fileBytesDone, contentLength);
+                    }
+                } catch (e) {
+                    if (controller.signal.aborted) throw new DOMException('aborted', 'AbortError');
+                    streamFailed = true;
+                    if (attempt === MAX_RETRIES) throw e;
+                }
+                try { reader.releaseLock(); } catch (_) {}
+                if (!streamFailed) break;
+                await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
             }
-            try { reader.releaseLock(); } catch (_) {}
 
             // Reassemble into a single ArrayBuffer for hashing + caching.
             const blob = new Blob(chunks);
-            // Preserve content-type if the server set one.
             const cacheHeaders = new Headers();
-            const ct = resp.headers.get('content-type');
-            if (ct) cacheHeaders.set('content-type', ct);
+            cacheHeaders.set('content-type', 'application/octet-stream');
             cacheHeaders.set('content-length', String(blob.size));
             const cachedResp = new Response(blob, { status: 200, headers: cacheHeaders });
             await cache.put(url, cachedResp);
