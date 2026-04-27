@@ -137,6 +137,8 @@ web-speech = [
     "dep:web-sys",
     "dep:wasm-bindgen-futures",
 ]
+# WebGPU acceleration for local-llm-candle. Forwards to candle-core/wgpu.
+candle-wgpu = ["local-llm-candle", "candle-core/wgpu"]
 
 [dev-dependencies]
 serde_json = { workspace = true }

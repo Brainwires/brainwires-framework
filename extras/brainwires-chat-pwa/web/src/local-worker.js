@@ -139,11 +139,17 @@ async function handleLoad(msg) {
         self.postMessage({ type: 'load_progress', phase: 'loading', modelId });
 
         const mod = await getWasm();
-        if (typeof mod.init_local_model !== 'function') {
+
+        // Prefer init_local_model_gpu (async, tries WebGPU → CPU fallback).
+        // Fall back to init_local_model (sync, CPU-only) for older builds.
+        const initFn = typeof mod.init_local_model_gpu === 'function'
+            ? mod.init_local_model_gpu
+            : mod.init_local_model;
+        if (!initFn) {
             self.postMessage({
                 requestId,
                 type: 'load_error',
-                error: 'wasm.init_local_model() not available — rebuild the WASM crate',
+                error: 'wasm.init_local_model not available — rebuild the WASM crate',
             });
             return;
         }
@@ -158,18 +164,17 @@ async function handleLoad(msg) {
 
         let { weights, tokenizer } = await getModelBytes(modelId);
         try {
-            handle = await mod.init_local_model(weights, tokenizer, modelId);
+            handle = await initFn(weights, tokenizer, modelId);
         } finally {
-            // Drop our local refs; wasm has copied the bytes into linear
-            // memory by now, so the worker-side ArrayBuffers (~2.5 GB)
-            // can be GC'd immediately.
             weights = null;
             tokenizer = null;
         }
         loadedModelId = modelId;
 
-        self.postMessage({ type: 'load_progress', phase: 'ready', modelId });
-        self.postMessage({ requestId, type: 'load_done', modelId });
+        // Report which device the model landed on (webgpu or cpu).
+        const deviceType = handle.device_type || 'cpu';
+        self.postMessage({ type: 'load_progress', phase: 'ready', modelId, deviceType });
+        self.postMessage({ requestId, type: 'load_done', modelId, deviceType });
     } catch (err) {
         const error = err && err.message ? err.message : String(err);
         console.error('local-worker: load failed', err);

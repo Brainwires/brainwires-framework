@@ -40,6 +40,7 @@ use std::sync::Arc;
 use brainwires_core::message::{Message, StreamChunk};
 use brainwires_core::provider::{ChatOptions, Provider};
 use brainwires_providers::local_llm::CandleLlmProvider;
+use brainwires_providers::CandleDevice as Device;
 use brainwires_providers::web_speech::{
     WebSpeechStt, WebSpeechSttOptions, WebSpeechTts, WebSpeechTtsOptions,
 };
@@ -92,14 +93,24 @@ pub struct LocalModelHandle {
 
 #[wasm_bindgen]
 impl LocalModelHandle {
-    /// Logical model id this handle was constructed with.
     #[wasm_bindgen(getter)]
     pub fn model_id(&self) -> String {
         self.inner.name().to_string()
     }
+
+    /// Returns `"webgpu"` or `"cpu"` so JS can report which device is active.
+    #[wasm_bindgen(getter)]
+    pub fn device_type(&self) -> String {
+        let loc = self.inner.device().location();
+        match loc {
+            brainwires_providers::CandleDeviceLocation::Cpu => "cpu".into(),
+            brainwires_providers::CandleDeviceLocation::Wgpu { .. } => "webgpu".into(),
+            _ => "unknown".into(),
+        }
+    }
 }
 
-/// Build a [`LocalModelHandle`] from JS-supplied byte buffers.
+/// Build a [`LocalModelHandle`] from JS-supplied byte buffers (CPU only).
 ///
 /// `weights` is the contents of a single safetensors file; `tokenizer_json`
 /// is the contents of `tokenizer.json`. Both are taken by value because
@@ -116,6 +127,46 @@ pub fn init_local_model(
     Ok(LocalModelHandle {
         inner: Arc::new(provider),
     })
+}
+
+/// Build a [`LocalModelHandle`] attempting WebGPU first, CPU fallback.
+///
+/// Async because WebGPU adapter/device negotiation requires awaiting the
+/// browser's GPU promise. Returns a `Promise<LocalModelHandle>` to JS.
+/// The resolved handle reports which device it landed on via `device_type()`.
+#[wasm_bindgen]
+pub async fn init_local_model_gpu(
+    weights: Vec<u8>,
+    tokenizer_json: Vec<u8>,
+    model_id: String,
+) -> Result<LocalModelHandle, JsValue> {
+
+    let device = match try_webgpu_device().await {
+        Ok(dev) => {
+            web_sys::console::log_1(&"wgpu: using WebGPU device".into());
+            dev
+        }
+        Err(e) => {
+            web_sys::console::warn_1(
+                &format!("wgpu: WebGPU unavailable ({e}), falling back to CPU").into(),
+            );
+            Device::Cpu
+        }
+    };
+
+    let provider =
+        CandleLlmProvider::from_bytes_on_device(&model_id, weights, tokenizer_json, &device)
+            .map_err(|e| JsValue::from_str(&format!("init_local_model_gpu failed: {e}")))?;
+    Ok(LocalModelHandle {
+        inner: Arc::new(provider),
+    })
+}
+
+async fn try_webgpu_device() -> Result<Device, String> {
+    let gpu_device = brainwires_providers::WgpuDevice::new_async()
+        .await
+        .map_err(|e| format!("{e}"))?;
+    Ok(Device::Wgpu(gpu_device))
 }
 
 /// Streaming chat parameters accepted from JS. Mirrors a useful subset of

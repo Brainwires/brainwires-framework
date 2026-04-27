@@ -154,6 +154,13 @@ pub use chat_factory::ChatProviderFactory;
 // Local LLM
 pub use local_llm::*;
 
+// Re-export candle Device + WgpuDevice for downstream crates (e.g. the PWA's
+// wasm crate) that need to construct a device and pass it to from_bytes_on_device.
+#[cfg(feature = "local-llm-candle")]
+pub use candle_core::Device as CandleDevice;
+#[cfg(feature = "candle-wgpu")]
+pub use candle_core::{DeviceLocation as CandleDeviceLocation, WgpuDevice};
+
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;

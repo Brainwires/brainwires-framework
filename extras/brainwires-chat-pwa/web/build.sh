@@ -17,6 +17,9 @@ if ! command -v wasm-pack >/dev/null 2>&1; then
     exit 1
 fi
 
+# web_sys_unstable_apis enables web-sys's WebGPU bindings (navigator.gpu etc.)
+export RUSTFLAGS="${RUSTFLAGS:-} --cfg=web_sys_unstable_apis"
+
 echo "==> wasm-pack build $WASM_CRATE_DIR"
 wasm-pack build \
     --target web \

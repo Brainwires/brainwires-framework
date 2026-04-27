@@ -70,6 +70,11 @@ pub struct CandleLlmProvider {
 }
 
 impl CandleLlmProvider {
+    /// The compute device this provider's model is loaded on.
+    pub fn device(&self) -> &Device {
+        &self.device
+    }
+
     /// Build a provider from already-downloaded byte buffers.
     ///
     /// `model_id` is purely a label returned from [`Provider::name`]. `weights`
@@ -82,7 +87,18 @@ impl CandleLlmProvider {
     /// Note: the embedded config is a placeholder until upstream publishes
     /// `google/gemma-4-e2b/config.json`; see the TODO inside.
     pub fn from_bytes(model_id: &str, weights: Vec<u8>, tokenizer_json: Vec<u8>) -> Result<Self> {
-        let device = Device::Cpu;
+        Self::from_bytes_on_device(model_id, weights, tokenizer_json, &Device::Cpu)
+    }
+
+    /// Like [`from_bytes`](Self::from_bytes) but places the model on a
+    /// specific [`Device`] (e.g. `Device::Wgpu` for GPU acceleration).
+    pub fn from_bytes_on_device(
+        model_id: &str,
+        weights: Vec<u8>,
+        tokenizer_json: Vec<u8>,
+        device: &Device,
+    ) -> Result<Self> {
+        let device = device.clone();
 
         let tokenizer = Tokenizer::from_bytes(&tokenizer_json)
             .map_err(|e| anyhow!("failed to parse tokenizer.json: {e}"))?;

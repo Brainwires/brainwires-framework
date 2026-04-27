@@ -77,6 +77,7 @@ function subscribe() {
             if (_state !== 'ready' && _state !== 'error') _state = 'loading';
         } else if (d.phase === 'ready') {
             _state = 'ready';
+            if (d.deviceType) _lastDetail = { ...(_lastDetail || {}), deviceType: d.deviceType };
             if (_readyTimer) clearTimeout(_readyTimer);
             _readyTimer = setTimeout(() => {
                 _state = 'idle';
@@ -256,8 +257,10 @@ function buildContent(compact) {
         ));
         wrap.appendChild(el('progress', { class: 'bw-dl-progress' }));
     } else if (_state === 'ready') {
+        const deviceType = (_lastDetail && _lastDetail.deviceType) || 'cpu';
+        const deviceLabel = deviceType === 'webgpu' ? 'Ready (GPU)' : t('download.ready');
         wrap.appendChild(el('div', { class: 'bw-dl-row bw-dl-ready' },
-            el('span', { class: 'bw-dl-title' }, t('download.ready')),
+            el('span', { class: 'bw-dl-title' }, deviceLabel),
         ));
     } else if (_state === 'error') {
         const errMsg = (_lastDetail && _lastDetail.error) ? _lastDetail.error : t('error.generic');
