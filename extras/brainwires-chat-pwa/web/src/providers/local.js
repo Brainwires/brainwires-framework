@@ -43,13 +43,34 @@ export async function loadLocalModel(modelId = defaultModel) {
     if (!(await isDownloaded(modelId))) {
         throw new Error(`local model not downloaded: ${modelId}. Open Settings → Local model to download.`);
     }
-    const { weights, tokenizer } = await getModelBytes(modelId);
+    let { weights, tokenizer } = await getModelBytes(modelId);
     const wasm = await getWasm();
     if (typeof wasm.init_local_model !== 'function') {
         throw new Error('wasm.init_local_model() not available — rebuild the WASM crate');
     }
-    const handle = await wasm.init_local_model(weights, tokenizer, modelId);
+    // Indeterminate "loading into wasm" phase — wasm-bindgen copies the
+    // bytes into linear memory inside this single call, which can block
+    // the main thread for several seconds. We yield once so the banner
+    // can flip to "Loading model into memory…" before that happens.
+    events.dispatchEvent(new CustomEvent('model_progress', {
+        detail: { phase: 'loading', modelId },
+    }));
+    await new Promise((r) => setTimeout(r, 0));
+    let handle;
+    try {
+        handle = await wasm.init_local_model(weights, tokenizer, modelId);
+    } finally {
+        // Drop our refs — wasm has copied them into linear memory by now,
+        // so the JS-side ArrayBuffers (~2.5 GB) can be GC'd. Halves peak
+        // heap. The locals are function-scoped and would be reclaimed on
+        // return anyway; we explicitly null them here for clarity.
+        weights = null;
+        tokenizer = null;
+    }
     setLocalModelHandle(handle, modelId);
+    events.dispatchEvent(new CustomEvent('model_progress', {
+        detail: { phase: 'ready', modelId },
+    }));
     return handle;
 }
 

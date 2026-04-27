@@ -386,11 +386,70 @@ describe('model-store', () => {
         assert.throws(() => modelStore.cacheKey('does-not-exist', 'x.bin'));
     });
 
-    // The download path needs Cache Storage + a fetch polyfill that
+    // The full download path needs Cache Storage + a fetch polyfill that
     // streams a Response.body. Skipping until we wire one in.
     // TODO: bring in a Cache + fetch test polyfill (or use Playwright)
     // and exercise downloadModel({onProgress}) end-to-end.
     test.skip('downloadModel writes to Cache Storage and emits progress', () => {});
+
+    test('downloadModel emits a verifying-phase event for cached files with sha256 pins', async () => {
+        // Mock Cache Storage with a pre-cached entry whose bytes match
+        // the pin. We set a pin on the registry temporarily so the
+        // verify branch fires; restore it after.
+        const m = modelStore.KNOWN_MODELS['gemma-4-e2b'];
+        const originalFiles = m.files.map((f) => ({ ...f }));
+        const stateMod = await import('../src/state.js');
+
+        // Build small payloads + their real sha256 pins.
+        const payloads = await Promise.all(m.files.map(async (f) => {
+            const bytes = new TextEncoder().encode(`stub-${f.filename}`);
+            const digest = await crypto.subtle.digest('SHA-256', bytes);
+            const hex = [...new Uint8Array(digest)]
+                .map((b) => b.toString(16).padStart(2, '0')).join('');
+            return { f, bytes, hex };
+        }));
+
+        // Pin each file in the registry so downloadModel takes the
+        // verify-cached branch.
+        for (const p of payloads) p.f.sha256 = p.hex;
+
+        // Install a fake `caches` that returns the pre-cached responses.
+        const cacheBacking = new Map();
+        for (const p of payloads) {
+            const key = modelStore.cacheKey('gemma-4-e2b', p.f.filename);
+            cacheBacking.set(key, new Response(p.bytes));
+        }
+        const fakeCache = {
+            match: async (key) => {
+                const hit = cacheBacking.get(key);
+                return hit ? hit.clone() : undefined;
+            },
+            put: async (key, resp) => { cacheBacking.set(key, resp); },
+            delete: async (key) => cacheBacking.delete(key),
+        };
+        const originalCaches = globalThis.caches;
+        globalThis.caches = { open: async () => fakeCache };
+
+        const phases = [];
+        const handler = (e) => {
+            if (e.detail && e.detail.phase) phases.push(e.detail.phase);
+        };
+        stateMod.events.addEventListener('model_progress', handler);
+
+        try {
+            await modelStore.downloadModel('gemma-4-e2b');
+        } finally {
+            stateMod.events.removeEventListener('model_progress', handler);
+            globalThis.caches = originalCaches;
+            // Restore registry pins.
+            for (let i = 0; i < originalFiles.length; i++) {
+                m.files[i].sha256 = originalFiles[i].sha256;
+            }
+        }
+
+        assert.ok(phases.includes('verifying'),
+            `expected a 'verifying' phase event, got: ${JSON.stringify(phases)}`);
+    });
 });
 
 // ── utils (formatters + pure DOM helpers) ─────────────────────

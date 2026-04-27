@@ -90,6 +90,7 @@
 
     "download.banner": "Downloading {model}…",
     "download.verifying": "Verifying SHA-256…",
+    "download.loading": "Loading model into memory…",
     "download.ready": "✓ Ready",
     "download.error": "Download failed",
     "download.retry": "Retry",

@@ -199,6 +199,7 @@ export async function downloadModel(modelId, opts = {}) {
             const remaining = Math.max(0, totalBytesTotal - totalBytesDone);
             const etaSeconds = throughputBps > 0 ? remaining / throughputBps : null;
             const detail = {
+                phase: 'download',
                 modelId,
                 file: file.filename,
                 fileKind: file.kind,
@@ -231,9 +232,15 @@ export async function downloadModel(modelId, opts = {}) {
                 }
                 try {
                     const buf = await existing.clone().arrayBuffer();
-                    const hex = await sha256Hex(buf);
+                    const len = buf.byteLength;
+                    const hex = await sha256Hex(buf, {
+                        modelId,
+                        file: f,
+                        fileBytesTotal: len,
+                        totalBytesDoneBefore: totalBytesDone,
+                        totalBytesTotalSoFar: totalBytesTotal + len,
+                    });
                     if (hex === f.sha256) {
-                        const len = buf.byteLength;
                         fileTotals[i] = len;
                         totalBytesTotal += len;
                         totalBytesDone += len;
@@ -299,7 +306,13 @@ export async function downloadModel(modelId, opts = {}) {
             // Verify pin if available.
             if (f.sha256) {
                 const ab = await blob.arrayBuffer();
-                const hex = await sha256Hex(ab);
+                const hex = await sha256Hex(ab, {
+                    modelId,
+                    file: f,
+                    fileBytesTotal: ab.byteLength,
+                    totalBytesDoneBefore: totalBytesDone - ab.byteLength,
+                    totalBytesTotalSoFar: totalBytesTotal,
+                });
                 if (hex !== f.sha256) {
                     await cache.delete(url);
                     throw new Error(`SHA-256 mismatch for ${f.filename}: got ${hex}, expected ${f.sha256}`);
@@ -318,8 +331,59 @@ export async function downloadModel(modelId, opts = {}) {
 
 // ── Hash helper ────────────────────────────────────────────────
 
-async function sha256Hex(buf) {
+/**
+ * Compute the SHA-256 of `buf`, emitting `phase: 'verifying'` events on
+ * `state.events` so the UI can show "Verifying SHA-256…" while the work
+ * happens.
+ *
+ * NOTE: `crypto.subtle.digest` does not support streaming — calling it
+ * per chunk would yield independent hashes, not a single rolling one.
+ * For now we just yield to the event loop right before and after the
+ * single-shot digest call so the banner repaints between phase changes.
+ * Once we want fully-incremental progress, swap in a pure-JS streaming
+ * SHA-256 implementation (e.g. js-sha256 vendored as a small dep).
+ *
+ * @param {ArrayBuffer} buf
+ * @param {object} [ctx]   optional progress context (modelId, file, …)
+ * @returns {Promise<string>} hex digest
+ */
+async function sha256Hex(buf, ctx = null) {
+    const total = buf.byteLength;
+    const emit = (bytesProcessed) => {
+        if (!ctx || !ctx.file) return;
+        const fileTotal = ctx.fileBytesTotal != null ? ctx.fileBytesTotal : total;
+        const totalDoneBefore = ctx.totalBytesDoneBefore || 0;
+        const totalTotal = ctx.totalBytesTotalSoFar || fileTotal;
+        const totalBytesDone = totalDoneBefore + bytesProcessed;
+        const percent = fileTotal > 0
+            ? Math.min(100, Math.floor((bytesProcessed / fileTotal) * 100))
+            : null;
+        const detail = {
+            phase: 'verifying',
+            modelId: ctx.modelId,
+            file: ctx.file.filename,
+            fileKind: ctx.file.kind,
+            fileBytesDone: bytesProcessed,
+            fileBytesTotal: fileTotal,
+            totalBytesDone,
+            totalBytesTotal: totalTotal,
+            percent,
+        };
+        events.dispatchEvent(new CustomEvent('model_progress', { detail }));
+    };
+
+    // Emit "verifying started" and let the main thread repaint before
+    // the digest call blocks for a few seconds.
+    emit(0);
+    await new Promise((r) => setTimeout(r, 0));
+
     const digest = await crypto.subtle.digest('SHA-256', buf);
+
+    // Yield once more so the banner can flip to the next phase before
+    // the next big main-thread call (e.g. wasm.init_local_model).
+    await new Promise((r) => setTimeout(r, 0));
+    emit(total);
+
     const bytes = new Uint8Array(digest);
     let out = '';
     for (let i = 0; i < bytes.length; i++) {

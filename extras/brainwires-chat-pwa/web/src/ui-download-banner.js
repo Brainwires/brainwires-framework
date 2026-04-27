@@ -32,7 +32,7 @@ import { getSessionKey } from './state.js';
 const HF_TOKEN_SETTING = 'hfTokenEncrypted';
 
 let _root = null;
-let _state = 'idle';   // 'idle' | 'downloading' | 'verifying' | 'ready' | 'error'
+let _state = 'idle';   // 'idle' | 'downloading' | 'verifying' | 'loading' | 'ready' | 'error'
 let _activeModelId = null;
 let _lastDetail = null;
 let _retryArgs = null;
@@ -68,13 +68,33 @@ function subscribe() {
         if (!d) return;
         _lastDetail = d;
         _activeModelId = d.modelId;
-        const isComplete = d.totalBytesTotal > 0 && d.totalBytesDone >= d.totalBytesTotal;
-        if (isComplete && _state !== 'verifying' && _state !== 'ready') {
-            // Optimistically transition to verifying; downloadModel
-            // may still be hashing.
-            _state = 'verifying';
-        } else if (_state !== 'verifying' && _state !== 'ready' && _state !== 'error') {
-            _state = 'downloading';
+        // Drive the state machine off `phase` when present (new schema);
+        // fall back to byte-progress heuristic for older callers that
+        // haven't been updated yet.
+        if (d.phase === 'verifying') {
+            if (_state !== 'ready' && _state !== 'error') _state = 'verifying';
+        } else if (d.phase === 'loading') {
+            if (_state !== 'ready' && _state !== 'error') _state = 'loading';
+        } else if (d.phase === 'ready') {
+            _state = 'ready';
+            if (_readyTimer) clearTimeout(_readyTimer);
+            _readyTimer = setTimeout(() => {
+                _state = 'idle';
+                _activeModelId = null;
+                _lastDetail = null;
+                render();
+            }, 1500);
+        } else if (d.phase === 'error') {
+            _state = 'error';
+        } else if (d.phase === 'download' || d.phase === undefined) {
+            const isComplete = d.totalBytesTotal > 0 && d.totalBytesDone >= d.totalBytesTotal;
+            if (isComplete && _state !== 'verifying' && _state !== 'loading' && _state !== 'ready') {
+                // Optimistically transition to verifying; downloadModel
+                // may still be hashing.
+                _state = 'verifying';
+            } else if (_state !== 'verifying' && _state !== 'loading' && _state !== 'ready' && _state !== 'error') {
+                _state = 'downloading';
+            }
         }
         render();
     });
@@ -230,6 +250,11 @@ function buildContent(compact) {
             el('span', { class: 'bw-dl-title' }, t('download.verifying')),
         ));
         wrap.appendChild(el('progress', { class: 'bw-dl-progress' }));
+    } else if (_state === 'loading') {
+        wrap.appendChild(el('div', { class: 'bw-dl-row' },
+            el('span', { class: 'bw-dl-title' }, t('download.loading')),
+        ));
+        wrap.appendChild(el('progress', { class: 'bw-dl-progress' }));
     } else if (_state === 'ready') {
         wrap.appendChild(el('div', { class: 'bw-dl-row bw-dl-ready' },
             el('span', { class: 'bw-dl-title' }, t('download.ready')),
@@ -338,7 +363,7 @@ async function readDecryptedHfToken() {
  * @returns {boolean} true while a download is in progress
  */
 export function isDownloadActive() {
-    return _state === 'downloading' || _state === 'verifying';
+    return _state === 'downloading' || _state === 'verifying' || _state === 'loading';
 }
 
 /** Returns the modelId of the active download (or null). */
