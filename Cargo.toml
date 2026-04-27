@@ -323,3 +323,13 @@ debug = "line-tables-only"
 [patch.crates-io]
 rustpotter = { git = "https://github.com/Brainwires/rustpotter", rev = "4dbd6fd55a7c198cedb7c5e2574497343fd620a7" }
 
+# candle 0.10.x — patched against the Brainwires fork at v0.10-wgpu.
+# Initial branch state is byte-identical to upstream commit 7c7a8c57 ("Bump
+# candle version to 0.10.2"), which is the source of crates.io's 0.10.2
+# publication (upstream did not cut a `0.10.2` tag). The WebGPU backend
+# lands incrementally on this branch in subsequent phases of the
+# bright-scroll plan.
+candle-core         = { git = "https://github.com/Brainwires/candle", rev = "7c7a8c570e6a16ea24cc30a7501c8ffbbdb51680" }
+candle-nn           = { git = "https://github.com/Brainwires/candle", rev = "7c7a8c570e6a16ea24cc30a7501c8ffbbdb51680" }
+candle-transformers = { git = "https://github.com/Brainwires/candle", rev = "7c7a8c570e6a16ea24cc30a7501c8ffbbdb51680" }
+
