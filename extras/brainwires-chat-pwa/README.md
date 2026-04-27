@@ -57,6 +57,23 @@ Cross-Origin Isolation headers, long-cache for `*.wasm`, and a
 no-cache rule on `/sw.js`. Set `HOST_PORT` in `.env` to override the
 default `8080`.
 
+### Hot-swap deploy (minimal-downtime updates)
+
+`./deploy.sh` rebuilds the image **while the old container keeps
+serving**, then swaps. Downtime is just the nginx restart (~2–3s)
+instead of the full image-build duration. Auto-rolls-back to the
+previous image if the new container fails its health check
+(`/manifest.json` 200).
+
+```sh
+./deploy.sh             # normal deploy
+./deploy.sh --rollback  # restore the previous image
+```
+
+Use `start.sh prod` for first-time bring-up and `deploy.sh` for
+subsequent updates. Don't run `deploy.sh` while dev mode is active —
+it'll refuse, since the swap would clobber the dev container.
+
 ### Dev (live editing)
 
 `./web/start.sh dev` runs three loops, all detached:
