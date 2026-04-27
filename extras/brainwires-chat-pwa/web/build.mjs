@@ -49,6 +49,28 @@ const appConfig = {
     logLevel: 'info',
 };
 
+// ── esbuild config: local-model worker bundle ──────────────────
+// The worker hosts the WASM module on its own thread (Phase 2 of the
+// "bright-scroll" plan). It imports `./pkg/brainwires_chat_pwa.js`
+// at runtime — same external rule as the app bundle.
+const workerConfig = {
+    entryPoints: [join(__dirname, 'src', 'local-worker.js')],
+    bundle: true,
+    outfile: join(__dirname, 'local-worker.js'),
+    format: 'esm',
+    sourcemap: true,
+    target: ['es2022'],
+    absWorkingDir: __dirname,
+    platform: 'browser',
+    external: [
+        './pkg/brainwires_chat_pwa.js',
+        '../pkg/brainwires_chat_pwa.js',
+        './pkg/*',
+        '../pkg/*',
+    ],
+    logLevel: 'info',
+};
+
 // ── esbuild config: service-worker bundle ───────────────────────
 // IIFE so the file can be registered as a classic worker on every
 // browser that ships ServiceWorker — type=module SWs are broadly
@@ -73,6 +95,7 @@ const STATIC_ASSETS = [
     'index.html',
     'manifest.json',
     'app.js',
+    'local-worker.js',
     'styles.css',
     'pkg/brainwires_chat_pwa.js',
     'pkg/brainwires_chat_pwa_bg.wasm',
@@ -131,6 +154,7 @@ function generateBuildInfo() {
 async function buildAll() {
     const t0 = performance.now();
     await esbuild.build(appConfig);
+    await esbuild.build(workerConfig);
     await esbuild.build(swConfig);
     console.log(`  bundled in ${Math.round(performance.now() - t0)}ms`);
     patchServiceWorker();
@@ -140,12 +164,15 @@ async function buildAll() {
 // ── Run ─────────────────────────────────────────────────────────
 if (isServe) {
     const ctx = await esbuild.context(appConfig);
+    const workerCtx = await esbuild.context(workerConfig);
     const swCtx = await esbuild.context(swConfig);
     await ctx.rebuild();
+    await workerCtx.rebuild();
     await swCtx.rebuild();
     patchServiceWorker();
     generateBuildInfo();
     await ctx.watch();
+    await workerCtx.watch();
     await swCtx.watch();
     const server = await ctx.serve({
         host: '127.0.0.1',
@@ -155,12 +182,15 @@ if (isServe) {
     console.log(`Serving http://${server.host}:${server.port}/`);
 } else if (isWatch) {
     const ctx = await esbuild.context(appConfig);
+    const workerCtx = await esbuild.context(workerConfig);
     const swCtx = await esbuild.context(swConfig);
     await ctx.rebuild();
+    await workerCtx.rebuild();
     await swCtx.rebuild();
     patchServiceWorker();
     generateBuildInfo();
     await ctx.watch();
+    await workerCtx.watch();
     await swCtx.watch();
     console.log('Watching for changes...');
 } else {

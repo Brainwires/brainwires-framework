@@ -1,25 +1,29 @@
 // brainwires-chat-pwa — local-WASM provider (Gemma 4 E2B)
 //
-// Drives the WASM module's `local_chat_stream` directly on the main
-// thread. Consumes the returned `ReadableStream<Uint8Array>` line-by-
-// line, parses each line as JSON in the `{delta?, usage?, error?,
-// finished?}` convention, and dispatches the same `chat_chunk`,
-// `chat_done`, `chat_error` events the SW emits — so UI is provider-
-// agnostic.
+// Phase 2: thin RPC client over a dedicated Web Worker
+// (`src/local-worker.js`). The main thread no longer touches the WASM
+// module directly — it ships request envelopes across postMessage and
+// re-dispatches the worker's replies as the same `model_progress`,
+// `chat_chunk`, `chat_done`, `chat_error` events the UI already
+// listens for. Net effect: the page stays responsive (60fps drawer
+// toggles, scroll, typing) even while the worker is mid-generation.
 //
 // Lifecycle helpers (`loadLocalModel`, `unloadLocalModel`,
-// `isLocalModelLoaded`) are exported for the Settings page to call.
+// `isLocalModelLoaded`) keep their existing names so the Settings page
+// and `ui-chat.js` don't need to change. Internal aliases `chatLocal`
+// and `cancelLocal` are also exported for callers that prefer the
+// verb-noun shape.
 
 import {
-    getWasm,
-    getLocalModelHandle,
-    setLocalModelHandle,
+    getLocalWorker,
+    setLocalWorker,
     getLocalModelId,
+    setLocalModelId,
+    isLocalModelLoaded as stateIsLoaded,
     events,
     appEvents,
 } from '../state.js';
 import { appendMessageChunk, putMessage } from '../db.js';
-import { getModelBytes, isDownloaded } from '../model-store.js';
 
 export const id = 'local-gemma-4-e2b';
 export const displayName = 'Gemma 4 E2B (on-device)';
@@ -27,69 +31,191 @@ export const runtime = 'local';
 export const defaultModel = 'gemma-4-e2b';
 export const models = ['gemma-4-e2b'];
 
+// ── Worker singleton + RPC plumbing ────────────────────────────
+
+let _nextRequestId = 1;
+const _pending = new Map();          // requestId → { resolve, reject }
+// Track in-flight chat streams so a worker crash can surface as
+// chat_error events on the active conversations.
+const _activeChats = new Map();      // conversationId → { messageId }
+
+function dispatch(type, detail) {
+    events.dispatchEvent(new CustomEvent(type, { detail }));
+    // Mirror to the legacy hyphenated channel boot.js wires for SW msgs,
+    // so existing listeners pick up local streams too.
+    const hyphenType = type.replace(/_/g, '-');
+    appEvents.dispatchEvent(new CustomEvent(hyphenType, { detail: { type, ...detail } }));
+}
+
+function rejectAllPending(error) {
+    for (const [, { reject }] of _pending) {
+        try { reject(error); } catch (_) { /* ignore */ }
+    }
+    _pending.clear();
+}
+
+function failAllActiveChats(errMsg) {
+    for (const [conversationId, { messageId }] of _activeChats) {
+        dispatch('chat_error', { conversationId, messageId, error: errMsg });
+    }
+    _activeChats.clear();
+}
+
+function handleWorkerMessage(ev) {
+    const msg = ev.data;
+    if (!msg || typeof msg !== 'object') return;
+
+    // Streaming + progress events — broadcast to UI via state.events.
+    switch (msg.type) {
+        case 'load_progress':
+            events.dispatchEvent(new CustomEvent('model_progress', {
+                detail: { phase: msg.phase, modelId: msg.modelId },
+            }));
+            break;
+        case 'chat_chunk':
+            // Persist the delta in IndexedDB on the main thread (the
+            // worker doesn't share our db.js connection). Chunks are
+            // small (one token-ish each) so the postMessage cost is
+            // negligible compared to the wasm work the worker is doing.
+            if (msg.conversationId && msg.messageId && typeof msg.delta === 'string') {
+                appendMessageChunk(msg.conversationId, msg.messageId, msg.delta).catch(() => {});
+                dispatch('chat_chunk', {
+                    conversationId: msg.conversationId,
+                    messageId: msg.messageId,
+                    delta: msg.delta,
+                });
+            }
+            break;
+        default:
+            break;
+    }
+
+    // Request/reply correlation.
+    if (typeof msg.requestId === 'number') {
+        const slot = _pending.get(msg.requestId);
+        if (!slot) return;
+        _pending.delete(msg.requestId);
+        switch (msg.type) {
+            case 'load_done':
+                slot.resolve({ modelId: msg.modelId });
+                break;
+            case 'load_error':
+                slot.reject(new Error(msg.error || 'load_error'));
+                break;
+            case 'chat_done':
+                if (msg.conversationId) _activeChats.delete(msg.conversationId);
+                slot.resolve({ usage: msg.usage || null, tokensReceived: msg.tokensReceived || 0 });
+                break;
+            case 'chat_error':
+                if (msg.conversationId) _activeChats.delete(msg.conversationId);
+                dispatch('chat_error', {
+                    conversationId: msg.conversationId,
+                    messageId: msg.messageId,
+                    error: msg.error,
+                });
+                slot.reject(new Error(msg.error || 'chat_error'));
+                break;
+            case 'cancel_ack':
+                slot.resolve({ conversationId: msg.conversationId });
+                break;
+            case 'unload_ack':
+                slot.resolve({});
+                break;
+            default:
+                slot.reject(new Error(`unknown reply type: ${msg.type}`));
+        }
+    }
+}
+
+function handleWorkerError(err) {
+    const errMsg = err && err.message ? err.message : 'local worker crashed';
+    rejectAllPending(new Error(errMsg));
+    failAllActiveChats(errMsg);
+    // Drop the singleton so the next call re-spawns it fresh.
+    const w = getLocalWorker();
+    if (w) {
+        try { w.terminate(); } catch (_) { /* ignore */ }
+    }
+    setLocalWorker(null);
+    setLocalModelId(null);
+}
+
+function getWorker() {
+    let w = getLocalWorker();
+    if (w) return w;
+    // After esbuild bundles src/boot.js → web/app.js, `import.meta.url`
+    // points at web/app.js, and the worker lives next to it at
+    // web/local-worker.js. Resolve relative to the bundled location.
+    w = new Worker(new URL('./local-worker.js', import.meta.url), { type: 'module' });
+    w.addEventListener('message', handleWorkerMessage);
+    w.addEventListener('error', handleWorkerError);
+    w.addEventListener('messageerror', (e) => handleWorkerError(e));
+    setLocalWorker(w);
+    return w;
+}
+
+function rpc(payload) {
+    const requestId = _nextRequestId++;
+    const worker = getWorker();
+    return new Promise((resolve, reject) => {
+        _pending.set(requestId, { resolve, reject });
+        try {
+            worker.postMessage({ requestId, ...payload });
+        } catch (err) {
+            _pending.delete(requestId);
+            reject(err);
+        }
+    });
+}
+
 // ── Lifecycle ──────────────────────────────────────────────────
 
 /**
- * Load a model into the WASM runtime. Reads the cached HF assets via
- * `model-store`, then calls `wasm.init_local_model(weights, tokenizer, modelId)`.
+ * Ask the worker to load a model. Resolves with `{ modelId }`.
  *
  * @param {string} [modelId='gemma-4-e2b']
- * @returns {Promise<object>} the wasm handle
+ * @returns {Promise<{modelId: string}>}
  */
 export async function loadLocalModel(modelId = defaultModel) {
-    if (getLocalModelHandle() && getLocalModelId() === modelId) {
-        return getLocalModelHandle();
+    if (stateIsLoaded() && getLocalModelId() === modelId) {
+        return { modelId };
     }
-    if (!(await isDownloaded(modelId))) {
-        throw new Error(`local model not downloaded: ${modelId}. Open Settings → Local model to download.`);
-    }
-    let { weights, tokenizer } = await getModelBytes(modelId);
-    const wasm = await getWasm();
-    if (typeof wasm.init_local_model !== 'function') {
-        throw new Error('wasm.init_local_model() not available — rebuild the WASM crate');
-    }
-    // Indeterminate "loading into wasm" phase — wasm-bindgen copies the
-    // bytes into linear memory inside this single call, which can block
-    // the main thread for several seconds. We yield once so the banner
-    // can flip to "Loading model into memory…" before that happens.
-    events.dispatchEvent(new CustomEvent('model_progress', {
-        detail: { phase: 'loading', modelId },
-    }));
-    await new Promise((r) => setTimeout(r, 0));
-    let handle;
     try {
-        handle = await wasm.init_local_model(weights, tokenizer, modelId);
-    } finally {
-        // Drop our refs — wasm has copied them into linear memory by now,
-        // so the JS-side ArrayBuffers (~2.5 GB) can be GC'd. Halves peak
-        // heap. The locals are function-scoped and would be reclaimed on
-        // return anyway; we explicitly null them here for clarity.
-        weights = null;
-        tokenizer = null;
+        const out = await rpc({ type: 'load', modelId });
+        setLocalModelId(out.modelId || modelId);
+        return out;
+    } catch (err) {
+        const msg = err && err.message ? err.message : String(err);
+        if (msg === 'not_downloaded') {
+            throw new Error(`local model not downloaded: ${modelId}. Open Settings → Local model to download.`);
+        }
+        throw err;
     }
-    setLocalModelHandle(handle, modelId);
-    events.dispatchEvent(new CustomEvent('model_progress', {
-        detail: { phase: 'ready', modelId },
-    }));
-    return handle;
 }
 
-/** Drop the loaded model handle; lets the WASM allocator reclaim memory. */
-export function unloadLocalModel() {
-    const h = getLocalModelHandle();
-    if (h && typeof h.free === 'function') {
-        try { h.free(); } catch (_) { /* idempotent */ }
+/** Drop the loaded model handle; lets the worker's WASM allocator reclaim memory. */
+export async function unloadLocalModel() {
+    if (!getLocalWorker()) {
+        setLocalModelId(null);
+        return;
     }
-    setLocalModelHandle(null, null);
+    try { await rpc({ type: 'unload' }); }
+    catch (_) { /* idempotent */ }
+    setLocalModelId(null);
 }
 
 export function isLocalModelLoaded() {
-    return getLocalModelHandle() !== null;
+    return stateIsLoaded();
 }
 
 // ── Streaming ──────────────────────────────────────────────────
 
 /**
+ * Start a chat stream against the loaded model. Resolves on
+ * `chat_done`; rejects on `chat_error`. Chunks are dispatched on
+ * `state.events` as `chat_chunk` (and mirrored as `chat-chunk` on
+ * `appEvents` for legacy listeners).
+ *
  * @param {object} args
  * @param {string} args.conversationId
  * @param {string} args.messageId
@@ -97,110 +223,22 @@ export function isLocalModelLoaded() {
  * @param {object} [args.params]
  */
 export async function startChat({ conversationId, messageId, messages, params = {} }) {
-    const handle = getLocalModelHandle()
-        || await loadLocalModel(params.model || defaultModel).catch((e) => { throw e; });
-    if (!handle) {
-        throw new Error('local model not loaded — please download Gemma 4 E2B in Settings');
+    if (!stateIsLoaded()) {
+        await loadLocalModel(params.model || defaultModel);
     }
-    const wasm = await getWasm();
-    if (typeof wasm.local_chat_stream !== 'function') {
-        throw new Error('wasm.local_chat_stream() not available — rebuild the WASM crate');
-    }
-
-    const messagesJson = JSON.stringify(messages);
-    const paramsJson = JSON.stringify(params);
-    const stream = await wasm.local_chat_stream(handle, messagesJson, paramsJson);
-    if (!stream || typeof stream.getReader !== 'function') {
-        throw new Error('local_chat_stream did not return a ReadableStream');
-    }
-
-    const reader = stream.getReader();
-    const decoder = new TextDecoder('utf-8');
-    let buffer = '';
-    let usage = null;
-    let tokensReceived = 0;
-    let finished = false;
-
-    // Buffered DB writes — match the SW's debounce policy.
-    let pending = '';
-    let pendingCount = 0;
-    let lastFlushAt = Date.now();
-    const FLUSH_TOKENS = 32;
-    const FLUSH_MS = 250;
-
-    const flush = async (final) => {
-        if (pending.length === 0 && !final) return;
-        const delta = pending;
-        pending = '';
-        pendingCount = 0;
-        lastFlushAt = Date.now();
-        if (delta.length > 0) {
-            try { await appendMessageChunk(conversationId, messageId, delta); } catch (_) { /* best-effort */ }
-        }
-    };
-    const maybeFlush = async () => {
-        if (pendingCount >= FLUSH_TOKENS || (Date.now() - lastFlushAt) >= FLUSH_MS) {
-            await flush(false);
-        }
-    };
-
-    const dispatch = (type, detail) => {
-        events.dispatchEvent(new CustomEvent(type, { detail }));
-        // Mirror to the legacy hyphenated channel boot.js wires for SW msgs,
-        // so existing listeners pick up local streams too.
-        const hyphenType = type.replace(/_/g, '-');
-        appEvents.dispatchEvent(new CustomEvent(hyphenType, { detail: { type, ...detail } }));
-    };
-
+    _activeChats.set(conversationId, { messageId });
+    let result;
     try {
-        while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            // Split into complete NDJSON lines.
-            let nl;
-            while ((nl = buffer.indexOf('\n')) !== -1) {
-                const line = buffer.slice(0, nl).replace(/\r$/, '');
-                buffer = buffer.slice(nl + 1);
-                if (line.trim() === '') continue;
-                let obj;
-                try { obj = JSON.parse(line); } catch (_) { continue; }
-                if (!obj || typeof obj !== 'object') continue;
-                if (typeof obj.error === 'string' && obj.error !== '') {
-                    throw new Error(obj.error);
-                }
-                if (typeof obj.delta === 'string' && obj.delta !== '') {
-                    pending += obj.delta;
-                    pendingCount += 1;
-                    tokensReceived += 1;
-                    dispatch('chat_chunk', { conversationId, messageId, delta: obj.delta });
-                    await maybeFlush();
-                }
-                if (obj.usage && typeof obj.usage === 'object') {
-                    usage = obj.usage;
-                }
-                if (obj.finished === true) {
-                    finished = true;
-                }
-            }
-        }
-        // Flush any trailing partial line as a JSON object too.
-        if (buffer.trim() !== '') {
-            try {
-                const obj = JSON.parse(buffer.trim());
-                if (obj && typeof obj.delta === 'string' && obj.delta !== '') {
-                    pending += obj.delta;
-                    tokensReceived += 1;
-                    dispatch('chat_chunk', { conversationId, messageId, delta: obj.delta });
-                }
-                if (obj && obj.usage) usage = obj.usage;
-                if (obj && obj.finished === true) finished = true;
-            } catch (_) { /* ignore */ }
-            buffer = '';
-        }
-
-        await flush(true);
-
+        result = await rpc({
+            type: 'chat',
+            conversationId,
+            messageId,
+            messages,
+            params,
+        });
+    } catch (err) {
+        // chat_error already dispatched in handleWorkerMessage; just
+        // stamp the message row best-effort and rethrow.
         try {
             await putMessage({
                 conversationId,
@@ -208,19 +246,45 @@ export async function startChat({ conversationId, messageId, messages, params = 
                 role: 'assistant',
                 updatedAt: Date.now(),
                 completedAt: Date.now(),
-                tokensReceived,
             });
         } catch (_) { /* best-effort */ }
-
-        dispatch('chat_done', { conversationId, messageId, usage, tokensReceived });
-    } catch (err) {
-        await flush(true);
-        const error = err && err.message ? err.message : String(err);
-        dispatch('chat_error', { conversationId, messageId, error });
         throw err;
-    } finally {
-        try { reader.releaseLock(); } catch (_) { /* already released */ }
-        // `finished` is informational; UI should rely on chat_done.
-        void finished;
     }
+
+    // Stamp final updatedAt + persisted state. The chunk-appended row
+    // is the source of truth for content; we only patch metadata here.
+    try {
+        await putMessage({
+            conversationId,
+            messageId,
+            role: 'assistant',
+            updatedAt: Date.now(),
+            completedAt: Date.now(),
+            tokensReceived: result.tokensReceived || 0,
+        });
+    } catch (_) { /* best-effort */ }
+
+    dispatch('chat_done', {
+        conversationId,
+        messageId,
+        usage: result.usage || null,
+        tokensReceived: result.tokensReceived || 0,
+    });
+    return result;
 }
+
+/**
+ * Cancel an in-flight stream for `conversationId`. Best-effort — the
+ * worker will stop reading the wasm stream on its next iteration.
+ *
+ * @param {string} conversationId
+ */
+export async function cancelLocal(conversationId) {
+    if (!getLocalWorker()) return;
+    try { await rpc({ type: 'cancel', conversationId }); }
+    catch (_) { /* idempotent */ }
+}
+
+// Friendlier alias matching the verb-noun shape used elsewhere; kept
+// alongside `startChat` so both styles read naturally at call sites.
+export const chatLocal = startChat;

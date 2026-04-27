@@ -85,20 +85,15 @@ export function postToServiceWorker(msg) {
     return true;
 }
 
-// ── Local model handle (in-memory only) ────────────────────────
+// ── Local model state (in-memory only) ─────────────────────────
 //
-// Holds the wasm-side `LocalModelHandle` returned by
-// `init_local_model(weights, tokenizer, modelId)`. Owned exclusively
-// by `providers/local.js` — UI code and other providers should treat
-// this as opaque.
+// Phase 2: the wasm-side `LocalModelHandle` lives entirely in the
+// dedicated Web Worker (`src/local-worker.js`). The main thread only
+// remembers the *id* of the loaded model and the worker singleton
+// itself. UI code and other providers should treat the worker handle
+// as opaque — go through `providers/local.js`.
 
-let _localModelHandle = null;
 let _localModelId = null;
-
-/** @returns {object | null} */
-export function getLocalModelHandle() {
-    return _localModelHandle;
-}
 
 /** @returns {string | null} */
 export function getLocalModelId() {
@@ -106,20 +101,35 @@ export function getLocalModelId() {
 }
 
 /**
- * @param {object | null} handle the wasm handle, or null to clear
- * @param {string | null} [modelId] the registered id (e.g. 'gemma-4-e2b')
+ * Mark the local model as loaded / unloaded for this session. Drives the
+ * `local-model-loaded` / `local-model-unloaded` app events that the UI
+ * listens for. The actual wasm handle lives in the worker.
+ *
+ * @param {string | null} modelId
  */
-export function setLocalModelHandle(handle, modelId = null) {
-    const wasLoaded = _localModelHandle !== null;
-    _localModelHandle = handle;
-    _localModelId = handle ? modelId : null;
-    if (handle && !wasLoaded) {
+export function setLocalModelId(modelId) {
+    const wasLoaded = _localModelId !== null;
+    _localModelId = modelId || null;
+    if (_localModelId && !wasLoaded) {
         appEvents.dispatchEvent(new CustomEvent('local-model-loaded', { detail: { modelId: _localModelId } }));
     }
-    if (!handle && wasLoaded) {
+    if (!_localModelId && wasLoaded) {
         appEvents.dispatchEvent(new Event('local-model-unloaded'));
     }
 }
+
+/** @returns {boolean} */
+export function isLocalModelLoaded() {
+    return _localModelId !== null;
+}
+
+let _localWorker = null;
+
+/** @returns {Worker | null} */
+export function getLocalWorker() { return _localWorker; }
+
+/** @param {Worker | null} w */
+export function setLocalWorker(w) { _localWorker = w; }
 
 // ── Decrypted session key (in-memory only) ─────────────────────
 //

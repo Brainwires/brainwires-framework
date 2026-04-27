@@ -452,6 +452,35 @@ describe('model-store', () => {
     });
 });
 
+// ── providers/local — RPC surface ─────────────────────────────
+//
+// `node --test` has no Worker polyfill, so we can't drive end-to-end
+// through the actual worker — but we can at least lock in the public
+// API shape so accidental renames break the test rather than the UI.
+// The full main↔worker↔wasm round-trip lives in the e2e suite.
+
+describe('providers/local (RPC surface)', () => {
+    test('exposes load/unload/chat/cancel + module metadata', async () => {
+        await import('fake-indexeddb/auto');
+        const local = await import('../src/providers/local.js');
+        assert.equal(local.id, 'local-gemma-4-e2b');
+        assert.equal(local.runtime, 'local');
+        assert.equal(local.defaultModel, 'gemma-4-e2b');
+        assert.equal(typeof local.loadLocalModel, 'function');
+        assert.equal(typeof local.unloadLocalModel, 'function');
+        assert.equal(typeof local.startChat, 'function');
+        assert.equal(typeof local.chatLocal, 'function');
+        assert.equal(typeof local.cancelLocal, 'function');
+        assert.equal(typeof local.isLocalModelLoaded, 'function');
+        // Aliases must point at the same impl so behaviour can't drift.
+        assert.equal(local.chatLocal, local.startChat);
+        // No worker spawned just by importing the module.
+        assert.equal(local.isLocalModelLoaded(), false);
+    });
+
+    test.skip('main→worker→wasm round-trip (needs Worker polyfill or browser)', () => {});
+});
+
 // ── utils (formatters + pure DOM helpers) ─────────────────────
 
 const utils = await import('../src/utils.js');

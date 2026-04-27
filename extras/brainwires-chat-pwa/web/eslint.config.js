@@ -9,6 +9,10 @@ export default [
       'node_modules/**',
       'app.js',
       'app.js.map',
+      // Bundled worker output at the web root — NOT src/local-worker.js,
+      // which is the source we want to lint.
+      'local-worker.js',
+      'local-worker.js.map',
       'sw.js',
       'sw.bundle.js',
       'build-info.js',
@@ -54,6 +58,17 @@ export default [
       globals: {
         ...globals.serviceworker,
         __SRI_HASHES__: 'readonly',
+      },
+    },
+  },
+  {
+    // Dedicated Web Worker context (Phase 2 of bright-scroll). Has
+    // `self` / `postMessage` / `caches` but NOT the DOM. We deliberately
+    // exclude `globals.browser` so accidental DOM usage trips no-undef.
+    files: ['src/local-worker.js'],
+    languageOptions: {
+      globals: {
+        ...globals.worker,
       },
     },
   },

@@ -49,9 +49,11 @@ WORKDIR /usr/share/nginx/html
 COPY --from=web-builder /build/extras/brainwires-chat-pwa/web/index.html      ./
 COPY --from=web-builder /build/extras/brainwires-chat-pwa/web/manifest.json   ./
 COPY --from=web-builder /build/extras/brainwires-chat-pwa/web/styles.css      ./
-COPY --from=web-builder /build/extras/brainwires-chat-pwa/web/app.js          ./
-COPY --from=web-builder /build/extras/brainwires-chat-pwa/web/app.js.map      ./
-COPY --from=web-builder /build/extras/brainwires-chat-pwa/web/sw.js           ./
+COPY --from=web-builder /build/extras/brainwires-chat-pwa/web/app.js              ./
+COPY --from=web-builder /build/extras/brainwires-chat-pwa/web/app.js.map          ./
+COPY --from=web-builder /build/extras/brainwires-chat-pwa/web/local-worker.js     ./
+COPY --from=web-builder /build/extras/brainwires-chat-pwa/web/local-worker.js.map ./
+COPY --from=web-builder /build/extras/brainwires-chat-pwa/web/sw.js               ./
 COPY --from=web-builder /build/extras/brainwires-chat-pwa/web/build-info.js   ./
 COPY --from=web-builder /build/extras/brainwires-chat-pwa/web/icons           ./icons
 COPY --from=web-builder /build/extras/brainwires-chat-pwa/web/lang            ./lang
