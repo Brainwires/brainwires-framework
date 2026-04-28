@@ -54,12 +54,12 @@ export async function render(root) {
     main.appendChild(await sectionVoice());
     main.appendChild(await sectionAbout());
 
-    // The local-model section embeds a `data-bw-mirror` slot; banner
-    // will fan-out into it on every model_progress.
-    stateEvents.addEventListener('model_progress', () => {
-        // Banner re-renders the mirror; nothing for us to do here. We
-        // listen anyway so future "show inline status text" hooks can
-        // attach without changing the banner code.
+    // Re-render settings when a download completes so model status updates.
+    stateEvents.addEventListener('model_progress', (e) => {
+        const d = e.detail;
+        if (d && d.phase === 'ready' && _root) {
+            render(_root);
+        }
     });
 }
 
@@ -400,8 +400,6 @@ async function sectionLocalModel() {
     );
     body.appendChild(status);
 
-    // Mirror slot — banner module fans-out progress here.
-    body.appendChild(el('div', { attrs: { 'data-bw-mirror': 'local-model-progress' } }));
 
     const actions = el('div', { class: 'settings-actions' });
 
