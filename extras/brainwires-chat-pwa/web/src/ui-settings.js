@@ -54,11 +54,11 @@ export async function render(root) {
     main.appendChild(await sectionVoice());
     main.appendChild(await sectionAbout());
 
-    // Re-render settings when a download completes so model status updates.
+    // Partial update: refresh just the affected card when a download completes.
     stateEvents.addEventListener('model_progress', (e) => {
         const d = e.detail;
-        if (d && d.phase === 'ready' && _root) {
-            render(_root);
+        if (d && d.phase === 'ready' && d.modelId) {
+            refreshCard(d.modelId);
         }
     });
 }
@@ -385,49 +385,49 @@ async function testProvider(id, apiKeyInline, baseUrlInline) {
 
 // ── Local model ────────────────────────────────────────────────
 
-async function sectionLocalModel() {
-    const m = KNOWN_MODELS['gemma-4-e2b'];
-    const downloaded = await isDownloaded('gemma-4-e2b').catch((e) => { console.error("[bw] swallowed:", e); return false; });
-    const body = el('div', { class: 'settings-card' });
-    body.appendChild(el('h3', { class: 'settings-card-title' }, m.displayName));
-    body.appendChild(el('p', { class: 'settings-help' }, m.description));
+async function buildLlmCard(modelId) {
+    const m = KNOWN_MODELS[modelId];
+    if (!m) return el('div');
+    const downloaded = await isDownloaded(modelId).catch((e) => { console.error("[bw] swallowed:", e); return false; });
+    const card = el('div', { class: 'settings-card', id: `model-card-${modelId}` });
 
-    const status = el('div', { class: 'settings-status' },
-        el('strong', {}, t('settings.localModel.status') + ': '),
-        downloaded
-            ? el('span', { class: 'pill pill-ok' }, t('settings.localModel.ready'))
-            : el('span', { class: 'pill pill-muted' }, t('settings.localModel.notDownloaded')),
-    );
-    body.appendChild(status);
-
+    card.appendChild(el('div', { class: 'settings-card-header' },
+        el('h3', { class: 'settings-card-title' }, m.displayName),
+        el('span', { class: 'pill ' + (downloaded ? 'pill-ok' : 'pill-muted') },
+            downloaded ? t('settings.localModel.ready') : formatSize(m.estimatedBytes)),
+    ));
+    card.appendChild(el('p', { class: 'settings-help' }, m.description));
 
     const actions = el('div', { class: 'settings-actions' });
-
     if (!downloaded) {
         actions.appendChild(el('button', {
-            class: 'bw-btn bw-btn-primary',
+            class: 'bw-btn bw-btn-primary bw-btn-sm',
             attrs: { type: 'button' },
-            onClick: () => banner.startDownload('gemma-4-e2b'),
+            onClick: () => banner.startDownload(modelId),
         }, t('settings.localModel.download')));
         actions.appendChild(el('button', {
-            class: 'bw-btn bw-btn-secondary',
+            class: 'bw-btn bw-btn-secondary bw-btn-sm',
             attrs: { type: 'button' },
-            onClick: () => cancelDownload('gemma-4-e2b'),
+            onClick: () => cancelDownload(modelId),
         }, t('settings.localModel.cancel')));
     } else {
         actions.appendChild(el('button', {
-            class: 'bw-btn bw-btn-danger',
+            class: 'bw-btn bw-btn-danger bw-btn-sm',
             attrs: { type: 'button' },
             onClick: async () => {
                 if (!confirm(t('settings.localModel.confirmDelete'))) return;
-                await banner.deleteActive('gemma-4-e2b');
-                render(_root);
+                await banner.deleteActive(modelId);
+                await refreshCard(modelId);
             },
         }, t('settings.localModel.delete')));
     }
+    card.appendChild(actions);
+    return card;
+}
 
-    body.appendChild(actions);
-
+async function sectionLocalModel() {
+    const body = el('div', { class: 'settings-card-list' });
+    body.appendChild(await buildLlmCard('gemma-4-e2b'));
     return sectionWrap(t('settings.localModel.title'), body);
 }
 
@@ -439,77 +439,88 @@ function formatSize(bytes) {
     return `${(bytes / 1e3).toFixed(0)} KB`;
 }
 
+async function buildEmbeddingCard(m) {
+    const downloaded = await isDownloaded(m.id).catch((e) => { console.error("[bw] swallowed:", e); return false; });
+    const active = (await getSetting('embedding.activeModel')) === m.id;
+
+    const card = el('div', { class: 'settings-card', id: `model-card-${m.id}` });
+    card.appendChild(el('div', { class: 'settings-card-header' },
+        el('h3', { class: 'settings-card-title' }, m.displayName),
+        el('span', { class: 'pill ' + (downloaded ? 'pill-ok' : 'pill-muted') },
+            downloaded ? (active ? 'Active' : 'Ready') : formatSize(m.estimatedBytes)),
+    ));
+    card.appendChild(el('p', { class: 'settings-help' },
+        `${m.provider} · ${m.dimensions}-dim · ${m.maxTokens} max tokens`));
+    card.appendChild(el('p', { class: 'settings-help' }, m.description));
+
+    const actions = el('div', { class: 'settings-actions' });
+    if (!downloaded) {
+        actions.appendChild(el('button', {
+            class: 'bw-btn bw-btn-primary bw-btn-sm',
+            attrs: { type: 'button' },
+            onClick: () => {
+                banner.startDownload(m.id);
+                toast(`Downloading ${m.displayName}…`);
+            },
+        }, 'Download'));
+    } else {
+        if (!active) {
+            actions.appendChild(el('button', {
+                class: 'bw-btn bw-btn-primary bw-btn-sm',
+                attrs: { type: 'button' },
+                onClick: async () => {
+                    await setSetting('embedding.activeModel', m.id);
+                    toast(`${m.displayName} set as active`);
+                    await refreshCard(m.id);
+                },
+            }, 'Use'));
+        } else {
+            actions.appendChild(el('span', { class: 'pill pill-ok' }, '✓ Active'));
+        }
+        actions.appendChild(el('button', {
+            class: 'bw-btn bw-btn-danger bw-btn-sm',
+            attrs: { type: 'button' },
+            onClick: async () => {
+                if (!confirm(`Delete ${m.displayName}?`)) return;
+                await deleteModel(m.id);
+                if (active) await setSetting('embedding.activeModel', '');
+                toast(`${m.displayName} deleted`);
+                await refreshCard(m.id);
+            },
+        }, 'Delete'));
+    }
+    card.appendChild(actions);
+    return card;
+}
+
 async function sectionEmbeddingModels() {
     const body = el('div', { class: 'settings-card-list' });
-
     const models = Object.values(KNOWN_EMBEDDING_MODELS);
     const categories = ['small', 'medium', 'large'];
-
     for (const cat of categories) {
         const catModels = models.filter((m) => m.category === cat);
         if (catModels.length === 0) continue;
-
         const catLabel = cat === 'small' ? 'Small (< 200 MB)' : cat === 'medium' ? 'Medium (200 MB – 1 GB)' : 'Large (> 1 GB)';
         body.appendChild(el('h4', { class: 'settings-subsection' }, catLabel));
-
         for (const m of catModels) {
-            const downloaded = await isDownloaded(m.id).catch((e) => { console.error("[bw] swallowed:", e); return false; });
-            const active = (await getSetting('embedding.activeModel')) === m.id;
-
-            const card = el('div', { class: 'settings-card' });
-            card.appendChild(el('div', { class: 'settings-card-header' },
-                el('h3', { class: 'settings-card-title' }, m.displayName),
-                el('span', { class: 'pill ' + (downloaded ? 'pill-ok' : 'pill-muted') },
-                    downloaded ? (active ? 'Active' : 'Ready') : formatSize(m.estimatedBytes)),
-            ));
-            card.appendChild(el('p', { class: 'settings-help' },
-                `${m.provider} · ${m.dimensions}-dim · ${m.maxTokens} max tokens`));
-            card.appendChild(el('p', { class: 'settings-help' }, m.description));
-
-            const actions = el('div', { class: 'settings-actions' });
-
-            if (!downloaded) {
-                actions.appendChild(el('button', {
-                    class: 'bw-btn bw-btn-primary bw-btn-sm',
-                    attrs: { type: 'button' },
-                    onClick: () => {
-                        banner.startDownload(m.id);
-                        toast(`Downloading ${m.displayName}…`);
-                    },
-                }, 'Download'));
-            } else {
-                if (!active) {
-                    actions.appendChild(el('button', {
-                        class: 'bw-btn bw-btn-primary bw-btn-sm',
-                        attrs: { type: 'button' },
-                        onClick: async () => {
-                            await setSetting('embedding.activeModel', m.id);
-                            toast(`${m.displayName} set as active`);
-                            render(_root);
-                        },
-                    }, 'Use'));
-                } else {
-                    actions.appendChild(el('span', { class: 'pill pill-ok' }, '✓ Active'));
-                }
-                actions.appendChild(el('button', {
-                    class: 'bw-btn bw-btn-danger bw-btn-sm',
-                    attrs: { type: 'button' },
-                    onClick: async () => {
-                        if (!confirm(`Delete ${m.displayName}?`)) return;
-                        await deleteModel(m.id);
-                        if (active) await setSetting('embedding.activeModel', '');
-                        toast(`${m.displayName} deleted`);
-                        render(_root);
-                    },
-                }, 'Delete'));
-            }
-
-            card.appendChild(actions);
-            body.appendChild(card);
+            body.appendChild(await buildEmbeddingCard(m));
         }
     }
-
     return sectionWrap('Embedding models (local RAG)', body);
+}
+
+// ── Partial card refresh (swap one card, keep scroll + rest) ──
+
+async function refreshCard(modelId) {
+    const existing = document.getElementById(`model-card-${modelId}`);
+    if (!existing) return;
+    let newCard;
+    if (KNOWN_MODELS[modelId]) {
+        newCard = await buildLlmCard(modelId);
+    } else if (KNOWN_EMBEDDING_MODELS[modelId]) {
+        newCard = await buildEmbeddingCard(KNOWN_EMBEDDING_MODELS[modelId]);
+    }
+    if (newCard) existing.replaceWith(newCard);
 }
 
 // ── Voice ──────────────────────────────────────────────────────
