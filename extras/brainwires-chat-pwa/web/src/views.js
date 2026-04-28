@@ -96,6 +96,15 @@ export function mount(slug) {
     root.classList.add('is-active');
     _appRoot.dataset.view = slug;
     _current = slug;
+
+    // Sync URL so a page reload stays on the current view.
+    const url = new URL(location.href);
+    if (slug === 'chat') {
+        url.searchParams.delete('page');
+    } else {
+        url.searchParams.set('page', slug);
+    }
+    history.replaceState(null, '', url);
     if (mod && typeof mod.onShow === 'function') {
         try { mod.onShow(); } catch (e) { console.warn(`onShow(${slug}):`, e); }
     }

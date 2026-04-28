@@ -144,9 +144,13 @@ async function boot() {
         views.register('unlock', uiUnlock);
     }
 
-    // Decide initial view.
+    // Decide initial view. Respect ?page= query param so reloads stay
+    // on the same view (e.g. /?page=settings).
+    const requestedPage = new URL(location.href).searchParams.get('page');
     if (await shouldStartLocked()) {
         views.mount('unlock');
+    } else if (requestedPage && ['settings', 'chat', 'unlock'].includes(requestedPage)) {
+        views.mount(requestedPage);
     } else {
         views.mount('chat');
     }
