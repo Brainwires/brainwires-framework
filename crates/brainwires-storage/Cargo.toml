@@ -86,6 +86,13 @@ surrealdb = { version = "2", optional = true, features = ["protocol-ws", "kv-mem
 # Logging
 tracing.workspace = true
 
+# In-browser HNSW (wasm32 only, behind `hnsw-wasm` feature)
+instant-distance = { version = "0.6", optional = true, features = ["with-serde"] }
+bincode = { version = "1", optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["js"] }
+
 [features]
 default = ["native"]
 native = [
@@ -121,6 +128,9 @@ nornicdb-full = ["nornicdb-bolt", "nornicdb-grpc"]
 
 alt-folder-name = []
 wasm = ["brainwires-core/wasm"]
+# In-browser HNSW vector index via instant-distance, persisted to OPFS.
+# wasm32-only — compiles to a no-op on native targets.
+hnsw-wasm = ["wasm", "dep:instant-distance", "dep:bincode"]
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full", "test-util"] }

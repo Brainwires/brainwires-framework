@@ -124,6 +124,10 @@ pub mod embeddings;
 /// Domain stores for conversation, message, task, plan, and other data.
 pub mod stores;
 
+/// In-browser HNSW vector index (wasm32 only, `hnsw-wasm` feature).
+#[cfg(all(target_arch = "wasm32", feature = "hnsw-wasm"))]
+pub mod hnsw_wasm;
+
 // Note: PersistentTaskManager (if implemented) belongs in brainwires-agents,
 // not here, to avoid a cyclic dependency (storage → agents → storage).
 
