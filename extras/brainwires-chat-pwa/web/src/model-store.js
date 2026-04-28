@@ -198,13 +198,16 @@ async function _downloadViaSW(modelId, opts) {
     const promise = new Promise((resolve, reject) => {
         let gotFirstEvent = false;
 
-        // Timeout: if no progress event within 30s, the SW handler probably crashed.
+        // Timeout: if no progress or done event within 120s, the SW
+        // handler probably crashed. Longer than 30s because the assembly
+        // of IDB chunks into Cache Storage can take minutes for large
+        // chunk counts from pre-batching downloads.
         const startupTimeout = setTimeout(() => {
             if (!gotFirstEvent) {
                 cleanup();
-                reject(new Error('SW download timeout — no response from service worker after 30s'));
+                reject(new Error('SW download timeout — no response from service worker after 120s'));
             }
-        }, 30000);
+        }, 120000);
 
         const onMessage = (event) => {
             const msg = event.data;

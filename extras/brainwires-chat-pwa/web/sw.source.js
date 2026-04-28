@@ -371,7 +371,13 @@ async function handleModelDownload(msg, _event) {
                 console.log(`[bw-sw] resuming ${f.filename} from ${fileBytesDone}/${contentLength}`);
             }
 
-            for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+            // Skip the fetch entirely if all bytes are already in IDB.
+            const alreadyComplete = contentLength > 0 && fileBytesDone >= contentLength;
+            if (alreadyComplete) {
+                console.log(`[bw-sw] ${f.filename}: all bytes in IDB, skipping fetch`);
+            }
+
+            for (let attempt = 0; !alreadyComplete && attempt <= MAX_RETRIES; attempt++) {
                 const dlHeaders = {};
                 if (hfToken) dlHeaders['Authorization'] = `Bearer ${hfToken}`;
                 if (fileBytesDone > 0) dlHeaders['Range'] = `bytes=${fileBytesDone}-`;
@@ -467,12 +473,26 @@ async function handleModelDownload(msg, _event) {
                 await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
             }
 
+            // Emit a progress event so the page-side timeout resets.
+            emitProgress(f, fileBytesDone, contentLength, true);
+
             // Assemble all IDB chunks → Blob → Cache Storage.
+            // Batch-read in parallel (100 at a time) to avoid 78,000+
+            // sequential IDB transactions from pre-batching downloads.
             console.log(`[bw-sw] ${f.filename}: assembling ${meta.chunkCount} chunks`);
             const allChunks = [];
-            for (let ci = 0; ci < meta.chunkCount; ci++) {
-                const buf = await idbGet(partialsDb, 'chunks', `${partialKey}:${ci}`);
-                if (buf) allChunks.push(buf);
+            const READ_BATCH = 100;
+            for (let start = 0; start < meta.chunkCount; start += READ_BATCH) {
+                const end = Math.min(start + READ_BATCH, meta.chunkCount);
+                const batch = await Promise.all(
+                    Array.from({ length: end - start }, (_, i) =>
+                        idbGet(partialsDb, 'chunks', `${partialKey}:${start + i}`)
+                    )
+                );
+                for (const buf of batch) { if (buf) allChunks.push(buf); }
+                if (start % 10000 === 0 && start > 0) {
+                    console.log(`[bw-sw] ${f.filename}: read ${start}/${meta.chunkCount} chunks`);
+                }
             }
             const blob = new Blob(allChunks);
             const cacheHdrs = new Headers();
