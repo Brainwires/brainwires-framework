@@ -37,6 +37,150 @@ export const KNOWN_MODELS = {
     },
 };
 
+// ── Embedding model registry ──────────────────────────────────
+//
+// BERT-family models for local RAG. Run via candle in the Web Worker.
+// Sorted by size (smallest first). All use safetensors + tokenizer.json.
+
+export const KNOWN_EMBEDDING_MODELS = {
+    'gte-small': {
+        id: 'gte-small',
+        displayName: 'GTE Small',
+        provider: 'Alibaba DAMO',
+        description: '384-dim, ~67 MB. Fast, good general-purpose.',
+        hf: { repo: 'thenlper/gte-small', revision: 'main' },
+        files: [
+            { kind: 'weights', filename: 'model.safetensors', sha256: null },
+            { kind: 'tokenizer', filename: 'tokenizer.json', sha256: null },
+            { kind: 'config', filename: 'config.json', sha256: null },
+        ],
+        estimatedBytes: 67_000_000,
+        dimensions: 384,
+        maxTokens: 512,
+        category: 'small',
+    },
+    'all-minilm-l6-v2': {
+        id: 'all-minilm-l6-v2',
+        displayName: 'all-MiniLM-L6-v2',
+        provider: 'Sentence Transformers',
+        description: '384-dim, ~80 MB. The classic lightweight embedding model.',
+        hf: { repo: 'sentence-transformers/all-MiniLM-L6-v2', revision: 'main' },
+        files: [
+            { kind: 'weights', filename: 'model.safetensors', sha256: null },
+            { kind: 'tokenizer', filename: 'tokenizer.json', sha256: null },
+            { kind: 'config', filename: 'config.json', sha256: null },
+        ],
+        estimatedBytes: 80_000_000,
+        dimensions: 384,
+        maxTokens: 256,
+        category: 'small',
+    },
+    'bge-small-en-v1.5': {
+        id: 'bge-small-en-v1.5',
+        displayName: 'BGE Small EN v1.5',
+        provider: 'BAAI',
+        description: '384-dim, ~130 MB. Strong retrieval quality for its size.',
+        hf: { repo: 'BAAI/bge-small-en-v1.5', revision: 'main' },
+        files: [
+            { kind: 'weights', filename: 'model.safetensors', sha256: null },
+            { kind: 'tokenizer', filename: 'tokenizer.json', sha256: null },
+            { kind: 'config', filename: 'config.json', sha256: null },
+        ],
+        estimatedBytes: 130_000_000,
+        dimensions: 384,
+        maxTokens: 512,
+        category: 'small',
+    },
+    'gte-base': {
+        id: 'gte-base',
+        displayName: 'GTE Base',
+        provider: 'Alibaba DAMO',
+        description: '768-dim, ~220 MB. Good balance of speed and quality.',
+        hf: { repo: 'thenlper/gte-base', revision: 'main' },
+        files: [
+            { kind: 'weights', filename: 'model.safetensors', sha256: null },
+            { kind: 'tokenizer', filename: 'tokenizer.json', sha256: null },
+            { kind: 'config', filename: 'config.json', sha256: null },
+        ],
+        estimatedBytes: 220_000_000,
+        dimensions: 768,
+        maxTokens: 512,
+        category: 'medium',
+    },
+    'bge-base-en-v1.5': {
+        id: 'bge-base-en-v1.5',
+        displayName: 'BGE Base EN v1.5',
+        provider: 'BAAI',
+        description: '768-dim, ~440 MB. Top-tier retrieval at medium size.',
+        hf: { repo: 'BAAI/bge-base-en-v1.5', revision: 'main' },
+        files: [
+            { kind: 'weights', filename: 'model.safetensors', sha256: null },
+            { kind: 'tokenizer', filename: 'tokenizer.json', sha256: null },
+            { kind: 'config', filename: 'config.json', sha256: null },
+        ],
+        estimatedBytes: 440_000_000,
+        dimensions: 768,
+        maxTokens: 512,
+        category: 'medium',
+    },
+    'nomic-embed-text-v1.5': {
+        id: 'nomic-embed-text-v1.5',
+        displayName: 'Nomic Embed Text v1.5',
+        provider: 'Nomic AI',
+        description: '768-dim, ~550 MB. Long context (8192 tokens), Matryoshka support.',
+        hf: { repo: 'nomic-ai/nomic-embed-text-v1.5', revision: 'main' },
+        files: [
+            { kind: 'weights', filename: 'model.safetensors', sha256: null },
+            { kind: 'tokenizer', filename: 'tokenizer.json', sha256: null },
+            { kind: 'config', filename: 'config.json', sha256: null },
+        ],
+        estimatedBytes: 550_000_000,
+        dimensions: 768,
+        maxTokens: 8192,
+        category: 'medium',
+    },
+    'bge-large-en-v1.5': {
+        id: 'bge-large-en-v1.5',
+        displayName: 'BGE Large EN v1.5',
+        provider: 'BAAI',
+        description: '1024-dim, ~1.3 GB. Best retrieval quality, slowest.',
+        hf: { repo: 'BAAI/bge-large-en-v1.5', revision: 'main' },
+        files: [
+            { kind: 'weights', filename: 'model.safetensors', sha256: null },
+            { kind: 'tokenizer', filename: 'tokenizer.json', sha256: null },
+            { kind: 'config', filename: 'config.json', sha256: null },
+        ],
+        estimatedBytes: 1_340_000_000,
+        dimensions: 1024,
+        maxTokens: 512,
+        category: 'large',
+    },
+    'gte-large': {
+        id: 'gte-large',
+        displayName: 'GTE Large',
+        provider: 'Alibaba DAMO',
+        description: '1024-dim, ~1.3 GB. Competitive with BGE Large.',
+        hf: { repo: 'thenlper/gte-large', revision: 'main' },
+        files: [
+            { kind: 'weights', filename: 'model.safetensors', sha256: null },
+            { kind: 'tokenizer', filename: 'tokenizer.json', sha256: null },
+            { kind: 'config', filename: 'config.json', sha256: null },
+        ],
+        estimatedBytes: 1_340_000_000,
+        dimensions: 1024,
+        maxTokens: 512,
+        category: 'large',
+    },
+};
+
+export function listKnownEmbeddingModels() {
+    return Object.values(KNOWN_EMBEDDING_MODELS).map((m) => ({ ...m }));
+}
+
+export function getKnownEmbeddingModel(modelId) {
+    return KNOWN_EMBEDDING_MODELS[modelId] || null;
+}
+
 const CACHE_NAME = 'bw-models-v1';
 const PROGRESS_EMIT_MS = 200;
 
@@ -45,7 +189,7 @@ export function listKnownModels() {
 }
 
 export function getKnownModel(modelId) {
-    return KNOWN_MODELS[modelId] || null;
+    return KNOWN_MODELS[modelId] || KNOWN_EMBEDDING_MODELS[modelId] || null;
 }
 
 /**

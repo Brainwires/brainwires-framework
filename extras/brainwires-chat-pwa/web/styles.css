@@ -531,6 +531,8 @@ body.drawer-open .drawer-scrim { opacity: 1; pointer-events: auto; }
     gap: 10px;
 }
 .settings-card-title { margin: 0; font-size: 16px; }
+.settings-card-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.bw-btn-sm { font-size: 13px; padding: 4px 10px; min-height: 32px; }
 .settings-help { margin: 0; color: var(--muted); font-size: 13px; }
 .settings-warn { color: var(--warn); }
 .settings-err { color: var(--danger); font-size: 13px; min-height: 18px; }

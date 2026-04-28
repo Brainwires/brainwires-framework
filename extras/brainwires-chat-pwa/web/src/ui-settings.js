@@ -16,8 +16,10 @@ import {
 import { listProviders } from './providers/index.js';
 import {
     KNOWN_MODELS,
+    KNOWN_EMBEDDING_MODELS,
     isDownloaded,
     cancelDownload,
+    deleteModel,
 } from './model-store.js';
 import * as banner from './ui-download-banner.js';
 import * as cryptoStore from '../crypto-store.js';
@@ -48,6 +50,7 @@ export async function render(root) {
     main.appendChild(await sectionPassphrase());
     main.appendChild(await sectionProviders());
     main.appendChild(await sectionLocalModel());
+    main.appendChild(await sectionEmbeddingModels());
     main.appendChild(await sectionVoice());
     main.appendChild(await sectionAbout());
 
@@ -425,6 +428,87 @@ async function sectionLocalModel() {
     body.appendChild(el('div', { class: 'settings-actions' }, downloadBtn, cancelBtn, deleteBtn));
 
     return sectionWrap(t('settings.localModel.title'), body);
+}
+
+// ── Embedding models ──────────────────────────────────────────
+
+function formatSize(bytes) {
+    if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;
+    if (bytes >= 1e6) return `${(bytes / 1e6).toFixed(0)} MB`;
+    return `${(bytes / 1e3).toFixed(0)} KB`;
+}
+
+async function sectionEmbeddingModels() {
+    const body = el('div', { class: 'settings-card-list' });
+
+    const models = Object.values(KNOWN_EMBEDDING_MODELS);
+    const categories = ['small', 'medium', 'large'];
+
+    for (const cat of categories) {
+        const catModels = models.filter((m) => m.category === cat);
+        if (catModels.length === 0) continue;
+
+        const catLabel = cat === 'small' ? 'Small (< 200 MB)' : cat === 'medium' ? 'Medium (200 MB – 1 GB)' : 'Large (> 1 GB)';
+        body.appendChild(el('h4', { class: 'settings-subsection' }, catLabel));
+
+        for (const m of catModels) {
+            const downloaded = await isDownloaded(m.id).catch(() => false);
+            const active = (await getSetting('embedding.activeModel')) === m.id;
+
+            const card = el('div', { class: 'settings-card' });
+            card.appendChild(el('div', { class: 'settings-card-header' },
+                el('h3', { class: 'settings-card-title' }, m.displayName),
+                el('span', { class: 'pill ' + (downloaded ? 'pill-ok' : 'pill-muted') },
+                    downloaded ? (active ? 'Active' : 'Ready') : formatSize(m.estimatedBytes)),
+            ));
+            card.appendChild(el('p', { class: 'settings-help' },
+                `${m.provider} · ${m.dimensions}-dim · ${m.maxTokens} max tokens`));
+            card.appendChild(el('p', { class: 'settings-help' }, m.description));
+
+            const actions = el('div', { class: 'settings-actions' });
+
+            if (!downloaded) {
+                actions.appendChild(el('button', {
+                    class: 'bw-btn bw-btn-primary bw-btn-sm',
+                    attrs: { type: 'button' },
+                    onClick: () => {
+                        banner.startDownload(m.id);
+                        toast(`Downloading ${m.displayName}…`);
+                    },
+                }, 'Download'));
+            } else {
+                if (!active) {
+                    actions.appendChild(el('button', {
+                        class: 'bw-btn bw-btn-primary bw-btn-sm',
+                        attrs: { type: 'button' },
+                        onClick: async () => {
+                            await setSetting('embedding.activeModel', m.id);
+                            toast(`${m.displayName} set as active`);
+                            render(_root);
+                        },
+                    }, 'Use'));
+                } else {
+                    actions.appendChild(el('span', { class: 'pill pill-ok' }, '✓ Active'));
+                }
+                actions.appendChild(el('button', {
+                    class: 'bw-btn bw-btn-danger bw-btn-sm',
+                    attrs: { type: 'button' },
+                    onClick: async () => {
+                        if (!confirm(`Delete ${m.displayName}?`)) return;
+                        await deleteModel(m.id);
+                        if (active) await setSetting('embedding.activeModel', '');
+                        toast(`${m.displayName} deleted`);
+                        render(_root);
+                    },
+                }, 'Delete'));
+            }
+
+            card.appendChild(actions);
+            body.appendChild(card);
+        }
+    }
+
+    return sectionWrap('Embedding models (local RAG)', body);
 }
 
 // ── Voice ──────────────────────────────────────────────────────
