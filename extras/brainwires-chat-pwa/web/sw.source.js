@@ -500,6 +500,28 @@ async function handleModelDownload(msg, _event) {
             cacheHdrs.set('content-length', String(blob.size));
             await cache.put(url, new Response(blob, { status: 200, headers: cacheHdrs }));
 
+            // SHA-256 verification (if pin is set). Done here in the SW
+            // so the page thread never has to hash 10+ GB.
+            if (f.sha256) {
+                console.log(`[bw-sw] ${f.filename}: verifying SHA-256...`);
+                broadcastDl({ type: 'model_progress', detail: { phase: 'verifying', modelId, file: f.filename } });
+                const cached = await cache.match(url);
+                const ab = cached ? await cached.arrayBuffer() : null;
+                if (ab) {
+                    const hashBuf = await crypto.subtle.digest('SHA-256', ab);
+                    const bytes = new Uint8Array(hashBuf);
+                    let hex = '';
+                    for (let bi = 0; bi < bytes.length; bi++) hex += bytes[bi].toString(16).padStart(2, '0');
+                    if (hex !== f.sha256) {
+                        console.error(`[bw-sw] ${f.filename}: SHA mismatch! got=${hex} expected=${f.sha256}`);
+                        await cache.delete(url);
+                        await clearPartials(partialsDb, partialKey);
+                        throw new Error(`SHA-256 mismatch for ${f.filename}`);
+                    }
+                    console.log(`[bw-sw] ${f.filename}: SHA-256 verified ✓`);
+                }
+            }
+
             // Clean up IDB partials.
             await clearPartials(partialsDb, partialKey);
             console.log(`[bw-sw] ${f.filename}: cached (${blob.size} bytes), partials cleaned`);
