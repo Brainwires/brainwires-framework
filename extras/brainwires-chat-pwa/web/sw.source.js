@@ -302,8 +302,9 @@ async function clearPartials(db, prefix) {
 
 async function handleModelDownload(msg, _event) {
     const { modelId, files, hfToken } = msg;
-    if (!files || !files.length) return;
-    if (activeModelDownloads.has(modelId)) return;
+    console.log('[bw-sw] handleModelDownload:', modelId, files ? files.length : 0, 'files');
+    if (!files || !files.length) { console.warn('[bw-sw] no files to download'); return; }
+    if (activeModelDownloads.has(modelId)) { console.log('[bw-sw] download already active for', modelId); return; }
 
     const controller = new AbortController();
     activeModelDownloads.set(modelId, { controller, startedAt: Date.now() });

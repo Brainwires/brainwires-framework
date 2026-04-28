@@ -193,16 +193,33 @@ async function _downloadViaSW(modelId, opts) {
         }, { once: true });
     }
 
+    console.log('[model-store] _downloadViaSW:', modelId, files.length, 'files');
+
     const promise = new Promise((resolve, reject) => {
+        let gotFirstEvent = false;
+
+        // Timeout: if no progress event within 30s, the SW handler probably crashed.
+        const startupTimeout = setTimeout(() => {
+            if (!gotFirstEvent) {
+                cleanup();
+                reject(new Error('SW download timeout — no response from service worker after 30s'));
+            }
+        }, 30000);
+
         const onMessage = (event) => {
             const msg = event.data;
             if (!msg || typeof msg !== 'object') return;
 
             if (msg.type === 'model_progress' && msg.detail && msg.detail.modelId === modelId) {
+                gotFirstEvent = true;
+                clearTimeout(startupTimeout);
                 try { if (typeof opts.onProgress === 'function') opts.onProgress(msg.detail); } catch (_e) {}
                 events.dispatchEvent(new CustomEvent('model_progress', { detail: msg.detail }));
             } else if (msg.type === 'model_download_done' && msg.modelId === modelId) {
                 cleanup();
+                events.dispatchEvent(new CustomEvent('model_progress', {
+                    detail: { phase: 'ready', modelId },
+                }));
                 resolve();
             } else if (msg.type === 'model_download_error' && msg.modelId === modelId) {
                 cleanup();
@@ -214,6 +231,7 @@ async function _downloadViaSW(modelId, opts) {
             }
         };
         const cleanup = () => {
+            clearTimeout(startupTimeout);
             navigator.serviceWorker.removeEventListener('message', onMessage);
             activeDownloads.delete(modelId);
         };
@@ -394,6 +412,9 @@ async function _downloadDirect(modelId, opts) {
     activeDownloads.set(modelId, { controller, startedAt, promise });
     try {
         await promise;
+        events.dispatchEvent(new CustomEvent('model_progress', {
+            detail: { phase: 'ready', modelId },
+        }));
     } finally {
         activeDownloads.delete(modelId);
     }
