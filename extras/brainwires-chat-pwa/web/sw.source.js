@@ -206,6 +206,14 @@ self.addEventListener('message', (event) => {
             }
             break;
         }
+        case 'model_download_start':
+            event.waitUntil(handleModelDownload(msg, event));
+            break;
+        case 'model_download_cancel': {
+            const dl = activeModelDownloads.get(msg.modelId);
+            if (dl) { try { dl.controller.abort(); } catch (_) {} }
+            break;
+        }
         case 'sri_table':
             replyTo(event, { type: 'sri_table', hashes: RESOURCE_HASHES });
             break;
@@ -213,6 +221,143 @@ self.addEventListener('message', (event) => {
             log('unknown message type', msg.type);
     }
 });
+
+// ── Model download (background-resilient) ───────────────────────
+
+const activeModelDownloads = new Map();
+const MODEL_CACHE = 'bw-models-v1';
+const DL_PROGRESS_MS = 200;
+
+async function handleModelDownload(msg, _event) {
+    const { modelId, files, hfToken } = msg;
+    if (!files || !files.length) return;
+    if (activeModelDownloads.has(modelId)) return;
+
+    const controller = new AbortController();
+    activeModelDownloads.set(modelId, { controller, startedAt: Date.now() });
+
+    try {
+        const cache = await caches.open(MODEL_CACHE);
+        let totalBytesDone = 0;
+        let totalBytesTotal = 0;
+        const startedAt = Date.now();
+        let lastEmit = 0;
+
+        const broadcastDl = (detail) => {
+            self.clients.matchAll({ type: 'window' }).then(cls => {
+                for (const c of cls) c.postMessage(detail);
+            });
+        };
+
+        const emitProgress = (file, fileBytesDone, fileBytesTotal, force) => {
+            const now = Date.now();
+            if (!force && now - lastEmit < DL_PROGRESS_MS) return;
+            lastEmit = now;
+            const elapsed = Math.max(0.001, (now - startedAt) / 1000);
+            const bps = totalBytesDone / elapsed;
+            const remaining = Math.max(0, totalBytesTotal - totalBytesDone);
+            broadcastDl({
+                type: 'model_progress',
+                detail: {
+                    phase: 'download', modelId,
+                    file: file.filename, fileKind: file.kind,
+                    fileBytesDone, fileBytesTotal,
+                    totalBytesDone, totalBytesTotal,
+                    throughputBps: bps,
+                    etaSeconds: bps > 0 ? remaining / bps : null,
+                },
+            });
+        };
+
+        for (const f of files) {
+            const url = f.url;
+            const existing = await cache.match(url);
+            if (existing) {
+                const len = Number(existing.headers.get('content-length')) || 0;
+                totalBytesTotal += len;
+                totalBytesDone += len;
+                emitProgress(f, len, len, true);
+                continue;
+            }
+
+            const MAX_RETRIES = 3;
+            const chunks = [];
+            let fileBytesDone = 0;
+            let contentLength = 0;
+
+            for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+                const headers = {};
+                if (hfToken) headers['Authorization'] = `Bearer ${hfToken}`;
+                if (fileBytesDone > 0) headers['Range'] = `bytes=${fileBytesDone}-`;
+
+                let resp;
+                try {
+                    resp = await fetch(url, { headers, signal: controller.signal });
+                } catch (e) {
+                    if (controller.signal.aborted) throw e;
+                    if (attempt === MAX_RETRIES) throw e;
+                    await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+                    continue;
+                }
+                if (resp.status === 401 || resp.status === 403) {
+                    broadcastDl({ type: 'model_download_error', modelId, error: 'HF_AUTH_REQUIRED' });
+                    return;
+                }
+                if (resp.status === 416) break;
+                if (!resp.ok && resp.status !== 206) {
+                    if (attempt === MAX_RETRIES) throw new Error(`HF ${resp.status}`);
+                    await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+                    continue;
+                }
+                if (resp.status === 200 && fileBytesDone > 0) {
+                    chunks.length = 0;
+                    fileBytesDone = 0;
+                }
+                if (contentLength === 0) {
+                    contentLength = resp.status === 206
+                        ? Number((resp.headers.get('content-range') || '').split('/')[1]) || 0
+                        : Number(resp.headers.get('content-length')) || 0;
+                    totalBytesTotal += contentLength;
+                }
+
+                const reader = resp.body.getReader();
+                let failed = false;
+                try {
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+                        if (controller.signal.aborted) throw new DOMException('aborted', 'AbortError');
+                        chunks.push(value);
+                        fileBytesDone += value.byteLength;
+                        totalBytesDone += value.byteLength;
+                        emitProgress(f, fileBytesDone, contentLength);
+                    }
+                } catch (e) {
+                    if (controller.signal.aborted) throw e;
+                    failed = true;
+                    if (attempt === MAX_RETRIES) throw e;
+                }
+                try { reader.releaseLock(); } catch (_) {}
+                if (!failed) break;
+                await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+            }
+
+            const blob = new Blob(chunks);
+            const h = new Headers({ 'content-type': 'application/octet-stream', 'content-length': String(blob.size) });
+            await cache.put(url, new Response(blob, { status: 200, headers: h }));
+            emitProgress(f, fileBytesDone, contentLength, true);
+        }
+
+        broadcastDl({ type: 'model_download_done', modelId });
+    } catch (e) {
+        const clients = await self.clients.matchAll({ type: 'window' });
+        for (const c of clients) {
+            c.postMessage({ type: 'model_download_error', modelId, error: e.message || String(e) });
+        }
+    } finally {
+        activeModelDownloads.delete(modelId);
+    }
+}
 
 function replyTo(event, payload) {
     if (event.source && typeof event.source.postMessage === 'function') {

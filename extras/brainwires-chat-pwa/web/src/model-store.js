@@ -136,6 +136,9 @@ export function cancelDownload(modelId) {
     if (a && a.controller) {
         try { a.controller.abort(); } catch (_) { /* idempotent */ }
     }
+    if (typeof navigator !== 'undefined' && navigator.serviceWorker && navigator.serviceWorker.controller) {
+        try { navigator.serviceWorker.controller.postMessage({ type: 'model_download_cancel', modelId }); } catch (_) {}
+    }
 }
 
 // ── Download ───────────────────────────────────────────────────
@@ -160,12 +163,83 @@ class HfAuthRequiredError extends Error {
  */
 export async function downloadModel(modelId, opts = {}) {
     if (activeDownloads.has(modelId)) return activeDownloads.get(modelId).promise;
-    // Enforce single active download globally — if any other model is in
-    // flight, wait for it. (We could parallelize per-model in the future.)
     for (const other of activeDownloads.values()) {
         await other.promise.catch(() => {});
     }
     if (!_hasCaches()) throw new Error('Cache Storage unavailable');
+
+    // Prefer SW-delegated download for background resilience. Falls
+    // back to page-side download when SW isn't active (e.g. DEV_MODE).
+    if (typeof navigator !== 'undefined' && navigator.serviceWorker && navigator.serviceWorker.controller) {
+        return _downloadViaSW(modelId, opts);
+    }
+    return _downloadDirect(modelId, opts);
+}
+
+async function _downloadViaSW(modelId, opts) {
+    const m = getKnownModel(modelId);
+    if (!m) throw new Error(`unknown model: ${modelId}`);
+
+    const files = m.files.map((f) => ({
+        url: cacheKey(modelId, f.filename),
+        filename: f.filename,
+        kind: f.kind,
+        sha256: f.sha256,
+    }));
+
+    const controller = new AbortController();
+    if (opts.signal) {
+        if (opts.signal.aborted) controller.abort();
+        else opts.signal.addEventListener('abort', () => {
+            navigator.serviceWorker.controller.postMessage({ type: 'model_download_cancel', modelId });
+            controller.abort();
+        }, { once: true });
+    }
+
+    const promise = new Promise((resolve, reject) => {
+        const onMessage = (event) => {
+            const msg = event.data;
+            if (!msg || typeof msg !== 'object') return;
+
+            if (msg.type === 'model_progress' && msg.detail && msg.detail.modelId === modelId) {
+                try { if (typeof opts.onProgress === 'function') opts.onProgress(msg.detail); } catch (_e) {}
+                events.dispatchEvent(new CustomEvent('model_progress', { detail: msg.detail }));
+            } else if (msg.type === 'model_download_done' && msg.modelId === modelId) {
+                cleanup();
+                resolve();
+            } else if (msg.type === 'model_download_error' && msg.modelId === modelId) {
+                cleanup();
+                if (msg.error === 'HF_AUTH_REQUIRED') {
+                    reject(new HfAuthRequiredError());
+                } else {
+                    reject(new Error(msg.error || 'SW download failed'));
+                }
+            }
+        };
+        const cleanup = () => {
+            navigator.serviceWorker.removeEventListener('message', onMessage);
+            activeDownloads.delete(modelId);
+        };
+        navigator.serviceWorker.addEventListener('message', onMessage);
+    });
+
+    activeDownloads.set(modelId, { controller, startedAt: Date.now(), promise });
+
+    navigator.serviceWorker.controller.postMessage({
+        type: 'model_download_start',
+        modelId,
+        files,
+        hfToken: opts.hfToken || null,
+    });
+
+    try {
+        await promise;
+    } finally {
+        activeDownloads.delete(modelId);
+    }
+}
+
+async function _downloadDirect(modelId, opts) {
 
     const m = getKnownModel(modelId);
     if (!m) throw new Error(`unknown model: ${modelId}`);

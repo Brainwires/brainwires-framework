@@ -92,6 +92,7 @@
     "download.verifying": "Verifying SHA-256…",
     "download.loading": "Loading model into memory…",
     "download.ready": "✓ Ready",
+    "download.background": "Downloading in background…",
     "download.error": "Download failed",
     "download.retry": "Retry",
     "download.cancel": "Cancel",
