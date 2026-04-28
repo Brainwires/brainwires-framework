@@ -403,29 +403,32 @@ async function sectionLocalModel() {
     // Mirror slot — banner module fans-out progress here.
     body.appendChild(el('div', { attrs: { 'data-bw-mirror': 'local-model-progress' } }));
 
-    const downloadBtn = el('button', {
-        class: 'bw-btn bw-btn-primary',
-        attrs: { type: 'button' },
-        onClick: () => banner.startDownload('gemma-4-e2b'),
-    }, t('settings.localModel.download'));
+    const actions = el('div', { class: 'settings-actions' });
 
-    const cancelBtn = el('button', {
-        class: 'bw-btn bw-btn-secondary',
-        attrs: { type: 'button' },
-        onClick: () => cancelDownload('gemma-4-e2b'),
-    }, t('settings.localModel.cancel'));
+    if (!downloaded) {
+        actions.appendChild(el('button', {
+            class: 'bw-btn bw-btn-primary',
+            attrs: { type: 'button' },
+            onClick: () => banner.startDownload('gemma-4-e2b'),
+        }, t('settings.localModel.download')));
+        actions.appendChild(el('button', {
+            class: 'bw-btn bw-btn-secondary',
+            attrs: { type: 'button' },
+            onClick: () => cancelDownload('gemma-4-e2b'),
+        }, t('settings.localModel.cancel')));
+    } else {
+        actions.appendChild(el('button', {
+            class: 'bw-btn bw-btn-danger',
+            attrs: { type: 'button' },
+            onClick: async () => {
+                if (!confirm(t('settings.localModel.confirmDelete'))) return;
+                await banner.deleteActive('gemma-4-e2b');
+                render(_root);
+            },
+        }, t('settings.localModel.delete')));
+    }
 
-    const deleteBtn = el('button', {
-        class: 'bw-btn bw-btn-danger',
-        attrs: { type: 'button' },
-        onClick: async () => {
-            if (!confirm(t('settings.localModel.confirmDelete'))) return;
-            await banner.deleteActive('gemma-4-e2b');
-            mountView('settings'); // re-render
-        },
-    }, t('settings.localModel.delete'));
-
-    body.appendChild(el('div', { class: 'settings-actions' }, downloadBtn, cancelBtn, deleteBtn));
+    body.appendChild(actions);
 
     return sectionWrap(t('settings.localModel.title'), body);
 }
