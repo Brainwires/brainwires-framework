@@ -489,14 +489,32 @@ async function handleModelDownload(msg, _event) {
                     console.log(`[bw-sw] ${f.filename}: ${contentLength} bytes total`);
                 }
 
-                // Stream directly to OPFS file (or read chunks if no OPFS).
+                // Stream to OPFS with periodic commit. createWritable() data
+                // isn't durable until .close(). If the SW is killed mid-write
+                // (phone backgrounded), uncommitted bytes are lost. Close + reopen
+                // every COMMIT_INTERVAL bytes so at most that much is lost.
+                const COMMIT_INTERVAL = 50 * 1024 * 1024; // 50 MB
                 const reader = resp.body.getReader();
                 let streamFailed = false;
                 let writable = null;
+                let bytesSinceCommit = 0;
 
                 if (opfsHandle) {
-                    writable = await opfsHandle.createWritable({ keepExistingData: true });
-                    await writable.seek(fileBytesDone);
+                    try {
+                        writable = await opfsHandle.createWritable({ keepExistingData: true });
+                        await writable.seek(fileBytesDone);
+                    } catch (lockErr) {
+                        // Previous crashed SW may have left a lock. Delete + restart.
+                        console.warn(`[bw-sw] ${f.filename}: createWritable failed (locked?), deleting partial`, lockErr);
+                        try {
+                            const modelDir = await opfsDir.getDirectoryHandle(modelId, { create: false });
+                            await modelDir.removeEntry(f.filename);
+                        } catch (_e) { console.warn('[bw] cleanup failed:', _e); }
+                        totalBytesDone -= fileBytesDone;
+                        fileBytesDone = 0;
+                        opfsHandle = await getOpfsFileHandle(opfsDir, modelId, f.filename);
+                        writable = await opfsHandle.createWritable();
+                    }
                 }
 
                 try {
@@ -508,11 +526,21 @@ async function handleModelDownload(msg, _event) {
                         if (writable) await writable.write(value);
                         fileBytesDone += value.byteLength;
                         totalBytesDone += value.byteLength;
+                        bytesSinceCommit += value.byteLength;
                         emitProgress(f, fileBytesDone, contentLength);
+
+                        // Periodic commit: close + reopen to flush to disk.
+                        if (writable && bytesSinceCommit >= COMMIT_INTERVAL) {
+                            await writable.close();
+                            writable = await opfsHandle.createWritable({ keepExistingData: true });
+                            await writable.seek(fileBytesDone);
+                            bytesSinceCommit = 0;
+                            console.log(`[bw-sw] ${f.filename}: committed at ${fileBytesDone}`);
+                        }
                     }
                     if (writable) await writable.close();
                 } catch (e) {
-                    if (writable) try { await writable.close(); } catch (_err) { console.warn("[bw] caught:", _err); }
+                    if (writable) try { await writable.close(); } catch (_err) { console.warn("[bw] close failed:", _err); }
                     if (controller.signal.aborted) throw e;
                     streamFailed = true;
                     console.warn(`[bw-sw] ${f.filename} stream broke at ${fileBytesDone}/${contentLength}:`, e.message);
