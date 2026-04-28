@@ -334,97 +334,51 @@ async function _downloadDirect(modelId, opts) {
             // Retry loop with Range-header resume. On network failure,
             // we keep the chunks already received and resume from that
             // byte offset. HuggingFace supports Range requests.
-            const MAX_RETRIES = 3;
-            const chunks = [];
-            let fileBytesDone = 0;
-            let contentLength = 0;
+            // Stream directly to Cache Storage — no RAM accumulation.
+            // Bytes flow: network → TransformStream (count + progress) → disk.
+            const fetchHeaders = { ...baseHeaders };
 
-            for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-                const fetchHeaders = { ...baseHeaders };
-                if (fileBytesDone > 0) {
-                    fetchHeaders['Range'] = `bytes=${fileBytesDone}-`;
-                }
-
-                let resp;
-                try {
-                    resp = await fetch(url, { headers: fetchHeaders, signal: controller.signal });
-                } catch (e) {
-                    if (controller.signal.aborted) throw new DOMException('aborted', 'AbortError');
-                    if (attempt === MAX_RETRIES) throw e;
-                    await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
-                    continue;
-                }
-                if (resp.status === 401 || resp.status === 403) {
-                    throw new HfAuthRequiredError(`HF responded ${resp.status} for ${f.filename}`);
-                }
-                if (resp.status === 416) {
-                    // Range not satisfiable — file was already fully received
-                    break;
-                }
-                if (!resp.ok && resp.status !== 206) {
-                    if (attempt === MAX_RETRIES) throw new Error(`HF fetch failed (${resp.status}) for ${f.filename}`);
-                    await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
-                    continue;
-                }
-
-                // On 200 (full response), reset partial state; on 206, append.
-                if (resp.status === 200 && fileBytesDone > 0) {
-                    chunks.length = 0;
-                    fileBytesDone = 0;
-                    totalBytesDone -= fileBytesDone;
-                }
-
-                // Set total size from the first response.
-                if (contentLength === 0) {
-                    if (resp.status === 206) {
-                        const cr = resp.headers.get('content-range');
-                        contentLength = cr ? Number(cr.split('/')[1]) || 0 : 0;
-                    } else {
-                        contentLength = Number(resp.headers.get('content-length')) || 0;
-                    }
-                    fileTotals[i] = contentLength;
-                    totalBytesTotal += contentLength;
-                }
-
-                const reader = resp.body.getReader();
-                let streamFailed = false;
-                try {
-                    while (true) {
-                        const { value, done } = await reader.read();
-                        if (done) break;
-                        if (controller.signal.aborted) throw new DOMException('aborted', 'AbortError');
-                        chunks.push(value);
-                        fileBytesDone += value.byteLength;
-                        totalBytesDone += value.byteLength;
-                        emitProgress(f, fileBytesDone, contentLength);
-                    }
-                } catch (e) {
-                    if (controller.signal.aborted) throw new DOMException('aborted', 'AbortError');
-                    streamFailed = true;
-                    if (attempt === MAX_RETRIES) throw e;
-                }
-                try { reader.releaseLock(); } catch (_) {}
-                if (!streamFailed) break;
-                await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+            let resp;
+            try {
+                resp = await fetch(url, { headers: fetchHeaders, signal: controller.signal });
+            } catch (e) {
+                if (controller.signal.aborted) throw new DOMException('aborted', 'AbortError');
+                throw e;
+            }
+            if (resp.status === 401 || resp.status === 403) {
+                throw new HfAuthRequiredError(`HF responded ${resp.status} for ${f.filename}`);
+            }
+            if (!resp.ok) {
+                throw new Error(`HF fetch failed (${resp.status}) for ${f.filename}`);
             }
 
-            // Emit 100% BEFORE the heavy Blob assembly + cache write so the
-            // UI doesn't sit at 99% during multi-second disk I/O.
-            emitProgress(f, fileBytesDone, contentLength, true);
-            await new Promise(r => setTimeout(r, 0));
+            const contentLength = Number(resp.headers.get('content-length')) || 0;
+            fileTotals[i] = contentLength;
+            totalBytesTotal += contentLength;
+            let fileBytesDone = 0;
 
-            // Reassemble into a single Blob for caching. For a 2.5 GB file
-            // this is a significant memory + I/O operation.
-            const blob = new Blob(chunks);
+            const countingStream = new TransformStream({
+                transform(chunk, ctrl) {
+                    fileBytesDone += chunk.byteLength;
+                    totalBytesDone += chunk.byteLength;
+                    emitProgress(f, fileBytesDone, contentLength);
+                    ctrl.enqueue(chunk);
+                },
+            });
+
+            const countedBody = resp.body.pipeThrough(countingStream);
             const cacheHeaders = new Headers();
-            cacheHeaders.set('content-type', 'application/octet-stream');
-            cacheHeaders.set('content-length', String(blob.size));
-            const cachedResp = new Response(blob, { status: 200, headers: cacheHeaders });
-            await cache.put(url, cachedResp);
+            cacheHeaders.set('content-type', resp.headers.get('content-type') || 'application/octet-stream');
+            if (contentLength) cacheHeaders.set('content-length', String(contentLength));
 
-            // Verify pin if available.
+            await cache.put(url, new Response(countedBody, { status: 200, headers: cacheHeaders }));
+            emitProgress(f, fileBytesDone, contentLength, true);
+
+            // Verify pin if available — read back from cache (no in-memory blob).
             if (f.sha256) {
-                const ab = await blob.arrayBuffer();
+                const cached = await cache.match(url);
+                const ab = cached ? await cached.arrayBuffer() : null;
+                if (!ab) throw new Error(`cached file disappeared: ${f.filename}`);
                 const hex = await sha256Hex(ab, {
                     modelId,
                     file: f,

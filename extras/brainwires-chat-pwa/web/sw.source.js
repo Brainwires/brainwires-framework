@@ -288,73 +288,44 @@ async function handleModelDownload(msg, _event) {
                 continue;
             }
 
-            const MAX_RETRIES = 3;
-            const chunks = [];
-            let fileBytesDone = 0;
-            let contentLength = 0;
+            // Stream directly to Cache Storage — no RAM accumulation.
+            // Bytes flow: network → TransformStream (count + progress) → cache disk.
+            const headers = {};
+            if (hfToken) headers['Authorization'] = `Bearer ${hfToken}`;
 
-            for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-                const headers = {};
-                if (hfToken) headers['Authorization'] = `Bearer ${hfToken}`;
-                if (fileBytesDone > 0) headers['Range'] = `bytes=${fileBytesDone}-`;
-
-                let resp;
-                try {
-                    resp = await fetch(url, { headers, signal: controller.signal });
-                } catch (e) {
-                    if (controller.signal.aborted) throw e;
-                    if (attempt === MAX_RETRIES) throw e;
-                    await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
-                    continue;
-                }
-                if (resp.status === 401 || resp.status === 403) {
-                    broadcastDl({ type: 'model_download_error', modelId, error: 'HF_AUTH_REQUIRED' });
-                    return;
-                }
-                if (resp.status === 416) break;
-                if (!resp.ok && resp.status !== 206) {
-                    if (attempt === MAX_RETRIES) throw new Error(`HF ${resp.status}`);
-                    await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
-                    continue;
-                }
-                if (resp.status === 200 && fileBytesDone > 0) {
-                    chunks.length = 0;
-                    fileBytesDone = 0;
-                }
-                if (contentLength === 0) {
-                    contentLength = resp.status === 206
-                        ? Number((resp.headers.get('content-range') || '').split('/')[1]) || 0
-                        : Number(resp.headers.get('content-length')) || 0;
-                    totalBytesTotal += contentLength;
-                }
-
-                const reader = resp.body.getReader();
-                let failed = false;
-                try {
-                    while (true) {
-                        const { value, done } = await reader.read();
-                        if (done) break;
-                        if (controller.signal.aborted) throw new DOMException('aborted', 'AbortError');
-                        chunks.push(value);
-                        fileBytesDone += value.byteLength;
-                        totalBytesDone += value.byteLength;
-                        emitProgress(f, fileBytesDone, contentLength);
-                    }
-                } catch (e) {
-                    if (controller.signal.aborted) throw e;
-                    failed = true;
-                    if (attempt === MAX_RETRIES) throw e;
-                }
-                try { reader.releaseLock(); } catch (_) {}
-                if (!failed) break;
-                await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+            let resp;
+            try {
+                resp = await fetch(url, { headers, signal: controller.signal });
+            } catch (e) {
+                if (controller.signal.aborted) throw e;
+                throw e;
             }
+            if (resp.status === 401 || resp.status === 403) {
+                broadcastDl({ type: 'model_download_error', modelId, error: 'HF_AUTH_REQUIRED' });
+                return;
+            }
+            if (!resp.ok) throw new Error(`HF ${resp.status}`);
 
+            const contentLength = Number(resp.headers.get('content-length')) || 0;
+            totalBytesTotal += contentLength;
+            let fileBytesDone = 0;
+
+            const countingStream = new TransformStream({
+                transform(chunk, ctrl) {
+                    fileBytesDone += chunk.byteLength;
+                    totalBytesDone += chunk.byteLength;
+                    emitProgress(f, fileBytesDone, contentLength);
+                    ctrl.enqueue(chunk);
+                },
+            });
+
+            const countedBody = resp.body.pipeThrough(countingStream);
+            const cacheHeaders = new Headers();
+            cacheHeaders.set('content-type', resp.headers.get('content-type') || 'application/octet-stream');
+            if (contentLength) cacheHeaders.set('content-length', String(contentLength));
+
+            await cache.put(url, new Response(countedBody, { status: 200, headers: cacheHeaders }));
             emitProgress(f, fileBytesDone, contentLength, true);
-
-            const blob = new Blob(chunks);
-            const h = new Headers({ 'content-type': 'application/octet-stream', 'content-length': String(blob.size) });
-            await cache.put(url, new Response(blob, { status: 200, headers: h }));
         }
 
         broadcastDl({ type: 'model_download_done', modelId });
