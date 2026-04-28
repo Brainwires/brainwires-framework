@@ -417,28 +417,47 @@ async function handleModelDownload(msg, _event) {
                     console.log(`[bw-sw] ${f.filename}: ${contentLength} bytes total`);
                 }
 
-                // Stream chunks to IDB for persistence.
+                // Stream chunks to IDB, batched to avoid per-chunk transaction
+                // overhead. Accumulate ~4 MB in memory before flushing to IDB
+                // as one entry. At most 4 MB lost on failure.
+                const BATCH_SIZE = 4 * 1024 * 1024; // 4 MB
                 const reader = resp.body.getReader();
                 let streamFailed = false;
+                let batchBuf = [];
+                let batchBytes = 0;
+
+                const flushBatch = async () => {
+                    if (batchBuf.length === 0) return;
+                    const merged = new Blob(batchBuf);
+                    const ab = await merged.arrayBuffer();
+                    await idbPut(partialsDb, 'chunks', `${partialKey}:${meta.chunkCount}`, ab);
+                    meta.chunkCount++;
+                    meta.receivedBytes = fileBytesDone;
+                    await idbPut(partialsDb, 'meta', partialKey, { ...meta });
+                    batchBuf = [];
+                    batchBytes = 0;
+                };
+
                 try {
                     while (true) {
                         const { value, done } = await reader.read();
                         if (done) break;
                         if (controller.signal.aborted) throw new DOMException('aborted', 'AbortError');
 
-                        const chunkKey = `${partialKey}:${meta.chunkCount}`;
-                        await idbPut(partialsDb, 'chunks', chunkKey, value.buffer);
-                        meta.chunkCount++;
+                        batchBuf.push(value);
+                        batchBytes += value.byteLength;
                         fileBytesDone += value.byteLength;
-                        meta.receivedBytes = fileBytesDone;
-                        await idbPut(partialsDb, 'meta', partialKey, { ...meta });
-
                         totalBytesDone += value.byteLength;
                         emitProgress(f, fileBytesDone, contentLength);
+
+                        if (batchBytes >= BATCH_SIZE) await flushBatch();
                     }
+                    await flushBatch(); // flush remaining
                 } catch (e) {
                     if (controller.signal.aborted) throw e;
                     streamFailed = true;
+                    // Flush whatever we have so partial progress is saved.
+                    try { await flushBatch(); } catch (_) {}
                     console.warn(`[bw-sw] ${f.filename} stream broke at ${fileBytesDone}/${contentLength}:`, e.message);
                     if (attempt === MAX_RETRIES) throw e;
                 }
