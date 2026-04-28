@@ -333,64 +333,32 @@ self.addEventListener('message', (event) => {
 
 const activeModelDownloads = new Map();
 const MODEL_CACHE = 'bw-models-v1';
-const DL_PARTIALS_DB = 'bw-download-partials';
+const OPFS_DIR = 'model-downloads';
 const DL_PROGRESS_MS = 200;
 
-function openPartialsDb() {
-    return new Promise((resolve, reject) => {
-        const req = indexedDB.open(DL_PARTIALS_DB, 1);
-        req.onupgradeneeded = () => {
-            const db = req.result;
-            if (!db.objectStoreNames.contains('chunks')) db.createObjectStore('chunks');
-            if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta');
-        };
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-    });
+// ── OPFS helpers ──────────────────────────────────────────────
+// Feature-detect OPFS; fall back gracefully if unavailable.
+
+function hasOpfs() {
+    return typeof navigator !== 'undefined' && navigator.storage && typeof navigator.storage.getDirectory === 'function';
 }
 
-function idbPut(db, store, key, value) {
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(store, 'readwrite');
-        tx.objectStore(store).put(value, key);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-    });
+async function getOpfsDir() {
+    const root = await navigator.storage.getDirectory();
+    return root.getDirectoryHandle(OPFS_DIR, { create: true });
 }
 
-function idbGet(db, store, key) {
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(store, 'readonly');
-        const req = tx.objectStore(store).get(key);
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-    });
+async function getOpfsFileHandle(dir, modelId, filename) {
+    const modelDir = await dir.getDirectoryHandle(modelId, { create: true });
+    return modelDir.getFileHandle(filename, { create: true });
 }
 
-function idbGetAllKeys(db, store) {
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(store, 'readonly');
-        const req = tx.objectStore(store).getAllKeys();
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-    });
-}
-
-function idbDelete(db, store, key) {
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(store, 'readwrite');
-        tx.objectStore(store).delete(key);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-    });
-}
-
-async function clearPartials(db, prefix) {
-    const keys = await idbGetAllKeys(db, 'chunks');
-    for (const k of keys) {
-        if (String(k).startsWith(prefix)) await idbDelete(db, 'chunks', k);
-    }
-    await idbDelete(db, 'meta', prefix).catch(() => {});
+async function deleteOpfsModel(modelId) {
+    if (!hasOpfs()) return;
+    try {
+        const dir = await getOpfsDir();
+        await dir.removeEntry(modelId, { recursive: true });
+    } catch (_) { /* directory may not exist */ }
 }
 
 async function handleModelDownload(msg, _event) {
@@ -404,6 +372,8 @@ async function handleModelDownload(msg, _event) {
 
     try {
         const cache = await caches.open(MODEL_CACHE);
+        const opfsAvailable = hasOpfs();
+        const opfsDir = opfsAvailable ? await getOpfsDir() : null;
         let totalBytesDone = 0;
         let totalBytesTotal = 0;
         const startedAt = Date.now();
@@ -437,6 +407,8 @@ async function handleModelDownload(msg, _event) {
 
         for (const f of files) {
             const url = f.url;
+
+            // Already cached — skip.
             const existing = await cache.match(url);
             if (existing) {
                 const len = Number(existing.headers.get('content-length')) || 0;
@@ -446,31 +418,29 @@ async function handleModelDownload(msg, _event) {
                 continue;
             }
 
-            // Resumable streaming download. Chunks persist to IDB so an
-            // interrupted 10 GB download resumes from where it left off.
-            const partialsDb = await openPartialsDb();
-            const partialKey = `${modelId}:${f.filename}`;
+            // ── OPFS-based resumable streaming download ──────────
+            // Bytes flow: network → OPFS file (streaming write) → on
+            // complete: read back as stream → Cache Storage + SHA verify.
+            // Resume: OPFS file persists across SW restarts; getFile().size
+            // tells us where to resume with a Range header.
+
             const MAX_RETRIES = 3;
+            let fileBytesDone = 0;
+            let contentLength = 0;
 
-            // Check for existing partial state from a prior interrupted download.
-            let meta = (await idbGet(partialsDb, 'meta', partialKey)) || {
-                receivedBytes: 0, chunkCount: 0, contentLength: 0,
-            };
-            let contentLength = meta.contentLength;
-            let fileBytesDone = meta.receivedBytes;
-            if (contentLength > 0) totalBytesTotal += contentLength;
-            if (fileBytesDone > 0) {
-                totalBytesDone += fileBytesDone;
-                console.log(`[bw-sw] resuming ${f.filename} from ${fileBytesDone}/${contentLength}`);
+            // Check OPFS for an existing partial file.
+            let opfsHandle = null;
+            if (opfsAvailable) {
+                opfsHandle = await getOpfsFileHandle(opfsDir, modelId, f.filename);
+                const partial = await opfsHandle.getFile();
+                fileBytesDone = partial.size;
+                if (fileBytesDone > 0) {
+                    console.log(`[bw-sw] resuming ${f.filename} from ${fileBytesDone} bytes (OPFS)`);
+                    totalBytesDone += fileBytesDone;
+                }
             }
 
-            // Skip the fetch entirely if all bytes are already in IDB.
-            const alreadyComplete = contentLength > 0 && fileBytesDone >= contentLength;
-            if (alreadyComplete) {
-                console.log(`[bw-sw] ${f.filename}: all bytes in IDB, skipping fetch`);
-            }
-
-            for (let attempt = 0; !alreadyComplete && attempt <= MAX_RETRIES; attempt++) {
+            for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
                 const dlHeaders = {};
                 if (hfToken) dlHeaders['Authorization'] = `Bearer ${hfToken}`;
                 if (fileBytesDone > 0) dlHeaders['Range'] = `bytes=${fileBytesDone}-`;
@@ -491,7 +461,7 @@ async function handleModelDownload(msg, _event) {
                     broadcastDl({ type: 'model_download_error', modelId, error: 'HF_AUTH_REQUIRED' });
                     return;
                 }
-                if (resp.status === 416) break; // already complete
+                if (resp.status === 416) { console.log(`[bw-sw] ${f.filename}: 416 — already complete`); break; }
                 if (!resp.ok && resp.status !== 206) {
                     console.warn(`[bw-sw] ${f.filename} HTTP ${resp.status}`);
                     if (attempt === MAX_RETRIES) throw new Error(`HF ${resp.status}`);
@@ -499,13 +469,16 @@ async function handleModelDownload(msg, _event) {
                     continue;
                 }
 
-                // Server returned 200 (full file) instead of 206 — discard partials.
+                // Server returned 200 instead of 206 — restart from scratch.
                 if (resp.status === 200 && fileBytesDone > 0) {
                     console.log(`[bw-sw] ${f.filename}: server sent full file, discarding partial`);
                     totalBytesDone -= fileBytesDone;
                     fileBytesDone = 0;
-                    meta = { receivedBytes: 0, chunkCount: 0, contentLength: 0 };
-                    await clearPartials(partialsDb, partialKey);
+                    if (opfsHandle) {
+                        const w = await opfsHandle.createWritable();
+                        await w.truncate(0);
+                        await w.close();
+                    }
                 }
 
                 if (contentLength === 0) {
@@ -513,30 +486,18 @@ async function handleModelDownload(msg, _event) {
                         ? Number((resp.headers.get('content-range') || '').split('/')[1]) || 0
                         : Number(resp.headers.get('content-length')) || 0;
                     totalBytesTotal += contentLength;
-                    meta.contentLength = contentLength;
                     console.log(`[bw-sw] ${f.filename}: ${contentLength} bytes total`);
                 }
 
-                // Stream chunks to IDB, batched to avoid per-chunk transaction
-                // overhead. Accumulate ~4 MB in memory before flushing to IDB
-                // as one entry. At most 4 MB lost on failure.
-                const BATCH_SIZE = 4 * 1024 * 1024; // 4 MB
+                // Stream directly to OPFS file (or read chunks if no OPFS).
                 const reader = resp.body.getReader();
                 let streamFailed = false;
-                let batchBuf = [];
-                let batchBytes = 0;
+                let writable = null;
 
-                const flushBatch = async () => {
-                    if (batchBuf.length === 0) return;
-                    const merged = new Blob(batchBuf);
-                    const ab = await merged.arrayBuffer();
-                    await idbPut(partialsDb, 'chunks', `${partialKey}:${meta.chunkCount}`, ab);
-                    meta.chunkCount++;
-                    meta.receivedBytes = fileBytesDone;
-                    await idbPut(partialsDb, 'meta', partialKey, { ...meta });
-                    batchBuf = [];
-                    batchBytes = 0;
-                };
+                if (opfsHandle) {
+                    writable = await opfsHandle.createWritable({ keepExistingData: true });
+                    await writable.seek(fileBytesDone);
+                }
 
                 try {
                     while (true) {
@@ -544,57 +505,42 @@ async function handleModelDownload(msg, _event) {
                         if (done) break;
                         if (controller.signal.aborted) throw new DOMException('aborted', 'AbortError');
 
-                        batchBuf.push(value);
-                        batchBytes += value.byteLength;
+                        if (writable) await writable.write(value);
                         fileBytesDone += value.byteLength;
                         totalBytesDone += value.byteLength;
                         emitProgress(f, fileBytesDone, contentLength);
-
-                        if (batchBytes >= BATCH_SIZE) await flushBatch();
                     }
-                    await flushBatch(); // flush remaining
+                    if (writable) await writable.close();
                 } catch (e) {
+                    if (writable) try { await writable.close(); } catch (_) {}
                     if (controller.signal.aborted) throw e;
                     streamFailed = true;
-                    // Flush whatever we have so partial progress is saved.
-                    try { await flushBatch(); } catch (_) {}
                     console.warn(`[bw-sw] ${f.filename} stream broke at ${fileBytesDone}/${contentLength}:`, e.message);
                     if (attempt === MAX_RETRIES) throw e;
                 }
                 try { reader.releaseLock(); } catch (_) {}
                 if (!streamFailed) break;
+                // On retry, re-read OPFS file size for accurate resume.
+                if (opfsHandle) {
+                    const p = await opfsHandle.getFile();
+                    fileBytesDone = p.size;
+                }
                 await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
             }
 
-            // Emit a progress event so the page-side timeout resets.
             emitProgress(f, fileBytesDone, contentLength, true);
 
-            // Assemble all IDB chunks → Blob → Cache Storage.
-            // Batch-read in parallel (100 at a time) to avoid 78,000+
-            // sequential IDB transactions from pre-batching downloads.
-            console.log(`[bw-sw] ${f.filename}: assembling ${meta.chunkCount} chunks`);
-            const allChunks = [];
-            const READ_BATCH = 100;
-            for (let start = 0; start < meta.chunkCount; start += READ_BATCH) {
-                const end = Math.min(start + READ_BATCH, meta.chunkCount);
-                const batch = await Promise.all(
-                    Array.from({ length: end - start }, (_, i) =>
-                        idbGet(partialsDb, 'chunks', `${partialKey}:${start + i}`)
-                    )
-                );
-                for (const buf of batch) { if (buf) allChunks.push(buf); }
-                if (start % 10000 === 0 && start > 0) {
-                    console.log(`[bw-sw] ${f.filename}: read ${start}/${meta.chunkCount} chunks`);
-                }
+            // Move OPFS file → Cache Storage via stream (no full RAM copy).
+            console.log(`[bw-sw] ${f.filename}: moving to Cache Storage`);
+            if (opfsHandle) {
+                const opfsFile = await opfsHandle.getFile();
+                const cacheHdrs = new Headers();
+                cacheHdrs.set('content-type', 'application/octet-stream');
+                cacheHdrs.set('content-length', String(opfsFile.size));
+                await cache.put(url, new Response(opfsFile.stream(), { status: 200, headers: cacheHdrs }));
             }
-            const blob = new Blob(allChunks);
-            const cacheHdrs = new Headers();
-            cacheHdrs.set('content-type', 'application/octet-stream');
-            cacheHdrs.set('content-length', String(blob.size));
-            await cache.put(url, new Response(blob, { status: 200, headers: cacheHdrs }));
 
-            // SHA-256 verification via streaming hasher — reads the cached
-            // file in chunks, uses ~256 bytes of state. No 10 GB ArrayBuffer.
+            // SHA-256 verification via streaming hasher.
             if (f.sha256) {
                 console.log(`[bw-sw] ${f.filename}: verifying SHA-256 (streaming)...`);
                 broadcastDl({ type: 'model_progress', detail: { phase: 'verifying', modelId, file: f.filename } });
@@ -602,15 +548,17 @@ async function handleModelDownload(msg, _event) {
                 if (hex && hex !== f.sha256) {
                     console.error(`[bw-sw] ${f.filename}: SHA mismatch! got=${hex} expected=${f.sha256}`);
                     await cache.delete(url);
-                    await clearPartials(partialsDb, partialKey);
+                    await deleteOpfsModel(modelId);
                     throw new Error(`SHA-256 mismatch for ${f.filename}`);
                 }
                 console.log(`[bw-sw] ${f.filename}: SHA-256 verified ✓`);
             }
 
-            // Clean up IDB partials.
-            await clearPartials(partialsDb, partialKey);
-            console.log(`[bw-sw] ${f.filename}: cached (${blob.size} bytes), partials cleaned`);
+            // Clean up OPFS temp file — Cache Storage is the durable home.
+            if (opfsAvailable) {
+                await deleteOpfsModel(modelId).catch(() => {});
+            }
+            console.log(`[bw-sw] ${f.filename}: done`);
             emitProgress(f, fileBytesDone, contentLength, true);
         }
 

@@ -124,31 +124,14 @@ export async function deleteModel(modelId) {
     for (const f of m.files) {
         try { await cache.delete(cacheKey(modelId, f.filename)); } catch (_) { /* ignore */ }
     }
-    // Also clear IDB partials so a re-download starts fresh.
+    // Also clear OPFS partial downloads so a re-download starts fresh.
     try {
-        const req = indexedDB.open('bw-download-partials', 1);
-        req.onsuccess = () => {
-            const db = req.result;
-            try {
-                const tx = db.transaction(['chunks', 'meta'], 'readwrite');
-                const chunkStore = tx.objectStore('chunks');
-                const metaStore = tx.objectStore('meta');
-                for (const f of m.files) {
-                    const prefix = `${modelId}:${f.filename}`;
-                    metaStore.delete(prefix);
-                    // Clear all chunk keys with this prefix.
-                    const cursorReq = chunkStore.openCursor();
-                    cursorReq.onsuccess = () => {
-                        const cursor = cursorReq.result;
-                        if (!cursor) return;
-                        if (String(cursor.key).startsWith(prefix)) cursor.delete();
-                        cursor.continue();
-                    };
-                }
-            } catch (_e) { /* IDB might not have the stores yet */ }
-            db.close();
-        };
-    } catch (_) { /* ignore if IDB unavailable */ }
+        if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.getDirectory) {
+            const root = await navigator.storage.getDirectory();
+            const dlDir = await root.getDirectoryHandle('model-downloads', { create: false }).catch(() => null);
+            if (dlDir) await dlDir.removeEntry(modelId, { recursive: true }).catch(() => {});
+        }
+    } catch (_) { /* OPFS unavailable or dir doesn't exist */ }
     events.dispatchEvent(new CustomEvent('model_deleted', { detail: { modelId } }));
 }
 
