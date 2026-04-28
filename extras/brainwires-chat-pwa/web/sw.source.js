@@ -67,6 +67,7 @@ const RESOURCE_HASHES = __SRI_HASHES__;
 // Production paths stay quiet; debug logs are silenced unless you
 // flip DEBUG to true at build/test time.
 const DEBUG = false;
+let DEV_MODE = false;
 function log(...args) { if (DEBUG) console.log('[bw-sw]', ...args); }
 function warn(...args) { console.warn('[bw-sw]', ...args); }
 
@@ -132,9 +133,12 @@ self.addEventListener('fetch', (event) => {
         return;
     }
     if (!sameOrigin || !isPinned(req.url)) {
-        // Pure network passthrough. Provider/HF URLs are not cached.
         return;
     }
+
+    // Dev mode: network-first, no cache, no SRI — live-editing works
+    // while the SW stays alive for model downloads.
+    if (DEV_MODE) return;
 
     event.respondWith((async () => {
         const cache = await caches.open(CACHE_NAME);
@@ -214,6 +218,10 @@ self.addEventListener('message', (event) => {
             if (dl) { try { dl.controller.abort(); } catch (_) {} }
             break;
         }
+        case 'set_dev_mode':
+            DEV_MODE = !!msg.enabled;
+            log('DEV_MODE set to', DEV_MODE);
+            break;
         case 'sri_table':
             replyTo(event, { type: 'sri_table', hashes: RESOURCE_HASHES });
             break;
