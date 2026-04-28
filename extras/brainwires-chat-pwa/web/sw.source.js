@@ -230,11 +230,75 @@ self.addEventListener('message', (event) => {
     }
 });
 
-// ── Model download (background-resilient) ───────────────────────
+// ── Model download (background-resilient + resumable) ───────────
+//
+// Chunks are persisted to IndexedDB as they stream from the network.
+// If the download is interrupted, the next attempt reads the partial
+// state from IDB and resumes with a Range header. On completion, all
+// chunks are assembled into a Blob and cache.put'd as a single
+// Response, then the IDB partials are cleaned up.
 
 const activeModelDownloads = new Map();
 const MODEL_CACHE = 'bw-models-v1';
+const DL_PARTIALS_DB = 'bw-download-partials';
 const DL_PROGRESS_MS = 200;
+
+function openPartialsDb() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DL_PARTIALS_DB, 1);
+        req.onupgradeneeded = () => {
+            const db = req.result;
+            if (!db.objectStoreNames.contains('chunks')) db.createObjectStore('chunks');
+            if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta');
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+function idbPut(db, store, key, value) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(store, 'readwrite');
+        tx.objectStore(store).put(value, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+}
+
+function idbGet(db, store, key) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(store, 'readonly');
+        const req = tx.objectStore(store).get(key);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+function idbGetAllKeys(db, store) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(store, 'readonly');
+        const req = tx.objectStore(store).getAllKeys();
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+function idbDelete(db, store, key) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(store, 'readwrite');
+        tx.objectStore(store).delete(key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+}
+
+async function clearPartials(db, prefix) {
+    const keys = await idbGetAllKeys(db, 'chunks');
+    for (const k of keys) {
+        if (String(k).startsWith(prefix)) await idbDelete(db, 'chunks', k);
+    }
+    await idbDelete(db, 'meta', prefix).catch(() => {});
+}
 
 async function handleModelDownload(msg, _event) {
     const { modelId, files, hfToken } = msg;
@@ -288,26 +352,37 @@ async function handleModelDownload(msg, _event) {
                 continue;
             }
 
-            // Stream directly to Cache Storage — no RAM accumulation.
-            // Retry up to 3 times on network failure. On retry, delete
-            // any partial cache entry and re-fetch from scratch (Cache
-            // Storage doesn't support append).
+            // Resumable streaming download. Chunks persist to IDB so an
+            // interrupted 10 GB download resumes from where it left off.
+            const partialsDb = await openPartialsDb();
+            const partialKey = `${modelId}:${f.filename}`;
             const MAX_RETRIES = 3;
-            let contentLength = 0;
-            let fileBytesDone = 0;
+
+            // Check for existing partial state from a prior interrupted download.
+            let meta = (await idbGet(partialsDb, 'meta', partialKey)) || {
+                receivedBytes: 0, chunkCount: 0, contentLength: 0,
+            };
+            let contentLength = meta.contentLength;
+            let fileBytesDone = meta.receivedBytes;
+            if (contentLength > 0) totalBytesTotal += contentLength;
+            if (fileBytesDone > 0) {
+                totalBytesDone += fileBytesDone;
+                console.log(`[bw-sw] resuming ${f.filename} from ${fileBytesDone}/${contentLength}`);
+            }
 
             for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
                 const dlHeaders = {};
                 if (hfToken) dlHeaders['Authorization'] = `Bearer ${hfToken}`;
+                if (fileBytesDone > 0) dlHeaders['Range'] = `bytes=${fileBytesDone}-`;
 
-                console.log(`[bw-sw] download ${f.filename} attempt ${attempt + 1}/${MAX_RETRIES + 1}`);
+                console.log(`[bw-sw] download ${f.filename} attempt ${attempt + 1} from byte ${fileBytesDone}`);
 
                 let resp;
                 try {
                     resp = await fetch(url, { headers: dlHeaders, signal: controller.signal });
                 } catch (e) {
                     if (controller.signal.aborted) throw e;
-                    console.warn(`[bw-sw] download ${f.filename} fetch failed:`, e.message);
+                    console.warn(`[bw-sw] ${f.filename} fetch failed:`, e.message);
                     if (attempt === MAX_RETRIES) throw e;
                     await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
                     continue;
@@ -316,47 +391,78 @@ async function handleModelDownload(msg, _event) {
                     broadcastDl({ type: 'model_download_error', modelId, error: 'HF_AUTH_REQUIRED' });
                     return;
                 }
-                if (!resp.ok) {
-                    console.warn(`[bw-sw] download ${f.filename} HTTP ${resp.status}`);
+                if (resp.status === 416) break; // already complete
+                if (!resp.ok && resp.status !== 206) {
+                    console.warn(`[bw-sw] ${f.filename} HTTP ${resp.status}`);
                     if (attempt === MAX_RETRIES) throw new Error(`HF ${resp.status}`);
                     await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
                     continue;
                 }
 
-                if (contentLength === 0) {
-                    contentLength = Number(resp.headers.get('content-length')) || 0;
-                    totalBytesTotal += contentLength;
-                    console.log(`[bw-sw] download ${f.filename}: ${contentLength} bytes`);
+                // Server returned 200 (full file) instead of 206 — discard partials.
+                if (resp.status === 200 && fileBytesDone > 0) {
+                    console.log(`[bw-sw] ${f.filename}: server sent full file, discarding partial`);
+                    totalBytesDone -= fileBytesDone;
+                    fileBytesDone = 0;
+                    meta = { receivedBytes: 0, chunkCount: 0, contentLength: 0 };
+                    await clearPartials(partialsDb, partialKey);
                 }
-                fileBytesDone = 0;
 
-                const countingStream = new TransformStream({
-                    transform(chunk, ctrl) {
-                        fileBytesDone += chunk.byteLength;
-                        totalBytesDone += chunk.byteLength;
-                        emitProgress(f, fileBytesDone, contentLength);
-                        ctrl.enqueue(chunk);
-                    },
-                });
+                if (contentLength === 0) {
+                    contentLength = resp.status === 206
+                        ? Number((resp.headers.get('content-range') || '').split('/')[1]) || 0
+                        : Number(resp.headers.get('content-length')) || 0;
+                    totalBytesTotal += contentLength;
+                    meta.contentLength = contentLength;
+                    console.log(`[bw-sw] ${f.filename}: ${contentLength} bytes total`);
+                }
 
-                const countedBody = resp.body.pipeThrough(countingStream);
-                const cacheHdrs = new Headers();
-                cacheHdrs.set('content-type', resp.headers.get('content-type') || 'application/octet-stream');
-                if (contentLength) cacheHdrs.set('content-length', String(contentLength));
-
+                // Stream chunks to IDB for persistence.
+                const reader = resp.body.getReader();
+                let streamFailed = false;
                 try {
-                    await cache.put(url, new Response(countedBody, { status: 200, headers: cacheHdrs }));
-                    console.log(`[bw-sw] download ${f.filename}: cached (${fileBytesDone} bytes)`);
-                    break; // success
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+                        if (controller.signal.aborted) throw new DOMException('aborted', 'AbortError');
+
+                        const chunkKey = `${partialKey}:${meta.chunkCount}`;
+                        await idbPut(partialsDb, 'chunks', chunkKey, value.buffer);
+                        meta.chunkCount++;
+                        fileBytesDone += value.byteLength;
+                        meta.receivedBytes = fileBytesDone;
+                        await idbPut(partialsDb, 'meta', partialKey, { ...meta });
+
+                        totalBytesDone += value.byteLength;
+                        emitProgress(f, fileBytesDone, contentLength);
+                    }
                 } catch (e) {
                     if (controller.signal.aborted) throw e;
-                    console.warn(`[bw-sw] download ${f.filename} stream failed at ${fileBytesDone}/${contentLength}:`, e.message);
-                    totalBytesDone -= fileBytesDone;
-                    try { await cache.delete(url); } catch (_) {}
+                    streamFailed = true;
+                    console.warn(`[bw-sw] ${f.filename} stream broke at ${fileBytesDone}/${contentLength}:`, e.message);
                     if (attempt === MAX_RETRIES) throw e;
-                    await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
                 }
+                try { reader.releaseLock(); } catch (_) {}
+                if (!streamFailed) break;
+                await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
             }
+
+            // Assemble all IDB chunks → Blob → Cache Storage.
+            console.log(`[bw-sw] ${f.filename}: assembling ${meta.chunkCount} chunks`);
+            const allChunks = [];
+            for (let ci = 0; ci < meta.chunkCount; ci++) {
+                const buf = await idbGet(partialsDb, 'chunks', `${partialKey}:${ci}`);
+                if (buf) allChunks.push(buf);
+            }
+            const blob = new Blob(allChunks);
+            const cacheHdrs = new Headers();
+            cacheHdrs.set('content-type', 'application/octet-stream');
+            cacheHdrs.set('content-length', String(blob.size));
+            await cache.put(url, new Response(blob, { status: 200, headers: cacheHdrs }));
+
+            // Clean up IDB partials.
+            await clearPartials(partialsDb, partialKey);
+            console.log(`[bw-sw] ${f.filename}: cached (${blob.size} bytes), partials cleaned`);
             emitProgress(f, fileBytesDone, contentLength, true);
         }
 
