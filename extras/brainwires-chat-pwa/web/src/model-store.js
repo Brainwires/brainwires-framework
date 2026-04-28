@@ -281,12 +281,22 @@ export async function deleteModel(modelId) {
 
 /** Abort an in-flight download for `modelId`. */
 export function cancelDownload(modelId) {
+    // Tell the SW to abort its fetch.
+    if (typeof navigator !== 'undefined' && navigator.serviceWorker && navigator.serviceWorker.controller) {
+        try { navigator.serviceWorker.controller.postMessage({ type: 'model_download_cancel', modelId }); } catch (_err) { console.warn("[bw] caught:", _err); }
+    }
+    // Abort the page-side controller (rejects the _downloadDirect promise).
     const a = activeDownloads.get(modelId);
     if (a && a.controller) {
         try { a.controller.abort(); } catch (_err) { console.debug("[bw] idempotent:", _err); }
     }
-    if (typeof navigator !== 'undefined' && navigator.serviceWorker && navigator.serviceWorker.controller) {
-        try { navigator.serviceWorker.controller.postMessage({ type: 'model_download_cancel', modelId }); } catch (_err) { console.warn("[bw] caught:", _err); }
+    // For the SW path: synthesize the cancel event locally so the
+    // _downloadViaSW promise rejects immediately without waiting for
+    // the SW to process and broadcast back.
+    if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
+        navigator.serviceWorker.dispatchEvent(new MessageEvent('message', {
+            data: { type: 'model_download_error', modelId, error: 'aborted' },
+        }));
     }
 }
 
@@ -380,6 +390,8 @@ async function _downloadViaSW(modelId, opts) {
                 cleanup();
                 if (msg.error === 'HF_AUTH_REQUIRED') {
                     reject(new HfAuthRequiredError());
+                } else if (msg.error === 'aborted' || (msg.error && msg.error.includes('abort'))) {
+                    reject(new DOMException('aborted', 'AbortError'));
                 } else {
                     reject(new Error(msg.error || 'SW download failed'));
                 }
