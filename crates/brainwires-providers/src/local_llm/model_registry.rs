@@ -352,10 +352,7 @@ pub fn known_models() -> Vec<KnownModel> {
             tokenizer_sha256: None,
         },
         // Candle / safetensors path — used by `CandleLlmProvider` (WASM-friendly).
-        // TODO(gemma-4): pin `weights_sha256` and `tokenizer_sha256` once
-        // `google/gemma-4-e2b` is published. Intentionally leaving them as
-        // `None` until upstream releases the model card; never substitute a
-        // fallback URL outside huggingface.co.
+        // Hashes pulled from HF API: huggingface.co/api/models/google/gemma-4-E2B/tree/main
         KnownModel {
             id: "gemma-4-e2b",
             name: "Gemma 4 E2B",
@@ -363,13 +360,13 @@ pub fn known_models() -> Vec<KnownModel> {
             filename: "model.safetensors",
             model_type: LocalModelType::Generic,
             context_size: 8192,
-            estimated_ram_mb: 2400,
+            estimated_ram_mb: 10000,
             supports_tools: false,
-            description: "Gemma 4 E2B (effective ~2B) — Candle/safetensors, runs in WASM.",
+            description: "Gemma 4 E2B (5.1B params, multimodal) — Candle/safetensors.",
             huggingface_revision: "main",
             tokenizer_filename: "tokenizer.json",
-            weights_sha256: None,
-            tokenizer_sha256: None,
+            weights_sha256: Some("76dc84a5a805a2c8b91e9ccc00b8dbf8f4a99bf0d56ab25832f6e6addd4f7f57"),
+            tokenizer_sha256: Some("12bac982b793c44b03d52a250a9f0d0b666813da566b910c24a6da0695fd11e6"),
         },
     ]
 }

@@ -28,15 +28,12 @@ export const KNOWN_MODELS = {
         description: 'Gemma 4 E2B (effective ~2B) — Candle/safetensors, runs in WASM.',
         hf: { repo: 'google/gemma-4-e2b', revision: 'main' },
         files: [
-            // TODO(gemma-4): mirror sha256 pins from the Rust registry once
-            // upstream publishes the model card.
-            { kind: 'weights', filename: 'model.safetensors', sha256: null },
-            { kind: 'tokenizer', filename: 'tokenizer.json', sha256: null },
+            { kind: 'weights', filename: 'model.safetensors', sha256: '76dc84a5a805a2c8b91e9ccc00b8dbf8f4a99bf0d56ab25832f6e6addd4f7f57' },
+            { kind: 'tokenizer', filename: 'tokenizer.json', sha256: '12bac982b793c44b03d52a250a9f0d0b666813da566b910c24a6da0695fd11e6' },
         ],
-        // ~2.4 GB; refine when registry pins land.
-        estimatedBytes: 2_500_000_000,
+        estimatedBytes: 10_246_621_918,
         contextSize: 8192,
-        gated: true,
+        gated: false,
     },
 };
 
