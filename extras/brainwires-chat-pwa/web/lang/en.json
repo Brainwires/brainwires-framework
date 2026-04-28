@@ -44,7 +44,7 @@
     "settings.save": "Save",
     "settings.saved": "Saved",
 
-    "settings.localModel.title": "Local model — Gemma 4 E2B",
+    "settings.localModel.title": "Edge model — Gemma 4 E2B",
     "settings.localModel.status": "Status",
     "settings.localModel.notDownloaded": "Not downloaded",
     "settings.localModel.ready": "Ready",

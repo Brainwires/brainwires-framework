@@ -81,6 +81,99 @@ async function sha256Base64(buffer) {
     return btoa(bin);
 }
 
+// ── Streaming SHA-256 (incremental, no full-file-in-RAM) ──────
+// Pure JS implementation of FIPS 180-4 SHA-256. Processes data in
+// chunks via update(), returns hex digest from finalize(). Uses
+// ~256 bytes of state regardless of file size.
+
+const _K = new Uint32Array([
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+]);
+
+class StreamingSha256 {
+    constructor() {
+        this._h = new Uint32Array([0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]);
+        this._buf = new Uint8Array(64);
+        this._pos = 0;
+        this._len = 0;
+        this._w = new Uint32Array(64);
+    }
+    update(data) {
+        const d = data instanceof Uint8Array ? data : new Uint8Array(data);
+        this._len += d.length;
+        let off = 0;
+        if (this._pos > 0) {
+            const need = 64 - this._pos;
+            const take = Math.min(need, d.length);
+            this._buf.set(d.subarray(0, take), this._pos);
+            this._pos += take;
+            off = take;
+            if (this._pos === 64) { this._compress(this._buf); this._pos = 0; }
+        }
+        while (off + 64 <= d.length) { this._compress(d.subarray(off, off + 64)); off += 64; }
+        if (off < d.length) { this._buf.set(d.subarray(off), 0); this._pos = d.length - off; }
+        return this;
+    }
+    finalize() {
+        const bits = this._len * 8;
+        this._buf[this._pos++] = 0x80;
+        if (this._pos > 56) { this._buf.fill(0, this._pos); this._compress(this._buf); this._pos = 0; }
+        this._buf.fill(0, this._pos);
+        const dv = new DataView(this._buf.buffer);
+        dv.setUint32(56, Math.floor(bits / 0x100000000), false);
+        dv.setUint32(60, bits >>> 0, false);
+        this._compress(this._buf);
+        let hex = '';
+        for (let i = 0; i < 8; i++) hex += this._h[i].toString(16).padStart(8, '0');
+        return hex;
+    }
+    _compress(block) {
+        const w = this._w;
+        const dv = new DataView(block.buffer, block.byteOffset, 64);
+        for (let i = 0; i < 16; i++) w[i] = dv.getUint32(i * 4, false);
+        for (let i = 16; i < 64; i++) {
+            const s0 = _rotr(w[i - 15], 7) ^ _rotr(w[i - 15], 18) ^ (w[i - 15] >>> 3);
+            const s1 = _rotr(w[i - 2], 17) ^ _rotr(w[i - 2], 19) ^ (w[i - 2] >>> 10);
+            w[i] = (w[i - 16] + s0 + w[i - 7] + s1) | 0;
+        }
+        let [a, b, c, d, e, f, g, h] = this._h;
+        for (let i = 0; i < 64; i++) {
+            const S1 = _rotr(e, 6) ^ _rotr(e, 11) ^ _rotr(e, 25);
+            const ch = (e & f) ^ (~e & g);
+            const t1 = (h + S1 + ch + _K[i] + w[i]) | 0;
+            const S0 = _rotr(a, 2) ^ _rotr(a, 13) ^ _rotr(a, 22);
+            const maj = (a & b) ^ (a & c) ^ (b & c);
+            const t2 = (S0 + maj) | 0;
+            h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+        }
+        this._h[0] = (this._h[0] + a) | 0; this._h[1] = (this._h[1] + b) | 0;
+        this._h[2] = (this._h[2] + c) | 0; this._h[3] = (this._h[3] + d) | 0;
+        this._h[4] = (this._h[4] + e) | 0; this._h[5] = (this._h[5] + f) | 0;
+        this._h[6] = (this._h[6] + g) | 0; this._h[7] = (this._h[7] + h) | 0;
+    }
+}
+function _rotr(x, n) { return (x >>> n) | (x << (32 - n)); }
+
+async function streamingSha256Hex(cache, url) {
+    const resp = await cache.match(url);
+    if (!resp || !resp.body) return null;
+    const hasher = new StreamingSha256();
+    const reader = resp.body.getReader();
+    while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        hasher.update(value);
+    }
+    return hasher.finalize();
+}
+
 function resourceKey(url) {
     const path = new URL(url).pathname.replace(/^\/+/, '');
     return path;
@@ -500,26 +593,19 @@ async function handleModelDownload(msg, _event) {
             cacheHdrs.set('content-length', String(blob.size));
             await cache.put(url, new Response(blob, { status: 200, headers: cacheHdrs }));
 
-            // SHA-256 verification (if pin is set). Done here in the SW
-            // so the page thread never has to hash 10+ GB.
+            // SHA-256 verification via streaming hasher — reads the cached
+            // file in chunks, uses ~256 bytes of state. No 10 GB ArrayBuffer.
             if (f.sha256) {
-                console.log(`[bw-sw] ${f.filename}: verifying SHA-256...`);
+                console.log(`[bw-sw] ${f.filename}: verifying SHA-256 (streaming)...`);
                 broadcastDl({ type: 'model_progress', detail: { phase: 'verifying', modelId, file: f.filename } });
-                const cached = await cache.match(url);
-                const ab = cached ? await cached.arrayBuffer() : null;
-                if (ab) {
-                    const hashBuf = await crypto.subtle.digest('SHA-256', ab);
-                    const bytes = new Uint8Array(hashBuf);
-                    let hex = '';
-                    for (let bi = 0; bi < bytes.length; bi++) hex += bytes[bi].toString(16).padStart(2, '0');
-                    if (hex !== f.sha256) {
-                        console.error(`[bw-sw] ${f.filename}: SHA mismatch! got=${hex} expected=${f.sha256}`);
-                        await cache.delete(url);
-                        await clearPartials(partialsDb, partialKey);
-                        throw new Error(`SHA-256 mismatch for ${f.filename}`);
-                    }
-                    console.log(`[bw-sw] ${f.filename}: SHA-256 verified ✓`);
+                const hex = await streamingSha256Hex(cache, url);
+                if (hex && hex !== f.sha256) {
+                    console.error(`[bw-sw] ${f.filename}: SHA mismatch! got=${hex} expected=${f.sha256}`);
+                    await cache.delete(url);
+                    await clearPartials(partialsDb, partialKey);
+                    throw new Error(`SHA-256 mismatch for ${f.filename}`);
                 }
+                console.log(`[bw-sw] ${f.filename}: SHA-256 verified ✓`);
             }
 
             // Clean up IDB partials.
