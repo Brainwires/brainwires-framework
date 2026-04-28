@@ -222,7 +222,7 @@ function buildContent(compact) {
         const d = _lastDetail || {};
         const total = d.totalBytesTotal || 0;
         const done = d.totalBytesDone || 0;
-        const pct = total > 0 ? Math.min(100, Math.floor((done / total) * 100)) : null;
+        const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : null;
         const speed = d.throughputBps ? `${formatBytes(d.throughputBps)}/s` : '';
         const eta = formatEta(d.etaSeconds);
 
