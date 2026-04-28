@@ -253,7 +253,7 @@ self.addEventListener('fetch', (event) => {
         try {
             const fresh = await fetch(req);
             if (fresh && fresh.ok) {
-                cache.put(req, fresh.clone()).catch(() => {});
+                cache.put(req, fresh.clone()).catch((e) => { console.warn("[bw] swallowed:", e); });
             }
             return fresh;
         } catch (e) {
@@ -299,7 +299,7 @@ self.addEventListener('message', (event) => {
         case 'chat_cancel': {
             const st = activeStreams.get(msg.messageId);
             if (st) {
-                try { st.abortController.abort(); } catch (_) {}
+                try { st.abortController.abort(); } catch (_err) { console.warn("[bw] caught:", _err); }
             }
             break;
         }
@@ -308,7 +308,7 @@ self.addEventListener('message', (event) => {
             break;
         case 'model_download_cancel': {
             const dl = activeModelDownloads.get(msg.modelId);
-            if (dl) { try { dl.controller.abort(); } catch (_) {} }
+            if (dl) { try { dl.controller.abort(); } catch (_err) { console.warn("[bw] caught:", _err); } }
             break;
         }
         case 'set_dev_mode':
@@ -512,13 +512,13 @@ async function handleModelDownload(msg, _event) {
                     }
                     if (writable) await writable.close();
                 } catch (e) {
-                    if (writable) try { await writable.close(); } catch (_) {}
+                    if (writable) try { await writable.close(); } catch (_err) { console.warn("[bw] caught:", _err); }
                     if (controller.signal.aborted) throw e;
                     streamFailed = true;
                     console.warn(`[bw-sw] ${f.filename} stream broke at ${fileBytesDone}/${contentLength}:`, e.message);
                     if (attempt === MAX_RETRIES) throw e;
                 }
-                try { reader.releaseLock(); } catch (_) {}
+                try { reader.releaseLock(); } catch (_err) { console.warn("[bw] caught:", _err); }
                 if (!streamFailed) break;
                 // On retry, re-read OPFS file size for accurate resume.
                 if (opfsHandle) {
@@ -556,7 +556,7 @@ async function handleModelDownload(msg, _event) {
 
             // Clean up OPFS temp file — Cache Storage is the durable home.
             if (opfsAvailable) {
-                await deleteOpfsModel(modelId).catch(() => {});
+                await deleteOpfsModel(modelId).catch((e) => { console.warn("[bw] swallowed:", e); });
             }
             console.log(`[bw-sw] ${f.filename}: done`);
             emitProgress(f, fileBytesDone, contentLength, true);
@@ -582,7 +582,7 @@ function replyTo(event, payload) {
 async function broadcast(payload) {
     const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const c of clients) {
-        try { c.postMessage(payload); } catch (_) {}
+        try { c.postMessage(payload); } catch (_err) { console.warn("[bw] caught:", _err); }
     }
 }
 
@@ -764,7 +764,7 @@ async function handleChatStart(msg, event) {
                 messageId,
                 delta,
                 raw: format === 'sse' ? { event: ev.event, data: ev.data } : ev,
-            }).catch(() => {});
+            }).catch((e) => { console.warn("[bw] swallowed:", e); });
 
             await maybeFlush();
         }
@@ -794,7 +794,7 @@ async function handleChatStart(msg, event) {
             messageId,
             usage,
             tokensReceived: state.tokensReceived,
-        }).catch(() => {});
+        }).catch((e) => { console.warn("[bw] swallowed:", e); });
         replyTo(event, { type: 'chat_done', conversationId, messageId, usage });
 
         // Background notification: only when no foreground window is alive.
@@ -821,7 +821,7 @@ async function handleChatStart(msg, event) {
             conversationId,
             messageId,
             error: aborted ? 'aborted' : errorText,
-        }).catch(() => {});
+        }).catch((e) => { console.warn("[bw] swallowed:", e); });
         if (!aborted) {
             replyTo(event, { type: 'chat_error', conversationId, messageId, error: errorText });
         }
@@ -843,7 +843,7 @@ self.addEventListener('notificationclick', (event) => {
             try {
                 c.postMessage({ type: 'open_chat', ...data });
                 if ('focus' in c) return c.focus();
-            } catch (_) {}
+            } catch (_err) { console.warn("[bw] caught:", _err); }
         }
         if (self.clients.openWindow) {
             return self.clients.openWindow('./index.html');

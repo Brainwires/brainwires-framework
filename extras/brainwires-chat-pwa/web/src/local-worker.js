@@ -70,7 +70,7 @@ async function getWasm() {
         const mod = await import(PKG_URL);
         if (typeof mod.default === 'function') await mod.default();
         if (typeof mod.init === 'function') {
-            try { mod.init(); } catch (_) { /* idempotent */ }
+            try { mod.init(); } catch (_err) { console.debug("[bw] idempotent:", _err); }
         }
         wasm = mod;
         return mod;
@@ -157,7 +157,7 @@ async function handleLoad(msg) {
         // Drop any previously-loaded handle before replacing it; halves
         // the peak heap footprint when switching models.
         if (handle && typeof handle.free === 'function') {
-            try { handle.free(); } catch (_) { /* idempotent */ }
+            try { handle.free(); } catch (_err) { console.debug("[bw] idempotent:", _err); }
         }
         handle = null;
         loadedModelId = null;
@@ -269,7 +269,7 @@ async function handleChat(msg) {
                     });
                 }
                 if (obj && obj.usage) usage = obj.usage;
-            } catch (_) { /* ignore */ }
+            } catch (_err) { console.warn("[bw] caught:", _err); }
             buffer = '';
         }
         try { reader.releaseLock(); } catch (_) { /* already released */ }
@@ -315,7 +315,7 @@ function handleCancel(msg) {
         // The reader will exit on the next iteration; we can also try to
         // cancel it eagerly so wasm stops generating ASAP.
         if (ctl.reader && typeof ctl.reader.cancel === 'function') {
-            try { ctl.reader.cancel(); } catch (_) { /* ignore */ }
+            try { ctl.reader.cancel(); } catch (_err) { console.warn("[bw] caught:", _err); }
         }
     }
     self.postMessage({ requestId, type: 'cancel_ack', conversationId });
@@ -324,7 +324,7 @@ function handleCancel(msg) {
 function handleUnload(msg) {
     const { requestId } = msg;
     if (handle && typeof handle.free === 'function') {
-        try { handle.free(); } catch (_) { /* idempotent */ }
+        try { handle.free(); } catch (_err) { console.debug("[bw] idempotent:", _err); }
     }
     handle = null;
     loadedModelId = null;

@@ -387,7 +387,7 @@ async function testProvider(id, apiKeyInline, baseUrlInline) {
 
 async function sectionLocalModel() {
     const m = KNOWN_MODELS['gemma-4-e2b'];
-    const downloaded = await isDownloaded('gemma-4-e2b').catch(() => false);
+    const downloaded = await isDownloaded('gemma-4-e2b').catch((e) => { console.error("[bw] swallowed:", e); return false; });
     const body = el('div', { class: 'settings-card' });
     body.appendChild(el('h3', { class: 'settings-card-title' }, m.displayName));
     body.appendChild(el('p', { class: 'settings-help' }, m.description));
@@ -452,7 +452,7 @@ async function sectionEmbeddingModels() {
         body.appendChild(el('h4', { class: 'settings-subsection' }, catLabel));
 
         for (const m of catModels) {
-            const downloaded = await isDownloaded(m.id).catch(() => false);
+            const downloaded = await isDownloaded(m.id).catch((e) => { console.error("[bw] swallowed:", e); return false; });
             const active = (await getSetting('embedding.activeModel')) === m.id;
 
             const card = el('div', { class: 'settings-card' });
@@ -544,7 +544,7 @@ async function sectionVoice() {
             if (v.uri === savedUri) opt.setAttribute('selected', '');
             ttsVoiceSel.appendChild(opt);
         }
-    } catch (_) { /* ignore */ }
+    } catch (_err) { console.warn("[bw] caught:", _err); }
     ttsVoiceSel.addEventListener('change', () => voice.setTtsVoice(ttsVoiceSel.value || null));
     body.appendChild(el('label', { class: 'bw-label' }, t('settings.voice.voice'), ttsVoiceSel));
 
@@ -613,7 +613,7 @@ async function sectionAbout() {
     try {
         const wasm = await getWasm();
         if (typeof wasm.version === 'function') version = wasm.version();
-    } catch (_) { /* ignore */ }
+    } catch (_err) { console.warn("[bw] caught:", _err); }
 
     let buildTime = 'unknown';
     let buildGit = 'unknown';
@@ -621,7 +621,7 @@ async function sectionAbout() {
         const info = await import('../build-info.js');
         buildTime = info.BUILD_TIME || buildTime;
         buildGit = info.BUILD_GIT || buildGit;
-    } catch (_) { /* ignore */ }
+    } catch (_err) { console.warn("[bw] caught:", _err); }
 
     body.appendChild(el('p', {}, el('strong', {}, t('settings.about.version') + ': '), String(version)));
     body.appendChild(el('p', {}, el('strong', {}, t('settings.about.build') + ': '), `${buildTime} (${buildGit})`));

@@ -266,14 +266,14 @@ export async function deleteModel(modelId) {
     if (!m) return;
     const cache = await caches.open(CACHE_NAME);
     for (const f of m.files) {
-        try { await cache.delete(cacheKey(modelId, f.filename)); } catch (_) { /* ignore */ }
+        try { await cache.delete(cacheKey(modelId, f.filename)); } catch (_err) { console.warn("[bw] caught:", _err); }
     }
     // Also clear OPFS partial downloads so a re-download starts fresh.
     try {
         if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.getDirectory) {
             const root = await navigator.storage.getDirectory();
-            const dlDir = await root.getDirectoryHandle('model-downloads', { create: false }).catch(() => null);
-            if (dlDir) await dlDir.removeEntry(modelId, { recursive: true }).catch(() => {});
+            const dlDir = await root.getDirectoryHandle('model-downloads', { create: false }).catch((e) => { console.warn("[bw] swallowed:", e); return null; });
+            if (dlDir) await dlDir.removeEntry(modelId, { recursive: true }).catch((e) => { console.warn("[bw] swallowed:", e); });
         }
     } catch (_) { /* OPFS unavailable or dir doesn't exist */ }
     events.dispatchEvent(new CustomEvent('model_deleted', { detail: { modelId } }));
@@ -283,10 +283,10 @@ export async function deleteModel(modelId) {
 export function cancelDownload(modelId) {
     const a = activeDownloads.get(modelId);
     if (a && a.controller) {
-        try { a.controller.abort(); } catch (_) { /* idempotent */ }
+        try { a.controller.abort(); } catch (_err) { console.debug("[bw] idempotent:", _err); }
     }
     if (typeof navigator !== 'undefined' && navigator.serviceWorker && navigator.serviceWorker.controller) {
-        try { navigator.serviceWorker.controller.postMessage({ type: 'model_download_cancel', modelId }); } catch (_) {}
+        try { navigator.serviceWorker.controller.postMessage({ type: 'model_download_cancel', modelId }); } catch (_err) { console.warn("[bw] caught:", _err); }
     }
 }
 
@@ -313,7 +313,7 @@ class HfAuthRequiredError extends Error {
 export async function downloadModel(modelId, opts = {}) {
     if (activeDownloads.has(modelId)) return activeDownloads.get(modelId).promise;
     for (const other of activeDownloads.values()) {
-        await other.promise.catch(() => {});
+        await other.promise.catch((e) => { console.warn("[bw] swallowed:", e); });
     }
     if (!_hasCaches()) throw new Error('Cache Storage unavailable');
 
@@ -454,7 +454,7 @@ async function _downloadDirect(modelId, opts) {
                 throughputBps,
                 etaSeconds,
             };
-            try { if (typeof opts.onProgress === 'function') opts.onProgress(detail); } catch (_) {}
+            try { if (typeof opts.onProgress === 'function') opts.onProgress(detail); } catch (_err) { console.warn("[bw] caught:", _err); }
             events.dispatchEvent(new CustomEvent('model_progress', { detail }));
         };
 

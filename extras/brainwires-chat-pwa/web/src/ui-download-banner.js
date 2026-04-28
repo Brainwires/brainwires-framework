@@ -18,6 +18,7 @@
 import { events } from './state.js';
 import {
     KNOWN_MODELS,
+    KNOWN_EMBEDDING_MODELS,
     downloadModel,
     cancelDownload,
     deleteModel,
@@ -121,7 +122,7 @@ function subscribe() {
  * @returns {Promise<void>}
  */
 export async function startDownload(modelId, opts = {}) {
-    const m = KNOWN_MODELS[modelId];
+    const m = (KNOWN_MODELS[modelId] || KNOWN_EMBEDDING_MODELS[modelId]);
     if (!m) {
         toast(`Unknown model: ${modelId}`, 'error');
         return;
@@ -137,7 +138,7 @@ export async function startDownload(modelId, opts = {}) {
         // HF_AUTH_REQUIRED error and re-prompts.
         let hfToken = opts.hfToken || null;
         if (!hfToken) {
-            hfToken = await readDecryptedHfToken().catch(() => null);
+            hfToken = await readDecryptedHfToken().catch((e) => { console.warn("[bw] swallowed:", e); return null; });
         }
 
         await downloadModel(modelId, { hfToken });
@@ -214,7 +215,7 @@ function render() {
 }
 
 function buildContent(compact) {
-    const m = _activeModelId ? KNOWN_MODELS[_activeModelId] : null;
+    const m = _activeModelId ? (KNOWN_MODELS[_activeModelId] || KNOWN_EMBEDDING_MODELS[_activeModelId]) : null;
     const name = m ? m.displayName : 'model';
     const wrap = el('div', { class: `bw-dl bw-dl-${_state}` });
 
@@ -290,7 +291,7 @@ function promptForHfToken(modelId) {
     }
     clear(overlay);
 
-    const close = () => { try { overlay.remove(); } catch (_) {} };
+    const close = () => { try { overlay.remove(); } catch (_err) { console.warn("[bw] caught:", _err); } };
 
     const tokenInput = el('input', {
         type: 'password',
