@@ -408,15 +408,19 @@ async function _downloadDirect(modelId, opts) {
                 await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
             }
 
-            // Reassemble into a single ArrayBuffer for hashing + caching.
+            // Emit 100% BEFORE the heavy Blob assembly + cache write so the
+            // UI doesn't sit at 99% during multi-second disk I/O.
+            emitProgress(f, fileBytesDone, contentLength, true);
+            await new Promise(r => setTimeout(r, 0));
+
+            // Reassemble into a single Blob for caching. For a 2.5 GB file
+            // this is a significant memory + I/O operation.
             const blob = new Blob(chunks);
             const cacheHeaders = new Headers();
             cacheHeaders.set('content-type', 'application/octet-stream');
             cacheHeaders.set('content-length', String(blob.size));
             const cachedResp = new Response(blob, { status: 200, headers: cacheHeaders });
             await cache.put(url, cachedResp);
-
-            emitProgress(f, fileBytesDone, contentLength, true);
 
             // Verify pin if available.
             if (f.sha256) {

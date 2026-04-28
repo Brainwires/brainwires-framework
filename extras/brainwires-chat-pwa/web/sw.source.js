@@ -342,10 +342,11 @@ async function handleModelDownload(msg, _event) {
                 await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
             }
 
+            emitProgress(f, fileBytesDone, contentLength, true);
+
             const blob = new Blob(chunks);
             const h = new Headers({ 'content-type': 'application/octet-stream', 'content-length': String(blob.size) });
             await cache.put(url, new Response(blob, { status: 200, headers: h }));
-            emitProgress(f, fileBytesDone, contentLength, true);
         }
 
         broadcastDl({ type: 'model_download_done', modelId });
