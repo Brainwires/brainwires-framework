@@ -8,16 +8,28 @@ export const id = 'openai';
 export const displayName = 'OpenAI';
 export const runtime = 'cloud';
 export const format = 'sse';
-export const defaultModel = 'o4-mini';
+export const defaultModel = 'gpt-5.5';
 export const models = [
+    'gpt-5.5',
+    'gpt-5.5-pro',
+    'gpt-5.4',
+    'gpt-5.4-mini',
+    'gpt-5.4-nano',
+    'gpt-5.4-pro',
+    'gpt-5.2',
+    'gpt-5.2-pro',
+    'gpt-5.1',
+    'gpt-5',
+    'gpt-5-mini',
+    'gpt-5-nano',
     'o4-mini',
     'o3',
+    'o3-pro',
     'o3-mini',
+    'o1',
     'gpt-4.1',
     'gpt-4.1-mini',
     'gpt-4.1-nano',
-    'gpt-4o',
-    'gpt-4o-mini',
 ];
 
 const ENDPOINT = 'https://api.openai.com/v1/chat/completions';
